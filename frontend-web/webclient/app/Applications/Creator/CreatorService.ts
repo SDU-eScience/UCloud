@@ -20,6 +20,7 @@ import {applicationToSourceText, parseSourceText} from "@/Applications/Creator/S
 import {templateApplicationForContext, templateCustomMetaForContext} from "@/Applications/Creator/Templates";
 import {A2Yaml} from "@/Applications/Creator/A2";
 import {fetchAll} from "@/Utilities/PageUtilities";
+import {creatorConvertForkSource} from "@/Applications/Creator/ForkConversion";
 
 export const creatorService: CreatorService = {
     async loadSource(context) {
@@ -36,18 +37,24 @@ export const creatorService: CreatorService = {
         if (!context.existingName || !context.existingVersion) {
             throw new Error("The source application name and version are required.");
         }
-        if (creatorIsCustom(context) && !context.provider) {
+        const sourceKind = context.operation === "fork" ? context.sourceApplicationKind : context.applicationKind;
+        const sourceProvider = context.operation === "fork" ? context.sourceProvider : context.provider;
+        if (sourceKind === "custom" && !sourceProvider) {
             throw new Error("The source service provider is required.");
         }
 
         const response = await callAPI(AppStore.retrieveEditorSource({
-            kind: creatorIsCustom(context) ? "CUSTOM" : "MANAGED",
+            kind: sourceKind === "custom" ? "CUSTOM" : "MANAGED",
             name: context.existingName,
             version: context.existingVersion,
-            serviceProvider: context.provider,
+            serviceProvider: sourceProvider,
             intent: context.operation === "fork" ? "FORK" : "EDIT",
         }));
-        const source = creatorIsCustom(context) ? creatorSourceForEditor(response.source) : response.source;
+        const source = sourceKind === "custom" ? creatorSourceForEditor(response.source) : response.source;
+        if (context.operation === "fork") {
+            const converted = creatorConvertForkSource(source, `${context.existingName ?? "application"}-fork`, "1.0");
+            return {...converted};
+        }
         const parsed = parseSourceText(source);
         if (!parsed.ok) {
             throw new Error("The application source could not be loaded.");
@@ -104,12 +111,14 @@ export const creatorService: CreatorService = {
         };
     },
 
-    async save(application, sourceText, context, customMeta) {
+    async save(_application, sourceText, context, customMeta) {
         if (creatorIsCustom(context)) {
             if (!customMeta) throw new Error("Custom application placement metadata is missing.");
+            const parsed = parseSourceText(creatorSourceForEditor(sourceText));
+            if (!parsed.ok) throw new Error("The application source could not be saved.");
             await callAPI(AppStore.createCustomApplication({
-                ...application,
-                name: internalCustomName(application.name),
+                ...parsed.application,
+                name: internalCustomName(parsed.application.name),
                 serviceProvider: customMeta.provider,
                 publishedToProject: customMeta.publishedToProject,
                 flavorName: customMeta.flavor,

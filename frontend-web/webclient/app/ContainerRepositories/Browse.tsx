@@ -7,6 +7,7 @@ import {
     ResourceBrowser,
     ResourceBrowserOpts,
     ResourceBrowseHeaderControls,
+    Selection,
     addProjectSwitcherInPortal,
     checkIsWorkspaceAdmin,
     createProjectSwitcherPortal,
@@ -129,6 +130,11 @@ type RegistryInstructions = {
     imageReference: string;
 };
 
+export interface ContainerRepositoryImageSelection {
+    text: string;
+    onSelect: (image: ContainerRepositoryImage, imageUrl: string) => void;
+}
+
 function isRepository(entry: BrowserEntry): entry is ContainerRepository {
     return "specification" in entry;
 }
@@ -148,9 +154,11 @@ function isLayer(entry: BrowserEntry): entry is LayerEntry {
 export default function ContainerRepositoryBrowse({
     opts,
     headerControls,
+    imageSelection,
 }: {
     opts?: ResourceBrowserOpts<ContainerRepository>;
     headerControls?: ResourceBrowseHeaderControls;
+    imageSelection?: ContainerRepositoryImageSelection;
 }): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<BrowserEntry> | null>(null);
@@ -186,9 +194,39 @@ export default function ContainerRepositoryBrowse({
             const repositoriesByPath = new Map<string, ContainerRepository>();
             const imageGroupsByPath = new Map<string, ImageGroupEntry>();
             const imagesByPath = new Map<string, ImageEntry>();
-            new ResourceBrowser<BrowserEntry>(mount, RESOURCE_NAME, opts as unknown as ResourceBrowserOpts<BrowserEntry>).init(
+            const selection: Selection<BrowserEntry> | undefined = imageSelection ? {
+                text: imageSelection.text,
+                show: entry => {
+                    if (!isImage(entry)) return false;
+                    return getRegistryInstructions(
+                        browserRef.current?.currentPath ?? "/",
+                        repositoriesByPath,
+                        imageGroupsByPath,
+                        imagesByPath,
+                        supportByProvider.retrieveFromCacheOnly(Client.projectId ?? ""),
+                    ) ? true : "The container registry server is unavailable.";
+                },
+                onClick: entry => {
+                    if (!isImage(entry)) return;
+                    const instructions = getRegistryInstructions(
+                        browserRef.current?.currentPath ?? "/",
+                        repositoriesByPath,
+                        imageGroupsByPath,
+                        imagesByPath,
+                        supportByProvider.retrieveFromCacheOnly(Client.projectId ?? ""),
+                    );
+                    if (!instructions) return;
+                    imageSelection.onSelect(entry, `${instructions.server}/${entry.repository}:${entry.tag}`);
+                },
+            } : undefined;
+            const browserOpts = imageSelection ? {
+                ...opts,
+                isModal: true,
+                selection,
+            } : opts;
+            new ResourceBrowser<BrowserEntry>(mount, RESOURCE_NAME, browserOpts as unknown as ResourceBrowserOpts<BrowserEntry>).init(
                 browserRef,
-                FEATURES,
+                imageSelection ? {...FEATURES, projectSwitcher: false} : FEATURES,
                 "/",
                 browser => {
                     browser.root.classList.add(ContainerRepositoryBrowserStyle);
@@ -208,12 +246,18 @@ export default function ContainerRepositoryBrowse({
                     fetchSupport(Client.projectId);
                     addProjectListener(PROJECT_CHANGE_LISTENER_ID, projectId => fetchSupport(projectId ?? undefined));
 
-                    browser.on("skipOpen", (_oldPath, _newPath, resource) => resource != null && isLayer(resource));
+                    browser.on("skipOpen", (_oldPath, _newPath, resource) => {
+                        if (imageSelection && resource && isImage(resource)) {
+                            selection?.onClick(resource);
+                            return true;
+                        }
+                        return resource != null && isLayer(resource);
+                    });
 
                     browser.on("open", (_oldPath, newPath, resource) => {
                         if (openTriggeredByPath.current === newPath) {
                             openTriggeredByPath.current = null;
-                        } else if (!opts?.embedded && !opts?.isModal) {
+                        } else if (!opts?.embedded && !opts?.isModal && imageSelection == null) {
                             navigate(`/container-repositories?path=${encodeURIComponent(newPath)}`);
                         }
                         if (resource && isRepository(resource)) {
@@ -540,6 +584,10 @@ export default function ContainerRepositoryBrowse({
                             row.stat1.title = mediaType.title;
                             row.stat2.innerText = (entry.layers?.length ?? 0).toLocaleString();
                             row.stat3.innerText = formatBytes(entry.sizeInBytes);
+                            if (imageSelection) {
+                                const button = browser.defaultButtonRenderer(selection, entry);
+                                if (button) row.stat3.replaceChildren(button);
+                            }
                             return;
                         }
                         if (isLayer(entry)) {
@@ -675,6 +723,7 @@ export default function ContainerRepositoryBrowse({
                     });
 
                     browser.on("fetchOperations", () => {
+                        if (imageSelection) return [];
                         const selected = browser.findSelectedEntries();
 
                         const registryInstructions = getRegistryInstructions(
@@ -788,7 +837,7 @@ export default function ContainerRepositoryBrowse({
         addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
-    if (!opts?.embedded && !opts?.isModal) {
+    if (!opts?.embedded && !opts?.isModal && imageSelection == null) {
         useSetRefreshFunction(() => browserRef.current?.refresh());
     }
 

@@ -26,6 +26,7 @@ import {
     ensureJinja2Language,
     ensureUcloudDarkTheme,
 } from "@/Applications/Creator/MonacoShared";
+import {InvocationHelp} from "@/Applications/Creator/InvocationHelp";
 import {useMonaco} from "@/Editor/Editor";
 
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
@@ -34,7 +35,7 @@ import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 const DEFAULT_HEIGHT = 500;
 const INVOCATION_CARD_HEIGHT = DEFAULT_HEIGHT + 120;
 
-export type InvocationTab = "invocation" | "preview";
+export type InvocationTab = "invocation" | "preview" | "help";
 
 export interface InvocationEditorProps {
     // The current invocation text from the draft.
@@ -146,8 +147,8 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
             id="creator-card-invocation"
             className={classConcat(InvocationCardClass, props.maximized ? InvocationMaximizedClass : undefined)}
             style={props.maximized ? {flex: "1 1 auto", minHeight: 0} : {height: `${INVOCATION_CARD_HEIGHT}px`}}
-            activeIndex={props.activeTab === "preview" ? 1 : 0}
-            onTabChange={idx => props.onTabChange(idx === 1 ? "preview" : "invocation")}
+            activeIndex={props.activeTab === "preview" ? 1 : props.activeTab === "help" ? 2 : 0}
+            onTabChange={idx => props.onTabChange(idx === 1 ? "preview" : idx === 2 ? "help" : "invocation")}
             rightControls={
                 <IconButton
                     icon={props.maximized ? "heroArrowsPointingIn" : "heroArrowsPointingOut"}
@@ -173,6 +174,9 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
             <TabbedCardTab name="Preview" icon="heroEye">
                 {props.preview}
             </TabbedCardTab>
+            <TabbedCardTab name="Help" icon="heroQuestionMarkCircle">
+                <InvocationHelp />
+            </TabbedCardTab>
         </TabbedCard>
     );
 }
@@ -190,8 +194,8 @@ const InvocationEditorHostClass = injectStyle("creator-invocation-editor-host", 
     }
 `);
 
-// The invocation card keeps the same card treatment in both tabs. Maximized mode only changes the
-// card's flex behavior so the editor can fill the creator content island.
+// The invocation card keeps the same card treatment in both tabs. Maximized mode removes the compact
+// card width limit and lets the editor fill the creator content island.
 const InvocationCardClass = injectStyle("creator-invocation-card", k => `
     ${k} {
         max-width: 944px;
@@ -220,6 +224,8 @@ const InvocationMaximizedClass = injectStyle("creator-invocation-maximized", k =
         min-height: 0;
         flex: 1 1 auto;
         height: 100%;
+        width: 100%;
+        max-width: none;
     }
 `);
 

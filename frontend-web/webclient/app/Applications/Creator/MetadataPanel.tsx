@@ -27,6 +27,25 @@ import type {
     AppCatalogCustomGroup,
     AppEditorCustomEligibilityResponse,
 } from "@/Applications/AppStoreApi";
+import {ServiceProviderSelector} from "@/Applications/ApiTokens/Add";
+import {Flex} from "@/ui-components";
+import {ProviderLogo} from "@/Providers/ProviderLogo";
+import {ProviderTitle} from "@/Providers/ProviderTitle";
+import {RichSelectProps} from "@/ui-components/RichSelect";
+import {MandatoryField} from "@/UtilityComponents";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {fileSelectorModalStyle, slimModalStyle} from "@/Utilities/ModalUtilities";
+import {callAPI} from "@/Authentication/DataHook";
+import * as AppStore from "@/Applications/AppStoreApi";
+import {fetchAll} from "@/Utilities/PageUtilities";
+import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
+import {sendFailureNotification} from "@/Notifications";
+import * as Heading from "@/ui-components/Heading";
+import {Divider} from "@/ui-components";
+import {useGlobal} from "@/Utilities/ReduxHooks";
+import ContainerRepositoryBrowse from "@/ContainerRepositories/Browse";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
 
 export interface MetadataPanelProps {
     draft: CreatorDraft;
@@ -52,6 +71,7 @@ export interface MetadataPanelProps {
     customEligibility?: AppEditorCustomEligibilityResponse | null;
     customGroups?: AppCatalogCustomGroup[];
     customCategories?: AppCatalogCustomCategory[];
+    refreshPlacement: () => Promise<void>;
 }
 
 export function MetadataPanel(props: MetadataPanelProps): React.ReactNode {
@@ -75,6 +95,8 @@ export function MetadataPanel(props: MetadataPanelProps): React.ReactNode {
                 application={application}
                 editableName={editableName}
                 editableVersion={editableVersion}
+                namePlaceholder={context.operation === "fork" ? `${context.existingName ?? "application"}-fork` : undefined}
+                versionPlaceholder={context.operation === "fork" ? "1.0" : undefined}
                 onNameChange={props.onNameChange}
                 onVersionChange={props.onVersionChange}
             />
@@ -82,9 +104,32 @@ export function MetadataPanel(props: MetadataPanelProps): React.ReactNode {
                 application={application}
                 onUpdateMetadata={props.onUpdateMetadata}
             />
+            <GroupFlavorSection
+                draft={draft}
+                onUpdateCustomMeta={props.onUpdateCustomMeta}
+                groups={props.customGroups}
+                refreshPlacement={props.refreshPlacement}
+            />
+            {isCustom ? (
+                <CustomFieldsSection
+                    draft={draft}
+                    onUpdateCustomMeta={props.onUpdateCustomMeta}
+                    eligibility={props.customEligibility}
+                    categories={props.customCategories}
+                    refreshPlacement={props.refreshPlacement}
+                />
+            ) : (
+                <ManagedFieldsSection
+                    application={application}
+                    onUpdateModules={props.onUpdateModules}
+                    onUpdateUcx={props.onUpdateUcx}
+                    onUpdateExtensions={props.onUpdateExtensions}
+                />
+            )}
             <SoftwareSection
                 application={application}
                 isCustom={isCustom}
+                customProvider={draft.customMeta?.provider}
                 onUpdateSoftware={props.onUpdateSoftware}
             />
             <RuntimeFeaturesSection
@@ -103,26 +148,6 @@ export function MetadataPanel(props: MetadataPanelProps): React.ReactNode {
                 onUpdateEnvironment={props.onUpdateEnvironment}
                 onUpdateSbatch={props.onUpdateSbatch}
             />
-            <GroupFlavorSection
-                draft={draft}
-                onUpdateCustomMeta={props.onUpdateCustomMeta}
-                groups={props.customGroups}
-            />
-            {isCustom ? (
-                <CustomFieldsSection
-                    draft={draft}
-                    onUpdateCustomMeta={props.onUpdateCustomMeta}
-                    eligibility={props.customEligibility}
-                    categories={props.customCategories}
-                />
-            ) : (
-                <ManagedFieldsSection
-                    application={application}
-                    onUpdateModules={props.onUpdateModules}
-                    onUpdateUcx={props.onUpdateUcx}
-                    onUpdateExtensions={props.onUpdateExtensions}
-                />
-            )}
             <WidgetDrawerSection onAddParameter={props.onAddParameter} />
         </div>
     );
@@ -142,30 +167,32 @@ function IdentitySection(props: {
     application: A2Yaml;
     editableName: boolean;
     editableVersion: boolean;
+    namePlaceholder?: string;
+    versionPlaceholder?: string;
     onNameChange: (name: string) => void;
     onVersionChange: (version: string) => void;
 }): React.ReactNode {
     return (
         <PanelSection title="Identity">
             <Label className="panel-field">
-                <span className="panel-field-label">Name</span>
+                <span className="panel-field-label">Name<MandatoryField /></span>
                 <Input
                     className={PanelInputClass}
                     value={props.application.name}
                     onChange={e => props.onNameChange(e.target.value)}
                     disabled={!props.editableName}
-                    placeholder="application-name"
+                    placeholder={props.namePlaceholder ?? "application-name"}
                     data-creator-field="name"
                 />
             </Label>
             <Label className="panel-field">
-                <span className="panel-field-label">Version</span>
+                <span className="panel-field-label">Version<MandatoryField /></span>
                 <Input
                     className={PanelInputClass}
                     value={props.application.version}
                     onChange={e => props.onVersionChange(e.target.value)}
                     disabled={!props.editableVersion}
-                    placeholder="1.0.0"
+                    placeholder={props.versionPlaceholder ?? "1.0.0"}
                     data-creator-field="version"
                 />
             </Label>
@@ -233,6 +260,7 @@ function PresentationSection(props: {
 function SoftwareSection(props: {
     application: A2Yaml;
     isCustom: boolean;
+    customProvider?: string;
     onUpdateSoftware: (software: A2Software) => void;
 }): React.ReactNode {
     const {application, isCustom} = props;
@@ -245,13 +273,11 @@ function SoftwareSection(props: {
         return (
             <PanelSection title="Software">
                 <Label className="panel-field">
-                    <span className="panel-field-label">Container image</span>
-                    <Input
-                        className={PanelInputClass}
-                        value={image}
-                        onChange={e => props.onUpdateSoftware({type: "Container", image: e.target.value})}
-                        placeholder="dreg.cloud.sdu.dk/image:tag"
-                        data-creator-field="software.image"
+                    <span className="panel-field-label">Container image<MandatoryField /></span>
+                    <ContainerImageSelector
+                        image={image}
+                        provider={props.customProvider}
+                        onSelect={imageUrl => props.onUpdateSoftware({type: "Container", image: imageUrl})}
                     />
                 </Label>
             </PanelSection>
@@ -281,6 +307,50 @@ function SoftwareSection(props: {
     );
 }
 
+function ContainerImageSelector(props: {
+    image: string;
+    provider?: string;
+    onSelect: (imageUrl: string) => void;
+}): React.ReactNode {
+    const openSelector = () => {
+        dialogStore.addDialog(
+            <ContainerRepositoryBrowse
+                opts={{
+                    isModal: true,
+                    additionalFilters: props.provider ? {filterProvider: props.provider} : undefined,
+                }}
+                imageSelection={{
+                    text: "Use",
+                    onSelect: (_image, imageUrl) => {
+                        props.onSelect(imageUrl);
+                        dialogStore.success();
+                    },
+                }}
+            />,
+            doNothing,
+            true,
+            fileSelectorModalStyle,
+        );
+    };
+
+    return (
+        <button
+            type="button"
+            className={CategoryFieldClass}
+            onClick={openSelector}
+            disabled={!props.provider}
+            data-creator-field="software.image"
+            title={props.image || "Select a container image"}
+        >
+            {props.image ? (
+                <span className={ContainerImageFieldValueClass}>{props.image}</span>
+            ) : (
+                <span className={CategoryFieldPlaceholderClass}>Select a container image</span>
+            )}
+        </button>
+    );
+}
+
 function renderSoftwareFields(
     software: A2Software,
     onUpdate: (software: A2Software) => void,
@@ -289,7 +359,7 @@ function renderSoftwareFields(
         case "Container":
             return (
                 <Label className="panel-field">
-                    <span className="panel-field-label">Container image</span>
+                    <span className="panel-field-label">Container image<MandatoryField /></span>
                     <Input
                         className={PanelInputClass}
                         value={software.image}
@@ -302,7 +372,7 @@ function renderSoftwareFields(
         case "VirtualMachine":
             return (
                 <Label className="panel-field">
-                    <span className="panel-field-label">VM image</span>
+                    <span className="panel-field-label">VM image<MandatoryField /></span>
                     <Input
                         className={PanelInputClass}
                         value={software.image}
@@ -314,7 +384,7 @@ function renderSoftwareFields(
         case "UCX":
             return (
                 <Label className="panel-field">
-                    <span className="panel-field-label">UCX image</span>
+                    <span className="panel-field-label">UCX image<MandatoryField /></span>
                     <Input
                         className={PanelInputClass}
                         value={software.image}
@@ -697,21 +767,259 @@ function keyValueFromEntries(entries: [string, string][]): {result: Record<strin
 // Group and flavor (custom only)
 // -------------------------------------------------------------------------------------------------------------------
 
+interface ResourceOption {
+    id: number;
+    title: string;
+    description: string;
+    isCustom: boolean;
+}
+
+function ResourceSelectorModal(props: {
+    title: string;
+    singular: string;
+    resourceLabel: string;
+    custom: Array<{id: number; backedBy?: number; specification: {title: string; description: string}}>;
+    loadManaged: () => Promise<ResourceOption[]>;
+    createCustom: (kind: "Custom" | "Managed", managedId: number | null, title: string, description: string) => Promise<number>;
+    canCreateCustom?: boolean;
+    onSelect: (id: string) => void;
+    onCreated: (id: number, title: string, description: string) => Promise<void>;
+}): React.ReactNode {
+    const [managed, setManaged] = useState<ResourceOption[] | null>(null);
+    const [creating, setCreating] = useState(false);
+    const [filter, setFilter] = useState("");
+    const [creatingNew, setCreatingNew] = useState(false);
+    const [newTitle, setNewTitle] = useState("");
+    const [newDescription, setNewDescription] = useState("");
+
+    React.useEffect(() => {
+        let cancelled = false;
+        props.loadManaged().then(items => {
+            if (!cancelled) setManaged(items);
+        }).catch(() => {
+            if (!cancelled) setManaged([]);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    React.useEffect(() => {
+        if (!creatingNew) return;
+        const listener = (event: KeyboardEvent) => {
+            if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                setCreatingNew(false);
+                setNewTitle("");
+                setNewDescription("");
+            }
+        };
+        document.addEventListener("keydown", listener, true);
+        return () => document.removeEventListener("keydown", listener, true);
+    }, [creatingNew]);
+
+    const byBacked = new Map<number, number>();
+    for (const resource of props.custom) {
+        if (resource.backedBy != null) byBacked.set(resource.backedBy, resource.id);
+    }
+
+    const options: ResourceOption[] = [];
+    const seen = new Set<number>();
+    for (const option of managed ?? []) {
+        seen.add(option.id);
+        const backing = byBacked.get(option.id);
+        if (backing != null) {
+            seen.add(backing);
+            options.push({...option, id: backing, isCustom: true});
+        } else {
+            options.push(option);
+        }
+    }
+    for (const resource of props.custom) {
+        if (seen.has(resource.id)) continue;
+        options.push({id: resource.id, title: resource.specification.title, description: resource.specification.description, isCustom: true});
+    }
+
+    const canCreateCustom = props.canCreateCustom ?? true;
+    const filtered = (filter.trim()
+        ? options.filter(option =>
+            option.title.toLowerCase().includes(filter.trim().toLowerCase()) ||
+            option.description.toLowerCase().includes(filter.trim().toLowerCase()))
+        : options).filter(option => canCreateCustom || option.isCustom);
+
+    const finish = async (id: number, title: string, description: string) => {
+        try {
+            await props.onCreated(id, title, description);
+        } catch {
+            // Ignored
+        }
+        props.onSelect(String(id));
+        dialogStore.success();
+    };
+
+    const select = (option: ResourceOption) => {
+        if (option.isCustom) {
+            props.onSelect(String(option.id));
+            dialogStore.success();
+            return;
+        }
+
+        setCreating(true);
+        props.createCustom("Managed", option.id, "", "").then(id => {
+            finish(id, option.title, option.description);
+        }).catch(error => {
+            sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
+            setCreating(false);
+        });
+    };
+
+    const createNew = async () => {
+        const title = newTitle.trim();
+        if (!title) return;
+        setCreating(true);
+        props.createCustom("Custom", null, title, newDescription.trim()).then(id => {
+            finish(id, title, newDescription.trim());
+        }).catch(error => {
+            sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
+            setCreating(false);
+        });
+    };
+
+    return (
+        <div className={CategoryModalClass}>
+            <Heading.h3>{props.title}</Heading.h3>
+            <Text color="textSecondary" fontSize={13}>
+                Choose a {props.singular} for this application. If a {props.singular} does not exist yet you can create it.
+            </Text>
+            <Divider />
+            {canCreateCustom && !creatingNew ? (
+                <Flex justifyContent="stretch" mt="8px">
+                    <Button color="secondaryMain" width="100%" onClick={() => setCreatingNew(true)} disabled={creating}>
+                        <Icon name="heroPlus" size={14} mr={6} />
+                        New {props.singular}
+                    </Button>
+                </Flex>
+            ) : canCreateCustom ? (
+                <div className={CategoryCreateFormClass}>
+                    <Input
+                        value={newTitle}
+                        onChange={e => setNewTitle(e.target.value)}
+                        placeholder={`Name of the new ${props.singular}`}
+                        autoFocus
+                        onKeyDown={e => {
+                            if (e.key === "Enter") void createNew();
+                        }}
+                    />
+                    <TextArea
+                        value={newDescription}
+                        onChange={e => setNewDescription(e.target.value)}
+                        placeholder={`Optional description of the new ${props.singular}`}
+                        rows={2}
+                    />
+                    <Flex gap="8px" justifyContent="flex-end">
+                        <Button color="secondaryMain" onClick={() => {
+                            setCreatingNew(false);
+                            setNewTitle("");
+                            setNewDescription("");
+                        }}>
+                            Cancel
+                        </Button>
+                        <Button color="successMain" onClick={() => void createNew()} disabled={creating || newTitle.trim() === ""}>
+                            Create
+                        </Button>
+                    </Flex>
+                </div>
+            ) : null}
+            <Input
+                className={CategoryFilterClass}
+                mt="8px"
+                value={filter}
+                onChange={e => setFilter(e.target.value)}
+                placeholder={`Filter ${props.resourceLabel.toLowerCase()}...`}
+            />
+            <div className={CategoryModalListClass}>
+                {managed == null ? (
+                    <Text fontSize={13} color="textSecondary">Loading...</Text>
+                ) : filtered.length === 0 ? (
+                    <Text fontSize={13} color="textSecondary">No {props.resourceLabel.toLowerCase()} found.</Text>
+                ) : filtered.map(option => (
+                    <button
+                        key={option.id}
+                        className={CategoryModalRowClass}
+                        type="button"
+                        onClick={() => select(option)}
+                        disabled={creating}
+                    >
+                        <span className={CategoryModalRowTitleClass}>{option.title}</span>
+                        {option.description ? <span className={CategoryModalRowDescriptionClass}>{option.description}</span> : null}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 function GroupFlavorSection(props: {
     draft: CreatorDraft;
     onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
     groups?: AppCatalogCustomGroup[];
+    refreshPlacement: () => Promise<void>;
 }): React.ReactNode {
     const {draft} = props;
     const meta = draft.customMeta;
+    const [createdGroup, setCreatedGroup] = useState<{id: number; title: string; description: string} | null>(null);
     if (!meta) {
         // Managed applications do not have custom group or flavor. Show nothing.
         return null;
     }
+
+    const allGroups = props.groups ?? [];
+    const selected = meta.group
+        ? allGroups.find(group => String(group.id) === meta.group) ?? (
+            createdGroup != null && String(createdGroup.id) === meta.group
+                ? {id: createdGroup.id, specification: {title: createdGroup.title, description: createdGroup.description}}
+                : null
+        )
+        : null;
+
+    const openGroupSelector = () => {
+        dialogStore.addDialog(
+            <ResourceSelectorModal
+                title="Select a group"
+                singular="group"
+                resourceLabel="Groups"
+                custom={allGroups}
+                loadManaged={() => fetchAll<AppStore.ApplicationGroup>(next => callAPI(AppStore.browseGroups({itemsPerPage: 250, next}))).then(groups =>
+                    groups.map(group => ({
+                        id: group.metadata.id,
+                        title: group.specification.title,
+                        description: group.specification.description,
+                        isCustom: false,
+                    })))}
+                createCustom={(kind, managedId, title, description) =>
+                    callAPI(AppStore.createCustomGroup({
+                        kind,
+                        ...(managedId != null ? {id: managedId} : {}),
+                        ...(kind === "Custom" ? {specification: {title, description}} : {}),
+                    })).then(result => result.id)
+                }
+                onSelect={id => props.onUpdateCustomMeta({group: id})}
+                onCreated={(id, title, description) => {
+                    setCreatedGroup({id, title, description});
+                    return props.refreshPlacement();
+                }}
+            />,
+            doNothing,
+            true,
+            slimModalStyle,
+        );
+    };
+
     return (
         <PanelSection title="Group and flavor">
             <Label className="panel-field">
-                <span className="panel-field-label">Flavor</span>
+                <span className="panel-field-label">Flavor<MandatoryField /></span>
                 <Input
                     className={PanelInputClass}
                     value={meta.flavor}
@@ -721,71 +1029,236 @@ function GroupFlavorSection(props: {
                 />
             </Label>
             <Label className="panel-field">
-                <span className="panel-field-label">Group</span>
-                {props.groups?.length ? (
-                    <Select
-                        className={PanelInputClass}
-                        value={meta.group}
-                        onChange={e => props.onUpdateCustomMeta({group: e.target.value})}
-                        data-creator-field="custom.groupId"
-                    >
-                        {meta.group && !props.groups.some(item => String(item.id) === meta.group) ? (
-                            <option value={meta.group}>{meta.group}</option>
-                        ) : null}
-                        {props.groups.map(item => (
-                            <option key={item.id} value={String(item.id)}>
-                                {item.specification.title}
-                            </option>
-                        ))}
-                    </Select>
-                ) : (
-                    <Input
-                        className={PanelInputClass}
-                        value={meta.group}
-                        onChange={e => props.onUpdateCustomMeta({group: e.target.value})}
-                        placeholder="The custom group id"
-                        data-creator-field="custom.groupId"
-                    />
-                )}
+                <span className="panel-field-label">Group<MandatoryField /></span>
+                <button
+                    type="button"
+                    className={CategoryFieldClass}
+                    onClick={openGroupSelector}
+                    data-creator-field="custom.groupId"
+                >
+                    {selected ? (
+                        <>
+                            <span className={CategoryFieldTitleClass}>{selected.specification.title}</span>
+                            {selected.specification.description ? (
+                                <span className={CategoryFieldDescriptionClass}>{selected.specification.description}</span>
+                            ) : null}
+                        </>
+                    ) : (
+                        <span className={CategoryFieldPlaceholderClass}>Select a group</span>
+                    )}
+                </button>
             </Label>
         </PanelSection>
     );
 }
 
+function CustomProviderRow(props: RichSelectProps<{key: string}>): React.ReactNode {
+    const height = props.dataProps == null ? "31.5px" : "38px";
+    const key = props.element?.key;
+    if (key == null) return null;
+    return <Flex height={height} pl="8px" key={key} {...props.dataProps} onClick={props.onSelect} alignItems={"center"} gap={"8px"}>
+        {!key ? <span>Select a provider</span> : <>
+            <ProviderLogo providerId={key} size={24} />
+            <ProviderTitle providerId={key} />
+        </>}
+    </Flex>;
+}
+
 // Custom fields: provider, category, publication
 // -------------------------------------------------------------------------------------------------------------------
+
+
+const CategoryModalClass = injectStyle("category-selector-modal", cl => `
+    ${cl} {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 70vh;
+    }
+`);
+
+const CategoryFilterClass = injectStyle("category-selector-filter", cl => `
+    ${cl} {
+        flex: 1;
+        min-width: 0;
+        width: 100%;
+    }
+`);
+
+const CategoryCreateFormClass = injectStyle("category-selector-create-form", cl => `
+    ${cl} {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 8px;
+        padding: 10px;
+        border: 1px solid var(--borderColor);
+        border-radius: 6px;
+        background: color-mix(in srgb, var(--backgroundDefault) 60%, transparent);
+    }
+`);
+
+const CategoryModalListClass = injectStyle("category-selector-modal-list", cl => `
+    ${cl} {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-top: 8px;
+        overflow-y: auto;
+    }
+`);
+
+const CategoryModalRowClass = injectStyle("category-selector-modal-row", cl => `
+    ${cl} {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--borderColor);
+        border-radius: 6px;
+        background: var(--backgroundDefault);
+        cursor: pointer;
+        text-align: left;
+    }
+
+    ${cl}:hover {
+        border-color: var(--borderColorHover);
+        background: var(--rowHover);
+    }
+`);
+
+const CategoryModalRowTitleClass = injectStyle("category-selector-modal-row-title", cl => `
+    ${cl} {
+        font-weight: 600;
+        font-size: 14px;
+    }
+`);
+
+const CategoryModalRowDescriptionClass = injectStyle("category-selector-modal-row-desc", cl => `
+    ${cl} {
+        font-size: 12px;
+        color: var(--textSecondary);
+    }
+`);
+
+const CategoryFieldClass = injectStyle("category-field", cl => `
+    ${cl} {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--borderColor);
+        border-radius: 5px;
+        background: var(--backgroundDefault);
+        cursor: pointer;
+        text-align: left;
+        font: inherit;
+    }
+
+    ${cl}:hover {
+        border-color: var(--borderColorHover);
+    }
+`);
+
+const CategoryFieldTitleClass = injectStyle("category-field-title", cl => `
+    ${cl} {
+        font-weight: 600;
+        font-size: 14px;
+    }
+`);
+
+const CategoryFieldDescriptionClass = injectStyle("category-field-desc", cl => `
+    ${cl} {
+        font-size: 12px;
+        color: var(--textSecondary);
+    }
+`);
+
+const CategoryFieldPlaceholderClass = injectStyle("category-field-placeholder", cl => `
+    ${cl} {
+        color: var(--textSecondary);
+        font-size: 14px;
+    }
+`);
+
+const ContainerImageFieldValueClass = injectStyle("container-image-field-value", cl => `
+    ${cl} {
+        overflow-wrap: anywhere;
+    }
+`);
 
 function CustomFieldsSection(props: {
     draft: CreatorDraft;
     onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
     eligibility?: AppEditorCustomEligibilityResponse | null;
     categories?: AppCatalogCustomCategory[];
+    refreshPlacement: () => Promise<void>;
 }): React.ReactNode {
     const {draft} = props;
     const meta = draft.customMeta;
+    const [, setLandingPage] = useGlobal("catalogLandingPage", AppStore.emptyLandingPage);
     if (!meta) return null;
+
+    const allCategories = props.categories ?? [];
+    const canCreateCategory = Client.userIsAdmin || checkIsWorkspaceAdmin();
+    const selected = meta.category
+        ? allCategories.find(category => String(category.id) === meta.category) ?? null
+        : null;
+
+    const openCategorySelector = () => {
+        dialogStore.addDialog(
+            <ResourceSelectorModal
+                title="Select a category"
+                singular="category"
+                resourceLabel="Categories"
+                custom={allCategories}
+                canCreateCustom={canCreateCategory}
+                loadManaged={() => fetchAll<AppStore.ApplicationCategory>(next => callAPI(AppStore.browseStudioCategories({itemsPerPage: 250, next}))).then(categories =>
+                    categories.map(category => ({
+                        id: category.metadata.id,
+                        title: category.specification.title,
+                        description: category.specification.description ?? "",
+                        isCustom: false,
+                    })))}
+                createCustom={(kind, managedId, title, description) =>
+                    callAPI(AppStore.createCustomCategory({
+                        kind,
+                        ...(managedId != null ? {id: managedId} : {}),
+                        ...(kind === "Custom" ? {specification: {title, description}} : {}),
+                    })).then(result => result.id)
+                }
+                onSelect={id => props.onUpdateCustomMeta({category: id})}
+                onCreated={() => {
+                    setLandingPage(AppStore.emptyLandingPage);
+                    return props.refreshPlacement();
+                }}
+            />,
+            doNothing,
+            true,
+            slimModalStyle,
+        );
+    };
 
     return (
         <>
             <PanelSection title="Provider and category">
                 <Label className="panel-field">
-                    <span className="panel-field-label">Provider</span>
+                    <span className="panel-field-label">Provider<MandatoryField /></span>
                     {props.eligibility?.providers.length ? (
-                        <Select
-                            className={PanelInputClass}
-                            value={meta.provider}
-                            onChange={e => props.onUpdateCustomMeta({provider: e.target.value})}
+                        <ServiceProviderSelector
+                            serviceProvider={meta.provider}
+                            serviceProviders={props.eligibility.providers.map(item => ({key: item.provider}))}
+                            renderRow={CustomProviderRow}
+                            renderSelectedRow={CustomProviderRow}
+                            showLabel={false}
+                            reserveLabelSpace={false}
+                            onSelect={el => props.onUpdateCustomMeta({provider: el.key})}
                             data-creator-field="custom.serviceProvider"
-                        >
-                            {meta.provider && !props.eligibility.providers.some(item => item.provider === meta.provider) ? (
-                                <option value={meta.provider}>{meta.provider}</option>
-                            ) : null}
-                            {props.eligibility.providers.map(item => (
-                                <option key={item.provider} value={item.provider}>
-                                    {item.provider}{item.eligible ? "" : " (not eligible)"}
-                                </option>
-                            ))}
-                        </Select>
+                        />
                     ) : (
                         <Input
                             className={PanelInputClass}
@@ -796,32 +1269,24 @@ function CustomFieldsSection(props: {
                     )}
                 </Label>
                 <Label className="panel-field">
-                    <span className="panel-field-label">Category</span>
-                    {props.categories?.length ? (
-                        <Select
-                            className={PanelInputClass}
-                            value={meta.category}
-                            onChange={e => props.onUpdateCustomMeta({category: e.target.value})}
-                            data-creator-field="custom.categoryId"
-                        >
-                            {meta.category && !props.categories.some(item => String(item.id) === meta.category) ? (
-                                <option value={meta.category}>{meta.category}</option>
-                            ) : null}
-                            {props.categories.map(item => (
-                                <option key={item.id} value={String(item.id)}>
-                                    {item.specification.title}
-                                </option>
-                            ))}
-                        </Select>
-                    ) : (
-                        <Input
-                            className={PanelInputClass}
-                            value={meta.category}
-                            onChange={e => props.onUpdateCustomMeta({category: e.target.value})}
-                            placeholder="The custom category id"
-                            data-creator-field="custom.categoryId"
-                        />
-                    )}
+                    <span className="panel-field-label">Category<MandatoryField /></span>
+                    <button
+                        type="button"
+                        className={CategoryFieldClass}
+                        onClick={openCategorySelector}
+                        data-creator-field="custom.categoryId"
+                    >
+                        {selected ? (
+                            <>
+                                <span className={CategoryFieldTitleClass}>{selected.specification.title}</span>
+                                {selected.specification.description ? (
+                                    <span className={CategoryFieldDescriptionClass}>{selected.specification.description}</span>
+                                ) : null}
+                            </>
+                        ) : (
+                            <span className={CategoryFieldPlaceholderClass}>Select a category</span>
+                        )}
+                    </button>
                 </Label>
             </PanelSection>
             <PanelSection title="Publication">

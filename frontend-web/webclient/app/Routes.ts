@@ -56,19 +56,22 @@ const syncthing = {
 }
 
 export interface ApplicationCreatorRoute {
-    operation: "newManaged" | "newCustom" | "newVersion";
+    operation: "newManaged" | "newCustom" | "newVersion" | "fork";
     applicationKind: "managed" | "custom";
     workspace: string;
     name?: string;
     version?: string;
     provider?: string;
     category?: number;
+    sourceApplicationKind?: "managed" | "custom";
+    sourceProvider?: string;
     returnTo?: string;
 }
 
 const apps = {
     landing: () => "/applications",
     category: (categoryId?: number) => buildQueryString(`/applications/category`, {categoryId}),
+    categoryCreate: () => "/applications/category/create",
     group: (id: string) => `/applications/group/${id}`,
     search: (q?: string) => "/applications/search" + (q ? `?q=${q}` : ""),
     shell: (jobId: string, rank: string) => `/applications/shell/${jobId}/${rank}`,

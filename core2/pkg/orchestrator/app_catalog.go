@@ -817,9 +817,6 @@ catLoop:
 	if filter {
 		wantGroups := flags&AppCatalogIncludeGroups != 0
 		wantApps := flags&AppCatalogIncludeApps != 0
-		customCategories = slices.DeleteFunc(customCategories, func(category orcapi.ApplicationCategory) bool {
-			return len(category.Status.Groups) == 0
-		})
 		if !wantGroups {
 			for i := range customCategories {
 				customCategories[i].Status.Groups = util.NonNilSlice[orcapi.ApplicationGroup](nil)

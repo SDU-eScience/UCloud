@@ -24,6 +24,9 @@ import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useProjectId} from "@/Project/Api";
 import {useDiscovery} from "@/Applications/Hooks";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {Feature, hasFeature} from "@/Features";
+import {checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
@@ -121,6 +124,7 @@ const LandingPage: React.FunctionComponent = () => {
                                     <CategoryCard key={c.metadata.id} id={c.metadata.id} idx={idx}
                                         categoryTitle={c.specification.title} />
                                 )}
+                                {creatorCanCreateCategory(projectId) ? <CreateCategoryCard /> : null}
                             </Grid>
                         </div>
                     }
@@ -626,6 +630,54 @@ const CategoryCard: React.FunctionComponent<{
             <span>{props.categoryTitle}</span>
         </div>
     </ReactRouterLink>;
+}
+
+const CreateCategoryCardStyle = injectStyle("create-category-card", k => `
+    ${k} {
+        border-radius: 8px;
+        height: 90px;
+        font-size: 17px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 16px;
+        overflow: hidden;
+        --createCardColor: var(--primaryMain);
+        
+        color: var(--createCardColor);
+        border: 4px dashed var(--createCardColor);
+        background: transparent;
+        cursor: pointer;
+    }
+
+    ${k}:hover {
+        --createCardColor: var(--blue-80);
+    }
+    
+    html.dark ${k} {
+        --createCardColor: var(--blue-20);
+    }
+    
+    html.dark ${k}:hover {
+        --createCardColor: white;
+    }
+`);
+
+function creatorCanCreateCategory(projectId: string | undefined): boolean {
+    if (!hasFeature(Feature.CONTAINER_REPOSITORIES)) return false;
+    if (Client.userIsAdmin) return true;
+    return projectId != null && checkIsWorkspaceAdmin();
+}
+
+const CreateCategoryCard: React.FunctionComponent = () => {
+    const navigate = useNavigate();
+    return (
+        <div className={CreateCategoryCardStyle} onClick={() => navigate(AppRoutes.apps.categoryCreate())}>
+            <Icon name="heroPlus" size="20" />
+            <span>Create category</span>
+        </div>
+    );
 }
 
 const SpotlightDescription = injectStyle("spotlight-description", k => `

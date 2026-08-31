@@ -1,6 +1,6 @@
 import * as React from "react";
 import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
-import {Box, Button, Image, Divider, Flex, Icon, Input, MainContainer, Link, Select, TextArea} from "@/ui-components";
+import {Box, Button, Card, Image, Divider, Flex, Icon, Input, MainContainer, Link, Select, TextArea} from "@/ui-components";
 import * as Api from "./api";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {addDays, addMonths, formatDistanceToNow, startOfToday} from "date-fns";
@@ -45,6 +45,7 @@ const ApiTokenCreateContentClass = injectStyle("api-token-create-content", key =
     ${key} {
         display: flex;
         flex-direction: column;
+        gap: 24px;
         max-width: 960px;
         margin: 0 50px;
     }
@@ -96,7 +97,7 @@ const ApiTokenSubmitClass = injectStyle("api-token-submit", key => `
         align-items: center;
         justify-content: flex-end;
         gap: 8px;
-        margin: 24px 0 48px;
+        margin: 0 0 48px;
     }
 
     @media (max-width: 600px) {
@@ -291,112 +292,122 @@ function Add() {
             </div>
             <KeyboardNavigation>
             <div className={ApiTokenCreateContentClass}>
-                <FieldGroup>
-                    <FieldRow
-                        title="Title"
-                        description={"The title is shown on the overview page to identify the token."}
-                        required
-                        control={<Input id={API_TOKEN_TITLE_KEY} width="100%" placeholder="My API token" />}
-                    />
-                    <FieldRow
-                        title="Description"
-                        description="Optional details about how this token is used."
-                        control={<TextArea id={API_TOKEN_DESCRIPTION_KEY} width="100%" rows={5}
-                            placeholder="This token is used in one of my scripts." />}
-                    />
-                    <FieldRow
-                        title="Expiration"
-                        description="The token stops working after this date."
-                        required
-                        control={<ExpirationSelector date={date} onChange={setDate} fullWidth />}
-                    />
-                </FieldGroup>
+                <Card>
+                    <Heading.h3>Token details</Heading.h3>
+                    <Box mt="16px">
+                        <FieldGroup>
+                            <FieldRow
+                                title="Title"
+                                description={"The title is shown on the overview page to identify the token."}
+                                required
+                                control={<Input id={API_TOKEN_TITLE_KEY} width="100%" placeholder="My API token" />}
+                            />
+                            <FieldRow
+                                title="Description"
+                                description="Optional details about how this token is used."
+                                control={<TextArea id={API_TOKEN_DESCRIPTION_KEY} width="100%" rows={5}
+                                    placeholder="This token is used in one of my scripts." />}
+                            />
+                            <FieldRow
+                                title="Expiration"
+                                description="The token stops working after this date."
+                                required
+                                control={<ExpirationSelector date={date} onChange={setDate} fullWidth />}
+                            />
+                        </FieldGroup>
+                    </Box>
+                </Card>
 
-                <FieldGroup>
-                    <FieldRow
-                        title="Service provider"
-                        description="Choose UCloud or a connected service provider."
-                        required
-                        control={<ServiceProviderSelector serviceProvider={serviceProvider}
-                            serviceProviders={mappedServiceProviders} showLabel={false} reserveLabelSpace={false} onSelect={el => {
-                                setServiceProvider(el.key);
-                                setActivePermissions(new Map());
-                            }} />}
-                    />
-                    {serviceProvider !== "" ? null :
-                        <FieldRow
-                            title="Available for"
-                            description="Choose the project scope for this UCloud token."
-                            required
-                            control={<div className={ApiTokenProjectSelectorClass}>
-                                 <ProjectSwitcher managed={{
-                                     initialProject: projectId,
-                                     setLocalProject: setProjectId
-                                }} focusable />
-                            </div>}
-                        />
-                    }
-                    {serviceProviders.length === 0 || availablePermissions.length === 0 ? null :
-                        <FieldRow
-                            title="Service"
-                            description={selectedService == null
-                                ? "Choose the service that this token can access."
-                                : selectedService.description}
-                            required
-                            onClear={selectedService == null ? undefined : () => setActivePermissions(new Map())}
-                            control={<div className={ApiTokenFullWidthSelectorClass}>
-                                <RichSelect
-                                    fullWidth
-                                    items={availablePermissions}
-                                    keys={["title"]}
-                                    selected={selectedService}
-                                    RenderSelected={p => p.element == null ? <Flex height={"31.5px"} alignItems="center" pl={"8px"}>
-                                        Select service
-                                    </Flex> : <Permission {...p.element} dataProps={p.dataProps} onClick={p.onSelect} />}
-                                    RenderRow={p => p.element == null ? null : <Permission
-                                        {...p.element}
-                                        dataProps={p.dataProps}
-                                        onClick={p.onSelect}
-                                    />}
-                                    onSelect={p => {
-                                        const firstAction = Object.keys(p.actions)[0];
-                                        setActivePermissions(new Map([
-                                            [p.name, firstAction == null ? new Set() : new Set([firstAction])]
-                                        ]));
-                                    }}
-                                    elementHeight={38}
-                                    chevronPlacement={{position: "absolute", bottom: "8px", right: "12px", height: "16px"}}
+                <Card>
+                    <Heading.h3>Permissions</Heading.h3>
+                    <Box mt="16px">
+                        <FieldGroup>
+                            <FieldRow
+                                title="Service provider"
+                                description="Choose UCloud or a connected service provider."
+                                required
+                                control={<ServiceProviderSelector serviceProvider={serviceProvider}
+                                    serviceProviders={mappedServiceProviders} showLabel={false} reserveLabelSpace={false} onSelect={el => {
+                                        setServiceProvider(el.key);
+                                        setActivePermissions(new Map());
+                                    }} />}
+                            />
+                            {serviceProvider !== "" ? null :
+                                <FieldRow
+                                    title="Available for"
+                                    description="Choose the project scope for this UCloud token."
+                                    required
+                                    control={<div className={ApiTokenProjectSelectorClass}>
+                                         <ProjectSwitcher managed={{
+                                             initialProject: projectId,
+                                             setLocalProject: setProjectId
+                                        }} focusable />
+                                    </div>}
                                 />
-                            </div>}
-                        />
-                    }
-                    {selectedService == null ? null : Object.entries(selectedService.actions).map(([action, actionTitle]) =>
-                        <FieldRow
-                            key={action}
-                            title={actionTitle}
-                            control={<Select
-                                value={activePermissions.get(selectedService.name)?.has(action) ? "yes" : "no"}
-                                onChange={event => {
-                                    const enabled = event.target.value === "yes";
-                                    setActivePermissions(current => {
-                                        const next = new Map(current);
-                                        const selectedActions = new Set(next.get(selectedService.name) ?? []);
-                                        if (enabled) {
-                                            selectedActions.add(action);
-                                        } else {
-                                            selectedActions.delete(action);
-                                        }
-                                        next.set(selectedService.name, selectedActions);
-                                        return next;
-                                    });
-                                }}
-                            >
-                                <option value="yes">Yes</option>
-                                <option value="no">No</option>
-                            </Select>}
-                        />
-                    )}
-                </FieldGroup>
+                            }
+                            {serviceProviders.length === 0 || availablePermissions.length === 0 ? null :
+                                <FieldRow
+                                    title="Service"
+                                    description={selectedService == null
+                                        ? "Choose the service that this token can access."
+                                        : selectedService.description}
+                                    required
+                                    onClear={selectedService == null ? undefined : () => setActivePermissions(new Map())}
+                                    control={<div className={ApiTokenFullWidthSelectorClass}>
+                                        <RichSelect
+                                            fullWidth
+                                            items={availablePermissions}
+                                            keys={["title"]}
+                                            selected={selectedService}
+                                            RenderSelected={p => p.element == null ? <Flex height={"31.5px"} alignItems="center" pl={"8px"}>
+                                                Select service
+                                            </Flex> : <Permission {...p.element} dataProps={p.dataProps} onClick={p.onSelect} />}
+                                            RenderRow={p => p.element == null ? null : <Permission
+                                                {...p.element}
+                                                dataProps={p.dataProps}
+                                                onClick={p.onSelect}
+                                            />}
+                                            onSelect={p => {
+                                                const firstAction = Object.keys(p.actions)[0];
+                                                setActivePermissions(new Map([
+                                                    [p.name, firstAction == null ? new Set() : new Set([firstAction])]
+                                                ]));
+                                            }}
+                                            elementHeight={38}
+                                            chevronPlacement={{position: "absolute", bottom: "8px", right: "12px", height: "16px"}}
+                                        />
+                                    </div>}
+                                />
+                            }
+                            {selectedService == null ? null : Object.entries(selectedService.actions).map(([action, actionTitle]) =>
+                                <FieldRow
+                                    key={action}
+                                    title={actionTitle}
+                                    control={<Select
+                                        value={activePermissions.get(selectedService.name)?.has(action) ? "yes" : "no"}
+                                        onChange={event => {
+                                            const enabled = event.target.value === "yes";
+                                            setActivePermissions(current => {
+                                                const next = new Map(current);
+                                                const selectedActions = new Set(next.get(selectedService.name) ?? []);
+                                                if (enabled) {
+                                                    selectedActions.add(action);
+                                                } else {
+                                                    selectedActions.delete(action);
+                                                }
+                                                next.set(selectedService.name, selectedActions);
+                                                return next;
+                                            });
+                                        }}
+                                    >
+                                        <option value="yes">Yes</option>
+                                        <option value="no">No</option>
+                                    </Select>}
+                                />
+                            )}
+                        </FieldGroup>
+                    </Box>
+                </Card>
 
                 <div className={ApiTokenSubmitClass}>
                     <Link to={Routes.resources.apiTokens()}>

@@ -355,8 +355,33 @@ func appEditorRetrieveSource(actor rpc.Actor, request orcapi.AppEditorRetrieveSo
 	if request.Intent == orcapi.AppEditorSourceIntentEdit && actor.Role != rpc.RoleAdmin {
 		return orcapi.AppEditorRetrieveSourceResponse{}, util.HttpErr(http.StatusForbidden, "UCloud administrator access is required")
 	}
-	if _, ok := AppRetrieve(actor, request.Name, request.Version, AppDiscoveryAll, 0); !ok {
+	visible, ok := AppRetrieve(actor, request.Name, request.Version, AppDiscoveryAll, 0)
+	if !ok {
 		return orcapi.AppEditorRetrieveSourceResponse{}, util.HttpErr(http.StatusNotFound, "application not found")
+	}
+	if visible.Metadata.Variant.Present {
+		variant := visible.Metadata.Variant.Value
+		currentInternal, found := applicationVariantRetrieve(variant.Id)
+		if !found {
+			return orcapi.AppEditorRetrieveSourceResponse{}, util.HttpErr(http.StatusConflict, "canonical source is unavailable")
+		}
+		currentVariant, _ := applicationVariantSnapshot(currentInternal)
+		if currentVariant.RevisionId != variant.RevisionId {
+			return orcapi.AppEditorRetrieveSourceResponse{}, util.HttpErr(http.StatusConflict, "canonical source is unavailable for this historical variant version")
+		}
+		baseRequest := request
+		baseRequest.Name = variant.BaseApplication.Name
+		baseRequest.Version = variant.BaseApplication.Version
+		baseResponse, retrieveErr := appEditorRetrieveSource(actor, baseRequest)
+		if retrieveErr != nil {
+			return orcapi.AppEditorRetrieveSourceResponse{}, retrieveErr
+		}
+		variantSource, sourceOk := appEditorSourceWithContainerImage(baseResponse.Source, variant.Image)
+		if !sourceOk {
+			return orcapi.AppEditorRetrieveSourceResponse{}, util.HttpErr(http.StatusConflict, "canonical source is unavailable")
+		}
+		baseResponse.Source = variantSource
+		return baseResponse, nil
 	}
 	managed, ok := appRetrieve(request.Name, request.Version)
 	if !ok {
@@ -486,17 +511,99 @@ func appEditorRetrieveCustomSource(actor rpc.Actor, request orcapi.AppEditorRetr
 	if !allowed {
 		return orcapi.AppEditorRetrieveSourceResponse{}, util.HttpErr(http.StatusNotFound, "application not found")
 	}
-	var document orcapi.A2Yaml
-	if yaml.Unmarshal([]byte(source), &document) != nil {
+	source, ok := appEditorSourceWithLogicalName(source)
+	if !ok {
 		return orcapi.AppEditorRetrieveSourceResponse{}, util.HttpErr(http.StatusConflict, "canonical source is unavailable")
 	}
-	document.Name = appEditorLogicalName(document.Name)
-	source = appEditorMarshalSource(document)
 	return orcapi.AppEditorRetrieveSourceResponse{
 		Kind:   request.Kind,
 		Source: source,
 		Custom: util.OptValue(metadata),
 	}, nil
+}
+
+func appEditorSourceWithLogicalName(source string) (string, bool) {
+	var document yaml.Node
+	err := yaml.Unmarshal([]byte(source), &document)
+	if err != nil || len(document.Content) != 1 {
+		return "", false
+	}
+	root := document.Content[0]
+	if root.Kind != yaml.MappingNode {
+		return "", false
+	}
+	foundName := false
+	foundHeader := false
+	for i := 0; i+1 < len(root.Content); i += 2 {
+		key := root.Content[i]
+		value := root.Content[i+1]
+		if key.Value == "application" {
+			foundHeader = true
+		}
+		if key.Value != "name" || value.Kind != yaml.ScalarNode || foundName {
+			continue
+		}
+		value.Value = appEditorLogicalName(value.Value)
+		foundName = true
+	}
+	if !foundName {
+		return "", false
+	}
+
+	buffer := &bytes.Buffer{}
+	encoder := yaml.NewEncoder(buffer)
+	encoder.SetIndent(2)
+	err = encoder.Encode(&document)
+	if err != nil {
+		return "", false
+	}
+	_ = encoder.Close()
+	result := buffer.String()
+	if !foundHeader {
+		result = "application: v2\n" + result
+	}
+	return result, true
+}
+
+func appEditorSourceWithContainerImage(source string, image string) (string, bool) {
+	var document yaml.Node
+	err := yaml.Unmarshal([]byte(source), &document)
+	if err != nil || len(document.Content) != 1 {
+		return "", false
+	}
+	root := document.Content[0]
+	software := appEditorYamlMappingValue(root, "software")
+	if software == nil || software.Kind != yaml.MappingNode {
+		return "", false
+	}
+	softwareType := appEditorYamlMappingValue(software, "type")
+	softwareImage := appEditorYamlMappingValue(software, "image")
+	if softwareType == nil || softwareType.Value != "Container" || softwareImage == nil || softwareImage.Kind != yaml.ScalarNode {
+		return "", false
+	}
+	softwareImage.Value = image
+
+	buffer := &bytes.Buffer{}
+	encoder := yaml.NewEncoder(buffer)
+	encoder.SetIndent(2)
+	err = encoder.Encode(&document)
+	if err != nil {
+		return "", false
+	}
+	_ = encoder.Close()
+	return buffer.String(), true
+}
+
+func appEditorYamlMappingValue(node *yaml.Node, key string) *yaml.Node {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return node.Content[i+1]
+		}
+	}
+	return nil
 }
 
 func appEditorMarshalSource(source orcapi.A2Yaml) string {

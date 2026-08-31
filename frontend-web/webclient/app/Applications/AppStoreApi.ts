@@ -2,6 +2,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {apiBrowse, apiDelete, apiRetrieve, apiSearch, apiUpdate} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {FindByLongId, PageV2, PaginationRequestV2} from "@/UCloud";
+import {UpdatedAcl} from "@/UCloud/ResourceApi";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {getStoredProject} from "@/Project/ReduxState";
 import type {JobSpecification} from "@/UCloud/JobsApi";
@@ -623,6 +624,37 @@ export function renderEditorInvocation(request: AppEditorRenderRequest): APICall
 
 export function createCustomApplication(request: Record<string, unknown>): APICallParameters<unknown, unknown> {
     return apiUpdate(request, baseContext, "createCustom");
+}
+
+export interface AppCatalogCustomCategorySpecification {
+    title: string;
+    description: string;
+}
+
+export function createCustomGroup(request: {
+    kind: "Custom" | "Managed";
+    id?: number;
+    specification?: AppCatalogCustomCategorySpecification;
+    acl?: unknown[];
+}): APICallParameters<unknown, {id: number}> {
+    return apiUpdate(request, baseContext, "createCustomGroup");
+}
+
+export function createCustomCategory(request: {
+    kind: "Custom" | "Managed";
+    id?: number;
+    specification?: AppCatalogCustomCategorySpecification;
+    acl?: unknown[];
+}): APICallParameters<unknown, {id: number}> {
+    return apiUpdate(request, baseContext, "createCustomCategory");
+}
+
+export function deleteCustomCategory(request: {id: number}): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "deleteCustomCategory");
+}
+
+export function updateCustomCategoryAcl(request: UpdatedAcl): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "updateCustomCategoryAcl");
 }
 
 export function browseCustomGroups(request: {

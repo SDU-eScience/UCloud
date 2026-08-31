@@ -16,6 +16,7 @@ export function UtilityBar(props: {
     zIndex?: number;
     initialSearchQuery?: string;
     leading?: React.ReactNode;
+    trailing?: React.ReactNode;
     responsive?: boolean;
 }): React.ReactNode {
     return (<Flex className={props.responsive ? ResponsiveUtilityBarClass : undefined}
@@ -24,6 +25,7 @@ export function UtilityBar(props: {
             {props.leading}
             {props.onSearch && <SearchIcon initialQuery={props.initialSearchQuery} onSearch={props.onSearch} />}
             <RefreshIcon />
+            {props.trailing}
         </Flex>
         <div className="utility-project"><ProjectSwitcher /></div>
     </Flex>);

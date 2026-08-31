@@ -49,10 +49,13 @@ export interface CreatorOperationContext {
     workspace: string;
     // The existing application name. Set for newVersion and fork.
     existingName?: string;
-    // The existing application version. Set for newVersion.
+    // The existing application version. Set for newVersion and fork.
     existingVersion?: string;
-    // The provider to use for custom applications. Set for newCustom and fork.
+    // The provider selected by newCustom or identifying a custom newVersion source.
     provider?: string;
+    // Forks always create custom applications, so source identity is tracked separately.
+    sourceApplicationKind?: CreatorApplicationKind;
+    sourceProvider?: string;
     // The category selected by a custom-category entry point.
     initialCategory?: string;
     // The source page used when loading or authorization fails.
@@ -247,7 +250,11 @@ export function creatorInitialDraft(
 export interface CreatorService {
     // Load the A2 source for the given operation. Returns the source text, the last valid parsed
     // model, and the custom-only metadata (null for managed applications).
-    loadSource(context: CreatorOperationContext): Promise<{application: A2Yaml; sourceText: string; customMeta: CreatorCustomMeta | null}>;
+    loadSource(context: CreatorOperationContext): Promise<{
+        application: A2Yaml;
+        sourceText: string;
+        customMeta: CreatorCustomMeta | null;
+    }>;
     // Validate a draft without creating an application.
     validate(request: CreatorValidationRequest): Promise<CreatorValidationResponse>;
     // Render a temporary job invocation through the selected provider.

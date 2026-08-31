@@ -502,6 +502,20 @@ func appCustomListenForProjectGroupUpdates() {
 }
 
 func appCustomMaterializeGroup(backing AppGroupId) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update app_store.custom_application_groups
+				set backed_by_group_id = null
+				where backed_by_group_id = :backing
+			`,
+			db.Params{
+				"backing": int64(backing),
+			},
+		)
+	})
+
 	appCustomCache.Mu.Lock()
 	defer appCustomCache.Mu.Unlock()
 	for _, group := range appCustomCache.Groups {
@@ -512,6 +526,20 @@ func appCustomMaterializeGroup(backing AppGroupId) {
 }
 
 func appCustomMaterializeCategory(backing AppCategoryId) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update app_store.custom_application_categories
+				set backed_by_category_id = null
+				where backed_by_category_id = :backing
+			`,
+			db.Params{
+				"backing": int64(backing),
+			},
+		)
+	})
+
 	appCustomCache.Mu.Lock()
 	defer appCustomCache.Mu.Unlock()
 	for _, category := range appCustomCache.Categories {
@@ -1016,8 +1044,14 @@ func appCustomEffectiveGroup(group *appCustomGroup) AppGroupId {
 	return group.BackedBy.GetOrDefault(AppGroupId(-group.Id))
 }
 
-func appCustomApplicationToApi(app *appCustomApplication) orcapi.Application {
+func appCustomApplicationToApi(actor rpc.Actor, app *appCustomApplication) orcapi.Application {
 	result := app.Application
+	result.Favorite.Set(false)
+	stars := appStarsRetrieve(actor.Username)
+	stars.Mu.RLock()
+	_, isStarred := stars.Applications[app.Application.Metadata.Name]
+	stars.Mu.RUnlock()
+	result.Favorite.Set(isStarred)
 	if group := appCustomCache.Groups[app.GroupId]; group != nil {
 		result.Metadata.Group.Metadata.Id = int(appCustomEffectiveGroup(group))
 		if group.BackedBy.Present {
@@ -1056,8 +1090,8 @@ func appCustomNormalizeFlavorName(flavorName *string) *util.HttpError {
 }
 
 func appCustomCreateApplication(actor rpc.Actor, request orcapi.AppCatalogCreateCustomApplicationRequest) *util.HttpError {
-	if !strings.HasPrefix(request.Name, "custom-") {
-		request.Name = "custom-" + request.Name
+	if !strings.HasPrefix(request.A2Yaml.Name, "custom-") {
+		request.A2Yaml.Name = "custom-" + request.A2Yaml.Name
 	}
 	if err := appCustomNormalizeFlavorName(&request.FlavorName); err != nil {
 		return err
@@ -1117,7 +1151,7 @@ func appCustomCreateApplication(actor rpc.Actor, request orcapi.AppCatalogCreate
 	request.Software.Container.Image = validated.ImageDigest
 	application.Invocation.Tool.Tool.Value.Description.Image = validated.ImageDigest
 	application.Invocation.Tool.Tool.Value.Description.Container = validated.ImageDigest
-	source, _ := yaml.Marshal(request.A2Yaml)
+	source := appEditorMarshalSource(request.A2Yaml)
 	project := util.OptMap(actor.Project, func(value rpc.ProjectId) string { return string(value) })
 	created, ok := db.NewTx2(func(tx *db.Transaction) (struct {
 		Id        int64
@@ -1207,7 +1241,7 @@ func appCustomRetrieveApplication(actor rpc.Actor, name, version, provider strin
 		return orcapi.Application{}, false
 	}
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i].CreatedAt.After(candidates[j].CreatedAt) })
-	result := appCustomApplicationToApi(candidates[0])
+	result := appCustomApplicationToApi(actor, candidates[0])
 	if version == "" {
 		for _, candidate := range candidates {
 			result.Versions = append(result.Versions, candidate.Application.Metadata.Version)
@@ -1315,9 +1349,9 @@ func appCustomUpdateApplication(actor rpc.Actor, request orcapi.AppCatalogUpdate
 }
 
 func appCustomDeleteApplication(actor rpc.Actor, request orcapi.AppCatalogDeleteCustomApplicationRequest) *util.HttpError {
-	appCustomCache.Mu.Lock()
-	defer appCustomCache.Mu.Unlock()
-	for id, app := range appCustomCache.Apps {
+	appCustomCache.Mu.RLock()
+	var target *appCustomApplication
+	for _, app := range appCustomCache.Apps {
 		if app.Application.Metadata.Name != request.Name || app.Application.Metadata.Version != request.Version ||
 			app.Provider != request.ServiceProvider || !appCustomBelongsToActorsWorkspace(actor, app.CreatedBy, app.Project) {
 			continue
@@ -1331,11 +1365,25 @@ func appCustomDeleteApplication(actor rpc.Actor, request orcapi.AppCatalogDelete
 		if cannotRead || cannotDelete {
 			break
 		}
-		jobIds, deleted := db.NewTx2(func(tx *db.Transaction) ([]ResourceId, bool) {
-			var rewritten []ResourceId
-			rows := db.Select[struct{ Resource int64 }](
-				tx,
-				`
+		target = app
+		break
+	}
+	if target == nil {
+		appCustomCache.Mu.RUnlock()
+		return util.HttpErr(http.StatusNotFound, "application not found")
+	}
+	id := target.Id
+	name := target.Application.Metadata.Name
+	version := target.Application.Metadata.Version
+	provider := target.Provider
+	workspace := appCustomWorkspaceEx(target.CreatedBy, target.Project)
+	appCustomCache.Mu.RUnlock()
+
+	jobIds, deleted := db.NewTx2(func(tx *db.Transaction) ([]ResourceId, bool) {
+		var rewritten []ResourceId
+		rows := db.Select[struct{ Resource int64 }](
+			tx,
+			`
 					update app_orchestrator.jobs j
 					set application_name = 'unknown', application_version = 'unknown'
 					from provider.resource r
@@ -1347,34 +1395,34 @@ func appCustomDeleteApplication(actor rpc.Actor, request orcapi.AppCatalogDelete
 						and coalesce(r.project, r.created_by) = :workspace
 					returning j.resource
 				`,
-				db.Params{
-					"name":      request.Name,
-					"version":   request.Version,
-					"provider":  request.ServiceProvider,
-					"workspace": appCustomWorkspaceEx(app.CreatedBy, app.Project),
-				},
-			)
-			for _, row := range rows {
-				rewritten = append(rewritten, ResourceId(row.Resource))
-			}
-			_, found := db.Get[struct{ Id int64 }](
-				tx,
-				`delete from app_store.custom_applications where id = :id returning id`,
-				db.Params{
-					"id": app.Id,
-				},
-			)
-			return rewritten, found
-		})
-		if !deleted {
-			return util.HttpErr(http.StatusNotFound, "application not found")
+			db.Params{
+				"name":      name,
+				"version":   version,
+				"provider":  provider,
+				"workspace": workspace,
+			},
+		)
+		for _, row := range rows {
+			rewritten = append(rewritten, ResourceId(row.Resource))
 		}
-		jobRewriteApplicationInCache(jobIds, orcapi.NameAndVersion{Name: "unknown", Version: "unknown"})
-		delete(appCustomCache.AppKeys, appCustomApplicationKey(appCustomWorkspaceEx(app.CreatedBy, app.Project), request.Name, request.Version, request.ServiceProvider))
-		delete(appCustomCache.Apps, id)
-		return nil
+		_, found := db.Get[struct{ Id int64 }](
+			tx,
+			`delete from app_store.custom_applications where id = :id returning id`,
+			db.Params{
+				"id": id,
+			},
+		)
+		return rewritten, found
+	})
+	if !deleted {
+		return util.HttpErr(http.StatusNotFound, "application not found")
 	}
-	return util.HttpErr(http.StatusNotFound, "application not found")
+	appCustomCache.Mu.Lock()
+	delete(appCustomCache.AppKeys, appCustomApplicationKey(workspace, name, version, provider))
+	delete(appCustomCache.Apps, id)
+	appCustomCache.Mu.Unlock()
+	jobRewriteApplicationInCache(jobIds, orcapi.NameAndVersion{Name: "unknown", Version: "unknown"})
+	return nil
 }
 
 func appCustomRetrieveApplicationForWorkspace(workspace, name, version, provider string) (orcapi.Application, bool) {
@@ -1388,7 +1436,7 @@ func appCustomRetrieveApplicationForWorkspace(workspace, name, version, provider
 	if app == nil {
 		return orcapi.Application{}, false
 	}
-	return appCustomApplicationToApi(app), true
+	return appCustomApplicationToApi(rpc.ActorSystem, app), true
 }
 
 // Group and category deletion
@@ -1457,7 +1505,7 @@ func appCustomDeleteCategory(actor rpc.Actor, apiId int) *util.HttpError {
 	}
 	for _, app := range appCustomCache.Apps {
 		if app.CategoryId == id {
-			return util.HttpErr(http.StatusConflict, "category is not empty")
+			return util.HttpErr(http.StatusConflict, "category cannot be deleted because it contains applications")
 		}
 	}
 	_, deleted := db.NewTx2(func(tx *db.Transaction) (struct{ Id int64 }, bool) {
@@ -1480,7 +1528,7 @@ func appCustomDeleteCategory(actor rpc.Actor, apiId int) *util.HttpError {
 		)
 	})
 	if !deleted {
-		return util.HttpErr(http.StatusConflict, "category is not empty")
+		return util.HttpErr(http.StatusConflict, "category cannot be deleted because it contains applications")
 	}
 	delete(appCustomCache.Categories, id)
 	return nil
@@ -1517,7 +1565,7 @@ func appCustomRetrieveGroupForCatalog(actor rpc.Actor, id AppGroupId, discovery 
 		for _, app := range appCustomCache.Apps {
 			category := appCustomCache.Categories[app.CategoryId]
 			if app.GroupId == custom.Id && category != nil && appCustomCanReadApplication(actor, app, category) && appCustomDiscoveryAllows(actor, app, discovery) {
-				result.Status.Applications = append(result.Status.Applications, appCustomApplicationToApi(app))
+				result.Status.Applications = append(result.Status.Applications, appCustomApplicationToApi(actor, app))
 			}
 		}
 	}
@@ -1599,7 +1647,7 @@ func appCustomAppendToManagedGroup(actor rpc.Actor, id AppGroupId, discovery App
 		for _, app := range appCustomCache.Apps {
 			category := appCustomCache.Categories[app.CategoryId]
 			if app.GroupId == group.Id && category != nil && appCustomCanReadApplication(actor, app, category) && appCustomDiscoveryAllows(actor, app, discovery) {
-				result.Status.Applications = append(result.Status.Applications, appCustomApplicationToApi(app))
+				result.Status.Applications = append(result.Status.Applications, appCustomApplicationToApi(actor, app))
 			}
 		}
 	}
@@ -1664,7 +1712,7 @@ func appCustomCategories(actor rpc.Actor, discovery AppDiscovery, flags AppCatal
 					apiGroup = managed
 					for _, app := range appCustomCache.Apps {
 						if app.GroupId == group.Id && app.CategoryId == category.Id && appCustomCanReadApplication(actor, app, category) && appCustomDiscoveryAllows(actor, app, discovery) {
-							apiGroup.Status.Applications = append(apiGroup.Status.Applications, appCustomApplicationToApi(app))
+							apiGroup.Status.Applications = append(apiGroup.Status.Applications, appCustomApplicationToApi(actor, app))
 						}
 					}
 				} else {
@@ -1684,7 +1732,7 @@ func appCustomCategories(actor rpc.Actor, discovery AppDiscovery, flags AppCatal
 					}
 					for _, app := range appCustomCache.Apps {
 						if app.GroupId == group.Id && app.CategoryId == category.Id && appCustomCanReadApplication(actor, app, category) && appCustomDiscoveryAllows(actor, app, discovery) {
-							apiGroup.Status.Applications = append(apiGroup.Status.Applications, appCustomApplicationToApi(app))
+							apiGroup.Status.Applications = append(apiGroup.Status.Applications, appCustomApplicationToApi(actor, app))
 						}
 					}
 				}
@@ -1696,9 +1744,7 @@ func appCustomCategories(actor rpc.Actor, discovery AppDiscovery, flags AppCatal
 				}
 			}
 		}
-		if flags&AppCatalogRequireNonemptyGroups == 0 || len(apiCategory.Status.Groups) != 0 {
-			result = append(result, apiCategory)
-		}
+		result = append(result, apiCategory)
 	}
 	sort.Slice(result, func(i, j int) bool {
 		return strings.ToLower(result[i].Specification.Title) < strings.ToLower(result[j].Specification.Title)
@@ -1750,7 +1796,7 @@ func appCustomAppendToManagedCategory(actor rpc.Actor, id AppCategoryId, discove
 			}
 			for _, groupApp := range appCustomCache.Apps {
 				if groupApp.GroupId == group.Id && groupApp.CategoryId == category.Id && appCustomCanReadApplication(actor, groupApp, category) && appCustomDiscoveryAllows(actor, groupApp, discovery) {
-					apiGroup.Status.Applications = append(apiGroup.Status.Applications, appCustomApplicationToApi(groupApp))
+					apiGroup.Status.Applications = append(apiGroup.Status.Applications, appCustomApplicationToApi(actor, groupApp))
 				}
 			}
 			if len(apiGroup.Status.Applications) != 0 {

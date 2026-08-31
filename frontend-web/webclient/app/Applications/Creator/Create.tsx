@@ -97,6 +97,7 @@ import {JobSpecification} from "@/UCloud/JobsApi";
 import JobCreate from "@/Applications/Jobs/Create";
 import AppRoutes from "@/Routes";
 import {UcxSpinner} from "@/UCX/UcxView";
+import {Feature, hasFeature} from "@/Features";
 
 // Shell layout
 // -------------------------------------------------------------------------------------------------------------------
@@ -283,9 +284,10 @@ function contextFromLocation(search: string, kind: CreatorTemplateKind): {contex
     }
 
     const applicationKind = getQueryParam(search, "applicationKind");
+    const sourceApplicationKind = getQueryParam(search, "sourceApplicationKind");
     const workspace = getQueryParam(search, "workspace");
     const fallback = contextFromKind("blankManaged");
-    if (operation !== "newManaged" && operation !== "newCustom" && operation !== "newVersion") {
+    if (operation !== "newManaged" && operation !== "newCustom" && operation !== "newVersion" && operation !== "fork") {
         return {context: fallback, error: "The creator operation is missing or invalid."};
     }
     if (applicationKind !== "managed" && applicationKind !== "custom") {
@@ -297,6 +299,9 @@ function contextFromLocation(search: string, kind: CreatorTemplateKind): {contex
     if ((operation === "newManaged" && applicationKind !== "managed") || (operation === "newCustom" && applicationKind !== "custom")) {
         return {context: fallback, error: "The creator operation does not match the application kind."};
     }
+    if (operation === "fork" && applicationKind !== "custom") {
+        return {context: fallback, error: "A fork must create a custom application."};
+    }
 
     const context: CreatorOperationContext = {
         operation,
@@ -305,16 +310,26 @@ function contextFromLocation(search: string, kind: CreatorTemplateKind): {contex
         existingName: getQueryParam(search, "name") ?? undefined,
         existingVersion: getQueryParam(search, "version") ?? undefined,
         provider: getQueryParam(search, "provider") ?? undefined,
+        sourceApplicationKind: sourceApplicationKind === "managed" || sourceApplicationKind === "custom"
+            ? sourceApplicationKind
+            : undefined,
+        sourceProvider: getQueryParam(search, "sourceProvider") ?? undefined,
         initialCategory: getQueryParam(search, "category") ?? undefined,
         returnTo: getQueryParam(search, "returnTo") ?? undefined,
     };
     if (operation === "newCustom" && !context.initialCategory) {
         return {context, error: "A custom application category is required."};
     }
-    if (operation === "newVersion" && (!context.existingName || !context.existingVersion)) {
+    if ((operation === "newVersion" || operation === "fork") && (!context.existingName || !context.existingVersion)) {
         return {context, error: "The source application name and version are required."};
     }
     if (operation === "newVersion" && applicationKind === "custom" && !context.provider) {
+        return {context, error: "The source service provider is required."};
+    }
+    if (operation === "fork" && context.sourceApplicationKind !== "managed" && context.sourceApplicationKind !== "custom") {
+        return {context, error: "The source application kind is missing or invalid."};
+    }
+    if (operation === "fork" && context.sourceApplicationKind === "custom" && !context.sourceProvider) {
         return {context, error: "The source service provider is required."};
     }
     return {context, error: null};
@@ -405,6 +420,12 @@ export const Create: React.FunctionComponent = () => {
             setLoadError("Only UCloud administrators can create managed applications.");
             return;
         }
+        if (creatorIsCustom(context) && !Client.userIsAdmin && !hasFeature(Feature.CONTAINER_REPOSITORIES)) {
+            setLoading(false);
+            setDraft(null);
+            setLoadError("Custom application creation is not enabled for your account.");
+            return;
+        }
         const currentDraft = draftRef.current;
         if (currentDraft?.dirty && creatorContextKey(currentDraft.context) === creatorContextKey(context)) {
             setLoading(false);
@@ -418,14 +439,15 @@ export const Create: React.FunctionComponent = () => {
             creatorService.loadSource(context),
             customContext ? creatorService.loadCustomPlacement() : Promise.resolve({groups: [], categories: []}),
             customContext ? creatorService.loadCustomEligibility() : Promise.resolve(null),
-        ]).then(([source, placement, eligibility]) => {
+        ]).then(([source, placement, rawEligibility]) => {
             if (cancelled) return;
-            if (customContext && placement.groups.length === 0) {
-                throw new Error("Create a custom application group in this workspace before creating an application.");
-            }
-            const categoryId = source.customMeta?.category ?? context.initialCategory;
+            const eligibility = rawEligibility == null ? null : {
+                ...rawEligibility,
+                providers: rawEligibility.providers.filter(provider => provider.provider !== ""),
+            };
+            const categoryId = source.customMeta?.category || context.initialCategory;
             const categoryIsEditable = categoryId != null && placement.categories.some(category => String(category.id) === categoryId);
-            if (customContext && !categoryIsEditable) {
+            if (customContext && context.operation !== "fork" && !categoryIsEditable) {
                 throw new Error("You no longer have edit permission on the selected category.");
             }
             let customMeta = source.customMeta;
@@ -441,22 +463,29 @@ export const Create: React.FunctionComponent = () => {
                     publishedToProject: eligibility?.canPublish === true && customMeta.publishedToProject,
                 };
             }
-            setDraft(creatorInitialDraft(source.application, source.sourceText, context, customMeta));
-            setCustomGroups(placement.groups);
-            setCustomCategories(placement.categories);
-            setCustomEligibility(eligibility);
-            setServerValidation({errors: []});
-            setServerValidationRevision(null);
-            setPreviewApplication(null);
-            setPreviewScript(null);
-            setPreviewErrors([]);
-            setPreviewQueued(false);
-            setPreviewParameters([]);
-            setPreviewMachines([]);
-            setPreviewDataReady(false);
-            lastPreviewJobRef.current = null;
-            setInvocationTab("invocation");
-            setLoading(false);
+            const installDraft = () => {
+                if (cancelled) return;
+                const initialDraft = creatorInitialDraft(source.application, source.sourceText, context, customMeta);
+                setDraft(context.operation === "fork"
+                    ? {...initialDraft, dirty: true, sourceNormalized: true}
+                    : initialDraft);
+                setCustomGroups(placement.groups);
+                setCustomCategories(placement.categories);
+                setCustomEligibility(eligibility);
+                setServerValidation({errors: []});
+                setServerValidationRevision(null);
+                setPreviewApplication(null);
+                setPreviewScript(null);
+                setPreviewErrors([]);
+                setPreviewQueued(false);
+                setPreviewParameters([]);
+                setPreviewMachines([]);
+                setPreviewDataReady(false);
+                lastPreviewJobRef.current = null;
+                setInvocationTab("invocation");
+                setLoading(false);
+            };
+            installDraft();
         }).catch(error => {
             if (cancelled) return;
             setLoading(false);
@@ -466,7 +495,28 @@ export const Create: React.FunctionComponent = () => {
         return () => {
             cancelled = true;
         };
-    }, [context.operation, context.applicationKind, context.workspace, context.existingName, context.existingVersion, context.provider, context.initialCategory, context.developmentTemplate, contextError]);
+    }, [context.operation, context.applicationKind, context.workspace, context.existingName, context.existingVersion, context.provider, context.sourceApplicationKind, context.sourceProvider, context.initialCategory, context.developmentTemplate, contextError, navigate]);
+
+    // Refresh the workspace custom groups and categories from the backend. Used after creating a
+    // group or category from within the panel so the shared source stays in sync, and when the
+    // active project changes so stale data from the previous workspace is discarded.
+    const refreshPlacement = useCallback(async () => {
+        if (!creatorIsCustom(context)) return;
+        try {
+            const placement = await creatorService.loadCustomPlacement();
+            setCustomGroups(placement.groups);
+            setCustomCategories(placement.categories);
+        } catch {
+            // Leave the current lists in place on failure; the next interaction retries.
+        }
+        // Depend on primitive context fields rather than the context object: the object is rebuilt
+        // on every render, so depending on it would re-create this callback (and re-run the
+        // project-refresh effect) on every render.
+    }, [context.operation, context.applicationKind]);
+
+    useEffect(() => {
+        void refreshPlacement();
+    }, [projectId, refreshPlacement]);
 
     useEffect(() => {
         if (draft?.view !== "editor" || invocationTab !== "preview" || previewScript == null) return;
@@ -1053,11 +1103,16 @@ export const Create: React.FunctionComponent = () => {
             setDraft(previous => previous ? {...previous, view: "editor"} : previous);
             return;
         }
+        const parsed = parseSourceText(current.sourceText);
+        if (!parsed.ok) return;
+        const savedApplication = creatorIsCustom(current.context)
+            ? {...parsed.application, name: creatorLogicalName(parsed.application.name)}
+            : parsed.application;
 
         setSaveLoading(true);
         try {
             await creatorService.save(
-                current.application,
+                savedApplication,
                 current.sourceText,
                 current.context,
                 current.customMeta,
@@ -1065,9 +1120,9 @@ export const Create: React.FunctionComponent = () => {
             if (draftRevisionRef.current !== current.revision) return;
             setDraft(previous => previous ? {...previous, dirty: false} : previous);
             const savedName = creatorIsCustom(current.context)
-                ? creatorInternalName(current.application.name)
-                : current.application.name;
-            navigate(AppRoutes.jobs.create(savedName, current.application.version));
+                ? creatorInternalName(savedApplication.name)
+                : savedApplication.name;
+            navigate(AppRoutes.jobs.create(savedName, savedApplication.version));
         } catch (error) {
             const saveError = creatorRequestError(error, "SAVE_FAILED");
             setServerValidation({errors: [saveError]});
@@ -1267,7 +1322,7 @@ export const Create: React.FunctionComponent = () => {
                     </Flex>
                 </div>
                 <div className={CreatorMainBodyClass} style={(draft.view === "yaml" || draft.view === "invocation") ? {display: "flex", flexDirection: "column", overflowY: "hidden"} as React.CSSProperties : undefined}>
-                    {!creatorIsCustom(context) || customEligibility?.providers.some(provider => provider.eligible) ? null : (
+                    {!creatorIsCustom(context) || context.operation === "fork" || customEligibility?.providers.some(provider => provider.eligible) ? null : (
                         <Box m="12px" mb="0" p="12px" borderRadius="6px" background="color-mix(in srgb, var(--warningMain) 12%, transparent)">
                             <Text color="warningMain">No provider in this workspace currently meets the custom container and allocation requirements. You can edit the draft, but preview and save will remain unavailable until a provider is eligible.</Text>
                         </Box>
@@ -1346,6 +1401,7 @@ export const Create: React.FunctionComponent = () => {
                             customEligibility={customEligibility}
                             customGroups={customGroups}
                             customCategories={customCategories}
+                            refreshPlacement={refreshPlacement}
                         />
                     </div>
                 </div>
@@ -1791,6 +1847,7 @@ function CreatorPanel(props: {
     customEligibility: AppStore.AppEditorCustomEligibilityResponse | null;
     customGroups: AppStore.AppCatalogCustomGroup[];
     customCategories: AppStore.AppCatalogCustomCategory[];
+    refreshPlacement: () => Promise<void>;
 }): React.ReactNode {
     const {draft} = props;
     const {selection} = draft;
@@ -1847,6 +1904,7 @@ function CreatorPanel(props: {
                     customEligibility={props.customEligibility}
                     customGroups={props.customGroups}
                     customCategories={props.customCategories}
+                    refreshPlacement={props.refreshPlacement}
                 />
             </div>
             {!showingMetadata ? (
@@ -1918,6 +1976,8 @@ function creatorContextKey(context: CreatorOperationContext): string {
         context.existingName ?? "",
         context.existingVersion ?? "",
         context.provider ?? "",
+        context.sourceApplicationKind ?? "",
+        context.sourceProvider ?? "",
         context.initialCategory ?? "",
     ].join("\n");
 }

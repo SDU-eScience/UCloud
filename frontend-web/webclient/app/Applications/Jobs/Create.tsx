@@ -84,6 +84,9 @@ import {
 } from "@/Applications/KeyboardNavigation";
 import {useProjectId} from "@/Project/Api";
 import AppRoutes from "@/Routes";
+import {ApplicationForkAction} from "@/Applications/Creator/ForkAction";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {Feature, hasFeature} from "@/Features";
 
 interface InsufficientFunds {
     why?: string;
@@ -1188,7 +1191,8 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
 
                     <div className={JobCreateHeaderActionsClass}>
                         <UtilityBar responsive leading={<>
-                            {!canEditCustomVersion ? null : (
+                            {!previewMode ? <ApplicationForkAction application={application} /> : null}
+                            {!canEditCustomVersion || (!Client.userIsAdmin && !hasFeature(Feature.CONTAINER_REPOSITORIES)) ? null : (
                                 <Button height="25px" onClick={() => {
                                     const provider = application.invocation.tool.tool?.description.supportedProviders?.[0];
                                     if (!provider) return;
