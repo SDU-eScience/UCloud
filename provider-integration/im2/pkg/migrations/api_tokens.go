@@ -31,3 +31,16 @@ func apiTokensV1() db.MigrationScript {
 		},
 	}
 }
+
+func apiTokensV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "apiTokensV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table api_tokens add column created_by text not null default ''`,
+				db.Params{},
+			)
+		},
+	}
+}

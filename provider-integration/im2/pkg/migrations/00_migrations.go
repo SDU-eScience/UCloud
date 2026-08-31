@@ -64,4 +64,5 @@ func Init() {
 	db.AddMigration(apiTokensV1())
 	db.AddMigration(inferenceV18())
 	db.AddMigration(inferenceV19())
+	db.AddMigration(apiTokensV2())
 }

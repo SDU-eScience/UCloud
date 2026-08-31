@@ -440,7 +440,7 @@ func Init() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		owner, httpErr := inferenceAuthenticateRequest(r)
+		owner, _, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -454,7 +454,7 @@ func Init() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		owner, httpErr := inferenceAuthenticateRequest(r)
+		owner, _, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -472,7 +472,7 @@ func Init() {
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
-		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
+		apiKeyOwner, _, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -538,9 +538,13 @@ func Init() {
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
-		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
+		apiKeyOwner, createdBy, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		if createdBy == "" {
+			http.Error(w, "token has no associated user", http.StatusForbidden)
 			return
 		}
 		var request OaiResponseCreateRequest
@@ -600,9 +604,13 @@ func Init() {
 	})
 
 	controller.Mux.HandleFunc(authority+"/v1/responses/", func(w http.ResponseWriter, r *http.Request) {
-		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
+		apiKeyOwner, createdBy, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		if createdBy == "" {
+			http.Error(w, "token has no associated user", http.StatusForbidden)
 			return
 		}
 
@@ -667,7 +675,7 @@ func Init() {
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
-		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
+		apiKeyOwner, _, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -739,7 +747,7 @@ func Init() {
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
-		apiKeyOwner, httpErr := inferenceAuthenticateRequest(r)
+		apiKeyOwner, _, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -801,11 +809,11 @@ func inferenceIsAdminOwner(owner orcapi.ResourceOwner) bool {
 	return slices.Contains(shared.ServiceConfig.Compute.Inference.Access.Administrators, owner.Project.Value)
 }
 
-func inferenceAuthenticateRequest(r *http.Request) (apm.WalletOwner, *util.HttpError) {
+func inferenceAuthenticateRequest(r *http.Request) (apm.WalletOwner, string, *util.HttpError) {
 	authHeader := r.Header.Get("Authorization")
 	apiKey, ok := strings.CutPrefix(authHeader, "Bearer ")
 	if !ok || apiKey == "" {
-		return apm.WalletOwner{}, util.HttpErr(http.StatusForbidden, "invalid key")
+		return apm.WalletOwner{}, "", util.HttpErr(http.StatusForbidden, "invalid key")
 	}
 	return inferenceApiKeyValidate(apiKey)
 }

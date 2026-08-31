@@ -105,8 +105,8 @@ func ApiTokenCreate(kind string, server string, request orcapi.ApiToken) (orcapi
 		db.Exec(
 			tx,
 			`
-				insert into api_tokens(token_id, token_type, owner, permissions, token_hash, token_salt, expires_at)
-				values (:token_id, :token_type, :owner, cast(:permissions as jsonb), :token_hash, :token_salt, :expires_at)
+				insert into api_tokens(token_id, token_type, owner, permissions, token_hash, token_salt, expires_at, created_by)
+				values (:token_id, :token_type, :owner, cast(:permissions as jsonb), :token_hash, :token_salt, :expires_at, :created_by)
 				on conflict (token_id) do update
 				set
 					token_type = excluded.token_type,
@@ -114,7 +114,8 @@ func ApiTokenCreate(kind string, server string, request orcapi.ApiToken) (orcapi
 					permissions = excluded.permissions,
 					token_hash = excluded.token_hash,
 					token_salt = excluded.token_salt,
-					expires_at = excluded.expires_at
+					expires_at = excluded.expires_at,
+					created_by = excluded.created_by
 			`,
 			db.Params{
 				"token_id":    request.Id,
@@ -124,6 +125,7 @@ func ApiTokenCreate(kind string, server string, request orcapi.ApiToken) (orcapi
 				"token_hash":  hashedToken.HashedPassword,
 				"token_salt":  hashedToken.Salt,
 				"expires_at":  request.Specification.ExpiresAt.Time(),
+				"created_by":  request.Owner.CreatedBy,
 			},
 		)
 	})
@@ -135,22 +137,30 @@ func ApiTokenCreate(kind string, server string, request orcapi.ApiToken) (orcapi
 
 type apiTokenAuthentication struct {
 	Owner       string
+	CreatedBy   string
 	Permissions []orcapi.ApiTokenPermission
 }
 
 var apiTokensCache = util.NewCache[string, apiTokenAuthentication](5 * time.Minute)
 var apiTokenIdToCacheKey = util.NewCache[string, string](5 * time.Minute)
 
-func ApiTokenValidate(kind string, key string) (apm.WalletOwner, []orcapi.ApiTokenPermission, *util.HttpError) {
+type ApiTokenAuthentication struct {
+	Owner       apm.WalletOwner
+	CreatedBy   string
+	Permissions []orcapi.ApiTokenPermission
+}
+
+func ApiTokenValidate(kind string, key string) (ApiTokenAuthentication, *util.HttpError) {
 	tokenId, secret, ok := apiTokenParse(key)
 	if !ok {
-		return apm.WalletOwner{}, nil, util.HttpErr(http.StatusForbidden, "invalid key")
+		return ApiTokenAuthentication{}, util.HttpErr(http.StatusForbidden, "invalid key")
 	}
 
 	cacheKey := kind + "\x1f" + key
 	authentication, ok := apiTokensCache.Get(cacheKey, func() (apiTokenAuthentication, error) {
 		type rowType struct {
 			Owner       string
+			CreatedBy   string
 			Permissions json.RawMessage
 			TokenHash   []byte
 			TokenSalt   []byte
@@ -159,7 +169,7 @@ func ApiTokenValidate(kind string, key string) (apm.WalletOwner, []orcapi.ApiTok
 			return db.Get[rowType](
 				tx,
 				`
-					select owner, permissions, token_hash, token_salt
+					select owner, created_by, permissions, token_hash, token_salt
 					from api_tokens
 					where token_id = :token_id and token_type = :token_type and now() <= expires_at
 				`,
@@ -190,19 +200,19 @@ func ApiTokenValidate(kind string, key string) (apm.WalletOwner, []orcapi.ApiTok
 			)
 		})
 
-		return apiTokenAuthentication{Owner: row.Owner, Permissions: permissions}, nil
+		return apiTokenAuthentication{Owner: row.Owner, CreatedBy: row.CreatedBy, Permissions: permissions}, nil
 	})
 
 	if !ok {
-		return apm.WalletOwner{}, nil, util.HttpErr(http.StatusForbidden, "invalid key")
+		return ApiTokenAuthentication{}, util.HttpErr(http.StatusForbidden, "invalid key")
 	}
 
 	apiTokenIdToCacheKey.Set(tokenId, cacheKey)
 	owner := apm.WalletOwnerFromReference(authentication.Owner)
 	if authentication.Owner == "" || (owner.Username == "" && owner.ProjectId == "") {
-		return apm.WalletOwner{}, nil, util.HttpErr(http.StatusForbidden, "invalid key")
+		return ApiTokenAuthentication{}, util.HttpErr(http.StatusForbidden, "invalid key")
 	}
-	return owner, authentication.Permissions, nil
+	return ApiTokenAuthentication{Owner: owner, CreatedBy: authentication.CreatedBy, Permissions: authentication.Permissions}, nil
 }
 
 func apiTokenParse(raw string) (tokenId string, secret string, ok bool) {
