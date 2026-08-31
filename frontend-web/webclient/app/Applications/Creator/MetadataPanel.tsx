@@ -1544,6 +1544,8 @@ const WidgetDrawerGroupClass = injectStyle("creator-drawer-group", k => `
 
 const WidgetDrawerButtonClass = injectStyle("creator-drawer-button", k => `
     ${k} {
+        --creatorDrawerHoverBorder: var(--primaryMain);
+        --creatorDrawerHoverBackground: var(--rowActive);
         display: flex;
         align-items: center;
         gap: 8px;
@@ -1557,9 +1559,14 @@ const WidgetDrawerButtonClass = injectStyle("creator-drawer-button", k => `
         transition: border-color 0.15s ease, background-color 0.15s ease;
     }
 
+    html.dark ${k} {
+        --creatorDrawerHoverBorder: var(--blue-50);
+        --creatorDrawerHoverBackground: var(--blue-80);
+    }
+
     ${k}:hover {
-        border-color: var(--primaryMain);
-        background: var(--rowActive);
+        border-color: var(--creatorDrawerHoverBorder);
+        background: var(--creatorDrawerHoverBackground);
     }
 
     ${k}:focus-visible {

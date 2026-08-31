@@ -25,14 +25,13 @@ my-program --model {{ model | default("default-model") }}
 echo "Running on {{ ucloud.machine.name }}"
 ```
 
-If `inputFile` is `/data/my file.txt`, the generated command contains `'/data/my file.txt'`. Direct string values are automatically quoted, so a simple input parameter usually needs only `{{ inputFile }}`. Numbers and booleans are rendered in their normal form. The `if` block emits a separate command when `verbose` is true. `option` adds an option and its quoted value, `default` supplies a fallback, and `ucloud.machine.name` reads the allocated machine name.
-
+- Invocation templates can contain multiple lines and commands.
 - `{{ expression }}` evaluates an expression and writes its value.
+   - Values are automatically quoted, so a simple input parameter usually needs only `{{ inputFile }}`. 
 - `{% statement %}` runs control logic such as `if`, `for`, or `set`.
 - `{# comment #}` is removed from the generated script.
 - `{{-` and `-}}` trim whitespace next to an expression. The same form works with statement tags.
 - Use `~` to concatenate values: `{{ "--name=" ~ name }}`.
-- Invocation templates can contain multiple lines and commands.
 
 ## Values and parameters
 
@@ -55,7 +54,7 @@ Use `is defined` before reading an optional value. Use `is none` when a value is
 {% endif %}
 ```
 
-The available parameter values depend on the parameter type. Files and directories are rendered as paths, peers as host names, and license, IP, ingress, and similar resources as their identifiers. String values written with `{{ ... }}` are automatically shell-quoted. The `option` filter is useful when the option name and value should be emitted together.
+The available parameter values depend on the parameter type. Files and directories are rendered as paths and license, IP, ingress, and similar resources as their identifiers. String values written with `{{ ... }}` are automatically shell-quoted. The `option` filter is useful when the option name and value should be emitted together.
 
 ```jinja2
 my-program {{ value | option("--value") }}
