@@ -189,8 +189,6 @@ const EmptyCategoryPlaceholderClass = injectStyle("category-empty-placeholder", 
         gap: 16px;
         padding: 64px 32px;
         text-align: center;
-        border-radius: 8px;
-        border: 1px dashed var(--borderColor);
     }
 `);
 
