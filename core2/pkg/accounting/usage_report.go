@@ -103,27 +103,62 @@ func (r *internalUsageOverTimeDeltaDataPoint) ToApi() accapi.UsageReportDeltaDat
 	}
 }
 
-func setChild(givenChild util.Option[AccWalletId]) util.Option[string] {
-	child := util.OptNone[string]()
-	if givenChild.Present {
-		if givenChild.Value < 0 {
-			child.Set("Other")
-		} else {
-			b, w, ok := internalWalletById(givenChild.Value)
+type UsageReportChild struct {
+	Key    string
+	Wallet AccWalletId
+}
 
-			if ok {
-				b.Mu.RLock()
-				ownerId := w.OwnedBy
-				b.Mu.RUnlock()
-
-				accGlobals.Mu.RLock()
-				owner := accGlobals.OwnersById[ownerId]
-				child.Set(owner.Reference)
-				accGlobals.Mu.RUnlock()
-			}
-		}
+func walletToUsageReportChild(child AccWalletId) (UsageReportChild, bool) {
+	// Negative wallet IDs are synthetic IDs used for aggregated values,
+	// such as the "Other" bucket.
+	if child < 0 {
+		return UsageReportChild{
+			Key:    "Other",
+			Wallet: child,
+		}, true
 	}
-	return child
+
+	// Resolve the wallet.
+	bucket, wallet, ok := internalWalletById(child)
+	if !ok {
+		return UsageReportChild{}, false
+	}
+
+	// Get the owner of the wallet.
+	bucket.Mu.RLock()
+	ownerId := wallet.OwnedBy
+	bucket.Mu.RUnlock()
+
+	// Resolve the owner reference.
+	accGlobals.Mu.RLock()
+	owner, ok := accGlobals.OwnersById[ownerId]
+	accGlobals.Mu.RUnlock()
+
+	if !ok {
+		return UsageReportChild{}, false
+	}
+
+	if owner.Reference == "" {
+		return UsageReportChild{}, false
+	}
+
+	return UsageReportChild{
+		Key:    owner.Reference,
+		Wallet: child,
+	}, true
+}
+
+func setChild(givenChild util.Option[AccWalletId]) util.Option[string] {
+	if !givenChild.Present {
+		return util.OptNone[string]()
+	}
+
+	child, ok := walletToUsageReportChild(givenChild.Value)
+	if !ok {
+		return util.OptNone[string]()
+	}
+
+	return util.OptValue(child.Key)
 }
 
 type internalUsageOverTimeAbsoluteChildrenDataPoint struct {
@@ -550,15 +585,22 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 
 	result.SubProjectHealth = lastReport.SubProjectHealth // NOTE(Dan): Idle is recomputed below
 
+	// API child key -> representative wallet ID.
+	//
+	// Multiple wallets can belong to the same child/project, so when collapsing
+	// usage by owner.Reference we keep one representative wallet ID. This allows
+	// the internal representation to continue using AccWalletId.
+	childWallets := map[string]AccWalletId{}
+
 	// Every timestamp seen in the reports.
 	allTimestamps := map[time.Time]util.Empty{}
 
 	// Absolute usage for each child.
 	// child -> timestamp -> usage
-	absoluteUsageByChild := map[AccWalletId]map[time.Time]int64{}
+	absoluteUsageByChild := map[string]map[time.Time]int64{}
 
 	// Delta data grouped by child (for later)
-	deltaByChild := map[AccWalletId]map[time.Time]int64{}
+	deltaByChild := map[string]map[time.Time]int64{}
 	allDeltaTimestamps := map[time.Time]util.Empty{}
 
 	// Absolute usage for local
@@ -573,18 +615,21 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 				continue
 			}
 
-			child := item.Child.Value
-
-			timeline, ok := absoluteUsageByChild[child]
-			if !ok {
-				timeline = make(map[time.Time]int64)
-				absoluteUsageByChild[child] = timeline
+			child, ok := walletToUsageReportChild(item.Child.Value)
+			if !ok || child.Key == "" {
+				continue
 			}
 
-			// Absolute values overwrite previous ones at the same timestamp.
-			// (There should normally only be one.)
-			timeline[item.Timestamp] = item.Usage
+			if _, exists := childWallets[child.Key]; !exists {
+				childWallets[child.Key] = child.Wallet
+			}
+			timeline, ok := absoluteUsageByChild[child.Key]
+			if !ok {
+				timeline = make(map[time.Time]int64)
+				absoluteUsageByChild[child.Key] = timeline
+			}
 
+			timeline[item.Timestamp] = item.Usage
 			allTimestamps[item.Timestamp] = util.Empty{}
 		}
 
@@ -594,12 +639,19 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 				continue
 			}
 
-			child := item.Child.Value
+			child, ok := walletToUsageReportChild(item.Child.Value)
+			if !ok || child.Key == "" {
+				continue
+			}
 
-			timeline, ok := deltaByChild[child]
+			if _, exists := childWallets[child.Key]; !exists {
+				childWallets[child.Key] = child.Wallet
+			}
+
+			timeline, ok := deltaByChild[child.Key]
 			if !ok {
 				timeline = make(map[time.Time]int64)
-				deltaByChild[child] = timeline
+				deltaByChild[child.Key] = timeline
 			}
 
 			// Multiple changes can happen at the same timestamp.
@@ -633,7 +685,7 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 	}
 
 	// child -> timestamp -> usage (with gaps filled)
-	filledUsageByChild := make(map[AccWalletId]map[time.Time]int64)
+	filledUsageByChild := make(map[string]map[time.Time]int64)
 
 	for child, timeline := range absoluteUsageByChild {
 		filled := make(map[time.Time]int64)
@@ -674,7 +726,7 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 	}
 
 	// Determine each child's usage at the end of the reporting period.
-	finalUsage := make(map[AccWalletId]int64)
+	finalUsage := make(map[string]int64)
 
 	lastTimestamp := timestamps[len(timestamps)-1]
 
@@ -686,22 +738,22 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 	topUsers := util.TopNKeys(finalUsage, 10)
 
 	// Convert to a set for efficient lookups.
-	topUserSet := make(map[AccWalletId]util.Empty, len(topUsers))
+	topUserSet := make(map[string]util.Empty, len(topUsers))
 	for _, child := range topUsers {
 		topUserSet[child] = util.Empty{}
 	}
 
 	// child -> timestamp -> datapoint
-	collapsedByChild := make(map[util.Option[AccWalletId]]map[time.Time]internalUsageOverTimeAbsoluteChildrenDataPoint)
+	collapsedByChild := make(map[AccWalletId]map[time.Time]internalUsageOverTimeAbsoluteChildrenDataPoint)
 
-	otherChild := util.OptValue(AccWalletId(-1))
+	const usageReportOtherChild AccWalletId = -1
 
 	for child, timeline := range filledUsageByChild {
 		// Decide whether this child gets its own series
-		outputChild := otherChild
+		outputChild := usageReportOtherChild
 
 		if _, ok := topUserSet[child]; ok {
-			outputChild = util.OptValue(child)
+			outputChild = childWallets[child]
 		}
 
 		series, ok := collapsedByChild[outputChild]
@@ -717,7 +769,7 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 			if !exists {
 				entry = internalUsageOverTimeAbsoluteChildrenDataPoint{
 					Timestamp: ts,
-					Child:     outputChild,
+					Child:     util.OptValue(outputChild),
 					Usage:     usage,
 				}
 			} else {
@@ -777,7 +829,7 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 	//Delta
 
 	// child -> timestamp -> filled delta value
-	filledDeltaByChild := make(map[AccWalletId]map[time.Time]int64)
+	filledDeltaByChild := make(map[string]map[time.Time]int64)
 
 	deltaTimestamps := maps.Keys(allDeltaTimestamps)
 	slices.SortFunc(deltaTimestamps, func(a, b time.Time) int {
@@ -808,10 +860,10 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 
 	for child, timeline := range filledDeltaByChild {
 		// Decide if this child gets its own series
-		outputChild := otherChild
+		outputChild := util.OptValue(usageReportOtherChild)
 
 		if _, ok := topUserSet[child]; ok {
-			outputChild = util.OptValue(child)
+			outputChild = util.OptValue(childWallets[child])
 		}
 
 		series, ok := collapsedDeltaByChild[outputChild]
@@ -862,24 +914,6 @@ func usageCollapseReports(reports []internalUsageReport) internalUsageReport {
 			return cmp.Compare(aChild, bChild)
 		},
 	)
-
-	slices.SortFunc(result.UsageOverTime.Delta, func(a, b internalUsageOverTimeDeltaDataPoint) int {
-		if a.Timestamp.Before(b.Timestamp) {
-			return -1
-		} else if a.Timestamp.After(b.Timestamp) {
-			return 1
-		} else {
-			aId := a.Child.GetOrDefault(-2)
-			bId := b.Child.GetOrDefault(-2)
-			if aId < bId {
-				return -1
-			} else if aId > bId {
-				return 1
-			} else {
-				return 0
-			}
-		}
-	})
 
 	return result
 }
