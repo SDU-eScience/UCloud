@@ -20,7 +20,7 @@ import {MarkdownDocument} from "@/ui-components/Markdown";
 
 const fallbackDocs = "https://docs.cloud.sdu.dk";
 const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText", "Vision", "VideoVision", "Audio"];
-type PriceMultiplierText = {cachedInput: string; input: string; output: string};
+type PricePerMillionText = {cachedInput: string; input: string; output: string};
 
 export default function ModelPage(): React.ReactNode {
     const [params] = useSearchParams();
@@ -37,7 +37,7 @@ export default function ModelPage(): React.ReactNode {
     const [draft, setDraft] = React.useState<InferenceModel | null>(null);
     const [savingModel, setSavingModel] = React.useState(false);
     const [savingBenchmarks, setSavingBenchmarks] = React.useState(false);
-    const [priceMultiplierText, setPriceMultiplierText] = React.useState<PriceMultiplierText>({cachedInput: "", input: "", output: ""});
+    const [pricePerMillionText, setPricePerMillionText] = React.useState<PricePerMillionText>({cachedInput: "", input: "", output: ""});
 
     const model = models.find(it => it.name === modelName);
     usePage(model?.title ?? "Inference model", SidebarTabId.INFERENCE);
@@ -65,25 +65,25 @@ export default function ModelPage(): React.ReactNode {
     React.useEffect(() => {
         if (!editing || !model) return;
         setDraft(normalizeEditableModel(model));
-        setPriceMultiplierText(editablePriceMultipliers(model));
+        setPricePerMillionText(editablePricesPerMillion(model));
     }, [editing, model?.name]);
 
     const startEdit = () => {
         if (!model) return;
         setDraft(normalizeEditableModel(model));
-        setPriceMultiplierText(editablePriceMultipliers(model));
+        setPricePerMillionText(editablePricesPerMillion(model));
         setEditing(true);
     };
 
     const saveModel = () => {
         if (!draft || !model) return;
-        const priceMultiplier = parsePriceMultipliers(priceMultiplierText);
-        if (!priceMultiplier) {
-            setError("Price multipliers must be non-negative decimal values with at most three decimal places.");
+        const pricePerMillion = parsePricesPerMillion(pricePerMillionText);
+        if (!pricePerMillion) {
+            setError("Prices must be non-negative decimal values with at most six decimal places.");
             return;
         }
 
-        const updatedDraft = {...draft, priceMultiplier};
+        const updatedDraft = {...draft, pricePerMillion};
         setSavingModel(true);
         setError("");
         void callAPI(updateModel({providerId: null, oldName: model.name, model: updatedDraft}))
@@ -132,8 +132,8 @@ export default function ModelPage(): React.ReactNode {
                 onSaveModel={saveModel}
                 onSaveBenchmarks={saveBenchmarks}
                 setModel={model => setDraft(model)}
-                priceMultiplierText={priceMultiplierText}
-                setPriceMultiplierText={setPriceMultiplierText}
+                pricePerMillionText={pricePerMillionText}
+                setPricePerMillionText={setPricePerMillionText}
             />
         </>;
     }
@@ -277,8 +277,8 @@ function ModelPageContent(props: {
     onSaveModel: () => void;
     onSaveBenchmarks: () => void;
     setModel: (model: InferenceModel) => void;
-    priceMultiplierText: PriceMultiplierText;
-    setPriceMultiplierText: (value: PriceMultiplierText) => void;
+    pricePerMillionText: PricePerMillionText;
+    setPricePerMillionText: (value: PricePerMillionText) => void;
 }): React.ReactNode {
     const {model, models, benchmarks, providerId, server} = props;
     const page = model.page;
@@ -340,7 +340,7 @@ function ModelPageContent(props: {
 
             <Section>
                 <hr className="model-sidebar-separator" />
-                {props.editing ? <ModelSettingsEditor model={model} models={models} setModel={updateModel} priceMultiplierText={props.priceMultiplierText} setPriceMultiplierText={props.setPriceMultiplierText} /> : <Datasheet model={model} />}
+                {props.editing ? <ModelSettingsEditor model={model} models={models} setModel={updateModel} pricePerMillionText={props.pricePerMillionText} setPricePerMillionText={props.setPricePerMillionText} /> : <Datasheet model={model} />}
 
                 {props.editing ? null : <Flex gap="12px" flexWrap="wrap" flexDirection={"column"}>
                     <Link to={AppRoutes.inference.playground(model.name)}>
@@ -407,9 +407,9 @@ function Datasheet({model}: {model: InferenceModel}): React.ReactNode {
         ["Activated parameters", page?.datasheet?.activatedParameters ?? null],
         ["Context length", model.contextWindow ? model.contextWindow.toLocaleString() : "Not specified"],
         ["Quantization level", page?.datasheet?.quantization ?? null],
-        ["Input multiplier", formatMultiplier(model.priceMultiplier.input)],
-        ["Cached input multiplier", formatMultiplier(model.priceMultiplier.cachedInput)],
-        ["Output multiplier", formatMultiplier(model.priceMultiplier.output)],
+        ["Input Credits per 1M tokens", formatPricePerMillion(model.pricePerMillion.input)],
+        ["Cached input Credits per 1M tokens", formatPricePerMillion(model.pricePerMillion.cachedInput)],
+        ["Output Credits per 1M tokens", formatPricePerMillion(model.pricePerMillion.output)],
     ];
 
     return <Table tableType="presentation" width="100%">
@@ -429,37 +429,39 @@ function CopyableEndpoint({value}: {value: string}): React.ReactNode {
 
 function fallbackKeyStats(model: InferenceModel): {label: string; value: string; description?: string}[] {
     return [
-        {label: "Cached multiplier", value: formatMultiplier(model.priceMultiplier.cachedInput)},
-        {label: "Input multiplier", value: formatMultiplier(model.priceMultiplier.input)},
-        {label: "Output multiplier", value: formatMultiplier(model.priceMultiplier.output)},
+        {label: "Cached Credits per 1M tokens", value: formatPricePerMillion(model.pricePerMillion.cachedInput)},
+        {label: "Input Credits per 1M tokens", value: formatPricePerMillion(model.pricePerMillion.input)},
+        {label: "Output Credits per 1M tokens", value: formatPricePerMillion(model.pricePerMillion.output)},
     ];
 }
 
-function formatMultiplier(value: number): string {
-    if (value === 0) return "N/A";
-    return `${value / 1000}x`;
+function formatPricePerMillion(value: number): string {
+    if (value === 0) return "Free";
+    const digits = Math.trunc(value).toString().padStart(7, "0");
+    const fraction = digits.slice(-6).replace(/0+$/, "");
+    return fraction === "" ? digits.slice(0, -6) : `${digits.slice(0, -6)}.${fraction}`;
 }
 
-function editablePriceMultipliers(model: InferenceModel): PriceMultiplierText {
+function editablePricesPerMillion(model: InferenceModel): PricePerMillionText {
     return {
-        cachedInput: String(model.priceMultiplier.cachedInput / 1000),
-        input: String(model.priceMultiplier.input / 1000),
-        output: String(model.priceMultiplier.output / 1000),
+        cachedInput: model.pricePerMillion.cachedInput === 0 ? "0" : formatPricePerMillion(model.pricePerMillion.cachedInput),
+        input: model.pricePerMillion.input === 0 ? "0" : formatPricePerMillion(model.pricePerMillion.input),
+        output: model.pricePerMillion.output === 0 ? "0" : formatPricePerMillion(model.pricePerMillion.output),
     };
 }
 
-function parsePriceMultiplier(value: string): number | null {
-    const match = /^(\d+)(?:\.(\d{1,3}))?$/.exec(value);
+function parsePricePerMillion(value: string): number | null {
+    const match = /^(\d+)(?:\.(\d{1,6}))?$/.exec(value);
     if (!match) return null;
 
-    const result = Number(`${match[1]}${(match[2] ?? "").padEnd(3, "0")}`);
+    const result = Number(`${match[1]}${(match[2] ?? "").padEnd(6, "0")}`);
     return Number.isSafeInteger(result) ? result : null;
 }
 
-function parsePriceMultipliers(values: PriceMultiplierText): InferenceModel["priceMultiplier"] | null {
-    const cachedInput = parsePriceMultiplier(values.cachedInput);
-    const input = parsePriceMultiplier(values.input);
-    const output = parsePriceMultiplier(values.output);
+function parsePricesPerMillion(values: PricePerMillionText): InferenceModel["pricePerMillion"] | null {
+    const cachedInput = parsePricePerMillion(values.cachedInput);
+    const input = parsePricePerMillion(values.input);
+    const output = parsePricePerMillion(values.output);
     if (cachedInput === null || input === null || output === null) return null;
     return {cachedInput, input, output};
 }
@@ -514,8 +516,8 @@ function ModelSettingsEditor(props: {
     model: InferenceModel;
     models: InferenceModel[];
     setModel: (model: InferenceModel) => void;
-    priceMultiplierText: PriceMultiplierText;
-    setPriceMultiplierText: (value: PriceMultiplierText) => void;
+    pricePerMillionText: PricePerMillionText;
+    setPricePerMillionText: (value: PricePerMillionText) => void;
 }): React.ReactNode {
     const {model, setModel} = props;
     const defaults = defaultModelPage();
@@ -534,9 +536,9 @@ function ModelSettingsEditor(props: {
         <label>Parameters<Input value={datasheet.parameters ?? ""} onChange={ev => updateDatasheet(model, setModel, {...datasheet, parameters: ev.currentTarget.value})} /></label>
         <label>Activated parameters<Input value={datasheet.activatedParameters ?? ""} onChange={ev => updateDatasheet(model, setModel, {...datasheet, activatedParameters: ev.currentTarget.value})} /></label>
         <label>Quantization<Input value={datasheet.quantization ?? ""} onChange={ev => updateDatasheet(model, setModel, {...datasheet, quantization: ev.currentTarget.value})} /></label>
-        <label>Cached multiplier<Input type="number" step="0.001" min="0" value={props.priceMultiplierText.cachedInput} error={parsePriceMultiplier(props.priceMultiplierText.cachedInput) === null} onChange={ev => props.setPriceMultiplierText({...props.priceMultiplierText, cachedInput: ev.currentTarget.value})} /></label>
-        <label>Input multiplier<Input type="number" step="0.001" min="0" value={props.priceMultiplierText.input} error={parsePriceMultiplier(props.priceMultiplierText.input) === null} onChange={ev => props.setPriceMultiplierText({...props.priceMultiplierText, input: ev.currentTarget.value})} /></label>
-        <label>Output multiplier<Input type="number" step="0.001" min="0" value={props.priceMultiplierText.output} error={parsePriceMultiplier(props.priceMultiplierText.output) === null} onChange={ev => props.setPriceMultiplierText({...props.priceMultiplierText, output: ev.currentTarget.value})} /></label>
+        <label>Cached input Credits per 1M tokens<Input type="number" step="0.000001" min="0" value={props.pricePerMillionText.cachedInput} error={parsePricePerMillion(props.pricePerMillionText.cachedInput) === null} onChange={ev => props.setPricePerMillionText({...props.pricePerMillionText, cachedInput: ev.currentTarget.value})} /></label>
+        <label>Input Credits per 1M tokens<Input type="number" step="0.000001" min="0" value={props.pricePerMillionText.input} error={parsePricePerMillion(props.pricePerMillionText.input) === null} onChange={ev => props.setPricePerMillionText({...props.pricePerMillionText, input: ev.currentTarget.value})} /></label>
+        <label>Output Credits per 1M tokens<Input type="number" step="0.000001" min="0" value={props.pricePerMillionText.output} error={parsePricePerMillion(props.pricePerMillionText.output) === null} onChange={ev => props.setPricePerMillionText({...props.pricePerMillionText, output: ev.currentTarget.value})} /></label>
         <label>Temperature<Input type="number" step="0.1" min="0" max="2" value={model.chatSettings.temperature} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, temperature: parseFloat(ev.currentTarget.value || "0")}})} /></label>
         <label>Top P<Input type="number" step="0.1" min="0" max="1" value={model.chatSettings.topP} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, topP: parseFloat(ev.currentTarget.value || "0")}})} /></label>
         <label>Max completion tokens<Input type="number" min="1" value={model.chatSettings.maxCompletionTokens} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, maxCompletionTokens: parseInt(ev.currentTarget.value || "0")}})} /></label>
@@ -560,7 +562,7 @@ function RepeatableStrings(props: {title: string; values: string[]; placeholder:
 function KeyStatsEditor(props: {stats: NonNullable<NonNullable<NonNullable<InferenceModel["page"]>["about"]>["keyStats"]>; setStats: (stats: NonNullable<NonNullable<NonNullable<InferenceModel["page"]>["about"]>["keyStats"]>) => void;}): React.ReactNode {
     return <Box style={{display: "grid", gap: 8}}>
         <Flex alignItems="center" gap="8px"><h3 className="title" style={{margin: 0}}>Key stats</h3><Button type="button" m={0} onClick={() => props.setStats([...props.stats, {label: "", value: "", description: ""}])}>Add</Button></Flex>
-        {props.stats.length === 0 ? <Text color="textSecondary">If left empty, the model page shows context length, input multiplier and output multiplier.</Text> : null}
+        {props.stats.length === 0 ? <Text color="textSecondary">If left empty, the model page shows cached input, input, and output prices.</Text> : null}
         {props.stats.map((stat, idx) => <div key={idx} style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr)) auto", gap: 8, alignItems: "end"}}><label>Label<Input value={stat.label} onChange={ev => props.setStats(props.stats.map((it, itIdx) => itIdx === idx ? {...it, label: ev.currentTarget.value} : it))} /></label><label>Value<Input value={stat.value} onChange={ev => props.setStats(props.stats.map((it, itIdx) => itIdx === idx ? {...it, value: ev.currentTarget.value} : it))} /></label><label>Description<Input value={stat.description ?? ""} onChange={ev => props.setStats(props.stats.map((it, itIdx) => itIdx === idx ? {...it, description: ev.currentTarget.value} : it))} /></label><Button type="button" color="errorMain" m={0} onClick={() => props.setStats(props.stats.filter((_, itIdx) => itIdx !== idx))}>Remove</Button></div>)}
     </Box>;
 }

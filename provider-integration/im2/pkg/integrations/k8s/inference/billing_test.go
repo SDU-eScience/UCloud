@@ -68,12 +68,12 @@ func TestInferenceUsageArithmeticSplitsAndSaturates(t *testing.T) {
 	if got := inferenceUsageMultiply(1, 1999); got != 1999 {
 		t.Fatalf("unexpected multiplication result: %d", got)
 	}
-	if got := inferenceUsageAdd(inferenceUsageMultiply(int(^uint(0)>>1), int(^uint(0)>>1)), 1); got <= 0 {
+	if got := inferenceUsageAdd(inferenceUsageMultiply(int(^uint(0)>>1), int64(^uint64(0)>>1)), 1); got <= 0 {
 		t.Fatalf("expected saturated positive result, got %d", got)
 	}
-	weighted := int64(1999)
-	if usage, remainder := weighted/1000, weighted%1000; usage != 1 || remainder != 999 {
-		t.Fatalf("expected 1 whole token and a remainder of 999, got %d and %d", usage, remainder)
+	weighted := int64(1_999_999)
+	if usage, remainder := weighted/InferencePriceScale, weighted%InferencePriceScale; usage != 1 || remainder != 999_999 {
+		t.Fatalf("expected 1 complete microcredit and a remainder of 999999, got %d and %d", usage, remainder)
 	}
 }
 

@@ -119,7 +119,7 @@ The inference model commands manage the model catalog stored by the Integration 
 
 ### `ucloud inference models ls`
 
-Lists inference model catalog entries, including name, title, capabilities, pricing multipliers, endpoint information, and availability.
+Lists inference model catalog entries, including name, title, capabilities, token prices, endpoint information, and availability.
 
 Options:
 
@@ -136,15 +136,15 @@ Options:
 - `--name <name>`: Rename the model. Renaming is only allowed while the model is not public.
 - `--title <title>`: Set the display title.
 - `--capabilities <list>`: Set a comma-separated capability list. Allowed values are `TextGeneration`, `TextToImage`, and `SpeechToText`.
-- `--price-cached <n>`: Set cached input token price multiplier in fixed-point thousandths.
-- `--price-input <n>`: Set input token price multiplier in fixed-point thousandths.
-- `--price-output <n>`: Set output token price multiplier in fixed-point thousandths.
+- `--price-per-million-cached <n>`: Set encoded cached input Credits per million tokens.
+- `--price-per-million-input <n>`: Set encoded input Credits per million tokens.
+- `--price-per-million-output <n>`: Set encoded output Credits per million tokens.
 - `--public <bool>`: Set whether the model is publicly available.
 - `--available-to <list>`: Set a comma-separated list of project IDs allowed to use the model when it is not public.
 - `--base-path <url>`: Set the OpenAI-compatible endpoint base path for the backing model.
 - `--backend-model-name <name>`: Set the model name sent to the backing inference provider.
 
-Price multipliers must be non-negative integers. A value of `1000` means `1x`; `500` means `0.5x`.
+Prices use fixed-point Credits per one million tokens. The scale is `1000000`. Thus, `1000000` means one Credit per million tokens. Zero is valid and means free.
 
 ### `ucloud inference models rm <name>`
 
@@ -167,7 +167,7 @@ $ ucloud jobs stop 1234 5678
 $ ucloud jobs suspend 1234
 $ ucloud jobs resume 1234
 $ ucloud inference models ls
-$ ucloud inference models update qwen --title "Qwen" --capabilities TextGeneration --price-input 1000 --price-output 1000
+$ ucloud inference models update qwen --title "Qwen" --capabilities TextGeneration --price-per-million-input 1000000 --price-per-million-output 1000000
 $ ucloud inference models update qwen --name qwen-public --public true
 $ ucloud inference models rm qwen-public
 ```

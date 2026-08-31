@@ -219,6 +219,11 @@ export function addThousandSeparators(numberOrString: string | number): string {
     return result;
 }
 
+export function isCreditUnit(unit: string): boolean {
+    const normalized = unit.toLowerCase();
+    return normalized === "credit" || normalized === "credits";
+}
+
 // Version 2 API
 // =====================================================================================================================
 const baseContextV2 = "/api/accounting/v2";
@@ -585,7 +590,7 @@ export function priceToString(product: ProductV2, numberOfUnits: number, duratio
         return `${numerator} / ${fraction.denominator} ${unit.name}${frequencySuffix}`;
     }
 
-    let withoutSuffix = balanceToStringFromUnit(product.category.productType, unit.name, totalPrice);
+    let withoutSuffix = balanceToStringFromUnit(product.category.productType, unit.name, totalPrice, {isPrice: true});
     if (unit.desiredFrequency !== "ONCE" && opts?.showSuffix !== false) {
         return withoutSuffix + "/" + frequencyToSuffix(unit.desiredFrequency, false);
     } else {
@@ -1228,7 +1233,7 @@ export function explainWallet(wallet: WalletV2): AllocationDisplayWallet | null 
 export function balanceToString(
     category: ProductCategoryV2,
     balance: number,
-    opts?: {precision?: number, removeUnitIfPossible?: boolean}
+    opts?: {precision?: number, removeUnitIfPossible?: boolean, isPrice?: boolean}
 ): string {
     const unit = explainUnit(category);
     const normalizedBalance = balance * unit.balanceFactor;
@@ -1240,7 +1245,8 @@ export function normalizedBalanceToRaw(
     normalizedBalance: number,
 ): number {
     const unit = explainUnit(category);
-    return normalizedBalance * unit.invBalanceFactor;
+    const rawBalance = normalizedBalance * unit.invBalanceFactor;
+    return isCreditUnit(unit.name) ? Math.round(rawBalance) : rawBalance;
 }
 
 export function truncateValues(
@@ -1273,7 +1279,7 @@ export function truncateValues(
         }
 
         unitToDisplay = array[idx];
-    } else {
+    } else if (!isCreditUnit(unitToDisplay)) {
         let threshold = 1000;
         if (ProbablyCurrencies.indexOf(unitToDisplay) !== -1) threshold = 1000000;
 
@@ -1308,8 +1314,9 @@ export function formatUsage(usage: number, productType: ProductType | null, unit
 
     const [truncatedUsage] = truncated;
 
-    let result = fmt(truncatedUsage);
-    result += `${attachedSuffix} `;
+    let result = fmtBalance(truncatedUsage, unit);
+    if (attachedSuffix) result += attachedSuffix;
+    result += " ";
     result += `${unitToDisplay}`;
 
     return result;
@@ -1327,13 +1334,13 @@ export function formatUsageAndQuota(usage: number, quota: number, isStorage: boo
     } = truncateValues([usage, quota], isStorage, unit, opts);
     const [truncatedUsage, truncatedQuota] = truncated;
 
-    let usageAndQuota = fmt(truncatedUsage, opts?.precision);
+    let usageAndQuota = fmtBalance(truncatedUsage, unit, opts?.precision);
     if (attachedSuffix) usageAndQuota += `${attachedSuffix}`;
     if (isStorage) {
         usageAndQuota += ` ${unitToDisplay}`;
     }
     usageAndQuota += " / ";
-    usageAndQuota += fmt(truncatedQuota, opts?.precision);
+    usageAndQuota += fmtBalance(truncatedQuota, unit, opts?.precision);
     if (attachedSuffix) usageAndQuota += `${attachedSuffix}`;
     usageAndQuota += " ";
 
@@ -1348,11 +1355,20 @@ function fmt(val: number, precision: number = 1): string {
     return addThousandSeparators(removeSuffix(val.toFixed(precision), ".0"))
 }
 
+function fmtBalance(val: number, unit: string, precision?: number, isPrice = false): string {
+    if (!isCreditUnit(unit)) return fmt(val, precision);
+
+    const maxPrecision = isPrice ? 6 : 3;
+    const precisionToUse = isPrice ? Math.min(precision ?? maxPrecision, maxPrecision) : maxPrecision;
+    const text = val.toFixed(precisionToUse).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+    return addThousandSeparators(text);
+}
+
 export function balanceToStringFromUnit(
     productType: ProductType | null,
     unit: string,
     normalizedBalance: number,
-    opts?: {precision?: number, removeUnitIfPossible?: boolean, referenceBalance?: number}
+    opts?: {precision?: number, removeUnitIfPossible?: boolean, referenceBalance?: number, isPrice?: boolean}
 ): string {
     const isStorage = productType === "STORAGE" || StandardStorageUnitsSi.indexOf(unit) !== -1 ||
         StandardStorageUnits.indexOf(unit) !== -1;
@@ -1367,7 +1383,7 @@ export function balanceToStringFromUnit(
     const [balanceToDisplay] = truncated;
 
     let builder = "";
-    builder += fmt(balanceToDisplay, opts?.precision);
+    builder += fmtBalance(balanceToDisplay, unit, opts?.precision, opts?.isPrice);
     if (attachedSuffix) builder += attachedSuffix;
     if (!canRemoveUnit) {
         builder += " ";

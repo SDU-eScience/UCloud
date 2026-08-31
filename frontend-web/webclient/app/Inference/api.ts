@@ -40,7 +40,7 @@ export interface InferenceModel {
     title: string;
     titleModelName: string;
     capabilities: InferenceCapability[];
-    priceMultiplier: {
+    pricePerMillion: {
         cachedInput: number;
         input: number;
         output: number;

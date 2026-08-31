@@ -53,7 +53,7 @@ type inferenceUsageRow struct {
 	Owner         string
 	Scope         string
 	Usage         int64
-	Remainder     int
+	Remainder     int64
 	ReportedUsage int64
 }
 
@@ -290,10 +290,10 @@ func Init() {
 					}
 					return capabilities
 				}(),
-				PriceMultiplier: orcapi.InferencePricing{
-					CachedInput: model.PriceMultiplier.CachedInput,
-					Input:       model.PriceMultiplier.Input,
-					Output:      model.PriceMultiplier.Output,
+				PricePerMillion: orcapi.InferencePricing{
+					CachedInput: model.PricePerMillion.CachedInput,
+					Input:       model.PricePerMillion.Input,
+					Output:      model.PricePerMillion.Output,
 				},
 				Endpoint: orcapi.InferenceEndpoint{
 					BasePath:         model.Endpoint.BasePath,
@@ -350,10 +350,10 @@ func Init() {
 				}
 				return capabilities
 			}(),
-			PriceMultiplier: InferencePricing{
-				CachedInput: request.Model.PriceMultiplier.CachedInput,
-				Input:       request.Model.PriceMultiplier.Input,
-				Output:      request.Model.PriceMultiplier.Output,
+			PricePerMillion: InferencePricing{
+				CachedInput: request.Model.PricePerMillion.CachedInput,
+				Input:       request.Model.PricePerMillion.Input,
+				Output:      request.Model.PricePerMillion.Output,
 			},
 			Endpoint: InferenceEndpoint{
 				BasePath:         request.Model.Endpoint.BasePath,
@@ -406,8 +406,10 @@ func Init() {
 			Provider:    cfg.Provider.Id,
 			ProductType: apm.ProductTypeInference,
 			AccountingUnit: apm.AccountingUnit{
-				Name:       "Credit",
-				NamePlural: "Credits",
+				Name:                   "Credit",
+				NamePlural:             "Credits",
+				FloatingPoint:          true,
+				DisplayFrequencySuffix: false,
 			},
 			AccountingFrequency: apm.AccountingFrequencyOnce,
 			FreeToUse:           false,
@@ -940,10 +942,10 @@ func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string, disa
 			Title:          name,
 			TitleModelName: name,
 			Capabilities:   []InferenceCapability{InferenceTextGeneration},
-			PriceMultiplier: InferencePricing{
-				CachedInput: 1000,
-				Input:       1000,
-				Output:      1000,
+			PricePerMillion: InferencePricing{
+				CachedInput: InferencePriceScale,
+				Input:       InferencePriceScale,
+				Output:      InferencePriceScale,
 			},
 			Endpoint: InferenceEndpoint{
 				BasePath:         base,
@@ -1131,11 +1133,11 @@ func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTok
 		outputTokens = 0
 	}
 
-	weightedUsage := inferenceUsageMultiply(cachedTokens, model.PriceMultiplier.CachedInput)
-	weightedUsage = inferenceUsageAdd(weightedUsage, inferenceUsageMultiply(inputTokens, model.PriceMultiplier.Input))
-	weightedUsage = inferenceUsageAdd(weightedUsage, inferenceUsageMultiply(outputTokens, model.PriceMultiplier.Output))
-	usage := weightedUsage / 1000
-	remainder := weightedUsage % 1000
+	weightedUsage := inferenceUsageMultiply(cachedTokens, model.PricePerMillion.CachedInput)
+	weightedUsage = inferenceUsageAdd(weightedUsage, inferenceUsageMultiply(inputTokens, model.PricePerMillion.Input))
+	weightedUsage = inferenceUsageAdd(weightedUsage, inferenceUsageMultiply(outputTokens, model.PricePerMillion.Output))
+	usage := weightedUsage / InferencePriceScale
+	remainder := weightedUsage % InferencePriceScale
 
 	metricInferenceCachedInputTokens.WithLabelValues(model.Name).Add(float64(cachedTokens))
 	metricInferenceInputTokens.WithLabelValues(model.Name).Add(float64(inputTokens))
@@ -1192,9 +1194,9 @@ func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTok
 					usage = cast((
 						cast(inference_usage.usage as numeric)
 							+ excluded.usage
-							+ (inference_usage.remainder + excluded.remainder) / 1000
+							+ (inference_usage.remainder + excluded.remainder) / 1000000
 					) as bigint),
-					remainder = (inference_usage.remainder + excluded.remainder) % 1000,
+					remainder = (inference_usage.remainder + excluded.remainder) % 1000000,
 					updated_at = now()
 			`,
 			db.Params{
@@ -1243,11 +1245,11 @@ func inferenceReportChatUsageMetrics(model string, cachedTokens int, inputTokens
 	}
 }
 
-func inferenceUsageMultiply(tokens int, multiplier int) int64 {
-	if tokens <= 0 || multiplier <= 0 {
+func inferenceUsageMultiply(tokens int, encodedPrice int64) int64 {
+	if tokens <= 0 || encodedPrice <= 0 {
 		return 0
 	}
-	high, low := bits.Mul64(uint64(tokens), uint64(multiplier))
+	high, low := bits.Mul64(uint64(tokens), uint64(encodedPrice))
 	if high != 0 || low > math.MaxInt64 {
 		return math.MaxInt64
 	}
@@ -1285,12 +1287,12 @@ func inferenceFlushUsage() {
 				select
 					owner,
 					scope,
-					usage + 1 as usage,
+					usage,
 					remainder,
 					reported_usage
 				from inference_usage
 				where
-					usage + 1 > reported_usage
+					usage > reported_usage
 				order by owner
 			`,
 			db.Params{},

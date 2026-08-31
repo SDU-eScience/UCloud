@@ -296,7 +296,7 @@ func initUsageReports() {
 			var reports []accapi.UsageReport
 			for _, w := range wallets {
 				productType := w.PaysFor.ProductType
-				if productType != accapi.ProductTypeCompute && productType != accapi.ProductTypeStorage {
+				if productType != accapi.ProductTypeCompute && productType != accapi.ProductTypeStorage && productType != accapi.ProductTypeInference {
 					continue
 				}
 

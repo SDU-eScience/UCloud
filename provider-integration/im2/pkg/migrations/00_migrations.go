@@ -63,4 +63,5 @@ func Init() {
 	db.AddMigration(k8sV3())
 	db.AddMigration(apiTokensV1())
 	db.AddMigration(inferenceV18())
+	db.AddMigration(inferenceV19())
 }

@@ -719,10 +719,11 @@ export default function Models(): React.ReactNode {
     </Box>} />;
 }
 
-function formatMultiplier(value: number): string {
-    if (value === 0) return "N/A";
-    if (value % 1000 === 0) return `${value / 1000}x`;
-    return `${value / 1000}x`;
+function formatPricePerMillion(value: number): string {
+    if (value === 0) return "Free";
+    const digits = Math.trunc(value).toString().padStart(7, "0");
+    const fraction = digits.slice(-6).replace(/0+$/, "");
+    return fraction === "" ? digits.slice(0, -6) : `${digits.slice(0, -6)}.${fraction}`;
 }
 
 function primaryCapability(model: InferenceModel): InferenceCapability | string {
@@ -818,16 +819,16 @@ function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {
             </div>
 
             <div className="metric-grid">
-                <ModelMultiplier title="Cached" value={model.priceMultiplier.cachedInput} />
-                <ModelMultiplier title="Input" value={model.priceMultiplier.input} />
-                <ModelMultiplier title="Output" value={model.priceMultiplier.output} />
+                <ModelPrice title="Cached Credits per 1M tokens" value={model.pricePerMillion.cachedInput} />
+                <ModelPrice title="Input Credits per 1M tokens" value={model.pricePerMillion.input} />
+                <ModelPrice title="Output Credits per 1M tokens" value={model.pricePerMillion.output} />
             </div>
         </div>
     </Link>;
 }
 
-function ModelMultiplier(props: {title: string; value: number;}): React.ReactNode {
-    return <ModelMetric title={props.title} value={formatMultiplier(props.value)} />;
+function ModelPrice(props: {title: string; value: number;}): React.ReactNode {
+    return <ModelMetric title={props.title} value={formatPricePerMillion(props.value)} />;
 }
 
 const ModelMetric: React.FunctionComponent<{ title: string; value: string; }> = props => {
