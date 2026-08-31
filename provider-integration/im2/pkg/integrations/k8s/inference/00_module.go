@@ -666,6 +666,50 @@ func Init() {
 		}
 	})
 
+	controller.Mux.HandleFunc(authority+"/v1/conversations/", func(w http.ResponseWriter, r *http.Request) {
+		apiKeyOwner, createdBy, httpErr := inferenceAuthenticateRequest(r)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		if createdBy == "" {
+			http.Error(w, "token has no associated user", http.StatusForbidden)
+			return
+		}
+
+		id := strings.TrimPrefix(r.URL.Path, "/v1/conversations/")
+		id = strings.Trim(id, "/")
+		if id == "" {
+			http.Error(w, "conversation not found", http.StatusNotFound)
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			conversation, httpErr := InferenceConversationRetrieve(apiKeyOwner, createdBy, id)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+			conversationData, _ := json.Marshal(conversation)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(conversationData)
+		case http.MethodDelete:
+			result, httpErr := InferenceConversationDelete(apiKeyOwner, createdBy, id)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+			resultData, _ := json.Marshal(result)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(resultData)
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
 	controller.Mux.HandleFunc(authority+"/v1/audio/transcriptions", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)

@@ -146,19 +146,7 @@ func inferenceResponseStoreConversationsDir(basePath string) string {
 }
 
 func inferenceResponseStoreRead(owner apm.WalletOwner, username string, responseId string) (inferencePersistedResponse, bool) {
-	record, ok := inferenceResponseStoreReadUnchecked(owner, username, responseId)
-	if !ok {
-		return inferencePersistedResponse{}, false
-	}
-
-	// A response record whose conversation file is missing is a torn write from the perspective of a reader.
-	if record.Conversation != "" {
-		_, ok := inferenceResponseStoreConversationRead(owner, username, record.Conversation)
-		if !ok {
-			return inferencePersistedResponse{}, false
-		}
-	}
-	return record, true
+	return inferenceResponseStoreReadUnchecked(owner, username, responseId)
 }
 
 func inferenceResponseStoreReadUnchecked(owner apm.WalletOwner, username string, responseId string) (inferencePersistedResponse, bool) {
@@ -272,6 +260,23 @@ func inferenceResponseStoreDelete(owner apm.WalletOwner, username string, respon
 	if info, statErr := filesystem.Stat(path); statErr == nil && !info.IsDir() {
 		if deleteErr := filesystem.DoDeleteFile(path); deleteErr != nil {
 			log.Warn("Could not delete inference response state %s: %s", path, deleteErr)
+		}
+	}
+}
+
+func inferenceResponseStoreConversationDelete(owner apm.WalletOwner, username string, conversationId string) {
+	if !inferenceResponseStoreValidId(conversationId) {
+		return
+	}
+	basePath, err := inferenceResponseStoreBasePath(owner, username)
+	if err != nil {
+		return
+	}
+
+	path := filepath.Join(inferenceResponseStoreConversationsDir(basePath), conversationId+".json")
+	if info, statErr := filesystem.Stat(path); statErr == nil && !info.IsDir() {
+		if deleteErr := filesystem.DoDeleteFile(path); deleteErr != nil {
+			log.Warn("Could not delete inference conversation state %s: %s", path, deleteErr)
 		}
 	}
 }

@@ -54,7 +54,7 @@ type OaiResponseCreateRequest struct {
 	User              string                     `json:"user,omitempty"`
 
 	ContextManagement  json.RawMessage `json:"context_management,omitempty"`
-	Conversation       json.RawMessage `json:"conversation,omitempty"`
+	Conversation       string          `json:"conversation,omitempty"`
 	Moderation         json.RawMessage `json:"moderation,omitempty"`
 	PreviousResponseID string          `json:"previous_response_id,omitempty"`
 	Prompt             json.RawMessage `json:"prompt,omitempty"`
@@ -87,6 +87,7 @@ type OaiResponse struct {
 	OutputText         string                     `json:"output_text,omitempty"`
 	ParallelToolCalls  bool                       `json:"parallel_tool_calls"`
 	PreviousResponseID any                        `json:"previous_response_id"`
+	Conversation       string                     `json:"conversation,omitempty"`
 	Reasoning          OaiResponseReasoningReturn `json:"reasoning"`
 	Store              bool                       `json:"store"`
 	Temperature        float64                    `json:"temperature"`
@@ -278,27 +279,64 @@ type OaiResponseDeleteResponse struct {
 	Deleted bool   `json:"deleted"`
 }
 
-// inferenceResponseResolveChain resolves a request's previous_response_id server-side. Chaining clients (VS Code
-// Copilot among others) send only the new input plus the id of the response they build on. We translate this into the
-// equivalent full-input request, which the rest of the pipeline already understands.
-//
-// The second return value is the conversation id of the resolved request. It is freshly minted when no chain is
-// referenced, otherwise inherited from the referenced response. Two chains from the same response therefore grow the
-// same conversation file.
-//
-// Chain resolution never invents context: the prefix is exactly the items recorded when the referenced response
-// completed (Items[:ContextAfter]). Chaining from a mid-conversation response is correct for the same reason.
-// instructions are NOT inherited: each request's instructions apply to that request only, like the OpenAI API.
-//
-// Chaining from an unstored response (store: false) works while it remains in the in-memory map. After eviction it
-// fails with the same 404 as any other missing id.
+type OaiConversation struct {
+	Id        string `json:"id"`
+	Object    string `json:"object"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
+}
+
+type OaiConversationDeleteResponse struct {
+	Id      string `json:"id"`
+	Object  string `json:"object"`
+	Deleted bool   `json:"deleted"`
+}
+
+func InferenceConversationRetrieve(owner apm.WalletOwner, username string, id string) (OaiConversation, *util.HttpError) {
+	conversation, ok := inferenceResponseStoreConversationRead(owner, username, id)
+	if !ok {
+		return OaiConversation{}, util.HttpErr(http.StatusNotFound, "No conversation found with id '%s'", id)
+	}
+	return OaiConversation{
+		Id:        conversation.Id,
+		Object:    "conversation",
+		CreatedAt: conversation.CreatedAt,
+		UpdatedAt: conversation.UpdatedAt,
+	}, nil
+}
+
+func InferenceConversationDelete(owner apm.WalletOwner, username string, id string) (OaiConversationDeleteResponse, *util.HttpError) {
+	if _, ok := inferenceResponseStoreConversationRead(owner, username, id); !ok {
+		return OaiConversationDeleteResponse{}, util.HttpErr(http.StatusNotFound, "No conversation found with id '%s'", id)
+	}
+	inferenceResponseStoreConversationDelete(owner, username, id)
+	return OaiConversationDeleteResponse{Id: id, Object: "conversation", Deleted: true}, nil
+}
+
+// inferenceResponseResolveChain resolves a request's previous_response_id (and conversation parameter) server-side.
+// Chaining clients (VS Code Copilot among others) send only the new input plus the id of the response they build on.
+// We translate this into the equivalent full-input request, which the rest of the pipeline already understands.
 func inferenceResponseResolveChain(
 	owner apm.WalletOwner,
 	username string,
 	request OaiResponseCreateRequest,
 ) (OaiResponseCreateRequest, string, *util.HttpError) {
 	if request.PreviousResponseID == "" {
-		return request, inferenceResponseNewId("conv"), nil
+		if request.Conversation == "" {
+			resolved := request
+			resolved.Conversation = inferenceResponseNewId("conv")
+			return resolved, resolved.Conversation, nil
+		}
+
+		conversation, ok := inferenceResponseStoreConversationRead(owner, username, request.Conversation)
+		if !ok {
+			return OaiResponseCreateRequest{}, "", util.HttpErr(http.StatusNotFound, "No conversation found with id '%s'", request.Conversation)
+		}
+
+		resolved := request
+		resolved.Input = inferenceResponseChainInput(conversation.Items, request.Input)
+		resolved.Conversation = conversation.Id
+		return resolved, conversation.Id, nil
 	}
 
 	record, ok := inferenceResponseStoreLookupRecord(owner, username, request.PreviousResponseID)
@@ -314,6 +352,7 @@ func inferenceResponseResolveChain(
 	resolved := request
 	resolved.Input = inferenceResponseChainInput(conversation.Items[:record.ContextAfter], request.Input)
 	resolved.PreviousResponseID = ""
+	resolved.Conversation = record.Conversation
 	return resolved, record.Conversation, nil
 }
 
@@ -998,9 +1037,6 @@ func inferenceResponseValidateRequest(request OaiResponseCreateRequest) *util.Ht
 	}
 	if len(request.ContextManagement) > 0 && string(request.ContextManagement) != "null" {
 		return util.HttpErr(http.StatusBadRequest, "context_management is not supported")
-	}
-	if len(request.Conversation) > 0 && string(request.Conversation) != "null" {
-		return util.HttpErr(http.StatusBadRequest, "conversation is not supported")
 	}
 	if len(request.Prompt) > 0 && string(request.Prompt) != "null" {
 		return util.HttpErr(http.StatusBadRequest, "prompt is not supported")
@@ -1784,6 +1820,7 @@ func inferenceResponseBase(id string, createdAt int64, request OaiResponseCreate
 		Output:             []any{},
 		ParallelToolCalls:  request.ParallelToolCalls.GetOrDefault(true),
 		PreviousResponseID: nil,
+		Conversation:       request.Conversation,
 		Reasoning:          OaiResponseReasoningReturn{Effort: request.Reasoning.Effort.GetPtrOrNil(), Summary: nil},
 		Store:              request.Store.GetOrDefault(true),
 		Temperature:        request.Temperature.GetOrDefault(1),
@@ -1934,6 +1971,30 @@ func inferenceResponseStoreGet(owner apm.WalletOwner, username string, responseI
 	record, ok := inferenceResponseStoreRead(owner, username, responseId)
 	if !ok {
 		return OaiResponse{}, false
+	}
+
+	if record.Response.Background && (record.Response.Status == "queued" || record.Response.Status == "in_progress") {
+		if time.Since(time.Unix(record.Response.CreatedAt, 0)) > inferenceRequestTimeout {
+			failed := record.Response
+			failed.Status = "failed"
+			failed.Error = map[string]string{
+				"code":    "server_error",
+				"message": "The generation was interrupted by a server restart and can never complete.",
+			}
+			inferenceResponseGlobals.Mu.Lock()
+			inferenceResponseGlobals.Responses[record.Id] = inferenceStoredResponse{
+				Response:     failed,
+				Owner:        owner.Reference(),
+				Conversation: record.Conversation,
+				ContextAfter: record.ContextAfter,
+				CreatedAt:    time.Now(),
+			}
+			inferenceResponseGlobals.Mu.Unlock()
+
+			record.Response = failed
+			_ = inferenceResponseStoreWrite(owner, username, record)
+			return failed, true
+		}
 	}
 
 	inferenceResponseGlobals.Mu.Lock()
