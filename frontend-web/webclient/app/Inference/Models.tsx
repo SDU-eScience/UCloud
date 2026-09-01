@@ -18,6 +18,7 @@ import {RichSelect} from "@/ui-components/RichSelect";
 import {useIsLightThemeStored} from "@/ui-components/theme";
 import {expandAndPrettifyString} from "@/UtilityFunctions";
 import { DropdownClass } from "@/ui-components/Dropdown";
+import HexSpin from "@/LoadingIcon/LoadingIcon";
 
 const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText"];
 const prettierCapabilities = capabilities.map(expandAndPrettifyString);
@@ -703,7 +704,7 @@ export default function Models(): React.ReactNode {
                     />
                 </Box>
                 <Flex className="model-count-and-providers" alignItems={"center"} mb={16}>
-                    <span className="model-count">Showing {filteredModels.length} models</span>
+                    {!loading ? <span className="model-count">Showing {filteredModels.length} models</span> : null}
                     <Box flexGrow={1} />
                     <RichSelect<ModelProviderOption, keyof ModelProviderOption>
                         items={providerOptions}
@@ -727,6 +728,7 @@ export default function Models(): React.ReactNode {
 
                 {error === "" ? null : <Text color="errorMain">{error}</Text>}
 
+                {loading  ? <HexSpin size={64} /> : null}
                 {models.length === 0 && !loading ? <p className="no-results">No inference models are available.</p> : null}
                 {models.length !== 0 && filteredModels.length === 0 ? <p className="no-results">No models match the selected filters.</p> : null}
                 {filteredModels.length === 0 ? null : <div className="model-results">
