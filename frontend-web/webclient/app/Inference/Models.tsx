@@ -579,9 +579,9 @@ const pageStyle = injectStyle("inference-models-page", k => `
             justify-content: end;
         }
 
-        // NOTE(Jonas): Expands dropdown trigger
-        ${k} .panel .model-count-and-providers > div.${DropdownClass} > div:first-child,
-        ${k} .panel .model-count-and-providers > div.${DropdownClass} > div:first-child > div:first-child {
+        ${k} .panel .model-count-and-providers > div:last-child > span,
+        ${k} .panel .model-count-and-providers > .${DropdownClass} > span,
+        ${k} .panel .model-count-and-providers > .${DropdownClass} > span > div:first-child {
             width: 100%;
         }
     }
