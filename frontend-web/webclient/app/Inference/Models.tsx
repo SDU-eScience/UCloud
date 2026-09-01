@@ -17,6 +17,7 @@ import HeroImage from "@/Assets/Images/inference/ucloud-ai-logo.png";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {useIsLightThemeStored} from "@/ui-components/theme";
 import {expandAndPrettifyString} from "@/UtilityFunctions";
+import { DropdownClass } from "@/ui-components/Dropdown";
 
 const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText"];
 const prettierCapabilities = capabilities.map(expandAndPrettifyString);
@@ -37,6 +38,10 @@ const pageStyle = injectStyle("inference-models-page", k => `
         padding: 48px 16px;
     }
 
+    ${k} .panel .capabilities {
+        display: flex;
+    }
+
     ${k} .panel-inner {
         box-sizing: border-box;
         margin: 0 auto;
@@ -52,6 +57,18 @@ const pageStyle = injectStyle("inference-models-page", k => `
     ${k} .panel-solid,
     ${k} .panel-accent {
         padding: 150px 16px;
+    }
+
+    ${k} .panel-solid,
+    ${k} .panel-accent {
+        padding: 150px 16px;
+    }
+
+    @media screen and (max-width: 960px) {
+        ${k} .panel-solid,
+        ${k} .panel-accent {
+            padding: 20px 16px;
+        }
     }
 
     ${k} .panel-solid {
@@ -80,6 +97,12 @@ const pageStyle = injectStyle("inference-models-page", k => `
         padding-bottom: 24px;
         padding-top: 24px;
         height: 435px;
+    }
+
+    @media screen and (max-width: 960px) {
+        ${k} .hero {
+            height: unset;
+        }
     }
 
     ${k} .hero-top {
@@ -127,6 +150,13 @@ const pageStyle = injectStyle("inference-models-page", k => `
         max-width: 1400px;
     }
 
+    @media screen and (max-width: 960px) {
+        ${k} .hero-content {
+            padding-top: 42px;
+        }
+    }
+
+
     ${k} .hero-copy {
         max-width: 720px;
     }
@@ -152,6 +182,16 @@ const pageStyle = injectStyle("inference-models-page", k => `
         gap: 12px;
         margin-top: 28px;
     }
+
+    @media screen and (max-width: 960px) {
+        ${k} .hero-actions,
+        ${k} .cta-actions {
+            margin-top: 12px;
+            gap: 8px;
+        }
+    }
+
+
 
     ${k} .button-link {
         text-decoration: none;
@@ -214,6 +254,7 @@ const pageStyle = injectStyle("inference-models-page", k => `
         cursor: pointer;
         display: inline-flex;
         font: inherit;
+        min-width: fit-content;
         gap: 8px;
         min-height: 34px;
         padding: 0 13px;
@@ -447,7 +488,7 @@ const pageStyle = injectStyle("inference-models-page", k => `
         display: flex;
         flex-direction: column;
         gap: 24px;
-        min-height: 220px;
+        height: 220px;
         padding: 0 16px;
     }
 
@@ -464,6 +505,19 @@ const pageStyle = injectStyle("inference-models-page", k => `
     @media (max-width: 900px) {
         ${k} .hero-icon {
             display: none;
+        }
+
+        ${k} .panel .capabilities {
+            gap: 8px;
+            display: block;
+        }
+
+        ${k} .panel .capabilities > div:first-child {
+            display: flex;
+        }
+
+        ${k} .panel .capabilities input {
+            margin-top: 8px;
         }
 
         ${k} .model-toolbar,
@@ -517,6 +571,23 @@ const pageStyle = injectStyle("inference-models-page", k => `
 
         ${k} .metric-value {
             font-size: 14px;
+        }
+
+        ${k} .panel .model-count-and-providers {
+            display: block;
+        }
+
+        ${k} .panel .model-count-and-providers > div:last-child {
+            margin-top: 8px;
+            display: flex;
+            width: 100%;
+            justify-content: end;
+        }
+
+        // NOTE(Jonas): Expands dropdown trigger
+        ${k} .panel .model-count-and-providers > div.${DropdownClass} > div:first-child,
+        ${k} .panel .model-count-and-providers > div.${DropdownClass} > div:first-child > div:first-child {
+            width: 100%;
         }
     }
 `);
@@ -619,7 +690,7 @@ export default function Models(): React.ReactNode {
 
         <section id="model-catalog" className="panel panel-muted">
             <div className="panel-inner">
-                <Flex alignItems="center" mb={8}>
+                <Box alignItems="center" mb={8} className="capabilities">
                     <Flex gap={"4px"} overflowY="scroll">
                         <CatalogFilterButton active={capabilityFilter === "All"} onClick={() => setCapabilityFilter("All")}>All</CatalogFilterButton>
                         {capabilities.map((capability, index) => <CatalogFilterButton key={capability} active={capabilityFilter === capability} onClick={() => setCapabilityFilter(capability)}>
@@ -636,8 +707,8 @@ export default function Models(): React.ReactNode {
                         value={search}
                         onChange={ev => setSearch(ev.currentTarget.value)}
                     />
-                </Flex>
-                <Flex alignItems={"center"} mb={16}>
+                </Box>
+                <Flex className="model-count-and-providers" alignItems={"center"} mb={16}>
                     <span className="model-count">Showing {filteredModels.length} models</span>
                     <Box flexGrow={1} />
                     <RichSelect<ModelProviderOption, keyof ModelProviderOption>

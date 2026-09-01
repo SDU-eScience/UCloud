@@ -14,11 +14,10 @@ import {injectStyle} from "@/Unstyled";
 const Style = injectStyle("configure-tools", k => `
     ${k} {
         min-width: 0;
-        max-width: 100%;
     }
 
     ${k} pre {
-        max-width: 100%;
+        max-width: var(--max-width, 100%);
     }
 
     ${k} code {
@@ -84,13 +83,15 @@ export default function ConfiguringTools({
 
     return <Box className={Style}>
         {error === "" ? null : <Text color="errorMain">{error}</Text>}
-        <Flex gap="12px" alignItems="center" flexWrap="wrap">
+        <Flex gap="12px" alignItems="center" flexWrap="wrap" className="tile-and-buttons">
             <h3 className="title" style={{margin: 0}}>{title}</h3>
             <Box flexGrow={1} />
-            <Button type="button" color="successMain" onClick={generateToken} disabled={generatingToken || providerId === ""} m={0}>
-                {generatingToken ? "Generating..." : "Generate API key"}
-            </Button>
-            <Link to={AppRoutes.resources.apiTokens()}><Button type="button" color="secondaryMain" m={0}>Manage API keys</Button></Link>
+            <Flex gap="12px" className="buttons">
+                <Button type="button" color="successMain" onClick={generateToken} disabled={generatingToken || providerId === ""} m={0}>
+                    {generatingToken ? "Generating..." : "Generate API key"}
+                </Button>
+                <Link to={AppRoutes.resources.apiTokens()}><Button type="button" color="secondaryMain" m={0}>Manage API keys</Button></Link>
+            </Flex>
         </Flex>
         {tokenStatus === null ? null : <Box mt={16} style={{display: "grid", gap: 12}}>
             <Flex gap={"12px"} flexWrap={"wrap"} alignItems={"center"}>

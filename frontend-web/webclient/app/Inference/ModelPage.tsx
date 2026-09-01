@@ -151,6 +151,7 @@ const PageStyle = injectStyle("model-page", k => `
     ${k} {
         --model-hero: var(--blue-10);
         --model-hero-border: var(--blue-20);
+        --max-width: calc(100vw - var(--sidebarWidth) - 16px * 2);
     }
 
     ${k} .model-hero {
@@ -208,6 +209,10 @@ const PageStyle = injectStyle("model-page", k => `
         min-width: 0;
     }
 
+    ${k} .model-main-content > section {
+        max-width: var(--max-width);
+    }
+
     ${k} .model-page-layout > * {
         min-width: 0;
     }
@@ -232,6 +237,7 @@ const PageStyle = injectStyle("model-page", k => `
         }
 
         ${k} .model-page-layout {
+            max-width: var(--max-width);
             grid-template-columns: minmax(0, 1fr);
         }
 
@@ -254,6 +260,7 @@ const PageStyle = injectStyle("model-page", k => `
         ${k} .model-stats-grid {
             grid-template-columns: 1fr;
             gap: 0;
+            max-width: var(--max-width);
         }
     }
 
