@@ -12,10 +12,8 @@ export function ApplicationForkAction(props: {application: Application}): React.
     const projectId = useProjectId();
     const navigate = useNavigate();
     const location = useLocation();
-    const canFork = Client.userIsAdmin || (
-        hasFeature(Feature.CONTAINER_REPOSITORIES) &&
-        projectId != null &&
-        checkIsWorkspaceAdmin()
+    const canFork = hasFeature(Feature.CONTAINER_REPOSITORIES) &&
+        (Client.userIsAdmin || (projectId != null && checkIsWorkspaceAdmin())
     );
     if (!canFork) return null;
 

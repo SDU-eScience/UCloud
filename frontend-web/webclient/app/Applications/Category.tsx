@@ -101,7 +101,7 @@ const ApplicationsCategory: React.FunctionComponent = () => {
     useSetRefreshFunction(refreshAll);
     const appSearch = useAppSearch();
 
-    const canCreateApplication = !!editableCategory && (Client.userIsAdmin || hasFeature(Feature.CONTAINER_REPOSITORIES));
+    const canCreateApplication = !!editableCategory && (hasFeature(Feature.CONTAINER_REPOSITORIES));
     const createApplication = useCallback(() => {
         if (!editableCategory) return;
         navigate(AppRoutes.apps.creator({

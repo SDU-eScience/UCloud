@@ -153,8 +153,9 @@ const Core = (): React.ReactNode => (
                            element={React.createElement(requireAuth(CategoryCreate))} />
                     <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(ApplicationSearch))} />
 
-                    <Route path={AppRoutes.apps.creator()}
-                           element={React.createElement(requireAuth(ApplicationCreator))} />
+                    {!hasFeature(Feature.CONTAINER_REPOSITORIES) ? null :
+                        <Route path={AppRoutes.apps.creator()}
+                           element={React.createElement(requireAuth(ApplicationCreator))} />}
 
                     <Route path={`${AppRoutes.compute.jobs()}/*`}
                            element={React.createElement(requireAuth(JobsOnlyRouter))} />

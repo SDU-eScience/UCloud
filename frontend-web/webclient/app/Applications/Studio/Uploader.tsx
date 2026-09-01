@@ -1,14 +1,15 @@
 import * as React from "react";
+import {CSSProperties} from "react";
 import {ButtonClass} from "@/ui-components/Button";
 import {HiddenInputField} from "@/ui-components/Input";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {CSSProperties} from "react";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {useLocation, useNavigate} from "react-router-dom";
 import {useProjectId} from "@/Project/Api";
 import {Client} from "@/Authentication/HttpClientInstance";
 import AppRoutes from "@/Routes";
+import {Feature, hasFeature} from "@/Features";
 
 export const UploadAppAndTool: React.FunctionComponent<{
     onError: (errorMessage: string | null) => void;
@@ -20,7 +21,7 @@ export const UploadAppAndTool: React.FunctionComponent<{
     const projectId = useProjectId();
 
     return <>
-        {!Client.userIsAdmin ? null : (
+        {!Client.userIsAdmin || !hasFeature(Feature.CONTAINER_REPOSITORIES) ? null : (
             <button
                 type="button"
                 className={ButtonClass}
