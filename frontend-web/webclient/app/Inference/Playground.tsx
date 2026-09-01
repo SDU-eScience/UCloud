@@ -154,98 +154,80 @@ const playgroundComponents: UcxComponentRegistry = {
 };
 
 function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): React.ReactNode {
-        const placeholder = stringProp(node, "placeholder", "Ask something");
-        const rows = numberProp(node, "rows", 8);
-        const sendIcon = stringProp(node, "sendIcon", "heroPaperAirplane");
-        const disabled = boolProp(node, "disabled", false);
-        const propModelOptions = optionsProp(node, "modelOptions");
-        const modelOptions = propModelOptions.length > 0 ? propModelOptions : textGenerationModelOptions(fn.modelValue(model, "models"));
-        const selectedModel = stringValue(fn.modelValue(model, "chat.modelId", scope));
-        const selectedModelOption = modelOptions.find(option => option.key === selectedModel);
-        const selectedCapabilities = modelCapabilities(model, selectedModel);
-        const [localDraft, setLocalDraft] = React.useState(() => stringValue(fn.modelValue(model, node.bindPath, scope)));
-        const value = localDraft;
-        const setValue = setLocalDraft;
-        const providerDomain = React.useContext(PlaygroundProviderDomainContext);
-        const fileInputRef = React.useRef<HTMLInputElement | null>(null);
-        const uploadCancelRef = React.useRef<Record<string, {cancelled: boolean; attachmentId: string | null}>>({});
-        const [attachments, setAttachments] = React.useState<PlaygroundUploadAttachment[]>([]);
-        const [dragActive, setDragActive] = React.useState(false);
-        const canSend = !disabled && value.trim() !== "" && attachments.every(attachment => attachment.status === "uploaded");
+    const placeholder = stringProp(node, "placeholder", "Ask something");
+    const rows = numberProp(node, "rows", 8);
+    const sendIcon = stringProp(node, "sendIcon", "heroPaperAirplane");
+    const disabled = boolProp(node, "disabled", false);
+    const propModelOptions = optionsProp(node, "modelOptions");
+    const modelOptions = propModelOptions.length > 0 ? propModelOptions : textGenerationModelOptions(fn.modelValue(model, "models"));
+    const selectedModel = stringValue(fn.modelValue(model, "chat.modelId", scope));
+    const selectedModelOption = modelOptions.find(option => option.key === selectedModel);
+    const selectedCapabilities = modelCapabilities(model, selectedModel);
+    const [localDraft, setLocalDraft] = React.useState(() => stringValue(fn.modelValue(model, node.bindPath, scope)));
+    const value = localDraft;
+    const setValue = setLocalDraft;
+    const providerDomain = React.useContext(PlaygroundProviderDomainContext);
+    const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+    const uploadCancelRef = React.useRef<Record<string, {cancelled: boolean; attachmentId: string | null}>>({});
+    const [attachments, setAttachments] = React.useState<PlaygroundUploadAttachment[]>([]);
+    const [dragActive, setDragActive] = React.useState(false);
+    const canSend = !disabled && value.trim() !== "" && attachments.every(attachment => attachment.status === "uploaded");
 
-        const send = () => {
-            if (!canSend) return;
-            const sentAttachments = attachments.filter(attachment => attachment.kind === "text" || attachment.kind === "convertible" || attachment.attachmentId !== null);
-            fn.sendUiEvent(node.id, "click", {
-                kind: ValueKind.Object,
-                object: {
-                    prompt: {kind: ValueKind.String, string: value},
-                    attachments: {
-                        kind: ValueKind.List,
-                        list: sentAttachments.map(attachment => ({
-                            kind: ValueKind.Object,
-                            object: {
-                                kind: {kind: ValueKind.String, string: attachment.kind === "convertible" ? "text" : attachment.kind},
-                                attachmentId: {kind: ValueKind.String, string: attachment.attachmentId ?? ""},
-                                fileName: {kind: ValueKind.String, string: attachment.fileName},
-                                url: {kind: ValueKind.String, string: attachment.attachmentId === null || attachment.kind === "convertible" ? "" : playgroundAttachmentUrl(providerDomain, attachment.attachmentId)},
-                                text: {kind: ValueKind.String, string: attachment.text},
-                            },
-                        })),
-                    },
+    const send = () => {
+        if (!canSend) return;
+        const sentAttachments = attachments.filter(attachment => attachment.kind === "text" || attachment.kind === "convertible" || attachment.attachmentId !== null);
+        fn.sendUiEvent(node.id, "click", {
+            kind: ValueKind.Object,
+            object: {
+                prompt: {kind: ValueKind.String, string: value},
+                attachments: {
+                    kind: ValueKind.List,
+                    list: sentAttachments.map(attachment => ({
+                        kind: ValueKind.Object,
+                        object: {
+                            kind: {kind: ValueKind.String, string: attachment.kind === "convertible" ? "text" : attachment.kind},
+                            attachmentId: {kind: ValueKind.String, string: attachment.attachmentId ?? ""},
+                            fileName: {kind: ValueKind.String, string: attachment.fileName},
+                            url: {kind: ValueKind.String, string: attachment.attachmentId === null || attachment.kind === "convertible" ? "" : playgroundAttachmentUrl(providerDomain, attachment.attachmentId)},
+                            text: {kind: ValueKind.String, string: attachment.text},
+                        },
+                    })),
                 },
-            });
-            setValue("");
-            setAttachments([]);
-            uploadCancelRef.current = {};
-        };
+            },
+        });
+        setValue("");
+        setAttachments([]);
+        uploadCancelRef.current = {};
+    };
 
-        const removeAttachment = (localId: string) => {
-            const cancelState = uploadCancelRef.current[localId];
-            if (cancelState) {
-                cancelState.cancelled = true;
-                if (cancelState.attachmentId) {
-                    void fn.invokeRpc("inferenceAttachmentDelete", {id: cancelState.attachmentId}, 30000).catch(doNothing);
-                }
-                delete uploadCancelRef.current[localId];
+    const removeAttachment = (localId: string) => {
+        const cancelState = uploadCancelRef.current[localId];
+        if (cancelState) {
+            cancelState.cancelled = true;
+            if (cancelState.attachmentId) {
+                void fn.invokeRpc("inferenceAttachmentDelete", {id: cancelState.attachmentId}, 30000).catch(doNothing);
             }
-            setAttachments(current => current.filter(item => item.localId !== localId));
-        };
+            delete uploadCancelRef.current[localId];
+        }
+        setAttachments(current => current.filter(item => item.localId !== localId));
+    };
 
-        const uploadFile = async (file: File) => {
-            const kind = await detectPlaygroundAttachmentKind(file);
-            const rejection = playgroundAttachmentRejection(kind, selectedCapabilities);
-            if (rejection) {
-                sendFailureNotification(rejection);
+    const uploadFile = async (file: File) => {
+        const kind = await detectPlaygroundAttachmentKind(file);
+        const rejection = playgroundAttachmentRejection(kind, selectedCapabilities);
+        if (rejection) {
+            sendFailureNotification(rejection);
+            return;
+        }
+        if (kind === "unsupported") return;
+
+        if (kind === "text") {
+            if (file.size > MAX_TEXT_ATTACHMENT_BYTES) {
+                sendFailureNotification("Text attachments must be 128 KiB or smaller.");
                 return;
             }
-            if (kind === "unsupported") return;
-
-            if (kind === "text") {
-                if (file.size > MAX_TEXT_ATTACHMENT_BYTES) {
-                    sendFailureNotification("Text attachments must be 128 KiB or smaller.");
-                    return;
-                }
-                const text = await file.text();
-                const localId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-                setAttachments(current => [...current, {
-                    localId,
-                    kind,
-                    attachmentId: null,
-                    markdownAttachmentId: null,
-                    fileName: file.name,
-                    fileSize: file.size,
-                    uploadedBytes: file.size,
-                    status: "uploaded",
-                    error: "",
-                    text,
-                }]);
-                return;
-            }
-
+            const text = await file.text();
             const localId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-            const cancelState = {cancelled: false, attachmentId: null as string | null};
-            uploadCancelRef.current[localId] = cancelState;
             setAttachments(current => [...current, {
                 localId,
                 kind,
@@ -253,209 +235,227 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                 markdownAttachmentId: null,
                 fileName: file.name,
                 fileSize: file.size,
-                uploadedBytes: 0,
-                status: "uploading",
+                uploadedBytes: file.size,
+                status: "uploaded",
                 error: "",
-                text: "",
+                text,
             }]);
+            return;
+        }
 
-            try {
-                const created = await fn.invokeRpc("inferenceAttachmentCreate", {filename: file.name}, 30000) as Record<string, unknown>;
-                const attachmentId = typeof created.id === "string" ? created.id : "";
-                if (attachmentId === "") throw new Error("Attachment upload failed: missing id");
-                cancelState.attachmentId = attachmentId;
-                setAttachments(current => current.map(item => item.localId === localId ? {...item, attachmentId} : item));
+        const localId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        const cancelState = {cancelled: false, attachmentId: null as string | null};
+        uploadCancelRef.current[localId] = cancelState;
+        setAttachments(current => [...current, {
+            localId,
+            kind,
+            attachmentId: null,
+            markdownAttachmentId: null,
+            fileName: file.name,
+            fileSize: file.size,
+            uploadedBytes: 0,
+            status: "uploading",
+            error: "",
+            text: "",
+        }]);
 
-                if (cancelState.cancelled) {
-                    await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
-                    return;
-                }
+        try {
+            const created = await fn.invokeRpc("inferenceAttachmentCreate", {filename: file.name}, 30000) as Record<string, unknown>;
+            const attachmentId = typeof created.id === "string" ? created.id : "";
+            if (attachmentId === "") throw new Error("Attachment upload failed: missing id");
+            cancelState.attachmentId = attachmentId;
+            setAttachments(current => current.map(item => item.localId === localId ? {...item, attachmentId} : item));
 
-                const reader = new ChunkedFileReader(file);
-                while (!reader.isEof()) {
-                    if (cancelState.cancelled) {
-                        await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
-                        return;
-                    }
-                    const chunk = new Uint8Array(await reader.readChunk(512 * 1024));
-                    await fn.invokeRpc("inferenceAttachmentAppend", {id: attachmentId, data: chunk}, 120000);
-                    setAttachments(current => current.map(item => item.localId === localId ? {...item, uploadedBytes: reader.offset} : item));
-                }
-
-                if (cancelState.cancelled) {
-                    await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
-                    return;
-                }
-                if (kind === "convertible") {
-                    setAttachments(current => current.map(item => item.localId === localId ? {...item, status: "converting", uploadedBytes: file.size} : item));
-                    const converted = await fn.invokeRpc("inferenceAttachmentConvertToMarkdown", {id: attachmentId}, 150000) as Record<string, unknown>;
-                    const markdownAttachmentId = typeof converted.id === "string" ? converted.id : "";
-                    if (markdownAttachmentId === "") throw new Error("Attachment conversion failed: missing markdown id");
-                    if (cancelState.cancelled) {
-                        await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
-                        return;
-                    }
-                    const markdownUrl = playgroundAttachmentUrl(providerDomain, markdownAttachmentId);
-                    const markdownResp = await fetch(markdownUrl);
-                    if (!markdownResp.ok) throw new Error("Attachment conversion failed: could not download markdown");
-                    const text = await markdownResp.text();
-                    setAttachments(current => current.map(item => item.localId === localId ? {...item, markdownAttachmentId, status: "uploaded", uploadedBytes: file.size, text} : item));
-                    return;
-                }
-                setAttachments(current => current.map(item => item.localId === localId ? {...item, status: "uploaded", uploadedBytes: file.size} : item));
-            } catch (err) {
-                const message = err instanceof Error ? err.message : String(err);
-                setAttachments(current => current.map(item => item.localId === localId ? {...item, status: "error", error: message} : item));
-                sendFailureNotification(message);
+            if (cancelState.cancelled) {
+                await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
+                return;
             }
-        };
 
-        const onFilesSelected = (ev: React.ChangeEvent<HTMLInputElement>) => {
-            const files = Array.from(ev.currentTarget.files ?? []);
-            ev.currentTarget.value = "";
-            for (const file of files) void uploadFile(file);
-        };
+            const reader = new ChunkedFileReader(file);
+            while (!reader.isEof()) {
+                if (cancelState.cancelled) {
+                    await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
+                    return;
+                }
+                const chunk = new Uint8Array(await reader.readChunk(512 * 1024));
+                await fn.invokeRpc("inferenceAttachmentAppend", {id: attachmentId, data: chunk}, 120000);
+                setAttachments(current => current.map(item => item.localId === localId ? {...item, uploadedBytes: reader.offset} : item));
+            }
 
-        const uploadFiles = (files: File[]) => {
-            if (disabled) return;
-            for (const file of files) void uploadFile(file);
-        };
+            if (cancelState.cancelled) {
+                await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
+                return;
+            }
+            if (kind === "convertible") {
+                setAttachments(current => current.map(item => item.localId === localId ? {...item, status: "converting", uploadedBytes: file.size} : item));
+                const converted = await fn.invokeRpc("inferenceAttachmentConvertToMarkdown", {id: attachmentId}, 150000) as Record<string, unknown>;
+                const markdownAttachmentId = typeof converted.id === "string" ? converted.id : "";
+                if (markdownAttachmentId === "") throw new Error("Attachment conversion failed: missing markdown id");
+                if (cancelState.cancelled) {
+                    await fn.invokeRpc("inferenceAttachmentDelete", {id: attachmentId}, 30000);
+                    return;
+                }
+                const markdownUrl = playgroundAttachmentUrl(providerDomain, markdownAttachmentId);
+                const markdownResp = await fetch(markdownUrl);
+                if (!markdownResp.ok) throw new Error("Attachment conversion failed: could not download markdown");
+                const text = await markdownResp.text();
+                setAttachments(current => current.map(item => item.localId === localId ? {...item, markdownAttachmentId, status: "uploaded", uploadedBytes: file.size, text} : item));
+                return;
+            }
+            setAttachments(current => current.map(item => item.localId === localId ? {...item, status: "uploaded", uploadedBytes: file.size} : item));
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            setAttachments(current => current.map(item => item.localId === localId ? {...item, status: "error", error: message} : item));
+            sendFailureNotification(message);
+        }
+    };
 
-        const onPaste = (ev: React.ClipboardEvent) => {
-            const files = Array.from(ev.clipboardData.files ?? []);
-            if (files.length === 0) return;
-            ev.preventDefault();
-            uploadFiles(files);
-        };
+    const onFilesSelected = (ev: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(ev.currentTarget.files ?? []);
+        ev.currentTarget.value = "";
+        for (const file of files) void uploadFile(file);
+    };
 
-        const onDrop = (ev: React.DragEvent) => {
-            ev.preventDefault();
-            ev.stopPropagation();
-            setDragActive(false);
-            uploadFiles(Array.from(ev.dataTransfer.files ?? []));
-        };
+    const uploadFiles = (files: File[]) => {
+        if (disabled) return;
+        for (const file of files) void uploadFile(file);
+    };
 
-        return (
-            <Box
-                className={ComposerActionButtonHoverClass}
-                onDragEnter={(ev) => {
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                    if (!disabled) setDragActive(true);
+    const onPaste = (ev: React.ClipboardEvent) => {
+        const files = Array.from(ev.clipboardData.files ?? []);
+        if (files.length === 0) return;
+        ev.preventDefault();
+        uploadFiles(files);
+    };
+
+    const onDrop = (ev: React.DragEvent) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        setDragActive(false);
+        uploadFiles(Array.from(ev.dataTransfer.files ?? []));
+    };
+
+    return (
+        <Box
+            className={ComposerActionButtonHoverClass}
+            onDragEnter={(ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                if (!disabled) setDragActive(true);
+            }}
+            onDragOver={(ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+            }}
+            onDragLeave={(ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                if (!ev.currentTarget.contains(ev.relatedTarget as Node | null)) setDragActive(false);
+            }}
+            onDrop={onDrop}
+            style={{
+                width: "100%",
+                flexShrink: 0,
+                display: "flex",
+                flexDirection: "column",
+                minHeight: 104,
+                border: dragActive ? "1px solid var(--primaryMain)" : "1px solid var(--playground-border, var(--borderColor))",
+                borderRadius: 16,
+                background: dragActive ? "var(--playground-hover, var(--dialogToolbar))" : "var(--playground-surface, var(--backgroundDefault))",
+                overflow: "hidden",
+            }}
+        >
+            <input ref={fileInputRef} type="file" multiple style={{display: "none"}} onChange={onFilesSelected}/>
+            <TextArea
+                resize={"none"}
+                rows={rows}
+                placeholder={placeholder}
+                value={value}
+                onChange={(ev) => {
+                    const next = ev.currentTarget.value;
+                    setValue(next);
                 }}
-                onDragOver={(ev) => {
-                    ev.preventDefault();
-                    ev.stopPropagation();
+                onKeyDown={(ev) => {
+                    if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        send();
+                    }
                 }}
-                onDragLeave={(ev) => {
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                    if (!ev.currentTarget.contains(ev.relatedTarget as Node | null)) setDragActive(false);
-                }}
-                onDrop={onDrop}
+                onPaste={onPaste}
                 style={{
+                    resize: "none",
+                    border: 0,
+                    boxShadow: "none",
+                    background: "transparent",
                     width: "100%",
-                    flexShrink: 0,
+                    minHeight: 0,
+                    maxHeight: "30vh",
+                    overflowY: "auto",
+                    padding: "14px 16px 8px 16px",
+                }}
+            />
+            {attachments.length > 0 && (
+                <div style={{display: "flex", flexWrap: "wrap", gap: 8, padding: "0 10px 8px 10px"}}>
+                    {attachments.map(attachment => (
+                        <AttachmentUploadCard key={attachment.localId} attachment={attachment} onRemove={() => removeAttachment(attachment.localId)}/>
+                    ))}
+                </div>
+            )}
+            <div
+                style={{
                     display: "flex",
-                    flexDirection: "column",
-                    minHeight: 104,
-                    border: dragActive ? "1px solid var(--primaryMain)" : "1px solid var(--playground-border, var(--borderColor))",
-                    borderRadius: 16,
-                    background: dragActive ? "var(--playground-hover, var(--dialogToolbar))" : "var(--playground-surface, var(--backgroundDefault))",
-                    overflow: "hidden",
+                    alignItems: "center",
+                    gap: 6,
+                    flexShrink: 0,
+                    padding: "0 10px 10px 10px",
                 }}
             >
-                <input ref={fileInputRef} type="file" multiple style={{display: "none"}} onChange={onFilesSelected}/>
-                <TextArea
-                    resize={"none"}
-                    rows={rows}
-                    placeholder={placeholder}
-                    value={value}
-                    onChange={(ev) => {
-                        const next = ev.currentTarget.value;
-                        setValue(next);
-                    }}
-                    onKeyDown={(ev) => {
-                        if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
-                            ev.preventDefault();
-                            ev.stopPropagation();
-                            send();
-                        }
-                    }}
-                    onPaste={onPaste}
-                    style={{
-                        resize: "none",
-                        border: 0,
-                        boxShadow: "none",
-                        background: "transparent",
-                        width: "100%",
-                        minHeight: 0,
-                        maxHeight: "30vh",
-                        overflowY: "auto",
-                        padding: "14px 16px 8px 16px",
-                    }}
+                <Tooltip tooltipContentWidth={160} trigger={
+                    <span style={{display: "inline-flex"}}>
+                        <button type="button" disabled={disabled} onClick={() => fileInputRef.current?.click()} className={ComposerActionButtonClass}>
+                            <Icon name="heroPlus" size={18}/>
+                        </button>
+                    </span>
+                }>
+                    Attach file
+                </Tooltip>
+                <RichSelect<PlaygroundOption, keyof PlaygroundOption>
+                    items={modelOptions}
+                    keys={["key", "value"]}
+                    selected={selectedModelOption}
+                    onSelect={(option) => fn.sendModelInput("chat.modelId", {kind: ValueKind.String, string: option.key}, "chat.modelId")}
+                    dropdownWidth="340px"
+                    dropdownVerticalGap={8}
+                    elementHeight={42}
+                    matchTriggerWidth={false}
+                    showSearchField={modelOptions.length > 8}
+                    trigger={
+                        <ModelSelectorTrigger option={selectedModelOption} modelName={selectedModel}/>
+                    }
+                    RenderRow={(props) => (
+                        <ModelSelectorOption
+                            option={props.element}
+                            selected={props.element?.key === selectedModel}
+                            onSelect={props.onSelect}
+                            dataProps={props.dataProps}
+                        />
+                    )}
                 />
-                {attachments.length > 0 && (
-                    <div style={{display: "flex", flexWrap: "wrap", gap: 8, padding: "0 10px 8px 10px"}}>
-                        {attachments.map(attachment => (
-                            <AttachmentUploadCard key={attachment.localId} attachment={attachment} onRemove={() => removeAttachment(attachment.localId)}/>
-                        ))}
-                    </div>
-                )}
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        flexShrink: 0,
-                        padding: "0 10px 10px 10px",
-                    }}
-                >
-                    <Tooltip tooltipContentWidth={160} trigger={
-                        <span style={{display: "inline-flex"}}>
-                            <button type="button" disabled={disabled} onClick={() => fileInputRef.current?.click()} className={ComposerActionButtonClass}>
-                                <Icon name="heroPlus" size={18}/>
-                            </button>
-                        </span>
-                    }>
-                        Attach file
-                    </Tooltip>
-                    <RichSelect<PlaygroundOption, keyof PlaygroundOption>
-                        items={modelOptions}
-                        keys={["key", "value"]}
-                        selected={selectedModelOption}
-                        onSelect={(option) => fn.sendModelInput("chat.modelId", {kind: ValueKind.String, string: option.key}, "chat.modelId")}
-                        dropdownWidth="340px"
-                        dropdownVerticalGap={8}
-                        elementHeight={42}
-                        matchTriggerWidth={false}
-                        showSearchField={modelOptions.length > 8}
-                        trigger={
-                            <ModelSelectorTrigger option={selectedModelOption} modelName={selectedModel}/>
-                        }
-                        RenderRow={(props) => (
-                            <ModelSelectorOption
-                                option={props.element}
-                                selected={props.element?.key === selectedModel}
-                                onSelect={props.onSelect}
-                                dataProps={props.dataProps}
-                            />
-                        )}
-                    />
-                    <div style={{flex: 1}}/>
-                    <Tooltip tooltipContentWidth={80} trigger={
-                        <span style={{display: "inline-flex"}}>
-                            <button type="button" disabled={!canSend} onClick={send}
-                                    className={ComposerActionButtonClass}>
-                                <Icon name={sendIcon as any} size={18}/>
-                            </button>
-                        </span>
-                    }>
-                        Send
-                    </Tooltip>
-                </div>
-            </Box>
-        );
+                <div style={{flex: 1}}/>
+                <Tooltip tooltipContentWidth={80} trigger={
+                    <span style={{display: "inline-flex"}}>
+                        <button type="button" disabled={!canSend} onClick={send}
+                                className={ComposerActionButtonClass}>
+                            <Icon name={sendIcon as any} size={18}/>
+                        </button>
+                    </span>
+                }>
+                    Send
+                </Tooltip>
+            </div>
+        </Box>
+    );
 }
 
 type ThreadListItem = { id: string; title: string; updatedAt: number };
@@ -556,7 +556,7 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
     ${k} .playground-sidebar-footer {
         flex-shrink: 0;
     }
-    
+
     ${k} .playground-sidebar-footer {
         display: flex;
         gap: 16px;
@@ -1385,9 +1385,9 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
 }
 
 function ThreadListNode({
-                            node,
-                            model,
-                            fn,
+    node,
+    model,
+    fn,
 }: Pick<UcxRenderContext, "node" | "model" | "fn">): React.ReactNode {
     const [operations, setOperations] = React.useState<
         Operation<ThreadListItem>[]

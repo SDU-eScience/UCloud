@@ -21,8 +21,7 @@ import {MarkdownDocument} from "@/ui-components/Markdown";
 const fallbackDocs = "https://docs.cloud.sdu.dk";
 const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText", "Vision", "VideoVision", "Audio"];
 const prettierCapabilities = capabilities.map(expandAndPrettifyString);
-
-type PriceMultiplierText = {cachedInput: string; input: string; output: string};
+type PricePerMillionText = {cachedInput: string; input: string; output: string};
 
 export default function ModelPage(): React.ReactNode {
     const [params] = useSearchParams();
@@ -409,8 +408,13 @@ function Datasheet({model}: {model: InferenceModel}): React.ReactNode {
     const page = model.page;
     const rows: [string, React.ReactNode][] = [
         ["Model provider", <Flex key="provider" gap="8px" alignItems="center"><ModelInferenceLogo modelName={model.name} />{modelProviderName(model.name)}</Flex>],
-        ["Release date", page?.releaseDate ? formatDate(new Date(page.releaseDate), DATE_FORMAT) : null],
-        ["Capabilities", model.capabilities.join(", ")],
+        ["Release date", page?.releaseDate ? formatDate
+            (new Date(page.releaseDate), DATE_FORMAT) : null],
+        ["Capabilities", model.capabilities.map(modelC => {
+            const idx = capabilities.findIndex(c => c === modelC);
+            if (idx === -1) return "";
+            return prettierCapabilities[idx];
+        }).join(", ")],
         ["Endpoint", <CopyableEndpoint key="endpoint" value={model.name} />],
         ["Parameters", page?.datasheet?.parameters ?? "Not specified"],
         ["Activated parameters", page?.datasheet?.activatedParameters ?? null],
@@ -556,7 +560,7 @@ function ModelSettingsEditor(props: {
         <label style={{display: "flex", gap: 6, alignItems: "center"}}><input type="checkbox" checked={model.chatSettings.disableTools} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, disableTools: ev.currentTarget.checked}})} />Disable chat tools</label>
         <Box>
             <Text fontWeight={600}>Capabilities</Text>
-            <Flex gap="12px" flexWrap="wrap" mt={8}>{capabilities.map((capability, index) => <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}><input type="checkbox" checked={model.capabilities.includes(capability)} onChange={ev => setModel({...model, capabilities: ev.currentTarget.checked ? [...model.capabilities, capability] : model.capabilities.filter(it => it !== capability)})} />{prettierCapabilities[index]}</label>)}</Flex>
+            <Flex gap="12px" flexWrap="wrap" mt={8}>{capabilities.map((capability, index) => <label key={capability} style={{ display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={model.capabilities.includes(capability)} onChange={ev => setModel({ ...model, capabilities: ev.currentTarget.checked ? [...model.capabilities, capability] : model.capabilities.filter(it => it !== capability) })} />{prettierCapabilities[index]}</label>)}</Flex>
         </Box>
     </Box>;
 }
