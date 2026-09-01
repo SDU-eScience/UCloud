@@ -608,11 +608,13 @@ func addSnapshotExcludedMounts(pod *core.Pod, container *core.Container) {
 		"/var/cache/apt",
 		"/var/cache/dnf",
 		"/var/cache/yum",
-		"/root/.cache",
-		"/root/.npm",
-		"/home/ucloud/.cache",
-		"/home/ucloud/.npm",
-		"/opt/conda/pkgs",
+
+		// NOTE(Dan): Don't add these, they are apparently used by some apps for data that isn't just a cache.
+		//"/root/.cache",
+		//"/root/.npm",
+		//"/home/ucloud/.cache",
+		//"/home/ucloud/.npm",
+		//"/opt/conda/pkgs",
 	}
 	permissions := core.Container{
 		Name:    "snapshot-exclude-permissions",
