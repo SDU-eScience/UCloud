@@ -407,9 +407,9 @@ function Datasheet({model}: {model: InferenceModel}): React.ReactNode {
         ["Activated parameters", page?.datasheet?.activatedParameters ?? null],
         ["Context length", model.contextWindow ? model.contextWindow.toLocaleString() : "Not specified"],
         ["Quantization level", page?.datasheet?.quantization ?? null],
-        ["Input Credits per 1M tokens", formatPricePerMillion(model.pricePerMillion.input)],
-        ["Cached input Credits per 1M tokens", formatPricePerMillion(model.pricePerMillion.cachedInput)],
-        ["Output Credits per 1M tokens", formatPricePerMillion(model.pricePerMillion.output)],
+        ["Input/1M", formatPricePerMillion(model.pricePerMillion.input, true)],
+        ["Cached/1M", formatPricePerMillion(model.pricePerMillion.cachedInput, true)],
+        ["Output/1M", formatPricePerMillion(model.pricePerMillion.output, true)],
     ];
 
     return <Table tableType="presentation" width="100%">
@@ -429,17 +429,18 @@ function CopyableEndpoint({value}: {value: string}): React.ReactNode {
 
 function fallbackKeyStats(model: InferenceModel): {label: string; value: string; description?: string}[] {
     return [
-        {label: "Cached Credits per 1M tokens", value: formatPricePerMillion(model.pricePerMillion.cachedInput)},
-        {label: "Input Credits per 1M tokens", value: formatPricePerMillion(model.pricePerMillion.input)},
-        {label: "Output Credits per 1M tokens", value: formatPricePerMillion(model.pricePerMillion.output)},
+        {label: "Cached/1M", value: formatPricePerMillion(model.pricePerMillion.cachedInput, true)},
+        {label: "Input/1M", value: formatPricePerMillion(model.pricePerMillion.input, true)},
+        {label: "Output/1M", value: formatPricePerMillion(model.pricePerMillion.output, true)},
     ];
 }
 
-function formatPricePerMillion(value: number): string {
+function formatPricePerMillion(value: number, includeUnit: boolean = false): string {
     if (value === 0) return "Free";
     const digits = Math.trunc(value).toString().padStart(7, "0");
     const fraction = digits.slice(-6).replace(/0+$/, "");
-    return fraction === "" ? digits.slice(0, -6) : `${digits.slice(0, -6)}.${fraction}`;
+    const ret = fraction === "" ? digits.slice(0, -6) : `${digits.slice(0, -6)}.${fraction}`;
+    return !includeUnit ? ret : ret + " Credits";
 }
 
 function editablePricesPerMillion(model: InferenceModel): PricePerMillionText {

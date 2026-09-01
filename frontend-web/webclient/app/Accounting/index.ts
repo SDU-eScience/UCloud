@@ -1366,7 +1366,7 @@ function fmt(val: number, precision: number = 1): string {
 function fmtBalance(val: number, unit: string, precision?: number, isPrice = false): string {
     if (!isCreditUnit(unit)) return fmt(val, precision);
 
-    const maxPrecision = isPrice ? 6 : 3;
+    const maxPrecision = isPrice ? 6 : 0;
     const precisionToUse = isPrice ? Math.min(precision ?? maxPrecision, maxPrecision) : maxPrecision;
     const text = val.toFixed(precisionToUse).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
     return addThousandSeparators(text);

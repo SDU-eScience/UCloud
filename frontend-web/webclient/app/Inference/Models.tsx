@@ -11,7 +11,7 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import ModelInferenceLogo, {modelProviderName} from "@/Inference/ModelLogo";
 import {injectStyle} from "@/Unstyled";
-import {SingleLineMarkdown} from "@/ui-components/Markdown";
+import {LineCappedMarkdown} from "@/ui-components/Markdown";
 // import HeroImage from "@/ui-components/icons/logo_esc.svg";
 import HeroImage from "@/Assets/Images/inference/ucloud-ai-logo.png";
 import {RichSelect} from "@/ui-components/RichSelect";
@@ -313,16 +313,10 @@ const pageStyle = injectStyle("inference-models-page", k => `
     }
 
     ${k} .model-card-header {
-        align-items: flex-start;
+        align-items: center;
         display: flex;
         gap: 14px;
         justify-content: space-between;
-    }
-
-    ${k} .capability {
-        color: var(--textSecondary);
-        font-size: 11px;
-        margin: 0 0 8px;
     }
 
     ${k} .model-title {
@@ -726,11 +720,6 @@ function formatPricePerMillion(value: number): string {
     return fraction === "" ? digits.slice(0, -6) : `${digits.slice(0, -6)}.${fraction}`;
 }
 
-function primaryCapability(model: InferenceModel): InferenceCapability | string {
-    const priority: InferenceCapability[] = ["SpeechToText", "TextGeneration", "TextToImage"];
-    return priority.find(capability => model.capabilities.includes(capability)) ?? model.capabilities[0] ?? "Unknown";
-}
-
 function CatalogFilterButton(props: React.PropsWithChildren<{active: boolean; onClick: () => void; className?: string;}>): React.ReactNode {
     return <button
         className={`catalog-filter-button ${props.className ?? ""}`}
@@ -803,14 +792,11 @@ function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {
     const model = props.model;
     return <Link className="model-card" to={AppRoutes.inference.model(model.name)}>
         <div className="model-card-header">
-            <div>
-                <p className="capability">{primaryCapability(model)}</p>
-                <span className="model-title">{model.title}</span>
-            </div>
+            <span className="model-title">{model.title}</span>
             <ModelInferenceLogo modelName={model.name} size={46} />
         </div>
 
-        <SingleLineMarkdown width={"100%"}>{model.page?.shortDescription ?? ""}</SingleLineMarkdown>
+        <LineCappedMarkdown width={"100%"} lines={3}>{model.page?.shortDescription ?? ""}</LineCappedMarkdown>
 
         <div className={"model-spec-section"}>
             <div className="model-specs">
@@ -819,9 +805,9 @@ function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {
             </div>
 
             <div className="metric-grid">
-                <ModelPrice title="Cached Credits per 1M tokens" value={model.pricePerMillion.cachedInput} />
-                <ModelPrice title="Input Credits per 1M tokens" value={model.pricePerMillion.input} />
-                <ModelPrice title="Output Credits per 1M tokens" value={model.pricePerMillion.output} />
+                <ModelPrice title="Input/1M" value={model.pricePerMillion.input} />
+                <ModelPrice title="Output/1M" value={model.pricePerMillion.output} />
+                <ModelPrice title="Cached/1M" value={model.pricePerMillion.cachedInput} />
             </div>
         </div>
     </Link>;

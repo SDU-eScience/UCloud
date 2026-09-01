@@ -46,28 +46,41 @@ export function SimpleMarkdown({children}: React.PropsWithChildren): React.React
     />
 }
 
-const SingleLineClass = injectStyle("single-line", k => `
-    ${k} {
-        display: block;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        height: 1.5em;
-    }
+const lineCappedClasses = new Map<number, string>();
 
-    ${k} p, ${k} br {
-        display: inline;
-        margin: 0;
-    }
-`);
+function lineCappedClass(lines: number): string {
+    const existing = lineCappedClasses.get(lines);
+    if (existing) return existing;
 
-export const SingleLineMarkdown: React.FunctionComponent<{children: string; width: string;}> = ({children, width}) => {
-    return <div className={SingleLineClass} style={{width}}>
+    const className = injectStyle("markdown-line-capped", k => `
+        ${k} {
+            display: -webkit-box;
+            -webkit-line-clamp: ${lines};
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            height: ${lines * 1.5}em;
+        }
+
+        ${k} p, ${k} br {
+            display: inline;
+            margin: 0;
+        }
+    `);
+    lineCappedClasses.set(lines, className);
+    return className;
+}
+
+export const LineCappedMarkdown: React.FunctionComponent<{children: string; width: string; lines: number;}> = ({children, width, lines}) => {
+    return <div className={lineCappedClass(lines)} style={{width}}>
         <ReactMarkdown
             allowedElements={["br", "a", "p", "strong", "b", "i", "em"]}
             children={children}
         />
     </div>;
+}
+
+export const SingleLineMarkdown: React.FunctionComponent<{children: string; width: string;}> = ({children, width}) => {
+    return <LineCappedMarkdown width={width} lines={1}>{children}</LineCappedMarkdown>;
 }
 
 export function MarkdownTable({children}: React.PropsWithChildren): React.ReactNode {
