@@ -230,11 +230,14 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         onModelChangeRef.current = onModelChange;
     }, [onModelChange]);
 
+    const pendingModelUpdaterRef = useRef<((prev: Record<string, Value>) => Record<string, Value>) | null>(null);
     const flushModel = useCallback((nextModel: Record<string, Value>) => {
+        // A mount replaces the entire model and should drop any pending patches, otherwise we end up with an ordering
+        // issue.
+        pendingModelUpdaterRef.current = null;
         setModel(nextModel);
     }, []);
 
-    const pendingModelUpdaterRef = useRef<((prev: Record<string, Value>) => Record<string, Value>) | null>(null);
     const scheduleModelFlush = useCallback((updater: (prev: Record<string, Value>) => Record<string, Value>) => {
         const previousUpdater = pendingModelUpdaterRef.current;
         pendingModelUpdaterRef.current = previousUpdater

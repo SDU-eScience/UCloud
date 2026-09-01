@@ -412,6 +412,10 @@ func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, usernam
 	if httpErr != nil {
 		return OaiResponse{}, httpErr
 	}
+	request, httpErr = inferenceResponseApplyReasoningDefault(owner, request)
+	if httpErr != nil {
+		return OaiResponse{}, httpErr
+	}
 
 	id := inferenceResponseNewId("resp")
 	createdAt := time.Now().Unix()
@@ -485,6 +489,11 @@ func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner
 	}
 
 	request, conversationId, httpErr := inferenceResponseResolveChain(owner, username, request)
+	if httpErr != nil {
+		close(ch)
+		return ch, httpErr
+	}
+	request, httpErr = inferenceResponseApplyReasoningDefault(owner, request)
 	if httpErr != nil {
 		close(ch)
 		return ch, httpErr
@@ -1045,6 +1054,20 @@ func inferenceResponseValidateRequest(request OaiResponseCreateRequest) *util.Ht
 		return util.HttpErr(http.StatusBadRequest, "moderation is not supported")
 	}
 	return nil
+}
+
+func inferenceResponseApplyReasoningDefault(owner apm.WalletOwner, request OaiResponseCreateRequest) (OaiResponseCreateRequest, *util.HttpError) {
+	if request.Reasoning.Effort.Present {
+		return request, nil
+	}
+	model, httpErr := inferenceResolveModelForOwner(owner, request.Model)
+	if httpErr != nil {
+		return OaiResponseCreateRequest{}, httpErr
+	}
+	if model.DefaultReasoningEffort != "" {
+		request.Reasoning.Effort = util.OptValue(model.DefaultReasoningEffort)
+	}
+	return request, nil
 }
 
 func inferenceResponseChatRequest(request OaiResponseCreateRequest) (InferenceChatRequest, *util.HttpError) {

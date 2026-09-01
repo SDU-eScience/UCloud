@@ -58,6 +58,8 @@ func inferenceCliHelp() {
 	f.AppendField("  --title <title>", "Set the display title")
 	f.AppendField("  --title-model-name <name>", "Set model used for chat thread title generation")
 	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration, TextToImage, SpeechToText")
+	f.AppendField("  --reasoning-efforts <list>", "Comma-separated display name=value pairs. Use an empty value to disable reasoning.")
+	f.AppendField("  --default-reasoning-effort <value>", "Set the default reasoning effort value")
 	f.AppendField("  --price-per-million-cached <n>", "Encoded cached input Credits per million tokens")
 	f.AppendField("  --price-per-million-input <n>", "Encoded input Credits per million tokens")
 	f.AppendField("  --price-per-million-output <n>", "Encoded output Credits per million tokens")
@@ -94,6 +96,7 @@ func inferenceCliModelsList(args []string) {
 	t.AppendHeader("Title")
 	t.AppendHeader("Title model")
 	t.AppendHeader("Capabilities")
+	t.AppendHeader("Reasoning")
 	t.AppendHeaderEx("Cached price/M", termio.TableHeaderAlignRight)
 	t.AppendHeaderEx("Input price/M", termio.TableHeaderAlignRight)
 	t.AppendHeaderEx("Output price/M", termio.TableHeaderAlignRight)
@@ -106,6 +109,7 @@ func inferenceCliModelsList(args []string) {
 		t.Cell("%s", model.Title)
 		t.Cell("%s", model.TitleModelName)
 		t.Cell("%s", inferenceCliFormatCapabilities(model.Capabilities))
+		t.Cell("%s", inferenceCliFormatReasoning(model))
 		t.Cell("%d", model.PricePerMillion.CachedInput)
 		t.Cell("%d", model.PricePerMillion.Input)
 		t.Cell("%d", model.PricePerMillion.Output)
@@ -125,12 +129,15 @@ func inferenceCliModelsUpdate(args []string) {
 
 	req := k8sCliInferenceModelsUpdateRequest{Name: args[0]}
 	var capabilitiesRaw string
+	var reasoningEffortsRaw string
 	var availableToRaw string
 	fs := flag.NewFlagSet("inference models update", flag.ExitOnError)
 	fs.StringVar(&req.NewName, "name", "", "Rename the model")
 	fs.StringVar(&req.Title, "title", "", "Set the display title")
 	fs.StringVar(&req.TitleModelName, "title-model-name", "", "Model used for chat thread title generation")
 	fs.StringVar(&capabilitiesRaw, "capabilities", "", "Comma-separated capability list")
+	fs.StringVar(&reasoningEffortsRaw, "reasoning-efforts", "", "Comma-separated display name=value pairs")
+	fs.StringVar(&req.DefaultReasoningEffort, "default-reasoning-effort", "", "Default reasoning effort value")
 	fs.Int64Var(&req.PricePerMillionCachedInput, "price-per-million-cached", 0, "Encoded cached input Credits per million tokens (1000000 = 1 Credit)")
 	fs.Int64Var(&req.PricePerMillionInput, "price-per-million-input", 0, "Encoded input Credits per million tokens (1000000 = 1 Credit)")
 	fs.Int64Var(&req.PricePerMillionOutput, "price-per-million-output", 0, "Encoded output Credits per million tokens (1000000 = 1 Credit)")
@@ -163,6 +170,11 @@ func inferenceCliModelsUpdate(args []string) {
 		availableTo, err := inferenceCliParseList(availableToRaw)
 		cli.HandleError("parsing available-to", err)
 		req.AvailableTo = availableTo
+	}
+	if slices.Contains(req.Set, "reasoning-efforts") {
+		reasoningEfforts, err := inferenceCliParseReasoningEfforts(reasoningEffortsRaw)
+		cli.HandleError("parsing reasoning-efforts", err)
+		req.ReasoningEfforts = reasoningEfforts
 	}
 	for _, priceFlag := range []struct {
 		Name  string
@@ -235,6 +247,12 @@ func initCli() {
 		}
 		if set("capabilities") {
 			model.Capabilities = slices.Clone(r.Payload.Capabilities)
+		}
+		if set("reasoning-efforts") {
+			model.ReasoningEfforts = slices.Clone(r.Payload.ReasoningEfforts)
+		}
+		if set("default-reasoning-effort") {
+			model.DefaultReasoningEffort = r.Payload.DefaultReasoningEffort
 		}
 		if set("price-per-million-cached") {
 			model.PricePerMillion.CachedInput = r.Payload.PricePerMillionCachedInput
@@ -345,6 +363,25 @@ func inferenceCliParseList(raw string) ([]string, error) {
 	return result, nil
 }
 
+func inferenceCliParseReasoningEfforts(raw string) ([]InferenceModelOption, error) {
+	items, err := inferenceCliParseList(raw)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]InferenceModelOption, 0, len(items))
+	for _, item := range items {
+		name, value, ok := strings.Cut(item, "=")
+		name = strings.TrimSpace(name)
+		value = strings.TrimSpace(value)
+		if !ok || name == "" || value == "" {
+			return nil, fmt.Errorf("invalid reasoning effort %q; expected display name=value", item)
+		}
+		result = append(result, InferenceModelOption{Name: name, Value: value})
+	}
+	return result, nil
+}
+
 func inferenceCliFormatCapabilities(capabilities []InferenceCapability) string {
 	parts := make([]string, 0, len(capabilities))
 	for _, capability := range capabilities {
@@ -363,6 +400,17 @@ func inferenceCliFormatAvailability(availability InferenceAvailability) string {
 	return "private: " + strings.Join(availability.AvailableTo, ",")
 }
 
+func inferenceCliFormatReasoning(model InferenceModel) string {
+	if len(model.ReasoningEfforts) == 0 {
+		return "unsupported"
+	}
+	values := make([]string, 0, len(model.ReasoningEfforts))
+	for _, effort := range model.ReasoningEfforts {
+		values = append(values, effort.Value)
+	}
+	return strings.Join(values, ",") + " (default=" + model.DefaultReasoningEffort + ")"
+}
+
 func inferenceCliFormatSystemPrompt(systemPrompt *string) string {
 	if systemPrompt == nil {
 		return "global"
@@ -377,6 +425,8 @@ type k8sCliInferenceModelsUpdateRequest struct {
 	Title                      string
 	TitleModelName             string
 	Capabilities               []InferenceCapability
+	ReasoningEfforts           []InferenceModelOption
+	DefaultReasoningEffort     string
 	PricePerMillionCachedInput int64
 	PricePerMillionInput       int64
 	PricePerMillionOutput      int64

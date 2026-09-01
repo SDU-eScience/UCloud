@@ -28,16 +28,23 @@ const (
 )
 
 type InferenceModel struct {
-	Name            string                `json:"name"`
-	Title           string                `json:"title"`
-	TitleModelName  string                `json:"titleModelName"`
-	Capabilities    []InferenceCapability `json:"capabilities"`
-	PricePerMillion InferencePricing      `json:"pricePerMillion"`
-	Endpoint        InferenceEndpoint     `json:"endpoint"`
-	Availability    InferenceAvailability `json:"availability"`
-	ContextWindow   *int                  `json:"contextWindow,omitempty"`
-	ChatSettings    InferenceChatSettings `json:"chatSettings"`
-	Page            *InferenceModelPage   `json:"page,omitempty"`
+	Name                   string                 `json:"name"`
+	Title                  string                 `json:"title"`
+	TitleModelName         string                 `json:"titleModelName"`
+	Capabilities           []InferenceCapability  `json:"capabilities"`
+	ReasoningEfforts       []InferenceModelOption `json:"reasoningEfforts,omitempty"`
+	DefaultReasoningEffort string                 `json:"defaultReasoningEffort,omitempty"`
+	PricePerMillion        InferencePricing       `json:"pricePerMillion"`
+	Endpoint               InferenceEndpoint      `json:"endpoint"`
+	Availability           InferenceAvailability  `json:"availability"`
+	ContextWindow          *int                   `json:"contextWindow,omitempty"`
+	ChatSettings           InferenceChatSettings  `json:"chatSettings"`
+	Page                   *InferenceModelPage    `json:"page,omitempty"`
+}
+
+type InferenceModelOption struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type InferenceModelPage struct {
@@ -114,6 +121,8 @@ type inferenceModelRow struct {
 	Title                      string
 	TitleModelName             string
 	Capabilities               []byte
+	ReasoningEfforts           []byte
+	DefaultReasoningEffort     sql.NullString
 	PricePerMillionCachedInput int64
 	PricePerMillionInput       int64
 	PricePerMillionOutput      int64
@@ -148,6 +157,8 @@ func inferenceModelCatalogLoad() {
 					title,
 					title_model_name,
 					capabilities,
+					reasoning_efforts,
+					default_reasoning_effort,
 					price_per_million_cached_input,
 					price_per_million_input,
 					price_per_million_output,
@@ -178,6 +189,10 @@ func inferenceModelCatalogLoad() {
 			if err := json.Unmarshal(row.AvailableTo, &availableTo); err != nil {
 				continue
 			}
+			var reasoningEfforts []InferenceModelOption
+			if err := json.Unmarshal(row.ReasoningEfforts, &reasoningEfforts); err != nil {
+				continue
+			}
 
 			var contextWindow *int
 			if row.ContextWindow.Valid {
@@ -198,10 +213,17 @@ func inferenceModelCatalogLoad() {
 			}
 
 			result[row.Name] = inferenceModelNormalize(InferenceModel{
-				Name:           row.Name,
-				Title:          row.Title,
-				TitleModelName: row.TitleModelName,
-				Capabilities:   capabilities,
+				Name:             row.Name,
+				Title:            row.Title,
+				TitleModelName:   row.TitleModelName,
+				Capabilities:     capabilities,
+				ReasoningEfforts: reasoningEfforts,
+				DefaultReasoningEffort: func() string {
+					if row.DefaultReasoningEffort.Valid {
+						return row.DefaultReasoningEffort.String
+					}
+					return ""
+				}(),
 				PricePerMillion: InferencePricing{
 					CachedInput: row.PricePerMillionCachedInput,
 					Input:       row.PricePerMillionInput,
@@ -433,6 +455,7 @@ func InferenceModelDelete(name string) *util.HttpError {
 
 func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 	capabilities, _ := json.Marshal(model.Capabilities)
+	reasoningEfforts, _ := json.Marshal(model.ReasoningEfforts)
 	availableTo, _ := json.Marshal(model.Availability.AvailableTo)
 	pageMetadata := sql.NullString{}
 	if model.Page != nil {
@@ -447,6 +470,10 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 	if model.ChatSettings.SystemPrompt != nil {
 		systemPrompt = sql.NullString{String: *model.ChatSettings.SystemPrompt, Valid: true}
 	}
+	defaultReasoningEffort := sql.NullString{}
+	if model.DefaultReasoningEffort != "" {
+		defaultReasoningEffort = sql.NullString{String: model.DefaultReasoningEffort, Valid: true}
+	}
 	db.Exec(
 		tx,
 		`
@@ -455,6 +482,8 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				title,
 				title_model_name,
 				capabilities,
+				reasoning_efforts,
+				default_reasoning_effort,
 				price_per_million_cached_input,
 				price_per_million_input,
 				price_per_million_output,
@@ -474,6 +503,8 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				:title,
 				:title_model_name,
 				cast(:capabilities as jsonb),
+				cast(:reasoning_efforts as jsonb),
+				:default_reasoning_effort,
 				:price_per_million_cached_input,
 				:price_per_million_input,
 				:price_per_million_output,
@@ -492,6 +523,8 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				title = excluded.title,
 				title_model_name = excluded.title_model_name,
 				capabilities = excluded.capabilities,
+				reasoning_efforts = excluded.reasoning_efforts,
+				default_reasoning_effort = excluded.default_reasoning_effort,
 				price_per_million_cached_input = excluded.price_per_million_cached_input,
 				price_per_million_input = excluded.price_per_million_input,
 				price_per_million_output = excluded.price_per_million_output,
@@ -512,6 +545,8 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 			"title":                          model.Title,
 			"title_model_name":               model.TitleModelName,
 			"capabilities":                   string(capabilities),
+			"reasoning_efforts":              string(reasoningEfforts),
+			"default_reasoning_effort":       defaultReasoningEffort,
 			"price_per_million_cached_input": model.PricePerMillion.CachedInput,
 			"price_per_million_input":        model.PricePerMillion.Input,
 			"price_per_million_output":       model.PricePerMillion.Output,
@@ -580,6 +615,19 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 			return util.HttpErr(http.StatusBadRequest, "invalid model capability")
 		}
 	}
+	reasoningValues := map[string]bool{}
+	for _, effort := range model.ReasoningEfforts {
+		if effort.Name == "" || effort.Value == "" {
+			return util.HttpErr(http.StatusBadRequest, "reasoning effort names and values are required")
+		}
+		if reasoningValues[effort.Value] {
+			return util.HttpErr(http.StatusBadRequest, "reasoning effort values must be unique")
+		}
+		reasoningValues[effort.Value] = true
+	}
+	if len(model.ReasoningEfforts) > 0 && !reasoningValues[model.DefaultReasoningEffort] {
+		return util.HttpErr(http.StatusBadRequest, "default reasoning effort must match a supported value")
+	}
 	if strings.TrimSpace(model.Endpoint.BasePath) == "" {
 		return util.HttpErr(http.StatusBadRequest, "model endpoint base path is required")
 	}
@@ -601,6 +649,14 @@ func inferenceModelNormalize(model InferenceModel) InferenceModel {
 	}
 	model.Endpoint.BasePath = strings.TrimRight(strings.TrimSpace(model.Endpoint.BasePath), "/")
 	model.Endpoint.BackendModelName = strings.TrimSpace(model.Endpoint.BackendModelName)
+	for idx := range model.ReasoningEfforts {
+		model.ReasoningEfforts[idx].Name = strings.TrimSpace(model.ReasoningEfforts[idx].Name)
+		model.ReasoningEfforts[idx].Value = strings.TrimSpace(model.ReasoningEfforts[idx].Value)
+	}
+	model.DefaultReasoningEffort = strings.TrimSpace(model.DefaultReasoningEffort)
+	if len(model.ReasoningEfforts) == 0 {
+		model.DefaultReasoningEffort = ""
+	}
 	if model.ContextWindow != nil && *model.ContextWindow <= 0 {
 		model.ContextWindow = nil
 	}
@@ -642,6 +698,7 @@ func inferenceModelNormalize(model InferenceModel) InferenceModel {
 		}
 	}
 	model.Capabilities = slices.Clone(model.Capabilities)
+	model.ReasoningEfforts = slices.Clone(model.ReasoningEfforts)
 	model.Availability.AvailableTo = slices.Clone(model.Availability.AvailableTo)
 	return model
 }
@@ -665,6 +722,7 @@ func inferenceModelClone(model InferenceModel) InferenceModel {
 		model.Page = &page
 	}
 	model.Capabilities = slices.Clone(model.Capabilities)
+	model.ReasoningEfforts = slices.Clone(model.ReasoningEfforts)
 	model.Availability.AvailableTo = slices.Clone(model.Availability.AvailableTo)
 	return model
 }

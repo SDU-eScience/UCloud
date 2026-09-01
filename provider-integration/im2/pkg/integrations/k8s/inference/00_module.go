@@ -298,6 +298,14 @@ func Init() {
 					}
 					return capabilities
 				}(),
+				ReasoningEfforts: func() []orcapi.InferenceModelOption {
+					efforts := make([]orcapi.InferenceModelOption, 0, len(model.ReasoningEfforts))
+					for _, effort := range model.ReasoningEfforts {
+						efforts = append(efforts, orcapi.InferenceModelOption{Name: effort.Name, Value: effort.Value})
+					}
+					return efforts
+				}(),
+				DefaultReasoningEffort: model.DefaultReasoningEffort,
 				PricePerMillion: orcapi.InferencePricing{
 					CachedInput: model.PricePerMillion.CachedInput,
 					Input:       model.PricePerMillion.Input,
@@ -358,6 +366,14 @@ func Init() {
 				}
 				return capabilities
 			}(),
+			ReasoningEfforts: func() []InferenceModelOption {
+				efforts := make([]InferenceModelOption, 0, len(request.Model.ReasoningEfforts))
+				for _, effort := range request.Model.ReasoningEfforts {
+					efforts = append(efforts, InferenceModelOption{Name: effort.Name, Value: effort.Value})
+				}
+				return efforts
+			}(),
+			DefaultReasoningEffort: request.Model.DefaultReasoningEffort,
 			PricePerMillion: InferencePricing{
 				CachedInput: request.Model.PricePerMillion.CachedInput,
 				Input:       request.Model.PricePerMillion.Input,

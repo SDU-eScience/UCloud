@@ -144,6 +144,7 @@ const PLAYGROUND_REHYDRATE_PATHS = [
     "chat.systemPrompt",
     "chat.presencePenalty",
     "chat.frequencyPenalty",
+    "chat.reasoningEffort",
     "chat.logprobs",
     "chat.topLogprobs",
 ];
@@ -163,6 +164,9 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
         const selectedModel = stringValue(fn.modelValue(model, "chat.modelId", scope));
         const selectedModelOption = modelOptions.find(option => option.key === selectedModel);
         const selectedCapabilities = modelCapabilities(model, selectedModel);
+        const reasoningEfforts = modelReasoningEfforts(model, selectedModel);
+        const reasoningEffort = stringValue(fn.modelValue(model, "chat.reasoningEffort", scope));
+        const selectedReasoningEffort = reasoningEfforts.find(option => option.key === reasoningEffort);
         const [localDraft, setLocalDraft] = React.useState(() => stringValue(fn.modelValue(model, node.bindPath, scope)));
         const value = localDraft;
         const setValue = setLocalDraft;
@@ -443,6 +447,24 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                         )}
                     />
                     <div style={{flex: 1}}/>
+                    {reasoningEfforts.length === 0 ? null : <RichSelect<PlaygroundOption, keyof PlaygroundOption>
+                        items={reasoningEfforts}
+                        keys={["key", "value"]}
+                        selected={selectedReasoningEffort}
+                        onSelect={option => fn.sendModelInput("chat.reasoningEffort", {kind: ValueKind.String, string: option.key}, "chat.reasoningEffort")}
+                        dropdownWidth="220px"
+                        dropdownVerticalGap={8}
+                        elementHeight={42}
+                        matchTriggerWidth={false}
+                        showSearchField={false}
+                        trigger={<ReasoningEffortTrigger option={selectedReasoningEffort}/>}
+                        RenderRow={props => <ReasoningEffortOption
+                            option={props.element}
+                            selected={props.element?.key === reasoningEffort}
+                            onSelect={props.onSelect}
+                            dataProps={props.dataProps}
+                        />}
+                    />}
                     <Tooltip tooltipContentWidth={80} trigger={
                         <span style={{display: "inline-flex"}}>
                             <button type="button" disabled={!canSend} onClick={send}
@@ -735,6 +757,57 @@ function ModelSelectorOption({
             {selected ? <Icon name="heroCheck" size={16} color="successMain"/> : <span style={{width: 16}}/>}
         </div>
     );
+}
+
+function ReasoningEffortTrigger({option}: {option?: PlaygroundOption}): React.ReactNode {
+    return <button
+        type="button"
+        title="Reasoning effort"
+        style={{
+            minWidth: 120,
+            maxWidth: 200,
+            height: 34,
+            border: 0,
+            borderRadius: 999,
+            background: "transparent",
+            color: "inherit",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "0 10px",
+            cursor: "pointer",
+            textAlign: "left",
+        }}
+    >
+        <span style={{minWidth: 0, flex: 1, whiteSpace: "nowrap", fontWeight: 600}}>{option?.value ?? "Reasoning"}</span>
+        <Icon name="heroChevronDown" size={14}/>
+    </button>;
+}
+
+function ReasoningEffortOption({option, selected, onSelect, dataProps}: {
+    option?: PlaygroundOption;
+    selected: boolean;
+    onSelect: () => void;
+    dataProps?: Record<string, string>;
+}): React.ReactNode {
+    if (!option) return null;
+    return <div
+        {...dataProps}
+        data-active={selected.toString()}
+        onClick={onSelect}
+        style={{
+            minHeight: 42,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "7px 10px",
+            color: "inherit",
+            background: selected ? "var(--playground-hover, var(--rowHover))" : undefined,
+        }}
+    >
+        <span style={{minWidth: 0, flex: 1, whiteSpace: "nowrap", fontWeight: 500}}>{option.value}</span>
+        {selected ? <Icon name="heroCheck" size={16} color="successMain"/> : <span style={{width: 16}}/>}
+    </div>;
 }
 
 const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptions, currentModelId, fn}: ChatMessageNodeProps): React.ReactNode {
@@ -2240,6 +2313,24 @@ function modelContextWindow(model: Record<string, Value>, modelName: string): nu
         return numberValue(item.object.contextWindow);
     }
     return 0;
+}
+
+function modelReasoningEfforts(model: Record<string, Value>, modelName: string): PlaygroundOption[] {
+    const models = model.models;
+    if (!models || models.kind !== ValueKind.List) return [];
+    for (const item of models.list) {
+        if (item.kind !== ValueKind.Object) continue;
+        if (stringValue(item.object.name) !== modelName) continue;
+        const efforts = item.object.reasoningEfforts;
+        if (!efforts || efforts.kind !== ValueKind.List) return [];
+        return efforts.list.flatMap(effort => {
+            if (effort.kind !== ValueKind.Object) return [];
+            const key = stringValue(effort.object.value);
+            const value = stringValue(effort.object.name);
+            return key === "" ? [] : [{key, value: value || key}];
+        });
+    }
+    return [];
 }
 
 function compactTokenCount(tokens: number): string {

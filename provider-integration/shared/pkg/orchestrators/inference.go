@@ -43,16 +43,23 @@ const (
 )
 
 type InferenceModel struct {
-	Name            string                `json:"name"`
-	Title           string                `json:"title"`
-	TitleModelName  string                `json:"titleModelName"`
-	Capabilities    []InferenceCapability `json:"capabilities"`
-	PricePerMillion InferencePricing      `json:"pricePerMillion"`
-	Endpoint        InferenceEndpoint     `json:"endpoint"`
-	Availability    InferenceAvailability `json:"availability"`
-	ContextWindow   *int                  `json:"contextWindow,omitempty"`
-	ChatSettings    InferenceChatSettings `json:"chatSettings"`
-	Page            *InferenceModelPage   `json:"page,omitempty"`
+	Name                   string                 `json:"name"`
+	Title                  string                 `json:"title"`
+	TitleModelName         string                 `json:"titleModelName"`
+	Capabilities           []InferenceCapability  `json:"capabilities"`
+	ReasoningEfforts       []InferenceModelOption `json:"reasoningEfforts,omitempty"`
+	DefaultReasoningEffort string                 `json:"defaultReasoningEffort,omitempty"`
+	PricePerMillion        InferencePricing       `json:"pricePerMillion"`
+	Endpoint               InferenceEndpoint      `json:"endpoint"`
+	Availability           InferenceAvailability  `json:"availability"`
+	ContextWindow          *int                   `json:"contextWindow,omitempty"`
+	ChatSettings           InferenceChatSettings  `json:"chatSettings"`
+	Page                   *InferenceModelPage    `json:"page,omitempty"`
+}
+
+type InferenceModelOption struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type InferenceModelPage struct {

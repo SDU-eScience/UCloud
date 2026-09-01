@@ -67,6 +67,7 @@ type InferencePlaygroundAppChat struct {
 	TopP                float64
 	PresencePenalty     float64
 	FrequencyPenalty    float64
+	ReasoningEffort     string
 	MaxCompletionTokens int64
 	Logprobs            bool
 	TopLogprobs         int64
@@ -995,6 +996,7 @@ func (app *InferencePlaygroundApp) applyChatModelDefaults() {
 
 	app.Chat.Temperature = model.ChatSettings.Temperature
 	app.Chat.TopP = model.ChatSettings.TopP
+	app.Chat.ReasoningEffort = model.DefaultReasoningEffort
 	app.Chat.MaxCompletionTokens = int64(model.ChatSettings.MaxCompletionTokens)
 	if !app.Developer {
 		app.Chat.SystemPrompt = app.chatSystemPrompt()
@@ -1041,6 +1043,7 @@ func (app *InferencePlaygroundApp) runChat(attachments []playgroundChatAttachmen
 		TopP:                util.OptValue(app.Chat.TopP),
 		PresencePenalty:     util.OptValue(app.Chat.PresencePenalty),
 		FrequencyPenalty:    util.OptValue(app.Chat.FrequencyPenalty),
+		ReasoningEffort:     util.OptStringIfNotEmpty(app.Chat.ReasoningEffort),
 		MaxCompletionTokens: util.OptValue(int(app.Chat.MaxCompletionTokens)),
 		Logprobs:            util.OptValue(app.Chat.Logprobs),
 		TopLogprobs:         util.OptValue(int(app.Chat.TopLogprobs)),
@@ -1126,6 +1129,7 @@ func (app *InferencePlaygroundApp) regenerateChat(modelId string, messageIndex i
 		TopP:                util.OptValue(app.Chat.TopP),
 		PresencePenalty:     util.OptValue(app.Chat.PresencePenalty),
 		FrequencyPenalty:    util.OptValue(app.Chat.FrequencyPenalty),
+		ReasoningEffort:     util.OptStringIfNotEmpty(app.Chat.ReasoningEffort),
 		MaxCompletionTokens: util.OptValue(int(app.Chat.MaxCompletionTokens)),
 		Logprobs:            util.OptValue(app.Chat.Logprobs),
 		TopLogprobs:         util.OptValue(int(app.Chat.TopLogprobs)),
@@ -2066,6 +2070,9 @@ func (app *InferencePlaygroundApp) buildChatCurl() string {
 	payload["top_p"] = app.Chat.TopP
 	payload["presence_penalty"] = app.Chat.PresencePenalty
 	payload["frequency_penalty"] = app.Chat.FrequencyPenalty
+	if app.Chat.ReasoningEffort != "" {
+		payload["reasoning_effort"] = app.Chat.ReasoningEffort
+	}
 	if app.Chat.MaxCompletionTokens > 0 {
 		payload["max_completion_tokens"] = app.Chat.MaxCompletionTokens
 	}

@@ -40,6 +40,8 @@ export interface InferenceModel {
     title: string;
     titleModelName: string;
     capabilities: InferenceCapability[];
+    reasoningEfforts: InferenceModelOption[];
+    defaultReasoningEffort: string;
     pricePerMillion: {
         cachedInput: number;
         input: number;
@@ -62,6 +64,11 @@ export interface InferenceModel {
         disableTools: boolean;
     };
     page?: InferenceModelPageMetadata;
+}
+
+export interface InferenceModelOption {
+    name: string;
+    value: string;
 }
 
 export interface InferenceModelPageMetadata {
