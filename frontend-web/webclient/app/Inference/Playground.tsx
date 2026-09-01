@@ -820,6 +820,7 @@ const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptio
 }, areChatMessageNodePropsEqual);
 
 function areChatMessageNodePropsEqual(prev: ChatMessageNodeProps, next: ChatMessageNodeProps): boolean {
+    if (prev.message === next.message) return prev.fn === next.fn;
     if (prev.fn !== next.fn || !chatMessageViewModelEqual(prev.message, next.message)) return false;
     if (prev.message.role === "user" && next.message.role === "user") return true;
     if (!playgroundOptionsEqual(prev.modelOptions, next.modelOptions)) return false;
@@ -1691,13 +1692,23 @@ function ContextWindowIndicator({model, fn}: {model: Record<string, Value>; fn?:
 function PlaygroundConversation({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
     const messagesValue = fn?.modelValue(model, "chat.messages") ?? model["chat.messages"];
     const messageItems = messagesValue?.kind === ValueKind.List ? messagesValue.list : [];
+    const streamingValue = fn?.modelValue(model, "chat.streamingMessages") ?? model["chat.streamingMessages"];
+    const streamingItems = streamingValue?.kind === ValueKind.List ? streamingValue.list : [];
+    const streamingThreadId = stringValue(fn?.modelValue(model, "chat.streamingThreadId") ?? model["chat.streamingThreadId"]);
     const loading = boolValue(fn?.modelValue(model, "chat.loading") ?? model["chat.loading"]);
     const developmentMode = boolValue(fn?.modelValue(model, "developmentMode") ?? model.developmentMode);
     const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
     const modelsValue = fn?.modelValue(model, "models") ?? model.models;
     const modelOptions = React.useMemo(() => textGenerationModelOptions(modelsValue), [modelsValue]);
     const currentModelId = stringValue(fn?.modelValue(model, "chat.modelId") ?? model["chat.modelId"]);
-    const messages = React.useMemo(() => buildChatMessageViewModels(messageItems, currentThreadId), [currentThreadId, messagesValue]);
+    const messages = React.useMemo(
+        () => buildChatMessageViewModels(
+            messageItems,
+            currentThreadId,
+            streamingThreadId === currentThreadId ? streamingItems : undefined,
+        ),
+        [currentThreadId, messagesValue, streamingThreadId, streamingValue],
+    );
     const latestMessage = messages[messages.length - 1];
     const latestMessageScrollKey = latestMessage ? chatMessageScrollKey(latestMessage) : "";
     const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -2337,7 +2348,9 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
     });
 }
 
-function buildChatMessageViewModels(messageItems: Value[], currentThreadId: string): ChatMessageViewModel[] {
+const chatMessageViewCache = new WeakMap<Value, ChatMessageViewModel>();
+
+function buildChatMessageViewModels(messageItems: Value[], currentThreadId: string, streamingItems?: Value[]): ChatMessageViewModel[] {
     const allMessages: ChatMessageListItem[] = messageItems.flatMap((item: Value) => {
         if (item.kind !== ValueKind.Object) return [];
         if (boolValue(item.object.synthetic)) return [];
@@ -2350,9 +2363,45 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
         }];
     });
 
-    return messageItems.flatMap((item, idx): ChatMessageViewModel[] => {
+    // The in-progress assistant message arrives through a small dedicated model key
+    // (chat.streamingMessages) instead of the full chat.messages list. Merge it on top of the static
+    // messages so that token updates never re-render the earlier parts of the conversation.
+    let items = messageItems;
+    if (streamingItems && streamingItems.length > 0 && messageItems.length > 0) {
+        const streaming = streamingItems[streamingItems.length - 1];
+        if (streaming?.kind === ValueKind.Object) {
+            const streamingIndex = numberValue(streaming.object.messageIndex);
+            let replaced = false;
+            items = messageItems.map((item, idx) => {
+                if (item === streaming || replaced) return item;
+                if (item.kind !== ValueKind.Object) return item;
+                const messageIndex = item.object.messageIndex ? numberValue(item.object.messageIndex) : idx;
+                if (messageIndex === streamingIndex) {
+                    replaced = true;
+                    return streaming;
+                }
+                return item;
+            });
+            if (!replaced) {
+                // The static list can still carry the placeholder with an unset messageIndex (it is
+                // only corrected on the server once the first update lands). Replace the trailing
+                // assistant message in that case.
+                const last = messageItems[messageItems.length - 1];
+                if (last?.kind === ValueKind.Object && stringValue(last.object.role) === "assistant" && stringValue(last.object.modelName) === stringValue(streaming.object.modelName)) {
+                    items = messageItems.slice(0, -1).concat([streaming]);
+                    replaced = true;
+                }
+            }
+            if (!replaced) items = messageItems.concat([streaming]);
+        }
+    }
+
+    return items.flatMap((item, idx): ChatMessageViewModel[] => {
         if (item.kind !== ValueKind.Object) return [];
         if (boolValue(item.object.synthetic)) return [];
+
+        const cached = chatMessageViewCache.get(item);
+        if (cached && cached.threadId === currentThreadId) return [cached];
 
         const role = stringValue(item.object.role);
         const content = stringValue(item.object.content);
@@ -2378,7 +2427,7 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
             : messageParts;
 
         const key = `${currentThreadId || "thread"}:${idx}:${messageIndex}`;
-        return [{
+        const viewModel: ChatMessageViewModel = {
             key,
             threadId: currentThreadId,
             role,
@@ -2393,7 +2442,9 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
             outputTokens: numberValue(item.object.outputTokens),
             messageIndex,
             hidden,
-        }];
+        };
+        chatMessageViewCache.set(item, viewModel);
+        return [viewModel];
     });
 }
 
@@ -2415,7 +2466,10 @@ function chatMessageViewModelEqual(a: ChatMessageViewModel, b: ChatMessageViewMo
 }
 
 function chatMessageScrollKey(message: ChatMessageViewModel): string {
-    return `${message.key}:${message.content}:${message.finishedAt}:${message.parts.map(part => `${part.kind}:${part.text}:${part.body}:${part.status}`).join("|")}`;
+    // NOTE(Dan): this key is only a change detector for the auto-scroll effect. It deliberately uses
+    // lengths instead of the full content.
+    const partsKey = message.parts.map(part => `${part.kind}:${part.text.length}:${part.body.length}:${part.status}`).join("|");
+    return `${message.key}:${message.content.length}:${message.finishedAt}:${partsKey}`;
 }
 
 function chatMessagePartsEqual(a: ChatMessagePart[], b: ChatMessagePart[]): boolean {

@@ -788,7 +788,7 @@ func InferenceChat(ctx context.Context, owner apm.WalletOwner, history Inference
 func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history InferenceChatRequest) (chan InferenceChatStreamingResponse, *util.HttpError) {
 	requestStartedAt := time.Now()
 	requestModel := "unknown"
-	ch := make(chan InferenceChatStreamingResponse)
+	ch := make(chan InferenceChatStreamingResponse, 1024) // buffered to allow for slow consumers (e.g. playground UI)
 
 	if inferenceIsLocked(owner) {
 		close(ch)
