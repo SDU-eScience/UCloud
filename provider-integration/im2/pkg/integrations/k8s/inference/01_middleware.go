@@ -128,11 +128,13 @@ func inferenceReadSSE(ctx context.Context, body io.Reader, touch func(), handle 
 // =====================================================================================================================
 
 type OaiInferenceModel struct {
-	Id            string                `json:"id"`
-	Object        string                `json:"object"`
-	OwnedBy       string                `json:"owned_by,omitempty"`
-	Capabilities  []InferenceCapability `json:"capabilities,omitempty"`
-	ContextWindow *int                  `json:"context_window,omitempty"`
+	Id                     string                 `json:"id"`
+	Object                 string                 `json:"object"`
+	OwnedBy                string                 `json:"owned_by,omitempty"`
+	Capabilities           []InferenceCapability  `json:"capabilities,omitempty"`
+	ContextWindow          *int                   `json:"context_window,omitempty"`
+	ReasoningEfforts       []InferenceModelOption `json:"reasoning_efforts,omitempty"`
+	DefaultReasoningEffort string                 `json:"default_reasoning_effort,omitempty"`
 }
 
 type OaiInferenceModelsResponse struct {
@@ -226,11 +228,13 @@ func OaiInferenceModelByID(owner apm.WalletOwner, id string) (OaiInferenceModel,
 
 func inferenceOaiModelFromCatalog(model InferenceModel) OaiInferenceModel {
 	return OaiInferenceModel{
-		Id:            model.Name,
-		Object:        "model",
-		OwnedBy:       "ucloud",
-		Capabilities:  model.Capabilities,
-		ContextWindow: model.ContextWindow,
+		Id:                     model.Name,
+		Object:                 "model",
+		OwnedBy:                "ucloud",
+		Capabilities:           model.Capabilities,
+		ContextWindow:          model.ContextWindow,
+		ReasoningEfforts:       model.ReasoningEfforts,
+		DefaultReasoningEffort: model.DefaultReasoningEffort,
 	}
 }
 
@@ -259,12 +263,25 @@ func inferenceCodexModelFromCatalog(model InferenceModel, priority int) CodexInf
 		inputModalities = append(inputModalities, "audio")
 	}
 
+	var defaultReasoningLevel *string
+	if model.DefaultReasoningEffort != "" {
+		value := model.DefaultReasoningEffort
+		defaultReasoningLevel = &value
+	}
+	supportedReasoningLevels := make([]CodexReasoningEffort, 0, len(model.ReasoningEfforts))
+	for _, effort := range model.ReasoningEfforts {
+		supportedReasoningLevels = append(supportedReasoningLevels, CodexReasoningEffort{
+			Effort:      effort.Value,
+			Description: effort.Name,
+		})
+	}
+
 	return CodexInferenceModel{
 		Slug:                           model.Name,
 		DisplayName:                    displayName,
 		Description:                    description,
-		DefaultReasoningLevel:          nil,
-		SupportedReasoningLevels:       []CodexReasoningEffort{},
+		DefaultReasoningLevel:          defaultReasoningLevel,
+		SupportedReasoningLevels:       supportedReasoningLevels,
 		ShellType:                      "shell_command",
 		Visibility:                     "list",
 		SupportedInApi:                 true,
@@ -716,6 +733,9 @@ func InferenceChat(ctx context.Context, owner apm.WalletOwner, history Inference
 		return InferenceChatResponse{}, httpErr
 	}
 	requestModel = model.Name
+	if !history.ReasoningEffort.Present && model.DefaultReasoningEffort != "" {
+		history.ReasoningEffort = util.OptValue(model.DefaultReasoningEffort)
+	}
 	if httpErr := inferenceValidateChatRequest(history, model); httpErr != nil {
 		requestOutcome = "client_error"
 		return InferenceChatResponse{}, httpErr
@@ -788,7 +808,7 @@ func InferenceChat(ctx context.Context, owner apm.WalletOwner, history Inference
 func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history InferenceChatRequest) (chan InferenceChatStreamingResponse, *util.HttpError) {
 	requestStartedAt := time.Now()
 	requestModel := "unknown"
-	ch := make(chan InferenceChatStreamingResponse)
+	ch := make(chan InferenceChatStreamingResponse, 1024) // buffered to allow for slow consumers (e.g. playground UI)
 
 	if inferenceIsLocked(owner) {
 		close(ch)
@@ -803,6 +823,9 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 		return ch, httpErr
 	}
 	requestModel = model.Name
+	if !history.ReasoningEffort.Present && model.DefaultReasoningEffort != "" {
+		history.ReasoningEffort = util.OptValue(model.DefaultReasoningEffort)
+	}
 	if httpErr := inferenceValidateChatRequest(history, model); httpErr != nil {
 		close(ch)
 		inferenceReportChatRequestMetrics(requestModel, "client_error", requestStartedAt, time.Now())
@@ -1820,6 +1843,18 @@ func inferenceValidateChatRequest(request InferenceChatRequest, model InferenceM
 	}
 	if request.N.Present && (request.N.Value <= 0 || request.N.Value > 8) {
 		return util.HttpErr(http.StatusBadRequest, "invalid number of completions")
+	}
+	if request.ReasoningEffort.Present {
+		supported := false
+		for _, effort := range model.ReasoningEfforts {
+			if request.ReasoningEffort.Value == effort.Value {
+				supported = true
+				break
+			}
+		}
+		if !supported {
+			return util.HttpErr(http.StatusBadRequest, "unsupported reasoning effort")
+		}
 	}
 	if len(request.Messages) > 1024 || len(request.Tools) > 128 {
 		return util.HttpErr(http.StatusBadRequest, "request contains too many items")

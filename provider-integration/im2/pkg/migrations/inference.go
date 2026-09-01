@@ -472,3 +472,21 @@ func inferenceV19() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV20() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV20",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_model add column reasoning_efforts jsonb not null default '[]'::jsonb`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model add column default_reasoning_effort text null`,
+				db.Params{},
+			)
+		},
+	}
+}

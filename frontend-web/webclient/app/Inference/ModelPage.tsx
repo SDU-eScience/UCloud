@@ -492,6 +492,8 @@ function normalizeEditableModel(model: InferenceModel): InferenceModel {
             systemPrompt: model.chatSettings?.systemPrompt,
             disableTools: model.chatSettings?.disableTools ?? false,
         },
+        reasoningEfforts: model.reasoningEfforts ?? [],
+        defaultReasoningEffort: model.defaultReasoningEffort ?? "",
         page: {
             ...defaults,
             ...model.page,
@@ -558,10 +560,47 @@ function ModelSettingsEditor(props: {
         <label>Max completion tokens<Input type="number" min="1" value={model.chatSettings.maxCompletionTokens} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, maxCompletionTokens: parseInt(ev.currentTarget.value || "0")}})} /></label>
         <label>System prompt<Input value={model.chatSettings.systemPrompt ?? ""} placeholder="Use global default" onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, systemPrompt: ev.currentTarget.value.trim() === "" ? undefined : ev.currentTarget.value}})} /></label>
         <label style={{display: "flex", gap: 6, alignItems: "center"}}><input type="checkbox" checked={model.chatSettings.disableTools} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, disableTools: ev.currentTarget.checked}})} />Disable chat tools</label>
+        <ReasoningEffortsEditor model={model} setModel={setModel} />
         <Box>
             <Text fontWeight={600}>Capabilities</Text>
             <Flex gap="12px" flexWrap="wrap" mt={8}>{capabilities.map((capability, index) => <label key={capability} style={{ display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={model.capabilities.includes(capability)} onChange={ev => setModel({ ...model, capabilities: ev.currentTarget.checked ? [...model.capabilities, capability] : model.capabilities.filter(it => it !== capability) })} />{prettierCapabilities[index]}</label>)}</Flex>
         </Box>
+    </Box>;
+}
+
+function ReasoningEffortsEditor(props: {model: InferenceModel; setModel: (model: InferenceModel) => void}): React.ReactNode {
+    const {model, setModel} = props;
+    const efforts = model.reasoningEfforts ?? [];
+    const updateEfforts = (next: InferenceModel["reasoningEfforts"], defaultValue = model.defaultReasoningEffort) => {
+        setModel({
+            ...model,
+            reasoningEfforts: next,
+            defaultReasoningEffort: next.length === 0 ? "" : defaultValue,
+        });
+    };
+
+    return <Box style={{display: "grid", gap: 8}}>
+        <Flex alignItems="center" gap="8px">
+            <Text fontWeight={600}>Reasoning efforts</Text>
+            <Button type="button" m={0} onClick={() => updateEfforts([...efforts, {name: "", value: ""}])}>Add</Button>
+        </Flex>
+        {efforts.length === 0 ? <Text color="textSecondary">Reasoning effort is not supported.</Text> : null}
+        {efforts.map((effort, idx) => <div key={idx} style={{display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "end"}}>
+            <label>Display name<Input value={effort.name} onChange={ev => updateEfforts(efforts.map((it, itIdx) => itIdx === idx ? {...it, name: ev.currentTarget.value} : it))} /></label>
+            <label>API value<Input value={effort.value} onChange={ev => {
+                const value = ev.currentTarget.value;
+                updateEfforts(efforts.map((it, itIdx) => itIdx === idx ? {...it, value} : it), model.defaultReasoningEffort === effort.value ? value : model.defaultReasoningEffort);
+            }} /></label>
+            <Button type="button" color="errorMain" m={0} onClick={() => {
+                const next = efforts.filter((_, itIdx) => itIdx !== idx);
+                const defaultValue = model.defaultReasoningEffort === effort.value ? (next[0]?.value ?? "") : model.defaultReasoningEffort;
+                updateEfforts(next, defaultValue);
+            }}>Remove</Button>
+        </div>)}
+        {efforts.length === 0 ? null : <label>Default reasoning effort<Select value={model.defaultReasoningEffort} onChange={ev => setModel({...model, defaultReasoningEffort: ev.currentTarget.value})} style={{width: "100%", height: 40}}>
+            <option value="" disabled>Select a default</option>
+            {efforts.filter(effort => effort.value.trim() !== "").map((effort, idx) => <option key={`${effort.value}-${idx}`} value={effort.value}>{effort.name || effort.value}</option>)}
+        </Select></label>}
     </Box>;
 }
 

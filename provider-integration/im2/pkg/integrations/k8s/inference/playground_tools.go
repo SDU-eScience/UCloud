@@ -121,8 +121,17 @@ func (app *InferencePlaygroundApp) playgroundWorkspaceReady() bool {
 	return strings.TrimSpace(app.Workspace.SandboxJobId) != "" && strings.TrimSpace(app.Workspace.Error) == ""
 }
 
+// playgroundToolAvailable reports whether the named sandbox tool may run. Takes the application mutex;
+// callers must not hold it.
 func (app *InferencePlaygroundApp) playgroundToolAvailable(name string, allowDeveloper bool) bool {
-	if app == nil || (!allowDeveloper && app.Developer) || !app.playgroundWorkspaceReady() {
+	if app == nil {
+		return false
+	}
+	app.mu.Lock()
+	developer := app.Developer
+	ready := app.playgroundWorkspaceReady()
+	app.mu.Unlock()
+	if (!allowDeveloper && developer) || !ready {
 		return false
 	}
 	for _, candidate := range playgroundWorkspaceToolNames {
@@ -176,15 +185,20 @@ func (app *InferencePlaygroundApp) playgroundToolDispatchWithMode(call Inference
 }
 
 func (app *InferencePlaygroundApp) playgroundToolSandbox() (*shared.InferenceSandbox, string) {
+	app.mu.Lock()
+	workspacePath := strings.TrimSpace(app.Workspace.Path)
+	owner := app.Owner
+	app.mu.Unlock()
+
 	folders := []string{}
-	if path := strings.TrimSpace(app.Workspace.Path); path != "" {
-		folders = append(folders, path)
+	if workspacePath != "" {
+		folders = append(folders, workspacePath)
 	}
-	sandbox, err := shared.InferenceSandboxSetFolders(app.Owner, util.OptNone[string](), folders)
+	sandbox, err := shared.InferenceSandboxSetFolders(owner, util.OptNone[string](), folders)
 	if err != nil {
 		return nil, err.Why
 	}
-	if strings.TrimSpace(app.Workspace.Path) != "" && len(sandbox.Folders) == 0 {
+	if workspacePath != "" && len(sandbox.Folders) == 0 {
 		return nil, "The selected folder could not be mounted."
 	}
 	sandbox.AutoLease = true
@@ -331,7 +345,7 @@ func (app *InferencePlaygroundApp) inferenceToolBash(sandbox *shared.InferenceSa
 	if err != "" {
 		return playgroundToolResult{Message: playgroundToolError(call.Id, err), Error: err}
 	}
-	if strings.TrimSpace(app.Workspace.Path) == "" {
+	if app.workspacePath() == "" {
 		cwd = "/"
 		if args.Cwd != "." {
 			cwd = filepath.Join(cwd, args.Cwd)
@@ -427,7 +441,7 @@ func playgroundToolContainerPath(path string) (string, string) {
 }
 
 func (app *InferencePlaygroundApp) playgroundToolWorkingDirectory() string {
-	if strings.TrimSpace(app.Workspace.Path) == "" {
+	if app.workspacePath() == "" {
 		return "/"
 	}
 	return playgroundToolWorkspaceRoot
