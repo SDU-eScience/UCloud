@@ -15,6 +15,9 @@ type JobGetCommand struct {
 
 type JobListCommand struct {
 	Workspace string `flag:"workspace" usage:"Workspace to list jobs for"`
+	State     string `flag:"state" usage:"Job state"`
+	App       string `flag:"app" usage:"Application name"`
+	Provider  string `flag:"provider" usage:"Provider name"`
 }
 type JobCreateCommand struct {
 	Application string            `flag:"app" usage:"Application name"`
@@ -129,6 +132,8 @@ func retrieveJobs() (map[string]orcapi.Job, error) {
 func printJobs(workspace string, jobs map[string]orcapi.Job) {
 	fmt.Printf("Jobs of %s:\n", workspace)
 	t := termio.Table{}
+	t.AppendHeader("Provider")
+	t.AppendHeader("Application")
 	t.AppendHeader("JobId")
 	t.AppendHeader("JobName")
 	t.AppendHeader("JobStatus")
@@ -136,6 +141,8 @@ func printJobs(workspace string, jobs map[string]orcapi.Job) {
 	t.AppendHeader("JobStartTime")
 
 	for _, job := range jobs {
+		t.Cell("%v", job.Specification.Product.Provider)
+		t.Cell("%v", job.Specification.Application.Name)
 		t.Cell(job.Id)
 		t.Cell("%v", job.Specification.Name)
 		t.Cell("%v", job.Status.State)
@@ -165,6 +172,44 @@ func (c JobGetCommand) Execute() error {
 	return fmt.Errorf("job get not implemented")
 }
 
+func filterByState(jobs map[string]orcapi.Job, state string) map[string]orcapi.Job {
+	if state == "" {
+		return jobs
+	}
+	filteredJobs := make(map[string]orcapi.Job)
+	for id, job := range jobs {
+		if string(job.Status.State) == state {
+			filteredJobs[id] = job
+		}
+	}
+	return filteredJobs
+}
+
+func filterByApp(jobs map[string]orcapi.Job, app string) map[string]orcapi.Job {
+	if app == "" {
+		return jobs
+	}
+	filteredJobs := make(map[string]orcapi.Job)
+	for id, job := range jobs {
+		if job.Specification.Name == app {
+			filteredJobs[id] = job
+		}
+	}
+	return filteredJobs
+}
+func filterByProvider(jobs map[string]orcapi.Job, provider string) map[string]orcapi.Job {
+	if provider == "" {
+		return jobs
+	}
+	filteredJobs := make(map[string]orcapi.Job)
+	for id, job := range jobs {
+		if job.Specification.Product.Provider == provider {
+			filteredJobs[id] = job
+		}
+	}
+	return filteredJobs
+}
+
 func (c JobListCommand) Execute() error {
 	cfg, err := shared.ReadConfig()
 	if err != nil {
@@ -172,29 +217,24 @@ func (c JobListCommand) Execute() error {
 	}
 	cfg.InitUCloudClient()
 	currentWs := c.Workspace
-	if c.Workspace != "" {
-		// lookup workspace
-		if cfg.CurrentWorkspace.Present {
-			// if workspace input is the same as current
-			if cfg.CurrentWorkspace.Value.Name == c.Workspace {
-				shared.SetActiveWorkspace(cfg.CurrentWorkspace.Value.Id)
-			}
-		} else {
-			ws, err := findWorkspace(c.Workspace)
-			if err != nil {
-				return err
-			}
-			shared.SetActiveWorkspace(ws.Id)
-		}
-	} else {
-		if !cfg.CurrentWorkspace.Present {
-			return fmt.Errorf("this command requires a workspace, either by specifying a workspace with --workspace or ucloud workspace use <workspace>")
-		}
-		currentWs = cfg.CurrentWorkspace.Value.Name
-		shared.SetActiveWorkspace(cfg.CurrentWorkspace.Value.Id)
+	if c.Workspace == "" && cfg.CurrentWorkspace.IsEmpty() {
+		return fmt.Errorf("this command requires a workspace, either by specifying a workspace with --workspace or ucloud workspace use <workspace>")
 	}
 
+	if cfg.CurrentWorkspace.Present {
+		currentWs = cfg.CurrentWorkspace.Value
+	}
+
+	ws, err := findWorkspace(currentWs)
+	if err != nil {
+		return err
+	}
+	shared.SetActiveWorkspace(ws.Id)
+
 	jobs, err := retrieveJobs()
+	jobs = filterByState(jobs, c.State)
+	jobs = filterByApp(jobs, c.App)
+	jobs = filterByProvider(jobs, c.Provider)
 	if err != nil {
 		return err
 	}

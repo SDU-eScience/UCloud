@@ -198,7 +198,16 @@ func TestPublicLinkCreate(t *testing.T) {
 }
 
 func TestJobList(t *testing.T) {
-	input := []string{"job", "list", "--workspace", "testmain"}
+	input := []string{"job", "list", "--workspace", "testmain", "--provider", "k8s"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestJobListAllFlags(t *testing.T) {
+	input := []string{"job", "list", "--workspace", "testmain", "--state", "SUCCESS", "--app", "terminal-ubuntuu", "--provider", "ucloud"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)

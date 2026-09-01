@@ -16,7 +16,7 @@ import (
 type Config struct {
 	Username           string                 `yaml:"username"`
 	TokenRef           string                 `yaml:"tokenRef,omitempty"`
-	CurrentWorkspace   util.Option[Workspace] `yaml:"currentWorkspace"`
+	CurrentWorkspace   util.Option[string]    `yaml:"currentWorkspace"`
 	DefaultEnvironment string                 `yaml:"defaultEnvironment"`
 	Environments       map[string]Environment `yaml:"environments"`
 	Defaults           Defaults               `yaml:"defaults"`

@@ -99,7 +99,7 @@ func (c WorkspaceUseCommand) Execute() error {
 		return err
 	}
 	cfg, err := shared.UpdateConfig(&shared.Config{
-		CurrentWorkspace: util.OptValue(*ws),
+		CurrentWorkspace: util.OptValue(ws.Name),
 	})
 	if err != nil {
 		return err
