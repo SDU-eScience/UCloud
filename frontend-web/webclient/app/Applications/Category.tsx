@@ -8,7 +8,7 @@ import {useAppSearch} from "./Search";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {getQueryParam} from "@/Utilities/URIUtilities";
-import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing, extractErrorMessage} from "@/UtilityFunctions";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {UtilityBar} from "@/Navigation/UtilityBar";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -70,6 +70,12 @@ const ApplicationsCategory: React.FunctionComponent = () => {
     }, [refresh]);
 
     useEffect(() => {
+        if (categoryState.error) {
+            displayErrorMessageOrDefault(categoryState.error.why, "Failed to fetch category");
+        }
+    }, [categoryState.error])
+
+    useEffect(() => {
         let cancelled = false;
         setEditableCategory(null);
         fetchAll(next => callAPI(AppStore.browseCustomCategories({itemsPerPage: 250, next}))).then(categories => {
@@ -95,7 +101,7 @@ const ApplicationsCategory: React.FunctionComponent = () => {
     useSetRefreshFunction(refreshAll);
     const appSearch = useAppSearch();
 
-    const canCreateApplication = !!editableCategory && (Client.userIsAdmin || hasFeature(Feature.CONTAINER_REPOSITORIES));
+    const canCreateApplication = !!editableCategory && (hasFeature(Feature.CONTAINER_REPOSITORIES));
     const createApplication = useCallback(() => {
         if (!editableCategory) return;
         navigate(AppRoutes.apps.creator({
@@ -183,8 +189,6 @@ const EmptyCategoryPlaceholderClass = injectStyle("category-empty-placeholder", 
         gap: 16px;
         padding: 64px 32px;
         text-align: center;
-        border-radius: 8px;
-        border: 1px dashed var(--borderColor);
     }
 `);
 

@@ -11,7 +11,7 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import ModelInferenceLogo, {modelProviderName} from "@/Inference/ModelLogo";
 import {injectStyle} from "@/Unstyled";
-import {SingleLineMarkdown} from "@/ui-components/Markdown";
+import {LineCappedMarkdown} from "@/ui-components/Markdown";
 // import HeroImage from "@/ui-components/icons/logo_esc.svg";
 import HeroImage from "@/Assets/Images/inference/ucloud-ai-logo.png";
 import {RichSelect} from "@/ui-components/RichSelect";
@@ -354,16 +354,10 @@ const pageStyle = injectStyle("inference-models-page", k => `
     }
 
     ${k} .model-card-header {
-        align-items: flex-start;
+        align-items: center;
         display: flex;
         gap: 14px;
         justify-content: space-between;
-    }
-
-    ${k} .capability {
-        color: var(--textSecondary);
-        font-size: 11px;
-        margin: 0 0 8px;
     }
 
     ${k} .model-title {
@@ -790,15 +784,11 @@ export default function Models(): React.ReactNode {
     </Box>} />;
 }
 
-function formatMultiplier(value: number): string {
-    if (value === 0) return "N/A";
-    if (value % 1000 === 0) return `${value / 1000}x`;
-    return `${value / 1000}x`;
-}
-
-function primaryCapability(model: InferenceModel): InferenceCapability | string {
-    const priority: InferenceCapability[] = ["SpeechToText", "TextGeneration", "TextToImage"];
-    return priority.find(capability => model.capabilities.includes(capability)) ?? model.capabilities[0] ?? "Unknown";
+function formatPricePerMillion(value: number): string {
+    if (value === 0) return "Free";
+    const digits = Math.trunc(value).toString().padStart(7, "0");
+    const fraction = digits.slice(-6).replace(/0+$/, "");
+    return fraction === "" ? digits.slice(0, -6) : `${digits.slice(0, -6)}.${fraction}`;
 }
 
 function CatalogFilterButton(props: React.PropsWithChildren<{active: boolean; onClick: () => void; className?: string;}>): React.ReactNode {
@@ -873,14 +863,11 @@ function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {
     const model = props.model;
     return <Link className="model-card" to={AppRoutes.inference.model(model.name)}>
         <div className="model-card-header">
-            <div>
-                <p className="capability">{primaryCapability(model)}</p>
-                <span className="model-title">{model.title}</span>
-            </div>
+            <span className="model-title">{model.title}</span>
             <ModelInferenceLogo modelName={model.name} size={46} />
         </div>
 
-        <SingleLineMarkdown width={"100%"}>{model.page?.shortDescription ?? ""}</SingleLineMarkdown>
+        <LineCappedMarkdown width={"100%"} lines={3}>{model.page?.shortDescription ?? ""}</LineCappedMarkdown>
 
         <div className={"model-spec-section"}>
             <div className="model-specs">
@@ -889,16 +876,16 @@ function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {
             </div>
 
             <div className="metric-grid">
-                <ModelMultiplier title="Cached" value={model.priceMultiplier.cachedInput} />
-                <ModelMultiplier title="Input" value={model.priceMultiplier.input} />
-                <ModelMultiplier title="Output" value={model.priceMultiplier.output} />
+                <ModelPrice title="Input/1M" value={model.pricePerMillion.input} />
+                <ModelPrice title="Output/1M" value={model.pricePerMillion.output} />
+                <ModelPrice title="Cached/1M" value={model.pricePerMillion.cachedInput} />
             </div>
         </div>
     </Link>;
 }
 
-function ModelMultiplier(props: {title: string; value: number;}): React.ReactNode {
-    return <ModelMetric title={props.title} value={formatMultiplier(props.value)} />;
+function ModelPrice(props: {title: string; value: number;}): React.ReactNode {
+    return <ModelMetric title={props.title} value={formatPricePerMillion(props.value)} />;
 }
 
 const ModelMetric: React.FunctionComponent<{ title: string; value: string; }> = props => {

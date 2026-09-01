@@ -151,21 +151,28 @@ const ToggleRowClass = injectStyle("creator-toggle-row", k => `
 
 // Highlight animation. Applied by creatorHighlightTarget to draw the user's attention to a
 // specific metadata control. The element glows with the primary color, fading in and out.
+// Dark mode swaps the glow to a lighter blue: the dark-mode primary color is too dark to read
+// against a dark background.
 // This is a global rule: any element with class `creator-highlight-active` animates. The
 // injectStyle call ignores its generated class name so the rule is not scoped to one selector.
 injectStyle("creator-highlight-global", () => `
     .creator-highlight-active {
+        --creatorHighlightColor: var(--primaryMain);
         animation: creator-pulse-glow 2s ease-out 1;
         border-radius: 6px;
     }
 
+    html.dark .creator-highlight-active {
+        --creatorHighlightColor: var(--blue-50);
+    }
+
     @keyframes creator-pulse-glow {
-        0%   { box-shadow: 0 0 0 0   color-mix(in srgb, var(--primaryMain) 0%,   transparent); }
-        15%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--primaryMain) 35%,  transparent); }
-        30%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--primaryMain) 35%,  transparent); }
-        45%  { box-shadow: 0 0 0 2px color-mix(in srgb, var(--primaryMain) 18%,  transparent); }
-        60%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--primaryMain) 35%,  transparent); }
-        75%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--primaryMain) 35%,  transparent); }
-        100% { box-shadow: 0 0 0 0   color-mix(in srgb, var(--primaryMain) 0%,   transparent); }
+        0%   { box-shadow: 0 0 0 0   color-mix(in srgb, var(--creatorHighlightColor) 0%,   transparent); }
+        15%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--creatorHighlightColor) 35%,  transparent); }
+        30%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--creatorHighlightColor) 35%,  transparent); }
+        45%  { box-shadow: 0 0 0 2px color-mix(in srgb, var(--creatorHighlightColor) 18%,  transparent); }
+        60%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--creatorHighlightColor) 35%,  transparent); }
+        75%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--creatorHighlightColor) 35%,  transparent); }
+        100% { box-shadow: 0 0 0 0   color-mix(in srgb, var(--creatorHighlightColor) 0%,   transparent); }
     }
 `);

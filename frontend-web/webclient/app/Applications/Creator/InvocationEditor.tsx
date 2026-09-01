@@ -1,14 +1,13 @@
 // Compact invocation editor card
 // =====================================================================================================================
 // The Invocation card sits after the Parameters card in the visual editor view. It contains a
-// compact Monaco editor bound to the A2 `invocation` string with Jinja syntax highlighting.
+// compact Monaco editor bound to the A2 `invocation` string with bash+Jinja syntax highlighting
+// (the `bash-jinja` language), context-aware completion and hover (parameters, ucloud, functions,
+// filters, tests), and client-side lint markers for syntax and reference errors.
 //
-// The first version enables the existing Jinja syntax highlighting. It does not include variable
-// auto-completion or inline documentation; those are a later phase.
-//
-// Invocation validation errors appear in the page error summary rather than as inline markers in
-// this editor. The compact editor inherits the user's editor settings (font size, vim, word wrap)
-// from the same localStorage store as the file editor.
+// Invocation validation errors appear as inline markers in this editor (and in the page error
+// summary for YAML/app-level errors). The compact editor inherits the user's editor settings
+// (font size, vim, word wrap) from the same localStorage store as the file editor.
 //
 // The card is read-only when the source text is invalid, matching the visual read-only rule:
 // while YAML is invalid, the visual editor (including the invocation field) must not accept
@@ -23,9 +22,15 @@ import {IconButton} from "@/ui-components/IconButton";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {
     creatorEditorOptions,
-    ensureJinja2Language,
+    ensureBashJinjaLanguage,
     ensureUcloudDarkTheme,
 } from "@/Applications/Creator/MonacoShared";
+import {
+    registerInvocationProviders,
+    setInvocationModelParameters,
+} from "@/Applications/Creator/InvocationProviders";
+import {invocationLint} from "@/Applications/Creator/InvocationLinter";
+import type {InvocationParameters} from "@/Applications/Creator/InvocationScope";
 import {InvocationHelp} from "@/Applications/Creator/InvocationHelp";
 import {useMonaco} from "@/Editor/Editor";
 
@@ -46,6 +51,8 @@ export interface InvocationEditorProps {
     themeName?: string;
     // Called with the new invocation text on every content change.
     onChange: (text: string) => void;
+    // The application parameters in declaration order. Drives completion, hover, and lint scope.
+    parameters: InvocationParameters;
     // When true, the editor fills all available space while retaining the card styling.
     maximized: boolean;
     // Toggles maximized state.
@@ -71,18 +78,22 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
         const m = monaco;
         const node = containerRef.current;
         if (!m || !node) return;
+        monacoInstanceRef.current = m;
 
         ensureUcloudDarkTheme(m);
-        ensureJinja2Language(m);
+        ensureBashJinjaLanguage(m);
+        registerInvocationProviders(m);
 
         node.innerHTML = "";
-        const model = m.editor.createModel(props.invocation, "jinja2");
+        const model = m.editor.createModel(props.invocation, "bash-jinja");
         model.setEOL(0 /* EndOfLineSequence.LF */);
         modelRef.current = model;
+        setInvocationModelParameters(model, props.parameters);
+        lintModel(model, props.parameters);
 
         const ed: IStandaloneCodeEditor = m.editor.create(node, {
             model,
-            language: "jinja2",
+            language: "bash-jinja",
             readOnly: props.readOnly,
             theme: props.themeName === "light" ? "light" : "ucloud-dark",
             ...creatorEditorOptions(),
@@ -95,9 +106,15 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
             if (value === lastEmittedRef.current) return;
             lastEmittedRef.current = value;
             propsRef.current.onChange(value);
+            scheduleLint(model, propsRef.current.parameters);
         });
 
         return () => {
+            const timer = lintTimers.get(model);
+            if (timer != null) {
+                window.clearTimeout(timer);
+                lintTimers.delete(model);
+            }
             ed.dispose();
             model.dispose();
             editorRef.current = null;
@@ -142,6 +159,15 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
         ed.layout();
     }, [props.maximized, props.activeTab]);
 
+    // Refresh completion scope and lint markers when the parameters change (rename, add,
+    // delete, type change in the parameter panel).
+    useEffect(() => {
+        const model = modelRef.current;
+        if (!model) return;
+        setInvocationModelParameters(model, props.parameters);
+        lintModel(model, props.parameters);
+    }, [props.parameters]);
+
     return (
         <TabbedCard
             id="creator-card-invocation"
@@ -179,6 +205,48 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
             </TabbedCardTab>
         </TabbedCard>
     );
+}
+
+// Linting
+// -------------------------------------------------------------------------------------------------------------------
+
+// Marker owner key for invocation lint markers.
+const LINT_OWNER = "creator-invocation-lint";
+
+// The Monaco instance, set on editor mount. Module-level because the lint helpers are plain
+// functions called from effects and timeouts.
+const monacoInstanceRef: {current: typeof import("monaco-editor") | null} = {current: null};
+
+// Debounce timers per model. 50ms coalesces bursts from a single keystroke (Monaco can fire
+// multiple content changes per key) while keeping the marker feedback near-instant.
+const lintTimers = new WeakMap<editor.ITextModel, number>();
+
+function lintModel(model: editor.ITextModel, parameters: InvocationParameters): void {
+    const m = monacoInstanceRef.current;
+    if (!m) return;
+    const markers = invocationLint(model.getValue(), parameters);
+    m.editor.setModelMarkers(
+        model,
+        LINT_OWNER,
+        markers.map(marker => ({
+            message: marker.message,
+            severity: marker.severity === "error" ? m.MarkerSeverity.Error : m.MarkerSeverity.Warning,
+            startLineNumber: model.getPositionAt(marker.start).lineNumber,
+            startColumn: model.getPositionAt(marker.start).column,
+            endLineNumber: model.getPositionAt(marker.end).lineNumber,
+            endColumn: model.getPositionAt(marker.end).column,
+        })),
+    );
+}
+
+function scheduleLint(model: editor.ITextModel, parameters: InvocationParameters): void {
+    const existing = lintTimers.get(model);
+    if (existing) window.clearTimeout(existing);
+    const timer = window.setTimeout(() => {
+        lintTimers.delete(model);
+        lintModel(model, parameters);
+    }, 50);
+    lintTimers.set(model, timer);
 }
 
 // Styling

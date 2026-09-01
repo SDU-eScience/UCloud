@@ -55,7 +55,6 @@ import ProviderOverview from "@/Providers/Overview";
 import ProviderDetailed from "@/Providers/Detailed";
 import NetworkIPsRouter from "@/Applications/NetworkIP/Router";
 import SyncthingOverview from "@/Syncthing/Overview";
-import SshKeyCreate from "@/Applications/SshKeys/Add";
 import ApiTokenCreate from "@/Applications/ApiTokens/Add";
 import GrantEditor from "@/Grants/Editor";
 import ResourceUsage from "@/Accounting/UsageCore2";
@@ -154,8 +153,9 @@ const Core = (): React.ReactNode => (
                            element={React.createElement(requireAuth(CategoryCreate))} />
                     <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(ApplicationSearch))} />
 
-                    <Route path={AppRoutes.apps.creator()}
-                           element={React.createElement(requireAuth(ApplicationCreator))} />
+                    {!hasFeature(Feature.CONTAINER_REPOSITORIES) ? null :
+                        <Route path={AppRoutes.apps.creator()}
+                           element={React.createElement(requireAuth(ApplicationCreator))} />}
 
                     <Route path={`${AppRoutes.compute.jobs()}/*`}
                            element={React.createElement(requireAuth(JobsOnlyRouter))} />
@@ -172,8 +172,6 @@ const Core = (): React.ReactNode => (
                     <Route path="/private-networks/*" element={React.createElement(requireAuth(PrivateNetworksRouter))} />
 
                     <Route path={AppRoutes.resources.sshKeys()} element={React.createElement(requireAuth(SSHKeyBrowse))} />
-                    <Route path={AppRoutes.resources.sshKeysCreate()} element={React.createElement(requireAuth(SshKeyCreate))} />
-
                     <Route path={AppRoutes.resources.apiTokens()} element={React.createElement(requireAuth(ApiTokenBrowse))} />
                     <Route path={AppRoutes.resources.apiTokensCreate()} element={React.createElement(requireAuth(ApiTokenCreate))} />
 

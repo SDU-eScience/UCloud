@@ -25,9 +25,11 @@ var inferenceResponseGlobals = struct {
 }
 
 type inferenceStoredResponse struct {
-	Response  OaiResponse
-	Owner     string
-	CreatedAt time.Time
+	Response     OaiResponse
+	Owner        string
+	Conversation string
+	ContextAfter int
+	CreatedAt    time.Time
 }
 
 type OaiResponseCreateRequest struct {
@@ -41,6 +43,7 @@ type OaiResponseCreateRequest struct {
 	ParallelToolCalls util.Option[bool]          `json:"parallel_tool_calls,omitempty"`
 	Reasoning         OaiResponseReasoningConfig `json:"reasoning,omitempty"`
 	Stream            bool                       `json:"stream,omitempty"`
+	Store             util.Option[bool]          `json:"store,omitempty"`
 	Temperature       util.Option[float64]       `json:"temperature,omitempty"`
 	Text              OaiResponseTextConfig      `json:"text,omitempty"`
 	ToolChoice        json.RawMessage            `json:"tool_choice,omitempty"`
@@ -51,7 +54,7 @@ type OaiResponseCreateRequest struct {
 	User              string                     `json:"user,omitempty"`
 
 	ContextManagement  json.RawMessage `json:"context_management,omitempty"`
-	Conversation       json.RawMessage `json:"conversation,omitempty"`
+	Conversation       string          `json:"conversation,omitempty"`
 	Moderation         json.RawMessage `json:"moderation,omitempty"`
 	PreviousResponseID string          `json:"previous_response_id,omitempty"`
 	Prompt             json.RawMessage `json:"prompt,omitempty"`
@@ -84,6 +87,7 @@ type OaiResponse struct {
 	OutputText         string                     `json:"output_text,omitempty"`
 	ParallelToolCalls  bool                       `json:"parallel_tool_calls"`
 	PreviousResponseID any                        `json:"previous_response_id"`
+	Conversation       string                     `json:"conversation,omitempty"`
 	Reasoning          OaiResponseReasoningReturn `json:"reasoning"`
 	Store              bool                       `json:"store"`
 	Temperature        float64                    `json:"temperature"`
@@ -275,8 +279,137 @@ type OaiResponseDeleteResponse struct {
 	Deleted bool   `json:"deleted"`
 }
 
-func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, request OaiResponseCreateRequest) (OaiResponse, *util.HttpError) {
+type OaiConversation struct {
+	Id        string `json:"id"`
+	Object    string `json:"object"`
+	CreatedAt int64  `json:"created_at"`
+	UpdatedAt int64  `json:"updated_at"`
+}
+
+type OaiConversationDeleteResponse struct {
+	Id      string `json:"id"`
+	Object  string `json:"object"`
+	Deleted bool   `json:"deleted"`
+}
+
+func InferenceConversationRetrieve(owner apm.WalletOwner, username string, id string) (OaiConversation, *util.HttpError) {
+	conversation, ok := inferenceResponseStoreConversationRead(owner, username, id)
+	if !ok {
+		return OaiConversation{}, util.HttpErr(http.StatusNotFound, "No conversation found with id '%s'", id)
+	}
+	return OaiConversation{
+		Id:        conversation.Id,
+		Object:    "conversation",
+		CreatedAt: conversation.CreatedAt,
+		UpdatedAt: conversation.UpdatedAt,
+	}, nil
+}
+
+func InferenceConversationDelete(owner apm.WalletOwner, username string, id string) (OaiConversationDeleteResponse, *util.HttpError) {
+	if _, ok := inferenceResponseStoreConversationRead(owner, username, id); !ok {
+		return OaiConversationDeleteResponse{}, util.HttpErr(http.StatusNotFound, "No conversation found with id '%s'", id)
+	}
+	inferenceResponseStoreConversationDelete(owner, username, id)
+	return OaiConversationDeleteResponse{Id: id, Object: "conversation", Deleted: true}, nil
+}
+
+// inferenceResponseResolveChain resolves a request's previous_response_id (and conversation parameter) server-side.
+// Chaining clients (VS Code Copilot among others) send only the new input plus the id of the response they build on.
+// We translate this into the equivalent full-input request, which the rest of the pipeline already understands.
+func inferenceResponseResolveChain(
+	owner apm.WalletOwner,
+	username string,
+	request OaiResponseCreateRequest,
+) (OaiResponseCreateRequest, string, *util.HttpError) {
+	if request.PreviousResponseID == "" {
+		if request.Conversation == "" {
+			resolved := request
+			resolved.Conversation = inferenceResponseNewId("conv")
+			return resolved, resolved.Conversation, nil
+		}
+
+		conversation, ok := inferenceResponseStoreConversationRead(owner, username, request.Conversation)
+		if !ok {
+			return OaiResponseCreateRequest{}, "", util.HttpErr(http.StatusNotFound, "No conversation found with id '%s'", request.Conversation)
+		}
+
+		resolved := request
+		resolved.Input = inferenceResponseChainInput(conversation.Items, request.Input)
+		resolved.Conversation = conversation.Id
+		return resolved, conversation.Id, nil
+	}
+
+	record, ok := inferenceResponseStoreLookupRecord(owner, username, request.PreviousResponseID)
+	if !ok {
+		return OaiResponseCreateRequest{}, "", util.HttpErr(http.StatusNotFound, "No response found with id '%s'", request.PreviousResponseID)
+	}
+
+	conversation, ok := inferenceResponseStoreConversationRead(owner, username, record.Conversation)
+	if !ok || record.ContextAfter > len(conversation.Items) {
+		return OaiResponseCreateRequest{}, "", util.HttpErr(http.StatusNotFound, "No response found with id '%s'", request.PreviousResponseID)
+	}
+
+	resolved := request
+	resolved.Input = inferenceResponseChainInput(conversation.Items[:record.ContextAfter], request.Input)
+	resolved.PreviousResponseID = ""
+	resolved.Conversation = record.Conversation
+	return resolved, record.Conversation, nil
+}
+
+// inferenceResponseChainInput combines a conversation prefix with the input of a chained request. The new input is
+// normalized first: a plain string becomes a message item, exactly like it is stored in the conversation.
+func inferenceResponseChainInput(prefix []json.RawMessage, input json.RawMessage) json.RawMessage {
+	items := make([]json.RawMessage, 0, len(prefix)+1)
+	items = append(items, prefix...)
+	if len(input) > 0 && string(input) != "null" {
+		items = append(items, inferenceResponseStoreInputItems(input)...)
+	}
+
+	encoded, err := json.Marshal(items)
+	if err != nil {
+		return input
+	}
+	return encoded
+}
+
+// inferenceResponseStoreLookupRecord resolves a response id to its persisted record, consulting the in-memory map
+// first and the filesystem store second. The owner is verified in both layers. Unstored responses (store: false) are
+// resolvable only while they remain in the in-memory map; they have no response file to fall back to. The torn-write
+// conversation check of inferenceResponseStoreRead is intentionally skipped here: the chain resolver reads the
+// conversation itself immediately after.
+func inferenceResponseStoreLookupRecord(owner apm.WalletOwner, username string, responseId string) (inferencePersistedResponse, bool) {
+	inferenceResponseGlobals.Mu.RLock()
+	stored, ok := inferenceResponseGlobals.Responses[responseId]
+	inferenceResponseGlobals.Mu.RUnlock()
+
+	if ok && stored.Owner == owner.Reference() && stored.Conversation != "" {
+		if time.Since(stored.CreatedAt) > inferenceResponseStoreTTL {
+			inferenceResponseStoreMemoryEvict(responseId)
+		} else {
+			return inferencePersistedResponse{
+				Version:      1,
+				Id:           stored.Response.Id,
+				Owner:        stored.Owner,
+				Conversation: stored.Conversation,
+				ContextAfter: stored.ContextAfter,
+				Response:     stored.Response,
+			}, true
+		}
+	}
+
+	return inferenceResponseStoreReadUnchecked(owner, username, responseId)
+}
+
+func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, username string, request OaiResponseCreateRequest) (OaiResponse, *util.HttpError) {
 	if httpErr := inferenceResponseValidateRequest(request); httpErr != nil {
+		return OaiResponse{}, httpErr
+	}
+	if username == "" {
+		return OaiResponse{}, util.HttpErr(http.StatusForbidden, "token has no associated user")
+	}
+
+	request, conversationId, httpErr := inferenceResponseResolveChain(owner, username, request)
+	if httpErr != nil {
 		return OaiResponse{}, httpErr
 	}
 
@@ -286,20 +419,22 @@ func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, request
 		queued := inferenceResponseBase(id, createdAt, request)
 		queued.Status = "queued"
 		queued.Background = true
-		inferenceResponseStoreSet(owner, queued)
+		if httpErr := inferenceResponseStoreSet(owner, username, queued, nil); httpErr != nil {
+			return OaiResponse{}, httpErr
+		}
 
 		go func() {
 			backgroundCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), inferenceRequestTimeout)
 			defer cancel()
 			inProgress := queued
 			inProgress.Status = "in_progress"
-			inferenceResponseStoreSet(owner, inProgress)
+			_ = inferenceResponseStoreSet(owner, username, inProgress, nil)
 
 			chatRequest, httpErr := inferenceResponseChatRequest(request)
 			if httpErr != nil {
 				failed := inferenceResponseFailed(id, createdAt, request, httpErr.Why)
 				failed.Background = true
-				inferenceResponseStoreSet(owner, failed)
+				_ = inferenceResponseStoreSet(owner, username, failed, nil)
 				return
 			}
 
@@ -307,13 +442,14 @@ func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, request
 			if httpErr != nil {
 				failed := inferenceResponseFailed(id, createdAt, request, httpErr.Why)
 				failed.Background = true
-				inferenceResponseStoreSet(owner, failed)
+				_ = inferenceResponseStoreSet(owner, username, failed, nil)
 				return
 			}
 
 			resp := inferenceResponseFromChat(id, request, chatResponse)
 			resp.Background = true
-			inferenceResponseStoreSet(owner, resp)
+			conversation := inferenceResponseConversationFromTurn(request.Input, resp, conversationId)
+			_ = inferenceResponseStoreSet(owner, username, resp, conversation)
 		}()
 
 		return queued, nil
@@ -330,13 +466,26 @@ func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, request
 	}
 
 	resp := inferenceResponseFromChat(id, request, chatResponse)
-	inferenceResponseStoreSet(owner, resp)
+	conversation := inferenceResponseConversationFromTurn(request.Input, resp, conversationId)
+	if httpErr := inferenceResponseStoreSet(owner, username, resp, conversation); httpErr != nil {
+		return OaiResponse{}, httpErr
+	}
 	return resp, nil
 }
 
-func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner, request OaiResponseCreateRequest) (chan OaiResponseStreamEvent, *util.HttpError) {
+func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner, username string, request OaiResponseCreateRequest) (chan OaiResponseStreamEvent, *util.HttpError) {
 	ch := make(chan OaiResponseStreamEvent)
 	if httpErr := inferenceResponseValidateRequest(request); httpErr != nil {
+		close(ch)
+		return ch, httpErr
+	}
+	if username == "" {
+		close(ch)
+		return ch, util.HttpErr(http.StatusForbidden, "token has no associated user")
+	}
+
+	request, conversationId, httpErr := inferenceResponseResolveChain(owner, username, request)
+	if httpErr != nil {
 		close(ch)
 		return ch, httpErr
 	}
@@ -564,7 +713,12 @@ func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner
 			resp.Output[toolCall.OutputIndex] = toolCall.ResponseItem("completed")
 		}
 		resp.Usage = inferenceResponseUsage(usage, reasoning.String())
-		inferenceResponseStoreSet(owner, resp)
+		conversation := inferenceResponseConversationFromTurn(request.Input, resp, conversationId)
+		if err := inferenceResponseStoreSet(owner, username, resp, conversation); err != nil {
+			failed := inferenceResponseFailed(resp.Id, createdAt, request, err.Why)
+			ch <- OaiResponseStreamEvent{Type: "response.failed", Response: &failed}
+			return
+		}
 		ch <- OaiResponseStreamEvent{Type: "response.completed", Response: &resp}
 	}()
 
@@ -854,23 +1008,24 @@ func inferenceResponseLocalShellAction(arguments string) OaiResponseLocalShellAc
 	return OaiResponseLocalShellAction{Type: "exec", Command: parsed.Command, Env: parsed.Env, TimeoutMs: parsed.TimeoutMs, User: parsed.User, WorkingDirectory: parsed.WorkingDirectory}
 }
 
-func InferenceResponsePoll(owner apm.WalletOwner, id string) (OaiResponse, *util.HttpError) {
-	resp, ok := inferenceResponseStoreGet(owner, id)
+func InferenceResponsePoll(owner apm.WalletOwner, username string, id string) (OaiResponse, *util.HttpError) {
+	resp, ok := inferenceResponseStoreGet(owner, username, id)
 	if !ok {
 		return OaiResponse{}, util.HttpErr(http.StatusNotFound, "response not found")
 	}
 	return resp, nil
 }
 
-func InferenceResponseCancel(owner apm.WalletOwner, id string) (OaiResponse, *util.HttpError) {
-	return InferenceResponsePoll(owner, id)
+func InferenceResponseCancel(owner apm.WalletOwner, username string, id string) (OaiResponse, *util.HttpError) {
+	return InferenceResponsePoll(owner, username, id)
 }
 
-func InferenceResponseDelete(owner apm.WalletOwner, id string) (OaiResponseDeleteResponse, *util.HttpError) {
-	if _, ok := inferenceResponseStoreGet(owner, id); !ok {
+func InferenceResponseDelete(owner apm.WalletOwner, username string, id string) (OaiResponseDeleteResponse, *util.HttpError) {
+	if _, ok := inferenceResponseStoreGet(owner, username, id); !ok {
 		return OaiResponseDeleteResponse{}, util.HttpErr(http.StatusNotFound, "response not found")
 	}
-	inferenceResponseStoreDelete(id)
+	inferenceResponseStoreMemoryEvict(id)
+	inferenceResponseStoreDelete(owner, username, id)
 	return OaiResponseDeleteResponse{Id: id, Object: "response", Deleted: true}, nil
 }
 
@@ -882,12 +1037,6 @@ func inferenceResponseValidateRequest(request OaiResponseCreateRequest) *util.Ht
 	}
 	if len(request.ContextManagement) > 0 && string(request.ContextManagement) != "null" {
 		return util.HttpErr(http.StatusBadRequest, "context_management is not supported")
-	}
-	if len(request.Conversation) > 0 && string(request.Conversation) != "null" {
-		return util.HttpErr(http.StatusBadRequest, "conversation is not supported")
-	}
-	if request.PreviousResponseID != "" {
-		return util.HttpErr(http.StatusBadRequest, "previous_response_id is not supported")
 	}
 	if len(request.Prompt) > 0 && string(request.Prompt) != "null" {
 		return util.HttpErr(http.StatusBadRequest, "prompt is not supported")
@@ -1158,6 +1307,46 @@ func inferenceResponseInputItemToMessage(raw json.RawMessage) (InferenceChatMess
 			return InferenceChatMessage{}, false, util.HttpErr(http.StatusBadRequest, "invalid local_shell_call item")
 		}
 		return inferenceResponseToolCallMessage(callId, "local_shell", string(arguments)), true, nil
+	case "file_search_call":
+		var fileSearchCall struct {
+			Id      string   `json:"id"`
+			Queries []string `json:"queries"`
+		}
+		if err := json.Unmarshal(raw, &fileSearchCall); err != nil || fileSearchCall.Id == "" {
+			return InferenceChatMessage{}, false, util.HttpErr(http.StatusBadRequest, "invalid file_search_call item")
+		}
+		arguments := map[string]any{}
+		if len(fileSearchCall.Queries) > 0 {
+			arguments["query"] = fileSearchCall.Queries[0]
+		}
+		encoded, err := json.Marshal(arguments)
+		if err != nil {
+			return InferenceChatMessage{}, false, util.HttpErr(http.StatusBadRequest, "invalid file_search_call item")
+		}
+		return inferenceResponseToolCallMessage(fileSearchCall.Id, "file_search", string(encoded)), true, nil
+	case "web_search_call":
+		var webSearchCall struct {
+			Id     string `json:"id"`
+			Action *struct {
+				Query   string   `json:"query"`
+				Queries []string `json:"queries"`
+			} `json:"action"`
+		}
+		if err := json.Unmarshal(raw, &webSearchCall); err != nil || webSearchCall.Id == "" {
+			return InferenceChatMessage{}, false, util.HttpErr(http.StatusBadRequest, "invalid web_search_call item")
+		}
+		query := ""
+		if webSearchCall.Action != nil {
+			query = webSearchCall.Action.Query
+			if query == "" && len(webSearchCall.Action.Queries) > 0 {
+				query = webSearchCall.Action.Queries[0]
+			}
+		}
+		encoded, err := json.Marshal(map[string]any{"query": query})
+		if err != nil {
+			return InferenceChatMessage{}, false, util.HttpErr(http.StatusBadRequest, "invalid web_search_call item")
+		}
+		return inferenceResponseToolCallMessage(webSearchCall.Id, "web_search", string(encoded)), true, nil
 	case "function_call_output":
 		var functionCallOutput struct {
 			CallId string          `json:"call_id"`
@@ -1631,8 +1820,9 @@ func inferenceResponseBase(id string, createdAt int64, request OaiResponseCreate
 		Output:             []any{},
 		ParallelToolCalls:  request.ParallelToolCalls.GetOrDefault(true),
 		PreviousResponseID: nil,
+		Conversation:       request.Conversation,
 		Reasoning:          OaiResponseReasoningReturn{Effort: request.Reasoning.Effort.GetPtrOrNil(), Summary: nil},
-		Store:              true,
+		Store:              request.Store.GetOrDefault(true),
 		Temperature:        request.Temperature.GetOrDefault(1),
 		Text:               OaiResponseTextReturn{Format: format},
 		ToolChoice:         toolChoice,
@@ -1683,9 +1873,8 @@ func inferenceResponseNewId(prefix string) string {
 	return fmt.Sprintf("%s_%s", prefix, util.SecureToken())
 }
 
-func inferenceResponseStoreSet(owner apm.WalletOwner, response OaiResponse) {
+func inferenceResponseStoreSet(owner apm.WalletOwner, username string, response OaiResponse, conversation *inferencePersistedConversation) *util.HttpError {
 	inferenceResponseGlobals.Mu.Lock()
-	defer inferenceResponseGlobals.Mu.Unlock()
 	inferenceResponseStoreCleanLocked()
 	ownerRef := owner.Reference()
 	oldestOwnerId := ""
@@ -1713,24 +1902,114 @@ func inferenceResponseStoreSet(owner apm.WalletOwner, response OaiResponse) {
 			delete(inferenceResponseGlobals.Responses, oldestId)
 		}
 	}
-	inferenceResponseGlobals.Responses[response.Id] = inferenceStoredResponse{Response: response, Owner: ownerRef, CreatedAt: time.Now()}
+	inferenceResponseGlobals.Responses[response.Id] = inferenceStoredResponse{
+		Response:     response,
+		Owner:        ownerRef,
+		Conversation: conversationIdOf(conversation),
+		ContextAfter: contextAfterOf(conversation),
+		CreatedAt:    time.Now(),
+	}
+	inferenceResponseGlobals.Mu.Unlock()
+
+	if username == "" {
+		// Required, but for some reason got here without it. Let's just reject it completely.
+		return nil
+	}
+
+	if conversation != nil {
+		if err := inferenceResponseStoreConversationWrite(owner, username, *conversation); err != nil {
+			return err
+		}
+	}
+
+	if response.Store {
+		record := inferencePersistedResponse{
+			Version:      1,
+			Id:           response.Id,
+			Owner:        owner.Reference(),
+			Conversation: conversationIdOf(conversation),
+			ContextAfter: contextAfterOf(conversation),
+			Response:     response,
+		}
+		if err := inferenceResponseStoreWrite(owner, username, record); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func inferenceResponseStoreGet(owner apm.WalletOwner, id string) (OaiResponse, bool) {
+func conversationIdOf(conversation *inferencePersistedConversation) string {
+	if conversation == nil {
+		return ""
+	}
+	return conversation.Id
+}
+
+func contextAfterOf(conversation *inferencePersistedConversation) int {
+	if conversation == nil {
+		return 0
+	}
+	return len(conversation.Items)
+}
+
+func inferenceResponseStoreGet(owner apm.WalletOwner, username string, responseId string) (OaiResponse, bool) {
 	inferenceResponseGlobals.Mu.RLock()
-	stored, ok := inferenceResponseGlobals.Responses[id]
+	stored, ok := inferenceResponseGlobals.Responses[responseId]
 	inferenceResponseGlobals.Mu.RUnlock()
+
 	if !ok || stored.Owner != owner.Reference() {
+		ok = false
+	}
+	if ok && time.Since(stored.CreatedAt) > inferenceResponseStoreTTL {
+		inferenceResponseStoreMemoryEvict(responseId)
+		ok = false
+	}
+	if ok {
+		return stored.Response, true
+	}
+
+	record, ok := inferenceResponseStoreRead(owner, username, responseId)
+	if !ok {
 		return OaiResponse{}, false
 	}
-	if time.Since(stored.CreatedAt) > inferenceResponseStoreTTL {
-		inferenceResponseStoreDelete(id)
-		return OaiResponse{}, false
+
+	if record.Response.Background && (record.Response.Status == "queued" || record.Response.Status == "in_progress") {
+		if time.Since(time.Unix(record.Response.CreatedAt, 0)) > inferenceRequestTimeout {
+			failed := record.Response
+			failed.Status = "failed"
+			failed.Error = map[string]string{
+				"code":    "server_error",
+				"message": "The generation was interrupted by a server restart and can never complete.",
+			}
+			inferenceResponseGlobals.Mu.Lock()
+			inferenceResponseGlobals.Responses[record.Id] = inferenceStoredResponse{
+				Response:     failed,
+				Owner:        owner.Reference(),
+				Conversation: record.Conversation,
+				ContextAfter: record.ContextAfter,
+				CreatedAt:    time.Now(),
+			}
+			inferenceResponseGlobals.Mu.Unlock()
+
+			record.Response = failed
+			_ = inferenceResponseStoreWrite(owner, username, record)
+			return failed, true
+		}
 	}
-	return stored.Response, true
+
+	inferenceResponseGlobals.Mu.Lock()
+	inferenceResponseGlobals.Responses[record.Id] = inferenceStoredResponse{
+		Response:     record.Response,
+		Owner:        owner.Reference(),
+		Conversation: record.Conversation,
+		ContextAfter: record.ContextAfter,
+		CreatedAt:    time.Now(),
+	}
+	inferenceResponseGlobals.Mu.Unlock()
+	return record.Response, true
 }
 
-func inferenceResponseStoreDelete(id string) {
+func inferenceResponseStoreMemoryEvict(id string) {
 	inferenceResponseGlobals.Mu.Lock()
 	delete(inferenceResponseGlobals.Responses, id)
 	inferenceResponseGlobals.Mu.Unlock()

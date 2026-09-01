@@ -214,6 +214,7 @@ export function PermissionsTable({
                             </> :
                             <RadioTilesContainer data-component={"permission-container"}>
                                 <RadioTile
+                                    id={"None" + summary.id}
                                     label={"None"}
                                     onChange={() => updateAcl(g, null)}
                                     icon={"heroXMark"}
@@ -223,6 +224,7 @@ export function PermissionsTable({
                                     fontSize={"0.5em"}
                                 />
                                 <RadioTile
+                                    id={"Read" + summary.id}
                                     label={readLabel}
                                     onChange={() => updateAcl(g, "READ")}
                                     icon={readIcon}
@@ -232,6 +234,7 @@ export function PermissionsTable({
                                     fontSize={"0.5em"}
                                 />
                                 <RadioTile
+                                    id={"Write" + summary.id}
                                     label={writeLabel}
                                     onChange={() => updateAcl(g, "EDIT")}
                                     icon={writeIcon}
@@ -242,7 +245,6 @@ export function PermissionsTable({
                                 />
                             </RadioTilesContainer>
                         }
-
                     </Flex>
                 );
             })}

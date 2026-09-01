@@ -8,7 +8,7 @@
         "start": "vite",
         "start:local": "vite --mode local-dev",
         "start:compose": "vite --mode compose",
-        "start:prod": "vite --mode prod",
+        "start:prod": "NODE_OPTIONS='--max-http-header-size=131072' vite --mode prod",
         "watch": "tsc --watch --noEmit",
         "build": "node scripts/update-version-file.js && vite build",
         "serve": "vite preview",

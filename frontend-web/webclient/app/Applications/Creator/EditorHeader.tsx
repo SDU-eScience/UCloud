@@ -6,15 +6,14 @@
 import * as React from "react";
 import {Flex, Text} from "@/ui-components";
 import {CreatorDraft} from "@/Applications/Creator/Draft";
-import {AppLogoRaw, appColor, hashF, SafeLogo} from "@/Applications/AppToolLogo";
+import {AppLogoRaw, appColor, hashF} from "@/Applications/AppToolLogo";
 
 export const EditorHeader: React.FunctionComponent<{
     draft: CreatorDraft;
 }> = props => {
     const title = props.draft.application.title || props.draft.application.name || "Untitled application";
-    const newApplication = props.draft.context.operation === "newManaged" || props.draft.context.operation === "newCustom";
     return <Flex alignItems="center" gap="8px" minWidth={0}>
-        {newApplication ? <RawLogo title={title} /> : <SafeLogo type="APPLICATION" name={props.draft.application.name} size="24px" />}
+        <RawLogo title={title} />
         <Text fontSize={18} fontWeight={600}>{title}</Text>
     </Flex>;
 };

@@ -47,7 +47,7 @@ type InferenceModel struct {
 	Title           string                `json:"title"`
 	TitleModelName  string                `json:"titleModelName"`
 	Capabilities    []InferenceCapability `json:"capabilities"`
-	PriceMultiplier InferencePricing      `json:"priceMultiplier"`
+	PricePerMillion InferencePricing      `json:"pricePerMillion"`
 	Endpoint        InferenceEndpoint     `json:"endpoint"`
 	Availability    InferenceAvailability `json:"availability"`
 	ContextWindow   *int                  `json:"contextWindow,omitempty"`
@@ -99,10 +99,12 @@ type InferenceChatSettings struct {
 }
 
 type InferencePricing struct {
-	CachedInput int `json:"cachedInput"`
-	Input       int `json:"input"`
-	Output      int `json:"output"`
+	CachedInput int64 `json:"cachedInput"`
+	Input       int64 `json:"input"`
+	Output      int64 `json:"output"`
 }
+
+const InferencePriceScale int64 = 1_000_000
 
 type InferenceEndpoint struct {
 	BasePath         string `json:"basePath"`

@@ -66,7 +66,20 @@ export interface ParameterContentProps {
     onOpenWorkflowYaml: (parameterName: string) => void;
 }
 
-export function ParameterContent(props: ParameterContentProps): React.ReactNode {
+// Memoized with a field comparator. The parent re-renders on every invocation keystroke, but
+// only the draft fields below affect this card; the invocation text does not. All callback props
+// are stable useCallback identities from Create.tsx.
+export const ParameterContent = React.memo(ParameterContentBase, (prev, next) =>
+    prev.draft.application.parameters === next.draft.application.parameters &&
+    prev.draft.application.parametersOrder === next.draft.application.parametersOrder &&
+    prev.draft.parameterIds === next.draft.parameterIds &&
+    prev.draft.selection === next.draft.selection &&
+    prev.onSelectParameter === next.onSelectParameter &&
+    prev.onReorder === next.onReorder &&
+    prev.onOpenWorkflowYaml === next.onOpenWorkflowYaml
+);
+
+function ParameterContentBase(props: ParameterContentProps): React.ReactNode {
     const {draft} = props;
     const {application} = draft;
 

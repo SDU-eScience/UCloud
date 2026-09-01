@@ -1333,7 +1333,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
                             <JobCardHeading shortcut="C" shortcutsVisible={shortcutsVisible}>Connectivity</JobCardHeading>
                             {!connectivityEnabled ? null : <Box mt="16px">
                                 <Warning>
-                                    Options in this section can make your job publicly accessible. Secure you job accordingly.
+                                    Options in this section can make your job publicly accessible. Secure your job accordingly.
                                 </Warning>
                             </Box>}
                             <Box mt="16px">

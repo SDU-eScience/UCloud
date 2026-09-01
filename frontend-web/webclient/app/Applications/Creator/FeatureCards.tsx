@@ -34,7 +34,17 @@ export interface FeatureCardsProps {
     onHighlight: (target: CreatorHighlightTarget) => void;
 }
 
-export function FeatureCards(props: FeatureCardsProps): React.ReactNode {
+// Memoized with a field comparator: the cards read only feature/ssh/software state, which does
+// not change on invocation keystrokes. The draft object itself changes on every keystroke, so a
+// shallow prop comparison alone would not prevent the re-render.
+export const FeatureCards = React.memo(FeatureCardsBase, (prev, next) =>
+    prev.draft.application.features === next.draft.application.features &&
+    prev.draft.application.ssh === next.draft.application.ssh &&
+    prev.draft.application.software === next.draft.application.software &&
+    prev.onHighlight === next.onHighlight
+);
+
+function FeatureCardsBase(props: FeatureCardsProps): React.ReactNode {
     const {application} = props.draft;
     const features = application.features ?? null;
 

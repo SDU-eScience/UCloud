@@ -462,6 +462,9 @@ func metadataDoScan(internalPath string, drive *orc.Drive) error {
 	if err == nil && shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
 		metadataReportAccounting(drive)
 	}
+	if err == nil && DriveScanListener != nil {
+		DriveScanListener(drive, basePath)
+	}
 	return err
 }
 

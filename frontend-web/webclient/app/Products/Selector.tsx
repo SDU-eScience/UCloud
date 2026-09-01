@@ -66,7 +66,7 @@ export const ProductSelector: React.FunctionComponent<{
         if (type === "COMPUTE") {
             result.push({name: "Type", width: "80px"}, {name: "Machine type", width: "180px"}, {name: "Description"}, {name: "Status", width: "120px"});
         } else {
-            result.push({name: "Name"}, {name: "Price"}, {name: "Provider", width: "250px"});
+            result.push({name: "Name"}, {name: "Price", width: "20%"}, {name: "Provider"});
         }
         return result;
     }, [type]);

@@ -32,7 +32,7 @@ type InferenceModel struct {
 	Title           string                `json:"title"`
 	TitleModelName  string                `json:"titleModelName"`
 	Capabilities    []InferenceCapability `json:"capabilities"`
-	PriceMultiplier InferencePricing      `json:"priceMultiplier"`
+	PricePerMillion InferencePricing      `json:"pricePerMillion"`
 	Endpoint        InferenceEndpoint     `json:"endpoint"`
 	Availability    InferenceAvailability `json:"availability"`
 	ContextWindow   *int                  `json:"contextWindow,omitempty"`
@@ -84,10 +84,12 @@ type InferenceChatSettings struct {
 }
 
 type InferencePricing struct {
-	CachedInput int `json:"cachedInput"`
-	Input       int `json:"input"`
-	Output      int `json:"output"`
+	CachedInput int64 `json:"cachedInput"`
+	Input       int64 `json:"input"`
+	Output      int64 `json:"output"`
 }
+
+const InferencePriceScale int64 = 1_000_000
 
 type InferenceEndpoint struct {
 	BasePath         string `json:"basePath"`
@@ -108,24 +110,24 @@ var modelGlobals = struct {
 }
 
 type inferenceModelRow struct {
-	Name                   string
-	Title                  string
-	TitleModelName         string
-	Capabilities           []byte
-	PriceCachedInput       int
-	PriceInput             int
-	PriceOutput            int
-	InferenceEndpointPath  string
-	InferenceEndpointModel string
-	Public                 bool
-	AvailableTo            []byte
-	ContextWindow          sql.NullInt64
-	Temperature            float64
-	TopP                   float64
-	MaxCompletionTokens    int
-	SystemPrompt           sql.NullString
-	DisableTools           bool
-	PageMetadata           []byte
+	Name                       string
+	Title                      string
+	TitleModelName             string
+	Capabilities               []byte
+	PricePerMillionCachedInput int64
+	PricePerMillionInput       int64
+	PricePerMillionOutput      int64
+	InferenceEndpointPath      string
+	InferenceEndpointModel     string
+	Public                     bool
+	AvailableTo                []byte
+	ContextWindow              sql.NullInt64
+	Temperature                float64
+	TopP                       float64
+	MaxCompletionTokens        int
+	SystemPrompt               sql.NullString
+	DisableTools               bool
+	PageMetadata               []byte
 }
 
 type inferenceBenchmarkRow struct {
@@ -146,9 +148,9 @@ func inferenceModelCatalogLoad() {
 					title,
 					title_model_name,
 					capabilities,
-					price_cached_input,
-					price_input,
-					price_output,
+					price_per_million_cached_input,
+					price_per_million_input,
+					price_per_million_output,
 					inference_endpoint_path,
 					inference_endpoint_model,
 					public,
@@ -200,10 +202,10 @@ func inferenceModelCatalogLoad() {
 				Title:          row.Title,
 				TitleModelName: row.TitleModelName,
 				Capabilities:   capabilities,
-				PriceMultiplier: InferencePricing{
-					CachedInput: row.PriceCachedInput,
-					Input:       row.PriceInput,
-					Output:      row.PriceOutput,
+				PricePerMillion: InferencePricing{
+					CachedInput: row.PricePerMillionCachedInput,
+					Input:       row.PricePerMillionInput,
+					Output:      row.PricePerMillionOutput,
 				},
 				Endpoint: InferenceEndpoint{
 					BasePath:         row.InferenceEndpointPath,
@@ -453,9 +455,9 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				title,
 				title_model_name,
 				capabilities,
-				price_cached_input,
-				price_input,
-				price_output,
+				price_per_million_cached_input,
+				price_per_million_input,
+				price_per_million_output,
 				inference_endpoint_path,
 				inference_endpoint_model,
 				public,
@@ -472,9 +474,9 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				:title,
 				:title_model_name,
 				cast(:capabilities as jsonb),
-				:price_cached_input,
-				:price_input,
-				:price_output,
+				:price_per_million_cached_input,
+				:price_per_million_input,
+				:price_per_million_output,
 				:inference_endpoint_path,
 				:inference_endpoint_model,
 				:public,
@@ -490,9 +492,9 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				title = excluded.title,
 				title_model_name = excluded.title_model_name,
 				capabilities = excluded.capabilities,
-				price_cached_input = excluded.price_cached_input,
-				price_input = excluded.price_input,
-				price_output = excluded.price_output,
+				price_per_million_cached_input = excluded.price_per_million_cached_input,
+				price_per_million_input = excluded.price_per_million_input,
+				price_per_million_output = excluded.price_per_million_output,
 				inference_endpoint_path = excluded.inference_endpoint_path,
 				inference_endpoint_model = excluded.inference_endpoint_model,
 				public = excluded.public,
@@ -506,24 +508,24 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				page_metadata = excluded.page_metadata
 		`,
 		db.Params{
-			"name":                     model.Name,
-			"title":                    model.Title,
-			"title_model_name":         model.TitleModelName,
-			"capabilities":             string(capabilities),
-			"price_cached_input":       model.PriceMultiplier.CachedInput,
-			"price_input":              model.PriceMultiplier.Input,
-			"price_output":             model.PriceMultiplier.Output,
-			"inference_endpoint_path":  model.Endpoint.BasePath,
-			"inference_endpoint_model": model.Endpoint.BackendModelName,
-			"public":                   model.Availability.Public,
-			"available_to":             string(availableTo),
-			"context_window":           contextWindow,
-			"temperature":              model.ChatSettings.Temperature,
-			"top_p":                    model.ChatSettings.TopP,
-			"max_completion_tokens":    model.ChatSettings.MaxCompletionTokens,
-			"system_prompt":            systemPrompt,
-			"disable_tools":            model.ChatSettings.DisableTools,
-			"page_metadata":            pageMetadata,
+			"name":                           model.Name,
+			"title":                          model.Title,
+			"title_model_name":               model.TitleModelName,
+			"capabilities":                   string(capabilities),
+			"price_per_million_cached_input": model.PricePerMillion.CachedInput,
+			"price_per_million_input":        model.PricePerMillion.Input,
+			"price_per_million_output":       model.PricePerMillion.Output,
+			"inference_endpoint_path":        model.Endpoint.BasePath,
+			"inference_endpoint_model":       model.Endpoint.BackendModelName,
+			"public":                         model.Availability.Public,
+			"available_to":                   string(availableTo),
+			"context_window":                 contextWindow,
+			"temperature":                    model.ChatSettings.Temperature,
+			"top_p":                          model.ChatSettings.TopP,
+			"max_completion_tokens":          model.ChatSettings.MaxCompletionTokens,
+			"system_prompt":                  systemPrompt,
+			"disable_tools":                  model.ChatSettings.DisableTools,
+			"page_metadata":                  pageMetadata,
 		},
 	)
 }
@@ -559,8 +561,8 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	if len(model.Capabilities) == 0 {
 		return util.HttpErr(http.StatusBadRequest, "model capabilities are required")
 	}
-	if model.PriceMultiplier.CachedInput < 0 || model.PriceMultiplier.Input < 0 || model.PriceMultiplier.Output < 0 {
-		return util.HttpErr(http.StatusBadRequest, "model price multipliers cannot be negative")
+	if model.PricePerMillion.CachedInput < 0 || model.PricePerMillion.Input < 0 || model.PricePerMillion.Output < 0 {
+		return util.HttpErr(http.StatusBadRequest, "model prices per million tokens cannot be negative")
 	}
 	if model.ChatSettings.Temperature < 0 || model.ChatSettings.Temperature > 2 {
 		return util.HttpErr(http.StatusBadRequest, "model temperature must be between 0 and 2")

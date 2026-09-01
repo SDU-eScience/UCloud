@@ -1508,7 +1508,7 @@ export function Editor(): React.ReactNode {
     const onResourceInput = useCallback<React.FormEventHandler>(ev => {
         const inputElem = ev.target as HTMLInputElement;
         const [provider, category, allocator] = inputElem.id.split("/");
-        let balance: number | null = parseInt(inputElem.value);
+        let balance: number | null = parseFloat(inputElem.value);
         if (isNaN(balance)) balance = null;
 
         dispatchEvent({
@@ -2647,9 +2647,9 @@ const ApplicationHistory: React.FunctionComponent<{state: EditorState}> = ({stat
         }
     };
 
-    const formatAmount = (amount: number): string => {
+    const formatAmount = (amount: number, unit: string | undefined): string => {
         return amount.toLocaleString(undefined, {
-            maximumFractionDigits: Number.isInteger(amount) ? 0 : 2,
+            maximumFractionDigits: Number.isInteger(amount) ? 0 : Accounting.isCreditUnit(unit ?? "") ? 3 : 2,
         });
     };
 
@@ -2733,7 +2733,7 @@ const ApplicationHistory: React.FunctionComponent<{state: EditorState}> = ({stat
                                                                 </Flex>
 
                                                                 <div>
-                                                                    {formatAmount(normalizedAmount)}
+                                                                    {formatAmount(normalizedAmount, unit?.name)}
                                                                     {unit ? ` ${unit.name}` : ""}
                                                                 </div>
                                                             </Flex>
@@ -2996,7 +2996,9 @@ function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
                 result.push({
                     category: pc.name,
                     provider: pc.provider,
-                    balanceRequested: Math.ceil(amount * explanation.invBalanceFactor),
+                    balanceRequested: Accounting.isCreditUnit(explanation.name)
+                        ? Accounting.normalizedBalanceToRaw(pc, amount)
+                        : Math.ceil(amount * explanation.invBalanceFactor),
                     grantGiver: allocator,
                     period,
                 });

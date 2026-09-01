@@ -297,7 +297,7 @@ func ProviderK8s() {
 		data := AddVolume(postgres, "data")
 
 		AddService(postgres, DockerComposeService{
-			Image:       "postgres:15.0",
+			Image:       "postgres:17.0",
 			Hostname:    "k8s-postgres",
 			Restart:     "always",
 			Environment: []string{"POSTGRES_PASSWORD=postgrespassword"},

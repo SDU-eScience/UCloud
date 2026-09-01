@@ -48,7 +48,6 @@ import {noopCall} from "@/Authentication/DataHook";
 import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 import {sendInformationNotification} from "@/Notifications";
-import {UFile} from "@/UCloud/UFile";
 import ReactClient from "react-dom/client";
 import type {Root} from "react-dom/client";
 
@@ -109,13 +108,13 @@ export interface EmbeddedSettings {
 export interface ResourceBrowserOpts<T> {
     additionalFilters?: Record<string, string> & ResourceIncludeFlags;
     reloadRef?: React.RefObject<() => void>;
-    // Note(Jonas): 
+    // Note(Jonas):
     //        Embedded changes a few stylings, omits shortcuts from operations, but I believe operations
     //        are entirely omitted. Fetches only the first page, based on the amount passed by additionalFeatures or default.
     embedded?: EmbeddedSettings;
     // Note(Jonas):
     //        Is used in a similar manner as with `embedded`, but the ResourceBrowser-component uses this variable
-    //        to ensure that some keyhandler are only done for the active modal, and not a potential parent ResourceBrowser-component. 
+    //        to ensure that some keyhandler are only done for the active modal, and not a potential parent ResourceBrowser-component.
     isModal?: boolean;
     selection?: Selection<T>;
 }
@@ -634,7 +633,7 @@ export class ResourceBrowser<T> {
                     <div class="right-sort-filters"></div>
                 </div>
             </header>
-            
+
             <div class="row rows-title">
                 <div class="favorite" style="width: 28px;"></div>
                 <div class="title"></div>
@@ -650,12 +649,12 @@ export class ResourceBrowser<T> {
                     <input class="rename-field">
                 </div>
             </div>
-            
+
             <div class="file-drag-indicator-content"></div>
             <div class="file-drag-indicator"></div>
             <div class="drag-indicator"></div>
             <div class="context-menu"></div>
-            
+
             <div class="page-empty">
                 <div class="graphic"></div>
                 <div class="reason"></div>
@@ -3788,21 +3787,21 @@ const ControlsClass = unstyledInjectStyle("controls", k => `
         margin: 16px 0;
         width: 100%;
     }
-    
+
     ${k} td:first-child, ${k} th:first-child {
         border-left: 1px solid var(--borderColor);
     }
-    
+
     ${k} td:last-child, ${k} th:last-child {
         border-right: 1px solid var(--borderColor);
     }
-    
+
     ${k} td, ${k} th {
         padding: 8px;
         border-top: 1px solid var(--borderColor);
         border-bottom: 1px solid var(--borderColor);
     }
-    
+
     ${k} td:last-child {
         text-align: right;
     }

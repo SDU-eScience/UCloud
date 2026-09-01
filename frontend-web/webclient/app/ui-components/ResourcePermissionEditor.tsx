@@ -106,6 +106,7 @@ function ResourcePermissionEditor<T extends ResourceDoc>(
                                 label={"None"}
                                 onChange={() => updateAcl(g, [])}
                                 icon={"close"}
+                                id={"None" + group.id}
                                 name={group.id}
                                 checked={permissions.length === 0}
                                 height={40}
@@ -115,6 +116,7 @@ function ResourcePermissionEditor<T extends ResourceDoc>(
                                 <RadioTile
                                     key={opt.name}
                                     label={opt.title ?? opt.name}
+                                    id={opt.title ?? opt.name}
                                     onChange={() => updateAcl(g, [opt.name])}
                                     icon={opt.icon}
                                     name={group.id}

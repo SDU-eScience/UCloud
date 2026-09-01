@@ -58,9 +58,9 @@ func inferenceCliHelp() {
 	f.AppendField("  --title <title>", "Set the display title")
 	f.AppendField("  --title-model-name <name>", "Set model used for chat thread title generation")
 	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration, TextToImage, SpeechToText")
-	f.AppendField("  --price-cached <n>", "Cached input multiplier in fixed-point thousandths")
-	f.AppendField("  --price-input <n>", "Input multiplier in fixed-point thousandths")
-	f.AppendField("  --price-output <n>", "Output multiplier in fixed-point thousandths")
+	f.AppendField("  --price-per-million-cached <n>", "Encoded cached input Credits per million tokens")
+	f.AppendField("  --price-per-million-input <n>", "Encoded input Credits per million tokens")
+	f.AppendField("  --price-per-million-output <n>", "Encoded output Credits per million tokens")
 	f.AppendField("  --public <bool>", "Set public availability")
 	f.AppendField("  --available-to <list>", "Comma-separated project IDs")
 	f.AppendField("  --base-path <url>", "Set endpoint base path")
@@ -94,9 +94,9 @@ func inferenceCliModelsList(args []string) {
 	t.AppendHeader("Title")
 	t.AppendHeader("Title model")
 	t.AppendHeader("Capabilities")
-	t.AppendHeaderEx("Cached", termio.TableHeaderAlignRight)
-	t.AppendHeaderEx("Input", termio.TableHeaderAlignRight)
-	t.AppendHeaderEx("Output", termio.TableHeaderAlignRight)
+	t.AppendHeaderEx("Cached price/M", termio.TableHeaderAlignRight)
+	t.AppendHeaderEx("Input price/M", termio.TableHeaderAlignRight)
+	t.AppendHeaderEx("Output price/M", termio.TableHeaderAlignRight)
 	t.AppendHeader("Endpoint")
 	t.AppendHeader("Chat defaults")
 	t.AppendHeader("Availability")
@@ -106,9 +106,9 @@ func inferenceCliModelsList(args []string) {
 		t.Cell("%s", model.Title)
 		t.Cell("%s", model.TitleModelName)
 		t.Cell("%s", inferenceCliFormatCapabilities(model.Capabilities))
-		t.Cell("%d", model.PriceMultiplier.CachedInput)
-		t.Cell("%d", model.PriceMultiplier.Input)
-		t.Cell("%d", model.PriceMultiplier.Output)
+		t.Cell("%d", model.PricePerMillion.CachedInput)
+		t.Cell("%d", model.PricePerMillion.Input)
+		t.Cell("%d", model.PricePerMillion.Output)
 		t.Cell("%s -> %s", model.Endpoint.BasePath, model.Endpoint.BackendModelName)
 		t.Cell("temp=%g topP=%g max=%d system=%s", model.ChatSettings.Temperature, model.ChatSettings.TopP, model.ChatSettings.MaxCompletionTokens, inferenceCliFormatSystemPrompt(model.ChatSettings.SystemPrompt))
 		t.Cell("%s", inferenceCliFormatAvailability(model.Availability))
@@ -131,9 +131,9 @@ func inferenceCliModelsUpdate(args []string) {
 	fs.StringVar(&req.Title, "title", "", "Set the display title")
 	fs.StringVar(&req.TitleModelName, "title-model-name", "", "Model used for chat thread title generation")
 	fs.StringVar(&capabilitiesRaw, "capabilities", "", "Comma-separated capability list")
-	fs.IntVar(&req.PriceCachedInput, "price-cached", 0, "Cached input multiplier in fixed-point thousandths (1000 = 1x)")
-	fs.IntVar(&req.PriceInput, "price-input", 0, "Input multiplier in fixed-point thousandths (1000 = 1x)")
-	fs.IntVar(&req.PriceOutput, "price-output", 0, "Output multiplier in fixed-point thousandths (1000 = 1x)")
+	fs.Int64Var(&req.PricePerMillionCachedInput, "price-per-million-cached", 0, "Encoded cached input Credits per million tokens (1000000 = 1 Credit)")
+	fs.Int64Var(&req.PricePerMillionInput, "price-per-million-input", 0, "Encoded input Credits per million tokens (1000000 = 1 Credit)")
+	fs.Int64Var(&req.PricePerMillionOutput, "price-per-million-output", 0, "Encoded output Credits per million tokens (1000000 = 1 Credit)")
 	fs.BoolVar(&req.Public, "public", false, "Set public availability")
 	fs.StringVar(&availableToRaw, "available-to", "", "Comma-separated project IDs")
 	fs.StringVar(&req.BasePath, "base-path", "", "Endpoint base path")
@@ -166,11 +166,11 @@ func inferenceCliModelsUpdate(args []string) {
 	}
 	for _, priceFlag := range []struct {
 		Name  string
-		Value int
+		Value int64
 	}{
-		{Name: "price-cached", Value: req.PriceCachedInput},
-		{Name: "price-input", Value: req.PriceInput},
-		{Name: "price-output", Value: req.PriceOutput},
+		{Name: "price-per-million-cached", Value: req.PricePerMillionCachedInput},
+		{Name: "price-per-million-input", Value: req.PricePerMillionInput},
+		{Name: "price-per-million-output", Value: req.PricePerMillionOutput},
 	} {
 		if slices.Contains(req.Set, priceFlag.Name) && priceFlag.Value < 0 {
 			cli.HandleError("validating prices", fmt.Errorf("%s cannot be negative", priceFlag.Name))
@@ -236,14 +236,14 @@ func initCli() {
 		if set("capabilities") {
 			model.Capabilities = slices.Clone(r.Payload.Capabilities)
 		}
-		if set("price-cached") {
-			model.PriceMultiplier.CachedInput = r.Payload.PriceCachedInput
+		if set("price-per-million-cached") {
+			model.PricePerMillion.CachedInput = r.Payload.PricePerMillionCachedInput
 		}
-		if set("price-input") {
-			model.PriceMultiplier.Input = r.Payload.PriceInput
+		if set("price-per-million-input") {
+			model.PricePerMillion.Input = r.Payload.PricePerMillionInput
 		}
-		if set("price-output") {
-			model.PriceMultiplier.Output = r.Payload.PriceOutput
+		if set("price-per-million-output") {
+			model.PricePerMillion.Output = r.Payload.PricePerMillionOutput
 		}
 		if set("public") {
 			model.Availability.Public = r.Payload.Public
@@ -371,23 +371,23 @@ func inferenceCliFormatSystemPrompt(systemPrompt *string) string {
 }
 
 type k8sCliInferenceModelsUpdateRequest struct {
-	Name                string
-	Set                 []string
-	NewName             string
-	Title               string
-	TitleModelName      string
-	Capabilities        []InferenceCapability
-	PriceCachedInput    int
-	PriceInput          int
-	PriceOutput         int
-	Public              bool
-	AvailableTo         []string
-	BasePath            string
-	BackendModelName    string
-	Temperature         float64
-	TopP                float64
-	MaxCompletionTokens int
-	SystemPrompt        string
+	Name                       string
+	Set                        []string
+	NewName                    string
+	Title                      string
+	TitleModelName             string
+	Capabilities               []InferenceCapability
+	PricePerMillionCachedInput int64
+	PricePerMillionInput       int64
+	PricePerMillionOutput      int64
+	Public                     bool
+	AvailableTo                []string
+	BasePath                   string
+	BackendModelName           string
+	Temperature                float64
+	TopP                       float64
+	MaxCompletionTokens        int
+	SystemPrompt               string
 }
 
 type k8sCliInferenceModelsRemoveRequest struct {
