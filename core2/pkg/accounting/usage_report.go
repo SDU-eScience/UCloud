@@ -620,22 +620,74 @@ func usageCollapseReports(reports []internalUsageReportWithProduct) internalUsag
 		ValidUntil: util.OptValue(lastReport.ValidUntil.GetOrDefault(lastReport.ValidFrom)),
 	}
 
+	reportsByProducts := make(map[accapi.ProductCategory][]internalUsageReport)
+
+	for _, reportWithProd := range reports {
+		reportsByProducts[reportWithProd.Product] =
+			append(reportsByProducts[reportWithProd.Product], reportWithProd.Report)
+	}
+
+	quotaAtStart := int64(0)
+	activeQuotaAtStart := int64(0)
+	maxUsableAtStart := int64(0)
+	localUsageAtStart := int64(0)
+	totalUsageAtStart := int64(0)
+	totalAllocatedAtStart := int64(0)
+
+	quotaAtEnd := int64(0)
+	activeQuotaAtEnd := int64(0)
+	maxUsableAtEnd := int64(0)
+	localUsageAtEnd := int64(0)
+	totalUsageAtEnd := int64(0)
+	totalAllocatedAtEnd := int64(0)
+
+	var currentNextMeaningfulExpiration util.Option[time.Time]
+
+	for _, r := range reportsByProducts {
+		fr := r[0]
+		lr := r[len(r)-1]
+
+		quotaAtStart += fr.Kpis.QuotaAtStart
+		activeQuotaAtStart += fr.Kpis.ActiveQuotaAtStart
+		maxUsableAtStart += fr.Kpis.MaxUsableAtStart
+		localUsageAtStart += fr.Kpis.LocalUsageAtStart
+		totalUsageAtStart += fr.Kpis.TotalUsageAtStart
+		totalAllocatedAtStart += fr.Kpis.TotalAllocatedAtStart
+
+		quotaAtEnd += lr.Kpis.QuotaAtEnd
+		activeQuotaAtEnd += lr.Kpis.ActiveQuotaAtEnd
+		maxUsableAtEnd += lr.Kpis.MaxUsableAtEnd
+		localUsageAtEnd += lr.Kpis.LocalUsageAtEnd
+		totalUsageAtEnd += lr.Kpis.TotalUsageAtEnd
+		totalAllocatedAtEnd += lr.Kpis.TotalAllocatedAtEnd
+
+		if lr.Kpis.NextMeaningfulExpiration.Present {
+			if !currentNextMeaningfulExpiration.Present {
+				currentNextMeaningfulExpiration = lr.Kpis.NextMeaningfulExpiration
+			} else {
+				if lr.Kpis.NextMeaningfulExpiration.Value.Before(currentNextMeaningfulExpiration.Value) {
+					currentNextMeaningfulExpiration = lr.Kpis.NextMeaningfulExpiration
+				}
+			}
+		}
+	}
+
 	result.Kpis = internalUsageReportKpis{
-		QuotaAtStart:          firstReport.Kpis.QuotaAtStart,
-		ActiveQuotaAtStart:    firstReport.Kpis.ActiveQuotaAtStart,
-		MaxUsableAtStart:      firstReport.Kpis.MaxUsableAtStart,
-		LocalUsageAtStart:     firstReport.Kpis.LocalUsageAtStart,
-		TotalUsageAtStart:     firstReport.Kpis.TotalUsageAtStart,
-		TotalAllocatedAtStart: firstReport.Kpis.TotalAllocatedAtStart,
+		QuotaAtStart:          quotaAtStart,
+		ActiveQuotaAtStart:    activeQuotaAtStart,
+		MaxUsableAtStart:      maxUsableAtStart,
+		LocalUsageAtStart:     localUsageAtStart,
+		TotalUsageAtStart:     totalUsageAtStart,
+		TotalAllocatedAtStart: totalAllocatedAtStart,
 
-		QuotaAtEnd:          lastReport.Kpis.QuotaAtEnd,
-		ActiveQuotaAtEnd:    lastReport.Kpis.ActiveQuotaAtEnd,
-		MaxUsableAtEnd:      lastReport.Kpis.MaxUsableAtEnd,
-		LocalUsageAtEnd:     lastReport.Kpis.LocalUsageAtEnd,
-		TotalUsageAtEnd:     lastReport.Kpis.TotalUsageAtEnd,
-		TotalAllocatedAtEnd: lastReport.Kpis.TotalAllocatedAtEnd,
+		QuotaAtEnd:          quotaAtEnd,
+		ActiveQuotaAtEnd:    activeQuotaAtEnd,
+		MaxUsableAtEnd:      maxUsableAtEnd,
+		LocalUsageAtEnd:     localUsageAtEnd,
+		TotalUsageAtEnd:     totalUsageAtEnd,
+		TotalAllocatedAtEnd: totalAllocatedAtEnd,
 
-		NextMeaningfulExpiration: lastReport.Kpis.NextMeaningfulExpiration,
+		NextMeaningfulExpiration: currentNextMeaningfulExpiration,
 	}
 
 	result.SubProjectHealth = lastReport.SubProjectHealth // NOTE(Dan): Idle is recomputed below
@@ -1549,5 +1601,7 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 		}
 	}
 
-	lUsagePersistReport(report, b)
+	if report.Dirty {
+		lUsagePersistReport(report, b)
+	}
 }
