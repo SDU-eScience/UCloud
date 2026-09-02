@@ -199,9 +199,15 @@ export function RichSelect<T, K extends keyof T>(props: {
     }, [limitedElements, props.groupBy]);
     const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + groupCount * 30 + searchFieldHeight);
 
+    // HACK(Jonas): The height value is not correctly updated in `onTriggerClick`,
+    // even if it's in the dependency list
+    const heightRef = useRef(height);
+    heightRef.current = height;
+
     const onTriggerClick = useCallback(() => {
         setQuery("");
         setDropdownTop(undefined);
+        const height = heightRef.current;
 
         const trigger = triggerRef.current;
         if (trigger && props.dropdownVerticalGap !== undefined) {
@@ -222,7 +228,7 @@ export function RichSelect<T, K extends keyof T>(props: {
         if (!trigger) return;
         const width = trigger.getBoundingClientRect().width;
         setDropdownSize(width + "px");
-    }, [props.matchTriggerWidth, props.dropdownWidth, props.dropdownVerticalGap, height]);
+    }, [props.matchTriggerWidth, props.dropdownWidth, props.dropdownVerticalGap]);
 
     const trigger = props.trigger ?
         <div ref={triggerRef}>{props.trigger}</div>
@@ -347,13 +353,13 @@ const ResultWrapperClass = injectStyle("rich-select-result-wrapper", k => `
         cursor: default;
         overflow-y: auto;
     }
-    
+
     ${k} > *:hover {
         background-color: var(--rowHover);
         cursor: pointer;
         width: 100%;
     }
-    
+
     ${k} .no-hover-effect:hover {
         background: unset;
         cursor: unset;
