@@ -1844,15 +1844,22 @@ function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNe
                 <Icon name="heroPlus" size={16} mr={8}/>
                 New thread
             </Button>
-            <IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/>
+            <div className={ResponsiveHide}><IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/></div>
         </div>
     </div>;
 
-    return <PlaygroundSidebarShell header={header} footer={footer}>
-        {fn ? <ThreadListNode node={node} model={model} fn={fn}/> : <Text color="textSecondary">Loading...</Text>}
+return <PlaygroundSidebarShell header={header} footer={footer}>
+        {fn ? <ThreadListNode node={node} model={model} fn={fn} /> : <Text color="textSecondary">Loading...</Text>}
     </PlaygroundSidebarShell>;
 }
 
+const ResponsiveHide = injectStyle("responsive-hide", cl => `
+    @media screen and (max-width: 900px) {
+        ${cl} {
+            display: none;
+        }
+    }
+`);
 function WorkspaceSelector({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
     const path = stringValue(fn?.modelValue(model, "workspace.path") ?? model["workspace.path"]);
     const loading = boolValue(fn?.modelValue(model, "workspace.loading") ?? model["workspace.loading"]);
