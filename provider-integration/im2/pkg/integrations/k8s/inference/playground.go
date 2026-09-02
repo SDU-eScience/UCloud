@@ -1618,11 +1618,11 @@ func playgroundInferenceAttachmentContent(kind string, rawUrl string) InferenceC
 	part := InferenceChatContentPart{Type: kind + "_url"}
 	switch kind {
 	case "image":
-		part.ImageUrl = &rawUrl
+		part.ImageUrl = &InferenceChatUrl{Url: rawUrl}
 	case "video":
-		part.VideoUrl = &rawUrl
+		part.VideoUrl = &InferenceChatUrl{Url: rawUrl}
 	case "audio":
-		part.AudioUrl = &rawUrl
+		part.AudioUrl = &InferenceChatUrl{Url: rawUrl}
 	}
 	return InferenceChatMessageContent{Parts: []InferenceChatContentPart{part}}
 }

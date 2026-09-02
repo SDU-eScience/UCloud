@@ -370,11 +370,32 @@ type InferenceChatMessageContent struct {
 }
 
 type InferenceChatContentPart struct {
-	Type     string  `json:"type"`
-	Text     string  `json:"text,omitempty"`
-	ImageUrl *string `json:"image_url,omitempty"`
-	VideoUrl *string `json:"video_url,omitempty"`
-	AudioUrl *string `json:"audio_url,omitempty"`
+	Type     string            `json:"type"`
+	Text     string            `json:"text,omitempty"`
+	ImageUrl *InferenceChatUrl `json:"image_url,omitempty"`
+	VideoUrl *InferenceChatUrl `json:"video_url,omitempty"`
+	AudioUrl *InferenceChatUrl `json:"audio_url,omitempty"`
+}
+
+type InferenceChatUrl struct {
+	Url string
+}
+
+func (u *InferenceChatUrl) UnmarshalJSON(data []byte) error {
+	var object struct {
+		Url string `json:"url"`
+	}
+	if err := json.Unmarshal(data, &object); err == nil {
+		u.Url = object.Url
+		return nil
+	}
+	return json.Unmarshal(data, &u.Url)
+}
+
+func (u InferenceChatUrl) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Url string `json:"url"`
+	}{Url: u.Url})
 }
 
 func inferenceChatTextContent(text string) InferenceChatMessageContent {

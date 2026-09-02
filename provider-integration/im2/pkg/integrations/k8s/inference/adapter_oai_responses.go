@@ -1575,17 +1575,17 @@ func inferenceResponseInputContent(raw json.RawMessage) (InferenceChatMessageCon
 		case "input_text", "output_text", "text":
 			result.Parts = append(result.Parts, InferenceChatContentPart{Type: "text", Text: part.Text})
 		case "image_url", "input_image":
-			if part.ImageUrl == nil || *part.ImageUrl == "" {
+			if part.ImageUrl == nil || part.ImageUrl.Url == "" {
 				return InferenceChatMessageContent{}, util.HttpErr(http.StatusBadRequest, "invalid image input content")
 			}
 			result.Parts = append(result.Parts, InferenceChatContentPart{Type: "image_url", ImageUrl: part.ImageUrl})
 		case "video_url", "input_video":
-			if part.VideoUrl == nil || *part.VideoUrl == "" {
+			if part.VideoUrl == nil || part.VideoUrl.Url == "" {
 				return InferenceChatMessageContent{}, util.HttpErr(http.StatusBadRequest, "invalid video input content")
 			}
 			result.Parts = append(result.Parts, InferenceChatContentPart{Type: "video_url", VideoUrl: part.VideoUrl})
 		case "audio_url", "input_audio":
-			if part.AudioUrl == nil || *part.AudioUrl == "" {
+			if part.AudioUrl == nil || part.AudioUrl.Url == "" {
 				return InferenceChatMessageContent{}, util.HttpErr(http.StatusBadRequest, "invalid audio input content")
 			}
 			result.Parts = append(result.Parts, InferenceChatContentPart{Type: "audio_url", AudioUrl: part.AudioUrl})
@@ -1597,11 +1597,11 @@ func inferenceResponseInputContent(raw json.RawMessage) (InferenceChatMessageCon
 }
 
 type InferenceResponseInputContentPart struct {
-	Type     string  `json:"type"`
-	Text     string  `json:"text,omitempty"`
-	ImageUrl *string `json:"image_url,omitempty"`
-	VideoUrl *string `json:"video_url,omitempty"`
-	AudioUrl *string `json:"audio_url,omitempty"`
+	Type     string            `json:"type"`
+	Text     string            `json:"text,omitempty"`
+	ImageUrl *InferenceChatUrl `json:"image_url,omitempty"`
+	VideoUrl *InferenceChatUrl `json:"video_url,omitempty"`
+	AudioUrl *InferenceChatUrl `json:"audio_url,omitempty"`
 }
 
 func inferenceResponseChatTools(rawTools []json.RawMessage) ([]InferenceChatTool, *util.HttpError) {
