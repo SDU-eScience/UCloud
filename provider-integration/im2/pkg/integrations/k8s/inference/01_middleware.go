@@ -32,8 +32,8 @@ const inferenceChatCaptureUpstreamOutput = false
 const inferenceChatReplayUpstreamOutputPath = ""
 
 const (
-	inferenceMaxUpstreamJSONBytes  = 64 << 20
-	inferenceMaxSSEEventBytes      = 16 << 20
+	inferenceMaxUpstreamJSONBytes  = 1024 * 1024 * 8
+	inferenceMaxSSEEventBytes      = 1024 * 1024 * 8
 	inferenceResponseHeaderTimeout = 2 * time.Minute
 	inferenceStreamIdleTimeout     = 2 * time.Minute
 )
@@ -714,12 +714,38 @@ func inferenceChatDeltaHasOutput(delta InferenceChatDelta) bool {
 	return false
 }
 
-func InferenceChat(ctx context.Context, owner apm.WalletOwner, history InferenceChatRequest) (InferenceChatResponse, *util.HttpError) {
+func InferenceChat(ctx context.Context, owner apm.WalletOwner, username string, history InferenceChatRequest) (InferenceChatResponse, *util.HttpError) {
+	return InferenceChatEx(ctx, owner, username, history, false)
+}
+
+func InferenceChatEx(ctx context.Context, owner apm.WalletOwner, username string, history InferenceChatRequest, skipAudit bool) (InferenceChatResponse, *util.HttpError) {
 	requestStartedAt := time.Now()
 	requestModel := "unknown"
 	requestOutcome := "error"
+	auditModel := history.Model
+	auditUsage := InferenceChatUsage{}
+	auditAborted := false
 	defer func() {
 		inferenceReportChatRequestMetrics(requestModel, requestOutcome, requestStartedAt, time.Now())
+		if !skipAudit {
+			inferenceAuditRecord(
+				ctx,
+				"inference.chat",
+				owner,
+				username,
+				requestStartedAt,
+				inferenceAuditChatBody(
+					inferenceAuditChainKey(owner, username),
+					auditModel,
+					history,
+					&auditUsage,
+					requestOutcome,
+					auditAborted,
+					inferenceAuditSourceOf(ctx),
+				),
+				requestOutcome,
+			)
+		}
 	}()
 
 	if inferenceIsLocked(owner) {
@@ -740,7 +766,7 @@ func InferenceChat(ctx context.Context, owner apm.WalletOwner, history Inference
 		requestOutcome = "client_error"
 		return InferenceChatResponse{}, httpErr
 	}
-	release, httpErr := inferenceAcquire(owner)
+	release, httpErr := inferenceAcquire(owner, username)
 	if httpErr != nil {
 		requestOutcome = "admission_rejected"
 		return InferenceChatResponse{}, httpErr
@@ -795,6 +821,7 @@ func InferenceChat(ctx context.Context, owner apm.WalletOwner, history Inference
 	if !resp.Usage.Present {
 		requestOutcome = "success_missing_usage"
 	}
+	auditUsage = inferenceChatUsage(resp.Usage)
 	return InferenceChatResponse{
 		Id:      resp.Id,
 		Object:  resp.Object,
@@ -805,14 +832,42 @@ func InferenceChat(ctx context.Context, owner apm.WalletOwner, history Inference
 	}, nil
 }
 
-func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history InferenceChatRequest) (chan InferenceChatStreamingResponse, *util.HttpError) {
+func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username string, history InferenceChatRequest) (chan InferenceChatStreamingResponse, *util.HttpError) {
 	requestStartedAt := time.Now()
 	requestModel := "unknown"
+	auditModel := history.Model
+	auditUsage := InferenceChatUsage{}
+	auditAborted := false
+	auditDone := false
+	emitAudit := func(outcome string) {
+		if auditDone {
+			return
+		}
+		auditDone = true
+		inferenceAuditRecord(
+			ctx,
+			"inference.chat",
+			owner,
+			username,
+			requestStartedAt,
+			inferenceAuditChatBody(
+				inferenceAuditChainKey(owner, username),
+				auditModel,
+				history,
+				&auditUsage,
+				outcome,
+				auditAborted,
+				inferenceAuditSourceOf(ctx),
+			),
+			outcome,
+		)
+	}
 	ch := make(chan InferenceChatStreamingResponse, 1024) // buffered to allow for slow consumers (e.g. playground UI)
 
 	if inferenceIsLocked(owner) {
 		close(ch)
 		inferenceReportChatRequestMetrics(requestModel, "payment_required", requestStartedAt, time.Now())
+		emitAudit("payment_required")
 		return ch, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
 
@@ -820,21 +875,25 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 	if httpErr != nil {
 		close(ch)
 		inferenceReportChatRequestMetrics(requestModel, "client_error", requestStartedAt, time.Now())
+		emitAudit("client_error")
 		return ch, httpErr
 	}
 	requestModel = model.Name
+	auditModel = model.Name
 	if !history.ReasoningEffort.Present && model.DefaultReasoningEffort != "" {
 		history.ReasoningEffort = util.OptValue(model.DefaultReasoningEffort)
 	}
 	if httpErr := inferenceValidateChatRequest(history, model); httpErr != nil {
 		close(ch)
 		inferenceReportChatRequestMetrics(requestModel, "client_error", requestStartedAt, time.Now())
+		emitAudit("client_error")
 		return ch, httpErr
 	}
-	release, httpErr := inferenceAcquire(owner)
+	release, httpErr := inferenceAcquire(owner, username)
 	if httpErr != nil {
 		close(ch)
 		inferenceReportChatRequestMetrics(requestModel, "admission_rejected", requestStartedAt, time.Now())
+		emitAudit("admission_rejected")
 		return ch, httpErr
 	}
 	history.Model = model.Endpoint.BackendModelName
@@ -845,6 +904,7 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 		streamOutcome := "error"
 		defer func() {
 			inferenceReportChatRequestMetrics(requestModel, streamOutcome, requestStartedAt, time.Now())
+			emitAudit(streamOutcome)
 		}()
 
 		history.Stream = true
@@ -911,6 +971,7 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 				}
 			}
 			reportMetrics(time.Now())
+			auditUsage = usageSeen
 			streamOutcome = "success"
 			return
 		}
@@ -965,12 +1026,15 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 		streamCompletedAt := time.Now()
 		if ctx.Err() != nil {
 			streamOutcome = "client_cancelled"
+			auditAborted = true
 		} else if streamCtx.Err() != nil {
 			streamOutcome = "stream_timeout"
+			auditAborted = true
 		} else if readErr != nil {
 			streamOutcome = "upstream_error"
 		} else if streamSendFailed {
 			streamOutcome = "stream_timeout"
+			auditAborted = true
 		} else if !streamCompleted {
 			streamOutcome = "incomplete"
 		} else {
@@ -986,6 +1050,7 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 		} else if streamCtx.Err() == nil {
 			inferenceWarnMissingUsage("chat-stream", model.Name)
 		}
+		auditUsage = usageSeen
 		reportMetrics(streamCompletedAt)
 		inferenceChatWriteUpstreamCapture(body, capturedChunks)
 	}()
@@ -1174,17 +1239,40 @@ func InferenceTranscriptionParseRequest(w http.ResponseWriter, r *http.Request) 
 	return request, nil
 }
 
-func InferenceTranscribe(ctx context.Context, owner apm.WalletOwner, request InferenceTranscriptionRequest) (InferenceTranscriptionResponse, *util.HttpError) {
+func InferenceTranscribe(ctx context.Context, owner apm.WalletOwner, username string, request InferenceTranscriptionRequest) (InferenceTranscriptionResponse, *util.HttpError) {
+	requestStartedAt := time.Now()
+	requestOutcome := "error"
+	auditUsage := InferenceTranscriptionUsage{}
+	auditUsagePresent := false
+	defer func() {
+		var auditUsagePtr *InferenceTranscriptionUsage
+		if auditUsagePresent {
+			auditUsagePtr = &auditUsage
+		}
+		inferenceAuditRecord(
+			ctx,
+			"inference.transcribe",
+			owner,
+			username,
+			requestStartedAt,
+			inferenceAuditTranscribeBody(request, auditUsagePtr, requestOutcome),
+			requestOutcome,
+		)
+	}()
+
 	if inferenceIsLocked(owner) {
+		requestOutcome = "payment_required"
 		return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
 
 	model, httpErr := inferenceResolveModelForOwner(owner, request.Model)
 	if httpErr != nil {
+		requestOutcome = "client_error"
 		return InferenceTranscriptionResponse{}, httpErr
 	}
-	release, httpErr := inferenceAcquire(owner)
+	release, httpErr := inferenceAcquire(owner, username)
 	if httpErr != nil {
+		requestOutcome = "admission_rejected"
 		return InferenceTranscriptionResponse{}, httpErr
 	}
 	defer release()
@@ -1192,14 +1280,17 @@ func InferenceTranscribe(ctx context.Context, owner apm.WalletOwner, request Inf
 
 	body, contentType, httpErr := inferenceBuildTranscriptionMultipart(request)
 	if httpErr != nil {
+		requestOutcome = "client_error"
 		return InferenceTranscriptionResponse{}, httpErr
 	}
 	if len(body) > inferenceMaxTranscriptionRequestBytes {
+		requestOutcome = "client_error"
 		return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusRequestEntityTooLarge, "request body too large")
 	}
 
 	respBody, httpErr := inferenceBackendJSONRequest(ctx, model.Endpoint.BasePath, http.MethodPost, "/audio/transcriptions", body, contentType)
 	if httpErr != nil {
+		requestOutcome = "upstream_error"
 		return InferenceTranscriptionResponse{}, httpErr
 	}
 
@@ -1221,7 +1312,10 @@ func InferenceTranscribe(ctx context.Context, owner apm.WalletOwner, request Inf
 			usage := inferenceTranscriptionUsage(resp.Usage)
 			if resp.Usage.Present {
 				inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
+				auditUsage = usage
+				auditUsagePresent = true
 			}
+			requestOutcome = "success"
 			return InferenceTranscriptionResponse{DiarizedJson: &InferenceTranscriptionDiarizedResponse{Task: resp.Task, Duration: resp.Duration, Text: resp.Text, Segments: resp.Segments, Usage: usage}}, nil
 		} else {
 			return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response from upstream")
@@ -1247,7 +1341,10 @@ func InferenceTranscribe(ctx context.Context, owner apm.WalletOwner, request Inf
 			usage := inferenceTranscriptionUsage(resp.Usage)
 			if resp.Usage.Present {
 				inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
+				auditUsage = usage
+				auditUsagePresent = true
 			}
+			requestOutcome = "success"
 			return InferenceTranscriptionResponse{VerboseJson: &InferenceTranscriptionVerboseResponse{Task: resp.Task, Language: resp.Language, Duration: resp.Duration, Text: resp.Text, Segments: resp.Segments, Words: resp.Words, Usage: usage}}, nil
 		} else {
 			return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response from upstream")
@@ -1269,29 +1366,62 @@ func InferenceTranscribe(ctx context.Context, owner apm.WalletOwner, request Inf
 		usage := inferenceTranscriptionUsage(resp.Usage)
 		if resp.Usage.Present {
 			inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
+			auditUsage = usage
+			auditUsagePresent = true
 		}
+		requestOutcome = "success"
 		return InferenceTranscriptionResponse{Json: &InferenceTranscriptionJsonResponse{Text: resp.Text, Logprobs: resp.Logprobs, Usage: usage}}, nil
 	} else {
 		return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response from upstream")
 	}
 }
 
-func InferenceTranscribeStreaming(ctx context.Context, owner apm.WalletOwner, request InferenceTranscriptionRequest) (chan InferenceTranscriptionStreamEvent, *util.HttpError) {
+func InferenceTranscribeStreaming(ctx context.Context, owner apm.WalletOwner, username string, request InferenceTranscriptionRequest) (chan InferenceTranscriptionStreamEvent, *util.HttpError) {
+	requestStartedAt := time.Now()
+	requestOutcome := "error"
+	auditUsage := InferenceTranscriptionUsage{}
+	auditUsagePresent := false
+	auditDone := false
+	emitAudit := func(outcome string) {
+		if auditDone {
+			return
+		}
+		auditDone = true
+		var auditUsagePtr *InferenceTranscriptionUsage
+		if auditUsagePresent {
+			auditUsagePtr = &auditUsage
+		}
+		inferenceAuditRecord(
+			ctx,
+			"inference.transcribe",
+			owner,
+			username,
+			requestStartedAt,
+			inferenceAuditTranscribeBody(request, auditUsagePtr, requestOutcome),
+			requestOutcome,
+		)
+	}
 	ch := make(chan InferenceTranscriptionStreamEvent)
 
 	if inferenceIsLocked(owner) {
 		close(ch)
+		requestOutcome = "payment_required"
+		emitAudit(requestOutcome)
 		return ch, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
 
 	model, httpErr := inferenceResolveModelForOwner(owner, request.Model)
 	if httpErr != nil {
 		close(ch)
+		requestOutcome = "client_error"
+		emitAudit(requestOutcome)
 		return ch, httpErr
 	}
-	release, httpErr := inferenceAcquire(owner)
+	release, httpErr := inferenceAcquire(owner, username)
 	if httpErr != nil {
 		close(ch)
+		requestOutcome = "admission_rejected"
+		emitAudit(requestOutcome)
 		return ch, httpErr
 	}
 	request.Model = model.Endpoint.BackendModelName
@@ -1299,13 +1429,18 @@ func InferenceTranscribeStreaming(ctx context.Context, owner apm.WalletOwner, re
 	go func() {
 		defer close(ch)
 		defer release()
+		defer func() {
+			emitAudit(requestOutcome)
+		}()
 
 		request.Stream = true
 		body, contentType, httpErr := inferenceBuildTranscriptionMultipart(request)
 		if httpErr != nil {
+			requestOutcome = "client_error"
 			return
 		}
 		if len(body) > inferenceMaxTranscriptionRequestBytes {
+			requestOutcome = "client_error"
 			return
 		}
 
@@ -1313,6 +1448,7 @@ func InferenceTranscribeStreaming(ctx context.Context, owner apm.WalletOwner, re
 		defer cancel()
 		resp, httpErr := inferenceBackendRequest(streamCtx, model.Endpoint.BasePath, http.MethodPost, "/audio/transcriptions", body, contentType)
 		if httpErr != nil {
+			requestOutcome = "upstream_error"
 			return
 		}
 		defer util.SilentClose(resp.Body)
@@ -1352,8 +1488,13 @@ func InferenceTranscribeStreaming(ctx context.Context, owner apm.WalletOwner, re
 
 		if usagePresent {
 			inferenceReportUsage(owner, model, 0, usageSeen.InputTokens, usageSeen.OutputTokens)
+			auditUsage = usageSeen
+			auditUsagePresent = true
 		} else if streamCtx.Err() == nil {
 			inferenceWarnMissingUsage("transcription-stream", model.Name)
+		}
+		if streamCtx.Err() == nil {
+			requestOutcome = "success"
 		}
 	}()
 
@@ -1477,8 +1618,8 @@ type InferenceImageGenerationStreamEvent struct {
 	Usage             InferenceImageGenerationUsage `json:"usage"`
 }
 
-func inferenceGenerateImageResponse(ctx context.Context, owner apm.WalletOwner, request InferenceImageGenerationRequest) ([]byte, *util.HttpError) {
-	resp, httpErr := InferenceGenerateImage(ctx, owner, request)
+func inferenceGenerateImageResponse(ctx context.Context, owner apm.WalletOwner, username string, request InferenceImageGenerationRequest) ([]byte, *util.HttpError) {
+	resp, httpErr := InferenceGenerateImage(ctx, owner, username, request)
 	if httpErr != nil {
 		return nil, httpErr
 	}
@@ -1491,21 +1632,45 @@ func inferenceGenerateImageResponse(ctx context.Context, owner apm.WalletOwner, 
 	return respBody, nil
 }
 
-func InferenceGenerateImage(ctx context.Context, owner apm.WalletOwner, request InferenceImageGenerationRequest) (InferenceImageGenerationResponse, *util.HttpError) {
+func InferenceGenerateImage(ctx context.Context, owner apm.WalletOwner, username string, request InferenceImageGenerationRequest) (InferenceImageGenerationResponse, *util.HttpError) {
+	requestStartedAt := time.Now()
+	requestOutcome := "error"
+	auditUsage := InferenceImageGenerationUsage{}
+	auditUsagePresent := false
+	defer func() {
+		var auditUsagePtr *InferenceImageGenerationUsage
+		if auditUsagePresent {
+			auditUsagePtr = &auditUsage
+		}
+		inferenceAuditRecord(
+			ctx,
+			"inference.image",
+			owner,
+			username,
+			requestStartedAt,
+			inferenceAuditImageBody(request, auditUsagePtr, requestOutcome),
+			requestOutcome,
+		)
+	}()
+
 	if inferenceIsLocked(owner) {
+		requestOutcome = "payment_required"
 		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
 
 	modelName := request.Model.GetOrDefault("")
 	model, httpErr := inferenceResolveModelForOwner(owner, modelName)
 	if httpErr != nil {
+		requestOutcome = "client_error"
 		return InferenceImageGenerationResponse{}, httpErr
 	}
 	if httpErr := inferenceValidateImageRequest(request); httpErr != nil {
+		requestOutcome = "client_error"
 		return InferenceImageGenerationResponse{}, httpErr
 	}
-	release, httpErr := inferenceAcquire(owner)
+	release, httpErr := inferenceAcquire(owner, username)
 	if httpErr != nil {
+		requestOutcome = "admission_rejected"
 		return InferenceImageGenerationResponse{}, httpErr
 	}
 	defer release()
@@ -1514,23 +1679,30 @@ func InferenceGenerateImage(ctx context.Context, owner apm.WalletOwner, request 
 	if inferenceGlobals.MockImageGeneration {
 		resp, httpErr := inferenceGenerateMockImageResponse(request)
 		if httpErr != nil {
+			requestOutcome = "client_error"
 			return InferenceImageGenerationResponse{}, httpErr
 		}
 
 		inferenceReportUsage(owner, model, 0, resp.Usage.InputTokens, resp.Usage.OutputTokens)
+		auditUsage = resp.Usage
+		auditUsagePresent = true
+		requestOutcome = "success"
 		return resp, nil
 	}
 
 	body, err := json.Marshal(request)
 	if err != nil {
+		requestOutcome = "client_error"
 		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusBadRequest, "invalid request")
 	}
 	if len(body) > inferenceMaxJSONRequestBytes {
+		requestOutcome = "client_error"
 		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusRequestEntityTooLarge, "request body too large")
 	}
 
 	respBody, httpErr := inferenceBackendJSONRequest(ctx, model.Endpoint.BasePath, http.MethodPost, "/images/generations", body, "application/json")
 	if httpErr != nil {
+		requestOutcome = "upstream_error"
 		return InferenceImageGenerationResponse{}, httpErr
 	}
 
@@ -1565,15 +1737,44 @@ func InferenceGenerateImage(ctx context.Context, owner apm.WalletOwner, request 
 	}
 	if resp.Usage.Present {
 		inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
+		auditUsage = usage
+		auditUsagePresent = true
 	}
+	requestOutcome = "success"
 	return result, nil
 }
 
-func InferenceGenerateImageStreaming(ctx context.Context, owner apm.WalletOwner, request InferenceImageGenerationRequest) (chan InferenceImageGenerationStreamEvent, *util.HttpError) {
+func InferenceGenerateImageStreaming(ctx context.Context, owner apm.WalletOwner, username string, request InferenceImageGenerationRequest) (chan InferenceImageGenerationStreamEvent, *util.HttpError) {
+	requestStartedAt := time.Now()
+	requestOutcome := "error"
+	auditUsage := InferenceImageGenerationUsage{}
+	auditUsagePresent := false
+	auditDone := false
+	emitAudit := func(outcome string) {
+		if auditDone {
+			return
+		}
+		auditDone = true
+		var auditUsagePtr *InferenceImageGenerationUsage
+		if auditUsagePresent {
+			auditUsagePtr = &auditUsage
+		}
+		inferenceAuditRecord(
+			ctx,
+			"inference.image",
+			owner,
+			username,
+			requestStartedAt,
+			inferenceAuditImageBody(request, auditUsagePtr, requestOutcome),
+			requestOutcome,
+		)
+	}
 	ch := make(chan InferenceImageGenerationStreamEvent)
 
 	if inferenceIsLocked(owner) {
 		close(ch)
+		requestOutcome = "payment_required"
+		emitAudit(requestOutcome)
 		return ch, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
 
@@ -1581,15 +1782,21 @@ func InferenceGenerateImageStreaming(ctx context.Context, owner apm.WalletOwner,
 	model, httpErr := inferenceResolveModelForOwner(owner, modelName)
 	if httpErr != nil {
 		close(ch)
+		requestOutcome = "client_error"
+		emitAudit(requestOutcome)
 		return ch, httpErr
 	}
 	if httpErr := inferenceValidateImageRequest(request); httpErr != nil {
 		close(ch)
+		requestOutcome = "client_error"
+		emitAudit(requestOutcome)
 		return ch, httpErr
 	}
-	release, httpErr := inferenceAcquire(owner)
+	release, httpErr := inferenceAcquire(owner, username)
 	if httpErr != nil {
 		close(ch)
+		requestOutcome = "admission_rejected"
+		emitAudit(requestOutcome)
 		return ch, httpErr
 	}
 	request.Model.Set(model.Endpoint.BackendModelName)
@@ -1597,11 +1804,15 @@ func InferenceGenerateImageStreaming(ctx context.Context, owner apm.WalletOwner,
 	go func() {
 		defer close(ch)
 		defer release()
+		defer func() {
+			emitAudit(requestOutcome)
+		}()
 
 		request.Stream.Set(true)
 		if inferenceGlobals.MockImageGeneration {
 			resp, httpErr := inferenceGenerateMockImageResponse(request)
 			if httpErr != nil {
+				requestOutcome = "client_error"
 				return
 			}
 
@@ -1611,10 +1822,14 @@ func InferenceGenerateImageStreaming(ctx context.Context, owner apm.WalletOwner,
 					B64JSON: resp.Data[0].B64JSON,
 					Usage:   resp.Usage,
 				}) {
+					requestOutcome = "client_cancelled"
 					return
 				}
 			}
 			inferenceReportUsage(owner, model, 0, resp.Usage.InputTokens, resp.Usage.OutputTokens)
+			auditUsage = resp.Usage
+			auditUsagePresent = true
+			requestOutcome = "success"
 			return
 		}
 
@@ -1668,6 +1883,8 @@ func InferenceGenerateImageStreaming(ctx context.Context, owner apm.WalletOwner,
 				if streamEvent.Type == "image_generation.completed" && !charged {
 					if parsed.Usage.Present {
 						inferenceReportUsage(owner, model, 0, streamEvent.Usage.InputTokens, streamEvent.Usage.OutputTokens)
+						auditUsage = streamEvent.Usage
+						auditUsagePresent = true
 					} else {
 						inferenceWarnMissingUsage("image-stream", model.Name)
 					}
@@ -1679,6 +1896,11 @@ func InferenceGenerateImageStreaming(ctx context.Context, owner apm.WalletOwner,
 		})
 		if readErr != nil && streamCtx.Err() == nil {
 			log.Warn("Inference upstream image stream failed: model=%s err=%v", model.Name, readErr)
+		}
+		if streamCtx.Err() == nil {
+			requestOutcome = "success"
+		} else {
+			requestOutcome = "stream_timeout"
 		}
 	}()
 

@@ -58,29 +58,32 @@ type inferenceUsageRow struct {
 }
 
 const inferenceMaxConcurrent = 512
-const inferenceMaxConcurrentPerOwner = 8
+const inferenceMaxConcurrentPerOwner = 16
 
-func inferenceAcquire(owner apm.WalletOwner) (func(), *util.HttpError) {
-	ownerRef := owner.Reference()
+func inferenceAcquire(owner apm.WalletOwner, username string) (func(), *util.HttpError) {
+	admissionOwnerRef := owner.Reference()
+	if username != "" {
+		admissionOwnerRef = username
+	}
 	inferenceAdmission.Lock()
 	defer inferenceAdmission.Unlock()
 	if inferenceAdmission.Total >= inferenceMaxConcurrent {
 		metricInferenceRequestsRejected.WithLabelValues("global").Inc()
 		return nil, util.HttpErr(http.StatusTooManyRequests, "too many concurrent inference requests")
 	}
-	if inferenceAdmission.Owners[ownerRef] >= inferenceMaxConcurrentPerOwner {
+	if inferenceAdmission.Owners[admissionOwnerRef] >= inferenceMaxConcurrentPerOwner {
 		metricInferenceRequestsRejected.WithLabelValues("owner").Inc()
 		return nil, util.HttpErr(http.StatusTooManyRequests, "too many concurrent inference requests")
 	}
 	inferenceAdmission.Total++
-	inferenceAdmission.Owners[ownerRef]++
+	inferenceAdmission.Owners[admissionOwnerRef]++
 	metricInferenceRequestsInFlight.Inc()
 	return func() {
 		inferenceAdmission.Lock()
 		inferenceAdmission.Total--
-		inferenceAdmission.Owners[ownerRef]--
-		if inferenceAdmission.Owners[ownerRef] == 0 {
-			delete(inferenceAdmission.Owners, ownerRef)
+		inferenceAdmission.Owners[admissionOwnerRef]--
+		if inferenceAdmission.Owners[admissionOwnerRef] == 0 {
+			delete(inferenceAdmission.Owners, admissionOwnerRef)
 		}
 		metricInferenceRequestsInFlight.Dec()
 		inferenceAdmission.Unlock()
@@ -464,7 +467,7 @@ func Init() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		owner, _, httpErr := inferenceAuthenticateRequest(r)
+		owner, _, _, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -478,7 +481,7 @@ func Init() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		owner, _, httpErr := inferenceAuthenticateRequest(r)
+		owner, _, _, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -487,30 +490,35 @@ func Init() {
 		inferenceProxyModelsRequest(w, r, owner)
 	})
 
-	controller.Mux.HandleFunc(authority+"/v1/chat/completions", func(w http.ResponseWriter, r *http.Request) {
+	controller.Mux.HandleFunc(authority+"/v1/chat/completions", inferenceAuditMiddleware("inference.chat", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
+			inferenceAuditReject(r.Context(), "method not allowed")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if r.ContentLength > inferenceMaxJSONRequestBytes {
+			inferenceAuditReject(r.Context(), "request body too large")
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
-		apiKeyOwner, _, httpErr := inferenceAuthenticateRequest(r)
+		apiKeyOwner, apiKeyUsername, tokenId, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
+		inferenceAuditIdentity(r.Context(), apiKeyOwner, apiKeyUsername, tokenId)
 
 		var request InferenceChatRequest
 		if !inferenceDecodeJSON(w, r, inferenceMaxJSONRequestBytes, &request) {
+			inferenceAuditReject(r.Context(), "invalid request body")
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
 		defer cancel()
 
 		if request.Stream {
-			chunks, httpErr := InferenceChatStreaming(ctx, apiKeyOwner, request)
+			chunks, httpErr := InferenceChatStreaming(ctx, apiKeyOwner, apiKeyUsername, request)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
@@ -537,7 +545,7 @@ func Init() {
 			return
 		}
 
-		resp, httpErr := InferenceChat(ctx, apiKeyOwner, request)
+		resp, httpErr := InferenceChat(ctx, apiKeyOwner, apiKeyUsername, request)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -551,28 +559,34 @@ func Init() {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(respData)
-	})
+	}))
 
-	controller.Mux.HandleFunc(authority+"/v1/responses", func(w http.ResponseWriter, r *http.Request) {
+	controller.Mux.HandleFunc(authority+"/v1/responses", inferenceAuditMiddleware("inference.responses", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
+			inferenceAuditReject(r.Context(), "method not allowed")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if r.ContentLength > inferenceMaxJSONRequestBytes {
+			inferenceAuditReject(r.Context(), "request body too large")
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
-		apiKeyOwner, createdBy, httpErr := inferenceAuthenticateRequest(r)
+		apiKeyOwner, createdBy, tokenId, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
+		inferenceAuditIdentity(r.Context(), apiKeyOwner, createdBy, tokenId)
 		if createdBy == "" {
+			inferenceAuditReject(r.Context(), "token has no associated user")
 			http.Error(w, "token has no associated user", http.StatusForbidden)
 			return
 		}
 		var request OaiResponseCreateRequest
 		if !inferenceDecodeJSON(w, r, inferenceMaxJSONRequestBytes, &request) {
+			inferenceAuditReject(r.Context(), "invalid request body")
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
@@ -625,15 +639,18 @@ func Init() {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(respData)
-	})
+	}))
 
-	controller.Mux.HandleFunc(authority+"/v1/responses/", func(w http.ResponseWriter, r *http.Request) {
-		apiKeyOwner, createdBy, httpErr := inferenceAuthenticateRequest(r)
+	controller.Mux.HandleFunc(authority+"/v1/responses/", inferenceAuditMiddleware("inference.responses", func(w http.ResponseWriter, r *http.Request) {
+		apiKeyOwner, createdBy, tokenId, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
+		inferenceAuditIdentity(r.Context(), apiKeyOwner, createdBy, tokenId)
 		if createdBy == "" {
+			inferenceAuditReject(r.Context(), "token has no associated user")
 			http.Error(w, "token has no associated user", http.StatusForbidden)
 			return
 		}
@@ -647,6 +664,7 @@ func Init() {
 
 		if strings.HasSuffix(path, "/cancel") {
 			if r.Method != http.MethodPost {
+				inferenceAuditReject(r.Context(), "method not allowed")
 				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
@@ -688,15 +706,18 @@ func Init() {
 		default:
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
-	})
+	}))
 
-	controller.Mux.HandleFunc(authority+"/v1/conversations/", func(w http.ResponseWriter, r *http.Request) {
-		apiKeyOwner, createdBy, httpErr := inferenceAuthenticateRequest(r)
+	controller.Mux.HandleFunc(authority+"/v1/conversations/", inferenceAuditMiddleware("inference.conversations", func(w http.ResponseWriter, r *http.Request) {
+		apiKeyOwner, createdBy, tokenId, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
+		inferenceAuditIdentity(r.Context(), apiKeyOwner, createdBy, tokenId)
 		if createdBy == "" {
+			inferenceAuditReject(r.Context(), "token has no associated user")
 			http.Error(w, "token has no associated user", http.StatusForbidden)
 			return
 		}
@@ -725,32 +746,47 @@ func Init() {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
 			}
+			inferenceAuditRecord(
+				r.Context(),
+				"inference.conversations.delete",
+				apiKeyOwner,
+				createdBy,
+				time.Now(),
+				mustMarshal(map[string]string{"conversationId": id}),
+				"",
+			)
 			resultData, _ := json.Marshal(result)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(resultData)
 		default:
+			inferenceAuditReject(r.Context(), "method not allowed")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
-	})
+	}))
 
-	controller.Mux.HandleFunc(authority+"/v1/audio/transcriptions", func(w http.ResponseWriter, r *http.Request) {
+	controller.Mux.HandleFunc(authority+"/v1/audio/transcriptions", inferenceAuditMiddleware("inference.transcribe", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
+			inferenceAuditReject(r.Context(), "method not allowed")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if r.ContentLength > inferenceMaxTranscriptionRequestBytes {
+			inferenceAuditReject(r.Context(), "request body too large")
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
-		apiKeyOwner, _, httpErr := inferenceAuthenticateRequest(r)
+		apiKeyOwner, apiKeyUsername, tokenId, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
+		inferenceAuditIdentity(r.Context(), apiKeyOwner, apiKeyUsername, tokenId)
 
 		request, httpErr := InferenceTranscriptionParseRequest(w, r)
 		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
@@ -758,7 +794,7 @@ func Init() {
 		ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
 		defer cancel()
 		if request.Stream {
-			events, httpErr := InferenceTranscribeStreaming(ctx, apiKeyOwner, request)
+			events, httpErr := InferenceTranscribeStreaming(ctx, apiKeyOwner, apiKeyUsername, request)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
@@ -786,7 +822,7 @@ func Init() {
 			return
 		}
 
-		resp, httpErr := InferenceTranscribe(ctx, apiKeyOwner, request)
+		resp, httpErr := InferenceTranscribe(ctx, apiKeyOwner, apiKeyUsername, request)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -804,32 +840,37 @@ func Init() {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(respData)
-	})
+	}))
 
-	controller.Mux.HandleFunc(authority+"/v1/images/generations", func(w http.ResponseWriter, r *http.Request) {
+	controller.Mux.HandleFunc(authority+"/v1/images/generations", inferenceAuditMiddleware("inference.image", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
+			inferenceAuditReject(r.Context(), "method not allowed")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		if r.ContentLength > inferenceMaxJSONRequestBytes {
+			inferenceAuditReject(r.Context(), "request body too large")
 			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
 			return
 		}
-		apiKeyOwner, _, httpErr := inferenceAuthenticateRequest(r)
+		apiKeyOwner, apiKeyUsername, tokenId, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
+		inferenceAuditIdentity(r.Context(), apiKeyOwner, apiKeyUsername, tokenId)
 
 		var request InferenceImageGenerationRequest
 		if !inferenceDecodeJSON(w, r, inferenceMaxJSONRequestBytes, &request) {
+			inferenceAuditReject(r.Context(), "invalid request body")
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
 		defer cancel()
 
 		if request.Stream.GetOrDefault(false) {
-			events, httpErr := InferenceGenerateImageStreaming(ctx, apiKeyOwner, request)
+			events, httpErr := InferenceGenerateImageStreaming(ctx, apiKeyOwner, apiKeyUsername, request)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
@@ -857,7 +898,7 @@ func Init() {
 			return
 		}
 
-		respData, httpErr := inferenceGenerateImageResponse(ctx, apiKeyOwner, request)
+		respData, httpErr := inferenceGenerateImageResponse(ctx, apiKeyOwner, apiKeyUsername, request)
 		if httpErr != nil {
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
@@ -866,7 +907,7 @@ func Init() {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(respData)
-	})
+	}))
 	inferenceGlobals.Ready.Store(true)
 }
 
@@ -877,11 +918,11 @@ func inferenceIsAdminOwner(owner orcapi.ResourceOwner) bool {
 	return slices.Contains(shared.ServiceConfig.Compute.Inference.Access.Administrators, owner.Project.Value)
 }
 
-func inferenceAuthenticateRequest(r *http.Request) (apm.WalletOwner, string, *util.HttpError) {
+func inferenceAuthenticateRequest(r *http.Request) (apm.WalletOwner, string, string, *util.HttpError) {
 	authHeader := r.Header.Get("Authorization")
 	apiKey, ok := strings.CutPrefix(authHeader, "Bearer ")
 	if !ok || apiKey == "" {
-		return apm.WalletOwner{}, "", util.HttpErr(http.StatusForbidden, "invalid key")
+		return apm.WalletOwner{}, "", "", util.HttpErr(http.StatusForbidden, "invalid key")
 	}
 	return inferenceApiKeyValidate(apiKey)
 }

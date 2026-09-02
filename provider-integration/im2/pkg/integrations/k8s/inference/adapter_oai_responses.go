@@ -401,19 +401,45 @@ func inferenceResponseStoreLookupRecord(owner apm.WalletOwner, username string, 
 }
 
 func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, username string, request OaiResponseCreateRequest) (OaiResponse, *util.HttpError) {
+	requestStartedAt := time.Now()
+	requestOutcome := "error"
+	chatCtx := inferenceAuditSuppress(ctx)
+	auditRequest := request
+	chatUsage := InferenceChatUsage{}
+	chatUsagePresent := false
+	defer func() {
+		var usagePtr *InferenceChatUsage
+		if chatUsagePresent {
+			usagePtr = &chatUsage
+		}
+		inferenceAuditRecord(
+			ctx,
+			"inference.responses",
+			owner,
+			username,
+			requestStartedAt,
+			inferenceAuditOaiResponseBody(inferenceAuditChainKey(owner, username), auditRequest, usagePtr, requestOutcome, ""),
+			requestOutcome,
+		)
+	}()
+
 	if httpErr := inferenceResponseValidateRequest(request); httpErr != nil {
+		requestOutcome = "client_error"
 		return OaiResponse{}, httpErr
 	}
 	if username == "" {
+		requestOutcome = "client_error"
 		return OaiResponse{}, util.HttpErr(http.StatusForbidden, "token has no associated user")
 	}
 
 	request, conversationId, httpErr := inferenceResponseResolveChain(owner, username, request)
 	if httpErr != nil {
+		requestOutcome = "client_error"
 		return OaiResponse{}, httpErr
 	}
 	request, httpErr = inferenceResponseApplyReasoningDefault(owner, request)
 	if httpErr != nil {
+		requestOutcome = "client_error"
 		return OaiResponse{}, httpErr
 	}
 
@@ -424,12 +450,15 @@ func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, usernam
 		queued.Status = "queued"
 		queued.Background = true
 		if httpErr := inferenceResponseStoreSet(owner, username, queued, nil); httpErr != nil {
+			requestOutcome = "error"
 			return OaiResponse{}, httpErr
 		}
+		requestOutcome = "background_submitted"
 
 		go func() {
 			backgroundCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), inferenceRequestTimeout)
 			defer cancel()
+			backgroundCtx = inferenceAuditSuppress(backgroundCtx)
 			inProgress := queued
 			inProgress.Status = "in_progress"
 			_ = inferenceResponseStoreSet(owner, username, inProgress, nil)
@@ -442,7 +471,7 @@ func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, usernam
 				return
 			}
 
-			chatResponse, httpErr := InferenceChat(backgroundCtx, owner, chatRequest)
+			chatResponse, httpErr := InferenceChat(backgroundCtx, owner, username, chatRequest)
 			if httpErr != nil {
 				failed := inferenceResponseFailed(id, createdAt, request, httpErr.Why)
 				failed.Background = true
@@ -461,53 +490,96 @@ func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, usernam
 
 	chatRequest, httpErr := inferenceResponseChatRequest(request)
 	if httpErr != nil {
+		requestOutcome = "client_error"
 		return OaiResponse{}, httpErr
 	}
 
-	chatResponse, httpErr := InferenceChat(ctx, owner, chatRequest)
+	chatResponse, httpErr := InferenceChat(chatCtx, owner, username, chatRequest)
 	if httpErr != nil {
+		requestOutcome = "error"
 		return OaiResponse{}, httpErr
 	}
 
 	resp := inferenceResponseFromChat(id, request, chatResponse)
 	conversation := inferenceResponseConversationFromTurn(request.Input, resp, conversationId)
 	if httpErr := inferenceResponseStoreSet(owner, username, resp, conversation); httpErr != nil {
+		requestOutcome = "error"
 		return OaiResponse{}, httpErr
 	}
+	requestOutcome = "success"
+	chatUsage = chatResponse.Usage
+	chatUsagePresent = true
 	return resp, nil
 }
 
 func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner, username string, request OaiResponseCreateRequest) (chan OaiResponseStreamEvent, *util.HttpError) {
+	requestStartedAt := time.Now()
+	requestOutcome := "error"
+	chatCtx := inferenceAuditSuppress(ctx)
+	auditRequest := request
+	auditUsage := InferenceChatUsage{}
+	auditUsagePresent := false
+	auditDone := false
+	emitAudit := func(outcome string) {
+		if auditDone {
+			return
+		}
+		auditDone = true
+		var usagePtr *InferenceChatUsage
+		if auditUsagePresent {
+			usagePtr = &auditUsage
+		}
+		inferenceAuditRecord(
+			ctx,
+			"inference.responses",
+			owner,
+			username,
+			requestStartedAt,
+			inferenceAuditOaiResponseBody(inferenceAuditChainKey(owner, username), auditRequest, usagePtr, outcome, ""),
+			outcome,
+		)
+	}
 	ch := make(chan OaiResponseStreamEvent)
 	if httpErr := inferenceResponseValidateRequest(request); httpErr != nil {
 		close(ch)
+		requestOutcome = "client_error"
+		emitAudit(requestOutcome)
 		return ch, httpErr
 	}
 	if username == "" {
 		close(ch)
+		requestOutcome = "client_error"
+		emitAudit(requestOutcome)
 		return ch, util.HttpErr(http.StatusForbidden, "token has no associated user")
 	}
 
 	request, conversationId, httpErr := inferenceResponseResolveChain(owner, username, request)
 	if httpErr != nil {
 		close(ch)
+		requestOutcome = "client_error"
+		emitAudit(requestOutcome)
 		return ch, httpErr
 	}
 	request, httpErr = inferenceResponseApplyReasoningDefault(owner, request)
 	if httpErr != nil {
 		close(ch)
+		requestOutcome = "client_error"
+		emitAudit(requestOutcome)
 		return ch, httpErr
 	}
 
 	chatRequest, httpErr := inferenceResponseChatRequest(request)
 	if httpErr != nil {
 		close(ch)
+		requestOutcome = "client_error"
+		emitAudit(requestOutcome)
 		return ch, httpErr
 	}
 
-	chatChunks, httpErr := InferenceChatStreaming(ctx, owner, chatRequest)
+	chatChunks, httpErr := InferenceChatStreaming(chatCtx, owner, username, chatRequest)
 	if httpErr != nil {
 		close(ch)
+		emitAudit(requestOutcome)
 		return ch, httpErr
 	}
 
@@ -517,16 +589,27 @@ func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner
 	go func() {
 		defer close(ch)
 
+		var text strings.Builder
+		var pendingText strings.Builder
+		var reasoning strings.Builder
+		var usage InferenceChatUsage
+		defer func() {
+			if !auditUsagePresent && usage.TotalTokens != 0 {
+				auditUsage = usage
+				auditUsagePresent = true
+			}
+			if requestOutcome == "error" {
+				requestOutcome = "success"
+			}
+			emitAudit(requestOutcome)
+		}()
+
 		resp := inferenceResponseBase(id, createdAt, request)
 		resp.Status = "in_progress"
 		resp.Usage = nil
 		ch <- OaiResponseStreamEvent{Type: "response.created", Response: &resp}
 		ch <- OaiResponseStreamEvent{Type: "response.in_progress", Response: &resp}
 
-		var text strings.Builder
-		var pendingText strings.Builder
-		var reasoning strings.Builder
-		var usage InferenceChatUsage
 		customTools := inferenceResponseCustomToolNames(request.Tools)
 		toolCalls := map[int]*inferenceResponseStreamingToolCall{}
 		toolCallOrder := []int{}
@@ -726,8 +809,12 @@ func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner
 		if err := inferenceResponseStoreSet(owner, username, resp, conversation); err != nil {
 			failed := inferenceResponseFailed(resp.Id, createdAt, request, err.Why)
 			ch <- OaiResponseStreamEvent{Type: "response.failed", Response: &failed}
+			requestOutcome = "error"
 			return
 		}
+		auditUsage = usage
+		auditUsagePresent = true
+		requestOutcome = "success"
 		ch <- OaiResponseStreamEvent{Type: "response.completed", Response: &resp}
 	}()
 

@@ -15,10 +15,10 @@ const inferenceApiTokenKind = "inference"
 // API tokens
 // =====================================================================================================================
 
-func inferenceApiKeyValidate(key string) (apm.WalletOwner, string, *util.HttpError) {
+func inferenceApiKeyValidate(key string) (apm.WalletOwner, string, string, *util.HttpError) {
 	authentication, httpErr := controller.ApiTokenValidate(inferenceApiTokenKind, key)
 	if httpErr != nil {
-		return apm.WalletOwner{}, "", httpErr
+		return apm.WalletOwner{}, "", "", httpErr
 	}
 
 	owner := authentication.Owner
@@ -31,13 +31,13 @@ func inferenceApiKeyValidate(key string) (apm.WalletOwner, string, *util.HttpErr
 		}
 	}
 	if !hasUsePermission {
-		return apm.WalletOwner{}, "", util.HttpErr(http.StatusForbidden, "token does not allow inference use")
+		return apm.WalletOwner{}, "", "", util.HttpErr(http.StatusForbidden, "token does not allow inference use")
 	}
 
 	if controller.WalletIsLocked(owner, inferenceGlobals.Product.Category.Name).Locked {
-		return apm.WalletOwner{}, "", util.HttpErr(http.StatusPaymentRequired, "no more resources available")
+		return apm.WalletOwner{}, "", "", util.HttpErr(http.StatusPaymentRequired, "no more resources available")
 	}
-	return owner, authentication.CreatedBy, nil
+	return owner, authentication.CreatedBy, authentication.TokenId, nil
 }
 
 func InitApiTokens() controller.ApiTokenProvider {

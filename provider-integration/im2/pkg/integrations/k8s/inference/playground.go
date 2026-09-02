@@ -769,9 +769,9 @@ func (app *InferencePlaygroundApp) titleGenerationModelId(chatModelId string) st
 
 func (app *InferencePlaygroundApp) generateThreadTitle(threadId string, modelId string, prompt string) {
 	owner := app.walletOwner()
-	ctx := app.session.Context()
+	ctx := inferenceAuditSource(app.session.Context(), "playground")
 	go func() {
-		resp, err := InferenceChat(ctx, owner, InferenceChatRequest{
+		resp, err := InferenceChatEx(ctx, owner, app.tokenUsername(), InferenceChatRequest{
 			Model: modelId,
 			Messages: []InferenceChatMessage{
 				{Role: "system", Content: inferenceChatTextContent("Generate a short chat thread title. Return only the title, without quotes or punctuation at the end. Maximum five words.")},
@@ -780,7 +780,7 @@ func (app *InferencePlaygroundApp) generateThreadTitle(threadId string, modelId 
 			Temperature:         util.OptValue(0.2),
 			TopP:                util.OptValue(0.5),
 			MaxCompletionTokens: util.OptValue(16),
-		})
+		}, true)
 		if err != nil || len(resp.Choices) == 0 {
 			return
 		}
@@ -823,9 +823,9 @@ func (app *InferencePlaygroundApp) generateThinkingTitle(threadId string, assist
 		return
 	}
 	owner := app.walletOwner()
-	ctx := app.session.Context()
+	ctx := inferenceAuditSource(app.session.Context(), "playground")
 	go func() {
-		resp, err := InferenceChat(ctx, owner, InferenceChatRequest{
+		resp, err := InferenceChatEx(ctx, owner, app.tokenUsername(), InferenceChatRequest{
 			Model: modelId,
 			Messages: []InferenceChatMessage{
 				{Role: "system", Content: inferenceChatTextContent("Generate a short title for this model reasoning. Return only the title, without quotes or punctuation at the end. Maximum five words.")},
@@ -834,7 +834,7 @@ func (app *InferencePlaygroundApp) generateThinkingTitle(threadId string, assist
 			Temperature:         util.OptValue(0.2),
 			TopP:                util.OptValue(0.5),
 			MaxCompletionTokens: util.OptValue(16),
-		})
+		}, true)
 		if err != nil || len(resp.Choices) == 0 {
 			return
 		}
@@ -1170,6 +1170,7 @@ func (app *InferencePlaygroundApp) regenerateChat(modelId string, messageIndex i
 }
 
 func (app *InferencePlaygroundApp) runChatResponse(ctx context.Context, owner apm.WalletOwner, threadId string, assistantIndex int, request InferenceChatRequest) {
+	ctx = inferenceAuditSource(ctx, "playground")
 	assistant := ""
 	reasoning := ""
 	usageSeen := InferenceChatUsage{}
@@ -1183,7 +1184,7 @@ func (app *InferencePlaygroundApp) runChatResponse(ctx context.Context, owner ap
 			assistant = err.Why
 		}
 	} else {
-		resp, err := InferenceChat(ctx, owner, request)
+		resp, err := InferenceChat(ctx, owner, app.tokenUsername(), request)
 		if err != nil {
 			assistant = err.Why
 		} else {
@@ -1405,6 +1406,7 @@ func (app *InferencePlaygroundApp) sendStreamingMessagePatch() {
 }
 
 func (app *InferencePlaygroundApp) runChatResponseStreaming(ctx context.Context, owner apm.WalletOwner, request *InferenceChatRequest, threadId string, assistantIndex int, startedAt int64) (string, string, InferenceChatUsage, InferenceChatUsage, int64, *util.HttpError) {
+	ctx = inferenceAuditSource(ctx, "playground")
 	usageSeen := InferenceChatUsage{}
 	lastRequestUsage := InferenceChatUsage{}
 	firstTokenAt := int64(0)
@@ -1443,7 +1445,7 @@ func (app *InferencePlaygroundApp) runChatResponseStreamingInner(
 			)
 			request.ToolChoice = "none"
 		}
-		chunks, err := InferenceChatStreaming(ctx, owner, *request)
+		chunks, err := InferenceChatStreaming(ctx, owner, app.tokenUsername(), *request)
 		if err != nil {
 			content, reasoning, _ := publisher.snapshot()
 			return content, reasoning, err
@@ -2127,6 +2129,10 @@ func usageRow(label string, value ucx.UiNode) ucx.UiNode {
 		ucx.Text(label),
 		value.Sx(ucx.SxTextAlignRight),
 	)
+}
+
+func (app *InferencePlaygroundApp) tokenUsername() string {
+	return app.Owner.CreatedBy
 }
 
 func (app *InferencePlaygroundApp) walletOwner() apm.WalletOwner {
