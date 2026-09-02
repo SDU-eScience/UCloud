@@ -31,9 +31,9 @@ const (
 )
 
 type InferencePlaygroundApp struct {
-	mu                  sync.Mutex   `ucx:"-"`
-	session             *ucx.Session `ucx:"-"`
-	flusherStarted      bool         `ucx:"-"`
+	mu             sync.Mutex   `ucx:"-"`
+	session        *ucx.Session `ucx:"-"`
+	flusherStarted bool         `ucx:"-"`
 
 	Owner     orcapi.ResourceOwner `ucx:"-"`
 	SessionId string               `ucx:"-"`
@@ -49,7 +49,8 @@ type InferencePlaygroundApp struct {
 	DeletedThreadPaths []string `ucx:"-"`
 	CurrentThreadId    string
 
-	Chat InferencePlaygroundAppChat
+	Chat        InferencePlaygroundAppChat
+	chatCancels map[string]context.CancelFunc `ucx:"-"`
 }
 
 type InferencePlaygroundAppChat struct {
@@ -91,6 +92,7 @@ func InferencePlayground(owner orcapi.ResourceOwner, sessionId string) *Inferenc
 		SessionId:       sessionId,
 		Developer:       false,
 		DevelopmentMode: util.DevelopmentModeEnabled(),
+		chatCancels:     map[string]context.CancelFunc{},
 		Chat: InferencePlaygroundAppChat{
 			Streaming:           true,
 			Temperature:         0.8,
@@ -152,16 +154,16 @@ type playgroundChatAttachment struct {
 }
 
 type playgroundChatThread struct {
-	Id           string
-	Title        string
-	CreatedAt    int64
-	UpdatedAt    int64
-	Usage        InferencePlaygroundTokenUsage
-	LastQuery    InferencePlaygroundTokenUsage `ucx:"-"`
-	Messages     []playgroundChatMessage       `ucx:"-"`
-	Dirty        bool                          `ucx:"-"`
-	Deleted      bool                          `ucx:"-"`
-	StoragePath  string                        `ucx:"-"`
+	Id          string
+	Title       string
+	CreatedAt   int64
+	UpdatedAt   int64
+	Usage       InferencePlaygroundTokenUsage
+	LastQuery   InferencePlaygroundTokenUsage `ucx:"-"`
+	Messages    []playgroundChatMessage       `ucx:"-"`
+	Dirty       bool                          `ucx:"-"`
+	Deleted     bool                          `ucx:"-"`
+	StoragePath string                        `ucx:"-"`
 }
 
 type playgroundAttachmentCreateRequest struct {
@@ -274,6 +276,9 @@ func (app *InferencePlaygroundApp) OnMessage(message ucx.Frame) {
 				app.runChat(attachments)
 				ucx.AppUpdateModel(app)
 			}
+		case "chatComposerStop":
+			app.stopChat(message.UiEvent.Value.String)
+			ucx.AppUpdateModel(app)
 		case "regenerateChat":
 			if !app.currentThreadLoading() {
 				modelId := message.UiEvent.Value.String
@@ -703,9 +708,9 @@ func (app *InferencePlaygroundApp) runChat(attachments []playgroundChatAttachmen
 
 	request := InferenceChatRequest{
 		Model:               app.Chat.ModelId,
-		Stream:              app.Chat.Streaming,
+		Stream:              true,
+		StreamOptions:       util.OptValue(InferenceChatStreamOptions{IncludeUsage: true}),
 		Messages:            app.chatRequestMessages(prompt, attachments),
-		StreamOptions:       util.Option[InferenceChatStreamOptions]{},
 		Temperature:         util.OptValue(app.Chat.Temperature),
 		TopP:                util.OptValue(app.Chat.TopP),
 		PresencePenalty:     util.OptValue(app.Chat.PresencePenalty),
@@ -727,19 +732,15 @@ func (app *InferencePlaygroundApp) runChat(attachments []playgroundChatAttachmen
 	app.markCurrentThreadDirty()
 	threadId := app.CurrentThreadId
 	app.setThreadLoading(threadId, true)
+	// Register the stop-context and mark the thread as streaming before the model update is sent, so
+	// the composer's Stop button works immediately, including while waiting for the first output token.
+	app.prepareChatTools(&request)
+	ctx := app.startChatContext(threadId)
+	app.Chat.StreamingThreadId = threadId
 	ucx.AppUpdateUi(app)
 
 	go func() {
-		// IO in goroutine to avoid freezing UI.
-		app.mu.Lock()
-		app.prepareChatTools(&request)
-		ctx := app.sessionContextLocked()
-		app.mu.Unlock()
-
-		if request.Stream {
-			request.StreamOptions = util.OptValue(InferenceChatStreamOptions{IncludeUsage: true})
-		}
-
+		// The response performs blocking network IO and must not run on the UI event loop.
 		app.runChatResponse(ctx, owner, threadId, assistantIndex, request)
 	}()
 }
@@ -781,9 +782,9 @@ func (app *InferencePlaygroundApp) regenerateChat(modelId string, messageIndex i
 
 	request := InferenceChatRequest{
 		Model:               app.Chat.ModelId,
-		Stream:              app.Chat.Streaming,
+		Stream:              true,
+		StreamOptions:       util.OptValue(InferenceChatStreamOptions{IncludeUsage: true}),
 		Messages:            app.chatRequestMessagesFromHistory(),
-		StreamOptions:       util.Option[InferenceChatStreamOptions]{},
 		Temperature:         util.OptValue(app.Chat.Temperature),
 		TopP:                util.OptValue(app.Chat.TopP),
 		PresencePenalty:     util.OptValue(app.Chat.PresencePenalty),
@@ -803,19 +804,15 @@ func (app *InferencePlaygroundApp) regenerateChat(modelId string, messageIndex i
 	app.Chat.Usage.LastQuery = InferencePlaygroundTokenUsage{}
 	app.markCurrentThreadDirty()
 	app.setThreadLoading(threadId, true)
+	// Register the stop-context and mark the thread as streaming before the model update is sent, so
+	// the composer's Stop button works immediately, including while waiting for the first output token.
+	app.prepareChatTools(&request)
+	ctx := app.startChatContext(threadId)
+	app.Chat.StreamingThreadId = threadId
 	ucx.AppUpdateModel(app)
 
 	go func() {
-		// IO in goroutine to avoid freezing UI.
-		app.mu.Lock()
-		app.prepareChatTools(&request)
-		ctx := app.sessionContextLocked()
-		app.mu.Unlock()
-
-		if request.Stream {
-			request.StreamOptions = util.OptValue(InferenceChatStreamOptions{IncludeUsage: true})
-		}
-
+		// The response performs blocking network IO and must not run on the UI event loop.
 		app.runChatResponse(ctx, owner, threadId, assistantIndex, request)
 	}()
 }
@@ -828,25 +825,9 @@ func (app *InferencePlaygroundApp) runChatResponse(ctx context.Context, owner ap
 	lastRequestUsage := InferenceChatUsage{}
 	startedAt := time.Now().UnixMilli()
 	firstTokenAt := int64(0)
-	if request.Stream {
-		var err *util.HttpError
-		assistant, reasoning, usageSeen, lastRequestUsage, firstTokenAt, err = app.runChatResponseStreaming(ctx, owner, &request, threadId, assistantIndex, startedAt)
-		if err != nil {
-			assistant = err.Why
-		}
-	} else {
-		resp, err := InferenceChat(ctx, owner, app.tokenUsername(), request)
-		if err != nil {
-			assistant = err.Why
-		} else {
-			firstTokenAt = time.Now().UnixMilli()
-			usageSeen = resp.Usage
-			lastRequestUsage = resp.Usage
-			if len(resp.Choices) > 0 {
-				assistant = resp.Choices[0].Message.Content.String()
-				reasoning = resp.Choices[0].Message.Reasoning.String()
-			}
-		}
+	assistant, reasoning, usageSeen, lastRequestUsage, firstTokenAt, err := app.runChatResponseStreaming(ctx, owner, &request, threadId, assistantIndex, startedAt)
+	if err != nil && ctx.Err() == nil {
+		assistant = err.Why
 	}
 
 	if assistant == "" {
@@ -854,6 +835,7 @@ func (app *InferencePlaygroundApp) runChatResponse(ctx context.Context, owner ap
 	}
 
 	app.mu.Lock()
+	app.unregisterChatCancel(threadId)
 	finishedAt := time.Now().UnixMilli()
 	if firstTokenAt == 0 {
 		firstTokenAt = finishedAt
@@ -875,9 +857,6 @@ func (app *InferencePlaygroundApp) runChatResponse(ctx context.Context, owner ap
 
 func (app *InferencePlaygroundApp) prepareChatTools(request *InferenceChatRequest) {
 	request.Tools = []InferenceChatTool{}
-	if !request.Stream {
-		return
-	}
 	model, ok := app.modelByName(request.Model)
 	if ok && model.ChatSettings.DisableTools {
 		return
@@ -915,10 +894,10 @@ type playgroundStreamingPublisher struct {
 	reasoning    strings.Builder
 	outputTokens int64
 	firstTokenAt int64
+	dirty        bool
 
-	notify chan struct{}
-	quit   chan struct{}
-	done   chan struct{}
+	quit chan struct{}
+	done chan struct{}
 }
 
 const playgroundStreamingPublishInterval = 50 * time.Millisecond
@@ -930,7 +909,6 @@ func (app *InferencePlaygroundApp) newStreamingPublisher(threadId string, assist
 		assistantIndex: assistantIndex,
 		modelId:        modelId,
 		startedAt:      startedAt,
-		notify:         make(chan struct{}, 1),
 		quit:           make(chan struct{}),
 		done:           make(chan struct{}),
 	}
@@ -940,28 +918,37 @@ func (p *playgroundStreamingPublisher) publish(contentDelta string, reasoningDel
 	p.mu.Lock()
 	if contentDelta != "" {
 		p.content.WriteString(contentDelta)
+		p.dirty = true
 	}
 	if reasoningDelta != "" {
 		p.reasoning.WriteString(reasoningDelta)
+		p.dirty = true
 	}
 	if outputTokens > p.outputTokens {
 		p.outputTokens = outputTokens
+		p.dirty = true
 	}
 	if p.firstTokenAt == 0 && (contentDelta != "" || reasoningDelta != "") {
 		p.firstTokenAt = time.Now().UnixMilli()
 	}
 	p.mu.Unlock()
-
-	select {
-	case p.notify <- struct{}{}:
-	default:
-	}
 }
 
 func (p *playgroundStreamingPublisher) snapshot() (content string, reasoning string, firstTokenAt int64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.content.String(), p.reasoning.String(), p.firstTokenAt
+}
+
+func (p *playgroundStreamingPublisher) takeSnapshot() (content string, reasoning string, firstTokenAt int64, dirty bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	content = p.content.String()
+	reasoning = p.reasoning.String()
+	firstTokenAt = p.firstTokenAt
+	dirty = p.dirty
+	p.dirty = false
+	return content, reasoning, firstTokenAt, dirty
 }
 
 func (p *playgroundStreamingPublisher) outputTokensSnapshot() int64 {
@@ -977,8 +964,6 @@ func (p *playgroundStreamingPublisher) run() {
 
 	for {
 		select {
-		case <-p.notify:
-			p.flush()
 		case <-ticker.C:
 			p.flush()
 		case <-p.quit:
@@ -995,7 +980,11 @@ func (p *playgroundStreamingPublisher) stop() {
 }
 
 func (p *playgroundStreamingPublisher) flush() {
-	content, reasoning, firstTokenAt := p.snapshot()
+	content, reasoning, firstTokenAt, dirty := p.takeSnapshot()
+	if !dirty {
+		return
+	}
+
 	p.app.mu.Lock()
 	p.app.updateThreadAssistant(
 		p.threadId,
@@ -1079,6 +1068,10 @@ func (app *InferencePlaygroundApp) runChatResponseStreamingInner(
 	firstTokenAt *int64,
 ) (string, string, *util.HttpError) {
 	for iteration := 0; iteration < playgroundToolMaxIterations; iteration++ {
+		if ctx.Err() != nil {
+			content, reasoning, _ := publisher.snapshot()
+			return content, reasoning, nil
+		}
 		if iteration == playgroundToolMaxIterations-1 {
 			request.Messages = append(
 				request.Messages,
@@ -1140,6 +1133,11 @@ func (app *InferencePlaygroundApp) runChatResponseStreamingInner(
 		*firstTokenAt = publisherFirstTokenAt
 
 		if len(toolCallOrder) == 0 {
+			content, reasoning, _ := publisher.snapshot()
+			return content, reasoning, nil
+		}
+
+		if ctx.Err() != nil {
 			content, reasoning, _ := publisher.snapshot()
 			return content, reasoning, nil
 		}
@@ -1327,6 +1325,40 @@ func (app *InferencePlaygroundApp) threadLoading(threadId string) bool {
 
 func (app *InferencePlaygroundApp) currentThreadLoading() bool {
 	return app.threadLoading(app.CurrentThreadId)
+}
+
+func (app *InferencePlaygroundApp) stopChat(requestedThreadId string) {
+	threadId := app.CurrentThreadId
+	if requestedThreadId != "" && requestedThreadId != threadId {
+		return
+	}
+
+	cancel, ok := app.chatCancels[threadId]
+	if !ok {
+		return
+	}
+	cancel()
+}
+
+func (app *InferencePlaygroundApp) startChatContext(threadId string) context.Context {
+	ctx, cancel := context.WithCancel(app.sessionContextLocked())
+	app.registerChatCancel(threadId, cancel)
+	return ctx
+}
+
+func (app *InferencePlaygroundApp) registerChatCancel(threadId string, cancel context.CancelFunc) {
+	if threadId == "" {
+		cancel()
+		return
+	}
+	app.chatCancels[threadId] = cancel
+}
+
+func (app *InferencePlaygroundApp) unregisterChatCancel(threadId string) {
+	if threadId == "" {
+		return
+	}
+	delete(app.chatCancels, threadId)
 }
 
 func (app *InferencePlaygroundApp) updateThreadAssistant(threadId string, assistantIndex int, content string, reasoning string, reasoningOpen bool, modelName string, startedAt int64, firstTokenAt int64, finishedAt int64, outputTokens int64) {

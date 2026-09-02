@@ -10,8 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -23,9 +21,6 @@ import (
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
-
-const inferenceChatCaptureUpstreamOutput = false
-const inferenceChatReplayUpstreamOutputPath = ""
 
 const (
 	inferenceMaxUpstreamJSONBytes  = 1024 * 1024 * 8
@@ -637,56 +632,6 @@ type InferenceChatStreamingToolCallFunction struct {
 	Arguments string `json:"arguments,omitempty"`
 }
 
-type inferenceChatUpstreamCapture struct {
-	CreatedAt string            `json:"created_at"`
-	Kind      string            `json:"kind"`
-	Request   json.RawMessage   `json:"request"`
-	Chunks    []json.RawMessage `json:"chunks"`
-}
-
-func inferenceChatUpstreamCapturePath() string {
-	return filepath.Join("/tmp", fmt.Sprintf("ucloud-inference-upstream-%d.json", time.Now().UnixNano()))
-}
-
-func inferenceChatWriteUpstreamCapture(request []byte, chunks []json.RawMessage) {
-	if !inferenceChatCaptureUpstreamOutput || len(chunks) == 0 {
-		return
-	}
-	capture := inferenceChatUpstreamCapture{
-		CreatedAt: time.Now().Format(time.RFC3339Nano),
-		Kind:      "chat.completions.stream",
-		Request:   append(json.RawMessage(nil), request...),
-		Chunks:    chunks,
-	}
-	encoded, err := json.MarshalIndent(capture, "", "  ")
-	if err != nil {
-		log.Info("Inference upstream capture encode failed: %v", err)
-		return
-	}
-	path := inferenceChatUpstreamCapturePath()
-	if err := os.WriteFile(path, encoded, 0600); err != nil {
-		log.Info("Inference upstream capture write failed: path=%s err=%v", path, err)
-		return
-	}
-	log.Info("Inference upstream capture written: %s chunks=%d", path, len(chunks))
-}
-
-func inferenceChatReadUpstreamReplay(path string) ([]json.RawMessage, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var capture inferenceChatUpstreamCapture
-	if err := json.Unmarshal(data, &capture); err == nil && len(capture.Chunks) > 0 {
-		return capture.Chunks, nil
-	}
-	var chunks []json.RawMessage
-	if err := json.Unmarshal(data, &chunks); err != nil {
-		return nil, err
-	}
-	return chunks, nil
-}
-
 func inferenceChatStreamingResponseFromRaw(raw []byte, modelName string, usageSeen InferenceChatUsage) (InferenceChatStreamingResponse, InferenceChatUsage, bool, bool) {
 	var chunk struct {
 		Id      string                          `json:"id"`
@@ -803,7 +748,18 @@ func InferenceChatEx(ctx context.Context, owner apm.WalletOwner, username string
 
 	respBody, httpErr := inferenceBackendJSONRequest(ctx, model.Endpoint.BasePath, http.MethodPost, "/chat/completions", body, "application/json")
 	if httpErr != nil {
-		requestOutcome = "upstream_error"
+		if ctx.Err() != nil {
+			// The client disconnected while the upstream was generating. We still bill everything that was generated
+			// on the client's behalf: the input is estimated from the request and the output is estimated from the
+			// elapsed time assuming a fixed generation rate.
+			elapsedSeconds := time.Since(requestStartedAt).Seconds()
+			estimatedOutputTokens := int(elapsedSeconds * inferenceEstimatedNonStreamingOutputTokensPerSecond)
+			auditUsage = inferenceReportCancelledUsage(owner, model, history, estimatedOutputTokens)
+			auditAborted = true
+			requestOutcome = "client_cancelled"
+		} else {
+			requestOutcome = "upstream_error"
+		}
 		return InferenceChatResponse{}, httpErr
 	}
 
@@ -931,6 +887,7 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username
 		history.StreamOptions.Value.IncludeUsage = true
 
 		usageSeen := InferenceChatUsage{}
+		var outputSeen strings.Builder
 		body, err := json.Marshal(history)
 		if err != nil {
 			return
@@ -965,45 +922,41 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username
 		reportMetrics := func(completedAt time.Time) {
 			inferenceReportChatStreamingMetrics(model.Name, streamStartedAt, firstTokenAt, lastOutputAt, completedAt, usageSeen.CompletionTokens)
 		}
-		if inferenceChatReplayUpstreamOutputPath != "" {
-			chunks, err := inferenceChatReadUpstreamReplay(inferenceChatReplayUpstreamOutputPath)
-			if err != nil {
-				log.Info("Inference upstream replay read failed: path=%s err=%v", inferenceChatReplayUpstreamOutputPath, err)
-				streamOutcome = "upstream_error"
-				return
-			}
-			log.Info("Inference upstream replay loaded: path=%s chunks=%d", inferenceChatReplayUpstreamOutputPath, len(chunks))
-			for _, raw := range chunks {
-				resp, usage, ok, _ := inferenceChatStreamingResponseFromRaw(raw, model.Name, usageSeen)
-				if !ok {
-					log.Info("Inference upstream replay skipped invalid chunk: len=%d", len(raw))
-					continue
-				}
-				usageSeen = usage
-				recordOutputDelta(resp)
-				if !inferenceSend(ctx, ch, resp) {
-					reportMetrics(time.Now())
-					streamOutcome = "client_cancelled"
-					return
-				}
-			}
-			reportMetrics(time.Now())
-			auditUsage = usageSeen
-			streamOutcome = "success"
-			return
-		}
 
 		streamCtx, cancel, touch := inferenceStreamContext(ctx)
 		defer cancel()
+		if ctx.Err() != nil {
+			// Cancelled before the request could be dispatched, e.g. Stop pressed while the previous
+			// leg's tools were running. Nothing was sent upstream, so there is nothing to bill here.
+			streamOutcome = "client_cancelled"
+			auditAborted = true
+			return
+		}
 		resp, httpErr := inferenceBackendStreamRequest(streamCtx, model.Endpoint.BasePath, "/chat/completions", body)
 		if httpErr != nil {
-			streamOutcome = "upstream_error"
+			if ctx.Err() != nil {
+				// The client cancelled while the request was being set up or while waiting for the first
+				// stream chunk. The upstream may already have processed the prompt and generated output
+				// before the connection was torn down, so bill an estimate exactly like the non-streaming
+				// path: input from the request, output from the elapsed time. The estimate is also delivered
+				// to the consumer as a final usage-only chunk so the playground reports the cancelled leg.
+				elapsedSeconds := time.Since(streamStartedAt).Seconds()
+				estimatedOutputTokens := int(elapsedSeconds * inferenceEstimatedNonStreamingOutputTokensPerSecond)
+				usageSeen = inferenceReportCancelledUsage(owner, model, history, estimatedOutputTokens)
+				auditUsage = usageSeen
+				ch <- InferenceChatStreamingResponse{Object: "chat.completion.chunk", Model: model.Name, Usage: usageSeen}
+				streamOutcome = "client_cancelled"
+				auditAborted = true
+			} else {
+				streamOutcome = "upstream_error"
+			}
 			return
 		}
 		defer util.SilentClose(resp.Body)
 
 		capturedChunks := []json.RawMessage{}
 		usagePresent := false
+		usageDelivered := false
 		streamCompleted := false
 		streamSendFailed := false
 		readErr := inferenceReadSSE(streamCtx, resp.Body, touch, func(event []byte) bool {
@@ -1028,11 +981,22 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username
 				capturedChunks = append(capturedChunks, append(json.RawMessage(nil), raw...))
 				usageSeen = usage
 				usagePresent = usagePresent || chunkUsagePresent
+				for _, choice := range resp.Choices {
+					outputSeen.WriteString(choice.Delta.Content)
+					outputSeen.WriteString(choice.Delta.Reasoning)
+					for _, toolCall := range choice.Delta.ToolCalls {
+						if toolCall.Function != nil {
+							outputSeen.WriteString(toolCall.Function.Arguments)
+						}
+					}
+				}
 				recordOutputDelta(resp)
-				if !inferenceSend(streamCtx, ch, resp) {
+				sent := inferenceSend(streamCtx, ch, resp)
+				if !sent {
 					streamSendFailed = true
 					return false
 				}
+				usageDelivered = usageDelivered || chunkUsagePresent
 				return true
 			}
 			return true
@@ -1064,12 +1028,19 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username
 			cachedTokens, inputTokens, outputTokens := inferenceChatUsageComponents(usageSeen)
 			inferenceReportChatUsageMetrics(model.Name, cachedTokens, inputTokens, outputTokens)
 			inferenceReportUsage(owner, model, cachedTokens, inputTokens, outputTokens)
+			if ctx.Err() != nil && !usageDelivered {
+				// The upstream's usage chunk arrived during cancellation, but the send to the consumer
+				// lost the race against the context. Deliver it now.
+				ch <- InferenceChatStreamingResponse{Object: "chat.completion.chunk", Model: model.Name, Usage: usageSeen}
+			}
+		} else if ctx.Err() != nil {
+			usageSeen = inferenceReportCancelledUsage(owner, model, history, inferenceEstimateTokensFromText(outputSeen.String()))
+			ch <- InferenceChatStreamingResponse{Object: "chat.completion.chunk", Model: model.Name, Usage: usageSeen}
 		} else if streamCtx.Err() == nil {
 			inferenceWarnMissingUsage("chat-stream", model.Name)
 		}
 		auditUsage = usageSeen
 		reportMetrics(streamCompletedAt)
-		inferenceChatWriteUpstreamCapture(body, capturedChunks)
 	}()
 
 	return ch, nil
@@ -1245,6 +1216,46 @@ func inferenceEstimateTokensFromText(text string) int {
 	}
 
 	return (len([]rune(text)) + 3) / 4
+}
+
+const inferenceEstimatedCacheHitPercent = 95
+const inferenceEstimatedNonStreamingOutputTokensPerSecond = 50
+
+func inferenceEstimateCancelledChatUsage(request InferenceChatRequest, outputTokens int) InferenceChatUsage {
+	promptTokens := 0
+	for _, msg := range request.Messages {
+		promptTokens += inferenceEstimateTokensFromText(msg.Content.String())
+		promptTokens += inferenceEstimateTokensFromText(msg.Reasoning.String())
+		for _, call := range msg.ToolCalls {
+			promptTokens += inferenceEstimateTokensFromText(call.Function.Name)
+			promptTokens += inferenceEstimateTokensFromText(call.Function.Arguments)
+		}
+	}
+	for _, tool := range request.Tools {
+		promptTokens += inferenceEstimateTokensFromText(tool.Function.Name)
+		promptTokens += inferenceEstimateTokensFromText(tool.Function.Description)
+		if tool.Function.Parameters != nil {
+			if encoded, err := json.Marshal(tool.Function.Parameters); err == nil {
+				promptTokens += inferenceEstimateTokensFromText(string(encoded))
+			}
+		}
+	}
+
+	cachedTokens := promptTokens * inferenceEstimatedCacheHitPercent / 100
+	return InferenceChatUsage{
+		PromptTokens:        promptTokens,
+		CompletionTokens:    outputTokens,
+		TotalTokens:         promptTokens + outputTokens,
+		PromptTokensDetails: util.OptValue(InferenceChatTokenDetails{CachedTokens: cachedTokens}),
+	}
+}
+
+func inferenceReportCancelledUsage(owner apm.WalletOwner, model InferenceModel, request InferenceChatRequest, estimatedOutputTokens int) InferenceChatUsage {
+	estimated := inferenceEstimateCancelledChatUsage(request, estimatedOutputTokens)
+	cachedTokens, inputTokens, outputTokens := inferenceChatUsageComponents(estimated)
+	inferenceReportChatUsageMetrics(model.Name, cachedTokens, inputTokens, outputTokens)
+	inferenceReportUsage(owner, model, cachedTokens, inputTokens, outputTokens)
+	return estimated
 }
 
 func inferenceChatUsage(usage util.Option[InferenceChatUsage]) InferenceChatUsage {

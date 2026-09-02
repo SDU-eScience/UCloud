@@ -155,6 +155,8 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
         const rows = numberProp(node, "rows", 8);
         const sendIcon = stringProp(node, "sendIcon", "heroPaperAirplane");
         const disabled = boolProp(node, "disabled", false);
+        const streamingThreadId = stringProp(node, "streamingThreadId", "");
+        const currentThreadId = stringValue(fn.modelValue(model, "currentThreadId", scope));
         const propModelOptions = optionsProp(node, "modelOptions");
         const modelOptions = propModelOptions.length > 0 ? propModelOptions : textGenerationModelOptions(fn.modelValue(model, "models"));
         const selectedModel = stringValue(fn.modelValue(model, "chat.modelId", scope));
@@ -172,6 +174,15 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
         const [attachments, setAttachments] = React.useState<PlaygroundUploadAttachment[]>([]);
         const [dragActive, setDragActive] = React.useState(false);
         const canSend = !disabled && value.trim() !== "" && attachments.every(attachment => attachment.status === "uploaded");
+        const streaming = streamingThreadId !== "" && streamingThreadId === currentThreadId;
+
+        const stop = () => {
+            if (!streaming) return;
+            fn.sendUiEvent("chatComposerStop", "click", {
+                kind: ValueKind.String,
+                string: currentThreadId,
+            });
+        };
 
         const send = () => {
             if (!canSend) return;
@@ -463,13 +474,20 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                     />}
                     <Tooltip tooltipContentWidth={80} trigger={
                         <span style={{display: "inline-flex"}}>
-                            <button type="button" disabled={!canSend} onClick={send}
-                                    className={ComposerActionButtonClass}>
-                                <Icon name={sendIcon as any} size={18}/>
-                            </button>
+                            {streaming ? (
+                                <button type="button" onClick={stop}
+                                        className={ComposerActionButtonClass}>
+                                    <Icon name="heroStop" size={18}/>
+                                </button>
+                            ) : (
+                                <button type="button" disabled={!canSend} onClick={send}
+                                        className={ComposerActionButtonClass}>
+                                    <Icon name={sendIcon as any} size={18}/>
+                                </button>
+                            )}
                         </span>
                     }>
-                        Send
+                        {streaming ? "Stop" : "Send"}
                     </Tooltip>
                 </div>
             </Box>
@@ -1769,8 +1787,9 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
             rows: {kind: ValueKind.S64, s64: 3},
             sendIcon: {kind: ValueKind.String, string: "heroArrowUp"},
             disabled: {kind: ValueKind.Bool, bool: !connected || loading},
+            streamingThreadId: {kind: ValueKind.String, string: streamingThreadId === currentThreadId ? currentThreadId : ""},
         },
-    }), [connected, developmentMode, loading]);
+    }), [connected, developmentMode, loading, streamingThreadId, currentThreadId]);
 
     return (
         <>

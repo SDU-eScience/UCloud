@@ -56,7 +56,7 @@ type inferenceUsageRow struct {
 }
 
 const inferenceMaxConcurrent = 512
-const inferenceMaxConcurrentPerOwner = 16
+const inferenceMaxConcurrentPerOwner = 32
 
 func inferenceAcquire(owner apm.WalletOwner, username string) (func(), *util.HttpError) {
 	admissionOwnerRef := owner.Reference()
@@ -280,8 +280,8 @@ func Init() {
 		}
 		for _, model := range models {
 			inferenceModel := orcapi.InferenceModel{
-				Name:           model.Name,
-				Title:          model.Title,
+				Name:  model.Name,
+				Title: model.Title,
 				Capabilities: func() []orcapi.InferenceCapability {
 					capabilities := make([]orcapi.InferenceCapability, 0, len(model.Capabilities))
 					for _, capability := range model.Capabilities {
@@ -346,8 +346,8 @@ func Init() {
 		}
 
 		model := InferenceModel{
-			Name:           request.Model.Name,
-			Title:          request.Model.Title,
+			Name:  request.Model.Name,
+			Title: request.Model.Title,
 			Capabilities: func() []InferenceCapability {
 				capabilities := make([]InferenceCapability, 0, len(request.Model.Capabilities))
 				for _, capability := range request.Model.Capabilities {
