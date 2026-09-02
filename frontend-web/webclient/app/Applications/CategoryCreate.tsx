@@ -163,29 +163,25 @@ export default function CategoryCreate(): React.ReactNode {
                 <KeyboardNavigation>
                     <div className={CategoryCreateContentClass}>
                         <Card>
-                            <Box p="16px">
-                                <FieldGroup>
-                                    <FieldRow
-                                        title="Title"
-                                        description="The name shown on the applications landing page."
-                                        required
-                                        error={error ?? undefined}
-                                        control={<Input id={TITLE_KEY} width="100%" placeholder="My category" />}
-                                    />
-                                    <FieldRow
-                                        title="Description"
-                                        description="A short description of the category."
-                                        control={<TextArea id={DESCRIPTION_KEY} width="100%" rows={5}
-                                            placeholder="What can users do in this category?" />}
-                                    />
-                                </FieldGroup>
-                            </Box>
-                        </Card>
+                            <FieldGroup>
+                                <FieldRow
+                                    title="Title"
+                                    description="The name shown on the applications landing page."
+                                    required
+                                    error={error ?? undefined}
+                                    control={<Input id={TITLE_KEY} width="100%" placeholder="My category" />}
+                                />
+                                <FieldRow
+                                    title="Description"
+                                    description="A short description of the category."
+                                    control={<TextArea id={DESCRIPTION_KEY} width="100%" rows={5}
+                                        placeholder="What can users do in this category?" />}
+                                />
+                            </FieldGroup>
 
-                        {projectId == null ? null : (
-                            <Card>
-                                <Box p="16px">
-                                    <Heading.h3>Access</Heading.h3>
+                            {projectId == null ? null : (
+                                <Box mt="24px">
+                                    <Heading.h4>Access</Heading.h4>
                                     <Text color="textSecondary" mb="12px">
                                         By default, only project administrators can use this category. Grant access to
                                         project groups below.
@@ -196,11 +192,15 @@ export default function CategoryCreate(): React.ReactNode {
                                         showMissingPermissionHelp={false}
                                         warning="No project groups have access to this category."
                                         title="category"
+                                        readLabel="Use"
+                                        readIcon="heroPlay"
+                                        writeLabel="Create"
+                                        writeIcon="heroSquaresPlus"
                                         updateAcl={updateAcl}
                                     />
                                 </Box>
-                            </Card>
-                        )}
+                            )}
+                        </Card>
 
                         <div className={CategoryCreateSubmitClass}>
                             <Link to={AppRoutes.apps.landing()}>

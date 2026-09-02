@@ -226,7 +226,7 @@ const CategoryManagementClass = injectStyle("category-management", k => `
     }
 
     ${k} .category-management-header {
-        padding-bottom: 16px;
+        padding-bottom: 32px;
     }
 `);
 
@@ -323,7 +323,6 @@ function CategoryManagementDialog(props: {
         <div className={CategoryManagementClass}>
             <div className="category-management-header">
                 <Heading.h3>{props.category.specification.title}</Heading.h3>
-                <Text color="textSecondary">Manage this custom application category.</Text>
             </div>
 
             {props.showAcl ? (
@@ -338,6 +337,10 @@ function CategoryManagementDialog(props: {
                         showMissingPermissionHelp={false}
                         warning="No project groups have access to this category."
                         title="category"
+                        readLabel="Use"
+                        readIcon="heroPlay"
+                        writeLabel="Create"
+                        writeIcon="heroSquaresPlus"
                         updateAcl={updateAcl}
                     />
                 </SettingsSection>
@@ -361,10 +364,6 @@ function CategoryManagementDialog(props: {
             </SettingsSection>
 
             {error ? <Text color="errorMain" mb="16px">{error}</Text> : null}
-
-            <Flex justifyContent="end" gap="8px">
-                <Button color="secondaryMain" onClick={() => dialogStore.failure()}>Close</Button>
-            </Flex>
         </div>
     );
 }
