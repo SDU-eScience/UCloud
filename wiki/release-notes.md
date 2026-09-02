@@ -7,9 +7,10 @@ use.
 ## 02-09-26
 
 ```
-SDU-Bitten/K8s @ 2026.5.21
-SDU-Odense/K8s @ 2026.5.21
+SDU-Bitten/K8s @ 2026.5.22
+SDU-Odense/K8s @ 2026.5.22
 UCloud/Core @ 2026.5.21
+UCloud/Frontend @ 2026.5.22
 ```
 
 

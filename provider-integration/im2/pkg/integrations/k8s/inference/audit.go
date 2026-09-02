@@ -39,8 +39,11 @@ import (
 // the new messages of the request plus a hash chain over the previous messages. These are kept in an LRU and a full
 // chain is re-created in case of a miss.
 
+
 const (
 	inferenceAuditChainSeed = "ucloud-inference-v1"
+
+	inferenceAuditIncludeMessageContent = false
 
 	// LRU sizing. The capacity counts user entries and is divided evenly across the shards.
 	inferenceAuditLruCapacity      = 32768
@@ -433,7 +436,7 @@ func inferenceAuditComputeDelta(
 	items []json.RawMessage,
 ) inferenceAuditDelta {
 	delta := inferenceAuditDelta{NewItems: []json.RawMessage{}}
-	if len(items) == 0 {
+	if !inferenceAuditIncludeMessageContent || len(items) == 0 {
 		return delta
 	}
 
@@ -465,9 +468,12 @@ func inferenceAuditChatBody(
 	aborted bool,
 	source string,
 ) json.RawMessage {
-	items := make([]json.RawMessage, 0, len(history.Messages))
-	for _, message := range history.Messages {
-		items = append(items, mustMarshal(message))
+	var items []json.RawMessage
+	if inferenceAuditIncludeMessageContent {
+		items = make([]json.RawMessage, 0, len(history.Messages))
+		for _, message := range history.Messages {
+			items = append(items, mustMarshal(message))
+		}
 	}
 
 	delta := inferenceAuditComputeDelta("inference.chat", chainKey, items)
@@ -479,9 +485,9 @@ func inferenceAuditChatBody(
 		Reason              string               `json:"reason,omitempty"`
 		Aborted             bool                 `json:"aborted,omitempty"`
 		PrevHash            string               `json:"prevHash,omitempty"`
-		FullHash            string               `json:"fullHash"`
+		FullHash            string               `json:"fullHash,omitempty"`
 		MessageCount        int                  `json:"messageCount"`
-		NewMessages         []json.RawMessage    `json:"newMessages"`
+		NewMessages         []json.RawMessage    `json:"newMessages,omitempty"`
 		Usage               *InferenceChatUsage  `json:"usage,omitempty"`
 		Temperature         util.Option[float64] `json:"temperature,omitempty"`
 		TopP                util.Option[float64] `json:"top_p,omitempty"`
@@ -526,13 +532,18 @@ func inferenceAuditOaiResponseBody(
 		Source             string              `json:"source,omitempty"`
 		Reason             string              `json:"reason,omitempty"`
 		PrevHash           string              `json:"prevHash,omitempty"`
-		FullHash           string              `json:"fullHash"`
+		FullHash           string              `json:"fullHash,omitempty"`
 		ItemCount          int                 `json:"itemCount"`
-		NewItems           []json.RawMessage   `json:"newItems"`
+		NewItems           []json.RawMessage   `json:"newItems,omitempty"`
 		Instructions       json.RawMessage     `json:"instructions,omitempty"`
 		Conversation       string              `json:"conversation,omitempty"`
 		PreviousResponseID string              `json:"previous_response_id,omitempty"`
 		Usage              *InferenceChatUsage `json:"usage,omitempty"`
+	}
+
+	var instructions json.RawMessage
+	if inferenceAuditIncludeMessageContent {
+		instructions = request.Instructions
 	}
 
 	return mustMarshal(auditOaiBody{
@@ -545,7 +556,7 @@ func inferenceAuditOaiResponseBody(
 		FullHash:           delta.FullHash,
 		ItemCount:          len(items),
 		NewItems:           delta.NewItems,
-		Instructions:       request.Instructions,
+		Instructions:       instructions,
 		Conversation:       request.Conversation,
 		PreviousResponseID: request.PreviousResponseID,
 		Usage:              usage,
