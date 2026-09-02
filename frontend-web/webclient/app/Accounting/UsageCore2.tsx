@@ -727,32 +727,33 @@ const UsagePage: React.FunctionComponent = () => {
                                 </tbody>
                             </table>
                         </Card>
-
-                        <Card flexBasis={300} borderRadius={8} padding={16} flexGrow={1} flexShrink={0}>
-                            <Box mb={"8px"}><b>Sub-project health</b></Box>
-                            <table width={"100%"}>
-                                <tbody>
-                                    <tr>
-                                        <th align={"left"}>Healthy:</th>
-                                        <td align={"right"} width={"42px"}>
-                                            {((r.subProjectHealth.ok / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th align={"left"}>Underutilized:</th>
-                                        <td align={"right"} width={"42px"}>
-                                            {((r.subProjectHealth.underUtilized / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <th align={"left"}>At risk:</th>
-                                        <td align={"right"} width={"42px"}>
-                                            {((r.subProjectHealth.atRisk / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </Card>
+                        {r.productsCovered.length > 1 ? null : <>
+                            <Card flexBasis={300} borderRadius={8} padding={16} flexGrow={1} flexShrink={0}>
+                                <Box mb={"8px"}><b>Sub-project health</b></Box>
+                                <table width={"100%"}>
+                                    <tbody>
+                                        <tr>
+                                            <th align={"left"}>Healthy:</th>
+                                            <td align={"right"} width={"42px"}>
+                                                {((r.subProjectHealth.ok / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th align={"left"}>Underutilized:</th>
+                                            <td align={"right"} width={"42px"}>
+                                                {((r.subProjectHealth.underUtilized / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th align={"left"}>At risk:</th>
+                                            <td align={"right"} width={"42px"}>
+                                                {((r.subProjectHealth.atRisk / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </Card>
+                        </>}
                     </>
                 }
             </Flex>
