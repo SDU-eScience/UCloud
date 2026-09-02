@@ -40,8 +40,17 @@ import (
 // chain is re-created in case of a miss.
 
 const (
-	inferenceAuditChainSeed       = "ucloud-inference-v1"
-	inferenceAuditLruCapacity     = 32768
+	inferenceAuditChainSeed = "ucloud-inference-v1"
+
+	// LRU sizing. The capacity counts user entries and is divided evenly across the shards.
+	inferenceAuditLruCapacity      = 32768
+	inferenceAuditLruShards        = 16
+	inferenceAuditLruShardMask     = inferenceAuditLruShards - 1
+	inferenceAuditLruShardCapacity = inferenceAuditLruCapacity / inferenceAuditLruShards
+
+	// How many of a request's most recent prefix hashes are remembered per user and how many messages can be
+	// appended in one call before the chain misses and the full history is stored again.
+	inferenceAuditChainHashLimit  = 64
 	inferenceAuditLruPrefixWindow = 16
 )
 
@@ -285,75 +294,129 @@ func (w *inferenceAuditResponseWriter) Unwrap() http.ResponseWriter {
 	return w.ResponseWriter
 }
 
-// Hash-chain
+// Prefix hash-chain cache
 // -------------------------------------------------------------------------------------------------------------------
+// The cache keeps, per user (see inferenceAuditChainKey), a recency ordered list of the prefix hashes of the most
+// recent messages seen, capped at inferenceAuditChainHashLimit. Matching a request reduces to finding the
+// request's deepest prefix hash in that list: everything up to it was stored before and only the messages after it
+// are new to the audit trail. The cap covers the recent window of a few interleaved conversations.
+//
+// The cache is sharded by chain key to spread lock contention. Entries are immutable and replaced by copy, so the
+// matching scan runs on the published hash list outside the lock and compares fixed size arrays without allocating.
 
-var inferenceAuditChainLru = &inferenceAuditChainCache{
-	Entries: list.New(),
-	Index:   make(map[string]*list.Element, inferenceAuditLruCapacity),
-}
+var inferenceAuditChainLru = newInferenceAuditChainCache()
 
 type inferenceAuditChainCache struct {
-	Mu      sync.Mutex
-	Entries *list.List
-	Index   map[string]*list.Element
+	shards [inferenceAuditLruShards]inferenceAuditChainShard
 }
 
-func inferenceAuditChainSet(chainKey string, prefixHashes [][]byte) {
-	lru := inferenceAuditChainLru
-	lru.Mu.Lock()
-	defer lru.Mu.Unlock()
+type inferenceAuditChainShard struct {
+	mu      sync.Mutex
+	entries *list.List
+	index   map[string]*list.Element
+}
 
-	stored := 0
-	for i := len(prefixHashes) - 1; i >= 0 && stored < inferenceAuditLruPrefixWindow; i-- {
-		if lru.insertLocked(chainKey, prefixHashes[i]) {
-			stored++
-		}
+type inferenceAuditChainEntry struct {
+	key    string
+	hashes [][32]byte
+}
+
+func newInferenceAuditChainCache() *inferenceAuditChainCache {
+	cache := &inferenceAuditChainCache{}
+	for i := range cache.shards {
+		cache.shards[i].entries = list.New()
+		cache.shards[i].index = make(map[string]*list.Element, inferenceAuditLruShardCapacity)
 	}
+	return cache
 }
 
-func inferenceAuditChainGet(chainKey string, prefixHashes [][]byte) int {
-	lru := inferenceAuditChainLru
-	lru.Mu.Lock()
-	defer lru.Mu.Unlock()
+func inferenceAuditChainShardOf(chainKey string) *inferenceAuditChainShard {
+	sum := sha256.Sum256([]byte(chainKey))
+	shard := &inferenceAuditChainLru.shards[sum[0]&inferenceAuditLruShardMask]
+	return shard
+}
+
+func inferenceAuditChainGet(chainKey string, prefixHashes [][32]byte) int {
+	shard := inferenceAuditChainShardOf(chainKey)
+
+	shard.mu.Lock()
+	element, ok := shard.index[chainKey]
+	if !ok {
+		shard.mu.Unlock()
+		return -1
+	}
+	shard.entries.MoveToFront(element)
+	hashes := element.Value.(*inferenceAuditChainEntry).hashes
+	shard.mu.Unlock()
 
 	for i := len(prefixHashes) - 1; i >= 0; i-- {
-		key := chainKey + "\x1f" + hex.EncodeToString(prefixHashes[i])
-		if element, ok := lru.Index[key]; ok {
-			lru.Entries.MoveToFront(element)
-			return i
+		prefix := prefixHashes[i]
+		for _, hash := range hashes {
+			if hash == prefix {
+				return i
+			}
 		}
 	}
 	return -1
 }
 
-func (lru *inferenceAuditChainCache) insertLocked(chainKey string, hash []byte) bool {
-	key := chainKey + "\x1f" + hex.EncodeToString(hash)
-	if element, ok := lru.Index[key]; ok {
-		lru.Entries.MoveToFront(element)
-		return false
+func inferenceAuditChainSet(chainKey string, prefixHashes [][32]byte) {
+	windowStart := max(len(prefixHashes)-inferenceAuditLruPrefixWindow, 0)
+	window := prefixHashes[windowStart:]
+
+	// Most recent hash first so that overflowing the limit drops the oldest hashes.
+	entry := &inferenceAuditChainEntry{
+		key:    chainKey,
+		hashes: make([][32]byte, 0, inferenceAuditChainHashLimit),
+	}
+	for i := len(window) - 1; i >= 0; i-- {
+		entry.hashes = append(entry.hashes, window[i])
 	}
 
-	for len(lru.Index) >= inferenceAuditLruCapacity {
-		oldest := lru.Entries.Back()
-		if oldest == nil {
-			break
+	shard := inferenceAuditChainShardOf(chainKey)
+	shard.mu.Lock()
+	defer shard.mu.Unlock()
+
+	if element, ok := shard.index[chainKey]; ok {
+		for _, hash := range element.Value.(*inferenceAuditChainEntry).hashes {
+			if len(entry.hashes) >= inferenceAuditChainHashLimit {
+				break
+			}
+
+			contained := false
+			for _, existing := range entry.hashes {
+				if existing == hash {
+					contained = true
+					break
+				}
+			}
+			if !contained {
+				entry.hashes = append(entry.hashes, hash)
+			}
 		}
-		delete(lru.Index, oldest.Value.(string))
-		lru.Entries.Remove(oldest)
-	}
 
-	lru.Index[key] = lru.Entries.PushFront(key)
-	return true
+		shard.entries.MoveToFront(element)
+		element.Value = entry
+	} else {
+		for len(shard.index) >= inferenceAuditLruShardCapacity {
+			oldest := shard.entries.Back()
+			if oldest == nil {
+				break
+			}
+			delete(shard.index, oldest.Value.(*inferenceAuditChainEntry).key)
+			shard.entries.Remove(oldest)
+		}
+		shard.index[chainKey] = shard.entries.PushFront(entry)
+	}
 }
 
-func inferenceAuditChainPrefixes(items []json.RawMessage) [][]byte {
-	prefixHashes := make([][]byte, len(items))
+func inferenceAuditChainPrefixes(items []json.RawMessage) [][32]byte {
+	prefixHashes := make([][32]byte, len(items))
 	chain := sha256.Sum256([]byte(inferenceAuditChainSeed))
 	for i, item := range items {
 		itemHash := sha256.Sum256(item)
 		chain = sha256.Sum256(append(chain[:], itemHash[:]...))
-		prefixHashes[i] = append([]byte(nil), chain[:]...)
+		prefixHashes[i] = chain
 	}
 	return prefixHashes
 }
@@ -375,11 +438,11 @@ func inferenceAuditComputeDelta(
 	}
 
 	prefixHashes := inferenceAuditChainPrefixes(items)
-	delta.FullHash = hex.EncodeToString(prefixHashes[len(prefixHashes)-1])
+	delta.FullHash = hex.EncodeToString(prefixHashes[len(prefixHashes)-1][:])
 
 	match := inferenceAuditChainGet(chainKey, prefixHashes)
 	if match >= 0 {
-		delta.PrevHash = hex.EncodeToString(prefixHashes[match])
+		delta.PrevHash = hex.EncodeToString(prefixHashes[match][:])
 		delta.NewItems = append(delta.NewItems, items[match+1:]...)
 	} else {
 		metricInferenceAuditChainMisses.WithLabelValues(endpoint).Inc()
@@ -486,70 +549,6 @@ func inferenceAuditOaiResponseBody(
 		Conversation:       request.Conversation,
 		PreviousResponseID: request.PreviousResponseID,
 		Usage:              usage,
-	})
-}
-
-func inferenceAuditTranscribeBody(
-	request InferenceTranscriptionRequest,
-	usage *InferenceTranscriptionUsage,
-	reason string,
-) json.RawMessage {
-	fileDigest := sha256.Sum256(request.File.Data)
-
-	type auditTranscribeBody struct {
-		Model          string                               `json:"model"`
-		Stream         bool                                 `json:"stream"`
-		Reason         string                               `json:"reason,omitempty"`
-		FileName       string                               `json:"fileName,omitempty"`
-		ContentType    string                               `json:"contentType,omitempty"`
-		FileBytes      int                                  `json:"fileBytes"`
-		FileSha256     string                               `json:"fileSha256"`
-		Language       util.Option[string]                  `json:"language,omitempty"`
-		Prompt         util.Option[string]                  `json:"prompt,omitempty"`
-		ResponseFormat InferenceTranscriptionResponseFormat `json:"responseFormat"`
-		Usage          *InferenceTranscriptionUsage         `json:"usage,omitempty"`
-	}
-
-	return mustMarshal(auditTranscribeBody{
-		Model:          request.Model,
-		Stream:         request.Stream,
-		Reason:         reason,
-		FileName:       request.File.Name,
-		ContentType:    request.File.ContentType,
-		FileBytes:      len(request.File.Data),
-		FileSha256:     hex.EncodeToString(fileDigest[:]),
-		Language:       request.Language,
-		Prompt:         request.Prompt,
-		ResponseFormat: request.ResponseFormat,
-		Usage:          usage,
-	})
-}
-
-func inferenceAuditImageBody(
-	request InferenceImageGenerationRequest,
-	usage *InferenceImageGenerationUsage,
-	reason string,
-) json.RawMessage {
-	type auditImageBody struct {
-		Model   string                         `json:"model,omitempty"`
-		Stream  bool                           `json:"stream"`
-		Reason  string                         `json:"reason,omitempty"`
-		Prompt  string                         `json:"prompt"`
-		Size    util.Option[string]            `json:"size,omitempty"`
-		Quality util.Option[string]            `json:"quality,omitempty"`
-		N       util.Option[int]               `json:"n,omitempty"`
-		Usage   *InferenceImageGenerationUsage `json:"usage,omitempty"`
-	}
-
-	return mustMarshal(auditImageBody{
-		Model:   request.Model.GetOrDefault(""),
-		Stream:  request.Stream.GetOrDefault(false),
-		Reason:  reason,
-		Prompt:  request.Prompt,
-		Size:    request.Size,
-		Quality: request.Quality,
-		N:       request.N,
-		Usage:   usage,
 	})
 }
 
