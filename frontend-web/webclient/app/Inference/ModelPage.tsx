@@ -471,7 +471,6 @@ function normalizeEditableModel(model: InferenceModel): InferenceModel {
     const defaults = defaultModelPage();
     return {
         ...JSON.parse(JSON.stringify(model)),
-        titleModelName: model.titleModelName || model.name,
         chatSettings: {
             temperature: model.chatSettings?.temperature ?? 0.8,
             topP: model.chatSettings?.topP ?? 0.1,
@@ -531,7 +530,6 @@ function ModelSettingsEditor(props: {
         <label>Model name<Input value={model.name} onChange={ev => setModel({...model, name: ev.currentTarget.value})} /></label>
         <label>Documentation URL<Input value={page.documentationUrl ?? ""} onChange={ev => updatePage(model, setModel, {...page, documentationUrl: ev.currentTarget.value})} /></label>
         <label>Release date<Input type="date" value={dateInputValue(page.releaseDate)} onChange={ev => updatePage(model, setModel, {...page, releaseDate: timestampFromDateInput(ev.currentTarget.value)})} /></label>
-        <label>Title generation model<Select value={model.titleModelName || model.name} onChange={ev => setModel({...model, titleModelName: ev.currentTarget.value})} style={{width: "100%", height: 40}}>{props.models.filter(it => it.capabilities.includes("TextGeneration")).map(it => <option key={it.name} value={it.name}>{it.title} ({it.name})</option>)}</Select></label>
         <label>Public<Select value={model.availability.public ? "true" : "false"} onChange={ev => setModel({...model, availability: {...model.availability, public: ev.currentTarget.value === "true"}})} style={{width: "100%", height: 40}}><option value="false">No</option><option value="true">Yes</option></Select></label>
         <label>Available to projects<Input value={model.availability.availableTo.join(", ")} onChange={ev => setModel({...model, availability: {...model.availability, availableTo: parseCommaList(ev.currentTarget.value)}})} /></label>
         <label>Base path<Input value={model.endpoint.basePath} onChange={ev => setModel({...model, endpoint: {...model.endpoint, basePath: ev.currentTarget.value}})} /></label>

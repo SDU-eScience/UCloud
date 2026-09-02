@@ -135,7 +135,7 @@ Options:
 
 - `--name <name>`: Rename the model. Renaming is only allowed while the model is not public.
 - `--title <title>`: Set the display title.
-- `--capabilities <list>`: Set a comma-separated capability list. Allowed values are `TextGeneration`, `TextToImage`, and `SpeechToText`.
+- `--capabilities <list>`: Set a comma-separated capability list. Allowed value is `TextGeneration`.
 - `--price-per-million-cached <n>`: Set encoded cached input Credits per million tokens.
 - `--price-per-million-input <n>`: Set encoded input Credits per million tokens.
 - `--price-per-million-output <n>`: Set encoded output Credits per million tokens.

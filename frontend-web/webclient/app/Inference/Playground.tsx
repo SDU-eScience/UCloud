@@ -6,7 +6,7 @@ import {Box, Button, Flex, Icon, Text, TextArea,} from "@/ui-components";
 import {Toggle} from "@/ui-components/Toggle";
 import UcxView, {UcxComponentRegistry, UcxFunctionRegistry, UcxRenderContext, UcxSpinner} from "@/UCX/UcxView";
 import {UiNode, Value, ValueKind} from "@/UCX/protocol";
-import {copyToClipboard, doNothing, extensionFromPath, extensionType, removeTrailingSlash, typeFromMime} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, extensionFromPath, extensionType, typeFromMime} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {sendFailureNotification} from "@/Notifications";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
@@ -26,10 +26,6 @@ import {CopyButton} from "@/ui-components/CopyButton";
 import {IconButton} from "@/ui-components/IconButton";
 import {ChunkedFileReader} from "@/Files/ChunkedFileReader";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
-import {dialogStore} from "@/Dialog/DialogStore";
-import type {UFile} from "@/UCloud/UFile";
-import {Feature, hasFeature} from "@/Features";
-import {prettyFilePath} from "@/Files/FilePath";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {IconName} from "@/ui-components/Icon";
 import {inferenceThreadStore} from "./ThreadStore";
@@ -932,18 +928,12 @@ const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, s
 
 const ToolDisplayNames: Record<string, string> = {
     bash: "Shell",
-    glob: "Finding files",
-    grep: "Searching files",
-    read: "Reading file",
     web_fetch: "Fetching web page",
     wikipedia_search: "Searching Wikipedia",
 };
 
 const ToolIcons: Record<string, IconName> = {
     bash: "heroCommandLine",
-    glob: "heroFolderOpen",
-    grep: "heroMagnifyingGlass",
-    read: "heroDocumentText",
     web_fetch: "heroGlobeEuropeAfrica",
     wikipedia_search: "heroBookOpen",
 };
@@ -1052,9 +1042,6 @@ function ToolPartBody({part, body}: {part: ChatMessagePart; body: string}): Reac
     const argumentsValue = toolArguments(part);
 
     switch (part.toolName) {
-        case "glob": return <GlobToolResult argumentsValue={argumentsValue} result={output.value}/>;
-        case "grep": return <GrepToolResult argumentsValue={argumentsValue} result={output.value}/>;
-        case "read": return <ReadToolResult argumentsValue={argumentsValue} result={output.value}/>;
         case "web_fetch": return <WebFetchToolResult argumentsValue={argumentsValue} result={output.value}/>;
         case "wikipedia_search": return <WikipediaToolResult argumentsValue={argumentsValue} result={output.value}/>;
         default: return <CodeSnippet lang="json">{JSON.stringify(output.value, null, 2)}</CodeSnippet>;
@@ -1065,32 +1052,6 @@ function BashToolResult({command, output}: {command: string; output: string}): R
     return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
         {command === "" ? null : <CodeSnippet lang="bash">{`$ ${command}`}</CodeSnippet>}
         {output === "" ? null : <CodeSnippet lang="text">{output}</CodeSnippet>}
-    </div>;
-}
-
-function GlobToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
-    const matches = result ? stringList(result.matches) : [];
-    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "Pattern", value: stringValueFrom(argumentsValue?.pattern)}, {label: "Directory", value: stringValueFrom(argumentsValue?.cwd) || "."}, {label: "Matches", value: String(numberValueFrom(result?.count) ?? matches.length)}]}/>
-        <CodeSnippet lang="text">{matches.join("\n")}</CodeSnippet>
-    </div>;
-}
-
-function GrepToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
-    const matches = result ? jsonList(result.matches) : [];
-    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "Pattern", value: stringValueFrom(argumentsValue?.pattern)}, {label: "Path", value: stringValueFrom(argumentsValue?.path) || "."}, {label: "Include", value: stringValueFrom(argumentsValue?.include)}, {label: "Exclude", value: stringValueFrom(argumentsValue?.exclude)}, {label: "Matches", value: String(numberValueFrom(result?.count) ?? matches.length)}]}/>
-        <CodeSnippet lang="text">{matches.map(match => `${stringValueFrom(match.path)}:${numberValueFrom(match.line) ?? 0}: ${stringValueFrom(match.text)}`).join("\n")}</CodeSnippet>
-    </div>;
-}
-
-function ReadToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
-    const entries = result ? stringList(result.entries) : [];
-    const content = result ? stringValueFrom(result.content) : "";
-    const count = result ? (numberValueFrom(result.count) ?? numberValueFrom(result.lines) ?? entries.length) : (numberValueFrom(argumentsValue?.limit) ?? 0);
-    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "Path", value: stringValueFrom(result?.path) || stringValueFrom(argumentsValue?.path)}, {label: entries.length > 0 ? "Entries" : "Lines", value: String(count)}, {label: "Offset", value: String(numberValueFrom(argumentsValue?.offset) ?? 1)}]}/>
-        {result ? <CodeSnippet lang="text">{entries.length > 0 ? entries.join("\n") : content}</CodeSnippet> : <UcxSpinner />}
     </div>;
 }
 
@@ -1137,14 +1098,6 @@ function stringValueFrom(value: unknown): string {
 
 function numberValueFrom(value: unknown): number | null {
     return typeof value === "number" ? value : null;
-}
-
-function boolValueFrom(value: unknown): boolean {
-    return value === true;
-}
-
-function stringList(value: unknown): string[] {
-    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
 function jsonList(value: unknown): ToolJson[] {
@@ -1383,7 +1336,6 @@ function isEscaped(text: string, idx: number): boolean {
 function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
     const [expanded, setExpanded] = React.useState(false);
     const contentRef = React.useRef<HTMLDivElement>(null);
-    const summary = part.summary.trim();
 
     React.useEffect(() => {
         setExpanded(part.open);
@@ -1423,17 +1375,6 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
             >
                 <Icon name="heroSparkles" size={16}/>
                 <span style={{fontWeight: 600, flexShrink: 0}}>Thinking</span>
-                {summary === "" ? null : (
-                    <span
-                        style={{
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                        }}
-                    >
-            {summary}
-          </span>
-                )}
             </button>
             {expanded ? (
                 <div
@@ -1686,7 +1627,6 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
         fn.sendUiEvent("newThread", "click");
     };
     const footer = <>
-        {!developer && hasFeature(Feature.INFERENCE_WORKSPACE) ? <WorkspaceSelector model={model} fn={fn} connected={connected}/> : null}
         <ContextWindowIndicator model={model} fn={fn}/>
         <ConnectionStatusIndicator connected={connected} text={connectionStatus}/>
     </>;
@@ -1924,77 +1864,6 @@ function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNe
     return <PlaygroundSidebarShell header={header} footer={footer}>
         {fn ? <ThreadListNode node={node} model={model} fn={fn}/> : <Text color="textSecondary">Loading...</Text>}
     </PlaygroundSidebarShell>;
-}
-
-function WorkspaceSelector({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
-    const path = stringValue(fn?.modelValue(model, "workspace.path") ?? model["workspace.path"]);
-    const loading = boolValue(fn?.modelValue(model, "workspace.loading") ?? model["workspace.loading"]);
-    const chatLoading = boolValue(fn?.modelValue(model, "chat.loading") ?? model["chat.loading"]);
-    const error = stringValue(fn?.modelValue(model, "workspace.error") ?? model["workspace.error"]);
-    const [prettyPath, setPrettyPath] = React.useState("");
-
-    React.useEffect(() => {
-        let cancelled = false;
-        if (!path) {
-            setPrettyPath("");
-            return;
-        }
-        prettyFilePath(path).then(value => {
-            if (!cancelled) setPrettyPath(value);
-        }).catch(() => {
-            if (!cancelled) setPrettyPath(path);
-        });
-        return () => { cancelled = true; };
-    }, [path]);
-
-    const selectFolder = React.useCallback(() => {
-		if (!connected || !fn || loading || chatLoading) return;
-
-		void (async () => {
-			const [{default: FileBrowse}, {api: FilesApi}] = await Promise.all([
-				import("@/Files/FileBrowse"),
-				import("@/UCloud/FilesApi"),
-			]);
-			const isFolderAllowed = (file: UFile): boolean | string => file.status.type === "DIRECTORY";
-			const onSelectFolder = (file: UFile) => {
-				const target = removeTrailingSlash(file.id);
-				fn.sendModelInput("workspace.path", {kind: ValueKind.String, string: target}, "workspace.path");
-				dialogStore.success();
-			};
-			const selection = {
-				text: "Use",
-				onClick: onSelectFolder,
-				show: isFolderAllowed,
-			};
-			const navigateToFolder = (initialPath: string, projectId?: string) => {
-				dialogStore.failure();
-				dialogStore.addDialog(
-					<FileBrowse
-						opts={{
-							isModal: true,
-							managesLocalProject: true,
-							initialPath,
-							initialProject: projectId,
-							selection,
-						}} />,
-					doNothing,
-					true,
-					FilesApi.fileSelectorModalStyle
-				);
-			};
-
-			navigateToFolder(path);
-		})();
-	}, [chatLoading, connected, fn, loading, path]);
-
-    return <div style={{display: "flex", alignItems: "center", gap: 0, minWidth: 0, color: error ? "var(--errorMain)" : "var(--textSecondary)", fontSize: 12}}>
-        <span title={error || prettyPath || "No folder selected"} style={{minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1}}>
-            {error || prettyPath || "No folder selected"}
-        </span>
-        {loading ? <UcxSpinner size={14}/> : null}
-        <IconButton tooltip="Select workspace folder" onClick={selectFolder} icon="heroFolderOpen"/>
-        <IconButton tooltip="Selected workspace data is mounted read-only for tools." onClick={doNothing} icon="heroInformationCircle"/>
-    </div>;
 }
 
 function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void}): React.ReactNode {

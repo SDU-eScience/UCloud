@@ -1771,7 +1771,7 @@ func inferenceResponseBuiltinTool(toolType string) (InferenceChatTool, bool) {
 		}
 	case "shell":
 		tool.Function.Name = "shell"
-		tool.Function.Description = "Run a non-interactive shell command in the workspace sandbox."
+		tool.Function.Description = "Run a non-interactive shell command in a sandboxed environment."
 		tool.Function.Parameters = map[string]any{
 			"type": "object",
 			"properties": map[string]any{

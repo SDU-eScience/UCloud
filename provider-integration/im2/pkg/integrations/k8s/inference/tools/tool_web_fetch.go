@@ -10,14 +10,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/mackee/go-readability"
 
 	"golang.org/x/net/html/charset"
-	"ucloud.dk/shared/pkg/util"
 )
 
 const webFetchResponseLimit = 5 * 1024 * 1024
@@ -96,42 +94,6 @@ func ToolWebFetch(payload string) {
 	responseTruncated := len(body) > webFetchResponseLimit
 	body = body[:min(len(body), webFetchResponseLimit)]
 
-	tmpDir := ""
-	truncatedFile := ""
-	keepTmp := false
-	defer func() {
-		if tmpDir != "" && !keepTmp {
-			_ = os.RemoveAll(tmpDir)
-		}
-	}()
-	storeResponse := func() bool {
-		if truncatedFile != "" {
-			return true
-		}
-		var err error
-		tmpRoot := filepath.Join(os.TempDir(), "ucloud-web-fetch")
-		if err = os.MkdirAll(tmpRoot, 0700); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return false
-		}
-		tmpDir = filepath.Join(tmpRoot, util.SecureToken())
-		if err = os.Mkdir(tmpDir, 0700); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return false
-		}
-		extensions, _ := mime.ExtensionsByType(contentType)
-		extension := ".txt"
-		if len(extensions) > 0 {
-			extension = extensions[0]
-		}
-		truncatedFile = filepath.Join(tmpDir, "response"+extension)
-		if err := os.WriteFile(truncatedFile, body, 0600); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return false
-		}
-		return true
-	}
-
 	content := ""
 	contentTruncated := false
 	switch args.Format {
@@ -167,32 +129,20 @@ func ToolWebFetch(payload string) {
 		return
 	}
 
-	truncated := responseTruncated || contentTruncated
-	outputFile := ""
-	if truncated {
-		if !storeResponse() {
-			return
-		}
-		keepTmp = true
-		outputFile = truncatedFile
-	}
-
 	result, _ := json.Marshal(struct {
-		URL           string `json:"url"`
-		Status        int    `json:"status"`
-		ContentType   string `json:"content_type"`
-		Format        string `json:"format"`
-		Content       string `json:"content"`
-		Truncated     bool   `json:"truncated"`
-		TruncatedFile string `json:"truncated_file,omitempty"`
+		URL         string `json:"url"`
+		Status      int    `json:"status"`
+		ContentType string `json:"content_type"`
+		Format      string `json:"format"`
+		Content     string `json:"content"`
+		Truncated   bool   `json:"truncated"`
 	}{
-		URL:           response.Request.URL.String(),
-		Status:        response.StatusCode,
-		ContentType:   response.Header.Get("Content-Type"),
-		Format:        args.Format,
-		Content:       content,
-		Truncated:     truncated,
-		TruncatedFile: outputFile,
+		URL:         response.Request.URL.String(),
+		Status:      response.StatusCode,
+		ContentType: response.Header.Get("Content-Type"),
+		Format:      args.Format,
+		Content:     content,
+		Truncated:   responseTruncated || contentTruncated,
 	})
 	fmt.Println(string(result))
 }

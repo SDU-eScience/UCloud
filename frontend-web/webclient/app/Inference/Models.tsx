@@ -17,7 +17,7 @@ import HeroImage from "@/Assets/Images/inference/ucloud-ai-logo.png";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {useIsLightThemeStored} from "@/ui-components/theme";
 
-const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText"];
+const capabilities: InferenceCapability[] = ["TextGeneration"];
 
 const pageStyle = injectStyle("inference-models-page", k => `
     ${k} {

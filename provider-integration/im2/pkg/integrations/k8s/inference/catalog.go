@@ -30,7 +30,6 @@ const (
 type InferenceModel struct {
 	Name                   string                 `json:"name"`
 	Title                  string                 `json:"title"`
-	TitleModelName         string                 `json:"titleModelName"`
 	Capabilities           []InferenceCapability  `json:"capabilities"`
 	ReasoningEfforts       []InferenceModelOption `json:"reasoningEfforts,omitempty"`
 	DefaultReasoningEffort string                 `json:"defaultReasoningEffort,omitempty"`
@@ -119,7 +118,6 @@ var modelGlobals = struct {
 type inferenceModelRow struct {
 	Name                       string
 	Title                      string
-	TitleModelName             string
 	Capabilities               []byte
 	ReasoningEfforts           []byte
 	DefaultReasoningEffort     sql.NullString
@@ -155,7 +153,6 @@ func inferenceModelCatalogLoad() {
 				select
 					name,
 					title,
-					title_model_name,
 					capabilities,
 					reasoning_efforts,
 					default_reasoning_effort,
@@ -215,7 +212,6 @@ func inferenceModelCatalogLoad() {
 			result[row.Name] = inferenceModelNormalize(InferenceModel{
 				Name:             row.Name,
 				Title:            row.Title,
-				TitleModelName:   row.TitleModelName,
 				Capabilities:     capabilities,
 				ReasoningEfforts: reasoningEfforts,
 				DefaultReasoningEffort: func() string {
@@ -401,19 +397,11 @@ func InferenceModelRename(oldName string, newName string) *util.HttpError {
 	}
 
 	model.Name = newName
-	if model.TitleModelName == oldName {
-		model.TitleModelName = newName
-	}
 	if err := inferenceModelValidate(model); err != nil {
 		return err
 	}
 
 	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`update inference_model set title_model_name = :new_name where title_model_name = :old_name`,
-			db.Params{"old_name": oldName, "new_name": newName},
-		)
 		db.Exec(
 			tx,
 			`delete from inference_model where name = :name`,
@@ -422,12 +410,6 @@ func InferenceModelRename(oldName string, newName string) *util.HttpError {
 		inferenceModelUpsertTx(tx, model)
 	})
 
-	for existingName, existing := range modelGlobals.Models {
-		if existing.TitleModelName == oldName {
-			existing.TitleModelName = newName
-			modelGlobals.Models[existingName] = inferenceModelClone(existing)
-		}
-	}
 	delete(modelGlobals.Models, oldName)
 	modelGlobals.Models[newName] = inferenceModelClone(model)
 	return nil
@@ -480,7 +462,6 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 			insert into inference_model(
 				name,
 				title,
-				title_model_name,
 				capabilities,
 				reasoning_efforts,
 				default_reasoning_effort,
@@ -501,7 +482,6 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 			) values (
 				:name,
 				:title,
-				:title_model_name,
 				cast(:capabilities as jsonb),
 				cast(:reasoning_efforts as jsonb),
 				:default_reasoning_effort,
@@ -521,7 +501,6 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				cast(:page_metadata as jsonb)
 			) on conflict (name) do update set
 				title = excluded.title,
-				title_model_name = excluded.title_model_name,
 				capabilities = excluded.capabilities,
 				reasoning_efforts = excluded.reasoning_efforts,
 				default_reasoning_effort = excluded.default_reasoning_effort,
@@ -543,7 +522,6 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 		db.Params{
 			"name":                           model.Name,
 			"title":                          model.Title,
-			"title_model_name":               model.TitleModelName,
 			"capabilities":                   string(capabilities),
 			"reasoning_efforts":              string(reasoningEfforts),
 			"default_reasoning_effort":       defaultReasoningEffort,
@@ -590,9 +568,6 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	if strings.TrimSpace(model.Title) == "" {
 		return util.HttpErr(http.StatusBadRequest, "model title is required")
 	}
-	if strings.TrimSpace(model.TitleModelName) == "" {
-		return util.HttpErr(http.StatusBadRequest, "model title model name is required")
-	}
 	if len(model.Capabilities) == 0 {
 		return util.HttpErr(http.StatusBadRequest, "model capabilities are required")
 	}
@@ -610,7 +585,7 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	}
 	for _, capability := range model.Capabilities {
 		switch capability {
-		case InferenceTextGeneration, InferenceTextToImage, InferenceSpeechToText, InferenceVision, InferenceVideoVision, InferenceAudio:
+		case InferenceTextGeneration, InferenceVision, InferenceVideoVision, InferenceAudio:
 		default:
 			return util.HttpErr(http.StatusBadRequest, "invalid model capability")
 		}
@@ -643,10 +618,6 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 func inferenceModelNormalize(model InferenceModel) InferenceModel {
 	model.Name = strings.TrimSpace(model.Name)
 	model.Title = strings.TrimSpace(model.Title)
-	model.TitleModelName = strings.TrimSpace(model.TitleModelName)
-	if model.TitleModelName == "" {
-		model.TitleModelName = model.Name
-	}
 	model.Endpoint.BasePath = strings.TrimRight(strings.TrimSpace(model.Endpoint.BasePath), "/")
 	model.Endpoint.BackendModelName = strings.TrimSpace(model.Endpoint.BackendModelName)
 	for idx := range model.ReasoningEfforts {

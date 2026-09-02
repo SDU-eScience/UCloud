@@ -10,7 +10,6 @@ import (
 	"math"
 	"math/bits"
 	"net/http"
-	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -34,10 +33,9 @@ import (
 )
 
 var inferenceGlobals struct {
-	Ready               atomic.Bool
-	BackendServer       string
-	MockImageGeneration bool
-	Product             apm.ProductV2
+	Ready         atomic.Bool
+	BackendServer string
+	Product       apm.ProductV2
 }
 
 var inferenceUsageFlushMu sync.Mutex
@@ -93,13 +91,9 @@ func inferenceAcquire(owner apm.WalletOwner, username string) (func(), *util.Htt
 const (
 	inferenceDevelopmentProviderLocalAI = "localai"
 
-	// Fallback accounting when image-generation usage is missing from backend responses.
-	// Tokens are billed proportionally to generated megapixels (1 megapixel = 1,000,000 pixels).
-	inferenceImageGenerationTokensPerMegaPixel = 1000.0
-	inferenceMaxJSONRequestBytes               = 4 << 20
-	inferenceMaxTranscriptionRequestBytes      = 64 << 20
-	inferenceRequestTimeout                    = 30 * time.Minute
-	inferenceStreamWriteTimeout                = 30 * time.Second
+	inferenceMaxJSONRequestBytes = 4 << 20
+	inferenceRequestTimeout      = 30 * time.Minute
+	inferenceStreamWriteTimeout  = 30 * time.Second
 )
 
 type inferenceDiscoveredModel struct {
@@ -250,11 +244,6 @@ func Init() {
 
 	inferenceModelCatalogLoad()
 
-	inferenceGlobals.MockImageGeneration = util.DevelopmentModeEnabled() && runtime.GOARCH == "arm64"
-	if inferenceGlobals.MockImageGeneration {
-		log.Info("Enabling mock image generation endpoint for development on arm64")
-	}
-
 	if inferenceCfg.Provider == cfg.KubernetesInferenceProviderDevelopment && util.DevelopmentModeEnabled() && inferenceCfg.DevelopmentProvider == inferenceDevelopmentProviderLocalAI {
 		err := inferenceAutoConfigureLocalAI()
 		if err != nil {
@@ -293,7 +282,6 @@ func Init() {
 			inferenceModel := orcapi.InferenceModel{
 				Name:           model.Name,
 				Title:          model.Title,
-				TitleModelName: model.TitleModelName,
 				Capabilities: func() []orcapi.InferenceCapability {
 					capabilities := make([]orcapi.InferenceCapability, 0, len(model.Capabilities))
 					for _, capability := range model.Capabilities {
@@ -338,7 +326,6 @@ func Init() {
 				inferenceModel.Endpoint.BackendModelName = ""
 				inferenceModel.ChatSettings.SystemPrompt = nil
 				inferenceModel.Availability.AvailableTo = nil
-				inferenceModel.TitleModelName = ""
 			}
 
 			result.Models = append(result.Models, inferenceModel)
@@ -361,7 +348,6 @@ func Init() {
 		model := InferenceModel{
 			Name:           request.Model.Name,
 			Title:          request.Model.Title,
-			TitleModelName: request.Model.TitleModelName,
 			Capabilities: func() []InferenceCapability {
 				capabilities := make([]InferenceCapability, 0, len(request.Model.Capabilities))
 				for _, capability := range request.Model.Capabilities {
@@ -403,9 +389,6 @@ func Init() {
 
 		oldName := strings.TrimSpace(request.OldName)
 		if oldName != "" && oldName != strings.TrimSpace(model.Name) {
-			if strings.TrimSpace(model.TitleModelName) == "" || strings.TrimSpace(model.TitleModelName) == oldName {
-				model.TitleModelName = model.Name
-			}
 			if err := InferenceModelRename(oldName, model.Name); err != nil {
 				return util.Empty{}, err
 			}
@@ -765,149 +748,6 @@ func Init() {
 		}
 	}))
 
-	controller.Mux.HandleFunc(authority+"/v1/audio/transcriptions", inferenceAuditMiddleware("inference.transcribe", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			inferenceAuditReject(r.Context(), "method not allowed")
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		if r.ContentLength > inferenceMaxTranscriptionRequestBytes {
-			inferenceAuditReject(r.Context(), "request body too large")
-			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
-			return
-		}
-		apiKeyOwner, apiKeyUsername, tokenId, httpErr := inferenceAuthenticateRequest(r)
-		if httpErr != nil {
-			inferenceAuditReject(r.Context(), httpErr.Why)
-			http.Error(w, httpErr.Why, httpErr.StatusCode)
-			return
-		}
-		inferenceAuditIdentity(r.Context(), apiKeyOwner, apiKeyUsername, tokenId)
-
-		request, httpErr := InferenceTranscriptionParseRequest(w, r)
-		if httpErr != nil {
-			inferenceAuditReject(r.Context(), httpErr.Why)
-			http.Error(w, httpErr.Why, httpErr.StatusCode)
-			return
-		}
-
-		ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
-		defer cancel()
-		if request.Stream {
-			events, httpErr := InferenceTranscribeStreaming(ctx, apiKeyOwner, apiKeyUsername, request)
-			if httpErr != nil {
-				http.Error(w, httpErr.Why, httpErr.StatusCode)
-				return
-			}
-
-			w.Header().Set("Content-Type", "text/event-stream")
-			w.Header().Set("Cache-Control", "no-cache")
-			w.Header().Set("Connection", "keep-alive")
-
-			for event := range events {
-				data, err := json.Marshal(event)
-				if err != nil {
-					continue
-				}
-
-				if err := inferenceWriteSSE(w, append(append([]byte("data: "), data...), '\n', '\n')); err != nil {
-					cancel()
-					for range events {
-					}
-					return
-				}
-			}
-
-			_ = inferenceWriteSSE(w, []byte("data: [DONE]\n\n"))
-			return
-		}
-
-		resp, httpErr := InferenceTranscribe(ctx, apiKeyOwner, apiKeyUsername, request)
-		if httpErr != nil {
-			http.Error(w, httpErr.Why, httpErr.StatusCode)
-			return
-		}
-
-		var respData []byte
-		if resp.VerboseJson != nil {
-			respData, _ = json.Marshal(resp.VerboseJson)
-		} else if resp.DiarizedJson != nil {
-			respData, _ = json.Marshal(resp.DiarizedJson)
-		} else if resp.Json != nil {
-			respData, _ = json.Marshal(resp.Json)
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(respData)
-	}))
-
-	controller.Mux.HandleFunc(authority+"/v1/images/generations", inferenceAuditMiddleware("inference.image", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			inferenceAuditReject(r.Context(), "method not allowed")
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		if r.ContentLength > inferenceMaxJSONRequestBytes {
-			inferenceAuditReject(r.Context(), "request body too large")
-			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
-			return
-		}
-		apiKeyOwner, apiKeyUsername, tokenId, httpErr := inferenceAuthenticateRequest(r)
-		if httpErr != nil {
-			inferenceAuditReject(r.Context(), httpErr.Why)
-			http.Error(w, httpErr.Why, httpErr.StatusCode)
-			return
-		}
-		inferenceAuditIdentity(r.Context(), apiKeyOwner, apiKeyUsername, tokenId)
-
-		var request InferenceImageGenerationRequest
-		if !inferenceDecodeJSON(w, r, inferenceMaxJSONRequestBytes, &request) {
-			inferenceAuditReject(r.Context(), "invalid request body")
-			return
-		}
-		ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
-		defer cancel()
-
-		if request.Stream.GetOrDefault(false) {
-			events, httpErr := InferenceGenerateImageStreaming(ctx, apiKeyOwner, apiKeyUsername, request)
-			if httpErr != nil {
-				http.Error(w, httpErr.Why, httpErr.StatusCode)
-				return
-			}
-
-			w.Header().Set("Content-Type", "text/event-stream")
-			w.Header().Set("Cache-Control", "no-cache")
-			w.Header().Set("Connection", "keep-alive")
-
-			for event := range events {
-				data, err := json.Marshal(event)
-				if err != nil {
-					continue
-				}
-
-				if err := inferenceWriteSSE(w, append(append([]byte("data: "), data...), '\n', '\n')); err != nil {
-					cancel()
-					for range events {
-					}
-					return
-				}
-			}
-
-			_ = inferenceWriteSSE(w, []byte("data: [DONE]\n\n"))
-			return
-		}
-
-		respData, httpErr := inferenceGenerateImageResponse(ctx, apiKeyOwner, apiKeyUsername, request)
-		if httpErr != nil {
-			http.Error(w, httpErr.Why, httpErr.StatusCode)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(respData)
-	}))
 	inferenceGlobals.Ready.Store(true)
 }
 
@@ -1010,8 +850,6 @@ func inferenceAutoConfigureLocalAI() error {
 	}
 
 	inferenceApplyLocalAIFallbackModels(managementBase, "chat", []string{"localai@qwen3-0.6b"})
-	inferenceApplyLocalAIFallbackModels(managementBase, "transcription", []string{"localai@whisper-1"})
-	inferenceApplyLocalAIFallbackModels(managementBase, "image-generation", []string{"localai@sd-1.5-ggml"})
 	inferenceDiscoverModelsFromEndpoint(base, shared.ServiceConfig.Compute.Inference.Access.Testers, true)
 
 	return nil
@@ -1055,10 +893,9 @@ func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string, disa
 		}
 
 		catalogModel := inferenceModelNormalize(InferenceModel{
-			Name:           name,
-			Title:          name,
-			TitleModelName: name,
-			Capabilities:   []InferenceCapability{InferenceTextGeneration},
+			Name:         name,
+			Title:        name,
+			Capabilities: []InferenceCapability{InferenceTextGeneration},
 			PricePerMillion: InferencePricing{
 				CachedInput: InferencePriceScale,
 				Input:       InferencePriceScale,
@@ -1212,31 +1049,6 @@ func inferenceLocalAIApplyModel(base string, modelId string) error {
 	}
 
 	return fmt.Errorf("model apply endpoint did not accept request")
-}
-
-func inferenceParseImageSize(raw string) (int, int) {
-	if raw == "" {
-		return 512, 512
-	}
-
-	w := 512
-	h := 512
-	_, _ = fmt.Sscanf(raw, "%dx%d", &w, &h)
-
-	if w < 128 {
-		w = 128
-	}
-	if h < 128 {
-		h = 128
-	}
-	if w > 1024 {
-		w = 1024
-	}
-	if h > 1024 {
-		h = 1024
-	}
-
-	return w, h
 }
 
 func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTokens int, inputTokens int, outputTokens int) {

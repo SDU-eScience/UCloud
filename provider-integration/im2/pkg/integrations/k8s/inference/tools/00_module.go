@@ -16,12 +16,6 @@ func Cli() {
 	payload := os.Args[2]
 
 	switch os.Args[1] {
-	case "grep":
-		ToolGrep(payload)
-	case "glob":
-		ToolGlob(payload)
-	case "read":
-		ToolRead(payload)
 	case "web_fetch":
 		ToolWebFetch(payload)
 	case "wikipedia_search":

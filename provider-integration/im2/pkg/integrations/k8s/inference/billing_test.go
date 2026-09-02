@@ -14,38 +14,9 @@ func TestInferenceChatUsageMissingIsNotEstimated(t *testing.T) {
 	}
 }
 
-func TestInferenceTranscriptionUsageMissingIsNotEstimated(t *testing.T) {
-	usage := inferenceTranscriptionUsage(util.OptNone[InferenceTranscriptionUsage]())
-
-	if usage != (InferenceTranscriptionUsage{}) {
-		t.Fatalf("expected zero usage, got %+v", usage)
-	}
-}
-
-func TestInferenceImageUsageMissingIsNotEstimated(t *testing.T) {
-	usage := inferenceImageUsage(util.OptNone[InferenceImageGenerationUsage]())
-
-	if usage != (InferenceImageGenerationUsage{}) {
-		t.Fatalf("expected zero usage, got %+v", usage)
-	}
-}
-
-func TestInferenceMockImageUsageIsEstimated(t *testing.T) {
-	usage := inferenceEstimateImageUsage(InferenceImageGenerationRequest{N: util.OptValue(2), Size: util.OptValue("1024x1024")}, 0)
-	if usage.OutputTokens <= 0 || usage.TotalTokens != usage.OutputTokens {
-		t.Fatalf("expected locally estimated image usage, got %+v", usage)
-	}
-}
-
 func TestInferenceRejectsNegativeUsage(t *testing.T) {
 	if inferenceChatUsageValid(InferenceChatUsage{PromptTokens: -1}) {
 		t.Fatal("negative chat usage was accepted")
-	}
-	if inferenceTranscriptionUsageValid(InferenceTranscriptionUsage{OutputTokens: -1}) {
-		t.Fatal("negative transcription usage was accepted")
-	}
-	if inferenceImageUsageValid(InferenceImageGenerationUsage{TotalTokens: -1}) {
-		t.Fatal("negative image usage was accepted")
 	}
 }
 
@@ -53,14 +24,6 @@ func TestInferenceUsesReportedUsage(t *testing.T) {
 	chat := inferenceChatUsage(util.OptValue(InferenceChatUsage{PromptTokens: 10, CompletionTokens: 5}))
 	if chat.TotalTokens != 15 {
 		t.Fatalf("expected chat total to be completed, got %+v", chat)
-	}
-	transcription := inferenceTranscriptionUsage(util.OptValue(InferenceTranscriptionUsage{InputTokens: 3, OutputTokens: 4}))
-	if transcription.TotalTokens != 7 {
-		t.Fatalf("expected transcription total to be completed, got %+v", transcription)
-	}
-	image := inferenceImageUsage(util.OptValue(InferenceImageGenerationUsage{InputTokens: 2, OutputTokens: 8}))
-	if image.TotalTokens != 10 {
-		t.Fatalf("expected image total to be completed, got %+v", image)
 	}
 }
 

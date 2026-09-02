@@ -57,7 +57,7 @@ func inferenceCliHelp() {
 	f.AppendField("  --name <name>", "Rename the model. Only allowed for non-public models.")
 	f.AppendField("  --title <title>", "Set the display title")
 	f.AppendField("  --title-model-name <name>", "Set model used for chat thread title generation")
-	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration, TextToImage, SpeechToText")
+	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration")
 	f.AppendField("  --reasoning-efforts <list>", "Comma-separated display name=value pairs. Use an empty value to disable reasoning.")
 	f.AppendField("  --default-reasoning-effort <value>", "Set the default reasoning effort value")
 	f.AppendField("  --price-per-million-cached <n>", "Encoded cached input Credits per million tokens")
@@ -94,7 +94,6 @@ func inferenceCliModelsList(args []string) {
 	t := termio.Table{}
 	t.AppendHeader("Name")
 	t.AppendHeader("Title")
-	t.AppendHeader("Title model")
 	t.AppendHeader("Capabilities")
 	t.AppendHeader("Reasoning")
 	t.AppendHeaderEx("Cached price/M", termio.TableHeaderAlignRight)
@@ -107,7 +106,6 @@ func inferenceCliModelsList(args []string) {
 	for _, model := range models {
 		t.Cell("%s", model.Name)
 		t.Cell("%s", model.Title)
-		t.Cell("%s", model.TitleModelName)
 		t.Cell("%s", inferenceCliFormatCapabilities(model.Capabilities))
 		t.Cell("%s", inferenceCliFormatReasoning(model))
 		t.Cell("%d", model.PricePerMillion.CachedInput)
@@ -134,7 +132,6 @@ func inferenceCliModelsUpdate(args []string) {
 	fs := flag.NewFlagSet("inference models update", flag.ExitOnError)
 	fs.StringVar(&req.NewName, "name", "", "Rename the model")
 	fs.StringVar(&req.Title, "title", "", "Set the display title")
-	fs.StringVar(&req.TitleModelName, "title-model-name", "", "Model used for chat thread title generation")
 	fs.StringVar(&capabilitiesRaw, "capabilities", "", "Comma-separated capability list")
 	fs.StringVar(&reasoningEffortsRaw, "reasoning-efforts", "", "Comma-separated display name=value pairs")
 	fs.StringVar(&req.DefaultReasoningEffort, "default-reasoning-effort", "", "Default reasoning effort value")
@@ -242,9 +239,6 @@ func initCli() {
 		if set("title") {
 			model.Title = r.Payload.Title
 		}
-		if set("title-model-name") {
-			model.TitleModelName = r.Payload.TitleModelName
-		}
 		if set("capabilities") {
 			model.Capabilities = slices.Clone(r.Payload.Capabilities)
 		}
@@ -295,9 +289,6 @@ func initCli() {
 
 		newName := strings.TrimSpace(r.Payload.NewName)
 		if set("name") && newName != "" && newName != strings.TrimSpace(r.Payload.Name) {
-			if !set("title-model-name") && strings.TrimSpace(model.TitleModelName) == strings.TrimSpace(r.Payload.Name) {
-				model.TitleModelName = newName
-			}
 			model.Name = newName
 			if err := inferenceModelValidate(model); err != nil {
 				return ipc.Response[util.Empty]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
@@ -337,7 +328,7 @@ func inferenceCliParseCapabilities(raw string) ([]InferenceCapability, error) {
 	for _, item := range items {
 		capability := InferenceCapability(item)
 		switch capability {
-		case InferenceTextGeneration, InferenceTextToImage, InferenceSpeechToText:
+		case InferenceTextGeneration:
 			capabilities = append(capabilities, capability)
 		default:
 			return nil, fmt.Errorf("invalid capability %q", item)
@@ -423,7 +414,6 @@ type k8sCliInferenceModelsUpdateRequest struct {
 	Set                        []string
 	NewName                    string
 	Title                      string
-	TitleModelName             string
 	Capabilities               []InferenceCapability
 	ReasoningEfforts           []InferenceModelOption
 	DefaultReasoningEffort     string

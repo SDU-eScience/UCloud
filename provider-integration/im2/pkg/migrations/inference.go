@@ -490,3 +490,16 @@ func inferenceV20() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV21() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV21",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_model drop column title_model_name`,
+				db.Params{},
+			)
+		},
+	}
+}
