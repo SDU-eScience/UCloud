@@ -1387,15 +1387,14 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
 }
 
 function ThreadListNode({
-                            node,
-                            model,
-                            fn,
+    node,
+    model,
+    fn,
 }: Pick<UcxRenderContext, "node" | "model" | "fn">): React.ReactNode {
     const [operations, setOperations] = React.useState<
         Operation<ThreadListItem>[]
     >([]);
-    const openOperationsRef =
-        React.useRef<(left: number, top: number) => void>(doNothing);
+    const openOperationsRef = React.useRef<(left: number, top: number) => void>(doNothing);
     const threads = threadListValue(fn.modelValue(model, node.bindPath));
     const currentThreadId = stringValue(fn.modelValue(model, "currentThreadId"));
     const loadingThreadIds = stringListValue(fn.modelValue(model, "loadingThreadIds"));
@@ -1465,7 +1464,7 @@ function ThreadListNode({
                 const active = thread.id === currentThreadId;
                 const openMenu = (left: number, top: number) => {
                     setOperations(threadOperations(thread));
-                    openOperationsRef.current(left, top);
+                    queueMicrotask(() => openOperationsRef.current(left, top));
                 };
 
                 return (
