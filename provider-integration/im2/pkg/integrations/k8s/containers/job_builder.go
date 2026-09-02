@@ -603,13 +603,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 func addSnapshotExcludedMounts(pod *core.Pod, container *core.Container) {
 	paths := []string{
-		"/tmp",
-		"/var/tmp",
-		"/var/cache/apt",
-		"/var/cache/dnf",
-		"/var/cache/yum",
+		// NOTE(Dan): Temporarily disabled while I try to understand if apps also depend on these:
+		//"/tmp",
+		//"/var/tmp",
+		//"/var/cache/apt",
+		//"/var/cache/dnf",
+		//"/var/cache/yum",
 
-		// NOTE(Dan): Don't add these, they are apparently used by some apps for data that isn't just a cache.
+		// NOTE(Dan): Don't add these, they are apparently used by some apps for data that isn't just a cache:
 		//"/root/.cache",
 		//"/root/.npm",
 		//"/home/ucloud/.cache",

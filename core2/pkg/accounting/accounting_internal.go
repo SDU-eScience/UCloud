@@ -879,12 +879,12 @@ func lInternalBuildGraph(b *internalBucket, now time.Time, leaf *internalWallet,
 					preferredBalance := lInternalGroupPreferredBalance(b, now, allocationGroup)
 
 					balanceNotConsumed := max(1, preferredBalance-allocationGroup.TreeUsage)
-					balanceFactor := balanceNotConsumed * internalGraphBalanceWeight
+					balanceFactor := (&big.Int{}).Mul(big.NewInt(balanceNotConsumed), big.NewInt(internalGraphBalanceWeight))
 
 					earliestExpiration := lInternalEarliestExpiration(b, allocationGroup)
 					timeFactor := (earliestExpiration.Sub(now).Milliseconds()) * internalGraphTimeWeight
 
-					cost := (&big.Int{}).Mul(big.NewInt(balanceFactor), big.NewInt(timeFactor))
+					cost := (&big.Int{}).Mul(balanceFactor, big.NewInt(timeFactor))
 
 					if timeFactor < 0 || activeQuota < allocationGroup.TreeUsage {
 						cost = internalGraphRetirementCost
