@@ -215,6 +215,39 @@ func TestJobListAllFlags(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestJobCreateWithVersion(t *testing.T) {
+	input := []string{
+		"job", "create",
+		"--app", "terminal-almalinux:Jan2026",
+		"--workspace", "testmain",
+		"--name", "test-job",
+	}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	concrete := cmd.(*command.JobCreateCommand)
+	assert.Equal(t, "terminal-almalinux:Jan2026", concrete.App)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestJobCreateWithProviderProduct(t *testing.T) {
+	input := []string{
+		"job", "create",
+		"--app", "terminal-almalinux",
+		"--prod", "k8s/u1-standard-1",
+		"--workspace", "testmain",
+		"--name", "test-job",
+	}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	concrete := cmd.(*command.JobCreateCommand)
+	assert.Equal(t, "k8s/u1-standard-1", concrete.Product)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
 func TestJobCreate(t *testing.T) {
 	input := []string{
 		"job", "create",
@@ -296,6 +329,160 @@ func TestJobResume(t *testing.T) {
 
 func TestJobResumeMissingID(t *testing.T) {
 	input := []string{"job", "resume"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.Error(t, err)
+}
+
+func TestJobSuspend(t *testing.T) {
+	// Supply the ID of a running job to suspend before running this test.
+	jobID := "10"
+	input := []string{"job", "suspend", jobID}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	concrete := cmd.(*command.JobSuspendCommand)
+	assert.Equal(t, jobID, concrete.JobID)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestJobSuspendMissingID(t *testing.T) {
+	input := []string{"job", "suspend"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.Error(t, err)
+}
+
+func TestJobGet(t *testing.T) {
+	// Supply the ID of a job to retrieve before running this test.
+	jobID := "13"
+	input := []string{"job", "get", jobID}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	concrete := cmd.(*command.JobGetCommand)
+	assert.Equal(t, jobID, concrete.JobID)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestJobGetJSON(t *testing.T) {
+	// Supply the ID of a job to retrieve before running this test.
+	jobID := "13"
+	input := []string{"job", "get", jobID, "--output", "json"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	concrete := cmd.(*command.JobGetCommand)
+	assert.Equal(t, jobID, concrete.JobID)
+	assert.Equal(t, "json", concrete.Output)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestJobGetMissingID(t *testing.T) {
+	input := []string{"job", "get"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.Error(t, err)
+}
+
+func TestJobGetInvalidOutput(t *testing.T) {
+	// Supply the ID of an existing job before running this test.
+	jobID := "10"
+	input := []string{"job", "get", jobID, "--output", "xml"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.Error(t, err)
+}
+
+func TestJobRename(t *testing.T) {
+	// Supply the ID of a job to rename before running this test.
+	jobID := "13"
+	newName := "renamed-job"
+	input := []string{"job", "rename", jobID, newName}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	concrete := cmd.(*command.JobRenameCommand)
+	assert.Equal(t, jobID, concrete.JobID)
+	assert.Equal(t, newName, concrete.NewName)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestJobRenameMissingID(t *testing.T) {
+	input := []string{"job", "rename", "new-name"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.Error(t, err)
+}
+
+func TestJobRenameMissingName(t *testing.T) {
+	input := []string{"job", "rename", "13"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.Error(t, err)
+}
+
+func TestJobSearch(t *testing.T) {
+	input := []string{"job", "search", "test-job"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	concrete := cmd.(*command.JobSearchCommand)
+	assert.Equal(t, "test-job", concrete.JobName)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestJobSearchMissingName(t *testing.T) {
+	input := []string{"job", "search"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.Error(t, err)
+}
+
+func TestJobExtend(t *testing.T) {
+	// Supply the ID of a running job to extend before running this test.
+	jobID := "10"
+	input := []string{"job", "extend", jobID, "--time", "60"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	concrete := cmd.(*command.JobExtendCommand)
+	assert.Equal(t, jobID, concrete.JobID)
+	assert.Equal(t, 60, concrete.Time)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestJobExtendMissingID(t *testing.T) {
+	input := []string{"job", "extend", "--time", "60"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.Error(t, err)
+}
+
+func TestJobExtendMissingTime(t *testing.T) {
+	input := []string{"job", "extend", "10"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
