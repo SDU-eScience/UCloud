@@ -207,10 +207,98 @@ func TestJobList(t *testing.T) {
 }
 
 func TestJobListAllFlags(t *testing.T) {
-	input := []string{"job", "list", "--workspace", "testmain", "--state", "SUCCESS", "--app", "terminal-ubuntuu", "--provider", "ucloud"}
+	input := []string{"job", "list", "--workspace", "testmain", "--state", "SUCCESS", "--app", "terminal-ubuntu", "--provider", "k8s"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
 	assert.NoError(t, err)
+}
+
+func TestJobCreate(t *testing.T) {
+	input := []string{
+		"job", "create",
+		"--app", "terminal-ubuntu",
+		"--workspace", "testmain",
+		"--name", "test-job",
+		"--time", "60",
+		"--ssh",
+	}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	concrete := cmd.(*command.JobCreateCommand)
+	assert.Equal(t, "terminal-ubuntu", concrete.App)
+	assert.Equal(t, "testmain", concrete.Workspace)
+	assert.Equal(t, "test-job", concrete.Name)
+	assert.Equal(t, 60, concrete.Time)
+	assert.True(t, concrete.SSH)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestJobTerminate(t *testing.T) {
+	// Supply the ID of a job to terminate before running this test.
+	jobID := "10"
+	input := []string{"job", "terminate", jobID}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	concrete := cmd.(*command.JobTerminateCommand)
+	assert.Equal(t, jobID, concrete.JobID)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestJobTerminateMissingID(t *testing.T) {
+	input := []string{"job", "terminate"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.Error(t, err)
+}
+
+func TestJobDelete(t *testing.T) {
+	// Supply the ID of a job to delete before running this test.
+	jobID := "10"
+	input := []string{"job", "delete", jobID}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	concrete := cmd.(*command.JobDeleteCommand)
+	assert.Equal(t, jobID, concrete.JobID)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestJobDeleteMissingID(t *testing.T) {
+	input := []string{"job", "delete"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.Error(t, err)
+}
+
+func TestJobResume(t *testing.T) {
+	// Supply the ID of a suspended job to resume before running this test.
+	jobID := "10"
+	input := []string{"job", "resume", jobID}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	concrete := cmd.(*command.JobResumeCommand)
+	assert.Equal(t, jobID, concrete.JobID)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestJobResumeMissingID(t *testing.T) {
+	input := []string{"job", "resume"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.Error(t, err)
 }

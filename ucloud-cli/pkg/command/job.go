@@ -2,10 +2,14 @@ package command
 
 import (
 	"fmt"
+	"strconv"
 
+	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/cli"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/ucloud_cli/pkg/shared"
 )
 
@@ -20,14 +24,15 @@ type JobListCommand struct {
 	Provider  string `flag:"provider" usage:"Provider name"`
 }
 type JobCreateCommand struct {
-	Application string            `flag:"app" usage:"Application name"`
-	Product     string            `flag:"prod" usage:"Product name"`
-	Name        string            `flag:"name" usage:"Job name"`
-	Time        int               `flag:"time" usage:"Time in minutes"`
-	SSH         bool              `flag:"ssh" usage:"Use SSH"`
-	Folder      string            `flag:"folder" usage:"Folder name"`
-	PublicLink  string            `flag:"public-link" usage:"Public link"`
-	Parameters  map[string]string `flag:"param" usage:"eg. image=ubuntu"`
+	App        string            `flag:"app" usage:"Application name"`
+	Product    string            `flag:"prod" usage:"Product name"`
+	Name       string            `flag:"name" usage:"Job name"`
+	Time       int               `flag:"time" usage:"Time in minutes"`
+	SSH        bool              `flag:"ssh" usage:"Use SSH"`
+	Folder     string            `flag:"folder" usage:"Folder name"`
+	PublicLink string            `flag:"public-link" usage:"Public link"`
+	Workspace  string            `flag:"workspace" usage:"Workspace to create the job in"`
+	Parameters map[string]string `flag:"param" usage:"eg. image=ubuntu"`
 }
 
 type JobDeleteCommand struct {
@@ -242,20 +247,287 @@ func (c JobListCommand) Execute() error {
 	return nil
 }
 
+func searchApp(appName string) (fnd.PageV2[orcapi.Application], error) {
+	apps, err := orcapi.AppsSearch.Invoke(orcapi.AppCatalogSearchRequest{
+		Query: appName,
+	})
+	if err != nil {
+		return fnd.PageV2[orcapi.Application]{}, fmt.Errorf("failed to search for applications: %s", err.Why)
+	}
+	return apps, nil
+}
+
+// findApp looks up an application by its name (e.g. "terminal-ubuntu").
+// It returns the newest version of the application.
+func findApp(appName string) (*orcapi.Application, error) {
+	if appName == "" {
+		return nil, fmt.Errorf("no application specified, use --app <name>")
+	}
+
+	app, httpErr := orcapi.AppsFindByNameAndVersion.Invoke(orcapi.AppCatalogFindByNameAndVersionRequest{
+		AppName: appName,
+	})
+	if httpErr != nil {
+		return nil, fmt.Errorf("no application found with name %s: %s", appName, httpErr.Why)
+	}
+	return &app, nil
+}
+
+// findProductForApp picks a compute product capable of running the given application.
+// Only products in categories the active workspace has allocations for are considered.
+// If productName is non-empty it must match that product, otherwise the first
+// supported product is used.
+func findProductForApp(app *orcapi.Application, productName string) (apm.ProductReference, error) {
+	support, httpErr := orcapi.JobsRetrieveProducts.Invoke(util.Empty{})
+	if httpErr != nil {
+		return apm.ProductReference{}, fmt.Errorf("failed to retrieve products: %s", httpErr.Why)
+	}
+
+	// Categories the active workspace has allocations for.
+	wallets, httpErr := apm.WalletsBrowse.Invoke(apm.WalletsBrowseRequest{})
+	if httpErr != nil {
+		return apm.ProductReference{}, fmt.Errorf("failed to retrieve wallets: %s", httpErr.Why)
+	}
+	paidCategories := make(map[string]bool)
+	for _, wallet := range wallets.Items {
+		if wallet.HasAllocations() {
+			paidCategories[fmt.Sprintf("%s/%s", wallet.PaysFor.Provider, wallet.PaysFor.Name)] = true
+		}
+	}
+
+	backend := app.Invocation.Tool.Tool.Value.Description.Backend
+
+	var fallback apm.ProductReference
+	found := false
+	for _, products := range support.ProductsByProvider {
+		for _, resolved := range products {
+			if !productSupportsBackend(resolved.Support, backend) {
+				continue
+			}
+			if !paidCategories[fmt.Sprintf("%s/%s", resolved.Product.Category.Provider, resolved.Product.Category.Name)] {
+				continue
+			}
+			if productName != "" && resolved.Product.Name != productName {
+				continue
+			}
+			ref := resolved.Product.ToReference()
+			if productName != "" {
+				return ref, nil
+			}
+			if !found {
+				fallback = ref
+				found = true
+			}
+		}
+	}
+
+	if productName != "" {
+		return apm.ProductReference{}, fmt.Errorf("product %s is not available for application %s", productName, app.Metadata.Name)
+	}
+	if !found {
+		return apm.ProductReference{}, fmt.Errorf("no products available to run application %s", app.Metadata.Name)
+	}
+	return fallback, nil
+}
+
+func productSupportsBackend(support orcapi.JobSupport, backend orcapi.ToolBackend) bool {
+	switch backend {
+	case orcapi.ToolBackendDocker:
+		return support.Docker.Enabled
+	case orcapi.ToolBackendVirtualMachine:
+		return support.VirtualMachine.Enabled
+	case orcapi.ToolBackendNative:
+		return support.Native.Enabled
+	default:
+		return false
+	}
+}
+
+// buildParameters converts user supplied "key=value" pairs into typed
+// AppParameterValue entries based on the application's parameter declarations.
+func buildParameters(app *orcapi.Application, userParams map[string]string) (map[string]orcapi.AppParameterValue, error) {
+	if len(userParams) == 0 {
+		return map[string]orcapi.AppParameterValue{}, nil
+	}
+
+	declared := make(map[string]orcapi.ApplicationParameter)
+	for _, p := range app.Invocation.Parameters {
+		declared[p.Name] = p
+	}
+
+	result := make(map[string]orcapi.AppParameterValue, len(userParams))
+	for key, rawValue := range userParams {
+		param, ok := declared[key]
+		if !ok {
+			return nil, fmt.Errorf("unknown parameter %q for application %s", key, app.Metadata.Name)
+		}
+
+		value, err := parseParameterValue(param, rawValue)
+		if err != nil {
+			return nil, err
+		}
+		result[key] = value
+	}
+	return result, nil
+}
+
+func parseParameterValue(param orcapi.ApplicationParameter, rawValue string) (orcapi.AppParameterValue, error) {
+	switch param.Type {
+	case orcapi.ApplicationParameterTypeInteger:
+		n, err := strconv.ParseInt(rawValue, 10, 64)
+		if err != nil {
+			return orcapi.AppParameterValue{}, fmt.Errorf("parameter %q expects an integer, got %q", param.Name, rawValue)
+		}
+		return orcapi.AppParameterValueInteger(n), nil
+	case orcapi.ApplicationParameterTypeFloatingPoint:
+		f, err := strconv.ParseFloat(rawValue, 64)
+		if err != nil {
+			return orcapi.AppParameterValue{}, fmt.Errorf("parameter %q expects a floating point number, got %q", param.Name, rawValue)
+		}
+		return orcapi.AppParameterValueFloatingPoint(f), nil
+	case orcapi.ApplicationParameterTypeBoolean:
+		b, err := strconv.ParseBool(rawValue)
+		if err != nil {
+			return orcapi.AppParameterValue{}, fmt.Errorf("parameter %q expects a boolean, got %q", param.Name, rawValue)
+		}
+		return orcapi.AppParameterValueBoolean(b), nil
+	case orcapi.ApplicationParameterTypeText, orcapi.ApplicationParameterTypeTextArea:
+		return orcapi.AppParameterValueText(rawValue), nil
+	case orcapi.ApplicationParameterTypeEnumeration:
+		for _, opt := range param.Options {
+			if opt.Value == rawValue {
+				return orcapi.AppParameterValueText(rawValue), nil
+			}
+		}
+		return orcapi.AppParameterValue{}, fmt.Errorf("parameter %q does not allow value %q", param.Name, rawValue)
+	default:
+		return orcapi.AppParameterValue{}, fmt.Errorf("parameter %q of type %s is not supported by the CLI", param.Name, param.Type)
+	}
+}
+
+func createApp(job JobCreateCommand, app *orcapi.Application) error {
+	product, err := findProductForApp(app, job.Product)
+	if err != nil {
+		return err
+	}
+
+	parameters, err := buildParameters(app, job.Parameters)
+	if err != nil {
+		return err
+	}
+
+	spec := orcapi.JobSpecification{
+		ResourceSpecification: orcapi.ResourceSpecification{
+			Product: product,
+		},
+		Application: orcapi.NameAndVersion{
+			Name:    app.Metadata.Name,
+			Version: app.Metadata.Version,
+		},
+		Name:       job.Name,
+		Replicas:   1,
+		Parameters: parameters,
+		SshEnabled: job.SSH,
+		Resources:  []orcapi.AppParameterValue{},
+	}
+
+	if job.Time > 0 {
+		spec.TimeAllocation = util.OptValue(orcapi.SimpleDuration{
+			Hours:   job.Time / 60,
+			Minutes: job.Time % 60,
+		})
+	}
+
+	response, httpErr := orcapi.JobsCreate.Invoke(fnd.BulkRequestOf(spec))
+	if httpErr != nil {
+		return fmt.Errorf("failed to create job: %s", httpErr.Why)
+	}
+
+	for _, created := range response.Responses {
+		fmt.Printf("Job created: %s\n", created.Id)
+	}
+	return nil
+}
+
 func (c JobCreateCommand) Execute() error {
-	return fmt.Errorf("job create not implemented")
+	cfg, err := shared.ReadConfig()
+	if err != nil {
+		panic(err)
+	}
+	cfg.InitUCloudClient()
+
+	if c.App == "" {
+		return fmt.Errorf("this command requires an application, use --app <name>")
+	}
+
+	// Jobs are created in the context of a workspace (defaults to the
+	// personal workspace if none is active).
+	currentWs := c.Workspace
+	if currentWs == "" {
+		currentWs = cfg.CurrentWorkspace.GetOrDefault("")
+	}
+	if currentWs != "" {
+		ws, err := findWorkspace(currentWs)
+		if err != nil {
+			return err
+		}
+		shared.SetActiveWorkspace(ws.Id)
+	}
+
+	foundApp, appErr := findApp(c.App)
+	if appErr != nil {
+		return appErr
+	}
+
+	return createApp(c, foundApp)
 }
 
 func (c JobDeleteCommand) Execute() error {
-	return fmt.Errorf("job delete not implemented")
+	return fmt.Errorf("No yet implemented.")
 }
 
 func (c JobTerminateCommand) Execute() error {
-	return fmt.Errorf("job terminate not implemented")
+	cfg, err := shared.ReadConfig()
+	if err != nil {
+		panic(err)
+	}
+	cfg.InitUCloudClient()
+
+	if c.JobID == "" {
+		return fmt.Errorf("this command requires a job id, use: ucloud job terminate <job-id>")
+	}
+
+	_, httpErr := orcapi.JobsTerminate.Invoke(fnd.BulkRequestOf(fnd.FindByStringId{
+		Id: c.JobID,
+	}))
+	if httpErr != nil {
+		return fmt.Errorf("failed to terminate job: %s", httpErr.Why)
+	}
+
+	fmt.Printf("Job terminated: %s\n", c.JobID)
+	return nil
 }
 
 func (c JobResumeCommand) Execute() error {
-	return fmt.Errorf("job resume not implemented")
+	cfg, err := shared.ReadConfig()
+	if err != nil {
+		panic(err)
+	}
+	cfg.InitUCloudClient()
+
+	if c.JobID == "" {
+		return fmt.Errorf("this command requires a job id, use: ucloud job resume <job-id>")
+	}
+
+	_, httpErr := orcapi.JobsUnsuspend.Invoke(fnd.BulkRequestOf(fnd.FindByStringId{
+		Id: c.JobID,
+	}))
+	if httpErr != nil {
+		return fmt.Errorf("failed to resume job: %s", httpErr.Why)
+	}
+
+	fmt.Printf("Job resumed: %s\n", c.JobID)
+	return nil
 }
 
 func (c JobAttachCommand) Execute() error {
