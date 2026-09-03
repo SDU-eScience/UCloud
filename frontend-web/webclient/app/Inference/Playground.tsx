@@ -7,7 +7,7 @@ import {Box, Button, Flex, Icon, Text, TextArea,} from "@/ui-components";
 import {Toggle} from "@/ui-components/Toggle";
 import UcxView, {UcxComponentRegistry, UcxFunctionRegistry, UcxRenderContext, UcxSpinner} from "@/UCX/UcxView";
 import {UiNode, Value, ValueKind} from "@/UCX/protocol";
-import {copyToClipboard, doNothing, extensionFromPath, extensionType, removeTrailingSlash, typeFromMime} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, extensionFromPath, extensionType, removeTrailingSlash, stopPropagation, typeFromMime} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {sendFailureNotification} from "@/Notifications";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
@@ -1821,8 +1821,10 @@ function DisabledComposerPlaceholder(): React.ReactNode {
         </div>
     </Box>;
 }
+function PlaygroundThreadSidebar({ model, fn, connected, footer, onCollapse, onNewThread }: { model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void; onNewThread: () => void}): React.ReactNode {
 
-function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNewThread}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void; onNewThread: () => void}): React.ReactNode {
+    const [threadsShown, setThreadsShown] = React.useState(false);
+
     const node = React.useMemo<UiNode>(() => ({
         id: "threadList",
         component: "inference_thread_list",
@@ -1831,6 +1833,14 @@ function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNe
         props: {},
         children: [],
     }), []);
+
+    React.useEffect(() => {
+        function hideThreads() {
+            setThreadsShown(false);
+        }
+        window.document.addEventListener("click", hideThreads);
+        return () => window.document.removeEventListener("click", hideThreads);
+    }, []);
 
     const header = <div style={{display: "flex", alignItems: "center", gap: 8}}>
         <div style={{flex: 1, display: "flex", flexDirection: "row", alignItems: "center", gap: "8px"}}>
@@ -1848,18 +1858,76 @@ function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNe
         </div>
     </div>;
 
-return <PlaygroundSidebarShell header={header} footer={footer}>
-        {fn ? <ThreadListNode node={node} model={model} fn={fn} /> : <Text color="textSecondary">Loading...</Text>}
-    </PlaygroundSidebarShell>;
+    return <div onClick={e => e.stopPropagation()}>
+        <div onClick={() => setThreadsShown(shown => !shown)} className={ResponsiveShow} data-open={threadsShown}><Icon mt="4px" ml="6px" color="iconColor" name="heroListBullet" /></div>
+        <div className={ResponsiveThreads} data-open={threadsShown}>
+            <PlaygroundSidebarShell header={header} footer={footer}>
+                {fn ? <ThreadListNode node={node} model={model} fn={fn} /> : <Text color="textSecondary">Loading...</Text>}
+            </PlaygroundSidebarShell>
+        </div>
+    </div>;
 }
 
-const ResponsiveHide = injectStyle("responsive-hide", cl => `
-    @media screen and (max-width: 900px) {
+const ResponsiveShow = injectStyle("responsive-hide", cl => `
+    @media (max-width: 900px) {
+        ${cl} {
+            cursor: pointer;
+            position: absolute;
+            right: 0;
+            top: 20vh;
+            background: var(--backgroundDefault);
+            height: 32px;
+            width: 32px;
+            border: 2px solid var(--borderColor);
+            border-right: none;
+            border-radius: 12px;
+            border-top-right-radius: 0px;
+            border-bottom-right-radius: 0px;
+            transition: transform 0.25s cubic-bezier(0.5,1,0.5,1);
+            z-index: 1;
+        }
+
+        ${cl}[data-open=true] {
+            transform: translateX(-248px);
+        }
+    }
+
+    @media (min-width: 900px) {
         ${cl} {
             display: none;
         }
     }
 `);
+
+const ResponsiveHide = injectStyle("responsive-hide", cl => `
+    @media (max-width: 900px) {
+        ${cl} {
+            display: none;
+        }
+    }
+`);
+
+const ResponsiveThreads = injectStyle("responive-threads", cl => `
+    @media (max-width: 900px) {
+        ${cl} {
+            --width: 250px;
+            padding: 12px;
+            transition: transform 0.25s cubic-bezier(0.5,1,0.5,1);
+            top: 0;
+            background: var(--backgroundDefault);
+            height: 100vh;
+            position: absolute;
+            right: calc(0px - var(--width));
+            width: var(--width);
+            border-left: 2px solid var(--borderColor);
+        }
+
+        ${cl}[data-open=true] {
+            transform: translateX(-100%);
+        }
+    }
+`);
+
 function WorkspaceSelector({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
     const path = stringValue(fn?.modelValue(model, "workspace.path") ?? model["workspace.path"]);
     const loading = boolValue(fn?.modelValue(model, "workspace.loading") ?? model["workspace.loading"]);
