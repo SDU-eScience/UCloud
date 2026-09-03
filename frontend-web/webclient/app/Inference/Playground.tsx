@@ -1912,17 +1912,19 @@ const ResponsiveThreads = injectStyle("responive-threads", cl => `
         ${cl} {
             --width: 250px;
             padding: 12px;
-            transition: transform 0.25s cubic-bezier(0.5,1,0.5,1);
+            display: none;
             top: 0;
             background: var(--backgroundDefault);
             height: 100vh;
             position: absolute;
             right: calc(0px - var(--width));
-            width: var(--width);
+            width: 0;
             border-left: 2px solid var(--borderColor);
         }
 
         ${cl}[data-open=true] {
+            display: block;
+            width: var(--width);
             transform: translateX(-100%);
         }
     }
