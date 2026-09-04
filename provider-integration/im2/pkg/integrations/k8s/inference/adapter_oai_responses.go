@@ -1126,11 +1126,6 @@ func InferenceResponseDelete(owner apm.WalletOwner, username string, id string) 
 }
 
 func inferenceResponseValidateRequest(request OaiResponseCreateRequest) *util.HttpError {
-	for _, include := range request.Include {
-		if include == "reasoning.encrypted_content" {
-			return util.HttpErr(http.StatusBadRequest, "reasoning.encrypted_content is not supported")
-		}
-	}
 	if len(request.ContextManagement) > 0 && string(request.ContextManagement) != "null" {
 		return util.HttpErr(http.StatusBadRequest, "context_management is not supported")
 	}
