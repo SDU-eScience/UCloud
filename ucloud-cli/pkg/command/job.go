@@ -29,11 +29,11 @@ type JobListCommand struct {
 }
 type JobCreateCommand struct {
 	App        string            `flag:"app" usage:"Application name"`
-	Product    string            `flag:"prod" usage:"Product name"`
+	Product    string            `flag:"product" usage:"Product name"`
 	Name       string            `flag:"name" usage:"Job name"`
 	Time       int               `flag:"time" usage:"Time in minutes"`
 	SSH        bool              `flag:"ssh" usage:"Use SSH"`
-	Folder     string            `flag:"folder" usage:"Folder name"`
+	Folder     string            `flag:"folder" usage:"Folder path to mount, e.g. /19/mysubdrive/"`
 	PublicLink string            `flag:"public-link" usage:"Public link"`
 	Workspace  string            `flag:"workspace" usage:"Workspace to create the job in"`
 	Parameters map[string]string `flag:"param" usage:"eg. image=ubuntu"`
@@ -627,6 +627,13 @@ func createApp(job JobCreateCommand, app *orcapi.Application) error {
 			Hours:   job.Time / 60,
 			Minutes: job.Time % 60,
 		})
+	}
+	if job.Folder != "" {
+		file := orcapi.AppParameterValue{
+			Type: orcapi.AppParameterValueTypeFile,
+			Path: job.Folder,
+		}
+		spec.Resources = append(spec.Resources, file)
 	}
 
 	response, httpErr := orcapi.JobsCreate.Invoke(fnd.BulkRequestOf(spec))

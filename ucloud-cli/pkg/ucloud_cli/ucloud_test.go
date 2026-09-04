@@ -235,9 +235,10 @@ func TestJobCreateWithProviderProduct(t *testing.T) {
 	input := []string{
 		"job", "create",
 		"--app", "terminal-almalinux",
-		"--prod", "k8s/u1-standard-1",
+		"--product", "k8s/u1-standard-1",
+		"--folder", "/19/mysubdrive",
 		"--workspace", "testmain",
-		"--name", "test-job",
+		"--name", "test-currently-job",
 	}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -294,7 +295,7 @@ func TestJobTerminateMissingID(t *testing.T) {
 
 func TestJobDelete(t *testing.T) {
 	// Supply the ID of a job to delete before running this test.
-	jobID := "10"
+	jobID := "16"
 	input := []string{"job", "delete", jobID}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -316,7 +317,7 @@ func TestJobDeleteMissingID(t *testing.T) {
 
 func TestJobResume(t *testing.T) {
 	// Supply the ID of a suspended job to resume before running this test.
-	jobID := "10"
+	jobID := "16"
 	input := []string{"job", "resume", jobID}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -338,7 +339,7 @@ func TestJobResumeMissingID(t *testing.T) {
 
 func TestJobSuspend(t *testing.T) {
 	// Supply the ID of a running job to suspend before running this test.
-	jobID := "10"
+	jobID := "16"
 	input := []string{"job", "suspend", jobID}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -460,7 +461,7 @@ func TestJobSearchMissingName(t *testing.T) {
 
 func TestJobExtend(t *testing.T) {
 	// Supply the ID of a running job to extend before running this test.
-	jobID := "10"
+	jobID := "14"
 	input := []string{"job", "extend", jobID, "--time", "60"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
