@@ -8,14 +8,12 @@ import (
 
 type EnvironmentUseCommand struct {
 	Name string `positional:"name" usage:"Environment name"`
-	Dev  bool   `flag:"dev" usage:"Dev mode"`
 }
 type EnvironmentListCommand struct {
 }
 type EnvironmentAddCommand struct {
 	Name string `positional:"name" usage:"Environment name" required:"true"`
-	URL  string `positional:"url" usage:"Environment url" required:"true"`
-	Dev  bool   `flag:"dev" usage:"Dev mode"`
+	URL  string `flag:"url" usage:"Environment URL"`
 }
 
 type EnvironmentRemoveCommand struct {
@@ -51,7 +49,6 @@ func (c EnvironmentUseCommand) Execute() error {
 		return updateErr
 	}
 	shared.PrintConfig(updateCfg)
-	fmt.Println("Environment updated to ", c.Name)
 	return nil
 }
 func (c EnvironmentListCommand) Execute() error {
@@ -72,7 +69,7 @@ func (c EnvironmentAddCommand) Execute() error {
 	_, ok := cfg.Environments[c.Name]
 	if ok {
 		// updating the env if it already exists
-		fmt.Println("Updating environment URL ", c.URL)
+		fmt.Printf("Updated environment of %s to %s \n", c.Name, c.URL)
 		cfg.Environments[c.Name] = shared.Environment{
 			URL: c.URL,
 		}
@@ -88,7 +85,6 @@ func (c EnvironmentAddCommand) Execute() error {
 	if updateErr != nil {
 		return updateErr
 	}
-	fmt.Println("Environment updated to ", c.Name)
 	shared.PrintEnvironments(updateCfg)
 	return nil
 }
@@ -98,12 +94,15 @@ func (c EnvironmentRemoveCommand) Execute() error {
 	if err != nil {
 		return err
 	}
+	if _, ok := cfg.Environments[c.Name]; !ok {
+		return fmt.Errorf("environment %s was not found", c.Name)
+	}
 	delete(cfg.Environments, c.Name)
 	updateCfg, updateErr := shared.UpdateConfig(cfg)
 	if updateErr != nil {
 		return updateErr
 	}
-	fmt.Println("Environment removed ", c.Name)
+	fmt.Printf("Environment %s has been removed\n", c.Name)
 	shared.PrintEnvironments(updateCfg)
 	return nil
 }
