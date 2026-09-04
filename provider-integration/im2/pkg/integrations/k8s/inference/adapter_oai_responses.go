@@ -846,7 +846,7 @@ type inferenceResponseStreamingToolCall struct {
 }
 
 func (c *inferenceResponseStreamingToolCall) ResponseItem(status string) any {
-	return inferenceResponseToolCallItem(c.Id, c.CallId, c.Name, c.Arguments.String(), status, c.Custom)
+	return inferenceResponseToolCallItem(c.Id, c.CallId, c.Name, inferenceNormalizeToolCallArguments(c.Arguments.String()), status, c.Custom)
 }
 
 func inferenceResponseStreamCustomToolCall(ch chan OaiResponseStreamEvent, toolCall *inferenceResponseStreamingToolCall) {
@@ -1301,7 +1301,7 @@ func inferenceResponseInputItemToMessage(raw json.RawMessage) (InferenceChatMess
 		if callId == "" {
 			return InferenceChatMessage{}, false, util.HttpErr(http.StatusBadRequest, "invalid function_call item")
 		}
-		return inferenceResponseToolCallMessage(callId, functionCall.Name, functionCall.Arguments), true, nil
+		return inferenceResponseToolCallMessage(callId, functionCall.Name, inferenceNormalizeToolCallArguments(functionCall.Arguments)), true, nil
 	case "custom_tool_call":
 		var customToolCall struct {
 			Id     string `json:"id"`

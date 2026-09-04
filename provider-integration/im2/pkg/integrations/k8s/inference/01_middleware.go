@@ -501,6 +501,40 @@ type InferenceChatToolCallFunction struct {
 	Arguments string `json:"arguments"`
 }
 
+func (f *InferenceChatToolCallFunction) UnmarshalJSON(data []byte) error {
+	type inferenceChatToolCallFunctionJSON InferenceChatToolCallFunction
+	var decoded inferenceChatToolCallFunctionJSON
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*f = InferenceChatToolCallFunction(decoded)
+	f.Arguments = inferenceNormalizeToolCallArguments(f.Arguments)
+	return nil
+}
+
+func inferenceNormalizeToolCallArguments(arguments string) string {
+	trimmed := strings.TrimSpace(arguments)
+	if !strings.HasPrefix(trimmed, "\"") {
+		return arguments
+	}
+
+	var quoted string
+	if err := json.Unmarshal([]byte(trimmed), &quoted); err != nil {
+		return arguments
+	}
+
+	quoted = strings.TrimSpace(quoted)
+	if !strings.HasPrefix(quoted, "{") {
+		return arguments
+	}
+
+	var object map[string]any
+	if err := json.Unmarshal([]byte(quoted), &object); err != nil {
+		return arguments
+	}
+	return quoted
+}
+
 type InferenceChatResponse struct {
 	Id      string                `json:"id"`
 	Object  string                `json:"object"`
