@@ -6,8 +6,19 @@ import {UpdatedAcl} from "@/UCloud/ResourceApi";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {getStoredProject} from "@/Project/ReduxState";
 import type {JobSpecification} from "@/UCloud/JobsApi";
+import {Feature, hasFeature} from "@/Features";
+import {checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
 
 const baseContext = "/api/hpc/apps";
+
+export function customApplicationsEnabled(): boolean {
+    return hasFeature(Feature.CONTAINER_REPOSITORIES);
+}
+
+export function customAppsWorkspaceAdmin(): boolean {
+    if (!customApplicationsEnabled()) return false;
+    return checkIsWorkspaceAdmin();
+}
 
 export interface Tool {
     owner: string;

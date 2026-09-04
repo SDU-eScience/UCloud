@@ -97,7 +97,7 @@ import {JobSpecification} from "@/UCloud/JobsApi";
 import JobCreate from "@/Applications/Jobs/Create";
 import AppRoutes from "@/Routes";
 import {UcxSpinner} from "@/UCX/UcxView";
-import {Feature, hasFeature} from "@/Features";
+import {customApplicationsEnabled} from "@/Applications/AppStoreApi";
 
 // Shell layout
 // -------------------------------------------------------------------------------------------------------------------
@@ -420,10 +420,10 @@ export const Create: React.FunctionComponent = () => {
             setLoadError("Only UCloud administrators can create managed applications.");
             return;
         }
-        if (creatorIsCustom(context) && !Client.userIsAdmin && !hasFeature(Feature.CONTAINER_REPOSITORIES)) {
+        if (creatorIsCustom(context) && !customApplicationsEnabled()) {
             setLoading(false);
             setDraft(null);
-            setLoadError("Custom application creation is not enabled for your account.");
+            setLoadError("Custom application creation is not available to you.");
             return;
         }
         const currentDraft = draftRef.current;

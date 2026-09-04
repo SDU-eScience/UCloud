@@ -57,11 +57,6 @@ import (
 // Shared helpers
 // =====================================================================================================================
 
-func appEditorIsProjectAdmin(actor rpc.Actor) bool {
-	return actor.Role == rpc.RoleAdmin ||
-		(actor.Project.Present && actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin))
-}
-
 func appEditorLogicalName(name string) string {
 	return strings.TrimPrefix(name, "custom-")
 }
@@ -340,8 +335,8 @@ func appEditorRetrieveSource(actor rpc.Actor, request orcapi.AppEditorRetrieveSo
 	switch request.Intent {
 	case orcapi.AppEditorSourceIntentEdit:
 	case orcapi.AppEditorSourceIntentFork:
-		if !appEditorIsProjectAdmin(actor) {
-			return orcapi.AppEditorRetrieveSourceResponse{}, util.HttpErr(http.StatusForbidden, "project administrator access is required")
+		if !appCustomIsAdmin(actor) {
+			return orcapi.AppEditorRetrieveSourceResponse{}, util.HttpErr(http.StatusForbidden, "workspace administrator access is required")
 		}
 	default:
 		return orcapi.AppEditorRetrieveSourceResponse{}, util.HttpErr(http.StatusBadRequest, "invalid source intent")
@@ -848,6 +843,7 @@ func appEditorDecodeDefault[T any](raw json.RawMessage, result *util.Option[T]) 
 
 func appEditorEligibility(actor rpc.Actor) orcapi.AppEditorCustomEligibilityResponse {
 	result := orcapi.AppEditorCustomEligibilityResponse{
+		CanCreate:  appCustomCanCreateGroup(actor),
 		CanPublish: actor.Project.Present,
 	}
 	providers := map[string]bool{}

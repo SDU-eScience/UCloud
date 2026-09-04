@@ -1,7 +1,6 @@
 import * as React from "react";
 import {useCallback, useState} from "react";
 import {callAPI} from "@/Authentication/DataHook";
-import {Client} from "@/Authentication/HttpClientInstance";
 import * as AppStore from "@/Applications/AppStoreApi";
 import AppRoutes from "@/Routes";
 import {useNavigate} from "react-router-dom";
@@ -12,8 +11,7 @@ import * as Heading from "@/ui-components/Heading";
 import {FieldGroup, FieldRow} from "@/Applications/Jobs/Widgets";
 import {extractErrorMessage, doNothing} from "@/UtilityFunctions";
 import {useProjectId} from "@/Project/Api";
-import {checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
-import {Feature, hasFeature} from "@/Features";
+import {customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
 import {KeyboardNavigation, SubmitShortcut, useSubmitShortcut} from "@/Applications/KeyboardNavigation";
 import {DocumentTypography} from "@/ui-components/Markdown";
 import {injectStyle} from "@/Unstyled";
@@ -84,11 +82,7 @@ export default function CategoryCreate(): React.ReactNode {
     const navigate = useNavigate();
     const [, setLandingPage] = useGlobal("catalogLandingPage", AppStore.emptyLandingPage);
 
-    const allowed = Client.userIsAdmin || (
-        hasFeature(Feature.CONTAINER_REPOSITORIES) &&
-        projectId != null &&
-        checkIsWorkspaceAdmin()
-    );
+    const allowed = customAppsWorkspaceAdmin();
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);

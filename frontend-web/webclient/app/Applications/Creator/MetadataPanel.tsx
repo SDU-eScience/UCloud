@@ -44,8 +44,7 @@ import * as Heading from "@/ui-components/Heading";
 import {Divider} from "@/ui-components";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import ContainerRepositoryBrowse from "@/ContainerRepositories/Browse";
-import {Client} from "@/Authentication/HttpClientInstance";
-import {checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
+import {customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
 
 export interface MetadataPanelProps {
     draft: CreatorDraft;
@@ -1204,7 +1203,7 @@ function CustomFieldsSection(props: {
     if (!meta) return null;
 
     const allCategories = props.categories ?? [];
-    const canCreateCategory = Client.userIsAdmin || checkIsWorkspaceAdmin();
+    const canCreateCategory = customAppsWorkspaceAdmin();
     const selected = meta.category
         ? allCategories.find(category => String(category.id) === meta.category) ?? null
         : null;

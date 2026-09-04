@@ -18,8 +18,6 @@ import {injectStyle} from "@/Unstyled";
 import {useProjectId} from "@/Project/Api";
 import AppRoutes from "@/Routes";
 import {fetchAll} from "@/Utilities/PageUtilities";
-import {Client} from "@/Authentication/HttpClientInstance";
-import {Feature, hasFeature} from "@/Features";
 import {Button} from "@/ui-components/Button";
 import Icon from "@/ui-components/Icon";
 import Text from "@/ui-components/Text";
@@ -101,7 +99,7 @@ const ApplicationsCategory: React.FunctionComponent = () => {
     useSetRefreshFunction(refreshAll);
     const appSearch = useAppSearch();
 
-    const canCreateApplication = !!editableCategory && (hasFeature(Feature.CONTAINER_REPOSITORIES));
+    const canCreateApplication = !!editableCategory && AppStore.customApplicationsEnabled();
     const createApplication = useCallback(() => {
         if (!editableCategory) return;
         navigate(AppRoutes.apps.creator({
