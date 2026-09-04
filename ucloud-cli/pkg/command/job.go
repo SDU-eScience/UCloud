@@ -519,6 +519,49 @@ func productSupportsBackend(support orcapi.JobSupport, backend orcapi.ToolBacken
 	}
 }
 
+// Looks up a public link (ingress) by domain or ID. The query is matched
+// against the domain by the server (case-insensitive substring match).
+func findPublicLink(query string) (*orcapi.Ingress, error) {
+	result, httpErr := orcapi.IngressesSearch.Invoke(orcapi.IngressesSearchRequest{
+		Query: query,
+	})
+	if httpErr != nil {
+		return nil, fmt.Errorf("failed to search for public links: %s", httpErr.Why)
+	}
+
+	// Prefer an exact (case-insensitive) domain match, fall back to the
+	// first substring match.
+	for i := range result.Items {
+		if strings.EqualFold(result.Items[i].Specification.Domain, query) {
+			return &result.Items[i], nil
+		}
+	}
+	if len(result.Items) > 0 {
+		return &result.Items[0], nil
+	}
+	return nil, fmt.Errorf("no public link found matching %q", query)
+}
+
+// Checks that a public link can be attached to a new job: it must be READY,
+// not bound to another job, and belong to the same provider as the job's
+// machine type.
+func validatePublicLinkForJob(link *orcapi.Ingress, productProvider string) error {
+	if link.Status.State != orcapi.IngressStateReady {
+		return fmt.Errorf("public link %s is not ready (state: %s)", link.Specification.Domain, link.Status.State)
+	}
+	if len(link.Status.BoundTo) > 0 {
+		return fmt.Errorf("public link %s is already in use by job %s", link.Specification.Domain, strings.Join(link.Status.BoundTo, ", "))
+	}
+	linkProvider := link.Specification.Product.Provider
+	if linkProvider != "" && productProvider != "" && linkProvider != productProvider {
+		return fmt.Errorf(
+			"public link %s belongs to provider %s and cannot be used with machines from provider %s",
+			link.Specification.Domain, linkProvider, productProvider,
+		)
+	}
+	return nil
+}
+
 func buildParameters(app *orcapi.Application, userParams map[string]string) (map[string]orcapi.AppParameterValue, error) {
 	if len(userParams) == 0 {
 		return map[string]orcapi.AppParameterValue{}, nil
@@ -617,6 +660,19 @@ func createApp(job JobCreateCommand, app *orcapi.Application) error {
 			Path: job.Folder,
 		}
 		spec.Resources = append(spec.Resources, file)
+	}
+	if job.PublicLink != "" {
+		link, err := findPublicLink(job.PublicLink)
+		if err != nil {
+			return err
+		}
+		if err := validatePublicLinkForJob(link, spec.Product.Provider); err != nil {
+			return err
+		}
+		spec.Resources = append(spec.Resources, orcapi.AppParameterValue{
+			Type: orcapi.AppParameterValueTypeIngress,
+			Id:   link.Id,
+		})
 	}
 
 	response, httpErr := orcapi.JobsCreate.Invoke(fnd.BulkRequestOf(spec))

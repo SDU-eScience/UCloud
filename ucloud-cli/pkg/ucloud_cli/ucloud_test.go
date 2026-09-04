@@ -249,6 +249,38 @@ func TestJobCreateWithProviderProduct(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestJobCreateWithPublicLink(t *testing.T) {
+	input := []string{
+		"job", "create",
+		"--app", "terminal-almalinux",
+		"--product", "k8s/u1-standard-1",
+		"--workspace", "testmain",
+		"--public-link", "k8s-testmain-cli.localhost.direct",
+		"--name", "test-public-link-job",
+	}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestJobCreateWithInvalidPublicLink(t *testing.T) {
+	input := []string{
+		"job", "create",
+		"--app", "terminal-almalinux",
+		"--product", "k8s/u1-standard-1",
+		"--workspace", "testmain",
+		"--public-link", "no-such-link-exists",
+		"--name", "test-invalid-public-link-job",
+	}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.Error(t, err)
+}
+
 func TestJobCreate(t *testing.T) {
 	input := []string{
 		"job", "create",
