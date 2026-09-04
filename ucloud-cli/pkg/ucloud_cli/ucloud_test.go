@@ -293,19 +293,6 @@ func TestJobTerminateMissingID(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestJobDelete(t *testing.T) {
-	// Supply the ID of a job to delete before running this test.
-	jobID := "16"
-	input := []string{"job", "delete", jobID}
-	cmd, err := Parse(input)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	concrete := cmd.(*command.JobDeleteCommand)
-	assert.Equal(t, jobID, concrete.JobID)
-	err = cmd.Execute()
-	assert.NoError(t, err)
-}
-
 func TestJobDeleteMissingID(t *testing.T) {
 	input := []string{"job", "delete"}
 	cmd, err := Parse(input)
@@ -330,28 +317,6 @@ func TestJobResume(t *testing.T) {
 
 func TestJobResumeMissingID(t *testing.T) {
 	input := []string{"job", "resume"}
-	cmd, err := Parse(input)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	err = cmd.Execute()
-	assert.Error(t, err)
-}
-
-func TestJobSuspend(t *testing.T) {
-	// Supply the ID of a running job to suspend before running this test.
-	jobID := "16"
-	input := []string{"job", "suspend", jobID}
-	cmd, err := Parse(input)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	concrete := cmd.(*command.JobSuspendCommand)
-	assert.Equal(t, jobID, concrete.JobID)
-	err = cmd.Execute()
-	assert.NoError(t, err)
-}
-
-func TestJobSuspendMissingID(t *testing.T) {
-	input := []string{"job", "suspend"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -440,12 +405,12 @@ func TestJobRenameMissingName(t *testing.T) {
 }
 
 func TestJobSearch(t *testing.T) {
-	input := []string{"job", "search", "test-job"}
+	input := []string{"job", "search", "test-currently-job2", "--workspace", "testmain"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	concrete := cmd.(*command.JobSearchCommand)
-	assert.Equal(t, "test-job", concrete.JobName)
+	assert.Equal(t, "test-currently-job2", concrete.JobName)
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }

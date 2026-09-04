@@ -39,17 +39,14 @@ type JobCreateCommand struct {
 	Parameters map[string]string `flag:"param" usage:"eg. image=ubuntu"`
 }
 
-type JobDeleteCommand struct {
-	JobID string `positional:"job-id" usage:"Job ID"`
-}
-
 type JobRenameCommand struct {
 	JobID   string `positional:"job-id" usage:"Job ID"`
 	NewName string `positional:"new-name" usage:"New job name"`
 }
 
 type JobSearchCommand struct {
-	JobName string `positional:"job-name" usage:"Job name"`
+	JobName   string `positional:"job-name" usage:"Job name"`
+	Workspace string `flag:"workspace" usage:"Workspace to search jobs in"`
 }
 
 type JobExtendCommand struct {
@@ -62,10 +59,6 @@ type JobResumeCommand struct {
 }
 
 type JobTerminateCommand struct {
-	JobID string `positional:"job-id" usage:"Job ID"`
-}
-
-type JobSuspendCommand struct {
 	JobID string `positional:"job-id" usage:"Job ID"`
 }
 
@@ -105,12 +98,10 @@ type JobDetachCommand struct {
 var JobCommands = map[string]CommandFunc{
 	"rename":    func() Command { return &JobRenameCommand{} },
 	"search":    func() Command { return &JobSearchCommand{} },
-	"suspend":   func() Command { return &JobSuspendCommand{} },
 	"extend":    func() Command { return &JobExtendCommand{} },
 	"list":      func() Command { return &JobListCommand{} },
 	"get":       func() Command { return &JobGetCommand{} },
 	"create":    func() Command { return &JobCreateCommand{} },
-	"delete":    func() Command { return &JobDeleteCommand{} },
 	"terminate": func() Command { return &JobTerminateCommand{} },
 	"resume":    func() Command { return &JobResumeCommand{} },
 	// Attach and detach
@@ -198,6 +189,20 @@ func (c JobSearchCommand) Execute() error {
 		return fmt.Errorf("this command requires a job name, use: ucloud job search <job-name>")
 	}
 
+	// Jobs are searched in the context of a workspace (defaults to the
+	// active workspace if none is given).
+	currentWs := c.Workspace
+	if currentWs == "" {
+		currentWs = cfg.CurrentWorkspace.GetOrDefault("")
+	}
+	if currentWs != "" {
+		ws, err := findWorkspace(currentWs)
+		if err != nil {
+			return err
+		}
+		shared.SetActiveWorkspace(ws.Id)
+	}
+
 	result, httpErr := orcapi.JobsSearch.Invoke(orcapi.JobsSearchRequest{
 		Query: c.JobName,
 	})
@@ -210,28 +215,6 @@ func (c JobSearchCommand) Execute() error {
 		jobs[job.Id] = job
 	}
 	printJobs(c.JobName, jobs)
-	return nil
-}
-
-func (c JobSuspendCommand) Execute() error {
-	cfg, err := shared.ReadConfig()
-	if err != nil {
-		panic(err)
-	}
-	cfg.InitUCloudClient()
-
-	if c.JobID == "" {
-		return fmt.Errorf("this command requires a job id, use: ucloud job suspend <job-id>")
-	}
-
-	_, httpErr := orcapi.JobsSuspend.Invoke(fnd.BulkRequestOf(fnd.FindByStringId{
-		Id: c.JobID,
-	}))
-	if httpErr != nil {
-		return fmt.Errorf("failed to suspend job: %s", httpErr.Why)
-	}
-
-	fmt.Printf("Job suspended: %s\n", c.JobID)
 	return nil
 }
 
@@ -678,30 +661,6 @@ func (c JobCreateCommand) Execute() error {
 	}
 
 	return createApp(c, foundApp)
-}
-
-func (c JobDeleteCommand) Execute() error {
-	// UCloud has no delete operation for jobs; terminating a job stops it
-	// and releases its resources. Delete is currently an alias for terminate.
-	if c.JobID == "" {
-		return fmt.Errorf("this command requires a job id, use: ucloud job delete <job-id>")
-	}
-
-	cfg, err := shared.ReadConfig()
-	if err != nil {
-		panic(err)
-	}
-	cfg.InitUCloudClient()
-
-	_, httpErr := orcapi.JobsTerminate.Invoke(fnd.BulkRequestOf(fnd.FindByStringId{
-		Id: c.JobID,
-	}))
-	if httpErr != nil {
-		return fmt.Errorf("failed to delete job: %s", httpErr.Why)
-	}
-
-	fmt.Printf("Job deleted: %s\n", c.JobID)
-	return nil
 }
 
 func (c JobTerminateCommand) Execute() error {
