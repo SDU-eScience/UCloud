@@ -55,43 +55,71 @@ type inferenceUsageRow struct {
 	ReportedUsage int64
 }
 
-const inferenceMaxConcurrent = 512
+const inferenceMaxConcurrent = 4096
 const inferenceMaxConcurrentPerOwner = 32
+const inferenceAdmissionQueueTimeout = 30 * time.Second
 
-func inferenceAcquire(owner apm.WalletOwner, username string) (func(), *util.HttpError) {
+func inferenceAcquire(ctx context.Context, owner apm.WalletOwner, username string) (func(), *util.HttpError) {
 	admissionOwnerRef := owner.Reference()
 	if username != "" {
 		admissionOwnerRef = username
 	}
-	inferenceAdmission.Lock()
-	defer inferenceAdmission.Unlock()
-	if inferenceAdmission.Total >= inferenceMaxConcurrent {
-		metricInferenceRequestsRejected.WithLabelValues("global").Inc()
-		return nil, util.HttpErr(http.StatusTooManyRequests, "too many concurrent inference requests")
-	}
-	if inferenceAdmission.Owners[admissionOwnerRef] >= inferenceMaxConcurrentPerOwner {
-		metricInferenceRequestsRejected.WithLabelValues("owner").Inc()
-		return nil, util.HttpErr(http.StatusTooManyRequests, "too many concurrent inference requests")
-	}
-	inferenceAdmission.Total++
-	inferenceAdmission.Owners[admissionOwnerRef]++
-	metricInferenceRequestsInFlight.Inc()
-	return func() {
+
+	// Fast path: try to grab a slot immediately without arming the queue timer.
+	deadline := time.NewTimer(inferenceAdmissionQueueTimeout)
+	defer deadline.Stop()
+	for {
 		inferenceAdmission.Lock()
-		inferenceAdmission.Total--
-		inferenceAdmission.Owners[admissionOwnerRef]--
-		if inferenceAdmission.Owners[admissionOwnerRef] == 0 {
-			delete(inferenceAdmission.Owners, admissionOwnerRef)
+		if inferenceAdmission.Total < inferenceMaxConcurrent && inferenceAdmission.Owners[admissionOwnerRef] < inferenceMaxConcurrentPerOwner {
+			inferenceAdmission.Total++
+			inferenceAdmission.Owners[admissionOwnerRef]++
+			inferenceAdmission.Unlock()
+			metricInferenceRequestsInFlight.Inc()
+			return func() {
+				inferenceAdmission.Lock()
+				inferenceAdmission.Total--
+				inferenceAdmission.Owners[admissionOwnerRef]--
+				if inferenceAdmission.Owners[admissionOwnerRef] == 0 {
+					delete(inferenceAdmission.Owners, admissionOwnerRef)
+				}
+				metricInferenceRequestsInFlight.Dec()
+				inferenceAdmission.Unlock()
+				select {
+				case inferenceAdmissionRelease <- struct{}{}:
+				default:
+				}
+			}, nil
 		}
-		metricInferenceRequestsInFlight.Dec()
+
+		globalFull := inferenceAdmission.Total >= inferenceMaxConcurrent
 		inferenceAdmission.Unlock()
-	}, nil
+
+		// Slow path: the caller's bucket is full. Wait for a slot to free up rather than dropping
+		// the request immediately.
+		select {
+		case <-ctx.Done():
+			// The client gave up while waiting in the queue.
+			metricInferenceRequestsRejected.WithLabelValues("cancelled").Inc()
+			return nil, util.HttpErr(499, "client disconnected while waiting for an inference slot")
+		case <-deadline.C:
+			// Timed out and the bucket is still full.
+			if globalFull {
+				metricInferenceRequestsRejected.WithLabelValues("global").Inc()
+			} else {
+				metricInferenceRequestsRejected.WithLabelValues("owner").Inc()
+			}
+			return nil, util.HttpErr(http.StatusTooManyRequests, "too many concurrent inference requests (queued for 30s)")
+		case <-inferenceAdmissionRelease:
+		}
+	}
 }
+
+var inferenceAdmissionRelease = make(chan struct{}, 1)
 
 const (
 	inferenceDevelopmentProviderLocalAI = "localai"
 
-	inferenceMaxJSONRequestBytes = 4 << 20
+	inferenceMaxJSONRequestBytes = 1024 * 1024 * 16
 	inferenceRequestTimeout      = 30 * time.Minute
 	inferenceStreamWriteTimeout  = 30 * time.Second
 )
@@ -911,10 +939,9 @@ func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string, disa
 			},
 			ContextWindow: model.ContextWindow,
 			ChatSettings: InferenceChatSettings{
-				Temperature:         0.8,
-				TopP:                0.1,
-				MaxCompletionTokens: 65536,
-				DisableTools:        disableTools,
+				Temperature:  0.8,
+				TopP:         0.1,
+				DisableTools: disableTools,
 			},
 		})
 		if inferenceModelValidate(catalogModel) != nil {

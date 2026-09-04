@@ -632,7 +632,7 @@ func inferenceModelNormalize(model InferenceModel) InferenceModel {
 		model.ContextWindow = nil
 	}
 	if model.ChatSettings.MaxCompletionTokens == 0 {
-		model.ChatSettings.MaxCompletionTokens = 65536
+		model.ChatSettings.MaxCompletionTokens = 128 * 1024
 	}
 	if model.ChatSettings.SystemPrompt != nil {
 		value := strings.TrimSpace(*model.ChatSettings.SystemPrompt)

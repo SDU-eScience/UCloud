@@ -39,7 +39,6 @@ import (
 // the new messages of the request plus a hash chain over the previous messages. These are kept in an LRU and a full
 // chain is re-created in case of a miss.
 
-
 const (
 	inferenceAuditChainSeed = "ucloud-inference-v1"
 

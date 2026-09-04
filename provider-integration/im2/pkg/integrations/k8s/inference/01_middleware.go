@@ -25,7 +25,7 @@ import (
 const (
 	inferenceMaxUpstreamJSONBytes  = 1024 * 1024 * 8
 	inferenceMaxSSEEventBytes      = 1024 * 1024 * 8
-	inferenceResponseHeaderTimeout = 2 * time.Minute
+	inferenceResponseHeaderTimeout = 4 * time.Minute
 	inferenceStreamIdleTimeout     = 2 * time.Minute
 )
 
@@ -728,7 +728,7 @@ func InferenceChatEx(ctx context.Context, owner apm.WalletOwner, username string
 		requestOutcome = "client_error"
 		return InferenceChatResponse{}, httpErr
 	}
-	release, httpErr := inferenceAcquire(owner, username)
+	release, httpErr := inferenceAcquire(ctx, owner, username)
 	if httpErr != nil {
 		requestOutcome = "admission_rejected"
 		return InferenceChatResponse{}, httpErr
@@ -862,7 +862,7 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username
 		emitAudit("client_error")
 		return ch, httpErr
 	}
-	release, httpErr := inferenceAcquire(owner, username)
+	release, httpErr := inferenceAcquire(ctx, owner, username)
 	if httpErr != nil {
 		close(ch)
 		inferenceReportChatRequestMetrics(requestModel, "admission_rejected", requestStartedAt, time.Now())
@@ -1200,9 +1200,6 @@ func inferenceValidateChatRequest(request InferenceChatRequest, model InferenceM
 		if !supported {
 			return util.HttpErr(http.StatusBadRequest, "unsupported reasoning effort")
 		}
-	}
-	if len(request.Messages) > 1024 || len(request.Tools) > 128 {
-		return util.HttpErr(http.StatusBadRequest, "request contains too many items")
 	}
 	return nil
 }
