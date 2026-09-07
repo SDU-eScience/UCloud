@@ -6,7 +6,7 @@ import AppRoutes from "@/Routes";
 import {Box, Button, Card, ExternalLink, Flex, Input, Link, Select, Text, TextArea} from "@/ui-components";
 import {MainContainer, MAIN_CONTAINER_MAX_WIDTH} from "@/ui-components/MainContainer";
 import Table, {TableHeader, TableRow} from "@/ui-components/Table";
-import {copyToClipboard} from "@/UtilityFunctions";
+import {copyToClipboard, expandAndPrettifyString} from "@/UtilityFunctions";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {InferenceBenchmark, InferenceCapability, InferenceModel, listModels, updateBenchmarks, updateModel} from "./api";
@@ -20,6 +20,7 @@ import {MarkdownDocument} from "@/ui-components/Markdown";
 
 const fallbackDocs = "https://docs.cloud.sdu.dk";
 const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText", "Vision", "VideoVision", "Audio"];
+const prettierCapabilities = capabilities.map(expandAndPrettifyString);
 type PricePerMillionText = {cachedInput: string; input: string; output: string};
 
 export default function ModelPage(): React.ReactNode {
@@ -149,6 +150,7 @@ const PageStyle = injectStyle("model-page", k => `
     ${k} {
         --model-hero: var(--blue-10);
         --model-hero-border: var(--blue-20);
+        --max-width: calc(100vw - var(--sidebarWidth) - 16px * 2);
     }
 
     ${k} .model-hero {
@@ -206,6 +208,10 @@ const PageStyle = injectStyle("model-page", k => `
         min-width: 0;
     }
 
+    ${k} .model-main-content > section {
+        max-width: var(--max-width);
+    }
+
     ${k} .model-page-layout > * {
         min-width: 0;
     }
@@ -230,6 +236,7 @@ const PageStyle = injectStyle("model-page", k => `
         }
 
         ${k} .model-page-layout {
+            max-width: var(--max-width);
             grid-template-columns: minmax(0, 1fr);
         }
 
@@ -252,9 +259,10 @@ const PageStyle = injectStyle("model-page", k => `
         ${k} .model-stats-grid {
             grid-template-columns: 1fr;
             gap: 0;
+            max-width: var(--max-width);
         }
     }
-     
+
     html.dark ${k} {
         --model-hero: var(--blue-80);
         --model-hero-border: var(--blue-90);
@@ -400,8 +408,13 @@ function Datasheet({model}: {model: InferenceModel}): React.ReactNode {
     const page = model.page;
     const rows: [string, React.ReactNode][] = [
         ["Model provider", <Flex key="provider" gap="8px" alignItems="center"><ModelInferenceLogo modelName={model.name} />{modelProviderName(model.name)}</Flex>],
-        ["Release date", page?.releaseDate ? formatDate(new Date(page.releaseDate), DATE_FORMAT) : null],
-        ["Capabilities", model.capabilities.join(", ")],
+        ["Release date", page?.releaseDate ? formatDate
+            (new Date(page.releaseDate), DATE_FORMAT) : null],
+        ["Capabilities", model.capabilities.map(modelC => {
+            const idx = capabilities.findIndex(c => c === modelC);
+            if (idx === -1) return "";
+            return prettierCapabilities[idx];
+        }).join(", ")],
         ["Endpoint", <CopyableEndpoint key="endpoint" value={model.name} />],
         ["Parameters", page?.datasheet?.parameters ?? "Not specified"],
         ["Activated parameters", page?.datasheet?.activatedParameters ?? null],
@@ -548,7 +561,7 @@ function ModelSettingsEditor(props: {
         <ReasoningEffortsEditor model={model} setModel={setModel} />
         <Box>
             <Text fontWeight={600}>Capabilities</Text>
-            <Flex gap="12px" flexWrap="wrap" mt={8}>{capabilities.map(capability => <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}><input type="checkbox" checked={model.capabilities.includes(capability)} onChange={ev => setModel({...model, capabilities: ev.currentTarget.checked ? [...model.capabilities, capability] : model.capabilities.filter(it => it !== capability)})} />{capability}</label>)}</Flex>
+            <Flex gap="12px" flexWrap="wrap" mt={8}>{capabilities.map((capability, index) => <label key={capability} style={{ display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={model.capabilities.includes(capability)} onChange={ev => setModel({ ...model, capabilities: ev.currentTarget.checked ? [...model.capabilities, capability] : model.capabilities.filter(it => it !== capability) })} />{prettierCapabilities[index]}</label>)}</Flex>
         </Box>
     </Box>;
 }

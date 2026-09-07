@@ -1,6 +1,6 @@
 import * as React from "react";
 
-import {Flex} from "@/ui-components";
+import {Flex, Icon} from "@/ui-components";
 import LogoDeepseek from "@/Assets/Images/inference/deepseek.png";
 import LogoGoogle from "@/Assets/Images/inference/google.png";
 import LogoMeta from "@/Assets/Images/inference/meta.png";
@@ -22,14 +22,14 @@ const modelLogoClass = injectStyle("model-logo", k => `
         --playground-logo-bg: var(--secondaryMain);
         --playground-border: var(--borderColor);
         --playground-border-hover: var(--borderColorHover);
-        
+
         background: var(--playground-logo-bg);
         border: 1px solid var(--playground-border);
         align-items: center;
         justify-content: center;
         aspect-ratio: 1 / 1;
     }
-    
+
     html.dark ${k} {
         --playground-logo-bg: #292c31;
         --playground-border: #3f444c;
@@ -67,28 +67,16 @@ export default function ModelInferenceLogo({modelName, size = 24}: {modelName: s
         if (!isLight) img = LogoOpenAIWhite;
     }
 
-    if (img === "") {
-        return <span
-            title={modelName}
-            aria-hidden="true"
-            style={{
-                width: size,
-                height: size,
-                borderRadius: "50%",
-                background: "var(--primaryMain)",
-                display: "inline-block",
-                flexShrink: 0,
-            }}
-        />;
-    }
+    const roundedSize = Math.round(size * 0.7);
 
     return <Flex
+        title={modelName}
         className={modelLogoClass}
         borderRadius={size >= 96 ? "28px" : "8px"}
         height={size}
         width={size}
     >
-        <img src={img} alt={`${modelName} logo`} style={{maxHeight: Math.round(size * 0.7), maxWidth: Math.round(size * 0.7)}} />
+        {img === "" ? <Icon name="heroSparkles" size={roundedSize.toString()} /> : <img src={img} alt={`${modelName} logo`} style={{ maxHeight: roundedSize, maxWidth: roundedSize }} />}
     </Flex>;
 }
 

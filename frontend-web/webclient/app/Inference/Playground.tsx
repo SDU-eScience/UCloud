@@ -1,3 +1,4 @@
+
 import * as React from "react";
 
 import {callAPI} from "@/Authentication/DataHook";
@@ -21,7 +22,7 @@ import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {format, isToday} from "date-fns";
 import ModelInferenceLogo from "./ModelLogo";
-import {MarkdownDocument, MarkdownTable} from "@/ui-components/Markdown";
+import {MarkdownDocument} from "@/ui-components/Markdown";
 import {CopyButton} from "@/ui-components/CopyButton";
 import {IconButton} from "@/ui-components/IconButton";
 import {ChunkedFileReader} from "@/Files/ChunkedFileReader";
@@ -592,7 +593,7 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
     ${k} .playground-sidebar-footer {
         flex-shrink: 0;
     }
-    
+
     ${k} .playground-sidebar-footer {
         display: flex;
         gap: 16px;
@@ -1496,7 +1497,7 @@ function ThreadListNode({
                 const active = thread.id === currentThreadId;
                 const openMenu = (left: number, top: number) => {
                     setOperations(threadOperations(thread));
-                    openOperationsRef.current(left, top);
+                    queueMicrotask(() => openOperationsRef.current(left, top));
                 };
 
                 return (
@@ -1638,6 +1639,18 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
             });
         }
     }, [currentThreadId, fn, threads]);
+
+    React.useEffect(() => {
+        function onResize() {
+            if (window.innerWidth < 900) {
+                setSidebarCollapsed(false);
+            }
+        }
+
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, []);
+
 
     const newThread = () => {
         if (!connected || !fn) return;
@@ -1876,14 +1889,22 @@ function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNe
                 <Icon name="heroPlus" size={16} mr={8}/>
                 New thread
             </Button>
-            <IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/>
+            <div className={ResponsiveHide}><IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/></div>
         </div>
     </div>;
 
-    return <PlaygroundSidebarShell header={header} footer={footer}>
-        {fn ? <ThreadListNode node={node} model={model} fn={fn}/> : <Text color="textSecondary">Loading...</Text>}
+return <PlaygroundSidebarShell header={header} footer={footer}>
+        {fn ? <ThreadListNode node={node} model={model} fn={fn} /> : <Text color="textSecondary">Loading...</Text>}
     </PlaygroundSidebarShell>;
 }
+
+const ResponsiveHide = injectStyle("responsive-hide", cl => `
+    @media screen and (max-width: 900px) {
+        ${cl} {
+            display: none;
+        }
+    }
+`);
 
 function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void}): React.ReactNode {
     return <PlaygroundSidebarShell header={<IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="heroChevronRight"/>} footer={footer}>
