@@ -685,46 +685,51 @@ export default function Models(): React.ReactNode {
 
         <section id="model-catalog" className="panel panel-muted">
             <div className="panel-inner">
-                <Box alignItems="center" mb={8} className="capabilities">
-                    <Flex gap={"4px"} overflowY="scroll">
-                        <CatalogFilterButton active={capabilityFilter === "All"} onClick={() => setCapabilityFilter("All")}>All</CatalogFilterButton>
-                        {capabilities.map((capability, index) => <CatalogFilterButton key={capability} active={capabilityFilter === capability} onClick={() => setCapabilityFilter(capability)}>
-                            {prettierCapabilities[index]}
-                        </CatalogFilterButton>)}
+                {capabilities.length === 1 ? null :
+                    <Box alignItems="center" mb={8} className="capabilities">
+                        <Flex gap={"4px"} overflowY="scroll">
+                            <CatalogFilterButton active={capabilityFilter === "All"} onClick={() => setCapabilityFilter("All")}>All</CatalogFilterButton>
+                            {capabilities.map((capability, index) => <CatalogFilterButton key={capability} active={capabilityFilter === capability} onClick={() => setCapabilityFilter(capability)}>
+                                {prettierCapabilities[index]}
+                            </CatalogFilterButton>)}
+                        </Flex>
+
+                        <Box flexGrow={1} />
+
+                        <Input
+                            className="catalog-search"
+                            type="search"
+                            placeholder="Search models"
+                            value={search}
+                            onChange={ev => setSearch(ev.currentTarget.value)}
+                        />
+                    </Box>
+                }
+
+                {capabilities.length === 1 ? null :
+                    <Flex className="model-count-and-providers" alignItems={"center"} mb={16}>
+                        {!loading ? <span className="model-count">Showing {filteredModels.length} models</span> : null}
+                        <Box flexGrow={1} />
+                        <RichSelect<ModelProviderOption, keyof ModelProviderOption>
+                            items={providerOptions}
+                            keys={["provider"]}
+                            selected={undefined}
+                            onSelect={(option) => toggleProviderFilter(option.provider)}
+                            dropdownWidth="320px"
+                            dropdownVerticalGap={8}
+                            elementHeight={42}
+                            matchTriggerWidth={false}
+                            showSearchField={providerOptions.length > 8}
+                            trigger={<ProviderFilterTrigger selectedProviders={providerFilters} providerOptions={providerOptions} />}
+                            RenderRow={(props) => <ProviderFilterOption
+                                option={props.element}
+                                selected={props.element ? providerFilters.includes(props.element.provider) : false}
+                                onSelect={props.onSelect}
+                                dataProps={props.dataProps}
+                            />}
+                        />
                     </Flex>
-
-                    <Box flexGrow={1} />
-
-                    <Input
-                        className="catalog-search"
-                        type="search"
-                        placeholder="Search models"
-                        value={search}
-                        onChange={ev => setSearch(ev.currentTarget.value)}
-                    />
-                </Box>
-                <Flex className="model-count-and-providers" alignItems={"center"} mb={16}>
-                    {!loading ? <span className="model-count">Showing {filteredModels.length} models</span> : null}
-                    <Box flexGrow={1} />
-                    <RichSelect<ModelProviderOption, keyof ModelProviderOption>
-                        items={providerOptions}
-                        keys={["provider"]}
-                        selected={undefined}
-                        onSelect={(option) => toggleProviderFilter(option.provider)}
-                        dropdownWidth="320px"
-                        dropdownVerticalGap={8}
-                        elementHeight={42}
-                        matchTriggerWidth={false}
-                        showSearchField={providerOptions.length > 8}
-                        trigger={<ProviderFilterTrigger selectedProviders={providerFilters} providerOptions={providerOptions} />}
-                        RenderRow={(props) => <ProviderFilterOption
-                            option={props.element}
-                            selected={props.element ? providerFilters.includes(props.element.provider) : false}
-                            onSelect={props.onSelect}
-                            dataProps={props.dataProps}
-                        />}
-                    />
-                </Flex>
+                }
 
                 {error === "" ? null : <Text color="errorMain">{error}</Text>}
 
