@@ -33,6 +33,7 @@ import {invocationLint} from "@/Applications/Creator/InvocationLinter";
 import type {InvocationParameters} from "@/Applications/Creator/InvocationScope";
 import {InvocationHelp} from "@/Applications/Creator/InvocationHelp";
 import {useMonaco} from "@/Editor/Editor";
+import {createKeyboardShortcut} from "@/UtilityFunctions";
 
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 
@@ -160,7 +161,9 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
             rightControls={
                 <IconButton
                     icon={props.maximized ? "heroArrowsPointingIn" : "heroArrowsPointingOut"}
-                    tooltip={props.maximized ? "Minimize" : "Maximize"}
+                    tooltip={props.maximized
+                        ? `Minimize (${createKeyboardShortcut("I", ["ctrl", "alt"])})`
+                        : `Maximize (${createKeyboardShortcut("I", ["ctrl", "alt"])})`}
                     onClick={props.onToggleMaximized}
                 />
             }

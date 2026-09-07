@@ -59,6 +59,7 @@ export interface ParameterContentProps {
     onSelectParameter: (parameterId: string | null) => void;
     onReorder: (newOrder: string[]) => void;
     onOpenWorkflowYaml: (parameterName: string) => void;
+    onMoveSelection: (direction: number) => void;
 }
 
 export const ParameterContent = React.memo(ParameterContentBase, (prev, next) =>
@@ -68,6 +69,7 @@ export const ParameterContent = React.memo(ParameterContentBase, (prev, next) =>
     prev.draft.selection === next.draft.selection &&
     prev.onSelectParameter === next.onSelectParameter &&
     prev.onReorder === next.onReorder &&
+    prev.onMoveSelection === next.onMoveSelection &&
     prev.onOpenWorkflowYaml === next.onOpenWorkflowYaml
 );
 
@@ -114,6 +116,8 @@ function ParameterContentBase(props: ParameterContentProps): React.ReactNode {
                             draft={draft}
                             onSelect={() => props.onSelectParameter(id)}
                             onReorder={onReorder}
+                            onMoveSelection={props.onMoveSelection}
+                            onDeselect={() => props.onSelectParameter(null)}
                             onOpenWorkflowYaml={props.onOpenWorkflowYaml}
                             dragFromIndex={dragFromIndex}
                             dragToIndex={dragToIndex}
@@ -147,6 +151,8 @@ interface ParameterRowProps {
     draft: CreatorDraft;
     onSelect: () => void;
     onReorder: (fromIndex: number, toIndex: number) => void;
+    onMoveSelection: (direction: number) => void;
+    onDeselect: () => void;
     onOpenWorkflowYaml: (parameterName: string) => void;
     dragFromIndex: number | null;
     dragToIndex: number | null;
@@ -205,6 +211,7 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
         if (e.button !== 0) return;
         e.preventDefault();
         e.stopPropagation();
+        rowRef.current?.focus();
         const idx = propsRef.current.index;
         isDragging.current = true;
         dragStartY.current = e.clientY;
@@ -226,15 +233,46 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
     }, []);
 
     const onKeyDown = useCallback((e: React.KeyboardEvent) => {
-        if (!selected) return;
-        const isReorderKey = e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown");
-        if (!isReorderKey) return;
-        e.preventDefault();
-        const direction = e.key === "ArrowUp" ? -1 : 1;
-        const targetIndex = index + direction;
-        if (targetIndex < 0 || targetIndex >= count) return;
-        props.onReorder(index, targetIndex);
-    }, [selected, index, count, props.onReorder]);
+        if (e.metaKey || e.ctrlKey) return;
+        if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+            e.preventDefault();
+            if (!selected) return;
+            const direction = e.key === "ArrowUp" ? -1 : 1;
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= count) return;
+            props.onReorder(index, targetIndex);
+            window.requestAnimationFrame(() => rowRef.current?.focus());
+            return;
+        }
+        if (e.altKey) return;
+        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+            e.preventDefault();
+            e.stopPropagation();
+            const direction = e.key === "ArrowUp" ? -1 : 1;
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= count) return;
+            if (!selected) {
+                props.onSelect();
+                return;
+            }
+            props.onMoveSelection(direction);
+            const next = rowRef.current?.parentElement?.children[targetIndex];
+            if (next instanceof HTMLElement) next.focus();
+            return;
+        }
+        if (e.key === "Enter" || e.key === " ") {
+            if (e.target !== e.currentTarget) return;
+            e.preventDefault();
+            props.onSelect();
+            return;
+        }
+        if (e.key === "Escape") {
+            if (e.target !== e.currentTarget) return;
+            if (!selected) return;
+            e.preventDefault();
+            props.onDeselect();
+        }
+    }, [selected, index, count, props.onReorder, props.onSelect, props.onMoveSelection, props.onDeselect]);
 
     const isDraggingThis = dragFromIndex != null && dragFromIndex === index;
     const isDropTarget = dragFromIndex != null && dragToIndex != null && dragToIndex === index && dragToIndex !== dragFromIndex;

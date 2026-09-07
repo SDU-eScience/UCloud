@@ -96,7 +96,7 @@ export function MetadataPanel(props: MetadataPanelProps): React.ReactNode {
                     </Text>
                 </Box>
             ) : null}
-            <PanelSection title="Metadata">
+            <PanelSection title="Metadata" id="creator-section-metadata" shortcut="M">
                 {isCustom ? (
                     <GroupFlavorSection
                         draft={draft}
@@ -312,7 +312,7 @@ function SoftwareSection(props: {
     if (isCustom) {
         const image = software.type === "Container" ? software.image : "";
         return (
-            <PanelSection title="Software">
+            <PanelSection title="Software" id="creator-section-software" shortcut="C">
                 <Label className="panel-field">
                     <span className="panel-field-label">Container image<MandatoryField /></span>
                     <ContainerImageSelector
@@ -326,7 +326,7 @@ function SoftwareSection(props: {
     }
 
     return (
-        <PanelSection title="Software">
+        <PanelSection title="Software" id="creator-section-software" shortcut="C">
             <Label className="panel-field">
                 <span className="panel-field-label">Kind</span>
                 <Select
@@ -480,7 +480,7 @@ function RuntimeFeaturesSection(props: {
         props.onUpdateFeatures(updated);
     };
     return (
-        <PanelSection title="Features">
+        <PanelSection title="Features" id="creator-section-features" shortcut="F">
             <FeatureToggle label="Folders" value={features.folders ?? false} onChange={() => toggle("folders")} id="feature-folders" />
             <FeatureToggle label="Links" value={features.links ?? false} onChange={() => toggle("links")} id="feature-links" />
             <FeatureToggle label="Job linking" value={features.jobLinking ?? false} onChange={() => toggle("jobLinking")} id="feature-jobLinking" />
@@ -514,7 +514,7 @@ function ConnectivitySection(props: {
     onUpdateInference: (inference: A2Yaml["inference"]) => void;
 }): React.ReactNode {
     return (
-        <PanelSection title="Connectivity">
+        <PanelSection title="Connectivity" id="creator-section-connectivity" shortcut="N">
             <WebControl application={props.application} onUpdate={props.onUpdateWeb} />
             <div className={ConnectivityDividerClass} />
             <VncControl application={props.application} onUpdate={props.onUpdateVnc} />
@@ -1915,7 +1915,7 @@ function WidgetDrawerSection(props: {
     const resourceItems = WIDGET_DRAWER_ITEMS.filter(i => i.group === "resources");
     return (
         <>
-            <PanelSection title="Add parameter">
+            <PanelSection title="Add parameter" id="creator-section-add-parameter" shortcut="A">
                 <Text fontSize={12} color="textSecondary" mb="8px">
                     Click a widget to append a new parameter row.
                 </Text>
@@ -1938,7 +1938,12 @@ function WidgetDrawerGroup(props: {
                 {props.group === "basic" ? "Basic values" : "UCloud resources"}
             </Text>
             {props.items.map(item => (
-                <WidgetDrawerButton key={item.type} item={item} onClick={() => props.onAddParameter(item.type)} />
+                <WidgetDrawerButton
+                    key={item.type}
+                    item={item}
+                    onClick={() => props.onAddParameter(item.type)}
+                    basicGroup={props.group === "basic"}
+                />
             ))}
         </div>
     );
@@ -1947,6 +1952,7 @@ function WidgetDrawerGroup(props: {
 function WidgetDrawerButton(props: {
     item: typeof WIDGET_DRAWER_ITEMS[number];
     onClick: () => void;
+    basicGroup?: boolean;
 }): React.ReactNode {
     const icon = widgetIcon(props.item.type);
     return (
@@ -1956,6 +1962,7 @@ function WidgetDrawerButton(props: {
                 className={WidgetDrawerButtonClass}
                 onClick={props.onClick}
                 aria-label={`Add ${props.item.label} parameter`}
+                data-creator-widget={props.basicGroup ? "basic" : undefined}
             >
                 <Icon name={icon} size={16} color="textSecondary" />
                 <Text fontSize={13}>{props.item.label}</Text>

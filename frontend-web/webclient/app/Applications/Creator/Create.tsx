@@ -28,7 +28,7 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {addStandardDialog} from "@/UtilityComponents";
-import {inDevEnvironment} from "@/UtilityFunctions";
+import {inDevEnvironment, createKeyboardShortcut} from "@/UtilityFunctions";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProjectId} from "@/Project/Api";
@@ -63,6 +63,17 @@ import {YamlEditor} from "@/Applications/Creator/YamlEditor";
 import {InvocationEditor, InvocationTab} from "@/Applications/Creator/InvocationEditor";
 import {ErrorSummary} from "@/Applications/Creator/ErrorSummary";
 import {CreatorHighlightTarget, creatorHighlightTarget} from "@/Applications/Creator/Highlight";
+import {
+    CreatorShortcutGuide,
+    CreatorShortcutHintsProvider,
+    CreatorSectionKey,
+    useCreatorShortcuts,
+    creatorFocusSection,
+} from "@/Applications/Creator/CreatorKeyboard";
+import {
+    FIELD_NAVIGATION_SELECTOR,
+    isDisabledNavigationTarget,
+} from "@/Applications/KeyboardNavigation";
 import {
     draftSelectParameter,
     draftUpdateBase,
@@ -849,12 +860,87 @@ export const Create: React.FunctionComponent = () => {
         updateSelection(d => draftSelectParameter(d, parameterId));
     }, [updateSelection]);
 
+    const onMoveSelection = useCallback((direction: number) => {
+        updateSelection(d => {
+            const order = d.application.parametersOrder;
+            if (order.length === 0) return d;
+            const currentIndex = d.selection.parameterId != null
+                ? order.findIndex(name => d.parameterIds[name] === d.selection.parameterId)
+                : -1;
+            const nextIndex = currentIndex === -1
+                ? direction > 0 ? 0 : order.length - 1
+                : Math.min(order.length - 1, Math.max(0, currentIndex + direction));
+            const nextName = order[nextIndex];
+            const nextId = d.parameterIds[nextName] ?? null;
+            if (nextId == null || nextId === d.selection.parameterId) return d;
+            return draftSelectParameter(d, nextId);
+        });
+    }, [updateSelection]);
+
     const onMainIslandPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
         if (draft?.view !== "editor" || draft.selection.parameterId == null) return;
         const target = event.target;
         if (target instanceof Element && target.closest("[data-row-id], #creator-error-summary")) return;
         onSelectParameter(null);
     }, [draft?.selection.parameterId, draft?.view, onSelectParameter]);
+
+    useEffect(() => {
+        if (draft?.view !== "editor") return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== "Escape") return;
+            if (document.querySelector(".ReactModal__Overlay")) return;
+            if (event.defaultPrevented) return;
+            const target = event.target instanceof HTMLElement ? event.target : null;
+            if (target?.closest("[data-row-id]")) return;
+            if (target?.isContentEditable || target instanceof HTMLInputElement ||
+                target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+                if (target.getAttribute("role") === "switch") return;
+                (target as HTMLElement).blur();
+                return;
+            }
+            const current = draftRef.current;
+            if (current?.selection.parameterId == null) return;
+            event.preventDefault();
+            updateSelection(d => draftSelectParameter(d, null));
+        };
+        document.addEventListener("keydown", onKeyDown);
+        return () => document.removeEventListener("keydown", onKeyDown);
+    }, [draft?.view, updateSelection]);
+
+    useEffect(() => {
+        if (draft?.view !== "editor" && draft?.view !== "preview") return;
+        const view = draft.view;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+            if (event.metaKey || event.ctrlKey || event.altKey) return;
+            if (document.querySelector(".ReactModal__Overlay")) return;
+            if (event.defaultPrevented) return;
+            const active = document.activeElement;
+            if (active?.closest("[data-row-id]")) return;
+            if (active?.closest(FIELD_NAVIGATION_SELECTOR)) return;
+            if (active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement) return;
+            if (active instanceof HTMLInputElement && !active.readOnly) return;
+            if (active instanceof HTMLElement && active.isContentEditable) return;
+            if (view === "editor") {
+                const rows = Array.from(document.querySelectorAll<HTMLElement>("[data-row-id]"))
+                    .filter(element => element.offsetParent !== null);
+                const row = rows.find(element => element.getAttribute("data-selected") === "true") ?? rows[0];
+                if (!row) return;
+                event.preventDefault();
+                row.focus();
+                row.scrollIntoView({block: "nearest"});
+            } else {
+                const field = Array.from(document.querySelectorAll<HTMLElement>(FIELD_NAVIGATION_SELECTOR))
+                    .find(element => element.offsetParent !== null && !isDisabledNavigationTarget(element));
+                if (!field) return;
+                event.preventDefault();
+                field.focus();
+                field.scrollIntoView({block: "nearest"});
+            }
+        };
+        document.addEventListener("keydown", onKeyDown, true);
+        return () => document.removeEventListener("keydown", onKeyDown, true);
+    }, [draft?.view]);
 
     const onFeatureHighlight = useCallback((target: CreatorHighlightTarget) => {
         updateSelection(d => draftSelectParameter(d, null));
@@ -898,9 +984,24 @@ export const Create: React.FunctionComponent = () => {
         updateApplication(d => draftUpdateEnumeration(d, name, patch));
     }, [updateApplication]);
 
+    const focusAddedRowRef = useRef(false);
+
     const onAddParameter = useCallback((type: A2WidgetType) => {
+        focusAddedRowRef.current = true;
         updateApplication(d => draftAddParameter(d, type));
     }, [updateApplication]);
+
+    useEffect(() => {
+        if (!focusAddedRowRef.current) return;
+        focusAddedRowRef.current = false;
+        const parameterId = draft?.selection.parameterId;
+        if (parameterId == null) return;
+        window.requestAnimationFrame(() => {
+            const row = document.querySelector<HTMLElement>(`[data-row-id="${parameterId}"]`);
+            row?.scrollIntoView({block: "nearest"});
+            row?.focus();
+        });
+    }, [draft?.selection.parameterId]);
 
     const onUpdateMetadata = useCallback((patch: Partial<Pick<A2Yaml, "title" | "description" | "license" | "documentation" | "invocation">>) => {
         updateApplication(d => draftUpdateMetadata(d, patch));
@@ -1101,6 +1202,47 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [draft, saveLoading, validateDraft, navigate]);
 
+    const onToggleYamlView = useCallback(() => {
+        onToggleYaml();
+    }, [onToggleYaml]);
+
+    const onToggleInvocationView = useCallback(() => {
+        onToggleInvocation();
+    }, [onToggleInvocation]);
+
+    const onTogglePreviewView = useCallback(() => {
+        void onPreview();
+    }, [onPreview]);
+
+    const onReturnToEditor = useCallback(() => {
+        setDraft(current => {
+            if (!current || current.view === "editor") return current;
+            return {...current, view: "editor"};
+        });
+        if (draft?.view === "yaml") {
+            Promise.resolve().then(runParse);
+        }
+    }, [draft?.view, runParse]);
+
+    const onFocusSection = useCallback((key: CreatorSectionKey) => {
+        updateSelection(d => draftSelectParameter(d, null));
+        window.requestAnimationFrame(() => creatorFocusSection(key));
+    }, [updateSelection]);
+
+    const shortcutsEnabled = draft != null && !loading && loadError == null && contextError == null;
+    const hintsVisible = useCreatorShortcuts(
+        draft?.view ?? null,
+        shortcutsEnabled,
+        {
+            onToggleYaml: onToggleYamlView,
+            onToggleInvocation: onToggleInvocationView,
+            onTogglePreview: onTogglePreviewView,
+            onReturnToEditor,
+            onSave: () => void onSave(),
+            onFocusSection,
+        },
+    );
+
     const renderPreview = useCallback(async (job: JobSpecification, current: CreatorDraft) => {
         if (!previewApplication || previewRendering) return;
         if (draftRevisionRef.current !== current.revision) return;
@@ -1249,14 +1391,18 @@ export const Create: React.FunctionComponent = () => {
     const previewDisabled = draft.sourceTextInvalid;
     const saveTooltip = draft.sourceTextInvalid
         ? "Fix the YAML source before saving"
-        : saveLoading ? "Saving application" : "Save application version";
+        : saveLoading ? "Saving application" : `Save application version (${createKeyboardShortcut("S", ["ctrl"])})`;
     const previewTooltip = draft.view === "preview"
         ? "Back to editor"
         : previewDisabled
         ? "Fix the YAML source before previewing"
-        : previewRendering ? "Rendering preview" : "Preview job creation";
+        : previewRendering ? "Rendering preview" : `Preview job creation (${createKeyboardShortcut("P", ["ctrl", "alt"])})`;
+    const yamlTooltip = draft.view === "yaml"
+        ? `Back to editor (${createKeyboardShortcut("E", ["ctrl", "alt"])})`
+        : `View YAML (${createKeyboardShortcut("Y", ["ctrl", "alt"])})`;
 
     return (
+        <CreatorShortcutHintsProvider visible={hintsVisible}>
         <div className={CreatorShellClass}>
             <div className={CreatorMainIslandClass} onPointerDown={onMainIslandPointerDown}>
                 <div className={CreatorMainHeaderClass}>
@@ -1265,7 +1411,7 @@ export const Create: React.FunctionComponent = () => {
                     <Flex alignItems="center" gap="4px">
                         <IconButton
                             icon="heroCodeBracket"
-                            tooltip={draft.view === "yaml" ? "Back to editor" : "View YAML"}
+                            tooltip={yamlTooltip}
                             onClick={onToggleYaml}
                             color={draft.view === "yaml" ? "primaryMain" : "textSecondary"}
                         />
@@ -1301,6 +1447,7 @@ export const Create: React.FunctionComponent = () => {
                         focusColumn={focusColumn}
                         onSelectParameter={onSelectParameter}
                         onReorder={onReorder}
+                        onMoveSelection={onMoveSelection}
                         onFeatureHighlight={onFeatureHighlight}
                         onOpenWorkflowYaml={onOpenWorkflowYaml}
                         onSourceTextChange={onSourceTextChange}
@@ -1371,9 +1518,11 @@ export const Create: React.FunctionComponent = () => {
                             onInlineCreatedGroup={onInlineCreatedGroup}
                         />
                     </div>
+                    <CreatorShortcutGuide />
                 </div>
             ) : null}
         </div>
+        </CreatorShortcutHintsProvider>
     );
 };
 
@@ -1390,6 +1539,7 @@ function CreatorMainContent(props: {
     focusColumn: number;
     onSelectParameter: (parameterId: string | null) => void;
     onReorder: (newOrder: string[]) => void;
+    onMoveSelection: (direction: number) => void;
     onFeatureHighlight: (target: CreatorHighlightTarget) => void;
     onOpenWorkflowYaml: (parameterName: string) => void;
     onSourceTextChange: (text: string) => void;
@@ -1543,6 +1693,7 @@ function CreatorMainContent(props: {
                             draft={draft}
                             onSelectParameter={props.onSelectParameter}
                             onReorder={props.onReorder}
+                            onMoveSelection={props.onMoveSelection}
                             onOpenWorkflowYaml={props.onOpenWorkflowYaml}
                         />
                     </div>

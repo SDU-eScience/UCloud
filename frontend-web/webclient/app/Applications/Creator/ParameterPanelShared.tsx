@@ -13,18 +13,27 @@ import {IconButton} from "@/ui-components/IconButton";
 import {Toggle} from "@/ui-components/Toggle";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import Icon from "@/ui-components/Icon";
+import {CreatorShortcutHint} from "@/Applications/Creator/CreatorKeyboard";
 
 export function PanelSection(props: {
     title: string;
     children: React.ReactNode;
     collapsedByDefault?: boolean;
+    id?: string;
+    shortcut?: string;
 }): React.ReactNode {
     const [collapsed, setCollapsed] = useState(props.collapsedByDefault === true);
     const toggle = () => setCollapsed(c => !c);
     return (
-        <div className={PanelSectionClass} data-collapsed={collapsed}>
+        <div
+            className={PanelSectionClass}
+            data-collapsed={collapsed}
+            data-panel-section
+            id={props.id}
+        >
             <div className="panel-section-header">
-                <span className="panel-section-title" onClick={toggle}>{props.title}</span>
+                <span className="panel-section-title" onClick={toggle} data-panel-section-toggle>{props.title}</span>
+                {props.shortcut ? <CreatorShortcutHint shortcut={props.shortcut} /> : null}
                 <IconButton
                     icon={collapsed ? "heroChevronRight" : "heroChevronDown"}
                     tooltip={collapsed ? "Expand section" : "Collapse section"}

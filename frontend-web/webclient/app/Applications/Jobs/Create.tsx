@@ -1020,6 +1020,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
         const focusCard = (id: string) => {
             const card = document.getElementById(id);
             if (!card) return;
+            if (card.offsetParent === null) return;
             if (document.activeElement instanceof HTMLElement) closeOpenDropdown(document.activeElement);
             const navigationTargets = Array.from(card.querySelectorAll<HTMLElement>(FIELD_NAVIGATION_SELECTOR))
                 .filter(element => !isDisabledNavigationTarget(element));
