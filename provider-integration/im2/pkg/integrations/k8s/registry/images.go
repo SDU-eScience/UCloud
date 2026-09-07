@@ -22,16 +22,28 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-func ImagesValidateVariant(owner orc.ResourceOwner, image string, requireProjectAccess, requireWorkspaceOwner bool) (orc.ApplicationVariantValidateImageResponse, *util.HttpError) {
+func imagesReferencePrefixes() (canonical, alternative string, ok bool) {
 	server, err := url.Parse(Server())
 	if err != nil || server.Host == "" {
+		return "", "", false
+	}
+	return server.Host + "/", server.Hostname() + "/", true
+}
+
+func ImagesValidateVariant(owner orc.ResourceOwner, image string, requireProjectAccess, requireWorkspaceOwner bool) (orc.ApplicationVariantValidateImageResponse, *util.HttpError) {
+	canonicalPrefix, altPrefix, ok := imagesReferencePrefixes()
+	if !ok {
 		return orc.ApplicationVariantValidateImageResponse{}, util.ServerHttpError("invalid registry configuration")
 	}
-	prefix := server.Host + "/"
-	if !strings.HasPrefix(image, prefix) {
+	var referenceText string
+	switch {
+	case strings.HasPrefix(image, canonicalPrefix):
+		referenceText = strings.TrimPrefix(image, canonicalPrefix)
+	case strings.HasPrefix(image, altPrefix):
+		referenceText = strings.TrimPrefix(image, altPrefix)
+	default:
 		return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusBadRequest, "image is not hosted by this provider")
 	}
-	referenceText := strings.TrimPrefix(image, prefix)
 	repositoryName := referenceText
 	lastSlash := strings.LastIndex(repositoryName, "/")
 	if digestIndex := strings.LastIndex(repositoryName, "@"); digestIndex > lastSlash {
@@ -95,12 +107,13 @@ func ImagesValidateVariant(owner orc.ResourceOwner, image string, requireProject
 			return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusBadRequest, "container image must include a tag or digest")
 		}
 		tag := referenceText[tagIndex+1:]
-		descriptor, err = repository.Tags(context.Background()).Get(context.Background(), tag)
-		if err != nil {
+		tagDescriptor, tagErr := repository.Tags(context.Background()).Get(context.Background(), tag)
+		if tagErr != nil {
 			return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusNotFound, "container image not found")
 		}
+		descriptor = tagDescriptor
 	}
-	digestImage := prefix + repositoryName + "@" + descriptor.Digest.String()
+	digestImage := canonicalPrefix + repositoryName + "@" + descriptor.Digest.String()
 	return orc.ApplicationVariantValidateImageResponse{Image: image, ImageDigest: digestImage}, nil
 }
 
@@ -459,15 +472,19 @@ func imagesDeleteTag(resolvedRepository orc.ContainerRepository, repositoryName,
 }
 
 func imagesDeleteReference(image string) *util.HttpError {
-	server, err := url.Parse(Server())
-	if err != nil || server.Host == "" {
+	canonicalPrefix, altPrefix, ok := imagesReferencePrefixes()
+	if !ok {
 		return util.ServerHttpError("invalid registry configuration")
 	}
-	prefix := server.Host + "/"
-	if !strings.HasPrefix(image, prefix) {
+	var referenceText string
+	switch {
+	case strings.HasPrefix(image, canonicalPrefix):
+		referenceText = strings.TrimPrefix(image, canonicalPrefix)
+	case strings.HasPrefix(image, altPrefix):
+		referenceText = strings.TrimPrefix(image, altPrefix)
+	default:
 		return util.HttpErr(http.StatusBadRequest, "image is not hosted by this provider")
 	}
-	referenceText := strings.TrimPrefix(image, prefix)
 	lastSlash := strings.LastIndex(referenceText, "/")
 	tagIndex := strings.LastIndex(referenceText, ":")
 	if tagIndex <= lastSlash {
