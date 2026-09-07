@@ -124,7 +124,7 @@ export interface ExtraFileCallbacks {
     // special case.
     allowMoveCopyOverride?: boolean;
     syncthingConfig?: SyncthingConfig;
-    setSynchronization?: (file: UFile[], shouldAdd: boolean) => void;
+    setSynchronization?: (file: UFile[], shouldAdd: boolean) => Promise<boolean>;
     openFile(file: UFile, newWindow: boolean): void;
     copyToClipboard(files: UFile[], cut: boolean): void;
     canPasteFromClipboard(): boolean;
@@ -523,6 +523,18 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 return enabled === true && !areAllSynchronized(selected, callbacks);
             },
         });
+        const removeFromSynchronization = withOverrides(withoutShortcut(synchronization), {
+            text: "Remove from synchronization",
+            icon: undefined,
+            destructive: true,
+            enabled: (selected, callbacks) => {
+                const enabled = synchronization.enabled(selected, callbacks);
+                return enabled === true && areAllSynchronized(selected, callbacks);
+            },
+            confirmationText: selected => selected.length === 1 ?
+                "Are you sure you want to remove this folder from synchronization?" :
+                `Are you sure you want to remove these ${selected.length} folders from synchronization?`,
+        });
         const rename = withOverrides(byText("Rename"), {shortcut: RENAME_SHORTCUT});
         const deleteAction = withOverrides(byText("Move to trash"), {
             text: "Delete",
@@ -607,6 +619,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 compress,
                 uncompress,
                 addToSynchronization,
+                removeFromSynchronization,
                 "divider",
                 rename,
                 deleteAction,
@@ -1361,10 +1374,11 @@ async function synchronizationOpOnClick(files: UFile[], cb: FileBrowseCallbacks)
 
     if (!cb.setSynchronization) return;
 
+    const succeeded = await cb.setSynchronization(files, !allSynchronized);
 
-    cb.setSynchronization(files, !allSynchronized);
-
-    sendSuccessNotification(`${allSynchronized ? "Removed from" : "Added to"} Syncthing`);
+    if (succeeded) {
+        sendSuccessNotification(`${allSynchronized ? "Removed from" : "Added to"} Syncthing`);
+    }
 }
 
 export function isReadonly(entries: Permission[]): boolean {

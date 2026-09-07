@@ -876,9 +876,9 @@ function FileBrowse({
                             }
                         },
                         syncthingConfig,
-                        setSynchronization(files: UFile[], shouldAdd: boolean): void {
-                            if (!syncthingConfig) return;
-                            if (!collection?.specification.product.provider) return;
+                        async setSynchronization(files: UFile[], shouldAdd: boolean): Promise<boolean> {
+                            if (!syncthingConfig) return false;
+                            if (!collection?.specification.product.provider) return false;
                             const newConfig = deepCopy(syncthingConfig);
 
                             const folders = newConfig?.folders ?? []
@@ -896,17 +896,21 @@ function FileBrowse({
                                 }
                             }
 
-                            callAPI(Sync.api.updateConfiguration({
-                                provider: collection?.specification.product.provider,
-                                productId: "syncthing",
-                                config: newConfig
-                            })).then(() => {
-                                syncthingConfig = newConfig;
-                                browser.rerender();
-                            }).catch(e => {
-                                if (didUnmount.current) return;
+                            try {
+                                await callAPI(Sync.api.updateConfiguration({
+                                    provider: collection?.specification.product.provider,
+                                    productId: "syncthing",
+                                    config: newConfig
+                                }));
+                            } catch (e: any) {
+                                if (didUnmount.current) return false;
                                 defaultErrorHandler(e);
-                            });
+                                return false;
+                            }
+
+                            syncthingConfig = newConfig;
+                            browser.rerender();
+                            return true;
                         },
                         openFile(file: UFile, newWindow: boolean): void {
                             if (newWindow) {

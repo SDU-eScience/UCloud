@@ -49,6 +49,17 @@ export async function fetchProviders(): Promise<string[]> {
     return driveProviders.filter((_, index) => syncthingProducts[index].length > 0);
 }
 
+export async function fetchFirstConfiguredProvider(providers: string[]): Promise<string | null> {
+    const configs = await Promise.allSettled(providers.map(fetchConfig));
+    for (let index = 0; index < providers.length; index++) {
+        const config = configs[index];
+        if (config.status === "fulfilled" && config.value.devices.length > 0) {
+            return providers[index];
+        }
+    }
+    return null;
+}
+
 export async function fetchServers(): Promise<Job[]> {
     const resp = await callAPI<PageV2<Job>>(
         {

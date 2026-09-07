@@ -8,7 +8,7 @@ import {IconButton} from "@/ui-components/IconButton";
 import {CopyButton, IconActionButton} from "@/ui-components/CopyButton";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import MainContainer from "@/ui-components/MainContainer";
-import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "./api";
+import {SyncthingConfig, SyncthingDevice, SyncthingFolder, fetchFirstConfiguredProvider} from "./api";
 import * as Sync from "./api";
 import JobsApi, {JobState} from "@/UCloud/JobsApi";
 import {prettyFilePath} from "@/Files/FilePath";
@@ -256,12 +256,24 @@ const NewOverview: React.FunctionComponent = () => {
     }, [projectId]);
 
     useEffect(() => {
-        if (providers === null) return;
+        if (providers === null) return undefined;
         if (providers.length === 0) {
             navigate("/drives", {replace: true});
-        } else if (provider === null) {
-            selectProvider(providers[0], true);
+            return undefined;
         }
+
+        if (provider === null) {
+            let cancelled = false;
+            fetchFirstConfiguredProvider(providers).then(configured => {
+                if (cancelled) return;
+                selectProvider(configured ?? providers[0], true);
+            });
+            return () => {
+                cancelled = true;
+            };
+        }
+
+        return undefined;
     }, [provider, providers, navigate, selectProvider]);
 
     useEffect(() => {
