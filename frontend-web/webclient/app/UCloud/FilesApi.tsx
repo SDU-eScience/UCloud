@@ -524,8 +524,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             },
         });
         const removeFromSynchronization = withOverrides(withoutShortcut(synchronization), {
-            text: "Remove from synchronization",
+            text: "Remove from sync",
             icon: undefined,
+            confirmationButtonText: "Remove",
             destructive: true,
             enabled: (selected, callbacks) => {
                 const enabled = synchronization.enabled(selected, callbacks);
