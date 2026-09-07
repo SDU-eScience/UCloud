@@ -387,7 +387,7 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                         setValue(next);
                     }}
                     onKeyDown={(ev) => {
-                        if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
+                        if (ev.key === "Enter" && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !ev.nativeEvent.isComposing) {
                             ev.preventDefault();
                             ev.stopPropagation();
                             send();
