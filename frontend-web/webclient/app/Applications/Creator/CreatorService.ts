@@ -121,7 +121,7 @@ export const creatorService: CreatorService = {
                 name: internalCustomName(parsed.application.name),
                 serviceProvider: customMeta.provider,
                 publishedToProject: customMeta.publishedToProject,
-                flavorName: customMeta.flavor,
+                flavorName: customMeta.flavor.trim() === "" ? creatorDefaultFlavorName : customMeta.flavor,
                 groupId: numericId(customMeta.group),
                 categoryId: numericId(customMeta.category),
             }));
@@ -133,11 +133,13 @@ export const creatorService: CreatorService = {
     },
 };
 
+const creatorDefaultFlavorName = "Default";
+
 function customMetaForRequest(meta: CreatorCustomMeta): AppStore.AppEditorCustomMetadata {
     return {
         serviceProvider: meta.provider,
         publishedToProject: meta.publishedToProject,
-        flavorName: meta.flavor,
+        flavorName: meta.flavor.trim() === "" ? creatorDefaultFlavorName : meta.flavor,
         groupId: numericId(meta.group),
         categoryId: numericId(meta.category),
     };

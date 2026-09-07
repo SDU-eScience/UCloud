@@ -12,22 +12,15 @@
 
 import {A2Parameter, A2EnumOption} from "@/Applications/Creator/A2";
 
-// The widget drawer groups items by purpose. "basic" holds simple value types. "resources" holds
-// UCloud resource types that reference storage or network.
 export type WidgetDrawerGroup = "basic" | "resources";
 
 export interface WidgetDrawerItem {
-    // The A2 parameter type to create.
     type: A2WidgetType;
-    // A short label for the drawer button.
     label: string;
-    // A one-line description shown under the label.
     description: string;
-    // The drawer group the item belongs to.
     group: WidgetDrawerGroup;
 }
 
-// The parameter types the drawer can create. Workflow is intentionally excluded.
 export type A2WidgetType =
     | "Text"
     | "TextArea"
@@ -40,8 +33,6 @@ export type A2WidgetType =
     | "License"
     | "PublicIP";
 
-// The drawer items, grouped by purpose. Basic values come first, then UCloud resources. The
-// order is the explicit display order.
 export const WIDGET_DRAWER_ITEMS: WidgetDrawerItem[] = [
     {type: "Text", label: "Text", description: "A short single-line text value.", group: "basic"},
     {type: "TextArea", label: "Text area", description: "A multi-line text value.", group: "basic"},
@@ -55,8 +46,6 @@ export const WIDGET_DRAWER_ITEMS: WidgetDrawerItem[] = [
     {type: "PublicIP", label: "Public IP", description: "A public IP address for the job.", group: "resources"},
 ];
 
-// The base name used for each type. The first parameter of a type uses this name. Subsequent
-// parameters append a number.
 export const WIDGET_BASE_NAMES: Record<A2WidgetType, string> = {
     Text: "text",
     TextArea: "textArea",
@@ -70,7 +59,6 @@ export const WIDGET_BASE_NAMES: Record<A2WidgetType, string> = {
     PublicIP: "publicIp",
 };
 
-// Default titles for each widget type. These give the user a useful starting point.
 export const WIDGET_DEFAULT_TITLES: Record<A2WidgetType, string> = {
     Text: "Text",
     TextArea: "Text area",
@@ -84,8 +72,6 @@ export const WIDGET_DEFAULT_TITLES: Record<A2WidgetType, string> = {
     PublicIP: "Public IP",
 };
 
-// Generate a unique parameter name for the given type. Starts with the base name and appends a
-// number when the base name or a numbered variant is already in use.
 export function uniqueWidgetName(type: A2WidgetType, existingNames: string[]): string {
     const base = WIDGET_BASE_NAMES[type];
     const taken = new Set(existingNames);
@@ -95,9 +81,6 @@ export function uniqueWidgetName(type: A2WidgetType, existingNames: string[]): s
     return `${base}${n}`;
 }
 
-// Create a valid default parameter of the given type. Enumerations start with an empty option list
-// and no default; the user enters the options in the selected row's property panel. All parameters
-// default to optional so the application starts valid.
 export function createWidgetParameter(type: A2WidgetType): A2Parameter {
     const title = WIDGET_DEFAULT_TITLES[type];
     const common = {title, description: "", optional: true};
@@ -113,7 +96,6 @@ export function createWidgetParameter(type: A2WidgetType): A2Parameter {
         case "FloatingPoint":
             return {...common, type: "FloatingPoint", defaultValue: 0, min: null, max: null, step: null};
         case "Enumeration":
-            // No placeholder options. The user enters real options in the property panel.
             return {...common, type: "Enumeration", options: [] as A2EnumOption[], defaultValue: null};
         case "File":
             return {...common, type: "File"};

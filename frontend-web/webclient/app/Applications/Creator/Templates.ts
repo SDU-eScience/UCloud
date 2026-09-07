@@ -19,8 +19,6 @@ import {
     creatorIsCustom,
     CreatorRenderResponse,
 } from "@/Applications/Creator/Draft";
-// Parse and serialization live in SourceParser.ts so the YAML editor and the template service
-// share one implementation. This module only keeps the template constructors.
 import {applicationToSourceText, parseSourceText} from "@/Applications/Creator/SourceParser";
 
 // Blank templates
@@ -31,8 +29,8 @@ export function blankCustomApplication(provider: string): A2Yaml {
         name: "",
         version: "1.0",
         software: {type: "Container", image: ""},
-        title: "",
-        description: "",
+        title: null,
+        description: null,
         parameters: {},
         parametersOrder: [],
         sbatch: {},
@@ -47,8 +45,8 @@ export function blankManagedApplication(): A2Yaml {
         name: "",
         version: "1.0",
         software: {type: "Container", image: ""},
-        title: "",
-        description: "",
+        title: null,
+        description: null,
         parameters: {},
         parametersOrder: [],
         sbatch: {},
@@ -182,7 +180,6 @@ export function fullParameterTemplate(): A2Yaml {
 
 export {applicationToSourceText, parseSourceText};
 
-
 // Custom application metadata template
 // -------------------------------------------------------------------------------------------------------------------
 // Provider, category, group, flavor, and publication are not part of the A2 YAML. Templates supply
@@ -256,6 +253,5 @@ export const templateService: CreatorService = {
     },
 
     async save(_application, _sourceText, _context, _customMeta) {
-        // Placeholder for focused development templates.
     },
 };

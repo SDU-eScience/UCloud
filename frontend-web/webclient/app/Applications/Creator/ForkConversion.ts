@@ -2,6 +2,7 @@ import * as YAML from "yaml";
 import {A2Parameter, A2Yaml} from "@/Applications/Creator/A2";
 import {CreatorCustomMeta} from "@/Applications/Creator/Draft";
 import {applicationToSourceText, parseSourceText} from "@/Applications/Creator/SourceParser";
+import {draftCustomDerivedPresentation} from "@/Applications/Creator/DraftOperations";
 
 export interface CreatorForkConversion {
     application: A2Yaml;
@@ -34,9 +35,10 @@ export function creatorConvertForkSource(source: string, suggestedName: string, 
         ucx: null,
         extensions: [],
     };
+    const derived = draftCustomDerivedPresentation(application, null, null);
     return {
-        application,
-        sourceText: applicationToSourceText(application),
+        application: derived,
+        sourceText: applicationToSourceText(derived),
         customMeta: {
             provider: "",
             category: "",

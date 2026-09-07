@@ -26,10 +26,6 @@
 // Tokens
 // -------------------------------------------------------------------------------------------------------------------
 
-// The Monarch tokenizer for Jinja2 is defined in Editor.tsx and exported as
-// `jinja2monarchTokens`. We import it so the creator reuses the exact same tokenizer the file
-// editor uses, instead of redefining it.
-
 import {
     bashJinjaLanguageConfiguration,
     bashJinjaLanguageId,
@@ -46,18 +42,14 @@ import {jinja2monarchTokens} from "@/Editor/Editor";
 let jinja2Registered = false;
 let bashJinjaRegistered = false;
 
-// Register the jinja2 language with Monaco at most once. Safe to call from every editor mount.
 export function ensureJinja2Language(monaco: any): void {
     if (jinja2Registered) return;
     jinja2Registered = true;
-    // `register` is idempotent in Monaco if the id already exists, but we skip the call to avoid
-    // redefining the tokenizer and triggering a change event.
     if (monaco.languages.getLanguages().some((l: any) => l.id === "jinja2")) return;
     monaco.languages.register({id: "jinja2"});
     monaco.languages.setMonarchTokensProvider("jinja2", jinja2monarchTokens);
 }
 
-// Register the bash-jinja language (bash with Jinja tags) used by the invocation editor.
 export function ensureBashJinjaLanguage(monaco: any): void {
     if (bashJinjaRegistered) return;
     bashJinjaRegistered = true;
@@ -67,17 +59,11 @@ export function ensureBashJinjaLanguage(monaco: any): void {
     monaco.languages.setLanguageConfiguration(bashJinjaLanguageId, bashJinjaLanguageConfiguration);
 }
 
-// Define the ucloud-dark theme. The theme data matches the file editor's definition plus token
-// colors for the bash-jinja language. Re-applied on every call: the file editor (Editor.tsx)
-// defines the same theme name with empty rules on its mounts, which would otherwise wipe these
-// token colors until the next full page load.
 export function ensureUcloudDarkTheme(monaco: any): void {
     monaco.editor.defineTheme("ucloud-dark", {
         base: "vs-dark",
         inherit: true,
         rules: [
-            // Jinja (bash-jinja language). Colors follow the file editor's jinja2 feel: tags in
-            // orange, names in light blue, strings in the same soft blue as bash strings.
             {token: "delimiter.bracket.jinja2", foreground: "F97316"},
             {token: "keyword.jinja2", foreground: "F97316"},
             {token: "comment.jinja2", foreground: "6A9955", fontStyle: "italic"},
@@ -142,10 +128,3 @@ export function creatorEditorOptions(): {
         padding: {top: EDITOR_TOP_PADDING, bottom: EDITOR_TOP_PADDING},
     };
 }
-
-// The creator editors use `useMonaco` from Editor.tsx directly; this module only owns the
-// shared registration guards and editor settings, so it does not import `getMonaco`.
-//
-// Vim mode is intentionally deferred. Enabling it requires a vim command bar element and the
-// monaco-vim initVimMode wiring, which is invasive for an embedded compact editor. The font
-// size, font weight, and word wrap settings are inherited; the vim toggle is a later phase.

@@ -18,12 +18,8 @@ import {CreatorDraft, CreatorValidationError} from "@/Applications/Creator/Draft
 import {CreatorSourceParseError} from "@/Applications/Creator/SourceParser";
 
 export interface ErrorSummaryProps {
-    // The current draft. The summary reads `parseErrors` and `validation.errors`.
     draft: CreatorDraft;
-    // Called when the user clicks a parse error. The YAML editor scrolls to the line.
     onJumpToSourceLine: (line: number, column: number) => void;
-    // Called when the user clicks a semantic error. The editor focuses its parameter, field, or
-    // source location when the error provides one.
     onFocusParameter: (error: CreatorValidationError) => void;
     validating?: boolean;
     extraErrors?: CreatorValidationError[];

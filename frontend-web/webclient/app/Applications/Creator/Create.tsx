@@ -86,6 +86,9 @@ import {
     draftUpdateEnvironment,
     draftUpdateSbatch,
     draftUpdateCustomMeta,
+    draftCustomDerivedPresentation,
+    draftCustomDerivedName,
+    draftCustomSelectedGroup,
 } from "@/Applications/Creator/DraftOperations";
 import {A2Parameter, A2EnumOption, A2Yaml, A2Software} from "@/Applications/Creator/A2";
 import {A2WidgetType} from "@/Applications/Creator/WidgetDefaults";
@@ -163,8 +166,6 @@ const CreatorMainHeaderClass = injectStyle("creator-main-header", k => `
         border-bottom: 1px solid var(--borderColor);
     }
 `);
-
-
 
 const CreatorMainBodyClass = injectStyle("creator-main-body", k => `
     ${k} {
@@ -384,20 +385,18 @@ export const Create: React.FunctionComponent = () => {
     const [customEligibility, setCustomEligibility] = useState<AppStore.AppEditorCustomEligibilityResponse | null>(null);
     const [customGroups, setCustomGroups] = useState<AppStore.AppCatalogCustomGroup[]>([]);
     const [customCategories, setCustomCategories] = useState<AppStore.AppCatalogCustomCategory[]>([]);
+    const [inlineCreatedGroup, setInlineCreatedGroup] = useState<{id: number; title: string; description: string} | null>(null);
     const validationRequestId = useRef(0);
     const draftRevisionRef = useRef(0);
     const draftRef = useRef<CreatorDraft | null>(null);
     const lastPreviewJobRef = useRef<JobSpecification | null>(null);
 
-    // Resizable panel state. The width drives a CSS variable so the DOM updates without
-    // re-rendering the component tree.
     const panelRef = useRef<HTMLDivElement>(null);
     const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
     const isResizing = useRef(false);
 
     usePage("Application editor", SidebarTabId.APPLICATIONS);
 
-    // Prevent body scroll so the shell owns the full viewport, matching the file editor.
     useEffect(() => {
         document.body.style.overflow = "hidden";
         return () => {
@@ -405,8 +404,6 @@ export const Create: React.FunctionComponent = () => {
         };
     }, []);
 
-    // Load blank defaults or canonical source through the service boundary. The draft starts
-    // clean; a fork or new-version operation is never reconstructed from normalized metadata.
     useEffect(() => {
         let cancelled = false;
         if (contextError) {
@@ -454,9 +451,10 @@ export const Create: React.FunctionComponent = () => {
             if (customMeta != null) {
                 const firstEligibleProvider = eligibility?.providers.find(provider => provider.eligible)?.provider;
                 const firstProvider = firstEligibleProvider ?? eligibility?.providers[0]?.provider ?? "";
+                const autoSelectProvider = context.operation === "newCustom" || eligibility?.providers.length === 1;
                 customMeta = {
                     ...customMeta,
-                    provider: context.operation === "newCustom" ? customMeta.provider || firstProvider : customMeta.provider,
+                    provider: customMeta.provider || (autoSelectProvider ? firstProvider : ""),
                     group: context.operation === "newCustom" ? customMeta.group || String(placement.groups[0]?.id ?? "") : customMeta.group,
                     category: categoryId ?? customMeta.category,
                     canPublish: eligibility?.canPublish ?? false,
@@ -465,13 +463,28 @@ export const Create: React.FunctionComponent = () => {
             }
             const installDraft = () => {
                 if (cancelled) return;
-                const initialDraft = creatorInitialDraft(source.application, source.sourceText, context, customMeta);
-                setDraft(context.operation === "fork"
-                    ? {...initialDraft, dirty: true, sourceNormalized: true}
-                    : initialDraft);
+                let application = source.application;
+                let sourceText = source.sourceText;
+                if (customMeta != null) {
+                    const group = draftCustomSelectedGroup(customMeta, placement.groups);
+                    application = draftCustomDerivedPresentation(application, customMeta, group);
+                    const derivedName = draftCustomDerivedName(customMeta, group);
+                    if (derivedName !== "" && application.name === "") {
+                        application = {...application, name: derivedName};
+                        sourceText = applicationToSourceText(application);
+                    }
+                }
+                const initialDraft = creatorInitialDraft(application, sourceText, context, customMeta);
+                setDraft({
+                    ...initialDraft,
+                    placementGroups: placement.groups,
+                    placementCreatedGroup: null,
+                    ...(context.operation === "fork" ? {dirty: true, sourceNormalized: true} : {}),
+                });
                 setCustomGroups(placement.groups);
                 setCustomCategories(placement.categories);
                 setCustomEligibility(eligibility);
+                setInlineCreatedGroup(null);
                 setServerValidation({errors: []});
                 setServerValidationRevision(null);
                 setPreviewApplication(null);
@@ -497,9 +510,6 @@ export const Create: React.FunctionComponent = () => {
         };
     }, [context.operation, context.applicationKind, context.workspace, context.existingName, context.existingVersion, context.provider, context.sourceApplicationKind, context.sourceProvider, context.initialCategory, context.developmentTemplate, contextError, navigate]);
 
-    // Refresh the workspace custom groups and categories from the backend. Used after creating a
-    // group or category from within the panel so the shared source stays in sync, and when the
-    // active project changes so stale data from the previous workspace is discarded.
     const refreshPlacement = useCallback(async () => {
         if (!creatorIsCustom(context)) return;
         try {
@@ -507,16 +517,16 @@ export const Create: React.FunctionComponent = () => {
             setCustomGroups(placement.groups);
             setCustomCategories(placement.categories);
         } catch {
-            // Leave the current lists in place on failure; the next interaction retries.
         }
-        // Depend on primitive context fields rather than the context object: the object is rebuilt
-        // on every render, so depending on it would re-create this callback (and re-run the
-        // project-refresh effect) on every render.
     }, [context.operation, context.applicationKind]);
 
     useEffect(() => {
         void refreshPlacement();
     }, [projectId, refreshPlacement]);
+
+    const onInlineCreatedGroup = useCallback((group: {id: number; title: string; description: string} | null) => {
+        setInlineCreatedGroup(group);
+    }, []);
 
     useEffect(() => {
         if (draft?.view !== "editor" || invocationTab !== "preview" || previewScript == null) return;
@@ -525,25 +535,9 @@ export const Create: React.FunctionComponent = () => {
         });
     }, [draft?.view, invocationTab, previewScript]);
 
-    // Theme name for the embedded Monaco editors. Matches the file editor's selector.
     const themeName = useSelector((red: ReduxObject) => red.sidebar.theme);
     draftRef.current = draft;
     if (draft) draftRevisionRef.current = draft.revision;
-
-    // YAML source parse cycle
-    // -----------------------------------------------------------------------------------------------------------------
-    // The source text and the structured model are kept in sync by parsing the source text and
-    // replacing the model only when parsing succeeds. On failure, the source text is retained
-    // exactly and the model keeps showing the last valid state.
-    //
-    // The parse runs:
-    //   - on a short stable-edit debounce after source text changes (YamlEditor calls onParseTick)
-    //   - immediately when the YAML editor loses focus (YamlEditor calls onBlur)
-    //   - immediately before preview or save (the action handlers below call runParse)
-    //
-    // parseSourceText never throws; it returns a result object. The draft stores parseErrors with
-    // line/column so the YAML editor can place Monaco markers and the error summary can offer a
-    // click-to-line action.
 
     const runParse = useCallback(() => {
         setDraft(current => {
@@ -553,24 +547,36 @@ export const Create: React.FunctionComponent = () => {
                 : current.sourceText;
             const result = parseSourceText(text);
             if (result.ok) {
-                // The parsed application replaces the structured model. parameterIds are
-                // regenerated for the new parameter set so selection survives across a
-                // re-parse only by coincidence; visual selection is expected to reset when the
-                // user edits the source by hand, because stable ids are an internal editor
-                // concept that does not exist in YAML.
                 const parameterIds: Record<string, string> = {};
                 for (const name of result.application.parametersOrder) {
                     parameterIds[name] = current.parameterIds[name] ?? creatorStableId();
                 }
-                // Do not mark dirty here: a parse refreshes the model, it is not an edit. The
-                // text-change handler already marked the draft dirty when the user typed.
-                const application = creatorIsCustom(current.context)
-                    ? {...result.application, name: creatorLogicalName(result.application.name)}
-                    : result.application;
+                let application = result.application;
+                let nameManuallySet = current.nameManuallySet;
+                if (creatorIsCustom(current.context) && current.customMeta != null) {
+                    const group = draftCustomSelectedGroup(
+                        current.customMeta,
+                        current.placementGroups,
+                        current.placementCreatedGroup,
+                    );
+                    application = draftCustomDerivedPresentation(application, current.customMeta, group);
+                    const derivedName = draftCustomDerivedName(current.customMeta, group);
+                    if (application.name === derivedName) {
+                        nameManuallySet = false;
+                    } else if (application.name !== "" && application.name !== current.application.name) {
+                        nameManuallySet = true;
+                    } else if (!nameManuallySet && application.name === "" && derivedName !== "") {
+                        application = {...application, name: derivedName};
+                    }
+                }
+                application = creatorIsCustom(current.context)
+                    ? {...application, name: creatorLogicalName(application.name)}
+                    : application;
                 return {
                     ...current,
                     application,
                     lastValidApplication: application,
+                    nameManuallySet,
                     sourceTextInvalid: false,
                     parseErrors: [],
                     parameterIds,
@@ -578,8 +584,6 @@ export const Create: React.FunctionComponent = () => {
                     validation: emptyValidationState(),
                 };
             }
-            // On failure we keep the source text and do not touch `dirty` either: the text change
-            // that produced the invalid source already marked it dirty.
             return {
                 ...current,
                 sourceTextInvalid: true,
@@ -589,9 +593,6 @@ export const Create: React.FunctionComponent = () => {
         });
     }, []);
 
-    // YamlEditor reports each content change. We store the text and mark the draft dirty. The
-    // delayed parse runs in the editor's own debounce effect (onParseTick). Action-triggered
-    // validation errors are cleared because they no longer describe the current source.
     const onSourceTextChange = useCallback((text: string) => {
         setDraft(current => {
             if (!current) return current;
@@ -607,12 +608,10 @@ export const Create: React.FunctionComponent = () => {
         });
     }, []);
 
-    // The YAML editor calls onParseTick when its debounce fires. We run the parse.
     const onSourceParseTick = useCallback(() => {
         runParse();
     }, [runParse]);
 
-    // The YAML editor calls onBlur when it loses focus. We parse immediately.
     const onSourceBlur = useCallback(() => {
         runParse();
     }, [runParse]);
@@ -684,9 +683,6 @@ export const Create: React.FunctionComponent = () => {
         }
     }, []);
 
-    // Workflow rows set `yamlFocusKey` to ask the YAML editor to jump to a parameter key. We
-    // also switch to the YAML view so the editor is visible. The editor clears the key after it
-    // applies the focus.
     const onOpenWorkflowYaml = useCallback((parameterName: string) => {
         setDraft(current => {
             if (!current) return current;
@@ -698,7 +694,6 @@ export const Create: React.FunctionComponent = () => {
         });
     }, []);
 
-    // The YAML editor calls this after it scrolled to the focus key.
     const onYamlFocusApplied = useCallback(() => {
         setDraft(current => {
             if (!current) return current;
@@ -706,8 +701,6 @@ export const Create: React.FunctionComponent = () => {
         });
     }, []);
 
-    // Error summary actions. A parse error switches to the YAML view; the YamlEditor reacts to a
-    // focus line prop and scrolls to it.
     const [focusLine, setFocusLine] = useState<number | null>(null);
     const [focusColumn, setFocusColumn] = useState<number>(0);
 
@@ -735,14 +728,12 @@ export const Create: React.FunctionComponent = () => {
         setDraft(current => {
             if (!current) return current;
             if (!error.parameterName) {
-                // Global error: ensure we are in the editor view and no parameter selected.
                 return {
                     ...current,
                     view: "editor",
                     selection: {parameterId: null, parameterName: null},
                 };
             }
-            // Select the named parameter so the panel shows the relevant field.
             const id = current.parameterIds[error.parameterName] ?? null;
             return {
                 ...current,
@@ -759,27 +750,12 @@ export const Create: React.FunctionComponent = () => {
         }
     }, []);
 
-
-    // Dirty-state helpers. Each visual change writes the A2 model and marks the draft dirty.
-    //
-    // First-visual-change normalization: while the draft was loaded from a source the user edited
-    // by hand, the in-memory `sourceText` can differ from the canonical serialization of the model.
-    // The first visual change replaces the source text with the canonical form, which can drop
-    // comments and custom formatting. We warn the user once before that happens. After the first
-    // confirmation, `sourceNormalized` is true and no further warnings show for the same loaded
-    // draft.
-    //
-    // The guard is in `updateApplication` because every visual change goes through it. It cannot
-    // be in the draft operations themselves because those are pure and synchronous. The dialog
-    // is asynchronous, so we queue the updater in a ref and apply it on confirm.
     const pendingUpdaterRef = useRef<((draft: CreatorDraft) => CreatorDraft) | null>(null);
     const normalizationDialogOpenRef = useRef(false);
 
     const updateApplication = useCallback((updater: (draft: CreatorDraft) => CreatorDraft) => {
         setDraft(current => {
             if (!current) return current;
-            // Guard: block visual edits while the source text is invalid. The visual editor is
-            // read-only in that state; the only valid edit path is the YAML text.
             if (current.sourceTextInvalid) {
                 return current;
             }
@@ -794,20 +770,12 @@ export const Create: React.FunctionComponent = () => {
                 };
             };
 
-            // Visual changes always serialize the complete model. This keeps validation and save
-            // requests on the same source as the controls, while YAML edits retain their exact text.
             if (current.sourceNormalized) {
                 return applyVisualChange(current);
             }
-            // The source has not been normalized yet. If the source text matches the canonical
-            // serialization of the current model, there is nothing to warn about: normalizing
-            // would not change the text. Apply directly and mark normalized so we never check
-            // again for this draft.
             if (current.sourceText === applicationToSourceText(current.application)) {
                 return applyVisualChange(current);
             }
-            // The source differs. We must ask before the first visual change replaces it with
-            // canonical YAML. Queue the updater and show the dialog once.
             if (normalizationDialogOpenRef.current) {
                 return current;
             }
@@ -851,8 +819,6 @@ export const Create: React.FunctionComponent = () => {
         });
     }, []);
 
-    // Selection changes update the draft without marking it dirty because they are UI state,
-    // not model changes.
     const updateSelection = useCallback((updater: (draft: CreatorDraft) => CreatorDraft) => {
         setDraft(current => {
             if (!current) return current;
@@ -863,6 +829,7 @@ export const Create: React.FunctionComponent = () => {
     const onNameChange = useCallback((name: string) => {
         updateApplication(d => ({
             ...d,
+            nameManuallySet: true,
             application: {
                 ...d.application,
                 name: creatorIsCustom(d.context) ? creatorLogicalName(name) : name,
@@ -878,8 +845,6 @@ export const Create: React.FunctionComponent = () => {
         }));
     }, [updateApplication]);
 
-    // Selection. The content card and the panel both use the stable id for selection. Selection
-    // is UI state and does not mark the draft dirty.
     const onSelectParameter = useCallback((parameterId: string | null) => {
         updateSelection(d => draftSelectParameter(d, parameterId));
     }, [updateSelection]);
@@ -891,25 +856,15 @@ export const Create: React.FunctionComponent = () => {
         onSelectParameter(null);
     }, [draft?.selection.parameterId, draft?.view, onSelectParameter]);
 
-    // Feature highlight. When the user clicks a feature card or sub-section in the content area,
-    // deselect any selected parameter so the metadata panel becomes visible, then scroll to and
-    // animate the corresponding toggle. The deselect must happen first because the metadata panel
-    // is hidden when a parameter is selected, so the toggle element is not in the DOM.
-    //
-    // The timeout gives React time to re-render and remove the `hidden` attribute from the metadata
-    // panel before we try to scroll. requestAnimationFrame is not enough because the state update
-    // is async and React may not have committed the DOM change by the next frame.
     const onFeatureHighlight = useCallback((target: CreatorHighlightTarget) => {
         updateSelection(d => draftSelectParameter(d, null));
         setTimeout(() => creatorHighlightTarget(target), 50);
     }, [updateSelection]);
 
-    // Reorder. The content card reports the new order; the draft stores it.
     const onReorder = useCallback((newOrder: string[]) => {
         updateApplication(d => draftReorderParameters(d, newOrder));
     }, [updateApplication]);
 
-    // Parameter editing callbacks.
     const onRenameParameter = useCallback((oldName: string, newName: string) => {
         updateApplication(d => draftRenameParameter(d, oldName, newName));
     }, [updateApplication]);
@@ -943,18 +898,14 @@ export const Create: React.FunctionComponent = () => {
         updateApplication(d => draftUpdateEnumeration(d, name, patch));
     }, [updateApplication]);
 
-    // Widget drawer: append a new parameter and select it.
     const onAddParameter = useCallback((type: A2WidgetType) => {
         updateApplication(d => draftAddParameter(d, type));
     }, [updateApplication]);
 
-    // Metadata callbacks. Each writes the A2 model (or customMeta) and marks the draft dirty.
     const onUpdateMetadata = useCallback((patch: Partial<Pick<A2Yaml, "title" | "description" | "license" | "documentation" | "invocation">>) => {
         updateApplication(d => draftUpdateMetadata(d, patch));
     }, [updateApplication]);
 
-    // Invocation editor changes. The compact Monaco editor fires on each keystroke. Validation is
-    // deferred until the user requests a preview or save.
     const onUpdateInvocation = useCallback((invocation: string) => {
         updateApplication(d => draftUpdateMetadata(d, {invocation}));
     }, [updateApplication]);
@@ -1004,13 +955,38 @@ export const Create: React.FunctionComponent = () => {
     }, [updateApplication]);
 
     const onUpdateCustomMeta = useCallback((patch: Partial<CreatorCustomMeta>) => {
-        updateApplication(d => draftUpdateCustomMeta(d, patch));
-    }, [updateApplication]);
+        updateApplication(d => {
+            const updated = draftUpdateCustomMeta(d, patch);
+            if (updated === d || updated.customMeta == null) return updated;
+            if (patch.group !== undefined || patch.flavor !== undefined) {
+                const group = draftCustomSelectedGroup(
+                    updated.customMeta,
+                    customGroups,
+                    inlineCreatedGroup,
+                );
+                return {
+                    ...updated,
+                    application: draftCustomDerivedPresentation(updated.application, updated.customMeta, group),
+                };
+            }
+            return updated;
+        });
+    }, [updateApplication, customGroups, inlineCreatedGroup]);
 
-    // View switching. Switching to the YAML view keeps the current source text if the draft was
-    // already normalized; otherwise it serializes the current model so the user sees canonical
-    // YAML. Switching away from the YAML view parses the source immediately so the model is
-    // current before the visual editor is shown.
+    useEffect(() => {
+        setDraft(current => {
+            if (!current || current.placementGroups === customGroups) return current;
+            return {...current, placementGroups: customGroups};
+        });
+    }, [customGroups]);
+
+    useEffect(() => {
+        setDraft(current => {
+            if (!current || current.placementCreatedGroup === inlineCreatedGroup) return current;
+            return {...current, placementCreatedGroup: inlineCreatedGroup};
+        });
+    }, [inlineCreatedGroup]);
+
     const onViewChange = useCallback((view: CreatorView) => {
         setDraft(current => {
             if (!current) return current;
@@ -1025,16 +1001,11 @@ export const Create: React.FunctionComponent = () => {
             }
             return {...current, view};
         });
-        // Leaving the YAML view: parse the text so the model matches what the user typed.
-        // We run after the state set so the parse reads the latest source text. Use a microtask
-        // to let React flush the state update first.
         if (draft?.view === "yaml") {
             Promise.resolve().then(runParse);
         }
     }, [draft?.view, runParse]);
 
-    // Toggle between editor and YAML. When in the editor, switch to YAML. When in YAML or
-    // preview, switch to the editor. On the way back to the editor from YAML, parse first.
     const onToggleYaml = useCallback(() => {
         const goingToEditor = draft?.view === "yaml";
         setDraft(current => {
@@ -1055,8 +1026,6 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [draft?.view, runParse]);
 
-    // Toggle between the editor view and the invocation-only view. The invocation view shows only
-    // the invocation editor filling the content area, with the sidebar hidden.
     const onToggleInvocation = useCallback(() => {
         setDraft(current => {
             if (!current) return current;
@@ -1198,9 +1167,6 @@ export const Create: React.FunctionComponent = () => {
         void renderPreview(job, draft);
     }, [draft, previewApplication, previewDataReady, previewMachines, previewParameters, previewQueued, renderPreview]);
 
-    // Resizer. Follows the same pointer-event pattern as the file editor FileTree. The handle
-    // is on the left edge of the panel (the left = panel's left edge from screen). Dragging right
-    // widens the panel, dragging left narrows it.
     const onResizeStart = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
         if (e.button !== 0) return;
         e.preventDefault();
@@ -1230,7 +1196,6 @@ export const Create: React.FunctionComponent = () => {
 
     useEffect(() => onResizeStop, [onResizeStop]);
 
-    // Navigation protection. Warn before tab close or refresh when the draft is dirty.
     const isDirty = draft?.dirty ?? false;
     useBeforeUnload((e: BeforeUnloadEvent): BeforeUnloadEvent => {
         if (isDirty) {
@@ -1280,7 +1245,6 @@ export const Create: React.FunctionComponent = () => {
             },
         };
 
-    // Parse errors disable both actions. Semantic validation is requested only by preview or save.
     const saveDisabled = draft.sourceTextInvalid || saveLoading;
     const previewDisabled = draft.sourceTextInvalid;
     const saveTooltip = draft.sourceTextInvalid
@@ -1404,6 +1368,7 @@ export const Create: React.FunctionComponent = () => {
                             customGroups={customGroups}
                             customCategories={customCategories}
                             refreshPlacement={refreshPlacement}
+                            onInlineCreatedGroup={onInlineCreatedGroup}
                         />
                     </div>
                 </div>
@@ -1454,10 +1419,6 @@ function CreatorMainContent(props: {
 }): React.ReactNode {
     const {draft} = props;
 
-    // The parameters list must keep a stable identity across renders that do not touch the
-    // parameters (for example every keystroke in the invocation editor). The InvocationEditor
-    // uses it as an effect dependency; a fresh array per render would re-run the lint on every
-    // keystroke and defeat its debounce.
     const invocationParameters = React.useMemo(
         () => draft.application.parametersOrder.flatMap(name => {
             const param = draft.application.parameters[name];
@@ -1466,9 +1427,6 @@ function CreatorMainContent(props: {
         [draft.application.parametersOrder, draft.application.parameters],
     );
 
-    // Memoized for the same reason as previewSurface: this node is passed as a prop into
-    // InvocationEditor and must not change identity on invocation keystrokes, or the preview tab
-    // subtree would re-render behind the invocation tab.
     const invocationPreview = useMemo(() => (
         <PreviewScriptViewer
             script={props.previewScript}
@@ -1501,11 +1459,6 @@ function CreatorMainContent(props: {
         />
     );
 
-    // Keep all view surfaces mounted. In particular, the job form owns temporary widget state;
-    // hiding it instead of unmounting it preserves preview values when the user returns to edit.
-    // Memoized: this subtree is expensive (a full JobCreate form) and its inputs change only on
-    // preview actions, not on draft edits like invocation keystrokes. All callback props are
-    // stable useCallback identities or state setters.
     const previewSurface = useMemo(() => (
         <div className={CreatorPreviewClass} hidden={draft.view !== "preview"} style={draft.view !== "preview" ? {display: "none"} : undefined}>
             {props.previewApplication == null ? (
@@ -1600,9 +1553,6 @@ function CreatorMainContent(props: {
     );
 }
 
-// Column flex container for the YAML view. The YamlEditor sits without a card and fills all
-// remaining vertical space so the source view uses the whole main content island. The container
-// keeps the body padding from the island edges but stretches vertically.
 const CreatorMainContentYamlClass = injectStyle("creator-main-content-yaml", k => `
     ${k} {
         display: flex;
@@ -1891,16 +1841,13 @@ function CreatorPanel(props: {
     customGroups: AppStore.AppCatalogCustomGroup[];
     customCategories: AppStore.AppCatalogCustomCategory[];
     refreshPlacement: () => Promise<void>;
+    onInlineCreatedGroup: (group: {id: number; title: string; description: string} | null) => void;
 }): React.ReactNode {
     const {draft} = props;
     const {selection} = draft;
     const scrollRef = useRef<HTMLDivElement>(null);
     const metadataScroll = useRef(0);
 
-    // The metadata scroll position is saved continuously while the metadata panel is visible.
-    // Saving in the layout effect would be too late: by the time React commits the DOM change
-    // (hiding metadata, showing the parameter panel), the scroll container has already reset
-    // scrollTop to 0. The onScroll handler captures the real position before the switch.
     const showingMetadata = selection.parameterId == null;
     const showingMetadataRef = useRef(showingMetadata);
     showingMetadataRef.current = showingMetadata;
@@ -1913,8 +1860,6 @@ function CreatorPanel(props: {
         }
     }, []);
 
-    // Restore the saved scroll position when returning to the metadata panel. The metadata
-    // content is visible in the DOM by this point, so setting scrollTop works.
     React.useLayoutEffect(() => {
         if (!showingMetadata) return;
         const el = scrollRef.current;
@@ -1948,6 +1893,7 @@ function CreatorPanel(props: {
                     customGroups={props.customGroups}
                     customCategories={props.customCategories}
                     refreshPlacement={props.refreshPlacement}
+                    onInlineCreatedGroup={props.onInlineCreatedGroup}
                 />
             </div>
             {!showingMetadata ? (

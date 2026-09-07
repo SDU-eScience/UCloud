@@ -80,9 +80,6 @@ export interface A2EnumOption {
     value: string;
 }
 
-// Optional fields use `null` to represent an absent key in the source YAML.
-// The backend uses util.Option[T] with the same semantics.
-
 export interface A2Features {
     multiNode: boolean;
     links?: boolean | null;

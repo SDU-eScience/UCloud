@@ -9,10 +9,13 @@
 // editor panel immediately shows the new row's settings.
 //
 // Custom-only metadata (provider, category, group, flavor, publication) is not part of the A2 YAML.
-// It lives on the draft as customMeta and is sent as separate request fields at save time.
+// It lives on the draft as customMeta and is sent as separate request fields at save time. Custom
+// applications derive the name from the group and flavor; the name field is hidden unless the user
+// set a name by hand in the YAML view.
 
 import * as React from "react";
 import {useState} from "react";
+import {useRef} from "react";
 import {Box, Button, Input, Label, Select, Text, TextArea} from "@/ui-components";
 import {IconButton} from "@/ui-components/IconButton";
 import Icon, {IconName} from "@/ui-components/Icon";
@@ -20,7 +23,7 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {injectStyle} from "@/Unstyled";
 import {A2Yaml, A2Software, A2Features, A2SshMode, A2Inference, A2ApplicationToLoad} from "@/Applications/Creator/A2";
 import {CreatorDraft, CreatorCustomMeta, creatorIsCustom, creatorIsEditableName, creatorIsEditableVersion} from "@/Applications/Creator/Draft";
-import {PanelSection, ToggleRow} from "@/Applications/Creator/ParameterPanelShared";
+import {PanelSection, ToggleRow, InfoDot} from "@/Applications/Creator/ParameterPanelShared";
 import {WIDGET_DRAWER_ITEMS, WidgetDrawerGroup} from "@/Applications/Creator/WidgetDefaults";
 import type {
     AppCatalogCustomCategory,
@@ -38,18 +41,19 @@ import {fileSelectorModalStyle, slimModalStyle} from "@/Utilities/ModalUtilities
 import {callAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {fetchAll} from "@/Utilities/PageUtilities";
-import {doNothing, extractErrorMessage} from "@/UtilityFunctions";
+import {doNothing, extractErrorMessage, isLikelyMac, stopPropagation} from "@/UtilityFunctions";
+import {FieldGroup, FieldRow} from "@/Applications/Jobs/Widgets";
+import {KeyboardNavigation, SubmitShortcut} from "@/Applications/KeyboardNavigation";
 import {sendFailureNotification} from "@/Notifications";
 import * as Heading from "@/ui-components/Heading";
 import {Divider} from "@/ui-components";
 import {useGlobal} from "@/Utilities/ReduxHooks";
+import {LineCappedMarkdown} from "@/ui-components/Markdown";
 import ContainerRepositoryBrowse from "@/ContainerRepositories/Browse";
 import {customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
 
 export interface MetadataPanelProps {
     draft: CreatorDraft;
-    // True when the YAML source is invalid. The whole panel becomes read-only by disabling
-    // pointer events so the user cannot change visual fields while the source owns the edits.
     readOnly?: boolean;
     onNameChange: (name: string) => void;
     onVersionChange: (version: string) => void;
@@ -71,6 +75,7 @@ export interface MetadataPanelProps {
     customGroups?: AppCatalogCustomGroup[];
     customCategories?: AppCatalogCustomCategory[];
     refreshPlacement: () => Promise<void>;
+    onInlineCreatedGroup?: (group: {id: number; title: string; description: string} | null) => void;
 }
 
 export function MetadataPanel(props: MetadataPanelProps): React.ReactNode {
@@ -80,6 +85,7 @@ export function MetadataPanel(props: MetadataPanelProps): React.ReactNode {
     const editableName = creatorIsEditableName(context);
     const editableVersion = creatorIsEditableVersion(context);
     const readOnly = props.readOnly === true;
+    const showNameField = !isCustom || draft.nameManuallySet;
 
     return (
         <div className={readOnly ? MetadataReadOnlyClass : undefined}>
@@ -90,34 +96,47 @@ export function MetadataPanel(props: MetadataPanelProps): React.ReactNode {
                     </Text>
                 </Box>
             ) : null}
-            <IdentitySection
-                application={application}
-                editableName={editableName}
-                editableVersion={editableVersion}
-                namePlaceholder={context.operation === "fork" ? `${context.existingName ?? "application"}-fork` : undefined}
-                versionPlaceholder={context.operation === "fork" ? "1.0" : undefined}
-                onNameChange={props.onNameChange}
-                onVersionChange={props.onVersionChange}
-            />
-            <PresentationSection
-                application={application}
-                onUpdateMetadata={props.onUpdateMetadata}
-            />
-            <GroupFlavorSection
-                draft={draft}
-                onUpdateCustomMeta={props.onUpdateCustomMeta}
-                groups={props.customGroups}
-                refreshPlacement={props.refreshPlacement}
-            />
-            {isCustom ? (
-                <CustomFieldsSection
-                    draft={draft}
-                    onUpdateCustomMeta={props.onUpdateCustomMeta}
-                    eligibility={props.customEligibility}
-                    categories={props.customCategories}
-                    refreshPlacement={props.refreshPlacement}
-                />
-            ) : (
+            <PanelSection title="Metadata">
+                {isCustom ? (
+                    <GroupFlavorSection
+                        draft={draft}
+                        showNameField={showNameField}
+                        editableName={editableName}
+                        onNameChange={props.onNameChange}
+                        onVersionChange={props.onVersionChange}
+                        onUpdateCustomMeta={props.onUpdateCustomMeta}
+                        groups={props.customGroups}
+                        refreshPlacement={props.refreshPlacement}
+                        onInlineCreated={props.onInlineCreatedGroup}
+                    />
+                ) : (
+                    <IdentitySection
+                        application={application}
+                        editableName={editableName}
+                        editableVersion={editableVersion}
+                        namePlaceholder={context.operation === "fork" ? `${context.existingName ?? "application"}-fork` : undefined}
+                        versionPlaceholder={context.operation === "fork" ? "1.0" : undefined}
+                        onNameChange={props.onNameChange}
+                        onVersionChange={props.onVersionChange}
+                    />
+                )}
+                {!isCustom ? (
+                    <PresentationSection
+                        application={application}
+                        onUpdateMetadata={props.onUpdateMetadata}
+                    />
+                ) : null}
+                {isCustom ? (
+                    <CustomFieldsSection
+                        draft={draft}
+                        onUpdateCustomMeta={props.onUpdateCustomMeta}
+                        eligibility={props.customEligibility}
+                        categories={props.customCategories}
+                        refreshPlacement={props.refreshPlacement}
+                    />
+                ) : null}
+            </PanelSection>
+            {isCustom ? null : (
                 <ManagedFieldsSection
                     application={application}
                     onUpdateModules={props.onUpdateModules}
@@ -133,6 +152,7 @@ export function MetadataPanel(props: MetadataPanelProps): React.ReactNode {
             />
             <RuntimeFeaturesSection
                 application={application}
+                isCustom={isCustom}
                 onUpdateFeatures={props.onUpdateFeatures}
             />
             <ConnectivitySection
@@ -159,7 +179,7 @@ const MetadataReadOnlyClass = injectStyle("creator-metadata-readonly", k => `
     }
 `);
 
-// Identity: name and version
+// Identity: name and version. Rendered inside the "Metadata" section.
 // -------------------------------------------------------------------------------------------------------------------
 
 function IdentitySection(props: {
@@ -172,7 +192,7 @@ function IdentitySection(props: {
     onVersionChange: (version: string) => void;
 }): React.ReactNode {
     return (
-        <PanelSection title="Identity">
+        <>
             <Label className="panel-field">
                 <span className="panel-field-label">Name<MandatoryField /></span>
                 <Input
@@ -195,12 +215,36 @@ function IdentitySection(props: {
                     data-creator-field="version"
                 />
             </Label>
-        </PanelSection>
+        </>
+    );
+}
+
+function VersionField(props: {
+    application: A2Yaml;
+    editableVersion: boolean;
+    versionPlaceholder?: string;
+    onVersionChange: (version: string) => void;
+}): React.ReactNode {
+    return (
+        <Label className="panel-field">
+            <span className="panel-field-label">Version<MandatoryField /></span>
+            <Input
+                className={PanelInputClass}
+                value={props.application.version}
+                onChange={e => props.onVersionChange(e.target.value)}
+                disabled={!props.editableVersion}
+                placeholder={props.versionPlaceholder ?? "1.0.0"}
+                data-creator-field="version"
+            />
+        </Label>
     );
 }
 
 // Presentation: title, description, license
 // -------------------------------------------------------------------------------------------------------------------
+// Custom applications hide this section. Their presentation is derived from the group and flavor
+// (see draftCustomDerivedPresentation); showing editable fields would suggest control the backend
+// discards.
 
 function PresentationSection(props: {
     application: A2Yaml;
@@ -266,8 +310,6 @@ function SoftwareSection(props: {
     const software = application.software;
 
     if (isCustom) {
-        // Custom applications always use Container. Show only the container image field, not a
-        // software-kind selector.
         const image = software.type === "Container" ? software.image : "";
         return (
             <PanelSection title="Software">
@@ -283,7 +325,6 @@ function SoftwareSection(props: {
         );
     }
 
-    // Managed applications can select all A2 software kinds.
     return (
         <PanelSection title="Software">
             <Label className="panel-field">
@@ -399,8 +440,6 @@ function renderSoftwareFields(
     }
 }
 
-// Native software has a load list of {name, version}. Editing the load list is deferred to the
-// YAML view in this milestone; we show a note and a count.
 function NativeLoadEditor(props: {
     software: { type: "Native"; load: A2ApplicationToLoad[] };
 }): React.ReactNode {
@@ -417,8 +456,6 @@ function NativeLoadEditor(props: {
     );
 }
 
-// Preserves the existing image when switching between image-based kinds, and starts with an empty
-// load list when switching to Native.
 function softwareForKind(kind: A2Software["type"], current: A2Software): A2Software {
     if (kind === "Native") return {type: "Native", load: []};
     const image = current.type === "Container" || current.type === "VirtualMachine" || current.type === "UCX"
@@ -434,6 +471,7 @@ function softwareForKind(kind: A2Software["type"], current: A2Software): A2Softw
 
 function RuntimeFeaturesSection(props: {
     application: A2Yaml;
+    isCustom: boolean;
     onUpdateFeatures: (features: A2Yaml["features"]) => void;
 }): React.ReactNode {
     const features = props.application.features ?? defaultFeatures();
@@ -448,7 +486,9 @@ function RuntimeFeaturesSection(props: {
             <FeatureToggle label="Job linking" value={features.jobLinking ?? false} onChange={() => toggle("jobLinking")} id="feature-jobLinking" />
             <FeatureToggle label="Public IP addresses" value={features.ipAddresses ?? false} onChange={() => toggle("ipAddresses")} id="feature-ipAddresses" />
             <FeatureToggle label="Multi-node jobs" value={features.multiNode} onChange={() => toggle("multiNode")} />
-            <FeatureToggle label="Audit logs" value={features.jobAuditLog ?? false} onChange={() => toggle("jobAuditLog")} />
+            {!props.isCustom ? (
+                <FeatureToggle label="Audit logs" value={features.jobAuditLog ?? false} onChange={() => toggle("jobAuditLog")} />
+            ) : null}
         </PanelSection>
     );
 }
@@ -476,12 +516,23 @@ function ConnectivitySection(props: {
     return (
         <PanelSection title="Connectivity">
             <WebControl application={props.application} onUpdate={props.onUpdateWeb} />
+            <div className={ConnectivityDividerClass} />
             <VncControl application={props.application} onUpdate={props.onUpdateVnc} />
+            <div className={ConnectivityDividerClass} />
             <SshControl application={props.application} onUpdate={props.onUpdateSsh} />
+            <div className={ConnectivityDividerClass} />
             <InferenceControl application={props.application} onUpdate={props.onUpdateInference} />
         </PanelSection>
     );
 }
+
+const ConnectivityDividerClass = injectStyle("creator-connectivity-divider", k => `
+    ${k} {
+        height: 1px;
+        background: var(--borderColor);
+        margin: 4px 0;
+    }
+`);
 
 function WebControl(props: {
     application: A2Yaml;
@@ -560,7 +611,10 @@ function SshControl(props: {
     return (
         <div id="feature-ssh" className={SshHighlightWrapperClass}>
             <Label className="panel-field">
-                <span className="panel-field-label">SSH</span>
+                <span className="panel-field-label">
+                    SSH
+                    <InfoDot tooltip={SshTooltipContent} />
+                </span>
                 <Select
                     value={ssh.mode}
                     onChange={e => props.onUpdate({mode: e.target.value as A2SshMode})}
@@ -574,6 +628,14 @@ function SshControl(props: {
     );
 }
 
+const SshTooltipContent = (
+    <>
+        Connect with <code>{"ssh ucloud@<host> -p <port>"}</code>. UCloud forwards an
+        external port to port 22 on the job. Log in as the user <code>ucloud</code> (uid 11042);
+        your uploaded public keys are injected automatically.
+    </>
+);
+
 function InferenceControl(props: {
     application: A2Yaml;
     onUpdate: (inference: A2Yaml["inference"]) => void;
@@ -581,7 +643,10 @@ function InferenceControl(props: {
     const inference = props.application.inference ?? {mode: "None"};
     return (
         <Label className="panel-field">
-            <span className="panel-field-label">Inference</span>
+            <span className="panel-field-label">
+                Inference
+                <InfoDot tooltip={InferenceTooltipContent} />
+            </span>
             <Select
                 value={inference.mode}
                 onChange={e => props.onUpdate({mode: e.target.value as A2Inference["mode"]})}
@@ -593,6 +658,20 @@ function InferenceControl(props: {
         </Label>
     );
 }
+
+const InferenceTooltipContent = (
+    <>
+        When enabled, UCloud creates a short-lived API token for the inference API and injects it
+        into the job. Requires an active allocation. The container receives:
+        <ul>
+            <li><code>UCLOUD_INFERENCE_SERVERS</code>: JSON array of <code>{"{server, token}"}</code></li>
+            <li><code>UCLOUD_INFERENCE_SERVER_BASE_0</code>: API base URL of the first server</li>
+            <li><code>UCLOUD_INFERENCE_SERVER_TOKEN_0</code>: Bearer token for the first server</li>
+        </ul>
+        Use the token as <code>Authorization: Bearer $UCLOUD_INFERENCE_SERVER_TOKEN_0</code>. Indexes
+        increment per server.
+    </>
+);
 
 // Environment and scheduler values: ordered key-value rows
 // -------------------------------------------------------------------------------------------------------------------
@@ -627,10 +706,6 @@ function EnvironmentAndSchedulerSection(props: {
     );
 }
 
-// An ordered key-value editor. The order is the insertion order of the keys. Adding a row
-// appends to the end. The editor keeps a local ordered list so in-progress edits (empty or
-// duplicate keys) stay visible while the user types. A valid subset is pushed to the draft on
-// every change; invalid keys are reported as local errors.
 function KeyValueEditor(props: {
     title: string;
     values: Record<string, string>;
@@ -639,13 +714,9 @@ function KeyValueEditor(props: {
     onUpdate: (values: Record<string, string>) => void;
     collapsedByDefault?: boolean;
 }): React.ReactNode {
-    // Local ordered rows. Each row is [key, value]. We keep this separate from the draft so the
-    // user can type empty or duplicate keys before resolving them.
     const [rows, setRows] = useState<[string, string][]>(() => Object.entries(props.values));
     const [error, setError] = useState<string | null>(null);
 
-    // Sync from the draft when it changes externally (e.g. template switch). We compare a
-    // serialized form to avoid overwriting local edits on every parent re-render.
     const externalKey = JSON.stringify(props.values);
     const [lastExternal, setLastExternal] = useState(externalKey);
     if (externalKey !== lastExternal) {
@@ -658,7 +729,6 @@ function KeyValueEditor(props: {
         setRows(next);
         const {result, error: validationError} = keyValueFromEntries(next);
         setError(validationError);
-        // Push only when all keys are valid. This keeps the draft clean while the user edits.
         if (!validationError) props.onUpdate(result);
     };
 
@@ -748,7 +818,6 @@ function KeyValueRow(props: {
     );
 }
 
-// Convert ordered entries into a key-value map. Reports empty or duplicate keys.
 function keyValueFromEntries(entries: [string, string][]): {result: Record<string, string>; error: string | null} {
     const result: Record<string, string> = {};
     for (const [k, v] of entries) {
@@ -763,7 +832,7 @@ function keyValueFromEntries(entries: [string, string][]): {result: Record<strin
     return {result, error: null};
 }
 
-// Group and flavor (custom only)
+// Group and flavor (custom only). Rendered inside the "Metadata" section.
 // -------------------------------------------------------------------------------------------------------------------
 
 interface ResourceOption {
@@ -773,281 +842,71 @@ interface ResourceOption {
     isCustom: boolean;
 }
 
-function ResourceSelectorModal(props: {
-    title: string;
-    singular: string;
-    resourceLabel: string;
-    custom: Array<{id: number; backedBy?: number; specification: {title: string; description: string}}>;
-    loadManaged: () => Promise<ResourceOption[]>;
-    createCustom: (kind: "Custom" | "Managed", managedId: number | null, title: string, description: string) => Promise<number>;
-    canCreateCustom?: boolean;
-    onSelect: (id: string) => void;
-    onCreated: (id: number, title: string, description: string) => Promise<void>;
-}): React.ReactNode {
-    const [managed, setManaged] = useState<ResourceOption[] | null>(null);
-    const [creating, setCreating] = useState(false);
-    const [filter, setFilter] = useState("");
-    const [creatingNew, setCreatingNew] = useState(false);
-    const [newTitle, setNewTitle] = useState("");
-    const [newDescription, setNewDescription] = useState("");
-
-    React.useEffect(() => {
-        let cancelled = false;
-        props.loadManaged().then(items => {
-            if (!cancelled) setManaged(items);
-        }).catch(() => {
-            if (!cancelled) setManaged([]);
-        });
-        return () => {
-            cancelled = true;
-        };
-    }, []);
-
-    React.useEffect(() => {
-        if (!creatingNew) return;
-        const listener = (event: KeyboardEvent) => {
-            if (event.key === "Escape") {
-                event.preventDefault();
-                event.stopPropagation();
-                setCreatingNew(false);
-                setNewTitle("");
-                setNewDescription("");
-            }
-        };
-        document.addEventListener("keydown", listener, true);
-        return () => document.removeEventListener("keydown", listener, true);
-    }, [creatingNew]);
-
-    const byBacked = new Map<number, number>();
-    for (const resource of props.custom) {
-        if (resource.backedBy != null) byBacked.set(resource.backedBy, resource.id);
-    }
-
-    const options: ResourceOption[] = [];
-    const seen = new Set<number>();
-    for (const option of managed ?? []) {
-        seen.add(option.id);
-        const backing = byBacked.get(option.id);
-        if (backing != null) {
-            seen.add(backing);
-            options.push({...option, id: backing, isCustom: true});
-        } else {
-            options.push(option);
-        }
-    }
-    for (const resource of props.custom) {
-        if (seen.has(resource.id)) continue;
-        options.push({id: resource.id, title: resource.specification.title, description: resource.specification.description, isCustom: true});
-    }
-
-    const canCreateCustom = props.canCreateCustom ?? true;
-    const filtered = (filter.trim()
-        ? options.filter(option =>
-            option.title.toLowerCase().includes(filter.trim().toLowerCase()) ||
-            option.description.toLowerCase().includes(filter.trim().toLowerCase()))
-        : options).filter(option => canCreateCustom || option.isCustom);
-
-    const finish = async (id: number, title: string, description: string) => {
-        try {
-            await props.onCreated(id, title, description);
-        } catch {
-            // Ignored
-        }
-        props.onSelect(String(id));
-        dialogStore.success();
-    };
-
-    const select = (option: ResourceOption) => {
-        if (option.isCustom) {
-            props.onSelect(String(option.id));
-            dialogStore.success();
-            return;
-        }
-
-        setCreating(true);
-        props.createCustom("Managed", option.id, "", "").then(id => {
-            finish(id, option.title, option.description);
-        }).catch(error => {
-            sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
-            setCreating(false);
-        });
-    };
-
-    const createNew = async () => {
-        const title = newTitle.trim();
-        if (!title) return;
-        setCreating(true);
-        props.createCustom("Custom", null, title, newDescription.trim()).then(id => {
-            finish(id, title, newDescription.trim());
-        }).catch(error => {
-            sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
-            setCreating(false);
-        });
-    };
-
-    return (
-        <div className={CategoryModalClass}>
-            <Heading.h3>{props.title}</Heading.h3>
-            <Text color="textSecondary" fontSize={13}>
-                Choose a {props.singular} for this application. If a {props.singular} does not exist yet you can create it.
-            </Text>
-            <Divider />
-            {canCreateCustom && !creatingNew ? (
-                <Flex justifyContent="stretch" mt="8px">
-                    <Button color="secondaryMain" width="100%" onClick={() => setCreatingNew(true)} disabled={creating}>
-                        <Icon name="heroPlus" size={14} mr={6} />
-                        New {props.singular}
-                    </Button>
-                </Flex>
-            ) : canCreateCustom ? (
-                <div className={CategoryCreateFormClass}>
-                    <Input
-                        value={newTitle}
-                        onChange={e => setNewTitle(e.target.value)}
-                        placeholder={`Name of the new ${props.singular}`}
-                        autoFocus
-                        onKeyDown={e => {
-                            if (e.key === "Enter") void createNew();
-                        }}
-                    />
-                    <TextArea
-                        value={newDescription}
-                        onChange={e => setNewDescription(e.target.value)}
-                        placeholder={`Optional description of the new ${props.singular}`}
-                        rows={2}
-                    />
-                    <Flex gap="8px" justifyContent="flex-end">
-                        <Button color="secondaryMain" onClick={() => {
-                            setCreatingNew(false);
-                            setNewTitle("");
-                            setNewDescription("");
-                        }}>
-                            Cancel
-                        </Button>
-                        <Button color="successMain" onClick={() => void createNew()} disabled={creating || newTitle.trim() === ""}>
-                            Create
-                        </Button>
-                    </Flex>
-                </div>
-            ) : null}
-            <Input
-                className={CategoryFilterClass}
-                mt="8px"
-                value={filter}
-                onChange={e => setFilter(e.target.value)}
-                placeholder={`Filter ${props.resourceLabel.toLowerCase()}...`}
-            />
-            <div className={CategoryModalListClass}>
-                {managed == null ? (
-                    <Text fontSize={13} color="textSecondary">Loading...</Text>
-                ) : filtered.length === 0 ? (
-                    <Text fontSize={13} color="textSecondary">No {props.resourceLabel.toLowerCase()} found.</Text>
-                ) : filtered.map(option => (
-                    <button
-                        key={option.id}
-                        className={CategoryModalRowClass}
-                        type="button"
-                        onClick={() => select(option)}
-                        disabled={creating}
-                    >
-                        <span className={CategoryModalRowTitleClass}>{option.title}</span>
-                        {option.description ? <span className={CategoryModalRowDescriptionClass}>{option.description}</span> : null}
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
-}
-
 function GroupFlavorSection(props: {
     draft: CreatorDraft;
+    showNameField: boolean;
+    editableName: boolean;
+    onNameChange: (name: string) => void;
+    onVersionChange: (version: string) => void;
     onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
     groups?: AppCatalogCustomGroup[];
     refreshPlacement: () => Promise<void>;
+    onInlineCreated?: (group: {id: number; title: string; description: string} | null) => void;
 }): React.ReactNode {
     const {draft} = props;
     const meta = draft.customMeta;
     const [createdGroup, setCreatedGroup] = useState<{id: number; title: string; description: string} | null>(null);
     if (!meta) {
-        // Managed applications do not have custom group or flavor. Show nothing.
         return null;
     }
 
     const allGroups = props.groups ?? [];
-    const selected = meta.group
-        ? allGroups.find(group => String(group.id) === meta.group) ?? (
-            createdGroup != null && String(createdGroup.id) === meta.group
-                ? {id: createdGroup.id, specification: {title: createdGroup.title, description: createdGroup.description}}
-                : null
-        )
-        : null;
-
-    const openGroupSelector = () => {
-        dialogStore.addDialog(
-            <ResourceSelectorModal
-                title="Select a group"
-                singular="group"
-                resourceLabel="Groups"
-                custom={allGroups}
-                loadManaged={() => fetchAll<AppStore.ApplicationGroup>(next => callAPI(AppStore.browseGroups({itemsPerPage: 250, next}))).then(groups =>
-                    groups.map(group => ({
-                        id: group.metadata.id,
-                        title: group.specification.title,
-                        description: group.specification.description,
-                        isCustom: false,
-                    })))}
-                createCustom={(kind, managedId, title, description) =>
-                    callAPI(AppStore.createCustomGroup({
-                        kind,
-                        ...(managedId != null ? {id: managedId} : {}),
-                        ...(kind === "Custom" ? {specification: {title, description}} : {}),
-                    })).then(result => result.id)
-                }
-                onSelect={id => props.onUpdateCustomMeta({group: id})}
-                onCreated={(id, title, description) => {
-                    setCreatedGroup({id, title, description});
-                    return props.refreshPlacement();
-                }}
-            />,
-            doNothing,
-            true,
-            slimModalStyle,
-        );
-    };
+    const selected = allGroups.find(group => String(group.id) === meta.group) ?? (
+        createdGroup != null && String(createdGroup.id) === meta.group
+            ? {specification: {title: createdGroup.title, description: createdGroup.description}}
+            : null
+    );
 
     return (
-        <PanelSection title="Group and flavor">
+        <>
+            {props.showNameField ? (
+                <Label className="panel-field">
+                    <span className="panel-field-label">Name<MandatoryField /></span>
+                    <Input
+                        className={PanelInputClass}
+                        value={draft.application.name}
+                        onChange={e => props.onNameChange(e.target.value)}
+                        disabled={!props.editableName}
+                        placeholder="application-name"
+                        data-creator-field="name"
+                    />
+                </Label>
+            ) : null}
+            <GroupAutocompleteField
+                draft={draft}
+                groups={allGroups}
+                createdGroup={createdGroup}
+                onCreatedGroup={setCreatedGroup}
+                onUpdateCustomMeta={props.onUpdateCustomMeta}
+                refreshPlacement={props.refreshPlacement}
+                onInlineCreated={props.onInlineCreated}
+            />
             <Label className="panel-field">
-                <span className="panel-field-label">Flavor<MandatoryField /></span>
+                <span className="panel-field-label">Flavor</span>
                 <Input
                     className={PanelInputClass}
                     value={meta.flavor}
                     onChange={e => props.onUpdateCustomMeta({flavor: e.target.value})}
-                    placeholder="The flavor name for this application"
+                    placeholder="Default"
                     data-creator-field="custom.flavorName"
                 />
             </Label>
-            <Label className="panel-field">
-                <span className="panel-field-label">Group<MandatoryField /></span>
-                <button
-                    type="button"
-                    className={CategoryFieldClass}
-                    onClick={openGroupSelector}
-                    data-creator-field="custom.groupId"
-                >
-                    {selected ? (
-                        <>
-                            <span className={CategoryFieldTitleClass}>{selected.specification.title}</span>
-                            {selected.specification.description ? (
-                                <span className={CategoryFieldDescriptionClass}>{selected.specification.description}</span>
-                            ) : null}
-                        </>
-                    ) : (
-                        <span className={CategoryFieldPlaceholderClass}>Select a group</span>
-                    )}
-                </button>
-            </Label>
-        </PanelSection>
+            <VersionField
+                application={draft.application}
+                editableVersion={creatorIsEditableVersion(draft.context)}
+                onVersionChange={props.onVersionChange}
+            />
+        </>
     );
 }
 
@@ -1063,84 +922,447 @@ function CustomProviderRow(props: RichSelectProps<{key: string}>): React.ReactNo
     </Flex>;
 }
 
-// Custom fields: provider, category, publication
+function GroupAutocompleteField(props: {
+    draft: CreatorDraft;
+    groups: AppCatalogCustomGroup[];
+    createdGroup: {id: number; title: string; description: string} | null;
+    onCreatedGroup: (group: {id: number; title: string; description: string} | null) => void;
+    onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
+    refreshPlacement: () => Promise<void>;
+    onInlineCreated?: (group: {id: number; title: string; description: string} | null) => void;
+}): React.ReactNode {
+    const {draft} = props;
+    const meta = draft.customMeta;
+    const [query, setQuery] = useState("");
+    const [open, setOpen] = useState(false);
+    const [focused, setFocused] = useState(false);
+    const [savingEdit, setSavingEdit] = useState(false);
+    const [creating, setCreating] = useState(false);
+    const [highlight, setHighlight] = useState(0);
+    const [managed, setManaged] = useState<ResourceOption[] | null>(null);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const selected = props.groups.find(group => String(group.id) === meta?.group) ?? (
+        props.createdGroup != null && meta != null && String(props.createdGroup.id) === meta.group
+            ? {id: props.createdGroup.id, createdAt: 0, owner: {createdBy: ""}, backedBy: undefined, specification: {title: props.createdGroup.title, description: props.createdGroup.description}}
+            : null
+    );
+
+    React.useEffect(() => {
+        if (!open || managed != null) return;
+        let cancelled = false;
+        fetchAll<AppStore.ApplicationGroup>(next => callAPI(AppStore.browseGroups({itemsPerPage: 250, next}))).then(groups => {
+            if (cancelled) return;
+            setManaged(groups.map(group => ({
+                id: group.metadata.id,
+                title: group.specification.title,
+                description: group.specification.description ?? "",
+                isCustom: false,
+            })));
+        }).catch(() => {
+            if (!cancelled) setManaged([]);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [open, managed]);
+
+    React.useEffect(() => {
+        if (!open) return;
+        const listener = (event: PointerEvent) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) setOpen(false);
+        };
+        document.addEventListener("pointerdown", listener);
+        return () => document.removeEventListener("pointerdown", listener);
+    }, [open]);
+
+    React.useEffect(() => {
+        const dropdown = dropdownRef.current;
+        if (!dropdown || !open) return;
+        const row = dropdown.querySelector<HTMLElement>('[data-highlighted="true"]');
+        if (!row) return;
+        const rowTop = row.offsetTop;
+        const rowBottom = rowTop + row.offsetHeight;
+        if (rowTop < dropdown.scrollTop) {
+            dropdown.scrollTop = rowTop;
+        } else if (rowBottom > dropdown.scrollTop + dropdown.clientHeight) {
+            dropdown.scrollTop = rowBottom - dropdown.clientHeight;
+        }
+    }, [highlight, open]);
+
+    const trimmed = query.trim().toLowerCase();
+
+    const byBacked = new Map<number, number>();
+    for (const group of props.groups) {
+        if (group.backedBy != null) byBacked.set(group.backedBy, group.id);
+    }
+
+    const options: ResourceOption[] = [];
+    const seen = new Set<number>();
+    for (const option of managed ?? []) {
+        seen.add(option.id);
+        const backing = byBacked.get(option.id);
+        if (backing != null) {
+            seen.add(backing);
+            options.push({...option, id: backing, isCustom: true});
+        } else {
+            options.push(option);
+        }
+    }
+    for (const group of props.groups) {
+        if (seen.has(group.id)) continue;
+        options.push({id: group.id, title: group.specification.title, description: group.specification.description, isCustom: true});
+    }
+
+    const matches = trimmed === ""
+        ? options
+        : options.filter(option =>
+            option.title.toLowerCase().includes(trimmed) ||
+            option.description.toLowerCase().includes(trimmed));
+    const canCreate = trimmed !== "" && !options.some(option => option.title.toLowerCase() === trimmed);
+
+    const selectGroup = (group: {id: number; title: string; description: string; isCustom: boolean}) => {
+        if (group.isCustom) {
+            props.onUpdateCustomMeta({group: String(group.id)});
+            setQuery(group.title);
+            setOpen(false);
+            return;
+        }
+        setCreating(true);
+        callAPI(AppStore.createCustomGroup({kind: "Managed", id: group.id})).then(result => {
+            props.onCreatedGroup({id: result.id, title: group.title, description: group.description});
+            props.onInlineCreated?.({id: result.id, title: group.title, description: group.description});
+            props.onUpdateCustomMeta({group: String(result.id)});
+            setQuery(group.title);
+            setOpen(false);
+            return props.refreshPlacement();
+        }).catch(error => {
+            sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
+        }).finally(() => {
+            setCreating(false);
+        });
+    };
+
+    const openCreateDialog = () => {
+        const title = query.trim();
+        const submit = async (name: string, description: string) => {
+            setCreating(true);
+            try {
+                const result = await callAPI(AppStore.createCustomGroup({
+                    kind: "Custom",
+                    specification: {title: name, description},
+                }));
+                props.onCreatedGroup({id: result.id, title: name, description});
+                props.onInlineCreated?.({id: result.id, title: name, description});
+                props.onUpdateCustomMeta({group: String(result.id)});
+                setQuery(name);
+                setOpen(false);
+                await props.refreshPlacement();
+                dialogStore.success();
+            } catch (error) {
+                sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
+            } finally {
+                setCreating(false);
+            }
+        };
+        dialogStore.addDialog(
+            <ResourceNameDialog
+                title="New application group"
+                placeholder="My group"
+                nameDescription="The name of the group, shown in the user-interface"
+                descriptionRequired
+                creating={creating}
+                initialTitle={title}
+                initialDescription=""
+                onSubmit={submit}
+            />,
+            doNothing,
+            true,
+            slimModalStyle,
+        );
+    };
+
+    const openEditDialog = () => {
+        if (!selected || selected.backedBy == null) return;
+        const managedId = selected.backedBy;
+        const groupId = selected.id;
+        const submit = async (title: string, description: string) => {
+            setSavingEdit(true);
+            try {
+                await callAPI(AppStore.updateGroup({
+                    id: managedId,
+                    newTitle: title,
+                    newDescription: description,
+                }));
+                props.onCreatedGroup({id: groupId, title, description});
+                await props.refreshPlacement();
+                dialogStore.success();
+            } catch (error) {
+                sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
+            } finally {
+                setSavingEdit(false);
+            }
+        };
+        dialogStore.addDialog(
+            <ResourceNameDialog
+                title="Edit application group"
+                placeholder="My group"
+                nameDescription="The name of the group, shown in the user-interface"
+                descriptionRequired
+                creating={savingEdit}
+                initialTitle={selected.specification.title}
+                initialDescription={selected.specification.description}
+                onSubmit={submit}
+            />,
+            doNothing,
+            true,
+            slimModalStyle,
+        );
+    };
+
+    const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Escape") {
+            setOpen(false);
+            return;
+        }
+        if (!open) return;
+        const rowCount = matches.length + (canCreate ? 1 : 0);
+        if (rowCount === 0) return;
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setHighlight(h => (h + 1) % rowCount);
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setHighlight(h => (h - 1 + rowCount) % rowCount);
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (highlight < matches.length) {
+                selectGroup(matches[highlight]);
+            } else if (canCreate) {
+                openCreateDialog();
+            }
+        }
+    };
+
+    return (
+        <div ref={wrapperRef}>
+            <Label className="panel-field">
+                <span className="panel-field-label">Application group<MandatoryField /></span>
+                <div className={GroupInputWrapperClass}>
+                    <div className={GroupInputRowClass}>
+                        <Input
+                            className={PanelInputClass}
+                            value={query}
+                            onChange={e => {
+                                setQuery(e.target.value);
+                                setHighlight(0);
+                                setOpen(true);
+                            }}
+                            onFocus={() => {
+                                setFocused(true);
+                                setOpen(true);
+                            }}
+                            onBlur={() => setFocused(false)}
+                            onKeyDown={onKeyDown}
+                            placeholder="Search or create an application group"
+                            data-creator-field="custom.groupId"
+                        />
+                        {selected == null && !focused && !open && query.trim() !== "" ? (
+                            <TooltipV2 tooltip="Type to search or create a group, then select one">
+                                <span className={GroupWarningClass} role="img" aria-label="No group selected">
+                                    <Icon name="heroExclamationTriangle" size={14} color="warningMain" />
+                                </span>
+                            </TooltipV2>
+                        ) : null}
+                        {selected != null && selected.backedBy != null && query.trim().toLowerCase() === selected.specification.title.toLowerCase() ? (
+                            <IconButton
+                                icon="heroPencil"
+                                tooltip="Edit group"
+                                onClick={openEditDialog}
+                                compact
+                            />
+                        ) : null}
+                    </div>
+                    {open ? (
+                        <GroupDropdown
+                            dropdownRef={dropdownRef}
+                            query={query}
+                            highlight={highlight}
+                            matches={matches}
+                            canCreate={canCreate}
+                            creating={creating}
+                            managedLoaded={managed != null}
+                            onSelect={selectGroup}
+                            onCreate={openCreateDialog}
+                            onHover={setHighlight}
+                        />
+                    ) : null}
+                </div>
+            </Label>
+        </div>
+    );
+}
+
+function ResourceNameDialog(props: {
+    title: string;
+    placeholder: string;
+    nameDescription: string;
+    descriptionRequired?: boolean;
+    creating: boolean;
+    initialTitle: string;
+    initialDescription: string;
+    onSubmit: (title: string, description: string) => Promise<void>;
+}): React.ReactNode {
+    const [titleError, setTitleError] = useState<string | undefined>(undefined);
+    const [descriptionError, setDescriptionError] = useState<string | undefined>(undefined);
+
+    React.useEffect(() => {
+        const titleField = document.getElementById("resource-dialog-title") as HTMLInputElement | null;
+        if (titleField) {
+            titleField.value = props.initialTitle;
+            titleField.focus();
+        }
+        const descriptionField = document.getElementById("resource-dialog-description") as HTMLTextAreaElement | null;
+        if (descriptionField) descriptionField.value = props.initialDescription;
+    }, []);
+
+    const submit = () => {
+        const titleField = document.getElementById("resource-dialog-title") as HTMLInputElement | null;
+        const descriptionField = document.getElementById("resource-dialog-description") as HTMLTextAreaElement | null;
+        const title = (titleField?.value ?? "").trim();
+        const description = (descriptionField?.value ?? "").trim();
+        if (props.creating) return;
+        if (title === "") {
+            setTitleError("Name cannot be blank");
+            setDescriptionError(undefined);
+            return;
+        }
+        if (props.descriptionRequired && description === "") {
+            setTitleError(undefined);
+            setDescriptionError("Description cannot be blank");
+            return;
+        }
+        setTitleError(undefined);
+        setDescriptionError(undefined);
+        void props.onSubmit(title, description);
+    };
+
+    const onSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        submit();
+    };
+
+    const onKeyDown = (e: React.KeyboardEvent) => {
+        stopPropagation(e);
+        if (e.key !== "Enter" || !e.altKey) return;
+        const primaryPressed = isLikelyMac ? e.metaKey : e.ctrlKey;
+        if (!primaryPressed) return;
+        e.preventDefault();
+        submit();
+    };
+
+    return (
+        <Box onKeyDown={onKeyDown}>
+            <Heading.h3>{props.title}</Heading.h3>
+            <form onSubmit={onSubmit}>
+                <Box pb="20px">
+                    <KeyboardNavigation>
+                        <FieldGroup>
+                            <FieldRow
+                                title="Name"
+                                description={props.nameDescription}
+                                required
+                                error={titleError}
+                                control={<Input id="resource-dialog-title" width="100%" placeholder={props.placeholder} />}
+                            />
+                            <FieldRow
+                                title="Description"
+                                description="A short description shown to users."
+                                required={props.descriptionRequired === true}
+                                error={descriptionError}
+                                control={<TextArea id="resource-dialog-description" width="100%" rows={5}
+                                    placeholder="A short description shown to users." />}
+                            />
+                        </FieldGroup>
+                    </KeyboardNavigation>
+                </Box>
+                <Flex justifyContent="end" px="20px" py="12px" mx="-20px" mb="-20px" background="var(--dialogToolbar)" gap="8px">
+                    <Button color="errorMain" type="button" onClick={() => dialogStore.failure()}>Cancel</Button>
+                    <Button color="successMain" type="submit" disabled={props.creating}>
+                        {props.creating ? <Icon name="refresh" spin /> : null}
+                        Create<SubmitShortcut />
+                    </Button>
+                </Flex>
+            </form>
+        </Box>
+    );
+}
+
+function GroupDropdown(props: {
+    dropdownRef: React.RefObject<HTMLDivElement | null>;
+    query: string;
+    highlight: number;
+    matches: ResourceOption[];
+    canCreate: boolean;
+    creating: boolean;
+    managedLoaded: boolean;
+    createLabel?: string;
+    onSelect: (option: ResourceOption) => void;
+    onCreate: () => void;
+    onHover: (index: number) => void;
+}): React.ReactNode {
+    const label = props.createLabel ?? "group";
+    return (
+        <div className={GroupDropdownClass} ref={props.dropdownRef}>
+            {!props.managedLoaded ? (
+                <div className={GroupDropdownEmptyClass}>Loading...</div>
+            ) : (
+                <>
+                    {props.matches.map((option, index) => (
+                        <button
+                            key={option.id}
+                            type="button"
+                            className={GroupDropdownRowClass}
+                            data-highlighted={index === props.highlight ? "true" : undefined}
+                            disabled={props.creating}
+                            onMouseDown={e => e.preventDefault()}
+                            onMouseEnter={() => props.onHover(index)}
+                            onClick={() => props.onSelect(option)}
+                        >
+                            <span className={CategoryFieldTitleClass}>{option.title}</span>
+                            {option.description ? (
+                                <LineCappedMarkdown width="100%" lines={1}>{option.description}</LineCappedMarkdown>
+                            ) : null}
+                        </button>
+                    ))}
+                    {props.canCreate ? (
+                        <button
+                            type="button"
+                            className={GroupDropdownRowClass}
+                            data-highlighted={props.highlight === props.matches.length ? "true" : undefined}
+                            disabled={props.creating}
+                            onMouseDown={e => e.preventDefault()}
+                            onMouseEnter={() => props.onHover(props.matches.length)}
+                            onClick={props.onCreate}
+                        >
+                            <Flex alignItems="center" gap="6px">
+                                <Icon name="heroPlus" size={14} />
+                                <span>Create {label} "{props.query.trim()}"</span>
+                            </Flex>
+                        </button>
+                    ) : null}
+                    {props.matches.length === 0 && !props.canCreate ? (
+                        <div className={GroupDropdownEmptyClass}>
+                            {props.query.trim() === "" ? `No ${label}s available` : `No matching ${label}s`}
+                        </div>
+                    ) : null}
+                </>
+            )}
+        </div>
+    );
+}// Custom fields: provider, category, publication. Rendered inside the "Metadata" section.
 // -------------------------------------------------------------------------------------------------------------------
-
-
-const CategoryModalClass = injectStyle("category-selector-modal", cl => `
-    ${cl} {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        max-height: 70vh;
-    }
-`);
-
-const CategoryFilterClass = injectStyle("category-selector-filter", cl => `
-    ${cl} {
-        flex: 1;
-        min-width: 0;
-        width: 100%;
-    }
-`);
-
-const CategoryCreateFormClass = injectStyle("category-selector-create-form", cl => `
-    ${cl} {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-top: 8px;
-        padding: 10px;
-        border: 1px solid var(--borderColor);
-        border-radius: 6px;
-        background: color-mix(in srgb, var(--backgroundDefault) 60%, transparent);
-    }
-`);
-
-const CategoryModalListClass = injectStyle("category-selector-modal-list", cl => `
-    ${cl} {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        margin-top: 8px;
-        overflow-y: auto;
-    }
-`);
-
-const CategoryModalRowClass = injectStyle("category-selector-modal-row", cl => `
-    ${cl} {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 2px;
-        width: 100%;
-        padding: 8px 10px;
-        border: 1px solid var(--borderColor);
-        border-radius: 6px;
-        background: var(--backgroundDefault);
-        cursor: pointer;
-        text-align: left;
-    }
-
-    ${cl}:hover {
-        border-color: var(--borderColorHover);
-        background: var(--rowHover);
-    }
-`);
-
-const CategoryModalRowTitleClass = injectStyle("category-selector-modal-row-title", cl => `
-    ${cl} {
-        font-weight: 600;
-        font-size: 14px;
-    }
-`);
-
-const CategoryModalRowDescriptionClass = injectStyle("category-selector-modal-row-desc", cl => `
-    ${cl} {
-        font-size: 12px;
-        color: var(--textSecondary);
-    }
-`);
 
 const CategoryFieldClass = injectStyle("category-field", cl => `
     ${cl} {
@@ -1170,13 +1392,6 @@ const CategoryFieldTitleClass = injectStyle("category-field-title", cl => `
     }
 `);
 
-const CategoryFieldDescriptionClass = injectStyle("category-field-desc", cl => `
-    ${cl} {
-        font-size: 12px;
-        color: var(--textSecondary);
-    }
-`);
-
 const CategoryFieldPlaceholderClass = injectStyle("category-field-placeholder", cl => `
     ${cl} {
         color: var(--textSecondary);
@@ -1186,7 +1401,86 @@ const CategoryFieldPlaceholderClass = injectStyle("category-field-placeholder", 
 
 const ContainerImageFieldValueClass = injectStyle("container-image-field-value", cl => `
     ${cl} {
-        overflow-wrap: anywhere;
+        overflow-wrap: anywhere;    }
+`);
+
+const GroupInputWrapperClass = injectStyle("group-input-wrapper", cl => `
+    ${cl} {
+        position: relative;
+        width: 100%;
+    }
+`);
+
+const GroupDropdownClass = injectStyle("group-dropdown", cl => `
+    ${cl} {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-height: 260px;
+        overflow-y: auto;
+        padding: 6px;
+        border: 1px solid var(--borderColor);
+        border-radius: 6px;
+        background: var(--backgroundDefault);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+`);
+
+const GroupDropdownRowClass = injectStyle("group-dropdown-row", cl => `
+    ${cl} {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--borderColor);
+        border-radius: 5px;
+        background: var(--backgroundDefault);
+        cursor: pointer;
+        text-align: left;
+        font: inherit;
+    }
+
+    ${cl}:hover, ${cl}[data-highlighted="true"] {
+        border-color: var(--borderColorHover);
+        background: var(--rowHover);
+    }
+`);
+
+const GroupDropdownEmptyClass = injectStyle("group-dropdown-empty", cl => `
+    ${cl} {
+        padding: 8px 10px;
+        font-size: 13px;
+        color: var(--textSecondary);
+    }
+`);
+
+const GroupInputRowClass = injectStyle("group-input-row", cl => `
+    ${cl} {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        width: 100%;
+        min-width: 0;
+    }
+
+    ${cl} input {
+        flex: 1;
+        min-width: 0;
+    }
+`);
+
+const GroupWarningClass = injectStyle("group-warning-icon", cl => `
+    ${cl} {
+        display: inline-flex;
+        vertical-align: middle;
+        margin-left: 4px;
     }
 `);
 
@@ -1208,33 +1502,222 @@ function CustomFieldsSection(props: {
         ? allCategories.find(category => String(category.id) === meta.category) ?? null
         : null;
 
-    const openCategorySelector = () => {
+    return (
+        <>
+            <Label className="panel-field">
+                <span className="panel-field-label">Service Provider<MandatoryField /></span>
+                {props.eligibility?.providers.length ? (
+                    <ServiceProviderSelector
+                        serviceProvider={meta.provider}
+                        serviceProviders={props.eligibility.providers.map(item => ({key: item.provider}))}
+                        renderRow={CustomProviderRow}
+                        renderSelectedRow={CustomProviderRow}
+                        showLabel={false}
+                        reserveLabelSpace={false}
+                        onSelect={el => props.onUpdateCustomMeta({provider: el.key})}
+                        data-creator-field="custom.serviceProvider"
+                    />
+                ) : (
+                    <Input
+                        className={PanelInputClass}
+                        value={meta.provider}
+                        onChange={e => props.onUpdateCustomMeta({provider: e.target.value})}
+                        placeholder="The service provider id"
+                    />
+                )}
+            </Label>
+            <CategoryAutocompleteField
+                draft={draft}
+                categories={allCategories}
+                canCreate={canCreateCategory}
+                onLandingPageInvalidated={() => setLandingPage(AppStore.emptyLandingPage)}
+                onUpdateCustomMeta={props.onUpdateCustomMeta}
+                refreshPlacement={props.refreshPlacement}
+            />
+            <ToggleRow
+                label="Publish to project"
+                checked={meta.publishedToProject}
+                onChange={() => props.onUpdateCustomMeta({publishedToProject: !meta.publishedToProject})}
+                disabled={!meta.canPublish}
+                id="custom-published-to-project"
+            />
+            {!meta.canPublish ? (
+                <Text fontSize={12} color="textSecondary" mt="4px">
+                    Publication is unavailable in a personal workspace. Open a project to publish this application.
+                </Text>
+            ) : null}
+        </>
+    );
+}
+
+function CategoryAutocompleteField(props: {
+    draft: CreatorDraft;
+    categories: AppCatalogCustomCategory[];
+    canCreate: boolean;
+    onLandingPageInvalidated: () => void;
+    onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
+    refreshPlacement: () => Promise<void>;
+}): React.ReactNode {
+    const {draft} = props;
+    const meta = draft.customMeta;
+    const [query, setQuery] = useState("");
+    const [open, setOpen] = useState(false);
+    const [focused, setFocused] = useState(false);
+    const [creating, setCreating] = useState(false);
+    const [highlight, setHighlight] = useState(0);
+    const [managed, setManaged] = useState<ResourceOption[] | null>(null);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    const selected = props.categories.find(category => meta != null && String(category.id) === meta.category) ?? null;
+
+    React.useEffect(() => {
+        if (!open || managed != null) return;
+        let cancelled = false;
+        fetchAll<AppStore.ApplicationCategory>(next => callAPI(AppStore.browseStudioCategories({itemsPerPage: 250, next}))).then(categories => {
+            if (cancelled) return;
+            setManaged(categories.map(category => ({
+                id: category.metadata.id,
+                title: category.specification.title,
+                description: category.specification.description ?? "",
+                isCustom: false,
+            })));
+        }).catch(() => {
+            if (!cancelled) setManaged([]);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [open, managed]);
+
+    React.useEffect(() => {
+        if (!open) return;
+        const listener = (event: PointerEvent) => {
+            if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) setOpen(false);
+        };
+        document.addEventListener("pointerdown", listener);
+        return () => document.removeEventListener("pointerdown", listener);
+    }, [open]);
+
+    React.useEffect(() => {
+        const dropdown = dropdownRef.current;
+        if (!dropdown || !open) return;
+        const row = dropdown.querySelector<HTMLElement>('[data-highlighted="true"]');
+        if (!row) return;
+        const rowTop = row.offsetTop;
+        const rowBottom = rowTop + row.offsetHeight;
+        if (rowTop < dropdown.scrollTop) {
+            dropdown.scrollTop = rowTop;
+        } else if (rowBottom > dropdown.scrollTop + dropdown.clientHeight) {
+            dropdown.scrollTop = rowBottom - dropdown.clientHeight;
+        }
+    }, [highlight, open]);
+
+    const trimmed = query.trim().toLowerCase();
+
+    const byBacked = new Map<number, number>();
+    for (const category of props.categories) {
+        if (category.backedBy != null) byBacked.set(category.backedBy, category.id);
+    }
+
+    const options: ResourceOption[] = [];
+    const seen = new Set<number>();
+    for (const option of managed ?? []) {
+        seen.add(option.id);
+        const backing = byBacked.get(option.id);
+        if (backing != null) {
+            seen.add(backing);
+            options.push({...option, id: backing, isCustom: true});
+        } else {
+            options.push(option);
+        }
+    }
+    for (const category of props.categories) {
+        if (seen.has(category.id)) continue;
+        options.push({id: category.id, title: category.specification.title, description: category.specification.description, isCustom: true});
+    }
+
+    const matches = trimmed === ""
+        ? options
+        : options.filter(option =>
+            option.title.toLowerCase().includes(trimmed) ||
+            option.description.toLowerCase().includes(trimmed));
+    const canCreate = props.canCreate && trimmed !== "" && !options.some(option => option.title.toLowerCase() === trimmed);
+
+    const selectCategory = (option: ResourceOption) => {
+        if (option.isCustom) {
+            props.onUpdateCustomMeta({category: String(option.id)});
+            setQuery(option.title);
+            setOpen(false);
+            return;
+        }
+        setCreating(true);
+        callAPI(AppStore.createCustomCategory({kind: "Managed", id: option.id})).then(result => {
+            props.onLandingPageInvalidated();
+            props.onUpdateCustomMeta({category: String(result.id)});
+            setQuery(option.title);
+            setOpen(false);
+            return props.refreshPlacement();
+        }).catch(error => {
+            sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
+        }).finally(() => {
+            setCreating(false);
+        });
+    };
+
+    const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Escape") {
+            setOpen(false);
+            return;
+        }
+        if (!open) return;
+        const rowCount = matches.length + (canCreate ? 1 : 0);
+        if (rowCount === 0) return;
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setHighlight(h => (h + 1) % rowCount);
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setHighlight(h => (h - 1 + rowCount) % rowCount);
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (highlight < matches.length) {
+                selectCategory(matches[highlight]);
+            } else if (canCreate) {
+                openCreateDialog();
+            }
+        }
+    };
+
+    const openCreateDialog = () => {
+        const submit = async (name: string, description: string) => {
+            setCreating(true);
+            try {
+                const result = await callAPI<{id: number}>(AppStore.createCustomCategory({
+                    kind: "Custom",
+                    specification: {title: name, description},
+                }));
+                props.onLandingPageInvalidated();
+                props.onUpdateCustomMeta({category: String(result.id)});
+                setQuery(name);
+                setOpen(false);
+                await props.refreshPlacement();
+                dialogStore.success();
+            } catch (error) {
+                sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
+            } finally {
+                setCreating(false);
+            }
+        };
         dialogStore.addDialog(
-            <ResourceSelectorModal
-                title="Select a category"
-                singular="category"
-                resourceLabel="Categories"
-                custom={allCategories}
-                canCreateCustom={canCreateCategory}
-                loadManaged={() => fetchAll<AppStore.ApplicationCategory>(next => callAPI(AppStore.browseStudioCategories({itemsPerPage: 250, next}))).then(categories =>
-                    categories.map(category => ({
-                        id: category.metadata.id,
-                        title: category.specification.title,
-                        description: category.specification.description ?? "",
-                        isCustom: false,
-                    })))}
-                createCustom={(kind, managedId, title, description) =>
-                    callAPI(AppStore.createCustomCategory({
-                        kind,
-                        ...(managedId != null ? {id: managedId} : {}),
-                        ...(kind === "Custom" ? {specification: {title, description}} : {}),
-                    })).then(result => result.id)
-                }
-                onSelect={id => props.onUpdateCustomMeta({category: id})}
-                onCreated={() => {
-                    setLandingPage(AppStore.emptyLandingPage);
-                    return props.refreshPlacement();
-                }}
+            <ResourceNameDialog
+                title="New category"
+                placeholder="My category"
+                nameDescription="The category name is shown on the applications landing page."
+                creating={creating}
+                initialTitle={query.trim()}
+                initialDescription=""
+                onSubmit={submit}
             />,
             doNothing,
             true,
@@ -1243,66 +1726,57 @@ function CustomFieldsSection(props: {
     };
 
     return (
-        <>
-            <PanelSection title="Provider and category">
-                <Label className="panel-field">
-                    <span className="panel-field-label">Provider<MandatoryField /></span>
-                    {props.eligibility?.providers.length ? (
-                        <ServiceProviderSelector
-                            serviceProvider={meta.provider}
-                            serviceProviders={props.eligibility.providers.map(item => ({key: item.provider}))}
-                            renderRow={CustomProviderRow}
-                            renderSelectedRow={CustomProviderRow}
-                            showLabel={false}
-                            reserveLabelSpace={false}
-                            onSelect={el => props.onUpdateCustomMeta({provider: el.key})}
-                            data-creator-field="custom.serviceProvider"
-                        />
-                    ) : (
+        <div ref={wrapperRef}>
+            <Label className="panel-field">
+                <span className="panel-field-label">
+                    Category
+                    <MandatoryField />
+                    {selected == null && !focused && !open && query.trim() !== "" ? (
+                        <TooltipV2 tooltip="Type to search or create a category, then select one">
+                            <span className={GroupWarningClass} role="img" aria-label="No category selected">
+                                <Icon name="heroExclamationTriangle" size={14} color="warningMain" />
+                            </span>
+                        </TooltipV2>
+                    ) : null}
+                </span>
+                <div className={GroupInputWrapperClass}>
+                    <div className={GroupInputRowClass}>
                         <Input
                             className={PanelInputClass}
-                            value={meta.provider}
-                            onChange={e => props.onUpdateCustomMeta({provider: e.target.value})}
-                            placeholder="The service provider id"
+                            value={query}
+                            onChange={e => {
+                                setQuery(e.target.value);
+                                setHighlight(0);
+                                setOpen(true);
+                            }}
+                            onFocus={() => {
+                                setFocused(true);
+                                setOpen(true);
+                            }}
+                            onBlur={() => setFocused(false)}
+                            onKeyDown={onKeyDown}
+                            placeholder="Search or create a category"
+                            data-creator-field="custom.categoryId"
                         />
-                    )}
-                </Label>
-                <Label className="panel-field">
-                    <span className="panel-field-label">Category<MandatoryField /></span>
-                    <button
-                        type="button"
-                        className={CategoryFieldClass}
-                        onClick={openCategorySelector}
-                        data-creator-field="custom.categoryId"
-                    >
-                        {selected ? (
-                            <>
-                                <span className={CategoryFieldTitleClass}>{selected.specification.title}</span>
-                                {selected.specification.description ? (
-                                    <span className={CategoryFieldDescriptionClass}>{selected.specification.description}</span>
-                                ) : null}
-                            </>
-                        ) : (
-                            <span className={CategoryFieldPlaceholderClass}>Select a category</span>
-                        )}
-                    </button>
-                </Label>
-            </PanelSection>
-            <PanelSection title="Publication">
-                <ToggleRow
-                    label="Publish to project"
-                    checked={meta.publishedToProject}
-                    onChange={() => props.onUpdateCustomMeta({publishedToProject: !meta.publishedToProject})}
-                    disabled={!meta.canPublish}
-                    id="custom-published-to-project"
-                />
-                {!meta.canPublish ? (
-                    <Text fontSize={12} color="textSecondary" mt="4px">
-                        Publication is unavailable in a personal workspace. Open a project to publish this application.
-                    </Text>
-                ) : null}
-            </PanelSection>
-        </>
+                    </div>
+                    {open ? (
+                        <GroupDropdown
+                            dropdownRef={dropdownRef}
+                            query={query}
+                            highlight={highlight}
+                            matches={matches}
+                            canCreate={canCreate}
+                            creating={creating}
+                            managedLoaded={managed != null}
+                            createLabel="category"
+                            onSelect={selectCategory}
+                            onCreate={openCreateDialog}
+                            onHover={setHighlight}
+                        />
+                    ) : null}
+                </div>
+            </Label>
+        </div>
     );
 }
 
@@ -1490,7 +1964,6 @@ function WidgetDrawerButton(props: {
     );
 }
 
-// Map widget types to icons. The icons are from the heroicons set available in the codebase.
 function widgetIcon(type: string): IconName {
     switch (type) {
         case "Text": return "heroChatBubbleLeftRight";

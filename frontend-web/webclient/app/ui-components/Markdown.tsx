@@ -109,7 +109,10 @@ export function MarkdownTable({children}: React.PropsWithChildren): React.ReactN
         };
     }, [children]);
 
-    return <div ref={wrapperRef} style={{overflowX: layout.scroll ? "auto" : "visible", maxWidth: "100%"}}>
+    // Always a horizontal scroll container. Starting at "visible" lets an unmeasured wide table
+    // propagate its natural width to ancestor flex/grid tracks, shifting the page for a frame
+    // before the measurement below runs.
+    return <div ref={wrapperRef} style={{overflowX: "auto", maxWidth: "100%"}}>
         <Table tableType="presentation" minWidth={layout.scroll ? `${layout.minWidth}px` : undefined}>
             {children}
         </Table>

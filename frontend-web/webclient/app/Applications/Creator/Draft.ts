@@ -30,7 +30,6 @@ import type {JobSpecification} from "@/UCloud/JobsApi";
 // insertion. The panel and the content rows read and write the selection by stable id.
 
 export function creatorStableId(): string {
-    // A short unique marker. The id is internal and never serialized to YAML.
     return `pid-${creatorStableIdCounter++}`;
 }
 
@@ -45,22 +44,14 @@ export type CreatorApplicationKind = "managed" | "custom";
 export interface CreatorOperationContext {
     operation: CreatorOperationKind;
     applicationKind: CreatorApplicationKind;
-    // The workspace captured by the entry point. Personal workspaces use the stable value "personal".
     workspace: string;
-    // The existing application name. Set for newVersion and fork.
     existingName?: string;
-    // The existing application version. Set for newVersion and fork.
     existingVersion?: string;
-    // The provider selected by newCustom or identifying a custom newVersion source.
     provider?: string;
-    // Forks always create custom applications, so source identity is tracked separately.
     sourceApplicationKind?: CreatorApplicationKind;
     sourceProvider?: string;
-    // The category selected by a custom-category entry point.
     initialCategory?: string;
-    // The source page used when loading or authorization fails.
     returnTo?: string;
-    // Development-only template selection. Normal routes omit this and use backend source loading.
     developmentTemplate?: boolean;
 }
 
@@ -83,10 +74,7 @@ export function creatorIsEditableVersion(context: CreatorOperationContext): bool
 // that the panel state survives re-renders and rename operations without reading from the DOM.
 
 export interface CreatorSelection {
-    // The stable row id of the selected parameter, or null for the application metadata panel.
     parameterId: string | null;
-    // The parameter name at the time of selection. Kept for convenience only; the stable id is the
-    // source of truth. May be stale after a rename.
     parameterName: string | null;
 }
 
@@ -100,10 +88,8 @@ export interface CreatorValidationState {
 }
 
 export interface CreatorValidationError {
-    // The parameter name this error relates to, or null for application metadata.
     parameterName: string | null;
     message: string;
-    // Backend errors can identify a visual field and a source location.
     code?: string;
     path?: string;
     location?: {line: number; column: number};
@@ -120,69 +106,32 @@ export function emptyValidationState(): CreatorValidationState {
 // valid state.
 
 export interface CreatorDraft {
-    // The current editable A2 source shape. Visual controls read from this.
     application: A2Yaml;
-    // The raw source text. The YAML view edits this directly; visual changes serialize the
-    // complete model into canonical YAML and replace this field.
     sourceText: string;
-    // True when the user has made any change since the draft was loaded or last saved.
     dirty: boolean;
-    // The current selection in the content editor. Uses a stable id so selection survives
-    // rename operations.
     selection: CreatorSelection;
-    // The active view in the editor panel.
     view: CreatorView;
-    // The last valid A2 model parsed from the source text. Visual controls show this when the
-    // source text is invalid.
     lastValidApplication: A2Yaml;
-    // True when the source text does not parse into a valid A2Yaml. While this is true, visual
-    // controls are read-only and preview/save are disabled.
     sourceTextInvalid: boolean;
-    // Validation state. Separate from sourceTextInvalid because a valid YAML document can still
-    // contain invalid application fields.
     validation: CreatorValidationState;
-    // The operation context that opened the editor.
     context: CreatorOperationContext;
-    // Stable id per parameter name. The keys are parameter names, the values are ids that do not
-    // change when the parameter is renamed. Renaming updates the key but keeps the same value.
     parameterIds: Record<string, string>;
-    // Custom application metadata that is not part of the A2 YAML document. The backend stores
-    // provider, category, group, flavor, and publication as separate request fields. Only custom
-    // applications carry these values. Managed applications leave it null.
     customMeta: CreatorCustomMeta | null;
-    // Parse errors from the last source-text parse. Empty when the source text is valid YAML.
-    // These are distinct from `validation.errors` because parse errors come from the source text
-    // and carry a line/column, while validation errors come from the structured model and do not
-    // always have a source location.
+    placementGroups: AppCatalogCustomGroup[];
+    placementCreatedGroup: {id: number; title: string; description: string} | null;
+    nameManuallySet: boolean;
     parseErrors: CreatorSourceParseError[];
-    // False until the first visual edit normalizes the source text into canonical YAML. While
-    // false, a visual change that would replace the user's formatting or comments shows a
-    // confirmation. After the first confirmation, this is true and no further warnings show for
-    // the same loaded draft. Resets to false when a new draft loads.
     sourceNormalized: boolean;
-    // A parameter key the YAML editor should scroll to and highlight. Set by the Workflow row
-    // "Open in YAML" action so the user lands on the relevant section. Cleared after the editor
-    // applies the focus. Null when no focus is pending.
     yamlFocusKey: string | null;
-    // Monotonically increasing revision for edits to the application or source text. Server
-    // validation and preview results are accepted only for the revision they were requested for.
     revision: number;
 }
 
-// Custom application metadata carried outside the A2 YAML. Managed applications do not use this;
-// the draft keeps customMeta null for them.
 export interface CreatorCustomMeta {
-    // The service provider id for the container.
     provider: string;
-    // The custom category id. The editor loads available choices from the backend.
     category: string;
-    // The custom group id. The editor loads available choices from the backend.
     group: string;
-    // The flavor name.
     flavor: string;
-    // Whether the application is published to the project. Always false in a personal workspace.
     publishedToProject: boolean;
-    // True when the editor can offer publication. False in a personal workspace.
     canPublish: boolean;
 }
 
@@ -236,6 +185,9 @@ export function creatorInitialDraft(
         context,
         parameterIds,
         customMeta,
+        placementGroups: [],
+        placementCreatedGroup: null,
+        nameManuallySet: false,
         parseErrors: [],
         sourceNormalized: false,
         yamlFocusKey: null,
@@ -248,22 +200,14 @@ export function creatorInitialDraft(
 // The editor calls these operations through a small interface so backend policy stays out of the UI.
 
 export interface CreatorService {
-    // Load the A2 source for the given operation. Returns the source text, the last valid parsed
-    // model, and the custom-only metadata (null for managed applications).
     loadSource(context: CreatorOperationContext): Promise<{
         application: A2Yaml;
         sourceText: string;
         customMeta: CreatorCustomMeta | null;
     }>;
-    // Validate a draft without creating an application.
     validate(request: CreatorValidationRequest): Promise<CreatorValidationResponse>;
-    // Render a temporary job invocation through the selected provider.
     renderInvocation(request: CreatorRenderRequest): Promise<CreatorRenderResponse>;
-    // Load custom placement choices and provider/publication eligibility.
     loadCustomEligibility(): Promise<AppEditorCustomEligibilityResponse>;
     loadCustomPlacement(): Promise<{groups: AppCatalogCustomGroup[]; categories: AppCatalogCustomCategory[]}>;
-    // Create a new application version from the complete source.
     save(application: A2Yaml, sourceText: string, context: CreatorOperationContext, customMeta: CreatorCustomMeta | null): Promise<void>;
 }
-
-// The template service is defined in Templates.ts.

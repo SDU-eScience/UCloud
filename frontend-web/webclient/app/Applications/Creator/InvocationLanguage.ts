@@ -14,8 +14,6 @@
 
 export const bashJinjaLanguageId = "bash-jinja";
 
-// Shell keywords and builtins copied from Monaco's shell definition. Do not edit by hand; see the
-// header comment about keeping this file in sync with monaco-editor.
 const shellKeywords = [
     "if", "then", "do", "else", "elif", "while", "until", "for", "in", "esac", "fi", "fin", "fil",
     "done", "exit", "set", "unset", "export", "function",
@@ -30,19 +28,15 @@ const shellBuiltins = [
     "wall", "wc", "wget", "who", "write", "yes", "zsh",
 ];
 
-// Jinja statement keywords inside `{% %}`. Gonja's safe control-structure set: autoescape,
-// filter, for, if, macro, raw, set, with, plus end tags and if/elif/else.
 const jinjaStatementKeywords = [
     "for", "endfor", "if", "elif", "else", "endif", "set", "macro", "endmacro", "filter",
     "endfilter", "autoescape", "endautoescape", "with", "endwith", "raw", "endraw",
 ];
 
-// Expression keywords inside both `{{ }}` and `{% %}` tag bodies.
 const jinjaExpressionKeywords = [
     "true", "True", "false", "False", "none", "None", "and", "or", "not", "in", "is", "recursive",
 ];
 
-// Monarch definition for the bash-jinja language.
 export const bashJinjaMonarchTokens = {
     defaultToken: "",
     ignoreCase: false,
@@ -58,13 +52,10 @@ export const bashJinjaMonarchTokens = {
 
     tokenizer: {
         root: [
-            // Jinja tags take precedence over all shell rules. Whitespace-control markers
-            // ({{- {%- {%+ {#- -}} -%} -#}) are part of the delimiters.
             [/\{\{/, "delimiter.bracket.jinja2", "@jinjaVariable"],
             [/\{%[+-]?/, "delimiter.bracket.jinja2", "@jinjaStatement"],
             [/\{#[+-]?/, "comment.jinja2", "@jinjaComment"],
 
-            // Shell tokenizer rules (vendored from monaco-editor shell).
             [/@identifiersWithDashes/, ""],
             [/(\s)((?:@startingWithDash)+)/, ["white", "attribute.name"]],
             [
@@ -161,15 +152,11 @@ export const bashJinjaMonarchTokens = {
             [/[}]/, "variable", "@pop"],
         ],
 
-        // Jinja variable tags: {{ expression }}
         jinjaVariable: [
             [/[-+]?}}/, "delimiter.bracket.jinja2", "@popall"],
             {include: "@jinjaExpression"},
         ],
 
-        // Jinja statement tags: {% for ... %}. The leading word is the statement keyword when
-        // known; everything after it is an expression. `{% raw %}` switches to a body state that
-        // treats the content as plain bash until `{% endraw %}`.
         jinjaStatement: [
             [/[-+]?%\}/, "delimiter.bracket.jinja2", "@popall"],
             [/[a-zA-Z_][a-zA-Z0-9_]*/, {
@@ -182,20 +169,17 @@ export const bashJinjaMonarchTokens = {
             {include: "@jinjaExpression"},
         ],
 
-        // Waits for the closing `%}` of `{% raw %}` then enters the raw body.
         jinjaRawTagEnd: [
             [/\s+/, "white"],
             [/[-+]?%\}/, {token: "delimiter.bracket.jinja2", next: "@jinjaRawBody"}],
         ],
 
-        // Raw body: plain bash until the `{% endraw %}` opening delimiter.
         jinjaRawBody: [
             [/\{%[+-]?/, {token: "delimiter.bracket.jinja2", next: "@jinjaEndrawTag"}],
             [/[^{]+/, ""],
             [/\{/, ""],
         ],
 
-        // The `{% endraw %}` tag itself.
         jinjaEndrawTag: [
             [/\s*endraw/, {
                 cases: {
@@ -205,20 +189,16 @@ export const bashJinjaMonarchTokens = {
             [/[a-zA-Z_][a-zA-Z0-9_]*/, {token: "", next: "@jinjaRawBody"}],
         ],
 
-        // Consumes the final `%}` of the endraw tag and returns to bash.
         jinjaTagEndOnly: [
             [/\s+/, "white"],
             [/[-+]?%\}/, "delimiter.bracket.jinja2", "@popall"],
         ],
 
-        // Jinja comment tags: {# ... #}
         jinjaComment: [
             [/[-+]?#\}/, "comment.jinja2", "@popall"],
             [/[\s\S]/, "comment.jinja2"],
         ],
 
-        // Shared expression rules inside Jinja tags. Strings match before the quote catch-alls so
-        // complete strings win; a lone unterminated quote still consumes as a string token.
         jinjaExpression: [
             [/"([^"\\]|\\.)*"/, "string.jinja2"],
             [/'([^'\\]|\\.)*'/, "string.jinja2"],
@@ -235,7 +215,6 @@ export const bashJinjaMonarchTokens = {
             [/\s+/, "white"],
         ],
 
-        // Expression tokens after the leading word of a statement tag.
         jinjaExpressionTail: [
             [/[-+]?%\}/, "delimiter.bracket.jinja2", "@popall"],
             {include: "@jinjaExpression"},
@@ -243,7 +222,6 @@ export const bashJinjaMonarchTokens = {
     },
 };
 
-// Language configuration for brackets/comments used by Monaco's auto-closing and matching.
 export const bashJinjaLanguageConfiguration = {
     comments: {
         lineComment: "#",

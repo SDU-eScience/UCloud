@@ -37,27 +37,16 @@ export type CreatorSourceParseResult =
     | {ok: false; errors: CreatorSourceParseError[]};
 
 export interface CreatorSourceParseError {
-    // 1-based line number from the yaml library. 0 when the error has no position.
     line: number;
-    // 1-based column. 0 when the error has no position.
     column: number;
     message: string;
 }
 
-// Parse canonical source text into an A2Yaml. Never throws. Returns the parsed model or a list of
-// parse errors with positions.
-//
-// The document is expected to start with the `---\napplication: v2` header followed by the A2Yaml
-// body. The header is not part of A2Yaml. A document without the header still parses; the parser
-// only drops the `application` key if present and reads the rest as the A2Yaml body.
 export function parseSourceText(text: string): CreatorSourceParseResult {
-    // parseDocument does not throw. It collects syntax errors on the returned document. We use
-    // it (instead of YAML.parse) so we can read the line/column of each error.
     const doc = YAML.parseDocument(text);
 
     if (doc.errors.length > 0) {
         const errors: CreatorSourceParseError[] = doc.errors.map(e => {
-            // yaml library errors carry linePos as a pair: [start, end] of {line, col}, 1-based.
             const start = e.linePos?.[0];
             return {
                 line: start?.line ?? 0,
@@ -77,20 +66,14 @@ export function parseSourceText(text: string): CreatorSourceParseResult {
     }
 
     const body = {...node as Record<string, unknown>};
-    // The `application: v2` version header is not part of A2Yaml. Drop it if present.
     delete body.application;
 
-    // Parameters are a map. The yaml library preserves insertion order for plain objects, so
-    // Object.keys gives the declaration order. If parameters is missing or not a mapping, treat
-    // it as empty.
     const rawParameters = body.parameters;
     let parameters: Record<string, A2Parameter> = {};
     let parametersOrder: string[] = [];
     if (rawParameters != null && typeof rawParameters === "object" && !Array.isArray(rawParameters)) {
         const map = rawParameters as Record<string, unknown>;
         parametersOrder = Object.keys(map);
-        // Keep the raw values; the editor treats unknown types as YAML-only rows. The
-        // ParameterValidation layer reports unknown types as blocking errors at save time.
         parameters = map as Record<string, A2Parameter>;
     }
 
@@ -120,23 +103,12 @@ export function parseSourceText(text: string): CreatorSourceParseResult {
     return {ok: true, application};
 }
 
-// Serialize the structured model into canonical YAML text. The output is stable: the same model
-// always produces the same text. Keys are emitted in a fixed order, optional fields that are null
-// are omitted, and parameter entries follow parametersOrder.
-//
-// The canonical form can drop comments and custom formatting that the user added in the source
-// editor. The editor warns before the first visual change when this would happen. See the
-// first-visual-change normalization confirmation in Create.tsx.
 export function applicationToSourceText(application: A2Yaml): string {
     const body = yamlBodyFromApplication(application);
     const bodyText = YAML.stringify(body, {nullStr: ""});
     return `---\napplication: v2\n\n${bodyText}`;
 }
 
-// Build the plain object the yaml library serializes. We rebuild parameters as an ordered map
-// using parametersOrder so the emitted YAML keeps declaration order regardless of JavaScript
-// object key enumeration. null values are removed so the source does not emit `key: null` for
-// every absent optional field.
 function yamlBodyFromApplication(application: A2Yaml): Record<string, unknown> {
     const orderedParameters: Record<string, unknown> = {};
     for (const name of application.parametersOrder) {
@@ -200,8 +172,6 @@ function stripNulls(value: unknown): unknown {
     return value;
 }
 
-// Coerce an unknown value to a string. Returns undefined for null/undefined/non-strings so the
-// caller can distinguish an absent field from an empty string.
 function asString(value: unknown): string | undefined {
     if (typeof value === "string") return value;
     if (value == null) return undefined;
@@ -229,10 +199,7 @@ function asStringArray(value: unknown): string[] {
 
 function asSoftware(value: unknown): A2Yaml["software"] {
     if (value == null || typeof value !== "object" || Array.isArray(value)) {
-        // The backend requires a software block. Default to an empty container if absent.
         return {type: "Container", image: ""};
     }
-    // The editor model keeps the software discriminator on a `type` string. We pass the parsed
-    // value through; ParameterValidation reports unknown kinds at save time.
     return value as A2Yaml["software"];
 }

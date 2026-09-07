@@ -3,9 +3,6 @@ import {injectStyle} from "@/Unstyled";
 import {MarkdownDocument} from "@/ui-components/Markdown";
 import helpText from "./InvocationHelp.md?raw";
 
-// Memoized: the help text is a static import, but the parent re-renders on every invocation
-// keystroke. Without the memo the full markdown document (all code blocks and tables) is
-// re-parsed and re-highlighted on each keystroke.
 export const InvocationHelp = React.memo(function InvocationHelp(): React.ReactNode {
     return (
         <div className={InvocationHelpClass}>

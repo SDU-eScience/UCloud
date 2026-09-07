@@ -13,8 +13,8 @@ import {A2Yaml, A2Parameter, A2EnumOption} from "@/Applications/Creator/A2";
 import {CreatorDraft, CreatorCustomMeta, creatorStableId, emptyValidationState} from "@/Applications/Creator/Draft";
 import {rewriteInvocationReferences} from "@/Applications/Creator/ReferenceTracking";
 import {createWidgetParameter, uniqueWidgetName, A2WidgetType} from "@/Applications/Creator/WidgetDefaults";
+import type {AppCatalogCustomGroup} from "@/Applications/AppStoreApi";
 
-// Update a common (base) field on a parameter.
 export function draftUpdateBase(
     draft: CreatorDraft,
     parameterName: string,
@@ -32,9 +32,6 @@ export function draftUpdateBase(
     return clearValidation({...draft, application});
 }
 
-// Rename a parameter. Rewrites exact static invocation references from old to new. If the new
-// name is empty, a duplicate, or identical to the old name, the rename does not proceed. The
-// caller is responsible for showing validation errors; this function only applies valid renames.
 export function draftRenameParameter(
     draft: CreatorDraft,
     oldName: string,
@@ -43,7 +40,6 @@ export function draftRenameParameter(
     const param = draft.application.parameters[oldName];
     if (!param || oldName === newName) return draft;
 
-    // Reject a duplicate name: the new name already belongs to a different parameter.
     if (newName && draft.application.parameters[newName] != null) return draft;
 
     const order = draft.application.parametersOrder.map(n => (n === oldName ? newName : n));
@@ -56,14 +52,12 @@ export function draftRenameParameter(
         }
     }
 
-    // Rewrite invocation references.
     const invocation = rewriteInvocationReferences(
         draft.application.invocation ?? "",
         oldName,
         newName,
     );
 
-    // Update stable id map.
     const parameterIds: Record<string, string> = {};
     for (const n of order) {
         if (n === newName) {
@@ -91,8 +85,6 @@ export function draftRenameParameter(
     });
 }
 
-// Delete a parameter. References in the invocation remain unchanged. The validator reports them
-// as errors.
 export function draftDeleteParameter(
     draft: CreatorDraft,
     parameterName: string,
@@ -115,7 +107,6 @@ export function draftDeleteParameter(
         parametersOrder: order,
     };
 
-    // Clear selection if the deleted parameter was selected.
     const selection = draft.selection.parameterId === (draft.parameterIds[parameterName] ?? "")
         ? {parameterId: null, parameterName: null}
         : draft.selection;
@@ -128,7 +119,6 @@ export function draftDeleteParameter(
     });
 }
 
-// Reorder parameters. The new order is an array of parameter names in the desired display order.
 export function draftReorderParameters(
     draft: CreatorDraft,
     newOrder: string[],
@@ -137,13 +127,9 @@ export function draftReorderParameters(
         ...draft.application,
         parametersOrder: newOrder,
     };
-    // Reordering is an edit, so clear any validation result from an earlier preview or save.
     return clearValidation({...draft, application});
 }
 
-// Append a new parameter of the given widget type. Generates a unique name, assigns a stable id,
-// appends the row to the end of the declaration order, and selects the new row. Returns the
-// updated draft with the new parameter selected.
 export function draftAddParameter(
     draft: CreatorDraft,
     type: A2WidgetType,
@@ -173,7 +159,6 @@ export function draftAddParameter(
     });
 }
 
-// Update the default value for a Text, TextArea, or Boolean parameter.
 export function draftUpdateDefaultValue(
     draft: CreatorDraft,
     parameterName: string,
@@ -193,7 +178,6 @@ export function draftUpdateDefaultValue(
     return clearValidation({...draft, application});
 }
 
-// Update numeric fields (min, max, step, defaultValue) on an Integer or FloatingPoint parameter.
 export function draftUpdateNumericField(
     draft: CreatorDraft,
     parameterName: string,
@@ -216,7 +200,6 @@ export function draftUpdateNumericField(
     return clearValidation({...draft, application});
 }
 
-// Update an enumeration parameter. Replaces the full option list and/or default value.
 export function draftUpdateEnumeration(
     draft: CreatorDraft,
     parameterName: string,
@@ -225,7 +208,6 @@ export function draftUpdateEnumeration(
     const param = draft.application.parameters[parameterName];
     if (!param || param.type !== "Enumeration") return draft;
     const options = patch.options ?? param.options;
-    // Use "in" so that an explicit null clears the default. A null coalesce would keep the old value.
     const defaultValue = "defaultValue" in patch ? patch.defaultValue ?? null : param.defaultValue;
     const updated: A2Parameter = {
         ...param,
@@ -242,8 +224,6 @@ export function draftUpdateEnumeration(
     return clearValidation({...draft, application});
 }
 
-// Set the selection to a parameter by stable id. Returns the draft with the selection updated. If
-// the id does not match any current parameter, the selection is cleared.
 export function draftSelectParameter(draft: CreatorDraft, parameterId: string | null): CreatorDraft {
     if (parameterId == null) {
         return {...draft, selection: {parameterId: null, parameterName: null}};
@@ -263,95 +243,155 @@ export function draftSelectParameter(draft: CreatorDraft, parameterId: string | 
 // These functions update metadata fields on the A2Yaml or the customMeta. They follow the same
 // pattern as the parameter operations: take the draft and clear validation after the change.
 
-// Update simple scalar metadata fields on the A2Yaml.
 export function draftUpdateMetadata(
     draft: CreatorDraft,
     patch: Partial<Pick<A2Yaml, "title" | "description" | "license" | "documentation" | "invocation">>,
 ): CreatorDraft {
     const application: A2Yaml = {...draft.application, ...patch};
+    if (application.title === "") application.title = null;
+    if (application.description === "") application.description = null;
+    if (application.license === "") application.license = null;
+    if (application.documentation === "") application.documentation = null;
     return clearValidation({...draft, application});
 }
 
-// Update the software configuration. Managed applications can change the kind; custom
-// applications always use Container.
 export function draftUpdateSoftware(draft: CreatorDraft, software: A2Yaml["software"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, software};
     return clearValidation({...draft, application});
 }
 
-// Update the features block. Missing fields default to false.
 export function draftUpdateFeatures(draft: CreatorDraft, features: A2Yaml["features"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, features};
     return clearValidation({...draft, application});
 }
 
-// Update the web block.
 export function draftUpdateWeb(draft: CreatorDraft, web: A2Yaml["web"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, web};
     return clearValidation({...draft, application});
 }
 
-// Update the vnc block.
 export function draftUpdateVnc(draft: CreatorDraft, vnc: A2Yaml["vnc"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, vnc};
     return clearValidation({...draft, application});
 }
 
-// Update the ssh block.
 export function draftUpdateSsh(draft: CreatorDraft, ssh: A2Yaml["ssh"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, ssh};
     return clearValidation({...draft, application});
 }
 
-// Update the inference block.
 export function draftUpdateInference(draft: CreatorDraft, inference: A2Yaml["inference"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, inference};
     return clearValidation({...draft, application});
 }
 
-// Update the modules block (managed only).
 export function draftUpdateModules(draft: CreatorDraft, modules: A2Yaml["modules"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, modules};
     return clearValidation({...draft, application});
 }
 
-// Update the ucx block (managed only).
 export function draftUpdateUcx(draft: CreatorDraft, ucx: A2Yaml["ucx"]): CreatorDraft {
     const application: A2Yaml = {...draft.application, ucx};
     return clearValidation({...draft, application});
 }
 
-// Update the extensions list (managed only).
 export function draftUpdateExtensions(draft: CreatorDraft, extensions: string[]): CreatorDraft {
     const application: A2Yaml = {...draft.application, extensions};
     return clearValidation({...draft, application});
 }
 
-// Replace the full environment map (ordered key-value pairs).
 export function draftUpdateEnvironment(draft: CreatorDraft, environment: Record<string, string>): CreatorDraft {
     const application: A2Yaml = {...draft.application, environment};
     return clearValidation({...draft, application});
 }
 
-// Replace the full sbatch map (ordered key-value pairs).
 export function draftUpdateSbatch(draft: CreatorDraft, sbatch: Record<string, string>): CreatorDraft {
     const application: A2Yaml = {...draft.application, sbatch};
     return clearValidation({...draft, application});
 }
 
-// Update the custom-only metadata (provider, category, group, flavor, publication). Only used
-// for custom applications.
 export function draftUpdateCustomMeta(
     draft: CreatorDraft,
     patch: Partial<CreatorCustomMeta>,
 ): CreatorDraft {
     if (!draft.customMeta) return draft;
     const customMeta = {...draft.customMeta, ...patch};
-    return {...draft, customMeta, validation: emptyValidationState()};
+    let application = draft.application;
+    if ((patch.group !== undefined || patch.flavor !== undefined) && !draft.nameManuallySet) {
+        const group = draftCustomSelectedGroup(customMeta, draft.placementGroups, draft.placementCreatedGroup);
+        const name = draftCustomDerivedName(customMeta, group);
+        if (name !== "") application = {...application, name};
+    }
+    return {...draft, customMeta, application, validation: emptyValidationState()};
 }
 
-// Editing clears the result of the last action-triggered validation. The next preview or save
-// validates the current draft again.
+// Derived name for custom applications
+// -------------------------------------------------------------------------------------------------------------------
+// The application name is derived from the group title and the flavor name. Both parts are
+// lower-kebab-cased. The default flavor adds no suffix; any other flavor appends "-$flavor".
+
+const draftCustomDefaultFlavor = "default";
+
+export function creatorKebabCase(value: string): string {
+    return value
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .toLowerCase();
+}
+
+export function draftCustomDerivedName(
+    customMeta: {flavor: string},
+    group: {title: string} | null,
+): string {
+    const groupPart = creatorKebabCase(group?.title ?? "");
+    const flavor = customMeta.flavor.trim();
+    const suffix = flavor === "" || flavor.toLowerCase() === draftCustomDefaultFlavor
+        ? ""
+        : `-${creatorKebabCase(flavor)}`;
+    return `${groupPart}${suffix}`;
+}
+
+// Derived presentation for custom applications
+// -------------------------------------------------------------------------------------------------------------------
+// Custom applications do not present their own title, description, license, or documentation.
+// The presentation is derived from the placement metadata instead: the title joins the group
+// title and the flavor name, the description is the group description, and license and
+// documentation are absent. The derivation is applied live so the YAML view always shows the
+// values that will be saved. Absent fields use null, never an empty string: the backend rejects
+// a present-but-empty value.
+export function draftCustomDerivedPresentation(
+    application: A2Yaml,
+    customMeta: {flavor: string} | null,
+    group: {title: string; description: string} | null,
+): A2Yaml {
+    const flavor = customMeta?.flavor ?? "";
+    const titleFlavor = flavor.trim().toLowerCase() === draftCustomDefaultFlavor ? "" : flavor;
+    const titleParts = [group?.title ?? "", titleFlavor].filter(part => part.trim() !== "");
+    const description = group?.description ?? "";
+    return {
+        ...application,
+        title: titleParts.length === 0 ? null : titleParts.join(" "),
+        description: description === "" ? null : description,
+        license: null,
+        documentation: null,
+    };
+}
+
+export function draftCustomSelectedGroup(
+    meta: {group: string},
+    groups: AppCatalogCustomGroup[],
+    createdGroup?: {id: number; title: string; description: string} | null,
+): {title: string; description: string} | null {
+    if (meta.group === "") return null;
+    const selected = groups.find(group => String(group.id) === meta.group)
+        ?? (createdGroup != null && String(createdGroup.id) === meta.group
+            ? {specification: {title: createdGroup.title, description: createdGroup.description}}
+            : null);
+    return selected?.specification ?? null;
+}
+
 function clearValidation(draft: CreatorDraft): CreatorDraft {
     return {
         ...draft,
@@ -359,7 +399,6 @@ function clearValidation(draft: CreatorDraft): CreatorDraft {
     };
 }
 
-// Helper: find the parameter name for a stable id. Returns null if not found.
 export function nameForId(draft: CreatorDraft, parameterId: string): string | null {
     for (const name of draft.application.parametersOrder) {
         if (draft.parameterIds[name] === parameterId) return name;
