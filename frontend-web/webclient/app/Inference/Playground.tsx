@@ -1607,6 +1607,18 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
         }
     }, [currentThreadId, fn, threads]);
 
+    React.useEffect(() => {
+        function onResize() {
+            if (window.innerWidth < 900) {
+                setSidebarCollapsed(false);
+            }
+        }
+
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, []);
+
+
     const newThread = () => {
         if (!connected || !fn) return;
         pendingNewThreadRef.current = new Set(threads.map(thread => thread.id));
