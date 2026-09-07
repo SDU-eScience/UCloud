@@ -11,7 +11,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"ucloud.dk/pkg/gateway"
 	"ucloud.dk/pkg/ipc"
 	"ucloud.dk/pkg/ucxdelivery"
 
@@ -120,7 +119,6 @@ func InitJobDatabase() {
 	initPrivateNetworkDatabase()
 
 	jobsLoadSessions()
-	gateway.Resume()
 
 	// Job metrics
 	go func() {

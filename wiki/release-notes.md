@@ -7,7 +7,9 @@ use.
 ## 04-09-26
 
 ```
-SDU-Bitten/K8s @ 2026.5.25
+UCloud/Core @ 2026.5.31
+UCloud/Frontend @ 2026.5.27
+SDU-Bitten/K8s @ 2026.5.30
 ```
 
 ## 02-09-26

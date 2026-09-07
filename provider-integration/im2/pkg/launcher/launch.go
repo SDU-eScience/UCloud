@@ -290,6 +290,14 @@ func Launch() {
 	controller.InitLate()
 	svc.InitLater()
 
+	// NOTE(Dan): The gateway is resumed only after every subsystem has had a chance to send its initial
+	// configuration messages. Resume() triggers the first snapshot push to Envoy. Resuming earlier would, e.g.,
+	// leave out the inference platform's hostname for a period of time after startup.
+
+	if mode == cfg.ServerModeServer {
+		gateway.Resume()
+	}
+
 	if mode == cfg.ServerModeServer {
 		launchMetricsServer()
 		gateway.InitIpc()
