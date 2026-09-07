@@ -11,13 +11,11 @@ import (
 	"time"
 
 	"ucloud.dk/pkg/integrations/k8s/shared"
-	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
 
 const (
 	playgroundToolMaxIterations        = 10
-	playgroundToolWorkspaceRoot        = "/mnt/workspace"
 	playgroundToolOutputLimit          = 64 * 1024
 	playgroundToolDefaultTimeout       = 60 * time.Second
 	playgroundToolMaxTimeout           = 2 * time.Minute
@@ -25,7 +23,7 @@ const (
 	playgroundWebFetchMaxTimeoutMs     = 30000
 )
 
-var playgroundWorkspaceToolNames = []string{"glob", "grep", "read", "bash", "web_fetch", "wikipedia_search"}
+var playgroundToolNames = []string{"bash", "web_fetch", "wikipedia_search"}
 
 type playgroundToolResult struct {
 	Message InferenceChatMessage
@@ -74,31 +72,14 @@ func (b *playgroundCappedBuffer) String() string {
 }
 
 func (app *InferencePlaygroundApp) playgroundToolDefinitions() []InferenceChatTool {
-	if app == nil || app.Developer || !app.playgroundWorkspaceReady() {
+	if app == nil || app.Developer {
 		return nil
 	}
 
 	return []InferenceChatTool{
-		playgroundToolDefinition("glob", "Find files using a glob pattern. It defaults to the selected workspace; an absolute cwd may be used outside it.", map[string]any{
-			"pattern": map[string]any{"type": "string", "description": "Glob pattern, for example **/*.go."},
-			"cwd":     map[string]any{"type": "string", "description": "Optional directory. Defaults to the workspace; absolute paths may be used outside it.", "default": "."},
-			"limit":   map[string]any{"type": "integer", "description": "Maximum number of results to return.", "default": 100},
-		}, []string{"pattern"}),
-		playgroundToolDefinition("grep", "Search file contents. It defaults to the selected workspace; an absolute path may be used outside it.", map[string]any{
-			"pattern": map[string]any{"type": "string", "description": "Regular expression to search for."},
-			"path":    map[string]any{"type": "string", "description": "Optional file or directory. Defaults to the workspace; absolute paths may be used outside it.", "default": "."},
-			"include": map[string]any{"type": "string", "description": "Optional include glob."},
-			"exclude": map[string]any{"type": "string", "description": "Optional exclude glob."},
-			"limit":   map[string]any{"type": "integer", "description": "Maximum number of matches to return.", "default": 100},
-		}, []string{"pattern"}),
-		playgroundToolDefinition("read", "Read a text file. Relative paths use the selected workspace; absolute paths may be used outside it.", map[string]any{
-			"path":   map[string]any{"type": "string", "description": "File path relative to the workspace root, or an absolute path outside it."},
-			"offset": map[string]any{"type": "integer", "description": "Optional 1-based line offset.", "default": 1},
-			"limit":  map[string]any{"type": "integer", "description": "Optional maximum number of lines to return.", "default": 200},
-		}, []string{"path"}),
-		playgroundToolDefinition("bash", "Run a non-interactive shell command in the selected workspace sandbox.", map[string]any{
+		playgroundToolDefinition("bash", "Run a non-interactive shell command in a sandboxed environment for calculations and deterministic analysis.", map[string]any{
 			"command":    map[string]any{"type": "string", "description": "Command to run."},
-			"cwd":        map[string]any{"type": "string", "description": "Optional directory relative to the workspace root.", "default": "."},
+			"cwd":        map[string]any{"type": "string", "description": "Optional working directory.", "default": "/"},
 			"timeout_ms": map[string]any{"type": "integer", "description": "Optional timeout in milliseconds.", "default": 60000},
 		}, []string{"command"}),
 		playgroundToolDefinition("web_fetch", "Fetch a public http or https URL from inside the sandbox and return capped markdown or HTML.", map[string]any{
@@ -117,10 +98,6 @@ func playgroundToolDefinition(name string, description string, properties map[st
 	return InferenceChatTool{Type: "function", Function: InferenceChatToolFunction{Name: name, Description: description, Strict: util.OptValue(true), Parameters: map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false}}}
 }
 
-func (app *InferencePlaygroundApp) playgroundWorkspaceReady() bool {
-	return strings.TrimSpace(app.Workspace.SandboxJobId) != "" && strings.TrimSpace(app.Workspace.Error) == ""
-}
-
 // playgroundToolAvailable reports whether the named sandbox tool may run. Takes the application mutex;
 // callers must not hold it.
 func (app *InferencePlaygroundApp) playgroundToolAvailable(name string, allowDeveloper bool) bool {
@@ -129,12 +106,11 @@ func (app *InferencePlaygroundApp) playgroundToolAvailable(name string, allowDev
 	}
 	app.mu.Lock()
 	developer := app.Developer
-	ready := app.playgroundWorkspaceReady()
 	app.mu.Unlock()
-	if (!allowDeveloper && developer) || !ready {
+	if !allowDeveloper && developer {
 		return false
 	}
-	for _, candidate := range playgroundWorkspaceToolNames {
+	for _, candidate := range playgroundToolNames {
 		if name == candidate {
 			return true
 		}
@@ -163,15 +139,8 @@ func (app *InferencePlaygroundApp) playgroundToolDispatchWithMode(call Inference
 	if sandboxErr != "" {
 		return playgroundToolResult{Message: playgroundToolError(call.Id, sandboxErr), Error: sandboxErr}
 	}
-	log.Info("Running in %v %v", sandbox.Folders, sandbox.JobId)
 	var result playgroundToolResult
 	switch name {
-	case "glob":
-		result = app.inferenceToolGlob(sandbox, call)
-	case "grep":
-		result = app.inferenceToolGrep(sandbox, call)
-	case "read":
-		result = app.inferenceToolRead(sandbox, call)
 	case "bash":
 		result = app.inferenceToolBash(sandbox, call)
 	case "web_fetch":
@@ -186,20 +155,12 @@ func (app *InferencePlaygroundApp) playgroundToolDispatchWithMode(call Inference
 
 func (app *InferencePlaygroundApp) playgroundToolSandbox() (*shared.InferenceSandbox, string) {
 	app.mu.Lock()
-	workspacePath := strings.TrimSpace(app.Workspace.Path)
 	owner := app.Owner
 	app.mu.Unlock()
 
-	folders := []string{}
-	if workspacePath != "" {
-		folders = append(folders, workspacePath)
-	}
-	sandbox, err := shared.InferenceSandboxSetFolders(owner, util.OptNone[string](), folders)
+	sandbox, err := shared.InferenceSandboxSetFolders(owner, util.OptNone[string](), []string{})
 	if err != nil {
 		return nil, err.Why
-	}
-	if workspacePath != "" && len(sandbox.Folders) == 0 {
-		return nil, "The selected folder could not be mounted."
 	}
 	sandbox.AutoLease = true
 	return sandbox, ""
@@ -225,17 +186,6 @@ func playgroundDeveloperSlashToolCall(prompt string) (InferenceChatToolCall, boo
 		toolName, rawArgs, _ = strings.Cut(rest, " ")
 		toolName = strings.TrimSpace(toolName)
 		arguments = strings.TrimSpace(rawArgs)
-	case "glob":
-		arguments = playgroundToolJSON(map[string]any{"pattern": rest})
-	case "grep":
-		pattern, path, _ := strings.Cut(rest, " ")
-		args := map[string]any{"pattern": strings.TrimSpace(pattern)}
-		if strings.TrimSpace(path) != "" {
-			args["path"] = strings.TrimSpace(path)
-		}
-		arguments = playgroundToolJSON(args)
-	case "read":
-		arguments = playgroundToolJSON(map[string]any{"path": rest})
 	case "bash":
 		arguments = playgroundToolJSON(map[string]any{"command": rest})
 	case "web_fetch":
@@ -258,74 +208,6 @@ func playgroundDeveloperSlashToolCall(prompt string) (InferenceChatToolCall, boo
 	return InferenceChatToolCall{Id: "dev-" + util.SecureToken(), Type: "function", Function: InferenceChatToolCallFunction{Name: toolName, Arguments: arguments}}, true, ""
 }
 
-func (app *InferencePlaygroundApp) inferenceToolGlob(sandbox *shared.InferenceSandbox, call InferenceChatToolCall) playgroundToolResult {
-	var args struct {
-		Pattern string `json:"pattern"`
-		Cwd     string `json:"cwd"`
-		Limit   int    `json:"limit"`
-	}
-	if err := playgroundToolDecodeArgs(call, &args); err != "" {
-		return playgroundToolResult{Message: playgroundToolError(call.Id, err), Error: err}
-	}
-	if args.Cwd == "" {
-		args.Cwd = "."
-	}
-	if args.Limit <= 0 || args.Limit > 1000 {
-		args.Limit = 100
-	}
-	payload := playgroundToolJSON(args)
-	commandResult := playgroundRunSandboxCommand(func() *shared.TerminalCmd {
-		return playgroundToolExecutable(sandbox, app.playgroundToolWorkingDirectory(), "glob", payload)
-	}, playgroundToolDefaultTimeout)
-	return playgroundToolCommandMessage(call.Id, commandResult)
-}
-
-func (app *InferencePlaygroundApp) inferenceToolGrep(sandbox *shared.InferenceSandbox, call InferenceChatToolCall) playgroundToolResult {
-	var args struct {
-		Pattern string `json:"pattern"`
-		Path    string `json:"path"`
-		Include string `json:"include"`
-		Exclude string `json:"exclude"`
-		Limit   int    `json:"limit"`
-	}
-	if err := playgroundToolDecodeArgs(call, &args); err != "" {
-		return playgroundToolResult{Message: playgroundToolError(call.Id, err), Error: err}
-	}
-	if args.Path == "" {
-		args.Path = "."
-	}
-	if args.Limit <= 0 || args.Limit > 1000 {
-		args.Limit = 100
-	}
-	payload := playgroundToolJSON(args)
-	commandResult := playgroundRunSandboxCommand(func() *shared.TerminalCmd {
-		return playgroundToolExecutable(sandbox, app.playgroundToolWorkingDirectory(), "grep", payload)
-	}, playgroundToolDefaultTimeout)
-	return playgroundToolCommandMessage(call.Id, commandResult)
-}
-
-func (app *InferencePlaygroundApp) inferenceToolRead(sandbox *shared.InferenceSandbox, call InferenceChatToolCall) playgroundToolResult {
-	var args struct {
-		Path   string `json:"path"`
-		Offset int    `json:"offset"`
-		Limit  int    `json:"limit"`
-	}
-	if err := playgroundToolDecodeArgs(call, &args); err != "" {
-		return playgroundToolResult{Message: playgroundToolError(call.Id, err), Error: err}
-	}
-	if args.Offset <= 0 {
-		args.Offset = 1
-	}
-	if args.Limit <= 0 || args.Limit > 1000 {
-		args.Limit = 200
-	}
-	payload := playgroundToolJSON(args)
-	commandResult := playgroundRunSandboxCommand(func() *shared.TerminalCmd {
-		return playgroundToolExecutable(sandbox, app.playgroundToolWorkingDirectory(), "read", payload)
-	}, playgroundToolDefaultTimeout)
-	return playgroundToolCommandMessage(call.Id, commandResult)
-}
-
 func (app *InferencePlaygroundApp) inferenceToolBash(sandbox *shared.InferenceSandbox, call InferenceChatToolCall) playgroundToolResult {
 	var args struct {
 		Command   string `json:"command"`
@@ -335,21 +217,15 @@ func (app *InferencePlaygroundApp) inferenceToolBash(sandbox *shared.InferenceSa
 	if err := playgroundToolDecodeArgs(call, &args); err != "" {
 		return playgroundToolResult{Message: playgroundToolError(call.Id, err), Error: err}
 	}
-	if args.Cwd == "" {
-		args.Cwd = "."
-	}
 	if err := playgroundToolBashValidate(args.Command); err != "" {
 		return playgroundToolResult{Message: playgroundToolError(call.Id, err), Error: err}
 	}
-	cwd, err := playgroundToolContainerPath(args.Cwd)
-	if err != "" {
-		return playgroundToolResult{Message: playgroundToolError(call.Id, err), Error: err}
-	}
-	if app.workspacePath() == "" {
+	cwd := strings.TrimSpace(args.Cwd)
+	if cwd == "" || cwd == "." {
 		cwd = "/"
-		if args.Cwd != "." {
-			cwd = filepath.Join(cwd, args.Cwd)
-		}
+	}
+	if !filepath.IsAbs(cwd) {
+		return playgroundToolResult{Message: playgroundToolError(call.Id, "cwd must be an absolute path"), Error: "cwd must be an absolute path"}
 	}
 	timeout := playgroundToolTimeout(args.TimeoutMs)
 	commandResult := playgroundRunSandboxCommand(func() *shared.TerminalCmd {
@@ -420,31 +296,6 @@ func playgroundToolDecodeArgs(call InferenceChatToolCall, target any) string {
 		return "tool arguments do not match the expected schema"
 	}
 	return ""
-}
-
-func playgroundToolContainerPath(path string) (string, string) {
-	path = strings.TrimSpace(path)
-	if path == "" || path == "." {
-		return playgroundToolWorkspaceRoot, ""
-	}
-	if filepath.IsAbs(path) {
-		return "", "absolute paths are not allowed"
-	}
-	clean := filepath.Clean(path)
-	if clean == "." {
-		return playgroundToolWorkspaceRoot, ""
-	}
-	if clean == ".." || strings.HasPrefix(clean, "../") {
-		return "", "paths must stay inside the workspace"
-	}
-	return filepath.Join(playgroundToolWorkspaceRoot, clean), ""
-}
-
-func (app *InferencePlaygroundApp) playgroundToolWorkingDirectory() string {
-	if app.workspacePath() == "" {
-		return "/"
-	}
-	return playgroundToolWorkspaceRoot
 }
 
 func playgroundToolExecutable(sandbox *shared.InferenceSandbox, cwd string, tool string, payload string) *shared.TerminalCmd {

@@ -11,7 +11,6 @@
 import {A2Yaml} from "@/Applications/Creator/A2";
 import {CreatorValidationError, CreatorValidationState} from "@/Applications/Creator/Draft";
 
-// Validate the full application. Returns errors for all parameters.
 export function validateApplicationLocal(application: A2Yaml): CreatorValidationState {
     const errors: CreatorValidationError[] = [];
 
@@ -22,19 +21,16 @@ export function validateApplicationLocal(application: A2Yaml): CreatorValidation
         const param = application.parameters[name];
         if (!param) continue;
 
-        // Empty name.
         if (!name || name.trim() === "") {
             errors.push({parameterName: name, message: "Parameter name must not be empty."});
             continue;
         }
 
-        // Duplicate name.
         if (seenNames.has(name)) {
             errors.push({parameterName: name, message: `Duplicate parameter name: "${name}".`});
         }
         seenNames.add(name);
 
-        // Type-specific validation.
         switch (param.type) {
             case "Integer":
             case "FloatingPoint":

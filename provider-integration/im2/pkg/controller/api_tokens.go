@@ -150,6 +150,7 @@ var apiTokensCache = util.NewCache[string, apiTokenAuthentication](5 * time.Minu
 var apiTokenIdToCacheKey = util.NewCache[string, string](5 * time.Minute)
 
 type ApiTokenAuthentication struct {
+	TokenId     string
 	Owner       apm.WalletOwner
 	CreatedBy   string
 	Permissions []orcapi.ApiTokenPermission
@@ -247,7 +248,7 @@ func ApiTokenValidate(kind string, key string) (ApiTokenAuthentication, *util.Ht
 	if authentication.Owner == "" || (owner.Username == "" && owner.ProjectId == "") {
 		return ApiTokenAuthentication{}, util.HttpErr(http.StatusForbidden, "invalid key")
 	}
-	return ApiTokenAuthentication{Owner: owner, CreatedBy: authentication.CreatedBy, Permissions: authentication.Permissions}, nil
+	return ApiTokenAuthentication{TokenId: tokenId, Owner: owner, CreatedBy: authentication.CreatedBy, Permissions: authentication.Permissions}, nil
 }
 
 func apiTokenParse(raw string) (tokenId string, secret string, ok bool) {

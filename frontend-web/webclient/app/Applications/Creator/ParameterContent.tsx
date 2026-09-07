@@ -25,8 +25,6 @@ import {A2Yaml, A2Parameter} from "@/Applications/Creator/A2";
 import {CreatorDraft} from "@/Applications/Creator/Draft";
 import {a2ToRuntimeParameter} from "@/Applications/Creator/ParameterConversion";
 
-// Build a minimal fake Application that the widget controls can read. The widgets need
-// application.metadata for some types (e.g. workflow). We provide a minimal shape.
 function fakeApplication(a2: A2Yaml): Application {
     const features = a2.features;
     return {
@@ -56,19 +54,13 @@ function fakeApplication(a2: A2Yaml): Application {
     };
 }
 
-// Props for the content card.
 export interface ParameterContentProps {
     draft: CreatorDraft;
     onSelectParameter: (parameterId: string | null) => void;
     onReorder: (newOrder: string[]) => void;
-    // Called when the user clicks "Open in YAML" on a Workflow row. Switches the view to YAML and
-    // asks the YAML editor to scroll to the parameter key.
     onOpenWorkflowYaml: (parameterName: string) => void;
 }
 
-// Memoized with a field comparator. The parent re-renders on every invocation keystroke, but
-// only the draft fields below affect this card; the invocation text does not. All callback props
-// are stable useCallback identities from Create.tsx.
 export const ParameterContent = React.memo(ParameterContentBase, (prev, next) =>
     prev.draft.application.parameters === next.draft.application.parameters &&
     prev.draft.application.parametersOrder === next.draft.application.parametersOrder &&
@@ -83,15 +75,11 @@ function ParameterContentBase(props: ParameterContentProps): React.ReactNode {
     const {draft} = props;
     const {application} = draft;
 
-    // Drag state lives here so every row can react to the current drop target. dragFromIndex is
-    // the row being dragged; dragToIndex is the position it will land on. When not dragging, both
-    // are null.
     const [dragFromIndex, setDragFromIndex] = useState<number | null>(null);
     const [dragToIndex, setDragToIndex] = useState<number | null>(null);
 
     const onReorder = useCallback((fromIndex: number, toIndex: number) => {
         const order = [...application.parametersOrder];
-        // Swap the two elements instead of removing and inserting.
         const tmp = order[fromIndex];
         order[fromIndex] = order[toIndex];
         order[toIndex] = tmp;
@@ -171,10 +159,6 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
     const {name, param, draft, selected, index, count,
            dragFromIndex, dragToIndex} = props;
 
-    // Pointer drag state for reordering. All event handlers read from refs and have stable
-    // identity (empty deps). This is critical: the parent passes inline callbacks that change
-    // identity on every render, which would otherwise cause the useEffect cleanup to remove
-    // the window listeners mid-drag.
     const rowRef = useRef<HTMLDivElement>(null);
     const isDragging = useRef(false);
     const dragStartY = useRef(0);
@@ -183,7 +167,6 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
     const lastOffsetRef = useRef(0);
     const [dragOffset, setDragOffset] = useState(0);
 
-    // Store latest props so the stable window listeners always read current values.
     const propsRef = useRef(props);
     propsRef.current = props;
 
@@ -213,7 +196,7 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
         const toIndex = dragToIndexRef.current;
         setDragOffset(0);
         propsRef.current.onDragEnd();
-        if (Math.abs(lastOffsetRef.current) < 10) return; // not enough movement
+        if (Math.abs(lastOffsetRef.current) < 10) return;
         if (toIndex === fromIndex) return;
         propsRef.current.onReorder(fromIndex, toIndex);
     }, []);
@@ -234,8 +217,6 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
         window.addEventListener("pointercancel", onPointerUp);
     }, []);
 
-    // Remove listeners only on unmount. Because the callbacks above have stable identity,
-    // the cleanup correctly removes the same functions that were added to the window.
     useEffect(() => {
         return () => {
             window.removeEventListener("pointermove", onPointerMove);
@@ -244,7 +225,6 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
         };
     }, []);
 
-    // Keyboard reorder: Alt+ArrowUp / Alt+ArrowDown on the selected row.
     const onKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (!selected) return;
         const isReorderKey = e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown");
@@ -256,8 +236,6 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
         props.onReorder(index, targetIndex);
     }, [selected, index, count, props.onReorder]);
 
-    // Drag visual state. The dragged row lifts and follows the pointer. The row it will swap
-    // into dims to show where it will land.
     const isDraggingThis = dragFromIndex != null && dragFromIndex === index;
     const isDropTarget = dragFromIndex != null && dragToIndex != null && dragToIndex === index && dragToIndex !== dragFromIndex;
 
@@ -269,8 +247,6 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
     useLayoutEffect(() => {
         const body = bodyRef.current;
         if (!body) return;
-        // The Widget renders a FieldRow (data-field-row). Its first child is the description column
-        // (title + optional markdown description). Center the drag handle on that block.
         const fieldRow = body.querySelector<HTMLElement>("[data-field-row]");
         if (!fieldRow) return;
         const desc = fieldRow.firstElementChild as HTMLElement | null;
@@ -280,8 +256,6 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
         setHandleOffset(rect.top - bodyRect.top + rect.height / 2);
     }, [param.title, param.description]);
 
-    // Workflow rows are YAML-only. Keep the same field-row layout as the other parameters while
-    // showing the YAML-only note in the control column.
     if (param.type === "Workflow") {
         return (
             <div
@@ -323,7 +297,6 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
         );
     }
 
-    // Standard parameter: render with the Widget control for visual fidelity.
     return (
         <div
             ref={rowRef}
@@ -356,8 +329,6 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
     );
 }
 
-// Drag handle. Only visible when the row is selected. centerOffset positions the icon
-// at the vertical center of the title+description block (in pixels from the row top).
 function DragHandle(props: {
     visible: boolean;
     onPointerDown: (e: React.PointerEvent) => void;

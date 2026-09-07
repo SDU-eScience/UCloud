@@ -11,9 +11,9 @@ import {injectStyle} from "@/Unstyled";
 import {Text} from "@/ui-components";
 import {IconButton} from "@/ui-components/IconButton";
 import {Toggle} from "@/ui-components/Toggle";
+import {TooltipV2} from "@/ui-components/Tooltip";
+import Icon from "@/ui-components/Icon";
 
-// PanelSection renders a bold header and stacked rows. When `collapsedByDefault` is true the
-// section starts collapsed and the user can toggle it with the chevron button in the header.
 export function PanelSection(props: {
     title: string;
     children: React.ReactNode;
@@ -46,9 +46,6 @@ export function PanelRow(props: {label: string; value: string}): React.ReactNode
     );
 }
 
-// ToggleRow pairs a Toggle with a clickable text label. Clicking the label toggles the switch,
-// matching the behaviour of a native checkbox label. The optional `id` prop sets a DOM id used
-// by the highlight system to scroll to and animate the toggle.
 export function ToggleRow(props: {label: string; checked: boolean; onChange: () => void; disabled?: boolean; id?: string}): React.ReactNode {
     return (
         <div className={ToggleRowClass} id={props.id}>
@@ -57,6 +54,47 @@ export function ToggleRow(props: {label: string; checked: boolean; onChange: () 
         </div>
     );
 }
+
+export function InfoDot(props: {tooltip: React.ReactNode}): React.ReactNode {
+    return (
+        <TooltipV2
+            tooltip={<div className={InfoTooltipContentClass}>{props.tooltip}</div>}
+            contentWidth={280}
+            triggerStyle={{display: "inline-flex", verticalAlign: "middle"}}
+        >
+            <span className={InfoDotClass} role="img" aria-label="More information">
+                <Icon name="heroInformationCircle" size={14} color="textSecondary" />
+            </span>
+        </TooltipV2>
+    );
+}
+
+const InfoDotClass = injectStyle("creator-info-dot", k => `
+    ${k} {
+        display: inline-flex;
+        align-items: center;
+        cursor: help;
+        vertical-align: middle;
+        margin-left: 4px;
+    }
+`);
+
+const InfoTooltipContentClass = injectStyle("creator-info-tooltip-content", k => `
+    ${k}, ${k} * {
+        text-align: left !important;
+    }
+
+    ${k} ul {
+        margin: 6px 0;
+        padding-left: 0;
+        list-style-position: inside;
+    }
+
+    ${k} ul li {
+        margin: 0;
+        padding-left: 16px;
+    }
+`);
 
 export const PanelSectionClass = injectStyle("creator-panel-section-shared", k => `
     ${k} {
@@ -149,12 +187,6 @@ const ToggleRowClass = injectStyle("creator-toggle-row", k => `
     }
 `);
 
-// Highlight animation. Applied by creatorHighlightTarget to draw the user's attention to a
-// specific metadata control. The element glows with the primary color, fading in and out.
-// Dark mode swaps the glow to a lighter blue: the dark-mode primary color is too dark to read
-// against a dark background.
-// This is a global rule: any element with class `creator-highlight-active` animates. The
-// injectStyle call ignores its generated class name so the rule is not scoped to one selector.
 injectStyle("creator-highlight-global", () => `
     .creator-highlight-active {
         --creatorHighlightColor: var(--primaryMain);

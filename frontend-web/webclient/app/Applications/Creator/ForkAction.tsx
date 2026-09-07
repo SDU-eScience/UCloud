@@ -1,20 +1,15 @@
 import * as React from "react";
 import {useLocation, useNavigate} from "react-router-dom";
-import {Application} from "@/Applications/AppStoreApi";
-import {Client} from "@/Authentication/HttpClientInstance";
+import {Application, customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
 import {useProjectId} from "@/Project/Api";
 import AppRoutes from "@/Routes";
 import {Button, Icon} from "@/ui-components";
-import {checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
-import {Feature, hasFeature} from "@/Features";
 
 export function ApplicationForkAction(props: {application: Application}): React.ReactNode {
     const projectId = useProjectId();
     const navigate = useNavigate();
     const location = useLocation();
-    const canFork = hasFeature(Feature.CONTAINER_REPOSITORIES) &&
-        (Client.userIsAdmin || (projectId != null && checkIsWorkspaceAdmin())
-    );
+    const canFork = customAppsWorkspaceAdmin();
     if (!canFork) return null;
 
     const sourceApplicationKind = props.application.metadata.origin === "CUSTOM" && props.application.metadata.variant == null

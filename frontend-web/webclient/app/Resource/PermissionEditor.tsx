@@ -158,6 +158,54 @@ export function PermissionsTable({
     const projectId = useProjectId();
     const project = useProject();
     const groups = project.fetch().status.groups ?? [];
+    const [focusedGroup, setFocusedGroup] = useState<string | null>(null);
+
+    const navigateWithKeyboard = useCallback((event: React.KeyboardEvent) => {
+        if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+        const target = event.target as HTMLElement;
+        const row = target.closest<HTMLElement>("[data-component='permission-row']");
+        const tile = target.closest<HTMLElement>("[data-permission-tile]");
+        if (!row || !tile) return;
+
+        const rows = Array.from(event.currentTarget.querySelectorAll<HTMLElement>("[data-component='permission-row']"));
+        const rowIndex = rows.indexOf(row);
+        const tiles = Array.from(row.querySelectorAll<HTMLElement>("[data-permission-tile]"));
+        const tileIndex = tiles.indexOf(tile);
+
+        const focusTile = (nextRowIndex: number, nextTileIndex: number) => {
+            const nextRow = rows[nextRowIndex];
+            if (!nextRow) return;
+            const nextTiles = Array.from(nextRow.querySelectorAll<HTMLElement>("[data-permission-tile]"));
+            nextTiles[Math.min(nextTileIndex, nextTiles.length - 1)]
+                ?.querySelector<HTMLInputElement>("input")
+                ?.focus();
+        };
+
+        switch (event.key) {
+            case "ArrowUp":
+                event.preventDefault();
+                focusTile(rowIndex - 1, tileIndex);
+                break;
+            case "ArrowDown":
+                event.preventDefault();
+                focusTile(rowIndex + 1, tileIndex);
+                break;
+            case "ArrowLeft":
+                event.preventDefault();
+                focusTile(rowIndex, tileIndex - 1);
+                break;
+            case "ArrowRight":
+                event.preventDefault();
+                focusTile(rowIndex, tileIndex + 1);
+                break;
+            case " ":
+            case "Enter":
+                event.preventDefault();
+                tile.querySelector<HTMLInputElement>("input")?.click();
+                break;
+        }
+    }, []);
 
     return <>
         {groups.length !== 0 ? null : (
@@ -171,7 +219,7 @@ export function PermissionsTable({
                 <Link to={"/project/members"} target={"_blank"}><Button fullWidth>Create group</Button></Link>
             </Flex>
         )}
-        <>
+        <div onKeyDownCapture={navigateWithKeyboard}>
             {anyGroupHasPermission || !(showMissingPermissionHelp ?? true) ? null :
                 <Box className={classConcat(ShakingBox, "shaking")} mb={16}>
                     <Text bold>{warning}</Text>
@@ -193,9 +241,16 @@ export function PermissionsTable({
 
                 return (
                     <Flex key={g} alignItems={"center"} mb={16} data-component={"permission-row"}
-                        data-group={title} data-group-id={summary.id}>
+                        data-field-row=""
+                        data-group={title} data-group-id={summary.id}
+                        onFocusCapture={() => setFocusedGroup(g)}
+                        onBlurCapture={e => {
+                            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                                setFocusedGroup(previous => previous === g ? null : previous);
+                            }
+                        }}>
                         <Truncate width={"100%"} mr={16} title={title}>
-                            {title}
+                            <span style={{fontStyle: focusedGroup === g ? "italic" : "normal"}}>{title}</span>
                         </Truncate>
 
                         {replaceWriteWithUse === true ?
@@ -213,41 +268,47 @@ export function PermissionsTable({
                                 />
                             </> :
                             <RadioTilesContainer data-component={"permission-container"}>
-                                <RadioTile
-                                    id={"None" + summary.id}
-                                    label={"None"}
-                                    onChange={() => updateAcl(g, null)}
-                                    icon={"heroXMark"}
-                                    name={summary.id}
-                                    checked={permissions.length === 0}
-                                    height={40}
-                                    fontSize={"0.5em"}
-                                />
-                                <RadioTile
-                                    id={"Read" + summary.id}
-                                    label={readLabel}
-                                    onChange={() => updateAcl(g, "READ")}
-                                    icon={readIcon}
-                                    name={summary.id}
-                                    checked={permissions.indexOf("READ") !== -1 && permissions.length === 1}
-                                    height={40}
-                                    fontSize={"0.5em"}
-                                />
-                                <RadioTile
-                                    id={"Write" + summary.id}
-                                    label={writeLabel}
-                                    onChange={() => updateAcl(g, "EDIT")}
-                                    icon={writeIcon}
-                                    name={summary.id}
-                                    checked={permissions.indexOf("EDIT") !== -1}
-                                    height={40}
-                                    fontSize={"0.5em"}
-                                />
+                                <div data-permission-tile>
+                                    <RadioTile
+                                        id={"None" + summary.id}
+                                        label={"None"}
+                                        onChange={() => updateAcl(g, null)}
+                                        icon={"heroXMark"}
+                                        name={summary.id}
+                                        checked={permissions.length === 0}
+                                        height={40}
+                                        fontSize={"0.5em"}
+                                    />
+                                </div>
+                                <div data-permission-tile>
+                                    <RadioTile
+                                        id={"Read" + summary.id}
+                                        label={readLabel}
+                                        onChange={() => updateAcl(g, "READ")}
+                                        icon={readIcon}
+                                        name={summary.id}
+                                        checked={permissions.indexOf("READ") !== -1 && permissions.length === 1}
+                                        height={40}
+                                        fontSize={"0.5em"}
+                                    />
+                                </div>
+                                <div data-permission-tile>
+                                    <RadioTile
+                                        id={"Write" + summary.id}
+                                        label={writeLabel}
+                                        onChange={() => updateAcl(g, "EDIT")}
+                                        icon={writeIcon}
+                                        name={summary.id}
+                                        checked={permissions.indexOf("EDIT") !== -1}
+                                        height={40}
+                                        fontSize={"0.5em"}
+                                    />
+                                </div>
                             </RadioTilesContainer>
                         }
                     </Flex>
                 );
             })}
-        </>
+        </div>
     </>;
 }

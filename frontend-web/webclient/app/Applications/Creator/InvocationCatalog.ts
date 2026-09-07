@@ -1,7 +1,6 @@
 // Static catalog of Jinja symbols in scope for invocation templates
 // =====================================================================================================================
-// This catalog mirrors, as data, the symbols that exist at render time on K8s. The authoritative
-// sources are:
+// This catalog mirrors, as data, the symbols that exist at render time on K8s. The sources are:
 //
 // - Gonja builtins: provider-integration/gonja/builtins/{filters,tests,global_functions,methods}.go
 // - UCloud extensions: provider-integration/im2/pkg/controller/jinja_invocation.go (flag/option
@@ -12,34 +11,26 @@
 //
 // Keep this catalog in sync with those files. The descriptions come from InvocationHelp.md. When
 // the backend adds a filter or function, add it here.
-//
-// Slurm-only symbols are deliberately absent because K8s is the only supported target at the
-// moment. Slurm-only symbols are: the `sbatch` and `script` functions, and `ucloud.webPort`,
-// `ucloud.vncPort`, `ucloud.partition`, `ucloud.qos`.
 
 export type InvocationValueKind =
-    | "string"       // string
-    | "number"       // int or float
-    | "boolean"      // bool
-    | "list"         // list of unknown items
-    | "dict"         // mapping with unknown keys
-    | "function"     // callable
-    | "namespace"    // namespace object created by namespace()
-    | "cycler"       // cycler created by cycler()
-    | "joiner"       // joiner created by joiner()
-    | "macro"        // macro defined in the template
-    | "unknown";     // type not statically known
+    | "string"
+    | "number"
+    | "boolean"
+    | "list"
+    | "dict"
+    | "function"
+    | "namespace"
+    | "cycler"
+    | "joiner"
+    | "macro"
+    | "unknown";
 
 export interface InvocationSymbolDoc {
-    // The symbol name.
     name: string;
-    // Signature shown in completion detail and hover, e.g. "option(optionFlag[, addSpace])".
     signature: string;
-    // One-line description shown in completion documentation and hover.
     description: string;
 }
 
-// Functions callable anywhere in an expression, from the K8s context and gonja builtins.
 export const invocationFunctions: InvocationSymbolDoc[] = [
     {name: "ternary", signature: "ternary(condition, ifTrue, ifFalse)", description: "Returns ifTrue or ifFalse based on condition."},
     {name: "dynamicInterface", signature: "dynamicInterface(rank, type, target, port)", description: "Registers a dynamic WEB or VNC interface for a process rank."},
@@ -52,7 +43,6 @@ export const invocationFunctions: InvocationSymbolDoc[] = [
     {name: "lipsum", signature: "lipsum(n=5, html=true, min=20, max=100)", description: "Generates lorem ipsum text. Primarily useful for testing."},
 ];
 
-// Filters applied with `|`. Includes the UCloud `flag` and `option` filters plus gonja builtins.
 export const invocationFilters: InvocationSymbolDoc[] = [
     {name: "flag", signature: "flag(onFlag[, offFlag])", description: "Returns onFlag for a true value and offFlag otherwise. The default offFlag is empty."},
     {name: "option", signature: "option(optionFlag[, addSpace])", description: "Adds a shell-escaped option and value when the input is not None. Spacing is inferred from whether optionFlag ends in = unless addSpace is supplied."},
@@ -110,7 +100,6 @@ export const invocationFilters: InvocationSymbolDoc[] = [
     {name: "xmlattr", signature: "xmlattr", description: "Create XML/HTML attributes from a dictionary."},
 ];
 
-// Tests usable with `is`. Includes the UCloud `match` and `search` tests plus gonja builtins.
 export const invocationTests: InvocationSymbolDoc[] = [
     {name: "defined", signature: "defined", description: "Whether a value exists."},
     {name: "undefined", signature: "undefined", description: "Whether a value does not exist."},
@@ -141,11 +130,8 @@ export const invocationTests: InvocationSymbolDoc[] = [
     {name: "search", signature: "search(pattern[, ignorecase][, multiline])", description: "Searches for a regular expression in a string."},
 ];
 
-// Attribute and method names per value kind, from gonja's builtins/methods.
 export interface InvocationMembers {
-    // Names readable with `.name` syntax.
     attributes: string[];
-    // Methods callable with `.name(...)`.
     methods: InvocationSymbolDoc[];
 }
 
@@ -199,13 +185,10 @@ export const invocationMembers: Record<InvocationValueKind, InvocationMembers> =
     unknown: {attributes: [], methods: []},
 };
 
-// The `ucloud` object tree from the K8s container renderer (containers/invocation.go). Each leaf
-// carries its value kind so member completion works below `ucloud.machine.` etc.
 export interface InvocationUcloudMember {
     name: string;
     kind: InvocationValueKind;
     description: string;
-    // Present when this member is itself an object with members.
     children?: InvocationUcloudMember[];
 }
 
@@ -239,8 +222,6 @@ export const ucloudObject: InvocationUcloudMember[] = [
     },
 ];
 
-// Members of `loop` inside a for-loop, from gonja's LoopInfos (for.go). The doc lists index,
-// index0, revindex, revindex0, first, last, length plus cycle/changed.
 export const loopMembers: InvocationMembers = {
     attributes: ["index", "index0", "revindex", "revindex0", "first", "last", "length"],
     methods: [
@@ -249,7 +230,6 @@ export const loopMembers: InvocationMembers = {
     ],
 };
 
-// Statement tags accepted by gonja's safe control structure set.
 export const invocationStatementTags: InvocationSymbolDoc[] = [
     {name: "for", signature: "for item in seq", description: "Loop over a sequence."},
     {name: "if", signature: "if cond", description: "Conditional block."},
@@ -270,10 +250,8 @@ export const invocationStatementTags: InvocationSymbolDoc[] = [
     {name: "endraw", signature: "endraw", description: "End of raw block."},
 ];
 
-// Tags that gonja supports but UCloud disallows in invocations (file/template loading).
 export const unsupportedStatementTags = ["include", "import", "from", "extends", "block"];
 
-// Statement tags that must be closed by a matching end tag.
 export const statementEndPairs: Record<string, string> = {
     "for": "endfor",
     "if": "endif",

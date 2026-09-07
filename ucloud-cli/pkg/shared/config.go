@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -141,6 +142,9 @@ func UpdateConfig(config *Config) (*Config, error) {
 	cfg.CurrentWorkspace = selectChange(cfg.CurrentWorkspace, config.CurrentWorkspace)
 	cfg.DefaultEnvironment = selectChange(cfg.DefaultEnvironment, config.DefaultEnvironment)
 	cfg.TokenRef = selectChange(cfg.TokenRef, config.TokenRef)
+	if config.Environments != nil && !maps.Equal(cfg.Environments, config.Environments) {
+		cfg.Environments = config.Environments
+	}
 	return SaveConfig(cfg)
 }
 
@@ -176,5 +180,24 @@ func PrintConfig(cfg *Config) {
 	t.Cell("%v", cfg.TokenRef)
 	t.Cell("%v", cfg.CurrentWorkspace)
 	t.Cell("%v", cfg.DefaultEnvironment)
+	t.Print()
+}
+
+func PrintCurrentEnvironment(cfg *Config) {
+	t := termio.Table{}
+	t.AppendHeader("Current Environment")
+	t.Cell("%v", cfg.DefaultEnvironment)
+	t.Print()
+}
+
+func PrintEnvironments(cfg *Config) {
+	PrintCurrentEnvironment(cfg)
+	t := termio.Table{}
+	t.AppendHeader("Name")
+	t.AppendHeader("URL")
+	for name, env := range cfg.Environments {
+		t.Cell("%v", name)
+		t.Cell("%v", env.URL)
+	}
 	t.Print()
 }

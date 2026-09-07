@@ -40,18 +40,14 @@ import {
 } from "@/Applications/Creator/InvocationCatalog";
 import type {A2Parameter} from "@/Applications/Creator/A2";
 
-// A single name in scope at some position.
 export interface InvocationScopeEntry {
     name: string;
     kind: InvocationValueKind;
     description: string;
-    // True when the name refers to an application parameter (used for completion sorting).
     isParameter?: boolean;
-    // Signature for callables.
     signature?: string;
 }
 
-// A member offered after `.`.
 export interface InvocationMemberEntry {
     name: string;
     kind: InvocationValueKind;
@@ -60,12 +56,8 @@ export interface InvocationMemberEntry {
     isMethod?: boolean;
 }
 
-// Parameters passed to the scope functions: name/parameter pairs in declaration order.
 export type InvocationParameters = {name: string; param: A2Parameter}[];
 
-// The runtime value kind of an application parameter, from the K8s renderer's parameter mapping
-// (containers/invocation.go and controller/job_parameters.go). Job and Workflow parameters have
-// no direct value in scope (Workflow maps to nil, Job is absent) and are excluded.
 export function invocationParameterKind(param: A2Parameter): InvocationValueKind | null {
     switch (param.type) {
         case "Integer":
@@ -86,23 +78,13 @@ export function invocationParameterKind(param: A2Parameter): InvocationValueKind
     }
 }
 
-// A parsed template tag with offsets into the whole template text.
 export interface InvocationTag {
-    // "variable" ({{ }}), "statement" ({% %}), or "comment" ({# #}).
     type: "variable" | "statement" | "comment";
-    // Offset of the opening `{`.
     start: number;
-    // Offset just past the closing delimiter.
     end: number;
-    // The raw inner text between the delimiters, including whitespace-control markers. Kept raw
-    // so offsets computed against it stay aligned with the template text; consumers skip
-    // leading whitespace themselves.
     inner: string;
 }
 
-// Find the closed Jinja tags in the template. Unclosed tags are skipped (the linter reports
-// them). A `{` that is not a Jinja delimiter is plain bash. Statement tags that open a raw block
-// mark the raw span so tags inside it are excluded.
 export function invocationFindTags(text: string): InvocationTag[] {
     const tags: InvocationTag[] = [];
     let i = 0;
@@ -129,16 +111,12 @@ export function invocationFindTags(text: string): InvocationTag[] {
         }
         const close = findTagClose(text, open + 2, closeTok, type);
         if (close < 0) {
-            // Unclosed tag: skip past the opening delimiter and continue scanning.
             i = open + 2;
             continue;
         }
         const inner = text.slice(open + 2, close);
         const tag: InvocationTag = {type, start: open, end: close + 2, inner};
 
-        // A raw block hides its content from the tag scanner: skip to the matching endraw. The
-        // leading whitespace-control marker (`{%- raw %}`) is part of the check, matching
-        // statementWord above.
         if (type === "statement" && statementWord(inner) === "raw") {
             let endrawStart = -1;
             let endrawEnd = -1;
@@ -159,7 +137,6 @@ export function invocationFindTags(text: string): InvocationTag[] {
             if (endrawStart >= 0) {
                 tags.push({type: "statement", start: endrawStart, end: endrawEnd, inner: "endraw"});
             }
-            // Without a matching endraw the whole rest is raw content.
             i = endrawEnd >= 0 ? endrawEnd : n;
             continue;
         }
@@ -169,9 +146,6 @@ export function invocationFindTags(text: string): InvocationTag[] {
     return tags;
 }
 
-// Find the closing delimiter of a tag, skipping string literals so a `}}` or `%}` inside a
-// quoted string does not close the tag early. Comment tags do not skip strings: gonja's comment
-// lexer treats an apostrophe as plain comment text, so `{# don't #}` is a valid closed comment.
 export function findTagClose(text: string, from: number, closeTok: string, type: InvocationTag["type"]): number {
     let i = from;
     const n = text.length;
@@ -192,14 +166,11 @@ export function findTagClose(text: string, from: number, closeTok: string, type:
     return -1;
 }
 
-// The leading word of a statement tag's inner text, e.g. "for" or "endfor". Empty when the tag does
-// not start with a word. Skips leading whitespace and whitespace-control markers.
 function statementWord(inner: string): string {
     const m = /^\s*[+-]?\s*([a-zA-Z_][a-zA-Z0-9_]*)/.exec(inner);
     return m ? m[1] : "";
 }
 
-// Names bound by a `for` tag: "for x in" or "for k, v in".
 function parseForTargets(inner: string): string[] {
     const body = skipTagLead(inner).replace(/^for\s+/, "");
     const inIdx = findInKeyword(body);
@@ -211,8 +182,6 @@ function parseForTargets(inner: string): string[] {
         .filter(t => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(t));
 }
 
-// Offset of the ` in ` keyword that separates loop targets from the iterated expression. Skips
-// brackets so `for x in dict(a=1)` finds the right `in`.
 function findInKeyword(s: string): number {
     let depth = 0;
     for (let i = 0; i < s.length; i++) {
@@ -224,11 +193,8 @@ function findInKeyword(s: string): number {
     return -1;
 }
 
-// The target of a set tag: "set name = ..." or "set ns.attr = ...". Returns the root name and
-// whether the target was an attribute/item of an existing value.
 function parseSetTarget(inner: string): {name: string; isAttribute: boolean} | null {
     const body = skipTagLead(inner);
-    // An attribute/item target: "set ns.attr =" or "set ns[key] =".
     const attr = /^set\s+([a-zA-Z_][a-zA-Z0-9_]*)(\s*[.[])/.exec(body);
     if (attr) return {name: attr[1], isAttribute: true};
     const plain = /^set\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*=/.exec(body);
@@ -236,7 +202,6 @@ function parseSetTarget(inner: string): {name: string; isAttribute: boolean} | n
     return {name: plain[1], isAttribute: false};
 }
 
-// A macro declaration: name and parameter names.
 function parseMacroDecl(inner: string): {name: string; params: string[]} | null {
     const m = /^macro\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)/.exec(skipTagLead(inner));
     if (!m) return null;
@@ -247,7 +212,6 @@ function parseMacroDecl(inner: string): {name: string; params: string[]} | null 
     return {name: m[1], params};
 }
 
-// Names bound by a with tag: "with x = v, y = w".
 function parseWithNames(inner: string): string[] {
     const body = skipTagLead(inner).replace(/^with\s+/, "");
     const names: string[] = [];
@@ -257,12 +221,10 @@ function parseWithNames(inner: string): string[] {
     return names;
 }
 
-// Skip the leading whitespace-control marker and whitespace of a tag's inner text.
 function skipTagLead(inner: string): string {
     return inner.replace(/^\s*[+-]?\s*/, "");
 }
 
-// Value kind of a set tag's right-hand expression. Literals and a few known function calls.
 function setExpressionKind(inner: string, parameters: InvocationParameters): InvocationValueKind {
     const eq = inner.indexOf("=");
     if (eq < 0) return "unknown";
@@ -284,16 +246,12 @@ function setExpressionKind(inner: string, parameters: InvocationParameters): Inv
     return "unknown";
 }
 
-// A lexical block opened by a statement tag and closed by its end tag.
 interface ScopeBlock {
     keyword: string;
-    // Names bound inside the block.
     bound: InvocationScopeEntry[];
-    // Whether `loop` is in scope inside the block.
     hasLoop: boolean;
 }
 
-// The end tag word for each block-opening keyword.
 const blockEndWord: Record<string, string> = {
     "for": "endfor",
     "if": "endif",
@@ -304,10 +262,8 @@ const blockEndWord: Record<string, string> = {
     "raw": "endraw",
 };
 
-// The end tag words ("endfor", ...) that close a block.
 const endTagWords: Set<string> = new Set(Object.values(blockEndWord));
 
-// Compute the names in scope at `offset`.
 export function invocationScopeAt(
     text: string,
     offset: number,
@@ -315,7 +271,6 @@ export function invocationScopeAt(
 ): InvocationScopeEntry[] {
     const tags = invocationFindTags(text);
 
-    // Base scope: application parameters, the ucloud object, and global functions.
     const base: InvocationScopeEntry[] = [];
     for (const {name, param} of parameters) {
         const kind = invocationParameterKind(param);
@@ -336,11 +291,6 @@ export function invocationScopeAt(
         base.push({name: fn.name, kind: "function", description: fn.description, signature: fn.signature});
     }
 
-    // Walk statement tags before the offset. Blocks push/pop a stack; sets add bindings.
-    // `entries` holds names bound at top level (parameters, ucloud, functions, macros, sets).
-    // gonja runs for/macro/with/filter/autoescape bodies in a sub-context, so names set inside
-    // those blocks live only in `block.bound` and die at the end tag. if-bodies render in the
-    // enclosing context, so a set inside an if persists past the endif.
     const stack: ScopeBlock[] = [];
     const entries: InvocationScopeEntry[] = [...base];
 
@@ -360,8 +310,6 @@ export function invocationScopeAt(
         } else if (word === "macro") {
             const decl = parseMacroDecl(tag.inner);
             if (decl) {
-                // The macro name is a function visible from the declaration onward. At top level
-                // it outlives the macro body; nested inside another block it dies with it.
                 const entry: InvocationScopeEntry = {
                     name: decl.name,
                     kind: "macro",
@@ -412,8 +360,6 @@ export function invocationScopeAt(
         } else if (word === "filter" || word === "autoescape") {
             stack.push({keyword: word, bound: [], hasLoop: false});
         } else if (endTagWords.has(word)) {
-            // Pop to the matching opener; stray end tags (matching nothing) are ignored here.
-            // The linter reports those.
             for (let i = stack.length - 1; i >= 0; i--) {
                 if (blockEndWord[stack[i].keyword] === word) {
                     stack.length = i;
@@ -421,10 +367,8 @@ export function invocationScopeAt(
                 }
             }
         }
-        // if/elif/else do not bind and do not close the enclosing block.
     }
 
-    // Names from blocks still open at the offset (they enclose it).
     for (const block of stack) {
         entries.push(...block.bound);
         if (block.hasLoop) {
@@ -434,8 +378,6 @@ export function invocationScopeAt(
     return entries;
 }
 
-// Members offered after `.` on a root name, or null when the members cannot be listed (unknown
-// kind). An empty array means the kind is known but has no members.
 export function invocationResolveMembers(
     entries: InvocationScopeEntry[],
     path: string[],
@@ -444,7 +386,6 @@ export function invocationResolveMembers(
     const root = entries.find(e => e.name === path[0]);
     if (!root) return null;
 
-    // The ucloud tree has its own static member list.
     if (root.name === "ucloud") {
         if (path.length === 1) return ucloudObject.map(ucloudMemberToEntry);
         let level: InvocationUcloudMember[] | undefined = ucloudObject;
@@ -460,7 +401,6 @@ export function invocationResolveMembers(
         return null;
     }
 
-    // The loop object inside a for-block.
     if (root.name === "loop") {
         if (path.length === 1) {
             return [
@@ -481,7 +421,6 @@ export function invocationResolveMembers(
         return null;
     }
 
-    // Members by value kind. Deeper paths (methods on methods) are not resolved.
     if (path.length > 1) return null;
     return membersToEntries(root.kind);
 }
@@ -509,9 +448,6 @@ function ucloudMemberToEntry(m: InvocationUcloudMember): InvocationMemberEntry {
     return {name: m.name, kind: m.kind, description: m.description};
 }
 
-// Whether a dotted path like ["ucloud", "machine", "name"] resolves to something known. Used by
-// the linter for unknown-member errors. `childrenKnown` is false when we cannot say anything
-// about the children of the last path segment (e.g. kind "unknown").
 export function invocationMemberExists(
     entries: InvocationScopeEntry[],
     path: string[],
@@ -521,7 +457,6 @@ export function invocationMemberExists(
     if (!root) return {exists: false, childrenKnown: false};
     if (path.length === 1) return {exists: true, childrenKnown: true};
 
-    // ucloud and loop have enumerable members.
     if (root.name === "ucloud") {
         let level: InvocationUcloudMember[] | undefined = ucloudObject;
         let current: InvocationUcloudMember | undefined;
@@ -540,10 +475,8 @@ export function invocationMemberExists(
         return {exists: known, childrenKnown: known};
     }
 
-    // Namespaces accept arbitrary attributes (that is their purpose), so any member is allowed.
     if (root.kind === "namespace") return {exists: true, childrenKnown: false};
 
-    // Other kinds: check method/attribute membership for a single hop.
     if (path.length > 2) return {exists: false, childrenKnown: false};
     const members = invocationMembers[root.kind];
     if (!members) return {exists: true, childrenKnown: false};
@@ -563,7 +496,6 @@ export function invocationMemberExists(
 export interface ExprToken {
     type: "identifier" | "operator" | "number" | "string" | "call" | "unknown";
     text: string;
-    // Offset of the token's first character within the tag inner text.
     start: number;
     end: number;
 }
@@ -619,4 +551,3 @@ export function tokenizeExpression(expr: string): ExprToken[] {
     }
     return tokens;
 }
-

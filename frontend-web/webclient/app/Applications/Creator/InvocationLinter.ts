@@ -3,19 +3,12 @@
 // Produces marker data for the invocation model. Runs debounced on content change. The checks
 // are grouped by how certain the failure is:
 //
-// 1. Lexical: unclosed variable/statement/comment tags; unterminated strings inside tags.
+// 1. Lexical: unclosed variable/statement/comment tags and unterminated strings inside tags.
 // 2. Structure: block tags (for/if/macro/with/filter/autoescape/raw) must be closed by their end
-//    tag; else/elif must sit inside an if-block; end tags must match an open block; template-
+//    tag, else/elif must sit inside an if-block, end tags must match an open block and template-
 //    loading tags (include/import/from/extends/block) are rejected.
-// 3. References: unknown identifiers (not in scope), unknown filters after `|`, unknown tests
+// 3. References: unknown identifiers, unknown filters after `|`, unknown tests
 //    after `is`, unknown members after `.` on known roots (ucloud/loop), calling a non-function.
-//
-// The linter reuses the scope module. It is a hand-written validator for the invocation subset,
-// not a full Jinja parser: it does not check expression grammar (precedence, filter arguments,
-// macro call arity). Gonja-in-WASM would give exact parse errors but is heavy; these subset
-// checks cover the common authoring mistakes.
-//
-// Everything runs client-side. No backend logic is required.
 
 import {
     invocationFilters,
@@ -35,17 +28,13 @@ import {
     type InvocationScopeEntry,
 } from "@/Applications/Creator/InvocationScope";
 
-// A marker in absolute offsets. The caller converts to Monaco positions.
 export interface InvocationLintMarker {
     message: string;
-    // Offset of the first character of the problem span.
     start: number;
-    // Offset just past the last character.
     end: number;
     severity: "error" | "warning";
 }
 
-// Lint the template text. Pure function of (text, parameters).
 export function invocationLint(text: string, parameters: InvocationParameters): InvocationLintMarker[] {
     const markers: InvocationLintMarker[] = [];
     lintLexical(text, markers);
@@ -84,13 +73,8 @@ function lintLexical(text: string, markers: InvocationLintMarker[]): void {
                 end: Math.min(open + 2, n),
                 severity: "error",
             });
-            // The rest of the text is inside the unclosed tag; one marker is enough.
             break;
         }
-        // An unterminated string inside the tag: the closing quote appears after the tag's
-        // closing delimiter (or never). findTagClose scanned past it, so look inside the inner
-        // text for a quote that is not closed before the delimiter. Comment tags have no string
-        // grammar (an apostrophe is plain text there).
         if (spec.type !== "comment") {
             const inner = text.slice(open + 2, close);
             const str = unterminatedString(inner);
@@ -107,7 +91,6 @@ function lintLexical(text: string, markers: InvocationLintMarker[]): void {
     }
 }
 
-// Offset of an unterminated string in the text, or -1.
 function unterminatedString(s: string): number {
     let i = 0;
     while (i < s.length) {
@@ -130,7 +113,6 @@ function unterminatedString(s: string): number {
 // Structure checks
 // -------------------------------------------------------------------------------------------------------------------
 
-// End tag words mapped back to their opener keyword.
 const endTagKeywords: Record<string, string> = {
     "endfor": "for",
     "endif": "if",
@@ -168,8 +150,6 @@ function lintStructure(tags: InvocationTag[], markers: InvocationLintMarker[]): 
                     severity: "error",
                 });
             } else {
-                // Close the matching block. Blocks opened after it were left open by their own
-                // missing end tags; report them now instead of silently dropping them.
                 for (let i = stack.length - matchIdx; i < stack.length; i++) {
                     markers.push({
                         message: `Missing {% ${stack[i].endWord} %} for this {% ${stack[i].keyword} %}.`,
@@ -220,7 +200,6 @@ function statementWordOf(inner: string): string {
     return /^\s*[+-]?\s*([a-zA-Z_][a-zA-Z0-9_]*)/.exec(inner)?.[1] ?? "";
 }
 
-// The tag inner text with leading whitespace-control marker and whitespace removed.
 function skipLead(inner: string): string {
     return inner.replace(/^\s*[+-]?\s*/, "");
 }
@@ -240,9 +219,6 @@ function lintReferences(
         const scope = invocationScopeAt(text, tag.start, parameters);
         const inner = tag.inner;
 
-        // For statement tags, only the value parts are reads: the right side of a set, the
-        // condition of an if/elif, the iterated expression of a for, the value of a with. The
-        // targets and parameter names are definitions.
         let exprInner = inner;
         if (tag.type === "statement") {
             const keyword = statementWordOf(inner);
@@ -272,7 +248,6 @@ function lintReferences(
     }
 }
 
-// Offset of the ` in ` keyword in a for-statement inner text.
 function findInKeywordOf(inner: string): number {
     let depth = 0;
     for (let i = 0; i < inner.length; i++) {
@@ -284,7 +259,6 @@ function findInKeywordOf(inner: string): number {
     return -1;
 }
 
-// Unknown variables, unknown members, and calls of non-functions.
 function checkNames(
     scope: InvocationScopeEntry[],
     tokens: ExprToken[],
@@ -297,20 +271,13 @@ function checkNames(
         if (isKeywordWord(t.text)) continue;
         const prev = tokens[i - 1];
 
-        // Filter names (after |) and test names (after is/is not) are checked separately.
         if (prev?.type === "operator" && prev.text === "|") continue;
         if (isTestNamePosition(tokens, i)) continue;
 
-        // Keyword arguments in calls (name = value) and keyword pairs in dict/namespace literals
-        // are definitions, not reads.
         if (isKeywordArgument(tokens, i)) continue;
 
-        // A member name after a `.` belongs to the path that started before the dot. It is
-        // consumed by that path's iteration; identifiers after a call result's dot (for example
-        // `dict(a=1).a`) have unknown types and are skipped.
         if (prev?.type === "operator" && prev.text === ".") continue;
 
-        // Build the dotted path from this identifier.
         const path: string[] = [t.text];
         let end = t.end;
         let j = i + 1;
@@ -326,8 +293,6 @@ function checkNames(
             }
             break;
         }
-        // A call follows the path: `path(`. Members of a call result are not checked; their types
-        // are not statically known.
         if (tokens[j]?.type === "operator" && tokens[j].text === "(") called = true;
 
         const root = scope.find(e => e.name === path[0]);
@@ -354,7 +319,6 @@ function checkNames(
             }
         }
 
-        // A call is the path immediately followed by `(`.
         const next = tokens[j];
         const isCall = next?.type === "operator" && next.text === "(" && end === tokens[j - 1].end;
         if (isCall && path.length === 1 && root.kind !== "function" && root.kind !== "macro") {
@@ -370,12 +334,9 @@ function checkNames(
     }
 }
 
-// Whether the identifier at index i is a keyword-argument name: an identifier followed by `=`
-// inside parentheses (a call or a dict/namespace literal). The `=` must not be `==`.
 function isKeywordArgument(tokens: ExprToken[], i: number): boolean {
     const next = tokens[i + 1];
     if (!next || next.type !== "operator" || next.text !== "=") return false;
-    // Must be inside parentheses: count brackets before the identifier.
     let depth = 0;
     for (let j = 0; j < i; j++) {
         const t = tokens[j];
@@ -385,7 +346,6 @@ function isKeywordArgument(tokens: ExprToken[], i: number): boolean {
     return depth > 0;
 }
 
-// Unknown filters and tests.
 function checkFiltersAndTests(
     tokens: ExprToken[],
     base: number,
@@ -418,7 +378,6 @@ function checkFiltersAndTests(
     }
 }
 
-// Whether the identifier at index i is used as a test name after `is`/`is not`.
 function isTestNamePosition(tokens: ExprToken[], i: number): boolean {
     const prev = tokens[i - 1];
     if (!prev) return false;
@@ -431,8 +390,5 @@ function isTestNamePosition(tokens: ExprToken[], i: number): boolean {
 }
 
 function isKeywordWord(word: string): boolean {
-    // `if`/`else` are keywords only in inline conditionals (`a if c else b`) and the for-filter
-    // (`for x in seq if c`), but a parameter with those names would shadow nothing useful; they
-    // are skipped so those constructs do not lint as unknown variables.
     return ["and", "or", "not", "in", "is", "if", "else", "true", "false", "True", "False", "none", "None", "recursive"].includes(word);
 }

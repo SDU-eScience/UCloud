@@ -460,6 +460,7 @@ type AppEditorProviderEligibility struct {
 
 type AppEditorCustomEligibilityResponse struct {
 	Providers  []AppEditorProviderEligibility `json:"providers"`
+	CanCreate  bool                           `json:"canCreate"`
 	CanPublish bool                           `json:"canPublish"`
 }
 

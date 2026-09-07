@@ -45,7 +45,6 @@ const (
 type InferenceModel struct {
 	Name                   string                 `json:"name"`
 	Title                  string                 `json:"title"`
-	TitleModelName         string                 `json:"titleModelName"`
 	Capabilities           []InferenceCapability  `json:"capabilities"`
 	ReasoningEfforts       []InferenceModelOption `json:"reasoningEfforts,omitempty"`
 	DefaultReasoningEffort string                 `json:"defaultReasoningEffort,omitempty"`

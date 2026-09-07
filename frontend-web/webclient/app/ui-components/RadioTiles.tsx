@@ -102,6 +102,11 @@ const RadioTileClass = injectStyle("radio-tile", k => `
         color: var(--primaryContrast);
     }
 
+    ${k} input:focus + .${RadioTileIconClass} {
+        outline: 2px solid var(--primaryMain, #f00);
+        outline-offset: 2px;
+    }
+
     ${k} label {
         text-align: center;
         font-weight: 600;
@@ -121,7 +126,7 @@ const RadioTileClass = injectStyle("radio-tile", k => `
         border-radius: 5px;
         border: 1px solid var(--borderColor);
         color: var(--textPrimary, #f00);
-        transition: all 300ms ease;
+        transition: background-color 300ms ease;
     }
 `);
 

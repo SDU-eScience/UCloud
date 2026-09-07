@@ -29,14 +29,9 @@ import {CreatorDraft} from "@/Applications/Creator/Draft";
 
 export interface FeatureCardsProps {
     draft: CreatorDraft;
-    // Called when the user clicks a card section. The parent uses this to deselect any selected
-    // parameter so the metadata panel becomes visible before the highlight plays.
     onHighlight: (target: CreatorHighlightTarget) => void;
 }
 
-// Memoized with a field comparator: the cards read only feature/ssh/software state, which does
-// not change on invocation keystrokes. The draft object itself changes on every keystroke, so a
-// shallow prop comparison alone would not prevent the re-render.
 export const FeatureCards = React.memo(FeatureCardsBase, (prev, next) =>
     prev.draft.application.features === next.draft.application.features &&
     prev.draft.application.ssh === next.draft.application.ssh &&
@@ -65,9 +60,6 @@ function FeatureCardsBase(props: FeatureCardsProps): React.ReactNode {
     );
 }
 
-// Fake application for widget rendering. Mirrors fakeApplication from ParameterContent.tsx so the
-// widget controls get the invocation flags they expect. SSH mode is upper-cased because the runtime
-// SshDescription uses uppercase modes while the A2 source uses title-case.
 function fakeApplicationForCards(a2: A2Yaml): Application {
     const features = a2.features;
     return {
@@ -206,8 +198,6 @@ function ConnectivityCard(props: {
     );
 }
 
-// A clickable wrapper around a section. The body inside has pointer-events: none so the widgets
-// are display-only, but the wrapper itself receives clicks and triggers the highlight.
 function FeatureSection(props: {onClick: () => void; children: React.ReactNode}): React.ReactNode {
     const onClick = useCallback(() => props.onClick(), [props.onClick]);
     return (
@@ -223,8 +213,6 @@ function FeatureSection(props: {onClick: () => void; children: React.ReactNode})
     );
 }
 
-// Display-only compact resource row. Renders one Widget in compact mode with the description on
-// the first row. pointer-events: none is on the parent div.
 function CompactResourceDisplay(props: {
     param: ApplicationParameter;
     displayTitle: string;
@@ -259,8 +247,6 @@ function FeatureCardHeading(props: React.PropsWithChildren<{action?: React.React
     );
 }
 
-// Determine whether the Connectivity card should be shown. Matches the job creation logic:
-// SSH is visible when its mode is not Disabled, plus links, IPs, and job linking features.
 function hasConnectivity(app: A2Yaml): boolean {
     const features = app.features;
     const sshMode = app.ssh?.mode ?? "Disabled";
@@ -290,8 +276,6 @@ const FeatureCardIslandClass = injectStyle("creator-feature-card", k => `
     }
 `);
 
-// Wrapper for a clickable section. The body inside has pointer-events: none so the widgets are
-// display-only, but the wrapper itself receives clicks.
 const FeatureSectionWrapperClass = injectStyle("creator-feature-section", k => `
     ${k} {
         cursor: pointer;
@@ -313,8 +297,6 @@ const FeatureSectionWrapperClass = injectStyle("creator-feature-section", k => `
     }
 `);
 
-// The body of a section. pointer-events: none disables all interaction with the widget controls
-// inside, matching the pattern from ParameterContent.tsx.
 const FeatureSectionBodyClass = injectStyle("creator-feature-section-body", k => `
     ${k} {
         pointer-events: none;

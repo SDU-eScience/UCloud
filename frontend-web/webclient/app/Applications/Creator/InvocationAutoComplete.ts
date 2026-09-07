@@ -1,4 +1,4 @@
-// Monaco providers (completion, hover) for the invocation editor
+// Monaco auto-complete (completion, hover) for the invocation editor
 // =====================================================================================================================
 // Registers completion and hover providers for the `bash-jinja` language. The providers read the
 // draft parameters from a per-model store so parameter edits update completions without
@@ -12,9 +12,6 @@
 // - After `.`: members of the root name (ucloud tree, loop members, kind methods).
 // - At the start of a `{% %}` tag (after the keyword of the statement): statement keywords. This
 //   applies while typing the first word inside `{% `.
-//
-// Everything runs client-side. The scope module does the parsing; this module adapts it to
-// Monaco's provider APIs.
 
 import type * as Monaco from "monaco-editor";
 import {
@@ -32,7 +29,6 @@ import {
     type InvocationScopeEntry,
 } from "@/Applications/Creator/InvocationScope";
 
-// Per-model parameter store. The InvocationEditor keeps the entry fresh on prop change.
 const modelParameters = new WeakMap<Monaco.editor.ITextModel, InvocationParameters>();
 
 export function setInvocationModelParameters(
@@ -42,7 +38,6 @@ export function setInvocationModelParameters(
     modelParameters.set(model, parameters);
 }
 
-// Registration guard: providers are registered once per Monaco instance.
 let providersRegistered = false;
 
 export function registerInvocationProviders(monaco: typeof Monaco): void {
@@ -65,16 +60,12 @@ export function registerInvocationProviders(monaco: typeof Monaco): void {
     });
 }
 
-// Completion context at a position: what kind of completion applies and the partial word.
 type CompletionKind = "expression" | "filter" | "test" | "member" | "statementKeyword" | "none";
 
 interface CompletionContext {
     kind: CompletionKind;
-    // Partial word being typed.
     word: string;
-    // Replace range for the completion.
     range: Monaco.IRange;
-    // Member path for kind "member": the root path before the dot.
     memberPath: string[];
 }
 
@@ -156,18 +147,14 @@ function symbolItem(
     };
 }
 
-// Compute the completion context from the text before the cursor.
 function completionContextAt(model: Monaco.editor.ITextModel, position: Monaco.Position): CompletionContext {
     const text = model.getValue();
     const offset = model.getOffsetAt(position);
     const tags = invocationFindTags(text);
 
-    // The tag containing the cursor. `offset <= tag.end` keeps completion active right after the
-    // closing delimiter characters are typed (Monaco fires on the new text).
     let enclosing: {tag: (typeof tags)[number]; innerOffset: number} | null = null;
     for (const tag of tags) {
         if (tag.start < offset && offset <= tag.end) {
-            // Inner offset relative to the inner text (skip the 2-char opening delimiter).
             enclosing = {tag, innerOffset: offset - tag.start - 2};
             break;
         }
@@ -181,7 +168,6 @@ function completionContextAt(model: Monaco.editor.ITextModel, position: Monaco.P
     const before = inner.slice(0, innerOffset);
     const tokens = tokenizeExpression(before);
 
-    // Partial word at the cursor.
     const wordMatch = /[a-zA-Z_][a-zA-Z0-9_]*$/.exec(before);
     const word = wordMatch ? wordMatch[0] : "";
     const range: Monaco.IRange = {
@@ -191,24 +177,20 @@ function completionContextAt(model: Monaco.editor.ITextModel, position: Monaco.P
         endColumn: position.column,
     };
 
-    // Statement keyword position: only whitespace before the cursor inside a {% %} tag.
     if (enclosing.tag.type === "statement" && before.trim() === "") {
         return {kind: "statementKeyword", word, range, memberPath: []};
     }
 
-    // Member position: the tokens before the cursor end with a dot.
     const last = tokens[tokens.length - 1];
     if (last?.type === "operator" && last.text === ".") {
         const path = pathBeforeDot(tokens);
         if (path.length > 0) return {kind: "member", word, range, memberPath: path};
     }
 
-    // Filter position: last significant token is `|`.
     if (last?.type === "operator" && last.text === "|") {
         return {kind: "filter", word, range, memberPath: []};
     }
 
-    // Test position: tokens end with `is` or `is not` (optionally plus a partial word).
     if (isTestPosition(tokens)) {
         return {kind: "test", word, range, memberPath: []};
     }
@@ -230,7 +212,6 @@ function noneContext(position: Monaco.Position): CompletionContext {
     };
 }
 
-// True when the tokens before the cursor end with `is` or `is not` (skipping a partial word).
 function isTestPosition(tokens: {type: string; text: string}[]): boolean {
     let i = tokens.length - 1;
     const last = tokens[i];
@@ -239,7 +220,6 @@ function isTestPosition(tokens: {type: string; text: string}[]): boolean {
     return i >= 0 && tokens[i]?.type === "identifier" && tokens[i].text === "is";
 }
 
-// The dotted path ending just before the trailing dot: tokens like [ident] . [ident] . → path.
 function pathBeforeDot(tokens: {type: string; text: string}[]): string[] {
     const path: string[] = [];
     let i = tokens.length - 1;
@@ -273,7 +253,6 @@ function hoverInfo(
     const tag = tags.find(t => t.start <= offset && offset < t.end && t.type !== "comment");
     if (!tag) return null;
 
-    // A scope entry (variable/function/macro name).
     const scope = invocationScopeAt(text, offset, parameters);
     const entry = scope.find(e => e.name === word.word);
     if (entry) {
@@ -288,7 +267,6 @@ function hoverInfo(
         };
     }
 
-    // A filter or test name at this position.
     const innerOffset = offset - tag.start - 2;
     const tokens = tokenizeExpression(tag.inner);
     for (let i = 0; i < tokens.length; i++) {

@@ -14,7 +14,6 @@ import {
     ApplicationParameterNS,
 } from "@/Applications/AppStoreApi";
 
-// A2 type string → runtime ApplicationParameter type string.
 const TYPE_MAP: Record<string, string> = {
     "Text": "text",
     "TextArea": "textarea",
@@ -34,9 +33,6 @@ export function a2ToRuntimeType(type: string): string {
     return TYPE_MAP[type] ?? type;
 }
 
-// Convert a single A2 parameter to a runtime ApplicationParameter for display. The runtime type is
-// a discriminated union on the `type` string. Optional fields are filled with defaults the widgets
-// expect.
 export function a2ToRuntimeParameter(name: string, param: A2Parameter): ApplicationParameter {
     const base = {
         name,
@@ -89,7 +85,6 @@ export function a2ToRuntimeParameter(name: string, param: A2Parameter): Applicat
                 ...base,
                 type: "enumeration",
                 defaultValue: param.defaultValue ?? undefined,
-                // A2 options have {title, value}; runtime options have {name, value}.
                 options: param.options.map(o => ({name: o.title, value: o.value})),
             } as ApplicationParameterNS.Enumeration;
         case "File":

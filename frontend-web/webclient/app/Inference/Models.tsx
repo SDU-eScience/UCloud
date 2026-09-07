@@ -20,7 +20,7 @@ import {expandAndPrettifyString} from "@/UtilityFunctions";
 import { DropdownClass } from "@/ui-components/Dropdown";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 
-const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText"];
+const capabilities: InferenceCapability[] = ["TextGeneration"];
 const prettierCapabilities = capabilities.map(expandAndPrettifyString);
 
 const pageStyle = injectStyle("inference-models-page", k => `

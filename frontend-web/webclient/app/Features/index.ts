@@ -9,8 +9,6 @@ export enum Feature {
 
     INFERENCE,
 
-    INFERENCE_WORKSPACE,
-
     FILE_BROWSER_STATUS_BAR,
 
     CONTAINER_REPOSITORIES,
@@ -73,12 +71,6 @@ const featureMap: Record<string, FeatureConfig> = {
     "inference": {
         feature: Feature.INFERENCE,
         showWithoutFlag: [Environment.PUBLIC_DEV, Environment.LOCAL_DEV_STACK],
-        showWithFlag: allEnvironments,
-    },
-
-    "inference-workspace": {
-        feature: Feature.INFERENCE_WORKSPACE,
-        showWithoutFlag: allLocalEnvironments,
         showWithFlag: allEnvironments,
     },
 

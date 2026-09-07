@@ -24,9 +24,7 @@ import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useProjectId} from "@/Project/Api";
 import {useDiscovery} from "@/Applications/Hooks";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {Client} from "@/Authentication/HttpClientInstance";
-import {Feature, hasFeature} from "@/Features";
-import {checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
+import {customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
@@ -116,7 +114,7 @@ const LandingPage: React.FunctionComponent = () => {
 
                     {landingPage.spotlight ? <SpotlightCard spotlight={landingPage.spotlight} /> : null}
 
-                    {landingPage.categories.length < 1 ? null :
+                    {landingPage.categories.length < 1 && !creatorCanCreateCategory() ? null :
                         <div>
                             <h3>Browse by category</h3>
                             <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(250px, 1fr))"}>
@@ -124,7 +122,7 @@ const LandingPage: React.FunctionComponent = () => {
                                     <CategoryCard key={c.metadata.id} id={c.metadata.id} idx={idx}
                                         categoryTitle={c.specification.title} />
                                 )}
-                                {creatorCanCreateCategory(projectId) ? <CreateCategoryCard /> : null}
+                                {creatorCanCreateCategory() ? <CreateCategoryCard /> : null}
                             </Grid>
                         </div>
                     }
@@ -638,10 +636,8 @@ const CreateCategoryCardStyle = injectStyle("create-category-card", k => `
     }
 `);
 
-function creatorCanCreateCategory(projectId: string | undefined): boolean {
-    if (!hasFeature(Feature.CONTAINER_REPOSITORIES)) return false;
-    if (Client.userIsAdmin) return true;
-    return projectId != null && checkIsWorkspaceAdmin();
+function creatorCanCreateCategory(): boolean {
+    return customAppsWorkspaceAdmin();
 }
 
 const CreateCategoryCard: React.FunctionComponent = () => {

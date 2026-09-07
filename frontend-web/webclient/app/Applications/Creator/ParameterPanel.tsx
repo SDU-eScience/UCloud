@@ -30,8 +30,6 @@ import {PanelSection, PanelSectionClass, ToggleRow} from "@/Applications/Creator
 
 export interface ParameterPanelProps {
     draft: CreatorDraft;
-    // True when the YAML source is invalid. The panel becomes read-only by disabling pointer
-    // events so visual edits cannot conflict with the invalid source.
     readOnly?: boolean;
     onBack: () => void;
     onRename: (oldName: string, newName: string) => void;
@@ -56,7 +54,6 @@ export function ParameterPanel(props: ParameterPanelProps): React.ReactNode {
     );
 
     const readOnly = props.readOnly === true;
-    // The Back button stays enabled in read-only mode so the user can still leave the parameter.
     return (
         <div className={readOnly ? ParameterReadOnlyClass : undefined}>
             <ParameterHeaderSection title={`Parameter: ${name}`} onBack={props.onBack}>
@@ -106,8 +103,6 @@ const ParameterReadOnlyClass = injectStyle("creator-parameter-readonly", k => `
     }
 `);
 
-// Parameter header. A back-arrow icon button sits to the left of the title. The parameter
-// settings render below the header without any collapsible behavior.
 function ParameterHeaderSection(props: {
     title: string;
     onBack: () => void;
@@ -144,16 +139,31 @@ function CommonSettings(props: {
 }): React.ReactNode {
     const {name, param, errors} = props;
     const [nameValue, setNameValue] = useState(name);
+    const nameInputFocused = useRef(false);
 
-    // Keep the local name input in sync if the parameter name changes externally (e.g. undo).
-    React.useEffect(() => { setNameValue(name); }, [name]);
+    React.useEffect(() => {
+        const el = document.activeElement;
+        if (nameInputFocused.current && el instanceof HTMLInputElement && el === nameInputRef.current) return;
+        setNameValue(name);
+    }, [name]);
 
-    // Name errors are the validation messages that describe the parameter name itself. The panel
-    // shows these under the name field. All other errors (numeric, enumeration) are shown under
-    // their respective type-specific controls.
+    React.useEffect(() => {
+        return () => {
+            commitNameRef.current();
+        };
+    }, []);
+
     const nameError = errors.find(e =>
         e.message.startsWith("Parameter name") || e.message.startsWith("Duplicate parameter name"),
     );
+
+    const nameInputRef = useRef<HTMLInputElement | null>(null);
+    const commitNameRef = useRef(() => {});
+    commitNameRef.current = () => {
+        const trimmed = nameValue.trim();
+        if (trimmed && trimmed !== name) props.onRename(name, trimmed);
+        else if (trimmed !== nameValue) setNameValue(trimmed);
+    };
 
     return (
         <PanelSection title="Common">
@@ -161,11 +171,17 @@ function CommonSettings(props: {
                 <span className="panel-field-label">Parameter name</span>
                 <Input
                     className={PanelInputClass}
+                    inputRef={nameInputRef}
                     value={nameValue}
                     onChange={e => setNameValue(e.target.value)}
+                    onFocus={() => { nameInputFocused.current = true; }}
                     onBlur={() => {
-                        if (nameValue.trim() !== name) {
-                            props.onRename(name, nameValue.trim());
+                        nameInputFocused.current = false;
+                        commitNameRef.current();
+                    }}
+                    onKeyDown={e => {
+                        if (e.key === "Enter") {
+                            (e.target as HTMLInputElement).blur();
                         }
                     }}
                     error={nameError != null}
@@ -332,7 +348,6 @@ function EnumerationSettings(props: {
 }): React.ReactNode {
     const {name, param, errors} = props;
 
-    // Drag state lives here so every row can react to the current drop target.
     const [dragFromIndex, setDragFromIndex] = useState<number | null>(null);
     const [dragToIndex, setDragToIndex] = useState<number | null>(null);
     const nextRowKey = useRef(0);
@@ -413,9 +428,6 @@ function EnumerationSettings(props: {
                     );
                 }
 
-                // The last option in the array may be a "pending" option that was just
-                // committed from the placeholder. It uses the same component so the DOM
-                // input keeps focus.
                 return (
                     <EnumOptionRow
                         key={rowKeys.current[index]}
@@ -448,7 +460,6 @@ function EnumerationSettings(props: {
     );
 }
 
-// A committed option row with title, value, drag handle, and delete button.
 function EnumOptionRow(props: {
     index: number;
     count: number;
@@ -472,7 +483,6 @@ function EnumOptionRow(props: {
     const lastOffsetRef = useRef(0);
     const [dragOffset, setDragOffset] = useState(0);
 
-    // Stable props ref so window listeners read current values.
     const propsRef = useRef(props);
     propsRef.current = props;
 
@@ -527,8 +537,6 @@ function EnumOptionRow(props: {
         };
     }, []);
 
-    // Drag visual state. The dragged row lifts and follows the pointer. The row it will
-    // swap with dims to show where it will land.
     const isDraggingThis = !props.placeholder && props.dragFromIndex != null && props.dragFromIndex === props.index;
     const isDropTarget = !props.placeholder && props.dragFromIndex != null && props.dragToIndex != null
         && props.dragToIndex === props.index && props.dragToIndex !== props.dragFromIndex;

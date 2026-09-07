@@ -28,7 +28,7 @@ import {
 import {
     registerInvocationProviders,
     setInvocationModelParameters,
-} from "@/Applications/Creator/InvocationProviders";
+} from "@/Applications/Creator/InvocationAutoComplete";
 import {invocationLint} from "@/Applications/Creator/InvocationLinter";
 import type {InvocationParameters} from "@/Applications/Creator/InvocationScope";
 import {InvocationHelp} from "@/Applications/Creator/InvocationHelp";
@@ -36,32 +36,21 @@ import {useMonaco} from "@/Editor/Editor";
 
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 
-// Fixed editor height in card mode. Tall enough for a typical invocation template without resizing.
 const DEFAULT_HEIGHT = 500;
 const INVOCATION_CARD_HEIGHT = DEFAULT_HEIGHT + 120;
 
 export type InvocationTab = "invocation" | "preview" | "help";
 
 export interface InvocationEditorProps {
-    // The current invocation text from the draft.
     invocation: string;
-    // True when the source text is invalid. The editor becomes read-only.
     readOnly: boolean;
-    // The light/dark theme name.
     themeName?: string;
-    // Called with the new invocation text on every content change.
     onChange: (text: string) => void;
-    // The application parameters in declaration order. Drives completion, hover, and lint scope.
     parameters: InvocationParameters;
-    // When true, the editor fills all available space while retaining the card styling.
     maximized: boolean;
-    // Toggles maximized state.
     onToggleMaximized: () => void;
-    // The active tab in the invocation card.
     activeTab: InvocationTab;
-    // Called when the active tab changes.
     onTabChange: (tab: InvocationTab) => void;
-    // The generated invocation preview or its empty state.
     preview: React.ReactNode;
 }
 
@@ -86,7 +75,7 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
 
         node.innerHTML = "";
         const model = m.editor.createModel(props.invocation, "bash-jinja");
-        model.setEOL(0 /* EndOfLineSequence.LF */);
+        model.setEOL(0);
         modelRef.current = model;
         setInvocationModelParameters(model, props.parameters);
         lintModel(model, props.parameters);
@@ -123,9 +112,6 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [monaco]);
 
-    // External text replacement (when the invocation changes from outside, e.g. a rename rewrote
-    // references, or a parse replaced the model). We avoid clobbering the cursor when the model
-    // already matches.
     useLayoutEffect(() => {
         const model = modelRef.current;
         if (!model) return;
@@ -151,16 +137,12 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
         m.editor.setTheme(props.themeName === "light" ? "light" : "ucloud-dark");
     }, [monaco, props.themeName]);
 
-    // Re-layout the editor when maximized toggles. Monaco's automaticLayout catches up, but an
-    // explicit call avoids a one-frame delay during the size transition.
     useEffect(() => {
         const ed = editorRef.current;
         if (!ed) return;
         ed.layout();
     }, [props.maximized, props.activeTab]);
 
-    // Refresh completion scope and lint markers when the parameters change (rename, add,
-    // delete, type change in the parameter panel).
     useEffect(() => {
         const model = modelRef.current;
         if (!model) return;
@@ -210,15 +192,10 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
 // Linting
 // -------------------------------------------------------------------------------------------------------------------
 
-// Marker owner key for invocation lint markers.
 const LINT_OWNER = "creator-invocation-lint";
 
-// The Monaco instance, set on editor mount. Module-level because the lint helpers are plain
-// functions called from effects and timeouts.
 const monacoInstanceRef: {current: typeof import("monaco-editor") | null} = {current: null};
 
-// Debounce timers per model. 50ms coalesces bursts from a single keystroke (Monaco can fire
-// multiple content changes per key) while keeping the marker feedback near-instant.
 const lintTimers = new WeakMap<editor.ITextModel, number>();
 
 function lintModel(model: editor.ITextModel, parameters: InvocationParameters): void {
@@ -252,7 +229,6 @@ function scheduleLint(model: editor.ITextModel, parameters: InvocationParameters
 // Styling
 // -------------------------------------------------------------------------------------------------------------------
 
-// The invocation editor host matches the YAML editor host: a bordered rounded container.
 const InvocationEditorHostClass = injectStyle("creator-invocation-editor-host", k => `
     ${k} {
         width: 100%;
@@ -262,14 +238,13 @@ const InvocationEditorHostClass = injectStyle("creator-invocation-editor-host", 
     }
 `);
 
-// The invocation card keeps the same card treatment in both tabs. Maximized mode removes the compact
-// card width limit and lets the editor fill the creator content island.
 const InvocationCardClass = injectStyle("creator-invocation-card", k => `
     ${k} {
         max-width: 944px;
         display: flex;
         flex-direction: column;
         min-height: 0;
+        min-width: 0;
     }
 
     ${k} > div {
@@ -303,5 +278,8 @@ const InvocationTabClass = injectStyle("creator-invocation-tab", k => `
         flex-direction: column;
         min-height: 0;
         height: 100%;
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
     }
 `);
