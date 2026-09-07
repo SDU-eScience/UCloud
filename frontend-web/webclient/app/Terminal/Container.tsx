@@ -117,8 +117,6 @@ function jobIdFromPath(pathname: string): string | null {
 function isNewTerminalShortcut(event: KeyboardEvent): boolean {
     if (!event.altKey) return false;
 
-    console.log(event.code);
-
     const tShortcut = (event.code === "KeyT" || event.key === "t" || event.key === "T") && !event.shiftKey;
     const equalsShortcut = event.code === "Equal" || event.code === "NumpadAdd" || event.key === "=" || event.key === "+";
     return tShortcut || equalsShortcut;
