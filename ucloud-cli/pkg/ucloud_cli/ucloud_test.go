@@ -287,7 +287,7 @@ func TestJobCreate(t *testing.T) {
 		"--app", "terminal-ubuntu",
 		"--workspace", "testmain",
 		"--name", "test-job",
-		"--time", "60",
+		"--duration", "1h30m",
 		"--ssh",
 	}
 	cmd, err := Parse(input)
@@ -297,7 +297,7 @@ func TestJobCreate(t *testing.T) {
 	assert.Equal(t, "terminal-ubuntu", concrete.App)
 	assert.Equal(t, "testmain", concrete.Workspace)
 	assert.Equal(t, "test-job", concrete.Name)
-	assert.Equal(t, 60, concrete.Time)
+	assert.Equal(t, "1h30m", concrete.Duration)
 	assert.True(t, concrete.SSH)
 	err = cmd.Execute()
 	assert.NoError(t, err)
@@ -465,7 +465,7 @@ func TestJobExtend(t *testing.T) {
 	assert.NotNil(t, cmd)
 	concrete := cmd.(*command.JobExtendCommand)
 	assert.Equal(t, jobID, concrete.JobID)
-	assert.Equal(t, 60, concrete.Time)
+	assert.Equal(t, 60, concrete.Duration)
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }

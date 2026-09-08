@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/cli"
@@ -31,7 +32,7 @@ type JobCreateCommand struct {
 	App        string            `flag:"app" usage:"Application name"`
 	Product    string            `flag:"product" usage:"Product name"`
 	Name       string            `flag:"name" usage:"Job name"`
-	Time       int               `flag:"time" usage:"Time in minutes"`
+	Duration   string            `flag:"duration" usage:"Duration eg. 1h30m"`
 	SSH        bool              `flag:"ssh" usage:"Use SSH"`
 	Folder     string            `flag:"folder" usage:"Folder path to mount, e.g. /19/mysubdrive/"`
 	PublicLink string            `flag:"public-link" usage:"Public link"`
@@ -50,8 +51,8 @@ type JobSearchCommand struct {
 }
 
 type JobExtendCommand struct {
-	JobID string `positional:"job-id" usage:"Job ID"`
-	Time  int    `flag:"time" usage:"Time in minutes"`
+	JobID    string `positional:"job-id" usage:"Job ID"`
+	Duration string `flag:"duration" usage:"Using duration string eg. 1h30m"`
 }
 
 type JobResumeCommand struct {
@@ -115,8 +116,11 @@ var JobCommands = map[string]CommandFunc{
 	"logs":  func() Command { return &JobLogsCommand{} },
 }
 
-func retrieveJobs() (map[string]orcapi.Job, error) {
-	result, httpErr := orcapi.JobsBrowse.Invoke(orcapi.JobsBrowseRequest{})
+func retrieveJobs(filter orcapi.JobFlags) (map[string]orcapi.Job, error) {
+	result, httpErr := orcapi.JobsBrowse.Invoke(orcapi.JobsBrowseRequest{
+		JobFlags: filter,
+	})
+
 	if httpErr.AsError() != nil {
 		return map[string]orcapi.Job{}, fmt.Errorf("failed to list jobs: %s", httpErr.Why)
 	}
@@ -155,7 +159,7 @@ func printJobs(workspace string, jobs map[string]orcapi.Job) {
 func (c JobRenameCommand) Execute() error {
 	cfg, err := shared.ReadConfig()
 	if err != nil {
-		panic(err)
+		shared.HandleError(c, err)
 	}
 	cfg.InitUCloudClient()
 
@@ -181,7 +185,7 @@ func (c JobRenameCommand) Execute() error {
 func (c JobSearchCommand) Execute() error {
 	cfg, err := shared.ReadConfig()
 	if err != nil {
-		panic(err)
+		shared.HandleError(c, err)
 	}
 	cfg.InitUCloudClient()
 
@@ -221,36 +225,47 @@ func (c JobSearchCommand) Execute() error {
 func (c JobExtendCommand) Execute() error {
 	cfg, err := shared.ReadConfig()
 	if err != nil {
-		panic(err)
+		shared.HandleError(c, err)
 	}
 	cfg.InitUCloudClient()
 
 	if c.JobID == "" {
-		return fmt.Errorf("this command requires a job id, use: ucloud job extend <job-id> --time <minutes>")
+		return fmt.Errorf("this command requires a job id, use: ucloud job extend <job-id> --duration")
 	}
-	if c.Time <= 0 {
-		return fmt.Errorf("this command requires a positive time in minutes, use: ucloud job extend <job-id> --time <minutes>")
+	if c.Duration == "" {
+		return fmt.Errorf("this command requires a duration string, use: ucloud job extend <job-id> --duration")
+	}
+
+	duration, err := time.ParseDuration(c.Duration)
+
+	if err != nil {
+		return fmt.Errorf("invalid duration string %q: %s", c.Duration, err)
+	}
+
+	if duration < 0 {
+		return fmt.Errorf("duration must be positive, got %q", c.Duration)
 	}
 
 	_, httpErr := orcapi.JobsExtend.Invoke(fnd.BulkRequestOf(orcapi.JobsExtendRequestItem{
 		JobId: c.JobID,
 		RequestedTime: orcapi.SimpleDuration{
-			Hours:   c.Time / 60,
-			Minutes: c.Time % 60,
+			Hours:   int(duration.Hours()),
+			Minutes: int(duration.Minutes()),
 		},
 	}))
+
 	if httpErr != nil {
 		return fmt.Errorf("failed to extend job: %s", httpErr.Why)
 	}
 
-	fmt.Printf("Job extended: %s by %d minutes\n", c.JobID, c.Time)
+	fmt.Printf("Job extended: %s by %d minutes\n", c.JobID, c.Duration)
 	return nil
 }
 
 func (c JobGetCommand) Execute() error {
 	cfg, err := shared.ReadConfig()
 	if err != nil {
-		panic(err)
+		shared.HandleError(c, err)
 	}
 	cfg.InitUCloudClient()
 
@@ -308,48 +323,10 @@ func printJobDetails(job orcapi.Job) {
 	t.Print()
 }
 
-func filterByState(jobs map[string]orcapi.Job, state string) map[string]orcapi.Job {
-	if state == "" {
-		return jobs
-	}
-	filteredJobs := make(map[string]orcapi.Job)
-	for id, job := range jobs {
-		if string(job.Status.State) == state {
-			filteredJobs[id] = job
-		}
-	}
-	return filteredJobs
-}
-
-func filterByApp(jobs map[string]orcapi.Job, app string) map[string]orcapi.Job {
-	if app == "" {
-		return jobs
-	}
-	filteredJobs := make(map[string]orcapi.Job)
-	for id, job := range jobs {
-		if job.Specification.Name == app {
-			filteredJobs[id] = job
-		}
-	}
-	return filteredJobs
-}
-func filterByProvider(jobs map[string]orcapi.Job, provider string) map[string]orcapi.Job {
-	if provider == "" {
-		return jobs
-	}
-	filteredJobs := make(map[string]orcapi.Job)
-	for id, job := range jobs {
-		if job.Specification.Product.Provider == provider {
-			filteredJobs[id] = job
-		}
-	}
-	return filteredJobs
-}
-
 func (c JobListCommand) Execute() error {
 	cfg, err := shared.ReadConfig()
 	if err != nil {
-		panic(err)
+		shared.HandleError(c, err)
 	}
 	cfg.InitUCloudClient()
 	currentWs := c.Workspace
@@ -367,10 +344,17 @@ func (c JobListCommand) Execute() error {
 	}
 	shared.SetActiveWorkspace(ws.Id)
 
-	jobs, err := retrieveJobs()
-	jobs = filterByState(jobs, c.State)
-	jobs = filterByApp(jobs, c.App)
-	jobs = filterByProvider(jobs, c.Provider)
+	filter := orcapi.JobFlags{}
+	if c.State != "" {
+		filter.FilterState = util.OptValue(orcapi.JobState(c.State))
+	}
+	if c.App != "" {
+		filter.FilterApplication = util.OptValue(c.App)
+	}
+	if c.Provider != "" {
+		filter.FilterProvider = util.OptValue(c.Provider)
+	}
+	jobs, err := retrieveJobs(filter)
 	if err != nil {
 		return err
 	}
@@ -648,10 +632,18 @@ func createApp(job JobCreateCommand, app *orcapi.Application) error {
 		Resources:  []orcapi.AppParameterValue{},
 	}
 
-	if job.Time > 0 {
+	if job.Duration != "" {
+		duration, err := time.ParseDuration(job.Duration)
+		if err != nil {
+			return fmt.Errorf("invalid duration string %q: %s", job.Duration, err)
+		}
+		if duration < 0 {
+			return fmt.Errorf("duration must be positive, got %q", job.Duration)
+		}
 		spec.TimeAllocation = util.OptValue(orcapi.SimpleDuration{
-			Hours:   job.Time / 60,
-			Minutes: job.Time % 60,
+			Hours:   int(duration / time.Hour),
+			Minutes: int((duration % time.Hour) / time.Minute),
+			Seconds: int((duration % time.Minute) / time.Second),
 		})
 	}
 	if job.Folder != "" {
@@ -689,7 +681,7 @@ func createApp(job JobCreateCommand, app *orcapi.Application) error {
 func (c JobCreateCommand) Execute() error {
 	cfg, err := shared.ReadConfig()
 	if err != nil {
-		panic(err)
+		shared.HandleError(c, err)
 	}
 	cfg.InitUCloudClient()
 
@@ -722,7 +714,7 @@ func (c JobCreateCommand) Execute() error {
 func (c JobTerminateCommand) Execute() error {
 	cfg, err := shared.ReadConfig()
 	if err != nil {
-		panic(err)
+		shared.HandleError(c, err)
 	}
 	cfg.InitUCloudClient()
 
@@ -744,7 +736,7 @@ func (c JobTerminateCommand) Execute() error {
 func (c JobResumeCommand) Execute() error {
 	cfg, err := shared.ReadConfig()
 	if err != nil {
-		panic(err)
+		shared.HandleError(c, err)
 	}
 	cfg.InitUCloudClient()
 
