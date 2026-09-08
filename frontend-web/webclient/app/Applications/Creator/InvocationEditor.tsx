@@ -34,7 +34,7 @@ import type {InvocationParameters} from "@/Applications/Creator/InvocationScope"
 import {InvocationHelp} from "@/Applications/Creator/InvocationHelp";
 import {useMonaco} from "@/Editor/Editor";
 import {createKeyboardShortcut} from "@/UtilityFunctions";
-import {CreatorShortcutControl} from "@/Applications/Creator/CreatorKeyboard";
+import {creatorRegisterCodeEditorFocus, CreatorShortcutControl} from "@/Applications/Creator/CreatorKeyboard";
 
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 
@@ -65,6 +65,13 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
     const propsRef = useRef(props);
     propsRef.current = props;
 
+    React.useEffect(() => creatorRegisterCodeEditorFocus(() => {
+        const ed = editorRef.current;
+        if (!ed) return;
+        if (propsRef.current.activeTab !== "invocation") return;
+        ed.focus();
+    }), []);
+
     useLayoutEffect(() => {
         const m = monaco;
         const node = containerRef.current;
@@ -91,6 +98,9 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
             wordWrap: "on",
         });
         editorRef.current = ed;
+        if (props.maximized) {
+            ed.focus();
+        }
 
         model.onDidChangeContent(() => {
             const value = model.getValue();
@@ -143,6 +153,7 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
         const ed = editorRef.current;
         if (!ed) return;
         ed.layout();
+        if (props.maximized) ed.focus();
     }, [props.maximized, props.activeTab]);
 
     useEffect(() => {

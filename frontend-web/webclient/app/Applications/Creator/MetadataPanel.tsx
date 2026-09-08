@@ -40,7 +40,6 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {fileSelectorModalStyle, slimModalStyle} from "@/Utilities/ModalUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {fetchAll} from "@/Utilities/PageUtilities";
 import {doNothing, extractErrorMessage, isLikelyMac, stopPropagation} from "@/UtilityFunctions";
 import {FieldGroup, FieldRow} from "@/Applications/Jobs/Widgets";
 import {FORM_NAVIGATION_SELECTOR, KeyboardNavigation, SubmitShortcut} from "@/Applications/KeyboardNavigation";
@@ -51,6 +50,7 @@ import {useGlobal} from "@/Utilities/ReduxHooks";
 import {LineCappedMarkdown} from "@/ui-components/Markdown";
 import ContainerRepositoryBrowse from "@/ContainerRepositories/Browse";
 import {customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
+import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 
 export interface MetadataPanelProps {
     draft: CreatorDraft;
@@ -891,7 +891,6 @@ interface ResourceOption {
     id: number;
     title: string;
     description: string;
-    isCustom: boolean;
 }
 
 function closeAutocomplete(
@@ -996,38 +995,22 @@ function GroupAutocompleteField(props: {
     const [query, setQuery] = useState("");
     const [open, setOpen] = useState(false);
     const [focused, setFocused] = useState(false);
-    const [savingEdit, setSavingEdit] = useState(false);
     const [creating, setCreating] = useState(false);
     const [highlight, setHighlight] = useState(0);
-    const [managed, setManaged] = useState<ResourceOption[] | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
     const selected = props.groups.find(group => String(group.id) === meta?.group) ?? (
         props.createdGroup != null && meta != null && String(props.createdGroup.id) === meta.group
-            ? {id: props.createdGroup.id, createdAt: 0, owner: {createdBy: ""}, backedBy: undefined, specification: {title: props.createdGroup.title, description: props.createdGroup.description}}
+            ? {id: props.createdGroup.id, createdAt: 0, owner: {createdBy: ""}, specification: {title: props.createdGroup.title, description: props.createdGroup.description}}
             : null
     );
 
     React.useEffect(() => {
-        if (!open || managed != null) return;
-        let cancelled = false;
-        fetchAll<AppStore.ApplicationGroup>(next => callAPI(AppStore.browseGroups({itemsPerPage: 250, next}))).then(groups => {
-            if (cancelled) return;
-            setManaged(groups.map(group => ({
-                id: group.metadata.id,
-                title: group.specification.title,
-                description: group.specification.description ?? "",
-                isCustom: false,
-            })));
-        }).catch(() => {
-            if (!cancelled) setManaged([]);
-        });
-        return () => {
-            cancelled = true;
-        };
-    }, [open, managed]);
+        const selectedTitle = selected?.specification.title ?? "";
+        if (selectedTitle !== "") setQuery(selectedTitle);
+    }, [selected?.specification.title]);
 
     React.useEffect(() => {
         if (!open) return;
@@ -1054,27 +1037,11 @@ function GroupAutocompleteField(props: {
 
     const trimmed = query.trim().toLowerCase();
 
-    const byBacked = new Map<number, number>();
-    for (const group of props.groups) {
-        if (group.backedBy != null) byBacked.set(group.backedBy, group.id);
-    }
-
-    const options: ResourceOption[] = [];
-    const seen = new Set<number>();
-    for (const option of managed ?? []) {
-        seen.add(option.id);
-        const backing = byBacked.get(option.id);
-        if (backing != null) {
-            seen.add(backing);
-            options.push({...option, id: backing, isCustom: true});
-        } else {
-            options.push(option);
-        }
-    }
-    for (const group of props.groups) {
-        if (seen.has(group.id)) continue;
-        options.push({id: group.id, title: group.specification.title, description: group.specification.description, isCustom: true});
-    }
+    const options: ResourceOption[] = props.groups.map(group => ({
+        id: group.id,
+        title: group.specification.title,
+        description: group.specification.description,
+    }));
 
     const matches = trimmed === ""
         ? options
@@ -1083,26 +1050,10 @@ function GroupAutocompleteField(props: {
             option.description.toLowerCase().includes(trimmed));
     const canCreate = trimmed !== "" && !options.some(option => option.title.toLowerCase() === trimmed);
 
-    const selectGroup = (group: {id: number; title: string; description: string; isCustom: boolean}) => {
-        if (group.isCustom) {
-            props.onUpdateCustomMeta({group: String(group.id)});
-            setQuery(group.title);
-            closeAutocomplete(setOpen, inputRef);
-            return;
-        }
-        setCreating(true);
-        callAPI(AppStore.createCustomGroup({kind: "Managed", id: group.id})).then(result => {
-            props.onCreatedGroup({id: result.id, title: group.title, description: group.description});
-            props.onInlineCreated?.({id: result.id, title: group.title, description: group.description});
-            props.onUpdateCustomMeta({group: String(result.id)});
-            setQuery(group.title);
-            closeAutocomplete(setOpen, inputRef);
-            return props.refreshPlacement();
-        }).catch(error => {
-            sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
-        }).finally(() => {
-            setCreating(false);
-        });
+    const selectGroup = (group: ResourceOption) => {
+        props.onUpdateCustomMeta({group: String(group.id)});
+        setQuery(group.title);
+        closeAutocomplete(setOpen, inputRef);
     };
 
     const openCreateDialog = () => {
@@ -1111,7 +1062,6 @@ function GroupAutocompleteField(props: {
             setCreating(true);
             try {
                 const result = await callAPI(AppStore.createCustomGroup({
-                    kind: "Custom",
                     specification: {title: name, description},
                 }));
                 props.onCreatedGroup({id: result.id, title: name, description});
@@ -1136,44 +1086,6 @@ function GroupAutocompleteField(props: {
                 creating={creating}
                 initialTitle={title}
                 initialDescription=""
-                onSubmit={submit}
-            />,
-            doNothing,
-            true,
-            slimModalStyle,
-        );
-    };
-
-    const openEditDialog = () => {
-        if (!selected || selected.backedBy == null) return;
-        const managedId = selected.backedBy;
-        const groupId = selected.id;
-        const submit = async (title: string, description: string) => {
-            setSavingEdit(true);
-            try {
-                await callAPI(AppStore.updateGroup({
-                    id: managedId,
-                    newTitle: title,
-                    newDescription: description,
-                }));
-                props.onCreatedGroup({id: groupId, title, description});
-                await props.refreshPlacement();
-                dialogStore.success();
-            } catch (error) {
-                sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
-            } finally {
-                setSavingEdit(false);
-            }
-        };
-        dialogStore.addDialog(
-            <ResourceNameDialog
-                title="Edit application group"
-                placeholder="My group"
-                nameDescription="The name of the group, shown in the user-interface"
-                descriptionRequired
-                creating={savingEdit}
-                initialTitle={selected.specification.title}
-                initialDescription={selected.specification.description}
                 onSubmit={submit}
             />,
             doNothing,
@@ -1246,14 +1158,6 @@ function GroupAutocompleteField(props: {
                                 </span>
                             </TooltipV2>
                         ) : null}
-                        {selected != null && selected.backedBy != null && query.trim().toLowerCase() === selected.specification.title.toLowerCase() ? (
-                            <IconButton
-                                icon="heroPencil"
-                                tooltip="Edit group"
-                                onClick={openEditDialog}
-                                compact
-                            />
-                        ) : null}
                     </div>
                     {open ? (
                         <GroupDropdown
@@ -1263,7 +1167,6 @@ function GroupAutocompleteField(props: {
                             matches={matches}
                             canCreate={canCreate}
                             creating={creating}
-                            managedLoaded={managed != null}
                             onSelect={selectGroup}
                             onCreate={openCreateDialog}
                             onHover={setHighlight}
@@ -1377,7 +1280,6 @@ function GroupDropdown(props: {
     matches: ResourceOption[];
     canCreate: boolean;
     creating: boolean;
-    managedLoaded: boolean;
     createLabel?: string;
     onSelect: (option: ResourceOption) => void;
     onCreate: () => void;
@@ -1386,50 +1288,46 @@ function GroupDropdown(props: {
     const label = props.createLabel ?? "group";
     return (
         <div className={GroupDropdownClass} ref={props.dropdownRef}>
-            {!props.managedLoaded ? (
-                <div className={GroupDropdownEmptyClass}>Loading...</div>
-            ) : (
-                <>
-                    {props.matches.map((option, index) => (
-                        <button
-                            key={option.id}
-                            type="button"
-                            className={GroupDropdownRowClass}
-                            data-highlighted={index === props.highlight ? "true" : undefined}
-                            disabled={props.creating}
-                            onMouseDown={e => e.preventDefault()}
-                            onMouseEnter={() => props.onHover(index)}
-                            onClick={() => props.onSelect(option)}
-                        >
-                            <span className={CategoryFieldTitleClass}>{option.title}</span>
-                            {option.description ? (
-                                <LineCappedMarkdown width="100%" lines={1}>{option.description}</LineCappedMarkdown>
-                            ) : null}
-                        </button>
-                    ))}
-                    {props.canCreate ? (
-                        <button
-                            type="button"
-                            className={GroupDropdownRowClass}
-                            data-highlighted={props.highlight === props.matches.length ? "true" : undefined}
-                            disabled={props.creating}
-                            onMouseDown={e => e.preventDefault()}
-                            onMouseEnter={() => props.onHover(props.matches.length)}
-                            onClick={props.onCreate}
-                        >
-                            <Flex alignItems="center" gap="6px">
-                                <Icon name="heroPlus" size={14} />
-                                <span>Create {label} "{props.query.trim()}"</span>
-                            </Flex>
-                        </button>
-                    ) : null}
-                    {props.matches.length === 0 && !props.canCreate ? (
-                        <div className={GroupDropdownEmptyClass}>
-                            {props.query.trim() === "" ? `No ${label}s available` : `No matching ${label}s`}
-                        </div>
-                    ) : null}
-                </>
-            )}
+            <>
+                {props.matches.map((option, index) => (
+                    <button
+                        key={option.id}
+                        type="button"
+                        className={GroupDropdownRowClass}
+                        data-highlighted={index === props.highlight ? "true" : undefined}
+                        disabled={props.creating}
+                        onMouseDown={e => e.preventDefault()}
+                        onMouseEnter={() => props.onHover(index)}
+                        onClick={() => props.onSelect(option)}
+                    >
+                        <span className={CategoryFieldTitleClass}>{option.title}</span>
+                        {option.description ? (
+                            <LineCappedMarkdown width="100%" lines={1}>{option.description}</LineCappedMarkdown>
+                        ) : null}
+                    </button>
+                ))}
+                {props.canCreate ? (
+                    <button
+                        type="button"
+                        className={GroupDropdownRowClass}
+                        data-highlighted={props.highlight === props.matches.length ? "true" : undefined}
+                        disabled={props.creating}
+                        onMouseDown={e => e.preventDefault()}
+                        onMouseEnter={() => props.onHover(props.matches.length)}
+                        onClick={props.onCreate}
+                    >
+                        <Flex alignItems="center" gap="6px">
+                            <Icon name="heroPlus" size={14} />
+                            <span>Create {label} "{props.query.trim()}"</span>
+                        </Flex>
+                    </button>
+                ) : null}
+                {props.matches.length === 0 && !props.canCreate ? (
+                    <div className={GroupDropdownEmptyClass}>
+                        {props.query.trim() === "" ? `No ${label}s available` : `No matching ${label}s`}
+                    </div>
+                ) : null}
+            </>
         </div>
     );
 }// Custom fields: provider, category, publication. Rendered inside the "Metadata" section.
@@ -1560,6 +1458,20 @@ const GroupWarningClass = injectStyle("group-warning-icon", cl => `
     }
 `);
 
+const ProjectSelectorClass = injectStyle("creator-project-selector", cl => `
+    ${cl},
+    ${cl} [data-component="project-switcher"],
+    ${cl} [data-component="project-switcher"] > [data-tag="dropdown"],
+    ${cl} [data-dropdown-trigger],
+    ${cl} [data-dropdown-trigger] > div {
+        width: 100%;
+    }
+
+    ${cl} [data-dropdown-trigger] > div {
+        justify-content: space-between;
+    }
+`);
+
 function CustomFieldsSection(props: {
     draft: CreatorDraft;
     onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
@@ -1573,10 +1485,6 @@ function CustomFieldsSection(props: {
     if (!meta) return null;
 
     const allCategories = props.categories ?? [];
-    const canCreateCategory = customAppsWorkspaceAdmin();
-    const selected = meta.category
-        ? allCategories.find(category => String(category.id) === meta.category) ?? null
-        : null;
 
     return (
         <>
@@ -1606,11 +1514,17 @@ function CustomFieldsSection(props: {
             <CategoryAutocompleteField
                 draft={draft}
                 categories={allCategories}
-                canCreate={canCreateCategory}
+                canCreate={customAppsWorkspaceAdmin()}
                 onLandingPageInvalidated={() => setLandingPage(AppStore.emptyLandingPage)}
                 onUpdateCustomMeta={props.onUpdateCustomMeta}
                 refreshPlacement={props.refreshPlacement}
             />
+            <Label className="panel-field">
+                <span className="panel-field-label">Project</span>
+                <div className={ProjectSelectorClass}>
+                    <ProjectSwitcher focusable data-navigation-field data-creator-field="custom.projectId" />
+                </div>
+            </Label>
             <ToggleRow
                 label="Publish to project"
                 checked={meta.publishedToProject}
@@ -1642,7 +1556,6 @@ function CategoryAutocompleteField(props: {
     const [focused, setFocused] = useState(false);
     const [creating, setCreating] = useState(false);
     const [highlight, setHighlight] = useState(0);
-    const [managed, setManaged] = useState<ResourceOption[] | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -1650,23 +1563,9 @@ function CategoryAutocompleteField(props: {
     const selected = props.categories.find(category => meta != null && String(category.id) === meta.category) ?? null;
 
     React.useEffect(() => {
-        if (!open || managed != null) return;
-        let cancelled = false;
-        fetchAll<AppStore.ApplicationCategory>(next => callAPI(AppStore.browseStudioCategories({itemsPerPage: 250, next}))).then(categories => {
-            if (cancelled) return;
-            setManaged(categories.map(category => ({
-                id: category.metadata.id,
-                title: category.specification.title,
-                description: category.specification.description ?? "",
-                isCustom: false,
-            })));
-        }).catch(() => {
-            if (!cancelled) setManaged([]);
-        });
-        return () => {
-            cancelled = true;
-        };
-    }, [open, managed]);
+        const selectedTitle = selected?.specification.title ?? "";
+        if (selectedTitle !== "") setQuery(selectedTitle);
+    }, [selected?.specification.title]);
 
     React.useEffect(() => {
         if (!open) return;
@@ -1693,27 +1592,11 @@ function CategoryAutocompleteField(props: {
 
     const trimmed = query.trim().toLowerCase();
 
-    const byBacked = new Map<number, number>();
-    for (const category of props.categories) {
-        if (category.backedBy != null) byBacked.set(category.backedBy, category.id);
-    }
-
-    const options: ResourceOption[] = [];
-    const seen = new Set<number>();
-    for (const option of managed ?? []) {
-        seen.add(option.id);
-        const backing = byBacked.get(option.id);
-        if (backing != null) {
-            seen.add(backing);
-            options.push({...option, id: backing, isCustom: true});
-        } else {
-            options.push(option);
-        }
-    }
-    for (const category of props.categories) {
-        if (seen.has(category.id)) continue;
-        options.push({id: category.id, title: category.specification.title, description: category.specification.description, isCustom: true});
-    }
+    const options: ResourceOption[] = props.categories.map(category => ({
+        id: category.id,
+        title: category.specification.title,
+        description: category.specification.description,
+    }));
 
     const matches = trimmed === ""
         ? options
@@ -1723,24 +1606,9 @@ function CategoryAutocompleteField(props: {
     const canCreate = props.canCreate && trimmed !== "" && !options.some(option => option.title.toLowerCase() === trimmed);
 
     const selectCategory = (option: ResourceOption) => {
-        if (option.isCustom) {
-            props.onUpdateCustomMeta({category: String(option.id)});
-            setQuery(option.title);
-            closeAutocomplete(setOpen, inputRef);
-            return;
-        }
-        setCreating(true);
-        callAPI(AppStore.createCustomCategory({kind: "Managed", id: option.id})).then(result => {
-            props.onLandingPageInvalidated();
-            props.onUpdateCustomMeta({category: String(result.id)});
-            setQuery(option.title);
-            closeAutocomplete(setOpen, inputRef);
-            return props.refreshPlacement();
-        }).catch(error => {
-            sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
-        }).finally(() => {
-            setCreating(false);
-        });
+        props.onUpdateCustomMeta({category: String(option.id)});
+        setQuery(option.title);
+        closeAutocomplete(setOpen, inputRef);
     };
 
     const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -1779,7 +1647,6 @@ function CategoryAutocompleteField(props: {
             setCreating(true);
             try {
                 const result = await callAPI<{id: number}>(AppStore.createCustomCategory({
-                    kind: "Custom",
                     specification: {title: name, description},
                 }));
                 props.onLandingPageInvalidated();
@@ -1855,7 +1722,6 @@ function CategoryAutocompleteField(props: {
                             matches={matches}
                             canCreate={canCreate}
                             creating={creating}
-                            managedLoaded={managed != null}
                             createLabel="category"
                             onSelect={selectCategory}
                             onCreate={openCreateDialog}

@@ -35,13 +35,20 @@ import {
 import {
     bulkRequestOf,
     displayErrorMessageOrDefault,
+    doNothing,
     extractErrorCode,
+    extractErrorMessage,
     prettierString,
     createKeyboardShortcut,
     isLikelyMac,
     useDidMount
 } from "@/UtilityFunctions";
 import {addStandardDialog, OverallocationLink, WalletWarning} from "@/UtilityComponents";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {SettingsAction, SettingsSection} from "@/ui-components/SettingsComponents";
+import {Toggle} from "@/ui-components/Toggle";
+import Text from "@/ui-components/Text";
 import {ImportMessages, ImportMessage, ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {usePage} from "@/Navigation/Redux";
@@ -454,6 +461,22 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
             cancelled = true;
         };
     }, [application?.metadata.name, application?.metadata.version, application?.metadata.origin, projectId, previewMode]);
+
+    const openCustomApplicationManagement = useCallback(() => {
+        if (!application) return;
+        const provider = application.invocation.tool.tool?.description.supportedProviders?.[0];
+        if (!provider) return;
+        dialogStore.addDialog(
+            <CustomApplicationManagementDialog
+                application={application}
+                provider={provider}
+                onDeleted={() => navigate(AppRoutes.apps.landing())}
+            />,
+            doNothing,
+            true,
+            largeModalStyle,
+        );
+    }, [application, navigate]);
 
     const reloadFlavors = useCallback(async () => {
         const group = await callAPI(AppStore.findGroupByApplication({
@@ -1193,21 +1216,9 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
                         <UtilityBar responsive leading={<>
                             {!previewMode ? <ApplicationForkAction application={application} /> : null}
                             {!canEditCustomVersion || !customApplicationsEnabled() ? null : (
-                                <Button height="25px" onClick={() => {
-                                    const provider = application.invocation.tool.tool?.description.supportedProviders?.[0];
-                                    if (!provider) return;
-                                    navigate(AppRoutes.apps.creator({
-                                        operation: "newVersion",
-                                        applicationKind: "custom",
-                                        workspace: projectId ?? "personal",
-                                        name: application.metadata.name.replace(/^custom-/, ""),
-                                        version: application.metadata.version,
-                                        provider,
-                                        returnTo: location.pathname + location.search,
-                                    }));
-                                }}>
-                                    Create new version
-                                </Button>
+                                <TooltipV2 tooltip="Manage this application" triggerStyle={{display: "inline-flex", alignItems: "center"}}>
+                                    <Icon name="heroCog6Tooth" size={24} cursor="pointer" color="textPrimary" onClick={openCustomApplicationManagement} />
+                                </TooltipV2>
                             )}
                             {!application.metadata.website ? null : (
                                 <ExternalLink className="job-create-documentation" href={application.metadata.website}>
@@ -1700,5 +1711,113 @@ const MarkdownWrapper = injectStyle("md-wrapper", k => `
         margin-bottom: 0;
     }
 `);
+
+const CustomApplicationManagementClass = injectStyle("custom-application-management", k => `
+    ${k} {
+        display: flex;
+        flex-direction: column;
+    }
+
+    ${k} .custom-application-management-header {
+        padding-bottom: 32px;
+    }
+`);
+
+function CustomApplicationManagementDialog(props: {
+    application: Application;
+    provider: string;
+    onDeleted: () => void;
+}): React.ReactNode {
+    const [busy, setBusy] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
+    const [publishedToProject, setPublishedToProject] = React.useState(
+        props.application.metadata.publishedToProject === true,
+    );
+
+    const togglePublishedToProject = useCallback(async (prev: boolean) => {
+        if (busy) return;
+        const next = !prev;
+        setBusy(true);
+        setError(null);
+        try {
+            await callAPI(AppStore.updateCustomApplication({
+                name: props.application.metadata.name,
+                version: props.application.metadata.version,
+                serviceProvider: props.provider,
+                publishedToProject: next,
+            }));
+            setPublishedToProject(next);
+        } catch (cause) {
+            setError("Could not update application visibility. " + extractErrorMessage(cause as {request: XMLHttpRequest; response: any}));
+        } finally {
+            setBusy(false);
+        }
+    }, [busy, props.application.metadata.name, props.application.metadata.version, props.provider]);
+
+    const deleteApplication = useCallback(async () => {
+        if (busy) return;
+        setBusy(true);
+        setError(null);
+        try {
+            await callAPI(AppStore.deleteCustomApplication({
+                name: props.application.metadata.name,
+                version: props.application.metadata.version,
+                serviceProvider: props.provider,
+            }));
+            dialogStore.success();
+            props.onDeleted();
+        } catch (cause) {
+            setError("Could not delete application. " + extractErrorMessage(cause as {request: XMLHttpRequest; response: any}));
+            setBusy(false);
+        }
+    }, [busy, props.application.metadata.name, props.application.metadata.version, props.provider, props.onDeleted]);
+
+    const requestDeleteApplication = useCallback(() => {
+        addStandardDialog({
+            title: "Delete application?",
+            message: "This will permanently delete this version of the application. Jobs already running are not affected.",
+            confirmText: "Delete application",
+            confirmButtonColor: "errorMain",
+            cancelButtonColor: "primaryMain",
+            addToFront: true,
+            onConfirm: deleteApplication,
+        });
+    }, [deleteApplication]);
+
+    const isPublished = publishedToProject;
+
+    return (
+        <div className={CustomApplicationManagementClass}>
+            <div className="custom-application-management-header">
+                <Heading.h3>{props.application.metadata.title}</Heading.h3>
+            </div>
+
+            <SettingsSection title="Visibility" mb={24}>
+                <SettingsAction
+                    title="Publish to project"
+                    description="Makes this application version available to all members of the workspace."
+                    action={
+                        <Toggle checked={isPublished} disabled={busy} onChange={togglePublishedToProject} />
+                    }
+                />
+            </SettingsSection>
+
+            <SettingsSection title="Danger zone" mb={24}>
+                <SettingsAction
+                    title="Delete application version"
+                    description={"Deletes version " + props.application.metadata.version + " of this application. Jobs already running are not affected."}
+                    action={
+                        <Button color="errorMain" disabled={busy} onClick={requestDeleteApplication}>
+                            <Icon name="heroTrash" />
+                            Delete application
+                        </Button>
+                    }
+                />
+            </SettingsSection>
+
+            {error ? <Text color="errorMain" mb="16px">{error}</Text> : null}
+        </div>
+    );
+}
 
 export default Create;

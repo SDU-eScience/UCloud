@@ -29,6 +29,8 @@ export interface CreatorShortcutHandlers {
     onSave: () => void;
     onFocusSection: (key: CreatorSectionKey) => void;
     onFocusParameterSection: (key: CreatorParameterSectionKey) => void;
+    onFocusMainContent: () => void;
+    onFocusSidebar: () => void;
 }
 
 export const CREATOR_SECTION_TARGETS: Record<CreatorSectionKey, string> = {
@@ -56,6 +58,49 @@ const CREATOR_PARAMETER_SECTION_KEYS: Record<string, CreatorParameterSectionKey>
     KeyC: "C",
     KeyV: "V",
 };
+
+export function creatorFocusMainContent(): void {
+    const root = document.querySelector<HTMLElement>("[data-creator-main-content]");
+    if (!root) return;
+    const row = Array.from(root.querySelectorAll<HTMLElement>("[data-row-id]"))
+        .find(element => element.offsetParent !== null);
+    if (row) {
+        window.requestAnimationFrame(() => {
+            row.focus();
+            row.scrollIntoView({block: "nearest"});
+        });
+        return;
+    }
+    const monaco = Array.from(root.querySelectorAll<HTMLElement>(".monaco-editor"))
+        .find(element => element.offsetParent !== null);
+    if (monaco) {
+        window.requestAnimationFrame(() => monaco.focus());
+        return;
+    }
+    window.requestAnimationFrame(() => root.focus());
+}
+
+const creatorCodeEditorFocusTarget: {current: (() => void) | null} = {current: null};
+
+export function creatorRegisterCodeEditorFocus(focus: () => void): () => void {
+    creatorCodeEditorFocusTarget.current = focus;
+    return () => {
+        if (creatorCodeEditorFocusTarget.current === focus) creatorCodeEditorFocusTarget.current = null;
+    };
+}
+
+export function creatorFocusCodeEditor(): void {
+    const attempt = (remaining: number) => {
+        const focus = creatorCodeEditorFocusTarget.current;
+        if (focus) {
+            focus();
+            return;
+        }
+        if (remaining <= 0) return;
+        window.requestAnimationFrame(() => attempt(remaining - 1));
+    };
+    attempt(30);
+}
 
 function creatorFocusSectionById(id: string): void {
     const target = document.getElementById(id);
@@ -118,22 +163,55 @@ export function useCreatorShortcuts(
             }
             if (!event.altKey || !primaryPressed(event) || event.shiftKey) return;
             setHintsVisible(true);
+            if (event.code === "Digit1") {
+                event.preventDefault();
+                event.stopPropagation();
+                if (view !== "editor") {
+                    handlersRef.current.onReturnToEditor();
+                } else {
+                    handlersRef.current.onFocusMainContent();
+                }
+                return;
+            }
+            if (event.code === "Digit2") {
+                event.preventDefault();
+                event.stopPropagation();
+                if (view === "editor") {
+                    handlersRef.current.onFocusSidebar();
+                } else {
+                    handlersRef.current.onReturnToEditor();
+                }
+                return;
+            }
             if (event.code === "KeyE") {
                 if (view !== "editor") {
                     event.preventDefault();
                     event.stopPropagation();
                     handlersRef.current.onReturnToEditor();
+                    creatorFocusMainContent();
                 }
                 return;
             }
             if (event.code === "KeyY") {
                 event.preventDefault();
                 event.stopPropagation();
-                handlersRef.current.onToggleYaml();
+                if (view === "yaml") {
+                    handlersRef.current.onReturnToEditor();
+                    creatorFocusMainContent();
+                } else {
+                    handlersRef.current.onToggleYaml();
+                    creatorFocusCodeEditor();
+                }
             } else if (event.code === "KeyI") {
                 event.preventDefault();
                 event.stopPropagation();
-                handlersRef.current.onToggleInvocation();
+                if (view === "invocation") {
+                    handlersRef.current.onReturnToEditor();
+                    creatorFocusMainContent();
+                } else {
+                    handlersRef.current.onToggleInvocation();
+                    creatorFocusCodeEditor();
+                }
             } else if (event.code === "KeyP") {
                 event.preventDefault();
                 event.stopPropagation();
@@ -235,6 +313,8 @@ export function CreatorShortcutGuide(props: {parameterSelected?: boolean}): Reac
     ];
     if (visible) {
         entries.push(
+            {shortcut: "1", label: "Focus main content"},
+            {shortcut: "2", label: "Focus properties"},
             {shortcut: "Y", label: "YAML view"},
             {shortcut: "I", label: "Invocation view"},
             {shortcut: "P", label: "Preview"},

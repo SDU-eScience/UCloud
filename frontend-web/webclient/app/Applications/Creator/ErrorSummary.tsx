@@ -12,7 +12,7 @@
 
 import * as React from "react";
 import {injectStyle} from "@/Unstyled";
-import {Icon, Text} from "@/ui-components";
+import {Text} from "@/ui-components";
 import Warning from "@/ui-components/Warning";
 import {CreatorDraft, CreatorValidationError} from "@/Applications/Creator/Draft";
 import {CreatorSourceParseError} from "@/Applications/Creator/SourceParser";
@@ -61,7 +61,6 @@ export function ErrorSummary(props: ErrorSummaryProps): React.ReactNode {
                                 key={`p${i}`}
                                 message={formatParseError(e)}
                                 onClick={() => props.onJumpToSourceLine(e.line, e.column)}
-                                kind="parse"
                             />
                         ))}
                         {validationErrors.map((e, i) => (
@@ -69,7 +68,6 @@ export function ErrorSummary(props: ErrorSummaryProps): React.ReactNode {
                                 key={`v${i}`}
                                 message={e.message}
                                 onClick={() => props.onFocusParameter(e)}
-                                kind="validation"
                             />
                         ))}
                         {extraErrors.map((e, i) => (
@@ -77,7 +75,6 @@ export function ErrorSummary(props: ErrorSummaryProps): React.ReactNode {
                                 key={`x${i}`}
                                 message={e.message}
                                 onClick={() => props.onFocusParameter(e)}
-                                kind="validation"
                             />
                         ))}
                     </ul>
@@ -94,16 +91,11 @@ export function ErrorSummary(props: ErrorSummaryProps): React.ReactNode {
     );
 }
 
-function ErrorSummaryItem(props: {message: string; onClick: () => void; kind: "parse" | "validation"}): React.ReactNode {
+function ErrorSummaryItem(props: {message: string; onClick: () => void}): React.ReactNode {
     return (
         <li className={ErrorItemClass} onClick={props.onClick} tabIndex={0}
             onKeyDown={e => {if (e.key === "Enter" || e.key === " ") {e.preventDefault(); props.onClick();}}}
         >
-            <Icon
-                name={props.kind === "parse" ? "heroCodeBracket" : "heroExclamationCircle"}
-                size={14}
-                color="errorMain"
-            />
             <Text fontSize={13} className="error-item-message">{props.message}</Text>
         </li>
     );
@@ -116,12 +108,13 @@ function formatParseError(e: CreatorSourceParseError): string {
 
 const ErrorListClass = injectStyle("creator-error-list", k => `
     ${k} {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
         margin: 0;
-        padding: 0;
-        list-style: none;
+        padding-left: 20px;
+        list-style: disc;
+    }
+
+    ${k} li {
+        padding: 2px 0;
     }
 `);
 
@@ -140,11 +133,6 @@ function formatRetryAt(value: number | string): string {
 
 const ErrorItemClass = injectStyle("creator-error-item", k => `
     ${k} {
-        display: flex;
-        align-items: flex-start;
-        gap: 8px;
-        padding: 4px 6px;
-        border-radius: 4px;
         cursor: pointer;
         color: var(--textPrimary);
     }

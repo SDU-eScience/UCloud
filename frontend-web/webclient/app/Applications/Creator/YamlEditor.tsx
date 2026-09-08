@@ -34,6 +34,7 @@ import {
     ensureUcloudDarkTheme,
 } from "@/Applications/Creator/MonacoShared";
 import {CreatorSourceParseError} from "@/Applications/Creator/SourceParser";
+import {creatorRegisterCodeEditorFocus} from "@/Applications/Creator/CreatorKeyboard";
 import {useMonaco} from "@/Editor/Editor";
 
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
@@ -66,6 +67,10 @@ export function YamlEditor(props: YamlEditorProps): React.ReactNode {
     const propsRef = useRef(props);
     propsRef.current = props;
 
+    useEffect(() => creatorRegisterCodeEditorFocus(() => {
+        editorRef.current?.focus();
+    }), []);
+
     useLayoutEffect(() => {
         const m = monaco;
         const node = containerRef.current;
@@ -87,6 +92,7 @@ export function YamlEditor(props: YamlEditorProps): React.ReactNode {
             ...creatorEditorOptions(),
         });
         editorRef.current = ed;
+        ed.focus();
 
         model.onDidChangeContent(() => {
             const value = model.getValue();

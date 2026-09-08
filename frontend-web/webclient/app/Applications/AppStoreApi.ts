@@ -580,7 +580,6 @@ export interface AppCatalogCustomGroup {
     id: number;
     createdAt: number;
     owner: ResourceOwner;
-    backedBy?: number;
     specification: {
         title: string;
         description: string;
@@ -591,7 +590,6 @@ export interface AppCatalogCustomCategory {
     id: number;
     createdAt: number;
     owner: ResourceOwner;
-    backedBy?: number;
     specification: {
         title: string;
         description: string;
@@ -637,24 +635,36 @@ export function createCustomApplication(request: Record<string, unknown>): APICa
     return apiUpdate(request, baseContext, "createCustom");
 }
 
+export function deleteCustomApplication(request: {
+    name: string;
+    version: string;
+    serviceProvider: string;
+}): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "deleteCustom");
+}
+
+export function updateCustomApplication(request: {
+    name: string;
+    version: string;
+    serviceProvider: string;
+    publishedToProject: boolean;
+}): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "updateCustom");
+}
+
 export interface AppCatalogCustomCategorySpecification {
     title: string;
     description: string;
 }
 
 export function createCustomGroup(request: {
-    kind: "Custom" | "Managed";
-    id?: number;
-    specification?: AppCatalogCustomCategorySpecification;
-    acl?: unknown[];
+    specification: AppCatalogCustomCategorySpecification;
 }): APICallParameters<unknown, {id: number}> {
     return apiUpdate(request, baseContext, "createCustomGroup");
 }
 
 export function createCustomCategory(request: {
-    kind: "Custom" | "Managed";
-    id?: number;
-    specification?: AppCatalogCustomCategorySpecification;
+    specification: AppCatalogCustomCategorySpecification;
     acl?: unknown[];
 }): APICallParameters<unknown, {id: number}> {
     return apiUpdate(request, baseContext, "createCustomCategory");

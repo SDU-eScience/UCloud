@@ -72,11 +72,13 @@ import {
     useCreatorShortcuts,
     creatorFocusSection,
     creatorFocusParameterSection,
+    creatorFocusMainContent,
 } from "@/Applications/Creator/CreatorKeyboard";
 import {
     FIELD_NAVIGATION_SELECTOR,
     FORM_NAVIGATION_SELECTOR,
     focusFirstNavigationTarget,
+    isDisabledNavigationTarget,
     KeyboardNavigation,
 } from "@/Applications/KeyboardNavigation";
 import {
@@ -375,7 +377,7 @@ export const Create: React.FunctionComponent = () => {
     const context = parsedContext.context;
     const activeWorkspace = projectId ?? "personal";
     const contextError = parsedContext.error ?? (
-        !context.developmentTemplate && context.workspace !== activeWorkspace
+        !creatorIsCustom(context) && !context.developmentTemplate && context.workspace !== activeWorkspace
             ? "The active workspace no longer matches this application draft. Return to the source page and open it again."
             : null
     );
@@ -405,11 +407,13 @@ export const Create: React.FunctionComponent = () => {
     const validationRequestId = useRef(0);
     const draftRevisionRef = useRef(0);
     const draftRef = useRef<CreatorDraft | null>(null);
+    const draftWorkspaceRef = useRef<string | null>(activeWorkspace);
     const lastPreviewJobRef = useRef<JobSpecification | null>(null);
 
     const panelRef = useRef<HTMLDivElement>(null);
     const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
     const isResizing = useRef(false);
+    const sidebarFocusRef = useRef<HTMLElement | null>(null);
 
     usePage("Application editor", SidebarTabId.APPLICATIONS);
 
@@ -440,16 +444,25 @@ export const Create: React.FunctionComponent = () => {
             return;
         }
         const currentDraft = draftRef.current;
-        if (currentDraft?.dirty && creatorContextKey(currentDraft.context) === creatorContextKey(context)) {
+        const customOperation = creatorIsCustom(context);
+        const installedWorkspace = draftWorkspaceRef.current;
+        const switchedWorkspace = customOperation && currentDraft != null &&
+            installedWorkspace != null && installedWorkspace !== activeWorkspace;
+        if (currentDraft?.dirty && !switchedWorkspace && creatorContextKey(currentDraft.context) === creatorContextKey(context)) {
             setLoading(false);
             setLoadError(null);
             return;
         }
         setLoading(true);
         setLoadError(null);
-        const customContext = creatorIsCustom(context);
+        const customContext = customOperation;
+        const draftSource = currentDraft == null ? null : {
+            application: currentDraft.lastValidApplication,
+            sourceText: currentDraft.sourceText,
+            customMeta: currentDraft.customMeta,
+        };
         Promise.all([
-            creatorService.loadSource(context),
+            draftSource ?? creatorService.loadSource(context),
             customContext ? creatorService.loadCustomPlacement() : Promise.resolve({groups: [], categories: []}),
             customContext ? creatorService.loadCustomEligibility() : Promise.resolve(null),
         ]).then(([source, placement, rawEligibility]) => {
@@ -460,7 +473,7 @@ export const Create: React.FunctionComponent = () => {
             };
             const categoryId = source.customMeta?.category || context.initialCategory;
             const categoryIsEditable = categoryId != null && placement.categories.some(category => String(category.id) === categoryId);
-            if (customContext && context.operation !== "fork" && !categoryIsEditable) {
+            if (customContext && !switchedWorkspace && context.operation !== "fork" && !categoryIsEditable) {
                 throw new Error("You no longer have edit permission on the selected category.");
             }
             let customMeta = source.customMeta;
@@ -470,9 +483,11 @@ export const Create: React.FunctionComponent = () => {
                 const autoSelectProvider = context.operation === "newCustom" || eligibility?.providers.length === 1;
                 customMeta = {
                     ...customMeta,
-                    provider: customMeta.provider || (autoSelectProvider ? firstProvider : ""),
-                    group: context.operation === "newCustom" ? customMeta.group || String(placement.groups[0]?.id ?? "") : customMeta.group,
-                    category: categoryId ?? customMeta.category,
+                    provider: switchedWorkspace
+                        ? customMeta.provider
+                        : customMeta.provider || (autoSelectProvider ? firstProvider : ""),
+                    group: switchedWorkspace ? "" : customMeta.group,
+                    category: switchedWorkspace ? "" : categoryId ?? customMeta.category,
                     canPublish: eligibility?.canPublish ?? false,
                     publishedToProject: eligibility?.canPublish === true && customMeta.publishedToProject,
                 };
@@ -495,8 +510,11 @@ export const Create: React.FunctionComponent = () => {
                     ...initialDraft,
                     placementGroups: placement.groups,
                     placementCreatedGroup: null,
-                    ...(context.operation === "fork" ? {dirty: true, sourceNormalized: true} : {}),
+                    dirty: switchedWorkspace ? true : context.operation === "fork",
+                    sourceNormalized: switchedWorkspace ? true : context.operation === "fork",
+                    nameManuallySet: switchedWorkspace ? currentDraft?.nameManuallySet ?? false : initialDraft.nameManuallySet,
                 });
+                draftWorkspaceRef.current = activeWorkspace;
                 setCustomGroups(placement.groups);
                 setCustomCategories(placement.categories);
                 setCustomEligibility(eligibility);
@@ -524,7 +542,7 @@ export const Create: React.FunctionComponent = () => {
         return () => {
             cancelled = true;
         };
-    }, [context.operation, context.applicationKind, context.workspace, context.existingName, context.existingVersion, context.provider, context.sourceApplicationKind, context.sourceProvider, context.initialCategory, context.developmentTemplate, contextError, navigate]);
+    }, [context.operation, context.applicationKind, context.workspace, context.existingName, context.existingVersion, context.provider, context.sourceApplicationKind, context.sourceProvider, context.initialCategory, context.developmentTemplate, contextError, activeWorkspace, navigate]);
 
     const refreshPlacement = useCallback(async () => {
         if (!creatorIsCustom(context)) return;
@@ -873,6 +891,19 @@ export const Create: React.FunctionComponent = () => {
     }, [draft?.selection.parameterId, draft?.view, onSelectParameter]);
 
     useEffect(() => {
+        const onFocusIn = (event: FocusEvent) => {
+            const target = event.target instanceof HTMLElement ? event.target : null;
+            if (target?.closest("[data-creator-sidebar]")) sidebarFocusRef.current = target;
+        };
+        document.addEventListener("focusin", onFocusIn);
+        return () => document.removeEventListener("focusin", onFocusIn);
+    }, []);
+
+    const onFocusMainContent = useCallback(() => {
+        window.requestAnimationFrame(() => creatorFocusMainContent());
+    }, []);
+
+    useEffect(() => {
         if (draft?.view !== "editor") return;
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key !== "Escape") return;
@@ -883,7 +914,16 @@ export const Create: React.FunctionComponent = () => {
             if (target?.isContentEditable || target instanceof HTMLInputElement ||
                 target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
                 if (target.getAttribute("role") === "switch") return;
-                (target as HTMLElement).blur();
+                if (target.closest("[data-creator-sidebar]")) {
+                    (target.closest<HTMLElement>("[data-creator-sidebar]") as HTMLElement).focus();
+                } else {
+                    (target as HTMLElement).blur();
+                }
+                return;
+            }
+            if (target?.closest("[data-creator-sidebar]")) {
+                event.preventDefault();
+                onFocusMainContent();
                 return;
             }
             const current = draftRef.current;
@@ -893,7 +933,7 @@ export const Create: React.FunctionComponent = () => {
         };
         document.addEventListener("keydown", onKeyDown);
         return () => document.removeEventListener("keydown", onKeyDown);
-    }, [draft?.view, updateSelection]);
+    }, [draft?.view, updateSelection, onFocusMainContent]);
 
     useEffect(() => {
         if (draft?.view !== "editor" && draft?.view !== "preview") return;
@@ -1211,6 +1251,21 @@ export const Create: React.FunctionComponent = () => {
         window.requestAnimationFrame(() => creatorFocusParameterSection(key));
     }, []);
 
+    const onFocusSidebar = useCallback(() => {
+        window.requestAnimationFrame(() => {
+            const remembered = sidebarFocusRef.current;
+            if (remembered && remembered.isConnected && remembered.offsetParent !== null &&
+                !isDisabledNavigationTarget(remembered)) {
+                remembered.focus();
+                return;
+            }
+            const sidebar = document.querySelector<HTMLElement>("[data-creator-sidebar]");
+            if (!sidebar) return;
+            const first = focusFirstNavigationTarget(sidebar, FORM_NAVIGATION_SELECTOR);
+            if (!first) sidebar.focus();
+        });
+    }, []);
+
     const shortcutsEnabled = draft != null && !loading && loadError == null && contextError == null;
     const parameterSelected = draft?.selection.parameterId != null;
     const hintsVisible = useCreatorShortcuts(
@@ -1224,6 +1279,8 @@ export const Create: React.FunctionComponent = () => {
             onSave: () => void onSave(),
             onFocusSection,
             onFocusParameterSection,
+            onFocusMainContent,
+            onFocusSidebar,
         },
         parameterSelected,
     );
@@ -1389,7 +1446,7 @@ export const Create: React.FunctionComponent = () => {
     return (
         <CreatorShortcutHintsProvider visible={hintsVisible}>
         <div className={CreatorShellClass}>
-            <div className={CreatorMainIslandClass} onPointerDown={onMainIslandPointerDown}>
+            <div className={CreatorMainIslandClass} onPointerDown={onMainIslandPointerDown} data-creator-main-content tabIndex={-1}>
                 <div className={CreatorMainHeaderClass}>
                     <EditorHeader draft={draft} />
                     <Box flexGrow={1} />
@@ -1470,6 +1527,8 @@ export const Create: React.FunctionComponent = () => {
                     ref={panelRef}
                     className={CreatorPanelIslandClass}
                     style={{"--panel-width": `${panelWidth}px`} as React.CSSProperties}
+                    data-creator-sidebar
+                    tabIndex={-1}
                 >
                     <div className="panel-resizer" onPointerDown={onResizeStart} />
                     <div className={CreatorPanelBodyClass}>
