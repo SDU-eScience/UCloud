@@ -168,12 +168,13 @@ func (cfg *Config) InitUCloudClient() {
 	cfg.initUCloudClient()
 }
 
-func InitializeUCloudClient() {
+func InitializeUCloudClient() *Config {
 	cfg, err := ReadConfig()
 	if err != nil {
 		panic(err)
 	}
 	cfg.InitUCloudClient()
+	return cfg
 }
 
 func PrintConfig(cfg *Config) {

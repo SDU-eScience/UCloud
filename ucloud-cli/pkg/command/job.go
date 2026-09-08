@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/cli"
@@ -18,7 +17,7 @@ import (
 )
 
 type JobGetCommand struct {
-	JobID  string `positional:"job-id" usage:"Job ID"`
+	JobID  string `positional:"job-id" usage:"Job ID" required:"true"`
 	Output string `flag:"output" usage:"Output format: table or json"`
 }
 
@@ -41,18 +40,18 @@ type JobCreateCommand struct {
 }
 
 type JobRenameCommand struct {
-	JobID   string `positional:"job-id" usage:"Job ID"`
-	NewName string `positional:"new-name" usage:"New job name"`
+	JobID   string `positional:"job-id" usage:"Job ID" required:"true"`
+	NewName string `positional:"new-name" usage:"New job name" required:"true"`
 }
 
 type JobSearchCommand struct {
-	JobName   string `positional:"job-name" usage:"Job name"`
+	JobName   string `positional:"job-name" usage:"Job name" required:"true"`
 	Workspace string `flag:"workspace" usage:"Workspace to search jobs in"`
 }
 
 type JobExtendCommand struct {
-	JobID    string `positional:"job-id" usage:"Job ID"`
-	Duration string `flag:"duration" usage:"Using duration string eg. 1h30m"`
+	JobID    string `positional:"job-id" usage:"Job ID" required:"true"`
+	Duration string `positional:"duration" usage:"Using duration string eg. 1h30m" required:"true"`
 }
 
 type JobResumeCommand struct {
@@ -157,11 +156,7 @@ func printJobs(workspace string, jobs map[string]orcapi.Job) {
 }
 
 func (c JobRenameCommand) Execute() error {
-	cfg, err := shared.ReadConfig()
-	if err != nil {
-		shared.HandleError(c, err)
-	}
-	cfg.InitUCloudClient()
+	shared.InitializeUCloudClient()
 
 	if c.JobID == "" {
 		return fmt.Errorf("this command requires a job id, use: ucloud job rename <job-id> <new-name>")
@@ -183,11 +178,7 @@ func (c JobRenameCommand) Execute() error {
 }
 
 func (c JobSearchCommand) Execute() error {
-	cfg, err := shared.ReadConfig()
-	if err != nil {
-		shared.HandleError(c, err)
-	}
-	cfg.InitUCloudClient()
+	cfg := shared.InitializeUCloudClient()
 
 	if c.JobName == "" {
 		return fmt.Errorf("this command requires a job name, use: ucloud job search <job-name>")
@@ -223,35 +214,23 @@ func (c JobSearchCommand) Execute() error {
 }
 
 func (c JobExtendCommand) Execute() error {
-	cfg, err := shared.ReadConfig()
-	if err != nil {
-		shared.HandleError(c, err)
-	}
-	cfg.InitUCloudClient()
+	shared.InitializeUCloudClient()
 
 	if c.JobID == "" {
-		return fmt.Errorf("this command requires a job id, use: ucloud job extend <job-id> --duration")
+		return fmt.Errorf("this command requires a job id, eg. ucloud job extend <job-id> 1h30m")
 	}
 	if c.Duration == "" {
-		return fmt.Errorf("this command requires a duration string, use: ucloud job extend <job-id> --duration")
+		return fmt.Errorf("this command requires a duration string, eg. ucloud job extend <job-id> 1h30m")
 	}
 
-	duration, err := time.ParseDuration(c.Duration)
-
+	simpleDuration, err := shared.DurationStrToSimpleDuration(c.Duration)
 	if err != nil {
-		return fmt.Errorf("invalid duration string %q: %s", c.Duration, err)
-	}
-
-	if duration < 0 {
-		return fmt.Errorf("duration must be positive, got %q", c.Duration)
+		return err
 	}
 
 	_, httpErr := orcapi.JobsExtend.Invoke(fnd.BulkRequestOf(orcapi.JobsExtendRequestItem{
-		JobId: c.JobID,
-		RequestedTime: orcapi.SimpleDuration{
-			Hours:   int(duration.Hours()),
-			Minutes: int(duration.Minutes()),
-		},
+		JobId:         c.JobID,
+		RequestedTime: *simpleDuration,
 	}))
 
 	if httpErr != nil {
@@ -263,11 +242,7 @@ func (c JobExtendCommand) Execute() error {
 }
 
 func (c JobGetCommand) Execute() error {
-	cfg, err := shared.ReadConfig()
-	if err != nil {
-		shared.HandleError(c, err)
-	}
-	cfg.InitUCloudClient()
+	shared.InitializeUCloudClient()
 
 	if c.JobID == "" {
 		return fmt.Errorf("this command requires a job id, use: ucloud job get <job-id>")
@@ -324,11 +299,7 @@ func printJobDetails(job orcapi.Job) {
 }
 
 func (c JobListCommand) Execute() error {
-	cfg, err := shared.ReadConfig()
-	if err != nil {
-		shared.HandleError(c, err)
-	}
-	cfg.InitUCloudClient()
+	cfg := shared.InitializeUCloudClient()
 	currentWs := c.Workspace
 	if c.Workspace == "" && cfg.CurrentWorkspace.IsEmpty() {
 		return fmt.Errorf("this command requires a workspace, either by specifying a workspace with --workspace or ucloud workspace use <workspace>")
@@ -633,18 +604,11 @@ func createApp(job JobCreateCommand, app *orcapi.Application) error {
 	}
 
 	if job.Duration != "" {
-		duration, err := time.ParseDuration(job.Duration)
+		duration, err := shared.DurationStrToSimpleDuration(job.Duration)
 		if err != nil {
-			return fmt.Errorf("invalid duration string %q: %s", job.Duration, err)
+			return err
 		}
-		if duration < 0 {
-			return fmt.Errorf("duration must be positive, got %q", job.Duration)
-		}
-		spec.TimeAllocation = util.OptValue(orcapi.SimpleDuration{
-			Hours:   int(duration / time.Hour),
-			Minutes: int((duration % time.Hour) / time.Minute),
-			Seconds: int((duration % time.Minute) / time.Second),
-		})
+		spec.TimeAllocation = util.OptValue(*duration)
 	}
 	if job.Folder != "" {
 		file := orcapi.AppParameterValue{
@@ -679,11 +643,7 @@ func createApp(job JobCreateCommand, app *orcapi.Application) error {
 }
 
 func (c JobCreateCommand) Execute() error {
-	cfg, err := shared.ReadConfig()
-	if err != nil {
-		shared.HandleError(c, err)
-	}
-	cfg.InitUCloudClient()
+	cfg := shared.InitializeUCloudClient()
 
 	if c.App == "" {
 		return fmt.Errorf("this command requires an application, use --app <name>")
@@ -712,11 +672,7 @@ func (c JobCreateCommand) Execute() error {
 }
 
 func (c JobTerminateCommand) Execute() error {
-	cfg, err := shared.ReadConfig()
-	if err != nil {
-		shared.HandleError(c, err)
-	}
-	cfg.InitUCloudClient()
+	shared.InitializeUCloudClient()
 
 	if c.JobID == "" {
 		return fmt.Errorf("this command requires a job id, use: ucloud job terminate <job-id>")
@@ -734,11 +690,7 @@ func (c JobTerminateCommand) Execute() error {
 }
 
 func (c JobResumeCommand) Execute() error {
-	cfg, err := shared.ReadConfig()
-	if err != nil {
-		shared.HandleError(c, err)
-	}
-	cfg.InitUCloudClient()
+	shared.InitializeUCloudClient()
 
 	if c.JobID == "" {
 		return fmt.Errorf("this command requires a job id, use: ucloud job resume <job-id>")
