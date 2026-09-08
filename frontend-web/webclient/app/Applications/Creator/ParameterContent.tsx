@@ -59,7 +59,6 @@ export interface ParameterContentProps {
     onSelectParameter: (parameterId: string | null) => void;
     onReorder: (newOrder: string[]) => void;
     onOpenWorkflowYaml: (parameterName: string) => void;
-    onMoveSelection: (direction: number) => void;
 }
 
 export const ParameterContent = React.memo(ParameterContentBase, (prev, next) =>
@@ -69,7 +68,6 @@ export const ParameterContent = React.memo(ParameterContentBase, (prev, next) =>
     prev.draft.selection === next.draft.selection &&
     prev.onSelectParameter === next.onSelectParameter &&
     prev.onReorder === next.onReorder &&
-    prev.onMoveSelection === next.onMoveSelection &&
     prev.onOpenWorkflowYaml === next.onOpenWorkflowYaml
 );
 
@@ -115,9 +113,11 @@ function ParameterContentBase(props: ParameterContentProps): React.ReactNode {
                             selected={selected}
                             draft={draft}
                             onSelect={() => props.onSelectParameter(id)}
+                            onSelectParameter={props.onSelectParameter}
                             onReorder={onReorder}
-                            onMoveSelection={props.onMoveSelection}
                             onDeselect={() => props.onSelectParameter(null)}
+                            previousId={index === 0 ? null : draft.parameterIds[application.parametersOrder[index - 1]] ?? null}
+                            nextId={index === application.parametersOrder.length - 1 ? null : draft.parameterIds[application.parametersOrder[index + 1]] ?? null}
                             onOpenWorkflowYaml={props.onOpenWorkflowYaml}
                             dragFromIndex={dragFromIndex}
                             dragToIndex={dragToIndex}
@@ -150,9 +150,11 @@ interface ParameterRowProps {
     selected: boolean;
     draft: CreatorDraft;
     onSelect: () => void;
+    onSelectParameter: (parameterId: string) => void;
     onReorder: (fromIndex: number, toIndex: number) => void;
-    onMoveSelection: (direction: number) => void;
     onDeselect: () => void;
+    previousId: string | null;
+    nextId: string | null;
     onOpenWorkflowYaml: (parameterName: string) => void;
     dragFromIndex: number | null;
     dragToIndex: number | null;
@@ -248,16 +250,14 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
         if (e.key === "ArrowUp" || e.key === "ArrowDown") {
             e.preventDefault();
             e.stopPropagation();
-            const direction = e.key === "ArrowUp" ? -1 : 1;
-            const targetIndex = index + direction;
-            if (targetIndex < 0 || targetIndex >= count) return;
-            if (!selected) {
-                props.onSelect();
-                return;
-            }
-            props.onMoveSelection(direction);
-            const next = rowRef.current?.parentElement?.children[targetIndex];
-            if (next instanceof HTMLElement) next.focus();
+            const targetId = e.key === "ArrowUp" ? props.previousId : props.nextId;
+            if (targetId == null) return;
+            props.onSelectParameter(targetId);
+            window.requestAnimationFrame(() => {
+                const next = rowRef.current?.parentElement?.querySelector<HTMLElement>(`[data-row-id="${CSS.escape(targetId)}"]`);
+                next?.focus();
+                next?.scrollIntoView({block: "nearest"});
+            });
             return;
         }
         if (e.key === "Enter" || e.key === " ") {
@@ -272,7 +272,7 @@ function ParameterRow(props: ParameterRowProps): React.ReactNode {
             e.preventDefault();
             props.onDeselect();
         }
-    }, [selected, index, count, props.onReorder, props.onSelect, props.onMoveSelection, props.onDeselect]);
+    }, [selected, index, count, props.onReorder, props.onSelect, props.onSelectParameter, props.onDeselect, props.previousId, props.nextId]);
 
     const isDraggingThis = dragFromIndex != null && dragFromIndex === index;
     const isDropTarget = dragFromIndex != null && dragToIndex != null && dragToIndex === index && dragToIndex !== dragFromIndex;

@@ -65,6 +65,7 @@ import {ErrorSummary} from "@/Applications/Creator/ErrorSummary";
 import {CreatorHighlightTarget, creatorHighlightTarget} from "@/Applications/Creator/Highlight";
 import {
     CreatorShortcutGuide,
+    CreatorShortcutControl,
     CreatorShortcutHintsProvider,
     CreatorSectionKey,
     useCreatorShortcuts,
@@ -72,7 +73,9 @@ import {
 } from "@/Applications/Creator/CreatorKeyboard";
 import {
     FIELD_NAVIGATION_SELECTOR,
-    isDisabledNavigationTarget,
+    FORM_NAVIGATION_SELECTOR,
+    focusFirstNavigationTarget,
+    KeyboardNavigation,
 } from "@/Applications/KeyboardNavigation";
 import {
     draftSelectParameter,
@@ -860,23 +863,6 @@ export const Create: React.FunctionComponent = () => {
         updateSelection(d => draftSelectParameter(d, parameterId));
     }, [updateSelection]);
 
-    const onMoveSelection = useCallback((direction: number) => {
-        updateSelection(d => {
-            const order = d.application.parametersOrder;
-            if (order.length === 0) return d;
-            const currentIndex = d.selection.parameterId != null
-                ? order.findIndex(name => d.parameterIds[name] === d.selection.parameterId)
-                : -1;
-            const nextIndex = currentIndex === -1
-                ? direction > 0 ? 0 : order.length - 1
-                : Math.min(order.length - 1, Math.max(0, currentIndex + direction));
-            const nextName = order[nextIndex];
-            const nextId = d.parameterIds[nextName] ?? null;
-            if (nextId == null || nextId === d.selection.parameterId) return d;
-            return draftSelectParameter(d, nextId);
-        });
-    }, [updateSelection]);
-
     const onMainIslandPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
         if (draft?.view !== "editor" || draft.selection.parameterId == null) return;
         const target = event.target;
@@ -917,7 +903,7 @@ export const Create: React.FunctionComponent = () => {
             if (event.defaultPrevented) return;
             const active = document.activeElement;
             if (active?.closest("[data-row-id]")) return;
-            if (active?.closest(FIELD_NAVIGATION_SELECTOR)) return;
+            if (active?.closest(FORM_NAVIGATION_SELECTOR)) return;
             if (active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement) return;
             if (active instanceof HTMLInputElement && !active.readOnly) return;
             if (active instanceof HTMLElement && active.isContentEditable) return;
@@ -927,20 +913,22 @@ export const Create: React.FunctionComponent = () => {
                 const row = rows.find(element => element.getAttribute("data-selected") === "true") ?? rows[0];
                 if (!row) return;
                 event.preventDefault();
+                const parameterId = row.getAttribute("data-row-id");
+                if (parameterId != null) {
+                    updateSelection(d => draftSelectParameter(d, parameterId));
+                }
                 row.focus();
                 row.scrollIntoView({block: "nearest"});
             } else {
-                const field = Array.from(document.querySelectorAll<HTMLElement>(FIELD_NAVIGATION_SELECTOR))
-                    .find(element => element.offsetParent !== null && !isDisabledNavigationTarget(element));
+                const field = focusFirstNavigationTarget(document.body, FIELD_NAVIGATION_SELECTOR);
                 if (!field) return;
                 event.preventDefault();
-                field.focus();
                 field.scrollIntoView({block: "nearest"});
             }
         };
         document.addEventListener("keydown", onKeyDown, true);
         return () => document.removeEventListener("keydown", onKeyDown, true);
-    }, [draft?.view]);
+    }, [draft?.view, updateSelection]);
 
     const onFeatureHighlight = useCallback((target: CreatorHighlightTarget) => {
         updateSelection(d => draftSelectParameter(d, null));
@@ -1202,18 +1190,6 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [draft, saveLoading, validateDraft, navigate]);
 
-    const onToggleYamlView = useCallback(() => {
-        onToggleYaml();
-    }, [onToggleYaml]);
-
-    const onToggleInvocationView = useCallback(() => {
-        onToggleInvocation();
-    }, [onToggleInvocation]);
-
-    const onTogglePreviewView = useCallback(() => {
-        void onPreview();
-    }, [onPreview]);
-
     const onReturnToEditor = useCallback(() => {
         setDraft(current => {
             if (!current || current.view === "editor") return current;
@@ -1234,9 +1210,9 @@ export const Create: React.FunctionComponent = () => {
         draft?.view ?? null,
         shortcutsEnabled,
         {
-            onToggleYaml: onToggleYamlView,
-            onToggleInvocation: onToggleInvocationView,
-            onTogglePreview: onTogglePreviewView,
+            onToggleYaml,
+            onToggleInvocation,
+            onTogglePreview: () => void onPreview(),
             onReturnToEditor,
             onSave: () => void onSave(),
             onFocusSection,
@@ -1409,18 +1385,22 @@ export const Create: React.FunctionComponent = () => {
                     <EditorHeader draft={draft} />
                     <Box flexGrow={1} />
                     <Flex alignItems="center" gap="4px">
-                        <IconButton
-                            icon="heroCodeBracket"
-                            tooltip={yamlTooltip}
-                            onClick={onToggleYaml}
-                            color={draft.view === "yaml" ? "primaryMain" : "textSecondary"}
-                        />
-                        <IconButton
-                            icon="heroEye"
-                            tooltip={previewTooltip}
-                            onClick={() => { if (!previewDisabled) void onPreview(); }}
-                            color={draft.view === "preview" ? "primaryMain" : "textSecondary"}
-                        />
+                        <CreatorShortcutControl shortcut="Y">
+                            <IconButton
+                                icon="heroCodeBracket"
+                                tooltip={yamlTooltip}
+                                onClick={onToggleYaml}
+                                color={draft.view === "yaml" ? "primaryMain" : "textSecondary"}
+                            />
+                        </CreatorShortcutControl>
+                        <CreatorShortcutControl shortcut="P">
+                            <IconButton
+                                icon="heroEye"
+                                tooltip={previewTooltip}
+                                onClick={() => { if (!previewDisabled) void onPreview(); }}
+                                color={draft.view === "preview" ? "primaryMain" : "textSecondary"}
+                            />
+                        </CreatorShortcutControl>
                         <TooltipV2 tooltip={saveTooltip}>
                             <Button
                                 type="button"
@@ -1447,7 +1427,6 @@ export const Create: React.FunctionComponent = () => {
                         focusColumn={focusColumn}
                         onSelectParameter={onSelectParameter}
                         onReorder={onReorder}
-                        onMoveSelection={onMoveSelection}
                         onFeatureHighlight={onFeatureHighlight}
                         onOpenWorkflowYaml={onOpenWorkflowYaml}
                         onSourceTextChange={onSourceTextChange}
@@ -1539,7 +1518,6 @@ function CreatorMainContent(props: {
     focusColumn: number;
     onSelectParameter: (parameterId: string | null) => void;
     onReorder: (newOrder: string[]) => void;
-    onMoveSelection: (direction: number) => void;
     onFeatureHighlight: (target: CreatorHighlightTarget) => void;
     onOpenWorkflowYaml: (parameterName: string) => void;
     onSourceTextChange: (text: string) => void;
@@ -1693,7 +1671,6 @@ function CreatorMainContent(props: {
                             draft={draft}
                             onSelectParameter={props.onSelectParameter}
                             onReorder={props.onReorder}
-                            onMoveSelection={props.onMoveSelection}
                             onOpenWorkflowYaml={props.onOpenWorkflowYaml}
                         />
                     </div>
@@ -2020,46 +1997,51 @@ function CreatorPanel(props: {
 
     return (
         <div ref={scrollRef} className={CreatorPanelScrollClass} onScroll={onPanelScroll}>
-            <div hidden={!showingMetadata}>
-                <MetadataPanel
-                    draft={draft}
-                    readOnly={props.readOnly}
-                    onNameChange={props.onNameChange}
-                    onVersionChange={props.onVersionChange}
-                    onUpdateMetadata={props.onUpdateMetadata}
-                    onUpdateSoftware={props.onUpdateSoftware}
-                    onUpdateFeatures={props.onUpdateFeatures}
-                    onUpdateWeb={props.onUpdateWeb}
-                    onUpdateVnc={props.onUpdateVnc}
-                    onUpdateSsh={props.onUpdateSsh}
-                    onUpdateInference={props.onUpdateInference}
-                    onUpdateModules={props.onUpdateModules}
-                    onUpdateUcx={props.onUpdateUcx}
-                    onUpdateExtensions={props.onUpdateExtensions}
-                    onUpdateEnvironment={props.onUpdateEnvironment}
-                    onUpdateSbatch={props.onUpdateSbatch}
-                    onUpdateCustomMeta={props.onUpdateCustomMeta}
-                    onAddParameter={props.onAddParameter}
-                    customEligibility={props.customEligibility}
-                    customGroups={props.customGroups}
-                    customCategories={props.customCategories}
-                    refreshPlacement={props.refreshPlacement}
-                    onInlineCreatedGroup={props.onInlineCreatedGroup}
-                />
-            </div>
-            {!showingMetadata ? (
-                <ParameterPanel
-                    draft={draft}
-                    readOnly={props.readOnly}
-                    onBack={() => props.onSelectParameter(null)}
-                    onRename={props.onRenameParameter}
-                    onUpdateBase={props.onUpdateBase}
-                    onDelete={props.onDeleteParameter}
-                    onUpdateDefaultValue={props.onUpdateDefaultValue}
-                    onUpdateNumeric={props.onUpdateNumeric}
-                    onUpdateEnumeration={props.onUpdateEnumeration}
-                />
-            ) : null}
+            <KeyboardNavigation
+                navigationSelector={FORM_NAVIGATION_SELECTOR}
+                horizontalSelector={FORM_NAVIGATION_SELECTOR}
+            >
+                <div hidden={!showingMetadata}>
+                    <MetadataPanel
+                        draft={draft}
+                        readOnly={props.readOnly}
+                        onNameChange={props.onNameChange}
+                        onVersionChange={props.onVersionChange}
+                        onUpdateMetadata={props.onUpdateMetadata}
+                        onUpdateSoftware={props.onUpdateSoftware}
+                        onUpdateFeatures={props.onUpdateFeatures}
+                        onUpdateWeb={props.onUpdateWeb}
+                        onUpdateVnc={props.onUpdateVnc}
+                        onUpdateSsh={props.onUpdateSsh}
+                        onUpdateInference={props.onUpdateInference}
+                        onUpdateModules={props.onUpdateModules}
+                        onUpdateUcx={props.onUpdateUcx}
+                        onUpdateExtensions={props.onUpdateExtensions}
+                        onUpdateEnvironment={props.onUpdateEnvironment}
+                        onUpdateSbatch={props.onUpdateSbatch}
+                        onUpdateCustomMeta={props.onUpdateCustomMeta}
+                        onAddParameter={props.onAddParameter}
+                        customEligibility={props.customEligibility}
+                        customGroups={props.customGroups}
+                        customCategories={props.customCategories}
+                        refreshPlacement={props.refreshPlacement}
+                        onInlineCreatedGroup={props.onInlineCreatedGroup}
+                    />
+                </div>
+                {!showingMetadata ? (
+                    <ParameterPanel
+                        draft={draft}
+                        readOnly={props.readOnly}
+                        onBack={() => props.onSelectParameter(null)}
+                        onRename={props.onRenameParameter}
+                        onUpdateBase={props.onUpdateBase}
+                        onDelete={props.onDeleteParameter}
+                        onUpdateDefaultValue={props.onUpdateDefaultValue}
+                        onUpdateNumeric={props.onUpdateNumeric}
+                        onUpdateEnumeration={props.onUpdateEnumeration}
+                    />
+                ) : null}
+            </KeyboardNavigation>
         </div>
     );
 }

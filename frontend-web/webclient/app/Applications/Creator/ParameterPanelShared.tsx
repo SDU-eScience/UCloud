@@ -14,6 +14,7 @@ import {Toggle} from "@/ui-components/Toggle";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import Icon from "@/ui-components/Icon";
 import {CreatorShortcutHint} from "@/Applications/Creator/CreatorKeyboard";
+import {focusFirstNavigationTarget, FORM_NAVIGATION_SELECTOR} from "@/Applications/KeyboardNavigation";
 
 export function PanelSection(props: {
     title: string;
@@ -24,6 +25,16 @@ export function PanelSection(props: {
 }): React.ReactNode {
     const [collapsed, setCollapsed] = useState(props.collapsedByDefault === true);
     const toggle = () => setCollapsed(c => !c);
+    const onHeaderKeyDown = (event: React.KeyboardEvent<HTMLSpanElement>) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        setCollapsed(false);
+        const section = event.currentTarget.closest<HTMLElement>("[data-panel-section]");
+        if (!section) return;
+        window.requestAnimationFrame(() => {
+            focusFirstNavigationTarget(section, FORM_NAVIGATION_SELECTOR);
+        });
+    };
     return (
         <div
             className={PanelSectionClass}
@@ -32,7 +43,18 @@ export function PanelSection(props: {
             id={props.id}
         >
             <div className="panel-section-header">
-                <span className="panel-section-title" onClick={toggle} data-panel-section-toggle>{props.title}</span>
+                <span
+                    className="panel-section-title"
+                    onClick={toggle}
+                    onKeyDown={onHeaderKeyDown}
+                    role="button"
+                    aria-expanded={!collapsed}
+                    tabIndex={collapsed ? 0 : -1}
+                    data-navigation-field={collapsed ? true : undefined}
+                    data-panel-section-toggle
+                >
+                    {props.title}
+                </span>
                 {props.shortcut ? <CreatorShortcutHint shortcut={props.shortcut} /> : null}
                 <IconButton
                     icon={collapsed ? "heroChevronRight" : "heroChevronDown"}
@@ -133,6 +155,12 @@ export const PanelSectionClass = injectStyle("creator-panel-section-shared", k =
         flex: 1 1 auto;
         cursor: pointer;
         user-select: none;
+    }
+
+    ${k} > .panel-section-header > .panel-section-title:focus-visible {
+        outline: 2px solid var(--primaryMain);
+        outline-offset: 2px;
+        border-radius: 4px;
     }
 
     ${k} > .panel-section-body {

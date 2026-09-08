@@ -15,6 +15,7 @@ import {createContext, useContext, useEffect, useState} from "react";
 import {createKeyboardShortcut, isLikelyMac} from "@/UtilityFunctions";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 import {injectStyle} from "@/Unstyled";
+import {focusFirstNavigationTarget, FORM_NAVIGATION_SELECTOR} from "@/Applications/KeyboardNavigation";
 
 export type CreatorSectionKey = "M" | "C" | "F" | "N" | "A";
 
@@ -46,18 +47,14 @@ const CREATOR_SECTION_KEYS: Record<string, CreatorSectionKey> = {
 export function creatorFocusSection(key: CreatorSectionKey): void {
     const target = document.getElementById(CREATOR_SECTION_TARGETS[key]);
     if (!target) return;
-    const section = target.closest<HTMLElement>("[data-panel-section]");
-    if (section?.getAttribute("data-collapsed") === "true") {
-        section.querySelector<HTMLElement>("[data-panel-section-toggle]")?.click();
-    }
+    const collapsed = target.getAttribute("data-collapsed") === "true";
     window.requestAnimationFrame(() => {
         target.scrollIntoView({block: "center", behavior: "smooth"});
-        const focusTarget = key === "A"
-            ? target.querySelector<HTMLElement>("[data-creator-widget='basic']")
-            : target.matches("button, [role='switch'], input, select, textarea")
-                ? target
-                : target.querySelector<HTMLElement>("button, [role='switch'], input, select, textarea");
-        focusTarget?.focus();
+        if (collapsed) {
+            target.querySelector<HTMLElement>("[data-panel-section-toggle]")?.focus();
+            return;
+        }
+        focusFirstNavigationTarget(target, FORM_NAVIGATION_SELECTOR);
     });
 }
 
@@ -162,6 +159,15 @@ export function CreatorShortcutHint(props: {shortcut: string}): React.ReactNode 
     );
 }
 
+export function CreatorShortcutControl(props: React.PropsWithChildren<{shortcut: string}>): React.ReactNode {
+    return (
+        <span className={CreatorShortcutControlClass}>
+            {props.children}
+            <CreatorShortcutHint shortcut={props.shortcut} />
+        </span>
+    );
+}
+
 const CreatorShortcutHintClass = injectStyle("creator-shortcut-hint", k => `
     ${k} {
         display: none;
@@ -170,6 +176,14 @@ const CreatorShortcutHintClass = injectStyle("creator-shortcut-hint", k => `
 
     ${k}[data-visible="true"] {
         display: inline-flex;
+    }
+`);
+
+const CreatorShortcutControlClass = injectStyle("creator-shortcut-control", k => `
+    ${k} {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
     }
 `);
 
@@ -186,36 +200,20 @@ export function CreatorShortcutGuide(): React.ReactNode {
         {shortcut: "alt + ↑ ↓", modifiers: [], label: "Reorder selected parameter"},
         {shortcut: "esc", modifiers: [], label: "Deselect parameter"},
     ];
-    if (!visible) {
-        return (
-            <div className={CreatorShortcutGuideClass}>
-                {entries.map(entry => (
-                    <div key={entry.label} className="keyboard-navigation-row">
-                        <span className={ShortcutClass}>
-                            {createKeyboardShortcut(entry.shortcut, entry.modifiers ?? ["ctrl", "alt"])}
-                        </span>
-                        <span className="keyboard-navigation-action">{entry.label}</span>
-                    </div>
-                ))}
-                <div className="keyboard-navigation-row">
-                    <span className={ShortcutClass}>{isLikelyMac ? "⌘⌥" : "Ctrl + Alt"}</span>
-                    <span className="keyboard-navigation-action">Hold to show more shortcuts</span>
-                </div>
-            </div>
+    if (visible) {
+        entries.push(
+            {shortcut: "Y", label: "YAML view"},
+            {shortcut: "I", label: "Invocation view"},
+            {shortcut: "P", label: "Preview"},
+            {shortcut: "E", label: "Back to editor"},
+            {shortcut: "S", modifiers: ["ctrl"], label: "Save"},
+            {shortcut: "M", label: "Jump to metadata"},
+            {shortcut: "C", label: "Jump to software"},
+            {shortcut: "F", label: "Jump to features"},
+            {shortcut: "N", label: "Jump to connectivity"},
+            {shortcut: "A", label: "Jump to add parameter"},
         );
     }
-    entries.push(
-        {shortcut: "Y", label: "YAML view"},
-        {shortcut: "I", label: "Invocation view"},
-        {shortcut: "P", label: "Preview"},
-        {shortcut: "E", label: "Back to editor"},
-        {shortcut: "S", modifiers: ["ctrl"], label: "Save"},
-        {shortcut: "M", label: "Jump to metadata"},
-        {shortcut: "C", label: "Jump to software"},
-        {shortcut: "F", label: "Jump to features"},
-        {shortcut: "N", label: "Jump to connectivity"},
-        {shortcut: "A", label: "Jump to add parameter"},
-    );
     return (
         <div className={CreatorShortcutGuideClass}>
             {entries.map(entry => (
@@ -226,6 +224,12 @@ export function CreatorShortcutGuide(): React.ReactNode {
                     <span className="keyboard-navigation-action">{entry.label}</span>
                 </div>
             ))}
+            {visible ? null : (
+                <div className="keyboard-navigation-row">
+                    <span className={ShortcutClass}>{isLikelyMac ? "⌘⌥" : "Ctrl + Alt"}</span>
+                    <span className="keyboard-navigation-action">Hold to show more shortcuts</span>
+                </div>
+            )}
         </div>
     );
 }

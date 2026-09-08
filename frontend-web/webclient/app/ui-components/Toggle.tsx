@@ -79,6 +79,11 @@ const ToggleWrapperClass = injectStyle("toggle-wrapper", k => `
         cursor: pointer;
     }
 
+    ${k}:focus {
+        outline: 2px solid var(--primaryMain);
+        outline-offset: 2px;
+    }
+
     ${k}[data-is-active="true"] {
         background-color: var(--activeColor);
         padding-left: calc(21px * var(--scale));

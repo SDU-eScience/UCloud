@@ -34,6 +34,7 @@ import type {InvocationParameters} from "@/Applications/Creator/InvocationScope"
 import {InvocationHelp} from "@/Applications/Creator/InvocationHelp";
 import {useMonaco} from "@/Editor/Editor";
 import {createKeyboardShortcut} from "@/UtilityFunctions";
+import {CreatorShortcutControl} from "@/Applications/Creator/CreatorKeyboard";
 
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 
@@ -159,13 +160,15 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
             activeIndex={props.activeTab === "preview" ? 1 : props.activeTab === "help" ? 2 : 0}
             onTabChange={idx => props.onTabChange(idx === 1 ? "preview" : idx === 2 ? "help" : "invocation")}
             rightControls={
-                <IconButton
-                    icon={props.maximized ? "heroArrowsPointingIn" : "heroArrowsPointingOut"}
-                    tooltip={props.maximized
-                        ? `Minimize (${createKeyboardShortcut("I", ["ctrl", "alt"])})`
-                        : `Maximize (${createKeyboardShortcut("I", ["ctrl", "alt"])})`}
-                    onClick={props.onToggleMaximized}
-                />
+                <CreatorShortcutControl shortcut="I">
+                    <IconButton
+                        icon={props.maximized ? "heroArrowsPointingIn" : "heroArrowsPointingOut"}
+                        tooltip={props.maximized
+                            ? `Minimize (${createKeyboardShortcut("I", ["ctrl", "alt"])})`
+                            : `Maximize (${createKeyboardShortcut("I", ["ctrl", "alt"])})`}
+                        onClick={props.onToggleMaximized}
+                    />
+                </CreatorShortcutControl>
             }
         >
             <TabbedCardTab name="Invocation" icon="heroCodeBracket">

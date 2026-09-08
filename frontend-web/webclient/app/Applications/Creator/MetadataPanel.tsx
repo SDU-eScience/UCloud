@@ -43,7 +43,7 @@ import * as AppStore from "@/Applications/AppStoreApi";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {doNothing, extractErrorMessage, isLikelyMac, stopPropagation} from "@/UtilityFunctions";
 import {FieldGroup, FieldRow} from "@/Applications/Jobs/Widgets";
-import {KeyboardNavigation, SubmitShortcut} from "@/Applications/KeyboardNavigation";
+import {FORM_NAVIGATION_SELECTOR, KeyboardNavigation, SubmitShortcut} from "@/Applications/KeyboardNavigation";
 import {sendFailureNotification} from "@/Notifications";
 import * as Heading from "@/ui-components/Heading";
 import {Divider} from "@/ui-components";
@@ -379,6 +379,7 @@ function ContainerImageSelector(props: {
             className={CategoryFieldClass}
             onClick={openSelector}
             disabled={!props.provider}
+            data-navigation-field
             data-creator-field="software.image"
             title={props.image || "Select a container image"}
         >
@@ -714,32 +715,53 @@ function KeyValueEditor(props: {
     onUpdate: (values: Record<string, string>) => void;
     collapsedByDefault?: boolean;
 }): React.ReactNode {
-    const [rows, setRows] = useState<[string, string][]>(() => Object.entries(props.values));
+    const nextRowId = useRef(0);
+    const [rows, setRows] = useState(() => Object.entries(props.values).map(([key, value]) => ({
+        id: nextRowId.current++,
+        key,
+        value,
+    })));
     const [error, setError] = useState<string | null>(null);
 
     const externalKey = JSON.stringify(props.values);
-    const [lastExternal, setLastExternal] = useState(externalKey);
-    if (externalKey !== lastExternal) {
-        setLastExternal(externalKey);
-        setRows(Object.entries(props.values));
+    const lastExternal = useRef(externalKey);
+    React.useLayoutEffect(() => {
+        if (externalKey === lastExternal.current) return;
+        lastExternal.current = externalKey;
+        const externalValues = JSON.parse(externalKey) as Record<string, string>;
+        setRows(Object.entries(externalValues).map(([key, value]) => ({
+            id: nextRowId.current++,
+            key,
+            value,
+        })));
         setError(null);
-    }
+    }, [externalKey]);
 
-    const applyRows = (next: [string, string][]) => {
+    const applyRows = (next: {id: number; key: string; value: string}[]) => {
         setRows(next);
-        const {result, error: validationError} = keyValueFromEntries(next);
+        const entries: [string, string][] = next.map(row => [row.key, row.value]);
+        const {result, error: validationError} = keyValueFromEntries(entries);
         setError(validationError);
-        if (!validationError) props.onUpdate(result);
+        if (!validationError) {
+            lastExternal.current = JSON.stringify(result);
+            props.onUpdate(result);
+        }
     };
 
     const commitRow = (index: number, key: string, value: string) => {
         const next = [...rows];
-        next[index] = [key, value];
+        next[index] = {...next[index], key, value};
         applyRows(next);
     };
 
-    const addRow = () => {
-        applyRows([...rows, ["", ""]]);
+    const addRow = (event: React.MouseEvent<HTMLButtonElement>) => {
+        const section = event.currentTarget.closest<HTMLElement>("[data-panel-section]");
+        applyRows([...rows, {id: nextRowId.current++, key: "", value: ""}]);
+        window.requestAnimationFrame(() => {
+            const addedRows = section?.querySelectorAll<HTMLElement>("[data-key-value-row]");
+            const addedRow = addedRows?.[addedRows.length - 1];
+            addedRow?.querySelector<HTMLElement>(FORM_NAVIGATION_SELECTOR)?.focus();
+        });
     };
 
     const removeRow = (index: number) => {
@@ -751,21 +773,26 @@ function KeyValueEditor(props: {
             {rows.length === 0 ? (
                 <Text fontSize={12} color="textSecondary">No {props.title.toLowerCase()} values.</Text>
             ) : null}
-            {rows.map((entry, index) => {
-                const [key, value] = entry;
-                return (
-                    <KeyValueRow
-                        key={index}
-                        rowKey={key}
-                        rowValue={value}
-                        keyPlaceholder={props.keyPlaceholder}
-                        valuePlaceholder={props.valuePlaceholder}
-                        onCommit={(newKey, newValue) => commitRow(index, newKey, newValue)}
-                        onRemove={() => removeRow(index)}
-                    />
-                );
-            })}
-            <Button type="button" color="secondaryMain" onClick={addRow} mt="4px">
+            {rows.map((entry, index) => (
+                <KeyValueRow
+                    key={entry.id}
+                    rowKey={entry.key}
+                    rowValue={entry.value}
+                    keyPlaceholder={props.keyPlaceholder}
+                    valuePlaceholder={props.valuePlaceholder}
+                    onCommit={(newKey, newValue) => commitRow(index, newKey, newValue)}
+                    onRemove={() => removeRow(index)}
+                />
+            ))}
+            <Button
+                type="button"
+                color="secondaryMain"
+                className={AddValueButtonClass}
+                onClick={addRow}
+                mt="4px"
+                data-add-value
+                data-navigation-field
+            >
                 <Icon name="heroPlus" mr={6} size={14} />
                 Add value
             </Button>
@@ -784,21 +811,45 @@ function KeyValueRow(props: {
 }): React.ReactNode {
     const [key, setKey] = useState(props.rowKey);
     const [value, setValue] = useState(props.rowValue);
+    const deleting = useRef(false);
 
     React.useEffect(() => { setKey(props.rowKey); }, [props.rowKey]);
     React.useEffect(() => { setValue(props.rowValue); }, [props.rowValue]);
 
-    const commitKey = () => props.onCommit(key, value);
-    const commitValue = () => props.onCommit(key, value);
+    const commitKey = () => {
+        if (!deleting.current) props.onCommit(key, value);
+    };
+    const commitValue = () => {
+        if (!deleting.current) props.onCommit(key, value);
+    };
+    const onDeleteEmpty = (event: React.KeyboardEvent<HTMLInputElement>, fieldValue: string) => {
+        if (event.key !== "Delete" || fieldValue !== "" || event.metaKey || event.ctrlKey || event.altKey) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const section = event.currentTarget.closest<HTMLElement>("[data-panel-section]");
+        const currentRow = event.currentTarget.closest<HTMLElement>("[data-key-value-row]");
+        const rows = section ? Array.from(section.querySelectorAll<HTMLElement>("[data-key-value-row]")) : [];
+        const rowIndex = currentRow == null ? -1 : rows.indexOf(currentRow);
+        deleting.current = true;
+        props.onRemove();
+        window.requestAnimationFrame(() => {
+            const remainingRows = section ? Array.from(section.querySelectorAll<HTMLElement>("[data-key-value-row]")) : [];
+            const nextRow = remainingRows[Math.min(Math.max(0, rowIndex), remainingRows.length - 1)];
+            const nextField = nextRow?.querySelector<HTMLElement>(FORM_NAVIGATION_SELECTOR) ??
+                section?.querySelector<HTMLElement>("[data-add-value]");
+            nextField?.focus();
+        });
+    };
 
     return (
-        <div className={KeyValueRowClass}>
+        <div className={KeyValueRowClass} data-key-value-row>
             <Input
                 className={PanelInputClass}
                 value={key}
                 placeholder={props.keyPlaceholder}
                 onChange={e => setKey(e.target.value)}
                 onBlur={commitKey}
+                onKeyDown={event => onDeleteEmpty(event, key)}
             />
             <Input
                 className={PanelInputClass}
@@ -806,6 +857,7 @@ function KeyValueRow(props: {
                 placeholder={props.valuePlaceholder}
                 onChange={e => setValue(e.target.value)}
                 onBlur={commitValue}
+                onKeyDown={event => onDeleteEmpty(event, value)}
             />
             <IconButton
                 icon="heroTrash"
@@ -840,6 +892,14 @@ interface ResourceOption {
     title: string;
     description: string;
     isCustom: boolean;
+}
+
+function closeAutocomplete(
+    setOpen: React.Dispatch<React.SetStateAction<boolean>>,
+    inputRef: React.RefObject<HTMLInputElement | null>,
+): void {
+    setOpen(false);
+    window.requestAnimationFrame(() => inputRef.current?.focus());
 }
 
 function GroupFlavorSection(props: {
@@ -942,6 +1002,7 @@ function GroupAutocompleteField(props: {
     const [managed, setManaged] = useState<ResourceOption[] | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     const selected = props.groups.find(group => String(group.id) === meta?.group) ?? (
         props.createdGroup != null && meta != null && String(props.createdGroup.id) === meta.group
@@ -1026,7 +1087,7 @@ function GroupAutocompleteField(props: {
         if (group.isCustom) {
             props.onUpdateCustomMeta({group: String(group.id)});
             setQuery(group.title);
-            setOpen(false);
+            closeAutocomplete(setOpen, inputRef);
             return;
         }
         setCreating(true);
@@ -1035,7 +1096,7 @@ function GroupAutocompleteField(props: {
             props.onInlineCreated?.({id: result.id, title: group.title, description: group.description});
             props.onUpdateCustomMeta({group: String(result.id)});
             setQuery(group.title);
-            setOpen(false);
+            closeAutocomplete(setOpen, inputRef);
             return props.refreshPlacement();
         }).catch(error => {
             sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
@@ -1057,7 +1118,7 @@ function GroupAutocompleteField(props: {
                 props.onInlineCreated?.({id: result.id, title: name, description});
                 props.onUpdateCustomMeta({group: String(result.id)});
                 setQuery(name);
-                setOpen(false);
+                closeAutocomplete(setOpen, inputRef);
                 await props.refreshPlacement();
                 dialogStore.success();
             } catch (error) {
@@ -1123,10 +1184,17 @@ function GroupAutocompleteField(props: {
 
     const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Escape") {
-            setOpen(false);
+            closeAutocomplete(setOpen, inputRef);
             return;
         }
-        if (!open) return;
+        if (!open) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                setHighlight(0);
+                setOpen(true);
+            }
+            return;
+        }
         const rowCount = matches.length + (canCreate ? 1 : 0);
         if (rowCount === 0) return;
         if (e.key === "ArrowDown") {
@@ -1152,6 +1220,7 @@ function GroupAutocompleteField(props: {
                 <div className={GroupInputWrapperClass}>
                     <div className={GroupInputRowClass}>
                         <Input
+                            inputRef={inputRef}
                             className={PanelInputClass}
                             value={query}
                             onChange={e => {
@@ -1161,10 +1230,12 @@ function GroupAutocompleteField(props: {
                             }}
                             onFocus={() => {
                                 setFocused(true);
-                                setOpen(true);
                             }}
                             onBlur={() => setFocused(false)}
                             onKeyDown={onKeyDown}
+                            role="combobox"
+                            aria-autocomplete="list"
+                            aria-expanded={open}
                             placeholder="Search or create an application group"
                             data-creator-field="custom.groupId"
                         />
@@ -1383,6 +1454,11 @@ const CategoryFieldClass = injectStyle("category-field", cl => `
     ${cl}:hover {
         border-color: var(--borderColorHover);
     }
+
+    ${cl}:focus {
+        outline: 2px solid var(--primaryMain);
+        outline-offset: 2px;
+    }
 `);
 
 const CategoryFieldTitleClass = injectStyle("category-field-title", cl => `
@@ -1515,6 +1591,7 @@ function CustomFieldsSection(props: {
                         showLabel={false}
                         reserveLabelSpace={false}
                         onSelect={el => props.onUpdateCustomMeta({provider: el.key})}
+                        data-navigation-field
                         data-creator-field="custom.serviceProvider"
                     />
                 ) : (
@@ -1568,6 +1645,7 @@ function CategoryAutocompleteField(props: {
     const [managed, setManaged] = useState<ResourceOption[] | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     const selected = props.categories.find(category => meta != null && String(category.id) === meta.category) ?? null;
 
@@ -1648,7 +1726,7 @@ function CategoryAutocompleteField(props: {
         if (option.isCustom) {
             props.onUpdateCustomMeta({category: String(option.id)});
             setQuery(option.title);
-            setOpen(false);
+            closeAutocomplete(setOpen, inputRef);
             return;
         }
         setCreating(true);
@@ -1656,7 +1734,7 @@ function CategoryAutocompleteField(props: {
             props.onLandingPageInvalidated();
             props.onUpdateCustomMeta({category: String(result.id)});
             setQuery(option.title);
-            setOpen(false);
+            closeAutocomplete(setOpen, inputRef);
             return props.refreshPlacement();
         }).catch(error => {
             sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
@@ -1667,10 +1745,17 @@ function CategoryAutocompleteField(props: {
 
     const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Escape") {
-            setOpen(false);
+            closeAutocomplete(setOpen, inputRef);
             return;
         }
-        if (!open) return;
+        if (!open) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                setHighlight(0);
+                setOpen(true);
+            }
+            return;
+        }
         const rowCount = matches.length + (canCreate ? 1 : 0);
         if (rowCount === 0) return;
         if (e.key === "ArrowDown") {
@@ -1700,7 +1785,7 @@ function CategoryAutocompleteField(props: {
                 props.onLandingPageInvalidated();
                 props.onUpdateCustomMeta({category: String(result.id)});
                 setQuery(name);
-                setOpen(false);
+                closeAutocomplete(setOpen, inputRef);
                 await props.refreshPlacement();
                 dialogStore.success();
             } catch (error) {
@@ -1742,6 +1827,7 @@ function CategoryAutocompleteField(props: {
                 <div className={GroupInputWrapperClass}>
                     <div className={GroupInputRowClass}>
                         <Input
+                            inputRef={inputRef}
                             className={PanelInputClass}
                             value={query}
                             onChange={e => {
@@ -1751,10 +1837,12 @@ function CategoryAutocompleteField(props: {
                             }}
                             onFocus={() => {
                                 setFocused(true);
-                                setOpen(true);
                             }}
                             onBlur={() => setFocused(false)}
                             onKeyDown={onKeyDown}
+                            role="combobox"
+                            aria-autocomplete="list"
+                            aria-expanded={open}
                             placeholder="Search or create a category"
                             data-creator-field="custom.categoryId"
                         />
@@ -1962,6 +2050,7 @@ function WidgetDrawerButton(props: {
                 className={WidgetDrawerButtonClass}
                 onClick={props.onClick}
                 aria-label={`Add ${props.item.label} parameter`}
+                data-navigation-field
                 data-creator-widget={props.basicGroup ? "basic" : undefined}
             >
                 <Icon name={icon} size={16} color="textSecondary" />
@@ -2010,6 +2099,13 @@ const KeyValueRowClass = injectStyle("creator-key-value-row", k => `
         display: flex;
         align-items: center;
         gap: 6px;
+    }
+`);
+
+const AddValueButtonClass = injectStyle("creator-add-value-button", k => `
+    ${k}:focus {
+        outline: 2px solid var(--primaryMain);
+        outline-offset: 2px;
     }
 `);
 
