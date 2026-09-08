@@ -9,23 +9,6 @@ import (
 	com "ucloud.dk/ucloud_cli/pkg/command"
 )
 
-func registerCommandParser() map[string]map[string]com.CommandFunc {
-	registry := map[string]map[string]com.CommandFunc{}
-	registry["app"] = com.AppCommands
-	registry["workspace"] = com.WorkspaceCommands
-	registry["compute"] = com.ComputeCommands
-	registry["environment"] = com.EnvironmentCommands
-	registry["ssh-key"] = com.SSHKeyCommands
-	registry["job"] = com.JobCommands
-	registry["vm"] = com.VMCommands
-	registry["connect"] = com.ConnectCommands
-	registry["public-ip"] = com.PublicIPCommands
-	registry["public-link"] = com.PublicLinkCommands
-	registry["private-network"] = com.PrivateNetworkCommands
-	registry["folder"] = com.FolderCommands
-	return registry
-}
-
 func bindCommand(args []string, cmd any) error {
 	if len(args) == 0 {
 		return nil
@@ -204,7 +187,7 @@ func Parse(commands []string) (com.Command, error) {
 		subCommand = commands[1] // secondary positional
 	}
 
-	commandParsers := registerCommandParser()
+	commandParsers := com.CommandRegistry()
 
 	parserRoute, ok := commandParsers[mainCommand]
 
