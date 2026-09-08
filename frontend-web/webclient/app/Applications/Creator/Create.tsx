@@ -68,8 +68,10 @@ import {
     CreatorShortcutControl,
     CreatorShortcutHintsProvider,
     CreatorSectionKey,
+    CreatorParameterSectionKey,
     useCreatorShortcuts,
     creatorFocusSection,
+    creatorFocusParameterSection,
 } from "@/Applications/Creator/CreatorKeyboard";
 import {
     FIELD_NAVIGATION_SELECTOR,
@@ -1205,7 +1207,12 @@ export const Create: React.FunctionComponent = () => {
         window.requestAnimationFrame(() => creatorFocusSection(key));
     }, [updateSelection]);
 
+    const onFocusParameterSection = useCallback((key: CreatorParameterSectionKey) => {
+        window.requestAnimationFrame(() => creatorFocusParameterSection(key));
+    }, []);
+
     const shortcutsEnabled = draft != null && !loading && loadError == null && contextError == null;
+    const parameterSelected = draft?.selection.parameterId != null;
     const hintsVisible = useCreatorShortcuts(
         draft?.view ?? null,
         shortcutsEnabled,
@@ -1216,7 +1223,9 @@ export const Create: React.FunctionComponent = () => {
             onReturnToEditor,
             onSave: () => void onSave(),
             onFocusSection,
+            onFocusParameterSection,
         },
+        parameterSelected,
     );
 
     const renderPreview = useCallback(async (job: JobSpecification, current: CreatorDraft) => {
@@ -1497,7 +1506,7 @@ export const Create: React.FunctionComponent = () => {
                             onInlineCreatedGroup={onInlineCreatedGroup}
                         />
                     </div>
-                    <CreatorShortcutGuide />
+                    <CreatorShortcutGuide parameterSelected={draft.selection.parameterId != null} />
                 </div>
             ) : null}
         </div>

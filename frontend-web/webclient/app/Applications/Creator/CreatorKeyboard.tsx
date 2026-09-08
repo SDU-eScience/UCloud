@@ -19,6 +19,8 @@ import {focusFirstNavigationTarget, FORM_NAVIGATION_SELECTOR} from "@/Applicatio
 
 export type CreatorSectionKey = "M" | "C" | "F" | "N" | "A";
 
+export type CreatorParameterSectionKey = "C" | "V";
+
 export interface CreatorShortcutHandlers {
     onToggleYaml: () => void;
     onToggleInvocation: () => void;
@@ -26,6 +28,7 @@ export interface CreatorShortcutHandlers {
     onReturnToEditor: () => void;
     onSave: () => void;
     onFocusSection: (key: CreatorSectionKey) => void;
+    onFocusParameterSection: (key: CreatorParameterSectionKey) => void;
 }
 
 export const CREATOR_SECTION_TARGETS: Record<CreatorSectionKey, string> = {
@@ -36,6 +39,11 @@ export const CREATOR_SECTION_TARGETS: Record<CreatorSectionKey, string> = {
     A: "creator-section-add-parameter",
 };
 
+export const CREATOR_PARAMETER_SECTION_TARGETS: Record<CreatorParameterSectionKey, string> = {
+    C: "creator-section-common",
+    V: "creator-section-type",
+};
+
 const CREATOR_SECTION_KEYS: Record<string, CreatorSectionKey> = {
     KeyM: "M",
     KeyC: "C",
@@ -44,8 +52,13 @@ const CREATOR_SECTION_KEYS: Record<string, CreatorSectionKey> = {
     KeyA: "A",
 };
 
-export function creatorFocusSection(key: CreatorSectionKey): void {
-    const target = document.getElementById(CREATOR_SECTION_TARGETS[key]);
+const CREATOR_PARAMETER_SECTION_KEYS: Record<string, CreatorParameterSectionKey> = {
+    KeyC: "C",
+    KeyV: "V",
+};
+
+function creatorFocusSectionById(id: string): void {
+    const target = document.getElementById(id);
     if (!target) return;
     const collapsed = target.getAttribute("data-collapsed") === "true";
     window.requestAnimationFrame(() => {
@@ -56,6 +69,14 @@ export function creatorFocusSection(key: CreatorSectionKey): void {
         }
         focusFirstNavigationTarget(target, FORM_NAVIGATION_SELECTOR);
     });
+}
+
+export function creatorFocusSection(key: CreatorSectionKey): void {
+    creatorFocusSectionById(CREATOR_SECTION_TARGETS[key]);
+}
+
+export function creatorFocusParameterSection(key: CreatorParameterSectionKey): void {
+    creatorFocusSectionById(CREATOR_PARAMETER_SECTION_TARGETS[key]);
 }
 
 const CreatorShortcutHintsContext = createContext(false);
@@ -76,10 +97,13 @@ export function useCreatorShortcuts(
     view: string | null,
     enabled: boolean,
     handlers: CreatorShortcutHandlers,
+    parameterSelected: boolean,
 ): boolean {
     const [hintsVisible, setHintsVisible] = useState(false);
     const handlersRef = React.useRef(handlers);
     handlersRef.current = handlers;
+    const parameterSelectedRef = React.useRef(parameterSelected);
+    parameterSelectedRef.current = parameterSelected;
 
     useEffect(() => {
         if (!enabled || view == null) return;
@@ -115,6 +139,15 @@ export function useCreatorShortcuts(
                 event.stopPropagation();
                 handlersRef.current.onTogglePreview();
             } else if (view === "editor") {
+                if (parameterSelectedRef.current) {
+                    const parameterSection = CREATOR_PARAMETER_SECTION_KEYS[event.code];
+                    if (parameterSection) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        handlersRef.current.onFocusParameterSection(parameterSection);
+                    }
+                    return;
+                }
                 const section = CREATOR_SECTION_KEYS[event.code];
                 if (section) {
                     event.preventDefault();
@@ -193,7 +226,7 @@ const CreatorShortcutControlClass = injectStyle("creator-shortcut-control", k =>
 // the full list. While the chord is held, the guide expands to every shortcut and the section
 // titles show their keycaps.
 
-export function CreatorShortcutGuide(): React.ReactNode {
+export function CreatorShortcutGuide(props: {parameterSelected?: boolean}): React.ReactNode {
     const visible = useCreatorShortcutsHints();
     const entries: {shortcut: string; modifiers?: ("ctrl" | "alt")[]; label: string}[] = [
         {shortcut: "↑ ↓", modifiers: [], label: "Move parameter selection"},
@@ -207,12 +240,21 @@ export function CreatorShortcutGuide(): React.ReactNode {
             {shortcut: "P", label: "Preview"},
             {shortcut: "E", label: "Back to editor"},
             {shortcut: "S", modifiers: ["ctrl"], label: "Save"},
-            {shortcut: "M", label: "Jump to metadata"},
-            {shortcut: "C", label: "Jump to software"},
-            {shortcut: "F", label: "Jump to features"},
-            {shortcut: "N", label: "Jump to connectivity"},
-            {shortcut: "A", label: "Jump to add parameter"},
         );
+        if (props.parameterSelected) {
+            entries.push(
+                {shortcut: "C", label: "Jump to common settings"},
+                {shortcut: "V", label: "Jump to type settings"},
+            );
+        } else {
+            entries.push(
+                {shortcut: "M", label: "Jump to metadata"},
+                {shortcut: "C", label: "Jump to software"},
+                {shortcut: "F", label: "Jump to features"},
+                {shortcut: "N", label: "Jump to connectivity"},
+                {shortcut: "A", label: "Jump to add parameter"},
+            );
+        }
     }
     return (
         <div className={CreatorShortcutGuideClass}>

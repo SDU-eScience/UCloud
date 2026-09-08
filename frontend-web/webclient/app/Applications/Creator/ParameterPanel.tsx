@@ -166,7 +166,7 @@ function CommonSettings(props: {
     };
 
     return (
-        <PanelSection title="Common">
+        <PanelSection title="Common" id="creator-section-common" shortcut="C">
             <Label className="panel-field">
                 <span className="panel-field-label">Parameter name</span>
                 <Input
@@ -233,7 +233,7 @@ function TypeSpecificSettings(props: {
         case "Text":
         case "TextArea":
             return (
-                <PanelSection title="Default value">
+                <PanelSection title="Default value" id="creator-section-type" shortcut="V">
                     <Label className="panel-field">
                         <span className="panel-field-label">Default</span>
                         <Input
@@ -247,7 +247,7 @@ function TypeSpecificSettings(props: {
 
         case "Boolean":
             return (
-                <PanelSection title="Default value">
+                <PanelSection title="Default value" id="creator-section-type" shortcut="V">
                     <ToggleRow
                         label={`Default: ${param.defaultValue === true ? "True" : "False"}`}
                         checked={param.defaultValue === true}
@@ -293,7 +293,7 @@ function NumericSettings(props: {
     };
 
     return (
-        <PanelSection title="Numeric">
+        <PanelSection title="Numeric" id="creator-section-type" shortcut="V">
             <Label className="panel-field">
                 <span className="panel-field-label">Default value</span>
                 <Input
@@ -352,6 +352,7 @@ function EnumerationSettings(props: {
     const [dragToIndex, setDragToIndex] = useState<number | null>(null);
     const nextRowKey = useRef(0);
     const rowKeys = useRef<string[]>([]);
+    const enumOptionsRef = useRef<HTMLDivElement | null>(null);
 
     while (rowKeys.current.length < param.options.length + 1) {
         rowKeys.current.push(`enum-option-${nextRowKey.current++}`);
@@ -369,9 +370,16 @@ function EnumerationSettings(props: {
         const defaultValue = param.defaultValue === removedValue ? null : param.defaultValue;
         rowKeys.current.splice(index, 1);
         props.onUpdateEnumeration(name, {options, defaultValue});
-    };
-
-    const commitPlaceholder = (field: "title" | "value", text: string) => {
+        window.requestAnimationFrame(() => {
+            const rows = enumOptionsRef.current?.querySelectorAll<HTMLElement>("[data-enum-option-row]");
+            if (!rows || rows.length === 0) {
+                enumOptionsRef.current?.querySelector<HTMLElement>("input")?.focus();
+                return;
+            }
+            const nextRow = rows[Math.min(index, rows.length - 1)];
+            nextRow.querySelector<HTMLElement>("input")?.focus();
+        });
+    };    const commitPlaceholder = (field: "title" | "value", text: string) => {
         const newOpt: A2EnumOption = {title: "", value: "", [field]: text};
         rowKeys.current.push(`enum-option-${nextRowKey.current++}`);
         props.onUpdateEnumeration(name, {options: [...param.options, newOpt]});
@@ -389,7 +397,7 @@ function EnumerationSettings(props: {
     };
 
     return (
-        <PanelSection title="Enumeration">
+        <PanelSection title="Enumeration" id="creator-section-type" shortcut="V">
             <Label className="panel-field">
                 <span className="panel-field-label">Default value</span>
                 <Select
@@ -405,7 +413,7 @@ function EnumerationSettings(props: {
 
             <Text fontWeight={600} fontSize={13}>Options</Text>
 
-            <div data-enum-options>
+            <div data-enum-options ref={enumOptionsRef}>
             {[...param.options, null].map((opt, index) => {
                 if (opt == null) {
                     return (
@@ -529,6 +537,24 @@ function EnumOptionRow(props: {
         window.addEventListener("pointercancel", onPointerUp);
     }, []);
 
+    const onRowKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (!e.altKey || e.metaKey || e.ctrlKey) return;
+        if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+        const {index, count} = propsRef.current;
+        const targetIndex = index + (e.key === "ArrowUp" ? -1 : 1);
+        if (targetIndex < 0 || targetIndex >= count) return;
+        e.preventDefault();
+        e.stopPropagation();
+        propsRef.current.onReorder(index, targetIndex);
+    }, []);
+
+    const onDeleteEmpty = (event: React.KeyboardEvent<HTMLInputElement>, fieldValue: string) => {
+        if (event.key !== "Delete" || fieldValue !== "" || event.metaKey || event.ctrlKey || event.altKey) return;
+        event.preventDefault();
+        event.stopPropagation();
+        props.onRemove();
+    };
+
     useEffect(() => {
         return () => {
             window.removeEventListener("pointermove", onPointerMove);
@@ -565,6 +591,8 @@ function EnumOptionRow(props: {
         <div
             ref={rowRef}
             className={EnumOptionRowClass}
+            data-enum-option-row
+            onKeyDown={onRowKeyDown}
             data-drop-target={isDropTarget || undefined}
             style={isDraggingThis ? {transform: `translateY(${dragOffset}px)`, zIndex: 10, opacity: 0.8} : undefined}
         >
@@ -580,12 +608,14 @@ function EnumOptionRow(props: {
                 placeholder="Title"
                 value={props.option.title}
                 onChange={e => props.onChange({title: e.target.value})}
+                onKeyDown={event => onDeleteEmpty(event, props.option.title)}
             />
             <Input
                 className={PanelInputClass}
                 placeholder="Value"
                 value={props.option.value}
                 onChange={e => props.onChange({value: e.target.value})}
+                onKeyDown={event => onDeleteEmpty(event, props.option.value)}
             />
             <IconButton
                 icon="heroTrash"
