@@ -1,29 +1,27 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 
 	"ucloud.dk/shared/pkg/cli"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/ucloud_cli/pkg/shared"
 )
 
 type WorkspaceListCommand struct {
-	Dev bool `flag:"dev" usage:"Dev mode"`
 }
 type WorkspaceUseCommand struct {
 	Name string `positional:"name" usage:"Workspace name" required:"true"`
-	Dev  bool   `flag:"dev" usage:"Dev mode"`
 }
 type WorkspaceGetCommand struct {
 	Name string `positional:"name" usage:"Workspace name" required:"true"`
-	Dev  bool   `flag:"dev" usage:"Dev mode"`
 }
 type WorkspaceRenameCommand struct {
 	FromName string `positional:"from" usage:"Workspace name" required:"true"`
 	ToName   string `positional:"to" usage:"Workspace name" required:"true"`
-	Dev      bool   `flag:"dev" usage:"Dev mode"`
 }
 
 var WorkspaceCommands = map[string]CommandFunc{
@@ -48,7 +46,7 @@ func retrieveWorkspaces() (map[string]fndapi.Project, error) {
 }
 
 func (c WorkspaceListCommand) Execute() error {
-	shared.InitializeUCloudClient(c.Dev)
+	shared.InitializeUCloudClient()
 	workspaces, err := retrieveWorkspaces()
 	if err != nil {
 		return err
@@ -70,13 +68,19 @@ func (c WorkspaceListCommand) Execute() error {
 	return nil
 }
 
-func checkIfWorkspaceExists(name string) bool {
+func findWorkspace(name string) (*shared.Workspace, error) {
 	workspaces, err := retrieveWorkspaces()
 	if err != nil {
-		return false
+		return nil, err
 	}
-	_, ok := workspaces[name]
-	return ok
+	proj, ok := workspaces[name]
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("Workspace %s does not exist", name))
+	}
+	return &shared.Workspace{
+		Id:   proj.Id,
+		Name: name,
+	}, nil
 }
 
 func checkIfEnviromentExists(name string) bool {
@@ -89,14 +93,13 @@ func checkIfEnviromentExists(name string) bool {
 }
 
 func (c WorkspaceUseCommand) Execute() error {
-	shared.InitializeUCloudClient(c.Dev)
-	ok := checkIfWorkspaceExists(c.Name)
-	if !ok {
-		return fmt.Errorf("you don't have this %s workspace", c.Name)
+	shared.InitializeUCloudClient()
+	ws, err := findWorkspace(c.Name)
+	if err != nil {
+		return err
 	}
-
 	cfg, err := shared.UpdateConfig(&shared.Config{
-		CurrentWorkspace: c.Name,
+		CurrentWorkspace: util.OptValue(ws.Name),
 	})
 	if err != nil {
 		return err
@@ -108,7 +111,7 @@ func (c WorkspaceUseCommand) Execute() error {
 }
 
 func (c WorkspaceGetCommand) Execute() error {
-	shared.InitializeUCloudClient(c.Dev)
+	shared.InitializeUCloudClient()
 	workspaces, err := retrieveWorkspaces()
 	if err != nil {
 		return err
@@ -154,7 +157,7 @@ func (c WorkspaceGetCommand) Execute() error {
 }
 
 func (c WorkspaceRenameCommand) Execute() error {
-	shared.InitializeUCloudClient(c.Dev)
+	shared.InitializeUCloudClient()
 	workspaces, err := retrieveWorkspaces()
 	if err != nil {
 		return err

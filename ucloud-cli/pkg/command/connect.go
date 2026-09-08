@@ -24,7 +24,6 @@ const (
 type ConnectCommand struct {
 	Token  string `flag:"token" usage:"Token"`
 	Server string `flag:"server" usage:"Server"`
-	Dev    bool   `flag:"dev" usage:"Dev mode"`
 }
 
 var ConnectCommands = map[string]CommandFunc{
@@ -32,7 +31,7 @@ var ConnectCommands = map[string]CommandFunc{
 }
 
 func (c *ConnectCommand) Execute() error {
-	return performConnection(c.Dev)
+	return performConnection()
 }
 
 func successPage() (string, error) {
@@ -151,7 +150,7 @@ func saveConfig(token string, username string) error {
 	return saveErr
 }
 
-func performConnection(dev bool) error {
+func performConnection() error {
 	ready := make(chan struct{})
 	authDone := make(chan error, 1)
 	serverErr := make(chan error, 1)
@@ -166,9 +165,6 @@ func performConnection(dev bool) error {
 	}
 	currentEnv := cfg.Environments[cfg.DefaultEnvironment]
 	baseURL := currentEnv.URL
-	if dev {
-		baseURL = shared.DevServer
-	}
 
 	go func() {
 		if err := startAuthServer(authServerCtx, ready, authDone); err != nil {
