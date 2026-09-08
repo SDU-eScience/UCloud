@@ -198,7 +198,7 @@ func TestPublicLinkCreate(t *testing.T) {
 }
 
 func TestJobList(t *testing.T) {
-	input := []string{"job", "list", "--workspace", "testmain", "--provider", "k8s"}
+	input := []string{"job", "list", "--workspace", "testmain", "--provider", "k8s", "--app", "terminal-ubuntu"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)

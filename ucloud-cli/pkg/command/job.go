@@ -315,16 +315,12 @@ func (c JobListCommand) Execute() error {
 	}
 	shared.SetActiveWorkspace(ws.Id)
 
-	filter := orcapi.JobFlags{}
-	if c.State != "" {
-		filter.FilterState = util.OptValue(orcapi.JobState(c.State))
+	filter := orcapi.JobFlags{
+		FilterType:        util.OptValue(orcapi.JobTypeFilterJobsOnly),
+		FilterState:       util.OptValue(orcapi.JobState(c.State)),
+		FilterApplication: util.OptValue(c.App),
 	}
-	if c.App != "" {
-		filter.FilterApplication = util.OptValue(c.App)
-	}
-	if c.Provider != "" {
-		filter.FilterProvider = util.OptValue(c.Provider)
-	}
+	filter.FilterProvider = util.OptValue(c.Provider)
 	jobs, err := retrieveJobs(filter)
 	if err != nil {
 		return err
