@@ -1442,7 +1442,11 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 		if spec.Product.Provider != variant.Provider {
 			return util.HttpErr(http.StatusBadRequest, "the flavor is not available at this provider")
 		}
-		if _, validateErr := applicationVariantValidateImage(actor, variant.Provider, variant.ImageDigest, false, false); validateErr != nil {
+		variantImage := variant.Image
+		if variantImage == "" {
+			variantImage = variant.ImageDigest
+		}
+		if _, validateErr := applicationVariantValidateImage(actor, variant.Provider, variantImage, false, false); validateErr != nil {
 			return util.HttpErr(http.StatusBadRequest, "the flavor image is no longer available; delete or update the flavor")
 		}
 	}

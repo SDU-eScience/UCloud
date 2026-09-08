@@ -87,6 +87,7 @@ func ImagesValidateVariant(owner orc.ResourceOwner, image string, requireProject
 		return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusNotFound, "container image not found")
 	}
 	var descriptor v1.Descriptor
+	tag := ""
 	if digestIndex := strings.LastIndex(referenceText, "@"); digestIndex >= 0 {
 		parsedDigest, digestErr := digest.Parse(referenceText[digestIndex+1:])
 		if digestErr != nil {
@@ -106,7 +107,7 @@ func ImagesValidateVariant(owner orc.ResourceOwner, image string, requireProject
 		if tagIndex <= strings.LastIndex(referenceText, "/") {
 			return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusBadRequest, "container image must include a tag or digest")
 		}
-		tag := referenceText[tagIndex+1:]
+		tag = referenceText[tagIndex+1:]
 		tagDescriptor, tagErr := repository.Tags(context.Background()).Get(context.Background(), tag)
 		if tagErr != nil {
 			return orc.ApplicationVariantValidateImageResponse{}, util.HttpErr(http.StatusNotFound, "container image not found")
@@ -114,7 +115,11 @@ func ImagesValidateVariant(owner orc.ResourceOwner, image string, requireProject
 		descriptor = tagDescriptor
 	}
 	digestImage := canonicalPrefix + repositoryName + "@" + descriptor.Digest.String()
-	return orc.ApplicationVariantValidateImageResponse{Image: image, ImageDigest: digestImage}, nil
+	referenceImage := digestImage
+	if tag != "" {
+		referenceImage = canonicalPrefix + repositoryName + ":" + tag
+	}
+	return orc.ApplicationVariantValidateImageResponse{Image: referenceImage, ImageDigest: digestImage}, nil
 }
 
 func InitScriptImagesResolve(owner orc.ResourceOwner, repositoryName, tag string) (string, int64, *util.HttpError) {

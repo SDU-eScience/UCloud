@@ -132,13 +132,6 @@ func applicationVariantBase(actor rpc.Actor, requested orcapi.NameAndVersion) (o
 	return base, managedBase, group, nil
 }
 
-func applicationVariantTitleAvailable(workspace string, group AppGroupId, title string, except int64) bool {
-	if !appCustomFlavorAvailableForVariant(workspace, group, title) {
-		return false
-	}
-	return applicationVariantTitleAvailableOnly(workspace, group, title, except)
-}
-
 func applicationVariantTitleAvailableOnly(workspace string, group AppGroupId, title string, except int64) bool {
 	for i := range appCatalogGlobals.Buckets {
 		b := &appCatalogGlobals.Buckets[i]
@@ -267,7 +260,7 @@ func applicationVariantReserve(actor rpc.Actor, requested orcapi.NameAndVersion,
 	workspace := project.GetOrDefault(actor.Username)
 	applicationVariantReservationMu.Lock()
 	defer applicationVariantReservationMu.Unlock()
-	if !applicationVariantTitleAvailable(workspace, group, title, 0) {
+	if !applicationVariantTitleAvailableOnly(workspace, group, title, 0) {
 		return nil, "", util.HttpErr(http.StatusConflict, "a flavor with this title already exists")
 	}
 	imageName := applicationVariantImageName(workspace, base.Metadata.Title, title)
@@ -558,7 +551,10 @@ func applicationVariantBuildApplication(base orcapi.Application, variant orcapi.
 	result.Versions = nil
 	tool := &result.Invocation.Tool.Tool.Value.Description
 	tool.Info = orcapi.NameAndVersion{Name: name, Version: version}
-	tool.Image = variant.ImageDigest
+	tool.Image = variant.Image
+	if tool.Image == "" {
+		tool.Image = variant.ImageDigest
+	}
 	tool.SupportedProviders = []string{variant.Provider}
 	result.Invocation.Tool.NameAndVersion = tool.Info
 	return result
@@ -994,7 +990,7 @@ func initApplicationVariantRpc() {
 			if err := util.ValidateStringE(&request.Title.Value, "title", 0); err != nil {
 				return orcapi.ApplicationVariant{}, err
 			}
-			if !applicationVariantTitleAvailable(applicationVariantWorkspaceKey(variant), baseGroup, request.Title.Value, variant.Id) {
+			if !applicationVariantTitleAvailableOnly(applicationVariantWorkspaceKey(variant), baseGroup, request.Title.Value, variant.Id) {
 				return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusConflict, "a flavor with this title already exists")
 			}
 			variant.Title = request.Title.Value
@@ -1010,13 +1006,17 @@ func initApplicationVariantRpc() {
 			}
 			validatedImage.Set(validated)
 		} else if request.PublishedToProject.Present && request.PublishedToProject.Value {
-			if _, err := applicationVariantValidateImage(info.Actor, variant.Provider, variant.ImageDigest, true, false); err != nil {
+			publishedImage := variant.Image
+			if publishedImage == "" {
+				publishedImage = variant.ImageDigest
+			}
+			if _, err := applicationVariantValidateImage(info.Actor, variant.Provider, publishedImage, true, false); err != nil {
 				return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusBadRequest, "the image is not available to all project members")
 			}
 		}
 		if request.Title.Present {
 			applicationVariantReservationMu.Lock()
-			if !applicationVariantTitleAvailable(applicationVariantWorkspaceKey(variant), baseGroup, variant.Title, variant.Id) {
+			if !applicationVariantTitleAvailableOnly(applicationVariantWorkspaceKey(variant), baseGroup, variant.Title, variant.Id) {
 				applicationVariantReservationMu.Unlock()
 				return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusConflict, "a flavor with this title already exists")
 			}

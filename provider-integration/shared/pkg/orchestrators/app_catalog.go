@@ -979,13 +979,6 @@ var AppsExport = rpc.Call[util.Empty, []byte]{
 // Custom applications
 // =====================================================================================================================
 
-type AppCatalogCustomResourceKind string
-
-const (
-	AppCatalogCustomResourceKindManaged AppCatalogCustomResourceKind = "Managed"
-	AppCatalogCustomResourceKindCustom  AppCatalogCustomResourceKind = "Custom"
-)
-
 type AppCatalogCustomGroupSpecification struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
@@ -995,14 +988,11 @@ type AppCatalogCustomGroup struct {
 	Id            int                                `json:"id"`
 	CreatedAt     fnd.Timestamp                      `json:"createdAt"`
 	Owner         ResourceOwner                      `json:"owner"`
-	BackedBy      util.Option[int]                   `json:"backedBy"`
 	Specification AppCatalogCustomGroupSpecification `json:"specification"`
 }
 
 type AppCatalogCreateCustomGroupRequest struct {
-	Kind          AppCatalogCustomResourceKind                    `json:"kind"`
-	Id            util.Option[int]                                `json:"id,omitempty"`
-	Specification util.Option[AppCatalogCustomGroupSpecification] `json:"specification,omitempty"`
+	Specification AppCatalogCustomGroupSpecification `json:"specification"`
 }
 
 type AppCatalogBrowseCustomGroupsRequest struct {
@@ -1047,16 +1037,13 @@ type AppCatalogCustomCategory struct {
 	Id            int                                   `json:"id"`
 	CreatedAt     fnd.Timestamp                         `json:"createdAt"`
 	Owner         ResourceOwner                         `json:"owner"`
-	BackedBy      util.Option[int]                      `json:"backedBy"`
 	Specification AppCatalogCustomCategorySpecification `json:"specification"`
 	Permissions   ResourcePermissions                   `json:"permissions"`
 }
 
 type AppCatalogCreateCustomCategoryRequest struct {
-	Kind          AppCatalogCustomResourceKind                       `json:"kind"`
-	Id            util.Option[int]                                   `json:"id,omitempty"`
-	Specification util.Option[AppCatalogCustomCategorySpecification] `json:"specification,omitempty"`
-	Acl           []ResourceAclEntry                                 `json:"acl,omitempty"`
+	Specification AppCatalogCustomCategorySpecification `json:"specification"`
+	Acl           []ResourceAclEntry                   `json:"acl,omitempty"`
 }
 
 type AppCatalogBrowseCustomCategoriesRequest struct {
