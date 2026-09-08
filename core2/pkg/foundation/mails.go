@@ -238,11 +238,7 @@ func MailUserWantsToReceive(username string, mailType fndapi.MailType) bool {
 		return settings.NewGrantApplication
 	case fndapi.MailTypeApplicationUpdated:
 		return settings.GrantApplicationUpdated
-	case fndapi.MailTypeApplicationUpdatedToAdmins:
-		return settings.GrantApplicationUpdated
 	case fndapi.MailTypeApplicationApproved:
-		return settings.GrantApplicationApproved
-	case fndapi.MailTypeApplicationApprovedToAdmins:
 		return settings.GrantApplicationApproved
 	case fndapi.MailTypeApplicationRejected:
 		return settings.GrantApplicationRejected
@@ -375,12 +371,13 @@ var mailTemplates = map[fndapi.MailType]mailTemplate{
 	fndapi.MailTypeVerifyEmailAddress: mailTpl(tplAuthVerify),
 	fndapi.MailTypeNotifyMailChange:   mailTpl(tplNotifyEmailChange),
 
-	fndapi.MailTypeApplicationApproved: mailTpl(tplGrantsApprovedToApplicant),
-	fndapi.MailTypeNewComment:          mailTpl(tplGrantsComment),
-	fndapi.MailTypeNewGrantApplication: mailTpl(tplGrantsNewApplication),
-	fndapi.MailTypeApplicationRejected: mailTpl(tplGrantsRejectedToApplicant),
-	fndapi.MailTypeTransferApplication: mailTpl(tplGrantsTransfer),
-	fndapi.MailTypeApplicationUpdated:  mailTpl(tplGrantsUpdatedToApplicant),
+	fndapi.MailTypeApplicationApproved:  mailTpl(tplGrantsApprovedToApplicant),
+	fndapi.MailTypeNewComment:           mailTpl(tplGrantsComment),
+	fndapi.MailTypeNewGrantApplication:  mailTpl(tplGrantsNewApplication),
+	fndapi.MailTypeApplicationRejected:  mailTpl(tplGrantsRejectedToApplicant),
+	fndapi.MailTypeApplicationWithdrawn: mailTpl(tplGrantsWithdrawnToAdmins),
+	fndapi.MailTypeTransferApplication:  mailTpl(tplGrantsTransfer),
+	fndapi.MailTypeApplicationUpdated:   mailTpl(tplGrantsUpdatedToApplicant),
 
 	fndapi.MailTypeJobEvents: mailTpl(tplJobsEvents),
 

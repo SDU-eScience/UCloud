@@ -976,6 +976,12 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 	return int64(id), nil
 }
 
+type GrantTransferAdditionInformation struct {
+	ReceiverProject       string
+	SenderProject         string
+	ReceiverProjectAdmins []string
+}
+
 func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.HttpError {
 	now := time.Now()
 
@@ -988,7 +994,10 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 		return util.HttpErr(http.StatusForbidden, "you cannot transfer this application")
 	}
 
-	appId, _ := strconv.ParseInt(req.ApplicationId, 10, 64)
+	appId, parseError := strconv.ParseInt(req.ApplicationId, 10, 64)
+	if parseError != nil {
+		return util.HttpErr(http.StatusBadRequest, "invalid application id")
+	}
 	b := grantGetAppBucket(accGrantId(appId))
 	app, _ := grantsReadEx(actor, grantAuthApprover, b, accGrantId(appId), nil)
 	if app == nil {
@@ -1060,10 +1069,49 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 
 	if err == nil {
 		_, err = GrantsSubmitRevision(actor, revisionRequest)
+		if err != nil {
+			return err
+		}
 	}
 
-	// TODO call grantHandleEvent() for grant transfer here
+	targetAdmins := db.NewTx(func(tx *db.Transaction) []string {
+		rows := db.Select[struct {
+			Username string
+		}](
+			tx,
+			`
+				select username
+				from project.project_members
+				where project_id = :project_id
+			`,
+			db.Params{
+				"project_id": req.Target,
+			})
+		admins := make([]string, 0, len(rows))
+		for _, row := range rows {
+			admins = append(admins, row.Username)
+		}
+		return admins
+	})
 
+	if len(targetAdmins) == 0 {
+		return util.HttpErr(http.StatusInternalServerError, "Misconfigured target project")
+	}
+
+	appCopy := *app.Application
+
+	grantHandleEvent(grantEvent{
+		Type: grantEvApplicationTransferred,
+		// Always false since only grant-giver can invoke transfers
+		EventSourceIsApplicant: false,
+		Actor:                  actor,
+		Application:            appCopy,
+		AdditionalInfo: GrantTransferAdditionInformation{
+			ReceiverProject:       req.Target,
+			SenderProject:         string(source),
+			ReceiverProjectAdmins: targetAdmins,
+		},
+	})
 	return err
 }
 
@@ -1238,7 +1286,15 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 		} else if newState == accapi.GrantApplicationStateApproved {
 			// Application was approved
 			grantHandleEvent(grantEvent{
-				Type:                   grantEvGrantAwarded,
+				Type:                   grantEvApplicationApproved,
+				EventSourceIsApplicant: actor.Username == appCopy.CreatedBy,
+				Actor:                  actor,
+				Application:            appCopy,
+			})
+		} else if newState == accapi.GrantApplicationStateClosed {
+			// Application was withdrawn
+			grantHandleEvent(grantEvent{
+				Type:                   grantEvApplicationWithdrawn,
 				EventSourceIsApplicant: actor.Username == appCopy.CreatedBy,
 				Actor:                  actor,
 				Application:            appCopy,
@@ -2346,10 +2402,12 @@ type grantEventType int
 
 const (
 	grantEvNewComment grantEventType = iota
-	grantEvGrantAwarded
+	grantEvApplicationApproved
 	grantEvApplicationRejected
+	grantEvApplicationWithdrawn
 	grantEvApplicationSubmitted
 	grantEvRevisionSubmitted
+	grantEvApplicationTransferred
 )
 
 type grantEvent struct {
@@ -2357,7 +2415,15 @@ type grantEvent struct {
 	EventSourceIsApplicant bool
 	Actor                  rpc.Actor
 	Application            accapi.GrantApplication
+	AdditionalInfo         any
 }
+
+const (
+	NOTIFICATION_GRANT_APPLICATION_UPDATED  = "GRANT_APPLICATION_UPDATED"
+	NOTIFICATION_GRANT_APPLICATION_RESPONSE = "GRANT_APPLICATION_RESPONSE"
+	NOTIFICATION_GRANT_NEW_APPLICATION      = "GRANT_NEW_APPLICATION"
+	NOTIFICATION_GRANT_NEW_COMMENT          = "GRANT_NEW_COMMENT"
+)
 
 func grantHandleEvent(event grantEvent) {
 	err1 := grantSendNotification(event)
@@ -2449,28 +2515,43 @@ func grantSendNotification(event grantEvent) *util.HttpError {
 
 		switch event.Type {
 		case grantEvNewComment:
-			notification.Type = "NEW_GRANT_COMMENT"
+			notification.Type = NOTIFICATION_GRANT_NEW_COMMENT
 			notification.Message = fmt.Sprintf("Comment added in \"%s\"", truncateRecipientTitle(event))
 			meta["title"] = fmt.Sprintf("New comment by %s", event.Actor.Username)
 			meta["avatar"] = event.Actor.Username
+			break
 		case grantEvApplicationSubmitted:
-			notification.Type = "NEW_GRANT_APPLICATION"
+			notification.Type = NOTIFICATION_GRANT_NEW_APPLICATION
 			notification.Message = fmt.Sprintf("\"%s\" was submitted by %s", truncateRecipientTitle(event), event.Actor.Username)
 			meta["title"] = fmt.Sprintf("A new application was submitted")
-		case grantEvGrantAwarded:
-			notification.Type = "GRANT_APPLICATION_RESPONSE"
+			break
+		case grantEvApplicationApproved:
+			notification.Type = NOTIFICATION_GRANT_APPLICATION_RESPONSE
 			notification.Message = fmt.Sprintf("\"%s\", has been approved by %s", truncateRecipientTitle(event), event.Actor.Username)
 			meta["title"] = "Grant awarded"
+			break
 		case grantEvApplicationRejected:
-			notification.Type = "GRANT_APPLICATION_RESPONSE"
+			notification.Type = NOTIFICATION_GRANT_APPLICATION_RESPONSE
 			notification.Message = fmt.Sprintf("\"%s\", has been rejected by %s", truncateRecipientTitle(event), event.Actor.Username)
 			meta["title"] = "Grant rejected"
+			break
+		case grantEvApplicationWithdrawn:
+			notification.Type = NOTIFICATION_GRANT_APPLICATION_RESPONSE
+			notification.Message = fmt.Sprintf("\"%s\", has been withdrawn by %s", truncateRecipientTitle(event), event.Actor.Username)
+			meta["title"] = "Grant withdrawn"
+			break
 		case grantEvRevisionSubmitted:
-			notification.Type = "GRANT_APPLICATION_UPDATED"
+			notification.Type = NOTIFICATION_GRANT_APPLICATION_UPDATED
 			notification.Message = fmt.Sprintf("Grant revision submitted by %s", event.Actor.Username)
 			meta["title"] = fmt.Sprintf("Application updated: \"%s\"", truncateRecipientTitle(event))
 			meta["avatar"] = event.Actor.Username
-			// TODO make grantEv for grantTransfer and insert here
+			break
+		case grantEvApplicationTransferred:
+			notification.Type = NOTIFICATION_GRANT_APPLICATION_UPDATED
+			notification.Message = fmt.Sprintf("Grant transferred away by %s", event.Actor.Username)
+			meta["title"] = fmt.Sprintf(" Application has been transferred: \"%s\"", truncateRecipientTitle(event))
+			meta["avatar"] = event.Actor.Username
+			break
 		}
 
 		metaJson, _ := json.Marshal(meta)
@@ -2494,15 +2575,18 @@ func grantSendEmail(event grantEvent) *util.HttpError {
 	}
 
 	var recipients []string
+	var adminRecipients []string
 
+	app := &event.Application
+	reqs := app.CurrentRevision.Document.AllocationRequests
+
+	// If event is triggered by something the applicant did then inform the admins
+	// otherwise inform the grant receiver
 	if event.EventSourceIsApplicant {
-		app := &event.Application
-		reqs := app.CurrentRevision.Document.AllocationRequests
 		reviewerSet := map[string]util.Empty{}
 		for _, req := range reqs {
 			reviewerSet[req.GrantGiver] = util.Empty{}
 		}
-
 		reviewerUsers := map[string]util.Empty{}
 		db.NewTx0(func(tx *db.Transaction) {
 			for reviewer := range reviewerSet {
@@ -2516,9 +2600,8 @@ func grantSendEmail(event grantEvent) *util.HttpError {
 				}
 			}
 		})
-
-		for user := range reviewerUsers {
-			recipients = append(recipients, user)
+		for admin := range reviewerUsers {
+			adminRecipients = append(adminRecipients, admin)
 		}
 	} else {
 		applicant := event.Application.CreatedBy
@@ -2543,37 +2626,84 @@ func grantSendEmail(event grantEvent) *util.HttpError {
 		applicantProjectTitle = grantsRetrieveProjectTitleByProjectId(currDoc.Recipient.Id.Value)
 	}
 
-	mailTemplate := map[string]any{
-		"sender":                event.Application.CreatedBy,
-		"applicantProjectTitle": applicantProjectTitle,
-	}
-
+	mailTemplate := make(map[string]any)
 	switch event.Type {
 	case grantEvNewComment:
 		mailTemplate["type"] = fndapi.MailTypeNewComment
+		// sender is the person who created the new revision
+		mailTemplate["sender"] = event.Actor.Username
+		mailTemplate["applicantProjectTitle"] = applicantProjectTitle
+		break
 	case grantEvApplicationSubmitted:
 		mailTemplate["type"] = fndapi.MailTypeNewGrantApplication
-	case grantEvGrantAwarded:
+		mailTemplate["sender"] = event.Actor.Username
+		mailTemplate["applicantProjectTitle"] = applicantProjectTitle
+		break
+	case grantEvApplicationApproved:
 		mailTemplate["type"] = fndapi.MailTypeApplicationApproved
+		mailTemplate["applicantProjectTitle"] = applicantProjectTitle
+		break
 	case grantEvApplicationRejected:
 		mailTemplate["type"] = fndapi.MailTypeApplicationRejected
+		mailTemplate["applicantProjectTitle"] = applicantProjectTitle
+		break
+	case grantEvApplicationWithdrawn:
+		mailTemplate["type"] = fndapi.MailTypeApplicationWithdrawn
+		mailTemplate["sender"] = event.Actor.Username
+		mailTemplate["applicantProjectTitle"] = applicantProjectTitle
 	case grantEvRevisionSubmitted:
 		mailTemplate["type"] = fndapi.MailTypeApplicationUpdated
-		// TODO make grantEv for grantTransfer and insert here
+		mailTemplate["sender"] = event.Actor.Username
+		mailTemplate["applicantProjectTitle"] = applicantProjectTitle
+		break
+	case grantEvApplicationTransferred:
+		additionalInfo, ok := event.AdditionalInfo.(GrantTransferAdditionInformation)
+		if !ok {
+			return util.HttpErr(
+				http.StatusInternalServerError,
+				"Unexpected information given.",
+			)
+		}
+		mailTemplate["type"] = fndapi.MailTypeTransferApplication
+		mailTemplate["senderProject"] = grantsRetrieveProjectTitleByProjectId(additionalInfo.SenderProject)
+		mailTemplate["receiverProject"] = grantsRetrieveProjectTitleByProjectId(additionalInfo.ReceiverProject)
+		mailTemplate["applicantProjectTitle"] = applicantProjectTitle
+		adminRecipients = additionalInfo.ReceiverProjectAdmins
+		//Empty list so that email is not send to the source grant giver
+		recipients = recipients[:0]
+		break
+	default:
+		// We do not have a template for this yet return error and let the caller log it.
+		return util.HttpErr(http.StatusNotImplemented, fmt.Sprintf("We do not have an template for this event type %v \n", event.Type))
 	}
 
-	mailBytes, _ := json.Marshal(mailTemplate)
+	mailBytes, err := json.Marshal(mailTemplate)
+	if err != nil {
+		return util.HttpErr(http.StatusInternalServerError, fmt.Sprintf("Failed to marshal mail template: %v", err))
+	}
 	mail := fndapi.Mail(mailBytes)
 
 	for _, recipient := range recipients {
-		_, err := fndapi.MailSendToUser.Invoke(fndapi.BulkRequestOf(
+		_, responseError := fndapi.MailSendToUser.Invoke(fndapi.BulkRequestOf(
 			fndapi.MailSendToUserRequest{
 				Receiver: recipient,
 				Mail:     mail,
 			}),
 		)
-		if err != nil {
-			return err
+		if responseError != nil {
+			return responseError
+		}
+	}
+
+	for _, admin := range adminRecipients {
+		_, responseError := fndapi.MailSendToUser.Invoke(fndapi.BulkRequestOf(
+			fndapi.MailSendToUserRequest{
+				Receiver: admin,
+				Mail:     mail,
+			}),
+		)
+		if responseError != nil {
+			return responseError
 		}
 	}
 
