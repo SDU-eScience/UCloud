@@ -181,6 +181,8 @@ func initAccounting() {
 			for provider := range providers {
 				resp.Providers = append(resp.Providers, provider)
 			}
+
+			result = append(result, resp)
 		}
 
 		return fndapi.BulkResponse[accapi.FindAllProvidersResponse]{Responses: result}, nil

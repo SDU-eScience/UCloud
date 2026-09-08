@@ -13,12 +13,16 @@ import (
 
 func initInference() {
 	orcapi.InferenceOpenPlayground.Handler(func(info rpc.RequestInfo, request orcapi.InferenceOpenPlaygroundRequest) (orcapi.InferenceOpenPlaygroundResponse, *util.HttpError) {
-		providerId, err := inferenceSelectProvider(info.Actor, request.ProviderId)
+		selection, err := inferenceSelectProvider(info.Actor, request.ProviderId)
 		if err != nil {
 			return orcapi.InferenceOpenPlaygroundResponse{}, err
 		}
 
-		resp, err := InvokeProvider(providerId, orcapi.InferenceOpenPlaygroundProvider,
+		if !selection.HasCredits {
+			return orcapi.InferenceOpenPlaygroundResponse{}, util.HttpErr(http.StatusPaymentRequired, "no credits available for inference")
+		}
+
+		resp, err := InvokeProvider(selection.ProviderId, orcapi.InferenceOpenPlaygroundProvider,
 			orcapi.InferenceOpenPlaygroundProviderRequest{Owner: inferenceActorToOwner(info.Actor)},
 			ProviderCallOpts{Username: util.OptValue(info.Actor.Username)},
 		)
@@ -30,41 +34,49 @@ func initInference() {
 	})
 
 	orcapi.InferenceListPlaygroundThreads.Handler(func(info rpc.RequestInfo, request orcapi.InferenceListPlaygroundThreadsRequest) (orcapi.InferenceListPlaygroundThreadsResponse, *util.HttpError) {
-		providerId, err := inferenceSelectProvider(info.Actor, request.ProviderId)
+		selection, err := inferenceSelectProvider(info.Actor, request.ProviderId)
 		if err != nil {
 			return orcapi.InferenceListPlaygroundThreadsResponse{}, err
 		}
 
-		return InvokeProvider(providerId, orcapi.InferenceListPlaygroundThreadsProvider,
+		if !selection.HasCredits {
+			return orcapi.InferenceListPlaygroundThreadsResponse{}, util.HttpErr(http.StatusPaymentRequired, "no credits available for inference")
+		}
+
+		return InvokeProvider(selection.ProviderId, orcapi.InferenceListPlaygroundThreadsProvider,
 			orcapi.InferenceListPlaygroundThreadsProviderRequest{Owner: inferenceActorToOwner(info.Actor)},
 			ProviderCallOpts{Username: util.OptValue(info.Actor.Username)},
 		)
 	})
 
 	orcapi.InferenceListModels.Handler(func(info rpc.RequestInfo, request orcapi.InferenceListModelsRequest) (orcapi.InferenceListModelsResponse, *util.HttpError) {
-		providerId, err := inferenceSelectProvider(info.Actor, request.ProviderId)
+		selection, err := inferenceSelectProvider(info.Actor, request.ProviderId)
 		if err != nil {
 			return orcapi.InferenceListModelsResponse{}, err
 		}
 
-		resp, err := InvokeProvider(providerId, orcapi.InferenceListModelsProvider,
+		resp, err := InvokeProvider(selection.ProviderId, orcapi.InferenceListModelsProvider,
 			orcapi.InferenceListModelsProviderRequest{Owner: inferenceActorToOwner(info.Actor)},
 			ProviderCallOpts{Username: util.OptValue(info.Actor.Username)},
 		)
 		if err != nil {
 			return orcapi.InferenceListModelsResponse{}, err
 		}
-		resp.ProviderId = providerId
+		resp.ProviderId = selection.ProviderId
 		return resp, nil
 	})
 
 	orcapi.InferenceUpdateModel.Handler(func(info rpc.RequestInfo, request orcapi.InferenceUpdateModelRequest) (util.Empty, *util.HttpError) {
-		providerId, err := inferenceSelectProvider(info.Actor, request.ProviderId)
+		selection, err := inferenceSelectProvider(info.Actor, request.ProviderId)
 		if err != nil {
 			return util.Empty{}, err
 		}
 
-		return InvokeProvider(providerId, orcapi.InferenceUpdateModelProvider,
+		if !selection.HasCredits {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "no credits available for inference")
+		}
+
+		return InvokeProvider(selection.ProviderId, orcapi.InferenceUpdateModelProvider,
 			orcapi.InferenceUpdateModelProviderRequest{
 				Owner:   inferenceActorToOwner(info.Actor),
 				OldName: request.OldName,
@@ -75,12 +87,16 @@ func initInference() {
 	})
 
 	orcapi.InferenceUpdateBenchmarks.Handler(func(info rpc.RequestInfo, request orcapi.InferenceUpdateBenchmarksRequest) (util.Empty, *util.HttpError) {
-		providerId, err := inferenceSelectProvider(info.Actor, request.ProviderId)
+		selection, err := inferenceSelectProvider(info.Actor, request.ProviderId)
 		if err != nil {
 			return util.Empty{}, err
 		}
 
-		return InvokeProvider(providerId, orcapi.InferenceUpdateBenchmarksProvider,
+		if !selection.HasCredits {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "no credits available for inference")
+		}
+
+		return InvokeProvider(selection.ProviderId, orcapi.InferenceUpdateBenchmarksProvider,
 			orcapi.InferenceUpdateBenchmarksProviderRequest{
 				Owner:      inferenceActorToOwner(info.Actor),
 				Benchmarks: request.Benchmarks,
@@ -90,41 +106,78 @@ func initInference() {
 	})
 }
 
-func inferenceSelectProvider(actor rpc.Actor, requested util.Option[string]) (string, *util.HttpError) {
-	providers, err := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
+type inferenceProviderSelection struct {
+	ProviderId string
+	HasCredits bool
+}
+
+func inferenceSelectProvider(actor rpc.Actor, requested util.Option[string]) (inferenceProviderSelection, *util.HttpError) {
+	creditProviders, err := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
 		Username:          actor.Username,
-		Project:           util.OptMap(actor.Project, func(value rpc.ProjectId) string { return string(value) }),
-		UseProject:        actor.Project.Present,
 		FilterProductType: util.OptValue(accapi.ProductTypeInference),
+		UseProject:        false,
 	}))
-	if err != nil || len(providers.Responses) == 0 {
-		return "", util.HttpErr(http.StatusPaymentRequired, "could not determine available inference providers")
+	if err != nil {
+		return inferenceProviderSelection{}, util.HttpErr(http.StatusInternalServerError, "could not determine available inference providers")
 	}
 
-	available := append([]string{}, providers.Responses[0].Providers...)
-	slices.Sort(available)
+	var available []string
+	if len(creditProviders.Responses) > 0 {
+		available = inferenceEnabledProviders(creditProviders.Responses[0].Providers)
+	}
 
-	filtered := make([]string, 0, len(available))
-	for _, provider := range available {
+	hasCredits := len(available) > 0
+	if !hasCredits {
+		allProviders, allErr := accapi.FindAllProviders.Invoke(fndapi.BulkRequestOf(accapi.FindAllProvidersRequest{
+			FilterProductType: util.OptValue(accapi.ProductTypeInference),
+			IncludeFreeToUse:  util.OptValue(true),
+		}))
+		if allErr != nil {
+			return inferenceProviderSelection{}, util.HttpErr(http.StatusInternalServerError, "could not determine available inference providers")
+		}
+
+		if len(allProviders.Responses) > 0 {
+			available = inferenceEnabledProviders(allProviders.Responses[0].Providers)
+		}
+	}
+
+	if len(available) == 0 {
+		return inferenceProviderSelection{}, util.HttpErr(http.StatusNotFound, "no inference providers available")
+	}
+
+	if requested.Present {
+		for _, provider := range available {
+			if provider == requested.Value {
+				return inferenceProviderSelection{ProviderId: provider, HasCredits: hasCredits}, nil
+			}
+		}
+		return inferenceProviderSelection{}, util.HttpErr(http.StatusForbidden, "provider is not available for inference")
+	}
+
+	return inferenceProviderSelection{
+		ProviderId: inferencePreferredProvider(available),
+		HasCredits: hasCredits,
+	}, nil
+}
+
+func inferenceEnabledProviders(providers []string) []string {
+	filtered := make([]string, 0, len(providers))
+	for _, provider := range providers {
 		if inferenceProviderEnabled(provider) {
 			filtered = append(filtered, provider)
 		}
 	}
 
-	if len(filtered) == 0 {
-		return "", util.HttpErr(http.StatusNotFound, "no inference providers available")
+	slices.Sort(filtered)
+	return filtered
+}
+
+func inferencePreferredProvider(providers []string) string {
+	if slices.Contains(providers, "ucloud") {
+		return "ucloud"
 	}
 
-	if requested.Present {
-		for _, provider := range filtered {
-			if provider == requested.Value {
-				return provider, nil
-			}
-		}
-		return "", util.HttpErr(http.StatusForbidden, "provider is not available for inference")
-	}
-
-	return filtered[0], nil
+	return providers[0]
 }
 
 func inferenceProviderEnabled(provider string) bool {
