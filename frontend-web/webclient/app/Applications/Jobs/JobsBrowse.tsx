@@ -53,8 +53,10 @@ import {TruncateClass} from "@/ui-components/Truncate";
 import {sendFailureNotification} from "@/Notifications";
 import {ProductCompute} from "@/Accounting";
 
-const defaultRetrieveFlags: {itemsPerPage: number} = {
+const defaultRetrieveFlags: {itemsPerPage: number; includeApplication: boolean; includeSupport: boolean} = {
     itemsPerPage: 250,
+    includeApplication: true,
+    includeSupport: true,
 };
 
 const FEATURES: ResourceBrowseFeatures = {

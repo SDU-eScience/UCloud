@@ -274,7 +274,12 @@ var AuthBrowseIdentityProviders = rpc.Call[util.Empty, BulkResponse[IdentityProv
 	Roles:       rpc.RolesPublic,
 }
 
-var AuthStartLoginSamlLegacy = rpc.Call[util.Empty, util.Empty]{
+type AuthStartLoginRequest struct {
+	Id      int    `json:"id"`
+	Service string `json:"service"`
+}
+
+var AuthStartLoginSamlLegacy = rpc.Call[AuthStartLoginRequest, util.Empty]{
 	BaseContext: AuthContext + "/saml",
 	Operation:   "login",
 	Convention:  rpc.ConventionQueryParameters,
@@ -288,7 +293,7 @@ var AuthStartLoginSamlLegacy = rpc.Call[util.Empty, util.Empty]{
 	},
 }
 
-var AuthStartLogin = rpc.Call[FindByIntId, util.Empty]{
+var AuthStartLogin = rpc.Call[AuthStartLoginRequest, util.Empty]{
 	BaseContext: AuthContext,
 	Operation:   "startLogin",
 	Convention:  rpc.ConventionCustom,
@@ -296,11 +301,11 @@ var AuthStartLogin = rpc.Call[FindByIntId, util.Empty]{
 
 	CustomMethod: http.MethodGet,
 	CustomPath:   "/auth/startLogin",
-	CustomClientHandler: func(self *rpc.Call[FindByIntId, util.Empty], client *rpc.Client, request FindByIntId) (util.Empty, *util.HttpError) {
+	CustomClientHandler: func(self *rpc.Call[AuthStartLoginRequest, util.Empty], client *rpc.Client, request AuthStartLoginRequest) (util.Empty, *util.HttpError) {
 		panic("Do not use in a client")
 	},
-	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (FindByIntId, *util.HttpError) {
-		return rpc.ParseRequestFromQuery[FindByIntId](w, r)
+	CustomServerParser: func(w http.ResponseWriter, r *http.Request) (AuthStartLoginRequest, *util.HttpError) {
+		return rpc.ParseRequestFromQuery[AuthStartLoginRequest](w, r)
 	},
 	CustomServerProducer: func(response util.Empty, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
 		if err != nil {

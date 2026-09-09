@@ -15,6 +15,7 @@ import (
 	ws "github.com/gorilla/websocket"
 	introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
 	"ucloud.dk/shared/pkg/log"
+	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -118,8 +119,6 @@ func waitForIntervalOrShutdown(ctx context.Context, interval time.Duration) bool
 func initStartup() {
 	_, _, _ = util.RunCommand([]string{"sudo", "ln", "-s", "/opt/ucloud/ucloud-job-introspection", "/usr/bin/ucloud"})
 
-	driveSynchronizeWithFstab()
-
 	err := ApplyMountOverrides(
 		context.Background(),
 		[]string{"/work", "/etc/ucloud", "/opt/ucloud", "/opt/ucloud-ucx"},
@@ -132,6 +131,8 @@ func initStartup() {
 	if err != nil {
 		log.Info("Failed to apply systemd mount overrides: %s", err)
 	}
+
+	driveSynchronizeWithFstab()
 
 	startInitializationScript() // NOTE(Dan): Needs to run after mounts
 }
@@ -165,7 +166,7 @@ func startInitializationScript() {
 			labels = map[string]string{}
 		}
 
-		initLabel, ok := labels["ucloud.dk/initscript"]
+		initLabel, ok := labels[orc.ResourceLabelInitScript]
 		if ok {
 			stdout, stderr, ok := util.RunCommand([]string{"sudo", "bash", initLabel})
 			if !ok {

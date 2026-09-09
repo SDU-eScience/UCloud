@@ -209,6 +209,9 @@ func initProjects() {
 		}
 		return util.Empty{}, ProjectUpdateSubProjectRenamingSettings(info.Actor, request)
 	})
+	fndapi.ProjectUpdateSettings.Handler(func(info rpc.RequestInfo, request fndapi.ProjectUpdateSettingsRequest) (util.Empty, *util.HttpError) {
+		return util.Empty{}, ProjectUpdateSettings(info.Actor, request)
+	})
 
 	fndapi.ProjectRetrieveSubProjectRenamingSetting.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.ProjectRetrieveSubProjectRenamingResponse, *util.HttpError) {
 		return ProjectRetrieveSubProjectRenaming(info.Actor)
@@ -1965,6 +1968,33 @@ func ProjectUpdateSubProjectRenamingSettings(actor rpc.Actor, request fndapi.Pro
 	return nil
 }
 
+func ProjectUpdateSettings(actor rpc.Actor, request fndapi.ProjectUpdateSettingsRequest) *util.HttpError {
+	if !actor.Project.Present {
+		return util.HttpErr(http.StatusBadRequest, "This request requires an active project")
+	}
+	if request.InitScriptImageCacheLimitBytes < 0 {
+		return util.HttpErr(http.StatusBadRequest, "Cache limit must not be negative")
+	}
+
+	projectId := string(actor.Project.Value)
+	_, iProject, err := projectRetrieve(actor, projectId, projectFlagsAll, fndapi.ProjectRoleAdmin)
+	if err != nil {
+		return err
+	}
+
+	iProject.Mu.Lock()
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(tx, `
+			update project.projects
+			set init_script_image_cache_limit_bytes = :limit, modified_at = now()
+			where id = :project
+		`, db.Params{"limit": request.InitScriptImageCacheLimitBytes, "project": projectId})
+	})
+	iProject.Project.Status.Settings.InitScriptImageCacheLimitBytes = request.InitScriptImageCacheLimitBytes
+	iProject.Mu.Unlock()
+	return nil
+}
+
 func ProjectRetrieveSubProjectRenaming(actor rpc.Actor) (fndapi.ProjectRetrieveSubProjectRenamingResponse, *util.HttpError) {
 	if !actor.Project.Present {
 		return fndapi.ProjectRetrieveSubProjectRenamingResponse{}, util.HttpErr(http.StatusBadRequest, "Only projects can have subprojects")
@@ -2554,7 +2584,7 @@ func ProjectRetrieveMetadata(id string) (fndapi.ProjectMetadata, *util.HttpError
 	return fndapi.ProjectMetadata{}, util.HttpErr(http.StatusNotFound, "unknown project")
 }
 
-func ProjectRetrieveClaimsInfo(username string) ProjectClaimsInfo {
+func ProjectRetrieveClaimsInfo(tx *db.Transaction, username string) ProjectClaimsInfo {
 	// NOTE(Dan): Be very careful that none of these functions accidentally rely on actor/principal information as
 	// this could cause an infinite loop. This function is used as part of building the actor/principal.
 
@@ -2599,37 +2629,29 @@ func ProjectRetrieveClaimsInfo(username string) ProjectClaimsInfo {
 		}
 	}
 
-	result.ProviderProjects = db.NewTx(func(tx *db.Transaction) rpc.ProviderProjects {
-		// NOTE(Dan): Quite annoying that we have to go into another deployment's implementation details on top of
-		// doing a DB transaction here when it is otherwise not needed. On the bright side, this function only runs
-		// every 5-10 minutes for a given user.
-		projects := rpc.ProviderProjects{}
+	result.ProviderProjects = rpc.ProviderProjects{}
+	rows := db.Select[struct {
+		ProviderId string
+		Project    string
+	}](
+		tx,
+		`
+			select p.unique_name as provider_id, r.project
+			from
+				project.project_members pm
+				join provider.resource r on pm.project_id = r.project
+				join provider.providers p on r.id = p.resource
+			where
+				pm.username = :username
+	    `,
+		db.Params{
+			"username": username,
+		},
+	)
 
-		rows := db.Select[struct {
-			ProviderId string
-			Project    string
-		}](
-			tx,
-			`
-				select p.unique_name as provider_id, r.project
-				from
-					project.project_members pm
-					join provider.resource r on pm.project_id = r.project
-					join provider.providers p on r.id = p.resource
-				where
-					pm.username = :username
-		    `,
-			db.Params{
-				"username": username,
-			},
-		)
-
-		for _, row := range rows {
-			projects[rpc.ProviderId(row.ProviderId)] = rpc.ProjectId(row.Project)
-		}
-
-		return projects
-	})
+	for _, row := range rows {
+		result.ProviderProjects[rpc.ProviderId(row.ProviderId)] = rpc.ProjectId(row.Project)
+	}
 
 	return result
 }

@@ -12,6 +12,8 @@ import ApplicationsOverview from "./Applications/Category";
 import ApplicationsLanding from "./Applications/Landing";
 import ApplicationsGroup from "@/Applications/Group";
 import ApplicationSearch from "@/Applications/Search";
+import ApplicationCreator from "@/Applications/Creator/Create";
+import CategoryCreate from "@/Applications/CategoryCreate";
 import AvataaarModification from "@/UserSettings/Avataaar";
 import Dashboard from "@/Dashboard/Dashboard";
 import DetailedNews from "@/NewsPost/DetailedNews";
@@ -42,6 +44,7 @@ import StudioTopPicks from "@/Applications/Studio/TopPicksEditor";
 import UserCreation from "@/Admin/UserCreation";
 import UserSettings from "@/UserSettings/UserSettings";
 import Wayf from "@/Login/Wayf";
+import {ExternalLogin} from "@/Login/ExternalLogin";
 import Demo from "@/Playground/Demo";
 import LagTest from "@/Playground/LagTest";
 import Providers from "@/Admin/Providers/Browse";
@@ -52,7 +55,6 @@ import ProviderOverview from "@/Providers/Overview";
 import ProviderDetailed from "@/Providers/Detailed";
 import NetworkIPsRouter from "@/Applications/NetworkIP/Router";
 import SyncthingOverview from "@/Syncthing/Overview";
-import SshKeyCreate from "@/Applications/SshKeys/Add";
 import ApiTokenCreate from "@/Applications/ApiTokens/Add";
 import GrantEditor from "@/Grants/Editor";
 import ResourceUsage from "@/Accounting/UsageCore2";
@@ -65,6 +67,7 @@ import {Sidebar} from "@/ui-components/Sidebar";
 import Uploader from "@/Files/Uploader";
 import {Dialog} from "@/Dialog/Dialog";
 import {inDevEnvironment} from "@/UtilityFunctions";
+import {Feature, hasFeature} from "@/Features";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -100,6 +103,7 @@ import {useEffect} from "react";
 import {deinitNotifications, initTaskAndNotificationStream} from "@/Services/TaskAndNotificationStream";
 import {NotificationPopups} from "./Notifications/Popups";
 import {StacksRouter} from "@/Stacks";
+import ContainerRepositoryBrowse from "@/ContainerRepositories/Browse";
 
 const NotFound = (): React.ReactNode => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 const JobsOnlyRouter = (): React.ReactNode => <JobsRouter />;
@@ -114,6 +118,8 @@ const Core = (): React.ReactNode => (
             <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>
                 <Routes>
                     <Route path={AppRoutes.login.login()} element={<LoginPage />} />
+                    <Route path={AppRoutes.login.loginExternal()} element={<ExternalLogin />} />
+                    <Route path={AppRoutes.login.loginExternalWayf()} element={<Wayf external />} />
                     <Route path={AppRoutes.login.loginSuccess()} element={<LoginSuccess />} />
                     <Route path={AppRoutes.login.loginWayf()} element={<Wayf />} />
                     <Route path={AppRoutes.dashboard.dashboardA()}
@@ -123,6 +129,8 @@ const Core = (): React.ReactNode => (
                     <Route path={"/drives/*"} element={React.createElement(requireAuth(DrivesRouter))} />
                     <Route path={AppRoutes.files.visualize()} element={React.createElement(requireAuth(FilesVisualization))} />
                     <Route path="/files/*" element={React.createElement(requireAuth(FilesRouter))} />
+                    {hasFeature(Feature.CONTAINER_REPOSITORIES) ?
+                        <Route path={`${AppRoutes.containerRepositories.browse()}/*`} element={React.createElement(requireAuth(ContainerRepositoryBrowse))} /> : null}
 
                     <Route path={AppRoutes.users.registration()} element={<Registration />} />
                     <Route path={AppRoutes.users.verifyEmail()} element={<VerifyEmail />} />
@@ -141,7 +149,13 @@ const Core = (): React.ReactNode => (
                            element={React.createElement(requireAuth(ApplicationsGroup))} />
                     <Route path={AppRoutes.apps.category()}
                            element={React.createElement(requireAuth(ApplicationsOverview))} />
+                    <Route path={AppRoutes.apps.categoryCreate()}
+                           element={React.createElement(requireAuth(CategoryCreate))} />
                     <Route path={AppRoutes.apps.search()} element={React.createElement(requireAuth(ApplicationSearch))} />
+
+                    {!hasFeature(Feature.CONTAINER_REPOSITORIES) ? null :
+                        <Route path={AppRoutes.apps.creator()}
+                           element={React.createElement(requireAuth(ApplicationCreator))} />}
 
                     <Route path={`${AppRoutes.compute.jobs()}/*`}
                            element={React.createElement(requireAuth(JobsOnlyRouter))} />
@@ -158,8 +172,6 @@ const Core = (): React.ReactNode => (
                     <Route path="/private-networks/*" element={React.createElement(requireAuth(PrivateNetworksRouter))} />
 
                     <Route path={AppRoutes.resources.sshKeys()} element={React.createElement(requireAuth(SSHKeyBrowse))} />
-                    <Route path={AppRoutes.resources.sshKeysCreate()} element={React.createElement(requireAuth(SshKeyCreate))} />
-
                     <Route path={AppRoutes.resources.apiTokens()} element={React.createElement(requireAuth(ApiTokenBrowse))} />
                     <Route path={AppRoutes.resources.apiTokensCreate()} element={React.createElement(requireAuth(ApiTokenCreate))} />
 

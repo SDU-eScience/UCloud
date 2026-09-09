@@ -1,22 +1,21 @@
 import * as React from "react";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "./index";
 import {Input} from "@/ui-components";
-import {useCallback, useLayoutEffect} from "react";
+import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {prettyFilePath} from "@/Files/FilePath";
-import {FolderResourceNS} from "../Resources";
 import {getProviderField, providerMismatchError} from "../Create";
 import {injectStyleSimple} from "@/Unstyled";
 import FileBrowse from "@/Files/FileBrowse";
 import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
-import {fileFavoriteSelection, folderFavoriteSelection} from "@/Files/FavoriteSelect";
 import {UFile} from "@/UCloud/UFile";
 import {Selection} from "@/ui-components/ResourceBrowser";
-import {getParentPath} from "@/Utilities/FileUtilities";
+import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
+import {Toggle} from "@/ui-components/Toggle";
 
 type GenericFileParam =
     ApplicationParameterNS.InputFile |
@@ -28,6 +27,7 @@ interface FilesProps extends WidgetProps {
 
 export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
     const isDirectoryInput = props.parameter.type === "input_directory";
+    const [hasValue, setHasValue] = useState(false);
 
     const valueInput = () =>
         document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
@@ -39,6 +39,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
         const visual = visualInput();
         const listener = async () => {
             if (value && visual) {
+                setHasValue(value.value !== "");
                 const path = await (value.value ? prettyFilePath(value.value) : "");
                 const visual2 = visualInput();
                 if (visual2) {
@@ -66,9 +67,12 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             }
             FilesSetter(props.parameter, {path: target, readOnly: false, type: "file"});
             WidgetSetProvider(props.parameter, res.specification.product.provider);
+            props.onValueChange?.();
             dialogStore.success();
 
-            setLastActivePath(res.status.type === "DIRECTORY" ? res.id : getParentPath(res.id));
+            setLastActivePath(
+                res.status.type === "DIRECTORY" && pathComponents(res.id).length === 1 ? res.id : getParentPath(res.id)
+            );
             if (anyFolderDuplicates()) {
                 props.setWarning?.("Duplicate folders selected. This is not always supported.");
             }
@@ -94,27 +98,6 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
             show: providerRestriction
         };
 
-        const op = isDirectoryInput ? folderFavoriteSelection : fileFavoriteSelection;
-
-        const navigateToFolder = (path: string, projectId?: string) => {
-            dialogStore.failure();
-            dialogStore.addDialog(
-                <FileBrowse
-                    opts={{
-                        additionalFilters,
-                        isModal: true,
-                        managesLocalProject: true,
-                        initialPath: path,
-                        initialProject: projectId,
-                        additionalOperations: [op(onClick, providerRestriction, navigateToFolder)],
-                        selection,
-                    }} />,
-                doNothing,
-                true,
-                FilesApi.fileSelectorModalStyle
-            );
-        }
-
         dialogStore.addDialog(
             <FileBrowse
                 opts={{
@@ -122,30 +105,80 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
                     isModal: true,
                     managesLocalProject: true,
                     initialPath: getLastActivePath(),
-                    additionalOperations: [op(onClick, providerRestriction, navigateToFolder)],
                     selection,
                 }} />,
             doNothing,
             true,
             FilesApi.fileSelectorModalStyle
         );
-    }, [props.errors]);
+    }, [props.errors, props.onValueChange]);
 
     const error = props.errors[props.parameter.name] != null;
     return <>
         <input type={"hidden"} id={widgetId(props.parameter)} />
+        {!props.initScriptCache ? null : (
+            <input
+                type="hidden"
+                id={widgetId(props.initScriptCache.parameter)}
+                value={props.initScriptCache.enabled ? "true" : "false"}
+                readOnly
+            />
+        )}
         <Input
             id={widgetId(props.parameter) + "visual"}
             className={FileInputClass}
             placeholder={`No ${isDirectoryInput ? "directory" : "file"} selected`}
             onClick={onActivate}
+            readOnly
+            data-field-activator
             error={error}
         />
+        {!hasValue || !props.initScriptCache ? null : (
+            <div className={InitScriptCacheClass}>
+                <Toggle
+                    height={20}
+                    checked={props.initScriptCache.enabled}
+                    onChange={previous => props.initScriptCache?.onChange(!previous)}
+                />
+                <div>
+                    <strong>Cache installed dependencies</strong>
+                    <span>Run this script once to prepare the image. It will not run again when the cached image is reused.</span>
+                </div>
+            </div>
+        )}
     </>;
 };
 
 const FileInputClass = injectStyleSimple("file-input", `
     cursor: pointer;
+`);
+
+const InitScriptCacheClass = injectStyleSimple("init-script-cache", `
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 10px;
+    
+    > div:first-child {
+        flex-shrink: 0;
+    }
+
+    > div:last-child {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    strong {
+        font-size: 14px;
+        line-height: 20px;
+    }
+
+    span {
+        color: var(--textSecondary);
+        font-size: 13px;
+        line-height: 18px;
+    }
 `);
 
 export const FilesValidator: WidgetValidator = (param) => {
@@ -176,15 +209,8 @@ export const FilesSetter: WidgetSetter = (param, value) => {
 };
 
 function findAllFolderNames(): string[] {
-    const result: string[] = [];
-    let count = 0;
-    while (true) {
-        const name: `${FolderResourceNS}${number}` = `resourceFolder${count++}`;
-        const element = findElement({name});
-        if (!element) break;
-        result.push(element.value);
-    }
-    return result;
+    return Array.from(document.querySelectorAll<HTMLInputElement>("input[type=hidden][id^='app-param-resourceFolder']"))
+        .map(element => element.value);
 }
 
 export function anyFolderDuplicates(): boolean {

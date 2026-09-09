@@ -439,6 +439,12 @@ function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, proj
                 icon: "ftFileSystem",
                 tab: SidebarTabId.FILES
             },
+            ...(hasFeature(Feature.CONTAINER_REPOSITORIES) ? [{
+                to: AppRoutes.containerRepositories.browse(),
+                text: "Container repositories",
+                icon: "heroArchiveBox" as IconName,
+                tab: SidebarTabId.FILES,
+            }] : []),
             ...(isPersonalWorkspace ? sharesLinksInfo : [])
         ],
         [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId),
@@ -1175,6 +1181,16 @@ function SecondarySidebar({
                     icon="heroCloud"
                     tab={SidebarTabId.FILES}
                 />
+
+                {!hasFeature(Feature.CONTAINER_REPOSITORIES) ? null : <>
+                    <SidebarSectionHeader tab={SidebarTabId.FILES} to={AppRoutes.containerRepositories.browse()}>Registries</SidebarSectionHeader>
+                    <SidebarEntry
+                        to={AppRoutes.containerRepositories.browse()}
+                        text="Container registry"
+                        icon="heroArchiveBox"
+                        tab={SidebarTabId.FILES}
+                    />
+                </>}
 
             </>}
 

@@ -2,6 +2,7 @@ package foundation
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/base64"
 	"image/png"
 	"math/rand"
@@ -102,7 +103,7 @@ func MfaCreateCredentials(actor rpc.Actor) (fndapi.MfaCredentials, *util.HttpErr
 				},
 			)
 
-			result, ok := mfaCreateInternalChallenge(tx, actor.Username, util.OptValue(row.Id))
+			result, ok := mfaCreateInternalChallenge(tx, actor.Username, util.OptValue(row.Id), util.OptNone[string]())
 			if !ok || !tx.Ok {
 				_ = tx.ConsumeError()
 				db.RequestRollback(tx)
@@ -138,9 +139,9 @@ func MfaCreateCredentials(actor rpc.Actor) (fndapi.MfaCredentials, *util.HttpErr
 	}, nil
 }
 
-func MfaCreateChallenge(username string) (string, bool) {
+func MfaCreateChallenge(username string, service authLoginService) (string, bool) {
 	return db.NewTx2(func(tx *db.Transaction) (string, bool) {
-		return mfaCreateInternalChallenge(tx, username, util.OptNone[int]())
+		return mfaCreateInternalChallenge(tx, username, util.OptNone[int](), util.OptValue(service.Name))
 	})
 }
 
@@ -168,11 +169,17 @@ func MfaIsConnectedEx(username string) bool {
 	})
 }
 
+type mfaAnswerResult struct {
+	Tokens  fndapi.AuthenticationTokens
+	Upgrade bool
+	Service authLoginService
+}
+
 func MfaAnswerChallenge(r *http.Request, w http.ResponseWriter, challengeId string, answer string) *util.HttpError {
 	// TODO Might want another layer of rate limiting here just to be absolutely sure that this function is
 	//   rate-limited.
-	tokens, didUpgrade, err := db.NewTx3(func(tx *db.Transaction) (fndapi.AuthenticationTokens, bool, *util.HttpError) {
-		tokens := fndapi.AuthenticationTokens{}
+	result, err := db.NewTx2(func(tx *db.Transaction) (mfaAnswerResult, *util.HttpError) {
+		result := mfaAnswerResult{}
 
 		if rand.Intn(100) == 1 {
 			db.Exec(
@@ -191,12 +198,17 @@ func MfaAnswerChallenge(r *http.Request, w http.ResponseWriter, challengeId stri
 			SharedSecret     string
 			PrincipalId      string
 			HasEnforcedCreds bool
+			Service          sql.NullString
 		}](
 			tx,
 			`
 				select
-					cred.id, cred.enforced, cred.shared_secret, cred.principal_id, 
-					enforced_creds.id is not null has_enforced_creds
+					cred.id,
+					cred.enforced,
+					cred.shared_secret,
+					cred.principal_id,
+					enforced_creds.id is not null has_enforced_creds,
+					challenge.service
 				from
 					auth.two_factor_challenges challenge
 					join auth.two_factor_credentials cred on challenge.credentials_id = cred.id
@@ -213,7 +225,7 @@ func MfaAnswerChallenge(r *http.Request, w http.ResponseWriter, challengeId stri
 		)
 
 		if !ok {
-			return tokens, false, util.HttpErr(http.StatusNotFound, "Challenge expired. Try reloading the page.")
+			return result, util.HttpErr(http.StatusNotFound, "Challenge expired. Try reloading the page.")
 		}
 
 		if !row.Enforced && row.HasEnforcedCreds {
@@ -221,17 +233,17 @@ func MfaAnswerChallenge(r *http.Request, w http.ResponseWriter, challengeId stri
 			// The check still makes sense to do, but I don't think there are any guarantees that you cannot get two
 			// enforced credentials on your account. I don't see any immediate dangers of this, but it is confusing to
 			// end-users.
-			return tokens, false, util.HttpErr(http.StatusNotFound, "You already have 2FA setup on this account.")
+			return result, util.HttpErr(http.StatusNotFound, "You already have 2FA setup on this account.")
 		}
 
 		principal, ok := PrincipalRetrieve(tx, row.PrincipalId)
 		if !ok {
-			return tokens, false, util.HttpErr(http.StatusInternalServerError, "Internal error.")
+			return result, util.HttpErr(http.StatusInternalServerError, "Internal error.")
 		}
 
 		ok = totp.Validate(answer, row.SharedSecret)
 		if !ok {
-			return tokens, false, util.HttpErr(http.StatusForbidden, "Invalid 2FA code. Try again.")
+			return result, util.HttpErr(http.StatusForbidden, "Invalid 2FA code. Try again.")
 		}
 
 		db.Exec(
@@ -258,53 +270,63 @@ func MfaAnswerChallenge(r *http.Request, w http.ResponseWriter, challengeId stri
 				},
 			)
 		} else {
-			tokens = SessionCreate(r, tx, principal)
+			serviceName := "web"
+			if row.Service.Valid {
+				serviceName = row.Service.String
+			}
+			service, ok := authLoginServiceResolve(serviceName)
+			if !ok {
+				return result, util.HttpErr(http.StatusBadRequest, "Unknown login service")
+			}
+			result.Tokens = SessionCreate(r, tx, principal)
+			result.Service = service
 		}
 
-		return tokens, !row.Enforced, nil
+		result.Upgrade = !row.Enforced
+		return result, nil
 	})
 
 	if err != nil {
 		return err
 	} else {
-		if didUpgrade {
+		if result.Upgrade {
 			w.WriteHeader(http.StatusNoContent)
 		} else {
-			SessionLoginResponse(r, w, tokens, SessionLoginMfaComplete)
+			SessionLoginResponse(r, w, result.Tokens, result.Service, SessionLoginMfaComplete)
 		}
 		return nil
 	}
 }
 
-func mfaCreateInternalChallenge(tx *db.Transaction, username string, credentialsId util.Option[int]) (string, bool) {
+func mfaCreateInternalChallenge(tx *db.Transaction, username string, credentialsId util.Option[int], service util.Option[string]) (string, bool) {
 	challengeId := util.RandomTokenNoTs(32)
 
 	_, ok := db.Get[struct{ ChallengeId string }](
 		tx,
 		`
-			with
-			  requested_credentials as (
-				  select cast(:credentials_id as bigint) as id
-			  )
+			with requested_credentials as (
+				select cast(:credentials_id as bigint) as id
+			)
 			insert into auth.two_factor_challenges(dtype, challenge_id, expires_at, credentials_id, service)
 			select
-			  'LOGIN',
-			  :challenge_id,
-			  now() + cast('10 minutes' as interval),
-			  cred.id,
-			  null
+				'LOGIN',
+				:challenge_id,
+				now() + cast('10 minutes' as interval),
+				cred.id,
+				nullif(cast(:service as text), '')
 			from
-			  requested_credentials req
-			  join auth.two_factor_credentials cred on cred.principal_id = :username
+				requested_credentials req
+				join auth.two_factor_credentials cred on cred.principal_id = :username
 			where
-			  (req.id >= 0 and req.id = cred.id)
-			  or (cred.enforced = true)
+				(req.id >= 0 and req.id = cred.id)
+				or (cred.enforced = true)
 			returning challenge_id
 	    `,
 		db.Params{
 			"credentials_id": credentialsId.GetOrDefault(-1),
 			"username":       username,
 			"challenge_id":   challengeId,
+			"service":        service.GetOrDefault(""),
 		},
 	)
 

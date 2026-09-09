@@ -1,11 +1,24 @@
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {apiBrowse, apiRetrieve, apiSearch, apiUpdate} from "@/Authentication/DataHook";
+import {apiBrowse, apiDelete, apiRetrieve, apiSearch, apiUpdate} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {FindByLongId, PaginationRequestV2} from "@/UCloud";
+import {FindByLongId, PageV2, PaginationRequestV2} from "@/UCloud";
+import {UpdatedAcl} from "@/UCloud/ResourceApi";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {getStoredProject} from "@/Project/ReduxState";
+import type {JobSpecification} from "@/UCloud/JobsApi";
+import {Feature, hasFeature} from "@/Features";
+import {checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
 
 const baseContext = "/api/hpc/apps";
+
+export function customApplicationsEnabled(): boolean {
+    return hasFeature(Feature.CONTAINER_REPOSITORIES);
+}
+
+export function customAppsWorkspaceAdmin(): boolean {
+    if (!customApplicationsEnabled()) return false;
+    return checkIsWorkspaceAdmin();
+}
 
 export interface Tool {
     owner: string;
@@ -57,6 +70,25 @@ export interface ApplicationMetadata {
     public: boolean;
     flavorName?: string;
     groupId?: number | null;
+    variant?: ApplicationVariant;
+    origin?: "UCLOUD" | "CUSTOM";
+    publishedToProject?: boolean;
+}
+
+export interface ApplicationVariant {
+    id: number;
+    revisionId: number;
+    baseApplication: NameAndVersion;
+    createdBy: string;
+    project?: string;
+    image: string;
+    imageDigest: string;
+    provider: string;
+    title: string;
+    publishedToProject: boolean;
+    state: "PENDING" | "ACTIVE" | "FAILED" | "DELETED";
+    failure?: string;
+    createdAt: number;
 }
 
 export interface ApplicationInvocationDescription {
@@ -459,6 +491,197 @@ export function createTool(file: File): Promise<{ error?: string }> {
 
 // Core API
 // =====================================================================================================================
+
+export type AppEditorApplicationKind = "MANAGED" | "CUSTOM";
+export type AppEditorSourceIntent = "EDIT" | "FORK";
+
+export interface AppEditorSourceLocation {
+    line: number;
+    column: number;
+}
+
+export interface AppEditorValidationError {
+    code: string;
+    path?: string;
+    message: string;
+    location?: AppEditorSourceLocation;
+}
+
+export interface AppEditorCustomMetadata {
+    serviceProvider: string;
+    publishedToProject: boolean;
+    flavorName: string;
+    groupId: number;
+    categoryId: number;
+}
+
+export interface AppEditorRetrieveSourceRequest {
+    kind: AppEditorApplicationKind;
+    name: string;
+    version: string;
+    serviceProvider?: string;
+    intent: AppEditorSourceIntent;
+}
+
+export interface AppEditorRetrieveSourceResponse {
+    kind: AppEditorApplicationKind;
+    source: string;
+    custom?: AppEditorCustomMetadata;
+}
+
+export interface AppEditorValidateRequest {
+    kind: AppEditorApplicationKind;
+    source: string;
+    custom?: AppEditorCustomMetadata;
+}
+
+export interface AppEditorValidateResponse {
+    application?: Application;
+    errors: AppEditorValidationError[];
+}
+
+export interface AppEditorEligibilityRequirement {
+    eligible: boolean;
+    message: string;
+}
+
+export interface AppEditorProviderEligibility {
+    provider: string;
+    containerSupport: AppEditorEligibilityRequirement;
+    registrySupport: AppEditorEligibilityRequirement;
+    computeAllocation: AppEditorEligibilityRequirement;
+    storageAllocation: AppEditorEligibilityRequirement;
+    eligible: boolean;
+}
+
+export interface AppEditorCustomEligibilityResponse {
+    providers: AppEditorProviderEligibility[];
+    canPublish: boolean;
+}
+
+export interface AppEditorRenderRequest {
+    validation: AppEditorValidateRequest;
+    job: JobSpecification;
+}
+
+export interface AppEditorRateLimit {
+    limit: number;
+    remaining: number;
+    retryAt?: number | string;
+}
+
+export interface AppEditorRenderResponse {
+    script?: string;
+    errors: AppEditorValidationError[];
+    rateLimit: AppEditorRateLimit;
+}
+
+export interface AppCatalogCustomGroup {
+    id: number;
+    createdAt: number;
+    owner: ResourceOwner;
+    backedBy?: number;
+    specification: {
+        title: string;
+        description: string;
+    };
+}
+
+export interface AppCatalogCustomCategory {
+    id: number;
+    createdAt: number;
+    owner: ResourceOwner;
+    backedBy?: number;
+    specification: {
+        title: string;
+        description: string;
+    };
+    permissions: ResourcePermissions;
+}
+
+export interface ResourceOwner {
+    createdBy: string;
+    project?: string;
+}
+
+export interface ResourcePermissions {
+    myself: Array<"READ" | "EDIT" | "ADMIN" | "PROVIDER">;
+    others: Array<{
+        entity: {
+            type?: string;
+            projectId?: string;
+            group?: string;
+            username?: string;
+        };
+        permissions: Array<"READ" | "EDIT" | "ADMIN" | "PROVIDER">;
+    }>;
+}
+
+export function retrieveEditorSource(request: AppEditorRetrieveSourceRequest): APICallParameters<unknown, AppEditorRetrieveSourceResponse> {
+    return apiRetrieve(request, baseContext, "editorSource");
+}
+
+export function validateEditor(request: AppEditorValidateRequest): APICallParameters<unknown, AppEditorValidateResponse> {
+    return apiUpdate(request, baseContext, "editorValidate");
+}
+
+export function retrieveEditorEligibility(): APICallParameters<unknown, AppEditorCustomEligibilityResponse> {
+    return apiRetrieve({}, baseContext, "editorEligibility");
+}
+
+export function renderEditorInvocation(request: AppEditorRenderRequest): APICallParameters<unknown, AppEditorRenderResponse> {
+    return apiUpdate(request, baseContext, "editorRenderInvocation");
+}
+
+export function createCustomApplication(request: Record<string, unknown>): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "createCustom");
+}
+
+export interface AppCatalogCustomCategorySpecification {
+    title: string;
+    description: string;
+}
+
+export function createCustomGroup(request: {
+    kind: "Custom" | "Managed";
+    id?: number;
+    specification?: AppCatalogCustomCategorySpecification;
+    acl?: unknown[];
+}): APICallParameters<unknown, {id: number}> {
+    return apiUpdate(request, baseContext, "createCustomGroup");
+}
+
+export function createCustomCategory(request: {
+    kind: "Custom" | "Managed";
+    id?: number;
+    specification?: AppCatalogCustomCategorySpecification;
+    acl?: unknown[];
+}): APICallParameters<unknown, {id: number}> {
+    return apiUpdate(request, baseContext, "createCustomCategory");
+}
+
+export function deleteCustomCategory(request: {id: number}): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "deleteCustomCategory");
+}
+
+export function updateCustomCategoryAcl(request: UpdatedAcl): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "updateCustomCategoryAcl");
+}
+
+export function browseCustomGroups(request: {
+    itemsPerPage?: number;
+    next?: string;
+} = {}): APICallParameters<unknown, PageV2<AppCatalogCustomGroup>> {
+    return apiBrowse(request, baseContext, "customGroups");
+}
+
+export function browseCustomCategories(request: {
+    itemsPerPage?: number;
+    next?: string;
+} = {}): APICallParameters<unknown, PageV2<AppCatalogCustomCategory>> {
+    return apiBrowse(request, baseContext, "customCategories");
+}
+
 export function findByNameAndVersion(request: {
     appName: string;
     appVersion?: string | null;
@@ -500,7 +723,15 @@ export function create(file: File): Promise<{ error?: string }> {
     return uploadFile("PUT", `${baseContext}/upload`, file);
 }
 
-async function uploadFile(method: string, path: string, file: File, headers?: Record<string, string>): Promise<{
+export function createFromSource(source: string): Promise<{ error?: string }> {
+    return uploadFile(
+        "PUT",
+        `${baseContext}/upload`,
+        new Blob([source], {type: "application/x-yaml"}),
+    );
+}
+
+async function uploadFile(method: string, path: string, file: Blob, headers?: Record<string, string>): Promise<{
     error?: string
 }> {
     const token = await Client.receiveAccessTokenOrRefreshIt();
@@ -576,6 +807,20 @@ export function updatePublicFlag(request: {
 
 export function listAllApplications(request: {}): APICallParameters<unknown, { items: NameAndVersion[] }> {
     return apiRetrieve(request, baseContext, "allApplications");
+}
+
+const applicationVariantContext = `${baseContext}/variants`;
+
+export function updateApplicationVariant(request: {
+    id: number;
+    title?: string;
+    publishedToProject?: boolean;
+}): APICallParameters<unknown, ApplicationVariant> {
+    return apiUpdate(request, applicationVariantContext, "update");
+}
+
+export function deleteApplicationVariant(request: {id: number; version?: string | null}): APICallParameters<unknown, unknown> {
+    return apiDelete(request, applicationVariantContext);
 }
 
 // Starred applications

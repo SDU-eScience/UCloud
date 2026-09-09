@@ -151,6 +151,7 @@ type Server struct {
 }
 
 type Client struct {
+	ProjectId       util.Option[string]
 	RefreshToken    string
 	AccessToken     string
 	BasePath        string

@@ -32,6 +32,8 @@ var containerCpu controller.JobsService
 var virtCpu controller.JobsService
 
 func InitCompute() controller.JobsService {
+	containers.InitScriptImagesFindImage = initScriptImagesImageForJob
+	containers.InitScriptImagesConsumesScript = initScriptImagesConsumesInitScript
 	containerCpu = containers.Init()
 	virtCpu = kubevirt.Init()
 
@@ -45,6 +47,7 @@ func InitCompute() controller.JobsService {
 		HandleShell:              handleShell,
 		OpenWebSession:           openWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
+		RenderInvocation:         renderInvocation,
 		Suspend:                  suspend,
 		Unsuspend:                unsuspend,
 		HandleBuiltInVnc:         handleBuiltInVnc,
@@ -77,6 +80,14 @@ func InitCompute() controller.JobsService {
 	}
 }
 
+func renderInvocation(job *orc.Job) (string, *util.HttpError) {
+	service := backend(job)
+	if service == nil || service.RenderInvocation == nil {
+		return "", util.HttpErr(http.StatusBadRequest, "Invocation preview is not supported for this application")
+	}
+	return service.RenderInvocation(job)
+}
+
 var nodes *shared.K8sResourceTracker[*k8score.Node]
 
 var monitoringHealthCounter = atomic.Int64{}
@@ -84,6 +95,7 @@ var monitoringHealthCounter = atomic.Int64{}
 func InitComputeLater() {
 	controller.IAppReconfigureAll()
 	containers.StartSyncthingPolicyReconciler()
+	initScriptImagesStartMaintenance()
 
 	initJobQueue()
 
@@ -383,12 +395,31 @@ func submit(job orc.Job) (util.Option[string], *util.HttpError) {
 		return util.OptNone[string](), util.UserHttpError("This project is not allowed to use virtual machines")
 	}
 
-	shared.RequestSchedule(&job)
 	controller.JobTrackNew(job)
+	delayed, herr := initScriptImagesPrepare(&job, false)
+	if herr != nil {
+		return util.OptNone[string](), herr
+	}
+	if !delayed {
+		shared.RequestSchedule(&job)
+	}
 	return util.OptNone[string](), nil
 }
 
 func terminate(request controller.JobTerminateRequest) *util.HttpError {
+	initScriptImagesCancel(request.Job.Id)
+	containerSnapshotExecutions.Lock()
+	delayed, err := delayTerminationForContainerSnapshot(request)
+	containerSnapshotExecutions.Unlock()
+
+	if delayed || err != nil {
+		return err
+	}
+
+	return terminateNow(request)
+}
+
+func terminateNow(request controller.JobTerminateRequest) *util.HttpError {
 	introspection.DeleteTokens([]string{request.Job.Id})
 	return backend(request.Job).Terminate(request)
 }

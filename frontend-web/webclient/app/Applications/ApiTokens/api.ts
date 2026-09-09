@@ -45,6 +45,8 @@ export interface ApiTokenPermission {
     action: string;
 }
 
+export type ApiTokenContext = "project" | "personal";
+
 export interface ApiTokenOptions {
     availablePermissions: ApiTokenPermissionSpecification[];
 }
@@ -53,6 +55,7 @@ export interface ApiTokenPermissionSpecification {
     name: string;
     title: string;
     description: string;
+    context: ApiTokenContext;
 
     // name of action to human-readable format
     actions: Record<string, string>;

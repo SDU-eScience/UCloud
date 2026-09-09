@@ -1,9 +1,9 @@
 package ucloud_cli
 
-func ExecuteCommand(commands ...string) error {
+func ExecuteCommand(args ...string) error {
 
-	// Consume the first command which should be the ucloud name
-	command, err := Parse(commands[1:])
+	// The first argument is the executable name
+	command, err := Parse(args[1:])
 
 	if err != nil {
 		return err

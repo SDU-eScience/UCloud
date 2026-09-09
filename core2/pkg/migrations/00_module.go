@@ -39,4 +39,11 @@ func Init() {
 	db.AddMigration(grantV3())
 	db.AddMigration(grantV4())
 	db.AddMigration(projectsV5())
+	db.AddMigration(sshV1())
+	db.AddMigration(containerRepositoriesV1())
+	db.AddMigration(applicationVariantsV1())
+	db.AddMigration(tasksV1())
+	db.AddMigration(projectsV6())
+	db.AddMigration(customApplicationsV1())
+	db.AddMigration(applicationEditorV1())
 }

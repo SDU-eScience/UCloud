@@ -86,6 +86,7 @@ import (
 
 func initAppCatalog() {
 	appCatalogLoad()
+	appCustomLoad()
 
 	// NOTE(Dan): Normally this stuff would just reside in app_catalog.go but this API has _a lot_ of endpoints so it
 	// was moved here to make the main file read a bit easier.
@@ -116,6 +117,7 @@ var appCatalogGlobals struct {
 type appCatalogBucket struct {
 	Mu                     sync.RWMutex
 	Applications           map[string][]*internalApplication // sorted with the oldest first and newest last
+	ApplicationVariants    map[int64]*internalApplicationVariant
 	ApplicationPermissions map[string][]orcapi.AclEntity
 	Tools                  map[string][]*internalTool
 	Groups                 map[AppGroupId]*internalAppGroup
@@ -185,6 +187,7 @@ type internalApplication struct {
 
 	Invocation orcapi.ApplicationInvocationDescription
 	Tool       orcapi.NameAndVersion
+	Source     string
 
 	// Mutable metadata
 	// -----------------------
@@ -196,6 +199,7 @@ type internalApplication struct {
 	Public            bool
 	Group             util.Option[AppGroupId]
 	ModifiedAt        time.Time
+	Variant           util.Option[orcapi.ApplicationVariant]
 }
 
 type internalTool struct {
@@ -366,6 +370,15 @@ func AppIsRelevant(
 	app orcapi.Application,
 	discovery AppDiscovery,
 ) bool {
+	if app.Metadata.Variant.Present {
+		provider := app.Metadata.Variant.Value.Provider
+		if discovery.Mode == orcapi.CatalogDiscoveryModeSelected {
+			return discovery.Selected.Present && discovery.Selected.Value == provider
+		}
+		if discovery.Mode == orcapi.CatalogDiscoveryModeAvailable && !slices.Contains(appRelevantProvidersForUser(actor.Username, actor.Project), provider) {
+			return false
+		}
+	}
 	switch discovery.Mode {
 	case "", orcapi.CatalogDiscoveryModeAll:
 		return true
@@ -437,6 +450,9 @@ func AppRetrieveNewest(
 	discovery AppDiscovery,
 	flags AppCatalogFlags,
 ) (orcapi.Application, bool) {
+	if strings.HasPrefix(name, "custom-") {
+		return appCustomRetrieveApplication(actor, name, "", "", discovery, flags)
+	}
 	b := appBucket(name)
 	b.Mu.RLock()
 	var versions []string
@@ -478,6 +494,9 @@ func AppRetrieve(
 	discovery AppDiscovery,
 	flags AppCatalogFlags,
 ) (orcapi.Application, bool) {
+	if strings.HasPrefix(name, "custom-") {
+		return appCustomRetrieveApplication(actor, name, version, "", discovery, flags)
+	}
 	apiApplication := orcapi.Application{}
 	groupId := util.OptNone[AppGroupId]()
 
@@ -507,7 +526,10 @@ func AppRetrieve(
 
 	app.Mu.RLock()
 	hasPermissions := app.Public
-	if !hasPermissions {
+	if app.Variant.Present {
+		hasPermissions = applicationVariantCanRead(actor, app.Variant.Value)
+	}
+	if !hasPermissions && !app.Variant.Present {
 		if actor.Role == rpc.RoleAdmin || actor.Username == rpc.ActorSystem.Username {
 			hasPermissions = true
 		} else {
@@ -557,15 +579,20 @@ func AppRetrieve(
 					Public:         app.Public,
 					FlavorName:     app.FlavorName,
 					Group: orcapi.ApplicationGroup{
-						Metadata: orcapi.ApplicationGroupMetadata{Id: int(app.Group.GetOrDefault(AppGroupId(-1)))},
+						Metadata: orcapi.ApplicationGroupMetadata{Id: int(app.Group.GetOrDefault(AppGroupId(-1))), Origin: orcapi.CatalogOriginUCloud},
 					},
 					CreatedAt: fndapi.Timestamp(app.CreatedAt),
+					Variant:   app.Variant,
+					Origin:    orcapi.CatalogOriginUCloud,
 				},
 			},
 			WithAppInvocation: orcapi.WithAppInvocation{
 				Invocation: app.Invocation,
 			},
 			Versions: versions,
+		}
+		if app.Variant.Present {
+			apiApplication.Metadata.Origin = orcapi.CatalogOriginCustom
 		}
 
 		groupId = app.Group
@@ -634,14 +661,16 @@ func AppRetrieveGroup(
 	b.Mu.RUnlock()
 
 	if !ok {
-		return orcapi.ApplicationGroup{}, nil, false
+		custom, customOk := appCustomRetrieveGroupForCatalog(actor, id, discovery, flags)
+		return custom, nil, customOk
 	}
 
 	group.Mu.RLock()
 	var apps []string
 	apiGroup := orcapi.ApplicationGroup{
 		Metadata: orcapi.ApplicationGroupMetadata{
-			Id: int(id),
+			Id:     int(id),
+			Origin: orcapi.CatalogOriginUCloud,
 		},
 		Specification: orcapi.ApplicationGroupSpecification{
 			Title:         group.Title,
@@ -689,6 +718,15 @@ func AppRetrieveGroup(
 			return strings.Compare(a.Metadata.Title, b.Metadata.Title)
 		})
 	}
+	if flags&AppCatalogIncludeApps != 0 {
+		appCustomAppendToManagedGroup(actor, id, discovery, &apiGroup)
+		slices.SortFunc(apiGroup.Status.Applications, func(a, b orcapi.Application) int {
+			if c := strings.Compare(a.Metadata.FlavorName.GetOrDefault(""), b.Metadata.FlavorName.GetOrDefault("")); c != 0 {
+				return c
+			}
+			return strings.Compare(a.Metadata.Title, b.Metadata.Title)
+		})
+	}
 
 	return apiGroup, logo, true
 }
@@ -705,10 +743,19 @@ func AppCatalogRetrieveCategory(
 	c.Mu.RUnlock()
 
 	if !ok {
+		if id < 0 {
+			for _, category := range appCustomCategories(actor, discovery, flags) {
+				if category.Metadata.Id == int(id) {
+					return category, true
+				}
+			}
+		}
 		return orcapi.ApplicationCategory{}, false
 	}
 
-	return appCategoryToApi(actor, cat, discovery, flags), true
+	result := appCategoryToApi(actor, cat, discovery, flags)
+	appCustomAppendToManagedCategory(actor, id, discovery, flags, &result)
+	return result, true
 }
 
 func AppCatalogListCategories(
@@ -741,6 +788,7 @@ func AppCatalogListCategories(
 catLoop:
 	for _, cat := range categories {
 		apiCategory := appCategoryToApi(actor, cat, discovery, categoryFlags)
+		appCustomAppendToManagedCategory(actor, cat.Id, discovery, categoryFlags, &apiCategory)
 		if filter {
 			wantApps := flags&AppCatalogIncludeApps != 0
 			wantGroups := flags&AppCatalogIncludeGroups != 0
@@ -765,9 +813,35 @@ catLoop:
 		}
 		result = append(result, apiCategory)
 	}
+	customCategories := appCustomCategories(actor, discovery, categoryFlags)
+	if filter {
+		wantGroups := flags&AppCatalogIncludeGroups != 0
+		wantApps := flags&AppCatalogIncludeApps != 0
+		if !wantGroups {
+			for i := range customCategories {
+				customCategories[i].Status.Groups = util.NonNilSlice[orcapi.ApplicationGroup](nil)
+			}
+		} else if !wantApps {
+			for i := range customCategories {
+				for j := range customCategories[i].Status.Groups {
+					customCategories[i].Status.Groups[j].Status.Applications = util.NonNilSlice[orcapi.Application](nil)
+				}
+			}
+		}
+	}
+	result = append(result, customCategories...)
 
 	slices.SortFunc(result, func(a, b orcapi.ApplicationCategory) int {
-		return cmp.Compare(a.Metadata.Priority, b.Metadata.Priority)
+		if a.Metadata.Origin != b.Metadata.Origin {
+			if a.Metadata.Origin == orcapi.CatalogOriginCustom {
+				return 1
+			}
+			return -1
+		}
+		if priority := cmp.Compare(a.Metadata.Priority, b.Metadata.Priority); priority != 0 {
+			return priority
+		}
+		return strings.Compare(strings.ToLower(a.Specification.Title), strings.ToLower(b.Specification.Title))
 	})
 
 	return util.NonNilSlice(result)
@@ -785,6 +859,7 @@ func appCategoryToApi(
 		Metadata: orcapi.AppCategoryMetadata{
 			Id:       int(cat.Id),
 			Priority: cat.Priority,
+			Origin:   orcapi.CatalogOriginUCloud,
 		},
 		Specification: orcapi.AppCategorySpecification{
 			Title:       cat.Title,
@@ -804,6 +879,7 @@ func appCategoryToApi(
 			wantApps := flags&AppCatalogIncludeApps != 0
 
 			group, _, ok := AppRetrieveGroup(actor, g, discovery, groupFlags)
+			appCustomFilterGroupForCategory(actor, cat.Id, &group)
 			if ok && len(group.Status.Applications) > 0 {
 				if len(group.Status.Applications) == 1 && group.Specification.DefaultFlavor == "" {
 					group.Specification.DefaultFlavor = group.Status.Applications[0].Metadata.Name
@@ -1125,11 +1201,14 @@ func AppStudioListAllTools() []orcapi.NameAndVersion {
 }
 
 func AppStudioRetrieveAllVersions(name string) ([]orcapi.Application, *util.HttpError) {
+	if strings.HasPrefix(name, "custom-") {
+		return nil, util.HttpErr(http.StatusNotFound, "not found")
+	}
 	discovery := AppDiscovery{Mode: orcapi.CatalogDiscoveryModeAll}
 	newest, ok := AppRetrieveNewest(rpc.ActorSystem, name, discovery,
 		AppCatalogIncludeVersionNumbers)
 
-	if !ok {
+	if !ok || newest.Metadata.Origin == orcapi.CatalogOriginCustom {
 		return nil, util.HttpErr(http.StatusNotFound, "not found")
 	}
 
@@ -1137,7 +1216,7 @@ func AppStudioRetrieveAllVersions(name string) ([]orcapi.Application, *util.Http
 	for _, v := range newest.Versions {
 		if v != newest.Metadata.Version {
 			app, ok := AppRetrieve(rpc.ActorSystem, name, v, discovery, 0)
-			if ok {
+			if ok && app.Metadata.Origin != orcapi.CatalogOriginCustom {
 				result = append(result, app)
 			}
 		}
@@ -1178,9 +1257,15 @@ func AppStudioListGroups() []orcapi.ApplicationGroup {
 }
 
 func AppStudioRetrieveGroup(groupId AppGroupId) (orcapi.ApplicationGroup, *util.HttpError) {
+	if groupId < 0 {
+		return orcapi.ApplicationGroup{}, util.HttpErr(http.StatusNotFound, "not found")
+	}
 	discovery := AppDiscovery{Mode: orcapi.CatalogDiscoveryModeAll}
 	group, _, ok := AppRetrieveGroup(rpc.ActorSystem, groupId, discovery, AppCatalogIncludeApps|AppCatalogIncludeCategories)
 	if ok {
+		group.Status.Applications = slices.DeleteFunc(group.Status.Applications, func(application orcapi.Application) bool {
+			return application.Metadata.Origin == orcapi.CatalogOriginCustom
+		})
 		return group, nil
 	} else {
 		return orcapi.ApplicationGroup{}, util.HttpErr(http.StatusNotFound, "not found")
@@ -1521,6 +1606,7 @@ func AppStudioDeleteCategory(id AppCategoryId) *util.HttpError {
 	}
 
 	appPersistDeleteCategory(id)
+	appCustomMaterializeCategory(id)
 	return nil
 }
 
@@ -1699,6 +1785,7 @@ func AppStudioDeleteGroup(groupId AppGroupId) *util.HttpError {
 
 	group.Items = nil
 	group.Mu.Unlock()
+	appCustomMaterializeGroup(groupId)
 	return nil
 }
 
@@ -1830,8 +1917,13 @@ func AppStudioUpdateCarrousel(slides []orcapi.CarrouselItem) *util.HttpError {
 
 		if slide.LinkedApplication.Present {
 			linkCount++
-			_, ok := AppRetrieveNewest(rpc.ActorSystem, slide.LinkedApplication.Value, discovery, 0)
-			if !ok {
+			linkedApplication := slide.LinkedApplication.Value
+			validApplication := false
+			if !strings.HasPrefix(linkedApplication, "custom-") {
+				application, ok := AppRetrieveNewest(rpc.ActorSystem, linkedApplication, discovery, 0)
+				validApplication = ok && application.Metadata.Origin != orcapi.CatalogOriginCustom
+			}
+			if !validApplication {
 				err = util.MergeHttpErr(err, util.HttpErr(http.StatusBadRequest, "linkedApplication is invalid"))
 			}
 		}
@@ -1922,12 +2014,22 @@ func AppStudioUpdateCarrouselSlideImage(index int, imageBytes []byte) *util.Http
 }
 
 func AppStudioCreateApplication(app *orcapi.Application) *util.HttpError {
+	return AppStudioCreateApplicationFromSource(app, "")
+}
+
+func AppStudioCreateApplicationFromSource(app *orcapi.Application, source string) *util.HttpError {
 	// NOTE(Dan): This function assumes that the application has already gone through validation and normalization.
 	// It should have, given that this is not the endpoint for uploading YAML from the end-user.
 
 	var err *util.HttpError
 	var result *internalApplication
-	if validationErr := validateUcxExecutableMetadata(&app.Invocation); validationErr != nil {
+	if strings.HasPrefix(app.Metadata.Name, "variant-") {
+		return util.HttpErr(http.StatusBadRequest, "application names beginning with variant- are reserved")
+	}
+	if strings.HasPrefix(app.Metadata.Name, "custom-") {
+		return util.HttpErr(http.StatusBadRequest, "application names beginning with custom- are reserved")
+	}
+	if validationErr := orcapi.ValidateUcxExecutableMetadata(&app.Invocation); validationErr != nil {
 		return validationErr
 	}
 
@@ -1965,6 +2067,7 @@ func AppStudioCreateApplication(app *orcapi.Application) *util.HttpError {
 				CreatedAt:         time.Now(),
 				Invocation:        app.Invocation,
 				Tool:              app.Invocation.Tool.NameAndVersion,
+				Source:            source,
 				Title:             app.Metadata.Title,
 				Description:       app.Metadata.Description,
 				DocumentationSite: util.OptStringIfNotEmpty(app.Metadata.Website),
@@ -1991,59 +2094,6 @@ func AppStudioCreateApplication(app *orcapi.Application) *util.HttpError {
 	return err
 }
 
-func validateUcxExecutableMetadata(invocation *orcapi.ApplicationInvocationDescription) *util.HttpError {
-	return validateUcxExecutableMetadataSection(invocation.Ucx, "invocation.ucx.executable")
-}
-
-func validateUcxExecutableMetadataSection(ucx util.Option[orcapi.UcxDescription], path string) *util.HttpError {
-	if !ucx.Present || !ucx.Value.Executable.Present {
-		return nil
-	}
-
-	executable := ucx.Value.Executable.Value
-	if strings.TrimSpace(executable.ManifestUrl) == "" {
-		return util.HttpErr(http.StatusBadRequest, "%s.manifestUrl is required", path)
-	}
-	if strings.HasPrefix(executable.ManifestUrl, "builtin://") {
-		if _, ok := builtinUcxExecutableName(executable.ManifestUrl); !ok {
-			return util.HttpErr(http.StatusBadRequest, "%s.manifestUrl must contain a valid built-in executable name", path)
-		}
-		return nil
-	}
-	if !strings.HasPrefix(executable.ManifestUrl, "https://") {
-		return util.HttpErr(http.StatusBadRequest, "%s.manifestUrl must be an HTTPS URL", path)
-	}
-	if strings.TrimSpace(executable.PublicKey) == "" {
-		return util.HttpErr(http.StatusBadRequest, "%s.publicKey is required", path)
-	}
-	if !strings.HasPrefix(executable.PublicKey, "ed25519:") {
-		return util.HttpErr(http.StatusBadRequest, "%s.publicKey must use the ed25519: prefix", path)
-	}
-	if strings.TrimSpace(executable.BinaryName) == "" {
-		return util.HttpErr(http.StatusBadRequest, "%s.binaryName is required", path)
-	}
-
-	return nil
-}
-
-func builtinUcxExecutableName(manifestUrl string) (string, bool) {
-	const prefix = "builtin://"
-	if !strings.HasPrefix(manifestUrl, prefix) {
-		return "", false
-	}
-
-	name := strings.TrimPrefix(manifestUrl, prefix)
-	if name == "" || name == "." || name == ".." {
-		return "", false
-	}
-	for _, ch := range name {
-		if (ch < 'a' || ch > 'z') && (ch < 'A' || ch > 'Z') && (ch < '0' || ch > '9') && ch != '-' && ch != '_' && ch != '.' {
-			return "", false
-		}
-	}
-	return name, true
-}
-
 func AppStudioCreateToolDirect(tool *orcapi.Tool) *util.HttpError {
 	return AppStudioCreateTool(&orcapi.ToolReference{
 		NameAndVersion: tool.Description.Info,
@@ -2052,6 +2102,12 @@ func AppStudioCreateToolDirect(tool *orcapi.Tool) *util.HttpError {
 }
 
 func AppStudioCreateTool(tool *orcapi.ToolReference) *util.HttpError {
+	if strings.HasPrefix(tool.Name, "variant-") {
+		return util.HttpErr(http.StatusBadRequest, "tool names beginning with variant- are reserved")
+	}
+	if strings.HasPrefix(tool.Name, "custom-") {
+		return util.HttpErr(http.StatusBadRequest, "tool names beginning with custom- are reserved")
+	}
 	var err *util.HttpError
 	var result *internalTool
 
@@ -2107,7 +2163,7 @@ func AppStudioUploadApp(data []byte) *util.HttpError {
 
 		return AppStudioCreateApplication(&app)
 	} else if typeWrapper.Version == "v2" {
-		doc := A2Yaml{}
+		doc := orcapi.A2Yaml{}
 		if yamlErr = node.Decode(&doc); yamlErr != nil {
 			return util.HttpErr(http.StatusBadRequest, "invalid yaml supplied: %s", yamlErr.Error())
 		}
@@ -2124,7 +2180,7 @@ func AppStudioUploadApp(data []byte) *util.HttpError {
 			}
 		}
 
-		return AppStudioCreateApplication(&app)
+		return AppStudioCreateApplicationFromSource(&app, string(data))
 	} else {
 		return util.HttpErr(http.StatusBadRequest, "invalid application version specified, must be either v1 or v2")
 	}

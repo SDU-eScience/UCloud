@@ -1,8 +1,8 @@
-import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler, useCloudCommand} from "@/Authentication/DataHook";
 import * as React from "react";
+import ReactDOM from "react-dom";
+import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler, useCloudCommand} from "@/Authentication/DataHook";
 import {useCallback, useEffect, useLayoutEffect, useRef, useState} from "react";
 import {Box, Button, Flex, Icon, Input, Label, Truncate} from "@/ui-components";
-
 import {PayloadAction} from "@reduxjs/toolkit";
 import ResearchFields from "@/UserSettings/ResearchField";
 import Positions from "@/UserSettings/Position";
@@ -15,7 +15,7 @@ import type {KnownDepartmentsEntry, DataListItem} from "@/UserSettings/types";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
-import {clamp} from "@/UtilityFunctions";
+import {clamp, usePortal} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {SelectorDialog} from "@/Products/Selector";
 import {SettingsSection} from "@/ui-components/SettingsComponents";
@@ -330,12 +330,12 @@ export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps)
         <SettingsSection id="organization" title="Additional user information" mb={16} showTitle={!props.embedded}>
             <Box width="100%">
                 {props.inModal ? <span>This can be filled out at a later time, but is required when applying for resources.</span> : null}
-                <NewDataList id="organization" ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={"Example: University of Southern Denmark”, “Aarhus University”"} />
+                <NewDataList id="organization" ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={`University of Southern Denmark”, “Aarhus University”`} />
                 <Department org={org} ref={departmentRef} />
-                <NewDataList ref={unitRef} title={"Unit"} isFreetext items={[]} placeholder={"Example: “Section for Data Science and Statistics”, “Center for Humanities Computing”, “Design Lab”"} />
-                <NewDataList title="Position" placeholder="Example: VIP/TAP/Student" items={SortedPositions} ref={positionRef} />
-                <NewDataList title={"Primary research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={`Example: ${ResearchFields[RFIndex].value}`} />
-                <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Example: Prefer not to say" />
+            <NewDataList ref={unitRef} title={"Unit"} isFreetext items={[]} placeholder={`“Section for Data Science and Statistics”, “Center for Humanities Computing”, “Design Lab”`} />
+            <NewDataList title="Position" placeholder="VIP/TAP/Student" items={SortedPositions} ref={positionRef} />
+            <NewDataList title={"Primary research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
+                <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Prefer not to say" />
                 {props.getValues ? null : <Button onClick={onSubmit} mt="1em" type="button" color="successMain">Update information</Button>}
             </Box>
         </SettingsSection>
@@ -355,7 +355,7 @@ function Department(props: {org: string; ref: React.RefObject<HTMLInputElement |
             })
         });
     }, [orgInfo]);
-    return <NewDataList isFreetext={result.isFreetext} items={result.items} ref={props.ref} title={title} placeholder={`Example: “Faculty of Engineering/Department of Software Engineering“`} />
+    return <NewDataList isFreetext={result.isFreetext} items={result.items} ref={props.ref} title={title} placeholder={`“Faculty of Engineering/Department of Software Engineering“`} />
 }
 
 function dataListItem(key: string, value: string, tags: string, unselectable?: boolean): DataListItem {
@@ -364,11 +364,10 @@ function dataListItem(key: string, value: string, tags: string, unselectable?: b
     };
 }
 
-export function NewDataList({items, onSelect, title, disabled, placeholder, RenderRow = ({item}) => <Truncate>{item.value}</Truncate>, isFreetext, ref, didUpdateQuery, id}: {
+function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext, ref, didUpdateQuery, id}: {
     id?: string;
     items: DataListItem[];
     onSelect?: (arg: DataListItem) => void;
-    RenderRow?: ({item}: {item: DataListItem}) => React.ReactNode;
     title: string;
     disabled?: boolean;
     placeholder: string;
@@ -376,6 +375,7 @@ export function NewDataList({items, onSelect, title, disabled, placeholder, Rend
     ref: React.RefObject<HTMLInputElement | null>
     didUpdateQuery?: (val: string) => void;
 }) {
+    const portal = usePortal();
     const [query, setQuery] = useState("");
     const [open, setOpen] = useState(false);
 
@@ -431,9 +431,9 @@ export function NewDataList({items, onSelect, title, disabled, placeholder, Rend
     const minimumWidth = 500;
     let dialogWidth = Math.min(Math.max(minimumWidth, boxRect.width), window.innerWidth - boxRect.x - 16);
     {
-        const dialogOutOfBounds = (): boolean =>
-            dialogX <= 0 || dialogY <= 0 ||
-            dialogY + dialogHeight >= window.innerHeight || dialogHeight < 200;
+        const dialogOutOfBounds = (): boolean => {
+            return dialogX <= 0 || dialogY <= 0 ||
+            dialogY + dialogHeight >= window.innerHeight || dialogHeight < 200;}
 
         // Attempt to move the dialog box up a bit
         if (dialogOutOfBounds()) dialogY = boxRect.y + 30;
@@ -466,17 +466,18 @@ export function NewDataList({items, onSelect, title, disabled, placeholder, Rend
 
     const hasUnselectable = React.useMemo(() => items.find(it => it.unselectable) != null, [items]);
 
-    return <Box mt={title ? "0.5em" : 0} pt={title ? "0.5em" : 0}>
+    return <Box mt="0.5em" pt="0.5em" >
         <Label>
             {title}
             <Flex>
                 <Input
                     id={id}
-                    placeholder={placeholder}
+                    placeholder={`Example: ${placeholder}`}
                     inputRef={ref}
                     cursor={isFreetext ? "text" : "pointer"}
                     data-is-freetext={isFreetext}
                     className={DataListInput}
+                    title={ref.current?.value}
                     disabled={disabled}
                     onFocus={() => setOpen(true)}
                     // Note(Jonas): If already focused, but closed and user clicks again
@@ -513,7 +514,7 @@ export function NewDataList({items, onSelect, title, disabled, placeholder, Rend
             </Flex>
         </Label>
         {items.length > 0 && open ?
-            <Box
+            ReactDOM.createPortal(<Box
                 data-has-unselectable={hasUnselectable}
                 className={classConcat(SelectorDialog, DataListWrapper)}
                 style={{position: "fixed", paddingBottom: 0, left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}}
@@ -523,8 +524,7 @@ export function NewDataList({items, onSelect, title, disabled, placeholder, Rend
                 overflowY="scroll"
             >
                 {result.map((it, idx) =>
-                    <Box
-                        key={it.key}
+                    <Truncate key={it.key}
                         cursor={it.unselectable ? "not-allowed" : "pointer"}
                         className={DataListRowItem}
                         data-active={searchIndex === idx}
@@ -539,11 +539,9 @@ export function NewDataList({items, onSelect, title, disabled, placeholder, Rend
                             setOpen(false);
                             ref.current.value = it.value;
                             onSelect?.(it);
-                        }} height="32px">
-                        <RenderRow item={it} />
-                    </Box>)
+                        }} height="32px">{it.value}</Truncate>)
                 }
-            </Box> : null}
+            </Box>, portal) : null}
     </Box>
 
     function nextValidIndex(dir: 1 | -1) {

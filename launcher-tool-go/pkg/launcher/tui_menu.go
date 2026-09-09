@@ -639,7 +639,13 @@ var tuiManagementActions = []tuiManagementAction{
 	{
 		Text: "Run E2E tests",
 		Runner: func() {
-			TestsRun("user", "mypassword")
+			TestsRun("user", "mypassword", nil, false)
+		},
+	},
+	{
+		Text: "Open Playwright UI",
+		Runner: func() {
+			TestsRun("user", "mypassword", nil, true)
 		},
 	},
 	{

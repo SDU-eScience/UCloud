@@ -78,6 +78,9 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		if !ok {
 			continue
 		}
+		if _, active := jobs[jobId]; !active {
+			continue
+		}
 		seenJobs[jobId] = util.Empty{}
 		delete(missingVmSince, jobId)
 

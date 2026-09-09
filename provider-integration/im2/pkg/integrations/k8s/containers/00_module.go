@@ -15,6 +15,7 @@ import (
 
 	"golang.org/x/sys/unix"
 	core "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -23,7 +24,6 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
-	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -34,6 +34,9 @@ var K8sConfig *rest.Config
 var ServiceConfig *config.ServicesConfigurationKubernetes
 var Namespace string
 var ExecCodec runtime.ParameterCodec
+
+var InitScriptImagesFindImage func(jobId string) (string, bool)
+var InitScriptImagesConsumesScript func(jobId string) bool
 
 func Init() controller.JobsService {
 	// Create a number of aliases for use in this package. These are all static by the time this function is called.
@@ -62,6 +65,7 @@ func Init() controller.JobsService {
 		HandleShell:              handleShell,
 		OpenWebSession:           openWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
+		RenderInvocation:         containersRenderInvocation,
 	}
 }
 
@@ -361,22 +365,36 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 	// NOTE(Dan): Helper resources (e.g. Service) have a owner reference on the pod. For this reason, we do not need to
 	// delete this directly.
 	if !request.SkipResourceDeletion {
-		for rank := 0; rank < request.Job.Specification.Replicas; rank++ {
-			podName := idAndRankToPodName(request.Job.Id, rank)
-			pod, ok := shared.JobPods.Retrieve(podName)
+		var pods []*core.Pod
+		if request.IsCleanup {
+			for _, pod := range shared.JobPods.List() {
+				idAndRank, ok := podNameToIdAndRank(pod.Name)
+				if ok && idAndRank.First == request.Job.Id {
+					pods = append(pods, pod)
+				}
+			}
+		} else {
+			for rank := 0; rank < request.Job.Specification.Replicas; rank++ {
+				pod, ok := shared.JobPods.Retrieve(idAndRankToPodName(request.Job.Id, rank))
+				if ok {
+					pods = append(pods, pod)
+				}
+			}
+		}
 
+		for _, pod := range pods {
 			// NOTE(Dan): Do not waste time on pods that we know are not in the system. The K8s API is really slow and this
 			// can waste a lot of time if someone attempts to schedule a 1 million node job (which we cannot possibly host
 			// anyway).
-			if ok && pod.DeletionTimestamp == nil {
+			if pod.DeletionTimestamp == nil {
 				ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
-				// NOTE(Dan): JobUpdateBatch and monitoring logic will aggressively get rid of pods that don't belong in
-				// the namespace and as such we don't have to worry about failures here.
-				_ = K8sClient.CoreV1().Pods(Namespace).Delete(ctx, podName, meta.DeleteOptions{
+				err := K8sClient.CoreV1().Pods(Namespace).Delete(ctx, pod.Name, meta.DeleteOptions{
 					GracePeriodSeconds: util.Pointer[int64](1),
 				})
-
 				cancel()
+				if request.IsCleanup && err != nil && !k8serrors.IsNotFound(err) {
+					return util.ServerHttpError("Failed to delete pod: %v", err)
+				}
 			}
 		}
 	}
@@ -449,13 +467,11 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 		controller.JobTrackNew(copied)
 
 		// NOTE(Dan): Failure in this function will be automatically retried by the JobUpdateBatch/monitoring logic.
-		_, _ = orc.JobsControlAddUpdate.Invoke(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{
-			Items: []orc.ResourceUpdateAndId[orc.JobUpdate]{
-				{
-					Id: job.Id,
-					Update: orc.JobUpdate{
-						State: util.OptValue(orc.JobStateSuccess),
-					},
+		_ = controller.JobSendUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+			{
+				Id: job.Id,
+				Update: orc.JobUpdate{
+					State: util.OptValue(orc.JobStateSuccess),
 				},
 			},
 		})
@@ -465,6 +481,28 @@ func terminate(request controller.JobTerminateRequest) *util.HttpError {
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
+	result := make([]orc.ApplicationParameter, 0, 2)
+	if shared.ServiceConfig.Registry.Enabled {
+		hasInitScript := false
+		hasCacheParameter := false
+		for _, candidate := range app.Invocation.Parameters {
+			hasInitScript = hasInitScript || candidate.Name == "initScript" && candidate.Type == orc.ApplicationParameterTypeInputFile
+			hasCacheParameter = hasCacheParameter || candidate.Name == "ucCacheInitScript"
+		}
+		if hasInitScript && !hasCacheParameter {
+			cacheParam := orc.ApplicationParameterBoolean(
+				"ucCacheInitScript",
+				true,
+				"Cache installed dependencies",
+				"Run the initialization script once and reuse the resulting container environment.",
+				"true",
+				"false",
+			)
+			cacheParam.DefaultValue = json.RawMessage(`false`)
+			result = append(result, cacheParam)
+		}
+	}
+
 	param := orc.ApplicationParameterEnumeration(
 		"ucMetricSampleRate",
 		true,
@@ -486,7 +524,7 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 
 	param.DefaultValue = json.RawMessage(`"250ms"`)
 
-	return []orc.ApplicationParameter{param}
+	return append(result, param)
 }
 
 func openWebSession(

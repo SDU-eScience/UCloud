@@ -55,7 +55,6 @@ interface CommonActionProps<T, C> {
     actions: ActionEntry<T, C>[];
     selected: T[];
     callbacks: C;
-    dropdownTag?: string;
     appearance?: (action: ActionItem<T, C>) => ActionAppearance | undefined;
 }
 
@@ -344,6 +343,10 @@ function evaluateActions<T, C>(actions: ActionEntry<T, C>[], selected: T[], call
     return result;
 }
 
+export function hasAvailableActions<T, C>(actions: ActionEntry<T, C>[], selected: T[], callbacks: C): boolean {
+    return evaluateActions(actions, selected, callbacks).some(entry => entry !== "divider");
+}
+
 function firstEnabledIndex<T, C>(entries: EvaluatedEntry<T, C>[]): number {
     return entries.findIndex(entry => entry !== "divider" && entry.enabled === true);
 }
@@ -387,8 +390,9 @@ function clampRootPosition(x: number, y: number, entryCount: number): [number, n
     const margin = 8;
     const width = Math.min(240, window.innerWidth - margin * 2);
     const height = Math.min(entryCount * 30 + 8, window.innerHeight - margin * 2);
+    const left = x - width;
     return [
-        Math.max(margin, Math.min(x, window.innerWidth - width - margin)),
+        Math.max(margin, Math.min(left, window.innerWidth - width - margin)),
         Math.max(margin, Math.min(y, window.innerHeight - height - margin)),
     ];
 }
@@ -692,7 +696,7 @@ export function ActionMenu<T, C>(props: ActionMenuProps<T, C>): React.ReactNode 
     }, [levels, confirmation, activate, close, openSubmenu, setActive]);
 
     const trigger = props.trigger === undefined ?
-        <Icon name="ellipsis" rotation={90} size="1em" data-tag={props.dropdownTag} /> : props.trigger;
+        <Icon name="ellipsis" rotation={90} size="1em" /> : props.trigger;
     const portal = levels.length ? ReactDOM.createPortal(<>
         {confirmation ? <div
             className={`${ActionMenuClass} ${ConfirmationPanelClass}`}
@@ -747,7 +751,6 @@ export function ActionMenu<T, C>(props: ActionMenuProps<T, C>): React.ReactNode 
         {trigger === null ? null : <div
             className={ActionMenuTriggerClass}
             ref={triggerRef}
-            data-tag={props.dropdownTag}
             role="button"
             tabIndex={0}
             onClick={event => {
@@ -906,7 +909,6 @@ export function ActionBar<T, C>(props: ActionBarProps<T, C>): React.ReactNode {
                     appearance={adjustedProps.appearance}
                     confirmationMode="panel"
                     disabled={entry.enabled !== true}
-                    dropdownTag={props.dropdownTag}
                     trigger={typeof entry.enabled === "string" ? <TooltipV2
                         tooltip={entry.enabled}
                         contentWidth={260}
@@ -925,7 +927,6 @@ export function ActionBar<T, C>(props: ActionBarProps<T, C>): React.ReactNode {
                     appearance={props.appearance}
                     confirmationMode="hold"
                     disabled={entry.enabled !== true}
-                    dropdownTag={props.dropdownTag}
                     trigger={<span className={SplitDropdownTriggerClass} data-disabled={entry.enabled !== true}>
                         <Icon name="heroChevronDown" size={16} />
                     </span>}

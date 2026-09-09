@@ -13,7 +13,7 @@ import Input, {InputLabel} from "@/ui-components/Input";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {PropType, stopPropagation, useEffectSkipMount} from "@/UtilityFunctions";
 import {useLoading, usePage} from "@/Navigation/Redux";
-import {useParams} from "react-router-dom";
+import {useLocation, useNavigate, useParams} from "react-router-dom";
 import {injectStyleSimple} from "@/Unstyled";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
@@ -26,6 +26,8 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {ProjectTitleForNewCore} from "@/Project/InfoCache";
 import {sendSuccessNotification} from "@/Notifications";
+import {useProjectId} from "@/Project/Api";
+import AppRoutes from "@/Routes";
 
 interface AppVersion {
     version: string;
@@ -77,6 +79,9 @@ const LeftAlignedTableHeaderClass = injectStyleSimple("table-header", `
 
 export const App: React.FunctionComponent = () => {
     const name = useParams<{name: string}>().name!;
+    const navigate = useNavigate();
+    const location = useLocation();
+    const projectId = useProjectId();
 
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [access, setAccess] = React.useState<ApplicationAccessRight>("LAUNCH");
@@ -451,6 +456,16 @@ export const App: React.FunctionComponent = () => {
                                                             <Box ml={8} mt="2px">Public</Box>
                                                         </Flex>
                                                     </Label>
+                                                    <Button height="25px" onClick={() => navigate(AppRoutes.apps.creator({
+                                                        operation: "newVersion",
+                                                        applicationKind: "managed",
+                                                        workspace: projectId ?? "personal",
+                                                        name,
+                                                        version: version.version,
+                                                        returnTo: location.pathname + location.search,
+                                                    }))}>
+                                                        Create new version
+                                                    </Button>
                                                     {version.isPublic ? (
                                                         <Box ml={28}>Everyone can see and launch this version
                                                             of {appTitle}.</Box>

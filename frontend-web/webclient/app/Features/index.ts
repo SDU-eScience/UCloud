@@ -1,15 +1,17 @@
 import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 
 export enum Feature {
+    EXTERNAL_LOGIN_UCLOUD_CLI,
+
     REORDER_APP_GROUP,
 
     STACKS,
 
     INFERENCE,
 
-    INFERENCE_WORKSPACE,
-
     FILE_BROWSER_STATUS_BAR,
+
+    CONTAINER_REPOSITORIES,
 
     DATAMANAGER_ROLE,
 }
@@ -50,6 +52,12 @@ interface FeatureConfig {
 }
 
 const featureMap: Record<string, FeatureConfig> = {
+    "external-login-ucloud-cli": {
+        feature: Feature.EXTERNAL_LOGIN_UCLOUD_CLI,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allDevEnvironments,
+    },
+
     "reorder-app-group": {
         feature: Feature.REORDER_APP_GROUP,
         showWithoutFlag: allDevEnvironments,
@@ -68,14 +76,14 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithFlag: allEnvironments,
     },
 
-    "inference-workspace": {
-        feature: Feature.INFERENCE_WORKSPACE,
-        showWithoutFlag: allLocalEnvironments,
+    "file-browser-status-bar": {
+        feature: Feature.FILE_BROWSER_STATUS_BAR,
+        showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     },
 
-    "file-browser-status-bar": {
-        feature: Feature.FILE_BROWSER_STATUS_BAR,
+    "container-repositories": {
+        feature: Feature.CONTAINER_REPOSITORIES,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
     },

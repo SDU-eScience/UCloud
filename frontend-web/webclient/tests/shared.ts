@@ -1,10 +1,9 @@
 import test, {BrowserContext, expect, type Page} from "@playwright/test";
 import fs from "fs";
+import path from "path";
 
-// Note(Jonas): If it complains that it doesn"t exist, create it.
 import {default as data} from "./test_data.json" with {type: "json"};
 import {default as providerAndProductsImport} from "./provider_and_products.json" with {type: "json"};
-import {default as testUsers} from "../test_data/user_test_data.json" with {type: "json"};
 
 const LoginPageUrl = ucloudUrl("login");
 
@@ -23,13 +22,21 @@ export function isLocalDev(url: string): boolean {
 export type Contexts =
     | "Project PI" | "Project Admin" | "Project User" | "Personal Workspace";
 
+export const TestUserDataPath = path.resolve(
+    process.env.UCLOUD_PLAYWRIGHT_USER_DATA ?? "./test_data/playwright-users.json"
+);
+
+const runtimeTestUsers = fs.existsSync(TestUserDataPath)
+    ? JSON.parse(fs.readFileSync(TestUserDataPath, "utf8"))
+    : {};
+
 export const TestContexts: Contexts[] = ["Project PI", "Project Admin", "Project User", "Personal Workspace"];
 
 export const TestUsers: Record<Contexts, {username: string; password: string;}> = {
-    "Project PI": testUsers["Project PI"],
-    "Project Admin": testUsers["Project Admin"],
-    "Project User": testUsers["Project User"],
-    "Personal Workspace": data.users.with_resources
+    "Project PI": runtimeTestUsers["Project PI"] ?? {username: "", password: ""},
+    "Project Admin": runtimeTestUsers["Project Admin"] ?? {username: "", password: ""},
+    "Project User": runtimeTestUsers["Project User"] ?? {username: "", password: ""},
+    "Personal Workspace": runtimeTestUsers["Personal Workspace"] ?? data.users.with_resources
 };
 
 const providerAndProducts = providerAndProductsImport.find(it => it.location_origin === data.location_origin);
@@ -780,7 +787,10 @@ export const Runs = {
 
         const testInfo = test.info();
         test.setTimeout(testInfo.timeout + 60_000);
-        await page.getByText("is now running").first().waitFor();
+        const running = page.getByText("is now running").first();
+        const failed = page.getByText("Your job has failed").first();
+        await expect(running.or(failed)).toBeVisible({timeout: 120_000});
+        if (await failed.isVisible()) throw new Error("Job failed before reaching the running state");
     },
 
     async extendTimeBy(page: Page, extension: 1 | 8 | 24) {
@@ -798,14 +808,13 @@ export const Runs = {
     },
 
     async activateOptionalParameter(page: Page, parameterName: string): Promise<void> {
-        await page.locator("div[class*=inactive-widget]", {hasText: parameterName}).getByRole("button", {name: "Use"}).click();
+        await page.getByRole("textbox", {name: parameterName}).waitFor();
     },
 
     JobResources: {
         async addFolder(page: Page, driveName: string, folderName: string): Promise<void> {
-            await page.getByRole("button", {name: "Add folder"}).click();
             await NetworkCalls.awaitResponse(page, "**/api/files/browse?**", async () => {
-                await page.getByRole("textbox", {name: "Folder name"}).click();
+                await page.getByRole("textbox", {name: "Folder #1"}).click();
             });
             await File.ensureDialogDriveActive(page, driveName);
             await Components.useDialogBrowserItem(page, folderName, "Use");
@@ -998,11 +1007,6 @@ export const Resources = {
             await page.waitForLoadState("networkidle");
             await page.getByText("Activate license").click();
 
-            if (await page.getByRole("dialog").getByText("No product selected").isVisible()) {
-                await page.getByRole("dialog").getByText("No product selected").click();
-                await page.getByRole('cell', {name: providerAndProducts.products_used_in_tests.license}).click();
-            }
-
             const result = (await NetworkCalls.awaitResponse(page, "**/api/licenses", async () => {
                 await page.getByRole("dialog").getByRole("button", {name: "Activate", disabled: false}).click();
             }));
@@ -1130,7 +1134,7 @@ export const Accounting = {
         },
 
         async acceptProjectInvite(page: Page, projectName: string): Promise<void> {
-            await page.locator(".row", {hasText: projectName}).getByRole('button', {name: "Accept"}).first().click();
+            await page.locator(".row", {hasText: projectName}).getByRole("button").first().click();
         }
     },
 
@@ -1217,5 +1221,5 @@ export function ctxUser(ctx: Contexts) {
     return TestUsers[ctx];
 }
 export function sharedTestProjectName(): string {
-    return testUsers.projectName;
-} 
+    return runtimeTestUsers.projectName ?? "";
+}

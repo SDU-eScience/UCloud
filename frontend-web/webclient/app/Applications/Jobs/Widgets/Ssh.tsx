@@ -1,25 +1,27 @@
 import * as React from "react";
-import {useCallback, useEffect, useState} from "react";
+import {useEffect, useState} from "react";
 import {PageV2} from "@/UCloud";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import * as Heading from "@/ui-components/Heading";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
-import {Card, Checkbox, Label, Link} from "@/ui-components";
-import Warning from "@/ui-components/Warning";
-import {Feature, hasFeature} from "@/Features";
+import {Box, Card, Flex, Label, Select} from "@/ui-components";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {Application} from "@/Applications/AppStoreApi";
+import {TooltipV2} from "@/ui-components/Tooltip";
+import {FieldRow} from "@/Applications/Jobs/Widgets";
 
 export const SshWidget: React.FunctionComponent<{
     application: Application;
     onSshStatusChanged: (enabled: boolean) => void;
     onSshKeysValid: (valid: boolean) => void;
     initialEnabledStatus?: boolean;
+    embedded?: boolean;
+    fieldRow?: boolean;
 }> = props => {
     const sshMode = props.application.invocation.ssh?.mode ?? "DISABLED";
     const [sshKeyFirstPage] = useCloudAPI<PageV2<SSHKey>>(SshKeyApi.browse({itemsPerPage: 10}), emptyPageV2);
-    let hasAnyKeys = sshKeyFirstPage.data.items.length > 0;
+    const hasAnyKeys = sshKeyFirstPage.data.items.length > 0;
     const [sshEnabled, setSshEnabled] = useState(false);
+    const [tooltipOpen, setTooltipOpen] = useState(false);
 
     useEffect(() => {
         if (props.initialEnabledStatus !== undefined) setSshEnabled(props.initialEnabledStatus);
@@ -29,51 +31,51 @@ export const SshWidget: React.FunctionComponent<{
         props.onSshStatusChanged(sshMode === "MANDATORY" || (sshMode === "OPTIONAL" && sshEnabled));
     }, [sshMode, props.onSshStatusChanged, sshEnabled]);
 
-    const toggleSshEnabled = useCallback(() => {
-        setSshEnabled(prev => !prev);
-    }, []);
+    useEffect(() => {
+        props.onSshKeysValid(sshMode !== "MANDATORY" || hasAnyKeys);
+        if (!sshKeyFirstPage.loading && !hasAnyKeys && sshMode === "OPTIONAL") setSshEnabled(false);
+    }, [hasAnyKeys, props.onSshKeysValid, sshKeyFirstPage.loading, sshMode]);
+
+    useEffect(() => {
+        if (!tooltipOpen) return;
+        const closeTooltip = () => setTooltipOpen(false);
+        document.addEventListener("keydown", closeTooltip);
+        document.addEventListener("focusin", closeTooltip);
+        return () => {
+            document.removeEventListener("keydown", closeTooltip);
+            document.removeEventListener("focusin", closeTooltip);
+        };
+    }, [tooltipOpen]);
 
     if (sshMode === "DISABLED") return null;
-    return <Card>
-        <Heading.h4 mb={10}>Configure SSH access</Heading.h4>
-
-        {sshMode !== "MANDATORY" ? null : <>
-            <p>
-                This application has been configured to use SSH. 
-            </p>
-
-            {hasAnyKeys ? null : <>
-                <Warning>
-                    <p>
-                        You don't currently have any keys configured. You must upload at least one SSH key to start
-                        this application.
-                    </p>
-
-                    <p>
-                        You can configure your SSH keys{" "}
-                        <Link to={"/ssh-keys"} target={"_blank"}>here</Link>.
-                    </p>
-                </Warning>
-            </>}
-        </>}
-
-        {sshMode !== "OPTIONAL" ? null : <>
-            <p>
-                This application has optional support for SSH. In order to use SSH access, you must configure at least
-                one SSH key. You can configure your SSH keys{" "}
-                <Link to={"/ssh-keys"} target={"_blank"}>here</Link>.
-            </p>
-
-            {hasAnyKeys ? <>
-                <Label mt={16}>
-                    <Checkbox checked={sshEnabled} onChange={toggleSshEnabled} size={28}/>
-                    Enable SSH server
-                </Label>
-            </> : <>
-                <Warning>
-                    You don't currently have any keys configured. You must upload at least one SSH key to use SSH.
-                </Warning>
-            </>}
-        </>}
-    </Card>;
+    const disabled = sshMode === "MANDATORY" || sshKeyFirstPage.loading || !hasAnyKeys;
+    const tooltip = sshKeyFirstPage.loading ? "Loading your SSH keys..." :
+        !hasAnyKeys ? "You do not have any SSH keys configured." :
+        sshMode === "MANDATORY" ? "SSH access is required by this application." : undefined;
+    const description = "Opens up access to the job via SSH.";
+    const selector = <TooltipV2 tooltip={tooltip} disabled={!tooltip} open={disabled ? tooltipOpen : undefined}>
+        <div
+            onClick={() => {
+                if (disabled) setTooltipOpen(true);
+            }}
+            onMouseLeave={() => setTooltipOpen(false)}
+            onBlur={() => setTooltipOpen(false)}
+        >
+            <Select disabled={disabled} value={(sshMode === "MANDATORY" || sshEnabled).toString()}
+                onChange={event => setSshEnabled(event.target.value === "true")}>
+                <option value="true">Enabled</option>
+                <option value="false">Disabled</option>
+            </Select>
+        </div>
+    </TooltipV2>;
+    if (props.fieldRow) {
+        return <FieldRow title="SSH access" description={description} control={selector}
+            onClear={sshMode === "OPTIONAL" && sshEnabled ? () => setSshEnabled(false) : undefined}
+            bold={sshMode === "MANDATORY" || sshEnabled} />;
+    }
+    const content = <Flex alignItems="center" justifyContent="space-between">
+        <Label>SSH access</Label>
+        {selector}
+    </Flex>;
+    return props.embedded ? <Box>{content}</Box> : <Card>{content}</Card>;
 };

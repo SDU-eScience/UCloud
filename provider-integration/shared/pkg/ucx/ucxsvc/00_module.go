@@ -31,12 +31,10 @@ type Stack struct {
 }
 
 const (
-	stackLabelInstance    = "ucloud.dk/stackinstance"
-	stackLabelStateFolder = "ucloud.dk/stack-state-folder"
-	stackDataMaxBytes     = 64*1024 - 1
-	ucxAppNameEnv         = "UCLOUD_UCX_APP_NAME"
-	ucxAppVersionEnv      = "UCLOUD_UCX_APP_VERSION"
-	ucxVmServiceUid       = 11042
+	stackDataMaxBytes = 64*1024 - 1
+	ucxAppNameEnv     = "UCLOUD_UCX_APP_NAME"
+	ucxAppVersionEnv  = "UCLOUD_UCX_APP_VERSION"
+	ucxVmServiceUid   = 11042
 )
 
 type UcxCustomUiServiceInit struct {
@@ -63,14 +61,14 @@ func (s *Stack) Mount() orcapi.AppParameterValue {
 }
 
 var stackResourceLabelsToKeep = map[string]util.Empty{
-	"ucloud.dk/stack":              {},
-	"ucloud.dk/stackname":          {},
-	"ucloud.dk/stackinstance":      {},
-	"ucloud.dk/stack-state-folder": {},
+	orcapi.ResourceLabelStack:            {},
+	orcapi.ResourceLabelStackName:        {},
+	orcapi.ResourceLabelStackInstance:    {},
+	orcapi.ResourceLabelStackStateFolder: {},
 }
 
 func StackFromJob(app ucx.Application, job orcapi.Job) (*Stack, bool) {
-	instanceId := strings.TrimSpace(job.Specification.Labels[stackLabelInstance])
+	instanceId := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackInstance])
 	if instanceId == "" {
 		return &Stack{}, false
 	}
@@ -82,7 +80,7 @@ func StackFromJob(app ucx.Application, job orcapi.Job) (*Stack, bool) {
 		}
 	}
 
-	stateFolder := strings.TrimSpace(job.Specification.Labels[stackLabelStateFolder])
+	stateFolder := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackStateFolder])
 	mountPath := stackFindMountPath(job)
 
 	mount := orcapi.AppParameterValue{}
@@ -103,7 +101,7 @@ func StackFromJob(app ucx.Application, job orcapi.Job) (*Stack, bool) {
 func stackFindMountPath(job orcapi.Job) string {
 	const defaultMountPath = "/etc/ucloud-stack"
 
-	stackPath := strings.TrimSpace(job.Specification.Labels[stackLabelStateFolder])
+	stackPath := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackStateFolder])
 
 	for _, parameter := range job.Specification.Parameters {
 		if parameter.Type != orcapi.AppParameterValueTypeFile {
@@ -327,7 +325,7 @@ func StackWriteInitScript(stack *Stack, initScript string) map[string]string {
 	}
 
 	return map[string]string{
-		"ucloud.dk/initscript": filepath.Join(stack.MountPath, initName),
+		orcapi.ResourceLabelInitScript: filepath.Join(stack.MountPath, initName),
 	}
 }
 

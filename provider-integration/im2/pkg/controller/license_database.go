@@ -409,6 +409,10 @@ func LicenseActivate(target *orc.License) *util.HttpError {
 }
 
 func LicenseDelete(target *orc.License) *util.HttpError {
+	licenseMutex.Lock()
+	delete(licenses, target.Id)
+	licenseMutex.Unlock()
+
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,

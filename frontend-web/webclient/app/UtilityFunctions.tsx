@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import CONF from "../site.config.json";
 import {UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 import {BulkRequest, BulkResponse, PageV2} from "./UCloud";
@@ -266,7 +266,30 @@ export function ifPresent<T>(f: T | undefined, handler: (f: T) => void): void {
  * Capitalizes the input string and replaces _ (underscores) with whitespace.
  * @param str input string.
  */
-export const prettierString = (str: string): string => capitalized(str).replace(/_/g, " ");
+export function prettierString(str: string): string {
+    return capitalized(str).replace(/_/g, " ");
+}
+
+/**
+ *
+ * @param str input string
+ * @returns string where every capitalized letter is preceeded by a space, expect the first letter
+*/
+function insertWhitespace(str: String): string {
+    let result = "";
+    for (const letter of str) {
+        if (letter < 'a') {
+            result += " ";
+        }
+        result += letter;
+    }
+    return result.trim();
+}
+
+const WordsToLowerCase = ["To", "With", "From"];
+export function expandAndPrettifyString(str: string) {
+    return insertWhitespace(str).split(" ").map(it => WordsToLowerCase.includes(it) ? it.toLocaleLowerCase() : it).join(" ");
+}
 
 export function extractErrorCode(e: unknown): number {
     if (typeof e === "object") {
@@ -466,6 +489,8 @@ export function useFrameHidden(): boolean {
     return [
         "/app/login",
         "/app/login/wayf",
+        "/app/login/external",
+        "/app/login/external/wayf",
         "/app/applications/shell/",
         "/app/applications/web/",
         "/app/applications/vnc/",
@@ -673,7 +698,10 @@ export function createKeyboardShortcut(key: string, modifiers: KeyboardShortcutM
         if (modifier === "ctrl") return isLikelyMac ? "⌘" : "Ctrl";
         return isLikelyMac ? "⌥" : "Alt";
     });
-    return [...normalizedModifiers, key].join(" + ");
+    const modifierSeparator = isLikelyMac ? "" : " + ";
+    const modifierText = normalizedModifiers.join(modifierSeparator);
+    const modifierSpacer = isLikelyMac ? " " : " + ";
+    return modifierText + modifierSpacer + key;
 }
 
 export function deepEquals(a: any, b: any): boolean {
@@ -693,4 +721,28 @@ export function getOrNull<T>(array: T[], index: number): T | null {
     if (index < 0) return null;
     if (index >= array.length) return null;
     return array[index];
+}
+
+export function usePortal() {
+    const portalRef = useRef<HTMLDivElement | null>(null);
+    if (!portalRef.current) {
+        portalRef.current = document.createElement("div");
+    }
+
+    useEffect(() => {
+        const portal = portalRef.current;
+        if (!portal) return;
+
+        if (portal.parentNode !== document.body) {
+            document.body.appendChild(portal);
+        }
+
+        return () => {
+            if (portal.parentNode === document.body) {
+                document.body.removeChild(portal);
+            }
+        };
+    }, []);
+
+    return portalRef.current;
 }

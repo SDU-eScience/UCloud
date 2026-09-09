@@ -137,7 +137,7 @@ func initJobUcx() {
 			state.job = job
 			state.AllowStackCreation = false
 			state.Stacks = map[string]util.Empty{}
-			stackId, ok := job.Specification.Labels[resourceLabelStackInstance]
+			stackId, ok := job.Specification.Labels[orcapi.ResourceLabelStackInstance]
 			if ok {
 				state.Stacks[stackId] = util.Empty{}
 			}

@@ -35,6 +35,8 @@ var storageSupport []orc.FSSupport
 
 var browseCache *lru.LRU[string, []cachedDirEntry]
 
+var DriveScanListener func(drive *orc.Drive, internalPath string)
+
 const SensitivityXattr string = "user.sensitivity"
 
 type cachedDirEntry struct {
@@ -732,6 +734,10 @@ func loadStorageProducts() {
 		defaultSupport.Collection.UsersCanCreate = true
 		defaultSupport.Collection.UsersCanDelete = true
 		defaultSupport.Collection.UsersCanRename = true
+		defaultSupport.ContainerRepositories.Enabled = shared.ServiceConfig.Registry.Enabled
+		if shared.ServiceConfig.Registry.Enabled {
+			defaultSupport.ContainerRepositories.Server = shared.ServiceConfig.Registry.Host
+		}
 
 		defaultSupport.Files.AclModifiable = false
 		defaultSupport.Files.TrashSupported = true

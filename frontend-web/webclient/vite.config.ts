@@ -1,5 +1,5 @@
 import {defineConfig, UserConfigExport} from "vite";
-import react from "@vitejs/plugin-react-refresh";
+import react from "@vitejs/plugin-react";
 //@ts-ignore
 import path from "path";
 import {PRODUCTION_SITE, DEV_SITE, SANDBOX_SITE} from "./site.config.json";
@@ -93,7 +93,6 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
                     }
                 },
                 "/ucloud/": sharedProxySetting,
-                "/AppVersion.txt": sharedProxySetting
             },
             watch: {
                 usePolling: true,

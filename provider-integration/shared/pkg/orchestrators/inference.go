@@ -43,16 +43,22 @@ const (
 )
 
 type InferenceModel struct {
-	Name            string                `json:"name"`
-	Title           string                `json:"title"`
-	TitleModelName  string                `json:"titleModelName"`
-	Capabilities    []InferenceCapability `json:"capabilities"`
-	PriceMultiplier InferencePricing      `json:"priceMultiplier"`
-	Endpoint        InferenceEndpoint     `json:"endpoint"`
-	Availability    InferenceAvailability `json:"availability"`
-	ContextWindow   *int                  `json:"contextWindow,omitempty"`
-	ChatSettings    InferenceChatSettings `json:"chatSettings"`
-	Page            *InferenceModelPage   `json:"page,omitempty"`
+	Name                   string                 `json:"name"`
+	Title                  string                 `json:"title"`
+	Capabilities           []InferenceCapability  `json:"capabilities"`
+	ReasoningEfforts       []InferenceModelOption `json:"reasoningEfforts,omitempty"`
+	DefaultReasoningEffort string                 `json:"defaultReasoningEffort,omitempty"`
+	PricePerMillion        InferencePricing       `json:"pricePerMillion"`
+	Endpoint               InferenceEndpoint      `json:"endpoint"`
+	Availability           InferenceAvailability  `json:"availability"`
+	ContextWindow          *int                   `json:"contextWindow,omitempty"`
+	ChatSettings           InferenceChatSettings  `json:"chatSettings"`
+	Page                   *InferenceModelPage    `json:"page,omitempty"`
+}
+
+type InferenceModelOption struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type InferenceModelPage struct {
@@ -99,10 +105,12 @@ type InferenceChatSettings struct {
 }
 
 type InferencePricing struct {
-	CachedInput int `json:"cachedInput"`
-	Input       int `json:"input"`
-	Output      int `json:"output"`
+	CachedInput int64 `json:"cachedInput"`
+	Input       int64 `json:"input"`
+	Output      int64 `json:"output"`
 }
+
+const InferencePriceScale int64 = 1_000_000
 
 type InferenceEndpoint struct {
 	BasePath         string `json:"basePath"`

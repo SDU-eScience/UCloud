@@ -37,15 +37,12 @@ const resources = {
     publicLinks: () => "/public-links",
     licenses: () => "/licenses",
     sshKeys: () => "/ssh-keys",
-    sshKeysCreate: () => "/ssh-keys/create",
-    sshKeysProperties: () => "/ssh-keys/properties",
     apiTokens: () => "/api-tokens",
     apiTokensCreate: () => "/api-tokens/create"
 }
 
 const project = {
     members: () => `/projects/members`,
-    usage: () => accounting.usage(),
     allocations: () => accounting.allocations(),
     settings: (page: string) => `/project/settings${page === "" ? "" : "/" + page}`,
     subprojects: () => accounting.allocations(),
@@ -55,14 +52,29 @@ const syncthing = {
     syncthing: () => "/syncthing"
 }
 
+export interface ApplicationCreatorRoute {
+    operation: "newManaged" | "newCustom" | "newVersion" | "fork";
+    applicationKind: "managed" | "custom";
+    workspace: string;
+    name?: string;
+    version?: string;
+    provider?: string;
+    category?: number;
+    sourceApplicationKind?: "managed" | "custom";
+    sourceProvider?: string;
+    returnTo?: string;
+}
+
 const apps = {
     landing: () => "/applications",
     category: (categoryId?: number) => buildQueryString(`/applications/category`, {categoryId}),
+    categoryCreate: () => "/applications/category/create",
     group: (id: string) => `/applications/group/${id}`,
     search: (q?: string) => "/applications/search" + (q ? `?q=${q}` : ""),
     shell: (jobId: string, rank: string) => `/applications/shell/${jobId}/${rank}`,
     web: (jobId: string, rank: string) => `/applications/web/${jobId}/${rank}`,
     vnc: (jobId: string, rank: string) => `/applications/vnc/${jobId}/${rank}`,
+    creator: (context?: ApplicationCreatorRoute) => buildQueryString(`/applications/creator`, context ?? {}),
 };
 
 const appStudio = {
@@ -86,7 +98,6 @@ const jobs = {
     list: () => `/jobs`,
     create: (name: string, version?: string, importId?: string) => buildQueryString(`/jobs/create`, {app: name, version, import: importId}),
     view: (jobId: string) => `/jobs/properties/${jobId}`,
-    results: () => `/applications/results`,
 };
 
 const stacks = {
@@ -101,6 +112,8 @@ const compute = {
 
 const login = {
     login: () => "/login",
+    loginExternal: () => "/login/external",
+    loginExternalWayf: () => "/login/external/wayf",
     loginSuccess: () => "/loginSuccess",
     loginWayf: () => "/login/wayf",
 };
@@ -144,6 +157,10 @@ const files = {
     preview: (path: string) => "/files/properties/" + encodeURIComponent(path)
 }
 
+const containerRepositories = {
+    browse: () => "/container-repositories",
+}
+
 const supportAssist = {
     base: () => "/support-assist",
     user() {
@@ -158,7 +175,6 @@ const supportAssist = {
     job() {
         return this.base() + "/job"
     },
-
 }
 
 const AppRoutes = {
@@ -182,6 +198,7 @@ const AppRoutes = {
     accounting,
     providers,
     files,
+    containerRepositories,
     supportAssist,
     prefix: "/app",
 };

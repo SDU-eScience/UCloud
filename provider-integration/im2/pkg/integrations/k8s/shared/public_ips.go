@@ -100,6 +100,10 @@ func PublicIpPrepare(job *orc.Job, firewall *networking.NetworkPolicy) PublicIpP
 			},
 		})
 
+		if len(service.Spec.Ports) == 0 {
+			service = nil // nothing to forward
+		}
+
 		return PublicIpPrepared{
 			Service:              service,
 			EnvironmentVariables: envVars,

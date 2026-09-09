@@ -540,9 +540,9 @@ func TestResourceBrowseFilterLabels(t *testing.T) {
 		}
 	}
 
-	create(map[string]string{"ucloud.dk/stackName": "alpha", "ucloud.dk/stackInstance": "1"})
-	create(map[string]string{"ucloud.dk/stackName": "alpha", "ucloud.dk/stackInstance": "2"})
-	create(map[string]string{"ucloud.dk/stackName": "beta", "ucloud.dk/stackInstance": "1"})
+	create(map[string]string{orcapi.ResourceLabelStackName: "alpha", orcapi.ResourceLabelStackInstance: "1"})
+	create(map[string]string{orcapi.ResourceLabelStackName: "alpha", orcapi.ResourceLabelStackInstance: "2"})
+	create(map[string]string{orcapi.ResourceLabelStackName: "beta", orcapi.ResourceLabelStackInstance: "1"})
 
 	browse := func(filter map[string]string) []TestResource {
 		page := ResourceBrowse(
@@ -557,15 +557,15 @@ func TestResourceBrowseFilterLabels(t *testing.T) {
 		return page.Items
 	}
 
-	items := browse(map[string]string{"ucloud.dk/stackName": "alpha"})
+	items := browse(map[string]string{orcapi.ResourceLabelStackName: "alpha"})
 	assert.Equal(t, 2, len(items))
 
-	items = browse(map[string]string{"ucloud.dk/stackInstance": "1"})
+	items = browse(map[string]string{orcapi.ResourceLabelStackInstance: "1"})
 	assert.Equal(t, 2, len(items))
 
-	items = browse(map[string]string{"ucloud.dk/stackName": "alpha", "ucloud.dk/stackInstance": "1"})
+	items = browse(map[string]string{orcapi.ResourceLabelStackName: "alpha", orcapi.ResourceLabelStackInstance: "1"})
 	assert.Equal(t, 1, len(items))
 
-	items = browse(map[string]string{"ucloud.dk/stackName": "gamma"})
+	items = browse(map[string]string{orcapi.ResourceLabelStackName: "gamma"})
 	assert.Equal(t, 0, len(items))
 }

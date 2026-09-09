@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 type ProviderCallOpts struct {
 	Username util.Option[string]
 	Reason   util.Option[string]
+	Timeout  util.Option[time.Duration]
 }
 
 var providerClients = util.NewCache[string, *rpc.Client](24 * time.Hour * 365 * 100)
@@ -154,6 +156,8 @@ func providerClient(providerId string) (*rpc.Client, bool) {
 	})
 }
 
+var providersToSkip = []string{"aau", "lumi-sdu", "aau-k8", "hippo", "sophia"} // HACK(Dan): Need something better
+
 func InvokeProvider[Req any, Resp any](
 	provider string,
 	call rpc.Call[Req, Resp],
@@ -163,9 +167,24 @@ func InvokeProvider[Req any, Resp any](
 	var resp Resp
 	var err *util.HttpError
 
+	if slices.Contains(providersToSkip, provider) {
+		return resp, util.HttpErr(http.StatusServiceUnavailable, "service provider has been skipped")
+	}
+
 	client, ok := providerClient(provider)
 	if !ok {
 		return resp, util.HttpErr(http.StatusServiceUnavailable, "service provider is unavailable")
+	}
+	if opts.Timeout.Present && client.Client != nil && client.Client.Timeout != opts.Timeout.Value {
+		httpClientCopy := *client.Client
+		httpClientCopy.Timeout = opts.Timeout.Value
+		client = &rpc.Client{
+			RefreshToken:    client.RefreshToken,
+			AccessToken:     client.AccessToken,
+			BasePath:        client.BasePath,
+			Client:          &httpClientCopy,
+			CoreForProvider: client.CoreForProvider,
+		}
 	}
 
 	headers := http.Header{}

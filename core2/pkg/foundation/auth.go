@@ -99,11 +99,7 @@ func initAuth() {
 		if err != nil {
 			return fndapi.AuthenticationTokens{}, err
 		} else {
-			mfaRequired := false
-			_, mfaRequired = MfaCreateChallenge(request.Username)
-			mfaRequired = mfaRequired && MfaIsConnectedEx(request.Username)
-
-			if mfaRequired {
+			if MfaIsConnectedEx(request.Username) {
 				return fndapi.AuthenticationTokens{}, util.HttpErr(http.StatusBadRequest, "not supported")
 			}
 			return tokens, nil
@@ -114,11 +110,15 @@ func initAuth() {
 		if err := authVerifyOrigin(info); err != nil {
 			return util.Empty{}, err
 		}
+		service, ok := authLoginServiceResolve(request.Service)
+		if !ok {
+			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Unknown login service")
+		}
 		tokens, err := PasswordLogin(info.HttpRequest, request.Username, request.Password)
 		if err != nil {
 			return util.Empty{}, err
 		} else {
-			SessionLoginResponse(info.HttpRequest, info.HttpWriter, tokens, 0)
+			SessionLoginResponse(info.HttpRequest, info.HttpWriter, tokens, service, 0)
 			return util.Empty{}, nil
 		}
 	})

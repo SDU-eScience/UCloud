@@ -122,7 +122,7 @@ func StacksBrowse(actor rpc.Actor, next util.Option[string], itemsPerPage int) (
 				ResourceFlags: orcapi.ResourceFlags{
 					IncludeOthers: true,
 					FilterLabels: map[string]string{
-						resourceLabelStack: "true",
+						orcapi.ResourceLabelStack: "true",
 					},
 				},
 			},
@@ -138,8 +138,8 @@ func StacksBrowse(actor rpc.Actor, next util.Option[string], itemsPerPage int) (
 			}
 
 			jobStack := orcapi.Stack{
-				Id:          job.Specification.Labels[resourceLabelStackInstance],
-				Type:        job.Specification.Labels[resourceLabelStackName],
+				Id:          job.Specification.Labels[orcapi.ResourceLabelStackInstance],
+				Type:        job.Specification.Labels[orcapi.ResourceLabelStackName],
 				CreatedAt:   job.CreatedAt,
 				Permissions: job.Permissions.Value,
 			}
@@ -172,7 +172,7 @@ func StacksBrowse(actor rpc.Actor, next util.Option[string], itemsPerPage int) (
 func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) {
 	flags := orcapi.ResourceFlags{
 		FilterLabels: map[string]string{
-			resourceLabelStackInstance: id,
+			orcapi.ResourceLabelStackInstance: id,
 		},
 		SortBy:        util.OptValue("createdAt"),
 		SortDirection: util.OptValue(orcapi.SortDirectionAscending),
@@ -281,8 +281,8 @@ func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) 
 	}
 
 	return orcapi.Stack{
-		Id:          referenceJob.Specification.Labels[resourceLabelStackInstance],
-		Type:        referenceJob.Specification.Labels[resourceLabelStackName],
+		Id:          referenceJob.Specification.Labels[orcapi.ResourceLabelStackInstance],
+		Type:        referenceJob.Specification.Labels[orcapi.ResourceLabelStackName],
 		CreatedAt:   referenceJob.CreatedAt,
 		Permissions: referenceJob.Permissions.Value,
 		Status:      util.OptValue(stackStatus),

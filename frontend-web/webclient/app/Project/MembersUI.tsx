@@ -498,11 +498,13 @@ const LinkInviteCard: React.FunctionComponent<{
                 <Box flexGrow={1} />
                 <RadioTilesContainer>
                     <RadioTile fontSize={"6px"} checked={activeLink.roleAssignment === OldProjectRole.ADMIN} height={35}
+                        id={"Admin"}
                         icon={"heroBriefcase"}
                         label={"Admin"}
                         name={"Admin"}
                         onChange={() => props.onUpdateLinkRole(activeLink.token, OldProjectRole.ADMIN)} />
                     <RadioTile fontSize={"6px"} checked={activeLink.roleAssignment === OldProjectRole.USER} height={35}
+                        id={"User"}
                         icon={"heroUsers"}
                         label={"User"}
                         name={"User"}
@@ -708,17 +710,19 @@ const MemberCard: React.FunctionComponent<{
                     <RadioTilesContainer>
                         {amIUser ? <RadioTile
                             fontSize="6px"
+                            id={props.member.username + props.member.role}
                             checked height={35}
                             icon={projectRoleToStringIcon(props.member.role)}
                             label={props.member.role} name={props.member.role + props.member.username}
-                            onChange={() => {}} />
-                            : null}
+                            onChange={() => {}} /> : null}
 
 
                         {amIPI || role === OldProjectRole.PI && !amIUser ?
                             <RadioTile fontSize={"6px"} checked={role === OldProjectRole.PI} height={35}
                                 icon={"heroTrophy"}
-                                label={"PI"} name={"PI" + props.member.username}
+                                label={"PI"}
+                                id={"PI" + props.member.username}
+                                name={"PI" + props.member.username}
                                 onChange={() => {
                                     if (!amIPI) return;
                                     addStandardDialog({
@@ -736,6 +740,7 @@ const MemberCard: React.FunctionComponent<{
                                 {isAdminOrPI(props.myRole) ? <RadioTile fontSize={"6px"} checked={isUserAdminRole} height={35}
                                     icon={"heroBriefcase"}
                                     label={"Admin"}
+                                    id={"Admin" + props.member.username}
                                     name={"Admin" + props.member.username}
                                     onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.ADMIN)} /> : null}
                                 {hasFeature(Feature.DATAMANAGER_ROLE) ? <RadioTile fontSize={"6px"} checked={isUserDataManagerRole} height={35}
@@ -743,7 +748,7 @@ const MemberCard: React.FunctionComponent<{
                                     label={"Datamanager"} name={"DataManager" + props.member.username}
                                     onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.DATAMANAGER)} /> : null}
                                 <RadioTile fontSize={"6px"} checked={isUserUserRole} height={35}
-                                    icon={"heroUsers"}
+                                    icon={"heroUsers"} id={"User" + props.member.username}
                                     label={"User"} name={"User" + props.member.username}
                                     onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.USER)} />
                             </> : null}
