@@ -104,6 +104,7 @@ export const ApplicationSelector: React.FunctionComponent<{
 }> = props => {
     const newestVersion = props.allVersions[0];
     const navigate = useNavigate();
+    const isCustomApplication = props.application.metadata.origin === "CUSTOM";
     const searchableFlavor = useMemo<FlavorOption[]>(() => props.flavors.map(app => {
         const variant = app.metadata.variant;
         const group: FlavorOption["group"] = variant ? FlavorGrouping.YourFlavors : FlavorGrouping.UCloudManaged;
@@ -113,7 +114,10 @@ export const ApplicationSelector: React.FunctionComponent<{
             latestVersion: app.versions?.[0] ?? app.metadata.version,
             searchKey: variant?.title ?? app.metadata.flavorName ?? DEFAULT_FLAVOR_NAME,
         };
-    }).sort((a, b) => a.group.localeCompare(b.group) || a.searchKey.localeCompare(b.searchKey)), [props.flavors]);
+    }).sort((a, b) => isCustomApplication
+        ? a.searchKey.localeCompare(b.searchKey)
+        : a.group.localeCompare(b.group) || a.searchKey.localeCompare(b.searchKey)
+    ), [props.flavors, isCustomApplication]);
     const selectedFlavor = searchableFlavor.find(it => it.app.metadata.name === props.application.metadata.name) ?? {
         app: props.application,
         group: props.application.metadata.variant ? FlavorGrouping.YourFlavors : FlavorGrouping.UCloudManaged,
@@ -153,7 +157,7 @@ export const ApplicationSelector: React.FunctionComponent<{
                 matchTriggerWidth={false}
                 dropdownWidth="min(380px, calc(100vw - 40px))"
                 elementHeight={40}
-                groupBy={item => item.group}
+                groupBy={isCustomApplication ? undefined : (item => item.group)}
                 showSearchField
                 focusable={props.fieldNavigation}
                 autoFocus={props.autoFocusFlavor}
