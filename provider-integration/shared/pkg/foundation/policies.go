@@ -18,6 +18,7 @@ type PolicyName string
 const (
 	RestrictApplications           PolicyName = "RestrictApplications"
 	RestrictCutAndPaste            PolicyName = "RestrictCutAndPaste"
+	RestrictMoveAndCopy            PolicyName = "RestrictMoveAndCopy"
 	RestrictDownloads              PolicyName = "RestrictDownloads"
 	RestrictIntegratedApplications PolicyName = "RestrictIntegratedApplications"
 	RestrictInternetAccess         PolicyName = "RestrictInternetAccess"
@@ -128,6 +129,23 @@ type RestrictCutAndPasteSpecification struct {
 }
 
 func (r *RestrictCutAndPasteSpecification) IsEnabled() bool {
+	return r.Values.Enabled
+}
+
+// Restrict Move and Copy
+type RestrictMoveAndCopyConfig struct {
+	Enabled Property `yaml:"enabled" json:"enabled"`
+}
+type RestrictMoveAndCopySchema = PolicySchema[RestrictMoveAndCopyConfig]
+type RestrictMoveAndCopyValues struct {
+	Enabled bool `yaml:"enabled" json:"enabled"`
+}
+
+type RestrictMoveAndCopySpecification struct {
+	PolicySpecification[RestrictMoveAndCopyValues]
+}
+
+func (r *RestrictMoveAndCopySpecification) IsEnabled() bool {
 	return r.Values.Enabled
 }
 
@@ -296,6 +314,7 @@ func schemaDecoder[T any](data []byte) (Schema, error) {
 var SchemaDecoders = map[PolicyName]func([]byte) (Schema, error){
 	RestrictApplications:           schemaDecoder[RestrictApplicationsConfig],
 	RestrictCutAndPaste:            schemaDecoder[RestrictCutAndPasteConfig],
+	RestrictMoveAndCopy:			schemaDecoder[RestrictMoveAndCopyConfig],
 	RestrictDownloads:              schemaDecoder[RestrictDownloadsConfig],
 	RestrictIntegratedApplications: schemaDecoder[RestrictIntegratedApplicationsConfig],
 	RestrictInternetAccess:         schemaDecoder[RestrictInternetAccessConfig],
@@ -326,6 +345,18 @@ func decodeRestrictCutAndPaste(data []byte) (Specification, error) {
 	}
 
 	return &RestrictCutAndPasteSpecification{
+		PolicySpecification: specification,
+	}, nil
+}
+
+func decodeRestrictMoveAndCopy(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictMoveAndCopyValues]
+
+	if err := json.Unmarshal(data, &specification); err != nil {
+		return nil, err
+	}
+
+	return &RestrictMoveAndCopySpecification{
 		PolicySpecification: specification,
 	}, nil
 }
@@ -429,6 +460,7 @@ func decodeRestrictSourceIPRange(data []byte) (Specification, error) {
 var SpecificationDecoders = map[PolicyName]func([]byte) (Specification, error){
 	RestrictApplications:           decodeRestrictApplications,
 	RestrictCutAndPaste:            decodeRestrictCutAndPaste,
+	RestrictMoveAndCopy:            decodeRestrictMoveAndCopy,
 	RestrictDownloads:              decodeRestrictDownloads,
 	RestrictIntegratedApplications: decodeRestrictIntegratedApplications,
 	RestrictInternetAccess:         decodeRestrictInternetAccess,

@@ -1,0 +1,12 @@
+name: "RestrictMoveAndCopy"
+title: "Restrict move and copy of files"
+
+description: >
+  Restricts the movement and copying of files outside of the project.
+
+configuration:
+  enabled:
+    title: "Enabled"
+    description: >
+      If enabled, files of the project will not be able to be copied or moved out of the project.
+      If disabled, files can move across different projects.

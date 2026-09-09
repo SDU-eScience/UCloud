@@ -8,6 +8,9 @@ var restrictApplications []byte
 //go:embed policies/restrict_cut_and_paste.yaml
 var restrictCutAndPast []byte
 
+//go:embed policies/restrict_move_and_copy.yaml
+var restrictMoveAndCopy []byte
+
 //go:embed policies/restrict_downloads.yaml
 var restrictDownloads []byte
 
@@ -46,6 +49,9 @@ func pullProjectPolicies() []LoadedPolicy {
 		{
 			PolicyName: "restrictCutAndPast",
 			Bytes:      restrictCutAndPast,
+		}, {
+			PolicyName: "restrictMoveAndCopy",
+			Bytes:      restrictMoveAndCopy,
 		}, {
 			PolicyName: "restrictDownloads",
 			Bytes:      restrictDownloads,

@@ -52,7 +52,7 @@ import {SafeLogo} from "@/Applications/AppToolLogo";
 import {NewDataList} from "@/UserSettings/ChangeUserDetails";
 import {DataListItem} from "@/UserSettings/types";
 import {Tag} from "@/Applications/Card";
-import {useUState } from "@/Utilities/UState";
+import {useUState} from "@/Utilities/UState";
 import {connectionState} from "@/Providers/ConnectionState";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
@@ -736,6 +736,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
 type PolicyName =
     | "RestrictApplications"
     | "RestrictCutAndPaste"
+    | "RestrictMoveAndCopy"
     | "RestrictDownloads"
     | "RestrictIntegratedApplications"
     | "RestrictInternetAccess"
@@ -769,6 +770,11 @@ interface RestrictApplications extends PolicySchemaBase {
 
 interface RestrictCutAndPaste extends PolicySchemaBase {
     name: "RestrictCutAndPaste";
+    configuration: {enabled: ConfigurationEntry};
+}
+
+interface RestrictMoveAndCopy extends PolicySchemaBase {
+    name: "RestrictMoveAndCopy";
     configuration: {enabled: ConfigurationEntry};
 }
 
@@ -815,6 +821,7 @@ interface RestrictSourceIPRange extends PolicySchemaBase {
 type PolicySchema =
     | RestrictApplications
     | RestrictCutAndPaste
+    | RestrictMoveAndCopy
     | RestrictDownloads
     | RestrictIntegratedApplications
     | RestrictInternetAccess
@@ -866,7 +873,7 @@ function PolicySchemas(): React.ReactNode {
                 sc[schemaName].specification.values.enabled = enabled;
             }
             callAPI(PolicyAPI.updatePolicies({updatedPolicies: {[schemaName]: sc[schemaName].specification} as Record<PolicyName, Specification>}));
-            return { ...sc };
+            return {...sc};
         });
     }, [projectId]);
 
@@ -877,8 +884,8 @@ function PolicySchemas(): React.ReactNode {
                 return sc;
             }
             sc[schemaName].specification!.values[rule] = value;
-            callAPI(PolicyAPI.updatePolicies({ updatedPolicies: { [schemaName]: sc[schemaName].specification } as Record<PolicyName, Specification> }));
-            return { ...sc };
+            callAPI(PolicyAPI.updatePolicies({updatedPolicies: {[schemaName]: sc[schemaName].specification} as Record<PolicyName, Specification>}));
+            return {...sc};
         })
     }, []);
 
@@ -890,18 +897,22 @@ function PolicySchemas(): React.ReactNode {
     </Box>;
 }
 
-function PolicySchemaEntry({policy, togglePolicy, updatePolicyRule}: { policy: Policy; togglePolicy: (schemaName: PolicyName, enabled: boolean) => void; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void }): React.ReactNode {
+function PolicySchemaEntry({policy, togglePolicy, updatePolicyRule}: {
+    policy: Policy;
+    togglePolicy: (schemaName: PolicyName, enabled: boolean) => void;
+    updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void
+}): React.ReactNode {
     const [enabled, setEnabled] = React.useState(policy.specification?.values.enabled ?? false);
 
     return <Box key={policy.schema.name} my="24px" pb="20px">
         <Flex justifyContent={"space-between"}>
             <b>{policy.schema.title}</b>
-                <Box mt="1px" mr="8px">
-                    <Toggle activeColor="primaryMain" checked={enabled} onChange={() => setEnabled(enabled => {
-                        togglePolicy(policy.schema.name, !enabled)
-                        return !enabled;
-                    })} height={18} />
-                </Box>
+            <Box mt="1px" mr="8px">
+                <Toggle activeColor="primaryMain" checked={enabled} onChange={() => setEnabled(enabled => {
+                    togglePolicy(policy.schema.name, !enabled)
+                    return !enabled;
+                })} height={18} />
+            </Box>
         </Flex>
         <Box mt="-10px" style={{color: "var(--textSecondary)"}}>
             <Markdown>{policy.schema.description}</Markdown>
@@ -910,7 +921,7 @@ function PolicySchemaEntry({policy, togglePolicy, updatePolicyRule}: { policy: P
     </Box>
 }
 
-function PolicyConfiguration({policy, updatePolicyRule}: { policy: Policy; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void}): React.ReactNode {
+function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void}): React.ReactNode {
     switch (policy.schema.name) {
         case "RestrictApplications": {
             const [searchApps, setSearchApps] = useState<DataListItem[]>([]);
@@ -975,6 +986,10 @@ function PolicyConfiguration({policy, updatePolicyRule}: { policy: Policy; updat
             // Only contains "enabled". Handled above
             return null;
         }
+        case "RestrictMoveAndCopy": {
+            // Only contains "enabled". Handled above
+            return null;
+        }
         case "RestrictDownloads": {
             // Only contains "enabled". Handled above
             return null;
@@ -1010,7 +1025,7 @@ function PolicyConfiguration({policy, updatePolicyRule}: { policy: Policy; updat
             </ConfigurationEntry>;
         }
         case "RestrictInternetAccess": {
-            const values = policy.specification?.values as Partial<{ allowedSubnets: string }> | undefined;
+            const values = policy.specification?.values as Partial<{allowedSubnets: string}> | undefined;
             const {allowedSubnets} = policy.schema.configuration;
             return <ConfigurationEntry entry={allowedSubnets}>
                 <Input pattern={cidrRegexOrEmpty.source} placeholder="Enter a CIDR, e.g. '10.0.0.1/24'" defaultValue={values?.allowedSubnets} type="text" onChange={e => {
@@ -1021,8 +1036,8 @@ function PolicyConfiguration({policy, updatePolicyRule}: { policy: Policy; updat
             </ConfigurationEntry>;
         }
         case "RestrictOrganizationMembers": {
-            const { organizations } = policy.schema.configuration;
-            const values = policy.specification?.values as Partial<{ organizations: string[] }> | undefined;
+            const {organizations} = policy.schema.configuration;
+            const values = policy.specification?.values as Partial<{organizations: string[]}> | undefined;
             const [allowedOrgs, setAllowedOrgs] = useState<Set<string>>(new Set(values?.organizations));
             const ref = useRef<HTMLInputElement>(null);
             const items: DataListItem[] = React.useMemo(() => wayfIdpsPairs.map(it => ({
@@ -1053,7 +1068,7 @@ function PolicyConfiguration({policy, updatePolicyRule}: { policy: Policy; updat
         }
         case "RestrictProviderFileTransfers": {
             const {allowedProviders} = policy.schema.configuration;
-            const values = policy.specification?.values as Partial<{ allowedProviders: string[] }> | undefined;
+            const values = policy.specification?.values as Partial<{allowedProviders: string[]}> | undefined;
             const ref = useRef<HTMLInputElement>(null)
             const [providers, setProviders] = React.useState<DataListItem[]>([]);
             const state = useUState(connectionState);
@@ -1130,10 +1145,10 @@ function AppRow({item}: {item: DataListItem}): React.ReactNode {
 }
 
 function ProviderRow({providerTitle}: {providerTitle: string}): React.ReactNode {
-   return <Flex gap="8px" my="auto">
-       <Box my="auto"><ProviderLogo providerId={providerTitle} size={22}/></Box>
-       <Text my="auto"><ProviderTitle providerId={providerTitle}/></Text>
-   </Flex>
+    return <Flex gap="8px" my="auto">
+        <Box my="auto"><ProviderLogo providerId={providerTitle} size={22} /></Box>
+        <Text my="auto"><ProviderTitle providerId={providerTitle} /></Text>
+    </Flex>
 }
 
 function ConfigurationEntry({entry, children}: {entry: ConfigurationEntry; children: React.ReactNode}): React.ReactNode {
