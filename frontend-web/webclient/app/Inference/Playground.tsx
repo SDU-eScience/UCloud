@@ -371,6 +371,7 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                     display: "flex",
                     flexDirection: "column",
                     minHeight: 104,
+                    overflowX: "scroll",
                     border: dragActive ? "1px solid var(--primaryMain)" : "1px solid var(--playground-border, var(--borderColor))",
                     borderRadius: 16,
                     background: dragActive ? "var(--playground-hover, var(--dialogToolbar))" : "var(--playground-surface, var(--backgroundDefault))",
