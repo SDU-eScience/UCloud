@@ -704,6 +704,14 @@ export function updateCustomGroupLogo(request: {id: number; logo: ApplicationGro
     return apiUpdate(request, baseContext, "updateCustomGroupLogo");
 }
 
+export function updateCustomGroup(request: {
+    id: number;
+    newTitle: string;
+    newDescription: string;
+}): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "updateCustomGroup");
+}
+
 export function retrieveCustomLogo(request: {
     groupId?: number;
     applicationName?: string;
@@ -731,6 +739,10 @@ export function browseCustomGroups(request: {
     next?: string;
 } = {}): APICallParameters<unknown, PageV2<AppCatalogCustomGroup>> {
     return apiBrowse(request, baseContext, "customGroups");
+}
+
+export function retrieveCustomGroup(request: {id: number}): APICallParameters<unknown, AppCatalogCustomGroup> {
+    return apiRetrieve(request, baseContext, "customGroup");
 }
 
 export function browseCustomCategories(request: {

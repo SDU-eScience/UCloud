@@ -1034,6 +1034,19 @@ type AppCatalogUpdateCustomGroupLogoRequest struct {
 	Logo ApplicationGroupLogo `json:"logo"`
 }
 
+type AppCatalogUpdateCustomGroupRequest struct {
+	Id             int    `json:"id"`
+	NewTitle       string `json:"newTitle"`
+	NewDescription string `json:"newDescription"`
+}
+
+var AppsUpdateCustomGroup = rpc.Call[AppCatalogUpdateCustomGroupRequest, util.Empty]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateCustomGroup",
+}
+
 type AppCatalogRetrieveCustomLogoRequest struct {
 	GroupId         int    `json:"groupId,omitempty"`
 	ApplicationName string `json:"applicationName,omitempty"`

@@ -67,7 +67,7 @@ import {validateMachineReservation} from "@/Applications/Jobs/Widgets/Machines";
 import {Resource} from "@/UCloud/ResourceApi";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {Application, ApplicationGroup, ApplicationParameter} from "@/Applications/AppStoreApi";
+import {Application, ApplicationGroup, ApplicationGroupLogo, ApplicationParameter} from "@/Applications/AppStoreApi";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {defaultEmailSettings, UserDetailsState} from "@/UserSettings/ChangeEmailSettings";
@@ -93,7 +93,9 @@ import {
 import {useProjectId} from "@/Project/Api";
 import AppRoutes from "@/Routes";
 import {ApplicationForkAction} from "@/Applications/Creator/ForkAction";
-import {customApplicationsEnabled} from "@/Applications/AppStoreApi";
+import {customApplicationsEnabled, customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
+import {ApplicationGroupLogoDialog, CustomGroupEditDialog, defaultApplicationGroupLogo} from "@/Applications/ProceduralLogo";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 interface InsufficientFunds {
     why?: string;
@@ -471,6 +473,20 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
             <CustomApplicationManagementDialog
                 application={application}
                 provider={provider}
+                groupId={application.metadata.groupId ?? application.metadata.group?.metadata.id}
+                onGroupUpdated={() => {
+                    fetchApplication(AppStore.findGroupByApplication({
+                        appName,
+                        appVersion: appVersion ?? undefined,
+                        flags: {
+                            includeApplications: true,
+                            includeInvocation: true,
+                            includeStars: true,
+                            includeVersions: true,
+                        },
+                        ...discovery,
+                    }));
+                }}
                 onDeleted={async () => {
                     let nextVersion: string | null = null;
                     try {
@@ -501,7 +517,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
             true,
             largeModalStyle,
         );
-    }, [application, navigate, appName, discovery]);
+    }, [application, navigate, appName, appVersion, discovery, fetchApplication]);
 
     const reloadFlavors = useCallback(async () => {
         const group = await callAPI(AppStore.findGroupByApplication({
@@ -1748,9 +1764,40 @@ const CustomApplicationManagementClass = injectStyle("custom-application-managem
     }
 `);
 
+function openGroupEditor(
+    group: AppStore.AppCatalogCustomGroup,
+    onSave: (title: string, description: string) => Promise<void>,
+): void {
+    dialogStore.addDialog(
+        <CustomGroupEditDialog group={group} onSave={onSave} />,
+        doNothing,
+        true,
+        largeModalStyle,
+    );
+}
+
+function openGroupLogoEditor(
+    group: AppStore.AppCatalogCustomGroup,
+    onSave: (logo: ApplicationGroupLogo) => Promise<void>,
+): void {
+    dialogStore.addDialog(
+        <ApplicationGroupLogoDialog
+            title={group.specification.title}
+            initialLogo={group.specification.logo ?? defaultApplicationGroupLogo(group.specification.title)}
+            onCancel={() => dialogStore.failure()}
+            onSave={onSave}
+        />,
+        doNothing,
+        true,
+        largeModalStyle,
+    );
+}
+
 function CustomApplicationManagementDialog(props: {
     application: Application;
     provider: string;
+    groupId: number | null | undefined;
+    onGroupUpdated: () => void;
     onDeleted: () => void;
 }): React.ReactNode {
     const [busy, setBusy] = React.useState(false);
@@ -1758,6 +1805,26 @@ function CustomApplicationManagementDialog(props: {
     const [publishedToProject, setPublishedToProject] = React.useState(
         props.application.metadata.publishedToProject === true,
     );
+    const [group, setGroup] = React.useState<AppStore.AppCatalogCustomGroup | null>(null);
+
+    React.useEffect(() => {
+        const id = props.groupId;
+        if (id == null || id >= 0) return;
+        let cancelled = false;
+        callAPI<AppStore.AppCatalogCustomGroup>(AppStore.retrieveCustomGroup({id}))
+            .then(result => {
+                if (!cancelled) setGroup(result);
+            })
+            .catch(() => {
+                if (!cancelled) setGroup(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [props.groupId]);
+
+    const canEditGroup = group != null &&
+        (group.owner.createdBy === Client.username || customAppsWorkspaceAdmin());
 
     const togglePublishedToProject = useCallback(async (prev: boolean) => {
         if (busy) return;
@@ -1797,6 +1864,39 @@ function CustomApplicationManagementDialog(props: {
         }
     }, [busy, props.application.metadata.name, props.application.metadata.version, props.provider, props.onDeleted]);
 
+    const saveGroup = useCallback(async (title: string, description: string) => {
+        if (busy || group == null) return;
+        setBusy(true);
+        setError(null);
+        try {
+            await callAPI(AppStore.updateCustomGroup({
+                id: group.id,
+                newTitle: title,
+                newDescription: description,
+            }));
+            setGroup({...group, specification: {...group.specification, title, description}});
+            props.onGroupUpdated();
+        } finally {
+            setBusy(false);
+        }
+    }, [busy, group, props.onGroupUpdated]);
+
+    const saveGroupLogo = useCallback(async (logo: ApplicationGroupLogo) => {
+        if (busy || group == null) return;
+        setBusy(true);
+        setError(null);
+        try {
+            await callAPI(AppStore.updateCustomGroupLogo({id: group.id, logo}));
+            setGroup({...group, specification: {...group.specification, logo}});
+            props.onGroupUpdated();
+            dialogStore.success();
+        } catch (cause) {
+            setError("Could not update group logo. " + extractErrorMessage(cause as {request: XMLHttpRequest; response: any}));
+        } finally {
+            setBusy(false);
+        }
+    }, [busy, group, props.onGroupUpdated]);
+
     const isPublished = publishedToProject;
 
     return (
@@ -1804,6 +1904,21 @@ function CustomApplicationManagementDialog(props: {
             <div className="custom-application-management-header">
                 <Heading.h3>{props.application.metadata.title}</Heading.h3>
             </div>
+
+            {!canEditGroup || group == null ? null : (
+                <SettingsSection title="Application group" mb={24}>
+                    <SettingsAction
+                        title={group.specification.title}
+                        description={group.specification.description}
+                        action={
+                            <Flex gap="8px">
+                                <Button disabled={busy} onClick={() => openGroupEditor(group, saveGroup)}>Edit group</Button>
+                                <Button disabled={busy} onClick={() => openGroupLogoEditor(group, saveGroupLogo)}>Edit logo</Button>
+                            </Flex>
+                        }
+                    />
+                </SettingsSection>
+            )}
 
             <SettingsSection title="Visibility" mb={24}>
                 <SettingsAction

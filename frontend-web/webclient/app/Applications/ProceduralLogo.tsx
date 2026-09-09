@@ -1,9 +1,14 @@
 import * as React from "react";
 import * as HeroIcons from "@/ui-components/icons";
-import {ApplicationGroupLogo, ApplicationGroupLogoColor, ApplicationGroupLogoDirection, ApplicationGroupLogoIcon, ApplicationGroupLogoShape} from "@/Applications/AppStoreApi";
+import {ApplicationGroupLogo, ApplicationGroupLogoColor, ApplicationGroupLogoDirection, ApplicationGroupLogoIcon, ApplicationGroupLogoShape, AppCatalogCustomGroup} from "@/Applications/AppStoreApi";
 import {appColors, useIsLightThemeStored} from "@/ui-components/theme";
-import {Box, Button, Flex, Input, Select, Text} from "@/ui-components";
+import {Box, Button, Flex, Icon, Input, Select, Text, TextArea} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
 import {injectStyle} from "@/Unstyled";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {extractErrorMessage} from "@/UtilityFunctions";
+import {FieldGroup, FieldRow} from "@/Applications/Jobs/Widgets";
+import {KeyboardNavigation, SubmitShortcut} from "@/Applications/KeyboardNavigation";
 
 type PaletteColor = Exclude<ApplicationGroupLogoColor, "auto">;
 
@@ -430,5 +435,66 @@ export function ApplicationGroupLogoDialog(props: {title: string; initialLogo: A
             <Button type="button" color="successMain" disabled={saving || (logo.content.type === "text" && logo.content.value.trim() === "")}
                 onClick={() => void save()}>Save logo</Button>
         </Flex>
+    </Box>;
+}
+
+export function CustomGroupEditDialog(props: {
+    group: AppCatalogCustomGroup;
+    onSave: (title: string, description: string) => Promise<void>;
+}): React.ReactNode {
+    const [title, setTitle] = React.useState(props.group.specification.title);
+    const [description, setDescription] = React.useState(props.group.specification.description);
+    const [error, setError] = React.useState<string | null>(null);
+    const [saving, setSaving] = React.useState(false);
+
+    const submit = async (event: React.FormEvent) => {
+        event.preventDefault();
+        if (saving) return;
+        const cleanTitle = title.trim();
+        const cleanDescription = description.trim();
+        if (!cleanTitle || !cleanDescription) {
+            setError("Enter a name and description.");
+            return;
+        }
+        setError(null);
+        setSaving(true);
+        try {
+            await props.onSave(cleanTitle, cleanDescription);
+            dialogStore.success();
+        } catch (cause) {
+            setError(extractErrorMessage(cause as {request: XMLHttpRequest; response: any}));
+            setSaving(false);
+        }
+    };
+
+    return <Box height="100%" style={{display: "flex", flexDirection: "column", minHeight: 0}}>
+        <Heading.h3 mb="16px" flexShrink={0}>Edit application group</Heading.h3>
+        <form onSubmit={submit} style={{display: "flex", flexDirection: "column", flex: "1 1 0", minHeight: 0}}>
+            <KeyboardNavigation>
+                <FieldGroup>
+                    <Flex flexDirection="column" gap="12px" mb="20px">
+                        <FieldRow
+                            title="Name"
+                            required
+                            error={error ?? undefined}
+                            control={<Input value={title} onChange={event => setTitle(event.target.value)} placeholder="My group" />}
+                        />
+                        <FieldRow
+                            title="Description"
+                            required
+                            control={<TextArea value={description} onChange={event => setDescription(event.target.value)} rows={5}
+                                placeholder="A short description shown to users." />}
+                        />
+                    </Flex>
+                </FieldGroup>
+            </KeyboardNavigation>
+            <Flex justifyContent="end" gap="8px" mt="auto" px="20px" py="12px" mx="-20px" mb="-20px" background="var(--dialogToolbar)" flexShrink={0}>
+                <Button color="errorMain" type="button" onClick={() => dialogStore.failure()}>Cancel</Button>
+                <Button color="successMain" type="submit" disabled={saving}>
+                    {saving ? <Icon name="refresh" spin /> : null}
+                    Save changes<SubmitShortcut />
+                </Button>
+            </Flex>
+        </form>
     </Box>;
 }

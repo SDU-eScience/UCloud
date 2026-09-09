@@ -748,6 +748,61 @@ func appCustomCreateGroup(actor rpc.Actor, request orcapi.AppCatalogCreateCustom
 	return fndapi.FindByIntId{Id: -int(created.Id)}, nil
 }
 
+func appCustomUpdateGroup(actor rpc.Actor, request orcapi.AppCatalogUpdateCustomGroupRequest) *util.HttpError {
+	if request.Id >= 0 {
+		return util.HttpErr(http.StatusNotFound, "group not found")
+	}
+	title := strings.TrimSpace(request.NewTitle)
+	description := request.NewDescription
+	if err := appCustomValidateSpec(title, description); err != nil {
+		return err
+	}
+	id := int64(-request.Id)
+	appCustomCache.Mu.Lock()
+	defer appCustomCache.Mu.Unlock()
+	group := appCustomCache.Groups[id]
+	canEdit := group != nil && appCustomBelongsToActorsWorkspace(actor, group.CreatedBy, group.Project) &&
+		(appCustomIsAdmin(actor) || group.CreatedBy == actor.Username)
+	if !canEdit {
+		return util.HttpErr(http.StatusNotFound, "group not found")
+	}
+	workspace := appCustomWorkspaceEx(group.CreatedBy, group.Project)
+	if strings.ToLower(group.Title) != strings.ToLower(title) {
+		for _, other := range appCustomCache.Groups {
+			sameWorkspace := appCustomWorkspaceEx(other.CreatedBy, other.Project) == workspace
+			if other.Id != id && sameWorkspace && strings.EqualFold(other.Title, title) {
+				return util.HttpErr(http.StatusConflict, "group already exists")
+			}
+		}
+	}
+	_, updated := db.NewTx2(func(tx *db.Transaction) (struct{ Id int64 }, bool) {
+		return db.Get[struct{ Id int64 }](
+			tx,
+			`
+				update app_store.custom_application_groups
+				set
+					title = :title,
+					description = :description
+				where id = :id
+				returning id
+			`,
+			db.Params{
+				"id":          id,
+				"title":       title,
+				"description": description,
+			},
+		)
+	})
+	if !updated {
+		return util.HttpErr(http.StatusNotFound, "group not found")
+	}
+	if group = appCustomCache.Groups[id]; group != nil {
+		group.Title = title
+		group.Description = description
+	}
+	return nil
+}
+
 func appCustomUpdateGroupLogo(actor rpc.Actor, request orcapi.AppCatalogUpdateCustomGroupLogoRequest) *util.HttpError {
 	if request.Id >= 0 {
 		return util.HttpErr(http.StatusNotFound, "group not found")
@@ -1860,6 +1915,9 @@ func appCustomInitRpc() {
 	})
 	orcapi.AppsUpdateCustomGroupLogo.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateCustomGroupLogoRequest) (util.Empty, *util.HttpError) {
 		return util.Empty{}, appCustomUpdateGroupLogo(info.Actor, request)
+	})
+	orcapi.AppsUpdateCustomGroup.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateCustomGroupRequest) (util.Empty, *util.HttpError) {
+		return util.Empty{}, appCustomUpdateGroup(info.Actor, request)
 	})
 	orcapi.AppsRetrieveCustomLogo.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogRetrieveCustomLogoRequest) (orcapi.ApplicationGroupLogo, *util.HttpError) {
 		return appCustomRetrieveLogo(info.Actor, request)

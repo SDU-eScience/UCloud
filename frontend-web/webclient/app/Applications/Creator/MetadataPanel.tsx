@@ -38,7 +38,7 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {RichSelectProps} from "@/ui-components/RichSelect";
 import {MandatoryField} from "@/UtilityComponents";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {defaultModalStyle, fileSelectorModalStyle, slimModalStyle} from "@/Utilities/ModalUtilities";
+import {defaultModalStyle, fileSelectorModalStyle, largeModalStyle, slimModalStyle} from "@/Utilities/ModalUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {doNothing, extractErrorMessage, isLikelyMac, stopPropagation} from "@/UtilityFunctions";
@@ -52,7 +52,7 @@ import {LineCappedMarkdown} from "@/ui-components/Markdown";
 import ContainerRepositoryBrowse from "@/ContainerRepositories/Browse";
 import {customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
-import {ApplicationGroupLogoDialog, ApplicationGroupLogoEditor, defaultApplicationGroupLogo} from "@/Applications/ProceduralLogo";
+import {ApplicationGroupLogoDialog, ApplicationGroupLogoEditor, CustomGroupEditDialog, defaultApplicationGroupLogo} from "@/Applications/ProceduralLogo";
 import {Client} from "@/Authentication/HttpClientInstance";
 
 const LogoEditorModalStyle = {
@@ -677,14 +677,13 @@ function InferenceControl(props: {
 const InferenceTooltipContent = (
     <>
         When enabled, UCloud creates a short-lived API token for the inference API and injects it
-        into the job. Requires an active allocation. The container receives:
+        into the job. The container receives:
         <ul>
             <li><code>UCLOUD_INFERENCE_SERVERS</code>: JSON array of <code>{"{server, token}"}</code></li>
             <li><code>UCLOUD_INFERENCE_SERVER_BASE_0</code>: API base URL of the first server</li>
             <li><code>UCLOUD_INFERENCE_SERVER_TOKEN_0</code>: Bearer token for the first server</li>
         </ul>
-        Use the token as <code>Authorization: Bearer $UCLOUD_INFERENCE_SERVER_TOKEN_0</code>. Indexes
-        increment per server.
+        Can be used via <code>Authorization: Bearer $UCLOUD_INFERENCE_SERVER_TOKEN_0</code>.
     </>
 );
 
@@ -1102,6 +1101,29 @@ function GroupAutocompleteField(props: {
         );
     };
 
+    const openEditGroupDialog = () => {
+        if (!selected) return;
+        setOpen(false);
+        dialogStore.addDialog(
+            <CustomGroupEditDialog
+                group={selected}
+                onSave={async (title, description) => {
+                    await callAPI(AppStore.updateCustomGroup({id: selected.id, newTitle: title, newDescription: description}));
+                    if (props.createdGroup?.id === selected.id) {
+                        props.onCreatedGroup({
+                            ...props.createdGroup,
+                            specification: {...props.createdGroup.specification, title, description},
+                        });
+                    }
+                    await props.refreshPlacement();
+                }}
+            />,
+            doNothing,
+            true,
+            largeModalStyle,
+        );
+    };
+
     const openLogoDialog = () => {
         if (!selected) return;
         setOpen(false);
@@ -1199,6 +1221,9 @@ function GroupAutocompleteField(props: {
                                 </span>
                             </TooltipV2>
                         ) : null}
+                        {selected && (selected.owner.createdBy === Client.username || customAppsWorkspaceAdmin())
+                            ? <IconButton icon="heroPencilSquare" tooltip="Edit group details" onClick={openEditGroupDialog} />
+                            : null}
                         {selected && (selected.owner.createdBy === Client.username || customAppsWorkspaceAdmin())
                             ? <IconButton icon="heroSwatch" tooltip="Customize group logo" onClick={openLogoDialog} />
                             : null}
