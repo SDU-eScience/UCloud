@@ -2419,10 +2419,10 @@ type grantEvent struct {
 }
 
 const (
-	NOTIFICATION_GRANT_APPLICATION_UPDATED  = "GRANT_APPLICATION_UPDATED"
-	NOTIFICATION_GRANT_APPLICATION_RESPONSE = "GRANT_APPLICATION_RESPONSE"
-	NOTIFICATION_GRANT_NEW_APPLICATION      = "GRANT_NEW_APPLICATION"
-	NOTIFICATION_GRANT_NEW_COMMENT          = "GRANT_NEW_COMMENT"
+	NotificationGrantApplicationUpdated  = "GRANT_APPLICATION_UPDATED"
+	NotificationGrantApplicationResponse = "GRANT_APPLICATION_RESPONSE"
+	NotificationGrantNewApplication      = "GRANT_NEW_APPLICATION"
+	NotificationGrantNewComment          = "GRANT_NEW_COMMENT"
 )
 
 func grantHandleEvent(event grantEvent) {
@@ -2515,39 +2515,39 @@ func grantSendNotification(event grantEvent) *util.HttpError {
 
 		switch event.Type {
 		case grantEvNewComment:
-			notification.Type = NOTIFICATION_GRANT_NEW_COMMENT
+			notification.Type = NotificationGrantNewComment
 			notification.Message = fmt.Sprintf("Comment added in \"%s\"", truncateRecipientTitle(event))
 			meta["title"] = fmt.Sprintf("New comment by %s", event.Actor.Username)
 			meta["avatar"] = event.Actor.Username
 			break
 		case grantEvApplicationSubmitted:
-			notification.Type = NOTIFICATION_GRANT_NEW_APPLICATION
+			notification.Type = NotificationGrantNewApplication
 			notification.Message = fmt.Sprintf("\"%s\" was submitted by %s", truncateRecipientTitle(event), event.Actor.Username)
 			meta["title"] = fmt.Sprintf("A new application was submitted")
 			break
 		case grantEvApplicationApproved:
-			notification.Type = NOTIFICATION_GRANT_APPLICATION_RESPONSE
+			notification.Type = NotificationGrantApplicationResponse
 			notification.Message = fmt.Sprintf("\"%s\", has been approved by %s", truncateRecipientTitle(event), event.Actor.Username)
 			meta["title"] = "Grant awarded"
 			break
 		case grantEvApplicationRejected:
-			notification.Type = NOTIFICATION_GRANT_APPLICATION_RESPONSE
+			notification.Type = NotificationGrantApplicationResponse
 			notification.Message = fmt.Sprintf("\"%s\", has been rejected by %s", truncateRecipientTitle(event), event.Actor.Username)
 			meta["title"] = "Grant rejected"
 			break
 		case grantEvApplicationWithdrawn:
-			notification.Type = NOTIFICATION_GRANT_APPLICATION_RESPONSE
+			notification.Type = NotificationGrantApplicationResponse
 			notification.Message = fmt.Sprintf("\"%s\", has been withdrawn by %s", truncateRecipientTitle(event), event.Actor.Username)
 			meta["title"] = "Grant withdrawn"
 			break
 		case grantEvRevisionSubmitted:
-			notification.Type = NOTIFICATION_GRANT_APPLICATION_UPDATED
+			notification.Type = NotificationGrantApplicationUpdated
 			notification.Message = fmt.Sprintf("Grant revision submitted by %s", event.Actor.Username)
 			meta["title"] = fmt.Sprintf("Application updated: \"%s\"", truncateRecipientTitle(event))
 			meta["avatar"] = event.Actor.Username
 			break
 		case grantEvApplicationTransferred:
-			notification.Type = NOTIFICATION_GRANT_APPLICATION_UPDATED
+			notification.Type = NotificationGrantApplicationUpdated
 			notification.Message = fmt.Sprintf("Grant transferred away by %s", event.Actor.Username)
 			meta["title"] = fmt.Sprintf(" Application has been transferred: \"%s\"", truncateRecipientTitle(event))
 			meta["avatar"] = event.Actor.Username
