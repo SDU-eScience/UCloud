@@ -43,6 +43,9 @@ func Init() {
 	initGrantsExport()
 	times["GrantsExport"] = t.Mark()
 
+	initPolicySubscriptions()
+	times["PolicySubscriptions"] = t.Mark()
+
 	coreutil.PrintStartupTimes("Accounting", times)
 
 	if util.DevelopmentModeEnabled() {

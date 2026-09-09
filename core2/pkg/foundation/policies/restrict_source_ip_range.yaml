@@ -1,0 +1,18 @@
+name: "RestrictSourceIPRange"
+title: "Restrict client source IP range"
+
+description: >
+  Limits which client IP ranges are allowed to access the project.
+
+configuration:
+  enabled:
+    title: "Enabled"
+    description: >
+      If enabled, users will only be able to access the project from specified subnets.
+      If disabled, users can access the project from any IP in the world.
+
+  allowedSubnets:
+    title: "Allowed client subnets"
+    description: >
+      Only clients originating from these subnets are permitted. An empty
+      string blocks all external access.

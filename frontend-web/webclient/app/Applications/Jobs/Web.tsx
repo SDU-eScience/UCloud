@@ -13,7 +13,7 @@ export interface WebSession extends SessionType {
     redirectClientTo: string;
 }
 
-interface VncSession extends SessionType {
+export interface VncSession extends SessionType {
     type: "vnc";
     url: string;
     password: string | null;

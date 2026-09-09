@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -384,6 +385,31 @@ func FilesCreateDownload(
 	actor rpc.Actor,
 	request fndapi.BulkRequest[fndapi.FindByStringId],
 ) (fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse], *util.HttpError) {
+	if actor.Project.Present {
+		policies := policiesByProject(actor.Project.String())
+
+		specification, ok := policies[fndapi.RestrictDownloads]
+
+		if ok {
+			values, ok := specification.GetValues().(fndapi.RestrictDownloadsValues)
+			if !ok {
+				return fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]{},
+					util.HttpErr(
+						http.StatusInternalServerError,
+						"Misconfigured Policy",
+					)
+			}
+
+			if values.Enabled {
+				return fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]{},
+					util.HttpErr(
+						http.StatusForbidden,
+						"This project does not allow downloads",
+					)
+			}
+		}
+	}
+
 	var result fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]
 	var paths []string
 	for _, reqItem := range request.Items {
@@ -516,6 +542,10 @@ func filesCopyOrMove(
 			return result, util.HttpErr(http.StatusForbidden, "destination drive is read only")
 		}
 
+		if policyErr := filesMoveAndCopyPolicyCheck(sourceDrive, destinationDrive); policyErr != nil {
+			return result, policyErr
+		}
+
 		providerId := sourceDrive.Specification.Product.Provider
 		requestsByProvider[providerId] = append(requestsByProvider[providerId], orcapi.FilesProviderMoveOrCopyRequest{
 			ResolvedOldCollection: sourceDrive,
@@ -542,6 +572,33 @@ func filesCopyOrMove(
 	}
 
 	return result, nil
+}
+
+// filesMoveAndCopyPolicyCheck enforces the "restrictMoveAndCopy" project policy: files which
+// belong to a project may not be moved or copied into a drive that is not owned by the same
+// project while the policy is enabled.
+func filesMoveAndCopyPolicyCheck(sourceDrive orcapi.Drive, destinationDrive orcapi.Drive) *util.HttpError {
+	sourceProject := sourceDrive.Owner.Project
+	if !sourceProject.Present {
+		// The source file from a personal project so no polices apply
+		return nil
+	}
+
+	destinationProject := destinationDrive.Owner.Project
+	if destinationProject.Present && destinationProject.Value == sourceProject.Value {
+		// The files stay within the same project
+		return nil
+	}
+
+	policies := policiesByProject(sourceProject.Value)
+	if specification, ok := policies[fndapi.RestrictMoveAndCopy]; ok && specification.IsEnabled() {
+		return util.HttpErr(
+			http.StatusForbidden,
+			"Project policies do not allow files to be moved or copied out of the project.",
+		)
+	}
+
+	return nil
 }
 
 func filesFetchDrives(actor rpc.Actor, paths []string, permission orcapi.Permission) (map[string]orcapi.Drive, *util.HttpError) {
@@ -915,6 +972,62 @@ func FilesTransfer(actor rpc.Actor, request orcapi.FilesTransferRequest) *util.H
 
 	if err1 != nil || err2 != nil {
 		return util.MergeHttpErr(err1, err2)
+	}
+
+	if sourceDrive.Owner.Project.Present {
+		sourceDrivePolicies := policiesByProject(sourceDrive.Owner.Project.Value)
+		if specification, ok := sourceDrivePolicies[fndapi.RestrictProviderFileTransfers]; ok && specification.IsEnabled() {
+			values, ok := specification.GetValues().(fndapi.RestrictProviderFileTransfersValues)
+			if !ok {
+				return util.HttpErr(
+					http.StatusInternalServerError,
+					"Misconfigured policy at source project",
+				)
+			}
+			if len(values.AllowedProviders) == 0 {
+				return util.HttpErr(
+					http.StatusForbidden,
+					"Source project does not allow transfers between providers",
+				)
+			}
+			if !slices.Contains(values.AllowedProviders, destDrive.Specification.Product.Provider) {
+				return util.HttpErr(
+					http.StatusForbidden,
+					fmt.Sprintf(
+						"Source project does not allow transfers to %v",
+						destDrive.Specification.Product.Provider,
+					),
+				)
+			}
+		}
+	}
+
+	if destDrive.Owner.Project.Present {
+		destDrivePolicies := policiesByProject(destDrive.Owner.Project.Value)
+		if specification, ok := destDrivePolicies[fndapi.RestrictProviderFileTransfers]; ok && specification.IsEnabled() {
+			values, ok := specification.GetValues().(fndapi.RestrictProviderFileTransfersValues)
+			if !ok {
+				return util.HttpErr(
+					http.StatusInternalServerError,
+					"Misconfigured policy at destination project",
+				)
+			}
+			if len(values.AllowedProviders) == 0 {
+				return util.HttpErr(
+					http.StatusForbidden,
+					"Destination project does not allow transfers between providers",
+				)
+			}
+			if !slices.Contains(values.AllowedProviders, sourceDrive.Specification.Product.Provider) {
+				return util.HttpErr(
+					http.StatusForbidden,
+					fmt.Sprintf(
+						"Destination project does not allow transfers from %v",
+						sourceDrive.Specification.Product.Provider,
+					),
+				)
+			}
+		}
 	}
 
 	if featureSupported(driveType, destDrive.Specification.Product, driveOpsReadOnly) {

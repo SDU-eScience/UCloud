@@ -47,5 +47,8 @@ func Init() {
 	initAuthOidc()
 	times["Oidc"] = t.Mark()
 
+	initPolicies()
+	times["Policies"] = t.Mark()
+
 	coreutil.PrintStartupTimes("Foundation", times)
 }

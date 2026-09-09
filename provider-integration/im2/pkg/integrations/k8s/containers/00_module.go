@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -23,6 +24,7 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/shared"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
@@ -526,7 +528,12 @@ func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []o
 	return append(result, param)
 }
 
-func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank int, target util.Option[string]) (controller.ConfiguredWebSessionResult, *util.HttpError) {
+func openWebSession(
+	job *orc.Job,
+	sessionType orc.InteractiveSessionType,
+	rank int,
+	target util.Option[string],
+) (controller.ConfiguredWebSessionResult, *util.HttpError) {
 	podName := idAndRankToPodName(job.Id, rank)
 
 	app := &job.Status.ResolvedApplication.Value.Invocation
@@ -539,6 +546,26 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 		flags = controller.RegisteredIngressFlagsVnc
 	} else {
 		flags = controller.RegisteredIngressFlagsWeb
+	}
+
+	vncRedirectPassword := util.Option[string]{}
+	if job.Owner.Project.Present {
+		policies := controller.RetrievePoliciesByProject(job.Owner.Project.Value)
+		if policy, ok := policies[fnd.RestrictCutAndPaste]; ok {
+			values, ok := policy.GetValues().(fnd.RestrictCutAndPasteValues)
+			if !ok {
+				return controller.ConfiguredWebSessionResult{},
+					util.HttpErr(
+						http.StatusInternalServerError,
+						"Misconfigured Policy")
+			}
+
+			if values.Enabled {
+				flags = controller.RegisteredIngressFlagsVnc
+				port = 6080
+				vncRedirectPassword.Set(VNCRedirectPassword)
+			}
+		}
 	}
 
 	if target.Present {
@@ -580,10 +607,11 @@ func openWebSession(job *orc.Job, sessionType orc.InteractiveSessionType, rank i
 	if (flags & controller.RegisteredIngressFlagsVnc) != 0 {
 		return controller.ConfiguredWebSessionResult{
 			Endpoints: []controller.ConfiguredWebEndpoint{{
-				Host:         address,
-				TargetDomain: config.Provider.Hosts.SelfPublic.Address,
-				Flags:        flags,
-				IsPublic:     false,
+				Host:                address,
+				TargetDomain:        config.Provider.Hosts.SelfPublic.Address,
+				Flags:               flags,
+				IsPublic:            false,
+				VncPasswordOverride: vncRedirectPassword,
 			}},
 		}, nil
 	}
@@ -663,6 +691,8 @@ func JobAnnotations(job *orc.Job, rank int) map[string]string {
 }
 
 const (
-	ContainerUserJob  = "user-job"
-	ContainerAuditLog = "audit-log"
+	ContainerUserJob    = "user-job"
+	ContainerAuditLog   = "audit-log"
+	ContainerProxyVNC   = "proxy-vnc"
+	VNCRedirectPassword = "UIA7uBhFW82rc6Jj3ht1u3eqyd17gxFFBVI35DjBJlSUxziF845RGvjtMyIkROMT"
 )

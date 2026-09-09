@@ -319,6 +319,8 @@ func Launch() {
 		return rpc.BearerAuthenticator(bearer, projectHeader)
 	}
 
+	rpc.DefaultServer.RequestPolicies = fnd.SourceIpPolicy
+
 	rpc.LookupActor = func(username string) (rpc.Actor, bool) {
 		atuple := util.RetryOrPanic("rpc.LookupActor", func() (util.Tuple2[rpc.Actor, bool], error) {
 			resp, err := fndapi.AuthLookupUser.Invoke(fndapi.FindByStringId{Id: username})
