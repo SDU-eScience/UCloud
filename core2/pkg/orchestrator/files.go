@@ -542,6 +542,10 @@ func filesCopyOrMove(
 			return result, util.HttpErr(http.StatusForbidden, "destination drive is read only")
 		}
 
+		if policyErr := filesMoveAndCopyPolicyCheck(sourceDrive, destinationDrive); policyErr != nil {
+			return result, policyErr
+		}
+
 		providerId := sourceDrive.Specification.Product.Provider
 		requestsByProvider[providerId] = append(requestsByProvider[providerId], orcapi.FilesProviderMoveOrCopyRequest{
 			ResolvedOldCollection: sourceDrive,
@@ -568,6 +572,33 @@ func filesCopyOrMove(
 	}
 
 	return result, nil
+}
+
+// filesMoveAndCopyPolicyCheck enforces the "restrictMoveAndCopy" project policy: files which
+// belong to a project may not be moved or copied into a drive that is not owned by the same
+// project while the policy is enabled.
+func filesMoveAndCopyPolicyCheck(sourceDrive orcapi.Drive, destinationDrive orcapi.Drive) *util.HttpError {
+	sourceProject := sourceDrive.Owner.Project
+	if !sourceProject.Present {
+		// The source file from a personal project so no polices apply
+		return nil
+	}
+
+	destinationProject := destinationDrive.Owner.Project
+	if destinationProject.Present && destinationProject.Value == sourceProject.Value {
+		// The files stay within the same project
+		return nil
+	}
+
+	policies := policiesByProject(sourceProject.Value)
+	if specification, ok := policies[fndapi.RestrictMoveAndCopy]; ok && specification.IsEnabled() {
+		return util.HttpErr(
+			http.StatusForbidden,
+			"Project policies do not allow files to be moved or copied out of the project.",
+		)
+	}
+
+	return nil
 }
 
 func filesFetchDrives(actor rpc.Actor, paths []string, permission orcapi.Permission) (map[string]orcapi.Drive, *util.HttpError) {

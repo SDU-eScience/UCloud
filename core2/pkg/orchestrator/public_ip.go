@@ -51,7 +51,7 @@ func initPublicIps() {
 
 	orcapi.PublicIpsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PublicIPSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		if info.Actor.Project.Present {
-			policies := policiesByProject(info.Actor.Project.String())
+			policies := policiesByProject(string(info.Actor.Project.Value))
 
 			specification, ok := policies[fndapi.RestrictPublicIPs]
 			if ok && specification.IsEnabled() {

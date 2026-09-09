@@ -49,13 +49,13 @@ import {search} from "@/Applications/AppStoreApi";
 import {Toggle} from "@/ui-components/Toggle";
 import {useDiscovery} from "@/Applications/Hooks";
 import {SafeLogo} from "@/Applications/AppToolLogo";
-import {NewDataList} from "@/UserSettings/ChangeUserDetails";
 import {DataListItem} from "@/UserSettings/types";
 import {Tag} from "@/Applications/Card";
 import {useUState} from "@/Utilities/UState";
 import {connectionState} from "@/Providers/ConnectionState";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
+import {NewDataList} from "@/UserSettings/ChangeUserDetails";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 

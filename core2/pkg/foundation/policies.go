@@ -198,6 +198,14 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 				}
 				break
 			}
+		case fndapi.RestrictMoveAndCopy:
+			{
+				_, ok := specification.GetValues().(fndapi.RestrictMoveAndCopyValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (MoveAndCopy)")
+				}
+				break
+			}
 		case fndapi.RestrictDownloads:
 			{
 				_, ok := specification.GetValues().(fndapi.RestrictDownloadsValues)
