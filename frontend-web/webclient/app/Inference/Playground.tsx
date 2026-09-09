@@ -372,7 +372,6 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                     display: "flex",
                     flexDirection: "column",
                     minHeight: 104,
-                    overflowX: "scroll",
                     border: dragActive ? "1px solid var(--primaryMain)" : "1px solid var(--playground-border, var(--borderColor))",
                     borderRadius: 16,
                     background: dragActive ? "var(--playground-hover, var(--dialogToolbar))" : "var(--playground-surface, var(--backgroundDefault))",
@@ -672,6 +671,36 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
 
         ${k} .playground-sidebar[data-open=true] {
             right: 0;
+        }
+    }
+
+    @media (max-width: 500px) {
+        ${k} {
+            margin: -16px;
+            height: 100vh;
+        }
+
+        ${k} > div {
+            border-radius: 0;
+            height: 100%;
+        }
+
+        ${k} > div > div {
+            height: 100%;
+        }
+
+        ${k} div.playground-main {
+            border: none;
+            padding: 0;
+            padding-bottom: 1px;
+        }
+
+        ${k} .playground-body {
+            height: calc(100vh - 76px);
+        }
+
+        ${k} .playground-main .${ComposerActionButtonHoverClass} > div {
+            overflow-x: scroll;
         }
     }
 `);
