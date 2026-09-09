@@ -949,6 +949,7 @@ export const Create: React.FunctionComponent = () => {
             if (active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement) return;
             if (active instanceof HTMLInputElement && !active.readOnly) return;
             if (active instanceof HTMLElement && active.isContentEditable) return;
+            if (active?.closest(".monaco-editor")) return;
             if (view === "editor") {
                 const rows = Array.from(document.querySelectorAll<HTMLElement>("[data-row-id]"))
                     .filter(element => element.offsetParent !== null);
