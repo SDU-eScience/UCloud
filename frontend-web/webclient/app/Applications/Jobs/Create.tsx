@@ -48,6 +48,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {SettingsAction, SettingsSection} from "@/ui-components/SettingsComponents";
 import {Toggle} from "@/ui-components/Toggle";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import Text from "@/ui-components/Text";
 import {ImportMessages, ImportMessage, ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
@@ -470,13 +471,37 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
             <CustomApplicationManagementDialog
                 application={application}
                 provider={provider}
-                onDeleted={() => navigate(AppRoutes.apps.landing())}
+                onDeleted={async () => {
+                    let nextVersion: string | null = null;
+                    try {
+                        const group = await callAPI(AppStore.findGroupByApplication({
+                            appName,
+                            flags: {
+                                includeApplications: true,
+                                includeInvocation: true,
+                                includeStars: true,
+                                includeVersions: true,
+                            },
+                            ...discovery,
+                        }));
+                        nextVersion = group.status.applications?.find(it => it.metadata.version !== application.metadata.version)
+                            ?.metadata.version ?? null;
+                    } catch {
+                        nextVersion = null;
+                    }
+
+                    if (nextVersion) {
+                        navigate(AppRoutes.jobs.create(appName, nextVersion));
+                    } else {
+                        navigate(AppRoutes.apps.landing());
+                    }
+                }}
             />,
             doNothing,
             true,
             largeModalStyle,
         );
-    }, [application, navigate]);
+    }, [application, navigate, appName, discovery]);
 
     const reloadFlavors = useCallback(async () => {
         const group = await callAPI(AppStore.findGroupByApplication({
@@ -1772,18 +1797,6 @@ function CustomApplicationManagementDialog(props: {
         }
     }, [busy, props.application.metadata.name, props.application.metadata.version, props.provider, props.onDeleted]);
 
-    const requestDeleteApplication = useCallback(() => {
-        addStandardDialog({
-            title: "Delete application?",
-            message: "This will permanently delete this version of the application. Jobs already running are not affected.",
-            confirmText: "Delete application",
-            confirmButtonColor: "errorMain",
-            cancelButtonColor: "primaryMain",
-            addToFront: true,
-            onConfirm: deleteApplication,
-        });
-    }, [deleteApplication]);
-
     const isPublished = publishedToProject;
 
     return (
@@ -1807,10 +1820,13 @@ function CustomApplicationManagementDialog(props: {
                     title="Delete application version"
                     description={"Deletes version " + props.application.metadata.version + " of this application. Jobs already running are not affected."}
                     action={
-                        <Button color="errorMain" disabled={busy} onClick={requestDeleteApplication}>
-                            <Icon name="heroTrash" />
-                            Delete application
-                        </Button>
+                        <ConfirmationButton
+                            color="errorMain"
+                            disabled={busy}
+                            actionText="Delete application"
+                            icon="heroTrash"
+                            onAction={deleteApplication}
+                        />
                     }
                 />
             </SettingsSection>
