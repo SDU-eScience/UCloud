@@ -7,10 +7,10 @@ import {Box, Button, Flex, Icon, Text, TextArea,} from "@/ui-components";
 import {Toggle} from "@/ui-components/Toggle";
 import UcxView, {UcxComponentRegistry, UcxFunctionRegistry, UcxRenderContext, UcxSpinner} from "@/UCX/UcxView";
 import {UiNode, Value, ValueKind} from "@/UCX/protocol";
-import {copyToClipboard, doNothing, extensionFromPath, extensionType, stopPropagation,  typeFromMime} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, extensionFromPath, extensionType, stopPropagation, stopPropagationAndPreventDefault, typeFromMime} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {sendFailureNotification} from "@/Notifications";
-import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
+import {Operation, Operations} from "@/ui-components/Operation";
 import {openPlayground} from "./api";
 import {sizeToString} from "@/Utilities/FileUtilities";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
@@ -30,6 +30,7 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {IconName} from "@/ui-components/Icon";
 import {inferenceThreadStore} from "./ThreadStore";
+import { findDomAttributeFromAncestors } from "@/Utilities/HTMLUtilities";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -1460,9 +1461,9 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
 }
 
 function ThreadListNode({
-                            node,
-                            model,
-                            fn,
+    node,
+    model,
+    fn,
 }: Pick<UcxRenderContext, "node" | "model" | "fn">): React.ReactNode {
     const [operations, setOperations] = React.useState<
         Operation<ThreadListItem>[]
@@ -1683,12 +1684,28 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
         function onResize() {
             if (window.innerWidth < 900) {
                 setSidebarCollapsed(false);
+            } else {
+                setShowThreads(false);
             }
+        }
+
+        function closeThreads(e: Event) {
+            if (!e.target) return;
+            if (findDomAttributeFromAncestors(e.target, "data-open") == null) {
+                setShowThreads(false);
+            }
+        }
+
+        const routerWrapper = document.querySelector("[data-component='main']");
+        if (routerWrapper) {
+            routerWrapper.addEventListener("click", closeThreads)
         }
 
         window.addEventListener("resize", onResize);
         return () => {
             window.removeEventListener("resize", onResize);
+            const routerWrapper = document.querySelector("[data-component='router-wrapper']");
+            if (routerWrapper) { routerWrapper.removeEventListener("click", closeThreads); }
         }
     }, []);
 
