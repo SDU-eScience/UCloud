@@ -1,6 +1,6 @@
 import * as Heading from "@/ui-components/Heading";
-import React, {useCallback} from "react";
-import {useParams} from "react-router-dom";
+import React, {useCallback, useEffect} from "react";
+import {useNavigate, useParams} from "react-router-dom";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {SafeLogo} from "./AppToolLogo";
 import {Box, Flex, MainContainer} from "@/ui-components";
@@ -15,17 +15,29 @@ import {useDiscovery} from "@/Applications/Hooks";
 import {AppCard2} from "./Landing";
 import {Gradient, GradientWithPolygons} from "@/ui-components/GradientBackground";
 import {AppGrid} from "@/Applications/Category";
+import * as Pages from "./Pages";
 
 const ApplicationsGroup: React.FunctionComponent = () => {
     const idParam = useParams<{id: string}>().id;
     const id = parseInt(idParam ?? "-1");
     const [discovery] = useDiscovery();
+    const navigate = useNavigate();
 
     const [appGroup, fetchAppGroup] = useCloudAPI(AppStore.retrieveGroup({id, ...discovery}), null);
 
     const refresh = useCallback(() => {
         fetchAppGroup(AppStore.retrieveGroup({id, ...discovery})).then(doNothing);
     }, [id]);
+
+    const flavors = appGroup.data?.status?.applications ?? [];
+    const defaultFlavor = appGroup.data?.specification?.defaultFlavor ?? null;
+
+    useEffect(() => {
+        if (appGroup.error || !appGroup.data) return;
+        if (defaultFlavor && flavors.length === 1) {
+            navigate(Pages.runApplicationWithName(defaultFlavor), {replace: true});
+        }
+    }, [appGroup.data, appGroup.error, defaultFlavor, flavors.length, navigate]);
 
     usePage(appGroup.data?.specification.title ?? "Application", SidebarTabId.APPLICATIONS);
     useSetRefreshFunction(refresh);
@@ -52,7 +64,7 @@ const ApplicationsGroup: React.FunctionComponent = () => {
                         </Flex>
                         <Box mt="30px" />
                         <AppGrid>
-                            {appGroup.data?.status?.applications?.map(app => (
+                            {flavors.map(app => (
                                 <AppCard2
                                     key={app.metadata.name}
                                     title={app.metadata.title}
