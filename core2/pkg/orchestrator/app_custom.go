@@ -1442,6 +1442,9 @@ func appCustomRetrieveGroupForCatalog(actor rpc.Actor, id AppGroupId, discovery 
 		slices.SortFunc(result.Status.Applications, func(a, b orcapi.Application) int {
 			return strings.Compare(a.Metadata.FlavorName.GetOrDefault(a.Metadata.Title), b.Metadata.FlavorName.GetOrDefault(b.Metadata.Title))
 		})
+		if len(result.Status.Applications) == 1 {
+			result.Specification.DefaultFlavor = result.Status.Applications[0].Metadata.Name
+		}
 	}
 	if flags&AppCatalogIncludeCategories != 0 {
 		categories := map[int]bool{}
@@ -1525,6 +1528,8 @@ func appCustomCategories(actor rpc.Actor, discovery AppDiscovery, flags AppCatal
 				if len(apiGroup.Status.Applications) != 0 {
 					if flags&AppCatalogIncludeApps == 0 {
 						apiGroup.Status.Applications = util.NonNilSlice[orcapi.Application](nil)
+					} else if len(apiGroup.Status.Applications) == 1 {
+						apiGroup.Specification.DefaultFlavor = apiGroup.Status.Applications[0].Metadata.Name
 					}
 					apiCategory.Status.Groups = append(apiCategory.Status.Groups, apiGroup)
 				}
