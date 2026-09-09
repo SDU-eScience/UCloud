@@ -22,10 +22,11 @@ import Icon, {IconName} from "@/ui-components/Icon";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {injectStyle} from "@/Unstyled";
 import {A2Yaml, A2Software, A2Features, A2SshMode, A2Inference, A2ApplicationToLoad} from "@/Applications/Creator/A2";
-import {CreatorDraft, CreatorCustomMeta, creatorIsCustom, creatorIsEditableName, creatorIsEditableVersion} from "@/Applications/Creator/Draft";
+import {CreatorCreatedGroup, CreatorDraft, CreatorCustomMeta, creatorIsCustom, creatorIsEditableName, creatorIsEditableVersion} from "@/Applications/Creator/Draft";
 import {PanelSection, ToggleRow, InfoDot} from "@/Applications/Creator/ParameterPanelShared";
 import {WIDGET_DRAWER_ITEMS, WidgetDrawerGroup} from "@/Applications/Creator/WidgetDefaults";
 import type {
+    ApplicationGroupLogo,
     AppCatalogCustomCategory,
     AppCatalogCustomGroup,
     AppEditorCustomEligibilityResponse,
@@ -37,7 +38,7 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {RichSelectProps} from "@/ui-components/RichSelect";
 import {MandatoryField} from "@/UtilityComponents";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {fileSelectorModalStyle, slimModalStyle} from "@/Utilities/ModalUtilities";
+import {defaultModalStyle, fileSelectorModalStyle, slimModalStyle} from "@/Utilities/ModalUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {doNothing, extractErrorMessage, isLikelyMac, stopPropagation} from "@/UtilityFunctions";
@@ -51,6 +52,19 @@ import {LineCappedMarkdown} from "@/ui-components/Markdown";
 import ContainerRepositoryBrowse from "@/ContainerRepositories/Browse";
 import {customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
+import {ApplicationGroupLogoDialog, ApplicationGroupLogoEditor, defaultApplicationGroupLogo} from "@/Applications/ProceduralLogo";
+import {Client} from "@/Authentication/HttpClientInstance";
+
+const LogoEditorModalStyle = {
+    ...defaultModalStyle,
+    content: {
+        ...defaultModalStyle.content,
+        top: "50%",
+        transform: "translate(-50%, -50%)",
+        height: "min(820px, calc(100vh - 20px))",
+        minHeight: undefined,
+    },
+};
 
 export interface MetadataPanelProps {
     draft: CreatorDraft;
@@ -75,7 +89,7 @@ export interface MetadataPanelProps {
     customGroups?: AppCatalogCustomGroup[];
     customCategories?: AppCatalogCustomCategory[];
     refreshPlacement: () => Promise<void>;
-    onInlineCreatedGroup?: (group: {id: number; title: string; description: string} | null) => void;
+    onInlineCreatedGroup?: (group: CreatorCreatedGroup | null) => void;
 }
 
 export function MetadataPanel(props: MetadataPanelProps): React.ReactNode {
@@ -910,11 +924,11 @@ function GroupFlavorSection(props: {
     onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
     groups?: AppCatalogCustomGroup[];
     refreshPlacement: () => Promise<void>;
-    onInlineCreated?: (group: {id: number; title: string; description: string} | null) => void;
+    onInlineCreated?: (group: CreatorCreatedGroup | null) => void;
 }): React.ReactNode {
     const {draft} = props;
     const meta = draft.customMeta;
-    const [createdGroup, setCreatedGroup] = useState<{id: number; title: string; description: string} | null>(null);
+    const [createdGroup, setCreatedGroup] = useState<AppCatalogCustomGroup | null>(null);
     if (!meta) {
         return null;
     }
@@ -922,7 +936,7 @@ function GroupFlavorSection(props: {
     const allGroups = props.groups ?? [];
     const selected = allGroups.find(group => String(group.id) === meta.group) ?? (
         createdGroup != null && String(createdGroup.id) === meta.group
-            ? {specification: {title: createdGroup.title, description: createdGroup.description}}
+            ? createdGroup
             : null
     );
 
@@ -984,11 +998,11 @@ function CustomProviderRow(props: RichSelectProps<{key: string}>): React.ReactNo
 function GroupAutocompleteField(props: {
     draft: CreatorDraft;
     groups: AppCatalogCustomGroup[];
-    createdGroup: {id: number; title: string; description: string} | null;
-    onCreatedGroup: (group: {id: number; title: string; description: string} | null) => void;
+    createdGroup: AppCatalogCustomGroup | null;
+    onCreatedGroup: (group: AppCatalogCustomGroup | null) => void;
     onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
     refreshPlacement: () => Promise<void>;
-    onInlineCreated?: (group: {id: number; title: string; description: string} | null) => void;
+    onInlineCreated?: (group: CreatorCreatedGroup | null) => void;
 }): React.ReactNode {
     const {draft} = props;
     const meta = draft.customMeta;
@@ -1003,7 +1017,7 @@ function GroupAutocompleteField(props: {
 
     const selected = props.groups.find(group => String(group.id) === meta?.group) ?? (
         props.createdGroup != null && meta != null && String(props.createdGroup.id) === meta.group
-            ? {id: props.createdGroup.id, createdAt: 0, owner: {createdBy: ""}, specification: {title: props.createdGroup.title, description: props.createdGroup.description}}
+            ? props.createdGroup
             : null
     );
 
@@ -1058,14 +1072,14 @@ function GroupAutocompleteField(props: {
 
     const openCreateDialog = () => {
         const title = query.trim();
-        const submit = async (name: string, description: string) => {
+        const submit = async (name: string, description: string, logo: ApplicationGroupLogo) => {
             setCreating(true);
             try {
                 const result = await callAPI(AppStore.createCustomGroup({
-                    specification: {title: name, description},
+                    specification: {title: name, description, logo},
                 }));
-                props.onCreatedGroup({id: result.id, title: name, description});
-                props.onInlineCreated?.({id: result.id, title: name, description});
+                props.onCreatedGroup({id: result.id, createdAt: Date.now(), owner: {createdBy: Client.username ?? ""}, specification: {title: name, description, logo}});
+                props.onInlineCreated?.({id: result.id, title: name, description, logo});
                 props.onUpdateCustomMeta({group: String(result.id)});
                 setQuery(name);
                 closeAutocomplete(setOpen, inputRef);
@@ -1078,19 +1092,46 @@ function GroupAutocompleteField(props: {
             }
         };
         dialogStore.addDialog(
-            <ResourceNameDialog
-                title="New application group"
-                placeholder="My group"
-                nameDescription="The name of the group, shown in the user-interface"
-                descriptionRequired
-                creating={creating}
+            <CustomGroupDialog
                 initialTitle={title}
-                initialDescription=""
                 onSubmit={submit}
             />,
             doNothing,
             true,
-            slimModalStyle,
+            LogoEditorModalStyle,
+        );
+    };
+
+    const openLogoDialog = () => {
+        if (!selected) return;
+        setOpen(false);
+        dialogStore.addDialog(
+            <ApplicationGroupLogoDialog
+                title={selected.specification.title}
+                initialLogo={selected.specification.logo ?? defaultApplicationGroupLogo(selected.specification.title)}
+                onCancel={() => dialogStore.failure()}
+                onSave={async logo => {
+                    try {
+                        await callAPI(AppStore.updateCustomGroupLogo({id: selected.id, logo}));
+                        if (props.createdGroup?.id === selected.id) {
+                            props.onCreatedGroup({...props.createdGroup, specification: {...props.createdGroup.specification, logo}});
+                            props.onInlineCreated?.({
+                                id: props.createdGroup.id,
+                                title: props.createdGroup.specification.title,
+                                description: props.createdGroup.specification.description,
+                                logo,
+                            });
+                        }
+                        await props.refreshPlacement();
+                        dialogStore.success();
+                    } catch (error) {
+                        sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
+                    }
+                }}
+            />,
+            doNothing,
+            true,
+            LogoEditorModalStyle,
         );
     };
 
@@ -1158,6 +1199,9 @@ function GroupAutocompleteField(props: {
                                 </span>
                             </TooltipV2>
                         ) : null}
+                        {selected && (selected.owner.createdBy === Client.username || customAppsWorkspaceAdmin())
+                            ? <IconButton icon="heroSwatch" tooltip="Customize group logo" onClick={openLogoDialog} />
+                            : null}
                     </div>
                     {open ? (
                         <GroupDropdown
@@ -1176,6 +1220,60 @@ function GroupAutocompleteField(props: {
             </Label>
         </div>
     );
+}
+
+function CustomGroupDialog(props: {
+    initialTitle: string;
+    onSubmit: (title: string, description: string, logo: ApplicationGroupLogo) => Promise<void>;
+}): React.ReactNode {
+    const [title, setTitle] = useState(props.initialTitle);
+    const [description, setDescription] = useState("");
+    const [logo, setLogo] = useState(defaultApplicationGroupLogo(props.initialTitle));
+    const [logoEdited, setLogoEdited] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const updateTitle = (value: string) => {
+        setTitle(value);
+        if (!logoEdited) setLogo(defaultApplicationGroupLogo(value));
+    };
+    const submit = async (event: React.FormEvent) => {
+        event.preventDefault();
+        const cleanTitle = title.trim();
+        const cleanDescription = description.trim();
+        if (!cleanTitle || !cleanDescription) {
+            setError("Enter a name and description.");
+            return;
+        }
+        const submittedLogo = logoEdited ? logo : defaultApplicationGroupLogo(cleanTitle);
+        if (submittedLogo.content.type === "text" && !submittedLogo.content.value.trim()) {
+            setError("Logo text cannot be blank.");
+            return;
+        }
+        setError(null);
+        setSaving(true);
+        try {
+            await props.onSubmit(cleanTitle, cleanDescription, submittedLogo);
+        } finally {
+            setSaving(false);
+        }
+    };
+    return <Box height="100%" style={{display: "flex", flexDirection: "column", minHeight: 0}}>
+        <Heading.h3 flexShrink={0}>New application group</Heading.h3>
+        <form onSubmit={submit} style={{display: "flex", flexDirection: "column", flex: "1 1 0", minHeight: 0}}>
+            <Flex flexDirection="column" gap="12px" mb="22px" flexShrink={0}>
+                <Label>Name<MandatoryField /><Input value={title} onChange={event => updateTitle(event.target.value)} placeholder="My group" /></Label>
+                <Label>Description<MandatoryField /><TextArea value={description} onChange={event => setDescription(event.target.value)} rows={3} placeholder="A short description shown to users." /></Label>
+                {error ? <Text color="errorMain">{error}</Text> : null}
+            </Flex>
+            <Box flexGrow={1} minHeight="0">
+                <ApplicationGroupLogoEditor logo={logo} onChange={value => { setLogo(value); setLogoEdited(true); }} />
+            </Box>
+            <Flex justifyContent="end" gap="8px" mt="32px" px="20px" py="12px" mx="-20px" mb="-20px" background="var(--dialogToolbar)" flexShrink={0}>
+                <Button color="errorMain" type="button" onClick={() => dialogStore.failure()}>Cancel</Button>
+                <Button color="successMain" type="submit" disabled={saving}>{saving ? <Icon name="refresh" spin /> : null}Create</Button>
+            </Flex>
+        </form>
+    </Box>;
 }
 
 function ResourceNameDialog(props: {

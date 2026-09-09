@@ -167,6 +167,7 @@ const ApplicationsCategory: React.FunctionComponent = () => {
                                     description={section.specification.description}
                                     name={section.metadata.id.toString()}
                                     applicationName={section.specification.defaultFlavor}
+                                    logo={section.specification.logo}
                                 />
                             )}
                         </AppGrid>

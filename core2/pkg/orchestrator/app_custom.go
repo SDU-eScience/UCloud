@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"runtime"
 	"slices"
@@ -11,6 +12,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf16"
+	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
 	accapi "ucloud.dk/shared/pkg/accounting"
@@ -109,6 +113,7 @@ type appCustomGroup struct {
 	CreatedAt   time.Time
 	Title       string
 	Description string
+	Logo        orcapi.ApplicationGroupLogo
 }
 
 type appCustomCategory struct {
@@ -241,6 +246,7 @@ func appCustomLoad() {
 		CreatedAt   time.Time
 		Title       string
 		Description string
+		Logo        sql.NullString
 	}
 	type categoryRow struct {
 		Id          int64
@@ -282,8 +288,16 @@ func appCustomLoad() {
 		groups = db.Select[groupRow](
 			tx,
 			`
-				select id, created_by, project_id, created_at, title, description
-				from app_store.custom_application_groups
+				select
+					id,
+					created_by,
+					project_id,
+					created_at,
+					title,
+					description,
+					logo
+				from
+					app_store.custom_application_groups
 			`,
 			db.Params{},
 		)
@@ -318,6 +332,13 @@ func appCustomLoad() {
 	loadedGroups := map[int64]*appCustomGroup{}
 	loadedCategories := map[int64]*appCustomCategory{}
 	for _, row := range groups {
+		logo := appCustomDefaultLogo(row.Title)
+		if row.Logo.Valid {
+			var stored orcapi.ApplicationGroupLogo
+			if json.Unmarshal([]byte(row.Logo.String), &stored) == nil && appCustomValidateLogo(stored) == nil {
+				logo = stored
+			}
+		}
 		loadedGroups[row.Id] = &appCustomGroup{
 			Id:          row.Id,
 			CreatedBy:   row.CreatedBy,
@@ -325,6 +346,7 @@ func appCustomLoad() {
 			CreatedAt:   row.CreatedAt,
 			Title:       row.Title,
 			Description: row.Description,
+			Logo:        logo,
 		}
 	}
 	for _, row := range categories {
@@ -488,6 +510,7 @@ func appCustomListenForProjectGroupUpdates() {
 // workspace administration. ACL writes lock referenced project groups to close deletion races.
 
 func appCustomGroupToApi(group *appCustomGroup) orcapi.AppCatalogCustomGroup {
+	logo := group.Logo
 	return orcapi.AppCatalogCustomGroup{
 		Id:        -int(group.Id),
 		CreatedAt: fndapi.Timestamp(group.CreatedAt),
@@ -498,6 +521,7 @@ func appCustomGroupToApi(group *appCustomGroup) orcapi.AppCatalogCustomGroup {
 		Specification: orcapi.AppCatalogCustomGroupSpecification{
 			Title:       group.Title,
 			Description: group.Description,
+			Logo:        &logo,
 		},
 	}
 }
@@ -536,6 +560,97 @@ func appCustomValidateSpec(title, description string) *util.HttpError {
 		return err
 	}
 	return nil
+}
+
+var appCustomLogoShapes = []string{"circle", "rounded-square", "hexagon", "diamond", "shield"}
+var appCustomLogoBorders = []string{"none", "thin", "thick", "double"}
+var appCustomLogoColors = []string{"auto", "gold", "blue", "violet", "green", "cyan", "rose"}
+var appCustomLogoPaletteColors = appCustomLogoColors[1:]
+var appCustomLogoDirections = []string{"top-right", "bottom-right", "bottom-left", "top-left"}
+var appCustomLogoSizes = []string{"small", "medium", "large"}
+var appCustomLogoIcons = []string{
+	"academic-cap", "beaker", "bolt", "calculator", "chart-bar", "circle-stack", "cloud", "code-bracket",
+	"command-line", "cpu-chip", "cube", "document", "folder", "globe", "photo", "rocket", "server", "sparkles", "wrench",
+	"gpu",
+}
+
+func appCustomLogoHash(title string) uint32 {
+	hash := uint32(5381)
+	characters := utf16.Encode([]rune(title))
+	for i := len(characters) - 1; i >= 0; i-- {
+		hash = hash*33 ^ uint32(characters[i])
+	}
+	return hash
+}
+
+func appCustomLogoNext(value uint32) uint32 {
+	return value*1664525 + 1013904223
+}
+
+func appCustomDefaultLogo(title string) orcapi.ApplicationGroupLogo {
+	value := appCustomLogoHash(title)
+	next := func(length int) int {
+		value = appCustomLogoNext(value)
+		return int(value % uint32(length))
+	}
+	colorA := appCustomLogoPaletteColors[next(len(appCustomLogoPaletteColors))]
+	colorB := appCustomLogoPaletteColors[next(len(appCustomLogoPaletteColors))]
+	if colorA == colorB {
+		colorB = appCustomLogoPaletteColors[(slices.Index(appCustomLogoPaletteColors, colorA)+1)%len(appCustomLogoPaletteColors)]
+	}
+	return orcapi.ApplicationGroupLogo{
+		Version: 1,
+		Shape:   appCustomLogoShapes[next(len(appCustomLogoShapes))],
+		Border: orcapi.ApplicationGroupLogoBorder{
+			Style: appCustomLogoBorders[next(len(appCustomLogoBorders))],
+			Color: appCustomLogoPaletteColors[next(len(appCustomLogoPaletteColors))],
+		},
+		Fill: orcapi.ApplicationGroupLogoFill{
+			Type:      []string{"solid", "gradient"}[next(2)],
+			ColorA:    colorA,
+			ColorB:    colorB,
+			Direction: appCustomLogoDirections[next(len(appCustomLogoDirections))],
+		},
+		Content: orcapi.ApplicationGroupLogoContent{
+			Type:  "icon",
+			Value: appCustomLogoIcons[next(len(appCustomLogoIcons)-1)],
+			Size:  appCustomLogoSizes[next(len(appCustomLogoSizes))],
+			Color: "auto",
+		},
+	}
+}
+
+func appCustomValidateLogo(logo orcapi.ApplicationGroupLogo) *util.HttpError {
+	if logo.Version != 1 || !slices.Contains(appCustomLogoShapes, logo.Shape) {
+		return util.HttpErr(http.StatusBadRequest, "invalid logo shape or version")
+	}
+	if !slices.Contains(appCustomLogoBorders, logo.Border.Style) || !slices.Contains(appCustomLogoColors, logo.Border.Color) {
+		return util.HttpErr(http.StatusBadRequest, "invalid logo border")
+	}
+	if (logo.Fill.Type != "solid" && logo.Fill.Type != "gradient") ||
+		!slices.Contains(appCustomLogoColors, logo.Fill.ColorA) ||
+		!slices.Contains(appCustomLogoColors, logo.Fill.ColorB) ||
+		!slices.Contains(appCustomLogoDirections, logo.Fill.Direction) {
+		return util.HttpErr(http.StatusBadRequest, "invalid logo fill")
+	}
+	validContentColor := logo.Content.Color == "auto" || logo.Content.Color == "light" || logo.Content.Color == "dark" ||
+		slices.Contains(appCustomLogoColors, logo.Content.Color)
+	if !slices.Contains(appCustomLogoSizes, logo.Content.Size) || !validContentColor {
+		return util.HttpErr(http.StatusBadRequest, "invalid logo content style")
+	}
+	if logo.Content.Type == "icon" && slices.Contains(appCustomLogoIcons, logo.Content.Value) {
+		return nil
+	}
+	if logo.Content.Type == "text" && strings.TrimSpace(logo.Content.Value) == logo.Content.Value &&
+		utf8.RuneCountInString(logo.Content.Value) >= 1 && utf8.RuneCountInString(logo.Content.Value) <= 4 {
+		for _, character := range logo.Content.Value {
+			if unicode.IsControl(character) {
+				return util.HttpErr(http.StatusBadRequest, "invalid logo content")
+			}
+		}
+		return nil
+	}
+	return util.HttpErr(http.StatusBadRequest, "invalid logo content")
 }
 
 func appCustomCanCreateGroup(actor rpc.Actor) bool {
@@ -581,6 +696,14 @@ func appCustomCreateGroup(actor rpc.Actor, request orcapi.AppCatalogCreateCustom
 	if err := appCustomValidateSpec(title, description); err != nil {
 		return fndapi.FindByIntId{}, err
 	}
+	logo := appCustomDefaultLogo(title)
+	if request.Specification.Logo != nil {
+		logo = *request.Specification.Logo
+	}
+	if err := appCustomValidateLogo(logo); err != nil {
+		return fndapi.FindByIntId{}, err
+	}
+	logoJson, _ := json.Marshal(logo)
 	project := util.OptMap(actor.Project, func(value rpc.ProjectId) string { return string(value) })
 	created, ok := db.NewTx2(func(tx *db.Transaction) (struct {
 		Id        int64
@@ -593,9 +716,9 @@ func appCustomCreateGroup(actor rpc.Actor, request orcapi.AppCatalogCreateCustom
 			tx,
 			`
 				insert into app_store.custom_application_groups(
-					created_by, project_id, title, description
+					created_by, project_id, title, description, logo
 				) values (
-					:created_by, :project, :title, :description
+					:created_by, :project, :title, :description, cast(:logo as jsonb)
 				) on conflict do nothing
 				returning id, created_at
 			`,
@@ -604,6 +727,7 @@ func appCustomCreateGroup(actor rpc.Actor, request orcapi.AppCatalogCreateCustom
 				"project":     project.Sql(),
 				"title":       title,
 				"description": description,
+				"logo":        string(logoJson),
 			},
 		)
 	})
@@ -618,9 +742,51 @@ func appCustomCreateGroup(actor rpc.Actor, request orcapi.AppCatalogCreateCustom
 		CreatedAt:   created.CreatedAt,
 		Title:       title,
 		Description: description,
+		Logo:        logo,
 	}
 	appCustomCache.Mu.Unlock()
 	return fndapi.FindByIntId{Id: -int(created.Id)}, nil
+}
+
+func appCustomUpdateGroupLogo(actor rpc.Actor, request orcapi.AppCatalogUpdateCustomGroupLogoRequest) *util.HttpError {
+	if request.Id >= 0 {
+		return util.HttpErr(http.StatusNotFound, "group not found")
+	}
+	if err := appCustomValidateLogo(request.Logo); err != nil {
+		return err
+	}
+	id := int64(-request.Id)
+	appCustomCache.Mu.Lock()
+	defer appCustomCache.Mu.Unlock()
+	group := appCustomCache.Groups[id]
+	canEdit := group != nil && appCustomBelongsToActorsWorkspace(actor, group.CreatedBy, group.Project) &&
+		(appCustomIsAdmin(actor) || group.CreatedBy == actor.Username)
+	if !canEdit {
+		return util.HttpErr(http.StatusNotFound, "group not found")
+	}
+	logoJson, _ := json.Marshal(request.Logo)
+	_, updated := db.NewTx2(func(tx *db.Transaction) (struct{ Id int64 }, bool) {
+		return db.Get[struct{ Id int64 }](
+			tx,
+			`
+				update app_store.custom_application_groups
+				set logo = cast(:logo as jsonb)
+				where id = :id
+				returning id
+			`,
+			db.Params{
+				"id":   id,
+				"logo": string(logoJson),
+			},
+		)
+	})
+	if !updated {
+		return util.HttpErr(http.StatusNotFound, "group not found")
+	}
+	if group = appCustomCache.Groups[id]; group != nil {
+		group.Logo = request.Logo
+	}
+	return nil
 }
 
 func appCustomValidateAcl(actor rpc.Actor, entries []orcapi.ResourceAclEntry) ([]orcapi.ResourceAclEntry, *util.HttpError) {
@@ -1110,18 +1276,18 @@ func appCustomRetrieveApplication(actor rpc.Actor, name, version, provider strin
 		return orcapi.Application{}, false
 	}
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i].CreatedAt.After(candidates[j].CreatedAt) })
-	var result orcapi.Application
+	selected := candidates[0]
 	if requested != nil {
-		result = appCustomApplicationToApi(actor, requested)
-	} else {
-		result = appCustomApplicationToApi(actor, candidates[0])
+		selected = requested
 	}
+	result := appCustomApplicationToApi(actor, selected)
 	for _, candidate := range candidates {
 		result.Versions = append(result.Versions, candidate.Application.Metadata.Version)
 	}
 	if flags&(AppCatalogIncludeGroups|AppCatalogIncludeCategories) != 0 {
-		customGroup := appCustomCache.Groups[candidates[0].GroupId]
+		customGroup := appCustomCache.Groups[selected.GroupId]
 		if customGroup != nil {
+			logo := customGroup.Logo
 			result.Metadata.Group = orcapi.ApplicationGroup{
 				Metadata: orcapi.ApplicationGroupMetadata{
 					Id:     -int(customGroup.Id),
@@ -1130,10 +1296,11 @@ func appCustomRetrieveApplication(actor rpc.Actor, name, version, provider strin
 				Specification: orcapi.ApplicationGroupSpecification{
 					Title:       customGroup.Title,
 					Description: customGroup.Description,
+					Logo:        &logo,
 				},
 			}
 			if flags&AppCatalogIncludeCategories != 0 {
-				if category := appCustomCache.Categories[candidates[0].CategoryId]; category != nil {
+				if category := appCustomCache.Categories[selected.CategoryId]; category != nil {
 					result.Metadata.Group.Specification.Categories = []int{-int(category.Id)}
 				}
 			}
@@ -1409,6 +1576,7 @@ func appCustomRetrieveGroupForCatalog(actor rpc.Actor, id AppGroupId, discovery 
 	if id >= 0 || custom == nil || !appCustomBelongsToActorsWorkspace(actor, custom.CreatedBy, custom.Project) {
 		return orcapi.ApplicationGroup{}, false
 	}
+	logo := custom.Logo
 	result := orcapi.ApplicationGroup{
 		Metadata: orcapi.ApplicationGroupMetadata{
 			Id:     int(id),
@@ -1421,6 +1589,7 @@ func appCustomRetrieveGroupForCatalog(actor rpc.Actor, id AppGroupId, discovery 
 				Light: map[int]int{},
 				Dark:  map[int]int{},
 			},
+			Logo: &logo,
 		},
 	}
 	if flags&AppCatalogIncludeApps != 0 {
@@ -1506,6 +1675,7 @@ func appCustomCategories(actor rpc.Actor, discovery AppDiscovery, flags AppCatal
 				if group == nil {
 					continue
 				}
+				logo := group.Logo
 				apiGroup := orcapi.ApplicationGroup{
 					Metadata: orcapi.ApplicationGroupMetadata{
 						Id:     -int(group.Id),
@@ -1518,6 +1688,7 @@ func appCustomCategories(actor rpc.Actor, discovery AppDiscovery, flags AppCatal
 							Light: map[int]int{},
 							Dark:  map[int]int{},
 						},
+						Logo: &logo,
 					},
 				}
 				for _, app := range appCustomCache.Apps {
@@ -1596,6 +1767,37 @@ func appCustomSearch(actor rpc.Actor, terms []string, discovery AppDiscovery) []
 	return result
 }
 
+func appCustomRetrieveLogo(actor rpc.Actor, request orcapi.AppCatalogRetrieveCustomLogoRequest) (orcapi.ApplicationGroupLogo, *util.HttpError) {
+	appCustomCache.Mu.RLock()
+	defer appCustomCache.Mu.RUnlock()
+	if request.GroupId < 0 {
+		group := appCustomCache.Groups[int64(-request.GroupId)]
+		if group != nil && appCustomBelongsToActorsWorkspace(actor, group.CreatedBy, group.Project) &&
+			(appCustomIsAdmin(actor) || group.CreatedBy == actor.Username || appCustomCanReadGroup(actor, group)) {
+			return group.Logo, nil
+		}
+	}
+	if request.ApplicationName != "" {
+		var newest *appCustomApplication
+		for _, app := range appCustomCache.Apps {
+			if app.Application.Metadata.Name != request.ApplicationName || !appCustomBelongsToActorsWorkspace(actor, app.CreatedBy, app.Project) {
+				continue
+			}
+			category := appCustomCache.Categories[app.CategoryId]
+			if category != nil && appCustomCanReadApplication(actor, app, category) &&
+				(newest == nil || app.CreatedAt.After(newest.CreatedAt) || app.CreatedAt.Equal(newest.CreatedAt) && app.Id > newest.Id) {
+				newest = app
+			}
+		}
+		if newest != nil {
+			if group := appCustomCache.Groups[newest.GroupId]; group != nil {
+				return group.Logo, nil
+			}
+		}
+	}
+	return orcapi.ApplicationGroupLogo{}, util.HttpErr(http.StatusNotFound, "logo not found")
+}
+
 // RPC registration
 // =====================================================================================================================
 // RPC handlers translate signed API IDs and keep cache locks around each management snapshot. Business rules remain in
@@ -1655,6 +1857,12 @@ func appCustomInitRpc() {
 	})
 	orcapi.AppsDeleteCustomGroup.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
 		return util.Empty{}, appCustomDeleteGroup(info.Actor, request.Id)
+	})
+	orcapi.AppsUpdateCustomGroupLogo.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateCustomGroupLogoRequest) (util.Empty, *util.HttpError) {
+		return util.Empty{}, appCustomUpdateGroupLogo(info.Actor, request)
+	})
+	orcapi.AppsRetrieveCustomLogo.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogRetrieveCustomLogoRequest) (orcapi.ApplicationGroupLogo, *util.HttpError) {
+		return appCustomRetrieveLogo(info.Actor, request)
 	})
 	orcapi.AppsCreateCustomCategory.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogCreateCustomCategoryRequest) (fndapi.FindByIntId, *util.HttpError) {
 		return appCustomCreateCategory(info.Actor, request)

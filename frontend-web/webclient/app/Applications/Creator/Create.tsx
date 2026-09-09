@@ -34,6 +34,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {useProjectId} from "@/Project/Api";
 import {
     CreatorDraft,
+    CreatorCreatedGroup,
     CreatorOperationContext,
     CreatorView,
     CreatorCustomMeta,
@@ -403,7 +404,7 @@ export const Create: React.FunctionComponent = () => {
     const [customEligibility, setCustomEligibility] = useState<AppStore.AppEditorCustomEligibilityResponse | null>(null);
     const [customGroups, setCustomGroups] = useState<AppStore.AppCatalogCustomGroup[]>([]);
     const [customCategories, setCustomCategories] = useState<AppStore.AppCatalogCustomCategory[]>([]);
-    const [inlineCreatedGroup, setInlineCreatedGroup] = useState<{id: number; title: string; description: string} | null>(null);
+    const [inlineCreatedGroup, setInlineCreatedGroup] = useState<CreatorCreatedGroup | null>(null);
     const validationRequestId = useRef(0);
     const draftRevisionRef = useRef(0);
     const draftRef = useRef<CreatorDraft | null>(null);
@@ -558,7 +559,7 @@ export const Create: React.FunctionComponent = () => {
         void refreshPlacement();
     }, [projectId, refreshPlacement]);
 
-    const onInlineCreatedGroup = useCallback((group: {id: number; title: string; description: string} | null) => {
+    const onInlineCreatedGroup = useCallback((group: CreatorCreatedGroup | null) => {
         setInlineCreatedGroup(group);
     }, []);
 
@@ -2038,7 +2039,7 @@ function CreatorPanel(props: {
     customGroups: AppStore.AppCatalogCustomGroup[];
     customCategories: AppStore.AppCatalogCustomCategory[];
     refreshPlacement: () => Promise<void>;
-    onInlineCreatedGroup: (group: {id: number; title: string; description: string} | null) => void;
+    onInlineCreatedGroup: (group: CreatorCreatedGroup | null) => void;
 }): React.ReactNode {
     const {draft} = props;
     const {selection} = draft;

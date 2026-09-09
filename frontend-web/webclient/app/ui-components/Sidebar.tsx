@@ -1227,7 +1227,7 @@ function SecondarySidebar({
                             key={fav.metadata.name}
                             to={AppRoutes.jobs.create(fav.metadata.name)}
                             text={fav.metadata.title}
-                            icon={<AppLogo name={fav.metadata.name} />}
+                            icon={<AppLogo name={fav.metadata.name} groupId={fav.metadata.groupId ?? fav.metadata.group?.metadata.id} />}
                             tab={SidebarTabId.APPLICATIONS}
                         />
                     )}
@@ -1271,7 +1271,8 @@ function SecondarySidebar({
                         key={run.id}
                         to={AppRoutes.jobs.view(run.id)}
                         text={name}
-                        icon={<AppLogo name={run.specification.application.name} />}
+                        icon={<AppLogo name={run.specification.application.name}
+                            groupId={run.status.resolvedApplication?.metadata.groupId ?? run.status.resolvedApplication?.metadata.group?.metadata.id} />}
                         tab={SidebarTabId.RUNS}
                     />
                 })}
@@ -1300,8 +1301,8 @@ function SecondarySidebar({
     </div>;
 }
 
-function AppLogo({name}: {name: string}): React.ReactNode {
-    return <SafeLogo size="16px" name={name} type="APPLICATION" isLightOverride={false} />;
+function AppLogo({name, groupId}: {name: string; groupId?: number | null}): React.ReactNode {
+    return <SafeLogo size="16px" name={name} type="APPLICATION" isLightOverride={false} groupId={groupId} />;
 }
 
 function SidebarSectionEmptyHeader(): React.ReactNode {

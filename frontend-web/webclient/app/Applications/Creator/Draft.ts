@@ -19,6 +19,7 @@ import type {
     AppCatalogCustomGroup,
     AppEditorCustomEligibilityResponse,
     Application,
+    ApplicationGroupLogo,
 } from "@/Applications/AppStoreApi";
 import type {JobSpecification} from "@/UCloud/JobsApi";
 
@@ -118,12 +119,19 @@ export interface CreatorDraft {
     parameterIds: Record<string, string>;
     customMeta: CreatorCustomMeta | null;
     placementGroups: AppCatalogCustomGroup[];
-    placementCreatedGroup: {id: number; title: string; description: string} | null;
+    placementCreatedGroup: CreatorCreatedGroup | null;
     nameManuallySet: boolean;
     parseErrors: CreatorSourceParseError[];
     sourceNormalized: boolean;
     yamlFocusKey: string | null;
     revision: number;
+}
+
+export interface CreatorCreatedGroup {
+    id: number;
+    title: string;
+    description: string;
+    logo: ApplicationGroupLogo;
 }
 
 export interface CreatorCustomMeta {

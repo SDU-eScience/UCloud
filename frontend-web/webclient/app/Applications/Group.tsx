@@ -45,6 +45,7 @@ const ApplicationsGroup: React.FunctionComponent = () => {
     const appSearch = useAppSearch();
 
     if (!appGroup.data) return <>Not found</>;
+    const groupLogo = appGroup.data.specification.logo;
 
     return (
         <div className={Gradient}>
@@ -53,7 +54,8 @@ const ApplicationsGroup: React.FunctionComponent = () => {
                     main={<>
                         <Flex  mb="16px" justifyContent="space-between">
                             <Heading.h2>
-                                <SafeLogo name={appGroup.data?.metadata.id.toString()} type="GROUP" size="45px" />
+                                <SafeLogo name={appGroup.data?.metadata.id.toString()} type="GROUP" size="45px"
+                                    logo={appGroup.data.specification.logo} title={appGroup.data.specification.title} />
                                 {" "}
                                 {appGroup.data?.specification?.title}
                             </Heading.h2>
@@ -73,6 +75,7 @@ const ApplicationsGroup: React.FunctionComponent = () => {
                                     name={app.metadata.name}
                                     fullWidth
                                     applicationName={app.metadata.name}
+                                    logo={groupLogo}
                                 />
                             ))}
                         </AppGrid>

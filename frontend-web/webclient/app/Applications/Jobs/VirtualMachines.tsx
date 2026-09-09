@@ -743,6 +743,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
 
                         <SafeLogo name={job?.specification?.application?.name ?? "unknown"}
                             type={"APPLICATION"}
+                            groupId={job?.status.resolvedApplication?.metadata.groupId ?? job?.status.resolvedApplication?.metadata.group?.metadata.id}
                             size={"32px"} />
 
                         <Heading.h2>{appTitle} {appVersion}</Heading.h2>

@@ -5,15 +5,23 @@
 
 import * as React from "react";
 import {Flex, Text} from "@/ui-components";
-import {CreatorDraft} from "@/Applications/Creator/Draft";
+import {CreatorDraft, creatorIsCustom} from "@/Applications/Creator/Draft";
 import {AppLogoRaw, appColor, hashF} from "@/Applications/AppToolLogo";
+import {defaultApplicationGroupLogo, ProceduralLogo} from "@/Applications/ProceduralLogo";
 
 export const EditorHeader: React.FunctionComponent<{
     draft: CreatorDraft;
 }> = props => {
     const title = props.draft.application.title || props.draft.application.name || "Untitled application";
+    const selectedGroup = props.draft.placementGroups.find(group => String(group.id) === props.draft.customMeta?.group);
+    const createdGroup = props.draft.placementCreatedGroup != null && String(props.draft.placementCreatedGroup.id) === props.draft.customMeta?.group
+        ? props.draft.placementCreatedGroup : null;
+    const groupTitle = selectedGroup?.specification.title ?? createdGroup?.title ?? title;
+    const logo = selectedGroup?.specification.logo ?? createdGroup?.logo ?? defaultApplicationGroupLogo(groupTitle);
     return <Flex alignItems="center" gap="8px" minWidth={0}>
-        <RawLogo title={title} />
+        {creatorIsCustom(props.draft.context)
+            ? <ProceduralLogo logo={logo} size="24px" title={title} />
+            : <RawLogo title={title} />}
         <Text fontSize={18} fontWeight={600}>{title}</Text>
     </Flex>;
 };

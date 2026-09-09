@@ -70,6 +70,7 @@ export interface ApplicationMetadata {
     public: boolean;
     flavorName?: string;
     groupId?: number | null;
+    group?: ApplicationGroup;
     variant?: ApplicationVariant;
     origin?: "UCLOUD" | "CUSTOM";
     publishedToProject?: boolean;
@@ -430,6 +431,37 @@ export interface ApplicationGroupSpecification {
     defaultFlavor?: string | null;
     categories: number[];
     logoHasText?: boolean;
+    logo?: ApplicationGroupLogo;
+}
+
+export type ApplicationGroupLogoShape = "circle" | "rounded-square" | "hexagon" | "diamond" | "shield";
+export type ApplicationGroupLogoBorder = "none" | "thin" | "thick" | "double";
+export type ApplicationGroupLogoColor = "auto" | "gold" | "blue" | "violet" | "green" | "cyan" | "rose";
+export type ApplicationGroupLogoDirection = "top-right" | "bottom-right" | "bottom-left" | "top-left";
+export type ApplicationGroupLogoSize = "small" | "medium" | "large";
+export type ApplicationGroupLogoIcon = "academic-cap" | "beaker" | "bolt" | "calculator" | "chart-bar" |
+    "circle-stack" | "cloud" | "code-bracket" | "command-line" | "cpu-chip" | "cube" | "document" |
+    "folder" | "globe" | "photo" | "rocket" | "server" | "sparkles" | "wrench" | "gpu";
+
+export interface ApplicationGroupLogo {
+    version: 1;
+    shape: ApplicationGroupLogoShape;
+    border: {
+        style: ApplicationGroupLogoBorder;
+        color: ApplicationGroupLogoColor;
+    };
+    fill: {
+        type: "solid" | "gradient";
+        colorA: ApplicationGroupLogoColor;
+        colorB: ApplicationGroupLogoColor;
+        direction: ApplicationGroupLogoDirection;
+    };
+    content: {
+        type: "text" | "icon";
+        value: string;
+        size: ApplicationGroupLogoSize;
+        color: "auto" | "light" | "dark" | ApplicationGroupLogoColor;
+    };
 }
 
 export interface ApplicationGroupStatus {
@@ -583,6 +615,7 @@ export interface AppCatalogCustomGroup {
     specification: {
         title: string;
         description: string;
+        logo: ApplicationGroupLogo;
     };
 }
 
@@ -657,10 +690,25 @@ export interface AppCatalogCustomCategorySpecification {
     description: string;
 }
 
+export interface AppCatalogCustomGroupSpecification extends AppCatalogCustomCategorySpecification {
+    logo?: ApplicationGroupLogo;
+}
+
 export function createCustomGroup(request: {
-    specification: AppCatalogCustomCategorySpecification;
+    specification: AppCatalogCustomGroupSpecification;
 }): APICallParameters<unknown, {id: number}> {
     return apiUpdate(request, baseContext, "createCustomGroup");
+}
+
+export function updateCustomGroupLogo(request: {id: number; logo: ApplicationGroupLogo}): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "updateCustomGroupLogo");
+}
+
+export function retrieveCustomLogo(request: {
+    groupId?: number;
+    applicationName?: string;
+}): APICallParameters<unknown, ApplicationGroupLogo> {
+    return apiRetrieve(request, baseContext, "customLogo");
 }
 
 export function createCustomCategory(request: {

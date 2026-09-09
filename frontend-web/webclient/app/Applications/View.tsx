@@ -30,7 +30,8 @@ export const AppHeader: React.FunctionComponent<{
     return (
         <Flex className={props.responsiveDescription ? ResponsiveAppHeaderClass : undefined} flexDirection={"row"}>
             <Box className="app-header-logo" mr={16} mt={props.description ? "4px" : "auto"}>
-                <SafeLogo type={"APPLICATION"} name={props.application.metadata.name} size={"64px"} />
+                <SafeLogo type={"APPLICATION"} name={props.application.metadata.name} size={"64px"}
+                    groupId={props.application.metadata.groupId ?? props.application.metadata.group?.metadata.id} />
             </Box>
             {/* minWidth=0 is required for the ellipsed text children to work */}
             <Flex className="app-header-content" flexDirection={"column"} minWidth={0}>

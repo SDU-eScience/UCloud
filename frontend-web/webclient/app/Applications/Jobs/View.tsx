@@ -528,6 +528,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                     <div className="logo">
                         <SafeLogo name={job?.specification?.application?.name ?? appNameHint}
                             type={"APPLICATION"}
+                            groupId={job?.status.resolvedApplication?.metadata.groupId ?? job?.status.resolvedApplication?.metadata.group?.metadata.id}
                             size={"var(--logoSize)"} />
                     </div>
                 </div>

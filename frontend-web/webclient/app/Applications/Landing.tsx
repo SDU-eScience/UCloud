@@ -17,7 +17,6 @@ import {Link as ReactRouterLink, useNavigate} from "react-router-dom";
 import {useAppSearch} from "@/Applications/Search";
 import {emptyLandingPage, Spotlight, TopPick} from "@/Applications/AppStoreApi";
 import {shade, tint} from "@/ui-components/GlobalStyle";
-import {LogoWithText} from "@/Applications/LogoWithText";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {CatalogDiscoveryModeSwitcher} from "@/Applications/Jobs/CatalogDiscoveryMode";
 import {useGlobal} from "@/Utilities/ReduxHooks";
@@ -25,6 +24,7 @@ import {useProjectId} from "@/Project/Api";
 import {useDiscovery} from "@/Applications/Hooks";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
+import {LogoWithText} from "@/Applications/LogoWithText";
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
@@ -136,6 +136,7 @@ const LandingPage: React.FunctionComponent = () => {
                                         {landingPage.newApplications.map((app, idx) => (
                                             <AppCard1 name={app.metadata.name} title={app.metadata.title}
                                                 description={app.metadata.description} fullWidth
+                                                groupId={app.metadata.groupId ?? app.metadata.group?.metadata.id}
                                                 key={app.metadata.name + app.metadata.version}
                                                 isApplication />
                                         ))}
@@ -147,6 +148,7 @@ const LandingPage: React.FunctionComponent = () => {
                                         {landingPage.recentlyUpdated.map(app => (
                                             <AppCard1 name={app.metadata.name} title={app.metadata.title}
                                                 description={app.metadata.description} fullWidth
+                                                groupId={app.metadata.groupId ?? app.metadata.group?.metadata.id}
                                                 key={app.metadata.name + app.metadata.version}
                                                 isApplication />
                                         ))}
@@ -452,6 +454,8 @@ const AppCard1: React.FunctionComponent<{
     isApplication?: boolean;
     applicationName?: string | null;
     target?: HTMLAttributeAnchorTarget;
+    logo?: AppStore.ApplicationGroupLogo;
+    groupId?: number | null;
 }> = props => {
     let link = props.isApplication ? AppRoutes.jobs.create(props.name) : AppRoutes.apps.group(props.name);
     if (props.applicationName) {
@@ -463,7 +467,7 @@ const AppCard1: React.FunctionComponent<{
         target={props.target}
         className={classConcat(AppCard1Style, props.fullWidth ? "full-width" : undefined)}
     >
-        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"36px"} />
+        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"36px"} logo={props.logo} title={props.title} groupId={props.groupId} />
         <div className={"content"}>
             <h2>{props.title}</h2>
             <div className={"description"}>
@@ -536,6 +540,8 @@ export const AppCard2: React.FunctionComponent<{
     isApplication?: boolean;
     applicationName?: string | null;
     target?: HTMLAttributeAnchorTarget;
+    logo?: AppStore.ApplicationGroupLogo;
+    groupId?: number | null;
 }> = props => {
     let link = props.isApplication ? AppRoutes.jobs.create(props.name) : AppRoutes.apps.group(props.name);
     if (props.applicationName) {
@@ -544,7 +550,7 @@ export const AppCard2: React.FunctionComponent<{
 
     return <ReactRouterLink to={link} target={props.target}
         className={classConcat(AppCard2Style, props.fullWidth ? "full-width" : undefined)}>
-        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"56px"} />
+        <SafeLogo name={props.name} type={props.isApplication ? "APPLICATION" : "GROUP"} size={"56px"} logo={props.logo} title={props.title} groupId={props.groupId} />
         <div className={"content"}>
             <h2>{props.title}</h2>
             <div className={"description"}>
@@ -723,6 +729,19 @@ const TopPickCardStyle = injectStyle("top-pick", k => `
     ${k}:hover {
         background: var(--backgroundCardHover);
     }
+
+    ${k}.custom-logo-card {
+        gap: 14px;
+        padding: 16px;
+    }
+
+    ${k} .logo-card-name {
+        color: var(--textPrimary);
+        font-size: 32px;
+        line-height: 1.25;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 `);
 
 const LogoCard: React.FunctionComponent<{
@@ -730,10 +749,16 @@ const LogoCard: React.FunctionComponent<{
     link: string;
     title: string;
     large?: boolean;
-}> = ({id, link, title, large}) => {
+    type: "APPLICATION" | "GROUP";
+    groupId?: number | null;
+    showTitle?: boolean;
+}> = ({id, link, title, large, type, groupId, showTitle}) => {
     return <ReactRouterLink to={link}>
-        <div className={TopPickCardStyle}>
-            <LogoWithText id={id} title={title} size={60} forceUnder={large} />
+        <div className={classConcat(TopPickCardStyle, showTitle ? "custom-logo-card" : undefined)}>
+            {showTitle ? <>
+                <SafeLogo name={id.toString()} type={type} size="60px" title={title} groupId={groupId} />
+                <span className="logo-card-name">{title}</span>
+            </> : <LogoWithText id={id} title={title} size={60} forceUnder={large} />}
         </div>
     </ReactRouterLink>;
 }
@@ -751,7 +776,7 @@ export const TopPicksCard: React.FunctionComponent<{topPicks: TopPick[]}> = ({to
                         }
 
                         return <LogoCard key={pick.groupId} large={idx === 0 && topPicks.length > 5} id={pick.groupId}
-                            title={pick.title} link={link} />;
+                            title={pick.title} link={link} type="GROUP" showTitle={pick.groupId < 0} />;
                     } else {
                         return null;
                     }
@@ -775,6 +800,9 @@ export const StarredApplications2: React.FunctionComponent<{
                     title={app.metadata.title}
                     id={app.metadata.name}
                     link={link}
+                    type="APPLICATION"
+                    groupId={app.metadata.groupId ?? app.metadata.group?.metadata.id}
+                    showTitle={app.metadata.origin === "CUSTOM" || app.metadata.name.startsWith("custom-")}
                 />;
             })}
         </div>

@@ -980,8 +980,9 @@ var AppsExport = rpc.Call[util.Empty, []byte]{
 // =====================================================================================================================
 
 type AppCatalogCustomGroupSpecification struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
+	Title       string                `json:"title"`
+	Description string                `json:"description"`
+	Logo        *ApplicationGroupLogo `json:"logo,omitempty"`
 }
 
 type AppCatalogCustomGroup struct {
@@ -1028,6 +1029,30 @@ var AppsDeleteCustomGroup = rpc.Call[fnd.FindByIntId, util.Empty]{
 	Operation:   "deleteCustomGroup",
 }
 
+type AppCatalogUpdateCustomGroupLogoRequest struct {
+	Id   int                  `json:"id"`
+	Logo ApplicationGroupLogo `json:"logo"`
+}
+
+type AppCatalogRetrieveCustomLogoRequest struct {
+	GroupId         int    `json:"groupId,omitempty"`
+	ApplicationName string `json:"applicationName,omitempty"`
+}
+
+var AppsUpdateCustomGroupLogo = rpc.Call[AppCatalogUpdateCustomGroupLogoRequest, util.Empty]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updateCustomGroupLogo",
+}
+
+var AppsRetrieveCustomLogo = rpc.Call[AppCatalogRetrieveCustomLogoRequest, ApplicationGroupLogo]{
+	BaseContext: appCatalogNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "customLogo",
+}
+
 type AppCatalogCustomCategorySpecification struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
@@ -1043,7 +1068,7 @@ type AppCatalogCustomCategory struct {
 
 type AppCatalogCreateCustomCategoryRequest struct {
 	Specification AppCatalogCustomCategorySpecification `json:"specification"`
-	Acl           []ResourceAclEntry                   `json:"acl,omitempty"`
+	Acl           []ResourceAclEntry                    `json:"acl,omitempty"`
 }
 
 type AppCatalogBrowseCustomCategoriesRequest struct {
