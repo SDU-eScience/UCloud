@@ -613,23 +613,24 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
         margin-top: 16px;
     }
 
+    ${k} .threads-popover-toggle {
+        display: none;
+    }
+
     @media (max-width: 900px) {
         ${k} .playground-body {
             height: auto;
-            min-height: calc(100vh - 174px);
             flex-direction: column;
         }
 
         ${k} .playground-main {
             min-height: 62vh;
         }
-    }
 
-    ${k} .threads-popover-toggle {
-        display: none;
-    }
+        ${k} .playground-body {
+            height: calc(100vh - 116px);
+        }
 
-    @media (max-width: 900px) {
         ${k} {
             --popOverWidth: min(400px, 100vw - var(--sidebarWidth) - 42px);
         }
