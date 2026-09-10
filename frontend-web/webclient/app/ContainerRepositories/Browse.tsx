@@ -553,9 +553,9 @@ export default function ContainerRepositoryBrowse({
                         browser.registerPage(result, path, false);
                     });
 
-                    browser.on("renderRow", (entry, row) => {
+                    browser.on("renderTitle", (entry, title, row) => {
                         const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                        row.title.append(icon);
+                        title.append(icon);
                         if (isImageGroup(entry)) {
                             ResourceBrowser.icons.renderIcon({
                                 name: "heroCube",
@@ -564,8 +564,7 @@ export default function ContainerRepositoryBrowse({
                                 height: 64,
                                 width: 64,
                             }).then(setIcon);
-                            row.title.append(ResourceBrowser.defaultTitleRenderer(entry.name || entry.repository, row));
-                            row.stat1.innerText = (entry.tagCount ?? 0).toLocaleString();
+                            title.append(ResourceBrowser.defaultTitleRenderer(entry.name || entry.repository, row));
                             return;
                         }
                         if (isImage(entry)) {
@@ -578,16 +577,7 @@ export default function ContainerRepositoryBrowse({
                             }).then(setIcon);
                             const imageGroup = imageGroupsByPath.get(browser.currentPath);
                             const imageName = imageGroup?.name || entry.repository.split("/").pop() || entry.repository;
-                            row.title.append(ResourceBrowser.defaultTitleRenderer(`${imageName}:${entry.tag}`, row));
-                            const mediaType = friendlyMediaType(entry.mediaType);
-                            row.stat1.innerText = mediaType.label;
-                            row.stat1.title = mediaType.title;
-                            row.stat2.innerText = (entry.layers?.length ?? 0).toLocaleString();
-                            row.stat3.innerText = formatBytes(entry.sizeInBytes);
-                            if (imageSelection) {
-                                const button = browser.defaultButtonRenderer(selection, entry);
-                                if (button) row.stat3.replaceChildren(button);
-                            }
+                            title.append(ResourceBrowser.defaultTitleRenderer(`${imageName}:${entry.tag}`, row));
                             return;
                         }
                         if (isLayer(entry)) {
@@ -598,12 +588,7 @@ export default function ContainerRepositoryBrowse({
                                 height: 64,
                                 width: 64,
                             }).then(setIcon);
-                            row.title.append(ResourceBrowser.defaultTitleRenderer(entry.digest, row));
-                            const mediaType = friendlyMediaType(entry.mediaType);
-                            row.stat1.innerText = mediaType.label;
-                            row.stat1.title = mediaType.title;
-                            row.stat2.innerText = entry.platforms?.join(", ") || "All platforms";
-                            row.stat3.innerText = formatBytes(entry.sizeInBytes);
+                            title.append(ResourceBrowser.defaultTitleRenderer(entry.digest, row));
                             return;
                         }
 
@@ -616,16 +601,81 @@ export default function ContainerRepositoryBrowse({
                             width: 64,
                         }).then(setIcon);
 
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(repository.specification.name, row));
+                        title.append(ResourceBrowser.defaultTitleRenderer(repository.specification.name, row));
                         const provider = providerIcon(repository.specification.product.provider);
                         provider.style.marginRight = "8px";
-                        row.stat1.append(provider);
-                        row.stat1.append(getShortProviderTitle(repository.specification.product.provider));
-                        if (repository.owner.createdBy !== "_ucloud") {
-                            row.stat2.append(ResourceBrowser.defaultTitleRenderer(repository.owner.createdBy, row));
-                        }
-                        row.stat3.innerText = dateToString(repository.createdAt);
                     });
+
+                    browser.on("renderStat1", (entry, stat, row) => {
+                        if (isImageGroup(entry)) {
+                            stat.innerText = (entry.tagCount ?? 0).toLocaleString();
+                            return;
+                        }
+                        if (isImage(entry)) {
+                            const mediaType = friendlyMediaType(entry.mediaType);
+                            stat.innerText = mediaType.label;
+                            stat.title = mediaType.title;
+                            return;
+                        }
+                        if (isLayer(entry)) {
+                            const mediaType = friendlyMediaType(entry.mediaType);
+                            stat.innerText = mediaType.label;
+                            stat.title = mediaType.title;
+                            return;
+                        }
+
+                        const repository = entry;
+                        const provider = providerIcon(repository.specification.product.provider);
+                        provider.style.marginRight = "8px";
+                        stat.append(provider);
+                        stat.append(getShortProviderTitle(repository.specification.product.provider));
+                    });
+
+                    browser.on("renderStat2", (entry, stat, row) => {
+                        if (isImageGroup(entry)) {
+                            return;
+                        }
+                        if (isImage(entry)) {
+                            stat.innerText = (entry.layers?.length ?? 0).toLocaleString();
+                            return;
+                        }
+                        if (isLayer(entry)) {
+                            stat.innerText = entry.platforms?.join(", ") || "All platforms";
+                            return;
+                        }
+
+                        const repository = entry;
+
+                        const provider = providerIcon(repository.specification.product.provider);
+                        provider.style.marginRight = "8px";
+                        if (repository.owner.createdBy !== "_ucloud") {
+                            stat.append(ResourceBrowser.defaultTitleRenderer(repository.owner.createdBy, row));
+                        }
+                    });
+
+                    browser.on("renderStat3", (entry, stat) => {
+                        if (isImageGroup(entry)) {
+                            return;
+                        }
+                        if (isImage(entry)) {
+                            stat.innerText = formatBytes(entry.sizeInBytes);
+                            if (imageSelection) {
+                                const button = browser.defaultButtonRenderer(selection, entry);
+                                if (button) stat.replaceChildren(button);
+                            }
+                            return;
+                        }
+                        if (isLayer(entry)) {
+                            stat.innerText = formatBytes(entry.sizeInBytes);
+                            return;
+                        }
+
+                        const repository = entry;
+                        const provider = providerIcon(repository.specification.product.provider);
+                        provider.style.marginRight = "8px";
+                        stat.innerText = dateToString(repository.createdAt);
+                    });
+
 
                     browser.on("generateBreadcrumbs", path => {
                         const result = [{title: RESOURCE_NAME, absolutePath: "/"}];

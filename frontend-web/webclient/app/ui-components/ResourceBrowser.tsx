@@ -406,7 +406,7 @@ export interface ColumnTitleGroup<SortById = string> {
     [ContainerSize.TINY]?: ColumnTitleList<SortById>;
 }
 
-type ColumnTitles<T = string> = ColumnTitleGroup<T>;
+type ColumnTitles<T = string> = ColumnTitleGroup<T> | ColumnTitleList<T>;
 
 export class ResourceBrowser<T> {
     // DOM component references
@@ -571,7 +571,7 @@ export class ResourceBrowser<T> {
         embedded?: EmbeddedSettings;
         selector: boolean;
         selection?: Selection<T> | undefined
-        columnTitles: ColumnTitles;
+        columnTitles: ColumnTitleGroup;
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
@@ -3489,7 +3489,8 @@ export class ResourceBrowser<T> {
         });
     }
 
-    public setColumns(titleGroup: ColumnTitles) {
+    public setColumns(columnTitles: ColumnTitles) {
+        const titleGroup = Array.isArray(columnTitles) ? { [ContainerSize.LARGE]: columnTitles } : columnTitles;
         this.opts.columnTitles = titleGroup;
 
         const titleRow = this.root.querySelector(".row.rows-title");

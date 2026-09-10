@@ -4,12 +4,13 @@ import {callAPI} from "@/Authentication/DataHook";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import {ActionItem, CommonActionShortcut, ResourceBrowserActions} from "@/ui-components/Actions";
-import {ColumnTitleList, ResourceBrowseFeatures, ResourceBrowser} from "@/ui-components/ResourceBrowser";
+import {ColumnTitleGroup, ColumnTitleList, ResourceBrowseFeatures, ResourceBrowser} from "@/ui-components/ResourceBrowser";
 import {extractErrorMessage} from "@/UtilityFunctions";
 import {SimpleAvatarComponentCache} from "@/Files/Shares";
 import {avatarState} from "@/AvataaarLib/hook";
 import {TruncateClass} from "@/ui-components/Truncate";
 import Warning from "@/ui-components/Warning";
+import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
 
 export type FlavorRefresh = () => void | Application[] | Promise<void | Application[]>;
 
@@ -28,19 +29,23 @@ const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
 };
 
-const COLUMNS: ColumnTitleList = [
-    {name: "Title"},
-    {name: "Base version", columnWidth: 180},
-    {name: "Created by", columnWidth: 220},
-    {name: "Published", columnWidth: 90},
-];
+const COLUMNS: ColumnTitleGroup = {
+    [ContainerSize.LARGE]: [
+        {name: "Title"},
+        {name: "Base version", columnWidth: 180},
+        {name: "Created by", columnWidth: 220},
+        {name: "Published", columnWidth: 90},
+    ]
+};
 
-const VERSION_COLUMNS: ColumnTitleList = [
-    {name: "Version"},
-    {name: "Base flavor", columnWidth: 260},
-    {name: "Base version", columnWidth: 180},
-    {name: "Created by", columnWidth: 180},
-];
+const VERSION_COLUMNS: ColumnTitleGroup = {
+    [ContainerSize.LARGE]: [
+        {name: "Version"},
+        {name: "Base flavor", columnWidth: 260},
+        {name: "Base version", columnWidth: 180},
+        {name: "Created by", columnWidth: 180},
+    ]
+};
 
 type VariantVersion = {
     entryType: "version";
@@ -235,22 +240,36 @@ function FlavorManagement({flavors, onUpdated, onDeleted}: Props): React.ReactNo
                     }
                 });
 
-                browser.on("renderRow", (entry, row) => {
+                browser.on("renderTitle", (entry, title, row) => {
                     if (isVariantVersion(entry)) {
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(entry.version, row));
-                        row.stat1.append(ResourceBrowser.defaultTitleRenderer(entry.baseName, row));
-                        row.stat2.innerText = entry.baseVersion;
-                        row.stat1.style.justifyContent = "";
-                        row.stat2.style.justifyContent = "";
-                        row.stat3.style.justifyContent = "";
-                        row.stat3.innerText = entry.createdBy;
+                        title.append(ResourceBrowser.defaultTitleRenderer(entry.version, row));
                         return;
                     }
                     const variant = entry;
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(variant.title, row));
-                    row.stat1.append(ResourceBrowser.defaultTitleRenderer(variant.baseApplication.version, row));
-                    row.stat2.style.justifyContent = "flex-start";
-                    SimpleAvatarComponentCache.appendTo(row.stat2, variant.createdBy, `Created by ${variant.createdBy}`).then(wrapper => {
+                    title.append(ResourceBrowser.defaultTitleRenderer(variant.title, row));
+                });
+
+                browser.on("renderStat1", (entry, stat, row) => {
+                    if (isVariantVersion(entry)) {
+                        stat.append(ResourceBrowser.defaultTitleRenderer(entry.baseName, row));
+                        stat.style.justifyContent = "";
+                        return;
+                    }
+
+                    const variant = entry;
+                    stat.append(ResourceBrowser.defaultTitleRenderer(variant.baseApplication.version, row));
+                });
+
+                browser.on("renderStat2", (entry, stat) => {
+                    if (isVariantVersion(entry)) {
+                        stat.innerText = entry.baseVersion;
+                        stat.style.justifyContent = "";
+                        return
+                    }
+
+                    const variant = entry;
+                    stat.style.justifyContent = "flex-start";
+                    SimpleAvatarComponentCache.appendTo(stat, variant.createdBy, `Created by ${variant.createdBy}`).then(wrapper => {
                         wrapper.style.display = "flex";
                         wrapper.style.alignItems = "center";
                         wrapper.style.gap = "8px";
@@ -265,7 +284,17 @@ function FlavorManagement({flavors, onUpdated, onDeleted}: Props): React.ReactNo
                         name.title = variant.createdBy;
                         wrapper.append(name);
                     });
-                    row.stat3.innerText = variant.publishedToProject ? "Yes" : "No";
+                });
+
+                browser.on("renderStat3", (entry, stat) => {
+                    if (isVariantVersion(entry)) {
+                        stat.style.justifyContent = "";
+                        stat.innerText = entry.createdBy;
+                        return;
+                    }
+                    const variant = entry;
+
+                    stat.innerText = variant.publishedToProject ? "Yes" : "No";
                 });
 
                 browser.on("endRenderPage", () => {
