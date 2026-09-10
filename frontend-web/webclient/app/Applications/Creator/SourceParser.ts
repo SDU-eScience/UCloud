@@ -7,7 +7,9 @@
 //   locations. The parser does not throw. It returns a result object so the caller can keep the
 //   last valid model and show the exact invalid source text at the same time.
 // - serialize: A2Yaml → canonical YAML text. The canonical form is stable: the same model always
-//   produces the same text, with keys in a fixed order and null optional fields omitted. This is
+//   produces the same text, with keys in a fixed order and null optional fields omitted. Multi-line
+//   strings (invocation, documentation, workflow scripts) use the literal block style (`|-`) so
+//   lines are kept verbatim instead of folded with line wrapping and inserted blank lines. This is
 //   what the visual editor writes back when the user makes a visual change.
 //
 // Semantic validation (duplicate names, numeric ranges, enumeration defaults, unresolved
@@ -24,7 +26,7 @@
 // place a Monaco marker and the page error summary can offer a click-to-line action.
 
 import * as YAML from "yaml";
-import {A2Yaml, A2Parameter} from "@/Applications/Creator/A2";
+import {A2Yaml, A2Parameter} from "@/Applications/Creator/Draft";
 
 // Parse result
 // -------------------------------------------------------------------------------------------------------------------
@@ -105,8 +107,18 @@ export function parseSourceText(text: string): CreatorSourceParseResult {
 
 export function applicationToSourceText(application: A2Yaml): string {
     const body = yamlBodyFromApplication(application);
-    const bodyText = YAML.stringify(body, {nullStr: ""});
-    return `---\napplication: v2\n\n${bodyText}`;
+    const doc = new YAML.Document();
+    doc.contents = doc.createNode(body);
+
+    YAML.visit(doc.contents, {
+        Scalar(_, scalar) {
+            if (typeof scalar.value === "string" && scalar.value.includes("\n")) {
+                scalar.type = "BLOCK_LITERAL";
+            }
+        },
+    });
+
+    return `---\napplication: v2\n\n${doc.toString({nullStr: ""})}`;
 }
 
 function yamlBodyFromApplication(application: A2Yaml): Record<string, unknown> {

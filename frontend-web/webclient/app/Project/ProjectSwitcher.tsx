@@ -20,6 +20,7 @@ import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {Project} from ".";
 import {IconName} from "@/ui-components/Icon";
 import {Toggle} from "@/ui-components/Toggle";
+import {DataAttributes} from "@/Unstyled";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 
@@ -79,10 +80,10 @@ const ProjectSwitcherClass = injectStyle("project-switcher", k => `
     }
 `);
 
-export function ProjectSwitcher({managed, focusable}: {
+export function ProjectSwitcher({managed, focusable, ...dataAttributes}: {
     managed?: {setLocalProject: (project?: string) => void, initialProject?: string}
     focusable?: boolean;
-}): React.ReactNode {
+} & DataAttributes): React.ReactNode {
     const refresh = useRefresh();
     const [showHidden, setShowHidden] = React.useState(false);
 
@@ -235,6 +236,7 @@ export function ProjectSwitcher({managed, focusable}: {
         <Flex className={ProjectSwitcherClass} alignItems={"center"}
             data-component={"project-switcher"} data-focusable={focusable === true ? "true" : undefined}>
             <ClickableDropdown
+                {...dataAttributes}
                 trigger={
                     <div className={triggerClass} ref={switcherRef}>
                         <Truncate title={activeContext} fontSize={14} width="180px">{activeContext}</Truncate>

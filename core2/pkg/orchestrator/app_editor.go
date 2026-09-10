@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -231,15 +232,15 @@ func appEditorValidate(actor rpc.Actor, request orcapi.AppEditorValidateRequest)
 			errors = append(errors, appEditorError("RESERVED_NAME", "name", "This application name uses a reserved prefix", node))
 		}
 	} else if request.Kind == orcapi.AppEditorApplicationKindCustom {
-		customErrors, imageDigest, custom := appEditorValidateCustom(actor, source, request.Custom, node)
+		customErrors, imageReference, custom := appEditorValidateCustom(actor, source, request.Custom, node)
 		errors = append(errors, customErrors...)
 		if len(customErrors) == 0 {
 			application.Metadata.Origin = orcapi.CatalogOriginCustom
 			application.Metadata.PublishedToProject.Set(custom.PublishedToProject)
 			application.Metadata.FlavorName.Set(custom.FlavorName)
 			application.Metadata.Group.Metadata.Id = custom.GroupId
-			application.Invocation.Tool.Tool.Value.Description.Image = imageDigest
-			application.Invocation.Tool.Tool.Value.Description.Container = imageDigest
+			application.Invocation.Tool.Tool.Value.Description.Image = imageReference
+			application.Invocation.Tool.Tool.Value.Description.Container = imageReference
 			application.Invocation.Tool.Tool.Value.Description.SupportedProviders = []string{custom.ServiceProvider}
 		}
 		application.Metadata.Name = appEditorLogicalName(application.Metadata.Name)
@@ -263,6 +264,9 @@ func appEditorValidateCustom(
 	node *yaml.Node,
 ) ([]orcapi.AppEditorValidationError, string, orcapi.AppEditorCustomMetadata) {
 	var errors []orcapi.AppEditorValidationError
+	if coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories) != nil {
+		return []orcapi.AppEditorValidationError{appEditorError("FEATURE_NOT_ENABLED", "custom", "This feature is not enabled", node)}, "", orcapi.AppEditorCustomMetadata{}
+	}
 	if !metadata.Present {
 		return []orcapi.AppEditorValidationError{appEditorError("CUSTOM_METADATA_REQUIRED", "custom", "Custom placement metadata is required", node)}, "", orcapi.AppEditorCustomMetadata{}
 	}
@@ -286,12 +290,16 @@ func appEditorValidateCustom(
 	categoryAllowed := custom.CategoryId < 0 && category != nil && appCustomCategoryHasPermission(actor, category, orcapi.PermissionEdit)
 	groupAllowed := custom.GroupId < 0 && group != nil && appCustomBelongsToActorsWorkspace(actor, group.CreatedBy, group.Project)
 	versionAvailable := appCustomCache.AppKeys[appCustomApplicationKey(appCustomWorkspace(actor), source.Name, source.Version, custom.ServiceProvider)] == 0
-	flavorAvailable := groupAllowed && flavorValid && appCustomFlavorAvailable(appCustomWorkspace(actor), appCustomEffectiveGroup(group), custom.FlavorName)
+	flavorAvailable := groupAllowed && flavorValid && appCustomFlavorAvailable(appCustomWorkspace(actor), source.Name, group, custom.FlavorName)
 	appCustomCache.Mu.RUnlock()
-	if !categoryAllowed {
+	if custom.CategoryId == 0 {
+		errors = append(errors, appEditorError("CATEGORY_REQUIRED", "custom.categoryId", "A category must be selected", node))
+	} else if !categoryAllowed {
 		errors = append(errors, appEditorError("CATEGORY_EDIT_REQUIRED", "custom.categoryId", "Category EDIT permission is required", node))
 	}
-	if !groupAllowed {
+	if custom.GroupId == 0 {
+		errors = append(errors, appEditorError("GROUP_REQUIRED", "custom.groupId", "A group must be selected", node))
+	} else if !groupAllowed {
 		errors = append(errors, appEditorError("GROUP_NOT_AVAILABLE", "custom.groupId", "Group not found in the active workspace", node))
 	}
 	if !versionAvailable {
@@ -316,15 +324,15 @@ func appEditorValidateCustom(
 			errors = append(errors, appEditorError("STORAGE_ALLOCATION_REQUIRED", "custom.serviceProvider", "An active storage allocation is required at the provider", node))
 		}
 	}
-	imageDigest := ""
+	imageReference := ""
 	if len(errors) == 0 {
 		if validated, imageErr := applicationVariantValidateImage(actor, custom.ServiceProvider, source.Software.Container.Image, false, true); imageErr != nil {
 			errors = append(errors, appEditorError("IMAGE_INVALID", "software.image", imageErr.Why, node))
 		} else {
-			imageDigest = validated.ImageDigest
+			imageReference = validated.Image
 		}
 	}
-	return errors, imageDigest, custom
+	return errors, imageReference, custom
 }
 
 // Source retrieval and conversion
@@ -492,7 +500,7 @@ func appEditorRetrieveCustomSource(actor rpc.Actor, request orcapi.AppEditorRetr
 	category := appCustomCache.Categories[app.CategoryId]
 	allowed := category != nil && appCustomCanReadApplication(actor, app, category)
 	if request.Intent == orcapi.AppEditorSourceIntentEdit {
-		allowed = category != nil && appCustomCategoryHasPermission(actor, category, orcapi.PermissionEdit)
+		allowed = allowed && appCustomCategoryHasPermission(actor, category, orcapi.PermissionEdit)
 	}
 	source := app.Source
 	metadata := orcapi.AppEditorCustomMetadata{
@@ -843,7 +851,7 @@ func appEditorDecodeDefault[T any](raw json.RawMessage, result *util.Option[T]) 
 
 func appEditorEligibility(actor rpc.Actor) orcapi.AppEditorCustomEligibilityResponse {
 	result := orcapi.AppEditorCustomEligibilityResponse{
-		CanCreate:  appCustomCanCreateGroup(actor),
+		CanCreate:  appCustomCanCreateGroup(actor) && coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories) == nil,
 		CanPublish: actor.Project.Present,
 	}
 	providers := map[string]bool{}

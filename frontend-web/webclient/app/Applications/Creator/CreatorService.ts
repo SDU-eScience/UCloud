@@ -18,7 +18,7 @@ import {
 } from "@/Applications/Creator/Draft";
 import {applicationToSourceText, parseSourceText} from "@/Applications/Creator/SourceParser";
 import {templateApplicationForContext, templateCustomMetaForContext} from "@/Applications/Creator/Templates";
-import {A2Yaml} from "@/Applications/Creator/A2";
+import {A2Yaml} from "@/Applications/Creator/Draft";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {creatorConvertForkSource} from "@/Applications/Creator/ForkConversion";
 
@@ -52,7 +52,25 @@ export const creatorService: CreatorService = {
         }));
         const source = sourceKind === "custom" ? creatorSourceForEditor(response.source) : response.source;
         if (context.operation === "fork") {
-            const converted = creatorConvertForkSource(source, `${context.existingName ?? "application"}-fork`, "1.0");
+            const suggestedName = sourceKind === "custom"
+                ? context.existingName ?? "application"
+                : `${context.existingName ?? "application"}-fork`;
+            const converted = creatorConvertForkSource(
+                source,
+                suggestedName,
+                context.sourceApplicationKind === "custom" ? context.existingVersion ?? "1.0" : "1.0",
+            );
+            if (sourceKind === "custom" && response.custom) {
+                const original = customMetaFromResponse(response.custom);
+                converted.customMeta = {
+                    ...converted.customMeta,
+                    provider: original.provider,
+                    category: original.category,
+                    group: original.group,
+                    flavor: original.flavor,
+                    publishedToProject: original.publishedToProject,
+                };
+            }
             return {...converted};
         }
         const parsed = parseSourceText(source);

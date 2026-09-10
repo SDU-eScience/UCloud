@@ -24,15 +24,15 @@ import {
     creatorEditorOptions,
     ensureBashJinjaLanguage,
     ensureUcloudDarkTheme,
-} from "@/Applications/Creator/MonacoShared";
-import {
     registerInvocationProviders,
     setInvocationModelParameters,
-} from "@/Applications/Creator/InvocationAutoComplete";
+} from "@/Applications/Creator/InvocationMonaco";
 import {invocationLint} from "@/Applications/Creator/InvocationLinter";
 import type {InvocationParameters} from "@/Applications/Creator/InvocationScope";
 import {InvocationHelp} from "@/Applications/Creator/InvocationHelp";
 import {useMonaco} from "@/Editor/Editor";
+import {createKeyboardShortcut} from "@/UtilityFunctions";
+import {creatorRegisterCodeEditorFocus, CreatorShortcutControl} from "@/Applications/Creator/CreatorKeyboard";
 
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 
@@ -63,6 +63,13 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
     const propsRef = useRef(props);
     propsRef.current = props;
 
+    React.useEffect(() => creatorRegisterCodeEditorFocus(() => {
+        const ed = editorRef.current;
+        if (!ed) return;
+        if (propsRef.current.activeTab !== "invocation") return;
+        ed.focus();
+    }), []);
+
     useLayoutEffect(() => {
         const m = monaco;
         const node = containerRef.current;
@@ -89,6 +96,9 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
             wordWrap: "on",
         });
         editorRef.current = ed;
+        if (props.maximized) {
+            ed.focus();
+        }
 
         model.onDidChangeContent(() => {
             const value = model.getValue();
@@ -141,6 +151,7 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
         const ed = editorRef.current;
         if (!ed) return;
         ed.layout();
+        if (props.maximized) ed.focus();
     }, [props.maximized, props.activeTab]);
 
     useEffect(() => {
@@ -158,11 +169,15 @@ export function InvocationEditor(props: InvocationEditorProps): React.ReactNode 
             activeIndex={props.activeTab === "preview" ? 1 : props.activeTab === "help" ? 2 : 0}
             onTabChange={idx => props.onTabChange(idx === 1 ? "preview" : idx === 2 ? "help" : "invocation")}
             rightControls={
-                <IconButton
-                    icon={props.maximized ? "heroArrowsPointingIn" : "heroArrowsPointingOut"}
-                    tooltip={props.maximized ? "Minimize" : "Maximize"}
-                    onClick={props.onToggleMaximized}
-                />
+                <CreatorShortcutControl shortcut="I">
+                    <IconButton
+                        icon={props.maximized ? "heroArrowsPointingIn" : "heroArrowsPointingOut"}
+                        tooltip={props.maximized
+                            ? `Minimize (${createKeyboardShortcut("I", ["ctrl", "alt"])})`
+                            : `Maximize (${createKeyboardShortcut("I", ["ctrl", "alt"])})`}
+                        onClick={props.onToggleMaximized}
+                    />
+                </CreatorShortcutControl>
             }
         >
             <TabbedCardTab name="Invocation" icon="heroCodeBracket">

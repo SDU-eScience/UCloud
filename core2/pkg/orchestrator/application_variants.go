@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/anyascii/go"
+	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -130,13 +131,6 @@ func applicationVariantBase(actor rpc.Actor, requested orcapi.NameAndVersion) (o
 		return orcapi.Application{}, orcapi.NameAndVersion{}, 0, util.HttpErr(http.StatusBadRequest, "the base application must belong to a group")
 	}
 	return base, managedBase, group, nil
-}
-
-func applicationVariantTitleAvailable(workspace string, group AppGroupId, title string, except int64) bool {
-	if !appCustomFlavorAvailableForVariant(workspace, group, title) {
-		return false
-	}
-	return applicationVariantTitleAvailableOnly(workspace, group, title, except)
 }
 
 func applicationVariantTitleAvailableOnly(workspace string, group AppGroupId, title string, except int64) bool {
@@ -267,7 +261,7 @@ func applicationVariantReserve(actor rpc.Actor, requested orcapi.NameAndVersion,
 	workspace := project.GetOrDefault(actor.Username)
 	applicationVariantReservationMu.Lock()
 	defer applicationVariantReservationMu.Unlock()
-	if !applicationVariantTitleAvailable(workspace, group, title, 0) {
+	if !applicationVariantTitleAvailableOnly(workspace, group, title, 0) {
 		return nil, "", util.HttpErr(http.StatusConflict, "a flavor with this title already exists")
 	}
 	imageName := applicationVariantImageName(workspace, base.Metadata.Title, title)
@@ -359,8 +353,26 @@ func applicationVariantPersistFailure(id int64, failure string) {
 	})
 }
 
-// The first revision is not stored until provider completion.
-// Failed initial reservations can therefore be removed safely.
+func applicationVariantPersistPushFailure(id int64, failure string) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update app_store.application_variants
+				set failure = :failure, modified_at = now()
+				where
+					id = :id
+					and state = 'ACTIVE'
+					and coalesce(failure, '') <> 'PUSH_PENDING'
+			`,
+			db.Params{
+				"id":      id,
+				"failure": failure,
+			},
+		)
+	})
+}
+
 func applicationVariantDeleteInitial(id int64) bool {
 	_, deleted := db.NewTx2(func(tx *db.Transaction) (struct{ Id int64 }, bool) {
 		return db.Get[struct{ Id int64 }](
@@ -400,6 +412,13 @@ func applicationVariantSetFailure(id int64, failure string) {
 			applicationVariantPersistFailure(id, failure)
 			internal.Value.State = orcapi.ApplicationVariantStateFailed
 			internal.Value.Failure.Set(failure)
+		} else {
+			if failure == "PUSH_PENDING" || internal.Value.Failure.GetOrDefault("") == "PUSH_PENDING" {
+				internal.Mu.Unlock()
+				return
+			}
+			applicationVariantPersistPushFailure(id, failure)
+			internal.Value.Failure.Set(failure)
 		}
 		internal.Mu.Unlock()
 	}
@@ -434,6 +453,7 @@ func applicationVariantBeginPush(actor rpc.Actor, internal *internalApplicationV
 	if !updated {
 		return "", 0, false, nil
 	}
+	internal.Value.Failure.Set("PUSH_PENDING")
 	return internal.ImageName, internal.RevisionCount + 1, true, nil
 }
 
@@ -558,7 +578,10 @@ func applicationVariantBuildApplication(base orcapi.Application, variant orcapi.
 	result.Versions = nil
 	tool := &result.Invocation.Tool.Tool.Value.Description
 	tool.Info = orcapi.NameAndVersion{Name: name, Version: version}
-	tool.Image = variant.ImageDigest
+	tool.Image = variant.Image
+	if tool.Image == "" {
+		tool.Image = variant.ImageDigest
+	}
 	tool.SupportedProviders = []string{variant.Provider}
 	result.Invocation.Tool.NameAndVersion = tool.Info
 	return result
@@ -835,6 +858,10 @@ func applicationVariantValidateImage(actor rpc.Actor, provider, image string, re
 
 func initApplicationVariantRpc() {
 	orcapi.JobsCreateApplicationVariant.Handler(func(info rpc.RequestInfo, request orcapi.JobsCreateApplicationVariantRequest) (fndapi.Task, *util.HttpError) {
+		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureContainerRepositories); err != nil {
+			return fndapi.Task{}, err
+		}
+
 		job, _, _, err := ResourceRetrieveEx[orcapi.Job](
 			info.Actor, jobType, ResourceParseId(request.JobId), orcapi.PermissionEdit, orcapi.ResourceFlagsIncludeAll(),
 		)
@@ -909,6 +936,10 @@ func initApplicationVariantRpc() {
 	})
 
 	orcapi.ApplicationVariantsCreate.Handler(func(info rpc.RequestInfo, request orcapi.ApplicationVariantCreateRequest) (orcapi.ApplicationVariant, *util.HttpError) {
+		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureContainerRepositories); err != nil {
+			return orcapi.ApplicationVariant{}, err
+		}
+
 		base, _, _, err := applicationVariantBase(info.Actor, request.BaseApplication)
 		if err != nil {
 			return orcapi.ApplicationVariant{}, err
@@ -981,6 +1012,10 @@ func initApplicationVariantRpc() {
 	})
 
 	orcapi.ApplicationVariantsUpdate.Handler(func(info rpc.RequestInfo, request orcapi.ApplicationVariantUpdateRequest) (orcapi.ApplicationVariant, *util.HttpError) {
+		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureContainerRepositories); err != nil {
+			return orcapi.ApplicationVariant{}, err
+		}
+
 		internal, ok := applicationVariantRetrieve(request.Id)
 		if !ok {
 			return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusNotFound, "flavor not found")
@@ -994,12 +1029,15 @@ func initApplicationVariantRpc() {
 			if err := util.ValidateStringE(&request.Title.Value, "title", 0); err != nil {
 				return orcapi.ApplicationVariant{}, err
 			}
-			if !applicationVariantTitleAvailable(applicationVariantWorkspaceKey(variant), baseGroup, request.Title.Value, variant.Id) {
+			if !applicationVariantTitleAvailableOnly(applicationVariantWorkspaceKey(variant), baseGroup, request.Title.Value, variant.Id) {
 				return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusConflict, "a flavor with this title already exists")
 			}
 			variant.Title = request.Title.Value
 		}
 		if request.PublishedToProject.Present {
+			if request.PublishedToProject.Value && !variant.Project.Present {
+				return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusBadRequest, "a personal variant cannot be published to a project")
+			}
 			variant.PublishedToProject = request.PublishedToProject.Value
 		}
 		validatedImage := util.OptNone[orcapi.ApplicationVariantValidateImageResponse]()
@@ -1010,13 +1048,17 @@ func initApplicationVariantRpc() {
 			}
 			validatedImage.Set(validated)
 		} else if request.PublishedToProject.Present && request.PublishedToProject.Value {
-			if _, err := applicationVariantValidateImage(info.Actor, variant.Provider, variant.ImageDigest, true, false); err != nil {
+			publishedImage := variant.Image
+			if publishedImage == "" {
+				publishedImage = variant.ImageDigest
+			}
+			if _, err := applicationVariantValidateImage(info.Actor, variant.Provider, publishedImage, true, false); err != nil {
 				return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusBadRequest, "the image is not available to all project members")
 			}
 		}
 		if request.Title.Present {
 			applicationVariantReservationMu.Lock()
-			if !applicationVariantTitleAvailable(applicationVariantWorkspaceKey(variant), baseGroup, variant.Title, variant.Id) {
+			if !applicationVariantTitleAvailableOnly(applicationVariantWorkspaceKey(variant), baseGroup, variant.Title, variant.Id) {
 				applicationVariantReservationMu.Unlock()
 				return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusConflict, "a flavor with this title already exists")
 			}
@@ -1092,6 +1134,10 @@ func initApplicationVariantRpc() {
 	})
 
 	orcapi.ApplicationVariantsDelete.Handler(func(info rpc.RequestInfo, request orcapi.FindApplicationVariant) (util.Empty, *util.HttpError) {
+		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureContainerRepositories); err != nil {
+			return util.Empty{}, err
+		}
+
 		internal, ok := applicationVariantRetrieve(request.Id)
 		if !ok {
 			return util.Empty{}, util.HttpErr(http.StatusNotFound, "flavor not found")

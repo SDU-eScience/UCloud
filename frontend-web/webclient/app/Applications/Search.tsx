@@ -77,6 +77,7 @@ const SearchResults: React.FunctionComponent = () => {
                                     name={app.metadata.name}
                                     fullWidth
                                     applicationName={app.metadata.name}
+                                    groupId={app.metadata.groupId ?? app.metadata.group?.metadata.id}
                                 />
                             ))}
                         </AppGrid>

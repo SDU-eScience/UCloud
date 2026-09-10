@@ -44,6 +44,7 @@ export const IconButton: React.FunctionComponent<{
     ariaExpanded?: boolean;
     compact?: boolean;
     hoverColor?: ThemeColor | `#${string}`;
+    navigationField?: boolean;
 }> = props => {
     const color = props.color ?? "textSecondary";
     const hoverColor = props.hoverColor === undefined ? undefined :
@@ -53,6 +54,7 @@ export const IconButton: React.FunctionComponent<{
             aria-label={typeof props.tooltip === "string" ? props.tooltip : undefined}
             aria-expanded={props.ariaExpanded}
             data-compact={props.compact}
+            data-navigation-field={props.navigationField ? true : undefined}
             style={hoverColor ? {"--icon-button-hover": hoverColor} as React.CSSProperties : undefined}>
             <Icon name={props.icon} color={color} noDefaultFill={props.noDefaultFill} />
         </button>

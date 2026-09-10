@@ -8,6 +8,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/cfgutil"
+	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -77,6 +78,8 @@ type ConfigurationFormat struct {
 	SlackHook util.Option[string]
 
 	RequireMfa bool
+
+	Features []string
 
 	Branding                  Branding `yaml:"branding"`
 	BrandingImageAbsolutePath map[string]string
@@ -313,6 +316,21 @@ func Parse(configDir string) bool {
 	slackHook := cfgutil.OptionalChildText(filePath, document, "slackHook", &success)
 	if slackHook != "" {
 		cfg.SlackHook.Set(slackHook)
+	}
+
+	features, _ := cfgutil.GetChildOrNil(filePath, document, "features")
+	if features != nil {
+		var featureNames []string
+		cfgutil.Decode(filePath, features, &featureNames, &success)
+		for _, feature := range featureNames {
+			if !fndapi.FeatureIsValid(feature) {
+				cfgutil.ReportError(filePath, features, "unknown feature: %v", feature)
+				success = false
+			}
+		}
+		cfg.Features = featureNames
+	} else if util.DevelopmentModeEnabled() {
+		cfg.Features = append([]string(nil), fndapi.FeatureOptions...)
 	}
 
 	// SLA section

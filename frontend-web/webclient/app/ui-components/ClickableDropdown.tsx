@@ -121,7 +121,15 @@ function ClickableDropdown<T>({
         announceDropdownOpen(instanceIdRef.current);
         onOpeningTriggerClick?.();
         if (!isControlled) setOpen(true);
-    }, [onOpeningTriggerClick]);
+        if (props.focusable) {
+            window.requestAnimationFrame(() => {
+                if (!divRef.current?.contains(document.activeElement) &&
+                    document.activeElement !== dropdownRef.current) {
+                    dropdownRef.current?.focus();
+                }
+            });
+        }
+    }, [onOpeningTriggerClick, props.focusable]);
 
     useEffect(() => {
         const onDropdownOpened = (event: Event) => {
@@ -172,6 +180,7 @@ function ClickableDropdown<T>({
 
         if (event.key === "Escape" && open) {
             close();
+            focusAfterSelect();
         } else {
             props.onKeyDown?.(event)
         }
@@ -324,6 +333,21 @@ function ClickableDropdown<T>({
             ariaExpanded={props.focusable ? open : undefined}
             autoFocus={props.autoFocus}
             onKeyDown={event => {
+                if (event.key === "Escape" && open) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    close();
+                    focusAfterSelect();
+                    return;
+                }
+                const navigationKey = props.arrowkeyNavigationKey;
+                const arrowKeyPressed = event.key === "ArrowUp" || event.key === "ArrowDown";
+                if (navigationKey && open && arrowKeyPressed && event.target === event.currentTarget) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    _onKeyDown(event, divRef, counter, navigationKey, props.hoverColor ?? "primaryLight", props.onSelect);
+                    return;
+                }
                 if (!props.focusable || event.target !== event.currentTarget) return;
                 if (event.key !== "Enter" && event.key !== " ") return;
                 if (event.metaKey || event.ctrlKey || event.altKey) return;
@@ -370,7 +394,7 @@ export default ClickableDropdown;
 
 
 function _onKeyDown(
-    e: KeyboardEvent,
+    e: KeyboardEvent | React.KeyboardEvent,
     wrapper: React.RefObject<Element | null>,
     index: React.RefObject<number>,
     entryKey: string,
@@ -393,6 +417,7 @@ function _onKeyDown(
     // have used the keys yet, so -1 can be the active index.
     index.current = clamp(index.current, -1, listEntries.length - 1);
     if (listEntries.length === 0) return;
+    if (listEntries.length === 1 && (isUp || isDown)) return;
 
     const oldIndex = index.current;
     if (isDown) {
@@ -408,6 +433,7 @@ function _onKeyDown(
     }
 
     if (isUp || isDown) {
+        if (index.current === oldIndex) return;
         if (oldIndex !== -1) listEntries.item(oldIndex)["style"].backgroundColor = "";
         listEntries.item(index.current)["style"].backgroundColor = `var(--${hoverColor})`;
         listEntries.item(index.current).scrollIntoView({behavior: "instant", block: "nearest"});

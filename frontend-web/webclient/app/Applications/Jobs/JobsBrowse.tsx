@@ -7,7 +7,6 @@ import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
 import {
     bulkRequestOf,
     doNothing, extractErrorMessage,
-    isLightThemeStored,
     stopPropagationAndPreventDefault,
     timestampUnixMs
 } from "@/UtilityFunctions";
@@ -33,7 +32,7 @@ import {appendOperationsToActions, Operation} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {jobCache} from "./View";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import * as AppStore from "@/Applications/AppStoreApi";
+import {appendAppIcon} from "@/Applications/AppLogoCache";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {getStoredProject} from "@/Project/ReduxState";
 import {filterOption} from "@/ui-components/ResourceBrowserFilters";
@@ -207,10 +206,18 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 });
 
                 browser.on("renderRow", (job, row, dims) => {
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                    const [icon] = ResourceBrowser.defaultIconRenderer();
                     icon.style.minWidth = "20px"
                     icon.style.minHeight = "20px"
                     row.title.append(icon);
+                    appendAppIcon(
+                        icon,
+                        job.specification.application.name,
+                        job.status.resolvedApplication?.metadata.groupId ??
+                            job.status.resolvedApplication?.metadata.group?.metadata.id,
+                        30,
+                        job.specification.name,
+                    );
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, row));
                     if (!simpleView) {
@@ -280,13 +287,6 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                             }
                         }
                     }
-
-                    setIcon(AppStore.retrieveAppLogo({
-                        name: job.specification.application.name,
-                        darkMode: !isLightThemeStored(),
-                        includeText: false,
-                        placeTextUnderLogo: false,
-                    }));
 
                     if (opts?.selection) {
                         const button = browser.defaultButtonRenderer(opts.selection, job);

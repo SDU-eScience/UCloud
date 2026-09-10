@@ -1,5 +1,5 @@
 import * as YAML from "yaml";
-import {A2Parameter, A2Yaml} from "@/Applications/Creator/A2";
+import {A2Parameter, A2Yaml} from "@/Applications/Creator/Draft";
 import {CreatorCustomMeta} from "@/Applications/Creator/Draft";
 import {applicationToSourceText, parseSourceText} from "@/Applications/Creator/SourceParser";
 import {draftCustomDerivedPresentation} from "@/Applications/Creator/DraftOperations";

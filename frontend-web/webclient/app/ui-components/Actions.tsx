@@ -809,6 +809,7 @@ function ActionBarButton<T, C>({entry, props, split = false}: {
                 actionText={entry.text}
                 icon={entry.action.icon}
                 iconSize={appearance?.iconSize}
+                iconSpacing={appearance?.iconSpacing}
                 color={appearance?.color ?? "errorMain"}
                 disabled={disabled}
                 onAction={async () => entry.action.onClick(props.selected, props.callbacks)}

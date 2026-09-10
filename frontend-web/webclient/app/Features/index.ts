@@ -1,4 +1,5 @@
 import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
+import {backendFeatureEnabled} from "@/Features/backend";
 
 export enum Feature {
     EXTERNAL_LOGIN_UCLOUD_CLI,
@@ -47,6 +48,7 @@ interface FeatureConfig {
     feature: Feature;
     showWithoutFlag?: Environment[];
     showWithFlag?: Environment[];
+    useBackend?: boolean;
 }
 
 const featureMap: Record<string, FeatureConfig> = {
@@ -82,8 +84,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "container-repositories": {
         feature: Feature.CONTAINER_REPOSITORIES,
-        showWithoutFlag: allDevEnvironments,
-        showWithFlag: allEnvironments,
+        useBackend: true,
     }
 };
 
@@ -104,6 +105,8 @@ export function hasFeature(feature: Feature): boolean {
     const env = getCurrentEnvironment();
     for (const [key, config] of Object.entries(featureMap)) {
         if (config.feature !== feature) continue;
+
+        if (config.useBackend === true) return backendFeatureEnabled(key);
 
         const withFlag = config.showWithFlag ?? [];
         const withoutFlag = config.showWithoutFlag ?? [];

@@ -9,7 +9,7 @@
 // Users enter and see only the logical application name. The blank custom template uses an empty
 // name; backend source retrieval strips the prefix before returning the draft.
 
-import {A2Yaml} from "@/Applications/Creator/A2";
+import {A2Yaml} from "@/Applications/Creator/Draft";
 import {
     CreatorOperationContext,
     CreatorService,

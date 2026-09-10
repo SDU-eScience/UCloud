@@ -3,6 +3,7 @@ package orchestrator
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"runtime"
 	"slices"
@@ -11,8 +12,12 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf16"
+	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
+	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -32,18 +37,13 @@ import (
 // ---------------------------------------------------------------------------------------------------------------------
 // A custom application references one custom group resource and one custom category resource. These resources exist
 // before application creation and are stored separately from managed catalog objects. This separation prevents user
-// actions from changing managed metadata or membership.
+// actions from changing managed metadata or membership. Custom groups and categories are always workspace-owned
+// objects.
 //
 // Custom group and category IDs are negative in the API and positive in the database. Managed IDs remain positive.
 // This sign convention lets existing catalog responses refer to both kinds without introducing another ID type.
 // Application names use the reserved `custom-` prefix, which prevents collisions with managed applications. A custom
 // application is unique by workspace, name, version, and provider.
-//
-// Groups and categories can be independent objects or overlays backed by managed objects. A backed object stores a
-// metadata snapshot but presents the positive managed ID and `UCLOUD` origin while its backing object exists. The
-// managed title, description, logo, and other display metadata always win. The overlay contributes only workspace
-// membership and access. If the backing object disappears, the overlay atomically becomes an independent custom object
-// and uses its snapshot. Applications and ACLs continue to refer to the same database row.
 //
 // Access model
 // ---------------------------------------------------------------------------------------------------------------------
@@ -68,20 +68,19 @@ import (
 // that the caller can pull it, and that the repository belongs to the active workspace. The provider returns a digest,
 // which is stored in the normalized application to make later execution stable.
 //
-// Flavor names are unique among custom-origin flavors in the same workspace and effective group. Application variants
-// share this namespace. Managed flavors do not reserve names because clients display managed and workspace-owned
-// flavors in separate sections.
+// Flavor names are unique among custom-origin flavors in the same workspace and group. Application variants use the
+// managed catalog namespace and do not share the custom flavor namespace because a custom group never resolves to a
+// managed group ID.
 //
 // Catalog merge
 // ---------------------------------------------------------------------------------------------------------------------
 // The managed catalog is always the base. Read paths select custom rows from the actor's active workspace, apply
-// category access, publication, and provider discovery, and then merge the remaining applications into managed-backed
-// groups and categories. Independent custom objects are appended after managed objects. Existing request flags still
-// control application expansion and removal of empty groups or categories.
+// category access, publication, and provider discovery, and then append the remaining groups, categories, and
+// applications after managed objects. Existing request flags still control application expansion and removal of empty
+// groups or categories.
 //
-// Managed-backed objects keep managed IDs and `UCLOUD` origin in catalog responses. Independent objects and custom
-// applications use `CUSTOM` origin. Clients must use the origin field, not an ID sign or name prefix, when they present
-// ownership. The negative ID remains necessary for management APIs, where callers operate on the overlay itself.
+// Custom objects and applications use `CUSTOM` origin and negative IDs in catalog responses. Clients must use the
+// origin field, not an ID sign or name prefix, when they present ownership.
 //
 // Persistence and deletion
 // ---------------------------------------------------------------------------------------------------------------------
@@ -113,9 +112,9 @@ type appCustomGroup struct {
 	CreatedBy   string
 	Project     util.Option[string]
 	CreatedAt   time.Time
-	BackedBy    util.Option[AppGroupId]
 	Title       string
 	Description string
+	Logo        orcapi.ApplicationGroupLogo
 }
 
 type appCustomCategory struct {
@@ -123,7 +122,6 @@ type appCustomCategory struct {
 	CreatedBy   string
 	Project     util.Option[string]
 	CreatedAt   time.Time
-	BackedBy    util.Option[AppCategoryId]
 	Title       string
 	Description string
 	Acl         []orcapi.ResourceAclEntry
@@ -243,22 +241,21 @@ func appCustomCanReadApplication(actor rpc.Actor, app *appCustomApplication, cat
 
 func appCustomLoad() {
 	type groupRow struct {
-		Id                  int64
-		CreatedBy           string
-		ProjectId           sql.NullString
-		CreatedAt           time.Time
-		BackedByGroup       sql.NullInt64
-		SnapshotTitle       string
-		SnapshotDescription string
+		Id          int64
+		CreatedBy   string
+		ProjectId   sql.NullString
+		CreatedAt   time.Time
+		Title       string
+		Description string
+		Logo        sql.NullString
 	}
 	type categoryRow struct {
-		Id                  int64
-		CreatedBy           string
-		ProjectId           sql.NullString
-		CreatedAt           time.Time
-		BackedByCategory    sql.NullInt64
-		SnapshotTitle       string
-		SnapshotDescription string
+		Id          int64
+		CreatedBy   string
+		ProjectId   sql.NullString
+		CreatedAt   time.Time
+		Title       string
+		Description string
 	}
 	type aclRow struct {
 		CategoryId     int64
@@ -292,17 +289,23 @@ func appCustomLoad() {
 		groups = db.Select[groupRow](
 			tx,
 			`
-				select id, created_by, project_id, created_at, backed_by_group_id as backed_by_group,
-					snapshot_title, snapshot_description
-				from app_store.custom_application_groups
+				select
+					id,
+					created_by,
+					project_id,
+					created_at,
+					title,
+					description,
+					logo
+				from
+					app_store.custom_application_groups
 			`,
 			db.Params{},
 		)
 		categories = db.Select[categoryRow](
 			tx,
 			`
-				select id, created_by, project_id, created_at, backed_by_category_id as backed_by_category,
-					snapshot_title, snapshot_description
+				select id, created_by, project_id, created_at, title, description
 				from app_store.custom_application_categories
 			`,
 			db.Params{},
@@ -330,32 +333,32 @@ func appCustomLoad() {
 	loadedGroups := map[int64]*appCustomGroup{}
 	loadedCategories := map[int64]*appCustomCategory{}
 	for _, row := range groups {
-		group := &appCustomGroup{
+		logo := appCustomDefaultLogo(row.Title)
+		if row.Logo.Valid {
+			var stored orcapi.ApplicationGroupLogo
+			if json.Unmarshal([]byte(row.Logo.String), &stored) == nil && appCustomValidateLogo(stored) == nil {
+				logo = stored
+			}
+		}
+		loadedGroups[row.Id] = &appCustomGroup{
 			Id:          row.Id,
 			CreatedBy:   row.CreatedBy,
 			Project:     util.SqlNullStringToOpt(row.ProjectId),
 			CreatedAt:   row.CreatedAt,
-			Title:       row.SnapshotTitle,
-			Description: row.SnapshotDescription,
+			Title:       row.Title,
+			Description: row.Description,
+			Logo:        logo,
 		}
-		if row.BackedByGroup.Valid {
-			group.BackedBy.Set(AppGroupId(row.BackedByGroup.Int64))
-		}
-		loadedGroups[row.Id] = group
 	}
 	for _, row := range categories {
-		category := &appCustomCategory{
+		loadedCategories[row.Id] = &appCustomCategory{
 			Id:          row.Id,
 			CreatedBy:   row.CreatedBy,
 			Project:     util.SqlNullStringToOpt(row.ProjectId),
 			CreatedAt:   row.CreatedAt,
-			Title:       row.SnapshotTitle,
-			Description: row.SnapshotDescription,
+			Title:       row.Title,
+			Description: row.Description,
 		}
-		if row.BackedByCategory.Valid {
-			category.BackedBy.Set(AppCategoryId(row.BackedByCategory.Int64))
-		}
-		loadedCategories[row.Id] = category
 	}
 	for _, row := range acls {
 		if category := loadedCategories[row.CategoryId]; category != nil {
@@ -501,62 +504,14 @@ func appCustomListenForProjectGroupUpdates() {
 	}
 }
 
-func appCustomMaterializeGroup(backing AppGroupId) {
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`
-				update app_store.custom_application_groups
-				set backed_by_group_id = null
-				where backed_by_group_id = :backing
-			`,
-			db.Params{
-				"backing": int64(backing),
-			},
-		)
-	})
-
-	appCustomCache.Mu.Lock()
-	defer appCustomCache.Mu.Unlock()
-	for _, group := range appCustomCache.Groups {
-		if group.BackedBy.Present && group.BackedBy.Value == backing {
-			group.BackedBy.Clear()
-		}
-	}
-}
-
-func appCustomMaterializeCategory(backing AppCategoryId) {
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`
-				update app_store.custom_application_categories
-				set backed_by_category_id = null
-				where backed_by_category_id = :backing
-			`,
-			db.Params{
-				"backing": int64(backing),
-			},
-		)
-	})
-
-	appCustomCache.Mu.Lock()
-	defer appCustomCache.Mu.Unlock()
-	for _, category := range appCustomCache.Categories {
-		if category.BackedBy.Present && category.BackedBy.Value == backing {
-			category.BackedBy.Clear()
-		}
-	}
-}
-
 // Group, category, and ACL management
 // =====================================================================================================================
-// Management APIs operate on negative custom resource IDs, including managed-backed overlays. Group creation requires
-// `EDIT` on a category in the active workspace, but the new group is not automatically tied to that category.
-// Category creation and ACL updates require workspace administration. ACL writes lock referenced project groups to
-// close deletion races.
+// Management APIs operate on negative custom resource IDs. Group creation requires `EDIT` on a category in the active
+// workspace, but the new group is not automatically tied to that category. Category creation and ACL updates require
+// workspace administration. ACL writes lock referenced project groups to close deletion races.
 
 func appCustomGroupToApi(group *appCustomGroup) orcapi.AppCatalogCustomGroup {
+	logo := group.Logo
 	return orcapi.AppCatalogCustomGroup{
 		Id:        -int(group.Id),
 		CreatedAt: fndapi.Timestamp(group.CreatedAt),
@@ -564,10 +519,10 @@ func appCustomGroupToApi(group *appCustomGroup) orcapi.AppCatalogCustomGroup {
 			CreatedBy: group.CreatedBy,
 			Project:   group.Project,
 		},
-		BackedBy: util.OptMap(group.BackedBy, func(value AppGroupId) int { return int(value) }),
 		Specification: orcapi.AppCatalogCustomGroupSpecification{
 			Title:       group.Title,
 			Description: group.Description,
+			Logo:        &logo,
 		},
 	}
 }
@@ -586,7 +541,6 @@ func appCustomCategoryToApi(actor rpc.Actor, category *appCustomCategory) orcapi
 			CreatedBy: category.CreatedBy,
 			Project:   category.Project,
 		},
-		BackedBy: util.OptMap(category.BackedBy, func(value AppCategoryId) int { return int(value) }),
 		Specification: orcapi.AppCatalogCustomCategorySpecification{
 			Title:       category.Title,
 			Description: category.Description,
@@ -609,6 +563,97 @@ func appCustomValidateSpec(title, description string) *util.HttpError {
 	return nil
 }
 
+var appCustomLogoShapes = []string{"circle", "rounded-square", "hexagon", "diamond", "shield"}
+var appCustomLogoBorders = []string{"none", "thin", "thick", "double"}
+var appCustomLogoColors = []string{"auto", "gold", "blue", "violet", "green", "cyan", "rose"}
+var appCustomLogoPaletteColors = appCustomLogoColors[1:]
+var appCustomLogoDirections = []string{"top-right", "bottom-right", "bottom-left", "top-left"}
+var appCustomLogoSizes = []string{"small", "medium", "large"}
+var appCustomLogoIcons = []string{
+	"academic-cap", "beaker", "bolt", "calculator", "chart-bar", "circle-stack", "cloud", "code-bracket",
+	"command-line", "cpu-chip", "cube", "document", "folder", "globe", "photo", "rocket", "server", "sparkles", "wrench",
+	"gpu",
+}
+
+func appCustomLogoHash(title string) uint32 {
+	hash := uint32(5381)
+	characters := utf16.Encode([]rune(title))
+	for i := len(characters) - 1; i >= 0; i-- {
+		hash = hash*33 ^ uint32(characters[i])
+	}
+	return hash
+}
+
+func appCustomLogoNext(value uint32) uint32 {
+	return value*1664525 + 1013904223
+}
+
+func appCustomDefaultLogo(title string) orcapi.ApplicationGroupLogo {
+	value := appCustomLogoHash(title)
+	next := func(length int) int {
+		value = appCustomLogoNext(value)
+		return int(value % uint32(length))
+	}
+	colorA := appCustomLogoPaletteColors[next(len(appCustomLogoPaletteColors))]
+	colorB := appCustomLogoPaletteColors[next(len(appCustomLogoPaletteColors))]
+	if colorA == colorB {
+		colorB = appCustomLogoPaletteColors[(slices.Index(appCustomLogoPaletteColors, colorA)+1)%len(appCustomLogoPaletteColors)]
+	}
+	return orcapi.ApplicationGroupLogo{
+		Version: 1,
+		Shape:   appCustomLogoShapes[next(len(appCustomLogoShapes))],
+		Border: orcapi.ApplicationGroupLogoBorder{
+			Style: appCustomLogoBorders[next(len(appCustomLogoBorders))],
+			Color: appCustomLogoPaletteColors[next(len(appCustomLogoPaletteColors))],
+		},
+		Fill: orcapi.ApplicationGroupLogoFill{
+			Type:      []string{"solid", "gradient"}[next(2)],
+			ColorA:    colorA,
+			ColorB:    colorB,
+			Direction: appCustomLogoDirections[next(len(appCustomLogoDirections))],
+		},
+		Content: orcapi.ApplicationGroupLogoContent{
+			Type:  "icon",
+			Value: appCustomLogoIcons[next(len(appCustomLogoIcons)-1)],
+			Size:  appCustomLogoSizes[next(len(appCustomLogoSizes))],
+			Color: "auto",
+		},
+	}
+}
+
+func appCustomValidateLogo(logo orcapi.ApplicationGroupLogo) *util.HttpError {
+	if logo.Version != 1 || !slices.Contains(appCustomLogoShapes, logo.Shape) {
+		return util.HttpErr(http.StatusBadRequest, "invalid logo shape or version")
+	}
+	if !slices.Contains(appCustomLogoBorders, logo.Border.Style) || !slices.Contains(appCustomLogoColors, logo.Border.Color) {
+		return util.HttpErr(http.StatusBadRequest, "invalid logo border")
+	}
+	if (logo.Fill.Type != "solid" && logo.Fill.Type != "gradient") ||
+		!slices.Contains(appCustomLogoColors, logo.Fill.ColorA) ||
+		!slices.Contains(appCustomLogoColors, logo.Fill.ColorB) ||
+		!slices.Contains(appCustomLogoDirections, logo.Fill.Direction) {
+		return util.HttpErr(http.StatusBadRequest, "invalid logo fill")
+	}
+	validContentColor := logo.Content.Color == "auto" || logo.Content.Color == "light" || logo.Content.Color == "dark" ||
+		slices.Contains(appCustomLogoColors, logo.Content.Color)
+	if !slices.Contains(appCustomLogoSizes, logo.Content.Size) || !validContentColor {
+		return util.HttpErr(http.StatusBadRequest, "invalid logo content style")
+	}
+	if logo.Content.Type == "icon" && slices.Contains(appCustomLogoIcons, logo.Content.Value) {
+		return nil
+	}
+	if logo.Content.Type == "text" && strings.TrimSpace(logo.Content.Value) == logo.Content.Value &&
+		utf8.RuneCountInString(logo.Content.Value) >= 1 && utf8.RuneCountInString(logo.Content.Value) <= 4 {
+		for _, character := range logo.Content.Value {
+			if unicode.IsControl(character) {
+				return util.HttpErr(http.StatusBadRequest, "invalid logo content")
+			}
+		}
+		return nil
+	}
+	return util.HttpErr(http.StatusBadRequest, "invalid logo content")
+}
+
 func appCustomCanCreateGroup(actor rpc.Actor) bool {
 	if appCustomIsAdmin(actor) {
 		return true
@@ -629,6 +674,9 @@ func appCustomCanCreateGroup(actor rpc.Actor) bool {
 }
 
 func appCustomCanReadGroup(actor rpc.Actor, group *appCustomGroup) bool {
+	if !appCustomBelongsToActorsWorkspace(actor, group.CreatedBy, group.Project) {
+		return false
+	}
 	if appCustomIsAdmin(actor) {
 		return true
 	}
@@ -645,36 +693,26 @@ func appCustomCanReadGroup(actor rpc.Actor, group *appCustomGroup) bool {
 }
 
 func appCustomCreateGroup(actor rpc.Actor, request orcapi.AppCatalogCreateCustomGroupRequest) (fndapi.FindByIntId, *util.HttpError) {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return fndapi.FindByIntId{}, err
+	}
+
 	if !appCustomCanCreateGroup(actor) {
 		return fndapi.FindByIntId{}, util.HttpErr(http.StatusForbidden, "permission denied")
 	}
-	var backedBy util.Option[AppGroupId]
-	var title, description string
-	switch request.Kind {
-	case orcapi.AppCatalogCustomResourceKindManaged:
-		if !request.Id.Present || request.Id.Value <= 0 || request.Specification.Present {
-			return fndapi.FindByIntId{}, util.HttpErr(http.StatusBadRequest, "invalid managed group")
-		}
-		group, _, ok := AppRetrieveGroup(actor, AppGroupId(request.Id.Value), AppDiscoveryAll, AppCatalogIncludeApps)
-		if !ok {
-			return fndapi.FindByIntId{}, util.HttpErr(http.StatusBadRequest, "invalid managed group")
-		}
-		backedBy.Set(AppGroupId(request.Id.Value))
-		title, description = group.Specification.Title, group.Specification.Description
-	case orcapi.AppCatalogCustomResourceKindCustom:
-		if !request.Specification.Present || request.Id.Present {
-			return fndapi.FindByIntId{}, util.HttpErr(http.StatusBadRequest, "invalid custom group")
-		}
-		title, description = strings.TrimSpace(request.Specification.Value.Title), request.Specification.Value.Description
-		if err := appCustomValidateSpec(title, description); err != nil {
-			return fndapi.FindByIntId{}, err
-		}
-	default:
-		return fndapi.FindByIntId{}, util.HttpErr(http.StatusBadRequest, "invalid group kind")
+	title, description := strings.TrimSpace(request.Specification.Title), request.Specification.Description
+	if err := appCustomValidateSpec(title, description); err != nil {
+		return fndapi.FindByIntId{}, err
 	}
+	logo := appCustomDefaultLogo(title)
+	if request.Specification.Logo != nil {
+		logo = *request.Specification.Logo
+	}
+	if err := appCustomValidateLogo(logo); err != nil {
+		return fndapi.FindByIntId{}, err
+	}
+	logoJson, _ := json.Marshal(logo)
 	project := util.OptMap(actor.Project, func(value rpc.ProjectId) string { return string(value) })
-	isCustom := request.Kind == orcapi.AppCatalogCustomResourceKindCustom
-	backedBySql := util.OptMap(backedBy, func(value AppGroupId) int64 { return int64(value) })
 	created, ok := db.NewTx2(func(tx *db.Transaction) (struct {
 		Id        int64
 		CreatedAt time.Time
@@ -686,19 +724,18 @@ func appCustomCreateGroup(actor rpc.Actor, request orcapi.AppCatalogCreateCustom
 			tx,
 			`
 				insert into app_store.custom_application_groups(
-					created_by, project_id, is_custom, backed_by_group_id, snapshot_title, snapshot_description
+					created_by, project_id, title, description, logo
 				) values (
-					:created_by, :project, :is_custom, :backed_by, :title, :description
+					:created_by, :project, :title, :description, cast(:logo as jsonb)
 				) on conflict do nothing
 				returning id, created_at
 			`,
 			db.Params{
 				"created_by":  actor.Username,
 				"project":     project.Sql(),
-				"is_custom":   isCustom,
-				"backed_by":   backedBySql.Sql(),
 				"title":       title,
 				"description": description,
+				"logo":        string(logoJson),
 			},
 		)
 	})
@@ -711,12 +748,116 @@ func appCustomCreateGroup(actor rpc.Actor, request orcapi.AppCatalogCreateCustom
 		CreatedBy:   actor.Username,
 		Project:     project,
 		CreatedAt:   created.CreatedAt,
-		BackedBy:    backedBy,
 		Title:       title,
 		Description: description,
+		Logo:        logo,
 	}
 	appCustomCache.Mu.Unlock()
 	return fndapi.FindByIntId{Id: -int(created.Id)}, nil
+}
+
+func appCustomUpdateGroup(actor rpc.Actor, request orcapi.AppCatalogUpdateCustomGroupRequest) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
+	if request.Id >= 0 {
+		return util.HttpErr(http.StatusNotFound, "group not found")
+	}
+	title := strings.TrimSpace(request.NewTitle)
+	description := request.NewDescription
+	if err := appCustomValidateSpec(title, description); err != nil {
+		return err
+	}
+	id := int64(-request.Id)
+	appCustomCache.Mu.Lock()
+	defer appCustomCache.Mu.Unlock()
+	group := appCustomCache.Groups[id]
+	canEdit := group != nil && appCustomBelongsToActorsWorkspace(actor, group.CreatedBy, group.Project) &&
+		(appCustomIsAdmin(actor) || group.CreatedBy == actor.Username)
+	if !canEdit {
+		return util.HttpErr(http.StatusNotFound, "group not found")
+	}
+	workspace := appCustomWorkspaceEx(group.CreatedBy, group.Project)
+	if strings.ToLower(group.Title) != strings.ToLower(title) {
+		for _, other := range appCustomCache.Groups {
+			sameWorkspace := appCustomWorkspaceEx(other.CreatedBy, other.Project) == workspace
+			if other.Id != id && sameWorkspace && strings.EqualFold(other.Title, title) {
+				return util.HttpErr(http.StatusConflict, "group already exists")
+			}
+		}
+	}
+	_, updated := db.NewTx2(func(tx *db.Transaction) (struct{ Id int64 }, bool) {
+		return db.Get[struct{ Id int64 }](
+			tx,
+			`
+				update app_store.custom_application_groups
+				set
+					title = :title,
+					description = :description
+				where id = :id
+				returning id
+			`,
+			db.Params{
+				"id":          id,
+				"title":       title,
+				"description": description,
+			},
+		)
+	})
+	if !updated {
+		return util.HttpErr(http.StatusNotFound, "group not found")
+	}
+	if group = appCustomCache.Groups[id]; group != nil {
+		group.Title = title
+		group.Description = description
+	}
+	return nil
+}
+
+func appCustomUpdateGroupLogo(actor rpc.Actor, request orcapi.AppCatalogUpdateCustomGroupLogoRequest) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
+	if request.Id >= 0 {
+		return util.HttpErr(http.StatusNotFound, "group not found")
+	}
+	if err := appCustomValidateLogo(request.Logo); err != nil {
+		return err
+	}
+	id := int64(-request.Id)
+	appCustomCache.Mu.Lock()
+	defer appCustomCache.Mu.Unlock()
+	group := appCustomCache.Groups[id]
+	canEdit := group != nil && appCustomBelongsToActorsWorkspace(actor, group.CreatedBy, group.Project) &&
+		(appCustomIsAdmin(actor) || group.CreatedBy == actor.Username)
+	if !canEdit {
+		return util.HttpErr(http.StatusNotFound, "group not found")
+	}
+	logoJson, _ := json.Marshal(request.Logo)
+	_, updated := db.NewTx2(func(tx *db.Transaction) (struct{ Id int64 }, bool) {
+		return db.Get[struct{ Id int64 }](
+			tx,
+			`
+				update app_store.custom_application_groups
+				set logo = cast(:logo as jsonb)
+				where id = :id
+				returning id
+			`,
+			db.Params{
+				"id":   id,
+				"logo": string(logoJson),
+			},
+		)
+	})
+	if !updated {
+		return util.HttpErr(http.StatusNotFound, "group not found")
+	}
+	if group = appCustomCache.Groups[id]; group != nil {
+		group.Logo = request.Logo
+	}
+	return nil
 }
 
 func appCustomValidateAcl(actor rpc.Actor, entries []orcapi.ResourceAclEntry) ([]orcapi.ResourceAclEntry, *util.HttpError) {
@@ -762,6 +903,10 @@ func appCustomProjectGroupInProject(groupId, projectId string) bool {
 }
 
 func appCustomCreateCategory(actor rpc.Actor, request orcapi.AppCatalogCreateCustomCategoryRequest) (fndapi.FindByIntId, *util.HttpError) {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return fndapi.FindByIntId{}, err
+	}
+
 	if !appCustomIsAdmin(actor) {
 		return fndapi.FindByIntId{}, util.HttpErr(http.StatusForbidden, "permission denied")
 	}
@@ -769,34 +914,11 @@ func appCustomCreateCategory(actor rpc.Actor, request orcapi.AppCatalogCreateCus
 	if aclErr != nil {
 		return fndapi.FindByIntId{}, aclErr
 	}
-	var backedBy util.Option[AppCategoryId]
-	var title, description string
-	switch request.Kind {
-	case orcapi.AppCatalogCustomResourceKindManaged:
-		if !request.Id.Present || request.Id.Value <= 0 || request.Specification.Present {
-			return fndapi.FindByIntId{}, util.HttpErr(http.StatusBadRequest, "invalid managed category")
-		}
-		category, ok := AppCatalogRetrieveCategory(actor, AppCategoryId(request.Id.Value), AppDiscoveryAll, AppCatalogIncludeGroups)
-		if !ok {
-			return fndapi.FindByIntId{}, util.HttpErr(http.StatusBadRequest, "invalid managed category")
-		}
-		backedBy.Set(AppCategoryId(request.Id.Value))
-		title = category.Specification.Title
-		description = category.Specification.Description.GetOrDefault("")
-	case orcapi.AppCatalogCustomResourceKindCustom:
-		if !request.Specification.Present || request.Id.Present {
-			return fndapi.FindByIntId{}, util.HttpErr(http.StatusBadRequest, "invalid custom category")
-		}
-		title, description = strings.TrimSpace(request.Specification.Value.Title), request.Specification.Value.Description
-		if err := appCustomValidateSpec(title, description); err != nil {
-			return fndapi.FindByIntId{}, err
-		}
-	default:
-		return fndapi.FindByIntId{}, util.HttpErr(http.StatusBadRequest, "invalid category kind")
+	title, description := strings.TrimSpace(request.Specification.Title), request.Specification.Description
+	if err := appCustomValidateSpec(title, description); err != nil {
+		return fndapi.FindByIntId{}, err
 	}
 	project := util.OptMap(actor.Project, func(value rpc.ProjectId) string { return string(value) })
-	isCustom := request.Kind == orcapi.AppCatalogCustomResourceKindCustom
-	backedBySql := util.OptMap(backedBy, func(value AppCategoryId) int64 { return int64(value) })
 	created, ok := db.NewTx2(func(tx *db.Transaction) (struct {
 		Id        int64
 		CreatedAt time.Time
@@ -814,17 +936,15 @@ func appCustomCreateCategory(actor rpc.Actor, request orcapi.AppCatalogCreateCus
 			tx,
 			`
 				insert into app_store.custom_application_categories(
-					created_by, project_id, is_custom, backed_by_category_id, snapshot_title, snapshot_description
+					created_by, project_id, title, description
 				) values (
-					:created_by, :project, :is_custom, :backed_by, :title, :description
+					:created_by, :project, :title, :description
 				) on conflict do nothing
 				returning id, created_at
 			`,
 			db.Params{
 				"created_by":  actor.Username,
 				"project":     project.Sql(),
-				"is_custom":   isCustom,
-				"backed_by":   backedBySql.Sql(),
 				"title":       title,
 				"description": description,
 			},
@@ -843,7 +963,6 @@ func appCustomCreateCategory(actor rpc.Actor, request orcapi.AppCatalogCreateCus
 		CreatedBy:   actor.Username,
 		Project:     project,
 		CreatedAt:   created.CreatedAt,
-		BackedBy:    backedBy,
 		Title:       title,
 		Description: description,
 		Acl:         acl,
@@ -919,6 +1038,10 @@ func appCustomValidateAclGroups(tx *db.Transaction, project string, entries []or
 }
 
 func appCustomUpdateCategoryAcl(actor rpc.Actor, request orcapi.UpdatedAcl) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
 	if !appCustomIsAdmin(actor) {
 		return util.HttpErr(http.StatusForbidden, "permission denied")
 	}
@@ -1040,10 +1163,6 @@ func appCustomValidateStoredImage(actor rpc.Actor, provider, image string) *util
 	return err
 }
 
-func appCustomEffectiveGroup(group *appCustomGroup) AppGroupId {
-	return group.BackedBy.GetOrDefault(AppGroupId(-group.Id))
-}
-
 func appCustomApplicationToApi(actor rpc.Actor, app *appCustomApplication) orcapi.Application {
 	result := app.Application
 	result.Favorite.Set(false)
@@ -1053,32 +1172,21 @@ func appCustomApplicationToApi(actor rpc.Actor, app *appCustomApplication) orcap
 	stars.Mu.RUnlock()
 	result.Favorite.Set(isStarred)
 	if group := appCustomCache.Groups[app.GroupId]; group != nil {
-		result.Metadata.Group.Metadata.Id = int(appCustomEffectiveGroup(group))
-		if group.BackedBy.Present {
-			result.Metadata.Group.Metadata.Origin = orcapi.CatalogOriginUCloud
-		} else {
-			result.Metadata.Group.Metadata.Origin = orcapi.CatalogOriginCustom
-		}
+		result.Metadata.Group.Metadata.Id = -int(group.Id)
+		result.Metadata.Group.Metadata.Origin = orcapi.CatalogOriginCustom
 	}
 	return result
 }
 
-func appCustomFlavorAvailable(workspace string, group AppGroupId, flavor string) bool {
+func appCustomFlavorAvailable(workspace, name string, group *appCustomGroup, flavor string) bool {
 	for _, app := range appCustomCache.Apps {
-		customGroup := appCustomCache.Groups[app.GroupId]
-		if customGroup != nil && appCustomWorkspaceEx(app.CreatedBy, app.Project) == workspace && appCustomEffectiveGroup(customGroup) == group && strings.EqualFold(app.FlavorName, flavor) {
-			return false
+		if appCustomWorkspaceEx(app.CreatedBy, app.Project) != workspace || app.GroupId != group.Id {
+			continue
 		}
-	}
-	return applicationVariantTitleAvailableOnly(workspace, group, flavor, 0)
-}
-
-func appCustomFlavorAvailableForVariant(workspace string, group AppGroupId, flavor string) bool {
-	appCustomCache.Mu.RLock()
-	defer appCustomCache.Mu.RUnlock()
-	for _, app := range appCustomCache.Apps {
-		customGroup := appCustomCache.Groups[app.GroupId]
-		if customGroup != nil && appCustomWorkspaceEx(app.CreatedBy, app.Project) == workspace && appCustomEffectiveGroup(customGroup) == group && strings.EqualFold(app.FlavorName, flavor) {
+		if app.Application.Metadata.Name == name {
+			continue
+		}
+		if strings.EqualFold(app.FlavorName, flavor) {
 			return false
 		}
 	}
@@ -1090,6 +1198,10 @@ func appCustomNormalizeFlavorName(flavorName *string) *util.HttpError {
 }
 
 func appCustomCreateApplication(actor rpc.Actor, request orcapi.AppCatalogCreateCustomApplicationRequest) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
 	if !strings.HasPrefix(request.A2Yaml.Name, "custom-") {
 		request.A2Yaml.Name = "custom-" + request.A2Yaml.Name
 	}
@@ -1144,13 +1256,13 @@ func appCustomCreateApplication(actor rpc.Actor, request orcapi.AppCatalogCreate
 		return util.HttpErr(http.StatusBadRequest, "group not found in the active workspace")
 	}
 	workspace := appCustomWorkspace(actor)
-	if !appCustomFlavorAvailable(workspace, appCustomEffectiveGroup(group), request.FlavorName) {
+	if !appCustomFlavorAvailable(workspace, request.Name, group, request.FlavorName) {
 		return util.HttpErr(http.StatusConflict, "a flavor with this name already exists")
 	}
 
-	request.Software.Container.Image = validated.ImageDigest
-	application.Invocation.Tool.Tool.Value.Description.Image = validated.ImageDigest
-	application.Invocation.Tool.Tool.Value.Description.Container = validated.ImageDigest
+	request.Software.Container.Image = validated.Image
+	application.Invocation.Tool.Tool.Value.Description.Image = validated.Image
+	application.Invocation.Tool.Tool.Value.Description.Container = validated.Image
 	source := appEditorMarshalSource(request.A2Yaml)
 	project := util.OptMap(actor.Project, func(value rpc.ProjectId) string { return string(value) })
 	created, ok := db.NewTx2(func(tx *db.Transaction) (struct {
@@ -1186,7 +1298,7 @@ func appCustomCreateApplication(actor rpc.Actor, request orcapi.AppCatalogCreate
 		)
 	})
 	if !ok {
-		return util.HttpErr(http.StatusConflict, "application already exists")
+		return util.HttpErr(http.StatusConflict, "an application with this version or flavor name already exists")
 	}
 	application.Metadata.Origin = orcapi.CatalogOriginCustom
 	application.Metadata.PublishedToProject.Set(request.PublishedToProject)
@@ -1216,13 +1328,13 @@ func appCustomCreateApplication(actor rpc.Actor, request orcapi.AppCatalogCreate
 func appCustomRetrieveApplication(actor rpc.Actor, name, version, provider string, discovery AppDiscovery, flags AppCatalogFlags) (orcapi.Application, bool) {
 	appCustomCache.Mu.RLock()
 	defer appCustomCache.Mu.RUnlock()
+	var requested *appCustomApplication
 	var candidates []*appCustomApplication
 	for _, app := range appCustomCache.Apps {
 		nameDoesNotMatch := app.Application.Metadata.Name != name
-		versionDoesNotMatch := version != "" && app.Application.Metadata.Version != version
 		providerDoesNotMatch := provider != "" && app.Provider != provider
 		outsideWorkspace := !appCustomBelongsToActorsWorkspace(actor, app.CreatedBy, app.Project)
-		if nameDoesNotMatch || versionDoesNotMatch || providerDoesNotMatch || outsideWorkspace {
+		if nameDoesNotMatch || providerDoesNotMatch || outsideWorkspace {
 			continue
 		}
 		category := appCustomCache.Categories[app.CategoryId]
@@ -1235,43 +1347,44 @@ func appCustomRetrieveApplication(actor rpc.Actor, name, version, provider strin
 		if discovery.Mode == orcapi.CatalogDiscoveryModeAvailable && !slices.Contains(appRelevantProvidersForUser(actor.Username, actor.Project), app.Provider) {
 			continue
 		}
+		if version != "" && app.Application.Metadata.Version == version {
+			requested = app
+		}
 		candidates = append(candidates, app)
+	}
+	if version != "" && requested == nil {
+		return orcapi.Application{}, false
 	}
 	if len(candidates) == 0 {
 		return orcapi.Application{}, false
 	}
 	sort.Slice(candidates, func(i, j int) bool { return candidates[i].CreatedAt.After(candidates[j].CreatedAt) })
-	result := appCustomApplicationToApi(actor, candidates[0])
-	if version == "" {
-		for _, candidate := range candidates {
-			result.Versions = append(result.Versions, candidate.Application.Metadata.Version)
-		}
+	selected := candidates[0]
+	if requested != nil {
+		selected = requested
+	}
+	result := appCustomApplicationToApi(actor, selected)
+	for _, candidate := range candidates {
+		result.Versions = append(result.Versions, candidate.Application.Metadata.Version)
 	}
 	if flags&(AppCatalogIncludeGroups|AppCatalogIncludeCategories) != 0 {
-		customGroup := appCustomCache.Groups[candidates[0].GroupId]
+		customGroup := appCustomCache.Groups[selected.GroupId]
 		if customGroup != nil {
-			if customGroup.BackedBy.Present {
-				group, _ := appCustomManagedGroup(actor, customGroup.BackedBy.Value, discovery, 0)
-				result.Metadata.Group = group
-			} else {
-				result.Metadata.Group = orcapi.ApplicationGroup{
-					Metadata: orcapi.ApplicationGroupMetadata{
-						Id:     -int(customGroup.Id),
-						Origin: orcapi.CatalogOriginCustom,
-					},
-					Specification: orcapi.ApplicationGroupSpecification{
-						Title:       customGroup.Title,
-						Description: customGroup.Description,
-					},
-				}
+			logo := customGroup.Logo
+			result.Metadata.Group = orcapi.ApplicationGroup{
+				Metadata: orcapi.ApplicationGroupMetadata{
+					Id:     -int(customGroup.Id),
+					Origin: orcapi.CatalogOriginCustom,
+				},
+				Specification: orcapi.ApplicationGroupSpecification{
+					Title:       customGroup.Title,
+					Description: customGroup.Description,
+					Logo:        &logo,
+				},
 			}
 			if flags&AppCatalogIncludeCategories != 0 {
-				if category := appCustomCache.Categories[candidates[0].CategoryId]; category != nil {
-					categoryId := AppCategoryId(-category.Id)
-					if category.BackedBy.Present {
-						categoryId = category.BackedBy.Value
-					}
-					result.Metadata.Group.Specification.Categories = []int{int(categoryId)}
+				if category := appCustomCache.Categories[selected.CategoryId]; category != nil {
+					result.Metadata.Group.Specification.Categories = []int{-int(category.Id)}
 				}
 			}
 		}
@@ -1280,6 +1393,10 @@ func appCustomRetrieveApplication(actor rpc.Actor, name, version, provider strin
 }
 
 func appCustomUpdateApplication(actor rpc.Actor, request orcapi.AppCatalogUpdateCustomApplicationRequest) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
 	appCustomCache.Mu.RLock()
 	var target *appCustomApplication
 	for _, app := range appCustomCache.Apps {
@@ -1349,6 +1466,10 @@ func appCustomUpdateApplication(actor rpc.Actor, request orcapi.AppCatalogUpdate
 }
 
 func appCustomDeleteApplication(actor rpc.Actor, request orcapi.AppCatalogDeleteCustomApplicationRequest) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
 	appCustomCache.Mu.RLock()
 	var target *appCustomApplication
 	for _, app := range appCustomCache.Apps {
@@ -1446,6 +1567,10 @@ func appCustomRetrieveApplicationForWorkspace(workspace, name, version, provider
 // insert produces a conflict instead of leaving a dangling reference.
 
 func appCustomDeleteGroup(actor rpc.Actor, apiId int) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
 	if apiId >= 0 {
 		return util.HttpErr(http.StatusBadRequest, "invalid group ID")
 	}
@@ -1493,6 +1618,10 @@ func appCustomDeleteGroup(actor rpc.Actor, apiId int) *util.HttpError {
 }
 
 func appCustomDeleteCategory(actor rpc.Actor, apiId int) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
 	if apiId >= 0 || !appCustomIsAdmin(actor) {
 		return util.HttpErr(http.StatusForbidden, "permission denied")
 	}
@@ -1536,17 +1665,17 @@ func appCustomDeleteCategory(actor rpc.Actor, apiId int) *util.HttpError {
 
 // Managed catalog integration
 // =====================================================================================================================
-// These functions provide the custom overlay used by app_catalog.go. They preserve managed metadata for backed
-// objects, add only visible custom memberships, and use normal discovery modes for provider filtering. Category and
-// group filtering removes structures that would otherwise reveal inaccessible applications.
+// These functions provide the custom catalog used by app_catalog.go. They append only visible custom memberships and
+// use normal discovery modes for provider filtering.
 
 func appCustomRetrieveGroupForCatalog(actor rpc.Actor, id AppGroupId, discovery AppDiscovery, flags AppCatalogFlags) (orcapi.ApplicationGroup, bool) {
 	appCustomCache.Mu.RLock()
 	defer appCustomCache.Mu.RUnlock()
 	custom := appCustomCache.Groups[int64(-id)]
-	if id >= 0 || custom == nil || !appCustomBelongsToActorsWorkspace(actor, custom.CreatedBy, custom.Project) || custom.BackedBy.Present {
+	if id >= 0 || custom == nil || !appCustomBelongsToActorsWorkspace(actor, custom.CreatedBy, custom.Project) {
 		return orcapi.ApplicationGroup{}, false
 	}
+	logo := custom.Logo
 	result := orcapi.ApplicationGroup{
 		Metadata: orcapi.ApplicationGroupMetadata{
 			Id:     int(id),
@@ -1559,14 +1688,30 @@ func appCustomRetrieveGroupForCatalog(actor rpc.Actor, id AppGroupId, discovery 
 				Light: map[int]int{},
 				Dark:  map[int]int{},
 			},
+			Logo: &logo,
 		},
 	}
 	if flags&AppCatalogIncludeApps != 0 {
+		newestByName := map[string]*appCustomApplication{}
 		for _, app := range appCustomCache.Apps {
 			category := appCustomCache.Categories[app.CategoryId]
-			if app.GroupId == custom.Id && category != nil && appCustomCanReadApplication(actor, app, category) && appCustomDiscoveryAllows(actor, app, discovery) {
-				result.Status.Applications = append(result.Status.Applications, appCustomApplicationToApi(actor, app))
+			if app.GroupId != custom.Id || category == nil || !appCustomCanReadApplication(actor, app, category) || !appCustomDiscoveryAllows(actor, app, discovery) {
+				continue
 			}
+			name := app.Application.Metadata.Name
+			current := newestByName[name]
+			if current == nil || app.CreatedAt.After(current.CreatedAt) {
+				newestByName[name] = app
+			}
+		}
+		for _, app := range newestByName {
+			result.Status.Applications = append(result.Status.Applications, appCustomApplicationToApi(actor, app))
+		}
+		slices.SortFunc(result.Status.Applications, func(a, b orcapi.Application) int {
+			return strings.Compare(a.Metadata.FlavorName.GetOrDefault(a.Metadata.Title), b.Metadata.FlavorName.GetOrDefault(b.Metadata.Title))
+		})
+		if len(result.Status.Applications) == 1 {
+			result.Specification.DefaultFlavor = result.Status.Applications[0].Metadata.Name
 		}
 	}
 	if flags&AppCatalogIncludeCategories != 0 {
@@ -1576,11 +1721,7 @@ func appCustomRetrieveGroupForCatalog(actor rpc.Actor, id AppGroupId, discovery 
 			if app.GroupId != custom.Id || category == nil || !appCustomCanReadApplication(actor, app, category) {
 				continue
 			}
-			categoryId := -int(category.Id)
-			if category.BackedBy.Present {
-				categoryId = int(category.BackedBy.Value)
-			}
-			categories[categoryId] = true
+			categories[-int(category.Id)] = true
 		}
 		for categoryId := range categories {
 			result.Specification.Categories = append(result.Specification.Categories, categoryId)
@@ -1603,82 +1744,12 @@ func appCustomDiscoveryAllows(actor rpc.Actor, app *appCustomApplication, discov
 	return true
 }
 
-func appCustomManagedGroup(actor rpc.Actor, id AppGroupId, discovery AppDiscovery, flags AppCatalogFlags) (orcapi.ApplicationGroup, bool) {
-	group, ok := appRetrieveGroup(id)
-	if !ok {
-		return orcapi.ApplicationGroup{}, false
-	}
-	group.Mu.RLock()
-	result := orcapi.ApplicationGroup{
-		Metadata: orcapi.ApplicationGroupMetadata{
-			Id:     int(id),
-			Origin: orcapi.CatalogOriginUCloud,
-		},
-		Specification: orcapi.ApplicationGroupSpecification{
-			Title:         group.Title,
-			Description:   group.Description,
-			DefaultFlavor: group.DefaultName,
-			LogoHasText:   group.LogoHasText,
-			ColorReplacement: orcapi.ColorReplacements{
-				Light: group.ColorRemappingLight,
-				Dark:  group.ColorRemappingDark,
-			},
-		},
-	}
-	items := append([]string(nil), group.Items...)
-	group.Mu.RUnlock()
-	if flags&AppCatalogIncludeApps != 0 {
-		for _, name := range items {
-			if app, found := AppRetrieveNewest(actor, name, discovery, flags&AppCatalogIncludeVersionNumbers); found {
-				result.Status.Applications = append(result.Status.Applications, app)
-			}
-		}
-	}
-	return result, true
-}
-
-func appCustomAppendToManagedGroup(actor rpc.Actor, id AppGroupId, discovery AppDiscovery, result *orcapi.ApplicationGroup) {
-	appCustomCache.Mu.RLock()
-	defer appCustomCache.Mu.RUnlock()
-	for _, group := range appCustomCache.Groups {
-		if !group.BackedBy.Present || group.BackedBy.Value != id || !appCustomBelongsToActorsWorkspace(actor, group.CreatedBy, group.Project) {
-			continue
-		}
-		for _, app := range appCustomCache.Apps {
-			category := appCustomCache.Categories[app.CategoryId]
-			if app.GroupId == group.Id && category != nil && appCustomCanReadApplication(actor, app, category) && appCustomDiscoveryAllows(actor, app, discovery) {
-				result.Status.Applications = append(result.Status.Applications, appCustomApplicationToApi(actor, app))
-			}
-		}
-	}
-}
-
-func appCustomFilterGroupForCategory(actor rpc.Actor, categoryId AppCategoryId, group *orcapi.ApplicationGroup) {
-	appCustomCache.Mu.RLock()
-	defer appCustomCache.Mu.RUnlock()
-	group.Status.Applications = slices.DeleteFunc(group.Status.Applications, func(application orcapi.Application) bool {
-		if application.Metadata.Origin != orcapi.CatalogOriginCustom || application.Metadata.Variant.Present {
-			return false
-		}
-		for _, custom := range appCustomCache.Apps {
-			if custom.Application.Metadata.Name != application.Metadata.Name || custom.Application.Metadata.Version != application.Metadata.Version ||
-				!slices.Contains(application.Invocation.Tool.Tool.Value.Description.SupportedProviders, custom.Provider) ||
-				!appCustomBelongsToActorsWorkspace(actor, custom.CreatedBy, custom.Project) {
-				continue
-			}
-			category := appCustomCache.Categories[custom.CategoryId]
-			return category == nil || !category.BackedBy.Present || category.BackedBy.Value != categoryId
-		}
-		return true
-	})
-}
-
 func appCustomCategories(actor rpc.Actor, discovery AppDiscovery, flags AppCatalogFlags) []orcapi.ApplicationCategory {
 	appCustomCache.Mu.RLock()
 	defer appCustomCache.Mu.RUnlock()
 	var result []orcapi.ApplicationCategory
 	for _, category := range appCustomCache.Categories {
-		if category.BackedBy.Present || !appCustomCategoryHasPermission(actor, category, orcapi.PermissionRead) {
+		if !appCustomCategoryHasPermission(actor, category, orcapi.PermissionRead) {
 			continue
 		}
 		apiCategory := orcapi.ApplicationCategory{
@@ -1703,42 +1774,32 @@ func appCustomCategories(actor rpc.Actor, discovery AppDiscovery, flags AppCatal
 				if group == nil {
 					continue
 				}
-				var apiGroup orcapi.ApplicationGroup
-				if group.BackedBy.Present {
-					managed, ok := appCustomManagedGroup(actor, group.BackedBy.Value, discovery, flags|AppCatalogIncludeApps)
-					if !ok {
-						continue
-					}
-					apiGroup = managed
-					for _, app := range appCustomCache.Apps {
-						if app.GroupId == group.Id && app.CategoryId == category.Id && appCustomCanReadApplication(actor, app, category) && appCustomDiscoveryAllows(actor, app, discovery) {
-							apiGroup.Status.Applications = append(apiGroup.Status.Applications, appCustomApplicationToApi(actor, app))
-						}
-					}
-				} else {
-					apiGroup = orcapi.ApplicationGroup{
-						Metadata: orcapi.ApplicationGroupMetadata{
-							Id:     -int(group.Id),
-							Origin: orcapi.CatalogOriginCustom,
+				logo := group.Logo
+				apiGroup := orcapi.ApplicationGroup{
+					Metadata: orcapi.ApplicationGroupMetadata{
+						Id:     -int(group.Id),
+						Origin: orcapi.CatalogOriginCustom,
+					},
+					Specification: orcapi.ApplicationGroupSpecification{
+						Title:       group.Title,
+						Description: group.Description,
+						ColorReplacement: orcapi.ColorReplacements{
+							Light: map[int]int{},
+							Dark:  map[int]int{},
 						},
-						Specification: orcapi.ApplicationGroupSpecification{
-							Title:       group.Title,
-							Description: group.Description,
-							ColorReplacement: orcapi.ColorReplacements{
-								Light: map[int]int{},
-								Dark:  map[int]int{},
-							},
-						},
-					}
-					for _, app := range appCustomCache.Apps {
-						if app.GroupId == group.Id && app.CategoryId == category.Id && appCustomCanReadApplication(actor, app, category) && appCustomDiscoveryAllows(actor, app, discovery) {
-							apiGroup.Status.Applications = append(apiGroup.Status.Applications, appCustomApplicationToApi(actor, app))
-						}
+						Logo: &logo,
+					},
+				}
+				for _, app := range appCustomCache.Apps {
+					if app.GroupId == group.Id && app.CategoryId == category.Id && appCustomCanReadApplication(actor, app, category) && appCustomDiscoveryAllows(actor, app, discovery) {
+						apiGroup.Status.Applications = append(apiGroup.Status.Applications, appCustomApplicationToApi(actor, app))
 					}
 				}
 				if len(apiGroup.Status.Applications) != 0 {
 					if flags&AppCatalogIncludeApps == 0 {
 						apiGroup.Status.Applications = util.NonNilSlice[orcapi.Application](nil)
+					} else if len(apiGroup.Status.Applications) == 1 {
+						apiGroup.Specification.DefaultFlavor = apiGroup.Status.Applications[0].Metadata.Name
 					}
 					apiCategory.Status.Groups = append(apiCategory.Status.Groups, apiGroup)
 				}
@@ -1752,63 +1813,6 @@ func appCustomCategories(actor rpc.Actor, discovery AppDiscovery, flags AppCatal
 	return result
 }
 
-func appCustomAppendToManagedCategory(actor rpc.Actor, id AppCategoryId, discovery AppDiscovery, flags AppCatalogFlags, result *orcapi.ApplicationCategory) {
-	if flags&AppCatalogIncludeGroups == 0 {
-		return
-	}
-	appCustomCache.Mu.RLock()
-	defer appCustomCache.Mu.RUnlock()
-	for _, category := range appCustomCache.Categories {
-		if !category.BackedBy.Present || category.BackedBy.Value != id || !appCustomCategoryHasPermission(actor, category, orcapi.PermissionRead) {
-			continue
-		}
-		seen := map[int]bool{}
-		for _, group := range result.Status.Groups {
-			seen[group.Metadata.Id] = true
-		}
-		for _, app := range appCustomCache.Apps {
-			if app.CategoryId != category.Id || !appCustomCanReadApplication(actor, app, category) || !appCustomDiscoveryAllows(actor, app, discovery) {
-				continue
-			}
-			group := appCustomCache.Groups[app.GroupId]
-			if group == nil {
-				continue
-			}
-			groupId := int(appCustomEffectiveGroup(group))
-			if seen[groupId] {
-				continue
-			}
-			seen[groupId] = true
-			var apiGroup orcapi.ApplicationGroup
-			if group.BackedBy.Present {
-				apiGroup, _ = appCustomManagedGroup(actor, group.BackedBy.Value, discovery, flags|AppCatalogIncludeApps)
-			} else {
-				apiGroup = orcapi.ApplicationGroup{
-					Metadata: orcapi.ApplicationGroupMetadata{
-						Id:     -int(group.Id),
-						Origin: orcapi.CatalogOriginCustom,
-					},
-					Specification: orcapi.ApplicationGroupSpecification{
-						Title:       group.Title,
-						Description: group.Description,
-					},
-				}
-			}
-			for _, groupApp := range appCustomCache.Apps {
-				if groupApp.GroupId == group.Id && groupApp.CategoryId == category.Id && appCustomCanReadApplication(actor, groupApp, category) && appCustomDiscoveryAllows(actor, groupApp, discovery) {
-					apiGroup.Status.Applications = append(apiGroup.Status.Applications, appCustomApplicationToApi(actor, groupApp))
-				}
-			}
-			if len(apiGroup.Status.Applications) != 0 {
-				if flags&AppCatalogIncludeApps == 0 {
-					apiGroup.Status.Applications = util.NonNilSlice[orcapi.Application](nil)
-				}
-				result.Status.Groups = append(result.Status.Groups, apiGroup)
-			}
-		}
-	}
-}
-
 func appCustomSearch(actor rpc.Actor, terms []string, discovery AppDiscovery) []orcapi.Application {
 	available := map[string]bool{}
 	if discovery.Mode == orcapi.CatalogDiscoveryModeAvailable {
@@ -1816,7 +1820,7 @@ func appCustomSearch(actor rpc.Actor, terms []string, discovery AppDiscovery) []
 			available[provider] = true
 		}
 	}
-	groupIds := map[AppGroupId]bool{}
+	groupIds := map[int64]bool{}
 	appCustomCache.Mu.RLock()
 	for _, group := range appCustomCache.Groups {
 		if !appCustomBelongsToActorsWorkspace(actor, group.CreatedBy, group.Project) {
@@ -1847,19 +1851,50 @@ func appCustomSearch(actor rpc.Actor, terms []string, discovery AppDiscovery) []
 			}
 		}
 		if matches {
-			groupIds[appCustomEffectiveGroup(group)] = true
+			groupIds[group.Id] = true
 		}
 	}
 	appCustomCache.Mu.RUnlock()
 
 	var result []orcapi.Application
 	for id := range groupIds {
-		group, _, ok := AppRetrieveGroup(actor, id, discovery, AppCatalogIncludeApps)
+		group, _, ok := AppRetrieveGroup(actor, AppGroupId(-id), discovery, AppCatalogIncludeApps)
 		if ok && len(group.Status.Applications) != 0 {
 			result = append(result, group.Status.Applications[0])
 		}
 	}
 	return result
+}
+
+func appCustomRetrieveLogo(actor rpc.Actor, request orcapi.AppCatalogRetrieveCustomLogoRequest) (orcapi.ApplicationGroupLogo, *util.HttpError) {
+	appCustomCache.Mu.RLock()
+	defer appCustomCache.Mu.RUnlock()
+	if request.GroupId < 0 {
+		group := appCustomCache.Groups[int64(-request.GroupId)]
+		if group != nil && appCustomBelongsToActorsWorkspace(actor, group.CreatedBy, group.Project) &&
+			(appCustomIsAdmin(actor) || group.CreatedBy == actor.Username || appCustomCanReadGroup(actor, group)) {
+			return group.Logo, nil
+		}
+	}
+	if request.ApplicationName != "" {
+		var newest *appCustomApplication
+		for _, app := range appCustomCache.Apps {
+			if app.Application.Metadata.Name != request.ApplicationName || !appCustomBelongsToActorsWorkspace(actor, app.CreatedBy, app.Project) {
+				continue
+			}
+			category := appCustomCache.Categories[app.CategoryId]
+			if category != nil && appCustomCanReadApplication(actor, app, category) &&
+				(newest == nil || app.CreatedAt.After(newest.CreatedAt) || app.CreatedAt.Equal(newest.CreatedAt) && app.Id > newest.Id) {
+				newest = app
+			}
+		}
+		if newest != nil {
+			if group := appCustomCache.Groups[newest.GroupId]; group != nil {
+				return group.Logo, nil
+			}
+		}
+	}
+	return orcapi.ApplicationGroupLogo{}, util.HttpErr(http.StatusNotFound, "logo not found")
 }
 
 // RPC registration
@@ -1921,6 +1956,15 @@ func appCustomInitRpc() {
 	})
 	orcapi.AppsDeleteCustomGroup.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
 		return util.Empty{}, appCustomDeleteGroup(info.Actor, request.Id)
+	})
+	orcapi.AppsUpdateCustomGroupLogo.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateCustomGroupLogoRequest) (util.Empty, *util.HttpError) {
+		return util.Empty{}, appCustomUpdateGroupLogo(info.Actor, request)
+	})
+	orcapi.AppsUpdateCustomGroup.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogUpdateCustomGroupRequest) (util.Empty, *util.HttpError) {
+		return util.Empty{}, appCustomUpdateGroup(info.Actor, request)
+	})
+	orcapi.AppsRetrieveCustomLogo.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogRetrieveCustomLogoRequest) (orcapi.ApplicationGroupLogo, *util.HttpError) {
+		return appCustomRetrieveLogo(info.Actor, request)
 	})
 	orcapi.AppsCreateCustomCategory.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogCreateCustomCategoryRequest) (fndapi.FindByIntId, *util.HttpError) {
 		return appCustomCreateCategory(info.Actor, request)

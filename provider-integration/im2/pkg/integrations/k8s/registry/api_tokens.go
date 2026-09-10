@@ -44,8 +44,8 @@ func ApiTokensCreateForPull(owner orcapi.ResourceOwner, lifetime time.Duration) 
 	return apiTokensCreateShortLived(
 		owner,
 		lifetime,
-		"Flavor image pull",
-		"Short-lived token used to pull a flavor image.",
+		"Application image pull",
+		"Short-lived token used to pull an application image.",
 		[]string{"pull"},
 	)
 }

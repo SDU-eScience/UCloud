@@ -694,6 +694,7 @@ export const isLikelyMac = navigator["userAgentData"]?.["platform"] === "macOS" 
 export type KeyboardShortcutModifier = "ctrl" | "alt";
 
 export function createKeyboardShortcut(key: string, modifiers: KeyboardShortcutModifier[] = []): string {
+    if (modifiers.length === 0) return key;
     const normalizedModifiers = modifiers.map(modifier => {
         if (modifier === "ctrl") return isLikelyMac ? "⌘" : "Ctrl";
         return isLikelyMac ? "⌥" : "Alt";

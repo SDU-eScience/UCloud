@@ -68,6 +68,7 @@ import Uploader from "@/Files/Uploader";
 import {Dialog} from "@/Dialog/Dialog";
 import {inDevEnvironment} from "@/UtilityFunctions";
 import {Feature, hasFeature} from "@/Features";
+import {fetchBackendFeatures, resetBackendFeatures, useBackendFeatures} from "@/Features/backend";
 import {ErrorBoundary} from "@/ErrorBoundary/ErrorBoundary";
 import {MainContainer} from "@/ui-components/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -108,15 +109,17 @@ import ContainerRepositoryBrowse from "@/ContainerRepositories/Browse";
 const NotFound = (): React.ReactNode => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 const JobsOnlyRouter = (): React.ReactNode => <JobsRouter />;
 
-const Core = (): React.ReactNode => (
-    <>
-        <Dialog />
-        <Uploader />
-        <NotificationPopups />
-        <RightPopIn />
-        <div data-component="router-wrapper" className={RouteWrapperClass}>
-            <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>
-                <Routes>
+const Core = (): React.ReactNode => {
+    useBackendFeatures();
+    return (
+        <>
+            <Dialog />
+            <Uploader />
+            <NotificationPopups />
+            <RightPopIn />
+            <div data-component="router-wrapper" className={RouteWrapperClass}>
+                <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>
+                    <Routes>
                     <Route path={AppRoutes.login.login()} element={<LoginPage />} />
                     <Route path={AppRoutes.login.loginExternal()} element={<ExternalLogin />} />
                     <Route path={AppRoutes.login.loginExternalWayf()} element={<Wayf external />} />
@@ -273,7 +276,8 @@ const Core = (): React.ReactNode => (
 
         <TerminalContainer />
     </>
-);
+    );
+}
 
 interface RequireAuthOpts {
     requireTwoFactor?: boolean;
@@ -333,6 +337,8 @@ function dispatchUserAction(dispatch: Dispatch, type: UserActionType): void {
 }
 
 async function onLogin(dispatch: Dispatch): Promise<void> {
+    resetBackendFeatures();
+    fetchBackendFeatures();
     const action = await findAvatar();
     if (action !== null) dispatch(action);
 }
@@ -340,6 +346,7 @@ async function onLogin(dispatch: Dispatch): Promise<void> {
 Client.initializeStore(store);
 removeExpiredFileUploads();
 findCustomThemeColorOnLaunch();
+if (Client.isLoggedIn) fetchBackendFeatures();
 
 function MainApp({children}: React.PropsWithChildren): React.ReactNode {
     useEffect(() => {

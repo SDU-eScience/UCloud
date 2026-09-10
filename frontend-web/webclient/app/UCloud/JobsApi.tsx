@@ -284,7 +284,8 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
                 const [icon, color] = jobStateToIconAndColor(job.status.state);
                 return <Icon name={icon} color={color} mr={"8px"} />;
             }
-            return <SafeLogo name={resource?.specification?.application?.name ?? ""} type={"APPLICATION"} size={size} />
+            return <SafeLogo name={resource?.specification?.application?.name ?? ""} type={"APPLICATION"} size={size}
+                groupId={resource?.status.resolvedApplication?.metadata.groupId ?? resource?.status.resolvedApplication?.metadata.group?.metadata.id} />
         },
         Stats({resource, browseType}) {
             if (resource == null || browseType !== BrowseType.Card) return null;

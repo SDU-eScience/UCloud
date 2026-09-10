@@ -153,3 +153,111 @@ func customApplicationsV1() db.MigrationScript {
 		},
 	}
 }
+
+func customApplicationsV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "customApplicationsV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					drop index app_store.custom_workspace_backed_groups
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					drop index app_store.custom_workspace_backed_categories
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					drop index app_store.custom_workspace_group_titles
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					drop index app_store.custom_workspace_category_titles
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					alter table app_store.custom_application_groups
+						drop column backed_by_group_id,
+						drop column is_custom
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					alter table app_store.custom_application_groups
+						rename column snapshot_title to title
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					alter table app_store.custom_application_groups
+						rename column snapshot_description to description
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					alter table app_store.custom_application_categories
+						drop column backed_by_category_id,
+						drop column is_custom
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					alter table app_store.custom_application_categories
+						rename column snapshot_title to title
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					alter table app_store.custom_application_categories
+						rename column snapshot_description to description
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create unique index custom_workspace_group_titles
+					on app_store.custom_application_groups(
+						coalesce(project_id, created_by),
+						lower(title)
+					)
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create unique index custom_workspace_category_titles
+					on app_store.custom_application_categories(
+						coalesce(project_id, created_by),
+						lower(title)
+					)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

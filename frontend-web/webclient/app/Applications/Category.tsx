@@ -78,7 +78,7 @@ const ApplicationsCategory: React.FunctionComponent = () => {
         setEditableCategory(null);
         fetchAll(next => callAPI(AppStore.browseCustomCategories({itemsPerPage: 250, next}))).then(categories => {
             if (cancelled) return;
-            const matchingCategory = categories.find(item => item.id === id || item.backedBy === id);
+            const matchingCategory = categories.find(item => item.id === id);
             const canEdit = matchingCategory?.permissions.myself.includes("EDIT") === true;
             setEditableCategory(canEdit ? matchingCategory ?? null : null);
         }).catch(() => {
@@ -167,6 +167,7 @@ const ApplicationsCategory: React.FunctionComponent = () => {
                                     description={section.specification.description}
                                     name={section.metadata.id.toString()}
                                     applicationName={section.specification.defaultFlavor}
+                                    logo={section.specification.logo}
                                 />
                             )}
                         </AppGrid>
