@@ -496,7 +496,7 @@ func appEditorRetrieveCustomSource(actor rpc.Actor, request orcapi.AppEditorRetr
 	category := appCustomCache.Categories[app.CategoryId]
 	allowed := category != nil && appCustomCanReadApplication(actor, app, category)
 	if request.Intent == orcapi.AppEditorSourceIntentEdit {
-		allowed = category != nil && appCustomCategoryHasPermission(actor, category, orcapi.PermissionEdit)
+		allowed = allowed && appCustomCategoryHasPermission(actor, category, orcapi.PermissionEdit)
 	}
 	source := app.Source
 	metadata := orcapi.AppEditorCustomMetadata{

@@ -226,7 +226,7 @@ type AppCatalogUpdatePublicFlagRequest struct {
 var AppsUpdatePublicFlag = rpc.Call[AppCatalogUpdatePublicFlagRequest, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "updatePublicFlag",
 }
 
@@ -241,7 +241,7 @@ type AppCatalogRetrieveAclResponse struct {
 var AppsRetrieveAcl = rpc.Call[AppCatalogRetrieveAclRequest, AppCatalogRetrieveAclResponse]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionRetrieve,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "acl",
 }
 
@@ -253,7 +253,7 @@ type AppCatalogUpdateAclRequest struct {
 var AppsUpdateAcl = rpc.Call[AppCatalogUpdateAclRequest, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "updateAcl",
 }
 
@@ -265,7 +265,7 @@ type AppCatalogUpdateApplicationFlavorRequest struct {
 var AppsUpdateApplicationFlavor = rpc.Call[AppCatalogUpdateApplicationFlavorRequest, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "updateApplicationFlavor",
 }
 
@@ -363,7 +363,7 @@ type AppCatalogListAllApplicationsResponse struct {
 var AppsListAllApplications = rpc.Call[util.Empty, AppCatalogListAllApplicationsResponse]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionRetrieve,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "allApplications",
 }
 
@@ -378,7 +378,7 @@ type AppCatalogRetrieveStudioApplicationResponse struct {
 var AppsRetrieveStudioApplication = rpc.Call[AppCatalogRetrieveStudioApplicationRequest, AppCatalogRetrieveStudioApplicationResponse]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionRetrieve,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "studioApplication",
 }
 
@@ -515,14 +515,14 @@ var AppsEditorRenderInvocation = rpc.Call[AppEditorRenderRequest, AppEditorRende
 var AppsCreateGroup = rpc.Call[ApplicationGroupSpecification, fnd.FindByIntId]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "createGroup",
 }
 
 var AppsDeleteGroup = rpc.Call[fnd.FindByIntId, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "deleteGroup",
 }
 
@@ -537,7 +537,7 @@ type AppCatalogUpdateGroupRequest struct {
 var AppsUpdateGroup = rpc.Call[AppCatalogUpdateGroupRequest, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "updateGroup",
 }
 
@@ -549,7 +549,7 @@ type AppCatalogAssignApplicationToGroupRequest struct {
 var AppsAssignApplicationToGroup = rpc.Call[AppCatalogAssignApplicationToGroupRequest, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "assignApplicationToGroup",
 }
 
@@ -563,7 +563,7 @@ type AppCatalogBrowseGroupsRequest struct {
 var AppsBrowseGroups = rpc.Call[AppCatalogBrowseGroupsRequest, fnd.PageV2[ApplicationGroup]]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionBrowse,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "groups",
 }
 
@@ -583,7 +583,7 @@ var AppsRetrieveGroup = rpc.Call[AppCatalogRetrieveGroupRequest, ApplicationGrou
 var AppsRetrieveStudioGroup = rpc.Call[fnd.FindByIntId, ApplicationGroup]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionRetrieve,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "studioGroups",
 }
 
@@ -595,7 +595,7 @@ type AppCatalogAddLogoToGroupRequest struct {
 var AppsAddLogoToGroup = rpc.Call[AppCatalogAddLogoToGroupRequest, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionCustom,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "uploadLogo",
 
 	CustomMethod: http.MethodPost,
@@ -624,7 +624,7 @@ var AppsAddLogoToGroup = rpc.Call[AppCatalogAddLogoToGroupRequest, util.Empty]{
 var AppsRemoveLogoFromGroup = rpc.Call[fnd.FindByIntId, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "removeLogoFromGroup",
 }
 
@@ -670,7 +670,7 @@ var AppsRetrieveAppLogo = rpc.Call[AppCatalogRetrieveAppLogoRequest, []byte]{
 var AppsCreateCategory = rpc.Call[AppCategorySpecification, fnd.FindByIntId]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "createCategory",
 }
 
@@ -682,7 +682,7 @@ type AppCatalogAddGroupToCategoryRequest struct {
 var AppsAddGroupToCategory = rpc.Call[AppCatalogAddGroupToCategoryRequest, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "addGroupToCategory",
 }
 
@@ -694,7 +694,7 @@ type AppCatalogRemoveGroupFromCategoryRequest struct {
 var AppsRemoveGroupFromCategory = rpc.Call[AppCatalogRemoveGroupFromCategoryRequest, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "removeGroupFromCategory",
 }
 
@@ -706,7 +706,7 @@ type AppCatalogAssignPriorityToCategoryRequest struct {
 var AppsAssignPriorityToCategory = rpc.Call[AppCatalogAssignPriorityToCategoryRequest, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "assignPriorityToCategory",
 }
 
@@ -719,7 +719,7 @@ type AppCatalogBrowseStudioCategoriesRequest struct {
 var AppsBrowseStudioCategories = rpc.Call[AppCatalogBrowseStudioCategoriesRequest, fnd.PageV2[ApplicationCategory]]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionBrowse,
-	Roles:       rpc.RolesEndUser | rpc.RolesService,
+	Roles:       rpc.RolesAdmin | rpc.RolesService,
 	Operation:   "categories",
 }
 
@@ -739,7 +739,7 @@ var AppsRetrieveCategory = rpc.Call[AppCatalogRetrieveCategoryRequest, Applicati
 var AppsDeleteCategory = rpc.Call[fnd.FindByIntId, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "deleteCategory",
 }
 
@@ -798,28 +798,28 @@ var AppsRetrieveCarrouselImage = rpc.Call[AppCatalogRetrieveCarrouselImageReques
 var AppsCreateSpotlight = rpc.Call[Spotlight, fnd.FindByIntId]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "createSpotlight",
 }
 
 var AppsUpdateSpotlight = rpc.Call[Spotlight, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "updateSpotlight",
 }
 
 var AppsDeleteSpotlight = rpc.Call[fnd.FindByIntId, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "deleteSpotlight",
 }
 
 var AppsRetrieveSpotlight = rpc.Call[fnd.FindByIntId, Spotlight]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionRetrieve,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "spotlight",
 }
 
@@ -832,14 +832,14 @@ type AppCatalogBrowseSpotlightRequest struct {
 var AppsBrowseSpotlights = rpc.Call[AppCatalogBrowseSpotlightRequest, fnd.PageV2[Spotlight]]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionBrowse,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "spotlight",
 }
 
 var AppsActivateSpotlight = rpc.Call[fnd.FindByIntId, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "activateSpotlight",
 }
 
@@ -853,7 +853,7 @@ type AppCatalogUpdateCarrouselRequest struct {
 var AppsUpdateCarrousel = rpc.Call[AppCatalogUpdateCarrouselRequest, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "updateCarrousel",
 }
 
@@ -865,7 +865,7 @@ type AppCatalogUpdateCarrouselImageRequest struct {
 var AppsUpdateCarrouselImage = rpc.Call[AppCatalogUpdateCarrouselImageRequest, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionCustom,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "updateCarrouselImage",
 
 	CustomMethod: http.MethodPost,
@@ -902,7 +902,7 @@ type AppCatalogUpdateTopPicksRequest struct {
 var AppsUpdateTopPicks = rpc.Call[AppCatalogUpdateTopPicksRequest, util.Empty]{
 	BaseContext: appCatalogNamespace,
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
+	Roles:       rpc.RolesAdmin,
 	Operation:   "updateTopPicks",
 }
 

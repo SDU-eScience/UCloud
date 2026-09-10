@@ -673,6 +673,9 @@ func appCustomCanCreateGroup(actor rpc.Actor) bool {
 }
 
 func appCustomCanReadGroup(actor rpc.Actor, group *appCustomGroup) bool {
+	if !appCustomBelongsToActorsWorkspace(actor, group.CreatedBy, group.Project) {
+		return false
+	}
 	if appCustomIsAdmin(actor) {
 		return true
 	}
@@ -1270,7 +1273,7 @@ func appCustomCreateApplication(actor rpc.Actor, request orcapi.AppCatalogCreate
 		)
 	})
 	if !ok {
-		return util.HttpErr(http.StatusConflict, "application already exists")
+		return util.HttpErr(http.StatusConflict, "an application with this version or flavor name already exists")
 	}
 	application.Metadata.Origin = orcapi.CatalogOriginCustom
 	application.Metadata.PublishedToProject.Set(request.PublishedToProject)

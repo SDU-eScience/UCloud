@@ -1668,7 +1668,11 @@ func AppStudioUpdateAcl(appName string, toAdd []orcapi.AclEntity, toRemove []orc
 			for _, acl := range acls {
 				needToRemove := false
 				for _, aclToRemove := range toRemove {
-					if (acl.Type == orcapi.AclEntityTypeUser && acl.Username == aclToRemove.Username) || (acl.Type == orcapi.AclEntityTypeProjectGroup && acl.ProjectId == aclToRemove.ProjectId && aclToRemove.Group == aclToRemove.Group) {
+					userMatch := acl.Type == orcapi.AclEntityTypeUser && aclToRemove.Type == orcapi.AclEntityTypeUser &&
+						acl.Username == aclToRemove.Username
+					groupMatch := acl.Type == orcapi.AclEntityTypeProjectGroup && aclToRemove.Type == orcapi.AclEntityTypeProjectGroup &&
+						acl.ProjectId == aclToRemove.ProjectId && acl.Group == aclToRemove.Group
+					if userMatch || groupMatch {
 						needToRemove = true
 						break
 					}

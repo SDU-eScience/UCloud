@@ -352,8 +352,26 @@ func applicationVariantPersistFailure(id int64, failure string) {
 	})
 }
 
-// The first revision is not stored until provider completion.
-// Failed initial reservations can therefore be removed safely.
+func applicationVariantPersistPushFailure(id int64, failure string) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update app_store.application_variants
+				set failure = :failure, modified_at = now()
+				where
+					id = :id
+					and state = 'ACTIVE'
+					and coalesce(failure, '') <> 'PUSH_PENDING'
+			`,
+			db.Params{
+				"id":      id,
+				"failure": failure,
+			},
+		)
+	})
+}
+
 func applicationVariantDeleteInitial(id int64) bool {
 	_, deleted := db.NewTx2(func(tx *db.Transaction) (struct{ Id int64 }, bool) {
 		return db.Get[struct{ Id int64 }](
@@ -393,6 +411,13 @@ func applicationVariantSetFailure(id int64, failure string) {
 			applicationVariantPersistFailure(id, failure)
 			internal.Value.State = orcapi.ApplicationVariantStateFailed
 			internal.Value.Failure.Set(failure)
+		} else {
+			if failure == "PUSH_PENDING" || internal.Value.Failure.GetOrDefault("") == "PUSH_PENDING" {
+				internal.Mu.Unlock()
+				return
+			}
+			applicationVariantPersistPushFailure(id, failure)
+			internal.Value.Failure.Set(failure)
 		}
 		internal.Mu.Unlock()
 	}
@@ -427,6 +452,7 @@ func applicationVariantBeginPush(actor rpc.Actor, internal *internalApplicationV
 	if !updated {
 		return "", 0, false, nil
 	}
+	internal.Value.Failure.Set("PUSH_PENDING")
 	return internal.ImageName, internal.RevisionCount + 1, true, nil
 }
 
@@ -996,6 +1022,9 @@ func initApplicationVariantRpc() {
 			variant.Title = request.Title.Value
 		}
 		if request.PublishedToProject.Present {
+			if request.PublishedToProject.Value && !variant.Project.Present {
+				return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusBadRequest, "a personal variant cannot be published to a project")
+			}
 			variant.PublishedToProject = request.PublishedToProject.Value
 		}
 		validatedImage := util.OptNone[orcapi.ApplicationVariantValidateImageResponse]()
