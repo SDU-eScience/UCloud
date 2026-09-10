@@ -338,7 +338,13 @@ func initFiles() {
 			resp := fnd.BulkResponse[orcapi.FilesProviderCreateUploadResponse]{}
 			for _, item := range request.Items {
 				DriveTrack(&item.ResolvedCollection)
-
+				if item.ResolvedCollection.Owner.Project.Present {
+					policyCache.Mu.RLock()
+					policies := policyCache.PoliciesByProject[item.ResolvedCollection.Owner.Project.Value]
+					if specification, ok := policies[fnd.RestrictUploads]; ok && specification.IsEnabled() {
+						return fnd.BulkResponse[orcapi.FilesProviderCreateUploadResponse]{}, util.HttpErr(http.StatusForbidden, "Project does not allow uploads")
+					}
+				}
 				sessionData, err := Files.CreateUploadSession(info.Actor, item)
 				if err != nil {
 					return fnd.BulkResponse[orcapi.FilesProviderCreateUploadResponse]{}, err
