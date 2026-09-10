@@ -14,5 +14,5 @@ configuration:
   allowedSubnets:
     title: "Allowed client subnets"
     description: >
-      Only clients originating from these subnets are permitted. An empty
-      string blocks all external access.
+      Only clients originating from these subnets (CIDR notation) are permitted. No value 
+      given blocks all external access.

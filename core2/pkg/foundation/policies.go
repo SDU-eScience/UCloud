@@ -49,17 +49,17 @@ func policyPopulateSchemaCache() {
 		}
 
 		if err := yaml.Unmarshal(policy.Bytes, &header); err != nil {
-			log.Fatal(fmt.Sprintf("Error loading policy document ", policy.PolicyName, ": ", err))
+			log.Fatal(fmt.Sprintf("Error loading policy document %v : %v \n", policy.PolicyName, err))
 		}
 
 		decoder, ok := fndapi.SchemaDecoders[fndapi.PolicyName(header.Name)]
 		if !ok {
-			log.Fatal(fmt.Sprintf("No decoder registered for policy ", header.Name))
+			log.Fatal(fmt.Sprintf("No decoder registered for policy %v \n", header.Name))
 		}
 
 		schema, err := decoder(policy.Bytes)
 		if err != nil {
-			log.Fatal(fmt.Sprintf("Error loading policy document ", policy.PolicyName, ": ", err))
+			log.Fatal(fmt.Sprintf("Error loading policy document %v : %v \n", policy.PolicyName, err))
 		}
 
 		policySchemas[schema.GetSchemaName()] = schema
@@ -315,7 +315,7 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 			}
 		case fndapi.RestrictSSH:
 			{
-				_, ok := specification.GetValues().(fndapi.RestrictMoveAndCopyValues)
+				_, ok := specification.GetValues().(fndapi.RestrictSSHValues)
 				if !ok {
 					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (SSH)")
 				}
@@ -323,7 +323,7 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 			}
 		case fndapi.RestrictUploads:
 			{
-				_, ok := specification.GetValues().(fndapi.RestrictMoveAndCopyValues)
+				_, ok := specification.GetValues().(fndapi.RestrictUploadsValues)
 				if !ok {
 					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Uploads)")
 				}

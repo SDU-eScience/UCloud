@@ -2,10 +2,10 @@ name: "RestrictApiTokens"
 title: "Restrict API tokens"
 
 description: >
-  Controls whether users are allowed to use API tokens in the project.
-  API tokens allow programmatic access to the platform, which bypasses
-  restrictions placed on interactive sessions, such as the client
-  source IP range policy.
+  Controls whether API tokens may be used with this project. API tokens
+  allow programmatic access to project data and resources without the
+  interactive authentication flow (e.g. multi-factor authentication)
+  that governs user sessions.
 
 configuration:
   enabled:

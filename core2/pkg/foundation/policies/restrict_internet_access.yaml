@@ -16,12 +16,12 @@ configuration:
   allowedSubnets:
     title: "Allowed subnets"
     description: >
-      List of destination subnets that workloads in the project are allowed
-      to access.
+      A single subnet range (CIDR notation) of destination subnets that workloads 
+      in the project are allowed to access.
       
-      An empty list indicates that no outbound Internet access is allowed.
+      No value indicates that no outbound Internet access is allowed.
     
-      Any additions to the list will allow workloads to access destinations
+      Any additions to the subnet will allow workloads to access destinations
       within the specified subnets.
     
       This configuration only affects outbound Internet connectivity from

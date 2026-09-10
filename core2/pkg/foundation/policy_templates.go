@@ -106,8 +106,20 @@ func pullProjectPolicies() []LoadedPolicy {
 			Bytes:      restrictPublicLinks,
 		},
 		{
+			PolicyName: "restrictShares",
+			Bytes:      restrictShares,
+		},
+		{
 			PolicyName: "restrictSourceIpRange",
 			Bytes:      restrictSourceIpRange,
+		},
+		{
+			PolicyName: "RestrictSshAccess",
+			Bytes:      restrictSSH,
+		},
+		{
+			PolicyName: "restrictUploads",
+			Bytes:      restrictUploads,
 		},
 	}
 	return policies
