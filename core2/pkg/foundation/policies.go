@@ -2,6 +2,7 @@ package foundation
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/http"
 	"sync"
@@ -48,17 +49,17 @@ func policyPopulateSchemaCache() {
 		}
 
 		if err := yaml.Unmarshal(policy.Bytes, &header); err != nil {
-			log.Fatal("Error loading policy document ", policy.PolicyName, ": ", err)
+			log.Fatal(fmt.Sprintf("Error loading policy document ", policy.PolicyName, ": ", err))
 		}
 
 		decoder, ok := fndapi.SchemaDecoders[fndapi.PolicyName(header.Name)]
 		if !ok {
-			log.Fatal("No decoder registered for policy ", header.Name)
+			log.Fatal(fmt.Sprintf("No decoder registered for policy ", header.Name))
 		}
 
 		schema, err := decoder(policy.Bytes)
 		if err != nil {
-			log.Fatal("Error loading policy document ", policy.PolicyName, ": ", err)
+			log.Fatal(fmt.Sprintf("Error loading policy document ", policy.PolicyName, ": ", err))
 		}
 
 		policySchemas[schema.GetSchemaName()] = schema
@@ -182,6 +183,14 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 	// Validate Specification Values
 	for _, specification := range request.UpdatedPolicies {
 		switch specification.GetSpecificationName() {
+		case fndapi.RestrictAPITokens:
+			{
+				_, ok := specification.GetValues().(fndapi.RestrictAPITokensValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (API Tokens)")
+				}
+				break
+			}
 		case fndapi.RestrictApplications:
 			{
 				_, ok := specification.GetValues().(fndapi.RestrictApplicationsValues)
@@ -198,19 +207,19 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 				}
 				break
 			}
-		case fndapi.RestrictMoveAndCopy:
-			{
-				_, ok := specification.GetValues().(fndapi.RestrictMoveAndCopyValues)
-				if !ok {
-					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (MoveAndCopy)")
-				}
-				break
-			}
 		case fndapi.RestrictDownloads:
 			{
 				_, ok := specification.GetValues().(fndapi.RestrictDownloadsValues)
 				if !ok {
 					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Downloads)")
+				}
+				break
+			}
+		case fndapi.RestrictExternalProjectFolderMounting:
+			{
+				_, ok := specification.GetValues().(fndapi.RestrictExternalProjectFolderMountingValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (External Project Folder Mounting)")
 				}
 				break
 			}
@@ -236,6 +245,14 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 				_, _, err := net.ParseCIDR(subnet)
 				if err != nil {
 					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Internet Access, CIDR)")
+				}
+				break
+			}
+		case fndapi.RestrictMoveAndCopy:
+			{
+				_, ok := specification.GetValues().(fndapi.RestrictMoveAndCopyValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (MoveAndCopy)")
 				}
 				break
 			}
@@ -271,6 +288,14 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 				}
 				break
 			}
+		case fndapi.RestrictShares:
+			{
+				_, ok := specification.GetValues().(fndapi.RestrictSharesValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Shares)")
+				}
+				break
+			}
 		case fndapi.RestrictSourceIPRange:
 			{
 				values, ok := specification.GetValues().(fndapi.RestrictSourceIPRangeValues)
@@ -285,6 +310,22 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 				_, _, err := net.ParseCIDR(subnet)
 				if err != nil {
 					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Source IP Range, CIDR)")
+				}
+				break
+			}
+		case fndapi.RestrictSSH:
+			{
+				_, ok := specification.GetValues().(fndapi.RestrictMoveAndCopyValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (SSH)")
+				}
+				break
+			}
+		case fndapi.RestrictUploads:
+			{
+				_, ok := specification.GetValues().(fndapi.RestrictMoveAndCopyValues)
+				if !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Uploads)")
 				}
 				break
 			}

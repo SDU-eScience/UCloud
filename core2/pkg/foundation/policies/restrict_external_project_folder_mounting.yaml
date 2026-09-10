@@ -1,0 +1,12 @@
+name: "RestrictExternalProjectFolderMounting"
+title: "Restrict external project folder mounting"
+
+description: >
+  Restricts the possibility to mount folders and files from outside the project to applications.
+
+configuration:
+  enabled:
+    title: "Enabled"
+    description: >
+      If enabled, files and folders in other projects cannot be used in applications.
+      If disabled, all files and folders available to the user can be used in applications.

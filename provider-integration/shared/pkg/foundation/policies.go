@@ -16,17 +16,22 @@ import (
 type PolicyName string
 
 const (
-	RestrictApplications           PolicyName = "RestrictApplications"
-	RestrictCutAndPaste            PolicyName = "RestrictCutAndPaste"
-	RestrictMoveAndCopy            PolicyName = "RestrictMoveAndCopy"
-	RestrictDownloads              PolicyName = "RestrictDownloads"
-	RestrictIntegratedApplications PolicyName = "RestrictIntegratedApplications"
-	RestrictInternetAccess         PolicyName = "RestrictInternetAccess"
-	RestrictOrganizationMembers    PolicyName = "RestrictOrganizationMembers"
-	RestrictProviderFileTransfers  PolicyName = "RestrictProviderFileTransfers"
-	RestrictPublicIPs              PolicyName = "RestrictPublicIPs"
-	RestrictPublicLinks            PolicyName = "RestrictPublicLinks"
-	RestrictSourceIPRange          PolicyName = "RestrictSourceIPRange"
+	RestrictAPITokens                     PolicyName = "RestrictApiTokens"
+	RestrictApplications                  PolicyName = "RestrictApplications"
+	RestrictCutAndPaste                   PolicyName = "RestrictCutAndPaste"
+	RestrictDownloads                     PolicyName = "RestrictDownloads"
+	RestrictExternalProjectFolderMounting PolicyName = "RestrictExternalProjectFolderMounting"
+	RestrictIntegratedApplications        PolicyName = "RestrictIntegratedApplications"
+	RestrictInternetAccess                PolicyName = "RestrictInternetAccess"
+	RestrictMoveAndCopy                   PolicyName = "RestrictMoveAndCopy"
+	RestrictOrganizationMembers           PolicyName = "RestrictOrganizationMembers"
+	RestrictProviderFileTransfers         PolicyName = "RestrictProviderFileTransfers"
+	RestrictPublicIPs                     PolicyName = "RestrictPublicIPs"
+	RestrictPublicLinks                   PolicyName = "RestrictPublicLinks"
+	RestrictShares                        PolicyName = "RestrictShares"
+	RestrictSourceIPRange                 PolicyName = "RestrictSourceIPRange"
+	RestrictSSH                           PolicyName = "RestrictSshAccess"
+	RestrictUploads                       PolicyName = "RestrictUploads"
 )
 
 func (t PolicyName) String() string {
@@ -96,6 +101,23 @@ type Property struct {
 	Options     []string `yaml:"options,omitempty" json:"options,omitempty"`
 }
 
+// Restrict API Tokens
+type RestrictAPITokensConfig struct {
+	Enabled Property `yaml:"enabled" json:"enabled"`
+}
+type RestrictAPITokensSchema = PolicySchema[RestrictAPITokensConfig]
+
+type RestrictAPITokensValues struct {
+	Enabled bool `yaml:"enabled" json:"enabled"`
+}
+type RestrictAPITokensSpecification struct {
+	PolicySpecification[RestrictAPITokensValues]
+}
+
+func (s *RestrictAPITokensSpecification) IsEnabled() bool {
+	return s.Values.Enabled
+}
+
 // Restrict Applications
 type RestrictApplicationsConfig struct {
 	Enabled      Property `yaml:"enabled" json:"enabled"`
@@ -132,23 +154,6 @@ func (r *RestrictCutAndPasteSpecification) IsEnabled() bool {
 	return r.Values.Enabled
 }
 
-// Restrict Move and Copy
-type RestrictMoveAndCopyConfig struct {
-	Enabled Property `yaml:"enabled" json:"enabled"`
-}
-type RestrictMoveAndCopySchema = PolicySchema[RestrictMoveAndCopyConfig]
-type RestrictMoveAndCopyValues struct {
-	Enabled bool `yaml:"enabled" json:"enabled"`
-}
-
-type RestrictMoveAndCopySpecification struct {
-	PolicySpecification[RestrictMoveAndCopyValues]
-}
-
-func (r *RestrictMoveAndCopySpecification) IsEnabled() bool {
-	return r.Values.Enabled
-}
-
 // Restrict Download
 type RestrictDownloadsConfig struct {
 	Enabled Property `yaml:"enabled" json:"enabled"`
@@ -163,6 +168,24 @@ type RestrictDownloadsSpecification struct {
 }
 
 func (r *RestrictDownloadsSpecification) IsEnabled() bool {
+	return r.Values.Enabled
+}
+
+// Restrict External Project Folder Mounting
+type RestrictExternalProjectFolderMountingConfig struct {
+	Enabled Property `yaml:"enabled" json:"enabled"`
+}
+type RestrictExternalProjectFolderMountingSchema = PolicySchema[RestrictExternalProjectFolderMountingConfig]
+
+type RestrictExternalProjectFolderMountingValues struct {
+	Enabled bool `yaml:"enabled" json:"enabled"`
+}
+
+type RestrictExternalProjectFolderMountingSpecification struct {
+	PolicySpecification[RestrictExternalProjectFolderMountingValues]
+}
+
+func (r *RestrictExternalProjectFolderMountingSpecification) IsEnabled() bool {
 	return r.Values.Enabled
 }
 
@@ -201,6 +224,23 @@ type RestrictInternetAccessSpecification struct {
 }
 
 func (r *RestrictInternetAccessSpecification) IsEnabled() bool {
+	return r.Values.Enabled
+}
+
+// Restrict Move and Copy
+type RestrictMoveAndCopyConfig struct {
+	Enabled Property `yaml:"enabled" json:"enabled"`
+}
+type RestrictMoveAndCopySchema = PolicySchema[RestrictMoveAndCopyConfig]
+type RestrictMoveAndCopyValues struct {
+	Enabled bool `yaml:"enabled" json:"enabled"`
+}
+
+type RestrictMoveAndCopySpecification struct {
+	PolicySpecification[RestrictMoveAndCopyValues]
+}
+
+func (r *RestrictMoveAndCopySpecification) IsEnabled() bool {
 	return r.Values.Enabled
 }
 
@@ -276,6 +316,23 @@ func (r *RestrictPublicLinksSpecification) IsEnabled() bool {
 	return r.Values.Enabled
 }
 
+// Restrict Shares
+type RestrictSharesConfig struct {
+	Enabled Property `yaml:"enabled" json:"enabled"`
+}
+type RestrictSharesSchema = PolicySchema[RestrictSharesConfig]
+type RestrictSharesValues struct {
+	Enabled bool `yaml:"enabled" json:"enabled"`
+}
+
+type RestrictSharesSpecification struct {
+	PolicySpecification[RestrictSharesValues]
+}
+
+func (r *RestrictSharesSpecification) IsEnabled() bool {
+	return r.Values.Enabled
+}
+
 // Restrict Source IPs
 type RestrictSourceIpRangeConfig struct {
 	Enabled        Property `yaml:"enabled" json:"enabled"`
@@ -292,6 +349,40 @@ type RestrictSourceIPRangeSpecification struct {
 }
 
 func (r *RestrictSourceIPRangeSpecification) IsEnabled() bool {
+	return r.Values.Enabled
+}
+
+// Restrict SSH
+type RestrictSSHConfig struct {
+	Enabled Property `yaml:"enabled" json:"enabled"`
+}
+type RestrictSSHSchema = PolicySchema[RestrictSSHConfig]
+type RestrictSSHValues struct {
+	Enabled bool `yaml:"enabled" json:"enabled"`
+}
+
+type RestrictSSHSpecification struct {
+	PolicySpecification[RestrictSSHValues]
+}
+
+func (r *RestrictSSHSpecification) IsEnabled() bool {
+	return r.Values.Enabled
+}
+
+// Restrict Uploads
+type RestrictUploadsConfig struct {
+	Enabled Property `yaml:"enabled" json:"enabled"`
+}
+type RestrictUploadsSchema = PolicySchema[RestrictUploadsConfig]
+type RestrictUploadsValues struct {
+	Enabled bool `yaml:"enabled" json:"enabled"`
+}
+
+type RestrictUploadsSpecification struct {
+	PolicySpecification[RestrictUploadsValues]
+}
+
+func (r *RestrictUploadsSpecification) IsEnabled() bool {
 	return r.Values.Enabled
 }
 
@@ -312,17 +403,34 @@ func schemaDecoder[T any](data []byte) (Schema, error) {
 }
 
 var SchemaDecoders = map[PolicyName]func([]byte) (Schema, error){
-	RestrictApplications:           schemaDecoder[RestrictApplicationsConfig],
-	RestrictCutAndPaste:            schemaDecoder[RestrictCutAndPasteConfig],
-	RestrictMoveAndCopy:			schemaDecoder[RestrictMoveAndCopyConfig],
-	RestrictDownloads:              schemaDecoder[RestrictDownloadsConfig],
-	RestrictIntegratedApplications: schemaDecoder[RestrictIntegratedApplicationsConfig],
-	RestrictInternetAccess:         schemaDecoder[RestrictInternetAccessConfig],
-	RestrictOrganizationMembers:    schemaDecoder[RestrictOrganizationMembersConfig],
-	RestrictProviderFileTransfers:  schemaDecoder[RestrictProviderFileTransfersConfig],
-	RestrictPublicIPs:              schemaDecoder[RestrictPublicIPsConfig],
-	RestrictPublicLinks:            schemaDecoder[RestrictPublicLinksConfig],
-	RestrictSourceIPRange:          schemaDecoder[RestrictSourceIpRangeConfig],
+	RestrictAPITokens:                     schemaDecoder[RestrictAPITokensConfig],
+	RestrictApplications:                  schemaDecoder[RestrictApplicationsConfig],
+	RestrictCutAndPaste:                   schemaDecoder[RestrictCutAndPasteConfig],
+	RestrictDownloads:                     schemaDecoder[RestrictDownloadsConfig],
+	RestrictExternalProjectFolderMounting: schemaDecoder[RestrictExternalProjectFolderMountingConfig],
+	RestrictIntegratedApplications:        schemaDecoder[RestrictIntegratedApplicationsConfig],
+	RestrictInternetAccess:                schemaDecoder[RestrictInternetAccessConfig],
+	RestrictMoveAndCopy:                   schemaDecoder[RestrictMoveAndCopyConfig],
+	RestrictOrganizationMembers:           schemaDecoder[RestrictOrganizationMembersConfig],
+	RestrictProviderFileTransfers:         schemaDecoder[RestrictProviderFileTransfersConfig],
+	RestrictPublicIPs:                     schemaDecoder[RestrictPublicIPsConfig],
+	RestrictPublicLinks:                   schemaDecoder[RestrictPublicLinksConfig],
+	RestrictShares:                        schemaDecoder[RestrictSharesConfig],
+	RestrictSourceIPRange:                 schemaDecoder[RestrictSourceIpRangeConfig],
+	RestrictSSH:                           schemaDecoder[RestrictSSHConfig],
+	RestrictUploads:                       schemaDecoder[RestrictUploadsConfig],
+}
+
+func decodeRestrictAPITokens(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictAPITokensValues]
+
+	if err := json.Unmarshal(data, &specification); err != nil {
+		return nil, err
+	}
+
+	return &RestrictAPITokensSpecification{
+		PolicySpecification: specification,
+	}, nil
 }
 
 func decodeRestrictApplications(data []byte) (Specification, error) {
@@ -349,18 +457,6 @@ func decodeRestrictCutAndPaste(data []byte) (Specification, error) {
 	}, nil
 }
 
-func decodeRestrictMoveAndCopy(data []byte) (Specification, error) {
-	var specification PolicySpecification[RestrictMoveAndCopyValues]
-
-	if err := json.Unmarshal(data, &specification); err != nil {
-		return nil, err
-	}
-
-	return &RestrictMoveAndCopySpecification{
-		PolicySpecification: specification,
-	}, nil
-}
-
 func decodeRestrictDownloads(data []byte) (Specification, error) {
 	var specification PolicySpecification[RestrictDownloadsValues]
 
@@ -369,6 +465,18 @@ func decodeRestrictDownloads(data []byte) (Specification, error) {
 	}
 
 	return &RestrictDownloadsSpecification{
+		PolicySpecification: specification,
+	}, nil
+}
+
+func decodeRestrictExternalProjectFolderMounting(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictExternalProjectFolderMountingValues]
+
+	if err := json.Unmarshal(data, &specification); err != nil {
+		return nil, err
+	}
+
+	return &RestrictExternalProjectFolderMountingSpecification{
 		PolicySpecification: specification,
 	}, nil
 }
@@ -393,6 +501,18 @@ func decodeRestrictInternetAccess(data []byte) (Specification, error) {
 	}
 
 	return &RestrictInternetAccessSpecification{
+		PolicySpecification: specification,
+	}, nil
+}
+
+func decodeRestrictMoveAndCopy(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictMoveAndCopyValues]
+
+	if err := json.Unmarshal(data, &specification); err != nil {
+		return nil, err
+	}
+
+	return &RestrictMoveAndCopySpecification{
 		PolicySpecification: specification,
 	}, nil
 }
@@ -445,6 +565,18 @@ func decodeRestrictPublicLinks(data []byte) (Specification, error) {
 	}, nil
 }
 
+func decodeRestrictShares(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictSharesValues]
+
+	if err := json.Unmarshal(data, &specification); err != nil {
+		return nil, err
+	}
+
+	return &RestrictSharesSpecification{
+		PolicySpecification: specification,
+	}, nil
+}
+
 func decodeRestrictSourceIPRange(data []byte) (Specification, error) {
 	var specification PolicySpecification[RestrictSourceIPRangeValues]
 
@@ -457,18 +589,47 @@ func decodeRestrictSourceIPRange(data []byte) (Specification, error) {
 	}, nil
 }
 
+func decodeRestrictSSH(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictSSHValues]
+
+	if err := json.Unmarshal(data, &specification); err != nil {
+		return nil, err
+	}
+
+	return &RestrictSSHSpecification{
+		PolicySpecification: specification,
+	}, nil
+}
+
+func decodeRestrictUploads(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictUploadsValues]
+
+	if err := json.Unmarshal(data, &specification); err != nil {
+		return nil, err
+	}
+
+	return &RestrictUploadsSpecification{
+		PolicySpecification: specification,
+	}, nil
+}
+
 var SpecificationDecoders = map[PolicyName]func([]byte) (Specification, error){
-	RestrictApplications:           decodeRestrictApplications,
-	RestrictCutAndPaste:            decodeRestrictCutAndPaste,
-	RestrictMoveAndCopy:            decodeRestrictMoveAndCopy,
-	RestrictDownloads:              decodeRestrictDownloads,
-	RestrictIntegratedApplications: decodeRestrictIntegratedApplications,
-	RestrictInternetAccess:         decodeRestrictInternetAccess,
-	RestrictOrganizationMembers:    decodeRestrictOrganizationMembers,
-	RestrictProviderFileTransfers:  decodeRestrictProviderTransfers,
-	RestrictPublicIPs:              decodeRestrictPublicIPs,
-	RestrictPublicLinks:            decodeRestrictPublicLinks,
-	RestrictSourceIPRange:          decodeRestrictSourceIPRange,
+	RestrictAPITokens:                     decodeRestrictAPITokens,
+	RestrictApplications:                  decodeRestrictApplications,
+	RestrictCutAndPaste:                   decodeRestrictCutAndPaste,
+	RestrictDownloads:                     decodeRestrictDownloads,
+	RestrictExternalProjectFolderMounting: decodeRestrictExternalProjectFolderMounting,
+	RestrictIntegratedApplications:        decodeRestrictIntegratedApplications,
+	RestrictInternetAccess:                decodeRestrictInternetAccess,
+	RestrictMoveAndCopy:                   decodeRestrictMoveAndCopy,
+	RestrictOrganizationMembers:           decodeRestrictOrganizationMembers,
+	RestrictProviderFileTransfers:         decodeRestrictProviderTransfers,
+	RestrictPublicIPs:                     decodeRestrictPublicIPs,
+	RestrictPublicLinks:                   decodeRestrictPublicLinks,
+	RestrictShares:                        decodeRestrictShares,
+	RestrictSourceIPRange:                 decodeRestrictSourceIPRange,
+	RestrictSSH:                           decodeRestrictSSH,
+	RestrictUploads:                       decodeRestrictUploads,
 }
 
 // API

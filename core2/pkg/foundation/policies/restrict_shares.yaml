@@ -1,0 +1,15 @@
+name: "RestrictSharing"
+title: "Restrict sharing with external users"
+
+description: >
+  Restricts granting permissions on project files and folders to users
+  outside of the project. Without this policy, members can share project
+  data with any user, which bypasses move and copy restrictions.
+
+configuration:
+  enabled:
+    title: "Enabled"
+    description: >
+      If enabled, permissions can only be granted to existing members of
+      the project. Existing permissions granted to external users are
+      _not_ removed.

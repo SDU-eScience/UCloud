@@ -1,0 +1,14 @@
+name: "RestrictUploads"
+title: "Restrict uploads"
+
+description: >
+  Controls whether users are allowed to upload data from their local
+  machine to the project's storage. Note that this policy may be
+  ineffective if the provider allows direct access to the data.
+
+configuration:
+  enabled:
+    title: "Enabled"
+    description: >
+      If enabled, uploads to the project are blocked.
+      If disabled, uploads are allowed.

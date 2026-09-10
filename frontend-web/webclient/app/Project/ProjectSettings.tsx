@@ -734,17 +734,22 @@ export const ProjectSettings: React.FunctionComponent = () => {
 
 
 type PolicyName =
+    | "RestrictApiTokens"
     | "RestrictApplications"
     | "RestrictCutAndPaste"
-    | "RestrictMoveAndCopy"
     | "RestrictDownloads"
+    | "RestrictExternalProjectFolderMounting"
     | "RestrictIntegratedApplications"
     | "RestrictInternetAccess"
+    | "RestrictMoveAndCopy"
     | "RestrictOrganizationMembers"
     | "RestrictProviderFileTransfers"
     | "RestrictPublicIPs"
     | "RestrictPublicLinks"
-    | "RestrictSourceIPRange";
+    | "RestrictSharing"
+    | "RestrictSourceIPRange"
+    | "RestrictSshAccess"
+    | "RestrictUploads";
 
 interface Policy {
     schema: PolicySchema;
@@ -763,6 +768,11 @@ interface ConfigurationEntry {
     description: string;
 }
 
+interface RestrictAPITokens extends PolicySchemaBase {
+    name: "RestrictApiTokens";
+    configuration: {enabled: ConfigurationEntry; applications: ConfigurationEntry};
+}
+
 interface RestrictApplications extends PolicySchemaBase {
     name: "RestrictApplications";
     configuration: {enabled: ConfigurationEntry; applications: ConfigurationEntry};
@@ -773,13 +783,13 @@ interface RestrictCutAndPaste extends PolicySchemaBase {
     configuration: {enabled: ConfigurationEntry};
 }
 
-interface RestrictMoveAndCopy extends PolicySchemaBase {
-    name: "RestrictMoveAndCopy";
+interface RestrictDownloads extends PolicySchemaBase {
+    name: "RestrictDownloads";
     configuration: {enabled: ConfigurationEntry};
 }
 
-interface RestrictDownloads extends PolicySchemaBase {
-    name: "RestrictDownloads";
+interface RestrictExternalProjectFolderMounting extends PolicySchemaBase {
+    name: "RestrictExternalProjectFolderMounting";
     configuration: {enabled: ConfigurationEntry};
 }
 
@@ -791,6 +801,11 @@ interface RestrictIntegratedApplications extends PolicySchemaBase {
 interface RestrictInternetAccess extends PolicySchemaBase {
     name: "RestrictInternetAccess";
     configuration: {enabled: ConfigurationEntry; allowedSubnets: ConfigurationEntry};
+}
+
+interface RestrictMoveAndCopy extends PolicySchemaBase {
+    name: "RestrictMoveAndCopy";
+    configuration: {enabled: ConfigurationEntry};
 }
 
 interface RestrictOrganizationMembers extends PolicySchemaBase {
@@ -813,23 +828,43 @@ interface RestrictPublicLinks extends PolicySchemaBase {
     configuration: {enabled: ConfigurationEntry};
 }
 
+interface RestrictShares extends PolicySchemaBase {
+    name: "RestrictSharing";
+    configuration: {enabled: ConfigurationEntry; allowedSubnets: ConfigurationEntry};
+}
+
 interface RestrictSourceIPRange extends PolicySchemaBase {
     name: "RestrictSourceIPRange";
     configuration: {enabled: ConfigurationEntry; allowedSubnets: ConfigurationEntry};
 }
 
+interface RestrictSSH extends PolicySchemaBase {
+    name: "RestrictSshAccess";
+    configuration: {enabled: ConfigurationEntry; allowedSubnets: ConfigurationEntry};
+}
+
+interface RestrictUploads extends PolicySchemaBase {
+    name: "RestrictUploads";
+    configuration: {enabled: ConfigurationEntry; allowedSubnets: ConfigurationEntry};
+}
+
 type PolicySchema =
+    | RestrictAPITokens
     | RestrictApplications
     | RestrictCutAndPaste
-    | RestrictMoveAndCopy
     | RestrictDownloads
+    | RestrictExternalProjectFolderMounting
     | RestrictIntegratedApplications
     | RestrictInternetAccess
+    | RestrictMoveAndCopy
     | RestrictOrganizationMembers
     | RestrictProviderFileTransfers
     | RestrictPublicIPs
     | RestrictPublicLinks
+    | RestrictShares
     | RestrictSourceIPRange
+    | RestrictSSH
+    | RestrictUploads
 
 interface RetrievePoliciesRequest {
     projectId: string;
@@ -923,6 +958,10 @@ function PolicySchemaEntry({policy, togglePolicy, updatePolicyRule}: {
 
 function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; updatePolicyRule: (policyName: PolicyName, rule: string, value: any) => void}): React.ReactNode {
     switch (policy.schema.name) {
+        case "RestrictApiTokens": {
+            // Only contains "enabled". Handled above
+            return null;
+        }
         case "RestrictApplications": {
             const [searchApps, setSearchApps] = useState<DataListItem[]>([]);
             const ref = useRef<HTMLInputElement | null>(null);
@@ -986,11 +1025,11 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
             // Only contains "enabled". Handled above
             return null;
         }
-        case "RestrictMoveAndCopy": {
+        case "RestrictDownloads": {
             // Only contains "enabled". Handled above
             return null;
         }
-        case "RestrictDownloads": {
+        case "RestrictExternalProjectFolderMounting": {
             // Only contains "enabled". Handled above
             return null;
         }
@@ -1034,6 +1073,10 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
                     }
                 }} />
             </ConfigurationEntry>;
+        }
+        case "RestrictMoveAndCopy": {
+            // Only contains "enabled". Handled above
+            return null;
         }
         case "RestrictOrganizationMembers": {
             const {organizations} = policy.schema.configuration;
@@ -1110,6 +1153,10 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
             // Only contains "enabled". Handled above
             return null;
         }
+        case "RestrictSharing": {
+            // Only contains "enabled". Handled above
+            return null;
+        }
         case "RestrictSourceIPRange": {
             const values = policy.specification?.values as Partial<{allowedSubnets: string}> | undefined;
             const {allowedSubnets} = policy.schema.configuration;
@@ -1120,6 +1167,14 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
                     }
                 }} />
             </ConfigurationEntry>;
+        }
+        case "RestrictSshAccess": {
+            // Only contains "enabled". Handled above
+            return null;
+        }
+        case "RestrictUploads": {
+            // Only contains "enabled". Handled above
+            return null;
         }
     }
 }
