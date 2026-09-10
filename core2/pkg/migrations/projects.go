@@ -224,3 +224,15 @@ func projectsV5() db.MigrationScript {
 		},
 	}
 }
+
+func projectsV6() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "projectsV6",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(tx, `
+				alter table project.projects
+				add column if not exists init_script_image_cache_limit_bytes bigint not null default 50000000000
+			`, db.Params{})
+		},
+	}
+}

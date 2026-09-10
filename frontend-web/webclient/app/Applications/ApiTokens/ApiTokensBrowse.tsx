@@ -7,7 +7,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
 import * as Api from "./api";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-import {callAPI} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {StandardCallbacks} from "@/ui-components/Browse";
 import AppRoutes from "@/Routes";
@@ -18,6 +18,8 @@ import {TruncateClass} from "@/ui-components/Truncate";
 import {copyToClipboard} from "@/UtilityFunctions";
 import {sendInformationNotification} from "@/Notifications";
 import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
+import {HTMLTooltip} from "@/ui-components/Tooltip";
+import {IconName} from "@/ui-components/Icon";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -40,6 +42,9 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
     const navigate = useNavigate();
     usePage("API tokens", SidebarTabId.RESOURCES);
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
+    const [options] = useCloudAPI(Api.retrieveOptions(), {byProvider: {}});
+    const optionsRef = React.useRef(options.data);
+    optionsRef.current = options.data;
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -86,7 +91,30 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                     pIcon.style.marginRight = "8px";
                     title.append(pIcon);
 
-                    title.append(ResourceBrowser.defaultTitleRenderer(token.specification.title, row));
+                    const context = tokenContextFromOptions(token, optionsRef.current);
+                    if (context) {
+                        const tooltip = context === "personal"
+                            ? "This token can be used for all your projects"
+                            : "This token is bound to the current project";
+                        const contextIcon = document.createElement("img");
+                        contextIcon.alt = tooltip;
+                        contextIcon.style.width = "20px";
+                        contextIcon.style.height = "20px";
+                        contextIcon.style.marginRight = "8px";
+                        HTMLTooltip(contextIcon, divText(tooltip));
+                        ResourceBrowser.icons.renderIcon({
+                            name: (context === "personal" ? "heroGlobeEuropeAfrica" : "heroLockClosed") as IconName,
+                            color: "iconColor",
+                            color2: "iconColor2",
+                            width: 20,
+                            height: 20,
+                        }).then(source => {
+                            contextIcon.src = source;
+                        });
+                        row.title.append(contextIcon);
+                    }
+
+                    row.title.append(ResourceBrowser.defaultTitleRenderer(token.specification.title, row));
                 });
 
                 function renderAvatar(token: Api.ApiToken, stat: HTMLElement) {
@@ -193,6 +221,10 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
         addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
+    React.useEffect(() => {
+        browserRef.current?.renderRows();
+    }, [options.data]);
+
     useSetRefreshFunction(() => {
         browserRef.current?.refresh();
     });
@@ -203,6 +235,17 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
             {switcher}
         </>}
     />
+}
+
+function tokenContextFromOptions(
+    token: Api.ApiToken,
+    options: Api.ApiTokenRetrieveOptionsResponse,
+): Api.ApiTokenContext | undefined {
+    const provider = token.specification.provider;
+    const service = token.specification.requestedPermissions[0]?.name;
+    if (provider == null || service == null) return undefined;
+
+    return options.byProvider[provider]?.availablePermissions.find(it => it.name === service)?.context;
 }
 
 function retrieveOperations(): Operation<Api.ApiToken, StandardCallbacks<Api.ApiToken>>[] {

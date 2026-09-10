@@ -52,14 +52,29 @@ const syncthing = {
     syncthing: () => "/syncthing"
 }
 
+export interface ApplicationCreatorRoute {
+    operation: "newManaged" | "newCustom" | "newVersion" | "fork";
+    applicationKind: "managed" | "custom";
+    workspace: string;
+    name?: string;
+    version?: string;
+    provider?: string;
+    category?: number;
+    sourceApplicationKind?: "managed" | "custom";
+    sourceProvider?: string;
+    returnTo?: string;
+}
+
 const apps = {
     landing: () => "/applications",
     category: (categoryId?: number) => buildQueryString(`/applications/category`, {categoryId}),
+    categoryCreate: () => "/applications/category/create",
     group: (id: string) => `/applications/group/${id}`,
     search: (q?: string) => "/applications/search" + (q ? `?q=${q}` : ""),
     shell: (jobId: string, rank: string) => `/applications/shell/${jobId}/${rank}`,
     web: (jobId: string, rank: string) => `/applications/web/${jobId}/${rank}`,
     vnc: (jobId: string, rank: string) => `/applications/vnc/${jobId}/${rank}`,
+    creator: (context?: ApplicationCreatorRoute) => buildQueryString(`/applications/creator`, context ?? {}),
 };
 
 const appStudio = {
@@ -142,6 +157,10 @@ const files = {
     preview: (path: string) => "/files/properties/" + encodeURIComponent(path)
 }
 
+const containerRepositories = {
+    browse: () => "/container-repositories",
+}
+
 const supportAssist = {
     base: () => "/support-assist",
     user() {
@@ -179,6 +198,7 @@ const AppRoutes = {
     accounting,
     providers,
     files,
+    containerRepositories,
     supportAssist,
     prefix: "/app",
 };

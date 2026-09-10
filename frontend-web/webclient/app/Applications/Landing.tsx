@@ -24,6 +24,7 @@ import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useProjectId} from "@/Project/Api";
 import {useDiscovery} from "@/Applications/Hooks";
 import {TooltipV2} from "@/ui-components/Tooltip";
+import {customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
@@ -113,14 +114,15 @@ const LandingPage: React.FunctionComponent = () => {
 
                     {landingPage.spotlight ? <SpotlightCard spotlight={landingPage.spotlight} /> : null}
 
-                    {landingPage.categories.length < 1 ? null :
+                    {landingPage.categories.length < 1 && !creatorCanCreateCategory() ? null :
                         <div>
                             <h3>Browse by category</h3>
-                            <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(250px, 1fr)"}>
+                            <Grid gap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(250px, 1fr))"}>
                                 {landingPage.categories.map((c, idx) =>
                                     <CategoryCard key={c.metadata.id} id={c.metadata.id} idx={idx}
                                         categoryTitle={c.specification.title} />
                                 )}
+                                {creatorCanCreateCategory() ? <CreateCategoryCard /> : null}
                             </Grid>
                         </div>
                     }
@@ -600,6 +602,52 @@ const CategoryCard: React.FunctionComponent<{
             <span>{props.categoryTitle}</span>
         </div>
     </ReactRouterLink>;
+}
+
+const CreateCategoryCardStyle = injectStyle("create-category-card", k => `
+    ${k} {
+        border-radius: 8px;
+        height: 90px;
+        font-size: 17px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 16px;
+        overflow: hidden;
+        --createCardColor: var(--primaryMain);
+        
+        color: var(--createCardColor);
+        border: 4px dashed var(--createCardColor);
+        background: transparent;
+        cursor: pointer;
+    }
+
+    ${k}:hover {
+        --createCardColor: var(--blue-80);
+    }
+    
+    html.dark ${k} {
+        --createCardColor: var(--blue-20);
+    }
+    
+    html.dark ${k}:hover {
+        --createCardColor: white;
+    }
+`);
+
+function creatorCanCreateCategory(): boolean {
+    return customAppsWorkspaceAdmin();
+}
+
+const CreateCategoryCard: React.FunctionComponent = () => {
+    const navigate = useNavigate();
+    return (
+        <div className={CreateCategoryCardStyle} onClick={() => navigate(AppRoutes.apps.categoryCreate())}>
+            <Icon name="heroPlus" size="20" />
+            <span>Create category</span>
+        </div>
+    );
 }
 
 const SpotlightDescription = injectStyle("spotlight-description", k => `

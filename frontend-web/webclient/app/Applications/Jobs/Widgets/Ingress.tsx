@@ -45,11 +45,12 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
     const onUse = useCallback((network: PublicLink) => {
         IngressSetter(props.parameter, {type: "ingress", id: network.id});
         WidgetSetProvider(props.parameter, network.specification.product.provider);
+        props.onValueChange?.();
         if (props.errors[props.parameter.name]) {
             delete props.errors[props.parameter.name];
             props.setErrors({...props.errors});
         }
-    }, [props.parameter, props.errors]);
+    }, [props.parameter, props.errors, props.onValueChange]);
 
     const valueInput = () => {
         return document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
@@ -101,6 +102,8 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
             cursor="pointer"
             error={error}
             onClick={doOpen}
+            readOnly
+            data-field-activator
         />
         {props.bindLinkToPort ? (
             <Input

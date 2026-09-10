@@ -42,6 +42,7 @@ type JobsService struct {
 	HandleShell              func(session *ShellSession, cols, rows int)
 	OpenWebSession           func(job *orcapi.Job, sessionType orcapi.InteractiveSessionType, rank int, target util.Option[string]) (ConfiguredWebSessionResult, *util.HttpError)
 	RequestDynamicParameters func(owner orcapi.ResourceOwner, app *orcapi.Application) []orcapi.ApplicationParameter
+	RenderInvocation         func(job *orcapi.Job) (string, *util.HttpError)
 	HandleBuiltInVnc         func(job *orcapi.Job, rank int, conn *ws.Conn)
 	AttachResource           func(job *orcapi.Job, resource orcapi.AppParameterValue) *util.HttpError
 	DetachResource           func(job *orcapi.Job, resource orcapi.AppParameterValue) *util.HttpError
@@ -216,6 +217,18 @@ func initJobs() {
 	wsUpgrader.CheckOrigin = func(r *http.Request) bool { return true }
 
 	if RunsUserCode() {
+		orcapi.JobsProviderRenderInvocation.Handler(func(info rpc.RequestInfo, request orcapi.JobsProviderRenderInvocationRequest) (orcapi.JobsProviderRenderInvocationResponse, *util.HttpError) {
+			job := request.Job
+			if !job.Status.ResolvedApplication.Present || !job.Status.ResolvedProduct.Present || Jobs.RenderInvocation == nil {
+				return orcapi.JobsProviderRenderInvocationResponse{}, util.HttpErr(http.StatusBadRequest, "invocation preview is not available")
+			}
+			if err := validateFileMountPathsOnSubmission(&job); err != nil {
+				return orcapi.JobsProviderRenderInvocationResponse{}, err
+			}
+			script, err := Jobs.RenderInvocation(&job)
+			return orcapi.JobsProviderRenderInvocationResponse{Script: script}, err
+		})
+
 		orcapi.JobsProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Job]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
 			var errors []*util.HttpError
 			var providerIds []fnd.FindByStringId

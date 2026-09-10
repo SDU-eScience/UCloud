@@ -90,3 +90,47 @@ func k8sV3() db.MigrationScript {
 		},
 	}
 }
+
+func k8sV4() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "k8sV4",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table k8s.init_script_image_cache(
+						workspace_type text not null,
+						workspace_id text not null,
+						cache_key text not null,
+						repository_name text not null,
+						tag text not null,
+						image_digest text,
+						exact_bytes bigint not null default 0,
+						state text not null,
+						builder_job_id text,
+						created_at timestamptz not null default now(),
+						last_used_at timestamptz not null default now(),
+						primary key(workspace_type, workspace_id, cache_key),
+						unique(repository_name, tag)
+					);
+
+					create table k8s.init_script_image_cache_jobs(
+						job_id text primary key,
+						workspace_type text not null,
+						workspace_id text not null,
+						cache_key text not null,
+						state text not null,
+						created_at timestamptz not null default now()
+					);
+
+					create index init_script_image_cache_last_used_idx
+						on k8s.init_script_image_cache(state, last_used_at);
+
+					create index init_script_image_cache_jobs_key_idx
+						on k8s.init_script_image_cache_jobs(workspace_type, workspace_id, cache_key)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

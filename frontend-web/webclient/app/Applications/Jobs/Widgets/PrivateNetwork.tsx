@@ -43,11 +43,12 @@ export const PrivateNetworkParameter: React.FunctionComponent<PrivateNetworkProp
     const onUse = useCallback((network: PrivateNetwork) => {
         PrivateNetworkSetter(props.parameter, {type: "private_network", id: network.id});
         WidgetSetProvider(props.parameter, network.specification.product.provider);
+        props.onValueChange?.();
         if (props.errors[props.parameter.name]) {
             delete props.errors[props.parameter.name];
             props.setErrors({...props.errors});
         }
-    }, [props.parameter, props.errors]);
+    }, [props.parameter, props.errors, props.onValueChange]);
 
     const valueInput = () => document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
     const visualInput = () => document.getElementById(widgetId(props.parameter) + "visual") as HTMLInputElement | null;
@@ -85,6 +86,8 @@ export const PrivateNetworkParameter: React.FunctionComponent<PrivateNetworkProp
             cursor="pointer"
             error={error}
             onClick={doOpen}
+            readOnly
+            data-field-activator
         />
         <input type="hidden" id={widgetId(props.parameter)} />
     </Flex>);

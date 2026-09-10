@@ -25,14 +25,37 @@ type ApiTokenStatus struct {
 type ApiTokenSpecification struct {
 	Title                string               `json:"title"`
 	Description          string               `json:"description"`
-	Provider             util.Option[string]  `json:"provider"` // null implies UCloud itself
-	RequestedPermissions []ApiTokenPermission `json:"requestedPermissions"`
+	Provider             util.Option[string]  `json:"provider"`             // null implies UCloud itself
+	RequestedPermissions []ApiTokenPermission `json:"requestedPermissions"` // provider tokens must contain one service
 	ExpiresAt            fnd.Timestamp        `json:"expiresAt"`
 }
 
 type ApiTokenPermission struct {
 	Name   string `json:"name"`
 	Action string `json:"action"`
+}
+
+type ApiTokenContext string
+
+const (
+	ApiTokenContextProject  ApiTokenContext = "project"
+	ApiTokenContextPersonal ApiTokenContext = "personal"
+)
+
+// ApiTokenServiceFromPermissions returns the one service named by a token's permissions.
+func ApiTokenServiceFromPermissions(permissions []ApiTokenPermission) (string, bool) {
+	if len(permissions) == 0 || permissions[0].Name == "" {
+		return "", false
+	}
+
+	service := permissions[0].Name
+	for _, permission := range permissions[1:] {
+		if permission.Name != service {
+			return "", false
+		}
+	}
+
+	return service, true
 }
 
 type ApiTokenOptions struct {
@@ -44,6 +67,7 @@ type ApiTokenPermissionSpecification struct {
 	Title       string            `json:"title"`
 	Description string            `json:"description"`
 	Actions     map[string]string `json:"actions"` // name of action to human-readable format
+	Context     ApiTokenContext   `json:"context"`
 }
 
 type ApiTokenRetrieveOptionsResponse struct {

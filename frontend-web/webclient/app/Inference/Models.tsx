@@ -11,13 +11,17 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import ModelInferenceLogo, {modelProviderName} from "@/Inference/ModelLogo";
 import {injectStyle} from "@/Unstyled";
-import {SingleLineMarkdown} from "@/ui-components/Markdown";
+import {LineCappedMarkdown} from "@/ui-components/Markdown";
 // import HeroImage from "@/ui-components/icons/logo_esc.svg";
 import HeroImage from "@/Assets/Images/inference/ucloud-ai-logo.png";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {useIsLightThemeStored} from "@/ui-components/theme";
+import {expandAndPrettifyString} from "@/UtilityFunctions";
+import { DropdownClass } from "@/ui-components/Dropdown";
+import HexSpin from "@/LoadingIcon/LoadingIcon";
 
-const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText"];
+const capabilities: InferenceCapability[] = ["TextGeneration"];
+const prettierCapabilities = capabilities.map(expandAndPrettifyString);
 
 const pageStyle = injectStyle("inference-models-page", k => `
     ${k} {
@@ -35,6 +39,10 @@ const pageStyle = injectStyle("inference-models-page", k => `
         padding: 48px 16px;
     }
 
+    ${k} .panel .capabilities {
+        display: flex;
+    }
+
     ${k} .panel-inner {
         box-sizing: border-box;
         margin: 0 auto;
@@ -46,10 +54,22 @@ const pageStyle = injectStyle("inference-models-page", k => `
         background: var(--backgroundCard);
         border-top: 5px solid rgba(148, 163, 184, 0.18);
     }
-    
+
     ${k} .panel-solid,
     ${k} .panel-accent {
         padding: 150px 16px;
+    }
+
+    ${k} .panel-solid,
+    ${k} .panel-accent {
+        padding: 150px 16px;
+    }
+
+    @media screen and (max-width: 960px) {
+        ${k} .panel-solid,
+        ${k} .panel-accent {
+            padding: 20px 16px;
+        }
     }
 
     ${k} .panel-solid {
@@ -78,6 +98,12 @@ const pageStyle = injectStyle("inference-models-page", k => `
         padding-bottom: 24px;
         padding-top: 24px;
         height: 435px;
+    }
+
+    @media screen and (max-width: 960px) {
+        ${k} .hero {
+            height: unset;
+        }
     }
 
     ${k} .hero-top {
@@ -125,6 +151,13 @@ const pageStyle = injectStyle("inference-models-page", k => `
         max-width: 1400px;
     }
 
+    @media screen and (max-width: 960px) {
+        ${k} .hero-content {
+            padding-top: 42px;
+        }
+    }
+
+
     ${k} .hero-copy {
         max-width: 720px;
     }
@@ -150,6 +183,16 @@ const pageStyle = injectStyle("inference-models-page", k => `
         gap: 12px;
         margin-top: 28px;
     }
+
+    @media screen and (max-width: 960px) {
+        ${k} .hero-actions,
+        ${k} .cta-actions {
+            margin-top: 12px;
+            gap: 8px;
+        }
+    }
+
+
 
     ${k} .button-link {
         text-decoration: none;
@@ -212,6 +255,7 @@ const pageStyle = injectStyle("inference-models-page", k => `
         cursor: pointer;
         display: inline-flex;
         font: inherit;
+        min-width: fit-content;
         gap: 8px;
         min-height: 34px;
         padding: 0 13px;
@@ -268,8 +312,6 @@ const pageStyle = injectStyle("inference-models-page", k => `
     }
 
     ${k} .model-results {
-        max-height: calc(4 * 250px + 3 * 14px);
-        overflow-y: auto;
         padding-right: 4px;
     }
 
@@ -313,16 +355,10 @@ const pageStyle = injectStyle("inference-models-page", k => `
     }
 
     ${k} .model-card-header {
-        align-items: flex-start;
+        align-items: center;
         display: flex;
         gap: 14px;
         justify-content: space-between;
-    }
-
-    ${k} .capability {
-        color: var(--textSecondary);
-        font-size: 11px;
-        margin: 0 0 8px;
     }
 
     ${k} .model-title {
@@ -365,7 +401,7 @@ const pageStyle = injectStyle("inference-models-page", k => `
         gap: 8px;
         grid-template-columns: repeat(3, minmax(0, 1fr));
     }
-    
+
     ${k} .model-spec-section {
         border-top: 1px solid var(--borderColor);
         padding-top: 16px;
@@ -447,7 +483,7 @@ const pageStyle = injectStyle("inference-models-page", k => `
         display: flex;
         flex-direction: column;
         gap: 24px;
-        min-height: 220px;
+        height: 220px;
         padding: 0 16px;
     }
 
@@ -464,6 +500,19 @@ const pageStyle = injectStyle("inference-models-page", k => `
     @media (max-width: 900px) {
         ${k} .hero-icon {
             display: none;
+        }
+
+        ${k} .panel .capabilities {
+            gap: 8px;
+            display: block;
+        }
+
+        ${k} .panel .capabilities > div:first-child {
+            display: flex;
+        }
+
+        ${k} .panel .capabilities input {
+            margin-top: 8px;
         }
 
         ${k} .model-toolbar,
@@ -517,6 +566,23 @@ const pageStyle = injectStyle("inference-models-page", k => `
 
         ${k} .metric-value {
             font-size: 14px;
+        }
+
+        ${k} .panel .model-count-and-providers {
+            display: block;
+        }
+
+        ${k} .panel .model-count-and-providers > div:last-child {
+            margin-top: 8px;
+            display: flex;
+            width: 100%;
+            justify-content: end;
+        }
+
+        ${k} .panel .model-count-and-providers > div:last-child > span,
+        ${k} .panel .model-count-and-providers > .${DropdownClass} > span,
+        ${k} .panel .model-count-and-providers > .${DropdownClass} > span > div:first-child {
+            width: 100%;
         }
     }
 `);
@@ -619,49 +685,55 @@ export default function Models(): React.ReactNode {
 
         <section id="model-catalog" className="panel panel-muted">
             <div className="panel-inner">
-                <Flex alignItems={"center"} mb={8}>
-                    <Flex gap={"4px"}>
-                        <CatalogFilterButton active={capabilityFilter === "All"} onClick={() => setCapabilityFilter("All")}>All</CatalogFilterButton>
-                        {capabilities.map(capability => <CatalogFilterButton key={capability} active={capabilityFilter === capability} onClick={() => setCapabilityFilter(capability)}>
-                            {capability}
-                        </CatalogFilterButton>)}
+                {capabilities.length === 1 ? null :
+                    <Box alignItems="center" mb={8} className="capabilities">
+                        <Flex gap={"4px"} overflowY="scroll">
+                            <CatalogFilterButton active={capabilityFilter === "All"} onClick={() => setCapabilityFilter("All")}>All</CatalogFilterButton>
+                            {capabilities.map((capability, index) => <CatalogFilterButton key={capability} active={capabilityFilter === capability} onClick={() => setCapabilityFilter(capability)}>
+                                {prettierCapabilities[index]}
+                            </CatalogFilterButton>)}
+                        </Flex>
+
+                        <Box flexGrow={1} />
+
+                        <Input
+                            className="catalog-search"
+                            type="search"
+                            placeholder="Search models"
+                            value={search}
+                            onChange={ev => setSearch(ev.currentTarget.value)}
+                        />
+                    </Box>
+                }
+
+                {capabilities.length === 1 ? null :
+                    <Flex className="model-count-and-providers" alignItems={"center"} mb={16}>
+                        {!loading ? <span className="model-count">Showing {filteredModels.length} models</span> : null}
+                        <Box flexGrow={1} />
+                        <RichSelect<ModelProviderOption, keyof ModelProviderOption>
+                            items={providerOptions}
+                            keys={["provider"]}
+                            selected={undefined}
+                            onSelect={(option) => toggleProviderFilter(option.provider)}
+                            dropdownWidth="320px"
+                            dropdownVerticalGap={8}
+                            elementHeight={42}
+                            matchTriggerWidth={false}
+                            showSearchField={providerOptions.length > 8}
+                            trigger={<ProviderFilterTrigger selectedProviders={providerFilters} providerOptions={providerOptions} />}
+                            RenderRow={(props) => <ProviderFilterOption
+                                option={props.element}
+                                selected={props.element ? providerFilters.includes(props.element.provider) : false}
+                                onSelect={props.onSelect}
+                                dataProps={props.dataProps}
+                            />}
+                        />
                     </Flex>
-
-                    <Box flexGrow={1} />
-
-                    <Input
-                        className="catalog-search"
-                        type="search"
-                        placeholder="Search models"
-                        value={search}
-                        onChange={ev => setSearch(ev.currentTarget.value)}
-                    />
-                </Flex>
-                <Flex alignItems={"center"} mb={16}>
-                    <span className="model-count">Showing {filteredModels.length} models</span>
-                    <Box flexGrow={1} />
-                    <RichSelect<ModelProviderOption, keyof ModelProviderOption>
-                        items={providerOptions}
-                        keys={["provider"]}
-                        selected={undefined}
-                        onSelect={(option) => toggleProviderFilter(option.provider)}
-                        dropdownWidth="320px"
-                        dropdownVerticalGap={8}
-                        elementHeight={42}
-                        matchTriggerWidth={false}
-                        showSearchField={providerOptions.length > 8}
-                        trigger={<ProviderFilterTrigger selectedProviders={providerFilters} providerOptions={providerOptions} />}
-                        RenderRow={(props) => <ProviderFilterOption
-                            option={props.element}
-                            selected={props.element ? providerFilters.includes(props.element.provider) : false}
-                            onSelect={props.onSelect}
-                            dataProps={props.dataProps}
-                        />}
-                    />
-                </Flex>
+                }
 
                 {error === "" ? null : <Text color="errorMain">{error}</Text>}
 
+                {loading  ? <HexSpin size={64} /> : null}
                 {models.length === 0 && !loading ? <p className="no-results">No inference models are available.</p> : null}
                 {models.length !== 0 && filteredModels.length === 0 ? <p className="no-results">No models match the selected filters.</p> : null}
                 {filteredModels.length === 0 ? null : <div className="model-results">
@@ -719,15 +791,11 @@ export default function Models(): React.ReactNode {
     </Box>} />;
 }
 
-function formatMultiplier(value: number): string {
-    if (value === 0) return "N/A";
-    if (value % 1000 === 0) return `${value / 1000}x`;
-    return `${value / 1000}x`;
-}
-
-function primaryCapability(model: InferenceModel): InferenceCapability | string {
-    const priority: InferenceCapability[] = ["SpeechToText", "TextGeneration", "TextToImage"];
-    return priority.find(capability => model.capabilities.includes(capability)) ?? model.capabilities[0] ?? "Unknown";
+function formatPricePerMillion(value: number): string {
+    if (value === 0) return "Free";
+    const digits = Math.trunc(value).toString().padStart(7, "0");
+    const fraction = digits.slice(-6).replace(/0+$/, "");
+    return fraction === "" ? digits.slice(0, -6) : `${digits.slice(0, -6)}.${fraction}`;
 }
 
 function CatalogFilterButton(props: React.PropsWithChildren<{active: boolean; onClick: () => void; className?: string;}>): React.ReactNode {
@@ -802,14 +870,11 @@ function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {
     const model = props.model;
     return <Link className="model-card" to={AppRoutes.inference.model(model.name)}>
         <div className="model-card-header">
-            <div>
-                <p className="capability">{primaryCapability(model)}</p>
-                <span className="model-title">{model.title}</span>
-            </div>
+            <span className="model-title">{model.title}</span>
             <ModelInferenceLogo modelName={model.name} size={46} />
         </div>
 
-        <SingleLineMarkdown width={"100%"}>{model.page?.shortDescription ?? ""}</SingleLineMarkdown>
+        <LineCappedMarkdown width={"100%"} lines={3}>{model.page?.shortDescription ?? ""}</LineCappedMarkdown>
 
         <div className={"model-spec-section"}>
             <div className="model-specs">
@@ -818,16 +883,16 @@ function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {
             </div>
 
             <div className="metric-grid">
-                <ModelMultiplier title="Cached" value={model.priceMultiplier.cachedInput} />
-                <ModelMultiplier title="Input" value={model.priceMultiplier.input} />
-                <ModelMultiplier title="Output" value={model.priceMultiplier.output} />
+                <ModelPrice title="Input/1M" value={model.pricePerMillion.input} />
+                <ModelPrice title="Output/1M" value={model.pricePerMillion.output} />
+                <ModelPrice title="Cached/1M" value={model.pricePerMillion.cachedInput} />
             </div>
         </div>
     </Link>;
 }
 
-function ModelMultiplier(props: {title: string; value: number;}): React.ReactNode {
-    return <ModelMetric title={props.title} value={formatMultiplier(props.value)} />;
+function ModelPrice(props: {title: string; value: number;}): React.ReactNode {
+    return <ModelMetric title={props.title} value={formatPricePerMillion(props.value)} />;
 }
 
 const ModelMetric: React.FunctionComponent<{ title: string; value: string; }> = props => {

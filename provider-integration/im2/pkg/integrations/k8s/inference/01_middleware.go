@@ -5,18 +5,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
-	"math"
-	"mime/multipart"
 	"net"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -28,13 +22,10 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-const inferenceChatCaptureUpstreamOutput = false
-const inferenceChatReplayUpstreamOutputPath = ""
-
 const (
-	inferenceMaxUpstreamJSONBytes  = 64 << 20
-	inferenceMaxSSEEventBytes      = 16 << 20
-	inferenceResponseHeaderTimeout = 2 * time.Minute
+	inferenceMaxUpstreamJSONBytes  = 1024 * 1024 * 8
+	inferenceMaxSSEEventBytes      = 1024 * 1024 * 8
+	inferenceResponseHeaderTimeout = 4 * time.Minute
 	inferenceStreamIdleTimeout     = 2 * time.Minute
 )
 
@@ -128,11 +119,13 @@ func inferenceReadSSE(ctx context.Context, body io.Reader, touch func(), handle 
 // =====================================================================================================================
 
 type OaiInferenceModel struct {
-	Id            string                `json:"id"`
-	Object        string                `json:"object"`
-	OwnedBy       string                `json:"owned_by,omitempty"`
-	Capabilities  []InferenceCapability `json:"capabilities,omitempty"`
-	ContextWindow *int                  `json:"context_window,omitempty"`
+	Id                     string                 `json:"id"`
+	Object                 string                 `json:"object"`
+	OwnedBy                string                 `json:"owned_by,omitempty"`
+	Capabilities           []InferenceCapability  `json:"capabilities,omitempty"`
+	ContextWindow          *int                   `json:"context_window,omitempty"`
+	ReasoningEfforts       []InferenceModelOption `json:"reasoning_efforts,omitempty"`
+	DefaultReasoningEffort string                 `json:"default_reasoning_effort,omitempty"`
 }
 
 type OaiInferenceModelsResponse struct {
@@ -226,11 +219,13 @@ func OaiInferenceModelByID(owner apm.WalletOwner, id string) (OaiInferenceModel,
 
 func inferenceOaiModelFromCatalog(model InferenceModel) OaiInferenceModel {
 	return OaiInferenceModel{
-		Id:            model.Name,
-		Object:        "model",
-		OwnedBy:       "ucloud",
-		Capabilities:  model.Capabilities,
-		ContextWindow: model.ContextWindow,
+		Id:                     model.Name,
+		Object:                 "model",
+		OwnedBy:                "ucloud",
+		Capabilities:           model.Capabilities,
+		ContextWindow:          model.ContextWindow,
+		ReasoningEfforts:       model.ReasoningEfforts,
+		DefaultReasoningEffort: model.DefaultReasoningEffort,
 	}
 }
 
@@ -259,12 +254,25 @@ func inferenceCodexModelFromCatalog(model InferenceModel, priority int) CodexInf
 		inputModalities = append(inputModalities, "audio")
 	}
 
+	var defaultReasoningLevel *string
+	if model.DefaultReasoningEffort != "" {
+		value := model.DefaultReasoningEffort
+		defaultReasoningLevel = &value
+	}
+	supportedReasoningLevels := make([]CodexReasoningEffort, 0, len(model.ReasoningEfforts))
+	for _, effort := range model.ReasoningEfforts {
+		supportedReasoningLevels = append(supportedReasoningLevels, CodexReasoningEffort{
+			Effort:      effort.Value,
+			Description: effort.Name,
+		})
+	}
+
 	return CodexInferenceModel{
 		Slug:                           model.Name,
 		DisplayName:                    displayName,
 		Description:                    description,
-		DefaultReasoningLevel:          nil,
-		SupportedReasoningLevels:       []CodexReasoningEffort{},
+		DefaultReasoningLevel:          defaultReasoningLevel,
+		SupportedReasoningLevels:       supportedReasoningLevels,
 		ShellType:                      "shell_command",
 		Visibility:                     "list",
 		SupportedInApi:                 true,
@@ -357,11 +365,32 @@ type InferenceChatMessageContent struct {
 }
 
 type InferenceChatContentPart struct {
-	Type     string  `json:"type"`
-	Text     string  `json:"text,omitempty"`
-	ImageUrl *string `json:"image_url,omitempty"`
-	VideoUrl *string `json:"video_url,omitempty"`
-	AudioUrl *string `json:"audio_url,omitempty"`
+	Type     string            `json:"type"`
+	Text     string            `json:"text,omitempty"`
+	ImageUrl *InferenceChatUrl `json:"image_url,omitempty"`
+	VideoUrl *InferenceChatUrl `json:"video_url,omitempty"`
+	AudioUrl *InferenceChatUrl `json:"audio_url,omitempty"`
+}
+
+type InferenceChatUrl struct {
+	Url string
+}
+
+func (u *InferenceChatUrl) UnmarshalJSON(data []byte) error {
+	var object struct {
+		Url string `json:"url"`
+	}
+	if err := json.Unmarshal(data, &object); err == nil {
+		u.Url = object.Url
+		return nil
+	}
+	return json.Unmarshal(data, &u.Url)
+}
+
+func (u InferenceChatUrl) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Url string `json:"url"`
+	}{Url: u.Url})
 }
 
 func inferenceChatTextContent(text string) InferenceChatMessageContent {
@@ -470,6 +499,40 @@ type InferenceChatToolCall struct {
 type InferenceChatToolCallFunction struct {
 	Name      string `json:"name"`
 	Arguments string `json:"arguments"`
+}
+
+func (f *InferenceChatToolCallFunction) UnmarshalJSON(data []byte) error {
+	type inferenceChatToolCallFunctionJSON InferenceChatToolCallFunction
+	var decoded inferenceChatToolCallFunctionJSON
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		return err
+	}
+	*f = InferenceChatToolCallFunction(decoded)
+	f.Arguments = inferenceNormalizeToolCallArguments(f.Arguments)
+	return nil
+}
+
+func inferenceNormalizeToolCallArguments(arguments string) string {
+	trimmed := strings.TrimSpace(arguments)
+	if !strings.HasPrefix(trimmed, "\"") {
+		return arguments
+	}
+
+	var quoted string
+	if err := json.Unmarshal([]byte(trimmed), &quoted); err != nil {
+		return arguments
+	}
+
+	quoted = strings.TrimSpace(quoted)
+	if !strings.HasPrefix(quoted, "{") {
+		return arguments
+	}
+
+	var object map[string]any
+	if err := json.Unmarshal([]byte(quoted), &object); err != nil {
+		return arguments
+	}
+	return quoted
 }
 
 type InferenceChatResponse struct {
@@ -603,56 +666,6 @@ type InferenceChatStreamingToolCallFunction struct {
 	Arguments string `json:"arguments,omitempty"`
 }
 
-type inferenceChatUpstreamCapture struct {
-	CreatedAt string            `json:"created_at"`
-	Kind      string            `json:"kind"`
-	Request   json.RawMessage   `json:"request"`
-	Chunks    []json.RawMessage `json:"chunks"`
-}
-
-func inferenceChatUpstreamCapturePath() string {
-	return filepath.Join("/tmp", fmt.Sprintf("ucloud-inference-upstream-%d.json", time.Now().UnixNano()))
-}
-
-func inferenceChatWriteUpstreamCapture(request []byte, chunks []json.RawMessage) {
-	if !inferenceChatCaptureUpstreamOutput || len(chunks) == 0 {
-		return
-	}
-	capture := inferenceChatUpstreamCapture{
-		CreatedAt: time.Now().Format(time.RFC3339Nano),
-		Kind:      "chat.completions.stream",
-		Request:   append(json.RawMessage(nil), request...),
-		Chunks:    chunks,
-	}
-	encoded, err := json.MarshalIndent(capture, "", "  ")
-	if err != nil {
-		log.Info("Inference upstream capture encode failed: %v", err)
-		return
-	}
-	path := inferenceChatUpstreamCapturePath()
-	if err := os.WriteFile(path, encoded, 0600); err != nil {
-		log.Info("Inference upstream capture write failed: path=%s err=%v", path, err)
-		return
-	}
-	log.Info("Inference upstream capture written: %s chunks=%d", path, len(chunks))
-}
-
-func inferenceChatReadUpstreamReplay(path string) ([]json.RawMessage, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var capture inferenceChatUpstreamCapture
-	if err := json.Unmarshal(data, &capture); err == nil && len(capture.Chunks) > 0 {
-		return capture.Chunks, nil
-	}
-	var chunks []json.RawMessage
-	if err := json.Unmarshal(data, &chunks); err != nil {
-		return nil, err
-	}
-	return chunks, nil
-}
-
 func inferenceChatStreamingResponseFromRaw(raw []byte, modelName string, usageSeen InferenceChatUsage) (InferenceChatStreamingResponse, InferenceChatUsage, bool, bool) {
 	var chunk struct {
 		Id      string                          `json:"id"`
@@ -697,12 +710,38 @@ func inferenceChatDeltaHasOutput(delta InferenceChatDelta) bool {
 	return false
 }
 
-func InferenceChat(ctx context.Context, owner apm.WalletOwner, history InferenceChatRequest) (InferenceChatResponse, *util.HttpError) {
+func InferenceChat(ctx context.Context, owner apm.WalletOwner, username string, history InferenceChatRequest) (InferenceChatResponse, *util.HttpError) {
+	return InferenceChatEx(ctx, owner, username, history, false)
+}
+
+func InferenceChatEx(ctx context.Context, owner apm.WalletOwner, username string, history InferenceChatRequest, skipAudit bool) (InferenceChatResponse, *util.HttpError) {
 	requestStartedAt := time.Now()
 	requestModel := "unknown"
 	requestOutcome := "error"
+	auditModel := history.Model
+	auditUsage := InferenceChatUsage{}
+	auditAborted := false
 	defer func() {
 		inferenceReportChatRequestMetrics(requestModel, requestOutcome, requestStartedAt, time.Now())
+		if !skipAudit {
+			inferenceAuditRecord(
+				ctx,
+				"inference.chat",
+				owner,
+				username,
+				requestStartedAt,
+				inferenceAuditChatBody(
+					inferenceAuditChainKey(owner, username),
+					auditModel,
+					history,
+					&auditUsage,
+					requestOutcome,
+					auditAborted,
+					inferenceAuditSourceOf(ctx),
+				),
+				requestOutcome,
+			)
+		}
 	}()
 
 	if inferenceIsLocked(owner) {
@@ -716,11 +755,14 @@ func InferenceChat(ctx context.Context, owner apm.WalletOwner, history Inference
 		return InferenceChatResponse{}, httpErr
 	}
 	requestModel = model.Name
+	if !history.ReasoningEffort.Present && model.DefaultReasoningEffort != "" {
+		history.ReasoningEffort = util.OptValue(model.DefaultReasoningEffort)
+	}
 	if httpErr := inferenceValidateChatRequest(history, model); httpErr != nil {
 		requestOutcome = "client_error"
 		return InferenceChatResponse{}, httpErr
 	}
-	release, httpErr := inferenceAcquire(owner)
+	release, httpErr := inferenceAcquire(ctx, owner, username)
 	if httpErr != nil {
 		requestOutcome = "admission_rejected"
 		return InferenceChatResponse{}, httpErr
@@ -740,7 +782,18 @@ func InferenceChat(ctx context.Context, owner apm.WalletOwner, history Inference
 
 	respBody, httpErr := inferenceBackendJSONRequest(ctx, model.Endpoint.BasePath, http.MethodPost, "/chat/completions", body, "application/json")
 	if httpErr != nil {
-		requestOutcome = "upstream_error"
+		if ctx.Err() != nil {
+			// The client disconnected while the upstream was generating. We still bill everything that was generated
+			// on the client's behalf: the input is estimated from the request and the output is estimated from the
+			// elapsed time assuming a fixed generation rate.
+			elapsedSeconds := time.Since(requestStartedAt).Seconds()
+			estimatedOutputTokens := int(elapsedSeconds * inferenceEstimatedNonStreamingOutputTokensPerSecond)
+			auditUsage = inferenceReportCancelledUsage(owner, model, history, estimatedOutputTokens)
+			auditAborted = true
+			requestOutcome = "client_cancelled"
+		} else {
+			requestOutcome = "upstream_error"
+		}
 		return InferenceChatResponse{}, httpErr
 	}
 
@@ -775,6 +828,7 @@ func InferenceChat(ctx context.Context, owner apm.WalletOwner, history Inference
 	if !resp.Usage.Present {
 		requestOutcome = "success_missing_usage"
 	}
+	auditUsage = inferenceChatUsage(resp.Usage)
 	return InferenceChatResponse{
 		Id:      resp.Id,
 		Object:  resp.Object,
@@ -785,14 +839,42 @@ func InferenceChat(ctx context.Context, owner apm.WalletOwner, history Inference
 	}, nil
 }
 
-func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history InferenceChatRequest) (chan InferenceChatStreamingResponse, *util.HttpError) {
+func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username string, history InferenceChatRequest) (chan InferenceChatStreamingResponse, *util.HttpError) {
 	requestStartedAt := time.Now()
 	requestModel := "unknown"
-	ch := make(chan InferenceChatStreamingResponse)
+	auditModel := history.Model
+	auditUsage := InferenceChatUsage{}
+	auditAborted := false
+	auditDone := false
+	emitAudit := func(outcome string) {
+		if auditDone {
+			return
+		}
+		auditDone = true
+		inferenceAuditRecord(
+			ctx,
+			"inference.chat",
+			owner,
+			username,
+			requestStartedAt,
+			inferenceAuditChatBody(
+				inferenceAuditChainKey(owner, username),
+				auditModel,
+				history,
+				&auditUsage,
+				outcome,
+				auditAborted,
+				inferenceAuditSourceOf(ctx),
+			),
+			outcome,
+		)
+	}
+	ch := make(chan InferenceChatStreamingResponse, 1024) // buffered to allow for slow consumers (e.g. playground UI)
 
 	if inferenceIsLocked(owner) {
 		close(ch)
 		inferenceReportChatRequestMetrics(requestModel, "payment_required", requestStartedAt, time.Now())
+		emitAudit("payment_required")
 		return ch, util.HttpErr(http.StatusPaymentRequired, "payment required")
 	}
 
@@ -800,18 +882,25 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 	if httpErr != nil {
 		close(ch)
 		inferenceReportChatRequestMetrics(requestModel, "client_error", requestStartedAt, time.Now())
+		emitAudit("client_error")
 		return ch, httpErr
 	}
 	requestModel = model.Name
+	auditModel = model.Name
+	if !history.ReasoningEffort.Present && model.DefaultReasoningEffort != "" {
+		history.ReasoningEffort = util.OptValue(model.DefaultReasoningEffort)
+	}
 	if httpErr := inferenceValidateChatRequest(history, model); httpErr != nil {
 		close(ch)
 		inferenceReportChatRequestMetrics(requestModel, "client_error", requestStartedAt, time.Now())
+		emitAudit("client_error")
 		return ch, httpErr
 	}
-	release, httpErr := inferenceAcquire(owner)
+	release, httpErr := inferenceAcquire(ctx, owner, username)
 	if httpErr != nil {
 		close(ch)
 		inferenceReportChatRequestMetrics(requestModel, "admission_rejected", requestStartedAt, time.Now())
+		emitAudit("admission_rejected")
 		return ch, httpErr
 	}
 	history.Model = model.Endpoint.BackendModelName
@@ -822,6 +911,7 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 		streamOutcome := "error"
 		defer func() {
 			inferenceReportChatRequestMetrics(requestModel, streamOutcome, requestStartedAt, time.Now())
+			emitAudit(streamOutcome)
 		}()
 
 		history.Stream = true
@@ -831,6 +921,7 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 		history.StreamOptions.Value.IncludeUsage = true
 
 		usageSeen := InferenceChatUsage{}
+		var outputSeen strings.Builder
 		body, err := json.Marshal(history)
 		if err != nil {
 			return
@@ -865,44 +956,41 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 		reportMetrics := func(completedAt time.Time) {
 			inferenceReportChatStreamingMetrics(model.Name, streamStartedAt, firstTokenAt, lastOutputAt, completedAt, usageSeen.CompletionTokens)
 		}
-		if inferenceChatReplayUpstreamOutputPath != "" {
-			chunks, err := inferenceChatReadUpstreamReplay(inferenceChatReplayUpstreamOutputPath)
-			if err != nil {
-				log.Info("Inference upstream replay read failed: path=%s err=%v", inferenceChatReplayUpstreamOutputPath, err)
-				streamOutcome = "upstream_error"
-				return
-			}
-			log.Info("Inference upstream replay loaded: path=%s chunks=%d", inferenceChatReplayUpstreamOutputPath, len(chunks))
-			for _, raw := range chunks {
-				resp, usage, ok, _ := inferenceChatStreamingResponseFromRaw(raw, model.Name, usageSeen)
-				if !ok {
-					log.Info("Inference upstream replay skipped invalid chunk: len=%d", len(raw))
-					continue
-				}
-				usageSeen = usage
-				recordOutputDelta(resp)
-				if !inferenceSend(ctx, ch, resp) {
-					reportMetrics(time.Now())
-					streamOutcome = "client_cancelled"
-					return
-				}
-			}
-			reportMetrics(time.Now())
-			streamOutcome = "success"
-			return
-		}
 
 		streamCtx, cancel, touch := inferenceStreamContext(ctx)
 		defer cancel()
+		if ctx.Err() != nil {
+			// Cancelled before the request could be dispatched, e.g. Stop pressed while the previous
+			// leg's tools were running. Nothing was sent upstream, so there is nothing to bill here.
+			streamOutcome = "client_cancelled"
+			auditAborted = true
+			return
+		}
 		resp, httpErr := inferenceBackendStreamRequest(streamCtx, model.Endpoint.BasePath, "/chat/completions", body)
 		if httpErr != nil {
-			streamOutcome = "upstream_error"
+			if ctx.Err() != nil {
+				// The client cancelled while the request was being set up or while waiting for the first
+				// stream chunk. The upstream may already have processed the prompt and generated output
+				// before the connection was torn down, so bill an estimate exactly like the non-streaming
+				// path: input from the request, output from the elapsed time. The estimate is also delivered
+				// to the consumer as a final usage-only chunk so the playground reports the cancelled leg.
+				elapsedSeconds := time.Since(streamStartedAt).Seconds()
+				estimatedOutputTokens := int(elapsedSeconds * inferenceEstimatedNonStreamingOutputTokensPerSecond)
+				usageSeen = inferenceReportCancelledUsage(owner, model, history, estimatedOutputTokens)
+				auditUsage = usageSeen
+				ch <- InferenceChatStreamingResponse{Object: "chat.completion.chunk", Model: model.Name, Usage: usageSeen}
+				streamOutcome = "client_cancelled"
+				auditAborted = true
+			} else {
+				streamOutcome = "upstream_error"
+			}
 			return
 		}
 		defer util.SilentClose(resp.Body)
 
 		capturedChunks := []json.RawMessage{}
 		usagePresent := false
+		usageDelivered := false
 		streamCompleted := false
 		streamSendFailed := false
 		readErr := inferenceReadSSE(streamCtx, resp.Body, touch, func(event []byte) bool {
@@ -927,11 +1015,22 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 				capturedChunks = append(capturedChunks, append(json.RawMessage(nil), raw...))
 				usageSeen = usage
 				usagePresent = usagePresent || chunkUsagePresent
+				for _, choice := range resp.Choices {
+					outputSeen.WriteString(choice.Delta.Content)
+					outputSeen.WriteString(choice.Delta.Reasoning)
+					for _, toolCall := range choice.Delta.ToolCalls {
+						if toolCall.Function != nil {
+							outputSeen.WriteString(toolCall.Function.Arguments)
+						}
+					}
+				}
 				recordOutputDelta(resp)
-				if !inferenceSend(streamCtx, ch, resp) {
+				sent := inferenceSend(streamCtx, ch, resp)
+				if !sent {
 					streamSendFailed = true
 					return false
 				}
+				usageDelivered = usageDelivered || chunkUsagePresent
 				return true
 			}
 			return true
@@ -942,12 +1041,15 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 		streamCompletedAt := time.Now()
 		if ctx.Err() != nil {
 			streamOutcome = "client_cancelled"
+			auditAborted = true
 		} else if streamCtx.Err() != nil {
 			streamOutcome = "stream_timeout"
+			auditAborted = true
 		} else if readErr != nil {
 			streamOutcome = "upstream_error"
 		} else if streamSendFailed {
 			streamOutcome = "stream_timeout"
+			auditAborted = true
 		} else if !streamCompleted {
 			streamOutcome = "incomplete"
 		} else {
@@ -960,722 +1062,22 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, history 
 			cachedTokens, inputTokens, outputTokens := inferenceChatUsageComponents(usageSeen)
 			inferenceReportChatUsageMetrics(model.Name, cachedTokens, inputTokens, outputTokens)
 			inferenceReportUsage(owner, model, cachedTokens, inputTokens, outputTokens)
+			if ctx.Err() != nil && !usageDelivered {
+				// The upstream's usage chunk arrived during cancellation, but the send to the consumer
+				// lost the race against the context. Deliver it now.
+				ch <- InferenceChatStreamingResponse{Object: "chat.completion.chunk", Model: model.Name, Usage: usageSeen}
+			}
+		} else if ctx.Err() != nil {
+			usageSeen = inferenceReportCancelledUsage(owner, model, history, inferenceEstimateTokensFromText(outputSeen.String()))
+			ch <- InferenceChatStreamingResponse{Object: "chat.completion.chunk", Model: model.Name, Usage: usageSeen}
 		} else if streamCtx.Err() == nil {
 			inferenceWarnMissingUsage("chat-stream", model.Name)
 		}
+		auditUsage = usageSeen
 		reportMetrics(streamCompletedAt)
-		inferenceChatWriteUpstreamCapture(body, capturedChunks)
 	}()
 
 	return ch, nil
-}
-
-// Transcription
-// =====================================================================================================================
-
-type InferenceTranscriptionRequest struct {
-	File                   InferenceTranscriptionFile
-	Model                  string
-	Language               util.Option[string]
-	Prompt                 util.Option[string]
-	ResponseFormat         InferenceTranscriptionResponseFormat
-	Stream                 bool
-	Temperature            util.Option[float64]
-	Include                []string
-	TimestampGranularities []string
-	ChunkingStrategy       util.Option[string]
-	KnownSpeakerNames      []string
-	KnownSpeakerReferences []string
-}
-
-type InferenceTranscriptionFile struct {
-	Name        string
-	ContentType string
-	Data        []byte
-}
-
-type InferenceTranscriptionResponseFormat string
-
-const (
-	InferenceTranscriptionRespJson         InferenceTranscriptionResponseFormat = "json"
-	InferenceTranscriptionRespDiarizedJson InferenceTranscriptionResponseFormat = "diarized_json"
-	InferenceTranscriptionRespVerboseJson  InferenceTranscriptionResponseFormat = "verbose_json"
-)
-
-type InferenceTranscriptionLogprob struct {
-	Token   util.Option[string] `json:"token,omitempty"`
-	Bytes   util.Option[[]int]  `json:"bytes,omitempty"`
-	Logprob float64             `json:"logprob"`
-}
-
-type InferenceTranscriptionInputTokenDetails struct {
-	AudioTokens util.Option[int] `json:"audio_tokens,omitempty"`
-	TextTokens  util.Option[int] `json:"text_tokens,omitempty"`
-}
-
-type InferenceTranscriptionUsage struct {
-	Seconds           util.Option[float64]                                 `json:"seconds,omitempty"`
-	InputTokens       int                                                  `json:"input_tokens"`
-	OutputTokens      int                                                  `json:"output_tokens"`
-	TotalTokens       int                                                  `json:"total_tokens"`
-	InputTokenDetails util.Option[InferenceTranscriptionInputTokenDetails] `json:"input_token_details,omitempty"`
-}
-
-type InferenceTranscriptionResponse struct {
-	Json         *InferenceTranscriptionJsonResponse
-	VerboseJson  *InferenceTranscriptionVerboseResponse
-	DiarizedJson *InferenceTranscriptionDiarizedResponse
-}
-
-type InferenceTranscriptionJsonResponse struct {
-	Text     string                                       `json:"text"`
-	Logprobs util.Option[[]InferenceTranscriptionLogprob] `json:"logprobs,omitempty"`
-	Usage    InferenceTranscriptionUsage                  `json:"usage"`
-}
-
-type InferenceTranscriptionDiarizedResponse struct {
-	Task     string                                  `json:"task"`
-	Duration float64                                 `json:"duration"`
-	Text     string                                  `json:"text"`
-	Segments []InferenceTranscriptionDiarizedSegment `json:"segments"`
-	Usage    InferenceTranscriptionUsage             `json:"usage"`
-}
-
-type InferenceTranscriptionDiarizedSegment struct {
-	Type    string  `json:"type"`
-	ID      string  `json:"id"`
-	Start   float64 `json:"start"`
-	End     float64 `json:"end"`
-	Text    string  `json:"text"`
-	Speaker string  `json:"speaker"`
-}
-
-type InferenceTranscriptionVerboseResponse struct {
-	Task     string                                              `json:"task"`
-	Language string                                              `json:"language"`
-	Duration float64                                             `json:"duration"`
-	Text     string                                              `json:"text"`
-	Segments util.Option[[]InferenceTranscriptionVerboseSegment] `json:"segments,omitempty"`
-	Words    util.Option[[]InferenceTranscriptionWord]           `json:"words,omitempty"`
-	Usage    InferenceTranscriptionUsage                         `json:"usage"`
-}
-
-type InferenceTranscriptionVerboseSegment struct {
-	ID               int     `json:"id"`
-	Seek             int     `json:"seek"`
-	Start            float64 `json:"start"`
-	End              float64 `json:"end"`
-	Text             string  `json:"text"`
-	Tokens           []int   `json:"tokens"`
-	Temperature      float64 `json:"temperature"`
-	AvgLogprob       float64 `json:"avg_logprob"`
-	CompressionRatio float64 `json:"compression_ratio"`
-	NoSpeechProb     float64 `json:"no_speech_prob"`
-}
-
-type InferenceTranscriptionWord struct {
-	Start float64 `json:"start"`
-	End   float64 `json:"end"`
-	Word  string  `json:"word"`
-}
-
-type InferenceTranscriptionStreamEvent struct {
-	Type     string                                       `json:"type"`
-	Delta    string                                       `json:"delta,omitempty"`
-	Text     string                                       `json:"text,omitempty"`
-	Logprobs util.Option[[]InferenceTranscriptionLogprob] `json:"logprobs,omitempty"`
-	Usage    InferenceTranscriptionUsage                  `json:"usage"`
-}
-
-func InferenceTranscriptionParseRequest(w http.ResponseWriter, r *http.Request) (InferenceTranscriptionRequest, *util.HttpError) {
-	if r.ContentLength > inferenceMaxTranscriptionRequestBytes {
-		return InferenceTranscriptionRequest{}, util.HttpErr(http.StatusRequestEntityTooLarge, "request body too large")
-	}
-	r.Body = http.MaxBytesReader(w, r.Body, inferenceMaxTranscriptionRequestBytes)
-	if err := r.ParseMultipartForm(8 << 20); err != nil {
-		var tooLarge *http.MaxBytesError
-		if errors.As(err, &tooLarge) {
-			return InferenceTranscriptionRequest{}, util.HttpErr(http.StatusRequestEntityTooLarge, "request body too large")
-		}
-		return InferenceTranscriptionRequest{}, util.HttpErr(http.StatusBadRequest, "invalid request")
-	}
-	if r.MultipartForm != nil {
-		defer r.MultipartForm.RemoveAll()
-	}
-
-	file, header, err := r.FormFile("file")
-	if err != nil {
-		return InferenceTranscriptionRequest{}, util.HttpErr(http.StatusBadRequest, "invalid request")
-	}
-	defer util.SilentClose(file)
-
-	fileData, err := io.ReadAll(file)
-	if err != nil {
-		return InferenceTranscriptionRequest{}, util.HttpErr(http.StatusBadRequest, "invalid request")
-	}
-
-	request := InferenceTranscriptionRequest{
-		File: InferenceTranscriptionFile{
-			Name:        header.Filename,
-			ContentType: header.Header.Get("Content-Type"),
-			Data:        fileData,
-		},
-		Model:                  r.FormValue("model"),
-		ResponseFormat:         InferenceTranscriptionResponseFormat(strings.TrimSpace(r.FormValue("response_format"))),
-		Stream:                 parseFormBool(r.FormValue("stream")),
-		Include:                r.MultipartForm.Value["include[]"],
-		TimestampGranularities: r.MultipartForm.Value["timestamp_granularities[]"],
-		KnownSpeakerNames:      r.MultipartForm.Value["known_speaker_names[]"],
-		KnownSpeakerReferences: r.MultipartForm.Value["known_speaker_references[]"],
-	}
-
-	if request.ResponseFormat == "" {
-		request.ResponseFormat = InferenceTranscriptionRespJson
-	}
-
-	if v := strings.TrimSpace(r.FormValue("language")); v != "" {
-		request.Language = util.OptValue(v)
-	}
-	if v := strings.TrimSpace(r.FormValue("prompt")); v != "" {
-		request.Prompt = util.OptValue(v)
-	}
-	if v := strings.TrimSpace(r.FormValue("temperature")); v != "" {
-		if parsed, err := strconv.ParseFloat(v, 64); err == nil {
-			request.Temperature = util.OptValue(parsed)
-		}
-	}
-	if v := strings.TrimSpace(r.FormValue("chunking_strategy")); v != "" {
-		request.ChunkingStrategy = util.OptValue(v)
-	}
-
-	return request, nil
-}
-
-func InferenceTranscribe(ctx context.Context, owner apm.WalletOwner, request InferenceTranscriptionRequest) (InferenceTranscriptionResponse, *util.HttpError) {
-	if inferenceIsLocked(owner) {
-		return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusPaymentRequired, "payment required")
-	}
-
-	model, httpErr := inferenceResolveModelForOwner(owner, request.Model)
-	if httpErr != nil {
-		return InferenceTranscriptionResponse{}, httpErr
-	}
-	release, httpErr := inferenceAcquire(owner)
-	if httpErr != nil {
-		return InferenceTranscriptionResponse{}, httpErr
-	}
-	defer release()
-	request.Model = model.Endpoint.BackendModelName
-
-	body, contentType, httpErr := inferenceBuildTranscriptionMultipart(request)
-	if httpErr != nil {
-		return InferenceTranscriptionResponse{}, httpErr
-	}
-	if len(body) > inferenceMaxTranscriptionRequestBytes {
-		return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusRequestEntityTooLarge, "request body too large")
-	}
-
-	respBody, httpErr := inferenceBackendJSONRequest(ctx, model.Endpoint.BasePath, http.MethodPost, "/audio/transcriptions", body, contentType)
-	if httpErr != nil {
-		return InferenceTranscriptionResponse{}, httpErr
-	}
-
-	if request.ResponseFormat == InferenceTranscriptionRespDiarizedJson {
-		var resp struct {
-			Task     string                                   `json:"task"`
-			Duration float64                                  `json:"duration"`
-			Text     string                                   `json:"text"`
-			Segments []InferenceTranscriptionDiarizedSegment  `json:"segments"`
-			Usage    util.Option[InferenceTranscriptionUsage] `json:"usage"`
-		}
-		if err := json.Unmarshal(respBody, &resp); err == nil {
-			if resp.Usage.Present && !inferenceTranscriptionUsageValid(resp.Usage.Value) {
-				return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid usage from upstream")
-			}
-			if !resp.Usage.Present {
-				inferenceWarnMissingUsage("transcription", model.Name)
-			}
-			usage := inferenceTranscriptionUsage(resp.Usage)
-			if resp.Usage.Present {
-				inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
-			}
-			return InferenceTranscriptionResponse{DiarizedJson: &InferenceTranscriptionDiarizedResponse{Task: resp.Task, Duration: resp.Duration, Text: resp.Text, Segments: resp.Segments, Usage: usage}}, nil
-		} else {
-			return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response from upstream")
-		}
-	}
-	if request.ResponseFormat == InferenceTranscriptionRespVerboseJson {
-		var resp struct {
-			Task     string                                              `json:"task"`
-			Language string                                              `json:"language"`
-			Duration float64                                             `json:"duration"`
-			Text     string                                              `json:"text"`
-			Segments util.Option[[]InferenceTranscriptionVerboseSegment] `json:"segments,omitempty"`
-			Words    util.Option[[]InferenceTranscriptionWord]           `json:"words,omitempty"`
-			Usage    util.Option[InferenceTranscriptionUsage]            `json:"usage"`
-		}
-		if err := json.Unmarshal(respBody, &resp); err == nil {
-			if resp.Usage.Present && !inferenceTranscriptionUsageValid(resp.Usage.Value) {
-				return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid usage from upstream")
-			}
-			if !resp.Usage.Present {
-				inferenceWarnMissingUsage("transcription", model.Name)
-			}
-			usage := inferenceTranscriptionUsage(resp.Usage)
-			if resp.Usage.Present {
-				inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
-			}
-			return InferenceTranscriptionResponse{VerboseJson: &InferenceTranscriptionVerboseResponse{Task: resp.Task, Language: resp.Language, Duration: resp.Duration, Text: resp.Text, Segments: resp.Segments, Words: resp.Words, Usage: usage}}, nil
-		} else {
-			return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response from upstream")
-		}
-	}
-
-	var resp struct {
-		Text     string                                       `json:"text"`
-		Logprobs util.Option[[]InferenceTranscriptionLogprob] `json:"logprobs,omitempty"`
-		Usage    util.Option[InferenceTranscriptionUsage]     `json:"usage"`
-	}
-	if err := json.Unmarshal(respBody, &resp); err == nil {
-		if resp.Usage.Present && !inferenceTranscriptionUsageValid(resp.Usage.Value) {
-			return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid usage from upstream")
-		}
-		if !resp.Usage.Present {
-			inferenceWarnMissingUsage("transcription", model.Name)
-		}
-		usage := inferenceTranscriptionUsage(resp.Usage)
-		if resp.Usage.Present {
-			inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
-		}
-		return InferenceTranscriptionResponse{Json: &InferenceTranscriptionJsonResponse{Text: resp.Text, Logprobs: resp.Logprobs, Usage: usage}}, nil
-	} else {
-		return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response from upstream")
-	}
-}
-
-func InferenceTranscribeStreaming(ctx context.Context, owner apm.WalletOwner, request InferenceTranscriptionRequest) (chan InferenceTranscriptionStreamEvent, *util.HttpError) {
-	ch := make(chan InferenceTranscriptionStreamEvent)
-
-	if inferenceIsLocked(owner) {
-		close(ch)
-		return ch, util.HttpErr(http.StatusPaymentRequired, "payment required")
-	}
-
-	model, httpErr := inferenceResolveModelForOwner(owner, request.Model)
-	if httpErr != nil {
-		close(ch)
-		return ch, httpErr
-	}
-	release, httpErr := inferenceAcquire(owner)
-	if httpErr != nil {
-		close(ch)
-		return ch, httpErr
-	}
-	request.Model = model.Endpoint.BackendModelName
-
-	go func() {
-		defer close(ch)
-		defer release()
-
-		request.Stream = true
-		body, contentType, httpErr := inferenceBuildTranscriptionMultipart(request)
-		if httpErr != nil {
-			return
-		}
-		if len(body) > inferenceMaxTranscriptionRequestBytes {
-			return
-		}
-
-		streamCtx, cancel, touch := inferenceStreamContext(ctx)
-		defer cancel()
-		resp, httpErr := inferenceBackendRequest(streamCtx, model.Endpoint.BasePath, http.MethodPost, "/audio/transcriptions", body, contentType)
-		if httpErr != nil {
-			return
-		}
-		defer util.SilentClose(resp.Body)
-
-		usageSeen := InferenceTranscriptionUsage{}
-		usagePresent := false
-		readErr := inferenceReadSSE(streamCtx, resp.Body, touch, func(event []byte) bool {
-			raw := strings.TrimSpace(string(event))
-			if raw == "" || raw == "data: [DONE]" {
-				return true
-			}
-
-			raw = inferenceSSEDataPayload(raw)
-			var parsed struct {
-				Type     string                                       `json:"type"`
-				Delta    string                                       `json:"delta,omitempty"`
-				Text     string                                       `json:"text,omitempty"`
-				Logprobs util.Option[[]InferenceTranscriptionLogprob] `json:"logprobs,omitempty"`
-				Usage    util.Option[InferenceTranscriptionUsage]     `json:"usage"`
-			}
-			if err := json.Unmarshal([]byte(raw), &parsed); err == nil {
-				if parsed.Usage.Present {
-					if inferenceTranscriptionUsageValid(parsed.Usage.Value) {
-						usageSeen = parsed.Usage.Value
-						usagePresent = true
-					} else {
-						log.Warn("Inference upstream returned invalid negative transcription usage: model=%s", model.Name)
-					}
-				}
-				return inferenceSend(streamCtx, ch, InferenceTranscriptionStreamEvent{Type: parsed.Type, Delta: parsed.Delta, Text: parsed.Text, Logprobs: parsed.Logprobs, Usage: usageSeen})
-			}
-			return true
-		})
-		if readErr != nil && streamCtx.Err() == nil {
-			log.Warn("Inference upstream transcription stream failed: model=%s err=%v", model.Name, readErr)
-		}
-
-		if usagePresent {
-			inferenceReportUsage(owner, model, 0, usageSeen.InputTokens, usageSeen.OutputTokens)
-		} else if streamCtx.Err() == nil {
-			inferenceWarnMissingUsage("transcription-stream", model.Name)
-		}
-	}()
-
-	return ch, nil
-}
-
-func inferenceBuildTranscriptionMultipart(request InferenceTranscriptionRequest) ([]byte, string, *util.HttpError) {
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-
-	if request.File.Name == "" {
-		request.File.Name = "audio"
-	}
-	part, err := writer.CreateFormFile("file", request.File.Name)
-	if err != nil {
-		return nil, "", util.HttpErr(http.StatusBadRequest, "invalid request")
-	}
-	if _, err := part.Write(request.File.Data); err != nil {
-		return nil, "", util.HttpErr(http.StatusBadRequest, "invalid request")
-	}
-
-	writeField := func(key string, value string) {
-		if value != "" {
-			_ = writer.WriteField(key, value)
-		}
-	}
-
-	writeField("model", request.Model)
-	writeField("response_format", string(request.ResponseFormat))
-	writeField("stream", fmt.Sprint(request.Stream))
-	if request.Language.Present {
-		writeField("language", request.Language.Value)
-	}
-	if request.Prompt.Present {
-		writeField("prompt", request.Prompt.Value)
-	}
-	if request.Temperature.Present {
-		writeField("temperature", fmt.Sprint(request.Temperature.Value))
-	}
-	if request.ChunkingStrategy.Present {
-		writeField("chunking_strategy", request.ChunkingStrategy.Value)
-	}
-	for _, v := range request.Include {
-		writeField("include[]", v)
-	}
-	for _, v := range request.TimestampGranularities {
-		writeField("timestamp_granularities[]", v)
-	}
-	for _, v := range request.KnownSpeakerNames {
-		writeField("known_speaker_names[]", v)
-	}
-	for _, v := range request.KnownSpeakerReferences {
-		writeField("known_speaker_references[]", v)
-	}
-
-	if err := writer.Close(); err != nil {
-		return nil, "", util.HttpErr(http.StatusBadRequest, "invalid request")
-	}
-
-	return buf.Bytes(), writer.FormDataContentType(), nil
-}
-
-// Image generation
-// =====================================================================================================================
-
-type InferenceImageGenerationRequest struct {
-	Background        util.Option[string] `json:"background,omitempty"`
-	Model             util.Option[string] `json:"model,omitempty"`
-	Moderation        util.Option[string] `json:"moderation,omitempty"`
-	N                 util.Option[int]    `json:"n,omitempty"`
-	OutputCompression util.Option[int]    `json:"output_compression,omitempty"`
-	OutputFormat      util.Option[string] `json:"output_format,omitempty"`
-	PartialImages     util.Option[int]    `json:"partial_images,omitempty"`
-	Prompt            string              `json:"prompt"`
-	Quality           util.Option[string] `json:"quality,omitempty"`
-	ResponseFormat    util.Option[string] `json:"response_format,omitempty"`
-	Size              util.Option[string] `json:"size,omitempty"`
-	Stream            util.Option[bool]   `json:"stream,omitempty"`
-	Style             util.Option[string] `json:"style,omitempty"`
-	User              util.Option[string] `json:"user,omitempty"`
-}
-
-type InferenceImageGenerationResponse struct {
-	Created      int64                                `json:"created"`
-	Background   util.Option[string]                  `json:"background,omitempty"`
-	Data         []InferenceImageGenerationResponseEl `json:"data,omitempty"`
-	OutputFormat util.Option[string]                  `json:"output_format,omitempty"`
-	Quality      util.Option[string]                  `json:"quality,omitempty"`
-	Size         util.Option[string]                  `json:"size,omitempty"`
-	Usage        InferenceImageGenerationUsage        `json:"usage"`
-}
-
-type InferenceImageGenerationResponseEl struct {
-	B64JSON       util.Option[string] `json:"b64_json,omitempty"`
-	RevisedPrompt util.Option[string] `json:"revised_prompt,omitempty"`
-	URL           util.Option[string] `json:"url,omitempty"`
-}
-
-type InferenceImageGenerationUsage struct {
-	InputTokens         int                                                     `json:"input_tokens"`
-	InputTokensDetails  util.Option[InferenceImageGenerationInputTokenDetails]  `json:"input_tokens_details,omitempty"`
-	OutputTokens        int                                                     `json:"output_tokens"`
-	TotalTokens         int                                                     `json:"total_tokens"`
-	OutputTokensDetails util.Option[InferenceImageGenerationOutputTokenDetails] `json:"output_tokens_details,omitempty"`
-}
-
-type InferenceImageGenerationInputTokenDetails struct {
-	ImageTokens util.Option[int] `json:"image_tokens,omitempty"`
-	TextTokens  util.Option[int] `json:"text_tokens,omitempty"`
-}
-
-type InferenceImageGenerationOutputTokenDetails struct {
-	ImageTokens util.Option[int] `json:"image_tokens,omitempty"`
-	TextTokens  util.Option[int] `json:"text_tokens,omitempty"`
-}
-
-type InferenceImageGenerationStreamEvent struct {
-	Type              string                        `json:"type"`
-	B64JSON           util.Option[string]           `json:"b64_json,omitempty"`
-	PartialImageIndex util.Option[int]              `json:"partial_image_index,omitempty"`
-	Usage             InferenceImageGenerationUsage `json:"usage"`
-}
-
-func inferenceGenerateImageResponse(ctx context.Context, owner apm.WalletOwner, request InferenceImageGenerationRequest) ([]byte, *util.HttpError) {
-	resp, httpErr := InferenceGenerateImage(ctx, owner, request)
-	if httpErr != nil {
-		return nil, httpErr
-	}
-
-	respBody, err := json.Marshal(resp)
-	if err != nil {
-		return nil, util.HttpErr(http.StatusBadGateway, "invalid response")
-	}
-
-	return respBody, nil
-}
-
-func InferenceGenerateImage(ctx context.Context, owner apm.WalletOwner, request InferenceImageGenerationRequest) (InferenceImageGenerationResponse, *util.HttpError) {
-	if inferenceIsLocked(owner) {
-		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusPaymentRequired, "payment required")
-	}
-
-	modelName := request.Model.GetOrDefault("")
-	model, httpErr := inferenceResolveModelForOwner(owner, modelName)
-	if httpErr != nil {
-		return InferenceImageGenerationResponse{}, httpErr
-	}
-	if httpErr := inferenceValidateImageRequest(request); httpErr != nil {
-		return InferenceImageGenerationResponse{}, httpErr
-	}
-	release, httpErr := inferenceAcquire(owner)
-	if httpErr != nil {
-		return InferenceImageGenerationResponse{}, httpErr
-	}
-	defer release()
-	request.Model.Set(model.Endpoint.BackendModelName)
-
-	if inferenceGlobals.MockImageGeneration {
-		resp, httpErr := inferenceGenerateMockImageResponse(request)
-		if httpErr != nil {
-			return InferenceImageGenerationResponse{}, httpErr
-		}
-
-		inferenceReportUsage(owner, model, 0, resp.Usage.InputTokens, resp.Usage.OutputTokens)
-		return resp, nil
-	}
-
-	body, err := json.Marshal(request)
-	if err != nil {
-		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusBadRequest, "invalid request")
-	}
-	if len(body) > inferenceMaxJSONRequestBytes {
-		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusRequestEntityTooLarge, "request body too large")
-	}
-
-	respBody, httpErr := inferenceBackendJSONRequest(ctx, model.Endpoint.BasePath, http.MethodPost, "/images/generations", body, "application/json")
-	if httpErr != nil {
-		return InferenceImageGenerationResponse{}, httpErr
-	}
-
-	var resp struct {
-		Created      int64                                      `json:"created"`
-		Background   util.Option[string]                        `json:"background,omitempty"`
-		Data         []InferenceImageGenerationResponseEl       `json:"data,omitempty"`
-		OutputFormat util.Option[string]                        `json:"output_format,omitempty"`
-		Quality      util.Option[string]                        `json:"quality,omitempty"`
-		Size         util.Option[string]                        `json:"size,omitempty"`
-		Usage        util.Option[InferenceImageGenerationUsage] `json:"usage"`
-	}
-	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response")
-	}
-	if resp.Usage.Present && !inferenceImageUsageValid(resp.Usage.Value) {
-		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusBadGateway, "invalid usage from upstream")
-	}
-	if !resp.Usage.Present {
-		inferenceWarnMissingUsage("image", model.Name)
-	}
-
-	usage := inferenceImageUsage(resp.Usage)
-	result := InferenceImageGenerationResponse{
-		Created:      resp.Created,
-		Background:   resp.Background,
-		Data:         resp.Data,
-		OutputFormat: resp.OutputFormat,
-		Quality:      resp.Quality,
-		Size:         resp.Size,
-		Usage:        usage,
-	}
-	if resp.Usage.Present {
-		inferenceReportUsage(owner, model, 0, usage.InputTokens, usage.OutputTokens)
-	}
-	return result, nil
-}
-
-func InferenceGenerateImageStreaming(ctx context.Context, owner apm.WalletOwner, request InferenceImageGenerationRequest) (chan InferenceImageGenerationStreamEvent, *util.HttpError) {
-	ch := make(chan InferenceImageGenerationStreamEvent)
-
-	if inferenceIsLocked(owner) {
-		close(ch)
-		return ch, util.HttpErr(http.StatusPaymentRequired, "payment required")
-	}
-
-	modelName := request.Model.GetOrDefault("")
-	model, httpErr := inferenceResolveModelForOwner(owner, modelName)
-	if httpErr != nil {
-		close(ch)
-		return ch, httpErr
-	}
-	if httpErr := inferenceValidateImageRequest(request); httpErr != nil {
-		close(ch)
-		return ch, httpErr
-	}
-	release, httpErr := inferenceAcquire(owner)
-	if httpErr != nil {
-		close(ch)
-		return ch, httpErr
-	}
-	request.Model.Set(model.Endpoint.BackendModelName)
-
-	go func() {
-		defer close(ch)
-		defer release()
-
-		request.Stream.Set(true)
-		if inferenceGlobals.MockImageGeneration {
-			resp, httpErr := inferenceGenerateMockImageResponse(request)
-			if httpErr != nil {
-				return
-			}
-
-			if len(resp.Data) > 0 {
-				if !inferenceSend(ctx, ch, InferenceImageGenerationStreamEvent{
-					Type:    "image_generation.completed",
-					B64JSON: resp.Data[0].B64JSON,
-					Usage:   resp.Usage,
-				}) {
-					return
-				}
-			}
-			inferenceReportUsage(owner, model, 0, resp.Usage.InputTokens, resp.Usage.OutputTokens)
-			return
-		}
-
-		body, err := json.Marshal(request)
-		if err != nil {
-			return
-		}
-		if len(body) > inferenceMaxJSONRequestBytes {
-			return
-		}
-
-		streamCtx, cancel, touch := inferenceStreamContext(ctx)
-		defer cancel()
-		resp, httpErr := inferenceBackendRequest(streamCtx, model.Endpoint.BasePath, http.MethodPost, "/images/generations", body, "application/json")
-		if httpErr != nil {
-			return
-		}
-		defer util.SilentClose(resp.Body)
-
-		charged := false
-		readErr := inferenceReadSSE(streamCtx, resp.Body, touch, func(event []byte) bool {
-			raw := strings.TrimSpace(string(event))
-			if raw == "" {
-				return true
-			}
-
-			payload := inferenceSSEDataPayload(raw)
-
-			if payload == "" || payload == "[DONE]" {
-				return true
-			}
-
-			var parsed struct {
-				Type              string                                     `json:"type"`
-				B64JSON           util.Option[string]                        `json:"b64_json,omitempty"`
-				PartialImageIndex util.Option[int]                           `json:"partial_image_index,omitempty"`
-				Usage             util.Option[InferenceImageGenerationUsage] `json:"usage"`
-			}
-			if err := json.Unmarshal([]byte(payload), &parsed); err == nil {
-				usageValid := !parsed.Usage.Present || inferenceImageUsageValid(parsed.Usage.Value)
-				if !usageValid {
-					log.Warn("Inference upstream returned invalid negative image usage: model=%s", model.Name)
-					parsed.Usage.Clear()
-				}
-				streamEvent := InferenceImageGenerationStreamEvent{
-					Type:              parsed.Type,
-					B64JSON:           parsed.B64JSON,
-					PartialImageIndex: parsed.PartialImageIndex,
-					Usage:             inferenceImageUsage(parsed.Usage),
-				}
-				if streamEvent.Type == "image_generation.completed" && !charged {
-					if parsed.Usage.Present {
-						inferenceReportUsage(owner, model, 0, streamEvent.Usage.InputTokens, streamEvent.Usage.OutputTokens)
-					} else {
-						inferenceWarnMissingUsage("image-stream", model.Name)
-					}
-					charged = true
-				}
-				return inferenceSend(streamCtx, ch, streamEvent)
-			}
-			return true
-		})
-		if readErr != nil && streamCtx.Err() == nil {
-			log.Warn("Inference upstream image stream failed: model=%s err=%v", model.Name, readErr)
-		}
-	}()
-
-	return ch, nil
-}
-
-func inferenceImageRequestCount(request InferenceImageGenerationRequest) int {
-	if request.N.Present && request.N.Value > 0 {
-		return request.N.Value
-	}
-
-	return 1
-}
-
-func inferenceImageRequestSize(request InferenceImageGenerationRequest) (int, int) {
-	if request.Size.Present {
-		return inferenceParseImageSize(request.Size.Value)
-	}
-
-	return inferenceParseImageSize("")
 }
 
 // Helpers
@@ -1821,21 +1223,17 @@ func inferenceValidateChatRequest(request InferenceChatRequest, model InferenceM
 	if request.N.Present && (request.N.Value <= 0 || request.N.Value > 8) {
 		return util.HttpErr(http.StatusBadRequest, "invalid number of completions")
 	}
-	if len(request.Messages) > 1024 || len(request.Tools) > 128 {
-		return util.HttpErr(http.StatusBadRequest, "request contains too many items")
-	}
-	return nil
-}
-
-func inferenceValidateImageRequest(request InferenceImageGenerationRequest) *util.HttpError {
-	if request.N.Present && (request.N.Value <= 0 || request.N.Value > 8) {
-		return util.HttpErr(http.StatusBadRequest, "invalid number of images")
-	}
-	if request.PartialImages.Present && (request.PartialImages.Value < 0 || request.PartialImages.Value > 3) {
-		return util.HttpErr(http.StatusBadRequest, "invalid number of partial images")
-	}
-	if len(request.Prompt) > 1<<20 {
-		return util.HttpErr(http.StatusBadRequest, "image prompt is too large")
+	if request.ReasoningEffort.Present {
+		supported := false
+		for _, effort := range model.ReasoningEfforts {
+			if request.ReasoningEffort.Value == effort.Value {
+				supported = true
+				break
+			}
+		}
+		if !supported {
+			return util.HttpErr(http.StatusBadRequest, "unsupported reasoning effort")
+		}
 	}
 	return nil
 }
@@ -1849,6 +1247,46 @@ func inferenceEstimateTokensFromText(text string) int {
 	}
 
 	return (len([]rune(text)) + 3) / 4
+}
+
+const inferenceEstimatedCacheHitPercent = 95
+const inferenceEstimatedNonStreamingOutputTokensPerSecond = 50
+
+func inferenceEstimateCancelledChatUsage(request InferenceChatRequest, outputTokens int) InferenceChatUsage {
+	promptTokens := 0
+	for _, msg := range request.Messages {
+		promptTokens += inferenceEstimateTokensFromText(msg.Content.String())
+		promptTokens += inferenceEstimateTokensFromText(msg.Reasoning.String())
+		for _, call := range msg.ToolCalls {
+			promptTokens += inferenceEstimateTokensFromText(call.Function.Name)
+			promptTokens += inferenceEstimateTokensFromText(call.Function.Arguments)
+		}
+	}
+	for _, tool := range request.Tools {
+		promptTokens += inferenceEstimateTokensFromText(tool.Function.Name)
+		promptTokens += inferenceEstimateTokensFromText(tool.Function.Description)
+		if tool.Function.Parameters != nil {
+			if encoded, err := json.Marshal(tool.Function.Parameters); err == nil {
+				promptTokens += inferenceEstimateTokensFromText(string(encoded))
+			}
+		}
+	}
+
+	cachedTokens := promptTokens * inferenceEstimatedCacheHitPercent / 100
+	return InferenceChatUsage{
+		PromptTokens:        promptTokens,
+		CompletionTokens:    outputTokens,
+		TotalTokens:         promptTokens + outputTokens,
+		PromptTokensDetails: util.OptValue(InferenceChatTokenDetails{CachedTokens: cachedTokens}),
+	}
+}
+
+func inferenceReportCancelledUsage(owner apm.WalletOwner, model InferenceModel, request InferenceChatRequest, estimatedOutputTokens int) InferenceChatUsage {
+	estimated := inferenceEstimateCancelledChatUsage(request, estimatedOutputTokens)
+	cachedTokens, inputTokens, outputTokens := inferenceChatUsageComponents(estimated)
+	inferenceReportChatUsageMetrics(model.Name, cachedTokens, inputTokens, outputTokens)
+	inferenceReportUsage(owner, model, cachedTokens, inputTokens, outputTokens)
+	return estimated
 }
 
 func inferenceChatUsage(usage util.Option[InferenceChatUsage]) InferenceChatUsage {
@@ -1884,72 +1322,4 @@ func inferenceChatUsageComponents(usage InferenceChatUsage) (cachedTokens int, i
 	inputTokens = usage.PromptTokens - cachedTokens
 	outputTokens = usage.CompletionTokens
 	return cachedTokens, inputTokens, outputTokens
-}
-
-func inferenceTranscriptionUsage(usage util.Option[InferenceTranscriptionUsage]) InferenceTranscriptionUsage {
-	if usage.Present {
-		result := usage.Value
-		if result.TotalTokens == 0 {
-			result.TotalTokens = result.InputTokens + result.OutputTokens
-		}
-		return result
-	}
-	return InferenceTranscriptionUsage{}
-}
-
-func inferenceTranscriptionUsageValid(usage InferenceTranscriptionUsage) bool {
-	if usage.Seconds.Present && (usage.Seconds.Value < 0 || math.IsNaN(usage.Seconds.Value) || math.IsInf(usage.Seconds.Value, 0)) {
-		return false
-	}
-	if usage.InputTokens < 0 || usage.OutputTokens < 0 || usage.TotalTokens < 0 {
-		return false
-	}
-	if usage.InputTokenDetails.Present {
-		details := usage.InputTokenDetails.Value
-		return (!details.AudioTokens.Present || details.AudioTokens.Value >= 0) && (!details.TextTokens.Present || details.TextTokens.Value >= 0)
-	}
-	return true
-}
-
-func inferenceImageUsage(usage util.Option[InferenceImageGenerationUsage]) InferenceImageGenerationUsage {
-	if usage.Present {
-		result := usage.Value
-		if result.TotalTokens == 0 {
-			result.TotalTokens = result.InputTokens + result.OutputTokens
-		}
-		return result
-	}
-	return InferenceImageGenerationUsage{}
-}
-
-func inferenceEstimateImageUsage(request InferenceImageGenerationRequest, imageCount int) InferenceImageGenerationUsage {
-	if imageCount <= 0 {
-		imageCount = inferenceImageRequestCount(request)
-	}
-	width, height := inferenceImageRequestSize(request)
-	megaPixels := float64(width*height) / 1_000_000.0
-	outputTokens := int(math.Round(float64(imageCount) * megaPixels * inferenceImageGenerationTokensPerMegaPixel))
-	if outputTokens < 1 && imageCount > 0 {
-		outputTokens = 1
-	}
-	return InferenceImageGenerationUsage{OutputTokens: outputTokens, TotalTokens: outputTokens}
-}
-
-func inferenceImageUsageValid(usage InferenceImageGenerationUsage) bool {
-	if usage.InputTokens < 0 || usage.OutputTokens < 0 || usage.TotalTokens < 0 {
-		return false
-	}
-	if usage.InputTokensDetails.Present {
-		details := usage.InputTokensDetails.Value
-		if (details.ImageTokens.Present && details.ImageTokens.Value < 0) || (details.TextTokens.Present && details.TextTokens.Value < 0) {
-			return false
-		}
-	}
-	if usage.OutputTokensDetails.Present {
-		details := usage.OutputTokensDetails.Value
-		if (details.ImageTokens.Present && details.ImageTokens.Value < 0) || (details.TextTokens.Present && details.TextTokens.Value < 0) {
-			return false
-		}
-	}
-	return true
 }

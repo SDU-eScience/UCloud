@@ -38,9 +38,10 @@ export type InferenceCapability = "TextGeneration" | "TextToImage" | "SpeechToTe
 export interface InferenceModel {
     name: string;
     title: string;
-    titleModelName: string;
     capabilities: InferenceCapability[];
-    priceMultiplier: {
+    reasoningEfforts: InferenceModelOption[];
+    defaultReasoningEffort: string;
+    pricePerMillion: {
         cachedInput: number;
         input: number;
         output: number;
@@ -62,6 +63,11 @@ export interface InferenceModel {
         disableTools: boolean;
     };
     page?: InferenceModelPageMetadata;
+}
+
+export interface InferenceModelOption {
+    name: string;
+    value: string;
 }
 
 export interface InferenceModelPageMetadata {

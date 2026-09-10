@@ -191,6 +191,10 @@ func scanDrive(drive orc.Drive) {
 	reportUsedStorage(drive, sizeInGb)
 
 	ctrl.DriveUpdateScannedAt(drive.Id)
+
+	if DriveScanListener != nil {
+		DriveScanListener(&drive, internalPath)
+	}
 }
 
 func reportUsedStorage(drive orc.Drive, sizeInGb int64) {

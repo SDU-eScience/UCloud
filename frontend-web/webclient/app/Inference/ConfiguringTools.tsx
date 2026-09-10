@@ -14,11 +14,10 @@ import {injectStyle} from "@/Unstyled";
 const Style = injectStyle("configure-tools", k => `
     ${k} {
         min-width: 0;
-        max-width: 100%;
     }
 
     ${k} pre {
-        max-width: 100%;
+        max-width: var(--max-width, 100%);
     }
 
     ${k} code {
@@ -79,18 +78,25 @@ export default function ConfiguringTools({
         id: model.name,
         title: model.title,
         contextWindow: model.contextWindow,
-    })) : [{id: modelId ?? "$MODEL_ID", title: "$MODEL_TITLE", contextWindow: undefined}];
+        maxOutputTokens: model.chatSettings.maxCompletionTokens,
+        toolCalling: !model.chatSettings.disableTools,
+        vision: model.capabilities.includes("Vision"),
+        reasoningEfforts: model.reasoningEfforts ?? [],
+        defaultReasoningEffort: model.defaultReasoningEffort ?? "",
+    })) : [{id: modelId ?? "$MODEL_ID", title: "$MODEL_TITLE", contextWindow: undefined, maxOutputTokens: 16000, toolCalling: true, vision: false, reasoningEfforts: [], defaultReasoningEffort: ""}];
     const firstModelId = modelRefs[0]?.id ?? modelId ?? "$MODEL_ID";
 
     return <Box className={Style}>
         {error === "" ? null : <Text color="errorMain">{error}</Text>}
-        <Flex gap="12px" alignItems="center" flexWrap="wrap">
+        <Flex gap="12px" alignItems="center" flexWrap="wrap" className="tile-and-buttons">
             <h3 className="title" style={{margin: 0}}>{title}</h3>
             <Box flexGrow={1} />
-            <Button type="button" color="successMain" onClick={generateToken} disabled={generatingToken || providerId === ""} m={0}>
-                {generatingToken ? "Generating..." : "Generate API key"}
-            </Button>
-            <Link to={AppRoutes.resources.apiTokens()}><Button type="button" color="secondaryMain" m={0}>Manage API keys</Button></Link>
+            <Flex gap="12px" className="buttons">
+                <Button type="button" color="successMain" onClick={generateToken} disabled={generatingToken || providerId === ""} m={0}>
+                    {generatingToken ? "Generating..." : "Generate API key"}
+                </Button>
+                <Link to={AppRoutes.resources.apiTokens()}><Button type="button" color="secondaryMain" m={0}>Manage API keys</Button></Link>
+            </Flex>
         </Flex>
         {tokenStatus === null ? null : <Box mt={16} style={{display: "grid", gap: 12}}>
             <Flex gap={"12px"} flexWrap={"wrap"} alignItems={"center"}>
@@ -116,29 +122,30 @@ export default function ConfiguringTools({
             </ToolGuide>
 
             <ToolGuide id="vscode" title="VS Code" openTool={openTool} setOpenTool={setOpenTool}>
-                <Text>Add UCloud as a custom chat-completions endpoint in VS Code.</Text>
+                <Text>Add UCloud as a custom Responses endpoint in VS Code.</Text>
                 <ul>
                     <li>Open the Command Palette {"->"} Chat: Manage Language Models.</li>
                     <li>Select "Add models".</li>
                     <li>Select "Custom endpoint".</li>
                     <li>Enter a group name such as "UCloud".</li>
                     <li>Use your API key (<CopyableInline value={apiToken} />).</li>
-                    <li>Use the "Chat completions" API.</li>
+                    <li>Use the "Responses" API.</li>
                 </ul>
-                <Text>Use this model configuration:</Text>
+                <Text>Use this model configuration (you should <i>only</i> change the <code>models</code> section):</Text>
                 <CodeSnippet lang="json" children={JSON.stringify({
-                    name: "UCloud",
-                    vendor: "customendpoint",
-                    apiKey: apiToken,
-                    apiType: "chat-completions",
                     models: modelRefs.map(model => ({
                         id: model.id,
                         name: model.title,
                         url: resolvedServer,
-                        toolCalling: true,
-                        vision: false,
-                        maxInputTokens: model.contextWindow ?? 128000,
-                        maxOutputTokens: 16000,
+                        toolCalling: model.toolCalling,
+                        vision: model.vision,
+                        contextWindow: model.contextWindow ?? 128000,
+                        maxOutputTokens: model.maxOutputTokens,
+                        ...(model.reasoningEfforts.length === 0 ? {} : {
+                            thinking: true,
+                            supportsReasoningEffort: model.reasoningEfforts.map(effort => effort.value),
+                            reasoningEffortFormat: "responses",
+                        }),
                     })),
                 }, null, 2)} />
             </ToolGuide>
@@ -165,7 +172,14 @@ export default function ConfiguringTools({
                             options: {
                                 baseURL: resolvedServer,
                             },
-                            models: Object.fromEntries(modelRefs.map(model => [model.id, {name: model.title}])),
+                            models: Object.fromEntries(modelRefs.map(model => [model.id, {
+                                name: model.title,
+                                ...(model.reasoningEfforts.length === 0 ? {} : {
+                                    reasoning: true,
+                                    options: {reasoningEffort: model.defaultReasoningEffort},
+                                    variants: Object.fromEntries(model.reasoningEfforts.map(effort => [effort.value, {reasoningEffort: effort.value}])),
+                                }),
+                            }])),
                         },
                     },
                 }, null, 2)} />

@@ -57,8 +57,10 @@ import {sendFailureNotification} from "@/Notifications";
 import {ProductCompute} from "@/Accounting";
 import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
-const defaultRetrieveFlags: {itemsPerPage: number} = {
+const defaultRetrieveFlags: {itemsPerPage: number; includeApplication: boolean; includeSupport: boolean} = {
     itemsPerPage: 250,
+    includeApplication: true,
+    includeSupport: true,
 };
 
 const FEATURES: ResourceBrowseFeatures = {

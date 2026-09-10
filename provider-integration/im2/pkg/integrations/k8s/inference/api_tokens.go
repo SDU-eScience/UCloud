@@ -15,12 +15,14 @@ const inferenceApiTokenKind = "inference"
 // API tokens
 // =====================================================================================================================
 
-func inferenceApiKeyValidate(key string) (apm.WalletOwner, *util.HttpError) {
-	owner, permissions, httpErr := controller.ApiTokenValidate(inferenceApiTokenKind, key)
+func inferenceApiKeyValidate(key string) (apm.WalletOwner, string, string, *util.HttpError) {
+	authentication, httpErr := controller.ApiTokenValidate(inferenceApiTokenKind, key)
 	if httpErr != nil {
-		return apm.WalletOwner{}, httpErr
+		return apm.WalletOwner{}, "", "", httpErr
 	}
 
+	owner := authentication.Owner
+	permissions := authentication.Permissions
 	hasUsePermission := false
 	for _, permission := range permissions {
 		if permission.Name == inferenceApiTokenKind && permission.Action == "use" {
@@ -29,13 +31,13 @@ func inferenceApiKeyValidate(key string) (apm.WalletOwner, *util.HttpError) {
 		}
 	}
 	if !hasUsePermission {
-		return apm.WalletOwner{}, util.HttpErr(http.StatusForbidden, "token does not allow inference use")
+		return apm.WalletOwner{}, "", "", util.HttpErr(http.StatusForbidden, "token does not allow inference use")
 	}
 
 	if controller.WalletIsLocked(owner, inferenceGlobals.Product.Category.Name).Locked {
-		return apm.WalletOwner{}, util.HttpErr(http.StatusPaymentRequired, "no more resources available")
+		return apm.WalletOwner{}, "", "", util.HttpErr(http.StatusPaymentRequired, "no more resources available")
 	}
-	return owner, nil
+	return owner, authentication.CreatedBy, authentication.TokenId, nil
 }
 
 func InitApiTokens() controller.ApiTokenProvider {
@@ -63,6 +65,7 @@ func inferenceApiTokenOptions() orcapi.ApiTokenOptions {
 				Name:        "inference",
 				Title:       "Inference",
 				Description: "API token required for inference services",
+				Context:     orcapi.ApiTokenContextProject,
 				Actions: map[string]string{
 					"use": "Use",
 				},

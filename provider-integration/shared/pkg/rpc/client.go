@@ -387,6 +387,11 @@ func CallViaQueryEx(c *Client, path string, parameters []string, opts InvokeOpts
 	if accessToken != "" {
 		request.Header.Set("Authorization", fmt.Sprintf("Bearer %v", accessToken))
 	}
+
+	if c.ProjectId.Present {
+		request.Header.Set("Project", c.ProjectId.Value)
+	}
+
 	handleOpts(request, opts)
 	do, err := c.Client.Do(request)
 	if err != nil {
@@ -422,6 +427,10 @@ func CallViaJsonBodyEx(c *Client, method, path string, payload any, opts InvokeO
 	}
 
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %v", c.RetrieveAccessTokenOrRefresh()))
+
+	if c.ProjectId.Present {
+		request.Header.Set("Project", c.ProjectId.Value)
+	}
 
 	handleOpts(request, opts)
 

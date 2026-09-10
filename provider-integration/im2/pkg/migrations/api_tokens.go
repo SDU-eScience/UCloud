@@ -31,3 +31,32 @@ func apiTokensV1() db.MigrationScript {
 		},
 	}
 }
+
+func apiTokensV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "apiTokensV2",
+		Execute: func(tx *db.Transaction) {
+			// NOTE(dan): containerRepositoriesV1 (staging) and apiTokensV2 (master) both added this column, but with
+			// different nullability. Make the addition idempotent and normalize the state to nullable in apiTokensV3.
+			db.Exec(
+				tx,
+				`alter table api_tokens add column if not exists created_by text not null default ''`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func apiTokensV3() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "apiTokensV3",
+		Execute: func(tx *db.Transaction) {
+			// Normalizes created_by to nullable regardless of which branch added it. Code reads it as sql.Null[string].
+			db.Exec(
+				tx,
+				`alter table api_tokens alter column created_by drop not null`,
+				db.Params{},
+			)
+		},
+	}
+}

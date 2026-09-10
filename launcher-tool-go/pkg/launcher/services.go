@@ -86,23 +86,28 @@ func AddStartupHook(owner Service, hook func()) {
 }
 
 type DockerComposeService struct {
-	Image           string            `yaml:"image,omitempty"`
-	Hostname        string            `yaml:"hostname,omitempty"`
-	Restart         string            `yaml:"restart,omitempty"`
-	DependsOn       []string          `yaml:"depends_on,omitempty"`
-	Environment     []string          `yaml:"environment,omitempty"`
-	Volumes         []string          `yaml:"volumes,omitempty"`
-	VolumesFrom     []string          `yaml:"volumes_from,omitempty"`
-	Ports           []string          `yaml:"ports,omitempty"`
-	Init            bool              `yaml:"init,omitempty"`
-	Sysctls         map[string]string `yaml:"sysctls,omitempty"`
-	SecurityOpt     []string          `yaml:"security_opt,omitempty"`
-	Privileged      bool              `yaml:"privileged,omitempty"`
-	Tmpfs           []string          `yaml:"tmpfs"`
-	Command         []string          `yaml:"command,omitempty"`
-	WorkingDir      string            `yaml:"working_dir,omitempty"`
-	Cgroup          string            `yaml:"cgroup,omitempty"`
-	StopGracePeriod string            `yaml:"stop_grace_period,omitempty"`
+	Image           string                                 `yaml:"image,omitempty"`
+	Hostname        string                                 `yaml:"hostname,omitempty"`
+	Restart         string                                 `yaml:"restart,omitempty"`
+	DependsOn       []string                               `yaml:"depends_on,omitempty"`
+	Environment     []string                               `yaml:"environment,omitempty"`
+	Volumes         []string                               `yaml:"volumes,omitempty"`
+	VolumesFrom     []string                               `yaml:"volumes_from,omitempty"`
+	Ports           []string                               `yaml:"ports,omitempty"`
+	Init            bool                                   `yaml:"init,omitempty"`
+	Sysctls         map[string]string                      `yaml:"sysctls,omitempty"`
+	SecurityOpt     []string                               `yaml:"security_opt,omitempty"`
+	Privileged      bool                                   `yaml:"privileged,omitempty"`
+	Tmpfs           []string                               `yaml:"tmpfs"`
+	Command         []string                               `yaml:"command,omitempty"`
+	WorkingDir      string                                 `yaml:"working_dir,omitempty"`
+	Cgroup          string                                 `yaml:"cgroup,omitempty"`
+	StopGracePeriod string                                 `yaml:"stop_grace_period,omitempty"`
+	Networks        map[string]DockerComposeServiceNetwork `yaml:"networks,omitempty"`
+}
+
+type DockerComposeServiceNetwork struct {
+	Aliases []string `yaml:"aliases,omitempty"`
 }
 
 func Mount(volName string, mountPath string) string {

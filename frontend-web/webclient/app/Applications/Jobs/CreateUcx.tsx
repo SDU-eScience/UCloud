@@ -12,6 +12,7 @@ import {UcxRpcHandler} from "@/UCX/UcxView";
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 import {useNavigate} from "react-router-dom";
 import AppRoutes from "@/Routes";
+import {ApplicationForkAction} from "@/Applications/Creator/ForkAction";
 
 interface CreateUcxJobProps {
     application: Application;
@@ -86,7 +87,7 @@ export const CreateUcxJobRenderer: React.FunctionComponent<UcxFrameRenderArgs & 
                         allVersions={application.versions ?? []}
                     />
                     <Flex flexGrow={1}/>
-                    <UtilityBar/>
+                    <UtilityBar leading={<ApplicationForkAction application={application} />}/>
                 </Flex>
 
                 <Flex mx="50px" mt="32px">
