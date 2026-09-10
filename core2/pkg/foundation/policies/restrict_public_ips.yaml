@@ -8,5 +8,5 @@ configuration:
   enabled:
     title: "Enabled"
     description: >
-      If enabled, public IP creation and use is disabled. Existing public 
+      If enabled, public IP creation and use is disabled. Existing public
       IPs are _not_ deleted.

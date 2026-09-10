@@ -288,9 +288,9 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 				}
 				break
 			}
-		case fndapi.RestrictShares:
+		case fndapi.RestrictSharing:
 			{
-				_, ok := specification.GetValues().(fndapi.RestrictSharesValues)
+				_, ok := specification.GetValues().(fndapi.RestrictSharingValues)
 				if !ok {
 					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Shares)")
 				}

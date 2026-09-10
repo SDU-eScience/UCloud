@@ -9,7 +9,7 @@ description: >
 configuration:
   enabled:
     title: "Enabled"
-    description:  >
+    description: >
       If enabled, invitations to users outside the specified organization 
       are rejected.
   organizations:
