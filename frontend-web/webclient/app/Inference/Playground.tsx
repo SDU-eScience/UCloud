@@ -7,10 +7,10 @@ import {Box, Button, Flex, Icon, Text, TextArea,} from "@/ui-components";
 import {Toggle} from "@/ui-components/Toggle";
 import UcxView, {UcxComponentRegistry, UcxFunctionRegistry, UcxRenderContext, UcxSpinner} from "@/UCX/UcxView";
 import {UiNode, Value, ValueKind} from "@/UCX/protocol";
-import {copyToClipboard, doNothing, extensionFromPath, extensionType, typeFromMime} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, extensionFromPath, extensionType, stopPropagation, stopPropagationAndPreventDefault, typeFromMime} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {sendFailureNotification} from "@/Notifications";
-import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
+import {Operation, Operations} from "@/ui-components/Operation";
 import {openPlayground} from "./api";
 import {sizeToString} from "@/Utilities/FileUtilities";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
@@ -30,6 +30,7 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {IconName} from "@/ui-components/Icon";
 import {inferenceThreadStore} from "./ThreadStore";
+import { findDomAttributeFromAncestors } from "@/Utilities/HTMLUtilities";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -613,10 +614,13 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
         margin-top: 16px;
     }
 
+    ${k} .threads-popover-toggle {
+        display: none;
+    }
+
     @media (max-width: 900px) {
         ${k} .playground-body {
             height: auto;
-            min-height: calc(100vh - 174px);
             flex-direction: column;
         }
 
@@ -624,12 +628,79 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
             min-height: 62vh;
         }
 
-        ${k} .playground-sidebar {
-            width: 100%;
+        ${k} .playground-body {
+            height: calc(100vh - 116px);
         }
 
-        ${k} .playground-sidebar[data-collapsed="true"] {
-            width: 64px;
+        ${k} {
+            --popOverWidth: min(400px, 100vw - var(--sidebarWidth) - 42px);
+        }
+
+        ${k} .threads-popover-toggle {
+            position: fixed;
+            top: 20vh;
+            display: block;
+            right: -1px;
+            width: 42px;
+            cursor: pointer;
+            height: 42px;
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+            background: var(--backgroundDefault);
+            border: 1px solid var(--borderColor);
+            padding-left: 8px;
+            padding-top: 6px;
+            transition: right 0.25s cubic-bezier(0.5,1,0.5,1);
+        }
+
+        ${k} .threads-popover-toggle[data-open=true] {
+            right: calc(var(--popOverWidth) - 1px);
+            border-right: 0;
+        }
+
+        ${k} .playground-sidebar {
+            position: fixed;
+            top: 0;
+            right: calc(0px - var(--popOverWidth));
+            width: var(--popOverWidth);
+            height: 100%;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            transition: right 0.25s cubic-bezier(0.5,1,0.5,1);
+        }
+
+        ${k} .playground-sidebar[data-open=true] {
+            right: 0;
+        }
+    }
+
+    @media (max-width: 500px) {
+        ${k} {
+            margin: -16px;
+            height: 100vh;
+        }
+
+        ${k} > div {
+            border-radius: 0;
+            height: 100%;
+        }
+
+        ${k} > div > div {
+            height: 100%;
+        }
+
+        ${k} div.playground-main {
+            border: none;
+            padding: 0;
+            padding-bottom: 1px;
+        }
+
+        ${k} .playground-body {
+            height: calc(100vh - 76px);
+        }
+
+        ${k} .playground-main .${ComposerActionButtonHoverClass} > div {
+            overflow-x: scroll;
         }
     }
 `);
@@ -1419,15 +1490,14 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
 }
 
 function ThreadListNode({
-                            node,
-                            model,
-                            fn,
+    node,
+    model,
+    fn,
 }: Pick<UcxRenderContext, "node" | "model" | "fn">): React.ReactNode {
     const [operations, setOperations] = React.useState<
         Operation<ThreadListItem>[]
     >([]);
-    const openOperationsRef =
-        React.useRef<(left: number, top: number) => void>(doNothing);
+    const openOperationsRef = React.useRef<(left: number, top: number) => void>(doNothing);
     const threads = threadListValue(fn.modelValue(model, node.bindPath));
     const currentThreadId = stringValue(fn.modelValue(model, "currentThreadId"));
     const loadingThreadIds = stringListValue(fn.modelValue(model, "loadingThreadIds"));
@@ -1437,7 +1507,6 @@ function ThreadListNode({
             {
                 text: "Rename",
                 icon: "heroPencil",
-                shortcut: ShortcutKey.R,
                 enabled: () => true,
                 onClick: async () => {
                     try {
@@ -1467,7 +1536,6 @@ function ThreadListNode({
                 confirm: true,
                 confirmationText: "Are you sure you want to delete this thread?",
                 confirmationButtonText: "Delete",
-                shortcut: ShortcutKey.Backspace,
                 enabled: () => true,
                 onClick: () =>
                     fn.sendUiEvent("deleteThread", "click", {
@@ -1611,15 +1679,16 @@ function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSess
 
 function DeveloperModeToggle({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
     const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
-    return <div style={{display: "flex", alignItems: "center", gap: 8, marginRight: 16}}>
+    return <Flex style={{alignItems: "center", gap: 8, marginRight: 16}} className={ResponsiveHide}>
         <span style={{fontWeight: 600, userSelect: "none"}}>Developer</span>
         <Toggle height={18} checked={developer} onChange={() => connected && fn?.sendModelInput("developer", {kind: ValueKind.Bool, bool: !developer}, "developerMode")}/>
-    </div>;
+    </Flex>;
 }
 
 function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string}): React.ReactNode {
     const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
     const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+    const [showThreads, setShowThreads] = React.useState(false);
     const threads = threadListValue(fn?.modelValue(model, "threads") ?? model.threads);
     const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
     const pendingNewThreadRef = React.useRef<Set<string> | null>(null);
@@ -1644,13 +1713,34 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
         function onResize() {
             if (window.innerWidth < 900) {
                 setSidebarCollapsed(false);
+            } else {
+                setShowThreads(false);
             }
         }
 
+        function closeThreads(e: Event) {
+            if (!e.target) return;
+            if (findDomAttributeFromAncestors(e.target, "data-open") == null) {
+                setShowThreads(false);
+            }
+        }
+
+        const routerWrapper = document.querySelector("[data-component='main']");
+        if (routerWrapper) {
+            routerWrapper.addEventListener("click", closeThreads)
+        }
+
         window.addEventListener("resize", onResize);
-        return () => window.removeEventListener("resize", onResize);
+        return () => {
+            window.removeEventListener("resize", onResize);
+            const routerWrapper = document.querySelector("[data-component='router-wrapper']");
+            if (routerWrapper) { routerWrapper.removeEventListener("click", closeThreads); }
+        }
     }, []);
 
+    React.useEffect(() => {
+        setShowThreads(false);
+    }, [currentThreadId]);
 
     const newThread = () => {
         if (!connected || !fn) return;
@@ -1667,7 +1757,7 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
             <div className="playground-main">
                 <PlaygroundConversation model={model} fn={fn} connected={connected}/>
             </div>
-            <div className="playground-sidebar" data-collapsed={sidebarCollapsed}>
+            <div className="playground-sidebar" onClick={stopPropagation} data-open={showThreads} data-collapsed={sidebarCollapsed}>
                 {sidebarCollapsed ? (
                     <CollapsedPlaygroundSidebar connected={connected} connectionStatus={connectionStatus} onExpand={() => setSidebarCollapsed(false)} onNewThread={developer ? undefined : newThread}/>
                 ) : developer ? (
@@ -1675,6 +1765,12 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
                 ) : (
                     <PlaygroundThreadSidebar model={model} fn={fn} connected={connected} footer={footer} onCollapse={() => setSidebarCollapsed(true)} onNewThread={newThread}/>
                 )}
+            </div>
+            <div className="threads-popover-toggle" data-open={showThreads} onClick={e => {
+                e.stopPropagation();
+                setShowThreads(t => !t);
+            }}>
+                <Icon name="heroListBullet" size={28} />
             </div>
         </div>
     );
