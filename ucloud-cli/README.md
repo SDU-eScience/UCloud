@@ -18,7 +18,8 @@ either cp `ucloud` to `/usr/local/bin` or add to your `$PATH`
 to generate completion script:
 
 ```
- ucloud completion > ~/.config/ucloud/completion/_ucloud
+mkdir -p ~/.config/ucloud/completion
+ucloud completion > ~/.config/ucloud/completion/_ucloud
 ```
 
 Add to your `.bashrc` or `.zshrc`
