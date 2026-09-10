@@ -13,7 +13,7 @@ case "$words[{{ numberOfWords }}]" in
         {% for flag in subCommand.Flags %}
             {% if flag.FlagType == "positional" %}
                 if (( {{ ns.pos }} == CURRENT )); then
-                    flags+=( {{ flag.Name }}:{{ flag.Usage}} '' )
+                    flags+=( {{ flag.Name }}:{{ flag.Usage }} '' )
                 fi
                 {% set ns.pos = ns.pos + 1 %}
             {% endif %}
@@ -24,7 +24,7 @@ case "$words[{{ numberOfWords }}]" in
         {% for flag in subCommand.Flags %}
             {% if flag.FlagType != "positional" %}
                 if (( CURRENT >= {{ ns.pos }} )); then
-                    flags+=( {{ flag.Name }}:{{ flag.Usage | default("/", true) }} )
+                    flags+=( {{ flag.Name }}:{{ flag.Usage }} )
                 fi
             {% endif %}
         {% endfor %}
