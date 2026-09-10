@@ -1250,7 +1250,6 @@ export class ResourceBrowser<T> {
             return this.rows[rowNumber];
         }
 
-
         // Reset rows and place them accordingly
         for (let i = 0; i < ResourceBrowser.maxRows; i++) {
             const row = this.rows[i];
@@ -1297,10 +1296,11 @@ export class ResourceBrowser<T> {
             row.container.setAttribute("data-selected", (this.isSelected[i] !== 0).toString());
             row.container.classList.remove("hidden");
 
-            const containerSize = containerSizeFromWidth(row.container.getBoundingClientRect().width);
-
             const x = this.scrollingContainerLeft + relativeX;
             const y = this.scrollingContainerTop + relativeY - firstVisiblePixel;
+
+            const containerSize = containerSizeFromWidth(row.container.getBoundingClientRect().width);
+            const rowRenderer = Renderers[containerSize];
 
             this.dispatchMessage("renderTitle", fn => fn(entry, row.title, row, containerSize, {
                 width: containerWidth,
@@ -1308,36 +1308,13 @@ export class ResourceBrowser<T> {
                 x, y
             }));
 
-            this.dispatchMessage("renderStat1", fn => fn(entry, row.stat1, row, containerSize));
-
-            if (containerSize >= ContainerSize.SMALL) {
-                this.dispatchMessage("renderStat2", fn => fn(entry, row.stat2, row, containerSize));
-                if (containerSize >= ContainerSize.MEDIUM) {
-                    this.dispatchMessage("renderStat3", fn => fn(entry, row.stat3, row, containerSize));
-                    if (containerSize >= ContainerSize.LARGE) {
-                        this.dispatchMessage("renderStat4", fn => fn(entry, row.stat4, row, containerSize));
-                    }
-                }
-            }
+            rowRenderer(entry, this, row, containerSize);
 
             if (this.opts.selection) {
-                let stat: HTMLElement;
-                switch (containerSize) {
-                    case ContainerSize.TINY:
-                        stat = row.stat1;
-                        break;
-                    case ContainerSize.SMALL:
-                        stat = row.stat2;
-                        break;
-                    case ContainerSize.MEDIUM:
-                        stat = row.stat3;
-                        break;
-                    case ContainerSize.LARGE:
-                        stat = row.stat4;
-                        break;
-                }
                 const button = this.defaultButtonRenderer(this.opts.selection, entry);
-                if (button) stat.replaceChildren(button);
+                if (button) {
+                    statFromContainerSize(row, containerSize).replaceChildren(button);
+                }
             }
         }
         this.dispatchMessage("endRenderPage", fn => fn());
@@ -3497,7 +3474,6 @@ export class ResourceBrowser<T> {
         if (!titleRow) return;
         const width = containerSizeFromWidth(titleRow.getBoundingClientRect().width);
         const titles = titleGroup[width] ?? titleGroup[ContainerSize.LARGE];
-        console.log({res: this.resourceName,"wooodoipj":width})
         this.root.style.setProperty("--stat1Width", titles[1].columnWidth + "px");
         this.root.style.setProperty("--stat2Width", titles[2].columnWidth + "px");
         this.root.style.setProperty("--stat3Width", titles[3].columnWidth + "px");
@@ -3947,4 +3923,43 @@ export function favoriteRowIcon(row: ResourceBrowserRow) {
         row.star.style.marginRight = "8px";
     }
     return favoriteIcon;
+}
+
+function renderTiny<T>(entry: T, browser: ResourceBrowser<T>, row: ResourceBrowserRow, containerSize: ContainerSize): void {
+    browser.dispatchMessage("renderStat1", fn => fn(entry, row.stat1, row, containerSize));
+}
+
+function renderSmall<T>(entry: T, browser: ResourceBrowser<T>, row: ResourceBrowserRow, containerSize: ContainerSize): void {
+    renderTiny(entry, browser, row, containerSize);
+    browser.dispatchMessage("renderStat2", fn => fn(entry, row.stat2, row, containerSize));
+}
+
+function renderMedium<T>(entry: T, browser: ResourceBrowser<T>, row: ResourceBrowserRow, containerSize: ContainerSize): void {
+    renderSmall(entry, browser, row, containerSize);
+    browser.dispatchMessage("renderStat3", fn => fn(entry, row.stat3, row, containerSize));
+}
+
+function renderLarge<T>(entry: T, browser: ResourceBrowser<T>, row: ResourceBrowserRow, containerSize: ContainerSize): void {
+    renderMedium(entry, browser, row, containerSize);
+    browser.dispatchMessage("renderStat4", fn => fn(entry, row.stat4, row, containerSize));
+}
+
+const Renderers = {
+    [ContainerSize.TINY]: renderTiny,
+    [ContainerSize.SMALL]: renderSmall,
+    [ContainerSize.MEDIUM]: renderMedium,
+    [ContainerSize.LARGE]: renderLarge,
+};
+
+function statFromContainerSize(row: ResourceBrowserRow, containerSize: ContainerSize): HTMLElement {
+    switch (containerSize) {
+        case ContainerSize.TINY:
+            return row.stat1;
+        case ContainerSize.SMALL:
+            return row.stat2;
+        case ContainerSize.MEDIUM:
+            return row.stat3;
+        case ContainerSize.LARGE:
+            return row.stat4;
+    }
 }

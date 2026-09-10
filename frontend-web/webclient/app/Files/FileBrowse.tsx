@@ -1064,10 +1064,12 @@ function FileBrowse({opts, headerControls}: {
 
                 browser.on("renderStat1", (file, stat, row) => {
                     const isOutOfDate = () => row.container.getAttribute("data-file") !== file.id;
+                    const wrapper = document.createElement("div");
+                    stat.append(wrapper);
 
                     findSensitivity(file).then(sensitivity => {
                         if (isOutOfDate()) return;
-                        stat.innerHTML = ""; // NOTE(Dan): Clear the container regardless
+                        wrapper.innerHTML = ""; // NOTE(Dan): Clear the container regardless
                         if (!sensitivity) return;
 
                         const badge = divHtml("");
@@ -1080,7 +1082,7 @@ function FileBrowse({opts, headerControls}: {
                         });
 
                         HTMLTooltip(badge, divHtml("File's sensitivity is " + sensitivity.toString().toLocaleLowerCase()));
-                        stat.append(badge);
+                        wrapper.append(badge);
                     });
                 });
 

@@ -91,8 +91,8 @@ const Empty: ColumnTitle = {name: "", columnWidth: 0}
 
 const columnTitles: ColumnTitleGroup = {
     [ContainerSize.LARGE]: [Title, columnTitle("Created by", 250), columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft"), columnTitle("State", 75)],
-    [ContainerSize.MEDIUM]: [Title, columnTitle("Created by", 250), columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft"), columnTitle("State", 75)],
-    [ContainerSize.SMALL]: [Title, columnTitle("State", 75),  columnTitle("Time left", 160, "timeLeft"), Empty, Empty],
+    [ContainerSize.MEDIUM]: [Title, columnTitle("State", 250), columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft"), columnTitle("State", 75)],
+    [ContainerSize.SMALL]: [Title, columnTitle("Time left", 75),  columnTitle("Created at", 160), Empty, Empty],
     [ContainerSize.TINY]: [Title, columnTitle("State", 75), Empty, Empty, Empty],
 };
     //        name: "Created by", sortById: "createdBy", columnWidth: 250}, { name: "Created at", sortById: "createdAt", columnWidth: 160}, { name: "Time left", sortById: "timeLeft", columnWidth: 160}, { name: "State", columnWidth: 75}
