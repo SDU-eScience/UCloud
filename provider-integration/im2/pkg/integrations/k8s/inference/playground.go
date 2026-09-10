@@ -3,6 +3,7 @@ package inference
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -328,6 +330,19 @@ func (app *InferencePlaygroundApp) runDeveloperSlashCommand(prompt string) bool 
 	if !util.DevelopmentModeEnabled() {
 		return false
 	}
+	if command, rest, ok := strings.Cut(strings.TrimSpace(prompt), " "); ok || command == "/simulate" {
+		if command != "/simulate" {
+			return false
+		}
+		tokensPerSecond := 400.0
+		if speedErr := playgroundSimulatedResponseSpeed(rest, &tokensPerSecond); speedErr != "" {
+			ucx.AppUpdateUi(app)
+			app.simulationUsageError(prompt, speedErr)
+			return true
+		}
+		app.runDeveloperSimulatedResponse(prompt, tokensPerSecond)
+		return true
+	}
 	call, ok, parseErr := playgroundDeveloperSlashToolCall(prompt)
 	if !ok {
 		return false
@@ -371,6 +386,108 @@ func (app *InferencePlaygroundApp) runDeveloperSlashCommand(prompt string) bool 
 	}()
 
 	return true
+}
+
+const (
+	playgroundSimulatedResponseCharsPerToken          = 4
+	playgroundSimulatedResponseDefaultTokensPerSecond = 400.0
+	playgroundSimulatedResponseMinTokensPerSecond     = 1.0
+	playgroundSimulatedResponseMaxTokensPerSecond     = 10000.0
+)
+
+//go:embed playground_simulated_response.md
+var playgroundSimulatedResponseText string
+
+func playgroundSimulatedResponseSpeed(rest string, tokensPerSecond *float64) string {
+	rest = strings.TrimSpace(rest)
+	if rest == "" {
+		*tokensPerSecond = playgroundSimulatedResponseDefaultTokensPerSecond
+		return ""
+	}
+	value, err := strconv.ParseFloat(rest, 64)
+	if err != nil {
+		return "speed must be a number of tokens per second"
+	}
+	if value < playgroundSimulatedResponseMinTokensPerSecond || value > playgroundSimulatedResponseMaxTokensPerSecond {
+		return fmt.Sprintf("speed must be between %g and %g tokens per second", playgroundSimulatedResponseMinTokensPerSecond, playgroundSimulatedResponseMaxTokensPerSecond)
+	}
+	*tokensPerSecond = value
+	return ""
+}
+
+func (app *InferencePlaygroundApp) simulationUsageError(prompt string, message string) {
+	now := time.Now().UnixMilli()
+	app.Chat.Loading = false
+	app.Chat.Prompt = ""
+	app.materializeCurrentThread()
+	app.Chat.Messages = append(app.Chat.Messages,
+		playgroundChatMessage{Role: "user", Content: prompt, Parts: playgroundChatMessageParts(prompt, ""), GeneratedAt: now},
+		playgroundChatMessage{Role: "assistant", Content: message, Parts: playgroundChatMessageParts(message, ""), GeneratedAt: now, ModelName: app.Chat.ModelId, StartedAt: now, FinishedAt: now},
+	)
+	app.prepareChatMessagesForUi()
+	app.markCurrentThreadDirty()
+	app.Chat.Curl = app.buildChatCurl()
+	ucx.AppUpdateUi(app)
+}
+
+func (app *InferencePlaygroundApp) runDeveloperSimulatedResponse(prompt string, tokensPerSecond float64) {
+	now := time.Now().UnixMilli()
+	app.Chat.Loading = true
+	app.Chat.Prompt = ""
+	app.materializeCurrentThread()
+	app.Chat.Messages = append(app.Chat.Messages,
+		playgroundChatMessage{Role: "user", Content: prompt, Parts: playgroundChatMessageParts(prompt, ""), GeneratedAt: now},
+		playgroundChatMessage{Role: "assistant", Content: "", Parts: playgroundChatMessageParts("", ""), GeneratedAt: now, ModelName: app.Chat.ModelId, StartedAt: now},
+	)
+	assistantIndex := len(app.Chat.Messages) - 1
+	app.prepareChatMessagesForUi()
+	app.markCurrentThreadDirty()
+	threadId := app.CurrentThreadId
+	modelId := app.Chat.ModelId
+	app.setThreadLoading(threadId, true)
+	ctx := app.startChatContext(threadId)
+	app.Chat.StreamingThreadId = threadId
+
+	go func() {
+		publisher := app.newStreamingPublisher(threadId, assistantIndex, modelId, now)
+		go publisher.run()
+
+		interval := time.Duration(float64(time.Second) / tokensPerSecond)
+		outputTokens := int64(0)
+		response := []rune(playgroundSimulatedResponseText)
+		for offset := 0; offset < len(response); offset += playgroundSimulatedResponseCharsPerToken {
+			if ctx.Err() != nil {
+				break
+			}
+			end := min(offset+playgroundSimulatedResponseCharsPerToken, len(response))
+			outputTokens++
+			publisher.publish(string(response[offset:end]), "", outputTokens)
+			time.Sleep(interval)
+		}
+
+		content, _, _ := publisher.snapshot()
+		if ctx.Err() != nil {
+			content = strings.TrimSpace(content) + "\n\n(generation stopped)"
+		}
+
+		publisher.stop()
+		app.sendStreamingMessagePatch()
+
+		app.mu.Lock()
+		app.unregisterChatCancel(threadId)
+		finishedAt := time.Now().UnixMilli()
+		app.updateThreadAssistant(threadId, assistantIndex, content, "", false, modelId, now, now, finishedAt, outputTokens)
+		app.Chat.Curl = app.buildChatCurl()
+		app.Chat.Loading = false
+		app.Chat.StreamingMessages = nil
+		app.Chat.StreamingThreadId = ""
+		app.setThreadLoading(threadId, false)
+		ui := app.UserInterface()
+		session := app.session
+		model := ucx.AppSnapshot(app)
+		app.mu.Unlock()
+		ucx.AppUpdateUiLocked(session, ui, model)
+	}()
 }
 
 // App user-interface and core data management
