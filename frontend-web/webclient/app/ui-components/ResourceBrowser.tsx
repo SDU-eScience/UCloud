@@ -1396,7 +1396,7 @@ export class ResourceBrowser<T> {
         if (!selection.show || show === true || typeof show === "string") {
             const disabled = typeof show === "string";
             const button = document.createElement("button");
-            button.innerText = this.opts.embedded ? "Use" : selection.text;
+            button.innerText = selection.text;
             button.className = ButtonClass;
             button.style.height = opts?.height ?? "32px";
             button.style.width = opts?.width ?? "96px";
@@ -1663,7 +1663,7 @@ export class ResourceBrowser<T> {
 
         const selection = this.opts.selection;
         if (selection) {
-            const actionText = this.opts.embedded ? "Use" : selection.text;
+            const actionText = selection.text;
             const useAction: ActionItem<T, any> = {
                 text: actionText,
                 icon: "check",
