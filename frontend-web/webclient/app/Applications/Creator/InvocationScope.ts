@@ -38,7 +38,7 @@ import {
     type InvocationUcloudMember,
     type InvocationValueKind,
 } from "@/Applications/Creator/InvocationCatalog";
-import type {A2Parameter} from "@/Applications/Creator/A2";
+import type {A2Parameter} from "@/Applications/Creator/Draft";
 
 export interface InvocationScopeEntry {
     name: string;
@@ -72,6 +72,7 @@ export function invocationParameterKind(param: A2Parameter): InvocationValueKind
         case "Directory":
         case "License":
         case "PublicIP":
+        case "Job":
             return "string";
         default:
             return null;
@@ -476,6 +477,14 @@ export function invocationMemberExists(
     }
 
     if (root.kind === "namespace") return {exists: true, childrenKnown: false};
+
+    // Values of these kinds are dynamic at render time: loop variables, macro parameters, `with`
+    // values, dictionaries, and inferred-unknown expressions. Member access on them is legal
+    // Jinja, so the linter must not flag it. Member completion offers nothing (children are not
+    // known), which membersToEntries already handles for these kinds.
+    if (root.kind === "unknown" || root.kind === "dict" || root.kind === "list") {
+        return {exists: true, childrenKnown: false};
+    }
 
     if (path.length > 2) return {exists: false, childrenKnown: false};
     const members = invocationMembers[root.kind];

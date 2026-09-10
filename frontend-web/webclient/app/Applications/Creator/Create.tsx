@@ -42,6 +42,7 @@ import {
     creatorInitialDraft,
     creatorStableId,
     creatorIsCustom,
+    assignParameterId,
     emptyValidationState, CreatorValidationRequest, CreatorValidationResponse,
 } from "@/Applications/Creator/Draft";
 import {
@@ -51,19 +52,15 @@ import {
     creatorSourceForEditor,
 } from "@/Applications/Creator/CreatorService";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {
-    applicationToSourceText,
-    parseSourceText,
-} from "@/Applications/Creator/SourceParser";
-import {EditorHeader} from "@/Applications/Creator/EditorHeader";
-import {ParameterContent} from "@/Applications/Creator/ParameterContent";
-import {ParameterPanel} from "@/Applications/Creator/ParameterPanel";
-import {MetadataPanel} from "@/Applications/Creator/MetadataPanel";
-import {FeatureCards} from "@/Applications/Creator/FeatureCards";
+import {applicationToSourceText, CreatorSourceParseError, parseSourceText} from "@/Applications/Creator/SourceParser";
+import {ParameterContent, FeatureCards} from "@/Applications/Creator/ParameterContent";
 import {YamlEditor} from "@/Applications/Creator/YamlEditor";
 import {InvocationEditor, InvocationTab} from "@/Applications/Creator/InvocationEditor";
-import {ErrorSummary} from "@/Applications/Creator/ErrorSummary";
-import {CreatorHighlightTarget, creatorHighlightTarget} from "@/Applications/Creator/Highlight";
+import {CreatorHighlightTarget, creatorHighlightTarget} from "@/Applications/Creator/CreatorKeyboard";
+import {AppLogoRaw, appColor, hashF} from "@/Applications/AppToolLogo";
+import {defaultApplicationGroupLogo, ProceduralLogo} from "@/Applications/ProceduralLogo";
+import {ParameterPanel} from "@/Applications/Creator/ParameterPanel";
+import {MetadataPanel} from "@/Applications/Creator/MetadataPanel";
 import {
     CreatorShortcutGuide,
     CreatorShortcutControl,
@@ -108,10 +105,12 @@ import {
     draftCustomDerivedPresentation,
     draftCustomDerivedName,
     draftCustomSelectedGroup,
+    validateApplicationLocal,
+    A2WidgetType,
 } from "@/Applications/Creator/DraftOperations";
-import {A2Parameter, A2EnumOption, A2Yaml, A2Software} from "@/Applications/Creator/A2";
-import {A2WidgetType} from "@/Applications/Creator/WidgetDefaults";
-import {validateApplicationLocal} from "@/Applications/Creator/ParameterValidation";
+import {A2Parameter, A2EnumOption, A2Yaml, A2Software} from "@/Applications/Creator/Draft";
+
+
 import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 import {ProductV2Compute} from "@/Accounting";
 import {compute} from "@/UCloud";
@@ -584,7 +583,7 @@ export const Create: React.FunctionComponent = () => {
             if (result.ok) {
                 const parameterIds: Record<string, string> = {};
                 for (const name of result.application.parametersOrder) {
-                    parameterIds[name] = current.parameterIds[name] ?? creatorStableId();
+                    assignParameterId(parameterIds, name, current.parameterIds[name] ?? creatorStableId());
                 }
                 let application = result.application;
                 let nameManuallySet = current.nameManuallySet;
@@ -2173,5 +2172,184 @@ function creatorContextKey(context: CreatorOperationContext): string {
         context.initialCategory ?? "",
     ].join("\n");
 }
+
+// Editor header
+// -------------------------------------------------------------------------------------------------------------------
+// Renders the application title from the A2 draft. The title sits in the main-island header bar
+// of the creator shell. It has no margins of its own — the shell controls spacing.
+
+export const EditorHeader: React.FunctionComponent<{
+    draft: CreatorDraft;
+}> = props => {
+    const title = props.draft.application.title || props.draft.application.name || "Untitled application";
+    const selectedGroup = props.draft.placementGroups.find(group => String(group.id) === props.draft.customMeta?.group);
+    const createdGroup = props.draft.placementCreatedGroup != null && String(props.draft.placementCreatedGroup.id) === props.draft.customMeta?.group
+        ? props.draft.placementCreatedGroup : null;
+    const groupTitle = selectedGroup?.specification.title ?? createdGroup?.title ?? title;
+    const logo = selectedGroup?.specification.logo ?? createdGroup?.logo ?? defaultApplicationGroupLogo(groupTitle);
+    return <Flex alignItems="center" gap="8px" minWidth={0}>
+        {creatorIsCustom(props.draft.context)
+            ? <ProceduralLogo logo={logo} size="24px" title={title} />
+            : <EditorHeaderRawLogo title={title} />}
+        <Text fontSize={18} fontWeight={600}>{title}</Text>
+    </Flex>;
+};
+
+function EditorHeaderRawLogo(props: {title: string}): React.ReactNode {
+    const hash = hashF(props.title);
+    return <AppLogoRaw
+        rot={[0, 15, 30][(hash >>> 10) % 3]}
+        color1Offset={(hash >>> 30) & 3}
+        color2Offset={(hash >>> 20) & 3}
+        appC={appColor(hash)}
+        size="24px"
+    />;
+}
+
+// Error summary
+// -------------------------------------------------------------------------------------------------------------------
+// The editor reports parse errors, semantic validation errors, and provider preview errors. They
+// appear in one warning at the top of the main content area.
+//
+// Selecting a parse error switches to the YAML view and jumps to the line. Selecting a semantic
+// error that names a parameter selects that parameter in the visual editor. Errors that do not
+// name a parameter (global errors) just switch to the editor view.
+
+function ErrorSummary(props: {
+    draft: CreatorDraft;
+    onJumpToSourceLine: (line: number, column: number) => void;
+    onFocusParameter: (error: CreatorValidationError) => void;
+    validating?: boolean;
+    extraErrors?: CreatorValidationError[];
+    rateLimit?: {remaining: number; retryAt?: number | string} | null;
+}): React.ReactNode {
+    const {draft} = props;
+    const parseErrors = draft.parseErrors ?? [];
+    const validationErrors = draft.validation.errors;
+    const extraErrors = props.extraErrors ?? [];
+    const warning = props.validating
+        ? "Checking this draft with the server..."
+        : extraErrors.length > 0
+            ? "Preview could not be rendered."
+            : "Fix the following errors before continuing.";
+    const warningKey = [
+        props.validating ? "validating" : "",
+        ...parseErrors.map(formatParseError),
+        ...validationErrors.map(error => `${error.parameterName ?? ""}:${error.message}`),
+        ...extraErrors.map(error => `${error.code ?? ""}:${error.parameterName ?? ""}:${error.message}`),
+    ].join("\u0000");
+    const [dismissedWarningKey, setDismissedWarningKey] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        setDismissedWarningKey(null);
+    }, [warningKey]);
+
+    if (parseErrors.length === 0 && validationErrors.length === 0 && extraErrors.length === 0 && !props.validating) return null;
+    if (dismissedWarningKey === warningKey) return null;
+
+    return (
+        <div className={ErrorSummaryClass}>
+            <Warning mb="16px" warning={warning} clearWarning={() => setDismissedWarningKey(warningKey)}>
+                <div id="creator-error-summary">
+                    <ul className={ErrorListClass}>
+                        {parseErrors.map((e, i) => (
+                            <ErrorSummaryItem
+                                key={`p${i}`}
+                                message={formatParseError(e)}
+                                onClick={() => props.onJumpToSourceLine(e.line, e.column)}
+                            />
+                        ))}
+                        {validationErrors.map((e, i) => (
+                            <ErrorSummaryItem
+                                key={`v${i}`}
+                                message={e.message}
+                                onClick={() => props.onFocusParameter(e)}
+                            />
+                        ))}
+                        {extraErrors.map((e, i) => (
+                            <ErrorSummaryItem
+                                key={`x${i}`}
+                                message={e.message}
+                                onClick={() => props.onFocusParameter(e)}
+                            />
+                        ))}
+                    </ul>
+                    {extraErrors.some(error => error.code === "RATE_LIMITED") && props.rateLimit ? (
+                        <Text fontSize={12} color="textSecondary" mt="8px">
+                            {props.rateLimit.retryAt
+                                ? `Try again after ${formatRetryAt(props.rateLimit.retryAt)}.`
+                                : `No requests remain in the current limit window (${props.rateLimit.remaining} remaining).`}
+                        </Text>
+                    ) : null}
+                </div>
+            </Warning>
+        </div>
+    );
+}
+
+function ErrorSummaryItem(props: {message: string; onClick: () => void}): React.ReactNode {
+    return (
+        <li className={ErrorItemClass} onClick={props.onClick} tabIndex={0}
+            onKeyDown={e => {if (e.key === "Enter" || e.key === " ") {e.preventDefault(); props.onClick();}}}
+        >
+            <Text fontSize={13} className="error-item-message">{props.message}</Text>
+        </li>
+    );
+}
+
+function formatParseError(e: CreatorSourceParseError): string {
+    if (e.line > 0) return `Line ${e.line}, column ${e.column}: ${e.message}`;
+    return e.message;
+}
+
+function formatRetryAt(value: number | string): string {
+    // The backend sends an epoch-milliseconds timestamp, either as a number or as a string
+    // containing the digits. new Date("1757000000000") is Invalid Date, so parse strings as
+    // numbers first.
+    const numeric = typeof value === "number" ? value : Number.parseInt(value, 10);
+    if (!Number.isFinite(numeric)) {
+        return "the retry time returned by the server";
+    }
+    const date = new Date(numeric);
+    return Number.isNaN(date.getTime()) ? "the retry time returned by the server" : date.toLocaleTimeString();
+}
+
+const ErrorListClass = injectStyle("creator-error-list", k => `
+    ${k} {
+        margin: 0;
+        padding-left: 20px;
+        list-style: disc;
+    }
+
+    ${k} li {
+        padding: 2px 0;
+    }
+`);
+
+const ErrorSummaryClass = injectStyle("creator-error-summary", k => `
+    ${k} {
+        width: 100%;
+        max-width: 944px;
+        box-sizing: border-box;
+    }
+`);
+
+const ErrorItemClass = injectStyle("creator-error-item", k => `
+    ${k} {
+        cursor: pointer;
+        color: var(--textPrimary);
+    }
+
+    ${k}:hover, ${k}:focus {
+        background: var(--backgroundCardHover);
+        outline: none;
+    }
+
+    ${k} .error-item-message {
+        min-width: 0;
+        word-break: break-word;
+        white-space: pre-wrap;
+    }
+`);
 
 export default Create;

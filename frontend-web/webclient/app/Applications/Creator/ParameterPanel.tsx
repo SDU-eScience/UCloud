@@ -15,6 +15,11 @@
 // - Workflow: no visual property fields (YAML-only)
 //
 // The panel has a "Back to application" action at the top and a delete action at the bottom.
+//
+// This file also contains the panel building blocks shared with the metadata panel:
+// PanelSection, PanelRow, ToggleRow, and InfoDot. Each section has a bold header (no background,
+// no uppercase) and stacked rows underneath. The sections are separated by a top border and extra
+// vertical spacing. The last section has no bottom border.
 
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
@@ -22,11 +27,243 @@ import {Input, Label, Select, Text} from "@/ui-components";
 import Icon from "@/ui-components/Icon";
 import {IconButton} from "@/ui-components/IconButton";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {Toggle} from "@/ui-components/Toggle";
+import {TooltipV2} from "@/ui-components/Tooltip";
 import {injectStyle} from "@/Unstyled";
-import {A2Parameter, A2EnumOption} from "@/Applications/Creator/A2";
-import {CreatorDraft, CreatorValidationError} from "@/Applications/Creator/Draft";
-import {nameForId} from "@/Applications/Creator/DraftOperations";
-import {PanelSection, PanelSectionClass, ToggleRow} from "@/Applications/Creator/ParameterPanelShared";
+import {A2Parameter, A2EnumOption, CreatorDraft, CreatorValidationError} from "@/Applications/Creator/Draft";
+import {nameForId, parameterRenameIssue} from "@/Applications/Creator/DraftOperations";
+import {CreatorShortcutHint} from "@/Applications/Creator/CreatorKeyboard";
+import {focusFirstNavigationTarget, FORM_NAVIGATION_SELECTOR} from "@/Applications/KeyboardNavigation";
+
+export function PanelSection(props: {
+    title: string;
+    children: React.ReactNode;
+    collapsedByDefault?: boolean;
+    id?: string;
+    shortcut?: string;
+}): React.ReactNode {
+    const [collapsed, setCollapsed] = useState(props.collapsedByDefault === true);
+    const toggle = () => setCollapsed(c => !c);
+    const onHeaderKeyDown = (event: React.KeyboardEvent<HTMLSpanElement>) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        setCollapsed(false);
+        const section = event.currentTarget.closest<HTMLElement>("[data-panel-section]");
+        if (!section) return;
+        window.requestAnimationFrame(() => {
+            focusFirstNavigationTarget(section, FORM_NAVIGATION_SELECTOR);
+        });
+    };
+    return (
+        <div
+            className={PanelSectionClass}
+            data-collapsed={collapsed}
+            data-panel-section
+            id={props.id}
+        >
+            <div className="panel-section-header">
+                <span
+                    className="panel-section-title"
+                    onClick={toggle}
+                    onKeyDown={onHeaderKeyDown}
+                    role="button"
+                    aria-expanded={!collapsed}
+                    tabIndex={collapsed ? 0 : -1}
+                    data-navigation-field={collapsed ? true : undefined}
+                    data-panel-section-toggle
+                >
+                    {props.title}
+                </span>
+                {props.shortcut ? <CreatorShortcutHint shortcut={props.shortcut} /> : null}
+                <IconButton
+                    icon={collapsed ? "heroChevronRight" : "heroChevronDown"}
+                    tooltip={collapsed ? "Expand section" : "Collapse section"}
+                    onClick={toggle}
+                    compact
+                />
+            </div>
+            {collapsed ? null : <div className="panel-section-body">{props.children}</div>}
+        </div>
+    );
+}
+
+export function PanelRow(props: {label: string; value: string}): React.ReactNode {
+    return (
+        <div className="panel-row">
+            <span className="panel-row-label">{props.label}</span>
+            <span className="panel-row-value">{props.value || "—"}</span>
+        </div>
+    );
+}
+
+export function ToggleRow(props: {label: string; checked: boolean; onChange: () => void; disabled?: boolean; id?: string}): React.ReactNode {
+    return (
+        <div className={ToggleRowClass} id={props.id}>
+            <Toggle checked={props.checked} onChange={props.onChange} height={20} disabled={props.disabled} />
+            <Text fontSize={13} className="toggle-row-label" onClick={props.disabled ? undefined : props.onChange}>{props.label}</Text>
+        </div>
+    );
+}
+
+export function InfoDot(props: {tooltip: React.ReactNode}): React.ReactNode {
+    return (
+        <TooltipV2
+            tooltip={<div className={InfoTooltipContentClass}>{props.tooltip}</div>}
+            contentWidth={280}
+            triggerStyle={{display: "inline-flex", verticalAlign: "middle"}}
+        >
+            <span className={InfoDotClass} role="img" aria-label="More information">
+                <Icon name="heroInformationCircle" size={14} color="textSecondary" />
+            </span>
+        </TooltipV2>
+    );
+}
+
+export const PanelSectionClass = injectStyle("creator-panel-section-shared", k => `
+    ${k} {
+        padding: 16px 12px;
+    }
+
+    ${k} + ${k} {
+        border-top: 1px solid var(--borderColor);
+    }
+
+    ${k} > .panel-section-header {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-bottom: 12px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--textPrimary);
+        flex-shrink: 0;
+    }
+
+    ${k}[data-collapsed="true"] > .panel-section-header {
+        margin-bottom: 0;
+    }
+
+    ${k} > .panel-section-header > .panel-section-title {
+        flex: 1 1 auto;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    ${k} > .panel-section-header > .panel-section-title:focus-visible {
+        outline: 2px solid var(--primaryMain);
+        outline-offset: 2px;
+        border-radius: 4px;
+    }
+
+    ${k} > .panel-section-body {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    ${k} .panel-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-height: 32px;
+    }
+
+    ${k} .panel-row > .panel-row-label {
+        flex-shrink: 0;
+        color: var(--textSecondary);
+        font-size: 13px;
+    }
+
+    ${k} .panel-row > .panel-row-value {
+        text-align: right;
+        font-size: 13px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    ${k} .panel-field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    ${k} .panel-field > .panel-field-label {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--textPrimary);
+    }
+`);
+
+const ToggleRowClass = injectStyle("creator-toggle-row", k => `
+    ${k} {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 32px;
+        cursor: pointer;
+        user-select: none;
+        border-radius: 6px;
+        padding: 2px 4px;
+        margin: -2px -4px;
+        transition: box-shadow 0.2s ease;
+    }
+
+    ${k} > .toggle-row-label {
+        cursor: pointer;
+    }
+`);
+
+const InfoDotClass = injectStyle("creator-info-dot", k => `
+    ${k} {
+        display: inline-flex;
+        align-items: center;
+        cursor: help;
+        vertical-align: middle;
+        margin-left: 4px;
+    }
+`);
+
+const InfoTooltipContentClass = injectStyle("creator-info-tooltip-content", k => `
+    ${k}, ${k} * {
+        text-align: left !important;
+    }
+
+    ${k} ul {
+        margin: 6px 0;
+        padding-left: 0;
+        list-style-position: inside;
+    }
+
+    ${k} ul li {
+        margin: 0;
+        padding-left: 16px;
+    }
+`);
+
+injectStyle("creator-highlight-global", () => `
+    .creator-highlight-active {
+        --creatorHighlightColor: var(--primaryMain);
+        animation: creator-pulse-glow 2s ease-out 1;
+        border-radius: 6px;
+    }
+
+    html.dark .creator-highlight-active {
+        --creatorHighlightColor: var(--blue-50);
+    }
+
+    @keyframes creator-pulse-glow {
+        0%   { box-shadow: 0 0 0 0   color-mix(in srgb, var(--creatorHighlightColor) 0%,   transparent); }
+        15%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--creatorHighlightColor) 35%,  transparent); }
+        30%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--creatorHighlightColor) 35%,  transparent); }
+        45%  { box-shadow: 0 0 0 2px color-mix(in srgb, var(--creatorHighlightColor) 18%,  transparent); }
+        60%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--creatorHighlightColor) 35%,  transparent); }
+        75%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--creatorHighlightColor) 35%,  transparent); }
+        100% { box-shadow: 0 0 0 0   color-mix(in srgb, var(--creatorHighlightColor) 0%,   transparent); }
+    }
+`);
 
 export interface ParameterPanelProps {
     draft: CreatorDraft;
@@ -129,6 +366,10 @@ function ParameterHeaderSection(props: {
 // Common settings: name, title, description, optional
 // -------------------------------------------------------------------------------------------------------------------
 
+function renameIssue(newName: string): string | null {
+    return parameterRenameIssue(newName);
+}
+
 function CommonSettings(props: {
     name: string;
     param: A2Parameter;
@@ -139,12 +380,14 @@ function CommonSettings(props: {
 }): React.ReactNode {
     const {name, param, errors} = props;
     const [nameValue, setNameValue] = useState(name);
+    const [nameError, setNameError] = useState<string | null>(null);
     const nameInputFocused = useRef(false);
 
     React.useEffect(() => {
         const el = document.activeElement;
         if (nameInputFocused.current && el instanceof HTMLInputElement && el === nameInputRef.current) return;
         setNameValue(name);
+        setNameError(null);
     }, [name]);
 
     React.useEffect(() => {
@@ -153,7 +396,7 @@ function CommonSettings(props: {
         };
     }, []);
 
-    const nameError = errors.find(e =>
+    const validationError = errors.find(e =>
         e.message.startsWith("Parameter name") || e.message.startsWith("Duplicate parameter name"),
     );
 
@@ -161,8 +404,20 @@ function CommonSettings(props: {
     const commitNameRef = useRef(() => {});
     commitNameRef.current = () => {
         const trimmed = nameValue.trim();
-        if (trimmed && trimmed !== name) props.onRename(name, trimmed);
-        else if (trimmed !== nameValue) setNameValue(trimmed);
+        if (trimmed === name) {
+            if (trimmed !== nameValue) setNameValue(trimmed);
+            setNameError(null);
+            return;
+        }
+        const issue = renameIssue(trimmed);
+        if (issue != null) {
+            setNameError(issue);
+            return;
+        }
+        props.onRename(name, trimmed);
+        window.requestAnimationFrame(() => {
+            setNameValue(current => current === trimmed && trimmed !== name ? name : current);
+        });
     };
 
     return (
@@ -173,7 +428,10 @@ function CommonSettings(props: {
                     className={PanelInputClass}
                     inputRef={nameInputRef}
                     value={nameValue}
-                    onChange={e => setNameValue(e.target.value)}
+                    onChange={e => {
+                        setNameValue(e.target.value);
+                        setNameError(null);
+                    }}
                     onFocus={() => { nameInputFocused.current = true; }}
                     onBlur={() => {
                         nameInputFocused.current = false;
@@ -184,9 +442,10 @@ function CommonSettings(props: {
                             (e.target as HTMLInputElement).blur();
                         }
                     }}
-                    error={nameError != null}
+                    error={nameError != null || validationError != null}
                 />
-                {nameError ? <Text fontSize={12} color="errorMain" mt="4px">{nameError.message}</Text> : null}
+                {nameError ? <Text fontSize={12} color="errorMain" mt="4px">{nameError}</Text> : null}
+                {nameError == null && validationError ? <Text fontSize={12} color="errorMain" mt="4px">{validationError.message}</Text> : null}
             </Label>
 
             <Label className="panel-field">
@@ -287,9 +546,10 @@ function NumericSettings(props: {
     const {name, param, errors} = props;
 
     const parseNum = (s: string): number | null => {
-        if (s.trim() === "") return null;
-        const n = param.type === "Integer" ? parseInt(s, 10) : parseFloat(s);
-        return isNaN(n) ? null : n;
+        const trimmed = s.trim();
+        if (trimmed === "") return null;
+        const n = param.type === "Integer" ? Number.parseInt(trimmed, 10) : Number.parseFloat(trimmed);
+        return Number.isFinite(n) ? n : null;
     };
 
     return (
@@ -354,22 +614,24 @@ function EnumerationSettings(props: {
     const rowKeys = useRef<string[]>([]);
     const enumOptionsRef = useRef<HTMLDivElement | null>(null);
 
-    while (rowKeys.current.length < param.options.length + 1) {
+    const options = param.options ?? [];
+
+    while (rowKeys.current.length < options.length + 1) {
         rowKeys.current.push(`enum-option-${nextRowKey.current++}`);
     }
-    rowKeys.current.length = param.options.length + 1;
+    rowKeys.current.length = options.length + 1;
 
     const updateOption = (index: number, patch: Partial<A2EnumOption>) => {
-        const options = param.options.map((o, i) => i === index ? {...o, ...patch} : o);
-        props.onUpdateEnumeration(name, {options});
+        const nextOptions = options.map((o, i) => i === index ? {...o, ...patch} : o);
+        props.onUpdateEnumeration(name, {options: nextOptions});
     };
 
     const removeOption = (index: number) => {
-        const options = param.options.filter((_, i) => i !== index);
-        const removedValue = param.options[index]?.value;
+        const nextOptions = options.filter((_, i) => i !== index);
+        const removedValue = options[index]?.value;
         const defaultValue = param.defaultValue === removedValue ? null : param.defaultValue;
         rowKeys.current.splice(index, 1);
-        props.onUpdateEnumeration(name, {options, defaultValue});
+        props.onUpdateEnumeration(name, {options: nextOptions, defaultValue});
         window.requestAnimationFrame(() => {
             const rows = enumOptionsRef.current?.querySelectorAll<HTMLElement>("[data-enum-option-row]");
             if (!rows || rows.length === 0) {
@@ -382,18 +644,18 @@ function EnumerationSettings(props: {
     };    const commitPlaceholder = (field: "title" | "value", text: string) => {
         const newOpt: A2EnumOption = {title: "", value: "", [field]: text};
         rowKeys.current.push(`enum-option-${nextRowKey.current++}`);
-        props.onUpdateEnumeration(name, {options: [...param.options, newOpt]});
+        props.onUpdateEnumeration(name, {options: [...options, newOpt]});
     };
 
     const swapOptions = (from: number, to: number) => {
-        const options = [...param.options];
-        const tmp = options[from];
-        options[from] = options[to];
-        options[to] = tmp;
+        const nextOptions = [...options];
+        const tmp = nextOptions[from];
+        nextOptions[from] = nextOptions[to];
+        nextOptions[to] = tmp;
         const tmpKey = rowKeys.current[from];
         rowKeys.current[from] = rowKeys.current[to];
         rowKeys.current[to] = tmpKey;
-        props.onUpdateEnumeration(name, {options});
+        props.onUpdateEnumeration(name, {options: nextOptions});
     };
 
     return (
@@ -405,8 +667,8 @@ function EnumerationSettings(props: {
                     onChange={e => props.onUpdateEnumeration(name, {defaultValue: e.target.value || null})}
                 >
                     <option value="">— none —</option>
-                    {param.options.map(o => (
-                        <option key={o.value} value={o.value}>{o.title}</option>
+                    {options.map((o, i) => (
+                        <option key={`${o.value}-${i}`} value={o.value}>{o.title}</option>
                     ))}
                 </Select>
             </Label>
@@ -414,14 +676,14 @@ function EnumerationSettings(props: {
             <Text fontWeight={600} fontSize={13}>Options</Text>
 
             <div data-enum-options ref={enumOptionsRef}>
-            {[...param.options, null].map((opt, index) => {
+            {[...options, null].map((opt, index) => {
                 if (opt == null) {
                     return (
                         <EnumOptionRow
                             key={rowKeys.current[index]}
                             placeholder
                             index={index}
-                            count={param.options.length}
+                            count={options.length}
                             option={{title: "", value: ""}}
                             dragFromIndex={null}
                             dragToIndex={null}
@@ -440,7 +702,7 @@ function EnumerationSettings(props: {
                     <EnumOptionRow
                         key={rowKeys.current[index]}
                         index={index}
-                        count={param.options.length}
+                        count={options.length}
                         option={opt}
                         dragFromIndex={dragFromIndex}
                         dragToIndex={dragToIndex}
