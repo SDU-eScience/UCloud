@@ -182,10 +182,13 @@ func initFiles() {
 				DriveTrack(&item.ResolvedOldCollection)
 				DriveTrack(&item.ResolvedNewCollection)
 
-				err := Files.Move(info.Actor, item)
+				checkErr := filesMoveAndCopyPolicyCheck(item.ResolvedOldCollection, item.ResolvedNewCollection)
 
-				if err != nil {
-					errors = append(errors, err)
+				if checkErr == nil {
+					err := Files.Move(info.Actor, item)
+					if err != nil {
+						errors = append(errors, err)
+					}
 				}
 			}
 
@@ -274,13 +277,17 @@ func initFiles() {
 		orcapi.FilesProviderCopy.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.FilesProviderMoveOrCopyRequest]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
 			var errors []*util.HttpError
 			for _, item := range request.Items {
+
 				DriveTrack(&item.ResolvedOldCollection)
 				DriveTrack(&item.ResolvedNewCollection)
 
-				err := Files.Copy(info.Actor, item)
+				checkErr := filesMoveAndCopyPolicyCheck(item.ResolvedOldCollection, item.ResolvedNewCollection)
+				if checkErr == nil {
+					err := Files.Copy(info.Actor, item)
 
-				if err != nil {
-					errors = append(errors, err)
+					if err != nil {
+						errors = append(errors, err)
+					}
 				}
 			}
 
@@ -1042,6 +1049,34 @@ func fileGenerateUploadPath(
 	} else {
 		return fmt.Sprintf("%s/ucloud/%s/upload?token=%s", hostPath, providerId, token)
 	}
+}
+
+// filesMoveAndCopyPolicyCheck enforces the "restrictMoveAndCopy" project policy: files which
+// belong to a project may not be moved or copied into a drive that is not owned by the same
+// project while the policy is enabled.
+func filesMoveAndCopyPolicyCheck(sourceDrive orcapi.Drive, destinationDrive orcapi.Drive) *util.HttpError {
+	sourceProject := sourceDrive.Owner.Project
+	if !sourceProject.Present {
+		// The source file from a personal project so no polices apply
+		return nil
+	}
+
+	destinationProject := destinationDrive.Owner.Project
+	if destinationProject.Present && destinationProject.Value == sourceProject.Value {
+		// The files stay within the same project
+		return nil
+	}
+	policyCache.Mu.RLock()
+	policies := policyCache.PoliciesByProject[sourceProject.Value]
+	if specification, ok := policies[fnd.RestrictMoveAndCopy]; ok && specification.IsEnabled() {
+		return util.HttpErr(
+			http.StatusForbidden,
+			"Project policies do not allow files to be moved or copied out of the project.",
+		)
+	}
+	policyCache.Mu.RUnlock()
+
+	return nil
 }
 
 func fileCreateUploadSession(session upload.ServerSession) {
