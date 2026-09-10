@@ -60,6 +60,14 @@ function logoHash(title: string): number {
     return hash;
 }
 
+export const integratedTerminalLogo: ApplicationGroupLogo = {
+    version: 1,
+    shape: "rounded-square",
+    border: {style: "none", color: "auto"},
+    fill: {type: "solid", colorA: "blue", colorB: "blue", direction: "top-right"},
+    content: {type: "icon", value: "command-line", size: "medium", color: "auto"},
+};
+
 export function defaultApplicationGroupLogo(title: string): ApplicationGroupLogo {
     let value = logoHash(title);
     const next = (length: number) => {

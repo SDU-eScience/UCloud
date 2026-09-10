@@ -83,9 +83,10 @@ export class SvgCache {
     }
 
     private rasterize(data: SVGElement, width: number, height: number, colorHint?: string): Promise<string> {
+        const scale = 2;
         const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = width * scale;
+        canvas.height = height * scale;
 
         // NOTE(Dan): For some reason, some of our SVGs don't have this. This technically makes them invalid, not sure
         // why the browsers allow it regardless.
@@ -108,6 +109,7 @@ export class SvgCache {
         data.prepend(svgStyle);
 
         const ctx = canvas.getContext("2d")!;
+        ctx.scale(scale, scale);
 
         const image = new Image();
         const svgBlob = new Blob([data.outerHTML], {type: "image/svg+xml;charset=utf-8"});
@@ -122,7 +124,6 @@ export class SvgCache {
             image.onload = () => {
                 ctx.drawImage(image, 0, 0, width, height);
                 URL.revokeObjectURL(svgUrl);
-
                 canvas.toBlob((canvasBlob) => {
                     if (!canvasBlob) {
                         reject();

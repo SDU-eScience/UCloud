@@ -216,6 +216,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                         job.status.resolvedApplication?.metadata.groupId ??
                             job.status.resolvedApplication?.metadata.group?.metadata.id,
                         30,
+                        job.specification.name,
                     );
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, row));

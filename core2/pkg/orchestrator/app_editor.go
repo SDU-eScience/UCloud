@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
+	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -263,6 +264,9 @@ func appEditorValidateCustom(
 	node *yaml.Node,
 ) ([]orcapi.AppEditorValidationError, string, orcapi.AppEditorCustomMetadata) {
 	var errors []orcapi.AppEditorValidationError
+	if coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories) != nil {
+		return []orcapi.AppEditorValidationError{appEditorError("FEATURE_NOT_ENABLED", "custom", "This feature is not enabled", node)}, "", orcapi.AppEditorCustomMetadata{}
+	}
 	if !metadata.Present {
 		return []orcapi.AppEditorValidationError{appEditorError("CUSTOM_METADATA_REQUIRED", "custom", "Custom placement metadata is required", node)}, "", orcapi.AppEditorCustomMetadata{}
 	}
@@ -847,7 +851,7 @@ func appEditorDecodeDefault[T any](raw json.RawMessage, result *util.Option[T]) 
 
 func appEditorEligibility(actor rpc.Actor) orcapi.AppEditorCustomEligibilityResponse {
 	result := orcapi.AppEditorCustomEligibilityResponse{
-		CanCreate:  appCustomCanCreateGroup(actor),
+		CanCreate:  appCustomCanCreateGroup(actor) && coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories) == nil,
 		CanPublish: actor.Project.Present,
 	}
 	providers := map[string]bool{}

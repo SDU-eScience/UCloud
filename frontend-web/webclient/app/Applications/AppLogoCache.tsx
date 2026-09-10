@@ -1,6 +1,6 @@
 import {callAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {defaultApplicationGroupLogo, ProceduralLogo} from "@/Applications/ProceduralLogo";
+import {defaultApplicationGroupLogo, integratedTerminalLogo, ProceduralLogo} from "@/Applications/ProceduralLogo";
 import {ApplicationGroupLogo} from "@/Applications/AppStoreApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {SvgCache} from "@/Utilities/SvgCache";
@@ -15,10 +15,12 @@ export function appendAppIcon(
     name: string,
     groupId?: number | null,
     size: number = 30,
+    jobName?: string | null,
 ): void {
     const isCustom = name.startsWith("custom-") || (groupId ?? 0) < 0;
+    const isIntegratedTerminal = name === "unknown" && jobName === "Integrated terminal";
     const themeKey = isLightThemeStored() ? "light" : "dark";
-    const cacheKey = `${name}-${groupId ?? 0}-${themeKey}-${size}`;
+    const cacheKey = `${name}-${groupId ?? 0}-${isIntegratedTerminal ? "terminal" : ""}-${themeKey}-${size}`;
 
     el.style.width = `${size}px`;
     el.style.height = `${size}px`;
@@ -28,7 +30,7 @@ export function appendAppIcon(
 
     void logoCache.retrieve(cacheKey, async () => {
         if (isCustom) {
-            const logo = await fetchCustomLogo(name, groupId);
+            const logo = isIntegratedTerminal ? integratedTerminalLogo : await fetchCustomLogo(name, groupId);
             return await svgCache.renderSvg(
                 cacheKey,
                 () => <ProceduralLogo

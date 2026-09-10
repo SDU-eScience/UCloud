@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/anyascii/go"
+	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -857,6 +858,10 @@ func applicationVariantValidateImage(actor rpc.Actor, provider, image string, re
 
 func initApplicationVariantRpc() {
 	orcapi.JobsCreateApplicationVariant.Handler(func(info rpc.RequestInfo, request orcapi.JobsCreateApplicationVariantRequest) (fndapi.Task, *util.HttpError) {
+		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureContainerRepositories); err != nil {
+			return fndapi.Task{}, err
+		}
+
 		job, _, _, err := ResourceRetrieveEx[orcapi.Job](
 			info.Actor, jobType, ResourceParseId(request.JobId), orcapi.PermissionEdit, orcapi.ResourceFlagsIncludeAll(),
 		)
@@ -931,6 +936,10 @@ func initApplicationVariantRpc() {
 	})
 
 	orcapi.ApplicationVariantsCreate.Handler(func(info rpc.RequestInfo, request orcapi.ApplicationVariantCreateRequest) (orcapi.ApplicationVariant, *util.HttpError) {
+		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureContainerRepositories); err != nil {
+			return orcapi.ApplicationVariant{}, err
+		}
+
 		base, _, _, err := applicationVariantBase(info.Actor, request.BaseApplication)
 		if err != nil {
 			return orcapi.ApplicationVariant{}, err
@@ -1003,6 +1012,10 @@ func initApplicationVariantRpc() {
 	})
 
 	orcapi.ApplicationVariantsUpdate.Handler(func(info rpc.RequestInfo, request orcapi.ApplicationVariantUpdateRequest) (orcapi.ApplicationVariant, *util.HttpError) {
+		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureContainerRepositories); err != nil {
+			return orcapi.ApplicationVariant{}, err
+		}
+
 		internal, ok := applicationVariantRetrieve(request.Id)
 		if !ok {
 			return orcapi.ApplicationVariant{}, util.HttpErr(http.StatusNotFound, "flavor not found")
@@ -1121,6 +1134,10 @@ func initApplicationVariantRpc() {
 	})
 
 	orcapi.ApplicationVariantsDelete.Handler(func(info rpc.RequestInfo, request orcapi.FindApplicationVariant) (util.Empty, *util.HttpError) {
+		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureContainerRepositories); err != nil {
+			return util.Empty{}, err
+		}
+
 		internal, ok := applicationVariantRetrieve(request.Id)
 		if !ok {
 			return util.Empty{}, util.HttpErr(http.StatusNotFound, "flavor not found")

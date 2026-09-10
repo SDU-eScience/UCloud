@@ -17,6 +17,7 @@ import (
 	"unicode/utf8"
 
 	"gopkg.in/yaml.v3"
+	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -692,6 +693,10 @@ func appCustomCanReadGroup(actor rpc.Actor, group *appCustomGroup) bool {
 }
 
 func appCustomCreateGroup(actor rpc.Actor, request orcapi.AppCatalogCreateCustomGroupRequest) (fndapi.FindByIntId, *util.HttpError) {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return fndapi.FindByIntId{}, err
+	}
+
 	if !appCustomCanCreateGroup(actor) {
 		return fndapi.FindByIntId{}, util.HttpErr(http.StatusForbidden, "permission denied")
 	}
@@ -752,6 +757,10 @@ func appCustomCreateGroup(actor rpc.Actor, request orcapi.AppCatalogCreateCustom
 }
 
 func appCustomUpdateGroup(actor rpc.Actor, request orcapi.AppCatalogUpdateCustomGroupRequest) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
 	if request.Id >= 0 {
 		return util.HttpErr(http.StatusNotFound, "group not found")
 	}
@@ -807,6 +816,10 @@ func appCustomUpdateGroup(actor rpc.Actor, request orcapi.AppCatalogUpdateCustom
 }
 
 func appCustomUpdateGroupLogo(actor rpc.Actor, request orcapi.AppCatalogUpdateCustomGroupLogoRequest) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
 	if request.Id >= 0 {
 		return util.HttpErr(http.StatusNotFound, "group not found")
 	}
@@ -890,6 +903,10 @@ func appCustomProjectGroupInProject(groupId, projectId string) bool {
 }
 
 func appCustomCreateCategory(actor rpc.Actor, request orcapi.AppCatalogCreateCustomCategoryRequest) (fndapi.FindByIntId, *util.HttpError) {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return fndapi.FindByIntId{}, err
+	}
+
 	if !appCustomIsAdmin(actor) {
 		return fndapi.FindByIntId{}, util.HttpErr(http.StatusForbidden, "permission denied")
 	}
@@ -1021,6 +1038,10 @@ func appCustomValidateAclGroups(tx *db.Transaction, project string, entries []or
 }
 
 func appCustomUpdateCategoryAcl(actor rpc.Actor, request orcapi.UpdatedAcl) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
 	if !appCustomIsAdmin(actor) {
 		return util.HttpErr(http.StatusForbidden, "permission denied")
 	}
@@ -1177,6 +1198,10 @@ func appCustomNormalizeFlavorName(flavorName *string) *util.HttpError {
 }
 
 func appCustomCreateApplication(actor rpc.Actor, request orcapi.AppCatalogCreateCustomApplicationRequest) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
 	if !strings.HasPrefix(request.A2Yaml.Name, "custom-") {
 		request.A2Yaml.Name = "custom-" + request.A2Yaml.Name
 	}
@@ -1368,6 +1393,10 @@ func appCustomRetrieveApplication(actor rpc.Actor, name, version, provider strin
 }
 
 func appCustomUpdateApplication(actor rpc.Actor, request orcapi.AppCatalogUpdateCustomApplicationRequest) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
 	appCustomCache.Mu.RLock()
 	var target *appCustomApplication
 	for _, app := range appCustomCache.Apps {
@@ -1437,6 +1466,10 @@ func appCustomUpdateApplication(actor rpc.Actor, request orcapi.AppCatalogUpdate
 }
 
 func appCustomDeleteApplication(actor rpc.Actor, request orcapi.AppCatalogDeleteCustomApplicationRequest) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
 	appCustomCache.Mu.RLock()
 	var target *appCustomApplication
 	for _, app := range appCustomCache.Apps {
@@ -1534,6 +1567,10 @@ func appCustomRetrieveApplicationForWorkspace(workspace, name, version, provider
 // insert produces a conflict instead of leaving a dangling reference.
 
 func appCustomDeleteGroup(actor rpc.Actor, apiId int) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
 	if apiId >= 0 {
 		return util.HttpErr(http.StatusBadRequest, "invalid group ID")
 	}
@@ -1581,6 +1618,10 @@ func appCustomDeleteGroup(actor rpc.Actor, apiId int) *util.HttpError {
 }
 
 func appCustomDeleteCategory(actor rpc.Actor, apiId int) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
 	if apiId >= 0 || !appCustomIsAdmin(actor) {
 		return util.HttpErr(http.StatusForbidden, "permission denied")
 	}

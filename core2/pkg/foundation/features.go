@@ -5,8 +5,8 @@ import (
 	"sort"
 	"time"
 
-	"ucloud.dk/core/pkg/coreutil"
 	cfg "ucloud.dk/core/pkg/config"
+	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
@@ -15,31 +15,7 @@ import (
 
 func initFeatures() {
 	fndapi.FeaturesRetrieveEnabled.Handler(func(info rpc.RequestInfo, request util.Empty) ([]string, *util.HttpError) {
-		granted := db.NewTx(
-			func(tx *db.Transaction) []string {
-				rows := db.Select[struct{ Feature string }](
-					tx,
-					`
-						select distinct g.feature
-						from
-							features.project_grants g
-							join project.project_members pm on
-								g.project_id = pm.project_id
-								and pm.username = :username
-						order by g.feature
-					`,
-					db.Params{
-						"username": info.Actor.Username,
-					},
-				)
-
-				result := make([]string, 0, len(rows))
-				for _, row := range rows {
-					result = append(result, row.Feature)
-				}
-				return result
-			},
-		)
+		granted := coreutil.FeatureGrantsOfActor(info.Actor)
 
 		result := util.Combined(cfg.Configuration.Features, granted)
 		sort.Strings(result)
@@ -117,6 +93,7 @@ func initFeatures() {
 				},
 			)
 		})
+		coreutil.FeatureInvalidateGrantCache()
 		return util.Empty{}, nil
 	})
 
@@ -140,6 +117,7 @@ func initFeatures() {
 				},
 			)
 		})
+		coreutil.FeatureInvalidateGrantCache()
 		return util.Empty{}, nil
 	})
 }
