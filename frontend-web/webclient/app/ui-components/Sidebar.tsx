@@ -75,6 +75,7 @@ import {Dispatch} from "redux";
 import {AutomaticBranding} from "@/Applications/Branding/AutomaticBranding";
 import {BrandingResponse} from "@/UCloud/BrandingApi";
 import {Feature, hasFeature} from "@/Features";
+import {useBackendFeatures} from "@/Features/backend";
 import {setAppFavorites} from "@/Applications/Redux/Reducer";
 import {useInferenceThreads} from "@/Inference/ThreadStore";
 
@@ -474,6 +475,8 @@ function sidebarCommand(title: string, description: string, url: string, icon: I
 export function Sidebar(): React.ReactNode {
     const sidebarEntries = sideBarMenuElements;
     const {loggedIn, avatar} = useSidebarReduxProps();
+
+    useBackendFeatures();
 
     const [selectedPage, setSelectedPage] = React.useState(SidebarTabId.NONE);
     const [hoveredPage, setHoveredPage] = React.useState(SidebarTabId.NONE);

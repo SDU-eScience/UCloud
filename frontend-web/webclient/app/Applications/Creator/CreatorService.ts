@@ -18,7 +18,7 @@ import {
 } from "@/Applications/Creator/Draft";
 import {applicationToSourceText, parseSourceText} from "@/Applications/Creator/SourceParser";
 import {templateApplicationForContext, templateCustomMetaForContext} from "@/Applications/Creator/Templates";
-import {A2Yaml} from "@/Applications/Creator/A2";
+import {A2Yaml} from "@/Applications/Creator/Draft";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {creatorConvertForkSource} from "@/Applications/Creator/ForkConversion";
 

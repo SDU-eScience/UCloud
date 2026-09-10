@@ -24,11 +24,9 @@ import {
     creatorEditorOptions,
     ensureBashJinjaLanguage,
     ensureUcloudDarkTheme,
-} from "@/Applications/Creator/MonacoShared";
-import {
     registerInvocationProviders,
     setInvocationModelParameters,
-} from "@/Applications/Creator/InvocationAutoComplete";
+} from "@/Applications/Creator/InvocationMonaco";
 import {invocationLint} from "@/Applications/Creator/InvocationLinter";
 import type {InvocationParameters} from "@/Applications/Creator/InvocationScope";
 import {InvocationHelp} from "@/Applications/Creator/InvocationHelp";

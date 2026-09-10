@@ -21,10 +21,9 @@ import {IconButton} from "@/ui-components/IconButton";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {injectStyle} from "@/Unstyled";
-import {A2Yaml, A2Software, A2Features, A2SshMode, A2Inference, A2ApplicationToLoad} from "@/Applications/Creator/A2";
-import {CreatorCreatedGroup, CreatorDraft, CreatorCustomMeta, creatorIsCustom, creatorIsEditableName, creatorIsEditableVersion} from "@/Applications/Creator/Draft";
-import {PanelSection, ToggleRow, InfoDot} from "@/Applications/Creator/ParameterPanelShared";
-import {WIDGET_DRAWER_ITEMS, WidgetDrawerGroup} from "@/Applications/Creator/WidgetDefaults";
+import {A2Yaml, A2Software, A2Features, A2SshMode, A2Inference, A2ApplicationToLoad, CreatorCreatedGroup, CreatorDraft, CreatorCustomMeta, creatorIsCustom, creatorIsEditableName, creatorIsEditableVersion} from "@/Applications/Creator/Draft";
+import {PanelSection, ToggleRow, InfoDot} from "@/Applications/Creator/ParameterPanel";
+import {WIDGET_DRAWER_ITEMS, WidgetDrawerGroup, A2WidgetType} from "@/Applications/Creator/DraftOperations";
 import type {
     ApplicationGroupLogo,
     AppCatalogCustomCategory,
@@ -84,7 +83,7 @@ export interface MetadataPanelProps {
     onUpdateEnvironment: (environment: Record<string, string>) => void;
     onUpdateSbatch: (sbatch: Record<string, string>) => void;
     onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
-    onAddParameter: (type: import("@/Applications/Creator/WidgetDefaults").A2WidgetType) => void;
+    onAddParameter: (type: A2WidgetType) => void;
     customEligibility?: AppEditorCustomEligibilityResponse | null;
     customGroups?: AppCatalogCustomGroup[];
     customCategories?: AppCatalogCustomCategory[];
@@ -1986,7 +1985,7 @@ function ExtensionsEditor(props: {
 // -------------------------------------------------------------------------------------------------------------------
 
 function WidgetDrawerSection(props: {
-    onAddParameter: (type: import("@/Applications/Creator/WidgetDefaults").A2WidgetType) => void;
+    onAddParameter: (type: A2WidgetType) => void;
 }): React.ReactNode {
     const basicItems = WIDGET_DRAWER_ITEMS.filter(i => i.group === "basic");
     const resourceItems = WIDGET_DRAWER_ITEMS.filter(i => i.group === "resources");
@@ -2007,7 +2006,7 @@ function WidgetDrawerSection(props: {
 function WidgetDrawerGroup(props: {
     items: typeof WIDGET_DRAWER_ITEMS;
     group: WidgetDrawerGroup;
-    onAddParameter: (type: import("@/Applications/Creator/WidgetDefaults").A2WidgetType) => void;
+    onAddParameter: (type: A2WidgetType) => void;
 }): React.ReactNode {
     return (
         <div className={WidgetDrawerGroupClass}>

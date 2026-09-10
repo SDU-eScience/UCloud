@@ -32,7 +32,7 @@ import {
     creatorEditorOptions,
     ensureJinja2Language,
     ensureUcloudDarkTheme,
-} from "@/Applications/Creator/MonacoShared";
+} from "@/Applications/Creator/InvocationMonaco";
 import {CreatorSourceParseError} from "@/Applications/Creator/SourceParser";
 import {creatorRegisterCodeEditorFocus} from "@/Applications/Creator/CreatorKeyboard";
 import {useMonaco} from "@/Editor/Editor";

@@ -26,7 +26,7 @@
 // place a Monaco marker and the page error summary can offer a click-to-line action.
 
 import * as YAML from "yaml";
-import {A2Yaml, A2Parameter} from "@/Applications/Creator/A2";
+import {A2Yaml, A2Parameter} from "@/Applications/Creator/Draft";
 
 // Parse result
 // -------------------------------------------------------------------------------------------------------------------
