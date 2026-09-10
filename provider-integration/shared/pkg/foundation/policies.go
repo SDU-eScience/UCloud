@@ -28,7 +28,7 @@ const (
 	RestrictProviderFileTransfers         PolicyName = "RestrictProviderFileTransfers"
 	RestrictPublicIPs                     PolicyName = "RestrictPublicIPs"
 	RestrictPublicLinks                   PolicyName = "RestrictPublicLinks"
-	RestrictShares                        PolicyName = "RestrictShares"
+	RestrictSharing                       PolicyName = "RestrictSharing"
 	RestrictSourceIPRange                 PolicyName = "RestrictSourceIPRange"
 	RestrictSSH                           PolicyName = "RestrictSshAccess"
 	RestrictUploads                       PolicyName = "RestrictUploads"
@@ -317,19 +317,19 @@ func (r *RestrictPublicLinksSpecification) IsEnabled() bool {
 }
 
 // Restrict Shares
-type RestrictSharesConfig struct {
+type RestrictSharingConfig struct {
 	Enabled Property `yaml:"enabled" json:"enabled"`
 }
-type RestrictSharesSchema = PolicySchema[RestrictSharesConfig]
-type RestrictSharesValues struct {
+type RestrictSharesSchema = PolicySchema[RestrictSharingConfig]
+type RestrictSharingValues struct {
 	Enabled bool `yaml:"enabled" json:"enabled"`
 }
 
-type RestrictSharesSpecification struct {
-	PolicySpecification[RestrictSharesValues]
+type RestrictSharingSpecification struct {
+	PolicySpecification[RestrictSharingValues]
 }
 
-func (r *RestrictSharesSpecification) IsEnabled() bool {
+func (r *RestrictSharingSpecification) IsEnabled() bool {
 	return r.Values.Enabled
 }
 
@@ -415,7 +415,7 @@ var SchemaDecoders = map[PolicyName]func([]byte) (Schema, error){
 	RestrictProviderFileTransfers:         schemaDecoder[RestrictProviderFileTransfersConfig],
 	RestrictPublicIPs:                     schemaDecoder[RestrictPublicIPsConfig],
 	RestrictPublicLinks:                   schemaDecoder[RestrictPublicLinksConfig],
-	RestrictShares:                        schemaDecoder[RestrictSharesConfig],
+	RestrictSharing:                       schemaDecoder[RestrictSharingConfig],
 	RestrictSourceIPRange:                 schemaDecoder[RestrictSourceIpRangeConfig],
 	RestrictSSH:                           schemaDecoder[RestrictSSHConfig],
 	RestrictUploads:                       schemaDecoder[RestrictUploadsConfig],
@@ -565,14 +565,14 @@ func decodeRestrictPublicLinks(data []byte) (Specification, error) {
 	}, nil
 }
 
-func decodeRestrictShares(data []byte) (Specification, error) {
-	var specification PolicySpecification[RestrictSharesValues]
+func decodeRestrictSharing(data []byte) (Specification, error) {
+	var specification PolicySpecification[RestrictSharingValues]
 
 	if err := json.Unmarshal(data, &specification); err != nil {
 		return nil, err
 	}
 
-	return &RestrictSharesSpecification{
+	return &RestrictSharingSpecification{
 		PolicySpecification: specification,
 	}, nil
 }
@@ -626,7 +626,7 @@ var SpecificationDecoders = map[PolicyName]func([]byte) (Specification, error){
 	RestrictProviderFileTransfers:         decodeRestrictProviderTransfers,
 	RestrictPublicIPs:                     decodeRestrictPublicIPs,
 	RestrictPublicLinks:                   decodeRestrictPublicLinks,
-	RestrictShares:                        decodeRestrictShares,
+	RestrictSharing:                       decodeRestrictSharing,
 	RestrictSourceIPRange:                 decodeRestrictSourceIPRange,
 	RestrictSSH:                           decodeRestrictSSH,
 	RestrictUploads:                       decodeRestrictUploads,

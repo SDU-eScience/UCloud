@@ -1,5 +1,6 @@
 name: "RestrictPublicIPs"
 title: "Restrict public IPs"
+
 description: >
   Controls whether workloads in the project may be assigned public IP addresses.
 

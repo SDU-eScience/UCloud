@@ -306,6 +306,32 @@ func FilesCreateUpload(
 	actor rpc.Actor,
 	request fndapi.BulkRequest[orcapi.FilesCreateUploadRequest],
 ) (fndapi.BulkResponse[orcapi.FilesCreateUploadResponse], *util.HttpError) {
+	if actor.Project.Present {
+		policies := policiesByProject(string(actor.Project.Value))
+
+		specification, ok := policies[fndapi.RestrictUploads]
+
+		if ok {
+			values, ok := specification.GetValues().(fndapi.RestrictUploadsValues)
+			if !ok {
+				return fndapi.BulkResponse[orcapi.FilesCreateUploadResponse]{},
+					util.HttpErr(
+						http.StatusInternalServerError,
+						"Misconfigured Policy",
+					)
+			}
+
+			if values.Enabled {
+				return fndapi.BulkResponse[orcapi.FilesCreateUploadResponse]{},
+					util.HttpErr(
+						http.StatusForbidden,
+						"This project does not allow uploads",
+					)
+			}
+		}
+	}
+
+
 	var result fndapi.BulkResponse[orcapi.FilesCreateUploadResponse]
 	var paths []string
 	for _, reqItem := range request.Items {

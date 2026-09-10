@@ -9,7 +9,7 @@ configuration:
     title: "Enabled"
     description: >
       If enabled, the project will only be able to run applications that are listed along this policy.
-      If disabled the all apps in the app catalog is available (within the regular limitations of products needed).
+      If disabled, all apps in the app catalog is available (within the regular limitations of products needed).
 
   applications:
     title: "Applications"

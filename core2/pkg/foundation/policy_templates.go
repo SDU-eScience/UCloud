@@ -3,7 +3,7 @@ package foundation
 import _ "embed"
 
 //go:embed policies/restrict_api_tokens.yaml
-var restrictAPITokens []byte
+var restrictApiTokens []byte
 
 //go:embed policies/restrict_applications.yaml
 var restrictApplications []byte
@@ -39,7 +39,7 @@ var restrictPublicIPs []byte
 var restrictPublicLinks []byte
 
 //go:embed policies/restrict_shares.yaml
-var restrictShares []byte
+var restrictSharing []byte
 
 //go:embed policies/restrict_source_ip_range.yaml
 var restrictSourceIpRange []byte
@@ -58,19 +58,19 @@ type LoadedPolicy struct {
 func pullProjectPolicies() []LoadedPolicy {
 	policies := []LoadedPolicy{
 		{
-			PolicyName: "restrictApiTokens",
-			Bytes:      restrictAPITokens,
+			PolicyName: "RestrictApiTokens",
+			Bytes:      restrictApiTokens,
 		},
 		{
-			PolicyName: "restrictApplications",
+			PolicyName: "RestrictApplications",
 			Bytes:      restrictApplications,
 		},
 		{
-			PolicyName: "restrictCutAndPast",
+			PolicyName: "RestrictCutAndPast",
 			Bytes:      restrictCutAndPast,
 		},
 		{
-			PolicyName: "restrictDownloads",
+			PolicyName: "RestrictDownloads",
 			Bytes:      restrictDownloads,
 		},
 		{
@@ -78,39 +78,39 @@ func pullProjectPolicies() []LoadedPolicy {
 			Bytes:      restrictExternalProjectFolderMounting,
 		},
 		{
-			PolicyName: "restrictIntegratedApplications",
+			PolicyName: "RestrictIntegratedApplications",
 			Bytes:      restrictIntegratedApplications,
 		},
 		{
-			PolicyName: "restrictInternetAccess",
+			PolicyName: "RestrictInternetAccess",
 			Bytes:      restrictInternetAccess,
 		},
 		{
-			PolicyName: "restrictMoveAndCopy",
+			PolicyName: "RestrictMoveAndCopy",
 			Bytes:      restrictMoveAndCopy,
 		},
 		{
-			PolicyName: "restrictOrganizationsMembers",
+			PolicyName: "RestrictOrganizationsMembers",
 			Bytes:      restrictOrganizationsMembers,
 		},
 		{
-			PolicyName: "restrictProviderTransfers",
+			PolicyName: "RestrictProviderTransfers",
 			Bytes:      restrictProviderTransfers,
 		},
 		{
-			PolicyName: "restrictPublicIPs",
+			PolicyName: "RestrictPublicIPs",
 			Bytes:      restrictPublicIPs,
 		},
 		{
-			PolicyName: "restrictPublicLinks",
+			PolicyName: "RestrictPublicLinks",
 			Bytes:      restrictPublicLinks,
 		},
 		{
-			PolicyName: "restrictShares",
-			Bytes:      restrictShares,
+			PolicyName: "RestrictSharing",
+			Bytes:      restrictSharing,
 		},
 		{
-			PolicyName: "restrictSourceIpRange",
+			PolicyName: "RestrictSourceIpRange",
 			Bytes:      restrictSourceIpRange,
 		},
 		{
@@ -118,7 +118,7 @@ func pullProjectPolicies() []LoadedPolicy {
 			Bytes:      restrictSSH,
 		},
 		{
-			PolicyName: "restrictUploads",
+			PolicyName: "RestrictUploads",
 			Bytes:      restrictUploads,
 		},
 	}

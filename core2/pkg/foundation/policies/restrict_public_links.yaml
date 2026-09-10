@@ -9,4 +9,4 @@ configuration:
     title: "Enabled"
     description: >
       If enabled, creation and use of public links is disabled. Existing
-      public links are *not* deleted.
+      public links are _not_ deleted.
