@@ -911,15 +911,18 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 			idxB.ApplicationsByEntity[indexKey] = append(idxB.ApplicationsByEntity[indexKey], id)
 			idxB.Mu.Unlock()
 		}
+	}
 
-		{
-			// Receiver indexing
-			for grantGiver, _ := range grantGivers {
-				idxB := grantGetIdxBucket(grantGiver, true)
-				idxB.Mu.Lock()
+	{
+		// Receiver indexing. Also runs for existing applications, since a revision (e.g. a transfer) can
+		// introduce grant givers which have not previously seen the application.
+		for grantGiver, _ := range grantGivers {
+			idxB := grantGetIdxBucket(grantGiver, true)
+			idxB.Mu.Lock()
+			if !slices.Contains(idxB.ApplicationsByEntity[grantGiver], id) {
 				idxB.ApplicationsByEntity[grantGiver] = append(idxB.ApplicationsByEntity[grantGiver], id)
-				idxB.Mu.Unlock()
 			}
+			idxB.Mu.Unlock()
 		}
 	}
 
@@ -980,6 +983,80 @@ type GrantTransferAdditionInformation struct {
 	ReceiverProject       string
 	SenderProject         string
 	ReceiverProjectAdmins []string
+}
+
+func grantsTransferAnswerForms(doc accapi.GrantDocument, target string, source string) accapi.Form {
+	answersByTitle := map[string]string{}
+	answerForms := make([]accapi.AnswerForm, 0, len(doc.Form.AnswerForms)+1)
+
+	for _, answerForm := range doc.Form.AnswerForms {
+		isSourceForm := answerForm.AllocatorId == source
+		isLegacyForm := answerForm.AllocatorId == "System"
+		if !isSourceForm && !isLegacyForm {
+			answerForms = append(answerForms, answerForm)
+			continue
+		}
+
+		for _, answerField := range answerForm.AnswerFields {
+			answersByTitle[answerField.Field.Title] = answerField.Answer
+		}
+	}
+
+	fields := grantsTemplateFieldsForRecipient(target, doc.Recipient)
+	answerFields := make([]accapi.AnswerFieldForm, 0, len(fields))
+	for _, field := range fields {
+		answer := answersByTitle[field.Title]
+		answerFields = append(answerFields, accapi.AnswerFieldForm{
+			Answer: answer,
+			Field:  field,
+		})
+	}
+
+	var revisionNumber int
+	if sWrapper, ok := grantsRetrieveSettings(target); ok {
+		sWrapper.Mu.RLock()
+		revisionNumber = sWrapper.Settings.Templates.Structured.RevisionNumber
+		sWrapper.Mu.RUnlock()
+	}
+
+	answerForms = append(answerForms, accapi.AnswerForm{
+		AllocatorId:            target,
+		AnswerFields:           answerFields,
+		TemplateRevisionNumber: revisionNumber,
+	})
+
+	return accapi.Form{
+		Type:        accapi.FormTypeStructured,
+		AnswerForms: answerForms,
+	}
+}
+
+func grantsTemplateFieldsForRecipient(grantGiver string, recipient accapi.Recipient) []accapi.FormField {
+	if sWrapper, ok := grantsRetrieveSettings(grantGiver); ok {
+		sWrapper.Mu.RLock()
+		templates := sWrapper.Settings.Templates
+		sWrapper.Mu.RUnlock()
+
+		grantNormalizeTemplates(&templates)
+		switch recipient.Type {
+		case accapi.RecipientTypeExistingProject:
+			return templates.Structured.ExistingProject
+		case accapi.RecipientTypeNewProject:
+			return templates.Structured.NewProject
+		case accapi.RecipientTypePersonalWorkspace:
+			return templates.Structured.PersonalProject
+		}
+	}
+
+	defaultForm := accapi.FormField{
+		Name:        "Default Template",
+		Description: defaultTemplate,
+		MaxLength:   util.OptValue(4000),
+		Title:       "Default Template",
+		Rows:        util.OptValue(100),
+		Optional:    false,
+	}
+	return []accapi.FormField{defaultForm}
 }
 
 func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.HttpError {
@@ -1062,6 +1139,7 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 		} else {
 			revisionRequest.Revision = app.Application.CurrentRevision.Document
 			revisionRequest.Revision.AllocationRequests = newRequests
+			revisionRequest.Revision.Form = grantsTransferAnswerForms(app.Application.CurrentRevision.Document, req.Target, string(source))
 		}
 	}
 
