@@ -1,68 +1,96 @@
 #compdef ucloud
 
+{% macro genSubcommands(subcommands, numberOfWords) %}
+case "$words[{{ numberOfWords }}]" in
+{% for subCommand in subcommands %}
+    {{ subCommand.Name }})
+        local -a flags
+        flags=()
+
+        {% set ns = namespace(pos = numberOfWords + 1) %}
+
+        {# positionals: each matched at its exact word slot #}
+        {% for flag in subCommand.Flags %}
+            {% if flag.FlagType == "positional" %}
+                if (( {{ ns.pos }} == CURRENT )); then
+                    flags+=( {{ flag.Name }}:{{ flag.Usage}} '' )
+                fi
+                {% set ns.pos = ns.pos + 1 %}
+            {% endif %}
+        {% endfor %}
+
+        {# ns.pos is now the first word past the last positional #}
+        {# flags: ALL of them, offered once the cursor is past the positionals #}
+        {% for flag in subCommand.Flags %}
+            {% if flag.FlagType != "positional" %}
+                if (( CURRENT >= {{ ns.pos }} )); then
+                    flags+=( {{ flag.Name }}:{{ flag.Usage | default("/", true) }} )
+                fi
+            {% endif %}
+        {% endfor %}
+
+        _describe 'flag' flags
+        return
+        ;;
+{% endfor %}
+esac
+{% endmacro %}
+
 _ucloud() {
 
-    # ucloud <TAB>
     if (( CURRENT == 2 )); then
         local -a routes
 
-        routes=(
-{% for command in commands %}
-            '{{ command.Name }}'
-{% endfor %}
-        )
+        {% for command in commands %}
+            routes+=('{{ command.Name }}')
+        {% endfor %}
 
         compadd -a routes
         return
     fi
 
     case "$words[2]" in
-
-{% for command in commands %}
-        {{ command.Name }})
-
-            # ucloud <route> <TAB>
+    {% for command in commands %}
+        {# {% if command.SubCommands | length == 1 %}
+            {{ command.Name }})
+            {%continue%}
+        {% endif %} #}
+        {% if command.SubCommands | length > 1 %}
+            {{ command.Name }})
+            # If we have more than 1 subcommand
             if (( CURRENT == 3 )); then
                 local -a subcommands
 
-                subcommands=(
-{% for subcommand in command.SubCommands %}
-                    '{{ subcommand.Name }}'
-{% endfor %}
-                )
+                {% for sub in command.SubCommands %}
+                    subcommands+=('{{ sub.Name }}')
+                {% endfor %}
 
                 compadd -a subcommands
                 return
             fi
 
-            case "$words[3]" in
-
-{% for subcommand in command.SubCommands %}
-                {{ subcommand.Name }})
-
-                    local -a flags
-
-                    flags=(
-{% for flag in subcommand.Flags %}
-{% if flag.FlagType == "flag" %}
-                        '{{ flag.Name }}:{{ flag.Usage }}'
-{% endif %}
-
-{% if flag.FlagType == "positional" %}
-                        add '{{ flag.Name }}:{{ flag.Usage }}'
-{% endif %}
-{% endfor %}
-                    )
-
-                    _describe 'flag' flags
-                    return
-                    ;;
-
-{% endfor %}
-            esac
+            # ucloud <route> <sub> <TAB>
+            {{ genSubcommands(command.SubCommands, 3) }}
             ;;
+        {% else %}
+            {{ command.Name }})
+            if (( CURRENT == 2 )); then
+                local -a subcommands
 
-{% endfor %}
+                {% for sub in command.SubCommands %}
+                    subcommands+=('{{ sub.Name }}')
+                {% endfor %}
+
+                compadd -a subcommands
+                return
+            fi
+
+            # If we have only 1 subcommand
+            # ucloud <route> <TAB>
+            {{ genSubcommands(command.SubCommands, 2) }}
+            ;;
+        {% endif %}
+    {% endfor %}
     esac
 }
 
