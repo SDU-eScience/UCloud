@@ -102,13 +102,13 @@ func initJobs() {
 			}
 
 			// RestrictSSH: reject creation of jobs which request SSH access
-    			if reqItem.SshEnabled && info.Actor.Project.Present {
-    				policies := policiesByProject(string(info.Actor.Project.Value))
-    				if specification, ok := policies[fndapi.RestrictSSH]; ok && specification.IsEnabled() {
-    					return fndapi.BulkResponse[fndapi.FindByStringId]{},
-    						util.HttpErr(http.StatusForbidden, "Project policies do not allow SSH access")
-    				}
-    			}
+			if reqItem.SshEnabled && info.Actor.Project.Present {
+				policies := policiesByProject(string(info.Actor.Project.Value))
+				if specification, ok := policies[fndapi.RestrictSsh]; ok && specification.IsEnabled() {
+					return fndapi.BulkResponse[fndapi.FindByStringId]{},
+						util.HttpErr(http.StatusForbidden, "Project policies do not allow SSH access")
+				}
+			}
 
 			// Check if any policies that might be enabled
 			if len(reqItem.Resources) > 0 && info.Actor.Project.Present {

@@ -16,6 +16,8 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+// projectPolicies should not be used directly to retrieve policies
+// but use
 var projectPolicies struct {
 	Mu                sync.RWMutex
 	PoliciesByProject map[string]*AssociatedPolicies
@@ -183,9 +185,9 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 	// Validate Specification Values
 	for _, specification := range request.UpdatedPolicies {
 		switch specification.GetSpecificationName() {
-		case fndapi.RestrictAPITokens:
+		case fndapi.RestrictApiTokens:
 			{
-				_, ok := specification.GetValues().(fndapi.RestrictAPITokensValues)
+				_, ok := specification.GetValues().(fndapi.RestrictApiTokensValues)
 				if !ok {
 					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (API Tokens)")
 				}
@@ -288,14 +290,6 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 				}
 				break
 			}
-		case fndapi.RestrictSharing:
-			{
-				_, ok := specification.GetValues().(fndapi.RestrictSharingValues)
-				if !ok {
-					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (Shares)")
-				}
-				break
-			}
 		case fndapi.RestrictSourceIPRange:
 			{
 				values, ok := specification.GetValues().(fndapi.RestrictSourceIPRangeValues)
@@ -313,9 +307,9 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 				}
 				break
 			}
-		case fndapi.RestrictSSH:
+		case fndapi.RestrictSsh:
 			{
-				_, ok := specification.GetValues().(fndapi.RestrictSSHValues)
+				_, ok := specification.GetValues().(fndapi.RestrictSshValues)
 				if !ok {
 					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification (SSH)")
 				}
@@ -404,6 +398,32 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 	return util.Empty{}, nil
 }
 
+// ApiTokensIsRestricted reports whether the project has enabled the "RestrictApiTokens" policy.
+// When true, authentication via API tokens must be rejected for the project.
+func ApiTokensIsRestricted(projectId string) bool {
+	projectPolicies.Mu.RLock()
+	configured, ok := projectPolicies.PoliciesByProject[projectId]
+	projectPolicies.Mu.RUnlock()
+
+	if !ok {
+		return false
+	}
+
+	specification, ok := configured.ConfiguredPolicies[fndapi.RestrictApiTokens]
+	if !ok {
+		return false
+	}
+
+	return specification.IsEnabled()
+}
+
+// SourceIpPolicy enforces the "RestrictSourceIPRange" project policy for a single RPC call. It is
+// installed as the request policy of the RPC server and is consulted before every incoming request.
+//
+// Only the endpoints listed in sourceIpRestrictedEndpoints are subject to the check. For those
+// endpoints, the call is rejected if the client's IP address is not permitted by the policy of the
+// actor's active project. Calls which are not subject to the policy, and calls which the policy
+// allows, return a nil error.
 func SourceIpPolicy(callName string, info rpc.RequestInfo) *util.HttpError {
 	if _, ok := sourceIpRestrictedEndpoints[callName]; !ok {
 		return nil
@@ -424,13 +444,13 @@ func SourceIpIsRestricted(info rpc.RequestInfo) bool {
 		return false
 	}
 
-	projectPolicies.Mu.Lock()
+	projectPolicies.Mu.RLock()
 	_, ok := projectPolicies.PoliciesByProject[string(info.Actor.Project.Value)]
 	if !ok {
 		projectPolicies.PoliciesByProject[string(info.Actor.Project.Value)] = &AssociatedPolicies{ConfiguredPolicies: make(map[fndapi.PolicyName]fndapi.Specification)}
 	}
 	policies := maps.Clone(projectPolicies.PoliciesByProject[string(info.Actor.Project.Value)].ConfiguredPolicies)
-	projectPolicies.Mu.Unlock()
+	projectPolicies.Mu.RUnlock()
 
 	specification, ok := policies[fndapi.RestrictSourceIPRange]
 	if !ok {

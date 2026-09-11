@@ -16,7 +16,7 @@ import (
 type PolicyName string
 
 const (
-	RestrictAPITokens                     PolicyName = "RestrictApiTokens"
+	RestrictApiTokens                     PolicyName = "RestrictApiTokens"
 	RestrictApplications                  PolicyName = "RestrictApplications"
 	RestrictCutAndPaste                   PolicyName = "RestrictCutAndPaste"
 	RestrictDownloads                     PolicyName = "RestrictDownloads"
@@ -28,9 +28,8 @@ const (
 	RestrictProviderFileTransfers         PolicyName = "RestrictProviderFileTransfers"
 	RestrictPublicIPs                     PolicyName = "RestrictPublicIPs"
 	RestrictPublicLinks                   PolicyName = "RestrictPublicLinks"
-	RestrictSharing                       PolicyName = "RestrictSharing"
 	RestrictSourceIPRange                 PolicyName = "RestrictSourceIPRange"
-	RestrictSSH                           PolicyName = "RestrictSshAccess"
+	RestrictSsh                           PolicyName = "RestrictSshAccess"
 	RestrictUploads                       PolicyName = "RestrictUploads"
 )
 
@@ -102,19 +101,19 @@ type Property struct {
 }
 
 // Restrict API Tokens
-type RestrictAPITokensConfig struct {
+type RestrictApiTokensConfig struct {
 	Enabled Property `yaml:"enabled" json:"enabled"`
 }
-type RestrictAPITokensSchema = PolicySchema[RestrictAPITokensConfig]
+type RestrictApiTokensSchema = PolicySchema[RestrictApiTokensConfig]
 
-type RestrictAPITokensValues struct {
+type RestrictApiTokensValues struct {
 	Enabled bool `yaml:"enabled" json:"enabled"`
 }
-type RestrictAPITokensSpecification struct {
-	PolicySpecification[RestrictAPITokensValues]
+type RestrictApiTokensSpecification struct {
+	PolicySpecification[RestrictApiTokensValues]
 }
 
-func (s *RestrictAPITokensSpecification) IsEnabled() bool {
+func (s *RestrictApiTokensSpecification) IsEnabled() bool {
 	return s.Values.Enabled
 }
 
@@ -316,23 +315,6 @@ func (r *RestrictPublicLinksSpecification) IsEnabled() bool {
 	return r.Values.Enabled
 }
 
-// Restrict Shares
-type RestrictSharingConfig struct {
-	Enabled Property `yaml:"enabled" json:"enabled"`
-}
-type RestrictSharesSchema = PolicySchema[RestrictSharingConfig]
-type RestrictSharingValues struct {
-	Enabled bool `yaml:"enabled" json:"enabled"`
-}
-
-type RestrictSharingSpecification struct {
-	PolicySpecification[RestrictSharingValues]
-}
-
-func (r *RestrictSharingSpecification) IsEnabled() bool {
-	return r.Values.Enabled
-}
-
 // Restrict Source IPs
 type RestrictSourceIpRangeConfig struct {
 	Enabled        Property `yaml:"enabled" json:"enabled"`
@@ -353,19 +335,19 @@ func (r *RestrictSourceIPRangeSpecification) IsEnabled() bool {
 }
 
 // Restrict SSH
-type RestrictSSHConfig struct {
+type RestrictSshConfig struct {
 	Enabled Property `yaml:"enabled" json:"enabled"`
 }
-type RestrictSSHSchema = PolicySchema[RestrictSSHConfig]
-type RestrictSSHValues struct {
+type RestrictSshSchema = PolicySchema[RestrictSshConfig]
+type RestrictSshValues struct {
 	Enabled bool `yaml:"enabled" json:"enabled"`
 }
 
-type RestrictSSHSpecification struct {
-	PolicySpecification[RestrictSSHValues]
+type RestrictSshSpecification struct {
+	PolicySpecification[RestrictSshValues]
 }
 
-func (r *RestrictSSHSpecification) IsEnabled() bool {
+func (r *RestrictSshSpecification) IsEnabled() bool {
 	return r.Values.Enabled
 }
 
@@ -403,7 +385,7 @@ func schemaDecoder[T any](data []byte) (Schema, error) {
 }
 
 var SchemaDecoders = map[PolicyName]func([]byte) (Schema, error){
-	RestrictAPITokens:                     schemaDecoder[RestrictAPITokensConfig],
+	RestrictApiTokens:                     schemaDecoder[RestrictApiTokensConfig],
 	RestrictApplications:                  schemaDecoder[RestrictApplicationsConfig],
 	RestrictCutAndPaste:                   schemaDecoder[RestrictCutAndPasteConfig],
 	RestrictDownloads:                     schemaDecoder[RestrictDownloadsConfig],
@@ -415,20 +397,19 @@ var SchemaDecoders = map[PolicyName]func([]byte) (Schema, error){
 	RestrictProviderFileTransfers:         schemaDecoder[RestrictProviderFileTransfersConfig],
 	RestrictPublicIPs:                     schemaDecoder[RestrictPublicIPsConfig],
 	RestrictPublicLinks:                   schemaDecoder[RestrictPublicLinksConfig],
-	RestrictSharing:                       schemaDecoder[RestrictSharingConfig],
 	RestrictSourceIPRange:                 schemaDecoder[RestrictSourceIpRangeConfig],
-	RestrictSSH:                           schemaDecoder[RestrictSSHConfig],
+	RestrictSsh:                           schemaDecoder[RestrictSshConfig],
 	RestrictUploads:                       schemaDecoder[RestrictUploadsConfig],
 }
 
 func decodeRestrictAPITokens(data []byte) (Specification, error) {
-	var specification PolicySpecification[RestrictAPITokensValues]
+	var specification PolicySpecification[RestrictApiTokensValues]
 
 	if err := json.Unmarshal(data, &specification); err != nil {
 		return nil, err
 	}
 
-	return &RestrictAPITokensSpecification{
+	return &RestrictApiTokensSpecification{
 		PolicySpecification: specification,
 	}, nil
 }
@@ -565,18 +546,6 @@ func decodeRestrictPublicLinks(data []byte) (Specification, error) {
 	}, nil
 }
 
-func decodeRestrictSharing(data []byte) (Specification, error) {
-	var specification PolicySpecification[RestrictSharingValues]
-
-	if err := json.Unmarshal(data, &specification); err != nil {
-		return nil, err
-	}
-
-	return &RestrictSharingSpecification{
-		PolicySpecification: specification,
-	}, nil
-}
-
 func decodeRestrictSourceIPRange(data []byte) (Specification, error) {
 	var specification PolicySpecification[RestrictSourceIPRangeValues]
 
@@ -590,13 +559,13 @@ func decodeRestrictSourceIPRange(data []byte) (Specification, error) {
 }
 
 func decodeRestrictSSH(data []byte) (Specification, error) {
-	var specification PolicySpecification[RestrictSSHValues]
+	var specification PolicySpecification[RestrictSshValues]
 
 	if err := json.Unmarshal(data, &specification); err != nil {
 		return nil, err
 	}
 
-	return &RestrictSSHSpecification{
+	return &RestrictSshSpecification{
 		PolicySpecification: specification,
 	}, nil
 }
@@ -614,7 +583,7 @@ func decodeRestrictUploads(data []byte) (Specification, error) {
 }
 
 var SpecificationDecoders = map[PolicyName]func([]byte) (Specification, error){
-	RestrictAPITokens:                     decodeRestrictAPITokens,
+	RestrictApiTokens:                     decodeRestrictAPITokens,
 	RestrictApplications:                  decodeRestrictApplications,
 	RestrictCutAndPaste:                   decodeRestrictCutAndPaste,
 	RestrictDownloads:                     decodeRestrictDownloads,
@@ -626,9 +595,8 @@ var SpecificationDecoders = map[PolicyName]func([]byte) (Specification, error){
 	RestrictProviderFileTransfers:         decodeRestrictProviderTransfers,
 	RestrictPublicIPs:                     decodeRestrictPublicIPs,
 	RestrictPublicLinks:                   decodeRestrictPublicLinks,
-	RestrictSharing:                       decodeRestrictSharing,
 	RestrictSourceIPRange:                 decodeRestrictSourceIPRange,
-	RestrictSSH:                           decodeRestrictSSH,
+	RestrictSsh:                           decodeRestrictSSH,
 	RestrictUploads:                       decodeRestrictUploads,
 }
 

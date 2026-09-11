@@ -38,9 +38,6 @@ var restrictPublicIPs []byte
 //go:embed policies/restrict_public_links.yaml
 var restrictPublicLinks []byte
 
-//go:embed policies/restrict_shares.yaml
-var restrictSharing []byte
-
 //go:embed policies/restrict_source_ip_range.yaml
 var restrictSourceIpRange []byte
 
@@ -104,10 +101,6 @@ func pullProjectPolicies() []LoadedPolicy {
 		{
 			PolicyName: "RestrictPublicLinks",
 			Bytes:      restrictPublicLinks,
-		},
-		{
-			PolicyName: "RestrictSharing",
-			Bytes:      restrictSharing,
 		},
 		{
 			PolicyName: "RestrictSourceIpRange",

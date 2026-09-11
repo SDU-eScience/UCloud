@@ -31,6 +31,16 @@ func initApiTokens() {
 	)
 
 	orcapi.ApiTokenCreate.Handler(func(info rpc.RequestInfo, request orcapi.ApiTokenSpecification) (orcapi.ApiToken, *util.HttpError) {
+		if info.Actor.Project.Present {
+			policies := policiesByProject(string(info.Actor.Project.Value))
+
+			if specification, ok := policies[fndapi.RestrictApiTokens]; ok && specification.IsEnabled() {
+				return orcapi.ApiToken{}, util.HttpErr(
+					http.StatusForbidden,
+					"Project does not allow API Tokens",
+				)
+			}
+		}
 		return ApiTokenCreate(info.Actor, request)
 	})
 

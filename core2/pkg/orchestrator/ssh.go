@@ -25,7 +25,7 @@ func initSsh() {
 		// RestrictSSH: reject creation of SSH keys while operating in the project
 		if info.Actor.Project.Present {
 			policies := policiesByProject(info.Actor.Project.String())
-			if specification, ok := policies[fndapi.RestrictSSH]; ok && specification.IsEnabled() {
+			if specification, ok := policies[fndapi.RestrictSsh]; ok && specification.IsEnabled() {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{},
 					util.HttpErr(http.StatusForbidden, "Project policies do not allow SSH access")
 			}
@@ -350,7 +350,7 @@ func SshKeyRetrieveByJob(actor rpc.Actor, jobId string, onlyOwner bool) ([]orcap
 	// RestrictSSH: reject usage of SSH keys for jobs which belong to projects that do not allow SSH
 	if job.Owner.Project.Present {
 		policies := policiesByProject(job.Owner.Project.Value)
-		if specification, ok := policies[fndapi.RestrictSSH]; ok && specification.IsEnabled() {
+		if specification, ok := policies[fndapi.RestrictSsh]; ok && specification.IsEnabled() {
 			return nil, util.HttpErr(http.StatusForbidden, "Project policies do not allow SSH access")
 		}
 	}
