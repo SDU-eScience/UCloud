@@ -1006,7 +1006,7 @@ function formatDuration(ms: number): string {
 
 function formatTokensPerSecond(outputTokens: number, firstTokenAt: number, finishedAt: number): string {
     if (outputTokens <= 0 || firstTokenAt <= 0 || finishedAt <= firstTokenAt) return "Unknown";
-    return `${(outputTokens / ((finishedAt - firstTokenAt) / 1000)).toFixed(1)} toks/s`;
+    return `${(outputTokens / ((finishedAt - firstTokenAt) / 1000)).toFixed(1)} tok/s`;
 }
 
 const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, streaming}: {text: string; streaming: boolean}): React.ReactNode {
