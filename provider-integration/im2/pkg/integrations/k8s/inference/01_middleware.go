@@ -908,7 +908,6 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username
 		}
 		defer util.SilentClose(resp.Body)
 
-		capturedChunks := []json.RawMessage{}
 		usagePresent := false
 		usageDelivered := false
 		streamCompleted := false
@@ -932,7 +931,6 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username
 				return true
 			}
 			if resp, usage, ok, chunkUsagePresent := inferenceChatStreamingResponseFromRaw([]byte(raw), model.Name, usageSeen); ok {
-				capturedChunks = append(capturedChunks, append(json.RawMessage(nil), raw...))
 				usageSeen = usage
 				usagePresent = usagePresent || chunkUsagePresent
 				for _, choice := range resp.Choices {

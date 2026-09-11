@@ -94,6 +94,7 @@ var attachmentDownloadRpc = rpc.Call[attachmentDownloadRequest, attachmentDownlo
 		}
 		w.Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
 		w.Header().Set("Access-Control-Allow-Origin", cfg.Provider.Hosts.UCloudPublic.ToURL())
+		w.Header().Set("Content-Disposition", "attachment")
 		http.ServeContent(w, r, response.Id, response.Info.ModTime(), response.File)
 	},
 	BaseContext: "inference/attachments",
