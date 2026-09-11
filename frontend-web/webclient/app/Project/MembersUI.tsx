@@ -187,8 +187,8 @@ export const MembersContainer: React.FunctionComponent<{
                 <Flex marginBottom={"8px"} justifyContent={"space-between"}>
                     <Heading.h3 paddingBottom={"5px"} marginBottom={"8px"}>Members</Heading.h3>
                     <Button color={"successMain"} onClick={() => {
-                        setIsShowingInviteLinks(true);
-                    }}
+                            setIsShowingInviteLinks(true);
+                        }}
                         width={"111px"}
                         disabled={props.project.status.myRole === OldProjectRole.USER}
                     >
@@ -831,7 +831,7 @@ const GroupCard: React.FunctionComponent<{
                         confirm: false,
                         text: "Rename",
                         icon: "heroPencilSquare",
-                        enabled: () => true,
+                        enabled: ([entry, ...rest]) => rest.length === 0 && entry.specification.title !== "All users",
                         onClick: () => {
                             props.handleStartRenaming(props.group.id);
                             props.setRename(props.group.specification.title);
@@ -870,9 +870,9 @@ const GroupCard: React.FunctionComponent<{
                     }
                 ]}
                 selected={[]}
+                row={props.group}
                 extra={null}
                 entityNameSingular={"Group"}
-                row={42}
                 openFnRef={openFn}
                 forceEvaluationOnOpen
             />

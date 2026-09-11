@@ -1300,7 +1300,7 @@ export class ResourceBrowser<T> {
             const y = this.scrollingContainerTop + relativeY - firstVisiblePixel;
 
             const containerSize = containerSizeFromWidth(row.container.getBoundingClientRect().width);
-            const rowRenderer = Renderers[containerSize];
+            const statsRenderer = StatsRenderers[containerSize];
 
             this.dispatchMessage("renderTitle", fn => fn(entry, row.title, row, containerSize, {
                 width: containerWidth,
@@ -1308,7 +1308,7 @@ export class ResourceBrowser<T> {
                 x, y
             }));
 
-            rowRenderer(entry, this, row, containerSize);
+            statsRenderer(entry, this, row, containerSize);
 
             if (this.opts.selection) {
                 const button = this.defaultButtonRenderer(this.opts.selection, entry);
@@ -3944,7 +3944,7 @@ function renderLarge<T>(entry: T, browser: ResourceBrowser<T>, row: ResourceBrow
     browser.dispatchMessage("renderStat4", fn => fn(entry, row.stat4, row, containerSize));
 }
 
-const Renderers = {
+const StatsRenderers = {
     [ContainerSize.TINY]: renderTiny,
     [ContainerSize.SMALL]: renderSmall,
     [ContainerSize.MEDIUM]: renderMedium,
