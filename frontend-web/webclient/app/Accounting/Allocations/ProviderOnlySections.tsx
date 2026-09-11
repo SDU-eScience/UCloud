@@ -77,6 +77,14 @@ export const GiftSection: React.FunctionComponent<{
                 });
                 break;
             }
+
+            case "gift-exclude-domain": {
+                dispatchEvent({
+                    type: "UpdateGift",
+                    data: {domainExclude: value}
+                });
+                break;
+            }
         }
 
         if (name.startsWith("gift-resource-")) {
@@ -106,6 +114,7 @@ export const GiftSection: React.FunctionComponent<{
         const gift: Gifts.GiftWithCriteria = {
             id: 0,
             criteria: [],
+            excludeCriteria: [],
             description: state.gifts.description,
             resources: [],
             resourcesOwnedBy: Client.projectId ?? "",
@@ -121,6 +130,18 @@ export const GiftSection: React.FunctionComponent<{
                     gift.criteria.push({type: "anyone"});
                 } else {
                     gift.criteria.push({
+                        type: "email",
+                        domain: domain,
+                    });
+                }
+            }
+        }
+
+        if (state.gifts.domainExclude) {
+            const domains = state.gifts.domainExclude.split(",").map(it => it.trim());
+            for (const domain of domains) {
+                if (domain) {
+                    gift.excludeCriteria!.push({
                         type: "email",
                         domain: domain,
                     });
@@ -240,6 +261,24 @@ export const GiftSection: React.FunctionComponent<{
                                                 </ul>
                                             </td>
                                         </tr>
+                                        {(g.excludeCriteria ?? []).length === 0 ? null : <tr>
+                                            <th>Excluded</th>
+                                            <td>
+                                                <ul>
+                                                    {g.excludeCriteria!.map(c => {
+                                                        switch (c.type) {
+                                                            case "anyone":
+                                                                return <li key={c.type}>All UCloud users</li>
+                                                            case "wayf":
+                                                                return <li key={c.org + "wayf"}>Users
+                                                                    from <i>{c.org}</i></li>
+                                                            case "email":
+                                                                return <li key={c.domain + "email"}>@{c.domain}</li>
+                                                        }
+                                                    })}
+                                                </ul>
+                                            </td>
+                                        </tr>}
                                         <tr>
                                             <th>Resources</th>
                                             <td>
@@ -334,6 +373,16 @@ export const GiftSection: React.FunctionComponent<{
                                     placeholder={"For example: sdu.dk, cloud.sdu.dk"}
                                     onInput={onGiftInput}
                                     value={state.gifts.domainAllow}
+                                    onKeyDown={stopPropagation}
+                                />
+                            </Label>
+                            <Label>
+                                Exclude if email domain matches any of the following (comma-separated)
+                                <Input
+                                    name={"gift-exclude-domain"}
+                                    placeholder={"For example: student.sdu.dk"}
+                                    onInput={onGiftInput}
+                                    value={state.gifts.domainExclude}
                                     onKeyDown={stopPropagation}
                                 />
                             </Label>

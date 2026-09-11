@@ -49,4 +49,5 @@ func Init() {
 	db.AddMigration(customApplicationsV3())
 	db.AddMigration(customApplicationsV4())
 	db.AddMigration(featuresV1())
+	db.AddMigration(grantV5())
 }

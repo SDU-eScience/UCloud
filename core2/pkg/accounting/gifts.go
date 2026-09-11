@@ -40,13 +40,14 @@ type giftBucket struct {
 }
 
 type internalGift struct {
-	Id          giftId
-	OwnedBy     string
-	Resources   []accapi.AllocationRequest
-	Criteria    []accapi.UserCriteria
-	RenewEvery  int
-	Title       string
-	Description string
+	Id              giftId
+	OwnedBy         string
+	Resources       []accapi.AllocationRequest
+	Criteria        []accapi.UserCriteria
+	ExcludeCriteria []accapi.UserCriteria
+	RenewEvery      int
+	Title           string
+	Description     string
 }
 
 type internalGiftClaims struct {
@@ -64,6 +65,12 @@ func lGiftCanClaim(now time.Time, actor rpc.Actor, claims map[giftId]time.Time, 
 		(gift.RenewEvery != 0 && now.After(nextClaimAt))
 
 	if canClaim {
+		for _, exclude := range gift.ExcludeCriteria {
+			if grantUserCriteriaMatch(actor, exclude) {
+				return false
+			}
+		}
+
 		for _, criteria := range gift.Criteria {
 			if grantUserCriteriaMatch(actor, criteria) {
 				return true
@@ -201,6 +208,9 @@ func GiftsBrowse(actor rpc.Actor) ([]accapi.GiftWithCriteria, *util.HttpError) {
 			item.Criteria = make([]accapi.UserCriteria, len(gift.Criteria))
 			copy(item.Criteria, gift.Criteria)
 
+			item.ExcludeCriteria = make([]accapi.UserCriteria, len(gift.ExcludeCriteria))
+			copy(item.ExcludeCriteria, gift.ExcludeCriteria)
+
 			result = append(result, item)
 		}
 	}
@@ -287,6 +297,14 @@ func GiftsCreate(actor rpc.Actor, spec accapi.GiftWithCriteria) (int, *util.Http
 		}
 	}
 
+	if err == nil {
+		for _, c := range spec.ExcludeCriteria {
+			if err = grantUserCriteriaValid(c); err != nil {
+				break
+			}
+		}
+	}
+
 	// -----------------------------------------------------------------------------------------------------------------
 
 	if err != nil {
@@ -300,13 +318,14 @@ func GiftsCreate(actor rpc.Actor, spec accapi.GiftWithCriteria) (int, *util.Http
 	s := giftGlobals.Store
 	s.Mu.Lock()
 	s.Gifts[giftId(spec.Id)] = &internalGift{
-		Id:          giftId(spec.Id),
-		OwnedBy:     spec.ResourcesOwnedBy,
-		Resources:   spec.Resources,
-		Criteria:    spec.Criteria,
-		RenewEvery:  spec.RenewEvery,
-		Title:       spec.Title,
-		Description: spec.Description,
+		Id:              giftId(spec.Id),
+		OwnedBy:         spec.ResourcesOwnedBy,
+		Resources:       spec.Resources,
+		Criteria:        spec.Criteria,
+		ExcludeCriteria: spec.ExcludeCriteria,
+		RenewEvery:      spec.RenewEvery,
+		Title:           spec.Title,
+		Description:     spec.Description,
 	}
 	s.Mu.Unlock()
 
@@ -496,6 +515,19 @@ func giftsLoad() {
 			db.Params{},
 		)
 
+		giftExcludeCriteria := db.Select[struct {
+			GiftId      int
+			Type        string
+			ApplicantId string
+		}](
+			tx,
+			`
+				select gift_id, type, coalesce(applicant_id, '') as applicant_id
+				from "grant".gifts_exclude_criteria
+		    `,
+			db.Params{},
+		)
+
 		maxId := 0
 		gifts := map[giftId]*internalGift{}
 		for _, row := range giftRows {
@@ -526,6 +558,17 @@ func giftsLoad() {
 			appId := util.OptStringIfNotEmpty(criteria.ApplicantId)
 
 			g.Criteria = append(g.Criteria, accapi.UserCriteria{
+				Type:   accapi.UserCriteriaType(criteria.Type),
+				Domain: appId,
+				Org:    appId,
+			})
+		}
+
+		for _, criteria := range giftExcludeCriteria {
+			g := gifts[giftId(criteria.GiftId)]
+			appId := util.OptStringIfNotEmpty(criteria.ApplicantId)
+
+			g.ExcludeCriteria = append(g.ExcludeCriteria, accapi.UserCriteria{
 				Type:   accapi.UserCriteriaType(criteria.Type),
 				Domain: appId,
 				Org:    appId,
@@ -568,6 +611,21 @@ func giftPersist(spec accapi.GiftWithCriteria) {
 				b,
 				`
 					insert into "grant".gifts_user_criteria(gift_id, type, applicant_id) 
+					values (:gift_id, :ctype, :cid)
+			    `,
+				db.Params{
+					"gift_id": spec.Id,
+					"ctype":   c.Type,
+					"cid":     c.Domain.GetOrDefault(c.Org.GetOrDefault("")),
+				},
+			)
+		}
+
+		for _, c := range spec.ExcludeCriteria {
+			db.BatchExec(
+				b,
+				`
+					insert into "grant".gifts_exclude_criteria(gift_id, type, applicant_id) 
 					values (:gift_id, :ctype, :cid)
 			    `,
 				db.Params{
@@ -626,6 +684,17 @@ func giftPersistDeletion(id int) {
 			b,
 			`
 				delete from "grant".gifts_user_criteria
+				where gift_id = :id
+		    `,
+			db.Params{
+				"id": id,
+			},
+		)
+
+		db.BatchExec(
+			b,
+			`
+				delete from "grant".gifts_exclude_criteria
 				where gift_id = :id
 		    `,
 			db.Params{
