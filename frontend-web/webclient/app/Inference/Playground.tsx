@@ -1793,7 +1793,7 @@ function CollapsedPlaygroundSidebar({connected, connectionStatus, onExpand, onNe
 }
 
 function ConnectionStatusIndicator({connected, text, compact = false}: {connected: boolean; text: string; compact?: boolean}): React.ReactNode {
-    return <div style={{marginTop: "auto", display: "flex", alignItems: "center", justifyContent: compact ? "center" : undefined, gap: compact ? 0 : 8, color: "var(--textSecondary)", fontSize: 12}}>
+    return <div style={{marginTop: "auto", marginBottom: compact ? 10 : undefined, display: "flex", alignItems: "center", justifyContent: compact ? "center" : undefined, gap: compact ? 0 : 8, color: "var(--textSecondary)", fontSize: 12}}>
         <Tooltip tooltipContentWidth={160} trigger={<div style={{width: 8, height: 8, borderRadius: 999, background: connected ? "var(--successMain)" : "var(--warningMain)"}}/>}>
             {text}
         </Tooltip>
@@ -1836,7 +1836,7 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
     const streamingItems = streamingValue?.kind === ValueKind.List ? streamingValue.list : [];
     const streamingThreadId = stringValue(fn?.modelValue(model, "chat.streamingThreadId") ?? model["chat.streamingThreadId"]);
     const loading = boolValue(fn?.modelValue(model, "chat.loading") ?? model["chat.loading"]);
-    const developmentMode = boolValue(fn?.modelValue(model, "developmentMode") ?? model.developmentMode);
+    const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
     const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
     const modelsValue = fn?.modelValue(model, "models") ?? model.models;
     const modelOptions = React.useMemo(() => textGenerationModelOptions(modelsValue), [modelsValue]);
@@ -1898,7 +1898,7 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
             disabled: {kind: ValueKind.Bool, bool: !connected || loading},
             streamingThreadId: {kind: ValueKind.String, string: streamingThreadId === currentThreadId ? currentThreadId : ""},
         },
-    }), [connected, developmentMode, loading, streamingThreadId, currentThreadId]);
+    }), [connected, loading, streamingThreadId, currentThreadId]);
 
     return (
         <>
@@ -1921,13 +1921,13 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
                     {loading ? <UcxSpinner /> : null}
                 </div>
             </div>
-            {fn ? playgroundComponents.inference_chat_composer({
+            {fn && !developer ? playgroundComponents.inference_chat_composer({
                 node: composerNode,
                 model,
                 fn,
                 components: playgroundComponents,
                 renderChildren: () => [],
-            }) : <DisabledComposerPlaceholder/>}
+            }) : <DisabledComposerPlaceholder disabledReason={developer ? "You cannot send messages in developer mode" : ""}/>}
         </>
     );
 }
@@ -1940,18 +1940,18 @@ function scrollPlaygroundConversationToBottom(el: HTMLElement): void {
     el.scrollTop = el.scrollHeight;
 }
 
-function DisabledComposerPlaceholder(): React.ReactNode {
-    return <Box className={ComposerActionButtonHoverClass} style={{width: "100%", flexShrink: 0, minHeight: 104, border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 16, background: "var(--playground-surface, var(--backgroundDefault))", overflow: "hidden"}}>
+function DisabledComposerPlaceholder({disabledReason = ""}: {disabledReason?: string}): React.ReactNode {
+    return <Box className={ComposerActionButtonHoverClass} style={{width: "100%", flexShrink: 0, minHeight: 104, border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 16, background: "var(--playground-surface, var(--backgroundDefault))", overflow: "hidden", opacity: 0.75}}>
         <TextArea
             resize="none"
             rows={3}
-            placeholder="Ask anything"
+            placeholder={disabledReason === "" ? "Ask anything" : disabledReason}
             value=""
             disabled
             onChange={doNothing}
-            style={{resize: "none", border: 0, boxShadow: "none", background: "transparent", width: "100%", minHeight: 0, padding: "14px 16px 8px 16px"}}
+            style={{resize: "none", border: 0, boxShadow: "none", background: "transparent", width: "100%", minHeight: 0, padding: "14px 16px 8px 16px", color: "var(--textSecondary)"}}
         />
-        <div style={{display: "flex", alignItems: "center", gap: 6, flexShrink: 0, padding: "0 10px 10px 10px"}}>
+        <div style={{display: "flex", alignItems: "center", gap: 6, flexShrink: 0, padding: "0 10px 10px 10px", color: "var(--textSecondary)"}}>
             <button type="button" disabled className={ComposerActionButtonClass}>
                 <Icon name="heroPlus" size={18}/>
             </button>
@@ -2003,7 +2003,7 @@ const ResponsiveHide = injectStyle("responsive-hide", cl => `
 `);
 
 function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void}): React.ReactNode {
-    return <PlaygroundSidebarShell header={<IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="heroChevronRight"/>} footer={footer}>
+    return <PlaygroundSidebarShell header={<div className={ResponsiveHide}><IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/></div>} footer={footer}>
         <Section title="Settings" defaultOpen>
             <SettingToggle label="Streaming" path="chat.streaming" model={model} fn={fn} connected={connected}/>
             <SettingSlider label="Max completion tokens" path="chat.maxCompletionTokens" min={1} max={1024 * 256} step={1024} model={model} fn={fn} connected={connected} integer/>
@@ -2011,7 +2011,16 @@ function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: 
             <SettingSlider label="Top P" path="chat.topP" min={0} max={1} step={0.1} model={model} fn={fn} connected={connected}/>
             <SettingTextArea label="System prompt" path="chat.systemPrompt" model={model} fn={fn} connected={connected}/>
         </Section>
-        <Section title="Usage" defaultOpen>
+        <Section title="Advanced settings">
+            <SettingSlider label="Presence penalty" path="chat.presencePenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
+            <SettingSlider label="Frequency penalty" path="chat.frequencyPenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
+            <SettingToggle label="Logprobs" path="chat.logprobs" model={model} fn={fn} connected={connected}/>
+            <SettingSlider label="Top log probs" path="chat.topLogprobs" min={0} max={20} step={1} model={model} fn={fn} connected={connected} integer/>
+        </Section>
+        <Section title="Curl" defaultOpen>
+            <CodeSnippet lang="bash" maxHeight="40vh">{stringValue(fn?.modelValue(model, "chat.curl") ?? model["chat.curl"])}</CodeSnippet>
+        </Section>
+        <Section title="Usage">
             <UsageRow label="Session input tokens" value={numberValue(fn?.modelValue(model, "chat.usage.session.input") ?? model["chat.usage.session.input"])}/>
             <UsageRow label="Session cached input tokens" value={numberValue(fn?.modelValue(model, "chat.usage.session.cachedInput") ?? model["chat.usage.session.cachedInput"])}/>
             <UsageRow label="Session output tokens" value={numberValue(fn?.modelValue(model, "chat.usage.session.output") ?? model["chat.usage.session.output"])}/>
@@ -2021,26 +2030,17 @@ function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: 
             <UsageRow label="Latest output tokens" value={numberValue(fn?.modelValue(model, "chat.usage.lastQuery.output") ?? model["chat.usage.lastQuery.output"])}/>
             <UsageRow label="Latest tokens reported for usage" value={numberValue(fn?.modelValue(model, "chat.usage.lastQuery.reported") ?? model["chat.usage.lastQuery.reported"])}/>
         </Section>
-        <Section title="Advanced settings">
-            <SettingSlider label="Presence penalty" path="chat.presencePenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
-            <SettingSlider label="Frequency penalty" path="chat.frequencyPenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
-            <SettingToggle label="Logprobs" path="chat.logprobs" model={model} fn={fn} connected={connected}/>
-            <SettingSlider label="Top log probs" path="chat.topLogprobs" min={0} max={20} step={1} model={model} fn={fn} connected={connected} integer/>
-        </Section>
-        <Section title="Curl">
-            <pre style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: 12}}>{stringValue(fn?.modelValue(model, "chat.curl") ?? model["chat.curl"])}</pre>
-        </Section>
     </PlaygroundSidebarShell>;
 }
 
 function Section({title, defaultOpen = false, children}: React.PropsWithChildren<{title: string; defaultOpen?: boolean}>): React.ReactNode {
     const [open, setOpen] = React.useState(defaultOpen);
-    return <div style={{border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 10}}>
-        <button type="button" onClick={() => setOpen(v => !v)} style={{width: "100%", border: 0, background: "transparent", color: "inherit", padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontWeight: 600}}>
+    return <div>
+        <button type="button" onClick={() => setOpen(v => !v)} style={{width: "100%", border: 0, background: "transparent", color: "inherit", padding: "6px 4px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontWeight: 600}}>
             {title}
             <Icon name={open ? "heroChevronUp" : "heroChevronDown"} size={16}/>
         </button>
-        {open ? <div style={{display: "flex", flexDirection: "column", gap: 10, padding: "0 12px 12px 12px"}}>{children}</div> : null}
+        {open ? <div style={{display: "flex", flexDirection: "column", gap: 10, padding: "4px 4px 8px 4px"}}>{children}</div> : null}
     </div>;
 }
 
