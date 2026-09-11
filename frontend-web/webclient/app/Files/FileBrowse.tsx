@@ -647,11 +647,11 @@ function FileBrowse({opts, headerControls}: {
                     }
                 };
 
-                let shouldRemoveFakeDirectory = true;
+                let shouldRemoveFakeEntry = true;
                 const showCreateDirectory = () => {
                     const fakePath = resolvePath(browser.currentPath) + "/" + FakeFileName.split("/")[0];
                     browser.removeEntryFromCurrentPage(it => it.id === fakePath);
-                    shouldRemoveFakeDirectory = false;
+                    shouldRemoveFakeEntry = false;
                     insertFakeEntry(FakeFileName, {type: "DIRECTORY"});
                     const idx = browser.findVirtualRowIndex(it => it.id === fakePath);
                     if (idx !== null) browser.ensureRowIsVisible(idx, true);
@@ -677,18 +677,18 @@ function FileBrowse({opts, headerControls}: {
                                 });
                         },
                         () => {
-                            if (shouldRemoveFakeDirectory) browser.removeEntryFromCurrentPage(it => it.id === fakePath);
+                            if (shouldRemoveFakeEntry) browser.removeEntryFromCurrentPage(it => it.id === fakePath);
                         },
                         ""
                     );
 
-                    shouldRemoveFakeDirectory = true;
+                    shouldRemoveFakeEntry = true;
                 };
 
                 const showCreateFile = () => {
                     const fakePath = resolvePath(browser.currentPath) + "/" + FakeFileName.split("/")[0];
                     browser.removeEntryFromCurrentPage(it => it.id === fakePath);
-                    shouldRemoveFakeDirectory = false;
+                    shouldRemoveFakeEntry = false;
                     insertFakeEntry(FakeFileName, {type: "FILE"});
                     const idx = browser.findVirtualRowIndex(it => it.id === fakePath);
                     if (idx !== null) browser.ensureRowIsVisible(idx, true);
@@ -709,9 +709,13 @@ function FileBrowse({opts, headerControls}: {
 
                             initEmptyFileUpload(realPath);
                         },
-                        noopCall,
+                        () => {
+                            if (shouldRemoveFakeEntry) browser.removeEntryFromCurrentPage(it => it.id === fakePath);
+                        },
                         ""
                     );
+
+                    shouldRemoveFakeEntry = true;
                 };
 
 
