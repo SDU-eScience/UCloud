@@ -22,101 +22,32 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-const (
-	inferenceMaxUpstreamJSONBytes  = 1024 * 1024 * 8
-	inferenceMaxSSEEventBytes      = 1024 * 1024 * 8
-	inferenceResponseHeaderTimeout = 4 * time.Minute
-	inferenceStreamIdleTimeout     = 2 * time.Minute
-)
-
-var inferenceHTTPClient = &http.Client{
-	Transport: &http.Transport{
-		Proxy:                 nil,
-		DialContext:           (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ResponseHeaderTimeout: inferenceResponseHeaderTimeout,
-		IdleConnTimeout:       90 * time.Second,
-	},
-}
-
-var inferenceMissingUsageWarnings = struct {
-	sync.Mutex
-	Last map[string]time.Time
-}{Last: map[string]time.Time{}}
-
-func inferenceWarnMissingUsage(kind string, model string) {
-	key := kind + "\n" + model
-	now := time.Now()
-	inferenceMissingUsageWarnings.Lock()
-	last := inferenceMissingUsageWarnings.Last[key]
-	if now.Sub(last) >= time.Minute {
-		inferenceMissingUsageWarnings.Last[key] = now
-		inferenceMissingUsageWarnings.Unlock()
-		log.Warn("Inference upstream omitted usage: kind=%s model=%s", kind, model)
-		return
-	}
-	inferenceMissingUsageWarnings.Unlock()
-}
-
-func inferenceSend[T any](ctx context.Context, ch chan<- T, value T) bool {
-	select {
-	case ch <- value:
-		return true
-	case <-ctx.Done():
-		return false
-	}
-}
-
-func inferenceStreamContext(parent context.Context) (context.Context, context.CancelFunc, func()) {
-	ctx, cancel := context.WithCancel(parent)
-	timer := time.AfterFunc(inferenceStreamIdleTimeout, cancel)
-	touch := func() {
-		timer.Reset(inferenceStreamIdleTimeout)
-	}
-	return ctx, func() {
-		timer.Stop()
-		cancel()
-	}, touch
-}
-
-func inferenceReadSSE(ctx context.Context, body io.Reader, touch func(), handle func([]byte) bool) error {
-	scanner := bufio.NewScanner(body)
-	scanner.Buffer(make([]byte, 64<<10), inferenceMaxSSEEventBytes)
-	var event bytes.Buffer
-	flush := func() bool {
-		if event.Len() == 0 {
-			return true
-		}
-		data := append([]byte(nil), event.Bytes()...)
-		event.Reset()
-		return handle(data)
-	}
-	for scanner.Scan() {
-		touch()
-		line := bytes.TrimSuffix(scanner.Bytes(), []byte{'\r'})
-		if len(line) == 0 {
-			if !flush() {
-				return ctx.Err()
-			}
-			continue
-		}
-		if event.Len()+len(line)+1 > inferenceMaxSSEEventBytes {
-			return fmt.Errorf("SSE event exceeds limit")
-		}
-		event.Write(line)
-		event.WriteByte('\n')
-	}
-	if err := scanner.Err(); err != nil {
-		return err
-	}
-	if !flush() {
-		return ctx.Err()
-	}
-	return nil
-}
-
-// Models
+// OpenAI-compatible inference middleware
 // =====================================================================================================================
+// This file implements the model and chat parts of the OpenAI-compatible inference API. It translates catalog models
+// into client response shapes, preserves supported request forms, validates model access, and sends work to configured
+// inference backends. `00_module.go` owns route registration, admission state, and durable usage reporting.
+//
+// Chat requests follow one flow. The middleware checks wallet and model access, validates model options, acquires an
+// admission slot, rewrites the public model name to the backend model name, and dispatches the request. It then adapts
+// the backend response, reports metrics and usage, records an audit event, and releases admission.
+//
+// Streaming uses the same policy but keeps the slot until the producer goroutine finishes. The stream parser bounds
+// each event and refreshes an idle timer as data arrives. Cancellation handling distinguishes work canceled before
+// dispatch from work that reached the backend because only the latter can require estimated billing.
+
+// Model protocol types and operations
+// ---------------------------------------------------------------------------------------------------------------------
+// This section maps one catalog model into the two model-list forms used by OpenAI-compatible clients. The standard
+// form contains the model identity, capabilities, context window, and reasoning options. The Codex form includes the
+// wider compatibility shape expected by that client, even when this provider does not enable a feature.
+//
+// Owner filtering happens before list conversion and before a single model is returned. A caller can therefore learn
+// only about models available to its wallet owner. Catalog titles and page descriptions provide display metadata.
+// Capabilities determine input modalities and image support. Catalog order becomes Codex priority.
+//
+// Public entry points are `OaiInferenceModels` and `OaiInferenceModelByID`. The remaining conversion functions build
+// stable wire values from catalog data.
 
 type OaiInferenceModel struct {
 	Id                     string                 `json:"id"`
@@ -307,8 +238,18 @@ func inferenceCodexModelFromCatalog(model InferenceModel, priority int) CodexInf
 	}
 }
 
-// Chat completions
-// =====================================================================================================================
+// Chat protocol types
+// ---------------------------------------------------------------------------------------------------------------------
+// This section defines the chat request, response, stream, tool, content, and usage wire formats. The middleware keeps
+// these types close to their custom JSON methods because compatibility depends on exact encoded forms.
+//
+// Message content accepts either a string or a list of typed parts. It retains the original JSON when possible, so a
+// valid client form can pass through without a lossy conversion. URL values accept both an object and a string.
+// Reasoning accepts the primary field and the alternate `reasoning_content` field used by some backends.
+//
+// Tool call arguments can arrive as a quoted JSON object. Normalization removes the extra string layer only after it
+// confirms that the inner value is an object. This is needed to deal with some broken clients. The OpenAI API normally
+// allows for this form of broken client request which is why UCloud also implements it.
 
 type InferenceChatRequest struct {
 	Model               string                                  `json:"model"`
@@ -666,49 +607,28 @@ type InferenceChatStreamingToolCallFunction struct {
 	Arguments string `json:"arguments,omitempty"`
 }
 
-func inferenceChatStreamingResponseFromRaw(raw []byte, modelName string, usageSeen InferenceChatUsage) (InferenceChatStreamingResponse, InferenceChatUsage, bool, bool) {
-	var chunk struct {
-		Id      string                          `json:"id"`
-		Object  string                          `json:"object"`
-		Created int64                           `json:"created"`
-		Model   string                          `json:"model"`
-		Choices []InferenceChatStreamingChoice  `json:"choices"`
-		Usage   util.Option[InferenceChatUsage] `json:"usage"`
-	}
-	if jsonErr := json.Unmarshal(raw, &chunk); jsonErr != nil {
-		return InferenceChatStreamingResponse{}, usageSeen, false, false
-	}
-	chunk.Model = modelName
-	usagePresent := false
-	if chunk.Usage.Present {
-		if inferenceChatUsageValid(chunk.Usage.Value) {
-			usageSeen = chunk.Usage.Value
-			usagePresent = true
-		} else {
-			log.Warn("Inference upstream returned invalid negative chat usage: model=%s", modelName)
-		}
-	}
-	return InferenceChatStreamingResponse{
-		Id:      chunk.Id,
-		Object:  chunk.Object,
-		Created: chunk.Created,
-		Model:   chunk.Model,
-		Choices: chunk.Choices,
-		Usage:   usageSeen,
-	}, usageSeen, true, usagePresent
-}
-
-func inferenceChatDeltaHasOutput(delta InferenceChatDelta) bool {
-	if delta.Content != "" || delta.Reasoning != "" {
-		return true
-	}
-	for _, toolCall := range delta.ToolCalls {
-		if toolCall.Id != "" || toolCall.Type != "" || toolCall.Function != nil {
-			return true
-		}
-	}
-	return false
-}
+// Public chat execution
+// ---------------------------------------------------------------------------------------------------------------------
+// This section runs non-streaming and streaming chat requests. `InferenceChat` calls `InferenceChatEx` with normal
+// audit behavior. `InferenceChatEx` exists for internal callers that already own audit handling. Both paths reject a
+// locked wallet, resolve only a model available to the owner, apply its default reasoning effort, and validate options
+// before admission and dispatch.
+//
+// Admission uses the username as the fairness key, with the wallet owner as fallback. The global limit protects the
+// backend. The per-user limit prevents one user from consuming all active slots. The queue absorbs short bursts. A
+// streaming request keeps its release function in the producer goroutine, so client delivery, upstream completion,
+// metrics, audit, and billing finish before capacity returns.
+//
+// The non-streaming path returns one adapted response. The streaming path requests usage from the backend, parses SSE
+// chunks, forwards normalized values, and records output timing. Its buffered channel tolerates a slow consumer. Normal
+// event forwarding observes the stream context. Final cancellation usage can bypass that context so the caller still
+// receives the charge recorded for completed backend work.
+//
+// Cancellation after dispatch remains billable because upstream work can continue or can already have occurred. The
+// code uses returned usage when it has it. Otherwise, it estimates input from the request and output from observed text
+// or elapsed generation time. Cancellation before dispatch has no charge because no upstream work started.
+//
+// Main entry points are `InferenceChat`, `InferenceChatEx`, and `InferenceChatStreaming`.
 
 func InferenceChat(ctx context.Context, owner apm.WalletOwner, username string, history InferenceChatRequest) (InferenceChatResponse, *util.HttpError) {
 	return InferenceChatEx(ctx, owner, username, history, false)
@@ -1080,16 +1000,82 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username
 	return ch, nil
 }
 
-// Helpers
-// =====================================================================================================================
+// Request and model validation
+// ---------------------------------------------------------------------------------------------------------------------
+// This section validates public model selection and chat options before admission or backend work. Model resolution
+// trims the public name, checks catalog presence, and applies owner availability.
+//
+// Chat validation checks completion count, the model token limit, and supported reasoning effort. Public execution
+// applies the model's default reasoning effort before it calls this validation.
+//
+// The two validation entry points are `inferenceResolveModelForOwner` and `inferenceValidateChatRequest`.
 
-func parseFormBool(raw string) bool {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "1", "t", "true", "yes", "on":
-		return true
-	default:
-		return false
+func inferenceResolveModelForOwner(owner apm.WalletOwner, modelName string) (InferenceModel, *util.HttpError) {
+	modelName = strings.TrimSpace(modelName)
+	if modelName == "" {
+		return InferenceModel{}, util.HttpErr(http.StatusBadRequest, "model is required")
 	}
+
+	model, ok := InferenceCatalogModelByName(modelName)
+	if !ok {
+		return InferenceModel{}, util.HttpErr(http.StatusNotFound, "model not found")
+	}
+	if !inferenceModelAvailableToOwner(model, owner) {
+		return InferenceModel{}, util.HttpErr(http.StatusForbidden, "model is not available")
+	}
+	return model, nil
+}
+
+func inferenceValidateChatRequest(request InferenceChatRequest, model InferenceModel) *util.HttpError {
+	if request.MaxCompletionTokens.Present && (request.MaxCompletionTokens.Value <= 0 || request.MaxCompletionTokens.Value > model.ChatSettings.MaxCompletionTokens) {
+		return util.HttpErr(http.StatusBadRequest, "max completion tokens exceeds the model limit")
+	}
+	if request.N.Present && (request.N.Value <= 0 || request.N.Value > 8) {
+		return util.HttpErr(http.StatusBadRequest, "invalid number of completions")
+	}
+	if request.ReasoningEffort.Present {
+		supported := false
+		for _, effort := range model.ReasoningEfforts {
+			if request.ReasoningEffort.Value == effort.Value {
+				supported = true
+				break
+			}
+		}
+		if !supported {
+			return util.HttpErr(http.StatusBadRequest, "unsupported reasoning effort")
+		}
+	}
+	return nil
+}
+
+// Backend transport and stream parsing
+// ---------------------------------------------------------------------------------------------------------------------
+// This section sends validated requests to configured inference backends and parses their responses. Backend JSON
+// reads have a hard size limit. Stream requests return the body for incremental parsing.
+//
+// `inferenceBackendRequest` validates each endpoint before it creates a request. Development endpoints must exactly
+// match the configured server. Dynamo endpoints must use the expected in-cluster service name and `/v1` path. This
+// policy prevents catalog data from turning the middleware into a general HTTP proxy.
+//
+// Stream helpers create a child context with a resettable idle timer and parse bounded SSE events. The parser joins
+// lines until an empty line and flushes the final event when the source closes without a trailing separator. Chat chunk
+// parsing preserves the latest valid usage and detects output for timing and cancellation estimates.
+
+const (
+	inferenceMaxUpstreamJSONBytes  = 1024 * 1024 * 8
+	inferenceMaxSSEEventBytes      = 1024 * 1024 * 8
+	inferenceResponseHeaderTimeout = 4 * time.Minute
+	inferenceStreamIdleTimeout     = 2 * time.Minute
+)
+
+var inferenceHTTPClient = &http.Client{
+	Transport: &http.Transport{
+		Proxy:                 nil,
+		DialContext:           (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}).DialContext,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ResponseHeaderTimeout: inferenceResponseHeaderTimeout,
+		IdleConnTimeout:       90 * time.Second,
+	},
 }
 
 func inferenceSSEDataPayload(raw string) string {
@@ -1200,46 +1186,143 @@ func inferenceValidateBackendEndpoint(raw string) *util.HttpError {
 	return nil
 }
 
-func inferenceResolveModelForOwner(owner apm.WalletOwner, modelName string) (InferenceModel, *util.HttpError) {
-	modelName = strings.TrimSpace(modelName)
-	if modelName == "" {
-		return InferenceModel{}, util.HttpErr(http.StatusBadRequest, "model is required")
+func inferenceSend[T any](ctx context.Context, ch chan<- T, value T) bool {
+	select {
+	case ch <- value:
+		return true
+	case <-ctx.Done():
+		return false
 	}
-
-	model, ok := InferenceCatalogModelByName(modelName)
-	if !ok {
-		return InferenceModel{}, util.HttpErr(http.StatusNotFound, "model not found")
-	}
-	if !inferenceModelAvailableToOwner(model, owner) {
-		return InferenceModel{}, util.HttpErr(http.StatusForbidden, "model is not available")
-	}
-	return model, nil
 }
 
-func inferenceValidateChatRequest(request InferenceChatRequest, model InferenceModel) *util.HttpError {
-	if request.MaxCompletionTokens.Present && (request.MaxCompletionTokens.Value <= 0 || request.MaxCompletionTokens.Value > model.ChatSettings.MaxCompletionTokens) {
-		return util.HttpErr(http.StatusBadRequest, "max completion tokens exceeds the model limit")
+func inferenceStreamContext(parent context.Context) (context.Context, context.CancelFunc, func()) {
+	ctx, cancel := context.WithCancel(parent)
+	timer := time.AfterFunc(inferenceStreamIdleTimeout, cancel)
+	touch := func() {
+		timer.Reset(inferenceStreamIdleTimeout)
 	}
-	if request.N.Present && (request.N.Value <= 0 || request.N.Value > 8) {
-		return util.HttpErr(http.StatusBadRequest, "invalid number of completions")
+	return ctx, func() {
+		timer.Stop()
+		cancel()
+	}, touch
+}
+
+func inferenceReadSSE(ctx context.Context, body io.Reader, touch func(), handle func([]byte) bool) error {
+	scanner := bufio.NewScanner(body)
+	scanner.Buffer(make([]byte, 64<<10), inferenceMaxSSEEventBytes)
+	var event bytes.Buffer
+	flush := func() bool {
+		if event.Len() == 0 {
+			return true
+		}
+		data := append([]byte(nil), event.Bytes()...)
+		event.Reset()
+		return handle(data)
 	}
-	if request.ReasoningEffort.Present {
-		supported := false
-		for _, effort := range model.ReasoningEfforts {
-			if request.ReasoningEffort.Value == effort.Value {
-				supported = true
-				break
+	for scanner.Scan() {
+		touch()
+		line := bytes.TrimSuffix(scanner.Bytes(), []byte{'\r'})
+		if len(line) == 0 {
+			if !flush() {
+				return ctx.Err()
 			}
+			continue
 		}
-		if !supported {
-			return util.HttpErr(http.StatusBadRequest, "unsupported reasoning effort")
+		if event.Len()+len(line)+1 > inferenceMaxSSEEventBytes {
+			return fmt.Errorf("SSE event exceeds limit")
 		}
+		event.Write(line)
+		event.WriteByte('\n')
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	if !flush() {
+		return ctx.Err()
 	}
 	return nil
 }
 
-// Cost estimation
-// =====================================================================================================================
+func inferenceChatStreamingResponseFromRaw(raw []byte, modelName string, usageSeen InferenceChatUsage) (InferenceChatStreamingResponse, InferenceChatUsage, bool, bool) {
+	var chunk struct {
+		Id      string                          `json:"id"`
+		Object  string                          `json:"object"`
+		Created int64                           `json:"created"`
+		Model   string                          `json:"model"`
+		Choices []InferenceChatStreamingChoice  `json:"choices"`
+		Usage   util.Option[InferenceChatUsage] `json:"usage"`
+	}
+	if jsonErr := json.Unmarshal(raw, &chunk); jsonErr != nil {
+		return InferenceChatStreamingResponse{}, usageSeen, false, false
+	}
+	chunk.Model = modelName
+	usagePresent := false
+	if chunk.Usage.Present {
+		if inferenceChatUsageValid(chunk.Usage.Value) {
+			usageSeen = chunk.Usage.Value
+			usagePresent = true
+		} else {
+			log.Warn("Inference upstream returned invalid negative chat usage: model=%s", modelName)
+		}
+	}
+	return InferenceChatStreamingResponse{
+		Id:      chunk.Id,
+		Object:  chunk.Object,
+		Created: chunk.Created,
+		Model:   chunk.Model,
+		Choices: chunk.Choices,
+		Usage:   usageSeen,
+	}, usageSeen, true, usagePresent
+}
+
+func inferenceChatDeltaHasOutput(delta InferenceChatDelta) bool {
+	if delta.Content != "" || delta.Reasoning != "" {
+		return true
+	}
+	for _, toolCall := range delta.ToolCalls {
+		if toolCall.Id != "" || toolCall.Type != "" || toolCall.Function != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// Cancellation estimation and billing
+// ---------------------------------------------------------------------------------------------------------------------
+// This section estimates and reports usage when a client cancels after dispatch and final backend usage is unavailable.
+// The charge covers upstream work that may continue after disconnection or that already occurred before cancellation.
+// A cancellation before dispatch has no charge because the request never reached the backend.
+//
+// Text estimation uses a simple character ratio. Prompt estimation includes message text, reasoning, tool calls, and
+// tool definitions. It applies the configured cache estimate to prompt tokens. Non-streaming output uses elapsed time
+// and a fixed generation rate. Streaming output uses content already observed when possible.
+//
+// `inferenceReportCancelledUsage` sends the estimated components through the same metrics and durable accounting path
+// as backend-reported usage. The usage helpers normalize totals, reject negative backend values, and split prompt
+// tokens into cached and uncached components without allowing cached tokens to exceed total prompt tokens. Missing
+// backend usage warnings are rate-limited by model and request kind.
+
+const inferenceEstimatedCacheHitPercent = 95
+const inferenceEstimatedNonStreamingOutputTokensPerSecond = 50
+
+var inferenceMissingUsageWarnings = struct {
+	sync.Mutex
+	Last map[string]time.Time
+}{Last: map[string]time.Time{}}
+
+func inferenceWarnMissingUsage(kind string, model string) {
+	key := kind + "\n" + model
+	now := time.Now()
+	inferenceMissingUsageWarnings.Lock()
+	last := inferenceMissingUsageWarnings.Last[key]
+	if now.Sub(last) >= time.Minute {
+		inferenceMissingUsageWarnings.Last[key] = now
+		inferenceMissingUsageWarnings.Unlock()
+		log.Warn("Inference upstream omitted usage: kind=%s model=%s", kind, model)
+		return
+	}
+	inferenceMissingUsageWarnings.Unlock()
+}
 
 func inferenceEstimateTokensFromText(text string) int {
 	if text == "" {
@@ -1248,9 +1331,6 @@ func inferenceEstimateTokensFromText(text string) int {
 
 	return (len([]rune(text)) + 3) / 4
 }
-
-const inferenceEstimatedCacheHitPercent = 95
-const inferenceEstimatedNonStreamingOutputTokensPerSecond = 50
 
 func inferenceEstimateCancelledChatUsage(request InferenceChatRequest, outputTokens int) InferenceChatUsage {
 	promptTokens := 0
@@ -1322,4 +1402,18 @@ func inferenceChatUsageComponents(usage InferenceChatUsage) (cachedTokens int, i
 	inputTokens = usage.PromptTokens - cachedTokens
 	outputTokens = usage.CompletionTokens
 	return cachedTokens, inputTokens, outputTokens
+}
+
+// Small helpers
+// ---------------------------------------------------------------------------------------------------------------------
+// This section contains conversions that do not belong to one inference protocol or backend flow. Form booleans accept
+// the common true values used by HTML forms and command-line clients. All other values remain false.
+
+func parseFormBool(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "t", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }

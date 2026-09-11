@@ -22,6 +22,25 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+// Inference attachments
+// =====================================================================================================================
+// This file stores temporary files that are part of inference requests. It places each attachment in the member
+// storage of its user or project. Member storage gives attachments normal ownership, quota, and lock behavior.
+//
+// Inference backends cannot use a member's credentials. The public download endpoint uses unguessable token URLs so a
+// backend can fetch media without credentials. The token identifies both the metadata row and the file.
+//
+// Text models need text input. The conversion flow creates a Markdown attachment next to the source file and records
+// their relationship. Cleanup applies the retention period to old metadata, then checks file activity before deletion.
+
+// Attachment configuration and data
+// ---------------------------------------------------------------------------------------------------------------------
+// This section defines storage limits, retention, metadata, and the public download payloads. AttachmentCreate and
+// AttachmentAppend enforce the write limits. AttachmentDeleteExpired uses attachmentRetention for cleanup.
+//
+// An attachment belongs to either a user or a project. MarkdownAttachmentId links a source file to its converted copy.
+// The database row uses nullable values for project ownership and for the optional Markdown link.
+
 const attachmentSubPath = "Inference/Attachments"
 const attachmentRetention = 14 * 24 * time.Hour
 const attachmentMaxChunkBytes = 8 << 20
@@ -52,6 +71,14 @@ type attachmentDownloadResponse struct {
 	File *os.File
 	Info os.FileInfo
 }
+
+// Public download endpoint
+// ---------------------------------------------------------------------------------------------------------------------
+// AttachmentInit registers the public download call and starts periodic cleanup. The handler resolves the token through
+// stored metadata, opens the matching member file, and streams it with a media type based on its extension.
+//
+// Invalid tokens, missing metadata, missing files, and directories all return not found. This response does not expose
+// storage details. The endpoint allows the configured UCloud origin to load the response across origins.
 
 var attachmentDownloadRpc = rpc.Call[attachmentDownloadRequest, attachmentDownloadResponse]{
 	Convention: rpc.ConventionQueryParameters,
@@ -109,6 +136,17 @@ func AttachmentInit() {
 		}
 	}()
 }
+
+// Attachment operations
+// ---------------------------------------------------------------------------------------------------------------------
+// AttachmentCreate creates an empty member file and its metadata. AttachmentAppend writes bounded chunks while holding
+// a file lock. Both entry points reject locked drives, so member quota and payment state apply as normal.
+//
+// AttachmentConvertToMarkdown runs the file conversion task for text model input. It reuses a conversion while its
+// metadata still exists. The source and Markdown copy stay in the same member storage directory.
+//
+// AttachmentDelete removes one attachment and its converted copy. AttachmentDeleteExpired first selects metadata past
+// the retention period. It keeps files with recent modification activity and removes stale metadata for missing files.
 
 func AttachmentCreate(createdBy string, project util.Option[string], filename string) (Attachment, *util.HttpError) {
 	if createdBy == "" {
@@ -319,6 +357,17 @@ func AttachmentDeleteExpired() {
 	}
 }
 
+// Attachment metadata and identifiers
+// ---------------------------------------------------------------------------------------------------------------------
+// These helpers read and write the database records that connect public tokens to member files. attachmentLookup first
+// validates the token as one path component. It then converts nullable database fields into the Attachment value.
+//
+// Markdown conversion stores a separate row for the generated file and links the source row to it. Metadata deletion
+// accepts both identifiers so explicit deletion and retention cleanup can remove the pair together.
+//
+// Conversion keeps the token stem and changes its extension to .md. Display names use the source base name and fall
+// back to attachment when no usable name exists. A valid token contains one path component and no double-dot sequence.
+
 func attachmentLookup(id string) (Attachment, bool) {
 	if !attachmentValidId(id) {
 		return Attachment{}, false
@@ -335,30 +384,6 @@ func attachmentLookup(id string) (Attachment, bool) {
 		return Attachment{}, false
 	}
 	return attachmentFromRow(row), true
-}
-
-func attachmentPath(attachment Attachment) (string, *orc.Drive, *util.HttpError) {
-	basePath, drive, err := filesystem.InitializeMemberFiles(attachment.CreatedBy, attachment.ProjectId)
-	if err != nil {
-		return "", nil, err
-	}
-	return attachmentPathFromBase(basePath, attachment.Id), drive, nil
-}
-
-func attachmentPathWithId(attachment Attachment, id string) string {
-	basePath, _, err := filesystem.InitializeMemberFiles(attachment.CreatedBy, attachment.ProjectId)
-	if err != nil {
-		return ""
-	}
-	return attachmentPathFromBase(basePath, id)
-}
-
-func attachmentDirectory(basePath string) string {
-	return filepath.Join(basePath, attachmentSubPath)
-}
-
-func attachmentPathFromBase(basePath string, id string) string {
-	return filepath.Join(attachmentDirectory(basePath), id)
 }
 
 func attachmentFromRow(row attachmentRow) Attachment {
@@ -422,6 +447,57 @@ func attachmentStoreMarkdownMetadata(original Attachment, markdown Attachment) {
 	})
 }
 
+func attachmentMarkdownId(id string) string {
+	return strings.TrimSuffix(id, filepath.Ext(id)) + ".md"
+}
+
+func attachmentMarkdownFilename(filename string) string {
+	base := filepath.Base(filename)
+	if base == "." || base == string(filepath.Separator) || base == "" {
+		base = "attachment"
+	}
+	return strings.TrimSuffix(base, filepath.Ext(base)) + ".md"
+}
+
+func attachmentValidId(id string) bool {
+	if id == "" || filepath.Base(id) != id || strings.Contains(id, "..") {
+		return false
+	}
+	return true
+}
+
+// Member file storage
+// ---------------------------------------------------------------------------------------------------------------------
+// These helpers map attachment metadata to the owning member drive and the Inference/Attachments directory. All source
+// and converted files use the same ownership context. A failed drive lookup produces no path for deletion.
+//
+// attachmentDeleteFiles treats an absent file as already deleted. attachmentTouch updates file times after each append,
+// which lets retention cleanup distinguish active uploads from inactive request material.
+
+func attachmentPath(attachment Attachment) (string, *orc.Drive, *util.HttpError) {
+	basePath, drive, err := filesystem.InitializeMemberFiles(attachment.CreatedBy, attachment.ProjectId)
+	if err != nil {
+		return "", nil, err
+	}
+	return attachmentPathFromBase(basePath, attachment.Id), drive, nil
+}
+
+func attachmentPathWithId(attachment Attachment, id string) string {
+	basePath, _, err := filesystem.InitializeMemberFiles(attachment.CreatedBy, attachment.ProjectId)
+	if err != nil {
+		return ""
+	}
+	return attachmentPathFromBase(basePath, id)
+}
+
+func attachmentDirectory(basePath string) string {
+	return filepath.Join(basePath, attachmentSubPath)
+}
+
+func attachmentPathFromBase(basePath string, id string) string {
+	return filepath.Join(attachmentDirectory(basePath), id)
+}
+
 func attachmentDeleteFiles(attachment Attachment) *util.HttpError {
 	ids := []string{attachment.Id}
 	if attachment.MarkdownAttachmentId != "" {
@@ -443,18 +519,6 @@ func attachmentDeleteFiles(attachment Attachment) *util.HttpError {
 	return nil
 }
 
-func attachmentMarkdownId(id string) string {
-	return strings.TrimSuffix(id, filepath.Ext(id)) + ".md"
-}
-
-func attachmentMarkdownFilename(filename string) string {
-	base := filepath.Base(filename)
-	if base == "." || base == string(filepath.Separator) || base == "" {
-		base = "attachment"
-	}
-	return strings.TrimSuffix(base, filepath.Ext(base)) + ".md"
-}
-
 func attachmentTouch(file interface{ Fd() uintptr }) {
 	now := time.Now()
 	times := []unix.Timeval{
@@ -462,11 +526,4 @@ func attachmentTouch(file interface{ Fd() uintptr }) {
 		unix.NsecToTimeval(now.UnixNano()),
 	}
 	_ = unix.Futimes(int(file.Fd()), times)
-}
-
-func attachmentValidId(id string) bool {
-	if id == "" || filepath.Base(id) != id || strings.Contains(id, "..") {
-		return false
-	}
-	return true
 }

@@ -1,7 +1,6 @@
 package inference
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -18,7 +17,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/gateway"
@@ -30,6 +28,69 @@ import (
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
+)
+
+// AI Platform
+// =====================================================================================================================
+// This file contains the main entrypoint to UCloud's AI Platform. The UCloud AI platform is generally written to be
+// a middleware that connects the UCloud core abstractions, such as projects and quotas, with an upstream inference
+// provider. UCloud supports automatic discovery of inference providers via NVIDIA Dynamo and LocalAI (for ./launcher
+// based development). It is possible to manually configure other inference backends. In addition to doing this, the
+// UCloud AI Platform adds auditing and a chat interface.
+//
+// Regardless of how you access the AI platform, a request always moves through these stages:
+//
+// 1. Attach the wallet owner, user identity, and audit context.
+// 2. Resolve an available catalog model and validate model-specific options.
+// 3. Acquire global and per-user admission capacity.
+// 4. Send the translated request to the configured backend.
+// 5. Adapt the backend response to the requested public protocol.
+// 6. Record token usage in durable storage and schedule its accounting report.
+// 7. Complete the audit record and release admission capacity.
+//
+// The module keeps admission state in memory because each slot represents work in this provider process. It keeps
+// usage state in the database because a process restart must not lose charges that have not reached accounting.
+//
+// File guide:
+//
+// - `01_middleware.go` coordinates model validation, admission, backend calls, usage, and audit completion.
+// - `adapter_oai_responses.go` adapts OpenAI Responses requests, events, and results.
+// - `adapter_oai_responses_store.go` stores Responses and conversation state.
+// - `catalog.go` owns models, access rules, pricing, defaults, and benchmarks.
+// - `attachments.go` stores temporary request files and converts text attachments to Markdown.
+// - `audit.go` creates audit context and records request completion or rejection.
+// - `playground.go` implements playground requests and thread operations.
+// - `playground_threads_fs.go` persists playground threads in the file system.
+// - `api_tokens.go` creates and validates inference API keys.
+// - `discovery.go` discovers backend models and updates their catalog entries.
+// - `playground_prompt.go` builds the playground system prompt.
+// - `playground_tools.go` defines and dispatches playground tools.
+// - `cli.go` provides inference administration commands.
+
+// Core configuration and state
+// ---------------------------------------------------------------------------------------------------------------------
+// This section defines process limits and state shared by all inference routes. Request limits bound memory use and
+// stalled connections. The global admission limit protects the backend from excess concurrent work. The per-user
+// limit preserves fairness when one user sends many requests. Admission uses the username as its key. It falls back to
+// the wallet owner when authentication does not provide a username (legacy API keys).
+//
+// The admission queue absorbs short bursts instead of rejecting every request that arrives while all slots are in
+// use. The release channel only signals that state changed. Callers always check the counters while holding the mutex.
+// Usage wakeups follow the same notification pattern and let the database remain the source of pending charges.
+//
+// The local usage row represents durable accounting state. `InferenceUsage` is the common token count used by inference
+// APIs in this package.
+
+const (
+	inferenceMaxConcurrent         = 4096
+	inferenceMaxConcurrentPerOwner = 8
+	inferenceAdmissionQueueTimeout = 60 * time.Second
+
+	inferenceMaxJSONRequestBytes = 1024 * 1024 * 16
+	inferenceRequestTimeout      = 30 * time.Minute
+	inferenceStreamWriteTimeout  = 30 * time.Second
+
+	inferenceDevelopmentProviderLocalAI = "localai"
 )
 
 var inferenceGlobals struct {
@@ -47,6 +108,8 @@ var inferenceAdmission = struct {
 	Owners map[string]int
 }{Owners: map[string]int{}}
 
+var inferenceAdmissionRelease = make(chan struct{}, 1)
+
 type inferenceUsageRow struct {
 	Owner         string
 	Scope         string
@@ -55,205 +118,20 @@ type inferenceUsageRow struct {
 	ReportedUsage int64
 }
 
-const inferenceMaxConcurrent = 4096
-const inferenceMaxConcurrentPerOwner = 32
-const inferenceAdmissionQueueTimeout = 30 * time.Second
-
-func inferenceAcquire(ctx context.Context, owner apm.WalletOwner, username string) (func(), *util.HttpError) {
-	admissionOwnerRef := owner.Reference()
-	if username != "" {
-		admissionOwnerRef = username
-	}
-
-	// Fast path: try to grab a slot immediately without arming the queue timer.
-	deadline := time.NewTimer(inferenceAdmissionQueueTimeout)
-	defer deadline.Stop()
-	for {
-		inferenceAdmission.Lock()
-		if inferenceAdmission.Total < inferenceMaxConcurrent && inferenceAdmission.Owners[admissionOwnerRef] < inferenceMaxConcurrentPerOwner {
-			inferenceAdmission.Total++
-			inferenceAdmission.Owners[admissionOwnerRef]++
-			inferenceAdmission.Unlock()
-			metricInferenceRequestsInFlight.Inc()
-			return func() {
-				inferenceAdmission.Lock()
-				inferenceAdmission.Total--
-				inferenceAdmission.Owners[admissionOwnerRef]--
-				if inferenceAdmission.Owners[admissionOwnerRef] == 0 {
-					delete(inferenceAdmission.Owners, admissionOwnerRef)
-				}
-				metricInferenceRequestsInFlight.Dec()
-				inferenceAdmission.Unlock()
-				select {
-				case inferenceAdmissionRelease <- struct{}{}:
-				default:
-				}
-			}, nil
-		}
-
-		globalFull := inferenceAdmission.Total >= inferenceMaxConcurrent
-		inferenceAdmission.Unlock()
-
-		// Slow path: the caller's bucket is full. Wait for a slot to free up rather than dropping
-		// the request immediately.
-		select {
-		case <-ctx.Done():
-			// The client gave up while waiting in the queue.
-			metricInferenceRequestsRejected.WithLabelValues("cancelled").Inc()
-			return nil, util.HttpErr(499, "client disconnected while waiting for an inference slot")
-		case <-deadline.C:
-			// Timed out and the bucket is still full.
-			if globalFull {
-				metricInferenceRequestsRejected.WithLabelValues("global").Inc()
-			} else {
-				metricInferenceRequestsRejected.WithLabelValues("owner").Inc()
-			}
-			return nil, util.HttpErr(http.StatusTooManyRequests, "too many concurrent inference requests (queued for 30s)")
-		case <-inferenceAdmissionRelease:
-		}
-	}
-}
-
-var inferenceAdmissionRelease = make(chan struct{}, 1)
-
-const (
-	inferenceDevelopmentProviderLocalAI = "localai"
-
-	inferenceMaxJSONRequestBytes = 1024 * 1024 * 16
-	inferenceRequestTimeout      = 30 * time.Minute
-	inferenceStreamWriteTimeout  = 30 * time.Second
-)
-
-type inferenceDiscoveredModel struct {
-	Id            string `json:"id"`
-	Object        string `json:"object"`
-	ContextWindow *int   `json:"context_window,omitempty"`
-}
-
-type inferenceDiscoveredModelsResponse struct {
-	Data []inferenceDiscoveredModel `json:"data"`
-}
-
 type InferenceUsage struct {
 	PromptTokens        int                                    `json:"prompt_tokens"`
 	CompletionTokens    int                                    `json:"completion_tokens"`
 	PromptTokensDetails util.Option[InferenceChatTokenDetails] `json:"prompt_tokens_details,omitempty"`
 }
 
-var (
-	metricInferenceCachedInputTokens = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "inference",
-		Name:      "cached_input_tokens_total",
-		Help:      "Total cached input tokens observed by inference model.",
-	}, []string{"model"})
-
-	metricInferenceInputTokens = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "inference",
-		Name:      "input_tokens_total",
-		Help:      "Total non-cached input tokens observed by inference model.",
-	}, []string{"model"})
-
-	metricInferenceOutputTokens = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "inference",
-		Name:      "output_tokens_total",
-		Help:      "Total output tokens observed by inference model.",
-	}, []string{"model"})
-
-	metricInferenceRequests = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "inference",
-		Name:      "requests_total",
-		Help:      "Total inference requests with usage reported by model.",
-	}, []string{"model"})
-
-	metricInferenceTimeToFirstToken = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "inference",
-		Name:      "time_to_first_token_seconds",
-		Help:      "Time from starting an inference stream to the first non-empty output delta by model.",
-		Buckets:   prometheus.ExponentialBuckets(0.005, 2, 18),
-	}, []string{"model"})
-
-	metricInferenceOutputTokensPerSecond = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "inference",
-		Name:      "output_tokens_per_second",
-		Help:      "Output tokens per second from the first non-empty output delta until an inference stream completes by model.",
-		Buckets:   prometheus.ExponentialBuckets(1, 2, 20),
-	}, []string{"model"})
-
-	metricInferenceRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "inference",
-		Name:      "request_duration_seconds",
-		Help:      "Inference request duration by model.",
-		Buckets:   prometheus.ExponentialBuckets(0.005, 2, 18),
-	}, []string{"model"})
-
-	metricInferenceRequestResults = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "inference",
-		Name:      "request_results_total",
-		Help:      "Inference request results by model and outcome.",
-	}, []string{"model", "outcome"})
-
-	metricInferenceRequestsInFlight = promauto.NewGauge(prometheus.GaugeOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "inference",
-		Name:      "requests_in_flight",
-		Help:      "Number of inference requests currently admitted for processing.",
-	})
-
-	metricInferenceRequestsRejected = promauto.NewCounterVec(prometheus.CounterOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "inference",
-		Name:      "requests_rejected_total",
-		Help:      "Inference requests rejected by admission limit.",
-	}, []string{"reason"})
-
-	metricInferenceInputTokensPerRequest = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "inference",
-		Name:      "input_tokens_per_request",
-		Help:      "Input tokens observed per chat or Responses request by model.",
-		Buckets:   prometheus.ExponentialBuckets(1, 2, 20),
-	}, []string{"model"})
-
-	metricInferenceOutputTokensPerRequest = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "inference",
-		Name:      "output_tokens_per_request",
-		Help:      "Output tokens observed per chat or Responses request by model.",
-		Buckets:   prometheus.ExponentialBuckets(1, 2, 20),
-	}, []string{"model"})
-
-	metricInferenceCachedInputRatio = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "inference",
-		Name:      "cached_input_ratio",
-		Help:      "Ratio of cached input tokens to total input tokens per chat or Responses request by model.",
-		Buckets:   []float64{0, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.97, 0.98, 0.99, 0.995, 0.9975, 0.999, 0.9995, 1},
-	}, []string{"model"})
-
-	metricInferenceTimeToLastToken = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "inference",
-		Name:      "time_to_last_token_seconds",
-		Help:      "Time from starting an inference stream to its last observed output delta by model.",
-		Buckets:   prometheus.ExponentialBuckets(0.005, 2, 18),
-	}, []string{"model"})
-
-	metricInferenceOutputDeltaInterval = promauto.NewHistogramVec(prometheus.HistogramOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "inference",
-		Name:      "output_delta_interval_seconds",
-		Help:      "Time between non-empty output deltas in an inference stream by model.",
-		Buckets:   prometheus.ExponentialBuckets(0.001, 2, 17),
-	}, []string{"model"})
-)
+// Initialization and routes
+// ---------------------------------------------------------------------------------------------------------------------
+// When this feature is enabled, it will resolve the provider configuration, load the catalog and start model discovery.
+// RPCs are registered and products are registered with the Core.
+//
+// Given that this covers an API that does not follow UCloud's RPC system, the API is implemented directly on the HTTP
+// multiplexer. This means that parsing and similar mechanisms are all handled directly in this file instead of relying
+// on the normal RPC system. In particular, streaming requests are quite different from how UCloud's normal RPC works.
 
 func Init() {
 	initCli()
@@ -553,23 +431,22 @@ func Init() {
 			}
 
 			_ = inferenceWriteSSE(w, []byte("data: [DONE]\n\n"))
-			return
-		}
+		} else {
+			resp, httpErr := InferenceChat(ctx, apiKeyOwner, apiKeyUsername, request)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+			respData, err := json.Marshal(resp)
+			if err != nil {
+				http.Error(w, "invalid request", http.StatusBadRequest)
+				return
+			}
 
-		resp, httpErr := InferenceChat(ctx, apiKeyOwner, apiKeyUsername, request)
-		if httpErr != nil {
-			http.Error(w, httpErr.Why, httpErr.StatusCode)
-			return
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(respData)
 		}
-		respData, err := json.Marshal(resp)
-		if err != nil {
-			http.Error(w, "invalid request", http.StatusBadRequest)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(respData)
 	}))
 
 	controller.Mux.HandleFunc(authority+"/v1/responses", inferenceAuditMiddleware("inference.responses", func(w http.ResponseWriter, r *http.Request) {
@@ -633,23 +510,22 @@ func Init() {
 					return
 				}
 			}
-			return
-		}
+		} else {
+			resp, httpErr := InferenceResponseCreate(ctx, apiKeyOwner, createdBy, request)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+			respData, err := json.Marshal(resp)
+			if err != nil {
+				http.Error(w, "invalid response", http.StatusBadGateway)
+				return
+			}
 
-		resp, httpErr := InferenceResponseCreate(ctx, apiKeyOwner, createdBy, request)
-		if httpErr != nil {
-			http.Error(w, httpErr.Why, httpErr.StatusCode)
-			return
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(respData)
 		}
-		respData, err := json.Marshal(resp)
-		if err != nil {
-			http.Error(w, "invalid response", http.StatusBadGateway)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(respData)
 	}))
 
 	controller.Mux.HandleFunc(authority+"/v1/responses/", inferenceAuditMiddleware("inference.responses", func(w http.ResponseWriter, r *http.Request) {
@@ -691,10 +567,7 @@ func Init() {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(respData)
 			return
-		}
-
-		switch r.Method {
-		case http.MethodGet:
+		} else if r.Method == http.MethodGet {
 			resp, httpErr := InferenceResponsePoll(apiKeyOwner, createdBy, path)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
@@ -704,7 +577,7 @@ func Init() {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(respData)
-		case http.MethodDelete:
+		} else if r.Method == http.MethodDelete {
 			resp, httpErr := InferenceResponseDelete(apiKeyOwner, createdBy, path)
 			if httpErr != nil {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
@@ -714,7 +587,7 @@ func Init() {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(respData)
-		default:
+		} else {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
@@ -779,11 +652,24 @@ func Init() {
 	inferenceGlobals.Ready.Store(true)
 }
 
+// HTTP request boundary
+// ---------------------------------------------------------------------------------------------------------------------
+// This section contains HTTP boundary helpers shared by the registered routes. Authentication converts a bearer key
+// into a wallet owner, username, and token identifier. Admin checks use the configured project list. Wallet checks use
+// the registered inference product category.
+//
+// Important helpers include `inferenceAuthenticateRequest`, `inferenceDecodeJSON`, `inferenceWriteSSE`, and
+// `inferenceProxyModelsRequest`.
+
 func inferenceIsAdminOwner(owner orcapi.ResourceOwner) bool {
 	if !owner.Project.Present {
 		return false
 	}
 	return slices.Contains(shared.ServiceConfig.Compute.Inference.Access.Administrators, owner.Project.Value)
+}
+
+func inferenceIsLocked(owner apm.WalletOwner) bool {
+	return controller.WalletIsLocked(owner, inferenceGlobals.Product.Category.Name).Locked
 }
 
 func inferenceAuthenticateRequest(r *http.Request) (apm.WalletOwner, string, string, *util.HttpError) {
@@ -820,14 +706,15 @@ func inferenceDecodeJSON(w http.ResponseWriter, r *http.Request, limit int64, ds
 }
 
 func inferenceWriteSSE(w http.ResponseWriter, payload []byte) error {
-	controller := http.NewResponseController(w)
-	if err := controller.SetWriteDeadline(time.Now().Add(inferenceStreamWriteTimeout)); err != nil && !errors.Is(err, http.ErrNotSupported) {
+	ctrl := http.NewResponseController(w)
+	err := ctrl.SetWriteDeadline(time.Now().Add(inferenceStreamWriteTimeout))
+	if err != nil && !errors.Is(err, http.ErrNotSupported) {
 		return err
 	}
 	if _, err := w.Write(payload); err != nil {
 		return err
 	}
-	return controller.Flush()
+	return ctrl.Flush()
 }
 
 func inferenceProxyModelsRequest(w http.ResponseWriter, r *http.Request, owner apm.WalletOwner) {
@@ -863,220 +750,89 @@ func inferenceProxyModelsRequest(w http.ResponseWriter, r *http.Request, owner a
 	_, _ = w.Write(respData)
 }
 
-type inferenceLocalAIApplyRequest struct {
-	Id   string `json:"id,omitempty"`
-	Name string `json:"name,omitempty"`
-}
+// Admission control
+// ---------------------------------------------------------------------------------------------------------------------
+// `inferenceAcquire` reserves one global slot and one per-user slot as one operation. The global limit protects backend
+// capacity. The per-user limit preserves fairness. The username is the admission key when it is available. The wallet
+// owner reference is the fallback key, so requests without a username still share a bounded allocation.
+//
+// A full request waits for a release notification until its context ends or the queue timeout expires. This queue
+// absorbs bursts that are shorter than active inference work. A notification does not grant a slot because several
+// waiters can observe changing capacity. Each waiter returns to the locked counter check before admission.
+//
+// The returned release function removes both reservations, deletes empty user state, updates the in-flight gauge, and
+// wakes one waiter. A request canceled before admission never reaches the backend and does not create billable work.
 
-func inferenceAutoConfigureLocalAI() error {
-	base := strings.TrimRight(inferenceGlobals.BackendServer, "/")
-	managementBase := strings.TrimSuffix(base, "/v1")
-
-	err := inferenceWaitForModelEndpoint(fmt.Sprintf("%s/models", base))
-	if err != nil {
-		return err
+func inferenceAcquire(ctx context.Context, owner apm.WalletOwner, username string) (func(), *util.HttpError) {
+	admissionOwnerRef := owner.Reference()
+	if username != "" {
+		admissionOwnerRef = username
 	}
 
-	inferenceApplyLocalAIFallbackModels(managementBase, "chat", []string{"localai@qwen3-0.6b"})
-	inferenceDiscoverModelsFromEndpoint(base, shared.ServiceConfig.Compute.Inference.Access.Testers, true)
-
-	return nil
-}
-
-func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string, disableTools bool) {
-	base = strings.TrimRight(base, "/")
-	client := http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Get(base + "/models")
-	if err != nil {
-		log.Warn("Could not discover inference models from %s: %v", base, err)
-		return
-	}
-	defer util.SilentClose(resp.Body)
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		log.Warn("Could not discover inference models from %s: status=%d", base, resp.StatusCode)
-		return
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, inferenceMaxJSONRequestBytes+1))
-	if err != nil {
-		log.Warn("Could not read inference model discovery response from %s: %v", base, err)
-		return
-	}
-	if len(body) > inferenceMaxJSONRequestBytes {
-		log.Warn("Inference model discovery response from %s exceeded the size limit", base)
-		return
-	}
-
-	var models inferenceDiscoveredModelsResponse
-	if err := json.Unmarshal(body, &models); err != nil {
-		log.Warn("Could not parse inference model discovery response from %s: %v", base, err)
-		return
-	}
-
-	for _, model := range models.Data {
-		name := strings.TrimSpace(model.Id)
-		if model.Object != "model" || name == "" {
-			continue
+	// Try to grab a slot before waiting for a release notification.
+	deadline := time.NewTimer(inferenceAdmissionQueueTimeout)
+	defer deadline.Stop()
+	for {
+		inferenceAdmission.Lock()
+		if inferenceAdmission.Total < inferenceMaxConcurrent && inferenceAdmission.Owners[admissionOwnerRef] < inferenceMaxConcurrentPerOwner {
+			inferenceAdmission.Total++
+			inferenceAdmission.Owners[admissionOwnerRef]++
+			inferenceAdmission.Unlock()
+			metricInferenceRequestsInFlight.Inc()
+			return func() {
+				inferenceAdmission.Lock()
+				inferenceAdmission.Total--
+				inferenceAdmission.Owners[admissionOwnerRef]--
+				if inferenceAdmission.Owners[admissionOwnerRef] == 0 {
+					delete(inferenceAdmission.Owners, admissionOwnerRef)
+				}
+				metricInferenceRequestsInFlight.Dec()
+				inferenceAdmission.Unlock()
+				select {
+				case inferenceAdmissionRelease <- struct{}{}:
+				default:
+				}
+			}, nil
 		}
 
-		catalogModel := inferenceModelNormalize(InferenceModel{
-			Name:         name,
-			Title:        name,
-			Capabilities: []InferenceCapability{InferenceTextGeneration},
-			PricePerMillion: InferencePricing{
-				CachedInput: InferencePriceScale,
-				Input:       InferencePriceScale,
-				Output:      InferencePriceScale,
-			},
-			Endpoint: InferenceEndpoint{
-				BasePath:         base,
-				BackendModelName: name,
-			},
-			Availability: InferenceAvailability{
-				Public:      false,
-				AvailableTo: availableTo,
-			},
-			ContextWindow: model.ContextWindow,
-			ChatSettings: InferenceChatSettings{
-				Temperature:  0.8,
-				TopP:         0.1,
-				DisableTools: disableTools,
-			},
-		})
-		if inferenceModelValidate(catalogModel) != nil {
-			continue
-		}
+		globalFull := inferenceAdmission.Total >= inferenceMaxConcurrent
+		inferenceAdmission.Unlock()
 
-		inserted := false
-		modelGlobals.Mu.Lock()
-		knownBackendName := ""
-		for existingName, existing := range modelGlobals.Models {
-			if existing.Endpoint.BackendModelName == catalogModel.Endpoint.BackendModelName {
-				knownBackendName = existingName
-				break
+		// Slow path: the caller's bucket is full. Wait for a slot to free up rather than dropping
+		// the request immediately.
+		select {
+		case <-ctx.Done():
+			// The client gave up while waiting in the queue.
+			metricInferenceRequestsRejected.WithLabelValues("cancelled").Inc()
+			return nil, util.HttpErr(499, "client disconnected while waiting for an inference slot")
+		case <-deadline.C:
+			// Timed out and the bucket is still full.
+			if globalFull {
+				metricInferenceRequestsRejected.WithLabelValues("global").Inc()
+			} else {
+				metricInferenceRequestsRejected.WithLabelValues("owner").Inc()
 			}
-		}
-		existing, knownName := modelGlobals.Models[catalogModel.Name]
-		if !knownName && knownBackendName != "" {
-			existing = modelGlobals.Models[knownBackendName]
-		}
-		if !knownName && knownBackendName == "" {
-			db.NewTx0(func(tx *db.Transaction) {
-				inferenceModelUpsertTx(tx, catalogModel)
-			})
-			modelGlobals.Models[catalogModel.Name] = inferenceModelClone(catalogModel)
-			inserted = true
-		} else if catalogModel.ContextWindow != nil && (existing.ContextWindow == nil || *existing.ContextWindow != *catalogModel.ContextWindow) {
-			existing.ContextWindow = catalogModel.ContextWindow
-			db.NewTx0(func(tx *db.Transaction) {
-				inferenceModelUpsertTx(tx, existing)
-			})
-			modelGlobals.Models[existing.Name] = inferenceModelClone(existing)
-		}
-		modelGlobals.Mu.Unlock()
-
-		if inserted {
-			log.Info("Discovered inference model %s at %s", name, base)
+			return nil, util.HttpErr(http.StatusTooManyRequests, "too many concurrent inference requests")
+		case <-inferenceAdmissionRelease:
 		}
 	}
 }
 
-func inferenceDiscoverDynamoModels() {
-	inferenceCfg := &shared.ServiceConfig.Compute.Inference
-	namespace := strings.TrimSpace(inferenceCfg.Dynamo.Namespace)
-	if namespace == "" {
-		return
-	}
-	if shared.K8sClient == nil {
-		log.Warn("Could not discover Dynamo inference models: Kubernetes client is not initialized")
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	services, err := shared.K8sClient.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		log.Warn("Could not list Dynamo inference services in namespace %s: %v", namespace, err)
-		return
-	}
-
-	for _, service := range services.Items {
-		if !strings.HasSuffix(service.Name, "-frontend") {
-			continue
-		}
-		if len(service.Spec.Ports) == 0 {
-			continue
-		}
-
-		port := service.Spec.Ports[0].Port
-		if port <= 0 {
-			continue
-		}
-
-		base := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d/v1", service.Name, service.Namespace, port)
-		inferenceDiscoverModelsFromEndpoint(base, inferenceCfg.Access.Testers, false)
-	}
-}
-
-func inferenceApplyLocalAIFallbackModels(base string, capability string, candidates []string) {
-	for _, modelId := range candidates {
-		if err := inferenceLocalAIApplyModel(base, modelId); err != nil {
-			log.Warn("Could not auto-apply LocalAI model %s for %s: %v", modelId, capability, err)
-			continue
-		}
-
-		log.Info("Auto-applied LocalAI model %s for %s", modelId, capability)
-		return
-	}
-
-	log.Warn("No LocalAI models could be auto-applied for %s", capability)
-}
-
-func inferenceWaitForModelEndpoint(endpoint string) error {
-	client := http.Client{Timeout: 15 * time.Second}
-	for i := 0; i < 60; i++ {
-		resp, err := client.Get(endpoint)
-		if err == nil {
-			_ = resp.Body.Close()
-			if resp.StatusCode >= 200 && resp.StatusCode < 500 {
-				return nil
-			}
-		}
-
-		time.Sleep(1 * time.Second)
-	}
-
-	return fmt.Errorf("timed out waiting for inference backend model endpoint")
-}
-
-func inferenceLocalAIApplyModel(base string, modelId string) error {
-	client := http.Client{Timeout: 30 * time.Second}
-	requestVariants := []inferenceLocalAIApplyRequest{
-		{Id: modelId},
-		{Name: modelId},
-	}
-
-	for _, request := range requestVariants {
-		payload, _ := json.Marshal(request)
-		resp, err := client.Post(
-			fmt.Sprintf("%s/models/apply", strings.TrimRight(base, "/")),
-			"application/json",
-			bytes.NewBuffer(payload),
-		)
-		if err != nil {
-			continue
-		}
-
-		_, _ = io.Copy(io.Discard, resp.Body)
-		_ = resp.Body.Close()
-		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-			return nil
-		}
-	}
-
-	return fmt.Errorf("model apply endpoint did not accept request")
-}
+// Usage accounting
+// ---------------------------------------------------------------------------------------------------------------------
+// This section converts token counts into accounting usage. Prices use fixed-point units per million tokens. Cached
+// input, uncached input, and output are multiplied separately, then combined before division. This keeps fractional
+// remainders across requests instead of losing them during each price calculation.
+//
+// `inferenceReportUsage` writes daily per-model token totals and cumulative owner charges in one transaction. It then
+// wakes the flush loop. `inferenceFlushUsage` sends the latest cumulative charge to accounting and advances the
+// reported value only after success. A failed report leaves the row ahead of its reported value, so a later flush
+// retries it. A mutex prevents timer and wake events from running overlapping flushes.
+//
+// The arithmetic helpers saturate fixed-point multiplication and addition so an invalid extreme value cannot wrap into
+// a lower charge.
+//
+// Important entry points include `inferenceReportUsage` and `inferenceFlushUsage`.
 
 func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTokens int, inputTokens int, outputTokens int) {
 	if cachedTokens < 0 {
@@ -1169,38 +925,6 @@ func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTok
 	}
 }
 
-func inferenceReportChatStreamingMetrics(model string, startedAt time.Time, firstTokenAt time.Time, lastTokenAt time.Time, completedAt time.Time, outputTokens int) {
-	if firstTokenAt.IsZero() {
-		return
-	}
-
-	metricInferenceTimeToFirstToken.WithLabelValues(model).Observe(firstTokenAt.Sub(startedAt).Seconds())
-	metricInferenceTimeToLastToken.WithLabelValues(model).Observe(lastTokenAt.Sub(startedAt).Seconds())
-
-	if outputTokens <= 0 {
-		return
-	}
-	outputDuration := completedAt.Sub(firstTokenAt).Seconds()
-	if outputDuration <= 0 {
-		return
-	}
-	metricInferenceOutputTokensPerSecond.WithLabelValues(model).Observe(float64(outputTokens) / outputDuration)
-}
-
-func inferenceReportChatRequestMetrics(model string, outcome string, startedAt time.Time, completedAt time.Time) {
-	metricInferenceRequestDuration.WithLabelValues(model).Observe(completedAt.Sub(startedAt).Seconds())
-	metricInferenceRequestResults.WithLabelValues(model, outcome).Inc()
-}
-
-func inferenceReportChatUsageMetrics(model string, cachedTokens int, inputTokens int, outputTokens int) {
-	totalInputTokens := cachedTokens + inputTokens
-	metricInferenceInputTokensPerRequest.WithLabelValues(model).Observe(float64(totalInputTokens))
-	metricInferenceOutputTokensPerRequest.WithLabelValues(model).Observe(float64(outputTokens))
-	if totalInputTokens > 0 {
-		metricInferenceCachedInputRatio.WithLabelValues(model).Observe(float64(cachedTokens) / float64(totalInputTokens))
-	}
-}
-
 func inferenceUsageMultiply(tokens int, encodedPrice int64) int64 {
 	if tokens <= 0 || encodedPrice <= 0 {
 		return 0
@@ -1289,9 +1013,169 @@ func inferenceFlushUsage() {
 	}
 }
 
-func inferenceIsLocked(owner apm.WalletOwner) bool {
-	return controller.WalletIsLocked(owner, inferenceGlobals.Product.Category.Name).Locked
+// Observability
+// ---------------------------------------------------------------------------------------------------------------------
+// These metrics describe backend demand, admission pressure, request outcomes, token volume, and stream behavior.
+// Counters separate cached input, uncached input, and output because each class can have a different price. Request
+// histograms show payload size and latency independently from total token counters.
+//
+// Stream metrics measure first output latency, last output latency, output rate, and the interval between output
+// deltas. Admission metrics expose active requests and classify rejections by global capacity, user capacity, or
+// cancellation while queued. Model labels support comparisons without exposing wallet or user identity.
+//
+// The reporting functions record request duration, outcome, stream timing, token counts, and cache ratio.
+
+var (
+	metricInferenceCachedInputTokens = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "cached_input_tokens_total",
+		Help:      "Total cached input tokens observed by inference model.",
+	}, []string{"model"})
+
+	metricInferenceInputTokens = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "input_tokens_total",
+		Help:      "Total non-cached input tokens observed by inference model.",
+	}, []string{"model"})
+
+	metricInferenceOutputTokens = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "output_tokens_total",
+		Help:      "Total output tokens observed by inference model.",
+	}, []string{"model"})
+
+	metricInferenceRequests = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "requests_total",
+		Help:      "Total inference requests with usage reported by model.",
+	}, []string{"model"})
+
+	metricInferenceTimeToFirstToken = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "time_to_first_token_seconds",
+		Help:      "Time from starting an inference stream to the first non-empty output delta by model.",
+		Buckets:   prometheus.ExponentialBuckets(0.005, 2, 18),
+	}, []string{"model"})
+
+	metricInferenceOutputTokensPerSecond = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "output_tokens_per_second",
+		Help:      "Output tokens per second from the first non-empty output delta until an inference stream completes by model.",
+		Buckets:   prometheus.ExponentialBuckets(1, 2, 20),
+	}, []string{"model"})
+
+	metricInferenceRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "request_duration_seconds",
+		Help:      "Inference request duration by model.",
+		Buckets:   prometheus.ExponentialBuckets(0.005, 2, 18),
+	}, []string{"model"})
+
+	metricInferenceRequestResults = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "request_results_total",
+		Help:      "Inference request results by model and outcome.",
+	}, []string{"model", "outcome"})
+
+	metricInferenceRequestsInFlight = promauto.NewGauge(prometheus.GaugeOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "requests_in_flight",
+		Help:      "Number of inference requests currently admitted for processing.",
+	})
+
+	metricInferenceRequestsRejected = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "requests_rejected_total",
+		Help:      "Inference requests rejected by admission limit.",
+	}, []string{"reason"})
+
+	metricInferenceInputTokensPerRequest = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "input_tokens_per_request",
+		Help:      "Input tokens observed per chat or Responses request by model.",
+		Buckets:   prometheus.ExponentialBuckets(1, 2, 20),
+	}, []string{"model"})
+
+	metricInferenceOutputTokensPerRequest = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "output_tokens_per_request",
+		Help:      "Output tokens observed per chat or Responses request by model.",
+		Buckets:   prometheus.ExponentialBuckets(1, 2, 20),
+	}, []string{"model"})
+
+	metricInferenceCachedInputRatio = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "cached_input_ratio",
+		Help:      "Ratio of cached input tokens to total input tokens per chat or Responses request by model.",
+		Buckets:   []float64{0, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.97, 0.98, 0.99, 0.995, 0.9975, 0.999, 0.9995, 1},
+	}, []string{"model"})
+
+	metricInferenceTimeToLastToken = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "time_to_last_token_seconds",
+		Help:      "Time from starting an inference stream to its last observed output delta by model.",
+		Buckets:   prometheus.ExponentialBuckets(0.005, 2, 18),
+	}, []string{"model"})
+
+	metricInferenceOutputDeltaInterval = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "output_delta_interval_seconds",
+		Help:      "Time between non-empty output deltas in an inference stream by model.",
+		Buckets:   prometheus.ExponentialBuckets(0.001, 2, 17),
+	}, []string{"model"})
+)
+
+func inferenceReportChatStreamingMetrics(model string, startedAt time.Time, firstTokenAt time.Time, lastTokenAt time.Time, completedAt time.Time, outputTokens int) {
+	if firstTokenAt.IsZero() {
+		return
+	}
+
+	metricInferenceTimeToFirstToken.WithLabelValues(model).Observe(firstTokenAt.Sub(startedAt).Seconds())
+	metricInferenceTimeToLastToken.WithLabelValues(model).Observe(lastTokenAt.Sub(startedAt).Seconds())
+
+	if outputTokens <= 0 {
+		return
+	}
+	outputDuration := completedAt.Sub(firstTokenAt).Seconds()
+	if outputDuration <= 0 {
+		return
+	}
+	metricInferenceOutputTokensPerSecond.WithLabelValues(model).Observe(float64(outputTokens) / outputDuration)
 }
+
+func inferenceReportChatRequestMetrics(model string, outcome string, startedAt time.Time, completedAt time.Time) {
+	metricInferenceRequestDuration.WithLabelValues(model).Observe(completedAt.Sub(startedAt).Seconds())
+	metricInferenceRequestResults.WithLabelValues(model, outcome).Inc()
+}
+
+func inferenceReportChatUsageMetrics(model string, cachedTokens int, inputTokens int, outputTokens int) {
+	totalInputTokens := cachedTokens + inputTokens
+	metricInferenceInputTokensPerRequest.WithLabelValues(model).Observe(float64(totalInputTokens))
+	metricInferenceOutputTokensPerRequest.WithLabelValues(model).Observe(float64(outputTokens))
+	if totalInputTokens > 0 {
+		metricInferenceCachedInputRatio.WithLabelValues(model).Observe(float64(cachedTokens) / float64(totalInputTokens))
+	}
+}
+
+// Provider conversion
+// ---------------------------------------------------------------------------------------------------------------------
+// This section adapts internal catalog values to provider API values.
+
 func inferenceServerBase() string {
 	scheme, _, ok := strings.Cut(cfg.Provider.Hosts.SelfPublic.ToURL(), "://")
 	if !ok {

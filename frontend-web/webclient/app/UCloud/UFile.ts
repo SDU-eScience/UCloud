@@ -28,6 +28,7 @@ export interface UFileIncludeFlags extends ResourceIncludeFlags {
     includePermissions?: boolean;
     includeTimestamps?: boolean;
     includeSizes?: boolean;
+    includeSizesNonBlocking?: boolean;
     includeUnixInfo?: boolean;
     includeMetadata?: boolean;
     allowUnsupportedInclude?: boolean;

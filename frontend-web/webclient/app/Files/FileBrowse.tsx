@@ -35,7 +35,7 @@ import FilesApi, {
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
+import {api as FileCollectionsApi, FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {
     createHTMLElements,
     createKeyboardShortcut,
@@ -111,6 +111,7 @@ const driveUsageCache = new AsyncCache<{bytes: number}>({globalTtl: 15 * 60_000}
 const defaultRetrieveFlags: Partial<UFileIncludeFlags> & {itemsPerPage: number} = {
     includeMetadata: true,
     includeSizes: true,
+    includeSizesNonBlocking: true,
     includeTimestamps: true,
     includeUnixInfo: true,
     allowUnsupportedInclude: true,
@@ -1349,6 +1350,7 @@ function FileBrowse({
                             .then(result => {
                                 browser.registerPage(result, path, true);
                                 initialFetchDone = true;
+                                scheduleSizesRetry(path, result);
                                 return false;
                             }).catch(err => {
                                 // TODO(Dan): This partially contains logic which can be re-used.
@@ -1376,6 +1378,51 @@ function FileBrowse({
 
                     inflightRequests[path] = promise;
                     return promise;
+                };
+
+                const scheduleSizesRetry = (path: string, page: PageV2<UFile>) => {
+                    const items = page.items;
+                    if (!items.some(it => it.status.type === "DIRECTORY" && it.status.sizeIncludingChildrenInBytes == null)) return;
+
+                    const collectionId = pathComponents(path)[0];
+                    const collection = collectionCache.retrieveFromCacheOnly(collectionId);
+                    const support = collection?.status?.resolvedSupport?.support as FileCollectionSupport | undefined;
+                    if (support != null && support.stats?.sizeIncludingChildrenInBytes !== true) return;
+
+                    setTimeout(() => {
+                        if (didUnmount.current) return;
+                        if (browser.currentPath !== path) return;
+                        if (lastFetch[path] == null) return;
+
+                        callAPI(
+                            FilesApi.browse({
+                                path,
+                                ...defaultRetrieveFlags,
+                                includeSizesNonBlocking: false,
+                                ...translateFilters(browser.browseFilters),
+                                ...opts?.additionalFilters
+                            })
+                        ).then(result => {
+                            if (didUnmount.current) return;
+                            if (browser.currentPath !== path) return;
+
+                            const sizesUpdated = result.items.some(it =>
+                                it.status.type === "DIRECTORY" && it.status.sizeIncludingChildrenInBytes != null
+                            );
+                            if (!sizesUpdated) return;
+
+                            const sizeById = new Map(result.items
+                                .filter(it => it.status.sizeIncludingChildrenInBytes != null)
+                                .map(it => [it.id, it.status.sizeIncludingChildrenInBytes!]));
+                            const current = browser.cachedData[path];
+                            if (current == null) return;
+                            for (const file of current) {
+                                const size = sizeById.get(file.id);
+                                if (size != null) file.status.sizeIncludingChildrenInBytes = size;
+                            }
+                            browser.renderRows();
+                        }).catch(doNothing);
+                    }, 500);
                 };
 
                 browser.on("skipOpen", (oldPath, newPath, resource) => resource?.id === fakeFileName);

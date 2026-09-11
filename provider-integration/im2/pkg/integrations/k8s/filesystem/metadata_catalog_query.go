@@ -481,6 +481,17 @@ func metadataOpenDatabaseForQuery(driveID string) (*pebble.DB, func(), error) {
 	return metadataAcquireDatabase(databasePath, false)
 }
 
+func metadataWarmDatabase(drive *orc.Drive) {
+	go func() {
+		_, closeDB, err := metadataOpenDatabaseForQuery(drive.Id)
+		if err != nil {
+			return
+		}
+		time.Sleep(10 * time.Second)
+		closeDB()
+	}()
+}
+
 func metadataRecordScanSubmitted(driveID string) {
 	metadataMetricScans.WithLabelValues("submitted").Inc()
 	metadataCollectedMetrics.Lock()
