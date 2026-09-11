@@ -6,6 +6,8 @@ import (
 )
 
 func Init() {
+	// All changes must be added to the BOTTOM of this function
+	// -----------------------------------------------------------------------------------------------------------------
 	db.AddMigration(coreV1())
 	db.AddMigration(projectsV1())
 	db.AddMigration(projectsV2())
