@@ -29,6 +29,12 @@ var k8sInitScript []byte
 //go:embed config/k8s/kubevirt_init.sh
 var k8sKubevirtInitScript []byte
 
+//go:embed config/k8s/kube_ovn_init.sh
+var k8sKubeOvnInitScript []byte
+
+//go:embed config/k8s/kube_ovn_node_init.sh
+var k8sKubeOvnNodeInitScript []byte
+
 //go:embed config/k8s/registries.yaml
 var k8sRegistriesConfig []byte
 
@@ -260,6 +266,18 @@ func ProviderK8s() {
 		kubelet := AddVolume(k3s, "kubelet")
 		etc := AddVolume(k3s, "etc")
 
+		// The node-side private network state (shared mounts, the Multus view
+		// of the CNI configuration, netns paths) lives in the mount namespace
+		// and is lost whenever this container restarts. The provider startup
+		// hook restarts this container after installation, and so does a
+		// plain "docker compose restart k3s". A restart keeps all persistent
+		// state, so the entrypoint re-applies only the mount-backed state
+		// through the boot mode of the preparation script before the server
+		// starts. The script is staged into /etc/ucloud (a shared mount) by
+		// the private-networks startup hook; the fallback covers container
+		// starts before that has happened.
+		restoreNodeState := `if [ -f /etc/ucloud/kube_ovn_node_init.sh ]; then sh /etc/ucloud/kube_ovn_node_init.sh boot; else mount --make-rshared / && mount --make-rshared /run && mount --make-rshared /var/run; fi; exec /bin/k3s "$@"`
+
 		AddService(k3s, DockerComposeService{
 			Image:    "rancher/k3s:v1.35.2-k3s1",
 			Hostname: "im2k3",
@@ -271,6 +289,7 @@ func ProviderK8s() {
 			},
 			Privileged: true,
 			Tmpfs:      []string{"/run", "/var/run"},
+			Entrypoint: []string{"sh", "-ec", restoreNodeState, "--"},
 			Command:    []string{"server", "--disable=traefik", "--disable-network-policy"},
 			Volumes: []string{
 				Mount(k3sOutput, "/output"),
@@ -386,6 +405,87 @@ func ProviderK8s() {
 					"sh",
 					"-c",
 					string(k8sKubevirtInitScript),
+				},
+				ExecuteOptions{},
+			)
+		})
+	}
+
+	{
+		privateNetworks := Service{
+			Name:      "private-networks",
+			Title:     "Private networks",
+			Flags:     0,
+			UiParent:  UiParentK8s,
+			Feature:   FeatureProviderK8s,
+			DependsOn: util.OptValue(FeatureProviderK8s),
+		}
+
+		// Hack because it is not currently possible to have a service without a container.
+		AddService(privateNetworks, DockerComposeService{
+			Image:    "alpine:3",
+			Hostname: "private-networks",
+			Restart:  "always",
+			Command:  []string{"sleep", "inf"},
+		})
+
+		AddStartupHook(privateNetworks, func() {
+			ComposeExec(
+				"Waiting for K3s to be ready",
+				"k3s",
+				[]string{"sh", "-c", "until kubectl get nodes >/dev/null 2>&1; do sleep 1; done"},
+				ExecuteOptions{},
+			)
+
+			// The node-side script is staged through the shared /etc/ucloud
+			// mount, which is the one directory the IM and the K3s container
+			// have in common. The K3s container copies it to /tmp before
+			// running it because the staged file has no execute bit and the
+			// entrypoint invokes it through sh anyway.
+			stageNodeInit := fmt.Sprintf("cat > /etc/ucloud/kube_ovn_node_init.sh <<'SCRIPT_EOF'\n%s\nSCRIPT_EOF\nchmod +x /etc/ucloud/kube_ovn_node_init.sh", string(k8sKubeOvnNodeInitScript))
+
+			ComposeExec(
+				"Staging node preparation script",
+				provider.Name,
+				[]string{"bash", "-c", stageNodeInit},
+				ExecuteOptions{},
+			)
+
+			nodeInit := func(mode string) {
+				ComposeExec(
+					fmt.Sprintf("Preparing node for private networks (%s)", mode),
+					"k3s",
+					[]string{
+						"sh",
+						"-c",
+						fmt.Sprintf("cp /etc/ucloud/kube_ovn_node_init.sh /tmp/ && sh /tmp/kube_ovn_node_init.sh %s", mode),
+					},
+					ExecuteOptions{},
+				)
+			}
+
+			nodeInit("init")
+
+			ComposeExec(
+				"Installing Multus",
+				provider.Name,
+				[]string{
+					"bash",
+					"-c",
+					fmt.Sprintf("%s\ninstall_multus\ninstall_multus_shim", string(k8sKubeOvnInitScript)),
+				},
+				ExecuteOptions{},
+			)
+
+			nodeInit("post-multus")
+
+			ComposeExec(
+				"Installing Kube-OVN",
+				provider.Name,
+				[]string{
+					"bash",
+					"-c",
+					fmt.Sprintf("%s\ninstall_kube_ovn\nverify_non_primary_conflist\nverify", string(k8sKubeOvnInitScript)),
 				},
 				ExecuteOptions{},
 			)

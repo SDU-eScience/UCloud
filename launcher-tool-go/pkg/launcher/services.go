@@ -99,6 +99,7 @@ type DockerComposeService struct {
 	SecurityOpt     []string                               `yaml:"security_opt,omitempty"`
 	Privileged      bool                                   `yaml:"privileged,omitempty"`
 	Tmpfs           []string                               `yaml:"tmpfs"`
+	Entrypoint      []string                               `yaml:"entrypoint,omitempty"`
 	Command         []string                               `yaml:"command,omitempty"`
 	WorkingDir      string                                 `yaml:"working_dir,omitempty"`
 	Cgroup          string                                 `yaml:"cgroup,omitempty"`
