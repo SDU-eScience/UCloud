@@ -96,12 +96,16 @@ var DrivesCreate = rpc.Call[fnd.BulkRequest[DriveSpecification], fnd.BulkRespons
 	BaseContext: driveNamespace,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var DrivesDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
 	BaseContext: driveNamespace,
 	Convention:  rpc.ConventionDelete,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type DriveRenameRequest struct {
@@ -114,6 +118,8 @@ var DrivesRename = rpc.Call[fnd.BulkRequest[DriveRenameRequest], util.Empty]{
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "rename",
+
+	RestrictSourceIP: true,
 }
 
 type DrivesSearchRequest struct {
@@ -128,6 +134,8 @@ var DrivesSearch = rpc.Call[DrivesSearchRequest, fnd.PageV2[Drive]]{
 	BaseContext: driveNamespace,
 	Convention:  rpc.ConventionSearch,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type DrivesBrowseRequest struct {
@@ -141,6 +149,8 @@ var DrivesBrowse = rpc.Call[DrivesBrowseRequest, fnd.PageV2[Drive]]{
 	BaseContext: driveNamespace,
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type DrivesRetrieveRequest struct {
@@ -152,6 +162,8 @@ var DrivesRetrieve = rpc.Call[DrivesRetrieveRequest, Drive]{
 	BaseContext: driveNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var DrivesUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[util.Empty]]{
@@ -159,6 +171,8 @@ var DrivesUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[uti
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "updateAcl",
+
+	RestrictSourceIP: true,
 }
 
 type DrivesUpdateLabelsRequest struct {

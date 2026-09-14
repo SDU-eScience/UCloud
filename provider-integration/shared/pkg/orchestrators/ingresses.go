@@ -58,12 +58,16 @@ var IngressesCreate = rpc.Call[fnd.BulkRequest[IngressSpecification], fnd.BulkRe
 	BaseContext: ingressNamespace,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var IngressesDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
 	BaseContext: ingressNamespace,
 	Convention:  rpc.ConventionDelete,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type IngressesSearchRequest struct {
@@ -78,6 +82,8 @@ var IngressesSearch = rpc.Call[IngressesSearchRequest, fnd.PageV2[Ingress]]{
 	BaseContext: ingressNamespace,
 	Convention:  rpc.ConventionSearch,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type IngressesBrowseRequest struct {
@@ -91,6 +97,8 @@ var IngressesBrowse = rpc.Call[IngressesBrowseRequest, fnd.PageV2[Ingress]]{
 	BaseContext: ingressNamespace,
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type IngressesRetrieveRequest struct {
@@ -102,6 +110,8 @@ var IngressesRetrieve = rpc.Call[IngressesRetrieveRequest, Ingress]{
 	BaseContext: ingressNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var IngressesUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[util.Empty]]{
@@ -109,6 +119,8 @@ var IngressesUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "updateAcl",
+
+	RestrictSourceIP: true,
 }
 
 type IngressesUpdateLabelsRequest struct {
@@ -144,6 +156,8 @@ var IngressesControlRetrieve = rpc.Call[IngressesControlRetrieveRequest, Ingress
 	BaseContext: ingressControlNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesProvider,
+
+	RestrictSourceIP: true,
 }
 
 type IngressesControlBrowseRequest struct {
@@ -157,6 +171,8 @@ var IngressesControlBrowse = rpc.Call[IngressesControlBrowseRequest, fnd.PageV2[
 	BaseContext: ingressControlNamespace,
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesProvider,
+
+	RestrictSourceIP: true,
 }
 
 var IngressesControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[IngressSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{

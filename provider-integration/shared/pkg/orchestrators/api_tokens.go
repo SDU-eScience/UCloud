@@ -81,6 +81,8 @@ var ApiTokenCreate = rpc.Call[ApiTokenSpecification, ApiToken]{
 	BaseContext: apiTokenContext,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type ApiTokenBrowseRequest struct {
@@ -93,6 +95,8 @@ var ApiTokenBrowse = rpc.Call[ApiTokenBrowseRequest, fnd.PageV2[ApiToken]]{
 	BaseContext: apiTokenContext,
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var ApiTokenRevoke = rpc.Call[fnd.FindByStringId, util.Empty]{
@@ -100,6 +104,8 @@ var ApiTokenRevoke = rpc.Call[fnd.FindByStringId, util.Empty]{
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "revoke",
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var ApiTokenRetrieveOptions = rpc.Call[util.Empty, ApiTokenRetrieveOptionsResponse]{

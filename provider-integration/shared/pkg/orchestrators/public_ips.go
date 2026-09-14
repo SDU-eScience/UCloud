@@ -103,12 +103,16 @@ var PublicIpsCreate = rpc.Call[fnd.BulkRequest[PublicIPSpecification], fnd.BulkR
 	BaseContext: publicIpNamespace,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var PublicIpsDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
 	BaseContext: publicIpNamespace,
 	Convention:  rpc.ConventionDelete,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type PublicIpsSearchRequest struct {
@@ -123,6 +127,8 @@ var PublicIpsSearch = rpc.Call[PublicIpsSearchRequest, fnd.PageV2[PublicIp]]{
 	BaseContext: publicIpNamespace,
 	Convention:  rpc.ConventionSearch,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type PublicIpsBrowseRequest struct {
@@ -136,6 +142,8 @@ var PublicIpsBrowse = rpc.Call[PublicIpsBrowseRequest, fnd.PageV2[PublicIp]]{
 	BaseContext: publicIpNamespace,
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type PublicIpsRetrieveRequest struct {
@@ -147,6 +155,8 @@ var PublicIpsRetrieve = rpc.Call[PublicIpsRetrieveRequest, PublicIp]{
 	BaseContext: publicIpNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var PublicIpsUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[util.Empty]]{
@@ -154,6 +164,8 @@ var PublicIpsUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "updateAcl",
+
+	RestrictSourceIP: true,
 }
 
 type PublicIpsUpdateLabelsRequest struct {
@@ -185,6 +197,8 @@ var PublicIpsUpdateFirewall = rpc.Call[fnd.BulkRequest[PublicIpUpdateFirewallReq
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "firewall",
+
+	RestrictSourceIP: true,
 }
 
 // Public IP Control API
@@ -201,6 +215,8 @@ var PublicIpsControlRetrieve = rpc.Call[PublicIpsControlRetrieveRequest, PublicI
 	BaseContext: publicIpControlNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesProvider,
+
+	RestrictSourceIP: true,
 }
 
 type PublicIpsControlBrowseRequest struct {

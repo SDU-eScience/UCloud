@@ -656,12 +656,16 @@ var GrantsBrowse = rpc.Call[GrantsBrowseRequest, fnd.PageV2[GrantApplication]]{
 	BaseContext: GrantsNamespace,
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var GrantsRetrieve = rpc.Call[fnd.FindByStringId, GrantApplication]{
 	BaseContext: GrantsNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type GrantsSubmitRevisionRequest struct {
@@ -676,6 +680,8 @@ var GrantsSubmitRevision = rpc.Call[GrantsSubmitRevisionRequest, fnd.FindByStrin
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "submitRevision",
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type GrantsUpdateStateRequest struct {
@@ -752,6 +758,8 @@ var GrantsPostComment = rpc.Call[GrantsPostCommentRequest, fnd.FindByStringId]{
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "postComment",
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type GrantsDeleteCommentRequest struct {
@@ -764,6 +772,8 @@ var GrantsDeleteComment = rpc.Call[GrantsDeleteCommentRequest, util.Empty]{
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "deleteComment",
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var GrantsBrowseEnabledProjects = rpc.Call[util.Empty, []ProjectToSetting]{
@@ -871,6 +881,8 @@ var GrantsExport = rpc.Call[util.Empty, []GrantsExportResponse]{
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "export",
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type GrantsExportCsvResponse struct {
@@ -883,4 +895,6 @@ var GrantsExportCsv = rpc.Call[util.Empty, GrantsExportCsvResponse]{
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "exportCsv",
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
