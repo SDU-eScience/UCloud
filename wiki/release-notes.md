@@ -8,9 +8,9 @@ use.
 
 ```
 UCloud/Core @ 2026.6.0
-UCloud/Frontend @ 2026.6.0
-SDU-Bitten/K8s @ 2026.6.0
-SDU-Odense/K8s @ 2026.6.0
+UCloud/Frontend @ 2026.6.1
+SDU-Bitten/K8s @ 2026.6.1
+SDU-Odense/K8s @ 2026.6.1
 ```
 
 
