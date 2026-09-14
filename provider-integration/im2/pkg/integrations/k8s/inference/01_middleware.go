@@ -708,7 +708,7 @@ func InferenceChatEx(ctx context.Context, owner apm.WalletOwner, username string
 			// elapsed time assuming a fixed generation rate.
 			elapsedSeconds := time.Since(requestStartedAt).Seconds()
 			estimatedOutputTokens := int(elapsedSeconds * inferenceEstimatedNonStreamingOutputTokensPerSecond)
-			auditUsage = inferenceReportCancelledUsage(owner, model, history, estimatedOutputTokens)
+			auditUsage = inferenceReportCancelledUsage(owner, username, model, history, estimatedOutputTokens)
 			auditAborted = true
 			requestOutcome = "client_cancelled"
 		} else {
@@ -741,7 +741,7 @@ func InferenceChatEx(ctx context.Context, owner apm.WalletOwner, username string
 	if resp.Usage.Present {
 		cachedTokens, inputTokens, outputTokens := inferenceChatUsageComponents(usage)
 		inferenceReportChatUsageMetrics(model.Name, cachedTokens, inputTokens, outputTokens)
-		inferenceReportUsage(owner, model, cachedTokens, inputTokens, outputTokens)
+		inferenceReportUsage(owner, username, model, cachedTokens, inputTokens, outputTokens)
 	}
 
 	requestOutcome = "success"
@@ -896,7 +896,7 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username
 				// to the consumer as a final usage-only chunk so the playground reports the cancelled leg.
 				elapsedSeconds := time.Since(streamStartedAt).Seconds()
 				estimatedOutputTokens := int(elapsedSeconds * inferenceEstimatedNonStreamingOutputTokensPerSecond)
-				usageSeen = inferenceReportCancelledUsage(owner, model, history, estimatedOutputTokens)
+				usageSeen = inferenceReportCancelledUsage(owner, username, model, history, estimatedOutputTokens)
 				auditUsage = usageSeen
 				ch <- InferenceChatStreamingResponse{Object: "chat.completion.chunk", Model: model.Name, Usage: usageSeen}
 				streamOutcome = "client_cancelled"
@@ -979,14 +979,14 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username
 		if usagePresent {
 			cachedTokens, inputTokens, outputTokens := inferenceChatUsageComponents(usageSeen)
 			inferenceReportChatUsageMetrics(model.Name, cachedTokens, inputTokens, outputTokens)
-			inferenceReportUsage(owner, model, cachedTokens, inputTokens, outputTokens)
+			inferenceReportUsage(owner, username, model, cachedTokens, inputTokens, outputTokens)
 			if ctx.Err() != nil && !usageDelivered {
 				// The upstream's usage chunk arrived during cancellation, but the send to the consumer
 				// lost the race against the context. Deliver it now.
 				ch <- InferenceChatStreamingResponse{Object: "chat.completion.chunk", Model: model.Name, Usage: usageSeen}
 			}
 		} else if ctx.Err() != nil {
-			usageSeen = inferenceReportCancelledUsage(owner, model, history, inferenceEstimateTokensFromText(outputSeen.String()))
+			usageSeen = inferenceReportCancelledUsage(owner, username, model, history, inferenceEstimateTokensFromText(outputSeen.String()))
 			ch <- InferenceChatStreamingResponse{Object: "chat.completion.chunk", Model: model.Name, Usage: usageSeen}
 		} else if streamCtx.Err() == nil {
 			inferenceWarnMissingUsage("chat-stream", model.Name)
@@ -1359,11 +1359,11 @@ func inferenceEstimateCancelledChatUsage(request InferenceChatRequest, outputTok
 	}
 }
 
-func inferenceReportCancelledUsage(owner apm.WalletOwner, model InferenceModel, request InferenceChatRequest, estimatedOutputTokens int) InferenceChatUsage {
+func inferenceReportCancelledUsage(owner apm.WalletOwner, username string, model InferenceModel, request InferenceChatRequest, estimatedOutputTokens int) InferenceChatUsage {
 	estimated := inferenceEstimateCancelledChatUsage(request, estimatedOutputTokens)
 	cachedTokens, inputTokens, outputTokens := inferenceChatUsageComponents(estimated)
 	inferenceReportChatUsageMetrics(model.Name, cachedTokens, inputTokens, outputTokens)
-	inferenceReportUsage(owner, model, cachedTokens, inputTokens, outputTokens)
+	inferenceReportUsage(owner, username, model, cachedTokens, inputTokens, outputTokens)
 	return estimated
 }
 

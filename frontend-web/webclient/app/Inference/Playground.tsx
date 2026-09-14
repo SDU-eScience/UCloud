@@ -3,7 +3,8 @@ import * as React from "react";
 
 import {callAPI} from "@/Authentication/DataHook";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {Box, Button, Flex, Icon, Text, TextArea,} from "@/ui-components";
+import {Box, Button, Flex, Icon, Link, Text, TextArea,} from "@/ui-components";
+import AppRoutes from "@/Routes";
 import {Toggle} from "@/ui-components/Toggle";
 import UcxView, {UcxComponentRegistry, UcxFunctionRegistry, UcxRenderContext, UcxSpinner} from "@/UCX/UcxView";
 import {UiNode, Value, ValueKind} from "@/UCX/protocol";
@@ -542,6 +543,7 @@ type PlaygroundFrameProps = {
     loadingSession?: boolean;
     error?: string;
     connectionStatus?: string;
+    noAllocation?: boolean;
 };
 
 const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k => `
@@ -1652,8 +1654,9 @@ function ThreadListNode({
     );
 }
 
-function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSession = false, error = ""}: PlaygroundFrameProps): React.ReactNode {
+function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSession = false, error = "", noAllocation = false}: PlaygroundFrameProps): React.ReactNode {
     const connectionStatus = loadingSession || !mounted ? "Connecting..." : !connected ? "Reconnecting..." : error !== "" ? "Connection issue" : "Connected";
+    const disabledReason = noAllocation ? "You need to apply for resources before you can use the chat" : "";
 
     return (
         <MainContainer
@@ -1668,7 +1671,13 @@ function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSess
                         </>}
                     >
                         <TabbedCardTab name="Chat" icon="heroChatBubbleLeftRight">
-                            <PlaygroundWorkspace model={model} fn={fn} connected={connected && mounted && error === ""} connectionStatus={connectionStatus}/>
+                            <PlaygroundWorkspace
+                                model={model}
+                                fn={fn}
+                                connected={connected && mounted && error === ""}
+                                connectionStatus={connectionStatus}
+                                disabledReason={disabledReason}
+                            />
                         </TabbedCardTab>
                     </TabbedCard>
                 </div>
@@ -1685,7 +1694,7 @@ function DeveloperModeToggle({model, fn, connected}: {model: Record<string, Valu
     </Flex>;
 }
 
-function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string}): React.ReactNode {
+function PlaygroundWorkspace({model, fn, connected, connectionStatus, disabledReason = ""}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string; disabledReason?: string}): React.ReactNode {
     const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
     const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
     const [showThreads, setShowThreads] = React.useState(false);
@@ -1755,7 +1764,7 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
     return (
         <div className="playground-body">
             <div className="playground-main">
-                <PlaygroundConversation model={model} fn={fn} connected={connected}/>
+                <PlaygroundConversation model={model} fn={fn} connected={connected} disabledReason={disabledReason}/>
             </div>
             <div className="playground-sidebar" onClick={stopPropagation} data-open={showThreads} data-collapsed={sidebarCollapsed}>
                 {sidebarCollapsed ? (
@@ -1829,7 +1838,7 @@ function ContextWindowIndicator({model, fn}: {model: Record<string, Value>; fn?:
 
 }
 
-function PlaygroundConversation({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
+function PlaygroundConversation({model, fn, connected, disabledReason = ""}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; disabledReason?: string}): React.ReactNode {
     const messagesValue = fn?.modelValue(model, "chat.messages") ?? model["chat.messages"];
     const messageItems = messagesValue?.kind === ValueKind.List ? messagesValue.list : [];
     const streamingValue = fn?.modelValue(model, "chat.streamingMessages") ?? model["chat.streamingMessages"];
@@ -1914,7 +1923,11 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
                 style={{flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 8px"}}
             >
                 <div ref={contentRef}>
-                    {messages.length === 0 ? <Text color="textSecondary">No messages yet.</Text> : messages.map((message) => {
+                    {disabledReason !== "" ? (
+                        <NoAllocationNotice reason={disabledReason}/>
+                    ) : messages.length === 0 ? (
+                        <Text color="textSecondary">No messages yet.</Text>
+                    ) : messages.map((message) => {
                         if (!fn) return null;
                         return <ChatMessageNode key={message.key} message={message} modelOptions={modelOptions} currentModelId={currentModelId} fn={fn}/>;
                     })}
@@ -1927,7 +1940,7 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
                 fn,
                 components: playgroundComponents,
                 renderChildren: () => [],
-            }) : <DisabledComposerPlaceholder disabledReason={developer ? "You cannot send messages in developer mode" : ""}/>}
+            }) : <DisabledComposerPlaceholder disabledReason={developer ? "You cannot send messages in developer mode" : disabledReason}/>}
         </>
     );
 }
@@ -1961,6 +1974,19 @@ function DisabledComposerPlaceholder({disabledReason = ""}: {disabledReason?: st
             </button>
         </div>
     </Box>;
+}
+
+function NoAllocationNotice({reason}: {reason: string}): React.ReactNode {
+    return <Flex flexDirection="column" alignItems="center" justifyContent="center" gap="16px" style={{flex: 1, textAlign: "center"}}>
+        <Icon name="heroChatBubbleLeftRight" size={48} color="textSecondary"/>
+        <div>
+            <div style={{fontWeight: 600, marginBottom: 8}}>{reason}</div>
+            <Text color="textSecondary">Apply for resources to get access to AI models and start chatting.</Text>
+        </div>
+        <Link to={AppRoutes.grants.editor()}>
+            <Button type="button">Apply for resources</Button>
+        </Link>
+    </Flex>;
 }
 
 function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNewThread}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void; onNewThread: () => void}): React.ReactNode {
@@ -2081,6 +2107,7 @@ export default function Playground(): React.ReactNode {
     const [session, setSession] = React.useState<PlaygroundSession | null>(null);
     const [loading, setLoading] = React.useState(true);
     const [terminalError, setTerminalError] = React.useState("");
+    const [noAllocation, setNoAllocation] = React.useState(false);
     const [refreshNonce, setRefreshNonce] = React.useState(0);
     const [lastModel, setLastModel] = React.useState<Record<string, Value>>({});
     const openRetryCountRef = React.useRef(0);
@@ -2103,6 +2130,7 @@ export default function Playground(): React.ReactNode {
         openRetryCountRef.current = 0;
         setLastModel({});
         setSession(null);
+        setNoAllocation(false);
         setRefreshNonce((x) => x + 1);
     }, [projectId]);
 
@@ -2121,15 +2149,21 @@ export default function Playground(): React.ReactNode {
                 setSession(result);
                 setLoading(false);
                 setTerminalError("");
+                setNoAllocation(false);
             })
-            .catch((err) => {
+            .catch((err: any) => {
                 if (cancelled) return;
                 setLoading(false);
-                setTerminalError(
-                    err instanceof Error
-                        ? err.message
-                        : "Failed to open the inference playground"
-                );
+                const why = typeof err?.response?.why === "string" && err.response.why !== ""
+                    ? err.response.why
+                    : "Failed to open the inference playground";
+                setTerminalError(why);
+                const statusCode = typeof err?.request?.status === "number" ? err.request.status : 0;
+                const permanent = statusCode >= 400 && statusCode < 500;
+                if (permanent) {
+                    setNoAllocation(statusCode === 402);
+                    return;
+                }
                 const retry = openRetryCountRef.current++;
                 const retryDelay = Math.min(30000, 1000 * Math.pow(2, Math.min(retry, 5)));
                 openRetryTimerRef.current = window.setTimeout(() => {
@@ -2185,6 +2219,7 @@ export default function Playground(): React.ReactNode {
                 mounted={false}
                 loadingSession={loading}
                 error={loading ? "" : (terminalError || "Unable to open inference playground.")}
+                noAllocation={noAllocation}
             />
         );
     }

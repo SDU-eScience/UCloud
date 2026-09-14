@@ -74,7 +74,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "inference": {
         feature: Feature.INFERENCE,
-        showWithoutFlag: [Environment.PUBLIC_DEV, Environment.LOCAL_DEV_STACK],
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },
 

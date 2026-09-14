@@ -225,6 +225,10 @@ func inferenceAuditEmit(state *inferenceAuditState, r *http.Request, status int,
 		return
 	}
 
+	if status < 400 {
+		inferenceActivityRecord(inferenceAuditChainKeyOfState(state), state.ReceivedAt)
+	}
+
 	event := rpc.HttpCallLogEntry{
 		JobId:             util.RandomTokenNoTs(8),
 		RequestName:       state.RequestName.GetOrDefault(state.DefaultName),
@@ -352,6 +356,13 @@ func inferenceAuditChainKey(owner apm.WalletOwner, username string) string {
 		return username
 	}
 	return owner.Reference()
+}
+
+func inferenceAuditChainKeyOfState(state *inferenceAuditState) string {
+	if state.Username != "" {
+		return state.Username
+	}
+	return state.ProjectId
 }
 
 func newInferenceAuditChainCache() *inferenceAuditChainCache {

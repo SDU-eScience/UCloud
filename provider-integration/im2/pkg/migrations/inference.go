@@ -503,3 +503,45 @@ func inferenceV21() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV22() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV22",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table inference_user_activity (
+						username text primary key,
+						first_used_at timestamptz not null,
+						last_used_at timestamptz not null
+					)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV23() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV23",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model add column username text not null default '_ucloud'`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model drop constraint inference_usage_by_model_pkey`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model add primary key (owner, username, model, usage_day)`,
+				db.Params{},
+			)
+		},
+	}
+}

@@ -340,6 +340,7 @@ func Init() {
 
 	controller.ProductsRegister([]apm.ProductV2{inferenceGlobals.Product})
 	go inferenceUsageFlushLoop()
+	go inferenceActivityFlushLoop()
 
 	authority := shared.ServiceConfig.Compute.Inference.Authority
 	AttachmentInit()
@@ -834,7 +835,7 @@ func inferenceAcquire(ctx context.Context, owner apm.WalletOwner, username strin
 //
 // Important entry points include `inferenceReportUsage` and `inferenceFlushUsage`.
 
-func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTokens int, inputTokens int, outputTokens int) {
+func inferenceReportUsage(owner apm.WalletOwner, username string, model InferenceModel, cachedTokens int, inputTokens int, outputTokens int) {
 	if cachedTokens < 0 {
 		cachedTokens = 0
 	}
@@ -857,12 +858,17 @@ func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTok
 	metricInferenceRequests.WithLabelValues(model.Name).Inc()
 
 	scope := fmt.Sprintf("inference-%s-%s-%s", inferenceGlobals.Product.Category.Provider, inferenceGlobals.Product.Category.Name, util.SecureToken())
+	consumer := username
+	if consumer == "" {
+		consumer = "_ucloud"
+	}
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
 				insert into inference_usage_by_model(
 					owner,
+					username,
 					model,
 					usage_day,
 					cached_input_tokens,
@@ -871,13 +877,14 @@ func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTok
 				)
 				values (
 					:owner,
+					:username,
 					:model,
 					cast((now() at time zone 'utc') as date),
 					:cached_input_tokens,
 					:input_tokens,
 					:output_tokens
 				)
-				on conflict (owner, model, usage_day) do update set
+				on conflict (owner, username, model, usage_day) do update set
 					cached_input_tokens = cast((
 						cast(inference_usage_by_model.cached_input_tokens as numeric) + excluded.cached_input_tokens
 					) as bigint),
@@ -891,6 +898,7 @@ func inferenceReportUsage(owner apm.WalletOwner, model InferenceModel, cachedTok
 			`,
 			db.Params{
 				"owner":               owner.Reference(),
+				"username":            consumer,
 				"model":               model.Name,
 				"cached_input_tokens": int64(cachedTokens),
 				"input_tokens":        int64(inputTokens),

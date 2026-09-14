@@ -204,12 +204,14 @@ const PageStyle = injectStyle("model-page", k => `
 
     ${k} .model-main-content {
         display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 34px;
         min-width: 0;
     }
 
     ${k} .model-main-content > section {
         max-width: var(--max-width);
+        min-width: 0;
     }
 
     ${k} .model-page-layout > * {
