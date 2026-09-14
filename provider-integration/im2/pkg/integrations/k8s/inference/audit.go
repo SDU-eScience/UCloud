@@ -18,40 +18,41 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-// Audit logging for the inference API
+// Inference audit records
 // =====================================================================================================================
-// The public inference endpoints are plain http.HandlerFuncs (see 00_module.go) and are therefore not covered by the
-// automatic audit hook of the RPC framework. The playground reaches the same core functions over a websocket, so the
-// audit trail would be split (or duplicated) if the API handlers logged on their own.
+// This file creates audit records for public HTTP endpoints and playground WebSocket calls. Public endpoints use
+// http.HandlerFunc, so the standard RPC audit hook does not observe them.
 //
-// To produce exactly one entry per logical call, the audit records are produced by the core functions (InferenceChat,
-// InferenceChatStreaming, ...) rather than by the handlers. When the API middleware attached a per-request state to
-// the context, the record is handed to that state and the middleware emits the entry when the handler returns.
-// Without a state (e.g. the playground) the record is emitted directly by the core function.
+// Core inference functions mark one record for each logical call. HTTP middleware owns request timing and emits the
+// record after the handler returns. Calls without middleware, such as playground calls, emit the record directly.
 //
-// The /v1/responses adapter builds on top of InferenceChat. It suppresses the audit hook of the inner chat call and
-// emits a single inference.responses entry for the whole logical call instead (see inferenceAuditSuppress). Background
-// responses are audited at submission time; their completion is already persisted by the response store.
+// The /v1/responses adapter suppresses the inner chat record and emits one inference.responses record. Background
+// responses record submission. The response store persists completion when storage is enabled. Read-only HTTP calls can
+// finish without a record. Rejected calls record the rejection reason instead of a normal request body.
 //
-// Logs are stored in the normal audit logs.
+// The normal audit log stores the result. When message content is enabled, records store new request items and hashes
+// for prior items. A bounded LRU cache tracks recent prefix hashes. A cache miss stores the full item history again.
+
+// Audit configuration and request state
+// ---------------------------------------------------------------------------------------------------------------------
+// This section defines audit feature settings, cache limits, metrics, request context keys, and HTTP response state.
+// inferenceAuditMiddleware creates inferenceAuditState. The remaining audit entry points update or emit that state.
 //
-// To prevent repeating chat requests from the entire thread on every call (causing O(n^2) usage) each row only store
-// the new messages of the request plus a hash chain over the previous messages. These are kept in an LRU and a full
-// chain is re-created in case of a miss.
+// Message content is disabled by default. The cache capacity counts chain keys, and shards divide that capacity evenly.
+// The response writer records the first status. A write or flush without an explicit status records HTTP 200.
 
 const (
 	inferenceAuditChainSeed = "ucloud-inference-v1"
 
 	inferenceAuditIncludeMessageContent = false
 
-	// LRU sizing. The capacity counts user entries and is divided evenly across the shards.
+	// The capacity counts user entries. The shards divide it evenly.
 	inferenceAuditLruCapacity      = 32768
 	inferenceAuditLruShards        = 16
 	inferenceAuditLruShardMask     = inferenceAuditLruShards - 1
 	inferenceAuditLruShardCapacity = inferenceAuditLruCapacity / inferenceAuditLruShards
 
-	// How many of a request's most recent prefix hashes are remembered per user and how many messages can be
-	// appended in one call before the chain misses and the full history is stored again.
+	// These limits control stored prefix hashes and new messages before a cache miss stores the full history again.
 	inferenceAuditChainHashLimit  = 64
 	inferenceAuditLruPrefixWindow = 16
 )
@@ -81,6 +82,21 @@ type inferenceAuditState struct {
 	rejectReason string
 }
 
+type inferenceAuditResponseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+// HTTP audit lifecycle
+// ---------------------------------------------------------------------------------------------------------------------
+// inferenceAuditMiddleware wraps public HTTP handlers. Identity and record entry points add data during request
+// processing. The middleware emits after the handler returns, which gives it the final status and elapsed time.
+// inferenceAuditRecord emits directly when no middleware state exists, as required by playground WebSocket calls.
+//
+// Suppressed calls and calls without an audit consumer do not create records. A request records only once. Rejection
+// does not replace an existing record, and a normal record does not replace a rejection. Missing bodies become {}.
+// Content-Length supplies request size only when the handler did not set a size. Unknown result reasons map to HTTP 500.
+
 func inferenceAuditMiddleware(requestName string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		state := &inferenceAuditState{DefaultName: requestName, ReceivedAt: time.Now()}
@@ -108,6 +124,33 @@ func inferenceAuditMiddleware(requestName string, next http.HandlerFunc) http.Ha
 
 		inferenceAuditEmit(state, r, response.status, time.Since(startedAt))
 	}
+}
+
+func (w *inferenceAuditResponseWriter) WriteHeader(status int) {
+	if w.status == 0 {
+		w.status = status
+	}
+	w.ResponseWriter.WriteHeader(status)
+}
+
+func (w *inferenceAuditResponseWriter) Write(payload []byte) (int, error) {
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	return w.ResponseWriter.Write(payload)
+}
+
+func (w *inferenceAuditResponseWriter) Flush() {
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
+func (w *inferenceAuditResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
 }
 
 func inferenceAuditIdentity(ctx context.Context, owner apm.WalletOwner, username string, tokenId string) {
@@ -239,6 +282,14 @@ func inferenceAuditStatusFromReason(reason string) int {
 	}
 }
 
+// Audit context values
+// ---------------------------------------------------------------------------------------------------------------------
+// These context helpers carry the logical source and the suppression flag across inference adapters. Request body
+// builders include the source in audit JSON. The responses adapter uses suppression to prevent a second chat record.
+//
+// Missing source values return an empty string. Missing suppression values return false. The typed private keys prevent
+// collisions with context values from other packages.
+
 func inferenceAuditSource(ctx context.Context, source string) context.Context {
 	return context.WithValue(ctx, inferenceAuditSourceKey{}, source)
 }
@@ -257,54 +308,21 @@ func inferenceAuditSuppressed(ctx context.Context) bool {
 	return suppressed
 }
 
-func inferenceAuditChainKey(owner apm.WalletOwner, username string) string {
-	if username != "" {
-		return username
-	}
-	return owner.Reference()
-}
-
-type inferenceAuditResponseWriter struct {
-	http.ResponseWriter
-	status int
-}
-
-func (w *inferenceAuditResponseWriter) WriteHeader(status int) {
-	if w.status == 0 {
-		w.status = status
-	}
-	w.ResponseWriter.WriteHeader(status)
-}
-
-func (w *inferenceAuditResponseWriter) Write(payload []byte) (int, error) {
-	if w.status == 0 {
-		w.status = http.StatusOK
-	}
-	return w.ResponseWriter.Write(payload)
-}
-
-func (w *inferenceAuditResponseWriter) Flush() {
-	if w.status == 0 {
-		w.status = http.StatusOK
-	}
-	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
-		flusher.Flush()
-	}
-}
-
-func (w *inferenceAuditResponseWriter) Unwrap() http.ResponseWriter {
-	return w.ResponseWriter
-}
-
 // Prefix hash-chain cache
-// -------------------------------------------------------------------------------------------------------------------
-// The cache keeps, per user (see inferenceAuditChainKey), a recency ordered list of the prefix hashes of the most
-// recent messages seen, capped at inferenceAuditChainHashLimit. Matching a request reduces to finding the
-// request's deepest prefix hash in that list: everything up to it was stored before and only the messages after it
-// are new to the audit trail. The cap covers the recent window of a few interleaved conversations.
+// ---------------------------------------------------------------------------------------------------------------------
+// This section computes and caches message history hashes. inferenceAuditComputeDelta is the main entry point. It finds
+// a known request prefix and returns only items after that prefix. It also returns the matched and complete chain hashes.
 //
-// The cache is sharded by chain key to spread lock contention. Entries are immutable and replaced by copy, so the
-// matching scan runs on the published hash list outside the lock and compares fixed size arrays without allocating.
+// The cache keeps a recent prefix hash list for each chain key. Each list contains at most
+// inferenceAuditChainHashLimit hashes. A match finds the deepest stored request prefix. The audit record then includes
+// only items after that prefix. The limit supports a recent window of interleaved conversations.
+//
+// The cache uses chain-key shards to reduce lock contention. Updates replace immutable entries. Matching scans the
+// published hash list outside the lock and compares fixed-size arrays without allocations.
+//
+// Each chain starts from inferenceAuditChainSeed. Each next hash combines the prior chain hash with the current item
+// hash. The username or wallet owner reference selects the chain. Empty input and disabled content produce an empty
+// delta. A cache miss records a metric and returns every item. Each shard removes its least recent key at capacity.
 
 var inferenceAuditChainLru = newInferenceAuditChainCache()
 
@@ -321,6 +339,19 @@ type inferenceAuditChainShard struct {
 type inferenceAuditChainEntry struct {
 	key    string
 	hashes [][32]byte
+}
+
+type inferenceAuditDelta struct {
+	PrevHash string
+	FullHash string
+	NewItems []json.RawMessage
+}
+
+func inferenceAuditChainKey(owner apm.WalletOwner, username string) string {
+	if username != "" {
+		return username
+	}
+	return owner.Reference()
 }
 
 func newInferenceAuditChainCache() *inferenceAuditChainCache {
@@ -366,7 +397,7 @@ func inferenceAuditChainSet(chainKey string, prefixHashes [][32]byte) {
 	windowStart := max(len(prefixHashes)-inferenceAuditLruPrefixWindow, 0)
 	window := prefixHashes[windowStart:]
 
-	// Most recent hash first so that overflowing the limit drops the oldest hashes.
+	// Store the most recent hash first. Entries over the limit remove the oldest hashes.
 	entry := &inferenceAuditChainEntry{
 		key:    chainKey,
 		hashes: make([][32]byte, 0, inferenceAuditChainHashLimit),
@@ -423,12 +454,6 @@ func inferenceAuditChainPrefixes(items []json.RawMessage) [][32]byte {
 	return prefixHashes
 }
 
-type inferenceAuditDelta struct {
-	PrevHash string
-	FullHash string
-	NewItems []json.RawMessage
-}
-
 func inferenceAuditComputeDelta(
 	endpoint string,
 	chainKey string,
@@ -456,7 +481,14 @@ func inferenceAuditComputeDelta(
 }
 
 // Audit request bodies
-// -------------------------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------------------------
+// These builders create the JSON stored for chat and responses calls. They include model settings, result data, usage,
+// source, item counts, and hash-chain data. inferenceAuditChatBody reads chat messages. inferenceAuditOaiResponseBody
+// reads the normalized responses input items.
+//
+// Message bodies and instructions appear only when message content is enabled. Counts remain available when content is
+// disabled. Optional JSON fields stay absent when their source values are empty. `mustMarshal` provides the common JSON
+// encoding path. It returns an empty JSON object if encoding fails so audit creation still has a valid request body.
 
 func inferenceAuditChatBody(
 	chainKey string,

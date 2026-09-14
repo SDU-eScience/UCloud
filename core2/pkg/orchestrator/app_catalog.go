@@ -718,15 +718,6 @@ func AppRetrieveGroup(
 			return strings.Compare(a.Metadata.Title, b.Metadata.Title)
 		})
 	}
-	if flags&AppCatalogIncludeApps != 0 {
-		appCustomAppendToManagedGroup(actor, id, discovery, &apiGroup)
-		slices.SortFunc(apiGroup.Status.Applications, func(a, b orcapi.Application) int {
-			if c := strings.Compare(a.Metadata.FlavorName.GetOrDefault(""), b.Metadata.FlavorName.GetOrDefault("")); c != 0 {
-				return c
-			}
-			return strings.Compare(a.Metadata.Title, b.Metadata.Title)
-		})
-	}
 
 	return apiGroup, logo, true
 }
@@ -754,7 +745,6 @@ func AppCatalogRetrieveCategory(
 	}
 
 	result := appCategoryToApi(actor, cat, discovery, flags)
-	appCustomAppendToManagedCategory(actor, id, discovery, flags, &result)
 	return result, true
 }
 
@@ -788,7 +778,6 @@ func AppCatalogListCategories(
 catLoop:
 	for _, cat := range categories {
 		apiCategory := appCategoryToApi(actor, cat, discovery, categoryFlags)
-		appCustomAppendToManagedCategory(actor, cat.Id, discovery, categoryFlags, &apiCategory)
 		if filter {
 			wantApps := flags&AppCatalogIncludeApps != 0
 			wantGroups := flags&AppCatalogIncludeGroups != 0
@@ -879,7 +868,6 @@ func appCategoryToApi(
 			wantApps := flags&AppCatalogIncludeApps != 0
 
 			group, _, ok := AppRetrieveGroup(actor, g, discovery, groupFlags)
-			appCustomFilterGroupForCategory(actor, cat.Id, &group)
 			if ok && len(group.Status.Applications) > 0 {
 				if len(group.Status.Applications) == 1 && group.Specification.DefaultFlavor == "" {
 					group.Specification.DefaultFlavor = group.Status.Applications[0].Metadata.Name
@@ -1606,7 +1594,6 @@ func AppStudioDeleteCategory(id AppCategoryId) *util.HttpError {
 	}
 
 	appPersistDeleteCategory(id)
-	appCustomMaterializeCategory(id)
 	return nil
 }
 
@@ -1681,7 +1668,11 @@ func AppStudioUpdateAcl(appName string, toAdd []orcapi.AclEntity, toRemove []orc
 			for _, acl := range acls {
 				needToRemove := false
 				for _, aclToRemove := range toRemove {
-					if (acl.Type == orcapi.AclEntityTypeUser && acl.Username == aclToRemove.Username) || (acl.Type == orcapi.AclEntityTypeProjectGroup && acl.ProjectId == aclToRemove.ProjectId && aclToRemove.Group == aclToRemove.Group) {
+					userMatch := acl.Type == orcapi.AclEntityTypeUser && aclToRemove.Type == orcapi.AclEntityTypeUser &&
+						acl.Username == aclToRemove.Username
+					groupMatch := acl.Type == orcapi.AclEntityTypeProjectGroup && aclToRemove.Type == orcapi.AclEntityTypeProjectGroup &&
+						acl.ProjectId == aclToRemove.ProjectId && acl.Group == aclToRemove.Group
+					if userMatch || groupMatch {
 						needToRemove = true
 						break
 					}
@@ -1785,7 +1776,6 @@ func AppStudioDeleteGroup(groupId AppGroupId) *util.HttpError {
 
 	group.Items = nil
 	group.Mu.Unlock()
-	appCustomMaterializeGroup(groupId)
 	return nil
 }
 

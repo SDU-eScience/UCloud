@@ -748,7 +748,7 @@ export default function Models(): React.ReactNode {
             <div className="panel-inner">
                 <div className="section-heading">
                     <div>
-                        <h2>Consume models your way</h2>
+                        <h2>Using the models</h2>
                         <p>Start in the browser, automate through UCloud jobs, or connect existing tools to the compatible endpoint.</p>
                     </div>
                 </div>
@@ -775,7 +775,7 @@ export default function Models(): React.ReactNode {
         <section className="panel panel-accent">
             <div className="panel-inner cta">
                 <div>
-                    <h2>Ready to build with hosted inference?</h2>
+                    <h2>Ready to get started?</h2>
                     <p>Open the chat to test a model, or use the catalog to find details and integration settings.</p>
                 </div>
                 <div className="cta-actions">

@@ -81,3 +81,29 @@ func grantV4() db.MigrationScript {
 		},
 	}
 }
+
+func grantV5() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "grantsV5",
+		Execute: func(tx *db.Transaction) {
+			statements := []string{
+				`
+					create table "grant".gifts_exclude_criteria
+					(
+						gift_id      bigint not null
+							references "grant".gifts,
+						type         text   not null,
+						applicant_id text
+					);
+				`,
+				`
+					create unique index gifts_exclude_criteria_uniq
+					on "grant".gifts_exclude_criteria (gift_id, type, COALESCE(applicant_id, ''::text));
+				`,
+			}
+			for _, statement := range statements {
+				db.Exec(tx, statement, db.Params{})
+			}
+		},
+	}
+}

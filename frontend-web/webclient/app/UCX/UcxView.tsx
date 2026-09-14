@@ -41,13 +41,10 @@ import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {ProductSelector} from "@/Products/Selector";
 import BaseLink from "@/ui-components/BaseLink";
 import {useLocation, useNavigate} from "react-router-dom";
-import {SimpleMarkdown} from "@/ui-components/Markdown";
-import {ModuleMarkdown} from "@/Applications/Jobs/Widgets/ModuleList";
 import remarkGfm from "remark-gfm";
 import ReactMarkdown from "react-markdown";
 import * as Heading from "@/ui-components/Heading";
 import {UcxAccordion} from "@/UCX/UcxAccordion";
-import {injectStyle} from "@/Unstyled";
 import {useIsLightThemeStored} from "@/ui-components/theme";
 
 type ValueProvider = string | (() => string | Promise<string>);

@@ -28,12 +28,13 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {addStandardDialog} from "@/UtilityComponents";
-import {inDevEnvironment} from "@/UtilityFunctions";
+import {inDevEnvironment, createKeyboardShortcut} from "@/UtilityFunctions";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProjectId} from "@/Project/Api";
 import {
     CreatorDraft,
+    CreatorCreatedGroup,
     CreatorOperationContext,
     CreatorView,
     CreatorCustomMeta,
@@ -41,6 +42,7 @@ import {
     creatorInitialDraft,
     creatorStableId,
     creatorIsCustom,
+    assignParameterId,
     emptyValidationState, CreatorValidationRequest, CreatorValidationResponse,
 } from "@/Applications/Creator/Draft";
 import {
@@ -50,19 +52,33 @@ import {
     creatorSourceForEditor,
 } from "@/Applications/Creator/CreatorService";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {
-    applicationToSourceText,
-    parseSourceText,
-} from "@/Applications/Creator/SourceParser";
-import {EditorHeader} from "@/Applications/Creator/EditorHeader";
-import {ParameterContent} from "@/Applications/Creator/ParameterContent";
-import {ParameterPanel} from "@/Applications/Creator/ParameterPanel";
-import {MetadataPanel} from "@/Applications/Creator/MetadataPanel";
-import {FeatureCards} from "@/Applications/Creator/FeatureCards";
+import {applicationToSourceText, CreatorSourceParseError, parseSourceText} from "@/Applications/Creator/SourceParser";
+import {ParameterContent, FeatureCards} from "@/Applications/Creator/ParameterContent";
 import {YamlEditor} from "@/Applications/Creator/YamlEditor";
 import {InvocationEditor, InvocationTab} from "@/Applications/Creator/InvocationEditor";
-import {ErrorSummary} from "@/Applications/Creator/ErrorSummary";
-import {CreatorHighlightTarget, creatorHighlightTarget} from "@/Applications/Creator/Highlight";
+import {CreatorHighlightTarget, creatorHighlightTarget} from "@/Applications/Creator/CreatorKeyboard";
+import {AppLogoRaw, appColor, hashF} from "@/Applications/AppToolLogo";
+import {defaultApplicationGroupLogo, ProceduralLogo} from "@/Applications/ProceduralLogo";
+import {ParameterPanel} from "@/Applications/Creator/ParameterPanel";
+import {MetadataPanel} from "@/Applications/Creator/MetadataPanel";
+import {
+    CreatorShortcutGuide,
+    CreatorShortcutControl,
+    CreatorShortcutHintsProvider,
+    CreatorSectionKey,
+    CreatorParameterSectionKey,
+    useCreatorShortcuts,
+    creatorFocusSection,
+    creatorFocusParameterSection,
+    creatorFocusMainContent,
+} from "@/Applications/Creator/CreatorKeyboard";
+import {
+    FIELD_NAVIGATION_SELECTOR,
+    FORM_NAVIGATION_SELECTOR,
+    focusFirstNavigationTarget,
+    isDisabledNavigationTarget,
+    KeyboardNavigation,
+} from "@/Applications/KeyboardNavigation";
 import {
     draftSelectParameter,
     draftUpdateBase,
@@ -89,10 +105,12 @@ import {
     draftCustomDerivedPresentation,
     draftCustomDerivedName,
     draftCustomSelectedGroup,
+    validateApplicationLocal,
+    A2WidgetType,
 } from "@/Applications/Creator/DraftOperations";
-import {A2Parameter, A2EnumOption, A2Yaml, A2Software} from "@/Applications/Creator/A2";
-import {A2WidgetType} from "@/Applications/Creator/WidgetDefaults";
-import {validateApplicationLocal} from "@/Applications/Creator/ParameterValidation";
+import {A2Parameter, A2EnumOption, A2Yaml, A2Software} from "@/Applications/Creator/Draft";
+
+
 import {Application, ApplicationParameter} from "@/Applications/AppStoreApi";
 import {ProductV2Compute} from "@/Accounting";
 import {compute} from "@/UCloud";
@@ -359,7 +377,7 @@ export const Create: React.FunctionComponent = () => {
     const context = parsedContext.context;
     const activeWorkspace = projectId ?? "personal";
     const contextError = parsedContext.error ?? (
-        !context.developmentTemplate && context.workspace !== activeWorkspace
+        !creatorIsCustom(context) && !context.developmentTemplate && context.workspace !== activeWorkspace
             ? "The active workspace no longer matches this application draft. Return to the source page and open it again."
             : null
     );
@@ -385,15 +403,17 @@ export const Create: React.FunctionComponent = () => {
     const [customEligibility, setCustomEligibility] = useState<AppStore.AppEditorCustomEligibilityResponse | null>(null);
     const [customGroups, setCustomGroups] = useState<AppStore.AppCatalogCustomGroup[]>([]);
     const [customCategories, setCustomCategories] = useState<AppStore.AppCatalogCustomCategory[]>([]);
-    const [inlineCreatedGroup, setInlineCreatedGroup] = useState<{id: number; title: string; description: string} | null>(null);
+    const [inlineCreatedGroup, setInlineCreatedGroup] = useState<CreatorCreatedGroup | null>(null);
     const validationRequestId = useRef(0);
     const draftRevisionRef = useRef(0);
     const draftRef = useRef<CreatorDraft | null>(null);
+    const draftWorkspaceRef = useRef<string | null>(activeWorkspace);
     const lastPreviewJobRef = useRef<JobSpecification | null>(null);
 
     const panelRef = useRef<HTMLDivElement>(null);
     const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
     const isResizing = useRef(false);
+    const sidebarFocusRef = useRef<HTMLElement | null>(null);
 
     usePage("Application editor", SidebarTabId.APPLICATIONS);
 
@@ -424,16 +444,25 @@ export const Create: React.FunctionComponent = () => {
             return;
         }
         const currentDraft = draftRef.current;
-        if (currentDraft?.dirty && creatorContextKey(currentDraft.context) === creatorContextKey(context)) {
+        const customOperation = creatorIsCustom(context);
+        const installedWorkspace = draftWorkspaceRef.current;
+        const switchedWorkspace = customOperation && currentDraft != null &&
+            installedWorkspace != null && installedWorkspace !== activeWorkspace;
+        if (currentDraft?.dirty && !switchedWorkspace && creatorContextKey(currentDraft.context) === creatorContextKey(context)) {
             setLoading(false);
             setLoadError(null);
             return;
         }
         setLoading(true);
         setLoadError(null);
-        const customContext = creatorIsCustom(context);
+        const customContext = customOperation;
+        const draftSource = currentDraft == null ? null : {
+            application: currentDraft.lastValidApplication,
+            sourceText: currentDraft.sourceText,
+            customMeta: currentDraft.customMeta,
+        };
         Promise.all([
-            creatorService.loadSource(context),
+            draftSource ?? creatorService.loadSource(context),
             customContext ? creatorService.loadCustomPlacement() : Promise.resolve({groups: [], categories: []}),
             customContext ? creatorService.loadCustomEligibility() : Promise.resolve(null),
         ]).then(([source, placement, rawEligibility]) => {
@@ -444,7 +473,7 @@ export const Create: React.FunctionComponent = () => {
             };
             const categoryId = source.customMeta?.category || context.initialCategory;
             const categoryIsEditable = categoryId != null && placement.categories.some(category => String(category.id) === categoryId);
-            if (customContext && context.operation !== "fork" && !categoryIsEditable) {
+            if (customContext && !switchedWorkspace && context.operation !== "fork" && !categoryIsEditable) {
                 throw new Error("You no longer have edit permission on the selected category.");
             }
             let customMeta = source.customMeta;
@@ -454,9 +483,11 @@ export const Create: React.FunctionComponent = () => {
                 const autoSelectProvider = context.operation === "newCustom" || eligibility?.providers.length === 1;
                 customMeta = {
                     ...customMeta,
-                    provider: customMeta.provider || (autoSelectProvider ? firstProvider : ""),
-                    group: context.operation === "newCustom" ? customMeta.group || String(placement.groups[0]?.id ?? "") : customMeta.group,
-                    category: categoryId ?? customMeta.category,
+                    provider: switchedWorkspace
+                        ? customMeta.provider
+                        : customMeta.provider || (autoSelectProvider ? firstProvider : ""),
+                    group: switchedWorkspace ? "" : customMeta.group,
+                    category: switchedWorkspace ? "" : categoryId ?? customMeta.category,
                     canPublish: eligibility?.canPublish ?? false,
                     publishedToProject: eligibility?.canPublish === true && customMeta.publishedToProject,
                 };
@@ -479,8 +510,11 @@ export const Create: React.FunctionComponent = () => {
                     ...initialDraft,
                     placementGroups: placement.groups,
                     placementCreatedGroup: null,
-                    ...(context.operation === "fork" ? {dirty: true, sourceNormalized: true} : {}),
+                    dirty: switchedWorkspace ? true : context.operation === "fork",
+                    sourceNormalized: switchedWorkspace ? true : context.operation === "fork",
+                    nameManuallySet: switchedWorkspace ? currentDraft?.nameManuallySet ?? false : initialDraft.nameManuallySet,
                 });
+                draftWorkspaceRef.current = activeWorkspace;
                 setCustomGroups(placement.groups);
                 setCustomCategories(placement.categories);
                 setCustomEligibility(eligibility);
@@ -508,7 +542,7 @@ export const Create: React.FunctionComponent = () => {
         return () => {
             cancelled = true;
         };
-    }, [context.operation, context.applicationKind, context.workspace, context.existingName, context.existingVersion, context.provider, context.sourceApplicationKind, context.sourceProvider, context.initialCategory, context.developmentTemplate, contextError, navigate]);
+    }, [context.operation, context.applicationKind, context.workspace, context.existingName, context.existingVersion, context.provider, context.sourceApplicationKind, context.sourceProvider, context.initialCategory, context.developmentTemplate, contextError, activeWorkspace, navigate]);
 
     const refreshPlacement = useCallback(async () => {
         if (!creatorIsCustom(context)) return;
@@ -524,7 +558,7 @@ export const Create: React.FunctionComponent = () => {
         void refreshPlacement();
     }, [projectId, refreshPlacement]);
 
-    const onInlineCreatedGroup = useCallback((group: {id: number; title: string; description: string} | null) => {
+    const onInlineCreatedGroup = useCallback((group: CreatorCreatedGroup | null) => {
         setInlineCreatedGroup(group);
     }, []);
 
@@ -549,7 +583,7 @@ export const Create: React.FunctionComponent = () => {
             if (result.ok) {
                 const parameterIds: Record<string, string> = {};
                 for (const name of result.application.parametersOrder) {
-                    parameterIds[name] = current.parameterIds[name] ?? creatorStableId();
+                    assignParameterId(parameterIds, name, current.parameterIds[name] ?? creatorStableId());
                 }
                 let application = result.application;
                 let nameManuallySet = current.nameManuallySet;
@@ -856,6 +890,89 @@ export const Create: React.FunctionComponent = () => {
         onSelectParameter(null);
     }, [draft?.selection.parameterId, draft?.view, onSelectParameter]);
 
+    useEffect(() => {
+        const onFocusIn = (event: FocusEvent) => {
+            const target = event.target instanceof HTMLElement ? event.target : null;
+            if (target?.closest("[data-creator-sidebar]")) sidebarFocusRef.current = target;
+        };
+        document.addEventListener("focusin", onFocusIn);
+        return () => document.removeEventListener("focusin", onFocusIn);
+    }, []);
+
+    const onFocusMainContent = useCallback(() => {
+        window.requestAnimationFrame(() => creatorFocusMainContent());
+    }, []);
+
+    useEffect(() => {
+        if (draft?.view !== "editor") return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== "Escape") return;
+            if (document.querySelector(".ReactModal__Overlay")) return;
+            if (event.defaultPrevented) return;
+            const target = event.target instanceof HTMLElement ? event.target : null;
+            if (target?.closest("[data-row-id]")) return;
+            if (target?.isContentEditable || target instanceof HTMLInputElement ||
+                target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) {
+                if (target.getAttribute("role") === "switch") return;
+                if (target.closest("[data-creator-sidebar]")) {
+                    (target.closest<HTMLElement>("[data-creator-sidebar]") as HTMLElement).focus();
+                } else {
+                    (target as HTMLElement).blur();
+                }
+                return;
+            }
+            if (target?.closest("[data-creator-sidebar]")) {
+                event.preventDefault();
+                onFocusMainContent();
+                return;
+            }
+            const current = draftRef.current;
+            if (current?.selection.parameterId == null) return;
+            event.preventDefault();
+            updateSelection(d => draftSelectParameter(d, null));
+        };
+        document.addEventListener("keydown", onKeyDown);
+        return () => document.removeEventListener("keydown", onKeyDown);
+    }, [draft?.view, updateSelection, onFocusMainContent]);
+
+    useEffect(() => {
+        if (draft?.view !== "editor" && draft?.view !== "preview") return;
+        const view = draft.view;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key !== "ArrowUp" && event.key !== "ArrowDown") return;
+            if (event.metaKey || event.ctrlKey || event.altKey) return;
+            if (document.querySelector(".ReactModal__Overlay")) return;
+            if (event.defaultPrevented) return;
+            const active = document.activeElement;
+            if (active?.closest("[data-row-id]")) return;
+            if (active?.closest(FORM_NAVIGATION_SELECTOR)) return;
+            if (active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement) return;
+            if (active instanceof HTMLInputElement && !active.readOnly) return;
+            if (active instanceof HTMLElement && active.isContentEditable) return;
+            if (active?.closest(".monaco-editor")) return;
+            if (view === "editor") {
+                const rows = Array.from(document.querySelectorAll<HTMLElement>("[data-row-id]"))
+                    .filter(element => element.offsetParent !== null);
+                const row = rows.find(element => element.getAttribute("data-selected") === "true") ?? rows[0];
+                if (!row) return;
+                event.preventDefault();
+                const parameterId = row.getAttribute("data-row-id");
+                if (parameterId != null) {
+                    updateSelection(d => draftSelectParameter(d, parameterId));
+                }
+                row.focus();
+                row.scrollIntoView({block: "nearest"});
+            } else {
+                const field = focusFirstNavigationTarget(document.body, FIELD_NAVIGATION_SELECTOR);
+                if (!field) return;
+                event.preventDefault();
+                field.scrollIntoView({block: "nearest"});
+            }
+        };
+        document.addEventListener("keydown", onKeyDown, true);
+        return () => document.removeEventListener("keydown", onKeyDown, true);
+    }, [draft?.view, updateSelection]);
+
     const onFeatureHighlight = useCallback((target: CreatorHighlightTarget) => {
         updateSelection(d => draftSelectParameter(d, null));
         setTimeout(() => creatorHighlightTarget(target), 50);
@@ -898,9 +1015,24 @@ export const Create: React.FunctionComponent = () => {
         updateApplication(d => draftUpdateEnumeration(d, name, patch));
     }, [updateApplication]);
 
+    const focusAddedRowRef = useRef(false);
+
     const onAddParameter = useCallback((type: A2WidgetType) => {
+        focusAddedRowRef.current = true;
         updateApplication(d => draftAddParameter(d, type));
     }, [updateApplication]);
+
+    useEffect(() => {
+        if (!focusAddedRowRef.current) return;
+        focusAddedRowRef.current = false;
+        const parameterId = draft?.selection.parameterId;
+        if (parameterId == null) return;
+        window.requestAnimationFrame(() => {
+            const row = document.querySelector<HTMLElement>(`[data-row-id="${parameterId}"]`);
+            row?.scrollIntoView({block: "nearest"});
+            row?.focus();
+        });
+    }, [draft?.selection.parameterId]);
 
     const onUpdateMetadata = useCallback((patch: Partial<Pick<A2Yaml, "title" | "description" | "license" | "documentation" | "invocation">>) => {
         updateApplication(d => draftUpdateMetadata(d, patch));
@@ -1101,6 +1233,59 @@ export const Create: React.FunctionComponent = () => {
         }
     }, [draft, saveLoading, validateDraft, navigate]);
 
+    const onReturnToEditor = useCallback(() => {
+        setDraft(current => {
+            if (!current || current.view === "editor") return current;
+            return {...current, view: "editor"};
+        });
+        if (draft?.view === "yaml") {
+            Promise.resolve().then(runParse);
+        }
+    }, [draft?.view, runParse]);
+
+    const onFocusSection = useCallback((key: CreatorSectionKey) => {
+        updateSelection(d => draftSelectParameter(d, null));
+        window.requestAnimationFrame(() => creatorFocusSection(key));
+    }, [updateSelection]);
+
+    const onFocusParameterSection = useCallback((key: CreatorParameterSectionKey) => {
+        window.requestAnimationFrame(() => creatorFocusParameterSection(key));
+    }, []);
+
+    const onFocusSidebar = useCallback(() => {
+        window.requestAnimationFrame(() => {
+            const remembered = sidebarFocusRef.current;
+            if (remembered && remembered.isConnected && remembered.offsetParent !== null &&
+                !isDisabledNavigationTarget(remembered)) {
+                remembered.focus();
+                return;
+            }
+            const sidebar = document.querySelector<HTMLElement>("[data-creator-sidebar]");
+            if (!sidebar) return;
+            const first = focusFirstNavigationTarget(sidebar, FORM_NAVIGATION_SELECTOR);
+            if (!first) sidebar.focus();
+        });
+    }, []);
+
+    const shortcutsEnabled = draft != null && !loading && loadError == null && contextError == null;
+    const parameterSelected = draft?.selection.parameterId != null;
+    const hintsVisible = useCreatorShortcuts(
+        draft?.view ?? null,
+        shortcutsEnabled,
+        {
+            onToggleYaml,
+            onToggleInvocation,
+            onTogglePreview: () => void onPreview(),
+            onReturnToEditor,
+            onSave: () => void onSave(),
+            onFocusSection,
+            onFocusParameterSection,
+            onFocusMainContent,
+            onFocusSidebar,
+        },
+        parameterSelected,
+    );
+
     const renderPreview = useCallback(async (job: JobSpecification, current: CreatorDraft) => {
         if (!previewApplication || previewRendering) return;
         if (draftRevisionRef.current !== current.revision) return;
@@ -1249,32 +1434,40 @@ export const Create: React.FunctionComponent = () => {
     const previewDisabled = draft.sourceTextInvalid;
     const saveTooltip = draft.sourceTextInvalid
         ? "Fix the YAML source before saving"
-        : saveLoading ? "Saving application" : "Save application version";
+        : saveLoading ? "Saving application" : `Save application version (${createKeyboardShortcut("S", ["ctrl"])})`;
     const previewTooltip = draft.view === "preview"
         ? "Back to editor"
         : previewDisabled
         ? "Fix the YAML source before previewing"
-        : previewRendering ? "Rendering preview" : "Preview job creation";
+        : previewRendering ? "Rendering preview" : `Preview job creation (${createKeyboardShortcut("P", ["ctrl", "alt"])})`;
+    const yamlTooltip = draft.view === "yaml"
+        ? `Back to editor (${createKeyboardShortcut("E", ["ctrl", "alt"])})`
+        : `View YAML (${createKeyboardShortcut("Y", ["ctrl", "alt"])})`;
 
     return (
+        <CreatorShortcutHintsProvider visible={hintsVisible}>
         <div className={CreatorShellClass}>
-            <div className={CreatorMainIslandClass} onPointerDown={onMainIslandPointerDown}>
+            <div className={CreatorMainIslandClass} onPointerDown={onMainIslandPointerDown} data-creator-main-content tabIndex={-1}>
                 <div className={CreatorMainHeaderClass}>
                     <EditorHeader draft={draft} />
                     <Box flexGrow={1} />
                     <Flex alignItems="center" gap="4px">
-                        <IconButton
-                            icon="heroCodeBracket"
-                            tooltip={draft.view === "yaml" ? "Back to editor" : "View YAML"}
-                            onClick={onToggleYaml}
-                            color={draft.view === "yaml" ? "primaryMain" : "textSecondary"}
-                        />
-                        <IconButton
-                            icon="heroEye"
-                            tooltip={previewTooltip}
-                            onClick={() => { if (!previewDisabled) void onPreview(); }}
-                            color={draft.view === "preview" ? "primaryMain" : "textSecondary"}
-                        />
+                        <CreatorShortcutControl shortcut="Y">
+                            <IconButton
+                                icon="heroCodeBracket"
+                                tooltip={yamlTooltip}
+                                onClick={onToggleYaml}
+                                color={draft.view === "yaml" ? "primaryMain" : "textSecondary"}
+                            />
+                        </CreatorShortcutControl>
+                        <CreatorShortcutControl shortcut="P">
+                            <IconButton
+                                icon="heroEye"
+                                tooltip={previewTooltip}
+                                onClick={() => { if (!previewDisabled) void onPreview(); }}
+                                color={draft.view === "preview" ? "primaryMain" : "textSecondary"}
+                            />
+                        </CreatorShortcutControl>
                         <TooltipV2 tooltip={saveTooltip}>
                             <Button
                                 type="button"
@@ -1335,6 +1528,8 @@ export const Create: React.FunctionComponent = () => {
                     ref={panelRef}
                     className={CreatorPanelIslandClass}
                     style={{"--panel-width": `${panelWidth}px`} as React.CSSProperties}
+                    data-creator-sidebar
+                    tabIndex={-1}
                 >
                     <div className="panel-resizer" onPointerDown={onResizeStart} />
                     <div className={CreatorPanelBodyClass}>
@@ -1371,9 +1566,11 @@ export const Create: React.FunctionComponent = () => {
                             onInlineCreatedGroup={onInlineCreatedGroup}
                         />
                     </div>
+                    <CreatorShortcutGuide parameterSelected={draft.selection.parameterId != null} />
                 </div>
             ) : null}
         </div>
+        </CreatorShortcutHintsProvider>
     );
 };
 
@@ -1841,7 +2038,7 @@ function CreatorPanel(props: {
     customGroups: AppStore.AppCatalogCustomGroup[];
     customCategories: AppStore.AppCatalogCustomCategory[];
     refreshPlacement: () => Promise<void>;
-    onInlineCreatedGroup: (group: {id: number; title: string; description: string} | null) => void;
+    onInlineCreatedGroup: (group: CreatorCreatedGroup | null) => void;
 }): React.ReactNode {
     const {draft} = props;
     const {selection} = draft;
@@ -1869,46 +2066,51 @@ function CreatorPanel(props: {
 
     return (
         <div ref={scrollRef} className={CreatorPanelScrollClass} onScroll={onPanelScroll}>
-            <div hidden={!showingMetadata}>
-                <MetadataPanel
-                    draft={draft}
-                    readOnly={props.readOnly}
-                    onNameChange={props.onNameChange}
-                    onVersionChange={props.onVersionChange}
-                    onUpdateMetadata={props.onUpdateMetadata}
-                    onUpdateSoftware={props.onUpdateSoftware}
-                    onUpdateFeatures={props.onUpdateFeatures}
-                    onUpdateWeb={props.onUpdateWeb}
-                    onUpdateVnc={props.onUpdateVnc}
-                    onUpdateSsh={props.onUpdateSsh}
-                    onUpdateInference={props.onUpdateInference}
-                    onUpdateModules={props.onUpdateModules}
-                    onUpdateUcx={props.onUpdateUcx}
-                    onUpdateExtensions={props.onUpdateExtensions}
-                    onUpdateEnvironment={props.onUpdateEnvironment}
-                    onUpdateSbatch={props.onUpdateSbatch}
-                    onUpdateCustomMeta={props.onUpdateCustomMeta}
-                    onAddParameter={props.onAddParameter}
-                    customEligibility={props.customEligibility}
-                    customGroups={props.customGroups}
-                    customCategories={props.customCategories}
-                    refreshPlacement={props.refreshPlacement}
-                    onInlineCreatedGroup={props.onInlineCreatedGroup}
-                />
-            </div>
-            {!showingMetadata ? (
-                <ParameterPanel
-                    draft={draft}
-                    readOnly={props.readOnly}
-                    onBack={() => props.onSelectParameter(null)}
-                    onRename={props.onRenameParameter}
-                    onUpdateBase={props.onUpdateBase}
-                    onDelete={props.onDeleteParameter}
-                    onUpdateDefaultValue={props.onUpdateDefaultValue}
-                    onUpdateNumeric={props.onUpdateNumeric}
-                    onUpdateEnumeration={props.onUpdateEnumeration}
-                />
-            ) : null}
+            <KeyboardNavigation
+                navigationSelector={FORM_NAVIGATION_SELECTOR}
+                horizontalSelector={FORM_NAVIGATION_SELECTOR}
+            >
+                <div hidden={!showingMetadata}>
+                    <MetadataPanel
+                        draft={draft}
+                        readOnly={props.readOnly}
+                        onNameChange={props.onNameChange}
+                        onVersionChange={props.onVersionChange}
+                        onUpdateMetadata={props.onUpdateMetadata}
+                        onUpdateSoftware={props.onUpdateSoftware}
+                        onUpdateFeatures={props.onUpdateFeatures}
+                        onUpdateWeb={props.onUpdateWeb}
+                        onUpdateVnc={props.onUpdateVnc}
+                        onUpdateSsh={props.onUpdateSsh}
+                        onUpdateInference={props.onUpdateInference}
+                        onUpdateModules={props.onUpdateModules}
+                        onUpdateUcx={props.onUpdateUcx}
+                        onUpdateExtensions={props.onUpdateExtensions}
+                        onUpdateEnvironment={props.onUpdateEnvironment}
+                        onUpdateSbatch={props.onUpdateSbatch}
+                        onUpdateCustomMeta={props.onUpdateCustomMeta}
+                        onAddParameter={props.onAddParameter}
+                        customEligibility={props.customEligibility}
+                        customGroups={props.customGroups}
+                        customCategories={props.customCategories}
+                        refreshPlacement={props.refreshPlacement}
+                        onInlineCreatedGroup={props.onInlineCreatedGroup}
+                    />
+                </div>
+                {!showingMetadata ? (
+                    <ParameterPanel
+                        draft={draft}
+                        readOnly={props.readOnly}
+                        onBack={() => props.onSelectParameter(null)}
+                        onRename={props.onRenameParameter}
+                        onUpdateBase={props.onUpdateBase}
+                        onDelete={props.onDeleteParameter}
+                        onUpdateDefaultValue={props.onUpdateDefaultValue}
+                        onUpdateNumeric={props.onUpdateNumeric}
+                        onUpdateEnumeration={props.onUpdateEnumeration}
+                    />
+                ) : null}
+            </KeyboardNavigation>
         </div>
     );
 }
@@ -1970,5 +2172,184 @@ function creatorContextKey(context: CreatorOperationContext): string {
         context.initialCategory ?? "",
     ].join("\n");
 }
+
+// Editor header
+// -------------------------------------------------------------------------------------------------------------------
+// Renders the application title from the A2 draft. The title sits in the main-island header bar
+// of the creator shell. It has no margins of its own — the shell controls spacing.
+
+export const EditorHeader: React.FunctionComponent<{
+    draft: CreatorDraft;
+}> = props => {
+    const title = props.draft.application.title || props.draft.application.name || "Untitled application";
+    const selectedGroup = props.draft.placementGroups.find(group => String(group.id) === props.draft.customMeta?.group);
+    const createdGroup = props.draft.placementCreatedGroup != null && String(props.draft.placementCreatedGroup.id) === props.draft.customMeta?.group
+        ? props.draft.placementCreatedGroup : null;
+    const groupTitle = selectedGroup?.specification.title ?? createdGroup?.title ?? title;
+    const logo = selectedGroup?.specification.logo ?? createdGroup?.logo ?? defaultApplicationGroupLogo(groupTitle);
+    return <Flex alignItems="center" gap="8px" minWidth={0}>
+        {creatorIsCustom(props.draft.context)
+            ? <ProceduralLogo logo={logo} size="24px" title={title} />
+            : <EditorHeaderRawLogo title={title} />}
+        <Text fontSize={18} fontWeight={600}>{title}</Text>
+    </Flex>;
+};
+
+function EditorHeaderRawLogo(props: {title: string}): React.ReactNode {
+    const hash = hashF(props.title);
+    return <AppLogoRaw
+        rot={[0, 15, 30][(hash >>> 10) % 3]}
+        color1Offset={(hash >>> 30) & 3}
+        color2Offset={(hash >>> 20) & 3}
+        appC={appColor(hash)}
+        size="24px"
+    />;
+}
+
+// Error summary
+// -------------------------------------------------------------------------------------------------------------------
+// The editor reports parse errors, semantic validation errors, and provider preview errors. They
+// appear in one warning at the top of the main content area.
+//
+// Selecting a parse error switches to the YAML view and jumps to the line. Selecting a semantic
+// error that names a parameter selects that parameter in the visual editor. Errors that do not
+// name a parameter (global errors) just switch to the editor view.
+
+function ErrorSummary(props: {
+    draft: CreatorDraft;
+    onJumpToSourceLine: (line: number, column: number) => void;
+    onFocusParameter: (error: CreatorValidationError) => void;
+    validating?: boolean;
+    extraErrors?: CreatorValidationError[];
+    rateLimit?: {remaining: number; retryAt?: number | string} | null;
+}): React.ReactNode {
+    const {draft} = props;
+    const parseErrors = draft.parseErrors ?? [];
+    const validationErrors = draft.validation.errors;
+    const extraErrors = props.extraErrors ?? [];
+    const warning = props.validating
+        ? "Checking this draft with the server..."
+        : extraErrors.length > 0
+            ? "Preview could not be rendered."
+            : "Fix the following errors before continuing.";
+    const warningKey = [
+        props.validating ? "validating" : "",
+        ...parseErrors.map(formatParseError),
+        ...validationErrors.map(error => `${error.parameterName ?? ""}:${error.message}`),
+        ...extraErrors.map(error => `${error.code ?? ""}:${error.parameterName ?? ""}:${error.message}`),
+    ].join("\u0000");
+    const [dismissedWarningKey, setDismissedWarningKey] = React.useState<string | null>(null);
+
+    React.useEffect(() => {
+        setDismissedWarningKey(null);
+    }, [warningKey]);
+
+    if (parseErrors.length === 0 && validationErrors.length === 0 && extraErrors.length === 0 && !props.validating) return null;
+    if (dismissedWarningKey === warningKey) return null;
+
+    return (
+        <div className={ErrorSummaryClass}>
+            <Warning mb="16px" warning={warning} clearWarning={() => setDismissedWarningKey(warningKey)}>
+                <div id="creator-error-summary">
+                    <ul className={ErrorListClass}>
+                        {parseErrors.map((e, i) => (
+                            <ErrorSummaryItem
+                                key={`p${i}`}
+                                message={formatParseError(e)}
+                                onClick={() => props.onJumpToSourceLine(e.line, e.column)}
+                            />
+                        ))}
+                        {validationErrors.map((e, i) => (
+                            <ErrorSummaryItem
+                                key={`v${i}`}
+                                message={e.message}
+                                onClick={() => props.onFocusParameter(e)}
+                            />
+                        ))}
+                        {extraErrors.map((e, i) => (
+                            <ErrorSummaryItem
+                                key={`x${i}`}
+                                message={e.message}
+                                onClick={() => props.onFocusParameter(e)}
+                            />
+                        ))}
+                    </ul>
+                    {extraErrors.some(error => error.code === "RATE_LIMITED") && props.rateLimit ? (
+                        <Text fontSize={12} color="textSecondary" mt="8px">
+                            {props.rateLimit.retryAt
+                                ? `Try again after ${formatRetryAt(props.rateLimit.retryAt)}.`
+                                : `No requests remain in the current limit window (${props.rateLimit.remaining} remaining).`}
+                        </Text>
+                    ) : null}
+                </div>
+            </Warning>
+        </div>
+    );
+}
+
+function ErrorSummaryItem(props: {message: string; onClick: () => void}): React.ReactNode {
+    return (
+        <li className={ErrorItemClass} onClick={props.onClick} tabIndex={0}
+            onKeyDown={e => {if (e.key === "Enter" || e.key === " ") {e.preventDefault(); props.onClick();}}}
+        >
+            <Text fontSize={13} className="error-item-message">{props.message}</Text>
+        </li>
+    );
+}
+
+function formatParseError(e: CreatorSourceParseError): string {
+    if (e.line > 0) return `Line ${e.line}, column ${e.column}: ${e.message}`;
+    return e.message;
+}
+
+function formatRetryAt(value: number | string): string {
+    // The backend sends an epoch-milliseconds timestamp, either as a number or as a string
+    // containing the digits. new Date("1757000000000") is Invalid Date, so parse strings as
+    // numbers first.
+    const numeric = typeof value === "number" ? value : Number.parseInt(value, 10);
+    if (!Number.isFinite(numeric)) {
+        return "the retry time returned by the server";
+    }
+    const date = new Date(numeric);
+    return Number.isNaN(date.getTime()) ? "the retry time returned by the server" : date.toLocaleTimeString();
+}
+
+const ErrorListClass = injectStyle("creator-error-list", k => `
+    ${k} {
+        margin: 0;
+        padding-left: 20px;
+        list-style: disc;
+    }
+
+    ${k} li {
+        padding: 2px 0;
+    }
+`);
+
+const ErrorSummaryClass = injectStyle("creator-error-summary", k => `
+    ${k} {
+        width: 100%;
+        max-width: 944px;
+        box-sizing: border-box;
+    }
+`);
+
+const ErrorItemClass = injectStyle("creator-error-item", k => `
+    ${k} {
+        cursor: pointer;
+        color: var(--textPrimary);
+    }
+
+    ${k}:hover, ${k}:focus {
+        background: var(--backgroundCardHover);
+        outline: none;
+    }
+
+    ${k} .error-item-message {
+        min-width: 0;
+        word-break: break-word;
+        white-space: pre-wrap;
+    }
+`);
 
 export default Create;

@@ -42,6 +42,12 @@ func (c *AsyncCache[K, V]) Invalidate(key K) {
 	c.mutex.Unlock()
 }
 
+func (c *AsyncCache[K, V]) InvalidateAll() {
+	c.mutex.Lock()
+	c.entries = make(map[K]*cacheEntry[V])
+	c.mutex.Unlock()
+}
+
 func (c *AsyncCache[K, V]) Get(key K, valueGetter func() (V, error)) (V, bool) {
 	result := c.GetEx(key, valueGetter)
 	return result.Value, result.Ok

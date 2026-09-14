@@ -1,6 +1,6 @@
 import * as React from "react";
 import {Button} from "@/ui-components/index";
-import {CSSProperties, useCallback, useLayoutEffect, useRef, useState} from "react";
+import {useCallback, useLayoutEffect, useRef} from "react";
 import {ButtonClass, ButtonProps} from "@/ui-components/Button";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {doNothing} from "@/UtilityFunctions";
@@ -10,52 +10,87 @@ import {divHtml} from "@/Utilities/HTMLUtilities";
 
 const ConfirmButtonClass = injectStyle("confirm-button", k => `
     ${k} {
-        --progress-border: var(--backgroundDefault, #f00);
-        --progress-active: var(--textPrimary, #f00);
-        --progress-success: white;
         --color: var(--errorContrast);
         --background: var(--errorMain, #f00);
         --tick-stroke: white;
-        
+
+        position: relative;
         outline: none;
         user-select: none;
         -webkit-user-select: none;
         cursor: pointer;
         backface-visibility: hidden;
         min-width: 200px;
+        justify-content: flex-start;
+        gap: var(--icon-gap, 5px);
         background: var(--background, #f00);
-        font-size: 16px;
-        font-weight: 500;
-        transform: scale(1);
     }
-    
-    ${k}[data-square="true"]:hover {
-        --progress-border: var(--hoverColor, var(--primaryMain));
-        --background: var(--hoverColor, var(--primaryMain)) !important;
+
+    ${k}[data-align="center"] {
+        justify-content: center;
     }
-    
-    ${k}[data-square="true"] {
-        border-radius: 0;
-        min-width: 200px;
-        font-weight: 400;
-    }
-    
+
     ${k}[data-no-text="true"] {
+        justify-content: center;
         min-width: 50px;
     }
-    
-    ${k} > .icons {
-        border-radius: 50%;
-        top: 9px;
-        left: 15px;
+
+    ${k}[data-no-icon="true"]:not([data-no-text="true"]) {
+        justify-content: center;
+    }
+
+    ${k}:hover .icons:before {
+        background: var(--hoverColor, var(--background));
+    }
+
+    ${k} .icon-slot {
+        position: relative;
+        width: var(--icon-slot, 18px);
+        height: var(--icon-slot, 18px);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    ${k}[data-no-icon="true"] .icon-slot {
         position: absolute;
+        left: 1.2em;
+        top: 0;
+        bottom: 0;
+        margin: auto 0;
+    }
+
+    ${k}[data-no-icon="true"][data-no-text="true"] .icon-slot {
+        left: 0;
+        right: 0;
+        margin: auto;
+    }
+
+    ${k} .icon-slot svg,
+    ${k} .icon-slot img {
+        margin: 0;
+    }
+
+    ${k} .shaking {
+        transform: translate3d(0, 0, 0);
+        animation: button-shake 0.82s cubic-bezier(.36, .07, .19, .97) both;
+    }
+
+    ${k} .icons {
+        border-radius: 50%;
+        position: absolute;
+        inset: 0;
+        margin: auto;
+        width: 20px;
+        height: 20px;
         overflow-y: hidden;
         transition: transform .3s, opacity .2s;
         opacity: var(--icon-o, 0);
         transform: translateX(var(--icon-x, -4px));
     }
-    
-    ${k} > .icons:before {
+
+    ${k} .icons:before {
         content: '';
         width: 16px;
         height: 16px;
@@ -68,7 +103,7 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         transform: scale(var(--background-scale, 1));
         transition: transform .32s ease;
     }
-    
+
     ${k} .icons > svg {
         display: block;
         fill: none;
@@ -105,49 +140,53 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         stroke-dashoffset: var(--tick-offset, 18);
         transition: stroke-dashoffset .4s ease .7s;
     }
-    
-    ${k} ul {
-        padding: 0;
-        margin: 0;
+
+    ${k} .text-stack {
+        display: inline-grid;
+        overflow-y: hidden;
         pointer-events: none;
-        list-style: none;
-        min-width: 80%;
-        backface-visibility: hidden;
-        transition: transform .3s;
-        position: relative;
-        
-        /* this has custom styling based on too many properties, set them inline */
-    }
-    
-    ${k} .shaking {
-        transform: translate3d(0, 0, 0);
-        animation: button-shake 0.82s cubic-bezier(.36, .07, .19, .97) both;
-    }
-    
-    ${k}:disabled:hover {
-        background: var(--hoverColor);
+        text-align: center;
+        white-space: nowrap;
     }
 
-    ${k} ul li {
+    ${k}[data-align="left"] .text-stack {
+        text-align: left;
+    }
+
+    ${k} .text-stack > span {
+        grid-row: 1;
+        grid-column: 1;
         backface-visibility: hidden;
-        transform: translateY(var(--ul-y)) translateZ(0);
+    }
+
+    ${k}.success .text-stack > span,
+    ${k}.process .text-stack > span {
         transition: transform .3s ease .16s, opacity .2s ease .16s;
     }
 
-    ${k} ul li:not(:first-child) {
-        --o: 0;
-        position: absolute;
-        left: 0;
-        right: 0;
-    }
-    
-    ${k} ul li:nth-child(1) {
-        opacity: var(--ul-o-1, 1);
+    ${k} .line-main {
+        transform: translateY(var(--main-y, 0));
+        opacity: var(--main-o, 1);
     }
 
-    ${k} ul li:nth-child(2) {
-        top: 100%;
-        opacity: var(--ul-o-2, 0);
+    ${k} .line-hold {
+        transform: translateY(var(--hold-y, 0));
+        opacity: var(--hold-o, 0);
+    }
+
+    ${k} .line-done {
+        transform: translateY(var(--done-y, 100%));
+        opacity: var(--done-o, 0);
+    }
+
+    ${k}.hint:not(.success),
+    ${k}:hover:not(.success):not(:disabled) {
+        --main-o: 0;
+        --hold-o: 1;
+    }
+
+    ${k}:disabled:hover {
+        background: var(--hoverColor);
     }
 
     ${k}.process {
@@ -160,41 +199,36 @@ const ConfirmButtonClass = injectStyle("confirm-button", k => `
         --progress-array: 52;
     }
 
-    ${k}.process > .ucloud-native-icons, ${k}.success > .ucloud-native-icons, ${k}.success .progress {
+    ${k}.process .icon-slot > :not(.icons),
+    ${k}.success .icon-slot > :not(.icons),
+    ${k}.success .icons > svg.progress {
         opacity: 0;
     }
 
-    ${k} .ucloud-native-icons {
-        position: absolute;
-        left: 15px;
-    }
-    
-    ${k}[data-square="true"]:hover {
-        transform: scale(1);
-    }
-    
     ${k}.success {
         --icon-x: 6px;
-        --progress-border: none;
         --progress-scale: .11;
         --tick-stroke: white;
         --background-scale: 0;
         --tick-offset: 36;
-        --ul-y: -100%;
-        --ul-o-1: 0;
-        --ul-o-2: 1;
+        --main-y: -100%;
+        --main-o: 0;
+        --hold-y: -100%;
+        --hold-o: 0;
+        --done-y: 0;
+        --done-o: 1;
     }
 
-    ${k}.success > .icons svg.progress {
+    ${k}.success .icons > svg.progress {
         animation: tick .3s linear forwards .4s;
     }
-    
+
     @keyframes tick {
         100% {
             transform: rotate(-90deg) translate(0, -5px) scale(var(--progress-scale));
         }
     }
-    
+
     @keyframes button-shake {
         10%, 90% {
             transform: translate3d(-1px, 0, 0);
@@ -232,6 +266,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     actionText?: string,
     icon?: IconName,
     iconSize?: number,
+    iconSpacing?: string,
     align?: "left" | "center",
     actionKey?: string;
     onAction?: (actionKey?: string) => Promise<void>;
@@ -241,7 +276,6 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const timeout = useRef(-1);
     const timer = useRef(holdToConfirmTime);
-    const [showHelp, setShowHelp] = useState(false);
     const [tempStartedKey] = React.useState(new Date().getTime());
     const wasReset = useRef(false);
 
@@ -310,9 +344,9 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
             for (let i = 0; i < button.children.length; i++) {
                 button.children.item(i)?.classList.add("shaking");
             }
-            setShowHelp(true);
+            button.classList.add("hint");
             setTimeout(() => {
-                setShowHelp(false);
+                button.classList.remove("hint");
                 for (let i = 0; i < button.children.length; i++) {
                     button.children.item(i)?.classList.remove("shaking");
                 }
@@ -331,30 +365,24 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         button.style.setProperty("--duration", `${holdToConfirmTime}ms`);
         button.style.setProperty("--hoverColor", `var(--${props.hoverColor ?? selectHoverColor(colorOrDefault)})`)
         button.style.setProperty("--color", `var(--${props.textColor ?? selectContrastColor(colorOrDefault)})`)
-        button.style.setProperty("--progress-border", `var(--${selectHoverColor(colorOrDefault)})`)
         button.style.setProperty("--background", `var(--${colorOrDefault})`)
+        button.style.setProperty("--icon-slot", `${props.iconSize ?? 18}px`)
+        button.style.setProperty("--icon-gap", props.iconSpacing ?? "5px")
         button.style.removeProperty("background-color");
         button.setAttribute("data-no-text", (!props.actionText).toString());
-    }, [buttonRef.current, props.actionText, props.hoverColor, props.color, props.textColor]);
+        button.setAttribute("data-no-icon", (!props.icon).toString());
+        const alignOrDefault = props.align ?? (props.actionText && props.icon ? "left" : "center");
+        button.setAttribute("data-align", alignOrDefault);
+    }, [buttonRef.current, props.actionText, props.hoverColor, props.color, props.textColor, props.icon, props.align, props.iconSpacing, props.iconSize]);
 
     const passedProps = {...props};
     delete passedProps.onAction;
-
-    const ulStyle: CSSProperties = {};
-    if (props.align === "left" && props.asSquare) ulStyle.marginLeft = "34px";
-    if (props.align !== "center") {
-        ulStyle.textAlign = "left";
-    } else {
-        ulStyle.textAlign = "center";
-    }
 
     return <Button
         {...passedProps}
         onMouseDown={start}
         onTouchStart={start}
-        onMouseEnter={() => setShowHelp(true)}
         onMouseLeave={() => {
-            setShowHelp(false);
             if (startedMap[tempStartedKey]) end();
         }}
         onMouseUp={end}
@@ -365,22 +393,23 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         data-tag={"confirm-button"}
         width={props.width}
     >
-        {!props.icon ? null : <div className={"ucloud-native-icons"}>
-            <Icon name={props.icon} size={props.iconSize ?? 20} mb="3px" />
-        </div>}
-        <div className={"icons"}>
-            <svg className="progress" viewBox="0 0 32 32">
-                <circle r="8" cx="16" cy="16" />
-            </svg>
-            <svg className="tick" viewBox="0 0 24 24">
-                <polyline points="18,7 11,16 6,12" />
-            </svg>
-        </div>
+        <span className={"icon-slot"}>
+            {props.icon ? <Icon name={props.icon} size={props.iconSize ?? 18} /> : null}
+            <span className={"icons"}>
+                <svg className="progress" viewBox="0 0 32 32">
+                    <circle r="8" cx="16" cy="16" />
+                </svg>
+                <svg className="tick" viewBox="0 0 24 24">
+                    <polyline points="18,7 11,16 6,12" />
+                </svg>
+            </span>
+        </span>
         {!props.actionText ? null : (
-            <ul style={ulStyle}>
-                <li>{showHelp ? "Hold to confirm" : props.actionText}</li>
-                <li>Done</li>
-            </ul>
+            <span className={"text-stack"}>
+                <span className="line-main">{props.actionText}</span>
+                <span className="line-hold" aria-hidden={true}>Hold to confirm</span>
+                <span className="line-done" aria-hidden={true}>Done</span>
+            </span>
         )}
     </Button>;
 };
@@ -405,6 +434,8 @@ export function ConfirmationButtonPlainHTML(
         button.style.maxHeight = "40px";
         button.className = classConcat(ConfirmButtonClass, ButtonClass);
         button.setAttribute("data-no-text", (!actionText).toString());
+        button.setAttribute("data-no-icon", (!icon).toString());
+        button.setAttribute("data-align", opts.align ?? (actionText && icon ? "left" : "center"));
         button.setAttribute("data-attached", "false");
         button.setAttribute("data-square", (!!opts.asSquare).toString());
         button.setAttribute("data-fullwidth", "false");
@@ -415,7 +446,6 @@ export function ConfirmationButtonPlainHTML(
         button.style.setProperty("--duration", `${holdToConfirmTime}ms`);
         button.style.setProperty("--hoverColor", `var(--${opts.hoverColor ?? selectHoverColor(colorOrDefault)})`)
         button.style.setProperty("--color", `var(--${opts.textColor ?? selectContrastColor(colorOrDefault)})`)
-        button.style.setProperty("--progress-border", `var(--${selectHoverColor(colorOrDefault)})`)
         button.style.setProperty("--background", `var(--${colorOrDefault})`)
         button.style.removeProperty("background-color");
         if (opts.disabled) {
@@ -441,10 +471,9 @@ export function ConfirmationButtonPlainHTML(
             for (let i = 0; i < button.children.length; i++) {
                 button.children.item(i)?.classList.add("shaking");
             }
-            const firstLi = button.querySelector("li");
-            if (firstLi) firstLi.innerText = "Hold to confirm"
+            button.classList.add("hint");
             setTimeout(() => {
-                if (firstLi) firstLi.innerText = actionText ?? "";
+                button.classList.remove("hint");
                 for (let i = 0; i < button.children.length; i++) {
                     button.children.item(i)?.classList.remove("shaking");
                 }
@@ -482,22 +511,15 @@ export function ConfirmationButtonPlainHTML(
 
     button.onmousedown = start;
     button.ontouchstart = start;
-    button.onmouseenter = () => {
-        actionTextLi.innerText = "Hold to confirm";
-    };
-    button.onmouseleave = () => {
-        actionTextLi.innerText = actionText;
-        end();
-    };
+    button.onmouseleave = end;
     button.onmouseup = end;
     button.ontouchend = end;
     button.onclick = e => e.stopImmediatePropagation();
     button.type = "button";
 
-    const divEl = document.createElement("div");
-    divEl.className = "ucloud-native-icons";
-    divEl.append(icon);
-    button.append(divEl);
+    const slotEl = document.createElement("span");
+    slotEl.className = "icon-slot";
+    slotEl.append(icon);
 
     const icons = divHtml(`
         <svg class="progress" viewBox="0 0 32 32">
@@ -509,26 +531,30 @@ export function ConfirmationButtonPlainHTML(
     `);
 
     icons.classList.add("icons");
-    button.append(icons);
+    slotEl.append(icons);
+    button.append(slotEl);
 
-    const ul = document.createElement("ul");
-    if (opts.align === "left" && opts.asSquare) ul.style.marginLeft = "34px";
-    if (opts.align !== "left") {
-        ul.style.textAlign = "center";
-    } else {
-        ul.style.textAlign = "left";
-    }
+    const stack = document.createElement("span");
+    stack.className = "text-stack";
 
-    ul.style.maxHeight = "40px";
-    ul.style.overflowY = "hidden";
+    const mainLine = document.createElement("span");
+    mainLine.className = "line-main";
+    mainLine.innerText = actionText;
+    stack.append(mainLine);
 
-    const actionTextLi = document.createElement("li");
-    actionTextLi.innerText = actionText;
-    ul.append(actionTextLi);
-    const doneTextLi = document.createElement("li");
-    doneTextLi.innerText = "Done";
-    ul.append(doneTextLi);
-    button.append(ul);
+    const holdLine = document.createElement("span");
+    holdLine.className = "line-hold";
+    holdLine.setAttribute("aria-hidden", "true");
+    holdLine.innerText = "Hold to confirm";
+    stack.append(holdLine);
+
+    const doneLine = document.createElement("span");
+    doneLine.className = "line-done";
+    doneLine.setAttribute("aria-hidden", "true");
+    doneLine.innerText = "Done";
+    stack.append(doneLine);
+
+    button.append(stack);
 
     return button;
 }

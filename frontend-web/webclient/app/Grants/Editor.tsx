@@ -1148,10 +1148,6 @@ const style = injectStyle("grant-editor", k => `
         width: 200px;
     }
     
-    ${k} header [data-tag=confirm-button] ul {
-        left: 10px;
-    }
-    
     ${k} header.at-top {
         box-shadow: unset;
     }

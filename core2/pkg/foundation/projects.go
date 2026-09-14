@@ -1969,6 +1969,9 @@ func ProjectUpdateSubProjectRenamingSettings(actor rpc.Actor, request fndapi.Pro
 }
 
 func ProjectUpdateSettings(actor rpc.Actor, request fndapi.ProjectUpdateSettingsRequest) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
 	if !actor.Project.Present {
 		return util.HttpErr(http.StatusBadRequest, "This request requires an active project")
 	}

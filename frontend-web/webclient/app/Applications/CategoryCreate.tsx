@@ -114,7 +114,6 @@ export default function CategoryCreate(): React.ReactNode {
         setError(null);
         try {
             const result = await callAPI<{id: number}>(AppStore.createCustomCategory({
-                kind: "Custom",
                 specification: {title, description},
                 acl,
             }));

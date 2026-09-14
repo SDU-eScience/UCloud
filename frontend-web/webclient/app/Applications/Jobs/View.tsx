@@ -527,8 +527,9 @@ export function View(props: { id?: string; embedded?: boolean; }): React.ReactNo
                 <div className="logo-scale">
                     <div className="logo">
                         <SafeLogo name={job?.specification?.application?.name ?? appNameHint}
-                                  type={"APPLICATION"}
-                                  size={"var(--logoSize)"}/>
+                            type={"APPLICATION"}
+                            groupId={job?.status.resolvedApplication?.metadata.groupId ?? job?.status.resolvedApplication?.metadata.group?.metadata.id}
+                            size={"var(--logoSize)"} />
                     </div>
                 </div>
             </div>

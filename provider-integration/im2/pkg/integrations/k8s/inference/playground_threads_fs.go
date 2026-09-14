@@ -14,6 +14,25 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+// Inference playground thread storage
+// =====================================================================================================================
+// This file stores playground threads as versioned JSON in the member filesystem. The files remain user-accessible, so
+// users can inspect or delete their chat data without help from operators. The application layer in `playground.go`
+// owns live state and calls this file only to load summaries or flush buffered changes.
+//
+// The store partitions files by UTC creation date. Date partitioning avoids one flat directory as history grows. A load
+// retains the 30 most recently updated valid threads. This bound limits state held during startup and state sent to the
+// UI. Writes use atomic replacement, and deletion uses the storage path retained when each thread was loaded.
+
+// Persisted schema
+// ---------------------------------------------------------------------------------------------------------------------
+// Playground data lives below `Inference/Chats`. Reads reject files above the JSON size limit. The load limit applies
+// after records are validated, deduplicated by thread ID, and sorted by update time.
+//
+// `playgroundPersistedThread` defines the versioned top-level record. `playgroundPersistedMessage` stores message text,
+// parts, model details, timing, and output usage. Timestamps use strings in the persisted format, while application
+// state uses Unix milliseconds. JSON omits optional message fields but always stores thread identity, usage, and history.
+
 const (
 	playgroundChatsSubPath      = "Inference/Chats"
 	playgroundThreadLoadLimit   = 30
@@ -43,6 +62,28 @@ type playgroundPersistedMessage struct {
 	FirstTokenAt string                      `json:"firstTokenAt,omitempty"`
 	FinishedAt   string                      `json:"finishedAt,omitempty"`
 	OutputTokens int64                       `json:"outputTokens,omitempty"`
+}
+
+// Public summaries and load
+// ---------------------------------------------------------------------------------------------------------------------
+// `InferencePlaygroundThreadSummaries` exposes the same retained thread set as lightweight API summaries.
+// `inferencePlaygroundThreadsLoad` initializes the member filesystem, creates the chat root when needed, discovers JSON
+// files, and ignores invalid or empty records. Empty records do not represent materialized chats.
+//
+// Loading keeps the newest record when more than one file contains the same thread ID. It then sorts all threads by
+// update time and retains 30. This limit bounds both startup-held application state and the thread state sent to the UI.
+
+func InferencePlaygroundThreadSummaries(owner string, project util.Option[string]) []orcapi.InferencePlaygroundThread {
+	threads := inferencePlaygroundThreadsLoad(owner, project)
+	result := make([]orcapi.InferencePlaygroundThread, 0, len(threads))
+	for _, thread := range threads {
+		result = append(result, orcapi.InferencePlaygroundThread{
+			Id:        thread.Id,
+			Title:     thread.Title,
+			UpdatedAt: thread.UpdatedAt,
+		})
+	}
+	return result
 }
 
 func inferencePlaygroundThreadsLoad(owner string, project util.Option[string]) []playgroundChatThread {
@@ -81,18 +122,14 @@ func inferencePlaygroundThreadsLoad(owner string, project util.Option[string]) [
 	return threads
 }
 
-func InferencePlaygroundThreadSummaries(owner string, project util.Option[string]) []orcapi.InferencePlaygroundThread {
-	threads := inferencePlaygroundThreadsLoad(owner, project)
-	result := make([]orcapi.InferencePlaygroundThread, 0, len(threads))
-	for _, thread := range threads {
-		result = append(result, orcapi.InferencePlaygroundThread{
-			Id:        thread.Id,
-			Title:     thread.Title,
-			UpdatedAt: thread.UpdatedAt,
-		})
-	}
-	return result
-}
+// Flush and write flow
+// ---------------------------------------------------------------------------------------------------------------------
+// `inferencePlaygroundThreadsFlush` returns immediately when no thread or deletion is dirty. The periodic caller in
+// `playground.go` uses this batching to avoid synchronous filesystem work for every message or streaming event.
+//
+// A flush verifies filesystem access and rejects writes to a locked drive. It deletes requested paths, writes each
+// nonempty dirty thread with atomic replacement, and removes an old file if the creation-based target path changed.
+// Lazy thread materialization keeps empty threads out of this write path and therefore avoids empty files.
 
 func inferencePlaygroundThreadsFlush(owner string, project util.Option[string], threads []playgroundChatThread, deletedThreadIds []string, deletedThreadPaths []string) bool {
 	dirty := len(deletedThreadIds) > 0 || len(deletedThreadPaths) > 0
@@ -160,6 +197,16 @@ func inferencePlaygroundThreadsFlush(owner string, project util.Option[string], 
 
 	return true
 }
+
+// Discovery and read
+// ---------------------------------------------------------------------------------------------------------------------
+// `playgroundThreadPaths` walks the expected year, month, and day directory levels in descending name order. It accepts
+// visible JSON files only and skips unexpected files or directories. This focused discovery keeps unrelated member
+// files outside the playground load path.
+//
+// `playgroundSortedChildren` provides stable traversal order, and `playgroundIsDir` validates every directory level.
+// `playgroundThreadRead` enforces the size limit, decodes JSON, validates and converts the record, and records its exact
+// storage path for later deletion or relocation.
 
 func playgroundThreadPaths(root string) []string {
 	years := playgroundSortedChildren(root, true)
@@ -235,6 +282,16 @@ func playgroundThreadRead(path string) (playgroundChatThread, bool) {
 	thread.StoragePath = path
 	return thread, true
 }
+
+// Conversion
+// ---------------------------------------------------------------------------------------------------------------------
+// `playgroundThreadPersisted` converts live messages and thread usage to version 1 JSON records. It formats each event
+// time as UTC text and preserves message parts so the UI can restore attachments, reasoning, and tool output.
+//
+// `playgroundThreadFromPersisted` accepts version 1 records with an ID and valid thread creation and update times. It
+// rebuilds presentation parts for older records that have only content and reasoning. Missing titles use `New thread`.
+// Missing latest-query usage uses `playgroundPersistedLastQueryFallback`, which derives a bounded output value from the
+// last assistant message and the cumulative usage record.
 
 func playgroundThreadPersisted(thread playgroundChatThread) playgroundPersistedThread {
 	messages := make([]playgroundPersistedMessage, 0, len(thread.Messages))
@@ -348,6 +405,16 @@ func playgroundPersistedLastQueryFallback(usage InferencePlaygroundTokenUsage, m
 		Reported:    reported,
 	}
 }
+
+// Paths and time
+// ---------------------------------------------------------------------------------------------------------------------
+// `playgroundChatsRoot` joins the member base path with the playground subpath. `playgroundThreadPath` partitions each
+// file by the UTC year, month, and day of thread creation. `playgroundThreadFileName` combines that UTC creation time
+// with the thread ID to provide a readable and stable JSON filename.
+//
+// `playgroundThreadCreatedTime` prefers creation time, then update time, then the current time when neither exists.
+// `playgroundFormatTime` writes UTC timestamps with millisecond precision and leaves zero values empty.
+// `playgroundParseTime` accepts RFC 3339 values, including higher precision, and returns Unix milliseconds.
 
 func playgroundChatsRoot(basePath string) string {
 	return filepath.Join(basePath, playgroundChatsSubPath)
