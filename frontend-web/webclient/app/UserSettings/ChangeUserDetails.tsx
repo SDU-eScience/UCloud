@@ -6,6 +6,7 @@ import {Box, Button, Flex, Icon, Input, Label, Truncate} from "@/ui-components";
 import {PayloadAction} from "@reduxjs/toolkit";
 import ResearchFields from "@/UserSettings/ResearchField";
 import Positions from "@/UserSettings/Position";
+
 const SortedPositions = Positions.sort((a, b) => a.key.localeCompare(b.key));
 import KnownDepartments from "@/UserSettings/KnownDepartments"
 import KnownOrgs from "@/UserSettings/KnownOrgs";
@@ -174,6 +175,7 @@ export async function addOrgInfoModalIfNotFilled(): Promise<void> {
     const result = await callAPI<OptionalInfo>(optionalInfoRequest());
     if (!result.department || !result.organizationFullName || !result.unit || !result.position || !result.researchField || !result.gender) {
         let tries = 10;
+
         function addDialog() {
             if (tries < 0) return;
             const {pathname} = window.location;
@@ -332,9 +334,9 @@ export function ChangeOrganizationDetails(props: ChangeOrganizationDetailsProps)
                 {props.inModal ? <span>This can be filled out at a later time, but is required when applying for resources.</span> : null}
                 <NewDataList id="organization" ref={orgFullNameRef} disabled={!!Client.orgId} items={KnownOrgs} didUpdateQuery={setOrg} onSelect={({value}) => setOrg(value)} title={"Organization"} placeholder={`University of Southern Denmark”, “Aarhus University”`} />
                 <Department org={org} ref={departmentRef} />
-            <NewDataList ref={unitRef} title={"Unit"} isFreetext items={[]} placeholder={`“Section for Data Science and Statistics”, “Center for Humanities Computing”, “Design Lab”`} />
-            <NewDataList title="Position" placeholder="VIP/TAP/Student" items={SortedPositions} ref={positionRef} />
-            <NewDataList title={"Primary research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
+                <NewDataList ref={unitRef} title={"Unit"} isFreetext items={[]} placeholder={`“Section for Data Science and Statistics”, “Center for Humanities Computing”, “Design Lab”`} />
+                <NewDataList title="Position" placeholder="VIP/TAP/Student" items={SortedPositions} ref={positionRef} />
+                <NewDataList title={"Primary research field"} ref={researchFieldRef} items={ResearchFields} disabled={false} placeholder={ResearchFields[RFIndex].value} />
                 <NewDataList title={"Gender"} ref={genderFieldRef} items={Genders} disabled={false} placeholder="Prefer not to say" />
                 {props.getValues ? null : <Button onClick={onSubmit} mt="1em" type="button" color="successMain">Update information</Button>}
             </Box>
@@ -364,10 +366,11 @@ function dataListItem(key: string, value: string, tags: string, unselectable?: b
     };
 }
 
-function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext, ref, didUpdateQuery, id}: {
+export function NewDataList({items, onSelect, title, disabled, placeholder, RenderRow = ({item}) => <Truncate>{item.value}</Truncate>, isFreetext, ref, didUpdateQuery, id}: {
     id?: string;
     items: DataListItem[];
     onSelect?: (arg: DataListItem) => void;
+    RenderRow?: ({item}: {item: DataListItem}) => React.ReactNode;
     title: string;
     disabled?: boolean;
     placeholder: string;
@@ -375,7 +378,6 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
     ref: React.RefObject<HTMLInputElement | null>
     didUpdateQuery?: (val: string) => void;
 }) {
-    const portal = usePortal();
     const [query, setQuery] = useState("");
     const [open, setOpen] = useState(false);
 
@@ -431,9 +433,9 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
     const minimumWidth = 500;
     let dialogWidth = Math.min(Math.max(minimumWidth, boxRect.width), window.innerWidth - boxRect.x - 16);
     {
-        const dialogOutOfBounds = (): boolean => {
-            return dialogX <= 0 || dialogY <= 0 ||
-            dialogY + dialogHeight >= window.innerHeight || dialogHeight < 200;}
+        const dialogOutOfBounds = (): boolean =>
+            dialogX <= 0 || dialogY <= 0 ||
+            dialogY + dialogHeight >= window.innerHeight || dialogHeight < 200;
 
         // Attempt to move the dialog box up a bit
         if (dialogOutOfBounds()) dialogY = boxRect.y + 30;
@@ -466,18 +468,17 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
 
     const hasUnselectable = React.useMemo(() => items.find(it => it.unselectable) != null, [items]);
 
-    return <Box mt="0.5em" pt="0.5em" >
+    return <Box mt={title ? "0.5em" : 0} pt={title ? "0.5em" : 0}>
         <Label>
             {title}
             <Flex>
                 <Input
                     id={id}
-                    placeholder={`Example: ${placeholder}`}
+                    placeholder={placeholder}
                     inputRef={ref}
                     cursor={isFreetext ? "text" : "pointer"}
                     data-is-freetext={isFreetext}
                     className={DataListInput}
-                    title={ref.current?.value}
                     disabled={disabled}
                     onFocus={() => setOpen(true)}
                     // Note(Jonas): If already focused, but closed and user clicks again
@@ -514,7 +515,7 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
             </Flex>
         </Label>
         {items.length > 0 && open ?
-            ReactDOM.createPortal(<Box
+            <Box
                 data-has-unselectable={hasUnselectable}
                 className={classConcat(SelectorDialog, DataListWrapper)}
                 style={{position: "fixed", paddingBottom: 0, left: dialogX, top: dialogY, width: dialogWidth, height: dialogHeight}}
@@ -524,7 +525,8 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
                 overflowY="scroll"
             >
                 {result.map((it, idx) =>
-                    <Truncate key={it.key}
+                    <Box
+                        key={it.key}
                         cursor={it.unselectable ? "not-allowed" : "pointer"}
                         className={DataListRowItem}
                         data-active={searchIndex === idx}
@@ -539,9 +541,11 @@ function NewDataList({items, onSelect, title, disabled, placeholder, isFreetext,
                             setOpen(false);
                             ref.current.value = it.value;
                             onSelect?.(it);
-                        }} height="32px">{it.value}</Truncate>)
+                        }} height="32px">
+                        <RenderRow item={it} />
+                    </Box>)
                 }
-            </Box>, portal) : null}
+            </Box> : null}
     </Box>
 
     function nextValidIndex(dir: 1 | -1) {

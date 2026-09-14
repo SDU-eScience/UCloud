@@ -61,7 +61,6 @@ func initDrives() {
 
 	orcapi.DrivesSearch.Handler(func(info rpc.RequestInfo, request orcapi.DrivesSearchRequest) (fndapi.PageV2[orcapi.Drive], *util.HttpError) {
 		// TODO Sorting through the items would be ideal
-
 		items := ResourceBrowse[orcapi.Drive](info.Actor, driveType, request.Next, request.ItemsPerPage, request.ResourceFlags, func(item orcapi.Drive) bool {
 			return strings.Contains(strings.ToLower(item.Specification.Title), strings.ToLower(request.Query))
 		}, nil)

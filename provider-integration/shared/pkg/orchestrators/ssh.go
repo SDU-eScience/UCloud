@@ -12,12 +12,16 @@ var SshCreate = rpc.Call[fnd.BulkRequest[SshKeySpecification], fnd.BulkResponse[
 	BaseContext: sshBaseContext,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var SshRetrieve = rpc.Call[fnd.FindByStringId, SshKey]{
 	BaseContext: sshBaseContext,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type SshKeysBrowseRequest struct {
@@ -29,12 +33,16 @@ var SshBrowse = rpc.Call[SshKeysBrowseRequest, fnd.PageV2[SshKey]]{
 	BaseContext: sshBaseContext,
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var SshDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], util.Empty]{
 	BaseContext: sshBaseContext,
 	Convention:  rpc.ConventionDelete,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 const sshControlBaseContext = "ssh/control"

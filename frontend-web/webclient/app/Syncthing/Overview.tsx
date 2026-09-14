@@ -211,7 +211,7 @@ function uiReducer(state: UIState, action: UIAction): UIState {
 // Primary user interface
 // ================================================================================
 export const Overview: React.FunctionComponent = () => {
-    return <NewOverview />;
+    return <NewOverview/>;
 };
 
 const NewOverview: React.FunctionComponent = () => {

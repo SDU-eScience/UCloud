@@ -35,6 +35,7 @@ import {addStandardDialog} from "@/UtilityComponents";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import BaseLink from "@/ui-components/BaseLink";
 import {sendInformationNotification} from "@/Notifications";
+import {Feature, hasFeature} from "@/Features";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -683,6 +684,7 @@ const MemberCard: React.FunctionComponent<{
 
     const isUserAdminRole = role === OldProjectRole.ADMIN;
     const isUserUserRole = role === OldProjectRole.USER;
+    const isUserDataManagerRole = role === OldProjectRole.DATAMANAGER;
     const isUserPIRole = role === OldProjectRole.PI;
 
     return <ListRow
@@ -741,6 +743,10 @@ const MemberCard: React.FunctionComponent<{
                                     id={"Admin" + props.member.username}
                                     name={"Admin" + props.member.username}
                                     onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.ADMIN)} /> : null}
+                                {hasFeature(Feature.DATAMANAGER_ROLE) ? <RadioTile fontSize={"6px"} checked={isUserDataManagerRole} height={35}
+                                    icon={"heroDocumentChartBar"}
+                                    label={"Datamanager"} name={"DataManager" + props.member.username}
+                                    onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.DATAMANAGER)} /> : null}
                                 <RadioTile fontSize={"6px"} checked={isUserUserRole} height={35}
                                     icon={"heroUsers"} id={"User" + props.member.username}
                                     label={"User"} name={"User" + props.member.username}

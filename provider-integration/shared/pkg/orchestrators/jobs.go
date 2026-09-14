@@ -451,6 +451,8 @@ var JobsCreate = rpc.Call[fnd.BulkRequest[JobSpecification], fnd.BulkResponse[fn
 	BaseContext: jobNamespace,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var JobsTerminate = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
@@ -458,6 +460,8 @@ var JobsTerminate = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkRespon
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "terminate",
+
+	RestrictSourceIP: true,
 }
 
 var JobsExtend = rpc.Call[fnd.BulkRequest[JobsExtendRequestItem], fnd.BulkResponse[util.Empty]]{
@@ -465,6 +469,8 @@ var JobsExtend = rpc.Call[fnd.BulkRequest[JobsExtendRequestItem], fnd.BulkRespon
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "extend",
+
+	RestrictSourceIP: true,
 }
 
 var JobsSuspend = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
@@ -472,6 +478,8 @@ var JobsSuspend = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "suspend",
+
+	RestrictSourceIP: true,
 }
 
 var JobsUnsuspend = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
@@ -479,6 +487,8 @@ var JobsUnsuspend = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkRespon
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "unsuspend",
+
+	RestrictSourceIP: true,
 }
 
 type JobsOpenInteractiveSessionRequestItem struct {
@@ -493,6 +503,8 @@ var JobsOpenInteractiveSession = rpc.Call[fnd.BulkRequest[JobsOpenInteractiveSes
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "interactiveSession",
+
+	RestrictSourceIP: true,
 }
 
 type JobsRequestDynamicParametersRequest struct {
@@ -519,6 +531,8 @@ var JobsOpenTerminalInFolder = rpc.Call[fnd.BulkRequest[JobsOpenTerminalInFolder
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "openTerminalInFolder",
+
+	RestrictSourceIP: true,
 }
 
 type JobRenameRequest struct {
@@ -531,6 +545,8 @@ var JobsRename = rpc.Call[fnd.BulkRequest[JobRenameRequest], util.Empty]{
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "rename",
+
+	RestrictSourceIP: true,
 }
 
 type JobsSearchRequest struct {
@@ -545,6 +561,8 @@ var JobsSearch = rpc.Call[JobsSearchRequest, fnd.PageV2[Job]]{
 	BaseContext: jobNamespace,
 	Convention:  rpc.ConventionSearch,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type JobsBrowseRequest struct {
@@ -558,6 +576,8 @@ var JobsBrowse = rpc.Call[JobsBrowseRequest, fnd.PageV2[Job]]{
 	BaseContext: jobNamespace,
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type JobsRetrieveRequest struct {
@@ -569,6 +589,8 @@ var JobsRetrieve = rpc.Call[JobsRetrieveRequest, Job]{
 	BaseContext: jobNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var JobsUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[util.Empty]]{
@@ -576,6 +598,8 @@ var JobsUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[util.
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "updateAcl",
+
+	RestrictSourceIP: true,
 }
 
 var JobsRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[JobSupport]]{
