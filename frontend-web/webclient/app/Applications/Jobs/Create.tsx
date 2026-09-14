@@ -35,13 +35,21 @@ import {
 import {
     bulkRequestOf,
     displayErrorMessageOrDefault,
+    doNothing,
     extractErrorCode,
+    extractErrorMessage,
     prettierString,
     createKeyboardShortcut,
     isLikelyMac,
     useDidMount
 } from "@/UtilityFunctions";
 import {addStandardDialog, OverallocationLink, WalletWarning} from "@/UtilityComponents";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {SettingsAction, SettingsSection} from "@/ui-components/SettingsComponents";
+import {Toggle} from "@/ui-components/Toggle";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import Text from "@/ui-components/Text";
 import {ImportMessages, ImportMessage, ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {usePage} from "@/Navigation/Redux";
@@ -59,7 +67,7 @@ import {validateMachineReservation} from "@/Applications/Jobs/Widgets/Machines";
 import {Resource} from "@/UCloud/ResourceApi";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {Application, ApplicationGroup, ApplicationParameter} from "@/Applications/AppStoreApi";
+import {Application, ApplicationGroup, ApplicationGroupLogo, ApplicationParameter} from "@/Applications/AppStoreApi";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {defaultEmailSettings, UserDetailsState} from "@/UserSettings/ChangeEmailSettings";
@@ -85,7 +93,9 @@ import {
 import {useProjectId} from "@/Project/Api";
 import AppRoutes from "@/Routes";
 import {ApplicationForkAction} from "@/Applications/Creator/ForkAction";
-import {customApplicationsEnabled} from "@/Applications/AppStoreApi";
+import {customApplicationsEnabled, customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
+import {ApplicationGroupLogoDialog, CustomGroupEditDialog, defaultApplicationGroupLogo} from "@/Applications/ProceduralLogo";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 interface InsufficientFunds {
     why?: string;
@@ -454,6 +464,60 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
             cancelled = true;
         };
     }, [application?.metadata.name, application?.metadata.version, application?.metadata.origin, projectId, previewMode]);
+
+    const openCustomApplicationManagement = useCallback(() => {
+        if (!application) return;
+        const provider = application.invocation.tool.tool?.description.supportedProviders?.[0];
+        if (!provider) return;
+        dialogStore.addDialog(
+            <CustomApplicationManagementDialog
+                application={application}
+                provider={provider}
+                groupId={application.metadata.groupId ?? application.metadata.group?.metadata.id}
+                onGroupUpdated={() => {
+                    fetchApplication(AppStore.findGroupByApplication({
+                        appName,
+                        appVersion: appVersion ?? undefined,
+                        flags: {
+                            includeApplications: true,
+                            includeInvocation: true,
+                            includeStars: true,
+                            includeVersions: true,
+                        },
+                        ...discovery,
+                    }));
+                }}
+                onDeleted={async () => {
+                    let nextVersion: string | null = null;
+                    try {
+                        const group = await callAPI(AppStore.findGroupByApplication({
+                            appName,
+                            flags: {
+                                includeApplications: true,
+                                includeInvocation: true,
+                                includeStars: true,
+                                includeVersions: true,
+                            },
+                            ...discovery,
+                        }));
+                        nextVersion = group.status.applications?.find(it => it.metadata.version !== application.metadata.version)
+                            ?.metadata.version ?? null;
+                    } catch {
+                        nextVersion = null;
+                    }
+
+                    if (nextVersion) {
+                        navigate(AppRoutes.jobs.create(appName, nextVersion));
+                    } else {
+                        navigate(AppRoutes.apps.landing());
+                    }
+                }}
+            />,
+            doNothing,
+            true,
+            largeModalStyle,
+        );
+    }, [application, navigate, appName, appVersion, discovery, fetchApplication]);
 
     const reloadFlavors = useCallback(async () => {
         const group = await callAPI(AppStore.findGroupByApplication({
@@ -1020,6 +1084,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
         const focusCard = (id: string) => {
             const card = document.getElementById(id);
             if (!card) return;
+            if (card.offsetParent === null) return;
             if (document.activeElement instanceof HTMLElement) closeOpenDropdown(document.activeElement);
             const navigationTargets = Array.from(card.querySelectorAll<HTMLElement>(FIELD_NAVIGATION_SELECTOR))
                 .filter(element => !isDisabledNavigationTarget(element));
@@ -1192,21 +1257,9 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
                         <UtilityBar responsive leading={<>
                             {!previewMode ? <ApplicationForkAction application={application} /> : null}
                             {!canEditCustomVersion || !customApplicationsEnabled() ? null : (
-                                <Button height="25px" onClick={() => {
-                                    const provider = application.invocation.tool.tool?.description.supportedProviders?.[0];
-                                    if (!provider) return;
-                                    navigate(AppRoutes.apps.creator({
-                                        operation: "newVersion",
-                                        applicationKind: "custom",
-                                        workspace: projectId ?? "personal",
-                                        name: application.metadata.name.replace(/^custom-/, ""),
-                                        version: application.metadata.version,
-                                        provider,
-                                        returnTo: location.pathname + location.search,
-                                    }));
-                                }}>
-                                    Create new version
-                                </Button>
+                                <TooltipV2 tooltip="Manage this application" triggerStyle={{display: "inline-flex", alignItems: "center"}}>
+                                    <Icon name="heroCog6Tooth" size={24} cursor="pointer" color="textPrimary" onClick={openCustomApplicationManagement} />
+                                </TooltipV2>
                             )}
                             {!application.metadata.website ? null : (
                                 <ExternalLink className="job-create-documentation" href={application.metadata.website}>
@@ -1699,5 +1752,203 @@ const MarkdownWrapper = injectStyle("md-wrapper", k => `
         margin-bottom: 0;
     }
 `);
+
+const CustomApplicationManagementClass = injectStyle("custom-application-management", k => `
+    ${k} {
+        display: flex;
+        flex-direction: column;
+    }
+
+    ${k} .custom-application-management-header {
+        padding-bottom: 32px;
+    }
+`);
+
+function openGroupEditor(
+    group: AppStore.AppCatalogCustomGroup,
+    onSave: (title: string, description: string) => Promise<void>,
+): void {
+    dialogStore.addDialog(
+        <CustomGroupEditDialog group={group} onSave={onSave} />,
+        doNothing,
+        true,
+        largeModalStyle,
+    );
+}
+
+function openGroupLogoEditor(
+    group: AppStore.AppCatalogCustomGroup,
+    onSave: (logo: ApplicationGroupLogo) => Promise<void>,
+): void {
+    dialogStore.addDialog(
+        <ApplicationGroupLogoDialog
+            title={group.specification.title}
+            initialLogo={group.specification.logo ?? defaultApplicationGroupLogo(group.specification.title)}
+            onCancel={() => dialogStore.failure()}
+            onSave={onSave}
+        />,
+        doNothing,
+        true,
+        largeModalStyle,
+    );
+}
+
+function CustomApplicationManagementDialog(props: {
+    application: Application;
+    provider: string;
+    groupId: number | null | undefined;
+    onGroupUpdated: () => void;
+    onDeleted: () => void;
+}): React.ReactNode {
+    const [busy, setBusy] = React.useState(false);
+    const [error, setError] = React.useState<string | null>(null);
+    const [publishedToProject, setPublishedToProject] = React.useState(
+        props.application.metadata.publishedToProject === true,
+    );
+    const [group, setGroup] = React.useState<AppStore.AppCatalogCustomGroup | null>(null);
+
+    React.useEffect(() => {
+        const id = props.groupId;
+        if (id == null || id >= 0) return;
+        let cancelled = false;
+        callAPI<AppStore.AppCatalogCustomGroup>(AppStore.retrieveCustomGroup({id}))
+            .then(result => {
+                if (!cancelled) setGroup(result);
+            })
+            .catch(() => {
+                if (!cancelled) setGroup(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [props.groupId]);
+
+    const canEditGroup = group != null &&
+        (group.owner.createdBy === Client.username || customAppsWorkspaceAdmin());
+
+    const togglePublishedToProject = useCallback(async (prev: boolean) => {
+        if (busy) return;
+        const next = !prev;
+        setBusy(true);
+        setError(null);
+        try {
+            await callAPI(AppStore.updateCustomApplication({
+                name: props.application.metadata.name,
+                version: props.application.metadata.version,
+                serviceProvider: props.provider,
+                publishedToProject: next,
+            }));
+            setPublishedToProject(next);
+        } catch (cause) {
+            setError("Could not update application visibility. " + extractErrorMessage(cause as {request: XMLHttpRequest; response: any}));
+        } finally {
+            setBusy(false);
+        }
+    }, [busy, props.application.metadata.name, props.application.metadata.version, props.provider]);
+
+    const deleteApplication = useCallback(async () => {
+        if (busy) return;
+        setBusy(true);
+        setError(null);
+        try {
+            await callAPI(AppStore.deleteCustomApplication({
+                name: props.application.metadata.name,
+                version: props.application.metadata.version,
+                serviceProvider: props.provider,
+            }));
+            dialogStore.success();
+            props.onDeleted();
+        } catch (cause) {
+            setError("Could not delete application. " + extractErrorMessage(cause as {request: XMLHttpRequest; response: any}));
+            setBusy(false);
+        }
+    }, [busy, props.application.metadata.name, props.application.metadata.version, props.provider, props.onDeleted]);
+
+    const saveGroup = useCallback(async (title: string, description: string) => {
+        if (busy || group == null) return;
+        setBusy(true);
+        setError(null);
+        try {
+            await callAPI(AppStore.updateCustomGroup({
+                id: group.id,
+                newTitle: title,
+                newDescription: description,
+            }));
+            setGroup({...group, specification: {...group.specification, title, description}});
+            props.onGroupUpdated();
+        } finally {
+            setBusy(false);
+        }
+    }, [busy, group, props.onGroupUpdated]);
+
+    const saveGroupLogo = useCallback(async (logo: ApplicationGroupLogo) => {
+        if (busy || group == null) return;
+        setBusy(true);
+        setError(null);
+        try {
+            await callAPI(AppStore.updateCustomGroupLogo({id: group.id, logo}));
+            setGroup({...group, specification: {...group.specification, logo}});
+            props.onGroupUpdated();
+            dialogStore.success();
+        } catch (cause) {
+            setError("Could not update group logo. " + extractErrorMessage(cause as {request: XMLHttpRequest; response: any}));
+        } finally {
+            setBusy(false);
+        }
+    }, [busy, group, props.onGroupUpdated]);
+
+    const isPublished = publishedToProject;
+
+    return (
+        <div className={CustomApplicationManagementClass}>
+            <div className="custom-application-management-header">
+                <Heading.h3>{props.application.metadata.title}</Heading.h3>
+            </div>
+
+            {!canEditGroup || group == null ? null : (
+                <SettingsSection title="Application group" mb={24}>
+                    <SettingsAction
+                        title={group.specification.title}
+                        description={group.specification.description}
+                        action={
+                            <Flex gap="8px">
+                                <Button disabled={busy} onClick={() => openGroupEditor(group, saveGroup)}>Edit group</Button>
+                                <Button disabled={busy} onClick={() => openGroupLogoEditor(group, saveGroupLogo)}>Edit logo</Button>
+                            </Flex>
+                        }
+                    />
+                </SettingsSection>
+            )}
+
+            <SettingsSection title="Visibility" mb={24}>
+                <SettingsAction
+                    title="Publish to project"
+                    description="Makes this application version available to all members of the workspace."
+                    action={
+                        <Toggle checked={isPublished} disabled={busy} onChange={togglePublishedToProject} />
+                    }
+                />
+            </SettingsSection>
+
+            <SettingsSection title="Danger zone" mb={24}>
+                <SettingsAction
+                    title="Delete application version"
+                    description={"Deletes version " + props.application.metadata.version + " of this application. Jobs already running are not affected."}
+                    action={
+                        <ConfirmationButton
+                            color="errorMain"
+                            disabled={busy}
+                            actionText="Delete application"
+                            icon="heroTrash"
+                            onAction={deleteApplication}
+                        />
+                    }
+                />
+            </SettingsSection>
+
+            {error ? <Text color="errorMain" mb="16px">{error}</Text> : null}
+        </div>
+    );
+}
 
 export default Create;

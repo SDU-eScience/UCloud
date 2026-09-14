@@ -139,13 +139,41 @@ type ColorReplacements struct {
 	Dark  map[int]int `json:"dark"`
 }
 
+type ApplicationGroupLogoBorder struct {
+	Style string `json:"style" yaml:"style"`
+	Color string `json:"color" yaml:"color"`
+}
+
+type ApplicationGroupLogoFill struct {
+	Type      string `json:"type" yaml:"type"`
+	ColorA    string `json:"colorA" yaml:"colorA"`
+	ColorB    string `json:"colorB" yaml:"colorB"`
+	Direction string `json:"direction" yaml:"direction"`
+}
+
+type ApplicationGroupLogoContent struct {
+	Type  string `json:"type" yaml:"type"`
+	Value string `json:"value" yaml:"value"`
+	Size  string `json:"size" yaml:"size"`
+	Color string `json:"color" yaml:"color"`
+}
+
+type ApplicationGroupLogo struct {
+	Version int                         `json:"version" yaml:"version"`
+	Shape   string                      `json:"shape" yaml:"shape"`
+	Border  ApplicationGroupLogoBorder  `json:"border" yaml:"border"`
+	Fill    ApplicationGroupLogoFill    `json:"fill" yaml:"fill"`
+	Content ApplicationGroupLogoContent `json:"content" yaml:"content"`
+}
+
 type ApplicationGroupSpecification struct {
-	Title            string            `json:"title" yaml:"title"`
-	Description      string            `json:"description" yaml:"description"`
-	DefaultFlavor    string            `json:"defaultFlavor" yaml:"defaultFlavor"`
-	Categories       []int             `json:"categories" yaml:"categories"`
-	ColorReplacement ColorReplacements `json:"colorReplacement" yaml:"colorReplacement"`
-	LogoHasText      bool              `json:"logoHasText" yaml:"logoHasText"`
+	Title            string                `json:"title" yaml:"title"`
+	Description      string                `json:"description" yaml:"description"`
+	DefaultFlavor    string                `json:"defaultFlavor" yaml:"defaultFlavor"`
+	Categories       []int                 `json:"categories" yaml:"categories"`
+	ColorReplacement ColorReplacements     `json:"colorReplacement" yaml:"colorReplacement"`
+	LogoHasText      bool                  `json:"logoHasText" yaml:"logoHasText"`
+	Logo             *ApplicationGroupLogo `json:"logo,omitempty" yaml:"logo,omitempty"`
 }
 
 type ApplicationGroupStatus struct {

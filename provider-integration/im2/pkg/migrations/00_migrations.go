@@ -6,7 +6,8 @@ import (
 )
 
 func Init() {
-	// Changes must always be appended to the END of this function
+	// All changes must be added to the BOTTOM of this function
+	// -----------------------------------------------------------------------------------------------------------------
 	db.AddMigration(genericLicensesV1())
 	db.AddMigration(connectionsV1())
 	db.AddMigration(apmEventsV1())
@@ -71,4 +72,6 @@ func Init() {
 	db.AddMigration(apiTokensV3())
 	db.AddMigration(inferenceV20())
 	db.AddMigration(inferenceV21())
+	db.AddMigration(inferenceV22())
+	db.AddMigration(inferenceV23())
 }

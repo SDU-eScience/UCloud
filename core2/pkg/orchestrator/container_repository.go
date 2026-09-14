@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -68,6 +69,10 @@ func initContainerRepositories() {
 	})
 
 	orcapi.ContainerRepositoriesUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureContainerRepositories); err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+
 		for _, item := range request.Items {
 			if err := ResourceUpdateAcl(info.Actor, containerRepositoryType, item); err != nil {
 				return fndapi.BulkResponse[util.Empty]{}, err
@@ -169,6 +174,10 @@ func initContainerRepositories() {
 }
 
 func ContainerRepositoryCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ContainerRepositorySpecification]) ([]orcapi.ContainerRepository, *util.HttpError) {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return nil, err
+	}
+
 	if actor.Project.Present && !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
 		return nil, util.HttpErr(http.StatusForbidden, "you need project administrator privileges to do this operation")
 	}
@@ -232,6 +241,10 @@ func ContainerRepositoryBrowse(actor rpc.Actor, request orcapi.ContainerReposito
 }
 
 func ContainerRepositoryDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return fndapi.BulkResponse[util.Empty]{}, err
+	}
+
 	responses := make([]util.Empty, 0, len(request.Items))
 	for _, item := range request.Items {
 		if err := ResourceDeleteThroughProvider[orcapi.ContainerRepository](actor, containerRepositoryType, item.Id, orcapi.ContainerRepositoriesProviderDelete); err != nil {
@@ -243,6 +256,10 @@ func ContainerRepositoryDelete(actor rpc.Actor, request fndapi.BulkRequest[fndap
 }
 
 func ContainerRepositoryUpdateLabels(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ContainerRepositoriesUpdateLabelsRequest]) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return err
+	}
+
 	for _, reqItem := range request.Items {
 		err := ResourceUpdateLabelsThroughProvider[orcapi.ContainerRepository](
 			actor,
@@ -305,6 +322,10 @@ func ContainerRepositoryBrowseImages(actor rpc.Actor, request orcapi.ContainerRe
 }
 
 func ContainerRepositoryDeleteImage(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ContainerRepositoriesDeleteImageRequest]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		return fndapi.BulkResponse[util.Empty]{}, err
+	}
+
 	result := fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, 0, len(request.Items))}
 	for _, item := range request.Items {
 		repository, _, _, err := ResourceRetrieveEx[orcapi.ContainerRepository](

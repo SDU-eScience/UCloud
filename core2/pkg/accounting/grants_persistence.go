@@ -1144,7 +1144,18 @@ func lGrantsPersist(app *grantApplication) {
 				approvalGivers = append(approvalGivers, a.ProjectId)
 				approvalUpdaters = append(approvalUpdaters, a.LastUpdatedBy)
 			}
-
+			//Clearing old approvals before updating with the newly calculated in case of transfer
+			db.Exec(
+				tx,
+				`
+					delete 
+					from "grant".grant_giver_approvals
+					where application_id = :app_id
+				`,
+				db.Params{
+					"app_id": app.lId(),
+				},
+			)
 			db.Exec(
 				tx,
 				`

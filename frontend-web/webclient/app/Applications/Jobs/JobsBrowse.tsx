@@ -3,11 +3,10 @@ import MainContainer from "@/ui-components/MainContainer";
 import Text from "@/ui-components/Text";
 import {usePage} from "@/Navigation/Redux";
 import JobsApi, {Job, JobState, JobTypeFilter} from "@/UCloud/JobsApi";
-import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
+import {dateToString} from "@/Utilities/DateUtilities";
 import {
     bulkRequestOf,
     doNothing, extractErrorMessage,
-    isLightThemeStored,
     stopPropagationAndPreventDefault,
     timestampUnixMs
 } from "@/UtilityFunctions";
@@ -19,7 +18,6 @@ import {
     ResourceBrowseFeatures,
     ResourceBrowser,
     ResourceBrowserOpts,
-    ColumnTitleList,
     checkCanConsumeResources,
     ColumnTitleGroup,
     ColumnTitle,
@@ -36,7 +34,6 @@ import {appendOperationsToActions, Operation} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {jobCache} from "./View";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import * as AppStore from "@/Applications/AppStoreApi";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {getStoredProject} from "@/Project/ReduxState";
 import {filterOption} from "@/ui-components/ResourceBrowserFilters";
@@ -56,6 +53,8 @@ import {TruncateClass} from "@/ui-components/Truncate";
 import {sendFailureNotification} from "@/Notifications";
 import {ProductCompute} from "@/Accounting";
 import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
+import { appendAppIcon } from "../AppLogoCache";
+import { column } from "@observablehq/plot";
 
 const defaultRetrieveFlags: {itemsPerPage: number; includeApplication: boolean; includeSupport: boolean} = {
     itemsPerPage: 250,
@@ -76,26 +75,15 @@ const FEATURES: ResourceBrowseFeatures = {
 
 const Title: Omit<ColumnTitle, "columnWidth"> = { name: "Job name" };
 
-// Stat1
-// if (size === ContainerSize.TINY) {
-//     renderJobStateIcon(job, stat);
-// } else if (size === ContainerSize.SMALL) {
-//     renderJobStateText(job, stat);
-// } else if (size === ContainerSize.MEDIUM) {
-//     renderJobStateIcon(job, stat);
-// } else {
-//     renderCreatedBy(job, stat);
-// }
-//
-const Empty: ColumnTitle = {name: "", columnWidth: 0}
+const Empty = columnTitle("", 0);
+const State = columnTitle("State", 75);
 
 const columnTitles: ColumnTitleGroup = {
-    [ContainerSize.LARGE]: [Title, columnTitle("Created by", 250), columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft"), columnTitle("State", 75)],
-    [ContainerSize.MEDIUM]: [Title, columnTitle("State", 250), columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft"), columnTitle("State", 75)],
+    [ContainerSize.LARGE]: [Title, columnTitle("Created by", 250), columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft"), State],
+    [ContainerSize.MEDIUM]: [Title, State, columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft"), Empty],
     [ContainerSize.SMALL]: [Title, columnTitle("Time left", 75),  columnTitle("Created at", 160), Empty, Empty],
-    [ContainerSize.TINY]: [Title, columnTitle("State", 75), Empty, Empty, Empty],
+    [ContainerSize.TINY]: [Title, State, Empty, Empty, Empty],
 };
-    //        name: "Created by", sortById: "createdBy", columnWidth: 250}, { name: "Created at", sortById: "createdAt", columnWidth: 160}, { name: "Time left", sortById: "timeLeft", columnWidth: 160}, { name: "State", columnWidth: 75}
 
 const RESOURCE_NAME = "JOBS";
 function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job, ProductCompute>>[]; jobTypeFilter?: JobTypeFilter}}): React.ReactNode {
@@ -222,18 +210,32 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 });
 
                 browser.on("renderTitle", (job, title, row) => {
-                    const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                    const [icon] = ResourceBrowser.defaultIconRenderer();
                     icon.style.minWidth = "20px"
                     icon.style.minHeight = "20px"
                     title.append(icon);
+                    appendAppIcon(
+                        icon,
+                        job.specification.application.name,
+                        job.status.resolvedApplication?.metadata.groupId ??
+                            job.status.resolvedApplication?.metadata.group?.metadata.id,
+                        30,
+                        job.specification.name,
+                    );
 
                     title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, row));
-                    setIcon(AppStore.retrieveAppLogo({
-                        name: job.specification.application.name,
-                        darkMode: !isLightThemeStored(),
-                        includeText: false,
-                        placeTextUnderLogo: false,
-                    }));
+                });
+
+                browser.on("renderStat1", (job, stat, row, size) => {
+                    if (size === ContainerSize.TINY) {
+                        renderJobStateIcon(job, stat);
+                    } else if (size === ContainerSize.SMALL) {
+                        renderJobStateText(job, stat);
+                    } else if (size === ContainerSize.MEDIUM) {
+                        renderJobStateIcon(job, stat);
+                    } else {
+                        renderCreatedBy(job, stat);
+                    }
                 });
 
                 function renderCreatedBy(job: Job, stat: HTMLElement) {
@@ -256,20 +258,8 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     }
                 }
 
-                browser.on("renderStat1", (job, stat, row, size) => {
-                    if (size === ContainerSize.TINY) {
-                        renderJobStateIcon(job, stat);
-                    } else if (size === ContainerSize.SMALL) {
-                        renderJobStateText(job, stat);
-                    } else if (size === ContainerSize.MEDIUM) {
-                        renderJobStateIcon(job, stat);
-                    } else {
-                        renderCreatedBy(job, stat);
-                    }
-                });
-
                 function renderCreationText(job: Job, stat: HTMLElement) {
-                   stat.innerText = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
+                    stat.innerText = dateToString(job.createdAt ?? timestampUnixMs());
                 }
 
                 browser.on("renderStat2", renderCreationText);

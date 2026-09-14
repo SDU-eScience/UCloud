@@ -435,6 +435,7 @@ export interface FilesBrowseRequest {
     includePermissions?: boolean,
     includeTimestamps?: boolean,
     includeSizes?: boolean,
+    includeSizesNonBlocking?: boolean,
     includeUnixInfo?: boolean,
     includeMetadata?: boolean,
     /**
@@ -514,6 +515,7 @@ export interface FilesRetrieveRequest {
     includePermissions?: boolean,
     includeTimestamps?: boolean,
     includeSizes?: boolean,
+    includeSizesNonBlocking?: boolean,
     includeUnixInfo?: boolean,
     includeMetadata?: boolean,
     /**

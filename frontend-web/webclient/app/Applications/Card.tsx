@@ -131,6 +131,7 @@ export function AppCard(props: AppCardProps): React.ReactNode {
                 type={props.type === AppCardType.APPLICATION ?
                     "APPLICATION" : "GROUP"
                 }
+                groupId={props.application?.metadata.groupId ?? props.application?.metadata.group?.metadata.id}
             />
 
             <div title={props.title} className={TitleAndDescriptionClass}>

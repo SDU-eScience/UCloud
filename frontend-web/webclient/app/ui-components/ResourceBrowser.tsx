@@ -1427,7 +1427,7 @@ export class ResourceBrowser<T> {
         if (!selection.show || show === true || typeof show === "string") {
             const disabled = typeof show === "string";
             const button = document.createElement("button");
-            button.innerText = this.opts.embedded ? "Use" : selection.text;
+            button.innerText = selection.text;
             button.className = ButtonClass;
             button.style.height = opts?.height ?? "32px";
             button.style.width = opts?.width ?? "96px";
@@ -1694,7 +1694,7 @@ export class ResourceBrowser<T> {
 
         const selection = this.opts.selection;
         if (selection) {
-            const actionText = this.opts.embedded ? "Use" : selection.text;
+            const actionText = selection.text;
             const useAction: ActionItem<T, any> = {
                 text: actionText,
                 icon: "check",
@@ -3470,9 +3470,7 @@ export class ResourceBrowser<T> {
         const titleGroup = Array.isArray(columnTitles) ? { [ContainerSize.LARGE]: columnTitles } : columnTitles;
         this.opts.columnTitles = titleGroup;
 
-        const titleRow = this.root.querySelector(".row.rows-title");
-        if (!titleRow) return;
-        const width = containerSizeFromWidth(titleRow.getBoundingClientRect().width);
+        const width = containerSizeFromWidth(this.root.getBoundingClientRect().width);
         const titles = titleGroup[width] ?? titleGroup[ContainerSize.LARGE];
         this.root.style.setProperty("--stat1Width", titles[1].columnWidth + "px");
         this.root.style.setProperty("--stat2Width", titles[2].columnWidth + "px");

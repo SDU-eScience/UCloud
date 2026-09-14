@@ -25,6 +25,9 @@ var tplGrantsApprovedToApplicant []byte
 //go:embed mailtpl/grants/rejected_to_applicant.j2
 var tplGrantsRejectedToApplicant []byte
 
+//go:embed mailtpl/grants/withdrawn_to_admins.j2
+var tplGrantsWithdrawnToAdmins []byte
+
 //go:embed mailtpl/grants/comment.j2
 var tplGrantsComment []byte
 

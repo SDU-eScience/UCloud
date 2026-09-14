@@ -6,31 +6,28 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/util"
 )
 
-const inferenceResponseStoreTTL = 30 * time.Minute
-const inferenceResponseStoreMaxEntries = 256
-const inferenceResponseStoreMaxEntriesPerOwner = 16
+// OpenAI Responses API adapter
+// =====================================================================================================================
+// This file adapts the stateful OpenAI Responses API to the chat completion protocol used by the inference backend.
+// It accepts Responses API data, restores server-side conversation context, and sends a complete chat request to the
+// backend. It then converts chat responses and stream chunks back to Responses API objects and events.
+//
+// InferenceResponseCreate and InferenceResponseCreateStreaming are the main generation entry points. Both validate the
+// request, resolve its response or conversation chain, apply model defaults, call the chat API, construct the public
+// response, and update server-side state. The public retrieve, poll, cancel, and delete operations use the same state
+// store. The store implementation and its ownership rules are in adapter_oai_responses_store.go.
 
-var inferenceResponseGlobals = struct {
-	Mu        sync.RWMutex
-	Responses map[string]inferenceStoredResponse
-}{
-	Responses: map[string]inferenceStoredResponse{},
-}
-
-type inferenceStoredResponse struct {
-	Response     OaiResponse
-	Owner        string
-	Conversation string
-	ContextAfter int
-	CreatedAt    time.Time
-}
+// Protocol models
+// ---------------------------------------------------------------------------------------------------------------------
+// These models describe the accepted request data and the Responses API data returned to clients. They cover complete
+// responses, conversations, stream events, reasoning items, messages, and supported tool calls. Raw JSON fields retain
+// protocol forms that need validation or conversion later in the request flow.
 
 type OaiResponseCreateRequest struct {
 	Background        bool                       `json:"background,omitempty"`
@@ -292,6 +289,44 @@ type OaiConversationDeleteResponse struct {
 	Deleted bool   `json:"deleted"`
 }
 
+type OaiResponseStreamEvent struct {
+	Type         string       `json:"type"`
+	ResponseId   string       `json:"response_id,omitempty"`
+	Response     *OaiResponse `json:"response,omitempty"`
+	OutputIndex  *int         `json:"output_index,omitempty"`
+	ContentIndex *int         `json:"content_index,omitempty"`
+	ItemId       string       `json:"item_id,omitempty"`
+	Item         any          `json:"item,omitempty"`
+	Part         any          `json:"part,omitempty"`
+	Delta        string       `json:"delta,omitempty"`
+	Text         string       `json:"text,omitempty"`
+	Arguments    string       `json:"arguments,omitempty"`
+}
+
+type InferenceResponseInputContentPart struct {
+	Type     string            `json:"type"`
+	Text     string            `json:"text,omitempty"`
+	ImageUrl *InferenceChatUrl `json:"image_url,omitempty"`
+	VideoUrl *InferenceChatUrl `json:"video_url,omitempty"`
+	AudioUrl *InferenceChatUrl `json:"audio_url,omitempty"`
+}
+
+// Public response and conversation operations
+// ---------------------------------------------------------------------------------------------------------------------
+// InferenceResponseCreate handles synchronous and background requests. A synchronous request waits for the chat result,
+// constructs a completed response, records the conversation turn, and stores the result. A background request first
+// stores a queued response. Its worker then stores the in-progress state and the final completed or failed state.
+//
+// InferenceResponseCreateStreaming starts the chat stream and emits Responses API lifecycle events in protocol order.
+// It collects text, reasoning, tool calls, and usage while it emits deltas. At the end, it builds the same complete
+// response shape used by synchronous requests and stores the conversation turn. Whitespace-only text waits until useful
+// text arrives. A response with no output still gets an empty assistant message.
+//
+// InferenceConversationRetrieve and InferenceConversationDelete manage conversation files. InferenceResponsePoll reads
+// recent or persisted responses. InferenceResponseCancel currently has the same result as polling. Response deletion
+// removes both the memory entry and the persisted response file. All operations use the wallet owner and username when
+// they access server-side state.
+
 func InferenceConversationRetrieve(owner apm.WalletOwner, username string, id string) (OaiConversation, *util.HttpError) {
 	conversation, ok := inferenceResponseStoreConversationRead(owner, username, id)
 	if !ok {
@@ -311,93 +346,6 @@ func InferenceConversationDelete(owner apm.WalletOwner, username string, id stri
 	}
 	inferenceResponseStoreConversationDelete(owner, username, id)
 	return OaiConversationDeleteResponse{Id: id, Object: "conversation", Deleted: true}, nil
-}
-
-// inferenceResponseResolveChain resolves a request's previous_response_id (and conversation parameter) server-side.
-// Chaining clients (VS Code Copilot among others) send only the new input plus the id of the response they build on.
-// We translate this into the equivalent full-input request, which the rest of the pipeline already understands.
-func inferenceResponseResolveChain(
-	owner apm.WalletOwner,
-	username string,
-	request OaiResponseCreateRequest,
-) (OaiResponseCreateRequest, string, *util.HttpError) {
-	if request.PreviousResponseID == "" {
-		if request.Conversation == "" {
-			resolved := request
-			resolved.Conversation = inferenceResponseNewId("conv")
-			return resolved, resolved.Conversation, nil
-		}
-
-		conversation, ok := inferenceResponseStoreConversationRead(owner, username, request.Conversation)
-		if !ok {
-			return OaiResponseCreateRequest{}, "", util.HttpErr(http.StatusNotFound, "No conversation found with id '%s'", request.Conversation)
-		}
-
-		resolved := request
-		resolved.Input = inferenceResponseChainInput(conversation.Items, request.Input)
-		resolved.Conversation = conversation.Id
-		return resolved, conversation.Id, nil
-	}
-
-	record, ok := inferenceResponseStoreLookupRecord(owner, username, request.PreviousResponseID)
-	if !ok {
-		return OaiResponseCreateRequest{}, "", util.HttpErr(http.StatusNotFound, "No response found with id '%s'", request.PreviousResponseID)
-	}
-
-	conversation, ok := inferenceResponseStoreConversationRead(owner, username, record.Conversation)
-	if !ok || record.ContextAfter > len(conversation.Items) {
-		return OaiResponseCreateRequest{}, "", util.HttpErr(http.StatusNotFound, "No response found with id '%s'", request.PreviousResponseID)
-	}
-
-	resolved := request
-	resolved.Input = inferenceResponseChainInput(conversation.Items[:record.ContextAfter], request.Input)
-	resolved.PreviousResponseID = ""
-	resolved.Conversation = record.Conversation
-	return resolved, record.Conversation, nil
-}
-
-// inferenceResponseChainInput combines a conversation prefix with the input of a chained request. The new input is
-// normalized first: a plain string becomes a message item, exactly like it is stored in the conversation.
-func inferenceResponseChainInput(prefix []json.RawMessage, input json.RawMessage) json.RawMessage {
-	items := make([]json.RawMessage, 0, len(prefix)+1)
-	items = append(items, prefix...)
-	if len(input) > 0 && string(input) != "null" {
-		items = append(items, inferenceResponseStoreInputItems(input)...)
-	}
-
-	encoded, err := json.Marshal(items)
-	if err != nil {
-		return input
-	}
-	return encoded
-}
-
-// inferenceResponseStoreLookupRecord resolves a response id to its persisted record, consulting the in-memory map
-// first and the filesystem store second. The owner is verified in both layers. Unstored responses (store: false) are
-// resolvable only while they remain in the in-memory map; they have no response file to fall back to. The torn-write
-// conversation check of inferenceResponseStoreRead is intentionally skipped here: the chain resolver reads the
-// conversation itself immediately after.
-func inferenceResponseStoreLookupRecord(owner apm.WalletOwner, username string, responseId string) (inferencePersistedResponse, bool) {
-	inferenceResponseGlobals.Mu.RLock()
-	stored, ok := inferenceResponseGlobals.Responses[responseId]
-	inferenceResponseGlobals.Mu.RUnlock()
-
-	if ok && stored.Owner == owner.Reference() && stored.Conversation != "" {
-		if time.Since(stored.CreatedAt) > inferenceResponseStoreTTL {
-			inferenceResponseStoreMemoryEvict(responseId)
-		} else {
-			return inferencePersistedResponse{
-				Version:      1,
-				Id:           stored.Response.Id,
-				Owner:        stored.Owner,
-				Conversation: stored.Conversation,
-				ContextAfter: stored.ContextAfter,
-				Response:     stored.Response,
-			}, true
-		}
-	}
-
-	return inferenceResponseStoreReadUnchecked(owner, username, responseId)
 }
 
 func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, username string, request OaiResponseCreateRequest) (OaiResponse, *util.HttpError) {
@@ -821,45 +769,110 @@ func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner
 	return ch, nil
 }
 
-type OaiResponseStreamEvent struct {
-	Type         string       `json:"type"`
-	ResponseId   string       `json:"response_id,omitempty"`
-	Response     *OaiResponse `json:"response,omitempty"`
-	OutputIndex  *int         `json:"output_index,omitempty"`
-	ContentIndex *int         `json:"content_index,omitempty"`
-	ItemId       string       `json:"item_id,omitempty"`
-	Item         any          `json:"item,omitempty"`
-	Part         any          `json:"part,omitempty"`
-	Delta        string       `json:"delta,omitempty"`
-	Text         string       `json:"text,omitempty"`
-	Arguments    string       `json:"arguments,omitempty"`
-}
-
-type inferenceResponseStreamingToolCall struct {
-	OutputIndex int
-	Id          string
-	CallId      string
-	Name        string
-	Arguments   strings.Builder
-	Added       bool
-	Custom      bool
-}
-
-func (c *inferenceResponseStreamingToolCall) ResponseItem(status string) any {
-	return inferenceResponseToolCallItem(c.Id, c.CallId, c.Name, inferenceNormalizeToolCallArguments(c.Arguments.String()), status, c.Custom)
-}
-
-func inferenceResponseStreamCustomToolCall(ch chan OaiResponseStreamEvent, toolCall *inferenceResponseStreamingToolCall) {
-	input := inferenceResponseCustomToolInput(toolCall.Name, toolCall.Arguments.String())
-	if !toolCall.Added {
-		toolCall.Added = true
-		ch <- OaiResponseStreamEvent{Type: "response.output_item.added", OutputIndex: util.Pointer(toolCall.OutputIndex), Item: OaiResponseCustomToolCall{Id: toolCall.Id, Type: "custom_tool_call", CallId: toolCall.CallId, Name: toolCall.Name, Input: "", Status: "in_progress"}}
+func InferenceResponsePoll(owner apm.WalletOwner, username string, id string) (OaiResponse, *util.HttpError) {
+	resp, ok := inferenceResponseStoreGet(owner, username, id)
+	if !ok {
+		return OaiResponse{}, util.HttpErr(http.StatusNotFound, "response not found")
 	}
-	if input != "" {
-		ch <- OaiResponseStreamEvent{Type: "response.custom_tool_call_input.delta", ItemId: toolCall.Id, OutputIndex: util.Pointer(toolCall.OutputIndex), Delta: input}
-	}
-	ch <- OaiResponseStreamEvent{Type: "response.output_item.done", OutputIndex: util.Pointer(toolCall.OutputIndex), Item: OaiResponseCustomToolCall{Id: toolCall.Id, Type: "custom_tool_call", CallId: toolCall.CallId, Name: toolCall.Name, Input: input, Status: "completed"}}
+	return resp, nil
 }
+
+func InferenceResponseCancel(owner apm.WalletOwner, username string, id string) (OaiResponse, *util.HttpError) {
+	return InferenceResponsePoll(owner, username, id)
+}
+
+func InferenceResponseDelete(owner apm.WalletOwner, username string, id string) (OaiResponseDeleteResponse, *util.HttpError) {
+	if _, ok := inferenceResponseStoreGet(owner, username, id); !ok {
+		return OaiResponseDeleteResponse{}, util.HttpErr(http.StatusNotFound, "response not found")
+	}
+	inferenceResponseStoreMemoryEvict(id)
+	inferenceResponseStoreDelete(owner, username, id)
+	return OaiResponseDeleteResponse{Id: id, Object: "response", Deleted: true}, nil
+}
+
+// Chain resolution
+// ---------------------------------------------------------------------------------------------------------------------
+// inferenceResponseResolveChain restores the context selected by previous_response_id or conversation. Clients can send
+// only new input and a prior response ID. The adapter reads the stored response position, takes that conversation prefix,
+// and appends the new input. A conversation ID without a prior response appends to the complete stored conversation. A
+// request without either value starts a new conversation. Missing state and invalid response positions return not found.
+//
+// inferenceResponseChainInput normalizes a plain input string to the message form used in stored conversations. It then
+// combines the selected prefix and new items. If JSON encoding fails, it leaves the original input unchanged.
+
+func inferenceResponseResolveChain(
+	owner apm.WalletOwner,
+	username string,
+	request OaiResponseCreateRequest,
+) (OaiResponseCreateRequest, string, *util.HttpError) {
+	if request.PreviousResponseID == "" {
+		if request.Conversation == "" {
+			resolved := request
+			resolved.Conversation = inferenceResponseNewId("conv")
+			return resolved, resolved.Conversation, nil
+		}
+
+		conversation, ok := inferenceResponseStoreConversationRead(owner, username, request.Conversation)
+		if !ok {
+			return OaiResponseCreateRequest{}, "", util.HttpErr(http.StatusNotFound, "No conversation found with id '%s'", request.Conversation)
+		}
+
+		resolved := request
+		resolved.Input = inferenceResponseChainInput(conversation.Items, request.Input)
+		resolved.Conversation = conversation.Id
+		return resolved, conversation.Id, nil
+	}
+
+	record, ok := inferenceResponseStoreLookupRecord(owner, username, request.PreviousResponseID)
+	if !ok {
+		return OaiResponseCreateRequest{}, "", util.HttpErr(http.StatusNotFound, "No response found with id '%s'", request.PreviousResponseID)
+	}
+
+	conversation, ok := inferenceResponseStoreConversationRead(owner, username, record.Conversation)
+	if !ok || record.ContextAfter > len(conversation.Items) {
+		return OaiResponseCreateRequest{}, "", util.HttpErr(http.StatusNotFound, "No response found with id '%s'", request.PreviousResponseID)
+	}
+
+	resolved := request
+	resolved.Input = inferenceResponseChainInput(conversation.Items[:record.ContextAfter], request.Input)
+	resolved.PreviousResponseID = ""
+	resolved.Conversation = record.Conversation
+	return resolved, record.Conversation, nil
+}
+
+func inferenceResponseChainInput(prefix []json.RawMessage, input json.RawMessage) json.RawMessage {
+	items := make([]json.RawMessage, 0, len(prefix)+1)
+	items = append(items, prefix...)
+	if len(input) > 0 && string(input) != "null" {
+		items = append(items, inferenceResponseStoreInputItems(input)...)
+	}
+
+	encoded, err := json.Marshal(items)
+	if err != nil {
+		return input
+	}
+	return encoded
+}
+
+// Request and input/tool conversion
+// ---------------------------------------------------------------------------------------------------------------------
+// This section validates fields that the adapter cannot represent and converts the resolved request to the backend chat
+// protocol. `inferenceResponseChatRequest` maps instructions to a system message, converts input items and tool outputs
+// to chat messages, converts tool declarations and choices, and forwards shared generation settings.
+//
+// Unsupported context management, prompt, and moderation fields fail validation. Invalid roles, content parts, tool
+// items, and tool output forms return client errors. The conversion accepts text, image, video, and audio content forms
+// supported by the chat protocol. Prior tool calls keep their call IDs so backend tool messages remain paired.
+//
+// Tool conversion presents Responses API function, custom, namespace, patch, shell, local shell, file search, and web
+// search tools as chat functions. It converts returned chat function calls back to their specific Responses API item
+// shapes. Custom tools use their input string instead of function arguments. Patch conversion accepts the supported
+// patch document forms and normalizes create-file lines. File and web search calls are compatibility forms with empty
+// results. Computer, code interpreter, and image generation declarations do not produce backend chat tools.
+//
+// Input conversion also handles prior tool calls and their outputs. It keeps call IDs so the backend can pair assistant
+// tool requests with tool messages. Missing call IDs, malformed arguments, unsupported item types, and invalid content
+// fail the request instead of producing an incomplete chat history.
 
 func inferenceResponseToolCallItem(id string, callId string, name string, arguments string, status string, custom bool) any {
 	if callId == "" {
@@ -1102,27 +1115,6 @@ func inferenceResponseLocalShellAction(arguments string) OaiResponseLocalShellAc
 		parsed.Command = []string{parsed.CommandString}
 	}
 	return OaiResponseLocalShellAction{Type: "exec", Command: parsed.Command, Env: parsed.Env, TimeoutMs: parsed.TimeoutMs, User: parsed.User, WorkingDirectory: parsed.WorkingDirectory}
-}
-
-func InferenceResponsePoll(owner apm.WalletOwner, username string, id string) (OaiResponse, *util.HttpError) {
-	resp, ok := inferenceResponseStoreGet(owner, username, id)
-	if !ok {
-		return OaiResponse{}, util.HttpErr(http.StatusNotFound, "response not found")
-	}
-	return resp, nil
-}
-
-func InferenceResponseCancel(owner apm.WalletOwner, username string, id string) (OaiResponse, *util.HttpError) {
-	return InferenceResponsePoll(owner, username, id)
-}
-
-func InferenceResponseDelete(owner apm.WalletOwner, username string, id string) (OaiResponseDeleteResponse, *util.HttpError) {
-	if _, ok := inferenceResponseStoreGet(owner, username, id); !ok {
-		return OaiResponseDeleteResponse{}, util.HttpErr(http.StatusNotFound, "response not found")
-	}
-	inferenceResponseStoreMemoryEvict(id)
-	inferenceResponseStoreDelete(owner, username, id)
-	return OaiResponseDeleteResponse{Id: id, Object: "response", Deleted: true}, nil
 }
 
 func inferenceResponseValidateRequest(request OaiResponseCreateRequest) *util.HttpError {
@@ -1591,14 +1583,6 @@ func inferenceResponseInputContent(raw json.RawMessage) (InferenceChatMessageCon
 	return result, nil
 }
 
-type InferenceResponseInputContentPart struct {
-	Type     string            `json:"type"`
-	Text     string            `json:"text,omitempty"`
-	ImageUrl *InferenceChatUrl `json:"image_url,omitempty"`
-	VideoUrl *InferenceChatUrl `json:"video_url,omitempty"`
-	AudioUrl *InferenceChatUrl `json:"audio_url,omitempty"`
-}
-
 func inferenceResponseChatTools(rawTools []json.RawMessage) ([]InferenceChatTool, *util.HttpError) {
 	result := []InferenceChatTool{}
 	for _, raw := range rawTools {
@@ -1832,6 +1816,49 @@ func inferenceResponseToolChoice(raw json.RawMessage) (any, *util.HttpError) {
 	return nil, util.HttpErr(http.StatusBadRequest, "unsupported tool_choice")
 }
 
+// Streaming conversion
+// ---------------------------------------------------------------------------------------------------------------------
+// Streaming conversion tracks each chat tool call by its source index because names and arguments can arrive across
+// multiple chunks. It preserves output order across reasoning, assistant text, and tool calls. It emits item start,
+// delta, done, and response completion events while it also assembles the final response for storage.
+
+type inferenceResponseStreamingToolCall struct {
+	OutputIndex int
+	Id          string
+	CallId      string
+	Name        string
+	Arguments   strings.Builder
+	Added       bool
+	Custom      bool
+}
+
+func (c *inferenceResponseStreamingToolCall) ResponseItem(status string) any {
+	return inferenceResponseToolCallItem(c.Id, c.CallId, c.Name, inferenceNormalizeToolCallArguments(c.Arguments.String()), status, c.Custom)
+}
+
+func inferenceResponseStreamCustomToolCall(ch chan OaiResponseStreamEvent, toolCall *inferenceResponseStreamingToolCall) {
+	input := inferenceResponseCustomToolInput(toolCall.Name, toolCall.Arguments.String())
+	if !toolCall.Added {
+		toolCall.Added = true
+		ch <- OaiResponseStreamEvent{Type: "response.output_item.added", OutputIndex: util.Pointer(toolCall.OutputIndex), Item: OaiResponseCustomToolCall{Id: toolCall.Id, Type: "custom_tool_call", CallId: toolCall.CallId, Name: toolCall.Name, Input: "", Status: "in_progress"}}
+	}
+	if input != "" {
+		ch <- OaiResponseStreamEvent{Type: "response.custom_tool_call_input.delta", ItemId: toolCall.Id, OutputIndex: util.Pointer(toolCall.OutputIndex), Delta: input}
+	}
+	ch <- OaiResponseStreamEvent{Type: "response.output_item.done", OutputIndex: util.Pointer(toolCall.OutputIndex), Item: OaiResponseCustomToolCall{Id: toolCall.Id, Type: "custom_tool_call", CallId: toolCall.CallId, Name: toolCall.Name, Input: input, Status: "completed"}}
+}
+
+// Response construction
+// ---------------------------------------------------------------------------------------------------------------------
+// inferenceResponseFromChat converts a complete chat result to Responses API output items. It emits reasoning first,
+// then tool calls, then assistant text when text exists or no tool call exists. It also maps token usage and estimates
+// the reasoning-token detail from returned reasoning text.
+//
+// inferenceResponseBase creates the common response fields and protocol defaults for queued, in-progress, completed,
+// and failed responses. It preserves request metadata, tools, tool choice, conversation ID, and generation settings.
+// inferenceResponseFailed adds the server error shape. The streaming path uses the same helpers so stored responses have
+// a consistent final representation.
+
 func inferenceResponseFromChat(id string, request OaiResponseCreateRequest, chatResponse InferenceChatResponse) OaiResponse {
 	createdAt := chatResponse.Created
 	if createdAt == 0 {
@@ -1974,157 +2001,9 @@ func inferenceResponseUsage(usage InferenceChatUsage, reasoningText string) *Oai
 	}
 }
 
+// Helpers
+// ---------------------------------------------------------------------------------------------------------------------
+
 func inferenceResponseNewId(prefix string) string {
 	return fmt.Sprintf("%s_%s", prefix, util.SecureToken())
-}
-
-func inferenceResponseStoreSet(owner apm.WalletOwner, username string, response OaiResponse, conversation *inferencePersistedConversation) *util.HttpError {
-	inferenceResponseGlobals.Mu.Lock()
-	inferenceResponseStoreCleanLocked()
-	ownerRef := owner.Reference()
-	oldestOwnerId := ""
-	oldestOwnerTime := time.Now()
-	ownerEntries := 0
-	oldestId := ""
-	oldestTime := time.Now()
-	for id, stored := range inferenceResponseGlobals.Responses {
-		if stored.CreatedAt.Before(oldestTime) {
-			oldestId = id
-			oldestTime = stored.CreatedAt
-		}
-		if stored.Owner == ownerRef {
-			ownerEntries++
-			if stored.CreatedAt.Before(oldestOwnerTime) {
-				oldestOwnerId = id
-				oldestOwnerTime = stored.CreatedAt
-			}
-		}
-	}
-	if _, replacing := inferenceResponseGlobals.Responses[response.Id]; !replacing {
-		if ownerEntries >= inferenceResponseStoreMaxEntriesPerOwner && oldestOwnerId != "" {
-			delete(inferenceResponseGlobals.Responses, oldestOwnerId)
-		} else if len(inferenceResponseGlobals.Responses) >= inferenceResponseStoreMaxEntries && oldestId != "" {
-			delete(inferenceResponseGlobals.Responses, oldestId)
-		}
-	}
-	inferenceResponseGlobals.Responses[response.Id] = inferenceStoredResponse{
-		Response:     response,
-		Owner:        ownerRef,
-		Conversation: conversationIdOf(conversation),
-		ContextAfter: contextAfterOf(conversation),
-		CreatedAt:    time.Now(),
-	}
-	inferenceResponseGlobals.Mu.Unlock()
-
-	if username == "" {
-		// Required, but for some reason got here without it. Let's just reject it completely.
-		return nil
-	}
-
-	if conversation != nil {
-		if err := inferenceResponseStoreConversationWrite(owner, username, *conversation); err != nil {
-			return err
-		}
-	}
-
-	if response.Store {
-		record := inferencePersistedResponse{
-			Version:      1,
-			Id:           response.Id,
-			Owner:        owner.Reference(),
-			Conversation: conversationIdOf(conversation),
-			ContextAfter: contextAfterOf(conversation),
-			Response:     response,
-		}
-		if err := inferenceResponseStoreWrite(owner, username, record); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func conversationIdOf(conversation *inferencePersistedConversation) string {
-	if conversation == nil {
-		return ""
-	}
-	return conversation.Id
-}
-
-func contextAfterOf(conversation *inferencePersistedConversation) int {
-	if conversation == nil {
-		return 0
-	}
-	return len(conversation.Items)
-}
-
-func inferenceResponseStoreGet(owner apm.WalletOwner, username string, responseId string) (OaiResponse, bool) {
-	inferenceResponseGlobals.Mu.RLock()
-	stored, ok := inferenceResponseGlobals.Responses[responseId]
-	inferenceResponseGlobals.Mu.RUnlock()
-
-	if !ok || stored.Owner != owner.Reference() {
-		ok = false
-	}
-	if ok && time.Since(stored.CreatedAt) > inferenceResponseStoreTTL {
-		inferenceResponseStoreMemoryEvict(responseId)
-		ok = false
-	}
-	if ok {
-		return stored.Response, true
-	}
-
-	record, ok := inferenceResponseStoreRead(owner, username, responseId)
-	if !ok {
-		return OaiResponse{}, false
-	}
-
-	if record.Response.Background && (record.Response.Status == "queued" || record.Response.Status == "in_progress") {
-		if time.Since(time.Unix(record.Response.CreatedAt, 0)) > inferenceRequestTimeout {
-			failed := record.Response
-			failed.Status = "failed"
-			failed.Error = map[string]string{
-				"code":    "server_error",
-				"message": "The generation was interrupted by a server restart and can never complete.",
-			}
-			inferenceResponseGlobals.Mu.Lock()
-			inferenceResponseGlobals.Responses[record.Id] = inferenceStoredResponse{
-				Response:     failed,
-				Owner:        owner.Reference(),
-				Conversation: record.Conversation,
-				ContextAfter: record.ContextAfter,
-				CreatedAt:    time.Now(),
-			}
-			inferenceResponseGlobals.Mu.Unlock()
-
-			record.Response = failed
-			_ = inferenceResponseStoreWrite(owner, username, record)
-			return failed, true
-		}
-	}
-
-	inferenceResponseGlobals.Mu.Lock()
-	inferenceResponseGlobals.Responses[record.Id] = inferenceStoredResponse{
-		Response:     record.Response,
-		Owner:        owner.Reference(),
-		Conversation: record.Conversation,
-		ContextAfter: record.ContextAfter,
-		CreatedAt:    time.Now(),
-	}
-	inferenceResponseGlobals.Mu.Unlock()
-	return record.Response, true
-}
-
-func inferenceResponseStoreMemoryEvict(id string) {
-	inferenceResponseGlobals.Mu.Lock()
-	delete(inferenceResponseGlobals.Responses, id)
-	inferenceResponseGlobals.Mu.Unlock()
-}
-
-func inferenceResponseStoreCleanLocked() {
-	threshold := time.Now().Add(-inferenceResponseStoreTTL)
-	for id, stored := range inferenceResponseGlobals.Responses {
-		if stored.CreatedAt.Before(threshold) {
-			delete(inferenceResponseGlobals.Responses, id)
-		}
-	}
 }

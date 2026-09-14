@@ -32,6 +32,14 @@ func initInference() {
 		providerPath := fmt.Sprintf("/ucloud/%s/inference/playground", cfg.Provider.Id)
 		upgrader := ws.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 
+		go func() {
+			ticker := time.NewTicker(time.Hour)
+			defer ticker.Stop()
+			for range ticker.C {
+				inferencePlaygroundSessionSweep()
+			}
+		}()
+
 		Mux.HandleFunc(providerPath, func(w http.ResponseWriter, r *http.Request) {
 			conn, err := upgrader.Upgrade(w, r, nil)
 			if err != nil {
@@ -117,4 +125,15 @@ func inferencePlaygroundSessionLookup(token string) (inferencePlaygroundSession,
 	}
 
 	return session, true
+}
+
+func inferencePlaygroundSessionSweep() {
+	now := time.Now()
+	inferencePlaygroundSessions.Mu.Lock()
+	for token, session := range inferencePlaygroundSessions.Sessions {
+		if now.After(session.ExpiresAt) {
+			delete(inferencePlaygroundSessions.Sessions, token)
+		}
+	}
+	inferencePlaygroundSessions.Mu.Unlock()
 }
