@@ -1436,6 +1436,7 @@ export class ResourceBrowser<T> {
             button.className = ButtonClass;
             button.style.height = opts?.height ?? "32px";
             button.style.width = opts?.width ?? "96px";
+            button.style.minWidth = opts?.width ?? "96px";
             button.disabled = disabled;
 
             if (disabled) {
@@ -1473,29 +1474,6 @@ export class ResourceBrowser<T> {
             return button;
         }
         return null;
-    }
-
-    renderDefaultRow(row: ResourceBrowserRow, title: string, opts?: {color?: ThemeColor; color2?: ThemeColor;}): {
-        title: HTMLDivElement
-    } {
-        const icon = this.emptyIconName;
-        if (icon) {
-            const [deviceIcon, setDeviceIcon] = ResourceBrowser.defaultIconRenderer();
-            row.title.append(deviceIcon);
-            ResourceBrowser.icons.renderIcon({
-                name: icon,
-                height: 32,
-                width: 32,
-                color: opts?.color ?? "iconColor",
-                color2: opts?.color2 ?? "iconColor2",
-            }).then(setDeviceIcon);
-        }
-
-        let titleElement = ResourceBrowser.defaultTitleRenderer(title, row);
-        row.title.append(titleElement);
-        return {
-            title: titleElement,
-        };
     }
 
     defaultBreadcrumbs(): {title: string; absolutePath: string;}[] {
@@ -3514,7 +3492,8 @@ export class ResourceBrowser<T> {
 
         if (this.opts.selection) {
             const size = containerSizeFromWidth(this.scrollingContainerWidth);
-            titleStatFromContainerSize(size, titleRow).innerText = this.opts.selection.text;
+            const stat = titleStatFromContainerSize(size, titleRow)
+            stat.innerText = "";
         }
     }
 
