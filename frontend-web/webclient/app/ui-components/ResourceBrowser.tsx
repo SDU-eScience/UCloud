@@ -1302,8 +1302,11 @@ export class ResourceBrowser<T> {
 
             if (this.opts.selection) {
                 const button = this.defaultButtonRenderer(this.opts.selection, entry);
+                const stat = statFromContainerSize(row, containerSize)
                 if (button) {
-                    statFromContainerSize(row, containerSize).replaceChildren(button);
+                    stat.replaceChildren(button);
+                } else {
+                    stat.replaceChildren();
                 }
             }
 
