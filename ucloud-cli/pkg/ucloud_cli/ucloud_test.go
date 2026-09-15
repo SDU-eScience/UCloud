@@ -496,3 +496,21 @@ func TestCompletion(t *testing.T) {
 	err = cmd.Execute()
 	assert.Error(t, err)
 }
+
+func TestAppList(t *testing.T) {
+	input := []string{"app", "list", "--category", "slurm-hpc"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestAppCategories(t *testing.T) {
+	input := []string{"app", "categories"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
