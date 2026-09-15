@@ -1271,6 +1271,10 @@ export class ResourceBrowser<T> {
 
         if (!this.canConsumeResources) return;
 
+
+        const containerSize = containerSizeFromWidth(containerWidth);
+        const statsRenderer = StatsRenderers[containerSize];
+
         // Render the visible rows by iterating over all items
         this.dispatchMessage("startRenderPage", fn => fn());
         for (let i = 0; i < page.length; i++) {
@@ -1299,8 +1303,6 @@ export class ResourceBrowser<T> {
             const x = this.scrollingContainerLeft + relativeX;
             const y = this.scrollingContainerTop + relativeY - firstVisiblePixel;
 
-            const containerSize = containerSizeFromWidth(row.container.getBoundingClientRect().width);
-            const statsRenderer = StatsRenderers[containerSize];
 
             this.dispatchMessage("renderTitle", fn => fn(entry, row.title, row, containerSize, {
                 width: containerWidth,
@@ -3499,11 +3501,18 @@ export class ResourceBrowser<T> {
             if (value) this.browseFilters[SORT_DIRECTION] = value;
         }
 
+
+
         this.setTitleAndHandlers(titleRow.querySelector(".title")!, titles[0], "right");
         this.setTitleAndHandlers(titleRow.querySelector(".stat1")!, titles[1], "left");
         this.setTitleAndHandlers(titleRow.querySelector(".stat2")!, titles[2], "left");
         if (titles[3]) this.setTitleAndHandlers(titleRow.querySelector(".stat3")!, titles[3], "left");
         if (titles[4]) this.setTitleAndHandlers(titleRow.querySelector(".stat4")!, titles[4], "right");
+
+        if (this.opts.selection) {
+            const size = containerSizeFromWidth(this.scrollingContainerWidth);
+            titleStatFromContainerSize(size, titleRow).innerText = this.opts.selection.text;
+        }
     }
 
     public defaultEmptyPage(resourceName: string, reason: EmptyReason, additionalFilters: Record<string, string> | undefined) {
@@ -3959,5 +3968,18 @@ function statFromContainerSize(row: ResourceBrowserRow, containerSize: Container
             return row.stat3;
         case ContainerSize.LARGE:
             return row.stat4;
+    }
+}
+
+function titleStatFromContainerSize(size: ContainerSize, titles: Element) {
+    switch (size) {
+        case ContainerSize.TINY:
+            return titles.querySelector(".stat1") as HTMLDivElement;
+        case ContainerSize.SMALL:
+            return titles.querySelector(".stat2") as HTMLDivElement;
+        case ContainerSize.MEDIUM:
+            return titles.querySelector(".stat3") as HTMLDivElement;
+        case ContainerSize.LARGE:
+            return titles.querySelector(".stat4") as HTMLDivElement;
     }
 }

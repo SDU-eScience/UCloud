@@ -27,7 +27,7 @@ import {SimpleAvatarComponentCache} from "@/Files/Shares";
 import {avatarState} from "@/AvataaarLib/hook";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
-import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -94,10 +94,12 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                 }
 
                 browser.setColumns({
-                    [ContainerSize.LARGE]: [{ name: "Application" }, { name: "Submitted by", columnWidth: 220 }, { name: "Last updated", columnWidth: 200 }, { name: "Comments", columnWidth: 150 }],
-                    [ContainerSize.SMALL]: [{ name: "Application" }, { name: "Submitted by", columnWidth: 220 }, { name: "Last updated", columnWidth: 200 }, {name: "", columnWidth: 0}],
-                    [ContainerSize.TINY]: [{ name: "Application" }, { name: "Submitted by", columnWidth: 220 }, { name: "", columnWidth: 0 }, {name: "", columnWidth: 0}],
+                    [ContainerSize.LARGE]: [{ name: "Application" }, { name: "Submitted by", columnWidth: 180 }, { name: "Last updated", columnWidth: 150 }, { name: "Comments", columnWidth: 150 }],
+                    [ContainerSize.MEDIUM]: [{name: "Application"}, {name: "Submitted by", columnWidth: 200}, {name: "Last updated", columnWidth: 100}, {name: "", columnWidth: 0}],
+                    [ContainerSize.SMALL]: [{name: "Application"}, {name: "Submitted by", columnWidth: 40}, {name: "Last updated", columnWidth: 100}, {name: "", columnWidth: 0}],
+                    [ContainerSize.TINY]: [{name: "Application"}, {name: "Submitted by", columnWidth: 40}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}],
                 });
+
                 browser.on("open", (_, newPath, resource) => {
                     if (resource) {
                         navigate(AppRoutes.grants.editor(resource.id));
@@ -203,20 +205,22 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
                     }
                 });
 
-                browser.on("renderStat1", (app, stat) => {
+                browser.on("renderStat1", (app, stat, row, size) => {
                     stat.style.justifyContent = "left";
-                    SimpleAvatarComponentCache.appendTo(stat, app.createdBy, `Created by ${app.createdBy}`).then(wrapper => {
-                        const div = divText(app.createdBy);
-                        div.style.marginTop = div.style.marginBottom = "auto";
-                        div.classList.add(TruncateClass);
-                        div.style.maxWidth = "150px";
-                        div.style.marginLeft = "12px";
-                        wrapper.append(div);
-                        wrapper.style.display = "flex";
-                    });
+                    const promise = SimpleAvatarComponentCache.appendTo(stat, app.createdBy, `Created by ${app.createdBy}`);
+                    if (size > ContainerSize.SMALL) {
+                        promise.then(wrapper => {
+                            const div = divText(app.createdBy);
+                            div.style.marginTop = div.style.marginBottom = "auto";
+                            div.classList.add(TruncateClass);
+                            div.style.maxWidth = "150px";
+                            div.style.marginLeft = "12px";
+                            wrapper.append(div);
+                            wrapper.style.display = "flex";
+                        });
+                    }
                 });
 
-                // TODO(Jonas): Kill simpleView var
                 browser.on("renderStat2", (app, stat, row, size) => {
                     stat.innerText = dateToString(app.currentRevision.createdAt);
                     if (size >= ContainerSize.MEDIUM) {

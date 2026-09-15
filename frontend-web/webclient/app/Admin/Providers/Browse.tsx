@@ -30,10 +30,10 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 };
 
-
 const rowTitles: ColumnTitleGroup = {
-    [ContainerSize.LARGE]: [{ name: "Provider name" }, { name: "", columnWidth: 150 }, { name: "", columnWidth: 150 }, { name: "", columnWidth: 0 }]
+    [ContainerSize.LARGE]: [{name: "Provider name"}, {name: "Created by", columnWidth: 150}, {name: "Created at", columnWidth: 150}, {name: "", columnWidth: 0}]
 };
+
 function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Provider> | null>(null);

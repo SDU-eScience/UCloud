@@ -76,12 +76,12 @@ const FEATURES: ResourceBrowseFeatures = {
 const Title: Omit<ColumnTitle, "columnWidth"> = { name: "Job name" };
 
 const Empty = columnTitle("", 0);
-const State = columnTitle("State", 75);
+const State = columnTitle("State", 50);
 
 const columnTitles: ColumnTitleGroup = {
     [ContainerSize.LARGE]: [Title, columnTitle("Created by", 250), columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft"), State],
     [ContainerSize.MEDIUM]: [Title, State, columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft"), Empty],
-    [ContainerSize.SMALL]: [Title, columnTitle("Time left", 75),  columnTitle("Created at", 160), Empty, Empty],
+    [ContainerSize.SMALL]: [Title, columnTitle("Time left", 100), State, Empty, Empty],
     [ContainerSize.TINY]: [Title, State, Empty, Empty, Empty],
 };
 
@@ -262,7 +262,13 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     stat.innerText = dateToString(job.createdAt ?? timestampUnixMs());
                 }
 
-                browser.on("renderStat2", renderCreationText);
+                browser.on("renderStat2", (job, stat, row, size) => {
+                    if (size === ContainerSize.SMALL) {
+                        renderJobStateIcon(job, stat);
+                    } else {
+                        renderCreationText(job, stat);
+                    }
+                });
 
                 function renderJobStateText(job: Job, stat: HTMLElement) {
                     switch (job.status.state) {
