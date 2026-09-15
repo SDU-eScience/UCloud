@@ -1271,7 +1271,6 @@ export class ResourceBrowser<T> {
 
         if (!this.canConsumeResources) return;
 
-
         const containerSize = containerSizeFromWidth(containerWidth);
         const statsRenderer = StatsRenderers[containerSize];
 
@@ -1284,17 +1283,6 @@ export class ResourceBrowser<T> {
 
             const relativeX = 60;
             const relativeY = parseInt(row.container.style.top.replace("px", ""));
-
-            if (i === this.renameFieldIndex) {
-                this.renameField.style.display = "block";
-                // Note(Jonas): For future reference:
-                // i * ResourceBrowser = top of active row.
-                // + ResourceBrowser.rowSize / 2 = middle of active row
-                // - this.renameField...height / 2 = subtract half of renameField to get wanted top position for renameField.
-                this.renameField.style.top = `${i * ResourceBrowser.rowSize + (ResourceBrowser.rowSize / 2 - this.renameField.getBoundingClientRect().height / 2)}px`;
-                this.renameField.value = this.renameValue;
-                this.renameField.focus();
-            }
 
             row.container.setAttribute("data-idx", i.toString());
             row.container.setAttribute("data-selected", (this.isSelected[i] !== 0).toString());
@@ -1317,6 +1305,18 @@ export class ResourceBrowser<T> {
                 if (button) {
                     statFromContainerSize(row, containerSize).replaceChildren(button);
                 }
+            }
+
+            if (i === this.renameFieldIndex) {
+                this.renameField.style.display = "block";
+                // Note(Jonas): For future reference:
+                // i * ResourceBrowser = top of active row.
+                // + ResourceBrowser.rowSize / 2 = middle of active row
+                // - this.renameField...height / 2 = subtract half of renameField to get wanted top position for renameField.
+                this.renameField.style.top = `${i * ResourceBrowser.rowSize + (ResourceBrowser.rowSize / 2 - this.renameField.getBoundingClientRect().height / 2)}px`;
+                this.renameField.style.width = `${row.title.getBoundingClientRect().width - 42}px`;
+                this.renameField.value = this.renameValue;
+                this.renameField.focus();
             }
         }
         this.dispatchMessage("endRenderPage", fn => fn());

@@ -580,8 +580,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
         ${BrowserClass.dot} .rename-field {
             display: none;
             position: absolute;
-            /* TODO(Jonas): Should also have different sizes depending on container width */
-            width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--stat4Width) - var(--favoriteWidth) - 92px);
             background-color: var(--backgroundDefault);
             border-radius: 5px;
             border: 1px solid var(--borderColor);
@@ -589,12 +587,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
             color: var(--textPrimary);
             z-index: 1;
             left: 8px;
-        }
-
-        @container (max-width: 860px) {
-            ${BrowserClass.dot} .rename-field {
-                width: calc(var(--rowWidth) - var(--stat1Width) - var(--favoriteWidth) - 118px);
-            }
         }
 
         ${BrowserClass.dot} .page-empty {
