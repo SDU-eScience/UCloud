@@ -322,7 +322,7 @@ export const MembersContainer: React.FunctionComponent<{
                                     }}>New group</Button>
                                 : null}
                         </Flex>
-                        <Box height={"calc(100vh - 135px)"} overflowY={"auto"}>
+                        <Box height={"calc(100vh - 169px)"} overflowY={"auto"}>
                             <List>
                                 {groups.map(group =>
                                     <GroupCard
@@ -864,7 +864,7 @@ const GroupCard: React.FunctionComponent<{
                         icon: "heroTrash",
                         confirmationText: "Are you sure you want to delete this group?",
                         confirmationButtonText: "Delete",
-                        enabled: () => true,
+                        enabled: (selected) => selected.find(it => it.specification.title === "All users") == null,
                         onClick: () => props.handleDeleteGroup(props.group.id),
                         shortcut: ShortcutKey.E
                     }
