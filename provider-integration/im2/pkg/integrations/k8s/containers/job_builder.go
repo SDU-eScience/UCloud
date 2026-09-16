@@ -117,6 +117,42 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		}
 	}
 
+	// External project folder mounting policy
+	// -----------------------------------------------------------------------------------------------------------------
+	if job.Owner.Project.Present {
+		policies := controller.RetrievePoliciesByProject(job.Owner.Project.Value)
+		if policy, ok := policies[foundation.RestrictExternalProjectFolderMounting]; ok {
+			values, ok := policy.GetValues().(foundation.RestrictExternalProjectFolderMountingValues)
+			if !ok {
+				return util.HttpErr(
+					http.StatusInternalServerError,
+					"Misconfigured Policy",
+				)
+			}
+
+			if values.Enabled {
+				var mountedPaths []string
+				for _, v := range job.Specification.Parameters {
+					if v.Type == orc.AppParameterValueTypeFile {
+						mountedPaths = append(mountedPaths, v.Path)
+					}
+				}
+				for _, v := range job.Specification.Resources {
+					if v.Type == orc.AppParameterValueTypeFile {
+						mountedPaths = append(mountedPaths, v.Path)
+					}
+				}
+
+				if !filesystem.AllowUCloudPathsFromProject(mountedPaths, job.Owner.Project.Value) {
+					return util.HttpErr(
+						http.StatusForbidden,
+						"Project does not allow mounting folders from outside the project",
+					)
+				}
+			}
+		}
+	}
+
 	// Setting up the basics
 	// -----------------------------------------------------------------------------------------------------------------
 	pod := &core.Pod{

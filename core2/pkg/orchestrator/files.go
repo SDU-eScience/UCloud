@@ -331,7 +331,6 @@ func FilesCreateUpload(
 		}
 	}
 
-
 	var result fndapi.BulkResponse[orcapi.FilesCreateUploadResponse]
 	var paths []string
 	for _, reqItem := range request.Items {
@@ -621,6 +620,31 @@ func filesMoveAndCopyPolicyCheck(sourceDrive orcapi.Drive, destinationDrive orca
 		return util.HttpErr(
 			http.StatusForbidden,
 			"Project policies do not allow files to be moved or copied out of the project.",
+		)
+	}
+
+	return nil
+}
+
+// jobExternalMountPolicyCheck enforces the "RestrictExternalProjectFolderMounting" project policy for a single
+// file mount. While the policy is enabled in the actor's active project, drives which do not belong to that
+// project (including personal drives) may not be mounted into applications.
+func jobExternalMountPolicyCheck(actor rpc.Actor, drive orcapi.Drive) *util.HttpError {
+	if !actor.Project.Present {
+		// Mounting is not happening in a project context, the policy does not apply
+		return nil
+	}
+
+	if drive.Owner.Project.Present && string(actor.Project.Value) == drive.Owner.Project.Value {
+		// The drive belongs to the actor's active project
+		return nil
+	}
+
+	policies := policiesByProject(string(actor.Project.Value))
+	if specification, ok := policies[fndapi.RestrictExternalProjectFolderMounting]; ok && specification.IsEnabled() {
+		return util.HttpErr(
+			http.StatusForbidden,
+			"Project policies do not allow mounting folders from outside the project",
 		)
 	}
 

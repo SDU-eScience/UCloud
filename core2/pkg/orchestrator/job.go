@@ -1798,13 +1798,17 @@ func jobValidateValue(
 			return util.HttpErr(http.StatusBadRequest, "bad file requested at '%s'", path)
 		}
 
-		_, resc, _, err := ResourceRetrieveEx[orcapi.Drive](actor, driveType, ResourceParseId(driveId),
+		drive, _, _, err := ResourceRetrieveEx[orcapi.Drive](actor, driveType, ResourceParseId(driveId),
 			orcapi.PermissionRead, orcapi.ResourceFlags{IncludeOthers: true})
 		if err != nil {
 			return util.HttpErr(http.StatusBadRequest, "unknown file or permission denied at '%s'", path)
 		}
 
-		value.ReadOnly = !orcapi.PermissionsHas(resc.Permissions.GetOrDefault(orcapi.ResourcePermissions{}).Myself, orcapi.PermissionEdit)
+		if policyErr := jobExternalMountPolicyCheck(actor, drive); policyErr != nil {
+			return policyErr
+		}
+
+		value.ReadOnly = !orcapi.PermissionsHas(drive.Permissions.GetOrDefault(orcapi.ResourcePermissions{}).Myself, orcapi.PermissionEdit)
 		return nil
 
 	case orcapi.AppParameterValueTypePeer:

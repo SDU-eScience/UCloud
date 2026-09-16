@@ -230,7 +230,7 @@ func Launch() {
 
 	rpc.DefaultServer.Mux = http.NewServeMux()
 
-	rpc.DefaultServer.RequestPolicies = func(callName string, info rpc.RequestInfo) *util.HttpError {
+	rpc.DefaultServer.RequestPolicies = func(callName string, info rpc.RequestInfo, restrictSourceIP bool) *util.HttpError {
 		//Not needed at the moment on IM side
 		return nil
 	}

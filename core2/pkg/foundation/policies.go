@@ -420,7 +420,7 @@ func ApiTokensIsRestricted(projectId string) bool {
 // SourceIpPolicy enforces the "RestrictSourceIPRange" project policy for a single RPC call. It is
 // installed as the request policy of the RPC server and is consulted before every incoming request.
 //
-// Only the endpoints listed in sourceIpRestrictedEndpoints are subject to the check. For those
+// Only the endpoints marked with restrictSourceIp = true are subject to the check. For those
 // endpoints, the call is rejected if the client's IP address is not permitted by the policy of the
 // actor's active project. Calls which are not subject to the policy, and calls which the policy
 // allows, return a nil error.
