@@ -514,3 +514,21 @@ func TestAppCategories(t *testing.T) {
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }
+
+func TestAppSearch(t *testing.T) {
+	input := []string{"app", "search"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestAppGet(t *testing.T) {
+	input := []string{"app", "get", "airflow"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
