@@ -4,6 +4,7 @@ const (
 	ResourceLabelInitScript        = "ucloud.dk/init-script"
 	ResourceLabelServiceIpAddress  = "ucloud.dk/service-ip-address"
 	ResourceLabelServiceForwardTcp = "ucloud.dk/service-forward-tcp"
+	ResourceLabelServiceForwardUdp = "ucloud.dk/service-forward-udp"
 	ResourceLabelStack             = "ucloud.dk/stack"
 	ResourceLabelStackStateFolder  = "ucloud.dk/stack-state-folder"
 	ResourceLabelStackInstance     = "ucloud.dk/stack-instance"

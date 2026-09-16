@@ -1288,6 +1288,20 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		}
 	}
 
+	if forwards, ok := job.Specification.Labels[orc.ResourceLabelServiceForwardUdp]; ok {
+		var ports []int
+		err := json.Unmarshal([]byte(forwards), &ports)
+		if err == nil {
+			for _, port := range ports {
+				baseService.Spec.Ports = append(baseService.Spec.Ports, k8score.ServicePort{
+					Name:     fmt.Sprintf("p-%d-udp", port),
+					Protocol: k8score.ProtocolUDP,
+					Port:     int32(port),
+				})
+			}
+		}
+	}
+
 	cinit := cloudInit{}
 	cinit.DisableRoot = true
 	{
