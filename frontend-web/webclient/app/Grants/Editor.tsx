@@ -1,4 +1,5 @@
 import * as Accounting from "@/Accounting";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
@@ -2644,9 +2645,8 @@ const ApplicationHistory: React.FunctionComponent<{state: EditorState}> = ({stat
     };
 
     const formatAmount = (amount: number, unit: string | undefined): string => {
-        return amount.toLocaleString(undefined, {
-            maximumFractionDigits: Number.isInteger(amount) ? 0 : Accounting.isCreditUnit(unit ?? "") ? 3 : 2,
-        });
+        const precision = Number.isInteger(amount) ? 0 : Accounting.isCreditUnit(unit ?? "") ? 4 : 2;
+        return formatNumber(amount, {precision, removeTrailingZeros: true});
     };
 
     return (

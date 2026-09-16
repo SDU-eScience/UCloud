@@ -7,6 +7,7 @@ import {Box, Button, Card, ExternalLink, Flex, Input, Link, Select, Text, TextAr
 import {MainContainer, MAIN_CONTAINER_MAX_WIDTH} from "@/ui-components/MainContainer";
 import Table, {TableHeader, TableRow} from "@/ui-components/Table";
 import {copyToClipboard, expandAndPrettifyString} from "@/UtilityFunctions";
+import {applyNumberSeparators, formatNumber} from "@/Utilities/NumberFormatting";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {InferenceBenchmark, InferenceCapability, InferenceModel, listModels, updateBenchmarks, updateModel} from "./api";
@@ -420,7 +421,7 @@ function Datasheet({model}: {model: InferenceModel}): React.ReactNode {
         ["Endpoint", <CopyableEndpoint key="endpoint" value={model.name} />],
         ["Parameters", page?.datasheet?.parameters ?? "Not specified"],
         ["Activated parameters", page?.datasheet?.activatedParameters ?? null],
-        ["Context length", model.contextWindow ? model.contextWindow.toLocaleString() : "Not specified"],
+        ["Context length", model.contextWindow ? formatNumber(model.contextWindow) : "Not specified"],
         ["Quantization level", page?.datasheet?.quantization ?? null],
         ["Input/1M", formatPricePerMillion(model.pricePerMillion.input, true)],
         ["Cached/1M", formatPricePerMillion(model.pricePerMillion.cachedInput, true)],
@@ -454,7 +455,8 @@ function formatPricePerMillion(value: number, includeUnit: boolean = false): str
     if (value === 0) return "Free";
     const digits = Math.trunc(value).toString().padStart(7, "0");
     const fraction = digits.slice(-6).replace(/0+$/, "");
-    const ret = fraction === "" ? digits.slice(0, -6) : `${digits.slice(0, -6)}.${fraction}`;
+    const integerPart = digits.slice(0, -6);
+    const ret = fraction === "" ? applyNumberSeparators(integerPart) : applyNumberSeparators(`${integerPart}.${fraction}`);
     return !includeUnit ? ret : ret + " Credits";
 }
 

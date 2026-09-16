@@ -12,6 +12,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import ModelInferenceLogo, {modelProviderName} from "@/Inference/ModelLogo";
 import {injectStyle} from "@/Unstyled";
 import {LineCappedMarkdown} from "@/ui-components/Markdown";
+import {applyNumberSeparators, formatNumber} from "@/Utilities/NumberFormatting";
 // import HeroImage from "@/ui-components/icons/logo_esc.svg";
 import HeroImage from "@/Assets/Images/inference/ucloud-ai-logo.png";
 import {RichSelect} from "@/ui-components/RichSelect";
@@ -795,7 +796,8 @@ function formatPricePerMillion(value: number): string {
     if (value === 0) return "Free";
     const digits = Math.trunc(value).toString().padStart(7, "0");
     const fraction = digits.slice(-6).replace(/0+$/, "");
-    return fraction === "" ? digits.slice(0, -6) : `${digits.slice(0, -6)}.${fraction}`;
+    const integerPart = digits.slice(0, -6);
+    return fraction === "" ? applyNumberSeparators(integerPart) : applyNumberSeparators(`${integerPart}.${fraction}`);
 }
 
 function CatalogFilterButton(props: React.PropsWithChildren<{active: boolean; onClick: () => void; className?: string;}>): React.ReactNode {
@@ -878,7 +880,7 @@ function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {
 
         <div className={"model-spec-section"}>
             <div className="model-specs">
-                <ModelMetric title="Context" value={model.contextWindow?.toLocaleString() ?? "-"} />
+                <ModelMetric title="Context" value={model.contextWindow != null ? formatNumber(model.contextWindow) : "-"} />
                 <ModelMetric title="Parameters" value={model.page?.datasheet?.parameters ?? "-"} />
             </div>
 

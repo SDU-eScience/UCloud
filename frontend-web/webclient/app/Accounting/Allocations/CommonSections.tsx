@@ -31,6 +31,7 @@ import AppRoutes from "@/Routes";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {bulkRequestOf, chunkedString, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {OldProjectRole} from "@/Project";
 import {
@@ -814,9 +815,9 @@ export const KeyMetrics: React.FunctionComponent<{
                                         }
                                         right={<Flex flexDirection={"row"} gap={"8px"}>
                                             {tree.usageAndQuota.map((uq, idx) => {
-                                                let label = `${okPercentage.toFixed(2)}% Ok` +
-                                                    ` | ${atRiskPercentage.toFixed(2)}% At risk` +
-                                                    ` | ${underusedPercentage.toFixed(2)}% Underused`;
+                                                let label = `${formatNumber(okPercentage, {precision: 2})}% Ok` +
+                                                    ` | ${formatNumber(atRiskPercentage, {precision: 2})}% At risk` +
+                                                    ` | ${formatNumber(underusedPercentage, {precision: 2})}% Underused`;
                                                 return <React.Fragment key={idx}>
                                                     <AllocationBar
                                                         label={label}

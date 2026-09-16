@@ -28,6 +28,7 @@ import {useBreakdownChart} from "@/Accounting/Diagrams/UsageBreakdown";
 import {useUtilizationOverTimeChart} from "@/Accounting/Diagrams/UtilizationOverTime";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {exportUsage} from "@/Accounting/Usage";
 
 export interface UsageRetrieveRequest {
@@ -659,7 +660,7 @@ const UsagePage: React.FunctionComponent = () => {
                                                 Over-commit:
                                             </TooltipV2>
                                         </th>
-                                        <td align={"right"}>{overCommitRatio.toFixed(1)}x</td>
+                                        <td align={"right"}>{formatNumber(overCommitRatio, {precision: 1})}x</td>
                                     </tr>
                                     <tr>
                                         <th align={"left"}>
@@ -670,7 +671,7 @@ const UsagePage: React.FunctionComponent = () => {
                                                 Rec. over-commit:
                                             </TooltipV2>
                                         </th>
-                                        <td align={"right"}>{recommendedOverCommit === 0 ? "-" : <>{recommendedOverCommit.toFixed(1)}x</>}</td>
+                                        <td align={"right"}>{recommendedOverCommit === 0 ? "-" : <>{formatNumber(recommendedOverCommit, {precision: 1})}x</>}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -683,19 +684,19 @@ const UsagePage: React.FunctionComponent = () => {
                                     <tr>
                                         <th align={"left"}>Healthy:</th>
                                         <td align={"right"} width={"42px"}>
-                                            {((r.subProjectHealth.ok / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
+                                            {formatNumber((r.subProjectHealth.ok / r.subProjectHealth.subProjectCount) * 100, {precision: 2})}%
                                         </td>
                                     </tr>
                                     <tr>
                                         <th align={"left"}>Underutilized:</th>
                                         <td align={"right"} width={"42px"}>
-                                            {((r.subProjectHealth.underUtilized / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
+                                            {formatNumber((r.subProjectHealth.underUtilized / r.subProjectHealth.subProjectCount) * 100, {precision: 2})}%
                                         </td>
                                     </tr>
                                     <tr>
                                         <th align={"left"}>At risk:</th>
                                         <td align={"right"} width={"42px"}>
-                                            {((r.subProjectHealth.atRisk / r.subProjectHealth.subProjectCount) * 100).toFixed(2)}%
+                                            {formatNumber((r.subProjectHealth.atRisk / r.subProjectHealth.subProjectCount) * 100, {precision: 2})}%
                                         </td>
                                     </tr>
                                 </tbody>

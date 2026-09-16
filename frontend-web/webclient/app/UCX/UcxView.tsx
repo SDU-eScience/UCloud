@@ -37,6 +37,7 @@ import {stopPropagation} from "@/UtilityFunctions";
 import Label from "@/ui-components/Label";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {ProductSelector} from "@/Products/Selector";
 import BaseLink from "@/ui-components/BaseLink";
@@ -1738,8 +1739,8 @@ function formatSliderValue(value: number, step: number): string {
     const decimals = decimalPlaces(step);
     const factor = Math.pow(10, decimals);
     const rounded = Math.round(value * factor) / factor;
-    const text = decimals > 0 ? rounded.toFixed(decimals) : Math.round(rounded).toString();
-    return decimals > 0 ? text.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1") : text;
+    const text = decimals > 0 ? formatNumber(rounded, {precision: decimals, removeTrailingZeros: true}) : formatNumber(Math.round(rounded), {withThousandsSeparator: false});
+    return text;
 }
 
 function decimalPlaces(value: number): number {
