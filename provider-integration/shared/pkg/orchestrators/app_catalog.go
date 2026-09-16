@@ -921,11 +921,18 @@ var AppsDevImport = rpc.Call[AppCatalogDevImportRequest, util.Empty]{
 	Operation:   "devImport",
 }
 
-var AppsImportIsDone = rpc.Call[util.Empty, bool]{
+type AppCatalogDevImportStatus struct {
+	Running  bool   `json:"running"`
+	Complete bool   `json:"complete"`
+	Message  string `json:"message"`
+	Error    string `json:"error,omitempty"`
+}
+
+var AppsDevImportStatus = rpc.Call[util.Empty, AppCatalogDevImportStatus]{
 	BaseContext: appCatalogNamespace,
-	Convention:  rpc.ConventionUpdate,
+	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesService,
-	Operation:   "importIsDone",
+	Operation:   "devImportStatus",
 }
 
 var AppsImportFromFile = rpc.Call[[]byte, util.Empty]{

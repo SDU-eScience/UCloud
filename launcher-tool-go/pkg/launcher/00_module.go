@@ -243,10 +243,12 @@ func ClusterStart(down bool) {
 		var composeFile struct {
 			Services map[string]DockerComposeService `yaml:"services"`
 			Volumes  map[string]util.Empty           `yaml:"volumes"`
+			Networks map[string]DockerComposeNetwork `yaml:"networks,omitempty"`
 		}
 
 		composeFile.Services = map[string]DockerComposeService{}
 		composeFile.Volumes = map[string]util.Empty{}
+		composeFile.Networks = map[string]DockerComposeNetwork{}
 
 		for name, composeService := range ComposeServices {
 			composeFile.Services[name] = composeService
@@ -254,6 +256,17 @@ func ClusterStart(down bool) {
 
 		for _, vol := range Volumes {
 			composeFile.Volumes[vol] = util.Empty{}
+		}
+
+		mtu := os.Getenv("UCLOUD_DOCKER_MTU")
+		if mtu == "" {
+			mtu = "1400"
+		}
+
+		composeFile.Networks["default"] = DockerComposeNetwork{
+			DriverOpts: map[string]string{
+				"com.docker.network.driver.mtu": mtu,
+			},
 		}
 
 		rendered, _ := yaml.Marshal(composeFile)

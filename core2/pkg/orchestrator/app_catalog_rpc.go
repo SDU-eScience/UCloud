@@ -527,38 +527,90 @@ func appCatalogInitRpc() {
 		return util.Empty{}, AppStudioUpdateTopPicks(groupIds)
 	})
 
-	appImportIsDone := atomic.Bool{}
-	orcapi.AppsDevImport.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogDevImportRequest) (util.Empty, *util.HttpError) {
-		resp, err := http.Get(request.Endpoint)
-		if err != nil {
-			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "could not contact endpoint")
-		}
+	if !util.DevelopmentModeEnabled() {
+		orcapi.AppsDevImport.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogDevImportRequest) (util.Empty, *util.HttpError) {
+			return util.Empty{}, util.HttpErr(http.StatusNotFound, "not found")
+		})
 
-		data, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "could not download data from endpoint")
-		}
+		orcapi.AppsDevImportStatus.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.AppCatalogDevImportStatus, *util.HttpError) {
+			return orcapi.AppCatalogDevImportStatus{}, util.HttpErr(http.StatusNotFound, "not found")
+		})
+	} else {
+		var devImportState atomic.Pointer[orcapi.AppCatalogDevImportStatus]
+		devImportState.Store(&orcapi.AppCatalogDevImportStatus{})
 
-		// NOTE(Dan): This checksum assumes that the client can be trusted. This is only intended to protect against a
-		// sudden compromise of the domain we use to host the assets or some other mitm attack. This should all be
-		// fine given that this code is only ever supposed to run locally.
-		calculated := util.Sha256(data)
-		if calculated != request.Checksum {
-			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "unexpected checksum - got: %s, expected: %s",
-				calculated, request.Checksum)
-		}
+		orcapi.AppsDevImportStatus.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.AppCatalogDevImportStatus, *util.HttpError) {
+			return *devImportState.Load(), nil
+		})
 
-		go func() {
-			appImportIsDone.Store(false)
-			AppIxImportFromZip(data)
-			appImportIsDone.Store(true)
-		}()
-		return util.Empty{}, nil
-	})
+		orcapi.AppsDevImport.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogDevImportRequest) (util.Empty, *util.HttpError) {
+			if devImportState.Load().Running {
+				return util.Empty{}, util.HttpErr(http.StatusConflict, "an import is already running")
+			}
 
-	orcapi.AppsImportIsDone.Handler(func(info rpc.RequestInfo, request util.Empty) (bool, *util.HttpError) {
-		return appImportIsDone.Load(), nil
-	})
+			devImportState.Store(&orcapi.AppCatalogDevImportStatus{
+				Running: true,
+				Message: "Downloading application catalog",
+			})
+
+			go func() {
+				resp, err := http.Get(request.Endpoint)
+				if err != nil {
+					devImportState.Store(&orcapi.AppCatalogDevImportStatus{
+						Error: fmt.Sprintf("Could not contact %s: %v", request.Endpoint, err),
+					})
+					return
+				}
+
+				data, err := io.ReadAll(resp.Body)
+				util.SilentClose(resp.Body)
+				if err != nil {
+					devImportState.Store(&orcapi.AppCatalogDevImportStatus{
+						Error: fmt.Sprintf("Could not download data from %s: %v", request.Endpoint, err),
+					})
+					return
+				}
+
+				if resp.StatusCode != http.StatusOK {
+					devImportState.Store(&orcapi.AppCatalogDevImportStatus{
+						Error: fmt.Sprintf("Could not download %s: got status code %d", request.Endpoint, resp.StatusCode),
+					})
+					return
+				}
+
+				// NOTE(Dan): This checksum assumes that the client can be trusted. This is only intended to protect against a
+				// sudden compromise of the domain we use to host the assets or some other mitm attack. This should all be
+				// fine given that this code is only ever supposed to run locally.
+				calculated := util.Sha256(data)
+				if calculated != request.Checksum {
+					devImportState.Store(&orcapi.AppCatalogDevImportStatus{
+						Error: fmt.Sprintf("Unexpected checksum - got: %s, expected: %s", calculated, request.Checksum),
+					})
+					return
+				}
+
+				complete := AppIxImportFromZipWithProgress(func(message string) {
+					devImportState.Store(&orcapi.AppCatalogDevImportStatus{
+						Running: true,
+						Message: message,
+					})
+				}, data)
+
+				if complete {
+					devImportState.Store(&orcapi.AppCatalogDevImportStatus{
+						Complete: true,
+						Message:  "Import complete",
+					})
+				} else {
+					devImportState.Store(&orcapi.AppCatalogDevImportStatus{
+						Error: "Application import failed. Check the server logs.",
+					})
+				}
+			}()
+
+			return util.Empty{}, nil
+		})
+	}
 
 	orcapi.AppsImportFromFile.Handler(func(info rpc.RequestInfo, request []byte) (util.Empty, *util.HttpError) {
 		AppIxImportFromZip(request)

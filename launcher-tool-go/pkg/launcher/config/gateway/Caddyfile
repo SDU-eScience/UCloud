@@ -1,10 +1,4 @@
-{
-    order grpc_web before reverse_proxy
-}
-
 https://ucloud.localhost.direct {
-    grpc_web
-
     reverse_proxy /api/* core2:8080
     reverse_proxy /auth/* core2:8080
 

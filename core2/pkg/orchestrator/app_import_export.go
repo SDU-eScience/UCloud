@@ -178,6 +178,12 @@ func appIxDecode[T any](importedData map[string][]byte, fileName string) T {
 }
 
 func AppIxImportFromZip(b []byte) {
+	AppIxImportFromZipWithProgress(func(message string) {}, b)
+}
+
+func AppIxImportFromZipWithProgress(emit func(message string), b []byte) bool {
+	emit("Decoding archive")
+
 	// ZIP decode
 	// -----------------------------------------------------------------------------------------------------------------
 	importedData := map[string][]byte{}
@@ -185,19 +191,19 @@ func AppIxImportFromZip(b []byte) {
 	zr, zipErr := zip.NewReader(bytes.NewReader(b), int64(len(b)))
 	if zipErr != nil {
 		log.Info("corrupt ZIP file: %v", zipErr)
-		return
+		return false
 	}
 	for _, f := range zr.File {
 		rc, err := f.Open()
 		if err != nil {
 			log.Info("corrupt ZIP file, could not open %s: %v", f.Name, err)
-			return
+			return false
 		}
 		data, rerr := io.ReadAll(rc)
 		util.SilentClose(rc)
 		if rerr != nil {
 			log.Info("corrupt ZIP file, could not read %s: %v", f.Name, rerr)
-			return
+			return false
 		}
 		importedData[f.Name] = data
 	}
@@ -231,6 +237,8 @@ func AppIxImportFromZip(b []byte) {
 
 	// Application and tool import
 	// -----------------------------------------------------------------------------------------------------------------
+	emit(fmt.Sprintf("Importing %d tools and %d applications", len(toolsToImport), len(appsToImport)))
+
 	for _, t := range toolsToImport {
 		err := AppStudioCreateToolDirect(&t)
 		if err != nil && err.StatusCode != http.StatusConflict {
@@ -251,6 +259,8 @@ func AppIxImportFromZip(b []byte) {
 
 	// Group import
 	// -----------------------------------------------------------------------------------------------------------------
+	emit(fmt.Sprintf("Importing %d application groups", len(groupsToImport)))
+
 	existingGroupsByTitle := map[string]orcapi.ApplicationGroup{}
 	{
 		existingGroups := AppStudioListGroups()
@@ -317,6 +327,8 @@ func AppIxImportFromZip(b []byte) {
 
 	// Category import
 	// -----------------------------------------------------------------------------------------------------------------
+	emit(fmt.Sprintf("Importing %d categories", len(categoriesToImport)))
+
 	existingCategoryByTitle := map[string]orcapi.ApplicationCategory{}
 	{
 		categories := AppStudioListCategories()
@@ -356,6 +368,8 @@ func AppIxImportFromZip(b []byte) {
 
 	// Spotlight import
 	// -----------------------------------------------------------------------------------------------------------------
+	emit(fmt.Sprintf("Importing %d spotlights", len(spotlightsToImport)))
+
 	existingSpotlightsByTitle := map[string]orcapi.Spotlight{}
 	{
 		spotlights := AppStudioListSpotlights()
@@ -391,6 +405,8 @@ func AppIxImportFromZip(b []byte) {
 
 	// Carrousel import
 	// -----------------------------------------------------------------------------------------------------------------
+	emit("Importing carrousel")
+
 	for i := 0; i < len(carrouselToImport); i++ {
 		slide := &carrouselToImport[i]
 		if slide.LinkedGroup.Present {
@@ -412,6 +428,8 @@ func AppIxImportFromZip(b []byte) {
 
 	// Top picks import
 	// -----------------------------------------------------------------------------------------------------------------
+	emit("Importing top picks")
+
 	var newTopPicks []AppGroupId
 	for i := 0; i < len(topPicksToImport); i++ {
 		pick := &topPicksToImport[i]
@@ -426,6 +444,8 @@ func AppIxImportFromZip(b []byte) {
 
 	// Update group default flavor
 	// -----------------------------------------------------------------------------------------------------------------
+	emit("Finalizing import")
+
 	for _, g := range groupsToImport {
 		mapped := groupIdRemapper[g.Metadata.Id]
 		err := AppStudioUpdateGroup(orcapi.AppCatalogUpdateGroupRequest{
@@ -436,4 +456,7 @@ func AppIxImportFromZip(b []byte) {
 			log.Info("Could not assign default flavor '%s': %s", g.Specification.Title, err)
 		}
 	}
+
+	emit("Import finished")
+	return true
 }

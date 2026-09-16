@@ -135,19 +135,27 @@ services:
         claimName: cephfs
 
     machines:
-      u1-standard:
+      cpu-amd-zen5:
         nameSuffix: Cpu
 
         cpu: [ 1, 2, 4 ]
         memory: [ 1, 2, 4 ]
 
-        cpuModel: Model
-        memoryModel: Model
+        cpuModel: MaybeAMD 1234
+        memoryModel: DDR5
+        allowVirtualMachines: true
 
         payment:
           type: Resource
           unit: Cpu
           interval: Minutely
+
+    virtualMachines:
+      enabled: false
+      podLevelResources: false
+      storage:
+        type: HostPath
+        hostPath: /mnt/storage
 
   fileSystem:
     name: storage

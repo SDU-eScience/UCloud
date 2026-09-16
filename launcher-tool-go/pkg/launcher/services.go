@@ -111,6 +111,10 @@ type DockerComposeServiceNetwork struct {
 	Aliases []string `yaml:"aliases,omitempty"`
 }
 
+type DockerComposeNetwork struct {
+	DriverOpts map[string]string `yaml:"driver_opts,omitempty"`
+}
+
 func Mount(volName string, mountPath string) string {
 	return fmt.Sprintf("%s:%s", volName, mountPath)
 }

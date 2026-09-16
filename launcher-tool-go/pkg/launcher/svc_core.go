@@ -3,6 +3,7 @@ package launcher
 import (
 	_ "embed"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -74,7 +75,7 @@ func ServiceCore() {
 		}
 
 		StartServiceEx(service, true)
-		deadline := time.Now().Add(30 * time.Second)
+		deadline := time.Now().Add(90 * time.Second)
 
 		LogOutputRunWork("Waiting for UCloud/Core", func(ch chan string) error {
 			rpc.ClientAllowSilentAuthTokenRenewalErrors.Store(true)
@@ -97,32 +98,56 @@ func ServiceCore() {
 
 		LogOutputRunWork("Importing applications", func(ch chan string) error {
 			checksum := "62bbef4ea7b32c25808d1b084bb9ca61767d65a3e2a1a8a947426e424ca61159"
-			_, herr := orcapi.AppsDevImport.Invoke(orcapi.AppCatalogDevImportRequest{
-				Endpoint: fmt.Sprintf("https://launcher-assets.cloud.sdu.dk/%s.zip", checksum),
-				Checksum: checksum,
-			})
 
-			if herr != nil {
-				return herr.AsError()
-			}
-
-			success := false
-			appDeadline := time.Now().Add(1 * time.Minute)
-			for time.Now().Before(appDeadline) {
-				ok, herr := orcapi.AppsImportIsDone.Invoke(util.Empty{})
-				if herr == nil && ok {
-					success = true
-					break
+			started := false
+			var lastError error
+			for attempt := 0; attempt < 3 && !started; attempt++ {
+				if attempt > 0 {
+					ch <- fmt.Sprintf("Could not start the import (%v), retrying (%d/2)...\n", lastError, attempt)
+					time.Sleep(2 * time.Second)
 				}
 
-				time.Sleep(100 * time.Millisecond)
+				_, herr := orcapi.AppsDevImport.Invoke(orcapi.AppCatalogDevImportRequest{
+					Endpoint: fmt.Sprintf("https://launcher-assets.cloud.sdu.dk/%s.zip", checksum),
+					Checksum: checksum,
+				})
+
+				if herr == nil || herr.StatusCode == http.StatusConflict {
+					started = true
+				} else {
+					lastError = herr.AsError()
+				}
 			}
 
-			if !success {
-				return fmt.Errorf("Application import took too long")
+			if !started {
+				return fmt.Errorf("Could not start the application import: %v", lastError)
 			}
 
-			return nil
+			lastMessage := ""
+			appDeadline := time.Now().Add(10 * time.Minute)
+			for time.Now().Before(appDeadline) {
+				status, herr := orcapi.AppsDevImportStatus.Invoke(util.Empty{})
+				if herr != nil {
+					return herr.AsError()
+				}
+
+				if status.Error != "" {
+					return fmt.Errorf("%s", status.Error)
+				}
+
+				if status.Message != "" && status.Message != lastMessage {
+					lastMessage = status.Message
+					ch <- status.Message + "\n"
+				}
+
+				if status.Complete {
+					return nil
+				}
+
+				time.Sleep(500 * time.Millisecond)
+			}
+
+			return fmt.Errorf("Application import took too long. Last status: %s", lastMessage)
 		})
 
 		LogOutputRunWork("Creating admin user", func(ch chan string) error {
