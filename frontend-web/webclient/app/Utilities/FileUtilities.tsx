@@ -1,3 +1,5 @@
+import {applyNumberSeparators, formatNumber} from "@/Utilities/NumberFormatting";
+
 /**
  * Used for resolving paths, which contain either "." or "..", and returning the resolved path.
  * @param path The current input path, which can include relative paths
@@ -61,9 +63,9 @@ export function sizeToString(bytes: number | null): string {
     const {size, unit} = sizeToHumanReadableWithUnit(bytes);
 
     if (isInt(size)) {
-        return `${size} ${unit}`;
+        return `${applyNumberSeparators(size.toString())} ${unit}`;
     } else {
-        return `${size.toFixed(2)} ${unit}`;
+        return `${formatNumber(size, {precision: 2})} ${unit}`;
     }
 }
 

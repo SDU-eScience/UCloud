@@ -5,6 +5,7 @@ import {UFile} from "@/UCloud/UFile";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {injectStyle} from "@/Unstyled";
 import {sizeToString} from "@/Utilities/FileUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import React from "react";
 import {useNavigate} from "react-router-dom";
 
@@ -100,9 +101,9 @@ export function FileBrowserStatusBar({data}: {data: FileBrowserStatusData}): Rea
     const selectedSize = data.selected.reduce((sum, file) =>
         sum + (file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? 0), 0);
     const counts = data.selected.length > 0 && totalCount != null
-        ? `${data.selected.length.toLocaleString()} / ${totalCount.toLocaleString()} items`
+        ? `${formatNumber(data.selected.length)} / ${formatNumber(totalCount)} items`
         : fileCount != null && directoryCount != null
-            ? `${fileCount.toLocaleString()} files, ${directoryCount.toLocaleString()} directories`
+            ? `${formatNumber(fileCount)} files, ${formatNumber(directoryCount)} directories`
             : "Counting files...";
 
     const utilization = buildUtilization(data);
