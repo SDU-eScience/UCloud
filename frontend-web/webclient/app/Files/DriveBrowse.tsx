@@ -45,7 +45,7 @@ import * as Heading from "@/ui-components/Heading";
 import {MandatoryField} from "@/UtilityComponents";
 import Text from "../ui-components/Text";
 import {PermissionsTable} from "@/Resource/PermissionEditor";
-import {slimModalStyle} from "@/Utilities/ModalUtilities";
+import {ModalBottom, slimModalStyle} from "@/Utilities/ModalUtilities";
 import {connectionState} from "@/Providers/ConnectionState";
 import {useProjectId} from "@/Project/Api";
 import {sendFailureNotification} from "@/Notifications";
@@ -671,11 +671,10 @@ export function DriveCreate({onCreate, onCancel, products}: CreationWithInputFie
         </Box>)}
 
         <Box />
-
-        <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"} gap={"8px"}>
+        <ModalBottom>
             <Button color={"errorMain"} type="button" onClick={onCancel}>Cancel</Button>
             <Button color={"successMain"} disabled={product == null || !entryId} type="submit">Create</Button>
-        </Flex>
+        </ModalBottom>
     </form>;
 }
 

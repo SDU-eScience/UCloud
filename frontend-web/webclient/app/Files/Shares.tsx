@@ -44,7 +44,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {divHtml} from "@/Utilities/HTMLUtilities";
 import {FlexClass} from "@/ui-components/Flex";
 import {ButtonGroupClass} from "@/ui-components/ButtonGroup";
-import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {defaultModalStyle, ModalBottom, slimModalStyle} from "@/Utilities/ModalUtilities";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import Avatar from "@/AvataaarLib/avatar";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
@@ -150,7 +150,7 @@ export const SimpleAvatarComponentCache = new class {
 
 const ShareModalStyle = {
     ...defaultModalStyle,
-    content: {...defaultModalStyle.content, minHeight: undefined, top: "25%"}
+    content: {...slimModalStyle.content, minHeight: undefined, top: "25%"}
 }
 
 interface SelectedShare {
@@ -272,28 +272,11 @@ const ShareModal: React.FunctionComponent<{
                 </Flex>
             </form>
         </Box>
-
-        {inviteLinks.data.items.length < 1 ? <>
-            <Heading.h3>Share with link</Heading.h3>
-            <Box textAlign="center">
-                <Text mb="20px" mt="20px">Share files with other users with a link</Text>
-                <Button
-                    onClick={async () => {
-                        await callAPIWithErrorHandler(
-                            shareLinksApi.create({path: selected.path})
-                        );
-
-                        fetchLinks(
-                            shareLinksApi.browse({itemsPerPage: 10, path: selected.path}),
-                        );
-                    }}
-                >Create link</Button>
-            </Box>
-        </> : <>
             <Flex justifyContent="space-between">
                 <Heading.h3>Share with link</Heading.h3>
                 <Box textAlign="right">
                     <Button
+                        ml="auto"
                         onClick={async () => {
                             await callAPIWithErrorHandler(
                                 shareLinksApi.create({path: selected.path})
@@ -306,12 +289,11 @@ const ShareModal: React.FunctionComponent<{
                     >Create link</Button>
                 </Box>
             </Flex>
-            <Box mt={20}>
+            <Box mt={20} mb="32px">
                 {inviteLinks.data.items.map(link => (
                     <Box key={link.token} mb="10px">
-                        <Flex justifyContent="space-between">
-
-                            <Flex flexDirection={"column"}>
+                        <Flex justifyContent="space-between" gap="8px">
+                            <Flex width="100%" flexDirection={"column"}>
                                 <Tooltip
                                     trigger={(
                                         <Input
@@ -321,9 +303,7 @@ const ShareModal: React.FunctionComponent<{
                                                 copyToClipboard(inviteLinkFromToken(link.token));
                                                 sendInformationNotification("Invite link copied!");
                                             }}
-                                            mr={10}
                                             value={inviteLinkFromToken(link.token)}
-                                            width="500px"
                                         />
                                     )}
                                 >
@@ -355,42 +335,40 @@ const ShareModal: React.FunctionComponent<{
                     </Box>
                 ))}
             </Box>
-        </>}
-    </> : <>
-        <Box minHeight="200px">
-            <Flex>
-                <Button mr={20} onClick={() => setEditingLink(undefined)}>
-                    <Icon name="backward" size={20} />
-                </Button>
+            <ModalBottom>
+                <Button onClick={() => setEditingLink(undefined)}>Done</Button>
+            </ModalBottom>
+        </> : <>
+            <Box minHeight="200px">
                 <Heading.h3>Edit link settings</Heading.h3>
-            </Flex>
+                <Flex justifyContent="space-between" mt={20} mb={10}>
+                    <Text pt="10px">Anyone with the link can</Text>
+                    <div className={SelectBoxClass}>
+                        <ClickableDropdown
+                            useMousePositioning
+                            width="100px"
+                            chevron
+                            trigger={<>{permissions.find(it => it.value === selectedPermission)?.text}</>}
+                            options={permissions}
+                            onChange={async chosen => {
+                                const newPermissions = chosen == "EDIT" ? ["EDIT", "READ"] : ["READ"];
 
-            <Flex justifyContent="space-between" mt={20} mb={10}>
-                <Text pt="10px">Anyone with the link can</Text>
-                <div className={SelectBoxClass}>
-                    <ClickableDropdown
-                        useMousePositioning
-                        width="100px"
-                        chevron
-                        trigger={<>{permissions.find(it => it.value === selectedPermission)?.text}</>}
-                        options={permissions}
-                        onChange={async chosen => {
-                            const newPermissions = chosen == "EDIT" ? ["EDIT", "READ"] : ["READ"];
+                                await callAPIWithErrorHandler(
+                                    shareLinksApi.update({token: editingLink, path: selected.path, permissions: newPermissions})
+                                );
 
-                            await callAPIWithErrorHandler(
-                                shareLinksApi.update({token: editingLink, path: selected.path, permissions: newPermissions})
-                            );
-
-                            fetchLinks(
-                                shareLinksApi.browse({itemsPerPage: 10, path: selected.path})
-                            );
-                        }}
-                    />
-                </div>
-            </Flex>
-        </Box>
+                                fetchLinks(
+                                    shareLinksApi.browse({itemsPerPage: 10, path: selected.path})
+                                );
+                            }}
+                        />
+                    </div>
+                </Flex>
+            </Box>
+            <ModalBottom>
+                <Button onClick={() => setEditingLink(undefined)}>Back</Button>
+            </ModalBottom>
     </>;
-
 };
 
 const FEATURES: ResourceBrowseFeatures = {

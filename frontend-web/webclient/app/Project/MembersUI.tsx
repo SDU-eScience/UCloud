@@ -27,7 +27,7 @@ import {copyToClipboard, doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {Operations, ShortcutKey} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import ReactModal from "react-modal";
-import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {defaultModalStyle, ModalBottom, slimModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -165,7 +165,7 @@ export const MembersContainer: React.FunctionComponent<{
             <ReactModal
                 isOpen={isShowingInviteLinks}
                 onRequestClose={() => setIsShowingInviteLinks(false)}
-                style={defaultModalStyle}
+                style={slimModalStyle}
                 shouldCloseOnEsc
                 ariaHideApp={false}
                 onAfterOpen={() => undefined}
@@ -180,6 +180,7 @@ export const MembersContainer: React.FunctionComponent<{
                     onUpdateLinkRole={props.onUpdateLinkRole}
                     onSelectedExpiry={props.onSelectedExpiry}
                     onInvite={props.onInvite}
+                    close={() => setIsShowingInviteLinks(false)}
                 />
             </ReactModal>
 
@@ -406,6 +407,7 @@ const LinkInviteCard: React.FunctionComponent<{
     onLinkGroupsUpdated: (linkId: string, groupIds: string[]) => void;
     onSelectedExpiry: (linkId: string, expiry: number) => void;
     onInvite: (username: string) => void;
+    close: () => void;
 }> = props => {
     const [activeLinkId, setActiveLinkId] = useState<string | null>(null);
     const [copiedLinkIndex, setCopiedLinkIndex] = useState(-1);
@@ -481,16 +483,7 @@ const LinkInviteCard: React.FunctionComponent<{
     return <div ref={contentRef} tabIndex={-1} style={{outline: "0"}}>
         {activeLink ? <>
             <Flex gap={"8px"} marginBottom={"8px"} height={"35px"} alignItems={"center"}>
-                <BaseLink href={"#"}
-                    onClick={ev => {
-                        ev.preventDefault();
-                        setActiveLinkId(null);
-                    }}
-                    color={"textPrimary"}
-                >
-                    <Heading.h3>Invite with link</Heading.h3>
-                </BaseLink>
-                <Heading.h3>/ Settings</Heading.h3>
+                <Heading.h3>Link settings</Heading.h3>
             </Flex>
             <Flex gap={"8px"} marginBottom={"16px"} alignItems={"center"}>
                 <div>Assign new members to role</div>
@@ -548,7 +541,7 @@ const LinkInviteCard: React.FunctionComponent<{
                     )}
                 </List>
             </Flex>
-            <Flex gap={"8px"} marginBottom={"8px"} alignItems={"center"} justifyContent={"space-between"}>
+            <Flex gap={"8px"} marginBottom={"32px"} alignItems={"center"} justifyContent={"space-between"}>
                 <div>Set invite link expiration</div>
                 <SimpleRichSelect
                     items={
@@ -566,21 +559,17 @@ const LinkInviteCard: React.FunctionComponent<{
                     dropdownWidth={"156px"}
                 />
             </Flex>
+            <ModalBottom>
+                <Button onClick={() => setActiveLinkId(null)}>
+                    Back
+                </Button>
+            </ModalBottom>
         </> : isShowingInviteByUsername ? <>
             <Flex gap={"8px"} marginBottom={"8px"} height={"35px"} alignItems={"center"}>
-                <BaseLink href={"#"}
-                    onClick={ev => {
-                        ev.preventDefault();
-                        setIsShowingInviteByUsername(false);
-                    }}
-                    color={"textPrimary"}
-                >
-                    <Heading.h3>Invite </Heading.h3>
-                </BaseLink>
-                <Heading.h3>/ Invite by username</Heading.h3>
+                <Heading.h3>Invite by username</Heading.h3>
             </Flex>
             <form action="#" onSubmit={handleInvite}>
-                <Flex maxHeight={"264px"} overflowY={"auto"} marginBottom={"5px"}>
+                <Flex maxHeight={"264px"} overflowY={"auto"} marginBottom={"62px"}>
                     <Input
                         autoFocus={true}
                         placeholder={"Add by username"}
@@ -592,6 +581,9 @@ const LinkInviteCard: React.FunctionComponent<{
                     <Button ml={"8px"} disabled={username === ""}>Send</Button>
                 </Flex>
             </form>
+            <ModalBottom>
+                <Button onClick={() => setIsShowingInviteByUsername(false)}>Back</Button>
+            </ModalBottom>
         </> : <>
             <Flex alignItems={"center"} paddingBottom={"8px"} gap={"8px"}>
                 <Heading.h3>Invite with link</Heading.h3>
@@ -605,7 +597,7 @@ const LinkInviteCard: React.FunctionComponent<{
             </Flex>
 
             {props.links.length === 0 ? <>
-                <Flex alignItems={"center"} justifyContent={"center"} paddingTop={"32px"}>
+                <Flex alignItems={"center"} justifyContent={"center"} paddingTop={"32px"} marginBottom={"36px"}>
                     <Heading.h3>Create a link to invite collaborators to this project</Heading.h3>
                 </Flex>
             </> : null}
@@ -652,7 +644,7 @@ const LinkInviteCard: React.FunctionComponent<{
                             <Icon name={"heroTrash"} />
                         </Button>
                     </Flex>
-                    <Flex width="auto">
+                    <Flex width="auto" mb="28px">
                         <Box mb="8px" color="textSecondary" width="70%">
                             This link will automatically expire in {daysLeftToTimestamp(link.expires)} days
                         </Box>
@@ -660,11 +652,12 @@ const LinkInviteCard: React.FunctionComponent<{
                             {copiedLinkIndex === idx ? <>Copied! <Icon name="check" color="successMain" /></> : null}
                         </Box>
                     </Flex>
-                </Box>
-            )}
-        </>
-        }
-    </div >
+                </Box>)}
+            <ModalBottom>
+                <Button onClick={props.close}>Done</Button>
+            </ModalBottom>
+        </>}
+    </div>
 }
 
 const MemberCard: React.FunctionComponent<{
