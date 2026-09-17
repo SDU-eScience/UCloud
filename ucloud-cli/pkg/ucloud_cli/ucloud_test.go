@@ -532,3 +532,12 @@ func TestAppGet(t *testing.T) {
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }
+
+func TestComputeProducts(t *testing.T) {
+	input := []string{"compute", "products", "--provider", "k8s"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
