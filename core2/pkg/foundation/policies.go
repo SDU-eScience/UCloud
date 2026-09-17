@@ -34,6 +34,10 @@ func initPolicies() {
 	loadProjectPoliciesFromDB()
 
 	fndapi.PoliciesRetrieve.Handler(func(info rpc.RequestInfo, request fndapi.RetrievePoliciesRequest) (map[fndapi.PolicyName]fndapi.Policy, *util.HttpError) {
+		if request.DefaultPolicy {
+			return policiesDefaultRetrieve(info.Actor, request)
+		}
+
 		return policiesRetrieve(info.Actor, request)
 	})
 
@@ -129,6 +133,87 @@ func loadProjectPoliciesFromDB() {
 			policies.ConfiguredPolicies[policyName] = specification
 		}
 	})
+}
+
+func policiesDefaultRetrieve(actor rpc.Actor, request fndapi.RetrievePoliciesRequest) (map[fndapi.PolicyName]fndapi.Policy, *util.HttpError) {
+	projectId := request.ProjectId
+
+	if actor.Role != rpc.RoleProvider && actor.Role != rpc.RoleService {
+		if !actor.Project.Present {
+			return nil, util.HttpErr(http.StatusBadRequest, "Polices only applicable to projects")
+		}
+		if !actor.Membership[actor.Project.Value].Equals(rpc.ProjectRoleDataManager) {
+			return nil, util.HttpErr(http.StatusForbidden, "Only data managers may list the policies")
+		}
+		projectId = actor.Project.String()
+	}
+
+	result := make(map[fndapi.PolicyName]fndapi.Policy, len(policySchemas))
+
+	configuredDefaults := db.NewTx(func(tx *db.Transaction) map[fndapi.PolicyName]fndapi.Specification {
+		rows := db.Select[struct {
+			ProjectId        string `json:"project"`
+			PolicyName       string `json:"schema"`
+			PolicyProperties string `json:"values"`
+		}](
+			tx,
+			`
+			select policy_name, policy_properties
+			from project.default_policy_settings
+			where project_id = :project_id
+			`,
+			db.Params{
+				"project_id": projectId,
+			},
+		)
+
+		type policySpecificationRaw struct {
+			Schema  fndapi.PolicyName `json:"schema"`
+			Project rpc.ProjectId     `json:"project"`
+			Values  json.RawMessage   `json:"values"`
+		}
+
+		policies := make(map[fndapi.PolicyName]fndapi.Specification)
+
+		for _, row := range rows {
+			policyName := fndapi.PolicyName(row.PolicyName)
+			decoder, ok := fndapi.SpecificationDecoders[policyName]
+			if !ok {
+				log.Warn("Unknown policy %v", policyName)
+				continue
+			}
+
+			specificationData := policySpecificationRaw{
+				Schema:  policyName,
+				Project: rpc.ProjectId(row.ProjectId),
+				Values:  json.RawMessage(row.PolicyProperties),
+			}
+			data, err := json.Marshal(specificationData)
+			if err != nil {
+				log.Warn("Failed to marshal policy specification: %v", err)
+			}
+			specification, err := decoder(data)
+
+			if err != nil {
+				log.Warn("Error loading policy %v : %v", policyName, err)
+			}
+
+			policies[policyName] = specification
+		}
+		return policies
+	})
+
+	for name, schema := range policySchemas {
+		specification, ok := configuredDefaults[name]
+		if !ok {
+			specification = nil
+		}
+		result[name] = fndapi.Policy{
+			Schema:        schema,
+			Specification: specification,
+		}
+	}
+	return result, nil
 }
 
 func policiesRetrieve(actor rpc.Actor, request fndapi.RetrievePoliciesRequest) (map[fndapi.PolicyName]fndapi.Policy, *util.HttpError) {
@@ -329,6 +414,56 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 			}
 		}
 	}
+	if request.DefaultPolicy {
+		db.NewTx0(func(tx *db.Transaction) {
+			b := db.BatchNew(tx)
+			for _, specification := range request.UpdatedPolicies {
+				policyName := specification.GetSpecificationName()
+
+				if _, ok := policySchemas[policyName]; !ok {
+					log.Warn("Unknown Schema: %v ", policyName)
+					continue
+				}
+
+				properties, err := json.Marshal(specification.GetValues())
+				if err != nil {
+					log.Warn("Failed to marshal policy %s: %v", policyName, err)
+					continue
+				}
+
+				db.BatchExec(
+					b,
+					`
+					insert into project.default_policy_settings (
+						project_id,
+						policy_name,
+						policy_properties,
+						modified_at
+					)
+					values (
+						:project_id,
+						:policy_name,
+						:policy_properties,
+						now()
+					)
+					on conflict (project_id, policy_name)
+					do update set
+						policy_properties = excluded.policy_properties,
+						modified_at = now()
+					`,
+					db.Params{
+						"project_id":        specification.GetProject(),
+						"policy_name":       policyName,
+						"policy_properties": properties,
+					},
+				)
+			}
+
+			db.BatchSend(b)
+		})
+
+		return util.Empty{}, nil
+	}
 
 	db.NewTx0(func(tx *db.Transaction) {
 		b := db.BatchNew(tx)
@@ -396,6 +531,119 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 	}
 
 	return util.Empty{}, nil
+}
+
+// applyDefaultPoliciesToNewSubproject applies the default policy setting of parentId as the actual policies of the
+// newly created project (projectId). It is invoked when a subproject is created through granting, that is, when a
+// grant (grant giver initiated or not) is awarded with a "new project" recipient. Projects which already exist and
+// are simply receiving new resources are never touched by this function.
+func applyDefaultPoliciesToNewSubproject(parentId string, projectId string) {
+	parentDefaults, err := policiesDefaultRetrieve(rpc.ActorSystem, fndapi.RetrievePoliciesRequest{
+		ProjectId:     parentId,
+		DefaultPolicy: true,
+	})
+
+	if err != nil {
+		// The parent has no saved setting. The hardcoded default (all policies disabled) requires no work since
+		// disabled policies are equivalent to unconfigured policies.
+		return
+	}
+
+	// Same document format as the one used by loadProjectPoliciesFromDB for decoding specifications.
+	type policySpecificationRaw struct {
+		Schema  fndapi.PolicyName `json:"schema"`
+		Project rpc.ProjectId     `json:"project"`
+		Values  json.RawMessage   `json:"values"`
+	}
+
+	var specifications []fndapi.Specification
+
+	db.NewTx0(func(tx *db.Transaction) {
+		b := db.BatchNew(tx)
+
+		for policyName, policyValues := range parentDefaults {
+			if policyValues.Specification == nil || !policyValues.Specification.IsEnabled() {
+				continue
+			}
+			properties, err := json.Marshal(policyValues.Specification.GetValues())
+			if err != nil {
+				log.Warn("Failed to marshal the default policy %s: %v", policyName, err)
+				continue
+			}
+
+			db.BatchExec(
+				b,
+				`
+					insert into project.policies (
+						project_id,
+						policy_name,
+						policy_properties,
+						modified_at
+					)
+					values (
+						:project_id,
+						:policy_name,
+						:policy_properties,
+						now()
+					)
+					on conflict (project_id, policy_name)
+					do update set
+						policy_properties = excluded.policy_properties,
+						modified_at = now()
+				`,
+				db.Params{
+					"project_id":        projectId,
+					"policy_name":       policyName,
+					"policy_properties": properties,
+				},
+			)
+
+			// Decode the specification such that the in-memory policy cache can be updated.
+			decoder, hasDecoder := fndapi.SpecificationDecoders[policyName]
+			if !hasDecoder {
+				log.Warn("Unknown policy in the default policy setting: %v", policyName)
+				continue
+			}
+
+			data, err := json.Marshal(policySpecificationRaw{
+				Schema:  policyName,
+				Project: rpc.ProjectId(projectId),
+				Values:  json.RawMessage(properties),
+			})
+			if err != nil {
+				continue
+			}
+
+			specification, err := decoder(data)
+			if err != nil {
+				log.Warn("Failed to decode the default policy %s: %v", policyName, err)
+				continue
+			}
+
+			specifications = append(specifications, specification)
+		}
+
+		db.BatchSend(b)
+	})
+
+	// Update the in-memory policy cache of this service if any changes even apply.
+	// The database trigger on project.policies notifies the remaining services about the change.
+	if len(specifications) > 0 {
+		projectPolicies.Mu.Lock()
+
+		entry, ok := projectPolicies.PoliciesByProject[projectId]
+		if !ok {
+			entry = &AssociatedPolicies{
+				ConfiguredPolicies: make(map[fndapi.PolicyName]fndapi.Specification),
+			}
+			projectPolicies.PoliciesByProject[projectId] = entry
+		}
+
+		for _, specification := range specifications {
+			entry.ConfiguredPolicies[specification.GetSpecificationName()] = specification
+		}
+		projectPolicies.Mu.Unlock()
+	}
 }
 
 // ApiTokensIsRestricted reports whether the project has enabled the "RestrictApiTokens" policy.

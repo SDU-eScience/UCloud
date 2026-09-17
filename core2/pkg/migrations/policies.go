@@ -32,6 +32,15 @@ func policiesV1() db.MigrationScript {
 					for each row
 					execute function project.notify_policy_change();
 				`,
+				`
+					create table if not exists project.default_policy_settings (
+					    policy_name text not null,
+					    policy_properties jsonb not null,
+					    project_id text not null references project.projects(id) on delete cascade,
+					    modified_at timestamp with time zone default now() not null,
+					    primary key (project_id, policy_name)
+					)
+			    `,
 			}
 
 			for _, statement := range statements {

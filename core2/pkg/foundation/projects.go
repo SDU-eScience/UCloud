@@ -2307,6 +2307,7 @@ func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequ
 
 	resultId := util.UUid()
 	suffix := ""
+	wasNewlyCreated := false
 
 	for {
 		id, ok := db.NewTx2(func(tx *db.Transaction) (string, bool) {
@@ -2383,6 +2384,7 @@ func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequ
 				},
 			)
 
+			wasNewlyCreated = true
 			return resultId, true
 		})
 
@@ -2391,6 +2393,12 @@ func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequ
 			b.Mu.Lock()
 			delete(b.Users, req.PiUsername) // invalidate cache
 			b.Mu.Unlock()
+
+			if wasNewlyCreated && req.Parent.Present {
+				// A new subproject was created through granting though granting so this is the grant path.
+				// Apply the default policy setting of the parent (the grant giver) to the new subproject.
+				applyDefaultPoliciesToNewSubproject(req.Parent.Value, id)
+			}
 
 			return id, nil
 		}

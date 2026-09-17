@@ -56,6 +56,8 @@ import {connectionState} from "@/Providers/ConnectionState";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {NewDataList} from "@/UserSettings/ChangeUserDetails";
+import {boolean} from "property-information/lib/util/types";
+import {Tree, TreeNode} from "@/ui-components/Tree";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -580,7 +582,10 @@ export const ProjectSettings: React.FunctionComponent = () => {
     const sections: SettingsNavSection[] = [
         {id: "project-information", label: "Project information"},
         ...(canManageProject ? [{id: "grant-applications", label: "Grant applications"}] : []),
-        ...(isDataSteward(status.myRole) ? [{id: "project-policies", label: "Project policies"}] : []),
+        ...(isDataSteward(status.myRole) ? [
+            {id: "project-policies", label: "Project policies"},
+            {id: "default-policies", label: "Default policies"},
+        ] : []),
         {id: "project-membership", label: "Project membership"},
     ];
 
@@ -716,9 +721,22 @@ export const ProjectSettings: React.FunctionComponent = () => {
             </SettingsSection> : null}
 
             {isDataSteward(status.myRole) ?
-                <SettingsSection id="project-policies" title="Project policies">
-                    <PolicySchemas />
-                </SettingsSection> : null}
+                <>
+                    <SettingsSection id="project-policies" title="Project policies">
+                        <PolicySchemas />
+                    </SettingsSection>
+                    <SettingsSection
+                        id="default-policies"
+                        title="Default policies"
+                        description="Policies applied to projects that do not define an explicit policy of their own."
+                    >
+                        <Tree>
+                            <TreeNode left="Edit default policies">
+                                <PolicySchemas isDefaultPolicySetting={true} />
+                            </TreeNode>
+                        </Tree>
+                    </SettingsSection>
+                </> : null}
 
             <SettingsSection id="project-membership" title="Project membership" mb={0}>
                 <LeaveProject
@@ -868,10 +886,12 @@ type PolicySchema =
 
 interface RetrievePoliciesRequest {
     projectId: string;
+    defaultPolicy: boolean;
 }
 
 interface PoliciesUpdateRequest {
     updatedPolicies: Record<PolicyName, Specification>;
+    defaultPolicy: boolean;
 }
 
 interface Specification {
@@ -880,18 +900,18 @@ interface Specification {
     values: {enabled: boolean} & Record<string, any>;
 }
 
-function PolicySchemas(): React.ReactNode {
+function PolicySchemas({isDefaultPolicySetting = false}: {isDefaultPolicySetting?: boolean}): React.ReactNode {
 
     const projectId = useProjectId();
     const [schemas, setSchemas] = useState<Record<string, Policy>>({})
     React.useEffect(() => {
         if (projectId) {
-            callAPI(PolicyAPI.retrievePolicies({projectId})).then(setSchemas);
+            callAPI(PolicyAPI.retrievePolicies({projectId: projectId, defaultPolicy: isDefaultPolicySetting})).then(setSchemas);
         }
     }, [projectId]);
 
     const submitChanges = React.useCallback((updatedPolicies: Record<PolicyName, Specification>) => {
-        callAPI(PolicyAPI.updatePolicies({updatedPolicies}));
+        callAPI(PolicyAPI.updatePolicies({updatedPolicies: updatedPolicies, defaultPolicy: isDefaultPolicySetting}));
     }, []);
 
     const togglePolicy = React.useCallback((schemaName: PolicyName, enabled: boolean) => {
@@ -907,7 +927,10 @@ function PolicySchemas(): React.ReactNode {
             } else {
                 sc[schemaName].specification.values.enabled = enabled;
             }
-            callAPI(PolicyAPI.updatePolicies({updatedPolicies: {[schemaName]: sc[schemaName].specification} as Record<PolicyName, Specification>}));
+            callAPI(PolicyAPI.updatePolicies({
+                updatedPolicies: {[schemaName]: sc[schemaName].specification} as Record<PolicyName, Specification>,
+                defaultPolicy: isDefaultPolicySetting
+            }));
             return {...sc};
         });
     }, [projectId]);
@@ -919,7 +942,10 @@ function PolicySchemas(): React.ReactNode {
                 return sc;
             }
             sc[schemaName].specification!.values[rule] = value;
-            callAPI(PolicyAPI.updatePolicies({updatedPolicies: {[schemaName]: sc[schemaName].specification} as Record<PolicyName, Specification>}));
+            callAPI(PolicyAPI.updatePolicies({
+                updatedPolicies: {[schemaName]: sc[schemaName].specification} as Record<PolicyName, Specification>,
+                defaultPolicy: isDefaultPolicySetting
+            }));
             return {...sc};
         })
     }, []);

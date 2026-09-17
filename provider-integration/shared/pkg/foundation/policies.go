@@ -600,13 +600,32 @@ var SpecificationDecoders = map[PolicyName]func([]byte) (Specification, error){
 	RestrictUploads:                       decodeRestrictUploads,
 }
 
+type DefaultPolicyValues struct {
+	RestrictApiTokens                     RestrictApiTokensValues                     `json:"restrictApiTokens"`
+	RestrictApplications                  RestrictApplicationsValues                  `json:"restrictApplications"`
+	RestrictCutAndPaste                   RestrictCutAndPasteValues                   `json:"restrictCutAndPaste"`
+	RestrictDownloads                     RestrictDownloadsValues                     `json:"restrictDownloads"`
+	RestrictExternalProjectFolderMounting RestrictExternalProjectFolderMountingValues `json:"restrictExternalProjectFolderMounting"`
+	RestrictIntegratedApplications        RestrictIntegratedApplicationsValues        `json:"restrictIntegratedApplications"`
+	RestrictInternetAccess                RestrictInternetAccessValues                `json:"restrictInternetAccess"`
+	RestrictMoveAndCopy                   RestrictMoveAndCopyValues                   `json:"restrictMoveAndCopy"`
+	RestrictOrganizationMembers           RestrictOrganizationMembersValues           `json:"restrictOrganizationMembers"`
+	RestrictProviderFileTransfers         RestrictProviderFileTransfersValues         `json:"restrictProviderFileTransfers"`
+	RestrictPublicIPs                     RestrictPublicIPsValues                     `json:"restrictPublicIps"`
+	RestrictPublicLinks                   RestrictPublicLinksValues                   `json:"restrictPublicLinks"`
+	RestrictSourceIPRange                 RestrictSourceIPRangeValues                 `json:"restrictSourceIpRange"`
+	RestrictSsh                           RestrictSshValues                           `json:"restrictSsh"`
+	RestrictUploads                       RestrictUploadsValues                       `json:"restrictUploads"`
+}
+
 // API
 // =====================================================================================================================
 
 const policiesBaseContext = "projects/v2/policies"
 
 type RetrievePoliciesRequest struct {
-	ProjectId string `yaml:"projectId" json:"projectId"`
+	ProjectId     string `yaml:"projectId" json:"projectId"`
+	DefaultPolicy bool   `yaml:"defaultPolicy" json:"defaultPolicy"`
 }
 
 var PoliciesRetrieve = rpc.Call[RetrievePoliciesRequest, map[PolicyName]Policy]{
@@ -617,6 +636,7 @@ var PoliciesRetrieve = rpc.Call[RetrievePoliciesRequest, map[PolicyName]Policy]{
 
 type PoliciesUpdateRequest struct {
 	UpdatedPolicies map[PolicyName]Specification `yaml:"updatedPolicies" json:"updatedPolicies"`
+	DefaultPolicy   bool                         `yaml:"defaultPolicy" json:"defaultPolicy"`
 }
 
 var PoliciesUpdate = rpc.Call[PoliciesUpdateRequest, util.Empty]{
@@ -628,12 +648,14 @@ var PoliciesUpdate = rpc.Call[PoliciesUpdateRequest, util.Empty]{
 func (r *PoliciesUpdateRequest) UnmarshalJSON(data []byte) error {
 	var raw struct {
 		UpdatedPolicies map[PolicyName]json.RawMessage `json:"updatedPolicies"`
+		DefaultPolicy   bool                           `json:"defaultPolicy"`
 	}
 
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
 
+	r.DefaultPolicy = raw.DefaultPolicy
 	r.UpdatedPolicies = make(map[PolicyName]Specification, len(raw.UpdatedPolicies))
 
 	for policyName, rawPolicy := range raw.UpdatedPolicies {
