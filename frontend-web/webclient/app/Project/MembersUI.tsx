@@ -35,6 +35,7 @@ import {addStandardDialog} from "@/UtilityComponents";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import BaseLink from "@/ui-components/BaseLink";
 import {sendInformationNotification} from "@/Notifications";
+import { ActionBar } from "@/ui-components/Actions";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -817,58 +818,44 @@ const GroupCard: React.FunctionComponent<{
                     {props.group.status.members?.length}
                 </Box>
             </Flex>
-            <Operations
-                location={"IN_ROW"}
-                operations={[
-                    {
-                        confirm: false,
-                        text: "Rename",
-                        icon: "heroPencilSquare",
-                        enabled: ([entry, ...rest]) => rest.length === 0 && entry.specification.title !== "All users",
-                        onClick: () => {
-                            props.handleStartRenaming(props.group.id);
-                            props.setRename(props.group.specification.title);
-                        },
-                        shortcut: ShortcutKey.F
+            <ActionBar actions={[
+                {
+                    text: "Rename",
+                    icon: "heroPencilSquare",
+                    enabled: ([entry, ...rest]) => rest.length === 0 && entry.specification.title !== "All users",
+                    onClick: () => {
+                        props.handleStartRenaming(props.group.id);
+                        props.setRename(props.group.specification.title);
                     },
-                    {
-                        confirm: false,
-                        text: "Duplicate",
-                        icon: "heroDocumentDuplicate",
-                        enabled: () => true,
-                        onClick: () => props.onDuplicate(props.group.id),
-                        shortcut: ShortcutKey.I
+                    shortcut: ShortcutKey.F
+                },
+                {
+                    text: "Duplicate",
+                    icon: "heroDocumentDuplicate",
+                    enabled: () => true,
+                    onClick: () => props.onDuplicate(props.group.id),
+                    shortcut: ShortcutKey.I
+                },
+                {
+                    text: "Copy ID",
+                    icon: "id",
+                    enabled: () => Client.userIsAdmin,
+                    onClick: () => {
+                        copyToClipboard(props.group.id);
+                        sendInformationNotification("Copied group ID to clipboard!");
                     },
-                    {
-                        confirm: false,
-                        text: "Copy ID",
-                        icon: "id",
-                        enabled: () => Client.userIsAdmin,
-                        onClick: () => {
-                            copyToClipboard(props.group.id);
-                            sendInformationNotification("Copied group ID to clipboard!");
-                        },
-                        shortcut: ShortcutKey.C
-                    },
-                    {
-                        confirm: true,
-                        color: "errorMain",
-                        text: "Delete",
-                        icon: "heroTrash",
-                        confirmationText: "Are you sure you want to delete this group?",
-                        confirmationButtonText: "Delete",
-                        enabled: (selected) => selected.find(it => it.specification.title === "All users") == null,
-                        onClick: () => props.handleDeleteGroup(props.group.id),
-                        shortcut: ShortcutKey.E
-                    }
-                ]}
-                selected={[]}
-                row={props.group}
-                extra={null}
-                entityNameSingular={"Group"}
-                openFnRef={openFn}
-                forceEvaluationOnOpen
-            />
+                    shortcut: ShortcutKey.C
+                },
+                {
+                    text: "Delete",
+                    icon: "heroTrash",
+                    confirmationText: "Are you sure you want to delete this group?",
+                    confirmationButtonText: "Delete",
+                    enabled: (selected) => selected.find(it => it.specification.title === "All users") == null,
+                    onClick: () => props.handleDeleteGroup(props.group.id),
+                    shortcut: ShortcutKey.E
+                }
+            ]} selected={[props.group]} hideShortcuts callbacks={undefined} />
         </>}
     />;
 }

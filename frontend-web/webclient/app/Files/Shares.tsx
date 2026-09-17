@@ -235,43 +235,44 @@ const ShareModal: React.FunctionComponent<{
     }, []);
 
 
-    return !editingLink ? invitingUser ? <>
-                <Box onKeyDown={e => {
-                   if (e.key !== "Escape") {
-                       e.stopPropagation()
-                   }
-               }}>
-                   <Heading.h3 mb={"10px"}>Share with user</Heading.h3>
-                   <form style={{marginBottom: "32px"}} onSubmit={e => {
-                       e.preventDefault();
+    return !editingLink ?
+        invitingUser ? <>
+        <Box onKeyDown={e => {
+            if (e.key !== "Escape") {
+                e.stopPropagation()
+            }
+        }}>
+            <Heading.h3 mb={"10px"}>Share with user</Heading.h3>
+            <form style={{marginBottom: "32px"}} onSubmit={e => {
+                e.preventDefault();
 
-                       if (!usernameRef?.current?.value) return;
+                if (!usernameRef?.current?.value) return;
 
-                       cb.invokeCommand<BulkResponse<FindById>>(
-                           SharesApi.create(
-                               bulkRequestOf({
-                                   sharedWith: usernameRef.current?.value ?? "",
-                                   sourceFilePath: selected.path,
-                                   permissions: ["READ"],
-                                   product: selected.product
-                               })
-                           )
-                       ).then(it => {
-                           if (it?.responses) {
-                               cb.navigate(`/shares/outgoing`);
-                               dialogStore.success();
-                           }
-                       }).catch(e => displayErrorMessageOrDefault(e, "Failed to share file."));
-                   }}>
-                       <Flex>
-                           <Input inputRef={usernameRef} placeholder={"Username"} rightLabel />
-                           <Button type={"submit"} color={"successMain"} attachedRight>Share</Button>
-                       </Flex>
-                   </form>
-                   <ModalBottom>
-                       <Button onClick={() => setInvitingUser(false)}>Back</Button>
-                   </ModalBottom>
-               </Box>
+                cb.invokeCommand<BulkResponse<FindById>>(
+                    SharesApi.create(
+                        bulkRequestOf({
+                            sharedWith: usernameRef.current?.value ?? "",
+                            sourceFilePath: selected.path,
+                            permissions: ["READ"],
+                            product: selected.product
+                        })
+                    )
+                ).then(it => {
+                    if (it?.responses) {
+                        cb.navigate(`/shares/outgoing`);
+                        dialogStore.success();
+                    }
+                }).catch(e => displayErrorMessageOrDefault(e, "Failed to share file."));
+            }}>
+                <Flex>
+                    <Input inputRef={usernameRef} placeholder={"Username"} rightLabel />
+                    <Button type={"submit"} color={"successMain"} attachedRight>Share</Button>
+                </Flex>
+            </form>
+            <ModalBottom>
+                <Button onClick={() => setInvitingUser(false)}>Back</Button>
+            </ModalBottom>
+        </Box>
     </> : <>
             <Flex justifyContent="space-between">
                 <Heading.h3>Share with link</Heading.h3>
