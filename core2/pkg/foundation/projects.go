@@ -2394,10 +2394,18 @@ func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequ
 			delete(b.Users, req.PiUsername) // invalidate cache
 			b.Mu.Unlock()
 
-			if wasNewlyCreated && req.Parent.Present {
-				// A new subproject was created through granting though granting so this is the grant path.
-				// Apply the default policy setting of the parent (the grant giver) to the new subproject.
-				applyDefaultPoliciesToNewSubproject(req.Parent.Value, id)
+			if wasNewlyCreated {
+				// A new subproject was created through granting so this is the grant path. Apply the merged
+				// default policy settings of all grant givers to the new subproject. Fall back to the parent
+				// project for callers which do not specify the grant givers explicitly.
+				policySources := req.GrantGivers
+				if len(policySources) == 0 && req.Parent.Present {
+					policySources = []string{req.Parent.Value}
+				}
+
+				if len(policySources) > 0 {
+					applyDefaultPoliciesToNewSubproject(policySources, id)
+				}
 			}
 
 			return id, nil

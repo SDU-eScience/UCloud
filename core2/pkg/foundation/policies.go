@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"slices"
 	"sync"
 
 	"golang.org/x/exp/maps"
@@ -150,58 +151,7 @@ func policiesDefaultRetrieve(actor rpc.Actor, request fndapi.RetrievePoliciesReq
 
 	result := make(map[fndapi.PolicyName]fndapi.Policy, len(policySchemas))
 
-	configuredDefaults := db.NewTx(func(tx *db.Transaction) map[fndapi.PolicyName]fndapi.Specification {
-		rows := db.Select[struct {
-			ProjectId        string `json:"project"`
-			PolicyName       string `json:"schema"`
-			PolicyProperties string `json:"values"`
-		}](
-			tx,
-			`
-			select policy_name, policy_properties
-			from project.default_policy_settings
-			where project_id = :project_id
-			`,
-			db.Params{
-				"project_id": projectId,
-			},
-		)
-
-		type policySpecificationRaw struct {
-			Schema  fndapi.PolicyName `json:"schema"`
-			Project rpc.ProjectId     `json:"project"`
-			Values  json.RawMessage   `json:"values"`
-		}
-
-		policies := make(map[fndapi.PolicyName]fndapi.Specification)
-
-		for _, row := range rows {
-			policyName := fndapi.PolicyName(row.PolicyName)
-			decoder, ok := fndapi.SpecificationDecoders[policyName]
-			if !ok {
-				log.Warn("Unknown policy %v", policyName)
-				continue
-			}
-
-			specificationData := policySpecificationRaw{
-				Schema:  policyName,
-				Project: rpc.ProjectId(row.ProjectId),
-				Values:  json.RawMessage(row.PolicyProperties),
-			}
-			data, err := json.Marshal(specificationData)
-			if err != nil {
-				log.Warn("Failed to marshal policy specification: %v", err)
-			}
-			specification, err := decoder(data)
-
-			if err != nil {
-				log.Warn("Error loading policy %v : %v", policyName, err)
-			}
-
-			policies[policyName] = specification
-		}
-		return policies
-	})
+	configuredDefaults := defaultPoliciesReadFromDb(projectId)
 
 	for name, schema := range policySchemas {
 		specification, ok := configuredDefaults[name]
@@ -533,23 +483,85 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 	return util.Empty{}, nil
 }
 
-// applyDefaultPoliciesToNewSubproject applies the default policy setting of parentId as the actual policies of the
-// newly created project (projectId). It is invoked when a subproject is created through granting, that is, when a
-// grant (grant giver initiated or not) is awarded with a "new project" recipient. Projects which already exist and
-// are simply receiving new resources are never touched by this function.
-func applyDefaultPoliciesToNewSubproject(parentId string, projectId string) {
-	parentDefaults, err := policiesDefaultRetrieve(rpc.ActorSystem, fndapi.RetrievePoliciesRequest{
-		ProjectId:     parentId,
-		DefaultPolicy: true,
-	})
+func defaultPoliciesReadFromDb(projectId string) map[fndapi.PolicyName]fndapi.Specification {
+	type policySpecificationRaw struct {
+		Schema  fndapi.PolicyName `json:"schema"`
+		Project rpc.ProjectId     `json:"project"`
+		Values  json.RawMessage   `json:"values"`
+	}
 
-	if err != nil {
-		// The parent has no saved setting. The hardcoded default (all policies disabled) requires no work since
-		// disabled policies are equivalent to unconfigured policies.
+	return db.NewTx(func(tx *db.Transaction) map[fndapi.PolicyName]fndapi.Specification {
+		rows := db.Select[struct {
+			ProjectId        string `json:"project"`
+			PolicyName       string `json:"schema"`
+			PolicyProperties string `json:"values"`
+		}](
+			tx,
+			`
+			select project_id, policy_name, policy_properties
+			from project.default_policy_settings
+			where project_id = :project_id
+			`,
+			db.Params{
+				"project_id": projectId,
+			},
+		)
+
+		policies := make(map[fndapi.PolicyName]fndapi.Specification)
+
+		for _, row := range rows {
+			policyName := fndapi.PolicyName(row.PolicyName)
+			decoder, ok := fndapi.SpecificationDecoders[policyName]
+			if !ok {
+				log.Warn("Unknown policy in the default policy setting: %v", policyName)
+				continue
+			}
+
+			data, err := json.Marshal(policySpecificationRaw{
+				Schema:  policyName,
+				Project: rpc.ProjectId(row.ProjectId),
+				Values:  json.RawMessage(row.PolicyProperties),
+			})
+			if err != nil {
+				log.Warn("Failed to marshal policy specification: %v", err)
+				continue
+			}
+
+			specification, err := decoder(data)
+			if err != nil {
+				log.Warn("Error loading policy %v : %v", policyName, err)
+				continue
+			}
+
+			policies[policyName] = specification
+		}
+		return policies
+	})
+}
+
+func applyDefaultPoliciesToNewSubproject(grantGiverProjectIds []string, projectId string) {
+	configuredByGiver := make([]map[fndapi.PolicyName]fndapi.Specification, 0, len(grantGiverProjectIds))
+	for _, giver := range grantGiverProjectIds {
+		defaults := defaultPoliciesReadFromDb(giver)
+		if len(defaults) > 0 {
+			configuredByGiver = append(configuredByGiver, defaults)
+		}
+	}
+
+	if len(configuredByGiver) == 0 {
+		// No grant giver has a saved setting. The hardcoded default (all policies disabled) requires no work
+		// since disabled policies are equivalent to unconfigured policies.
 		return
 	}
 
-	// Same document format as the one used by loadProjectPoliciesFromDB for decoding specifications.
+	// Collect every policy configured by at least one grant giver
+	policyNames := map[fndapi.PolicyName]util.Empty{}
+	for _, defaults := range configuredByGiver {
+		for name := range defaults {
+			policyNames[name] = util.Empty{}
+		}
+	}
+
 	type policySpecificationRaw struct {
 		Schema  fndapi.PolicyName `json:"schema"`
 		Project rpc.ProjectId     `json:"project"`
@@ -561,11 +573,20 @@ func applyDefaultPoliciesToNewSubproject(parentId string, projectId string) {
 	db.NewTx0(func(tx *db.Transaction) {
 		b := db.BatchNew(tx)
 
-		for policyName, policyValues := range parentDefaults {
-			if policyValues.Specification == nil || !policyValues.Specification.IsEnabled() {
+		for policyName := range policyNames {
+			var values []any
+			for _, defaults := range configuredByGiver {
+				if specification, ok := defaults[policyName]; ok {
+					values = append(values, specification.GetValues())
+				}
+			}
+
+			mergedValues, enabled := mergeDefaultPolicyValues(policyName, values)
+			if !enabled {
 				continue
 			}
-			properties, err := json.Marshal(policyValues.Specification.GetValues())
+
+			properties, err := json.Marshal(mergedValues)
 			if err != nil {
 				log.Warn("Failed to marshal the default policy %s: %v", policyName, err)
 				continue
@@ -574,23 +595,23 @@ func applyDefaultPoliciesToNewSubproject(parentId string, projectId string) {
 			db.BatchExec(
 				b,
 				`
-					insert into project.policies (
-						project_id,
-						policy_name,
-						policy_properties,
-						modified_at
-					)
-					values (
-						:project_id,
-						:policy_name,
-						:policy_properties,
-						now()
-					)
-					on conflict (project_id, policy_name)
-					do update set
-						policy_properties = excluded.policy_properties,
-						modified_at = now()
-				`,
+				insert into project.policies (
+					project_id,
+					policy_name,
+					policy_properties,
+					modified_at
+				)
+				values (
+					:project_id,
+					:policy_name,
+					:policy_properties,
+					now()
+				)
+				on conflict (project_id, policy_name)
+				do update set
+					policy_properties = excluded.policy_properties,
+					modified_at = now()
+			`,
 				db.Params{
 					"project_id":        projectId,
 					"policy_name":       policyName,
@@ -598,7 +619,6 @@ func applyDefaultPoliciesToNewSubproject(parentId string, projectId string) {
 				},
 			)
 
-			// Decode the specification such that the in-memory policy cache can be updated.
 			decoder, hasDecoder := fndapi.SpecificationDecoders[policyName]
 			if !hasDecoder {
 				log.Warn("Unknown policy in the default policy setting: %v", policyName)
@@ -608,7 +628,7 @@ func applyDefaultPoliciesToNewSubproject(parentId string, projectId string) {
 			data, err := json.Marshal(policySpecificationRaw{
 				Schema:  policyName,
 				Project: rpc.ProjectId(projectId),
-				Values:  json.RawMessage(properties),
+				Values:  properties,
 			})
 			if err != nil {
 				continue
@@ -643,6 +663,245 @@ func applyDefaultPoliciesToNewSubproject(parentId string, projectId string) {
 			entry.ConfiguredPolicies[specification.GetSpecificationName()] = specification
 		}
 		projectPolicies.Mu.Unlock()
+	}
+}
+
+func intersectAllowLists(lists [][]string) []string {
+	if len(lists) == 0 {
+		return nil
+	}
+
+	result := map[string]util.Empty{}
+	for _, item := range lists[0] {
+		result[item] = util.Empty{}
+	}
+
+	for _, list := range lists[1:] {
+		next := map[string]util.Empty{}
+		for _, item := range list {
+			if _, ok := result[item]; ok {
+				next[item] = util.Empty{}
+			}
+		}
+		result = next
+	}
+
+	var resultSlice []string
+	for item := range result {
+		resultSlice = append(resultSlice, item)
+	}
+	slices.Sort(resultSlice)
+	return resultSlice
+}
+
+func intersectSubnets(subnets []string) string {
+	if len(subnets) == 0 {
+		return ""
+	}
+
+	_, result, err := net.ParseCIDR(subnets[0])
+	if err != nil {
+		return ""
+	}
+
+	for _, subnet := range subnets[1:] {
+		_, network, err := net.ParseCIDR(subnet)
+		if err != nil {
+			return ""
+		}
+
+		if result.Contains(network.IP) {
+			// network is contained in result (or equal): the intersection is network
+			result = network
+		} else if network.Contains(result.IP) {
+			// result is contained in network: the intersection is unchanged
+		} else {
+			// The blocks are disjoint: no address is allowed by all grant givers
+			return ""
+		}
+	}
+
+	return result.String()
+}
+
+// mergeDefaultPolicyValues merges policies from multiple grant givers always resulting in most restrictive result
+//
+//   - A policy is enabled in the result if it is enabled by at least one grant giver (union of restrictions).
+//   - Allow-lists (applications, integrated applications, organizations, providers and subnets) are intersected
+//     across all grant givers which have the policy enabled.
+//
+// Grant givers which have not configured the policy (or have it disabled) impose no restrictions and thus do not
+// constrain the result. The boolean return value reports whether the merged policy is enabled.
+func mergeDefaultPolicyValues(policyName fndapi.PolicyName, values []any) (any, bool) {
+	switch policyName {
+	case fndapi.RestrictApiTokens:
+		merged := fndapi.RestrictApiTokensValues{}
+		for _, v := range values {
+			if val, ok := v.(fndapi.RestrictApiTokensValues); ok && val.Enabled {
+				merged.Enabled = true
+			}
+		}
+		return merged, merged.Enabled
+
+	case fndapi.RestrictCutAndPaste:
+		merged := fndapi.RestrictCutAndPasteValues{}
+		for _, v := range values {
+			if val, ok := v.(fndapi.RestrictCutAndPasteValues); ok && val.Enabled {
+				merged.Enabled = true
+			}
+		}
+		return merged, merged.Enabled
+
+	case fndapi.RestrictDownloads:
+		merged := fndapi.RestrictDownloadsValues{}
+		for _, v := range values {
+			if val, ok := v.(fndapi.RestrictDownloadsValues); ok && val.Enabled {
+				merged.Enabled = true
+			}
+		}
+		return merged, merged.Enabled
+
+	case fndapi.RestrictExternalProjectFolderMounting:
+		merged := fndapi.RestrictExternalProjectFolderMountingValues{}
+		for _, v := range values {
+			if val, ok := v.(fndapi.RestrictExternalProjectFolderMountingValues); ok && val.Enabled {
+				merged.Enabled = true
+			}
+		}
+		return merged, merged.Enabled
+
+	case fndapi.RestrictMoveAndCopy:
+		merged := fndapi.RestrictMoveAndCopyValues{}
+		for _, v := range values {
+			if val, ok := v.(fndapi.RestrictMoveAndCopyValues); ok && val.Enabled {
+				merged.Enabled = true
+			}
+		}
+		return merged, merged.Enabled
+
+	case fndapi.RestrictPublicIPs:
+		merged := fndapi.RestrictPublicIPsValues{}
+		for _, v := range values {
+			if val, ok := v.(fndapi.RestrictPublicIPsValues); ok && val.Enabled {
+				merged.Enabled = true
+			}
+		}
+		return merged, merged.Enabled
+
+	case fndapi.RestrictPublicLinks:
+		merged := fndapi.RestrictPublicLinksValues{}
+		for _, v := range values {
+			if val, ok := v.(fndapi.RestrictPublicLinksValues); ok && val.Enabled {
+				merged.Enabled = true
+			}
+		}
+		return merged, merged.Enabled
+
+	case fndapi.RestrictSsh:
+		merged := fndapi.RestrictSshValues{}
+		for _, v := range values {
+			if val, ok := v.(fndapi.RestrictSshValues); ok && val.Enabled {
+				merged.Enabled = true
+			}
+		}
+		return merged, merged.Enabled
+
+	case fndapi.RestrictUploads:
+		merged := fndapi.RestrictUploadsValues{}
+		for _, v := range values {
+			if val, ok := v.(fndapi.RestrictUploadsValues); ok && val.Enabled {
+				merged.Enabled = true
+			}
+		}
+		return merged, merged.Enabled
+
+	case fndapi.RestrictApplications:
+		merged := fndapi.RestrictApplicationsValues{}
+		var lists [][]string
+		for _, v := range values {
+			if val, ok := v.(fndapi.RestrictApplicationsValues); ok && val.Enabled {
+				merged.Enabled = true
+				lists = append(lists, val.Applications)
+			}
+		}
+		if merged.Enabled {
+			merged.Applications = intersectAllowLists(lists)
+		}
+		return merged, merged.Enabled
+
+	case fndapi.RestrictIntegratedApplications:
+		merged := fndapi.RestrictIntegratedApplicationsValues{}
+		var lists [][]string
+		for _, v := range values {
+			if val, ok := v.(fndapi.RestrictIntegratedApplicationsValues); ok && val.Enabled {
+				merged.Enabled = true
+				lists = append(lists, val.AllowList)
+			}
+		}
+		if merged.Enabled {
+			merged.AllowList = intersectAllowLists(lists)
+		}
+		return merged, merged.Enabled
+
+	case fndapi.RestrictOrganizationMembers:
+		merged := fndapi.RestrictOrganizationMembersValues{}
+		var lists [][]string
+		for _, v := range values {
+			if val, ok := v.(fndapi.RestrictOrganizationMembersValues); ok && val.Enabled {
+				merged.Enabled = true
+				lists = append(lists, val.Organizations)
+			}
+		}
+		if merged.Enabled {
+			merged.Organizations = intersectAllowLists(lists)
+		}
+		return merged, merged.Enabled
+
+	case fndapi.RestrictProviderFileTransfers:
+		merged := fndapi.RestrictProviderFileTransfersValues{}
+		var lists [][]string
+		for _, v := range values {
+			if val, ok := v.(fndapi.RestrictProviderFileTransfersValues); ok && val.Enabled {
+				merged.Enabled = true
+				lists = append(lists, val.AllowedProviders)
+			}
+		}
+		if merged.Enabled {
+			merged.AllowedProviders = intersectAllowLists(lists)
+		}
+		return merged, merged.Enabled
+
+	case fndapi.RestrictInternetAccess:
+		merged := fndapi.RestrictInternetAccessValues{}
+		var subnets []string
+		for _, v := range values {
+			if val, ok := v.(fndapi.RestrictInternetAccessValues); ok && val.Enabled {
+				merged.Enabled = true
+				subnets = append(subnets, val.AllowedSubnets)
+			}
+		}
+		if merged.Enabled {
+			merged.AllowedSubnets = intersectSubnets(subnets)
+		}
+		return merged, merged.Enabled
+
+	case fndapi.RestrictSourceIPRange:
+		merged := fndapi.RestrictSourceIPRangeValues{}
+		var subnets []string
+		for _, v := range values {
+			if val, ok := v.(fndapi.RestrictSourceIPRangeValues); ok && val.Enabled {
+				merged.Enabled = true
+				subnets = append(subnets, val.AllowedSubnets)
+			}
+		}
+		if merged.Enabled {
+			merged.AllowedSubnets = intersectSubnets(subnets)
+		}
+		return merged, merged.Enabled
+
+	default:
+		log.Warn("Cannot merge default policy values of unknown policy: %v", policyName)
+		return nil, false
 	}
 }
 

@@ -252,6 +252,11 @@ type ProjectInternalCreateRequest struct {
 	PiUsername   string              `json:"piUsername"`
 	SubAllocator util.Option[bool]   `json:"subAllocator"`
 	Parent       util.Option[string] `json:"parent"`
+
+	// GrantGivers optionally lists every grant giver which contributed to the creation of this project.
+	// This is used to set default policy settings by merging these projects (most restrictive combination)
+	// and applied to the newly created project. When empty, the Parent (if any) is used as the sole source instead.
+	GrantGivers []string `json:"grantGivers,omitempty" yaml:"grantGivers,omitempty"`
 }
 
 var ProjectInternalCreate = rpc.Call[ProjectInternalCreateRequest, FindByStringId]{
