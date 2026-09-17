@@ -217,11 +217,7 @@ const ShareModal: React.FunctionComponent<{
     const [editingLink, setEditingLink] = useState<string | undefined>(undefined);
     const [selectedPermission, setSelectedPermission] = useState<string>("READ");
     const usernameRef = useRef<HTMLInputElement>(null);
-
-    const permissions = [
-        {text: "Read", value: "READ"},
-        {text: "Edit", value: "EDIT"}
-    ];
+    const [invitingUser, setInvitingUser] = useState(false);
 
     useEffect(() => {
         if (editingLink) {
@@ -238,43 +234,48 @@ const ShareModal: React.FunctionComponent<{
         );
     }, []);
 
-    return !editingLink ? <>
-        <Box mb="40px" onKeyDown={e => {
-            if (e.key !== "Escape") {
-                e.stopPropagation()
-            }
-        }}>
-            <Heading.h3 mb={"10px"}>Share</Heading.h3>
-            <form onSubmit={e => {
-                e.preventDefault();
 
-                if (!usernameRef?.current?.value) return;
+    return !editingLink ? invitingUser ? <>
+                <Box onKeyDown={e => {
+                   if (e.key !== "Escape") {
+                       e.stopPropagation()
+                   }
+               }}>
+                   <Heading.h3 mb={"10px"}>Share with user</Heading.h3>
+                   <form style={{marginBottom: "32px"}} onSubmit={e => {
+                       e.preventDefault();
 
-                cb.invokeCommand<BulkResponse<FindById>>(
-                    SharesApi.create(
-                        bulkRequestOf({
-                            sharedWith: usernameRef.current?.value ?? "",
-                            sourceFilePath: selected.path,
-                            permissions: ["READ"],
-                            product: selected.product
-                        })
-                    )
-                ).then(it => {
-                    if (it?.responses) {
-                        cb.navigate(`/shares/outgoing`);
-                        dialogStore.success();
-                    }
-                }).catch(e => displayErrorMessageOrDefault(e, "Failed to share file."));
-            }}>
-                <Flex>
-                    <Input inputRef={usernameRef} placeholder={"Username"} rightLabel />
-                    <Button type={"submit"} color={"successMain"} attachedRight>Share</Button>
-                </Flex>
-            </form>
-        </Box>
+                       if (!usernameRef?.current?.value) return;
+
+                       cb.invokeCommand<BulkResponse<FindById>>(
+                           SharesApi.create(
+                               bulkRequestOf({
+                                   sharedWith: usernameRef.current?.value ?? "",
+                                   sourceFilePath: selected.path,
+                                   permissions: ["READ"],
+                                   product: selected.product
+                               })
+                           )
+                       ).then(it => {
+                           if (it?.responses) {
+                               cb.navigate(`/shares/outgoing`);
+                               dialogStore.success();
+                           }
+                       }).catch(e => displayErrorMessageOrDefault(e, "Failed to share file."));
+                   }}>
+                       <Flex>
+                           <Input inputRef={usernameRef} placeholder={"Username"} rightLabel />
+                           <Button type={"submit"} color={"successMain"} attachedRight>Share</Button>
+                       </Flex>
+                   </form>
+                   <ModalBottom>
+                       <Button onClick={() => setInvitingUser(false)}>Back</Button>
+                   </ModalBottom>
+               </Box>
+    </> : <>
             <Flex justifyContent="space-between">
                 <Heading.h3>Share with link</Heading.h3>
-                <Box textAlign="right">
+                <Flex gap="8px" textAlign="right">
                     <Button
                         ml="auto"
                         onClick={async () => {
@@ -287,7 +288,8 @@ const ShareModal: React.FunctionComponent<{
                             );
                         }}
                     >Create link</Button>
-                </Box>
+                    <Button onClick={() => setInvitingUser(true)}><Icon name="heroUserPlus" /></Button>
+                </Flex>
             </Flex>
             <Box mt={20} mb="32px">
                 {inviteLinks.data.items.map(link => (
@@ -336,33 +338,51 @@ const ShareModal: React.FunctionComponent<{
                 ))}
             </Box>
             <ModalBottom>
-                <Button onClick={() => setEditingLink(undefined)}>Done</Button>
+                <Button onClick={() => dialogStore.failure()}>Done</Button>
             </ModalBottom>
         </> : <>
-            <Box minHeight="200px">
+            <Box>
                 <Heading.h3>Edit link settings</Heading.h3>
-                <Flex justifyContent="space-between" mt={20} mb={10}>
+                <Flex justifyContent="space-between" mt={20} mb={32}>
                     <Text pt="10px">Anyone with the link can</Text>
-                    <div className={SelectBoxClass}>
-                        <ClickableDropdown
-                            useMousePositioning
-                            width="100px"
-                            chevron
-                            trigger={<>{permissions.find(it => it.value === selectedPermission)?.text}</>}
-                            options={permissions}
-                            onChange={async chosen => {
-                                const newPermissions = chosen == "EDIT" ? ["EDIT", "READ"] : ["READ"];
-
+                    <RadioTilesContainer height={48} onClick={stopPropagation}>
+                        <RadioTile
+                            id={"Read"}
+                            label={"Read"}
+                            onChange={async () => {
                                 await callAPIWithErrorHandler(
-                                    shareLinksApi.update({token: editingLink, path: selected.path, permissions: newPermissions})
+                                    shareLinksApi.update({token: editingLink, path: selected.path, permissions: ["READ"]})
                                 );
 
                                 fetchLinks(
                                     shareLinksApi.browse({itemsPerPage: 10, path: selected.path})
                                 );
                             }}
+                            icon={"search"}
+                            name={"READ"}
+                            checked={selectedPermission === "READ"}
+                            height={40}
+                            fontSize={"0.5em"}
                         />
-                    </div>
+                        <RadioTile
+                            id={"Edit"}
+                            label={"Edit"}
+                            onChange={async () => {
+                                await callAPIWithErrorHandler(
+                                    shareLinksApi.update({token: editingLink, path: selected.path, permissions: ["EDIT", "READ"]})
+                                );
+
+                                fetchLinks(
+                                    shareLinksApi.browse({itemsPerPage: 10, path: selected.path})
+                                );
+                            }}
+                            icon={"edit"}
+                            name={"EDIT"}
+                            checked={selectedPermission === "EDIT"}
+                            height={40}
+                            fontSize={"0.5em"}
+                        />
+                    </RadioTilesContainer>
                 </Flex>
             </Box>
             <ModalBottom>
