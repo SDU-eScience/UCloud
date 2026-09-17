@@ -7,7 +7,7 @@ import {Box, Button, Card, ExternalLink, Flex, Input, Link, Select, Text, TextAr
 import {MainContainer, MAIN_CONTAINER_MAX_WIDTH} from "@/ui-components/MainContainer";
 import Table, {TableHeader, TableRow} from "@/ui-components/Table";
 import {copyToClipboard, expandAndPrettifyString} from "@/UtilityFunctions";
-import {applyNumberSeparators, formatNumber} from "@/Utilities/NumberFormatting";
+import {formatNumber, formatPricePerMillionCredits} from "@/Utilities/NumberFormatting";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {InferenceBenchmark, InferenceCapability, InferenceModel, listModels, updateBenchmarks, updateModel} from "./api";
@@ -453,10 +453,7 @@ function fallbackKeyStats(model: InferenceModel): {label: string; value: string;
 
 function formatPricePerMillion(value: number, includeUnit: boolean = false): string {
     if (value === 0) return "Free";
-    const digits = Math.trunc(value).toString().padStart(7, "0");
-    const fraction = digits.slice(-6).replace(/0+$/, "");
-    const integerPart = digits.slice(0, -6);
-    const ret = fraction === "" ? applyNumberSeparators(integerPart) : applyNumberSeparators(`${integerPart}.${fraction}`);
+    const ret = formatPricePerMillionCredits(value, {minDecimalsAfterTrim: 4});
     return !includeUnit ? ret : ret + " Credits";
 }
 

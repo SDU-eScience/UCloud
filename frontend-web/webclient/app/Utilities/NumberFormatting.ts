@@ -31,6 +31,7 @@ export interface NumberFormatOptions {
     removeTrailingZeros?: boolean;
     withThousandsSeparator?: boolean;
     threeDecimalsAs?: 2 | 4;
+    minDecimalsAfterTrim?: number;
 }
 
 export function formatNumber(value: number, opts: NumberFormatOptions = {}): string {
@@ -42,6 +43,13 @@ export function formatNumber(value: number, opts: NumberFormatOptions = {}): str
     let text = precision === undefined ? value.toString(10) : value.toFixed(precision);
     if (opts.removeTrailingZeros) {
         text = text.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+        if (opts.minDecimalsAfterTrim !== undefined) {
+            const dotIndex = text.indexOf(".");
+            const decimals = dotIndex === -1 ? 0 : text.length - dotIndex - 1;
+            if (decimals < opts.minDecimalsAfterTrim) {
+                text = value.toFixed(opts.minDecimalsAfterTrim);
+            }
+        }
     }
 
     if (opts.withThousandsSeparator !== false) {
@@ -74,4 +82,16 @@ export function applyNumberSeparators(numericText: string): string {
     let result = (isNegative ? "-" : "") + grouped;
     if (fractionPart !== null) result += decimalSeparator + fractionPart;
     return result;
+}
+
+export function formatPricePerMillionCredits(value: number, opts: {
+    precision?: number;
+    minDecimalsAfterTrim?: number;
+} = {}): string {
+    return formatNumber(value / 1_000_000, {
+        precision: 6,
+        removeTrailingZeros: true,
+        withThousandsSeparator: true,
+        ...opts,
+    });
 }
