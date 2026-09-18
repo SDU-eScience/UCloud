@@ -534,7 +534,7 @@ func TestAppGet(t *testing.T) {
 }
 
 func TestComputeProducts(t *testing.T) {
-	input := []string{"compute", "products", "--provider", "k8s"}
+	input := []string{"compute", "products", "--provider", "k8s", "--verbose"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
