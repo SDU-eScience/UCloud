@@ -2,7 +2,6 @@ package foundation
 
 import (
 	"encoding/json"
-	"fmt"
 	"net"
 	"net/http"
 	"slices"
@@ -30,6 +29,11 @@ type AssociatedPolicies struct {
 
 var policySchemas map[fndapi.PolicyName]fndapi.Schema
 
+var policyGlobals struct {
+	TestingEnabled            bool
+	TestDefaultPolicySettings map[string]map[fndapi.PolicyName]fndapi.Specification
+}
+
 func initPolicies() {
 	policyPopulateSchemaCache()
 	loadProjectPoliciesFromDB()
@@ -56,17 +60,17 @@ func policyPopulateSchemaCache() {
 		}
 
 		if err := yaml.Unmarshal(policy.Bytes, &header); err != nil {
-			log.Fatal(fmt.Sprintf("Error loading policy document %v : %v \n", policy.PolicyName, err))
+			log.Fatal("Error loading policy document %v : %v \n", policy.PolicyName, err)
 		}
 
 		decoder, ok := fndapi.SchemaDecoders[fndapi.PolicyName(header.Name)]
 		if !ok {
-			log.Fatal(fmt.Sprintf("No decoder registered for policy %v \n", header.Name))
+			log.Fatal("No decoder registered for policy %v \n", header.Name)
 		}
 
 		schema, err := decoder(policy.Bytes)
 		if err != nil {
-			log.Fatal(fmt.Sprintf("Error loading policy document %v : %v \n", policy.PolicyName, err))
+			log.Fatal("Error loading policy document %v : %v \n", policy.PolicyName, err)
 		}
 
 		policySchemas[schema.GetSchemaName()] = schema
@@ -365,6 +369,22 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 		}
 	}
 	if request.DefaultPolicy {
+		if policyGlobals.TestingEnabled {
+			// Tests have no database, keep the setting in memory instead
+			for _, specification := range request.UpdatedPolicies {
+				projectID := string(specification.GetProject())
+
+				policies := policyGlobals.TestDefaultPolicySettings[projectID]
+				if policies == nil {
+					policies = make(map[fndapi.PolicyName]fndapi.Specification)
+					policyGlobals.TestDefaultPolicySettings[projectID] = policies
+				}
+
+				policies[specification.GetSpecificationName()] = specification
+			}
+
+			return util.Empty{}, nil
+		}
 		db.NewTx0(func(tx *db.Transaction) {
 			b := db.BatchNew(tx)
 			for _, specification := range request.UpdatedPolicies {
@@ -414,53 +434,54 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 
 		return util.Empty{}, nil
 	}
+	if !policyGlobals.TestingEnabled {
+		db.NewTx0(func(tx *db.Transaction) {
+			b := db.BatchNew(tx)
+			for _, specification := range request.UpdatedPolicies {
+				policyName := specification.GetSpecificationName()
 
-	db.NewTx0(func(tx *db.Transaction) {
-		b := db.BatchNew(tx)
-		for _, specification := range request.UpdatedPolicies {
-			policyName := specification.GetSpecificationName()
+				if _, ok := policySchemas[policyName]; !ok {
+					log.Warn("Unknown Schema: %v ", policyName)
+					continue
+				}
 
-			if _, ok := policySchemas[policyName]; !ok {
-				log.Warn("Unknown Schema: %v ", policyName)
-				continue
+				properties, err := json.Marshal(specification.GetValues())
+				if err != nil {
+					log.Warn("Failed to marshal policy %s: %v", policyName, err)
+					continue
+				}
+
+				db.BatchExec(
+					b,
+					`
+					insert into project.policies (
+						project_id,
+						policy_name,
+						policy_properties,
+						modified_at
+					)
+					values (
+						:project_id,
+						:policy_name,
+						:policy_properties,
+						now()
+					)
+					on conflict (project_id, policy_name)
+					do update set
+						policy_properties = excluded.policy_properties,
+						modified_at = now()
+					`,
+					db.Params{
+						"project_id":        specification.GetProject(),
+						"policy_name":       policyName,
+						"policy_properties": properties,
+					},
+				)
 			}
 
-			properties, err := json.Marshal(specification.GetValues())
-			if err != nil {
-				log.Warn("Failed to marshal policy %s: %v", policyName, err)
-				continue
-			}
-
-			db.BatchExec(
-				b,
-				`
-				insert into project.policies (
-					project_id,
-					policy_name,
-					policy_properties,
-					modified_at
-				)
-				values (
-					:project_id,
-					:policy_name,
-					:policy_properties,
-					now()
-				)
-				on conflict (project_id, policy_name)
-				do update set
-					policy_properties = excluded.policy_properties,
-					modified_at = now()
-				`,
-				db.Params{
-					"project_id":        specification.GetProject(),
-					"policy_name":       policyName,
-					"policy_properties": properties,
-				},
-			)
-		}
-
-		db.BatchSend(b)
-	})
+			db.BatchSend(b)
+		})
+	}
 
 	//Updating cache
 	projectPolicies.Mu.Lock()
@@ -484,6 +505,10 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 }
 
 func defaultPoliciesReadFromDb(projectId string) map[fndapi.PolicyName]fndapi.Specification {
+	if policyGlobals.TestingEnabled {
+		return maps.Clone(policyGlobals.TestDefaultPolicySettings[projectId])
+	}
+
 	type policySpecificationRaw struct {
 		Schema  fndapi.PolicyName `json:"schema"`
 		Project rpc.ProjectId     `json:"project"`
@@ -570,9 +595,7 @@ func applyDefaultPoliciesToNewSubproject(grantGiverProjectIds []string, projectI
 
 	var specifications []fndapi.Specification
 
-	db.NewTx0(func(tx *db.Transaction) {
-		b := db.BatchNew(tx)
-
+	applyMergedPolicies := func(b *db.Batch) {
 		for policyName := range policyNames {
 			var values []any
 			for _, defaults := range configuredByGiver {
@@ -592,33 +615,7 @@ func applyDefaultPoliciesToNewSubproject(grantGiverProjectIds []string, projectI
 				continue
 			}
 
-			db.BatchExec(
-				b,
-				`
-				insert into project.policies (
-					project_id,
-					policy_name,
-					policy_properties,
-					modified_at
-				)
-				values (
-					:project_id,
-					:policy_name,
-					:policy_properties,
-					now()
-				)
-				on conflict (project_id, policy_name)
-				do update set
-					policy_properties = excluded.policy_properties,
-					modified_at = now()
-			`,
-				db.Params{
-					"project_id":        projectId,
-					"policy_name":       policyName,
-					"policy_properties": properties,
-				},
-			)
-
+			// Decode the specification such that the in-memory policy cache can be updated.
 			decoder, hasDecoder := fndapi.SpecificationDecoders[policyName]
 			if !hasDecoder {
 				log.Warn("Unknown policy in the default policy setting: %v", policyName)
@@ -642,9 +639,17 @@ func applyDefaultPoliciesToNewSubproject(grantGiverProjectIds []string, projectI
 
 			specifications = append(specifications, specification)
 		}
+	}
 
-		db.BatchSend(b)
-	})
+	if policyGlobals.TestingEnabled {
+		applyMergedPolicies(nil)
+	} else {
+		db.NewTx0(func(tx *db.Transaction) {
+			b := db.BatchNew(tx)
+			applyMergedPolicies(b)
+			db.BatchSend(b)
+		})
+	}
 
 	// Update the in-memory policy cache of this service if any changes even apply.
 	// The database trigger on project.policies notifies the remaining services about the change.

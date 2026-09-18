@@ -1665,7 +1665,7 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 			}
 
 			info.Mu.Unlock()
-			return util.HttpErr(http.StatusForbidden, errorMessage)
+			return util.HttpErr(http.StatusForbidden, "%s", errorMessage)
 		}
 	}
 
