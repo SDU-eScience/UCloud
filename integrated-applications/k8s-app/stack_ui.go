@@ -176,7 +176,7 @@ func (app *stackUiApp) addMachineToGroup(group string) {
 		vmId := ucxsvc.VirtualMachineCreate(app.Stack, ucxsvc.VirtualMachineSpec{
 			Labels:         labels,
 			Product:        app.Machine,
-			Image:          ucxsvc.VmImageUbuntu24_04,
+			Image:          ucxsvc.VmImageUbuntu26_04,
 			Hostname:       fmt.Sprintf("%s-%v", group, len(jobs)+1),
 			Attachments:    attachments,
 			SkipStackState: true,
@@ -330,39 +330,43 @@ func (app *stackUiApp) pageControl() []ucx.UiNode {
 		selectorOptions = append(selectorOptions, ucx.Option{Key: group, Value: group})
 	}
 
-	return []ucx.UiNode{ucx.Surface().Children(
-		ucx.Toolbar().Children(
-			ucx.H2("Add new virtual machine to the stack"),
-			ucx.Link("").Children(ucx.Text("Back to overview")),
-		),
-		ucx.Text("Select a product and submit to add a new node to the stack."),
-
-		ucx.Form("addNodeForm").On(ucx.UiEventSubmit, func(ev ucx.UiEvent) {
-			target := strings.TrimSpace(app.AddTarget)
-			if target == "" {
-				target = "worker"
-			}
-			app.addMachineToGroup(target)
-			if target != "" {
-				app.AddTarget = target
-			}
-
-			ucx.AppUpdateUi(app)
-		}).Children(
-			ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).Children(
-				// NOTE: multiple control planes currently don't work
-				//ucx.Select("addTarget", "Target group", "addTarget", selectorOptions),
-				ucx.MachineTypeSelector(
-					"machine",
-					"Machine product",
-					"machine",
-					ucx.MachineCapabilityDocker,
-					ucx.MachineCapabilityVm,
-				),
-				ucx.SubmitButton("addToStack", "Add machine to stack", ucx.ColorSecondaryMain),
+	return []ucx.UiNode{ucx.KeyboardNavigationNode("keyboardNavigation").HorizontalSelector("[data-job-info-field]").SubmitForm("addNodeForm").Children(
+		ucx.Surface().Children(
+			ucx.Toolbar().Children(
+				ucx.H2("Add new virtual machine to the stack"),
+				ucx.Link("").Children(ucx.Text("Back to overview")),
 			),
+			ucx.Text("Select a product and submit to add a new node to the stack."),
+
+			ucx.Form("addNodeForm").On(ucx.UiEventSubmit, func(ev ucx.UiEvent) {
+				target := strings.TrimSpace(app.AddTarget)
+				if target == "" {
+					target = "worker"
+				}
+				app.addMachineToGroup(target)
+				if target != "" {
+					app.AddTarget = target
+				}
+
+				ucx.AppUpdateUi(app)
+			}).Children(
+				ucx.FieldGroupNode().Children(
+					ucx.FieldRowNodeEx("machineRow", "Machine product", "").Children(
+						// NOTE: multiple control planes currently don't work
+						//ucx.Select("addTarget", "Target group", "addTarget", selectorOptions),
+						ucx.MachineTypeSelector(
+							"machine",
+							"Machine product",
+							"machine",
+							ucx.MachineCapabilityDocker,
+							ucx.MachineCapabilityVm,
+						),
+					),
+				),
+				ucx.SubmitButton("addToStack", "Add machine to stack", ucx.ColorSecondaryMain).ButtonSubmitShortcut(true),
+			),
+			ucx.TextBound("message").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
 		),
-		ucx.TextBound("message").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
 	)}
 }
 
@@ -371,7 +375,6 @@ func (app *stackUiApp) pageMain() []ucx.UiNode {
 	var children []ucx.UiNode
 
 	children = append(children,
-		ucx.StackResources(),
 		ucx.Surface().Children(
 			ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 32}).Children(
 				ucx.Flex(ucx.FlexProps{Gap: 8}).Children(

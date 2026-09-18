@@ -10,6 +10,7 @@ import {
     Icon,
     Input,
     Radio,
+    Select,
     Text,
     TextArea
 } from "@/ui-components";
@@ -19,8 +20,11 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {Toggle} from "@/ui-components/Toggle";
 import * as UCloud from "@/UCloud";
+import {FieldGroup, FieldRow} from "@/Applications/Jobs/Widgets";
+import {FIELD_NAVIGATION_SELECTOR, KeyboardNavigation, SubmitShortcut, useSubmitShortcut} from "@/Applications/KeyboardNavigation";
 import * as Accounting from "@/Accounting";
 import {productCategoryEquals, ProductV2, ProductV2Compute, WalletV2} from "@/Accounting";
+import {calculateProductCost, explainUnit, ProductV2 as ProductV2Alias} from "@/Accounting";
 import {
     decodeFrame,
     Frame,
@@ -40,12 +44,14 @@ import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {formatNumber} from "@/Utilities/NumberFormatting";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {ProductSelector} from "@/Products/Selector";
+import {ServiceProviderSelector, ServiceProviderItem} from "@/Applications/ApiTokens/Add";
 import BaseLink from "@/ui-components/BaseLink";
 import {useLocation, useNavigate} from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import ReactMarkdown from "react-markdown";
 import * as Heading from "@/ui-components/Heading";
 import {UcxAccordion} from "@/UCX/UcxAccordion";
+import {injectStyle} from "@/Unstyled";
 import {useIsLightThemeStored} from "@/ui-components/theme";
 
 type ValueProvider = string | (() => string | Promise<string>);
@@ -842,6 +848,41 @@ const QueryParamNode: React.FunctionComponent<{
 };
 
 const baseComponents: UcxComponentRegistry = {
+    keyboard_navigation: ({node, fn, renderChildren}) => {
+        return <KeyboardNavigationHost node={node} fn={fn}>{renderChildren()}</KeyboardNavigationHost>;
+    },
+    sidebar_layout: ({node, fn, renderChildren}) => {
+        const sidebarSlot = node.children.find(child => boolProp(child, "sidebarSlot", false));
+        const mainChildren = node.children.filter(child => !boolProp(child, "sidebarSlot", false));
+        const children = React.Children.toArray(renderChildren());
+
+        const mainContent = children.slice(0, mainChildren.length);
+        const sidebarContent = sidebarSlot ? children[children.length - 1] : null;
+
+        return <div className={UcxSidebarLayoutClass}>
+            <div className={UcxSidebarMainClass} style={fn.sxStyle(node)}>
+                {mainContent}
+            </div>
+            <aside className={UcxSidebarAsideClass}>
+                <div className={UcxSidebarSummaryClass} data-ucx-sidebar-summary="true">{sidebarContent}</div>
+            </aside>
+        </div>;
+    },    field_group: ({node, fn, renderChildren}) => {
+        return <div style={fn.sxStyle(node)}><FieldGroup>{renderChildren()}</FieldGroup></div>;
+    },
+    field_row: ({node, model, scope, fn, renderChildren}) => {
+        const children = renderChildren();
+        const error = stringProp(node, "error", "");
+        return <FieldRow
+            title={stringProp(node, "title", "")}
+            description={optionalStringProp(node, "description")}
+            control={children}
+            bold={boolProp(node, "bold", false)}
+            required={boolProp(node, "required", false)}
+            error={error || undefined}
+            parameterType={optionalStringProp(node, "parameterType")}
+        />;
+    },
     flex: ({node, fn, renderChildren}) => {
         const direction = stringProp(node, "direction", "column");
         const gap = numberProp(node, "gap", 8);
@@ -856,7 +897,11 @@ const baseComponents: UcxComponentRegistry = {
     },
     box: ({node, fn, renderChildren}) => <div style={fn.sxStyle(node)}>{renderChildren()}</div>,
     surface: ({node, fn, renderChildren}) => {
-        return <Card p="16px" style={fn.sxStyle(node)}>{renderChildren()}</Card>;
+        return <Card p="16px" style={fn.sxStyle(node)}>
+            <div style={{display: "flex", flexDirection: "column", gap: 16}}>
+                {renderChildren()}
+            </div>
+        </Card>;
     },
     toolbar: ({node, fn, renderChildren}) => {
         const children = React.Children.toArray(renderChildren());
@@ -954,10 +999,10 @@ const baseComponents: UcxComponentRegistry = {
         const label = stringProp(node, "label", "");
         const placeholder = stringProp(node, "placeholder", "");
         const value = modelString(model, node.bindPath, scope);
-        let input = <Input
+        const input = <Input
             value={value}
             placeholder={placeholder}
-            mt={8}
+            mt={label === "" ? undefined : 8}
             onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
         />;
         return <>
@@ -969,11 +1014,11 @@ const baseComponents: UcxComponentRegistry = {
         const value = modelNumber(model, node.bindPath, scope);
         const min = numberProp(node, "min", 0);
         const max = numberProp(node, "max", 0);
-        let input = <Input
+        const input = <Input
             type="number"
             value={value}
             min={min}
-            mt={8}
+            mt={label === "" ? undefined : 8}
             max={max}
             onChange={ev => {
                 const parsed = parseInt(ev.currentTarget.value, 10);
@@ -1037,24 +1082,7 @@ const baseComponents: UcxComponentRegistry = {
         </Flex>;
     },
     button: ({node, model, scope, fn}) => {
-        const label = stringProp(node, "label", "Button");
-        const color = stringProp(node, "color", "primaryMain");
-        const iconLeft = stringProp(node, "iconLeft", "");
-        const iconRight = stringProp(node, "iconRight", "");
-        const submit = boolProp(node, "submit", false);
-        const disabled = boolProp(node, "disabled", false);
-        const eventValuePath = stringProp(node, "eventValuePath", "");
-        const eventValue = eventValuePath ? modelValue(model, eventValuePath, scope) : undefined;
-        return <Button
-            color={color as any}
-            type={submit ? "submit" : "button"}
-            disabled={disabled}
-            onClick={submit ? undefined : (() => fn.sendUiEvent(node.id, "click", eventValue))}
-        >
-            {iconLeft ? <Icon name={iconLeft as any} /> : null}
-            {label}
-            {iconRight ? <Icon name={iconRight as any} /> : null}
-        </Button>;
+        return <UcxButtonField node={node} model={model} scope={scope} fn={fn} />;
     },
     list: ({node, model, scope, fn, renderChildren}) => {
         const items = modelList(model, node.bindPath, scope);
@@ -1094,6 +1122,26 @@ const baseComponents: UcxComponentRegistry = {
     },
     machine_type_selector: ({node, model, scope, fn}) => {
         return <MachineTypeSelectorNode node={node} model={model} scope={scope} fn={fn} />;
+    },
+    service_provider_selector: ({node, model, scope, fn}) => {
+        return <UcxServiceProviderSelector node={node} model={model} scope={scope} fn={fn} />;
+    },
+    cost_estimate: ({node, model, scope, fn}) => {
+        return <UcxCostEstimate node={node} model={model} scope={scope} fn={fn} />;
+    },
+    enum_selector: ({node, model, scope, fn}) => {
+        const options = simpleOptionsProp(node, "options");
+        const selectedKey = modelString(model, node.bindPath, scope);
+        const known = options.some(option => option.key === selectedKey);
+        const value = known ? selectedKey : options[0]?.key ?? "";
+        return <div style={fn.sxStyle(node)}>
+            <Select
+                value={value}
+                onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
+            >
+                {options.map(option => <option key={option.key} value={option.key}>{option.value}</option>)}
+            </Select>
+        </div>;
     },
     radio_group: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
@@ -1265,6 +1313,31 @@ function modelValue(model: Record<string, Value>, path: string, scope?: Record<s
     return traverseObjectPath(model, path);
 }
 
+function traverseObjectPath(root: Record<string, Value>, path: string): Value | undefined {
+    const parts = path.split(".");
+    if (parts.length === 0) {
+        return undefined;
+    }
+
+    let current: Value | undefined = root[parts[0]];
+    for (let i = 1; i < parts.length; i++) {
+        current = traverseObjectPathStep(current, parts[i]);
+    }
+
+    return current;
+}
+
+function traverseObjectPathStep(current: Value | undefined, part: string): Value | undefined {
+    if (!current) return undefined;
+    if (current.kind === ValueKind.List) {
+        const index = Number(part);
+        if (!Number.isInteger(index) || index < 0 || index >= current.list.length) return undefined;
+        return current.list[index];
+    }
+    if (current.kind !== ValueKind.Object) return undefined;
+    return current.object[part];
+}
+
 function tabRouteKey(node: UiNode, idx: number): string {
     if (node.id !== "" && !node.id.startsWith("auto-")) return node.id;
     return stringProp(node, "name", `Tab ${idx + 1}`);
@@ -1272,7 +1345,7 @@ function tabRouteKey(node: UiNode, idx: number): string {
 
 function collectInputBindPaths(root: UiNode): Set<string> {
     const result = new Set<string>();
-    const rehydratable = new Set(["input_text", "input_number", "input_slider", "checkbox", "textarea", "select", "machine_type_selector", "toggle", "radio_group", "list", "inference_chat_composer", "inference_image_composer", "inference_toggle"]);
+    const rehydratable = new Set(["input_text", "input_number", "input_slider", "checkbox", "textarea", "select", "enum_selector", "service_provider_selector", "machine_type_selector", "toggle", "radio_group", "list", "inference_chat_composer", "inference_image_composer", "inference_toggle"]);
 
     const walk = (node: UiNode) => {
         if (node.bindPath && rehydratable.has(node.component) && !node.bindPath.startsWith("./")) {
@@ -1583,23 +1656,6 @@ function toAllowedFontFamily(value: string): string {
     return "var(--sansSerif)";
 }
 
-function traverseObjectPath(root: Record<string, Value>, path: string): Value | undefined {
-    const parts = path.split(".");
-    if (parts.length === 0) {
-        return undefined;
-    }
-
-    let current: Value | undefined = root[parts[0]];
-    for (let i = 1; i < parts.length; i++) {
-        if (!current || current.kind !== ValueKind.Object) {
-            return undefined;
-        }
-        current = current.object[parts[i]];
-    }
-
-    return current;
-}
-
 function modelString(model: Record<string, Value>, path: string, scope?: Record<string, Value>): string {
     return asString(modelValue(model, path, scope), "");
 }
@@ -1760,6 +1816,65 @@ interface MachineRef {
     id: string;
 }
 
+const KeyboardNavigationHost: React.FunctionComponent<React.PropsWithChildren<{
+    node: UiNode;
+    fn: UcxFunctionRegistry;
+}>> = ({node, fn, children}) => {
+    const navigationSelector = optionalStringProp(node, "navigationSelector") ?? FIELD_NAVIGATION_SELECTOR;
+    const horizontalSelector = optionalStringProp(node, "horizontalSelector");
+    const submitNodeId = optionalStringProp(node, "submitNodeId");
+    const submitEvent = optionalStringProp(node, "submitEvent") ?? "click";
+    const disabled = boolProp(node, "submitDisabled", false);
+
+    const submit = useCallback(() => {
+        if (submitNodeId) fn.sendUiEvent(submitNodeId, submitEvent);
+    }, [fn, submitNodeId, submitEvent]);
+
+    useSubmitShortcut(submit, disabled || !submitNodeId);
+
+    return <KeyboardNavigation
+        navigationSelector={navigationSelector}
+        horizontalSelector={horizontalSelector}
+        style={fn.sxStyle(node)}
+    >
+        {children}
+    </KeyboardNavigation>;
+};
+
+const UcxButtonField: React.FunctionComponent<{
+    node: UiNode;
+    model: Record<string, Value>;
+    scope?: Record<string, Value>;
+    fn: UcxFunctionRegistry;
+}> = ({node, model, scope, fn}) => {
+    const label = stringProp(node, "label", "Button");
+    const color = stringProp(node, "color", "primaryMain");
+    const iconLeft = stringProp(node, "iconLeft", "");
+    const iconRight = stringProp(node, "iconRight", "");
+    const submit = boolProp(node, "submit", false);
+    const disabled = boolProp(node, "disabled", false);
+    const showShortcut = boolProp(node, "showShortcut", false);
+    const eventValuePath = stringProp(node, "eventValuePath", "");
+    const eventValue = eventValuePath ? modelValue(model, eventValuePath, scope) : undefined;
+
+    const sx = fn.sxStyle(node);
+
+    return <div style={{...sx, display: "flex"}}>
+        <Button
+            color={color as any}
+            type={submit ? "submit" : "button"}
+            disabled={disabled}
+            width={sx.width !== undefined ? "100%" : undefined}
+            onClick={submit ? undefined : (() => fn.sendUiEvent(node.id, "click", eventValue))}
+        >
+            {iconLeft ? <Icon name={iconLeft as any} /> : null}
+            {label}
+            {iconRight ? <Icon name={iconRight as any} /> : null}
+            {showShortcut ? <SubmitShortcut /> : null}
+        </Button>
+    </div>;
+};
+
 const MachineTypeSelectorNode: React.FunctionComponent<{
     node: UiNode;
     model: Record<string, Value>;
@@ -1767,6 +1882,9 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
     fn: UcxFunctionRegistry;
 }> = ({node, model, scope, fn}) => {
     const label = stringProp(node, "label", "");
+    const providerBindPath = optionalStringProp(node, "providerBindPath");
+    const providerOnly = boolProp(node, "providerOnly", false);
+    const boundProvider = providerBindPath ? modelString(model, providerBindPath, scope) : "";
 
     const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<WalletV2>>({noop: true}, emptyPageV2);
     const [products, fetchProducts] = useCloudAPI<UCloud.PageV2<ProductV2Compute>>({noop: true}, emptyPageV2);
@@ -1813,8 +1931,9 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
     const capabilities = useMemo(() => machineCapabilitiesFromNode(node), [node]);
 
     const machines = useMemo(
-        () => findMachinesByCapabilities(products.data.items, wallets.data.items, machineSupport.data, capabilities),
-        [capabilities, machineSupport.data, products.data.items, wallets.data.items]
+        () => findMachinesByCapabilities(products.data.items, wallets.data.items, machineSupport.data, capabilities)
+            .filter(product => !providerBindPath || product.category.provider === boundProvider),
+        [capabilities, machineSupport.data, products.data.items, wallets.data.items, providerBindPath, boundProvider]
     );
 
     const selectedRef = machineRefFromValue(modelValue(model, node.bindPath, scope));
@@ -1844,8 +1963,13 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
             loading={loading}
             onSelect={onSelect}
             support={supportItems}
+            fieldNavigation={true}
+            hideServiceProvider={providerOnly}
         />
         {!loading && machines.length === 0 ? <Text color="textSecondary">No matching machine types found.</Text> : null}
+        {optionalStringProp(node, "description") ? (
+            <Text color="textSecondary" fontSize={13}>{optionalStringProp(node, "description")}</Text>
+        ) : null}
     </div>;
 };
 
@@ -1880,6 +2004,7 @@ function findMachinesByCapabilities(
 
         const support = supportByKey.get(machineKey(product.category.provider, product.category.name, product.name));
         if (!support || !supportMatchesCapabilities(support, capabilities)) {
+            console.log(support, capabilities)
             continue;
         }
 
@@ -2009,10 +2134,34 @@ function buildObjectFromFlatPath(model: Record<string, Value>, path: string): Va
         return undefined;
     }
 
-    return {
-        kind: ValueKind.Object,
-        object: root,
-    };
+    return convertListLikeObjects(root);
+}
+
+function convertListLikeObjects(rootObject: Record<string, Value>): Value {
+    return convertListLikeObjectsValue({kind: ValueKind.Object, object: rootObject});
+}
+
+function convertListLikeObjectsValue(value: Value): Value {
+    if (value.kind === ValueKind.Object) {
+        const converted: Record<string, Value> = {};
+        for (const [key, child] of Object.entries(value.object)) {
+            converted[key] = convertListLikeObjectsValue(child);
+        }
+
+        const keys = Object.keys(converted);
+        if (keys.length > 0 && keys.every(key => /^\d+$/.test(key))) {
+            const indexes = keys.map(Number).sort((a, b) => a - b);
+            const isDenseList = indexes.length === indexes[indexes.length - 1] + 1 &&
+                indexes.every((index, position) => index === position);
+            if (isDenseList) {
+                return {kind: ValueKind.List, list: indexes.map(index => converted[String(index)])};
+            }
+        }
+
+        return {kind: ValueKind.Object, object: converted};
+    }
+
+    return value;
 }
 
 function setNestedObjectValue(root: Record<string, Value>, pathParts: string[], value: Value): void {
@@ -2060,7 +2209,7 @@ const UcxSelectField = ({node, model, scope, fn}: {
         selected={selected}
         onSelect={item => fn.sendBoundInput(node, {kind: ValueKind.String, string: item.key}, model, scope)}
         placeholder={stringProp(node, "placeholder", "Select...")}
-        mt={8}
+        mt={label === "" ? undefined : 8}
         fullWidth={true}
         openFnRef={openFnRef}
     />;
@@ -2074,6 +2223,351 @@ const UcxSelectField = ({node, model, scope, fn}: {
 const FieldLabel = ({children, onClick}: React.PropsWithChildren<{onClick?: React.MouseEventHandler<HTMLDivElement>}>) => {
     return <div onClick={onClick} style={{fontWeight: 600, marginTop: "6px", cursor: onClick ? "pointer" : undefined}}>{children}</div>;
 };
+
+const UcxSidebarLayoutClass = injectStyle("ucx-sidebar-layout", key => `
+    ${key} {
+        display: grid;
+        grid-template-areas: "main sidebar";
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 24px;
+        width: 100%;
+        align-items: start;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            grid-template-areas: "main" "sidebar";
+            grid-template-columns: minmax(0, 1fr);
+            padding-bottom: 96px;
+        }
+    }
+`);
+
+const UcxSidebarMainClass = injectStyle("ucx-sidebar-main", key => `
+    ${key} {
+        grid-area: main;
+        min-width: 0;
+    }
+`);
+
+const UcxSidebarAsideClass = injectStyle("ucx-sidebar-aside", key => `
+    ${key} {
+        grid-area: sidebar;
+        position: sticky;
+        top: 20px;
+        min-width: 0;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            position: static;
+        }
+    }
+`);
+
+const UcxSidebarSummaryClass = injectStyle("ucx-sidebar-summary", key => `
+    ${key} {
+        display: flex;
+        flex-direction: column;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            position: fixed;
+            left: calc(var(--sidebarBlockWidth, var(--sidebarWidth)) + 16px);
+            right: 16px;
+            bottom: 16px;
+            z-index: 1000;
+        }
+
+        ${key}:empty {
+            display: none;
+        }
+
+        ${key} > * {
+            width: 100%;
+        }
+
+        ${key} > * > * {
+            flex-direction: row !important;
+            align-items: center;
+        }
+
+        ${key} > * > * > *:first-child {
+            flex: 1;
+            min-width: 0;
+            margin: 0 !important;
+        }
+
+        ${key} > * > * > *:last-child {
+            flex-shrink: 0;
+            width: auto !important;
+            margin: 0 !important;
+        }
+
+        ${key} table {
+            display: none;
+        }
+    }
+`);
+
+const UcxServiceProviderSelector: React.FunctionComponent<{
+    node: UiNode;
+    model: Record<string, Value>;
+    scope?: Record<string, Value>;
+    fn: UcxFunctionRegistry;
+}> = ({node, model, scope, fn}) => {
+    const label = stringProp(node, "label", "");
+    const realProvidersOnly = boolProp(node, "realProvidersOnly", false);
+
+    const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<WalletV2>>({noop: true}, emptyPageV2);
+    const [products, fetchProducts] = useCloudAPI<UCloud.PageV2<ProductV2Compute>>({noop: true}, emptyPageV2);
+
+    useEffect(() => {
+        fetchWallets(Accounting.browseWalletsV2({itemsPerPage: 250}));
+        fetchProducts(UCloud.accounting.products.browse({
+            filterUsable: true,
+            filterProductType: "COMPUTE",
+            itemsPerPage: 250,
+        }));
+    }, [fetchProducts, fetchWallets]);
+
+    const providers = useMemo(() => {
+        const coreProviders = new Set(["ucloud", "aau", "aau-test"]);
+        const result = new Set<string>();
+
+        for (const product of products.data.items) {
+            const hasWallet = wallets.data.items.some(wallet =>
+                productCategoryEquals(wallet.paysFor, product.category)
+            );
+            if (!hasWallet) continue;
+            if (realProvidersOnly && coreProviders.has(product.category.provider)) continue;
+            result.add(product.category.provider);
+        }
+
+        return Array.from(result).sort().map(key => ({key}));
+    }, [products.data.items, wallets.data.items, realProvidersOnly]);
+
+    const selectedKey = modelString(model, node.bindPath, scope);
+
+    useEffect(() => {
+        if (!realProvidersOnly) return;
+        if (selectedKey !== "") return;
+        if (products.loading || wallets.loading) return;
+        if (providers.length === 1) {
+            fn.sendBoundInput(node, {kind: ValueKind.String, string: providers[0].key}, model, scope);
+        }
+    }, [fn, model, node, providers, products.loading, realProvidersOnly, selectedKey, wallets.loading]);
+
+    return <div style={fn.sxStyle(node)}>
+        {label === "" ? null : <FieldLabel>{label}</FieldLabel>}
+        <ServiceProviderSelector
+            serviceProvider={selectedKey}
+            serviceProviders={providers}
+            renderSelectedRow={props => {
+                if (!props.element?.key) {
+                    return <Flex height="38px" pl="8px" alignItems="center">
+                        <Text color="textSecondary">Select a service provider</Text>
+                    </Flex>;
+                }
+                return <ServiceProviderItem {...props} />;
+            }}
+            showLabel={false}
+            reserveLabelSpace={false}
+            focusable={true}
+            data-job-info-field="service-provider"
+            onSelect={el => fn.sendBoundInput(node, {kind: ValueKind.String, string: el.key}, model, scope)}
+        />
+    </div>;
+};
+
+const UcxCostEstimate: React.FunctionComponent<{
+    node: UiNode;
+    model: Record<string, Value>;
+    scope?: Record<string, Value>;
+    fn: UcxFunctionRegistry;
+}> = ({node, model, scope, fn}) => {
+    const entries = useMemo(() => costEstimateEntriesFromNode(node), [node]);
+
+    const monthMinutes = 30 * 24 * 60;
+
+    const [walletProducts, fetchWalletProducts] = useCloudAPI<UCloud.PageV2<ProductV2Alias>>({noop: true}, emptyPageV2);
+
+    useEffect(() => {
+        fetchWalletProducts(UCloud.accounting.products.browse({
+            filterUsable: true,
+            itemsPerPage: 250,
+        }));
+    }, [fetchWalletProducts]);
+
+    const productsByRef = useMemo(() => {
+        const result: Record<string, ProductV2Alias> = {};
+        for (const product of walletProducts.data.items) {
+            result[`${product.category.provider}/${product.category.name}/${product.name}`] = product;
+        }
+        return result;
+    }, [walletProducts.data.items]);
+
+    const rows = entries.map(entry => {
+        const machine = machineRefFromValue(modelValue(model, entry.machineBindPath, scope));
+        const count = Math.max(0, Math.round(modelNumber(model, entry.countBindPath, scope)));
+        const product = machine ? productsByRef[machineRefKey(machine)] ?? null : null;
+
+        let priceText = "-";
+        if (product && count > 0) {
+            const cost = calculateProductCost(product, count, monthMinutes);
+            priceText = formatCostNumber(product, cost);
+        }
+
+        const title = entry.titleBindPath ? modelString(model, entry.titleBindPath, scope) || entry.title : entry.title;
+
+        return {title, count, product, priceText};
+    });
+
+    const totalsByUnit = new Map<string, {value: number, product: ProductV2Alias}>();
+    for (const row of rows) {
+        if (row.product && row.count > 0) {
+            const cost = calculateProductCost(row.product, row.count, monthMinutes);
+            const unit = explainUnit(row.product.category).name;
+            const existing = totalsByUnit.get(unit);
+            if (existing) {
+                existing.value += cost;
+            } else {
+                totalsByUnit.set(unit, {value: cost, product: row.product});
+            }
+        }
+    }
+
+    const units = Array.from(totalsByUnit.keys());
+    const formatTotal = (unit: string): string => {
+        const entry = totalsByUnit.get(unit)!;
+        if (entry.value === 0) return "Free";
+        return formatCostNumber(entry.product, entry.value);
+    };
+
+    return <div style={fn.sxStyle(node)}>
+        <div className={UcxCostEstimateClass}>
+            <table>
+                <thead>
+                    <tr>
+                        <th />
+                        <th className="cost-unit">{costUnitLabel(rows, units)}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.length === 0 ? <tr><td>-</td></tr> : rows.map((row, index) =>
+                        <tr key={index}>
+                            <th>{row.title}{row.product ? ` (${row.count})` : ""}</th>
+                            <td>{row.priceText}</td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+            {units.map((unit, index) =>
+                <div key={unit} className="cost-total">
+                    <span>{totalLabel(units, index)}</span>
+                    <span>{formatTotal(unit)}</span>
+                </div>
+            )}
+        </div>
+    </div>;
+}
+
+function totalLabel(units: string[], index: number): string {
+    if (units.length === 1) return "Total";
+    return `Total (${units[index]})`;
+}
+
+function costUnitLabel(rows: {product: ProductV2Alias | null}[], units: string[]): string {
+    if (units.length === 1) return `${units[0]} / month`;
+    if (units.length > 1) return "per month by unit";
+    for (const row of rows) {
+        if (row.product) {
+            return `${explainUnit(row.product.category).name} / month`;
+        }
+    }
+    return "per month";
+}
+
+function formatCostNumber(product: ProductV2Alias | null, value: number): string {
+    if (product === null || value === 0) return "-";
+    const unit = explainUnit(product.category);
+    const text = Accounting.balanceToStringFromUnit(
+        product.category.productType,
+        unit.name,
+        value,
+        {precision: 2, isPrice: true},
+    );
+    return removeUnitSuffix(text, unit.name);
+}
+
+function removeUnitSuffix(value: string, unit: string): string {
+    const suffix = ` ${unit}`;
+    return value.endsWith(suffix) ? value.slice(0, -suffix.length) : value;
+}
+
+function costEstimateEntriesFromNode(node: UiNode): {title: string; titleBindPath: string; machineBindPath: string; countBindPath: string}[] {
+    const raw = prop(node, "entries");
+    if (!raw || raw.kind !== ValueKind.List) return [];
+
+    const result: {title: string; titleBindPath: string; machineBindPath: string; countBindPath: string}[] = [];
+    for (const item of raw.list) {
+        if (item.kind !== ValueKind.Object) continue;
+        result.push({
+            title: asString(item.object["title"], ""),
+            titleBindPath: asString(item.object["titleBindPath"], ""),
+            machineBindPath: asString(item.object["machineBindPath"], ""),
+            countBindPath: asString(item.object["countBindPath"], ""),
+        });
+    }
+    return result;
+}
+
+const UcxCostEstimateClass = injectStyle("ucx-cost-estimate", key => `
+    ${key} table {
+        width: 100%;
+    }
+
+    ${key} th {
+        text-align: left;
+        padding-right: 10px;
+        font-weight: 400;
+    }
+
+    ${key} td {
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+    }
+
+    ${key} .cost-unit {
+        color: var(--textSecondary);
+        font-size: 12px;
+        font-weight: 400;
+        text-align: right;
+        padding-right: 0;
+    }
+
+    ${key} .cost-total {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+
+    ${key} .cost-total:first-of-type {
+        border-top: 1px solid var(--borderColor);
+        margin-top: 12px;
+        padding-top: 12px;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} .cost-total:first-of-type {
+            border-top: none;
+            margin-top: 0;
+            padding-top: 0;
+        }
+    }
+`);
 
 function MarkdownLink(props: {href?: string; children: React.ReactNode}) {
     return <ExternalLink href={props.href}>{props.children}</ExternalLink>;

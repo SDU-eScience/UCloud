@@ -19,7 +19,6 @@ import {addStandardDialog} from "@/UtilityComponents";
 import {isJobStateTerminal, stateToTitle} from "@/Applications/Jobs";
 import {api as JobsApi, Job} from "@/UCloud/JobsApi";
 import AppRoutes from "@/Routes";
-import {IconName} from "@/ui-components/Icon";
 import {HeroHeaderCard, HeroHeaderGrid, HeroMetric} from "@/Applications/Jobs/HeroHeader";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {VmActionItem, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
@@ -31,6 +30,8 @@ import {StackLogo} from "@/Stacks/Logos";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {StackStatus} from "./api";
 import {ValueKind, valueToPlain} from "@/UCX/protocol";
+import {StackResourcesDialog} from "@/Stacks/ResourcesSection";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
 
 type MachinesLabelFilter = {
     label: string;
@@ -222,97 +223,46 @@ export default function StackView(): React.ReactNode {
         );
     }, [stack]);
 
+    const openResourcesDialog = React.useCallback(() => {
+        if (!status) return;
+        dialogStore.addDialog(
+            <StackResourcesDialog status={status} />,
+            doNothing,
+            true,
+            largeModalStyle,
+        );
+    }, [status]);
+
+    const totalResourceCount = (status?.jobs?.length ?? 0) +
+        (status?.licenses?.length ?? 0) +
+        (status?.publicIps?.length ?? 0) +
+        (status?.publicLinks?.length ?? 0) +
+        (status?.networks?.length ?? 0);
+
     const metadata = [
         {title: "ID", value: stack ? shortUUID(stack.id) : "-"},
         {title: "Type", value: stack?.type ?? "Unknown"},
         {title: "Provider", value: jobs.length > 0 ? getShortProviderTitle(jobs[0].specification.product.provider) : "-"},
         {title: "Created", value: stack ? dateToString(stack.createdAt) : "-"},
+        {
+            title: "Resources",
+            value: stack ? (
+                <ExternalLink
+                    href="#"
+                    title="Show resources in this stack"
+                    onClick={e => {
+                        e.preventDefault();
+                        openResourcesDialog();
+                    }}
+                >
+                    <Flex alignItems="center" gap="4px">
+                        {totalResourceCount}
+                        <Icon mt="-2px" name="heroArrowTopRightOnSquare" size={14} />
+                    </Flex>
+                </ExternalLink>
+            ) : "-",
+        },
     ];
-
-    const openResourcesDialog = React.useCallback((kind: "jobs" | "licenses" | "publicLinks" | "publicIps" | "networks") => {
-        if (!status) return;
-
-        if (kind === "jobs") {
-            dialogStore.addDialog(
-                <StackResourceDialog
-                    title="Machines"
-                    headers={["Name", "ID", "State", "Machine type", "Started"]}
-                    rows={status.jobs.map(it => [
-                        it.specification.name ?? "Unnamed",
-                        shortUUID(it.id),
-                        stateToTitle(it.status.state),
-                        it.specification.product.id,
-                        it.status.startedAt ? dateToString(it.status.startedAt) : "Pending",
-                    ])}
-                    emptyMessage="No machines are part of this stack."
-                />,
-                doNothing,
-                true,
-            );
-            return;
-        }
-
-        if (kind === "licenses") {
-            dialogStore.addDialog(
-                <StackResourceDialog
-                    title="Licenses"
-                    headers={["Product", "ID", "State"]}
-                    rows={status.licenses.map(it => [it.specification.product.id, it.id, it.status.state])}
-                    emptyMessage="No licenses are part of this stack."
-                />,
-                doNothing,
-                true,
-            );
-            return;
-        }
-
-        if (kind === "publicLinks") {
-            dialogStore.addDialog(
-                <StackResourceDialog
-                    title="Public links"
-                    headers={["Domain", "State", "Bound to"]}
-                    rows={status.publicLinks.map(it => [
-                        it.specification.domain,
-                        it.status.state,
-                        String(it.status.boundTo.length),
-                    ])}
-                    emptyMessage="No public links are part of this stack."
-                />,
-                doNothing,
-                true,
-            );
-            return;
-        }
-
-        if (kind === "publicIps") {
-            dialogStore.addDialog(
-                <StackResourceDialog
-                    title="Public IPs"
-                    headers={["Address", "ID", "State"]}
-                    rows={status.publicIps.map(it => [it.status.ipAddress ?? "Pending", it.id, it.status.state])}
-                    emptyMessage="No public IPs are part of this stack."
-                />,
-                doNothing,
-                true,
-            );
-            return;
-        }
-
-        dialogStore.addDialog(
-            <StackResourceDialog
-                title="Private networks"
-                headers={["Name", "Subdomain", "Members"]}
-                rows={status.networks.map(it => [
-                    it.specification.name || "Unnamed",
-                    it.specification.subdomain || "-",
-                    String(it.status.members.length),
-                ])}
-                emptyMessage="No private networks are part of this stack."
-            />,
-            doNothing,
-            true,
-        );
-    }, [status]);
 
     const ucxComponentRegistry: Record<string, UcxComponentRenderer> = React.useMemo(() => {
         return {
@@ -332,12 +282,9 @@ export default function StackView(): React.ReactNode {
 
                 return <MachinesInStack commandLoading={commandLoading} suspendVm={suspendVm} restartVm={restartVm}
                     status={status} plain={isPlain} labelFilter={labelFilter} />;
-            },
-            stack_resources: ctx => {
-                return <ResourcesInStack openResourcesDialog={openResourcesDialog} status={status} />;
             }
         };
-    }, [status, commandLoading, suspendVm, restartVm, openResourcesDialog]);
+    }, [status, commandLoading, suspendVm, restartVm]);
 
     return <MainContainer
         main={
@@ -365,11 +312,8 @@ export default function StackView(): React.ReactNode {
                 {id && !stackState.loading && !stackState.error && !stack ? <p>Stack not found.</p> : null}
 
                 {!stack || (uiMode === "Replacement" && ucxAuthenticated) ? null : (
-                    <>
-                        <ResourcesInStack status={status} openResourcesDialog={openResourcesDialog} />
-                        <MachinesInStack status={status} commandLoading={commandLoading} suspendVm={suspendVm}
-                            restartVm={restartVm} />
-                    </>
+                    <MachinesInStack status={status} commandLoading={commandLoading} suspendVm={suspendVm}
+                        restartVm={restartVm} />
                 )}
 
                 {stack && shouldAttemptUcxConnection ? (
@@ -398,56 +342,6 @@ export default function StackView(): React.ReactNode {
 
 function isVirtualMachineJob(job: Job): boolean {
     return job.status.resolvedApplication?.invocation.tool.tool?.description.backend === "VIRTUAL_MACHINE";
-}
-
-const ResourcesInStack: React.FunctionComponent<{
-    status?: StackStatus | null;
-    openResourcesDialog: (kind: "jobs" | "licenses" | "publicLinks" | "publicIps" | "networks") => void;
-}> = ({openResourcesDialog, status}) => {
-    const jobs = status?.jobs ?? [];
-
-    return <Card p="16px">
-        <Heading.h4>Resources in stack</Heading.h4>
-        <div className={ResourceGrid}>
-            <MutedResourceCard
-                icon="heroCpuChip"
-                title="Jobs"
-                count={jobs.length}
-                items={jobs.slice(0, 3).map(job => `${job.specification.name ?? shortUUID(job.id)} (${stateToTitle(job.status.state)})`)}
-                onClick={() => openResourcesDialog("jobs")}
-            />
-            {status?.licenses?.length ?? 0 === 0 ? null :
-                <MutedResourceCard
-                    icon="heroKey"
-                    title="Licenses"
-                    count={status?.licenses?.length ?? 0}
-                    items={(status?.licenses ?? []).slice(0, 3).map(license => `${license.specification.product.id} (${license.id})`)}
-                    onClick={() => openResourcesDialog("licenses")}
-                />
-            }
-            <MutedResourceCard
-                icon="heroGlobeEuropeAfrica"
-                title="Public links"
-                count={status?.publicLinks?.length ?? 0}
-                items={(status?.publicLinks ?? []).slice(0, 3).map(link => link.specification.domain)}
-                onClick={() => openResourcesDialog("publicLinks")}
-            />
-            <MutedResourceCard
-                icon="heroWifi"
-                title="Public IPs"
-                count={status?.publicIps?.length ?? 0}
-                items={(status?.publicIps ?? []).slice(0, 3).map(ip => ip.status.ipAddress ?? ip.id)}
-                onClick={() => openResourcesDialog("publicIps")}
-            />
-            <MutedResourceCard
-                icon="heroCloud"
-                title="Private networks"
-                count={status?.networks?.length ?? 0}
-                items={(status?.networks ?? []).slice(0, 3).map(net => net.specification.name || net.specification.subdomain || net.id)}
-                onClick={() => openResourcesDialog("networks")}
-            />
-        </div>
-    </Card>;
 }
 
 const MachinesInStack: React.FunctionComponent<{
@@ -565,63 +459,6 @@ const MachinesInStack: React.FunctionComponent<{
     </Card>;
 }
 
-const MutedResourceCard: React.FunctionComponent<{
-    icon: IconName;
-    title: string;
-    items: string[];
-    count: number;
-    onClick?: () => void;
-}> = ({icon, title, count, items, onClick}) => {
-    return <Card p="14px" className={onClick ? ClickableMutedCard : MutedCard} onClick={onClick}>
-        <Flex alignItems="center" gap="8px" mb="8px">
-            <Icon name={icon} />
-            <b>{title}</b>
-            <Box flexGrow={1} />
-            <Text color="textSecondary">{count}</Text>
-        </Flex>
-        {items.length === 0 ? <Text color="textSecondary">None</Text> : (
-            <div className={MutedResourceList}>
-                {items.map((item, idx) => <span key={`${item}-${idx}`}>{item}</span>)}
-            </div>
-        )}
-    </Card>;
-};
-
-function StackResourceDialog(props: {
-    title: string;
-    headers: string[];
-    rows: string[][];
-    emptyMessage: string;
-}): React.ReactNode {
-    return <div onKeyDown={e => e.stopPropagation()}>
-        <Heading.h3>{props.title}</Heading.h3>
-        {props.rows.length === 0 ? (
-            <Text color="textSecondary" mt="12px">{props.emptyMessage}</Text>
-        ) : (
-            <Table tableType="presentation">
-                <TableHeader>
-                    <TableRow>
-                        {props.headers.map(header => (
-                            <TableHeaderCell key={header}>{header}</TableHeaderCell>
-                        ))}
-                    </TableRow>
-                </TableHeader>
-                <tbody>
-                    {props.rows.map((row, idx) => (
-                        <TableRow key={`${idx}-${row[0]}`}>
-                            {row.map((cell, cellIdx) => <TableCell key={`${idx}-${cellIdx}`}>{cell}</TableCell>)}
-                        </TableRow>
-                    ))}
-                </tbody>
-            </Table>
-        )}
-
-        <Flex mt="16px" justifyContent="end">
-            <Button color="primaryMain" onClick={() => dialogStore.success()}>Done</Button>
-        </Flex>
-    </div>;
-}
-
 function StackDeleteDialog({stack, onDeleted}: {stack: StackApi.Stack; onDeleted: () => void}): React.ReactNode {
     const requiredText = stack.id;
 
@@ -668,46 +505,6 @@ const StackLayout = injectStyle("stack-view-layout", k => `
         gap: 16px;
         margin: 20px;
         max-width: 1700px;
-    }
-`);
-
-const ResourceGrid = injectStyle("stack-view-resource-grid", k => `
-    ${k} {
-        display: grid;
-        gap: 12px;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        margin-top: 12px;
-    }
-`);
-
-const MutedCard = injectStyle("stack-view-muted-card", k => `
-    ${k} {
-        opacity: 0.78;
-        background: linear-gradient(180deg, var(--backgroundDefault) 0%, var(--backgroundCard) 100%);
-    }
-`);
-
-const ClickableMutedCard = injectStyle("stack-view-clickable-muted-card", k => `
-    ${k} {
-        opacity: 0.78;
-        background: linear-gradient(180deg, var(--backgroundDefault) 0%, var(--backgroundCard) 100%);
-        cursor: pointer;
-        transition: opacity 120ms ease, transform 120ms ease;
-    }
-
-    ${k}:hover {
-        opacity: 1;
-        transform: translateY(-1px);
-    }
-`);
-
-const MutedResourceList = injectStyle("stack-view-muted-resource-list", k => `
-    ${k} {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        color: var(--textSecondary);
-        font-size: 14px;
     }
 `);
 

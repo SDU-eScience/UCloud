@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -475,17 +476,20 @@ func sendRehydrateModel(ctx context.Context, p *Proxy, upstreamOutgoing chan<- F
 
 func collectInputBindPaths(root UiNode) []string {
 	rehydratable := map[string]bool{
-		"input_text":               true,
-		"input_number":             true,
-		"input_slider":             true,
-		"inference_chat_composer":  true,
-		"inference_image_composer": true,
-		"checkbox":                 true,
-		"textarea":                 true,
-		"select":                   true,
-		"toggle":                   true,
-		"radio_group":              true,
-		"list":                     true,
+		"input_text":                true,
+		"input_number":              true,
+		"input_slider":              true,
+		"inference_chat_composer":   true,
+		"inference_image_composer":  true,
+		"checkbox":                  true,
+		"textarea":                  true,
+		"select":                    true,
+		"enum_selector":             true,
+		"service_provider_selector": true,
+		"toggle":                    true,
+		"radio_group":               true,
+		"list":                      true,
+		"machine_type_selector":     true,
 	}
 
 	seen := map[string]bool{}
@@ -529,6 +533,15 @@ func modelValueAtPath(model map[string]Value, path string) (Value, bool) {
 	}
 
 	for i := 1; i < len(parts); i++ {
+		if current.Kind == ValueList && current.List != nil {
+			index, err := strconv.Atoi(parts[i])
+			if err != nil || index < 0 || index >= len(current.List) {
+				return Value{}, false
+			}
+			current = current.List[index]
+			continue
+		}
+
 		if current.Kind != ValueObject || current.Object == nil {
 			return Value{}, false
 		}

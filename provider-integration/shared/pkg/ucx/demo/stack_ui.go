@@ -220,7 +220,7 @@ func (app *stackUiApp) pageControl() []ucx.UiNode {
 		selectorOptions = append(selectorOptions, ucx.Option{Key: group, Value: group})
 	}
 
-	return []ucx.UiNode{ucx.Surface().Children(
+	return []ucx.UiNode{ucx.KeyboardNavigationNode("keyboardNavigation").HorizontalSelector("[data-job-info-field]").Children(ucx.Surface().Children(
 		ucx.Toolbar().Children(
 			ucx.H2("Stack control plane"),
 			ucx.Link("").Children(ucx.Text("Back to overview")),
@@ -262,7 +262,7 @@ func (app *stackUiApp) pageControl() []ucx.UiNode {
 			),
 		),
 		ucx.TextBound("message").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
-	)}
+	))}
 }
 
 func (app *stackUiApp) pageMain() []ucx.UiNode {
@@ -270,8 +270,6 @@ func (app *stackUiApp) pageMain() []ucx.UiNode {
 	var children []ucx.UiNode
 
 	children = append(children,
-		ucx.StackResources(),
-
 		ucx.Surface().Children(
 			ucx.Flex(ucx.FlexProps{Gap: 8}).Children(
 				ucx.Button("copyConfig", "Copy configuration", ucx.ColorSecondaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {

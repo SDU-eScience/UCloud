@@ -23,6 +23,7 @@ import {InputClass} from "@/ui-components/Input";
 import {useProjectId} from "@/Project/Api";
 import {stupidPluralize} from "@/Utilities/TextUtilities";
 import {announceDropdownOpen, DROPDOWN_OPENED_EVENT} from "@/ui-components/ClickableDropdown";
+import {IconName} from "@/ui-components/Icon";
 
 interface ComputeCategory {
     provider: string;
@@ -44,6 +45,7 @@ export const ProductSelector: React.FunctionComponent<{
     loading?: boolean;
     onSelect: (product: ProductV2 | null) => void;
     fieldNavigation?: boolean;
+    hideServiceProvider?: boolean;
 }> = ({selected, ...props}) => {
     const dropdownIdRef = React.useRef(`product-selector-${Math.random().toString(36).slice(2)}`);
     const portal = usePortal();
@@ -330,12 +332,13 @@ export const ProductSelector: React.FunctionComponent<{
 
     return <>
         <div className={ProductSelectorContainerClass}>
-        <div className={ProductSelectorFieldsClass} data-is-compute={isCompute}>
-            {isCompute ? <Box minWidth={0}>
+        <div className={ProductSelectorFieldsClass} data-is-compute={isCompute && props.hideServiceProvider !== true}>
+            {isCompute && props.hideServiceProvider === true ? null : <Box minWidth={0}>
                 {serviceProviders.length === 0 ? <Box onClick={onToggle}><Label>Service provider <MandatoryField /> <Input disabled value={"You have no active allocations for this workspace"} /></Label></Box> :
                     <ServiceProviderSelector
                         serviceProvider={serviceProvider}
                         serviceProviders={serviceProviders}
+                        focusable={props.fieldNavigation}
                         data-job-info-field={props.fieldNavigation ? "service-provider" : undefined}
                         onSelect={el => {
                             setServiceProvider(el.key);
@@ -353,9 +356,9 @@ export const ProductSelector: React.FunctionComponent<{
                             }
                             return <ServiceProviderItem {...props} />
                         }} />}
-            </Box> : null}
+            </Box>}
             <Box minWidth={0}>
-                {isCompute ? <Box>Machine type <MandatoryField /></Box> : null}
+                {isCompute && props.hideServiceProvider !== true ? <Box>Machine type <MandatoryField /></Box> : null}
                 <div
                     onClick={onToggle}
                     onKeyDown={event => {
@@ -396,18 +399,18 @@ export const ProductSelector: React.FunctionComponent<{
                     <>
                         {props.slim !== true ?
                             <>
-                                <Flex mt="4px" justifyContent={"space-between"}>
+                                <Flex mt="4px" gap="24px" flexWrap={"wrap"} rowGap={"2px"} alignItems={"center"} className={MachineSelectorNameRowClass}>
                                     <Flex>{selected?.name}</Flex>
-                                    <Box className={QueueStatusTextClass} px="8px" py="4px" backgroundColor={`var(--${queueStatusInfo.color})`} color="fixedWhite" borderRadius={"12px"}>{queueStatusInfo.message}</Box>
-                                    <Box className={QueueStatusCompactClass}><JobQueueStatusIndicator status={queueStatus ?? JobQueueStatus.FULL} /></Box>
-                                </Flex>
-                                {selected ? <Box mb="12px">
-                                    <ProductDescription serviceProvider={selected.category.provider} category={selected.category.name} />
-                                    <Flex gap="32px" alignItems="flex-end" marginTop={16} flexWrap={"wrap"}>
+                                    <Flex gap="12px" alignItems={"center"} className={MachineSelectorStatsRowClass}>
                                         <ProductStatsSummary product={selected as ProductV2Compute} />
-                                        {selected.category.accountingFrequency === "ONCE" ?
-                                            <div>Price: {priceToString(selected, 1)}</div> : null}
                                     </Flex>
+                                    <Box ml="auto" className={QueueStatusTextClass} px="8px" py="4px" backgroundColor={`var(--${queueStatusInfo.color})`} color="fixedWhite" borderRadius={"12px"}>{queueStatusInfo.message}</Box>
+                                    <Box ml="auto" className={QueueStatusCompactClass}><JobQueueStatusIndicator status={queueStatus ?? JobQueueStatus.FULL} /></Box>
+                                </Flex>
+                                {selected ? <Box mb="12px" className={MachineSelectorDetailsClass}>
+                                    <ProductDescription className={MachineSelectorDescriptionClass} serviceProvider={selected.category.provider} category={selected.category.name} />
+                                    {selected.category.accountingFrequency === "ONCE" ?
+                                        <Box marginTop={2}>Price: {priceToString(selected, 1)}</Box> : null}
                                 </Box> : null}
                             </> :
                             <Flex alignItems={"center"} gap={"8px"}>
@@ -574,9 +577,9 @@ const ProductName: React.FunctionComponent<{product: ProductV2}> = ({product}) =
     return <>{product.name}</>;
 }
 
-function ProductDescription({serviceProvider, category}: {serviceProvider: string; category: string;}): React.ReactNode {
+function ProductDescription({className, serviceProvider, category}: {className?: string; serviceProvider: string; category: string;}): React.ReactNode {
     const description = useProductDescription(serviceProvider, category);
-    return <Text color="textSecondary" fontSize={14}>{description}</Text>;
+    return <Text className={className} color="textSecondary" fontSize={14}>{description}</Text>;
 }
 
 function useProductDescription(serviceProvider: string, category: string): string {
@@ -720,23 +723,50 @@ const ProductStatsSummary: React.FunctionComponent<{product: ProductV2Compute}> 
     const gpuType = product.fraction?.denominator !== 1 ? stupidPluralize(gpus, "MIG") : stupidPluralize(gpus, "GPU");
 
     return <>
-        <HardwareStatSummary model={product.cpuModel}>
-            {product.cpu} {stupidPluralize(product.cpu ?? 1, "vCPU")}
+        <HardwareStatSummary model={product.cpuModel} label={stupidPluralize(product.cpu ?? 1, "vCPU")} icon={"heroCpuChip"}>
+            {product.cpu}
         </HardwareStatSummary>
-        <HardwareStatSummary model={product.memoryModel}>
-            {product.memoryInGigs} GB RAM
+        <HardwareStatSummary model={product.memoryModel} label={`${product.memoryInGigs} GB RAM`} icon={"memorySolid"}>
+            {product.memoryInGigs} GB
         </HardwareStatSummary>
-        {gpus === 0 ? null : <HardwareStatSummary model={product.gpuModel}>
-            {gpus} {gpuType}
+        {gpus === 0 ? null : <HardwareStatSummary model={product.gpuModel} label={`${gpus} ${gpuType}`} icon={"gpu"}>
+            {gpus}
         </HardwareStatSummary>}
     </>
 }
 
-const HardwareStatSummary: React.FunctionComponent<React.PropsWithChildren<{model?: string | null}>> = props => {
-    return <div>
-        <div>{props.children} {props.model ? <span style={{color: "var(--textSecondary)"}}>({props.model})</span> : null}</div>
+const HardwareStatSummary: React.FunctionComponent<React.PropsWithChildren<{
+    model?: string | null;
+    label: string;
+    icon: IconName;
+}>> = props => {
+    return <div className={HardwareStatSummaryClass}>
+        <Flex alignItems={"center"} gap={"4px"} className={HardwareStatRowClass}>
+            <TooltipV2 tooltip={props.label}>
+                <span style={{color: "var(--textSecondary)", display: "flex"}}>
+                    <Icon name={props.icon} size={16} color="textSecondary" />
+                </span>
+            </TooltipV2>
+            <span className={HardwareStatTextClass} style={{color: "var(--textSecondary)"}}>{props.children}</span>
+        </Flex>
+        <div className={HardwareStatFullRowClass}>
+            <span style={{color: "var(--textSecondary)"}}>{props.label}</span>
+            {props.model ? <span className={HardwareStatModelClass} style={{color: "var(--textSecondary)"}}>({props.model})</span> : null}
+        </div>
     </div>
 }
+
+const HardwareStatSummaryClass = injectStyleSimple("hardware-stat-summary", ``);
+
+const HardwareStatRowClass = injectStyleSimple("hardware-stat-row", `
+    display: none;
+`);
+
+const HardwareStatFullRowClass = injectStyleSimple("hardware-stat-full-row", ``);
+
+const HardwareStatTextClass = injectStyleSimple("hardware-stat-text", ``);
+
+const HardwareStatModelClass = injectStyle("hardware-stat-model", k => ``);
 
 const HardwareStat: React.FunctionComponent<React.PropsWithChildren<{
     model?: string | null;
@@ -773,8 +803,8 @@ function MachineTypeSelectionSlider(props: {
     const dividerAt = dividerIndex <= 0 || productCount <= 1 ? undefined :
         (dividerIndex - 0.5) / (productCount - 1);
 
-    return <Box my="16px" mx="32px" px="8px" onClick={stopPropagation}>
-        <Flex mb="8px" style={{position: "relative"}}>
+    return <Box px="8px" className={MachineSelectorSliderClass} onClick={stopPropagation}>
+        <Flex mb="8px" style={{position: "relative"}} className={MachineSelectorSliderLabelsClass}>
             <Box ml="4px"><ProductTypeKind category={props.selectedCategory.kind} isFractional={dividerIndex > 0} /></Box>
             {dividerAt == null ? null : <div className={MachineTypeDividerLabelTrackClass} style={{"--machineTypeDivider": `${dividerAt * 100}%`} as React.CSSProperties}>
                 <Box className="divider-label" ml="10px"><ProductTypeKind category={props.selectedCategory.kind} /></Box>
@@ -854,13 +884,6 @@ export const SelectorBoxClass = injectStyle("selector-box", k => `
         border: unset;
     }
 
-    ${k} svg {
-        position: absolute;
-        bottom: 13px;
-        right: 15px;
-        height: 16px;
-    }
-
     ${k} .selected {
         padding: 7px 12px;
         line-height: 18px;
@@ -902,12 +925,6 @@ export const SelectorBoxClass = injectStyle("selector-box", k => `
     ${k}.slim .selected {
         padding: 5px 12px;
     }
-
-    ${k}.slim svg {
-        position: absolute;
-        top: 30%;
-        right: 5px;
-    }
 `);
 
 const ProductSelectorFieldsClass = injectStyleSimple("product-selector-fields", `
@@ -928,6 +945,20 @@ const QueueStatusCompactClass = injectStyleSimple("machine-queue-status-compact"
     padding: 8px;
 `);
 
+const MachineSelectorNameRowClass = injectStyleSimple("machine-selector-name-row", ``);
+
+const MachineSelectorDetailsClass = injectStyleSimple("machine-selector-details", ``);
+
+const MachineSelectorDescriptionClass = injectStyleSimple("machine-selector-description", ``);
+
+const MachineSelectorStatsRowClass = injectStyleSimple("machine-selector-stats-row", ``);
+
+const MachineSelectorSliderClass = injectStyleSimple("machine-selector-slider", `
+    margin: 16px 32px;
+`);
+
+const MachineSelectorSliderLabelsClass = injectStyleSimple("machine-selector-slider-labels", ``);
+
 const ProductSelectorContainerClass = injectStyleSimple("product-selector-container", `
     container-type: inline-size;
 
@@ -946,6 +977,41 @@ const ProductSelectorContainerClass = injectStyleSimple("product-selector-contai
 
         .${SelectorBoxClass} {
             min-width: 0;
+        }
+    }
+
+    /* Roughly square-ish layout: the expanded box is narrow relative to its height. Reclaim vertical space by
+       collapsing the details into the name row. */
+    @container (max-width: 700px) {
+        .${MachineSelectorDescriptionClass} {
+            display: none;
+        }
+
+        .${MachineSelectorDetailsClass} {
+            margin-bottom: 0;
+        }
+
+        .${HardwareStatModelClass} {
+            display: none;
+        }
+
+        .${HardwareStatFullRowClass} {
+            display: none;
+        }
+
+        .${HardwareStatRowClass} {
+            display: flex;
+        }
+
+        .${MachineSelectorSliderClass} {
+            margin-top: 6px;
+            margin-bottom: 6px;
+            margin-left: 12px;
+            margin-right: 12px;
+        }
+
+        .${MachineSelectorSliderLabelsClass} {
+            display: none;
         }
     }
 `);

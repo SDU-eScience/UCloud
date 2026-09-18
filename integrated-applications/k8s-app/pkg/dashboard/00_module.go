@@ -37,6 +37,8 @@ type stackUiApp struct {
 	RoutePath string
 	Machine   accapi.ProductReference
 
+	TargetGroup string
+
 	Nodes []nodeRow
 	Pods  []podRow
 	Svcs  []svcRow
@@ -248,30 +250,51 @@ func (app *stackUiApp) pageClusterInfo() []ucx.UiNode {
 
 // "Add new VM" page
 func (app *stackUiApp) pageControl() []ucx.UiNode {
-	return []ucx.UiNode{ucx.Surface().Children(
+	children := []ucx.UiNode{ucx.Surface().Children(
 		ucx.Toolbar().Children(
 			ucx.H2("Add new virtual machine to the stack"),
 			ucx.Link("").Children(ucx.Text("Back to overview")),
 		),
-		ucx.Text("Select a product and submit to add a new node to the stack."),
-
-		ucx.Form("addNodeForm").On(ucx.UiEventSubmit, func(ev ucx.UiEvent) {
-			app.addMachineToGroup("worker")
-			ucx.AppUpdateUi(app)
-		}).Children(
-			ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).Children(
-				// NOTE: multiple control planes currently don't work
-				ucx.MachineTypeSelector(
-					"machine",
-					"Machine product",
-					"machine",
-					ucx.MachineCapabilityDocker,
-					ucx.MachineCapabilityVm,
-				),
-				ucx.SubmitButton("addToStack", "Add machine to stack", ucx.ColorSecondaryMain),
-			),
-		),
+		ucx.Text("Select a machine and submit to add a new node to the pool."),
 	)}
+
+	groups := shared.ClusterNodeGroups(app.Jobs)
+	poolGroups := make([]string, 0, len(groups))
+	for _, group := range groups {
+		if group == shared.GroupControlPlane {
+			continue
+		}
+		poolGroups = append(poolGroups, group)
+	}
+
+	if len(poolGroups) == 0 {
+		poolGroups = []string{shared.GroupWorker}
+	}
+
+	options := make([]ucx.Option, 0, len(poolGroups))
+	for _, group := range poolGroups {
+		options = append(options, ucx.Option{Key: group, Value: group})
+	}
+
+	// NOTE: multiple control planes currently don't work
+	children = append(children, ucx.Form("addNodeForm").On(ucx.UiEventSubmit, func(ev ucx.UiEvent) {
+		app.addMachineToGroup(app.TargetGroup)
+		ucx.AppUpdateUi(app)
+	}).Children(
+		ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).Children(
+			ucx.Select("targetGroup", "Node pool", "targetGroup", options),
+			ucx.MachineTypeSelector(
+				"machine",
+				"Machine product",
+				"machine",
+				ucx.MachineCapabilityDocker,
+				ucx.MachineCapabilityVm,
+			),
+			ucx.SubmitButton("addToStack", "Add machine to stack", ucx.ColorSecondaryMain),
+		),
+	))
+
+	return children
 }
 
 func (app *stackUiApp) pageMain() []ucx.UiNode {
@@ -279,7 +302,6 @@ func (app *stackUiApp) pageMain() []ucx.UiNode {
 	var children []ucx.UiNode
 
 	children = append(children,
-		ucx.StackResources(),
 		ucx.Surface().Children(
 			ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 32}).Children(
 				ucx.Flex(ucx.FlexProps{Gap: 8}).Children(

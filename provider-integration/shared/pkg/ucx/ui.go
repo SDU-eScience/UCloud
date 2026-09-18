@@ -527,6 +527,20 @@ func Select(id string, label string, bindPath string, options []Option) UiNode {
 	}
 }
 
+func EnumSelectorNode(id string, bindPath string, options []Option) UiNode {
+	requireExplicitId(id, "enum_selector")
+
+	return UiNode{
+		Id:         id,
+		Component:  "enum_selector",
+		BindPath:   bindPath,
+		Optimistic: true,
+		Props: map[string]Value{
+			"options": optionsToValue(options),
+		},
+	}
+}
+
 func MachineTypeSelector(id string, label string, bindPath string, capabilities ...MachineCapability) UiNode {
 	requireExplicitId(id, "machine_type_selector")
 
@@ -565,6 +579,67 @@ func MachineTypeSelector(id string, label string, bindPath string, capabilities 
 		Props: map[string]Value{
 			"label":        VString(label),
 			"capabilities": VList(normalizedCaps),
+		},
+	}
+}
+
+func (n UiNode) MachineSelectorProviderBindPath(providerBindPath string) UiNode {
+	return n.propMutate("providerBindPath", VString(providerBindPath))
+}
+
+func (n UiNode) MachineSelectorProviderOnly(providerOnly bool) UiNode {
+	return n.propMutate("providerOnly", VBool(providerOnly))
+}
+
+func ServiceProviderSelectorNode(id string, bindPath string) UiNode {
+	requireExplicitId(id, "service_provider_selector")
+
+	return UiNode{
+		Id:         id,
+		Component:  "service_provider_selector",
+		BindPath:   bindPath,
+		Optimistic: true,
+	}
+}
+
+func (n UiNode) ServiceProviderRealProvidersOnly(realProvidersOnly bool) UiNode {
+	return n.propMutate("realProvidersOnly", VBool(realProvidersOnly))
+}
+
+func (n UiNode) MachineSelectorDescription(description string) UiNode {
+	return n.propMutate("description", VString(description))
+}
+
+type CostEstimateEntry struct {
+	Title           string
+	TitleBindPath   string
+	MachineBindPath string
+	CountBindPath   string
+}
+
+func CostEstimateNode(id string, entries []CostEstimateEntry) UiNode {
+	requireExplicitId(id, "cost_estimate")
+
+	normalizedEntries := make([]Value, 0, len(entries))
+	for _, entry := range entries {
+		object := map[string]Value{
+			"title":           VString(entry.Title),
+			"machineBindPath": VString(entry.MachineBindPath),
+			"countBindPath":   VString(entry.CountBindPath),
+		}
+
+		if entry.TitleBindPath != "" {
+			object["titleBindPath"] = VString(entry.TitleBindPath)
+		}
+
+		normalizedEntries = append(normalizedEntries, VObject(object))
+	}
+
+	return UiNode{
+		Id:        id,
+		Component: "cost_estimate",
+		Props: map[string]Value{
+			"entries": VList(normalizedEntries),
 		},
 	}
 }
@@ -750,10 +825,6 @@ func optionsToValue(options []Option) Value {
 	return VList(list)
 }
 
-func StackResources() UiNode {
-	return UiNode{Component: "stack_resources"}
-}
-
 type StackMachinesProps struct {
 	Plain       bool
 	LabelFilter util.Option[StackMachinesLabelFilter]
@@ -777,4 +848,163 @@ func StackMachines(props StackMachinesProps) UiNode {
 	}
 
 	return UiNode{Component: "stack_machines", Props: nodeProps}
+}
+
+func KeyboardNavigationNode(id string) KeyboardNavigationNodeBuilder {
+	requireExplicitId(id, "keyboard_navigation")
+	return KeyboardNavigationNodeBuilder{node: UiNode{Id: id, Component: "keyboard_navigation"}}
+}
+
+type KeyboardNavigationNodeBuilder struct {
+	node UiNode
+}
+
+func (b KeyboardNavigationNodeBuilder) Sx(opts ...SxOption) KeyboardNavigationNodeBuilder {
+	if b.node.Props == nil {
+		b.node.Props = map[string]Value{}
+	}
+	b.node.Props["sx"] = Sx(opts...)
+	return b
+}
+
+func (b KeyboardNavigationNodeBuilder) VerticalSelector(selector string) KeyboardNavigationNodeBuilder {
+	return b.propString("navigationSelector", selector)
+}
+
+func (b KeyboardNavigationNodeBuilder) HorizontalSelector(selector string) KeyboardNavigationNodeBuilder {
+	return b.propString("horizontalSelector", selector)
+}
+
+func (b KeyboardNavigationNodeBuilder) Submit(nodeId string) KeyboardNavigationNodeBuilder {
+	return b.propString("submitNodeId", nodeId)
+}
+
+func (b KeyboardNavigationNodeBuilder) SubmitForm(formNodeId string) KeyboardNavigationNodeBuilder {
+	return b.propString("submitNodeId", formNodeId).prop("submitEvent", VString("submit"))
+}
+
+func (b KeyboardNavigationNodeBuilder) SubmitDisabled(disabled bool) KeyboardNavigationNodeBuilder {
+	return b.prop("submitDisabled", VBool(disabled))
+}
+
+func (b KeyboardNavigationNodeBuilder) prop(key string, value Value) KeyboardNavigationNodeBuilder {
+	if b.node.Props == nil {
+		b.node.Props = map[string]Value{}
+	}
+	b.node.Props[key] = value
+	return b
+}
+
+func (b KeyboardNavigationNodeBuilder) propString(key string, value string) KeyboardNavigationNodeBuilder {
+	if value == "" {
+		return b
+	}
+	return b.prop(key, VString(value))
+}
+
+func (b KeyboardNavigationNodeBuilder) Children(children ...UiNode) UiNode {
+	return b.node.Children(children...)
+}
+
+func FieldGroupNode() UiNode {
+	return FieldGroupNodeEx("")
+}
+
+func FieldGroupNodeEx(id string) UiNode {
+	return UiNode{Id: id, Component: "field_group"}
+}
+
+func FieldRowNode(title string, bindPath string) UiNode {
+	return FieldRowNodeEx("", title, bindPath)
+}
+
+func FieldRowNodeEx(id string, title string, bindPath string) UiNode {
+	props := map[string]Value{
+		"title": VString(title),
+	}
+
+	return UiNode{
+		Id:        id,
+		Component: "field_row",
+		BindPath:  bindPath,
+		Props:     props,
+	}
+}
+
+func (n UiNode) FieldRowTitle(title string) UiNode {
+	return n.propMutate("title", VString(title))
+}
+
+func (n UiNode) FieldRowDescription(description string) UiNode {
+	return n.propMutate("description", VString(description))
+}
+
+func (n UiNode) FieldRowBold(bold bool) UiNode {
+	return n.propMutate("bold", VBool(bold))
+}
+
+func (n UiNode) FieldRowRequired(required bool) UiNode {
+	return n.propMutate("required", VBool(required))
+}
+
+func (n UiNode) FieldRowError(error string) UiNode {
+	return n.propMutate("error", VString(error))
+}
+
+func (n UiNode) FieldRowParameterType(parameterType string) UiNode {
+	return n.propMutate("parameterType", VString(parameterType))
+}
+
+func (n UiNode) propMutate(key string, value Value) UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props[key] = value
+	return n
+}
+
+func (n UiNode) ButtonSubmitShortcut(enabled bool) UiNode {
+	return n.propMutate("showShortcut", VBool(enabled))
+}
+
+func SidebarLayout() SidebarLayoutNodeBuilder {
+	return SidebarLayoutNodeBuilder{node: UiNode{Component: "sidebar_layout"}}
+}
+
+type SidebarLayoutNodeBuilder struct {
+	node       UiNode
+	sidebar    UiNode
+	hasSidebar bool
+}
+
+func (b SidebarLayoutNodeBuilder) Sx(opts ...SxOption) SidebarLayoutNodeBuilder {
+	if b.node.Props == nil {
+		b.node.Props = map[string]Value{}
+	}
+	b.node.Props["sx"] = Sx(opts...)
+	return b
+}
+
+func (b SidebarLayoutNodeBuilder) Sidebar(sidebar UiNode) SidebarLayoutNodeBuilder {
+	b.sidebar = sidebar
+	b.hasSidebar = true
+	return b
+}
+
+func (b SidebarLayoutNodeBuilder) Children(children ...UiNode) UiNode {
+	all := make([]UiNode, 0, len(children)+1)
+	all = append(all, children...)
+
+	if b.hasSidebar {
+		sidebar := b.sidebar
+		props := make(map[string]Value, len(sidebar.Props)+1)
+		for key, value := range sidebar.Props {
+			props[key] = value
+		}
+		props["sidebarSlot"] = VBool(true)
+		sidebar.Props = props
+		all = append(all, sidebar)
+	}
+
+	return b.node.Children(all...)
 }

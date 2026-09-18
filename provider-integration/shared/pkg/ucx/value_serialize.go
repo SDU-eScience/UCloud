@@ -9,6 +9,7 @@ import (
 	"unicode"
 
 	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 const valueRootKey = ""
@@ -152,6 +153,10 @@ func populateStructFromFlatModel(input map[string]Value, prefix string, out refl
 			continue
 		}
 
+		if err := populateStructSliceElement(input, fieldPath, fv); err != nil {
+			return fmt.Errorf("field %s: %w", field.Name, err)
+		}
+
 		if isStructType(fv.Type()) && modelHasPrefix(input, fieldPath) {
 			target, err := ensureStructValue(fv)
 			if err != nil {
@@ -159,6 +164,102 @@ func populateStructFromFlatModel(input map[string]Value, prefix string, out refl
 			}
 			if err := populateStructFromFlatModel(input, fieldPath, target); err != nil {
 				return fmt.Errorf("field %s: %w", field.Name, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func populateStructSliceElement(input map[string]Value, fieldPath string, fv reflect.Value) error {
+	if !modelHasPrefix(input, fieldPath) {
+		return nil
+	}
+
+	sliceValue := fv
+	for sliceValue.Kind() == reflect.Pointer {
+		if sliceValue.IsNil() {
+			sliceValue.Set(reflect.New(sliceValue.Type().Elem()))
+		}
+		sliceValue = sliceValue.Elem()
+	}
+
+	if sliceValue.Kind() != reflect.Slice {
+		return nil
+	}
+
+	indexes := map[int]util.Empty{}
+	for key := range input {
+		rest, ok := strings.CutPrefix(key, fieldPath+".")
+		if !ok {
+			continue
+		}
+
+		indexPart, _, _ := strings.Cut(rest, ".")
+
+		index, err := strconv.Atoi(indexPart)
+		if err != nil || index < 0 {
+			return fmt.Errorf("invalid slice index %q in path %q", indexPart, key)
+		}
+		indexes[index] = util.Empty{}
+	}
+
+	if len(indexes) == 0 {
+		return nil
+	}
+
+	maxIndex := 0
+	for index := range indexes {
+		if index > maxIndex {
+			maxIndex = index
+		}
+	}
+
+	newLength := maxIndex + 1
+	if sliceValue.Len() > newLength {
+		newLength = sliceValue.Len()
+	}
+
+	result := reflect.MakeSlice(sliceValue.Type(), newLength, newLength)
+	reflect.Copy(result, sliceValue)
+	sliceValue.Set(result)
+
+	elemType := sliceValue.Type().Elem()
+
+	for key, raw := range input {
+		rest, ok := strings.CutPrefix(key, fieldPath+".")
+		if !ok {
+			continue
+		}
+
+		if !strings.Contains(rest, ".") {
+			index, err := strconv.Atoi(rest)
+			if err != nil || index < 0 || index >= result.Len() {
+				return fmt.Errorf("invalid slice index %q in path %q", rest, key)
+			}
+
+			decoded, err := valueToReflect(raw, elemType)
+			if err != nil {
+				return fmt.Errorf("element %s: %w", key, err)
+			}
+			result.Index(index).Set(decoded)
+		}
+	}
+
+	for index := range indexes {
+		element := sliceValue.Index(index)
+		if !isStructType(element.Type()) {
+			continue
+		}
+		if err := populateStructFromFlatModel(input, fmt.Sprintf("%s.%d", fieldPath, index), element); err != nil {
+			return err
+		}
+	}
+
+	if elemType.Kind() == reflect.Pointer {
+		for i := 0; i < sliceValue.Len(); i++ {
+			if sliceValue.Index(i).IsNil() {
+				sliceValue.Index(i).Set(reflect.New(elemType.Elem()))
 			}
 		}
 	}

@@ -327,7 +327,7 @@ current-context: default
 						stackGroupingLabel:              nodeGroup,
 					}),
 					Product:     selectedProduct,
-					Image:       ucxsvc.VmImageUbuntu24_04,
+					Image:       ucxsvc.VmImageUbuntu26_04,
 					Hostname:    fmt.Sprintf("control-plane-%v", i),
 					Attachments: attachments,
 				})
@@ -356,7 +356,7 @@ current-context: default
 						stackGroupingLabel:              nodeGroup,
 					}),
 					Product:     selectedProduct,
-					Image:       ucxsvc.VmImageUbuntu24_04,
+					Image:       ucxsvc.VmImageUbuntu26_04,
 					Hostname:    fmt.Sprintf("worker-%v", i),
 					Attachments: attachments,
 				})

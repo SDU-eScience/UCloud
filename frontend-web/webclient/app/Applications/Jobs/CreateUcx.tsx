@@ -1,7 +1,6 @@
 import * as React from "react";
 import {MainContainer, Card, Flex, Text} from "@/ui-components";
-import {injectStyle} from "@/Unstyled";
-import {Client} from "@/Authentication/HttpClientInstance";
+import {injectStyle} from "@/Unstyled";import {Client} from "@/Authentication/HttpClientInstance";
 import UcxView, {UcxFrameRenderArgs} from "@/UCX/UcxView";
 import {getStoredProject} from "@/Project/ReduxState";
 import {Application, ApplicationGroup} from "@/Applications/AppStoreApi";
@@ -12,7 +11,6 @@ import {UcxRpcHandler} from "@/UCX/UcxView";
 import {sendFailureNotification, sendInformationNotification, sendSuccessNotification} from "@/Notifications";
 import {useNavigate} from "react-router-dom";
 import AppRoutes from "@/Routes";
-import {ApplicationForkAction} from "@/Applications/Creator/ForkAction";
 
 interface CreateUcxJobProps {
     application: Application;
@@ -79,20 +77,46 @@ export const CreateUcxJobRenderer: React.FunctionComponent<UcxFrameRenderArgs & 
 
         return <MainContainer
             main={<>
-                <Flex mx="50px" mt="32px">
+                <Flex className={CreateUcxHeaderClass}>
                     <AppHeader
                         title={appGroup?.specification?.title ?? application.metadata.title}
                         application={application}
                         flavors={appGroup?.status?.applications ?? []}
                         allVersions={application.versions ?? []}
+                        showSelectors={false}
                     />
                     <Flex flexGrow={1}/>
-                    <UtilityBar leading={<ApplicationForkAction application={application} />}/>
+                    <UtilityBar/>
                 </Flex>
 
-                <Flex mx="50px" mt="32px">
+                <Flex className={CreateUcxContentClass}>
                     {content}
                 </Flex>
             </>}
         />
     }
+
+const CreateUcxHeaderClass = injectStyle("create-ucx-header", key => `
+    ${key} {
+        margin: 32px 50px 0;
+    }
+
+    @media (max-width: 600px) {
+        ${key} {
+            margin: 24px 16px 0;
+        }
+    }
+`);
+
+const CreateUcxContentClass = injectStyle("create-ucx-content", key => `
+    ${key} {
+        margin: 32px 50px 0;
+    }
+
+    @media (max-width: 600px) {
+        ${key} {
+            margin: 24px 16px 0;
+        }
+    }
+`);
+

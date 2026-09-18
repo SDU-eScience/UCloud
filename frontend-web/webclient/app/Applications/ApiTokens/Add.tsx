@@ -466,6 +466,7 @@ export function ServiceProviderSelector({
     renderSelectedRow = ServiceProviderItem,
     showLabel = true,
     reserveLabelSpace = true,
+    focusable,
     ...dataAttributes
 }: {
     onSelect: (el: {key: string}) => void;
@@ -475,6 +476,7 @@ export function ServiceProviderSelector({
     renderSelectedRow?: (props: RichSelectProps<{key: string}>) => React.ReactNode
     showLabel?: boolean;
     reserveLabelSpace?: boolean;
+    focusable?: boolean;
 } & DataAttributes) {
     return <div className={ServiceProviderSelectorStyle} data-has-service-provider={!!serviceProvider}>
         {showLabel ? <>Service provider <MandatoryField /></> : reserveLabelSpace ? <Box width={"300px"} /> : null}
@@ -485,6 +487,7 @@ export function ServiceProviderSelector({
             selected={({key: serviceProvider})}
             items={serviceProviders}
             keys={["key"]}
+            focusable={focusable}
             {...dataAttributes}
             RenderRow={renderRow}
             onSelect={onSelect}>

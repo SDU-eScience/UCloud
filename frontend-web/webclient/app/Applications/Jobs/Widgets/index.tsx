@@ -217,7 +217,7 @@ export function FieldRow(props: {
                 <Markdown>{props.description}</Markdown>
             </div>}
         </div>
-        <div className={FieldControlClass}>
+        <div className={FieldControlClass} data-has-action={action ? "true" : "false"}>
             <div className={FieldControlBodyClass}>{props.control}</div>
             {!action ? null : <Button type="button" color="secondaryMain" onClick={runAction}>
                 {actionLabel}
@@ -437,6 +437,10 @@ const FieldControlClass = injectStyleSimple("job-field-control", `
     align-items: start;
     min-width: 0;
     padding: 10px 0;
+
+    &[data-has-action="false"] {
+        grid-template-columns: minmax(0, 1fr);
+    }
 `);
 
 const FieldControlBodyClass = injectStyleSimple("job-field-control-body", `

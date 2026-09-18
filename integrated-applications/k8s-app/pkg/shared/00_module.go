@@ -52,17 +52,27 @@ func StackFile(name string) string {
 	return string(data)
 }
 
+type ClusterPoolSpec struct {
+	Name    string
+	Machine accapi.ProductReference
+	Nodes   int
+	DiskGb  int
+}
+
 type ClusterSpec struct {
-	Machine           accapi.ProductReference
-	WorkerNodes       int
-	ControlPlaneNodes int
-	Ports             []int
+	ControlPlaneMachine accapi.ProductReference
+	ControlPlaneNodes   int
+	ControlPlaneDiskGb  int
+	WorkerPools         []ClusterPoolSpec
+	K8sVersion          string
+	Ports               []int
 }
 
 type ClusterNodeSpec struct {
 	Group              string
 	Index              int
 	Machine            accapi.ProductReference
+	DiskGb             int
 	Attachments        []orcapi.AppParameterValue
 	ExtraLabels        map[string]string
 	CustomUiInitScript string
@@ -127,7 +137,8 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		vmId := ClusterNodeCreate(stack, ClusterNodeSpec{
 			Group:              GroupControlPlane,
 			Index:              i,
-			Machine:            spec.Machine,
+			Machine:            spec.ControlPlaneMachine,
+			DiskGb:             spec.ControlPlaneDiskGb,
 			Attachments:        attachments,
 			ExtraLabels:        extraLabels,
 			CustomUiInitScript: customUi.InitScript,
@@ -135,14 +146,18 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		ucxsvc.UiSendSuccess(app, "Created control plane VM "+vmId+"!")
 	}
 
-	for i := 1; i <= spec.WorkerNodes; i++ {
-		vmId := ClusterNodeCreate(stack, ClusterNodeSpec{
-			Group:       GroupWorker,
-			Index:       i,
-			Machine:     spec.Machine,
-			Attachments: []orcapi.AppParameterValue{network},
-		})
-		ucxsvc.UiSendSuccess(app, "Created worker VM "+vmId+"!")
+	for _, pool := range spec.WorkerPools {
+		groupName := pool.Name
+		for i := 1; i <= pool.Nodes; i++ {
+			vmId := ClusterNodeCreate(stack, ClusterNodeSpec{
+				Group:       groupName,
+				Index:       i,
+				Machine:     pool.Machine,
+				DiskGb:      pool.DiskGb,
+				Attachments: []orcapi.AppParameterValue{network},
+			})
+			ucxsvc.UiSendSuccess(app, "Created "+groupName+" VM "+vmId+"!")
+		}
 	}
 
 	ucxsvc.UiSendSuccess(app, fmt.Sprintf("Forwarding ports %v!", spec.Ports))
@@ -152,11 +167,6 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 }
 
 func ClusterAddNode(app ucx.Application, stack *ucxsvc.Stack, node ClusterNodeSpec, existingJobs []orcapi.Job) (string, bool) {
-	if node.Group != GroupControlPlane && node.Group != GroupWorker {
-		ucxsvc.UiSendFailure(app, "Unsupported group")
-		return "", false
-	}
-
 	if len(existingJobs) == 0 {
 		ucxsvc.UiSendFailure(app, "No existing nodes in group "+node.Group)
 		return "", false
@@ -185,13 +195,10 @@ func ClusterAddNode(app ucx.Application, stack *ucxsvc.Stack, node ClusterNodeSp
 
 func ClusterNodeLabels(group string, initScriptLabels map[string]string, extra map[string]string) map[string]string {
 	var forwards string
-	switch group {
-	case GroupControlPlane:
+	if group == GroupControlPlane {
 		forwards = controlPlaneServiceForwardsTcp
-	case GroupWorker:
+	} else {
 		forwards = workerServiceForwardsTcp
-	default:
-		log.Fatalf("unknown node group %q", group)
 	}
 
 	labels := util.MapMerge(initScriptLabels, map[string]string{
@@ -245,10 +252,8 @@ func ClusterNodeCreate(stack *ucxsvc.Stack, node ClusterNodeSpec) string {
 		scriptName = "prime-control-plane-init.sh"
 	case node.Group == GroupControlPlane:
 		scriptName = "control-plane-init.sh"
-	case node.Group == GroupWorker:
-		scriptName = "worker-init.sh"
 	default:
-		log.Fatalf("unknown node group %q", node.Group)
+		scriptName = "worker-init.sh"
 	}
 
 	script := Script(scriptName)
@@ -263,6 +268,7 @@ func ClusterNodeCreate(stack *ucxsvc.Stack, node ClusterNodeSpec) string {
 		Product:     node.Machine,
 		Image:       ucxsvc.VmImageUbuntu26_04,
 		Hostname:    ClusterNodeHostname(node.Group, node.Index),
+		DiskSize:    util.OptValue(node.DiskGb),
 		Attachments: node.Attachments,
 	})
 }
