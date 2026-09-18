@@ -525,7 +525,7 @@ func TestAppSearch(t *testing.T) {
 }
 
 func TestAppGet(t *testing.T) {
-	input := []string{"app", "get", "airflow"}
+	input := []string{"app", "get", "coder"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)

@@ -20,6 +20,7 @@ type AppSearchCommand struct {
 
 type AppGetCommand struct {
 	Application string `positional:"application" usage:"Application name" required:"true"`
+	Verbose     bool   `flag:"verbose" usage:"Show verbose output"`
 }
 
 var AppCommands = map[string]CommandFunc{
@@ -108,7 +109,9 @@ func retrieveApps(category string, appName string) (map[string]orcapi.Applicatio
 
 		if appName != "" {
 			// since we are already looping, then we can also find the app that the user is looking for
-			foundApp = findAppInGroup(v, strings.Split(appName, ":"))
+			if foundApp == nil {
+				foundApp = findAppInGroup(v, strings.Split(appName, ":"))
+			}
 		}
 	}
 
@@ -125,15 +128,17 @@ func findAppInGroup(v orcapi.ApplicationCategory, nameVersion []string) *orcapi.
 		group.Status.Applications = foundGroup.Status.Applications
 		for _, app := range group.Status.Applications {
 			if len(nameVersion) > 1 {
-				if shared.RepositoryProjectName(app.Metadata.Name) == nameVersion[0] {
-					if nameVersion[1] == "" || app.Metadata.Version == nameVersion[1] {
-						return &app
+				if app.Metadata.NameAndVersion.Name == nameVersion[0] {
+					if app.Versions != nil {
+						for _, version := range app.Versions {
+							if version == nameVersion[1] {
+								return &app
+							}
+						}
 					}
 				}
-			} else {
-				if shared.RepositoryProjectName(app.Metadata.Name) == nameVersion[0] {
-					return &app
-				}
+			} else if app.Metadata.NameAndVersion.Name == nameVersion[0] {
+				return &app
 			}
 		}
 	}
@@ -185,10 +190,12 @@ func (c AppSearchCommand) Execute() error {
 	t.AppendHeader("Title")
 	t.AppendHeader("Description")
 	t.AppendHeader("Flavor")
+	t.AppendHeader("Version")
 	for _, app := range apps {
 		t.Cell("%v", app.Metadata.Title)
 		t.Cell("%v", app.Metadata.Description)
 		t.Cell("%v", app.Metadata.FlavorName.GetOrDefault(""))
+		t.Cell("%v", app.Metadata.Version)
 	}
 	t.Print()
 	return nil
@@ -203,13 +210,32 @@ func (c AppGetCommand) Execute() error {
 	if found == nil {
 		return fmt.Errorf("application %s not found", c.Application)
 	}
+	nameVersion := strings.Split(c.Application, ":")
+	hasVersion := len(nameVersion) > 1
+	versionHeader := "Version"
+	if !hasVersion {
+		versionHeader = "Latests version"
+	}
 	t := termio.Table{}
 	t.AppendHeader("Title")
 	t.AppendHeader("Description")
 	t.AppendHeader("Flavor")
+	t.AppendHeader(versionHeader)
+	if c.Verbose {
+		t.AppendHeader("Versions")
+	}
 	t.Cell("%v", found.Metadata.Title)
 	t.Cell("%v", found.Metadata.Description)
 	t.Cell("%v", found.Metadata.FlavorName.GetOrDefault(""))
+	if hasVersion {
+		t.Cell("%v", nameVersion[1])
+	} else {
+		t.Cell("%v", found.Metadata.Version)
+	}
+	if c.Verbose {
+		versionsSupported := strings.Join(found.Versions, "\n")
+		t.Cell("%v", versionsSupported)
+	}
 	t.Print()
 
 	return nil
