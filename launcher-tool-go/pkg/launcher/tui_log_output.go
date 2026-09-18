@@ -129,6 +129,19 @@ func (m logTuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case logTuiStreamClose:
 		m.done = true
+
+		left := "Running command..."
+		if m.title != nil {
+			left = *m.title
+		}
+
+		if strings.HasPrefix(left, logTuiFailure) {
+			m.content += "\nProcess failed. Press q to continue.\n"
+			m.vp.SetContent(m.content)
+			m.vp.GotoBottom()
+			return m, nil
+		}
+
 		return m, tea.Quit
 
 	case tea.KeyMsg:
@@ -136,16 +149,28 @@ func (m logTuiModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		case "up", "k":
+			if m.done {
+				break
+			}
 			m.vp.ScrollUp(1)
 		case "down", "j":
+			if m.done {
+				break
+			}
 			m.vp.ScrollDown(1)
 		case "left", "h":
 			m.vp.ScrollLeft(1)
 		case "right", "l":
 			m.vp.ScrollRight(1)
 		case "pgup":
+			if m.done {
+				break
+			}
 			m.vp.HalfPageUp()
 		case "pgdown":
+			if m.done {
+				break
+			}
 			m.vp.HalfPageDown()
 		case "home":
 			m.vp.GotoTop()
@@ -246,6 +271,7 @@ func LogOutputTui(titleRunning *string, out chan string) {
 		}
 
 		if strings.HasPrefix(left, logTuiFailure) {
+			fmt.Printf("\n%s\n", left)
 			os.Exit(1)
 		}
 	} else {
@@ -263,6 +289,7 @@ func LogOutputTui(titleRunning *string, out chan string) {
 		}
 
 		if strings.HasPrefix(left, logTuiFailure) {
+			fmt.Printf("\n%s\n", left)
 			os.Exit(1)
 		}
 	}
@@ -277,12 +304,9 @@ func LogOutputRunWork(title string, work func(ch chan string) error) {
 			*mutableTitle = logTuiFailure + " " + title
 			ch <- "\n\n"
 			ch <- err.Error()
-			if !HasPty {
-				close(ch)
-			}
-		} else {
-			close(ch)
 		}
+
+		close(ch)
 	}()
 
 	LogOutputTui(mutableTitle, ch)

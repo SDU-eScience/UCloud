@@ -264,6 +264,11 @@ func ClusterStart(down bool) {
 		}
 
 		composeFile.Networks["default"] = DockerComposeNetwork{
+			Ipam: DockerComposeIpam{
+				Config: []DockerComposeIpamConfig{
+					{Subnet: "172.18.0.0/16"},
+				},
+			},
 			DriverOpts: map[string]string{
 				"com.docker.network.driver.mtu": mtu,
 			},

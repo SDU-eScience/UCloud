@@ -79,6 +79,10 @@ func ProviderK8s() {
 		volumes = append(volumes, Mount(buildDir, "/root/.cache/go-build"))
 	}
 
+	if integratedApps := IntegratedApplicationsDir(); integratedApps != "" {
+		volumes = append(volumes, Mount(integratedApps, "/opt/integrated-applications"))
+	}
+
 	AddService(provider, DockerComposeService{
 		Image:    ImDevImage,
 		Hostname: "k8s",
@@ -86,7 +90,7 @@ func ProviderK8s() {
 		Command:  []string{"sleep", "inf"},
 		Volumes:  volumes,
 		Networks: map[string]DockerComposeServiceNetwork{
-			"default": {Aliases: []string{"registry.localhost.direct"}},
+			"default": {Aliases: []string{"registry.localhost.direct"}, Ipv4Address: "172.18.0.2"},
 		},
 	})
 
@@ -265,6 +269,8 @@ func ProviderK8s() {
 		cni := AddVolume(k3s, "cni")
 		kubelet := AddVolume(k3s, "kubelet")
 		etc := AddVolume(k3s, "etc")
+		ovs := AddVolume(k3s, "ovs")
+		ovn := AddVolume(k3s, "ovn")
 
 		// The node-side private network state (shared mounts, the Multus view
 		// of the CNI configuration, netns paths) lives in the mount namespace
@@ -276,7 +282,35 @@ func ProviderK8s() {
 		// starts. The script is staged into /etc/ucloud (a shared mount) by
 		// the private-networks startup hook; the fallback covers container
 		// starts before that has happened.
+		//
+		// The ovs and ovn volumes hold the OVS and OVN databases
+		// (/etc/origin/openvswitch and /etc/origin/ovn). Without them the
+		// databases live in the container layer and are wiped whenever the
+		// container is recreated, which leaves kube-ovn-cni pinging a
+		// gateway that no longer exists until kube-ovn-controller has
+		// rebuilt the topology.
+		//
+		// OVN databases on disk reference the node IP that ovn-central saw
+		// at install time. The address is therefore pinned so the node keeps
+		// it across restarts and container recreation.
 		restoreNodeState := `if [ -f /etc/ucloud/kube_ovn_node_init.sh ]; then sh /etc/ucloud/kube_ovn_node_init.sh boot; else mount --make-rshared / && mount --make-rshared /run && mount --make-rshared /var/run; fi; exec /bin/k3s "$@"`
+
+		k3sVolumes := []string{
+			Mount(k3sOutput, "/output"),
+			Mount(data, "/var/lib/rancher/k3s"),
+			Mount(cni, "/var/lib/cni"),
+			Mount(kubelet, "/var/lib/kubelet"),
+			Mount(etc, "/etc/rancher"),
+			Mount(k3sRegistriesConfig, "/etc/rancher/k3s/registries.yaml"),
+			Mount(storage, "/mnt/storage"),
+			Mount(imConfig, "/etc/ucloud"),
+			Mount(ovs, "/etc/origin/openvswitch"),
+			Mount(ovn, "/etc/origin/ovn"),
+		}
+
+		if integratedApps := IntegratedApplicationsDir(); integratedApps != "" {
+			k3sVolumes = append(k3sVolumes, Mount(integratedApps, "/opt/integrated-applications"))
+		}
 
 		AddService(k3s, DockerComposeService{
 			Image:    "rancher/k3s:v1.35.2-k3s1",
@@ -291,15 +325,9 @@ func ProviderK8s() {
 			Tmpfs:      []string{"/run", "/var/run"},
 			Entrypoint: []string{"sh", "-ec", restoreNodeState, "--"},
 			Command:    []string{"server", "--disable=traefik", "--disable-network-policy"},
-			Volumes: []string{
-				Mount(k3sOutput, "/output"),
-				Mount(data, "/var/lib/rancher/k3s"),
-				Mount(cni, "/var/lib/cni"),
-				Mount(kubelet, "/var/lib/kubelet"),
-				Mount(etc, "/etc/rancher"),
-				Mount(k3sRegistriesConfig, "/etc/rancher/k3s/registries.yaml"),
-				Mount(storage, "/mnt/storage"),
-				Mount(imConfig, "/etc/ucloud"),
+			Volumes:    k3sVolumes,
+			Networks: map[string]DockerComposeServiceNetwork{
+				"default": {Ipv4Address: "172.18.0.7"},
 			},
 		})
 	}

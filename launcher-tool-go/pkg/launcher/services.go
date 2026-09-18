@@ -108,13 +108,39 @@ type DockerComposeService struct {
 }
 
 type DockerComposeServiceNetwork struct {
-	Aliases []string `yaml:"aliases,omitempty"`
+	Aliases     []string `yaml:"aliases,omitempty"`
+	Ipv4Address string   `yaml:"ipv4_address,omitempty"`
 }
 
 type DockerComposeNetwork struct {
+	Ipam       DockerComposeIpam `yaml:"ipam,omitempty"`
 	DriverOpts map[string]string `yaml:"driver_opts,omitempty"`
+}
+
+type DockerComposeIpam struct {
+	Config []DockerComposeIpamConfig `yaml:"config,omitempty"`
+}
+
+type DockerComposeIpamConfig struct {
+	Subnet string `yaml:"subnet,omitempty"`
 }
 
 func Mount(volName string, mountPath string) string {
 	return fmt.Sprintf("%s:%s", volName, mountPath)
+}
+
+// IntegratedApplicationsDir returns the directory containing UCX application sources which should be mounted into
+// the k8s IM (and k3s) containers. It is controlled by UCLOUD_INTEGRATED_APPLICATIONS_DIR and defaults to
+// <repo>/integrated-applications. Returns an empty string when the directory does not exist.
+func IntegratedApplicationsDir() string {
+	dir := os.Getenv("UCLOUD_INTEGRATED_APPLICATIONS_DIR")
+	if dir == "" {
+		dir = filepath.Join(RepoRoot, "integrated-applications")
+	}
+
+	info, err := os.Stat(dir)
+	if err != nil || !info.IsDir() {
+		return ""
+	}
+	return dir
 }
