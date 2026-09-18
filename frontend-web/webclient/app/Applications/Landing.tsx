@@ -166,7 +166,7 @@ export const SpotlightCard: React.FunctionComponent<{
 }> = ({spotlight, target}) => {
     return <div>
         <h3>Spotlight: {spotlight.title}</h3>
-        <Flex gap={"16px"}>
+        <Flex gap={"16px"} className="spotlight-content">
             <Flex flexGrow={1} flexDirection={"column"} gap={"16px"}>
                 {spotlight.applications.map((pick, idx) => {
                     if (pick.groupId) {
@@ -247,6 +247,14 @@ const HeroStyle = injectStyle("hero", k => `
 
         ${k} > .carousel {
             height: 250px;
+        }
+
+        ${k} .spotlight-content {
+            display: block;
+        }
+
+        ${k} .spotlight-content blockquote {
+            margin-top: 24px;
         }
     }
 
