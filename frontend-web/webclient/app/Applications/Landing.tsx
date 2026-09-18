@@ -36,7 +36,6 @@ const landingStyle = injectStyle("landing-page", k => `
         display: flex;
         flex-direction: column;
         gap: 24px;
-        min-width: 600px;
         min-height: 100vh;
     }
 
@@ -233,13 +232,22 @@ const HeroStyle = injectStyle("hero", k => `
         animation: translateImage 0.5s;
     }
 
-
     ${k} > .carousel > .carouselText  {
         display: flex;
         flex-direction: column;
         width: 400px;
         min-width: 400px;
         padding: 20px;
+    }
+
+    @media (max-width: 760px) {
+        ${k} > .carousel > .carouselText {
+            display: none;
+        }
+
+        ${k} > .carousel {
+            height: 250px;
+        }
     }
 
     ${k} > .carousel h1 {
@@ -622,7 +630,7 @@ const CreateCategoryCardStyle = injectStyle("create-category-card", k => `
         padding: 16px;
         overflow: hidden;
         --createCardColor: var(--primaryMain);
-        
+
         color: var(--createCardColor);
         border: 4px dashed var(--createCardColor);
         background: transparent;
@@ -632,11 +640,11 @@ const CreateCategoryCardStyle = injectStyle("create-category-card", k => `
     ${k}:hover {
         --createCardColor: var(--blue-80);
     }
-    
+
     html.dark ${k} {
         --createCardColor: var(--blue-20);
     }
-    
+
     html.dark ${k}:hover {
         --createCardColor: white;
     }
