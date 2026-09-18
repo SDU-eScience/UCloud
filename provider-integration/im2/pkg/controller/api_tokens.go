@@ -101,7 +101,12 @@ func ApiTokenCreate(kind string, server string, request orcapi.ApiToken) (orcapi
 	if request.Specification.ExpiresAt.Time().Before(time.Now()) {
 		return orcapi.ApiTokenStatus{}, util.HttpErr(http.StatusBadRequest, "requested token has already expired")
 	}
-
+	if request.Owner.Project.Present {
+		policies := RetrievePoliciesByProject(request.Owner.Project.Value)
+		if specification, ok := policies[fnd.RestrictApiTokens]; ok && specification.IsEnabled() {
+			return orcapi.ApiTokenStatus{}, util.HttpErr(http.StatusForbidden, "Project does not allow API tokens")
+		}
+	}
 	secret := util.SecureToken()
 	hashedToken := util.HashPassword(secret, util.GenSalt())
 	permissions, _ := json.Marshal(request.Specification.RequestedPermissions)
@@ -248,6 +253,14 @@ func ApiTokenValidate(kind string, key string) (ApiTokenAuthentication, *util.Ht
 	if authentication.Owner == "" || (owner.Username == "" && owner.ProjectId == "") {
 		return ApiTokenAuthentication{}, util.HttpErr(http.StatusForbidden, "invalid key")
 	}
+
+	if owner.ProjectId != "" {
+		policies := RetrievePoliciesByProject(owner.ProjectId)
+		if specification, ok := policies[fnd.RestrictApiTokens]; ok && specification.IsEnabled() {
+			return ApiTokenAuthentication{}, util.HttpErr(http.StatusForbidden, "Project does not allow API tokens")
+		}
+	}
+
 	return ApiTokenAuthentication{TokenId: tokenId, Owner: owner, CreatedBy: authentication.CreatedBy, Permissions: authentication.Permissions}, nil
 }
 

@@ -13,6 +13,8 @@ export enum Feature {
     FILE_BROWSER_STATUS_BAR,
 
     CONTAINER_REPOSITORIES,
+
+    DATAMANAGER_ROLE,
 }
 
 enum Environment {
@@ -85,6 +87,12 @@ const featureMap: Record<string, FeatureConfig> = {
     "container-repositories": {
         feature: Feature.CONTAINER_REPOSITORIES,
         useBackend: true,
+    },
+
+    "data-manager-role": {
+        feature: Feature.DATAMANAGER_ROLE,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allEnvironments,
     }
 };
 

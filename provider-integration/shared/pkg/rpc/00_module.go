@@ -72,9 +72,9 @@ var ProjectRoleOptions = []ProjectRole{ProjectRolePI, ProjectRoleAdmin, ProjectR
 func (p ProjectRole) Power() int {
 	switch p {
 	case ProjectRolePI:
-		return 3
+		return 4
 	case ProjectRoleAdmin:
-		return 2
+		return 3
 	case ProjectRoleUser:
 		return 1
 	default:
@@ -98,6 +98,10 @@ func (p ProjectRole) Satisfies(requirement ProjectRole) bool {
 	} else {
 		return false
 	}
+}
+
+func (p ProjectRole) Equals(requirement ProjectRole) bool {
+	return p == requirement
 }
 
 type GroupMembership map[GroupId]ProjectId
@@ -131,9 +135,17 @@ type serverHandlerData struct {
 	byMethod map[string]func(w http.ResponseWriter, r *http.Request)
 }
 
+type RequestPolicy func(
+	callName string,
+	info RequestInfo,
+	restrictSourceIP bool,
+) *util.HttpError
+
 type Server struct {
 	Mux      *http.ServeMux
 	handlers map[string]*serverHandlerData
+
+	RequestPolicies RequestPolicy
 }
 
 type Client struct {
@@ -161,6 +173,11 @@ type Call[Req any, Resp any] struct {
 
 	Roles Role // Bit-set. See roles below.
 	Audit AuditRules
+
+	// RestrictSourceIP, when set on the call declaration, marks this endpoint as subject to the
+	// "RestrictSourceIPRange" project policy. The RPC server forwards it to the installed
+	// RequestPolicies hook before every incoming request.
+	RestrictSourceIP bool
 }
 
 func rpcBaseContext(context string) string {
@@ -478,7 +495,11 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 						Actor:       actor,
 					}
 
-					response, err = rpcServerSafeInvokeHandler(c, handler, info, request)
+					err = server.RequestPolicies(c.FullName(), info, c.RestrictSourceIP)
+
+					if err == nil {
+						response, err = rpcServerSafeInvokeHandler(c, handler, info, request)
+					}
 				}
 			}
 		}

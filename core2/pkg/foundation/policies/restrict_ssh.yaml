@@ -1,0 +1,15 @@
+name: "RestrictSshAccess"
+title: "Restrict SSH access"
+
+description: >
+  Controls whether workloads in the project may enable SSH access. SSH
+  allows direct file transfers (scp/sftp) out of the platform, which
+  bypasses other data policies such as download and move/copy
+  restrictions.
+
+configuration:
+  enabled:
+    title: "Enabled"
+    description: >
+      If enabled, SSH access to workloads is disabled. Jobs that
+      request SSH access will be rejected.

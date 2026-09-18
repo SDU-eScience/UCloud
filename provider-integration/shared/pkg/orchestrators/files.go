@@ -124,6 +124,8 @@ var FilesDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse
 	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionDelete,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type FilesSearchRequest struct {
@@ -138,6 +140,8 @@ var FilesSearch = rpc.Call[FilesSearchRequest, fnd.PageV2[UFile]]{
 	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionSearch,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type FilesBrowseRequest struct {
@@ -151,6 +155,8 @@ var FilesBrowse = rpc.Call[FilesBrowseRequest, fnd.PageV2[UFile]]{
 	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type FilesRetrieveRequest struct {
@@ -162,6 +168,8 @@ var FilesRetrieve = rpc.Call[FilesRetrieveRequest, UFile]{
 	BaseContext: filesNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type FilesVisualizeRequest struct {
@@ -201,6 +209,8 @@ var FilesMove = rpc.Call[fnd.BulkRequest[FilesSourceAndDestination], fnd.BulkRes
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "move",
+
+	RestrictSourceIP: true,
 }
 
 var FilesCopy = rpc.Call[fnd.BulkRequest[FilesSourceAndDestination], fnd.BulkResponse[util.Empty]]{
@@ -208,6 +218,8 @@ var FilesCopy = rpc.Call[fnd.BulkRequest[FilesSourceAndDestination], fnd.BulkRes
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "copy",
+
+	RestrictSourceIP: true,
 }
 
 type FilesCreateUploadRequest struct {
@@ -228,6 +240,8 @@ var FilesCreateUpload = rpc.Call[fnd.BulkRequest[FilesCreateUploadRequest], fnd.
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "upload",
+
+	RestrictSourceIP: true,
 }
 
 type FilesCreateDownloadResponse struct {
@@ -239,6 +253,8 @@ var FilesCreateDownload = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.Bulk
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "download",
+
+	RestrictSourceIP: true,
 }
 
 type FilesCreateFolderRequest struct {
@@ -251,6 +267,8 @@ var FilesCreateFolder = rpc.Call[fnd.BulkRequest[FilesCreateFolderRequest], fnd.
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "folder",
+
+	RestrictSourceIP: true,
 }
 
 var FilesTrash = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
@@ -258,6 +276,8 @@ var FilesTrash = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "trash",
+
+	RestrictSourceIP: true,
 }
 
 var FilesEmptyTrash = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
@@ -265,6 +285,8 @@ var FilesEmptyTrash = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResp
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "emptyTrash",
+
+	RestrictSourceIP: true,
 }
 
 type FilesStreamingSearchRequest struct {
@@ -282,6 +304,8 @@ var FilesStreamingSearch = rpc.Call[util.Empty, util.Empty]{
 	BaseContext: filesNamespace,
 	Roles:       rpc.RolesPublic,
 	Convention:  rpc.ConventionWebSocket,
+
+	RestrictSourceIP: true,
 }
 
 type FilesTransferRequest struct {
@@ -294,6 +318,8 @@ var FilesTransfer = rpc.Call[fnd.BulkRequest[FilesTransferRequest], util.Empty]{
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "transfer",
+
+	RestrictSourceIP: true,
 }
 
 // Files provider

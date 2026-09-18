@@ -1,0 +1,25 @@
+name: "RestrictInternetAccess"
+title: "Restrict Internet access"
+
+description: >
+  Restricts outbound Internet connectivity for workloads belonging to the project.
+
+configuration:
+  enabled:
+    title: "Enabled"
+    description: >
+      If enabled, the project will only be able to access destinations that are
+      allowed by this policy.
+      If disabled, workloads have unrestricted outbound Internet access (within
+      the regular network limitations).
+
+  allowedSubnets:
+    title: "Allowed subnets"
+    description: >
+      A single subnet, in CIDR notation, that workloads in the project
+      are allowed to access.
+
+      An empty value indicates that no outbound Internet access is allowed.
+
+      This configuration only affects outbound Internet connectivity from
+      workloads belonging to the project.
