@@ -18,8 +18,12 @@ type PrivateNetworkSpecification struct {
 	// characters.
 	Name string `json:"name"`
 
-	// Subdomain must be a valid DNS hostname. No dots are allowed in this. It must not be longer than 256 characters.
+	// Subdomain must be a valid DNS label. No dots are allowed in this. It must not be longer than 63 characters.
 	Subdomain string `json:"subdomain"`
+
+	// Cidr is an optional user-supplied IPv4 CIDR block for the network. It must have a prefix length between 16 and
+	// 24. If it is omitted, the provider allocates a block automatically. The CIDR is immutable after creation.
+	Cidr util.Option[string] `json:"cidr"`
 
 	ResourceSpecification
 }
@@ -29,6 +33,10 @@ type PrivateNetworkStatus struct {
 	// Only jobs which are in a non-terminal state show up in this list. Thus jobs which are in SUCCESS, FAILURE or
 	// EXPIRED will not show up. Jobs which are IN_QUEUE, SUSPENDED or RUNNING will appear.
 	Members []string `json:"members"`
+
+	// CidrBlock is the effective CIDR block of the network. It is set by the provider once the network has been
+	// provisioned.
+	CidrBlock util.Option[string] `json:"cidrBlock"`
 
 	ResourceStatus[PrivateNetworkSupport]
 }
@@ -127,6 +135,11 @@ var PrivateNetworksRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[Pri
 
 const privateNetworkControlNamespace = "private-networks/control"
 
+type PrivateNetworkUpdate struct {
+	CidrBlock util.Option[string] `json:"cidrBlock"`
+	Timestamp fnd.Timestamp       `json:"timestamp"`
+}
+
 type PrivateNetworksControlRetrieveRequest struct {
 	Id string `json:"id"`
 	PrivateNetworkFlags
@@ -156,6 +169,13 @@ var PrivateNetworksControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegistered
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesProvider,
 	Operation:   "register",
+}
+
+var PrivateNetworksControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[PrivateNetworkUpdate]], util.Empty]{
+	BaseContext: privateNetworkControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "update",
 }
 
 var PrivateNetworksControlUpdateLabels = rpc.Call[fnd.BulkRequest[PrivateNetworksUpdateLabelsRequest], util.Empty]{

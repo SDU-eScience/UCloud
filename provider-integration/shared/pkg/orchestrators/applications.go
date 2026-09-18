@@ -578,6 +578,7 @@ type AppParameterValue struct {
 	Server        string                `json:"server" yaml:"server"`
 	Token         string                `json:"token" yaml:"token"`
 	TokenType     string                `json:"tokenType" yaml:"tokenType"`
+	Ips           []string              `json:"ips,omitempty" yaml:"ips"`
 }
 
 func (a *AppParameterValue) Equal(b AppParameterValue) bool {
@@ -597,6 +598,9 @@ func (a *AppParameterValue) Equal(b AppParameterValue) bool {
 		AppParameterValueTypeNetwork,
 		AppParameterValueTypeIngress,
 		AppParameterValueTypePrivateNetwork:
+		if a.Type == AppParameterValueTypePrivateNetwork && !slices.Equal(a.Ips, b.Ips) {
+			return false
+		}
 		return a.Id == b.Id
 
 	case AppParameterValueTypeModuleList:
@@ -632,10 +636,11 @@ const (
 	AppParameterValueTypeApiServer      AppParameterValueType = "api_server"
 )
 
-func AppParameterValuePrivateNetwork(networkId string) AppParameterValue {
+func AppParameterValuePrivateNetwork(networkId string, ips ...string) AppParameterValue {
 	return AppParameterValue{
 		Type: AppParameterValueTypePrivateNetwork,
 		Id:   networkId,
+		Ips:  ips,
 	}
 }
 

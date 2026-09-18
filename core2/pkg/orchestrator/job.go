@@ -158,7 +158,15 @@ func initJobs() {
 								validatedResources.Present = true
 
 								for _, value := range resourceList.Value {
-									err = jobValidateValue(jobOwner, &value, toolBackend, support, util.OptValue(job.Id))
+									err = jobValidateValue(
+										jobOwner,
+										&value,
+										toolBackend,
+										support,
+										util.OptValue(job.Id),
+										util.OptValue(job.Owner),
+										util.OptValue(job.Specification.Replicas),
+									)
 									if err == nil {
 										validatedResources.Value = append(validatedResources.Value, value)
 									}
@@ -426,7 +434,15 @@ func initJobs() {
 
 		resource := request.Resource
 		toolBackend := resc.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
-		err = jobValidateValue(info.Actor, &resource, toolBackend, support, util.OptValue(resc.Id))
+		err = jobValidateValue(
+			info.Actor,
+			&resource,
+			toolBackend,
+			support,
+			util.OptValue(resc.Id),
+			util.OptValue(resc.Owner),
+			util.OptValue(resc.Specification.Replicas),
+		)
 		if err != nil {
 			return util.Empty{}, err
 		}
@@ -470,7 +486,15 @@ func initJobs() {
 		}
 
 		toolBackend := resc.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
-		err = jobValidateValue(info.Actor, &resource, toolBackend, support, util.OptValue(resc.Id))
+		err = jobValidateValue(
+			info.Actor,
+			&resource,
+			toolBackend,
+			support,
+			util.OptValue(resc.Id),
+			util.OptValue(resc.Owner),
+			util.OptValue(resc.Specification.Replicas),
+		)
 		if err != nil {
 			return util.Empty{}, err
 		}
@@ -1556,7 +1580,15 @@ func jobsValidateWithApplication(actor rpc.Actor, spec *orcapi.JobSpecification,
 
 	for i, value := range spec.Resources {
 		newValue := value
-		err := jobValidateValue(actor, &newValue, tool.Backend, support, util.OptNone[string]())
+		err := jobValidateValue(
+			actor,
+			&newValue,
+			tool.Backend,
+			support,
+			util.OptNone[string](),
+			util.OptNone[orcapi.ResourceOwner](),
+			util.OptValue(spec.Replicas),
+		)
 		if err != nil {
 			return err
 		} else {
@@ -1604,7 +1636,15 @@ func jobsValidateWithApplication(actor rpc.Actor, spec *orcapi.JobSpecification,
 		}
 
 		newValue := value
-		err := jobValidateValue(actor, &newValue, tool.Backend, support, util.OptNone[string]())
+		err := jobValidateValue(
+			actor,
+			&newValue,
+			tool.Backend,
+			support,
+			util.OptNone[string](),
+			util.OptNone[orcapi.ResourceOwner](),
+			util.OptValue(spec.Replicas),
+		)
 		if err != nil {
 			return err
 		} else {
@@ -1686,6 +1726,17 @@ func jobsValidateWithApplication(actor rpc.Actor, spec *orcapi.JobSpecification,
 		}
 	}
 
+	jobNetworkValues := make([]orcapi.AppParameterValue, 0, len(spec.Parameters)+len(spec.Resources))
+	for _, value := range spec.Parameters {
+		jobNetworkValues = append(jobNetworkValues, value)
+	}
+	jobNetworkValues = append(jobNetworkValues, spec.Resources...)
+
+	err = privateNetworkValidateJobNetworks(actor, jobNetworkValues)
+	if err != nil {
+		return err
+	}
+
 	for name, param := range appParamsByName {
 		if !param.Optional && (param.DefaultValue == nil || string(param.DefaultValue) == "null") {
 			_, ok := spec.Parameters[name]
@@ -1704,6 +1755,8 @@ func jobValidateValue(
 	backend orcapi.ToolBackend,
 	support ProductSupport[orcapi.JobSupport],
 	jobId util.Option[string],
+	jobOwner util.Option[orcapi.ResourceOwner],
+	replicas util.Option[int],
 ) *util.HttpError {
 	switch value.Type {
 	case orcapi.AppParameterValueTypeFile:
@@ -1791,8 +1844,66 @@ func jobValidateValue(
 			return util.HttpErr(http.StatusForbidden, "you cannot use this network")
 		}
 
+		workspace := actor
+		if jobOwner.Present {
+			workspace = rpc.Actor{
+				Username: jobOwner.Value.CreatedBy,
+				Project:  util.OptMap(jobOwner.Value.Project, func(value string) rpc.ProjectId { return rpc.ProjectId(value) }),
+			}
+		}
+
+		if !privateNetworkSameWorkspace(workspace, network.Owner) {
+			return util.HttpErr(http.StatusForbidden, "the job and the network must belong to the same workspace")
+		}
+
 		if network.Status.ResolvedProduct.Value.Category.Provider != support.Product.Category.Provider {
 			return util.HttpErr(http.StatusForbidden, "you cannot use this network at this provider")
+		}
+
+		if len(value.Ips) > 0 {
+			if jobId.Present {
+				return util.HttpErr(http.StatusBadRequest, "ip addresses cannot be attached to an existing job")
+			}
+
+			cidrBlock := network.Status.CidrBlock
+			if !cidrBlock.Present {
+				return util.HttpErr(http.StatusBadRequest, "the network is not ready for ip pinning yet")
+			}
+
+			if replicas.Present {
+				switch len(value.Ips) {
+				case 0, 1:
+				case replicas.Value:
+				default:
+					return util.HttpErr(
+						http.StatusBadRequest,
+						"the number of pinned ip addresses must be 0, 1 or the number of replicas (%v)",
+						replicas.Value,
+					)
+				}
+			}
+
+			seen := map[string]bool{}
+			for _, pinnedIp := range value.Ips {
+				ip, ok := privateNetworkParseIpv4(pinnedIp)
+				if !ok {
+					return util.HttpErr(http.StatusBadRequest, "invalid pinned ip address requested: '%s'", pinnedIp)
+				}
+
+				normalized := ip.String()
+				if seen[normalized] {
+					return util.HttpErr(http.StatusBadRequest, "pinned ip addresses must not repeat: '%s'", pinnedIp)
+				}
+				seen[normalized] = true
+
+				if !privateNetworkIpIsPinnable(cidrBlock.Value, ip) {
+					return util.HttpErr(
+						http.StatusBadRequest,
+						"the pinned ip address '%s' cannot be used in the network",
+						pinnedIp,
+					)
+				}
+			}
 		}
 
 	case orcapi.AppParameterValueTypeApiServer:

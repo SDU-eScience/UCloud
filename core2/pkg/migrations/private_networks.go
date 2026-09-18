@@ -44,3 +44,28 @@ func privateNetworksV1() db.MigrationScript {
 		},
 	}
 }
+
+func privateNetworksV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "privateNetworksV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table app_orchestrator.private_networks
+					add column cidr text
+			    `,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
+					alter table app_orchestrator.private_networks
+					add column cidr_block text
+			    `,
+				db.Params{},
+			)
+		},
+	}
+}
