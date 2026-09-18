@@ -1,0 +1,27 @@
+# 1. Generate keys in the IM:
+#     ucloud ucx-keygen --private /opt/integrated-applications/k8s-app/ucx-keys/key.priv --public /opt/integrated-applications/k8s-app/ucx-keys/key.pub
+#
+# 2. Paste key.pub into this file, upload via app studio (admin user), open the app once so the poller registers it.
+#
+# 3. Iterate: /opt/integrated-applications/k8s-app/build.sh — the backend pod and VM custom UI restart your app within ~2s of publishing.
+
+application: v2
+
+name: kubernetes
+version: "0.1.3"
+
+title: Kubernetes
+description: K3s based Kubernetes cluster on UCloud virtual machines
+
+software:
+  type: UCX
+  image: dreg.cloud.sdu.dk/ucloud-dev/integration-module:2026.2.15
+
+invocation: |
+  echo "UCX backend"
+
+ucx:
+  executable:
+    manifestUrl: https://k8s.localhost.direct/ucx/kubernetes/0.1.3/manifest.json
+    publicKey: ed25519:REPLACE_ME
+    binaryName: k8s-app

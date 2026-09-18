@@ -6,6 +6,7 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/inference"
+	"ucloud.dk/pkg/ucxdelivery"
 )
 
 func HandleCliWithoutConfig(command string) bool {
@@ -16,6 +17,10 @@ func HandleCliWithoutConfig(command string) bool {
 		JobAuditLogServerStart()
 	case "task-processor":
 		filesystem.TaskProcessor()
+	case "ucx-keygen":
+		os.Exit(ucxdelivery.KeygenCli(os.Args[2:], os.Stdout, os.Stderr))
+	case "ucx-sign":
+		os.Exit(ucxdelivery.SignCli(os.Args[2:], os.Stdout, os.Stderr))
 	default:
 		return false
 	}
@@ -38,5 +43,7 @@ func HandleCli(command string) {
 		HandleJobsCommand()
 	case "inference":
 		inference.InferenceCli(os.Args[2:])
+	case "ucx-publish":
+		HandleUcxDevPublish(os.Args[2:])
 	}
 }

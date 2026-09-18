@@ -27,6 +27,22 @@ install_helm() {
   helm version --short
 }
 
+retry_until() {
+  local description="$1"
+  local timeout="$2"
+  shift 2
+
+  local waited=0
+  until "$@" >/dev/null 2>&1; do
+    if [ "${waited}" -ge "${timeout}" ]; then
+      echo "Timed out after ${timeout}s waiting for ${description}" && exit 1
+    fi
+    sleep 5
+    waited=$((waited + 5))
+    echo "Waiting for ${description}..."
+  done
+}
+
 install_multus() {
   if kubectl get ds -n kube-system kube-multus-ds >/dev/null 2>&1; then
     echo "Multus already installed"
@@ -43,11 +59,9 @@ install_multus() {
 }
 
 install_multus_shim() {
-  if kubectl exec -n kube-system ds/kube-multus-ds -- cp /opt/cni/bin/multus-shim /host/run/multus-shim >/dev/null 2>&1; then
-    return
-  fi
-
-  echo "The Multus shim did not appear in /opt/cni/bin" && exit 1
+  retry_until "the Multus shim in /opt/cni/bin" 600 \
+    kubectl exec -n kube-system ds/kube-multus-ds -- ls /opt/cni/bin/multus-shim
+  kubectl exec -n kube-system ds/kube-multus-ds -- cp /opt/cni/bin/multus-shim /host/run/multus-shim
 }
 
 install_kube_ovn() {
@@ -99,6 +113,7 @@ patch_kube_ovn_cni_conflist_dir() {
 }
 
 verify_non_primary_conflist() {
+  retry_until "the kube-ovn-cni pod to be ready" 600 kubectl -n kube-system exec ds/kube-ovn-cni -- true
   if kubectl exec -n kube-system ds/kube-ovn-cni -- ls /etc/cni/net.d/01-kube-ovn.conflist >/dev/null 2>&1; then
     echo "Kube-OVN must not install a primary conflist in non-primary mode" && exit 1
   fi
@@ -108,13 +123,11 @@ verify() {
   kubectl get crd vpcs.kubeovn.io subnets.kubeovn.io ips.kubeovn.io \
     network-attachment-definitions.k8s.cni.cncf.io
 
-  if ! kubectl exec -n kube-system ds/kube-multus-ds -- ls /opt/cni/bin/kube-ovn >/dev/null 2>&1; then
-    echo "Kube-OVN CNI binary is missing from /opt/cni/bin" && exit 1
-  fi
+  retry_until "the Kube-OVN CNI binary in /opt/cni/bin" 600 \
+    kubectl exec -n kube-system ds/kube-multus-ds -- ls /opt/cni/bin/kube-ovn
 
-  if ! kubectl exec -n kube-system ds/kube-multus-ds -- ls /opt/cni/bin/multus-shim >/dev/null 2>&1; then
-    echo "Multus CNI binary is missing from /opt/cni/bin" && exit 1
-  fi
+  retry_until "the Multus shim binary in /opt/cni/bin" 600 \
+    kubectl exec -n kube-system ds/kube-multus-ds -- ls /opt/cni/bin/multus-shim
 
   if kubectl exec -n kube-system ds/kube-multus-ds -- grep -qs "01-kube-ovn.conflist" /host/etc/cni/net.d/00-multus.conf; then
     echo "The Multus cluster network points at the kube-ovn conflist" && exit 1
