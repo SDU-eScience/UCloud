@@ -63,15 +63,13 @@ type ProjectRetrieveSubProjectRenamingResponse struct {
 type ProjectRole string
 
 const (
-	ProjectRoleUser        ProjectRole = "USER"
-	ProjectRoleDataManager ProjectRole = "DATA_MANAGER"
-	ProjectRoleAdmin       ProjectRole = "ADMIN"
-	ProjectRolePI          ProjectRole = "PI"
+	ProjectRoleUser  ProjectRole = "USER"
+	ProjectRoleAdmin ProjectRole = "ADMIN"
+	ProjectRolePI    ProjectRole = "PI"
 )
 
 var ProjectRoleOptions = []ProjectRole{
 	ProjectRoleUser,
-	ProjectRoleDataManager,
 	ProjectRoleAdmin,
 	ProjectRolePI,
 }
@@ -79,10 +77,8 @@ var ProjectRoleOptions = []ProjectRole{
 func (p ProjectRole) Power() int {
 	switch p {
 	case ProjectRolePI:
-		return 4
-	case ProjectRoleAdmin:
 		return 3
-	case ProjectRoleDataManager:
+	case ProjectRoleAdmin:
 		return 2
 	case ProjectRoleUser:
 		return 1
@@ -344,6 +340,37 @@ var ProjectMemberChangeRole = rpc.Call[BulkRequest[ProjectMemberChangeRoleReques
 	BaseContext: ProjectContext,
 	Operation:   "changeRole",
 	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+}
+
+// SupportiveRole is a duty which a project member can hold alongside their regular project role (PI, Admin, User).
+type SupportiveRole string
+
+const (
+	SupportiveRoleDataManager SupportiveRole = "DATA_MANAGER"
+)
+
+type ProjectSupportiveRoleChangeRequest struct {
+	Role     SupportiveRole `json:"role"`
+	Username string         `json:"username"`
+}
+
+var ProjectSupportiveRoleChange = rpc.Call[BulkRequest[ProjectSupportiveRoleChangeRequest], util.Empty]{
+	BaseContext: ProjectContext,
+	Operation:   "changeSupportiveRole",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+}
+
+type ProjectSupportiveRoleHolder struct {
+	Role     SupportiveRole `json:"role"`
+	Username string         `json:"username"`
+}
+
+var ProjectSupportiveRoleBrowse = rpc.Call[util.Empty, []ProjectSupportiveRoleHolder]{
+	BaseContext: ProjectContext,
+	Operation:   "browseSupportiveRole",
+	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesEndUser,
 }
 

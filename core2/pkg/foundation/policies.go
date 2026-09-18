@@ -147,7 +147,7 @@ func policiesDefaultRetrieve(actor rpc.Actor, request fndapi.RetrievePoliciesReq
 		if !actor.Project.Present {
 			return nil, util.HttpErr(http.StatusBadRequest, "Polices only applicable to projects")
 		}
-		if !actor.Membership[actor.Project.Value].Equals(rpc.ProjectRoleDataManager) {
+		if !ActorIsSupportiveRoleHolder(actor, fndapi.SupportiveRoleDataManager) {
 			return nil, util.HttpErr(http.StatusForbidden, "Only data managers may list the policies")
 		}
 		projectId = actor.Project.String()
@@ -176,7 +176,7 @@ func policiesRetrieve(actor rpc.Actor, request fndapi.RetrievePoliciesRequest) (
 		if !actor.Project.Present {
 			return nil, util.HttpErr(http.StatusBadRequest, "Polices only applicable to projects")
 		}
-		if !actor.Membership[actor.Project.Value].Equals(rpc.ProjectRoleDataManager) {
+		if !ActorIsSupportiveRoleHolder(actor, fndapi.SupportiveRoleDataManager) {
 			return nil, util.HttpErr(http.StatusForbidden, "Only data managers may list the policies")
 		}
 		projectId = actor.Project.String()
@@ -210,7 +210,7 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 		return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Polices only applicable to projects")
 	}
 
-	if !actor.Membership[actor.Project.Value].Equals(rpc.ProjectRoleDataManager) {
+	if !ActorIsSupportiveRoleHolder(actor, fndapi.SupportiveRoleDataManager) {
 		return util.Empty{}, util.HttpErr(http.StatusForbidden, "Only data managers may update the policies")
 	}
 

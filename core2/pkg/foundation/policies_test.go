@@ -15,6 +15,9 @@ func initPoliciesTest(t *testing.T) {
 	policyGlobals.TestingEnabled = true
 	policyGlobals.TestDefaultPolicySettings = map[string]map[fndapi.PolicyName]fndapi.Specification{}
 
+	supportiveRoleGlobals.TestingEnabled = true
+	supportiveRoleGlobals.TestHolders = map[string]map[fndapi.SupportiveRole]string{}
+
 	// The schema cache is normally populated by initPolicies(). It does not require a database and is needed by
 	// policiesUpdate to validate the updated policies.
 	policyPopulateSchemaCache()
@@ -25,12 +28,14 @@ func initPoliciesTest(t *testing.T) {
 }
 
 func policyTestActor(username string, project string) rpc.Actor {
+	SupportiveRoleSetHolderForTesting(project, fndapi.SupportiveRoleDataManager, username)
+
 	return rpc.Actor{
 		Username: username,
 		Role:     rpc.RoleUser,
 		Project:  util.OptValue(rpc.ProjectId(project)),
 		Membership: map[rpc.ProjectId]rpc.ProjectRole{
-			rpc.ProjectId(project): rpc.ProjectRoleDataManager,
+			rpc.ProjectId(project): rpc.ProjectRoleUser,
 		},
 	}
 }
@@ -101,7 +106,14 @@ func mustUpdatePolicies(t *testing.T, actor rpc.Actor, defaultPolicy bool, speci
 func mustRetrievePolicies(t *testing.T, project string) map[fndapi.PolicyName]fndapi.Policy {
 	t.Helper()
 
-	actor := policyTestActor("policy-checker", project)
+	supportiveRoleGlobals.Mu.RLock()
+	holder, hasHolder := supportiveRoleGlobals.TestHolders[project][fndapi.SupportiveRoleDataManager]
+	supportiveRoleGlobals.Mu.RUnlock()
+	if !hasHolder {
+		holder = "policy-checker"
+	}
+
+	actor := policyTestActor(holder, project)
 	result, err := policiesRetrieve(actor, fndapi.RetrievePoliciesRequest{})
 	if err != nil {
 		t.Fatalf("policiesRetrieve error: %+v", err)
@@ -323,4 +335,47 @@ func TestGrantGiverDefaultChangeDoesNotUpdateExistingSubproject(t *testing.T) {
 	policies = mustRetrievePolicies(t, subproject2)
 	assertPolicyEnabled(t, policies, fndapi.RestrictSsh, false)
 	assertPolicyEnabled(t, policies, fndapi.RestrictUploads, true)
+}
+
+func TestPoliciesRequireDataManager(t *testing.T) {
+	initPoliciesTest(t)
+
+	const project = "dm-required-project"
+
+	// The data manager is a regular project member (role User) which holds the supportive role
+	dm := policyTestActor("data-manager", project)
+
+	// A project admin without the data manager supportive role may not read or update the policies
+	admin := rpc.Actor{
+		Username: "plain-admin",
+		Role:     rpc.RoleUser,
+		Project:  util.OptValue(rpc.ProjectId(project)),
+		Membership: map[rpc.ProjectId]rpc.ProjectRole{
+			rpc.ProjectId(project): rpc.ProjectRoleAdmin,
+		},
+	}
+
+	_, err := policiesRetrieve(admin, fndapi.RetrievePoliciesRequest{})
+	if err == nil {
+		t.Fatalf("expected policiesRetrieve to fail for a member without the data manager role")
+	}
+
+	_, err = policiesDefaultRetrieve(admin, fndapi.RetrievePoliciesRequest{})
+	if err == nil {
+		t.Fatalf("expected policiesDefaultRetrieve to fail for a member without the data manager role")
+	}
+
+	_, err = policiesUpdate(admin, fndapi.PoliciesUpdateRequest{
+		UpdatedPolicies: map[fndapi.PolicyName]fndapi.Specification{
+			fndapi.RestrictSsh: sshSpecification(project, true),
+		},
+	})
+	if err == nil {
+		t.Fatalf("expected policiesUpdate to fail for a member without the data manager role")
+	}
+
+	// The data manager may update and read the policies of the project
+	mustUpdatePolicies(t, dm, false, sshSpecification(project, true))
+	policies := mustRetrievePolicies(t, project)
+	assertPolicyEnabled(t, policies, fndapi.RestrictSsh, true)
 }

@@ -62,13 +62,12 @@ type ProjectRole string
 type ProviderId string
 
 const (
-	ProjectRolePI          ProjectRole = "PI"
-	ProjectRoleAdmin       ProjectRole = "ADMIN"
-	ProjectRoleDataManager ProjectRole = "DATA_MANAGER"
-	ProjectRoleUser        ProjectRole = "USER"
+	ProjectRolePI    ProjectRole = "PI"
+	ProjectRoleAdmin ProjectRole = "ADMIN"
+	ProjectRoleUser  ProjectRole = "USER"
 )
 
-var ProjectRoleOptions = []ProjectRole{ProjectRolePI, ProjectRoleAdmin, ProjectRoleDataManager, ProjectRoleUser}
+var ProjectRoleOptions = []ProjectRole{ProjectRolePI, ProjectRoleAdmin, ProjectRoleUser}
 
 func (p ProjectRole) Power() int {
 	switch p {
@@ -76,8 +75,6 @@ func (p ProjectRole) Power() int {
 		return 4
 	case ProjectRoleAdmin:
 		return 3
-	case ProjectRoleDataManager:
-		return 2
 	case ProjectRoleUser:
 		return 1
 	default:
