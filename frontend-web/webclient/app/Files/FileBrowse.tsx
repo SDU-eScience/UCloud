@@ -1206,8 +1206,9 @@ function FileBrowse({opts, headerControls}: {
                         const providerIconWrapper = createHTMLElements({
                             tagType: "div",
                             className: "provider-icon",
-                            style: disallowNavigation ? {} : {cursor: "pointer"}
+                            style: disallowNavigation ? {gridArea: "p-icon"} : {cursor: "pointer", gridArea: "p-icon"}
                         });
+
                         if (!disallowNavigation) providerIconWrapper.title = "Go to drives";
                         providerIconWrapper.style.marginRight = "6px";
                         const navbar = browser.header.querySelector("div.header-first-row");

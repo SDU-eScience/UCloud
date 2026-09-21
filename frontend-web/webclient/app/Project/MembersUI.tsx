@@ -33,9 +33,8 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {addStandardDialog} from "@/UtilityComponents";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
-import BaseLink from "@/ui-components/BaseLink";
 import {sendInformationNotification} from "@/Notifications";
-import { ActionBar } from "@/ui-components/Actions";
+import {ActionBar} from "@/ui-components/Actions";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {

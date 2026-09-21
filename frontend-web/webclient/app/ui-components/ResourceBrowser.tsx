@@ -818,6 +818,7 @@ export class ResourceBrowser<T> {
         if (this.features.projectSwitcher) {
             const div = document.createElement("div");
             div.className = "project-switcher";
+            div.style.gridArea = "project-switcher";
             const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
             headerThing.appendChild(div);
         }
@@ -3724,9 +3725,10 @@ export function resourceCreationWithProductSelector<T>(
 export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclaration>, logo?: string): HTMLElement {
     const myInfo: {logo: string} | undefined = logo ? {logo} : ProviderInfo.providers.find(p => p.id === providerId);
     const outer = divHtml("");
-    outer.className = "provider-icon"
+    outer.className = "provider-icon";
     outer.style.background = "var(--secondaryMain)";
     outer.style.borderRadius = "8px";
+    outer.style.gridArea = "p-icon";
     outer.style.width = outer.style.minWidth = opts?.width ?? "30px";
     outer.style.height = outer.style.minHeight = opts?.height ?? "30px";
 

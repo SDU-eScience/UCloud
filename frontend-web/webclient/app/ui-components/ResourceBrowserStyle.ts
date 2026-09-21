@@ -1,4 +1,5 @@
 import {injectStyle, makeClassName} from "@/Unstyled";
+import {TriggerClass} from "@/Project/ProjectSwitcher";
 
 let didInject = false;
 
@@ -130,6 +131,59 @@ export function injectResourceBrowserStyle(rowSize: number) {
             display: none;
         }
 
+        ${BrowserClass.dot} header {
+            container-type: inline-size;
+            container-name: header-first-row;
+        }
+
+        ${BrowserClass.dot} header input.search-field {
+            width: 100%;
+            height: 35px;
+            margin-left: 5px;
+        }
+
+        @container header-first-row (width < ${ContainerSize.MEDIUM}px) {
+            /* TODO */
+        }
+
+        ${BrowserClass.dot} .search-icon {
+            grid-area: search-icon;
+        }
+
+        @container header-first-row (width < ${ContainerSize.SMALL}px) {
+             ${BrowserClass.dot} header input.search-field {
+                width: 100%;
+             }
+
+            ${BrowserClass.dot} header[has-location-bar] div.header-first-row {
+                display: grid;
+                gap: 8px;
+                grid-template-columns: 36px 32px 1fr 1fr;
+                grid-template-areas:
+                    "search-icon refresh  .         project-switcher"
+                    "p-icon      location location  location        ";
+            }
+
+            ${BrowserClass.dot} header[has-location-bar] div.header-first-row .search-field-wrapper {
+                position: absolute;
+                left: -5px;
+                top: 41px;
+                width: calc(100% + 6px);
+            }
+
+            ${BrowserClass.dot} header[has-location-bar] div.header-first-row img {
+                margin-left: 0;
+            }
+
+            ${BrowserClass.dot} header[has-location-bar] div.project-switcher .${TriggerClass} {
+                width: 150px;
+            }
+
+            ${BrowserClass.dot} header[has-location-bar] div.header-first-row .location {
+                width: calc(100% + 6px);
+            }
+        }
+
         .header-first-row .search-icon[data-shown] {
             z-index: 1;
             width: 24px;
@@ -219,6 +273,8 @@ export function injectResourceBrowserStyle(rowSize: number) {
             cursor: text;
             height: 35px;
             transition: margin-right 0.2s;
+
+            grid-area: location;
         }
 
         ${BrowserClass.dot} header[has-location-bar] .location input {
@@ -240,12 +296,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
             display: none;
         }
 
-        ${BrowserClass.dot} header input.search-field {
-            width: 100%;
-            height: 35px;
-            margin-left: 5px;
-        }
-
         ${BrowserClass.dot} header div.search-field-wrapper {
             position: relative;
             right: -46px;
@@ -263,8 +313,10 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
 
         /* If not hidden, make of for the relative position */
-        ${BrowserClass.dot} header .search-field-wrapper:not(:has(> input.search-field[data-hidden])) {
-            margin-left: -46px;
+        @container (min-width: ${ContainerSize.MEDIUM}px) {
+            ${BrowserClass.dot} header .search-field-wrapper:not(:has(> input.search-field[data-hidden])) {
+                margin-left: -46px;
+            }
         }
 
         ${BrowserClass.dot} header .search-field-wrapper > input.search-field[data-hidden] {
@@ -622,6 +674,8 @@ export function injectResourceBrowserStyle(rowSize: number) {
 
         ${BrowserClass.dot} .refresh-icon {
             transition: transform 0.5s;
+
+            grid-area: refresh;
         }
 
         ${BrowserClass.dot} .refresh-icon:hover {
