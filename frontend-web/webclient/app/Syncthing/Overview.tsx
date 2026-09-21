@@ -13,6 +13,7 @@ import * as Sync from "./api";
 import JobsApi, {JobState} from "@/UCloud/JobsApi";
 import {prettyFilePath} from "@/Files/FilePath";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -872,7 +873,7 @@ function FolderRows({folders, dispatch, liveSnapshot, onRescanFolder}: {
                 </button>
                 {live ? <div className="sync-live-details">
                     <span>Last scan: {formatObservedTime(live.lastScan)}</span>
-                    <span>Out of sync: {live.outOfSyncItems.toLocaleString()} items ({formatBytes(live.outOfSyncBytes)})</span>
+                    <span>Out of sync: {formatNumber(live.outOfSyncItems)} items ({formatBytes(live.outOfSyncBytes)})</span>
                     {live.errorCount > 0 || errors.length > 0 ? <span className="sync-live-error" title={errors.join("\n") || "Syncthing reports folder errors"}>
                         {live.errorCount || errors.length} error(s){errors[0] ? `: ${errors[0]}` : ""}
                     </span> : null}
@@ -931,12 +932,12 @@ function formatBytes(value: number): string {
         unit++;
     }
     const digits = amount >= 100 || unit === 0 ? 0 : amount >= 10 ? 1 : 2;
-    return `${amount.toFixed(digits)} ${units[unit]}`;
+    return `${formatNumber(amount, {precision: digits})} ${units[unit]}`;
 }
 
 function formatPercent(value: number): string {
     if (!Number.isFinite(value)) return "0";
-    return Math.max(0, Math.min(100, value)).toFixed(value >= 99.95 ? 0 : 1);
+    return formatNumber(Math.max(0, Math.min(100, value)), {precision: value >= 99.95 ? 0 : 1});
 }
 
 const AddDeviceWizard: React.FunctionComponent<{

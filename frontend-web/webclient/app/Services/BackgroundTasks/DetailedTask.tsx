@@ -7,6 +7,7 @@ import * as Heading from "@/ui-components/Heading";
 import IndeterminateProgressBar from "@/ui-components/IndeterminateProgress";
 import ProgressBar from "@/ui-components/Progress";
 import {groupBy, takeLast} from "@/Utilities/CollectionUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
 
 const DetailedTask: React.FunctionComponent<{task?: TaskUpdate}> = ({task}) => {
@@ -45,8 +46,8 @@ const DetailedTask: React.FunctionComponent<{task?: TaskUpdate}> = ({task}) => {
                             active={true}
                             color="successMain"
                             label={
-                                `${task.progress.title}: ${task.progress.current} of ${task.progress.maximum} ` +
-                                `(${((task.progress.current / task.progress.maximum) * 100).toFixed(2)}%)`
+                                `${task.progress.title}: ${formatNumber(task.progress.current)} of ${formatNumber(task.progress.maximum)} ` +
+                                `(${formatNumber((task.progress.current / task.progress.maximum) * 100, {precision: 2})}%)`
                             }
                             percent={(task.progress.current / task.progress.maximum) * 100}
                         />

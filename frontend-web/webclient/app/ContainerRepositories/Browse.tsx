@@ -34,6 +34,7 @@ import {
     supportV2ProductMatch,
 } from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {FindByStringId} from "@/UCloud";
 import {ProductStorage, ProductV2, ProductV2Storage} from "@/Accounting";
 import {bulkRequestOf, doNothing, extractErrorCode, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
@@ -608,7 +609,7 @@ export default function ContainerRepositoryBrowse({
 
                     browser.on("renderStat1", (entry, stat, row) => {
                         if (isImageGroup(entry)) {
-                            stat.innerText = (entry.tagCount ?? 0).toLocaleString();
+                            stat.innerText = formatNumber(entry.tagCount ?? 0);
                             return;
                         }
                         if (isImage(entry)) {
@@ -636,7 +637,7 @@ export default function ContainerRepositoryBrowse({
                             return;
                         }
                         if (isImage(entry)) {
-                            stat.innerText = (entry.layers?.length ?? 0).toLocaleString();
+                            stat.innerText = formatNumber(entry.layers?.length ?? 0);
                             return;
                         }
                         if (isLayer(entry)) {
@@ -1184,5 +1185,5 @@ function formatBytes(bytes: number): string {
         value /= 1024;
         unit++;
     }
-    return `${value.toLocaleString(undefined, {maximumFractionDigits: unit === 0 ? 0 : 1})} ${units[unit]}`;
+    return `${formatNumber(value, {precision: unit === 0 ? 0 : 1, removeTrailingZeros: true})} ${units[unit]}`;
 }

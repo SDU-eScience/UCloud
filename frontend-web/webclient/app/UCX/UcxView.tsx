@@ -37,6 +37,7 @@ import {stopPropagation} from "@/UtilityFunctions";
 import Label from "@/ui-components/Label";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {ProductSelector} from "@/Products/Selector";
 import BaseLink from "@/ui-components/BaseLink";
@@ -148,6 +149,10 @@ export interface UcxViewProps {
     onModelChange?: (model: Record<string, Value>) => void;
 }
 
+const PING_INTERVAL_MS = 20000;
+const FOCUS_GRACE_MS = 5 * 60 * 1000;
+const SILENCE_THRESHOLD_MS = 90 * 1000;
+
 const UcxView: React.FunctionComponent<UcxViewProps> = ({
     url,
     authToken,
@@ -194,6 +199,32 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const onDisconnectedRef = useRef<typeof onDisconnected>(onDisconnected);
     const onTransportErrorRef = useRef<typeof onTransportError>(onTransportError);
     const onModelChangeRef = useRef<typeof onModelChange>(onModelChange);
+    const lastFocusAtRef = useRef(Date.now());
+    const lastInboundAtRef = useRef(Date.now());
+    const pongArmedRef = useRef(false);
+    const keepaliveTimerRef = useRef<number | null>(null);
+
+    const clearKeepaliveTimer = () => {
+        if (keepaliveTimerRef.current != null) {
+            window.clearInterval(keepaliveTimerRef.current);
+            keepaliveTimerRef.current = null;
+        }
+    };
+
+    useEffect(() => {
+        const updateFocus = () => {
+            if (document.visibilityState === "visible") {
+                lastFocusAtRef.current = Date.now();
+            }
+        };
+
+        window.addEventListener("focus", updateFocus);
+        document.addEventListener("visibilitychange", updateFocus);
+        return () => {
+            window.removeEventListener("focus", updateFocus);
+            document.removeEventListener("visibilitychange", updateFocus);
+        };
+    }, []);
 
     useEffect(() => {
         modelRef.current = model;
@@ -541,6 +572,28 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 reconnectAttemptRef.current = 0;
                 clearReconnectTimer();
                 authCompleteRef.current = false;
+                pongArmedRef.current = false;
+                lastFocusAtRef.current = Date.now();
+                lastInboundAtRef.current = Date.now();
+
+                clearKeepaliveTimer();
+                keepaliveTimerRef.current = window.setInterval(() => {
+                    const socket = connRef.current;
+                    if (socket == null || socket.readyState !== WebSocket.OPEN) {
+                        return;
+                    }
+
+                    if (Date.now() - lastFocusAtRef.current >= FOCUS_GRACE_MS) {
+                        return;
+                    }
+
+                    if (pongArmedRef.current && Date.now() - lastInboundAtRef.current >= SILENCE_THRESHOLD_MS) {
+                        socket.close();
+                        return;
+                    }
+
+                    sendFrame({replyToSeq: 0, opcode: Opcode.Ping});
+                }, PING_INTERVAL_MS);
 
                 sessionRef.current?.registerRpcHandler("routerPushPage", payload => {
                     const plainPayload = valueMapToPlainPayload(payload) as {path?: unknown};
@@ -619,6 +672,12 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                     const bytes = new Uint8Array(event.data);
                     const frame = decodeFrame(bytes);
                     sessionRef.current?.setNextSeq(frame.seq + 1);
+                    lastInboundAtRef.current = Date.now();
+
+                    if (frame.opcode === Opcode.Pong) {
+                        pongArmedRef.current = true;
+                        return;
+                    }
 
                     if (sessionRef.current?.handleIncoming(frame)) {
                         return;
@@ -656,6 +715,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
             };
 
             socket.onclose = event => {
+                clearKeepaliveTimer();
                 if (connRef.current === socket) {
                     connRef.current = null;
                 }
@@ -680,6 +740,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         return () => {
             disposed = true;
             clearReconnectTimer();
+            clearKeepaliveTimer();
             sessionRef.current?.close("UCX session disposed");
             sessionRef.current = null;
             const conn = connRef.current;
@@ -1678,8 +1739,8 @@ function formatSliderValue(value: number, step: number): string {
     const decimals = decimalPlaces(step);
     const factor = Math.pow(10, decimals);
     const rounded = Math.round(value * factor) / factor;
-    const text = decimals > 0 ? rounded.toFixed(decimals) : Math.round(rounded).toString();
-    return decimals > 0 ? text.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1") : text;
+    const text = decimals > 0 ? formatNumber(rounded, {precision: decimals, removeTrailingZeros: true}) : formatNumber(Math.round(rounded), {withThousandsSeparator: false});
+    return text;
 }
 
 function decimalPlaces(value: number): number {

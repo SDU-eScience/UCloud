@@ -14,6 +14,8 @@ type Opcode uint8
 
 const (
 	OpSysHello    Opcode = 0x01
+	OpPing        Opcode = 0x02
+	OpPong        Opcode = 0x03
 	OpUiEvent     Opcode = 0x11
 	OpUiMount     Opcode = 0x12
 	OpModelPatch  Opcode = 0x13
@@ -84,6 +86,7 @@ func FrameEncode(f Frame) ([]byte, error) {
 	switch f.Opcode {
 	case OpSysHello:
 		SysHelloEncode(buf, f.SysHello)
+	case OpPing, OpPong:
 	case OpUiEvent:
 		UiEventEncode(buf, f.UiEvent)
 	case OpUiMount:
@@ -119,6 +122,7 @@ func FrameDecode(data []byte) (Frame, error) {
 	switch op {
 	case OpSysHello:
 		result.SysHello = SysHelloDecode(buf)
+	case OpPing, OpPong:
 	case OpUiEvent:
 		result.UiEvent = UiEventDecode(buf)
 	case OpUiMount:

@@ -129,6 +129,14 @@ func (s *Session) pumpIncoming() {
 				continue
 			}
 
+			if frame.Opcode == OpPing {
+				go s.Send(Frame{
+					ReplyToSeq: frame.Seq,
+					Opcode:     OpPong,
+				})
+				continue
+			}
+
 			select {
 			case <-s.ctx.Done():
 				s.failPendingRpc(s.ctx.Err())

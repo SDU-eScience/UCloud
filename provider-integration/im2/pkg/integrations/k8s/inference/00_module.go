@@ -352,6 +352,18 @@ func Init() {
 		},
 	})
 
+	controller.Mux.HandleFunc(authority+"/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		http.Redirect(w, r, cfg.Provider.Hosts.UCloudPublic.ToURL()+"/app/inference/playground", http.StatusFound)
+	})
+
 	controller.Mux.HandleFunc(authority+"/v1/models", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -417,6 +429,7 @@ func Init() {
 			w.Header().Set("Content-Type", "text/event-stream")
 			w.Header().Set("Cache-Control", "no-cache")
 			w.Header().Set("Connection", "keep-alive")
+			w.Header().Set("ucloud-generated-by-ai-model", request.Model)
 
 			for chunk := range chunks {
 				chunkData, err := json.Marshal(chunk)
@@ -491,6 +504,7 @@ func Init() {
 			w.Header().Set("Content-Type", "text/event-stream")
 			w.Header().Set("Cache-Control", "no-cache")
 			w.Header().Set("Connection", "keep-alive")
+			w.Header().Set("ucloud-generated-by-ai-model", request.Model)
 
 			for event := range events {
 				data, err := json.Marshal(event)

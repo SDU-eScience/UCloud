@@ -14,6 +14,7 @@ import {sendFailureNotification} from "@/Notifications";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {openPlayground} from "./api";
 import {sizeToString} from "@/Utilities/FileUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
 import {usePage} from "@/Navigation/Redux";
@@ -1002,13 +1003,13 @@ function formatResponseDuration(startedAt: number, finishedAt: number): string {
 
 function formatDuration(ms: number): string {
     if (ms <= 0) return "Unknown";
-    if (ms < 1000) return `${Math.round(ms)} ms`;
-    return `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)} s`;
+    if (ms < 1000) return `${formatNumber(Math.round(ms))} ms`;
+    return `${formatNumber(ms / 1000, {precision: ms < 10000 ? 1 : 0, removeTrailingZeros: true})} s`;
 }
 
 function formatTokensPerSecond(outputTokens: number, firstTokenAt: number, finishedAt: number): string {
     if (outputTokens <= 0 || firstTokenAt <= 0 || finishedAt <= firstTokenAt) return "Unknown";
-    return `${(outputTokens / ((finishedAt - firstTokenAt) / 1000)).toFixed(1)} tok/s`;
+    return `${formatNumber(outputTokens / ((finishedAt - firstTokenAt) / 1000), {precision: 1})} tok/s`;
 }
 
 const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, streaming}: {text: string; streaming: boolean}): React.ReactNode {
@@ -2084,7 +2085,7 @@ function SettingSlider({label, path, min, max, step, model, fn, connected, integ
     React.useEffect(() => setValue(modelNumber), [modelNumber]);
     const commit = (next: number) => fn?.sendModelInput(path, integer ? {kind: ValueKind.S64, s64: Math.round(next)} : {kind: ValueKind.F64, f64: next}, path);
     return <label style={{display: "flex", flexDirection: "column", gap: 4}}>
-        <span style={{display: "flex", justifyContent: "space-between", gap: 8}}><span>{label}</span><span>{integer ? Math.round(value) : value.toFixed(1)}</span></span>
+        <span style={{display: "flex", justifyContent: "space-between", gap: 8}}><span>{label}</span><span>{integer ? formatNumber(Math.round(value), {withThousandsSeparator: false}) : formatNumber(value, {precision: 1})}</span></span>
         <input disabled={!connected || !fn} type="range" min={min} max={max} step={step} value={value || min} onChange={ev => { const next = Number(ev.currentTarget.value); setValue(next); commit(next); }}/>
     </label>;
 }
@@ -2376,12 +2377,12 @@ function modelReasoningEfforts(model: Record<string, Value>, modelName: string):
 function compactTokenCount(tokens: number): string {
     if (tokens >= 1_000_000) {
         const value = tokens / 1_000_000;
-        return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)}M`;
+        return `${formatNumber(value, {precision: value >= 10 ? 0 : 1})}M`;
     }
     if (tokens >= 1_000) {
         return `${Math.round(tokens / 1_000)}K`;
     }
-    return tokens.toLocaleString();
+    return formatNumber(tokens);
 }
 
 async function detectPlaygroundAttachmentKind(file: File): Promise<PlaygroundAttachmentKind> {
