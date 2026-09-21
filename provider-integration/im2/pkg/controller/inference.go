@@ -41,6 +41,8 @@ func initInference() {
 		}()
 
 		Mux.HandleFunc(providerPath, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("ucloud-generated-by-ai-model", "true")
+
 			conn, err := upgrader.Upgrade(w, r, nil)
 			if err != nil {
 				return

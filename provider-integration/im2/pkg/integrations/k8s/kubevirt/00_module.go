@@ -1391,18 +1391,27 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	diskSize = min(max(15, diskSize), 2000)
 
-	resources := kvcore.ResourceRequirements{Limits: map[k8score.ResourceName]k8sresource.Quantity{}, Requests: map[k8score.ResourceName]k8sresource.Quantity{}}
-	addResource := func(name k8score.ResourceName, value int64, scale k8sresource.Scale) {
+	resources := kvcore.ResourceRequirements{
+		Limits:   map[k8score.ResourceName]k8sresource.Quantity{},
+		Requests: map[k8score.ResourceName]k8sresource.Quantity{},
+	}
+	addResourceEx := func(name k8score.ResourceName, value int64, scale k8sresource.Scale, setLimit bool) {
 		quantity := k8sresource.NewScaledQuantity(value, scale)
 		quantity.Format = k8sresource.DecimalSI
 
-		resources.Limits[name] = *quantity
 		resources.Requests[name] = *quantity
+		if setLimit {
+			resources.Limits[name] = *quantity
+		}
+	}
+
+	addResource := func(name k8score.ResourceName, value int64, scale k8sresource.Scale) {
+		addResourceEx(name, value, scale, true)
 	}
 
 	product := job.Status.ResolvedProduct.Value
 	addResource(k8score.ResourceCPU, int64(shared.NodeCpuMillisNormalizedWithReserved(&product)), k8sresource.Milli)
-	addResource(k8score.ResourceMemory, int64(product.MemoryInGigs), k8sresource.Giga)
+	addResourceEx(k8score.ResourceMemory, int64(product.MemoryInGigs), k8sresource.Giga, false)
 
 	{
 		quantity := k8sresource.NewScaledQuantity(
