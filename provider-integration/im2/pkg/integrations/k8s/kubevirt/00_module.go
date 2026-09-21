@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	ws "github.com/gorilla/websocket"
@@ -529,6 +530,149 @@ type cloudInit struct {
 	RunCommand  []string        `json:"runcmd"`
 }
 
+const serialConsoleRecentThreshold = 15 * time.Minute
+const serialConsoleLoginMarker = " login:"
+const serialConsoleChannel = "serial"
+const serialConsoleClearScreen = "\x1b[2J\x1b[H"
+
+func serialConsoleRecentlyStarted(job *orc.Job) bool {
+	var lastRunning time.Time
+	for i := len(job.Updates) - 1; i >= 0; i-- {
+		update := &job.Updates[i]
+		if update.State.Present && update.State.Value == orc.JobStateRunning {
+			lastRunning = update.Timestamp.Time()
+			break
+		}
+	}
+
+	if lastRunning.IsZero() {
+		return false
+	}
+
+	return time.Since(lastRunning) < serialConsoleRecentThreshold
+}
+
+func followEmitSerialChunk(session *ctrl.FollowJobSession, mu *sync.Mutex, serialActive *bool, chunk string) bool {
+	mu.Lock()
+	defer mu.Unlock()
+
+	if !*serialActive {
+		return false
+	}
+
+	session.EmitLogs(0, util.OptValue(chunk), util.OptNone[string](), util.OptValue(serialConsoleChannel))
+	return true
+}
+
+func followLogTakeOverFromSerial(session *ctrl.FollowJobSession, serialActive *bool, rank int, stdout, stderr util.Option[string]) {
+	*serialActive = false
+	session.EmitLogs(rank, util.OptValue(serialConsoleClearScreen), util.OptNone[string](), util.OptValue(serialConsoleChannel))
+	session.EmitLogs(rank, stdout, stderr, util.OptNone[string]())
+}
+
+func followWatchSerialConsole(session *ctrl.FollowJobSession, serialActive *bool, mu *sync.Mutex, stop <-chan util.Empty) {
+	mu.Lock()
+	serialIsActive := *serialActive
+	mu.Unlock()
+
+	if !serialIsActive {
+		return
+	}
+
+	job, ok := ctrl.JobRetrieve(session.Job.Id)
+	if !ok || job.Status.State != orc.JobStateRunning {
+		return
+	}
+
+	if !serialConsoleRecentlyStarted(job) {
+		mu.Lock()
+		*serialActive = false
+		mu.Unlock()
+		return
+	}
+
+	stdinReader, stdinWriter := io.Pipe()
+	stdoutReader, stdoutWriter := io.Pipe()
+	clean := func() {
+		util.SilentClose(stdoutWriter)
+		_ = stdoutReader.Close()
+		_ = stdinReader.Close()
+		_ = stdinWriter.Close()
+	}
+
+	startChannel := make(chan error, 1)
+	streamStop := make(chan error, 1)
+	var streamConn kvapi.StreamInterface
+
+	go func() {
+		stream, err := KubevirtClient.
+			VirtualMachineInstance(Namespace).
+			SerialConsole(
+				vmName(session.Job.Id, 0),
+				&kvapi.SerialConsoleOptions{},
+			)
+
+		streamConn = stream
+		startChannel <- err
+
+		if err != nil {
+			return
+		}
+
+		streamStop <- stream.Stream(kvapi.StreamOptions{
+			In:  stdinReader,
+			Out: stdoutWriter,
+		})
+	}()
+
+	startErr := <-startChannel
+	if startErr != nil || streamConn == nil {
+		if asyncErr, ok := startErr.(*kvapi.AsyncSubresourceError); !ok || asyncErr.GetStatusCode() != http.StatusBadRequest {
+			log.Info("Failed to open serial console to VM '%v': %v", session.Job.Id, startErr)
+		}
+		clean()
+		return
+	}
+
+	readStop := make(chan util.Empty)
+	go func() {
+		defer close(readStop)
+
+		buf := make([]byte, 1024*4)
+		for {
+			n, err := stdoutReader.Read(buf)
+			if err != nil {
+				return
+			}
+
+			chunk := string(buf[:n])
+			if !followEmitSerialChunk(session, mu, serialActive, chunk) {
+				return
+			}
+
+			if strings.Contains(chunk, serialConsoleLoginMarker) {
+				mu.Lock()
+				*serialActive = false
+				mu.Unlock()
+				return
+			}
+		}
+	}()
+
+	select {
+	case err := <-streamStop:
+		clean()
+		<-readStop
+
+	case <-readStop:
+		clean()
+
+	case <-stop:
+		clean()
+		<-readStop
+	}
+}
+
 func follow(session *ctrl.FollowJobSession) {
 	type trackedLogFile struct {
 		Rank    int
@@ -585,6 +729,11 @@ func follow(session *ctrl.FollowJobSession) {
 			Stdout:  true,
 			Channel: util.OptValue("ui"),
 		})
+
+		trackFile("stdout-0.log", trackedLogFile{
+			Rank:   0,
+			Stdout: true,
+		})
 	}
 
 	utilizationChannel := make(chan []float64)
@@ -600,6 +749,44 @@ func follow(session *ctrl.FollowJobSession) {
 			return result
 		},
 	}
+
+	emitMu := sync.Mutex{}
+	serialActive := true
+	serialStop := make(chan util.Empty)
+
+	serialDone := make(chan util.Empty)
+	go func() {
+		defer close(serialDone)
+
+		for util.IsAlive && *session.Alive {
+			select {
+			case <-serialStop:
+				return
+			default:
+			}
+
+			emitMu.Lock()
+			active := serialActive
+			emitMu.Unlock()
+
+			if !active {
+				return
+			}
+
+			followWatchSerialConsole(session, &serialActive, &emitMu, serialStop)
+			time.Sleep(1 * time.Second)
+		}
+	}()
+
+	stopSerial := func() {
+		select {
+		case <-serialStop:
+		default:
+			close(serialStop)
+		}
+	}
+
+	defer stopSerial()
 
 	for util.IsAlive && *session.Alive {
 		job, ok := ctrl.JobRetrieve(session.Job.Id)
@@ -674,7 +861,19 @@ func follow(session *ctrl.FollowJobSession) {
 					stderr.Set(message)
 				}
 
-				session.EmitLogs(logFile.Rank, stdout, stderr, logFile.Channel)
+				stopSerial()
+
+				if logFile.Channel.Present {
+					session.EmitLogs(logFile.Rank, stdout, stderr, logFile.Channel)
+				} else {
+					emitMu.Lock()
+					if serialActive {
+						followLogTakeOverFromSerial(session, &serialActive, logFile.Rank, stdout, stderr)
+					} else {
+						session.EmitLogs(logFile.Rank, stdout, stderr, util.OptNone[string]())
+					}
+					emitMu.Unlock()
+				}
 			}
 		}
 
@@ -740,6 +939,8 @@ func follow(session *ctrl.FollowJobSession) {
 
 		time.Sleep(15 * time.Millisecond)
 	}
+
+	<-serialDone
 
 	if utilizationData != nil {
 		util.SilentClose(utilizationData)

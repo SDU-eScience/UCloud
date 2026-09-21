@@ -32,6 +32,7 @@ import {StackStatus} from "./api";
 import {ValueKind, valueToPlain} from "@/UCX/protocol";
 import {StackResourcesDialog} from "@/Stacks/ResourcesSection";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {StackInitProgress} from "./StackInitProgress";
 
 type MachinesLabelFilter = {
     label: string;
@@ -315,6 +316,10 @@ export default function StackView(): React.ReactNode {
                     <MachinesInStack status={status} commandLoading={commandLoading} suspendVm={suspendVm}
                         restartVm={restartVm} />
                 )}
+
+                {stack && !(uiMode === "Replacement" && ucxAuthenticated) ? (
+                    <StackInitProgress jobs={jobs} />
+                ) : null}
 
                 {stack && shouldAttemptUcxConnection ? (
                     <div style={{display: ucxAuthenticated ? "block" : "none"}}>

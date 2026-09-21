@@ -2480,7 +2480,7 @@ function totalLabel(units: string[], index: number): string {
 
 function costUnitLabel(rows: {product: ProductV2Alias | null}[], units: string[]): string {
     if (units.length === 1) return `${units[0]} / month`;
-    if (units.length > 1) return "per month by unit";
+    if (units.length > 1) return "per month";
     for (const row of rows) {
         if (row.product) {
             return `${explainUnit(row.product.category).name} / month`;
