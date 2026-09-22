@@ -1,17 +1,20 @@
+
 import * as React from "react";
 
 import {callAPI} from "@/Authentication/DataHook";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {Box, Button, Flex, Icon, Text, TextArea,} from "@/ui-components";
+import {Box, Button, Flex, Icon, Link, Text, TextArea,} from "@/ui-components";
+import AppRoutes from "@/Routes";
 import {Toggle} from "@/ui-components/Toggle";
 import UcxView, {UcxComponentRegistry, UcxFunctionRegistry, UcxRenderContext, UcxSpinner} from "@/UCX/UcxView";
 import {UiNode, Value, ValueKind} from "@/UCX/protocol";
-import {copyToClipboard, doNothing, extensionFromPath, extensionType, removeTrailingSlash, typeFromMime} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, extensionFromPath, extensionType, stopPropagation, stopPropagationAndPreventDefault, typeFromMime} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {sendFailureNotification} from "@/Notifications";
-import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
+import {Operation, Operations} from "@/ui-components/Operation";
 import {openPlayground} from "./api";
 import {sizeToString} from "@/Utilities/FileUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
 import {usePage} from "@/Navigation/Redux";
@@ -21,18 +24,15 @@ import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {format, isToday} from "date-fns";
 import ModelInferenceLogo from "./ModelLogo";
-import {MarkdownDocument, MarkdownTable} from "@/ui-components/Markdown";
+import {MarkdownDocument} from "@/ui-components/Markdown";
 import {CopyButton} from "@/ui-components/CopyButton";
 import {IconButton} from "@/ui-components/IconButton";
 import {ChunkedFileReader} from "@/Files/ChunkedFileReader";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
-import {dialogStore} from "@/Dialog/DialogStore";
-import type {UFile} from "@/UCloud/UFile";
-import {Feature, hasFeature} from "@/Features";
-import {prettyFilePath} from "@/Files/FilePath";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {IconName} from "@/ui-components/Icon";
 import {inferenceThreadStore} from "./ThreadStore";
+import { findDomAttributeFromAncestors } from "@/Utilities/HTMLUtilities";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -144,6 +144,7 @@ const PLAYGROUND_REHYDRATE_PATHS = [
     "chat.systemPrompt",
     "chat.presencePenalty",
     "chat.frequencyPenalty",
+    "chat.reasoningEffort",
     "chat.logprobs",
     "chat.topLogprobs",
 ];
@@ -158,11 +159,16 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
         const rows = numberProp(node, "rows", 8);
         const sendIcon = stringProp(node, "sendIcon", "heroPaperAirplane");
         const disabled = boolProp(node, "disabled", false);
+        const streamingThreadId = stringProp(node, "streamingThreadId", "");
+        const currentThreadId = stringValue(fn.modelValue(model, "currentThreadId", scope));
         const propModelOptions = optionsProp(node, "modelOptions");
         const modelOptions = propModelOptions.length > 0 ? propModelOptions : textGenerationModelOptions(fn.modelValue(model, "models"));
         const selectedModel = stringValue(fn.modelValue(model, "chat.modelId", scope));
         const selectedModelOption = modelOptions.find(option => option.key === selectedModel);
         const selectedCapabilities = modelCapabilities(model, selectedModel);
+        const reasoningEfforts = modelReasoningEfforts(model, selectedModel);
+        const reasoningEffort = stringValue(fn.modelValue(model, "chat.reasoningEffort", scope));
+        const selectedReasoningEffort = reasoningEfforts.find(option => option.key === reasoningEffort);
         const [localDraft, setLocalDraft] = React.useState(() => stringValue(fn.modelValue(model, node.bindPath, scope)));
         const value = localDraft;
         const setValue = setLocalDraft;
@@ -172,6 +178,15 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
         const [attachments, setAttachments] = React.useState<PlaygroundUploadAttachment[]>([]);
         const [dragActive, setDragActive] = React.useState(false);
         const canSend = !disabled && value.trim() !== "" && attachments.every(attachment => attachment.status === "uploaded");
+        const streaming = streamingThreadId !== "" && streamingThreadId === currentThreadId;
+
+        const stop = () => {
+            if (!streaming) return;
+            fn.sendUiEvent("chatComposerStop", "click", {
+                kind: ValueKind.String,
+                string: currentThreadId,
+            });
+        };
 
         const send = () => {
             if (!canSend) return;
@@ -376,7 +391,7 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                         setValue(next);
                     }}
                     onKeyDown={(ev) => {
-                        if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
+                        if (ev.key === "Enter" && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !ev.nativeEvent.isComposing) {
                             ev.preventDefault();
                             ev.stopPropagation();
                             send();
@@ -443,15 +458,40 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                         )}
                     />
                     <div style={{flex: 1}}/>
+                    {reasoningEfforts.length === 0 ? null : <RichSelect<PlaygroundOption, keyof PlaygroundOption>
+                        items={reasoningEfforts}
+                        keys={["key", "value"]}
+                        selected={selectedReasoningEffort}
+                        onSelect={option => fn.sendModelInput("chat.reasoningEffort", {kind: ValueKind.String, string: option.key}, "chat.reasoningEffort")}
+                        dropdownWidth="220px"
+                        dropdownVerticalGap={8}
+                        elementHeight={42}
+                        matchTriggerWidth={false}
+                        showSearchField={false}
+                        trigger={<ReasoningEffortTrigger option={selectedReasoningEffort}/>}
+                        RenderRow={props => <ReasoningEffortOption
+                            option={props.element}
+                            selected={props.element?.key === reasoningEffort}
+                            onSelect={props.onSelect}
+                            dataProps={props.dataProps}
+                        />}
+                    />}
                     <Tooltip tooltipContentWidth={80} trigger={
                         <span style={{display: "inline-flex"}}>
-                            <button type="button" disabled={!canSend} onClick={send}
-                                    className={ComposerActionButtonClass}>
-                                <Icon name={sendIcon as any} size={18}/>
-                            </button>
+                            {streaming ? (
+                                <button type="button" onClick={stop}
+                                        className={ComposerActionButtonClass}>
+                                    <Icon name="heroStop" size={18}/>
+                                </button>
+                            ) : (
+                                <button type="button" disabled={!canSend} onClick={send}
+                                        className={ComposerActionButtonClass}>
+                                    <Icon name={sendIcon as any} size={18}/>
+                                </button>
+                            )}
                         </span>
                     }>
-                        Send
+                        {streaming ? "Stop" : "Send"}
                     </Tooltip>
                 </div>
             </Box>
@@ -504,6 +544,7 @@ type PlaygroundFrameProps = {
     loadingSession?: boolean;
     error?: string;
     connectionStatus?: string;
+    noAllocation?: boolean;
 };
 
 const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k => `
@@ -556,7 +597,7 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
     ${k} .playground-sidebar-footer {
         flex-shrink: 0;
     }
-    
+
     ${k} .playground-sidebar-footer {
         display: flex;
         gap: 16px;
@@ -576,10 +617,13 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
         margin-top: 16px;
     }
 
+    ${k} .threads-popover-toggle {
+        display: none;
+    }
+
     @media (max-width: 900px) {
         ${k} .playground-body {
             height: auto;
-            min-height: calc(100vh - 174px);
             flex-direction: column;
         }
 
@@ -587,12 +631,79 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
             min-height: 62vh;
         }
 
-        ${k} .playground-sidebar {
-            width: 100%;
+        ${k} .playground-body {
+            height: calc(100vh - 116px);
         }
 
-        ${k} .playground-sidebar[data-collapsed="true"] {
-            width: 64px;
+        ${k} {
+            --popOverWidth: min(400px, 100vw - var(--sidebarWidth) - 42px);
+        }
+
+        ${k} .threads-popover-toggle {
+            position: fixed;
+            top: 20vh;
+            display: block;
+            right: -1px;
+            width: 42px;
+            cursor: pointer;
+            height: 42px;
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+            background: var(--backgroundDefault);
+            border: 1px solid var(--borderColor);
+            padding-left: 8px;
+            padding-top: 6px;
+            transition: right 0.25s cubic-bezier(0.5,1,0.5,1);
+        }
+
+        ${k} .threads-popover-toggle[data-open=true] {
+            right: calc(var(--popOverWidth) - 1px);
+            border-right: 0;
+        }
+
+        ${k} .playground-sidebar {
+            position: fixed;
+            top: 0;
+            right: calc(0px - var(--popOverWidth));
+            width: var(--popOverWidth);
+            height: 100%;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            transition: right 0.25s cubic-bezier(0.5,1,0.5,1);
+        }
+
+        ${k} .playground-sidebar[data-open=true] {
+            right: 0;
+        }
+    }
+
+    @media (max-width: 500px) {
+        ${k} {
+            margin: -16px;
+            height: 100vh;
+        }
+
+        ${k} > div {
+            border-radius: 0;
+            height: 100%;
+        }
+
+        ${k} > div > div {
+            height: 100%;
+        }
+
+        ${k} div.playground-main {
+            border: none;
+            padding: 0;
+            padding-bottom: 1px;
+        }
+
+        ${k} .playground-body {
+            height: calc(100vh - 76px);
+        }
+
+        ${k} .playground-main .${ComposerActionButtonHoverClass} > div {
+            overflow-x: scroll;
         }
     }
 `);
@@ -737,6 +848,57 @@ function ModelSelectorOption({
     );
 }
 
+function ReasoningEffortTrigger({option}: {option?: PlaygroundOption}): React.ReactNode {
+    return <button
+        type="button"
+        title="Reasoning effort"
+        style={{
+            minWidth: 120,
+            maxWidth: 200,
+            height: 34,
+            border: 0,
+            borderRadius: 999,
+            background: "transparent",
+            color: "inherit",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "0 10px",
+            cursor: "pointer",
+            textAlign: "left",
+        }}
+    >
+        <span style={{minWidth: 0, flex: 1, whiteSpace: "nowrap", fontWeight: 600}}>{option?.value ?? "Reasoning"}</span>
+        <Icon name="heroChevronDown" size={14}/>
+    </button>;
+}
+
+function ReasoningEffortOption({option, selected, onSelect, dataProps}: {
+    option?: PlaygroundOption;
+    selected: boolean;
+    onSelect: () => void;
+    dataProps?: Record<string, string>;
+}): React.ReactNode {
+    if (!option) return null;
+    return <div
+        {...dataProps}
+        data-active={selected.toString()}
+        onClick={onSelect}
+        style={{
+            minHeight: 42,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "7px 10px",
+            color: "inherit",
+            background: selected ? "var(--playground-hover, var(--rowHover))" : undefined,
+        }}
+    >
+        <span style={{minWidth: 0, flex: 1, whiteSpace: "nowrap", fontWeight: 500}}>{option.value}</span>
+        {selected ? <Icon name="heroCheck" size={16} color="successMain"/> : <span style={{width: 16}}/>}
+    </div>;
+}
+
 const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptions, currentModelId, fn}: ChatMessageNodeProps): React.ReactNode {
     if (message.hidden) return null;
 
@@ -820,6 +982,7 @@ const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptio
 }, areChatMessageNodePropsEqual);
 
 function areChatMessageNodePropsEqual(prev: ChatMessageNodeProps, next: ChatMessageNodeProps): boolean {
+    if (prev.message === next.message) return prev.fn === next.fn;
     if (prev.fn !== next.fn || !chatMessageViewModelEqual(prev.message, next.message)) return false;
     if (prev.message.role === "user" && next.message.role === "user") return true;
     if (!playgroundOptionsEqual(prev.modelOptions, next.modelOptions)) return false;
@@ -840,13 +1003,13 @@ function formatResponseDuration(startedAt: number, finishedAt: number): string {
 
 function formatDuration(ms: number): string {
     if (ms <= 0) return "Unknown";
-    if (ms < 1000) return `${Math.round(ms)} ms`;
-    return `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)} s`;
+    if (ms < 1000) return `${formatNumber(Math.round(ms))} ms`;
+    return `${formatNumber(ms / 1000, {precision: ms < 10000 ? 1 : 0, removeTrailingZeros: true})} s`;
 }
 
 function formatTokensPerSecond(outputTokens: number, firstTokenAt: number, finishedAt: number): string {
     if (outputTokens <= 0 || firstTokenAt <= 0 || finishedAt <= firstTokenAt) return "Unknown";
-    return `${(outputTokens / ((finishedAt - firstTokenAt) / 1000)).toFixed(1)} toks/s`;
+    return `${formatNumber(outputTokens / ((finishedAt - firstTokenAt) / 1000), {precision: 1})} tok/s`;
 }
 
 const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, streaming}: {text: string; streaming: boolean}): React.ReactNode {
@@ -858,18 +1021,12 @@ const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, s
 
 const ToolDisplayNames: Record<string, string> = {
     bash: "Shell",
-    glob: "Finding files",
-    grep: "Searching files",
-    read: "Reading file",
     web_fetch: "Fetching web page",
     wikipedia_search: "Searching Wikipedia",
 };
 
 const ToolIcons: Record<string, IconName> = {
     bash: "heroCommandLine",
-    glob: "heroFolderOpen",
-    grep: "heroMagnifyingGlass",
-    read: "heroDocumentText",
     web_fetch: "heroGlobeEuropeAfrica",
     wikipedia_search: "heroBookOpen",
 };
@@ -978,9 +1135,6 @@ function ToolPartBody({part, body}: {part: ChatMessagePart; body: string}): Reac
     const argumentsValue = toolArguments(part);
 
     switch (part.toolName) {
-        case "glob": return <GlobToolResult argumentsValue={argumentsValue} result={output.value}/>;
-        case "grep": return <GrepToolResult argumentsValue={argumentsValue} result={output.value}/>;
-        case "read": return <ReadToolResult argumentsValue={argumentsValue} result={output.value}/>;
         case "web_fetch": return <WebFetchToolResult argumentsValue={argumentsValue} result={output.value}/>;
         case "wikipedia_search": return <WikipediaToolResult argumentsValue={argumentsValue} result={output.value}/>;
         default: return <CodeSnippet lang="json">{JSON.stringify(output.value, null, 2)}</CodeSnippet>;
@@ -991,32 +1145,6 @@ function BashToolResult({command, output}: {command: string; output: string}): R
     return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
         {command === "" ? null : <CodeSnippet lang="bash">{`$ ${command}`}</CodeSnippet>}
         {output === "" ? null : <CodeSnippet lang="text">{output}</CodeSnippet>}
-    </div>;
-}
-
-function GlobToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
-    const matches = result ? stringList(result.matches) : [];
-    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "Pattern", value: stringValueFrom(argumentsValue?.pattern)}, {label: "Directory", value: stringValueFrom(argumentsValue?.cwd) || "."}, {label: "Matches", value: String(numberValueFrom(result?.count) ?? matches.length)}]}/>
-        <CodeSnippet lang="text">{matches.join("\n")}</CodeSnippet>
-    </div>;
-}
-
-function GrepToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
-    const matches = result ? jsonList(result.matches) : [];
-    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "Pattern", value: stringValueFrom(argumentsValue?.pattern)}, {label: "Path", value: stringValueFrom(argumentsValue?.path) || "."}, {label: "Include", value: stringValueFrom(argumentsValue?.include)}, {label: "Exclude", value: stringValueFrom(argumentsValue?.exclude)}, {label: "Matches", value: String(numberValueFrom(result?.count) ?? matches.length)}]}/>
-        <CodeSnippet lang="text">{matches.map(match => `${stringValueFrom(match.path)}:${numberValueFrom(match.line) ?? 0}: ${stringValueFrom(match.text)}`).join("\n")}</CodeSnippet>
-    </div>;
-}
-
-function ReadToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
-    const entries = result ? stringList(result.entries) : [];
-    const content = result ? stringValueFrom(result.content) : "";
-    const count = result ? (numberValueFrom(result.count) ?? numberValueFrom(result.lines) ?? entries.length) : (numberValueFrom(argumentsValue?.limit) ?? 0);
-    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "Path", value: stringValueFrom(result?.path) || stringValueFrom(argumentsValue?.path)}, {label: entries.length > 0 ? "Entries" : "Lines", value: String(count)}, {label: "Offset", value: String(numberValueFrom(argumentsValue?.offset) ?? 1)}]}/>
-        {result ? <CodeSnippet lang="text">{entries.length > 0 ? entries.join("\n") : content}</CodeSnippet> : <UcxSpinner />}
     </div>;
 }
 
@@ -1063,14 +1191,6 @@ function stringValueFrom(value: unknown): string {
 
 function numberValueFrom(value: unknown): number | null {
     return typeof value === "number" ? value : null;
-}
-
-function boolValueFrom(value: unknown): boolean {
-    return value === true;
-}
-
-function stringList(value: unknown): string[] {
-    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
 function jsonList(value: unknown): ToolJson[] {
@@ -1309,7 +1429,6 @@ function isEscaped(text: string, idx: number): boolean {
 function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
     const [expanded, setExpanded] = React.useState(false);
     const contentRef = React.useRef<HTMLDivElement>(null);
-    const summary = part.summary.trim();
 
     React.useEffect(() => {
         setExpanded(part.open);
@@ -1349,17 +1468,6 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
             >
                 <Icon name="heroSparkles" size={16}/>
                 <span style={{fontWeight: 600, flexShrink: 0}}>Thinking</span>
-                {summary === "" ? null : (
-                    <span
-                        style={{
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                        }}
-                    >
-            {summary}
-          </span>
-                )}
             </button>
             {expanded ? (
                 <div
@@ -1385,15 +1493,14 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
 }
 
 function ThreadListNode({
-                            node,
-                            model,
-                            fn,
+    node,
+    model,
+    fn,
 }: Pick<UcxRenderContext, "node" | "model" | "fn">): React.ReactNode {
     const [operations, setOperations] = React.useState<
         Operation<ThreadListItem>[]
     >([]);
-    const openOperationsRef =
-        React.useRef<(left: number, top: number) => void>(doNothing);
+    const openOperationsRef = React.useRef<(left: number, top: number) => void>(doNothing);
     const threads = threadListValue(fn.modelValue(model, node.bindPath));
     const currentThreadId = stringValue(fn.modelValue(model, "currentThreadId"));
     const loadingThreadIds = stringListValue(fn.modelValue(model, "loadingThreadIds"));
@@ -1403,7 +1510,6 @@ function ThreadListNode({
             {
                 text: "Rename",
                 icon: "heroPencil",
-                shortcut: ShortcutKey.R,
                 enabled: () => true,
                 onClick: async () => {
                     try {
@@ -1433,7 +1539,6 @@ function ThreadListNode({
                 confirm: true,
                 confirmationText: "Are you sure you want to delete this thread?",
                 confirmationButtonText: "Delete",
-                shortcut: ShortcutKey.Backspace,
                 enabled: () => true,
                 onClick: () =>
                     fn.sendUiEvent("deleteThread", "click", {
@@ -1463,7 +1568,7 @@ function ThreadListNode({
                 const active = thread.id === currentThreadId;
                 const openMenu = (left: number, top: number) => {
                     setOperations(threadOperations(thread));
-                    openOperationsRef.current(left, top);
+                    queueMicrotask(() => openOperationsRef.current(left, top));
                 };
 
                 return (
@@ -1550,8 +1655,9 @@ function ThreadListNode({
     );
 }
 
-function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSession = false, error = ""}: PlaygroundFrameProps): React.ReactNode {
+function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSession = false, error = "", noAllocation = false}: PlaygroundFrameProps): React.ReactNode {
     const connectionStatus = loadingSession || !mounted ? "Connecting..." : !connected ? "Reconnecting..." : error !== "" ? "Connection issue" : "Connected";
+    const disabledReason = noAllocation ? "You need to apply for resources before you can use the chat" : "";
 
     return (
         <MainContainer
@@ -1566,7 +1672,13 @@ function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSess
                         </>}
                     >
                         <TabbedCardTab name="Chat" icon="heroChatBubbleLeftRight">
-                            <PlaygroundWorkspace model={model} fn={fn} connected={connected && mounted && error === ""} connectionStatus={connectionStatus}/>
+                            <PlaygroundWorkspace
+                                model={model}
+                                fn={fn}
+                                connected={connected && mounted && error === ""}
+                                connectionStatus={connectionStatus}
+                                disabledReason={disabledReason}
+                            />
                         </TabbedCardTab>
                     </TabbedCard>
                 </div>
@@ -1577,15 +1689,16 @@ function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSess
 
 function DeveloperModeToggle({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
     const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
-    return <div style={{display: "flex", alignItems: "center", gap: 8, marginRight: 16}}>
+    return <Flex style={{alignItems: "center", gap: 8, marginRight: 16}} className={ResponsiveHide}>
         <span style={{fontWeight: 600, userSelect: "none"}}>Developer</span>
         <Toggle height={18} checked={developer} onChange={() => connected && fn?.sendModelInput("developer", {kind: ValueKind.Bool, bool: !developer}, "developerMode")}/>
-    </div>;
+    </Flex>;
 }
 
-function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string}): React.ReactNode {
+function PlaygroundWorkspace({model, fn, connected, connectionStatus, disabledReason = ""}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string; disabledReason?: string}): React.ReactNode {
     const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
     const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+    const [showThreads, setShowThreads] = React.useState(false);
     const threads = threadListValue(fn?.modelValue(model, "threads") ?? model.threads);
     const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
     const pendingNewThreadRef = React.useRef<Set<string> | null>(null);
@@ -1606,13 +1719,45 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
         }
     }, [currentThreadId, fn, threads]);
 
+    React.useEffect(() => {
+        function onResize() {
+            if (window.innerWidth < 900) {
+                setSidebarCollapsed(false);
+            } else {
+                setShowThreads(false);
+            }
+        }
+
+        function closeThreads(e: Event) {
+            if (!e.target) return;
+            if (findDomAttributeFromAncestors(e.target, "data-open") == null) {
+                setShowThreads(false);
+            }
+        }
+
+        const routerWrapper = document.querySelector("[data-component='main']");
+        if (routerWrapper) {
+            routerWrapper.addEventListener("click", closeThreads)
+        }
+
+        window.addEventListener("resize", onResize);
+        return () => {
+            window.removeEventListener("resize", onResize);
+            const routerWrapper = document.querySelector("[data-component='router-wrapper']");
+            if (routerWrapper) { routerWrapper.removeEventListener("click", closeThreads); }
+        }
+    }, []);
+
+    React.useEffect(() => {
+        setShowThreads(false);
+    }, [currentThreadId]);
+
     const newThread = () => {
         if (!connected || !fn) return;
         pendingNewThreadRef.current = new Set(threads.map(thread => thread.id));
         fn.sendUiEvent("newThread", "click");
     };
     const footer = <>
-        {!developer && hasFeature(Feature.INFERENCE_WORKSPACE) ? <WorkspaceSelector model={model} fn={fn} connected={connected}/> : null}
         <ContextWindowIndicator model={model} fn={fn}/>
         <ConnectionStatusIndicator connected={connected} text={connectionStatus}/>
     </>;
@@ -1620,9 +1765,9 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
     return (
         <div className="playground-body">
             <div className="playground-main">
-                <PlaygroundConversation model={model} fn={fn} connected={connected}/>
+                <PlaygroundConversation model={model} fn={fn} connected={connected} disabledReason={disabledReason}/>
             </div>
-            <div className="playground-sidebar" data-collapsed={sidebarCollapsed}>
+            <div className="playground-sidebar" onClick={stopPropagation} data-open={showThreads} data-collapsed={sidebarCollapsed}>
                 {sidebarCollapsed ? (
                     <CollapsedPlaygroundSidebar connected={connected} connectionStatus={connectionStatus} onExpand={() => setSidebarCollapsed(false)} onNewThread={developer ? undefined : newThread}/>
                 ) : developer ? (
@@ -1630,6 +1775,12 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
                 ) : (
                     <PlaygroundThreadSidebar model={model} fn={fn} connected={connected} footer={footer} onCollapse={() => setSidebarCollapsed(true)} onNewThread={newThread}/>
                 )}
+            </div>
+            <div className="threads-popover-toggle" data-open={showThreads} onClick={e => {
+                e.stopPropagation();
+                setShowThreads(t => !t);
+            }}>
+                <Icon name="heroListBullet" size={28} />
             </div>
         </div>
     );
@@ -1652,7 +1803,7 @@ function CollapsedPlaygroundSidebar({connected, connectionStatus, onExpand, onNe
 }
 
 function ConnectionStatusIndicator({connected, text, compact = false}: {connected: boolean; text: string; compact?: boolean}): React.ReactNode {
-    return <div style={{marginTop: "auto", display: "flex", alignItems: "center", justifyContent: compact ? "center" : undefined, gap: compact ? 0 : 8, color: "var(--textSecondary)", fontSize: 12}}>
+    return <div style={{marginTop: "auto", marginBottom: compact ? 10 : undefined, display: "flex", alignItems: "center", justifyContent: compact ? "center" : undefined, gap: compact ? 0 : 8, color: "var(--textSecondary)", fontSize: 12}}>
         <Tooltip tooltipContentWidth={160} trigger={<div style={{width: 8, height: 8, borderRadius: 999, background: connected ? "var(--successMain)" : "var(--warningMain)"}}/>}>
             {text}
         </Tooltip>
@@ -1688,16 +1839,26 @@ function ContextWindowIndicator({model, fn}: {model: Record<string, Value>; fn?:
 
 }
 
-function PlaygroundConversation({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
+function PlaygroundConversation({model, fn, connected, disabledReason = ""}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; disabledReason?: string}): React.ReactNode {
     const messagesValue = fn?.modelValue(model, "chat.messages") ?? model["chat.messages"];
     const messageItems = messagesValue?.kind === ValueKind.List ? messagesValue.list : [];
+    const streamingValue = fn?.modelValue(model, "chat.streamingMessages") ?? model["chat.streamingMessages"];
+    const streamingItems = streamingValue?.kind === ValueKind.List ? streamingValue.list : [];
+    const streamingThreadId = stringValue(fn?.modelValue(model, "chat.streamingThreadId") ?? model["chat.streamingThreadId"]);
     const loading = boolValue(fn?.modelValue(model, "chat.loading") ?? model["chat.loading"]);
-    const developmentMode = boolValue(fn?.modelValue(model, "developmentMode") ?? model.developmentMode);
+    const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
     const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
     const modelsValue = fn?.modelValue(model, "models") ?? model.models;
     const modelOptions = React.useMemo(() => textGenerationModelOptions(modelsValue), [modelsValue]);
     const currentModelId = stringValue(fn?.modelValue(model, "chat.modelId") ?? model["chat.modelId"]);
-    const messages = React.useMemo(() => buildChatMessageViewModels(messageItems, currentThreadId), [currentThreadId, messagesValue]);
+    const messages = React.useMemo(
+        () => buildChatMessageViewModels(
+            messageItems,
+            currentThreadId,
+            streamingThreadId === currentThreadId ? streamingItems : undefined,
+        ),
+        [currentThreadId, messagesValue, streamingThreadId, streamingValue],
+    );
     const latestMessage = messages[messages.length - 1];
     const latestMessageScrollKey = latestMessage ? chatMessageScrollKey(latestMessage) : "";
     const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -1745,8 +1906,9 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
             rows: {kind: ValueKind.S64, s64: 3},
             sendIcon: {kind: ValueKind.String, string: "heroArrowUp"},
             disabled: {kind: ValueKind.Bool, bool: !connected || loading},
+            streamingThreadId: {kind: ValueKind.String, string: streamingThreadId === currentThreadId ? currentThreadId : ""},
         },
-    }), [connected, developmentMode, loading]);
+    }), [connected, loading, streamingThreadId, currentThreadId]);
 
     return (
         <>
@@ -1762,20 +1924,24 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
                 style={{flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 8px"}}
             >
                 <div ref={contentRef}>
-                    {messages.length === 0 ? <Text color="textSecondary">No messages yet.</Text> : messages.map((message) => {
+                    {disabledReason !== "" ? (
+                        <NoAllocationNotice reason={disabledReason}/>
+                    ) : messages.length === 0 ? (
+                        <Text color="textSecondary">No messages yet.</Text>
+                    ) : messages.map((message) => {
                         if (!fn) return null;
                         return <ChatMessageNode key={message.key} message={message} modelOptions={modelOptions} currentModelId={currentModelId} fn={fn}/>;
                     })}
                     {loading ? <UcxSpinner /> : null}
                 </div>
             </div>
-            {fn ? playgroundComponents.inference_chat_composer({
+            {fn && !developer ? playgroundComponents.inference_chat_composer({
                 node: composerNode,
                 model,
                 fn,
                 components: playgroundComponents,
                 renderChildren: () => [],
-            }) : <DisabledComposerPlaceholder/>}
+            }) : <DisabledComposerPlaceholder disabledReason={developer ? "You cannot send messages in developer mode" : disabledReason}/>}
         </>
     );
 }
@@ -1788,18 +1954,18 @@ function scrollPlaygroundConversationToBottom(el: HTMLElement): void {
     el.scrollTop = el.scrollHeight;
 }
 
-function DisabledComposerPlaceholder(): React.ReactNode {
-    return <Box className={ComposerActionButtonHoverClass} style={{width: "100%", flexShrink: 0, minHeight: 104, border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 16, background: "var(--playground-surface, var(--backgroundDefault))", overflow: "hidden"}}>
+function DisabledComposerPlaceholder({disabledReason = ""}: {disabledReason?: string}): React.ReactNode {
+    return <Box className={ComposerActionButtonHoverClass} style={{width: "100%", flexShrink: 0, minHeight: 104, border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 16, background: "var(--playground-surface, var(--backgroundDefault))", overflow: "hidden", opacity: 0.75}}>
         <TextArea
             resize="none"
             rows={3}
-            placeholder="Ask anything"
+            placeholder={disabledReason === "" ? "Ask anything" : disabledReason}
             value=""
             disabled
             onChange={doNothing}
-            style={{resize: "none", border: 0, boxShadow: "none", background: "transparent", width: "100%", minHeight: 0, padding: "14px 16px 8px 16px"}}
+            style={{resize: "none", border: 0, boxShadow: "none", background: "transparent", width: "100%", minHeight: 0, padding: "14px 16px 8px 16px", color: "var(--textSecondary)"}}
         />
-        <div style={{display: "flex", alignItems: "center", gap: 6, flexShrink: 0, padding: "0 10px 10px 10px"}}>
+        <div style={{display: "flex", alignItems: "center", gap: 6, flexShrink: 0, padding: "0 10px 10px 10px", color: "var(--textSecondary)"}}>
             <button type="button" disabled className={ComposerActionButtonClass}>
                 <Icon name="heroPlus" size={18}/>
             </button>
@@ -1809,6 +1975,19 @@ function DisabledComposerPlaceholder(): React.ReactNode {
             </button>
         </div>
     </Box>;
+}
+
+function NoAllocationNotice({reason}: {reason: string}): React.ReactNode {
+    return <Flex flexDirection="column" alignItems="center" justifyContent="center" gap="16px" style={{flex: 1, textAlign: "center"}}>
+        <Icon name="heroChatBubbleLeftRight" size={48} color="textSecondary"/>
+        <div>
+            <div style={{fontWeight: 600, marginBottom: 8}}>{reason}</div>
+            <Text color="textSecondary">Apply for resources to get access to AI models and start chatting.</Text>
+        </div>
+        <Link to={AppRoutes.grants.editor()}>
+            <Button type="button">Apply for resources</Button>
+        </Link>
+    </Flex>;
 }
 
 function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNewThread}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void; onNewThread: () => void}): React.ReactNode {
@@ -1833,90 +2012,25 @@ function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNe
                 <Icon name="heroPlus" size={16} mr={8}/>
                 New thread
             </Button>
-            <IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/>
+            <div className={ResponsiveHide}><IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/></div>
         </div>
     </div>;
 
-    return <PlaygroundSidebarShell header={header} footer={footer}>
-        {fn ? <ThreadListNode node={node} model={model} fn={fn}/> : <Text color="textSecondary">Loading...</Text>}
+return <PlaygroundSidebarShell header={header} footer={footer}>
+        {fn ? <ThreadListNode node={node} model={model} fn={fn} /> : <Text color="textSecondary">Loading...</Text>}
     </PlaygroundSidebarShell>;
 }
 
-function WorkspaceSelector({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
-    const path = stringValue(fn?.modelValue(model, "workspace.path") ?? model["workspace.path"]);
-    const loading = boolValue(fn?.modelValue(model, "workspace.loading") ?? model["workspace.loading"]);
-    const chatLoading = boolValue(fn?.modelValue(model, "chat.loading") ?? model["chat.loading"]);
-    const error = stringValue(fn?.modelValue(model, "workspace.error") ?? model["workspace.error"]);
-    const [prettyPath, setPrettyPath] = React.useState("");
-
-    React.useEffect(() => {
-        let cancelled = false;
-        if (!path) {
-            setPrettyPath("");
-            return;
+const ResponsiveHide = injectStyle("responsive-hide", cl => `
+    @media screen and (max-width: 900px) {
+        ${cl} {
+            display: none;
         }
-        prettyFilePath(path).then(value => {
-            if (!cancelled) setPrettyPath(value);
-        }).catch(() => {
-            if (!cancelled) setPrettyPath(path);
-        });
-        return () => { cancelled = true; };
-    }, [path]);
-
-    const selectFolder = React.useCallback(() => {
-		if (!connected || !fn || loading || chatLoading) return;
-
-		void (async () => {
-			const [{default: FileBrowse}, {api: FilesApi}, {folderFavoriteSelection}] = await Promise.all([
-				import("@/Files/FileBrowse"),
-				import("@/UCloud/FilesApi"),
-				import("@/Files/FavoriteSelect"),
-			]);
-			const isFolderAllowed = (file: UFile): boolean | string => file.status.type === "DIRECTORY";
-			const onSelectFolder = (file: UFile) => {
-				const target = removeTrailingSlash(file.id);
-				fn.sendModelInput("workspace.path", {kind: ValueKind.String, string: target}, "workspace.path");
-				dialogStore.success();
-			};
-			const selection = {
-				text: "Use",
-				onClick: onSelectFolder,
-				show: isFolderAllowed,
-			};
-			const navigateToFolder = (initialPath: string, projectId?: string) => {
-				dialogStore.failure();
-				dialogStore.addDialog(
-					<FileBrowse
-						opts={{
-							isModal: true,
-							managesLocalProject: true,
-							initialPath,
-							initialProject: projectId,
-							additionalOperations: [folderFavoriteSelection(onSelectFolder, isFolderAllowed, navigateToFolder)],
-							selection,
-						}} />,
-					doNothing,
-					true,
-					FilesApi.fileSelectorModalStyle
-				);
-			};
-
-			navigateToFolder(path);
-		})();
-	}, [chatLoading, connected, fn, loading, path]);
-
-    return <div style={{display: "flex", alignItems: "center", gap: 0, minWidth: 0, color: error ? "var(--errorMain)" : "var(--textSecondary)", fontSize: 12}}>
-        <span title={error || prettyPath || "No folder selected"} style={{minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1}}>
-            {error || prettyPath || "No folder selected"}
-        </span>
-        {loading ? <UcxSpinner size={14}/> : null}
-        <IconButton tooltip="Select workspace folder" onClick={selectFolder} icon="heroFolderOpen"/>
-        <IconButton tooltip="Selected workspace data is mounted read-only for tools." onClick={doNothing} icon="heroInformationCircle"/>
-    </div>;
-}
+    }
+`);
 
 function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void}): React.ReactNode {
-    return <PlaygroundSidebarShell header={<IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="heroChevronRight"/>} footer={footer}>
+    return <PlaygroundSidebarShell header={<div className={ResponsiveHide}><IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/></div>} footer={footer}>
         <Section title="Settings" defaultOpen>
             <SettingToggle label="Streaming" path="chat.streaming" model={model} fn={fn} connected={connected}/>
             <SettingSlider label="Max completion tokens" path="chat.maxCompletionTokens" min={1} max={1024 * 256} step={1024} model={model} fn={fn} connected={connected} integer/>
@@ -1924,7 +2038,16 @@ function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: 
             <SettingSlider label="Top P" path="chat.topP" min={0} max={1} step={0.1} model={model} fn={fn} connected={connected}/>
             <SettingTextArea label="System prompt" path="chat.systemPrompt" model={model} fn={fn} connected={connected}/>
         </Section>
-        <Section title="Usage" defaultOpen>
+        <Section title="Advanced settings">
+            <SettingSlider label="Presence penalty" path="chat.presencePenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
+            <SettingSlider label="Frequency penalty" path="chat.frequencyPenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
+            <SettingToggle label="Logprobs" path="chat.logprobs" model={model} fn={fn} connected={connected}/>
+            <SettingSlider label="Top log probs" path="chat.topLogprobs" min={0} max={20} step={1} model={model} fn={fn} connected={connected} integer/>
+        </Section>
+        <Section title="Curl" defaultOpen>
+            <CodeSnippet lang="bash" maxHeight="40vh">{stringValue(fn?.modelValue(model, "chat.curl") ?? model["chat.curl"])}</CodeSnippet>
+        </Section>
+        <Section title="Usage">
             <UsageRow label="Session input tokens" value={numberValue(fn?.modelValue(model, "chat.usage.session.input") ?? model["chat.usage.session.input"])}/>
             <UsageRow label="Session cached input tokens" value={numberValue(fn?.modelValue(model, "chat.usage.session.cachedInput") ?? model["chat.usage.session.cachedInput"])}/>
             <UsageRow label="Session output tokens" value={numberValue(fn?.modelValue(model, "chat.usage.session.output") ?? model["chat.usage.session.output"])}/>
@@ -1934,26 +2057,17 @@ function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: 
             <UsageRow label="Latest output tokens" value={numberValue(fn?.modelValue(model, "chat.usage.lastQuery.output") ?? model["chat.usage.lastQuery.output"])}/>
             <UsageRow label="Latest tokens reported for usage" value={numberValue(fn?.modelValue(model, "chat.usage.lastQuery.reported") ?? model["chat.usage.lastQuery.reported"])}/>
         </Section>
-        <Section title="Advanced settings">
-            <SettingSlider label="Presence penalty" path="chat.presencePenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
-            <SettingSlider label="Frequency penalty" path="chat.frequencyPenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
-            <SettingToggle label="Logprobs" path="chat.logprobs" model={model} fn={fn} connected={connected}/>
-            <SettingSlider label="Top log probs" path="chat.topLogprobs" min={0} max={20} step={1} model={model} fn={fn} connected={connected} integer/>
-        </Section>
-        <Section title="Curl">
-            <pre style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: 12}}>{stringValue(fn?.modelValue(model, "chat.curl") ?? model["chat.curl"])}</pre>
-        </Section>
     </PlaygroundSidebarShell>;
 }
 
 function Section({title, defaultOpen = false, children}: React.PropsWithChildren<{title: string; defaultOpen?: boolean}>): React.ReactNode {
     const [open, setOpen] = React.useState(defaultOpen);
-    return <div style={{border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 10}}>
-        <button type="button" onClick={() => setOpen(v => !v)} style={{width: "100%", border: 0, background: "transparent", color: "inherit", padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontWeight: 600}}>
+    return <div>
+        <button type="button" onClick={() => setOpen(v => !v)} style={{width: "100%", border: 0, background: "transparent", color: "inherit", padding: "6px 4px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontWeight: 600}}>
             {title}
             <Icon name={open ? "heroChevronUp" : "heroChevronDown"} size={16}/>
         </button>
-        {open ? <div style={{display: "flex", flexDirection: "column", gap: 10, padding: "0 12px 12px 12px"}}>{children}</div> : null}
+        {open ? <div style={{display: "flex", flexDirection: "column", gap: 10, padding: "4px 4px 8px 4px"}}>{children}</div> : null}
     </div>;
 }
 
@@ -1971,7 +2085,7 @@ function SettingSlider({label, path, min, max, step, model, fn, connected, integ
     React.useEffect(() => setValue(modelNumber), [modelNumber]);
     const commit = (next: number) => fn?.sendModelInput(path, integer ? {kind: ValueKind.S64, s64: Math.round(next)} : {kind: ValueKind.F64, f64: next}, path);
     return <label style={{display: "flex", flexDirection: "column", gap: 4}}>
-        <span style={{display: "flex", justifyContent: "space-between", gap: 8}}><span>{label}</span><span>{integer ? Math.round(value) : value.toFixed(1)}</span></span>
+        <span style={{display: "flex", justifyContent: "space-between", gap: 8}}><span>{label}</span><span>{integer ? formatNumber(Math.round(value), {withThousandsSeparator: false}) : formatNumber(value, {precision: 1})}</span></span>
         <input disabled={!connected || !fn} type="range" min={min} max={max} step={step} value={value || min} onChange={ev => { const next = Number(ev.currentTarget.value); setValue(next); commit(next); }}/>
     </label>;
 }
@@ -1994,6 +2108,7 @@ export default function Playground(): React.ReactNode {
     const [session, setSession] = React.useState<PlaygroundSession | null>(null);
     const [loading, setLoading] = React.useState(true);
     const [terminalError, setTerminalError] = React.useState("");
+    const [noAllocation, setNoAllocation] = React.useState(false);
     const [refreshNonce, setRefreshNonce] = React.useState(0);
     const [lastModel, setLastModel] = React.useState<Record<string, Value>>({});
     const openRetryCountRef = React.useRef(0);
@@ -2016,6 +2131,7 @@ export default function Playground(): React.ReactNode {
         openRetryCountRef.current = 0;
         setLastModel({});
         setSession(null);
+        setNoAllocation(false);
         setRefreshNonce((x) => x + 1);
     }, [projectId]);
 
@@ -2034,15 +2150,21 @@ export default function Playground(): React.ReactNode {
                 setSession(result);
                 setLoading(false);
                 setTerminalError("");
+                setNoAllocation(false);
             })
-            .catch((err) => {
+            .catch((err: any) => {
                 if (cancelled) return;
                 setLoading(false);
-                setTerminalError(
-                    err instanceof Error
-                        ? err.message
-                        : "Failed to open the inference playground"
-                );
+                const why = typeof err?.response?.why === "string" && err.response.why !== ""
+                    ? err.response.why
+                    : "Failed to open the inference playground";
+                setTerminalError(why);
+                const statusCode = typeof err?.request?.status === "number" ? err.request.status : 0;
+                const permanent = statusCode >= 400 && statusCode < 500;
+                if (permanent) {
+                    setNoAllocation(statusCode === 402);
+                    return;
+                }
                 const retry = openRetryCountRef.current++;
                 const retryDelay = Math.min(30000, 1000 * Math.pow(2, Math.min(retry, 5)));
                 openRetryTimerRef.current = window.setTimeout(() => {
@@ -2098,6 +2220,7 @@ export default function Playground(): React.ReactNode {
                 mounted={false}
                 loadingSession={loading}
                 error={loading ? "" : (terminalError || "Unable to open inference playground.")}
+                noAllocation={noAllocation}
             />
         );
     }
@@ -2233,15 +2356,33 @@ function modelContextWindow(model: Record<string, Value>, modelName: string): nu
     return 0;
 }
 
+function modelReasoningEfforts(model: Record<string, Value>, modelName: string): PlaygroundOption[] {
+    const models = model.models;
+    if (!models || models.kind !== ValueKind.List) return [];
+    for (const item of models.list) {
+        if (item.kind !== ValueKind.Object) continue;
+        if (stringValue(item.object.name) !== modelName) continue;
+        const efforts = item.object.reasoningEfforts;
+        if (!efforts || efforts.kind !== ValueKind.List) return [];
+        return efforts.list.flatMap(effort => {
+            if (effort.kind !== ValueKind.Object) return [];
+            const key = stringValue(effort.object.value);
+            const value = stringValue(effort.object.name);
+            return key === "" ? [] : [{key, value: value || key}];
+        });
+    }
+    return [];
+}
+
 function compactTokenCount(tokens: number): string {
     if (tokens >= 1_000_000) {
         const value = tokens / 1_000_000;
-        return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)}M`;
+        return `${formatNumber(value, {precision: value >= 10 ? 0 : 1})}M`;
     }
     if (tokens >= 1_000) {
         return `${Math.round(tokens / 1_000)}K`;
     }
-    return tokens.toLocaleString();
+    return formatNumber(tokens);
 }
 
 async function detectPlaygroundAttachmentKind(file: File): Promise<PlaygroundAttachmentKind> {
@@ -2339,7 +2480,9 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
     });
 }
 
-function buildChatMessageViewModels(messageItems: Value[], currentThreadId: string): ChatMessageViewModel[] {
+const chatMessageViewCache = new WeakMap<Value, ChatMessageViewModel>();
+
+function buildChatMessageViewModels(messageItems: Value[], currentThreadId: string, streamingItems?: Value[]): ChatMessageViewModel[] {
     const allMessages: ChatMessageListItem[] = messageItems.flatMap((item: Value) => {
         if (item.kind !== ValueKind.Object) return [];
         if (boolValue(item.object.synthetic)) return [];
@@ -2352,9 +2495,45 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
         }];
     });
 
-    return messageItems.flatMap((item, idx): ChatMessageViewModel[] => {
+    // The in-progress assistant message arrives through a small dedicated model key
+    // (chat.streamingMessages) instead of the full chat.messages list. Merge it on top of the static
+    // messages so that token updates never re-render the earlier parts of the conversation.
+    let items = messageItems;
+    if (streamingItems && streamingItems.length > 0 && messageItems.length > 0) {
+        const streaming = streamingItems[streamingItems.length - 1];
+        if (streaming?.kind === ValueKind.Object) {
+            const streamingIndex = numberValue(streaming.object.messageIndex);
+            let replaced = false;
+            items = messageItems.map((item, idx) => {
+                if (item === streaming || replaced) return item;
+                if (item.kind !== ValueKind.Object) return item;
+                const messageIndex = item.object.messageIndex ? numberValue(item.object.messageIndex) : idx;
+                if (messageIndex === streamingIndex) {
+                    replaced = true;
+                    return streaming;
+                }
+                return item;
+            });
+            if (!replaced) {
+                // The static list can still carry the placeholder with an unset messageIndex (it is
+                // only corrected on the server once the first update lands). Replace the trailing
+                // assistant message in that case.
+                const last = messageItems[messageItems.length - 1];
+                if (last?.kind === ValueKind.Object && stringValue(last.object.role) === "assistant" && stringValue(last.object.modelName) === stringValue(streaming.object.modelName)) {
+                    items = messageItems.slice(0, -1).concat([streaming]);
+                    replaced = true;
+                }
+            }
+            if (!replaced) items = messageItems.concat([streaming]);
+        }
+    }
+
+    return items.flatMap((item, idx): ChatMessageViewModel[] => {
         if (item.kind !== ValueKind.Object) return [];
         if (boolValue(item.object.synthetic)) return [];
+
+        const cached = chatMessageViewCache.get(item);
+        if (cached && cached.threadId === currentThreadId) return [cached];
 
         const role = stringValue(item.object.role);
         const content = stringValue(item.object.content);
@@ -2380,7 +2559,7 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
             : messageParts;
 
         const key = `${currentThreadId || "thread"}:${idx}:${messageIndex}`;
-        return [{
+        const viewModel: ChatMessageViewModel = {
             key,
             threadId: currentThreadId,
             role,
@@ -2395,7 +2574,9 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
             outputTokens: numberValue(item.object.outputTokens),
             messageIndex,
             hidden,
-        }];
+        };
+        chatMessageViewCache.set(item, viewModel);
+        return [viewModel];
     });
 }
 
@@ -2417,7 +2598,10 @@ function chatMessageViewModelEqual(a: ChatMessageViewModel, b: ChatMessageViewMo
 }
 
 function chatMessageScrollKey(message: ChatMessageViewModel): string {
-    return `${message.key}:${message.content}:${message.finishedAt}:${message.parts.map(part => `${part.kind}:${part.text}:${part.body}:${part.status}`).join("|")}`;
+    // NOTE(Dan): this key is only a change detector for the auto-scroll effect. It deliberately uses
+    // lengths instead of the full content.
+    const partsKey = message.parts.map(part => `${part.kind}:${part.text.length}:${part.body.length}:${part.status}`).join("|");
+    return `${message.key}:${message.content.length}:${message.finishedAt}:${partsKey}`;
 }
 
 function chatMessagePartsEqual(a: ChatMessagePart[], b: ChatMessagePart[]): boolean {

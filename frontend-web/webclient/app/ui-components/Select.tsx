@@ -56,7 +56,6 @@ const SelectClass = injectStyle("select", k => `
     ${k}:focus {
         outline: 0;
         border-color: var(--primaryMain);
-        box-shadow: 0 0 3px -1px var(--primaryMain);
     }
 
     ${k}:disabled {
@@ -72,8 +71,7 @@ const SelectClass = injectStyle("select", k => `
 `);
 
 const Select: React.FunctionComponent<SelectProps & BoxProps> = props => {
-    const cleanProps: any = {...props};
-    delete cleanProps["slim"];
+    const {slim, error, selectRef, flexShrink, flexBasis, ...cleanProps} = props;
 
     const boxProps = {...props};
     if (props.width == null) {
@@ -81,8 +79,8 @@ const Select: React.FunctionComponent<SelectProps & BoxProps> = props => {
     }
 
     return <Flex alignItems="center" style={unbox(boxProps)}>
-        <select className={SelectClass} {...cleanProps} ref={props.selectRef}
-            data-slim={(props.slim === true).toString()} />
+        <select className={SelectClass} {...cleanProps} ref={selectRef}
+            data-slim={(slim === true).toString()} data-error={(error === true).toString()} />
         <Icon name="heroChevronDown" size="14px" />
     </Flex>;
 };

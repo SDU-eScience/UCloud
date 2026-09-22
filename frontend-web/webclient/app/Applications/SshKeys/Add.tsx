@@ -1,25 +1,17 @@
 import * as React from "react";
-import MainContainer from "@/ui-components/MainContainer";
-import {usePage} from "@/Navigation/Redux";
 import SshKeyApi from "@/UCloud/SshKeyApi";
-import {Box, Button, Icon} from "@/ui-components";
+import {Box, Button, Flex, Icon} from "@/ui-components";
 import {useCallback, useMemo, useState} from "react";
-import {bulkRequestOf} from "@/UtilityFunctions";
+import {bulkRequestOf, stopPropagation} from "@/UtilityFunctions";
 import {callAPI} from "@/Authentication/DataHook";
 import {extractErrorMessage} from "@/UtilityFunctions";
-import {useNavigate} from "react-router-dom";
 import * as Heading from "@/ui-components/Heading";
-import {TableCell, TableRow} from "@/ui-components/Table";
-import {ProviderLogo} from "@/Providers/ProviderLogo";
-import {ProviderTitle} from "@/Providers/ProviderTitle";
-import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {GenericTextArea, GenericTextField} from "@/UtilityComponents";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {BulkResponse} from "@/UCloud";
+import {FindById} from "@/UCloud/ResourceApi";
 
-
-export function SshKeysCreate(): React.ReactNode {
-    usePage(SshKeyApi.titlePlural, SidebarTabId.RESOURCES);
-
-    const navigate = useNavigate();
+export function SshKeysCreate({onAdded} : {onAdded: (responses: BulkResponse<FindById>) => void}): React.ReactNode {
     const [loading, setLoading] = useState(false);
     const [titleError, setTitleError] = useState<string | undefined>(undefined)
     const [contentError, setContentError] = useState<string | undefined>(undefined)
@@ -40,7 +32,7 @@ export function SshKeysCreate(): React.ReactNode {
 
     const keyHelp = useMemo(() => {
         return `Must begin with one of the ${validPrefixes.map(it => "`" + it + "`").join(", ")}.
-        
+
 You can learn how to generate an SSH key [here](https://docs.cloud.sdu.dk/hands-on/ssh-login.html).`
     }, []);
 
@@ -81,72 +73,44 @@ You can learn how to generate an SSH key [here](https://docs.cloud.sdu.dk/hands-
 
         try {
             setLoading(true);
-            await callAPI(SshKeyApi.create(bulkRequestOf({key: contents, title})))
+            onAdded(await callAPI<BulkResponse<FindById>>(SshKeyApi.create(bulkRequestOf({ key: contents, title }))));
+            dialogStore.success();
         } catch (e: any) {
             setTitleError(undefined);
             setContentError(extractErrorMessage(e));
-            return;
         } finally {
             setLoading(false);
         }
-
-        navigate("/ssh-keys");
     }, []);
 
-    return <MainContainer
-        header={<Heading.h2>Add SSH key</Heading.h2>}
-        headerSize={48}
-        main={
-            <Box>
-                <form onSubmit={onSubmit}>
-                    <GenericTextField
-                        name={titleKey}
-                        title={"Title"}
-                        description={"Something which will help you remember which key this is. For example: Office PC."}
-                        error={titleError}
-                    />
-                    <GenericTextArea
-                        name={contentKey}
-                        title={"Public key"}
-                        description={keyHelp}
-                        error={contentError}
-                    />
+    return <Box onKeyDown={stopPropagation}>
+        <Heading.h3>Add SSH key</Heading.h3>
+        <Box>
+            <form onSubmit={onSubmit}>
+                <GenericTextField
+                    name={titleKey}
+                    title={"Title"}
+                    description={"Something which will help you remember which key this is. For example: Office PC."}
+                    error={titleError}
+                />
+                <GenericTextArea
+                    name={contentKey}
+                    title={"Public key"}
+                    description={keyHelp}
+                    error={contentError}
+                />
 
-                    <Button type={"submit"} color={"successMain"} fullWidth>
-                        {loading ?
+                <Flex justifyContent="end" px={"20px"} py={"12px"} mx={"-20px"} mb={"-20px"} background={"var(--dialogToolbar)"} gap={"8px"}>
+                    <Button color={"errorMain"} type="button" onClick={() => dialogStore.failure()}>Cancel</Button>
+                    <Button width="120px" color={"successMain"} type="submit">{
+                        loading ?
                             <Icon name={"refresh"} spin /> :
                             <>Add SSH key</>
-                        }
-                    </Button>
-                </form>
-            </Box>
-        }
-    />;
+                        }</Button>
+                </Flex>
+            </form>
+        </Box>
+    </Box>;
 };
-
-const ProviderSupportRow: React.FunctionComponent<{support: {providerId: string; support: string[]}}> = ({support}) => {
-    return <TableRow>
-        <TableCell width={40}><ProviderLogo providerId={support.providerId} size={32} /></TableCell>
-        <TableCell><ProviderTitle providerId={support.providerId} /></TableCell>
-        <TableCell>
-            {support.support.length > 1 ?
-                <ul>
-                    {support.support.map((it, idx) => {
-                        return <li key={idx}>{it}</li>
-                    })}
-                </ul> :
-                support.support.length === 0 ? "None" : support.support[0]
-            }
-        </TableCell>
-    </TableRow>;
-}
-
-// NOTE(Dan): This is hardcoded pending proper support from providers and backend
-const hardcodedSshSupport: {providerId: string; support: string[]}[] = [
-    {providerId: "ucloud", support: ["SSH to jobs (on-demand)"]},
-    {providerId: "aau", support: ["None, keys are added through the application"]},
-    {providerId: "hippo", support: ["SSH to frontend"]},
-    {providerId: "lumi-sdu", support: []},
-];
 
 export default SshKeysCreate;

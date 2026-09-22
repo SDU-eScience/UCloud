@@ -77,11 +77,22 @@ export const GiftSection: React.FunctionComponent<{
                 });
                 break;
             }
+
+            case "gift-exclude-domain": {
+                dispatchEvent({
+                    type: "UpdateGift",
+                    data: {domainExclude: value}
+                });
+                break;
+            }
         }
 
         if (name.startsWith("gift-resource-")) {
             const resourceName = removePrefixFrom("gift-resource-", name);
-            let amount = parseInt(value);
+            const [category, provider] = resourceName.split("/");
+            const resolvedCategory = state.remoteData.managedProducts?.[provider]?.find(it => it.name === category);
+            const isCredit = resolvedCategory != null && Accounting.isCreditUnit(Accounting.explainUnit(resolvedCategory).name);
+            let amount = isCredit ? parseFloat(value) : parseInt(value);
             if (value === "") amount = 0;
             if (!isNaN(amount)) {
                 const data = {resources: {}};
@@ -103,6 +114,7 @@ export const GiftSection: React.FunctionComponent<{
         const gift: Gifts.GiftWithCriteria = {
             id: 0,
             criteria: [],
+            excludeCriteria: [],
             description: state.gifts.description,
             resources: [],
             resourcesOwnedBy: Client.projectId ?? "",
@@ -125,6 +137,18 @@ export const GiftSection: React.FunctionComponent<{
             }
         }
 
+        if (state.gifts.domainExclude) {
+            const domains = state.gifts.domainExclude.split(",").map(it => it.trim());
+            for (const domain of domains) {
+                if (domain) {
+                    gift.excludeCriteria!.push({
+                        type: "email",
+                        domain: domain,
+                    });
+                }
+            }
+        }
+
         if (state.gifts.orgAllow) {
             gift.criteria.push({
                 type: "wayf",
@@ -140,8 +164,7 @@ export const GiftSection: React.FunctionComponent<{
                 sendFailureNotification("Internal failure while creating gift. Try reloading the page!");
                 return;
             }
-            const unit = Accounting.explainUnit(resolvedCategory);
-            const actualAmount = amount * unit.invBalanceFactor;
+            const actualAmount = Accounting.normalizedBalanceToRaw(resolvedCategory, amount);
             if (actualAmount === 0) continue;
 
             gift.resources.push({
@@ -238,6 +261,24 @@ export const GiftSection: React.FunctionComponent<{
                                                 </ul>
                                             </td>
                                         </tr>
+                                        {(g.excludeCriteria ?? []).length === 0 ? null : <tr>
+                                            <th>Excluded</th>
+                                            <td>
+                                                <ul>
+                                                    {g.excludeCriteria!.map(c => {
+                                                        switch (c.type) {
+                                                            case "anyone":
+                                                                return <li key={c.type}>All UCloud users</li>
+                                                            case "wayf":
+                                                                return <li key={c.org + "wayf"}>Users
+                                                                    from <i>{c.org}</i></li>
+                                                            case "email":
+                                                                return <li key={c.domain + "email"}>@{c.domain}</li>
+                                                        }
+                                                    })}
+                                                </ul>
+                                            </td>
+                                        </tr>}
                                         <tr>
                                             <th>Resources</th>
                                             <td>
@@ -335,6 +376,16 @@ export const GiftSection: React.FunctionComponent<{
                                     onKeyDown={stopPropagation}
                                 />
                             </Label>
+                            <Label>
+                                Exclude if email domain matches any of the following (comma-separated)
+                                <Input
+                                    name={"gift-exclude-domain"}
+                                    placeholder={"For example: student.sdu.dk"}
+                                    onInput={onGiftInput}
+                                    value={state.gifts.domainExclude}
+                                    onKeyDown={stopPropagation}
+                                />
+                            </Label>
 
                             <Label>Resources</Label>
                             <Tree>
@@ -419,7 +470,10 @@ export const RootAllocationSections: React.FunctionComponent<{
 
         if (name.startsWith("root-resource-")) {
             const resourceName = removePrefixFrom("root-resource-", name);
-            let amount = parseInt(value);
+            const [category, provider] = resourceName.split("/");
+            const resolvedCategory = state.remoteData.managedProducts?.[provider]?.find(it => it.name === category);
+            const isCredit = resolvedCategory != null && Accounting.isCreditUnit(Accounting.explainUnit(resolvedCategory).name);
+            let amount = isCredit ? parseFloat(value) : parseInt(value);
             if (value === "") amount = 0;
             if (!isNaN(amount)) {
                 const data = {resources: {}};
@@ -455,14 +509,12 @@ export const RootAllocationSections: React.FunctionComponent<{
                     return;
                 }
 
-                const unit = Accounting.explainUnit(resolvedCategory);
-
                 requests.push({
                     category: {
                         name: category,
                         provider,
                     },
-                    quota: amount * unit.invBalanceFactor,
+                    quota: Accounting.normalizedBalanceToRaw(resolvedCategory, amount),
                     start,
                     end,
                 });

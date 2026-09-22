@@ -59,6 +59,11 @@ func Initialize(config Config, channel chan []byte) {
 
 	configChannel = channel
 
+	// NOTE(Dan): The cache must exist before any goroutine is started. The configuration consumer and the xDS
+	// server both access it. Only after this point is it safe to start those goroutines.
+
+	initSnapshotCache()
+
 	stateDir := cfg.Provider.Envoy.StateDirectory
 	internalAddress := cfg.Provider.Envoy.InternalAddressToProvider
 	managedExternally := cfg.Provider.Envoy.ManagedExternally
@@ -231,7 +236,7 @@ func InitIpc() {
 			}
 		}
 
-		snapshot := mostRecentSnapshot
+		snapshot := mostRecentSnapshot.Load()
 		if snapshot == nil {
 			return ipc.Response[string]{
 				StatusCode:   http.StatusOK,

@@ -9,37 +9,6 @@ import (
 	com "ucloud.dk/ucloud_cli/pkg/command"
 )
 
-func Peek(args []string) string {
-	if len(args) == 0 {
-		return ""
-	}
-	return args[0]
-}
-
-func Consume(args []string) ([]string, string) {
-	if len(args) == 0 {
-		return []string{}, ""
-	}
-	return args[1:], args[0]
-}
-
-func registerCommandParser() map[string]map[string]com.CommandFunc {
-	registry := map[string]map[string]com.CommandFunc{}
-	registry["app"] = com.AppCommands
-	registry["workspace"] = com.WorkspaceCommands
-	registry["compute"] = com.ComputeCommands
-	registry["environment"] = com.EnvironmentCommands
-	registry["ssh-key"] = com.SSHKeyCommands
-	registry["job"] = com.JobCommands
-	registry["vm"] = com.VMCommands
-	registry["connect"] = com.ConnectCommands
-	registry["public-ip"] = com.PublicIPCommands
-	registry["public-link"] = com.PublicLinkCommands
-	registry["private-network"] = com.PrivateNetworkCommands
-	registry["folder"] = com.FolderCommands
-	return registry
-}
-
 func bindCommand(args []string, cmd any) error {
 	if len(args) == 0 {
 		return nil
@@ -54,6 +23,7 @@ func bindCommand(args []string, cmd any) error {
 
 	type fieldBinding struct {
 		index   int
+		name    string
 		kind    reflect.Kind
 		strPtr  *string
 		boolPtr *bool
@@ -66,6 +36,7 @@ func bindCommand(args []string, cmd any) error {
 
 	// Register flags
 	pos := 0
+	// looping through fields
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		fieldValue := v.Field(i)
@@ -76,6 +47,13 @@ func bindCommand(args []string, cmd any) error {
 		positional := field.Tag.Get("positional")
 		if positional != "" {
 			if pos >= len(args) {
+				if field.Tag.Get("required") == "true" {
+					return fmt.Errorf("missing required argument: %s", field.Name)
+				}
+				continue
+			}
+
+			if strings.HasPrefix(args[pos], "-") {
 				if field.Tag.Get("required") == "true" {
 					return fmt.Errorf("missing required argument: %s", field.Name)
 				}
@@ -138,6 +116,7 @@ func bindCommand(args []string, cmd any) error {
 
 		binding := fieldBinding{
 			index: i,
+			name:  flagName,
 			kind:  field.Type.Kind()}
 
 		switch field.Type.Kind() {
@@ -158,13 +137,26 @@ func bindCommand(args []string, cmd any) error {
 	}
 
 	// Parse args
-	err := fs.Parse(args)
+	err := fs.Parse(args[pos:])
 	if err != nil {
 		return err
 	}
 
+	// fs.Visit only iterates over flags explicitly provided by the user.
+	// This prevents omitted flags from overwriting preconfigured struct defaults
+	// with the flag package's zero-value defaults, e.g. keeping Limit=100 when
+	// --limit is not passed.
+
+	visitedFlags := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) {
+		visitedFlags[f.Name] = true
+	})
+
 	// Assign values back into struct
 	for _, b := range bindings {
+		if !visitedFlags[b.name] {
+			continue
+		}
 		field := v.Field(b.index)
 
 		switch b.kind {
@@ -195,7 +187,7 @@ func Parse(commands []string) (com.Command, error) {
 		subCommand = commands[1] // secondary positional
 	}
 
-	commandParsers := registerCommandParser()
+	commandParsers := com.CommandRegistry()
 
 	parserRoute, ok := commandParsers[mainCommand]
 

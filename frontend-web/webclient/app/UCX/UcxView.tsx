@@ -37,17 +37,15 @@ import {stopPropagation} from "@/UtilityFunctions";
 import Label from "@/ui-components/Label";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import {ProductSelector} from "@/Products/Selector";
 import BaseLink from "@/ui-components/BaseLink";
 import {useLocation, useNavigate} from "react-router-dom";
-import {SimpleMarkdown} from "@/ui-components/Markdown";
-import {ModuleMarkdown} from "@/Applications/Jobs/Widgets/ModuleList";
 import remarkGfm from "remark-gfm";
 import ReactMarkdown from "react-markdown";
 import * as Heading from "@/ui-components/Heading";
 import {UcxAccordion} from "@/UCX/UcxAccordion";
-import {injectStyle} from "@/Unstyled";
 import {useIsLightThemeStored} from "@/ui-components/theme";
 
 type ValueProvider = string | (() => string | Promise<string>);
@@ -75,7 +73,7 @@ const ucxSpinnerFrames = [
     " ⠁ ", " ⠂ ", " ⠄ ", " ⡀ ", " ⢀ ", " ⠠ ", " ⠐ ", " ⠈ ",
 ];
 
-export function UcxSpinner({size = 32, margin}: {size?: number; margin?: string}): React.ReactNode {
+export function UcxSpinner({size = 32, margin, color}: {size?: number; margin?: string; color?: string}): React.ReactNode {
     const [frame, setFrame] = useState(0);
 
     useEffect(() => {
@@ -86,7 +84,7 @@ export function UcxSpinner({size = 32, margin}: {size?: number; margin?: string}
     }, []);
 
     const lightMode = useIsLightThemeStored();
-    const color = lightMode ? "var(--primaryMain)" : "var(--foreground)";
+    const spinnerColor = color ?? (lightMode ? "var(--primaryMain)" : "var(--foreground)");
 
     return <span
         data-tag="loading-spinner"
@@ -99,7 +97,7 @@ export function UcxSpinner({size = 32, margin}: {size?: number; margin?: string}
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            color: color,
+            color: spinnerColor,
             fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
             fontSize: Math.max(12, Math.round(size * 0.72)),
             lineHeight: 1,
@@ -151,6 +149,10 @@ export interface UcxViewProps {
     onModelChange?: (model: Record<string, Value>) => void;
 }
 
+const PING_INTERVAL_MS = 20000;
+const FOCUS_GRACE_MS = 5 * 60 * 1000;
+const SILENCE_THRESHOLD_MS = 90 * 1000;
+
 const UcxView: React.FunctionComponent<UcxViewProps> = ({
     url,
     authToken,
@@ -173,7 +175,10 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const [model, setModel] = useState<Record<string, Value>>({});
     const [transportError, setTransportError] = useState("");
     const [reconnectingInSeconds, setReconnectingInSeconds] = useState<number | undefined>(undefined);
-
+    // NOTE(Dan): model patches can arrive in bursts of hundreds per second during chat streaming. Both
+    // setModel and onModelChange re-render the whole page, so they are coalesced to at most one update
+    // per animation frame.
+    const modelFlushScheduledRef = useRef(false);
     const connRef = useRef<WebSocket | null>(null);
     const sessionRef = useRef<UcxSession | null>(null);
     const eventIdRef = useRef(1);
@@ -194,6 +199,32 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const onDisconnectedRef = useRef<typeof onDisconnected>(onDisconnected);
     const onTransportErrorRef = useRef<typeof onTransportError>(onTransportError);
     const onModelChangeRef = useRef<typeof onModelChange>(onModelChange);
+    const lastFocusAtRef = useRef(Date.now());
+    const lastInboundAtRef = useRef(Date.now());
+    const pongArmedRef = useRef(false);
+    const keepaliveTimerRef = useRef<number | null>(null);
+
+    const clearKeepaliveTimer = () => {
+        if (keepaliveTimerRef.current != null) {
+            window.clearInterval(keepaliveTimerRef.current);
+            keepaliveTimerRef.current = null;
+        }
+    };
+
+    useEffect(() => {
+        const updateFocus = () => {
+            if (document.visibilityState === "visible") {
+                lastFocusAtRef.current = Date.now();
+            }
+        };
+
+        window.addEventListener("focus", updateFocus);
+        document.addEventListener("visibilitychange", updateFocus);
+        return () => {
+            window.removeEventListener("focus", updateFocus);
+            document.removeEventListener("visibilitychange", updateFocus);
+        };
+    }, []);
 
     useEffect(() => {
         modelRef.current = model;
@@ -226,6 +257,36 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     useEffect(() => {
         onModelChangeRef.current = onModelChange;
     }, [onModelChange]);
+
+    const pendingModelUpdaterRef = useRef<((prev: Record<string, Value>) => Record<string, Value>) | null>(null);
+    const flushModel = useCallback((nextModel: Record<string, Value>) => {
+        // A mount replaces the entire model and should drop any pending patches, otherwise we end up with an ordering
+        // issue.
+        pendingModelUpdaterRef.current = null;
+        setModel(nextModel);
+    }, []);
+
+    const scheduleModelFlush = useCallback((updater: (prev: Record<string, Value>) => Record<string, Value>) => {
+        const previousUpdater = pendingModelUpdaterRef.current;
+        pendingModelUpdaterRef.current = previousUpdater
+            ? prev => updater(previousUpdater(prev))
+            : updater;
+        if (modelFlushScheduledRef.current) return;
+        modelFlushScheduledRef.current = true;
+        // NOTE(Dan): requestAnimationFrame never fires in background tabs, so fall back to a timer when
+        // the document is hidden. Without it, a long stream in a background tab would keep composing
+        // updaters without ever applying them.
+        const schedule = document.hidden
+            ? (cb: () => void) => window.setTimeout(cb, 100)
+            : (cb: () => void) => window.requestAnimationFrame(cb);
+        schedule(() => {
+            modelFlushScheduledRef.current = false;
+            const pending = pendingModelUpdaterRef.current;
+            pendingModelUpdaterRef.current = null;
+            if (!pending) return;
+            setModel(pending);
+        });
+    }, []);
 
     useEffect(() => {
         onModelChangeRef.current?.(model);
@@ -511,6 +572,28 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 reconnectAttemptRef.current = 0;
                 clearReconnectTimer();
                 authCompleteRef.current = false;
+                pongArmedRef.current = false;
+                lastFocusAtRef.current = Date.now();
+                lastInboundAtRef.current = Date.now();
+
+                clearKeepaliveTimer();
+                keepaliveTimerRef.current = window.setInterval(() => {
+                    const socket = connRef.current;
+                    if (socket == null || socket.readyState !== WebSocket.OPEN) {
+                        return;
+                    }
+
+                    if (Date.now() - lastFocusAtRef.current >= FOCUS_GRACE_MS) {
+                        return;
+                    }
+
+                    if (pongArmedRef.current && Date.now() - lastInboundAtRef.current >= SILENCE_THRESHOLD_MS) {
+                        socket.close();
+                        return;
+                    }
+
+                    sendFrame({replyToSeq: 0, opcode: Opcode.Ping});
+                }, PING_INTERVAL_MS);
 
                 sessionRef.current?.registerRpcHandler("routerPushPage", payload => {
                     const plainPayload = valueMapToPlainPayload(payload) as {path?: unknown};
@@ -589,6 +672,12 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                     const bytes = new Uint8Array(event.data);
                     const frame = decodeFrame(bytes);
                     sessionRef.current?.setNextSeq(frame.seq + 1);
+                    lastInboundAtRef.current = Date.now();
+
+                    if (frame.opcode === Opcode.Pong) {
+                        pongArmedRef.current = true;
+                        return;
+                    }
 
                     if (sessionRef.current?.handleIncoming(frame)) {
                         return;
@@ -599,7 +688,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                         const rehydrateSnapshot = pendingRehydrateModelRef.current;
 
                         setRoot(mount.root);
-                        setModel(mount.model);
+                        flushModel(mount.model);
 
                         if (rehydrateSnapshot) {
                             pendingRehydrateModelRef.current = null;
@@ -608,7 +697,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                             });
                         }
                     } else if (frame.opcode === Opcode.ModelPatch && frame.modelPatch) {
-                        setModel(prev => {
+                        scheduleModelFlush(prev => {
                             const next = {...prev};
                             for (const [path, value] of Object.entries(frame.modelPatch!.changes)) {
                                 if (value.kind === ValueKind.Null) {
@@ -626,6 +715,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
             };
 
             socket.onclose = event => {
+                clearKeepaliveTimer();
                 if (connRef.current === socket) {
                     connRef.current = null;
                 }
@@ -650,6 +740,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         return () => {
             disposed = true;
             clearReconnectTimer();
+            clearKeepaliveTimer();
             sessionRef.current?.close("UCX session disposed");
             sessionRef.current = null;
             const conn = connRef.current;
@@ -1648,8 +1739,8 @@ function formatSliderValue(value: number, step: number): string {
     const decimals = decimalPlaces(step);
     const factor = Math.pow(10, decimals);
     const rounded = Math.round(value * factor) / factor;
-    const text = decimals > 0 ? rounded.toFixed(decimals) : Math.round(rounded).toString();
-    return decimals > 0 ? text.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1") : text;
+    const text = decimals > 0 ? formatNumber(rounded, {precision: decimals, removeTrailingZeros: true}) : formatNumber(Math.round(rounded), {withThousandsSeparator: false});
+    return text;
 }
 
 function decimalPlaces(value: number): number {

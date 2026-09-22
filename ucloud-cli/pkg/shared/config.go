@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -8,19 +9,17 @@ import (
 
 	"gopkg.in/yaml.v3"
 	"ucloud.dk/shared/pkg/rpc"
+	"ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/util"
 )
 
-const DevServer = "https://ucloud.localhost.direct"
-
 type Config struct {
-	//Server   string `yaml:"server"`
-	Username string `yaml:"username"`
-	TokenRef string `yaml:"tokenRef,omitempty"`
-	//CurrentWorkspace   string                 `yaml:"currentWorkspace"`
+	Username           string                 `yaml:"username"`
+	TokenRef           string                 `yaml:"tokenRef,omitempty"`
+	CurrentWorkspace   util.Option[string]    `yaml:"currentWorkspace"`
 	DefaultEnvironment string                 `yaml:"defaultEnvironment"`
 	Environments       map[string]Environment `yaml:"environments"`
-	//Workspaces         map[string]Workspace   `yaml:"workspaces"`
-	Defaults Defaults `yaml:"defaults"`
+	Defaults           Defaults               `yaml:"defaults"`
 }
 
 type Environment struct {
@@ -28,6 +27,8 @@ type Environment struct {
 }
 
 type Workspace struct {
+	Id   string `yaml:"Id"`
+	Name string `yaml:"name"`
 }
 
 type Defaults struct {
@@ -117,19 +118,39 @@ func writeFileAtomically(path string, data []byte, perm os.FileMode) error {
 	return os.Rename(tmpPath, path)
 }
 
-func SaveConfig(cfg *Config) error {
+func SaveConfig(cfg *Config) (*Config, error) {
 	data, err := yaml.Marshal(&cfg)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return writeFileAtomically(GetConfigPath(), data, 0600)
+	return cfg, writeFileAtomically(GetConfigPath(), data, 0600)
+}
+func selectChange(first string, second string) string {
+	if first != second && second != "" {
+		return second
+	}
+	return first
 }
 
-func (cfg *Config) InitUCloudClient(dev bool) {
-	baseURL := cfg.Environments[cfg.DefaultEnvironment].URL
-	if dev {
-		baseURL = DevServer
+func UpdateConfig(config *Config) (*Config, error) {
+	cfg, err := ReadConfig()
+	if err != nil {
+		return nil, err
 	}
+	cfg.Username = selectChange(cfg.Username, config.Username)
+	if cfg.CurrentWorkspace != config.CurrentWorkspace {
+		cfg.CurrentWorkspace = config.CurrentWorkspace
+	}
+	cfg.DefaultEnvironment = selectChange(cfg.DefaultEnvironment, config.DefaultEnvironment)
+	cfg.TokenRef = selectChange(cfg.TokenRef, config.TokenRef)
+	if config.Environments != nil && !maps.Equal(cfg.Environments, config.Environments) {
+		cfg.Environments = config.Environments
+	}
+	return SaveConfig(cfg)
+}
+
+func (cfg *Config) initUCloudClient() {
+	baseURL := cfg.Environments[cfg.DefaultEnvironment].URL
 	rpc.DefaultClient = &rpc.Client{
 		RefreshToken: cfg.TokenRef,
 		BasePath:     baseURL,
@@ -137,4 +158,53 @@ func (cfg *Config) InitUCloudClient(dev bool) {
 			Timeout: 10 * time.Second,
 		},
 	}
+}
+
+func SetActiveWorkspace(projectId string) {
+	rpc.DefaultClient.ProjectId = util.OptValue(projectId)
+}
+
+func (cfg *Config) InitUCloudClient() {
+	cfg.initUCloudClient()
+}
+
+func InitializeUCloudClient() *Config {
+	cfg, err := ReadConfig()
+	if err != nil {
+		panic(err)
+	}
+	cfg.InitUCloudClient()
+	return cfg
+}
+
+func PrintConfig(cfg *Config) {
+	t := termio.Table{}
+	t.AppendHeader("Username")
+	t.AppendHeader("TokenRef")
+	t.AppendHeader("CurrentWorkspace")
+	t.AppendHeader("DefaultEnvironment")
+	t.Cell("%v", cfg.Username)
+	t.Cell("%v", cfg.TokenRef)
+	t.Cell("%v", cfg.CurrentWorkspace)
+	t.Cell("%v", cfg.DefaultEnvironment)
+	t.Print()
+}
+
+func PrintCurrentEnvironment(cfg *Config) {
+	t := termio.Table{}
+	t.AppendHeader("Current Environment")
+	t.Cell("%v", cfg.DefaultEnvironment)
+	t.Print()
+}
+
+func PrintEnvironments(cfg *Config) {
+	PrintCurrentEnvironment(cfg)
+	t := termio.Table{}
+	t.AppendHeader("Name")
+	t.AppendHeader("URL")
+	for name, env := range cfg.Environments {
+		t.Cell("%v", name)
+		t.Cell("%v", env.URL)
+	}
+	t.Print()
 }

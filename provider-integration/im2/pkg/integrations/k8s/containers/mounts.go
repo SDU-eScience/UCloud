@@ -53,7 +53,14 @@ func calculateMounts(job *orc.Job, internalJobFolder string) (mountResult, bool)
 		}
 	}
 
-	for _, v := range job.Specification.Parameters {
+	initScript, hasInitScript := job.Specification.Parameters["initScript"]
+	usesCachedInitScript := hasInitScript &&
+		initScript.Type == orc.AppParameterValueTypeFile &&
+		InitScriptImagesConsumesScript(job.Id)
+	for name, v := range job.Specification.Parameters {
+		if usesCachedInitScript && name == "initScript" {
+			continue
+		}
 		if v.Type == orc.AppParameterValueTypeFile {
 			ucloudMounts[v.Path] = ucloudMount{ReadOnly: v.ReadOnly, MountPath: v.MountPath}
 		}

@@ -1,4 +1,5 @@
 import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
+import {backendFeatureEnabled} from "@/Features/backend";
 
 export enum Feature {
     EXTERNAL_LOGIN_UCLOUD_CLI,
@@ -9,9 +10,9 @@ export enum Feature {
 
     INFERENCE,
 
-    INFERENCE_WORKSPACE,
-
     FILE_BROWSER_STATUS_BAR,
+
+    CONTAINER_REPOSITORIES,
 }
 
 enum Environment {
@@ -47,6 +48,7 @@ interface FeatureConfig {
     feature: Feature;
     showWithoutFlag?: Environment[];
     showWithFlag?: Environment[];
+    useBackend?: boolean;
 }
 
 const featureMap: Record<string, FeatureConfig> = {
@@ -61,7 +63,7 @@ const featureMap: Record<string, FeatureConfig> = {
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allDevEnvironments,
     },
-    
+
     "stacks": {
         feature: Feature.STACKS,
         showWithoutFlag: allDevEnvironments,
@@ -70,13 +72,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "inference": {
         feature: Feature.INFERENCE,
-        showWithoutFlag: [Environment.PUBLIC_DEV, Environment.LOCAL_DEV_STACK],
-        showWithFlag: allEnvironments,
-    },
-
-    "inference-workspace": {
-        feature: Feature.INFERENCE_WORKSPACE,
-        showWithoutFlag: allLocalEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },
 
@@ -84,6 +80,11 @@ const featureMap: Record<string, FeatureConfig> = {
         feature: Feature.FILE_BROWSER_STATUS_BAR,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
+    },
+
+    "container-repositories": {
+        feature: Feature.CONTAINER_REPOSITORIES,
+        useBackend: true,
     }
 };
 
@@ -104,6 +105,8 @@ export function hasFeature(feature: Feature): boolean {
     const env = getCurrentEnvironment();
     for (const [key, config] of Object.entries(featureMap)) {
         if (config.feature !== feature) continue;
+
+        if (config.useBackend === true) return backendFeatureEnabled(key);
 
         const withFlag = config.showWithFlag ?? [];
         const withoutFlag = config.showWithoutFlag ?? [];

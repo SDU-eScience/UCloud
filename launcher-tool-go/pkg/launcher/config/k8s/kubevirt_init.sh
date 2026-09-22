@@ -1,12 +1,13 @@
 set -e
 
-export VERSION=$(curl -s https://storage.googleapis.com/kubevirt-prow/release/kubevirt/kubevirt/stable.txt)
 export ARCH=$(uname -s | tr A-Z a-z)-$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')
 
 sed -i 's|server: https://127\.0\.0\.1:6443|server: https://im2k3:6443|' "/mnt/k3s/kubeconfig.yaml" 2> /dev/null || true
 export KUBECONFIG=/mnt/k3s/kubeconfig.yaml
 
 if ! kubectl get kubevirt -n kubevirt kubevirt >/dev/null 2>&1; then
+  export VERSION=$(curl -s https://storage.googleapis.com/kubevirt-prow/release/kubevirt/kubevirt/stable.txt)
+
   kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-operator.yaml"
   kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-cr.yaml"
   kubectl create -f "https://github.com/kubevirt/containerized-data-importer/releases/download/v1.64.0/cdi-operator.yaml"
@@ -14,11 +15,11 @@ if ! kubectl get kubevirt -n kubevirt kubevirt >/dev/null 2>&1; then
 
   kubectl patch kubevirt -n kubevirt kubevirt --type=merge \
     -p '{"spec":{"configuration":{"developerConfiguration":{"featureGates":["EnableVirtioFsStorageVolumes"]}}}}'
-fi
 
-curl -L -o virtctl https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/virtctl-${VERSION}-${ARCH} &> /dev/null
-install -m 0755 virtctl /usr/local/bin
-rm -f virtctl
+  curl -L -o virtctl https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/virtctl-${VERSION}-${ARCH} &> /dev/null
+  install -m 0755 virtctl /usr/local/bin
+  rm -f virtctl
+fi
 
 if [[ ! -f "/etc/ucloud/webhook.key" ]]; then
   CERT_DIR="/etc/ucloud"

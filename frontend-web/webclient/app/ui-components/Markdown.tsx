@@ -23,7 +23,7 @@ function CodeBlock(props: {lang?: string; inline?: boolean; children: React.Reac
 }
 
 function LinkBlock(props: {href?: string; children: React.ReactNode} & React.AnchorHTMLAttributes<HTMLAnchorElement>) {
-    return <ExternalLink color={"primaryMain"} href={props.href}>{props.children}</ExternalLink>;
+    return <ExternalLink href={props.href}>{props.children}</ExternalLink>;
 }
 
 function Markdown(props: Options): React.ReactNode {
@@ -46,23 +46,32 @@ export function SimpleMarkdown({children}: React.PropsWithChildren): React.React
     />
 }
 
-const SingleLineClass = injectStyle("single-line", k => `
-    ${k} {
-        display: block;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        height: 1.5em;
-    }
+const lineCappedClasses = new Map<number, string>();
 
-    ${k} p, ${k} br {
-        display: inline;
-        margin: 0;
-    }
-`);
+function lineCappedClass(lines: number): string {
+    const existing = lineCappedClasses.get(lines);
+    if (existing) return existing;
 
-export const SingleLineMarkdown: React.FunctionComponent<{children: string; width: string;}> = ({children, width}) => {
-    return <div className={SingleLineClass} style={{width}}>
+    const className = injectStyle("markdown-line-capped", k => `
+        ${k} {
+            display: -webkit-box;
+            -webkit-line-clamp: ${lines};
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            height: ${lines * 1.5}em;
+        }
+
+        ${k} p, ${k} br {
+            display: inline;
+            margin: 0;
+        }
+    `);
+    lineCappedClasses.set(lines, className);
+    return className;
+}
+
+export const LineCappedMarkdown: React.FunctionComponent<{children: string; width: string; lines: number;}> = ({children, width, lines}) => {
+    return <div className={lineCappedClass(lines)} style={{width}}>
         <ReactMarkdown
             allowedElements={["br", "a", "p", "strong", "b", "i", "em"]}
             children={children}
@@ -70,8 +79,13 @@ export const SingleLineMarkdown: React.FunctionComponent<{children: string; widt
     </div>;
 }
 
+export const SingleLineMarkdown: React.FunctionComponent<{children: string; width: string;}> = ({children, width}) => {
+    return <LineCappedMarkdown width={width} lines={1}>{children}</LineCappedMarkdown>;
+}
+
 export function MarkdownTable({children}: React.PropsWithChildren): React.ReactNode {
     const wrapperRef = React.useRef<HTMLDivElement | null>(null);
+    const lastSignature = React.useRef("");
     const [layout, setLayout] = React.useState({scroll: false, minWidth: 0});
 
     React.useLayoutEffect(() => {
@@ -82,7 +96,10 @@ export function MarkdownTable({children}: React.PropsWithChildren): React.ReactN
         const measure = () => {
             window.cancelAnimationFrame(frame);
             frame = window.requestAnimationFrame(() => {
+                const signature = markdownTableSignature(wrapper);
+                if (signature === lastSignature.current) return;
                 const next = measureMarkdownTable(wrapper);
+                lastSignature.current = signature;
                 setLayout(prev => prev.scroll === next.scroll && prev.minWidth === next.minWidth ? prev : next);
             });
         };
@@ -96,7 +113,10 @@ export function MarkdownTable({children}: React.PropsWithChildren): React.ReactN
         };
     }, [children]);
 
-    return <div ref={wrapperRef} style={{overflowX: layout.scroll ? "auto" : "visible", maxWidth: "100%"}}>
+    // Always a horizontal scroll container. Starting at "visible" lets an unmeasured wide table
+    // propagate its natural width to ancestor flex/grid tracks, shifting the page for a frame
+    // before the measurement below runs.
+    return <div ref={wrapperRef} style={{overflowX: "auto", maxWidth: "100%"}}>
         <Table tableType="presentation" minWidth={layout.scroll ? `${layout.minWidth}px` : undefined}>
             {children}
         </Table>
@@ -106,6 +126,14 @@ export function MarkdownTable({children}: React.PropsWithChildren): React.ReactN
 export function DocumentTypography({className, ...props}: React.HTMLAttributes<HTMLDivElement>): React.ReactNode {
     const classes = className ? `${DocumentTypographyClass} ${className}` : DocumentTypographyClass;
     return <div {...props} className={classes} />;
+}
+
+function markdownTableSignature(wrapper: HTMLDivElement): string {
+    const rows = Array.from(wrapper.querySelectorAll("tr"));
+    return rows.map(row => {
+        const cells = Array.from(row.children).map(cell => (cell.textContent ?? "").replace(/\s+/g, " ").trim());
+        return cells.join("\u0001");
+    }).join("\u0002");
 }
 
 function measureMarkdownTable(wrapper: HTMLDivElement): { scroll: boolean; minWidth: number } {
@@ -155,54 +183,61 @@ function clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));
 }
 
+const MarkdownDocumentComponents = {
+    a: (p) => <ExternalLink href={p.href}>{p.children}</ExternalLink>,
+    pre: (p) => <Box my={16}><CodeSnippet children={p.children} maxHeight=""/></Box>,
+    table: p => <MarkdownTable>{p.children}</MarkdownTable>,
+};
+
+const MarkdownDocumentAllowedElements = [
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "br",
+    "a",
+    "p",
+    "strong",
+    "b",
+    "i",
+    "em",
+    "ul",
+    "ol",
+    "li",
+    "pre",
+    "code",
+    "table",
+    "th",
+    "tbody",
+    "thead",
+    "td",
+    "tr",
+    "hr",
+    "blockquote",
+
+    // katex + mathml
+    'span',
+    'math', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub',
+    'msubsup', 'mfrac', 'msqrt', 'mroot', 'mtable', 'mtr', 'mtd',
+    'mtext', 'annotation',
+];
+
+const MarkdownDocumentPlugins = [remarkGfm, remarkMath];
+const MarkdownDocumentRehypePlugins = [rehypeKatex];
+
 export function MarkdownDocument({text}: { text: string }): React.ReactNode {
     if (text.trim() === "") return null;
     const normalizedText = normalizeMath(text);
     return (
         <DocumentTypography>
             <ReactMarkdown
-                components={{
-                    a: (p) => <ExternalLink href={p.href}>{p.children}</ExternalLink>,
-                    pre: (p) => <Box my={16}><CodeSnippet children={p.children} maxHeight=""/></Box>,
-                    table: p => <MarkdownTable>{p.children}</MarkdownTable>,
-                }}
-                allowedElements={[
-                    "h1",
-                    "h2",
-                    "h3",
-                    "h4",
-                    "h5",
-                    "h6",
-                    "br",
-                    "a",
-                    "p",
-                    "strong",
-                    "b",
-                    "i",
-                    "em",
-                    "ul",
-                    "ol",
-                    "li",
-                    "pre",
-                    "code",
-                    "table",
-                    "th",
-                    "tbody",
-                    "thead",
-                    "td",
-                    "tr",
-                    "hr",
-                    "blockquote",
-
-                    // katex + mathml
-                    'span',
-                    'math', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub',
-                    'msubsup', 'mfrac', 'msqrt', 'mroot', 'mtable', 'mtr', 'mtd',
-                    'mtext', 'annotation',
-                ]}
+                components={MarkdownDocumentComponents}
+                allowedElements={MarkdownDocumentAllowedElements}
                 children={normalizedText}
-                remarkPlugins={[remarkGfm, remarkMath]}
-                rehypePlugins={[rehypeKatex]}
+                remarkPlugins={MarkdownDocumentPlugins}
+                rehypePlugins={MarkdownDocumentRehypePlugins}
             />
         </DocumentTypography>
     );
@@ -254,7 +289,7 @@ const DocumentTypographyClass = injectStyle("document-typography", k => `
         margin-bottom: 0;
     }
 
-    ${k} code {
+    ${k} :not(pre) > code {
         white-space: break-spaces;
         background: var(--playground-active);
         border-radius: 6px;

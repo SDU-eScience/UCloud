@@ -419,3 +419,129 @@ func inferenceV18() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV19() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV19",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_model rename column price_cached_input to price_per_million_cached_input`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model rename column price_input to price_per_million_input`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model rename column price_output to price_per_million_output`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model alter column price_per_million_cached_input type bigint`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model alter column price_per_million_input type bigint`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model alter column price_per_million_output type bigint`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage drop constraint inference_usage_remainder_check`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage alter column remainder type bigint`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage add constraint inference_usage_remainder_check check (remainder >= 0 and remainder < 1000000)`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV20() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV20",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_model add column reasoning_efforts jsonb not null default '[]'::jsonb`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model add column default_reasoning_effort text null`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV21() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV21",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_model drop column title_model_name`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV22() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV22",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table inference_user_activity (
+						username text primary key,
+						first_used_at timestamptz not null,
+						last_used_at timestamptz not null
+					)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV23() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV23",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model add column username text not null default '_ucloud'`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model drop constraint inference_usage_by_model_pkey`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model add primary key (owner, username, model, usage_day)`,
+				db.Params{},
+			)
+		},
+	}
+}

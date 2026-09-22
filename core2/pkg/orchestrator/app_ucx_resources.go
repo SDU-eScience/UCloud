@@ -506,6 +506,95 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 		},
 	)
 
+	appUcxCreateResource[orcapi.ContainerRepositorySpecification, orcapi.ContainerRepository](
+		state,
+		proxy,
+		ucxapi.ContainerRepositoriesCreate,
+		func(actor rpc.Actor, specs []orcapi.ContainerRepositorySpecification) ([]orcapi.ContainerRepository, *util.HttpError) {
+			return ContainerRepositoryCreate(actor, fndapi.BulkRequestOf(specs...))
+		},
+		func(r orcapi.ContainerRepository) orcapi.ResourceSpecification {
+			return r.Specification.ResourceSpecification
+		},
+		func(r orcapi.ContainerRepositorySpecification) orcapi.ResourceSpecification {
+			return r.ResourceSpecification
+		},
+	)
+
+	appUcxDeleteResource[orcapi.ContainerRepository](
+		state,
+		proxy,
+		ucxapi.ContainerRepositoriesDelete,
+		func(actor rpc.Actor, id string) (orcapi.ContainerRepository, *util.HttpError) {
+			return ResourceRetrieve[orcapi.ContainerRepository](actor, containerRepositoryType, ResourceParseId(id), orcapi.ResourceFlags{})
+		},
+		func(actor rpc.Actor, id string) *util.HttpError {
+			_, err := ContainerRepositoryDelete(actor, fndapi.BulkRequestOf(fndapi.FindByStringId{Id: id}))
+			return err
+		},
+		func(r orcapi.ContainerRepository) orcapi.ResourceSpecification {
+			return r.Specification.ResourceSpecification
+		},
+	)
+
+	appUcxBrowseResource[orcapi.ContainerRepositoriesBrowseRequest, orcapi.ContainerRepository](
+		state,
+		proxy,
+		ucxapi.ContainerRepositoriesBrowse,
+		func(req orcapi.ContainerRepositoriesBrowseRequest) util.Option[string] { return req.Next },
+		func(req *orcapi.ContainerRepositoriesBrowseRequest, next util.Option[string]) { req.Next = next },
+		func(req orcapi.ContainerRepositoriesBrowseRequest) int { return req.ItemsPerPage },
+		func(req *orcapi.ContainerRepositoriesBrowseRequest, itemsPerPage int) {
+			req.ItemsPerPage = itemsPerPage
+		},
+		func(req *orcapi.ContainerRepositoriesBrowseRequest) *orcapi.ResourceFlags {
+			return &req.ContainerRepositoryFlags.ResourceFlags
+		},
+		func(actor rpc.Actor, request orcapi.ContainerRepositoriesBrowseRequest) (fndapi.PageV2[orcapi.ContainerRepository], *util.HttpError) {
+			return ContainerRepositoryBrowse(actor, request), nil
+		},
+	)
+
+	appUcxRetrieveResource[orcapi.ContainerRepositoriesRetrieveRequest, orcapi.ContainerRepository](
+		state,
+		proxy,
+		ucxapi.ContainerRepositoriesRetrieve,
+		func(request orcapi.ContainerRepositoriesRetrieveRequest) string {
+			return request.Id
+		},
+		func(actor rpc.Actor, id string) (orcapi.ContainerRepository, *util.HttpError) {
+			return ResourceRetrieve[orcapi.ContainerRepository](actor, containerRepositoryType, ResourceParseId(id), orcapi.ResourceFlags{})
+		},
+		func(r orcapi.ContainerRepository) orcapi.ResourceSpecification {
+			return r.Specification.ResourceSpecification
+		},
+	)
+
+	appUcxUpdateLabelsResource[orcapi.ContainerRepositoriesUpdateLabelsRequest, orcapi.ContainerRepository](
+		state,
+		proxy,
+		ucxapi.ContainerRepositoriesUpdateLabels,
+		func(request orcapi.ContainerRepositoriesUpdateLabelsRequest) string {
+			return request.Id
+		},
+		func(actor rpc.Actor, id string) (orcapi.ContainerRepository, *util.HttpError) {
+			return ResourceRetrieve[orcapi.ContainerRepository](actor, containerRepositoryType, ResourceParseId(id), orcapi.ResourceFlags{})
+		},
+		ContainerRepositoryUpdateLabels,
+		func(r orcapi.ContainerRepository) orcapi.ResourceSpecification {
+			return r.Specification.ResourceSpecification
+		},
+	)
+
+	appUcxRetrieveProducts[orcapi.FSSupport](
+		state,
+		proxy,
+		ucxapi.ContainerRepositoriesRetrieveProducts,
+		func(actor rpc.Actor) orcapi.SupportByProvider[orcapi.FSSupport] {
+			return ContainerRepositoryRetrieveProducts()
+		},
+	)
+
 	appUcxCreateResource[orcapi.JobSpecification, orcapi.Job](
 		state,
 		proxy,

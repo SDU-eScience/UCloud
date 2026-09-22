@@ -19,6 +19,34 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+type applicationVariantLoadRow struct {
+	Id                 int64
+	RevisionId         sql.NullInt64
+	BaseName           string
+	BaseVersion        string
+	BaseGroup          int64
+	CreatedBy          string
+	ProjectId          sql.NullString
+	Provider           string
+	Title              string
+	PublishedToProject bool
+	State              string
+	Failure            sql.NullString
+	Image              sql.NullString
+	ImageDigest        sql.NullString
+	CreatedAt          time.Time
+	RevisionCount      int64
+}
+
+type applicationVariantRevisionLoadRow struct {
+	Id          int64
+	VariantId   int64
+	CreatedAt   time.Time
+	CreatedBy   string
+	Image       string
+	ImageDigest string
+}
+
 func appCatalogLoad() {
 	reset := func() {
 		appCatalogGlobals.TopPicks.Items = nil
@@ -30,6 +58,7 @@ func appCatalogLoad() {
 		for i := 0; i < len(appCatalogGlobals.Buckets); i++ {
 			b := &appCatalogGlobals.Buckets[i]
 			b.Applications = make(map[string][]*internalApplication)
+			b.ApplicationVariants = make(map[int64]*internalApplicationVariant)
 			b.ApplicationPermissions = make(map[string][]orcapi.AclEntity)
 			b.Tools = make(map[string][]*internalTool)
 			b.Groups = make(map[AppGroupId]*internalAppGroup)
@@ -50,6 +79,23 @@ func appCatalogLoad() {
 			// NOTE(Dan): This function is a bit slow, no reason to slow everything down in dev mode. This works just
 			// fine even if it does a retry.
 			tx.NoDevResetThisIsNotAHackIPromise = true
+
+			// Remove failed initial reservations left by older server versions.
+			db.Exec(
+				tx,
+				`
+					delete from app_store.application_variants as v
+					where
+						state = 'FAILED'
+						and not exists (
+							select 1
+							from
+								app_store.application_variant_revisions r
+							where r.variant_id = v.id
+						)
+				`,
+				db.Params{},
+			)
 
 			reset()
 
@@ -72,13 +118,14 @@ func appCatalogLoad() {
 				IsPublic    bool
 				GroupId     sql.NullInt64
 				ModifiedAt  time.Time
+				Source      sql.NullString
 			}](
 				b,
 				`
 					select 
 						name, version, application, created_at, 
 						application as invocation, tool_name, tool_version,
-						title, description, website, flavor_name, is_public, group_id, modified_at
+						title, description, website, flavor_name, is_public, group_id, modified_at, source_application as source
 					from
 						app_store.applications
 					order by name, created_at
@@ -247,6 +294,40 @@ func appCatalogLoad() {
 				db.Params{},
 			)
 
+			variantsPromise := db.BatchSelect[applicationVariantLoadRow](
+				b,
+				`
+					select v.id, r.id as revision_id, v.base_name, v.base_version, v.base_group,
+						v.created_by, v.project_id, v.provider, v.title, v.published_to_project, v.state, v.failure,
+						r.image, r.image_digest, v.created_at,
+						(select count(*) from app_store.application_variant_revisions vr where vr.variant_id = v.id) as revision_count
+					from
+						app_store.application_variants v
+						left join lateral (
+							select vr.id, vr.image, vr.image_digest
+							from
+								app_store.application_variant_revisions vr
+							where vr.variant_id = v.id
+							order by vr.id desc
+							limit 1
+						) r on true
+				`,
+				db.Params{},
+			)
+
+			variantRevisionsPromise := db.BatchSelect[applicationVariantRevisionLoadRow](
+				b,
+				`
+					select r.id, r.variant_id, r.created_at, r.created_by, r.image, r.image_digest
+					from
+						app_store.application_variants v
+						join app_store.application_variant_revisions r on r.variant_id = v.id
+					where v.state in ('ACTIVE', 'DELETED')
+					order by r.id
+				`,
+				db.Params{},
+			)
+
 			// ---------------------------------------------------------------------------------------------------------
 			// !! NO MORE QUERIES BEYOND THIS POINT !!
 			// ---------------------------------------------------------------------------------------------------------
@@ -294,6 +375,7 @@ func appCatalogLoad() {
 							FlavorName:        util.SqlNullStringToOpt(app.FlavorName),
 							Public:            app.IsPublic,
 							ModifiedAt:        app.ModifiedAt,
+							Source:            util.SqlNullStringToOpt(app.Source).GetOrDefault(""),
 						}
 						if app.GroupId.Valid {
 							i.Group.Set(AppGroupId(app.GroupId.Int64))
@@ -413,6 +495,10 @@ func appCatalogLoad() {
 				appStudioTrackNewGroup(id)
 			}
 			times["Groups"] = t.Mark()
+
+			applicationVariantLoadCurrent(*variantsPromise)
+			applicationVariantLoadRevisions(*variantRevisionsPromise)
+			times["Variants"] = t.Mark()
 
 			categories := *categoriesPromise
 			for _, cat := range categories {
@@ -1225,9 +1311,9 @@ func appPersistApplication(app *internalApplication) {
 			tx,
 			`
 				insert into app_store.applications
-					(name, version, application, created_at, modified_at, original_document, owner, 
+					(name, version, application, created_at, modified_at, original_document, source_application, owner, 
 						tool_name, tool_version, authors, title, description, website, group_id, flavor_name, is_public) 
-				values (:name, :version, :app, :created_at, :modified_at, '{}', '_ucloud', 
+				values (:name, :version, :app, :created_at, :modified_at, '{}', nullif(:source, ''), '_ucloud', 
 					:tool_name, :tool_version, '["Unknown"]', :title, :description, :website, 
 					cast(case when :group_id = 0 then null else :group_id end as int), :flavor_name, :is_public)
 		    `,
@@ -1237,6 +1323,7 @@ func appPersistApplication(app *internalApplication) {
 				"app":          string(appJson),
 				"created_at":   app.CreatedAt,
 				"modified_at":  app.ModifiedAt,
+				"source":       app.Source,
 				"tool_name":    app.Invocation.Tool.Name,
 				"tool_version": app.Invocation.Tool.Version,
 				"title":        app.Title,

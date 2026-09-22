@@ -35,6 +35,8 @@ var storageSupport []orc.FSSupport
 
 var browseCache *lru.LRU[string, []cachedDirEntry]
 
+var DriveScanListener func(drive *orc.Drive, internalPath string)
+
 const SensitivityXattr string = "user.sensitivity"
 
 type cachedDirEntry struct {
@@ -428,7 +430,12 @@ func browseFiles(request orc.FilesProviderBrowseRequest) (fnd.PageV2[orc.Provide
 		}
 		selected = append(selected, entry)
 	}
-	populateRecursiveSizesForEntries(&request.ResolvedCollection, selected)
+	nonBlockingSizes := request.Browse.Flags.IncludeSizesNonBlocking.GetOrDefault(false)
+	if nonBlockingSizes && sortBy != "SIZE" {
+		populateRecursiveSizesForEntriesNonBlocking(&request.ResolvedCollection, selected)
+	} else {
+		populateRecursiveSizesForEntries(&request.ResolvedCollection, selected)
+	}
 	items := make([]orc.ProviderFile, len(selected))
 	for itemIdx, entry := range selected {
 		items[itemIdx] = nativeStat(&request.ResolvedCollection, entry.absPath, entry.info, entry.recursiveSize)
@@ -591,6 +598,48 @@ func populateRecursiveSizesForEntries(drive *orc.Drive, entries []*cachedDirEntr
 	}
 }
 
+func populateRecursiveSizesForEntriesNonBlocking(drive *orc.Drive, entries []*cachedDirEntry) {
+	if !shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
+		return
+	}
+
+	paths := make([]string, 0, len(entries))
+	directories := make([]*cachedDirEntry, 0, len(entries))
+	for _, entry := range entries {
+		if entry.hasInfo && entry.info.IsDir() && !entry.recursiveSizeLoaded {
+			paths = append(paths, entry.absPath)
+			directories = append(directories, entry)
+		}
+	}
+	if len(paths) == 0 {
+		return
+	}
+
+	type lookupResult struct {
+		sizes map[string]int64
+		err   error
+	}
+	completed := make(chan lookupResult, 1)
+	go func() {
+		sizes, err := metadataLookupRecursiveSizes(drive, paths)
+		completed <- lookupResult{sizes: sizes, err: err}
+	}()
+
+	select {
+	case result := <-completed:
+		if result.err == nil {
+			for _, entry := range directories {
+				entry.recursiveSizeLoaded = true
+				if size, found := result.sizes[entry.absPath]; found {
+					entry.recursiveSize.Set(size)
+				}
+			}
+		}
+	case <-time.After(100 * time.Millisecond):
+		metadataWarmDatabase(drive)
+	}
+}
+
 func compareFileByPath(a, b cachedDirEntry) int {
 	aLower := strings.ToLower(a.absPath)
 	bLower := strings.ToLower(b.absPath)
@@ -732,6 +781,10 @@ func loadStorageProducts() {
 		defaultSupport.Collection.UsersCanCreate = true
 		defaultSupport.Collection.UsersCanDelete = true
 		defaultSupport.Collection.UsersCanRename = true
+		defaultSupport.ContainerRepositories.Enabled = shared.ServiceConfig.Registry.Enabled
+		if shared.ServiceConfig.Registry.Enabled {
+			defaultSupport.ContainerRepositories.Server = shared.ServiceConfig.Registry.Host
+		}
 
 		defaultSupport.Files.AclModifiable = false
 		defaultSupport.Files.TrashSupported = true

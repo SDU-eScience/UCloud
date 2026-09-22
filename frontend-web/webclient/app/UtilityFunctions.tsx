@@ -266,7 +266,30 @@ export function ifPresent<T>(f: T | undefined, handler: (f: T) => void): void {
  * Capitalizes the input string and replaces _ (underscores) with whitespace.
  * @param str input string.
  */
-export const prettierString = (str: string): string => capitalized(str).replace(/_/g, " ");
+export function prettierString(str: string): string {
+    return capitalized(str).replace(/_/g, " ");
+}
+
+/**
+ *
+ * @param str input string
+ * @returns string where every capitalized letter is preceeded by a space, expect the first letter
+*/
+function insertWhitespace(str: String): string {
+    let result = "";
+    for (const letter of str) {
+        if (letter < 'a') {
+            result += " ";
+        }
+        result += letter;
+    }
+    return result.trim();
+}
+
+const WordsToLowerCase = ["To", "With", "From"];
+export function expandAndPrettifyString(str: string) {
+    return insertWhitespace(str).split(" ").map(it => WordsToLowerCase.includes(it) ? it.toLocaleLowerCase() : it).join(" ");
+}
 
 export function extractErrorCode(e: unknown): number {
     if (typeof e === "object") {
@@ -338,28 +361,6 @@ export function timestampUnixMs(): number {
             window.performance.now() + window.performance.timing.navigationStart :
             Date.now()
     );
-}
-
-/**
- * UNUSED
- * Used to format numbers to a more human readable number by dividing it up by thousands and using custom delimiters.
- * @param value numerical value to be formatted.
- * @param sectionDelim used for deliminate every thousand. Default: ,
- * @param decimalDelim used to deliminate the decimals. Default: .
- * @param numDecimals number of decimals in the formatted number. Default: 2
- */
-export function humanReadableNumber(
-    value: number,
-    sectionDelim = ",",
-    decimalDelim = ".",
-    numDecimals = 2
-): string {
-    const regex = new RegExp("\\d(?=(\\d{3})+" + (numDecimals > 0 ? "\\D" : "$") + ")", "g");
-    const fixedNumber = value.toFixed(numDecimals);
-
-    return fixedNumber
-        .replace(".", decimalDelim)
-        .replace(regex, "$&" + sectionDelim);
 }
 
 /**
@@ -671,11 +672,15 @@ export const isLikelyMac = navigator["userAgentData"]?.["platform"] === "macOS" 
 export type KeyboardShortcutModifier = "ctrl" | "alt";
 
 export function createKeyboardShortcut(key: string, modifiers: KeyboardShortcutModifier[] = []): string {
+    if (modifiers.length === 0) return key;
     const normalizedModifiers = modifiers.map(modifier => {
         if (modifier === "ctrl") return isLikelyMac ? "⌘" : "Ctrl";
         return isLikelyMac ? "⌥" : "Alt";
     });
-    return [...normalizedModifiers, key].join(" + ");
+    const modifierSeparator = isLikelyMac ? "" : " + ";
+    const modifierText = normalizedModifiers.join(modifierSeparator);
+    const modifierSpacer = isLikelyMac ? " " : " + ";
+    return modifierText + modifierSpacer + key;
 }
 
 export function deepEquals(a: any, b: any): boolean {

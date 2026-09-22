@@ -1,6 +1,8 @@
 package foundation
 
 import (
+	"encoding/json"
+
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -9,14 +11,15 @@ import (
 // =====================================================================================================================
 
 type Task struct {
-	Id            int                 `json:"taskId"`
-	CreatedAt     Timestamp           `json:"createdAt"`
-	ModifiedAt    Timestamp           `json:"modifiedAt"`
-	CreatedBy     string              `json:"createdBy"`
-	Provider      string              `json:"provider"`
-	Status        TaskStatus          `json:"status"`
-	Specification TaskSpecification   `json:"specification"`
-	Icon          util.Option[string] `json:"icon"`
+	Id            int                          `json:"taskId"`
+	CreatedAt     Timestamp                    `json:"createdAt"`
+	ModifiedAt    Timestamp                    `json:"modifiedAt"`
+	CreatedBy     string                       `json:"createdBy"`
+	Provider      string                       `json:"provider"`
+	Status        TaskStatus                   `json:"status"`
+	Specification TaskSpecification            `json:"specification"`
+	Icon          util.Option[string]          `json:"icon"`
+	Meta          util.Option[json.RawMessage] `json:"meta"`
 }
 
 type TaskState string
@@ -84,13 +87,14 @@ var TasksRetrieve = rpc.Call[FindByIntId, Task]{
 }
 
 type TasksCreateRequest struct {
-	User      string              `json:"user"`
-	Title     util.Option[string] `json:"title"`
-	Body      util.Option[string] `json:"body"`
-	Progress  util.Option[string] `json:"progress"`
-	CanPause  bool                `json:"canPause"`
-	CanCancel bool                `json:"canCancel"`
-	Icon      util.Option[string] `json:"icon"`
+	User      string                       `json:"user"`
+	Title     util.Option[string]          `json:"title"`
+	Body      util.Option[string]          `json:"body"`
+	Progress  util.Option[string]          `json:"progress"`
+	CanPause  bool                         `json:"canPause"`
+	CanCancel bool                         `json:"canCancel"`
+	Icon      util.Option[string]          `json:"icon"`
+	Meta      util.Option[json.RawMessage] `json:"meta"`
 }
 
 var TasksCreate = rpc.Call[TasksCreateRequest, Task]{

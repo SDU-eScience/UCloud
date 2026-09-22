@@ -6,6 +6,8 @@ import (
 )
 
 func Init() {
+	// All changes must be added to the BOTTOM of this function
+	// -----------------------------------------------------------------------------------------------------------------
 	db.AddMigration(coreV1())
 	db.AddMigration(projectsV1())
 	db.AddMigration(projectsV2())
@@ -38,4 +40,16 @@ func Init() {
 	db.AddMigration(grantV3())
 	db.AddMigration(grantV4())
 	db.AddMigration(projectsV5())
+	db.AddMigration(sshV1())
+	db.AddMigration(containerRepositoriesV1())
+	db.AddMigration(applicationVariantsV1())
+	db.AddMigration(tasksV1())
+	db.AddMigration(projectsV6())
+	db.AddMigration(customApplicationsV1())
+	db.AddMigration(applicationEditorV1())
+	db.AddMigration(customApplicationsV2())
+	db.AddMigration(customApplicationsV3())
+	db.AddMigration(customApplicationsV4())
+	db.AddMigration(featuresV1())
+	db.AddMigration(grantV5())
 }

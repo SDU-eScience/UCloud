@@ -43,7 +43,7 @@ const wrapper = injectStyle("command-palette", k => `
 `);
 
 export function isCommandPaletteTriggerEvent(ev: KeyboardEvent): boolean {
-    return ((ev.metaKey || ev.ctrlKey) && ev.code === "KeyP");
+    return ((ev.metaKey || ev.ctrlKey) && !ev.altKey && ev.code === "KeyP");
 }
 
 export function CommandPalette(): React.ReactNode {

@@ -37,6 +37,10 @@ https://k8s.localhost.direct {
     reverse_proxy k8s:8889
 }
 
+https://registry.localhost.direct {
+    reverse_proxy k8s:8889
+}
+
 https://k8s-metrics.localhost.direct {
     reverse_proxy k8s:7867
 }
@@ -81,4 +85,9 @@ https://ipa.localhost.direct {
         header_regexp k8sapp Host ^chat.*
     }
     reverse_proxy @k8schat k8s:8889
+
+    @k8sregistry {
+        header_regexp k8sapp Host ^registry.*
+    }
+    reverse_proxy @k8sregistry k8s:8889
 }

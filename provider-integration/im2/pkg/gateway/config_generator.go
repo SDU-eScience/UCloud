@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 
 	accesslogv3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
@@ -515,7 +516,11 @@ func formatRoute(r *EnvoyRoute) []*route.Route {
 		matchers := []*route.HeaderMatcher{{
 			Name: ":authority",
 			HeaderMatchSpecifier: &route.HeaderMatcher_StringMatch{
-				StringMatch: exactString(r.CustomDomain),
+				StringMatch: &matcher.StringMatcher{
+					MatchPattern: &matcher.StringMatcher_SafeRegex{
+						SafeRegex: &matcher.RegexMatcher{Regex: "^" + regexp.QuoteMeta(r.CustomDomain) + "(:[0-9]+)?$"},
+					},
+				},
 			},
 		}}
 

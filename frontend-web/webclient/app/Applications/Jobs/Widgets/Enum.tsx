@@ -29,11 +29,22 @@ export const EnumParameter: React.FunctionComponent<EnumProps> = props => {
     const error = props.errors[props.parameter.name] != null;
     const defaultValue = readEnumDefaultValue(props.parameter.defaultValue);
     const hasDefaultValue = defaultValue !== undefined && defaultValue !== "";
-    const showEmptyOption = props.parameter.optional && !hasDefaultValue;
+    const hasDefaultOption = props.parameter.options.some(it => it.value === defaultValue);
+
+    // Optional parameters without a default value must not pre-select their first option. If they did, the
+    // "value equals default" activation logic would treat the first option as unselected, making it impossible
+    // to submit. A "None selected" option (empty value, submitted as no value at all) is used instead.
+    const optionWithEmptyValue = props.parameter.options.some(it => it.value === "");
+    const showNoneSelected = props.parameter.optional && !hasDefaultValue && !optionWithEmptyValue;
+    const selectedValue = hasDefaultValue ?
+        defaultValue :
+        (showNoneSelected ? "" : props.parameter.options[0]?.value ?? "");
 
     return <Flex>
-        <Select defaultValue={defaultValue} id={widgetId(props.parameter)} error={error}>
-            {showEmptyOption ? <option value={""} /> : null}
+        <Select defaultValue={selectedValue} data-default-value={selectedValue}
+            id={widgetId(props.parameter)} error={error}>
+            {showNoneSelected ? <option value="">None selected</option> : null}
+            {hasDefaultValue && !hasDefaultOption ? <option value={defaultValue}>{defaultValue}</option> : null}
             {props.parameter.options.map(it => (
                 <option key={it.value} value={it.value}>{it.name}</option>
             ))}
@@ -53,6 +64,9 @@ export const EnumValidator: WidgetValidator = (param) => {
                 if (opt.value === elem.value) {
                     return {valid: true, value: {type: "text", value: elem.value}};
                 }
+            }
+            if (readEnumDefaultValue(param.defaultValue) === elem.value) {
+                return {valid: true, value: {type: "text", value: elem.value}};
             }
             return {valid: false, message: `Invalid value: ${elem.value}`};
         }

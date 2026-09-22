@@ -1,11 +1,24 @@
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {apiBrowse, apiRetrieve, apiSearch, apiUpdate} from "@/Authentication/DataHook";
+import {apiBrowse, apiDelete, apiRetrieve, apiSearch, apiUpdate} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {FindByLongId, PaginationRequestV2} from "@/UCloud";
+import {FindByLongId, PageV2, PaginationRequestV2} from "@/UCloud";
+import {UpdatedAcl} from "@/UCloud/ResourceApi";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {getStoredProject} from "@/Project/ReduxState";
+import type {JobSpecification} from "@/UCloud/JobsApi";
+import {Feature, hasFeature} from "@/Features";
+import {checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
 
 const baseContext = "/api/hpc/apps";
+
+export function customApplicationsEnabled(): boolean {
+    return hasFeature(Feature.CONTAINER_REPOSITORIES);
+}
+
+export function customAppsWorkspaceAdmin(): boolean {
+    if (!customApplicationsEnabled()) return false;
+    return checkIsWorkspaceAdmin();
+}
 
 export interface Tool {
     owner: string;
@@ -57,6 +70,26 @@ export interface ApplicationMetadata {
     public: boolean;
     flavorName?: string;
     groupId?: number | null;
+    group?: ApplicationGroup;
+    variant?: ApplicationVariant;
+    origin?: "UCLOUD" | "CUSTOM";
+    publishedToProject?: boolean;
+}
+
+export interface ApplicationVariant {
+    id: number;
+    revisionId: number;
+    baseApplication: NameAndVersion;
+    createdBy: string;
+    project?: string;
+    image: string;
+    imageDigest: string;
+    provider: string;
+    title: string;
+    publishedToProject: boolean;
+    state: "PENDING" | "ACTIVE" | "FAILED" | "DELETED";
+    failure?: string;
+    createdAt: number;
 }
 
 export interface ApplicationInvocationDescription {
@@ -398,6 +431,37 @@ export interface ApplicationGroupSpecification {
     defaultFlavor?: string | null;
     categories: number[];
     logoHasText?: boolean;
+    logo?: ApplicationGroupLogo;
+}
+
+export type ApplicationGroupLogoShape = "circle" | "rounded-square" | "hexagon" | "diamond" | "shield";
+export type ApplicationGroupLogoBorder = "none" | "thin" | "thick" | "double";
+export type ApplicationGroupLogoColor = "auto" | "gold" | "blue" | "violet" | "green" | "cyan" | "rose";
+export type ApplicationGroupLogoDirection = "top-right" | "bottom-right" | "bottom-left" | "top-left";
+export type ApplicationGroupLogoSize = "small" | "medium" | "large";
+export type ApplicationGroupLogoIcon = "academic-cap" | "beaker" | "bolt" | "calculator" | "chart-bar" |
+    "circle-stack" | "cloud" | "code-bracket" | "command-line" | "cpu-chip" | "cube" | "document" |
+    "folder" | "globe" | "photo" | "rocket" | "server" | "sparkles" | "wrench" | "gpu";
+
+export interface ApplicationGroupLogo {
+    version: 1;
+    shape: ApplicationGroupLogoShape;
+    border: {
+        style: ApplicationGroupLogoBorder;
+        color: ApplicationGroupLogoColor;
+    };
+    fill: {
+        type: "solid" | "gradient";
+        colorA: ApplicationGroupLogoColor;
+        colorB: ApplicationGroupLogoColor;
+        direction: ApplicationGroupLogoDirection;
+    };
+    content: {
+        type: "text" | "icon";
+        value: string;
+        size: ApplicationGroupLogoSize;
+        color: "auto" | "light" | "dark" | ApplicationGroupLogoColor;
+    };
 }
 
 export interface ApplicationGroupStatus {
@@ -459,6 +523,235 @@ export function createTool(file: File): Promise<{ error?: string }> {
 
 // Core API
 // =====================================================================================================================
+
+export type AppEditorApplicationKind = "MANAGED" | "CUSTOM";
+export type AppEditorSourceIntent = "EDIT" | "FORK";
+
+export interface AppEditorSourceLocation {
+    line: number;
+    column: number;
+}
+
+export interface AppEditorValidationError {
+    code: string;
+    path?: string;
+    message: string;
+    location?: AppEditorSourceLocation;
+}
+
+export interface AppEditorCustomMetadata {
+    serviceProvider: string;
+    publishedToProject: boolean;
+    flavorName: string;
+    groupId: number;
+    categoryId: number;
+}
+
+export interface AppEditorRetrieveSourceRequest {
+    kind: AppEditorApplicationKind;
+    name: string;
+    version: string;
+    serviceProvider?: string;
+    intent: AppEditorSourceIntent;
+}
+
+export interface AppEditorRetrieveSourceResponse {
+    kind: AppEditorApplicationKind;
+    source: string;
+    custom?: AppEditorCustomMetadata;
+}
+
+export interface AppEditorValidateRequest {
+    kind: AppEditorApplicationKind;
+    source: string;
+    custom?: AppEditorCustomMetadata;
+}
+
+export interface AppEditorValidateResponse {
+    application?: Application;
+    errors: AppEditorValidationError[];
+}
+
+export interface AppEditorEligibilityRequirement {
+    eligible: boolean;
+    message: string;
+}
+
+export interface AppEditorProviderEligibility {
+    provider: string;
+    containerSupport: AppEditorEligibilityRequirement;
+    registrySupport: AppEditorEligibilityRequirement;
+    computeAllocation: AppEditorEligibilityRequirement;
+    storageAllocation: AppEditorEligibilityRequirement;
+    eligible: boolean;
+}
+
+export interface AppEditorCustomEligibilityResponse {
+    providers: AppEditorProviderEligibility[];
+    canPublish: boolean;
+}
+
+export interface AppEditorRenderRequest {
+    validation: AppEditorValidateRequest;
+    job: JobSpecification;
+}
+
+export interface AppEditorRateLimit {
+    limit: number;
+    remaining: number;
+    retryAt?: number | string;
+}
+
+export interface AppEditorRenderResponse {
+    script?: string;
+    errors: AppEditorValidationError[];
+    rateLimit: AppEditorRateLimit;
+}
+
+export interface AppCatalogCustomGroup {
+    id: number;
+    createdAt: number;
+    owner: ResourceOwner;
+    specification: {
+        title: string;
+        description: string;
+        logo: ApplicationGroupLogo;
+    };
+}
+
+export interface AppCatalogCustomCategory {
+    id: number;
+    createdAt: number;
+    owner: ResourceOwner;
+    specification: {
+        title: string;
+        description: string;
+    };
+    permissions: ResourcePermissions;
+}
+
+export interface ResourceOwner {
+    createdBy: string;
+    project?: string;
+}
+
+export interface ResourcePermissions {
+    myself: Array<"READ" | "EDIT" | "ADMIN" | "PROVIDER">;
+    others: Array<{
+        entity: {
+            type?: string;
+            projectId?: string;
+            group?: string;
+            username?: string;
+        };
+        permissions: Array<"READ" | "EDIT" | "ADMIN" | "PROVIDER">;
+    }>;
+}
+
+export function retrieveEditorSource(request: AppEditorRetrieveSourceRequest): APICallParameters<unknown, AppEditorRetrieveSourceResponse> {
+    return apiRetrieve(request, baseContext, "editorSource");
+}
+
+export function validateEditor(request: AppEditorValidateRequest): APICallParameters<unknown, AppEditorValidateResponse> {
+    return apiUpdate(request, baseContext, "editorValidate");
+}
+
+export function retrieveEditorEligibility(): APICallParameters<unknown, AppEditorCustomEligibilityResponse> {
+    return apiRetrieve({}, baseContext, "editorEligibility");
+}
+
+export function renderEditorInvocation(request: AppEditorRenderRequest): APICallParameters<unknown, AppEditorRenderResponse> {
+    return apiUpdate(request, baseContext, "editorRenderInvocation");
+}
+
+export function createCustomApplication(request: Record<string, unknown>): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "createCustom");
+}
+
+export function deleteCustomApplication(request: {
+    name: string;
+    version: string;
+    serviceProvider: string;
+}): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "deleteCustom");
+}
+
+export function updateCustomApplication(request: {
+    name: string;
+    version: string;
+    serviceProvider: string;
+    publishedToProject: boolean;
+}): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "updateCustom");
+}
+
+export interface AppCatalogCustomCategorySpecification {
+    title: string;
+    description: string;
+}
+
+export interface AppCatalogCustomGroupSpecification extends AppCatalogCustomCategorySpecification {
+    logo?: ApplicationGroupLogo;
+}
+
+export function createCustomGroup(request: {
+    specification: AppCatalogCustomGroupSpecification;
+}): APICallParameters<unknown, {id: number}> {
+    return apiUpdate(request, baseContext, "createCustomGroup");
+}
+
+export function updateCustomGroupLogo(request: {id: number; logo: ApplicationGroupLogo}): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "updateCustomGroupLogo");
+}
+
+export function updateCustomGroup(request: {
+    id: number;
+    newTitle: string;
+    newDescription: string;
+}): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "updateCustomGroup");
+}
+
+export function retrieveCustomLogo(request: {
+    groupId?: number;
+    applicationName?: string;
+}): APICallParameters<unknown, ApplicationGroupLogo> {
+    return apiRetrieve(request, baseContext, "customLogo");
+}
+
+export function createCustomCategory(request: {
+    specification: AppCatalogCustomCategorySpecification;
+    acl?: unknown[];
+}): APICallParameters<unknown, {id: number}> {
+    return apiUpdate(request, baseContext, "createCustomCategory");
+}
+
+export function deleteCustomCategory(request: {id: number}): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "deleteCustomCategory");
+}
+
+export function updateCustomCategoryAcl(request: UpdatedAcl): APICallParameters<unknown, unknown> {
+    return apiUpdate(request, baseContext, "updateCustomCategoryAcl");
+}
+
+export function browseCustomGroups(request: {
+    itemsPerPage?: number;
+    next?: string;
+} = {}): APICallParameters<unknown, PageV2<AppCatalogCustomGroup>> {
+    return apiBrowse(request, baseContext, "customGroups");
+}
+
+export function retrieveCustomGroup(request: {id: number}): APICallParameters<unknown, AppCatalogCustomGroup> {
+    return apiRetrieve(request, baseContext, "customGroup");
+}
+
+export function browseCustomCategories(request: {
+    itemsPerPage?: number;
+    next?: string;
+} = {}): APICallParameters<unknown, PageV2<AppCatalogCustomCategory>> {
+    return apiBrowse(request, baseContext, "customCategories");
+}
+
 export function findByNameAndVersion(request: {
     appName: string;
     appVersion?: string | null;
@@ -500,7 +793,15 @@ export function create(file: File): Promise<{ error?: string }> {
     return uploadFile("PUT", `${baseContext}/upload`, file);
 }
 
-async function uploadFile(method: string, path: string, file: File, headers?: Record<string, string>): Promise<{
+export function createFromSource(source: string): Promise<{ error?: string }> {
+    return uploadFile(
+        "PUT",
+        `${baseContext}/upload`,
+        new Blob([source], {type: "application/x-yaml"}),
+    );
+}
+
+async function uploadFile(method: string, path: string, file: Blob, headers?: Record<string, string>): Promise<{
     error?: string
 }> {
     const token = await Client.receiveAccessTokenOrRefreshIt();
@@ -576,6 +877,20 @@ export function updatePublicFlag(request: {
 
 export function listAllApplications(request: {}): APICallParameters<unknown, { items: NameAndVersion[] }> {
     return apiRetrieve(request, baseContext, "allApplications");
+}
+
+const applicationVariantContext = `${baseContext}/variants`;
+
+export function updateApplicationVariant(request: {
+    id: number;
+    title?: string;
+    publishedToProject?: boolean;
+}): APICallParameters<unknown, ApplicationVariant> {
+    return apiUpdate(request, applicationVariantContext, "update");
+}
+
+export function deleteApplicationVariant(request: {id: number; version?: string | null}): APICallParameters<unknown, unknown> {
+    return apiDelete(request, applicationVariantContext);
 }
 
 // Starred applications

@@ -378,6 +378,7 @@ export const ModuleListParameter: React.FunctionComponent<ModuleListProps> = pro
 
             <Flex flexGrow={1} gap={"16px"} alignItems={"center"}>
                 <RichSelect
+                    data-navigation-field
                     items={supportedModules}
                     keys={["name", "description", "shortDescription", "documentationUrl"]}
                     RenderRow={ModuleRenderRow}

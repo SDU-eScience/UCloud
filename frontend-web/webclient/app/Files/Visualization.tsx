@@ -11,6 +11,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {injectStyle} from "@/Unstyled";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {fileName, pathComponents, sizeToString} from "@/Utilities/FileUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
@@ -282,11 +283,11 @@ export default function FilesVisualization(): React.ReactNode {
                     <Box flexGrow={1} />
                     {!data ? null : <>
                         {data.directoryCount == null ? null : <div className="visualization-status">
-                            <span>{data.directoryCount.toLocaleString()} {pluralize(data.directoryCount, "directory", "directories")}</span>
+                            <span>{formatNumber(data.directoryCount)} {pluralize(data.directoryCount, "directory", "directories")}</span>
                         </div>}
 
                         {data.fileCount == null ? null : <div className="visualization-status">
-                            <span>{data.fileCount.toLocaleString()} {pluralize(data.fileCount, "file")}</span>
+                            <span>{formatNumber(data.fileCount)} {pluralize(data.fileCount, "file")}</span>
                         </div>}
 
                         <div className="visualization-status">
@@ -484,7 +485,7 @@ function VisualizationWorkspace({data, selectedPath, openPath}: {
                             <div className="visualization-entry-path" title={entry.prettyPath}>{entry.prettyPath}</div>
                         </div>
                         <span className="visualization-number">{sizeToString(entry.sizeInBytes)}</span>
-                        <span className="visualization-number visualization-percent">{percentage < .1 && percentage > 0 ? "<0.1" : percentage.toFixed(1)}%</span>
+                        <span className="visualization-number visualization-percent">{percentage < .1 && percentage > 0 ? "<0.1" : formatNumber(percentage, {precision: 1})}%</span>
                     </div>;
                 })}
                 {sorted.length === 0 && <div className="visualization-empty">No recursive storage statistics are available.</div>}
@@ -492,6 +493,9 @@ function VisualizationWorkspace({data, selectedPath, openPath}: {
         </Card>
     </div>;
 }
+
+const directoryHeaderBandHeight = 21;
+const directoryHeaderMinHeight = 30;
 
 function TreemapView({entries, rootPath, width, height, setHighlightedPath, openPath}: {
     entries: VisualizationEntry[];
@@ -511,7 +515,7 @@ function TreemapView({entries, rootPath, width, height, setHighlightedPath, open
         .size([Math.max(width, 1), height])
         .paddingOuter(2)
         .paddingInner(2)
-        .paddingTop(node => node.depth > 0 && node.children ? 21 : 0)
+        .paddingTop(node => node.depth > 0 && node.children && node.y1 - node.y0 >= directoryHeaderMinHeight ? directoryHeaderBandHeight : 0)
         .round(true)(root);
     const nodes = layout.descendants().filter(node => node.depth > 0);
     const internal = nodes.filter(node => node.children && node.data.entry);
@@ -566,7 +570,7 @@ function TreemapDirectoryHeader({node, color, setHighlightedPath, openPath}: {
     >
         <title>{entry.label} - {sizeToString(entry.sizeInBytes)}</title>
         <rect x={node.x0} y={node.y0} width={width} height={node.y1 - node.y0} rx={4} fill="transparent" stroke={color} strokeWidth={1.5} />
-        {width > 65 && <text x={node.x0 + 7} y={node.y0 + 15} fill="var(--textPrimary)" fontSize={11} fontWeight={600}>{truncateLabel(entry.label, width / 7)}</text>}
+        {width > 65 && node.y1 - node.y0 >= directoryHeaderMinHeight && <text x={node.x0 + 7} y={node.y0 + 15} fill="var(--textPrimary)" fontSize={11} fontWeight={600}>{truncateLabel(entry.label, (width - 7) / 7)}</text>}
     </g>;
 }
 
@@ -604,7 +608,7 @@ function TreemapLeaf({node, color, setHighlightedPath, openPath}: {
         <title>{label} - {sizeToString(node.value ?? 0)}</title>
         <rect x={node.x0} y={node.y0} width={width} height={height} rx={3} fill={color} fillOpacity={.82} stroke="var(--backgroundCard)" strokeWidth={1} />
         {width > 58 && height > 34 && <>
-            <text x={node.x0 + 7} y={node.y0 + 16} fill="var(--fixedWhite)" fontSize={11} fontWeight={600}>{truncateLabel(label, width / 7)}</text>
+            <text x={node.x0 + 7} y={node.y0 + 16} fill="var(--fixedWhite)" fontSize={11} fontWeight={600}>{truncateLabel(label, (width - 14) / 6)}</text>
             {height > 50 && <text x={node.x0 + 7} y={node.y0 + 31} fill="var(--fixedWhite)" opacity={.85} fontSize={10}>{sizeToString(node.value ?? 0)}</text>}
         </>}
     </g>;

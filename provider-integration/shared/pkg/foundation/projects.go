@@ -40,9 +40,16 @@ type ProjectStatus struct {
 }
 
 type ProjectSettings struct {
-	SubProjects struct {
+	InitScriptImageCacheLimitBytes int64 `json:"initScriptImageCacheLimitBytes"`
+	SubProjects                    struct {
 		AllowRenaming bool `json:"allowRenaming"`
 	} `json:"subProjects"`
+}
+
+const DefaultInitScriptImageCacheLimitBytes int64 = 50_000_000_000
+
+type ProjectUpdateSettingsRequest struct {
+	InitScriptImageCacheLimitBytes int64 `json:"initScriptImageCacheLimitBytes"`
 }
 
 type ProjectToggleSubProjectRenamingSettingRequest struct {
@@ -256,6 +263,13 @@ var ProjectToggleFavorite = rpc.Call[BulkRequest[FindByStringId], util.Empty]{
 var ProjectToggleHidden = rpc.Call[BulkRequest[FindByStringId], util.Empty]{
 	BaseContext: ProjectContext,
 	Operation:   "toggleHidden",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+}
+
+var ProjectUpdateSettings = rpc.Call[ProjectUpdateSettingsRequest, util.Empty]{
+	BaseContext: ProjectContext,
+	Operation:   "updateSettings",
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 }

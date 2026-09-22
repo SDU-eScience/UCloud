@@ -1,4 +1,5 @@
 import * as Accounting from "@/Accounting";
+import {formatNumber, formatPricePerMillionCredits} from "@/Utilities/NumberFormatting";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
@@ -29,7 +30,7 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {IconName} from "@/ui-components/Icon";
 import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 import MainContainer from "@/ui-components/MainContainer";
-import {SimpleMarkdown} from "@/ui-components/Markdown";
+import {DocumentTypography, MarkdownDocument, SimpleMarkdown} from "@/ui-components/Markdown";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import Tooltip, {TooltipV2} from "@/ui-components/Tooltip";
 import Warning from "@/ui-components/Warning";
@@ -43,6 +44,7 @@ import {State} from ".";
 import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
 import {useSelector} from "react-redux";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {InferenceModel, listModels} from "@/Inference/api";
 
 // State model
 // =====================================================================================================================
@@ -1148,10 +1150,6 @@ const style = injectStyle("grant-editor", k => `
         width: 200px;
     }
     
-    ${k} header [data-tag=confirm-button] ul {
-        left: 10px;
-    }
-    
     ${k} header.at-top {
         box-shadow: unset;
     }
@@ -1508,7 +1506,7 @@ export function Editor(): React.ReactNode {
     const onResourceInput = useCallback<React.FormEventHandler>(ev => {
         const inputElem = ev.target as HTMLInputElement;
         const [provider, category, allocator] = inputElem.id.split("/");
-        let balance: number | null = parseInt(inputElem.value);
+        let balance: number | null = parseFloat(inputElem.value);
         if (isNaN(balance)) balance = null;
 
         dispatchEvent({
@@ -2070,11 +2068,11 @@ export function Editor(): React.ReactNode {
                                         disabled={state.locked || isClosed}
                                     >
                                         <option value="custom">Custom</option>
-                                        <option value="1">1 month (from now)</option>
-                                        <option value="3">3 months (from now)</option>
-                                        <option value="6">6 months (from now)</option>
-                                        <option value="12">12 months (from now)</option>
-                                        <option value="24">24 months (from now)</option>
+                                        <option value="1">1 month</option>
+                                        <option value="3">3 months</option>
+                                        <option value="6">6 months</option>
+                                        <option value="12">12 months</option>
+                                        <option value="24">24 months</option>
                                     </Select>
                                 </label>
                                 {isCustomAllocationPeriod && <>
@@ -2258,15 +2256,23 @@ export function Editor(): React.ReactNode {
                                             const currentProvider = providerBrandingData.providers[providerId];
                                             const productDescription = currentProvider?.productDescription?.find(it => it.category === category.category.name);
                                             const showDescriptions = productDescription != undefined;
+                                            const isInference = category.category.productType === "INFERENCE";
+                                            const isEditingOrCreating = state.stateDuringEdit == null || !state.locked;
 
 
                                             return <FormField
                                                 title={<code>{category.category.name}</code>}
                                                 id={`${providerId}/${category.category.name}/${checkedAllocators[0]}`}
                                                 key={`${providerId}/${category.category.name}`}
-                                                description={productDescription?.shortDescription ?? ""}
+                                                description={
+                                                    productDescription?.shortDescription ??
+                                                    (isInference && isEditingOrCreating ?
+                                                        <InferenceCreditsDescription providerId={providerId} /> :
+                                                        ""
+                                                    )
+                                                }
                                                 icon={Accounting.productTypeToIcon(category.category.productType)}
-                                                showDescriptionInEditMode={!!showDescriptions}
+                                                showDescriptionInEditMode={!!showDescriptions || (isInference && isEditingOrCreating)}
                                             >
                                                 {checkedAllocators.map(allocator => {
                                                     const unit = Accounting.explainUnit(category.category);
@@ -2458,6 +2464,102 @@ function transferProject(allocators: EditorState["allocators"]): Promise<{target
 // =====================================================================================================================
 // Various helper components used by the main user-interface.
 
+// Inference credits
+// ---------------------------------------------------------------------------------------------------------------------
+const inferenceCreditsDescriptionCache = new Map<string, InferenceModel[]>();
+
+const InferenceCreditsStyle = injectStyle("inference-credits", k => `
+    ${k} {
+        cursor: pointer;
+    }
+
+    ${k} [class*="document-typography"] {
+        color: var(--textSecondary);
+    }
+
+    ${k} .clamp {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        height: 4.95em;
+    }
+
+    ${k} .expand {
+        color: var(--primaryMain);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 4px;
+        user-select: none;
+    }
+`);
+
+function InferenceCreditsDescription({providerId}: {providerId: string}): React.ReactNode {
+    const [models, setModels] = React.useState<InferenceModel[] | null>(
+        inferenceCreditsDescriptionCache.get(providerId) ?? null
+    );
+    const [expanded, setExpanded] = React.useState(false);
+
+    React.useEffect(() => {
+        if (models != null) return;
+        let cancelled = false;
+        callAPI(listModels({providerId}))
+            .then(resp => {
+                const fetched = resp.models ?? [];
+                inferenceCreditsDescriptionCache.set(providerId, fetched);
+                if (!cancelled) setModels(fetched);
+            })
+            .catch(() => {
+                if (!cancelled) setModels([]);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [providerId]);
+
+    if (models === null) return null;
+
+    const priced = models.filter(it => it.pricePerMillion.input > 0 || it.pricePerMillion.output > 0);
+
+    let markdown =
+        "You request **credits** and pay per **token** (~4 characters). " +
+        "Each model prices input, cached input, and output separately, per 1 million tokens. " +
+        "\n\n";
+
+    if (expanded) {
+        markdown +=
+            "**Example:** a model costs 10 credits per 1M input tokens. Then 10M input tokens cost 100 credits. " +
+            "For more information, see the [model catalog](/app" + AppRoutes.inference.models() + ").\n\n";
+
+        if (priced.length > 0) {
+            markdown += "Prices per 1M tokens:\n\n" +
+                "| Model | Input | Cached | Output |\n" +
+                "|---|---|---|---|\n" +
+                priced.map(model =>
+                    `| ${model.title} | ${formatInferencePrice(model.pricePerMillion.input)} | ` +
+                    `${formatInferencePrice(model.pricePerMillion.cachedInput)} | ` +
+                    `${formatInferencePrice(model.pricePerMillion.output)} |`
+                ).join("\n") + "\n";
+        }
+    }
+
+    return <Box className={InferenceCreditsStyle} onClick={() => setExpanded(e => !e)}>
+        <DocumentTypography className={expanded ? "" : "clamp"}>
+            <MarkdownDocument text={markdown} />
+        </DocumentTypography>
+        <div className="expand">
+            <Icon name="heroChevronDown" size={14} rotation={expanded ? 180 : 0} />
+            {expanded ? "Show less" : "Show more"}
+        </div>
+    </Box>;
+}
+
+function formatInferencePrice(value: number): string {
+    if (value === 0) return "Free";
+    return formatPricePerMillionCredits(value, {precision: 2, minDecimalsAfterTrim: 2});
+}
+
 // Comments
 // ---------------------------------------------------------------------------------------------------------------------
 const CommentSection: React.FunctionComponent<{
@@ -2647,10 +2749,9 @@ const ApplicationHistory: React.FunctionComponent<{state: EditorState}> = ({stat
         }
     };
 
-    const formatAmount = (amount: number): string => {
-        return amount.toLocaleString(undefined, {
-            maximumFractionDigits: Number.isInteger(amount) ? 0 : 2,
-        });
+    const formatAmount = (amount: number, unit: string | undefined): string => {
+        const precision = Number.isInteger(amount) ? 0 : Accounting.isCreditUnit(unit ?? "") ? 4 : 2;
+        return formatNumber(amount, {precision, removeTrailingZeros: true});
     };
 
     return (
@@ -2733,7 +2834,7 @@ const ApplicationHistory: React.FunctionComponent<{state: EditorState}> = ({stat
                                                                 </Flex>
 
                                                                 <div>
-                                                                    {formatAmount(normalizedAmount)}
+                                                                    {formatAmount(normalizedAmount, unit?.name)}
                                                                     {unit ? ` ${unit.name}` : ""}
                                                                 </div>
                                                             </Flex>
@@ -2996,7 +3097,9 @@ function stateToRequests(state: EditorState): Grants.Doc["allocationRequests"] {
                 result.push({
                     category: pc.name,
                     provider: pc.provider,
-                    balanceRequested: Math.ceil(amount * explanation.invBalanceFactor),
+                    balanceRequested: Accounting.isCreditUnit(explanation.name)
+                        ? Accounting.normalizedBalanceToRaw(pc, amount)
+                        : Math.ceil(amount * explanation.invBalanceFactor),
                     grantGiver: allocator,
                     period,
                 });

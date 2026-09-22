@@ -58,6 +58,8 @@ provider:
 services:
   type: Kubernetes
   compute:
+    allowedRegistries: []
+
     web:
       enabled: true
       prefix: "k8s-"
@@ -133,3 +135,15 @@ services:
     mountPoint: /mnt/storage
     trashStagingArea: /mnt/storage/trash
     claimName: cephfs
+
+  registry:
+    enabled: true
+    host: registry.localhost.direct
+    snapshot:
+      containerdSocket: /run/k3s/containerd/containerd.sock
+      containerdNamespace: k8s.io
+      helperImage: dreg.cloud.sdu.dk/ucloud-dev/nerdctl-support:2.3.5
+      deadlineSeconds: 3600
+    secrets:
+      authSharedSecret: <registry-auth-shared-secret>
+      registrySharedSecret: <registry-shared-secret>

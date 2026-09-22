@@ -70,6 +70,12 @@ export const InputClass = injectStyle("input", k => `
         display: none;
     }
 
+    ${k}[data-field-activator] {
+        caret-color: transparent;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    
     ${k}[data-right-label="true"] {
         border-top-right-radius: 0;
         border-bottom-right-radius: 0;
@@ -110,6 +116,9 @@ const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cu
     inputProps["max"] = props.max;
     inputProps["maxLength"] = props.maxLength;
     inputProps["title"] = props.title;
+    inputProps["role"] = props.role;
+    inputProps["aria-autocomplete"] = props["aria-autocomplete"];
+    inputProps["aria-expanded"] = props["aria-expanded"];
 
     inputProps["data-error"] = props.error === true;
     inputProps["data-left-label"] = props.leftLabel === true;

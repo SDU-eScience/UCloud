@@ -28,6 +28,7 @@ import {useBreakdownChart} from "@/Accounting/Diagrams/UsageBreakdown";
 import {useUtilizationOverTimeChart} from "@/Accounting/Diagrams/UtilizationOverTime";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {exportUsage} from "@/Accounting/Usage";
 import {useUsageOverTimeChart} from "@/Accounting/Diagrams/UsageOverTime";
 import {useAbsoluteOverTimeChart} from "@/Accounting/Diagrams/AbsoluteOverTime";
@@ -324,6 +325,18 @@ const UsagePage: React.FunctionComponent = () => {
         return child;
     }, [childProjectInfo]);
 
+    const childToExportValue = useCallback((child: string | null): string => {
+        if (child == null) return "Local";
+
+        if (looksLikeUUID(child)) {
+            const pinfo = childProjectInfo.data[child];
+            if (pinfo != null) return pinfo.title;
+            return child;
+        }
+
+        return child;
+    }, [childProjectInfo]);
+
     const childColors = useMemo(() => {
         const r = state.openReport;
         if (r == null) return new Map<string, string>();
@@ -463,7 +476,12 @@ const UsagePage: React.FunctionComponent = () => {
         if (workspaceName === "") workspaceName = "My workspace";
         workspaceName = workspaceName.toLowerCase().replace(" ", "-");
 
-        const delta = state.openReport.usageOverTime.delta;
+        const delta = state.openReport.usageOverTime.delta.map(it => ({
+            timestamp: it.timestamp,
+            change: it.change,
+            child: childToExportValue(it.child),
+        }));
+
         exportUsage(
             delta,
             [
@@ -479,7 +497,7 @@ const UsagePage: React.FunctionComponent = () => {
                 },
                 {
                     key: "child",
-                    value: "Child workspace",
+                    value: "Sub-project",
                     defaultChecked: true,
                 },
             ],
@@ -488,15 +506,26 @@ const UsagePage: React.FunctionComponent = () => {
                 fileName: `usage-delta-over-time-${state.openReport.title.toLowerCase()}-${workspaceName}`,
             }
         )
-    }, [state.openReport]);
+    }, [state.openReport, childToExportValue]);
 
     const exportAll = useCallback(() => {
         let workspaceName = project.fetch().specification.title;
         if (workspaceName === "") workspaceName = "My workspace";
         workspaceName = workspaceName.toLowerCase().replace(" ", "-");
 
+        const reports = state.reports.map(report => ({
+            ...report,
+            usageOverTime: {
+                ...report.usageOverTime,
+                delta: report.usageOverTime.delta.map(it => ({
+                    ...it,
+                    child: childToExportValue(it.child),
+                })),
+            },
+        }));
+
         exportUsage(
-            [{reports: state.reports, period: state.period}],
+            [{reports, period: state.period}],
             [
                 {key: "period", value: "Period", defaultChecked: true},
                 {key: "reports", value: "Reports", defaultChecked: true},
@@ -507,7 +536,7 @@ const UsagePage: React.FunctionComponent = () => {
                 fileName: `usage-report-all-${workspaceName}`,
             }
         );
-    }, [state.period, state.reports]);
+    }, [state.period, state.reports, childToExportValue]);
 
     // User-interface
     // -----------------------------------------------------------------------------------------------------------------
@@ -711,7 +740,7 @@ const UsagePage: React.FunctionComponent = () => {
                                                 Over-commit:
                                             </TooltipV2>
                                         </th>
-                                        <td align={"right"}>{overCommitRatio.toFixed(1)}x</td>
+                                        <td align={"right"}>{formatNumber(overCommitRatio, {precision: 1})}x</td>
                                     </tr>
                                     <tr>
                                         <th align={"left"}>
@@ -722,7 +751,7 @@ const UsagePage: React.FunctionComponent = () => {
                                                 Rec. over-commit:
                                             </TooltipV2>
                                         </th>
-                                        <td align={"right"}>{recommendedOverCommit === 0 ? "-" : <>{recommendedOverCommit.toFixed(1)}x</>}</td>
+                                        <td align={"right"}>{recommendedOverCommit === 0 ? "-" : <>{formatNumber(recommendedOverCommit, {precision: 1})}x</>}</td>
                                     </tr>
                                 </tbody>
                             </table>

@@ -21,6 +21,8 @@ import (
 // moved here to make the main file read a bit easier.
 
 func appCatalogInitRpc() {
+	initApplicationVariantRpc()
+	appCustomInitRpc()
 	orcapi.AppsRetrieveLandingPage.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogRetrieveLandingPageRequest) (orcapi.AppCatalogRetrieveLandingPageResponse, *util.HttpError) {
 		return AppCatalogRetrieveLandingPage(info.Actor, request)
 	})
@@ -151,7 +153,8 @@ func appCatalogInitRpc() {
 			} else {
 				group = orcapi.ApplicationGroup{
 					Metadata: orcapi.ApplicationGroupMetadata{
-						Id: -1,
+						Id:     -1,
+						Origin: app.Metadata.Origin,
 					},
 					Specification: orcapi.ApplicationGroupSpecification{
 						Title:       app.Metadata.Title,
@@ -286,10 +289,12 @@ func appCatalogInitRpc() {
 
 		res, err := appIndex.Search(searchRequest)
 		if err == nil {
+			seenGroups := map[int]bool{}
 			for _, hit := range res.Hits {
 				rawId, _ := strconv.ParseInt(hit.ID, 10, 64)
 				g, _, ok := AppRetrieveGroup(info.Actor, AppGroupId(rawId), discovery, AppCatalogIncludeApps)
 				if ok && len(g.Status.Applications) > 0 {
+					seenGroups[g.Metadata.Id] = true
 					defaultFlavor := g.Specification.DefaultFlavor
 					app := g.Status.Applications[0]
 					if defaultFlavor != "" {
@@ -303,6 +308,13 @@ func appCatalogInitRpc() {
 
 					result.Items = append(result.Items, app)
 				}
+			}
+			for _, app := range appCustomSearch(info.Actor, terms, discovery) {
+				if seenGroups[app.Metadata.Group.Metadata.Id] {
+					continue
+				}
+				seenGroups[app.Metadata.Group.Metadata.Id] = true
+				result.Items = append(result.Items, app)
 			}
 		}
 
@@ -374,6 +386,22 @@ func appCatalogInitRpc() {
 	orcapi.AppsRetrieveStudioApplication.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogRetrieveStudioApplicationRequest) (orcapi.AppCatalogRetrieveStudioApplicationResponse, *util.HttpError) {
 		versions, err := AppStudioRetrieveAllVersions(request.Name)
 		return orcapi.AppCatalogRetrieveStudioApplicationResponse{Versions: versions}, err
+	})
+
+	orcapi.AppsEditorRetrieveSource.Handler(func(info rpc.RequestInfo, request orcapi.AppEditorRetrieveSourceRequest) (orcapi.AppEditorRetrieveSourceResponse, *util.HttpError) {
+		return appEditorRetrieveSource(info.Actor, request)
+	})
+
+	orcapi.AppsEditorValidate.Handler(func(info rpc.RequestInfo, request orcapi.AppEditorValidateRequest) (orcapi.AppEditorValidateResponse, *util.HttpError) {
+		return appEditorValidate(info.Actor, request), nil
+	})
+
+	orcapi.AppsEditorEligibility.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.AppEditorCustomEligibilityResponse, *util.HttpError) {
+		return appEditorEligibility(info.Actor), nil
+	})
+
+	orcapi.AppsEditorRenderInvocation.Handler(func(info rpc.RequestInfo, request orcapi.AppEditorRenderRequest) (orcapi.AppEditorRenderResponse, *util.HttpError) {
+		return appEditorRender(info.Actor, request)
 	})
 
 	orcapi.AppsCreateGroup.Handler(func(info rpc.RequestInfo, request orcapi.ApplicationGroupSpecification) (fndapi.FindByIntId, *util.HttpError) {

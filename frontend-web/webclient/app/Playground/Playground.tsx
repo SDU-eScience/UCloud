@@ -13,9 +13,10 @@ import * as plot from "@observablehq/plot";
 import * as Plot from "@observablehq/plot";
 import * as JobViz from "@/Applications/Jobs/JobViz"
 import {WidgetColorIntensity, WidgetWindow} from "@/Applications/Jobs/JobViz"
-import {addOrgInfoModalIfNotFilled, ChangeOrganizationDetails} from "@/UserSettings/ChangeUserDetails";
+import {ChangeOrganizationDetails} from "@/UserSettings/ChangeUserDetails";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {injectStyle} from "@/Unstyled";
+import {defaultModalStyle, fullScreenModalStyle, largeModalStyle, slimModalStyle} from "@/Utilities/ModalUtilities";
+import {ProductSelectorPlayground} from "@/Products/Selector";
 
 const iconsNames = Object.keys(icons) as IconName[];
 
@@ -194,9 +195,18 @@ const Playground: React.FunctionComponent = () => {
 
     const main = (
         <>
+            <Button onClick={() => dialogStore.addDialog(<>largeModalStyle</>, () => void 0, undefined, largeModalStyle)}>largeModalStyle</Button>
+            <Button onClick={() => dialogStore.addDialog(<>fullScreenModalStyle</>, () => void 0, undefined, fullScreenModalStyle)}>fullScreenModalStyle</Button>
+            <Button onClick={() => dialogStore.addDialog(<>slimModalStyle</>, () => void 0, undefined, slimModalStyle)}>slimModalStyle</Button>
+            <Button onClick={() => dialogStore.addDialog(<>defaultModalStyle</>, () => void 0, undefined, defaultModalStyle)}>defaultModalStyle</Button>
+
             <RangeInput value={value} onChange={setValue} max={FAKE_MACHINES.length - 1} markers={FAKE_MACHINES} />
             <RangeInput value={value} onChange={setValue} max={FAKE_MACHINES2.length - 1} markers={FAKE_MACHINES2} />
             <RangeInput value={value} onChange={setValue} max={FAKE_MACHINES3.length - 1} markers={FAKE_MACHINES3} />
+
+            <Box my="32px" maxWidth="900px">
+                <ProductSelectorPlayground />
+            </Box>
 
             <ChangeOrganizationDetails getValues={getValuesRef} />
             <Button onClick={foo}>View extracted contents</Button>
@@ -285,7 +295,7 @@ const Playground: React.FunctionComponent = () => {
                 });
             }}>Trigger pinned notification</Button>
 
-            
+
             <Grid
                 gridTemplateColumns="repeat(10, 1fr)"
                 style={{overflowY: "auto"}}
@@ -458,4 +468,3 @@ function PaletteColors(): React.ReactNode {
 }
 
 export default Playground;
-

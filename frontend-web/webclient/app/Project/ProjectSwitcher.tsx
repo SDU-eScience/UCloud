@@ -20,6 +20,7 @@ import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {Project} from ".";
 import {IconName} from "@/ui-components/Icon";
 import {Toggle} from "@/ui-components/Toggle";
+import {DataAttributes} from "@/Unstyled";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 
@@ -71,9 +72,18 @@ const triggerClass = injectStyle("context-switcher-trigger", k => `
     }
 `);
 
-export function ProjectSwitcher({managed}: {
+const ProjectSwitcherClass = injectStyle("project-switcher", k => `
+    ${k}[data-focusable="true"] > [data-tag="dropdown"]:focus {
+        outline: 2px solid var(--primaryMain);
+        outline-offset: 2px;
+        border-radius: 6px;
+    }
+`);
+
+export function ProjectSwitcher({managed, focusable, ...dataAttributes}: {
     managed?: {setLocalProject: (project?: string) => void, initialProject?: string}
-}): React.ReactNode {
+    focusable?: boolean;
+} & DataAttributes): React.ReactNode {
     const refresh = useRefresh();
     const [showHidden, setShowHidden] = React.useState(false);
 
@@ -223,8 +233,10 @@ export function ProjectSwitcher({managed}: {
         activeProject !== undefined && "My Workspace".toLocaleLowerCase().includes(filter.toLocaleLowerCase());
 
     return (
-        <Flex key={activeContext} alignItems={"center"} data-component={"project-switcher"}>
+        <Flex className={ProjectSwitcherClass} alignItems={"center"}
+            data-component={"project-switcher"} data-focusable={focusable === true ? "true" : undefined}>
             <ClickableDropdown
+                {...dataAttributes}
                 trigger={
                     <div className={triggerClass} ref={switcherRef}>
                         <Truncate title={activeContext} fontSize={14} width="180px">{activeContext}</Truncate>
@@ -238,7 +250,8 @@ export function ProjectSwitcher({managed}: {
                 hoverColor={"rowHover"}
                 onSelect={el => {
                     const id = el?.getAttribute("data-project") ?? undefined;
-                    setActiveProject(id)
+                    setActiveProject(id);
+                    closeFn.current();
                 }}
                 onClose={() => {
                     arrowKeyIndex.current = -1;
@@ -246,6 +259,7 @@ export function ProjectSwitcher({managed}: {
                 }}
                 colorOnHover={false}
                 onOpeningTriggerClick={reload}
+                focusable={focusable}
                 width="500px"
             >
                 <div style={{maxHeight: "385px"}}>
@@ -405,10 +419,6 @@ const BottomBorderedRow = injectStyle("bottom-bordered-row", k => `
         background-color: var(--rowHover);
     }
     
-    ${k}[data-active="true"] {
-        background-color: var(--rowActive);
-    }
-
     ${k} {
         transition: 0.1s background-color;
         display: flex;

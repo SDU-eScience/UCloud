@@ -2,6 +2,10 @@ import {defineConfig, devices, Project} from '@playwright/test';
 import {default as data} from "./tests/test_data.json" with {type: "json"};
 
 
+const manuallyConfiguredUsers = process.env.UCLOUD_PLAYWRIGHT_USER_DATA !== undefined;
+const preparingUsers = process.env.UCLOUD_PLAYWRIGHT_PREPARE_USERS === "1";
+const useUserSetup = !manuallyConfiguredUsers || preparingUsers;
+
 const userSetup: Project = {
     name: "setup",
     testMatch: /users.setup\.ts/,
@@ -10,19 +14,19 @@ const userSetup: Project = {
 const chrome: Project = {
     name: 'chromium',
     use: {...devices['Desktop Chrome']},
-    dependencies: ["setup"],
+    dependencies: useUserSetup ? ["setup"] : [],
 };
 
 const firefox: Project = {
     name: 'firefox',
     use: {...devices['Desktop Firefox']},
-    dependencies: ["setup"],
+    dependencies: useUserSetup ? ["setup"] : [],
 };
 
 const webkit: Project = {
     name: 'webkit',
     use: {...devices['Desktop Safari']},
-    dependencies: ["setup"],
+    dependencies: useUserSetup ? ["setup"] : [],
 };
 
 /**
@@ -43,6 +47,7 @@ export default defineConfig({
     ],
 
     use: {
+        actionTimeout: 10_000,
         /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
         trace: 'on-first-retry',
         screenshot: 'only-on-failure',
@@ -52,5 +57,7 @@ export default defineConfig({
 
 
     /* Configure projects for major browsers */
-    projects: process.env.CI ? [userSetup, chrome] : [userSetup, chrome, firefox, webkit]
+    projects: process.env.CI
+        ? useUserSetup ? [userSetup, chrome] : [chrome]
+        : useUserSetup ? [userSetup, chrome, firefox, webkit] : [chrome, firefox, webkit]
 });

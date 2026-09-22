@@ -75,6 +75,7 @@ import {Dispatch} from "redux";
 import {AutomaticBranding} from "@/Applications/Branding/AutomaticBranding";
 import {BrandingResponse} from "@/UCloud/BrandingApi";
 import {Feature, hasFeature} from "@/Features";
+import {useBackendFeatures} from "@/Features/backend";
 import {setAppFavorites} from "@/Applications/Redux/Reducer";
 import {useInferenceThreads} from "@/Inference/ThreadStore";
 
@@ -439,6 +440,12 @@ function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, proj
                 icon: "ftFileSystem",
                 tab: SidebarTabId.FILES
             },
+            ...(hasFeature(Feature.CONTAINER_REPOSITORIES) ? [{
+                to: AppRoutes.containerRepositories.browse(),
+                text: "Container repositories",
+                icon: "heroArchiveBox" as IconName,
+                tab: SidebarTabId.FILES,
+            }] : []),
             ...(isPersonalWorkspace ? sharesLinksInfo : [])
         ],
         [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId),
@@ -468,6 +475,8 @@ function sidebarCommand(title: string, description: string, url: string, icon: I
 export function Sidebar(): React.ReactNode {
     const sidebarEntries = sideBarMenuElements;
     const {loggedIn, avatar} = useSidebarReduxProps();
+
+    useBackendFeatures();
 
     const [selectedPage, setSelectedPage] = React.useState(SidebarTabId.NONE);
     const [hoveredPage, setHoveredPage] = React.useState(SidebarTabId.NONE);
@@ -1176,6 +1185,16 @@ function SecondarySidebar({
                     tab={SidebarTabId.FILES}
                 />
 
+                {!hasFeature(Feature.CONTAINER_REPOSITORIES) ? null : <>
+                    <SidebarSectionHeader tab={SidebarTabId.FILES} to={AppRoutes.containerRepositories.browse()}>Registries</SidebarSectionHeader>
+                    <SidebarEntry
+                        to={AppRoutes.containerRepositories.browse()}
+                        text="Container registry"
+                        icon="heroArchiveBox"
+                        tab={SidebarTabId.FILES}
+                    />
+                </>}
+
             </>}
 
             {active !== SidebarTabId.PROJECT ? null : <>
@@ -1211,7 +1230,7 @@ function SecondarySidebar({
                             key={fav.metadata.name}
                             to={AppRoutes.jobs.create(fav.metadata.name)}
                             text={fav.metadata.title}
-                            icon={<AppLogo name={fav.metadata.name} />}
+                            icon={<AppLogo name={fav.metadata.name} groupId={fav.metadata.groupId ?? fav.metadata.group?.metadata.id} />}
                             tab={SidebarTabId.APPLICATIONS}
                         />
                     )}
@@ -1255,7 +1274,8 @@ function SecondarySidebar({
                         key={run.id}
                         to={AppRoutes.jobs.view(run.id)}
                         text={name}
-                        icon={<AppLogo name={run.specification.application.name} />}
+                        icon={<AppLogo name={run.specification.application.name}
+                            groupId={run.status.resolvedApplication?.metadata.groupId ?? run.status.resolvedApplication?.metadata.group?.metadata.id} />}
                         tab={SidebarTabId.RUNS}
                     />
                 })}
@@ -1284,8 +1304,8 @@ function SecondarySidebar({
     </div>;
 }
 
-function AppLogo({name}: {name: string}): React.ReactNode {
-    return <SafeLogo size="16px" name={name} type="APPLICATION" isLightOverride={false} />;
+function AppLogo({name, groupId}: {name: string; groupId?: number | null}): React.ReactNode {
+    return <SafeLogo size="16px" name={name} type="APPLICATION" isLightOverride={false} groupId={groupId} />;
 }
 
 function SidebarSectionEmptyHeader(): React.ReactNode {

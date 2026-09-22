@@ -537,7 +537,7 @@ func BatchGet[T any](batch *Batch, query string, args Params) *util.Option[T] {
 
 		if err := scanner.Scan(&scanned); err != nil && batch.Tx.Ok {
 			batch.Tx.Ok = false
-			batch.Tx.error = fmt.Errorf("Database select failed: %v. Query: %v", err, query)
+			batch.Tx.error = fmt.Errorf("Database select failed: %w. Query: %v", err, query)
 			return nil
 		}
 
