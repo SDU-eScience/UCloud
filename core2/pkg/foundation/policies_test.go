@@ -238,9 +238,19 @@ func TestDefaultPoliciesAppliedToNewSubproject(t *testing.T) {
 	assertPolicyEnabled(t, policies, fndapi.RestrictSsh, true)
 	assertPolicyEnabled(t, policies, fndapi.RestrictUploads, false)
 
-	// The setting only describes future subprojects, it must not become actual policies of the giver itself
-	policies = mustRetrievePolicies(t, giver)
-	assertPolicyEnabled(t, policies, fndapi.RestrictSsh, false)
+	// The merged defaults also become the default policy setting of the subproject itself
+	subAdmin := policyTestActor("sub-admin", subproject2)
+	defaults, err = policiesDefaultRetrieve(subAdmin, fndapi.RetrievePoliciesRequest{})
+	if err != nil {
+		t.Fatalf("policiesDefaultRetrieve error: %+v", err)
+	}
+	assertPolicyEnabled(t, defaults, fndapi.RestrictSsh, true)
+
+	// ...and therefore propagate to subprojects created by the subproject
+	const grandchild = "default-sub-2-child"
+	applyDefaultPoliciesToNewSubproject([]string{subproject2}, grandchild)
+	policies = mustRetrievePolicies(t, grandchild)
+	assertPolicyEnabled(t, policies, fndapi.RestrictSsh, true)
 }
 
 func TestMultiGrantGiverDefaultMerging(t *testing.T) {

@@ -615,6 +615,65 @@ func applyDefaultPoliciesToNewSubproject(grantGiverProjectIds []string, projectI
 				continue
 			}
 
+			if b != nil {
+				// The merged defaults become the actual policies of the new subproject...
+				db.BatchExec(
+					b,
+					`
+					insert into project.policies (
+						project_id,
+						policy_name,
+						policy_properties,
+						modified_at
+					)
+					values (
+						:project_id,
+						:policy_name,
+						:policy_properties,
+						now()
+					)
+					on conflict (project_id, policy_name)
+					do update set
+						policy_properties = excluded.policy_properties,
+						modified_at = now()
+					`,
+					db.Params{
+						"project_id":        projectId,
+						"policy_name":       policyName,
+						"policy_properties": properties,
+					},
+				)
+
+				// ...and its own default policy settings, such that they are inherited again when the
+				// subproject itself creates subprojects through grants.
+				db.BatchExec(
+					b,
+					`
+					insert into project.default_policy_settings (
+						project_id,
+						policy_name,
+						policy_properties,
+						modified_at
+					)
+					values (
+						:project_id,
+						:policy_name,
+						:policy_properties,
+						now()
+					)
+					on conflict (project_id, policy_name)
+					do update set
+						policy_properties = excluded.policy_properties,
+						modified_at = now()
+					`,
+					db.Params{
+						"project_id":        projectId,
+						"policy_name":       policyName,
+						"policy_properties": properties,
+					},
+				)
+			}
+
 			// Decode the specification such that the in-memory policy cache can be updated.
 			decoder, hasDecoder := fndapi.SpecificationDecoders[policyName]
 			if !hasDecoder {
@@ -654,6 +713,19 @@ func applyDefaultPoliciesToNewSubproject(grantGiverProjectIds []string, projectI
 	// Update the in-memory policy cache of this service if any changes even apply.
 	// The database trigger on project.policies notifies the remaining services about the change.
 	if len(specifications) > 0 {
+		if policyGlobals.TestingEnabled {
+			// Tests have no database, keep the inherited default setting in memory instead such that
+			// grandchild subprojects inherit it as well.
+			testDefaults := policyGlobals.TestDefaultPolicySettings[projectId]
+			if testDefaults == nil {
+				testDefaults = make(map[fndapi.PolicyName]fndapi.Specification)
+				policyGlobals.TestDefaultPolicySettings[projectId] = testDefaults
+			}
+
+			for _, specification := range specifications {
+				testDefaults[specification.GetSpecificationName()] = specification
+			}
+		}
 		projectPolicies.Mu.Lock()
 
 		entry, ok := projectPolicies.PoliciesByProject[projectId]
