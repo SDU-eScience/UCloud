@@ -53,6 +53,7 @@ su ucloud -c "helm install headlamp headlamp/headlamp --namespace headlamp --cre
 kubectl -n headlamp create token headlamp | tee /etc/ucloud-stack/headlamp-token
 
 # Generate Kubernetes authentication token and wait for it to be ready
+kubectl label node "$(hostname)" ucloud.dk/k8s-node-group=control-plane --overwrite
 kubectl apply -f /var/lib/ucloud/admin-token.yml
 TRIES=0
 COMMAND_STATUS=1

@@ -6,6 +6,7 @@ export enum Opcode {
     UiMount = 0x12,
     ModelPatch = 0x13,
     ModelInput = 0x14,
+    TableUpdate = 0x15,
     RpcRequest = 0x20,
     RpcResponse = 0x21,
 }
@@ -76,6 +77,27 @@ export interface UiEvent {
     value: Value;
 }
 
+export interface TableColumn {
+    key: string;
+    label: string;
+    jsonPath: string;
+}
+
+export interface TableRow {
+    key: string;
+    group: string;
+    cells: string[];
+}
+
+export interface TableUpdate {
+    tableId: string;
+    revision: number;
+    snapshot: boolean;
+    columns: TableColumn[];
+    upserts: TableRow[];
+    removed: string[];
+}
+
 export interface Frame {
     opcode: Opcode;
     seq: number;
@@ -86,6 +108,7 @@ export interface Frame {
     uiMount?: UiMount;
     modelPatch?: ModelPatch;
     modelInput?: ModelInput;
+    tableUpdate?: TableUpdate;
     rpcRequestName?: string;
     rpcPayload?: Record<string, Value>;
     rpcStatus?: number;
@@ -227,6 +250,9 @@ export function encodeFrame(frame: Frame): Uint8Array {
         case Opcode.ModelInput:
             encodeModelInput(w, frame.modelInput!);
             break;
+        case Opcode.TableUpdate:
+            encodeTableUpdate(w, frame.tableUpdate!);
+            break;
         case Opcode.RpcRequest:
             w.writeString(frame.rpcRequestName ?? "");
             writeValueMap(w, frame.rpcPayload ?? {});
@@ -271,6 +297,9 @@ export function decodeFrame(input: Uint8Array): Frame {
             break;
         case Opcode.ModelInput:
             frame.modelInput = decodeModelInput(r);
+            break;
+        case Opcode.TableUpdate:
+            frame.tableUpdate = decodeTableUpdate(r);
             break;
         case Opcode.RpcRequest:
             frame.rpcRequestName = r.readString();
@@ -344,6 +373,59 @@ function decodeModelInput(r: BinaryReader): ModelInput {
         path: r.readString(),
         value: decodeValue(r),
     };
+}
+
+function encodeTableUpdate(w: BinaryWriter, update: TableUpdate) {
+    w.writeString(update.tableId);
+    w.writeS64(update.revision);
+    w.writeU8(update.snapshot ? 1 : 0);
+
+    w.writeU32(update.columns.length);
+    for (const col of update.columns) {
+        w.writeString(col.key);
+        w.writeString(col.label);
+        w.writeString(col.jsonPath);
+    }
+
+    w.writeU32(update.upserts.length);
+    for (const row of update.upserts) {
+        w.writeString(row.key);
+        w.writeString(row.group);
+        w.writeU32(row.cells.length);
+        for (const cell of row.cells) w.writeString(cell);
+    }
+
+    w.writeU32(update.removed.length);
+    for (const key of update.removed) w.writeString(key);
+}
+
+function decodeTableUpdate(r: BinaryReader): TableUpdate {
+    const tableId = r.readString();
+    const revision = r.readS64();
+    const snapshot = r.readU8() !== 0;
+
+    const columnCount = r.readU32();
+    const columns: TableColumn[] = [];
+    for (let i = 0; i < columnCount; i++) {
+        columns.push({key: r.readString(), label: r.readString(), jsonPath: r.readString()});
+    }
+
+    const rowCount = r.readU32();
+    const upserts: TableRow[] = [];
+    for (let i = 0; i < rowCount; i++) {
+        const key = r.readString();
+        const group = r.readString();
+        const cellCount = r.readU32();
+        const cells: string[] = [];
+        for (let j = 0; j < cellCount; j++) cells.push(r.readString());
+        upserts.push({key, group, cells});
+    }
+
+    const removedCount = r.readU32();
+    const removed: string[] = [];
+    for (let i = 0; i < removedCount; i++) removed.push(r.readString());
+
+    return {tableId, revision, snapshot, columns, upserts, removed};
 }
 
 function encodeUiEvent(w: BinaryWriter, ev: UiEvent) {

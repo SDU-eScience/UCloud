@@ -248,6 +248,14 @@ func (s *Session) SendModelPatch(changes map[string]Value) {
 	})
 }
 
+func (s *Session) SendTableUpdate(update TableUpdate) {
+	s.Send(Frame{
+		ReplyToSeq:  0,
+		Opcode:      OpTableUpdate,
+		TableUpdate: update,
+	})
+}
+
 func (s *Session) sendModelDiff(before map[string]Value, after map[string]Value) {
 	changes := map[string]Value{}
 	for key, afterVal := range after {

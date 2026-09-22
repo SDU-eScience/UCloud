@@ -20,6 +20,7 @@ const (
 	OpUiMount     Opcode = 0x12
 	OpModelPatch  Opcode = 0x13
 	OpModelInput  Opcode = 0x14
+	OpTableUpdate Opcode = 0x15
 	OpRpcRequest  Opcode = 0x20
 	OpRpcResponse Opcode = 0x21
 )
@@ -34,6 +35,7 @@ type Frame struct {
 	UiMount        UiMount
 	ModelPatch     ModelPatch
 	ModelInput     ModelInput
+	TableUpdate    TableUpdate
 	RpcRequestName string
 	RpcPayload     map[string]Value
 	RpcStatus      int
@@ -59,6 +61,27 @@ type ModelInput struct {
 	NodeId  string
 	Path    string
 	Value   Value
+}
+
+type TableColumn struct {
+	Key      string
+	Label    string
+	JsonPath string
+}
+
+type TableRow struct {
+	Key   string
+	Group string
+	Cells []string
+}
+
+type TableUpdate struct {
+	TableId  string
+	Revision int64
+	Snapshot bool
+	Columns  []TableColumn
+	Upserts  []TableRow
+	Removed  []string
 }
 
 type UiEventType string
@@ -95,6 +118,8 @@ func FrameEncode(f Frame) ([]byte, error) {
 		ModelPatchEncode(buf, f.ModelPatch)
 	case OpModelInput:
 		ModelInputEncode(buf, f.ModelInput)
+	case OpTableUpdate:
+		TableUpdateEncode(buf, f.TableUpdate)
 	case OpRpcRequest:
 		buf.WriteString(f.RpcRequestName)
 		RpcPayloadEncode(buf, f.RpcPayload)
@@ -131,6 +156,8 @@ func FrameDecode(data []byte) (Frame, error) {
 		result.ModelPatch = ModelPatchDecode(buf)
 	case OpModelInput:
 		result.ModelInput = ModelInputDecode(buf)
+	case OpTableUpdate:
+		result.TableUpdate = TableUpdateDecode(buf)
 	case OpRpcRequest:
 		result.RpcRequestName = buf.ReadString()
 		result.RpcPayload = RpcPayloadDecode(buf)
@@ -238,6 +265,76 @@ func ModelInputDecode(buf *util.UBuffer) ModelInput {
 		Path:    buf.ReadString(),
 		Value:   ValueDecode(buf),
 	}
+}
+
+func TableUpdateEncode(buf *util.UBuffer, msg TableUpdate) {
+	buf.WriteString(msg.TableId)
+	buf.WriteS64(msg.Revision)
+	if msg.Snapshot {
+		buf.WriteU8(1)
+	} else {
+		buf.WriteU8(0)
+	}
+
+	buf.WriteU32(uint32(len(msg.Columns)))
+	for _, col := range msg.Columns {
+		buf.WriteString(col.Key)
+		buf.WriteString(col.Label)
+		buf.WriteString(col.JsonPath)
+	}
+
+	buf.WriteU32(uint32(len(msg.Upserts)))
+	for _, row := range msg.Upserts {
+		buf.WriteString(row.Key)
+		buf.WriteString(row.Group)
+		buf.WriteU32(uint32(len(row.Cells)))
+		for _, cell := range row.Cells {
+			buf.WriteString(cell)
+		}
+	}
+
+	buf.WriteU32(uint32(len(msg.Removed)))
+	for _, key := range msg.Removed {
+		buf.WriteString(key)
+	}
+}
+
+func TableUpdateDecode(buf *util.UBuffer) TableUpdate {
+	result := TableUpdate{
+		TableId:  buf.ReadString(),
+		Revision: buf.ReadS64(),
+		Snapshot: buf.ReadU8() != 0,
+	}
+
+	columnCount := buf.ReadU32()
+	result.Columns = make([]TableColumn, columnCount)
+	for i := uint32(0); i < columnCount; i++ {
+		result.Columns[i] = TableColumn{
+			Key:      buf.ReadString(),
+			Label:    buf.ReadString(),
+			JsonPath: buf.ReadString(),
+		}
+	}
+
+	rowCount := buf.ReadU32()
+	result.Upserts = make([]TableRow, rowCount)
+	for i := uint32(0); i < rowCount; i++ {
+		row := TableRow{Key: buf.ReadString(), Group: buf.ReadString()}
+		cellCount := buf.ReadU32()
+		row.Cells = make([]string, cellCount)
+		for j := uint32(0); j < cellCount; j++ {
+			row.Cells[j] = buf.ReadString()
+		}
+		result.Upserts[i] = row
+	}
+
+	removedCount := buf.ReadU32()
+	result.Removed = make([]string, removedCount)
+	for i := uint32(0); i < removedCount; i++ {
+		result.Removed[i] = buf.ReadString()
+	}
+
+	return result
 }
 
 func UiEventEncode(buf *util.UBuffer, msg UiEvent) {

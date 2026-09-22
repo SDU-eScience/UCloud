@@ -4,20 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"sync"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 	"ucloud.dk/shared/pkg/util"
-
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
 )
@@ -27,44 +24,28 @@ func App() ucx.Application {
 }
 
 type stackUiApp struct {
-	mu        sync.Mutex    `ucx:"-"`
-	session   *ucx.Session  `ucx:"-"`
-	Stack     *ucxsvc.Stack `ucx:"-"`
-	prevRoute string
-	k8sClient *kubernetes.Clientset `ucx:"-"`
+	mu        sync.Mutex      `ucx:"-"`
+	session   *ucx.Session    `ucx:"-"`
+	Stack     *ucxsvc.Stack   `ucx:"-"`
+	k8sClient *K8sClient      `ucx:"-"`
+	poller    *resourcePoller `ucx:"-"`
 
 	Jobs      []orcapi.Job
 	RoutePath string
 	Machine   accapi.ProductReference
 
-	TargetGroup string
+	TargetGroup     string
+	ActiveType      string
+	ActiveNamespace string
+	ResourceDetail  string
+	ResourceYaml    string
 
-	Nodes []nodeRow
-	Pods  []podRow
-	Svcs  []svcRow
-}
-
-type nodeRow struct {
-	Name  string
-	Ready string
-	Ip    string
-}
-
-type podRow struct {
-	Name      string
-	Namespace string
-	Phase     string
-	Node      string
-}
-
-type svcRow struct {
-	Name      string
-	Namespace string
-	Ports     string
+	prevDetail string `ucx:"-"`
 }
 
 func (app *stackUiApp) Mutex() *sync.Mutex     { return &app.mu }
 func (app *stackUiApp) Session() **ucx.Session { return &app.session }
+
 func (app *stackUiApp) OnInit() {
 	app.loadStackJobs()
 }
@@ -83,10 +64,28 @@ func (app *stackUiApp) OnSysHello(payload string) {
 	app.Stack = stack
 	ucxsvc.UiSendSuccess(app, "Main control plane is ready!")
 
-	config, _ := clientcmd.BuildConfigFromFlags("", "/home/ucloud/.kube/config")
-	clientset, _ := kubernetes.NewForConfig(config)
+	client, err := K8sClientFromKubeconfig(KubeconfigPath())
+	if err != nil {
+		log.Warn("k8s-app: failed to create k8s client: %s", err)
+		return
+	}
+	app.k8sClient = client
+	log.Info("k8s-app: k8s client ready from %s", KubeconfigPath())
 
-	app.k8sClient = clientset
+	if app.ActiveType == "" {
+		app.ActiveType = "nodes"
+	}
+	app.poller = newResourcePoller(client, *app.Session(), app.ActiveType, func() {
+		stateMu := app.Mutex()
+		stateMu.Lock()
+		ucx.AppUpdateUi(app)
+		stateMu.Unlock()
+	})
+	log.Info("k8s-app: poller started, active type %s", app.ActiveType)
+
+	session := *app.Session()
+	ucx.RpcHandle(session, ResourceYamlRpc, app.handleResourceYaml)
+	ucx.RpcHandle(session, ListNamespacesRpc, app.handleListNamespaces)
 }
 
 func (app *stackUiApp) loadStackJobs() {
@@ -143,13 +142,11 @@ func (app *stackUiApp) UserInterface() ucx.UiNode {
 		ucx.Router("routePath"),
 	}
 
-	switch app.RoutePath {
-	case "control":
+	switch {
+	case app.RoutePath == "control":
 		children = util.Combined(children, app.pageControl())
-	case "cluster-info":
-		children = util.Combined(children, app.pageClusterInfo())
 	default:
-		children = util.Combined(children, app.pageMain())
+		children = util.Combined(children, app.pageResources())
 	}
 
 	return ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 32}).
@@ -157,95 +154,45 @@ func (app *stackUiApp) UserInterface() ucx.UiNode {
 		Children(children...)
 }
 
-// Show cluster information (nodes, pods, services)
-func (app *stackUiApp) pageClusterInfo() []ucx.UiNode {
-	nodes, _ := app.k8sClient.CoreV1().Nodes().List(context.TODO(), v1.ListOptions{})
-	pods, _ := app.k8sClient.CoreV1().Pods("").List(context.TODO(), v1.ListOptions{})
-	svcs, _ := app.k8sClient.CoreV1().Services("").List(context.TODO(), v1.ListOptions{})
+func (app *stackUiApp) pageResources() []ucx.UiNode {
+	typeDefs := ResourceTypes()
+	if app.poller != nil {
+		typeDefs = append(typeDefs, app.poller.customTypesSnapshot()...)
+	}
 
-	app.Nodes = nil
-	for _, node := range nodes.Items {
-		ip := ""
-		ready := ""
-		for _, addr := range node.Status.Addresses {
-			if addr.Type == corev1.NodeInternalIP {
-				ip = addr.Address
-			}
-		}
-		for _, cond := range node.Status.Conditions {
-			if cond.Type == corev1.NodeReady {
-				ready = fmt.Sprintf("%v", cond.Status)
-			}
-		}
-
-		app.Nodes = append(app.Nodes, nodeRow{
-			Name:  node.ObjectMeta.Name,
-			Ready: ready,
-			Ip:    ip,
+	typeOptions := make([]ucx.ResourceTypeOption, 0, len(typeDefs))
+	for _, def := range typeDefs {
+		typeOptions = append(typeOptions, ucx.ResourceTypeOption{
+			Id:         def.Id,
+			Label:      def.Label,
+			Aliases:    def.Aliases,
+			Group:      def.Group,
+			HasYaml:    def.HasYaml,
+			Namespaced: def.Namespaced,
 		})
 	}
 
-	app.Pods = nil
-	for _, pod := range pods.Items {
-		app.Pods = append(app.Pods, podRow{
-			Name:      pod.ObjectMeta.Name,
-			Namespace: pod.ObjectMeta.Namespace,
-			Phase:     fmt.Sprintf("%v", pod.Status.Phase),
-			Node:      pod.Status.HostIP,
-		})
-	}
-
-	app.Svcs = nil
-	for _, svc := range svcs.Items {
-		portList := []string{}
-		for _, p := range svc.Spec.Ports {
-			if p.NodePort != 0 {
-				portList = append(portList, fmt.Sprintf("%d:%d/%s", p.Port, p.NodePort, p.Protocol))
-			} else {
-				portList = append(portList, fmt.Sprintf("%d/%s", p.Port, p.Protocol))
-			}
-		}
-
-		app.Svcs = append(app.Svcs, svcRow{
-			Name:      svc.ObjectMeta.Name,
-			Namespace: svc.ObjectMeta.Namespace,
-			Ports:     strings.Join(portList, ", "),
-		})
-	}
-
-	return []ucx.UiNode{ucx.Surface().Children(
-		ucx.Toolbar().Children(
-			ucx.H2("Kubernetes cluster information"),
-			ucx.Button("refresh", "Refresh", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-				ucx.AppUpdateUi(app)
-			}),
-			ucx.Link("").Children(ucx.Text("Back to overview")),
-		),
-		ucx.Tabs().Children(
-			ucx.Tab("Nodes", ucx.IconHeroServer).Children(
-				ucx.TableNode("nodes", []ucx.Option{
-					{Key: "name", Value: "Name"},
-					{Key: "ready", Value: "Ready"},
-					{Key: "ip", Value: "IP"},
+	return []ucx.UiNode{ucx.Surface().
+		Sx(
+			ucx.SxHeightRaw("calc(100vh - 288px)"),
+			ucx.SxMinHeight(480),
+		).
+		Children(
+			ucx.Toolbar().Children(
+				ucx.H2("Kubernetes cluster"),
+				ucx.Button("downloadKubernetesConfig", "Download kubeconfig", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+					ucxsvc.StackDownloadFile(app.Stack, shared.KubernetesConfigurationFileName)
 				}),
-			),
-			ucx.Tab("Pods", ucx.IconHeroServer).Children(
-				ucx.TableNode("pods", []ucx.Option{
-					{Key: "name", Value: "Name"},
-					{Key: "namespace", Value: "Namespace"},
-					{Key: "phase", Value: "Phase"},
-					{Key: "node", Value: "Node"},
+				ucx.Button("copyKubernetesToken", "Copy k8s token", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+					ucxsvc.StackCopyFile(app.Stack, shared.KubernetesTokenFileName)
 				}),
-			),
-			ucx.Tab("Services", ucx.IconHeroServer).Children(
-				ucx.TableNode("svc", []ucx.Option{
-					{Key: "name", Value: "Name"},
-					{Key: "namespace", Value: "Namespace"},
-					{Key: "ports", Value: "Ports"},
+				ucx.Button("copyHeadlampToken", "Copy Headlamp token", ucx.ColorSecondaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+					ucxsvc.StackCopyFile(app.Stack, shared.HeadlampTokenFileName)
 				}),
+				ucx.Link("control").Children(ucx.Button("add-machine", "Add machine", ucx.ColorSecondaryMain)),
 			),
-		),
-	)}
+			ucx.ResourceTable("resourceTable", "activeType", "activeNamespace", "resourceDetail", typeOptions),
+		)}
 }
 
 // "Add new VM" page
@@ -276,7 +223,6 @@ func (app *stackUiApp) pageControl() []ucx.UiNode {
 		options = append(options, ucx.Option{Key: group, Value: group})
 	}
 
-	// NOTE: multiple control planes currently don't work
 	children = append(children, ucx.Form("addNodeForm").On(ucx.UiEventSubmit, func(ev ucx.UiEvent) {
 		app.addMachineToGroup(app.TargetGroup)
 		ucx.AppUpdateUi(app)
@@ -297,65 +243,156 @@ func (app *stackUiApp) pageControl() []ucx.UiNode {
 	return children
 }
 
-func (app *stackUiApp) pageMain() []ucx.UiNode {
-	groups := shared.ClusterNodeGroups(app.Jobs)
-	var children []ucx.UiNode
-
-	children = append(children,
-		ucx.Surface().Children(
-			ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 32}).Children(
-				ucx.Flex(ucx.FlexProps{Gap: 8}).Children(
-					ucx.Button("downloadKubernetesConfig", "Download Kubernetes configuration", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-						ucxsvc.StackDownloadFile(app.Stack, shared.KubernetesConfigurationFileName)
-					}),
-					ucx.Button("copyKubernetesToken", "Copy Kubernetes authentication token", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-						ucxsvc.StackCopyFile(app.Stack, shared.KubernetesTokenFileName)
-					}),
-					ucx.Button("copyHeadlampToken", "Copy Headlamp authentication token", ucx.ColorSecondaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-						ucxsvc.StackCopyFile(app.Stack, shared.HeadlampTokenFileName)
-					}),
-					ucx.Link("cluster-info").Children(ucx.Button("cluster-information", "Show cluster information", ucx.ColorPrimaryMain)),
-				),
-			),
-		),
-	)
-
-	if len(groups) == 0 {
-		children = append(children, ucx.Text(fmt.Sprintf("No machines found with label %s", shared.StackGroupingLabel)))
-	} else {
-		for _, group := range groups {
-			groupName := group
-			children = append(children,
-				ucx.Surface().Children(
-					ucx.Toolbar().Children(
-						ucx.H3(fmt.Sprintf("Machines in group: %s", groupName)),
-					),
-					ucx.StackMachines(ucx.StackMachinesProps{
-						Plain: true,
-						LabelFilter: util.OptValue(ucx.StackMachinesLabelFilter{
-							Label: shared.StackGroupingLabel,
-							Value: groupName,
-						}),
-					}),
-				),
-			)
-		}
-	}
-	children = append(children, ucx.Flex(ucx.FlexProps{Gap: 8}).Children(ucx.Link("control").Children(
-		ucx.Button("add-machine", "Add machine", ucx.ColorPrimaryMain),
-	)))
-
-	return children
-}
-
 func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 	switch frame.Opcode {
 	case ucx.OpModelInput:
 		app.RoutePath = strings.TrimSpace(app.RoutePath)
 
-		if app.prevRoute != app.RoutePath {
-			app.prevRoute = app.RoutePath
+		if app.poller != nil {
+			app.poller.SetActiveType(app.ActiveType)
+			app.poller.SetActiveNamespace(app.ActiveNamespace)
+		}
+
+		routeDetail := ""
+		if strings.HasPrefix(app.RoutePath, "detail/") {
+			routeDetail = detailFromRoute(app.RoutePath)
+		}
+
+		changed := false
+		if routeDetail != app.ResourceDetail {
+			app.ResourceDetail = routeDetail
+			changed = true
+		}
+		if app.ResourceDetail != app.prevDetail {
+			app.prevDetail = app.ResourceDetail
+			app.loadResourceYaml(app.ResourceDetail)
+			changed = true
+		}
+
+		if changed {
 			ucx.AppUpdateUi(app)
 		}
 	}
+}
+
+func detailFromRoute(routePath string) string {
+	parts := strings.Split(strings.TrimPrefix(routePath, "detail/"), "/")
+	if len(parts) != 3 {
+		return ""
+	}
+
+	typeId, err := url.PathUnescape(parts[0])
+	if err != nil {
+		return ""
+	}
+	namespace, err := url.PathUnescape(parts[1])
+	if err != nil {
+		return ""
+	}
+	name, err := url.PathUnescape(parts[2])
+	if err != nil {
+		return ""
+	}
+
+	return typeId + "/" + namespace + "/" + name
+}
+
+func (app *stackUiApp) loadResourceYaml(detail string) {
+	app.ResourceYaml = ""
+
+	if detail == "" {
+		return
+	}
+
+	parts := strings.Split(detail, "/")
+	if len(parts) != 3 {
+		return
+	}
+
+	typeId := parts[0]
+	namespace := parts[1]
+	name := parts[2]
+
+	def, ok := app.resolveType(typeId)
+	if !ok {
+		app.ResourceYaml = fmt.Sprintf("Unknown resource type: %s", typeId)
+		return
+	}
+
+	if app.k8sClient == nil {
+		app.ResourceYaml = "Kubernetes client is not available"
+		return
+	}
+
+	yamlText, err := app.k8sClient.YamlForUid(context.Background(), def, namespace, name)
+	if err != nil {
+		app.ResourceYaml = fmt.Sprintf("Failed to fetch YAML: %s", err)
+		return
+	}
+
+	app.ResourceYaml = yamlText
+}
+
+func (app *stackUiApp) resolveType(typeId string) (ResourceTypeDef, bool) {
+	if def, ok := ResourceType(typeId); ok {
+		return def, true
+	}
+	if app.poller != nil {
+		def := app.poller.customTypeById(typeId)
+		return def, def.Id != ""
+	}
+	return ResourceTypeDef{}, false
+}
+
+func (app *stackUiApp) handleResourceYaml(ctx context.Context, request resourceYamlRequest) (resourceYamlResponse, error) {
+	if app.k8sClient == nil {
+		return resourceYamlResponse{}, fmt.Errorf("kubernetes client is not available")
+	}
+
+	def, ok := app.resolveType(request.Type)
+	if !ok {
+		return resourceYamlResponse{}, fmt.Errorf("unknown resource type %q", request.Type)
+	}
+
+	yamlText, err := app.k8sClient.YamlForUid(ctx, def, request.Namespace, request.Name)
+	if err != nil {
+		return resourceYamlResponse{}, err
+	}
+
+	return resourceYamlResponse{Yaml: yamlText}, nil
+}
+
+func (app *stackUiApp) handleListNamespaces(ctx context.Context, request util.Empty) (namespaceListResponse, error) {
+	if app.k8sClient == nil {
+		return namespaceListResponse{}, fmt.Errorf("kubernetes client is not available")
+	}
+
+	names, err := app.k8sClient.ListNamespaces(ctx)
+	if err != nil {
+		return namespaceListResponse{}, err
+	}
+
+	return namespaceListResponse{Namespaces: names}, nil
+}
+
+type resourceYamlRequest struct {
+	Type      string
+	Namespace string
+	Name      string
+}
+
+type resourceYamlResponse struct {
+	Yaml string
+}
+
+type namespaceListResponse struct {
+	Namespaces []string
+}
+
+var ResourceYamlRpc = ucx.Rpc[resourceYamlRequest, resourceYamlResponse]{
+	CallName: "k8s.resourceYaml",
+}
+
+var ListNamespacesRpc = ucx.Rpc[util.Empty, namespaceListResponse]{
+	CallName: "k8s.listNamespaces",
 }

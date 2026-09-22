@@ -710,6 +710,46 @@ func TableNodeEx(id string, bindPath string, columns []Option) UiNode {
 	}
 }
 
+type ResourceTypeOption struct {
+	Id         string
+	Label      string
+	Aliases    []string
+	Group      string
+	HasYaml    bool
+	Namespaced bool
+}
+
+func ResourceTable(id string, activeTypePath string, activeNamespacePath string, detailPath string, types []ResourceTypeOption) UiNode {
+	items := make([]Value, 0, len(types))
+	for _, t := range types {
+		aliasValues := make([]Value, 0, len(t.Aliases))
+		for _, alias := range t.Aliases {
+			aliasValues = append(aliasValues, VString(alias))
+		}
+
+		items = append(items, VObject(map[string]Value{
+			"id":         VString(t.Id),
+			"label":      VString(t.Label),
+			"aliases":    VList(aliasValues),
+			"group":      VString(t.Group),
+			"hasYaml":    VBool(t.HasYaml),
+			"namespaced": VBool(t.Namespaced),
+		}))
+	}
+
+	return UiNode{
+		Id:        id,
+		Component: "resource_table",
+		Props: map[string]Value{
+			"tableId":             VString("resources"),
+			"activeTypePath":      VString(activeTypePath),
+			"activeNamespacePath": VString(activeNamespacePath),
+			"detailPath":          VString(detailPath),
+			"types":               VList(items),
+		},
+	}
+}
+
 func Tabs() UiNode {
 	return TabsWithRouteEx("", false)
 }
@@ -804,6 +844,22 @@ func CodeEx(id string, text string) UiNode {
 			"text": VString(text),
 		},
 	}
+}
+
+func (n UiNode) WithLang(lang string) UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["lang"] = VString(lang)
+	return n
+}
+
+func (n UiNode) WithStretch() UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["stretch"] = VBool(true)
+	return n
 }
 
 func CodeBound(bindPath string) UiNode {

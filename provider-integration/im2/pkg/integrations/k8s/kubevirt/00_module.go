@@ -663,6 +663,7 @@ func followWatchSerialConsole(session *ctrl.FollowJobSession, serialActive *bool
 	case err := <-streamStop:
 		clean()
 		<-readStop
+		_ = err
 
 	case <-readStop:
 		clean()
