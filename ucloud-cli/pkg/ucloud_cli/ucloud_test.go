@@ -487,3 +487,12 @@ func TestJobExtendMissingTime(t *testing.T) {
 	err = cmd.Execute()
 	assert.Error(t, err)
 }
+
+func TestCompletion(t *testing.T) {
+	input := []string{"completion"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.Error(t, err)
+}

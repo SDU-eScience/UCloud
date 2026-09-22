@@ -6,6 +6,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {projectCache} from "@/Project/ProjectSwitcher";
 import {groupBy} from "@/Utilities/CollectionUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 
 export const UCLOUD_PROVIDER = "ucloud";
 export const UNABLE_TO_USE_FULL_ALLOC_MESSAGE =
@@ -188,36 +189,6 @@ export function productTypeFromName(name: string): ProductType {
 }
 
 export const productTypes: ProductType[] = ["COMPUTE", "STORAGE", "NETWORK_IP", "INGRESS", "LICENSE", "INFERENCE"];
-
-export function addThousandSeparators(numberOrString: string | number): string {
-    const numberAsString = typeof numberOrString === "string" ? numberOrString : numberOrString.toString(10);
-    const dotIndex = numberAsString.indexOf(".");
-    const substring = dotIndex === -1 ? numberAsString : numberAsString.substring(0, dotIndex);
-    const isNegative = substring.startsWith("-");
-
-    let result = "";
-    let i = 0;
-    // Note(Jonas): Skip '-' if present.
-    const len = isNegative ? substring.length - 1 : substring.length;
-    for (const char of substring.slice(isNegative ? 1 : 0)) {
-        result += char;
-        i += 1;
-        if ((i - len) % 3 === 0 && i !== len) {
-            result += ",";
-        }
-    }
-
-    if (dotIndex !== -1) {
-        result += ".";
-        result += numberAsString.substring(dotIndex + 1);
-    }
-
-    if (isNegative) {
-        result = "-" + result;
-    }
-
-    return result;
-}
 
 export function isCreditUnit(unit: string): boolean {
     const normalized = unit.toLowerCase();
@@ -1360,7 +1331,7 @@ export function formatUsageAndQuota(usage: number, quota: number, isStorage: boo
 }
 
 function fmt(val: number, precision: number = 1): string {
-    return addThousandSeparators(removeSuffix(val.toFixed(precision), ".0"))
+    return formatNumber(val, {precision, removeTrailingZeros: true})
 }
 
 function fmtBalance(val: number, unit: string, precision?: number, isPrice = false): string {
@@ -1368,8 +1339,7 @@ function fmtBalance(val: number, unit: string, precision?: number, isPrice = fal
 
     const maxPrecision = isPrice ? 6 : 0;
     const precisionToUse = isPrice ? Math.min(precision ?? maxPrecision, maxPrecision) : maxPrecision;
-    const text = val.toFixed(precisionToUse).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
-    return addThousandSeparators(text);
+    return formatNumber(val, {precision: precisionToUse, removeTrailingZeros: true});
 }
 
 export function balanceToStringFromUnit(

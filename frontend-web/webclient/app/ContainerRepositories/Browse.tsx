@@ -34,6 +34,7 @@ import {
     supportV2ProductMatch,
 } from "@/UCloud/ResourceApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {FindByStringId} from "@/UCloud";
 import {ProductStorage, ProductV2, ProductV2Storage} from "@/Accounting";
 import {bulkRequestOf, doNothing, extractErrorCode, extractErrorMessage, timestampUnixMs} from "@/UtilityFunctions";
@@ -565,7 +566,7 @@ export default function ContainerRepositoryBrowse({
                                 width: 64,
                             }).then(setIcon);
                             row.title.append(ResourceBrowser.defaultTitleRenderer(entry.name || entry.repository, row));
-                            row.stat1.innerText = (entry.tagCount ?? 0).toLocaleString();
+                            row.stat1.innerText = formatNumber(entry.tagCount ?? 0);
                             return;
                         }
                         if (isImage(entry)) {
@@ -582,7 +583,7 @@ export default function ContainerRepositoryBrowse({
                             const mediaType = friendlyMediaType(entry.mediaType);
                             row.stat1.innerText = mediaType.label;
                             row.stat1.title = mediaType.title;
-                            row.stat2.innerText = (entry.layers?.length ?? 0).toLocaleString();
+                            row.stat2.innerText = formatNumber(entry.layers?.length ?? 0);
                             row.stat3.innerText = formatBytes(entry.sizeInBytes);
                             if (imageSelection) {
                                 const button = browser.defaultButtonRenderer(selection, entry);
@@ -1134,5 +1135,5 @@ function formatBytes(bytes: number): string {
         value /= 1024;
         unit++;
     }
-    return `${value.toLocaleString(undefined, {maximumFractionDigits: unit === 0 ? 0 : 1})} ${units[unit]}`;
+    return `${formatNumber(value, {precision: unit === 0 ? 0 : 1, removeTrailingZeros: true})} ${units[unit]}`;
 }

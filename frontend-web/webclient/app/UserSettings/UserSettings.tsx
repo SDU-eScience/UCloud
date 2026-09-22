@@ -11,8 +11,10 @@ import {CustomTheming} from "./CustomTheme";
 import {refreshFunctionCache} from "@/Utilities/ReduxUtilities";
 import {ChangeNotificationSettings} from "./ChangeNotificationSettings";
 import {ChangeJobReportSettings} from "./ChangeJobReportSettings";
+import {ChangeNumberFormatting} from "./ChangeNumberFormatting";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {SettingsNavSection, SettingsPage} from "@/ui-components/SettingsComponents";
+import {addDecimalSeparatorListener, removeDecimalSeparatorListener} from "@/Utilities/NumberFormatting";
 
 function UserSettings(): React.ReactNode {
 
@@ -24,6 +26,16 @@ function UserSettings(): React.ReactNode {
     const setHeaderLoading = React.useCallback((loading: boolean) => {
         dispatch(setStatusLoading(loading));
     }, [dispatch]);
+
+    const [, forceRender] = React.useReducer(x => x + 1, 0);
+
+    React.useEffect(() => {
+        const key = "user-settings-page";
+        addDecimalSeparatorListener(key, forceRender);
+        return () => {
+            removeDecimalSeparatorListener(key);
+        };
+    }, []);
 
     const mustActivate2fa =
         Client.userInfo?.twoFactorAuthentication === false &&
@@ -37,6 +49,7 @@ function UserSettings(): React.ReactNode {
         {id: "email", label: "Email settings"},
         {id: "notifications", label: "Notification settings"},
         {id: "job-report", label: "Job report settings"},
+        {id: "number-formatting", label: "Number formatting"},
         {id: "two-factor", label: "Two factor authentication"},
         ...(Client.userInfo?.principalType === "password" ? [{id: "password", label: "Change password"}] : []),
         {id: "sessions", label: "Active sessions"},
@@ -54,6 +67,7 @@ function UserSettings(): React.ReactNode {
             <ChangeEmailSettings setLoading={setHeaderLoading} />
             <ChangeNotificationSettings setLoading={setHeaderLoading} />
             <ChangeJobReportSettings setLoading={setHeaderLoading} />
+            <ChangeNumberFormatting />
             {twoFactorSetup}
             <ChangePassword setLoading={setHeaderLoading} />
             <Sessions

@@ -11,6 +11,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {injectStyle} from "@/Unstyled";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {fileName, pathComponents, sizeToString} from "@/Utilities/FileUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
@@ -282,11 +283,11 @@ export default function FilesVisualization(): React.ReactNode {
                     <Box flexGrow={1} />
                     {!data ? null : <>
                         {data.directoryCount == null ? null : <div className="visualization-status">
-                            <span>{data.directoryCount.toLocaleString()} {pluralize(data.directoryCount, "directory", "directories")}</span>
+                            <span>{formatNumber(data.directoryCount)} {pluralize(data.directoryCount, "directory", "directories")}</span>
                         </div>}
 
                         {data.fileCount == null ? null : <div className="visualization-status">
-                            <span>{data.fileCount.toLocaleString()} {pluralize(data.fileCount, "file")}</span>
+                            <span>{formatNumber(data.fileCount)} {pluralize(data.fileCount, "file")}</span>
                         </div>}
 
                         <div className="visualization-status">
@@ -484,7 +485,7 @@ function VisualizationWorkspace({data, selectedPath, openPath}: {
                             <div className="visualization-entry-path" title={entry.prettyPath}>{entry.prettyPath}</div>
                         </div>
                         <span className="visualization-number">{sizeToString(entry.sizeInBytes)}</span>
-                        <span className="visualization-number visualization-percent">{percentage < .1 && percentage > 0 ? "<0.1" : percentage.toFixed(1)}%</span>
+                        <span className="visualization-number visualization-percent">{percentage < .1 && percentage > 0 ? "<0.1" : formatNumber(percentage, {precision: 1})}%</span>
                     </div>;
                 })}
                 {sorted.length === 0 && <div className="visualization-empty">No recursive storage statistics are available.</div>}

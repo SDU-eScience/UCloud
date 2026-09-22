@@ -55,6 +55,11 @@ func inferenceCreateApiToken(info rpc.RequestInfo, request orcapi.ApiToken) (orc
 		return orcapi.ApiTokenStatus{}, util.HttpErr(http.StatusServiceUnavailable, "inference service is not available")
 	}
 
+	owner := apm.WalletOwnerFromIds(request.Owner.CreatedBy, request.Owner.Project.Value)
+	if controller.WalletIsLocked(owner, inferenceGlobals.Product.Category.Name).Locked {
+		return orcapi.ApiTokenStatus{}, util.HttpErr(http.StatusPaymentRequired, "no more resources available")
+	}
+
 	return controller.ApiTokenCreate(inferenceApiTokenKind, inferenceServerBase(), request)
 }
 

@@ -6,6 +6,7 @@ import {useLocation, useNavigate} from "react-router-dom";
 import {Client} from "@/Authentication/HttpClientInstance";
 import AppRoutes from "@/Routes";
 import {normalizeFrequency, WalletV2} from "@/Accounting";
+import * as Accounting from "@/Accounting";
 import {Project} from "@/Project";
 import {apiRetrieve, apiUpdate, callAPI} from "@/Authentication/DataHook";
 import {capitalized, doNothing, errorMessageOrDefault} from "@/UtilityFunctions";
@@ -673,6 +674,9 @@ function useError(): {setError: (e: string) => void; Error: React.ReactNode} {
 
 function WalletTable(props: {wallets?: WalletV2[]}): React.ReactNode {
     const wallets = props.wallets;
+    const balanceToString = (wallet: WalletV2, balance: number): string => {
+        return Accounting.balanceToString(wallet.paysFor, balance);
+    };
     return <>
         <table>
             <thead>
@@ -707,11 +711,11 @@ function WalletTable(props: {wallets?: WalletV2[]}): React.ReactNode {
                     <tbody>
                         <tr key={resource.paysFor.name + "(" + resource.paysFor.provider + ")"}>
                             <td align={"left"}> {resource.paysFor.name} ({resource.paysFor.provider}) {resource.paysFor.accountingUnit.name} {normalizeFrequency(resource.paysFor.accountingFrequency)} </td> <td />
-                            <td align={"right"}> {resource.quota} </td> <td />
-                            <td align={"right"}> {resource.localUsage} </td> <td />
-                            <td align={"right"}> {resource.totalUsage} </td> <td />
-                            <td align={"right"}> {resource.maxUsable} </td> <td />
-                            <td align={"right"}> {resource.totalAllocated}</td> <td />
+                            <td align={"right"}> {balanceToString(resource, resource.quota)} </td> <td />
+                            <td align={"right"}> {balanceToString(resource, resource.localUsage)} </td> <td />
+                            <td align={"right"}> {balanceToString(resource, resource.totalUsage)} </td> <td />
+                            <td align={"right"}> {balanceToString(resource, resource.maxUsable)} </td> <td />
+                            <td align={"right"}> {balanceToString(resource, resource.totalAllocated)}</td> <td />
                             <td align={"right"}> {(resource.maxUsable + resource.totalUsage - resource.quota) !== 0 ? <Icon name={"heroExclamationTriangle"} color={"warningMain"} /> : null} </td>
                         </tr>
                     </tbody>
@@ -766,7 +770,7 @@ function WalletTable(props: {wallets?: WalletV2[]}): React.ReactNode {
                                     <td />
                                     <td align={"left"}> {resource.paysFor.name} ({resource.paysFor.provider}) {resource.paysFor.accountingUnit.name} {normalizeFrequency(resource.paysFor.accountingFrequency)} </td>
                                     <td />
-                                    <td align={"right"}> {alloc.quota} </td>
+                                    <td align={"right"}> {Accounting.balanceToString(resource.paysFor, alloc.quota)} </td>
                                     <td />
                                     <td align={"right"}> {dateToString(alloc.startDate)} </td>
                                     <td />
