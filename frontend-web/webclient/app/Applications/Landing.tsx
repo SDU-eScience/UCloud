@@ -6,7 +6,7 @@ import {Box, Button, Card, ExternalLink, Flex, Grid, Icon, MainContainer, Markdo
 import {AppLogoRaw, SafeLogo} from "@/Applications/AppToolLogo";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {UtilityBar} from "@/Navigation/UtilityBar";
-import {CSSProperties, HTMLAttributeAnchorTarget, useCallback, useEffect, useRef, useState} from "react";
+import {HTMLAttributeAnchorTarget, useCallback, useEffect, useRef, useState} from "react";
 import {appColors} from "@/ui-components/theme";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
@@ -16,7 +16,6 @@ import AppRoutes from "@/Routes";
 import {Link as ReactRouterLink, useNavigate} from "react-router-dom";
 import {useAppSearch} from "@/Applications/Search";
 import {emptyLandingPage, Spotlight, TopPick} from "@/Applications/AppStoreApi";
-import {shade, tint} from "@/ui-components/GlobalStyle";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {CatalogDiscoveryModeSwitcher} from "@/Applications/Jobs/CatalogDiscoveryMode";
 import {useGlobal} from "@/Utilities/ReduxHooks";
@@ -25,6 +24,41 @@ import {useDiscovery} from "@/Applications/Hooks";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
 import {LogoWithText} from "@/Applications/LogoWithText";
+
+
+const SpotlightDescription = injectStyle("spotlight-description", k => `
+    blockquote${k} {
+        margin: 0;
+        padding-left: 16px;
+        border-left: 5px solid var(--spotlightBlockquoteColor);
+        font-style: italic;
+        flex-shrink: 1;
+        display: flex;
+        align-items: center;
+    }
+
+    @media (min-width: 760px) {
+        blockquote${k} {
+            flex-basis: 400px;
+        }
+    }
+
+    html.light {
+        --spotlightBlockquoteColor: var(--primaryMain);
+    }
+
+    html.dark {
+        --spotlightBlockquoteColor: var(--textPrimary);
+    }
+
+    ${k} p:first-child {
+        margin-top: 0;
+    }
+
+    ${k} p:last-child {
+        margin-bottom: 0;
+    }
+`);
 
 const landingStyle = injectStyle("landing-page", k => `
     ${k} {
@@ -47,6 +81,16 @@ const landingStyle = injectStyle("landing-page", k => `
     ${k} > h1 {
         font-size: 1.2rem;
         padding: 0.6rem 0;
+    }
+
+    @media (max-width: 760px) {
+        ${k} .spotlight-content {
+            flex-direction: column-reverse;
+        }
+    }
+
+    ${k} .spotlight-content blockquote {
+        margin-top: 24px;
     }
 `);
 
@@ -180,16 +224,7 @@ export const SpotlightCard: React.FunctionComponent<{
                 })}
             </Flex>
 
-            <blockquote
-                className={SpotlightDescription}
-                style={{
-                    fontStyle: "italic",
-                    flexShrink: "1",
-                    flexBasis: "400px",
-                    display: "flex",
-                    alignItems: "center"
-                }}
-            >
+            <blockquote className={SpotlightDescription}>
                 <Box my="auto">
                     <Markdown allowedElements={["p"]}>
                         {spotlight.body}
@@ -248,14 +283,6 @@ const HeroStyle = injectStyle("hero", k => `
         ${k} > .carousel {
             height: 250px;
         }
-
-        ${k} .spotlight-content {
-            display: block;
-        }
-
-        ${k} .spotlight-content blockquote {
-            margin-top: 24px;
-        }
     }
 
     ${k} > .carousel h1 {
@@ -289,6 +316,7 @@ const HeroStyle = injectStyle("hero", k => `
         background: var(--secondaryDark);
     }
 `);
+
 
 const HeroIndicator: React.FunctionComponent<{
     active?: boolean;
@@ -671,30 +699,6 @@ const CreateCategoryCard: React.FunctionComponent = () => {
         </div>
     );
 }
-
-const SpotlightDescription = injectStyle("spotlight-description", k => `
-    blockquote${k} {
-        margin: 0;
-        padding-left: 16px;
-        border-left: 5px solid var(--spotlightBlockquoteColor);
-    }
-
-    html.light {
-        --spotlightBlockquoteColor: var(--primaryMain);
-    }
-
-    html.dark {
-        --spotlightBlockquoteColor: var(--textPrimary);
-    }
-
-    ${k} p:first-child {
-        margin-top: 0;
-    }
-
-    ${k} p:last-child {
-        margin-bottom: 0;
-    }
-`)
 
 const TopPickCardGridStyle = injectStyle("top-pick-grid", k => `
     ${k} {
