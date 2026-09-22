@@ -246,7 +246,7 @@ func projectsV7() db.MigrationScript {
 					create table if not exists project.supportive_roles (
 						created_at  timestamptz not null default now(),
 						modified_at timestamptz not null default now(),
-						project_id  text not null,
+                        project_id  text not null references project.projects(id) on delete cascade,
 						supportive_role text not null,
 						username    text not null,
 						primary key (project_id, supportive_role)

@@ -720,7 +720,7 @@ func projectRemoveMember(actor rpc.Actor, projectId string, memberToRemove strin
 				tx,
 				`
 					update project.supportive_roles sr
-					set username = pi.username, modified_at = now()
+					set username = pm.username, modified_at = now()
 					from project.project_members pm
 					where
 						sr.project_id = pm.project_id
@@ -1871,6 +1871,10 @@ func ProjectAcceptInvite(actor rpc.Actor, projectId string) *util.HttpError {
 	uinfo := projectRetrieveUserInfo(actor.Username)
 
 	pinfo, ok := projectRetrieveInternal(projectId)
+
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "unable to accept invite")
+	}
 
 	restricted, allowedOrgs, err := projectMemberOrganizationRestriction(pinfo.Project.Id)
 

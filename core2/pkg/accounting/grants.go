@@ -1161,6 +1161,7 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 				select username
 				from project.project_members
 				where project_id = :project_id
+					and role in ('PI', 'ADMIN')
 			`,
 			db.Params{
 				"project_id": req.Target,
@@ -2071,7 +2072,7 @@ func GrantsRetrieveSettings(actor rpc.Actor, isUCloudAdminCall bool, projectId s
 			b.Mu.Lock()
 			w = &grantSettings{
 				Mu:        sync.RWMutex{},
-				ProjectId: string(actor.Project.Value),
+				ProjectId: lookupId,
 				Settings: &accapi.GrantRequestSettings{
 					Enabled:             false,
 					Description:         "No description provided",
@@ -2091,7 +2092,7 @@ func GrantsRetrieveSettings(actor rpc.Actor, isUCloudAdminCall bool, projectId s
 					},
 				},
 			}
-			b.Settings[string(actor.Project.Value)] = w
+			b.Settings[lookupId] = w
 			b.Mu.Unlock()
 		}
 		b.Mu.RLock()

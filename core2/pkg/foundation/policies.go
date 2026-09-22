@@ -172,7 +172,7 @@ func policiesDefaultRetrieve(actor rpc.Actor, request fndapi.RetrievePoliciesReq
 
 func policiesRetrieve(actor rpc.Actor, request fndapi.RetrievePoliciesRequest) (map[fndapi.PolicyName]fndapi.Policy, *util.HttpError) {
 	projectId := request.ProjectId
-	if actor.Role != rpc.RoleProvider {
+	if actor.Role != rpc.RoleProvider && actor.Role != rpc.RoleService {
 		if !actor.Project.Present {
 			return nil, util.HttpErr(http.StatusBadRequest, "Polices only applicable to projects")
 		}
@@ -184,13 +184,13 @@ func policiesRetrieve(actor rpc.Actor, request fndapi.RetrievePoliciesRequest) (
 
 	result := make(map[fndapi.PolicyName]fndapi.Policy, len(policySchemas))
 
-	projectPolicies.Mu.Lock()
-	_, ok := projectPolicies.PoliciesByProject[projectId]
-	if !ok {
-		projectPolicies.PoliciesByProject[projectId] = &AssociatedPolicies{ConfiguredPolicies: make(map[fndapi.PolicyName]fndapi.Specification)}
+	projectPolicies.Mu.RLock()
+	entry, found := projectPolicies.PoliciesByProject[projectId]
+	var policies map[fndapi.PolicyName]fndapi.Specification
+	if found {
+		policies = maps.Clone(entry.ConfiguredPolicies)
 	}
-	policies := maps.Clone(projectPolicies.PoliciesByProject[projectId].ConfiguredPolicies)
-	projectPolicies.Mu.Unlock()
+	projectPolicies.Mu.RUnlock()
 	for name, schema := range policySchemas {
 
 		specification, ok := policies[name]
@@ -1029,15 +1029,14 @@ func SourceIpIsRestricted(info rpc.RequestInfo) bool {
 	}
 
 	projectPolicies.Mu.RLock()
-	_, ok := projectPolicies.PoliciesByProject[string(info.Actor.Project.Value)]
-	if !ok {
-		projectPolicies.PoliciesByProject[string(info.Actor.Project.Value)] = &AssociatedPolicies{ConfiguredPolicies: make(map[fndapi.PolicyName]fndapi.Specification)}
+	entry, found := projectPolicies.PoliciesByProject[string(info.Actor.Project.Value)]
+	var specification fndapi.Specification
+	if found {
+		specification = entry.ConfiguredPolicies[fndapi.RestrictSourceIPRange]
 	}
-	policies := maps.Clone(projectPolicies.PoliciesByProject[string(info.Actor.Project.Value)].ConfiguredPolicies)
 	projectPolicies.Mu.RUnlock()
 
-	specification, ok := policies[fndapi.RestrictSourceIPRange]
-	if !ok {
+	if specification == nil {
 		return false
 	}
 
