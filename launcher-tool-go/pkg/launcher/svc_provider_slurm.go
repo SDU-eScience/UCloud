@@ -77,6 +77,7 @@ func ProviderSlurm() {
 		Init:        true,
 		Command:     []string{"sleep", "inf"},
 		VolumesFrom: []string{"slurmdbd:ro"},
+		Networks:    pinnedNetwork("172.18.0.12"),
 		Ports: []string{
 			"51233:51233",
 			"51234:51234",
@@ -223,6 +224,7 @@ func ProviderSlurm() {
 			Restart:     "always",
 			Environment: []string{"POSTGRES_PASSWORD=postgrespassword"},
 			Ports:       []string{"51239:5432"},
+			Networks:    pinnedNetwork("172.18.0.13"),
 			Volumes: []string{
 				Mount(data, "/var/lib/postgresql/data"),
 				Mount(filepath.Join(RepoRoot, "/provider-integration/im2"), "/opt/ucloud"),
@@ -252,6 +254,7 @@ func ProviderSlurm() {
 		Hostname: "mysql",
 		Restart:  "always",
 		Ports:    []string{"3306:3306"},
+		Networks: pinnedNetwork("172.18.0.14"),
 		Environment: []string{
 			"MYSQL_RANDOM_ROOT_PASSWORD=yes",
 			"MYSQL_DATABASE=slurm_acct_db",
@@ -279,6 +282,7 @@ func ProviderSlurm() {
 		Hostname:  "slurmdbd.ucloud",
 		Restart:   "always",
 		DependsOn: []string{slurmMySql.Name},
+		Networks:  pinnedNetwork("172.18.0.15"),
 		Command:   []string{"slurmdbd", "sshd", "user-sync"},
 		Volumes: []string{
 			Mount(passwdDir, "/mnt/passwd"),
@@ -303,6 +307,7 @@ func ProviderSlurm() {
 		Hostname:  "slurmctld.ucloud",
 		Restart:   "always",
 		DependsOn: []string{slurmDbd.Name},
+		Networks:  pinnedNetwork("172.18.0.16"),
 		Command:   []string{"slurmctld", "sshd", "user-sync"},
 		Init:      true,
 		Volumes: []string{
@@ -332,6 +337,7 @@ func ProviderSlurm() {
 			Hostname:  fmt.Sprintf("c%d.ucloud", i),
 			Restart:   "always",
 			DependsOn: []string{slurmCtld.Name},
+			Networks:  pinnedNetwork(fmt.Sprintf("172.18.0.%d", 16+i)),
 			Command:   []string{"slurmd", "sshd", "user-sync"},
 			Volumes: []string{
 				Mount(passwdDir, "/mnt/passwd"),
@@ -418,6 +424,7 @@ func ProviderSlurm() {
 	AddService(freeIpa, DockerComposeService{
 		Image:    "quay.io/freeipa/freeipa-server:almalinux-9",
 		Hostname: "ipa.ucloud",
+		Networks: pinnedNetwork("172.18.0.19"),
 		Command: []string{
 			"ipa-server-install",
 			"--domain=free-ipa.ucloud",

@@ -58,12 +58,6 @@ install_multus() {
   kubectl -n kube-system rollout status ds/kube-multus-ds --timeout=300s
 }
 
-install_multus_shim() {
-  retry_until "the Multus shim in /opt/cni/bin" 600 \
-    kubectl exec -n kube-system ds/kube-multus-ds -- ls /opt/cni/bin/multus-shim
-  kubectl exec -n kube-system ds/kube-multus-ds -- cp /opt/cni/bin/multus-shim /host/run/multus-shim
-}
-
 install_kube_ovn() {
   install_helm
 
@@ -85,10 +79,6 @@ install_kube_ovn() {
     --namespace kube-system \
     --set global.images.kubeovn.tag="${KUBE_OVN_VERSION}" \
     --set cni.nonPrimaryCNI=true \
-    --set networking.services.cidr.v4=10.43.0.0/16 \
-    --set networking.join.cidr.v4=100.64.0.0/16 \
-    --set networking.pods.cidr.v4=10.42.0.0/16 \
-    --set networking.pods.gateways.v4=10.42.0.1 \
     --set networking.pods.enableGatewayChecks=false \
     --set networking.enableMetrics=true \
     --set features.enableNatGateways=false \
@@ -96,6 +86,10 @@ install_kube_ovn() {
     --set features.enableNetworkPolicies=false \
     --set features.enableLoadbalancerService=false \
     --set ovsOvn.disableModulesManagement=true
+#    --set networking.services.cidr.v4=10.43.0.0/16 \
+#    --set networking.join.cidr.v4=100.64.0.0/16 \
+#    --set networking.pods.cidr.v4=10.42.0.0/16 \
+#    --set networking.pods.gateways.v4=10.42.0.1 \
 
   patch_kube_ovn_cni_conflist_dir
 
@@ -129,8 +123,15 @@ verify() {
   retry_until "the Multus shim binary in /opt/cni/bin" 600 \
     kubectl exec -n kube-system ds/kube-multus-ds -- ls /opt/cni/bin/multus-shim
 
+  retry_until "the Cilium CNI binary in /opt/cni/bin" 600 \
+    kubectl exec -n kube-system ds/kube-multus-ds -- ls /opt/cni/bin/cilium-cni
+
   if kubectl exec -n kube-system ds/kube-multus-ds -- grep -qs "01-kube-ovn.conflist" /host/etc/cni/net.d/00-multus.conf; then
     echo "The Multus cluster network points at the kube-ovn conflist" && exit 1
+  fi
+
+  if ! kubectl exec -n kube-system ds/kube-multus-ds -- grep -qs "05-cilium.conflist" /host/etc/cni/net.d/00-multus.conf; then
+    echo "The Multus cluster network does not point at the Cilium conflist" && exit 1
   fi
 
   echo "Private network infrastructure is ready"
@@ -139,7 +140,6 @@ verify() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   install_helm
   install_multus
-  install_multus_shim
   install_kube_ovn
   verify_non_primary_conflist
   verify

@@ -129,9 +129,12 @@ func Mount(volName string, mountPath string) string {
 	return fmt.Sprintf("%s:%s", volName, mountPath)
 }
 
-// IntegratedApplicationsDir returns the directory containing UCX application sources which should be mounted into
-// the k8s IM (and k3s) containers. It is controlled by UCLOUD_INTEGRATED_APPLICATIONS_DIR and defaults to
-// <repo>/integrated-applications. Returns an empty string when the directory does not exist.
+func pinnedNetwork(ipv4Address string) map[string]DockerComposeServiceNetwork {
+	return map[string]DockerComposeServiceNetwork{
+		"default": {Ipv4Address: ipv4Address},
+	}
+}
+
 func IntegratedApplicationsDir() string {
 	dir := os.Getenv("UCLOUD_INTEGRATED_APPLICATIONS_DIR")
 	if dir == "" {

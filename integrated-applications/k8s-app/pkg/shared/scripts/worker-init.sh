@@ -21,4 +21,7 @@ curl -sfL https://get.k3s.io | \
 	INSTALL_K3S_EXEC="agent --node-external-ip=$NODE_NAME"\
 	sh -
 
+export NODE_GROUP="$(basename "$(hostname)" | sed 's/-[0-9]*$//')"
+until k3s kubectl label node "$(hostname)" "ucloud.dk/k8s-node-group=${NODE_GROUP}" --overwrite 2>/dev/null; do sleep 2; done
+
 emit "Initialization complete" 100

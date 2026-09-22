@@ -46,12 +46,13 @@ func ServiceCore() {
 	}
 
 	AddService(service, DockerComposeService{
-		Image:    ImDevImage,
-		Hostname: "core2",
-		Restart:  "always",
-		Ports:    []string{"51245:51233"},
-		Command:  []string{"sleep", "inf"},
-		Volumes:  volumes,
+		Image:      ImDevImage,
+		Hostname:   "core2",
+		Restart:    "always",
+		Ports:      []string{"51245:51233"},
+		Command:    []string{"sleep", "inf"},
+		Volumes:    volumes,
+		Networks:   pinnedNetwork("172.18.0.4"),
 	})
 
 	AddInstaller(service, func() {
@@ -184,6 +185,7 @@ func ServiceCore() {
 			Restart:     "always",
 			Environment: []string{"POSTGRES_PASSWORD=postgrespassword"},
 			Ports:       []string{"35432:5432"},
+			Networks:    pinnedNetwork("172.18.0.3"),
 			Volumes: []string{
 				Mount(data, "/var/lib/postgresql/data"),
 			},

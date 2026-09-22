@@ -16,6 +16,7 @@ func ServiceFrontend() {
 		Restart:    "always",
 		WorkingDir: "/opt/ucloud",
 		Command:    []string{"sh", "-c", "npm install ; npm run start:compose"},
+		Networks:   pinnedNetwork("172.18.0.5"),
 		Volumes: []string{
 			Mount(filepath.Join(RepoRoot, "frontend-web/webclient"), "/opt/ucloud"),
 		},

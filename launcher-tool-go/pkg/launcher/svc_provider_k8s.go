@@ -35,6 +35,9 @@ var k8sKubeOvnInitScript []byte
 //go:embed config/k8s/kube_ovn_node_init.sh
 var k8sKubeOvnNodeInitScript []byte
 
+//go:embed config/k8s/cilium_init.sh
+var k8sCiliumInitScript []byte
+
 //go:embed config/k8s/registries.yaml
 var k8sRegistriesConfig []byte
 
@@ -272,28 +275,7 @@ func ProviderK8s() {
 		ovs := AddVolume(k3s, "ovs")
 		ovn := AddVolume(k3s, "ovn")
 
-		// The node-side private network state (shared mounts, the Multus view
-		// of the CNI configuration, netns paths) lives in the mount namespace
-		// and is lost whenever this container restarts. The provider startup
-		// hook restarts this container after installation, and so does a
-		// plain "docker compose restart k3s". A restart keeps all persistent
-		// state, so the entrypoint re-applies only the mount-backed state
-		// through the boot mode of the preparation script before the server
-		// starts. The script is staged into /etc/ucloud (a shared mount) by
-		// the private-networks startup hook; the fallback covers container
-		// starts before that has happened.
-		//
-		// The ovs and ovn volumes hold the OVS and OVN databases
-		// (/etc/origin/openvswitch and /etc/origin/ovn). Without them the
-		// databases live in the container layer and are wiped whenever the
-		// container is recreated, which leaves kube-ovn-cni pinging a
-		// gateway that no longer exists until kube-ovn-controller has
-		// rebuilt the topology.
-		//
-		// OVN databases on disk reference the node IP that ovn-central saw
-		// at install time. The address is therefore pinned so the node keeps
-		// it across restarts and container recreation.
-		restoreNodeState := `if [ -f /etc/ucloud/kube_ovn_node_init.sh ]; then sh /etc/ucloud/kube_ovn_node_init.sh boot; else mount --make-rshared / && mount --make-rshared /run && mount --make-rshared /var/run; fi; exec /bin/k3s "$@"`
+		restoreNodeState := `if [ -f /etc/ucloud/kube_ovn_node_init.sh ]; then sh /etc/ucloud/kube_ovn_node_init.sh boot; else mount --make-rshared / && mount --make-rshared /run && mount --make-rshared /var/run; mount --make-rshared /sys; fi; exec /bin/k3s "$@"`
 
 		k3sVolumes := []string{
 			Mount(k3sOutput, "/output"),
@@ -319,16 +301,13 @@ func ProviderK8s() {
 			Environment: []string{
 				"K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml",
 				"K3S_KUBECONFIG_MODE=666",
-				"K3S_FLANNEL_BACKEND=host-gw",
 			},
 			Privileged: true,
 			Tmpfs:      []string{"/run", "/var/run"},
 			Entrypoint: []string{"sh", "-ec", restoreNodeState, "--"},
-			Command:    []string{"server", "--disable=traefik", "--disable-network-policy"},
+			Command:    []string{"server", "--disable=traefik", "--flannel-backend=none", "--disable-kube-proxy"},
 			Volumes:    k3sVolumes,
-			Networks: map[string]DockerComposeServiceNetwork{
-				"default": {Ipv4Address: "172.18.0.7"},
-			},
+			Networks:   pinnedNetwork("172.18.0.7"),
 		})
 	}
 
@@ -349,6 +328,7 @@ func ProviderK8s() {
 			Restart:     "always",
 			Environment: []string{"POSTGRES_PASSWORD=postgrespassword"},
 			Ports:       []string{"51241:5432"},
+			Networks:    pinnedNetwork("172.18.0.8"),
 			Volumes: []string{
 				Mount(data, "/var/lib/postgresql/data"),
 				Mount(filepath.Join(RepoRoot, "/provider-integration/im2"), "/opt/ucloud"),
@@ -376,6 +356,7 @@ func ProviderK8s() {
 			Image:    "localai/localai:v4.0.0",
 			Hostname: "localai",
 			Restart:  "always",
+			Networks: pinnedNetwork("172.18.0.9"),
 			Environment: []string{
 				"LOCALAI_EXTERNAL_BACKENDS=localai@cpu-stablediffusion-ggml,localai@stablediffusion-ggml",
 			},
@@ -400,6 +381,7 @@ func ProviderK8s() {
 			Image:    "alpine:3",
 			Hostname: "kubevirt",
 			Restart:  "always",
+			Networks: pinnedNetwork("172.18.0.10"),
 			Command:  []string{"sleep", "inf"},
 		})
 
@@ -454,6 +436,7 @@ func ProviderK8s() {
 			Image:    "alpine:3",
 			Hostname: "private-networks",
 			Restart:  "always",
+			Networks: pinnedNetwork("172.18.0.11"),
 			Command:  []string{"sleep", "inf"},
 		})
 
@@ -479,20 +462,27 @@ func ProviderK8s() {
 				ExecuteOptions{},
 			)
 
-			nodeInit := func(mode string) {
-				ComposeExec(
-					fmt.Sprintf("Preparing node for private networks (%s)", mode),
-					"k3s",
-					[]string{
-						"sh",
-						"-c",
-						fmt.Sprintf("cp /etc/ucloud/kube_ovn_node_init.sh /tmp/ && sh /tmp/kube_ovn_node_init.sh %s", mode),
-					},
-					ExecuteOptions{},
-				)
-			}
+			ComposeExec(
+				"Preparing node for private networks (init)",
+				"k3s",
+				[]string{
+					"sh",
+					"-c",
+					"cp /etc/ucloud/kube_ovn_node_init.sh /tmp/ && sh /tmp/kube_ovn_node_init.sh init",
+				},
+				ExecuteOptions{},
+			)
 
-			nodeInit("init")
+			ComposeExec(
+				"Installing Cilium",
+				provider.Name,
+				[]string{
+					"bash",
+					"-c",
+					string(k8sCiliumInitScript),
+				},
+				ExecuteOptions{},
+			)
 
 			ComposeExec(
 				"Installing Multus",
@@ -500,12 +490,10 @@ func ProviderK8s() {
 				[]string{
 					"bash",
 					"-c",
-					fmt.Sprintf("%s\ninstall_multus\ninstall_multus_shim", string(k8sKubeOvnInitScript)),
+					fmt.Sprintf("%s\ninstall_multus", string(k8sKubeOvnInitScript)),
 				},
 				ExecuteOptions{},
 			)
-
-			nodeInit("post-multus")
 
 			ComposeExec(
 				"Installing Kube-OVN",
