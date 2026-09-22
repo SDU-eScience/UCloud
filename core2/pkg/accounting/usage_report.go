@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"math"
 	"slices"
 	"sort"
 	"sync"
@@ -180,6 +181,39 @@ type internalUsageOverTimeAbsoluteDataPoint struct {
 	Timestamp time.Time
 	Usage     int64
 	Quota     int64
+}
+
+func (d *internalUsageOverTimeAbsoluteDataPoint) UnmarshalJSON(data []byte) error {
+	var aux struct {
+		Timestamp             time.Time
+		Usage                 int64
+		Quota                 *int64   `json:"Quota"`
+		UtilizationPercent100 *float64 `json:"UtilizationPercent100"`
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	d.Timestamp = aux.Timestamp
+	d.Usage = aux.Usage
+
+	switch {
+	case aux.Quota != nil:
+		d.Quota = *aux.Quota
+
+	case aux.UtilizationPercent100 != nil:
+		if *aux.UtilizationPercent100 <= 0 || aux.Usage <= 0 {
+			d.Quota = 0
+			break
+		}
+		d.Quota = int64(math.Round(float64(aux.Usage) * 100.0 / *aux.UtilizationPercent100))
+
+	default:
+		d.Quota = 0
+	}
+
+	return nil
 }
 
 func (r *internalUsageOverTimeAbsoluteDataPoint) ToApi() accapi.UsageReportAbsoluteDataPoint {
@@ -703,8 +737,8 @@ func usageCollapseReports(reports []internalUsageReportWithProduct) internalUsag
 	allTimestamps := map[time.Time]util.Empty{}
 
 	// Absolute usage for each child.
-	// child -> timestamp -> usage
-	absoluteUsageByChild := map[string]map[time.Time]int64{}
+	// child -> product -> timestamp -> usage
+	absoluteUsageByChild := map[string]map[accapi.ProductCategory]map[time.Time]int64{}
 
 	// Delta data grouped by child (for later)
 	deltaByChild := map[string]map[time.Time]int64{}
@@ -777,10 +811,16 @@ func usageCollapseReports(reports []internalUsageReportWithProduct) internalUsag
 				childWallets[child.Key] = child.Wallet
 			}
 
-			timeline, ok := absoluteUsageByChild[child.Key]
+			byProduct, ok := absoluteUsageByChild[child.Key]
+			if !ok {
+				byProduct = make(map[accapi.ProductCategory]map[time.Time]int64)
+				absoluteUsageByChild[child.Key] = byProduct
+			}
+
+			timeline, ok := byProduct[product]
 			if !ok {
 				timeline = make(map[time.Time]int64)
-				absoluteUsageByChild[child.Key] = timeline
+				byProduct[product] = timeline
 			}
 
 			// Snapshot: don't add duplicate observations for the same child/timestamp.
@@ -870,37 +910,40 @@ func usageCollapseReports(reports []internalUsageReportWithProduct) internalUsag
 	// child -> timestamp -> usage (with gaps filled)
 	filledUsageByChild := make(map[string]map[time.Time]int64)
 
-	for child, timeline := range absoluteUsageByChild {
+	for child, byProduct := range absoluteUsageByChild {
 		filled := make(map[time.Time]int64)
 
-		// Sort the timestamps where this child has a datapoint.
-		childTimestamps := make([]time.Time, 0, len(timeline))
-		for ts := range timeline {
-			childTimestamps = append(childTimestamps, ts)
-		}
-
-		slices.SortFunc(childTimestamps, func(a, b time.Time) int {
-			return a.Compare(b)
-		})
-
-		// Shouldn't happen, but be safe.
-		if len(childTimestamps) == 0 {
-			continue
-		}
-
-		currentUsage := timeline[childTimestamps[0]]
-		nextIndex := 0
-
-		for _, ts := range timestamps {
-			// Advance whenever we reach another real datapoint.
-			if nextIndex < len(childTimestamps) &&
-				ts.Equal(childTimestamps[nextIndex]) {
-
-				currentUsage = timeline[childTimestamps[nextIndex]]
-				nextIndex++
+		for _, timeline := range byProduct {
+			// Sort the timestamps where this child has a datapoint.
+			childTimestamps := make([]time.Time, 0, len(timeline))
+			for ts := range timeline {
+				childTimestamps = append(childTimestamps, ts)
 			}
 
-			filled[ts] = currentUsage
+			slices.SortFunc(childTimestamps, func(a, b time.Time) int {
+				return a.Compare(b)
+			})
+
+			// Shouldn't happen, but be safe.
+			if len(childTimestamps) == 0 {
+				continue
+			}
+
+			currentUsage := timeline[childTimestamps[0]]
+			nextIndex := 0
+
+			for _, ts := range timestamps {
+				// Advance whenever we reach another real datapoint.
+				if nextIndex < len(childTimestamps) &&
+					ts.Equal(childTimestamps[nextIndex]) {
+
+					currentUsage = timeline[childTimestamps[nextIndex]]
+					nextIndex++
+				}
+
+				// Sum the (carried-forward) usage of every product into the child's series.
+				filled[ts] += currentUsage
+			}
 		}
 
 		filledUsageByChild[child] = filled

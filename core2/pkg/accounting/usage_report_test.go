@@ -85,7 +85,7 @@ func TestUsageGenSimulation(t *testing.T) {
 		w := e.Wallet(owner, timeAtEnd)
 		dashboards := usageRetrieveHistoricReports(e.Tm(0), timeAtEnd, w)
 
-		reportsWithProduct := make([]internalUsageReportWithProduct, len(dashboards))
+		reportsWithProduct := make([]internalUsageReportWithProduct, 0, len(dashboards))
 		for _, re := range dashboards {
 			reportsWithProduct = append(reportsWithProduct, internalUsageReportWithProduct{e.Bucket.Category, re})
 		}

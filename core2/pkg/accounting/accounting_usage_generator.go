@@ -492,7 +492,7 @@ func UsageGenGenerate(api UsageGenApi, cfg accapi.UsageGenConfig) *UsageGenProje
 				}
 			}
 
-			if minute%cfg.CheckpointInterval == 0 {
+			if minute%checkpointInterval == 0 {
 				api.Checkpoint(minute)
 			}
 		}

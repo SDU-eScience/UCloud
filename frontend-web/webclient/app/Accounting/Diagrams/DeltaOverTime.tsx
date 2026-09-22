@@ -90,7 +90,7 @@ export function useDeltaOverTimeChart(
         // Split stack into positive and negative
         const keys = (union(data.map(it => it.child ?? "")))
 
-        const positiveStack = stack<number>()
+        const valueStack = stack<number>()
             .keys(keys)
             .value((ts, key) => {
                 const entries =
@@ -104,25 +104,8 @@ export function useDeltaOverTimeChart(
                 );
             });
 
-        const negativeStack = stack<number>()
-            .keys(keys)
-            .value((ts, key) => {
-                const entries =
-                    byTimestampKey
-                        .get(ts)
-                        ?.get(key) ?? [];
 
-                return entries.reduce(
-                    (sum, d) => sum + Math.min(0, d.change),
-                    0
-                );
-            });
-
-
-        const positiveSeries = positiveStack(timestamps);
-        const negativeSeries = negativeStack(timestamps);
-
-        const series = [...positiveSeries, ...negativeSeries];
+        const series = valueStack(timestamps);
 
         // Color scheme
         // -------------------------------------------------------------------------------------------------------------
