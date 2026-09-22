@@ -143,10 +143,10 @@ const LandingPage: React.FunctionComponent = () => {
         <div className={GradientWithPolygons}>
             <MainContainer main={
                 <article className={landingStyle}>
-                    <Flex alignItems={"center"}>
+                    <Flex alignItems={"center"} className={HeaderStyle}>
                         <CatalogDiscoveryModeSwitcher />
                         <Box flexGrow={1} />
-                        <UtilityBar onSearch={appSearch} />
+                        <UtilityBar responsive onSearch={appSearch} />
                     </Flex>
                     <Hero slides={landingPage.carrousel} />
                     {starred.data.items.length > 0 ?
@@ -203,6 +203,26 @@ const LandingPage: React.FunctionComponent = () => {
         </div>
     </div>;
 };
+
+export const HeaderStyle = injectStyle("landing-header", k => `
+    @media (max-width: 900px) {
+        ${k} > div:first-child {
+            grid-area: first;
+        }
+
+        ${k} > div:last-child {
+            grid-area: last;
+        }
+
+        ${k} {
+            display: grid;
+            gap: 8px;
+            grid-template-areas:
+                "last"
+                "first";
+        }
+    }
+`);
 
 export const SpotlightCard: React.FunctionComponent<{
     spotlight: Spotlight;
