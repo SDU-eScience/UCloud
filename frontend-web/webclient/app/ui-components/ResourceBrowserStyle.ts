@@ -132,7 +132,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
 
         ${BrowserClass.dot} header {
-            container-type: inline-size;
+            container-type: size;
             container-name: header-first-row;
         }
 
@@ -142,15 +142,11 @@ export function injectResourceBrowserStyle(rowSize: number) {
             margin-left: 5px;
         }
 
-        @container header-first-row (width < ${ContainerSize.MEDIUM}px) {
-            /* TODO */
-        }
-
         ${BrowserClass.dot} .search-icon {
             grid-area: search-icon;
         }
 
-        @container header-first-row (width < ${ContainerSize.SMALL}px) {
+        @container header-first-row (width < ${ContainerSize.MEDIUM}px) {
              ${BrowserClass.dot} header input.search-field {
                 width: 100%;
              }
@@ -158,7 +154,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             ${BrowserClass.dot} header[has-location-bar] div.header-first-row {
                 display: grid;
                 gap: 8px;
-                grid-template-columns: 36px 32px 1fr 0.5fr;
+                grid-template-columns: 36px 32px auto 222px;
                 grid-template-areas:
                     "search-icon refresh  .         project-switcher"
                     "p-icon      location location  location        ";
@@ -181,6 +177,10 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
 
         @container header-first-row (width < 380px) {
+            ${BrowserClass.dot} header[has-location-bar] div.header-first-row {
+                grid-template-columns: 36px 32px auto 150px;
+            }
+
             ${BrowserClass.dot} header[has-location-bar] div.project-switcher .${TriggerClass} {
                 width: 150px;
             }
@@ -224,10 +224,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
 
         ${BrowserClass.dot} header[data-has-filters] {
             height: 136px;
-        }
-
-        ${BrowserClass.dot} header[data-has-filters] {
-            height: 162px;
         }
 
         ${BrowserClass.dot} header .location-bar,
@@ -366,7 +362,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
         ${BrowserClass.dot} .row {
             display: flex;
             flex-direction: row;
-            container-type: inline-size;
+            container-type: size;
             height: ${rowSize}px;
             width: 100%;
             align-items: center;
@@ -682,6 +678,11 @@ export function injectResourceBrowserStyle(rowSize: number) {
 
         ${BrowserClass.dot} .refresh-icon:hover {
             transform: rotate(45deg);
+        }
+
+        /* Containers can have their height set as far as I can tell, so it's manually done globally */
+        ${BrowserClass.dot} header[data-has-filters][data-size=SMALL] {
+            height: 162px;
         }
     `);
     didInject = true;

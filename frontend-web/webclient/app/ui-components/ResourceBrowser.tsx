@@ -1110,6 +1110,10 @@ export class ResourceBrowser<T> {
 
         this.root.style.setProperty("--rowWidth", rect.width + "px");
 
+        const size = containerSizeFromWidth(rect.width);
+        if (size < ContainerSize.MEDIUM) this.header.setAttribute("data-size", "SMALL");
+        else this.header.removeAttribute("data-size");
+
         this.scrollingContainerWidth = rect.width;
         this.scrollingContainerHeight = rect.height;
         this.scrollingContainerTop = rect.top;
