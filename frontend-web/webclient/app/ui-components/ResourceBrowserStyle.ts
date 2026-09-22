@@ -151,23 +151,30 @@ export function injectResourceBrowserStyle(rowSize: number) {
                 width: 100%;
              }
 
-            ${BrowserClass.dot} header[has-location-bar] div.header-first-row {
+            ${BrowserClass.dot} header div.header-first-row {
                 display: grid;
                 gap: 8px;
                 grid-template-columns: 36px 32px auto 222px;
                 grid-template-areas:
                     "search-icon refresh  .         project-switcher"
+                    "location    location location  location        ";
+            }
+
+            ${BrowserClass.dot} header[has-location-bar] div.header-first-row {
+                grid-template-areas:
+                    "search-icon refresh  .         project-switcher"
                     "p-icon      location location  location        ";
             }
 
-            ${BrowserClass.dot} header[has-location-bar] div.header-first-row .search-field-wrapper {
+
+            ${BrowserClass.dot} header div.header-first-row .search-field-wrapper {
                 position: absolute;
                 left: -5px;
                 top: 41px;
                 width: calc(100% + 6px);
             }
 
-            ${BrowserClass.dot} header[has-location-bar] div.header-first-row img {
+            ${BrowserClass.dot} header div.header-first-row img {
                 margin-left: 0;
             }
 
@@ -262,6 +269,10 @@ export function injectResourceBrowserStyle(rowSize: number) {
             text-decoration: underline;
         }
 
+        ${BrowserClass.dot} header .location {
+            grid-area: location;
+        }
+
         ${BrowserClass.dot} header[has-location-bar] .location {
             flex-grow: 1;
             border: 1px solid var(--borderColor);
@@ -271,9 +282,9 @@ export function injectResourceBrowserStyle(rowSize: number) {
             cursor: text;
             height: 35px;
             transition: margin-right 0.2s;
-
-            grid-area: location;
         }
+
+
 
         ${BrowserClass.dot} header[has-location-bar] .location input {
             outline: none;
@@ -681,9 +692,14 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
 
         /* Containers can have their height set as far as I can tell, so it's manually done globally */
+        ${BrowserClass.dot} header[data-size=SMALL] {
+            height: 132px;
+        }
+
         ${BrowserClass.dot} header[data-has-filters][data-size=SMALL] {
             height: 162px;
         }
+
     `);
     didInject = true;
     return BrowserClass;
