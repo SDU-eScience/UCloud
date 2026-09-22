@@ -227,6 +227,16 @@ func initProjects() {
 		return util.Empty{}, nil
 	})
 
+	fndapi.ProjectSupportiveRoleChange.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectSupportiveRoleChangeRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := SupportiveRoleChange(info.Actor, reqItem)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+		return util.Empty{}, nil
+	})
+
 	fndapi.ProjectCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		response, err := ProjectCreate(info.Actor, request)
 		if err != nil {
@@ -651,6 +661,8 @@ func projectRemoveMember(actor rpc.Actor, projectId string, memberToRemove strin
 	uToRemove.Mu.Lock()
 
 	var removedFromGroups []string
+	var transferredSupportiveRoles []struct{ Role string }
+	piUsername := ""
 
 	db.NewTx0(func(tx *db.Transaction) {
 		groupRows := db.Select[struct{ GroupId string }](
@@ -688,7 +700,7 @@ func projectRemoveMember(actor rpc.Actor, projectId string, memberToRemove strin
 			},
 		)
 
-		_, hasPi := db.Get[struct{ Username string }](
+		piRow, hasPi := db.Get[struct{ Username string }](
 			tx,
 			`
 				select pm.username
@@ -701,6 +713,48 @@ func projectRemoveMember(actor rpc.Actor, projectId string, memberToRemove strin
 				"project": projectId,
 			},
 		)
+		piUsername = piRow.Username
+
+		if hasPi && len(supportiveRolesWithPiFallback()) > 0 {
+			transferredSupportiveRoles = db.Select[struct{ Role string }](
+				tx,
+				`
+					update project.supportive_roles sr
+					set username = pm.username, modified_at = now()
+					from project.project_members pm
+					where
+						sr.project_id = pm.project_id
+						and pm.role = 'PI'
+						and pm.project_id = :project
+						and sr.username = :username
+						and sr.supportive_role = any(cast(:roles as text[]))
+					returning sr.supportive_role as role
+    				`,
+				db.Params{
+					"username": memberToRemove,
+					"project":  projectId,
+					"roles":    supportiveRolesWithPiFallback(),
+				},
+			)
+		}
+
+		if len(supportiveRolesWithoutPiFallback()) > 0 {
+			db.Exec(
+				tx,
+				`
+					delete from project.supportive_roles
+					where
+						project_id = :project
+						and username = :username
+						and supportive_role = any(cast(:roles as text[]))
+				`,
+				db.Params{
+					"project":  projectId,
+					"username": memberToRemove,
+					"roles":    supportiveRolesWithoutPiFallback(),
+				},
+			)
+		}
 
 		db.Exec(
 			tx,
@@ -728,6 +782,9 @@ func projectRemoveMember(actor rpc.Actor, projectId string, memberToRemove strin
 		pStatus.Members = util.RemoveElementFunc(pStatus.Members, func(element fndapi.ProjectMember) bool {
 			return element.Username == memberToRemove
 		})
+		for _, row := range transferredSupportiveRoles {
+			supportiveRoleGrant(pStatus, fndapi.SupportiveRole(row.Role), piUsername)
+		}
 
 		delete(uToRemove.Projects, projectId)
 		for _, gid := range removedFromGroups {
@@ -749,6 +806,9 @@ func projectRemoveMember(actor rpc.Actor, projectId string, memberToRemove strin
 
 	if err == nil {
 		projectsNotify(memberToRemove, projectId)
+		if len(transferredSupportiveRoles) > 0 && piUsername != "" {
+			projectsNotify(piUsername, projectId)
+		}
 	}
 	return err
 }
@@ -765,12 +825,22 @@ func ProjectChangeRole(actor rpc.Actor, request fndapi.ProjectMemberChangeRoleRe
 		piTransfer = true
 	}
 
-	_, iproject, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll, requiredRole)
+	project, iproject, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll, requiredRole)
 	if err != nil {
 		return err
 	}
 
+	// Reject non-members up front. The role change for a non-member used to be a silent no-op, but the
+	// supportive role transfer below requires the incoming PI to be a member of the project.
+	isMember := slices.ContainsFunc(project.Status.Members, func(member fndapi.ProjectMember) bool {
+		return member.Username == request.Username
+	})
+	if !isMember {
+		return util.HttpErr(http.StatusBadRequest, "This user is not a member of the project. Try reloading the page.")
+	}
+
 	iproject.Mu.Lock()
+	var transferredSupportiveRoles []string
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -804,6 +874,13 @@ func ProjectChangeRole(actor rpc.Actor, request fndapi.ProjectMemberChangeRoleRe
 					"project":  actor.Project.Value,
 				},
 			)
+
+			transferredSupportiveRoles = supportiveRoleHandlePiTransfer(
+				tx,
+				string(actor.Project.Value),
+				actor.Username,
+				request.Username,
+			)
 		}
 
 		db.Exec(
@@ -827,6 +904,10 @@ func ProjectChangeRole(actor rpc.Actor, request fndapi.ProjectMemberChangeRoleRe
 		} else if piTransfer && member.Username == actor.Username {
 			member.Role = fndapi.ProjectRoleAdmin
 		}
+	}
+
+	for _, role := range transferredSupportiveRoles {
+		supportiveRoleGrant(pStatus, fndapi.SupportiveRole(role), request.Username)
 	}
 
 	iproject.Mu.Unlock()
@@ -1442,6 +1523,22 @@ func ProjectAcceptInviteLink(actor rpc.Actor, token string) (fndapi.ProjectInvit
 		return fndapi.ProjectInviteLinkInfo{}, err
 	}
 
+	restricted, allowedOrgs, err := projectMemberOrganizationRestriction(linkInfo.Project.Id)
+
+	if err != nil {
+		return fndapi.ProjectInviteLinkInfo{}, err
+	}
+
+	if restricted {
+		if !slices.Contains(allowedOrgs, actor.OrgId) {
+			return fndapi.ProjectInviteLinkInfo{},
+				util.HttpErr(
+					http.StatusForbidden,
+					"Project does not allow your organization.",
+				)
+		}
+	}
+
 	if linkInfo.IsMember {
 		return fndapi.ProjectInviteLinkInfo{}, util.HttpErr(http.StatusBadRequest, "You are already a member of this project!")
 	}
@@ -1579,6 +1676,33 @@ func ProjectBrowseInvites(actor rpc.Actor, request fndapi.ProjectBrowseInvitesRe
 	}
 }
 
+func projectMemberOrganizationRestriction(
+	projectID string,
+) (restricting bool, allowedOrgs []string, err *util.HttpError) {
+	projectPolicies.Mu.RLock()
+	defer projectPolicies.Mu.RUnlock()
+
+	policies, found := projectPolicies.PoliciesByProject[projectID]
+	if !found {
+		return false, nil, nil
+	}
+
+	specification, ok := policies.ConfiguredPolicies[fndapi.RestrictOrganizationMembers]
+	if !ok || !specification.IsEnabled() {
+		return false, nil, nil
+	}
+
+	policy, ok := specification.(*fndapi.RestrictOrganizationMembersSpecification)
+	if !ok {
+		return false, nil, util.HttpErr(
+			http.StatusInternalServerError,
+			"Misconfigured Policy",
+		)
+	}
+
+	return true, slices.Clone(policy.Values.Organizations), nil
+}
+
 func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 	_, info, err := projectRetrieve(actor, string(actor.Project.Value), projectFlagsAll,
 		fndapi.ProjectRoleAdmin)
@@ -1592,7 +1716,40 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 		return util.HttpErr(http.StatusBadRequest, "you cannot invite this user to the project")
 	}
 
+	restrictingProjectMemberOrganization := false
+	var allowedOrgs []string
+
+	if actor.Project.Present {
+		restrictingProjectMemberOrganization, allowedOrgs, err = projectMemberOrganizationRestriction(string(actor.Project.Value))
+		if err != nil {
+			return err
+		}
+	}
+
 	info.Mu.Lock()
+
+	if restrictingProjectMemberOrganization {
+		if !slices.Contains(allowedOrgs, recipientActor.OrgId) {
+			errorMessage := "Cannot invite user."
+
+			if len(allowedOrgs) == 0 {
+				errorMessage += " Invites disabled by data manager"
+			} else {
+				errorMessage += " Only users from " +
+					strings.Join(allowedOrgs, ", ") +
+					" allowed to be invited."
+			}
+
+			// Remove invite if already sent.
+			if _, found := info.InvitesSent[recipientActor.Username]; found {
+				delete(info.InvitesSent, recipientActor.Username)
+			}
+
+			info.Mu.Unlock()
+			return util.HttpErr(http.StatusForbidden, "%s", errorMessage)
+		}
+	}
+
 	alreadyAMember := false
 	for _, member := range info.Project.Status.Members {
 		if member.Username == recipient {
@@ -1611,14 +1768,10 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 		}
 	}
 	projectTitle := info.Project.Specification.Title
+
 	info.Mu.Unlock()
 
 	if !alreadyInvited && !alreadyAMember {
-		recipientInfo := projectRetrieveUserInfo(recipient)
-		recipientInfo.Mu.Lock()
-		recipientInfo.InvitedTo[string(actor.Project.Value)] = util.Empty{}
-		recipientInfo.Mu.Unlock()
-
 		db.NewTx0(func(tx *db.Transaction) {
 			db.Exec(
 				tx,
@@ -1634,6 +1787,11 @@ func ProjectCreateInvite(actor rpc.Actor, recipient string) *util.HttpError {
 				},
 			)
 		})
+
+		recipientInfo := projectRetrieveUserInfo(recipient)
+		recipientInfo.Mu.Lock()
+		recipientInfo.InvitedTo[string(actor.Project.Value)] = util.Empty{}
+		recipientInfo.Mu.Unlock()
 
 		_, err = fndapi.NotificationsCreate.Invoke(fndapi.NotificationsCreateRequest{
 			User: recipient,
@@ -1713,6 +1871,26 @@ func ProjectAcceptInvite(actor rpc.Actor, projectId string) *util.HttpError {
 	uinfo := projectRetrieveUserInfo(actor.Username)
 
 	pinfo, ok := projectRetrieveInternal(projectId)
+
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "unable to accept invite")
+	}
+
+	restricted, allowedOrgs, err := projectMemberOrganizationRestriction(pinfo.Project.Id)
+
+	if err != nil {
+		return err
+	}
+
+	if restricted {
+		if !slices.Contains(allowedOrgs, actor.OrgId) {
+			return util.HttpErr(
+				http.StatusForbidden,
+				"Project does not allow your organization.",
+			)
+		}
+	}
+
 	if ok {
 		pinfo.Mu.Lock()
 		isMember := false
@@ -2214,6 +2392,7 @@ func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequ
 
 	resultId := util.UUid()
 	suffix := ""
+	wasNewlyCreated := false
 
 	for {
 		id, ok := db.NewTx2(func(tx *db.Transaction) (string, bool) {
@@ -2290,6 +2469,25 @@ func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequ
 				},
 			)
 
+			// The PI receives every supportive role which defaults to the PI.
+			defaultSupportiveRoles := supportiveRolesAssignedOnCreation()
+			if len(defaultSupportiveRoles) > 0 {
+				db.Exec(
+					tx,
+					`
+						insert into project.supportive_roles(project_id, supportive_role, username)
+						select :project, unnest(cast(:roles as text[])), :username
+						on conflict (project_id, supportive_role) do nothing
+					`,
+					db.Params{
+						"project":  resultId,
+						"roles":    defaultSupportiveRoles,
+						"username": req.PiUsername,
+					},
+				)
+			}
+
+			wasNewlyCreated = true
 			return resultId, true
 		})
 
@@ -2298,6 +2496,20 @@ func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequ
 			b.Mu.Lock()
 			delete(b.Users, req.PiUsername) // invalidate cache
 			b.Mu.Unlock()
+
+			if wasNewlyCreated {
+				// A new subproject was created through granting so this is the grant path. Apply the merged
+				// default policy settings of all grant givers to the new subproject. Fall back to the parent
+				// project for callers which do not specify the grant givers explicitly.
+				policySources := req.GrantGivers
+				if len(policySources) == 0 && req.Parent.Present {
+					policySources = []string{req.Parent.Value}
+				}
+
+				if len(policySources) > 0 {
+					applyDefaultPoliciesToNewSubproject(policySources, id)
+				}
+			}
 
 			return id, nil
 		}

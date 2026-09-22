@@ -300,6 +300,30 @@ func AllowUCloudPathsTogether(paths []string) bool {
 	return AllowUCloudPathsTogetherWithProjects(paths, nil)
 }
 
+// AllowUCloudPathsFromProject reports whether every path is a folder owned by the given project. Folders owned
+// by any other project as well as personal folders (home drives, personal collections) are not allowed.
+func AllowUCloudPathsFromProject(paths []string, project string) bool {
+	for _, path := range paths {
+		driveId, ok := DriveIdFromUCloudPath(path)
+		if !ok {
+			continue
+		}
+
+		drive, ok := ResolveDrive(driveId)
+		if !ok {
+			continue
+		}
+
+		// NOTE: Personal folders (home drives, personal collections) are not owned by a project and are
+		// therefore not allowed.
+		if !drive.Owner.Project.Present || drive.Owner.Project.Value != project {
+			return false
+		}
+	}
+
+	return true
+}
+
 func UCloudPathIsSensitive(path string) bool {
 	driveId, ok := DriveIdFromUCloudPath(path)
 	if !ok {

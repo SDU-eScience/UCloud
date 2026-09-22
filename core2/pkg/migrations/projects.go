@@ -236,3 +236,32 @@ func projectsV6() db.MigrationScript {
 		},
 	}
 }
+
+func projectsV7() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "projectsV7",
+		Execute: func(tx *db.Transaction) {
+			statements := []string{
+				`
+					create table if not exists project.supportive_roles (
+						created_at  timestamptz not null default now(),
+						modified_at timestamptz not null default now(),
+                        project_id  text not null references project.projects(id) on delete cascade,
+						supportive_role text not null,
+						username    text not null,
+						primary key (project_id, supportive_role)
+					);
+				`,
+				`
+					insert into project.supportive_roles(project_id, supportive_role, username)
+						select project_id, 'DATA_MANAGER', username from project.project_members where role = 'PI'
+						on conflict do nothing;
+				`,
+			}
+
+			for _, statement := range statements {
+				db.Exec(tx, statement, db.Params{})
+			}
+		},
+	}
+}

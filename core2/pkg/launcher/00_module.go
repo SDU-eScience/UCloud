@@ -319,6 +319,8 @@ func Launch() {
 		return rpc.BearerAuthenticator(bearer, projectHeader)
 	}
 
+	rpc.DefaultServer.RequestPolicies = fnd.SourceIpPolicy
+
 	rpc.LookupActor = func(username string) (rpc.Actor, bool) {
 		atuple := util.RetryOrPanic("rpc.LookupActor", func() (util.Tuple2[rpc.Actor, bool], error) {
 			resp, err := fndapi.AuthLookupUser.Invoke(fndapi.FindByStringId{Id: username})
@@ -655,6 +657,16 @@ func authenticateViaApiToken(bearer string) (rpc.Actor, *util.HttpError) {
 	if !ok {
 		return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "forbidden")
 	} else {
+		// RestrictApiTokens: reject usage of API tokens in projects which do not allow them.
+		// Evaluated on every request (outside the token cache) so that policy changes
+		// take effect immediately.
+		if actor.Project.Present && fnd.ApiTokensIsRestricted(string(actor.Project.Value)) {
+			return rpc.Actor{}, util.HttpErr(
+				http.StatusForbidden,
+				"API tokens are not allowed by the policies of the project",
+			)
+		}
+
 		return actor, nil
 	}
 }

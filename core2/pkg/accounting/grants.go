@@ -1161,6 +1161,7 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 				select username
 				from project.project_members
 				where project_id = :project_id
+					and role in ('PI', 'ADMIN')
 			`,
 			db.Params{
 				"project_id": req.Target,
@@ -2071,7 +2072,7 @@ func GrantsRetrieveSettings(actor rpc.Actor, isUCloudAdminCall bool, projectId s
 			b.Mu.Lock()
 			w = &grantSettings{
 				Mu:        sync.RWMutex{},
-				ProjectId: string(actor.Project.Value),
+				ProjectId: lookupId,
 				Settings: &accapi.GrantRequestSettings{
 					Enabled:             false,
 					Description:         "No description provided",
@@ -2091,7 +2092,7 @@ func GrantsRetrieveSettings(actor rpc.Actor, isUCloudAdminCall bool, projectId s
 					},
 				},
 			}
-			b.Settings[string(actor.Project.Value)] = w
+			b.Settings[lookupId] = w
 			b.Mu.Unlock()
 		}
 		b.Mu.RLock()
@@ -2294,12 +2295,26 @@ func lGrantsCreateProject(app *grantApplication, title string, pi string) (strin
 		if len(breakdown) > 0 {
 			parent.Set(breakdown[0].ProjectId)
 		}
+
+		grantGiverSet := map[string]util.Empty{}
+		for _, allocReq := range app.Application.Status.StateBreakdown {
+			if allocReq.ProjectId != "" {
+				grantGiverSet[allocReq.ProjectId] = util.Empty{}
+			}
+		}
+
+		grantGivers := make([]string, 0, len(grantGiverSet))
+		for giver := range grantGiverSet {
+			grantGivers = append(grantGivers, giver)
+		}
+
 		result, err := fndapi.ProjectInternalCreate.Invoke(fndapi.ProjectInternalCreateRequest{
 			Title:        title,
 			BackendId:    fmt.Sprintf("grants/%s", app.Application.Id.Value),
 			PiUsername:   pi,
 			SubAllocator: app.Application.CurrentRevision.Document.Form.SubAllocator,
 			Parent:       parent,
+			GrantGivers:  grantGivers,
 		})
 
 		if err != nil {

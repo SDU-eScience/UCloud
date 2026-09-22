@@ -31,20 +31,6 @@ import {addStandardDialog} from "@/UtilityComponents";
 import * as Heading from "@/ui-components/Heading";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 
-const OverviewStyle = injectStyle("app-overview", k => `
-    ${k} {
-        margin: 0 auto;
-        padding-top: 16px;
-        padding-bottom: 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        max-width: 1100px;
-        min-width: 600px;
-        min-height: 100vh;
-    }
-`);
-
 const ApplicationsCategory: React.FunctionComponent = () => {
     const location = useLocation();
     const navigate = useNavigate();

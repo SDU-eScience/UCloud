@@ -146,6 +146,8 @@ var RootAllocate = rpc.Call[fnd.BulkRequest[RootAllocateRequest], fnd.BulkRespon
 	Operation:   "rootAllocate",
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type UpdateAllocationRequest struct {
@@ -161,6 +163,8 @@ var UpdateAllocation = rpc.Call[fnd.BulkRequest[UpdateAllocationRequest], util.E
 	Operation:   "updateAllocation",
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type WalletsBrowseRequest struct {
@@ -176,6 +180,8 @@ var WalletsBrowse = rpc.Call[WalletsBrowseRequest, fnd.PageV2[WalletV2]]{
 	Convention:  rpc.ConventionBrowse,
 	Operation:   "wallets",
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type WalletsBrowseInternalRequest struct {

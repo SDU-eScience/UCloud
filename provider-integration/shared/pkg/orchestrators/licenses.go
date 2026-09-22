@@ -56,12 +56,16 @@ var LicensesCreate = rpc.Call[fnd.BulkRequest[LicenseSpecification], fnd.BulkRes
 	BaseContext: licenseNamespace,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var LicensesDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
 	BaseContext: licenseNamespace,
 	Convention:  rpc.ConventionDelete,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type LicensesSearchRequest struct {
@@ -76,6 +80,8 @@ var LicensesSearch = rpc.Call[LicensesSearchRequest, fnd.PageV2[License]]{
 	BaseContext: licenseNamespace,
 	Convention:  rpc.ConventionSearch,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type LicensesBrowseRequest struct {
@@ -89,6 +95,8 @@ var LicensesBrowse = rpc.Call[LicensesBrowseRequest, fnd.PageV2[License]]{
 	BaseContext: licenseNamespace,
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 type LicensesRetrieveRequest struct {
@@ -100,6 +108,8 @@ var LicensesRetrieve = rpc.Call[LicensesRetrieveRequest, License]{
 	BaseContext: licenseNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesEndUser,
+
+	RestrictSourceIP: true,
 }
 
 var LicensesUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[util.Empty]]{
@@ -107,6 +117,8 @@ var LicensesUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[u
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "updateAcl",
+
+	RestrictSourceIP: true,
 }
 
 type LicensesUpdateLabelsRequest struct {

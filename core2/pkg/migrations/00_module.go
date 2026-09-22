@@ -29,6 +29,7 @@ func Init() {
 	db.AddMigration(authV3())
 	db.AddMigration(grantV1())
 	db.AddMigration(projectsV4())
+	db.AddMigration(policiesV1())
 	db.AddMigration(jobSettingsV1())
 	db.AddMigration(grantV2())
 	db.AddMigration(apiTokensV2())
@@ -52,4 +53,5 @@ func Init() {
 	db.AddMigration(customApplicationsV4())
 	db.AddMigration(featuresV1())
 	db.AddMigration(grantV5())
+	db.AddMigration(projectsV7())
 }

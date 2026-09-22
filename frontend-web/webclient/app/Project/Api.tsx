@@ -4,7 +4,7 @@ import {useSelector} from "react-redux";
 import {IconName} from "@/ui-components/Icon";
 import {useParams} from "react-router-dom";
 import {useEffect, useState} from "react";
-import {OldProjectRole, Project, ProjectGroupSpecification, ProjectRole, ProjectSettings, ProjectSpecification} from ".";
+import {OldProjectRole, Project, ProjectGroupSpecification, ProjectRole, ProjectSettings, ProjectSpecification, SupportiveRole} from ".";
 
 export interface ProjectInvite {
     createdAt: number;
@@ -167,6 +167,10 @@ class ProjectApi {
     public deleteGroupMember(request: BulkRequest<{group: string, username: string}>): APICallParameters {
         return apiUpdate(request, this.baseContext, "deleteGroupMember");
     }
+
+    public changeSupportiveRole(request: BulkRequest<{role: SupportiveRole, username: string}>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "changeSupportiveRole");
+    }
 }
 
 export function useGroupIdAndMemberId(): [groupId?: string, memberId?: string] {
@@ -215,9 +219,23 @@ export function useProjectId(): string | undefined {
 
 export function projectRoleToStringIcon(role: ProjectRole): IconName {
     switch (role) {
-        case OldProjectRole.PI: return "heroTrophy";
-        case OldProjectRole.ADMIN: return "heroBriefcase";
-        case OldProjectRole.USER: return "heroUser";
+        case OldProjectRole.PI:
+            return "heroTrophy";
+        case OldProjectRole.ADMIN:
+            return "heroBriefcase";
+        case OldProjectRole.USER:
+            return "heroUser";
+        default: {
+            console.log(role);
+            return "bug";
+        }
+    }
+}
+
+export function projectSupportiveRoleToStringIcon(role: SupportiveRole): IconName {
+    switch (role) {
+        case SupportiveRole.DATAMANAGER:
+            return "heroShieldCheck";
         default: {
             console.log(role);
             return "bug";
