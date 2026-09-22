@@ -715,7 +715,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     <SettingsSection
                         id="default-policies"
                         title="Default policies"
-                        description="Policies applied to projects that do not define an explicit policy of their own."
+                        description="Policies applied to newly created subprojects through the granting of resources ."
                     >
                         <Tree>
                             <TreeNode left="Edit default policies">
