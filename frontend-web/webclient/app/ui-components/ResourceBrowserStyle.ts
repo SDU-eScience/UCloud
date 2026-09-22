@@ -158,7 +158,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             ${BrowserClass.dot} header[has-location-bar] div.header-first-row {
                 display: grid;
                 gap: 8px;
-                grid-template-columns: 36px 32px 1fr 1fr;
+                grid-template-columns: 36px 32px 1fr 0.5fr;
                 grid-template-areas:
                     "search-icon refresh  .         project-switcher"
                     "p-icon      location location  location        ";
@@ -175,12 +175,14 @@ export function injectResourceBrowserStyle(rowSize: number) {
                 margin-left: 0;
             }
 
-            ${BrowserClass.dot} header[has-location-bar] div.project-switcher .${TriggerClass} {
-                width: 150px;
-            }
-
             ${BrowserClass.dot} header[has-location-bar] div.header-first-row .location {
                 width: calc(100% + 6px);
+            }
+        }
+
+        @container header-first-row (width < 380px) {
+            ${BrowserClass.dot} header[has-location-bar] div.project-switcher .${TriggerClass} {
+                width: 150px;
             }
         }
 
@@ -220,11 +222,11 @@ export function injectResourceBrowserStyle(rowSize: number) {
             overflow: hidden;
         }
 
-        ${BrowserClass.dot} header[data-has-filters], ${BrowserClass.dot} header[data-has-allocations] {
+        ${BrowserClass.dot} header[data-has-filters] {
             height: 136px;
         }
 
-        ${BrowserClass.dot} header[data-has-filters][data-has-allocations] {
+        ${BrowserClass.dot} header[data-has-filters] {
             height: 162px;
         }
 
