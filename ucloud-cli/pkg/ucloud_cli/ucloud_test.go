@@ -541,3 +541,39 @@ func TestComputeProducts(t *testing.T) {
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }
+
+func TestSshKeyList(t *testing.T) {
+	input := []string{"ssh-key", "list"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestSshKeyAdd(t *testing.T) {
+	input := []string{"ssh-key", "add", "myfoobarkey", "/Users/danvu/.ssh/id_ed25519.pub"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestSshKeyGet(t *testing.T) {
+	input := []string{"ssh-key", "get", "myfoobarkey"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestSshKeyDelete(t *testing.T) {
+	input := []string{"ssh-key", "delete", "myfoobarkey"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
