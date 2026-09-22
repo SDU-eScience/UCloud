@@ -104,6 +104,31 @@ func ProjectRetrieveFromDatabase(tx *db.Transaction, id string) (fndapi.Project,
 		})
 	}
 
+	supportiveRoleRows := db.Select[struct {
+		Username string
+		Role     string
+	}](
+		tx,
+		`
+			select username, supportive_role as role
+			from project.supportive_roles
+			where project_id = :id
+			order by supportive_role
+		`,
+		db.Params{
+			"id": id,
+		},
+	)
+
+	rolesByUsername := make(map[string][]fndapi.SupportiveRole)
+	for _, row := range supportiveRoleRows {
+		rolesByUsername[row.Username] = append(rolesByUsername[row.Username], fndapi.SupportiveRole(row.Role))
+	}
+
+	for i := range p.Status.Members {
+		p.Status.Members[i].SupportiveRoles = rolesByUsername[p.Status.Members[i].Username]
+	}
+
 	groups := db.Select[struct {
 		Id           string
 		Gid          string

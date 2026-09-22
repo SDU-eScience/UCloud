@@ -92,7 +92,6 @@ type internalProject struct {
 	Id          string
 	Mu          sync.RWMutex
 	Project     fndapi.Project
-	SupportiveRoles map[fndapi.SupportiveRole]string
 	InviteLinks map[string]util.Empty
 	InvitesSent map[string]fndapi.ProjectInvite
 }
@@ -228,12 +227,14 @@ func initProjects() {
 		return util.Empty{}, nil
 	})
 
-	fndapi.ProjectSupportiveRoleChange.Handler(func(info rpc.RequestInfo, request fndapi.ProjectSupportiveRoleChangeRequest) (util.Empty, *util.HttpError) {
-		return util.Empty{}, SupportiveRoleChange(info.Actor, request)
-	})
-
-	fndapi.ProjectSupportiveRoleBrowse.Handler(func(info rpc.RequestInfo, request util.Empty) ([]fndapi.ProjectSupportiveRoleHolder, *util.HttpError) {
-		return SupportiveRoleBrowse(info.Actor)
+	fndapi.ProjectSupportiveRoleChange.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectSupportiveRoleChangeRequest]) (util.Empty, *util.HttpError) {
+		for _, reqItem := range request.Items {
+			err := SupportiveRoleChange(info.Actor, reqItem)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+		return util.Empty{}, nil
 	})
 
 	fndapi.ProjectCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.ProjectSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
@@ -661,7 +662,6 @@ func projectRemoveMember(actor rpc.Actor, projectId string, memberToRemove strin
 
 	var removedFromGroups []string
 	var transferredSupportiveRoles []struct{ Role string }
-	var vacatedSupportiveRoles []struct{ Role string }
 	piUsername := ""
 
 	db.NewTx0(func(tx *db.Transaction) {
@@ -715,22 +715,20 @@ func projectRemoveMember(actor rpc.Actor, projectId string, memberToRemove strin
 		)
 		piUsername = piRow.Username
 
-		// Supportive roles held by the removed member transfer back to the PI (or are vacated when the role
-		// has no fallback) so that no supportive role is ever held by a non-member.
 		if hasPi && len(supportiveRolesWithPiFallback()) > 0 {
 			transferredSupportiveRoles = db.Select[struct{ Role string }](
 				tx,
 				`
 					update project.supportive_roles sr
 					set username = pi.username, modified_at = now()
-					from project.project_members pi
+					from project.project_members pm
 					where
-						sr.project_id = pi.project_id
-						and pi.role = 'PI'
-						and pi.project_id = :project
+						sr.project_id = pm.project_id
+						and pm.role = 'PI'
+						and pm.project_id = :project
 						and sr.username = :username
 						and sr.supportive_role = any(cast(:roles as text[]))
-					returning sr.role
+					returning sr.supportive_role as role
     				`,
 				db.Params{
 					"username": memberToRemove,
@@ -741,15 +739,14 @@ func projectRemoveMember(actor rpc.Actor, projectId string, memberToRemove strin
 		}
 
 		if len(supportiveRolesWithoutPiFallback()) > 0 {
-			vacatedSupportiveRoles = db.Select[struct{ Role string }](
+			db.Exec(
 				tx,
-			`
+				`
 					delete from project.supportive_roles
 					where
 						project_id = :project
 						and username = :username
 						and supportive_role = any(cast(:roles as text[]))
-					returning role
 				`,
 				db.Params{
 					"project":  projectId,
@@ -786,11 +783,7 @@ func projectRemoveMember(actor rpc.Actor, projectId string, memberToRemove strin
 			return element.Username == memberToRemove
 		})
 		for _, row := range transferredSupportiveRoles {
-			iproject.SupportiveRoles[fndapi.SupportiveRole(row.Role)] = piUsername
-		}
-
-		for _, row := range vacatedSupportiveRoles {
-			delete(iproject.SupportiveRoles, fndapi.SupportiveRole(row.Role))
+			supportiveRoleGrant(pStatus, fndapi.SupportiveRole(row.Role), piUsername)
 		}
 
 		delete(uToRemove.Projects, projectId)
@@ -914,7 +907,7 @@ func ProjectChangeRole(actor rpc.Actor, request fndapi.ProjectMemberChangeRoleRe
 	}
 
 	for _, role := range transferredSupportiveRoles {
-		iproject.SupportiveRoles[fndapi.SupportiveRole(role)] = request.Username
+		supportiveRoleGrant(pStatus, fndapi.SupportiveRole(role), request.Username)
 	}
 
 	iproject.Mu.Unlock()
@@ -2478,9 +2471,9 @@ func ProjectCreateInternal(actor rpc.Actor, req fndapi.ProjectInternalCreateRequ
 				db.Exec(
 					tx,
 					`
-						insert into project.supportive_roles(project_id, role, username)
+						insert into project.supportive_roles(project_id, supportive_role, username)
 						select :project, unnest(cast(:roles as text[])), :username
-						on conflict (project_id, role) do nothing
+						on conflict (project_id, supportive_role) do nothing
 					`,
 					db.Params{
 						"project":  resultId,
@@ -2587,28 +2580,8 @@ func projectRetrieveInternal(id string) (*internalProject, bool) {
 					result := &internalProject{
 						Id:          id,
 						Project:     projectInfo,
-						SupportiveRoles: map[fndapi.SupportiveRole]string{},
 						InviteLinks: map[string]util.Empty{},
 						InvitesSent: map[string]fndapi.ProjectInvite{},
-					}
-
-					supportiveRoleRows := db.Select[struct {
-						Role     string
-						Username string
-					}](
-						tx,
-						`
-							select role, username
-							from project.supportive_roles
-							where project_id = :id
-						`,
-						db.Params{
-							"id": id,
-						},
-					)
-
-					for _, row := range supportiveRoleRows {
-						result.SupportiveRoles[fndapi.SupportiveRole(row.Role)] = row.Username
 					}
 
 					links := db.Select[struct{ Token string }](

@@ -11,7 +11,7 @@ import {useLoading, usePage} from "@/Navigation/Redux";
 import {BulkResponse, FindByStringId, PageV2} from "@/UCloud";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {emptyPageV2, fetchAll} from "@/Utilities/PageUtilities";
-import {OldProjectRole, Project, ProjectRole} from ".";
+import {changeSupportiveRole, OldProjectRole, Project, ProjectRole, SupportiveRole} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {MembersContainer} from "@/Project/MembersUI";
 
@@ -27,7 +27,7 @@ import {sendFailureNotification} from "@/Notifications";
 // ================================================================================
 type ProjectAction = AddToGroup | RemoveFromGroup | Reload | InspectGroup | InviteMember | ReloadInvites |
     RemoveInvite | FailedInvite | RenameGroup | CreateGroup | UpdateGroupWithId | RemoveGroup | ChangeRole |
-    RemoveMember | CreateInviteLink;
+    ChangeSupportiveRole | RemoveMember | CreateInviteLink;
 
 interface Reload {
     type: "Reload";
@@ -47,6 +47,11 @@ interface RemoveMember {
 interface ChangeRole {
     type: "ChangeRole";
     changes: {username: string; role: ProjectRole}[];
+}
+
+interface ChangeSupportiveRole {
+    type: "ChangeSupportiveRole";
+    changes: {username: string; role: SupportiveRole}[];
 }
 
 interface AddToGroup {
@@ -157,6 +162,28 @@ function projectReducer(state: UIState, action: ProjectAction): UIState {
                 // If we are changing our own role, make sure this is reflected in the status object.
                 if (member.username === Client.username!) {
                     project.status.myRole = change.role;
+                }
+            }
+            return copy;
+        }
+
+        case "ChangeSupportiveRole": {
+            for (const change of action.changes) {
+                const member = project.status.members!.find(it => it.username === change.username);
+                if (!member) continue;
+
+                // A grant transfers the role: afterwards it is held by exactly the
+                // target. Strip it from the current holder(s) — same idea as the
+                // PI branch in ChangeRole demoting the old PI.
+                for (const other of project.status.members!) {
+                    if (other.username === change.username) continue;
+                    other.supportiveRoles = (other.supportiveRoles ?? [])
+                        .filter(it => it !== change.role);
+                }
+
+                const held = member.supportiveRoles ?? [];
+                if (!held.includes(change.role)) {
+                    member.supportiveRoles = [...held, change.role];
                 }
             }
             return copy;
@@ -285,6 +312,18 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
 
                 cb.pureDispatch({type: "ChangeRole", changes: oldRoles});
             }
+            break;
+        }
+
+        case "ChangeSupportiveRole": {
+            const success = await callAPIWithErrorHandler({
+                ...changeSupportiveRole(bulkRequestOf(...action.changes)),
+                projectOverride: project.id
+            });
+
+            // Transfer semantics can't be undone by replaying the action, so
+            // restore the authoritative state instead.
+            if (!success) cb.requestReload();
             break;
         }
 
@@ -463,8 +502,7 @@ export const ProjectMembers: React.FunctionComponent = () => {
     const RoleToOrder: Readonly<Record<ProjectRole, number>> = {
         PI: 0,
         ADMIN: 1,
-        DATA_MANAGER: 2,
-        USER: 3
+        USER: 2
     };
 
     React.useEffect(() => {
@@ -598,6 +636,9 @@ export const ProjectMembers: React.FunctionComponent = () => {
         }}
         onChangeRole={(username, newRole) => {
             dispatch({type: "ChangeRole", changes: [{username: username, role: newRole}]});
+        }}
+        onChangeSupportiveRole={(username, role) => {
+            dispatch({type: "ChangeSupportiveRole", changes: [{username, role}]});
         }}
         onRemoveFromProject={(username) => {
             const isSelf = username === Client.activeUsername;

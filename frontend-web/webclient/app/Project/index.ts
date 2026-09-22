@@ -1,5 +1,6 @@
 import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import {RequestSettings} from "@/Grants";
+import {BulkRequest} from "@/UCloud";
 
 export interface ProjectCache {
     expiresAt: number;
@@ -9,7 +10,6 @@ export interface ProjectCache {
 export enum OldProjectRole {
     PI = "PI",
     ADMIN = "ADMIN",
-    DATAMANAGER = "DATA_MANAGER",
     USER = "USER",
 }
 
@@ -18,9 +18,32 @@ export function isAdminOrPI(role?: ProjectRole | null): boolean {
     return [OldProjectRole.PI, OldProjectRole.ADMIN].includes(role);
 }
 
-export function isDataSteward(role?: ProjectRole | null): boolean {
+export enum SupportiveRole {
+    DATAMANAGER = "DATA_MANAGER",
+}
+
+export const SUPPORTIVE_ROLES: {role: SupportiveRole; title: string}[] = [
+    {role: SupportiveRole.DATAMANAGER, title: "Data Manager"},
+];
+
+export function holdsSupportiveRole(member: ProjectMember, role: SupportiveRole): boolean {
+    return member.supportiveRoles?.some(it => it === role) ?? false;
+}
+
+export function isDataSteward(role?: SupportiveRole | null): boolean {
     if (!role) return false;
-    return OldProjectRole.DATAMANAGER == role;
+    return SupportiveRole.DATAMANAGER == role;
+}
+
+export interface ProjectSupportiveRoleChangeRequest {
+    role: SupportiveRole;
+    username: string;
+}
+
+export function changeSupportiveRole(
+    request: BulkRequest<ProjectSupportiveRoleChangeRequest>,
+): APICallParameters<unknown, {}> {
+    return apiUpdate(request, "/api/projects/v2", "changeSupportiveRole");
 }
 
 export type ProjectRole = OldProjectRole;
@@ -28,6 +51,7 @@ export type ProjectRole = OldProjectRole;
 export interface ProjectMember {
     username: string;
     role: ProjectRole;
+    supportiveRoles?: SupportiveRole[] | null;
 }
 
 export interface Project {

@@ -70,6 +70,37 @@ func supportiveRoleIsValid(role fndapi.SupportiveRole) bool {
 	return ok
 }
 
+// supportiveRoleHolder returns the index of the member currently holding the role. The caller must hold
+// iproject.Mu.
+func supportiveRoleHolder(status *fndapi.ProjectStatus, role fndapi.SupportiveRole) (int, bool) {
+	for i := range status.Members {
+		if slices.Contains(status.Members[i].SupportiveRoles, role) {
+			return i, true
+		}
+	}
+	return -1, false
+}
+
+// supportiveRoleGrant grants the role to username and removes it from any other member. The caller must
+// hold iproject.Mu for writing.
+func supportiveRoleGrant(status *fndapi.ProjectStatus, role fndapi.SupportiveRole, username string) {
+	for i := range status.Members {
+		member := &status.Members[i]
+		if member.Username == username {
+			if !slices.Contains(member.SupportiveRoles, role) {
+				member.SupportiveRoles = append(member.SupportiveRoles, role)
+				slices.SortFunc(member.SupportiveRoles, func(a, b fndapi.SupportiveRole) int {
+					return strings.Compare(string(a), string(b))
+				})
+			}
+		} else {
+			member.SupportiveRoles = util.RemoveElementFunc(member.SupportiveRoles, func(r fndapi.SupportiveRole) bool {
+				return r == role
+			})
+		}
+	}
+}
+
 // supportiveRolesWithPiFallback lists every role which transfers to the PI when its holder leaves.
 func supportiveRolesWithPiFallback() []string {
 	var result []string
@@ -153,7 +184,7 @@ func supportiveRoleHandlePiTransfer(tx *db.Transaction, projectId string, oldPi 
 				sr.project_id = :project
 				and sr.username = :old_pi
 				and sr.supportive_role = any(cast(:roles as text[]))
-			returning sr.role
+			returning sr.supportive_role as role
 		`,
 		db.Params{
 			"project": projectId,
@@ -198,9 +229,17 @@ func IsSupportiveRoleHolder(projectId string, username string, role fndapi.Suppo
 	}
 
 	iproject.Mu.RLock()
-	holder, ok := iproject.SupportiveRoles[role]
+	holds := false
+	for _, member := range iproject.Project.Status.Members {
+		if member.Username == username {
+			if slices.Contains(member.SupportiveRoles, role) {
+				holds = true
+				break
+			}
+		}
+	}
 	iproject.Mu.RUnlock()
-	return ok && holder == username
+	return holds
 }
 
 // SupportiveRoleSetHolderForTesting overrides the holder of a supportive role in test mode (no database).
@@ -246,8 +285,8 @@ func SupportiveRoleChange(actor rpc.Actor, request fndapi.ProjectSupportiveRoleC
 	}
 
 	iproject.Mu.Lock()
-	currentHolder, hasHolder := iproject.SupportiveRoles[request.Role]
-	if hasHolder && currentHolder == request.Username {
+	pStatus := &iproject.Project.Status
+	if holderIdx, hasHolder := supportiveRoleHolder(pStatus, request.Role); hasHolder && pStatus.Members[holderIdx].Username == request.Username {
 		iproject.Mu.Unlock()
 		return util.HttpErr(http.StatusBadRequest, "This member already holds this role")
 	}
@@ -275,14 +314,14 @@ func SupportiveRoleChange(actor rpc.Actor, request fndapi.ProjectSupportiveRoleC
 			tx,
 			`
 				insert into project.supportive_roles(project_id, supportive_role, username)
-				values (:project, :role, :username)
-				on conflict (project_id, role)
+				values (:project, :supportiverole, :username)
+				on conflict (project_id, supportive_role)
 				do update set username = excluded.username, modified_at = now()
 			`,
 			db.Params{
-				"project":  projectId,
-				"role":     string(request.Role),
-				"username": request.Username,
+				"project":        projectId,
+				"supportiverole": string(request.Role),
+				"username":       request.Username,
 			},
 		)
 
@@ -304,7 +343,7 @@ func SupportiveRoleChange(actor rpc.Actor, request fndapi.ProjectSupportiveRoleC
 		return err
 	}
 
-	iproject.SupportiveRoles[request.Role] = request.Username
+	supportiveRoleGrant(pStatus, request.Role, request.Username)
 	iproject.Mu.Unlock()
 
 	for _, member := range project.Status.Members {
@@ -312,31 +351,4 @@ func SupportiveRoleChange(actor rpc.Actor, request fndapi.ProjectSupportiveRoleC
 	}
 
 	return nil
-}
-
-func SupportiveRoleBrowse(actor rpc.Actor) ([]fndapi.ProjectSupportiveRoleHolder, *util.HttpError) {
-	if !actor.Project.Present {
-		return nil, util.HttpErr(http.StatusBadRequest, "This request requires an active project")
-	}
-
-	projectId := string(actor.Project.Value)
-	_, iproject, err := projectRetrieve(actor, projectId, projectFlagsAll, fndapi.ProjectRoleUser)
-	if err != nil {
-		return nil, err
-	}
-
-	iproject.Mu.RLock()
-	result := make([]fndapi.ProjectSupportiveRoleHolder, 0, len(iproject.SupportiveRoles))
-	for role, username := range iproject.SupportiveRoles {
-		result = append(result, fndapi.ProjectSupportiveRoleHolder{
-			Role:     role,
-			Username: username,
-		})
-	}
-	iproject.Mu.RUnlock()
-
-	slices.SortFunc(result, func(a, b fndapi.ProjectSupportiveRoleHolder) int {
-		return strings.Compare(string(a.Role), string(b.Role))
-	})
-	return result, nil
 }

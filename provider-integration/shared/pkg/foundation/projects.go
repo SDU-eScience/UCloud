@@ -109,10 +109,32 @@ func (p ProjectRole) Equals(requirement ProjectRole) bool {
 	return p == requirement
 }
 
+// SupportiveRole is a duty which a project member can hold alongside their regular project role (PI, Admin, User).
+type SupportiveRole string
+
+const (
+	SupportiveRoleDataManager SupportiveRole = "DATA_MANAGER"
+)
+
+type ProjectSupportiveRoleChangeRequest struct {
+	Role     SupportiveRole `json:"role"`
+	Username string         `json:"username"`
+}
+
+var ProjectSupportiveRoleChange = rpc.Call[BulkRequest[ProjectSupportiveRoleChangeRequest], util.Empty]{
+	BaseContext: ProjectContext,
+	Operation:   "changeSupportiveRole",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+}
+
+func (s SupportiveRole) Equals(requirement SupportiveRole) bool { return s == requirement }
+
 type ProjectMember struct {
-	Username string      `json:"username,omitempty"`
-	Role     ProjectRole `json:"role,omitempty"`
-	Email    string      `json:"email,omitempty"`
+	Username        string           `json:"username,omitempty"`
+	Role            ProjectRole      `json:"role,omitempty"`
+	SupportiveRoles []SupportiveRole `json:"supportiveRoles,omitempty"`
+	Email           string           `json:"email,omitempty"`
 }
 
 type ProjectGroup struct {
@@ -340,37 +362,6 @@ var ProjectMemberChangeRole = rpc.Call[BulkRequest[ProjectMemberChangeRoleReques
 	BaseContext: ProjectContext,
 	Operation:   "changeRole",
 	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
-}
-
-// SupportiveRole is a duty which a project member can hold alongside their regular project role (PI, Admin, User).
-type SupportiveRole string
-
-const (
-	SupportiveRoleDataManager SupportiveRole = "DATA_MANAGER"
-)
-
-type ProjectSupportiveRoleChangeRequest struct {
-	Role     SupportiveRole `json:"role"`
-	Username string         `json:"username"`
-}
-
-var ProjectSupportiveRoleChange = rpc.Call[BulkRequest[ProjectSupportiveRoleChangeRequest], util.Empty]{
-	BaseContext: ProjectContext,
-	Operation:   "changeSupportiveRole",
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
-}
-
-type ProjectSupportiveRoleHolder struct {
-	Role     SupportiveRole `json:"role"`
-	Username string         `json:"username"`
-}
-
-var ProjectSupportiveRoleBrowse = rpc.Call[util.Empty, []ProjectSupportiveRoleHolder]{
-	BaseContext: ProjectContext,
-	Operation:   "browseSupportiveRole",
-	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesEndUser,
 }
 

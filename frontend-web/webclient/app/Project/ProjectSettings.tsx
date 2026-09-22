@@ -1,18 +1,6 @@
 import * as React from "react";
-import {
-    Box,
-    Button,
-    Flex,
-    Input,
-    Label,
-    Text,
-    Checkbox,
-    TextArea,
-    DataList,
-    Tooltip,
-    Markdown,
-    Icon
-} from "@/ui-components";
+import {useCallback, useEffect, useRef, useState} from "react";
+import {Box, Button, Checkbox, DataList, Flex, Icon, Input, Label, Markdown, Text, TextArea, Tooltip} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {addStandardDialog, ConfirmCancelButtons} from "@/UtilityComponents";
 import {apiRetrieve, apiUpdate, callAPI, callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -22,10 +10,9 @@ import {MainContainer} from "@/ui-components/MainContainer";
 import {SettingsAction, SettingsNavSection, SettingsPage, SettingsSection} from "@/ui-components/SettingsComponents";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {usePage} from "@/Navigation/Redux";
-import {useCallback, useEffect, useRef, useState} from "react";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import ProjectAPI, {useProjectId} from "@/Project/Api";
-import {bulkRequestOf, copyToClipboard} from "@/UtilityFunctions";
+import {bulkRequestOf, copyToClipboard, inSuccessRange} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useProject} from "./cache";
 import {injectStyle} from "@/Unstyled";
@@ -35,13 +22,12 @@ import {HiddenInputField} from "@/ui-components/Input";
 import {IconButton} from "@/ui-components/IconButton";
 import {CopyButton} from "@/ui-components/CopyButton";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
-import {inSuccessRange} from "@/UtilityFunctions";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {ProjectSwitcher} from "./ProjectSwitcher";
 import WAYF from "@/Grants/wayf-idps.json";
 import {FlexClass} from "@/ui-components/Flex";
-import {OldProjectRole, isAdminOrPI, isDataSteward} from ".";
+import {isAdminOrPI, isDataSteward, OldProjectRole, SupportiveRole} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
@@ -56,7 +42,6 @@ import {connectionState} from "@/Providers/ConnectionState";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {NewDataList} from "@/UserSettings/ChangeUserDetails";
-import {boolean} from "property-information/lib/util/types";
 import {Tree, TreeNode} from "@/ui-components/Tree";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
@@ -577,12 +562,14 @@ export const ProjectSettings: React.FunctionComponent = () => {
             }
         />
     }
-
+    const mySupportiveRoles =
+        status.members?.find(it => it.username === Client.username)?.supportiveRoles ?? [];
+    const showPolices = mySupportiveRoles.some(isDataSteward);
     const canManageProject = isAdminOrPI(status.myRole);
     const sections: SettingsNavSection[] = [
         {id: "project-information", label: "Project information"},
         ...(canManageProject ? [{id: "grant-applications", label: "Grant applications"}] : []),
-        ...(isDataSteward(status.myRole) ? [
+        ...(showPolices ? [
             {id: "project-policies", label: "Project policies"},
             {id: "default-policies", label: "Default policies"},
         ] : []),
@@ -720,7 +707,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                 </form>
             </SettingsSection> : null}
 
-            {isDataSteward(status.myRole) ?
+            {showPolices ?
                 <>
                     <SettingsSection id="project-policies" title="Project policies">
                         <PolicySchemas />

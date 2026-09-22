@@ -249,11 +249,11 @@ func projectsV7() db.MigrationScript {
 						project_id  text not null,
 						supportive_role text not null,
 						username    text not null,
-						primary key (project_id, role)
+						primary key (project_id, supportive_role)
 					);
 				`,
 				`
-					insert into project.supportive_roles(project_id, role, username)
+					insert into project.supportive_roles(project_id, supportive_role, username)
 						select project_id, 'DATA_MANAGER', username from project.project_members where role = 'PI'
 						on conflict do nothing;
 				`,
