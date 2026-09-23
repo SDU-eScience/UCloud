@@ -71,7 +71,7 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
                         <Icon name="close" marginLeft={"5px"} marginBottom="1px" size={12} />
                     </TooltipV2>
                 </Absolute> : null}
-            <Absolute className={NotificationOperation} top="44px" left="-15px" onClick={e => {
+            <Absolute className={classConcat(NotificationOperation, "copy")} left="-15px" onClick={e => {
                 e.stopPropagation();
                 let content = props.title;
                 if (typeof props.body === "string") {
@@ -97,7 +97,7 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
 
                 <div className="notification-content">
                     <Flex pr="12px">
-                        <h3>{props.title}</h3>
+                        <h3 title={props.title}>{props.title}</h3>
                         <div className={props.isPinned ? "snooze" : "time"} onClick={onSnooze}>
                             {props.isPinned ? "Snooze" : "Now"}
                         </div>
@@ -120,7 +120,7 @@ const fadeInAnimation = makeKeyframe("fade-in-animation", `
 `);
 
 const DefaultHidden = injectStyleSimple("default-hidden", `
-    display: none;    
+    display: none;
 `);
 
 const NotificationOperation = injectStyleSimple("notification-operation", `
@@ -169,7 +169,7 @@ const Style = injectStyle("notification", k => `
         overflow: hidden;
         width: 330px;
     }
-    
+
     ${k} > .${CardClass} {
         padding: 8px;
         border-radius: 8px;
@@ -214,5 +214,23 @@ const Style = injectStyle("notification", k => `
             transform: translate(500px, 0);
         }
     }
-`);
 
+    ${k} .copy {
+        top: 44px;
+    }
+
+    @media (max-width: 500px) {
+        ${k} {
+            width: calc(100vw - 32px);
+            height: 86px;
+        }
+
+        ${k} .notification-inner {
+            height: 70px;
+        }
+
+        ${k} .copy {
+            top: 58px;
+        }
+    }
+`);
