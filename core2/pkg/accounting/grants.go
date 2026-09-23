@@ -528,7 +528,10 @@ func grantsWouldCreateCycle(recipient accapi.Recipient, requests []accapi.Alloca
 		}
 
 		if internalWouldCreateCycle(b, recipientWallet, giverWallet) {
-			title := grantsRetrieveProjectTitleByProjectId(req.GrantGiver)
+			title := req.GrantGiver
+			if !grantGlobals.Testing.Enabled {
+				title = grantsRetrieveProjectTitleByProjectId(req.GrantGiver)
+			}
 			return title, true
 		}
 	}
@@ -800,7 +803,7 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		if giver, wouldCycle := grantsWouldCreateCycle(recipient, revision.AllocationRequests); wouldCycle {
 			err = util.HttpErr(
 				http.StatusBadRequest,
-				"you cannot request resources from %s as this would create a circular resource dependency",
+				"You cannot request resources from %s since it is receiving resources from you",
 				giver,
 			)
 		}
@@ -1368,8 +1371,7 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 		if giver, wouldCycle := grantsWouldCreateCycle(doc.Recipient, doc.AllocationRequests); wouldCycle {
 			err = util.HttpErr(
 				http.StatusBadRequest,
-				"this application can no longer be approved: awarding it would create a circular "+
-					"resource dependency involving %s",
+				"This application can no longer be approved: Granting this would create a circular chain of allocations involving %s",
 				giver,
 			)
 		}
