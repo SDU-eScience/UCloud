@@ -710,44 +710,222 @@ func TableNodeEx(id string, bindPath string, columns []Option) UiNode {
 	}
 }
 
-type ResourceTypeOption struct {
-	Id         string
-	Label      string
-	Aliases    []string
-	Group      string
-	HasYaml    bool
-	Namespaced bool
+type NavItemChild struct {
+	Id      string
+	Label   string
+	Aliases []string
+	Route   string
 }
 
-func ResourceTable(id string, activeTypePath string, activeNamespacePath string, detailPath string, types []ResourceTypeOption) UiNode {
-	items := make([]Value, 0, len(types))
-	for _, t := range types {
-		aliasValues := make([]Value, 0, len(t.Aliases))
-		for _, alias := range t.Aliases {
-			aliasValues = append(aliasValues, VString(alias))
-		}
+type NavItem struct {
+	Id       string
+	Label    string
+	Aliases  []string
+	Route    string
+	Children []NavItemChild
+}
 
-		items = append(items, VObject(map[string]Value{
-			"id":         VString(t.Id),
-			"label":      VString(t.Label),
-			"aliases":    VList(aliasValues),
-			"group":      VString(t.Group),
-			"hasYaml":    VBool(t.HasYaml),
-			"namespaced": VBool(t.Namespaced),
-		}))
+type BrowserLayoutProps struct {
+	Sidebar   UiNode
+	Content   []UiNode
+	Bottom    UiNode
+	HasBottom bool
+
+	EscapePath     string
+	EscapeDisabled bool
+}
+
+func BrowserLayout(props BrowserLayoutProps) UiNode {
+	node := UiNode{
+		Id:        "browserLayout",
+		Component: "browser_layout",
+		Props:     map[string]Value{},
+	}
+
+	if !props.EscapeDisabled {
+		node.Props["escapePath"] = VString(props.EscapePath)
+	}
+
+	var children []UiNode
+	if props.Sidebar.Component != "" {
+		children = append(children, markBrowserSlot(props.Sidebar, "sidebarSlot", "browserSidebar"))
+	}
+	children = append(children, props.Content...)
+	if props.HasBottom {
+		children = append(children, markBrowserSlot(props.Bottom, "bottomSlot", "browserBottom"))
+	}
+
+	return node.Children(children...)
+}
+
+func markBrowserSlot(node UiNode, marker string, fallbackId string) UiNode {
+	if node.Id == "" {
+		node.Id = fallbackId
+	}
+
+	if node.Props == nil {
+		node.Props = map[string]Value{}
+	}
+	node.Props[marker] = VBool(true)
+	return node
+}
+
+func BrowserSidebar(children ...UiNode) UiNode {
+	return BoxEx("browserSidebar").Children(children...)
+}
+
+func BrowserBottom(children ...UiNode) UiNode {
+	return BoxEx("browserBottom").Children(children...)
+}
+
+func NavTree(id string, items []NavItem) UiNode {
+	return NavTreeEx(id, "", items)
+}
+
+func NavTreeEx(id string, selectedBindPath string, items []NavItem) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "nav_tree",
+		BindPath:  selectedBindPath,
+		Props: map[string]Value{
+			"items": navItemsToValue(items),
+		},
+	}
+}
+
+func navItemsToValue(items []NavItem) Value {
+	list := make([]Value, 0, len(items))
+	for _, item := range items {
+		object := map[string]Value{
+			"id":    VString(item.Id),
+			"label": VString(item.Label),
+		}
+		if len(item.Aliases) > 0 {
+			aliases := make([]Value, 0, len(item.Aliases))
+			for _, alias := range item.Aliases {
+				aliases = append(aliases, VString(alias))
+			}
+			object["aliases"] = VList(aliases)
+		}
+		if item.Route != "" {
+			object["route"] = VString(item.Route)
+		}
+		if len(item.Children) > 0 {
+			children := make([]Value, 0, len(item.Children))
+			for _, child := range item.Children {
+				childObject := map[string]Value{
+					"id":    VString(child.Id),
+					"label": VString(child.Label),
+				}
+				if len(child.Aliases) > 0 {
+					aliases := make([]Value, 0, len(child.Aliases))
+					for _, alias := range child.Aliases {
+						aliases = append(aliases, VString(alias))
+					}
+					childObject["aliases"] = VList(aliases)
+				}
+				if child.Route != "" {
+					childObject["route"] = VString(child.Route)
+				}
+				children = append(children, VObject(childObject))
+			}
+			object["children"] = VList(children)
+		}
+		list = append(list, VObject(object))
+	}
+	return VList(list)
+}
+
+type ResourceTableActionKind string
+
+const ResourceTableActionCopyText ResourceTableActionKind = "copyText"
+
+type ResourceTableAction struct {
+	Id    string
+	Label string
+	Icon  IconName
+	Kind  ResourceTableActionKind
+}
+
+type ResourceTableProps struct {
+	Id       string
+	TableId  string
+	StateKey string
+	ViewId   string
+
+	EmptyMessage     string
+	HideGroupHeaders bool
+	NoSorting        bool
+	Actions          []ResourceTableAction
+}
+
+func ResourceTable(props ResourceTableProps) UiNode {
+	nodeProps := map[string]Value{
+		"tableId": VString(props.TableId),
+	}
+
+	if props.StateKey != "" {
+		nodeProps["stateKey"] = VString(props.StateKey)
+	}
+
+	if props.ViewId != "" {
+		nodeProps["viewId"] = VString(props.ViewId)
+	}
+
+	if props.EmptyMessage != "" {
+		nodeProps["emptyMessage"] = VString(props.EmptyMessage)
+	}
+
+	if props.HideGroupHeaders {
+		nodeProps["showGroupHeaders"] = VBool(false)
+	}
+
+	if props.NoSorting {
+		nodeProps["sorted"] = VBool(false)
+	}
+
+	if len(props.Actions) > 0 {
+		actionValues := make([]Value, 0, len(props.Actions))
+		for _, action := range props.Actions {
+			actionValues = append(actionValues, VObject(map[string]Value{
+				"id":    VString(action.Id),
+				"label": VString(action.Label),
+				"icon":  VIcon(action.Icon),
+				"kind":  VString(string(action.Kind)),
+			}))
+		}
+		nodeProps["actions"] = VList(actionValues)
 	}
 
 	return UiNode{
-		Id:        id,
+		Id:        props.Id,
 		Component: "resource_table",
+		Props:     nodeProps,
+	}
+}
+
+func TableFilter(id string, stateKey string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "table_filter",
 		Props: map[string]Value{
-			"tableId":             VString("resources"),
-			"activeTypePath":      VString(activeTypePath),
-			"activeNamespacePath": VString(activeNamespacePath),
-			"detailPath":          VString(detailPath),
-			"types":               VList(items),
+			"stateKey": VString(stateKey),
 		},
 	}
+}
+
+func TableCount(id string, stateKey string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "table_count",
+		Props: map[string]Value{
+			"stateKey": VString(stateKey),
+		},
+	}
+}
+
+func (n UiNode) WithTitle(title string) UiNode {
+	return n.propMutate("title", VString(title))
 }
 
 func Tabs() UiNode {
@@ -1021,6 +1199,10 @@ func (n UiNode) propMutate(key string, value Value) UiNode {
 
 func (n UiNode) ButtonSubmitShortcut(enabled bool) UiNode {
 	return n.propMutate("showShortcut", VBool(enabled))
+}
+
+func (n UiNode) ButtonEscapeHint(enabled bool) UiNode {
+	return n.propMutate("showEscapeHint", VBool(enabled))
 }
 
 func SidebarLayout() SidebarLayoutNodeBuilder {

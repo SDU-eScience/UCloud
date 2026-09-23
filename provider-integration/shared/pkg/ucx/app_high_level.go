@@ -2,8 +2,11 @@ package ucx
 
 import (
 	"context"
+	"crypto/subtle"
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
 
 	"ucloud.dk/shared/pkg/log"
@@ -83,6 +86,8 @@ func AppUpdateUiLocked(session *Session, ui UiNode, model map[string]Value) {
 }
 
 func AppServe(factory func() Application, port util.Option[int]) {
+	authToken := LoadSessionAuthToken()
+
 	upstreamServer := &rpc.Server{
 		Mux: http.NewServeMux(),
 	}
@@ -108,7 +113,7 @@ func AppServe(factory func() Application, port util.Option[int]) {
 			conn,
 			ctx,
 			func(ctx context.Context, token string) bool {
-				return true
+				return SessionTokenMatches(authToken, token)
 			},
 			func(ctx context.Context, session *Session) {
 				stateMu.Lock()
@@ -180,4 +185,31 @@ func AppServe(factory func() Application, port util.Option[int]) {
 		Handler: upstreamServer.Mux,
 	}
 	_ = s.ListenAndServe()
+}
+
+func LoadSessionAuthToken() string {
+	if fromEnv := strings.TrimSpace(os.Getenv("UCX_AUTH_TOKEN")); fromEnv != "" {
+		return fromEnv
+	}
+
+	tokenBytes, err := os.ReadFile("/etc/ucloud/token")
+	if err != nil {
+		return ""
+	}
+
+	lines := strings.Split(string(tokenBytes), "\n")
+	if len(lines) >= 2 && strings.TrimSpace(lines[1]) != "" {
+		return strings.TrimSpace(lines[1])
+	}
+	if len(lines) >= 1 {
+		return strings.TrimSpace(lines[0])
+	}
+	return ""
+}
+
+func SessionTokenMatches(expected string, received string) bool {
+	if expected == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(expected), []byte(received)) == 1
 }

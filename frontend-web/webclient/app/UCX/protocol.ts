@@ -83,10 +83,18 @@ export interface TableColumn {
     jsonPath: string;
 }
 
+export interface TableRowAction {
+    id: string;
+    enabled: boolean;
+    disabledReason?: string;
+    text?: string;
+}
+
 export interface TableRow {
     key: string;
     group: string;
     cells: string[];
+    actions?: TableRowAction[];
 }
 
 export interface TableUpdate {
@@ -397,6 +405,22 @@ function encodeTableUpdate(w: BinaryWriter, update: TableUpdate) {
 
     w.writeU32(update.removed.length);
     for (const key of update.removed) w.writeString(key);
+
+    const hasActions = update.upserts.some(row => row.actions !== undefined && row.actions.length > 0);
+    w.writeU8(hasActions ? 1 : 0);
+    if (hasActions) {
+        w.writeU32(update.upserts.length);
+        for (const row of update.upserts) {
+            const actions = row.actions ?? [];
+            w.writeU32(actions.length);
+            for (const action of actions) {
+                w.writeString(action.id);
+                w.writeU8(action.enabled ? 1 : 0);
+                w.writeString(action.disabledReason ?? "");
+                w.writeString(action.text ?? "");
+            }
+        }
+    }
 }
 
 function decodeTableUpdate(r: BinaryReader): TableUpdate {
@@ -424,6 +448,27 @@ function decodeTableUpdate(r: BinaryReader): TableUpdate {
     const removedCount = r.readU32();
     const removed: string[] = [];
     for (let i = 0; i < removedCount; i++) removed.push(r.readString());
+
+    if (!r.isAtEnd() && r.readU8() !== 0) {
+        const actionRowCount = r.readU32();
+        for (let i = 0; i < actionRowCount && i < upserts.length; i++) {
+            const actionCount = r.readU32();
+            const actions: TableRowAction[] = [];
+            for (let j = 0; j < actionCount; j++) {
+                const id = r.readString();
+                const enabled = r.readU8() !== 0;
+                const disabledReason = r.readString();
+                const text = r.readString();
+                actions.push({
+                    id,
+                    enabled,
+                    disabledReason: disabledReason === "" ? undefined : disabledReason,
+                    text: text === "" ? undefined : text,
+                });
+            }
+            if (actions.length > 0) upserts[i].actions = actions;
+        }
+    }
 
     return {tableId, revision, snapshot, columns, upserts, removed};
 }

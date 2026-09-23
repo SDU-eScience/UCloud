@@ -150,9 +150,14 @@ func InitServerHandlers() {
 	})
 }
 
-func EnsureToken(jobId string, vmaSrvToken util.Option[string]) string {
+func EnsureToken(jobId string, vmaSrvToken util.Option[string]) (string, string) {
 	newToken := util.SecureToken()
-	token, _ := db.NewTx2(func(tx *db.Transaction) (string, bool) {
+	newSrvToken := util.SecureToken()
+	if vmaSrvToken.Present {
+		newSrvToken = vmaSrvToken.Value
+	}
+
+	token, srvToken, _ := db.NewTx3(func(tx *db.Transaction) (string, string, bool) {
 		db.Exec(
 			tx,
 			`
@@ -163,21 +168,61 @@ func EnsureToken(jobId string, vmaSrvToken util.Option[string]) string {
 			db.Params{
 				"job_id":        jobId,
 				"token":         newToken,
-				"vma_srv_token": optStringToSql(vmaSrvToken),
+				"vma_srv_token": optStringToSql(util.OptValue(newSrvToken)),
 			},
 		)
 
-		row, rowOk := db.Get[struct{ Token string }](
+		row, rowOk := db.Get[struct {
+			Token       string
+			VmaSrvToken sql.Null[string]
+		}](
 			tx,
 			`
-				select token
+				select token, vma_srv_token
 				from k8s.job_introspection_tokens
 				where job_id = :job_id
 			`,
 			db.Params{"job_id": jobId},
 		)
-		return row.Token, rowOk
+
+		srv := ""
+		if row.VmaSrvToken.Valid {
+			srv = row.VmaSrvToken.V
+		}
+		return row.Token, srv, rowOk
 	})
+	return token, srvToken
+}
+
+func UcxSessionToken(jobId string) string {
+	token, srvToken, ok := db.NewTx3(func(tx *db.Transaction) (string, string, bool) {
+		row, rowOk := db.Get[struct {
+			Token       string
+			VmaSrvToken sql.Null[string]
+		}](
+			tx,
+			`
+				select token, vma_srv_token
+				from k8s.job_introspection_tokens
+				where job_id = :job_id
+			`,
+			db.Params{"job_id": jobId},
+		)
+
+		srv := ""
+		if row.VmaSrvToken.Valid {
+			srv = row.VmaSrvToken.V
+		}
+		return row.Token, srv, rowOk
+	})
+
+	if !ok {
+		return ""
+	}
+
+	if srvToken != "" {
+		return srvToken
+	}
 	return token
 }
 
@@ -223,7 +268,7 @@ func Authenticate(token string) (string, util.Option[string], bool) {
 	return db.NewTx3(func(tx *db.Transaction) (string, util.Option[string], bool) {
 		row, ok := db.Get[struct {
 			JobId       string
-			VmaSrvToken sql.NullString
+			VmaSrvToken sql.Null[string]
 		}](
 			tx,
 			`
@@ -235,7 +280,7 @@ func Authenticate(token string) (string, util.Option[string], bool) {
 		)
 
 		if ok {
-			return row.JobId, util.SqlNullStringToOpt(row.VmaSrvToken), true
+			return row.JobId, util.SqlNullToOpt(row.VmaSrvToken), true
 		}
 		return "", util.OptNone[string](), false
 	})
@@ -253,9 +298,9 @@ func serviceIp(jobId string) string {
 	return service.Spec.ClusterIP
 }
 
-func optStringToSql(value util.Option[string]) sql.NullString {
+func optStringToSql(value util.Option[string]) sql.Null[string] {
 	if value.Present {
-		return sql.NullString{String: value.Value, Valid: true}
+		return sql.Null[string]{V: value.Value, Valid: true}
 	}
-	return sql.NullString{}
+	return sql.Null[string]{}
 }

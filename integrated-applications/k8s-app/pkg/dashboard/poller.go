@@ -484,6 +484,9 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 		items = append(items, *obj)
 	}
 	rows := resourceRowsForType(items, selection.def)
+	for i := range rows {
+		rows[i].Actions = resourceRowActions(selection.def, rows[i])
+	}
 
 	rowByKey := make(map[string]ResourceRow, len(rows))
 	for _, row := range rows {
@@ -497,12 +500,12 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 	if forceSnapshot {
 		upserts = make([]ucx.TableRow, 0, len(rows))
 		for _, row := range rows {
-			upserts = append(upserts, ucx.TableRow{Key: row.Key, Group: row.Group, Cells: row.Cells})
+			upserts = append(upserts, resourceTableUpsert(row))
 		}
 	} else {
 		for _, row := range rows {
 			if prev, ok := p.lastRows[row.Key]; !ok || !rowsEqual(prev, row) {
-				upserts = append(upserts, ucx.TableRow{Key: row.Key, Group: row.Group, Cells: row.Cells})
+				upserts = append(upserts, resourceTableUpsert(row))
 			}
 		}
 		for key := range p.lastRows {
@@ -521,13 +524,20 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 	rev := p.lastRev
 
 	session.SendTableUpdate(ucx.TableUpdate{
-		TableId:  selection.typeId,
+		TableId:  resourceDatasetId(selection),
 		Revision: rev,
 		Snapshot: forceSnapshot,
 		Columns:  selection.def.Columns,
 		Upserts:  upserts,
 		Removed:  removed,
 	})
+}
+
+func resourceDatasetId(selection resourceSelection) string {
+	if selection.namespace != "" && selection.def.Namespaced {
+		return selection.typeId + "/" + selection.namespace
+	}
+	return selection.typeId
 }
 
 func (p *resourcePoller) resourceSelectionChanged(selection resourceSelection) bool {
@@ -645,12 +655,38 @@ func resourceRowsForType(items []unstructured.Unstructured, def ResourceTypeDef)
 	}
 }
 
+func resourceRowActions(def ResourceTypeDef, row ResourceRow) []ucx.TableRowAction {
+	if def.Id != "nodes" || len(row.Cells) == 0 {
+		return nil
+	}
+	return []ucx.TableRowAction{
+		{Id: "copyNodeName", Enabled: true, Text: row.Cells[0]},
+	}
+}
+
+func resourceTableUpsert(row ResourceRow) ucx.TableRow {
+	return ucx.TableRow{
+		Key:     row.Key,
+		Group:   row.Group,
+		Cells:   row.Cells,
+		Actions: row.Actions,
+	}
+}
+
 func rowsEqual(a, b ResourceRow) bool {
 	if a.Key != b.Key || a.Group != b.Group || len(a.Cells) != len(b.Cells) {
 		return false
 	}
 	for i := range a.Cells {
 		if a.Cells[i] != b.Cells[i] {
+			return false
+		}
+	}
+	if len(a.Actions) != len(b.Actions) {
+		return false
+	}
+	for i := range a.Actions {
+		if a.Actions[i] != b.Actions[i] {
 			return false
 		}
 	}

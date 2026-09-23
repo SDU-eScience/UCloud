@@ -392,13 +392,13 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	multiNodeScript := strings.Builder{}
 	{
-		introspectionToken := introspection.EnsureToken(job.Id, util.OptNone[string]())
+		introspectionToken, introspectionSrvToken := introspection.EnsureToken(job.Id, util.OptNone[string]())
 
 		appendLine := func(format string, args ...any) {
 			multiNodeScript.WriteString(fmt.Sprintf(format+"\n", args...))
 		}
 
-		appendLine("printf '%%s\\n' '%s' > /etc/ucloud/token", introspectionToken)
+		appendLine("printf '%%s\\n%%s\\n' '%s' '%s' > /etc/ucloud/token", introspectionToken, introspectionSrvToken)
 		appendLine("echo '%d' > /etc/ucloud/number_of_nodes.txt", job.Specification.Replicas)
 		for rank := 0; rank < job.Specification.Replicas; rank++ {
 			hostname := shared.JobHostName(job, rank)

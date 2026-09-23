@@ -15,7 +15,7 @@ import {
     Text,
     TextArea
 } from "@/ui-components";
-import {SimpleRichSelect, SimpleRichItem} from "@/ui-components/RichSelect";
+import {SimpleRichSelect} from "@/ui-components/RichSelect";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
@@ -28,7 +28,6 @@ import * as UCloud from "@/UCloud";
 import {FieldGroup, FieldRow} from "@/Applications/Jobs/Widgets";
 import {FIELD_NAVIGATION_SELECTOR, KeyboardNavigation, SubmitShortcut, useSubmitShortcut} from "@/Applications/KeyboardNavigation";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
-import {VirtualizedTree, VirtualizedTreeApi} from "@/ui-components/VirtualizedTree";
 import * as Accounting from "@/Accounting";
 import {productCategoryEquals, ProductV2, ProductV2Compute, WalletV2} from "@/Accounting";
 import {calculateProductCost, explainUnit, ProductV2 as ProductV2Alias} from "@/Accounting";
@@ -46,6 +45,7 @@ import {
     valueMapToPlainPayload,
 } from "@/UCX/protocol";
 import {UcxSession} from "@/UCX/session";
+import {UcxBrowserLayout, UcxNavTree, UcxNavItem, UcxStreamedTable, UcxTableActionDef, UcxTableStore, UcxTableCount, UcxTableFilter} from "@/UCX/UcxBrowser";
 import {stopPropagation} from "@/UtilityFunctions";
 import {isLikelyMac} from "@/UtilityFunctions";
 import Label from "@/ui-components/Label";
@@ -80,6 +80,7 @@ export interface UcxFunctionRegistry {
     currentRoutePath: string;
     invokeRpc: (name: string, payload?: UcxRpcPayload, timeoutMs?: number) => Promise<UcxRpcPayload>;
     subscribeTable: (tableId: string, listener: (update: TableUpdate) => void) => () => void;
+    tableStore: UcxTableStore;
     modelValue: (model: Record<string, Value>, path: string, scope?: Record<string, Value>) => Value | undefined;
     sxStyle: (node: UiNode) => React.CSSProperties;
 
@@ -485,6 +486,11 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 
     const tableListenersRef = useRef(new Map<string, Set<(update: TableUpdate) => void>>());
     const tableWildcardRef = useRef(new Set<(update: TableUpdate) => void>());
+    const tableStoreRef = useRef<UcxTableStore | null>(null);
+    if (tableStoreRef.current == null) {
+        tableStoreRef.current = new UcxTableStore();
+    }
+    const tableStore = tableStoreRef.current;
 
     const subscribeTable = useCallback((tableId: string, listener: (update: TableUpdate) => void) => {
         if (tableId === "*") {
@@ -512,6 +518,8 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     }, []);
 
     const dispatchTableUpdate = useCallback((update: TableUpdate) => {
+        tableStore.apply(update);
+
         const direct = tableListenersRef.current.get(update.tableId);
         if (direct) {
             for (const listener of direct) {
@@ -522,7 +530,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         for (const listener of tableWildcardRef.current) {
             listener(update);
         }
-    }, []);
+    }, [tableStore]);
 
     const baseFunctions = useMemo<UcxFunctionRegistry>(() => ({
         sendBoundInput: (node, value) => sendBoundInput(node, value),
@@ -536,9 +544,10 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         currentRoutePath,
         invokeRpc,
         subscribeTable,
+        tableStore,
         modelValue,
         sxStyle,
-    }), [buildSpaHref, currentRoutePath, invokeRpc, navigateSpa, registerQueryParam, registerRouter, sendBoundInput, sendModelInput, sendUiEvent, setSpaRoute, subscribeTable]);
+    }), [buildSpaHref, currentRoutePath, invokeRpc, navigateSpa, registerQueryParam, registerRouter, sendBoundInput, sendModelInput, sendUiEvent, setSpaRoute, subscribeTable, tableStore]);
 
     useEffect(() => {
         const bindPath = activeRouterBindPathRef.current;
@@ -729,6 +738,9 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 
                         if (everConnectedRef.current && Object.keys(modelRef.current).length > 0) {
                             pendingRehydrateModelRef.current = {...modelRef.current};
+                        }
+                        if (everConnectedRef.current) {
+                            tableStore.reset();
                         }
                         everConnectedRef.current = true;
                         return;
@@ -1270,8 +1282,55 @@ const baseComponents: UcxComponentRegistry = {
             </Table>
         </div>;
     },
-    resource_table: ({node, model, scope, fn}) => {
-        return <ResourceTableNode node={node} model={model} scope={scope} fn={fn} />;
+    resource_table: ({node, fn}) => {
+        return <ResourceTableNode node={node} fn={fn} />;
+    },
+    table_filter: ({node, fn}) => {
+        return <UcxTableFilter
+            stateKey={stringProp(node, "stateKey", node.bindPath)}
+            store={fn.tableStore}
+            placeholder={stringProp(node, "placeholder", "Filter...")}
+        />;
+    },
+    table_count: ({node, fn}) => {
+        return <UcxTableCount
+            stateKey={stringProp(node, "stateKey", node.bindPath)}
+            store={fn.tableStore}
+            title={stringProp(node, "title", "")}
+        />;
+    },
+    browser_layout: ({node, model, scope, fn, components, renderChildren}) => {
+        const sidebarSlot = node.children.find(child => boolProp(child, "sidebarSlot", false));
+        const bottomSlot = node.children.find(child => boolProp(child, "bottomSlot", false));
+        const mainNodes = node.children.filter(child => !boolProp(child, "sidebarSlot", false) && !boolProp(child, "bottomSlot", false));
+        const escapePath = optionalStringProp(node, "escapePath");
+
+        return <UcxBrowserLayout
+            sx={fn.sxStyle(node)}
+            onEscape={escapePath === undefined ? undefined : () => fn.setSpaRoute(escapePath)}
+            sidebar={sidebarSlot && sidebarSlot.children.length > 0
+                ? sidebarSlot.children.map(child => <NodeRenderer key={child.id} node={child} model={model} scope={scope} fn={fn} components={components} />)
+                : undefined}
+            bottom={bottomSlot
+                ? (bottomSlot.children.length > 0
+                    ? bottomSlot.children.map(child => <NodeRenderer key={child.id} node={child} model={model} scope={scope} fn={fn} components={components} />)
+                    : <NodeRenderer node={bottomSlot} model={model} scope={scope} fn={fn} components={components} />)
+                : undefined}
+        >
+            {mainNodes.map(child => <NodeRenderer key={child.id} node={child} model={model} scope={scope} fn={fn} components={components} />)}
+        </UcxBrowserLayout>;
+    },
+    nav_tree: ({node, model, scope, fn}) => {
+        const items = ucxNavItemsProp(node);
+        const selectedId = node.bindPath ? modelString(model, node.bindPath, scope) : optionalStringProp(node, "selectedId");
+
+        return <UcxNavTree
+            nodes={items}
+            selectedId={selectedId === "" ? undefined : selectedId}
+            onActivate={id => {
+                fn.sendUiEvent(node.id, "activate", {kind: ValueKind.String, string: id});
+            }}
+        />;
     },
     tabs: ({node, model, scope, fn, components}) => {
         const tabChildren = node.children.filter(child => !boolProp(child, "rightControls", false));
@@ -1822,9 +1881,9 @@ function simpleOptionsProp(node: UiNode, key: string): {key: string; value: stri
     const out: {key: string; value: string}[] = [];
     for (const item of raw.list) {
         if (item.kind !== ValueKind.Object) continue;
+        if (item.object["key"] === undefined) continue;
         const optionKey = asString(item.object["key"], "");
         const optionValue = asString(item.object["value"], optionKey);
-        if (optionKey === "") continue;
         out.push({key: optionKey, value: optionValue});
     }
     return out;
@@ -1940,6 +1999,7 @@ const UcxButtonField: React.FunctionComponent<{
     const submit = boolProp(node, "submit", false);
     const disabled = boolProp(node, "disabled", false);
     const showShortcut = boolProp(node, "showShortcut", false);
+    const showEscapeHint = boolProp(node, "showEscapeHint", false);
     const eventValuePath = stringProp(node, "eventValuePath", "");
     const eventValue = eventValuePath ? modelValue(model, eventValuePath, scope) : undefined;
 
@@ -1956,6 +2016,7 @@ const UcxButtonField: React.FunctionComponent<{
             {iconLeft ? <Icon name={iconLeft as any} /> : null}
             {label}
             {iconRight ? <Icon name={iconRight as any} /> : null}
+            {showEscapeHint ? <span style={{marginLeft: "8px"}} className={ShortcutClass}>esc</span> : null}
             {showShortcut ? <SubmitShortcut /> : null}
         </Button>
     </div>;
@@ -1963,548 +2024,89 @@ const UcxButtonField: React.FunctionComponent<{
 
 const ResourceTableNode: React.FunctionComponent<{
     node: UiNode;
-    model: Record<string, Value>;
-    scope?: Record<string, Value>;
     fn: UcxFunctionRegistry;
-}> = ({node, model, scope, fn}) => {
-    const activeTypePath = optionalStringProp(node, "activeTypePath") ?? "";
-    const activeNamespacePath = optionalStringProp(node, "activeNamespacePath") ?? "";
-    const detailPath = optionalStringProp(node, "detailPath") ?? "";
-    const types = resourceTableTypesProp(node);
-    const activeType = activeTypePath ? modelString(model, activeTypePath, scope) : "";
-    const activeTypeDef = types.find(it => it.id === activeType) ?? types[0];
-    const effectiveType = activeTypeDef?.id ?? "";
-    const activeNamespace = activeNamespacePath ? modelString(model, activeNamespacePath, scope) : "";
-    const detail = detailPath ? modelString(model, detailPath, scope) : "";
-    const detailParts = detail.split("/");
-    const detailTypeId = detailParts[0] ?? "";
-    const detailNamespace = detailParts[1] ?? "";
-    const detailName = detailParts[2] ?? "";
-    const isDetail = detail !== "";
-    const yamlValue = detail ? modelString(model, "resourceYaml", scope) : "";
+}> = ({node, fn}) => {
+    const tableId = stringProp(node, "tableId", "");
+    const store = fn.tableStore;
+    const stateKey = stringProp(node, "stateKey", tableId);
+    const actionDefs = ucxTableActionsProp(node);
 
-    const [columns, setColumns] = useState<TableColumn[]>([]);
-    const [columnsByType, setColumnsByType] = useState<Map<string, TableColumn[]>>(new Map());
-    const [rowsByType, setRowsByType] = useState<Map<string, Map<string, ResourceTableRow>>>(new Map());
-    const [namespaces, setNamespaces] = useState<string[]>([]);
-    const [filter, setFilter] = useState("");
-    const [typeQuery, setTypeQuery] = useState<string | null>(null);
-    const [commandHighlight, setCommandHighlight] = useState<number | null>(null);
-    const [selectedKey, setSelectedKey] = useState<string | null>(null);
-
-    const filterInputRef = useRef<HTMLInputElement | null>(null);
-    const typeInputRef = useRef<HTMLInputElement | null>(null);
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    const commandHighlightRef = useRef<number | null>(null);
-    commandHighlightRef.current = commandHighlight;
-    const selectedKeyRef = useRef<string | null>(null);
-    selectedKeyRef.current = selectedKey;
-
-    const clearSelection = useCallback(() => {
-        setSelectedKey(null);
-    }, []);
-
-    useEffect(() => {
-        return fn.subscribeTable("*", update => {
-            setRowsByType(prev => {
-                const typeRows = new Map(prev.get(update.tableId) ?? []);
-                if (update.snapshot) {
-                    typeRows.clear();
-                }
-                for (const key of update.removed) {
-                    typeRows.delete(key);
-                }
-                for (const row of update.upserts) {
-                    typeRows.set(row.key, row);
-                }
-                const next = new Map(prev);
-                next.set(update.tableId, typeRows);
-                return next;
+    return <UcxStreamedTable
+        tableId={tableId}
+        store={store}
+        stateKey={stateKey}
+        emptyMessage={stringProp(node, "emptyMessage", "No resources found.")}
+        showGroupHeaders={boolProp(node, "showGroupHeaders", true)}
+        sorted={boolProp(node, "sorted", true)}
+        actions={actionDefs}
+        onRowActivated={event => {
+            fn.sendUiEvent(node.id, "click", {
+                kind: ValueKind.Object,
+                object: {
+                    tableId: {kind: ValueKind.String, string: event.tableId},
+                    stateKey: {kind: ValueKind.String, string: stateKey},
+                    rowKey: {kind: ValueKind.String, string: event.rowKey},
+                    group: {kind: ValueKind.String, string: event.row.group},
+                    cells: {
+                        kind: ValueKind.List,
+                        list: event.row.cells.map(cell => ({kind: ValueKind.String, string: cell})),
+                    },
+                },
             });
-
-            if (update.columns.length > 0) {
-                setColumns(update.columns);
-                setColumnsByType(prev => {
-                    const next = new Map(prev);
-                    next.set(update.tableId, update.columns);
-                    return next;
-                });
-            }
-        });
-    }, [fn]);
-
-    useEffect(() => {
-        const typeColumns = columnsByType.get(effectiveType);
-        if (typeColumns) {
-            setColumns(typeColumns);
-        }
-    }, [effectiveType, columnsByType]);
-
-    useEffect(() => {
-        fn.invokeRpc("k8s.listNamespaces").then(result => {
-            const list = result?.["namespaces"];
-            if (Array.isArray(list)) {
-                setNamespaces(list.filter((name): name is string => typeof name === "string"));
-            }
-        }).catch(() => setNamespaces([]));
-    }, [fn]);
-
-    const rowsByKey = rowsByType.get(effectiveType) ?? emptyRowsMap();
-
-    const orderedRows = useMemo(() => {
-        const rows = Array.from(rowsByKey.values());
-        rows.sort((a, b) => {
-            const groupCmp = a.group.localeCompare(b.group);
-            if (groupCmp !== 0) return groupCmp;
-            const nameA = a.cells[0] ?? "";
-            const nameB = b.cells[0] ?? "";
-            return nameA.localeCompare(nameB);
-        });
-        return rows;
-    }, [rowsByKey]);
-
-    const filteredRows = useMemo(() => {
-        const needle = filter.trim().toLowerCase();
-        if (needle === "") return orderedRows;
-        return orderedRows.filter(row => row.cells.some(cell => cell.toLowerCase().includes(needle)));
-    }, [orderedRows, filter]);
-
-    useEffect(() => {
-        if (selectedKey != null && !rowsByKey.has(selectedKey)) {
-            clearSelection();
-        }
-    }, [rowsByKey, selectedKey, clearSelection]);
-
-    const openDetail = useCallback((row: ResourceTableRow) => {
-        if (!activeTypeDef || !detailPath) return;
-        setSelectedKey(row.key);
-        const value = `${activeTypeDef.id}/${row.group ?? ""}/${row.cells[0] ?? row.key}`;
-        fn.sendModelInput(detailPath, {kind: ValueKind.String, string: value}, `resource_table_detail:${node.id}`);
-        fn.setSpaRoute(`detail/${encodeURIComponent(activeTypeDef.id)}/${encodeURIComponent(row.group ?? "")}/${encodeURIComponent(row.cells[0] ?? row.key)}`);
-    }, [activeTypeDef, detailPath, fn, node.id]);
-
-    const commandCandidates = useMemo(() => {
-        const query = (typeQuery ?? "").replace(/^:/, "").trim().toLowerCase();
-        const matches = (t: ResourceTableTypeDef): boolean => {
-            if (query === "") return true;
-            return t.id.toLowerCase().includes(query)
-                || t.label.toLowerCase().includes(query)
-                || t.aliases.some(alias => alias.toLowerCase() === query || alias.toLowerCase().startsWith(query));
-        };
-        return types.filter(matches);
-    }, [typeQuery, types]);
-
-    useEffect(() => {
-        setCommandHighlight(null);
-    }, [typeQuery]);
-
-    const visibleTypes = typeQuery != null && typeQuery !== "" ? commandCandidates : types;
-
-    const closeDetail = useCallback(() => {
-        if (detailPath && detail !== "") {
-            fn.sendModelInput(detailPath, {kind: ValueKind.String, string: ""}, `resource_table_detail:${node.id}`);
-        }
-        fn.setSpaRoute("");
-        setSelectedKey(null);
-    }, [detail, detailPath, fn, node.id]);
-
-    const selectType = useCallback((typeId: string) => {
-        clearSelection();
-        setFilter("");
-        setColumns([]);
-
-        if (!activeTypePath || typeId === effectiveType) return;
-        fn.sendModelInput(activeTypePath, {kind: ValueKind.String, string: typeId}, `resource_table:${node.id}`);
-    }, [activeTypePath, clearSelection, effectiveType, fn, node.id]);
-
-    const selectNamespace = useCallback((namespace: string) => {
-        clearSelection();
-        if (!activeNamespacePath || namespace === activeNamespace) return;
-        fn.sendModelInput(activeNamespacePath, {kind: ValueKind.String, string: namespace}, `resource_table_ns:${node.id}`);
-    }, [activeNamespace, activeNamespacePath, clearSelection, fn, node.id]);
-
-    const activateCommand = useCallback(() => {
-        if (typeQuery == null) return;
-        const query = typeQuery.replace(/^:/, "").trim().toLowerCase();
-        if (query !== "") {
-            const highlighted = commandHighlightRef.current != null ? commandCandidates[commandHighlightRef.current] : undefined;
-            const exact = types.find(t =>
-                t.aliases.some(alias => alias.toLowerCase() === query)
-                || t.label.toLowerCase() === query
-                || t.id.toLowerCase() === query
-            );
-            const target = highlighted
-                ?? exact
-                ?? commandCandidates[0]
-                ?? types.find(t => t.label.toLowerCase().startsWith(query));
-            if (target) {
-                selectType(target.id);
-            }
-        }
-        setTypeQuery(null);
-        setCommandHighlight(null);
-    }, [commandCandidates, selectType, typeQuery, types]);
-
-    const moveCommandHighlight = useCallback((delta: number) => {
-        if (commandCandidates.length === 0) return;
-        setCommandHighlight(prev => {
-            const current = prev ?? (delta > 0 ? -1 : 0);
-            const next = current + delta;
-            if (next < 0) return commandCandidates.length - 1;
-            if (next >= commandCandidates.length) return 0;
-            return next;
-        });
-
-        window.setTimeout(() => {
-            containerRef.current
-                ?.querySelector(".virtualized-tree-row[data-selected='true']")
-                ?.scrollIntoView({block: "nearest"});
-        }, 0);
-    }, [commandCandidates.length]);
-
-    const moveSelection = useCallback((key: string) => {
-        if (filteredRows.length === 0) return;
-
-        const currentIndex = selectedKeyRef.current != null
-            ? filteredRows.findIndex(row => row.key === selectedKeyRef.current)
-            : -1;
-
-        let nextIndex: number;
-        if (key === "j" || key === "ArrowDown") {
-            nextIndex = currentIndex < 0 || currentIndex >= filteredRows.length - 1 ? 0 : currentIndex + 1;
-        } else {
-            nextIndex = currentIndex <= 0 ? filteredRows.length - 1 : currentIndex - 1;
-        }
-
-        setSelectedKey(filteredRows[nextIndex].key);
-
-        window.setTimeout(() => {
-            containerRef.current
-                ?.querySelector(`[data-row-key="${CSS.escape(filteredRows[nextIndex].key)}"]`)
-                ?.scrollIntoView({block: "nearest"});
-        }, 0);
-    }, [filteredRows]);
-
-    const activateSelection = useCallback(() => {
-        const selected = selectedKeyRef.current != null
-            ? filteredRows.find(row => row.key === selectedKeyRef.current)
-            : undefined;
-        if (selected) {
-            openDetail(selected);
-        }
-    }, [filteredRows, openDetail]);
-
-    const handleTableNav = useCallback((key: string) => {
-        if (key === "ArrowDown" || key === "ArrowUp") {
-            moveSelection(key);
-        } else if (key === "Enter") {
-            activateSelection();
-        }
-    }, [activateSelection, moveSelection]);
-
-    const groupedRows: {group: string; rows: ResourceTableRow[]}[] = [];
-    for (const row of filteredRows) {
-        const last = groupedRows[groupedRows.length - 1];
-        if (last && last.group === row.group) {
-            last.rows.push(row);
-        } else {
-            groupedRows.push({group: row.group, rows: [row]});
-        }
-    }
-
-    const showNamespaceSelect = activeTypeDef?.namespaced ?? false;
-    const namespaceItems: SimpleRichItem[] = namespaces.map(ns => ({key: ns, value: ns}));
-    const selectedNamespaceItem = namespaceItems.find(it => it.key === activeNamespace)
-        ?? ({key: "", value: "All namespaces"} as SimpleRichItem);
-
-    const treeApiRef = useRef<VirtualizedTreeApi | null>(null);
-    const tablePaneRef = useRef<HTMLDivElement | null>(null);
-    const [activePane, setActivePane] = useState<"sidebar" | "table">("table");
-    const activePaneRef = useRef<"sidebar" | "table">("table");
-    activePaneRef.current = activePane;
-
-    interface TypeTreeNode {
-        id: string;
-        label: string;
-        kind: "group" | "leaf";
-        type?: ResourceTableTypeDef;
-        children: TypeTreeNode[];
-    }
-
-    const typeGroups = useMemo((): TypeTreeNode[] => {
-        const groups = new Map<string, TypeTreeNode>();
-        for (const typeDef of visibleTypes) {
-            const groupKey = typeDef.group || "Other";
-            let group = groups.get(groupKey);
-            if (!group) {
-                group = {id: `group:${groupKey}`, label: groupKey, kind: "group", children: []};
-                groups.set(groupKey, group);
-            }
-            group.children.push({id: `type:${typeDef.id}`, label: typeDef.label, kind: "leaf", type: typeDef, children: []});
-        }
-        return Array.from(groups.values());
-    }, [visibleTypes]);
-
-    const highlightedTypeId = typeQuery != null && commandHighlight != null
-        ? commandCandidates[commandHighlight]?.id
-        : undefined;
-
-    const selectedTreeId = typeQuery != null && highlightedTypeId != null
-        ? `type:${highlightedTypeId}`
-        : (!isDetail && activeTypeDef ? `type:${activeTypeDef.id}` : undefined);
-
-    useEffect(() => {
-        const onKeyDown = (event: KeyboardEvent) => {
-            const primaryPressed = isLikelyMac ? event.metaKey : event.ctrlKey;
-            const pane = event.code === "Digit1" ? "1" : event.code === "Digit2" ? "2" : null;
-            if (event.altKey && primaryPressed && pane !== null) {
-                event.preventDefault();
-                if (pane === "1") {
-                    setActivePane("sidebar");
-                    treeApiRef.current?.activate();
-                } else {
-                    setActivePane("table");
-                    treeApiRef.current?.deactivate();
-                    tablePaneRef.current?.focus({preventScroll: true});
-                }
-                return;
-            }
-
-            const inInput = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
-            const inTypeCommand = event.target === typeInputRef.current;
-
-            if (inInput) {
-                if (inTypeCommand) {
-                    if (event.key === "Escape") {
-                        event.preventDefault();
-                        setTypeQuery(null);
-                        setCommandHighlight(null);
-                        event.target.blur();
-                    } else if (event.key === "ArrowDown" || event.key === "Tab") {
-                        event.preventDefault();
-                        moveCommandHighlight(1);
-                    } else if (event.key === "ArrowUp") {
-                        event.preventDefault();
-                        moveCommandHighlight(-1);
-                    } else if (event.key === "Enter") {
-                        event.preventDefault();
-                        activateCommand();
-                        event.target.blur();
-                    }
-                    return;
-                }
-
-                if (event.key === "Escape") {
-                    event.preventDefault();
-                    event.target.blur();
-                } else if (detail === "" && (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Enter")) {
-                    event.preventDefault();
-                    event.target.blur();
-                    handleTableNav(event.key);
-                }
-                return;
-            }
-
-            if (event.key === "Escape") {
-                if (detail !== "") {
-                    event.preventDefault();
-                    closeDetail();
-                }
-                return;
-            }
-
-            if (detail !== "") {
-                return;
-            }
-
-            if (event.key === ":") {
-                event.preventDefault();
-                setTypeQuery("");
-                setActivePane("sidebar");
-                window.setTimeout(() => typeInputRef.current?.focus(), 0);
-                return;
-            }
-
-            if (event.key === "/") {
-                event.preventDefault();
-                filterInputRef.current?.focus();
-                return;
-            }
-
-            if (event.key === "j" || event.key === "ArrowDown" || event.key === "k" || event.key === "ArrowUp") {
-                event.preventDefault();
-                moveSelection(event.key);
-                return;
-            }
-
-            if (event.key === "Enter") {
-                event.preventDefault();
-                activateSelection();
-            }
-        };
-
-        document.addEventListener("keydown", onKeyDown);
-        return () => document.removeEventListener("keydown", onKeyDown);
-    }, [activateCommand, activateSelection, closeDetail, detail, handleTableNav, moveCommandHighlight, moveSelection, selectType, typeQuery, types]);
-
-    const renderTypeGroup = (group: TypeTreeNode, state: {expanded: boolean; toggle(): void}) => {
-        return <div className="rail-group-node" onClick={() => state.toggle()}>
-            <Icon name="heroChevronRight" size={12} rotation={state.expanded ? 90 : undefined} color="textSecondary" />
-            <span className="rail-group-label">{group.label}</span>
-        </div>;
-    };
-
-    const renderTypeLeaf = (typeDef: ResourceTableTypeDef) => {
-        return <div className="rail-leaf-node">
-            <span className="rail-label">{typeDef.label}</span>
-        </div>;
-    };
-
-    return <div ref={containerRef} tabIndex={-1} className={UcxResourceTableClass} style={fn.sxStyle(node)} data-pane={activePane}>
-        <div className="resource-rail" data-pane-active={activePane === "sidebar" ? "true" : undefined}>
-            <div className="rail-scroll">
-                {detail !== "" ?
-                    <button type="button" className="resource-rail-item" onClick={closeDetail}>
-                        <Icon name="heroArrowLeft" />
-                        <span className="rail-label">Back to table</span>
-                        <div className={ShortcutClass}><span>esc</span></div>
-                    </button> :
-                    null
-                }
-                <VirtualizedTree
-                    apiRef={treeApiRef}
-                    nodes={typeGroups}
-                    getId={group => group.id}
-                    getChildren={group => group.children}
-                    isBranch={group => group.kind === "group"}
-                    selectedId={selectedTreeId}
-                    onSelectionChange={nodes => {
-                        const leaf = nodes[nodes.length - 1];
-                        if (leaf?.kind === "leaf" && leaf.type) {
-                            selectType(leaf.type.id);
-                        }
-                    }}
-                    renderNode={(node, state) => {
-                        if (node.kind === "group") {
-                            return renderTypeGroup(node, state);
-                        }
-                        return renderTypeLeaf(node.type!);
-                    }}
-                    ariaLabel={node => node.label}
-                    onKeyboardActivate={node => {
-                        if (node.kind === "leaf" && node.type) {
-                            selectType(node.type.id);
-                        }
-                    }}
-                    initialExpandedIds={typeGroups.map(group => group.id)}
-                    rowHeight={26}
-                    indent={12}
-                    selectionMode="single"
-                />
-            </div>
-            <div className="rail-command">
-                <Input
-                    inputRef={typeInputRef}
-                    placeholder=":type"
-                    value={typeQuery ?? ""}
-                    onChange={ev => setTypeQuery(ev.target.value)}
-                />
-                {typeQuery == null || typeQuery === "" ?
-                    <span className="rail-command-shortcut"><div className={ShortcutClass}>:</div></span> :
-                    null
-                }
-            </div>
-        </div>
-
-        {isDetail ?
-            <div className="resource-main">
-                <UcxCodeStretched lang="yaml">{yamlValue}</UcxCodeStretched>
-                <div className="resource-bottom-rail">
-                    <Text fontSize={13}>
-                        {detailName}
-                        {detailNamespace !== "" ? <span color="textSecondary"> / {detailNamespace}</span> : null}
-                    </Text>
-                    <Box flexGrow={1} />
-                    <Text fontSize={12} color="textSecondary">
-                        {types.find(it => it.id === detailTypeId)?.label ?? detailTypeId}
-                    </Text>
-                </div>
-            </div> :
-            <div className="resource-main">
-                <div className="resource-table-scroll">
-                    <Table tableType="presentation">
-                        <TableHeader>
-                            <TableRow>
-                                {columns.map(col => <TableHeaderCell key={col.key}>{col.label}</TableHeaderCell>)}
-                            </TableRow>
-                        </TableHeader>
-                        <tbody>
-                            {groupedRows.length === 0 ?
-                                <TableRow><TableCell colSpan={Math.max(1, columns.length)}>No resources found.</TableCell></TableRow> :
-                                null
-                            }
-                            {groupedRows.map(group =>
-                                <React.Fragment key={group.group}>
-                                    {group.group !== "" && !showNamespaceSelect ?
-                                        <TableRow className="group-row">
-                                            <TableCell colSpan={columns.length}>{group.group}</TableCell>
-                                        </TableRow> :
-                                        null
-                                    }
-                                    {group.rows.map(row =>
-                                        <TableRow
-                                            key={row.key}
-                                            data-row-key={row.key}
-                                            data-selected={selectedKey === row.key}
-                                            highlightOnHover
-                                            highlighted={selectedKey === row.key}
-                                            onClick={() => setSelectedKey(row.key)}
-                                            onDoubleClick={() => openDetail(row)}
-                                        >
-                                            {columns.map((col, cellIdx) =>
-                                                <TableCell key={col.key}>
-                                                    {row.cells[cellIdx] ?? ""}
-                                                </TableCell>
-                                            )}
-                                        </TableRow>
-                                    )}
-                                </React.Fragment>
-                            )}
-                        </tbody>
-                    </Table>
-                </div>
-
-                <div className="resource-bottom-rail">
-                    <div className="bottom-filter">
-                        <Input
-                            inputRef={filterInputRef}
-                            placeholder="Filter..."
-                            value={filter}
-                            onChange={ev => setFilter(ev.target.value)}
-                            width="300px"
-                        />
-                        {filter === "" ? <span className="bottom-filter-shortcut"><div className={ShortcutClass}>/</div></span> : null}
-                    </div>
-                    {showNamespaceSelect ?
-                        <div className="bottom-namespace">
-                            <SimpleRichSelect
-                                items={namespaceItems.length > 0 ? [{key: "", value: "All namespaces"}, ...namespaceItems] : [{key: "", value: "All namespaces"}]}
-                                selected={selectedNamespaceItem}
-                                onSelect={item => selectNamespace(item.key)}
-                                dropdownWidth="280px"
-                            />
-                        </div> :
-                        null
-                    }
-                    <Box flexGrow={1} />
-                    <Text fontSize={12} color="textSecondary">
-                        {filteredRows.length} {activeTypeDef?.label ?? ""}
-                    </Text>
-                </div>
-            </div>
-        }
-    </div>;
+        }}
+        onRowAction={event => {
+            fn.sendUiEvent(node.id, "action", {
+                kind: ValueKind.Object,
+                object: {
+                    actionId: {kind: ValueKind.String, string: event.actionId},
+                    tableId: {kind: ValueKind.String, string: event.tableId},
+                    stateKey: {kind: ValueKind.String, string: stateKey},
+                    rowKey: {kind: ValueKind.String, string: event.rowKey},
+                },
+            });
+        }}
+    />;
 };
+
+function ucxTableActionsProp(node: UiNode): UcxTableActionDef[] {
+    const raw = prop(node, "actions");
+    if (!raw || raw.kind !== ValueKind.List) return [];
+    return raw.list.flatMap(item => {
+        if (item.kind !== ValueKind.Object) return [];
+        const id = asString(item.object["id"], "");
+        if (id === "") return [];
+        return [{
+            id,
+            label: asString(item.object["label"], id),
+            icon: asString(item.object["icon"], ""),
+            kind: asString(item.object["kind"], ""),
+        }];
+    });
+}
+
+function ucxNavItemsProp(node: UiNode): UcxNavItem[] {
+    const raw = prop(node, "items");
+    if (!raw || raw.kind !== ValueKind.List) return [];
+    return raw.list.flatMap(item => item.kind === ValueKind.Object ? ucxNavItemFromValue(item.object) : []);
+}
+
+function ucxNavItemFromValue(object: Record<string, Value>): UcxNavItem[] {
+    const id = asString(object["id"], "");
+    if (id === "") return [];
+    const children = object["children"]?.kind === ValueKind.List
+        ? object["children"].list.flatMap(child => child.kind === ValueKind.Object ? ucxNavItemFromValue(child.object) : [])
+        : [];
+    return [{
+        id,
+        label: asString(object["label"], id),
+        aliases: object["aliases"]?.kind === ValueKind.List
+            ? object["aliases"].list.flatMap(a => a.kind === ValueKind.String ? [a.string] : [])
+            : [],
+        route: object["route"]?.kind === ValueKind.String ? object["route"].string : undefined,
+        children,
+    }];
+}
+
 
 const UcxCodeStretched: React.FunctionComponent<React.PropsWithChildren<{lang?: string}>> = ({children, lang}) => {
     const lightTheme = useIsLightThemeStored();
@@ -2555,282 +2157,6 @@ const UcxCodeStretchedClass = injectStyle("ucx-code-stretched", key => `
     }
 `);
 
-interface ResourceTableRow {
-    key: string;
-    group: string;
-    cells: string[];
-}
-
-const emptyRowsMap = () => new Map<string, ResourceTableRow>();
-
-interface ResourceTableTypeDef {
-    id: string;
-    label: string;
-    aliases: string[];
-    group: string;
-    hasYaml: boolean;
-    namespaced: boolean;
-}
-
-function resourceTableTypesProp(node: UiNode): ResourceTableTypeDef[] {
-    const raw = prop(node, "types");
-    if (!raw || raw.kind !== ValueKind.List) return [];
-
-    const result: ResourceTableTypeDef[] = [];
-    for (const item of raw.list) {
-        if (item.kind !== ValueKind.Object) continue;
-        const id = asString(item.object["id"], "");
-        if (id === "") continue;
-        const hasYamlRaw = item.object["hasYaml"];
-        const namespacedRaw = item.object["namespaced"];
-        const aliasesRaw = item.object["aliases"];
-        const aliases: string[] = aliasesRaw?.kind === ValueKind.List
-            ? aliasesRaw.list.flatMap(a => a.kind === ValueKind.String ? [a.string] : [])
-            : [];
-        result.push({
-            id,
-            label: asString(item.object["label"], id),
-            aliases,
-            group: asString(item.object["group"], ""),
-            hasYaml: hasYamlRaw?.kind === ValueKind.Bool ? hasYamlRaw.bool : true,
-            namespaced: namespacedRaw?.kind === ValueKind.Bool ? namespacedRaw.bool : false,
-        });
-    }
-    return result;
-}
-
-const UcxResourceTableClass = injectStyle("ucx-resource-table", key => `
-    ${key} {
-        display: grid;
-        grid-template-columns: 200px minmax(0, 1fr);
-        grid-template-rows: minmax(0, 1fr);
-        gap: 16px;
-        width: 100%;
-        flex: 1 1 0;
-        min-height: 480px;
-        align-items: stretch;
-        outline: none;
-    }
-
-    ${key} .resource-rail {
-        display: flex;
-        flex-direction: column;
-        border: 1px solid var(--borderColor);
-        border-radius: 8px;
-        padding: 8px;
-        min-height: 0;
-        gap: 8px;
-    }
-
-    ${key} .resource-rail[data-pane-active="true"] {
-        border-color: var(--primaryMain);
-    }
-
-    ${key} .rail-scroll {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        overflow-y: auto;
-        min-height: 0;
-        flex: 1;
-    }
-
-    ${key} .rail-empty {
-        padding: 6px 8px;
-        font-size: 13px;
-        color: var(--textSecondary);
-    }
-
-    ${key} .rail-command {
-        position: relative;
-        display: flex;
-        align-items: center;
-        flex-shrink: 0;
-    }
-
-    ${key} .rail-command input {
-        padding-right: 44px;
-    }
-
-    ${key} .rail-command-shortcut {
-        position: absolute;
-        right: 12px;
-        display: flex;
-        pointer-events: none;
-    }
-
-    ${key} .resource-rail-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        border: 0;
-        background: transparent;
-        border-radius: 6px;
-        padding: 6px 8px;
-        cursor: pointer;
-        text-align: left;
-        font-size: 14px;
-        color: var(--textPrimary, inherit);
-    }
-
-    ${key} .rail-group-node {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--textSecondary);
-        cursor: pointer;
-        user-select: none;
-    }
-
-    ${key} .rail-group-label {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    ${key} .rail-leaf-node {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 13.5px;
-        min-width: 0;
-        color: var(--textPrimary, inherit);
-    }
-
-    ${key} .rail-label {
-        flex: 1;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-    ${key} .resource-main {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        min-width: 0;
-        min-height: 0;
-        overflow: hidden;
-    }
-
-    ${key} .resource-toolbar {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        flex-shrink: 0;
-    }
-
-    ${key} .resource-table-scroll {
-        overflow: auto;
-        flex: 1;
-        min-height: 200px;
-    }
-
-    ${key} .resource-table-scroll table {
-        margin-top: 0;
-        margin-bottom: 0;
-    }
-
-    ${key} .resource-table-scroll > div {
-        margin-top: 0;
-        margin-bottom: 0;
-    }
-
-    ${key} .resource-cell {
-        font-size: 12.5px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    ${key} .resource-table-scroll table td {
-        font-size: 13px;
-    }
-
-    ${key} .resource-table-scroll td {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    ${key} tr[data-highlight="true"]:hover {
-        background-color: var(--rowHover);
-        cursor: pointer;
-    }
-
-    ${key} tr[data-highlighted="true"] {
-        background-color: var(--rowHover);
-        cursor: pointer;
-    }
-
-    ${key} tr[data-selected="true"] {
-        background-color: var(--rowActive);
-        cursor: pointer;
-    }
-
-    ${key} tr.group-row > td {
-        background: var(--tableBackground, var(--blue-10));
-        font-weight: 600;
-        font-size: 13px;
-    }
-
-    ${key} .resource-bottom-rail {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        border-top: 1px solid var(--borderColor);
-        padding-top: 8px;
-        padding-bottom: 8px;
-        flex-shrink: 0;
-    }
-
-    ${key} .bottom-namespace {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        min-width: 0;
-    }
-
-    ${key} .bottom-filter {
-        position: relative;
-        display: flex;
-        align-items: center;
-        min-width: 0;
-    }
-
-    ${key} .bottom-filter input {
-        padding-right: 44px;
-    }
-
-    ${key} .bottom-filter-shortcut {
-        position: absolute;
-        right: 12px;
-        display: flex;
-        pointer-events: none;
-    }
-
-    @media (max-width: 1000px) {
-        ${key} {
-            grid-template-columns: minmax(0, 1fr);
-            grid-template-rows: auto;
-        }
-
-        ${key} .resource-rail {
-            flex-direction: column;
-        }
-
-        ${key} .resource-main {
-            min-height: 400px;
-        }
-
-        ${key} .resource-table-scroll {
-            flex: 0 1 auto;
-        }
-    }
-`);
 
 const MachineTypeSelectorNode: React.FunctionComponent<{
     node: UiNode;

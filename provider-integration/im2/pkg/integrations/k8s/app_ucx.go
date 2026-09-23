@@ -10,13 +10,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	ws "github.com/gorilla/websocket"
 	"golang.org/x/sys/unix"
 	"ucloud.dk/gonja/v2/exec"
+	cfg "ucloud.dk/pkg/config"
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/containers"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/inference"
+	job_introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
 	"ucloud.dk/pkg/integrations/k8s/kubevirt"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/pkg/ucxdelivery"
@@ -32,12 +35,111 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8slabels "k8s.io/apimachinery/pkg/labels"
+	k8stypes "k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const ucxBackendPort int32 = 8080
 
 var ucxNameRegex = regexp.MustCompile(`[^a-z0-9-]+`)
+
+const ucxAuthTokenAnnotation = "ucloud.dk/ucx-auth-token"
+
+var ucxDownstreamJwtParser *jwt.Parser
+
+func ucxDownstreamTokenValid(downstreamToken string) bool {
+	trimmed := strings.TrimSpace(downstreamToken)
+	if trimmed == "" {
+		return false
+	}
+
+	if ucxDownstreamJwtParser == nil {
+		if cfg.PublicKey == nil {
+			return false
+		}
+		ucxDownstreamJwtParser = jwt.NewParser(
+			jwt.WithValidMethods([]string{jwt.SigningMethodRS256.Alg()}),
+			jwt.WithIssuer("cloud.sdu.dk"),
+		)
+	}
+
+	claims := jwt.RegisteredClaims{}
+	token, err := ucxDownstreamJwtParser.ParseWithClaims(
+		trimmed,
+		&claims,
+		func(token *jwt.Token) (any, error) {
+			return cfg.PublicKey, nil
+		},
+	)
+	if err != nil || !token.Valid {
+		return false
+	}
+
+	return claims.Subject == "_UCloud"
+}
+
+func ucxCreationUiToken(ctx context.Context, namespace string, deploymentName string) (string, error) {
+	deployment, err := shared.K8sClient.AppsV1().Deployments(namespace).Get(ctx, deploymentName, meta.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return util.SecureToken(), nil
+		}
+		return "", err
+	}
+
+	if existing := deployment.Annotations[ucxAuthTokenAnnotation]; existing != "" {
+		return existing, nil
+	}
+
+	token := util.SecureToken()
+	patch := fmt.Sprintf(
+		`{"metadata":{"annotations":{"%s":"%s"}}}`,
+		ucxAuthTokenAnnotation, token,
+	)
+	patched, err := shared.K8sClient.AppsV1().Deployments(namespace).Patch(
+		ctx, deploymentName, k8stypes.StrategicMergePatchType, []byte(patch), meta.PatchOptions{},
+	)
+	if err != nil {
+		return "", err
+	}
+
+	if resulting := patched.Annotations[ucxAuthTokenAnnotation]; resulting != "" {
+		return resulting, nil
+	}
+	return token, nil
+}
+
+func readUcxDeploymentAuthToken(ctx context.Context, namespace string, deploymentName string) (string, error) {
+	deployment, err := shared.K8sClient.AppsV1().Deployments(namespace).Get(ctx, deploymentName, meta.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return deployment.Annotations[ucxAuthTokenAnnotation], nil
+}
+
+func ensureUcxDeploymentAuthToken(ctx context.Context, namespace string, name string, authToken string) error {
+	deployment, err := shared.K8sClient.AppsV1().Deployments(namespace).Get(ctx, name, meta.GetOptions{})
+	if err != nil {
+		return err
+	}
+
+	if len(deployment.Spec.Template.Spec.Containers) == 0 {
+		return fmt.Errorf("deployment %s has no containers", name)
+	}
+
+	for _, env := range deployment.Spec.Template.Spec.Containers[0].Env {
+		if env.Name == "UCX_AUTH_TOKEN" {
+			return nil
+		}
+	}
+
+	deployment.Spec.Template.Spec.Containers[0].Env = append(
+		deployment.Spec.Template.Spec.Containers[0].Env,
+		k8score.EnvVar{Name: "UCX_AUTH_TOKEN", Value: authToken},
+	)
+	_, err = shared.K8sClient.AppsV1().Deployments(namespace).Update(ctx, deployment, meta.UpdateOptions{})
+	return err
+}
 
 func initAppUcx() ctrl.UcxApplicationService {
 	return ctrl.UcxApplicationService{
@@ -57,7 +159,10 @@ func ucxOnConnect(conn *ws.Conn) {
 	info := orcapi.AppUcxConnectProviderRequest{}
 
 	proxy.RegisterUpstreamSelector(func(ctx context.Context, downstreamToken string, downstreamSysHello string) ucx.ProxyUpstreamSelection {
-		_ = downstreamToken
+		if !ucxDownstreamTokenValid(downstreamToken) {
+			log.Warn("UCX provider: downstream token was not accepted")
+			return ucx.ProxyUpstreamSelection{Allowed: false}
+		}
 
 		if err := json.Unmarshal([]byte(downstreamSysHello), &info); err != nil {
 			log.Warn("UCX provider: invalid syshello payload: %v", err)
@@ -77,7 +182,7 @@ func ucxOnConnect(conn *ws.Conn) {
 
 		ucxdelivery.TrackApp(application)
 
-		upstreamUrl, err := ensureUcxBackendAndResolveUpstream(ctx, application)
+		upstreamUrl, authToken, err := ensureUcxBackendAndResolveUpstream(ctx, application)
 		if err != nil {
 			log.Warn("UCX provider: failed to prepare backend: %v", err)
 			return ucx.ProxyUpstreamSelection{Allowed: false}
@@ -86,7 +191,7 @@ func ucxOnConnect(conn *ws.Conn) {
 		return ucx.ProxyUpstreamSelection{
 			Allowed:          true,
 			UpstreamUrl:      upstreamUrl,
-			UpstreamToken:    "",
+			UpstreamToken:    authToken,
 			UpstreamSysHello: downstreamSysHello,
 		}
 	})
@@ -183,7 +288,10 @@ func ucxOnConnectJob(conn *ws.Conn) {
 	info := orcapi.AppUcxConnectJobProviderRequest{}
 
 	proxy.RegisterUpstreamSelector(func(ctx context.Context, downstreamToken string, downstreamSysHello string) ucx.ProxyUpstreamSelection {
-		_ = downstreamToken
+		if !ucxDownstreamTokenValid(downstreamToken) {
+			log.Warn("UCX provider job: downstream token was not accepted")
+			return ucx.ProxyUpstreamSelection{Allowed: false}
+		}
 
 		if err := json.Unmarshal([]byte(downstreamSysHello), &info); err != nil {
 			log.Warn("UCX provider job: invalid syshello payload: %v", err)
@@ -204,7 +312,7 @@ func ucxOnConnectJob(conn *ws.Conn) {
 		return ucx.ProxyUpstreamSelection{
 			Allowed:          true,
 			UpstreamUrl:      upstreamUrl,
-			UpstreamToken:    "",
+			UpstreamToken:    job_introspection.UcxSessionToken(info.Job.Id),
 			UpstreamSysHello: downstreamSysHello,
 		}
 	})
@@ -308,9 +416,14 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, path 
 	return util.Empty{}, nil
 }
 
-func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Application) (string, error) {
+func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Application) (string, string, error) {
 	namespace := shared.ServiceConfig.Compute.TaskNamespace
 	deploymentName := ucxDeploymentName(app.Metadata.Name, app.Metadata.Version)
+	authToken, err := ucxCreationUiToken(ctx, namespace, deploymentName)
+	if err != nil {
+		log.Warn("UCX provider: failed to resolve auth token for %s/%s: %v", namespace, deploymentName, err)
+		return "", "", err
+	}
 	serviceName := deploymentName
 	selector := ucxSelectorLabels(deploymentName)
 	inDevelopmentMode := ucxDevelopmentModePath(app)
@@ -319,7 +432,7 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 		if app.Invocation.Ucx.Present && app.Invocation.Ucx.Value.Executable.Present {
 			path, err := ucxdelivery.ExecutablePath(app.Metadata.Name, app.Metadata.Version)
 			if err != nil {
-				return "", err
+				return "", "", err
 			}
 			cacheCurrentPath.Set(path)
 		}
@@ -328,54 +441,65 @@ func ensureUcxBackendAndResolveUpstream(ctx context.Context, app *orcapi.Applica
 	isRunning, err := ucxDeploymentRunning(ctx, namespace, deploymentName)
 	if err != nil {
 		log.Warn("UCX provider: failed deployment lookup for %s/%s: %v", namespace, deploymentName, err)
-		return "", err
+		return "", "", err
 	}
 
 	if !isRunning {
 		invocation, err := renderUcxInvocationScript(app, inDevelopmentMode.Present)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 		script := renderUcxRunnerScript(invocation, app.Metadata.Name, app.Metadata.Version, cacheCurrentPath.Present)
 
 		image := strings.TrimSpace(app.Invocation.Tool.Tool.Value.Description.Image)
 		if image == "" {
-			return "", fmt.Errorf("resolved tool image is missing")
+			return "", "", fmt.Errorf("resolved tool image is missing")
 		}
 
 		if err := ensureUcxService(ctx, namespace, serviceName, selector); err != nil {
 			log.Warn("UCX provider: failed ensuring service %s/%s: %v", namespace, serviceName, err)
-			return "", err
+			return "", "", err
 		}
 
-		if err := ensureUcxDeployment(ctx, namespace, deploymentName, image, script, selector, inDevelopmentMode, cacheCurrentPath, app.Metadata.Name, app.Metadata.Version); err != nil {
+		if err := ensureUcxDeployment(ctx, namespace, deploymentName, image, script, selector, inDevelopmentMode, cacheCurrentPath, app.Metadata.Name, app.Metadata.Version, authToken); err != nil {
 			log.Warn("UCX provider: failed ensuring deployment %s/%s: %v", namespace, deploymentName, err)
-			return "", err
+			return "", "", err
+		}
+
+		authToken, err = readUcxDeploymentAuthToken(ctx, namespace, deploymentName)
+		if err != nil {
+			log.Warn("UCX provider: failed reading auth token for %s/%s: %v", namespace, deploymentName, err)
+			return "", "", err
 		}
 	} else {
 		if err := ensureUcxService(ctx, namespace, serviceName, selector); err != nil {
 			log.Warn("UCX provider: failed ensuring service %s/%s: %v", namespace, serviceName, err)
-			return "", err
+			return "", "", err
+		}
+
+		if err := ensureUcxDeploymentAuthToken(ctx, namespace, deploymentName, authToken); err != nil {
+			log.Warn("UCX provider: failed ensuring auth token for %s/%s: %v", namespace, deploymentName, err)
+			return "", "", err
 		}
 	}
 
 	if err := waitForUcxDeploymentReady(ctx, namespace, deploymentName, 90*time.Second); err != nil {
 		log.Warn("UCX provider: deployment did not become ready %s/%s: %v", namespace, deploymentName, err)
-		return "", err
+		return "", "", err
 	}
 
 	if util.DevelopmentModeEnabled() {
 		podName, err := findReadyUcxPod(ctx, namespace, selector)
 		if err != nil {
 			log.Warn("UCX provider: failed finding ready pod in dev mode for %s/%s: %v", namespace, deploymentName, err)
-			return "", err
+			return "", "", err
 		}
 
 		tunnelPort := shared.EstablishTunnelEx(podName, namespace, int(ucxBackendPort))
-		return fmt.Sprintf("ws://127.0.0.1:%d/", tunnelPort), nil
+		return fmt.Sprintf("ws://127.0.0.1:%d/", tunnelPort), authToken, nil
 	}
 
-	return fmt.Sprintf("ws://%s.%s.svc.cluster.local:%d/", serviceName, namespace, ucxBackendPort), nil
+	return fmt.Sprintf("ws://%s.%s.svc.cluster.local:%d/", serviceName, namespace, ucxBackendPort), authToken, nil
 }
 
 func ensureUcxService(ctx context.Context, namespace string, name string, selector map[string]string) error {
@@ -416,6 +540,7 @@ func ensureUcxDeployment(
 	cacheCurrentPath util.Option[string],
 	appName string,
 	appVersion string,
+	authToken string,
 ) error {
 	volumes := []k8score.Volume{}
 	volumeMounts := []k8score.VolumeMount{}
@@ -466,6 +591,9 @@ func ensureUcxDeployment(
 		ObjectMeta: meta.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+			Annotations: map[string]string{
+				ucxAuthTokenAnnotation: authToken,
+			},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: util.Pointer[int32](1),
@@ -485,6 +613,7 @@ func ensureUcxDeployment(
 								{Name: "UCX_PORT", Value: fmt.Sprint(ucxBackendPort)},
 								{Name: "UCLOUD_UCX_APP_NAME", Value: appName},
 								{Name: "UCLOUD_UCX_APP_VERSION", Value: appVersion},
+								{Name: "UCX_AUTH_TOKEN", Value: authToken},
 							},
 							VolumeMounts: volumeMounts,
 							Ports: []k8score.ContainerPort{
@@ -511,8 +640,39 @@ func ensureUcxDeployment(
 		return getErr
 	}
 
+	updated := false
+	if existing.Annotations == nil {
+		existing.Annotations = map[string]string{}
+	}
+	if existing.Annotations[ucxAuthTokenAnnotation] == "" {
+		existing.Annotations[ucxAuthTokenAnnotation] = authToken
+		updated = true
+	}
+
 	if existing.Spec.Replicas == nil || *existing.Spec.Replicas != 1 {
 		existing.Spec.Replicas = util.Pointer[int32](1)
+		updated = true
+	}
+
+	effectiveToken := existing.Annotations[ucxAuthTokenAnnotation]
+	hasAuthEnv := false
+	for i := range existing.Spec.Template.Spec.Containers {
+		for _, env := range existing.Spec.Template.Spec.Containers[i].Env {
+			if env.Name == "UCX_AUTH_TOKEN" {
+				hasAuthEnv = true
+				break
+			}
+		}
+	}
+	if !hasAuthEnv && len(existing.Spec.Template.Spec.Containers) > 0 {
+		existing.Spec.Template.Spec.Containers[0].Env = append(
+			existing.Spec.Template.Spec.Containers[0].Env,
+			k8score.EnvVar{Name: "UCX_AUTH_TOKEN", Value: effectiveToken},
+		)
+		updated = true
+	}
+
+	if updated {
 		_, updateErr := shared.K8sClient.AppsV1().Deployments(namespace).Update(ctx, existing, meta.UpdateOptions{})
 		if updateErr != nil {
 			return updateErr

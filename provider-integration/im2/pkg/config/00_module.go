@@ -147,9 +147,12 @@ func Parse(serverMode ServerMode, configDir string) bool {
 	}
 
 	Jwks = JwkSet{Keys: []Jwk{jwkKey}}
+	PublicKey = key
 
 	return true
 }
+
+var PublicKey *rsa.PublicKey
 
 type HostInfo struct {
 	Address string `yaml:"address"`

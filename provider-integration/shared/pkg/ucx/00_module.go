@@ -69,10 +69,18 @@ type TableColumn struct {
 	JsonPath string
 }
 
+type TableRowAction struct {
+	Id             string
+	Enabled        bool
+	DisabledReason string
+	Text           string
+}
+
 type TableRow struct {
-	Key   string
-	Group string
-	Cells []string
+	Key     string
+	Group   string
+	Cells   []string
+	Actions []TableRowAction
 }
 
 type TableUpdate struct {
@@ -87,11 +95,12 @@ type TableUpdate struct {
 type UiEventType string
 
 const (
-	UiEventClick  UiEventType = "click"
-	UiEventSubmit UiEventType = "submit"
-	UiEventChange UiEventType = "change"
-	UiEventFocus  UiEventType = "focus"
-	UiEventBlur   UiEventType = "blur"
+	UiEventClick    UiEventType = "click"
+	UiEventSubmit   UiEventType = "submit"
+	UiEventChange   UiEventType = "change"
+	UiEventFocus    UiEventType = "focus"
+	UiEventBlur     UiEventType = "blur"
+	UiEventActivate UiEventType = "activate"
 )
 
 type UiEvent struct {
@@ -297,6 +306,34 @@ func TableUpdateEncode(buf *util.UBuffer, msg TableUpdate) {
 	for _, key := range msg.Removed {
 		buf.WriteString(key)
 	}
+
+	hasActions := false
+	for _, row := range msg.Upserts {
+		if len(row.Actions) > 0 {
+			hasActions = true
+			break
+		}
+	}
+
+	if hasActions {
+		buf.WriteU8(1)
+		buf.WriteU32(uint32(len(msg.Upserts)))
+		for _, row := range msg.Upserts {
+			buf.WriteU32(uint32(len(row.Actions)))
+			for _, action := range row.Actions {
+				buf.WriteString(action.Id)
+				if action.Enabled {
+					buf.WriteU8(1)
+				} else {
+					buf.WriteU8(0)
+				}
+				buf.WriteString(action.DisabledReason)
+				buf.WriteString(action.Text)
+			}
+		}
+	} else {
+		buf.WriteU8(0)
+	}
 }
 
 func TableUpdateDecode(buf *util.UBuffer) TableUpdate {
@@ -332,6 +369,23 @@ func TableUpdateDecode(buf *util.UBuffer) TableUpdate {
 	result.Removed = make([]string, removedCount)
 	for i := uint32(0); i < removedCount; i++ {
 		result.Removed[i] = buf.ReadString()
+	}
+
+	if !buf.IsEmpty() && buf.ReadU8() != 0 {
+		actionRowCount := buf.ReadU32()
+		for i := uint32(0); i < actionRowCount && int(i) < len(result.Upserts); i++ {
+			actionCount := buf.ReadU32()
+			actions := make([]TableRowAction, actionCount)
+			for j := uint32(0); j < actionCount; j++ {
+				actions[j] = TableRowAction{
+					Id:             buf.ReadString(),
+					Enabled:        buf.ReadU8() != 0,
+					DisabledReason: buf.ReadString(),
+					Text:           buf.ReadString(),
+				}
+			}
+			result.Upserts[i].Actions = actions
+		}
 	}
 
 	return result

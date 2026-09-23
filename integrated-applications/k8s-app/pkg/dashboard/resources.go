@@ -31,9 +31,10 @@ type ResourceTypeDef struct {
 }
 
 type ResourceRow struct {
-	Key   string
-	Group string
-	Cells []string
+	Key     string
+	Group   string
+	Cells   []string
+	Actions []ucx.TableRowAction
 }
 
 const nodeGroupLabel = "ucloud.dk/k8s-node-group"

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 
@@ -14,7 +15,6 @@ import (
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
-	"ucloud.dk/shared/pkg/util"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
 )
@@ -39,6 +39,7 @@ type stackUiApp struct {
 	ActiveNamespace string
 	ResourceDetail  string
 	ResourceYaml    string
+	Namespaces      []string
 
 	prevDetail string `ucx:"-"`
 }
@@ -83,9 +84,21 @@ func (app *stackUiApp) OnSysHello(payload string) {
 	})
 	log.Info("k8s-app: poller started, active type %s", app.ActiveType)
 
-	session := *app.Session()
-	ucx.RpcHandle(session, ResourceYamlRpc, app.handleResourceYaml)
-	ucx.RpcHandle(session, ListNamespacesRpc, app.handleListNamespaces)
+	app.loadNamespaces()
+}
+
+func (app *stackUiApp) loadNamespaces() {
+	if app.k8sClient == nil {
+		return
+	}
+
+	names, err := app.k8sClient.ListNamespaces(context.Background())
+	if err != nil {
+		log.Warn("k8s-app: failed to list namespaces: %s", err)
+		return
+	}
+
+	app.Namespaces = names
 }
 
 func (app *stackUiApp) loadStackJobs() {
@@ -144,9 +157,9 @@ func (app *stackUiApp) UserInterface() ucx.UiNode {
 
 	switch {
 	case app.RoutePath == "control":
-		children = util.Combined(children, app.pageControl())
+		children = append(children, app.pageControl()...)
 	default:
-		children = util.Combined(children, app.pageResources())
+		children = append(children, app.pageResources()...)
 	}
 
 	return ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 32}).
@@ -160,16 +173,90 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 		typeDefs = append(typeDefs, app.poller.customTypesSnapshot()...)
 	}
 
-	typeOptions := make([]ucx.ResourceTypeOption, 0, len(typeDefs))
+	navItems := make([]ucx.NavItem, 0, 8)
+	groups := map[string][]ucx.NavItemChild{}
 	for _, def := range typeDefs {
-		typeOptions = append(typeOptions, ucx.ResourceTypeOption{
-			Id:         def.Id,
-			Label:      def.Label,
-			Aliases:    def.Aliases,
-			Group:      def.Group,
-			HasYaml:    def.HasYaml,
-			Namespaced: def.Namespaced,
+		group := def.Group
+		if group == "" {
+			group = "Other"
+		}
+		groups[group] = append(groups[group], ucx.NavItemChild{
+			Id:      def.Id,
+			Label:   def.Label,
+			Aliases: def.Aliases,
 		})
+	}
+	for group, children := range groups {
+		navItems = append(navItems, ucx.NavItem{
+			Id:       "group:" + group,
+			Label:    group,
+			Children: children,
+		})
+	}
+	sort.Slice(navItems, func(i, j int) bool {
+		return navItems[i].Label < navItems[j].Label
+	})
+
+	detail := app.ResourceDetail
+	inDetail := detail != ""
+
+	activeDef, _ := app.resolveType(app.ActiveType)
+	namespaced := activeDef.Namespaced
+
+	var main []ucx.UiNode
+	var bottom []ucx.UiNode
+	if inDetail {
+		main = []ucx.UiNode{app.resourceDetailNode(detail)}
+	} else {
+		var tableActions []ucx.ResourceTableAction
+		if app.ActiveType == "nodes" {
+			tableActions = append(tableActions, ucx.ResourceTableAction{
+				Id:    "copyNodeName",
+				Label: "Copy node name",
+				Icon:  ucx.IconCopy,
+				Kind:  ucx.ResourceTableActionCopyText,
+			})
+		}
+
+		main = []ucx.UiNode{ucx.ResourceTable(ucx.ResourceTableProps{
+			Id:               "resourceTable",
+			TableId:          app.resourceStreamId(),
+			StateKey:         app.ActiveType,
+			ViewId:           "k8sResources",
+			EmptyMessage:     "No resources found.",
+			HideGroupHeaders: namespaced,
+			Actions:          tableActions,
+		}).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+			typeId, namespace, name := rowActivationValue(ev.Value)
+			app.handleRowActivated(typeId, namespace, name)
+		})}
+
+		bottom = append(bottom, ucx.TableFilter("resourceFilter", app.ActiveType))
+		if namespaced {
+			bottom = append(bottom, app.namespaceSelectorNode())
+		}
+		bottom = append(bottom, ucx.Box().Sx(ucx.SxFlexGrow(1)))
+		bottom = append(bottom, ucx.TableCount("resourceCount", app.ActiveType).WithTitle(app.activeTypeLabel(typeDefs)))
+	}
+
+	props := ucx.BrowserLayoutProps{
+		Sidebar: ucx.BrowserSidebar(
+			ucx.NavTreeEx("resourceNav", "activeType", navItems).On(ucx.UiEventActivate, func(ev ucx.UiEvent) {
+				app.selectResourceType(ucx.ValueAsString(ev.Value))
+			}),
+		),
+		Content: main,
+	}
+
+	if inDetail {
+		props.EscapePath = ""
+	} else {
+		props.EscapeDisabled = true
+	}
+
+	if len(bottom) > 0 {
+		props.Bottom = ucx.BrowserBottom(bottom...)
+		props.HasBottom = true
 	}
 
 	return []ucx.UiNode{ucx.Surface().
@@ -179,7 +266,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 		).
 		Children(
 			ucx.Toolbar().Children(
-				ucx.H2("Kubernetes cluster"),
+				ucx.H2("Kubernetes cluster 2"),
 				ucx.Button("downloadKubernetesConfig", "Download kubeconfig", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 					ucxsvc.StackDownloadFile(app.Stack, shared.KubernetesConfigurationFileName)
 				}),
@@ -191,8 +278,109 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 				}),
 				ucx.Link("control").Children(ucx.Button("add-machine", "Add machine", ucx.ColorSecondaryMain)),
 			),
-			ucx.ResourceTable("resourceTable", "activeType", "activeNamespace", "resourceDetail", typeOptions),
+			ucx.BrowserLayout(props),
 		)}
+}
+
+func (app *stackUiApp) resourceStreamId() string {
+	def, _ := app.resolveType(app.ActiveType)
+	return resourceDatasetId(resourceSelection{
+		typeId:    app.ActiveType,
+		namespace: app.ActiveNamespace,
+		def:       def,
+	})
+}
+
+func (app *stackUiApp) activeTypeLabel(typeDefs []ResourceTypeDef) string {
+	for _, def := range typeDefs {
+		if def.Id == app.ActiveType {
+			return def.Label
+		}
+	}
+	return ""
+}
+
+func (app *stackUiApp) selectResourceType(typeId string) {
+	if typeId == "" {
+		return
+	}
+
+	if typeId != app.ActiveType {
+		app.ActiveType = typeId
+		if app.poller != nil {
+			app.poller.SetActiveType(typeId)
+		}
+		if def, ok := app.resolveType(typeId); ok && def.Namespaced {
+			app.loadNamespaces()
+		}
+	}
+
+	if strings.HasPrefix(app.RoutePath, "detail/") {
+		app.ResourceDetail = ""
+		app.prevDetail = ""
+		app.ResourceYaml = ""
+		ucxsvc.RouterPushPage(app, "")
+	}
+
+	ucx.AppUpdateUi(app)
+}
+
+func (app *stackUiApp) namespaceSelectorNode() ucx.UiNode {
+	options := make([]ucx.Option, 0, len(app.Namespaces)+1)
+	options = append(options, ucx.Option{Key: "", Value: "All namespaces"})
+	for _, namespace := range app.Namespaces {
+		options = append(options, ucx.Option{Key: namespace, Value: namespace})
+	}
+
+	return ucx.Select("namespaceSelect", "", "activeNamespace", options).Sx(ucx.SxWidth(280))
+}
+
+func (app *stackUiApp) resourceDetailNode(detail string) ucx.UiNode {
+	parts := strings.Split(detail, "/")
+	typeId := parts[0]
+	namespace := ""
+	name := ""
+	if len(parts) > 1 {
+		namespace = parts[1]
+	}
+	if len(parts) > 2 {
+		name = parts[2]
+	}
+
+	label := typeId
+	if def, ok := app.resolveType(typeId); ok {
+		label = def.Label
+	}
+
+	return ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).
+		Children(
+			ucx.CodeBoundEx("resourceYaml", "resourceYaml").WithLang("yaml").WithStretch(),
+			ucx.Toolbar().Children(
+				ucx.ButtonEx("backToTable", "Back to table", ucx.ColorSecondaryMain, ucx.IconHeroArrowLeft, "", "").ButtonEscapeHint(true).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+					ucxsvc.RouterPushPage(app, "")
+				}),
+				ucx.Box(),
+				ucx.Text(name).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+				ucx.Text(namespace).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+				ucx.Text(label).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+			),
+		)
+}
+
+func (app *stackUiApp) handleRowActivated(tableId string, namespace string, name string) {
+	if tableId == "" || name == "" {
+		return
+	}
+
+	if _, ok := app.resolveType(tableId); !ok {
+		return
+	}
+
+	app.ResourceDetail = tableId + "/" + namespace + "/" + name
+	app.prevDetail = app.ResourceDetail
+	app.loadResourceYaml(app.ResourceDetail)
+	ucxsvc.RouterPushPage(app, "detail/"+url.PathEscape(tableId)+"/"+url.PathEscape(namespace)+"/"+url.PathEscape(name))
+	ucx.AppUpdateUi(app)
 }
 
 // "Add new VM" page
@@ -258,14 +446,15 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 			routeDetail = detailFromRoute(app.RoutePath)
 		}
 
-		changed := false
-		if routeDetail != app.ResourceDetail {
-			app.ResourceDetail = routeDetail
-			changed = true
-		}
+		changed := routeDetail != app.ResourceDetail
+		app.ResourceDetail = routeDetail
 		if app.ResourceDetail != app.prevDetail {
 			app.prevDetail = app.ResourceDetail
 			app.loadResourceYaml(app.ResourceDetail)
+			changed = true
+		}
+
+		if frame.ModelInput.Path == "activeNamespace" {
 			changed = true
 		}
 
@@ -295,6 +484,25 @@ func detailFromRoute(routePath string) string {
 	}
 
 	return typeId + "/" + namespace + "/" + name
+}
+
+func rowActivationValue(value ucx.Value) (string, string, string) {
+	if value.Kind != ucx.ValueObject {
+		return "", "", ""
+	}
+
+	tableId := ucx.ValueAsString(value.Object["stateKey"])
+	if tableId == "" {
+		tableId = ucx.ValueAsString(value.Object["tableId"])
+	}
+	group := ucx.ValueAsString(value.Object["group"])
+
+	cells := ""
+	if rawCells, ok := value.Object["cells"]; ok && rawCells.Kind == ucx.ValueList && len(rawCells.List) > 0 {
+		cells = ucx.ValueAsString(rawCells.List[0])
+	}
+
+	return tableId, group, cells
 }
 
 func (app *stackUiApp) loadResourceYaml(detail string) {
@@ -342,57 +550,4 @@ func (app *stackUiApp) resolveType(typeId string) (ResourceTypeDef, bool) {
 		return def, def.Id != ""
 	}
 	return ResourceTypeDef{}, false
-}
-
-func (app *stackUiApp) handleResourceYaml(ctx context.Context, request resourceYamlRequest) (resourceYamlResponse, error) {
-	if app.k8sClient == nil {
-		return resourceYamlResponse{}, fmt.Errorf("kubernetes client is not available")
-	}
-
-	def, ok := app.resolveType(request.Type)
-	if !ok {
-		return resourceYamlResponse{}, fmt.Errorf("unknown resource type %q", request.Type)
-	}
-
-	yamlText, err := app.k8sClient.YamlForUid(ctx, def, request.Namespace, request.Name)
-	if err != nil {
-		return resourceYamlResponse{}, err
-	}
-
-	return resourceYamlResponse{Yaml: yamlText}, nil
-}
-
-func (app *stackUiApp) handleListNamespaces(ctx context.Context, request util.Empty) (namespaceListResponse, error) {
-	if app.k8sClient == nil {
-		return namespaceListResponse{}, fmt.Errorf("kubernetes client is not available")
-	}
-
-	names, err := app.k8sClient.ListNamespaces(ctx)
-	if err != nil {
-		return namespaceListResponse{}, err
-	}
-
-	return namespaceListResponse{Namespaces: names}, nil
-}
-
-type resourceYamlRequest struct {
-	Type      string
-	Namespace string
-	Name      string
-}
-
-type resourceYamlResponse struct {
-	Yaml string
-}
-
-type namespaceListResponse struct {
-	Namespaces []string
-}
-
-var ResourceYamlRpc = ucx.Rpc[resourceYamlRequest, resourceYamlResponse]{
-	CallName: "k8s.resourceYaml",
-}
-
-var ListNamespacesRpc = ucx.Rpc[util.Empty, namespaceListResponse]{
-	CallName: "k8s.listNamespaces",
 }
