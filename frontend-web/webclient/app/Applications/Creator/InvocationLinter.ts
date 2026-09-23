@@ -169,7 +169,7 @@ function lintStructure(tags: InvocationTag[], markers: InvocationLintMarker[]): 
                     severity: "error",
                 });
             }
-            if (word === "elif" && skipLead(tag.inner) === "elif") {
+            if (word === "elif" && skipLead(tag.inner).trim() === "elif") {
                 markers.push({
                     message: "elif requires a condition.",
                     start: tag.start,
@@ -234,7 +234,15 @@ function lintReferences(
                 exprInner = closeParen >= 0 ? inner.slice(closeParen + 1) : "";
             } else if (keyword === "if" || keyword === "elif") {
                 exprInner = inner.slice(keywordEnd);
-            } else if (endTagKeywords[keyword] !== undefined || keyword === "else" || unsupportedStatementTags.includes(keyword)) {
+            } else if (
+                endTagKeywords[keyword] !== undefined ||
+                keyword === "else" ||
+                keyword === "filter" ||
+                keyword === "autoescape" ||
+                unsupportedStatementTags.includes(keyword)
+            ) {
+                // end tags, else, and block filter/autoescape tags carry no expression: the
+                // word after `{% filter %}` is a filter name, not a variable reference.
                 continue;
             } else {
                 exprInner = inner.slice(keywordEnd);

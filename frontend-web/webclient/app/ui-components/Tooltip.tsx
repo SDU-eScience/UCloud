@@ -148,6 +148,12 @@ async function positionTooltip(
     arrowElement: HTMLElement,
     side: TooltipSide
 ): Promise<void> {
+    const triggerBounds = trigger.getBoundingClientRect();
+    if (triggerBounds.width === 0 && triggerBounds.height === 0) {
+        tooltip.style.top = "";
+        return;
+    }
+
     const result = await computePosition(trigger, tooltip, {
         placement: side,
         strategy: "fixed",

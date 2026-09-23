@@ -1125,9 +1125,11 @@ function JobQueueStatusIndicator(props: {
 
     const size = "12px";
 
-    return <TooltipV2 tooltip={props.multiple ? messageMultiple : message}>
-        <div tabIndex={0} style={{width: size, height: size, borderRadius: size, backgroundColor: `var(--${color})`}} />
-    </TooltipV2>;
+    return <div style={{width: size}}>
+        <TooltipV2 tooltip={props.multiple ? messageMultiple : message}>
+            <div tabIndex={0} style={{width: size, height: size, borderRadius: size, backgroundColor: `var(--${color})`}} />
+        </TooltipV2>
+    </div>;
 }
 
 function useDialogSize(headerCount: number, alignment: "rightAligned" | "centered"): {boxRef: React.RefObject<HTMLDivElement | null>; dialogX: number; dialogY: number; dialogHeight: number; dialogWidth: number;} {

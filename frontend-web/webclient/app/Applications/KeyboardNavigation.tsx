@@ -15,8 +15,23 @@ export const FIELD_NAVIGATION_SELECTOR = [
     "[data-field-row] [data-field-activator]",
 ].join(", ");
 
+export const FORM_NAVIGATION_SELECTOR = [
+    "input:not([type='hidden'])",
+    "select",
+    "textarea",
+    "[role='switch']",
+    "[data-navigation-field]",
+].join(", ");
+
 export function isDisabledNavigationTarget(element: HTMLElement): boolean {
     return element.matches(":disabled, [aria-disabled='true']");
+}
+
+export function focusFirstNavigationTarget(root: HTMLElement, selector = FIELD_NAVIGATION_SELECTOR): HTMLElement | null {
+    const target = Array.from(root.querySelectorAll<HTMLElement>(selector))
+        .find(element => element.offsetParent !== null && !isDisabledNavigationTarget(element)) ?? null;
+    target?.focus();
+    return target;
 }
 
 export function closeOpenDropdown(field: HTMLElement): void {
@@ -65,10 +80,12 @@ function findSpatialNavigationTarget(
     ).element;
 }
 
-export function KeyboardNavigation({children, className, horizontalSelector}: React.PropsWithChildren<{
+export function KeyboardNavigation({children, className, horizontalSelector, navigationSelector}: React.PropsWithChildren<{
     className?: string;
     horizontalSelector?: string;
+    navigationSelector?: string;
 }>): React.ReactNode {
+    const verticalSelector = navigationSelector ?? FIELD_NAVIGATION_SELECTOR;
     const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
         if (!horizontalSelector || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
         const target = event.target as HTMLElement;
@@ -99,7 +116,7 @@ export function KeyboardNavigation({children, className, horizontalSelector}: Re
         if ((event.key !== "ArrowUp" && event.key !== "ArrowDown") || event.metaKey || event.ctrlKey || event.altKey) return;
         const target = event.target as HTMLElement;
         const openDropdown = target.closest<HTMLElement>("[aria-expanded='true']");
-        if (openDropdown?.getAttribute("role") === "button" && !target.closest("[data-dropdown-trigger]")) return;
+        if (openDropdown && !target.closest("[data-dropdown-trigger]")) return;
         if (target instanceof HTMLTextAreaElement) {
             const start = target.selectionStart;
             const end = target.selectionEnd;
@@ -109,11 +126,11 @@ export function KeyboardNavigation({children, className, horizontalSelector}: Re
             }
         }
 
-        const current = target.closest<HTMLElement>(FIELD_NAVIGATION_SELECTOR);
+        const current = target.closest<HTMLElement>(verticalSelector);
         if (!current || !event.currentTarget.contains(current)) return;
         const next = findSpatialNavigationTarget(
             current,
-            Array.from(event.currentTarget.querySelectorAll<HTMLElement>(FIELD_NAVIGATION_SELECTOR)),
+            Array.from(event.currentTarget.querySelectorAll<HTMLElement>(verticalSelector)),
             event.key,
         );
 

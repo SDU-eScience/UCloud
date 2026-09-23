@@ -60,6 +60,7 @@ export interface State extends Accounting.AllocationDisplayTree {
         description: string;
         renewEvery: number;
         domainAllow: string;
+        domainExclude: string;
         orgAllow: string;
         resources: Record<string, number>;
     }
@@ -331,6 +332,7 @@ export function stateReducer(state: State, action: UIAction): State {
                     description: "",
                     renewEvery: 0,
                     domainAllow: "",
+                    domainExclude: "",
                     orgAllow: "",
                     resources: {},
                 },
@@ -343,6 +345,7 @@ export function stateReducer(state: State, action: UIAction): State {
                 description: "",
                 renewEvery: 0,
                 domainAllow: "",
+                domainExclude: "",
                 orgAllow: "",
                 resources: {}
             });
@@ -404,10 +407,11 @@ export function stateReducer(state: State, action: UIAction): State {
                     description: "",
                     renewEvery: 0,
                     domainAllow: "",
+                    domainExclude: "",
                     orgAllow: "",
                     resources: {}
                 }
-            };
+            }
         }
 
         case "GiftDeleted": {

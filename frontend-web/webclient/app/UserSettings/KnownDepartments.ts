@@ -1,8 +1,8 @@
 import type {KnownDepartmentsMap} from "@/UserSettings/types";
 
-/* This is a map of Danish Universities / Faculties / Departments 
-Other organizational sub-units like centers or sections are normally not included here, but 
-there are some exceptions as noted below. We try to include all sensible options needed so 
+/* This is a map of Danish Universities / Faculties / Departments
+Other organizational sub-units like centers or sections are normally not included here, but
+there are some exceptions as noted below. We try to include all sensible options needed so
 that users can map 1-2-1 to the list below. */
 
 const knownDepartments: KnownDepartmentsMap = {
@@ -131,7 +131,7 @@ const knownDepartments: KnownDepartmentsMap = {
                 "Department of Animal and Veterinary Sciences",
                 "Department of Mechanical and Production Engineering",
                 "Department of Environmental Science",
-                /* normally we don't include centers here, but these are special to the organization of the faculty */ 
+                /* normally we don't include centers here, but these are special to the organization of the faculty */
                 "DCE - Danish Centre For Environment And Energy",
                 "DCA - Danish Centre For Food And Agriculture",
                 "Center for Quantitative Genetics and Genomics"
@@ -177,8 +177,8 @@ const knownDepartments: KnownDepartmentsMap = {
             "faculty": "Department of Strategy and Innovation (SI)"
         }
     ],
-    /* DTU does not have faculties but departments and university centers. The faculty field corresponds 
-    to those. Where relevant, the department field correspond to the research sections (for DTU 
+    /* DTU does not have faculties but departments and university centers. The faculty field corresponds
+    to those. Where relevant, the department field correspond to the research sections (for DTU
     management are called "divisions").
     */
     "dtu.dk": [
@@ -305,7 +305,7 @@ const knownDepartments: KnownDepartmentsMap = {
                 "Biophysiscs and Fluids",
                 "Luminescence Physics and Technologies",
                 "Quantum Physics and Information Technology",
-                /* normally we don't include centers here, but these are special to the organization of the faculty */ 
+                /* normally we don't include centers here, but these are special to the organization of the faculty */
                 "Centre for Nuclear Energy Technology",
                 "Center for Visualizing Catalytic Processes"
             ]
@@ -323,7 +323,7 @@ const knownDepartments: KnownDepartmentsMap = {
                 "Microwaves and Remote Sensing",
                 "Measurement and Instrumentation Systems",
                 "Electromagnetic systems",
-                /* normally we don't include centers here, but these are special to the organization of the faculty */ 
+                /* normally we don't include centers here, but these are special to the organization of the faculty */
                 "ESA BIC Denmark",
                 "DTU Space Drone Center"
             ]
@@ -475,7 +475,7 @@ const knownDepartments: KnownDepartmentsMap = {
             "faculty": "Science and Environment"
         },
         {
-            "faculty": "Social Sciences and Business "
+            "faculty": "Social Sciences and Business"
         }
     ],
     "sdu.dk": [

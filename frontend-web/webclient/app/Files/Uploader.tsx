@@ -993,7 +993,7 @@ const UploadMoreClass = injectStyle("upload-more", k => `
         text-align: center;
         flex-direction: column;
     }
-    
+
     ${k}[data-has-uploads="true"] {
         display: flex;
         height: 70px;
@@ -1015,12 +1015,12 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
         padding-bottom: 4px;
         margin-bottom: 4px;
     }
-    
+
     ${k} > div > .text {
         margin-top: auto;
         margin-bottom: auto;
         margin-left: 8px;
-        font-size: 12px; 
+        font-size: 12px;
     }
 
     ${k} > div > .text > div:first-child {
@@ -1203,7 +1203,6 @@ const UploaderArt: React.FunctionComponent = () => {
 const modalStyle: ReactModal.Styles = ({
     content: {
         ...largeModalStyle.content,
-        left: `calc(50vw - 225px)`,
         minWidth: "250px",
         width: "450px",
         maxWidth: "600px",
@@ -1221,7 +1220,7 @@ const DropZoneWrapper = injectStyle("dropzone-wrapper", k => `
 
 const DropZoneBox = injectStyle("dropzone-box", k => `
     ${k} {
-        width: 100%;        
+        width: 100%;
         display: flex;
         justify-content: center;
     }
@@ -1236,7 +1235,7 @@ const DropZoneBox = injectStyle("dropzone-box", k => `
     }
 `);
 
-const UploadArtWrapper = injectStyle("upload-art", k => `   
+const UploadArtWrapper = injectStyle("upload-art", k => `
     ${k} > svg:nth-child(1) {
         margin-top: -32px;
     }

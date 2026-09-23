@@ -10,6 +10,7 @@ import {CopyButton} from "@/ui-components/CopyButton";
 const Style = injectStyle("code-snippet", k => `
     ${k} {
         position: relative;
+        min-width: 0;
     }
 
     ${k} > .code-snippet-copy-button {

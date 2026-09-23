@@ -2,7 +2,9 @@ import * as React from "react";
 import {useEffect, useState} from "react";
 import {appColors, useIsLightThemeStored} from "@/ui-components/theme";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {injectStyle} from "@/Unstyled";
+import {ApplicationGroupLogo} from "@/Applications/AppStoreApi";
+import {callAPI} from "@/Authentication/DataHook";
+import {ProceduralLogo} from "@/Applications/ProceduralLogo";
 
 interface AppToolLogoProps {
     name: string;
@@ -10,6 +12,9 @@ interface AppToolLogoProps {
     type: LogoType;
     isLightOverride?: boolean;
     cacheBust?: string;
+    logo?: ApplicationGroupLogo;
+    title?: string;
+    groupId?: number | null;
 }
 
 export type LogoType = "APPLICATION" | "TOOL" | "GROUP";
@@ -18,6 +23,23 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
     let isLight = useIsLightThemeStored();
     if (props.isLightOverride !== undefined) isLight = props.isLightOverride;
     const size = props.size !== undefined ? props.size : "48px";
+    const isCustom = props.type === "GROUP" ? parseInt(props.name) < 0 : props.type === "APPLICATION" && props.name.startsWith("custom-");
+    const [customLogo, setCustomLogo] = useState<ApplicationGroupLogo | null>(null);
+
+    useEffect(() => {
+        if (props.logo || !isCustom) {
+            setCustomLogo(null);
+            return;
+        }
+        let didCancel = false;
+        setCustomLogo(null);
+        callAPI(AppStore.retrieveCustomLogo(props.type === "GROUP" || (props.groupId ?? 0) < 0
+            ? {groupId: props.type === "GROUP" ? parseInt(props.name) : props.groupId!}
+            : {applicationName: props.name}))
+            .then(logo => { if (!didCancel) setCustomLogo(logo); })
+            .catch(() => { if (!didCancel) setCustomLogo(null); });
+        return () => { didCancel = true; };
+    }, [isCustom, props.logo, props.name, props.type, props.groupId, props.cacheBust]);
 
     const [dataUrl, setDataUrl] = useState<string | null | "loading">("loading");
     useEffect(() => {
@@ -25,7 +47,7 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
         setDataUrl("loading");
         /* NOTE(jonas): `props.name` is sometimes an empty string, why? */
         if (!props.name) return;
-        if (props.type === "TOOL") {
+        if (props.type === "TOOL" || isCustom || props.logo) {
             setDataUrl(null);
         } else {
             (async () => {
@@ -50,7 +72,12 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
         return () => {
             didCancel = true;
         };
-    }, [props.name, isLight, props.cacheBust]);
+    }, [props.name, props.type, props.logo, isCustom, isLight, props.cacheBust]);
+
+    const proceduralLogo = props.logo ?? customLogo;
+    if (proceduralLogo) {
+        return <ProceduralLogo logo={proceduralLogo} size={size} isLightOverride={isLight} title={props.title} />;
+    }
 
     if (dataUrl == null || dataUrl === "loading") {
         const hash = hashF(props.name);
@@ -134,31 +161,28 @@ export const AppLogo = ({size, hash}: { size: string, hash: number }): React.Rea
     return <AppLogoRaw rot={rot[i3]} color1Offset={i1} color2Offset={i2} appC={appC} size={size} />;
 };
 
-const SafeLogoStyle = injectStyle("safe-app-logo", k => `
-    ${k} {
-        display: flex;
-        background: var(--appLogoBackground);
-        padding: 4px;
-        border-radius: 5px;
-        border: var(--backgroundCardBorder);
-        align-items: center;
-        justify-content: center;
-    }
-`);
 export const SafeLogo: React.FunctionComponent<{
     name: string;
     type: "APPLICATION" | "TOOL" | "GROUP";
     size: string;
     isLightOverride?: boolean;
     cacheBust?: string;
+    logo?: ApplicationGroupLogo;
+    title?: string;
+    groupId?: number | null;
 }> = props => {
     const sizeInPixels = parseInt(props.size.toString().replace("px", ""));
-    const paddingInPixels = sizeInPixels / 8;
+    const hasPixelSize = Number.isFinite(sizeInPixels);
+    const padding = hasPixelSize ? `${sizeInPixels / 8}px` : `calc(${props.size} / 8)`;
+    const outerSize = hasPixelSize ? `${sizeInPixels + sizeInPixels / 4}px` : undefined;
+    const isCustom = props.logo != null || props.type === "GROUP" && parseInt(props.name) < 0 || props.type === "APPLICATION" && props.name.startsWith("custom-");
     return <div
-        style={{padding: `${paddingInPixels}px`, width: `${sizeInPixels + paddingInPixels * 2}px`, textAlign: "center"}}
+        style={isCustom
+            ? {padding, width: outerSize, height: outerSize, boxSizing: "border-box", textAlign: "center", lineHeight: 0, display: "flex", alignItems: "center", justifyContent: "center"}
+            : {padding: `${sizeInPixels / 8}px`, width: `${sizeInPixels + sizeInPixels / 4}px`, textAlign: "center"}}
     >
         <AppToolLogo size={props.size} name={props.name} type={props.type} isLightOverride={props.isLightOverride}
-                     cacheBust={props.cacheBust}/>
+                      cacheBust={props.cacheBust} logo={props.logo} title={props.title} groupId={props.groupId}/>
     </div>;
 }
 

@@ -3,16 +3,18 @@ import * as React from "react";
 
 import {callAPI} from "@/Authentication/DataHook";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {Box, Button, Flex, Icon, Text, TextArea,} from "@/ui-components";
+import {Box, Button, Flex, Icon, Link, Text, TextArea,} from "@/ui-components";
+import AppRoutes from "@/Routes";
 import {Toggle} from "@/ui-components/Toggle";
 import UcxView, {UcxComponentRegistry, UcxFunctionRegistry, UcxRenderContext, UcxSpinner} from "@/UCX/UcxView";
 import {UiNode, Value, ValueKind} from "@/UCX/protocol";
-import {copyToClipboard, doNothing, extensionFromPath, extensionType, typeFromMime} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, extensionFromPath, extensionType, stopPropagation, stopPropagationAndPreventDefault, typeFromMime} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {sendFailureNotification} from "@/Notifications";
-import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
+import {Operation, Operations} from "@/ui-components/Operation";
 import {openPlayground} from "./api";
 import {sizeToString} from "@/Utilities/FileUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
 import {usePage} from "@/Navigation/Redux";
@@ -30,6 +32,7 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {IconName} from "@/ui-components/Icon";
 import {inferenceThreadStore} from "./ThreadStore";
+import { findDomAttributeFromAncestors } from "@/Utilities/HTMLUtilities";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -541,6 +544,7 @@ type PlaygroundFrameProps = {
     loadingSession?: boolean;
     error?: string;
     connectionStatus?: string;
+    noAllocation?: boolean;
 };
 
 const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k => `
@@ -613,10 +617,13 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
         margin-top: 16px;
     }
 
+    ${k} .threads-popover-toggle {
+        display: none;
+    }
+
     @media (max-width: 900px) {
         ${k} .playground-body {
             height: auto;
-            min-height: calc(100vh - 174px);
             flex-direction: column;
         }
 
@@ -624,12 +631,79 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
             min-height: 62vh;
         }
 
-        ${k} .playground-sidebar {
-            width: 100%;
+        ${k} .playground-body {
+            height: calc(100vh - 116px);
         }
 
-        ${k} .playground-sidebar[data-collapsed="true"] {
-            width: 64px;
+        ${k} {
+            --popOverWidth: min(400px, 100vw - var(--sidebarWidth) - 42px);
+        }
+
+        ${k} .threads-popover-toggle {
+            position: fixed;
+            top: 20vh;
+            display: block;
+            right: -1px;
+            width: 42px;
+            cursor: pointer;
+            height: 42px;
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+            background: var(--backgroundDefault);
+            border: 1px solid var(--borderColor);
+            padding-left: 8px;
+            padding-top: 6px;
+            transition: right 0.25s cubic-bezier(0.5,1,0.5,1);
+        }
+
+        ${k} .threads-popover-toggle[data-open=true] {
+            right: calc(var(--popOverWidth) - 1px);
+            border-right: 0;
+        }
+
+        ${k} .playground-sidebar {
+            position: fixed;
+            top: 0;
+            right: calc(0px - var(--popOverWidth));
+            width: var(--popOverWidth);
+            height: 100%;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            transition: right 0.25s cubic-bezier(0.5,1,0.5,1);
+        }
+
+        ${k} .playground-sidebar[data-open=true] {
+            right: 0;
+        }
+    }
+
+    @media (max-width: 500px) {
+        ${k} {
+            margin: -16px;
+            height: 100vh;
+        }
+
+        ${k} > div {
+            border-radius: 0;
+            height: 100%;
+        }
+
+        ${k} > div > div {
+            height: 100%;
+        }
+
+        ${k} div.playground-main {
+            border: none;
+            padding: 0;
+            padding-bottom: 1px;
+        }
+
+        ${k} .playground-body {
+            height: calc(100vh - 76px);
+        }
+
+        ${k} .playground-main .${ComposerActionButtonHoverClass} > div {
+            overflow-x: scroll;
         }
     }
 `);
@@ -929,13 +1003,13 @@ function formatResponseDuration(startedAt: number, finishedAt: number): string {
 
 function formatDuration(ms: number): string {
     if (ms <= 0) return "Unknown";
-    if (ms < 1000) return `${Math.round(ms)} ms`;
-    return `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)} s`;
+    if (ms < 1000) return `${formatNumber(Math.round(ms))} ms`;
+    return `${formatNumber(ms / 1000, {precision: ms < 10000 ? 1 : 0, removeTrailingZeros: true})} s`;
 }
 
 function formatTokensPerSecond(outputTokens: number, firstTokenAt: number, finishedAt: number): string {
     if (outputTokens <= 0 || firstTokenAt <= 0 || finishedAt <= firstTokenAt) return "Unknown";
-    return `${(outputTokens / ((finishedAt - firstTokenAt) / 1000)).toFixed(1)} toks/s`;
+    return `${formatNumber(outputTokens / ((finishedAt - firstTokenAt) / 1000), {precision: 1})} tok/s`;
 }
 
 const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, streaming}: {text: string; streaming: boolean}): React.ReactNode {
@@ -1419,15 +1493,14 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
 }
 
 function ThreadListNode({
-                            node,
-                            model,
-                            fn,
+    node,
+    model,
+    fn,
 }: Pick<UcxRenderContext, "node" | "model" | "fn">): React.ReactNode {
     const [operations, setOperations] = React.useState<
         Operation<ThreadListItem>[]
     >([]);
-    const openOperationsRef =
-        React.useRef<(left: number, top: number) => void>(doNothing);
+    const openOperationsRef = React.useRef<(left: number, top: number) => void>(doNothing);
     const threads = threadListValue(fn.modelValue(model, node.bindPath));
     const currentThreadId = stringValue(fn.modelValue(model, "currentThreadId"));
     const loadingThreadIds = stringListValue(fn.modelValue(model, "loadingThreadIds"));
@@ -1437,7 +1510,6 @@ function ThreadListNode({
             {
                 text: "Rename",
                 icon: "heroPencil",
-                shortcut: ShortcutKey.R,
                 enabled: () => true,
                 onClick: async () => {
                     try {
@@ -1467,7 +1539,6 @@ function ThreadListNode({
                 confirm: true,
                 confirmationText: "Are you sure you want to delete this thread?",
                 confirmationButtonText: "Delete",
-                shortcut: ShortcutKey.Backspace,
                 enabled: () => true,
                 onClick: () =>
                     fn.sendUiEvent("deleteThread", "click", {
@@ -1584,8 +1655,9 @@ function ThreadListNode({
     );
 }
 
-function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSession = false, error = ""}: PlaygroundFrameProps): React.ReactNode {
+function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSession = false, error = "", noAllocation = false}: PlaygroundFrameProps): React.ReactNode {
     const connectionStatus = loadingSession || !mounted ? "Connecting..." : !connected ? "Reconnecting..." : error !== "" ? "Connection issue" : "Connected";
+    const disabledReason = noAllocation ? "You need to apply for resources before you can use the chat" : "";
 
     return (
         <MainContainer
@@ -1600,7 +1672,13 @@ function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSess
                         </>}
                     >
                         <TabbedCardTab name="Chat" icon="heroChatBubbleLeftRight">
-                            <PlaygroundWorkspace model={model} fn={fn} connected={connected && mounted && error === ""} connectionStatus={connectionStatus}/>
+                            <PlaygroundWorkspace
+                                model={model}
+                                fn={fn}
+                                connected={connected && mounted && error === ""}
+                                connectionStatus={connectionStatus}
+                                disabledReason={disabledReason}
+                            />
                         </TabbedCardTab>
                     </TabbedCard>
                 </div>
@@ -1611,15 +1689,16 @@ function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSess
 
 function DeveloperModeToggle({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
     const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
-    return <div style={{display: "flex", alignItems: "center", gap: 8, marginRight: 16}}>
+    return <Flex style={{alignItems: "center", gap: 8, marginRight: 16}} className={ResponsiveHide}>
         <span style={{fontWeight: 600, userSelect: "none"}}>Developer</span>
         <Toggle height={18} checked={developer} onChange={() => connected && fn?.sendModelInput("developer", {kind: ValueKind.Bool, bool: !developer}, "developerMode")}/>
-    </div>;
+    </Flex>;
 }
 
-function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string}): React.ReactNode {
+function PlaygroundWorkspace({model, fn, connected, connectionStatus, disabledReason = ""}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string; disabledReason?: string}): React.ReactNode {
     const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
     const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+    const [showThreads, setShowThreads] = React.useState(false);
     const threads = threadListValue(fn?.modelValue(model, "threads") ?? model.threads);
     const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
     const pendingNewThreadRef = React.useRef<Set<string> | null>(null);
@@ -1644,13 +1723,34 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
         function onResize() {
             if (window.innerWidth < 900) {
                 setSidebarCollapsed(false);
+            } else {
+                setShowThreads(false);
             }
         }
 
+        function closeThreads(e: Event) {
+            if (!e.target) return;
+            if (findDomAttributeFromAncestors(e.target, "data-open") == null) {
+                setShowThreads(false);
+            }
+        }
+
+        const routerWrapper = document.querySelector("[data-component='main']");
+        if (routerWrapper) {
+            routerWrapper.addEventListener("click", closeThreads)
+        }
+
         window.addEventListener("resize", onResize);
-        return () => window.removeEventListener("resize", onResize);
+        return () => {
+            window.removeEventListener("resize", onResize);
+            const routerWrapper = document.querySelector("[data-component='router-wrapper']");
+            if (routerWrapper) { routerWrapper.removeEventListener("click", closeThreads); }
+        }
     }, []);
 
+    React.useEffect(() => {
+        setShowThreads(false);
+    }, [currentThreadId]);
 
     const newThread = () => {
         if (!connected || !fn) return;
@@ -1665,9 +1765,9 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
     return (
         <div className="playground-body">
             <div className="playground-main">
-                <PlaygroundConversation model={model} fn={fn} connected={connected}/>
+                <PlaygroundConversation model={model} fn={fn} connected={connected} disabledReason={disabledReason}/>
             </div>
-            <div className="playground-sidebar" data-collapsed={sidebarCollapsed}>
+            <div className="playground-sidebar" onClick={stopPropagation} data-open={showThreads} data-collapsed={sidebarCollapsed}>
                 {sidebarCollapsed ? (
                     <CollapsedPlaygroundSidebar connected={connected} connectionStatus={connectionStatus} onExpand={() => setSidebarCollapsed(false)} onNewThread={developer ? undefined : newThread}/>
                 ) : developer ? (
@@ -1675,6 +1775,12 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
                 ) : (
                     <PlaygroundThreadSidebar model={model} fn={fn} connected={connected} footer={footer} onCollapse={() => setSidebarCollapsed(true)} onNewThread={newThread}/>
                 )}
+            </div>
+            <div className="threads-popover-toggle" data-open={showThreads} onClick={e => {
+                e.stopPropagation();
+                setShowThreads(t => !t);
+            }}>
+                <Icon name="heroListBullet" size={28} />
             </div>
         </div>
     );
@@ -1697,7 +1803,7 @@ function CollapsedPlaygroundSidebar({connected, connectionStatus, onExpand, onNe
 }
 
 function ConnectionStatusIndicator({connected, text, compact = false}: {connected: boolean; text: string; compact?: boolean}): React.ReactNode {
-    return <div style={{marginTop: "auto", display: "flex", alignItems: "center", justifyContent: compact ? "center" : undefined, gap: compact ? 0 : 8, color: "var(--textSecondary)", fontSize: 12}}>
+    return <div style={{marginTop: "auto", marginBottom: compact ? 10 : undefined, display: "flex", alignItems: "center", justifyContent: compact ? "center" : undefined, gap: compact ? 0 : 8, color: "var(--textSecondary)", fontSize: 12}}>
         <Tooltip tooltipContentWidth={160} trigger={<div style={{width: 8, height: 8, borderRadius: 999, background: connected ? "var(--successMain)" : "var(--warningMain)"}}/>}>
             {text}
         </Tooltip>
@@ -1733,14 +1839,14 @@ function ContextWindowIndicator({model, fn}: {model: Record<string, Value>; fn?:
 
 }
 
-function PlaygroundConversation({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
+function PlaygroundConversation({model, fn, connected, disabledReason = ""}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; disabledReason?: string}): React.ReactNode {
     const messagesValue = fn?.modelValue(model, "chat.messages") ?? model["chat.messages"];
     const messageItems = messagesValue?.kind === ValueKind.List ? messagesValue.list : [];
     const streamingValue = fn?.modelValue(model, "chat.streamingMessages") ?? model["chat.streamingMessages"];
     const streamingItems = streamingValue?.kind === ValueKind.List ? streamingValue.list : [];
     const streamingThreadId = stringValue(fn?.modelValue(model, "chat.streamingThreadId") ?? model["chat.streamingThreadId"]);
     const loading = boolValue(fn?.modelValue(model, "chat.loading") ?? model["chat.loading"]);
-    const developmentMode = boolValue(fn?.modelValue(model, "developmentMode") ?? model.developmentMode);
+    const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
     const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
     const modelsValue = fn?.modelValue(model, "models") ?? model.models;
     const modelOptions = React.useMemo(() => textGenerationModelOptions(modelsValue), [modelsValue]);
@@ -1802,7 +1908,7 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
             disabled: {kind: ValueKind.Bool, bool: !connected || loading},
             streamingThreadId: {kind: ValueKind.String, string: streamingThreadId === currentThreadId ? currentThreadId : ""},
         },
-    }), [connected, developmentMode, loading, streamingThreadId, currentThreadId]);
+    }), [connected, loading, streamingThreadId, currentThreadId]);
 
     return (
         <>
@@ -1818,20 +1924,24 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
                 style={{flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 8px"}}
             >
                 <div ref={contentRef}>
-                    {messages.length === 0 ? <Text color="textSecondary">No messages yet.</Text> : messages.map((message) => {
+                    {disabledReason !== "" ? (
+                        <NoAllocationNotice reason={disabledReason}/>
+                    ) : messages.length === 0 ? (
+                        <Text color="textSecondary">No messages yet.</Text>
+                    ) : messages.map((message) => {
                         if (!fn) return null;
                         return <ChatMessageNode key={message.key} message={message} modelOptions={modelOptions} currentModelId={currentModelId} fn={fn}/>;
                     })}
                     {loading ? <UcxSpinner /> : null}
                 </div>
             </div>
-            {fn ? playgroundComponents.inference_chat_composer({
+            {fn && !developer ? playgroundComponents.inference_chat_composer({
                 node: composerNode,
                 model,
                 fn,
                 components: playgroundComponents,
                 renderChildren: () => [],
-            }) : <DisabledComposerPlaceholder/>}
+            }) : <DisabledComposerPlaceholder disabledReason={developer ? "You cannot send messages in developer mode" : disabledReason}/>}
         </>
     );
 }
@@ -1844,18 +1954,18 @@ function scrollPlaygroundConversationToBottom(el: HTMLElement): void {
     el.scrollTop = el.scrollHeight;
 }
 
-function DisabledComposerPlaceholder(): React.ReactNode {
-    return <Box className={ComposerActionButtonHoverClass} style={{width: "100%", flexShrink: 0, minHeight: 104, border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 16, background: "var(--playground-surface, var(--backgroundDefault))", overflow: "hidden"}}>
+function DisabledComposerPlaceholder({disabledReason = ""}: {disabledReason?: string}): React.ReactNode {
+    return <Box className={ComposerActionButtonHoverClass} style={{width: "100%", flexShrink: 0, minHeight: 104, border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 16, background: "var(--playground-surface, var(--backgroundDefault))", overflow: "hidden", opacity: 0.75}}>
         <TextArea
             resize="none"
             rows={3}
-            placeholder="Ask anything"
+            placeholder={disabledReason === "" ? "Ask anything" : disabledReason}
             value=""
             disabled
             onChange={doNothing}
-            style={{resize: "none", border: 0, boxShadow: "none", background: "transparent", width: "100%", minHeight: 0, padding: "14px 16px 8px 16px"}}
+            style={{resize: "none", border: 0, boxShadow: "none", background: "transparent", width: "100%", minHeight: 0, padding: "14px 16px 8px 16px", color: "var(--textSecondary)"}}
         />
-        <div style={{display: "flex", alignItems: "center", gap: 6, flexShrink: 0, padding: "0 10px 10px 10px"}}>
+        <div style={{display: "flex", alignItems: "center", gap: 6, flexShrink: 0, padding: "0 10px 10px 10px", color: "var(--textSecondary)"}}>
             <button type="button" disabled className={ComposerActionButtonClass}>
                 <Icon name="heroPlus" size={18}/>
             </button>
@@ -1865,6 +1975,19 @@ function DisabledComposerPlaceholder(): React.ReactNode {
             </button>
         </div>
     </Box>;
+}
+
+function NoAllocationNotice({reason}: {reason: string}): React.ReactNode {
+    return <Flex flexDirection="column" alignItems="center" justifyContent="center" gap="16px" style={{flex: 1, textAlign: "center"}}>
+        <Icon name="heroChatBubbleLeftRight" size={48} color="textSecondary"/>
+        <div>
+            <div style={{fontWeight: 600, marginBottom: 8}}>{reason}</div>
+            <Text color="textSecondary">Apply for resources to get access to AI models and start chatting.</Text>
+        </div>
+        <Link to={AppRoutes.grants.editor()}>
+            <Button type="button">Apply for resources</Button>
+        </Link>
+    </Flex>;
 }
 
 function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNewThread}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void; onNewThread: () => void}): React.ReactNode {
@@ -1907,7 +2030,7 @@ const ResponsiveHide = injectStyle("responsive-hide", cl => `
 `);
 
 function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void}): React.ReactNode {
-    return <PlaygroundSidebarShell header={<IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="heroChevronRight"/>} footer={footer}>
+    return <PlaygroundSidebarShell header={<div className={ResponsiveHide}><IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/></div>} footer={footer}>
         <Section title="Settings" defaultOpen>
             <SettingToggle label="Streaming" path="chat.streaming" model={model} fn={fn} connected={connected}/>
             <SettingSlider label="Max completion tokens" path="chat.maxCompletionTokens" min={1} max={1024 * 256} step={1024} model={model} fn={fn} connected={connected} integer/>
@@ -1915,7 +2038,16 @@ function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: 
             <SettingSlider label="Top P" path="chat.topP" min={0} max={1} step={0.1} model={model} fn={fn} connected={connected}/>
             <SettingTextArea label="System prompt" path="chat.systemPrompt" model={model} fn={fn} connected={connected}/>
         </Section>
-        <Section title="Usage" defaultOpen>
+        <Section title="Advanced settings">
+            <SettingSlider label="Presence penalty" path="chat.presencePenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
+            <SettingSlider label="Frequency penalty" path="chat.frequencyPenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
+            <SettingToggle label="Logprobs" path="chat.logprobs" model={model} fn={fn} connected={connected}/>
+            <SettingSlider label="Top log probs" path="chat.topLogprobs" min={0} max={20} step={1} model={model} fn={fn} connected={connected} integer/>
+        </Section>
+        <Section title="Curl" defaultOpen>
+            <CodeSnippet lang="bash" maxHeight="40vh">{stringValue(fn?.modelValue(model, "chat.curl") ?? model["chat.curl"])}</CodeSnippet>
+        </Section>
+        <Section title="Usage">
             <UsageRow label="Session input tokens" value={numberValue(fn?.modelValue(model, "chat.usage.session.input") ?? model["chat.usage.session.input"])}/>
             <UsageRow label="Session cached input tokens" value={numberValue(fn?.modelValue(model, "chat.usage.session.cachedInput") ?? model["chat.usage.session.cachedInput"])}/>
             <UsageRow label="Session output tokens" value={numberValue(fn?.modelValue(model, "chat.usage.session.output") ?? model["chat.usage.session.output"])}/>
@@ -1925,26 +2057,17 @@ function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: 
             <UsageRow label="Latest output tokens" value={numberValue(fn?.modelValue(model, "chat.usage.lastQuery.output") ?? model["chat.usage.lastQuery.output"])}/>
             <UsageRow label="Latest tokens reported for usage" value={numberValue(fn?.modelValue(model, "chat.usage.lastQuery.reported") ?? model["chat.usage.lastQuery.reported"])}/>
         </Section>
-        <Section title="Advanced settings">
-            <SettingSlider label="Presence penalty" path="chat.presencePenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
-            <SettingSlider label="Frequency penalty" path="chat.frequencyPenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
-            <SettingToggle label="Logprobs" path="chat.logprobs" model={model} fn={fn} connected={connected}/>
-            <SettingSlider label="Top log probs" path="chat.topLogprobs" min={0} max={20} step={1} model={model} fn={fn} connected={connected} integer/>
-        </Section>
-        <Section title="Curl">
-            <pre style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: 12}}>{stringValue(fn?.modelValue(model, "chat.curl") ?? model["chat.curl"])}</pre>
-        </Section>
     </PlaygroundSidebarShell>;
 }
 
 function Section({title, defaultOpen = false, children}: React.PropsWithChildren<{title: string; defaultOpen?: boolean}>): React.ReactNode {
     const [open, setOpen] = React.useState(defaultOpen);
-    return <div style={{border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 10}}>
-        <button type="button" onClick={() => setOpen(v => !v)} style={{width: "100%", border: 0, background: "transparent", color: "inherit", padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontWeight: 600}}>
+    return <div>
+        <button type="button" onClick={() => setOpen(v => !v)} style={{width: "100%", border: 0, background: "transparent", color: "inherit", padding: "6px 4px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontWeight: 600}}>
             {title}
             <Icon name={open ? "heroChevronUp" : "heroChevronDown"} size={16}/>
         </button>
-        {open ? <div style={{display: "flex", flexDirection: "column", gap: 10, padding: "0 12px 12px 12px"}}>{children}</div> : null}
+        {open ? <div style={{display: "flex", flexDirection: "column", gap: 10, padding: "4px 4px 8px 4px"}}>{children}</div> : null}
     </div>;
 }
 
@@ -1962,7 +2085,7 @@ function SettingSlider({label, path, min, max, step, model, fn, connected, integ
     React.useEffect(() => setValue(modelNumber), [modelNumber]);
     const commit = (next: number) => fn?.sendModelInput(path, integer ? {kind: ValueKind.S64, s64: Math.round(next)} : {kind: ValueKind.F64, f64: next}, path);
     return <label style={{display: "flex", flexDirection: "column", gap: 4}}>
-        <span style={{display: "flex", justifyContent: "space-between", gap: 8}}><span>{label}</span><span>{integer ? Math.round(value) : value.toFixed(1)}</span></span>
+        <span style={{display: "flex", justifyContent: "space-between", gap: 8}}><span>{label}</span><span>{integer ? formatNumber(Math.round(value), {withThousandsSeparator: false}) : formatNumber(value, {precision: 1})}</span></span>
         <input disabled={!connected || !fn} type="range" min={min} max={max} step={step} value={value || min} onChange={ev => { const next = Number(ev.currentTarget.value); setValue(next); commit(next); }}/>
     </label>;
 }
@@ -1985,6 +2108,7 @@ export default function Playground(): React.ReactNode {
     const [session, setSession] = React.useState<PlaygroundSession | null>(null);
     const [loading, setLoading] = React.useState(true);
     const [terminalError, setTerminalError] = React.useState("");
+    const [noAllocation, setNoAllocation] = React.useState(false);
     const [refreshNonce, setRefreshNonce] = React.useState(0);
     const [lastModel, setLastModel] = React.useState<Record<string, Value>>({});
     const openRetryCountRef = React.useRef(0);
@@ -2007,6 +2131,7 @@ export default function Playground(): React.ReactNode {
         openRetryCountRef.current = 0;
         setLastModel({});
         setSession(null);
+        setNoAllocation(false);
         setRefreshNonce((x) => x + 1);
     }, [projectId]);
 
@@ -2025,15 +2150,21 @@ export default function Playground(): React.ReactNode {
                 setSession(result);
                 setLoading(false);
                 setTerminalError("");
+                setNoAllocation(false);
             })
-            .catch((err) => {
+            .catch((err: any) => {
                 if (cancelled) return;
                 setLoading(false);
-                setTerminalError(
-                    err instanceof Error
-                        ? err.message
-                        : "Failed to open the inference playground"
-                );
+                const why = typeof err?.response?.why === "string" && err.response.why !== ""
+                    ? err.response.why
+                    : "Failed to open the inference playground";
+                setTerminalError(why);
+                const statusCode = typeof err?.request?.status === "number" ? err.request.status : 0;
+                const permanent = statusCode >= 400 && statusCode < 500;
+                if (permanent) {
+                    setNoAllocation(statusCode === 402);
+                    return;
+                }
                 const retry = openRetryCountRef.current++;
                 const retryDelay = Math.min(30000, 1000 * Math.pow(2, Math.min(retry, 5)));
                 openRetryTimerRef.current = window.setTimeout(() => {
@@ -2089,6 +2220,7 @@ export default function Playground(): React.ReactNode {
                 mounted={false}
                 loadingSession={loading}
                 error={loading ? "" : (terminalError || "Unable to open inference playground.")}
+                noAllocation={noAllocation}
             />
         );
     }
@@ -2245,12 +2377,12 @@ function modelReasoningEfforts(model: Record<string, Value>, modelName: string):
 function compactTokenCount(tokens: number): string {
     if (tokens >= 1_000_000) {
         const value = tokens / 1_000_000;
-        return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)}M`;
+        return `${formatNumber(value, {precision: value >= 10 ? 0 : 1})}M`;
     }
     if (tokens >= 1_000) {
         return `${Math.round(tokens / 1_000)}K`;
     }
-    return tokens.toLocaleString();
+    return formatNumber(tokens);
 }
 
 async function detectPlaygroundAttachmentKind(file: File): Promise<PlaygroundAttachmentKind> {

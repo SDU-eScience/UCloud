@@ -12,7 +12,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import ModelInferenceLogo, {modelProviderName} from "@/Inference/ModelLogo";
 import {injectStyle} from "@/Unstyled";
 import {LineCappedMarkdown} from "@/ui-components/Markdown";
-// import HeroImage from "@/ui-components/icons/logo_esc.svg";
+import {formatNumber, formatPricePerMillionCredits} from "@/Utilities/NumberFormatting";
 import HeroImage from "@/Assets/Images/inference/ucloud-ai-logo.png";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {useIsLightThemeStored} from "@/ui-components/theme";
@@ -748,7 +748,7 @@ export default function Models(): React.ReactNode {
             <div className="panel-inner">
                 <div className="section-heading">
                     <div>
-                        <h2>Consume models your way</h2>
+                        <h2>Using the models</h2>
                         <p>Start in the browser, automate through UCloud jobs, or connect existing tools to the compatible endpoint.</p>
                     </div>
                 </div>
@@ -775,7 +775,7 @@ export default function Models(): React.ReactNode {
         <section className="panel panel-accent">
             <div className="panel-inner cta">
                 <div>
-                    <h2>Ready to build with hosted inference?</h2>
+                    <h2>Ready to get started?</h2>
                     <p>Open the chat to test a model, or use the catalog to find details and integration settings.</p>
                 </div>
                 <div className="cta-actions">
@@ -793,9 +793,7 @@ export default function Models(): React.ReactNode {
 
 function formatPricePerMillion(value: number): string {
     if (value === 0) return "Free";
-    const digits = Math.trunc(value).toString().padStart(7, "0");
-    const fraction = digits.slice(-6).replace(/0+$/, "");
-    return fraction === "" ? digits.slice(0, -6) : `${digits.slice(0, -6)}.${fraction}`;
+    return formatPricePerMillionCredits(value, {precision: 2, minDecimalsAfterTrim: 2});
 }
 
 function CatalogFilterButton(props: React.PropsWithChildren<{active: boolean; onClick: () => void; className?: string;}>): React.ReactNode {
@@ -878,7 +876,7 @@ function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {
 
         <div className={"model-spec-section"}>
             <div className="model-specs">
-                <ModelMetric title="Context" value={model.contextWindow?.toLocaleString() ?? "-"} />
+                <ModelMetric title="Context" value={model.contextWindow != null ? formatNumber(model.contextWindow) : "-"} />
                 <ModelMetric title="Parameters" value={model.page?.datasheet?.parameters ?? "-"} />
             </div>
 

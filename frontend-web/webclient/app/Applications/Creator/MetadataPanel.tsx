@@ -21,11 +21,11 @@ import {IconButton} from "@/ui-components/IconButton";
 import Icon, {IconName} from "@/ui-components/Icon";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {injectStyle} from "@/Unstyled";
-import {A2Yaml, A2Software, A2Features, A2SshMode, A2Inference, A2ApplicationToLoad} from "@/Applications/Creator/A2";
-import {CreatorDraft, CreatorCustomMeta, creatorIsCustom, creatorIsEditableName, creatorIsEditableVersion} from "@/Applications/Creator/Draft";
-import {PanelSection, ToggleRow, InfoDot} from "@/Applications/Creator/ParameterPanelShared";
-import {WIDGET_DRAWER_ITEMS, WidgetDrawerGroup} from "@/Applications/Creator/WidgetDefaults";
+import {A2Yaml, A2Software, A2Features, A2SshMode, A2Inference, A2ApplicationToLoad, CreatorCreatedGroup, CreatorDraft, CreatorCustomMeta, creatorIsCustom, creatorIsEditableName, creatorIsEditableVersion} from "@/Applications/Creator/Draft";
+import {PanelSection, ToggleRow, InfoDot} from "@/Applications/Creator/ParameterPanel";
+import {WIDGET_DRAWER_ITEMS, WidgetDrawerGroup, A2WidgetType} from "@/Applications/Creator/DraftOperations";
 import type {
+    ApplicationGroupLogo,
     AppCatalogCustomCategory,
     AppCatalogCustomGroup,
     AppEditorCustomEligibilityResponse,
@@ -37,13 +37,12 @@ import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {RichSelectProps} from "@/ui-components/RichSelect";
 import {MandatoryField} from "@/UtilityComponents";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {fileSelectorModalStyle, slimModalStyle} from "@/Utilities/ModalUtilities";
+import {defaultModalStyle, fileSelectorModalStyle, largeModalStyle, slimModalStyle} from "@/Utilities/ModalUtilities";
 import {callAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
-import {fetchAll} from "@/Utilities/PageUtilities";
 import {doNothing, extractErrorMessage, isLikelyMac, stopPropagation} from "@/UtilityFunctions";
 import {FieldGroup, FieldRow} from "@/Applications/Jobs/Widgets";
-import {KeyboardNavigation, SubmitShortcut} from "@/Applications/KeyboardNavigation";
+import {FORM_NAVIGATION_SELECTOR, KeyboardNavigation, SubmitShortcut} from "@/Applications/KeyboardNavigation";
 import {sendFailureNotification} from "@/Notifications";
 import * as Heading from "@/ui-components/Heading";
 import {Divider} from "@/ui-components";
@@ -51,6 +50,20 @@ import {useGlobal} from "@/Utilities/ReduxHooks";
 import {LineCappedMarkdown} from "@/ui-components/Markdown";
 import ContainerRepositoryBrowse from "@/ContainerRepositories/Browse";
 import {customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
+import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
+import {ApplicationGroupLogoDialog, ApplicationGroupLogoEditor, CustomGroupEditDialog, defaultApplicationGroupLogo} from "@/Applications/ProceduralLogo";
+import {Client} from "@/Authentication/HttpClientInstance";
+
+const LogoEditorModalStyle = {
+    ...defaultModalStyle,
+    content: {
+        ...defaultModalStyle.content,
+        top: "50%",
+        transform: "translate(-50%, -50%)",
+        height: "min(820px, calc(100vh - 20px))",
+        minHeight: undefined,
+    },
+};
 
 export interface MetadataPanelProps {
     draft: CreatorDraft;
@@ -70,12 +83,12 @@ export interface MetadataPanelProps {
     onUpdateEnvironment: (environment: Record<string, string>) => void;
     onUpdateSbatch: (sbatch: Record<string, string>) => void;
     onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
-    onAddParameter: (type: import("@/Applications/Creator/WidgetDefaults").A2WidgetType) => void;
+    onAddParameter: (type: A2WidgetType) => void;
     customEligibility?: AppEditorCustomEligibilityResponse | null;
     customGroups?: AppCatalogCustomGroup[];
     customCategories?: AppCatalogCustomCategory[];
     refreshPlacement: () => Promise<void>;
-    onInlineCreatedGroup?: (group: {id: number; title: string; description: string} | null) => void;
+    onInlineCreatedGroup?: (group: CreatorCreatedGroup | null) => void;
 }
 
 export function MetadataPanel(props: MetadataPanelProps): React.ReactNode {
@@ -96,7 +109,7 @@ export function MetadataPanel(props: MetadataPanelProps): React.ReactNode {
                     </Text>
                 </Box>
             ) : null}
-            <PanelSection title="Metadata">
+            <PanelSection title="Metadata" id="creator-section-metadata" shortcut="M">
                 {isCustom ? (
                     <GroupFlavorSection
                         draft={draft}
@@ -312,7 +325,7 @@ function SoftwareSection(props: {
     if (isCustom) {
         const image = software.type === "Container" ? software.image : "";
         return (
-            <PanelSection title="Software">
+            <PanelSection title="Software" id="creator-section-software" shortcut="C">
                 <Label className="panel-field">
                     <span className="panel-field-label">Container image<MandatoryField /></span>
                     <ContainerImageSelector
@@ -326,7 +339,7 @@ function SoftwareSection(props: {
     }
 
     return (
-        <PanelSection title="Software">
+        <PanelSection title="Software" id="creator-section-software" shortcut="C">
             <Label className="panel-field">
                 <span className="panel-field-label">Kind</span>
                 <Select
@@ -379,6 +392,7 @@ function ContainerImageSelector(props: {
             className={CategoryFieldClass}
             onClick={openSelector}
             disabled={!props.provider}
+            data-navigation-field
             data-creator-field="software.image"
             title={props.image || "Select a container image"}
         >
@@ -480,7 +494,7 @@ function RuntimeFeaturesSection(props: {
         props.onUpdateFeatures(updated);
     };
     return (
-        <PanelSection title="Features">
+        <PanelSection title="Features" id="creator-section-features" shortcut="F">
             <FeatureToggle label="Folders" value={features.folders ?? false} onChange={() => toggle("folders")} id="feature-folders" />
             <FeatureToggle label="Links" value={features.links ?? false} onChange={() => toggle("links")} id="feature-links" />
             <FeatureToggle label="Job linking" value={features.jobLinking ?? false} onChange={() => toggle("jobLinking")} id="feature-jobLinking" />
@@ -514,7 +528,7 @@ function ConnectivitySection(props: {
     onUpdateInference: (inference: A2Yaml["inference"]) => void;
 }): React.ReactNode {
     return (
-        <PanelSection title="Connectivity">
+        <PanelSection title="Connectivity" id="creator-section-connectivity" shortcut="N">
             <WebControl application={props.application} onUpdate={props.onUpdateWeb} />
             <div className={ConnectivityDividerClass} />
             <VncControl application={props.application} onUpdate={props.onUpdateVnc} />
@@ -662,14 +676,13 @@ function InferenceControl(props: {
 const InferenceTooltipContent = (
     <>
         When enabled, UCloud creates a short-lived API token for the inference API and injects it
-        into the job. Requires an active allocation. The container receives:
+        into the job. The container receives:
         <ul>
             <li><code>UCLOUD_INFERENCE_SERVERS</code>: JSON array of <code>{"{server, token}"}</code></li>
             <li><code>UCLOUD_INFERENCE_SERVER_BASE_0</code>: API base URL of the first server</li>
             <li><code>UCLOUD_INFERENCE_SERVER_TOKEN_0</code>: Bearer token for the first server</li>
         </ul>
-        Use the token as <code>Authorization: Bearer $UCLOUD_INFERENCE_SERVER_TOKEN_0</code>. Indexes
-        increment per server.
+        Can be used via <code>Authorization: Bearer $UCLOUD_INFERENCE_SERVER_TOKEN_0</code>.
     </>
 );
 
@@ -714,32 +727,53 @@ function KeyValueEditor(props: {
     onUpdate: (values: Record<string, string>) => void;
     collapsedByDefault?: boolean;
 }): React.ReactNode {
-    const [rows, setRows] = useState<[string, string][]>(() => Object.entries(props.values));
+    const nextRowId = useRef(0);
+    const [rows, setRows] = useState(() => Object.entries(props.values).map(([key, value]) => ({
+        id: nextRowId.current++,
+        key,
+        value,
+    })));
     const [error, setError] = useState<string | null>(null);
 
     const externalKey = JSON.stringify(props.values);
-    const [lastExternal, setLastExternal] = useState(externalKey);
-    if (externalKey !== lastExternal) {
-        setLastExternal(externalKey);
-        setRows(Object.entries(props.values));
+    const lastExternal = useRef(externalKey);
+    React.useLayoutEffect(() => {
+        if (externalKey === lastExternal.current) return;
+        lastExternal.current = externalKey;
+        const externalValues = JSON.parse(externalKey) as Record<string, string>;
+        setRows(Object.entries(externalValues).map(([key, value]) => ({
+            id: nextRowId.current++,
+            key,
+            value,
+        })));
         setError(null);
-    }
+    }, [externalKey]);
 
-    const applyRows = (next: [string, string][]) => {
+    const applyRows = (next: {id: number; key: string; value: string}[]) => {
         setRows(next);
-        const {result, error: validationError} = keyValueFromEntries(next);
+        const entries: [string, string][] = next.map(row => [row.key, row.value]);
+        const {result, error: validationError} = keyValueFromEntries(entries);
         setError(validationError);
-        if (!validationError) props.onUpdate(result);
+        if (!validationError) {
+            lastExternal.current = JSON.stringify(result);
+            props.onUpdate(result);
+        }
     };
 
     const commitRow = (index: number, key: string, value: string) => {
         const next = [...rows];
-        next[index] = [key, value];
+        next[index] = {...next[index], key, value};
         applyRows(next);
     };
 
-    const addRow = () => {
-        applyRows([...rows, ["", ""]]);
+    const addRow = (event: React.MouseEvent<HTMLButtonElement>) => {
+        const section = event.currentTarget.closest<HTMLElement>("[data-panel-section]");
+        applyRows([...rows, {id: nextRowId.current++, key: "", value: ""}]);
+        window.requestAnimationFrame(() => {
+            const addedRows = section?.querySelectorAll<HTMLElement>("[data-key-value-row]");
+            const addedRow = addedRows?.[addedRows.length - 1];
+            addedRow?.querySelector<HTMLElement>(FORM_NAVIGATION_SELECTOR)?.focus();
+        });
     };
 
     const removeRow = (index: number) => {
@@ -751,21 +785,26 @@ function KeyValueEditor(props: {
             {rows.length === 0 ? (
                 <Text fontSize={12} color="textSecondary">No {props.title.toLowerCase()} values.</Text>
             ) : null}
-            {rows.map((entry, index) => {
-                const [key, value] = entry;
-                return (
-                    <KeyValueRow
-                        key={index}
-                        rowKey={key}
-                        rowValue={value}
-                        keyPlaceholder={props.keyPlaceholder}
-                        valuePlaceholder={props.valuePlaceholder}
-                        onCommit={(newKey, newValue) => commitRow(index, newKey, newValue)}
-                        onRemove={() => removeRow(index)}
-                    />
-                );
-            })}
-            <Button type="button" color="secondaryMain" onClick={addRow} mt="4px">
+            {rows.map((entry, index) => (
+                <KeyValueRow
+                    key={entry.id}
+                    rowKey={entry.key}
+                    rowValue={entry.value}
+                    keyPlaceholder={props.keyPlaceholder}
+                    valuePlaceholder={props.valuePlaceholder}
+                    onCommit={(newKey, newValue) => commitRow(index, newKey, newValue)}
+                    onRemove={() => removeRow(index)}
+                />
+            ))}
+            <Button
+                type="button"
+                color="secondaryMain"
+                className={AddValueButtonClass}
+                onClick={addRow}
+                mt="4px"
+                data-add-value
+                data-navigation-field
+            >
                 <Icon name="heroPlus" mr={6} size={14} />
                 Add value
             </Button>
@@ -784,21 +823,45 @@ function KeyValueRow(props: {
 }): React.ReactNode {
     const [key, setKey] = useState(props.rowKey);
     const [value, setValue] = useState(props.rowValue);
+    const deleting = useRef(false);
 
     React.useEffect(() => { setKey(props.rowKey); }, [props.rowKey]);
     React.useEffect(() => { setValue(props.rowValue); }, [props.rowValue]);
 
-    const commitKey = () => props.onCommit(key, value);
-    const commitValue = () => props.onCommit(key, value);
+    const commitKey = () => {
+        if (!deleting.current) props.onCommit(key, value);
+    };
+    const commitValue = () => {
+        if (!deleting.current) props.onCommit(key, value);
+    };
+    const onDeleteEmpty = (event: React.KeyboardEvent<HTMLInputElement>, fieldValue: string) => {
+        if (event.key !== "Delete" || fieldValue !== "" || event.metaKey || event.ctrlKey || event.altKey) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const section = event.currentTarget.closest<HTMLElement>("[data-panel-section]");
+        const currentRow = event.currentTarget.closest<HTMLElement>("[data-key-value-row]");
+        const rows = section ? Array.from(section.querySelectorAll<HTMLElement>("[data-key-value-row]")) : [];
+        const rowIndex = currentRow == null ? -1 : rows.indexOf(currentRow);
+        deleting.current = true;
+        props.onRemove();
+        window.requestAnimationFrame(() => {
+            const remainingRows = section ? Array.from(section.querySelectorAll<HTMLElement>("[data-key-value-row]")) : [];
+            const nextRow = remainingRows[Math.min(Math.max(0, rowIndex), remainingRows.length - 1)];
+            const nextField = nextRow?.querySelector<HTMLElement>(FORM_NAVIGATION_SELECTOR) ??
+                section?.querySelector<HTMLElement>("[data-add-value]");
+            nextField?.focus();
+        });
+    };
 
     return (
-        <div className={KeyValueRowClass}>
+        <div className={KeyValueRowClass} data-key-value-row>
             <Input
                 className={PanelInputClass}
                 value={key}
                 placeholder={props.keyPlaceholder}
                 onChange={e => setKey(e.target.value)}
                 onBlur={commitKey}
+                onKeyDown={event => onDeleteEmpty(event, key)}
             />
             <Input
                 className={PanelInputClass}
@@ -806,6 +869,7 @@ function KeyValueRow(props: {
                 placeholder={props.valuePlaceholder}
                 onChange={e => setValue(e.target.value)}
                 onBlur={commitValue}
+                onKeyDown={event => onDeleteEmpty(event, value)}
             />
             <IconButton
                 icon="heroTrash"
@@ -839,7 +903,14 @@ interface ResourceOption {
     id: number;
     title: string;
     description: string;
-    isCustom: boolean;
+}
+
+function closeAutocomplete(
+    setOpen: React.Dispatch<React.SetStateAction<boolean>>,
+    inputRef: React.RefObject<HTMLInputElement | null>,
+): void {
+    setOpen(false);
+    window.requestAnimationFrame(() => inputRef.current?.focus());
 }
 
 function GroupFlavorSection(props: {
@@ -851,11 +922,11 @@ function GroupFlavorSection(props: {
     onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
     groups?: AppCatalogCustomGroup[];
     refreshPlacement: () => Promise<void>;
-    onInlineCreated?: (group: {id: number; title: string; description: string} | null) => void;
+    onInlineCreated?: (group: CreatorCreatedGroup | null) => void;
 }): React.ReactNode {
     const {draft} = props;
     const meta = draft.customMeta;
-    const [createdGroup, setCreatedGroup] = useState<{id: number; title: string; description: string} | null>(null);
+    const [createdGroup, setCreatedGroup] = useState<AppCatalogCustomGroup | null>(null);
     if (!meta) {
         return null;
     }
@@ -863,7 +934,7 @@ function GroupFlavorSection(props: {
     const allGroups = props.groups ?? [];
     const selected = allGroups.find(group => String(group.id) === meta.group) ?? (
         createdGroup != null && String(createdGroup.id) === meta.group
-            ? {specification: {title: createdGroup.title, description: createdGroup.description}}
+            ? createdGroup
             : null
     );
 
@@ -925,48 +996,33 @@ function CustomProviderRow(props: RichSelectProps<{key: string}>): React.ReactNo
 function GroupAutocompleteField(props: {
     draft: CreatorDraft;
     groups: AppCatalogCustomGroup[];
-    createdGroup: {id: number; title: string; description: string} | null;
-    onCreatedGroup: (group: {id: number; title: string; description: string} | null) => void;
+    createdGroup: AppCatalogCustomGroup | null;
+    onCreatedGroup: (group: AppCatalogCustomGroup | null) => void;
     onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
     refreshPlacement: () => Promise<void>;
-    onInlineCreated?: (group: {id: number; title: string; description: string} | null) => void;
+    onInlineCreated?: (group: CreatorCreatedGroup | null) => void;
 }): React.ReactNode {
     const {draft} = props;
     const meta = draft.customMeta;
     const [query, setQuery] = useState("");
     const [open, setOpen] = useState(false);
     const [focused, setFocused] = useState(false);
-    const [savingEdit, setSavingEdit] = useState(false);
     const [creating, setCreating] = useState(false);
     const [highlight, setHighlight] = useState(0);
-    const [managed, setManaged] = useState<ResourceOption[] | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     const selected = props.groups.find(group => String(group.id) === meta?.group) ?? (
         props.createdGroup != null && meta != null && String(props.createdGroup.id) === meta.group
-            ? {id: props.createdGroup.id, createdAt: 0, owner: {createdBy: ""}, backedBy: undefined, specification: {title: props.createdGroup.title, description: props.createdGroup.description}}
+            ? props.createdGroup
             : null
     );
 
     React.useEffect(() => {
-        if (!open || managed != null) return;
-        let cancelled = false;
-        fetchAll<AppStore.ApplicationGroup>(next => callAPI(AppStore.browseGroups({itemsPerPage: 250, next}))).then(groups => {
-            if (cancelled) return;
-            setManaged(groups.map(group => ({
-                id: group.metadata.id,
-                title: group.specification.title,
-                description: group.specification.description ?? "",
-                isCustom: false,
-            })));
-        }).catch(() => {
-            if (!cancelled) setManaged([]);
-        });
-        return () => {
-            cancelled = true;
-        };
-    }, [open, managed]);
+        const selectedTitle = selected?.specification.title ?? "";
+        if (selectedTitle !== "") setQuery(selectedTitle);
+    }, [selected?.specification.title]);
 
     React.useEffect(() => {
         if (!open) return;
@@ -993,27 +1049,11 @@ function GroupAutocompleteField(props: {
 
     const trimmed = query.trim().toLowerCase();
 
-    const byBacked = new Map<number, number>();
-    for (const group of props.groups) {
-        if (group.backedBy != null) byBacked.set(group.backedBy, group.id);
-    }
-
-    const options: ResourceOption[] = [];
-    const seen = new Set<number>();
-    for (const option of managed ?? []) {
-        seen.add(option.id);
-        const backing = byBacked.get(option.id);
-        if (backing != null) {
-            seen.add(backing);
-            options.push({...option, id: backing, isCustom: true});
-        } else {
-            options.push(option);
-        }
-    }
-    for (const group of props.groups) {
-        if (seen.has(group.id)) continue;
-        options.push({id: group.id, title: group.specification.title, description: group.specification.description, isCustom: true});
-    }
+    const options: ResourceOption[] = props.groups.map(group => ({
+        id: group.id,
+        title: group.specification.title,
+        description: group.specification.description,
+    }));
 
     const matches = trimmed === ""
         ? options
@@ -1022,42 +1062,25 @@ function GroupAutocompleteField(props: {
             option.description.toLowerCase().includes(trimmed));
     const canCreate = trimmed !== "" && !options.some(option => option.title.toLowerCase() === trimmed);
 
-    const selectGroup = (group: {id: number; title: string; description: string; isCustom: boolean}) => {
-        if (group.isCustom) {
-            props.onUpdateCustomMeta({group: String(group.id)});
-            setQuery(group.title);
-            setOpen(false);
-            return;
-        }
-        setCreating(true);
-        callAPI(AppStore.createCustomGroup({kind: "Managed", id: group.id})).then(result => {
-            props.onCreatedGroup({id: result.id, title: group.title, description: group.description});
-            props.onInlineCreated?.({id: result.id, title: group.title, description: group.description});
-            props.onUpdateCustomMeta({group: String(result.id)});
-            setQuery(group.title);
-            setOpen(false);
-            return props.refreshPlacement();
-        }).catch(error => {
-            sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
-        }).finally(() => {
-            setCreating(false);
-        });
+    const selectGroup = (group: ResourceOption) => {
+        props.onUpdateCustomMeta({group: String(group.id)});
+        setQuery(group.title);
+        closeAutocomplete(setOpen, inputRef);
     };
 
     const openCreateDialog = () => {
         const title = query.trim();
-        const submit = async (name: string, description: string) => {
+        const submit = async (name: string, description: string, logo: ApplicationGroupLogo) => {
             setCreating(true);
             try {
                 const result = await callAPI(AppStore.createCustomGroup({
-                    kind: "Custom",
-                    specification: {title: name, description},
+                    specification: {title: name, description, logo},
                 }));
-                props.onCreatedGroup({id: result.id, title: name, description});
-                props.onInlineCreated?.({id: result.id, title: name, description});
+                props.onCreatedGroup({id: result.id, createdAt: Date.now(), owner: {createdBy: Client.username ?? ""}, specification: {title: name, description, logo}});
+                props.onInlineCreated?.({id: result.id, title: name, description, logo});
                 props.onUpdateCustomMeta({group: String(result.id)});
                 setQuery(name);
-                setOpen(false);
+                closeAutocomplete(setOpen, inputRef);
                 await props.refreshPlacement();
                 dialogStore.success();
             } catch (error) {
@@ -1067,66 +1090,85 @@ function GroupAutocompleteField(props: {
             }
         };
         dialogStore.addDialog(
-            <ResourceNameDialog
-                title="New application group"
-                placeholder="My group"
-                nameDescription="The name of the group, shown in the user-interface"
-                descriptionRequired
-                creating={creating}
+            <CustomGroupDialog
                 initialTitle={title}
-                initialDescription=""
                 onSubmit={submit}
             />,
             doNothing,
             true,
-            slimModalStyle,
+            LogoEditorModalStyle,
         );
     };
 
-    const openEditDialog = () => {
-        if (!selected || selected.backedBy == null) return;
-        const managedId = selected.backedBy;
-        const groupId = selected.id;
-        const submit = async (title: string, description: string) => {
-            setSavingEdit(true);
-            try {
-                await callAPI(AppStore.updateGroup({
-                    id: managedId,
-                    newTitle: title,
-                    newDescription: description,
-                }));
-                props.onCreatedGroup({id: groupId, title, description});
-                await props.refreshPlacement();
-                dialogStore.success();
-            } catch (error) {
-                sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
-            } finally {
-                setSavingEdit(false);
-            }
-        };
+    const openEditGroupDialog = () => {
+        if (!selected) return;
+        setOpen(false);
         dialogStore.addDialog(
-            <ResourceNameDialog
-                title="Edit application group"
-                placeholder="My group"
-                nameDescription="The name of the group, shown in the user-interface"
-                descriptionRequired
-                creating={savingEdit}
-                initialTitle={selected.specification.title}
-                initialDescription={selected.specification.description}
-                onSubmit={submit}
+            <CustomGroupEditDialog
+                group={selected}
+                onSave={async (title, description) => {
+                    await callAPI(AppStore.updateCustomGroup({id: selected.id, newTitle: title, newDescription: description}));
+                    if (props.createdGroup?.id === selected.id) {
+                        props.onCreatedGroup({
+                            ...props.createdGroup,
+                            specification: {...props.createdGroup.specification, title, description},
+                        });
+                    }
+                    await props.refreshPlacement();
+                }}
             />,
             doNothing,
             true,
-            slimModalStyle,
+            largeModalStyle,
+        );
+    };
+
+    const openLogoDialog = () => {
+        if (!selected) return;
+        setOpen(false);
+        dialogStore.addDialog(
+            <ApplicationGroupLogoDialog
+                title={selected.specification.title}
+                initialLogo={selected.specification.logo ?? defaultApplicationGroupLogo(selected.specification.title)}
+                onCancel={() => dialogStore.failure()}
+                onSave={async logo => {
+                    try {
+                        await callAPI(AppStore.updateCustomGroupLogo({id: selected.id, logo}));
+                        if (props.createdGroup?.id === selected.id) {
+                            props.onCreatedGroup({...props.createdGroup, specification: {...props.createdGroup.specification, logo}});
+                            props.onInlineCreated?.({
+                                id: props.createdGroup.id,
+                                title: props.createdGroup.specification.title,
+                                description: props.createdGroup.specification.description,
+                                logo,
+                            });
+                        }
+                        await props.refreshPlacement();
+                        dialogStore.success();
+                    } catch (error) {
+                        sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
+                    }
+                }}
+            />,
+            doNothing,
+            true,
+            LogoEditorModalStyle,
         );
     };
 
     const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Escape") {
-            setOpen(false);
+            closeAutocomplete(setOpen, inputRef);
             return;
         }
-        if (!open) return;
+        if (!open) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                setHighlight(0);
+                setOpen(true);
+            }
+            return;
+        }
         const rowCount = matches.length + (canCreate ? 1 : 0);
         if (rowCount === 0) return;
         if (e.key === "ArrowDown") {
@@ -1152,6 +1194,7 @@ function GroupAutocompleteField(props: {
                 <div className={GroupInputWrapperClass}>
                     <div className={GroupInputRowClass}>
                         <Input
+                            inputRef={inputRef}
                             className={PanelInputClass}
                             value={query}
                             onChange={e => {
@@ -1161,10 +1204,12 @@ function GroupAutocompleteField(props: {
                             }}
                             onFocus={() => {
                                 setFocused(true);
-                                setOpen(true);
                             }}
                             onBlur={() => setFocused(false)}
                             onKeyDown={onKeyDown}
+                            role="combobox"
+                            aria-autocomplete="list"
+                            aria-expanded={open}
                             placeholder="Search or create an application group"
                             data-creator-field="custom.groupId"
                         />
@@ -1175,14 +1220,12 @@ function GroupAutocompleteField(props: {
                                 </span>
                             </TooltipV2>
                         ) : null}
-                        {selected != null && selected.backedBy != null && query.trim().toLowerCase() === selected.specification.title.toLowerCase() ? (
-                            <IconButton
-                                icon="heroPencil"
-                                tooltip="Edit group"
-                                onClick={openEditDialog}
-                                compact
-                            />
-                        ) : null}
+                        {selected && (selected.owner.createdBy === Client.username || customAppsWorkspaceAdmin())
+                            ? <IconButton icon="heroPencilSquare" tooltip="Edit group details" onClick={openEditGroupDialog} />
+                            : null}
+                        {selected && (selected.owner.createdBy === Client.username || customAppsWorkspaceAdmin())
+                            ? <IconButton icon="heroSwatch" tooltip="Customize group logo" onClick={openLogoDialog} />
+                            : null}
                     </div>
                     {open ? (
                         <GroupDropdown
@@ -1192,7 +1235,6 @@ function GroupAutocompleteField(props: {
                             matches={matches}
                             canCreate={canCreate}
                             creating={creating}
-                            managedLoaded={managed != null}
                             onSelect={selectGroup}
                             onCreate={openCreateDialog}
                             onHover={setHighlight}
@@ -1202,6 +1244,60 @@ function GroupAutocompleteField(props: {
             </Label>
         </div>
     );
+}
+
+function CustomGroupDialog(props: {
+    initialTitle: string;
+    onSubmit: (title: string, description: string, logo: ApplicationGroupLogo) => Promise<void>;
+}): React.ReactNode {
+    const [title, setTitle] = useState(props.initialTitle);
+    const [description, setDescription] = useState("");
+    const [logo, setLogo] = useState(defaultApplicationGroupLogo(props.initialTitle));
+    const [logoEdited, setLogoEdited] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const updateTitle = (value: string) => {
+        setTitle(value);
+        if (!logoEdited) setLogo(defaultApplicationGroupLogo(value));
+    };
+    const submit = async (event: React.FormEvent) => {
+        event.preventDefault();
+        const cleanTitle = title.trim();
+        const cleanDescription = description.trim();
+        if (!cleanTitle || !cleanDescription) {
+            setError("Enter a name and description.");
+            return;
+        }
+        const submittedLogo = logoEdited ? logo : defaultApplicationGroupLogo(cleanTitle);
+        if (submittedLogo.content.type === "text" && !submittedLogo.content.value.trim()) {
+            setError("Logo text cannot be blank.");
+            return;
+        }
+        setError(null);
+        setSaving(true);
+        try {
+            await props.onSubmit(cleanTitle, cleanDescription, submittedLogo);
+        } finally {
+            setSaving(false);
+        }
+    };
+    return <Box height="100%" style={{display: "flex", flexDirection: "column", minHeight: 0}}>
+        <Heading.h3 flexShrink={0}>New application group</Heading.h3>
+        <form onSubmit={submit} style={{display: "flex", flexDirection: "column", flex: "1 1 0", minHeight: 0}}>
+            <Flex flexDirection="column" gap="12px" mb="22px" flexShrink={0}>
+                <Label>Name<MandatoryField /><Input value={title} onChange={event => updateTitle(event.target.value)} placeholder="My group" /></Label>
+                <Label>Description<MandatoryField /><TextArea value={description} onChange={event => setDescription(event.target.value)} rows={3} placeholder="A short description shown to users." /></Label>
+                {error ? <Text color="errorMain">{error}</Text> : null}
+            </Flex>
+            <Box flexGrow={1} minHeight="0">
+                <ApplicationGroupLogoEditor logo={logo} onChange={value => { setLogo(value); setLogoEdited(true); }} />
+            </Box>
+            <Flex justifyContent="end" gap="8px" mt="32px" px="20px" py="12px" mx="-20px" mb="-20px" background="var(--dialogToolbar)" flexShrink={0}>
+                <Button color="errorMain" type="button" onClick={() => dialogStore.failure()}>Cancel</Button>
+                <Button color="successMain" type="submit" disabled={saving}>{saving ? <Icon name="refresh" spin /> : null}Create</Button>
+            </Flex>
+        </form>
+    </Box>;
 }
 
 function ResourceNameDialog(props: {
@@ -1306,7 +1402,6 @@ function GroupDropdown(props: {
     matches: ResourceOption[];
     canCreate: boolean;
     creating: boolean;
-    managedLoaded: boolean;
     createLabel?: string;
     onSelect: (option: ResourceOption) => void;
     onCreate: () => void;
@@ -1315,50 +1410,46 @@ function GroupDropdown(props: {
     const label = props.createLabel ?? "group";
     return (
         <div className={GroupDropdownClass} ref={props.dropdownRef}>
-            {!props.managedLoaded ? (
-                <div className={GroupDropdownEmptyClass}>Loading...</div>
-            ) : (
-                <>
-                    {props.matches.map((option, index) => (
-                        <button
-                            key={option.id}
-                            type="button"
-                            className={GroupDropdownRowClass}
-                            data-highlighted={index === props.highlight ? "true" : undefined}
-                            disabled={props.creating}
-                            onMouseDown={e => e.preventDefault()}
-                            onMouseEnter={() => props.onHover(index)}
-                            onClick={() => props.onSelect(option)}
-                        >
-                            <span className={CategoryFieldTitleClass}>{option.title}</span>
-                            {option.description ? (
-                                <LineCappedMarkdown width="100%" lines={1}>{option.description}</LineCappedMarkdown>
-                            ) : null}
-                        </button>
-                    ))}
-                    {props.canCreate ? (
-                        <button
-                            type="button"
-                            className={GroupDropdownRowClass}
-                            data-highlighted={props.highlight === props.matches.length ? "true" : undefined}
-                            disabled={props.creating}
-                            onMouseDown={e => e.preventDefault()}
-                            onMouseEnter={() => props.onHover(props.matches.length)}
-                            onClick={props.onCreate}
-                        >
-                            <Flex alignItems="center" gap="6px">
-                                <Icon name="heroPlus" size={14} />
-                                <span>Create {label} "{props.query.trim()}"</span>
-                            </Flex>
-                        </button>
-                    ) : null}
-                    {props.matches.length === 0 && !props.canCreate ? (
-                        <div className={GroupDropdownEmptyClass}>
-                            {props.query.trim() === "" ? `No ${label}s available` : `No matching ${label}s`}
-                        </div>
-                    ) : null}
-                </>
-            )}
+            <>
+                {props.matches.map((option, index) => (
+                    <button
+                        key={option.id}
+                        type="button"
+                        className={GroupDropdownRowClass}
+                        data-highlighted={index === props.highlight ? "true" : undefined}
+                        disabled={props.creating}
+                        onMouseDown={e => e.preventDefault()}
+                        onMouseEnter={() => props.onHover(index)}
+                        onClick={() => props.onSelect(option)}
+                    >
+                        <span className={CategoryFieldTitleClass}>{option.title}</span>
+                        {option.description ? (
+                            <LineCappedMarkdown width="100%" lines={1}>{option.description}</LineCappedMarkdown>
+                        ) : null}
+                    </button>
+                ))}
+                {props.canCreate ? (
+                    <button
+                        type="button"
+                        className={GroupDropdownRowClass}
+                        data-highlighted={props.highlight === props.matches.length ? "true" : undefined}
+                        disabled={props.creating}
+                        onMouseDown={e => e.preventDefault()}
+                        onMouseEnter={() => props.onHover(props.matches.length)}
+                        onClick={props.onCreate}
+                    >
+                        <Flex alignItems="center" gap="6px">
+                            <Icon name="heroPlus" size={14} />
+                            <span>Create {label} "{props.query.trim()}"</span>
+                        </Flex>
+                    </button>
+                ) : null}
+                {props.matches.length === 0 && !props.canCreate ? (
+                    <div className={GroupDropdownEmptyClass}>
+                        {props.query.trim() === "" ? `No ${label}s available` : `No matching ${label}s`}
+                    </div>
+                ) : null}
+            </>
         </div>
     );
 }// Custom fields: provider, category, publication. Rendered inside the "Metadata" section.
@@ -1382,6 +1473,11 @@ const CategoryFieldClass = injectStyle("category-field", cl => `
 
     ${cl}:hover {
         border-color: var(--borderColorHover);
+    }
+
+    ${cl}:focus {
+        outline: 2px solid var(--primaryMain);
+        outline-offset: 2px;
     }
 `);
 
@@ -1484,6 +1580,20 @@ const GroupWarningClass = injectStyle("group-warning-icon", cl => `
     }
 `);
 
+const ProjectSelectorClass = injectStyle("creator-project-selector", cl => `
+    ${cl},
+    ${cl} [data-component="project-switcher"],
+    ${cl} [data-component="project-switcher"] > [data-tag="dropdown"],
+    ${cl} [data-dropdown-trigger],
+    ${cl} [data-dropdown-trigger] > div {
+        width: 100%;
+    }
+
+    ${cl} [data-dropdown-trigger] > div {
+        justify-content: space-between;
+    }
+`);
+
 function CustomFieldsSection(props: {
     draft: CreatorDraft;
     onUpdateCustomMeta: (patch: Partial<CreatorCustomMeta>) => void;
@@ -1497,10 +1607,6 @@ function CustomFieldsSection(props: {
     if (!meta) return null;
 
     const allCategories = props.categories ?? [];
-    const canCreateCategory = customAppsWorkspaceAdmin();
-    const selected = meta.category
-        ? allCategories.find(category => String(category.id) === meta.category) ?? null
-        : null;
 
     return (
         <>
@@ -1515,6 +1621,7 @@ function CustomFieldsSection(props: {
                         showLabel={false}
                         reserveLabelSpace={false}
                         onSelect={el => props.onUpdateCustomMeta({provider: el.key})}
+                        data-navigation-field
                         data-creator-field="custom.serviceProvider"
                     />
                 ) : (
@@ -1529,11 +1636,17 @@ function CustomFieldsSection(props: {
             <CategoryAutocompleteField
                 draft={draft}
                 categories={allCategories}
-                canCreate={canCreateCategory}
+                canCreate={customAppsWorkspaceAdmin()}
                 onLandingPageInvalidated={() => setLandingPage(AppStore.emptyLandingPage)}
                 onUpdateCustomMeta={props.onUpdateCustomMeta}
                 refreshPlacement={props.refreshPlacement}
             />
+            <Label className="panel-field">
+                <span className="panel-field-label">Project</span>
+                <div className={ProjectSelectorClass}>
+                    <ProjectSwitcher focusable data-navigation-field data-creator-field="custom.projectId" />
+                </div>
+            </Label>
             <ToggleRow
                 label="Publish to project"
                 checked={meta.publishedToProject}
@@ -1565,30 +1678,16 @@ function CategoryAutocompleteField(props: {
     const [focused, setFocused] = useState(false);
     const [creating, setCreating] = useState(false);
     const [highlight, setHighlight] = useState(0);
-    const [managed, setManaged] = useState<ResourceOption[] | null>(null);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     const selected = props.categories.find(category => meta != null && String(category.id) === meta.category) ?? null;
 
     React.useEffect(() => {
-        if (!open || managed != null) return;
-        let cancelled = false;
-        fetchAll<AppStore.ApplicationCategory>(next => callAPI(AppStore.browseStudioCategories({itemsPerPage: 250, next}))).then(categories => {
-            if (cancelled) return;
-            setManaged(categories.map(category => ({
-                id: category.metadata.id,
-                title: category.specification.title,
-                description: category.specification.description ?? "",
-                isCustom: false,
-            })));
-        }).catch(() => {
-            if (!cancelled) setManaged([]);
-        });
-        return () => {
-            cancelled = true;
-        };
-    }, [open, managed]);
+        const selectedTitle = selected?.specification.title ?? "";
+        if (selectedTitle !== "") setQuery(selectedTitle);
+    }, [selected?.specification.title]);
 
     React.useEffect(() => {
         if (!open) return;
@@ -1615,27 +1714,11 @@ function CategoryAutocompleteField(props: {
 
     const trimmed = query.trim().toLowerCase();
 
-    const byBacked = new Map<number, number>();
-    for (const category of props.categories) {
-        if (category.backedBy != null) byBacked.set(category.backedBy, category.id);
-    }
-
-    const options: ResourceOption[] = [];
-    const seen = new Set<number>();
-    for (const option of managed ?? []) {
-        seen.add(option.id);
-        const backing = byBacked.get(option.id);
-        if (backing != null) {
-            seen.add(backing);
-            options.push({...option, id: backing, isCustom: true});
-        } else {
-            options.push(option);
-        }
-    }
-    for (const category of props.categories) {
-        if (seen.has(category.id)) continue;
-        options.push({id: category.id, title: category.specification.title, description: category.specification.description, isCustom: true});
-    }
+    const options: ResourceOption[] = props.categories.map(category => ({
+        id: category.id,
+        title: category.specification.title,
+        description: category.specification.description,
+    }));
 
     const matches = trimmed === ""
         ? options
@@ -1645,32 +1728,24 @@ function CategoryAutocompleteField(props: {
     const canCreate = props.canCreate && trimmed !== "" && !options.some(option => option.title.toLowerCase() === trimmed);
 
     const selectCategory = (option: ResourceOption) => {
-        if (option.isCustom) {
-            props.onUpdateCustomMeta({category: String(option.id)});
-            setQuery(option.title);
-            setOpen(false);
-            return;
-        }
-        setCreating(true);
-        callAPI(AppStore.createCustomCategory({kind: "Managed", id: option.id})).then(result => {
-            props.onLandingPageInvalidated();
-            props.onUpdateCustomMeta({category: String(result.id)});
-            setQuery(option.title);
-            setOpen(false);
-            return props.refreshPlacement();
-        }).catch(error => {
-            sendFailureNotification(extractErrorMessage(error as {request: XMLHttpRequest; response: any}));
-        }).finally(() => {
-            setCreating(false);
-        });
+        props.onUpdateCustomMeta({category: String(option.id)});
+        setQuery(option.title);
+        closeAutocomplete(setOpen, inputRef);
     };
 
     const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Escape") {
-            setOpen(false);
+            closeAutocomplete(setOpen, inputRef);
             return;
         }
-        if (!open) return;
+        if (!open) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                setHighlight(0);
+                setOpen(true);
+            }
+            return;
+        }
         const rowCount = matches.length + (canCreate ? 1 : 0);
         if (rowCount === 0) return;
         if (e.key === "ArrowDown") {
@@ -1694,13 +1769,12 @@ function CategoryAutocompleteField(props: {
             setCreating(true);
             try {
                 const result = await callAPI<{id: number}>(AppStore.createCustomCategory({
-                    kind: "Custom",
                     specification: {title: name, description},
                 }));
                 props.onLandingPageInvalidated();
                 props.onUpdateCustomMeta({category: String(result.id)});
                 setQuery(name);
-                setOpen(false);
+                closeAutocomplete(setOpen, inputRef);
                 await props.refreshPlacement();
                 dialogStore.success();
             } catch (error) {
@@ -1742,6 +1816,7 @@ function CategoryAutocompleteField(props: {
                 <div className={GroupInputWrapperClass}>
                     <div className={GroupInputRowClass}>
                         <Input
+                            inputRef={inputRef}
                             className={PanelInputClass}
                             value={query}
                             onChange={e => {
@@ -1751,10 +1826,12 @@ function CategoryAutocompleteField(props: {
                             }}
                             onFocus={() => {
                                 setFocused(true);
-                                setOpen(true);
                             }}
                             onBlur={() => setFocused(false)}
                             onKeyDown={onKeyDown}
+                            role="combobox"
+                            aria-autocomplete="list"
+                            aria-expanded={open}
                             placeholder="Search or create a category"
                             data-creator-field="custom.categoryId"
                         />
@@ -1767,7 +1844,6 @@ function CategoryAutocompleteField(props: {
                             matches={matches}
                             canCreate={canCreate}
                             creating={creating}
-                            managedLoaded={managed != null}
                             createLabel="category"
                             onSelect={selectCategory}
                             onCreate={openCreateDialog}
@@ -1909,13 +1985,13 @@ function ExtensionsEditor(props: {
 // -------------------------------------------------------------------------------------------------------------------
 
 function WidgetDrawerSection(props: {
-    onAddParameter: (type: import("@/Applications/Creator/WidgetDefaults").A2WidgetType) => void;
+    onAddParameter: (type: A2WidgetType) => void;
 }): React.ReactNode {
     const basicItems = WIDGET_DRAWER_ITEMS.filter(i => i.group === "basic");
     const resourceItems = WIDGET_DRAWER_ITEMS.filter(i => i.group === "resources");
     return (
         <>
-            <PanelSection title="Add parameter">
+            <PanelSection title="Add parameter" id="creator-section-add-parameter" shortcut="A">
                 <Text fontSize={12} color="textSecondary" mb="8px">
                     Click a widget to append a new parameter row.
                 </Text>
@@ -1930,7 +2006,7 @@ function WidgetDrawerSection(props: {
 function WidgetDrawerGroup(props: {
     items: typeof WIDGET_DRAWER_ITEMS;
     group: WidgetDrawerGroup;
-    onAddParameter: (type: import("@/Applications/Creator/WidgetDefaults").A2WidgetType) => void;
+    onAddParameter: (type: A2WidgetType) => void;
 }): React.ReactNode {
     return (
         <div className={WidgetDrawerGroupClass}>
@@ -1938,7 +2014,12 @@ function WidgetDrawerGroup(props: {
                 {props.group === "basic" ? "Basic values" : "UCloud resources"}
             </Text>
             {props.items.map(item => (
-                <WidgetDrawerButton key={item.type} item={item} onClick={() => props.onAddParameter(item.type)} />
+                <WidgetDrawerButton
+                    key={item.type}
+                    item={item}
+                    onClick={() => props.onAddParameter(item.type)}
+                    basicGroup={props.group === "basic"}
+                />
             ))}
         </div>
     );
@@ -1947,6 +2028,7 @@ function WidgetDrawerGroup(props: {
 function WidgetDrawerButton(props: {
     item: typeof WIDGET_DRAWER_ITEMS[number];
     onClick: () => void;
+    basicGroup?: boolean;
 }): React.ReactNode {
     const icon = widgetIcon(props.item.type);
     return (
@@ -1956,6 +2038,8 @@ function WidgetDrawerButton(props: {
                 className={WidgetDrawerButtonClass}
                 onClick={props.onClick}
                 aria-label={`Add ${props.item.label} parameter`}
+                data-navigation-field
+                data-creator-widget={props.basicGroup ? "basic" : undefined}
             >
                 <Icon name={icon} size={16} color="textSecondary" />
                 <Text fontSize={13}>{props.item.label}</Text>
@@ -2003,6 +2087,13 @@ const KeyValueRowClass = injectStyle("creator-key-value-row", k => `
         display: flex;
         align-items: center;
         gap: 6px;
+    }
+`);
+
+const AddValueButtonClass = injectStyle("creator-add-value-button", k => `
+    ${k}:focus {
+        outline: 2px solid var(--primaryMain);
+        outline-offset: 2px;
     }
 `);
 

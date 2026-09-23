@@ -16,8 +16,9 @@ type Gift struct {
 
 type GiftWithCriteria struct {
 	Gift
-	Id       int            `json:"id"`
-	Criteria []UserCriteria `json:"criteria"`
+	Id              int            `json:"id"`
+	Criteria        []UserCriteria `json:"criteria"`
+	ExcludeCriteria []UserCriteria `json:"excludeCriteria"`
 }
 
 const giftsBaseContext = "gifts"

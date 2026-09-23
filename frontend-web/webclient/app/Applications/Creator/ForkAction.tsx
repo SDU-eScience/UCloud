@@ -3,7 +3,8 @@ import {useLocation, useNavigate} from "react-router-dom";
 import {Application, customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
 import {useProjectId} from "@/Project/Api";
 import AppRoutes from "@/Routes";
-import {Button, Icon} from "@/ui-components";
+import {Icon} from "@/ui-components";
+import {TooltipV2} from "@/ui-components/Tooltip";
 
 export function ApplicationForkAction(props: {application: Application}): React.ReactNode {
     const projectId = useProjectId();
@@ -19,20 +20,25 @@ export function ApplicationForkAction(props: {application: Application}): React.
         ? props.application.invocation.tool.tool?.description.supportedProviders?.[0]
         : undefined;
     return (
-        <Button onClick={() => navigate(AppRoutes.apps.creator({
-            operation: "fork",
-            applicationKind: "custom",
-            workspace: projectId ?? "personal",
-            name: sourceApplicationKind === "custom"
-                ? props.application.metadata.name.replace(/^custom-/, "")
-                : props.application.metadata.name,
-            version: props.application.metadata.version,
-            sourceApplicationKind,
-            sourceProvider,
-            returnTo: location.pathname + location.search,
-        }))}>
-            <Icon name="fork" mr={8} />
-            Fork
-        </Button>
+        <TooltipV2 tooltip="Fork this application" triggerStyle={{display: "inline-flex", alignItems: "center"}}>
+            <Icon
+                name="fork"
+                size={24}
+                cursor="pointer"
+                color="textPrimary"
+                onClick={() => navigate(AppRoutes.apps.creator({
+                    operation: "fork",
+                    applicationKind: "custom",
+                    workspace: projectId ?? "personal",
+                    name: sourceApplicationKind === "custom"
+                        ? props.application.metadata.name.replace(/^custom-/, "")
+                        : props.application.metadata.name,
+                    version: props.application.metadata.version,
+                    sourceApplicationKind,
+                    sourceProvider,
+                    returnTo: location.pathname + location.search,
+                }))}
+            />
+        </TooltipV2>
     );
 }

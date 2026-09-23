@@ -354,28 +354,6 @@ export function timestampUnixMs(): number {
 }
 
 /**
- * UNUSED
- * Used to format numbers to a more human readable number by dividing it up by thousands and using custom delimiters.
- * @param value numerical value to be formatted.
- * @param sectionDelim used for deliminate every thousand. Default: ,
- * @param decimalDelim used to deliminate the decimals. Default: .
- * @param numDecimals number of decimals in the formatted number. Default: 2
- */
-export function humanReadableNumber(
-    value: number,
-    sectionDelim = ",",
-    decimalDelim = ".",
-    numDecimals = 2
-): string {
-    const regex = new RegExp("\\d(?=(\\d{3})+" + (numDecimals > 0 ? "\\D" : "$") + ")", "g");
-    const fixedNumber = value.toFixed(numDecimals);
-
-    return fixedNumber
-        .replace(".", decimalDelim)
-        .replace(regex, "$&" + sectionDelim);
-}
-
-/**
  * Copies a string to the user's clipboard.
  * @param value contains the string to be copied to the clipboard
  */
@@ -684,6 +662,7 @@ export const isLikelyMac = navigator["userAgentData"]?.["platform"] === "macOS" 
 export type KeyboardShortcutModifier = "ctrl" | "alt";
 
 export function createKeyboardShortcut(key: string, modifiers: KeyboardShortcutModifier[] = []): string {
+    if (modifiers.length === 0) return key;
     const normalizedModifiers = modifiers.map(modifier => {
         if (modifier === "ctrl") return isLikelyMac ? "⌘" : "Ctrl";
         return isLikelyMac ? "⌥" : "Alt";

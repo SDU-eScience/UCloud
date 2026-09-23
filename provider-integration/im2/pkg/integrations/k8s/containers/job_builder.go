@@ -29,15 +29,15 @@ import (
 
 func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	podName := idAndRankToPodName(job.Id, rank)
-	var variantPullSecret *core.Secret
-	variantPullTokenId := ""
-	keepVariantPullSecret := false
+	var applicationPullSecret *core.Secret
+	var applicationPullTokenId string
+	keepApplicationPullSecret := false
 	defer func() {
-		if variantPullSecret != nil && !keepVariantPullSecret {
+		if applicationPullSecret != nil && !keepApplicationPullSecret {
 			_ = K8sClient.CoreV1().Secrets(ServiceConfig.Compute.Namespace).Delete(
-				context.Background(), variantPullSecret.Name, meta.DeleteOptions{},
+				context.Background(), applicationPullSecret.Name, meta.DeleteOptions{},
 			)
-			registry.ApiTokensRevoke(variantPullTokenId)
+			registry.ApiTokensRevoke(applicationPullTokenId)
 		}
 	}()
 
@@ -497,20 +497,29 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	addSnapshotExcludedMounts(pod, userContainer)
 	if hasCachedImage {
-		variantPullSecret, variantPullTokenId, herr = createApplicationVariantPullSecret(job.Owner, namespace, podName)
+		applicationPullSecret, applicationPullTokenId, herr = createApplicationPullSecret(job.Owner, namespace, podName)
 		if herr != nil {
 			return herr
 		}
-		pod.Spec.ImagePullSecrets = append(pod.Spec.ImagePullSecrets, core.LocalObjectReference{Name: variantPullSecret.Name})
+		pod.Spec.ImagePullSecrets = append(pod.Spec.ImagePullSecrets, core.LocalObjectReference{Name: applicationPullSecret.Name})
 	} else if resolvedApplication.Metadata.Variant.Present {
-		if _, validationErr := registry.ImagesValidateVariant(job.Owner, resolvedApplication.Metadata.Variant.Value.ImageDigest, false, false); validationErr != nil {
+		if _, validationErr := registry.ImagesValidateVariant(job.Owner, tool.Description.Image, false, false); validationErr != nil {
 			return util.HttpErr(http.StatusBadRequest, "flavor image is no longer available")
 		}
-		variantPullSecret, variantPullTokenId, herr = createApplicationVariantPullSecret(job.Owner, namespace, podName)
+		applicationPullSecret, applicationPullTokenId, herr = createApplicationPullSecret(job.Owner, namespace, podName)
 		if herr != nil {
 			return herr
 		}
-		pod.Spec.ImagePullSecrets = append(pod.Spec.ImagePullSecrets, core.LocalObjectReference{Name: variantPullSecret.Name})
+		pod.Spec.ImagePullSecrets = append(pod.Spec.ImagePullSecrets, core.LocalObjectReference{Name: applicationPullSecret.Name})
+	} else if resolvedApplication.Metadata.Origin == orc.CatalogOriginCustom {
+		if _, validationErr := registry.ImagesValidateVariant(job.Owner, tool.Description.Image, false, false); validationErr != nil {
+			return util.HttpErr(http.StatusBadRequest, "application image is no longer available")
+		}
+		applicationPullSecret, applicationPullTokenId, herr = createApplicationPullSecret(job.Owner, namespace, podName)
+		if herr != nil {
+			return herr
+		}
+		pod.Spec.ImagePullSecrets = append(pod.Spec.ImagePullSecrets, core.LocalObjectReference{Name: applicationPullSecret.Name})
 	}
 
 	if herr = enforceImageRegistry(pod); herr != nil {
@@ -537,10 +546,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			Name:       pod.Name,
 			UID:        pod.UID,
 		}
-		if variantPullSecret != nil {
-			variantPullSecret.OwnerReferences = append(variantPullSecret.OwnerReferences, ownerReference)
-			_, _ = K8sClient.CoreV1().Secrets(namespace).Update(ctx, variantPullSecret, meta.UpdateOptions{})
-			keepVariantPullSecret = true
+		if applicationPullSecret != nil {
+			applicationPullSecret.OwnerReferences = append(applicationPullSecret.OwnerReferences, ownerReference)
+			_, _ = K8sClient.CoreV1().Secrets(namespace).Update(ctx, applicationPullSecret, meta.UpdateOptions{})
+			keepApplicationPullSecret = true
 		}
 	}
 	if firewall != nil && herr == nil {
@@ -810,7 +819,7 @@ func enforceImageRegistry(pod *core.Pod) *util.HttpError {
 	return util.UserHttpError("container images from registry %s are not allowed", registryHost)
 }
 
-func createApplicationVariantPullSecret(owner orc.ResourceOwner, namespace, podName string) (*core.Secret, string, *util.HttpError) {
+func createApplicationPullSecret(owner orc.ResourceOwner, namespace, podName string) (*core.Secret, string, *util.HttpError) {
 	token, herr := registry.ApiTokensCreateForPull(owner, time.Hour)
 	if herr != nil {
 		return nil, "", herr

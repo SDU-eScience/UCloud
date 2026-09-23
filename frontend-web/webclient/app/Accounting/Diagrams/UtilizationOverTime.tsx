@@ -1,4 +1,5 @@
 import {useD3} from "@/Utilities/d3";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {scaleBand, scaleLinear, scaleOrdinal} from "d3-scale";
 import {line} from "d3-shape";
 import {pointer, select} from "d3-selection";
@@ -163,9 +164,9 @@ export function useUtilizationOverTimeChart(
             {
                 title: "Utilization",
                 color: color("utilization"),
-                min: minUtilization.toFixed(2) + "%",
-                max: maxUtilization.toFixed(2) + "%",
-                mean: meanUtilization.toFixed(2) + "%",
+                min: formatNumber(minUtilization, {precision: 2}) + "%",
+                max: formatNumber(maxUtilization, {precision: 2}) + "%",
+                mean: formatNumber(meanUtilization, {precision: 2}) + "%",
             }
         ]);
 
@@ -350,7 +351,7 @@ export function useUtilizationOverTimeChart(
                     {
                         const node = document.createElement("div");
                         if (key === "utilizationPercent100") {
-                            node.append(value.toFixed(2) + "%");
+                            node.append(formatNumber(value, {precision: 2}) + "%");
                         } else {
                             node.append(balanceToString(value * unitNormalizationFactor));
                         }

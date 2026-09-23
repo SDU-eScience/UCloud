@@ -108,7 +108,7 @@ export default function ConfiguringTools({
             </Text>
         </Box>}
 
-        <Box mt={20} style={{display: "grid", gap: 12}}>
+        <Box mt={20} style={{display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 12}}>
             <ToolGuide id="generic" title="Generic OpenAI-compatible client" openTool={openTool} setOpenTool={setOpenTool}>
                 <CodeSnippet lang="bash" children={`curl "${resolvedServer}/chat/completions" \\
   -H "Authorization: Bearer ${apiToken}" \\

@@ -1,5 +1,7 @@
 export enum Opcode {
     SysHello = 0x01,
+    Ping = 0x02,
+    Pong = 0x03,
     UiEvent = 0x11,
     UiMount = 0x12,
     ModelPatch = 0x13,
@@ -210,6 +212,9 @@ export function encodeFrame(frame: Frame): Uint8Array {
             w.writeString(payload);
             break;
         }
+        case Opcode.Ping:
+        case Opcode.Pong:
+            break;
         case Opcode.UiEvent:
             encodeUiEvent(w, frame.uiEvent!);
             break;
@@ -252,6 +257,9 @@ export function decodeFrame(input: Uint8Array): Frame {
             frame.sysHello = payload;
             break;
         }
+        case Opcode.Ping:
+        case Opcode.Pong:
+            break;
         case Opcode.UiEvent:
             frame.uiEvent = decodeUiEvent(r);
             break;

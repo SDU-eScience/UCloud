@@ -85,6 +85,7 @@ export const SingleLineMarkdown: React.FunctionComponent<{children: string; widt
 
 export function MarkdownTable({children}: React.PropsWithChildren): React.ReactNode {
     const wrapperRef = React.useRef<HTMLDivElement | null>(null);
+    const lastSignature = React.useRef("");
     const [layout, setLayout] = React.useState({scroll: false, minWidth: 0});
 
     React.useLayoutEffect(() => {
@@ -95,7 +96,10 @@ export function MarkdownTable({children}: React.PropsWithChildren): React.ReactN
         const measure = () => {
             window.cancelAnimationFrame(frame);
             frame = window.requestAnimationFrame(() => {
+                const signature = markdownTableSignature(wrapper);
+                if (signature === lastSignature.current) return;
                 const next = measureMarkdownTable(wrapper);
+                lastSignature.current = signature;
                 setLayout(prev => prev.scroll === next.scroll && prev.minWidth === next.minWidth ? prev : next);
             });
         };
@@ -122,6 +126,14 @@ export function MarkdownTable({children}: React.PropsWithChildren): React.ReactN
 export function DocumentTypography({className, ...props}: React.HTMLAttributes<HTMLDivElement>): React.ReactNode {
     const classes = className ? `${DocumentTypographyClass} ${className}` : DocumentTypographyClass;
     return <div {...props} className={classes} />;
+}
+
+function markdownTableSignature(wrapper: HTMLDivElement): string {
+    const rows = Array.from(wrapper.querySelectorAll("tr"));
+    return rows.map(row => {
+        const cells = Array.from(row.children).map(cell => (cell.textContent ?? "").replace(/\s+/g, " ").trim());
+        return cells.join("\u0001");
+    }).join("\u0002");
 }
 
 function measureMarkdownTable(wrapper: HTMLDivElement): { scroll: boolean; minWidth: number } {
@@ -171,54 +183,61 @@ function clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, value));
 }
 
+const MarkdownDocumentComponents = {
+    a: (p) => <ExternalLink href={p.href}>{p.children}</ExternalLink>,
+    pre: (p) => <Box my={16}><CodeSnippet children={p.children} maxHeight=""/></Box>,
+    table: p => <MarkdownTable>{p.children}</MarkdownTable>,
+};
+
+const MarkdownDocumentAllowedElements = [
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "br",
+    "a",
+    "p",
+    "strong",
+    "b",
+    "i",
+    "em",
+    "ul",
+    "ol",
+    "li",
+    "pre",
+    "code",
+    "table",
+    "th",
+    "tbody",
+    "thead",
+    "td",
+    "tr",
+    "hr",
+    "blockquote",
+
+    // katex + mathml
+    'span',
+    'math', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub',
+    'msubsup', 'mfrac', 'msqrt', 'mroot', 'mtable', 'mtr', 'mtd',
+    'mtext', 'annotation',
+];
+
+const MarkdownDocumentPlugins = [remarkGfm, remarkMath];
+const MarkdownDocumentRehypePlugins = [rehypeKatex];
+
 export function MarkdownDocument({text}: { text: string }): React.ReactNode {
     if (text.trim() === "") return null;
     const normalizedText = normalizeMath(text);
     return (
         <DocumentTypography>
             <ReactMarkdown
-                components={{
-                    a: (p) => <ExternalLink href={p.href}>{p.children}</ExternalLink>,
-                    pre: (p) => <Box my={16}><CodeSnippet children={p.children} maxHeight=""/></Box>,
-                    table: p => <MarkdownTable>{p.children}</MarkdownTable>,
-                }}
-                allowedElements={[
-                    "h1",
-                    "h2",
-                    "h3",
-                    "h4",
-                    "h5",
-                    "h6",
-                    "br",
-                    "a",
-                    "p",
-                    "strong",
-                    "b",
-                    "i",
-                    "em",
-                    "ul",
-                    "ol",
-                    "li",
-                    "pre",
-                    "code",
-                    "table",
-                    "th",
-                    "tbody",
-                    "thead",
-                    "td",
-                    "tr",
-                    "hr",
-                    "blockquote",
-
-                    // katex + mathml
-                    'span',
-                    'math', 'semantics', 'mrow', 'mi', 'mo', 'mn', 'msup', 'msub',
-                    'msubsup', 'mfrac', 'msqrt', 'mroot', 'mtable', 'mtr', 'mtd',
-                    'mtext', 'annotation',
-                ]}
+                components={MarkdownDocumentComponents}
+                allowedElements={MarkdownDocumentAllowedElements}
                 children={normalizedText}
-                remarkPlugins={[remarkGfm, remarkMath]}
-                rehypePlugins={[rehypeKatex]}
+                remarkPlugins={MarkdownDocumentPlugins}
+                rehypePlugins={MarkdownDocumentRehypePlugins}
             />
         </DocumentTypography>
     );
