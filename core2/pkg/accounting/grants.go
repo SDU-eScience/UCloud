@@ -528,7 +528,8 @@ func grantsWouldCreateCycle(recipient accapi.Recipient, requests []accapi.Alloca
 		}
 
 		if internalWouldCreateCycle(b, recipientWallet, giverWallet) {
-			return req.GrantGiver, true
+			title := grantsRetrieveProjectTitleByProjectId(req.GrantGiver)
+			return title, true
 		}
 	}
 
