@@ -48,7 +48,7 @@ import {noopCall} from "@/Authentication/DataHook";
 import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 import {sendInformationNotification} from "@/Notifications";
-import {providerBrandingStore} from "@/ProviderBrandings/AutomaticProviderBranding";
+import {providerBrandingStore, providerLogoUrl} from "@/ProviderBrandings/AutomaticProviderBranding";
 import ReactClient from "react-dom/client";
 import type {Root} from "react-dom/client";
 
@@ -682,12 +682,17 @@ export class ResourceBrowser<T> {
         }
 
 
+        const brandingUnsubscribe = providerBrandingStore.subscribe(() => {
+            this.renderRows();
+        });
+
         const unmountInterval = window.setInterval(() => {
             if (!this.root.isConnected) {
                 this.dispatchMessage("unmount", fn => fn());
                 if (this.isModal) ResourceBrowser.isAnyModalOpen = false;
                 removeThemeListener(this.uniqueListenerId);
                 removeProjectListener(this.uniqueListenerId);
+                brandingUnsubscribe();
                 this.actionBarRoot?.unmount();
                 this.actionBarRoot = undefined;
                 this.actionMenuRoot?.unmount();
@@ -1002,6 +1007,7 @@ export class ResourceBrowser<T> {
             this.rerender();
             this.rerenderUtilityIcons();
         });
+
         const path = this.initialPath;
         if (path !== undefined) {
             const evaluateProjectStatus = async (projectId?: string | null) => {
@@ -3618,7 +3624,7 @@ export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclarat
     inner.style.color = "white"
     if (logo) {
         outer.style.padding = "3px";
-        inner.style.backgroundImage = `url('/Images/${logo}')`;
+        inner.style.backgroundImage = `url('${providerLogoUrl(logo)}')`;
         inner.style.backgroundPosition = "center";
     } else {
         inner.style.textAlign = "center";

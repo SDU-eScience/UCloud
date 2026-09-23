@@ -1,22 +1,27 @@
+import * as React from "react";
 import {callAPI} from "@/Authentication/DataHook";
 import {ProviderBranding, providerBrandingApi, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
 import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
 import ProviderInfo from "@/Assets/provider_info.json";
 
-
-export const providerBrandingStore = new class extends ExternalStoreBase {
+class ProviderBrandingStore extends ExternalStoreBase {
     private branding: ProviderBrandingResponse = {providers: {}};
 
-    async onInit(): Promise<void> {
+    constructor() {
+        super();
         this.fetch();
         window.setInterval(() => {
             this.fetch();
-        }, 3 * 600_000);
+        }, 1000 * 60 * 60);
     }
 
     async fetch() {
         try {
-            const response = await callAPI(providerBrandingApi.browse());
+            const request: APICallParameters<unknown, ProviderBrandingResponse> = {
+                ...providerBrandingApi.browse(),
+                unauthenticated: true,
+            };
+            const response = await callAPI<ProviderBrandingResponse>(request);
             this.branding = response;
             this.emitChange();
         } catch (e: any) {
@@ -30,9 +35,39 @@ export const providerBrandingStore = new class extends ExternalStoreBase {
 
     public getProviderProperty<Property extends keyof ProviderBranding>(providerId: string, providerProperty: Property): ProviderBranding[Property] | undefined {
         const property = this.branding.providers[providerId]?.[providerProperty];
-        if (!property) console.warn(`Property '${providerProperty}' missing for ${providerId}`, this.branding);
         return property ? property : ProviderInfo.providers.find(it => it.id === providerId)?.[providerProperty as string];
     }
 }
 
-providerBrandingStore.onInit();
+export const providerBrandingStore = new ProviderBrandingStore();
+
+export function useProviderBrandings(): Record<string, ProviderBranding> {
+    const snapshot = React.useSyncExternalStore(
+        sub => providerBrandingStore.subscribe(sub),
+        () => providerBrandingStore.getSnapshot()
+    );
+    return snapshot.providers;
+}
+
+export function useProviderBranding(providerId?: string): ProviderBranding | undefined {
+    const providers = useProviderBrandings();
+    if (!providerId) return undefined;
+    return providers[providerId];
+}
+
+export function useProviderProperty<Property extends keyof ProviderBranding>(providerId: string, providerProperty: Property): ProviderBranding[Property] | undefined {
+    const branding = useProviderBranding(providerId);
+    const property = branding?.[providerProperty];
+    return property ? property : ProviderInfo.providers.find(it => it.id === providerId)?.[providerProperty as string];
+}
+
+export function useProviderLogoUrl(providerId: string): string | undefined {
+    const logo = useProviderProperty(providerId, "logo");
+    if (!logo) return undefined;
+    return providerLogoUrl(logo);
+}
+
+export function providerLogoUrl(logo: string): string {
+    if (logo.includes("/")) return logo;
+    return `/Images/${logo}`;
+}

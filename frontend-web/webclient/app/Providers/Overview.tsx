@@ -11,8 +11,7 @@ import {classConcat, injectStyle} from "@/Unstyled";
 import {CardClass} from "@/ui-components/Card";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {ProviderBranding} from "@/UCloud/ProviderBrandingApi";
-import {useSelector} from "react-redux";
-import {providerBrandingStore} from "@/ProviderBrandings/AutomaticProviderBranding";
+import {useProviderBrandings} from "@/ProviderBrandings/AutomaticProviderBranding";
 
 export function ProviderEntry(props: {provider: ProviderBranding}): React.ReactNode {
     if (!props.provider.id || !props.provider.title) return null;
@@ -37,17 +36,9 @@ export function ProviderEntry(props: {provider: ProviderBranding}): React.ReactN
     );
 }
 
-export function useProviderBrandings(): Record<string, ProviderBranding> | undefined {
-    const providers = React.useSyncExternalStore(sub => providerBrandingStore.subscribe(sub), () => providerBrandingStore.getSnapshot());
-    return providers.providers;
-}
-
 export default function ProviderOverview() {
     usePage("Provider overview", SidebarTabId.NONE);
     const providers = useProviderBrandings();
-    if (!providers) {
-        return null;
-    }
 
     const main = <Box m="12px 24px">
         <GridCardGroup minmax={250}>

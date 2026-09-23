@@ -10,14 +10,7 @@ import {ProviderLogo} from "./ProviderLogo";
 import {ProviderTitle} from "./ProviderTitle";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {ProviderBranding} from "@/UCloud/ProviderBrandingApi";
-import {providerBrandingStore} from "@/ProviderBrandings/AutomaticProviderBranding";
-
-function useProviderBranding(id?: string): ProviderBranding | undefined {
-    if (!id) return undefined;
-    const providers = providerBrandingStore.getSnapshot();
-    return providers.providers[id];
-}
+import {useProviderBranding} from "@/ProviderBrandings/AutomaticProviderBranding";
 
 export default function DetailedProvider() {
     const params = useParams<{id: string}>();

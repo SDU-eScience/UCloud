@@ -21,7 +21,7 @@ import {ServiceProviderItem, ServiceProviderSelector} from "@/Applications/ApiTo
 import {InputClass} from "@/ui-components/Input";
 import {useProjectId} from "@/Project/Api";
 import {stupidPluralize} from "@/Utilities/TextUtilities";
-import {useProviderBrandings} from "@/Providers/Overview";
+import {useProviderBrandings} from "@/ProviderBrandings/AutomaticProviderBranding";
 
 interface ComputeCategory {
     provider: string;
@@ -612,7 +612,7 @@ function ProductDescription({serviceProvider, category}: {serviceProvider: strin
 
 function useProductDescription(serviceProvider: string, category: string): string {
     const providerBrandings = useProviderBrandings();
-    return providerBrandings?.[serviceProvider]?.productDescription.find(it => it.category === category)?.shortDescription ?? "No description"
+    return providerBrandings[serviceProvider]?.productDescription.find(it => it.category === category)?.shortDescription ?? "No description"
 }
 
 function naiveCategoryStatus(products: (ComputeCategory | ProductV2)[], productSupport: ResolvedSupport<Product, ProductSupport>[]): Record<string, JobQueueStatus> {

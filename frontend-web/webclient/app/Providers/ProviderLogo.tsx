@@ -4,24 +4,18 @@ import {classConcat} from "@/Unstyled";
 import {injectStyle} from "@/Unstyled";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {providerBrandingStore} from "@/ProviderBrandings/AutomaticProviderBranding";
+import {providerBrandingStore, providerLogoUrl, useProviderLogoUrl} from "@/ProviderBrandings/AutomaticProviderBranding";
 
 export function providerLogoPath(providerId: string): string {
     const logo = providerBrandingStore.getProviderProperty(providerId, "logo");
-    if (logo) return `/Images/${logo}`;
-    return "";
+    return logo ? providerLogoUrl(logo) : "";
 }
 
 export const ProviderLogo: React.FunctionComponent<{providerId: string; size: number; className?: string;}> = ({providerId, size, className}) => {
-    const [logo, title] = [
-        providerBrandingStore.getProviderProperty(providerId, "logo"),
-        providerBrandingStore.getProviderProperty(providerId, "title")
-    ];
-
-
+    const logo = useProviderLogoUrl(providerId);
     return <ProviderLogoWrapper size={size} className={className} tooltip={getProviderTitle(providerId)}>
-        {!logo ? (providerId[0] ?? "?").toUpperCase() : <Image src={logo.includes("/") ? logo : `/Images/${logo}`} alt={`Logo for ${title}`} />}
-    </ProviderLogoWrapper>
+        {!logo ? (providerId[0] ?? "?").toUpperCase() : <Image src={logo} alt={`Logo for ${getProviderTitle(providerId)}`} />}
+    </ProviderLogoWrapper>;
 };
 
 export function ProviderLogoWrapper({size, tooltip, children, className}: React.PropsWithChildren<{size: number; tooltip: React.ReactNode; className?: string;}>): React.ReactNode {

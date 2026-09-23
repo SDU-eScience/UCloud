@@ -42,7 +42,7 @@ import * as Grants from ".";
 import {State} from ".";
 import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
-import {providerBrandingStore} from "@/ProviderBrandings/AutomaticProviderBranding";
+import {useProviderBrandings} from "@/ProviderBrandings/AutomaticProviderBranding";
 
 // State model
 // =====================================================================================================================
@@ -1408,6 +1408,7 @@ export function Editor(): React.ReactNode {
     const navigate = useNavigate();
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
     useProjectId(); // FIXME(Jonas): Is this some refresh-thing that breaks stuff if you remove it?
+    const providerBrandings = useProviderBrandings();
 
     const [missingUserInfo, setMissingUserInfo] = React.useState(false);
     React.useEffect(() => {
@@ -2254,7 +2255,7 @@ export function Editor(): React.ReactNode {
 
                                             if (hideZeroFields && !anyNonZeroValues) return null;
 
-                                            const currentProvider = providerBrandingStore.getSnapshot().providers[providerId];
+                                            const currentProvider = providerBrandings[providerId];
                                             const productDescription = currentProvider?.productDescription?.find(it => it.category === category.category.name);
                                             const showDescriptions = productDescription != undefined;
 
