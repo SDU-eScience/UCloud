@@ -406,6 +406,8 @@ func submit(job orc.Job) (util.Option[string], *util.HttpError) {
 		return util.OptNone[string](), pnErr
 	}
 
+	controller.PrivateNetworkSyncAssignedIps(&job)
+
 	controller.JobTrackNew(job)
 	delayed, herr := initScriptImagesPrepare(&job, false)
 	if herr != nil {

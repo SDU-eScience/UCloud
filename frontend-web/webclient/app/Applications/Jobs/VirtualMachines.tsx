@@ -47,6 +47,7 @@ import * as StackApi from "@/Stacks/api";
 import Warning from "@/ui-components/Warning";
 import {sendFailureNotification} from "@/Notifications";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {retrieveNetworkReservations} from "@/Applications/PrivateNetwork/Reservations";
 
 interface InterfaceTarget {
     rank: number;
@@ -409,6 +410,9 @@ export const VirtualMachineStatus: React.FunctionComponent<{
             if (resource.type === "ingress" && extra) {
                 resource.port = parseInt(extra);
             }
+            if (resource.type === "private_network" && extra) {
+                resource.ips = [extra];
+            }
 
             await invokeCommand(JobsApi.attachResource({jobId: job.id, resource}));
             setHasPendingAccessRestart(true);
@@ -721,6 +725,10 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     onAttach={attachAccessResource}
                     onRemove={detachAccessResource}
                     labelForResource={resource => vmAccessResourceLabel(resource, publicLinksById, privateNetworksById, publicIpsById)}
+                    inlineChoices={resource => resource.type === "private_network" ?
+                        retrieveNetworkReservations(resource.id).then(items => items.flatMap(it =>
+                            it.status.ipAddress && it.permissions.myself.some(permission => permission === "EDIT" || permission === "ADMIN") ?
+                                [it.status.ipAddress] : [])) : Promise.resolve([])}
                 />
             }
             {accessDialog !== "network" ? null :
@@ -975,11 +983,13 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
     onRemove: (resource: compute.AppParameterValue) => Promise<void>;
     labelForResource: (resource: compute.AppParameterValue) => string;
     inlineCreationLabel?: string;
-}> = ({title, selectTitle, attached, emptyMessage, renderSelector, onAttach, onRemove, labelForResource, inlineCreationLabel}) => {
+    inlineChoices?: (resource: compute.AppParameterValue) => Promise<string[]>;
+}> = ({title, selectTitle, attached, emptyMessage, renderSelector, onAttach, onRemove, labelForResource, inlineCreationLabel, inlineChoices}) => {
     const [isSelecting, setIsSelecting] = useState(false);
     const [inlineCreationValue, setInlineCreationValue] = useState("");
     const [inlineResourceBeingCreated, setInlineResourceBeingCreated] = useState<compute.AppParameterValue | null>(null);
     const [inlineTitle, setInlineTitle] = useState<string | null>(null);
+    const [choices, setChoices] = useState<string[]>([]);
     const [selectorRefresh, setSelectorRefresh] = useState<(() => void) | undefined>(undefined);
     const [selectorProjectSwitcherTarget, setSelectorProjectSwitcherTarget] = useState<HTMLDivElement | null>(null);
 
@@ -992,10 +1002,11 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
         setInlineCreationValue("");
         setInlineResourceBeingCreated(null);
         setInlineTitle(null);
+        setChoices([]);
     }, []);
 
     const inlineCreationPort = inlineCreationValue === "" ? NaN : Number(inlineCreationValue);
-    const inlineCreationIsValid = !inlineCreationLabel || (
+    const inlineCreationIsValid = (inlineChoices != null) || !inlineCreationLabel || (
         Number.isInteger(inlineCreationPort) &&
         inlineCreationPort >= 1 &&
         inlineCreationPort <= 65535
@@ -1018,13 +1029,15 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
     const onSelectFromBrowse = useCallback((resource: compute.AppParameterValue, title: string) => {
         setSelectorRefresh(undefined);
         setIsSelecting(false);
-        if (inlineCreationLabel) {
+        if (inlineCreationLabel || inlineChoices) {
             setInlineResourceBeingCreated(resource);
             setInlineTitle(title);
+            if (inlineChoices) inlineChoices(resource).then(setChoices)
+                .catch(e => displayErrorMessageOrDefault(e, "Failed to load reserved IPs"));
         } else {
             onAttach(resource);
         }
-    }, [onAttach, inlineCreationLabel]);
+    }, [onAttach, inlineCreationLabel, inlineChoices]);
 
     const inlineCreationOnChange = useCallback((e: React.SyntheticEvent) => {
         setInlineCreationValue((e.target as HTMLInputElement).value);
@@ -1077,7 +1090,11 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
                 {inlineResourceBeingCreated === null ? null :
                     <Flex gap={"8px"} alignItems={"center"}>
                         <Box flexGrow={1}>{inlineTitle}</Box>
-                        <form onSubmit={onInlineCreationConfirm}>
+                        {inlineChoices ? <select aria-label="Reserved private IP" value={inlineCreationValue}
+                            onChange={e => setInlineCreationValue(e.target.value)}>
+                            <option value="">Automatic IP</option>
+                            {choices.map(ip => <option key={ip} value={ip}>{ip}</option>)}
+                        </select> : <form onSubmit={onInlineCreationConfirm}>
                             <Input
                                 autoFocus={true}
                                 width={"150px"}
@@ -1090,7 +1107,7 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
                                 required
                                 error={!inlineCreationIsValid}
                             />
-                        </form>
+                        </form>}
                         <IconButton
                             tooltip={"Confirm"}
                             onClick={onInlineCreationConfirm}
@@ -1179,7 +1196,8 @@ function vmAccessResourceLabel(
 
     if (resource.type === "private_network") {
         const network = privateNetworksById[resource.id];
-        return network?.specification.name || network?.specification.subdomain || resource.id;
+        const name = network?.specification.name || network?.specification.subdomain || resource.id;
+        return resource.ips?.length ? `${name} (${resource.ips.join(", ")})` : name;
     }
 
     if (resource.type === "network") {

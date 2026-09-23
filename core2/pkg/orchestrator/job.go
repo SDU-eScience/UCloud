@@ -179,9 +179,10 @@ func initJobs() {
 										support,
 										validation,
 									)
-									if err == nil {
-										validatedResources.Value = append(validatedResources.Value, value)
+									if err != nil {
+										return util.Empty{}, err
 									}
+									validatedResources.Value = append(validatedResources.Value, value)
 								}
 							}
 						}
@@ -192,6 +193,10 @@ func initJobs() {
 			ok := ResourceUpdate(info.Actor, jobType, ResourceParseId(jobId), orcapi.PermissionProvider, func(r *resource, mapped orcapi.Job) {
 				job := r.Extra.(*internalJob)
 				job.ChangeFlags |= internalJobPartialChange | internalJobChangeUpdates | internalJobChangeMetadata
+
+				if validatedResources.Present {
+					job.ChangeFlags |= internalJobChangeResources
+				}
 
 				for _, update := range updates {
 					update.Timestamp = fndapi.Timestamp(now)
@@ -1263,6 +1268,8 @@ func jobBindResource(jobId string, resc orcapi.AppParameterValue) {
 		IngressBind(resc.Id, jobId)
 	case orcapi.AppParameterValueTypeLicense:
 		LicenseBind(resc.Id, jobId)
+	case orcapi.AppParameterValueTypePrivateNetwork:
+		PrivateNetworkBind(resc.Id, jobId)
 	}
 }
 
@@ -1274,6 +1281,8 @@ func jobUnbindResource(jobId string, resc orcapi.AppParameterValue) {
 		IngressUnbind(resc.Id, jobId)
 	case orcapi.AppParameterValueTypeLicense:
 		LicenseUnbind(resc.Id, jobId)
+	case orcapi.AppParameterValueTypePrivateNetwork:
+		PrivateNetworkUnbind(resc.Id, jobId)
 	}
 }
 

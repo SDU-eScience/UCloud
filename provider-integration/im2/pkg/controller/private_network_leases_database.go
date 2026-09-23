@@ -122,10 +122,6 @@ func PrivateNetworkReservationCreate(reservation *orc.PrivateNetworkIp) *util.Ht
 		allocatedAddress = ""
 		notifyRequired = false
 
-		if scanErr := privateNetworkRequireInitialScan(); scanErr != nil {
-			return scanErr
-		}
-
 		network, networkOk := privateNetworkLockNetwork(tx, reservation.Specification.Network)
 		if !tx.Ok {
 			return nil
@@ -314,13 +310,6 @@ func privateNetworkSelectOccupiedAddresses(tx *db.Transaction, networkId string)
 				host(ip) as ip
 			from
 				private_network_ip_leases
-			where
-				network_id = :network_id
-			union all
-			select
-				host(ip) as ip
-			from
-				private_network_quarantined_ips
 			where
 				network_id = :network_id
 		`,
@@ -718,10 +707,6 @@ func PrivateNetworkJobAllocateLeases(job *orc.Job) ([]PrivateNetworkJobLeases, *
 	dbErr := db.NewTx(func(tx *db.Transaction) *util.HttpError {
 		result = nil
 
-		if scanErr := privateNetworkRequireInitialScan(); scanErr != nil {
-			return scanErr
-		}
-
 		ids := make([]string, 0, len(values))
 		for _, value := range values {
 			ids = append(ids, value.Id)
@@ -849,6 +834,60 @@ func PrivateNetworkJobAllocateLeases(job *orc.Job) ([]PrivateNetworkJobLeases, *
 	}
 
 	return result, nil
+}
+
+func PrivateNetworkSyncAssignedIps(job *orc.Job) {
+	if !PrivateNetworksFeatureEnabled() {
+		return
+	}
+
+	leases := PrivateNetworkLeasesForJob(job.Id)
+	if len(leases) == 0 {
+		return
+	}
+
+	ipsByNetwork := map[string][]string{}
+	for _, lease := range leases {
+		if lease.State == PrivateNetworkLeaseStateReleasing {
+			continue
+		}
+
+		ipsByNetwork[lease.NetworkId] = append(ipsByNetwork[lease.NetworkId], lease.Ip)
+	}
+
+	resources := slices.Clone(job.Specification.Resources)
+	changed := false
+	for i, value := range resources {
+		if value.Type != orc.AppParameterValueTypePrivateNetwork {
+			continue
+		}
+
+		ips, ok := ipsByNetwork[value.Id]
+		if !ok || slices.Equal(value.Ips, ips) {
+			continue
+		}
+
+		resources[i].Ips = ips
+		changed = true
+	}
+
+	if !changed {
+		return
+	}
+
+	job.Specification.Resources = resources
+	PrivateNetworkSendResourceList(job)
+}
+
+func PrivateNetworkSendResourceList(job *orc.Job) {
+	_ = JobTrackRawUpdates([]orc.ResourceUpdateAndId[orc.JobUpdate]{
+		{
+			Id: job.Id,
+			Update: orc.JobUpdate{
+				ResourceList: util.OptValue(job.Specification.Resources),
+			},
+		},
+	})
 }
 
 func privateNetworkValidateAttachment(job *orc.Job, value orc.AppParameterValue) *util.HttpError {
@@ -1211,7 +1250,7 @@ func privateNetworkReuseJobLeases(
 		}
 
 		if expected != "" {
-			if !lease.Pinned {
+			if !lease.Pinned && lease.Ip != expected {
 				return nil, privateNetworkBusinessRollback(
 					tx,
 					util.UserHttpError(

@@ -12,6 +12,7 @@ import (
 
 	apm "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 
@@ -106,6 +107,7 @@ func ProviderK8s() {
 	AddStartupHook(provider, func() {
 		_, err := os.Stat(filepath.Join(imConfig, ".installer-flag"))
 		if err == nil {
+			installK8sPrivateNetworks(provider.Name)
 			return
 		}
 
@@ -236,6 +238,7 @@ func ProviderK8s() {
 		})
 
 		ComposeExec("Provisioning K8s resources", provider.Name, []string{"bash", "/etc/ucloud/init.sh"}, ExecuteOptions{})
+		installK8sPrivateNetworks(provider.Name)
 		StartServiceEx(provider, true)
 		for i := range 30 {
 			res := ComposeExec(
@@ -439,72 +442,73 @@ func ProviderK8s() {
 			Networks: pinnedNetwork("172.18.0.11"),
 			Command:  []string{"sleep", "inf"},
 		})
-
-		AddStartupHook(privateNetworks, func() {
-			ComposeExec(
-				"Waiting for K3s to be ready",
-				"k3s",
-				[]string{"sh", "-c", "until kubectl get nodes >/dev/null 2>&1; do sleep 1; done"},
-				ExecuteOptions{},
-			)
-
-			// The node-side script is staged through the shared /etc/ucloud
-			// mount, which is the one directory the IM and the K3s container
-			// have in common. The K3s container copies it to /tmp before
-			// running it because the staged file has no execute bit and the
-			// entrypoint invokes it through sh anyway.
-			stageNodeInit := fmt.Sprintf("cat > /etc/ucloud/kube_ovn_node_init.sh <<'SCRIPT_EOF'\n%s\nSCRIPT_EOF\nchmod +x /etc/ucloud/kube_ovn_node_init.sh", string(k8sKubeOvnNodeInitScript))
-
-			ComposeExec(
-				"Staging node preparation script",
-				provider.Name,
-				[]string{"bash", "-c", stageNodeInit},
-				ExecuteOptions{},
-			)
-
-			ComposeExec(
-				"Preparing node for private networks (init)",
-				"k3s",
-				[]string{
-					"sh",
-					"-c",
-					"cp /etc/ucloud/kube_ovn_node_init.sh /tmp/ && sh /tmp/kube_ovn_node_init.sh init",
-				},
-				ExecuteOptions{},
-			)
-
-			ComposeExec(
-				"Installing Cilium",
-				provider.Name,
-				[]string{
-					"bash",
-					"-c",
-					string(k8sCiliumInitScript),
-				},
-				ExecuteOptions{},
-			)
-
-			ComposeExec(
-				"Installing Multus",
-				provider.Name,
-				[]string{
-					"bash",
-					"-c",
-					fmt.Sprintf("%s\ninstall_multus", string(k8sKubeOvnInitScript)),
-				},
-				ExecuteOptions{},
-			)
-
-			ComposeExec(
-				"Installing Kube-OVN",
-				provider.Name,
-				[]string{
-					"bash",
-					"-c",
-					fmt.Sprintf("%s\ninstall_kube_ovn\nverify_non_primary_conflist\nverify", string(k8sKubeOvnInitScript)),
-				},
-				ExecuteOptions{},
-			)
-		})
 	}
+}
+
+func installK8sPrivateNetworks(providerName string) {
+	runStep := func(title, containerName string, command []string) {
+		result := ComposeExec(title, containerName, command, ExecuteOptions{})
+		if result.ExitCode != 0 {
+			log.Fatal("%s failed with exit code %d", title, result.ExitCode)
+		}
+	}
+
+	runStep(
+		"Waiting for K3s to be ready",
+		"k3s",
+		[]string{"sh", "-c", "until kubectl get nodes >/dev/null 2>&1; do sleep 1; done"},
+	)
+
+	// The node-side script is staged through the shared /etc/ucloud
+	// mount, which is the one directory the IM and the K3s container
+	// have in common. The K3s container copies it to /tmp before
+	// running it because the staged file has no execute bit and the
+	// entrypoint invokes it through sh anyway.
+	stageNodeInit := fmt.Sprintf("cat > /etc/ucloud/kube_ovn_node_init.sh <<'SCRIPT_EOF'\n%s\nSCRIPT_EOF\nchmod +x /etc/ucloud/kube_ovn_node_init.sh", string(k8sKubeOvnNodeInitScript))
+
+	runStep(
+		"Staging node preparation script",
+		providerName,
+		[]string{"bash", "-c", stageNodeInit},
+	)
+
+	runStep(
+		"Preparing node for private networks (init)",
+		"k3s",
+		[]string{
+			"sh",
+			"-c",
+			"cp /etc/ucloud/kube_ovn_node_init.sh /tmp/ && sh /tmp/kube_ovn_node_init.sh init",
+		},
+	)
+
+	runStep(
+		"Installing Cilium",
+		providerName,
+		[]string{
+			"bash",
+			"-c",
+			string(k8sCiliumInitScript),
+		},
+	)
+
+	runStep(
+		"Installing Multus",
+		providerName,
+		[]string{
+			"bash",
+			"-c",
+			fmt.Sprintf("%s\ninstall_multus", string(k8sKubeOvnInitScript)),
+		},
+	)
+
+	runStep(
+		"Installing Kube-OVN",
+		providerName,
+		[]string{
+			"bash",
+			"-c",
+			fmt.Sprintf("%s\ninstall_kube_ovn\nverify_non_primary_conflist\nverify", string(k8sKubeOvnInitScript)),
+		},
+	)
 }

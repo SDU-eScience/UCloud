@@ -380,7 +380,7 @@ function canEditPermission(support: ProductSupport | undefined, namespace: strin
 }
 
 // TODO(Jonas): Find a less dramatic name
-function PredicatedPermissionsTable<T extends Resource, P extends Product>(props: {show?: boolean; api: AnyResourceApi<T, P>; res: Resource | null}): React.ReactNode {
+export function PredicatedPermissionsTable<T extends Resource, P extends Product>(props: {show?: boolean; api: AnyResourceApi<T, P>; res: Resource | null}): React.ReactNode {
     const [acl, setAcl] = React.useState(props.res?.permissions.others ?? []);
 
     React.useEffect(() => {

@@ -7,22 +7,25 @@ import (
 	"fmt"
 	"net/http"
 	"net/netip"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	nadapi "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	k8score "k8s.io/api/core/v1"
 	k8snetwork "k8s.io/api/networking/v1"
+	k8sequality "k8s.io/apimachinery/pkg/api/equality"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/dynamic"
 	kvcore "kubevirt.io/api/core/v1"
+	nadclient "kubevirt.io/client-go/networkattachmentdefinitionclient"
+	nadtyped "kubevirt.io/client-go/networkattachmentdefinitionclient/typed/k8s.cni.cncf.io/v1"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -39,12 +42,10 @@ var (
 	privateNetworkIpGvr = schema.GroupVersionResource{
 		Group: "kubeovn.io", Version: "v1", Resource: "ips",
 	}
-	privateNetworkNadGvr = schema.GroupVersionResource{
-		Group: "k8s.cni.cncf.io", Version: "v1", Resource: "network-attachment-definitions",
-	}
 )
 
 var privateNetworkDynamicClient dynamic.Interface
+var privateNetworkNadClient nadtyped.NetworkAttachmentDefinitionInterface
 
 const privateNetworkManagedBySelector = PrivateNetworkManagedByLabel + "=" + PrivateNetworkManagedBy
 
@@ -54,9 +55,7 @@ const privateNetworkReconcileInterval = 30 * time.Second
 
 var privateNetworkReconcileMutex sync.Mutex
 var privateNetworkLastReconcile time.Time
-
-var privateNetworkUnexpectedIpsMutex sync.Mutex
-var privateNetworkUnexpectedIpsByNetwork = map[string]map[string]struct{}{}
+var privateNetworkReconcileRequested atomic.Bool
 
 type privateNetworkNadConfig struct {
 	CniVersion   string `json:"cniVersion"`
@@ -72,7 +71,7 @@ func PrivateNetworkInit() {
 	}
 
 	if err := privateNetworkRequireCrds(); err != nil {
-		log.Fatal("Private networks are enabled but the cluster is missing required CRDs: %s", err)
+		log.Fatal("Private networks are enabled but required Kubernetes APIs are unavailable: %s", err)
 	}
 
 	client, err := dynamic.NewForConfig(K8sConfig)
@@ -81,27 +80,36 @@ func PrivateNetworkInit() {
 	}
 	privateNetworkDynamicClient = client
 
+	nadClient, err := nadclient.NewForConfig(K8sConfig)
+	if err != nil {
+		log.Fatal("Could not create the network attachment client for private networks: %s", err)
+	}
+	privateNetworkNadClient = nadClient.K8sCniCncfIoV1().NetworkAttachmentDefinitions(ServiceConfig.Compute.Namespace)
+
 	controller.PrivateNetworkConfigureDatabase(settings)
 }
 
 func privateNetworkRequireCrds() error {
 	requiredKubeOvn := map[string]bool{"vpcs": false, "subnets": false, "ips": false}
 	kubeOvnResources, err := K8sClient.Discovery().ServerResourcesForGroupVersion("kubeovn.io/v1")
-	if err == nil {
-		for _, resource := range kubeOvnResources.APIResources {
-			if _, wanted := requiredKubeOvn[resource.Name]; wanted {
-				requiredKubeOvn[resource.Name] = true
-			}
+	if err != nil {
+		return fmt.Errorf("could not discover kubeovn.io/v1 resources: %w", err)
+	}
+	for _, resource := range kubeOvnResources.APIResources {
+		if _, wanted := requiredKubeOvn[resource.Name]; wanted {
+			requiredKubeOvn[resource.Name] = true
 		}
 	}
 
-	nadFound := false
 	nadResources, err := K8sClient.Discovery().ServerResourcesForGroupVersion("k8s.cni.cncf.io/v1")
-	if err == nil {
-		for _, resource := range nadResources.APIResources {
-			if resource.Name == "network-attachment-definitions" {
-				nadFound = true
-			}
+	if err != nil {
+		return fmt.Errorf("could not discover k8s.cni.cncf.io/v1 resources: %w", err)
+	}
+
+	nadFound := false
+	for _, resource := range nadResources.APIResources {
+		if resource.Name == "network-attachment-definitions" {
+			nadFound = true
 		}
 	}
 
@@ -136,8 +144,9 @@ func PrivateNetworkReconcile() {
 	go func() {
 		defer privateNetworkReconcileMutex.Unlock()
 
+		requested := privateNetworkReconcileRequested.Swap(false)
 		now := time.Now()
-		if !privateNetworkLastReconcile.IsZero() && now.Sub(privateNetworkLastReconcile) < privateNetworkReconcileInterval {
+		if !requested && !privateNetworkLastReconcile.IsZero() && now.Sub(privateNetworkLastReconcile) < privateNetworkReconcileInterval {
 			return
 		}
 		privateNetworkLastReconcile = now
@@ -146,10 +155,19 @@ func PrivateNetworkReconcile() {
 	}()
 }
 
+func PrivateNetworkReconcileSoon() {
+	if privateNetworkDynamicClient == nil || !controller.PrivateNetworksFeatureEnabled() {
+		return
+	}
+
+	privateNetworkReconcileRequested.Store(true)
+	PrivateNetworkReconcile()
+}
+
 type privateNetworkObjectSnapshot struct {
-	vpcsByName     map[string]*unstructured.Unstructured
-	subnetsByName  map[string]*unstructured.Unstructured
-	nadsByName     map[string]*unstructured.Unstructured
+	vpcsByName     map[string]*privateNetworkKubeOvnVpc
+	subnetsByName  map[string]*privateNetworkKubeOvnSubnet
+	nadsByName     map[string]*nadapi.NetworkAttachmentDefinition
 	servicesByName map[string]*k8score.Service
 	policiesByName map[string]*k8snetwork.NetworkPolicy
 	ips            map[string][]privateNetworkIpRecord
@@ -200,10 +218,6 @@ func privateNetworkRunReconcilePass() {
 	networksById := map[string]controller.PrivateNetworkSnapshotNetwork{}
 	for i := range networks {
 		networksById[networks[i].ResourceId] = networks[i]
-	}
-
-	if objects.ok {
-		privateNetworkQuarantineScan(networks, leases, objects)
 	}
 
 	privateNetworkSubnetIpCacheBeginPass()
@@ -272,9 +286,9 @@ func privateNetworkIpv4ToString(value uint32) string {
 
 func privateNetworkListKubeOvnObjects(ctx context.Context) privateNetworkObjectSnapshot {
 	result := privateNetworkObjectSnapshot{
-		vpcsByName:     map[string]*unstructured.Unstructured{},
-		subnetsByName:  map[string]*unstructured.Unstructured{},
-		nadsByName:     map[string]*unstructured.Unstructured{},
+		vpcsByName:     map[string]*privateNetworkKubeOvnVpc{},
+		subnetsByName:  map[string]*privateNetworkKubeOvnSubnet{},
+		nadsByName:     map[string]*nadapi.NetworkAttachmentDefinition{},
 		servicesByName: map[string]*k8score.Service{},
 		policiesByName: map[string]*k8snetwork.NetworkPolicy{},
 		ips:            map[string][]privateNetworkIpRecord{},
@@ -294,7 +308,12 @@ func privateNetworkListKubeOvnObjects(ctx context.Context) privateNetworkObjectS
 		return result
 	}
 	for i := range vpcs.Items {
-		result.vpcsByName[vpcs.Items[i].GetName()] = &vpcs.Items[i]
+		vpc := &privateNetworkKubeOvnVpc{}
+		if !privateNetworkKubeOvnFromUnstructured("Vpc", &vpcs.Items[i], vpc) {
+			result.ok = false
+			return result
+		}
+		result.vpcsByName[vpc.Name] = vpc
 	}
 
 	subnets, err := privateNetworkDynamicClient.Resource(privateNetworkSubnetGvr).
@@ -305,19 +324,25 @@ func privateNetworkListKubeOvnObjects(ctx context.Context) privateNetworkObjectS
 		return result
 	}
 	for i := range subnets.Items {
-		result.subnetsByName[subnets.Items[i].GetName()] = &subnets.Items[i]
+		subnet := &privateNetworkKubeOvnSubnet{}
+		if !privateNetworkKubeOvnFromUnstructured("Subnet", &subnets.Items[i], subnet) {
+			result.ok = false
+			return result
+		}
+		result.subnetsByName[subnet.Name] = subnet
 	}
 
-	nads, err := privateNetworkDynamicClient.Resource(privateNetworkNadGvr).
-		Namespace(ServiceConfig.Compute.Namespace).
-		List(ctx, k8smeta.ListOptions{LabelSelector: privateNetworkManagedBySelector})
+	nads, err := privateNetworkNadClient.List(
+		ctx,
+		k8smeta.ListOptions{LabelSelector: privateNetworkManagedBySelector},
+	)
 	if err != nil {
 		log.Warn("Failed to list managed network attachments for private network reconciliation: %s", err)
 		result.ok = false
 		return result
 	}
 	for i := range nads.Items {
-		result.nadsByName[nads.Items[i].GetName()] = &nads.Items[i]
+		result.nadsByName[nads.Items[i].Name] = &nads.Items[i]
 	}
 
 	services, err := K8sClient.CoreV1().Services(ServiceConfig.Compute.Namespace).
@@ -350,24 +375,15 @@ func privateNetworkListKubeOvnObjects(ctx context.Context) privateNetworkObjectS
 		return result
 	}
 	for i := range ips.Items {
-		item := &ips.Items[i]
-		subnet, _, _ := unstructured.NestedString(item.Object, "spec", "subnet")
-		podName, _, _ := unstructured.NestedString(item.Object, "spec", "podName")
-		namespace, _, _ := unstructured.NestedString(item.Object, "spec", "namespace")
-		ipAddress, _, _ := unstructured.NestedString(item.Object, "spec", "v4IpAddress")
-		mac, _, _ := unstructured.NestedString(item.Object, "spec", "macAddress")
-		if subnet == "" || ipAddress == "" {
+		item := &privateNetworkKubeOvnIp{}
+		if !privateNetworkKubeOvnFromUnstructured("IP", &ips.Items[i], item) {
+			result.ok = false
+			return result
+		}
+		if item.Spec.Subnet == "" || item.Spec.V4IpAddress == "" {
 			continue
 		}
-		record := privateNetworkIpRecord{
-			name:      item.GetName(),
-			namespace: namespace,
-			podName:   podName,
-			subnet:    subnet,
-			ip:        ipAddress,
-			mac:       mac,
-			uid:       item.GetUID(),
-		}
+		record := privateNetworkIpRecordFromKubeOvn(item)
 		result.ips[record.subnet] = append(result.ips[record.subnet], record)
 	}
 
@@ -590,6 +606,11 @@ func privateNetworkProvisionNetwork(
 	desired privateNetworkDesiredObjects,
 	objects privateNetworkObjectSnapshot,
 ) {
+	if err := controller.PrivateNetworkUpdateCoreCidrBlock(desired.networkId, desired.cidr); err != nil {
+		log.Warn("Failed to report the CIDR of private network %s to Core: %s", desired.networkId, err)
+		return
+	}
+
 	vpc := objects.vpcsByName[desired.subdomain]
 	subnet := objects.subnetsByName[desired.subnetName]
 	nad := objects.nadsByName[desired.subdomain]
@@ -624,15 +645,20 @@ func privateNetworkProvisionNetwork(
 	}
 
 	if !privateNetworkVpcReady(vpc) {
+		log.Info(
+			"Private network %s is waiting for Kube-OVN VPC %s to become standby",
+			desired.networkId,
+			desired.subdomain,
+		)
 		return
 	}
 
 	if !privateNetworkSubnetReady(subnet) {
-		return
-	}
-
-	if err := controller.PrivateNetworkUpdateCoreCidrBlock(desired.networkId, desired.cidr); err != nil {
-		log.Warn("Failed to report the CIDR of private network %s to Core: %s", desired.networkId, err)
+		log.Info(
+			"Private network %s is waiting for Kube-OVN subnet %s to become ready",
+			desired.networkId,
+			desired.subnetName,
+		)
 		return
 	}
 
@@ -680,8 +706,6 @@ func privateNetworkDeleteNetwork(
 		return
 	}
 
-	nadClient := privateNetworkDynamicClient.Resource(privateNetworkNadGvr).
-		Namespace(ServiceConfig.Compute.Namespace)
 	subnetClient := privateNetworkDynamicClient.Resource(privateNetworkSubnetGvr)
 	vpcClient := privateNetworkDynamicClient.Resource(privateNetworkVpcGvr)
 
@@ -689,7 +713,7 @@ func privateNetworkDeleteNetwork(
 	if nad := objects.nadsByName[desired.subdomain]; nad != nil {
 		nadExists = true
 		if privateNetworkObjectOwnedBy(nad, desired.networkId) {
-			privateNetworkDeleteWithUid(ctx, nadClient, desired.subdomain, nad.GetUID())
+			privateNetworkDeleteNadWithUid(ctx, desired.subdomain, nad.UID)
 		} else {
 			log.Warn(
 				"The network attachment %s collides with private network %s and will not be deleted",
@@ -855,6 +879,20 @@ func privateNetworkDeleteWithUid(
 	return true
 }
 
+func privateNetworkDeleteNadWithUid(ctx context.Context, name string, uid types.UID) bool {
+	options := k8smeta.DeleteOptions{}
+	if uid != "" {
+		options.Preconditions = &k8smeta.Preconditions{UID: &uid}
+	}
+
+	err := privateNetworkNadClient.Delete(ctx, name, options)
+	if err != nil && !k8serrors.IsNotFound(err) && !k8serrors.IsConflict(err) {
+		log.Warn("Failed to delete the object %s of a private network: %s", name, err)
+		return false
+	}
+	return true
+}
+
 func privateNetworkReconcileOrphans(
 	ctx context.Context,
 	objects privateNetworkObjectSnapshot,
@@ -865,7 +903,7 @@ func privateNetworkReconcileOrphans(
 
 	deleted := 0
 
-	deleteOrphan := func(gvr schema.GroupVersionResource, namespace string, name string, id string, uid types.UID) {
+	deleteOrphan := func(name string, id string, deleteObject func() bool) {
 		if id == "" {
 			log.Warn("The managed private network object %s has no network id label and will not be deleted", name)
 			return
@@ -880,156 +918,225 @@ func privateNetworkReconcileOrphans(
 				return
 			}
 
-			var client dynamic.ResourceInterface
-			if namespace != "" {
-				client = privateNetworkDynamicClient.Resource(gvr).Namespace(namespace)
-			} else {
-				client = privateNetworkDynamicClient.Resource(gvr)
-			}
-
-			if privateNetworkDeleteWithUid(ctx, client, name, uid) {
+			if deleteObject() {
 				deleted++
 				log.Warn("Deleted the orphaned private network object %s (network %s is not tracked)", name, id)
 			}
 		})
 	}
 
+	vpcClient := privateNetworkDynamicClient.Resource(privateNetworkVpcGvr)
 	for name, vpc := range objects.vpcsByName {
-		id, _, _ := unstructured.NestedString(vpc.Object, "metadata", "labels", PrivateNetworkIdLabel)
-		deleteOrphan(privateNetworkVpcGvr, "", name, id, vpc.GetUID())
+		id := vpc.Labels[PrivateNetworkIdLabel]
+		deleteOrphan(name, id, func() bool {
+			return privateNetworkDeleteWithUid(ctx, vpcClient, name, vpc.UID)
+		})
 	}
 
+	subnetClient := privateNetworkDynamicClient.Resource(privateNetworkSubnetGvr)
 	for name, subnet := range objects.subnetsByName {
-		id, _, _ := unstructured.NestedString(subnet.Object, "metadata", "labels", PrivateNetworkIdLabel)
-		deleteOrphan(privateNetworkSubnetGvr, "", name, id, subnet.GetUID())
+		id := subnet.Labels[PrivateNetworkIdLabel]
+		deleteOrphan(name, id, func() bool {
+			return privateNetworkDeleteWithUid(ctx, subnetClient, name, subnet.UID)
+		})
 	}
 
 	for name, nad := range objects.nadsByName {
-		id, _, _ := unstructured.NestedString(nad.Object, "metadata", "labels", PrivateNetworkIdLabel)
-		deleteOrphan(privateNetworkNadGvr, ServiceConfig.Compute.Namespace, name, id, nad.GetUID())
+		id := nad.Labels[PrivateNetworkIdLabel]
+		deleteOrphan(name, id, func() bool {
+			return privateNetworkDeleteNadWithUid(ctx, name, nad.UID)
+		})
 	}
 
 	return deleted
 }
 
-func privateNetworkObjectOwnedBy(obj *unstructured.Unstructured, networkId string) bool {
-	id, found, _ := unstructured.NestedString(obj.Object, "metadata", "labels", PrivateNetworkIdLabel)
+func privateNetworkObjectOwnedBy(obj k8smeta.Object, networkId string) bool {
+	id, found := obj.GetLabels()[PrivateNetworkIdLabel]
 	return found && id == networkId
 }
 
 func privateNetworkEnsureVpcObject(
 	ctx context.Context,
 	desired privateNetworkDesiredObjects,
-	existing *unstructured.Unstructured,
+	existing *privateNetworkKubeOvnVpc,
 ) (bool, bool) {
-	return privateNetworkApplyObject(
-		ctx,
-		"Vpc",
-		privateNetworkVpcObject(desired),
-		existing,
-		privateNetworkDynamicClient.Resource(privateNetworkVpcGvr),
-		nil,
-	)
+	object := privateNetworkVpcObject(desired)
+	client := privateNetworkDynamicClient.Resource(privateNetworkVpcGvr)
+	if existing == nil {
+		return privateNetworkCreateKubeOvnObject(ctx, "Vpc", object, client)
+	}
+
+	specDrift := !privateNetworkLabelsEqual(existing.Labels, object.Labels) ||
+		!k8sequality.Semantic.DeepEqual(existing.Spec, object.Spec)
+	return privateNetworkRepairKubeOvnObject(ctx, "Vpc", object, existing, client, false, specDrift)
 }
 
-func privateNetworkVpcObject(desired privateNetworkDesiredObjects) *unstructured.Unstructured {
-	result := &unstructured.Unstructured{}
-	result.SetAPIVersion("kubeovn.io/v1")
-	result.SetKind("Vpc")
-	result.SetName(desired.subdomain)
-	result.SetLabels(privateNetworkObjectLabels(desired.networkId))
-	result.Object["spec"] = map[string]any{
-		"staticRoutes":   []any{},
-		"policyRoutes":   []any{},
-		"vpcPeerings":    []any{},
-		"enableExternal": false,
-		"enableBfd":      false,
+func privateNetworkVpcObject(desired privateNetworkDesiredObjects) *privateNetworkKubeOvnVpc {
+	return &privateNetworkKubeOvnVpc{
+		TypeMeta: k8smeta.TypeMeta{
+			APIVersion: "kubeovn.io/v1",
+			Kind:       "Vpc",
+		},
+		ObjectMeta: k8smeta.ObjectMeta{
+			Name:   desired.subdomain,
+			Labels: privateNetworkObjectLabels(desired.networkId),
+		},
+		Spec: privateNetworkKubeOvnVpcSpec{
+			Namespaces:     []string{desired.namespace},
+			StaticRoutes:   []*privateNetworkKubeOvnStaticRoute{},
+			PolicyRoutes:   []*privateNetworkKubeOvnPolicyRoute{},
+			VpcPeerings:    []*privateNetworkKubeOvnVpcPeering{},
+			EnableExternal: false,
+			EnableBfd:      false,
+		},
 	}
-	return result
 }
 
 func privateNetworkEnsureSubnetObject(
 	ctx context.Context,
 	desired privateNetworkDesiredObjects,
-	existing *unstructured.Unstructured,
+	existing *privateNetworkKubeOvnSubnet,
 ) (bool, bool) {
-	return privateNetworkApplyObject(
+	object := privateNetworkSubnetObject(desired)
+	client := privateNetworkDynamicClient.Resource(privateNetworkSubnetGvr)
+	if existing == nil {
+		return privateNetworkCreateKubeOvnObject(ctx, "Subnet", object, client)
+	}
+
+	immutableDrift := existing.Spec.Protocol != object.Spec.Protocol ||
+		existing.Spec.Vpc != object.Spec.Vpc ||
+		existing.Spec.CidrBlock != object.Spec.CidrBlock
+	specDrift := !privateNetworkLabelsEqual(existing.Labels, object.Labels) ||
+		!k8sequality.Semantic.DeepEqual(existing.Spec, object.Spec)
+	return privateNetworkRepairKubeOvnObject(
 		ctx,
 		"Subnet",
-		privateNetworkSubnetObject(desired),
+		object,
 		existing,
-		privateNetworkDynamicClient.Resource(privateNetworkSubnetGvr),
-		[]string{"protocol", "vpc", "cidrBlock"},
+		client,
+		immutableDrift,
+		specDrift,
 	)
 }
 
-func privateNetworkSubnetObject(desired privateNetworkDesiredObjects) *unstructured.Unstructured {
-	result := &unstructured.Unstructured{}
-	result.SetAPIVersion("kubeovn.io/v1")
-	result.SetKind("Subnet")
-	result.SetName(desired.subnetName)
-	result.SetLabels(privateNetworkObjectLabels(desired.networkId))
-	result.Object["spec"] = map[string]any{
-		"protocol":    "IPv4",
-		"vpc":         desired.subdomain,
-		"cidrBlock":   desired.cidr,
-		"gateway":     desired.gateway,
-		"provider":    desired.provider,
-		"natOutgoing": false,
-		"enableDHCP":  false,
-		"namespaces":  []any{desired.namespace},
-		"excludeIps":  []any{desired.excludeIps},
+func privateNetworkSubnetObject(desired privateNetworkDesiredObjects) *privateNetworkKubeOvnSubnet {
+	return &privateNetworkKubeOvnSubnet{
+		TypeMeta: k8smeta.TypeMeta{
+			APIVersion: "kubeovn.io/v1",
+			Kind:       "Subnet",
+		},
+		ObjectMeta: k8smeta.ObjectMeta{
+			Name:   desired.subnetName,
+			Labels: privateNetworkObjectLabels(desired.networkId),
+		},
+		Spec: privateNetworkKubeOvnSubnetSpec{
+			Protocol:    "IPv4",
+			Vpc:         desired.subdomain,
+			CidrBlock:   desired.cidr,
+			Gateway:     desired.gateway,
+			Provider:    desired.provider,
+			NatOutgoing: false,
+			EnableDhcp:  false,
+			Namespaces:  []string{desired.namespace},
+			ExcludeIps:  []string{desired.excludeIps},
+		},
 	}
-	return result
 }
 
 func privateNetworkEnsureNadObject(
 	ctx context.Context,
 	desired privateNetworkDesiredObjects,
-	existing *unstructured.Unstructured,
+	existing *nadapi.NetworkAttachmentDefinition,
 ) (bool, bool) {
-	return privateNetworkApplyObject(
-		ctx,
-		"network attachment",
-		privateNetworkNadObject(desired),
-		existing,
-		privateNetworkDynamicClient.Resource(privateNetworkNadGvr).
-			Namespace(ServiceConfig.Compute.Namespace),
-		nil,
-	)
-}
-
-func privateNetworkNadObject(desired privateNetworkDesiredObjects) *unstructured.Unstructured {
-	result := &unstructured.Unstructured{}
-	result.SetAPIVersion("k8s.cni.cncf.io/v1")
-	result.SetKind("NetworkAttachmentDefinition")
-	result.SetName(desired.subdomain)
-	result.SetNamespace(desired.namespace)
-	result.SetLabels(privateNetworkObjectLabels(desired.networkId))
-	result.Object["spec"] = map[string]any{
-		"config": desired.nadConfig,
-	}
-	return result
-}
-
-func privateNetworkApplyObject(
-	ctx context.Context,
-	kind string,
-	desired *unstructured.Unstructured,
-	existing *unstructured.Unstructured,
-	client dynamic.ResourceInterface,
-	immutableFields []string,
-) (bool, bool) {
-	name := desired.GetName()
-
+	object := privateNetworkNadObject(desired)
 	if existing == nil {
-		if _, err := client.Create(ctx, desired, k8smeta.CreateOptions{}); err != nil {
-			log.Warn("Failed to create the %s of private network: %s", kind, err)
+		_, err := privateNetworkNadClient.Create(ctx, object, k8smeta.CreateOptions{})
+		if err != nil {
+			log.Warn("Failed to create the network attachment of private network: %s", err)
 			return false, false
 		}
 		return true, true
 	}
 
+	if !privateNetworkObjectOwnedBy(existing, desired.networkId) {
+		log.Warn(
+			"A network attachment named %s collides with a private network and will not be modified",
+			object.Name,
+		)
+		return false, false
+	}
+
+	specDrift := !privateNetworkLabelsEqual(existing.Labels, object.Labels) ||
+		existing.Spec.Config != object.Spec.Config
+	if !specDrift {
+		return true, false
+	}
+
+	data, err := json.Marshal(object)
+	if err != nil {
+		log.Fatal("Failed to encode a private network attachment: %s", err)
+	}
+	applyOptions := k8smeta.ApplyOptions{
+		FieldManager: privateNetworkFieldManager,
+		Force:        true,
+	}
+	_, err = privateNetworkNadClient.Patch(
+		ctx,
+		object.Name,
+		types.ApplyPatchType,
+		data,
+		applyOptions.ToPatchOptions(),
+	)
+	if err != nil {
+		log.Warn("Failed to repair the network attachment of a private network: %s", err)
+		return false, false
+	}
+	return true, true
+}
+
+func privateNetworkNadObject(desired privateNetworkDesiredObjects) *nadapi.NetworkAttachmentDefinition {
+	return &nadapi.NetworkAttachmentDefinition{
+		TypeMeta: k8smeta.TypeMeta{
+			APIVersion: "k8s.cni.cncf.io/v1",
+			Kind:       "NetworkAttachmentDefinition",
+		},
+		ObjectMeta: k8smeta.ObjectMeta{
+			Name:      desired.subdomain,
+			Namespace: desired.namespace,
+			Labels:    privateNetworkObjectLabels(desired.networkId),
+		},
+		Spec: nadapi.NetworkAttachmentDefinitionSpec{
+			Config: desired.nadConfig,
+		},
+	}
+}
+
+func privateNetworkCreateKubeOvnObject(
+	ctx context.Context,
+	kind string,
+	desired k8smeta.Object,
+	client dynamic.ResourceInterface,
+) (bool, bool) {
+	object := privateNetworkKubeOvnToUnstructured(desired)
+	_, err := client.Create(ctx, object, k8smeta.CreateOptions{})
+	if err != nil {
+		log.Warn("Failed to create the %s of private network: %s", kind, err)
+		return false, false
+	}
+	return true, true
+}
+
+func privateNetworkRepairKubeOvnObject(
+	ctx context.Context,
+	kind string,
+	desired k8smeta.Object,
+	existing k8smeta.Object,
+	client dynamic.ResourceInterface,
+	immutableDrift bool,
+	specDrift bool,
+) (bool, bool) {
+	name := desired.GetName()
 	if !privateNetworkObjectOwnedBy(existing, desired.GetLabels()[PrivateNetworkIdLabel]) {
 		log.Warn(
 			"A %s named %s collides with a private network and will not be modified",
@@ -1039,7 +1146,7 @@ func privateNetworkApplyObject(
 		return false, false
 	}
 
-	if len(immutableFields) > 0 && privateNetworkImmutableDrift(existing, desired, immutableFields) {
+	if immutableDrift {
 		uid := existing.GetUID()
 		if !privateNetworkDeleteWithUid(ctx, client, name, uid) {
 			return false, false
@@ -1052,11 +1159,12 @@ func privateNetworkApplyObject(
 		return false, true
 	}
 
-	if !privateNetworkSpecDrift(existing, desired) {
+	if !specDrift {
 		return true, false
 	}
 
-	if _, err := client.Apply(ctx, name, desired, k8smeta.ApplyOptions{
+	object := privateNetworkKubeOvnToUnstructured(desired)
+	if _, err := client.Apply(ctx, name, object, k8smeta.ApplyOptions{
 		FieldManager: privateNetworkFieldManager,
 		Force:        true,
 	}); err != nil {
@@ -1066,97 +1174,13 @@ func privateNetworkApplyObject(
 	return true, true
 }
 
-func privateNetworkImmutableDrift(
-	existing *unstructured.Unstructured,
-	desired *unstructured.Unstructured,
-	immutableFields []string,
-) bool {
-	for _, field := range immutableFields {
-		current, _, _ := unstructured.NestedString(existing.Object, "spec", field)
-		wanted, _, _ := unstructured.NestedString(desired.Object, "spec", field)
-		if current != wanted {
-			return true
-		}
-	}
-	return false
-}
-
-func privateNetworkSpecDrift(existing *unstructured.Unstructured, desired *unstructured.Unstructured) bool {
-	existingLabels, _, _ := unstructured.NestedMap(existing.Object, "metadata", "labels")
-	if !privateNetworkLabelsEqual(existingLabels, desired.GetLabels()) {
-		return true
-	}
-
-	return !privateNetworkValueEqual(existing.Object["spec"], desired.Object["spec"])
-}
-
-func privateNetworkLabelsEqual(existing map[string]any, desired map[string]string) bool {
+func privateNetworkLabelsEqual(existing map[string]string, desired map[string]string) bool {
 	for key, value := range desired {
 		if existing[key] != value {
 			return false
 		}
 	}
 	return true
-}
-
-func privateNetworkValueEqual(current any, desired any) bool {
-	switch desiredValue := desired.(type) {
-	case map[string]any:
-		currentMap, ok := current.(map[string]any)
-		if !ok {
-			return false
-		}
-		for key, wanted := range desiredValue {
-			if !privateNetworkValueEqual(currentMap[key], wanted) {
-				return false
-			}
-		}
-		return true
-
-	case []any:
-		if current == nil {
-			current = []any{}
-		}
-		currentList, ok := current.([]any)
-		if !ok || len(currentList) != len(desiredValue) {
-			return false
-		}
-		for i := range desiredValue {
-			if !privateNetworkValueEqual(currentList[i], desiredValue[i]) {
-				return false
-			}
-		}
-		return true
-
-	case []string:
-		if current == nil {
-			current = []any{}
-		}
-		currentList, ok := current.([]any)
-		if !ok || len(currentList) != len(desiredValue) {
-			return false
-		}
-		for i := range desiredValue {
-			if !privateNetworkValueEqual(currentList[i], desiredValue[i]) {
-				return false
-			}
-		}
-		return true
-
-	case string:
-		currentString, ok := current.(string)
-		return ok && currentString == desiredValue
-
-	case bool:
-		if current == nil {
-			return !desiredValue
-		}
-		currentBool, ok := current.(bool)
-		return ok && currentBool == desiredValue
-
-	default:
-		return reflect.DeepEqual(current, desired)
-	}
 }
 
 func privateNetworkEnsureServiceAndPolicy(
@@ -1324,74 +1348,23 @@ func privateNetworkObjectLabels(networkId string) map[string]string {
 	}
 }
 
-func privateNetworkVpcReady(vpc *unstructured.Unstructured) bool {
-	standby, found, _ := unstructured.NestedBool(vpc.Object, "status", "standby")
-	return found && standby
+func privateNetworkVpcReady(vpc *privateNetworkKubeOvnVpc) bool {
+	return vpc.Status.Standby
 }
 
-func privateNetworkSubnetReady(subnet *unstructured.Unstructured) bool {
-	conditions, found, _ := unstructured.NestedSlice(subnet.Object, "status", "conditions")
-	if !found {
-		return false
-	}
-
+func privateNetworkSubnetReady(subnet *privateNetworkKubeOvnSubnet) bool {
 	validated := false
 	ready := false
-	for _, entry := range conditions {
-		condition, ok := entry.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		conditionType, _ := condition["type"].(string)
-		status, _ := condition["status"].(string)
-		if conditionType == "Validated" && status == "True" {
+	for _, condition := range subnet.Status.Conditions {
+		if condition.Type == "Validated" && condition.Status == k8score.ConditionTrue {
 			validated = true
 		}
-		if conditionType == "Ready" && status == "True" {
+		if condition.Type == "Ready" && condition.Status == k8score.ConditionTrue {
 			ready = true
 		}
 	}
 
 	return validated && ready
-}
-
-func privateNetworkQuarantineScan(
-	networks []controller.PrivateNetworkSnapshotNetwork,
-	leases []controller.PrivateNetworkLeaseRow,
-	objects privateNetworkObjectSnapshot,
-) bool {
-	leasesByKey := map[string]controller.PrivateNetworkLeaseRow{}
-	for _, lease := range leases {
-		leasesByKey[lease.NetworkId+"|"+lease.Ip] = lease
-	}
-
-	allOk := true
-	for i := range networks {
-		network := &networks[i]
-		desired, ok := privateNetworkComputeDesired(*network)
-		if !ok {
-			continue
-		}
-
-		var unexpected []string
-		for _, record := range objects.ips[desired.subnetName] {
-			lease, leased := leasesByKey[network.ResourceId+"|"+record.ip]
-			if leased && privateNetworkIpMatchesLease(record, lease, desired) {
-				continue
-			}
-			unexpected = append(unexpected, record.ip)
-		}
-
-		privateNetworkRememberUnexpectedIps(network.ResourceId, unexpected)
-
-		if err := controller.PrivateNetworkQuarantineUpdate(network.ResourceId, unexpected); err != nil {
-			log.Warn("Failed to quarantine the unexpected addresses of private network %s: %s", network.ResourceId, err)
-			allOk = false
-		}
-	}
-
-	return allOk
 }
 
 func privateNetworkIpMatchesLease(
@@ -1438,36 +1411,6 @@ func privateNetworkExpectedIpName(podName string, desired privateNetworkDesiredO
 		return ""
 	}
 	return podName + "." + desired.namespace + "." + desired.provider
-}
-
-func privateNetworkRememberUnexpectedIps(networkId string, unexpected []string) {
-	privateNetworkUnexpectedIpsMutex.Lock()
-	defer privateNetworkUnexpectedIpsMutex.Unlock()
-
-	existing := privateNetworkUnexpectedIpsByNetwork[networkId]
-	next := map[string]struct{}{}
-	for _, ip := range unexpected {
-		next[ip] = struct{}{}
-		if _, seen := existing[ip]; !seen {
-			log.Warn(
-				"Private network %s has the unexpected Kube-OVN address %s. It is excluded from allocation.",
-				networkId,
-				ip,
-			)
-		}
-	}
-
-	for ip := range existing {
-		if _, kept := next[ip]; !kept {
-			log.Info("The unexpected Kube-OVN address %s of private network %s is gone", ip, networkId)
-		}
-	}
-
-	if len(next) == 0 {
-		delete(privateNetworkUnexpectedIpsByNetwork, networkId)
-	} else {
-		privateNetworkUnexpectedIpsByNetwork[networkId] = next
-	}
 }
 
 func privateNetworkReconcileLeases(
@@ -1672,7 +1615,11 @@ func privateNetworkLeaseIpRecords(
 	item, err := privateNetworkDynamicClient.Resource(privateNetworkIpGvr).
 		Get(ctx, expectedName, k8smeta.GetOptions{})
 	if err == nil {
-		record := privateNetworkIpRecordFromUnstructured(item)
+		ip := &privateNetworkKubeOvnIp{}
+		if !privateNetworkKubeOvnFromUnstructured("IP", item, ip) {
+			return nil, false
+		}
+		record := privateNetworkIpRecordFromKubeOvn(ip)
 		if privateNetworkIpRecordBlocksLease(record, lease, desired) {
 			result = append(result, record)
 		}
@@ -1726,7 +1673,11 @@ func privateNetworkSubnetIpSnapshot(
 
 	records := make([]privateNetworkIpRecord, 0, len(list.Items))
 	for i := range list.Items {
-		records = append(records, privateNetworkIpRecordFromUnstructured(&list.Items[i]))
+		ip := &privateNetworkKubeOvnIp{}
+		if !privateNetworkKubeOvnFromUnstructured("IP", &list.Items[i], ip) {
+			return nil, false
+		}
+		records = append(records, privateNetworkIpRecordFromKubeOvn(ip))
 	}
 
 	if privateNetworkSubnetIpCache.pass != privateNetworkSubnetIpCachePass {
@@ -1745,21 +1696,15 @@ func privateNetworkSubnetIpCacheBeginPass() {
 	privateNetworkSubnetIpCache.Unlock()
 }
 
-func privateNetworkIpRecordFromUnstructured(item *unstructured.Unstructured) privateNetworkIpRecord {
-	subnet, _, _ := unstructured.NestedString(item.Object, "spec", "subnet")
-	podName, _, _ := unstructured.NestedString(item.Object, "spec", "podName")
-	namespace, _, _ := unstructured.NestedString(item.Object, "spec", "namespace")
-	ipAddress, _, _ := unstructured.NestedString(item.Object, "spec", "v4IpAddress")
-	mac, _, _ := unstructured.NestedString(item.Object, "spec", "macAddress")
-
+func privateNetworkIpRecordFromKubeOvn(item *privateNetworkKubeOvnIp) privateNetworkIpRecord {
 	return privateNetworkIpRecord{
-		name:      item.GetName(),
-		namespace: namespace,
-		podName:   podName,
-		subnet:    subnet,
-		ip:        ipAddress,
-		mac:       mac,
-		uid:       item.GetUID(),
+		name:      item.Name,
+		namespace: item.Spec.Namespace,
+		podName:   item.Spec.PodName,
+		subnet:    item.Spec.Subnet,
+		ip:        item.Spec.V4IpAddress,
+		mac:       item.Spec.MacAddress,
+		uid:       item.UID,
 	}
 }
 

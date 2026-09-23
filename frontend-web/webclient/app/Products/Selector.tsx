@@ -333,7 +333,7 @@ export const ProductSelector: React.FunctionComponent<{
     return <>
         <div className={ProductSelectorContainerClass}>
         <div className={ProductSelectorFieldsClass} data-is-compute={isCompute && props.hideServiceProvider !== true}>
-            {isCompute && props.hideServiceProvider === true ? null : <Box minWidth={0}>
+            {!isCompute || props.hideServiceProvider === true ? null : <Box minWidth={0}>
                 {serviceProviders.length === 0 ? <Box onClick={onToggle}><Label>Service provider <MandatoryField /> <Input disabled value={"You have no active allocations for this workspace"} /></Label></Box> :
                     <ServiceProviderSelector
                         serviceProvider={serviceProvider}

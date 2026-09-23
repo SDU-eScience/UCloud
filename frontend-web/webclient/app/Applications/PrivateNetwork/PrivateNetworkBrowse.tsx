@@ -248,12 +248,11 @@ export function PrivateNetworkBrowse({
                                     onCancel={() => {
                                         dialogStore.failure();
                                     }}
-                                    onCreate={async (name, subdomain, permissions, product) => {
-                                        console.log({name, subdomain, permissions, product})
+                    onCreate={async (name, subdomain, cidr, permissions, product) => {
                                         const network: PrivateNetwork = {
                                             ...dummyEntry,
                                             id: "",
-                                            specification: {name, subdomain, product},
+                                             specification: {name, subdomain, product, ...(cidr ? {cidr} : {})},
                                             owner: {createdBy: ""},
                                         };
 
@@ -356,7 +355,7 @@ export function PrivateNetworkBrowse({
 interface PrivateNetworkCreateProps {
     products: ProductV2PrivateNetwork[];
 
-    onCreate(name: string, subdomain: string, permissions: ResourceAclEntry[], product: ProductReference): void;
+    onCreate(name: string, subdomain: string, cidr: string, permissions: ResourceAclEntry[], product: ProductReference): void;
 
     onCancel: () => void;
 }
@@ -374,12 +373,20 @@ function PrivateNetworkCreate({onCreate, onCancel, products}: PrivateNetworkCrea
     const [product, setSelectedProduct] = React.useState<ProductV2 | null>(null);
     const [name, setName] = React.useState("");
     const [subdomain, setSubdomain] = React.useState("");
+    const [cidr, setCidr] = React.useState("");
     const [acl, setAcl] = React.useState<ResourceAclEntry[]>([]);
     const project = useProject().fetch();
     const projectId = useProjectId();
 
     const isNameValid = name.trim().length > 0;
     const isSubdomainValid = subdomain.trim().length > 0 && !subdomain.includes(".");
+    const cidrParts = cidr.trim().split("/");
+    const cidrOctets = cidrParts[0].split(".").map(Number);
+    const prefix = Number(cidrParts[1]);
+    const isCidrValid = cidr.trim() === "" || (cidrParts.length === 2 && cidrOctets.length === 4 &&
+        cidrOctets.every((octet, idx) => /^(?:0|[1-9]\d{0,2})$/.test(cidrParts[0].split(".")[idx]) && octet <= 255) &&
+        /^(?:16|17|18|19|20|21|22|23|24)$/.test(cidrParts[1]) &&
+        (cidrOctets.reduce((value, octet) => (value << 8) | octet, 0) & (2 ** (32 - prefix) - 1)) === 0);
 
     let shortProviderId = "the selected provider";
     if (product) {
@@ -433,6 +440,15 @@ function PrivateNetworkCreate({onCreate, onCancel, products}: PrivateNetworkCrea
                 </div>
             </Box>
 
+            <Box>
+                <Label>Address range (optional)</Label>
+                <Input placeholder="10.20.0.0/24" value={cidr} onChange={e => setCidr(e.target.value)} />
+                <Text mt="8px" color={isCidrValid ? "textSecondary" : "errorMain"}>
+                    {isCidrValid ? "Leave blank to allocate a range automatically. IPv4 CIDR /16–/24; cannot be changed later." :
+                        "Enter an IPv4 network address with a prefix between /16 and /24."}
+                </Text>
+            </Box>
+
             {!projectId || !isAdminOrPI(project.status.myRole) ? null : (<Box mb={"20px"}>
                 <Label>Choose access</Label>
                 <Box maxHeight="400px" overflowY="auto">
@@ -471,10 +487,10 @@ function PrivateNetworkCreate({onCreate, onCancel, products}: PrivateNetworkCrea
             <Button color={"errorMain"} type="button" onClick={onCancel}>Cancel</Button>
             <Button
                 color={"successMain"}
-                disabled={!isNameValid || !isSubdomainValid}
+                disabled={!isNameValid || !isSubdomainValid || !isCidrValid}
                 onClick={() => {
-                    if (!isNameValid || !isSubdomainValid) {
-                        sendFailureNotification("Please provide a valid name and subdomain");
+                    if (!isNameValid || !isSubdomainValid || !isCidrValid) {
+                        sendFailureNotification("Please provide a valid name, subdomain, and address range");
                         return;
                     }
                     if (!product) {
@@ -483,6 +499,7 @@ function PrivateNetworkCreate({onCreate, onCancel, products}: PrivateNetworkCrea
                     }
                     onCreate(name.trim(),
                         subdomain.trim().toLowerCase(),
+                        cidr.trim(),
                         acl,
                         {id: product.name, category: product.category.name, provider: product.category.provider},
                     );

@@ -27,6 +27,15 @@ func privateNetworkDatabaseV2() db.MigrationScript {
 			db.Exec(
 				tx,
 				`
+					alter table tracked_private_networks add constraint tracked_private_networks_state_check
+						check (state in ('provisioning', 'ready', 'deleting'))
+				`,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
 					alter table tracked_private_networks add column workspace_id text
 				`,
 				db.Params{},
@@ -41,8 +50,6 @@ func privateNetworkDatabaseV2() db.MigrationScript {
 							when project_id is not null and project_id != '' then 'project:' || project_id
 							else 'user:' || created_by
 						end
-					where
-						workspace_id is null
 				`,
 				db.Params{},
 			)
@@ -50,8 +57,7 @@ func privateNetworkDatabaseV2() db.MigrationScript {
 			db.Exec(
 				tx,
 				`
-					alter table tracked_private_networks add constraint tracked_private_networks_state_check
-						check (state in ('provisioning', 'ready', 'deleting'))
+					alter table tracked_private_networks alter column workspace_id set not null
 				`,
 				db.Params{},
 			)
@@ -77,6 +83,14 @@ func privateNetworkDatabaseV2() db.MigrationScript {
 			db.Exec(
 				tx,
 				`
+					create index private_network_ip_reservations_reservation_id_idx on private_network_ip_reservations(reservation_id)
+				`,
+				db.Params{},
+			)
+
+			db.Exec(
+				tx,
+				`
 					create table private_network_ip_leases(
 						network_id text not null references tracked_private_networks(resource_id) on delete restrict,
 						ip inet not null,
@@ -91,101 +105,8 @@ func privateNetworkDatabaseV2() db.MigrationScript {
 						primary key(network_id, ip),
 						unique(network_id, job_id, rank),
 						unique(network_id, mac_address),
-						check (state in ('pending', 'attached', 'releasing'))
+						check (state in ('pending', 'releasing'))
 					)
-				`,
-				db.Params{},
-			)
-
-			db.Exec(
-				tx,
-				`
-					create table private_network_owner_counters(
-						owner_id text not null primary key,
-						networks int not null default 0,
-						reservations int not null default 0,
-						active_leases int not null default 0
-					)
-				`,
-				db.Params{},
-			)
-
-			db.Exec(
-				tx,
-				`
-					insert into private_network_owner_counters(owner_id, networks, reservations, active_leases)
-					select
-						owners.owner_id,
-						(
-							select count(*)
-							from
-								tracked_private_networks n
-							where
-								n.workspace_id = owners.owner_id
-						),
-						0,
-						0
-					from
-						(
-							select distinct workspace_id as owner_id
-							from
-								tracked_private_networks
-						) owners
-					on conflict (owner_id) do nothing
-				`,
-				db.Params{},
-			)
-
-			db.Exec(
-				tx,
-				`
-					create table private_network_tombstones(
-						resource_id text not null primary key,
-						created_at timestamptz not null default now()
-					)
-				`,
-				db.Params{},
-			)
-
-			db.Exec(
-				tx,
-				`
-				create table private_network_quarantined_ips(
-					network_id text not null,
-					ip inet not null,
-					observed_at timestamptz not null default now(),
-					primary key(network_id, ip)
-				)
-			`,
-				db.Params{},
-			)
-		},
-	}
-}
-
-func privateNetworkDatabaseV3() db.MigrationScript {
-	return db.MigrationScript{
-		Id: "privateNetworkDatabaseV3",
-		Execute: func(tx *db.Transaction) {
-			db.Exec(
-				tx,
-				`
-					update tracked_private_networks
-					set
-						workspace_id = case
-							when project_id is not null and project_id != '' then 'project:' || project_id
-							else 'user:' || created_by
-						end
-					where
-						workspace_id is null
-				`,
-				db.Params{},
-			)
-
-			db.Exec(
-				tx,
-				`
-					alter table tracked_private_networks alter column workspace_id set not null
 				`,
 				db.Params{},
 			)
@@ -194,14 +115,6 @@ func privateNetworkDatabaseV3() db.MigrationScript {
 				tx,
 				`
 					create index private_network_ip_leases_job_id_idx on private_network_ip_leases(job_id)
-				`,
-				db.Params{},
-			)
-
-			db.Exec(
-				tx,
-				`
-					create index private_network_ip_reservations_reservation_id_idx on private_network_ip_reservations(reservation_id)
 				`,
 				db.Params{},
 			)

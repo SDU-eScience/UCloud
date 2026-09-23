@@ -104,7 +104,7 @@ export default function StackView(): React.ReactNode {
             },
             stackOpen: raw => {
                 const payload = raw as {id: string};
-                navigate(`${AppRoutes.prefix}${AppRoutes.stacks.view(payload.id)}`);
+                navigate(AppRoutes.stacks.view(payload.id));
             },
             stackCopyFile: async raw => {
                 try {

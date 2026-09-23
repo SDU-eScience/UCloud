@@ -50,15 +50,6 @@ var metricPrivateNetworkOrphansDeleted = promauto.NewCounter(
 	},
 )
 
-var metricPrivateNetworkUnexpectedIps = promauto.NewGauge(
-	prometheus.GaugeOpts{
-		Namespace: "ucloud_im",
-		Subsystem: "private_networks",
-		Name:      "quarantined_ips",
-		Help:      "Kube-OVN addresses absent from the lease table and excluded from allocation",
-	},
-)
-
 var metricPrivateNetworkPoolBlocks = promauto.NewGaugeVec(
 	prometheus.GaugeOpts{
 		Namespace: "ucloud_im",
@@ -107,14 +98,6 @@ func privateNetworkMetricsRefresh(
 	}
 
 	metricPrivateNetworkOrphansDeleted.Add(float64(orphans))
-
-	privateNetworkUnexpectedIpsMutex.Lock()
-	quarantined := 0
-	for _, ips := range privateNetworkUnexpectedIpsByNetwork {
-		quarantined += len(ips)
-	}
-	privateNetworkUnexpectedIpsMutex.Unlock()
-	metricPrivateNetworkUnexpectedIps.Set(float64(quarantined))
 
 	metricPrivateNetworkPoolBlocks.Reset()
 	pools := controller.PrivateNetworkSnapshotPoolUtilization()

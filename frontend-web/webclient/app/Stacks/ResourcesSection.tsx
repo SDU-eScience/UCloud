@@ -210,7 +210,7 @@ function EntryActions({node, navigate}: {node: StackResourceEntryNode; navigate:
             icon="heroArrowRight"
             onClick={() => {
                 dialogStore.success();
-                navigate(AppRoutes.prefix + node.href);
+                navigate(node.href);
             }}
         />
     </Flex>;

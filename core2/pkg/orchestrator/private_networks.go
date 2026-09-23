@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 
 	"database/sql"
@@ -290,7 +292,67 @@ func PrivateNetworkBrowse(actor rpc.Actor, request orcapi.PrivateNetworksBrowseR
 
 func PrivateNetworkDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStringId]) *util.HttpError {
 	for _, item := range request.Items {
-		err := ResourceDeleteThroughProvider(actor, privateNetworkType, item.Id, orcapi.PrivateNetworksProviderDelete)
+		network, _, _, err := ResourceRetrieveEx[orcapi.PrivateNetwork](
+			actor,
+			privateNetworkType,
+			ResourceParseId(item.Id),
+			orcapi.PermissionEdit,
+			orcapi.ResourceFlags{},
+		)
+		if err != nil {
+			return err
+		}
+
+		if len(network.Status.Members) > 0 {
+			return util.HttpErr(
+				http.StatusConflict,
+				"This private network is currently in use by job: %v",
+				strings.Join(network.Status.Members, ", "),
+			)
+		}
+
+		err = privateNetworkDeleteReservedIps(item.Id)
+		if err != nil {
+			return err
+		}
+
+		err = ResourceDeleteThroughProvider(actor, privateNetworkType, item.Id, orcapi.PrivateNetworksProviderDelete)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func privateNetworkDeleteReservedIps(networkId string) *util.HttpError {
+	reservedIpIds := db.NewTx(func(tx *db.Transaction) []string {
+		rows := db.Select[struct{ Resource int64 }](
+			tx,
+			`
+				select resource
+				from app_orchestrator.private_network_ips
+				where network = :network
+			`,
+			db.Params{
+				"network": ResourceParseId(networkId),
+			},
+		)
+
+		ids := make([]string, 0, len(rows))
+		for _, row := range rows {
+			ids = append(ids, fmt.Sprint(row.Resource))
+		}
+		return ids
+	})
+
+	for _, id := range reservedIpIds {
+		err := ResourceDeleteThroughProvider(
+			rpc.ActorSystem,
+			privateNetworkIpType,
+			id,
+			orcapi.PrivateNetworkIpsProviderDelete,
+		)
 		if err != nil {
 			return err
 		}
@@ -355,6 +417,7 @@ type internalPrivateNetwork struct {
 	Subdomain string
 	Cidr      util.Option[string]
 	CidrBlock util.Option[string]
+	Members   []string
 }
 
 func privateNetworkLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource) {
@@ -364,10 +427,11 @@ func privateNetworkLoad(tx *db.Transaction, ids []int64, resources map[ResourceI
 		Subdomain string
 		Cidr      sql.Null[string]
 		CidrBlock sql.Null[string]
+		Members   []int64
 	}](
 		tx,
 		`
-			select resource, name, subdomain, cidr, cidr_block
+			select resource, name, subdomain, cidr, cidr_block, members
 			from app_orchestrator.private_networks
 			where resource = some(:ids::int8[])
 	    `,
@@ -377,11 +441,17 @@ func privateNetworkLoad(tx *db.Transaction, ids []int64, resources map[ResourceI
 	)
 
 	for _, row := range rows {
+		var members []string
+		for _, jobId := range row.Members {
+			members = append(members, fmt.Sprint(jobId))
+		}
+
 		resources[ResourceId(row.Resource)].Extra = &internalPrivateNetwork{
 			Name:      row.Name,
 			Subdomain: row.Subdomain,
 			Cidr:      util.SqlNullToOpt(row.Cidr),
 			CidrBlock: util.SqlNullToOpt(row.CidrBlock),
+			Members:   members,
 		}
 	}
 }
@@ -398,16 +468,23 @@ func privateNetworkPersist(b *db.Batch, resource *resource) {
 	} else {
 		network := resource.Extra.(*internalPrivateNetwork)
 
+		members := []int64{}
+		for _, jobId := range network.Members {
+			id, _ := strconv.ParseInt(jobId, 10, 64)
+			members = append(members, id)
+		}
+
 		db.BatchExec(
 			b,
 			`
-				insert into app_orchestrator.private_networks(resource, name, subdomain, cidr, cidr_block)
-				values (:resource, :name, :subdomain, :cidr, :cidr_block)
+				insert into app_orchestrator.private_networks(resource, name, subdomain, cidr, cidr_block, members)
+				values (:resource, :name, :subdomain, :cidr, :cidr_block, :members)
 				on conflict (resource) do update set
 					name = excluded.name,
 					subdomain = excluded.subdomain,
 					cidr = excluded.cidr,
-					cidr_block = excluded.cidr_block
+					cidr_block = excluded.cidr_block,
+					members = excluded.members
 		    `,
 			db.Params{
 				"resource":   resource.Id,
@@ -415,6 +492,7 @@ func privateNetworkPersist(b *db.Batch, resource *resource) {
 				"subdomain":  network.Subdomain,
 				"cidr":       network.Cidr.Sql(),
 				"cidr_block": network.CidrBlock.Sql(),
+				"members":    members,
 			},
 		)
 	}
@@ -438,7 +516,7 @@ func privateNetworkTransform(
 			ResourceSpecification: specification,
 		},
 		Status: orcapi.PrivateNetworkStatus{
-			Members:   []string{},
+			Members:   network.Members,
 			CidrBlock: network.CidrBlock,
 		},
 	}
@@ -451,6 +529,34 @@ func privateNetworkTransform(
 		}
 	}
 	return result
+}
+
+func PrivateNetworkBind(id string, jobId string) {
+	ResourceUpdate[orcapi.PrivateNetwork](
+		rpc.ActorSystem,
+		privateNetworkType,
+		ResourceParseId(id),
+		orcapi.PermissionRead,
+		func(r *resource, mapped orcapi.PrivateNetwork) {
+			network := r.Extra.(*internalPrivateNetwork)
+			if !slices.Contains(network.Members, jobId) {
+				network.Members = append(network.Members, jobId)
+			}
+		},
+	)
+}
+
+func PrivateNetworkUnbind(id string, jobId string) {
+	ResourceUpdate[orcapi.PrivateNetwork](
+		rpc.ActorSystem,
+		privateNetworkType,
+		ResourceParseId(id),
+		orcapi.PermissionRead,
+		func(r *resource, mapped orcapi.PrivateNetwork) {
+			network := r.Extra.(*internalPrivateNetwork)
+			network.Members = util.RemoveFirst(network.Members, jobId)
+		},
+	)
 }
 
 func privateNetworkSubdomainTaken(provider string, subdomain string, except ResourceId) bool {

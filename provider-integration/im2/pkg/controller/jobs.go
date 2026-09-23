@@ -859,6 +859,7 @@ func initJobs() {
 
 			if err == nil {
 				request.Job.Specification.Resources = append(request.Job.Specification.Resources, request.Resource)
+				PrivateNetworkSyncAssignedIps(&request.Job)
 				JobTrackNew(request.Job)
 				_ = JobTrackRawUpdates([]orcapi.ResourceUpdateAndId[orcapi.JobUpdate]{
 					{

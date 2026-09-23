@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Flex, Input} from "@/ui-components";
+import {Flex, Input, Select} from "@/ui-components";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
 import {useCallback, useLayoutEffect} from "react";
@@ -11,6 +11,7 @@ import {checkProviderMismatch} from "../Create";
 import {PrivateNetworkBrowse} from "@/Applications/PrivateNetwork/PrivateNetworkBrowse";
 import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {retrieveNetworkReservations} from "@/Applications/PrivateNetwork/Reservations";
 
 interface PrivateNetworkProps extends WidgetProps {
     parameter: ApplicationParameterNS.PrivateNetwork;
@@ -18,6 +19,9 @@ interface PrivateNetworkProps extends WidgetProps {
 
 export const PrivateNetworkParameter: React.FunctionComponent<PrivateNetworkProps> = props => {
     const error = props.errors[props.parameter.name] != null;
+    const [addresses, setAddresses] = React.useState<string[]>([]);
+    const [selectedIp, setSelectedIp] = React.useState("");
+    const [networkSelected, setNetworkSelected] = React.useState(false);
     const doOpen = useCallback(() => {
         dialogStore.addDialog(<PrivateNetworkBrowse
             opts={{
@@ -41,6 +45,8 @@ export const PrivateNetworkParameter: React.FunctionComponent<PrivateNetworkProp
 
 
     const onUse = useCallback((network: PrivateNetwork) => {
+        setSelectedIp("");
+        setAddresses([]);
         PrivateNetworkSetter(props.parameter, {type: "private_network", id: network.id});
         WidgetSetProvider(props.parameter, network.specification.product.provider);
         props.onValueChange?.();
@@ -58,11 +64,27 @@ export const PrivateNetworkParameter: React.FunctionComponent<PrivateNetworkProp
             const value = valueInput();
             if (value) {
                 const id = value.value;
+                setNetworkSelected(id !== "");
+                if (!id) {
+                    setAddresses([]);
+                    setSelectedIp("");
+                    return;
+                }
                 const network = await callAPI<PrivateNetwork>(PrivateNetworkApi.retrieve({id}));
+                if (value.value !== id) return;
+                setSelectedIp((document.getElementById(widgetId(props.parameter) + "ip") as HTMLInputElement)?.value ?? "");
                 const visual = visualInput();
                 if (visual) {
                     visual.value = network.specification.name || network.specification.subdomain || network.id;
                 }
+                retrieveNetworkReservations(id).then(reservations => {
+                    if (value.value !== id) return;
+                    setAddresses(reservations.flatMap(it =>
+                        it.status.ipAddress && it.permissions.myself.some(permission => permission === "EDIT" || permission === "ADMIN") ?
+                            [it.status.ipAddress] : []));
+                }).catch(() => {
+                    if (value.value === id) setAddresses([]);
+                });
             }
         };
 
@@ -79,7 +101,7 @@ export const PrivateNetworkParameter: React.FunctionComponent<PrivateNetworkProp
         return f;
     }, [props.provider]);
 
-    return (<Flex>
+    return (<Flex flexDirection="column" gap="8px" width="100%">
         <Input
             id={widgetId(props.parameter) + "visual"}
             placeholder={"No private network selected"}
@@ -90,6 +112,20 @@ export const PrivateNetworkParameter: React.FunctionComponent<PrivateNetworkProp
             data-field-activator
         />
         <input type="hidden" id={widgetId(props.parameter)} />
+        {!networkSelected ? null : <div>
+            <Select id={widgetId(props.parameter) + "ip-select"} aria-label="Private network IP address"
+                value={selectedIp} onChange={e => {
+                setSelectedIp(e.target.value);
+                const input = document.getElementById(widgetId(props.parameter) + "ip") as HTMLInputElement;
+                input.value = e.target.value;
+                props.onValueChange?.();
+            }}>
+                <option value="">Automatic IP</option>
+                {selectedIp && !addresses.includes(selectedIp) ? <option value={selectedIp}>{selectedIp}</option> : null}
+                {addresses.map(ip => <option key={ip} value={ip}>{ip}</option>)}
+            </Select>
+        </div>}
+        <input type="hidden" id={widgetId(props.parameter) + "ip"} />
     </Flex>);
 }
 
@@ -98,7 +134,8 @@ export const PrivateNetworkValidator: WidgetValidator = (param) => {
         const elem = findElement(param);
         if (elem === null) return {valid: true};
         if (elem.value === "") return {valid: true};
-        return {valid: true, value: {type: "private_network", id: elem.value}};
+        const ip = (document.getElementById(widgetId(param) + "ip") as HTMLInputElement | null)?.value;
+        return {valid: true, value: {type: "private_network", id: elem.value, ...(ip ? {ips: [ip]} : {})}};
     }
 
     return {valid: true};
@@ -110,5 +147,7 @@ export const PrivateNetworkSetter: WidgetSetter = (param, value) => {
     const selector = findElement(param);
     if (selector === null) throw "Missing element for: " + param.name;
     selector.value = (value as AppParameterValueNS.PrivateNetwork).id;
+    const ipInput = document.getElementById(widgetId(param) + "ip") as HTMLInputElement | null;
+    if (ipInput) ipInput.value = (value as AppParameterValueNS.PrivateNetwork).ips?.[0] ?? "";
     selector.dispatchEvent(new Event("change"));
 };

@@ -103,7 +103,13 @@ func PrivateNetworkCreate(network *orc.PrivateNetwork) *util.HttpError {
 		return err
 	}
 
-	return controller.PrivateNetworkCreateAllocate(network)
+	err := controller.PrivateNetworkCreateAllocate(network)
+	if err != nil {
+		return err
+	}
+
+	PrivateNetworkReconcileSoon()
+	return nil
 }
 
 func privateNetworkPreflightNameCollisions(network *orc.PrivateNetwork) *util.HttpError {
@@ -115,25 +121,37 @@ func privateNetworkPreflightNameCollisions(network *orc.PrivateNetwork) *util.Ht
 
 	vpc, err := privateNetworkDynamicClient.Resource(privateNetworkVpcGvr).
 		Get(context.Background(), network.Specification.Subdomain, k8smeta.GetOptions{})
-	if err == nil && !privateNetworkObjectOwnedBy(vpc, network.Id) {
-		return util.HttpErr(
-			http.StatusConflict,
-			"A private network with this subdomain already exists, try a different one",
-		)
+	if err == nil {
+		typedVpc := &privateNetworkKubeOvnVpc{}
+		owned := privateNetworkKubeOvnFromUnstructured("Vpc", vpc, typedVpc) &&
+			privateNetworkObjectOwnedBy(typedVpc, network.Id)
+		if !owned {
+			return util.HttpErr(
+				http.StatusConflict,
+				"A private network with this subdomain already exists, try a different one",
+			)
+		}
 	}
 
 	subnet, err := privateNetworkDynamicClient.Resource(privateNetworkSubnetGvr).
 		Get(context.Background(), subnetName, k8smeta.GetOptions{})
-	if err == nil && !privateNetworkObjectOwnedBy(subnet, network.Id) {
-		return util.HttpErr(
-			http.StatusConflict,
-			"A private network with this subdomain already exists, try a different one",
-		)
+	if err == nil {
+		typedSubnet := &privateNetworkKubeOvnSubnet{}
+		owned := privateNetworkKubeOvnFromUnstructured("Subnet", subnet, typedSubnet) &&
+			privateNetworkObjectOwnedBy(typedSubnet, network.Id)
+		if !owned {
+			return util.HttpErr(
+				http.StatusConflict,
+				"A private network with this subdomain already exists, try a different one",
+			)
+		}
 	}
 
-	nad, err := privateNetworkDynamicClient.Resource(privateNetworkNadGvr).
-		Namespace(ServiceConfig.Compute.Namespace).
-		Get(context.Background(), network.Specification.Subdomain, k8smeta.GetOptions{})
+	nad, err := privateNetworkNadClient.Get(
+		context.Background(),
+		network.Specification.Subdomain,
+		k8smeta.GetOptions{},
+	)
 	if err == nil && !privateNetworkObjectOwnedBy(nad, network.Id) {
 		return util.HttpErr(
 			http.StatusConflict,
@@ -147,10 +165,6 @@ func privateNetworkPreflightNameCollisions(network *orc.PrivateNetwork) *util.Ht
 func PrivateNetworkDelete(network *orc.PrivateNetwork) *util.HttpError {
 	if network == nil {
 		return util.ServerHttpError("Failed to delete private network: network is nil")
-	}
-
-	if fresh, ok := controller.PrivateNetworkRetrieve(network.Id); ok {
-		network = &fresh
 	}
 
 	if len(network.Status.Members) > 0 {

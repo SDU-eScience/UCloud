@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 
 	cfg "ucloud.dk/pkg/config"
 	db "ucloud.dk/shared/pkg/database"
@@ -83,8 +82,6 @@ var privateNetworkMutex = sync.Mutex{}
 var privateNetworkSettingsMu = sync.RWMutex{}
 var privateNetworkSettings = privateNetworkParsedSettings{}
 var privateNetworkSettingsConfigured = false
-
-var privateNetworkInitialScanCompleted = atomic.Bool{}
 
 type privateNetworkParsedSettings struct {
 	Enabled           bool
@@ -161,30 +158,10 @@ func privateNetworkCurrentSettings() privateNetworkParsedSettings {
 	return privateNetworkSettings
 }
 
-func PrivateNetworkInitialScanCompleted() bool {
-	return privateNetworkInitialScanCompleted.Load()
-}
-
-func PrivateNetworkInitialScanMarkCompleted() {
-	privateNetworkInitialScanCompleted.Store(true)
-}
-
-func privateNetworkRequireInitialScan() *util.HttpError {
-	if !privateNetworkInitialScanCompleted.Load() {
-		return util.UserHttpError(
-			"Private network address reconciliation has not completed its initial scan. Try again later.",
-		)
-	}
-
-	return nil
-}
-
 func initPrivateNetworkDatabase() {
 	if !RunsServerCode() {
 		return
 	}
-
-	privateNetworkInitialScanCompleted.Store(false)
 
 	if !privateNetworkSettingsConfigured {
 		if kubernetes := cfg.Services.Kubernetes(); kubernetes != nil {
@@ -662,50 +639,6 @@ func privateNetworkAllocateLowestFreeAddress(cidr netip.Prefix, used map[string]
 	}
 
 	return "", false
-}
-
-func PrivateNetworkQuarantineUpdate(networkId string, unexpectedIps []string) *util.HttpError {
-	return db.NewTx(func(tx *db.Transaction) *util.HttpError {
-		_, found := privateNetworkLockNetwork(tx, networkId)
-		if !tx.Ok {
-			return nil
-		}
-
-		db.Exec(
-			tx,
-			`
-				delete from private_network_quarantined_ips
-				where
-					network_id = :network_id
-			`,
-			db.Params{"network_id": networkId},
-		)
-		if !tx.Ok {
-			return nil
-		}
-
-		if !found {
-			return nil
-		}
-
-		for _, ip := range unexpectedIps {
-			db.Exec(
-				tx,
-				`
-					insert into private_network_quarantined_ips(network_id, ip)
-					values (:network_id, :ip)
-					on conflict (network_id, ip) do update set
-						observed_at = now()
-				`,
-				db.Params{"network_id": networkId, "ip": ip},
-			)
-			if !tx.Ok {
-				return nil
-			}
-		}
-
-		return nil
-	})
 }
 
 type PrivateNetworkSnapshotNetwork struct {

@@ -420,7 +420,9 @@ func PrivateNetworkDeleteRequest(target *orc.PrivateNetwork) *util.HttpError {
 		return util.ServerHttpError("Failed to delete private network: network is nil")
 	}
 
+	members := target.Status.Members
 	if fresh, ok := privateNetworkRefreshMetadata(target.Id); ok {
+		fresh.Status.Members = members
 		target = &fresh
 	}
 
@@ -592,19 +594,6 @@ func PrivateNetworkFinishDelete(networkId string, ownerWorkspace PrivateNetworkW
 				tx,
 				util.ServerHttpError("Private network %s still has reservations", networkId),
 			)
-		}
-
-		db.Exec(
-			tx,
-			`
-				delete from private_network_quarantined_ips
-				where
-					network_id = :network_id
-			`,
-			db.Params{"network_id": networkId},
-		)
-		if !tx.Ok {
-			return nil
 		}
 
 		db.Exec(
