@@ -2396,7 +2396,7 @@ func vmPrivateNetworkDetach(job *orc.Job, resource orc.AppParameterValue) *util.
 
 	vm, err := KubevirtClient.VirtualMachine(Namespace).Get(ctx, name, k8smeta.GetOptions{})
 	if err == nil {
-		if herr := vmPrivateNetworkRemoveFromTemplate(network.Specification.Subdomain, vm); herr != nil {
+		if herr := vmPrivateNetworkRemoveFromTemplate(network.Status.Subdomain, vm); herr != nil {
 			return herr
 		}
 	} else if !k8serrors.IsNotFound(err) {

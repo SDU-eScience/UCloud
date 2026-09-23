@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	k8score "k8s.io/api/core/v1"
 	k8snetwork "k8s.io/api/networking/v1"
 	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"ucloud.dk/pkg/controller"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -24,8 +26,6 @@ const (
 
 	privateNetworkSubnetSuffix = "-net"
 )
-
-var privateNetworkReservedSubdomainPrefixes = []string{"j", "ucloud", "vm", "im", "policy"}
 
 func PrivateNetworkSelector(subdomain string) map[string]string {
 	return map[string]string{
@@ -93,17 +93,64 @@ func PrivateNetworkCreate(network *orc.PrivateNetwork) *util.HttpError {
 		return util.UserHttpError("Private networks are not supported by this provider")
 	}
 
-	for _, prefix := range privateNetworkReservedSubdomainPrefixes {
-		if network.Specification.Subdomain == prefix || strings.HasPrefix(network.Specification.Subdomain, prefix+"-") {
-			return util.HttpErr(http.StatusBadRequest, "Reserved domain name, try a different one")
+	baseSubdomain := orc.PrivateNetworkSubdomainFromName(network.Specification.Name)
+	assignedSubdomain := network.Status.Subdomain != ""
+	if snapshot, found := controller.PrivateNetworkSnapshotRetrieve(network.Id); found && snapshot.Subdomain != "" {
+		network.Status.Subdomain = snapshot.Subdomain
+		assignedSubdomain = true
+	}
+
+	allocated := false
+	for attempt := 0; attempt < 16; attempt++ {
+		if network.Status.Subdomain == "" {
+			network.Status.Subdomain = baseSubdomain
+			if attempt > 0 {
+				var err error
+				network.Status.Subdomain, err = orc.PrivateNetworkSubdomainAddRandomSuffix(baseSubdomain)
+				if err != nil {
+					return util.ServerHttpError("failed to generate a private network subdomain")
+				}
+			}
 		}
+
+		preflightErr := privateNetworkPreflightNameCollisions(network)
+		if preflightErr != nil {
+			if assignedSubdomain || preflightErr.StatusCode != http.StatusConflict {
+				return preflightErr
+			}
+			network.Status.Subdomain = ""
+			continue
+		}
+
+		subdomainConflict, err := controller.PrivateNetworkCreateAllocate(network)
+		if err != nil {
+			return err
+		}
+		if subdomainConflict {
+			if assignedSubdomain {
+				return util.HttpErr(http.StatusConflict, "a network with this subdomain already exists")
+			}
+			network.Status.Subdomain = ""
+			continue
+		}
+
+		allocated = true
+		break
 	}
 
-	if err := privateNetworkPreflightNameCollisions(network); err != nil {
-		return err
+	if !allocated {
+		return util.HttpErr(http.StatusConflict, "unable to allocate a unique private network subdomain")
 	}
 
-	err := controller.PrivateNetworkCreateAllocate(network)
+	_, err := orc.PrivateNetworksControlAddUpdate.Invoke(
+		fnd.BulkRequestOf(orc.ResourceUpdateAndId[orc.PrivateNetworkUpdate]{
+			Id: network.Id,
+			Update: orc.PrivateNetworkUpdate{
+				Subdomain: util.OptValue(network.Status.Subdomain),
+				Timestamp: fnd.Timestamp(time.Now()),
+			},
+		}),
+	)
 	if err != nil {
 		return err
 	}
@@ -117,10 +164,10 @@ func privateNetworkPreflightNameCollisions(network *orc.PrivateNetwork) *util.Ht
 		return nil
 	}
 
-	subnetName := PrivateNetworkSubnetName(network.Specification.Subdomain, network.Id)
+	subnetName := PrivateNetworkSubnetName(network.Status.Subdomain, network.Id)
 
 	vpc, err := privateNetworkDynamicClient.Resource(privateNetworkVpcGvr).
-		Get(context.Background(), network.Specification.Subdomain, k8smeta.GetOptions{})
+		Get(context.Background(), network.Status.Subdomain, k8smeta.GetOptions{})
 	if err == nil {
 		typedVpc := &privateNetworkKubeOvnVpc{}
 		owned := privateNetworkKubeOvnFromUnstructured("Vpc", vpc, typedVpc) &&
@@ -149,7 +196,7 @@ func privateNetworkPreflightNameCollisions(network *orc.PrivateNetwork) *util.Ht
 
 	nad, err := privateNetworkNadClient.Get(
 		context.Background(),
-		network.Specification.Subdomain,
+		network.Status.Subdomain,
 		k8smeta.GetOptions{},
 	)
 	if err == nil && !privateNetworkObjectOwnedBy(nad, network.Id) {
@@ -194,11 +241,11 @@ func PrivateNetworkDelete(network *orc.PrivateNetwork) *util.HttpError {
 
 	if legacy && !featureEnabled {
 		ctx := context.Background()
-		if !privateNetworkDeleteServiceObject(ctx, network.Specification.Subdomain, network.Id, true) {
+		if !privateNetworkDeleteServiceObject(ctx, network.Status.Subdomain, network.Id, true) {
 			return util.ServerHttpError("unable to delete the service of the private network")
 		}
 
-		if !privateNetworkDeletePolicyObject(ctx, network.Specification.Subdomain, network.Id, true) {
+		if !privateNetworkDeletePolicyObject(ctx, network.Status.Subdomain, network.Id, true) {
 			return util.ServerHttpError("unable to delete the network policy of the private network")
 		}
 
@@ -257,7 +304,7 @@ func PrivateNetworkCreateDnsConfig(job *orc.Job) (PrivateNetworkDnsConfig, *util
 		}
 		networks = append(networks, attachedNetwork{
 			id:        network.Id,
-			subdomain: network.Specification.Subdomain,
+			subdomain: network.Status.Subdomain,
 			allocated: network.Status.CidrBlock.Present,
 		})
 	}

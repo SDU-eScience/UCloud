@@ -19,14 +19,14 @@ func privateNetworkBusinessRollback(tx *db.Transaction, httpError *util.HttpErro
 	return httpError
 }
 
-func PrivateNetworkCreateAllocate(network *orc.PrivateNetwork) *util.HttpError {
+func PrivateNetworkCreateAllocate(network *orc.PrivateNetwork) (bool, *util.HttpError) {
 	settings := privateNetworkCurrentSettings()
 	if !settings.Enabled {
-		return util.UserHttpError("Private networks are not enabled on this provider")
+		return false, util.UserHttpError("Private networks are not enabled on this provider")
 	}
 
 	if network == nil {
-		return util.ServerHttpError("Failed to create private network: network is nil")
+		return false, util.ServerHttpError("Failed to create private network: network is nil")
 	}
 
 	workspace := PrivateNetworkWorkspaceFromOwner(network.Owner)
@@ -39,6 +39,7 @@ func PrivateNetworkCreateAllocate(network *orc.PrivateNetwork) *util.HttpError {
 		}
 	}
 
+	subdomainConflict := false
 	err := db.NewTx(func(tx *db.Transaction) *util.HttpError {
 		privateNetworkLockReconcile(tx, network.Id)
 		if !tx.Ok {
@@ -85,11 +86,11 @@ func PrivateNetworkCreateAllocate(network *orc.PrivateNetwork) *util.HttpError {
 					tracked_private_networks
 				where
 					resource_id != :resource_id
-					and lower(resource->'specification'->>'subdomain') = lower(:subdomain)
+					and lower(coalesce(nullif(resource->'status'->>'subdomain', ''), resource->'specification'->>'subdomain')) = lower(:subdomain)
 			`,
 			db.Params{
 				"resource_id": network.Id,
-				"subdomain":   network.Specification.Subdomain,
+				"subdomain":   network.Status.Subdomain,
 			},
 		)
 		if !tx.Ok {
@@ -97,13 +98,8 @@ func PrivateNetworkCreateAllocate(network *orc.PrivateNetwork) *util.HttpError {
 		}
 
 		if subdomainCount.Count > 0 {
-			return privateNetworkBusinessRollback(
-				tx,
-				util.HttpErr(
-					http.StatusConflict,
-					"a network with this subdomain already exists, try a different one",
-				),
-			)
+			subdomainConflict = true
+			return privateNetworkBusinessRollback(tx, nil)
 		}
 
 		var selected string
@@ -141,10 +137,10 @@ func PrivateNetworkCreateAllocate(network *orc.PrivateNetwork) *util.HttpError {
 		return nil
 	})
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	return nil
+	return subdomainConflict, nil
 }
 
 func privateNetworkCreateExisting(
@@ -181,15 +177,7 @@ func privateNetworkCreateExisting(
 	}
 
 	var existing orc.PrivateNetwork
-	parsedExisting := json.Unmarshal([]byte(row.Resource), &existing) == nil
-	if parsedExisting {
-		if !strings.EqualFold(existing.Specification.Subdomain, network.Specification.Subdomain) {
-			return privateNetworkBusinessRollback(
-				tx,
-				util.HttpErr(http.StatusConflict, "a network with this identifier already exists with a different subdomain"),
-			)
-		}
-	}
+	parsedExisting := privateNetworkUnmarshalResource(row.Resource, &existing)
 
 	if row.CidrBlock.Valid && row.CidrBlock.V != "" && customCidr != "" && row.CidrBlock.V != customCidr {
 		return privateNetworkBusinessRollback(
@@ -201,7 +189,7 @@ func privateNetworkCreateExisting(
 	if parsedExisting {
 		merged := *network
 		merged.Owner = existing.Owner
-		merged.Specification.Subdomain = existing.Specification.Subdomain
+		merged.Status.Subdomain = existing.Status.Subdomain
 		merged.Specification.Cidr = existing.Specification.Cidr
 		merged.Status.CidrBlock = util.SqlNullToOpt(row.CidrBlock)
 

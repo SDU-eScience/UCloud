@@ -1,6 +1,10 @@
 package orchestrators
 
 import (
+	"crypto/rand"
+	"encoding/hex"
+	"strings"
+
 	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
@@ -18,9 +22,6 @@ type PrivateNetworkSpecification struct {
 	// characters.
 	Name string `json:"name"`
 
-	// Subdomain must be a valid DNS label. No dots are allowed in this. It must not be longer than 63 characters.
-	Subdomain string `json:"subdomain"`
-
 	// Cidr is an optional user-supplied IPv4 CIDR block for the network. It must have a prefix length between 16 and
 	// 24. If it is omitted, the provider allocates a block automatically. The CIDR is immutable after creation.
 	Cidr util.Option[string] `json:"cidr"`
@@ -28,7 +29,58 @@ type PrivateNetworkSpecification struct {
 	ResourceSpecification
 }
 
+func PrivateNetworkSubdomainFromName(name string) string {
+	var builder strings.Builder
+	previousHyphen := false
+	for _, char := range strings.ToLower(name) {
+		isAsciiLetter := char >= 'a' && char <= 'z'
+		isDigit := char >= '0' && char <= '9'
+		if isAsciiLetter || isDigit {
+			builder.WriteRune(char)
+			previousHyphen = false
+		} else if builder.Len() > 0 && !previousHyphen {
+			builder.WriteByte('-')
+			previousHyphen = true
+		}
+	}
+
+	subdomain := strings.Trim(builder.String(), "-")
+	if subdomain == "" {
+		subdomain = "network"
+	}
+
+	for _, prefix := range []string{"j", "ucloud", "vm", "im", "policy"} {
+		if subdomain == prefix || strings.HasPrefix(subdomain, prefix+"-") {
+			subdomain = "network-" + subdomain
+			break
+		}
+	}
+
+	if len(subdomain) > 63 {
+		subdomain = strings.TrimRight(subdomain[:63], "-")
+	}
+	return subdomain
+}
+
+func PrivateNetworkSubdomainAddRandomSuffix(subdomain string) (string, error) {
+	randomBytes := make([]byte, 5)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return "", err
+	}
+
+	suffix := "-" + hex.EncodeToString(randomBytes)
+	maxPrefixLength := 63 - len(suffix)
+	if len(subdomain) > maxPrefixLength {
+		subdomain = strings.TrimRight(subdomain[:maxPrefixLength], "-")
+	}
+
+	return subdomain + suffix, nil
+}
+
 type PrivateNetworkStatus struct {
+	Subdomain string `json:"subdomain"`
+
 	// Members correspond to all jobs currently participating in the network. Each element references a job by its ID.
 	// Only jobs which are in a non-terminal state show up in this list. Thus jobs which are in SUCCESS, FAILURE or
 	// EXPIRED will not show up. Jobs which are IN_QUEUE, SUSPENDED or RUNNING will appear.
@@ -42,7 +94,11 @@ type PrivateNetworkStatus struct {
 }
 
 type PrivateNetworkSupport struct {
-	Product apm.ProductReference `json:"product"`
+	Product         apm.ProductReference `json:"product"`
+	AddressPools    []string             `json:"addressPools,omitempty"`
+	ExcludedRanges  []string             `json:"excludedRanges,omitempty"`
+	MinPrefixLength int                  `json:"minPrefixLength,omitempty"`
+	MaxPrefixLength int                  `json:"maxPrefixLength,omitempty"`
 }
 
 type PrivateNetworkFlags struct {
@@ -137,6 +193,7 @@ const privateNetworkControlNamespace = "private-networks/control"
 
 type PrivateNetworkUpdate struct {
 	CidrBlock util.Option[string] `json:"cidrBlock"`
+	Subdomain util.Option[string] `json:"subdomain"`
 	Timestamp fnd.Timestamp       `json:"timestamp"`
 }
 

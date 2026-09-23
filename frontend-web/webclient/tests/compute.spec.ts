@@ -225,8 +225,8 @@ echo "${BashScriptStringContent}"
 
             // Create private network
             const networkName = Resources.PrivateNetworks.newName();
-            const newSubdomainName = Resources.PrivateNetworks.newSubdomainName();
-            await Resources.PrivateNetworks.createPrivateNetwork(page, networkName, newSubdomainName);
+            const newSubdomainName = networkName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 63);
+            await Resources.PrivateNetworks.createPrivateNetwork(page, networkName);
 
             const jobName = Runs.newJobName();
             const jobNetworkId1 = Resources.PrivateNetworks.newJobNetworkName();

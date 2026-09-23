@@ -65,6 +65,44 @@ const FEATURES: ResourceBrowseFeatures = {
 
 const DUMMY_ENTRY_ID = "dummy-private-network";
 
+interface ParsedPrivateNetworkCidr {
+    first: number;
+    last: number;
+    prefixLength: number;
+}
+
+function parsePrivateNetworkCidr(value: string): ParsedPrivateNetworkCidr | null {
+    const parts = value.split("/");
+    if (parts.length !== 2) {
+        return null;
+    }
+
+    const addressIsValid = /^(?:0|[1-9]\d{0,2})\.(?:0|[1-9]\d{0,2})\.(?:0|[1-9]\d{0,2})\.(?:0|[1-9]\d{0,2})$/.test(parts[0]);
+    if (!addressIsValid) {
+        return null;
+    }
+
+    const octets = parts[0].split(".").map(Number);
+    const octetsAreValid = octets.every(octet => octet <= 255);
+    const prefixIsValid = /^(?:[0-9]|[12]\d|3[0-2])$/.test(parts[1]);
+    if (!octetsAreValid || !prefixIsValid) {
+        return null;
+    }
+
+    const prefixLength = Number(parts[1]);
+    const blockSize = 2 ** (32 - prefixLength);
+    const first = octets.reduce((value, octet) => value * 256 + octet, 0);
+    if (first % blockSize !== 0) {
+        return null;
+    }
+
+    return {
+        first,
+        last: first + blockSize - 1,
+        prefixLength,
+    };
+}
+
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2PrivateNetwork, PrivateNetworkSupport>>({
     globalTtl: 60_000
 });
@@ -105,10 +143,10 @@ export function PrivateNetworkBrowse({
 
                 const dummyEntry: PrivateNetwork = {
                     id: DUMMY_ENTRY_ID,
-                    specification: {name: "", subdomain: "", product: placeholderProduct()},
+                    specification: {name: "", product: placeholderProduct()},
                     createdAt: new Date().getTime(),
                     owner: {createdBy: ""},
-                    status: {members: []},
+                    status: {subdomain: "", members: []},
                     permissions: {myself: []},
                     updates: [],
                 };
@@ -169,7 +207,7 @@ export function PrivateNetworkBrowse({
                         row.title.append(ResourceBrowser.defaultTitleRenderer(network.specification.name || network.id, row));
                     }
 
-                    row.stat1.textContent = network.specification.subdomain;
+                    row.stat1.textContent = network.status.subdomain ?? "";
 
                     if (opts?.selection) {
                         const useButton = browser.defaultButtonRenderer(opts.selection, network);
@@ -241,18 +279,19 @@ export function PrivateNetworkBrowse({
                     if (create) {
                         create.enabled = () => true;
                         create.onClick = async () => {
-                            const products = (await supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(PrivateNetworkApi))).newProducts;
+                            const support = await supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(PrivateNetworkApi));
                             dialogStore.addDialog(
                                 <PrivateNetworkCreate
-                                    products={products}
+                                    products={support.newProducts}
+                                    support={support}
                                     onCancel={() => {
                                         dialogStore.failure();
                                     }}
-                    onCreate={async (name, subdomain, cidr, permissions, product) => {
+                                    onCreate={async (name, cidr, permissions, product) => {
                                         const network: PrivateNetwork = {
                                             ...dummyEntry,
                                             id: "",
-                                             specification: {name, subdomain, product, ...(cidr ? {cidr} : {})},
+                                            specification: {name, product, ...(cidr ? {cidr} : {})},
                                             owner: {createdBy: ""},
                                         };
 
@@ -354,8 +393,9 @@ export function PrivateNetworkBrowse({
 
 interface PrivateNetworkCreateProps {
     products: ProductV2PrivateNetwork[];
+    support: SupportByProviderV2<ProductV2PrivateNetwork, PrivateNetworkSupport>;
 
-    onCreate(name: string, subdomain: string, cidr: string, permissions: ResourceAclEntry[], product: ProductReference): void;
+    onCreate(name: string, cidr: string, permissions: ResourceAclEntry[], product: ProductReference): void;
 
     onCancel: () => void;
 }
@@ -369,24 +409,43 @@ const Container = injectStyle("private-network-creation-container", k => `
     }
 `);
 
-function PrivateNetworkCreate({onCreate, onCancel, products}: PrivateNetworkCreateProps) {
+function PrivateNetworkCreate({onCreate, onCancel, products, support}: PrivateNetworkCreateProps) {
     const [product, setSelectedProduct] = React.useState<ProductV2 | null>(null);
     const [name, setName] = React.useState("");
-    const [subdomain, setSubdomain] = React.useState("");
     const [cidr, setCidr] = React.useState("");
     const [acl, setAcl] = React.useState<ResourceAclEntry[]>([]);
     const project = useProject().fetch();
     const projectId = useProjectId();
 
+    const selectedSupport = product
+        ? support.productsByProvider[product.category.provider]?.find(item =>
+            item.product.name === product.name && item.product.category.name === product.category.name
+        )?.support
+        : undefined;
+    const addressPools = selectedSupport?.addressPools ?? [];
+    const excludedRanges = selectedSupport?.excludedRanges ?? [];
+    const minPrefixLength = selectedSupport?.minPrefixLength ?? 16;
+    const maxPrefixLength = selectedSupport?.maxPrefixLength ?? 24;
+
     const isNameValid = name.trim().length > 0;
-    const isSubdomainValid = subdomain.trim().length > 0 && !subdomain.includes(".");
-    const cidrParts = cidr.trim().split("/");
-    const cidrOctets = cidrParts[0].split(".").map(Number);
-    const prefix = Number(cidrParts[1]);
-    const isCidrValid = cidr.trim() === "" || (cidrParts.length === 2 && cidrOctets.length === 4 &&
-        cidrOctets.every((octet, idx) => /^(?:0|[1-9]\d{0,2})$/.test(cidrParts[0].split(".")[idx]) && octet <= 255) &&
-        /^(?:16|17|18|19|20|21|22|23|24)$/.test(cidrParts[1]) &&
-        (cidrOctets.reduce((value, octet) => (value << 8) | octet, 0) & (2 ** (32 - prefix) - 1)) === 0);
+    const parsedCidr = parsePrivateNetworkCidr(cidr.trim());
+    const parsedPools = addressPools
+        .map(parsePrivateNetworkCidr)
+        .filter((range): range is ParsedPrivateNetworkCidr => range !== null);
+    const parsedExcludedRanges = excludedRanges
+        .map(excludedRange => ({cidr: excludedRange, range: parsePrivateNetworkCidr(excludedRange)}))
+        .filter((item): item is {cidr: string, range: ParsedPrivateNetworkCidr} => item.range !== null);
+    const prefixIsSupported = parsedCidr !== null &&
+        parsedCidr.prefixLength >= minPrefixLength && parsedCidr.prefixLength <= maxPrefixLength;
+    const cidrIsInsidePool = parsedCidr !== null && (addressPools.length === 0 || parsedPools.some(pool =>
+        parsedCidr.first >= pool.first && parsedCidr.last <= pool.last
+    ));
+    const overlappingExcludedRange = parsedCidr === null ? undefined : parsedExcludedRanges.find(({range}) =>
+        parsedCidr.first <= range.last && range.first <= parsedCidr.last
+    );
+    const isCidrValid = cidr.trim() === "" || (
+        parsedCidr !== null && prefixIsSupported && cidrIsInsidePool && overlappingExcludedRange === undefined
+    );
 
     let shortProviderId = "the selected provider";
     if (product) {
@@ -417,18 +476,8 @@ function PrivateNetworkCreate({onCreate, onCancel, products}: PrivateNetworkCrea
                     value={name}
                     onChange={e => setName(e.target.value)}
                 />
-            </Box>
-
-            <Box>
-                <Label>Subdomain<MandatoryField /></Label>
-                <Input
-                    placeholder={"my-network"}
-                    value={subdomain}
-                    pattern={"^([A-Za-z]|[A-Za-z][A-Za-z0-9\\-]*[A-Za-z0-9])$"}
-                    onChange={e => setSubdomain(e.target.value.toLowerCase())}
-                />
                 <Text mt="8px" color={"textSecondary"}>
-                    Use letters, numbers, and hyphens only. Dots are not allowed.
+                    The subdomain is based on this name and gets a random suffix if needed.
                 </Text>
             </Box>
 
@@ -442,11 +491,32 @@ function PrivateNetworkCreate({onCreate, onCancel, products}: PrivateNetworkCrea
 
             <Box>
                 <Label>Address range (optional)</Label>
-                <Input placeholder="10.20.0.0/24" value={cidr} onChange={e => setCidr(e.target.value)} />
-                <Text mt="8px" color={isCidrValid ? "textSecondary" : "errorMain"}>
-                    {isCidrValid ? "Leave blank to allocate a range automatically. IPv4 CIDR /16–/24; cannot be changed later." :
-                        "Enter an IPv4 network address with a prefix between /16 and /24."}
+                <Input placeholder="For example, 10.20.0.0/24" value={cidr} onChange={e => setCidr(e.target.value)} />
+                {addressPools.length > 0 ? <Box mt="8px">
+                    <Text mt={"8px"} color="textSecondary">Can be left blank and one will automatically be allocated for you.</Text>
+                    <Text mt={"8px"} color="textSecondary">Available ranges</Text>
+                    <ul style={{margin: "4px 0", paddingLeft: "20px", color: "var(--textSecondary)"}}>
+                        {addressPools.map(addressPool => <li key={addressPool}>{addressPool}</li>)}
+                    </ul>
+                </Box> : null}
+                {excludedRanges.length > 0 ? <Box mt="8px">
+                    <Text color="textSecondary">Unavailable ranges</Text>
+                    <ul style={{margin: "4px 0", paddingLeft: "20px", color: "var(--textSecondary)"}}>
+                        {excludedRanges.map(excludedRange => <li key={excludedRange}>{excludedRange}</li>)}
+                    </ul>
+                </Box> : null}
+                <Text mt="8px" color="textSecondary">
+                    Subnet size must be between /{minPrefixLength} and /{maxPrefixLength}.
                 </Text>
+                {!isCidrValid ? <Text mt="8px" color="errorMain">
+                    {parsedCidr === null ?
+                        "Enter a valid address range, such as 10.20.0.0/24." :
+                        !prefixIsSupported ?
+                            `Choose a range between /${minPrefixLength} and /${maxPrefixLength} in size.` :
+                            !cidrIsInsidePool ?
+                                "Choose a range within one of the available ranges above." :
+                                `This range includes an unavailable area: ${overlappingExcludedRange?.cidr}.`}
+                </Text> : null}
             </Box>
 
             {!projectId || !isAdminOrPI(project.status.myRole) ? null : (<Box mb={"20px"}>
@@ -487,10 +557,10 @@ function PrivateNetworkCreate({onCreate, onCancel, products}: PrivateNetworkCrea
             <Button color={"errorMain"} type="button" onClick={onCancel}>Cancel</Button>
             <Button
                 color={"successMain"}
-                disabled={!isNameValid || !isSubdomainValid || !isCidrValid}
+                disabled={!isNameValid || !isCidrValid}
                 onClick={() => {
-                    if (!isNameValid || !isSubdomainValid || !isCidrValid) {
-                        sendFailureNotification("Please provide a valid name, subdomain, and address range");
+                    if (!isNameValid || !isCidrValid) {
+                        sendFailureNotification("Please provide a valid name and address range");
                         return;
                     }
                     if (!product) {
@@ -498,7 +568,6 @@ function PrivateNetworkCreate({onCreate, onCancel, products}: PrivateNetworkCrea
                         return;
                     }
                     onCreate(name.trim(),
-                        subdomain.trim().toLowerCase(),
                         cidr.trim(),
                         acl,
                         {id: product.name, category: product.category.name, provider: product.category.provider},

@@ -75,7 +75,7 @@ export const PrivateNetworkParameter: React.FunctionComponent<PrivateNetworkProp
                 setSelectedIp((document.getElementById(widgetId(props.parameter) + "ip") as HTMLInputElement)?.value ?? "");
                 const visual = visualInput();
                 if (visual) {
-                    visual.value = network.specification.name || network.specification.subdomain || network.id;
+                    visual.value = network.specification.name || network.status.subdomain || network.id;
                 }
                 retrieveNetworkReservations(id).then(reservations => {
                     if (value.value !== id) return;

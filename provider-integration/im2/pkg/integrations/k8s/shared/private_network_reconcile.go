@@ -1895,7 +1895,7 @@ func PrivateNetworkCleanupDetachedJob(job *orc.Job) *util.HttpError {
 
 		snapshot := controller.PrivateNetworkSnapshotNetwork{
 			ResourceId:  network.Id,
-			Subdomain:   network.Specification.Subdomain,
+			Subdomain:   network.Status.Subdomain,
 			CidrBlock:   network.Status.CidrBlock,
 			State:       controller.PrivateNetworkStateReady,
 			WorkspaceId: "",

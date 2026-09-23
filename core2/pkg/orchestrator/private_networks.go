@@ -100,18 +100,18 @@ func initPrivateNetworks() {
 		for _, reqItem := range request.Items {
 			spec := reqItem.Spec
 			spec.Name = strings.TrimSpace(spec.Name)
-			spec.Subdomain = strings.ToLower(strings.TrimSpace(spec.Subdomain))
-
 			err := privateNetworkValidateSpecification(spec)
 			if err != nil {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
 			}
 
-			if privateNetworkSubdomainTaken(spec.Product.Provider, spec.Subdomain, 0) {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(
-					http.StatusConflict,
-					"a network with this subdomain already exists, try a different one",
-				)
+			subdomain := orcapi.PrivateNetworkSubdomainFromName(spec.Name)
+			for privateNetworkSubdomainTaken(spec.Product.Provider, subdomain, 0) {
+				var suffixErr error
+				subdomain, suffixErr = orcapi.PrivateNetworkSubdomainAddRandomSuffix(subdomain)
+				if suffixErr != nil {
+					return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.ServerHttpError("failed to generate a private network subdomain")
+				}
 			}
 
 			var flags resourceCreateFlags
@@ -134,7 +134,7 @@ func initPrivateNetworks() {
 				reqItem.ProviderGeneratedId,
 				&internalPrivateNetwork{
 					Name:      spec.Name,
-					Subdomain: spec.Subdomain,
+					Subdomain: subdomain,
 					Cidr:      spec.Cidr,
 				},
 				flags,
@@ -177,6 +177,11 @@ func initPrivateNetworks() {
 					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "invalid private network CIDR block")
 				}
 			}
+			if item.Update.Subdomain.Present {
+				if len(item.Update.Subdomain.Value) > 63 || !privateNetworkSubdomainRegex.MatchString(item.Update.Subdomain.Value) {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "invalid private network subdomain")
+				}
+			}
 
 			var conflict *util.HttpError
 			ok := ResourceUpdate(
@@ -186,21 +191,27 @@ func initPrivateNetworks() {
 				orcapi.PermissionProvider,
 				func(r *resource, mapped orcapi.PrivateNetwork) {
 					network := r.Extra.(*internalPrivateNetwork)
-					if !item.Update.CidrBlock.Present {
+					cidrCannotChange := item.Update.CidrBlock.Present && network.CidrBlock.Present && network.CidrBlock.Value != item.Update.CidrBlock.Value
+					if cidrCannotChange {
+						conflict = util.HttpErr(
+							http.StatusConflict,
+							"the address range of a network cannot change",
+						)
+					}
+					subdomainCannotChange := item.Update.Subdomain.Present && network.Subdomain != "" && network.Subdomain != item.Update.Subdomain.Value
+					if subdomainCannotChange {
+						conflict = util.HttpErr(http.StatusConflict, "a private network subdomain cannot change")
+					}
+					if conflict != nil {
 						return
 					}
 
-					if network.CidrBlock.Present {
-						if network.CidrBlock.Value != item.Update.CidrBlock.Value {
-							conflict = util.HttpErr(
-								http.StatusConflict,
-								"the address range of a network cannot change",
-							)
-						}
-						return
+					if item.Update.CidrBlock.Present && !network.CidrBlock.Present {
+						network.CidrBlock = item.Update.CidrBlock
 					}
-
-					network.CidrBlock = item.Update.CidrBlock
+					if item.Update.Subdomain.Present {
+						network.Subdomain = item.Update.Subdomain.Value
+					}
 				},
 			)
 
@@ -221,17 +232,12 @@ func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.Pri
 	var responses []orcapi.PrivateNetwork
 
 	for _, item := range request.Items {
-		if strings.HasPrefix(item.Subdomain, "ucloud-") {
-			return nil, util.HttpErr(http.StatusBadRequest, "invalid subdomain requested")
-		}
-
-		_, ok := SupportByProduct[orcapi.PrivateNetworkSupport](privateNetworkType, item.Product)
+		support, ok := SupportByProduct[orcapi.PrivateNetworkSupport](privateNetworkType, item.Product)
 		if !ok {
 			return nil, util.HttpErr(http.StatusBadRequest, "unsupported operation")
 		}
 
 		item.Name = strings.TrimSpace(item.Name)
-		item.Subdomain = strings.ToLower(strings.TrimSpace(item.Subdomain))
 		if item.Cidr.Present {
 			item.Cidr.Set(strings.TrimSpace(item.Cidr.Value))
 			if item.Cidr.Value == "" {
@@ -243,12 +249,11 @@ func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.Pri
 		if err != nil {
 			return nil, err
 		}
-
-		if privateNetworkSubdomainTaken(item.Product.Provider, item.Subdomain, 0) {
-			return nil, util.HttpErr(
-				http.StatusConflict,
-				"a network with this subdomain already exists, try a different one",
-			)
+		if item.Cidr.Present {
+			err := privateNetworkValidateCidrSupport(item.Cidr.Value, support.Support)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		network, err := ResourceCreateThroughProvider(
@@ -256,9 +261,8 @@ func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.Pri
 			privateNetworkType,
 			item.ResourceSpecification,
 			&internalPrivateNetwork{
-				Name:      item.Name,
-				Subdomain: item.Subdomain,
-				Cidr:      item.Cidr,
+				Name: item.Name,
+				Cidr: item.Cidr,
 			},
 			orcapi.PrivateNetworksProviderCreate,
 		)
@@ -267,7 +271,12 @@ func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.Pri
 			return nil, err
 		}
 
-		responses = append(responses, network)
+		updated, err := PrivateNetworkRetrieve(actor, orcapi.PrivateNetworksRetrieveRequest{Id: network.Id})
+		if err != nil {
+			return nil, err
+		}
+
+		responses = append(responses, updated)
 	}
 	return responses, nil
 }
@@ -371,7 +380,7 @@ func PrivateNetworkSearch(actor rpc.Actor, request orcapi.PrivateNetworksSearchR
 		request.ResourceFlags,
 		func(item orcapi.PrivateNetwork) bool {
 			name := strings.ToLower(item.Specification.Name)
-			subdomain := strings.ToLower(item.Specification.Subdomain)
+			subdomain := strings.ToLower(item.Status.Subdomain)
 
 			if strings.Contains(name, query) {
 				return true
@@ -511,11 +520,11 @@ func privateNetworkTransform(
 		Resource: r,
 		Specification: orcapi.PrivateNetworkSpecification{
 			Name:                  network.Name,
-			Subdomain:             network.Subdomain,
 			Cidr:                  network.Cidr,
 			ResourceSpecification: specification,
 		},
 		Status: orcapi.PrivateNetworkStatus{
+			Subdomain: network.Subdomain,
 			Members:   network.Members,
 			CidrBlock: network.CidrBlock,
 		},
@@ -638,14 +647,6 @@ func privateNetworkValidateSpecification(spec orcapi.PrivateNetworkSpecification
 		return util.HttpErr(http.StatusBadRequest, "invalid private network name")
 	}
 
-	if spec.Subdomain == "" || len(spec.Subdomain) > 63 || strings.Contains(spec.Subdomain, ".") {
-		return util.HttpErr(http.StatusBadRequest, "invalid private network subdomain")
-	}
-
-	if !privateNetworkSubdomainRegex.MatchString(spec.Subdomain) {
-		return util.HttpErr(http.StatusBadRequest, "invalid private network subdomain")
-	}
-
 	if spec.Cidr.Present {
 		err := privateNetworkValidateUserCidr(spec.Cidr.Value)
 		if err != nil {
@@ -658,11 +659,52 @@ func privateNetworkValidateSpecification(spec orcapi.PrivateNetworkSpecification
 
 func privateNetworkValidateUserCidr(cidr string) *util.HttpError {
 	prefix, ok := orcapi.PrivateNetworkParseCidr(cidr)
-	if !ok || prefix.Bits() < 16 || prefix.Bits() > 24 {
+	if !ok || prefix.String() != cidr || prefix.Bits() < 16 || prefix.Bits() > 24 {
 		return util.HttpErr(
 			http.StatusBadRequest,
-			"invalid private network CIDR requested, it must be an IPv4 CIDR with a prefix length between 16 and 24",
+			"invalid private network CIDR requested, it must be an aligned IPv4 CIDR with a prefix length between 16 and 24",
 		)
+	}
+
+	return nil
+}
+
+func privateNetworkValidateCidrSupport(cidr string, support orcapi.PrivateNetworkSupport) *util.HttpError {
+	prefix, _ := orcapi.PrivateNetworkParseCidr(cidr)
+	minPrefixLength := support.MinPrefixLength
+	if minPrefixLength == 0 {
+		minPrefixLength = 16
+	}
+	maxPrefixLength := support.MaxPrefixLength
+	if maxPrefixLength == 0 {
+		maxPrefixLength = 24
+	}
+	if prefix.Bits() < minPrefixLength || prefix.Bits() > maxPrefixLength {
+		return util.HttpErr(
+			http.StatusBadRequest,
+			fmt.Sprintf("private network CIDR must have a prefix length between %d and %d", minPrefixLength, maxPrefixLength),
+		)
+	}
+
+	if len(support.AddressPools) > 0 {
+		insidePool := false
+		for _, addressPool := range support.AddressPools {
+			pool, ok := orcapi.PrivateNetworkParseCidr(addressPool)
+			if ok && prefix.Bits() >= pool.Bits() && orcapi.PrivateNetworkCidrsOverlap(prefix, pool) {
+				insidePool = true
+				break
+			}
+		}
+		if !insidePool {
+			return util.HttpErr(http.StatusBadRequest, "private network CIDR is outside the provider's supported address pools")
+		}
+	}
+
+	for _, excludedRange := range support.ExcludedRanges {
+		excludedPrefix, ok := orcapi.PrivateNetworkParseCidr(excludedRange)
+		if ok && orcapi.PrivateNetworkCidrsOverlap(prefix, excludedPrefix) {
+			return util.HttpErr(http.StatusBadRequest, "private network CIDR overlaps a provider-excluded address range")
+		}
 	}
 
 	return nil

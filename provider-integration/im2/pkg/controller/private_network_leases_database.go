@@ -774,8 +774,8 @@ func PrivateNetworkJobAllocateLeases(job *orc.Job) ([]PrivateNetworkJobLeases, *
 			cidrByNetwork[networkId] = cidr
 
 			var cached orc.PrivateNetwork
-			if json.Unmarshal([]byte(network.Resource), &cached) == nil {
-				subdomainByNetwork[networkId] = cached.Specification.Subdomain
+			if privateNetworkUnmarshalResource(network.Resource, &cached) {
+				subdomainByNetwork[networkId] = cached.Status.Subdomain
 			}
 		}
 

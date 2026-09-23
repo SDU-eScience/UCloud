@@ -1021,20 +1021,15 @@ export const Resources = {
             return Help.newResourceName("PrivateNetwork");
         },
 
-        newSubdomainName(): string {
-            return Help.newResourceName("Subdomain");
-        },
-
         newJobNetworkName(): string {
             return Help.newResourceName("Subdomain");
         },
 
-        async createPrivateNetwork(page: Page, name: string, subdomain: string): Promise<void> {
+        async createPrivateNetwork(page: Page, name: string): Promise<void> {
             await Resources.goTo(page, "Private networks");
             await page.getByText("Create private network").click();
             await page.waitForTimeout(2000);
             await page.getByPlaceholder("My private network").fill(name);
-            await page.getByPlaceholder("my-network").fill(subdomain);
 
             if (await page.getByRole("dialog").getByText("No product selected").isVisible()) {
                 await page.getByRole("dialog").getByText("No product selected").click();

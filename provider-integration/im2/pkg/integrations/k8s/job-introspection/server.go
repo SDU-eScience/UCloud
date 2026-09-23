@@ -79,10 +79,10 @@ func InitServerHandlers() {
 
 			network, ok := ctrl.PrivateNetworkRetrieve(resc.Id)
 			if ok {
-				networksBySubdomain[network.Specification.Subdomain] = &IntrospectedNetwork{
+				networksBySubdomain[network.Status.Subdomain] = &IntrospectedNetwork{
 					Id:        network.Id,
 					Name:      network.Specification.Name,
-					Subdomain: network.Specification.Subdomain,
+					Subdomain: network.Status.Subdomain,
 					Members:   nil,
 				}
 			}

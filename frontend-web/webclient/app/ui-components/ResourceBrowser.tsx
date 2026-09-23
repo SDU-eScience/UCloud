@@ -2573,6 +2573,12 @@ export class ResourceBrowser<T> {
 
     // Generic keyboard shortcut event handler
     private onKeyPress(ev: KeyboardEvent) {
+        const target = ev.target;
+        const isEditableTarget = target instanceof HTMLElement && (
+            target.isContentEditable || target.closest("input, textarea, select") !== null
+        );
+        if (isEditableTarget) return;
+
         const relativeSelectFiles = (delta: number, forceShift?: boolean) => {
             ev.preventDefault();
             const shift = forceShift ?? ev.shiftKey;

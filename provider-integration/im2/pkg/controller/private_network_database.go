@@ -101,6 +101,25 @@ type privateNetworkTrackedRow struct {
 	WorkspaceId string
 }
 
+func privateNetworkUnmarshalResource(resource string, network *orc.PrivateNetwork) bool {
+	if json.Unmarshal([]byte(resource), network) != nil {
+		return false
+	}
+
+	if network.Status.Subdomain == "" {
+		var legacy struct {
+			Specification struct {
+				Subdomain string `json:"subdomain"`
+			} `json:"specification"`
+		}
+		if json.Unmarshal([]byte(resource), &legacy) == nil {
+			network.Status.Subdomain = legacy.Specification.Subdomain
+		}
+	}
+
+	return true
+}
+
 func PrivateNetworkConfigureDatabase(settings cfg.KubernetesPrivateNetworks) {
 	parsed := privateNetworkParsedSettings{
 		Enabled:           settings.Enabled,
@@ -199,7 +218,7 @@ func initPrivateNetworkDatabase() {
 		}
 
 		var network orc.PrivateNetwork
-		if json.Unmarshal([]byte(row.Resource), &network) == nil && network.Id != "" {
+		if privateNetworkUnmarshalResource(row.Resource, &network) && network.Id != "" {
 			network.Status.CidrBlock = util.SqlNullToOpt(row.CidrBlock)
 			copied := network
 			privateNetworks[row.ResourceId] = &copied
@@ -308,11 +327,11 @@ func privateNetworkImportLegacy(network orc.PrivateNetwork) {
 					tracked_private_networks
 				where
 					resource_id != :resource_id
-					and lower(resource->'specification'->>'subdomain') = lower(:subdomain)
+					and lower(coalesce(nullif(resource->'status'->>'subdomain', ''), resource->'specification'->>'subdomain')) = lower(:subdomain)
 			`,
 			db.Params{
 				"resource_id": network.Id,
-				"subdomain":   network.Specification.Subdomain,
+				"subdomain":   network.Status.Subdomain,
 			},
 		)
 		if !tx.Ok {
@@ -367,13 +386,13 @@ func privateNetworkTrackExisting(
 	}
 
 	var stored orc.PrivateNetwork
-	if json.Unmarshal([]byte(row.Resource), &stored) != nil {
+	if !privateNetworkUnmarshalResource(row.Resource, &stored) {
 		stored = *network
 	}
 
 	merged := *network
 	merged.Owner = stored.Owner
-	merged.Specification.Subdomain = stored.Specification.Subdomain
+	merged.Status.Subdomain = stored.Status.Subdomain
 	merged.Specification.Cidr = stored.Specification.Cidr
 	merged.Status.CidrBlock = util.SqlNullToOpt(row.CidrBlock)
 
@@ -424,7 +443,7 @@ func PrivateNetworkRetrieve(id string) (orc.PrivateNetwork, bool) {
 	}
 
 	var network orc.PrivateNetwork
-	if json.Unmarshal([]byte(row.Resource), &network) != nil || network.Id != id {
+	if !privateNetworkUnmarshalResource(row.Resource, &network) || network.Id != id {
 		return orc.PrivateNetwork{}, false
 	}
 
@@ -662,7 +681,7 @@ func PrivateNetworkSnapshotNetworks() []PrivateNetworkSnapshotNetwork {
 			`
 				select
 					resource_id,
-					resource->'specification'->>'subdomain' as subdomain,
+					coalesce(nullif(resource->'status'->>'subdomain', ''), resource->'specification'->>'subdomain') as subdomain,
 					cidr_block::text as cidr_block,
 					state,
 					workspace_id
@@ -704,7 +723,7 @@ func PrivateNetworkSnapshotRetrieve(networkId string) (PrivateNetworkSnapshotNet
 			`
 				select
 					resource_id,
-					resource->'specification'->>'subdomain' as subdomain,
+					coalesce(nullif(resource->'status'->>'subdomain', ''), resource->'specification'->>'subdomain') as subdomain,
 					cidr_block::text as cidr_block,
 					state,
 					workspace_id

@@ -342,6 +342,26 @@ func initProducts() {
 			},
 		}
 
+		var excludedRanges []string
+		for _, excludedRange := range ServiceConfig.Compute.PrivateNetworks.ForbiddenCidrs {
+			excludedPrefix, ok := orc.PrivateNetworkParseCidr(excludedRange)
+			if !ok {
+				continue
+			}
+
+			overlapsAddressPool := false
+			for _, addressPool := range ServiceConfig.Compute.PrivateNetworks.CidrPools {
+				pool, ok := orc.PrivateNetworkParseCidr(addressPool)
+				if ok && orc.PrivateNetworkCidrsOverlap(excludedPrefix, pool) {
+					overlapsAddressPool = true
+					break
+				}
+			}
+			if overlapsAddressPool {
+				excludedRanges = append(excludedRanges, excludedRange)
+			}
+		}
+
 		PrivateNetworkSupport = []orc.PrivateNetworkSupport{
 			{
 				Product: apm.ProductReference{
@@ -349,6 +369,10 @@ func initProducts() {
 					Category: PrivateNetworkProducts[0].Category.Name,
 					Provider: config.Provider.Id,
 				},
+				AddressPools:    ServiceConfig.Compute.PrivateNetworks.CidrPools,
+				ExcludedRanges:  excludedRanges,
+				MinPrefixLength: 16,
+				MaxPrefixLength: 24,
 			},
 		}
 

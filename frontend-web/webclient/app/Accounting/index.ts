@@ -147,6 +147,7 @@ export function productTypeToIcon(type: ProductType): IconName {
         case "INFERENCE":
             return "heroSparkles";
         case "PRIVATE_NETWORK":
+            return "networkWiredSolid";
         case "PRIVATE_NETWORK_IP":
             return "heroCloud";
     }

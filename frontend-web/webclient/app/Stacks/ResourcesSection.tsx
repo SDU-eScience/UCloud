@@ -87,7 +87,7 @@ export function StackResourcesDialog({status}: {status: StackStatus}): React.Rea
                 id: network.id,
                 href: AppRoutes.resource.properties("private-networks", network.id),
                 title: network.specification.name || shortUUID(network.id),
-                subtitle: network.specification.subdomain || "",
+                subtitle: network.status.subdomain || "",
                 icon: "heroCloud" as IconName,
             })),
         },

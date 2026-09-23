@@ -552,8 +552,7 @@ func PrivateNetworkCreate(stack *Stack, name string) orcapi.AppParameterValue {
 
 	networks, err := ucxapi.PrivateNetworksCreate.Invoke(session, []orcapi.PrivateNetworkSpecification{
 		{
-			Name:      name,
-			Subdomain: fmt.Sprintf("net-%s", util.RandomTokenNoTs(4)),
+			Name: name,
 			ResourceSpecification: orcapi.ResourceSpecification{
 				Product: products[0].Product.ToReference(),
 				Labels:  stack.Labels(),

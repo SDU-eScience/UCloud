@@ -125,7 +125,7 @@ export function PrivateNetworkProperties(): React.ReactNode {
             <TabbedCard>
                 <TabbedCardTab icon="heroInformationCircle" name="Details">
                     <div className={HeroHeaderGrid}>
-                        <HeroMetric title="Subdomain">{network.specification.subdomain}</HeroMetric>
+                        <HeroMetric title="Subdomain">{network.status.subdomain ?? "Pending allocation"}</HeroMetric>
                         <HeroMetric title="Address range">{network.status.cidrBlock ?? "Pending allocation"}</HeroMetric>
                         <HeroMetric title="Requested range">{network.specification.cidr ?? "Automatic"}</HeroMetric>
                         <HeroMetric title="Created by">{network.owner.createdBy}</HeroMetric>

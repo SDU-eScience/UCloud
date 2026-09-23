@@ -18,16 +18,20 @@ import {PrivateNetworkProperties} from "@/Applications/PrivateNetwork/PrivateNet
 
 export interface PrivateNetworkSpecification extends ResourceSpecification {
     name: string;
-    subdomain: string;
     cidr?: string;
 }
 
 export interface PrivateNetworkStatus extends ResourceStatus {
+    subdomain?: string;
     members: string[];
     cidrBlock?: string;
 }
 
 export interface PrivateNetworkSupport extends ProductSupport {
+    addressPools?: string[];
+    excludedRanges?: string[];
+    minPrefixLength?: number;
+    maxPrefixLength?: number;
 }
 
 export interface PrivateNetworkFlags extends ResourceIncludeFlags {

@@ -5,9 +5,8 @@ import "fmt"
 type PrivateNetworkListCommand struct{}
 
 type PrivateNetworkCreateCommand struct {
-	Name      string `positional:"name" usage:"Private network name"`
-	SubDomain string `flag:"sub-domain" usage:"Sub domain"`
-	Product   string `flag:"product" usage:"Product"`
+	Name    string `positional:"name" usage:"Private network name"`
+	Product string `flag:"product" usage:"Product"`
 }
 type PrivateNetworkGetCommand struct {
 	Name string `positional:"name" usage:"Private network name"`

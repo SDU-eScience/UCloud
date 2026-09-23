@@ -1196,7 +1196,7 @@ function vmAccessResourceLabel(
 
     if (resource.type === "private_network") {
         const network = privateNetworksById[resource.id];
-        const name = network?.specification.name || network?.specification.subdomain || resource.id;
+        const name = network?.specification.name || network?.status.subdomain || resource.id;
         return resource.ips?.length ? `${name} (${resource.ips.join(", ")})` : name;
     }
 
