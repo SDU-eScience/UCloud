@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	ws "github.com/gorilla/websocket"
 	"ucloud.dk/shared/pkg/log"
@@ -19,6 +20,8 @@ type Session struct {
 	outgoing    chan<- Frame
 	serverSeq   int64
 	ctx         context.Context
+	cancel      context.CancelFunc
+	stallOnce   sync.Once
 	sentModel   map[string]Value
 
 	mu             sync.RWMutex
@@ -37,12 +40,14 @@ func NewSession(outgoing chan<- Frame, incoming <-chan Frame) *Session {
 }
 
 func NewSessionWithContext(ctx context.Context, outgoing chan<- Frame, incoming <-chan Frame) *Session {
+	ctx, cancel := context.WithCancel(ctx)
 	s := &Session{
 		rawIncoming: incoming,
 		incoming:    make(chan Frame, 16),
 		outgoing:    outgoing,
 		serverSeq:   1,
 		ctx:         ctx,
+		cancel:      cancel,
 		rpcHandlers: map[string]RpcHandler{},
 		rpcPending:  map[int64]chan rpcResponse{},
 		uiHandlers:  map[string]map[string]UiEventHandler{},
@@ -71,13 +76,38 @@ func (s *Session) nextSeq() int64 {
 
 func (s *Session) Send(frame Frame) {
 	frame.Seq = s.nextSeq()
-	s.outgoing <- frame
+	s.sendWithTimeout(frame, frame.Seq)
 }
 
 func (s *Session) sendWithSeq(frame Frame, seq int64) {
 	frame.Seq = seq
-	s.outgoing <- frame
+	s.sendWithTimeout(frame, seq)
 }
+
+func (s *Session) sendWithTimeout(frame Frame, seq int64) {
+	select {
+	case s.outgoing <- frame:
+	case <-s.ctx.Done():
+	case <-time.After(sendTimeout):
+		// The transport is stalled (the client stopped reading). Drop the frame and fail the session so
+		// that the client reconnects and receives a full UI mount. Continuing on a stalled transport
+		// would desynchronize the client model.
+		log.Warn("ucx: dropped outgoing frame seq=%d opcode=%d (transport stalled)", seq, frame.Opcode)
+		s.failStalled()
+	}
+}
+
+// failStalled cancels the session context. All future sends return immediately and the websocket pumps
+// tear the connection down.
+func (s *Session) failStalled() {
+	s.stallOnce.Do(func() {
+		if s.cancel != nil {
+			s.cancel()
+		}
+	})
+}
+
+const sendTimeout = 10 * time.Second
 
 func (s *Session) pumpIncoming() {
 	defer close(s.incoming)
@@ -182,6 +212,34 @@ func (s *Session) SendModel(newModel map[string]Value) {
 	s.sentModel = next
 }
 
+// SendModelPatch sends a partial model update. Unlike SendModel, the changes are applied on top of the
+// current model instead of replacing it. This is used for high-frequency updates (for example chat
+// streaming) where only a small part of the model changes and re-sending the entire model is too costly.
+func (s *Session) SendModelPatch(changes map[string]Value) {
+	s.modelMu.Lock()
+	defer s.modelMu.Unlock()
+
+	if len(changes) == 0 {
+		return
+	}
+
+	for key, value := range changes {
+		if value.Kind == ValueNull {
+			delete(s.sentModel, key)
+		} else {
+			s.sentModel[key] = cloneValue(value)
+		}
+	}
+
+	s.Send(Frame{
+		ReplyToSeq: 0,
+		Opcode:     OpModelPatch,
+		ModelPatch: ModelPatch{
+			Changes: changes,
+		},
+	})
+}
+
 func (s *Session) sendModelDiff(before map[string]Value, after map[string]Value) {
 	changes := map[string]Value{}
 	for key, afterVal := range after {
@@ -258,8 +316,7 @@ func RunAppWebSocket(conn *ws.Conn, ctx context.Context, authHandler SessionAuth
 		_ = conn.Close()
 		return
 	}
-
-	toWebsocket := make(chan Frame, 16)
+	toWebsocket := make(chan Frame, 256)
 	fromWebsocket := make(chan Frame, 16)
 
 	done := make(chan struct{}, 3)
@@ -281,6 +338,7 @@ func RunAppWebSocket(conn *ws.Conn, ctx context.Context, authHandler SessionAuth
 
 	go func() {
 		defer func() { done <- struct{}{} }()
+
 		session := NewSessionWithContext(ctx, toWebsocket, fromWebsocket)
 		handler(ctx, session)
 		cancel()
@@ -304,7 +362,7 @@ func RunAppWebSocketApplication(conn *ws.Conn, ctx context.Context, app Applicat
 		return
 	}
 
-	toWebsocket := make(chan Frame, 16)
+	toWebsocket := make(chan Frame, 256)
 	fromWebsocket := make(chan Frame, 16)
 
 	done := make(chan struct{}, 3)
@@ -474,11 +532,13 @@ func pumpFramesToWebsocket(ctx context.Context, conn *ws.Conn, incoming <-chan F
 				continue
 			}
 
+			_ = conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
 			err = conn.WriteMessage(ws.BinaryMessage, encoded)
 			if err != nil {
 				canWrite = false
 				_ = conn.Close()
 			}
+			_ = conn.SetWriteDeadline(time.Time{})
 		}
 	}
 }

@@ -163,6 +163,14 @@ func initPublicIps() {
 	})
 
 	orcapi.PublicIpsControlAddUpdate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.PublicIpUpdate]]) (util.Empty, *util.HttpError) {
+		ids := make([]string, 0, len(request.Items))
+		for _, item := range request.Items {
+			ids = append(ids, item.Id)
+		}
+		if err := ResourceValidateProviderBatch(info.Actor, publicIpType, ids); err != nil {
+			return util.Empty{}, err
+		}
+
 		for _, item := range request.Items {
 			ok := ResourceUpdate(
 				info.Actor,

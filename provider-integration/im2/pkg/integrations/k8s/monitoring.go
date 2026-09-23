@@ -349,7 +349,9 @@ func initJobQueue() {
 	jobs := controller.JobsListServer()
 	for _, job := range jobs {
 		if job.Status.State == orc.JobStateInQueue {
-			shared.RequestSchedule(job)
+			if !initScriptImagesRecover(job) {
+				shared.RequestSchedule(job)
+			}
 		}
 	}
 }

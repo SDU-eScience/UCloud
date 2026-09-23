@@ -165,7 +165,7 @@ func authLoginServiceResolve(name string) (authLoginService, bool) {
 	switch name {
 	case "web", "dev-web":
 		return authLoginService{Name: name}, true
-	case "test":
+	case "ucloud-cli":
 		if authExternalLoginEnabled() {
 			return authLoginService{Name: name, External: true}, true
 		}

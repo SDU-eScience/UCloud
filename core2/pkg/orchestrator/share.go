@@ -109,6 +109,14 @@ func initShares() {
 			return util.Empty{}, util.HttpErr(http.StatusForbidden, "forbidden")
 		}
 
+		ids := make([]string, 0, len(request.Items))
+		for _, item := range request.Items {
+			ids = append(ids, item.Id)
+		}
+		if err := ResourceValidateProviderBatch(info.Actor, shareType, ids); err != nil {
+			return util.Empty{}, err
+		}
+
 		for _, item := range request.Items {
 			if item.Update.ShareAvailableAt.Present {
 				driveId, ok := orcapi.DriveIdFromUCloudPath(item.Update.ShareAvailableAt.GetOrDefault(""))

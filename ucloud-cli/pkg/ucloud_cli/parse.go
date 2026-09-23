@@ -9,20 +9,6 @@ import (
 	com "ucloud.dk/ucloud_cli/pkg/command"
 )
 
-func Peek(args []string) string {
-	if len(args) == 0 {
-		return ""
-	}
-	return args[0]
-}
-
-func Consume(args []string) ([]string, string) {
-	if len(args) == 0 {
-		return []string{}, ""
-	}
-	return args[1:], args[0]
-}
-
 func registerCommandParser() map[string]map[string]com.CommandFunc {
 	registry := map[string]map[string]com.CommandFunc{}
 	registry["app"] = com.AppCommands
@@ -54,6 +40,7 @@ func bindCommand(args []string, cmd any) error {
 
 	type fieldBinding struct {
 		index   int
+		name    string
 		kind    reflect.Kind
 		strPtr  *string
 		boolPtr *bool
@@ -66,6 +53,7 @@ func bindCommand(args []string, cmd any) error {
 
 	// Register flags
 	pos := 0
+	// looping through fields
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		fieldValue := v.Field(i)
@@ -76,6 +64,13 @@ func bindCommand(args []string, cmd any) error {
 		positional := field.Tag.Get("positional")
 		if positional != "" {
 			if pos >= len(args) {
+				if field.Tag.Get("required") == "true" {
+					return fmt.Errorf("missing required argument: %s", field.Name)
+				}
+				continue
+			}
+
+			if strings.HasPrefix(args[pos], "-") {
 				if field.Tag.Get("required") == "true" {
 					return fmt.Errorf("missing required argument: %s", field.Name)
 				}
@@ -138,6 +133,7 @@ func bindCommand(args []string, cmd any) error {
 
 		binding := fieldBinding{
 			index: i,
+			name:  flagName,
 			kind:  field.Type.Kind()}
 
 		switch field.Type.Kind() {
@@ -158,13 +154,26 @@ func bindCommand(args []string, cmd any) error {
 	}
 
 	// Parse args
-	err := fs.Parse(args)
+	err := fs.Parse(args[pos:])
 	if err != nil {
 		return err
 	}
 
+	// fs.Visit only iterates over flags explicitly provided by the user.
+	// This prevents omitted flags from overwriting preconfigured struct defaults
+	// with the flag package's zero-value defaults, e.g. keeping Limit=100 when
+	// --limit is not passed.
+
+	visitedFlags := map[string]bool{}
+	fs.Visit(func(f *flag.Flag) {
+		visitedFlags[f.Name] = true
+	})
+
 	// Assign values back into struct
 	for _, b := range bindings {
+		if !visitedFlags[b.name] {
+			continue
+		}
 		field := v.Field(b.index)
 
 		switch b.kind {
@@ -186,26 +195,41 @@ func bindCommand(args []string, cmd any) error {
 
 func Parse(commands []string) (com.Command, error) {
 	if len(commands) == 0 {
-		return nil, fmt.Errorf("no mainCommand")
+		return nil, fmt.Errorf("No command specified.")
 	}
 
-	commands, mainCommand := Consume(commands)
-	subCommand := Peek(commands)
+	var subCommand string
+	mainCommand := commands[0]
+	if len(commands) > 1 {
+		subCommand = commands[1] // secondary positional
+	}
 
 	commandParsers := registerCommandParser()
 
 	parserRoute, ok := commandParsers[mainCommand]
+
 	if !ok {
-		return nil, fmt.Errorf("mainCommand %s not found", mainCommand)
+		return nil, fmt.Errorf("unknown command %s", mainCommand)
 	}
 
-	createFunc, ok := parserRoute[subCommand]
-	if !ok {
-		return nil, fmt.Errorf("subcommand %s not found", subCommand)
-	}
-	cmd := createFunc()
+	var cmd com.Command
+	var createFunc com.CommandFunc
 
-	commands, _ = Consume(commands)
+	sliceCount := 1 // Used to remove the found commands
+	createFunc, ok = parserRoute[subCommand]
+	if !ok {
+		// No subcommand is found, then there is only 1 command
+		createFunc, ok = parserRoute[mainCommand]
+		if !ok {
+			return nil, fmt.Errorf("command %s not found", mainCommand)
+		}
+	} else {
+		sliceCount = 2
+	}
+
+	commands = commands[sliceCount:]
+
+	cmd = createFunc()
 
 	err := bindCommand(commands, cmd)
 

@@ -44,6 +44,9 @@ func Init() {
 	initDrives()
 	times["Drives"] = t.Mark()
 
+	initContainerRepositories()
+	times["ContainerRepositories"] = t.Mark()
+
 	initFiles()
 	times["Files"] = t.Mark()
 

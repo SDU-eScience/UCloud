@@ -28,16 +28,22 @@ const (
 )
 
 type InferenceModel struct {
-	Name            string                `json:"name"`
-	Title           string                `json:"title"`
-	TitleModelName  string                `json:"titleModelName"`
-	Capabilities    []InferenceCapability `json:"capabilities"`
-	PriceMultiplier InferencePricing      `json:"priceMultiplier"`
-	Endpoint        InferenceEndpoint     `json:"endpoint"`
-	Availability    InferenceAvailability `json:"availability"`
-	ContextWindow   *int                  `json:"contextWindow,omitempty"`
-	ChatSettings    InferenceChatSettings `json:"chatSettings"`
-	Page            *InferenceModelPage   `json:"page,omitempty"`
+	Name                   string                 `json:"name"`
+	Title                  string                 `json:"title"`
+	Capabilities           []InferenceCapability  `json:"capabilities"`
+	ReasoningEfforts       []InferenceModelOption `json:"reasoningEfforts,omitempty"`
+	DefaultReasoningEffort string                 `json:"defaultReasoningEffort,omitempty"`
+	PricePerMillion        InferencePricing       `json:"pricePerMillion"`
+	Endpoint               InferenceEndpoint      `json:"endpoint"`
+	Availability           InferenceAvailability  `json:"availability"`
+	ContextWindow          *int                   `json:"contextWindow,omitempty"`
+	ChatSettings           InferenceChatSettings  `json:"chatSettings"`
+	Page                   *InferenceModelPage    `json:"page,omitempty"`
+}
+
+type InferenceModelOption struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type InferenceModelPage struct {
@@ -84,10 +90,12 @@ type InferenceChatSettings struct {
 }
 
 type InferencePricing struct {
-	CachedInput int `json:"cachedInput"`
-	Input       int `json:"input"`
-	Output      int `json:"output"`
+	CachedInput int64 `json:"cachedInput"`
+	Input       int64 `json:"input"`
+	Output      int64 `json:"output"`
 }
+
+const InferencePriceScale int64 = 1_000_000
 
 type InferenceEndpoint struct {
 	BasePath         string `json:"basePath"`
@@ -108,24 +116,25 @@ var modelGlobals = struct {
 }
 
 type inferenceModelRow struct {
-	Name                   string
-	Title                  string
-	TitleModelName         string
-	Capabilities           []byte
-	PriceCachedInput       int
-	PriceInput             int
-	PriceOutput            int
-	InferenceEndpointPath  string
-	InferenceEndpointModel string
-	Public                 bool
-	AvailableTo            []byte
-	ContextWindow          sql.NullInt64
-	Temperature            float64
-	TopP                   float64
-	MaxCompletionTokens    int
-	SystemPrompt           sql.NullString
-	DisableTools           bool
-	PageMetadata           []byte
+	Name                       string
+	Title                      string
+	Capabilities               []byte
+	ReasoningEfforts           []byte
+	DefaultReasoningEffort     sql.NullString
+	PricePerMillionCachedInput int64
+	PricePerMillionInput       int64
+	PricePerMillionOutput      int64
+	InferenceEndpointPath      string
+	InferenceEndpointModel     string
+	Public                     bool
+	AvailableTo                []byte
+	ContextWindow              sql.NullInt64
+	Temperature                float64
+	TopP                       float64
+	MaxCompletionTokens        int
+	SystemPrompt               sql.NullString
+	DisableTools               bool
+	PageMetadata               []byte
 }
 
 type inferenceBenchmarkRow struct {
@@ -144,11 +153,12 @@ func inferenceModelCatalogLoad() {
 				select
 					name,
 					title,
-					title_model_name,
 					capabilities,
-					price_cached_input,
-					price_input,
-					price_output,
+					reasoning_efforts,
+					default_reasoning_effort,
+					price_per_million_cached_input,
+					price_per_million_input,
+					price_per_million_output,
 					inference_endpoint_path,
 					inference_endpoint_model,
 					public,
@@ -176,6 +186,10 @@ func inferenceModelCatalogLoad() {
 			if err := json.Unmarshal(row.AvailableTo, &availableTo); err != nil {
 				continue
 			}
+			var reasoningEfforts []InferenceModelOption
+			if err := json.Unmarshal(row.ReasoningEfforts, &reasoningEfforts); err != nil {
+				continue
+			}
 
 			var contextWindow *int
 			if row.ContextWindow.Valid {
@@ -196,14 +210,20 @@ func inferenceModelCatalogLoad() {
 			}
 
 			result[row.Name] = inferenceModelNormalize(InferenceModel{
-				Name:           row.Name,
-				Title:          row.Title,
-				TitleModelName: row.TitleModelName,
-				Capabilities:   capabilities,
-				PriceMultiplier: InferencePricing{
-					CachedInput: row.PriceCachedInput,
-					Input:       row.PriceInput,
-					Output:      row.PriceOutput,
+				Name:             row.Name,
+				Title:            row.Title,
+				Capabilities:     capabilities,
+				ReasoningEfforts: reasoningEfforts,
+				DefaultReasoningEffort: func() string {
+					if row.DefaultReasoningEffort.Valid {
+						return row.DefaultReasoningEffort.String
+					}
+					return ""
+				}(),
+				PricePerMillion: InferencePricing{
+					CachedInput: row.PricePerMillionCachedInput,
+					Input:       row.PricePerMillionInput,
+					Output:      row.PricePerMillionOutput,
 				},
 				Endpoint: InferenceEndpoint{
 					BasePath:         row.InferenceEndpointPath,
@@ -377,19 +397,11 @@ func InferenceModelRename(oldName string, newName string) *util.HttpError {
 	}
 
 	model.Name = newName
-	if model.TitleModelName == oldName {
-		model.TitleModelName = newName
-	}
 	if err := inferenceModelValidate(model); err != nil {
 		return err
 	}
 
 	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`update inference_model set title_model_name = :new_name where title_model_name = :old_name`,
-			db.Params{"old_name": oldName, "new_name": newName},
-		)
 		db.Exec(
 			tx,
 			`delete from inference_model where name = :name`,
@@ -398,12 +410,6 @@ func InferenceModelRename(oldName string, newName string) *util.HttpError {
 		inferenceModelUpsertTx(tx, model)
 	})
 
-	for existingName, existing := range modelGlobals.Models {
-		if existing.TitleModelName == oldName {
-			existing.TitleModelName = newName
-			modelGlobals.Models[existingName] = inferenceModelClone(existing)
-		}
-	}
 	delete(modelGlobals.Models, oldName)
 	modelGlobals.Models[newName] = inferenceModelClone(model)
 	return nil
@@ -431,6 +437,7 @@ func InferenceModelDelete(name string) *util.HttpError {
 
 func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 	capabilities, _ := json.Marshal(model.Capabilities)
+	reasoningEfforts, _ := json.Marshal(model.ReasoningEfforts)
 	availableTo, _ := json.Marshal(model.Availability.AvailableTo)
 	pageMetadata := sql.NullString{}
 	if model.Page != nil {
@@ -445,17 +452,22 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 	if model.ChatSettings.SystemPrompt != nil {
 		systemPrompt = sql.NullString{String: *model.ChatSettings.SystemPrompt, Valid: true}
 	}
+	defaultReasoningEffort := sql.NullString{}
+	if model.DefaultReasoningEffort != "" {
+		defaultReasoningEffort = sql.NullString{String: model.DefaultReasoningEffort, Valid: true}
+	}
 	db.Exec(
 		tx,
 		`
 			insert into inference_model(
 				name,
 				title,
-				title_model_name,
 				capabilities,
-				price_cached_input,
-				price_input,
-				price_output,
+				reasoning_efforts,
+				default_reasoning_effort,
+				price_per_million_cached_input,
+				price_per_million_input,
+				price_per_million_output,
 				inference_endpoint_path,
 				inference_endpoint_model,
 				public,
@@ -470,11 +482,12 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 			) values (
 				:name,
 				:title,
-				:title_model_name,
 				cast(:capabilities as jsonb),
-				:price_cached_input,
-				:price_input,
-				:price_output,
+				cast(:reasoning_efforts as jsonb),
+				:default_reasoning_effort,
+				:price_per_million_cached_input,
+				:price_per_million_input,
+				:price_per_million_output,
 				:inference_endpoint_path,
 				:inference_endpoint_model,
 				:public,
@@ -488,11 +501,12 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				cast(:page_metadata as jsonb)
 			) on conflict (name) do update set
 				title = excluded.title,
-				title_model_name = excluded.title_model_name,
 				capabilities = excluded.capabilities,
-				price_cached_input = excluded.price_cached_input,
-				price_input = excluded.price_input,
-				price_output = excluded.price_output,
+				reasoning_efforts = excluded.reasoning_efforts,
+				default_reasoning_effort = excluded.default_reasoning_effort,
+				price_per_million_cached_input = excluded.price_per_million_cached_input,
+				price_per_million_input = excluded.price_per_million_input,
+				price_per_million_output = excluded.price_per_million_output,
 				inference_endpoint_path = excluded.inference_endpoint_path,
 				inference_endpoint_model = excluded.inference_endpoint_model,
 				public = excluded.public,
@@ -506,24 +520,25 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				page_metadata = excluded.page_metadata
 		`,
 		db.Params{
-			"name":                     model.Name,
-			"title":                    model.Title,
-			"title_model_name":         model.TitleModelName,
-			"capabilities":             string(capabilities),
-			"price_cached_input":       model.PriceMultiplier.CachedInput,
-			"price_input":              model.PriceMultiplier.Input,
-			"price_output":             model.PriceMultiplier.Output,
-			"inference_endpoint_path":  model.Endpoint.BasePath,
-			"inference_endpoint_model": model.Endpoint.BackendModelName,
-			"public":                   model.Availability.Public,
-			"available_to":             string(availableTo),
-			"context_window":           contextWindow,
-			"temperature":              model.ChatSettings.Temperature,
-			"top_p":                    model.ChatSettings.TopP,
-			"max_completion_tokens":    model.ChatSettings.MaxCompletionTokens,
-			"system_prompt":            systemPrompt,
-			"disable_tools":            model.ChatSettings.DisableTools,
-			"page_metadata":            pageMetadata,
+			"name":                           model.Name,
+			"title":                          model.Title,
+			"capabilities":                   string(capabilities),
+			"reasoning_efforts":              string(reasoningEfforts),
+			"default_reasoning_effort":       defaultReasoningEffort,
+			"price_per_million_cached_input": model.PricePerMillion.CachedInput,
+			"price_per_million_input":        model.PricePerMillion.Input,
+			"price_per_million_output":       model.PricePerMillion.Output,
+			"inference_endpoint_path":        model.Endpoint.BasePath,
+			"inference_endpoint_model":       model.Endpoint.BackendModelName,
+			"public":                         model.Availability.Public,
+			"available_to":                   string(availableTo),
+			"context_window":                 contextWindow,
+			"temperature":                    model.ChatSettings.Temperature,
+			"top_p":                          model.ChatSettings.TopP,
+			"max_completion_tokens":          model.ChatSettings.MaxCompletionTokens,
+			"system_prompt":                  systemPrompt,
+			"disable_tools":                  model.ChatSettings.DisableTools,
+			"page_metadata":                  pageMetadata,
 		},
 	)
 }
@@ -553,14 +568,11 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	if strings.TrimSpace(model.Title) == "" {
 		return util.HttpErr(http.StatusBadRequest, "model title is required")
 	}
-	if strings.TrimSpace(model.TitleModelName) == "" {
-		return util.HttpErr(http.StatusBadRequest, "model title model name is required")
-	}
 	if len(model.Capabilities) == 0 {
 		return util.HttpErr(http.StatusBadRequest, "model capabilities are required")
 	}
-	if model.PriceMultiplier.CachedInput < 0 || model.PriceMultiplier.Input < 0 || model.PriceMultiplier.Output < 0 {
-		return util.HttpErr(http.StatusBadRequest, "model price multipliers cannot be negative")
+	if model.PricePerMillion.CachedInput < 0 || model.PricePerMillion.Input < 0 || model.PricePerMillion.Output < 0 {
+		return util.HttpErr(http.StatusBadRequest, "model prices per million tokens cannot be negative")
 	}
 	if model.ChatSettings.Temperature < 0 || model.ChatSettings.Temperature > 2 {
 		return util.HttpErr(http.StatusBadRequest, "model temperature must be between 0 and 2")
@@ -573,10 +585,23 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	}
 	for _, capability := range model.Capabilities {
 		switch capability {
-		case InferenceTextGeneration, InferenceTextToImage, InferenceSpeechToText, InferenceVision, InferenceVideoVision, InferenceAudio:
+		case InferenceTextGeneration, InferenceVision, InferenceVideoVision, InferenceAudio:
 		default:
 			return util.HttpErr(http.StatusBadRequest, "invalid model capability")
 		}
+	}
+	reasoningValues := map[string]bool{}
+	for _, effort := range model.ReasoningEfforts {
+		if effort.Name == "" || effort.Value == "" {
+			return util.HttpErr(http.StatusBadRequest, "reasoning effort names and values are required")
+		}
+		if reasoningValues[effort.Value] {
+			return util.HttpErr(http.StatusBadRequest, "reasoning effort values must be unique")
+		}
+		reasoningValues[effort.Value] = true
+	}
+	if len(model.ReasoningEfforts) > 0 && !reasoningValues[model.DefaultReasoningEffort] {
+		return util.HttpErr(http.StatusBadRequest, "default reasoning effort must match a supported value")
 	}
 	if strings.TrimSpace(model.Endpoint.BasePath) == "" {
 		return util.HttpErr(http.StatusBadRequest, "model endpoint base path is required")
@@ -593,17 +618,21 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 func inferenceModelNormalize(model InferenceModel) InferenceModel {
 	model.Name = strings.TrimSpace(model.Name)
 	model.Title = strings.TrimSpace(model.Title)
-	model.TitleModelName = strings.TrimSpace(model.TitleModelName)
-	if model.TitleModelName == "" {
-		model.TitleModelName = model.Name
-	}
 	model.Endpoint.BasePath = strings.TrimRight(strings.TrimSpace(model.Endpoint.BasePath), "/")
 	model.Endpoint.BackendModelName = strings.TrimSpace(model.Endpoint.BackendModelName)
+	for idx := range model.ReasoningEfforts {
+		model.ReasoningEfforts[idx].Name = strings.TrimSpace(model.ReasoningEfforts[idx].Name)
+		model.ReasoningEfforts[idx].Value = strings.TrimSpace(model.ReasoningEfforts[idx].Value)
+	}
+	model.DefaultReasoningEffort = strings.TrimSpace(model.DefaultReasoningEffort)
+	if len(model.ReasoningEfforts) == 0 {
+		model.DefaultReasoningEffort = ""
+	}
 	if model.ContextWindow != nil && *model.ContextWindow <= 0 {
 		model.ContextWindow = nil
 	}
 	if model.ChatSettings.MaxCompletionTokens == 0 {
-		model.ChatSettings.MaxCompletionTokens = 65536
+		model.ChatSettings.MaxCompletionTokens = 128 * 1024
 	}
 	if model.ChatSettings.SystemPrompt != nil {
 		value := strings.TrimSpace(*model.ChatSettings.SystemPrompt)
@@ -640,6 +669,7 @@ func inferenceModelNormalize(model InferenceModel) InferenceModel {
 		}
 	}
 	model.Capabilities = slices.Clone(model.Capabilities)
+	model.ReasoningEfforts = slices.Clone(model.ReasoningEfforts)
 	model.Availability.AvailableTo = slices.Clone(model.Availability.AvailableTo)
 	return model
 }
@@ -663,6 +693,7 @@ func inferenceModelClone(model InferenceModel) InferenceModel {
 		model.Page = &page
 	}
 	model.Capabilities = slices.Clone(model.Capabilities)
+	model.ReasoningEfforts = slices.Clone(model.ReasoningEfforts)
 	model.Availability.AvailableTo = slices.Clone(model.Availability.AvailableTo)
 	return model
 }

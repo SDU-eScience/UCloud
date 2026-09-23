@@ -33,12 +33,15 @@ interface VirtualizedTreeProps<T> {
     initialFocusedId?: string;
     initialSelectedId?: string;
     initialSelectedIds?: readonly string[];
+    selectedId?: string;
+    selectedIds?: readonly string[];
     selectionMode?: VirtualizedTreeSelectionMode;
     selectionFollowsFocus?: boolean;
     rowHeight?: number;
     indent?: number;
     overscanCount?: number;
     onActivate?(node: T): void;
+    onKeyboardActivate?(node: T): void;
     onPrefetch?(node: T): void;
     onSelectionChange?(nodes: readonly T[]): void;
     onContextMenu?(event: React.MouseEvent<HTMLDivElement>, node: T): void;
@@ -131,6 +134,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
     const typeaheadTimer = React.useRef<number | undefined>(undefined);
     const selectionMode = props.selectionMode ?? "single";
     const selectionFollowsFocus = props.selectionFollowsFocus ?? selectionMode === "single";
+    const controlledSelection = props.selectedId !== undefined || props.selectedIds !== undefined;
     const [expanded, setExpanded] = React.useState<Set<string>>(() => new Set(props.initialExpandedIds));
     const [focusedId, setFocusedId] = React.useState(props.initialFocusedId ?? props.initialSelectedId);
     const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => {
@@ -140,20 +144,13 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
     });
 
     React.useEffect(() => {
-        const initialExpandedIds = props.initialExpandedIds;
-        if (!initialExpandedIds?.length) return;
-        setExpanded(current => {
-            const next = new Set(current);
-            let changed = false;
-            for (const id of initialExpandedIds) {
-                if (!next.has(id)) {
-                    next.add(id);
-                    changed = true;
-                }
-            }
-            return changed ? next : current;
-        });
-    }, [props.initialExpandedIds]);
+        if (selectionMode === "none") return;
+        const controlledIds = props.selectedIds ?? (props.selectedId === undefined ? undefined : [props.selectedId]);
+        if (controlledIds === undefined) return;
+        setSelectedIds(new Set(selectionMode === "single" ? controlledIds.slice(0, 1) : controlledIds));
+        const [nextFocusedId] = controlledIds;
+        if (nextFocusedId !== undefined) setFocusedId(nextFocusedId);
+    }, [props.selectedId, props.selectedIds, selectionMode]);
 
     const rows = React.useMemo(() => flattenVisibleNodes(
         props.nodes,
@@ -186,6 +183,11 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
         setSelectedIds(next);
         props.onSelectionChange?.(collectNodes(props.nodes, next, props.getId, props.getChildren));
     }, [props.getChildren, props.getId, props.nodes, props.onSelectionChange]);
+
+    React.useEffect(() => {
+        if (!controlledSelection || focusedIndex < 0) return;
+        listRef.current?.scrollToItem(focusedIndex, "smart");
+    }, [controlledSelection, focusedIndex]);
 
     const focusRow = React.useCallback((row: VirtualizedTreeRow<T>, select = selectionFollowsFocus) => {
         setFocusedId(row.id);
@@ -225,8 +227,8 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
     }, [expanded, focusedId, prefetch, props.getChildren, props.getId, props.isBranch, selectionFollowsFocus, selectionMode, updateSelection]);
 
     const activate = React.useCallback((row: VirtualizedTreeRow<T>) => {
+        props.onActivate?.(row.node);
         if (props.isBranch(row.node)) toggle(row);
-        else props.onActivate?.(row.node);
     }, [props.isBranch, props.onActivate, toggle]);
 
     const hover = React.useCallback((row: VirtualizedTreeRow<T>) => {
@@ -341,6 +343,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
                 break;
             case "Enter":
                 activate(row);
+                props.onKeyboardActivate?.(row.node);
                 break;
             case " ":
                 toggleSelection(row);
@@ -350,7 +353,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
         }
         event.preventDefault();
         event.stopPropagation();
-    }, [activate, expanded, focusByTypeahead, focusedIndex, props.getChildren, props.isBranch, rows, selectIndex, toggle, toggleSelection]);
+    }, [activate, expanded, focusByTypeahead, focusedIndex, props.getChildren, props.isBranch, props.onKeyboardActivate, rows, selectIndex, toggle, toggleSelection]);
 
     React.useImperativeHandle(props.apiRef, () => ({
         activate() {

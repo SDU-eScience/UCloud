@@ -111,8 +111,9 @@ func convertType(name string, value reflect.Value) []string {
 }
 
 type commonErrorMessage struct {
-	Why       string `json:"why,omitempty"`
-	ErrorCode string `json:"errorCode,omitempty"`
+	StatusCode util.Option[int]    `json:"statusCode"`
+	Why        util.Option[string] `json:"why"`
+	ErrorCode  string              `json:"errorCode,omitempty"`
 }
 
 func ParseResponse[T any](r Response) (T, *util.HttpError) {
@@ -125,18 +126,18 @@ func ParseResponse[T any](r Response) (T, *util.HttpError) {
 		}
 	}
 	defer util.SilentClose(r.Response)
-	data, err := io.ReadAll(r.Response)
+	data, readErr := io.ReadAll(r.Response)
 
 	if isOkay(r.StatusCode) {
-		if err != nil {
-			log.Info("Unable to read response on OK response: %v", err)
+		if readErr != nil {
+			log.Info("Unable to read response on OK response: %v", readErr)
 			return result, &util.HttpError{
 				StatusCode:   http.StatusBadGateway,
 				DetailedCode: ErrorUnableToReadResponse,
 			}
 		}
 
-		err = json.Unmarshal(data, &result)
+		err := json.Unmarshal(data, &result)
 		if err != nil {
 			log.Info("error reading unmarshalling response body: %v", err)
 			return result, &util.HttpError{
@@ -147,14 +148,21 @@ func ParseResponse[T any](r Response) (T, *util.HttpError) {
 
 		return result, nil
 	} else {
+		if readErr != nil {
+			return result, &util.HttpError{StatusCode: r.StatusCode}
+		}
 		errorMessage := commonErrorMessage{}
-		err = json.Unmarshal(data, &errorMessage)
-		if err == nil {
-			return result, &util.HttpError{
+		err := json.Unmarshal(data, &errorMessage)
+		if err == nil && errorMessage.Why.Present {
+			httpErr := &util.HttpError{
 				StatusCode: r.StatusCode,
-				Why:        errorMessage.Why,
+				Why:        errorMessage.Why.Value,
 				ErrorCode:  errorMessage.ErrorCode,
 			}
+			if errorMessage.StatusCode.Present && errorMessage.StatusCode.Value == r.StatusCode {
+				httpErr.MarkStructuredResponse()
+			}
+			return result, httpErr
 		} else {
 			return result, &util.HttpError{
 				StatusCode: r.StatusCode,
@@ -379,6 +387,11 @@ func CallViaQueryEx(c *Client, path string, parameters []string, opts InvokeOpts
 	if accessToken != "" {
 		request.Header.Set("Authorization", fmt.Sprintf("Bearer %v", accessToken))
 	}
+
+	if c.ProjectId.Present {
+		request.Header.Set("Project", c.ProjectId.Value)
+	}
+
 	handleOpts(request, opts)
 	do, err := c.Client.Do(request)
 	if err != nil {
@@ -414,6 +427,10 @@ func CallViaJsonBodyEx(c *Client, method, path string, payload any, opts InvokeO
 	}
 
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %v", c.RetrieveAccessTokenOrRefresh()))
+
+	if c.ProjectId.Present {
+		request.Header.Set("Project", c.ProjectId.Value)
+	}
 
 	handleOpts(request, opts)
 

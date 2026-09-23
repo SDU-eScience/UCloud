@@ -9,7 +9,7 @@ import {UsageReport} from "@/Accounting/UsageCore2";
 import React, {useMemo, useState} from "react";
 import {ChartLabel, colorNames} from "@/Accounting/Diagrams/index";
 import {HTMLTooltipEx} from "@/ui-components/Tooltip";
-import {balanceToStringFromUnit, FrontendAccountingUnit} from "@/Accounting";
+import {balanceToStringFromUnit, FrontendAccountingUnit, isCreditUnit} from "@/Accounting";
 import truncate, {truncateText} from "@/ui-components/Truncate";
 import {groupBy} from "@/Utilities/CollectionUtilities";
 
@@ -244,9 +244,16 @@ export function useDeltaOverTimeChart(
         gXAxis.selectAll(".tick > text")
             .attr("style", "transform: translate(-20px, 20px) rotate(-45deg)");
 
+        const yAxis = axisLeft(yScale);
+        if (isCreditUnit(unitName)) {
+            yAxis.tickFormat(value => balanceToStringFromUnit(null, unitName, Number(value), {removeUnitIfPossible: true}));
+        } else {
+            yAxis.ticks(null, "s");
+        }
+
         const gYAxis = svg.append("g")
             .attr("transform", `translate(${margin.left}, ${margin.top})`)
-            .call(axisLeft(yScale).ticks(null, "s"));
+            .call(yAxis);
 
         gYAxis.select(".tick:last-of-type text")
             .clone()

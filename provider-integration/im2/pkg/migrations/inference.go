@@ -387,3 +387,119 @@ func inferenceV17() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV18() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV18",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table inference_usage
+						add column remainder int not null default 0 check (remainder >= 0 and remainder < 1000)
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create table inference_usage_by_model (
+						owner text not null,
+						model text not null,
+						usage_day date not null,
+						cached_input_tokens bigint not null default 0 check (cached_input_tokens >= 0),
+						input_tokens bigint not null default 0 check (input_tokens >= 0),
+						output_tokens bigint not null default 0 check (output_tokens >= 0),
+						updated_at timestamptz not null default now(),
+						primary key (owner, model, usage_day)
+					)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV19() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV19",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_model rename column price_cached_input to price_per_million_cached_input`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model rename column price_input to price_per_million_input`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model rename column price_output to price_per_million_output`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model alter column price_per_million_cached_input type bigint`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model alter column price_per_million_input type bigint`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model alter column price_per_million_output type bigint`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage drop constraint inference_usage_remainder_check`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage alter column remainder type bigint`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage add constraint inference_usage_remainder_check check (remainder >= 0 and remainder < 1000000)`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV20() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV20",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_model add column reasoning_efforts jsonb not null default '[]'::jsonb`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model add column default_reasoning_effort text null`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV21() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV21",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_model drop column title_model_name`,
+				db.Params{},
+			)
+		},
+	}
+}

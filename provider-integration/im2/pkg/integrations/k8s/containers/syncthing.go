@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -70,17 +71,22 @@ func syncthingReconcileMetadataPolicy() {
 			continue
 		}
 
-		paths := make([]string, 0, len(config.Folders))
+		remove := map[string]bool{}
 		for _, folder := range config.Folders {
-			paths = append(paths, folder.UCloudPath)
+			policy, err := orc.FileMetadataControlCheckSensitivity.Invoke(orc.FileMetadataSensitivityCheckRequest{
+				Paths: []string{folder.UCloudPath},
+			})
+			if err == nil {
+				if len(policy.RestrictedPaths) != 0 {
+					remove[folder.UCloudPath] = true
+				}
+			} else if err.IsStructuredResponse() && (err.StatusCode == http.StatusForbidden || err.StatusCode == http.StatusNotFound) {
+				remove[folder.UCloudPath] = true
+			} else {
+				log.Warn("Unable to check file sensitivity for Syncthing folder %v owned by %v: %s", folder.UCloudPath, observed.Owner, err)
+			}
 		}
-
-		policy, err := orc.FileMetadataControlCheckSensitivity.Invoke(orc.FileMetadataSensitivityCheckRequest{Paths: paths})
-		if err != nil {
-			log.Warn("Unable to check file sensitivity for Syncthing owner %v: %s", observed.Owner, err)
-			continue
-		}
-		if len(policy.RestrictedPaths) == 0 {
+		if len(remove) == 0 {
 			continue
 		}
 
@@ -92,13 +98,9 @@ func syncthingReconcileMetadataPolicy() {
 			continue
 		}
 
-		restricted := map[string]bool{}
-		for _, path := range policy.RestrictedPaths {
-			restricted[path] = true
-		}
 		folders := config.Folders[:0]
 		for _, folder := range config.Folders {
-			if !restricted[folder.UCloudPath] {
+			if !remove[folder.UCloudPath] {
 				folders = append(folders, folder)
 			}
 		}

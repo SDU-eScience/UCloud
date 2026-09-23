@@ -623,11 +623,10 @@ func initFiles() {
 				} else {
 					err := fn(info.Actor, item)
 					if err != nil {
-						resp.Responses = append(resp.Responses, util.Empty{})
-					} else {
-						resp.Responses = append(resp.Responses, util.Empty{})
-						DriveRemoveTracked(item.Id)
+						return fnd.BulkResponse[util.Empty]{}, err
 					}
+					resp.Responses = append(resp.Responses, util.Empty{})
+					DriveRemoveTracked(item.Id)
 				}
 			}
 
@@ -673,7 +672,7 @@ func initFiles() {
 				for _, toDelete := range item.Deleted {
 					for i, entry := range permissions.Others {
 						if entry.Entity == toDelete {
-							slices.Delete(permissions.Others, i, i+1)
+							permissions.Others = slices.Delete(permissions.Others, i, i+1)
 							break
 						}
 					}
@@ -684,9 +683,7 @@ func initFiles() {
 					for i := 0; i < len(permissions.Others); i++ {
 						entry := &permissions.Others[i]
 						if entry.Entity == toAdd.Entity {
-							for _, perm := range toAdd.Permissions {
-								entry.Permissions = orcapi.PermissionsAdd(entry.Permissions, perm)
-							}
+							*entry = toAdd
 							found = true
 							break
 						}
@@ -700,6 +697,7 @@ func initFiles() {
 					}
 				}
 
+				drive.Permissions.Value = permissions
 				DriveTrack(&drive)
 
 				resp.Responses = append(resp.Responses, util.Empty{})

@@ -56,6 +56,8 @@ import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import * as JobViz from "@/Applications/Jobs/JobViz"
 import {VirtualMachineStatus} from "@/Applications/Jobs/VirtualMachines";
+import {openCreateApplicationVariant} from "@/Applications/Jobs/CreateApplicationVariant";
+import {BackgroundTask} from "@/Services/BackgroundTasks/BackgroundTask";
 
 export const jobCache = new class extends ExternalStoreBase {
     private cache: PageV2<Job> = {items: [], itemsPerPage: 100};
@@ -706,11 +708,11 @@ const InQueueText: React.FunctionComponent<{job: Job, state: JobState}> = ({job,
                     </> :
                         job.specification.name ?
                             (<>
-                                Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                                Starting {jobApplicationTitle(job)} {job.specification.application.version}
                                 {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
                             </>) :
                             (<>
-                                Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                                Starting {jobApplicationTitle(job)} {job.specification.application.version}
                                 {" "}(ID: {shortUUID(job.id)})
                             </>)
                     }
@@ -726,11 +728,11 @@ const InQueueText: React.FunctionComponent<{job: Job, state: JobState}> = ({job,
                 </> : <>
                     {job.specification.name ?
                         (<>
-                            {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                            {jobApplicationTitle(job)} {job.specification.application.version}
                             {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
                         </>) :
                         (<>
-                            {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                            {jobApplicationTitle(job)} {job.specification.application.version}
                             {" "}(ID: {shortUUID(job.id)})
                         </>)
                     }
@@ -781,6 +783,12 @@ const Busy: React.FunctionComponent<{
     </Box>;
 };
 
+function jobApplicationTitle(job: Job): string {
+    return job.status.resolvedApplication?.metadata?.flavorName ??
+        job.status.resolvedApplication?.metadata?.title ??
+        job.specification.application.name;
+}
+
 function isSupported(jobBackend: string | undefined, support: ComputeSupport | undefined, flag: keyof DockerSupport | keyof NativeSupport | keyof VirtualMachineSupport): boolean {
     switch (jobBackend) {
         case "DOCKER":
@@ -805,7 +813,7 @@ const RunningText: React.FunctionComponent<{
         <Flex justifyContent={"space-between"} height={"var(--logoSize)"}>
             <Flex flexDirection={"column"}>
                 <Heading.h2>
-                    {job.specification?.name ?? job.status.resolvedApplication?.metadata?.title ?? "Your job"} is now
+                    {job.specification?.name ?? jobApplicationTitle(job)} is now
                     running
                     {" "}
                     <Box style={{display: "inline"}} color={"textSecondary"}>(ID: {job.id})</Box>
@@ -1523,7 +1531,7 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
         }
         <Heading.h3>
             {isUnknownApp ? null : <>
-                {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+                {jobApplicationTitle(job)}
                 {" "}{job.specification.application.version}{" "}
                 {job.specification.name ? <>for <i>{job.specification.name}</i></> : null}
             </>}
@@ -1663,6 +1671,8 @@ const RunningButtonGroup: React.FunctionComponent<{
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
     const supportTerminal = !jobAuditLogIsEnabled && isSupported(backendType, support, "terminal");
+    const supportVariants = backendType === "DOCKER" && support?.docker.applicationVariants === true &&
+        support?.docker.containerSnapshots === true && job.owner.project != null && job.permissions.myself.includes("EDIT");
 
     let defaultInterfaceId = interfaceLinks.findIndex(link => !link.target && link.rank === 0);
 
@@ -1702,6 +1712,13 @@ const RunningButtonGroup: React.FunctionComponent<{
     }, []);
 
     return <div className={"top-buttons"}>
+        {!supportVariants ? null : <Button onClick={() => openCreateApplicationVariant(
+            job,
+            request => callAPI<BackgroundTask>(JobsApi.createApplicationVariant(request)),
+        )}>
+            <Icon name="heroSquare3Stack3D" />
+            <div style={{minWidth: "130px", maxWidth: "164px"}}><Truncate>Save as flavor</Truncate></div>
+        </Button>}
         {!supportTerminal ? null : (
             <Flex>
                 <Link to={`/applications/shell/${job.id}/0?hide-frame`} target={"_blank"}>

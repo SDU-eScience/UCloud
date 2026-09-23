@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 
 	"github.com/envoyproxy/go-control-plane/pkg/cache/v3"
@@ -33,39 +34,14 @@ const (
 	nodeId                   = "ucloudim_stack"
 )
 
-var xdsServer server.Server = nil
 var envoyCache cache.SnapshotCache = nil
+var xdsServer server.Server = nil
+
+func initSnapshotCache() {
+	envoyCache = cache.NewSnapshotCache(false, cache.IDHash{}, createEnvoyLogger())
+}
 
 func startConfigurationServer() {
-	grpcServer := func() *grpc.Server {
-		var grpcOptions []grpc.ServerOption
-		grpcOptions = append(grpcOptions,
-			grpc.MaxConcurrentStreams(grpcMaxConcurrentStreams),
-			grpc.KeepaliveParams(keepalive.ServerParameters{
-				Time:    grpcKeepaliveTime,
-				Timeout: grpcKeepaliveTimeout,
-			}),
-			grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-				MinTime:             grpcKeepaliveMinTime,
-				PermitWithoutStream: true,
-			}),
-		)
-		return grpc.NewServer(grpcOptions...)
-	}()
-
-	envoyCache = cache.NewSnapshotCache(false, cache.IDHash{}, createEnvoyLogger())
-	xdsServer = server.NewServer(context.Background(), envoyCache, nil)
-
-	{
-		discoverygrpc.RegisterAggregatedDiscoveryServiceServer(grpcServer, xdsServer)
-		endpointservice.RegisterEndpointDiscoveryServiceServer(grpcServer, xdsServer)
-		clusterservice.RegisterClusterDiscoveryServiceServer(grpcServer, xdsServer)
-		routeservice.RegisterRouteDiscoveryServiceServer(grpcServer, xdsServer)
-		listenerservice.RegisterListenerDiscoveryServiceServer(grpcServer, xdsServer)
-		secretservice.RegisterSecretDiscoveryServiceServer(grpcServer, xdsServer)
-		runtimeservice.RegisterRuntimeDiscoveryServiceServer(grpcServer, xdsServer)
-	}
-
 	var lis net.Listener
 	var err error
 
@@ -91,6 +67,38 @@ func startConfigurationServer() {
 			log.Fatal("UCloud/Gateway configuration server failed to start! Fatal error! %v", err)
 			os.Exit(1)
 		}
+
+	default:
+		log.Fatal("UCloud/Gateway configuration server has no listen mode configured!")
+		return
+	}
+
+	grpcServer := func() *grpc.Server {
+		var grpcOptions []grpc.ServerOption
+		grpcOptions = append(grpcOptions,
+			grpc.MaxConcurrentStreams(grpcMaxConcurrentStreams),
+			grpc.KeepaliveParams(keepalive.ServerParameters{
+				Time:    grpcKeepaliveTime,
+				Timeout: grpcKeepaliveTimeout,
+			}),
+			grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+				MinTime:             grpcKeepaliveMinTime,
+				PermitWithoutStream: true,
+			}),
+		)
+		return grpc.NewServer(grpcOptions...)
+	}()
+
+	xdsServer = server.NewServer(context.Background(), envoyCache, nil)
+
+	{
+		discoverygrpc.RegisterAggregatedDiscoveryServiceServer(grpcServer, xdsServer)
+		endpointservice.RegisterEndpointDiscoveryServiceServer(grpcServer, xdsServer)
+		clusterservice.RegisterClusterDiscoveryServiceServer(grpcServer, xdsServer)
+		routeservice.RegisterRouteDiscoveryServiceServer(grpcServer, xdsServer)
+		listenerservice.RegisterListenerDiscoveryServiceServer(grpcServer, xdsServer)
+		secretservice.RegisterSecretDiscoveryServiceServer(grpcServer, xdsServer)
+		runtimeservice.RegisterRuntimeDiscoveryServiceServer(grpcServer, xdsServer)
 	}
 
 	if err = grpcServer.Serve(lis); err != nil {
@@ -98,13 +106,9 @@ func startConfigurationServer() {
 	}
 }
 
-var mostRecentSnapshot *cache.Snapshot = nil
+var mostRecentSnapshot atomic.Pointer[cache.Snapshot]
 
 func setActiveSnapshot(snapshot *cache.Snapshot) {
-	for envoyCache == nil {
-		time.Sleep(50 * time.Millisecond)
-	}
-
 	err := snapshot.Consistent()
 	if err != nil {
 		log.Fatal("UCloud/Gateway snapshot is invalid: %v", err)
@@ -117,7 +121,7 @@ func setActiveSnapshot(snapshot *cache.Snapshot) {
 		panic("Invalid snapshot. Fatal error!")
 	}
 
-	mostRecentSnapshot = snapshot
+	mostRecentSnapshot.Store(snapshot)
 }
 
 func createEnvoyLogger() elog.Logger {

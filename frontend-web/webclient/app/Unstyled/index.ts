@@ -46,10 +46,14 @@ export function extractDataTags(props: object): Record<string, string> {
     return result;
 }
 
-export function unboxDataTags(props: Record<string, string>): Record<string, string> {
-    const result = {};
+export type DataAttributes = {
+    [key: `data-${string}`]: string | number | boolean | undefined;
+};
+
+export function unboxDataTags(props: object): DataAttributes {
+    const result: DataAttributes = {};
     Object.entries(props).filter(([key]) => key.startsWith("data-")).forEach(it => {
-        result[it[0]] = it[1];
+        result[it[0] as `data-${string}`] = it[1];
     });
     return result;
 }

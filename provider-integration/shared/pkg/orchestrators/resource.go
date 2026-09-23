@@ -5,6 +5,7 @@ import (
 
 	acc "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -165,6 +166,18 @@ func ResourceOwnerToWalletOwner(resource Resource) acc.WalletOwner {
 type ResourceUpdateAndId[U any] struct {
 	Id     string `json:"id"`
 	Update U      `json:"update"`
+}
+
+type ResourceExistenceCheck struct {
+	Type string `json:"type"`
+	Id   string `json:"id"`
+}
+
+var ResourcesControlCheckExistence = rpc.Call[fnd.BulkRequest[ResourceExistenceCheck], fnd.BulkResponse[bool]]{
+	BaseContext: "providers/resources",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "checkExistence",
 }
 
 type ResourceFlags struct {

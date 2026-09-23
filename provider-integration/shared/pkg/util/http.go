@@ -12,6 +12,17 @@ type HttpError struct {
 	Why          string `json:"why"`
 	ErrorCode    string `json:"errorCode"`
 	DetailedCode int    `json:"detailedCode"`
+	structured   bool
+}
+
+func (e *HttpError) IsStructuredResponse() bool {
+	return e != nil && e.structured
+}
+
+func (e *HttpError) MarkStructuredResponse() {
+	if e != nil {
+		e.structured = true
+	}
 }
 
 func (e *HttpError) Error() string {

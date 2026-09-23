@@ -14,6 +14,7 @@ import (
 )
 
 var JobPods *K8sResourceTracker[*corev1.Pod]
+var BatchBackgroundPods *K8sResourceTracker[*corev1.Pod]
 var BatchBackgroundJobs *K8sResourceTracker[*batchv1.Job]
 
 func Init() {
@@ -29,6 +30,16 @@ func Init() {
 		},
 		func(resource *corev1.Pod) string {
 			return resource.Name
+		},
+	)
+
+	BatchBackgroundPods = NewResourceTracker[*corev1.Pod](
+		ServiceConfig.Compute.TaskNamespace,
+		func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
+			return factory.Core().V1().Pods().Informer()
+		},
+		func(resource *corev1.Pod) string {
+			return resource.Namespace + "/" + resource.Name
 		},
 	)
 

@@ -1,0 +1,100 @@
+:root {
+    color-scheme: light dark;
+    --background-start: #eef5ff;
+    --background-end: #f8fbff;
+    --card-background: rgba(255, 255, 255, 0.9);
+    --text-primary: #172033;
+    --text-secondary: #5f6f89;
+    --success: #22c55e;
+    --shadow: rgba(23, 32, 51, 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --background-start: #0f172a;
+        --background-end: #111827;
+        --card-background: rgba(30, 41, 59, 0.9);
+        --text-primary: #f8fafc;
+        --text-secondary: #cbd5e1;
+        --shadow: rgba(0, 0, 0, 0.35);
+    }
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    text-align: center;
+    background:
+            radial-gradient(circle at top, rgba(34, 197, 94, 0.18), transparent 32rem),
+            linear-gradient(135deg, var(--background-start), var(--background-end));
+    color: var(--text-primary);
+}
+
+.card {
+    width: min(100%, 440px);
+    padding: 40px 32px;
+    border-radius: 24px;
+    background: var(--card-background);
+    box-shadow: 0 24px 80px var(--shadow);
+    backdrop-filter: blur(16px);
+    animation: appear 360ms ease-out;
+}
+
+.icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    margin-bottom: 24px;
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.14);
+    color: var(--success);
+    font-size: 42px;
+    font-weight: 700;
+}
+
+h1 {
+    margin: 0;
+    font-size: clamp(1.7rem, 4vw, 2.2rem);
+    line-height: 1.15;
+}
+
+p {
+    margin: 16px 0 0;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.hint {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(148, 163, 184, 0.24);
+    font-size: 0.9rem;
+}
+
+@keyframes appear {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}

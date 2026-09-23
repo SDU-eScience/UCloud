@@ -1,0 +1,4 @@
+mirrors:
+  "registry.localhost.direct:8889":
+    endpoint:
+      - "http://registry.localhost.direct:8889"

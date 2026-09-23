@@ -81,7 +81,10 @@ export const GiftSection: React.FunctionComponent<{
 
         if (name.startsWith("gift-resource-")) {
             const resourceName = removePrefixFrom("gift-resource-", name);
-            let amount = parseInt(value);
+            const [category, provider] = resourceName.split("/");
+            const resolvedCategory = state.remoteData.managedProducts?.[provider]?.find(it => it.name === category);
+            const isCredit = resolvedCategory != null && Accounting.isCreditUnit(Accounting.explainUnit(resolvedCategory).name);
+            let amount = isCredit ? parseFloat(value) : parseInt(value);
             if (value === "") amount = 0;
             if (!isNaN(amount)) {
                 const data = {resources: {}};
@@ -140,8 +143,7 @@ export const GiftSection: React.FunctionComponent<{
                 sendFailureNotification("Internal failure while creating gift. Try reloading the page!");
                 return;
             }
-            const unit = Accounting.explainUnit(resolvedCategory);
-            const actualAmount = amount * unit.invBalanceFactor;
+            const actualAmount = Accounting.normalizedBalanceToRaw(resolvedCategory, amount);
             if (actualAmount === 0) continue;
 
             gift.resources.push({
@@ -419,7 +421,10 @@ export const RootAllocationSections: React.FunctionComponent<{
 
         if (name.startsWith("root-resource-")) {
             const resourceName = removePrefixFrom("root-resource-", name);
-            let amount = parseInt(value);
+            const [category, provider] = resourceName.split("/");
+            const resolvedCategory = state.remoteData.managedProducts?.[provider]?.find(it => it.name === category);
+            const isCredit = resolvedCategory != null && Accounting.isCreditUnit(Accounting.explainUnit(resolvedCategory).name);
+            let amount = isCredit ? parseFloat(value) : parseInt(value);
             if (value === "") amount = 0;
             if (!isNaN(amount)) {
                 const data = {resources: {}};
@@ -455,14 +460,12 @@ export const RootAllocationSections: React.FunctionComponent<{
                     return;
                 }
 
-                const unit = Accounting.explainUnit(resolvedCategory);
-
                 requests.push({
                     category: {
                         name: category,
                         provider,
                     },
-                    quota: amount * unit.invBalanceFactor,
+                    quota: Accounting.normalizedBalanceToRaw(resolvedCategory, amount),
                     start,
                     end,
                 });

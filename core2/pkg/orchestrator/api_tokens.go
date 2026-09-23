@@ -75,6 +75,11 @@ func initApiTokens() {
 
 func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orcapi.ApiToken, *util.HttpError) {
 	var err *util.HttpError
+	service, validService := orcapi.ApiTokenServiceFromPermissions(request.RequestedPermissions)
+	if request.Provider.Present && !validService {
+		err = util.HttpErr(http.StatusBadRequest, "a service provider token must request exactly one service")
+	}
+
 	util.ValidateString(&request.Title, "title", 0, &err)
 	util.ValidateString(&request.Description, "description", util.StringValidationAllowEmpty, &err)
 	util.ValidateStringIfPresent(&request.Provider, "provider", 0, &err)
@@ -88,6 +93,7 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 	}
 
 	optsAvailable := ApiTokenRetrieveOptions(actor)
+	var tokenContext orcapi.ApiTokenContext
 	optsByProvider, ok := optsAvailable.ByProvider[request.Provider.GetOrDefault("")]
 	if ok {
 		permsByName := map[string]orcapi.ApiTokenPermissionSpecification{}
@@ -106,6 +112,17 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 					err = util.HttpErr(http.StatusBadRequest, "invalid token requested, %s/%s is not available", reqPerm.Name, reqPerm.Action)
 					break
 				}
+			}
+		}
+
+		if err == nil && request.Provider.Present {
+			serviceSpec, ok := permsByName[service]
+			if !ok {
+				err = util.HttpErr(http.StatusBadRequest, "invalid token requested, %s is not available", service)
+			} else if serviceSpec.Context != orcapi.ApiTokenContextProject && serviceSpec.Context != orcapi.ApiTokenContextPersonal {
+				err = util.HttpErr(http.StatusBadRequest, "invalid token requested, %s has an invalid context", service)
+			} else {
+				tokenContext = serviceSpec.Context
 			}
 		}
 	} else {
@@ -129,7 +146,12 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 	var userToken string
 
 	if request.Provider.Present {
-		tokId, tok, err = ResourceCreate[orcapi.ApiToken](actor, apiTokenType, orcapi.ResourceSpecification{}, itok)
+		creationActor := actor
+		if tokenContext == orcapi.ApiTokenContextPersonal {
+			creationActor.Project.Clear()
+		}
+
+		tokId, tok, err = ResourceCreate[orcapi.ApiToken](creationActor, apiTokenType, orcapi.ResourceSpecification{}, itok)
 		if err != nil {
 			return orcapi.ApiToken{}, err
 		}
@@ -177,7 +199,7 @@ func ApiTokenCreate(actor rpc.Actor, request orcapi.ApiTokenSpecification) (orca
 }
 
 func ApiTokenBrowse(actor rpc.Actor, request orcapi.ApiTokenBrowseRequest) (fndapi.PageV2[orcapi.ApiToken], *util.HttpError) {
-	return ResourceBrowse[orcapi.ApiToken](
+	return ResourceBrowseIncludingPersonal[orcapi.ApiToken](
 		actor,
 		apiTokenType,
 		request.Next,
@@ -198,42 +220,79 @@ func ApiTokenBrowse(actor rpc.Actor, request orcapi.ApiTokenBrowseRequest) (fnda
 var ApiTokensOptionsCache = util.NewCache[string, orcapi.ApiTokenOptions](5 * time.Minute)
 
 func ApiTokenRetrieveOptions(actor rpc.Actor) orcapi.ApiTokenRetrieveOptionsResponse {
-	providers, err := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
+	workspaceProviders, workspaceErr := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
+		Username: actor.Username,
+		Project: util.OptMap(actor.Project, func(project rpc.ProjectId) string {
+			return string(project)
+		}),
+		IncludeFreeToUse: util.OptValue(false),
+		UseProject:       true,
+	}))
+	personalProviders, personalErr := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
 		Username:         actor.Username,
 		IncludeFreeToUse: util.OptValue(false),
 		UseProject:       false,
 	}))
 
-	optionsByProvider := map[string]orcapi.ApiTokenOptions{}
-	if err == nil {
-		for _, providerId := range providers.Responses[0].Providers {
+	providerContexts := map[string]map[orcapi.ApiTokenContext]bool{}
+	addProviders := func(response fndapi.BulkResponse[accapi.FindRelevantProvidersResponse], context orcapi.ApiTokenContext) {
+		if len(response.Responses) == 0 {
+			return
+		}
+
+		for _, providerId := range response.Responses[0].Providers {
 			if providerId == "" {
 				continue
 			}
 
-			options, ok := ApiTokensOptionsCache.Get(providerId, func() (orcapi.ApiTokenOptions, error) {
-				resp, err := InvokeProvider(
-					providerId,
-					orcapi.ApiTokenProviderRetrieveOptions,
-					util.Empty{},
-					ProviderCallOpts{
-						Username: util.OptValue(actor.Username),
-						Reason:   util.OptValue("Retrieving API token options"),
-					},
-				)
-				if err != nil {
-					return orcapi.ApiTokenOptions{}, err.AsError()
-				} else {
-					return resp, nil
-				}
-			})
-
-			if !ok {
-				log.Warn("No API Token options found for provider %s", providerId)
-				continue
+			contexts := providerContexts[providerId]
+			if contexts == nil {
+				contexts = map[orcapi.ApiTokenContext]bool{}
+				providerContexts[providerId] = contexts
 			}
+			contexts[context] = true
+		}
+	}
+	if workspaceErr == nil {
+		addProviders(workspaceProviders, orcapi.ApiTokenContextProject)
+	}
+	if personalErr == nil {
+		addProviders(personalProviders, orcapi.ApiTokenContextPersonal)
+	}
 
-			options.AvailablePermissions = util.NonNilSlice(options.AvailablePermissions)
+	optionsByProvider := map[string]orcapi.ApiTokenOptions{}
+	for providerId, contexts := range providerContexts {
+		options, ok := ApiTokensOptionsCache.Get(providerId, func() (orcapi.ApiTokenOptions, error) {
+			resp, err := InvokeProvider(
+				providerId,
+				orcapi.ApiTokenProviderRetrieveOptions,
+				util.Empty{},
+				ProviderCallOpts{
+					Username: util.OptValue(actor.Username),
+					Reason:   util.OptValue("Retrieving API token options"),
+				},
+			)
+			if err != nil {
+				return orcapi.ApiTokenOptions{}, err.AsError()
+			} else {
+				return resp, nil
+			}
+		})
+
+		if !ok {
+			log.Warn("No API Token options found for provider %s", providerId)
+			continue
+		}
+
+		availablePermissions := make([]orcapi.ApiTokenPermissionSpecification, 0, len(options.AvailablePermissions))
+		for _, permission := range options.AvailablePermissions {
+			if contexts[permission.Context] {
+				availablePermissions = append(availablePermissions, permission)
+			}
+		}
+
+		if len(availablePermissions) > 0 {
+			options.AvailablePermissions = availablePermissions
 			optionsByProvider[providerId] = options
 		}
 	}

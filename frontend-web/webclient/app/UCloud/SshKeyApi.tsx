@@ -108,7 +108,7 @@ class SshKeyApi {
         return apiDelete(request, this.baseContext);
     }
 
-    public retrieveOperations(): Operation<SSHKey, StandardCallbacks<SSHKey>>[] {
+    public retrieveOperations(): Operation<SSHKey, StandardCallbacks<SSHKey> & {onAddStart: () => void;}>[] {
         return [
             {
                 icon: "upload",
@@ -116,7 +116,7 @@ class SshKeyApi {
                 primary: true,
                 enabled: (selected) => selected.length === 0,
                 onClick: (selected, cb) => {
-                    cb.navigate("/ssh-keys/create");
+                    cb.onAddStart();
                 },
                 shortcut: ShortcutKey.N,
             },

@@ -8,7 +8,7 @@ import {CSSProperties} from "react";
 import {getCssPropertyValue} from "@/Utilities/StylingUtilities";
 import Grid from "./Grid";
 
-const IconBase = ({name, size, squared, color2, spin, hoverColor, ...props}: IconBaseProps): React.ReactNode => {
+const IconBase = ({name, size, squared, color2, spin, hoverColor, noDefaultFill, ...props}: IconBaseProps): React.ReactNode => {
     let Component = icons[name];
     if (!Component) {
         if (name === "bug") {

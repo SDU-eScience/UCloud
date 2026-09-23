@@ -1,6 +1,7 @@
 import {Browser, test as setup, Page} from "@playwright/test";
-import {Accounting, Admin, Components, Project, ProviderInfo, Rows, TestUsers, User} from "./shared";
+import {Accounting, Admin, Components, Project, ProviderInfo, Rows, TestUserDataPath, TestUsers, User} from "./shared";
 import fs from "fs";
+import path from "path";
 import {default as data} from "./test_data.json" with {type: "json"};
 import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
 const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
@@ -12,7 +13,8 @@ setup("Setup 'pi', 'admin', and 'user'", async ({page, browser}) => {
 
     setup.setTimeout(120_000);
 
-    const ucloudAdminPage = await Admin.newLoggedInAdminPage(page);
+    await User.loginDirect(page, Admin.AdminUser);
+    const ucloudAdminPage = page;
     if (data.login_cookie) {
         await ucloudAdminPage.context().addCookies([data.login_cookie]);
     }
@@ -69,7 +71,8 @@ setup("Setup 'pi', 'admin', and 'user'", async ({page, browser}) => {
     TestUsers["Project Admin"] = admin.credentials;
     TestUsers["Project User"] = user.credentials;
 
-    fs.writeFileSync("./test_data/user_test_data.json", JSON.stringify({...TestUsers, projectName}));
+    fs.mkdirSync(path.dirname(TestUserDataPath), {recursive: true});
+    fs.writeFileSync(TestUserDataPath, JSON.stringify({...TestUsers, projectName}));
 
     for (const user of userList) {
         await user.page.close();

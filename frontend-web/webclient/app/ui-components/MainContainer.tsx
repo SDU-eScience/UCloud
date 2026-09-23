@@ -81,7 +81,6 @@ export function LoadingMainContainer(props: LoadingMainContainerProps): React.Re
 const HeaderContainer = injectStyleSimple("header-container", `
     position: sticky;
     top: 0;
-    margin-left: -10px;
 `);
 
 export default MainContainer;

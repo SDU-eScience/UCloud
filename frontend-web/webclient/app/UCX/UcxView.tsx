@@ -75,7 +75,7 @@ const ucxSpinnerFrames = [
     " ⠁ ", " ⠂ ", " ⠄ ", " ⡀ ", " ⢀ ", " ⠠ ", " ⠐ ", " ⠈ ",
 ];
 
-export function UcxSpinner({size = 32, margin}: {size?: number; margin?: string}): React.ReactNode {
+export function UcxSpinner({size = 32, margin, color}: {size?: number; margin?: string; color?: string}): React.ReactNode {
     const [frame, setFrame] = useState(0);
 
     useEffect(() => {
@@ -86,7 +86,7 @@ export function UcxSpinner({size = 32, margin}: {size?: number; margin?: string}
     }, []);
 
     const lightMode = useIsLightThemeStored();
-    const color = lightMode ? "var(--primaryMain)" : "var(--foreground)";
+    const spinnerColor = color ?? (lightMode ? "var(--primaryMain)" : "var(--foreground)");
 
     return <span
         data-tag="loading-spinner"
@@ -99,7 +99,7 @@ export function UcxSpinner({size = 32, margin}: {size?: number; margin?: string}
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
-            color: color,
+            color: spinnerColor,
             fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
             fontSize: Math.max(12, Math.round(size * 0.72)),
             lineHeight: 1,
@@ -173,7 +173,10 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const [model, setModel] = useState<Record<string, Value>>({});
     const [transportError, setTransportError] = useState("");
     const [reconnectingInSeconds, setReconnectingInSeconds] = useState<number | undefined>(undefined);
-
+    // NOTE(Dan): model patches can arrive in bursts of hundreds per second during chat streaming. Both
+    // setModel and onModelChange re-render the whole page, so they are coalesced to at most one update
+    // per animation frame.
+    const modelFlushScheduledRef = useRef(false);
     const connRef = useRef<WebSocket | null>(null);
     const sessionRef = useRef<UcxSession | null>(null);
     const eventIdRef = useRef(1);
@@ -226,6 +229,36 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     useEffect(() => {
         onModelChangeRef.current = onModelChange;
     }, [onModelChange]);
+
+    const pendingModelUpdaterRef = useRef<((prev: Record<string, Value>) => Record<string, Value>) | null>(null);
+    const flushModel = useCallback((nextModel: Record<string, Value>) => {
+        // A mount replaces the entire model and should drop any pending patches, otherwise we end up with an ordering
+        // issue.
+        pendingModelUpdaterRef.current = null;
+        setModel(nextModel);
+    }, []);
+
+    const scheduleModelFlush = useCallback((updater: (prev: Record<string, Value>) => Record<string, Value>) => {
+        const previousUpdater = pendingModelUpdaterRef.current;
+        pendingModelUpdaterRef.current = previousUpdater
+            ? prev => updater(previousUpdater(prev))
+            : updater;
+        if (modelFlushScheduledRef.current) return;
+        modelFlushScheduledRef.current = true;
+        // NOTE(Dan): requestAnimationFrame never fires in background tabs, so fall back to a timer when
+        // the document is hidden. Without it, a long stream in a background tab would keep composing
+        // updaters without ever applying them.
+        const schedule = document.hidden
+            ? (cb: () => void) => window.setTimeout(cb, 100)
+            : (cb: () => void) => window.requestAnimationFrame(cb);
+        schedule(() => {
+            modelFlushScheduledRef.current = false;
+            const pending = pendingModelUpdaterRef.current;
+            pendingModelUpdaterRef.current = null;
+            if (!pending) return;
+            setModel(pending);
+        });
+    }, []);
 
     useEffect(() => {
         onModelChangeRef.current?.(model);
@@ -599,7 +632,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                         const rehydrateSnapshot = pendingRehydrateModelRef.current;
 
                         setRoot(mount.root);
-                        setModel(mount.model);
+                        flushModel(mount.model);
 
                         if (rehydrateSnapshot) {
                             pendingRehydrateModelRef.current = null;
@@ -608,7 +641,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                             });
                         }
                     } else if (frame.opcode === Opcode.ModelPatch && frame.modelPatch) {
-                        setModel(prev => {
+                        scheduleModelFlush(prev => {
                             const next = {...prev};
                             for (const [path, value] of Object.entries(frame.modelPatch!.changes)) {
                                 if (value.kind === ValueKind.Null) {

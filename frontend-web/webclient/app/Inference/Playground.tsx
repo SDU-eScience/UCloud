@@ -1,3 +1,4 @@
+
 import * as React from "react";
 
 import {callAPI} from "@/Authentication/DataHook";
@@ -6,7 +7,7 @@ import {Box, Button, Flex, Icon, Text, TextArea,} from "@/ui-components";
 import {Toggle} from "@/ui-components/Toggle";
 import UcxView, {UcxComponentRegistry, UcxFunctionRegistry, UcxRenderContext, UcxSpinner} from "@/UCX/UcxView";
 import {UiNode, Value, ValueKind} from "@/UCX/protocol";
-import {copyToClipboard, doNothing, extensionFromPath, extensionType, removeTrailingSlash, typeFromMime} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, extensionFromPath, extensionType, typeFromMime} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {sendFailureNotification} from "@/Notifications";
 import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
@@ -21,15 +22,11 @@ import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {format, isToday} from "date-fns";
 import ModelInferenceLogo from "./ModelLogo";
-import {MarkdownDocument, MarkdownTable} from "@/ui-components/Markdown";
+import {MarkdownDocument} from "@/ui-components/Markdown";
 import {CopyButton} from "@/ui-components/CopyButton";
 import {IconButton} from "@/ui-components/IconButton";
 import {ChunkedFileReader} from "@/Files/ChunkedFileReader";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
-import {dialogStore} from "@/Dialog/DialogStore";
-import type {UFile} from "@/UCloud/UFile";
-import {Feature, hasFeature} from "@/Features";
-import {prettyFilePath} from "@/Files/FilePath";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {IconName} from "@/ui-components/Icon";
 import {inferenceThreadStore} from "./ThreadStore";
@@ -144,6 +141,7 @@ const PLAYGROUND_REHYDRATE_PATHS = [
     "chat.systemPrompt",
     "chat.presencePenalty",
     "chat.frequencyPenalty",
+    "chat.reasoningEffort",
     "chat.logprobs",
     "chat.topLogprobs",
 ];
@@ -158,11 +156,16 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
         const rows = numberProp(node, "rows", 8);
         const sendIcon = stringProp(node, "sendIcon", "heroPaperAirplane");
         const disabled = boolProp(node, "disabled", false);
+        const streamingThreadId = stringProp(node, "streamingThreadId", "");
+        const currentThreadId = stringValue(fn.modelValue(model, "currentThreadId", scope));
         const propModelOptions = optionsProp(node, "modelOptions");
         const modelOptions = propModelOptions.length > 0 ? propModelOptions : textGenerationModelOptions(fn.modelValue(model, "models"));
         const selectedModel = stringValue(fn.modelValue(model, "chat.modelId", scope));
         const selectedModelOption = modelOptions.find(option => option.key === selectedModel);
         const selectedCapabilities = modelCapabilities(model, selectedModel);
+        const reasoningEfforts = modelReasoningEfforts(model, selectedModel);
+        const reasoningEffort = stringValue(fn.modelValue(model, "chat.reasoningEffort", scope));
+        const selectedReasoningEffort = reasoningEfforts.find(option => option.key === reasoningEffort);
         const [localDraft, setLocalDraft] = React.useState(() => stringValue(fn.modelValue(model, node.bindPath, scope)));
         const value = localDraft;
         const setValue = setLocalDraft;
@@ -172,6 +175,15 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
         const [attachments, setAttachments] = React.useState<PlaygroundUploadAttachment[]>([]);
         const [dragActive, setDragActive] = React.useState(false);
         const canSend = !disabled && value.trim() !== "" && attachments.every(attachment => attachment.status === "uploaded");
+        const streaming = streamingThreadId !== "" && streamingThreadId === currentThreadId;
+
+        const stop = () => {
+            if (!streaming) return;
+            fn.sendUiEvent("chatComposerStop", "click", {
+                kind: ValueKind.String,
+                string: currentThreadId,
+            });
+        };
 
         const send = () => {
             if (!canSend) return;
@@ -376,7 +388,7 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                         setValue(next);
                     }}
                     onKeyDown={(ev) => {
-                        if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
+                        if (ev.key === "Enter" && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !ev.nativeEvent.isComposing) {
                             ev.preventDefault();
                             ev.stopPropagation();
                             send();
@@ -443,15 +455,40 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                         )}
                     />
                     <div style={{flex: 1}}/>
+                    {reasoningEfforts.length === 0 ? null : <RichSelect<PlaygroundOption, keyof PlaygroundOption>
+                        items={reasoningEfforts}
+                        keys={["key", "value"]}
+                        selected={selectedReasoningEffort}
+                        onSelect={option => fn.sendModelInput("chat.reasoningEffort", {kind: ValueKind.String, string: option.key}, "chat.reasoningEffort")}
+                        dropdownWidth="220px"
+                        dropdownVerticalGap={8}
+                        elementHeight={42}
+                        matchTriggerWidth={false}
+                        showSearchField={false}
+                        trigger={<ReasoningEffortTrigger option={selectedReasoningEffort}/>}
+                        RenderRow={props => <ReasoningEffortOption
+                            option={props.element}
+                            selected={props.element?.key === reasoningEffort}
+                            onSelect={props.onSelect}
+                            dataProps={props.dataProps}
+                        />}
+                    />}
                     <Tooltip tooltipContentWidth={80} trigger={
                         <span style={{display: "inline-flex"}}>
-                            <button type="button" disabled={!canSend} onClick={send}
-                                    className={ComposerActionButtonClass}>
-                                <Icon name={sendIcon as any} size={18}/>
-                            </button>
+                            {streaming ? (
+                                <button type="button" onClick={stop}
+                                        className={ComposerActionButtonClass}>
+                                    <Icon name="heroStop" size={18}/>
+                                </button>
+                            ) : (
+                                <button type="button" disabled={!canSend} onClick={send}
+                                        className={ComposerActionButtonClass}>
+                                    <Icon name={sendIcon as any} size={18}/>
+                                </button>
+                            )}
                         </span>
                     }>
-                        Send
+                        {streaming ? "Stop" : "Send"}
                     </Tooltip>
                 </div>
             </Box>
@@ -556,7 +593,7 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
     ${k} .playground-sidebar-footer {
         flex-shrink: 0;
     }
-    
+
     ${k} .playground-sidebar-footer {
         display: flex;
         gap: 16px;
@@ -737,6 +774,57 @@ function ModelSelectorOption({
     );
 }
 
+function ReasoningEffortTrigger({option}: {option?: PlaygroundOption}): React.ReactNode {
+    return <button
+        type="button"
+        title="Reasoning effort"
+        style={{
+            minWidth: 120,
+            maxWidth: 200,
+            height: 34,
+            border: 0,
+            borderRadius: 999,
+            background: "transparent",
+            color: "inherit",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "0 10px",
+            cursor: "pointer",
+            textAlign: "left",
+        }}
+    >
+        <span style={{minWidth: 0, flex: 1, whiteSpace: "nowrap", fontWeight: 600}}>{option?.value ?? "Reasoning"}</span>
+        <Icon name="heroChevronDown" size={14}/>
+    </button>;
+}
+
+function ReasoningEffortOption({option, selected, onSelect, dataProps}: {
+    option?: PlaygroundOption;
+    selected: boolean;
+    onSelect: () => void;
+    dataProps?: Record<string, string>;
+}): React.ReactNode {
+    if (!option) return null;
+    return <div
+        {...dataProps}
+        data-active={selected.toString()}
+        onClick={onSelect}
+        style={{
+            minHeight: 42,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "7px 10px",
+            color: "inherit",
+            background: selected ? "var(--playground-hover, var(--rowHover))" : undefined,
+        }}
+    >
+        <span style={{minWidth: 0, flex: 1, whiteSpace: "nowrap", fontWeight: 500}}>{option.value}</span>
+        {selected ? <Icon name="heroCheck" size={16} color="successMain"/> : <span style={{width: 16}}/>}
+    </div>;
+}
+
 const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptions, currentModelId, fn}: ChatMessageNodeProps): React.ReactNode {
     if (message.hidden) return null;
 
@@ -820,6 +908,7 @@ const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptio
 }, areChatMessageNodePropsEqual);
 
 function areChatMessageNodePropsEqual(prev: ChatMessageNodeProps, next: ChatMessageNodeProps): boolean {
+    if (prev.message === next.message) return prev.fn === next.fn;
     if (prev.fn !== next.fn || !chatMessageViewModelEqual(prev.message, next.message)) return false;
     if (prev.message.role === "user" && next.message.role === "user") return true;
     if (!playgroundOptionsEqual(prev.modelOptions, next.modelOptions)) return false;
@@ -858,18 +947,12 @@ const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, s
 
 const ToolDisplayNames: Record<string, string> = {
     bash: "Shell",
-    glob: "Finding files",
-    grep: "Searching files",
-    read: "Reading file",
     web_fetch: "Fetching web page",
     wikipedia_search: "Searching Wikipedia",
 };
 
 const ToolIcons: Record<string, IconName> = {
     bash: "heroCommandLine",
-    glob: "heroFolderOpen",
-    grep: "heroMagnifyingGlass",
-    read: "heroDocumentText",
     web_fetch: "heroGlobeEuropeAfrica",
     wikipedia_search: "heroBookOpen",
 };
@@ -978,9 +1061,6 @@ function ToolPartBody({part, body}: {part: ChatMessagePart; body: string}): Reac
     const argumentsValue = toolArguments(part);
 
     switch (part.toolName) {
-        case "glob": return <GlobToolResult argumentsValue={argumentsValue} result={output.value}/>;
-        case "grep": return <GrepToolResult argumentsValue={argumentsValue} result={output.value}/>;
-        case "read": return <ReadToolResult argumentsValue={argumentsValue} result={output.value}/>;
         case "web_fetch": return <WebFetchToolResult argumentsValue={argumentsValue} result={output.value}/>;
         case "wikipedia_search": return <WikipediaToolResult argumentsValue={argumentsValue} result={output.value}/>;
         default: return <CodeSnippet lang="json">{JSON.stringify(output.value, null, 2)}</CodeSnippet>;
@@ -991,32 +1071,6 @@ function BashToolResult({command, output}: {command: string; output: string}): R
     return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
         {command === "" ? null : <CodeSnippet lang="bash">{`$ ${command}`}</CodeSnippet>}
         {output === "" ? null : <CodeSnippet lang="text">{output}</CodeSnippet>}
-    </div>;
-}
-
-function GlobToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
-    const matches = result ? stringList(result.matches) : [];
-    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "Pattern", value: stringValueFrom(argumentsValue?.pattern)}, {label: "Directory", value: stringValueFrom(argumentsValue?.cwd) || "."}, {label: "Matches", value: String(numberValueFrom(result?.count) ?? matches.length)}]}/>
-        <CodeSnippet lang="text">{matches.join("\n")}</CodeSnippet>
-    </div>;
-}
-
-function GrepToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
-    const matches = result ? jsonList(result.matches) : [];
-    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "Pattern", value: stringValueFrom(argumentsValue?.pattern)}, {label: "Path", value: stringValueFrom(argumentsValue?.path) || "."}, {label: "Include", value: stringValueFrom(argumentsValue?.include)}, {label: "Exclude", value: stringValueFrom(argumentsValue?.exclude)}, {label: "Matches", value: String(numberValueFrom(result?.count) ?? matches.length)}]}/>
-        <CodeSnippet lang="text">{matches.map(match => `${stringValueFrom(match.path)}:${numberValueFrom(match.line) ?? 0}: ${stringValueFrom(match.text)}`).join("\n")}</CodeSnippet>
-    </div>;
-}
-
-function ReadToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
-    const entries = result ? stringList(result.entries) : [];
-    const content = result ? stringValueFrom(result.content) : "";
-    const count = result ? (numberValueFrom(result.count) ?? numberValueFrom(result.lines) ?? entries.length) : (numberValueFrom(argumentsValue?.limit) ?? 0);
-    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "Path", value: stringValueFrom(result?.path) || stringValueFrom(argumentsValue?.path)}, {label: entries.length > 0 ? "Entries" : "Lines", value: String(count)}, {label: "Offset", value: String(numberValueFrom(argumentsValue?.offset) ?? 1)}]}/>
-        {result ? <CodeSnippet lang="text">{entries.length > 0 ? entries.join("\n") : content}</CodeSnippet> : <UcxSpinner />}
     </div>;
 }
 
@@ -1063,14 +1117,6 @@ function stringValueFrom(value: unknown): string {
 
 function numberValueFrom(value: unknown): number | null {
     return typeof value === "number" ? value : null;
-}
-
-function boolValueFrom(value: unknown): boolean {
-    return value === true;
-}
-
-function stringList(value: unknown): string[] {
-    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
 function jsonList(value: unknown): ToolJson[] {
@@ -1309,7 +1355,6 @@ function isEscaped(text: string, idx: number): boolean {
 function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
     const [expanded, setExpanded] = React.useState(false);
     const contentRef = React.useRef<HTMLDivElement>(null);
-    const summary = part.summary.trim();
 
     React.useEffect(() => {
         setExpanded(part.open);
@@ -1349,17 +1394,6 @@ function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
             >
                 <Icon name="heroSparkles" size={16}/>
                 <span style={{fontWeight: 600, flexShrink: 0}}>Thinking</span>
-                {summary === "" ? null : (
-                    <span
-                        style={{
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                        }}
-                    >
-            {summary}
-          </span>
-                )}
             </button>
             {expanded ? (
                 <div
@@ -1463,7 +1497,7 @@ function ThreadListNode({
                 const active = thread.id === currentThreadId;
                 const openMenu = (left: number, top: number) => {
                     setOperations(threadOperations(thread));
-                    openOperationsRef.current(left, top);
+                    queueMicrotask(() => openOperationsRef.current(left, top));
                 };
 
                 return (
@@ -1606,13 +1640,24 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
         }
     }, [currentThreadId, fn, threads]);
 
+    React.useEffect(() => {
+        function onResize() {
+            if (window.innerWidth < 900) {
+                setSidebarCollapsed(false);
+            }
+        }
+
+        window.addEventListener("resize", onResize);
+        return () => window.removeEventListener("resize", onResize);
+    }, []);
+
+
     const newThread = () => {
         if (!connected || !fn) return;
         pendingNewThreadRef.current = new Set(threads.map(thread => thread.id));
         fn.sendUiEvent("newThread", "click");
     };
     const footer = <>
-        {!developer && hasFeature(Feature.INFERENCE_WORKSPACE) ? <WorkspaceSelector model={model} fn={fn} connected={connected}/> : null}
         <ContextWindowIndicator model={model} fn={fn}/>
         <ConnectionStatusIndicator connected={connected} text={connectionStatus}/>
     </>;
@@ -1691,13 +1736,23 @@ function ContextWindowIndicator({model, fn}: {model: Record<string, Value>; fn?:
 function PlaygroundConversation({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
     const messagesValue = fn?.modelValue(model, "chat.messages") ?? model["chat.messages"];
     const messageItems = messagesValue?.kind === ValueKind.List ? messagesValue.list : [];
+    const streamingValue = fn?.modelValue(model, "chat.streamingMessages") ?? model["chat.streamingMessages"];
+    const streamingItems = streamingValue?.kind === ValueKind.List ? streamingValue.list : [];
+    const streamingThreadId = stringValue(fn?.modelValue(model, "chat.streamingThreadId") ?? model["chat.streamingThreadId"]);
     const loading = boolValue(fn?.modelValue(model, "chat.loading") ?? model["chat.loading"]);
     const developmentMode = boolValue(fn?.modelValue(model, "developmentMode") ?? model.developmentMode);
     const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
     const modelsValue = fn?.modelValue(model, "models") ?? model.models;
     const modelOptions = React.useMemo(() => textGenerationModelOptions(modelsValue), [modelsValue]);
     const currentModelId = stringValue(fn?.modelValue(model, "chat.modelId") ?? model["chat.modelId"]);
-    const messages = React.useMemo(() => buildChatMessageViewModels(messageItems, currentThreadId), [currentThreadId, messagesValue]);
+    const messages = React.useMemo(
+        () => buildChatMessageViewModels(
+            messageItems,
+            currentThreadId,
+            streamingThreadId === currentThreadId ? streamingItems : undefined,
+        ),
+        [currentThreadId, messagesValue, streamingThreadId, streamingValue],
+    );
     const latestMessage = messages[messages.length - 1];
     const latestMessageScrollKey = latestMessage ? chatMessageScrollKey(latestMessage) : "";
     const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -1745,8 +1800,9 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
             rows: {kind: ValueKind.S64, s64: 3},
             sendIcon: {kind: ValueKind.String, string: "heroArrowUp"},
             disabled: {kind: ValueKind.Bool, bool: !connected || loading},
+            streamingThreadId: {kind: ValueKind.String, string: streamingThreadId === currentThreadId ? currentThreadId : ""},
         },
-    }), [connected, developmentMode, loading]);
+    }), [connected, developmentMode, loading, streamingThreadId, currentThreadId]);
 
     return (
         <>
@@ -1833,87 +1889,22 @@ function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNe
                 <Icon name="heroPlus" size={16} mr={8}/>
                 New thread
             </Button>
-            <IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/>
+            <div className={ResponsiveHide}><IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/></div>
         </div>
     </div>;
 
-    return <PlaygroundSidebarShell header={header} footer={footer}>
-        {fn ? <ThreadListNode node={node} model={model} fn={fn}/> : <Text color="textSecondary">Loading...</Text>}
+return <PlaygroundSidebarShell header={header} footer={footer}>
+        {fn ? <ThreadListNode node={node} model={model} fn={fn} /> : <Text color="textSecondary">Loading...</Text>}
     </PlaygroundSidebarShell>;
 }
 
-function WorkspaceSelector({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
-    const path = stringValue(fn?.modelValue(model, "workspace.path") ?? model["workspace.path"]);
-    const loading = boolValue(fn?.modelValue(model, "workspace.loading") ?? model["workspace.loading"]);
-    const chatLoading = boolValue(fn?.modelValue(model, "chat.loading") ?? model["chat.loading"]);
-    const error = stringValue(fn?.modelValue(model, "workspace.error") ?? model["workspace.error"]);
-    const [prettyPath, setPrettyPath] = React.useState("");
-
-    React.useEffect(() => {
-        let cancelled = false;
-        if (!path) {
-            setPrettyPath("");
-            return;
+const ResponsiveHide = injectStyle("responsive-hide", cl => `
+    @media screen and (max-width: 900px) {
+        ${cl} {
+            display: none;
         }
-        prettyFilePath(path).then(value => {
-            if (!cancelled) setPrettyPath(value);
-        }).catch(() => {
-            if (!cancelled) setPrettyPath(path);
-        });
-        return () => { cancelled = true; };
-    }, [path]);
-
-    const selectFolder = React.useCallback(() => {
-		if (!connected || !fn || loading || chatLoading) return;
-
-		void (async () => {
-			const [{default: FileBrowse}, {api: FilesApi}, {folderFavoriteSelection}] = await Promise.all([
-				import("@/Files/FileBrowse"),
-				import("@/UCloud/FilesApi"),
-				import("@/Files/FavoriteSelect"),
-			]);
-			const isFolderAllowed = (file: UFile): boolean | string => file.status.type === "DIRECTORY";
-			const onSelectFolder = (file: UFile) => {
-				const target = removeTrailingSlash(file.id);
-				fn.sendModelInput("workspace.path", {kind: ValueKind.String, string: target}, "workspace.path");
-				dialogStore.success();
-			};
-			const selection = {
-				text: "Use",
-				onClick: onSelectFolder,
-				show: isFolderAllowed,
-			};
-			const navigateToFolder = (initialPath: string, projectId?: string) => {
-				dialogStore.failure();
-				dialogStore.addDialog(
-					<FileBrowse
-						opts={{
-							isModal: true,
-							managesLocalProject: true,
-							initialPath,
-							initialProject: projectId,
-							additionalOperations: [folderFavoriteSelection(onSelectFolder, isFolderAllowed, navigateToFolder)],
-							selection,
-						}} />,
-					doNothing,
-					true,
-					FilesApi.fileSelectorModalStyle
-				);
-			};
-
-			navigateToFolder(path);
-		})();
-	}, [chatLoading, connected, fn, loading, path]);
-
-    return <div style={{display: "flex", alignItems: "center", gap: 0, minWidth: 0, color: error ? "var(--errorMain)" : "var(--textSecondary)", fontSize: 12}}>
-        <span title={error || prettyPath || "No folder selected"} style={{minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1}}>
-            {error || prettyPath || "No folder selected"}
-        </span>
-        {loading ? <UcxSpinner size={14}/> : null}
-        <IconButton tooltip="Select workspace folder" onClick={selectFolder} icon="heroFolderOpen"/>
-        <IconButton tooltip="Selected workspace data is mounted read-only for tools." onClick={doNothing} icon="heroInformationCircle"/>
-    </div>;
-}
+    }
+`);
 
 function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void}): React.ReactNode {
     return <PlaygroundSidebarShell header={<IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="heroChevronRight"/>} footer={footer}>
@@ -2233,6 +2224,24 @@ function modelContextWindow(model: Record<string, Value>, modelName: string): nu
     return 0;
 }
 
+function modelReasoningEfforts(model: Record<string, Value>, modelName: string): PlaygroundOption[] {
+    const models = model.models;
+    if (!models || models.kind !== ValueKind.List) return [];
+    for (const item of models.list) {
+        if (item.kind !== ValueKind.Object) continue;
+        if (stringValue(item.object.name) !== modelName) continue;
+        const efforts = item.object.reasoningEfforts;
+        if (!efforts || efforts.kind !== ValueKind.List) return [];
+        return efforts.list.flatMap(effort => {
+            if (effort.kind !== ValueKind.Object) return [];
+            const key = stringValue(effort.object.value);
+            const value = stringValue(effort.object.name);
+            return key === "" ? [] : [{key, value: value || key}];
+        });
+    }
+    return [];
+}
+
 function compactTokenCount(tokens: number): string {
     if (tokens >= 1_000_000) {
         const value = tokens / 1_000_000;
@@ -2339,7 +2348,9 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
     });
 }
 
-function buildChatMessageViewModels(messageItems: Value[], currentThreadId: string): ChatMessageViewModel[] {
+const chatMessageViewCache = new WeakMap<Value, ChatMessageViewModel>();
+
+function buildChatMessageViewModels(messageItems: Value[], currentThreadId: string, streamingItems?: Value[]): ChatMessageViewModel[] {
     const allMessages: ChatMessageListItem[] = messageItems.flatMap((item: Value) => {
         if (item.kind !== ValueKind.Object) return [];
         if (boolValue(item.object.synthetic)) return [];
@@ -2352,9 +2363,45 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
         }];
     });
 
-    return messageItems.flatMap((item, idx): ChatMessageViewModel[] => {
+    // The in-progress assistant message arrives through a small dedicated model key
+    // (chat.streamingMessages) instead of the full chat.messages list. Merge it on top of the static
+    // messages so that token updates never re-render the earlier parts of the conversation.
+    let items = messageItems;
+    if (streamingItems && streamingItems.length > 0 && messageItems.length > 0) {
+        const streaming = streamingItems[streamingItems.length - 1];
+        if (streaming?.kind === ValueKind.Object) {
+            const streamingIndex = numberValue(streaming.object.messageIndex);
+            let replaced = false;
+            items = messageItems.map((item, idx) => {
+                if (item === streaming || replaced) return item;
+                if (item.kind !== ValueKind.Object) return item;
+                const messageIndex = item.object.messageIndex ? numberValue(item.object.messageIndex) : idx;
+                if (messageIndex === streamingIndex) {
+                    replaced = true;
+                    return streaming;
+                }
+                return item;
+            });
+            if (!replaced) {
+                // The static list can still carry the placeholder with an unset messageIndex (it is
+                // only corrected on the server once the first update lands). Replace the trailing
+                // assistant message in that case.
+                const last = messageItems[messageItems.length - 1];
+                if (last?.kind === ValueKind.Object && stringValue(last.object.role) === "assistant" && stringValue(last.object.modelName) === stringValue(streaming.object.modelName)) {
+                    items = messageItems.slice(0, -1).concat([streaming]);
+                    replaced = true;
+                }
+            }
+            if (!replaced) items = messageItems.concat([streaming]);
+        }
+    }
+
+    return items.flatMap((item, idx): ChatMessageViewModel[] => {
         if (item.kind !== ValueKind.Object) return [];
         if (boolValue(item.object.synthetic)) return [];
+
+        const cached = chatMessageViewCache.get(item);
+        if (cached && cached.threadId === currentThreadId) return [cached];
 
         const role = stringValue(item.object.role);
         const content = stringValue(item.object.content);
@@ -2380,7 +2427,7 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
             : messageParts;
 
         const key = `${currentThreadId || "thread"}:${idx}:${messageIndex}`;
-        return [{
+        const viewModel: ChatMessageViewModel = {
             key,
             threadId: currentThreadId,
             role,
@@ -2395,7 +2442,9 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
             outputTokens: numberValue(item.object.outputTokens),
             messageIndex,
             hidden,
-        }];
+        };
+        chatMessageViewCache.set(item, viewModel);
+        return [viewModel];
     });
 }
 
@@ -2417,7 +2466,10 @@ function chatMessageViewModelEqual(a: ChatMessageViewModel, b: ChatMessageViewMo
 }
 
 function chatMessageScrollKey(message: ChatMessageViewModel): string {
-    return `${message.key}:${message.content}:${message.finishedAt}:${message.parts.map(part => `${part.kind}:${part.text}:${part.body}:${part.status}`).join("|")}`;
+    // NOTE(Dan): this key is only a change detector for the auto-scroll effect. It deliberately uses
+    // lengths instead of the full content.
+    const partsKey = message.parts.map(part => `${part.kind}:${part.text.length}:${part.body.length}:${part.status}`).join("|");
+    return `${message.key}:${message.content.length}:${message.finishedAt}:${partsKey}`;
 }
 
 function chatMessagePartsEqual(a: ChatMessagePart[], b: ChatMessagePart[]): boolean {

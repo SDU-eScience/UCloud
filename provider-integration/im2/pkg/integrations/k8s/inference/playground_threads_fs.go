@@ -27,24 +27,22 @@ type playgroundPersistedThread struct {
 	CreatedAt string                        `json:"createdAt"`
 	UpdatedAt string                        `json:"updatedAt"`
 	Usage     InferencePlaygroundTokenUsage `json:"usage"`
-	Workspace string                        `json:"workspace,omitempty"`
 	LastQuery InferencePlaygroundTokenUsage `json:"lastQuery"`
 	Messages  []playgroundPersistedMessage  `json:"messages"`
 }
 
 type playgroundPersistedMessage struct {
-	Role           string                      `json:"role"`
-	Content        string                      `json:"content"`
-	Synthetic      bool                        `json:"synthetic,omitempty"`
-	Reasoning      string                      `json:"reasoning,omitempty"`
-	ReasoningTitle string                      `json:"reasoningTitle,omitempty"`
-	Parts          []playgroundChatMessagePart `json:"parts,omitempty"`
-	GeneratedAt    string                      `json:"generatedAt,omitempty"`
-	ModelName      string                      `json:"modelName,omitempty"`
-	StartedAt      string                      `json:"startedAt,omitempty"`
-	FirstTokenAt   string                      `json:"firstTokenAt,omitempty"`
-	FinishedAt     string                      `json:"finishedAt,omitempty"`
-	OutputTokens   int64                       `json:"outputTokens,omitempty"`
+	Role         string                      `json:"role"`
+	Content      string                      `json:"content"`
+	Synthetic    bool                        `json:"synthetic,omitempty"`
+	Reasoning    string                      `json:"reasoning,omitempty"`
+	Parts        []playgroundChatMessagePart `json:"parts,omitempty"`
+	GeneratedAt  string                      `json:"generatedAt,omitempty"`
+	ModelName    string                      `json:"modelName,omitempty"`
+	StartedAt    string                      `json:"startedAt,omitempty"`
+	FirstTokenAt string                      `json:"firstTokenAt,omitempty"`
+	FinishedAt   string                      `json:"finishedAt,omitempty"`
+	OutputTokens int64                       `json:"outputTokens,omitempty"`
 }
 
 func inferencePlaygroundThreadsLoad(owner string, project util.Option[string]) []playgroundChatThread {
@@ -242,18 +240,17 @@ func playgroundThreadPersisted(thread playgroundChatThread) playgroundPersistedT
 	messages := make([]playgroundPersistedMessage, 0, len(thread.Messages))
 	for _, msg := range thread.Messages {
 		messages = append(messages, playgroundPersistedMessage{
-			Role:           msg.Role,
-			Content:        msg.Content,
-			Synthetic:      msg.Synthetic,
-			Reasoning:      msg.Reasoning,
-			ReasoningTitle: msg.ReasoningTitle,
-			Parts:          msg.Parts,
-			GeneratedAt:    playgroundFormatTime(msg.GeneratedAt),
-			ModelName:      msg.ModelName,
-			StartedAt:      playgroundFormatTime(msg.StartedAt),
-			FirstTokenAt:   playgroundFormatTime(msg.FirstTokenAt),
-			FinishedAt:     playgroundFormatTime(msg.FinishedAt),
-			OutputTokens:   msg.OutputTokens,
+			Role:         msg.Role,
+			Content:      msg.Content,
+			Synthetic:    msg.Synthetic,
+			Reasoning:    msg.Reasoning,
+			Parts:        msg.Parts,
+			GeneratedAt:  playgroundFormatTime(msg.GeneratedAt),
+			ModelName:    msg.ModelName,
+			StartedAt:    playgroundFormatTime(msg.StartedAt),
+			FirstTokenAt: playgroundFormatTime(msg.FirstTokenAt),
+			FinishedAt:   playgroundFormatTime(msg.FinishedAt),
+			OutputTokens: msg.OutputTokens,
 		})
 	}
 	return playgroundPersistedThread{
@@ -263,7 +260,6 @@ func playgroundThreadPersisted(thread playgroundChatThread) playgroundPersistedT
 		CreatedAt: playgroundFormatTime(thread.CreatedAt),
 		UpdatedAt: playgroundFormatTime(thread.UpdatedAt),
 		Usage:     thread.Usage,
-		Workspace: strings.TrimSpace(thread.WorkspacePath),
 		LastQuery: thread.LastQuery,
 		Messages:  messages,
 	}
@@ -290,21 +286,20 @@ func playgroundThreadFromPersisted(persisted playgroundPersistedThread) (playgro
 		finishedAt, _ := playgroundParseTime(msg.FinishedAt)
 		parts := msg.Parts
 		if len(parts) == 0 {
-			parts = playgroundChatMessageParts(msg.Content, msg.Reasoning, msg.ReasoningTitle, false)
+			parts = playgroundChatMessageParts(msg.Content, msg.Reasoning)
 		}
 		messages = append(messages, playgroundChatMessage{
-			Role:           msg.Role,
-			Content:        msg.Content,
-			Synthetic:      msg.Synthetic,
-			Reasoning:      msg.Reasoning,
-			ReasoningTitle: msg.ReasoningTitle,
-			Parts:          parts,
-			GeneratedAt:    generatedAt,
-			ModelName:      msg.ModelName,
-			StartedAt:      startedAt,
-			FirstTokenAt:   firstTokenAt,
-			FinishedAt:     finishedAt,
-			OutputTokens:   msg.OutputTokens,
+			Role:         msg.Role,
+			Content:      msg.Content,
+			Synthetic:    msg.Synthetic,
+			Reasoning:    msg.Reasoning,
+			Parts:        parts,
+			GeneratedAt:  generatedAt,
+			ModelName:    msg.ModelName,
+			StartedAt:    startedAt,
+			FirstTokenAt: firstTokenAt,
+			FinishedAt:   finishedAt,
+			OutputTokens: msg.OutputTokens,
 		})
 	}
 
@@ -317,16 +312,13 @@ func playgroundThreadFromPersisted(persisted playgroundPersistedThread) (playgro
 		lastQuery = playgroundPersistedLastQueryFallback(persisted.Usage, messages)
 	}
 	return playgroundChatThread{
-		Id:                     persisted.Id,
-		Title:                  title,
-		CreatedAt:              createdAt,
-		UpdatedAt:              updatedAt,
-		Usage:                  persisted.Usage,
-		WorkspacePath:          strings.TrimSpace(persisted.Workspace),
-		LastQuery:              lastQuery,
-		Messages:               messages,
-		TitleGenerated:         true,
-		TitleGenerationStarted: true,
+		Id:        persisted.Id,
+		Title:     title,
+		CreatedAt: createdAt,
+		UpdatedAt: updatedAt,
+		Usage:     persisted.Usage,
+		LastQuery: lastQuery,
+		Messages:  messages,
 	}, true
 }
 

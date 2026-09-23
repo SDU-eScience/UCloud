@@ -113,6 +113,12 @@ export function PrivateNetworkBrowse({
                     updates: [],
                 };
 
+                browser.on("skipOpen", (_oldPath, _newPath, resource) => {
+                    if (!resource || !opts?.selection) return false;
+                    if (opts.selection.show(resource) === true) opts.selection.onClick(resource);
+                    return true;
+                });
+
                 browser.on("open", (_oldPath, newPath, resource) => {
                     if (resource) {
                         navigate(AppRoutes.resource.properties("private-networks", resource.id));
