@@ -1,49 +1,73 @@
 import * as React from "react";
-import {useCloudAPI} from "@/Authentication/DataHook";
-import {providerBrandingApi, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
-import {createSlice, PayloadAction} from "@reduxjs/toolkit";
-import {useDispatch} from "react-redux";
+import {callAPI} from "@/Authentication/DataHook";
+import {ProviderBranding, providerBrandingApi, ProviderBrandingResponse} from "@/UCloud/ProviderBrandingApi";
+import {ExternalStoreBase} from "@/Utilities/ReduxUtilities";
+import ProviderInfo from "@/Assets/provider_info.json";
 
-export const AutomaticProviderBranding: React.FunctionComponent = () => {
-    const [providerBrandings, fetchBranding] = useCloudAPI<ProviderBrandingResponse>(
-        providerBrandingApi.browse(),
-        {providers: {}}
-    );
+class ProviderBrandingStore extends ExternalStoreBase {
+    private branding: ProviderBrandingResponse = {providers: {}};
 
-    React.useEffect(() => {
-        const intervalId = setInterval(() => {
-            fetchBranding(providerBrandingApi.browse());
+    constructor() {
+        super();
+        this.fetch();
+        window.setInterval(() => {
+            this.fetch();
         }, 1000 * 60 * 60);
-        return () => {
-            clearInterval(intervalId);
+    }
+
+    async fetch() {
+        try {
+            const request: APICallParameters<unknown, ProviderBrandingResponse> = {
+                ...providerBrandingApi.browse(),
+                unauthenticated: true,
+            };
+            const response = await callAPI<ProviderBrandingResponse>(request);
+            this.branding = response;
+            this.emitChange();
+        } catch (e: any) {
+            console.warn(e);
         }
-    }, []);
+    }
 
-    const dispatch = useDispatch();
+    public getSnapshot(): Readonly<ProviderBrandingResponse> {
+        return this.branding;
+    }
 
-    React.useEffect(() => {
-        dispatch(addProviderBranding(providerBrandings.data));
-    }, [providerBrandings.data]);
-
-    return null;
-};
-
-
-export function initProviderBranding(): ProviderBrandingResponse {
-    return {
-        providers: {},
+    public getProviderProperty<Property extends keyof ProviderBranding>(providerId: string, providerProperty: Property): ProviderBranding[Property] | undefined {
+        const property = this.branding.providers[providerId]?.[providerProperty];
+        return property ? property : ProviderInfo.providers.find(it => it.id === providerId)?.[providerProperty as string];
     }
 }
 
-const providerBrandingSlice = createSlice({
-    name: "providerBranding",
-    initialState: initProviderBranding(),
-    reducers: {
-        addProviderBranding(state, action: PayloadAction<ProviderBrandingResponse>) {
-            state.providers = action.payload.providers;
-        }
-    }
-});
+export const providerBrandingStore = new ProviderBrandingStore();
 
-const {addProviderBranding} = providerBrandingSlice.actions;
-export const providerBrandingReducer = providerBrandingSlice.reducer;
+export function useProviderBrandings(): Record<string, ProviderBranding> {
+    const snapshot = React.useSyncExternalStore(
+        sub => providerBrandingStore.subscribe(sub),
+        () => providerBrandingStore.getSnapshot()
+    );
+    return snapshot.providers;
+}
+
+export function useProviderBranding(providerId?: string): ProviderBranding | undefined {
+    const providers = useProviderBrandings();
+    if (!providerId) return undefined;
+    return providers[providerId];
+}
+
+export function useProviderProperty<Property extends keyof ProviderBranding>(providerId: string, providerProperty: Property): ProviderBranding[Property] | undefined {
+    const branding = useProviderBranding(providerId);
+    const property = branding?.[providerProperty];
+    return property ? property : ProviderInfo.providers.find(it => it.id === providerId)?.[providerProperty as string];
+}
+
+export function useProviderLogoUrl(providerId: string): string | undefined {
+    const logo = useProviderProperty(providerId, "logo");
+    if (!logo) return undefined;
+    return providerLogoUrl(logo);
+}
+
+export function providerLogoUrl(logo: string): string {
+    if (logo.includes("/")) return logo;
+    return `/Images/${logo}`;
+}

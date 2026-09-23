@@ -42,8 +42,8 @@ import {useLocation, useNavigate} from "react-router-dom";
 import * as Grants from ".";
 import {State} from ".";
 import {ChangeOrganizationDetails, OptionalInfo, optionalInfoRequest, optionalInfoUpdate} from "@/UserSettings/ChangeUserDetails";
-import {useSelector} from "react-redux";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
+import {useProviderBrandings} from "@/ProviderBrandings/AutomaticProviderBranding";
 import {InferenceModel, listModels} from "@/Inference/api";
 
 // State model
@@ -169,24 +169,24 @@ const defaultState: EditorState = {
 type EditorAction =
     | {type: "GrantLoaded", grant: Grants.Application, wallets: Accounting.WalletV2[]}
     | {
-    type: "GrantGiverInitiatedLoaded",
-    wallets: Accounting.WalletV2[],
-    start: number,
-    end: number,
-    title: string,
-    projectId?: string,
-    piUsernameHint: string
-}
+        type: "GrantGiverInitiatedLoaded",
+        wallets: Accounting.WalletV2[],
+        start: number,
+        end: number,
+        title: string,
+        projectId?: string,
+        piUsernameHint: string
+    }
     | {type: "AllocatorsLoaded", allocators: Grants.GrantGiver[], recipientType?: Grants.Recipient["type"]}
     | {type: "DurationUpdated", start?: number, end?: number, duration?: number | null}
     | {type: "AllocatorChecked", isChecked: boolean, allocatorId: string}
     | {
-    type: "BalanceUpdated",
-    provider: string,
-    category: string,
-    allocator: string,
-    balance: number | null,
-}
+        type: "BalanceUpdated",
+        provider: string,
+        category: string,
+        allocator: string,
+        balance: number | null,
+    }
     | {type: "SetIsCreating", stateDuringCreate?: EditorState["stateDuringCreate"]}
     | {type: "RecipientUpdated", isCreatingNewProject: boolean, reference?: string}
     | {type: "ProjectsReloaded", projects: {id: string | null, title: string}[]}
@@ -1406,8 +1406,8 @@ export function Editor(): React.ReactNode {
     const navigate = useNavigate();
     const isForSubAllocator = getQueryParam(location.search, "subAllocator") == "true";
     useProjectId(); // FIXME(Jonas): Is this some refresh-thing that breaks stuff if you remove it?
+    const providerBrandings = useProviderBrandings();
 
-    const providerBrandingData = useSelector((it: ReduxObject) => it.providerBrandings);
     const [missingUserInfo, setMissingUserInfo] = React.useState(false);
     React.useEffect(() => {
         (async () => {
@@ -1912,8 +1912,8 @@ export function Editor(): React.ReactNode {
             state.fullScreenLoading ? <>
                 <HexSpin size={64} />
             </> : state.fullScreenError ? <>
-                    {state.fullScreenError}
-                </> :
+                {state.fullScreenError}
+            </> :
                 <Box mx="auto" className={classes.join(" ")}>
                     <header className={"at-top"}>
                         <h3 className="title">Information about your project</h3>
@@ -1937,8 +1937,8 @@ export function Editor(): React.ReactNode {
                                     {!state.locked && <>
                                         {!isGrantGiverInitiated &&
                                             <ConfirmationButton actionText={"Discard changes"} icon={"heroTrash"}
-                                                                color={"errorMain"}
-                                                                onAction={onDiscard} />
+                                                color={"errorMain"}
+                                                onAction={onDiscard} />
                                         }
 
                                         <Button onClick={validateThenUpdate} type={"button"} color={"successMain"}>
@@ -1951,8 +1951,8 @@ export function Editor(): React.ReactNode {
 
                                     {!isClosed && state.stateDuringEdit.allowWithdrawal && state.locked && <>
                                         <ConfirmationButton actionText={"Withdraw application"} icon={"heroTrash"}
-                                                            color={"errorMain"}
-                                                            onAction={onWithdraw} />
+                                            color={"errorMain"}
+                                            onAction={onWithdraw} />
                                     </>}
                                 </>}
 
@@ -2015,20 +2015,20 @@ export function Editor(): React.ReactNode {
                                     <label>
                                         {state.stateDuringCreate.creatingWorkspace && <>
                                             New project (<a className={BaseLinkClass} href="#" onClick={() => switchToExistingProject(state)}>
-                                            select an existing project instead
-                                        </a>)
+                                                select an existing project instead
+                                            </a>)
                                             <Input id={FormIds.title}
-                                                   placeholder={"Please enter the title of your project"}
-                                                   height="42px"
-                                                   value={state.stateDuringCreate.reference ?? ""}
-                                                   onInput={onNewProjectInput} required />
+                                                placeholder={"Please enter the title of your project"}
+                                                height="42px"
+                                                value={state.stateDuringCreate.reference ?? ""}
+                                                onInput={onNewProjectInput} required />
                                         </>}
                                         {!state.stateDuringCreate.creatingWorkspace && <>
                                             Existing project (<a href="#" className={BaseLinkClass} onClick={switchToNewProject}>
-                                            create a new project instead
-                                        </a>)
+                                                create a new project instead
+                                            </a>)
                                             <Select value={state.stateDuringCreate.reference || "null"}
-                                                    onChange={onProjectSelected}>
+                                                onChange={onProjectSelected}>
                                                 {state.loadedProjects.map(workspace =>
                                                     <React.Fragment key={workspace.id ?? "null"}>
                                                         <option value={workspace.id ?? "null"}>
@@ -2116,9 +2116,9 @@ export function Editor(): React.ReactNode {
                                     {referenceIdsToShow.map((id, idx) => <label key={idx}>
                                         Reference ID #{idx + 1}
                                         <Input id={FormIds.deicId + "-" + idx}
-                                               disabled={state.locked || !state?.stateDuringEdit?.wallets?.length}
-                                               placeholder={state.locked ? "None specified" : "DeiC-SDU-L1-0000"}
-                                               value={id} onInput={onReferenceIdInput} onBlur={onReferenceBlur} />
+                                            disabled={state.locked || !state?.stateDuringEdit?.wallets?.length}
+                                            placeholder={state.locked ? "None specified" : "DeiC-SDU-L1-0000"}
+                                            value={id} onInput={onReferenceIdInput} onBlur={onReferenceBlur} />
                                     </label>)}
                                 </FormField>
                             </>}
@@ -2253,7 +2253,7 @@ export function Editor(): React.ReactNode {
 
                                             if (hideZeroFields && !anyNonZeroValues) return null;
 
-                                            const currentProvider = providerBrandingData.providers[providerId];
+                                            const currentProvider = providerBrandings[providerId];
                                             const productDescription = currentProvider?.productDescription?.find(it => it.category === category.category.name);
                                             const showDescriptions = productDescription != undefined;
                                             const isInference = category.category.productType === "INFERENCE";
@@ -2691,7 +2691,7 @@ const CommentSection: React.FunctionComponent<{
             <div className="wrapper">
                 <UserAvatar avatar={avatars.avatar(Client.username!)} width={"48px"} />
                 <TextArea inputRef={textAreaRef} rows={3} disabled={props.disabled}
-                          placeholder={"Your comment"} onKeyDown={onKeyDown} />
+                    placeholder={"Your comment"} onKeyDown={onKeyDown} />
             </div>
 
             <div className="buttons">
@@ -2928,7 +2928,7 @@ const FormField: React.FunctionComponent<{
     return <>
         <div>
             <label htmlFor={props.id}
-                   className={`section ${props.showDescriptionInEditMode === false ? "optional" : ""}`}>
+                className={`section ${props.showDescriptionInEditMode === false ? "optional" : ""}`}>
                 {props.icon && <Icon name={props.icon} mr={"8px"} size={30} />}
                 {props.title}
                 {props.mandatory && <span className={"mandatory"} />}

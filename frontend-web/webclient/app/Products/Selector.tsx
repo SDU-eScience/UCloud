@@ -17,11 +17,11 @@ import {MandatoryField, NoResultsBody} from "@/UtilityComponents";
 import {ComputeSupport, JobQueueStatus} from "@/UCloud/JobsApi";
 import {ThemeColor} from "@/ui-components/theme";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {useSelector} from "react-redux";
 import {ServiceProviderItem, ServiceProviderSelector} from "@/Applications/ApiTokens/Add";
 import {InputClass} from "@/ui-components/Input";
 import {useProjectId} from "@/Project/Api";
 import {stupidPluralize} from "@/Utilities/TextUtilities";
+import {useProviderBrandings} from "@/ProviderBrandings/AutomaticProviderBranding";
 import {announceDropdownOpen, DROPDOWN_OPENED_EVENT} from "@/ui-components/ClickableDropdown";
 
 interface ComputeCategory {
@@ -580,7 +580,7 @@ function ProductDescription({serviceProvider, category}: {serviceProvider: strin
 }
 
 function useProductDescription(serviceProvider: string, category: string): string {
-    const providerBrandings = useSelector((r: ReduxObject) => r.providerBrandings.providers);
+    const providerBrandings = useProviderBrandings();
     return providerBrandings[serviceProvider]?.productDescription.find(it => it.category === category)?.shortDescription ?? "No description"
 }
 
