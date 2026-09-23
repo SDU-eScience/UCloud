@@ -19,6 +19,7 @@ var BatchBackgroundJobs *K8sResourceTracker[*batchv1.Job]
 
 func Init() {
 	InitClients()
+	PrivateNetworkInit()
 	initProducts()
 	initSsh()
 	InitSshKeys()

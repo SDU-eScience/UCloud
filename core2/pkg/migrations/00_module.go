@@ -54,4 +54,5 @@ func Init() {
 	db.AddMigration(grantV5())
 	db.AddMigration(privateNetworksV2())
 	db.AddMigration(privateNetworkIpsV1())
+	db.AddMigration(privateNetworkIpsV2())
 }

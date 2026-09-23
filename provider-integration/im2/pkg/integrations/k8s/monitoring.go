@@ -683,6 +683,8 @@ func loopMonitoring() {
 	containers.Monitor(tracker, containerJobs)
 	metricMonitoring.WithLabelValues("ContainerMonitor").Observe(timer.Mark().Seconds())
 
+	shared.PrivateNetworkReconcile()
+
 	timer.Mark()
 	kubevirtJobs := map[string]*orc.Job{}
 	for jobId, job := range activeJobs {

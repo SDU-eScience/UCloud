@@ -241,6 +241,28 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		pod.Spec.Hostname += fmt.Sprintf("-%d", rank)
 	}
 
+	attachments, pnErr := shared.PrivateNetworkJobAttachments(job, rank)
+	if pnErr != nil {
+		return pnErr
+	}
+	if len(attachments) > 0 {
+		attachmentAnnotations, annErr := shared.PrivateNetworkAttachmentAnnotations(attachments)
+		if annErr != nil {
+			return annErr
+		}
+
+		for key, value := range attachmentAnnotations {
+			pod.ObjectMeta.Annotations[key] = value
+		}
+
+		for name, value := range shared.PrivateNetworkAttachmentEnvironmentVariables(attachments) {
+			userContainer.Env = append(userContainer.Env, core.EnvVar{
+				Name:  name,
+				Value: value,
+			})
+		}
+	}
+
 	// JobParameters.json
 	// -----------------------------------------------------------------------------------------------------------------
 	if rank == 0 && job.Status.JobParametersJson.Value.SiteVersion != 0 {

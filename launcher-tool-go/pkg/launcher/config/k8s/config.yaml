@@ -76,7 +76,7 @@ services:
     privateNetworks:
       enabled: true
       cidrPools:
-        - 172.31.100.0/22
+        - 100.100.0.0/16
       defaultPrefixLen: 24
       forbiddenCidrs:
         - 10.42.0.0/16
@@ -87,10 +87,6 @@ services:
         - 172.19.0.0/16
         - 172.31.0.0/16
       maxNetworksPerJob: 4
-      maxNetworksPerOwner: 1000
-      maxReservationsPerOwner: 65536
-      maxActiveLeasesPerOwner: 65536
-      maxConcurrentNetworkChanges: 32
 
     integratedTerminal:
       enabled: true

@@ -47,10 +47,11 @@ type JobsService struct {
 	AttachResource           func(job *orcapi.Job, resource orcapi.AppParameterValue) *util.HttpError
 	DetachResource           func(job *orcapi.Job, resource orcapi.AppParameterValue) *util.HttpError
 
-	PublicIPs       PublicIPService
-	Ingresses       IngressService
-	Licenses        LicenseService
-	PrivateNetworks PrivateNetworkService
+	PublicIPs         PublicIPService
+	Ingresses         IngressService
+	Licenses          LicenseService
+	PrivateNetworks   PrivateNetworkService
+	PrivateNetworkIps PrivateNetworkIpService
 }
 
 type PublicIPService struct {
@@ -79,6 +80,13 @@ type PrivateNetworkService struct {
 	Delete           func(network *orcapi.PrivateNetwork) *util.HttpError
 	OnUpdatedLabels  func(network *orcapi.PrivateNetwork) *util.HttpError
 	RetrieveProducts func() []orcapi.PrivateNetworkSupport
+}
+
+type PrivateNetworkIpService struct {
+	Create           func(ip *orcapi.PrivateNetworkIp) *util.HttpError
+	Delete           func(ip *orcapi.PrivateNetworkIp) *util.HttpError
+	OnUpdatedLabels  func(ip *orcapi.PrivateNetworkIp) *util.HttpError
+	RetrieveProducts func() []orcapi.PrivateNetworkIpSupport
 }
 
 type ConfiguredWebSessionResult struct {
@@ -201,6 +209,37 @@ var (
 		Help:      "The number of jobs currently suspended, registered by UCloud/IM",
 	})
 )
+
+func privateNetworkMergeAcl(
+	current orcapi.ResourcePermissions,
+	deleted []orcapi.AclEntity,
+	added []orcapi.ResourceAclEntry,
+) orcapi.ResourcePermissions {
+	current.Others = slices.DeleteFunc(current.Others, func(entry orcapi.ResourceAclEntry) bool {
+		return slices.Contains(deleted, entry.Entity)
+	})
+
+	for _, toAdd := range added {
+		found := false
+
+		for i := range current.Others {
+			entry := &current.Others[i]
+			if entry.Entity == toAdd.Entity {
+				for _, perm := range toAdd.Permissions {
+					entry.Permissions = orcapi.PermissionsAdd(entry.Permissions, perm)
+				}
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			current.Others = append(current.Others, toAdd)
+		}
+	}
+
+	return current
+}
 
 func initJobs() {
 	if RunsServerCode() {
@@ -1277,61 +1316,45 @@ func initJobs() {
 		})
 
 		orcapi.PrivateNetworksProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PrivateNetwork]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
-			var errors []*util.HttpError
 			var providerIds []fnd.FindByStringId
 
 			for _, item := range request.Items {
-				PrivateNetworkTrackNew(item)
-				providerIds = append(providerIds, fnd.FindByStringId{})
-
 				fn := Jobs.PrivateNetworks.Create
 				if fn == nil {
-					errors = append(errors, util.HttpErr(http.StatusBadRequest, "Private network creation not supported"))
-				} else {
-					err := fn(&item)
-					if err != nil {
-						errors = append(errors, err)
-						_ = PrivateNetworkDelete(&item)
-					}
+					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "Private network creation not supported")
 				}
+
+				err := fn(&item)
+				if err != nil {
+					return fnd.BulkResponse[fnd.FindByStringId]{}, err
+				}
+
+				providerIds = append(providerIds, fnd.FindByStringId{})
 			}
 
-			if len(errors) == 1 && len(request.Items) == 1 {
-				return fnd.BulkResponse[fnd.FindByStringId]{}, errors[0]
-			} else {
-				var response fnd.BulkResponse[fnd.FindByStringId]
-				response.Responses = providerIds
-				return response, nil
-			}
+			response := fnd.BulkResponse[fnd.FindByStringId]{Responses: providerIds}
+			return response, nil
 		})
 
 		orcapi.PrivateNetworksProviderDelete.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PrivateNetwork]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
-			var errors []*util.HttpError
 			var resp []util.Empty
 
 			for _, item := range request.Items {
 				fn := Jobs.PrivateNetworks.Delete
 				if fn == nil {
-					errors = append(errors, util.HttpErr(http.StatusBadRequest, "Private network deletion not supported"))
-					resp = append(resp, util.Empty{})
-				} else {
-					err := fn(&item)
-					if err != nil {
-						errors = append(errors, err)
-						resp = append(resp, util.Empty{})
-					} else {
-						resp = append(resp, util.Empty{})
-					}
+					return fnd.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusBadRequest, "Private network deletion not supported")
 				}
+
+				err := fn(&item)
+				if err != nil {
+					return fnd.BulkResponse[util.Empty]{}, err
+				}
+
+				resp = append(resp, util.Empty{})
 			}
 
-			if len(errors) == 1 && len(request.Items) == 1 {
-				return fnd.BulkResponse[util.Empty]{}, errors[0]
-			} else {
-				var response fnd.BulkResponse[util.Empty]
-				response.Responses = resp
-				return response, nil
-			}
+			response := fnd.BulkResponse[util.Empty]{Responses: resp}
+			return response, nil
 		})
 
 		orcapi.PrivateNetworksProviderUpdateAcl.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.UpdatedAclWithResource[orcapi.PrivateNetwork]]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
@@ -1339,37 +1362,7 @@ func initJobs() {
 
 			for _, item := range request.Items {
 				network := item.Resource
-
-				permissions := network.Permissions.Value
-				for _, toDelete := range item.Deleted {
-					for i, entry := range permissions.Others {
-						if entry.Entity == toDelete {
-							slices.Delete(permissions.Others, i, i+1)
-						}
-					}
-				}
-
-				for _, toAdd := range item.Added {
-					found := false
-
-					for i := 0; i < len(permissions.Others); i++ {
-						entry := &permissions.Others[i]
-						if entry.Entity == toAdd.Entity {
-							for _, perm := range toAdd.Permissions {
-								entry.Permissions = orcapi.PermissionsAdd(entry.Permissions, perm)
-							}
-							found = true
-							break
-						}
-					}
-
-					if !found {
-						permissions.Others = append(permissions.Others, orcapi.ResourceAclEntry{
-							Entity:      toAdd.Entity,
-							Permissions: toAdd.Permissions,
-						})
-					}
-				}
+				network.Permissions.Value = privateNetworkMergeAcl(network.Permissions.Value, item.Deleted, item.Added)
 
 				PrivateNetworkTrackNew(network)
 
@@ -1390,6 +1383,79 @@ func initJobs() {
 				}
 
 				PrivateNetworkTrackNew(item)
+			}
+
+			return util.Empty{}, nil
+		})
+
+		orcapi.PrivateNetworkIpsProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PrivateNetworkIp]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
+			var providerIds []fnd.FindByStringId
+
+			for _, item := range request.Items {
+				fn := Jobs.PrivateNetworkIps.Create
+				if fn == nil {
+					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "Reserved IP creation not supported")
+				}
+
+				err := fn(&item)
+				if err != nil {
+					return fnd.BulkResponse[fnd.FindByStringId]{}, err
+				}
+
+				providerIds = append(providerIds, fnd.FindByStringId{})
+			}
+
+			response := fnd.BulkResponse[fnd.FindByStringId]{Responses: providerIds}
+			return response, nil
+		})
+
+		orcapi.PrivateNetworkIpsProviderDelete.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PrivateNetworkIp]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			var resp []util.Empty
+
+			for _, item := range request.Items {
+				fn := Jobs.PrivateNetworkIps.Delete
+				if fn == nil {
+					return fnd.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusBadRequest, "Reserved IP deletion not supported")
+				}
+
+				err := fn(&item)
+				if err != nil {
+					return fnd.BulkResponse[util.Empty]{}, err
+				}
+
+				resp = append(resp, util.Empty{})
+			}
+
+			response := fnd.BulkResponse[util.Empty]{Responses: resp}
+			return response, nil
+		})
+
+		orcapi.PrivateNetworkIpsProviderUpdateAcl.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.UpdatedAclWithResource[orcapi.PrivateNetworkIp]]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			resp := fnd.BulkResponse[util.Empty]{}
+
+			for _, item := range request.Items {
+				ip := item.Resource
+				ip.Permissions.Value = privateNetworkMergeAcl(ip.Permissions.Value, item.Deleted, item.Added)
+
+				PrivateNetworkIpTrackMetadata(ip)
+
+				resp.Responses = append(resp.Responses, util.Empty{})
+			}
+
+			return resp, nil
+		})
+
+		orcapi.PrivateNetworkIpsProviderOnUpdatedLabels.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PrivateNetworkIp]) (util.Empty, *util.HttpError) {
+			for _, item := range request.Items {
+				fn := Jobs.PrivateNetworkIps.OnUpdatedLabels
+				if fn != nil {
+					err := fn(&item)
+					if err != nil {
+						return util.Empty{}, err
+					}
+				}
+
+				PrivateNetworkIpTrackMetadata(item)
 			}
 
 			return util.Empty{}, nil
@@ -1475,6 +1541,16 @@ func initJobs() {
 			}
 
 			return fnd.BulkResponse[orcapi.PrivateNetworkSupport]{Responses: result}, nil
+		})
+
+		orcapi.PrivateNetworkIpsProviderRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (fnd.BulkResponse[orcapi.PrivateNetworkIpSupport], *util.HttpError) {
+			var result []orcapi.PrivateNetworkIpSupport
+			fn := Jobs.PrivateNetworkIps.RetrieveProducts
+			if fn != nil {
+				result = fn()
+			}
+
+			return fnd.BulkResponse[orcapi.PrivateNetworkIpSupport]{Responses: result}, nil
 		})
 
 		rpc.DefaultServer.Mux.HandleFunc(

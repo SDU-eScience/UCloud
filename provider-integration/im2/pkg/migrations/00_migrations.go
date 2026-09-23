@@ -74,4 +74,8 @@ func Init() {
 	db.AddMigration(inferenceV21())
 	db.AddMigration(inferenceV22())
 	db.AddMigration(inferenceV23())
+	db.AddMigration(privateNetworkDatabaseV2())
+	db.AddMigration(privateNetworkDatabaseV3())
+	db.AddMigration(privateNetworkDatabaseV4())
+	db.AddMigration(privateNetworkDatabaseV5())
 }

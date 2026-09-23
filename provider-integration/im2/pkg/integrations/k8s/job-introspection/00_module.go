@@ -227,12 +227,14 @@ func NetworkCommand(args []string) {
 		mt.AppendHeader("ID")
 		mt.AppendHeader("Name")
 		mt.AppendHeader("FQDN")
+		mt.AppendHeader("IPs")
 		mt.AppendHeader("Labels")
 
 		for _, member := range match.Members {
 			mt.Cell("%v", member.Id)
 			mt.Cell("%v", member.Name)
 			mt.Cell("%v", member.Fqdn)
+			mt.Cell("%v", strings.Join(member.Addresses, ","))
 			mt.Cell("%v", member.Labels)
 		}
 

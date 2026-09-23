@@ -77,6 +77,12 @@ func InitCompute() controller.JobsService {
 			OnUpdatedLabels:  nil,
 			RetrieveProducts: shared.PrivateNetworkRetrieveProducts,
 		},
+		PrivateNetworkIps: controller.PrivateNetworkIpService{
+			Create:           createPrivateNetworkIp,
+			Delete:           deletePrivateNetworkIp,
+			OnUpdatedLabels:  nil,
+			RetrieveProducts: retrievePrivateNetworkIpProducts,
+		},
 	}
 }
 
@@ -395,9 +401,17 @@ func submit(job orc.Job) (util.Option[string], *util.HttpError) {
 		return util.OptNone[string](), util.UserHttpError("This project is not allowed to use virtual machines")
 	}
 
+	_, pnErr := controller.PrivateNetworkJobAllocateLeases(&job)
+	if pnErr != nil {
+		return util.OptNone[string](), pnErr
+	}
+
 	controller.JobTrackNew(job)
 	delayed, herr := initScriptImagesPrepare(&job, false)
 	if herr != nil {
+		copied := job
+		copied.Status.State = orc.JobStateFailure
+		controller.JobTrackNew(copied)
 		return util.OptNone[string](), herr
 	}
 	if !delayed {

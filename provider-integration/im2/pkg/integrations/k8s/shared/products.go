@@ -12,19 +12,21 @@ import (
 )
 
 var (
-	MachineSupport        []orc.JobSupport
-	IpSupport             []orc.PublicIpSupport
-	LinkSupport           []orc.IngressSupport
-	PrivateNetworkSupport []orc.PrivateNetworkSupport
+	MachineSupport          []orc.JobSupport
+	IpSupport               []orc.PublicIpSupport
+	LinkSupport             []orc.IngressSupport
+	PrivateNetworkSupport   []orc.PrivateNetworkSupport
+	PrivateNetworkIpSupport []orc.PrivateNetworkIpSupport
 )
 
 var (
-	Machines               []apm.ProductV2
-	StorageProducts        []apm.ProductV2
-	IpProducts             []apm.ProductV2
-	LinkProducts           []apm.ProductV2
-	LicenseProducts        []apm.ProductV2
-	PrivateNetworkProducts []apm.ProductV2
+	Machines                 []apm.ProductV2
+	StorageProducts          []apm.ProductV2
+	IpProducts               []apm.ProductV2
+	LinkProducts             []apm.ProductV2
+	LicenseProducts          []apm.ProductV2
+	PrivateNetworkProducts   []apm.ProductV2
+	PrivateNetworkIpProducts []apm.ProductV2
 )
 
 func initProducts() {
@@ -316,37 +318,72 @@ func initProducts() {
 		}
 	}
 
-	PrivateNetworkProducts = []apm.ProductV2{
-		{
-			Type: apm.ProductTypeCPrivateNetwork,
-			Category: apm.ProductCategory{
-				Name:        "private-network",
-				Provider:    config.Provider.Id,
-				ProductType: apm.ProductTypePrivateNetwork,
-				AccountingUnit: apm.AccountingUnit{
-					Name:                   "network",
-					NamePlural:             "networks",
-					FloatingPoint:          false,
-					DisplayFrequencySuffix: false,
+	if ServiceConfig.Compute.PrivateNetworks.Enabled {
+		PrivateNetworkProducts = []apm.ProductV2{
+			{
+				Type: apm.ProductTypeCPrivateNetwork,
+				Category: apm.ProductCategory{
+					Name:        "private-network",
+					Provider:    config.Provider.Id,
+					ProductType: apm.ProductTypePrivateNetwork,
+					AccountingUnit: apm.AccountingUnit{
+						Name:                   "network",
+						NamePlural:             "networks",
+						FloatingPoint:          false,
+						DisplayFrequencySuffix: false,
+					},
+					AccountingFrequency: apm.AccountingFrequencyOnce,
+					FreeToUse:           true,
 				},
-				AccountingFrequency: apm.AccountingFrequencyOnce,
-				FreeToUse:           true,
+				Name:        "private-network",
+				Description: "A private network",
+				ProductType: apm.ProductTypePrivateNetwork,
+				Price:       1,
 			},
-			Name:        "private-network",
-			Description: "A private network",
-			ProductType: apm.ProductTypePrivateNetwork,
-			Price:       1,
-		},
-	}
+		}
 
-	PrivateNetworkSupport = []orc.PrivateNetworkSupport{
-		{
-			Product: apm.ProductReference{
-				Id:       PrivateNetworkProducts[0].Name,
-				Category: PrivateNetworkProducts[0].Category.Name,
-				Provider: config.Provider.Id,
+		PrivateNetworkSupport = []orc.PrivateNetworkSupport{
+			{
+				Product: apm.ProductReference{
+					Id:       PrivateNetworkProducts[0].Name,
+					Category: PrivateNetworkProducts[0].Category.Name,
+					Provider: config.Provider.Id,
+				},
 			},
-		},
+		}
+
+		PrivateNetworkIpProducts = []apm.ProductV2{
+			{
+				Type: apm.ProductTypeCPrivateNetworkIp,
+				Category: apm.ProductCategory{
+					Name:        "private-network-ip",
+					Provider:    config.Provider.Id,
+					ProductType: apm.ProductTypePrivateNetworkIp,
+					AccountingUnit: apm.AccountingUnit{
+						Name:                   "IP",
+						NamePlural:             "IPs",
+						FloatingPoint:          false,
+						DisplayFrequencySuffix: false,
+					},
+					AccountingFrequency: apm.AccountingFrequencyOnce,
+					FreeToUse:           true,
+				},
+				Name:        "private-network-ip",
+				Description: "A reserved private network IP address",
+				ProductType: apm.ProductTypePrivateNetworkIp,
+				Price:       1,
+			},
+		}
+
+		PrivateNetworkIpSupport = []orc.PrivateNetworkIpSupport{
+			{
+				Product: apm.ProductReference{
+					Id:       PrivateNetworkIpProducts[0].Name,
+					Category: PrivateNetworkIpProducts[0].Category.Name,
+					Provider: config.Provider.Id,
+				},
+			},
+		}
 	}
 
 	LicenseProducts = ctrl.LicenseFetchProducts()

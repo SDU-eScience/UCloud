@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"net/netip"
 	"strings"
 
 	"github.com/distribution/reference"
@@ -85,6 +86,14 @@ type KubernetesWebConfiguration struct {
 type KubernetesIpConfiguration struct {
 	Enabled bool
 	Name    string
+}
+
+type KubernetesPrivateNetworks struct {
+	Enabled           bool
+	CidrPools         []string
+	DefaultPrefixLen  int
+	ForbiddenCidrs    []string
+	MaxNetworksPerJob int
 }
 
 type KubernetesPublicLinkConfiguration struct {
@@ -209,6 +218,7 @@ type KubernetesCompute struct {
 	TaskNodeSelector                map[string]string
 	Web                             KubernetesWebConfiguration
 	PublicIps                       KubernetesIpConfiguration
+	PrivateNetworks                 KubernetesPrivateNetworks
 	PublicLinks                     KubernetesPublicLinkConfiguration
 	Ssh                             KubernetesSshConfiguration
 	Syncthing                       KubernetesSyncthingConfiguration
@@ -807,6 +817,68 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 		}
 	}
 
+	privateNetworksNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "privateNetworks")
+	if privateNetworksNode != nil {
+		privateNetworks := &cfg.Compute.PrivateNetworks
+
+		enabled, ok := cfgutil.OptionalChildBool(filePath, privateNetworksNode, "enabled")
+		privateNetworks.Enabled = enabled && ok
+
+		if privateNetworks.Enabled {
+			privateNetworks.CidrPools = []string{}
+			cidrPoolsNode, _ := cfgutil.GetChildOrNil(filePath, privateNetworksNode, "cidrPools")
+			if cidrPoolsNode != nil {
+				cfgutil.Decode(filePath, cidrPoolsNode, &privateNetworks.CidrPools, &success)
+			}
+			if len(privateNetworks.CidrPools) == 0 {
+				privateNetworks.CidrPools = []string{"100.64.0.0/10"}
+			}
+
+			privateNetworks.DefaultPrefixLen = int(cfgutil.OptionalChildInt(
+				filePath, privateNetworksNode, "defaultPrefixLen", &success,
+			).GetOrDefault(24))
+			if privateNetworks.DefaultPrefixLen < 16 || privateNetworks.DefaultPrefixLen > 24 {
+				cfgutil.ReportError(filePath, privateNetworksNode, "privateNetworks.defaultPrefixLen must be between 16 and 24")
+				success = false
+			}
+
+			for _, pool := range privateNetworks.CidrPools {
+				poolPrefix, err := parseK8sPrivateNetworkCidr(pool)
+				if err != "" {
+					cfgutil.ReportError(filePath, privateNetworksNode, "privateNetworks.cidrPools must contain valid canonical IPv4 CIDRs: %s (%s)", pool, err)
+					success = false
+				} else if poolPrefix.Bits() > privateNetworks.DefaultPrefixLen {
+					cfgutil.ReportError(
+						filePath, privateNetworksNode,
+						"privateNetworks.cidrPools pool %s is smaller than the default /%d block and cannot contain any default-sized block",
+						pool, privateNetworks.DefaultPrefixLen,
+					)
+					success = false
+				}
+			}
+
+			privateNetworks.ForbiddenCidrs = []string{}
+			forbiddenCidrsNode, _ := cfgutil.GetChildOrNil(filePath, privateNetworksNode, "forbiddenCidrs")
+			if forbiddenCidrsNode != nil {
+				cfgutil.Decode(filePath, forbiddenCidrsNode, &privateNetworks.ForbiddenCidrs, &success)
+			}
+			for _, forbidden := range privateNetworks.ForbiddenCidrs {
+				if _, err := parseK8sPrivateNetworkCidr(forbidden); err != "" {
+					cfgutil.ReportError(filePath, privateNetworksNode, "privateNetworks.forbiddenCidrs must contain valid canonical IPv4 CIDRs: %s (%s)", forbidden, err)
+					success = false
+				}
+			}
+
+			privateNetworks.MaxNetworksPerJob = int(cfgutil.OptionalChildInt(
+				filePath, privateNetworksNode, "maxNetworksPerJob", &success,
+			).GetOrDefault(4))
+			if privateNetworks.MaxNetworksPerJob <= 0 {
+				cfgutil.ReportError(filePath, privateNetworksNode, "privateNetworks limits must all be positive")
+				success = false
+			}
+		}
+	}
+
 	syncthingNode, _ := cfgutil.GetChildOrNil(filePath, computeNode, "syncthing")
 	if syncthingNode != nil {
 		enabled, ok := cfgutil.OptionalChildBool(filePath, syncthingNode, "enabled")
@@ -1058,4 +1130,21 @@ func parseK8sMachineGroup(filePath string, node *yaml.Node, success *bool) K8sMa
 	}
 
 	return result
+}
+
+func parseK8sPrivateNetworkCidr(cidr string) (netip.Prefix, string) {
+	prefix, err := netip.ParsePrefix(cidr)
+	if err != nil {
+		return netip.Prefix{}, err.Error()
+	}
+
+	if !prefix.Addr().Is4() {
+		return netip.Prefix{}, "expected an IPv4 address"
+	}
+
+	if prefix != prefix.Masked() {
+		return netip.Prefix{}, "host bits must be zero"
+	}
+
+	return prefix, ""
 }

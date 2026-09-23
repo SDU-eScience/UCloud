@@ -1,6 +1,9 @@
 package shared
 
 import (
+	"net/netip"
+	"slices"
+
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,11 +69,32 @@ func AllowNetworkToPublicInternet(policy *networking.NetworkPolicy, ports []int3
 			{
 				IPBlock: &networking.IPBlock{
 					CIDR:   "0.0.0.0/0",
-					Except: append([]string{}, privateNetworkCIDRBlocks...),
+					Except: privateNetworkInternetEgressExceptions(),
 				},
 			},
 		},
 	})
+}
+
+func privateNetworkInternetEgressExceptions() []string {
+	except := append([]string{}, privateNetworkCIDRBlocks...)
+
+	settings := ServiceConfig.Compute.PrivateNetworks
+	if settings.Enabled {
+		for _, pool := range settings.CidrPools {
+			prefix, err := netip.ParsePrefix(pool)
+			if err != nil || !prefix.Addr().Is4() {
+				continue
+			}
+			canonical := prefix.Masked().String()
+			if !slices.Contains(except, canonical) {
+				except = append(except, canonical)
+			}
+		}
+	}
+
+	slices.Sort(except)
+	return except
 }
 
 func AllowNetworkToClusterDNS(policy *networking.NetworkPolicy) {

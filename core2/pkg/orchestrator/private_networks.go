@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"fmt"
-	"net"
 	"net/http"
 	"regexp"
 	"strings"
@@ -89,6 +88,13 @@ func initPrivateNetworks() {
 	orcapi.PrivateNetworksControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.PrivateNetworkSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		var responses []fndapi.FindByStringId
 
+		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+		for _, reqItem := range request.Items {
+			if reqItem.Spec.Product.Provider != providerId {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			}
+		}
+
 		for _, reqItem := range request.Items {
 			spec := reqItem.Spec
 			spec.Name = strings.TrimSpace(spec.Name)
@@ -97,6 +103,13 @@ func initPrivateNetworks() {
 			err := privateNetworkValidateSpecification(spec)
 			if err != nil {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			}
+
+			if privateNetworkSubdomainTaken(spec.Product.Provider, spec.Subdomain, 0) {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(
+					http.StatusConflict,
+					"a network with this subdomain already exists, try a different one",
+				)
 			}
 
 			var flags resourceCreateFlags
@@ -158,12 +171,12 @@ func initPrivateNetworks() {
 
 		for _, item := range request.Items {
 			if item.Update.CidrBlock.Present {
-				err := privateNetworkValidateCidrBlock(item.Update.CidrBlock.Value)
-				if err != nil {
-					return util.Empty{}, err
+				if _, ok := orcapi.PrivateNetworkParseCidr(item.Update.CidrBlock.Value); !ok {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "invalid private network CIDR block")
 				}
 			}
 
+			var conflict *util.HttpError
 			ok := ResourceUpdate(
 				info.Actor,
 				privateNetworkType,
@@ -171,11 +184,27 @@ func initPrivateNetworks() {
 				orcapi.PermissionProvider,
 				func(r *resource, mapped orcapi.PrivateNetwork) {
 					network := r.Extra.(*internalPrivateNetwork)
-					if item.Update.CidrBlock.Present {
-						network.CidrBlock = item.Update.CidrBlock
+					if !item.Update.CidrBlock.Present {
+						return
 					}
+
+					if network.CidrBlock.Present {
+						if network.CidrBlock.Value != item.Update.CidrBlock.Value {
+							conflict = util.HttpErr(
+								http.StatusConflict,
+								"the address range of a network cannot change",
+							)
+						}
+						return
+					}
+
+					network.CidrBlock = item.Update.CidrBlock
 				},
 			)
+
+			if conflict != nil {
+				return util.Empty{}, conflict
+			}
 
 			if !ok {
 				return util.Empty{}, util.HttpErr(http.StatusNotFound, "not found or permission denied")
@@ -211,6 +240,13 @@ func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.Pri
 		err := privateNetworkValidateSpecification(item)
 		if err != nil {
 			return nil, err
+		}
+
+		if privateNetworkSubdomainTaken(item.Product.Provider, item.Subdomain, 0) {
+			return nil, util.HttpErr(
+				http.StatusConflict,
+				"a network with this subdomain already exists, try a different one",
+			)
 		}
 
 		network, err := ResourceCreateThroughProvider(
@@ -417,76 +453,32 @@ func privateNetworkTransform(
 	return result
 }
 
-func privateNetworkCidrContainsIp(cidr string, ip net.IP) bool {
-	_, parsed, err := net.ParseCIDR(cidr)
-	if err != nil || parsed == nil {
-		return false
+func privateNetworkSubdomainTaken(provider string, subdomain string, except ResourceId) bool {
+	reference := resourceProviderRef(provider)
+
+	idxBucket := resourceGetAndLoadIndex(privateNetworkType, reference)
+	idxBucket.Mu.RLock()
+	ids := append([]ResourceId(nil), idxBucket.ByOwner[reference]...)
+	idxBucket.Mu.RUnlock()
+
+	for _, id := range ids {
+		if id == except {
+			continue
+		}
+
+		b := resourceGetBucket(privateNetworkType, id)
+		r, ok, _ := resourcesReadEx(rpc.ActorSystem, privateNetworkType, orcapi.PermissionRead, b, id, nil)
+		if !ok || r == nil || r.MarkedForDeletion {
+			continue
+		}
+
+		network, valid := r.Extra.(*internalPrivateNetwork)
+		if valid && strings.EqualFold(network.Subdomain, subdomain) {
+			return true
+		}
 	}
 
-	return parsed.Contains(ip)
-}
-
-func privateNetworkParseIpv4(address string) (net.IP, bool) {
-	if strings.Contains(address, ":") {
-		return nil, false
-	}
-
-	ip := net.ParseIP(address)
-	if ip == nil || ip.To4() == nil {
-		return nil, false
-	}
-
-	return ip.To4(), true
-}
-
-func privateNetworkIpIsPinnable(cidr string, ip net.IP) bool {
-	if !privateNetworkCidrContainsIp(cidr, ip) {
-		return false
-	}
-
-	_, parsed, err := net.ParseCIDR(cidr)
-	if err != nil || parsed == nil {
-		return false
-	}
-
-	ip = ip.To4()
-	base := parsed.IP.To4()
-	if ip.Equal(base) {
-		return false
-	}
-
-	prefixLen, _ := parsed.Mask.Size()
-	hostBits := 32 - prefixLen
-	if hostBits <= 0 || hostBits >= 32 {
-		return false
-	}
-
-	broadcast := make(net.IP, 4)
-	for i := 0; i < 4; i++ {
-		broadcast[i] = base[i] | ^parsed.Mask[i]
-	}
-	if ip.Equal(broadcast) {
-		return false
-	}
-
-	gateway := make(net.IP, 4)
-	copy(gateway, base)
-	gateway[3] = 1
-	if ip.Equal(gateway) {
-		return false
-	}
-
-	return true
-}
-
-func privateNetworkCidrOverlap(a string, b string) bool {
-	_, aNet, errA := net.ParseCIDR(a)
-	_, bNet, errB := net.ParseCIDR(b)
-	if errA != nil || errB != nil {
-		return false
-	}
-
-	return aNet.Contains(bNet.IP) || bNet.Contains(aNet.IP)
+	return false
 }
 
 func privateNetworkValidateJobNetworks(actor rpc.Actor, values []orcapi.AppParameterValue) *util.HttpError {
@@ -513,12 +505,17 @@ func privateNetworkValidateJobNetworks(actor rpc.Actor, values []orcapi.AppParam
 				return util.HttpErr(http.StatusBadRequest, "the same network cannot be attached twice")
 			}
 
-			if existing.Status.CidrBlock.Present && network.Status.CidrBlock.Present &&
-				privateNetworkCidrOverlap(existing.Status.CidrBlock.Value, network.Status.CidrBlock.Value) {
-				return util.HttpErr(
-					http.StatusBadRequest,
-					"a job cannot attach two networks with overlapping address ranges",
-				)
+			if existing.Status.CidrBlock.Present && network.Status.CidrBlock.Present {
+				existingCidr, existingOk := orcapi.PrivateNetworkParseCidr(existing.Status.CidrBlock.Value)
+				networkCidr, networkOk := orcapi.PrivateNetworkParseCidr(network.Status.CidrBlock.Value)
+
+				if existingOk && networkOk &&
+					orcapi.PrivateNetworkCidrsOverlap(existingCidr, networkCidr) {
+					return util.HttpErr(
+						http.StatusBadRequest,
+						"a job cannot attach two networks with overlapping address ranges",
+					)
+				}
 			}
 		}
 
@@ -554,8 +551,8 @@ func privateNetworkValidateSpecification(spec orcapi.PrivateNetworkSpecification
 }
 
 func privateNetworkValidateUserCidr(cidr string) *util.HttpError {
-	prefixLen, err := privateNetworkParseCidr(cidr)
-	if err != nil || prefixLen < 16 || prefixLen > 24 {
+	prefix, ok := orcapi.PrivateNetworkParseCidr(cidr)
+	if !ok || prefix.Bits() < 16 || prefix.Bits() > 24 {
 		return util.HttpErr(
 			http.StatusBadRequest,
 			"invalid private network CIDR requested, it must be an IPv4 CIDR with a prefix length between 16 and 24",
@@ -563,35 +560,4 @@ func privateNetworkValidateUserCidr(cidr string) *util.HttpError {
 	}
 
 	return nil
-}
-
-func privateNetworkValidateCidrBlock(cidr string) *util.HttpError {
-	_, err := privateNetworkParseCidr(cidr)
-	if err != nil {
-		return util.HttpErr(http.StatusBadRequest, "invalid private network CIDR block")
-	}
-
-	return nil
-}
-
-func privateNetworkParseCidr(cidr string) (int, *util.HttpError) {
-	if strings.Contains(cidr, ":") {
-		return 0, util.HttpErr(http.StatusBadRequest, "only IPv4 CIDRs are supported")
-	}
-
-	if !strings.Contains(cidr, "/") {
-		return 0, util.HttpErr(http.StatusBadRequest, "invalid CIDR requested, a prefix length is required")
-	}
-
-	_, parsed, err := net.ParseCIDR(cidr)
-	if err != nil || parsed == nil {
-		return 0, util.HttpErr(http.StatusBadRequest, "invalid CIDR requested")
-	}
-
-	if parsed.IP.To4() == nil {
-		return 0, util.HttpErr(http.StatusBadRequest, "only IPv4 CIDRs are supported")
-	}
-
-	prefixLen, _ := parsed.Mask.Size()
-	return prefixLen, nil
 }

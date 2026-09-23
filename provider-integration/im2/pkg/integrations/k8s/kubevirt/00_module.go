@@ -2,12 +2,14 @@ package kubevirt
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"slices"
@@ -1197,6 +1199,7 @@ func terminate(request ctrl.JobTerminateRequest) *util.HttpError {
 	ctrl.LinkUnbindFromJob(request.Job)
 	shared.ClearAssignedSshPort(request.Job)
 	shared.RemoveFromQueue(request.Job.Id)
+	ctrl.PrivateNetworkLeasesMarkReleasing(request.Job.Id)
 
 	if !request.SkipResourceDeletion {
 		name := vmName(request.Job.Id, 0)
@@ -1535,17 +1538,24 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	// reboots. A result of this, is that DHCP is never turned on for the pod interface resulting in the incorrect
 	// configuration of the interface itself (and thus no network). We fix this by applying a similar plan to the
 	// default, but much more broadly returning any interface which might be the correct one and turning DHCP on.
-	networkData := map[string]any{
-		"version": 2,
-		"ethernets": map[string]any{
-			"default": map[string]any{
-				"match": map[string]any{
-					"name": "en*",
-				},
-				"dhcp4": true,
-				"dhcp6": true,
+	ethernets := map[string]any{
+		"default": map[string]any{
+			"match": map[string]any{
+				"name": "en*",
 			},
+			"dhcp4": true,
+			"dhcp6": true,
 		},
+	}
+
+	attachments, pnErr := shared.PrivateNetworkJobAttachments(job, rank)
+	if pnErr != nil {
+		return pnErr
+	}
+
+	networkData := map[string]any{
+		"version":   2,
+		"ethernets": ethernets,
 	}
 
 	machine := &job.Status.ResolvedProduct.Value
@@ -1684,6 +1694,77 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	vm.Spec.Template.ObjectMeta.Labels[jobRankLabel.First] = jobRankLabel.Second
 
 	tplSpec := &vm.Spec.Template.Spec
+
+	if vm.Spec.Template.ObjectMeta.Annotations == nil {
+		vm.Spec.Template.ObjectMeta.Annotations = map[string]string{}
+	}
+	for key := range vm.Spec.Template.ObjectMeta.Annotations {
+		if strings.HasSuffix(key, ".kubernetes.io/ip_address") ||
+			strings.HasSuffix(key, ".kubernetes.io/mac_address") ||
+			strings.HasSuffix(key, ".kubernetes.io/port_security") {
+			delete(vm.Spec.Template.ObjectMeta.Annotations, key)
+		}
+	}
+
+	if len(attachments) > 0 {
+		primaryMac := vmPrimaryMacAddress(job, rank, existingVm)
+
+		ethernets["primary"] = map[string]any{
+			"match": map[string]any{
+				"macaddress": primaryMac,
+			},
+			"dhcp4": true,
+			"dhcp6": true,
+		}
+		delete(ethernets, "default")
+
+		tplSpec.Networks = append(tplSpec.Networks, kvcore.Network{
+			Name: "default",
+			NetworkSource: kvcore.NetworkSource{
+				Pod: &kvcore.PodNetwork{},
+			},
+		})
+		tplSpec.Domain.Devices.Interfaces = append(tplSpec.Domain.Devices.Interfaces, kvcore.Interface{
+			Name:       "default",
+			MacAddress: primaryMac,
+			InterfaceBindingMethod: kvcore.InterfaceBindingMethod{
+				Bridge: &kvcore.InterfaceBridge{},
+			},
+		})
+
+		for _, attachment := range attachments {
+			vm.Spec.Template.ObjectMeta.Annotations[shared.PrivateNetworkIpAnnotation(attachment.Provider)] = attachment.Ip
+			if attachment.MacAddress.Present {
+				vm.Spec.Template.ObjectMeta.Annotations[shared.PrivateNetworkMacAnnotation(attachment.Provider)] = attachment.MacAddress.Value
+			}
+			vm.Spec.Template.ObjectMeta.Annotations[attachment.Provider+".kubernetes.io/port_security"] = "true"
+
+			interfaceName := fmt.Sprintf("pn-%d", attachment.NetworkRank+1)
+			tplSpec.Networks = append(tplSpec.Networks, kvcore.Network{
+				Name: interfaceName,
+				NetworkSource: kvcore.NetworkSource{
+					Multus: &kvcore.MultusNetwork{
+						NetworkName: fmt.Sprintf("%s/%s", Namespace, attachment.NadName),
+					},
+				},
+			})
+			tplSpec.Domain.Devices.Interfaces = append(tplSpec.Domain.Devices.Interfaces, kvcore.Interface{
+				Name: interfaceName,
+				InterfaceBindingMethod: kvcore.InterfaceBindingMethod{
+					Bridge: &kvcore.InterfaceBridge{},
+				},
+			})
+
+			if attachment.MacAddress.Present {
+				ethernets[interfaceName] = map[string]any{
+					"match": map[string]any{
+						"macaddress": attachment.MacAddress.Value,
+					},
+					"addresses": []string{privateNetworkAddressWithPrefix(attachment)},
+				}
+			}
+		}
+	}
 
 	type mountEntry struct {
 		volName           string
@@ -2242,11 +2323,168 @@ func JobFolder(job *orc.Job) (string, *util.HttpError) {
 }
 
 func attachResource(job *orc.Job, resource orc.AppParameterValue) *util.HttpError {
-	// Nothing to do
+	if resource.Type == orc.AppParameterValueTypePrivateNetwork {
+		return vmPrivateNetworkAttach(job, resource)
+	}
 	return nil
 }
 
 func detachResource(job *orc.Job, resource orc.AppParameterValue) *util.HttpError {
-	// Nothing to do
+	if resource.Type == orc.AppParameterValueTypePrivateNetwork {
+		return vmPrivateNetworkDetach(job, resource)
+	}
 	return nil
+}
+
+func vmPrivateNetworkRequireSuspended(job *orc.Job) *util.HttpError {
+	if job.Status.State != orc.JobStateSuspended && job.Status.State != orc.JobStateInQueue {
+		return util.UserHttpError("The virtual machine must be suspended before changing its private networks")
+	}
+	return nil
+}
+
+func vmPrivateNetworkAttach(job *orc.Job, resource orc.AppParameterValue) *util.HttpError {
+	if err := vmPrivateNetworkRequireSuspended(job); err != nil {
+		return err
+	}
+
+	if !ctrl.PrivateNetworksFeatureEnabled() {
+		return util.UserHttpError("Private networks are not enabled on this provider")
+	}
+
+	for _, existing := range job.Specification.Resources {
+		if existing.Type == orc.AppParameterValueTypePrivateNetwork && existing.Id == resource.Id {
+			return util.UserHttpError("The private network is already attached to this job")
+		}
+	}
+
+	copied := *job
+	copied.Specification.Resources = append(slices.Clone(job.Specification.Resources), resource)
+
+	_, err := ctrl.PrivateNetworkJobAllocateLeases(&copied)
+	return err
+}
+
+func vmPrivateNetworkDetach(job *orc.Job, resource orc.AppParameterValue) *util.HttpError {
+	if err := vmPrivateNetworkRequireSuspended(job); err != nil {
+		return err
+	}
+
+	network, ok := ctrl.PrivateNetworkRetrieve(resource.Id)
+	if !ok {
+		return util.UserHttpError("The private network %s no longer exists", resource.Id)
+	}
+
+	name := vmName(job.Id, 0)
+	ctx := context.Background()
+
+	_, err := KubevirtClient.VirtualMachineInstance(Namespace).Get(ctx, name, k8smeta.GetOptions{})
+	if err == nil {
+		return util.UserHttpError("The virtual machine is still shutting down. Try again later.")
+	} else if !k8serrors.IsNotFound(err) {
+		return util.ServerHttpError("Failed to read the virtual machine instance")
+	}
+
+	selector := k8smeta.ListOptions{LabelSelector: "ucloud.dk/vmName=" + name}
+	vmiPods, err := shared.K8sClient.CoreV1().Pods(Namespace).List(ctx, selector)
+	if err != nil {
+		return util.ServerHttpError("Failed to read the virtual machine launcher pods")
+	}
+	if len(vmiPods.Items) > 0 {
+		return util.UserHttpError("The virtual machine is still shutting down. Try again later.")
+	}
+
+	vm, err := KubevirtClient.VirtualMachine(Namespace).Get(ctx, name, k8smeta.GetOptions{})
+	if err == nil {
+		if herr := vmPrivateNetworkRemoveFromTemplate(network.Specification.Subdomain, vm); herr != nil {
+			return herr
+		}
+	} else if !k8serrors.IsNotFound(err) {
+		return util.ServerHttpError("Failed to read the virtual machine")
+	}
+
+	copied := *job
+	copied.Specification.Resources = slices.DeleteFunc(
+		slices.Clone(job.Specification.Resources),
+		func(candidate orc.AppParameterValue) bool {
+			return candidate.Type == orc.AppParameterValueTypePrivateNetwork && candidate.Id == resource.Id
+		},
+	)
+
+	ctrl.PrivateNetworkLeasesMarkReleasingForJobNetwork(job.Id, resource.Id)
+
+	if herr := shared.PrivateNetworkCleanupDetachedJob(&copied); herr != nil {
+		log.Warn(
+			"Deferred the private network cleanup of job %s and network %s: %s",
+			job.Id,
+			resource.Id,
+			herr.Why,
+		)
+	}
+
+	return nil
+}
+
+func vmPrivateNetworkRemoveFromTemplate(subdomain string, vm *kvcore.VirtualMachine) *util.HttpError {
+	provider := shared.PrivateNetworkProviderName(subdomain)
+	nadReference := fmt.Sprintf("%s/%s", Namespace, subdomain)
+
+	if vm.Spec.Template != nil {
+		template := vm.Spec.Template
+
+		removed := map[string]bool{}
+		var keptNetworks []kvcore.Network
+		for _, entry := range template.Spec.Networks {
+			if entry.Multus != nil &&
+				(entry.Multus.NetworkName == subdomain || entry.Multus.NetworkName == nadReference) {
+				removed[entry.Name] = true
+				continue
+			}
+			keptNetworks = append(keptNetworks, entry)
+		}
+
+		var keptInterfaces []kvcore.Interface
+		for _, entry := range template.Spec.Domain.Devices.Interfaces {
+			if removed[entry.Name] {
+				continue
+			}
+			keptInterfaces = append(keptInterfaces, entry)
+		}
+
+		template.Spec.Networks = keptNetworks
+		template.Spec.Domain.Devices.Interfaces = keptInterfaces
+
+		if template.ObjectMeta.Annotations != nil {
+			delete(template.ObjectMeta.Annotations, shared.PrivateNetworkIpAnnotation(provider))
+			delete(template.ObjectMeta.Annotations, shared.PrivateNetworkMacAnnotation(provider))
+			delete(template.ObjectMeta.Annotations, provider+".kubernetes.io/port_security")
+		}
+	}
+
+	if err := updateExistingVmWithRetry(context.Background(), vm.Name, vm); err != nil {
+		return util.HttpErrorFromErr(err)
+	}
+	return nil
+}
+
+func vmPrimaryMacAddress(job *orc.Job, rank int, existingVm *kvcore.VirtualMachine) string {
+	if existingVm != nil && existingVm.Spec.Template != nil {
+		for i := range existingVm.Spec.Template.Spec.Domain.Devices.Interfaces {
+			entry := &existingVm.Spec.Template.Spec.Domain.Devices.Interfaces[i]
+			if entry.Name == "default" && entry.MacAddress != "" {
+				return entry.MacAddress
+			}
+		}
+	}
+
+	sum := sha256.Sum256([]byte(fmt.Sprintf("ucloud-vm-primary-mac:%s:%d", job.Id, rank)))
+	return fmt.Sprintf("02:%02x:%02x:%02x:%02x:%02x", sum[0], sum[1], sum[2], sum[3], sum[4])
+}
+
+func privateNetworkAddressWithPrefix(attachment shared.PrivateNetworkAttachmentInfo) string {
+	prefixLen := 24
+	if cidr, err := netip.ParsePrefix(attachment.CidrBlock.GetOrDefault("")); err == nil && cidr.Addr().Is4() {
+		prefixLen = cidr.Bits()
+	}
+	return fmt.Sprintf("%s/%d", attachment.Ip, prefixLen)
 }

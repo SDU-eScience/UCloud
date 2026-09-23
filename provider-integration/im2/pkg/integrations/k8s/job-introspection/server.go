@@ -3,12 +3,15 @@ package job_introspection
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/netip"
 	"slices"
 	"strings"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
@@ -70,15 +73,17 @@ func InitServerHandlers() {
 		networksBySubdomain := map[string]*IntrospectedNetwork{}
 
 		for _, resc := range job.Specification.Resources {
-			if resc.Type == orc.AppParameterValueTypePrivateNetwork {
-				network, ok := ctrl.PrivateNetworkRetrieve(resc.Id)
-				if ok {
-					networksBySubdomain[network.Specification.Subdomain] = &IntrospectedNetwork{
-						Id:        network.Id,
-						Name:      network.Specification.Name,
-						Subdomain: network.Specification.Subdomain,
-						Members:   nil,
-					}
+			if resc.Type != orc.AppParameterValueTypePrivateNetwork {
+				continue
+			}
+
+			network, ok := ctrl.PrivateNetworkRetrieve(resc.Id)
+			if ok {
+				networksBySubdomain[network.Specification.Subdomain] = &IntrospectedNetwork{
+					Id:        network.Id,
+					Name:      network.Specification.Name,
+					Subdomain: network.Specification.Subdomain,
+					Members:   nil,
 				}
 			}
 		}
@@ -86,17 +91,21 @@ func InitServerHandlers() {
 		pods := shared.JobPods.List()
 		for _, pod := range pods {
 			for subdomain, network := range networksBySubdomain {
-				if _, ok := pod.Labels[shared.PrivateNetworkLabel(subdomain)]; ok {
-					memberId := pod.Labels["ucloud.dk/jobId"]
-					member, ok := ctrl.JobRetrieve(memberId)
-					if ok {
-						network.Members = append(network.Members, IntrospectedNetworkMember{
-							Id:     member.Id,
-							Name:   pod.Spec.Hostname,
-							Fqdn:   fmt.Sprintf("%s.%s.%s.svc.cluster.local", pod.Spec.Hostname, pod.Spec.Subdomain, shared.ServiceConfig.Compute.Namespace),
-							Labels: member.Specification.Labels,
-						})
-					}
+				if pod.Labels[shared.PrivateNetworkLabel(subdomain)] != "true" &&
+					pod.Labels[shared.PrivateNetworkMembershipLabel(network.Id)] != "true" {
+					continue
+				}
+
+				memberId := pod.Labels["ucloud.dk/jobId"]
+				member, ok := ctrl.JobRetrieve(memberId)
+				if ok {
+					network.Members = append(network.Members, IntrospectedNetworkMember{
+						Id:        member.Id,
+						Name:      pod.Spec.Hostname,
+						Fqdn:      fmt.Sprintf("%s.%s.%s.svc.cluster.local", pod.Spec.Hostname, pod.Spec.Subdomain, shared.ServiceConfig.Compute.Namespace),
+						Labels:    member.Specification.Labels,
+						Addresses: privateNetworkMemberAddresses(pod, network.Subdomain),
+					})
 				}
 			}
 		}
@@ -296,6 +305,45 @@ func serviceIp(jobId string) string {
 		return ""
 	}
 	return service.Spec.ClusterIP
+}
+
+type introspectedNetworkStatusEntry struct {
+	Name      string   `json:"name"`
+	Interface string   `json:"interface"`
+	Ips       []string `json:"ips"`
+	Mac       string   `json:"mac"`
+}
+
+func privateNetworkMemberAddresses(pod *corev1.Pod, subdomain string) []string {
+	raw := pod.Annotations[shared.PrivateNetworkNetworkStatusAnnotation]
+	if raw == "" {
+		return nil
+	}
+
+	var entries []introspectedNetworkStatusEntry
+	if err := json.Unmarshal([]byte(raw), &entries); err != nil {
+		return nil
+	}
+
+	for _, entry := range entries {
+		nadName := entry.Name
+		if name, _, found := strings.Cut(entry.Name, "/"); found {
+			nadName = name
+		}
+		if nadName != subdomain {
+			continue
+		}
+
+		addresses := make([]string, 0, len(entry.Ips))
+		for _, ip := range entry.Ips {
+			if parsed, err := netip.ParseAddr(ip); err == nil && parsed.Is4() {
+				addresses = append(addresses, ip)
+			}
+		}
+		return addresses
+	}
+
+	return nil
 }
 
 func optStringToSql(value util.Option[string]) sql.Null[string] {
