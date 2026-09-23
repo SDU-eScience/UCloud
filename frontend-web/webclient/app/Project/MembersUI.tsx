@@ -24,17 +24,17 @@ import {ListRow} from "@/ui-components/List";
 import * as Heading from "@/ui-components/Heading";
 import {AvatarForUser} from "@/AvataaarLib/UserAvatar";
 import {copyToClipboard, doNothing, timestampUnixMs} from "@/UtilityFunctions";
-import {Operations, ShortcutKey} from "@/ui-components/Operation";
+import {ShortcutKey} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import ReactModal from "react-modal";
-import {defaultModalStyle, ModalBottom, slimModalStyle} from "@/Utilities/ModalUtilities";
+import {ModalBottom, slimModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {addStandardDialog} from "@/UtilityComponents";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import {sendInformationNotification} from "@/Notifications";
-import {ActionBar} from "@/ui-components/Actions";
+import {ActionMenu} from "@/ui-components/Actions";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -817,7 +817,7 @@ const GroupCard: React.FunctionComponent<{
                     {props.group.status.members?.length}
                 </Box>
             </Flex>
-            <ActionBar actions={[
+            <ActionMenu actions={[
                 {
                     text: "Rename",
                     icon: "heroPencilSquare",
