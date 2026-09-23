@@ -13,7 +13,7 @@ import AppRoutes from "@/Routes";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {Product} from "@/Accounting";
-import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,

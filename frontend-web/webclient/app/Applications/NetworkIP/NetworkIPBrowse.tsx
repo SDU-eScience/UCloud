@@ -49,7 +49,7 @@ import {useProject} from "@/Project/cache";
 import Routes from "@/Routes";
 import {useProjectId} from "@/Project/Api";
 import {sendFailureNotification} from "@/Notifications";
-import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,

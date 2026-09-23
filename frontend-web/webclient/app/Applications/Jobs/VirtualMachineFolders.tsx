@@ -5,7 +5,7 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {injectStyle} from "@/Unstyled";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {api as FilesApi} from "@/UCloud/FilesApi";
-import FileBrowse, { FakeFileName } from "@/Files/FileBrowse";
+import FileBrowse, {FakeFileName} from "@/Files/FileBrowse";
 import {Selection} from "@/ui-components/ResourceBrowser";
 import {doNothing, removeTrailingSlash} from "@/UtilityFunctions";
 import {UFile} from "@/UCloud/UFile";

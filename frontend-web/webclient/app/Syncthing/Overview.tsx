@@ -27,7 +27,7 @@ import syncthingScreen4 from "@/Assets/Images/syncthing/syncthing-4.png";
 import syncthingLogo from "@/Assets/Images/syncthing/logo.png";
 
 import {injectStyle, injectStyleSimple} from "@/Unstyled";
-import FileBrowse, { FakeFileName } from "@/Files/FileBrowse";
+import FileBrowse, {FakeFileName} from "@/Files/FileBrowse";
 import {CardClass} from "@/ui-components/Card";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";

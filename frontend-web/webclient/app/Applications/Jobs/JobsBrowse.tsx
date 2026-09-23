@@ -53,8 +53,7 @@ import {TruncateClass} from "@/ui-components/Truncate";
 import {sendFailureNotification} from "@/Notifications";
 import {ProductCompute} from "@/Accounting";
 import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
-import { appendAppIcon } from "../AppLogoCache";
-import { column } from "@observablehq/plot";
+import {appendAppIcon} from "../AppLogoCache";
 
 const defaultRetrieveFlags: {itemsPerPage: number; includeApplication: boolean; includeSupport: boolean} = {
     itemsPerPage: 250,

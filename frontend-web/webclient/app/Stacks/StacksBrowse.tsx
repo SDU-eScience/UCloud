@@ -30,7 +30,7 @@ import {DELETE_TAG, Permission, ResourceAclEntry} from "@/UCloud/ResourceApi";
 import * as StackApi from "./api";
 import Flex from "@/ui-components/Flex";
 import {stackLogoUrl} from "@/Stacks/Logos";
-import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 250,
@@ -60,12 +60,12 @@ export default function StacksBrowse(): React.ReactNode {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<StackApi.Stack>(mount, "Stacks", undefined).init(browserRef, FEATURES, "", browser => {
-                browser.setColumns({[ContainerSize.LARGE]: [
+                browser.setColumns([
                     {name: "ID"},
                     {name: "Type", columnWidth: 180},
                     {name: "Created at", columnWidth: 180},
                     {name: "", columnWidth: 0},
-                ]});
+                ]);
 
                 browser.on("open", (_oldPath, newPath, resource) => {
                     if (resource) {

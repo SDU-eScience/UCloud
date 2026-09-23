@@ -31,7 +31,7 @@ import {FileIconHint} from ".";
 import {ShortcutKey} from "@/ui-components/Operation";
 import {getLastActivePath} from "@/Applications/Jobs/Widgets/GenericFiles";
 import {sendFailureNotification} from "@/Notifications";
-import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
@@ -41,8 +41,6 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
     breadcrumbsSeparatedBySlashes: false,
 }
-
-type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
 
 function FavoriteBrowse({ selection, navigateToFolder }: {
     navigateToFolder: (path: string, projectId?: string) => void;

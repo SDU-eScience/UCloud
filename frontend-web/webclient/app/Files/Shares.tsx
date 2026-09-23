@@ -55,7 +55,7 @@ import {defaultAvatar} from "@/AvataaarLib";
 import {SvgCache} from "@/Utilities/SvgCache";
 import {sendInformationNotification} from "@/Notifications";
 import {Product} from "@/Accounting";
-import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share", tab: SidebarTabId.FILES, defaultHidden: true},
@@ -449,9 +449,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                browser.setColumns({
-                    [ContainerSize.LARGE]: [{ name: "Filename" }, { name: "Share state", columnWidth: 200 }, { name: "Last updated", columnWidth: 160 }, { name: "Shared by", columnWidth: 90 }]
-                });
+                browser.setColumns([{name: "Filename"}, {name: "Share state", columnWidth: 200}, {name: "Last updated", columnWidth: 160}, {name: "Shared by", columnWidth: 90}]);
 
                 browser.on("skipOpen", (oldPath, path, share) => Client.username !== share?.owner.createdBy && share?.status.state === "PENDING");
                 browser.on("open", (oldPath, newPath, resource) => {
@@ -561,7 +559,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                                 return true;
                             },
                             text: "Accept"
-                        }, share, { color: "successMain", width: "72px" })!);
+                        }, share, {color: "successMain", width: "72px"})!);
                         group.appendChild(browser.defaultButtonRenderer({
                             onClick: async () => {
                                 await callAPI(SharesApi.reject(bulkRequestOf({ id: share.id })))
@@ -571,9 +569,9 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                                 return true;
                             },
                             text: "Decline"
-                        }, share, { color: "errorMain", width: "72px" })!);
+                        }, share, {color: "errorMain", width: "72px"})!);
                     } else {
-                        const { state } = share.status;
+                        const {state} = share.status;
                         const [stateIcon, setStateIcon] = ResourceBrowser.defaultIconRenderer();
                         stateIcon.style.marginTop = stateIcon.style.marginBottom = "auto";
                         wrapper.appendChild(stateIcon);

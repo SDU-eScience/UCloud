@@ -54,7 +54,7 @@ import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {useEffect} from "react";
 import {useProjectId} from "@/Project/Api";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
-import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,

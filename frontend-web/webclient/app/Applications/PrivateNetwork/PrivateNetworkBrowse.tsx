@@ -46,7 +46,7 @@ import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import ProductReference = accounting.ProductReference;
 import {useEffect} from "react";
 import {sendFailureNotification} from "@/Notifications";
-import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -108,9 +108,9 @@ export function PrivateNetworkBrowse({
                     id: DUMMY_ENTRY_ID,
                     specification: { name: "", subdomain: "", product: placeholderProduct() },
                     createdAt: new Date().getTime(),
-                    owner: { createdBy: "" },
-                    status: { members: [] },
-                    permissions: { myself: [] },
+                    owner: {createdBy: ""},
+                    status: {members: []},
+                    permissions: {myself: []},
                     updates: [],
                 };
 

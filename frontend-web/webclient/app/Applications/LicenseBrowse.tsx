@@ -32,7 +32,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {ProductSelectorWithPermissions} from "./PublicLinks/PublicLinkBrowse";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import {sendFailureNotification} from "@/Notifications";
-import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,

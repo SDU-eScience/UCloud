@@ -10,7 +10,7 @@ import {api as FilesApi} from "@/UCloud/FilesApi";
 import {prettyFilePath} from "@/Files/FilePath";
 import {getProviderField, providerMismatchError} from "../Create";
 import {injectStyleSimple} from "@/Unstyled";
-import FileBrowse, { FakeFileName } from "@/Files/FileBrowse";
+import FileBrowse, {FakeFileName} from "@/Files/FileBrowse";
 import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 import {UFile} from "@/UCloud/UFile";
 import {Selection} from "@/ui-components/ResourceBrowser";
@@ -159,7 +159,7 @@ const InitScriptCacheClass = injectStyleSimple("init-script-cache", `
     align-items: flex-start;
     gap: 10px;
     margin-top: 10px;
-    
+
     > div:first-child {
         flex-shrink: 0;
     }

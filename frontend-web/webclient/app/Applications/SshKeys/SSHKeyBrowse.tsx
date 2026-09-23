@@ -11,7 +11,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import SshKeysCreate from "./Add";
-import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -40,7 +40,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
         if (mount && !browserRef.current) {
             new ResourceBrowser<SSHKey>(mount, "SSH keys", props.opts).init(browserRef, FEATURES, "", browser => {
                 browser.setColumns({ [ContainerSize.LARGE]:
-                    [{ name: "Title" }, { name: "", columnWidth: 0 }, { name: "", columnWidth: 0 }, { name: "", columnWidth: 80 }]
+                    [{name: "Title"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]
                 });
 
                 // Ensure no refecthing on `skipOpen`.

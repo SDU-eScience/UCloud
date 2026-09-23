@@ -1103,13 +1103,6 @@ function FileBrowse({opts, headerControls}: {
                 });
 
                 browser.on("renderStat3", (file, stat) => {
-                    // TODO(Jonas): Handle fakeFileName in `show`-function
-                    // if (opts?.selection && !file.id.endsWith(fakeFileName) /* Note(Jonas): Disallow using folder being created */) {
-                    //     const button = browser.defaultButtonRenderer(opts.selection, file);
-                    //     if (button) {
-                    //         stat.replaceChildren(button);
-                    //     }
-                    // } else {
                     if (file.status.sizeIncludingChildrenInBytes != null || file.status.type !== "DIRECTORY") {
                         stat.replaceChildren(createHTMLElements({
                             tagType: "div",

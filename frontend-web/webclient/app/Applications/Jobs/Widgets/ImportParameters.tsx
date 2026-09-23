@@ -187,7 +187,7 @@ export function ImportParameters({application, dynamicParameters, onImport, auto
                                             fetchAndImportParameters(res);
                                             dialogStore.success();
                                         },
-                                        show: res => res.id !== FakeFileName && res.status.type === "FILE" && res.id.endsWith(".json")
+                                        show: res => !res.id.endsWith(FakeFileName) && res.status.type === "FILE" && res.id.endsWith(".json")
                                     }
                                 }}
                             />,

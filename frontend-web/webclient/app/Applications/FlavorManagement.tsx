@@ -264,7 +264,7 @@ function FlavorManagement({flavors, onUpdated, onDeleted}: Props): React.ReactNo
                     if (isVariantVersion(entry)) {
                         stat.innerText = entry.baseVersion;
                         stat.style.justifyContent = "";
-                        return
+                        return;
                     }
 
                     const variant = entry;
@@ -346,7 +346,7 @@ function retrieveOperations(
     update: (variant: ApplicationVariant, changes: {title?: string; publishedToProject?: boolean}) => Promise<void>,
     remove: (variant: ApplicationVariant) => Promise<void>,
     removeVersion: (version: VariantVersion) => Promise<void>,
-    loadingRef: React.MutableRefObject<boolean>,
+    loadingRef: React.RefObject<boolean>,
 ): ResourceBrowserActions<BrowserEntry, {}> {
     const publish: ActionItem<BrowserEntry, {}> = {
         text: selected => {

@@ -50,7 +50,7 @@ import {connectionState} from "@/Providers/ConnectionState";
 import {useProjectId} from "@/Project/Api";
 import {sendFailureNotification} from "@/Notifications";
 import {DriveChange} from "@/ui-components/Sidebar";
-import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
