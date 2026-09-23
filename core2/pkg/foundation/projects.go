@@ -819,17 +819,8 @@ func ProjectChangeRole(actor rpc.Actor, request fndapi.ProjectMemberChangeRoleRe
 		)
 	})
 
-	pStatus := &iproject.Project.Status
-	for i := 0; i < len(pStatus.Members); i++ {
-		member := &pStatus.Members[i]
-		if member.Username == request.Username {
-			member.Role = request.Role
-		} else if piTransfer && member.Username == actor.Username {
-			member.Role = fndapi.ProjectRoleAdmin
-		}
-	}
-
 	iproject.Mu.Unlock()
+	projectInvalidateCache(iproject.Id)
 	return nil
 }
 
@@ -876,22 +867,10 @@ func ProjectCreateGroup(actor rpc.Actor, spec fndapi.ProjectGroupSpecification) 
 			err = util.HttpErr(http.StatusBadRequest, "A group with this name already exists")
 		}
 	})
-	if err == nil {
-		pStatus := &iproject.Project.Status
-		pStatus.Groups = append(pStatus.Groups, fndapi.ProjectGroup{
-			Id:            groupId,
-			Specification: spec,
-			Status: fndapi.ProjectGroupStatus{
-				Members: make([]string, 0),
-			},
-		})
-
-		slices.SortFunc(pStatus.Groups, func(a, b fndapi.ProjectGroup) int {
-			return cmp.Compare(strings.ToLower(a.Specification.Title), strings.ToLower(b.Specification.Title))
-		})
-	}
 	iproject.Mu.Unlock()
-
+	if err == nil {
+		projectInvalidateCache(spec.Project)
+	}
 	if err != nil {
 		return "", err
 	} else {
@@ -943,13 +922,11 @@ func ProjectRenameGroup(actor rpc.Actor, id string, newTitle string) *util.HttpE
 				err = util.HttpErr(http.StatusBadRequest, "A group with this name already exists!")
 			}
 		})
-
-		if err == nil {
-			iproject.Project.Status.Groups[idx].Specification.Title = newTitle
-		}
 	}
-
 	iproject.Mu.Unlock()
+	if err == nil {
+		projectInvalidateCache(iproject.Id)
+	}
 	return err
 }
 
@@ -1031,11 +1008,11 @@ func ProjectDeleteGroup(actor rpc.Actor, id string) *util.HttpError {
 				},
 			)
 		})
-
-		iproject.Project.Status.Groups = util.RemoveAtIndex(iproject.Project.Status.Groups, idx)
 	}
 	iproject.Mu.Unlock()
-
+	if err == nil {
+		projectInvalidateCache(iproject.Id)
+	}
 	for _, member := range groupMembersRemoved {
 		uinfo := projectRetrieveUserInfo(member.Username)
 		uinfo.Mu.Lock()
@@ -1081,6 +1058,9 @@ func ProjectCreateGroupMember(actor rpc.Actor, groupId string, memberToAdd strin
 	if err != nil {
 		return err
 	}
+
+	memberWasAdded := false
+	projectId := iproject.Id
 
 	iproject.Mu.Lock()
 	idx := slices.IndexFunc(iproject.Project.Status.Groups, func(group fndapi.ProjectGroup) bool {
@@ -1128,9 +1108,19 @@ func ProjectCreateGroupMember(actor rpc.Actor, groupId string, memberToAdd strin
 			slices.SortFunc(group.Status.Members, func(a, b string) int {
 				return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
 			})
+
+			memberWasAdded = true
 		}
 	}
 	iproject.Mu.Unlock()
+
+	if memberWasAdded {
+		uinfo := projectRetrieveUserInfo(memberToAdd)
+		uinfo.Mu.Lock()
+		uinfo.Groups[groupId] = projectId
+		uinfo.Mu.Unlock()
+	}
+
 	return err
 }
 
@@ -1139,6 +1129,8 @@ func ProjectDeleteGroupMember(actor rpc.Actor, groupId string, memberToRemove st
 	if err != nil {
 		return err
 	}
+
+	memberWasRemoved := false
 
 	iproject.Mu.Lock()
 	idx := slices.IndexFunc(iproject.Project.Status.Groups, func(group fndapi.ProjectGroup) bool {
@@ -1182,9 +1174,18 @@ func ProjectDeleteGroupMember(actor rpc.Actor, groupId string, memberToRemove st
 			})
 
 			group.Status.Members = util.RemoveAtIndex(group.Status.Members, memberIdx)
+
+			memberWasRemoved = true
 		}
 	}
 	iproject.Mu.Unlock()
+
+	if memberWasRemoved {
+		uinfo := projectRetrieveUserInfo(memberToRemove)
+		uinfo.Mu.Lock()
+		delete(uinfo.Groups, groupId)
+		uinfo.Mu.Unlock()
+	}
 	return err
 }
 
@@ -2615,6 +2616,11 @@ func initProjectSubscriptions() {
 
 		for {
 			projectId := <-projectUpdates
+
+			// Invalidate cache before retrieving since ProjectRetrieve (projectRetrieveInternal) simply checks the
+			// cache and therefore skips the DB fetch part.
+			projectInvalidateCache(projectId)
+
 			project, err := ProjectRetrieve(
 				rpc.ActorSystem,
 				projectId,
@@ -2634,6 +2640,13 @@ func initProjectSubscriptions() {
 			}
 		}
 	}()
+}
+
+func projectInvalidateCache(projectId string) {
+	b := projectBucket(projectId)
+	b.Mu.Lock()
+	delete(b.Projects, projectId)
+	b.Mu.Unlock()
 }
 
 func projectsNotify(username string, projectId string) {
