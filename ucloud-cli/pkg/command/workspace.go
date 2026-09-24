@@ -68,7 +68,7 @@ func (c WorkspaceListCommand) Execute() error {
 	return nil
 }
 
-func findWorkspace(name string) (*shared.Workspace, error) {
+func FindWorkspaceByName(name string) (*shared.Workspace, error) {
 	workspaces, err := retrieveWorkspaces()
 	if err != nil {
 		return nil, err
@@ -94,7 +94,7 @@ func checkIfEnviromentExists(name string) bool {
 
 func (c WorkspaceUseCommand) Execute() error {
 	shared.InitializeUCloudClient()
-	ws, err := findWorkspace(c.Name)
+	ws, err := FindWorkspaceByName(c.Name)
 	if err != nil {
 		return err
 	}

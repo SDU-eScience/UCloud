@@ -577,3 +577,24 @@ func TestSshKeyDelete(t *testing.T) {
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }
+
+func TestPublicIPList(t *testing.T) {
+	input := []string{"public-ip", "list", "--workspace", "testmain"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+// public-ip create dev-ip --product ucloud/public-ip --open-port 22/tcp --open-port 443/tcp
+func TestPublicIPCreate(t *testing.T) {
+	input := []string{"public-ip", "create", "dev-ip", "--product", "ucloud/public-ip", "--param", "start=1234", "--param", "end=1235", "--param", "protocol=tcp"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+// TODO: make a way to define the ports
