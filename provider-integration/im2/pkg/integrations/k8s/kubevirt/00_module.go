@@ -1728,7 +1728,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			Name:       "default",
 			MacAddress: primaryMac,
 			InterfaceBindingMethod: kvcore.InterfaceBindingMethod{
-				Bridge: &kvcore.InterfaceBridge{},
+				Masquerade: &kvcore.InterfaceMasquerade{},
 			},
 		})
 

@@ -66,6 +66,7 @@ install_cilium() {
     --set k8sServiceHost="${NODE_IP}" \
     --set k8sServicePort=6443 \
     --set kubeProxyReplacement=true \
+    --set socketLB.hostNamespaceOnly=true \
     --set ipam.mode=cluster-pool \
     --set "ipam.operator.clusterPoolIPv4PodCIDRList={10.42.0.0/16}" \
     --set routingMode=tunnel \
