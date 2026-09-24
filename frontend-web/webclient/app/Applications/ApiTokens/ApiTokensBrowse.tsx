@@ -50,7 +50,12 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Api.ApiToken>(mount, "API tokens", props.opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumns({[ContainerSize.LARGE]: [{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 320}]});
+                browser.setColumns({
+                    [ContainerSize.LARGE]: [{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 320}],
+                    [ContainerSize.MEDIUM]: [{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 250}],
+                    [ContainerSize.SMALL]: [{name: "Title"}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 250 }, {name: "", columnWidth: 0}],
+                    [ContainerSize.TINY]: [{name: "Title"}, {name: "Server URL", columnWidth: 200}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}]
+                });
 
                 browser.on("skipOpen", (oldPath, path, resource) => resource != null);
 
