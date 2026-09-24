@@ -814,7 +814,7 @@ const ResourceSubLinksEntries: LinkInfo[] = [
 ResourceSubLinksEntries.push({
     to: AppRoutes.resources.privateNetworks(),
     text: "Private networks",
-    icon: "heroCloud",
+    icon: "networkWiredSolid",
     tab: SidebarTabId.RESOURCES,
 });
 
