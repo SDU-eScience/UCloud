@@ -854,7 +854,7 @@ const GroupCard: React.FunctionComponent<{
                     onClick: () => props.handleDeleteGroup(props.group.id),
                     shortcut: ShortcutKey.E
                 }
-            ]} selected={[props.group]} hideShortcuts callbacks={undefined} />
+            ]} selected={[props.group]} callbacks={undefined} />
         </>}
     />;
 }
