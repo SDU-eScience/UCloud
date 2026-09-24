@@ -155,6 +155,15 @@ func PrivateNetworkCreate(network *orc.PrivateNetwork) *util.HttpError {
 		return err
 	}
 
+	snapshot, found := controller.PrivateNetworkSnapshotRetrieve(network.Id)
+	if !found || !snapshot.CidrBlock.Present || snapshot.CidrBlock.Value == "" {
+		return util.ServerHttpError("The private network has no allocated CIDR block")
+	}
+
+	if err := controller.PrivateNetworkUpdateCoreCidrBlock(network.Id, snapshot.CidrBlock.Value); err != nil {
+		return err
+	}
+
 	PrivateNetworkReconcileSoon()
 	return nil
 }

@@ -132,7 +132,7 @@ func PrivateNetworkReservationCreate(reservation *orc.PrivateNetworkIp) *util.Ht
 			return util.UserHttpError("The private network of this reservation no longer exists")
 		}
 
-		if network.State != PrivateNetworkStateReady {
+		if network.State != PrivateNetworkStateReady && network.State != PrivateNetworkStateProvisioning {
 			return privateNetworkBusinessRollback(
 				tx,
 				util.UserHttpError("The private network is not ready for reservations yet"),
