@@ -182,7 +182,7 @@ export function NetworkIPBrowse({
                     }
                 });
 
-                browser.on("renderStat4", (ip, stat) => {
+                browser.on("renderStat1", (ip, stat) => {
                     if (ip.status.boundTo.length === 1) {
                         const [boundTo] = ip.status.boundTo;
                         stat.innerText = boundTo;

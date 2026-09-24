@@ -234,7 +234,7 @@ export function PublicLinkBrowse({
                     }
                 });
 
-                browser.on("renderStat3", (link, stat) => {
+                browser.on("renderStat1", (link, stat) => {
                     if (link.status.boundTo.length === 1) {
                         const [boundTo] = link.status.boundTo;
                         stat.innerText = boundTo;
