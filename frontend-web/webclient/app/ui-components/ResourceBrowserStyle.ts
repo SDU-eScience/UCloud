@@ -373,7 +373,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
         ${BrowserClass.dot} .row {
             display: flex;
             flex-direction: row;
-            container-type: size;
+            container-type: inline-size;
             height: ${rowSize}px;
             width: 100%;
             align-items: center;
