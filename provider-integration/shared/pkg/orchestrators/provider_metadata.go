@@ -1,7 +1,9 @@
 package orchestrators
 
 import (
+	"mime"
 	"net/http"
+	"path/filepath"
 
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -64,7 +66,15 @@ var ProviderBrandingRetrieveImage = rpc.Call[ProviderBrandingImageRequest, []byt
 	Roles:       rpc.RolesPublic,
 	Operation:   "image",
 	CustomServerProducer: func(response []byte, err *util.HttpError, w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "image/*")
+		if err != nil {
+			http.Error(w, err.Why, err.StatusCode)
+			return
+		}
+
+		if contentType := mime.TypeByExtension(filepath.Ext(r.URL.Query().Get("name"))); contentType != "" {
+			w.Header().Set("Content-Type", contentType)
+		}
+		w.Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
 		w.Write(response)
 	},
 }

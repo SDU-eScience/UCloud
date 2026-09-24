@@ -32,7 +32,6 @@ import {createPortal, flushSync} from "react-dom";
 import {ProjectSwitcher, FilterInputClass, projectCache, fetchProjects} from "@/Project/ProjectSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {ProductType, ProductV2} from "@/Accounting";
-import ProviderInfo from "@/Assets/provider_info.json";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {divHtml, divText, image} from "@/Utilities/HTMLUtilities";
@@ -48,6 +47,7 @@ import {noopCall} from "@/Authentication/DataHook";
 import {ContainerSize, injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 import {sendInformationNotification} from "@/Notifications";
+import {providerBrandingStore, providerLogoUrl} from "@/ProviderBrandings/AutomaticProviderBranding";
 import ReactClient from "react-dom/client";
 import type {Root} from "react-dom/client";
 
@@ -727,12 +727,17 @@ export class ResourceBrowser<T> {
         }
 
 
+        const brandingUnsubscribe = providerBrandingStore.subscribe(() => {
+            this.renderRows();
+        });
+
         const unmountInterval = window.setInterval(() => {
             if (!this.root.isConnected) {
                 this.dispatchMessage("unmount", fn => fn());
                 if (this.isModal) ResourceBrowser.isAnyModalOpen = false;
                 removeThemeListener(this.uniqueListenerId);
                 removeProjectListener(this.uniqueListenerId);
+                brandingUnsubscribe();
                 this.actionBarRoot?.unmount();
                 this.actionBarRoot = undefined;
                 this.actionMenuRoot?.unmount();
@@ -1067,6 +1072,7 @@ export class ResourceBrowser<T> {
             this.rerender();
             this.rerenderUtilityIcons();
         });
+
         const path = this.initialPath;
         if (path !== undefined) {
             const evaluateProjectStatus = async (projectId?: string | null) => {
@@ -3726,8 +3732,8 @@ export function resourceCreationWithProductSelector<T>(
     return {startCreation, cancelCreation, portal};
 }
 
-export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclaration>, logo?: string): HTMLElement {
-    const myInfo: {logo: string} | undefined = logo ? {logo} : ProviderInfo.providers.find(p => p.id === providerId);
+export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclaration>, providedLogo?: string): HTMLElement {
+    const logo = providedLogo ?? providerBrandingStore.getProviderProperty(providerId, "logo");
     const outer = divHtml("");
     outer.className = "provider-icon";
     outer.style.background = "var(--secondaryMain)";
@@ -3742,9 +3748,9 @@ export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclarat
     inner.style.height = "100%";
     inner.style.fontSize = opts?.fontSize ?? "14px";
     inner.style.color = "white"
-    if (myInfo) {
+    if (logo) {
         outer.style.padding = "3px";
-        inner.style.backgroundImage = `url('/Images/${myInfo.logo}')`;
+        inner.style.backgroundImage = `url('${providerLogoUrl(logo)}')`;
         inner.style.backgroundPosition = "center";
     } else {
         inner.style.textAlign = "center";

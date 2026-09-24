@@ -83,7 +83,7 @@ import (
 
 const (
 	inferenceMaxConcurrent         = 4096
-	inferenceMaxConcurrentPerOwner = 8
+	inferenceMaxConcurrentPerOwner = 64
 	inferenceAdmissionQueueTimeout = 60 * time.Second
 
 	inferenceMaxJSONRequestBytes = 1024 * 1024 * 16

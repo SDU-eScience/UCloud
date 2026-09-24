@@ -23,7 +23,7 @@ import Tooltip from "./Tooltip";
 import {useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {AutomaticGiftClaim} from "@/Services/Gifts/AutomaticGiftClaim";
-import {AutomaticProviderBranding} from "@/ProviderBrandings/AutomaticProviderBranding";
+import {useProviderBrandings} from "@/ProviderBrandings/AutomaticProviderBranding";
 import Support from "./SupportBox";
 import {VersionManager} from "@/VersionManager/VersionManager";
 import Notification from "@/Notifications";
@@ -563,7 +563,6 @@ export function Sidebar(): React.ReactNode {
                     {/* (Typically) invisible elements here to run various background tasks */}
                     <AutomaticGiftClaim />
                     <VersionManager />
-                    <AutomaticProviderBranding />
                     <AutomaticBranding />
                 </>
 
@@ -614,6 +613,7 @@ function useSidebarFilesPage(): [
     const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>({noop: true}, {items: [], itemsPerPage: 0});
 
     const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
+    useProviderBrandings();
     const navigate = useNavigate();
 
     useProvideCommands(staticProvider(drives.data.items.map(d => ({

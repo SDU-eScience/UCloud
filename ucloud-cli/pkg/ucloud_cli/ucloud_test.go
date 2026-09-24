@@ -496,3 +496,84 @@ func TestCompletion(t *testing.T) {
 	err = cmd.Execute()
 	assert.Error(t, err)
 }
+
+func TestAppList(t *testing.T) {
+	input := []string{"app", "list", "--category", "slurm-hpc"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestAppCategories(t *testing.T) {
+	input := []string{"app", "categories"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestAppSearch(t *testing.T) {
+	input := []string{"app", "search"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestAppGet(t *testing.T) {
+	input := []string{"app", "get", "coder"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestComputeProducts(t *testing.T) {
+	input := []string{"compute", "products", "--provider", "k8s", "--verbose"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestSshKeyList(t *testing.T) {
+	input := []string{"ssh-key", "list"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestSshKeyAdd(t *testing.T) {
+	input := []string{"ssh-key", "add", "myfoobarkey", "/Users/danvu/.ssh/id_ed25519.pub"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestSshKeyGet(t *testing.T) {
+	input := []string{"ssh-key", "get", "myfoobarkey"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestSshKeyDelete(t *testing.T) {
+	input := []string{"ssh-key", "delete", "myfoobarkey"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
