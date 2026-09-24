@@ -401,7 +401,7 @@ export const ProductSelector: React.FunctionComponent<{
                             <>
                                 <Flex mt="4px" gap="24px" flexWrap={"wrap"} rowGap={"2px"} alignItems={"center"} className={MachineSelectorNameRowClass}>
                                     <Flex>{selected?.name}</Flex>
-                                    <Flex gap="12px" alignItems={"center"} className={MachineSelectorStatsRowClass}>
+                                    <Flex gap="12px" alignItems={"center"} className={MachineSelectorNameStatsClass}>
                                         <ProductStatsSummary product={selected as ProductV2Compute} />
                                     </Flex>
                                     <Box ml="auto" className={QueueStatusTextClass} px="8px" py="4px" backgroundColor={`var(--${queueStatusInfo.color})`} color="fixedWhite" borderRadius={"12px"}>{queueStatusInfo.message}</Box>
@@ -409,8 +409,11 @@ export const ProductSelector: React.FunctionComponent<{
                                 </Flex>
                                 {selected ? <Box mb="12px" className={MachineSelectorDetailsClass}>
                                     <ProductDescription className={MachineSelectorDescriptionClass} serviceProvider={selected.category.provider} category={selected.category.name} />
-                                    {selected.category.accountingFrequency === "ONCE" ?
-                                        <Box marginTop={2}>Price: {priceToString(selected, 1)}</Box> : null}
+                                    <Flex className={MachineSelectorDetailsStatsClass}>
+                                        <ProductStatsSummary product={selected as ProductV2Compute} />
+                                        {selected.category.accountingFrequency === "ONCE" ?
+                                            <div>Price: {priceToString(selected, 1)}</div> : null}
+                                    </Flex>
                                 </Box> : null}
                             </> :
                             <Flex alignItems={"center"} gap={"8px"}>
@@ -723,7 +726,7 @@ const ProductStatsSummary: React.FunctionComponent<{product: ProductV2Compute}> 
     const gpuType = product.fraction?.denominator !== 1 ? stupidPluralize(gpus, "MIG") : stupidPluralize(gpus, "GPU");
 
     return <>
-        <HardwareStatSummary model={product.cpuModel} label={stupidPluralize(product.cpu ?? 1, "vCPU")} icon={"heroCpuChip"}>
+        <HardwareStatSummary model={product.cpuModel} label={`${product.cpu ?? 1} ${stupidPluralize(product.cpu ?? 1, "vCPU")}`} icon={"heroCpuChip"}>
             {product.cpu}
         </HardwareStatSummary>
         <HardwareStatSummary model={product.memoryModel} label={`${product.memoryInGigs} GB RAM`} icon={"memorySolid"}>
@@ -751,7 +754,7 @@ const HardwareStatSummary: React.FunctionComponent<React.PropsWithChildren<{
         </Flex>
         <div className={HardwareStatFullRowClass}>
             <span style={{color: "var(--textSecondary)"}}>{props.label}</span>
-            {props.model ? <span className={HardwareStatModelClass} style={{color: "var(--textSecondary)"}}>({props.model})</span> : null}
+            {props.model ? <> <span className={HardwareStatModelClass} style={{color: "var(--textSecondary)"}}>({props.model})</span></> : null}
         </div>
     </div>
 }
@@ -951,7 +954,17 @@ const MachineSelectorDetailsClass = injectStyleSimple("machine-selector-details"
 
 const MachineSelectorDescriptionClass = injectStyleSimple("machine-selector-description", ``);
 
-const MachineSelectorStatsRowClass = injectStyleSimple("machine-selector-stats-row", ``);
+const MachineSelectorNameStatsClass = injectStyleSimple("machine-selector-name-stats", `
+    display: none;
+    align-items: center;
+`);
+
+const MachineSelectorDetailsStatsClass = injectStyleSimple("machine-selector-details-stats", `
+    gap: 32px;
+    align-items: flex-end;
+    margin-top: 16px;
+    flex-wrap: wrap;
+`);
 
 const MachineSelectorSliderClass = injectStyleSimple("machine-selector-slider", `
     margin: 16px 32px;
@@ -989,6 +1002,18 @@ const ProductSelectorContainerClass = injectStyleSimple("product-selector-contai
 
         .${MachineSelectorDetailsClass} {
             margin-bottom: 0;
+        }
+
+        .${MachineSelectorDetailsStatsClass} {
+            margin-top: 2px;
+        }
+
+        .${MachineSelectorDetailsStatsClass} .${HardwareStatSummaryClass} {
+            display: none;
+        }
+
+        .${MachineSelectorNameStatsClass} {
+            display: flex;
         }
 
         .${HardwareStatModelClass} {
