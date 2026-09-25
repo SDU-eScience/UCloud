@@ -9,22 +9,22 @@ import {UsageReport} from "@/Accounting/UsageCore2";
 import React, {useMemo, useState} from "react";
 import {ChartLabel, colorNames} from "@/Accounting/Diagrams/index";
 import {HTMLTooltipEx} from "@/ui-components/Tooltip";
-import {balanceToStringFromUnit, FrontendAccountingUnit, isCreditUnit} from "@/Accounting";
+import {balanceToStringFromUnit, FrontendAccountingUnit} from "@/Accounting";
 import {truncateText} from "@/ui-components/Truncate";
 
-export interface DeltaOverTimeChart {
+export interface AbsoluteOverTimeChart {
     chartRef: React.RefObject<SVGSVGElement | null>
     labels: ChartLabel[];
 }
 
-export function useDeltaOverTimeChart(
+export function useAbsoluteOverTimeChart(
     openReport: UsageReport | null | undefined,
     chartWidth: number,
     chartHeight: number,
     unit: FrontendAccountingUnit | null,
     childToLabel: (child: string | null) => string,
     childColors: Map<string, string>,
-): DeltaOverTimeChart {
+): AbsoluteOverTimeChart {
     const [childrenLabels, setChildrenLabels] = useState<ChartLabel[]>([]);
 
     const unitNormalizationFactor = unit?.balanceFactor ?? 1;
@@ -36,7 +36,7 @@ export function useDeltaOverTimeChart(
         const r = openReport;
         if (r == null) return;
 
-        let data = r.usageOverTime.delta;
+        let data = r.usageOverTime.childrenAbsolute;
         if (data.length === 0) return;
 
         // Dimensions and margin
@@ -74,10 +74,13 @@ export function useDeltaOverTimeChart(
         const domainSet = new Map<string, number>();
         for (const point of data) {
             const key = point.child ?? "";
+            if (key === "") {
+                continue
+            }
 
             domainSet.set(
                 key,
-                (domainSet.get(key) ?? 0) + point.change
+                (domainSet.get(key) ?? 0) + point.usage
             );
         }
 
@@ -87,10 +90,9 @@ export function useDeltaOverTimeChart(
 
         const byTimestampKey = group(data, d => d.timestamp, d => d.child ?? "");
 
-        // Split stack into positive and negative
         const keys = (union(data.map(it => it.child ?? "")))
 
-        const valueStack = stack<number>()
+        const positiveStack = stack<number>()
             .keys(keys)
             .value((ts, key) => {
                 const entries =
@@ -99,13 +101,17 @@ export function useDeltaOverTimeChart(
                         ?.get(key) ?? [];
 
                 return entries.reduce(
-                    (sum, d) => sum + Math.max(0, d.change),
+                    (sum, d) => {
+                        if (d.child != undefined || d.child != null) {
+                            return sum + d.usage
+                        }
+                        return sum
+                    },
                     0
                 );
             });
 
-
-        const series = valueStack(timestamps);
+        const series = positiveStack(timestamps);
 
         // Color scheme
         // -------------------------------------------------------------------------------------------------------------
@@ -132,7 +138,17 @@ export function useDeltaOverTimeChart(
                 tooltip.append(document.createElement("br"));
             }
 
-            for (const child of domain) {
+            const sortedChildren = domain
+                .map(child => ({
+                    child,
+                    usage: usageBucket.get(child)?.reduce(
+                        (sum, d) => sum + d.usage,
+                        0
+                    ) ?? 0,
+                }))
+                .sort((a, b) => b.usage - a.usage);
+
+            for (const {child, usage} of sortedChildren) {
                 const container = document.createElement("div");
                 container.style.display = "flex";
                 container.style.gap = "8px";
@@ -156,11 +172,14 @@ export function useDeltaOverTimeChart(
 
                 {
                     const node = document.createElement("div");
-                    const change = usageBucket.get(child)?.reduce(
-                        (sum, d) => sum + d.change,
-                        0
-                    ) ?? 0;
-                    node.append(balanceToStringFromUnit(null, unitName, change * unitNormalizationFactor));
+
+                    node.append(
+                        balanceToStringFromUnit(
+                            null,
+                            unitName,
+                            usage * unitNormalizationFactor
+                        )
+                    );
 
                     container.append(node);
                 }
@@ -251,16 +270,9 @@ export function useDeltaOverTimeChart(
         gXAxis.selectAll(".tick > text")
             .attr("style", "transform: translate(-20px, 20px) rotate(-45deg)");
 
-        const yAxis = axisLeft(yScale);
-        if (isCreditUnit(unitName)) {
-            yAxis.tickFormat(value => balanceToStringFromUnit(null, unitName, Number(value), {removeUnitIfPossible: true}));
-        } else {
-            yAxis.ticks(null, "s");
-        }
-
         const gYAxis = svg.append("g")
             .attr("transform", `translate(${margin.left}, ${margin.top})`)
-            .call(yAxis);
+            .call(axisLeft(yScale).ticks(null, "s"));
 
         gYAxis.select(".tick:last-of-type text")
             .clone()
@@ -278,7 +290,7 @@ export function useDeltaOverTimeChart(
     }, [openReport, chartWidth, chartHeight, childToLabel])
 
     // noinspection UnnecessaryLocalVariableJS
-    const result: DeltaOverTimeChart = useMemo(() => {
+    const result: AbsoluteOverTimeChart = useMemo(() => {
         return {
             chartRef: chart,
             labels: childrenLabels,

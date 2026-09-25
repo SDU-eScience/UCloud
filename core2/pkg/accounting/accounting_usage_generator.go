@@ -3,25 +3,56 @@ package accounting
 import (
 	"fmt"
 	"math/rand"
+	"sort"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
 
+type UsageGenProduct int
+
+const (
+	UsageGenProductCPUOne UsageGenProduct = iota
+	UsageGenProductCPUTwo
+	UsageGenProductStorage
+)
+
 type UsageGenApi struct {
-	AllocateEx  func(now, start, end int, quota int64, recipientRef, parentRef string)
-	ReportDelta func(now int, ownerRef string, usage int64)
+	AllocateEx  func(product UsageGenProduct, now, start, end int, quota int64, recipientRef, parentRef string)
+	ReportDelta func(product UsageGenProduct, now int, ownerRef string, usage int64)
 	Checkpoint  func(now int)
 }
 
+type storageTrend int
+
+const (
+	storageStable storageTrend = iota
+	storageGrowing
+	storageShrinking
+)
+
 type UsageGenProject struct {
-	Parent      string
-	Title       string
-	LocalUsage  int64
-	LocalUsage2 int64
-	Quota       int64
-	Level       int
-	Children    []*UsageGenProject
+	Parent string
+	Title  string
+
+	CPUGeneratedOne int64
+	CPUReportedOne  int64
+
+	CPUGeneratedTwo int64
+	CPUReportedTwo  int64
+
+	CPUQuota int64
+
+	StorageUsage  int64
+	StorageUsage2 int64
+	StorageQuota  int64
+
+	StorageTrend     storageTrend
+	StorageTrendDays int
+
+	Level    int
+	Children []*UsageGenProject
 }
 
 type usageGenerator struct {
@@ -31,10 +62,192 @@ type usageGenerator struct {
 	Root *UsageGenProject
 }
 
+type usageGenStorageEvent struct {
+	Minute int
+	Delta  int64
+}
+
+func storageGrowthDelta(g *usageGenerator, quota int64) int64 {
+	// Normal growth is 1-20% of quota.
+	minimum := max(1, quota/100)
+	maximum := max(minimum+1, quota/5)
+
+	delta := minimum + g.Rng.Int63n(maximum-minimum)
+
+	// Occasionally grow past quota to test over-quota usage.
+	if g.Rng.Float64() < 0.10 {
+		delta += quota / 20 // +5% quota
+	}
+
+	return delta
+}
+
+func storageReleaseDelta(g *usageGenerator, currentUsage int64) int64 {
+	if currentUsage <= 0 {
+		return 0
+	}
+
+	minimum := int64(1)
+	maximum := max(minimum+1, currentUsage/2)
+
+	return minimum + g.Rng.Int63n(maximum-minimum)
+}
+
+func chooseStorageTrend(g *usageGenerator, project *UsageGenProject) {
+	// Keep the current trend for several days.
+	if project.StorageTrendDays > 0 {
+		project.StorageTrendDays--
+		return
+	}
+
+	switch {
+	case project.StorageUsage < project.StorageQuota/10:
+		project.StorageTrend = storageGrowing
+
+	case project.StorageUsage > project.StorageQuota*12/10:
+		project.StorageTrend = storageShrinking
+
+	default:
+		switch g.Rng.Intn(3) {
+		case 0:
+			project.StorageTrend = storageGrowing
+		case 1:
+			project.StorageTrend = storageStable
+		case 2:
+			project.StorageTrend = storageShrinking
+		}
+	}
+
+	// Keep this trend for 3-5 days.
+	project.StorageTrendDays = 3 + g.Rng.Intn(2)
+}
+
+func usageGenGenerateStorage(
+	g *usageGenerator,
+	project *UsageGenProject,
+	startMinute int,
+	endMinute int,
+) []usageGenStorageEvent {
+	quota := project.StorageQuota
+	if quota <= 0 {
+		return nil
+	}
+
+	eventCount := 1 + g.Rng.Intn(9)
+
+	minutes := make([]int, eventCount)
+	for i := range minutes {
+		minutes[i] = startMinute + g.Rng.Intn(max(1, endMinute-startMinute))
+	}
+
+	sort.Ints(minutes)
+
+	events := make([]usageGenStorageEvent, 0, eventCount)
+	currentUsage := project.StorageUsage
+
+	for _, minute := range minutes {
+		var delta int64
+
+		switch project.StorageTrend {
+		case storageGrowing:
+			delta = storageGrowthDelta(g, quota)
+
+		case storageShrinking:
+			delta = -storageReleaseDelta(g, currentUsage)
+
+		case storageStable:
+			if g.Rng.Float64() < 0.5 {
+				delta = storageGrowthDelta(g, quota) / 4
+			} else {
+				delta = -storageReleaseDelta(g, currentUsage) / 4
+			}
+		}
+
+		if currentUsage+delta < 0 {
+			delta = -currentUsage
+		}
+
+		currentUsage += delta
+
+		events = append(events, usageGenStorageEvent{
+			Minute: minute,
+			Delta:  delta,
+		})
+	}
+
+	return events
+}
+
 type usageGenJob struct {
 	StartMinute int
 	EndMinute   int
 	CoreCount   int
+}
+
+func usageGenRandomJob(
+	g *usageGenerator,
+	minutesRemaining int64,
+	isWeekend bool,
+) usageGenJob {
+	coreCountsToSample := []int{
+		1,
+		2, 2, 2, 2, 2, 2, 2,
+		4, 4, 4, 4, 4, 4, 4, 4, 4,
+		8,
+		16,
+		32, 32, 32, 32, 32, 32, 32,
+		64, 64, 64, 64, 64, 64, 64,
+		128,
+		256,
+		512,
+		1024,
+	}
+
+	coreCount := coreCountsToSample[g.Rng.Intn(len(coreCountsToSample))]
+
+	var durationMinutes int
+
+	u := g.Rng.Float64()
+	if u < 0.8 {
+		durationMinutes = 30 + g.Rng.Intn(450)
+	} else if u < 0.99 {
+		durationMinutes = 240 + g.Rng.Intn(720)
+	} else {
+		durationMinutes = 960 + g.Rng.Intn(240)
+	}
+
+	if isWeekend {
+		durationMinutes = int(float64(durationMinutes) * 0.6)
+	}
+
+	if minutesRemaining < int64(durationMinutes*coreCount) {
+		durationMinutes = int(minutesRemaining) / coreCount
+	}
+
+	if durationMinutes <= 0 {
+		return usageGenJob{}
+	}
+
+	startOfDay := 0
+
+	u = g.Rng.Float64()
+	if u < 0.45 {
+		startOfDay = 9*60 + g.Rng.Intn(60)
+	} else if u < 0.9 {
+		startOfDay = 13*60 + g.Rng.Intn(60)
+	} else {
+		startOfDay = g.Rng.Intn(1440)
+	}
+
+	if startOfDay+durationMinutes > 1440 {
+		startOfDay = 1440 - durationMinutes
+	}
+
+	return usageGenJob{
+		StartMinute: startOfDay,
+		EndMinute:   startOfDay + durationMinutes,
+		CoreCount:   coreCount,
+	}
 }
 
 func UsageGenGenerate(api UsageGenApi, cfg accapi.UsageGenConfig) *UsageGenProject {
@@ -43,14 +256,21 @@ func UsageGenGenerate(api UsageGenApi, cfg accapi.UsageGenConfig) *UsageGenProje
 		Rng: rand.New(rand.NewSource(cfg.Seed)),
 		Cfg: cfg,
 		Root: &UsageGenProject{
-			Parent: "",
-			Title:  "UGTest",
-			Level:  -1,
-			Quota:  600_000 * int64(cfg.Days),
+			Parent:   "",
+			Title:    "UGTest",
+			Level:    -1,
+			CPUQuota: 600_000 * int64(cfg.Days),
 		},
 	}
 
-	g.Api.AllocateEx(0, 0, 1440*cfg.Days, g.Root.Quota, g.Root.Title, g.Root.Parent)
+	g.Api.AllocateEx(UsageGenProductCPUOne, 0, 0, 1440*cfg.Days, g.Root.CPUQuota, g.Root.Title, g.Root.Parent)
+	g.Api.AllocateEx(UsageGenProductCPUTwo, 0, 0, 1440*cfg.Days, g.Root.CPUQuota, g.Root.Title, g.Root.Parent)
+
+	storageRootQuota := int64(100_000)
+
+	g.Root.StorageQuota = storageRootQuota
+
+	g.Api.AllocateEx(UsageGenProductStorage, 0, 0, 1440*cfg.Days, storageRootQuota, g.Root.Title, g.Root.Parent)
 
 	{
 		// Generate projects
@@ -119,112 +339,160 @@ func UsageGenGenerate(api UsageGenApi, cfg accapi.UsageGenConfig) *UsageGenProje
 			}
 		}
 
-		activeJobsPerProject := map[string][]usageGenJob{}
+		activeJobsPerProjectOne := map[string][]usageGenJob{}
+		activeJobsPerProjectTwo := map[string][]usageGenJob{}
 		for _, project := range activeProjectsToday {
-			minutesRemainingOverall := project.Quota
+			minutesRemainingOverall := project.CPUQuota
+
 			if len(project.Children) > 0 {
 				minutesRemainingOverall /= 2
 			}
 
-			minutesRemainingOverall -= project.LocalUsage
+			minutesRemainingOverall -= project.CPUGeneratedOne
 
-			if minutesRemainingOverall <= 0 {
-				continue
+			if minutesRemainingOverall > 0 {
+				jobsToday := 1 + g.Rng.Intn(4)
+
+				for i := 0; i < jobsToday; i++ {
+					job := usageGenRandomJob(g, minutesRemainingOverall, isWeekend)
+
+					if job.EndMinute > job.StartMinute {
+						usage := int64(job.EndMinute-job.StartMinute) * int64(job.CoreCount)
+
+						project.CPUGeneratedOne += usage
+						activeJobsPerProjectOne[project.Title] =
+							append(activeJobsPerProjectOne[project.Title], job)
+
+						jobsCreated++
+					}
+				}
 			}
 
-			jobsToday := 1 + g.Rng.Intn(4)
-			for i := 0; i < jobsToday; i++ {
-				coreCountsToSample := []int{1, 2, 2, 2, 2, 2, 2, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8, 16, 32, 32, 32,
-					32, 32, 32, 32, 64, 64, 64, 64, 64, 64, 64, 64, 128, 256, 512, 1024}
+			// Generate an independent set of jobs for CPU Two.
+			minutesRemainingOverall = project.CPUQuota
 
-				durationMinutes := 0
-				coreCount := coreCountsToSample[g.Rng.Intn(len(coreCountsToSample))]
+			if len(project.Children) > 0 {
+				minutesRemainingOverall /= 2
+			}
 
-				{
-					u := g.Rng.Float64()
-					if u < 0.8 {
-						durationMinutes = 30 + g.Rng.Intn(450) // 0.5 hours to 8 hours
-					} else if u < 0.99 {
-						durationMinutes = 240 + g.Rng.Intn(720) // 4 hours to 16 hours
-					} else {
-						durationMinutes = 960 + g.Rng.Intn(240) // 16 hours to 20 hours
+			minutesRemainingOverall -= project.CPUGeneratedTwo
+
+			if minutesRemainingOverall > 0 {
+				jobsToday := 1 + g.Rng.Intn(4)
+
+				for i := 0; i < jobsToday; i++ {
+					job := usageGenRandomJob(g, minutesRemainingOverall, isWeekend)
+
+					if job.EndMinute > job.StartMinute {
+						usage := int64(job.EndMinute-job.StartMinute) * int64(job.CoreCount)
+
+						project.CPUGeneratedTwo += usage
+						activeJobsPerProjectTwo[project.Title] =
+							append(activeJobsPerProjectTwo[project.Title], job)
+
+						jobsCreated++
 					}
-				}
-
-				if isWeekend {
-					durationMinutes = int(float64(durationMinutes) * 0.6)
-				}
-
-				if int(minutesRemainingOverall) < durationMinutes*coreCount {
-					durationMinutes = int(minutesRemainingOverall) / coreCount
-				}
-
-				if durationMinutes > 0 {
-					startOfDay := 0
-					{
-						u := g.Rng.Float64()
-						if u < 0.45 {
-							// Peak at 09:00-10:00
-							startOfDay = 9*60 + g.Rng.Intn(60)
-						} else if u < 0.9 {
-							// Peak at 13:00-14:00
-							startOfDay = 13*60 + g.Rng.Intn(60)
-						} else {
-							// Random throughout the day
-							startOfDay = g.Rng.Intn(1440)
-						}
-					}
-
-					if startOfDay+durationMinutes > 1440 {
-						startOfDay = 1440 - durationMinutes
-					}
-
-					project.LocalUsage += int64(durationMinutes * coreCount)
-					activeJobsPerProject[project.Title] = append(activeJobsPerProject[project.Title], usageGenJob{
-						StartMinute: startOfDay,
-						EndMinute:   startOfDay + durationMinutes,
-						CoreCount:   coreCount,
-					})
-					jobsCreated++
 				}
 			}
 		}
 
 		startOfDay := day * 1440
 		endOfDay := (day + 1) * 1440
+
+		storageEvents := map[string][]usageGenStorageEvent{}
+
+		for _, project := range activeProjectsToday {
+			chooseStorageTrend(g, project)
+
+			storageEvents[project.Title] = usageGenGenerateStorage(
+				g,
+				project,
+				startOfDay,
+				endOfDay,
+			)
+		}
+
 		minuteStep := g.Cfg.ReportingInterval
 		if minuteStep == 0 {
 			minuteStep = 5
+		}
+
+		checkpointInterval := cfg.CheckpointInterval
+		if checkpointInterval == 0 {
+			checkpointInterval = 60 // whatever default makes sense
 		}
 
 		for minute := startOfDay; minute <= endOfDay; minute += minuteStep {
 			minuteOfDay := minute - startOfDay
 
 			for _, project := range activeProjectsToday {
-				myJobs := activeJobsPerProject[project.Title]
+				myJobs := activeJobsPerProjectOne[project.Title]
 				for _, job := range myJobs {
 					tickStart := minuteOfDay
 					tickEnd := minuteOfDay + minuteStep
 
-					overlapStart := tickStart
-					if job.StartMinute > overlapStart {
-						overlapStart = job.StartMinute
-					}
-					overlapEnd := tickEnd
-					if job.EndMinute < overlapEnd {
-						overlapEnd = job.EndMinute
-					}
+					overlapStart := max(job.StartMinute, tickStart)
+					overlapEnd := min(job.EndMinute, tickEnd)
 
 					if overlapEnd > overlapStart {
 						slice := overlapEnd - overlapStart
 						usageInPeriod := int64(slice * job.CoreCount)
-						project.LocalUsage2 += usageInPeriod
-						api.ReportDelta(minute, project.Title, usageInPeriod)
+						project.CPUReportedOne += usageInPeriod
+						api.ReportDelta(UsageGenProductCPUOne, minute, project.Title, usageInPeriod)
 					}
+				}
+
+				myJobs = activeJobsPerProjectTwo[project.Title]
+				for _, job := range myJobs {
+					tickStart := minuteOfDay
+					tickEnd := minuteOfDay + minuteStep
+
+					overlapStart := max(job.StartMinute, tickStart)
+					overlapEnd := min(job.EndMinute, tickEnd)
+
+					if overlapEnd > overlapStart {
+						slice := overlapEnd - overlapStart
+						usageInPeriod := int64(slice * job.CoreCount)
+						project.CPUReportedTwo += usageInPeriod
+						api.ReportDelta(UsageGenProductCPUTwo, minute, project.Title, usageInPeriod)
+					}
+				}
+
+				for _, event := range storageEvents[project.Title] {
+					if event.Minute < minute {
+						continue
+					}
+
+					if event.Minute >= minute+minuteStep {
+						break
+					}
+
+					delta := event.Delta
+
+					if delta < 0 {
+						maxRelease := project.StorageUsage
+						if -delta > maxRelease {
+							delta = -maxRelease
+						}
+					}
+
+					if delta == 0 {
+						continue
+					}
+
+					project.StorageUsage += delta
+					project.StorageUsage2 += delta
+
+					api.ReportDelta(
+						UsageGenProductStorage,
+						minute,
+						project.Title,
+						delta,
+					)
 				}
 			}
 
-			if minute%cfg.CheckpointInterval == 0 {
+			if minute%checkpointInterval == 0 {
 				api.Checkpoint(minute)
 			}
 		}
@@ -245,20 +513,28 @@ func usageGenAllocateProjects(g *usageGenerator, parent *UsageGenProject, breadt
 			weights[i] = w
 			sum += w
 		}
+
 		for i := range weights {
 			weights[i] /= sum
 		}
 	}
 
 	baseTitle := parent.Title + "_"
+
 	for i := 0; i < breadth; i++ {
+		cpuQuota := int64(float64(parent.CPUQuota) * weights[i] / 2.0)
+		storageQuota := int64(float64(parent.StorageQuota) * weights[i] / 2.0)
+
 		child := &UsageGenProject{
-			Parent:   parent.Title,
-			Title:    baseTitle + fmt.Sprint(i),
-			Quota:    int64(float64(parent.Quota) * weights[i] / 2.0),
-			Level:    parent.Level + 1,
-			Children: nil,
+			Parent: parent.Title,
+			Title:  baseTitle + fmt.Sprint(i),
+
+			CPUQuota:     cpuQuota,
+			StorageQuota: storageQuota,
+
+			Level: parent.Level + 1,
 		}
+
 		parent.Children = append(parent.Children, child)
 
 		if g.Cfg.Expiration {
@@ -267,12 +543,73 @@ func usageGenAllocateProjects(g *usageGenerator, parent *UsageGenProject, breadt
 
 			for remainingDays > 0 {
 				count := min(remainingDays, 1+g.Rng.Intn(2))
-				g.Api.AllocateEx(1440*currentDay, 1440*currentDay, (1440*(currentDay+count))-1, child.Quota, child.Title, child.Parent)
+
+				start := 1440 * currentDay
+				end := (1440 * (currentDay + count)) - 1
+
+				g.Api.AllocateEx(
+					UsageGenProductCPUOne,
+					start,
+					start,
+					end,
+					child.CPUQuota,
+					child.Title,
+					child.Parent,
+				)
+
+				g.Api.AllocateEx(
+					UsageGenProductCPUTwo,
+					start,
+					start,
+					end,
+					child.CPUQuota,
+					child.Title,
+					child.Parent,
+				)
+
+				g.Api.AllocateEx(
+					UsageGenProductStorage,
+					start,
+					start,
+					end,
+					child.StorageQuota,
+					child.Title,
+					child.Parent,
+				)
+
 				currentDay += count
 				remainingDays -= count
 			}
 		} else {
-			g.Api.AllocateEx(0, 0, 1440*g.Cfg.Days, child.Quota, child.Title, child.Parent)
+			g.Api.AllocateEx(
+				UsageGenProductCPUOne,
+				0,
+				0,
+				1440*g.Cfg.Days,
+				child.CPUQuota,
+				child.Title,
+				child.Parent,
+			)
+
+			g.Api.AllocateEx(
+				UsageGenProductCPUTwo,
+				0,
+				0,
+				1440*g.Cfg.Days,
+				child.CPUQuota,
+				child.Title,
+				child.Parent,
+			)
+
+			g.Api.AllocateEx(
+				UsageGenProductStorage,
+				0,
+				0,
+				1440*g.Cfg.Days,
+				child.StorageQuota,
+				child.Title,
+				child.Parent,
+			)
 		}
 	}
 }

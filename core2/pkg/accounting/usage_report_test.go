@@ -33,14 +33,14 @@ func TestUsageGenSimulation(t *testing.T) {
 	checkpointCalls := 0
 
 	api := UsageGenApi{
-		AllocateEx: func(now, start, end int, quota int64, recipientRef, parentRef string) {
+		AllocateEx: func(product UsageGenProduct, now, start, end int, quota int64, recipientRef, parentRef string) {
 			allocateCalls++
 			if parentRef == "" {
 				roots = util.AppendUnique(roots, recipientRef)
 			}
 			e.AllocateEx(now, start, end, quota, recipientRef, parentRef)
 		},
-		ReportDelta: func(now int, ownerRef string, usage int64) {
+		ReportDelta: func(product UsageGenProduct, now int, ownerRef string, usage int64) {
 			reportCalls++
 			reported += usage
 			e.ReportDelta(now, ownerRef, usage)
@@ -85,6 +85,11 @@ func TestUsageGenSimulation(t *testing.T) {
 		w := e.Wallet(owner, timeAtEnd)
 		dashboards := usageRetrieveHistoricReports(e.Tm(0), timeAtEnd, w)
 
+		reportsWithProduct := make([]internalUsageReportWithProduct, 0, len(dashboards))
+		for _, re := range dashboards {
+			reportsWithProduct = append(reportsWithProduct, internalUsageReportWithProduct{e.Bucket.Category, re})
+		}
+
 		tempDir, _ := os.MkdirTemp("", "")
 		for _, dashboard := range dashboards {
 			pretty, _ := json.MarshalIndent(dashboard, "", "    ")
@@ -93,7 +98,7 @@ func TestUsageGenSimulation(t *testing.T) {
 
 		log.Info("-----------------------")
 
-		collapsed := usageCollapseReports(dashboards)
+		collapsed := usageCollapseReports(reportsWithProduct)
 		{
 			pretty, _ := json.MarshalIndent(collapsed, "", "    ")
 			_ = os.WriteFile(filepath.Join(tempDir, "combined.json"), pretty, 0660)
@@ -103,7 +108,7 @@ func TestUsageGenSimulation(t *testing.T) {
 		log.Info("-----------------------")
 
 		for _, point := range collapsed.UsageOverTime.Absolute {
-			fmt.Printf("%v,%v,%v\n", point.Timestamp.Format(time.DateTime), point.Usage, point.UtilizationPercent100)
+			fmt.Printf("%v,%v,%v\n", point.Timestamp.Format(time.DateTime), point.Usage, point.Quota)
 		}
 
 		fmt.Printf("\n\n")

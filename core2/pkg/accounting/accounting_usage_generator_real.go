@@ -13,10 +13,10 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-var usageGenTimeBased = accapi.ProductV2{
+var usageGenTimeBasedCPUOne = accapi.ProductV2{
 	Type: accapi.ProductTypeCCompute,
 	Category: accapi.ProductCategory{
-		Name:        "cpu",
+		Name:        "cpu-zen-4",
 		Provider:    "usagegen",
 		ProductType: accapi.ProductTypeCompute,
 		AccountingUnit: accapi.AccountingUnit{
@@ -29,8 +29,33 @@ var usageGenTimeBased = accapi.ProductV2{
 		FreeToUse:           false,
 		AllowSubAllocations: true,
 	},
-	Name:                      "cpu",
-	Description:               "CPU product for usage gen",
+	Name:                      "cpu-zen-4",
+	Description:               "CPUOne product for usage gen ",
+	ProductType:               accapi.ProductTypeCompute,
+	Price:                     1,
+	HiddenInGrantApplications: true,
+	Cpu:                       1,
+	MemoryInGigs:              1,
+}
+
+var usageGenTimeBasedCPUTwo = accapi.ProductV2{
+	Type: accapi.ProductTypeCCompute,
+	Category: accapi.ProductCategory{
+		Name:        "dual-core",
+		Provider:    "usagegen",
+		ProductType: accapi.ProductTypeCompute,
+		AccountingUnit: accapi.AccountingUnit{
+			Name:                   "Core",
+			NamePlural:             "Core",
+			FloatingPoint:          false,
+			DisplayFrequencySuffix: true,
+		},
+		AccountingFrequency: accapi.AccountingFrequencyPeriodicMinute,
+		FreeToUse:           false,
+		AllowSubAllocations: true,
+	},
+	Name:                      "dual-core",
+	Description:               "CPUTwo product for usage gen",
 	ProductType:               accapi.ProductTypeCompute,
 	Price:                     1,
 	HiddenInGrantApplications: true,
@@ -59,7 +84,8 @@ var usageGenCapacityBased = accapi.ProductV2{
 }
 
 var usageGenProducts = []accapi.ProductV2{
-	usageGenTimeBased,
+	usageGenTimeBasedCPUOne,
+	usageGenTimeBasedCPUTwo,
 	usageGenCapacityBased,
 }
 
@@ -90,8 +116,10 @@ func initUsageGenerator() {
 }
 
 func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpError {
-	timeStart := util.StartOfDayUTC(time.Now()).AddDate(0, -6, 0)
-	timeEnd := util.StartOfDayUTC(time.Now()).AddDate(0, 1, 0)
+	today := util.StartOfDayUTC(time.Now())
+
+	timeStart := today.AddDate(0, 0, -request.Days)
+	timeEnd := today.AddDate(0, 1, 0)
 
 	titleBase := fmt.Sprintf("usegen_%v", time.Now().Format(time.DateTime))
 
@@ -105,7 +133,7 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 		return util.HttpErr(http.StatusInternalServerError, "could not create root project: %s", err)
 	}
 
-	providerId := rpc.ProviderId(usageGenTimeBased.Category.Provider)
+	providerId := rpc.ProviderId(usageGenTimeBasedCPUOne.Category.Provider)
 
 	providerActor := actor
 	providerActor.Project = util.OptValue(rpc.ProjectId(rootProject.Id))
@@ -137,12 +165,10 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 		return timeStart.Add(time.Duration(when) * time.Minute)
 	}
 
-	b := internalBucketOrInit(usageGenTimeBased.Category)
-
 	apiBaseTitle := ""
 	var apiFailure *util.HttpError = nil
 	api := UsageGenApi{
-		AllocateEx: func(now, start, end int, quota int64, recipientRef, parentRef string) {
+		AllocateEx: func(product UsageGenProduct, now, start, end int, quota int64, recipientRef, parentRef string) {
 			if apiFailure != nil {
 				return
 			}
@@ -152,6 +178,29 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 				projectsByRef[recipientRef] = rootProject.Id
 				return
 			}
+
+			var category accapi.ProductCategory
+
+			switch product {
+			case UsageGenProductCPUOne:
+				category = usageGenTimeBasedCPUOne.Category
+
+			case UsageGenProductCPUTwo:
+				category = usageGenTimeBasedCPUTwo.Category
+
+			case UsageGenProductStorage:
+				category = usageGenCapacityBased.Category
+
+			default:
+				apiFailure = util.HttpErr(
+					http.StatusInternalServerError,
+					"unknown usage generator product: %v",
+					product,
+				)
+				return
+			}
+
+			bucket := internalBucketOrInit(category)
 
 			nowTime := tm(now)
 			startTime := tm(start)
@@ -164,32 +213,35 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 			// ---------------------------------------------------------------------------------------------------------
 			suffixTitle, _ := strings.CutPrefix(recipientRef, apiBaseTitle)
 
-			subProject, err := fndapi.ProjectInternalCreate.Invoke(fndapi.ProjectInternalCreateRequest{
-				Title:      titleBase + suffixTitle,
-				BackendId:  titleBase + suffixTitle,
-				PiUsername: actor.Username,
-			})
+			projectId, exists := projectsByRef[recipientRef]
+			if !exists {
+				subProject, err := fndapi.ProjectInternalCreate.Invoke(fndapi.ProjectInternalCreateRequest{
+					Title:      titleBase + suffixTitle,
+					BackendId:  titleBase + suffixTitle,
+					PiUsername: actor.Username,
+				})
+				if err != nil {
+					apiFailure = err
+					return
+				}
 
-			if err != nil {
-				apiFailure = err
-				return
+				projectId = subProject.Id
+				projectsByRef[recipientRef] = projectId
 			}
-
-			projectsByRef[recipientRef] = subProject.Id
 
 			// Allocate resources from parent
 			// ---------------------------------------------------------------------------------------------------------
-			recipientOwner := internalOwnerByReference(subProject.Id)
-			recipientWallet := internalWalletByOwner(b, nowTime, recipientOwner.Id)
+			recipientOwner := internalOwnerByReference(projectId)
+			recipientWallet := internalWalletByOwner(bucket, nowTime, recipientOwner.Id)
 
 			parentId := projectsByRef[parentRef]
 			senderOwner := internalOwnerByReference(parentId)
-			senderWallet := internalWalletByOwner(b, nowTime, senderOwner.Id)
+			senderWallet := internalWalletByOwner(bucket, nowTime, senderOwner.Id)
 
-			log.Info("Allocating %v -> %v (%v -> %v): %v", parentId, subProject.Id, senderWallet, recipientWallet, quota)
+			log.Info("Allocating %v -> %v (%v -> %v): %v", parentId, projectId, senderWallet, recipientWallet, quota)
 
 			var allocId accAllocId
-			allocId, err = internalAllocateNoCommit(nowTime, b, startTime, endTime, quota, recipientWallet,
+			allocId, err = internalAllocateNoCommit(nowTime, bucket, startTime, endTime, quota, recipientWallet,
 				senderWallet, util.OptNone[accGrantId]())
 
 			if err != nil {
@@ -197,7 +249,7 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 				return
 			}
 
-			internalCommitAllocation(b, allocId)
+			internalCommitAllocation(bucket, allocId)
 
 			maxUsable, ok := internalMaxUsable(nowTime, recipientWallet)
 			if ok && maxUsable == 0 {
@@ -205,14 +257,36 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 			}
 		},
 
-		ReportDelta: func(now int, ownerRef string, usage int64) {
+		ReportDelta: func(product UsageGenProduct, now int, ownerRef string, usage int64) {
 			if apiFailure != nil {
 				return
 			}
 
+			var category accapi.ProductCategory
+
+			switch product {
+			case UsageGenProductCPUOne:
+				category = usageGenTimeBasedCPUOne.Category
+
+			case UsageGenProductCPUTwo:
+				category = usageGenTimeBasedCPUTwo.Category
+
+			case UsageGenProductStorage:
+				category = usageGenCapacityBased.Category
+
+			default:
+				apiFailure = util.HttpErr(
+					http.StatusInternalServerError,
+					"unknown usage generator product: %v",
+					product,
+				)
+				return
+			}
+			bucket := internalBucketOrInit(category)
+
 			nowTime := tm(now)
 			owner := internalOwnerByReference(projectsByRef[ownerRef])
-			wallet := internalWalletByOwner(b, nowTime, owner.Id)
+			wallet := internalWalletByOwner(bucket, nowTime, owner.Id)
 			maxUsable, ok := internalMaxUsable(nowTime, wallet)
 			if ok && maxUsable == 0 {
 				log.Info("delta: max usable is now %v", maxUsable)
@@ -221,7 +295,7 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 			_, err := internalReportUsage(nowTime, accapi.ReportUsageRequest{
 				IsDeltaCharge: true,
 				Owner:         owner.WalletOwner(),
-				CategoryIdV2:  usageGenTimeBased.Category.ToId(),
+				CategoryIdV2:  category.ToId(),
 				Usage:         usage,
 				Description:   accapi.ChargeDescription{},
 			})
@@ -239,11 +313,21 @@ func usageGenReal(actor rpc.Actor, request accapi.UsageGenConfig) *util.HttpErro
 			nowTime := tm(now)
 
 			accountingProcessTasksNow(nowTime, func(bucket *internalBucket) bool {
-				return b.Category.Name == bucket.Category.Name && b.Category.Provider == bucket.Category.Provider
+				return (bucket.Category.Name == usageGenTimeBasedCPUOne.Category.Name &&
+					bucket.Category.Provider == usageGenTimeBasedCPUOne.Category.Provider) ||
+					(bucket.Category.Name == usageGenTimeBasedCPUTwo.Category.Name &&
+					bucket.Category.Provider == usageGenTimeBasedCPUTwo.Category.Provider) ||
+					(bucket.Category.Name == usageGenCapacityBased.Category.Name &&
+						bucket.Category.Provider == usageGenCapacityBased.Category.Provider)
 			})
 
 			usageSampleEx(nowTime, func(cat accapi.ProductCategory) bool {
-				return b.Category.Name == cat.Name && b.Category.Provider == cat.Provider
+				return (cat.Name == usageGenTimeBasedCPUOne.Category.Name &&
+					cat.Provider == usageGenTimeBasedCPUOne.Category.Provider) ||
+					(cat.Name == usageGenTimeBasedCPUTwo.Category.Name &&
+					cat.Provider == usageGenTimeBasedCPUTwo.Category.Provider) ||
+					(cat.Name == usageGenCapacityBased.Category.Name &&
+						cat.Provider == usageGenCapacityBased.Category.Provider)
 			})
 		},
 	}
