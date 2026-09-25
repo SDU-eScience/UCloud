@@ -314,6 +314,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 	var bottom []ucx.UiNode
 	if inDetail {
 		main = []ucx.UiNode{app.resourceDetailNode(detail)}
+		bottom = append(bottom, app.resourceDetailBottomNode(detail))
 	} else {
 		var tableActions []ucx.ResourceTableAction
 		if app.ActiveType == "nodes" {
@@ -493,6 +494,10 @@ func (app *stackUiApp) namespaceSelectorNode() ucx.UiNode {
 }
 
 func (app *stackUiApp) resourceDetailNode(detail string) ucx.UiNode {
+	return ucx.CodeBoundEx("resourceYaml", "resourceYaml").WithLang("yaml").WithStretch()
+}
+
+func (app *stackUiApp) resourceDetailBottomNode(detail string) ucx.UiNode {
 	parts := strings.Split(detail, "/")
 	typeId := parts[0]
 	namespace := ""
@@ -509,19 +514,15 @@ func (app *stackUiApp) resourceDetailNode(detail string) ucx.UiNode {
 		label = def.Label
 	}
 
-	return ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).
-		Children(
-			ucx.CodeBoundEx("resourceYaml", "resourceYaml").WithLang("yaml").WithStretch(),
-			ucx.Toolbar().Children(
-				ucx.ButtonEx("backToTable", "Back to table", ucx.ColorSecondaryMain, ucx.IconHeroArrowLeft, "", "").ButtonEscapeHint(true).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-					ucxsvc.RouterPushPage(app, "")
-				}),
-				ucx.Box(),
-				ucx.Text(name).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
-				ucx.Text(namespace).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
-				ucx.Text(label).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
-			),
-		)
+	return ucx.Toolbar().Children(
+		ucx.ButtonEx("backToTable", "Back to table", ucx.ColorSecondaryMain, ucx.IconHeroArrowLeft, "", "").ButtonEscapeHint(true).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+			ucxsvc.RouterPushPage(app, "")
+		}),
+		ucx.Box(),
+		ucx.Text(name).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+		ucx.Text(namespace).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+		ucx.Text(label).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+	)
 }
 
 func (app *stackUiApp) handleRowActivated(tableId string, namespace string, name string) {

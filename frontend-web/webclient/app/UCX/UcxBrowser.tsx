@@ -258,6 +258,7 @@ interface UcxBrowserLayoutProps {
     children?: React.ReactNode;
     sx?: React.CSSProperties;
     onEscape?: () => void;
+    autoFocusOnPageChange?: boolean;
 }
 
 const UcxBrowserFocusContentContext = React.createContext<(() => void) | null>(null);
@@ -295,11 +296,20 @@ export const UcxBrowserLayout: React.FunctionComponent<UcxBrowserLayoutProps> = 
         focusPane("content");
     }, [focusPane]);
 
+    const autoFocusOnPageChange = props.autoFocusOnPageChange !== false;
+
     useEffect(() => {
-        if (document.activeElement !== document.body) return;
+        if (!autoFocusOnPageChange) return;
         if (document.querySelector("[data-ucx-browser]") !== rootRef.current) return;
+
+        const active = document.activeElement;
+        const focusOnPane = active instanceof HTMLElement
+            && active.getAttribute("data-ucx-pane") != null
+            && rootRef.current?.contains(active);
+        if (active !== document.body && !focusOnPane) return;
+
         focusPane("content");
-    }, [focusPane]);
+    }, [autoFocusOnPageChange, focusPane, props.children]);
 
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
