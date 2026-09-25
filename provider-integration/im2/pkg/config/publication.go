@@ -79,6 +79,12 @@ func parsePublication(filePath string, node *yaml.Node) (bool, PublicationConfig
 		cfgutil.Decode(filePath, allowedOrgIdsNode, &cfg.AllowedOrgIds, &success)
 	}
 
+	if len(cfg.AllowedOrgIds) == 0 {
+		cfgutil.ReportError(filePath, allowedOrgIdsNode,
+			"allowedOrgIds must contain at least one organization when publication is enabled")
+		success = false
+	}
+
 	targetNode := cfgutil.RequireChild(filePath, node, "target", &success)
 	cfg.Target.Kind = cfgutil.RequireChildEnum(filePath, targetNode, "kind", PublicationTargetKindOptions, &success)
 
