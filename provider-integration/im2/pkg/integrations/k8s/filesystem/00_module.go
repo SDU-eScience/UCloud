@@ -793,6 +793,8 @@ func loadStorageProducts() {
 		defaultSupport.Files.StreamingSearchSupported = true
 		defaultSupport.Files.SharesSupported = true
 		defaultSupport.Files.OpenInTerminal = shared.ServiceConfig.Compute.IntegratedTerminal.Enabled
+
+		defaultSupport.Publication.Enabled = cfg.Publication.Supported()
 	}
 
 	shareProduct := apm.ProductV2{

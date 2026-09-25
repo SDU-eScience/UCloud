@@ -31,6 +31,7 @@ var Mode ServerMode
 var Provider *ProviderConfiguration
 var Services *ServicesConfiguration
 var Server *ServerConfiguration
+var Publication *PublicationConfiguration
 
 var secretsPath string
 var secrets *yaml.Node
@@ -130,6 +131,15 @@ func Parse(serverMode ServerMode, configDir string) bool {
 
 	Provider = &providerConfig
 	Services = &servicesConfig
+
+	publicationNode, _ := cfgutil.GetChildOrNil(filePath, document, "publication")
+	if publicationNode != nil {
+		success, publicationConfig := parsePublication(filePath, publicationNode)
+		if !success {
+			return false
+		}
+		Publication = &publicationConfig
+	}
 
 	key := readPublicKey(configDir)
 	if key == nil {

@@ -58,6 +58,8 @@ type FSSupport struct {
 
 	ContainerRepositories ContainerRepositoriesSupport `json:"containerRepositories"`
 
+	Publication PublicationSupport `json:"publication"`
+
 	Files struct {
 		AclModifiable            bool `json:"aclModifiable"`
 		TrashSupported           bool `json:"trashSupported"`
@@ -73,6 +75,11 @@ type ContainerRepositoriesSupport struct {
 	Enabled bool   `json:"enabled"`
 	Server  string `json:"server"`
 }
+
+type PublicationSupport struct {
+	Enabled bool `json:"enabled"`
+}
+
 
 type MemberFilesFilter string
 

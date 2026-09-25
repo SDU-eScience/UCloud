@@ -1061,6 +1061,8 @@ func loadStorageProducts() {
 		support.Files.SharesSupported = false
 		support.Files.OpenInTerminal = true
 
+		support.Publication.Enabled = cfg.Publication.Supported()
+
 		storageSupport = append(storageSupport, support)
 	}
 }
