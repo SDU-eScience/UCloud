@@ -15,23 +15,23 @@ const ProgressBaseClass = injectStyle("progress-base", k => `
         border-radius: 5px;
         background-color: var(--progressColor, #f00);
         width: 100%;
-        
+
         --progressColor: var(--successMain);
     }
-    
+
     ${k}[data-active="false"] {
         display: none;
     }
-    
+
     ${k}[data-pulse="true"] {
         height: 100%;
-        
+
         /* From semantic-ui-css */
         animation: progress-active 2s ease infinite;
         color: black;
         width: 100%;
     }
-    
+
     @keyframes progress-active {
         0% {
             opacity: 0.3;
@@ -97,6 +97,12 @@ const NewAndImprovedProgressStyle = injectStyle("progress", k => `
         background: linear-gradient(
             120deg, #0000 0%, #0000 var(--limit), var(--limit-bar-color-start) var(--limit), var(--limit-bar-color-end) 100%);
         pointer-events: none;
+    }
+
+    @container (width < 500px) {
+        ${k} {
+            width: calc(var(--progress-bar-width) * 0.75);
+        }
     }
 
     ${k} ${progressLabel.dot} {
