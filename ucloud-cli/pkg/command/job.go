@@ -191,7 +191,7 @@ func (c JobSearchCommand) Execute() error {
 		currentWs = cfg.CurrentWorkspace.GetOrDefault("")
 	}
 	if currentWs != "" {
-		ws, err := findWorkspace(currentWs)
+		ws, err := FindWorkspaceByName(currentWs)
 		if err != nil {
 			return err
 		}
@@ -309,7 +309,7 @@ func (c JobListCommand) Execute() error {
 		currentWs = cfg.CurrentWorkspace.Value
 	}
 
-	ws, err := findWorkspace(currentWs)
+	ws, err := FindWorkspaceByName(currentWs)
 	if err != nil {
 		return err
 	}
@@ -652,7 +652,7 @@ func (c JobCreateCommand) Execute() error {
 		currentWs = cfg.CurrentWorkspace.GetOrDefault("")
 	}
 	if currentWs != "" {
-		ws, err := findWorkspace(currentWs)
+		ws, err := FindWorkspaceByName(currentWs)
 		if err != nil {
 			return err
 		}
