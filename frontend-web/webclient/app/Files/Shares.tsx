@@ -44,7 +44,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {divHtml} from "@/Utilities/HTMLUtilities";
 import {FlexClass} from "@/ui-components/Flex";
 import {ButtonGroupClass} from "@/ui-components/ButtonGroup";
-import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {defaultModalStyle, ModalBottom, slimModalStyle} from "@/Utilities/ModalUtilities";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import Avatar from "@/AvataaarLib/avatar";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
@@ -55,6 +55,7 @@ import {defaultAvatar} from "@/AvataaarLib";
 import {SvgCache} from "@/Utilities/SvgCache";
 import {sendInformationNotification} from "@/Notifications";
 import {Product} from "@/Accounting";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 export const sharesLinksInfo: LinkInfo[] = [
     {text: "Shared with me", to: AppRoutes.shares.sharedWithMe(), icon: "share", tab: SidebarTabId.FILES, defaultHidden: true},
@@ -152,7 +153,7 @@ export const SimpleAvatarComponentCache = new class {
 
 const ShareModalStyle = {
     ...defaultModalStyle,
-    content: {...defaultModalStyle.content, minHeight: undefined, top: "25%"}
+    content: {...slimModalStyle.content, minHeight: undefined, top: "25%"}
 }
 
 interface SelectedShare {
@@ -219,11 +220,7 @@ const ShareModal: React.FunctionComponent<{
     const [editingLink, setEditingLink] = useState<string | undefined>(undefined);
     const [selectedPermission, setSelectedPermission] = useState<string>("READ");
     const usernameRef = useRef<HTMLInputElement>(null);
-
-    const permissions = [
-        {text: "Read", value: "READ"},
-        {text: "Edit", value: "EDIT"}
-    ];
+    const [invitingUser, setInvitingUser] = useState(false);
 
     useEffect(() => {
         if (editingLink) {
@@ -240,14 +237,16 @@ const ShareModal: React.FunctionComponent<{
         );
     }, []);
 
-    return !editingLink ? <>
-        <Box mb="40px" onKeyDown={e => {
+
+    return !editingLink ?
+        invitingUser ? <>
+        <Box onKeyDown={e => {
             if (e.key !== "Escape") {
                 e.stopPropagation()
             }
         }}>
-            <Heading.h3 mb={"10px"}>Share</Heading.h3>
-            <form onSubmit={e => {
+            <Heading.h3 mb={"10px"}>Share with user</Heading.h3>
+            <form style={{marginBottom: "32px"}} onSubmit={e => {
                 e.preventDefault();
 
                 if (!usernameRef?.current?.value) return;
@@ -273,29 +272,16 @@ const ShareModal: React.FunctionComponent<{
                     <Button type={"submit"} color={"successMain"} attachedRight>Share</Button>
                 </Flex>
             </form>
+            <ModalBottom>
+                <Button onClick={() => setInvitingUser(false)}>Back</Button>
+            </ModalBottom>
         </Box>
-
-        {inviteLinks.data.items.length < 1 ? <>
-            <Heading.h3>Share with link</Heading.h3>
-            <Box textAlign="center">
-                <Text mb="20px" mt="20px">Share files with other users with a link</Text>
-                <Button
-                    onClick={async () => {
-                        await callAPIWithErrorHandler(
-                            shareLinksApi.create({path: selected.path})
-                        );
-
-                        fetchLinks(
-                            shareLinksApi.browse({itemsPerPage: 10, path: selected.path}),
-                        );
-                    }}
-                >Create link</Button>
-            </Box>
-        </> : <>
+    </> : <>
             <Flex justifyContent="space-between">
                 <Heading.h3>Share with link</Heading.h3>
-                <Box textAlign="right">
+                <Flex gap="8px" textAlign="right">
                     <Button
+                        ml="auto"
                         onClick={async () => {
                             await callAPIWithErrorHandler(
                                 shareLinksApi.create({path: selected.path})
@@ -306,14 +292,14 @@ const ShareModal: React.FunctionComponent<{
                             );
                         }}
                     >Create link</Button>
-                </Box>
+                    <Button onClick={() => setInvitingUser(true)}><Icon name="heroUserPlus" /></Button>
+                </Flex>
             </Flex>
-            <Box mt={20}>
+            <Box mt={20} mb="32px">
                 {inviteLinks.data.items.map(link => (
                     <Box key={link.token} mb="10px">
-                        <Flex justifyContent="space-between">
-
-                            <Flex flexDirection={"column"}>
+                        <Flex justifyContent="space-between" gap="8px">
+                            <Flex width="100%" flexDirection={"column"}>
                                 <Tooltip
                                     trigger={(
                                         <Input
@@ -323,9 +309,7 @@ const ShareModal: React.FunctionComponent<{
                                                 copyToClipboard(inviteLinkFromToken(link.token));
                                                 sendInformationNotification("Invite link copied!");
                                             }}
-                                            mr={10}
                                             value={inviteLinkFromToken(link.token)}
-                                            width="500px"
                                         />
                                     )}
                                 >
@@ -357,42 +341,58 @@ const ShareModal: React.FunctionComponent<{
                     </Box>
                 ))}
             </Box>
-        </>}
-    </> : <>
-        <Box minHeight="200px">
-            <Flex>
-                <Button mr={20} onClick={() => setEditingLink(undefined)}>
-                    <Icon name="backward" size={20} />
-                </Button>
+            <ModalBottom>
+                <Button onClick={() => dialogStore.failure()}>Done</Button>
+            </ModalBottom>
+        </> : <>
+            <Box>
                 <Heading.h3>Edit link settings</Heading.h3>
-            </Flex>
+                <Flex justifyContent="space-between" mt={20} mb={32}>
+                    <Text pt="10px">Anyone with the link can</Text>
+                    <RadioTilesContainer height={48} onClick={stopPropagation}>
+                        <RadioTile
+                            id={"Read"}
+                            label={"Read"}
+                            onChange={async () => {
+                                await callAPIWithErrorHandler(
+                                    shareLinksApi.update({token: editingLink, path: selected.path, permissions: ["READ"]})
+                                );
 
-            <Flex justifyContent="space-between" mt={20} mb={10}>
-                <Text pt="10px">Anyone with the link can</Text>
-                <div className={SelectBoxClass}>
-                    <ClickableDropdown
-                        useMousePositioning
-                        width="100px"
-                        chevron
-                        trigger={<>{permissions.find(it => it.value === selectedPermission)?.text}</>}
-                        options={permissions}
-                        onChange={async chosen => {
-                            const newPermissions = chosen == "EDIT" ? ["EDIT", "READ"] : ["READ"];
+                                fetchLinks(
+                                    shareLinksApi.browse({itemsPerPage: 10, path: selected.path})
+                                );
+                            }}
+                            icon={"search"}
+                            name={"READ"}
+                            checked={selectedPermission === "READ"}
+                            height={40}
+                            fontSize={"0.5em"}
+                        />
+                        <RadioTile
+                            id={"Edit"}
+                            label={"Edit"}
+                            onChange={async () => {
+                                await callAPIWithErrorHandler(
+                                    shareLinksApi.update({token: editingLink, path: selected.path, permissions: ["EDIT", "READ"]})
+                                );
 
-                            await callAPIWithErrorHandler(
-                                shareLinksApi.update({token: editingLink, path: selected.path, permissions: newPermissions})
-                            );
-
-                            fetchLinks(
-                                shareLinksApi.browse({itemsPerPage: 10, path: selected.path})
-                            );
-                        }}
-                    />
-                </div>
-            </Flex>
-        </Box>
+                                fetchLinks(
+                                    shareLinksApi.browse({itemsPerPage: 10, path: selected.path})
+                                );
+                            }}
+                            icon={"edit"}
+                            name={"EDIT"}
+                            checked={selectedPermission === "EDIT"}
+                            height={40}
+                            fontSize={"0.5em"}
+                        />
+                    </RadioTilesContainer>
+                </Flex>
+            </Box>
+            <ModalBottom>
+                <Button onClick={() => setEditingLink(undefined)}>Back</Button>
+            </ModalBottom>
     </>;
-
 };
 
 const FEATURES: ResourceBrowseFeatures = {
@@ -506,9 +506,9 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     SimpleAvatarComponentCache.fetchMissingAvatars();
                 });
 
-                browser.on("renderRow", (share, row, dims) => {
+                browser.on("renderTitle", (share, title, row) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                    row.title.append(icon);
+                    title.append(icon);
                     ResourceBrowser.icons.renderIcon({
                         name: "ftSharesFolder",
                         color: "FtFolderColor",
@@ -518,7 +518,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                     }).then(setIcon);
 
                     // Row title
-                    row.title.append(
+                    title.append(
                         ResourceBrowser.defaultTitleRenderer(
                             share.owner.createdBy !== Client.username ?
                                 fileName(share.specification.sourceFilePath) :
@@ -526,12 +526,12 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                             row
                         )
                     );
+                });
 
+                browser.on("renderStat1", (share, stat) => {
                     const pendingSharedWithMe = share.owner.createdBy !== Client.username && share.status.state === "PENDING";
-
-                    // Row stat1
                     const wrapper = divHtml("");
-                    row.stat1.append(wrapper);
+                    stat.append(wrapper);
                     wrapper.className = FlexClass;
                     wrapper.style.marginTop = wrapper.style.marginBottom = "auto"
 
@@ -550,12 +550,12 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         const group = createHTMLElements<HTMLDivElement>({
                             tagType: "div",
                             className: ButtonGroupClass,
-                            style: {marginTop: "auto", marginBottom: "auto", marginLeft: "12px"},
+                            style: { marginTop: "auto", marginBottom: "auto", marginLeft: "12px" },
                         });
                         wrapper.append(group);
                         group.appendChild(browser.defaultButtonRenderer({
                             onClick: async () => {
-                                await callAPI(SharesApi.approve(bulkRequestOf({id: share.id})));
+                                await callAPI(SharesApi.approve(bulkRequestOf({ id: share.id })));
                                 browser.refresh();
                             },
                             show() {
@@ -565,7 +565,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         }, share, {color: "successMain", width: "72px"})!);
                         group.appendChild(browser.defaultButtonRenderer({
                             onClick: async () => {
-                                await callAPI(SharesApi.reject(bulkRequestOf({id: share.id})))
+                                await callAPI(SharesApi.reject(bulkRequestOf({ id: share.id })))
                                 browser.refresh();
                             },
                             show() {
@@ -588,16 +588,18 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
                         stateIcon.style.width = "24px";
                         stateIcon.style.height = "24px";
                     }
+                });
 
-                    // Row stat2
-                    row.stat2.appendChild(createHTMLElements({
+                browser.on("renderStat2", (share, stat) => {
+                    stat.appendChild(createHTMLElements({
                         tagType: "div",
-                        style: {marginTop: "auto", marginBottom: "auto"},
+                        style: { marginTop: "auto", marginBottom: "auto" },
                         innerText: dateToString(share.createdAt ?? timestampUnixMs())
                     }));
+                });
 
-                    // Row stat3
-                    SimpleAvatarComponentCache.appendTo(row.stat3, share.owner.createdBy, `Shared by ${share.owner.createdBy}`);
+                browser.on("renderStat3", (share, stat) => {
+                    SimpleAvatarComponentCache.appendTo(stat, share.owner.createdBy, `Shared by ${share.owner.createdBy}`);
                 });
 
                 browser.setEmptyIcon("heroShare");

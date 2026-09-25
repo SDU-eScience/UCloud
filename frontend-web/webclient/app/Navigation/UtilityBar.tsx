@@ -62,7 +62,7 @@ const SearchClass = injectStyle("search", k => `
         display: flex;
         align-items: center;
     }
-    
+
     ${k} input {
         --width: 400px;
         left: 32px;
@@ -70,17 +70,23 @@ const SearchClass = injectStyle("search", k => `
         width: var(--width);
         transition: transform 0.2s;
     }
-    
+
     ${k}[data-active=false] input {
         transform: translate(calc(var(--width) / 2), 0) scale(0, 1)
     }
-    
+
     ${k}[data-active=true] input {
         transform: translate(0, 0) scale(1);
     }
-    
+
     ${k} svg {
         z-index: 1;
+    }
+
+    @media (max-width: 530px) {
+        ${k} input {
+            width: calc(100vw - var(--sidebarWidth) - 16px - 16px - 32px);
+        }
     }
 `);
 
@@ -132,7 +138,7 @@ const refreshIconClass = injectStyle("refresh-icon", k => `
     ${k} {
         transition: transform 0.5s;
     }
-    
+
     ${k}:hover {
         transform: rotate(45deg);
     }

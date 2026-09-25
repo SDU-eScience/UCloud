@@ -3,7 +3,7 @@ import MainContainer from "@/ui-components/MainContainer";
 import Text from "@/ui-components/Text";
 import {usePage} from "@/Navigation/Redux";
 import JobsApi, {Job, JobState, JobTypeFilter} from "@/UCloud/JobsApi";
-import {dateToDateStringOrTime, dateToString} from "@/Utilities/DateUtilities";
+import {dateToString} from "@/Utilities/DateUtilities";
 import {
     bulkRequestOf,
     doNothing, extractErrorMessage,
@@ -18,8 +18,10 @@ import {
     ResourceBrowseFeatures,
     ResourceBrowser,
     ResourceBrowserOpts,
-    ColumnTitleList,
     checkCanConsumeResources,
+    ColumnTitleGroup,
+    ColumnTitle,
+    columnTitle,
 } from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import Icon, {IconName} from "@/ui-components/Icon";
@@ -32,7 +34,6 @@ import {appendOperationsToActions, Operation} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {jobCache} from "./View";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {appendAppIcon} from "@/Applications/AppLogoCache";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {getStoredProject} from "@/Project/ReduxState";
 import {filterOption} from "@/ui-components/ResourceBrowserFilters";
@@ -51,6 +52,8 @@ import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {sendFailureNotification} from "@/Notifications";
 import {ProductCompute} from "@/Accounting";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
+import {appendAppIcon} from "../AppLogoCache";
 
 const defaultRetrieveFlags: {itemsPerPage: number; includeApplication: boolean; includeSupport: boolean} = {
     itemsPerPage: 250,
@@ -69,9 +72,17 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 };
 
-const columnTitles: ColumnTitleList = [{name: "Job name"}, {name: "Created by", sortById: "createdBy", columnWidth: 250}, {name: "Created at", sortById: "createdAt", columnWidth: 160}, {name: "Time left", sortById: "timeLeft", columnWidth: 160}, {name: "State", columnWidth: 75}];
-const simpleViewColumnTitles: ColumnTitleList = [{name: ""}, {name: "", sortById: "", columnWidth: 0}, {name: "", sortById: "", columnWidth: 160}, {name: "", sortById: "", columnWidth: 0}, {name: "State", columnWidth: 28}];
+const Title: Omit<ColumnTitle, "columnWidth"> = { name: "Job name" };
 
+const Empty = columnTitle("", 0);
+const State = columnTitle("State", 50);
+
+const columnTitles: ColumnTitleGroup = {
+    [ContainerSize.LARGE]: [Title, columnTitle("Created by", 250), columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft"), State],
+    [ContainerSize.MEDIUM]: [Title, State, columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft"), Empty],
+    [ContainerSize.SMALL]: [Title, columnTitle("Time left", 100), State, Empty, Empty],
+    [ContainerSize.TINY]: [Title, State, Empty, Empty, Empty],
+};
 
 const RESOURCE_NAME = "JOBS";
 function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?: boolean; operations?: Operation<Job, ResourceBrowseCallbacks<Job, ProductCompute>>[]; jobTypeFilter?: JobTypeFilter}}): React.ReactNode {
@@ -111,8 +122,6 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 
     const dateRanges = dateRangeFilters("Created");
 
-    const simpleView = !!(opts?.embedded && !opts.isModal) || opts?.selection !== undefined;
-
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
@@ -120,13 +129,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 
-                if (opts?.selection) {
-                    const withUseRowTitles: ColumnTitleList = JSON.parse(JSON.stringify(simpleViewColumnTitles));
-                    withUseRowTitles[3].columnWidth = 100;
-                    browser.setColumns(withUseRowTitles)
-                } else {
-                    browser.setColumns(simpleView ? simpleViewColumnTitles : columnTitles);
-                }
+                browser.setColumns(columnTitles);
 
                 const flags = {
                     ...defaultRetrieveFlags,
@@ -205,11 +208,11 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                     browser.rerender();
                 });
 
-                browser.on("renderRow", (job, row, dims) => {
+                browser.on("renderTitle", (job, title, row) => {
                     const [icon] = ResourceBrowser.defaultIconRenderer();
                     icon.style.minWidth = "20px"
                     icon.style.minHeight = "20px"
-                    row.title.append(icon);
+                    title.append(icon);
                     appendAppIcon(
                         icon,
                         job.specification.application.name,
@@ -219,97 +222,117 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
                         job.specification.name,
                     );
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, row));
-                    if (!simpleView) {
-                        if (job.owner.createdBy === "_ucloud") {
-                            row.stat1.innerHTML = "";
-                            const elem = document.createElement("i");
-                            elem.innerText = "Unknown";
-                            row.stat1.append(elem);
-                        } else {
-                            row.stat1.style.justifyContent = "left";
-                            SimpleAvatarComponentCache.appendTo(row.stat1, job.owner.createdBy, `Started by ${job.owner.createdBy}`).then(wrapper => {
-                                const div = divText(job.owner.createdBy);
-                                div.style.marginTop = div.style.marginBottom = "auto";
-                                div.classList.add(TruncateClass);
-                                div.style.maxWidth = "150px";
-                                div.style.marginLeft = "12px";
-                                wrapper.append(div);
-                                wrapper.style.display = "flex";
-                            });
-                        }
-                        row.stat2.innerText = dateToString(job.createdAt ?? timestampUnixMs());
+                    title.append(ResourceBrowser.defaultTitleRenderer(job.specification.name ?? job.id, row));
+                });
+
+                browser.on("renderStat1", (job, stat, row, size) => {
+                    if (size === ContainerSize.TINY) {
+                        renderJobStateIcon(job, stat);
+                    } else if (size === ContainerSize.SMALL) {
+                        renderJobStateText(job, stat);
+                    } else if (size === ContainerSize.MEDIUM) {
+                        renderJobStateIcon(job, stat);
                     } else {
-                        row.stat2.innerText = dateToDateStringOrTime(job.createdAt ?? timestampUnixMs());
-                    }
-
-                    // Time left in stat3
-                    if (!simpleView) {
-                        switch (job.status.state) {
-                            case "IN_QUEUE": {
-                                row.stat3.innerText = "In queue..."
-                                break;
-                            }
-
-                            case "RUNNING": {
-                                const now = timestampUnixMs();
-                                if (!job.status.expiresAt) {
-                                    row.stat3.innerText = "No expiry";
-                                } else {
-                                    const timeLeft = (job.status.expiresAt ?? 0) - now;
-                                    if (timeLeft > 0) {
-                                        const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-                                        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-                                        if (hours > 24) {
-                                            const days = Math.floor(hours / 24);
-                                            row.stat3.innerText = `${days}d ${hours % 24}h`;
-                                        } else if (hours > 0) {
-                                            row.stat3.innerText = `${hours}h ${minutes}m`;
-                                        } else {
-                                            row.stat3.innerText = `${minutes}m`;
-                                        }
-                                    } else {
-                                        row.stat3.innerText = "Expired";
-                                    }
-                                }
-                                break;
-                            }
-
-                            case "EXPIRED": {
-                                row.stat3.innerText = "Expired"
-                                break;
-                            }
-
-                            case "FAILURE":
-                            case "SUCCESS": {
-                                row.stat3.innerText = "Completed"
-                                break;
-                            }
-                        }
-                    }
-
-                    if (opts?.selection) {
-                        const button = browser.defaultButtonRenderer(opts.selection, job);
-                        if (button) {
-                            row.stat4.replaceChildren(button);
-                        }
-                    } else {
-                        const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
-                        const [statusIconName, statusIconColor] = JOB_STATE_AND_ICON_COLOR_MAP[job.status.state];
-                        ResourceBrowser.icons.renderIcon({
-                            name: statusIconName,
-                            width: 32,
-                            height: 32,
-                            color: statusIconColor,
-                            color2: statusIconColor
-                        }).then(setStatus);
-                        status.style.margin = "0";
-                        status.style.width = "24px";
-                        status.style.height = "24px";
-                        status.style.marginTop = status.style.marginBottom = "auto";
-                        row.stat4.append(status);
+                        renderCreatedBy(job, stat);
                     }
                 });
+
+                function renderCreatedBy(job: Job, stat: HTMLElement) {
+                    if (job.owner.createdBy === "_ucloud") {
+                        stat.innerHTML = "";
+                        const elem = document.createElement("i");
+                        elem.innerText = "Unknown";
+                        stat.append(elem);
+                    } else {
+                        stat.style.justifyContent = "left";
+                        SimpleAvatarComponentCache.appendTo(stat, job.owner.createdBy, `Started by ${job.owner.createdBy}`).then(wrapper => {
+                            const div = divText(job.owner.createdBy);
+                            div.style.marginTop = div.style.marginBottom = "auto";
+                            div.classList.add(TruncateClass);
+                            div.style.maxWidth = "150px";
+                            div.style.marginLeft = "12px";
+                            wrapper.append(div);
+                            wrapper.style.display = "flex";
+                        });
+                    }
+                }
+
+                function renderCreationText(job: Job, stat: HTMLElement) {
+                    stat.innerText = dateToString(job.createdAt ?? timestampUnixMs());
+                }
+
+                browser.on("renderStat2", (job, stat, row, size) => {
+                    if (size === ContainerSize.SMALL) {
+                        renderJobStateIcon(job, stat);
+                    } else {
+                        renderCreationText(job, stat);
+                    }
+                });
+
+                function renderJobStateText(job: Job, stat: HTMLElement) {
+                    switch (job.status.state) {
+                        case "IN_QUEUE": {
+                            stat.innerText = "In queue..."
+                            break;
+                        }
+
+                        case "RUNNING": {
+                            const now = timestampUnixMs();
+                            if (!job.status.expiresAt) {
+                                stat.innerText = "No expiry";
+                            } else {
+                                const timeLeft = (job.status.expiresAt ?? 0) - now;
+                                if (timeLeft > 0) {
+                                    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+                                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                                    if (hours > 24) {
+                                        const days = Math.floor(hours / 24);
+                                        stat.innerText = `${days}d ${hours % 24}h`;
+                                    } else if (hours > 0) {
+                                        stat.innerText = `${hours}h ${minutes}m`;
+                                    } else {
+                                        stat.innerText = `${minutes}m`;
+                                    }
+                                } else {
+                                    stat.innerText = "Expired";
+                                }
+                            }
+                            break;
+                        }
+
+                        case "EXPIRED": {
+                            stat.innerText = "Expired"
+                            break;
+                        }
+
+                        case "FAILURE":
+                        case "SUCCESS": {
+                            stat.innerText = "Completed"
+                            break;
+                        }
+                    }
+                }
+
+                browser.on("renderStat3", renderJobStateText);
+
+                function renderJobStateIcon(job: Job, stat: HTMLElement) {
+                    const [status, setStatus] = ResourceBrowser.defaultIconRenderer();
+                    const [statusIconName, statusIconColor] = JOB_STATE_AND_ICON_COLOR_MAP[job.status.state];
+                    ResourceBrowser.icons.renderIcon({
+                        name: statusIconName,
+                        width: 32,
+                        height: 32,
+                        color: statusIconColor,
+                        color2: statusIconColor
+                    }).then(setStatus);
+                    status.style.margin = "0";
+                    status.style.width = "24px";
+                    status.style.height = "24px";
+                    status.style.marginTop = status.style.marginBottom = "auto";
+                    stat.append(status);
+                }
+
+                browser.on("renderStat4", renderJobStateIcon);
 
                 const startRenaming = (resource: Job) => {
                     browser.showRenameField(
@@ -581,7 +604,7 @@ function UserRow({username, setMember, avatar, size = "24px"}: {username: string
 
 const HoverClass = injectStyle("hover-color", k => `
     ${k}:hover {
-        background: var(--rowHover); 
+        background: var(--rowHover);
     }
 `);
 

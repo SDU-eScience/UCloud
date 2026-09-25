@@ -2,7 +2,7 @@ import * as React from "react";
 import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
 import {useNavigate} from "react-router-dom";
 import MainContainer from "@/ui-components/MainContainer";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal, checkIsWorkspaceAdmin, ColumnTitleList} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal, checkIsWorkspaceAdmin, ColumnTitleList, ColumnTitleGroup} from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import {usePage} from "@/Navigation/Redux";
 import {callAPI} from "@/Authentication/DataHook";
@@ -13,6 +13,7 @@ import AppRoutes from "@/Routes";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {Product} from "@/Accounting";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -29,8 +30,10 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 };
 
+const rowTitles: ColumnTitleGroup = {
+    [ContainerSize.LARGE]: [{name: "Provider name"}, {name: "Created by", columnWidth: 150}, {name: "Created at", columnWidth: 150}, {name: "", columnWidth: 0}]
+};
 
-const rowTitles: ColumnTitleList = [{name: "Provider name"}, {name: "", columnWidth: 150}, {name: "", columnWidth: 150}, {name: "", columnWidth: 0}];
 function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<Provider> | null>(null);
@@ -90,11 +93,16 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.R
 
                 browser.on("fetchFilters", () => []);
 
-                browser.on("renderRow", (provider, row, dims) => {
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(provider.specification.domain, row));
+                browser.on("renderTitle", (provider, title, row) => {
+                    title.append(ResourceBrowser.defaultTitleRenderer(provider.specification.domain, row));
+                });
 
-                    row.stat1.innerText = provider.owner.createdBy;
-                    row.stat2.innerText = dateToString(provider.createdAt ?? timestampUnixMs());
+                browser.on("renderStat1", (provider, stat) => {
+                    stat.innerText = provider.owner.createdBy;
+                });
+
+                browser.on("renderStat2", (provider, stat) => {
+                    stat.innerText = dateToString(provider.createdAt ?? timestampUnixMs());
                 });
 
                 browser.setEmptyIcon("play");

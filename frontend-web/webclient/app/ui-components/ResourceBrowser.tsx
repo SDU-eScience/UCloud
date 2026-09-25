@@ -44,7 +44,7 @@ import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
 import {noopCall} from "@/Authentication/DataHook";
-import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
+import {ContainerSize, injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 import {sendInformationNotification} from "@/Notifications";
 import {providerBrandingStore, providerLogoUrl} from "@/ProviderBrandings/AutomaticProviderBranding";
@@ -303,7 +303,11 @@ interface ResourceBrowserListenerMap<T> {
     "unhandledShortcut": (ev: KeyboardEvent) => void;
 
     "startRenderPage": () => void;
-    "renderRow": (entry: T, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
+    "renderTitle": (entry: T, title: HTMLElement, row: ResourceBrowserRow, size: ContainerSize, dims: RenderDimensions) => void;
+    "renderStat1": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;
+    "renderStat2": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;
+    "renderStat3": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;
+    "renderStat4": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;
     "endRenderPage": () => void;
 
     // skipOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
@@ -315,8 +319,6 @@ interface ResourceBrowserListenerMap<T> {
     "searchHidden": () => void;
 
     "useFolder": () => void;
-    // UNUSED?
-    "useEntry": (entry: T) => void;
 
     "copy": (entries: T[], target: string) => void;
     "move": (entries: T[], target: string) => void;
@@ -386,15 +388,31 @@ export interface ColumnTitle<SortById = string> {
     sortById?: SortById;
 }
 
+export function columnTitle(name: string, columnWidth: number, sortById?: string): ColumnTitle {
+    return {
+        name,
+        columnWidth,
+        sortById
+    }
+}
+
 export type ColumnTitleList<SortById = string> =
-    | [Omit<ColumnTitle<SortById>, "columnWidth">, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>] // 4 Columns
-    | [Omit<ColumnTitle<SortById>, "columnWidth">, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>]; // 5 Columns
+    | [Omit<ColumnTitle<SortById>, "columnWidth">, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>]
+    | [Omit<ColumnTitle<SortById>, "columnWidth">, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>];
+
+export interface ColumnTitleGroup<SortById = string> {
+    [ContainerSize.LARGE]: ColumnTitleList<SortById>;
+    [ContainerSize.MEDIUM]?: ColumnTitleList<SortById>;
+    [ContainerSize.SMALL]?: ColumnTitleList<SortById>;
+    [ContainerSize.TINY]?: ColumnTitleList<SortById>;
+}
+
+type ColumnTitles<T = string> = ColumnTitleGroup<T> | ColumnTitleList<T>;
 
 export class ResourceBrowser<T> {
     // DOM component references
     root: HTMLElement;
     private operations: HTMLElement;
-    allocations: HTMLElement;
     filters: HTMLElement;
     rightFilters: HTMLElement;
     sessionFilters: HTMLElement;
@@ -543,6 +561,7 @@ export class ResourceBrowser<T> {
     private allowEventListenerAction(): boolean {
         if (ResourceBrowser.isAnyModalOpen && !this.isModal) return false;
         if (this.opts.embedded?.disableKeyhandlers) return false;
+
         return true;
     }
 
@@ -552,8 +571,8 @@ export class ResourceBrowser<T> {
     public opts: {
         embedded?: EmbeddedSettings;
         selector: boolean;
-        selection?: Selection<T>;
-        columnTitles: ColumnTitleList;
+        selection?: Selection<T> | undefined
+        columnTitles: ColumnTitleGroup;
     };
     // Note(Jonas): To use for project change listening.
     private initialPath: string | undefined = "";
@@ -568,12 +587,14 @@ export class ResourceBrowser<T> {
         ResourceBrowser.isAnyModalOpen = ResourceBrowser.isAnyModalOpen || this.isModal;
         this.opts = {
             embedded: opts?.embedded,
-            selector: !!opts?.selection,
             selection: opts?.selection,
-            columnTitles: [{name: ""}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {name: "", columnWidth: 20}, {
-                name: "",
-                columnWidth: 20
-            }]
+            selector: !!opts?.selection,
+            columnTitles: {
+                [ContainerSize.LARGE]: [{ name: "" }, { name: "", columnWidth: 20 }, { name: "", columnWidth: 20 }, { name: "", columnWidth: 20 }, {
+                    name: "",
+                    columnWidth: 20
+                }]
+            }
         }
         if (opts?.selection) ResourceBrowser.selectionBrowsers.push(this);
     };
@@ -664,7 +685,6 @@ export class ResourceBrowser<T> {
         `;
 
         this.operations = this.root.querySelector<HTMLElement>(".operations")!;
-        this.allocations = this.root.querySelector<HTMLElement>(".allocations")!;
         this.dragIndicator = this.root.querySelector<HTMLDivElement>(".drag-indicator")!;
         this.entryDragIndicator = this.root.querySelector<HTMLDivElement>(".file-drag-indicator")!;
         this.entryDragIndicatorContent = this.root.querySelector<HTMLDivElement>(".file-drag-indicator-content")!;
@@ -804,6 +824,7 @@ export class ResourceBrowser<T> {
         if (this.features.projectSwitcher) {
             const div = document.createElement("div");
             div.className = "project-switcher";
+            div.style.gridArea = "project-switcher";
             const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
             headerThing.appendChild(div);
         }
@@ -1096,6 +1117,10 @@ export class ResourceBrowser<T> {
 
         this.root.style.setProperty("--rowWidth", rect.width + "px");
 
+        const size = containerSizeFromWidth(rect.width);
+        if (size < ContainerSize.MEDIUM) this.header.setAttribute("data-size", "SMALL");
+        else this.header.removeAttribute("data-size");
+
         this.scrollingContainerWidth = rect.width;
         this.scrollingContainerHeight = rect.height;
         this.scrollingContainerTop = rect.top;
@@ -1105,6 +1130,7 @@ export class ResourceBrowser<T> {
             this.renderBreadcrumbs();
             this.renderOperations();
             this.renderRows();
+            this.setColumns(this.opts.columnTitles);
         }
     }
 
@@ -1236,7 +1262,6 @@ export class ResourceBrowser<T> {
             return this.rows[rowNumber];
         }
 
-
         // Reset rows and place them accordingly
         for (let i = 0; i < ResourceBrowser.maxRows; i++) {
             const row = this.rows[i];
@@ -1258,6 +1283,9 @@ export class ResourceBrowser<T> {
 
         if (!this.canConsumeResources) return;
 
+        const containerSize = containerSizeFromWidth(containerWidth);
+        const statsRenderer = StatsRenderers[containerSize];
+
         // Render the visible rows by iterating over all items
         this.dispatchMessage("startRenderPage", fn => fn());
         for (let i = 0; i < page.length; i++) {
@@ -1268,6 +1296,32 @@ export class ResourceBrowser<T> {
             const relativeX = 60;
             const relativeY = parseInt(row.container.style.top.replace("px", ""));
 
+            row.container.setAttribute("data-idx", i.toString());
+            row.container.setAttribute("data-selected", (this.isSelected[i] !== 0).toString());
+            row.container.classList.remove("hidden");
+
+            const x = this.scrollingContainerLeft + relativeX;
+            const y = this.scrollingContainerTop + relativeY - firstVisiblePixel;
+
+
+            this.dispatchMessage("renderTitle", fn => fn(entry, row.title, row, containerSize, {
+                width: containerWidth,
+                height: ResourceBrowser.rowSize,
+                x, y
+            }));
+
+            statsRenderer(entry, this, row, containerSize);
+
+            if (this.opts.selection) {
+                const button = this.defaultButtonRenderer(this.opts.selection, entry);
+                const stat = statFromContainerSize(row, containerSize)
+                if (button) {
+                    stat.replaceChildren(button);
+                } else {
+                    stat.replaceChildren();
+                }
+            }
+
             if (i === this.renameFieldIndex) {
                 this.renameField.style.display = "block";
                 // Note(Jonas): For future reference:
@@ -1275,27 +1329,14 @@ export class ResourceBrowser<T> {
                 // + ResourceBrowser.rowSize / 2 = middle of active row
                 // - this.renameField...height / 2 = subtract half of renameField to get wanted top position for renameField.
                 this.renameField.style.top = `${i * ResourceBrowser.rowSize + (ResourceBrowser.rowSize / 2 - this.renameField.getBoundingClientRect().height / 2)}px`;
+                this.renameField.style.width = `${row.title.getBoundingClientRect().width - 42}px`;
                 this.renameField.value = this.renameValue;
                 this.renameField.focus();
             }
-
-            row.container.setAttribute("data-idx", i.toString());
-            row.container.setAttribute("data-selected", (this.isSelected[i] !== 0).toString());
-            row.container.classList.remove("hidden");
-
-            const x = this.scrollingContainerLeft + relativeX;
-            const y = this.scrollingContainerTop + relativeY - firstVisiblePixel;
-            this.dispatchMessage("renderRow", fn => fn(
-                entry,
-                row,
-                {
-                    width: containerWidth,
-                    height: ResourceBrowser.rowSize,
-                    x, y
-                }
-            ));
         }
         this.dispatchMessage("endRenderPage", fn => fn());
+
+        this.setColumns(this.opts.columnTitles);
 
         if (page.length === 0) {
             const initialPage = this.currentPath;
@@ -1407,6 +1448,7 @@ export class ResourceBrowser<T> {
             button.className = ButtonClass;
             button.style.height = opts?.height ?? "32px";
             button.style.width = opts?.width ?? "96px";
+            button.style.minWidth = opts?.width ?? "96px";
             button.disabled = disabled;
 
             if (disabled) {
@@ -1443,30 +1485,7 @@ export class ResourceBrowser<T> {
             }
             return button;
         }
-        return null
-    }
-
-    renderDefaultRow(row: ResourceBrowserRow, title: string, opts?: {color?: ThemeColor; color2?: ThemeColor;}): {
-        title: HTMLDivElement
-    } {
-        const icon = this.emptyIconName;
-        if (icon) {
-            const [deviceIcon, setDeviceIcon] = ResourceBrowser.defaultIconRenderer();
-            row.title.append(deviceIcon);
-            ResourceBrowser.icons.renderIcon({
-                name: icon,
-                height: 32,
-                width: 32,
-                color: opts?.color ?? "iconColor",
-                color2: opts?.color2 ?? "iconColor2",
-            }).then(setDeviceIcon);
-        }
-
-        let titleElement = ResourceBrowser.defaultTitleRenderer(title, row);
-        row.title.append(titleElement);
-        return {
-            title: titleElement,
-        };
+        return null;
     }
 
     defaultBreadcrumbs(): {title: string; absolutePath: string;}[] {
@@ -3072,6 +3091,10 @@ export class ResourceBrowser<T> {
         endRenderPage: doNothing,
         beforeShortcut: doNothing,
         unhandledShortcut: doNothing,
+        renderStat1: doNothing,
+        renderStat2: doNothing,
+        renderStat3: doNothing,
+        renderStat4: doNothing,
         pathToEntry: () => "",
         generateBreadcrumbs: () => [],
         wantToFetchNextPage: async () => {},
@@ -3438,21 +3461,27 @@ export class ResourceBrowser<T> {
         });
     }
 
-    public setColumns(titles: ColumnTitleList) {
-        this.opts.columnTitles = titles;
+    public setColumns(columnTitles: ColumnTitles) {
+        const titleGroup = Array.isArray(columnTitles) ? { [ContainerSize.LARGE]: columnTitles } : columnTitles;
+        this.opts.columnTitles = titleGroup;
 
+        const width = containerSizeFromWidth(this.root.getBoundingClientRect().width);
+        const titles = titleGroup[width] ?? titleGroup[ContainerSize.LARGE];
         this.root.style.setProperty("--stat1Width", titles[1].columnWidth + "px");
         this.root.style.setProperty("--stat2Width", titles[2].columnWidth + "px");
         this.root.style.setProperty("--stat3Width", titles[3].columnWidth + "px");
 
         // For 5-column layouts (e.g., Jobs browse with Time left column)
         this.root.style.setProperty("--stat4Width", titles.length === 5 ? titles[4].columnWidth + "px" : "0px");
-
         this.renderColumnTitles();
     }
 
     public renderColumnTitles() {
-        const titles = this.opts.columnTitles;
+        const titleRow = this.root.querySelector(".row.rows-title");
+        if (!titleRow) return;
+
+        const width = containerSizeFromWidth(titleRow.getBoundingClientRect().width);
+        const titles = this.opts.columnTitles[width] ?? this.opts.columnTitles[ContainerSize.LARGE];
 
         for (const title of titles) {
             if (title.sortById) {
@@ -3464,14 +3493,20 @@ export class ResourceBrowser<T> {
             const value = getFilterStorageValue(this.resourceName, SORT_DIRECTION);
             if (value) this.browseFilters[SORT_DIRECTION] = value;
         }
-        const titleRow = this.root.querySelector(".row.rows-title");
-        if (!titleRow) return;
+
+
+
         this.setTitleAndHandlers(titleRow.querySelector(".title")!, titles[0], "right");
         this.setTitleAndHandlers(titleRow.querySelector(".stat1")!, titles[1], "left");
         this.setTitleAndHandlers(titleRow.querySelector(".stat2")!, titles[2], "left");
         if (titles[3]) this.setTitleAndHandlers(titleRow.querySelector(".stat3")!, titles[3], "left");
-        // If this is a selector, the fourth row will show the use button.
-        if (!this.opts.selector && titles[4]) this.setTitleAndHandlers(titleRow.querySelector(".stat4")!, titles[4], "right");
+        if (titles[4]) this.setTitleAndHandlers(titleRow.querySelector(".stat4")!, titles[4], "right");
+
+        if (this.opts.selection) {
+            const size = containerSizeFromWidth(this.scrollingContainerWidth);
+            const stat = titleStatFromContainerSize(size, titleRow)
+            stat.innerText = "";
+        }
     }
 
     public defaultEmptyPage(resourceName: string, reason: EmptyReason, additionalFilters: Record<string, string> | undefined) {
@@ -3625,7 +3660,7 @@ export function resourceCreationWithProductSelector<T>(
         ResourceBrowser.resetTitleComponent(productSelector);
     });
 
-    browser.on("renderRow", (entry, row, dims) => {
+    browser.on("renderTitle", (entry, _, __, ___, dims) => {
         if (entry !== dummyEntry) return;
         if (selectedProduct !== null) return;
         dims.x -= 52;
@@ -3701,9 +3736,10 @@ export function resourceCreationWithProductSelector<T>(
 export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclaration>, providedLogo?: string): HTMLElement {
     const logo = providedLogo ?? providerBrandingStore.getProviderProperty(providerId, "logo");
     const outer = divHtml("");
-    outer.className = "provider-icon"
+    outer.className = "provider-icon";
     outer.style.background = "var(--secondaryMain)";
     outer.style.borderRadius = "8px";
+    outer.style.gridArea = "p-icon";
     outer.style.width = outer.style.minWidth = opts?.width ?? "30px";
     outer.style.height = outer.style.minHeight = opts?.height ?? "30px";
 
@@ -3885,6 +3921,15 @@ function ControlsDialog({features, custom}: {features: ResourceBrowseFeatures, c
     </div>
 }
 
+const ROW_PADDING_PX = 16;
+function containerSizeFromWidth(width: number): ContainerSize {
+    if (width === 0) return ContainerSize.LARGE;
+    if (width - ROW_PADDING_PX >= ContainerSize.LARGE) return ContainerSize.LARGE;
+    if (width - ROW_PADDING_PX >= ContainerSize.MEDIUM) return ContainerSize.MEDIUM;
+    if (width - ROW_PADDING_PX >= ContainerSize.SMALL) return ContainerSize.SMALL;
+    return ContainerSize.TINY;
+}
+
 export function controlsOperation<T>(features: ResourceBrowseFeatures, custom?: ControlDescription[]): Operation<T, {
     isModal?: boolean
 }> & {hackNotInTheContextMenu: true} {
@@ -3907,4 +3952,56 @@ export function favoriteRowIcon(row: ResourceBrowserRow) {
         row.star.style.marginRight = "8px";
     }
     return favoriteIcon;
+}
+
+function renderTiny<T>(entry: T, browser: ResourceBrowser<T>, row: ResourceBrowserRow, containerSize: ContainerSize): void {
+    browser.dispatchMessage("renderStat1", fn => fn(entry, row.stat1, row, containerSize));
+}
+
+function renderSmall<T>(entry: T, browser: ResourceBrowser<T>, row: ResourceBrowserRow, containerSize: ContainerSize): void {
+    renderTiny(entry, browser, row, containerSize);
+    browser.dispatchMessage("renderStat2", fn => fn(entry, row.stat2, row, containerSize));
+}
+
+function renderMedium<T>(entry: T, browser: ResourceBrowser<T>, row: ResourceBrowserRow, containerSize: ContainerSize): void {
+    renderSmall(entry, browser, row, containerSize);
+    browser.dispatchMessage("renderStat3", fn => fn(entry, row.stat3, row, containerSize));
+}
+
+function renderLarge<T>(entry: T, browser: ResourceBrowser<T>, row: ResourceBrowserRow, containerSize: ContainerSize): void {
+    renderMedium(entry, browser, row, containerSize);
+    browser.dispatchMessage("renderStat4", fn => fn(entry, row.stat4, row, containerSize));
+}
+
+const StatsRenderers = {
+    [ContainerSize.TINY]: renderTiny,
+    [ContainerSize.SMALL]: renderSmall,
+    [ContainerSize.MEDIUM]: renderMedium,
+    [ContainerSize.LARGE]: renderLarge,
+};
+
+function statFromContainerSize(row: ResourceBrowserRow, containerSize: ContainerSize): HTMLElement {
+    switch (containerSize) {
+        case ContainerSize.TINY:
+            return row.stat1;
+        case ContainerSize.SMALL:
+            return row.stat2;
+        case ContainerSize.MEDIUM:
+            return row.stat3;
+        case ContainerSize.LARGE:
+            return row.stat4;
+    }
+}
+
+function titleStatFromContainerSize(size: ContainerSize, titles: Element) {
+    switch (size) {
+        case ContainerSize.TINY:
+            return titles.querySelector(".stat1") as HTMLDivElement;
+        case ContainerSize.SMALL:
+            return titles.querySelector(".stat2") as HTMLDivElement;
+        case ContainerSize.MEDIUM:
+            return titles.querySelector(".stat3") as HTMLDivElement;
+        case ContainerSize.LARGE:
+            return titles.querySelector(".stat4") as HTMLDivElement;
+    }
 }
