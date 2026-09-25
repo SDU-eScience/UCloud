@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -18,7 +19,123 @@ import (
 
 const maxControlPlaneNodes = 7
 
-func ClusterAddNode(app ucx.Application, stack *ucxsvc.Stack, group string, machine accapi.ProductReference, diskGb int, existingJobs []orcapi.Job) (string, bool) {
+const poolNameMaxLen = 30
+
+var poolNameRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
+
+func ClusterAddPool(app ucx.Application, stack *ucxsvc.Stack, pool ClusterPoolSpec) bool {
+	if stack == nil || !stack.Ok {
+		ucxsvc.UiSendFailure(app, "The cluster stack is not available")
+		return false
+	}
+
+	name := strings.TrimSpace(pool.Name)
+	if name == "" {
+		ucxsvc.UiSendFailure(app, "Please provide a pool name")
+		return false
+	}
+	if len(name) > poolNameMaxLen {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf("Pool names must be at most %d characters: %s", poolNameMaxLen, name))
+		return false
+	}
+	if !poolNameRe.MatchString(name) {
+		ucxsvc.UiSendFailure(app, "Pool names may only contain a-z, 0-9 and dashes: "+name)
+		return false
+	}
+	if name == GroupControlPlane {
+		ucxsvc.UiSendFailure(app, "The name is reserved for the control plane: "+name)
+		return false
+	}
+	if pool.Nodes < 1 {
+		ucxsvc.UiSendFailure(app, "The pool needs at least one node")
+		return false
+	}
+	if pool.DiskGb < 10 {
+		ucxsvc.UiSendFailure(app, "The pool needs at least 10 GB of disk")
+		return false
+	}
+	if pool.Machine.Id == "" {
+		ucxsvc.UiSendFailure(app, "Select a machine type for the pool")
+		return false
+	}
+
+	releaseLock, locked := clusterLockRecord()
+	if !locked {
+		ucxsvc.UiSendFailure(app, "Could not lock the cluster record, another operation may be running")
+		return false
+	}
+	defer releaseLock()
+
+	record, ok := clusterReadRecordLocal()
+	if !ok {
+		ucxsvc.UiSendFailure(app, "Could not read the cluster record")
+		return false
+	}
+
+	if record.SchemaRevision != clusterRecordSchemaRevision {
+		ucxsvc.UiSendFailure(app, "The cluster record was written by an incompatible version of the application")
+		return false
+	}
+
+	if record.StackId != stack.InstanceId {
+		ucxsvc.UiSendFailure(app, "The cluster record belongs to a different stack")
+		return false
+	}
+
+	if record.Phase != clusterRecordPhaseCreated {
+		ucxsvc.UiSendFailure(app, "The cluster is not ready for new pools (current state: "+record.Phase+")")
+		return false
+	}
+
+	for _, existing := range record.Pools {
+		if existing.Name == name {
+			ucxsvc.UiSendFailure(app, "A pool with this name already exists: "+name)
+			return false
+		}
+	}
+
+	if pool.Machine.Provider != record.MachineProvider {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf(
+			"The machine must come from the provider that runs the cluster (%s), but %s was selected",
+			record.MachineProvider,
+			pool.Machine.Provider,
+		))
+		return false
+	}
+
+	activeNodes, activeOk := clusterActiveNodeCount(stack, record)
+	if !activeOk {
+		ucxsvc.UiSendFailure(app, "Could not determine the active nodes of the cluster, try again later")
+		return false
+	}
+	if activeNodes+pool.Nodes > ClusterMaxNodes {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster supports at most %d nodes", ClusterMaxNodes))
+		return false
+	}
+
+	record.Pools = append(record.Pools, ClusterPoolRecord{
+		Name:    name,
+		Machine: pool.Machine,
+		DiskGb:  pool.DiskGb,
+	})
+
+	if !clusterWriteRecordLocal(record) {
+		ucxsvc.UiSendFailure(app, "Could not update the cluster record")
+		return false
+	}
+
+	for i := 0; i < pool.Nodes; i++ {
+		if _, nodeOk := ClusterAddNodeLocked(app, stack, record, name, pool.Machine, pool.DiskGb); !nodeOk {
+			return false
+		}
+	}
+
+	return true
+}
+
+// ClusterAddNodeLocked adds a node to the given group. It expects the caller to hold the cluster
+// record lock and to pass a record read while holding it.
+func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *ClusterRecord, group string, machine accapi.ProductReference, diskGb int) (string, bool) {
 	if stack == nil || !stack.Ok {
 		ucxsvc.UiSendFailure(app, "The cluster stack is not available")
 		return "", false
@@ -40,26 +157,13 @@ func ClusterAddNode(app ucx.Application, stack *ucxsvc.Stack, group string, mach
 		return "", false
 	}
 
-	releaseLock, locked := clusterLockRecord()
-	if !locked {
-		ucxsvc.UiSendFailure(app, "Could not lock the cluster record, another operation may be running")
-		return "", false
-	}
-	defer releaseLock()
-
-	record, ok := clusterReadRecordLocal()
-	if !ok {
-		ucxsvc.UiSendFailure(app, "Could not read the cluster record")
+	if record.StackId != stack.InstanceId {
+		ucxsvc.UiSendFailure(app, "The cluster record belongs to a different stack")
 		return "", false
 	}
 
 	if record.SchemaRevision != clusterRecordSchemaRevision {
 		ucxsvc.UiSendFailure(app, "The cluster record was written by an incompatible version of the application")
-		return "", false
-	}
-
-	if record.StackId != stack.InstanceId {
-		ucxsvc.UiSendFailure(app, "The cluster record belongs to a different stack")
 		return "", false
 	}
 
@@ -100,16 +204,6 @@ func ClusterAddNode(app ucx.Application, stack *ucxsvc.Stack, group string, mach
 			ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster control plane supports at most %d nodes", maxControlPlaneNodes))
 			return "", false
 		}
-	}
-
-	activeNodes, activeOk := clusterActiveNodeCount(stack, record)
-	if !activeOk {
-		ucxsvc.UiSendFailure(app, "Could not determine the active nodes of the cluster, try again later")
-		return "", false
-	}
-	if activeNodes >= ClusterMaxNodes {
-		ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster supports at most %d nodes", ClusterMaxNodes))
-		return "", false
 	}
 
 	if !AllocationIdIsValid(record.NextAllocationId) {
@@ -248,6 +342,28 @@ func ClusterAddNode(app ucx.Application, stack *ucxsvc.Stack, group string, mach
 	}
 
 	return job.Id, true
+}
+
+func ClusterAddNode(app ucx.Application, stack *ucxsvc.Stack, group string, machine accapi.ProductReference, diskGb int, existingJobs []orcapi.Job) (string, bool) {
+	if stack == nil || !stack.Ok {
+		ucxsvc.UiSendFailure(app, "The cluster stack is not available")
+		return "", false
+	}
+
+	releaseLock, locked := clusterLockRecord()
+	if !locked {
+		ucxsvc.UiSendFailure(app, "Could not lock the cluster record, another operation may be running")
+		return "", false
+	}
+	defer releaseLock()
+
+	record, ok := clusterReadRecordLocal()
+	if !ok {
+		ucxsvc.UiSendFailure(app, "Could not read the cluster record")
+		return "", false
+	}
+
+	return ClusterAddNodeLocked(app, stack, record, group, machine, diskGb)
 }
 
 func clusterCleanupNewNode(stack *ucxsvc.Stack, record *ClusterRecord, node *ClusterNodeRecord, app ucx.Application) {

@@ -1,7 +1,8 @@
 import * as React from "react";
 import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore} from "react";
-import {Box, Icon, Input, Text} from "@/ui-components";
+import {Box, Button, Icon, Input, Text} from "@/ui-components";
 import {ActionEntry, ActionMenu} from "@/ui-components/Actions";
+import {IconButton} from "@/ui-components/IconButton";
 import {IconName} from "@/ui-components/Icon";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
@@ -696,12 +697,18 @@ export interface UcxTableActionDef {
     label: string;
     icon?: string;
     kind: string;
+    color?: string;
 }
 
 export interface UcxTableActionEvent {
     tableId: string;
     rowKey: string;
     actionId: string;
+}
+
+export interface UcxTableGroupActionEvent {
+    actionId: string;
+    group: string;
 }
 
 interface UcxStreamedTableProps {
@@ -713,8 +720,12 @@ interface UcxStreamedTableProps {
     showGroupHeaders?: boolean;
     sorted?: boolean;
     actions?: UcxTableActionDef[];
+    groupAction?: UcxTableActionDef;
+    trailingAction?: UcxTableActionDef;
     onRowActivated: (event: UcxTableActivationEvent) => void;
     onRowAction?: (event: UcxTableActionEvent) => void;
+    onGroupAction?: (event: UcxTableGroupActionEvent) => void;
+    onTrailingAction?: (event: UcxTableGroupActionEvent) => void;
 }
 
 export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = props => {
@@ -742,6 +753,8 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     const [widthRevision, setWidthRevision] = useState(0);
     const actionDefs = props.actions ?? [];
     const hasActionDefs = actionDefs.length > 0;
+    const groupAction = props.groupAction;
+    const trailingAction = props.trailingAction;
     const [menuRowKey, setMenuRowKey] = useState<string | null>(null);
     const [menuPosition, setMenuPosition] = useState({x: 0, y: 0});
     const [menuRenderTick, setMenuRenderTick] = useState(0);
@@ -1062,7 +1075,23 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                         <React.Fragment key={group.group === "" ? "ucx-empty-group" : group.group}>
                             {props.showGroupHeaders !== false && group.group !== "" ?
                                 <TableRow className="group-row">
-                                    <TableCell colSpan={columns.length + (hasActionDefs ? 1 : 0)}>{group.group}</TableCell>
+                                    <TableCell colSpan={columns.length + (hasActionDefs ? 1 : 0)}>
+                                        <span className="group-row-inner">
+                                            <span className="group-row-label">{group.group}</span>
+                                            {groupAction ?
+                                                <span className="group-row-action">
+                                                    <IconButton
+                                                        tooltip={groupAction.label}
+                                                        icon={groupAction.icon as IconName}
+                                                        compact
+                                                        color="textPrimary"
+                                                        onClick={() => props.onGroupAction?.({actionId: groupAction.id, group: group.group})}
+                                                    />
+                                                </span> :
+                                                null
+                                            }
+                                        </span>
+                                    </TableCell>
                                 </TableRow> :
                                 null
                             }
@@ -1108,6 +1137,25 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                             })}
                         </React.Fragment>
                     )}
+                    {trailingAction ?
+                        <TableRow
+                            className="trailing-action-row"
+                            data-row-key="ucx-trailing-action"
+                        >
+                            <TableCell colSpan={columns.length + (hasActionDefs ? 1 : 0)}>
+                                <span className="trailing-action-cell">
+                                    <Button
+                                        color={(trailingAction.color as any) ?? "secondaryMain"}
+                                        onClick={() => props.onTrailingAction?.({actionId: trailingAction.id, group: ""})}
+                                    >
+                                        {trailingAction.icon ? <Icon name={trailingAction.icon as IconName} size={16} /> : null}
+                                        {trailingAction.label}
+                                    </Button>
+                                </span>
+                            </TableCell>
+                        </TableRow> :
+                        null
+                    }
                 </tbody>
             </Table>
         </div>
@@ -1271,6 +1319,16 @@ const UcxBrowserBottomClass = injectStyle("ucx-browser-bottom", key => `
         flex-shrink: 0;
         outline: none;
     }
+
+    ${key} [data-rich-select-trigger] {
+        height: 35px;
+    }
+
+    ${key} [data-rich-select-trigger] > div {
+        display: flex;
+        align-items: center;
+        height: 100%;
+    }
 `);
 
 const UcxNavTreeClass = injectStyle("ucx-nav-tree", key => `
@@ -1433,6 +1491,30 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
         font-weight: 600;
         font-size: 13px;
         box-shadow: 0 1px 0 var(--borderColor);
+    }
+
+    ${k} tr.group-row > td .group-row-inner {
+        display: flex;
+        align-items: center;
+    }
+
+    ${k} tr.group-row > td .group-row-label {
+        flex-grow: 1;
+    }
+
+    ${k} tr.group-row > td .group-row-action {
+        display: inline-flex;
+    }
+
+    ${k} tr.trailing-action-row > td {
+        background: var(--tableBackground);
+        text-align: center;
+        box-shadow: 0 1px 0 var(--borderColor);
+    }
+
+    ${k} tr.trailing-action-row > td .trailing-action-cell {
+        display: inline-flex;
+        padding: 4px 0;
     }
 
     ${k} .streamed-table-scroll tbody tr:last-child {

@@ -21,7 +21,7 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {atomOneDark, atomOneLight} from "react-syntax-highlighter/dist/esm/styles/hljs";
 import SyntaxHighlighter from "react-syntax-highlighter";
-import {copyToClipboard} from "@/UtilityFunctions";
+import {copyToClipboard, createKeyboardShortcut} from "@/UtilityFunctions";
 import {CopyButton} from "@/ui-components/CopyButton";
 import {Toggle} from "@/ui-components/Toggle";
 import * as UCloud from "@/UCloud";
@@ -2002,11 +2002,15 @@ const UcxButtonField: React.FunctionComponent<{
     fn: UcxFunctionRegistry;
 }> = ({node, model, scope, fn}) => {
     const label = stringProp(node, "label", "Button");
+    const busyPath = optionalStringProp(node, "busyPath");
+    const disabledPath = optionalStringProp(node, "disabledPath");
+    const busy = busyPath ? modelBool(model, busyPath, scope) : false;
+    const disabledByPath = disabledPath ? modelBool(model, disabledPath, scope) : false;
     const color = stringProp(node, "color", "primaryMain");
     const iconLeft = stringProp(node, "iconLeft", "");
     const iconRight = stringProp(node, "iconRight", "");
     const submit = boolProp(node, "submit", false);
-    const disabled = boolProp(node, "disabled", false);
+    const disabled = boolProp(node, "disabled", false) || busy || disabledByPath;
     const showShortcut = boolProp(node, "showShortcut", false);
     const showEscapeHint = boolProp(node, "showEscapeHint", false);
     const eventValuePath = stringProp(node, "eventValuePath", "");
@@ -2022,11 +2026,12 @@ const UcxButtonField: React.FunctionComponent<{
             width={sx.width !== undefined ? "100%" : undefined}
             onClick={submit ? undefined : (() => fn.sendUiEvent(node.id, "click", eventValue))}
         >
+            {busy ? <UcxSpinner size={16} color="white" margin="0 8px 0 0" /> : null}
             {iconLeft ? <Icon name={iconLeft as any} /> : null}
             {label}
             {iconRight ? <Icon name={iconRight as any} /> : null}
             {showEscapeHint ? <span style={{marginLeft: "8px"}} className={ShortcutClass}>esc</span> : null}
-            {showShortcut ? <SubmitShortcut /> : null}
+            {showShortcut && !busy ? <SubmitShortcut /> : null}
         </Button>
     </div>;
 };
@@ -2039,6 +2044,8 @@ const ResourceTableNode: React.FunctionComponent<{
     const store = fn.tableStore;
     const stateKey = stringProp(node, "stateKey", tableId);
     const actionDefs = ucxTableActionsProp(node);
+    const groupAction = ucxTableSingleActionProp(node, "groupAction");
+    const trailingAction = ucxTableSingleActionProp(node, "trailingAction");
 
     return <UcxStreamedTable
         tableId={tableId}
@@ -2048,6 +2055,8 @@ const ResourceTableNode: React.FunctionComponent<{
         showGroupHeaders={boolProp(node, "showGroupHeaders", true)}
         sorted={boolProp(node, "sorted", true)}
         actions={actionDefs}
+        groupAction={groupAction}
+        trailingAction={trailingAction}
         onRowActivated={event => {
             fn.sendUiEvent(node.id, "click", {
                 kind: ValueKind.Object,
@@ -2074,6 +2083,27 @@ const ResourceTableNode: React.FunctionComponent<{
                 },
             });
         }}
+        onGroupAction={event => {
+            fn.sendUiEvent(node.id, "action", {
+                kind: ValueKind.Object,
+                object: {
+                    actionId: {kind: ValueKind.String, string: event.actionId},
+                    tableId: {kind: ValueKind.String, string: tableId},
+                    stateKey: {kind: ValueKind.String, string: stateKey},
+                    group: {kind: ValueKind.String, string: event.group},
+                },
+            });
+        }}
+        onTrailingAction={event => {
+            fn.sendUiEvent(node.id, "action", {
+                kind: ValueKind.Object,
+                object: {
+                    actionId: {kind: ValueKind.String, string: event.actionId},
+                    tableId: {kind: ValueKind.String, string: tableId},
+                    stateKey: {kind: ValueKind.String, string: stateKey},
+                },
+            });
+        }}
     />;
 };
 
@@ -2091,6 +2121,20 @@ function ucxTableActionsProp(node: UiNode): UcxTableActionDef[] {
             kind: asString(item.object["kind"], ""),
         }];
     });
+}
+
+function ucxTableSingleActionProp(node: UiNode, key: string): UcxTableActionDef | undefined {
+    const raw = prop(node, key);
+    if (!raw || raw.kind !== ValueKind.Object) return undefined;
+    const id = asString(raw.object["id"], "");
+    if (id === "") return undefined;
+    return {
+        id,
+        label: asString(raw.object["label"], id),
+        icon: asString(raw.object["icon"], ""),
+        kind: "",
+        color: asString(raw.object["color"], ""),
+    };
 }
 
 function ucxNavItemsProp(node: UiNode): UcxNavItem[] {
@@ -2489,12 +2533,37 @@ const UcxSelectField = ({node, model, scope, fn}: {
     const selectedKey = modelString(model, node.bindPath, scope);
     const selected = options.find(option => option.key === selectedKey);
     const openFnRef = useRef<(left: number, top: number) => void>(() => undefined);
+    const triggerRef = useRef<HTMLDivElement | null>(null);
+    const shortcutKey = optionalStringProp(node, "shortcutKey");
 
     const openSelect = useCallback((ev: React.MouseEvent) => {
         ev.stopPropagation();
         ev.preventDefault();
         openFnRef.current?.(0, 0);
     }, []);
+
+    useEffect(() => {
+        if (!shortcutKey) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key.toLowerCase() !== shortcutKey.toLowerCase()) return;
+            if (!isLikelyMac ? !event.ctrlKey : !event.metaKey) return;
+            if (!event.altKey) return;
+            const active = document.activeElement;
+            if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement
+                || active instanceof HTMLElement && active.isContentEditable) return;
+            const browser = triggerRef.current?.closest("[data-ucx-browser]");
+            const inRegion = browser instanceof HTMLElement
+                ? browser.contains(active) || active === document.body
+                : triggerRef.current?.contains(active) ?? active === document.body;
+            if (!inRegion) return;
+
+            event.preventDefault();
+            openFnRef.current?.(0, 0);
+        };
+
+        document.addEventListener("keydown", onKeyDown);
+        return () => document.removeEventListener("keydown", onKeyDown);
+    }, [shortcutKey]);
 
     const select = <SimpleRichSelect
         items={options}
@@ -2504,6 +2573,8 @@ const UcxSelectField = ({node, model, scope, fn}: {
         mt={label === "" ? undefined : 8}
         fullWidth={true}
         openFnRef={openFnRef}
+        triggerRef={triggerRef}
+        shortcutHint={shortcutKey ? createKeyboardShortcut(shortcutKey.toUpperCase(), ["ctrl", "alt"]) : undefined}
     />;
 
     return <div style={fn.sxStyle(node)}>

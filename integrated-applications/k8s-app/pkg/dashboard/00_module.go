@@ -66,8 +66,12 @@ type stackUiApp struct {
 
 	ClusterProvider string
 
-	TargetGroup     string
-	TargetDiskGb    int
+	TargetGroup  string
+	TargetDiskGb int
+	TargetCount  int
+	NewPoolName  string
+	AddBusy      bool
+
 	ActiveType      string
 	ActiveNamespace string
 	ResourceDetail  string
@@ -220,47 +224,17 @@ func (app *stackUiApp) loadNamespaces() {
 	}()
 }
 
-// create a VM and add it to the given group
-func (app *stackUiApp) addMachineToGroup(group string) {
-	trimmedGroup := strings.TrimSpace(group)
-	if trimmedGroup == "" {
-		ucxsvc.UiSendFailure(app, "Please provide a node group")
-		return
-	}
-
-	if app.Machine.Id == "" {
-		ucxsvc.UiSendFailure(app, "Select a machine product before adding a node")
-		return
-	}
-
-	if app.ClusterProvider != "" && app.Machine.Provider != app.ClusterProvider {
-		ucxsvc.UiSendFailure(app, "The machine must come from the provider that runs the cluster: "+app.ClusterProvider)
-		return
-	}
-
-	diskGb := app.TargetDiskGb
-	if diskGb < 10 {
-		ucxsvc.UiSendFailure(app, "The node needs a disk size of at least 10 GB")
-		return
-	}
-
-	vmId, ok := shared.ClusterAddNode(app, app.Stack, trimmedGroup, app.Machine, diskGb, nil)
-	if !ok {
-		return
-	}
-
-	ucxsvc.UiSendSuccess(app, fmt.Sprintf("Created new %s VM %s!", trimmedGroup, vmId))
-	ucxsvc.RouterPushPage(app, "")
-}
-
 func (app *stackUiApp) UserInterface() ucx.UiNode {
 	children := []ucx.UiNode{
 		ucx.Router("routePath"),
 	}
 
 	switch {
-	case app.RoutePath == "control":
-		children = append(children, app.pageControl()...)
+	case app.RoutePath == "control/new-pool":
+		children = append(children, app.pageAddPool()...)
+	case app.RoutePath == "control" || strings.HasPrefix(app.RoutePath, "control/"):
+		app.TargetGroup = groupFromRoute(app.RoutePath)
+		children = append(children, app.pageAddMachine()...)
 	default:
 		children = append(children, app.pageResources()...)
 	}
@@ -268,6 +242,12 @@ func (app *stackUiApp) UserInterface() ucx.UiNode {
 	return ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 32}).
 		Sx(ucx.SxP(4)).
 		Children(children...)
+}
+
+func groupFromRoute(routePath string) string {
+	rest := strings.TrimPrefix(routePath, "control")
+	rest = strings.TrimPrefix(rest, "/")
+	return strings.TrimSpace(rest)
 }
 
 func (app *stackUiApp) pageResources() []ucx.UiNode {
@@ -317,7 +297,9 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 		bottom = append(bottom, app.resourceDetailBottomNode(detail))
 	} else {
 		var tableActions []ucx.ResourceTableAction
-		if app.ActiveType == "nodes" {
+		var groupAction *ucx.ResourceTableAction
+		var trailingAction *ucx.ResourceTableAction
+		if app.ActiveType == "nodes" && app.clusterReadyForNodes() {
 			tableActions = append(tableActions,
 				ucx.ResourceTableAction{
 					Id:    "copyNodeName",
@@ -331,6 +313,17 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 					Icon:  ucx.IconHeroArrowTopRightOnSquare,
 				},
 			)
+			groupAction = &ucx.ResourceTableAction{
+				Id:    "addMachine",
+				Label: "Add machine",
+				Icon:  ucx.IconHeroPlusSmall,
+			}
+			trailingAction = &ucx.ResourceTableAction{
+				Id:    "addWorkerPool",
+				Label: "Add worker pool",
+				Icon:  ucx.IconHeroPlusSmall,
+				Color: ucx.ColorPrimaryMain,
+			}
 		}
 
 		main = []ucx.UiNode{ucx.ResourceTable(ucx.ResourceTableProps{
@@ -341,11 +334,13 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 			EmptyMessage:     "No resources found.",
 			HideGroupHeaders: namespaced,
 			Actions:          tableActions,
+			GroupAction:      groupAction,
+			TrailingAction:   trailingAction,
 		}).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 			typeId, namespace, name := rowActivationValue(ev.Value)
 			app.handleRowActivated(typeId, namespace, name)
 		}).On(ucx.UiEventAction, func(ev ucx.UiEvent) {
-			app.handleRowAction(ev)
+			app.handleTableAction(ev)
 		})}
 
 		bottom = append(bottom, ucx.TableFilter("resourceFilter", app.ActiveType))
@@ -388,7 +383,6 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 			ucx.Button("copyHeadlampToken", "Copy Headlamp token", ucx.ColorSecondaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 				ucxsvc.StackCopyFile(app.Stack, shared.KubernetesTokenFileName)
 			}),
-			ucx.Link("control").Children(ucx.Button("add-machine", "Add machine", ucx.ColorSecondaryMain)),
 		),
 	}
 
@@ -490,7 +484,7 @@ func (app *stackUiApp) namespaceSelectorNode() ucx.UiNode {
 		options = append(options, ucx.Option{Key: namespace, Value: namespace})
 	}
 
-	return ucx.Select("namespaceSelect", "", "activeNamespace", options).Sx(ucx.SxWidth(280))
+	return ucx.Select("namespaceSelect", "", "activeNamespace", options).Sx(ucx.SxWidth(280)).WithShortcutKey("s")
 }
 
 func (app *stackUiApp) resourceDetailNode(detail string) ucx.UiNode {
@@ -612,28 +606,36 @@ func (app *stackUiApp) nodeGroupsFromRecord() []string {
 	return groups
 }
 
-// "Add new VM" page
-func (app *stackUiApp) pageControl() []ucx.UiNode {
-	poolGroups := app.nodeGroupsFromRecord()
+func (app *stackUiApp) clusterReadyForNodes() bool {
+	record, ok := app.readClusterRecord()
+	return ok && record.Phase == "created"
+}
 
+// "Add new VM" page for an existing pool
+func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 	record, recordOk := app.readClusterRecord()
 	if recordOk && record.MachineProvider != "" {
 		app.ClusterProvider = record.MachineProvider
 	}
 
-	options := make([]ucx.Option, 0, len(poolGroups))
-	for _, group := range poolGroups {
-		options = append(options, ucx.Option{Key: group, Value: group})
-	}
+	group := strings.TrimSpace(app.TargetGroup)
 
-	surface := ucx.Surface().Children(
+	surface := ucx.Surface().Sx(ucx.SxMaxWidth(800)).Children(
 		ucx.Toolbar().Children(
-			ucx.H2("Add new virtual machine to the stack"),
+			ucx.H2("Add machine to "+group),
 			ucx.Link("").Children(ucx.Text("Back to overview")),
 		),
 	)
 
-	if recordOk && record.Phase != "created" {
+	if group == "" {
+		return []ucx.UiNode{surface.Children(ucx.Text("No node pool was selected."))}
+	}
+
+	if !recordOk {
+		return []ucx.UiNode{surface.Children(ucx.Text("Could not read the cluster record."))}
+	}
+
+	if record.Phase != "created" {
 		content := []ucx.UiNode{ucx.Text(
 			"New nodes cannot be added while the cluster is in state " + record.Phase +
 				". The cluster must be in the created state.",
@@ -644,35 +646,258 @@ func (app *stackUiApp) pageControl() []ucx.UiNode {
 		return []ucx.UiNode{surface.Children(content...)}
 	}
 
-	if len(options) == 0 {
-		return []ucx.UiNode{surface.Children(ucx.Text("No node pools are available."))}
+	var pool *shared.ClusterPoolRecord
+	for i := range record.Pools {
+		if record.Pools[i].Name == group {
+			pool = &record.Pools[i]
+			break
+		}
 	}
 
-	if app.TargetGroup == "" {
-		app.TargetGroup = options[0].Key
+	if pool == nil {
+		return []ucx.UiNode{surface.Children(ucx.Text("Unknown node pool: " + group))}
 	}
 
-	form := ucx.Form("addNodeForm").On(ucx.UiEventSubmit, func(ev ucx.UiEvent) {
-		app.addMachineToGroup(app.TargetGroup)
-		ucx.AppUpdateUi(app)
-	}).Children(
-		ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).Children(
-			ucx.Select("targetGroup", "Node pool", "targetGroup", options),
-			ucx.MachineTypeSelector(
-				"machine",
-				"Machine product",
-				"machine",
-				ucx.MachineCapabilityVm,
-			).MachineSelectorProviderBindPath("clusterProvider").MachineSelectorProviderOnly(true),
-			ucx.InputNumber("targetDiskGb", "Disk size (GB)", "targetDiskGb", 10, 1024),
-			ucx.SubmitButton("addToStack", "Add machine to stack", ucx.ColorSecondaryMain),
+	if app.TargetDiskGb <= 0 {
+		app.TargetDiskGb = pool.DiskGb
+	}
+	if app.TargetCount <= 0 {
+		app.TargetCount = 1
+	}
+
+	children := []ucx.UiNode{
+		ucx.Form("addNodeForm").On(ucx.UiEventSubmit, func(ev ucx.UiEvent) {
+			if app.AddBusy {
+				return
+			}
+
+			groupValue := group
+			machine := pool.Machine
+			diskGb := app.TargetDiskGb
+			count := app.TargetCount
+
+			app.AddBusy = true
+			ucx.AppUpdateModelPatch(*app.Session(), map[string]ucx.Value{
+				"addBusy": ucx.VBool(true),
+			})
+
+			go func() {
+				app.mu.Lock()
+				defer app.mu.Unlock()
+
+				app.addMachinesToGroup(groupValue, machine, diskGb, count)
+				app.AddBusy = false
+				ucx.AppUpdateUi(app)
+			}()
+		}).Children(
+			ucx.FieldGroupNode().Children(
+				ucx.FieldRowNodeEx("poolNameRow", "Pool name", "").
+					Children(ucx.Text(group)),
+				ucx.FieldRowNodeEx("machineRow", "Machine type", "").
+					FieldRowDescription("All machines in a pool use the same machine type.").
+					Children(ucx.Text(pool.Machine.Id)),
+				ucx.FieldRowNodeEx("diskRow", "Disk size (GB)", "targetDiskGb").
+					FieldRowDescription(fmt.Sprintf("The disk size for each new node. This pool uses %d GB by default.", pool.DiskGb)).
+					FieldRowRequired(true).
+					Children(
+						ucx.InputNumber("targetDisk", "", "targetDiskGb", 10, 1024),
+					),
+				ucx.FieldRowNodeEx("countRow", "Node count", "targetCount").
+					FieldRowDescription("The number of nodes to add to this pool.").
+					FieldRowRequired(true).
+					Children(
+						ucx.InputNumber("targetCount", "", "targetCount", 1, 250),
+					),
+			),
+			ucx.SubmitButton("addToPool", "Add machine to pool", ucx.ColorSuccessMain).
+				ButtonBusy("addBusy").
+				ButtonSubmitShortcut(true).
+				Sx(ucx.SxJustifyEnd),
+		),
+	}
+
+	return []ucx.UiNode{ucx.KeyboardNavigationNode("keyboardNavigation").
+		HorizontalSelector("[data-job-info-field]").
+		SubmitForm("addNodeForm").
+		SubmitDisabled(app.AddBusy).
+		Children(surface.Children(children...))}
+}
+
+// "Add worker pool" page, modeled after the creator's pool card
+func (app *stackUiApp) pageAddPool() []ucx.UiNode {
+	record, recordOk := app.readClusterRecord()
+	if recordOk && record.MachineProvider != "" {
+		app.ClusterProvider = record.MachineProvider
+	}
+
+	surface := ucx.Surface().Sx(ucx.SxMaxWidth(800)).Children(
+		ucx.Toolbar().Children(
+			ucx.H2("Add worker pool"),
+			ucx.Link("").Children(ucx.Text("Back to overview")),
 		),
 	)
 
-	return []ucx.UiNode{surface.Children(
-		ucx.Text("Select a machine and submit to add a new node to the pool."),
-		form,
-	)}
+	if !recordOk {
+		return []ucx.UiNode{surface.Children(ucx.Text("Could not read the cluster record."))}
+	}
+
+	if record.Phase != "created" {
+		content := []ucx.UiNode{ucx.Text(
+			"New pools cannot be added while the cluster is in state " + record.Phase +
+				". The cluster must be in the created state.",
+		)}
+		if record.FailureReason != "" {
+			content = append(content, ucx.Text("The cluster reported a problem: "+record.FailureReason))
+		}
+		return []ucx.UiNode{surface.Children(content...)}
+	}
+
+	if app.TargetDiskGb <= 0 {
+		app.TargetDiskGb = 50
+	}
+	if app.TargetCount <= 0 {
+		app.TargetCount = 1
+	}
+
+	form := ucx.Form("addPoolForm").On(ucx.UiEventSubmit, func(ev ucx.UiEvent) {
+		if app.AddBusy {
+			return
+		}
+
+		name := app.NewPoolName
+		machine := app.Machine
+		diskGb := app.TargetDiskGb
+		count := app.TargetCount
+
+		app.AddBusy = true
+		ucx.AppUpdateModelPatch(*app.Session(), map[string]ucx.Value{
+			"addBusy": ucx.VBool(true),
+		})
+
+		go func() {
+			app.mu.Lock()
+			defer app.mu.Unlock()
+
+			app.addPool(name, machine, diskGb, count)
+			app.AddBusy = false
+			ucx.AppUpdateUi(app)
+		}()
+	}).Children(
+		ucx.FieldGroupNode().Children(
+			ucx.FieldRowNodeEx("poolNameRow", "Pool name", "newPoolName").
+				FieldRowDescription("The Kubernetes node group name for this pool. Must contain only a-z, 0-9 and dashes.").
+				FieldRowRequired(true).
+				Children(
+					ucx.InputText("poolName", "", "workers", "newPoolName"),
+				),
+			ucx.FieldRowNodeEx("machineRow", "Machine type", "").
+				FieldRowDescription("The machine type used for the nodes in this pool.").
+				Children(
+					ucx.MachineTypeSelector("poolMachine", "", "machine", ucx.MachineCapabilityVm).
+						MachineSelectorProviderBindPath("clusterProvider").MachineSelectorProviderOnly(true),
+				),
+			ucx.FieldRowNodeEx("diskRow", "Disk size (GB)", "targetDiskGb").
+				FieldRowDescription("The disk size for each node in this pool.").
+				FieldRowRequired(true).
+				Children(
+					ucx.InputNumber("poolDisk", "", "targetDiskGb", 10, 1024),
+				),
+			ucx.FieldRowNodeEx("countRow", "Node count", "targetCount").
+				FieldRowDescription("The number of worker nodes in this pool.").
+				FieldRowRequired(true).
+				Children(
+					ucx.InputNumber("poolCount", "", "targetCount", 1, 250),
+				),
+		),
+		ucx.SubmitButton("addPool", "Add worker pool", ucx.ColorSuccessMain).
+			ButtonBusy("addBusy").
+			ButtonSubmitShortcut(true).
+			Sx(ucx.SxJustifyEnd),
+	)
+
+	return []ucx.UiNode{ucx.KeyboardNavigationNode("keyboardNavigation").
+		HorizontalSelector("[data-job-info-field]").
+		SubmitForm("addPoolForm").
+		SubmitDisabled(app.AddBusy).
+		Children(surface.Children(form))}
+}
+
+func (app *stackUiApp) addMachinesToGroup(group string, machine accapi.ProductReference, diskGb int, count int) {
+	if count < 1 {
+		count = 1
+	}
+
+	for i := 0; i < count; i++ {
+		vmId, ok := shared.ClusterAddNode(app, app.Stack, group, machine, diskGb, nil)
+		if !ok {
+			return
+		}
+
+		if i == count-1 {
+			ucxsvc.UiSendSuccess(app, fmt.Sprintf("Created %d new %s VM(s). Last VM: %s", count, group, vmId))
+		}
+	}
+
+	ucxsvc.RouterPushPage(app, "")
+}
+
+func (app *stackUiApp) addPool(name string, machine accapi.ProductReference, diskGb int, count int) {
+	trimmedName := strings.TrimSpace(name)
+	if trimmedName == "" {
+		ucxsvc.UiSendFailure(app, "Please provide a pool name")
+		return
+	}
+
+	if app.ClusterProvider != "" && machine.Provider != app.ClusterProvider {
+		ucxsvc.UiSendFailure(app, "The machine must come from the provider that runs the cluster: "+app.ClusterProvider)
+		return
+	}
+
+	ok := shared.ClusterAddPool(app, app.Stack, shared.ClusterPoolSpec{
+		Name:    trimmedName,
+		Machine: machine,
+		Nodes:   count,
+		DiskGb:  diskGb,
+	})
+	if !ok {
+		return
+	}
+
+	ucxsvc.UiSendSuccess(app, fmt.Sprintf("Created pool %s with %d node(s)!", trimmedName, count))
+	ucxsvc.RouterPushPage(app, "")
+}
+
+func (app *stackUiApp) handleTableAction(ev ucx.UiEvent) {
+	if ev.Event != string(ucx.UiEventAction) || ev.Value.Kind != ucx.ValueObject {
+		return
+	}
+
+	actionId := ucx.ValueAsString(ev.Value.Object["actionId"])
+	rowKey := ucx.ValueAsString(ev.Value.Object["rowKey"])
+	group := ucx.ValueAsString(ev.Value.Object["group"])
+
+	if rowKey != "" {
+		app.handleRowAction(ev)
+		return
+	}
+
+	switch actionId {
+	case "addMachine":
+		if group == "" {
+			return
+		}
+		app.TargetDiskGb = 0
+		app.TargetCount = 0
+		ucxsvc.RouterPushPage(app, "control/"+group)
+		ucx.AppUpdateUi(app)
+	case "addWorkerPool":
+		app.NewPoolName = ""
+		app.Machine = accapi.ProductReference{}
+		app.TargetDiskGb = 0
+		app.TargetCount = 0
+		ucxsvc.RouterPushPage(app, "control/new-pool")
+		ucx.AppUpdateUi(app)
+	}
 }
 
 func (app *stackUiApp) OnMessage(frame ucx.Frame) {
@@ -699,6 +924,10 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 		}
 
 		if frame.ModelInput.Path == "activeNamespace" {
+			changed = true
+		}
+
+		if frame.ModelInput.Path == "routePath" {
 			changed = true
 		}
 

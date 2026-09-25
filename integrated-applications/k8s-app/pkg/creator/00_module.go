@@ -50,6 +50,8 @@ type k8sApp struct {
 	PoolMachines []accapi.ProductReference
 	PoolNodes    []int
 	PoolDisksGb  []int
+
+	DeployBusy bool
 }
 
 func (app *k8sApp) Mutex() *sync.Mutex {
@@ -78,14 +80,18 @@ func (app *k8sApp) UserInterface() ucx.UiNode {
 		})
 	}
 
-	return ucx.KeyboardNavigationNode("keyboardNavigation").HorizontalSelector("[data-job-info-field]").Submit("stack").Children(
+	return ucx.KeyboardNavigationNode("keyboardNavigation").HorizontalSelector("[data-job-info-field]").Submit("stack").SubmitDisabled(app.DeployBusy).Children(
 		ucx.SidebarLayout().Sidebar(
 			ucx.Surface().Children(
 				ucx.CostEstimateNode("costEstimate", costEntries),
-				ucx.Button("stack", "Deploy", ucx.ColorSuccessMain).ButtonSubmitShortcut(true).Sx(
-					ucx.SxMt(24),
-					ucx.SxWidthPercent(100),
-				).On(ucx.UiEventClick, app.deploy),
+				ucx.Button("stack", "Deploy", ucx.ColorSuccessMain).
+					ButtonBusy("deployBusy").
+					ButtonSubmitShortcut(true).
+					Sx(
+						ucx.SxMt(24),
+						ucx.SxWidthPercent(100),
+					).
+					On(ucx.UiEventClick, app.deploy),
 			),
 		).Sx(
 			ucx.SxDisplayFlex,
@@ -161,7 +167,7 @@ func (app *k8sApp) cardWorkerPools() ucx.UiNode {
 	}
 
 	children = append(children,
-		ucx.Button("addPool", "Add worker pool", ucx.ColorSecondaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+		ucx.Button("addPool", "Add worker pool", ucx.ColorSecondaryMain).ButtonDisabledWhen("deployBusy").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 			app.PoolCount++
 			app.PoolNames = append(app.PoolNames, fmt.Sprintf("workers-%v", app.PoolCount))
 			app.PoolMachines = append(app.PoolMachines, accapi.ProductReference{})
@@ -179,7 +185,7 @@ func (app *k8sApp) poolCard(index int) ucx.UiNode {
 	removeButton := ucx.UiNode{}
 	if app.PoolCount > 1 {
 		poolIndex := index
-		removeButton = ucx.Button("removePool"+indexPath, "Remove pool", ucx.ColorErrorMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+		removeButton = ucx.Button("removePool"+indexPath, "Remove pool", ucx.ColorErrorMain).ButtonDisabledWhen("deployBusy").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 			app.removePool(poolIndex)
 			ucx.AppUpdateUi(app)
 		})
@@ -242,6 +248,10 @@ func (app *k8sApp) removePool(index int) {
 }
 
 func (app *k8sApp) deploy(ev ucx.UiEvent) {
+	if app.DeployBusy {
+		return
+	}
+
 	release, ok := shared.ReleaseByExactVersion(app.K8sVersion)
 	if !ok {
 		ucxsvc.UiSendFailure(app, "Unknown Kubernetes version: "+app.K8sVersion)
@@ -377,17 +387,28 @@ func (app *k8sApp) deploy(ev ucx.UiEvent) {
 
 	stackId := clusterId
 
-	_, ok = shared.ClusterCreate(app, stackId, shared.ClusterSpec{
+	spec := shared.ClusterSpec{
 		ControlPlaneMachine: app.ControlPlaneMachine,
 		ControlPlaneNodes:   app.ControlPlaneNodes,
 		ControlPlaneDiskGb:  app.ControlPlaneDiskGb,
 		WorkerPools:         pools,
 		K8sVersion:          release.Release,
 		Ports:               ports,
-	})
-	if !ok {
-		return
 	}
+
+	app.DeployBusy = true
+	ucx.AppUpdateModelPatch(*app.Session(), map[string]ucx.Value{
+		"deployBusy": ucx.VBool(true),
+	})
+
+	go func() {
+		app.mu.Lock()
+		defer app.mu.Unlock()
+
+		_, _ = shared.ClusterCreate(app, stackId, spec)
+		app.DeployBusy = false
+		ucx.AppUpdateUi(app)
+	}()
 }
 
 func (app *k8sApp) OnMessage(msg ucx.Frame) {}

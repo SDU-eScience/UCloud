@@ -26,6 +26,8 @@ export const SimpleRichSelect: React.FunctionComponent<{
     selected?: SimpleRichItem;
     onSelect: (item: SimpleRichItem) => void;
     openFnRef?: React.RefObject<(left: number, top: number) => void>;
+    triggerRef?: React.RefObject<HTMLDivElement | null>;
+    shortcutHint?: string;
 
     fullWidth?: boolean;
     dropdownWidth?: string;
@@ -51,10 +53,14 @@ export const SimpleRichSelect: React.FunctionComponent<{
         return <div style={props.mt === undefined ? undefined : {marginTop: props.mt}}>
             <ClickableDropdown
                 trigger={
-                    <div className={TriggerClass} style={{width: props.fullWidth ? "100%" : dropdownWidth, minWidth: 0}}>
+                    <div ref={props.triggerRef} className={TriggerClass} data-rich-select-trigger="true" style={{width: props.fullWidth ? "100%" : dropdownWidth, minWidth: 0}}>
                         <Box p={"4px"} textAlign={"left"} minHeight={25}>
                             {triggerText}
                         </Box>
+                        {props.shortcutHint ?
+                            <span className={RichSelectShortcutClass}>{props.shortcutHint}</span> :
+                            null
+                        }
                         <Icon name="heroChevronDown" style={{position: "absolute", bottom: "5px", right: "5px"}} />
                     </div>
                 }
@@ -108,6 +114,8 @@ export const SimpleRichSelect: React.FunctionComponent<{
 	        items={props.items}
 	        keys={["key"]}
         openFnRef={props.openFnRef}
+	        triggerRef={props.triggerRef}
+	        shortcutHint={props.shortcutHint}
 	        RenderRow={p =>
 	            <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
 	                {p?.element?.value}
@@ -145,6 +153,8 @@ export function RichSelect<T, K extends keyof T>(props: {
     selected?: T;
     onSelect: (element: T) => void;
     openFnRef?: React.RefObject<(left: number, top: number) => void>;
+    triggerRef?: React.RefObject<HTMLDivElement | null>;
+    shortcutHint?: string;
 
     chevronPlacement?: CSSProperties; // hack
 
@@ -237,8 +247,9 @@ export function RichSelect<T, K extends keyof T>(props: {
             <props.FullRenderSelected element={props.selected} onSelect={doNothing} />
             :
             props.RenderSelected ?
-                <div className={TriggerClass} style={{width: props.fullWidth ? "100%" : (props.dropdownWidth ?? "500px"), minWidth: 0}} ref={triggerRef}>
+                <div className={TriggerClass} data-rich-select-trigger="true" style={{width: props.fullWidth ? "100%" : (props.dropdownWidth ?? "500px"), minWidth: 0}} ref={mergeRefs(triggerRef, props.triggerRef)}>
                     <props.RenderSelected element={props.selected} onSelect={doNothing} />
+                    {props.shortcutHint ? <span className={RichSelectShortcutClass}>{props.shortcutHint}</span> : null}
                     <Icon name="heroChevronDown" style={props.chevronPlacement} />
                 </div>
                 : <></>;
@@ -401,3 +412,27 @@ const SimpleRichSelectOptionClass = injectStyle("simple-rich-select-option", k =
         cursor: pointer;
     }
 `);
+
+const RichSelectShortcutClass = injectStyle("rich-select-shortcut", k => `
+    ${k} {
+        position: absolute;
+        right: 28px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        pointer-events: none;
+    }
+`);
+
+function mergeRefs<T>(...refs: (React.Ref<T> | undefined)[]): React.RefCallback<T> {
+    return value => {
+        for (const ref of refs) {
+            if (!ref) continue;
+            if (typeof ref === "function") {
+                ref(value);
+            } else {
+                (ref as {current: T | null}).current = value;
+            }
+        }
+    };
+}

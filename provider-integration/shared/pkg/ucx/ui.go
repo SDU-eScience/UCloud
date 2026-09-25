@@ -527,6 +527,14 @@ func Select(id string, label string, bindPath string, options []Option) UiNode {
 	}
 }
 
+func (n UiNode) WithShortcutKey(key string) UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["shortcutKey"] = VString(key)
+	return n
+}
+
 func EnumSelectorNode(id string, bindPath string, options []Option) UiNode {
 	requireExplicitId(id, "enum_selector")
 
@@ -845,6 +853,7 @@ type ResourceTableAction struct {
 	Label string
 	Icon  IconName
 	Kind  ResourceTableActionKind
+	Color Color
 }
 
 type ResourceTableProps struct {
@@ -857,6 +866,8 @@ type ResourceTableProps struct {
 	HideGroupHeaders bool
 	NoSorting        bool
 	Actions          []ResourceTableAction
+	GroupAction      *ResourceTableAction
+	TrailingAction   *ResourceTableAction
 }
 
 func ResourceTable(props ResourceTableProps) UiNode {
@@ -895,6 +906,26 @@ func ResourceTable(props ResourceTableProps) UiNode {
 			}))
 		}
 		nodeProps["actions"] = VList(actionValues)
+	}
+
+	if props.GroupAction != nil {
+		nodeProps["groupAction"] = VObject(map[string]Value{
+			"id":    VString(props.GroupAction.Id),
+			"label": VString(props.GroupAction.Label),
+			"icon":  VIcon(props.GroupAction.Icon),
+		})
+	}
+
+	if props.TrailingAction != nil {
+		trailing := VObject(map[string]Value{
+			"id":    VString(props.TrailingAction.Id),
+			"label": VString(props.TrailingAction.Label),
+			"icon":  VIcon(props.TrailingAction.Icon),
+		})
+		if props.TrailingAction.Color != "" {
+			trailing.Object["color"] = VColor(props.TrailingAction.Color)
+		}
+		nodeProps["trailingAction"] = trailing
 	}
 
 	return UiNode{
@@ -1199,6 +1230,14 @@ func (n UiNode) propMutate(key string, value Value) UiNode {
 
 func (n UiNode) ButtonSubmitShortcut(enabled bool) UiNode {
 	return n.propMutate("showShortcut", VBool(enabled))
+}
+
+func (n UiNode) ButtonBusy(bindPath string) UiNode {
+	return n.propMutate("busyPath", VString(bindPath))
+}
+
+func (n UiNode) ButtonDisabledWhen(bindPath string) UiNode {
+	return n.propMutate("disabledPath", VString(bindPath))
 }
 
 func (n UiNode) ButtonEscapeHint(enabled bool) UiNode {
