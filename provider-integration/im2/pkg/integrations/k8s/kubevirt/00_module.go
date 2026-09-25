@@ -47,7 +47,7 @@ var KubevirtClient kvclient.KubevirtClient
 var Namespace string
 var Enabled = false
 
-const enableDefaultPassword = false
+const enableDefaultPassword = true
 
 type activityMount struct {
 	UCloudPath string
@@ -1448,6 +1448,16 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 				From: []k8snetwork.NetworkPolicyPeer{{PodSelector: &podSelector}},
 			}},
 		},
+	}
+
+	if ucxPortLabel, ok := job.Specification.Labels[orc.ResourceLabelUcxPort]; ok {
+		if ucxPort, err := strconv.Atoi(ucxPortLabel); err == nil && ucxPort > 0 && ucxPort <= 65535 {
+			shared.AllowNetworkFromWorld(firewall, []orc.PortRangeAndProto{{
+				Protocol: orc.IpProtocolTcp,
+				Start:    ucxPort,
+				End:      ucxPort,
+			}})
+		}
 	}
 
 	sshService := shared.PrepareSshService(job, firewall).GetOrDefault(nil)

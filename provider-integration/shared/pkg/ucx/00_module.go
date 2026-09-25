@@ -96,6 +96,7 @@ type UiEventType string
 
 const (
 	UiEventClick    UiEventType = "click"
+	UiEventAction   UiEventType = "action"
 	UiEventSubmit   UiEventType = "submit"
 	UiEventChange   UiEventType = "change"
 	UiEventFocus    UiEventType = "focus"

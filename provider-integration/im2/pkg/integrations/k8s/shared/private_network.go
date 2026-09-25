@@ -10,7 +10,6 @@ import (
 
 	k8score "k8s.io/api/core/v1"
 	k8snetwork "k8s.io/api/networking/v1"
-	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"ucloud.dk/pkg/controller"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -113,15 +112,6 @@ func PrivateNetworkCreate(network *orc.PrivateNetwork) *util.HttpError {
 			}
 		}
 
-		preflightErr := privateNetworkPreflightNameCollisions(network)
-		if preflightErr != nil {
-			if assignedSubdomain || preflightErr.StatusCode != http.StatusConflict {
-				return preflightErr
-			}
-			network.Status.Subdomain = ""
-			continue
-		}
-
 		subdomainConflict, err := controller.PrivateNetworkCreateAllocate(network)
 		if err != nil {
 			return err
@@ -160,61 +150,22 @@ func PrivateNetworkCreate(network *orc.PrivateNetwork) *util.HttpError {
 		return util.ServerHttpError("The private network has no allocated CIDR block")
 	}
 
+	desired, desiredOk := privateNetworkComputeDesired(snapshot)
+	if !desiredOk {
+		return util.ServerHttpError("The private network has an invalid CIDR block %s", snapshot.CidrBlock.Value)
+	}
+
 	if err := controller.PrivateNetworkUpdateCoreCidrBlock(network.Id, snapshot.CidrBlock.Value); err != nil {
+		controller.PrivateNetworkDiscardAfterFailedCreate(network.Id)
 		return err
 	}
 
+	if _, _, ensureErr := privateNetworkEnsureNetworkObjects(context.Background(), desired); ensureErr != nil {
+		controller.PrivateNetworkDiscardAfterFailedCreate(network.Id)
+		return ensureErr
+	}
+
 	PrivateNetworkReconcileSoon()
-	return nil
-}
-
-func privateNetworkPreflightNameCollisions(network *orc.PrivateNetwork) *util.HttpError {
-	if privateNetworkDynamicClient == nil {
-		return nil
-	}
-
-	subnetName := PrivateNetworkSubnetName(network.Status.Subdomain, network.Id)
-
-	vpc, err := privateNetworkDynamicClient.Resource(privateNetworkVpcGvr).
-		Get(context.Background(), network.Status.Subdomain, k8smeta.GetOptions{})
-	if err == nil {
-		typedVpc := &privateNetworkKubeOvnVpc{}
-		owned := privateNetworkKubeOvnFromUnstructured("Vpc", vpc, typedVpc) &&
-			privateNetworkObjectOwnedBy(typedVpc, network.Id)
-		if !owned {
-			return util.HttpErr(
-				http.StatusConflict,
-				"A private network with this subdomain already exists, try a different one",
-			)
-		}
-	}
-
-	subnet, err := privateNetworkDynamicClient.Resource(privateNetworkSubnetGvr).
-		Get(context.Background(), subnetName, k8smeta.GetOptions{})
-	if err == nil {
-		typedSubnet := &privateNetworkKubeOvnSubnet{}
-		owned := privateNetworkKubeOvnFromUnstructured("Subnet", subnet, typedSubnet) &&
-			privateNetworkObjectOwnedBy(typedSubnet, network.Id)
-		if !owned {
-			return util.HttpErr(
-				http.StatusConflict,
-				"A private network with this subdomain already exists, try a different one",
-			)
-		}
-	}
-
-	nad, err := privateNetworkNadClient.Get(
-		context.Background(),
-		network.Status.Subdomain,
-		k8smeta.GetOptions{},
-	)
-	if err == nil && !privateNetworkObjectOwnedBy(nad, network.Id) {
-		return util.HttpErr(
-			http.StatusConflict,
-			"A private network with this subdomain already exists, try a different one",
-		)
-	}
-
 	return nil
 }
 
@@ -260,6 +211,18 @@ func PrivateNetworkDelete(network *orc.PrivateNetwork) *util.HttpError {
 
 		workspace := controller.PrivateNetworkWorkspaceFromOwner(network.Owner)
 		return controller.PrivateNetworkFinishDelete(network.Id, workspace)
+	}
+
+	if !featureEnabled {
+		return nil
+	}
+
+	ctx := context.Background()
+	snapshot, snapshotTracked := controller.PrivateNetworkSnapshotRetrieve(network.Id)
+	if snapshotTracked {
+		if desired, ok := privateNetworkComputeDesired(snapshot); ok {
+			privateNetworkAdvanceNetworkDeletion(ctx, desired)
+		}
 	}
 
 	return nil

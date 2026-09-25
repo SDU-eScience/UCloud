@@ -687,6 +687,15 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                     return {};
                 });
 
+                sessionRef.current?.registerRpcHandler("openUrl", payload => {
+                    const plainPayload = valueMapToPlainPayload(payload) as {path?: unknown};
+                    const path = typeof plainPayload.path === "string" ? plainPayload.path : "";
+                    if (path.startsWith("/") && !path.startsWith("//")) {
+                        window.open("/app" + path, "_blank", "noopener,noreferrer");
+                    }
+                    return {};
+                });
+
                 const handlers = rpcHandlersRef.current;
                 if (handlers) {
                     for (const [name, handler] of Object.entries(handlers)) {

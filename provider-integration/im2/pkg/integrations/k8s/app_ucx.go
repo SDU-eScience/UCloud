@@ -198,6 +198,53 @@ func ucxOnConnect(conn *ws.Conn) {
 
 	mu := sync.Mutex{}
 	stackToDeletionRequest := map[string]int{}
+	confirmedStacks := map[string]bool{}
+
+	renewStackLease := func(instanceId string) error {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if confirmedStacks[instanceId] {
+			return nil
+		}
+
+		deletionReqId, ok := stackToDeletionRequest[instanceId]
+		if !ok {
+			return fmt.Errorf("no deletion lease for stack %s", instanceId)
+		}
+
+		_, err := orcapi.StacksControlRenewDeletion.Invoke(orcapi.StacksControlRenewDeletionRequest{
+			RequestId:      deletionReqId,
+			ActivationTime: util.OptValue[fnd.Timestamp](fnd.Timestamp(time.Now().Add(2 * time.Minute))),
+		})
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	confirmStack := func(instanceId string) error {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if confirmedStacks[instanceId] {
+			return nil
+		}
+
+		deletionReqId, ok := stackToDeletionRequest[instanceId]
+		if !ok {
+			return fmt.Errorf("no deletion lease for stack %s", instanceId)
+		}
+
+		_, err := orcapi.StacksControlCancelDeletion.Invoke(fnd.FindByIntId{Id: deletionReqId})
+		if err != nil {
+			return err
+		}
+
+		delete(stackToDeletionRequest, instanceId)
+		confirmedStacks[instanceId] = true
+		return nil
+	}
 
 	ucxapi.StackCreate.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackCreateRequest) (ucxapi.Stack, error) {
 		if err := util.ValidateStringE(&request.StackType, "stackType", 0); err != nil {
@@ -249,23 +296,31 @@ func ucxOnConnect(conn *ws.Conn) {
 	})
 
 	ucxapi.StackDataWrite.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackDataWriteRequest) (util.Empty, error) {
+		if err := renewStackLease(request.InstanceId); err != nil {
+			return util.Empty{}, err
+		}
+
 		return ucxStackDataWrite(info.Owner, request)
 	})
 
 	ucxapi.StackDataAppend.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackDataAppendRequest) (util.Empty, error) {
+		if err := renewStackLease(request.InstanceId); err != nil {
+			return util.Empty{}, err
+		}
+
 		return ucxStackDataAppend(info.Owner, request)
 	})
 
 	ucxapi.StackConfirm.HandlerProxy(proxy, func(ctx context.Context, request fnd.FindByStringId) (util.Empty, error) {
-		mu.Lock()
-		deletionReqId, ok := stackToDeletionRequest[request.Id]
-		mu.Unlock()
-		if ok {
-			_, err := orcapi.StacksControlCancelDeletion.Invoke(fnd.FindByIntId{Id: deletionReqId})
+		if err := confirmStack(request.Id); err != nil {
+			return util.Empty{}, err
+		}
+		return util.Empty{}, nil
+	})
 
-			if err != nil {
-				return util.Empty{}, err.AsError()
-			}
+	ucxapi.StackHeartbeat.HandlerProxy(proxy, func(ctx context.Context, request fnd.FindByStringId) (util.Empty, error) {
+		if err := renewStackLease(request.Id); err != nil {
+			return util.Empty{}, err
 		}
 		return util.Empty{}, nil
 	})
@@ -366,15 +421,23 @@ func ucxResolveJobUpstream(job orcapi.Job, port int) (string, error) {
 }
 
 func ucxStackDataWrite(owner orcapi.ResourceOwner, request ucxapi.StackDataWriteRequest) (util.Empty, error) {
-	return ucxStackDataWriteBytes(owner, request.InstanceId, request.Path, []byte(request.Data), request.Perm, unix.O_TRUNC)
+	return ucxStackDataWriteBytes(owner, request.InstanceId, request.Path, []byte(request.Data), request.Perm, unix.O_TRUNC, request.Atomic)
 }
 
 func ucxStackDataAppend(owner orcapi.ResourceOwner, request ucxapi.StackDataAppendRequest) (util.Empty, error) {
-	return ucxStackDataWriteBytes(owner, request.InstanceId, request.Path, request.Data, request.Perm, unix.O_APPEND)
+	return ucxStackDataWriteBytes(owner, request.InstanceId, request.Path, request.Data, request.Perm, unix.O_APPEND, false)
 }
 
-func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, path string, data []byte, perm uint32, writeFlag int) (util.Empty, error) {
-	if len(data) >= 1024*64 {
+func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, path string, data []byte, perm uint32, writeFlag int, atomicWrite bool) (util.Empty, error) {
+	if atomicWrite && writeFlag != unix.O_TRUNC {
+		return util.Empty{}, fmt.Errorf("atomic write is not supported for append")
+	}
+
+	if atomicWrite {
+		if len(data) >= 1024*1024 {
+			return util.Empty{}, fmt.Errorf("input data is too large for atomic write")
+		}
+	} else if len(data) >= 1024*64 {
 		return util.Empty{}, fmt.Errorf("input data is too large")
 	}
 
@@ -394,6 +457,13 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, path 
 		if comp != "." && comp != ".." {
 			requestedPath = filepath.Join(requestedPath, comp)
 		}
+	}
+
+	if atomicWrite {
+		if writeErr := filesystem.WriteFileAtomic(requestedPath, data, perm); writeErr != nil {
+			return util.Empty{}, writeErr.AsError()
+		}
+		return util.Empty{}, nil
 	}
 
 	parentPath := util.Parent(requestedPath)
@@ -790,7 +860,7 @@ file_state() {
     printf 'missing'
     return
   fi
-  sha256sum "$WATCHED" | cut -d ' ' -f 1
+  stat -c '%%s %%Y' "$WATCHED"
 }
 
 LAST_STATE=""

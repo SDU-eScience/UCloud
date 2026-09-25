@@ -54,8 +54,9 @@ func initStacks() {
 			return value.Time()
 		})
 
+		httpErr := (*util.HttpError)(nil)
 		id := db.NewTx(func(tx *db.Transaction) int {
-			row, _ := db.Get[struct{ RequestId int }](
+			row, rowOk := db.Get[struct{ RequestId int }](
 				tx,
 				`
 					insert into app_orchestrator.stack_deletion_requests (stack_id, provider_filter, activation_time, 
@@ -71,10 +72,76 @@ func initStacks() {
 					"project":  request.Owner.Project.Sql(),
 				},
 			)
+			if err := tx.PeekError(); err != nil {
+				tx.ConsumeError()
+				httpErr = util.HttpErr(http.StatusInternalServerError, "failed to create deletion request")
+				return 0
+			}
+			if !rowOk {
+				httpErr = util.HttpErr(http.StatusInternalServerError, "failed to create deletion request")
+				return 0
+			}
 			return row.RequestId
 		})
 
+		if httpErr != nil {
+			return fndapi.FindByIntId{}, httpErr
+		}
+
 		return fndapi.FindByIntId{Id: id}, nil
+	})
+
+	orcapi.StacksControlRenewDeletion.Handler(func(info rpc.RequestInfo, request orcapi.StacksControlRenewDeletionRequest) (util.Empty, *util.HttpError) {
+		providerId, ok := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+		if !ok {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+
+		if !request.ActivationTime.Present {
+			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "missing activation time")
+		}
+
+		activation := request.ActivationTime.Value.Time()
+
+		httpErr := (*util.HttpError)(nil)
+		renewed := db.NewTx(func(tx *db.Transaction) bool {
+			row, rowOk := db.Get[struct{ RequestId int }](
+				tx,
+				`
+					update app_orchestrator.stack_deletion_requests
+					set activation_time = :activation
+					where request_id = :request_id
+						and provider_filter = :provider
+						and activation_time is not null
+						and now() < activation_time
+					returning request_id
+				`,
+				db.Params{
+					"request_id": request.RequestId,
+					"provider":   providerId,
+					"activation": activation,
+				},
+			)
+			if err := tx.PeekError(); err != nil {
+				tx.ConsumeError()
+				httpErr = util.HttpErr(http.StatusInternalServerError, "failed to renew deletion request")
+				return false
+			}
+			if !rowOk {
+				return false
+			}
+			return row.RequestId == request.RequestId
+		})
+
+		if httpErr != nil {
+			return util.Empty{}, httpErr
+		}
+
+		if !renewed {
+			return util.Empty{}, util.HttpErr(http.StatusConflict, "deletion request is no longer pending")
+		}
+
+		return util.Empty{}, nil
 	})
 
 	orcapi.StacksControlCancelDeletion.Handler(func(info rpc.RequestInfo, request fndapi.FindByIntId) (util.Empty, *util.HttpError) {
@@ -83,19 +150,41 @@ func initStacks() {
 			return util.Empty{}, util.HttpErr(http.StatusForbidden, "forbidden")
 		}
 
-		db.NewTx0(func(tx *db.Transaction) {
-			db.Exec(
+		httpErr := (*util.HttpError)(nil)
+		cancelled := db.NewTx(func(tx *db.Transaction) bool {
+			row, rowOk := db.Get[struct{ RequestId int }](
 				tx,
 				`
 					delete from app_orchestrator.stack_deletion_requests
-					where request_id = :id and provider_filter = :provider
-			    `,
+					where request_id = :id
+						and provider_filter = :provider
+						and activation_time is not null
+						and now() < activation_time
+					returning request_id
+				`,
 				db.Params{
 					"id":       request.Id,
 					"provider": providerId,
 				},
 			)
+			if err := tx.PeekError(); err != nil {
+				tx.ConsumeError()
+				httpErr = util.HttpErr(http.StatusInternalServerError, "failed to cancel deletion request")
+				return false
+			}
+			if !rowOk {
+				return false
+			}
+			return row.RequestId == request.Id
 		})
+
+		if httpErr != nil {
+			return util.Empty{}, httpErr
+		}
+
+		if !cancelled {
+			return util.Empty{}, util.HttpErr(http.StatusConflict, "deletion request is no longer pending")
+		}
 
 		return util.Empty{}, nil
 	})

@@ -33,6 +33,13 @@ var PrivateNetworksRetrieve = ucx.Rpc[orcapi.PrivateNetworksRetrieveRequest, orc
 var PrivateNetworksUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.PrivateNetworksUpdateLabelsRequest], util.Empty]{CallName: "privateNetworksUpdateLabels"}
 var PrivateNetworksRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.PrivateNetworkSupport]]{CallName: "privateNetworksRetrieveProducts"}
 
+var PrivateNetworkIpsCreate = ucx.Rpc[[]orcapi.PrivateNetworkIpSpecification, []orcapi.PrivateNetworkIp]{CallName: "privateNetworkIpsCreate"}
+var PrivateNetworkIpsDelete = ucx.Rpc[[]string, util.Empty]{CallName: "privateNetworkIpsDelete"}
+var PrivateNetworkIpsBrowse = ucx.Rpc[orcapi.PrivateNetworkIpsBrowseRequest, fndapi.PageV2[orcapi.PrivateNetworkIp]]{CallName: "privateNetworkIpsBrowse"}
+var PrivateNetworkIpsRetrieve = ucx.Rpc[orcapi.PrivateNetworkIpsRetrieveRequest, orcapi.PrivateNetworkIp]{CallName: "privateNetworkIpsRetrieve"}
+var PrivateNetworkIpsUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.PrivateNetworkIpsUpdateLabelsRequest], util.Empty]{CallName: "privateNetworkIpsUpdateLabels"}
+var PrivateNetworkIpsRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.PrivateNetworkIpSupport]]{CallName: "privateNetworkIpsRetrieveProducts"}
+
 // Public IPs
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -115,10 +122,11 @@ type Stack struct {
 var StackCreate = ucx.Rpc[StackCreateRequest, Stack]{CallName: "stackCreate"}
 
 type StackDataWriteRequest struct {
-	InstanceId string
-	Path       string
-	Data       string
-	Perm       uint32
+	InstanceId string `json:"instanceId"`
+	Path       string `json:"path"`
+	Data       string `json:"data"`
+	Perm       uint32 `json:"perm"`
+	Atomic     bool   `json:"atomic,omitempty"`
 }
 
 var StackDataWrite = ucx.Rpc[StackDataWriteRequest, util.Empty]{CallName: "stackDataWrite"}
@@ -133,6 +141,8 @@ type StackDataAppendRequest struct {
 var StackDataAppend = ucx.Rpc[StackDataAppendRequest, util.Empty]{CallName: "stackDataAppend"}
 
 var StackConfirm = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stackConfirm"}
+
+var StackHeartbeat = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stackHeartbeat"}
 
 // Frontend
 // =====================================================================================================================
@@ -152,6 +162,12 @@ type RouterPushPageRequest struct {
 }
 
 var RouterPushPage = ucx.Rpc[RouterPushPageRequest, util.Empty]{CallName: "routerPushPage"}
+
+type OpenUrlRequest struct {
+	Path string
+}
+
+var OpenUrl = ucx.Rpc[OpenUrlRequest, util.Empty]{CallName: "openUrl"}
 
 type StackDownloadFileRequest struct {
 	FileName string

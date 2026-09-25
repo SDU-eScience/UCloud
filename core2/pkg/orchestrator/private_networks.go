@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"database/sql"
 
@@ -256,7 +257,7 @@ func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.Pri
 			}
 		}
 
-		network, err := ResourceCreateThroughProvider(
+		network, err := ResourceCreateThroughProviderEx(
 			actor,
 			privateNetworkType,
 			item.ResourceSpecification,
@@ -265,6 +266,7 @@ func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.Pri
 				Cidr: item.Cidr,
 			},
 			orcapi.PrivateNetworksProviderCreate,
+			ProviderCallOpts{Timeout: util.OptValue(30 * time.Second)},
 		)
 
 		if err != nil {

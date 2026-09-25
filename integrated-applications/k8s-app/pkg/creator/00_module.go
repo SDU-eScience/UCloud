@@ -16,9 +16,10 @@ import (
 )
 
 func App() ucx.Application {
+	defaultRelease := shared.K3sCatalog[0]
 	return &k8sApp{
 		ClusterId:          fmt.Sprintf("k8s-%v", util.RandomTokenNoTs(4)),
-		K8sVersion:         "1.36",
+		K8sVersion:         defaultRelease.Release,
 		Ports:              "8080",
 		ControlPlaneNodes:  1,
 		ControlPlaneDiskGb: 50,
@@ -113,14 +114,12 @@ func (app *k8sApp) cardMetadata() ucx.UiNode {
 					ucx.ServiceProviderSelectorNode("serviceProvider", "serviceProvider").ServiceProviderRealProvidersOnly(true),
 				),
 			ucx.FieldRowNodeEx("k8sVersionRow", "K8s version", "k8sVersion").
-				FieldRowDescription("The Kubernetes version to deploy.").
+				FieldRowDescription("The exact Kubernetes patch release to deploy.").
 				Children(
-					ucx.EnumSelectorNode("k8sVersionSelect", "k8sVersion", []ucx.Option{
-						{Key: "1.36", Value: "1.36"},
-					}),
+					ucx.EnumSelectorNode("k8sVersionSelect", "k8sVersion", k8sVersionOptions()),
 				),
 			ucx.FieldRowNodeEx("portsRow", "Exposed ports", "").
-				FieldRowDescription("Comma-separated list of ports to expose. Reserved ports: API 6443, Headlamp 30500.").
+				FieldRowDescription("Comma-separated list of ports to expose. Reserved ports: API 6443, Headlamp 30500, cluster ports 6443-6444.").
 				Children(
 					ucx.InputText("ports", "", "8080", "ports"),
 				),
@@ -139,7 +138,7 @@ func (app *k8sApp) cardControlPlane() ucx.UiNode {
 						MachineSelectorProviderBindPath("serviceProvider").MachineSelectorProviderOnly(true),
 				),
 			ucx.FieldRowNodeEx("controlPlaneNodesRow", "Node count", "controlPlaneNodes").
-				FieldRowDescription("The number of control plane nodes. An odd number is recommended for high availability.").
+				FieldRowDescription("The number of control plane nodes. Must be an odd number from 1 to 7.").
 				FieldRowRequired(true).
 				Children(
 					ucx.InputNumber("controlPlaneNodes", "", "controlPlaneNodes", 1, 7),
@@ -243,6 +242,12 @@ func (app *k8sApp) removePool(index int) {
 }
 
 func (app *k8sApp) deploy(ev ucx.UiEvent) {
+	release, ok := shared.ReleaseByExactVersion(app.K8sVersion)
+	if !ok {
+		ucxsvc.UiSendFailure(app, "Unknown Kubernetes version: "+app.K8sVersion)
+		return
+	}
+
 	ports, ok := parsePorts(app.Ports)
 	if !ok {
 		ucxsvc.UiSendFailure(app, "Could not decode ports or a reserved port was used! Found list: "+app.Ports)
@@ -254,6 +259,10 @@ func (app *k8sApp) deploy(ev ucx.UiEvent) {
 		ucxsvc.UiSendFailure(app, "Cluster ID must not be empty")
 		return
 	}
+	if len(clusterId) > clusterIdMaxLen {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster id must be at most %d characters", clusterIdMaxLen))
+		return
+	}
 	if !dnsSafeRe.MatchString(clusterId) {
 		ucxsvc.UiSendFailure(app, "Cluster ID may only contain a-z, 0-9 and dashes: "+clusterId)
 		return
@@ -263,8 +272,10 @@ func (app *k8sApp) deploy(ev ucx.UiEvent) {
 		ucxsvc.UiSendFailure(app, "Select a machine type for the control plane!")
 		return
 	}
-	if app.ControlPlaneNodes < 1 {
-		ucxsvc.UiSendFailure(app, "The control plane needs at least one node")
+	switch app.ControlPlaneNodes {
+	case 1, 3, 5, 7:
+	default:
+		ucxsvc.UiSendFailure(app, "The control plane node count must be an odd number from 1 to 7")
 		return
 	}
 	if app.ControlPlaneDiskGb < 10 {
@@ -276,9 +287,19 @@ func (app *k8sApp) deploy(ev ucx.UiEvent) {
 		ucxsvc.UiSendFailure(app, "Select a service provider!")
 		return
 	}
+	if app.ControlPlaneMachine.Provider != app.ServiceProvider {
+		ucxsvc.UiSendFailure(app, "The control plane machine must come from the selected service provider")
+		return
+	}
+
+	if strings.HasPrefix(clusterId, shared.GroupControlPlane) {
+		ucxsvc.UiSendFailure(app, "The cluster id must not start with the reserved name: "+shared.GroupControlPlane)
+		return
+	}
 
 	seenPools := map[string]util.Empty{}
 	pools := make([]shared.ClusterPoolSpec, 0, app.PoolCount)
+	totalNodes := app.ControlPlaneNodes
 	for i := 0; i < app.PoolCount; i++ {
 		var machine accapi.ProductReference
 		if i < len(app.PoolMachines) {
@@ -301,6 +322,10 @@ func (app *k8sApp) deploy(ev ucx.UiEvent) {
 			ucxsvc.UiSendFailure(app, "Worker pool "+strconv.Itoa(i+1)+" must have a name")
 			return
 		}
+		if len(name) > poolNameMaxLen {
+			ucxsvc.UiSendFailure(app, fmt.Sprintf("Worker pool names must be at most %d characters: %s", poolNameMaxLen, name))
+			return
+		}
 		if !dnsSafeRe.MatchString(name) {
 			ucxsvc.UiSendFailure(app, "Worker pool names may only contain a-z, 0-9 and dashes: "+name)
 			return
@@ -309,10 +334,18 @@ func (app *k8sApp) deploy(ev ucx.UiEvent) {
 			ucxsvc.UiSendFailure(app, "Worker pool names must be unique: "+name)
 			return
 		}
+		if name == shared.GroupControlPlane {
+			ucxsvc.UiSendFailure(app, "The name is reserved for the control plane: "+name)
+			return
+		}
 		seenPools[name] = util.Empty{}
 
 		if machine.Id == "" {
 			ucxsvc.UiSendFailure(app, "Select a machine type for worker pool "+name+"!")
+			return
+		}
+		if machine.Provider != app.ServiceProvider {
+			ucxsvc.UiSendFailure(app, "The machine for worker pool "+name+" must come from the selected service provider")
 			return
 		}
 		if nodes < 1 {
@@ -324,6 +357,7 @@ func (app *k8sApp) deploy(ev ucx.UiEvent) {
 			return
 		}
 
+		totalNodes += nodes
 		pools = append(pools, shared.ClusterPoolSpec{
 			Name:    name,
 			Machine: machine,
@@ -332,14 +366,23 @@ func (app *k8sApp) deploy(ev ucx.UiEvent) {
 		})
 	}
 
-	stackId := "K8s-" + clusterId
+	if totalNodes > shared.ClusterMaxNodes {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf(
+			"The cluster supports at most %d nodes, but %d were requested",
+			shared.ClusterMaxNodes,
+			totalNodes,
+		))
+		return
+	}
+
+	stackId := clusterId
 
 	_, ok = shared.ClusterCreate(app, stackId, shared.ClusterSpec{
 		ControlPlaneMachine: app.ControlPlaneMachine,
 		ControlPlaneNodes:   app.ControlPlaneNodes,
 		ControlPlaneDiskGb:  app.ControlPlaneDiskGb,
 		WorkerPools:         pools,
-		K8sVersion:          app.K8sVersion,
+		K8sVersion:          release.Release,
 		Ports:               ports,
 	})
 	if !ok {
@@ -349,11 +392,27 @@ func (app *k8sApp) deploy(ev ucx.UiEvent) {
 
 func (app *k8sApp) OnMessage(msg ucx.Frame) {}
 
+func k8sVersionOptions() []ucx.Option {
+	options := make([]ucx.Option, 0, len(shared.K3sCatalog))
+	for _, release := range shared.K3sCatalog {
+		options = append(options, ucx.Option{
+			Key:   release.Release,
+			Value: fmt.Sprintf("Kubernetes %s", release.Release),
+		})
+	}
+	return options
+}
+
+const clusterIdMaxLen = 30
+const poolNameMaxLen = 30
+
 var dnsSafeRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
 
 func parsePorts(ports string) ([]int, bool) {
 	result := []int{}
+	seen := map[int]util.Empty{}
 	for _, p := range strings.Split(ports, ",") {
+		p = strings.TrimSpace(p)
 		if p == "" {
 			continue
 		}
@@ -363,10 +422,19 @@ func parsePorts(ports string) ([]int, bool) {
 			return nil, false
 		}
 
-		if port == shared.ApiPort || port == shared.HeadlampPort {
+		if port < 1 || port > 65535 {
 			return nil, false
 		}
 
+		if port == shared.ApiPort || port == shared.HeadlampPort || port == shared.ApiPort+1 {
+			return nil, false
+		}
+
+		if _, exists := seen[port]; exists {
+			return nil, false
+		}
+
+		seen[port] = util.Empty{}
 		result = append(result, port)
 	}
 	return result, true

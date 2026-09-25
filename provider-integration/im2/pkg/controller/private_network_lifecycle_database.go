@@ -617,6 +617,28 @@ func privateNetworkCacheRemoveAfterDelete(networkId string) {
 	privateNetworkMutex.Unlock()
 }
 
+func PrivateNetworkDiscardAfterFailedCreate(networkId string) {
+	db.NewTx0(func(tx *db.Transaction) {
+		privateNetworkLockReconcile(tx, networkId)
+		if !tx.Ok {
+			return
+		}
+
+		db.Exec(
+			tx,
+			`
+				delete from tracked_private_networks
+				where
+					resource_id = :resource_id
+					and state = 'provisioning'
+			`,
+			db.Params{"resource_id": networkId},
+		)
+	})
+
+	privateNetworkCacheRemoveAfterDelete(networkId)
+}
+
 func PrivateNetworkUpdateCoreCidrBlock(networkId string, cidrBlock string) *util.HttpError {
 	update := orc.PrivateNetworkUpdate{
 		CidrBlock: util.OptValue(cidrBlock),

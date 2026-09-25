@@ -2,13 +2,17 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"ucloud.dk/iapp/k8s/pkg/creator"
 	"ucloud.dk/iapp/k8s/pkg/dashboard"
+	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/util"
 )
+
+var dashboardMarker = filepath.Join(shared.ManagementMountPath, filepath.Base(shared.ClusterRecordPath))
 
 func main() {
 	port := util.OptNone[int]()
@@ -30,8 +34,9 @@ func main() {
 }
 
 func launch() ucx.Application {
-	if _, err := os.Stat("/etc/ucloud-stack"); err == nil {
-		if os.Getenv("UCX_PORT") != "" {
+	if os.Getenv("UCX_PORT") != "" {
+		if _, err := os.Stat(dashboardMarker); err == nil {
+			dashboard.WaitForFunctionalCluster()
 			return dashboard.App()
 		}
 	}

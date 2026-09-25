@@ -17,6 +17,24 @@ func ResourceCreateThroughProvider[T any](
 	extra any,
 	call rpc.Call[fndapi.BulkRequest[T], fndapi.BulkResponse[fndapi.FindByStringId]],
 ) (T, *util.HttpError) {
+	return ResourceCreateThroughProviderEx(
+		actor,
+		typeName,
+		specification,
+		extra,
+		call,
+		ProviderCallOpts{},
+	)
+}
+
+func ResourceCreateThroughProviderEx[T any](
+	actor rpc.Actor,
+	typeName string,
+	specification orcapi.ResourceSpecification,
+	extra any,
+	call rpc.Call[fndapi.BulkRequest[T], fndapi.BulkResponse[fndapi.FindByStringId]],
+	opts ProviderCallOpts,
+) (T, *util.HttpError) {
 	var t T
 
 	if !resourceSpecificationHasProduct(specification) {
@@ -33,10 +51,9 @@ func ResourceCreateThroughProvider[T any](
 		return t, err
 	}
 
-	resp, err := InvokeProvider(specification.Product.Provider, call, fndapi.BulkRequestOf(resc), ProviderCallOpts{
-		Username: util.OptValue(actor.Username),
-		Reason:   util.OptValue("Creating resource: " + typeName),
-	})
+	opts.Username = util.OptValue(actor.Username)
+	opts.Reason = util.OptValue("Creating resource: " + typeName)
+	resp, err := InvokeProvider(specification.Product.Provider, call, fndapi.BulkRequestOf(resc), opts)
 
 	if err == nil {
 		providerId := ""

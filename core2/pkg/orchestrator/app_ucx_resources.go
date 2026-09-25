@@ -125,6 +125,106 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 		},
 	)
 
+	appUcxCreateResource[orcapi.PrivateNetworkIpSpecification, orcapi.PrivateNetworkIp](
+		state,
+		proxy,
+		ucxapi.PrivateNetworkIpsCreate,
+		func(actor rpc.Actor, specs []orcapi.PrivateNetworkIpSpecification) ([]orcapi.PrivateNetworkIp, *util.HttpError) {
+			return PrivateNetworkIpCreate(actor, fndapi.BulkRequestOf(specs...))
+		},
+		func(r orcapi.PrivateNetworkIp) orcapi.ResourceSpecification {
+			return r.Specification.ResourceSpecification
+		},
+		func(r orcapi.PrivateNetworkIpSpecification) orcapi.ResourceSpecification {
+			return r.ResourceSpecification
+		},
+	)
+
+	appUcxDeleteResource[orcapi.PrivateNetworkIp](
+		state,
+		proxy,
+		ucxapi.PrivateNetworkIpsDelete,
+		func(actor rpc.Actor, id string) (orcapi.PrivateNetworkIp, *util.HttpError) {
+			return ResourceRetrieve[orcapi.PrivateNetworkIp](actor, privateNetworkIpType, ResourceParseId(id), orcapi.ResourceFlags{})
+		},
+		func(actor rpc.Actor, id string) *util.HttpError {
+			return ResourceDeleteThroughProvider(actor, privateNetworkIpType, id, orcapi.PrivateNetworkIpsProviderDelete)
+		},
+		func(r orcapi.PrivateNetworkIp) orcapi.ResourceSpecification {
+			return r.Specification.ResourceSpecification
+		},
+	)
+
+	appUcxBrowseResource[orcapi.PrivateNetworkIpsBrowseRequest, orcapi.PrivateNetworkIp](
+		state,
+		proxy,
+		ucxapi.PrivateNetworkIpsBrowse,
+		func(req orcapi.PrivateNetworkIpsBrowseRequest) util.Option[string] { return req.Next },
+		func(req *orcapi.PrivateNetworkIpsBrowseRequest, next util.Option[string]) { req.Next = next },
+		func(req orcapi.PrivateNetworkIpsBrowseRequest) int { return req.ItemsPerPage },
+		func(req *orcapi.PrivateNetworkIpsBrowseRequest, itemsPerPage int) { req.ItemsPerPage = itemsPerPage },
+		func(req *orcapi.PrivateNetworkIpsBrowseRequest) *orcapi.ResourceFlags {
+			return &req.PrivateNetworkIpFlags.ResourceFlags
+		},
+		func(actor rpc.Actor, request orcapi.PrivateNetworkIpsBrowseRequest) (fndapi.PageV2[orcapi.PrivateNetworkIp], *util.HttpError) {
+			sortByFn := ResourceDefaultComparator(func(item orcapi.PrivateNetworkIp) orcapi.Resource {
+				return item.Resource
+			}, request.ResourceFlags)
+
+			return ResourceBrowse[orcapi.PrivateNetworkIp](
+				actor,
+				privateNetworkIpType,
+				request.Next,
+				request.ItemsPerPage,
+				request.ResourceFlags,
+				func(item orcapi.PrivateNetworkIp) bool {
+					return true
+				},
+				sortByFn,
+			), nil
+		},
+	)
+
+	appUcxRetrieveResource[orcapi.PrivateNetworkIpsRetrieveRequest, orcapi.PrivateNetworkIp](
+		state,
+		proxy,
+		ucxapi.PrivateNetworkIpsRetrieve,
+		func(request orcapi.PrivateNetworkIpsRetrieveRequest) string {
+			return request.Id
+		},
+		func(actor rpc.Actor, id string) (orcapi.PrivateNetworkIp, *util.HttpError) {
+			return ResourceRetrieve[orcapi.PrivateNetworkIp](actor, privateNetworkIpType, ResourceParseId(id), orcapi.ResourceFlags{})
+		},
+		func(r orcapi.PrivateNetworkIp) orcapi.ResourceSpecification {
+			return r.Specification.ResourceSpecification
+		},
+	)
+
+	appUcxUpdateLabelsResource[orcapi.PrivateNetworkIpsUpdateLabelsRequest, orcapi.PrivateNetworkIp](
+		state,
+		proxy,
+		ucxapi.PrivateNetworkIpsUpdateLabels,
+		func(request orcapi.PrivateNetworkIpsUpdateLabelsRequest) string {
+			return request.Id
+		},
+		func(actor rpc.Actor, id string) (orcapi.PrivateNetworkIp, *util.HttpError) {
+			return ResourceRetrieve[orcapi.PrivateNetworkIp](actor, privateNetworkIpType, ResourceParseId(id), orcapi.ResourceFlags{})
+		},
+		PrivateNetworkIpUpdateLabels,
+		func(r orcapi.PrivateNetworkIp) orcapi.ResourceSpecification {
+			return r.Specification.ResourceSpecification
+		},
+	)
+
+	appUcxRetrieveProducts[orcapi.PrivateNetworkIpSupport](
+		state,
+		proxy,
+		ucxapi.PrivateNetworkIpsRetrieveProducts,
+		func(actor rpc.Actor) orcapi.SupportByProvider[orcapi.PrivateNetworkIpSupport] {
+			return SupportRetrieveProducts[orcapi.PrivateNetworkIpSupport](privateNetworkIpType)
+		},
+	)
+
 	appUcxCreateResource[orcapi.PublicIPSpecification, orcapi.PublicIp](
 		state,
 		proxy,

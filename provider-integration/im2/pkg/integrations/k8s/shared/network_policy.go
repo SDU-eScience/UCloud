@@ -134,6 +134,9 @@ func AllowNetworkFromWorld(policy *networking.NetworkPolicy, proto []orc.PortRan
 		Ports: portEntries,
 		From: []networking.NetworkPolicyPeer{
 			{
+				NamespaceSelector: &metav1.LabelSelector{},
+			},
+			{
 				IPBlock: &networking.IPBlock{
 					CIDR: "0.0.0.0/0",
 				},

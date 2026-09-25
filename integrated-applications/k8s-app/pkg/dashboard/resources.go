@@ -365,11 +365,7 @@ func KubeconfigPath() string {
 	if path != "" {
 		return path
 	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "/home/ucloud/.kube/config"
-	}
-	return home + "/.kube/config"
+	return "/etc/ucloud-k8s/management/kubeconfig-internal"
 }
 
 func ageString(t time.Time) string {

@@ -82,3 +82,15 @@ var StacksControlCancelDeletion = rpc.Call[fnd.FindByIntId, util.Empty]{
 	Operation:   "cancelDeletion",
 	Roles:       rpc.RolesProvider,
 }
+
+type StacksControlRenewDeletionRequest struct {
+	RequestId      int                        `json:"requestId"`
+	ActivationTime util.Option[fnd.Timestamp] `json:"activationTime"`
+}
+
+var StacksControlRenewDeletion = rpc.Call[StacksControlRenewDeletionRequest, util.Empty]{
+	BaseContext: stacksContext + "/control",
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "renewDeletion",
+	Roles:       rpc.RolesProvider,
+}

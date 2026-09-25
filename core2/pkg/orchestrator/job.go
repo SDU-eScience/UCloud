@@ -1865,7 +1865,7 @@ func jobValidateValue(
 			return util.HttpErr(http.StatusBadRequest, "unknown file or permission denied at '%s'", path)
 		}
 
-		value.ReadOnly = !orcapi.PermissionsHas(resc.Permissions.GetOrDefault(orcapi.ResourcePermissions{}).Myself, orcapi.PermissionEdit)
+		value.ReadOnly = value.ReadOnly || !orcapi.PermissionsHas(resc.Permissions.GetOrDefault(orcapi.ResourcePermissions{}).Myself, orcapi.PermissionEdit)
 		return nil
 
 	case orcapi.AppParameterValueTypePeer:

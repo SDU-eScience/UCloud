@@ -150,6 +150,7 @@ spec:
     - namespaceSelector:
         matchLabels:
           kubernetes.io/metadata.name: ucloud-im
+    - namespaceSelector: {}
   podSelector: {}
   policyTypes:
   - Ingress

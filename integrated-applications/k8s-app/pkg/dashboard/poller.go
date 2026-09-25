@@ -60,6 +60,7 @@ type resourceSelection struct {
 
 type resourcePoller struct {
 	mu              sync.Mutex
+	sendMu          sync.Mutex
 	client          *K8sClient
 	session         *ucx.Session
 	cancel          context.CancelFunc
@@ -76,9 +77,16 @@ type resourcePoller struct {
 	customTypes     []ResourceTypeDef
 	customAt        atomic.Int64
 	onTypesChanged  func()
+	nodeJobIds      func() map[string]string
 }
 
-func newResourcePoller(client *K8sClient, session *ucx.Session, activeType string, onTypesChanged func()) *resourcePoller {
+func newResourcePoller(
+	client *K8sClient,
+	session *ucx.Session,
+	activeType string,
+	nodeJobIds func() map[string]string,
+	onTypesChanged func(),
+) *resourcePoller {
 	p := &resourcePoller{
 		client:         client,
 		session:        session,
@@ -86,6 +94,7 @@ func newResourcePoller(client *K8sClient, session *ucx.Session, activeType strin
 		lastRows:       map[string]ResourceRow{},
 		pollNow:        make(chan util.Empty, 1),
 		onTypesChanged: onTypesChanged,
+		nodeJobIds:     nodeJobIds,
 	}
 
 	ctx, cancel := context.WithCancel(session.Context())
@@ -473,19 +482,18 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 	}
 
 	p.mu.Lock()
-	defer p.mu.Unlock()
 
 	if p.selectionEpoch != selection.epoch {
+		p.mu.Unlock()
 		return
 	}
-
 	items := make([]unstructured.Unstructured, 0, len(p.cache))
 	for _, obj := range p.cache {
 		items = append(items, *obj)
 	}
 	rows := resourceRowsForType(items, selection.def)
 	for i := range rows {
-		rows[i].Actions = resourceRowActions(selection.def, rows[i])
+		rows[i].Actions = resourceRowActions(selection.def, rows[i], p.nodeJobIds)
 	}
 
 	rowByKey := make(map[string]ResourceRow, len(rows))
@@ -514,6 +522,7 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 			}
 		}
 		if len(upserts) == 0 && len(removed) == 0 {
+			p.mu.Unlock()
 			return
 		}
 	}
@@ -522,6 +531,17 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 	p.lastColumns = selection.def.Columns
 	p.lastRev++
 	rev := p.lastRev
+	p.mu.Unlock()
+
+	p.sendMu.Lock()
+	defer p.sendMu.Unlock()
+
+	p.mu.Lock()
+	stale := p.selectionEpoch != selection.epoch
+	p.mu.Unlock()
+	if stale {
+		return
+	}
 
 	session.SendTableUpdate(ucx.TableUpdate{
 		TableId:  resourceDatasetId(selection),
@@ -655,12 +675,24 @@ func resourceRowsForType(items []unstructured.Unstructured, def ResourceTypeDef)
 	}
 }
 
-func resourceRowActions(def ResourceTypeDef, row ResourceRow) []ucx.TableRowAction {
+func resourceRowActions(def ResourceTypeDef, row ResourceRow, nodeJobIds func() map[string]string) []ucx.TableRowAction {
 	if def.Id != "nodes" || len(row.Cells) == 0 {
 		return nil
 	}
+
+	jobId := nodeJobIds()[row.Cells[0]]
+	goToJob := ucx.TableRowAction{
+		Id:             "goToJob",
+		Enabled:        false,
+		DisabledReason: "No UCloud job is associated with this node",
+	}
+	if jobId != "" {
+		goToJob.Enabled = true
+	}
+
 	return []ucx.TableRowAction{
 		{Id: "copyNodeName", Enabled: true, Text: row.Cells[0]},
+		goToJob,
 	}
 }
 
@@ -671,6 +703,18 @@ func resourceTableUpsert(row ResourceRow) ucx.TableRow {
 		Cells:   row.Cells,
 		Actions: row.Actions,
 	}
+}
+
+func (p *resourcePoller) nodeNameForRowKey(rowKey string) (string, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	row, ok := p.lastRows[rowKey]
+	if !ok || len(row.Cells) == 0 {
+		return "", false
+	}
+
+	return row.Cells[0], true
 }
 
 func rowsEqual(a, b ResourceRow) bool {

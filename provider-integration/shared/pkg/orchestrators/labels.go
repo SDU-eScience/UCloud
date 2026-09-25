@@ -9,4 +9,5 @@ const (
 	ResourceLabelStackStateFolder  = "ucloud.dk/stack-state-folder"
 	ResourceLabelStackInstance     = "ucloud.dk/stack-instance"
 	ResourceLabelStackName         = "ucloud.dk/stack-name"
+	ResourceLabelUcxPort           = "ucloud.dk/ucxport"
 )
