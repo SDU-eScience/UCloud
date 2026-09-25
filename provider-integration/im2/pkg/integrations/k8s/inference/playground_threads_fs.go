@@ -34,9 +34,11 @@ import (
 // state uses Unix milliseconds. JSON omits optional message fields but always stores thread identity, usage, and history.
 
 const (
-	playgroundChatsSubPath      = "Inference/Chats"
-	playgroundThreadLoadLimit   = 30
-	playgroundThreadMaxJSONSize = 8 * 1024 * 1024
+	playgroundChatsSubPath       = "Inference/Chats"
+	playgroundSettingsFileName   = "settings.json"
+	playgroundSettingsMaxJSONSize = 8 * 1024
+	playgroundThreadLoadLimit    = 30
+	playgroundThreadMaxJSONSize   = 8 * 1024 * 1024
 )
 
 type playgroundPersistedThread struct {
@@ -48,6 +50,7 @@ type playgroundPersistedThread struct {
 	Usage     InferencePlaygroundTokenUsage `json:"usage"`
 	LastQuery InferencePlaygroundTokenUsage `json:"lastQuery"`
 	Messages  []playgroundPersistedMessage  `json:"messages"`
+	WebSearch *bool                         `json:"webSearch,omitempty"`
 }
 
 type playgroundPersistedMessage struct {
@@ -319,6 +322,7 @@ func playgroundThreadPersisted(thread playgroundChatThread) playgroundPersistedT
 		Usage:     thread.Usage,
 		LastQuery: thread.LastQuery,
 		Messages:  messages,
+		WebSearch: thread.WebSearch,
 	}
 }
 
@@ -376,6 +380,7 @@ func playgroundThreadFromPersisted(persisted playgroundPersistedThread) (playgro
 		Usage:     persisted.Usage,
 		LastQuery: lastQuery,
 		Messages:  messages,
+		WebSearch: persisted.WebSearch,
 	}, true
 }
 
@@ -418,6 +423,60 @@ func playgroundPersistedLastQueryFallback(usage InferencePlaygroundTokenUsage, m
 
 func playgroundChatsRoot(basePath string) string {
 	return filepath.Join(basePath, playgroundChatsSubPath)
+}
+
+// Web-search settings
+// ---------------------------------------------------------------------------------------------------------------------
+// The most recent manually chosen web-search value is stored in `Inference/settings.json`, directly underneath the
+// Inference folder. Loading falls back to the application default when the file is missing or invalid, so the toggle
+// defaults to on for a first-time user.
+
+type playgroundPersistedSettings struct {
+	WebSearch *bool `json:"webSearch,omitempty"`
+}
+
+func playgroundSettingsPath(basePath string) string {
+	return filepath.Join(basePath, playgroundChatsSubPath, playgroundSettingsFileName)
+}
+
+func inferencePlaygroundWebSearchSettingLoad(owner string, project util.Option[string]) (bool, bool) {
+	basePath, _, err := filesystem.InitializeMemberFiles(owner, project)
+	if err != nil {
+		return false, false
+	}
+	data, err := filesystem.ReadFile(playgroundSettingsPath(basePath), playgroundSettingsMaxJSONSize)
+	if err != nil {
+		return false, false
+	}
+	var persisted playgroundPersistedSettings
+	if jsonErr := json.Unmarshal(data, &persisted); jsonErr != nil {
+		return false, false
+	}
+	if persisted.WebSearch == nil {
+		return false, false
+	}
+	return *persisted.WebSearch, true
+}
+
+func inferencePlaygroundWebSearchSettingStore(owner string, project util.Option[string], value *bool) bool {
+	basePath, drive, err := filesystem.InitializeMemberFiles(owner, project)
+	if err != nil {
+		return false
+	}
+	if ctrl.ResourceIsLocked(drive.Resource, drive.Specification.Product) {
+		return false
+	}
+	root := playgroundChatsRoot(basePath)
+	if err := filesystem.DoCreateFolder(root); err != nil {
+		return false
+	}
+	persisted := playgroundPersistedSettings{WebSearch: value}
+	data, jsonErr := json.MarshalIndent(persisted, "", "  ")
+	if jsonErr != nil {
+		return false
+	}
+	data = append(data, '\n')
+	return filesystem.WriteFileAtomic(playgroundSettingsPath(basePath), data, 0660) == nil
 }
 
 func playgroundThreadPath(root string, thread playgroundChatThread) string {

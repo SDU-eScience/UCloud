@@ -61,6 +61,9 @@ type InferencePlaygroundApp struct {
 	session        *ucx.Session `ucx:"-"`
 	flusherStarted bool         `ucx:"-"`
 
+	webSearchSetting *bool `ucx:"-"`
+	webSearchDirty   bool  `ucx:"-"`
+
 	Owner     orcapi.ResourceOwner `ucx:"-"`
 	SessionId string               `ucx:"-"`
 
@@ -77,6 +80,13 @@ type InferencePlaygroundApp struct {
 
 	Chat        InferencePlaygroundAppChat
 	chatCancels map[string]context.CancelFunc `ucx:"-"`
+}
+
+func (app *InferencePlaygroundApp) webSearchDefault() bool {
+	if app.webSearchSetting != nil {
+		return *app.webSearchSetting
+	}
+	return true
 }
 
 type InferencePlaygroundAppChat struct {
@@ -96,6 +106,7 @@ type InferencePlaygroundAppChat struct {
 	MaxCompletionTokens int64
 	Logprobs            bool
 	TopLogprobs         int64
+	WebSearch           bool
 	Messages            []playgroundChatMessage
 
 	StreamingMessages []playgroundChatMessage
@@ -159,6 +170,7 @@ type playgroundChatThread struct {
 	Usage       InferencePlaygroundTokenUsage
 	LastQuery   InferencePlaygroundTokenUsage `ucx:"-"`
 	Messages    []playgroundChatMessage       `ucx:"-"`
+	WebSearch   *bool                         `ucx:"-"`
 	Dirty       bool                          `ucx:"-"`
 	Deleted     bool                          `ucx:"-"`
 	StoragePath string                        `ucx:"-"`
@@ -278,8 +290,10 @@ func (app *InferencePlaygroundApp) sessionContextLocked() context.Context {
 func (app *InferencePlaygroundApp) OnInit() {
 	app.refreshModels()
 	app.loadThreads()
+	app.loadWebSearchSetting()
 	app.registerAttachmentRpcs()
 	app.Chat.ModelId = app.firstModelFor(InferenceTextGeneration)
+	app.Chat.WebSearch = app.webSearchDefault()
 	app.applyChatModelDefaults()
 	app.startThreadFlusher()
 
@@ -360,6 +374,13 @@ func (app *InferencePlaygroundApp) OnMessage(message ucx.Frame) {
 		return
 	}
 	if message.Opcode == ucx.OpModelInput {
+		if message.ModelInput.Path == "chat.webSearch" {
+			if !app.Developer && !strings.HasPrefix(message.ModelInput.NodeId, "rehydrate:") {
+				app.setWebSearch(app.Chat.WebSearch)
+			}
+			ucx.AppUpdateUi(app)
+			return
+		}
 		if message.ModelInput.Path == "currentThreadId" {
 			if !app.Developer {
 				threadId := strings.TrimSpace(app.CurrentThreadId)
@@ -469,6 +490,7 @@ func (app *InferencePlaygroundApp) createThread() {
 	app.Chat.StreamingMessages = nil
 	app.Chat.StreamingThreadId = ""
 	app.Chat.Usage = InferencePlaygroundTokenUsageState{}
+	app.Chat.WebSearch = app.webSearchDefault()
 }
 
 func (app *InferencePlaygroundApp) materializeCurrentThread() {
@@ -525,6 +547,11 @@ func (app *InferencePlaygroundApp) openThread(id string) {
 			app.Chat.Usage.Session = app.Threads[i].Usage
 			app.Chat.Usage.LastQuery = app.Threads[i].LastQuery
 			app.Chat.Loading = app.threadLoading(id)
+			if app.Threads[i].WebSearch != nil {
+				app.Chat.WebSearch = *app.Threads[i].WebSearch
+			} else {
+				app.Chat.WebSearch = app.webSearchDefault()
+			}
 			if modelId := playgroundMostRecentMessageModel(app.Chat.Messages); modelId != "" {
 				app.Chat.ModelId = modelId
 				app.applyChatModelDefaults()
@@ -619,6 +646,22 @@ func (app *InferencePlaygroundApp) sortThreads() {
 	})
 }
 
+func (app *InferencePlaygroundApp) setWebSearch(enabled bool) {
+	app.Chat.WebSearch = enabled
+	app.webSearchSetting = &enabled
+	app.webSearchDirty = true
+
+	if !app.Developer && app.CurrentThreadId != "" {
+		if thread, ok := app.currentThread(); ok {
+			value := enabled
+			thread.WebSearch = &value
+			thread.UpdatedAt = time.Now().UnixMilli()
+			thread.Dirty = true
+			app.sortThreads()
+		}
+	}
+}
+
 func (app *InferencePlaygroundApp) flushThreadsLocked() {
 	if inferencePlaygroundThreadsFlush(app.Owner.CreatedBy, app.Owner.Project, app.Threads, app.DeletedThreadIds, app.DeletedThreadPaths) {
 		for i := range app.Threads {
@@ -627,6 +670,19 @@ func (app *InferencePlaygroundApp) flushThreadsLocked() {
 		app.DeletedThreadIds = nil
 		app.DeletedThreadPaths = nil
 	}
+	if app.webSearchDirty {
+		if inferencePlaygroundWebSearchSettingStore(app.Owner.CreatedBy, app.Owner.Project, app.webSearchSetting) {
+			app.webSearchDirty = false
+		}
+	}
+}
+
+func (app *InferencePlaygroundApp) loadWebSearchSetting() {
+	value, ok := inferencePlaygroundWebSearchSettingLoad(app.Owner.CreatedBy, app.Owner.Project)
+	if !ok {
+		return
+	}
+	app.webSearchSetting = &value
 }
 
 func playgroundThreadTitle(prompt string) string {
@@ -903,6 +959,9 @@ func (app *InferencePlaygroundApp) runChatResponse(ctx context.Context, owner ap
 
 func (app *InferencePlaygroundApp) prepareChatTools(request *InferenceChatRequest) {
 	request.Tools = []InferenceChatTool{}
+	if !app.Chat.WebSearch {
+		return
+	}
 	model, ok := app.modelByName(request.Model)
 	if ok && model.ChatSettings.DisableTools {
 		return
@@ -1741,7 +1800,7 @@ func (app *InferencePlaygroundApp) buildChatCurl() string {
 	stream := app.Chat.Streaming
 	var tools []InferenceChatTool
 	model, ok := app.modelByName(app.Chat.ModelId)
-	if stream && (!ok || !model.ChatSettings.DisableTools) {
+	if stream && app.Chat.WebSearch && (!ok || !model.ChatSettings.DisableTools) {
 		tools = app.playgroundToolDefinitions()
 	}
 	payload := map[string]any{

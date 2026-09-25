@@ -6,6 +6,8 @@ import ProviderInfo from "@/Assets/provider_info.json";
 
 class ProviderBrandingStore extends ExternalStoreBase {
     private branding: ProviderBrandingResponse = {providers: {}};
+    private probedLogoUrls = new Set<string>();
+    private failedLogoUrls = new Set<string>();
 
     constructor() {
         super();
@@ -24,8 +26,27 @@ class ProviderBrandingStore extends ExternalStoreBase {
             const response = await callAPI<ProviderBrandingResponse>(request);
             this.branding = response;
             this.emitChange();
+            this.probeLogos();
         } catch (e: any) {
             console.warn(e);
+        }
+    }
+
+    private probeLogos() {
+        for (const provider of Object.values(this.branding.providers)) {
+            const logo = provider.logo;
+            if (!logo) continue;
+
+            const url = providerLogoUrl(logo);
+            if (this.probedLogoUrls.has(url)) continue;
+            this.probedLogoUrls.add(url);
+
+            const probe = new Image();
+            probe.onerror = () => {
+                this.failedLogoUrls.add(url);
+                this.emitChange();
+            };
+            probe.src = url;
         }
     }
 
@@ -35,7 +56,12 @@ class ProviderBrandingStore extends ExternalStoreBase {
 
     public getProviderProperty<Property extends keyof ProviderBranding>(providerId: string, providerProperty: Property): ProviderBranding[Property] | undefined {
         const property = this.branding.providers[providerId]?.[providerProperty];
-        return property ? property : ProviderInfo.providers.find(it => it.id === providerId)?.[providerProperty as string];
+        const logoFailed = property != null && providerProperty === "logo" &&
+            this.failedLogoUrls.has(providerLogoUrl(String(property)));
+        if (property && !logoFailed) {
+            return property;
+        }
+        return ProviderInfo.providers.find(it => it.id === providerId)?.[providerProperty as string];
     }
 }
 
@@ -56,9 +82,11 @@ export function useProviderBranding(providerId?: string): ProviderBranding | und
 }
 
 export function useProviderProperty<Property extends keyof ProviderBranding>(providerId: string, providerProperty: Property): ProviderBranding[Property] | undefined {
-    const branding = useProviderBranding(providerId);
-    const property = branding?.[providerProperty];
-    return property ? property : ProviderInfo.providers.find(it => it.id === providerId)?.[providerProperty as string];
+    React.useSyncExternalStore(
+        sub => providerBrandingStore.subscribe(sub),
+        () => providerBrandingStore.getSnapshot()
+    );
+    return providerBrandingStore.getProviderProperty(providerId, providerProperty);
 }
 
 export function useProviderLogoUrl(providerId: string): string | undefined {

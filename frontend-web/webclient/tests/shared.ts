@@ -411,8 +411,7 @@ export const File = {
 
         const correctProvider = await page.evaluate(() => {
             const iconName = window.location.host === "ucloud.localhost.direct" ? "im2k8s.png" : "sdu.png";
-            return document.querySelector("div.ReactModal__Content div.provider-icon > div[style*=background-image]")?.["style"]
-                .getPropertyValue("background-image").includes(iconName);
+            return document.querySelector("div.ReactModal__Content div.provider-icon img")?.getAttribute("src")?.includes(iconName) ?? false;
         });
 
         if (correctDrive && correctProvider) {

@@ -138,6 +138,7 @@ const PLAYGROUND_REHYDRATE_PATHS = [
     "developer",
     "chat.modelId",
     "chat.streaming",
+    "chat.webSearch",
     "chat.maxCompletionTokens",
     "chat.temperature",
     "chat.topP",
@@ -2016,9 +2017,27 @@ function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNe
         </div>
     </div>;
 
-return <PlaygroundSidebarShell header={header} footer={footer}>
+return <PlaygroundSidebarShell header={header} footer={<>
+        <WebSearchToggle model={model} fn={fn} connected={connected}/>
+        {footer}
+    </>}>
         {fn ? <ThreadListNode node={node} model={model} fn={fn} /> : <Text color="textSecondary">Loading...</Text>}
     </PlaygroundSidebarShell>;
+}
+
+function WebSearchToggle({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
+    const checked = boolValue(fn?.modelValue(model, "chat.webSearch") ?? model["chat.webSearch"]);
+    const toggle = () => {
+        if (!connected || !fn) return;
+        fn.sendModelInput("chat.webSearch", {kind: ValueKind.Bool, bool: !checked}, "chat.webSearch");
+    };
+    return <div
+        onClick={toggle}
+        style={{display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer"}}
+    >
+        <span style={{fontWeight: 600, userSelect: "none"}}>Allow web search</span>
+        <Toggle height={18} checked={checked} onChange={toggle}/>
+    </div>;
 }
 
 const ResponsiveHide = injectStyle("responsive-hide", cl => `
