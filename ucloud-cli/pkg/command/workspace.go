@@ -83,6 +83,22 @@ func FindWorkspaceByName(name string) (*shared.Workspace, error) {
 	}, nil
 }
 
+func FindWorkspaceById(id string) (*shared.Workspace, error) {
+	workspaces, err := retrieveWorkspaces()
+	if err != nil {
+		return nil, err
+	}
+	for name, v := range workspaces {
+		if v.Id == id {
+			return &shared.Workspace{
+				Id:   v.Id,
+				Name: name,
+			}, nil
+		}
+	}
+	return nil, errors.New(fmt.Sprintf("Workspace %s does not exist", id))
+}
+
 func checkIfEnviromentExists(name string) bool {
 	cfg, err := shared.ReadConfig()
 	if err != nil {

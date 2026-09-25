@@ -579,7 +579,7 @@ func TestSshKeyDelete(t *testing.T) {
 }
 
 func TestPublicIPList(t *testing.T) {
-	input := []string{"public-ip", "list", "--workspace", "testmain"}
+	input := []string{"public-ip", "list"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -587,9 +587,17 @@ func TestPublicIPList(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// public-ip create dev-ip --product ucloud/public-ip --open-port 22/tcp --open-port 443/tcp
+func TestPublicIPListByIP(t *testing.T) {
+	input := []string{"public-ip", "list", "--ip", "10.99.0.2-10.99.0.4"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
 func TestPublicIPCreate(t *testing.T) {
-	input := []string{"public-ip", "create", "dev-ip", "--product", "ucloud/public-ip", "--param", "start=1234", "--param", "end=1235", "--param", "protocol=tcp"}
+	input := []string{"public-ip", "create", "--rule", "1234-2345/tcp", "--rule", "12344/udp"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -597,4 +605,37 @@ func TestPublicIPCreate(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TODO: make a way to define the ports
+func TestPublicIPDelete(t *testing.T) {
+	input := []string{"public-ip", "delete", "--ip", "10.99.0.4-10.99.0.20", "--ip", "10.99.0.2"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+func TestPublicIPDeleteCidr(t *testing.T) {
+	input := []string{"public-ip", "delete", "--ip", "10.99.0.2"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicIPDeleteById(t *testing.T) {
+	input := []string{"public-ip", "delete", "--id", "64", "--id", "66", "--id", "67"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicIPGet(t *testing.T) {
+	input := []string{"public-ip", "get", "--id", "64"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
