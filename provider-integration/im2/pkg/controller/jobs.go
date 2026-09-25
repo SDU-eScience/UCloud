@@ -2027,6 +2027,46 @@ func IngressRegisterEndpointsWithJob(job *orcapi.Job, rank int, requestedSuffix 
 	}
 }
 
+func IngressAutoRegister(job *orcapi.Job) {
+	if job.Status.State != orcapi.JobStateRunning {
+		return
+	}
+
+	hasLink := false
+	for _, resource := range job.Specification.Resources {
+		if resource.Type == orcapi.AppParameterValueTypeIngress {
+			hasLink = true
+			break
+		}
+	}
+	if !hasLink {
+		return
+	}
+
+	session, err := Jobs.OpenWebSession(job, orcapi.InteractiveSessionTypeWeb, 0, util.OptNone[string]())
+	if err != nil {
+		log.Warn("Failed to register public links of job %s: %s", job.Id, err)
+		return
+	}
+
+	endpoints := make([]ConfiguredWebEndpoint, 0, len(session.Endpoints))
+	for _, endpoint := range session.Endpoints {
+		isWeb := (endpoint.Flags & RegisteredIngressFlagsWeb) != 0
+		if isWeb && endpoint.IsPublic {
+			endpoints = append(endpoints, endpoint)
+		}
+	}
+
+	if len(endpoints) == 0 {
+		return
+	}
+
+	_, err = IngressRegisterEndpointsWithJob(job, 0, util.OptNone[string](), endpoints)
+	if err != nil {
+		log.Warn("Failed to register public links of job %s: %s", job.Id, err)
+	}
+}
+
 func jobsLoadSessions() {
 	webSessionsMutex.Lock()
 	db.NewTx0(func(tx *db.Transaction) {

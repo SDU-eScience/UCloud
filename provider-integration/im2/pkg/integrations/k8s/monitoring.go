@@ -32,6 +32,7 @@ import (
 
 var nextAccounting time.Time
 var nextMountReport time.Time
+var nextPublicLinkReconcile time.Time
 
 // NOTE(Dan): This must only be used by code invoked from the goroutine in loopMonitoring. None of the code is
 // thread-safe.
@@ -838,6 +839,13 @@ func loopMonitoring() {
 		if len(kubevirtStarted) > 0 {
 			kubevirt.OnStart(kubevirtStarted)
 		}
+
+		for _, job := range containersStarted {
+			controller.IngressAutoRegister(&job)
+		}
+		for _, job := range kubevirtStarted {
+			controller.IngressAutoRegister(&job)
+		}
 	}()
 
 	// Accounting
@@ -881,6 +889,19 @@ func loopMonitoring() {
 
 		nextAccounting = now.Add(30 * time.Second)
 		metricMonitoring.WithLabelValues("JobAccounting").Observe(timer.Mark().Seconds())
+	}
+
+	// Public link self-healing
+	// -----------------------------------------------------------------------------------------------------------------
+	if now.After(nextPublicLinkReconcile) {
+		timer.Mark()
+		for _, job := range activeJobs {
+			if job.Status.State == orc.JobStateRunning {
+				controller.IngressAutoRegister(job)
+			}
+		}
+		nextPublicLinkReconcile = now.Add(30 * time.Second)
+		metricMonitoring.WithLabelValues("PublicLinkReconcile").Observe(timer.Mark().Seconds())
 	}
 
 	// Node remaining capacity calculation
