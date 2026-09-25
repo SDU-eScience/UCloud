@@ -47,7 +47,7 @@ var KubevirtClient kvclient.KubevirtClient
 var Namespace string
 var Enabled = false
 
-const enableDefaultPassword = true
+const enableDefaultPassword = false
 
 type activityMount struct {
 	UCloudPath string
