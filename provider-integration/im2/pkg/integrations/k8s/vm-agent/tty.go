@@ -50,19 +50,29 @@ func (s *vmaTtySession) ReadMessage() []byte {
 	}
 }
 
-func handleTtySession(s *vmaTtySession) {
+func handleTtySession(s *vmaTtySession, terminate <-chan struct{}) {
 	defer util.SilentClose(s.Conn)
 
 	if !s.SendText(s.Token) {
 		return
 	}
 
+	_ = s.Conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 	if string(s.ReadMessage()) != "OK" {
 		return
 	}
+	_ = s.Conn.SetReadDeadline(time.Time{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	go func() {
+		select {
+		case <-terminate:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
 
 	ptyOutput := make(chan []byte, 32)
 	socketMessages := make(chan []byte, 1)

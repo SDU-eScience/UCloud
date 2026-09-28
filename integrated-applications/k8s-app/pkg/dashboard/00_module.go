@@ -17,6 +17,7 @@ import (
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
+	"ucloud.dk/shared/pkg/util"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
 )
@@ -49,7 +50,11 @@ func WaitForFunctionalCluster() {
 }
 
 func App() ucx.Application {
-	return &stackUiApp{TargetDiskGb: 50}
+	app := &stackUiApp{
+		TargetDiskGb:     50,
+		provisioningKick: make(chan util.Empty, 1),
+	}
+	return app
 }
 
 type stackUiApp struct {
@@ -77,8 +82,19 @@ type stackUiApp struct {
 	ResourceDetail  string
 	ResourceYaml    string
 	Namespaces      []string
+	LogJobId        string
+
+	provisioningCache []provisioningEntry `ucx:"-"`
+	provisioningKick  chan util.Empty     `ucx:"-"`
 
 	prevDetail string `ucx:"-"`
+}
+
+type provisioningEntry struct {
+	Hostname string
+	Group    string
+	Status   string
+	JobId    string
 }
 
 func (app *stackUiApp) Mutex() *sync.Mutex     { return &app.mu }
@@ -106,6 +122,7 @@ func (app *stackUiApp) OnSysHello(payload string) {
 
 	if !app.clientWaiterStarted && app.session != nil {
 		app.clientWaiterStarted = true
+		go app.provisioningWatcher(app.session)
 		app.startK8sClientWhenReady(app.session, app.ActiveType)
 	}
 }
@@ -131,7 +148,7 @@ func (app *stackUiApp) startK8sClientWhenReady(session *ucx.Session, activeType 
 						app.Namespaces = namespaces
 						log.Info("k8s-app: k8s client ready from %s", LocalKubeconfigPath())
 
-						app.poller = newResourcePoller(client, session, activeType, app.nodeJobIds, func() {
+						app.poller = newResourcePoller(client, session, activeType, app.nodeJobIds, app.provisioningResourceRows, func() {
 							app.mu.Lock()
 							ucx.AppUpdateUi(app)
 							app.mu.Unlock()
@@ -426,11 +443,26 @@ func (app *stackUiApp) pageProvisioning() []ucx.UiNode {
 
 	messages = append(messages, ucx.Text(message))
 
+	children := []ucx.UiNode{ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).Children(messages...)}
+
+	if record, ok := app.readClusterRecord(); ok {
+		for _, node := range record.Nodes {
+			if node.JobId == "" {
+				continue
+			}
+
+			children = append(children,
+				ucx.H3Ex("initLogsHeading-"+node.JobId, node.Hostname),
+				ucx.JobLogs("initLogs-"+node.JobId, node.JobId),
+			)
+		}
+	}
+
 	return []ucx.UiNode{ucx.Surface().Children(
 		ucx.Toolbar().Children(
 			ucx.H2("Kubernetes cluster"),
 		),
-		ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).Children(messages...),
+		ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 16}).Children(children...),
 	)}
 }
 
@@ -488,6 +520,9 @@ func (app *stackUiApp) namespaceSelectorNode() ucx.UiNode {
 }
 
 func (app *stackUiApp) resourceDetailNode(detail string) ucx.UiNode {
+	if strings.HasPrefix(detail, "provisioning/") {
+		return ucx.JobLogsBound("detailInitLogs", "logJobId")
+	}
 	return ucx.CodeBoundEx("resourceYaml", "resourceYaml").WithLang("yaml").WithStretch()
 }
 
@@ -504,7 +539,9 @@ func (app *stackUiApp) resourceDetailBottomNode(detail string) ucx.UiNode {
 	}
 
 	label := typeId
-	if def, ok := app.resolveType(typeId); ok {
+	if typeId == "provisioning" {
+		label = "Provisioning"
+	} else if def, ok := app.resolveType(typeId); ok {
 		label = def.Label
 	}
 
@@ -525,6 +562,16 @@ func (app *stackUiApp) handleRowActivated(tableId string, namespace string, name
 	}
 
 	if _, ok := app.resolveType(tableId); !ok {
+		return
+	}
+
+	if jobId := app.provisioningJobId(name); jobId != "" {
+		app.ResourceDetail = "provisioning/" + namespace + "/" + name
+		app.prevDetail = app.ResourceDetail
+		app.LogJobId = jobId
+		app.ResourceYaml = ""
+		ucxsvc.RouterPushPage(app, "detail/"+url.PathEscape("provisioning")+"/"+url.PathEscape(namespace)+"/"+url.PathEscape(name))
+		ucx.AppUpdateUi(app)
 		return
 	}
 
@@ -572,6 +619,168 @@ func (app *stackUiApp) nodeJobIds() map[string]string {
 		}
 	}
 	return result
+}
+
+func (app *stackUiApp) provisioningKickNow() {
+	if app.provisioningKick == nil {
+		return
+	}
+	select {
+	case app.provisioningKick <- util.Empty{}:
+	default:
+	}
+}
+
+func (app *stackUiApp) provisioningWatcher(session *ucx.Session) {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		app.refreshProvisioningRows(session)
+
+		select {
+		case <-session.Context().Done():
+			return
+		case <-app.provisioningKick:
+		case <-ticker.C:
+		}
+	}
+}
+
+func (app *stackUiApp) refreshProvisioningRows(session *ucx.Session) {
+	record, recordOk := app.readClusterRecord()
+	if !recordOk {
+		return
+	}
+
+	app.mu.Lock()
+	known := make(map[string]string, len(app.provisioningCache))
+	for _, entry := range app.provisioningCache {
+		known[entry.Hostname] = entry.Status
+	}
+	app.mu.Unlock()
+
+	entries := make([]provisioningEntry, 0, len(record.Nodes))
+	for _, node := range record.Nodes {
+		if node.JobId == "" || node.Hostname == "" {
+			continue
+		}
+
+		status := known[node.Hostname]
+		if status == "" {
+			status = "Provisioning"
+		}
+		entries = append(entries, provisioningEntry{
+			Hostname: node.Hostname,
+			Group:    node.Group,
+			Status:   status,
+			JobId:    node.JobId,
+		})
+	}
+
+	app.mu.Lock()
+	changed := !provisioningEntriesEqual(app.provisioningCache, entries)
+	app.provisioningCache = entries
+	app.mu.Unlock()
+
+	if changed && app.poller != nil {
+		app.poller.signalPollNow()
+	}
+
+	client := app.k8sClient
+	if client == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(session.Context(), 10*time.Second)
+	defer cancel()
+
+	existing, err := client.NodeNames(ctx)
+	if err != nil {
+		return
+	}
+
+	changed = false
+	for i := range entries {
+		if existing[entries[i].Hostname] {
+			entries[i].Status = "ready"
+			continue
+		}
+		if job, err := ucxsvc.JobRetrieve(app.Stack, entries[i].JobId); err == nil {
+			switch {
+			case job.Status.State == orcapi.JobStateInQueue:
+				entries[i].Status = "Waiting for resources"
+			case job.Status.State == orcapi.JobStateRunning:
+				entries[i].Status = "Initializing"
+			case job.Status.State == orcapi.JobStateSuspended:
+				entries[i].Status = "Powered off"
+			case job.Status.State.IsFinal():
+				entries[i].Status = "Failed"
+			}
+		}
+	}
+
+	survivors := make([]provisioningEntry, 0, len(entries))
+	for _, entry := range entries {
+		if entry.Status == "ready" {
+			continue
+		}
+		survivors = append(survivors, entry)
+	}
+
+	app.mu.Lock()
+	changed = !provisioningEntriesEqual(app.provisioningCache, survivors)
+	app.provisioningCache = survivors
+	app.mu.Unlock()
+
+	if changed && app.poller != nil {
+		app.poller.signalPollNow()
+	}
+}
+
+func provisioningEntriesEqual(a, b []provisioningEntry) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func (app *stackUiApp) provisioningResourceRows(def ResourceTypeDef) []ResourceRow {
+	if def.Id != "nodes" {
+		return nil
+	}
+
+	app.mu.Lock()
+	entries := app.provisioningCache
+	app.mu.Unlock()
+
+	rows := make([]ResourceRow, 0, len(entries))
+	for _, entry := range entries {
+		role := ""
+		if entry.Group == shared.GroupControlPlane {
+			role = "control-plane"
+		}
+		rows = append(rows, ResourceRow{
+			Key:   "provisioning:" + entry.Hostname,
+			Group: entry.Group,
+			Cells: []string{entry.Hostname, entry.Status, role, "", "", ""},
+		})
+	}
+	return rows
+}
+
+func (app *stackUiApp) provisioningJobId(hostname string) string {
+	for _, entry := range app.provisioningCache {
+		if entry.Hostname == hostname {
+			return entry.JobId
+		}
+	}
+	return ""
 }
 
 func (app *stackUiApp) readClusterRecord() (shared.ClusterRecord, bool) {
@@ -687,6 +896,7 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 
 				app.addMachinesToGroup(groupValue, machine, diskGb, count)
 				app.AddBusy = false
+				app.provisioningKickNow()
 				ucx.AppUpdateUi(app)
 			}()
 		}).Children(
@@ -780,6 +990,7 @@ func (app *stackUiApp) pageAddPool() []ucx.UiNode {
 
 			app.addPool(name, machine, diskGb, count)
 			app.AddBusy = false
+			app.provisioningKickNow()
 			ucx.AppUpdateUi(app)
 		}()
 	}).Children(
@@ -919,6 +1130,9 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 		app.ResourceDetail = routeDetail
 		if app.ResourceDetail != app.prevDetail {
 			app.prevDetail = app.ResourceDetail
+			if jobId := app.provisioningJobId(detailHostname(app.ResourceDetail)); jobId != "" {
+				app.LogJobId = jobId
+			}
 			app.loadResourceYaml(app.ResourceDetail)
 			changed = true
 		}
@@ -961,6 +1175,18 @@ func detailFromRoute(routePath string) string {
 	return typeId + "/" + namespace + "/" + name
 }
 
+func detailHostname(detail string) string {
+	parts := strings.Split(detail, "/")
+	if len(parts) != 3 {
+		return ""
+	}
+	hostname, err := url.PathUnescape(parts[2])
+	if err != nil {
+		return ""
+	}
+	return hostname
+}
+
 func rowActivationValue(value ucx.Value) (string, string, string) {
 	if value.Kind != ucx.ValueObject {
 		return "", "", ""
@@ -995,6 +1221,10 @@ func (app *stackUiApp) loadResourceYaml(detail string) {
 	typeId := parts[0]
 	namespace := parts[1]
 	name := parts[2]
+
+	if typeId == "provisioning" {
+		return
+	}
 
 	def, ok := app.resolveType(typeId)
 	if !ok {

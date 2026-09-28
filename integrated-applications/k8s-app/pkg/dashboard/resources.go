@@ -249,6 +249,19 @@ func (c *K8sClient) ListNamespaces(ctx context.Context) ([]string, error) {
 	return result, nil
 }
 
+func (c *K8sClient) NodeNames(ctx context.Context) (map[string]bool, error) {
+	list, err := c.Dynamic.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "nodes"}).List(ctx, listOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]bool, len(list.Items))
+	for i := range list.Items {
+		result[list.Items[i].GetName()] = true
+	}
+	return result, nil
+}
+
 var crdGvr = schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
 
 func (c *K8sClient) CustomResourceTypes(ctx context.Context) []ResourceTypeDef {

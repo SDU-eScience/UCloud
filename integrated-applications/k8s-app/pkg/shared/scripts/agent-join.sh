@@ -41,5 +41,7 @@ AGENT_KUBECONFIG="$K3S_DATA_DIR/agent/kubelet.kubeconfig"
 emit "Waiting for the node to become ready" 75
 wait_node_ready "$NODE_NAME" "$AGENT_KUBECONFIG"
 
+emit "Node joined the cluster" 100
+
 install -d -m 0755 "$BOOTSTRAP_STATE_DIR"
 touch "$BOOTSTRAP_MARKER"

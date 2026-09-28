@@ -1081,6 +1081,13 @@ func handleShellSessionViaSerialConsole(session *ctrl.ShellSession, cols, rows i
 	writeStop := make(chan error)
 	readStop := make(chan error)
 	upgradeChannel := make(chan *ws.Conn, 1)
+	defer func() {
+		select {
+		case conn := <-upgradeChannel:
+			util.SilentClose(conn)
+		default:
+		}
+	}()
 
 	go func() {
 		stream, err := KubevirtClient.

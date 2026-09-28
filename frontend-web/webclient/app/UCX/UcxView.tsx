@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {
     Box,
     Button,
@@ -45,7 +45,7 @@ import {
     valueMapToPlainPayload,
 } from "@/UCX/protocol";
 import {UcxSession} from "@/UCX/session";
-import {UcxBrowserLayout, UcxNavTree, UcxNavItem, UcxStreamedTable, UcxTableActionDef, UcxTableStore, UcxTableCount, UcxTableFilter} from "@/UCX/UcxBrowser";
+import {UcxBrowserLayout, UcxNavTree, UcxNavItem, UcxStreamedTable, UcxTableActionDef, UcxTableStore, UcxTableCount, UcxTableFilter, isEditableTarget, useUcxFocusContent} from "@/UCX/UcxBrowser";
 import {stopPropagation} from "@/UtilityFunctions";
 import {isLikelyMac} from "@/UtilityFunctions";
 import Label from "@/ui-components/Label";
@@ -63,6 +63,9 @@ import * as Heading from "@/ui-components/Heading";
 import {UcxAccordion} from "@/UCX/UcxAccordion";
 import {injectStyle} from "@/Unstyled";
 import {useIsLightThemeStored} from "@/ui-components/theme";
+import {WSFactory} from "@/Authentication/HttpClientInstance";
+import {appendToXterm, useXTerm, xtermThemes} from "@/Applications/Jobs/XTermLib";
+import {StreamProcessor, WidgetLabel, WidgetProgressBar, WidgetType} from "@/Applications/Jobs/JobViz";
 
 type ValueProvider = string | (() => string | Promise<string>);
 export type UcxRpcPayload = PlainValue;
@@ -1413,7 +1416,250 @@ const baseComponents: UcxComponentRegistry = {
             }
         </div>;
     },
+    job_logs: ({node, model, scope, fn}) => {
+        const jobId = node.bindPath ? modelString(model, node.bindPath, scope) : stringProp(node, "jobId", "");
+        const height = numberProp(node, "height", 320);
+        return <JobLogsNode jobId={jobId} height={height} style={fn.sxStyle(node)} />;
+    },
 };
+
+interface UcxJobsFollowResponse {
+    log?: FollowLogMessage[];
+    newStatus?: {state?: string} | null;
+    initialJob?: {status?: {state?: string}} | null;
+}
+
+interface FollowLogMessage {
+    rank: number;
+    stdout?: string | null;
+    stderr?: string | null;
+    channel?: string | null;
+}
+
+interface UcxJobLogsState {
+    jobId: string;
+    stageText: string | null;
+    progress: number | null;
+    jobState: string | null;
+    log: string[];
+    processor: StreamProcessor;
+}
+
+const UcxStageLabelId = "ucloud-init-stage";
+const UcxStageProgressId = "ucloud-init-progress";
+
+function ucxStageFallback(state: string | null): string {
+    switch (state) {
+        case "IN_QUEUE":
+            return "Waiting for resources...";
+        case "RUNNING":
+            return "Initializing...";
+        case "SUSPENDED":
+            return "Powered off";
+        case "SUCCESS":
+            return "Done";
+        case "FAILURE":
+        case "EXPIRED":
+            return "Failed";
+        default:
+            return "Waiting to start...";
+    }
+}
+
+function ucxStateColor(state: string | null): string {
+    switch (state) {
+        case "RUNNING":
+            return "var(--primaryMain)";
+        case "SUCCESS":
+            return "var(--successMain)";
+        case "SUSPENDED":
+            return "var(--warningMain)";
+        case "FAILURE":
+        case "EXPIRED":
+            return "var(--errorMain)";
+        default:
+            return "var(--textSecondary)";
+    }
+}
+
+function ucxIsInitDone(state: UcxJobLogsState): boolean {
+    return state.jobState === "SUCCESS" || (state.progress != null && state.progress >= 1);
+}
+
+function ucxApplyFollowResponse(state: UcxJobLogsState, payload: UcxJobsFollowResponse): boolean {
+    let changed = false;
+    if (payload.initialJob?.status?.state) {
+        state.jobState = payload.initialJob.status.state;
+        changed = true;
+    }
+    if (payload.newStatus?.state) {
+        state.jobState = payload.newStatus.state;
+        changed = true;
+    }
+
+    const log = payload.log;
+    if (!log || log.length === 0) return changed;
+
+    for (const message of log) {
+        const text = message.stdout ?? message.stderr ?? "";
+        if (message.channel === "ui" || message.channel === "data") {
+            state.processor.accept(text);
+        } else if (message.channel == null || message.channel === "serial") {
+            state.log.push(text);
+            changed = true;
+        }
+    }
+    return changed;
+}
+
+const JobLogsNode: React.FunctionComponent<{
+    jobId: string;
+    height: number;
+    style?: React.CSSProperties;
+}> = ({jobId, height, style}) => {
+    const stateRef = useRef<UcxJobLogsState | null>(null);
+    if (!stateRef.current || stateRef.current.jobId !== jobId) {
+        const processor = new StreamProcessor();
+        processor.on("createAny", ev => {
+            if (ev.id === UcxStageLabelId && ev.type === WidgetType.WidgetTypeLabel) {
+                stateRef.current!.stageText = (ev.spec as WidgetLabel).text;
+            }
+            if (ev.id === UcxStageProgressId && ev.type === WidgetType.WidgetTypeProgressBar) {
+                stateRef.current!.progress = (ev.spec as WidgetProgressBar).progress;
+            }
+        });
+        processor.on("updateProgress", ev => {
+            if (ev.id === UcxStageProgressId) {
+                stateRef.current!.progress = ev.widget.progress;
+            }
+        });
+        stateRef.current = {
+            jobId,
+            stageText: null,
+            progress: null,
+            jobState: null,
+            log: [],
+            processor,
+        };
+    }
+    const state = stateRef.current;
+
+    const [, forceUpdate] = useState(0);
+    const bump = useCallback(() => forceUpdate(x => x + 1), []);
+
+    useEffect(() => {
+        if (!jobId) return;
+        const conn = WSFactory.open("/jobs", {
+            init: async socket => {
+                await socket.subscribe({
+                    call: "jobs.follow",
+                    payload: {id: jobId},
+                    handler: message => {
+                        if (message.type === "message" && message.payload) {
+                            if (ucxApplyFollowResponse(state, message.payload as UcxJobsFollowResponse)) {
+                                bump();
+                            }
+                        }
+                    },
+                });
+            },
+        });
+        return () => conn.close();
+    }, [jobId, state, bump]);
+
+    const {termRef, terminal} = useXTerm({autofit: true});
+    const logLengthRef = useRef(0);
+    const lastJobIdRef = useRef<string | null>(null);
+
+    useLayoutEffect(() => {
+        if (lastJobIdRef.current !== jobId) {
+            lastJobIdRef.current = jobId;
+            terminal.reset();
+            logLengthRef.current = 0;
+        }
+
+        const pending = state.log.slice(logLengthRef.current);
+        if (pending.length === 0) return;
+        logLengthRef.current = state.log.length;
+        for (const chunk of pending) {
+            appendToXterm(terminal, chunk);
+        }
+    });
+
+    const stageText = state.stageText
+        ?? (ucxIsInitDone(state) ? "Ready" : ucxStageFallback(state.jobState));
+    const stateColor = ucxIsInitDone(state)
+        ? "var(--successMain)"
+        : ucxStateColor(state.jobState);
+
+    return <div style={{display: "flex", flexDirection: "column", gap: 8, minHeight: 0, ...style}}>
+        <div style={{display: "flex", alignItems: "center", gap: 8}}>
+            <span className={UcxJobLogsDot} style={{background: stateColor}} />
+            <span style={{fontSize: "13px", color: "var(--textPrimary)"}}>{stageText}</span>
+        </div>
+        {state.progress != null ?
+            <div className={UcxJobLogsProgressTrack}>
+                <div
+                    className={UcxJobLogsProgressFill}
+                    style={{
+                        width: `${Math.round(Math.min(1, Math.max(0, state.progress)) * 100)}%`,
+                        background: ucxIsInitDone(state) ? "var(--successMain)" : undefined,
+                    }}
+                />
+            </div> :
+            null}
+        <div className={UcxJobLogsTermWrapper} style={{height: `${height}px`}}>
+            <div ref={termRef} className="term" />
+        </div>
+    </div>;
+};
+
+const UcxJobLogsDot = injectStyle("ucx-job-logs-dot", k => `
+    ${k} {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        display: inline-block;
+    }
+`);
+
+const UcxJobLogsProgressTrack = injectStyle("ucx-job-logs-progress-track", k => `
+    ${k} {
+        height: 4px;
+        border-radius: 2px;
+        background: var(--borderColor);
+        overflow: hidden;
+    }
+`);
+
+const UcxJobLogsProgressFill = injectStyle("ucx-job-logs-progress-fill", k => `
+    ${k} {
+        height: 100%;
+        border-radius: 2px;
+        background: var(--primaryMain);
+        transition: width 200ms ease;
+    }
+`);
+
+const UcxJobLogsTermWrapper = injectStyle("ucx-job-logs-term-wrapper", k => `
+    ${k} {
+        background: ${xtermThemes.light.background};
+        border: 1px solid var(--borderColor);
+        border-radius: 8px;
+        padding: 12px 16px;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    html.dark ${k} {
+        background: ${xtermThemes.dark.background};
+    }
+
+    ${k} .term {
+        height: 100%;
+    }
+`);
 
 function mergeComponentRegistry(
     base: UcxComponentRegistry,
@@ -2542,19 +2788,20 @@ const UcxSelectField = ({node, model, scope, fn}: {
         openFnRef.current?.(0, 0);
     }, []);
 
+    const focusContent = useUcxFocusContent();
+
     useEffect(() => {
         if (!shortcutKey) return;
         const onKeyDown = (event: KeyboardEvent) => {
-            if (event.key.toLowerCase() !== shortcutKey.toLowerCase()) return;
+            const expected = "Key" + shortcutKey.toUpperCase();
+            if (event.code !== expected) return;
             if (!isLikelyMac ? !event.ctrlKey : !event.metaKey) return;
             if (!event.altKey) return;
             const active = document.activeElement;
-            if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement
-                || active instanceof HTMLElement && active.isContentEditable) return;
+            if (isEditableTarget(active)) return;
             const browser = triggerRef.current?.closest("[data-ucx-browser]");
-            const inRegion = browser instanceof HTMLElement
-                ? browser.contains(active) || active === document.body
-                : triggerRef.current?.contains(active) ?? active === document.body;
+            if (!browser) return;
+            const inRegion = browser.contains(active) || active === document.body;
             if (!inRegion) return;
 
             event.preventDefault();
@@ -2568,7 +2815,10 @@ const UcxSelectField = ({node, model, scope, fn}: {
     const select = <SimpleRichSelect
         items={options}
         selected={selected}
-        onSelect={item => fn.sendBoundInput(node, {kind: ValueKind.String, string: item.key}, model, scope)}
+        onSelect={item => {
+            fn.sendBoundInput(node, {kind: ValueKind.String, string: item.key}, model, scope);
+            focusContent();
+        }}
         placeholder={stringProp(node, "placeholder", "Select...")}
         mt={label === "" ? undefined : 8}
         fullWidth={true}

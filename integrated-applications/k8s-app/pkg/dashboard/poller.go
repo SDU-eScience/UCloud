@@ -78,6 +78,7 @@ type resourcePoller struct {
 	customAt        atomic.Int64
 	onTypesChanged  func()
 	nodeJobIds      func() map[string]string
+	extraRows       func(ResourceTypeDef) []ResourceRow
 }
 
 func newResourcePoller(
@@ -85,6 +86,7 @@ func newResourcePoller(
 	session *ucx.Session,
 	activeType string,
 	nodeJobIds func() map[string]string,
+	extraRows func(ResourceTypeDef) []ResourceRow,
 	onTypesChanged func(),
 ) *resourcePoller {
 	p := &resourcePoller{
@@ -95,6 +97,7 @@ func newResourcePoller(
 		pollNow:        make(chan util.Empty, 1),
 		onTypesChanged: onTypesChanged,
 		nodeJobIds:     nodeJobIds,
+		extraRows:      extraRows,
 	}
 
 	ctx, cancel := context.WithCancel(session.Context())
@@ -365,6 +368,7 @@ func (p *resourcePoller) resourceWatchLoop(rootCtx context.Context, cycleCtx con
 			if p.resourceSelectionChanged(selection) {
 				return resourceWatchRestart
 			}
+			flush()
 
 		case <-renderTicker.C:
 			p.resourceMaybeRefreshCustomTypes(cycleCtx)
@@ -492,6 +496,36 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 		items = append(items, *obj)
 	}
 	rows := resourceRowsForType(items, selection.def)
+	extraRows := p.extraRows
+	p.mu.Unlock()
+
+	if extraRows != nil {
+		baseKeys := make(map[string]bool, len(rows))
+		baseNames := make(map[string]bool, len(rows))
+		for _, row := range rows {
+			baseKeys[row.Key] = true
+			if len(row.Cells) > 0 {
+				baseNames[row.Cells[0]] = true
+			}
+		}
+
+		for _, row := range extraRows(selection.def) {
+			if baseKeys[row.Key] {
+				continue
+			}
+			if len(row.Cells) > 0 && baseNames[row.Cells[0]] {
+				continue
+			}
+			rows = append(rows, row)
+		}
+	}
+
+	p.mu.Lock()
+
+	if p.selectionEpoch != selection.epoch {
+		p.mu.Unlock()
+		return
+	}
 	for i := range rows {
 		rows[i].Actions = resourceRowActions(selection.def, rows[i], p.nodeJobIds)
 	}

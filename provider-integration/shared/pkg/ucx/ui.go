@@ -1079,6 +1079,42 @@ func CodeBoundEx(id string, bindPath string) UiNode {
 	return UiNode{Id: id, Component: "code", BindPath: bindPath}
 }
 
+func JobLogs(id string, jobId string) UiNode {
+	requireExplicitId(id, "job_logs")
+	return JobLogsEx(id, jobId)
+}
+
+func JobLogsEx(id string, jobId string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "job_logs",
+		Props: map[string]Value{
+			"jobId": VString(jobId),
+		},
+	}
+}
+
+func JobLogsBound(id string, jobIdBindPath string) UiNode {
+	requireExplicitId(id, "job_logs")
+	return JobLogsBoundEx(id, jobIdBindPath)
+}
+
+func JobLogsBoundEx(id string, jobIdBindPath string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "job_logs",
+		BindPath:  jobIdBindPath,
+	}
+}
+
+func (n UiNode) WithLogHeight(px int64) UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["height"] = VS64(px)
+	return n
+}
+
 func optionsToValue(options []Option) Value {
 	list := make([]Value, 0, len(options))
 	for _, option := range options {

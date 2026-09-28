@@ -83,6 +83,7 @@ if [ "$FIRST_SERVER" = "True" ]; then
 	/etc/ucloud-k8s/bundle/server-bootstrap.sh
 else
 	log "server joined"
+	emit "Server joined the cluster" 100
 fi
 
 install -d -m 0755 "$BOOTSTRAP_STATE_DIR"

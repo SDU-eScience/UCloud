@@ -6,6 +6,7 @@ import {doNothing, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {DataAttributes, injectStyle, unboxDataTags} from "@/Unstyled";
 import {Flex, Icon, Input, Relative} from "@/ui-components/index";
 import {FilterInputClass} from "@/Project/ProjectSwitcher";
+import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 import Box from "@/ui-components/Box";
 
 export type RichSelectChildComponent<T> = React.FunctionComponent<RichSelectProps<T>>;
@@ -58,7 +59,7 @@ export const SimpleRichSelect: React.FunctionComponent<{
                             {triggerText}
                         </Box>
                         {props.shortcutHint ?
-                            <span className={RichSelectShortcutClass}>{props.shortcutHint}</span> :
+                            <span className={RichSelectShortcutClass}><div className={ShortcutClass}>{props.shortcutHint}</div></span> :
                             null
                         }
                         <Icon name="heroChevronDown" style={{position: "absolute", bottom: "5px", right: "5px"}} />
@@ -249,7 +250,10 @@ export function RichSelect<T, K extends keyof T>(props: {
             props.RenderSelected ?
                 <div className={TriggerClass} data-rich-select-trigger="true" style={{width: props.fullWidth ? "100%" : (props.dropdownWidth ?? "500px"), minWidth: 0}} ref={mergeRefs(triggerRef, props.triggerRef)}>
                     <props.RenderSelected element={props.selected} onSelect={doNothing} />
-                    {props.shortcutHint ? <span className={RichSelectShortcutClass}>{props.shortcutHint}</span> : null}
+                    {props.shortcutHint ?
+                        <span className={RichSelectShortcutClass}><div className={ShortcutClass}>{props.shortcutHint}</div></span> :
+                        null
+                    }
                     <Icon name="heroChevronDown" style={props.chevronPlacement} />
                 </div>
                 : <></>;

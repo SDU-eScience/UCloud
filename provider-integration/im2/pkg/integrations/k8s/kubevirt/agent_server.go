@@ -79,6 +79,9 @@ func initAgentServer() {
 	})
 }
 
+const vmaStaleInterval = 60 * time.Second
+const vmaWriteTimeout = 10 * time.Second
+
 var vmaSessions struct {
 	Mu                sync.RWMutex
 	ByJobId           map[string][]*vmaSession
@@ -91,17 +94,27 @@ type vmaPendingTty struct {
 }
 
 type vmaSession struct {
-	Conn        *ws.Conn
-	Ok          bool
-	JobId       string
-	SessionId   string
-	SendSshKeys atomic.Bool
-	Mu          sync.RWMutex
-	TtyRequests []string
+	Conn          *ws.Conn
+	Ok            bool
+	JobId         string
+	SessionId     string
+	SendSshKeys   atomic.Bool
+	Mu            sync.RWMutex
+	TtyRequests   []string
+	LastHeartbeat atomic.Int64
+}
+
+func (s *vmaSession) TouchHeartbeat() {
+	s.LastHeartbeat.Store(time.Now().Unix())
+}
+
+func (s *vmaSession) Stale() bool {
+	return time.Since(time.Unix(s.LastHeartbeat.Load(), 0)) > vmaStaleInterval
 }
 
 func (s *vmaSession) SendBinary(data []byte) bool {
 	if s.Ok {
+		_ = s.Conn.SetWriteDeadline(time.Now().Add(vmaWriteTimeout))
 		s.Ok = s.Conn.WriteMessage(ws.BinaryMessage, data) == nil
 	}
 
@@ -110,6 +123,7 @@ func (s *vmaSession) SendBinary(data []byte) bool {
 
 func (s *vmaSession) SendText(data string) bool {
 	if s.Ok {
+		_ = s.Conn.SetWriteDeadline(time.Now().Add(vmaWriteTimeout))
 		s.Ok = s.Conn.WriteMessage(ws.TextMessage, []byte(data)) == nil
 	}
 
@@ -123,14 +137,34 @@ func vmaRequestTty(ctx context.Context, jobId string) *ws.Conn {
 		Cancel: make(chan struct{}),
 	}
 
+	var tokenSession *vmaSession
+
 	vmaSessions.Mu.Lock()
 	sessions, ok := vmaSessions.ByJobId[jobId]
-	if ok && len(sessions) > 0 {
-		session := sessions[0]
-		session.Mu.Lock()
-		session.TtyRequests = append(session.TtyRequests, ttyToken)
-		session.Mu.Unlock()
-		vmaSessions.PendingTtyByToken[ttyToken] = pending
+	if ok {
+		freshSessions := make([]*vmaSession, 0, len(sessions))
+		var selected *vmaSession
+		for _, session := range sessions {
+			if session.Stale() {
+				continue
+			}
+			freshSessions = append(freshSessions, session)
+			if selected == nil {
+				selected = session
+			}
+		}
+
+		if len(freshSessions) == 0 {
+			delete(vmaSessions.ByJobId, jobId)
+			ok = false
+		} else {
+			vmaSessions.ByJobId[jobId] = freshSessions
+			selected.Mu.Lock()
+			selected.TtyRequests = append(selected.TtyRequests, ttyToken)
+			selected.Mu.Unlock()
+			vmaSessions.PendingTtyByToken[ttyToken] = pending
+			tokenSession = selected
+		}
 	}
 	vmaSessions.Mu.Unlock()
 
@@ -140,18 +174,31 @@ func vmaRequestTty(ctx context.Context, jobId string) *ws.Conn {
 
 	defer close(pending.Cancel)
 
+	dropToken := func() {
+		vmaSessions.Mu.Lock()
+		delete(vmaSessions.PendingTtyByToken, ttyToken)
+		if tokenSession != nil {
+			tokenSession.Mu.Lock()
+			filtered := tokenSession.TtyRequests[:0]
+			for _, tok := range tokenSession.TtyRequests {
+				if tok != ttyToken {
+					filtered = append(filtered, tok)
+				}
+			}
+			tokenSession.TtyRequests = filtered
+			tokenSession.Mu.Unlock()
+		}
+		vmaSessions.Mu.Unlock()
+	}
+
 	select {
 	case conn := <-pending.Conn:
 		return conn
 	case <-time.After(5 * time.Second):
-		vmaSessions.Mu.Lock()
-		delete(vmaSessions.PendingTtyByToken, ttyToken)
-		vmaSessions.Mu.Unlock()
+		dropToken()
 		return nil
 	case <-ctx.Done():
-		vmaSessions.Mu.Lock()
-		delete(vmaSessions.PendingTtyByToken, ttyToken)
-		vmaSessions.Mu.Unlock()
+		dropToken()
 		return nil
 	}
 }
@@ -172,6 +219,7 @@ func vmaServerHandleSession(c *ws.Conn) {
 			Ok:        true,
 			SessionId: util.SecureToken(),
 		}
+		s.TouchHeartbeat()
 
 		jobId, srvToken, ok := vmaAuthenticate(string(authMsg))
 
@@ -195,9 +243,9 @@ func vmaServerHandleSession(c *ws.Conn) {
 				}
 			}
 			if len(newSessions) == 0 {
-				vmaSessions.ByJobId[jobId] = newSessions
-			} else {
 				delete(vmaSessions.ByJobId, jobId)
+			} else {
+				vmaSessions.ByJobId[jobId] = newSessions
 			}
 			vmaSessions.Mu.Unlock()
 		}()
@@ -230,10 +278,12 @@ func vmaServerHandleSession(c *ws.Conn) {
 				}
 			}
 
+			_ = c.SetReadDeadline(time.Now().Add(vmaStaleInterval))
 			_, msg, err := c.ReadMessage()
 			if err != nil {
 				return
 			}
+			s.TouchHeartbeat()
 
 			b := util.NewBuffer(bytes.NewBuffer(msg))
 			switch vmagent.VmaAgentOpCode(b.ReadU8()) {

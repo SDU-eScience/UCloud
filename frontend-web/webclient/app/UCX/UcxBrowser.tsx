@@ -245,7 +245,7 @@ function useBrowserRegionActive(ref: React.RefObject<HTMLElement | null>): boole
     return active;
 }
 
-function isEditableTarget(target: EventTarget | null): boolean {
+export function isEditableTarget(target: EventTarget | null): boolean {
     return target instanceof HTMLInputElement
         || target instanceof HTMLTextAreaElement
         || (target instanceof HTMLElement && target.isContentEditable);
