@@ -161,7 +161,7 @@ const defaultState: EditorState = {
     principalInvestigator: Client.activeUsername ?? "",
     loadedProjects: [],
     fullScreenLoading: true,
-    selectedProjectType: Grants.TemplateKey.NewProject, 
+    selectedProjectType: Grants.TemplateKey.NewProject,
 };
 
 // State reducer
@@ -272,7 +272,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
             if (state.stateDuringCreate) {
                 // Clearing previous state for form and allocators
-                state.createApplicationForms = []; 
+                state.createApplicationForms = [];
                 state.allocators = [];
 
                 if (state.stateDuringCreate.creatingWorkspace) {
@@ -293,7 +293,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
             state.selectedProjectType = templateKey as Grants.TemplateKey;
 
             let i = 0;
-            
+
             // allocator is grantGiver
             for (const allocator of action.allocators) {
                 const existing = newAllocators.find(it => it.id === allocator.id);
@@ -493,9 +493,9 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
 
 
             return {
-                ...state, 
+                ...state,
                 createApplicationForms: answerForms
-                
+
             };
         }
 
@@ -801,7 +801,7 @@ function stateReducer(state: EditorState, action: EditorAction): EditorState {
         newAllocators.flatMap(i => i.template[state.selectedProjectType].map(field => [field.title, field])));
 
         for (const answerForm of loadedAnswerForms) {
-            if (answerForm.allocatorId !== "System" || answerForm.templateRevisionNumber === -42) {  
+            if (answerForm.allocatorId !== "System" || answerForm.templateRevisionNumber === -42) {
                 continue;
             }
             // If you are system and your revision number isn't -42
@@ -978,7 +978,7 @@ function useStateReducerMiddleware(
 
                     dispatch({
                         type: "SetIsCreating", stateDuringCreate: {
-                            creatingWorkspace: ["newProject", "personalWorkspace"].includes(recipientType ?? ""),
+                            creatingWorkspace: "newProject" === recipientType,
                             reference: affiliationRequest.type === "ExistingProject" ? affiliationRequest.id : undefined
                         }
                     });
@@ -1111,109 +1111,109 @@ const style = injectStyle("grant-editor", k => `
     ${k} {
         width: 1000px;
     }
-    
+
     ${k} .grow {
         flex-grow: 1;
     }
-    
+
     /* the header element is a sticky box containing the controls for the page */
     /* -------------------------------------------------------------------------------------------------------------- */
     ${k} header {
         position: fixed;
         top: 0;
         left: var(${CSSVarCurrentSidebarStickyWidth});
-        
+
         background: var(--backgroundDefault);
         color: var(--textPrimary);
-        
+
         display: flex;
         flex-direction: row;
         align-items: center;
         gap: 8px;
-        
+
         height: 50px;
         width: calc(100vw - var(${CSSVarCurrentSidebarStickyWidth}));
-        
+
         padding: 0 16px;
         z-index: 9;
-        
+
         box-shadow: var(--defaultShadow);
     }
-    
+
     ${k} header button {
         height: 40px;
         font-size: 14px !important;
     }
-    
+
     ${k} header [data-tag=confirm-button] {
         min-width: unset;
         width: 200px;
     }
-    
+
     ${k} header.at-top {
         box-shadow: unset;
     }
-    
+
     ${k} header h3 {
         margin: 0;
     }
-    
+
     ${k} [data-tag=loading-spinner] {
         /* tweaks the spinner displayed in the header buttons such that it is placed correctly */
         margin: 0;
         margin-top: -5px;
     }
-    
+
     ${k} .application-wrapper {
         /* ensures that the sticky header doesn't feel cramped (application is the last section of the page) */
         min-height: calc(100vh - 200px);
     }
-    
+
     /* typography tweaks */
     /* -------------------------------------------------------------------------------------------------------------- */
     ${k} h1, ${k} h2, ${k} h3, ${k} h4 {
         margin: 19px 0;
     }
-    
+
     ${k} h3 {
         display: flex;
         align-items: center;
         gap: 8px;
     }
-    
+
     ${k}.is-editing h4 {
         margin-top: 50px;
         margin-bottom: 0;
     }
-    
+
     ${k}.is-editing h3 + h4 {
         margin-top: 0;
     }
-    
+
     ${k} h3:first-child {
         margin-top: 0;
     }
-    
+
     ${k} h3 {
         margin-top: 50px;
     }
-    
+
     ${k} label code {
         font-weight: normal;
     }
-    
+
     ${k} label {
         font-weight: 500;
         user-select: none;
     }
-    
+
     ${k} label.section {
         font-size: 120%;
     }
-    
+
     /* section and form styling */
     /* -------------------------------------------------------------------------------------------------------------- */
-    
+
     ${k} .project-info, ${k} .select-resources, ${k} .application, ${k} ${OrganizationInfoClass.dot} {
         display: grid;
         grid-template-columns: 450px 550px;
@@ -1223,60 +1223,60 @@ const style = injectStyle("grant-editor", k => `
     ${k} ${OrganizationInfoClass.dot} {
         margin-top: 50px;
     }
-    
+
 @media screen and (max-width: 1120px) {
     ${k} .application {
         display: block;
     }
-    
+
     ${k} .application > .form-body {
         margin-bottom: 16px;
     }
 }
-    
+
     ${k}.is-editing .project-info, ${k} .select-resources, ${k} .application {
         row-gap: 30px;
         margin-bottom: 30px;
     }
-    
+
     ${k}.is-editing .select-resources .section.optional {
         margin-top: 29px;
         display: block;
     }
-   
+
     ${k}.is-editing .description.optional {
         display: none;
     }
-    
+
     ${k} .description {
         color: var(--textSecondary);
         margin-right: 20px;
     }
-    
+
     ${k} .description p:first-child {
         margin-top: 0;
     }
-    
+
     ${k} .form-body {
         display: flex;
         flex-direction: column;
         gap: 15px;
     }
-    
+
     ${k} textarea {
         resize: vertical;
     }
-    
+
     ${k} .application textarea {
         margin-top: 23px;
     }
-    
+
     ${k} .mandatory::after {
         content: '*';
         color: red;
         margin-left: 8px;
     }
-    
+
     /* grant givers */
     ${k} .grant-giver {
         display: flex;
@@ -1284,107 +1284,107 @@ const style = injectStyle("grant-editor", k => `
         align-items: start;
         margin-bottom: 20px;
     }
-    
+
     ${k}.is-editing .grant-giver {
         align-items: center;
     }
-    
+
     ${k} .grant-giver label {
         display: flex;
         align-items: center;
         gap: 8px;
     }
-    
+
     ${k} .grant-giver .checkbox > div {
         margin: 0;
     }
-    
+
     /* requested resources */
     /* -------------------------------------------------------------------------------------------------------------- */
     ${k} .allocation-row {
         display: flex;
         flex-direction: column;
     }
-    
+
     ${k} .allocation-row label {
         display: block;
     }
-    
+
     ${k} .allocation-row td:first-child {
         width: 32px;
     }
-    
+
     ${k} .allocation-row table {
         border-collapse: separate;
         border-spacing: 4px;
     }
-    
+
     ${k} .allocation-row th {
         text-align: left;
     }
-    
+
     /* comments */
     ${k} .comments {
         margin-top: 15px;
     }
-    
+
     ${k} .comment-scrolling {
         height: 300px;
         overflow-y: auto;
         border-radius: 6px;
-        
+
         box-shadow: inset 0 11px 8px -10px #ccc;
         border: 1px solid #ccc;
-        
+
         display: flex;
         flex-direction: column;
     }
-    
+
     ${k} .comment-scrolling > :first-child {
         margin-top: auto;
     }
-    
+
     ${k} .comment-scrolling.at-top {
         box-shadow: unset;
     }
-    
+
     ${k} .comment {
         display: flex;
         padding: 15px 0;
     }
-    
+
     ${k} .comment .body {
         flex-grow: 1;
         margin: 0 6px;
     }
-    
+
     ${k} .comment time {
         color: var(--textSecondary);
     }
-    
+
     ${k} .comment p {
         margin: 0;
     }
-    
+
     ${k} .create-comment {
         margin-top: 16px;
     }
-    
+
     ${k} .create-comment .wrapper {
         display: flex;
     }
-    
+
     ${k} .create-comment textarea {
         flex-grow: 1;
         margin-left: 6px;
     }
-    
+
     ${k} .create-comment .buttons {
         display: flex;
         margin-top: 6px;
         justify-content: flex-end;
     }
-    
+
     ${k} .create-comment .buttons button {
         position: relative;
         top: -45px;
@@ -1473,7 +1473,8 @@ export function Editor(): React.ReactNode {
                     }
 
                     try {
-                        await dispatchEvent({type: "Init", grantId});
+                        if (grantId) await dispatchEvent({ type: "Init", grantId });
+                        else await dispatchEvent({type: "Init", affiliationRequest: {type: "NewProject", title: ""}})
                     } finally {
                         if (grantId) dispatchEvent({type: "UpdateFullScreenLoading", isLoading: false});
                     }
@@ -1496,7 +1497,7 @@ export function Editor(): React.ReactNode {
     const switchToExistingProject = useCallback((state: EditorState) => {
         dispatchEvent({type: "RecipientUpdated", isCreatingNewProject: false});
         const firstProject = state.loadedProjects.at(0);
-        dispatchEvent({type: "Init", affiliationRequest: {type: "ExistingProject", id: firstProject?.id ?? ""}})
+        dispatchEvent({type: "Init", affiliationRequest: {type: "ExistingProject", id: firstProject?.id ?? ""}});
     }, [dispatchEvent]);
 
     const onAllocatorChecked = useCallback((projectId: string, checked: boolean) => {
@@ -1607,7 +1608,7 @@ export function Editor(): React.ReactNode {
         return hasNoResources;
     }
 
-    const onSubmit = useCallback<React.FormEventHandler>(async ev => {
+    const onSubmit = useCallback<React.SubmitEventHandler>(async ev => {
         ev.preventDefault();
         if (!state.stateDuringCreate) return;
         if (state.loading) return;
@@ -2355,7 +2356,7 @@ function AnswerFormsView({ state, forms, onChange }: { state: EditorState, forms
                         <ProjectTitleForNewCore id={form.allocatorId}/>
                     </h3>
                     <hr style={{border:("solid 1px var(--secondaryDark)")}}/>
-                    <AnswerFormView 
+                    <AnswerFormView
                         state={state}
                         form={form}
                         onChange={onChange}
@@ -3228,7 +3229,7 @@ const GRANT_GIVER_INITIATED_ID = "_GRANT_GIVER_INITIATED_FAKE_ID_";
 const grantGiverInitiatedPrefix = "Sub-allocation description";
 const grantGiverInitiatedTemplate = `${grantGiverInitiatedPrefix}
 --------------------------------------------------
-                    
+
 Describe the reason for creating this sub-allocation (max 4000 ch).`;
 
 const grantGiverInitiatedForm: Grants.AnswerForm = {
