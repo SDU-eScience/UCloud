@@ -52,6 +52,7 @@ type JobsService struct {
 	Licenses          LicenseService
 	PrivateNetworks   PrivateNetworkService
 	PrivateNetworkIps PrivateNetworkIpService
+	Services          ServiceService
 }
 
 type PublicIPService struct {
@@ -73,6 +74,7 @@ type IngressService struct {
 	Delete           func(ingress *orcapi.Ingress) *util.HttpError
 	OnUpdatedLabels  func(ingress *orcapi.Ingress) *util.HttpError
 	RetrieveProducts func() []orcapi.IngressSupport
+	SetTarget        func(request orcapi.IngressesProviderSetTargetRequest) *util.HttpError
 }
 
 type PrivateNetworkService struct {
@@ -87,6 +89,16 @@ type PrivateNetworkIpService struct {
 	Delete           func(ip *orcapi.PrivateNetworkIp) *util.HttpError
 	OnUpdatedLabels  func(ip *orcapi.PrivateNetworkIp) *util.HttpError
 	RetrieveProducts func() []orcapi.PrivateNetworkIpSupport
+}
+
+type ServiceService struct {
+	Create           func(service *orcapi.Service) *util.HttpError
+	Delete           func(service *orcapi.Service) *util.HttpError
+	Update           func(request orcapi.ServicesProviderUpdateRequest) *util.HttpError
+	UpdateMembers    func(request orcapi.ServicesProviderUpdateMembersRequest) *util.HttpError
+	OnUpdatedLabels  func(service *orcapi.Service) *util.HttpError
+	UpdateAcl        func(service *orcapi.Service) *util.HttpError
+	RetrieveProducts func() []orcapi.ServiceSupport
 }
 
 type ConfiguredWebSessionResult struct {
@@ -1552,6 +1564,145 @@ func initJobs() {
 			}
 
 			return fnd.BulkResponse[orcapi.PrivateNetworkIpSupport]{Responses: result}, nil
+		})
+
+		orcapi.ServicesProviderCreate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Service]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
+			var responses []fnd.FindByStringId
+
+			for _, item := range request.Items {
+				fn := Jobs.Services.Create
+				if fn == nil {
+					return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "Service creation not supported")
+				}
+
+				err := fn(&item)
+				if err != nil {
+					return fnd.BulkResponse[fnd.FindByStringId]{}, err
+				}
+
+				responses = append(responses, fnd.FindByStringId{})
+			}
+
+			return fnd.BulkResponse[fnd.FindByStringId]{Responses: responses}, nil
+		})
+
+		orcapi.ServicesProviderDelete.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Service]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			var resp []util.Empty
+
+			for _, item := range request.Items {
+				fn := Jobs.Services.Delete
+				if fn == nil {
+					return fnd.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusBadRequest, "Service deletion not supported")
+				}
+
+				err := fn(&item)
+				if err != nil {
+					return fnd.BulkResponse[util.Empty]{}, err
+				}
+
+				resp = append(resp, util.Empty{})
+			}
+
+			return fnd.BulkResponse[util.Empty]{Responses: resp}, nil
+		})
+
+		orcapi.ServicesProviderRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (fnd.BulkResponse[orcapi.ServiceSupport], *util.HttpError) {
+			var result []orcapi.ServiceSupport
+			fn := Jobs.Services.RetrieveProducts
+			if fn != nil {
+				result = fn()
+			}
+
+			return fnd.BulkResponse[orcapi.ServiceSupport]{Responses: result}, nil
+		})
+
+		orcapi.ServicesProviderUpdate.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.ServicesProviderUpdateRequest]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			var resp []util.Empty
+
+			for _, item := range request.Items {
+				fn := Jobs.Services.Update
+				if fn == nil {
+					return fnd.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusBadRequest, "Service update not supported")
+				}
+
+				err := fn(item)
+				if err != nil {
+					return fnd.BulkResponse[util.Empty]{}, err
+				}
+
+				resp = append(resp, util.Empty{})
+			}
+
+			return fnd.BulkResponse[util.Empty]{Responses: resp}, nil
+		})
+
+		orcapi.ServicesProviderUpdateMembers.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.ServicesProviderUpdateMembersRequest]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			var resp []util.Empty
+
+			for _, item := range request.Items {
+				fn := Jobs.Services.UpdateMembers
+				if fn == nil {
+					return fnd.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusBadRequest, "Service member update not supported")
+				}
+
+				err := fn(item)
+				if err != nil {
+					return fnd.BulkResponse[util.Empty]{}, err
+				}
+
+				resp = append(resp, util.Empty{})
+			}
+
+			return fnd.BulkResponse[util.Empty]{Responses: resp}, nil
+		})
+
+		orcapi.ServicesProviderOnUpdatedLabels.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Service]) (util.Empty, *util.HttpError) {
+			for _, item := range request.Items {
+				fn := Jobs.Services.OnUpdatedLabels
+				if fn != nil {
+					if err := fn(&item); err != nil {
+						return util.Empty{}, err
+					}
+				}
+			}
+			return util.Empty{}, nil
+		})
+
+		orcapi.ServicesProviderUpdateAcl.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.UpdatedAclWithResource[orcapi.Service]]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			resp := fnd.BulkResponse[util.Empty]{}
+
+			for _, item := range request.Items {
+				fn := Jobs.Services.UpdateAcl
+				if fn != nil {
+					if err := fn(&item.Resource); err != nil {
+						return resp, err
+					}
+				}
+
+				resp.Responses = append(resp.Responses, util.Empty{})
+			}
+
+			return resp, nil
+		})
+
+		orcapi.IngressesProviderSetTarget.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.IngressesProviderSetTargetRequest]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			var resp []util.Empty
+
+			for _, item := range request.Items {
+				fn := Jobs.Ingresses.SetTarget
+				if fn == nil {
+					return fnd.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusBadRequest, "Public link target update not supported")
+				}
+
+				err := fn(item)
+				if err != nil {
+					return fnd.BulkResponse[util.Empty]{}, err
+				}
+
+				resp = append(resp, util.Empty{})
+			}
+
+			return fnd.BulkResponse[util.Empty]{Responses: resp}, nil
 		})
 
 		rpc.DefaultServer.Mux.HandleFunc(

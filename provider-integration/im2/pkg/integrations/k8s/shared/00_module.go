@@ -7,6 +7,9 @@ import (
 
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -14,8 +17,12 @@ import (
 )
 
 var JobPods *K8sResourceTracker[*corev1.Pod]
+var VmPods *K8sResourceTracker[*corev1.Pod]
 var BatchBackgroundPods *K8sResourceTracker[*corev1.Pod]
 var BatchBackgroundJobs *K8sResourceTracker[*batchv1.Job]
+var ComputeServices *K8sResourceTracker[*corev1.Service]
+var ComputeEndpointSlices *K8sResourceTracker[*discoveryv1.EndpointSlice]
+var ComputeNetworkPolicies *K8sResourceTracker[*networkingv1.NetworkPolicy]
 
 func Init() {
 	InitClients()
@@ -32,6 +39,19 @@ func Init() {
 		func(resource *corev1.Pod) string {
 			return resource.Name
 		},
+	)
+
+	VmPods = NewResourceTracker[*corev1.Pod](
+		ServiceConfig.Compute.Namespace,
+		func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
+			return factory.Core().V1().Pods().Informer()
+		},
+		func(resource *corev1.Pod) string {
+			return resource.Labels[VmNameLabel]
+		},
+		informers.WithTweakListOptions(func(options *metav1.ListOptions) {
+			options.LabelSelector = VmNameLabel
+		}),
 	)
 
 	BatchBackgroundPods = NewResourceTracker[*corev1.Pod](
@@ -53,15 +73,47 @@ func Init() {
 			return resource.Namespace + "/" + resource.Name
 		},
 	)
+
+	ComputeServices = NewResourceTracker[*corev1.Service](
+		ServiceConfig.Compute.Namespace,
+		func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
+			return factory.Core().V1().Services().Informer()
+		},
+		func(resource *corev1.Service) string {
+			return resource.Name
+		},
+	)
+
+	ComputeEndpointSlices = NewResourceTracker[*discoveryv1.EndpointSlice](
+		ServiceConfig.Compute.Namespace,
+		func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
+			return factory.Discovery().V1().EndpointSlices().Informer()
+		},
+		func(resource *discoveryv1.EndpointSlice) string {
+			return resource.Name
+		},
+	)
+
+	ComputeNetworkPolicies = NewResourceTracker[*networkingv1.NetworkPolicy](
+		ServiceConfig.Compute.Namespace,
+		func(factory informers.SharedInformerFactory) cache.SharedIndexInformer {
+			return factory.Networking().V1().NetworkPolicies().Informer()
+		},
+		func(resource *networkingv1.NetworkPolicy) string {
+			return resource.Name
+		},
+	)
 }
 
 func JobIdLabel(jobId string) util.Tuple2[string, string] {
-	return util.Tuple2[string, string]{"ucloud.dk/jobId", jobId}
+	return util.Tuple2[string, string]{First: "ucloud.dk/jobId", Second: jobId}
 }
 
 func JobRankLabel(rank int) util.Tuple2[string, string] {
-	return util.Tuple2[string, string]{"ucloud.dk/rank", fmt.Sprint(rank)}
+	return util.Tuple2[string, string]{First: "ucloud.dk/rank", Second: fmt.Sprint(rank)}
 }
+
+const VmNameLabel = "ucloud.dk/vmName"
 
 type JobRunningTime struct {
 	TimeRemaining util.Option[time.Duration]

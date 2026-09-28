@@ -17,6 +17,7 @@ var (
 	LinkSupport             []orc.IngressSupport
 	PrivateNetworkSupport   []orc.PrivateNetworkSupport
 	PrivateNetworkIpSupport []orc.PrivateNetworkIpSupport
+	ServiceSupport          []orc.ServiceSupport
 )
 
 var (
@@ -27,6 +28,7 @@ var (
 	LicenseProducts          []apm.ProductV2
 	PrivateNetworkProducts   []apm.ProductV2
 	PrivateNetworkIpProducts []apm.ProductV2
+	ServiceProducts          []apm.ProductV2
 )
 
 func initProducts() {
@@ -411,6 +413,39 @@ func initProducts() {
 	}
 
 	LicenseProducts = ctrl.LicenseFetchProducts()
+
+	ServiceProducts = []apm.ProductV2{
+		{
+			Type: apm.ProductTypeCService,
+			Category: apm.ProductCategory{
+				Name:        "service",
+				Provider:    config.Provider.Id,
+				ProductType: apm.ProductTypeService,
+				AccountingUnit: apm.AccountingUnit{
+					Name:                   "service",
+					NamePlural:             "services",
+					FloatingPoint:          false,
+					DisplayFrequencySuffix: false,
+				},
+				AccountingFrequency: apm.AccountingFrequencyOnce,
+				FreeToUse:           true,
+			},
+			Name:        "service",
+			Description: "A load balanced service",
+			ProductType: apm.ProductTypeService,
+			Price:       1,
+		},
+	}
+
+	ServiceSupport = []orc.ServiceSupport{
+		{
+			Product: apm.ProductReference{
+				Id:       ServiceProducts[0].Name,
+				Category: ServiceProducts[0].Category.Name,
+				Provider: config.Provider.Id,
+			},
+		},
+	}
 }
 
 func pickResource(resource config.MachineResourceType, machineConfig config.K8sMachineConfiguration) int {

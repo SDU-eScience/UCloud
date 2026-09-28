@@ -335,6 +335,14 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 		}
 	}
 
+	if trimmedGroup == GroupControlPlane && record.ServiceId != "" {
+		if !ucxsvc.ServiceAddMembers(stack, record.ServiceId, []string{job.Id}) {
+			ucxsvc.UiSendFailure(app, "Could not add the new node to the cluster service")
+			clusterCleanupNewNode(stack, record, &node, app)
+			return "", false
+		}
+	}
+
 	if !clusterWriteRecordLocal(record) {
 		node.JobId = job.Id
 		clusterCleanupNewNode(stack, record, &node, app)

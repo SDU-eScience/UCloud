@@ -4,11 +4,14 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
+	"sync"
 
 	accesslogv3 "github.com/envoyproxy/go-control-plane/envoy/config/accesslog/v3"
 	core "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
+	envoycore "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	endpoint "github.com/envoyproxy/go-control-plane/envoy/config/endpoint/v3"
 	route "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
 	jwt "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/jwt_authn/v3"
@@ -21,6 +24,7 @@ import (
 	"github.com/golang/protobuf/ptypes/duration"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/emptypb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/shared/pkg/util"
 
@@ -28,6 +32,7 @@ import (
 	listener "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	router "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/router/v3"
 	hcm "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
+	envoytype "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 )
 
 func createConfigurationSnapshot(
@@ -275,24 +280,18 @@ func createClusters(clusters map[string]*EnvoyCluster) []types.Resource {
 			LoadAssignment: &endpoint.ClusterLoadAssignment{
 				ClusterName: c.Name,
 				Endpoints: []*endpoint.LocalityLbEndpoints{{
-					LbEndpoints: []*endpoint.LbEndpoint{{
-						HostIdentifier: &endpoint.LbEndpoint_Endpoint{
-							Endpoint: &endpoint.Endpoint{
-								Address: &core.Address{
-									Address: &core.Address_SocketAddress{
-										SocketAddress: &core.SocketAddress{
-											Address: c.Address,
-											PortSpecifier: &core.SocketAddress_PortValue{
-												PortValue: uint32(c.Port),
-											},
-										},
-									},
-								},
-							},
-						},
-					}},
+					LbEndpoints: envoyClusterEndpoints(c),
 				}},
 			},
+		}
+
+		if len(c.Endpoints) > 0 {
+			newCluster.CloseConnectionsOnHostHealthFailure = true
+			newCluster.CommonLbConfig = &cluster.Cluster_CommonLbConfig{
+				HealthyPanicThreshold: &envoytype.Percent{
+					Value: 0,
+				},
+			}
 		}
 
 		if c.TLS {
@@ -314,8 +313,172 @@ func createClusters(clusters map[string]*EnvoyCluster) []types.Resource {
 			}
 		}
 
+		if len(c.Endpoints) > 0 && c.BackendTlsEnabled {
+			transportSocket := envoyBackendTlsSocket(c)
+			if transportSocket != nil {
+				newCluster.TransportSocket = transportSocket
+			}
+		}
+
+		if len(c.Endpoints) > 0 && c.HealthCheck != nil {
+			healthChecks := envoyClusterHealthChecks(c)
+			if len(healthChecks) > 0 {
+				newCluster.HealthChecks = healthChecks
+			}
+		}
+
 		result = append(result, newCluster)
 	}
+	return result
+}
+
+func envoyClusterEndpoints(c *EnvoyCluster) []*endpoint.LbEndpoint {
+	var result []*endpoint.LbEndpoint
+
+	appendEndpoint := func(address string, port int, draining bool) {
+		ep := &endpoint.Endpoint{
+			Address: &core.Address{
+				Address: &core.Address_SocketAddress{
+					SocketAddress: &core.SocketAddress{
+						Address: address,
+						PortSpecifier: &core.SocketAddress_PortValue{
+							PortValue: uint32(port),
+						},
+					},
+				},
+			},
+		}
+
+		if c.HealthCheck != nil && c.HealthCheck.Port != 0 {
+			ep.HealthCheckConfig = &endpoint.Endpoint_HealthCheckConfig{
+				PortValue: uint32(c.HealthCheck.Port),
+			}
+		}
+
+		item := &endpoint.LbEndpoint{
+			HostIdentifier: &endpoint.LbEndpoint_Endpoint{
+				Endpoint: ep,
+			},
+		}
+
+		if draining {
+			item.HealthStatus = envoycore.HealthStatus_DRAINING
+		}
+
+		result = append(result, item)
+	}
+
+	if len(c.Endpoints) > 0 {
+		for _, ep := range c.Endpoints {
+			appendEndpoint(ep.Address, ep.Port, ep.Draining)
+		}
+	} else {
+		appendEndpoint(c.Address, c.Port, false)
+	}
+
+	return result
+}
+
+func envoyBackendTlsSocket(c *EnvoyCluster) *core.TransportSocket {
+	validationContext := &tls.CertificateValidationContext{}
+
+	if c.BackendTlsInsecureSkipVerify {
+		validationContext.TrustChainVerification = tls.CertificateValidationContext_ACCEPT_UNTRUSTED
+	} else {
+		bundle := c.BackendTlsTrustBundle
+		if bundle == "" {
+			bundle = envoySystemTrustBundle()
+		}
+		if bundle != "" {
+			validationContext.TrustedCa = &core.DataSource{
+				Specifier: &core.DataSource_InlineString{
+					InlineString: bundle,
+				},
+			}
+		}
+		if c.BackendTlsServerName != "" {
+			validationContext.MatchTypedSubjectAltNames = []*tls.SubjectAltNameMatcher{{
+				SanType: tls.SubjectAltNameMatcher_DNS,
+				Matcher: &matcher.StringMatcher{
+					MatchPattern: &matcher.StringMatcher_SafeRegex{
+						SafeRegex: &matcher.RegexMatcher{
+							Regex: "^" + regexp.QuoteMeta(c.BackendTlsServerName) + "$",
+						},
+					},
+				},
+			}}
+		}
+	}
+
+	tlsConfig, err := anypb.New(&tls.UpstreamTlsContext{
+		CommonTlsContext: &tls.CommonTlsContext{
+			ValidationContextType: &tls.CommonTlsContext_ValidationContext{
+				ValidationContext: validationContext,
+			},
+		},
+		Sni: c.BackendTlsServerName,
+	})
+	checkCfg(err)
+
+	return &core.TransportSocket{
+		Name: "envoy.transport_sockets.tls",
+		ConfigType: &core.TransportSocket_TypedConfig{
+			TypedConfig: tlsConfig,
+		},
+	}
+}
+
+var envoySystemTrustBundleOnce sync.Once
+var envoySystemTrustBundleValue string
+
+func envoySystemTrustBundle() string {
+	envoySystemTrustBundleOnce.Do(func() {
+		for _, candidate := range []string{
+			"/etc/ssl/certs/ca-certificates.crt",
+			"/etc/pki/tls/certs/ca-bundle.crt",
+			"/etc/ssl/ca-bundle.pem",
+		} {
+			data, err := os.ReadFile(candidate)
+			if err == nil && len(data) > 0 {
+				envoySystemTrustBundleValue = string(data)
+				return
+			}
+		}
+	})
+	return envoySystemTrustBundleValue
+}
+
+func envoyClusterHealthChecks(c *EnvoyCluster) []*core.HealthCheck {
+	check := c.HealthCheck
+	result := []*core.HealthCheck{{
+		Timeout: &duration.Duration{
+			Seconds: int64(check.TimeoutSeconds),
+		},
+		Interval: &duration.Duration{
+			Seconds: int64(check.IntervalSeconds),
+		},
+		HealthyThreshold: &wrapperspb.UInt32Value{
+			Value: uint32(check.HealthyThreshold),
+		},
+		UnhealthyThreshold: &wrapperspb.UInt32Value{
+			Value: uint32(check.UnhealthyThreshold),
+		},
+	}}
+
+	switch check.Protocol {
+	case "HTTP", "HTTPS":
+		result[0].HealthChecker = &core.HealthCheck_HttpHealthCheck_{
+			HttpHealthCheck: &core.HealthCheck_HttpHealthCheck{
+				Host: check.Host,
+				Path: check.Path,
+			},
+		}
+	default:
+		result[0].HealthChecker = &core.HealthCheck_TcpHealthCheck_{
+			TcpHealthCheck: &core.HealthCheck_TcpHealthCheck{},
+		}
+	}
+
 	return result
 }
 

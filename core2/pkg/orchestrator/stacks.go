@@ -298,6 +298,11 @@ func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) 
 		err = util.MergeHttpErr(err, pageErr)
 		return page
 	})
+	stackStatus.Services = fndapi.BrowseAll(0, func(next util.Option[string]) fndapi.PageV2[orcapi.Service] {
+		page, pageErr := ResourceCatalogs.Services.Browse(actor, 250, next, flags)
+		err = util.MergeHttpErr(err, pageErr)
+		return page
+	})
 
 	if err != nil {
 		return orcapi.Stack{}, err
@@ -364,6 +369,7 @@ func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) 
 	isEmpty = isEmpty && len(stackStatus.PublicIps) == 0
 	isEmpty = isEmpty && len(stackStatus.PublicLinks) == 0
 	isEmpty = isEmpty && len(stackStatus.Networks) == 0
+	isEmpty = isEmpty && len(stackStatus.Services) == 0
 
 	if isEmpty {
 		return orcapi.Stack{}, util.HttpErr(http.StatusNotFound, "stack not found")
@@ -436,6 +442,11 @@ func StacksUpdateAcl(actor rpc.Actor, request orcapi.UpdatedAcl) *util.HttpError
 
 	for _, resc := range stack.Status.Value.Networks {
 		serr := ResourceUpdateAcl(actor, privateNetworkType, updateRequest(resc.Id))
+		err = util.MergeHttpErr(err, serr)
+	}
+
+	for _, resc := range stack.Status.Value.Services {
+		serr := ResourceUpdateAcl(actor, serviceType, updateRequest(resc.Id))
 		err = util.MergeHttpErr(err, serr)
 	}
 
@@ -533,6 +544,17 @@ func stacksHandleDeletions() {
 				}
 
 				err = ResourceCatalogs.PublicLinks.Delete(actor, resc.Id)
+				if err != nil && err.StatusCode != http.StatusNotFound && err.StatusCode != http.StatusForbidden {
+					ok = false
+				}
+			}
+
+			for _, resc := range stackStatus.Services {
+				if req.ProviderFilter.Valid && req.ProviderFilter.V != resc.Specification.Product.Provider {
+					continue
+				}
+
+				err = ResourceCatalogs.Services.Delete(actor, resc.Id)
 				if err != nil && err.StatusCode != http.StatusNotFound && err.StatusCode != http.StatusForbidden {
 					ok = false
 				}

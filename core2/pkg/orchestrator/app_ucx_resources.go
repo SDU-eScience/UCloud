@@ -419,6 +419,172 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 		},
 	)
 
+	appUcxCreateResource[orcapi.ServiceSpecification, orcapi.Service](
+		state,
+		proxy,
+		ucxapi.ServicesCreate,
+		func(actor rpc.Actor, specs []orcapi.ServiceSpecification) ([]orcapi.Service, *util.HttpError) {
+			return ServiceCreate(actor, fndapi.BulkRequestOf(specs...))
+		},
+		func(r orcapi.Service) orcapi.ResourceSpecification {
+			return r.Specification.ResourceSpecification
+		},
+		func(r orcapi.ServiceSpecification) orcapi.ResourceSpecification {
+			return r.ResourceSpecification
+		},
+	)
+
+	appUcxDeleteResource[orcapi.Service](
+		state,
+		proxy,
+		ucxapi.ServicesDelete,
+		func(actor rpc.Actor, id string) (orcapi.Service, *util.HttpError) {
+			return ServiceRetrieve(actor, orcapi.ServicesRetrieveRequest{Id: id})
+		},
+		func(actor rpc.Actor, id string) *util.HttpError {
+			_, err := ServiceDelete(actor, fndapi.BulkRequestOf(fndapi.FindByStringId{Id: id}))
+			return err
+		},
+		func(r orcapi.Service) orcapi.ResourceSpecification {
+			return r.Specification.ResourceSpecification
+		},
+	)
+
+	appUcxBrowseResource[orcapi.ServicesBrowseRequest, orcapi.Service](
+		state,
+		proxy,
+		ucxapi.ServicesBrowse,
+		func(req orcapi.ServicesBrowseRequest) util.Option[string] { return req.Next },
+		func(req *orcapi.ServicesBrowseRequest, next util.Option[string]) { req.Next = next },
+		func(req orcapi.ServicesBrowseRequest) int { return req.ItemsPerPage },
+		func(req *orcapi.ServicesBrowseRequest, itemsPerPage int) { req.ItemsPerPage = itemsPerPage },
+		func(req *orcapi.ServicesBrowseRequest) *orcapi.ResourceFlags {
+			return &req.ServiceFlags.ResourceFlags
+		},
+		func(actor rpc.Actor, request orcapi.ServicesBrowseRequest) (fndapi.PageV2[orcapi.Service], *util.HttpError) {
+			return ServiceBrowse(actor, request), nil
+		},
+	)
+
+	appUcxRetrieveResource[orcapi.ServicesRetrieveRequest, orcapi.Service](
+		state,
+		proxy,
+		ucxapi.ServicesRetrieve,
+		func(request orcapi.ServicesRetrieveRequest) string {
+			return request.Id
+		},
+		func(actor rpc.Actor, id string) (orcapi.Service, *util.HttpError) {
+			return ServiceRetrieve(actor, orcapi.ServicesRetrieveRequest{Id: id})
+		},
+		func(r orcapi.Service) orcapi.ResourceSpecification {
+			return r.Specification.ResourceSpecification
+		},
+	)
+
+	appUcxRetrieveProducts[orcapi.ServiceSupport](
+		state,
+		proxy,
+		ucxapi.ServicesRetrieveProducts,
+		func(actor rpc.Actor) orcapi.SupportByProvider[orcapi.ServiceSupport] {
+			return SupportRetrieveProducts[orcapi.ServiceSupport](serviceType)
+		},
+	)
+
+	ucxapi.ServicesUpdate.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.ServicesUpdateRequest]]) (util.Empty, error) {
+		actor := state.Actor()
+
+		for _, reqItem := range request.Items {
+			svc, err := ServiceRetrieve(actor, orcapi.ServicesRetrieveRequest{Id: reqItem.Id})
+			if err != nil {
+				return util.Empty{}, err.AsError()
+			}
+
+			if !appUcxResourceInSession(state, svc, func(r orcapi.Service) orcapi.ResourceSpecification {
+				return r.Specification.ResourceSpecification
+			}) {
+				return util.Empty{}, util.HttpErr(http.StatusNotFound, "not found").AsError()
+			}
+
+			if err := ServiceUpdate(actor, reqItem.Id, reqItem.Update); err != nil {
+				return util.Empty{}, err.AsError()
+			}
+		}
+
+		return util.Empty{}, nil
+	})
+
+	ucxapi.ServicesAddMembers.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[orcapi.ServicesMembersRequest]) (util.Empty, error) {
+		actor := state.Actor()
+
+		for _, reqItem := range request.Items {
+			if err := appUcxValidateServiceMembersRequest(state, actor, reqItem); err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		for _, reqItem := range request.Items {
+			if err := ServiceAddMembers(actor, reqItem.Id, reqItem.JobIds); err != nil {
+				return util.Empty{}, err.AsError()
+			}
+		}
+
+		return util.Empty{}, nil
+	})
+
+	ucxapi.ServicesRemoveMembers.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[orcapi.ServicesMembersRequest]) (util.Empty, error) {
+		actor := state.Actor()
+
+		for _, reqItem := range request.Items {
+			if err := appUcxValidateServiceMembersRequest(state, actor, reqItem); err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		for _, reqItem := range request.Items {
+			if err := ServiceRemoveMembers(actor, reqItem.Id, reqItem.JobIds); err != nil {
+				return util.Empty{}, err.AsError()
+			}
+		}
+
+		return util.Empty{}, nil
+	})
+
+	ucxapi.PublicLinksSetTarget.HandlerProxy(proxy, func(ctx context.Context, request fndapi.BulkRequest[orcapi.IngressesSetTargetRequest]) (util.Empty, error) {
+		actor := state.Actor()
+
+		for _, reqItem := range request.Items {
+			ingress, err := ResourceRetrieve[orcapi.Ingress](actor, ingressType, ResourceParseId(reqItem.Id), orcapi.ResourceFlags{})
+			if err != nil {
+				return util.Empty{}, err.AsError()
+			}
+
+			if !appUcxResourceInSession(state, ingress, func(r orcapi.Ingress) orcapi.ResourceSpecification {
+				return r.Specification.ResourceSpecification
+			}) {
+				return util.Empty{}, util.HttpErr(http.StatusNotFound, "not found").AsError()
+			}
+
+			if target := reqItem.Target; target.Present {
+				svc, err := ServiceRetrieve(actor, orcapi.ServicesRetrieveRequest{Id: target.Value.ServiceId})
+				if err != nil {
+					return util.Empty{}, err.AsError()
+				}
+
+				if !appUcxResourceInSession(state, svc, func(r orcapi.Service) orcapi.ResourceSpecification {
+					return r.Specification.ResourceSpecification
+				}) {
+					return util.Empty{}, util.HttpErr(http.StatusNotFound, "not found").AsError()
+				}
+			}
+
+			if err := IngressSetTarget(actor, reqItem.Id, reqItem.Target); err != nil {
+				return util.Empty{}, err.AsError()
+			}
+		}
+
+		return util.Empty{}, nil
+	})
+
 	appUcxCreateResource[orcapi.LicenseSpecification, orcapi.License](
 		state,
 		proxy,
@@ -922,6 +1088,34 @@ func appUcxResourceInSession[Resc any](
 	_, exists := s.Stacks[instance]
 	s.Mu.RUnlock()
 	return exists
+}
+
+func appUcxValidateServiceMembersRequest(s *appUcxBaseState, actor rpc.Actor, reqItem orcapi.ServicesMembersRequest) error {
+	svc, err := ServiceRetrieve(actor, orcapi.ServicesRetrieveRequest{Id: reqItem.Id})
+	if err != nil {
+		return err.AsError()
+	}
+
+	if !appUcxResourceInSession(s, svc, func(r orcapi.Service) orcapi.ResourceSpecification {
+		return r.Specification.ResourceSpecification
+	}) {
+		return util.HttpErr(http.StatusNotFound, "not found").AsError()
+	}
+
+	for _, jobId := range reqItem.JobIds {
+		job, err := JobsRetrieve(actor, jobId, orcapi.JobFlags{})
+		if err != nil {
+			return err.AsError()
+		}
+
+		if !appUcxResourceInSession(s, job, func(r orcapi.Job) orcapi.ResourceSpecification {
+			return r.Specification.ResourceSpecification
+		}) {
+			return util.HttpErr(http.StatusNotFound, "not found").AsError()
+		}
+	}
+
+	return nil
 }
 
 func appUcxRetrieveResource[Req any, Resc any](

@@ -37,8 +37,10 @@ func PrivateNetworkLabel(subdomain string) string {
 }
 
 func PrivateNetworkMembershipLabel(networkId string) string {
-	return fmt.Sprintf("ucloud.dk/private-network-%s", networkId)
+	return PrivateNetworkMembershipLabelPrefix + networkId
 }
+
+const PrivateNetworkMembershipLabelPrefix = "ucloud.dk/private-network-"
 
 func PrivateNetworkMemberSelector(networkId string) map[string]string {
 	return map[string]string{

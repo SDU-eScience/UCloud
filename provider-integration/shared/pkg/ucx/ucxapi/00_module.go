@@ -60,6 +60,19 @@ var PublicLinksBrowse = ucx.Rpc[orcapi.IngressesBrowseRequest, fndapi.PageV2[orc
 var PublicLinksRetrieve = ucx.Rpc[orcapi.IngressesRetrieveRequest, orcapi.Ingress]{CallName: "publicLinksRetrieve"}
 var PublicLinksUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.IngressesUpdateLabelsRequest], util.Empty]{CallName: "publicLinksUpdateLabels"}
 var PublicLinksRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.IngressSupport]]{CallName: "publicLinksRetrieveProducts"}
+var PublicLinksSetTarget = ucx.Rpc[fndapi.BulkRequest[orcapi.IngressesSetTargetRequest], util.Empty]{CallName: "publicLinksSetTarget"}
+
+// Services
+// ---------------------------------------------------------------------------------------------------------------------
+
+var ServicesCreate = ucx.Rpc[[]orcapi.ServiceSpecification, []orcapi.Service]{CallName: "servicesCreate"}
+var ServicesDelete = ucx.Rpc[[]string, util.Empty]{CallName: "servicesDelete"}
+var ServicesBrowse = ucx.Rpc[orcapi.ServicesBrowseRequest, fndapi.PageV2[orcapi.Service]]{CallName: "servicesBrowse"}
+var ServicesRetrieve = ucx.Rpc[orcapi.ServicesRetrieveRequest, orcapi.Service]{CallName: "servicesRetrieve"}
+var ServicesUpdate = ucx.Rpc[fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.ServicesUpdateRequest]], util.Empty]{CallName: "servicesUpdate"}
+var ServicesAddMembers = ucx.Rpc[fndapi.BulkRequest[orcapi.ServicesMembersRequest], util.Empty]{CallName: "servicesAddMembers"}
+var ServicesRemoveMembers = ucx.Rpc[fndapi.BulkRequest[orcapi.ServicesMembersRequest], util.Empty]{CallName: "servicesRemoveMembers"}
+var ServicesRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.ServiceSupport]]{CallName: "servicesRetrieveProducts"}
 
 // Licenses
 // ---------------------------------------------------------------------------------------------------------------------

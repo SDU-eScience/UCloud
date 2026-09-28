@@ -3,6 +3,7 @@ package shared
 import (
 	"net/netip"
 	"slices"
+	"strings"
 
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
@@ -151,4 +152,8 @@ func ServiceName(jobId string) string {
 
 func FirewallName(jobId string) string {
 	return "policy-" + jobId
+}
+
+func FirewallJobId(policyName string) string {
+	return strings.TrimPrefix(policyName, "policy-")
 }

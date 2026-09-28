@@ -122,6 +122,7 @@ const (
 	ProductTypeNetworkIp        ProductType = "NETWORK_IP"
 	ProductTypePrivateNetwork   ProductType = "PRIVATE_NETWORK"
 	ProductTypePrivateNetworkIp ProductType = "PRIVATE_NETWORK_IP"
+	ProductTypeService          ProductType = "SERVICE"
 )
 
 type AccountingUnitAndFrequency struct {
@@ -188,6 +189,7 @@ const (
 	ProductTypeCNetworkIp        ProductTypeC = "network_ip"
 	ProductTypeCPrivateNetwork   ProductTypeC = "private_network"
 	ProductTypeCPrivateNetworkIp ProductTypeC = "private_network_ip"
+	ProductTypeCService          ProductTypeC = "service"
 )
 
 func ProductTypeCCreate(t ProductType) ProductTypeC {
@@ -208,6 +210,8 @@ func ProductTypeCCreate(t ProductType) ProductTypeC {
 		return ProductTypeCPrivateNetwork
 	case ProductTypePrivateNetworkIp:
 		return ProductTypeCPrivateNetworkIp
+	case ProductTypeService:
+		return ProductTypeCService
 	default:
 		panic("unknown product type")
 	}

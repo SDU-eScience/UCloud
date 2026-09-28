@@ -171,6 +171,16 @@ func featureMonitorProvider(provider string) {
 			},
 		)
 
+		featureFetchProviderSupport(
+			provider,
+			orcapi.ServicesProviderRetrieveProducts,
+			serviceType,
+			supportMap,
+			func(item orcapi.ServiceSupport) accapi.ProductReference {
+				return item.Product
+			},
+		)
+
 		if len(supportMap) == 0 {
 			time.Sleep(util.ExponentialBackoffForNetwork(failedAttemptCount))
 			failedAttemptCount++
@@ -372,6 +382,8 @@ func supportToApi(provider string, supportItems []providerSupport) []orcapi.Reso
 					productRelevant = product.Type == accapi.ProductTypeCPrivateNetwork
 				case privateNetworkIpType:
 					productRelevant = product.Type == accapi.ProductTypeCPrivateNetworkIp
+				case serviceType:
+					productRelevant = product.Type == accapi.ProductTypeCService
 				}
 
 				if !productRelevant {

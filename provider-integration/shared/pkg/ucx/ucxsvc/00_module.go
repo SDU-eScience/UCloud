@@ -631,8 +631,9 @@ func PublicIpCreate(stack *Stack) orcapi.AppParameterValue {
 // =====================================================================================================================
 
 type PublicLinkCreateOptions struct {
-	Port util.Option[int]
-	TLS  bool
+	Port          util.Option[int]
+	TLS           bool
+	ServiceTarget util.Option[orcapi.PublicLinkServiceTarget]
 }
 
 func PublicLinkCreate(stack *Stack, name string, options PublicLinkCreateOptions) orcapi.AppParameterValue {
@@ -669,7 +670,120 @@ func PublicLinkCreate(stack *Stack, name string, options PublicLinkCreateOptions
 		result.Port = options.Port.Value
 	}
 	result.TLS = options.TLS
+	if options.ServiceTarget.Present {
+		if !PublicLinkSetTarget(stack, links[0].Id, options.ServiceTarget) {
+			return orcapi.AppParameterValue{}
+		}
+	}
 	return result
+}
+
+// Services
+// =====================================================================================================================
+
+type ServiceReference struct {
+	Id string
+}
+
+func ServiceCreate(stack *Stack, name string, ports []orcapi.ServicePort, internalNetworkId util.Option[string]) ServiceReference {
+	if stack == nil || !stack.Ok {
+		return ServiceReference{}
+	}
+
+	session := *stack.app.Session()
+	products, _ := ucxapi.ServicesRetrieveProducts.Invoke(session, util.Empty{})
+	if len(products) == 0 {
+		stack.Ok = false
+		UiSendFailure(stack.app, "Could not find a suitable service product, but this stack requires it.")
+		return ServiceReference{}
+	}
+
+	spec := orcapi.ServiceSpecification{
+		Name:  name,
+		Ports: ports,
+		ResourceSpecification: orcapi.ResourceSpecification{
+			Product: products[0].Product.ToReference(),
+			Labels:  stack.Labels(),
+		},
+	}
+
+	if internalNetworkId.Present {
+		spec.InternalEndpoint = util.OptValue(orcapi.ServiceInternalEndpointSpec{
+			PrivateNetworkId: internalNetworkId.Value,
+		})
+	}
+
+	services, err := ucxapi.ServicesCreate.Invoke(session, []orcapi.ServiceSpecification{spec})
+	if len(services) == 0 || err != nil {
+		stack.Ok = false
+		UiSendFailure(stack.app, fmt.Sprintf("Could not create a service! %s", err))
+		return ServiceReference{}
+	}
+
+	return ServiceReference{Id: services[0].Id}
+}
+
+func ServiceAddMembers(stack *Stack, serviceId string, jobIds []string) bool {
+	if stack == nil || !stack.Ok {
+		return false
+	}
+
+	session := *stack.app.Session()
+	_, err := ucxapi.ServicesAddMembers.Invoke(session, fndapi.BulkRequestOf(orcapi.ServicesMembersRequest{
+		Id:     serviceId,
+		JobIds: jobIds,
+	}))
+	if err != nil {
+		stack.Ok = false
+		UiSendFailure(stack.app, fmt.Sprintf("Could not add members to the service! %s", err))
+		return false
+	}
+
+	return true
+}
+
+func ServiceWaitReady(stack *Stack, serviceId string, timeout time.Duration) (bool, string) {
+	if stack == nil || !stack.Ok {
+		return false, ""
+	}
+
+	session := *stack.app.Session()
+	deadline := time.Now().Add(timeout)
+	for {
+		service, err := ucxapi.ServicesRetrieve.Invoke(session, orcapi.ServicesRetrieveRequest{Id: serviceId})
+		if err == nil && service.Status.ProvisioningState == string(orcapi.ServiceStateReady) {
+			dnsName := ""
+			if service.Status.InternalEndpoint.Present {
+				dnsName = service.Status.InternalEndpoint.Value.DnsName
+			}
+			return true, dnsName
+		}
+
+		if time.Now().After(deadline) {
+			return false, ""
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+}
+
+func PublicLinkSetTarget(stack *Stack, linkId string, target util.Option[orcapi.PublicLinkServiceTarget]) bool {
+	if stack == nil || !stack.Ok {
+		return false
+	}
+
+	session := *stack.app.Session()
+	_, err := ucxapi.PublicLinksSetTarget.Invoke(session, fndapi.BulkRequestOf(orcapi.IngressesSetTargetRequest{
+		Id:     linkId,
+		Target: target,
+	}))
+	if err != nil {
+		stack.Ok = false
+		UiSendFailure(stack.app, fmt.Sprintf("Could not set the target of the public link! %s", err))
+		return false
+	}
+
+	return true
 }
 
 // Private networks

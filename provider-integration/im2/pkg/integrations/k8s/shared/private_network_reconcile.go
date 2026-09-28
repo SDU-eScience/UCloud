@@ -19,6 +19,7 @@ import (
 	k8sequality "k8s.io/apimachinery/pkg/api/equality"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -46,6 +47,13 @@ var (
 
 var privateNetworkDynamicClient dynamic.Interface
 var privateNetworkNadClient nadtyped.NetworkAttachmentDefinitionInterface
+
+var privateNetworkVpcTracker *K8sResourceTracker[*unstructured.Unstructured]
+var privateNetworkSubnetTracker *K8sResourceTracker[*unstructured.Unstructured]
+var privateNetworkIpTracker *K8sResourceTracker[*unstructured.Unstructured]
+var privateNetworkNadTracker *K8sResourceTracker[*unstructured.Unstructured]
+var privateNetworkVmTracker *K8sResourceTracker[*unstructured.Unstructured]
+var privateNetworkVmiTracker *K8sResourceTracker[*unstructured.Unstructured]
 
 const privateNetworkManagedBySelector = PrivateNetworkManagedByLabel + "=" + PrivateNetworkManagedBy
 
@@ -121,7 +129,30 @@ func PrivateNetworkInit() {
 	}
 	privateNetworkNadClient = nadClient.K8sCniCncfIoV1().NetworkAttachmentDefinitions(ServiceConfig.Compute.Namespace)
 
+	namespace := ServiceConfig.Compute.Namespace
+	privateNetworkVpcTracker = NewDynamicResourceTracker(client, privateNetworkVpcGvr, "")
+	privateNetworkSubnetTracker = NewDynamicResourceTracker(client, privateNetworkSubnetGvr, "")
+	privateNetworkIpTracker = NewDynamicResourceTracker(client, privateNetworkIpGvr, "")
+	privateNetworkNadTracker = NewDynamicResourceTracker(client, privateNetworkNadGvr, namespace)
+
+	if ServiceConfig.Compute.VirtualMachines.Enabled {
+		privateNetworkVmTracker = NewDynamicResourceTracker(client, privateNetworkVmGvr, namespace)
+		privateNetworkVmiTracker = NewDynamicResourceTracker(client, privateNetworkVmiGvr, namespace)
+	}
+
 	controller.PrivateNetworkConfigureDatabase(settings)
+}
+
+var privateNetworkNadGvr = schema.GroupVersionResource{
+	Group: "k8s.cni.cncf.io", Version: "v1", Resource: "network-attachment-definitions",
+}
+
+var privateNetworkVmGvr = schema.GroupVersionResource{
+	Group: "kubevirt.io", Version: "v1", Resource: "virtualmachines",
+}
+
+var privateNetworkVmiGvr = schema.GroupVersionResource{
+	Group: "kubevirt.io", Version: "v1", Resource: "virtualmachineinstances",
 }
 
 func privateNetworkRequireCrds() error {
@@ -263,12 +294,17 @@ func privateNetworkRunReconcilePass(fast bool) {
 	metricPrivateNetworkReconcileDuration.Observe(time.Since(started).Seconds())
 }
 
+const privateNetworkRepairInterval = 1 * time.Minute
+
+var privateNetworkLastRepairAttempt sync.Map
+
 func privateNetworkReconcileNetworks(
 	ctx context.Context,
 	networks []controller.PrivateNetworkSnapshotNetwork,
 	fast bool,
 ) bool {
 	busy := false
+	now := time.Now()
 	for i := range networks {
 		network := &networks[i]
 
@@ -292,6 +328,13 @@ func privateNetworkReconcileNetworks(
 			if fast {
 				continue
 			}
+
+			last, attempted := privateNetworkLastRepairAttempt.Load(network.ResourceId)
+			if attempted && now.Sub(last.(time.Time)) < privateNetworkRepairInterval {
+				continue
+			}
+			privateNetworkLastRepairAttempt.Store(network.ResourceId, now)
+
 			privateNetworkRepairAttempt(ctx, network.ResourceId)
 		}
 	}
@@ -597,13 +640,9 @@ func privateNetworkReadVpcAndSubnet(
 }
 
 func privateNetworkGetVpcObject(ctx context.Context, name string) (*privateNetworkKubeOvnVpc, *util.HttpError) {
-	item, err := privateNetworkDynamicClient.Resource(privateNetworkVpcGvr).
-		Get(ctx, name, k8smeta.GetOptions{})
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, util.HttpErrorFromErr(err)
+	item, ok := privateNetworkVpcTracker.Retrieve(name)
+	if !ok {
+		return nil, nil
 	}
 
 	vpc := &privateNetworkKubeOvnVpc{}
@@ -614,13 +653,9 @@ func privateNetworkGetVpcObject(ctx context.Context, name string) (*privateNetwo
 }
 
 func privateNetworkGetSubnetObject(ctx context.Context, name string) (*privateNetworkKubeOvnSubnet, *util.HttpError) {
-	item, err := privateNetworkDynamicClient.Resource(privateNetworkSubnetGvr).
-		Get(ctx, name, k8smeta.GetOptions{})
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, util.HttpErrorFromErr(err)
+	item, ok := privateNetworkSubnetTracker.Retrieve(name)
+	if !ok {
+		return nil, nil
 	}
 
 	subnet := &privateNetworkKubeOvnSubnet{}
@@ -631,34 +666,30 @@ func privateNetworkGetSubnetObject(ctx context.Context, name string) (*privateNe
 }
 
 func privateNetworkGetNadObject(ctx context.Context, name string) (*nadapi.NetworkAttachmentDefinition, *util.HttpError) {
-	nad, err := privateNetworkNadClient.Get(ctx, name, k8smeta.GetOptions{})
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, util.HttpErrorFromErr(err)
+	item, ok := privateNetworkNadTracker.Retrieve(name)
+	if !ok {
+		return nil, nil
+	}
+
+	nad := &nadapi.NetworkAttachmentDefinition{}
+	if !privateNetworkKubeOvnFromUnstructured("network attachment", item, nad) {
+		return nil, util.ServerHttpError("Failed to decode the network attachment %s", name)
 	}
 	return nad, nil
 }
 
 func privateNetworkGetServiceObject(ctx context.Context, namespace string, name string) (*k8score.Service, *util.HttpError) {
-	service, err := K8sClient.CoreV1().Services(namespace).Get(ctx, name, k8smeta.GetOptions{})
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, util.HttpErrorFromErr(err)
+	service, ok := ComputeServices.Retrieve(name)
+	if !ok {
+		return nil, nil
 	}
 	return service, nil
 }
 
 func privateNetworkGetPolicyObject(ctx context.Context, namespace string, name string) (*k8snetwork.NetworkPolicy, *util.HttpError) {
-	policy, err := K8sClient.NetworkingV1().NetworkPolicies(namespace).Get(ctx, name, k8smeta.GetOptions{})
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return nil, nil
-		}
-		return nil, util.HttpErrorFromErr(err)
+	policy, ok := ComputeNetworkPolicies.Retrieve(name)
+	if !ok {
+		return nil, nil
 	}
 	return policy, nil
 }
@@ -671,7 +702,8 @@ func privateNetworkEnsureVpcObject(
 	object := privateNetworkVpcObject(desired)
 	client := privateNetworkDynamicClient.Resource(privateNetworkVpcGvr)
 	if existing == nil {
-		if _, err := client.Create(ctx, privateNetworkKubeOvnToUnstructured(object), k8smeta.CreateOptions{}); err != nil {
+		if _, err := client.Create(ctx, privateNetworkKubeOvnToUnstructured(object), k8smeta.CreateOptions{}); err != nil &&
+			!k8serrors.IsAlreadyExists(err) {
 			return util.HttpErrorFromErr(err)
 		}
 		return nil
@@ -711,7 +743,8 @@ func privateNetworkEnsureSubnetObject(
 	object := privateNetworkSubnetObject(desired)
 	client := privateNetworkDynamicClient.Resource(privateNetworkSubnetGvr)
 	if existing == nil {
-		if _, err := client.Create(ctx, privateNetworkKubeOvnToUnstructured(object), k8smeta.CreateOptions{}); err != nil {
+		if _, err := client.Create(ctx, privateNetworkKubeOvnToUnstructured(object), k8smeta.CreateOptions{}); err != nil &&
+			!k8serrors.IsAlreadyExists(err) {
 			return util.HttpErrorFromErr(err)
 		}
 		return nil
@@ -756,7 +789,8 @@ func privateNetworkEnsureNadObject(
 ) *util.HttpError {
 	object := privateNetworkNadObject(desired)
 	if existing == nil {
-		if _, err := privateNetworkNadClient.Create(ctx, object, k8smeta.CreateOptions{}); err != nil {
+		if _, err := privateNetworkNadClient.Create(ctx, object, k8smeta.CreateOptions{}); err != nil &&
+			!k8serrors.IsAlreadyExists(err) {
 			return util.HttpErrorFromErr(err)
 		}
 		return nil
@@ -1045,25 +1079,17 @@ func privateNetworkListSubnetIps(
 	ctx context.Context,
 	desired privateNetworkDesiredObjects,
 ) ([]privateNetworkIpRecord, bool) {
-	selector := "ovn.kubernetes.io/subnet=" + desired.subnetName
-	list, err := privateNetworkDynamicClient.Resource(privateNetworkIpGvr).
-		List(ctx, k8smeta.ListOptions{LabelSelector: selector})
-	if err != nil {
-		log.Warn(
-			"Failed to list the addresses of subnet %s for private network deletion: %s",
-			desired.subnetName,
-			err,
-		)
-		return nil, false
-	}
-
 	var result []privateNetworkIpRecord
-	for i := range list.Items {
+	for _, item := range privateNetworkIpTracker.List() {
+		if item.GetLabels()["ovn.kubernetes.io/subnet"] != desired.subnetName {
+			continue
+		}
+
 		ip := &privateNetworkKubeOvnIp{}
-		if !privateNetworkKubeOvnFromUnstructured("IP", &list.Items[i], ip) {
+		if !privateNetworkKubeOvnFromUnstructured("IP", item, ip) {
 			log.Warn(
 				"Failed to decode the Kube-OVN IP %s, it will be ignored",
-				list.Items[i].GetName(),
+				item.GetName(),
 			)
 			continue
 		}
@@ -1213,66 +1239,72 @@ func privateNetworkReconcileOrphans(ctx context.Context) int {
 		})
 	}
 
-	vpcs, err := privateNetworkDynamicClient.Resource(privateNetworkVpcGvr).
-		List(ctx, k8smeta.ListOptions{LabelSelector: privateNetworkManagedBySelector})
-	if err != nil {
-		log.Warn("Failed to list managed Vpcs for private network reconciliation: %s", err)
-	} else {
-		vpcClient := privateNetworkDynamicClient.Resource(privateNetworkVpcGvr)
-		for i := range vpcs.Items {
-			vpc := &privateNetworkKubeOvnVpc{}
-			if !privateNetworkKubeOvnFromUnstructured("Vpc", &vpcs.Items[i], vpc) {
-				log.Warn("Failed to decode the Vpc %s, it will not be checked for orphan status", vpcs.Items[i].GetName())
-				continue
-			}
-
-			name := vpc.Name
-			id := vpc.Labels[PrivateNetworkIdLabel]
-			uid := vpc.UID
-			deleteOrphan(name, id, func() bool {
-				return privateNetworkDeleteWithUid(ctx, vpcClient, name, uid)
-			})
-		}
+	trackedNetworks := map[string]util.Empty{}
+	for _, network := range controller.PrivateNetworkSnapshotNetworks() {
+		trackedNetworks[network.ResourceId] = util.Empty{}
 	}
 
-	subnets, err := privateNetworkDynamicClient.Resource(privateNetworkSubnetGvr).
-		List(ctx, k8smeta.ListOptions{LabelSelector: privateNetworkManagedBySelector})
-	if err != nil {
-		log.Warn("Failed to list managed Subnets for private network reconciliation: %s", err)
-	} else {
-		subnetClient := privateNetworkDynamicClient.Resource(privateNetworkSubnetGvr)
-		for i := range subnets.Items {
-			subnet := &privateNetworkKubeOvnSubnet{}
-			if !privateNetworkKubeOvnFromUnstructured("Subnet", &subnets.Items[i], subnet) {
-				log.Warn("Failed to decode the Subnet %s, it will not be checked for orphan status", subnets.Items[i].GetName())
-				continue
-			}
-
-			name := subnet.Name
-			id := subnet.Labels[PrivateNetworkIdLabel]
-			uid := subnet.UID
-			deleteOrphan(name, id, func() bool {
-				return privateNetworkDeleteWithUid(ctx, subnetClient, name, uid)
-			})
+	for _, item := range privateNetworkVpcTracker.List() {
+		if item.GetLabels()[PrivateNetworkManagedByLabel] != PrivateNetworkManagedBy {
+			continue
 		}
+
+		vpc := &privateNetworkKubeOvnVpc{}
+		if !privateNetworkKubeOvnFromUnstructured("Vpc", item, vpc) {
+			log.Warn("Failed to decode the Vpc %s, it will not be checked for orphan status", item.GetName())
+			continue
+		}
+
+		name := vpc.Name
+		id := vpc.Labels[PrivateNetworkIdLabel]
+		uid := vpc.UID
+		if _, tracked := trackedNetworks[id]; tracked {
+			continue
+		}
+
+		deleteOrphan(name, id, func() bool {
+			return privateNetworkDeleteWithUid(ctx, privateNetworkDynamicClient.Resource(privateNetworkVpcGvr), name, uid)
+		})
 	}
 
-	nads, err := privateNetworkNadClient.List(
-		ctx,
-		k8smeta.ListOptions{LabelSelector: privateNetworkManagedBySelector},
-	)
-	if err != nil {
-		log.Warn("Failed to list managed network attachments for private network reconciliation: %s", err)
-	} else {
-		for i := range nads.Items {
-			nad := &nads.Items[i]
-			name := nad.Name
-			id := nad.Labels[PrivateNetworkIdLabel]
-			uid := nad.UID
-			deleteOrphan(name, id, func() bool {
-				return privateNetworkDeleteNadWithUid(ctx, name, uid)
-			})
+	for _, item := range privateNetworkSubnetTracker.List() {
+		if item.GetLabels()[PrivateNetworkManagedByLabel] != PrivateNetworkManagedBy {
+			continue
 		}
+
+		subnet := &privateNetworkKubeOvnSubnet{}
+		if !privateNetworkKubeOvnFromUnstructured("Subnet", item, subnet) {
+			log.Warn("Failed to decode the Subnet %s, it will not be checked for orphan status", item.GetName())
+			continue
+		}
+
+		name := subnet.Name
+		id := subnet.Labels[PrivateNetworkIdLabel]
+		uid := subnet.UID
+		if _, tracked := trackedNetworks[id]; tracked {
+			continue
+		}
+
+		deleteOrphan(name, id, func() bool {
+			return privateNetworkDeleteWithUid(ctx, privateNetworkDynamicClient.Resource(privateNetworkSubnetGvr), name, uid)
+		})
+	}
+
+	for _, item := range privateNetworkNadTracker.List() {
+		if item.GetLabels()[PrivateNetworkManagedByLabel] != PrivateNetworkManagedBy {
+			continue
+		}
+
+		name := item.GetName()
+		id := item.GetLabels()[PrivateNetworkIdLabel]
+		uid := item.GetUID()
+		if _, tracked := trackedNetworks[id]; tracked {
+			continue
+		}
+
+		deleteOrphan(name, id, func() bool {
+			return privateNetworkDeleteNadWithUid(ctx, name, uid)
+		})
 	}
 
 	return deleted
@@ -1289,16 +1321,7 @@ func privateNetworkListWorkloads(ctx context.Context) privateNetworkWorkloads {
 		ok:                 true,
 	}
 
-	pods, err := K8sClient.CoreV1().Pods(ServiceConfig.Compute.Namespace).
-		List(ctx, k8smeta.ListOptions{})
-	if err != nil {
-		log.Warn("Failed to list pods for private network reconciliation: %s", err)
-		result.ok = false
-		return result
-	}
-
-	for i := range pods.Items {
-		pod := &pods.Items[i]
+	for _, pod := range JobPods.List() {
 		jobId := pod.Labels["ucloud.dk/jobId"]
 		rank := pod.Labels["ucloud.dk/rank"]
 
@@ -1306,7 +1329,7 @@ func privateNetworkListWorkloads(ctx context.Context) privateNetworkWorkloads {
 			result.podsByJobRank[jobId+"/"+rank] = append(result.podsByJobRank[jobId+"/"+rank], pod)
 		}
 
-		vmName := pod.Labels["ucloud.dk/vmName"]
+		vmName := pod.Labels[VmNameLabel]
 		if vmName != "" {
 			if vmJobId, vmRank, ok := privateNetworkVmNameToJobAndRank(vmName); ok {
 				vmKey := vmJobId + "/" + strconv.Itoa(vmRank)
@@ -1321,32 +1344,22 @@ func privateNetworkListWorkloads(ctx context.Context) privateNetworkWorkloads {
 	}
 
 	if ServiceConfig.Compute.VirtualMachines.Enabled {
-		vms, err := KubevirtClient.VirtualMachine(ServiceConfig.Compute.Namespace).
-			List(ctx, k8smeta.ListOptions{})
-		if err != nil {
-			log.Info("Failed to list virtual machines for private network reconciliation: %v", err)
-			result.ok = false
-		} else {
-			for i := range vms.Items {
-				vm := &vms.Items[i]
-				if jobId, rank, ok := privateNetworkVmNameToJobAndRank(vm.Name); ok {
-					privateNetworkCollectVmNads(&result, vm, jobId+"/"+strconv.Itoa(rank))
-				}
+		for _, item := range privateNetworkVmTracker.List() {
+			vm := &kvcore.VirtualMachine{}
+			if !privateNetworkKubeOvnFromUnstructured("VirtualMachine", item, vm) {
+				continue
+			}
+			if jobId, rank, ok := privateNetworkVmNameToJobAndRank(vm.Name); ok {
+				privateNetworkCollectVmNads(&result, vm, jobId+"/"+strconv.Itoa(rank))
 			}
 		}
 
-		vmis, err := KubevirtClient.VirtualMachineInstance(ServiceConfig.Compute.Namespace).
-			List(ctx, k8smeta.ListOptions{})
-		if err != nil {
-			log.Info("Failed to list virtual machine instances for private network reconciliation: %v", err)
-			result.ok = false
-		} else {
-			for i := range vmis.Items {
-				result.vmisByName[vmis.Items[i].Name] = true
-				if jobId, rank, ok := privateNetworkVmNameToJobAndRank(vmis.Items[i].Name); ok {
-					result.vmNamesByJobRank[jobId+"/"+strconv.Itoa(rank)] = vmis.Items[i].Name
-					result.vmRankWithInstance[jobId+"/"+strconv.Itoa(rank)] = true
-				}
+		for _, item := range privateNetworkVmiTracker.List() {
+			name := item.GetName()
+			result.vmisByName[name] = true
+			if jobId, rank, ok := privateNetworkVmNameToJobAndRank(name); ok {
+				result.vmNamesByJobRank[jobId+"/"+strconv.Itoa(rank)] = name
+				result.vmRankWithInstance[jobId+"/"+strconv.Itoa(rank)] = true
 			}
 		}
 	}
@@ -1725,22 +1738,14 @@ func privateNetworkSubnetIpSnapshot(
 		}
 	}
 
-	selector := "ovn.kubernetes.io/subnet=" + desired.subnetName
-	list, err := privateNetworkDynamicClient.Resource(privateNetworkIpGvr).
-		List(ctx, k8smeta.ListOptions{LabelSelector: selector})
-	if err != nil {
-		log.Warn(
-			"Failed to list the addresses of subnet %s for lease release: %s",
-			desired.subnetName,
-			err,
-		)
-		return nil, false
-	}
+	var records []privateNetworkIpRecord
+	for _, item := range privateNetworkIpTracker.List() {
+		if item.GetLabels()["ovn.kubernetes.io/subnet"] != desired.subnetName {
+			continue
+		}
 
-	records := make([]privateNetworkIpRecord, 0, len(list.Items))
-	for i := range list.Items {
 		ip := &privateNetworkKubeOvnIp{}
-		if !privateNetworkKubeOvnFromUnstructured("IP", &list.Items[i], ip) {
+		if !privateNetworkKubeOvnFromUnstructured("IP", item, ip) {
 			return nil, false
 		}
 		records = append(records, privateNetworkIpRecordFromKubeOvn(ip))
@@ -1844,7 +1849,7 @@ func privateNetworkVmWorkloadFreshAbsent(
 	namespace := ServiceConfig.Compute.Namespace
 
 	pods, err := K8sClient.CoreV1().Pods(namespace).List(ctx, k8smeta.ListOptions{
-		LabelSelector: "ucloud.dk/vmName=" + vmName,
+		LabelSelector: VmNameLabel + "=" + vmName,
 	})
 	if err != nil {
 		log.Warn("Failed to list the launcher pods of %s for lease release: %s", vmName, err)

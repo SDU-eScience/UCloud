@@ -21,7 +21,8 @@ type IngressSupport struct {
 }
 
 type IngressSpecification struct {
-	Domain string `json:"domain"`
+	Domain string                               `json:"domain"`
+	Target util.Option[PublicLinkServiceTarget] `json:"target,omitempty"`
 	ResourceSpecification
 }
 
@@ -130,6 +131,18 @@ var IngressesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[IngressSu
 	Operation:   "products",
 }
 
+type IngressesSetTargetRequest struct {
+	Id     string                               `json:"id"`
+	Target util.Option[PublicLinkServiceTarget] `json:"target"`
+}
+
+var IngressesSetTarget = rpc.Call[fnd.BulkRequest[IngressesSetTargetRequest], util.Empty]{
+	BaseContext: ingressNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "setTarget",
+}
+
 // Ingress Control API
 // =====================================================================================================================
 
@@ -223,4 +236,16 @@ var IngressesProviderOnUpdatedLabels = rpc.Call[fnd.BulkRequest[Ingress], util.E
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "onUpdatedLabels",
+}
+
+type IngressesProviderSetTargetRequest struct {
+	Ingress Ingress                              `json:"ingress"`
+	Target  util.Option[PublicLinkServiceTarget] `json:"target"`
+}
+
+var IngressesProviderSetTarget = rpc.Call[fnd.BulkRequest[IngressesProviderSetTargetRequest], fnd.BulkResponse[util.Empty]]{
+	BaseContext: ingressProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "setTarget",
 }

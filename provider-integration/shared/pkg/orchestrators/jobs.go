@@ -140,9 +140,14 @@ type JobSpecification struct {
 	OpenedFile        string                       `json:"openedFile,omitempty"`
 	RestartOnExit     bool                         `json:"restartOnExit,omitempty"` // deprecated
 	SshEnabled        bool                         `json:"sshEnabled,omitempty"`
+	Services          []JobServiceReference        `json:"services,omitempty"`
 }
 
 type ComputeProductReference apm.ProductReference
+
+type JobServiceReference struct {
+	ServiceId string `json:"serviceId"`
+}
 
 type JobOutput struct {
 	OutputFolder util.Option[string] `json:"outputFolder"`

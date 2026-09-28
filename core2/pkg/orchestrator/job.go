@@ -190,6 +190,7 @@ func initJobs() {
 				}
 			}
 
+			jobBecameFinal := false
 			ok := ResourceUpdate(info.Actor, jobType, ResourceParseId(jobId), orcapi.PermissionProvider, func(r *resource, mapped orcapi.Job) {
 				job := r.Extra.(*internalJob)
 				job.ChangeFlags |= internalJobPartialChange | internalJobChangeUpdates | internalJobChangeMetadata
@@ -231,6 +232,8 @@ func initJobs() {
 								for _, resc := range job.Resources {
 									jobUnbindResource(jobId, resc)
 								}
+
+								jobBecameFinal = true
 							}
 						}
 
@@ -283,6 +286,10 @@ func initJobs() {
 			if !ok {
 				log.Info("unknown job or permission denied (%v, %v)", jobId, info.Actor.Username)
 				return util.Empty{}, util.HttpErr(http.StatusNotFound, "unknown job or permission denied (%v)", jobId)
+			}
+
+			if jobBecameFinal {
+				serviceRemoveMembershipsOfJob(jobId)
 			}
 		}
 
@@ -996,6 +1003,13 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 			jobBindResource(job.Id, resc)
 		}
 
+		for _, ref := range spec.Services {
+			err := ServiceAddMembers(actor, ref.ServiceId, []string{job.Id})
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		created = append(created, job)
 	}
 
@@ -1020,6 +1034,7 @@ func jobCreateThroughProvider(actor rpc.Actor, spec orcapi.JobSpecification, ext
 
 	providerJob := job
 	providerJob.Specification.Resources = spec.Resources // NOTE(Dan): Pass unfiltered resources to provider
+	providerJob.Specification.Services = spec.Services
 	resp, err := InvokeProvider(spec.ResourceSpecification.Product.Provider, orcapi.JobsProviderCreate, fndapi.BulkRequestOf(providerJob), ProviderCallOpts{
 		Username: util.OptValue(actor.Username),
 		Reason:   util.OptValue("Creating resource: " + jobType),
@@ -1052,6 +1067,32 @@ func jobPersistableResources(resources []orcapi.AppParameterValue) []orcapi.AppP
 		}
 	}
 	return result
+}
+
+func jobsValidateServiceReferences(actor rpc.Actor, spec orcapi.JobSpecification) *util.HttpError {
+	for _, ref := range spec.Services {
+		svc, _, _, err := ResourceRetrieveEx[orcapi.Service](
+			actor,
+			serviceType,
+			ResourceParseId(ref.ServiceId),
+			orcapi.PermissionEdit,
+			orcapi.ResourceFlags{},
+		)
+
+		if err != nil {
+			return util.HttpErr(http.StatusForbidden, "you cannot use this service: %v", ref.ServiceId)
+		}
+
+		if svc.Specification.Product.Provider != spec.Product.Provider {
+			return util.HttpErr(http.StatusBadRequest, "the service belongs to a different provider: %v", ref.ServiceId)
+		}
+
+		if err := serviceValidateMemberNetworkAttachment(svc, spec.Resources); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func JobsRenameBulk(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobRenameRequest]) *util.HttpError {
@@ -1593,6 +1634,10 @@ func jobsValidateWithApplication(actor rpc.Actor, spec *orcapi.JobSpecification,
 		return util.HttpErr(http.StatusBadRequest, "you must request at least 1 node")
 	}
 
+	if err := jobsValidateServiceReferences(actor, *spec); err != nil {
+		return err
+	}
+
 	util.ValidateString(&spec.Name, "name", util.StringValidationAllowEmpty, &err)
 	if err != nil {
 		return err
@@ -1915,6 +1960,10 @@ func jobValidateValue(
 			if !validation.JobId.Present || id != validation.JobId.Value {
 				return util.HttpErr(http.StatusForbidden, "this link is already in use with %v", id)
 			}
+		}
+
+		if resc.Specification.Target.Present {
+			return util.HttpErr(http.StatusConflict, "this link targets a service and cannot be attached to a job")
 		}
 
 		if value.Port != 0 && value.Port < 0 || value.Port > 65535 {
@@ -2705,6 +2754,7 @@ func jobTransform(
 			OpenedFile:            info.OpenedFile,
 			SshEnabled:            info.SshEnabled,
 			ResourceSpecification: specification,
+			Services:              serviceReferencesOfJob(r.Id),
 		},
 		Status: orcapi.JobStatus{
 			State:             info.State,

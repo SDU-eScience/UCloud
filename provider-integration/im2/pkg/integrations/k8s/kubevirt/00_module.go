@@ -318,7 +318,7 @@ func vmiFsMutator() {
 			if labels == nil {
 				labels = make(map[string]string)
 			}
-			name, ok := labels["ucloud.dk/vmName"]
+			name, ok := labels[shared.VmNameLabel]
 			if !ok {
 				log.Info("Rejecting %s because no label annotation is present", pod.Name)
 				allowed = false
@@ -1436,7 +1436,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	podSelector := k8smeta.LabelSelector{
 		MatchLabels: map[string]string{
-			"ucloud.dk/vmName": nameOfVm,
+			shared.VmNameLabel: nameOfVm,
 		},
 	}
 
@@ -1496,32 +1496,25 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		},
 	}
 
-	if forwards, ok := job.Specification.Labels[orc.ResourceLabelServiceForwardTcp]; ok {
-		var ports []int
-		err := json.Unmarshal([]byte(forwards), &ports)
-		if err == nil {
-			for _, port := range ports {
-				baseService.Spec.Ports = append(baseService.Spec.Ports, k8score.ServicePort{
-					Name:     fmt.Sprintf("p-%d", port),
-					Protocol: k8score.ProtocolTCP,
-					Port:     int32(port),
-				})
-			}
+	forwardedPorts := map[int]util.Empty{}
+	for _, resource := range job.Specification.Resources {
+		if resource.Type != orc.AppParameterValueTypeIngress || resource.Port == 0 {
+			continue
 		}
+		forwardedPorts[resource.Port] = util.Empty{}
 	}
-
-	if forwards, ok := job.Specification.Labels[orc.ResourceLabelServiceForwardUdp]; ok {
-		var ports []int
-		err := json.Unmarshal([]byte(forwards), &ports)
-		if err == nil {
-			for _, port := range ports {
-				baseService.Spec.Ports = append(baseService.Spec.Ports, k8score.ServicePort{
-					Name:     fmt.Sprintf("p-%d-udp", port),
-					Protocol: k8score.ProtocolUDP,
-					Port:     int32(port),
-				})
-			}
+	for _, resource := range job.Specification.Parameters {
+		if resource.Type != orc.AppParameterValueTypeIngress || resource.Port == 0 {
+			continue
 		}
+		forwardedPorts[resource.Port] = util.Empty{}
+	}
+	for port := range forwardedPorts {
+		baseService.Spec.Ports = append(baseService.Spec.Ports, k8score.ServicePort{
+			Name:     fmt.Sprintf("p-%d", port),
+			Protocol: k8score.ProtocolTCP,
+			Port:     int32(port),
+		})
 	}
 
 	cinit := cloudInit{}
@@ -1704,7 +1697,7 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	vm.Spec.Template.ObjectMeta.Labels = map[string]string{}
-	vm.Spec.Template.ObjectMeta.Labels["ucloud.dk/vmName"] = vm.Name
+	vm.Spec.Template.ObjectMeta.Labels[shared.VmNameLabel] = vm.Name
 	jobIdLabel := shared.JobIdLabel(job.Id)
 	vm.Spec.Template.ObjectMeta.Labels[jobIdLabel.First] = jobIdLabel.Second
 	jobRankLabel := shared.JobRankLabel(rank)
@@ -2402,7 +2395,7 @@ func vmPrivateNetworkDetach(job *orc.Job, resource orc.AppParameterValue) *util.
 		return util.ServerHttpError("Failed to read the virtual machine instance")
 	}
 
-	selector := k8smeta.ListOptions{LabelSelector: "ucloud.dk/vmName=" + name}
+	selector := k8smeta.ListOptions{LabelSelector: shared.VmNameLabel + "=" + name}
 	vmiPods, err := shared.K8sClient.CoreV1().Pods(Namespace).List(ctx, selector)
 	if err != nil {
 		return util.ServerHttpError("Failed to read the virtual machine launcher pods")

@@ -75,7 +75,7 @@ const (
 	clusterRecordPhaseError        = "error"
 )
 
-const ScriptBundleRevision = 7
+const ScriptBundleRevision = 8
 
 func BundlePathForRelease(release K3sRelease) string {
 	return filepath.Join("bundles", strconv.Itoa(ScriptBundleRevision), SanitizeForPath(release.Release))
@@ -120,6 +120,8 @@ type ClusterRecord struct {
 	StackId          string                  `json:"stackId"`
 	K8sVersion       string                  `json:"k8sVersion"`
 	NetworkId        string                  `json:"networkId"`
+	ServiceId        string                  `json:"serviceId"`
+	ServiceDnsName   string                  `json:"serviceDnsName"`
 	MachineProvider  string                  `json:"machineProvider"`
 	Subnets          []string                `json:"subnets"`
 	Ports            []int                   `json:"ports"`
@@ -249,7 +251,7 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 	}
 
 	stackIdLower := strings.ToLower(stackId)
-	apiLinkDomain := fmt.Sprintf("%s%s-k8s%s", linkDomain.Prefix, stackIdLower, linkDomain.Suffix)
+	apiLinkDomain := fmt.Sprintf("%s%s-api%s", linkDomain.Prefix, stackIdLower, linkDomain.Suffix)
 
 	computeProducts, err := ucxapi.JobsRetrieveProducts.Invoke(session, util.Empty{})
 	if err != nil || len(computeProducts) == 0 {
@@ -271,11 +273,57 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		return stack, false
 	}
 
+	servicePorts := []orcapi.ServicePort{
+		{
+			Name:                "api",
+			Port:                ApiPort,
+			Protocol:            orcapi.ServicePortProtocolTcp,
+			ApplicationProtocol: util.OptValue("HTTPS"),
+			BackendTls:          util.OptValue(orcapi.ServiceBackendTls{InsecureSkipVerify: true}),
+		},
+		{
+			Name:                "headlamp",
+			Port:                HeadlampPort,
+			Protocol:            orcapi.ServicePortProtocolTcp,
+			ApplicationProtocol: util.OptValue("HTTP"),
+			HealthCheck: util.OptValue(orcapi.ServiceHealthCheck{
+				Type:               orcapi.ServiceHealthCheckTypeHttp,
+				Path:               "/",
+				IntervalSeconds:    5,
+				TimeoutSeconds:     5,
+				HealthyThreshold:   2,
+				UnhealthyThreshold: 2,
+			}),
+		},
+	}
+	for _, port := range spec.Ports {
+		servicePorts = append(servicePorts, orcapi.ServicePort{
+			Name:                fmt.Sprintf("node-%d", port),
+			Port:                port,
+			Protocol:            orcapi.ServicePortProtocolTcp,
+			ApplicationProtocol: util.OptValue("HTTP"),
+		})
+	}
+
+	clusterService := ucxsvc.ServiceCreate(stack, stackId+"-k8s", servicePorts, util.OptValue(network.Id))
+	if !stack.Ok {
+		return stack, false
+	}
+
+	serviceReady, serviceDnsName := ucxsvc.ServiceWaitReady(stack, clusterService.Id, 2*time.Minute)
+	if !serviceReady || serviceDnsName == "" {
+		stack.Ok = false
+		ucxsvc.UiSendFailure(app, "The cluster service never became ready with an internal address")
+		return stack, false
+	}
+
 	record := &ClusterRecord{
 		SchemaRevision:   clusterRecordSchemaRevision,
 		StackId:          stackId,
 		K8sVersion:       release.Release,
 		NetworkId:        network.Id,
+		ServiceId:        clusterService.Id,
+		ServiceDnsName:   serviceDnsName,
 		MachineProvider:  spec.ControlPlaneMachine.Provider,
 		Subnets:          []string{ClusterVmCidr, ClusterPodCidr, ClusterServiceCidr},
 		Ports:            spec.Ports,
@@ -317,19 +365,25 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		return stack, false
 	}
 
-	links := []orcapi.AppParameterValue{
-		ucxsvc.PublicLinkCreate(stack, fmt.Sprintf("%s-api", stackId), ucxsvc.PublicLinkCreateOptions{
-			Port: util.OptValue(ApiPort),
-			TLS:  true,
+	ucxsvc.PublicLinkCreate(stack, fmt.Sprintf("%s-api", stackId), ucxsvc.PublicLinkCreateOptions{
+		ServiceTarget: util.OptValue(orcapi.PublicLinkServiceTarget{
+			ServiceId: clusterService.Id,
+			Port:      "api",
 		}),
-		ucxsvc.PublicLinkCreate(stack, fmt.Sprintf("%s-dashboard", stackId), ucxsvc.PublicLinkCreateOptions{
-			Port: util.OptValue(HeadlampPort),
+	})
+	ucxsvc.PublicLinkCreate(stack, fmt.Sprintf("%s-dashboard", stackId), ucxsvc.PublicLinkCreateOptions{
+		ServiceTarget: util.OptValue(orcapi.PublicLinkServiceTarget{
+			ServiceId: clusterService.Id,
+			Port:      "headlamp",
 		}),
-	}
+	})
 	for _, port := range spec.Ports {
-		links = append(links, ucxsvc.PublicLinkCreate(stack, fmt.Sprintf("%s-%d", stackId, port), ucxsvc.PublicLinkCreateOptions{
-			Port: util.OptValue(port),
-		}))
+		ucxsvc.PublicLinkCreate(stack, fmt.Sprintf("%s-%d", stackId, port), ucxsvc.PublicLinkCreateOptions{
+			ServiceTarget: util.OptValue(orcapi.PublicLinkServiceTarget{
+				ServiceId: clusterService.Id,
+				Port:      fmt.Sprintf("node-%d", port),
+			}),
+		})
 	}
 	if !stack.Ok {
 		return stack, false
@@ -358,7 +412,6 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 				machine:      pool.machine,
 				diskGb:       pool.diskGb,
 				allocationId: allocationId,
-				links:        links,
 				customUi:     customUi,
 			})
 			if !created {
@@ -410,7 +463,6 @@ type clusterNodeOptions struct {
 	machine      accapi.ProductReference
 	diskGb       int
 	allocationId int
-	links        []orcapi.AppParameterValue
 	customUi     ucxsvc.UcxCustomUiServiceInit
 }
 
@@ -478,13 +530,11 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 
 	initScript := ""
 	if firstServer {
-		attachments = append(attachments, opts.links...)
 		attachments = append(attachments,
 			ucxsvc.StackSubtreeMount(stack, managementDir, managementMountPath, false),
 			ucxsvc.StackSubtreeMount(stack, nodesDir, nodesMountPath, false),
 		)
 
-		labels[orcapi.ResourceLabelServiceForwardTcp] = marshalPorts(append([]int{ApiPort, HeadlampPort}, opts.record.Ports...))
 		labels = util.MapMerge(labels, opts.customUi.Labels)
 
 		initScript = Script("launcher.sh") + "\n" + opts.customUi.InitScript
@@ -517,6 +567,14 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 		if opts.record.Nodes[i].AllocationId == opts.allocationId {
 			opts.record.Nodes[i].JobId = job.Id
 			break
+		}
+	}
+
+	if opts.group == GroupControlPlane {
+		if !ucxsvc.ServiceAddMembers(stack, opts.record.ServiceId, []string{job.Id}) {
+			_ = ucxsvc.JobTerminate(stack, job.Id)
+			clusterReleaseReservation(stack, record, reservation.Id, hostname)
+			return false, "could not add the node to the cluster service"
 		}
 	}
 
@@ -589,12 +647,18 @@ func clusterWriteNodeInput(stack *ucxsvc.Stack, record *ClusterRecord, release K
 	firstServer := opts.group == GroupControlPlane && opts.allocationId == 1
 	ipAddress := NodeIpForAllocation(opts.allocationId)
 
+	serverUrl := fmt.Sprintf("https://%s:%d", NodeIpForAllocation(1), ApiPort)
+	if record.ServiceDnsName != "" {
+		serverUrl = fmt.Sprintf("https://%s:%d", record.ServiceDnsName, ApiPort)
+	}
+
 	nodeJson := map[string]any{
 		"role":        opts.group,
 		"firstServer": firstServer,
 		"hostname":    ClusterNodeHostname(opts.group, opts.allocationId),
 		"ipAddress":   ipAddress,
-		"serverUrl":   fmt.Sprintf("https://%s:%d", NodeIpForAllocation(1), ApiPort),
+		"serverUrl":   serverUrl,
+		"serviceDns":  record.ServiceDnsName,
 		"k8sVersion":  release.Release,
 		"sha256Amd64": release.Sha256Amd64,
 		"sha256Arm64": release.Sha256Arm64,
@@ -624,12 +688,4 @@ func inputDirFor(allocationId int) string {
 
 func ClusterNodeHostname(group string, allocationId int) string {
 	return fmt.Sprintf("%s-%v", group, allocationId)
-}
-
-func marshalPorts(ports []int) string {
-	data, err := json.Marshal(ports)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return string(data)
 }

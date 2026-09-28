@@ -322,6 +322,13 @@ func PrivateNetworkDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.Fin
 			)
 		}
 
+		if serviceReferencedByNetwork(ResourceParseId(item.Id)) {
+			return util.HttpErr(
+				http.StatusConflict,
+				"This private network is currently in use as the internal endpoint of a service",
+			)
+		}
+
 		err = privateNetworkDeleteReservedIps(item.Id)
 		if err != nil {
 			return err

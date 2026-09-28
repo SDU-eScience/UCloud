@@ -117,6 +117,7 @@ func InitJobDatabase() {
 	initIngressDatabase()
 	initLicenseDatabase()
 	initPrivateNetworkDatabase()
+	initServicesDatabase()
 
 	jobsLoadSessions()
 

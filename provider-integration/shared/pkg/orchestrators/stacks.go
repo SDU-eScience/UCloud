@@ -29,6 +29,7 @@ type StackStatus struct {
 	PublicIps       []PublicIp          `json:"publicIps"`
 	PublicLinks     []Ingress           `json:"publicLinks"`
 	Networks        []PrivateNetwork    `json:"networks"`
+	Services        []Service           `json:"services"`
 }
 
 const stacksContext = "jobs/stacks"

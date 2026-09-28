@@ -64,6 +64,7 @@ func InitCompute() controller.JobsService {
 			Delete:           deleteIngress,
 			OnUpdatedLabels:  nil,
 			RetrieveProducts: retrieveIngressProducts,
+			SetTarget:        serviceIngressSetTarget,
 		},
 		Licenses: controller.LicenseService{
 			Create:           activateLicense,
@@ -82,6 +83,15 @@ func InitCompute() controller.JobsService {
 			Delete:           deletePrivateNetworkIp,
 			OnUpdatedLabels:  nil,
 			RetrieveProducts: retrievePrivateNetworkIpProducts,
+		},
+		Services: controller.ServiceService{
+			Create:           serviceCreate,
+			Delete:           serviceDelete,
+			Update:           serviceUpdateSpec,
+			UpdateMembers:    serviceUpdateMembers,
+			OnUpdatedLabels:  serviceOnUpdatedLabels,
+			UpdateAcl:        serviceUpdateAcl,
+			RetrieveProducts: serviceRetrieveProducts,
 		},
 	}
 }
@@ -104,6 +114,7 @@ func InitComputeLater() {
 	initScriptImagesStartMaintenance()
 
 	initJobQueue()
+	ServicesStartLoop()
 
 	go func() {
 		nodes = shared.NewResourceTracker[*k8score.Node](
@@ -272,6 +283,7 @@ func deleteIngress(ingress *orc.Ingress) *util.HttpError {
 		)
 	})
 
+	serviceReconcileLinkTargets()
 	accountPublicLinks(ingress.Owner)
 	return result
 }

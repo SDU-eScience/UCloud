@@ -5,6 +5,11 @@ source /etc/ucloud-k8s/bundle/common.sh
 KUBECONFIG="/etc/rancher/k3s/k3s.yaml"
 export KUBECONFIG
 
+INTERNAL_SERVER_URL="https://127.0.0.1:6443"
+if [ -n "$(node_field serviceDns)" ]; then
+	INTERNAL_SERVER_URL="$(node_field serverUrl)"
+fi
+
 log "installing the token publisher"
 emit "Installing the token publisher" 78
 install -m 0755 "$BUNDLE_DIR/token-publisher.sh" /usr/local/sbin/ucloud-k8s-token-publisher
@@ -31,7 +36,6 @@ EOF
 systemctl daemon-reload
 systemctl enable --now ucloud-k8s-token-publisher
 
-log "applying local-path storage"
 emit "Applying local-path storage" 82
 mountpoint -q "$STORAGE_DIR" || fail "mounts" "shared storage is not mounted at $STORAGE_DIR"
 sed \
@@ -41,14 +45,15 @@ sed \
 	"$BUNDLE_DIR/local-path-storage.yaml" \
 	> /var/lib/rancher/k3s/server/manifests/ucloud-k8s-local-storage.yaml
 k3s kubectl --request-timeout=60s apply -f /var/lib/rancher/k3s/server/manifests/ucloud-k8s-local-storage.yaml >/dev/null
-k3s kubectl --request-timeout=60s -n local-path-storage rollout status deploy/local-path-provisioner --timeout=180s >/dev/null
 
-log "applying headlamp"
 emit "Applying Headlamp" 86
 sed -e "s|\${HEADLAMP_IMAGE}|$HEADLAMP_IMAGE|g" \
 	"$BUNDLE_DIR/headlamp.yaml" \
 	> /var/lib/rancher/k3s/server/manifests/ucloud-k8s-headlamp.yaml
 k3s kubectl --request-timeout=60s apply -f /var/lib/rancher/k3s/server/manifests/ucloud-k8s-headlamp.yaml >/dev/null
+
+emit "Waiting for addons" 88
+k3s kubectl --request-timeout=60s -n local-path-storage rollout status deploy/local-path-provisioner --timeout=180s >/dev/null
 k3s kubectl --request-timeout=60s -n headlamp rollout status deploy/headlamp --timeout=180s >/dev/null
 
 log "applying the admin service account"
@@ -74,7 +79,7 @@ umask 077
 printf '%s' "$ADMIN_TOKEN" | atomic_write_chowned "$MANAGEMENT_DIR/kube-api-token" 0600
 
 SERVER_CA_DATA="$(base64 -w0 "$K3S_DATA_DIR/server/tls/server-ca.crt")"
-K8S_TOKEN="$ADMIN_TOKEN" K8S_CA_DATA="$SERVER_CA_DATA" K8S_UID="$UCX_SERVICE_UID" K8S_GID="$UCX_SERVICE_GID" python3 - "$MANAGEMENT_DIR/kubeconfig.tpl" "$MANAGEMENT_DIR/kubeconfig" "$MANAGEMENT_DIR/kubeconfig-internal" <<'PYEOF'
+K8S_TOKEN="$ADMIN_TOKEN" K8S_CA_DATA="$SERVER_CA_DATA" K8S_UID="$UCX_SERVICE_UID" K8S_GID="$UCX_SERVICE_GID" K8S_INTERNAL_SERVER="$INTERNAL_SERVER_URL" python3 - "$MANAGEMENT_DIR/kubeconfig.tpl" "$MANAGEMENT_DIR/kubeconfig" "$MANAGEMENT_DIR/kubeconfig-internal" <<'PYEOF'
 import os
 import sys
 
@@ -92,7 +97,7 @@ kind: Config
 clusters:
 - name: default
   cluster:
-    server: https://127.0.0.1:6443
+    server: {internal_server}
     certificate-authority-data: {ca}
 users:
 - name: admin
@@ -104,7 +109,7 @@ contexts:
     cluster: default
     user: admin
 current-context: default
-""".format(ca=os.environ["K8S_CA_DATA"], token=os.environ["K8S_TOKEN"])
+""".format(ca=os.environ["K8S_CA_DATA"], token=os.environ["K8S_TOKEN"], internal_server=os.environ["K8S_INTERNAL_SERVER"])
 
 with open(sys.argv[3] + ".tmp", "w") as f:
     f.write(internal)

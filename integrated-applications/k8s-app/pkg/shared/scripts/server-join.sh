@@ -10,6 +10,7 @@ SERVICE_CIDR="$(node_field serviceCidr)"
 SERVER_URL="$(node_field serverUrl)"
 NODE_NAME="$(node_field hostname)"
 NODE_GROUP="$(node_field role)"
+SERVICE_DNS="$(node_field serviceDns)"
 
 if [ "$FIRST_SERVER" = "True" ]; then
 	emit "Starting the first server" 45
@@ -35,6 +36,11 @@ else
 	AGENT_TOKEN="$(cat "$INPUT_DIR/agent-token.ca")"
 fi
 
+TLS_SANS="$IP_ADDRESS"
+if [ -n "$SERVICE_DNS" ]; then
+	TLS_SANS="$TLS_SANS"$'\n'"  - $SERVICE_DNS"
+fi
+
 cat > /etc/rancher/k3s/config.yaml <<EOF
 node-name: $NODE_NAME
 node-ip: $IP_ADDRESS
@@ -44,7 +50,7 @@ flannel-iface: $IFACE
 cluster-cidr: $CLUSTER_CIDR
 service-cidr: $SERVICE_CIDR
 tls-san:
-  - $IP_ADDRESS
+  - $TLS_SANS
 data-dir: $K3S_DATA_DIR
 disable:
   - local-storage

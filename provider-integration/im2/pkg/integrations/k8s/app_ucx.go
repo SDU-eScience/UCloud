@@ -327,7 +327,7 @@ func ucxOnConnect(conn *ws.Conn) {
 
 	ucxapi.IM.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.Message) (ucxapi.Message, error) {
 		log.Info("Got a message from '%#v': %s", info.Owner, request.Message)
-		return ucxapi.Message{"Hello from the provider!"}, nil
+		return ucxapi.Message{Message: "Hello from the provider!"}, nil
 	})
 
 	if err := proxy.Run(ctx, conn); err != nil {
@@ -400,7 +400,7 @@ func ucxOnConnectJob(conn *ws.Conn) {
 
 	ucxapi.IM.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.Message) (ucxapi.Message, error) {
 		log.Info("Got a job message from '%#v': %s", info.Job.Owner, request.Message)
-		return ucxapi.Message{"Hello from the provider job session!"}, nil
+		return ucxapi.Message{Message: "Hello from the provider job session!"}, nil
 	})
 
 	if err := proxy.Run(ctx, conn); err != nil {

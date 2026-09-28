@@ -45,7 +45,7 @@ func TestBasicScheduling(t *testing.T) {
 	}
 
 	submitAt := fnd.Timestamp(time.Now())
-	jobLength := orc.SimpleDuration{1, 0, 0}
+	jobLength := orc.SimpleDuration{Hours: 1}
 
 	for i := 0; i < 100; i++ {
 		scheduler.RegisterJobInQueue(fmt.Sprint(i), fullNode, 1, 0, submitAt, jobLength)

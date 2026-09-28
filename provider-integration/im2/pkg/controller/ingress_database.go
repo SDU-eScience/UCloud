@@ -131,6 +131,16 @@ func LinkRetrieve(id string) orc.Ingress {
 	return result
 }
 
+func LinkRetrieveAll() []orc.Ingress {
+	ingressesMutex.Lock()
+	result := make([]orc.Ingress, 0, len(ingresses))
+	for _, ingress := range ingresses {
+		result = append(result, *ingress)
+	}
+	ingressesMutex.Unlock()
+	return result
+}
+
 func LinkRetrieveUsedCount(owner orc.ResourceOwner) int {
 	return db.NewTx[int](func(tx *db.Transaction) int {
 		row, _ := db.Get[struct{ Count int }](
