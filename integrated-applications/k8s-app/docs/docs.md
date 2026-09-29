@@ -21,9 +21,10 @@ other provider.
 All VMs are connected in a single private network, created automatically by the application. The network uses a fixed address plan, see
 the networking section below.
 
-The first control plane node also runs the dashboard custom UI service, which reads the cluster state and the Kubernetes API. While
-the cluster is starting, the dashboard builds its node overview from the recorded nodes and their job states in the cluster record.
-The runtime state of the cluster is shown from the Kubernetes API once it responds.
+Every control plane node runs the dashboard custom UI service, which reads the cluster state and the Kubernetes API. While the cluster
+is starting, the dashboard builds its node overview from the recorded nodes and their job states in the cluster record. The runtime
+state of the cluster is shown from the Kubernetes API once it responds. UCloud selects a running control plane node to serve the
+dashboard; if that node stops, another control plane node takes over.
 
 ### State and file layout
 
@@ -31,15 +32,15 @@ The stack folder is split into per-purpose subtrees. Each node mounts only the s
 
 - `management/` — cluster-wide state and credentials: `cluster.json` (the persistent cluster record), `kubeconfig` (public, downloaded
   by the user), `kubeconfig-internal` (used by the dashboard custom UI service), `kube-api-token` and `tokens/` (the k3s join tokens).
-  Mounted read-write on the first control plane node only.
+  Mounted read-write on every control plane node.
 - `nodes/<id>/input/` — per-node input, written before the node is created. Contains `node.json` and the join token files.
 - `bundles/<revision>/<release>/` — the versioned script bundle. The revision (`ScriptBundleRevision`) tracks breaking changes to the
   scripts themselves, and the release is the curated k3s release. A new script revision or a new k3s release produces a new bundle
   instead of overwriting the files that running nodes mount.
 - `k3s-storage/` — shared storage used by the local-path provisioner.
 
-The first control plane node is an exception to the per-node input rule: it mounts the whole `nodes/` subtree read-write. The token
-publisher on that node needs write access to the input directories of all other nodes.
+Every control plane node mounts the whole `nodes/` subtree read-write. The token publisher on any control plane node needs write
+access to the input directories of all other nodes.
 
 The persistent cluster record (`management/cluster.json`) is the source of truth for the cluster: its phase, node allocation IDs,
 hostnames, IP addresses, job IDs, the machine provider, the worker pools, the bundle path and the next free allocation ID. It carries
@@ -69,13 +70,17 @@ offline artifacts under `bundles/<revision>/<release>/artifacts/` so that nodes 
 
 The first control plane node additionally runs `server-bootstrap.sh` after joining, which:
 
-- installs and starts the secure token publisher (`ucloud-k8s-token-publisher`),
 - applies the local-path storage provisioner, configured with `sharedFileSystemPath` on the shared storage directory,
 - installs Headlamp,
 - applies the admin service account (`admin-account.yaml`: service account, cluster-admin binding, and a
   `kubernetes.io/service-account-token` secret with no expiry),
 - reads the admin token secret and writes the public kubeconfig (from `kubeconfig.tpl`, pointing at the public API link) and
   `kubeconfig-internal` (endpoint `https://127.0.0.1:6443`, the cluster CA and the admin token, mode 0600 owned by the service UID).
+
+Every control plane node runs `server-join.sh`, which installs and starts the secure token publisher
+(`ucloud-k8s-token-publisher`) in addition to joining the etcd cluster. The publisher reads the cluster join token from the local k3s
+data directory and (re)publishes it to the shared `management/tokens/` directory and to the input directories of nodes that have not
+joined yet. Publishing is idempotent, so multiple publishers on different control plane nodes coexist without conflict.
 
 ### Networking
 
@@ -86,25 +91,24 @@ All cluster subnets are fixed and known in advance:
 - Pod network: `10.200.0.0/16`
 - Service network: `10.201.0.0/16`
 
-The Kubernetes API is exposed on port 6443 of the first control plane node, and Headlamp on port 30500. Both are exposed as public
-links on that single node. The first control plane node is therefore the only public entry point: if it is stopped, the public links
-stop working even if additional control plane nodes run. The API is reachable from inside the private network on any control plane
-node; cluster availability when nodes fail depends on the etcd quorum.
+The Kubernetes API is exposed on port 6443 of every control plane node, and Headlamp on port 30500. Both are exposed as public links
+backed by the cluster service, which load-balances over all control plane nodes. The API is reachable from inside the private network
+on any control plane node; cluster availability when nodes fail depends on the etcd quorum.
 
-Public links of the form `{cluster-ID}-{port}` are created for each user-exposed port, also on the first control plane node.
+Public links of the form `{cluster-ID}-{port}` are created for each user-exposed port, backed by the cluster service.
 
 ### Security
 
 - The script bundle is mounted read-only on every node.
-- Each node mounts only its own input directory, plus the shared storage directory. The first control plane node
-  additionally mounts `management/` and the whole `nodes/` subtree, see the file layout section.
+- Each node mounts only its own input directory, plus the shared storage directory. The control plane nodes
+  additionally mount `management/` and the whole `nodes/` subtree, see the file layout section.
 - Join tokens, the admin token and the kubeconfigs are written with mode 0600 and owned by the service UID.
 - The server and agent join tokens are separate static secrets generated at stack creation and passed to k3s as `token` and
   `agent-token`. The cluster does not rotate them. Rotating them requires a coordinated operation (change the k3s configuration on
   every node and republish the tokens); this is not supported by the current code.
 - The admin token is a non-expiring service account token secret. Treat it as an administrator credential: anyone holding it has full
   cluster access. Headlamp uses the same token.
-- The custom UI service runs on the first control plane node and shares that node's mounts. It runs as UID 11042, and its access to
+- The custom UI service runs on every control plane node and shares those nodes' mounts. It runs as UID 11042, and its access to
   sensitive files is limited by file ownership and permissions.
 
 There is no compatibility with stacks created by older versions of the application.
@@ -124,4 +128,3 @@ provider and the disk size before calling `ClusterAddNode`. The selectable node 
 - Offline installation artifacts under the versioned bundle directory, so nodes never need internet access.
 - Clear state boundaries for upgrades: a node should only ever read its own input directory and the bundle.
 - Explicit, coordinated rotation of the join tokens and the admin token.
-- High availability for the public endpoint (currently single point, see above).

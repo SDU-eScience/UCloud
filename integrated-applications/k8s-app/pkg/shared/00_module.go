@@ -77,7 +77,7 @@ const (
 	clusterRecordPhaseError        = "error"
 )
 
-const ScriptBundleRevision = 10
+const ScriptBundleRevision = 11
 
 func BundlePathForRelease(release K3sRelease) string {
 	return filepath.Join("bundles", strconv.Itoa(ScriptBundleRevision), SanitizeForPath(release.Release))
@@ -483,15 +483,30 @@ func clusterControlPlaneRequiresUcxLabels(app ucx.Application) bool {
 	return false
 }
 
-func clusterControlPlaneWiring(stack *ucxsvc.Stack, group string, attachments []orcapi.AppParameterValue, labels map[string]string) ([]orcapi.AppParameterValue, map[string]string) {
+func clusterControlPlaneWiring(
+	stack *ucxsvc.Stack,
+	group string,
+	allocationId int,
+	customUi ucxsvc.UcxCustomUiServiceInit,
+	attachments []orcapi.AppParameterValue,
+	labels map[string]string,
+) ([]orcapi.AppParameterValue, map[string]string) {
 	if group != GroupControlPlane {
+		labels[orcapi.ResourceLabelInitScript] = launcherPath
 		return attachments, labels
 	}
 
 	attachments = append(attachments,
-		ucxsvc.StackSubtreeMount(stack, managementDir, managementMountPath, true),
+		ucxsvc.StackSubtreeMount(stack, managementDir, managementMountPath, false),
+		ucxsvc.StackSubtreeMount(stack, nodesDir, nodesMountPath, false),
 	)
-	labels = util.MapMerge(labels, ucxsvc.UcxPortLabel(0))
+
+	labels = util.MapMerge(labels, customUi.Labels)
+
+	initScript := Script("launcher.sh") + "\n" + customUi.InitScript
+	initLabels := ucxsvc.StackWriteInitScriptAt(stack, initScript, inputDirFor(allocationId), inputMountPath)
+	labels = util.MapMerge(labels, initLabels)
+
 	return attachments, labels
 }
 
@@ -501,7 +516,7 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 	firstServer := opts.group == GroupControlPlane && opts.allocationId == 1
 
 	clusterEnsureDir(stack, storageDir)
-	if firstServer {
+	if opts.group == GroupControlPlane {
 		clusterEnsureDir(stack, nodesDir)
 	}
 	if !stack.Ok {
@@ -557,22 +572,7 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 		K8sVersionLabel:     opts.release.Release,
 	}
 
-	initScript := ""
-	if firstServer {
-		attachments = append(attachments,
-			ucxsvc.StackSubtreeMount(stack, managementDir, managementMountPath, false),
-			ucxsvc.StackSubtreeMount(stack, nodesDir, nodesMountPath, false),
-		)
-
-		labels = util.MapMerge(labels, opts.customUi.Labels)
-
-		initScript = Script("launcher.sh") + "\n" + opts.customUi.InitScript
-		initLabels := ucxsvc.StackWriteInitScriptAt(stack, initScript, inputDirFor(opts.allocationId), inputMountPath)
-		labels = util.MapMerge(labels, initLabels)
-	} else {
-		attachments, labels = clusterControlPlaneWiring(stack, opts.group, attachments, labels)
-		labels[orcapi.ResourceLabelInitScript] = launcherPath
-	}
+	attachments, labels = clusterControlPlaneWiring(stack, opts.group, opts.allocationId, opts.customUi, attachments, labels)
 
 	job, err := clusterCreateNodeJob(stack, orcapi.JobSpecification{
 		ResourceSpecification: orcapi.ResourceSpecification{

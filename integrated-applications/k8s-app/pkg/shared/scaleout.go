@@ -305,13 +305,22 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 	}
 
 	labels := map[string]string{
-		StackGroupingLabel:             trimmedGroup,
-		NodeAllocationLabel:            fmt.Sprintf("%d", allocationId),
-		K8sVersionLabel:                release.Release,
-		orcapi.ResourceLabelInitScript: launcherPath,
+		StackGroupingLabel:  trimmedGroup,
+		NodeAllocationLabel: fmt.Sprintf("%d", allocationId),
+		K8sVersionLabel:     release.Release,
 	}
 
-	attachments, labels = clusterControlPlaneWiring(stack, trimmedGroup, attachments, labels)
+	if trimmedGroup == GroupControlPlane {
+		customUi := ucxsvc.UcxInitCustomUiServiceAt(stack, customUiPort, "", managementDir, managementMountPath)
+		if !stack.Ok {
+			ucxsvc.UiSendFailure(app, "Could not prepare the custom UI service for the new control plane node")
+			clusterCleanupNewNode(stack, record, &node, app)
+			return "", false
+		}
+		attachments, labels = clusterControlPlaneWiring(stack, trimmedGroup, allocationId, customUi, attachments, labels)
+	} else {
+		labels[orcapi.ResourceLabelInitScript] = launcherPath
+	}
 
 	job, err := clusterCreateNodeJob(stack, orcapi.JobSpecification{
 		ResourceSpecification: orcapi.ResourceSpecification{

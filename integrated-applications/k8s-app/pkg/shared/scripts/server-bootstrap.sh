@@ -10,32 +10,7 @@ if [ -n "$(node_field serviceDns)" ]; then
 	INTERNAL_SERVER_URL="$(node_field serverUrl)"
 fi
 
-log "installing the token publisher"
-emit "Installing the token publisher" 78
-install -m 0755 "$BUNDLE_DIR/token-publisher.sh" /usr/local/sbin/ucloud-k8s-token-publisher
-
-cat > /etc/systemd/system/ucloud-k8s-token-publisher.service <<EOF
-[Unit]
-Description=UCloud K8s secure token publisher
-Wants=network-online.target
-After=network-online.target k3s.service
-Requires=k3s.service
-RequiresMountsFor=/etc/ucloud-k8s/bundle /etc/ucloud-k8s/management /etc/ucloud-k8s/nodes
-
-[Service]
-Type=simple
-ExecStartPre=/bin/sh -c 'mountpoint -q /etc/ucloud-k8s/bundle && mountpoint -q /etc/ucloud-k8s/management && mountpoint -q /etc/ucloud-k8s/nodes || { echo required mounts are not present; exit 1; }'
-ExecStart=/usr/local/sbin/ucloud-k8s-token-publisher
-Restart=always
-RestartSec=30
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-systemctl daemon-reload
-systemctl enable --now ucloud-k8s-token-publisher
-
+log "applying the local-path storage"
 emit "Applying local-path storage" 82
 mountpoint -q "$STORAGE_DIR" || fail "mounts" "shared storage is not mounted at $STORAGE_DIR"
 sed \
