@@ -4,7 +4,8 @@ import {classConcat} from "@/Unstyled";
 import {injectStyle} from "@/Unstyled";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
-import {providerBrandingStore, providerLogoUrl, useProviderLogoUrl} from "@/ProviderBrandings/AutomaticProviderBranding";
+import {providerBrandingStore, providerLogoUrl, useProviderProperty} from "@/ProviderBrandings/AutomaticProviderBranding";
+import ProviderInfo from "@/Assets/provider_info.json";
 
 export function providerLogoPath(providerId: string): string {
     const logo = providerBrandingStore.getProviderProperty(providerId, "logo");
@@ -12,9 +13,23 @@ export function providerLogoPath(providerId: string): string {
 }
 
 export const ProviderLogo: React.FunctionComponent<{providerId: string; size: number; className?: string;}> = ({providerId, size, className}) => {
-    const logo = useProviderLogoUrl(providerId);
+    const [failedUrl, setFailedUrl] = React.useState<string | null>(null);
+    const brandingLogo = useProviderProperty(providerId, "logo");
+    const fallbackLogo = ProviderInfo.providers.find(it => it.id === providerId)?.logo;
+
+    let resolvedLogo = brandingLogo;
+    if (brandingLogo && failedUrl === providerLogoUrl(brandingLogo)) {
+        resolvedLogo = brandingLogo === fallbackLogo ? undefined : fallbackLogo;
+    }
+
     return <ProviderLogoWrapper size={size} className={className} tooltip={getProviderTitle(providerId)}>
-        {!logo ? (providerId[0] ?? "?").toUpperCase() : <Image src={logo} alt={`Logo for ${getProviderTitle(providerId)}`} />}
+        {!resolvedLogo ? (providerId[0] ?? "?").toUpperCase() : (
+            <Image
+                src={providerLogoUrl(resolvedLogo)}
+                alt={`Logo for ${getProviderTitle(providerId)}`}
+                onError={() => setFailedUrl(providerLogoUrl(resolvedLogo!))}
+            />
+        )}
     </ProviderLogoWrapper>;
 };
 

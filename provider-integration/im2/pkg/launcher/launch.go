@@ -160,7 +160,8 @@ func Launch() {
 			Role string `json:"role"`
 		}
 
-		if r.Header.Get("x-jwt-payload") == "" && (strings.HasPrefix(r.RequestURI, "/api/internal/") || strings.HasPrefix(r.RequestURI, "/api/inference/attachments")) {
+		providerBrandingImagePath := "/ucloud/" + cfg.Provider.Id + "/provider/branding/image"
+		if r.Header.Get("x-jwt-payload") == "" && (strings.HasPrefix(r.RequestURI, "/api/internal/") || strings.HasPrefix(r.RequestURI, "/api/inference/attachments") || strings.HasPrefix(r.RequestURI, providerBrandingImagePath)) {
 			return rpc.Actor{Role: rpc.RoleGuest}, nil
 		}
 

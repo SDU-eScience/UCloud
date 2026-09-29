@@ -281,29 +281,25 @@ function DashboardResources({wallets}: {
                 </NoResultsBody>
             ) :
                 <Flex flexDirection="column" flexGrow={1} height={"calc(100% - 55px)"}>
-                    <Box maxHeight={`${ROW_HEIGHT_IN_PX * 10}px`} overflowY={"auto"}>
-                        <Table>
-                            <tbody>
-                                {displayWallets.map(({usageAndQuota, category}, i) => (
-                                    <TableRow height={`${ROW_HEIGHT_IN_PX}px`} key={i}>
-                                        <TableCell fontSize={FONT_SIZE} paddingLeft={"8px"}>
-                                            <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
-                                                <ProviderLogo
-                                                    providerId={category.provider}
-                                                    size={30}
-                                                />
-                                                <code>{category.name}</code>
-                                            </Flex>
-                                        </TableCell>
-                                        <TableCell textAlign={"right"} fontSize={FONT_SIZE}>
-                                            <Flex justifyContent="end">
-                                                <ProgressBar uq={usageAndQuota} />
-                                            </Flex>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </tbody>
-                        </Table>
+                    <Box className={AllocationResponsiveStyle} maxHeight={`${ROW_HEIGHT_IN_PX * 10}px`} overflowY={"auto"}>
+                        {displayWallets.map(({usageAndQuota, category}, i) => (
+                            <div key={i}>
+                                <Box fontSize={FONT_SIZE} paddingLeft={"8px"}>
+                                    <Flex alignItems="center" gap="8px" fontSize={FONT_SIZE}>
+                                        <ProviderLogo
+                                            providerId={category.provider}
+                                            size={30}
+                                        />
+                                        <code>{category.name}</code>
+                                    </Flex>
+                                </Box>
+                                <Box textAlign={"right"} fontSize={FONT_SIZE}>
+                                    <Flex justifyContent="end">
+                                        <ProgressBar uq={usageAndQuota} />
+                                    </Flex>
+                                </Box>
+                            </div>
+                        ))}
                     </Box>
                     <Box flexGrow={1} />
                     <Flex mx="auto">
@@ -314,6 +310,27 @@ function DashboardResources({wallets}: {
         </DashboardCard>
     );
 }
+
+const AllocationResponsiveStyle = injectStyle("allocations", k => `
+    ${k} {
+        container-type: inline-size;
+    }
+
+    ${k} > div {
+        display: flex;
+        padding-top: 12px;
+        height: ${ROW_HEIGHT_IN_PX}px;
+        justify-content: space-between;
+        border-bottom: 0.5px solid var(--borderColor);
+    }
+
+    @container (width < 500px) {
+        ${k} > div {
+            display: block;
+            height: calc(${ROW_HEIGHT_IN_PX}px * 1.5);
+        }
+    }
+`);
 
 function DashboardGrantApplications({reloadRef}: {reloadRef: React.RefObject<() => void>}): React.ReactNode {
     const project = useProject();
