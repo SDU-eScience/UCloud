@@ -60,8 +60,13 @@ import {useLocation, useNavigate} from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import ReactMarkdown from "react-markdown";
 import * as Heading from "@/ui-components/Heading";
+import {default as ReactModal} from "react-modal";
+import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {CardClass} from "@/ui-components/Card";
 import {UcxAccordion} from "@/UCX/UcxAccordion";
 import {injectStyle} from "@/Unstyled";
+import {selectHoverColor, ThemeColor} from "@/ui-components/theme";
+import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {useIsLightThemeStored} from "@/ui-components/theme";
 import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {appendToXterm, useXTerm, xtermThemes} from "@/Applications/Jobs/XTermLib";
@@ -164,6 +169,7 @@ export interface UcxViewProps {
     components?: Partial<UcxComponentRegistry>;
     functions?: Partial<UcxFunctionRegistry>;
     rpcHandlers?: Record<string, UcxRpcHandler>;
+    allowedExternalOrigins?: string[];
     rehydrateModelPaths?: string[];
     onConnected?: () => void;
     onDisconnected?: (reason: string) => void;
@@ -184,6 +190,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     components,
     functions,
     rpcHandlers,
+    allowedExternalOrigins,
     rehydrateModelPaths,
     onConnected,
     onDisconnected,
@@ -216,6 +223,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const authTokenRef = useRef<ValueProvider>(authToken);
     const sysHelloRef = useRef<ValueProvider>(sysHello);
     const rpcHandlersRef = useRef<Record<string, UcxRpcHandler> | undefined>(rpcHandlers);
+    const allowedExternalOriginsRef = useRef<string[] | undefined>(allowedExternalOrigins);
     const navigateSpaRef = useRef<(to: string, nodeId: string) => void>(() => undefined);
     const onConnectedRef = useRef<typeof onConnected>(onConnected);
     const onDisconnectedRef = useRef<typeof onDisconnected>(onDisconnected);
@@ -263,6 +271,10 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     useEffect(() => {
         rpcHandlersRef.current = rpcHandlers;
     }, [rpcHandlers]);
+
+    useEffect(() => {
+        allowedExternalOriginsRef.current = allowedExternalOrigins;
+    }, [allowedExternalOrigins]);
 
     useEffect(() => {
         onConnectedRef.current = onConnected;
@@ -693,7 +705,14 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 sessionRef.current?.registerRpcHandler("openUrl", payload => {
                     const plainPayload = valueMapToPlainPayload(payload) as {path?: unknown};
                     const path = typeof plainPayload.path === "string" ? plainPayload.path : "";
-                    if (path.startsWith("/") && !path.startsWith("//")) {
+                    if (path.startsWith("https://")) {
+                        const allowed = allowedExternalOriginsRef.current;
+                        const origin = externalUrlOrigin(path);
+                        if (origin === "" || (allowed === undefined || !allowed.includes(origin))) {
+                            return {};
+                        }
+                        window.open(path, "_blank", "noopener,noreferrer");
+                    } else if (path.startsWith("/") && !path.startsWith("//")) {
                         window.open("/app" + path, "_blank", "noopener,noreferrer");
                     }
                     return {};
@@ -1072,27 +1091,47 @@ const baseComponents: UcxComponentRegistry = {
     markdown: ({node, model, scope, fn}) => {
         const text = boundOrStaticText(node, model, scope);
         if (!text) return null;
-        return <ReactMarkdown
-            components={{
-                a: p => <MarkdownLink children={p.children} />,
-                h1: p => <MarkdownHeading children={p.children} />,
-                h2: p => <MarkdownHeading children={p.children} />,
-                h3: p => <MarkdownHeading children={p.children} />,
-                h4: p => <MarkdownHeading children={p.children} />,
-                h5: p => <MarkdownHeading children={p.children} />,
-                h6: p => <MarkdownHeading children={p.children} />,
-                pre: p => <CodeSnippet children={p.children} maxHeight="" />,
-            }}
-            allowedElements={["h1", "h2", "h3", "h4", "h5", "h6", "br", "a", "p", "strong", "b", "i", "em", "ul", "ol", "li", "pre", "code"]}
-            children={text as string}
-            remarkPlugins={[remarkGfm]}
-        />;
+        return <div className={UcxMarkdownClass} style={fn.sxStyle(node)}>
+            <ReactMarkdown
+                components={{
+                    a: p => <MarkdownLink href={p.href} children={p.children} />,
+                    h1: p => <MarkdownHeading children={p.children} />,
+                    h2: p => <MarkdownHeading children={p.children} />,
+                    h3: p => <MarkdownHeading children={p.children} />,
+                    h4: p => <MarkdownHeading children={p.children} />,
+                    h5: p => <MarkdownHeading children={p.children} />,
+                    h6: p => <MarkdownHeading children={p.children} />,
+                    pre: p => <CodeSnippet children={p.children} maxHeight="" />,
+                }}
+                allowedElements={["h1", "h2", "h3", "h4", "h5", "h6", "br", "a", "p", "strong", "b", "i", "em", "ul", "ol", "li", "pre", "code"]}
+                children={text as string}
+                remarkPlugins={[remarkGfm]}
+            />
+        </div>;
     },
     icon: ({node, fn}) => {
         const name = stringProp(node, "name", "bug");
         const color = stringProp(node, "color", "iconColor");
         const size = numberProp(node, "size", 18);
         return <Icon name={name as any} color={color as any} size={size} style={fn.sxStyle(node)} />;
+    },
+    input_secret: ({node, model, scope, fn}) => {
+        const label = stringProp(node, "label", "");
+        const bound = node.bindPath ? modelString(model, node.bindPath, scope) : "";
+        const value = bound !== "" ? bound : stringProp(node, "value", "");
+        const [revealed, setRevealed] = React.useState(false);
+        const input = <Input
+            value={value}
+            readOnly
+            type={revealed ? "text" : "password"}
+            mt={label === "" ? undefined : 8}
+            onFocus={() => setRevealed(true)}
+            onBlur={() => setRevealed(false)}
+            onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
+        />;
+        return <>
+            {label === "" ? input : <FieldLabel>{label}{input}</FieldLabel>}
+        </>;
     },
     input_text: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
@@ -1182,6 +1221,87 @@ const baseComponents: UcxComponentRegistry = {
     },
     button: ({node, model, scope, fn}) => {
         return <UcxButtonField node={node} model={model} scope={scope} fn={fn} />;
+    },
+    copy_button: ({node, model, scope, fn}) => {
+        let text = stringProp(node, "text", "");
+        if (node.bindPath) {
+            const bound = modelString(model, node.bindPath, scope);
+            if (bound !== "") text = bound;
+        }
+        if (!text) return null;
+
+        return <span style={fn.sxStyle(node)}>
+            <CopyButton
+                tooltip={stringProp(node, "tooltip", "Copy to clipboard")}
+                onClick={() => copyToClipboard(text)}
+            />
+        </span>;
+    },
+    settings_action: ({node, fn, renderChildren}) => {
+        const title = stringProp(node, "title", "");
+        const description = stringProp(node, "description", "");
+        if (!title) return null;
+
+        return <div className={UcxSettingsActionClass} style={fn.sxStyle(node)}>
+            <div className="settings-action-copy">
+                <div className="settings-action-title">{title}</div>
+                {description ? <div className="settings-action-description">{description}</div> : null}
+            </div>
+            <div className="settings-action-control">{renderChildren()}</div>
+        </div>;
+    },
+    external_link_button: ({node, fn}) => {
+        const label = stringProp(node, "label", "");
+        const href = stringProp(node, "href", "");
+        const color = stringProp(node, "color", "primaryMain");
+        const iconLeft = stringProp(node, "iconLeft", "");
+        if (!label || !href) return null;
+
+        const sx = fn.sxStyle(node);
+
+        return <div style={{...sx, display: "flex"}}>
+            <a
+                className={UcxExternalButtonClass}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                    "--bgColor": `var(--${color})`,
+                    "--hoverColor": `var(--${selectHoverColor(color as ThemeColor)})`,
+                } as React.CSSProperties}
+            >
+                {iconLeft ? <Icon name={iconLeft as any} size={15} mr="6px" /> : null}
+                {label}
+            </a>
+        </div>;
+    },
+    link_button: ({node, model, scope, fn}) => {
+        const label = node.bindPath
+            ? modelString(model, node.bindPath, scope)
+            : stringProp(node, "label", stringProp(node, "text", ""));
+        if (!label) return null;
+        const color = stringProp(node, "color", "linkColor");
+
+        return <BaseLink
+            color={color as any}
+            hoverColor={color as any}
+            onClick={ev => {
+                ev.preventDefault();
+                fn.sendUiEvent(node.id, "click", undefined);
+            }}
+        >
+            <span style={{fontWeight: 600, fontSize: 16, ...fn.sxStyle(node)}}>
+                {label}
+            </span>
+        </BaseLink>;
+    },
+    provider_title: ({node, fn}) => {
+        const providerId = stringProp(node, "providerId", "");
+        if (!providerId) return null;
+        const short = boolProp(node, "short", false);
+        return <span style={fn.sxStyle(node)}>
+            {short ? getShortProviderTitle(providerId) : getProviderTitle(providerId)}
+        </span>;
     },
     list: ({node, model, scope, fn, renderChildren}) => {
         const items = modelList(model, node.bindPath, scope);
@@ -1344,6 +1464,26 @@ const baseComponents: UcxComponentRegistry = {
             }}
         />;
     },
+    dialog: ({node, fn, renderChildren}) => {
+        const open = boolProp(node, "open", false);
+        if (!open) return null;
+
+        const title = stringProp(node, "title", "");
+        return <ReactModal
+            isOpen={true}
+            ariaHideApp={false}
+            shouldCloseOnEsc
+            onRequestClose={() => fn.sendUiEvent(node.id, "close", undefined)}
+            style={defaultModalStyle}
+            className={CardClass}
+        >
+            <div onKeyDown={e => e.stopPropagation()}>
+                <Heading.h3>{title}</Heading.h3>
+                <Divider />
+                <div className={UcxDialogBodyClass}>{renderChildren()}</div>
+            </div>
+        </ReactModal>;
+    },
     tabs: ({node, model, scope, fn, components}) => {
         const tabChildren = node.children.filter(child => !boolProp(child, "rightControls", false));
         const rightControlChildren = node.children.filter(child => boolProp(child, "rightControls", false));
@@ -1385,7 +1525,7 @@ const baseComponents: UcxComponentRegistry = {
     accordion: ({node, model, scope, fn, renderChildren}) => {
         const title = node.bindPath ? modelString(model, node.bindPath, scope) : stringProp(node, "title", "Section");
         return <div style={fn.sxStyle(node)}>
-            <UcxAccordion title={title} open={boolProp(node, "open", false)}>
+            <UcxAccordion title={title} open={boolProp(node, "open", false)} noHeaderBorder={boolProp(node, "noHeaderBorder", false)}>
                 {renderChildren()}
             </UcxAccordion>
         </div>;
@@ -1827,20 +1967,23 @@ function sxStyle(node: UiNode): React.CSSProperties {
             case "width":
                 style.width = px(primitive);
                 break;
-            case "height":
-                style.height = px(primitive);
-                break;
             case "minWidth":
                 style.minWidth = px(primitive);
                 break;
             case "maxWidth":
                 style.maxWidth = px(primitive);
                 break;
+            case "height":
+                style.height = px(primitive);
+                break;
             case "minHeight":
                 style.minHeight = px(primitive);
                 break;
             case "maxHeight":
                 style.maxHeight = px(primitive);
+                break;
+            case "boxSizing":
+                style.boxSizing = String(primitive) as React.CSSProperties["boxSizing"];
                 break;
             case "overflow":
                 style.overflow = String(primitive) as React.CSSProperties["overflow"];
@@ -2273,9 +2416,9 @@ const UcxButtonField: React.FunctionComponent<{
             onClick={submit ? undefined : (() => fn.sendUiEvent(node.id, "click", eventValue))}
         >
             {busy ? <UcxSpinner size={16} color="white" margin="0 8px 0 0" /> : null}
-            {iconLeft ? <Icon name={iconLeft as any} /> : null}
+            {iconLeft ? <Icon name={iconLeft as any} size={15} mr="6px" /> : null}
             {label}
-            {iconRight ? <Icon name={iconRight as any} /> : null}
+            {iconRight ? <Icon name={iconRight as any} size={15} ml="6px" /> : null}
             {showEscapeHint ? <span style={{marginLeft: "8px"}} className={ShortcutClass}>esc</span> : null}
             {showShortcut && !busy ? <SubmitShortcut /> : null}
         </Button>
@@ -2403,6 +2546,7 @@ function ucxNavItemFromValue(object: Record<string, Value>): UcxNavItem[] {
             : [],
         route: object["route"]?.kind === ValueKind.String ? object["route"].string : undefined,
         children,
+        separatorBefore: object["separatorBefore"]?.kind === ValueKind.Bool && object["separatorBefore"].bool === true,
     }];
 }
 
@@ -2437,6 +2581,96 @@ const UcxCodeStretched: React.FunctionComponent<React.PropsWithChildren<{lang?: 
         </div>
     </div>;
 };
+
+const UcxMarkdownClass = injectStyle("ucx-markdown", k => `
+    ${k} ul,
+    ${k} ol {
+        margin: 0;
+        padding-left: 20px;
+    }
+
+    ${k} li {
+        margin: 2px 0;
+    }
+
+    ${k} li > p {
+        margin: 0;
+    }
+
+    ${k} p {
+        margin: 0;
+    }
+`);
+
+const UcxDialogBodyClass = injectStyle("ucx-dialog-body", k => `
+    ${k} {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-top: 16px;
+    }
+`);
+
+const UcxSettingsActionClass = injectStyle("ucx-settings-action", k => `
+    ${k} {
+        align-items: flex-start;
+        border-top: 1px solid var(--borderColor);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        justify-content: space-between;
+        padding: 20px 0;
+    }
+
+    ${k} .settings-action-copy {
+        flex: 1 1 360px;
+    }
+
+    ${k} .settings-action-title {
+        font-weight: 600;
+    }
+
+    ${k} .settings-action-description {
+        color: var(--textSecondary);
+        margin-top: 4px;
+        max-width: 60ch;
+    }
+
+    ${k} .settings-action-control {
+        flex: 0 0 auto;
+    }
+`);
+
+const UcxExternalButtonClass = injectStyle("ucx-external-button", k => `
+    ${k} {
+        align-items: center;
+        background-color: var(--bgColor, var(--primaryMain));
+        border-radius: 8px;
+        color: var(--primaryContrast, #fff);
+        cursor: pointer;
+        display: inline-flex;
+        font-family: inherit;
+        font-size: 14px;
+        height: 35px;
+        justify-content: center;
+        padding: 0 1.2em;
+        text-decoration: none;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    ${k}:hover {
+        background-color: var(--hoverColor, var(--primaryLight));
+    }
+
+    ${k} svg {
+        margin-right: 5px;
+    }
+
+    ${k} svg:last-child {
+        margin-right: 0;
+    }
+`);
 
 const UcxCodeStretchedClass = injectStyle("ucx-code-stretched", key => `
     ${key} {
@@ -3184,6 +3418,16 @@ const UcxCostEstimateClass = injectStyle("ucx-cost-estimate", key => `
 
 function MarkdownLink(props: {href?: string; children: React.ReactNode}) {
     return <ExternalLink href={props.href}>{props.children}</ExternalLink>;
+}
+
+function externalUrlOrigin(url: string): string {
+    try {
+        const parsed = new URL(url);
+        if (parsed.protocol !== "https:") return "";
+        return parsed.origin;
+    } catch {
+        return "";
+    }
 }
 
 function MarkdownHeading(props: {children: React.ReactNode}) {

@@ -1,6 +1,6 @@
 import * as React from "react";
 import AutoSizer from "react-virtualized-auto-sizer";
-import {FixedSizeList, ListChildComponentProps} from "react-window";
+import {VariableSizeList, ListChildComponentProps} from "react-window";
 import {injectStyle} from "@/Unstyled";
 
 export interface VirtualizedTreeApi {
@@ -38,6 +38,7 @@ interface VirtualizedTreeProps<T> {
     selectionMode?: VirtualizedTreeSelectionMode;
     selectionFollowsFocus?: boolean;
     rowHeight?: number;
+    rowHeightOf?(node: T): number;
     indent?: number;
     overscanCount?: number;
     onActivate?(node: T): void;
@@ -128,7 +129,7 @@ function flattenVisibleNodes<T>(
 
 export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactNode {
     const rootRef = React.useRef<HTMLDivElement>(null);
-    const listRef = React.useRef<FixedSizeList<RowData<T>>>(null);
+    const listRef = React.useRef<VariableSizeList<RowData<T>>>(null);
     const hoverTimer = React.useRef<number | undefined>(undefined);
     const typeahead = React.useRef("");
     const typeaheadTimer = React.useRef<number | undefined>(undefined);
@@ -385,6 +386,16 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
         contextMenu,
     }), [rows, expanded, focusedId, selectedIds, props.indent, props.getChildren, props.isBranch, props.renderNode, props.ariaLabel, pointerSelect, toggleSelection, toggle, activate, hover, contextMenu]);
 
+    const rowHeight = props.rowHeight ?? 28;
+    const rowHeightOf = React.useCallback((index: number): number => {
+        if (!props.rowHeightOf) return rowHeight;
+        return props.rowHeightOf(rows[index].node) || rowHeight;
+    }, [props.rowHeightOf, rows, rowHeight]);
+
+    React.useEffect(() => {
+        listRef.current?.resetAfterIndex(0);
+    }, [rows]);
+
     return <div
         ref={rootRef}
         className={VirtualizedTreeClass}
@@ -402,18 +413,18 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
         onKeyDown={onKeyDown}
     >
         <AutoSizer>
-            {({height, width}) => <FixedSizeList
+            {({height, width}) => <VariableSizeList
                 ref={listRef}
                 height={height}
                 width={width}
                 itemCount={rows.length}
-                itemSize={props.rowHeight ?? 28}
+                itemSize={rowHeightOf}
                 itemData={itemData}
                 itemKey={(index, data) => data.rows[index].id}
                 overscanCount={props.overscanCount ?? 8}
             >
                 {VirtualizedTreeItem}
-            </FixedSizeList>}
+            </VariableSizeList>}
         </AutoSizer>
     </div>;
 }

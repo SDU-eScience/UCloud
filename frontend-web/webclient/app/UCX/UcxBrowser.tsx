@@ -421,6 +421,7 @@ export interface UcxNavItem {
     aliases?: string[];
     route?: string;
     children?: UcxNavItem[];
+    separatorBefore?: boolean;
 }
 
 interface UcxNavTreeNode {
@@ -430,6 +431,7 @@ interface UcxNavTreeNode {
     route?: string;
     children: UcxNavTreeNode[];
     isBranch: boolean;
+    separatorBefore?: boolean;
 }
 
 interface UcxNavTreeProps {
@@ -597,19 +599,25 @@ export const UcxNavTree: React.FunctionComponent<UcxNavTreeProps> = props => {
                     if (!node.isBranch) activate(node.id);
                 }}
                 renderNode={(node, state) => {
-                    if (node.isBranch) {
-                        return <div className="nav-tree-group" onClick={() => state.toggle()}>
+                    const separated = node.separatorBefore === true;
+                    const body = node.isBranch
+                        ? <div className="nav-tree-group" onClick={() => state.toggle()}>
                             <Icon name="heroChevronRight" size={12} rotation={state.expanded ? 90 : undefined} color="textSecondary" />
                             <span className="nav-tree-group-label">{node.label}</span>
+                        </div>
+                        : <div className="nav-tree-leaf">
+                            <span className="nav-tree-label">{node.label}</span>
                         </div>;
-                    }
-                    return <div className="nav-tree-leaf">
-                        <span className="nav-tree-label">{node.label}</span>
+                    if (!separated) return body;
+                    return <div className="nav-tree-row-separated">
+                        <div className="nav-tree-separator" />
+                        {body}
                     </div>;
                 }}
                 ariaLabel={node => node.label}
                 initialExpandedIds={allNodes.map(node => node.id)}
                 rowHeight={26}
+                rowHeightOf={node => node.separatorBefore === true ? 38 : 26}
                 indent={12}
                 selectionMode="single"
             />
@@ -642,6 +650,7 @@ function toNavTreeNode(node: UcxNavItem): UcxNavTreeNode {
         route: node.route,
         children,
         isBranch: children.length > 0,
+        separatorBefore: node.separatorBefore === true,
     };
 }
 
@@ -1373,6 +1382,33 @@ const UcxNavTreeClass = injectStyle("ucx-nav-tree", key => `
         font-size: 13.5px;
         min-width: 0;
         color: var(--textPrimary, inherit);
+    }
+
+    ${key} .nav-tree-row-separated {
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+        height: 100%;
+        position: relative;
+    }
+
+    ${key} .nav-tree-separator {
+        border-top: 1px solid var(--borderColor);
+        left: -6px;
+        position: absolute;
+        right: 0;
+        top: -6px;
+    }
+
+    ${key} .nav-tree-row-separated > .nav-tree-leaf,
+    ${key} .nav-tree-row-separated > .nav-tree-group {
+        flex: 1;
+    }
+
+    ${key} .virtualized-tree-row:has(> .nav-tree-row-separated) {
+        height: 26px;
+        margin-top: 12px;
+        overflow: visible;
     }
 
     ${key} .nav-tree-label {

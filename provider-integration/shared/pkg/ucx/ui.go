@@ -33,6 +33,7 @@ var interactiveComponents = map[string]bool{
 	"radio_group":              true,
 	"toggle":                   true,
 	"form":                     true,
+	"link_button":              true,
 }
 
 func NormalizeUiTree(root UiNode) UiNode {
@@ -198,6 +199,21 @@ func ToolbarEx(id string) UiNode {
 	return UiNode{
 		Id:        id,
 		Component: "toolbar",
+	}
+}
+
+func Dialog(title string, open bool) UiNode {
+	return DialogEx("", title, open)
+}
+
+func DialogEx(id string, title string, open bool) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "dialog",
+		Props: map[string]Value{
+			"title": VString(title),
+			"open":  VBool(open),
+		},
 	}
 }
 
@@ -372,6 +388,29 @@ func InputText(id string, label string, placeholder string, bindPath string) UiN
 			"label":       VString(label),
 			"placeholder": VString(placeholder),
 		},
+	}
+}
+
+func InputSecret(id string, bindPath string) UiNode {
+	return InputSecretEx(id, "", "", bindPath)
+}
+
+func InputSecretEx(id string, label string, value string, bindPath string) UiNode {
+	requireExplicitId(id, "input_secret")
+
+	props := map[string]Value{
+		"label": VString(label),
+	}
+	if value != "" {
+		props["value"] = VString(value)
+	}
+
+	return UiNode{
+		Id:         id,
+		Component:  "input_secret",
+		BindPath:   bindPath,
+		Optimistic: true,
+		Props:      props,
 	}
 }
 
@@ -726,11 +765,12 @@ type NavItemChild struct {
 }
 
 type NavItem struct {
-	Id       string
-	Label    string
-	Aliases  []string
-	Route    string
-	Children []NavItemChild
+	Id              string
+	Label           string
+	Aliases         []string
+	Route           string
+	Children        []NavItemChild
+	SeparatorBefore bool
 }
 
 type BrowserLayoutProps struct {
@@ -817,6 +857,9 @@ func navItemsToValue(items []NavItem) Value {
 		}
 		if item.Route != "" {
 			object["route"] = VString(item.Route)
+		}
+		if item.SeparatorBefore {
+			object["separatorBefore"] = VBool(true)
 		}
 		if len(item.Children) > 0 {
 			children := make([]Value, 0, len(item.Children))
@@ -1019,6 +1062,14 @@ func AccordionNodeEx(id string, title string, open bool) UiNode {
 	}
 }
 
+func (n UiNode) WithNoHeaderBorder() UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["noHeaderBorder"] = VBool(true)
+	return n
+}
+
 func Form(id string) UiNode {
 	requireExplicitId(id, "form")
 
@@ -1077,6 +1128,88 @@ func CodeBound(bindPath string) UiNode {
 
 func CodeBoundEx(id string, bindPath string) UiNode {
 	return UiNode{Id: id, Component: "code", BindPath: bindPath}
+}
+
+func CopyButton(text string) UiNode {
+	return CopyButtonEx("", text)
+}
+
+func CopyButtonEx(id string, text string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "copy_button",
+		Props: map[string]Value{
+			"text": VString(text),
+		},
+	}
+}
+
+func CopyButtonBound(bindPath string) UiNode {
+	return CopyButtonBoundEx("", bindPath)
+}
+
+func CopyButtonBoundEx(id string, bindPath string) UiNode {
+	return UiNode{Id: id, Component: "copy_button", BindPath: bindPath}
+}
+
+func (n UiNode) WithTooltip(tooltip string) UiNode {
+	return n.propMutate("tooltip", VString(tooltip))
+}
+
+func SettingsAction(id string, title string, description string) UiNode {
+	requireExplicitId(id, "settings_action")
+	return UiNode{
+		Id:        id,
+		Component: "settings_action",
+		Props: map[string]Value{
+			"title":       VString(title),
+			"description": VString(description),
+		},
+	}
+}
+
+func ExternalLinkButton(id string, label string, href string, color Color, icon IconName) UiNode {
+	requireExplicitId(id, "external_link_button")
+	props := map[string]Value{
+		"label": VString(label),
+		"href":  VString(href),
+		"color": VColor(color),
+	}
+	if icon != "" {
+		props["iconLeft"] = VIcon(icon)
+	}
+	return UiNode{
+		Id:        id,
+		Component: "external_link_button",
+		Props:     props,
+	}
+}
+
+func LinkButton(id string, label string, color Color) UiNode {
+	requireExplicitId(id, "link_button")
+	return UiNode{
+		Id:        id,
+		Component: "link_button",
+		Props: map[string]Value{
+			"label": VString(label),
+			"color": VColor(color),
+		},
+	}
+}
+
+func ProviderTitle(providerId string) UiNode {
+	return ProviderTitleEx("", providerId, false)
+}
+
+func ProviderTitleEx(id string, providerId string, short bool) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "provider_title",
+		Props: map[string]Value{
+			"providerId": VString(providerId),
+			"short":      VBool(short),
+		},
+	}
 }
 
 func JobLogs(id string, jobId string) UiNode {

@@ -1086,17 +1086,28 @@ func StackDownloadFile(stack *Stack, fileName string) {
 	_, _ = ucxapi.StackDownloadFile.Invoke(session, ucxapi.StackDownloadFileRequest{FileName: fileName})
 }
 
+func StackDelete(app ucx.Application) {
+	session := *app.Session()
+	_, _ = ucxapi.StackDelete.Invoke(session, util.Empty{})
+}
+
+func StackShowResources(app ucx.Application) {
+	session := *app.Session()
+	_, _ = ucxapi.StackShowResources.Invoke(session, util.Empty{})
+}
+
 func RouterPushPage(app ucx.Application, path string) {
 	session := *app.Session()
 	_, _ = ucxapi.RouterPushPage.Invoke(session, ucxapi.RouterPushPageRequest{Path: path})
 }
 
-func OpenUrl(app ucx.Application, targetPath string) {
-	if !strings.HasPrefix(targetPath, "/") {
+func OpenUrl(app ucx.Application, target string) {
+	resolved := target
+	if strings.HasPrefix(target, "/") {
+		resolved = path.Clean("/" + target)
+	} else if !strings.HasPrefix(target, "https://") {
 		return
 	}
-
-	resolved := path.Clean("/" + targetPath)
 
 	session := *app.Session()
 	_, _ = ucxapi.OpenUrl.Invoke(session, ucxapi.OpenUrlRequest{Path: resolved})

@@ -35,21 +35,19 @@ While the following UI will be shown when the cluster is running:
 
 ### Accessing the dashboard
 
-To access the dashboard, find its link under the "Public links" section in the UI.
+The dashboard link is available on the Home page of the cluster UI. Click "Open Headlamp" to open it.
+
+A dialog appears where the cluster's admin token can be copied; click Continue to open Headlamp and paste the token into its login screen.
 
 The following form will be shown:
 
 ![](./img/headlamp-form.png)
 
-The token can be obtained either by logging into one of the VMs and checking the file `/etc/ucloud-k8s/management/kube-api-token`, or by clicking the "Copy Headlamp token" button in the UI.
+The token can also be obtained by logging into one of the VMs and checking the file `/etc/ucloud-k8s/management/kube-api-token`.
 
 ### Accessing the cluster using kubectl
 
-The Kubernetes cluster can be accessed using kubectl by downloading the Kubernetes configuration file and moving it to the `~/.kube/config` location on the local machine.
-
-The file can be downloaded by clicking on the "Download Kubernetes configuration" button in the UI.
-
-The authentication token used in the configuration file can also be obtained separately, using the "Copy Kubernetes authentication token" button in the UI. This is a non-expiring administrator token: anyone holding it has full access to your cluster.
+The Kubernetes cluster can be accessed using kubectl by downloading the Kubernetes configuration file and placing it at `~/.kube/config`. On the Home page of the cluster UI, expand "Use kubectl from your terminal" and follow the steps: click "Kubeconfig" to get the file, then run `mkdir -p ~/.kube && mv ~/Downloads/kubeconfig ~/.kube/config` (adjusting the source path to where your browser saved it) and verify with `kubectl get nodes`.
 
 ### Scaling the cluster
 

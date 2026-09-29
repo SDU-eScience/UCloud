@@ -16,6 +16,7 @@ import (
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 	"ucloud.dk/shared/pkg/util"
 
@@ -26,6 +27,8 @@ const managementMountDir = "/etc/ucloud-k8s/management"
 
 const clusterFunctionalProbeInterval = 500 * time.Millisecond
 const clusterFunctionalProbeTimeout = 10 * time.Second
+
+const navHomeId = "home"
 
 func LocalKubeconfigPath() string {
 	return filepath.Join(managementMountDir, "kubeconfig-internal")
@@ -52,6 +55,7 @@ func WaitForFunctionalCluster() {
 func App() ucx.Application {
 	app := &stackUiApp{
 		TargetDiskGb:     50,
+		ActiveType:       navHomeId,
 		provisioningKick: make(chan util.Empty, 1),
 	}
 	return app
@@ -83,6 +87,14 @@ type stackUiApp struct {
 	ResourceYaml    string
 	Namespaces      []string
 	LogJobId        string
+
+	stackInfo   *ucxapi.StackInfoResponse `ucx:"-"`
+	headlampUrl string                    `ucx:"-"`
+
+	ShowHeadlampDialog bool   `ucx:"-"`
+	headlampToken      string `ucx:"-"`
+
+	clusterHealth *NodeHealth `ucx:"-"`
 
 	provisioningCache []provisioningEntry `ucx:"-"`
 	provisioningKick  chan util.Empty     `ucx:"-"`
@@ -117,7 +129,7 @@ func (app *stackUiApp) OnSysHello(payload string) {
 	app.Stack = stack
 
 	if app.ActiveType == "" {
-		app.ActiveType = "nodes"
+		app.ActiveType = navHomeId
 	}
 
 	if !app.clientWaiterStarted && app.session != nil {
@@ -125,6 +137,63 @@ func (app *stackUiApp) OnSysHello(payload string) {
 		go app.provisioningWatcher(app.session)
 		app.startK8sClientWhenReady(app.session, app.ActiveType)
 	}
+
+	go app.refreshStackInfo()
+}
+
+func (app *stackUiApp) refreshStackInfo() {
+	session := app.session
+	if session == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(session.Context(), 10*time.Second)
+	defer cancel()
+
+	info, err := ucxapi.StackInfo.InvokeEx(ctx, session, util.Empty{})
+	if err != nil {
+		log.Warn("k8s-app: failed to fetch stack info: %s", err)
+		return
+	}
+
+	headlampUrl := app.lookupHeadlampUrl(ctx, session)
+
+	app.mu.Lock()
+	changed := app.stackInfo == nil || *app.stackInfo != info || app.headlampUrl != headlampUrl
+	if changed {
+		app.stackInfo = &info
+		app.headlampUrl = headlampUrl
+		ucx.AppUpdateUi(app)
+	}
+	app.mu.Unlock()
+}
+
+func (app *stackUiApp) lookupHeadlampUrl(ctx context.Context, session *ucx.Session) string {
+	links, err := ucxapi.PublicLinksBrowse.InvokeEx(ctx, session, orcapi.IngressesBrowseRequest{
+		ItemsPerPage: 250,
+	})
+	if err != nil {
+		return ""
+	}
+
+	for _, link := range links.Items {
+		if link.Specification.Target.Present &&
+			link.Specification.Target.Value.Port == "headlamp" {
+			return "https://" + link.Specification.Domain
+		}
+	}
+
+	return ""
+}
+
+func (app *stackUiApp) provisioningSnapshot() []provisioningEntry {
+	return app.provisioningCache
+}
+
+func (app *stackUiApp) activeTypeIsHome() bool {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	return app.ActiveType == navHomeId
 }
 
 func (app *stackUiApp) startK8sClientWhenReady(session *ucx.Session, activeType string) {
@@ -256,8 +325,32 @@ func (app *stackUiApp) UserInterface() ucx.UiNode {
 		children = append(children, app.pageResources()...)
 	}
 
+	if app.ShowHeadlampDialog {
+		children = append(children, ucx.DialogEx("headlampDialog", "Open Headlamp", true).Children(
+			ucx.TextEx("", "Use the following token to sign in to Headlamp.").Sx(
+				ucx.SxColor(ucx.ColorTextSecondary),
+			),
+			ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).
+				Sx(ucx.SxAlignItemsCenter).
+				Children(
+					ucx.InputSecretEx("headlampToken", "", app.headlampToken, "").Sx(ucx.SxFlexGrow(1)),
+					ucx.CopyButtonEx("headlampCopyToken", app.headlampToken).WithTooltip("Copy token"),
+				),
+			ucx.ButtonEx("headlampContinue", "Continue", ucx.ColorPrimaryMain, "", "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+				app.closeHeadlampDialog()
+				ucxsvc.OpenUrl(app, app.headlampUrl)
+			}),
+		).On(ucx.UiEventClose, func(ev ucx.UiEvent) {
+			app.closeHeadlampDialog()
+		}))
+	}
+
 	return ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 32}).
-		Sx(ucx.SxP(4)).
+		Sx(
+			ucx.SxP(4),
+			ucx.SxHeightRaw("100%"),
+			ucx.SxBoxSizing("border-box"),
+		).
 		Children(children...)
 }
 
@@ -267,15 +360,16 @@ func groupFromRoute(routePath string) string {
 	return strings.TrimSpace(rest)
 }
 
-func (app *stackUiApp) pageResources() []ucx.UiNode {
-	if app.k8sClient == nil {
-		return append([]ucx.UiNode{}, app.pageProvisioning()...)
-	}
-
+func (app *stackUiApp) allTypeDefs() []ResourceTypeDef {
 	typeDefs := ResourceTypes()
 	if app.poller != nil {
 		typeDefs = append(typeDefs, app.poller.customTypesSnapshot()...)
 	}
+	return typeDefs
+}
+
+func (app *stackUiApp) resourceNavItems() []ucx.NavItem {
+	typeDefs := app.allTypeDefs()
 
 	navItems := make([]ucx.NavItem, 0, 8)
 	groups := map[string][]ucx.NavItemChild{}
@@ -301,6 +395,290 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 		return navItems[i].Label < navItems[j].Label
 	})
 
+	navItems = append([]ucx.NavItem{{
+		Id:      navHomeId,
+		Label:   "Home",
+		Aliases: []string{"home", "overview"},
+	}}, navItems...)
+	if len(navItems) > 1 {
+		navItems[1].SeparatorBefore = true
+	}
+
+	return navItems
+}
+
+func (app *stackUiApp) homeMetric(title string, valueNodes ...ucx.UiNode) []ucx.UiNode {
+	return app.homeMetricEx(title, nil, valueNodes...)
+}
+
+func (app *stackUiApp) homeMetricEx(title string, titleNodes []ucx.UiNode, valueNodes ...ucx.UiNode) []ucx.UiNode {
+	headerChildren := []ucx.UiNode{
+		ucx.TextEx("", title).Sx(
+			ucx.SxColor(ucx.ColorTextSecondary),
+			ucx.SxFontSize(12),
+		),
+	}
+	headerChildren = append(headerChildren, titleNodes...)
+
+	return []ucx.UiNode{
+		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 6}).
+			Sx(ucx.SxAlignItemsCenter).
+			Children(headerChildren...),
+		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 4}).
+			Sx(ucx.SxAlignItemsCenter).
+			Children(valueNodes...),
+	}
+}
+
+func homeMetricText(value string, color ucx.Color) ucx.UiNode {
+	return ucx.TextEx("", value).Sx(
+		ucx.SxFontWeight("600"),
+		ucx.SxColor(color),
+		ucx.SxFontSize(16),
+	)
+}
+
+func (app *stackUiApp) homeMetricsRow(metrics ...[]ucx.UiNode) ucx.UiNode {
+	cells := make([]ucx.UiNode, 0, len(metrics))
+	for _, metric := range metrics {
+		cells = append(cells, ucx.Box().Sx(
+			ucx.SxFlexBasis("200px"),
+			ucx.SxFlexGrow(1),
+		).Children(metric...))
+	}
+
+	return ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 24}).
+		Sx(ucx.SxFlexWrapWrap).
+		Children(cells...)
+}
+
+func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
+	record, recordOk := app.readClusterRecord()
+
+	clusterState := "Unknown"
+	clusterStateColor := ucx.ColorTextSecondary
+	if recordOk {
+		clusterState = record.Phase
+		clusterStateColor = ucx.ColorSuccessMain
+		if record.Phase != "created" {
+			clusterStateColor = ucx.ColorWarningMain
+		}
+		if record.FailureReason != "" {
+			clusterState = record.Phase + " — " + record.FailureReason
+			clusterStateColor = ucx.ColorErrorMain
+		}
+	}
+
+	if health := app.clusterHealth; health != nil && recordOk && record.Phase == "created" {
+		if health.NotReady == 0 && health.Unknown == 0 && health.Total > 0 {
+			clusterState = "Healthy"
+		} else {
+			clusterState = "Unhealthy"
+		}
+		clusterStateColor = ucx.ColorSuccessMain
+		if clusterState == "Unhealthy" {
+			clusterStateColor = ucx.ColorErrorMain
+		}
+	}
+
+	nodesTotal := len(record.Nodes)
+	nodesReady := nodesTotal - len(app.provisioningSnapshot())
+	if nodesReady < 0 {
+		nodesReady = 0
+	}
+	if health := app.clusterHealth; health != nil {
+		nodesTotal = health.Total
+		nodesReady = health.Ready
+	}
+	nodesLabel := fmt.Sprintf("%d / %d", nodesReady, nodesTotal)
+
+	k8sVersion := "-"
+	if recordOk && record.K8sVersion != "" {
+		k8sVersion = record.K8sVersion
+	}
+
+	manageNodes := ucx.LinkButton("homeManageNodes", "(Manage)", ucx.ColorTextSecondary).Sx(
+		ucx.SxFontSize(12),
+	).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+		app.selectResourceType("nodes")
+	})
+
+	children := []ucx.UiNode{}
+
+	stackInfo := app.stackInfo
+	if stackInfo != nil {
+		createdAtLabel := "-"
+		if stackInfo.CreatedAt > 0 {
+			createdAtLabel = time.UnixMilli(stackInfo.CreatedAt).UTC().Format("Jan 2, 2006 15:04 UTC")
+		}
+
+		stackIdMetric := app.homeMetric("Cluster ID",
+			homeMetricText(stackInfo.Id, ucx.ColorTextPrimary),
+			ucx.Box().Sx(ucx.SxMl(-4)).Children(
+				ucx.CopyButtonEx("homeCopyStackId", stackInfo.Id).WithTooltip("Copy cluster ID"),
+			),
+		)
+
+		providerMetric := app.homeMetric("Provider", homeMetricText("-", ucx.ColorTextPrimary))
+		if stackInfo.Provider != "" {
+			providerMetric = app.homeMetric("Provider",
+				ucx.ProviderTitleEx("homeProviderTitle", stackInfo.Provider, true).Sx(
+					ucx.SxFontWeight("600"),
+					ucx.SxFontSize(16),
+				),
+			)
+		}
+
+		children = append(children,
+			app.homeMetricsRow(
+				stackIdMetric,
+				providerMetric,
+				app.homeMetric("Created", homeMetricText(createdAtLabel, ucx.ColorTextPrimary)),
+			),
+		)
+	}
+
+	children = append(children,
+		app.homeMetricsRow(
+			app.homeMetric("Cluster state", homeMetricText(clusterState, clusterStateColor)),
+			app.homeMetricEx("Nodes ready", []ucx.UiNode{manageNodes}, homeMetricText(nodesLabel, ucx.ColorTextPrimary)),
+			app.homeMetric("Kubernetes version", homeMetricText(k8sVersion, ucx.ColorTextPrimary)),
+		),
+	)
+
+	if stackInfo != nil {
+		resourcesMetric := app.homeMetric("Resources",
+			ucx.LinkButton("homeShowResources", fmt.Sprintf("%d", stackInfo.ResourceCount), ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+				ucxsvc.StackShowResources(app)
+			}),
+		)
+		children = append(children,
+			app.homeMetricsRow(
+				resourcesMetric,
+			),
+		)
+	}
+
+	return children
+}
+
+func kubectlExample(title string, command string) ucx.UiNode {
+	return ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 4}).Children(
+		ucx.TextEx("", title).Sx(
+			ucx.SxColor(ucx.ColorTextSecondary),
+		),
+		ucx.Code(command),
+	)
+}
+
+func (app *stackUiApp) openHeadlampDialog() {
+	token, err := os.ReadFile(filepath.Join(managementMountDir, "kube-api-token"))
+	if err != nil {
+		log.Warn("k8s-app: failed to read headlamp token: %s", err)
+		return
+	}
+
+	app.headlampToken = strings.TrimSpace(string(token))
+	app.ShowHeadlampDialog = true
+	ucx.AppUpdateUi(app)
+}
+
+func (app *stackUiApp) closeHeadlampDialog() {
+	app.ShowHeadlampDialog = false
+	ucx.AppUpdateUi(app)
+}
+
+func (app *stackUiApp) pageHomeActions() []ucx.UiNode {
+	connectControls := []ucx.UiNode{
+		ucx.ButtonEx("homeDownloadKubernetesConfig", "Kubeconfig", ucx.ColorPrimaryMain, ucx.IconHeroArrowDownTray, "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+			ucxsvc.StackDownloadFile(app.Stack, shared.KubernetesConfigurationFileName)
+		}),
+	}
+	if app.headlampUrl != "" {
+		connectControls = append(connectControls, ucx.ButtonEx("homeOpenHeadlamp", "Open Headlamp", ucx.ColorPrimaryMain, ucx.IconHeroArrowTopRightOnSquare, "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+			app.openHeadlampDialog()
+		}))
+	}
+
+	actions := []ucx.UiNode{
+		ucx.SettingsAction("homeConnectAction",
+			"Connect to this cluster",
+			"Use the cluster from your terminal with kubectl, or from your browser with the Headlamp dashboard.",
+		).Children(
+			ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 4}).
+				Sx(ucx.SxAlignItemsCenter).
+				Children(connectControls...),
+		),
+		ucx.AccordionNode("Use kubectl from your terminal", false).WithNoHeaderBorder().Sx(ucx.SxMt(8), ucx.SxMb(12)).Children(
+			ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).Children(
+				ucx.Markdown("kubectl is the standard Kubernetes command line tool. If you do not have it, see [how to install kubectl](https://kubernetes.io/docs/tasks/tools/)."),
+				ucx.TextEx("", "1. Download the configuration file with the Kubeconfig button above.").Sx(
+					ucx.SxColor(ucx.ColorTextSecondary),
+				),
+				ucx.TextEx("", "2. Move the file to where kubectl looks for it by default (adjust the source path to where your browser saved it):").Sx(
+					ucx.SxColor(ucx.ColorTextSecondary),
+				),
+				ucx.Code("mkdir -p ~/.kube && mv ~/Downloads/kubeconfig ~/.kube/config"),
+				ucx.TextEx("", "3. Check that it works by listing the nodes of the cluster:").Sx(
+					ucx.SxColor(ucx.ColorTextSecondary),
+				),
+				ucx.Code("kubectl get nodes"),
+			),
+			ucx.Box().Sx(ucx.SxMt(16)).Children(
+				ucx.TextEx("", "Some commands you will likely need:").Sx(
+					ucx.SxColor(ucx.ColorTextSecondary),
+					ucx.SxFontWeight("600"),
+					ucx.SxMb(8),
+				),
+				ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 12}).Children(
+					kubectlExample("List all pods across every namespace", "kubectl get pods -A"),
+					kubectlExample("List all services across every namespace", "kubectl get services -A"),
+					kubectlExample("Show the details of a pod, for example when it will not start", "kubectl describe pod <name>"),
+					kubectlExample("Read the logs of a pod", "kubectl logs <pod>"),
+					kubectlExample("Create or update resources from a YAML file", "kubectl apply -f <file>"),
+				),
+			),
+			ucx.TextEx("", "If kubectl reports connection errors, verify that the file lives at ~/.kube/config.").Sx(
+				ucx.SxColor(ucx.ColorTextSecondary),
+			),
+		),
+	}
+
+	if app.headlampUrl != "" {
+		actions = append(actions, ucx.AccordionNode("Use Headlamp in your browser", false).WithNoHeaderBorder().Sx(ucx.SxMt(8), ucx.SxMb(12)).Children(
+			ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 12}).Children(
+				ucx.Markdown("Headlamp is a Kubernetes dashboard that runs in your browser. It shows workloads, nodes and other resources of the cluster. Nothing needs to be installed."),
+				ucx.Markdown(
+					"- Open it with the **Open Headlamp** button; it first lets you copy the login token.\n"+
+						"- The token is the cluster's admin token and must be pasted into Headlamp's login screen."),
+				ucx.ButtonEx("homeOpenHeadlampAccordion", "Open Headlamp", ucx.ColorPrimaryMain, ucx.IconHeroArrowTopRightOnSquare, "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+					app.openHeadlampDialog()
+				}),
+			),
+		))
+	}
+
+	if app.Stack != nil && app.Stack.Ok {
+		actions = append(actions, ucx.SettingsAction("homeDeleteAction",
+			"Delete cluster",
+			"Permanently deletes the cluster and all of its resources. This cannot be undone.",
+		).Children(
+			ucx.ButtonEx("homeDeleteCluster", "Delete cluster", ucx.ColorErrorMain, ucx.IconTrash, "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+				ucxsvc.StackDelete(app)
+			}),
+		))
+	}
+
+	return actions
+}
+
+func (app *stackUiApp) pageResources() []ucx.UiNode {
+	if app.k8sClient == nil {
+		return append([]ucx.UiNode{}, app.pageProvisioning()...)
+	}
+
+	navItems := app.resourceNavItems()
+
 	detail := app.ResourceDetail
 	inDetail := detail != ""
 
@@ -309,7 +687,31 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 
 	var main []ucx.UiNode
 	var bottom []ucx.UiNode
-	if inDetail {
+	isHome := app.ActiveType == navHomeId
+	if isHome && !inDetail {
+		homeChildren := append([]ucx.UiNode{}, app.pageHomeContent()...)
+		homeChildren = append(homeChildren, ucx.Box().Sx(ucx.SxMt(8)).Children(app.pageHomeActions()...))
+
+		main = []ucx.UiNode{ucx.Box().Sx(
+			ucx.SxHeightRaw("100%"),
+			ucx.SxOverflowY("auto"),
+		).Children(
+			ucx.Box().Sx(
+				ucx.SxBorderRadius(8),
+				ucx.SxBorderSolid,
+				ucx.SxBorderWidth(1),
+				ucx.SxBorderColor(ucx.ColorBorderColor),
+				ucx.SxPx(20),
+				ucx.SxPy(20),
+				ucx.SxMinHeightRaw("100%"),
+				ucx.SxBoxSizing("border-box"),
+			).Children(
+				ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 24}).
+					Sx(ucx.SxMaxWidth(1100)).
+					Children(homeChildren...),
+			),
+		)}
+	} else if inDetail {
 		main = []ucx.UiNode{app.resourceDetailNode(detail)}
 		bottom = append(bottom, app.resourceDetailBottomNode(detail))
 	} else {
@@ -365,7 +767,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 			bottom = append(bottom, app.namespaceSelectorNode())
 		}
 		bottom = append(bottom, ucx.Box().Sx(ucx.SxFlexGrow(1)))
-		bottom = append(bottom, ucx.TableCount("resourceCount", app.ActiveType).WithTitle(app.activeTypeLabel(typeDefs)))
+		bottom = append(bottom, ucx.TableCount("resourceCount", app.ActiveType).WithTitle(app.activeTypeLabel(app.allTypeDefs())))
 	}
 
 	props := ucx.BrowserLayoutProps{
@@ -378,7 +780,14 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 	}
 
 	if inDetail {
-		props.EscapePath = ""
+		escapeType := detailType(app.ResourceDetail)
+		if escapeType == "provisioning" {
+			escapeType = app.ActiveType
+			if escapeType == navHomeId {
+				escapeType = "nodes"
+			}
+		}
+		props.EscapePath = "browse/" + escapeType
 	} else {
 		props.EscapeDisabled = true
 	}
@@ -388,29 +797,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 		props.HasBottom = true
 	}
 
-	pageChildren := []ucx.UiNode{
-		ucx.Toolbar().Children(
-			ucx.H2("Kubernetes cluster"),
-			ucx.Button("downloadKubernetesConfig", "Download kubeconfig", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-				ucxsvc.StackDownloadFile(app.Stack, shared.KubernetesConfigurationFileName)
-			}),
-			ucx.Button("copyKubernetesToken", "Copy k8s token", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-				ucxsvc.StackCopyFile(app.Stack, shared.KubernetesTokenFileName)
-			}),
-			ucx.Button("copyHeadlampToken", "Copy Headlamp token", ucx.ColorSecondaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-				ucxsvc.StackCopyFile(app.Stack, shared.KubernetesTokenFileName)
-			}),
-		),
-	}
-
-	pageChildren = append(pageChildren, ucx.BrowserLayout(props))
-
-	return []ucx.UiNode{ucx.Surface().
-		Sx(
-			ucx.SxHeightRaw("calc(100vh - 288px)"),
-			ucx.SxMinHeight(480),
-		).
-		Children(pageChildren...)}
+	return []ucx.UiNode{ucx.BrowserLayout(props)}
 }
 
 func (app *stackUiApp) pageProvisioning() []ucx.UiNode {
@@ -458,12 +845,9 @@ func (app *stackUiApp) pageProvisioning() []ucx.UiNode {
 		}
 	}
 
-	return []ucx.UiNode{ucx.Surface().Children(
-		ucx.Toolbar().Children(
-			ucx.H2("Kubernetes cluster"),
-		),
-		ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 16}).Children(children...),
-	)}
+	return []ucx.UiNode{ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 16}).
+		Sx(ucx.SxFlexGrow(1)).
+		Children(children...)}
 }
 
 func (app *stackUiApp) resourceStreamId() string {
@@ -503,7 +887,14 @@ func (app *stackUiApp) selectResourceType(typeId string) {
 		app.ResourceDetail = ""
 		app.prevDetail = ""
 		app.ResourceYaml = ""
-		ucxsvc.RouterPushPage(app, "")
+	}
+
+	targetRoute := "browse/" + typeId
+	if typeId == navHomeId {
+		targetRoute = ""
+	}
+	if app.RoutePath != targetRoute {
+		ucxsvc.RouterPushPage(app, targetRoute)
 	}
 
 	ucx.AppUpdateUi(app)
@@ -545,9 +936,17 @@ func (app *stackUiApp) resourceDetailBottomNode(detail string) ucx.UiNode {
 		label = def.Label
 	}
 
+	backTarget := typeId
+	if typeId == "provisioning" {
+		backTarget = app.ActiveType
+		if backTarget == navHomeId {
+			backTarget = "nodes"
+		}
+	}
+
 	return ucx.Toolbar().Children(
 		ucx.ButtonEx("backToTable", "Back to table", ucx.ColorSecondaryMain, ucx.IconHeroArrowLeft, "", "").ButtonEscapeHint(true).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-			ucxsvc.RouterPushPage(app, "")
+			ucxsvc.RouterPushPage(app, "browse/"+backTarget)
 		}),
 		ucx.Box(),
 		ucx.Text(name).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
@@ -637,6 +1036,10 @@ func (app *stackUiApp) provisioningWatcher(session *ucx.Session) {
 
 	for {
 		app.refreshProvisioningRows(session)
+		if app.activeTypeIsHome() {
+			go app.refreshStackInfo()
+			go app.refreshClusterHealth()
+		}
 
 		select {
 		case <-session.Context().Done():
@@ -645,6 +1048,30 @@ func (app *stackUiApp) provisioningWatcher(session *ucx.Session) {
 		case <-ticker.C:
 		}
 	}
+}
+
+func (app *stackUiApp) refreshClusterHealth() {
+	client := app.k8sClient
+	session := app.session
+	if client == nil || session == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(session.Context(), 10*time.Second)
+	defer cancel()
+
+	health, err := client.NodeHealth(ctx)
+	if err != nil {
+		return
+	}
+
+	app.mu.Lock()
+	changed := app.clusterHealth == nil || *app.clusterHealth != health
+	if changed {
+		app.clusterHealth = &health
+		ucx.AppUpdateUi(app)
+	}
+	app.mu.Unlock()
 }
 
 func (app *stackUiApp) refreshProvisioningRows(session *ucx.Session) {
@@ -681,6 +1108,9 @@ func (app *stackUiApp) refreshProvisioningRows(session *ucx.Session) {
 	app.mu.Lock()
 	changed := !provisioningEntriesEqual(app.provisioningCache, entries)
 	app.provisioningCache = entries
+	if changed && app.ActiveType == navHomeId {
+		ucx.AppUpdateUi(app)
+	}
 	app.mu.Unlock()
 
 	if changed && app.poller != nil {
@@ -731,6 +1161,9 @@ func (app *stackUiApp) refreshProvisioningRows(session *ucx.Session) {
 	app.mu.Lock()
 	changed = !provisioningEntriesEqual(app.provisioningCache, survivors)
 	app.provisioningCache = survivors
+	if changed && app.ActiveType == navHomeId {
+		ucx.AppUpdateUi(app)
+	}
 	app.mu.Unlock()
 
 	if changed && app.poller != nil {
@@ -832,7 +1265,7 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 	surface := ucx.Surface().Sx(ucx.SxMaxWidth(800)).Children(
 		ucx.Toolbar().Children(
 			ucx.H2("Add machine to "+group),
-			ucx.Link("").Children(ucx.Text("Back to overview")),
+			ucx.Link("browse/nodes").Children(ucx.Text("Back to overview")),
 		),
 	)
 
@@ -943,7 +1376,7 @@ func (app *stackUiApp) pageAddPool() []ucx.UiNode {
 	surface := ucx.Surface().Sx(ucx.SxMaxWidth(800)).Children(
 		ucx.Toolbar().Children(
 			ucx.H2("Add worker pool"),
-			ucx.Link("").Children(ucx.Text("Back to overview")),
+			ucx.Link("browse/nodes").Children(ucx.Text("Back to overview")),
 		),
 	)
 
@@ -1049,7 +1482,7 @@ func (app *stackUiApp) addMachinesToGroup(group string, machine accapi.ProductRe
 		}
 	}
 
-	ucxsvc.RouterPushPage(app, "")
+	ucxsvc.RouterPushPage(app, "browse/nodes")
 }
 
 func (app *stackUiApp) addPool(name string, machine accapi.ProductReference, diskGb int, count int) {
@@ -1075,7 +1508,7 @@ func (app *stackUiApp) addPool(name string, machine accapi.ProductReference, dis
 	}
 
 	ucxsvc.UiSendSuccess(app, fmt.Sprintf("Created pool %s with %d node(s)!", trimmedName, count))
-	ucxsvc.RouterPushPage(app, "")
+	ucxsvc.RouterPushPage(app, "browse/nodes")
 }
 
 func (app *stackUiApp) handleTableAction(ev ucx.UiEvent) {
@@ -1126,7 +1559,28 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 			routeDetail = detailFromRoute(app.RoutePath)
 		}
 
+		routeType := app.ActiveType
+		if app.RoutePath == "" {
+			routeType = navHomeId
+		} else if strings.HasPrefix(app.RoutePath, "browse/") {
+			routeType = strings.TrimPrefix(app.RoutePath, "browse/")
+			if _, ok := app.resolveType(routeType); !ok && routeType != navHomeId {
+				routeType = app.ActiveType
+			}
+		}
+
 		changed := routeDetail != app.ResourceDetail
+
+		if routeType != app.ActiveType {
+			app.ActiveType = routeType
+			if app.poller != nil {
+				app.poller.SetActiveType(routeType)
+			}
+			if def, ok := app.resolveType(routeType); ok && def.Namespaced {
+				app.loadNamespaces()
+			}
+			changed = true
+		}
 		app.ResourceDetail = routeDetail
 		if app.ResourceDetail != app.prevDetail {
 			app.prevDetail = app.ResourceDetail
@@ -1185,6 +1639,18 @@ func detailHostname(detail string) string {
 		return ""
 	}
 	return hostname
+}
+
+func detailType(detail string) string {
+	parts := strings.Split(detail, "/")
+	if len(parts) != 3 {
+		return ""
+	}
+	typeId, err := url.PathUnescape(parts[0])
+	if err != nil {
+		return ""
+	}
+	return typeId
 }
 
 func rowActivationValue(value ucx.Value) (string, string, string) {

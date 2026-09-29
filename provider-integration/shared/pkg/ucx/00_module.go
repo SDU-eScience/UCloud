@@ -102,6 +102,7 @@ const (
 	UiEventFocus    UiEventType = "focus"
 	UiEventBlur     UiEventType = "blur"
 	UiEventActivate UiEventType = "activate"
+	UiEventClose    UiEventType = "close"
 )
 
 type UiEvent struct {

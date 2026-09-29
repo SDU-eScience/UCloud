@@ -163,6 +163,18 @@ var StackHeartbeat = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stack
 var StackOpen = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stackOpen"}
 var StackRefresh = ucx.Rpc[util.Empty, util.Empty]{CallName: "stackRefresh"}
 
+type StackInfoResponse struct {
+	Id            string
+	Type          string
+	Provider      string
+	CreatedAt     int64
+	ResourceCount int
+}
+
+var StackInfo = ucx.Rpc[util.Empty, StackInfoResponse]{CallName: "stackInfo"}
+var StackDelete = ucx.Rpc[util.Empty, util.Empty]{CallName: "stackDelete"}
+var StackShowResources = ucx.Rpc[util.Empty, util.Empty]{CallName: "stackShowResources"}
+
 type UiSendMessageRequest struct {
 	Message string
 	Success bool

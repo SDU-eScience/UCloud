@@ -81,6 +81,32 @@ ucx.InputNumber("cpu", "CPU", "cpu", 1, 128)
 ucx.TextArea("notes", "Notes", "Optional notes", "notes", 4)
 ```
 
+### `InputSecret`, `InputSecretEx`
+
+A read-only masked input that reveals its value while focused. Reads from a bind path, or renders a static value passed to `InputSecretEx`.
+
+```go
+ucx.InputSecretEx("apiToken", "", token, "")
+```
+
+### `Dialog`, `DialogEx`
+
+A modal overlay rendered above the app view. Renders nothing while `open` is false. Children use normal components and event handlers; pressing Escape fires `UiEventClose`.
+
+```go
+ucx.DialogEx("confirm", "Confirm action", app.showDialog).Children(
+    ucx.Text("Are you sure?"),
+    ucx.Button("Yes").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+        app.showDialog = false
+        ucx.AppUpdateUi(app)
+    }),
+).On(ucx.UiEventClose, func(ev ucx.UiEvent) {
+    app.showDialog = false
+    ucx.AppUpdateUi(app)
+})
+```
+
+
 ### `Checkbox`, `ToggleInput`
 
 ```go
@@ -169,6 +195,66 @@ ucx.Toolbar().Children(
     ucx.H2("Stack overview"),
     ucx.Link("control").Children(ucx.Text("Open control plane")),
 )
+```
+
+### `SettingsAction`
+
+Renders a settings-style row with a bold title and secondary description on the left and a control on the right.
+Well suited for action panels such as downloads, external tools and destructive operations.
+
+```go
+ucx.SettingsAction("deleteAction", "Delete stack", "Permanently deletes the stack. This cannot be undone.").
+    Children(ucx.ButtonEx("delete", "Delete", ucx.ColorErrorMain, "", "", ""))
+```
+
+### `ExternalLinkButton`
+
+A button-styled link that opens an external URL in a new tab.
+
+```go
+ucx.ExternalLinkButton("openDocs", "Open documentation", "https://example.com", ucx.ColorPrimaryMain, ucx.IconHeroArrowTopRightOnSquare)
+```
+
+### `LinkButton`
+
+A link-styled clickable label. Fires a normal `UiEventClick` like `Button`, but renders inline as a link.
+
+```go
+ucx.LinkButton("showResources", "12", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+    // handle click
+})
+```
+
+### `CopyButton`, `CopyButtonEx`, `CopyButtonBound`
+
+An icon button that copies static or bound text to the clipboard and briefly confirms with a check mark.
+
+```go
+ucx.CopyButtonEx("copyId", "1234567890").WithTooltip("Copy ID")
+```
+
+### `ProviderTitle`
+
+Renders the display title of a provider, resolved from the provider id. With `short` set, renders the abbreviated title (for example "UCLOUD" instead of "UCloud Provider").
+
+```go
+ucx.ProviderTitleEx("providerTitle", "ucloud_provider", true)
+```
+
+## Navigation
+
+### `NavTree`, `NavTreeEx`
+
+The sidebar tree of a browser layout. Each `NavItem` may set `SeparatorBefore` to render a horizontal separator between it and the item above.
+
+```go
+items := []ucx.NavItem{
+    {Id: "home", Label: "Home"},
+    {Id: "group:Cluster", Label: "Cluster", SeparatorBefore: true, Children: []ucx.NavItemChild{
+        {Id: "nodes", Label: "Nodes"},
+    }},
+}
+ucx.NavTreeEx("nav", "activeType", items)
 ```
 
 ## Styling (`Sx`)

@@ -262,6 +262,45 @@ func (c *K8sClient) NodeNames(ctx context.Context) (map[string]bool, error) {
 	return result, nil
 }
 
+type NodeHealth struct {
+	Total    int
+	Ready    int
+	NotReady int
+	Unknown  int
+}
+
+func (c *K8sClient) NodeHealth(ctx context.Context) (NodeHealth, error) {
+	list, err := c.Dynamic.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "nodes"}).List(ctx, listOptions)
+	if err != nil {
+		return NodeHealth{}, err
+	}
+
+	health := NodeHealth{Total: len(list.Items)}
+	for i := range list.Items {
+		ready := "Unknown"
+		for _, cond := range conditionsOf(&list.Items[i]) {
+			if cond["type"] == "Ready" {
+				if cond["status"] == "True" {
+					ready = "Ready"
+				} else {
+					ready = "NotReady"
+				}
+			}
+		}
+
+		switch ready {
+		case "Ready":
+			health.Ready++
+		case "NotReady":
+			health.NotReady++
+		default:
+			health.Unknown++
+		}
+	}
+
+	return health, nil
+}
+
 var crdGvr = schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
 
 func (c *K8sClient) CustomResourceTypes(ctx context.Context) []ResourceTypeDef {
