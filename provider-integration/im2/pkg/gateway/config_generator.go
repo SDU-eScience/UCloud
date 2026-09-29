@@ -370,9 +370,12 @@ func envoyClusterEndpoints(c *EnvoyCluster) []*endpoint.LbEndpoint {
 
 	if len(c.Endpoints) > 0 {
 		for _, ep := range c.Endpoints {
+			if ep.Address == "" {
+				continue
+			}
 			appendEndpoint(ep.Address, ep.Port, ep.Draining)
 		}
-	} else {
+	} else if c.Address != "" {
 		appendEndpoint(c.Address, c.Port, false)
 	}
 
