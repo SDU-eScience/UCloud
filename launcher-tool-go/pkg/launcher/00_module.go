@@ -75,14 +75,14 @@ func Launch() {
 	ComposeDir = filepath.Join(repoRootPath, ".compose")
 	_ = os.MkdirAll(ComposeDir, 0700)
 
-	versionBytes, err := os.ReadFile(repoRootPath + "/core2/version.txt")
+	versionBytes, err := os.ReadFile(filepath.Join(repoRootPath, "core2/version.txt"))
 	if err != nil {
 		log.Fatal("Unable to find version file.")
 	}
 
 	Version = strings.TrimSpace(string(versionBytes))
 
-	featureBytes, err := os.ReadFile(repoRootPath + "/.compose/features.json")
+	featureBytes, err := os.ReadFile(filepath.Join(repoRootPath, ".compose/features.json"))
 	if err == nil {
 		_ = json.Unmarshal(featureBytes, &ClusterFeatures)
 	}
@@ -110,7 +110,7 @@ func Launch() {
 		return
 	}
 
-	refreshTokenBytes, _ := os.ReadFile(repoRootPath + "/.compose/refresh_token.txt")
+	refreshTokenBytes, _ := os.ReadFile(filepath.Join(repoRootPath, ".compose/refresh_token.txt"))
 	refreshToken := strings.TrimSpace(string(refreshTokenBytes))
 
 	RpcClientConfigure(refreshToken)
@@ -196,7 +196,7 @@ func RegisterServices() {
 	Installers = map[string]func(){}
 	StartupHooks = map[string]func(){}
 
-	_ = os.MkdirAll(RepoRoot+".compose", 0770)
+	_ = os.MkdirAll(filepath.Join(RepoRoot, ".compose"), 0770)
 
 	ServiceCore()
 	ServiceFrontend()
@@ -316,7 +316,7 @@ func ClusterStart(down bool) {
 	}
 
 	featureBytes, _ := json.Marshal(ClusterFeatures)
-	_ = os.WriteFile(RepoRoot+"/.compose/features.json", featureBytes, 0660)
+	_ = os.WriteFile(filepath.Join(RepoRoot, ".compose/features.json"), featureBytes, 0660)
 }
 
 func ClusterStop() {
@@ -356,7 +356,7 @@ func ClusterDelete() {
 
 	StreamingExecute(
 		"Deleting data",
-		[]string{"docker", "run", "--rm", "-v", RepoRoot + "/.compose/:/data", "alpine:3", "/bin/sh", "-c", "rm -rf /data/*"},
+		[]string{"docker", "run", "--rm", "-v", filepath.Join(RepoRoot, ".compose") + ":/data", "alpine:3", "/bin/sh", "-c", "rm -rf /data/*"},
 		ExecuteOptions{},
 	)
 }
