@@ -13,7 +13,7 @@ import {addOrgInfoModalIfNotFilled} from "@/UserSettings/ChangeUserDetails";
 import {prettierString} from "@/UtilityFunctions";
 import {formatDate} from "date-fns";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {slimModalStyle} from "@/Utilities/ModalUtilities";
+import {ModalBottom, slimModalStyle} from "@/Utilities/ModalUtilities";
 import {injectStyle} from "@/Unstyled";
 
 export const AcceptInviteLink: React.FunctionComponent = () => {
@@ -32,52 +32,55 @@ export const AcceptInviteLink: React.FunctionComponent = () => {
     }, [token]);
 
     useEffect(() => {
-        if (linkInfo.data) {
-            if (linkInfo.data.isMember) {
-                dispatchSetProjectAction(dispatch, linkInfo.data.project.id);
-                navigate(AppRoutes.project.members());
-            } else {
-                navigate(AppRoutes.dashboard.dashboardA());
-                window.setTimeout(() => {
-                    dialogStore.addDialog(<>
-                        {linkInfo.loading ? <Spinner /> :
-                            linkInfo.error ? <div className={Container}>
-                                <Heading.h3>Invitation link has expired</Heading.h3>
-                                Contact the relevant PI or admin of the project to get a new link.
-                            </div> : <div className={Container}>
-                                <Box><Heading.h3>You have been invited to join '{linkInfo.data?.project.specification.title}'</Heading.h3></Box>
-                                <Box>
-                                    {linkInfo.data?.roleAssignment != null ? <Box>
-                                        By accepting this invite, you will join the project as '{prettierString(linkInfo.data.roleAssignment)}'
-                                    </Box> : null}
-                                    {linkInfo.data?.expires != null ? <Box>
-                                        <Text color="textSecondary">This invitation will expire on {formatDate(linkInfo.data.expires, "dd/MM/yyyy")}</Text>
-                                    </Box> : null}
-                                </Box>
+        if (linkInfo.data?.isMember && !Math) {
+            dispatchSetProjectAction(dispatch, linkInfo.data.project.id);
+            navigate(AppRoutes.project.members());
+        } else if (linkInfo.data || linkInfo.error) {
+            navigate(AppRoutes.dashboard.dashboardA());
+            window.setTimeout(() => {
+                dialogStore.addDialog(<>
+                    {linkInfo.loading ? <Spinner /> :
+                        linkInfo.error ? <div className={Container}>
+                            <Heading.h3>Invitation link has expired</Heading.h3>
+                            Contact the relevant PI or admin of the project to get a new link.
+                            <Box pt="40px">
+                                <ModalBottom>
+                                    <Button onClick={() => dialogStore.failure()}>Done</Button>
+                                </ModalBottom>
+                            </Box>
+                        </div> : <div className={Container}>
+                            <Box><Heading.h3>You have been invited to join '{linkInfo.data?.project.specification.title}'</Heading.h3></Box>
+                            <Box>
+                                {linkInfo.data?.roleAssignment != null ? <Box>
+                                    By accepting this invite, you will join the project as '{prettierString(linkInfo.data.roleAssignment)}'
+                                </Box> : null}
+                                {linkInfo.data?.expires != null ? <Box>
+                                    <Text color="textSecondary">This invitation will expire on {formatDate(linkInfo.data.expires, "dd/MM/yyyy")}</Text>
+                                </Box> : null}
+                            </Box>
 
-                                <Box flexGrow={1} />
+                            <Box flexGrow={1} />
 
-                                <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"} gap={"8px"}>
-                                    <Button
-                                        color="successMain"
-                                        onClick={async () => {
-                                            if (token) {
-                                                const acceptedInvite = await callAPI<AcceptInviteLinkResponse | null>(
-                                                    api.acceptInviteLink({token})
-                                                );
-                                                if (!acceptedInvite) return;
-                                                dispatchSetProjectAction(dispatch, acceptedInvite.project);
-                                                navigate(AppRoutes.project.members());
-                                                addOrgInfoModalIfNotFilled();
-                                            }
-                                        }}
-                                    >Join project</Button>
-                                    <Button color="errorMain" onClick={() => dialogStore.failure()}>Ignore</Button>
-                                </Flex>
-                            </div>}
-                    </>, () => void 0, undefined, slimModalStyle);
-                }, 100);
-            }
+                            <ModalBottom>
+                                <Button
+                                    color="successMain"
+                                    onClick={async () => {
+                                        if (token) {
+                                            const acceptedInvite = await callAPI<AcceptInviteLinkResponse | null>(
+                                                api.acceptInviteLink({token})
+                                            );
+                                            if (!acceptedInvite) return;
+                                            dispatchSetProjectAction(dispatch, acceptedInvite.project);
+                                            navigate(AppRoutes.project.members());
+                                            addOrgInfoModalIfNotFilled();
+                                        }
+                                    }}
+                                >Join project</Button>
+                                <Button color="errorMain" onClick={() => dialogStore.failure()}>Ignore</Button>
+                            </ModalBottom>
+                        </div>}
+                </>, () => void 0, undefined, slimModalStyle);
+            }, 100);
         }
     }, [linkInfo]);
 
