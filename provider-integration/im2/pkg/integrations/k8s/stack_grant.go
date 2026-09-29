@@ -1,6 +1,8 @@
 package k8s
 
 import (
+	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
 	"net/http"
 	"strings"
@@ -28,12 +30,15 @@ type stackGrantTokenRow struct {
 	OwnerProject   sql.Null[string]
 	Provider       string
 	TokenHash      []byte
-	TokenSalt      []byte
+}
+
+func stackGrantTokenHash(secret string) []byte {
+	hashed := sha256.Sum256([]byte(secret))
+	return hashed[:]
 }
 
 func stackGrantTokenCreate(job *orc.Job) string {
 	secret := util.SecureToken()
-	hashed := util.HashPassword(secret, util.GenSalt())
 	stackInstance := job.Specification.Labels[orc.ResourceLabelStackInstance]
 
 	db.NewTx0(func(tx *db.Transaction) {
@@ -41,16 +46,15 @@ func stackGrantTokenCreate(job *orc.Job) string {
 			tx,
 			`
 				insert into k8s.stack_grant_tokens(
-					job_id, stack_instance, owner_created_by, owner_project, provider, token_hash, token_salt
+					job_id, stack_instance, owner_created_by, owner_project, provider, token_hash
 				)
-				values (:job_id, :stack_instance, :owner_created_by, :owner_project, :provider, :token_hash, :token_salt)
+				values (:job_id, :stack_instance, :owner_created_by, :owner_project, :provider, :token_hash)
 				on conflict (job_id) do update set
 					stack_instance = excluded.stack_instance,
 					owner_created_by = excluded.owner_created_by,
 					owner_project = excluded.owner_project,
 					provider = excluded.provider,
-					token_hash = excluded.token_hash,
-					token_salt = excluded.token_salt
+					token_hash = excluded.token_hash
 			`,
 			db.Params{
 				"job_id":           job.Id,
@@ -58,8 +62,7 @@ func stackGrantTokenCreate(job *orc.Job) string {
 				"owner_created_by": job.Owner.CreatedBy,
 				"owner_project":    job.Owner.Project.Sql(),
 				"provider":         job.Specification.Product.Provider,
-				"token_hash":       hashed.HashedPassword,
-				"token_salt":       hashed.Salt,
+				"token_hash":       stackGrantTokenHash(secret),
 			},
 		)
 	})
@@ -118,44 +121,12 @@ func stackGrantLiveControlPlaneJob(row *stackGrantTokenRow) (*orc.Job, *util.Htt
 		return nil, stackGrantTokenForbidden()
 	}
 
-	if job, ok := controller.JobRetrieve(row.JobId); ok && stackGrantJobMatches(job, row) {
-		return job, nil
+	job, ok := controller.JobRetrieve(row.JobId)
+	if !ok || !stackGrantJobMatches(job, row) {
+		return nil, stackGrantTokenForbidden()
 	}
 
-	next := util.OptNone[string]()
-	for {
-		page, err := orc.JobsControlBrowse.Invoke(orc.JobsControlBrowseRequest{
-			ItemsPerPage: 250,
-			Next:         next,
-			JobFlags: orc.JobFlags{
-				ResourceFlags: orc.ResourceFlags{
-					FilterProvider:  util.OptValue(row.Provider),
-					FilterCreatedBy: util.OptValue(row.OwnerCreatedBy),
-					FilterLabels: map[string]string{
-						orc.ResourceLabelStackInstance:   row.StackInstance,
-						stackGrantControlPlaneGroupLabel: stackGrantControlPlaneGroup,
-					},
-				},
-			},
-		})
-		if err != nil {
-			return nil, stackGrantTokenForbidden()
-		}
-
-		for i := range page.Items {
-			job := &page.Items[i]
-			if stackGrantJobMatches(job, row) {
-				return job, nil
-			}
-		}
-
-		next = page.Next
-		if !next.Present || len(page.Items) == 0 {
-			break
-		}
-	}
-
-	return nil, stackGrantTokenForbidden()
+	return job, nil
 }
 
 func stackGrantTokenAuthenticate(rawToken string) (*orc.Job, *util.HttpError) {
@@ -165,20 +136,23 @@ func stackGrantTokenAuthenticate(rawToken string) (*orc.Job, *util.HttpError) {
 	}
 
 	row, rowOk := db.NewTx2(func(tx *db.Transaction) (stackGrantTokenRow, bool) {
-		row, ok := db.Get[stackGrantTokenRow](
+		return db.Get[stackGrantTokenRow](
 			tx,
 			`
-				select job_id, stack_instance, owner_created_by, owner_project, provider, token_hash, token_salt
+				select job_id, stack_instance, owner_created_by, owner_project, provider, token_hash
 				from k8s.stack_grant_tokens
 				where job_id = :job_id
 			`,
 			db.Params{"job_id": jobId},
 		)
-		row.JobId = jobId
-		return row, ok
 	})
 
-	if !rowOk || !util.CheckPassword(row.TokenHash, row.TokenSalt, secret) {
+	if !rowOk {
+		return nil, stackGrantTokenForbidden()
+	}
+
+	hashedSecret := stackGrantTokenHash(secret)
+	if subtle.ConstantTimeCompare(hashedSecret, row.TokenHash) != 1 {
 		return nil, stackGrantTokenForbidden()
 	}
 
@@ -202,140 +176,29 @@ func stackGrantLabels(job *orc.Job) map[string]string {
 }
 
 func stackGrantInitServer() {
-	ucxapi.StackGrantCreateIngress.Handler(func(info rpc.RequestInfo, request ucxapi.StackGrantCreateIngressRequest) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
-		job, err := stackGrantTokenAuthenticate(request.Token)
-		if err != nil {
-			return fnd.BulkResponse[fnd.FindByStringId]{}, err
-		}
-
-		if len(request.Items) == 0 {
-			return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "no items supplied")
-		}
-
-		labels := stackGrantLabels(job)
-		for i := range request.Items {
-			request.Items[i].Labels = util.MapMerge(request.Items[i].Labels, labels)
-		}
-
-		response, invokeErr := orc.IngressesControlCreate.Invoke(orc.ControlCreateRequest[orc.IngressSpecification]{
-			JobId: job.Id,
-			Items: request.Items,
-		})
-		if invokeErr != nil {
-			return fnd.BulkResponse[fnd.FindByStringId]{}, invokeErr
-		}
-
-		return response, nil
-	})
-
-	ucxapi.StackGrantCreatePublicIp.Handler(func(info rpc.RequestInfo, request ucxapi.StackGrantCreatePublicIpRequest) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
-		job, err := stackGrantTokenAuthenticate(request.Token)
-		if err != nil {
-			return fnd.BulkResponse[fnd.FindByStringId]{}, err
-		}
-
-		if len(request.Items) == 0 {
-			return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "no items supplied")
-		}
-
-		labels := stackGrantLabels(job)
-		for i := range request.Items {
-			request.Items[i].Labels = util.MapMerge(request.Items[i].Labels, labels)
-		}
-
-		response, invokeErr := orc.PublicIpsControlCreate.Invoke(orc.ControlCreateRequest[orc.PublicIPSpecification]{
-			JobId: job.Id,
-			Items: request.Items,
-		})
-		if invokeErr != nil {
-			return fnd.BulkResponse[fnd.FindByStringId]{}, invokeErr
-		}
-
-		return response, nil
-	})
-
-	ucxapi.StackGrantCreatePrivateNetwork.Handler(func(info rpc.RequestInfo, request ucxapi.StackGrantCreatePrivateNetworkRequest) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
-		job, err := stackGrantTokenAuthenticate(request.Token)
-		if err != nil {
-			return fnd.BulkResponse[fnd.FindByStringId]{}, err
-		}
-
-		if len(request.Items) == 0 {
-			return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "no items supplied")
-		}
-
-		labels := stackGrantLabels(job)
-		for i := range request.Items {
-			request.Items[i].Labels = util.MapMerge(request.Items[i].Labels, labels)
-		}
-
-		response, invokeErr := orc.PrivateNetworksControlCreate.Invoke(orc.ControlCreateRequest[orc.PrivateNetworkSpecification]{
-			JobId: job.Id,
-			Items: request.Items,
-		})
-		if invokeErr != nil {
-			return fnd.BulkResponse[fnd.FindByStringId]{}, invokeErr
-		}
-
-		ids := make([]fnd.FindByStringId, 0, len(response.Responses))
-		for _, network := range response.Responses {
-			ids = append(ids, fnd.FindByStringId{Id: network.Id})
-		}
-
-		return fnd.BulkResponse[fnd.FindByStringId]{Responses: ids}, nil
-	})
-
-	ucxapi.StackGrantCreatePrivateNetworkIp.Handler(func(info rpc.RequestInfo, request ucxapi.StackGrantCreatePrivateNetworkIpRequest) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
-		job, err := stackGrantTokenAuthenticate(request.Token)
-		if err != nil {
-			return fnd.BulkResponse[fnd.FindByStringId]{}, err
-		}
-
-		if len(request.Items) == 0 {
-			return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "no items supplied")
-		}
-
-		labels := stackGrantLabels(job)
-		for i := range request.Items {
-			request.Items[i].Labels = util.MapMerge(request.Items[i].Labels, labels)
-		}
-
-		response, invokeErr := orc.PrivateNetworkIpsControlCreate.Invoke(orc.ControlCreateRequest[orc.PrivateNetworkIpSpecification]{
-			JobId: job.Id,
-			Items: request.Items,
-		})
-		if invokeErr != nil {
-			return fnd.BulkResponse[fnd.FindByStringId]{}, invokeErr
-		}
-
-		return response, nil
-	})
-
-	ucxapi.StackGrantCreateJob.Handler(func(info rpc.RequestInfo, request ucxapi.StackGrantCreateJobRequest) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
-		job, err := stackGrantTokenAuthenticate(request.Token)
-		if err != nil {
-			return fnd.BulkResponse[fnd.FindByStringId]{}, err
-		}
-
-		if len(request.Items) == 0 {
-			return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "no items supplied")
-		}
-
-		labels := stackGrantLabels(job)
-		for i := range request.Items {
-			request.Items[i].Labels = util.MapMerge(request.Items[i].Labels, labels)
-		}
-
-		response, invokeErr := orc.JobsControlCreate.Invoke(orc.ControlCreateRequest[orc.JobSpecification]{
-			JobId: job.Id,
-			Items: request.Items,
-		})
-		if invokeErr != nil {
-			return fnd.BulkResponse[fnd.FindByStringId]{}, invokeErr
-		}
-
-		return response, nil
-	})
+	stackGrantCreateServer(ucxapi.StackGrantCreateIngress, orc.IngressesControlCreate,
+		func(s *orc.IngressSpecification, labels map[string]string) {
+			s.Labels = util.MapMerge(s.Labels, labels)
+		},
+	)
+	stackGrantCreateServer(ucxapi.StackGrantCreatePublicIp, orc.PublicIpsControlCreate,
+		func(s *orc.PublicIPSpecification, labels map[string]string) {
+			s.Labels = util.MapMerge(s.Labels, labels)
+		},
+	)
+	stackGrantCreateServer(ucxapi.StackGrantCreatePrivateNetwork, orc.PrivateNetworksControlCreate,
+		func(s *orc.PrivateNetworkSpecification, labels map[string]string) {
+			s.Labels = util.MapMerge(s.Labels, labels)
+		},
+	)
+	stackGrantCreateServer(ucxapi.StackGrantCreatePrivateNetworkIp, orc.PrivateNetworkIpsControlCreate,
+		func(s *orc.PrivateNetworkIpSpecification, labels map[string]string) {
+			s.Labels = util.MapMerge(s.Labels, labels)
+		},
+	)
+	stackGrantCreateServer(ucxapi.StackGrantCreateJob, orc.JobsControlCreate,
+		func(s *orc.JobSpecification, labels map[string]string) { s.Labels = util.MapMerge(s.Labels, labels) },
+	)
 
 	ucxapi.StackGrantBrowseIngresses.Handler(func(info rpc.RequestInfo, request ucxapi.StackGrantBrowseIngressesRequest) ([]orc.Ingress, *util.HttpError) {
 		job, err := stackGrantTokenAuthenticate(request.Token)
@@ -386,5 +249,37 @@ func stackGrantInitServer() {
 		}
 
 		return shared.LinkSupport, nil
+	})
+}
+
+func stackGrantCreateServer[Spec any](
+	call rpc.Call[ucxapi.StackGrantCreateRequest[Spec], fnd.BulkResponse[fnd.FindByStringId]],
+	create rpc.Call[orc.ControlCreateRequest[Spec], fnd.BulkResponse[fnd.FindByStringId]],
+	mergeLabels func(*Spec, map[string]string),
+) {
+	call.Handler(func(info rpc.RequestInfo, request ucxapi.StackGrantCreateRequest[Spec]) (fnd.BulkResponse[fnd.FindByStringId], *util.HttpError) {
+		job, err := stackGrantTokenAuthenticate(request.Token)
+		if err != nil {
+			return fnd.BulkResponse[fnd.FindByStringId]{}, err
+		}
+
+		if len(request.Items) == 0 {
+			return fnd.BulkResponse[fnd.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "no items supplied")
+		}
+
+		labels := stackGrantLabels(job)
+		for i := range request.Items {
+			mergeLabels(&request.Items[i], labels)
+		}
+
+		response, invokeErr := create.Invoke(orc.ControlCreateRequest[Spec]{
+			JobId: job.Id,
+			Items: request.Items,
+		})
+		if invokeErr != nil {
+			return fnd.BulkResponse[fnd.FindByStringId]{}, invokeErr
+		}
+
+		return response, nil
 	})
 }

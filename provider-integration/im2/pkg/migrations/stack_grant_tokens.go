@@ -25,3 +25,19 @@ func stackGrantTokensV1() db.MigrationScript {
 		},
 	}
 }
+
+func stackGrantTokensV2() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "stackGrantTokensV2",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table k8s.stack_grant_tokens
+						drop column token_salt
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

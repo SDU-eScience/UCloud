@@ -93,8 +93,8 @@ func initPrivateNetworks() {
 			return spec.ResourceSpecification
 		},
 		PrivateNetworkCreate,
-		func(created []orcapi.PrivateNetwork) fndapi.BulkResponse[orcapi.PrivateNetwork] {
-			return fndapi.BulkResponse[orcapi.PrivateNetwork]{Responses: created}
+		func(created []orcapi.PrivateNetwork) fndapi.BulkResponse[fndapi.FindByStringId] {
+			return controlCreateIdsOf(created, func(r orcapi.PrivateNetwork) string { return r.Id })
 		},
 	))
 

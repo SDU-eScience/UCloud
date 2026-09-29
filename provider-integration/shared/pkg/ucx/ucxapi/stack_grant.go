@@ -23,65 +23,25 @@ type StackGrantAuth struct {
 	Token string `json:"token"`
 }
 
-type StackGrantCreateIngressRequest struct {
+type StackGrantCreateRequest[Spec any] struct {
 	StackGrantAuth
-	Items []orcapi.IngressSpecification `json:"items"`
+	Items []Spec `json:"items"`
 }
 
-var StackGrantCreateIngress = rpc.Call[StackGrantCreateIngressRequest, fnd.BulkResponse[fnd.FindByStringId]]{
-	BaseContext: stackGrantBaseContext,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesPublic,
-	Operation:   "createIngress",
+func stackGrantCreateCall[Spec any](operation string) rpc.Call[StackGrantCreateRequest[Spec], fnd.BulkResponse[fnd.FindByStringId]] {
+	return rpc.Call[StackGrantCreateRequest[Spec], fnd.BulkResponse[fnd.FindByStringId]]{
+		BaseContext: stackGrantBaseContext,
+		Convention:  rpc.ConventionUpdate,
+		Roles:       rpc.RolesPublic,
+		Operation:   operation,
+	}
 }
 
-type StackGrantCreatePublicIpRequest struct {
-	StackGrantAuth
-	Items []orcapi.PublicIPSpecification `json:"items"`
-}
-
-var StackGrantCreatePublicIp = rpc.Call[StackGrantCreatePublicIpRequest, fnd.BulkResponse[fnd.FindByStringId]]{
-	BaseContext: stackGrantBaseContext,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesPublic,
-	Operation:   "createPublicIp",
-}
-
-type StackGrantCreatePrivateNetworkRequest struct {
-	StackGrantAuth
-	Items []orcapi.PrivateNetworkSpecification `json:"items"`
-}
-
-var StackGrantCreatePrivateNetwork = rpc.Call[StackGrantCreatePrivateNetworkRequest, fnd.BulkResponse[fnd.FindByStringId]]{
-	BaseContext: stackGrantBaseContext,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesPublic,
-	Operation:   "createPrivateNetwork",
-}
-
-type StackGrantCreatePrivateNetworkIpRequest struct {
-	StackGrantAuth
-	Items []orcapi.PrivateNetworkIpSpecification `json:"items"`
-}
-
-var StackGrantCreatePrivateNetworkIp = rpc.Call[StackGrantCreatePrivateNetworkIpRequest, fnd.BulkResponse[fnd.FindByStringId]]{
-	BaseContext: stackGrantBaseContext,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesPublic,
-	Operation:   "createPrivateNetworkIp",
-}
-
-type StackGrantCreateJobRequest struct {
-	StackGrantAuth
-	Items []orcapi.JobSpecification `json:"items"`
-}
-
-var StackGrantCreateJob = rpc.Call[StackGrantCreateJobRequest, fnd.BulkResponse[fnd.FindByStringId]]{
-	BaseContext: stackGrantBaseContext,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesPublic,
-	Operation:   "createJob",
-}
+var StackGrantCreateIngress = stackGrantCreateCall[orcapi.IngressSpecification]("createIngress")
+var StackGrantCreatePublicIp = stackGrantCreateCall[orcapi.PublicIPSpecification]("createPublicIp")
+var StackGrantCreatePrivateNetwork = stackGrantCreateCall[orcapi.PrivateNetworkSpecification]("createPrivateNetwork")
+var StackGrantCreatePrivateNetworkIp = stackGrantCreateCall[orcapi.PrivateNetworkIpSpecification]("createPrivateNetworkIp")
+var StackGrantCreateJob = stackGrantCreateCall[orcapi.JobSpecification]("createJob")
 
 type StackGrantBrowseIngressesRequest struct {
 	StackGrantAuth

@@ -242,13 +242,18 @@ func createIngress(ingress *orc.Ingress) *util.HttpError {
 			},
 		)
 
-		return db.Get[string](
+		row, ok := db.Get[struct{ Owner string }](
 			tx,
 			`
 				select owner from ingresses where domain = :domain
 			`,
 			db.Params{"domain": domain},
 		)
+		if !ok {
+			return "", false
+		}
+
+		return row.Owner, true
 	})
 
 	if !domainOk || domainOwner != owner {

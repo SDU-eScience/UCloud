@@ -221,7 +221,7 @@ var PrivateNetworksControlBrowse = rpc.Call[PrivateNetworksControlBrowseRequest,
 	Roles:       rpc.RolesProvider,
 }
 
-var PrivateNetworksControlCreate = ControlCreateCall[PrivateNetworkSpecification, fnd.BulkResponse[PrivateNetwork]](privateNetworkControlNamespace)
+var PrivateNetworksControlCreate = ControlCreateCall[PrivateNetworkSpecification, fnd.BulkResponse[fnd.FindByStringId]](privateNetworkControlNamespace)
 
 var PrivateNetworksControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[PrivateNetworkSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{
 	BaseContext: privateNetworkControlNamespace,

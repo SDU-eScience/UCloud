@@ -64,6 +64,22 @@ isrunning() {
     test -f /tmp/service.pid && (ps -p $(cat /tmp/service.pid) > /dev/null)
 }
 
+waitForK3s() {
+    if [ ! -f /mnt/k3s/kubeconfig.yaml ]; then
+        return
+    fi
+
+    local waited=0
+    until (echo > /dev/tcp/im2k3/6443) 2> /dev/null; do
+        if [ "${waited}" -ge 120 ]; then
+            echo "Timed out after ${waited}s waiting for the K3s API at im2k3:6443" >&2
+            return 1
+        fi
+        sleep 2
+        waited=$((waited + 2))
+    done
+}
+
 startsvc() {
     if ! [ -f "/usr/bin/dlv" ]; then
         $GO install github.com/go-delve/delve/cmd/dlv@latest
@@ -89,6 +105,7 @@ startsvc() {
             rm -f /tmp/gpfs-mock-startup
             nohup gpfs-mock &> /tmp/gpfs-mock-startup &
         fi
+        waitForK3s
         nohup sudo --preserve-env=UCLOUD_EARLY_DEBUG -u "#$uid" /usr/bin/dlv exec /usr/bin/ucloud --headless --listen=0.0.0.0:51233 --api-version=2 --continue --accept-multiclient &> /tmp/service.log &
         echo $! > /tmp/service.pid
         sleep 0.5 # silly workaround to make sure docker exec doesn't kill us

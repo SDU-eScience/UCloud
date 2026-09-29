@@ -77,4 +77,5 @@ func Init() {
 	db.AddMigration(privateNetworkDatabaseV2())
 	db.AddMigration(servicesDatabaseV1())
 	db.AddMigration(stackGrantTokensV1())
+	db.AddMigration(stackGrantTokensV2())
 }

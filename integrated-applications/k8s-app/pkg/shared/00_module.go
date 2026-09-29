@@ -220,8 +220,7 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		return &ucxsvc.Stack{}, false
 	}
 
-	if len(ucxsvc.UcxPortLabel(0)) != 2 {
-		ucxsvc.UiSendFailure(app, "The UCX application name and version labels are unavailable, but the control plane nodes need them")
+	if !clusterControlPlaneRequiresUcxLabels(app) {
 		return &ucxsvc.Stack{}, false
 	}
 
@@ -474,6 +473,27 @@ type clusterNodeOptions struct {
 	session      *ucx.Session
 }
 
+func clusterControlPlaneRequiresUcxLabels(app ucx.Application) bool {
+	if len(ucxsvc.UcxPortLabel(0)) == 2 {
+		return true
+	}
+
+	ucxsvc.UiSendFailure(app, "The UCX application name and version labels are unavailable, but the control plane nodes need them")
+	return false
+}
+
+func clusterControlPlaneWiring(stack *ucxsvc.Stack, group string, attachments []orcapi.AppParameterValue, labels map[string]string) ([]orcapi.AppParameterValue, map[string]string) {
+	if group != GroupControlPlane {
+		return attachments, labels
+	}
+
+	attachments = append(attachments,
+		ucxsvc.StackSubtreeMount(stack, managementDir, managementMountPath, true),
+	)
+	labels = util.MapMerge(labels, ucxsvc.UcxPortLabel(0))
+	return attachments, labels
+}
+
 func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, string) {
 	ipAddress := NodeIpForAllocation(opts.allocationId)
 	hostname := ClusterNodeHostname(opts.group, opts.allocationId)
@@ -548,13 +568,8 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 		initScript = Script("launcher.sh") + "\n" + opts.customUi.InitScript
 		initLabels := ucxsvc.StackWriteInitScriptAt(stack, initScript, inputDirFor(opts.allocationId), inputMountPath)
 		labels = util.MapMerge(labels, initLabels)
-	} else if opts.group == GroupControlPlane {
-		attachments = append(attachments,
-			ucxsvc.StackSubtreeMount(stack, managementDir, managementMountPath, true),
-		)
-		labels = util.MapMerge(labels, ucxsvc.UcxPortLabel(0))
-		labels[orcapi.ResourceLabelInitScript] = launcherPath
 	} else {
+		attachments, labels = clusterControlPlaneWiring(stack, opts.group, attachments, labels)
 		labels[orcapi.ResourceLabelInitScript] = launcherPath
 	}
 

@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,12 +27,12 @@ import (
 const (
 	controllerTokenPath  = "/etc/ucloud-k8s/controller/token"
 	providerHostnamePath = "/opt/ucloud/provider-hostname.txt"
-	reconcileInterval    = 30 * time.Second
+	reconcileInterval    = 5 * time.Minute
+	productCacheInterval = 1 * time.Hour
 	domainFailureBackoff = 5 * time.Minute
 )
 
-var hostnamePartRegex = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
-var linkRegex = regexp.MustCompile(`^[a-z]([-_a-z0-9]){4,255}$`)
+var linkRegex = regexp.MustCompile(`^[a-z][a-z0-9-]{3,61}[a-z0-9]$`)
 
 func Launch() {
 	tokenBytes, err := os.ReadFile(controllerTokenPath)
@@ -104,14 +105,38 @@ func triggerReconcile() {
 
 var domainFailures map[string]time.Time
 
+var productCache = struct {
+	sync.Mutex
+	Support     []orcapi.IngressSupport
+	RefreshedAt time.Time
+}{}
+
+func ingressProducts(client *rpc.Client, token string) ([]orcapi.IngressSupport, bool) {
+	productCache.Lock()
+	defer productCache.Unlock()
+
+	if time.Since(productCache.RefreshedAt) < productCacheInterval {
+		return productCache.Support, true
+	}
+
+	support, herr := ucxapi.StackGrantIngressProducts.InvokeEx(client, ucxapi.StackGrantIngressProductsRequest{
+		StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
+	}, rpc.InvokeOpts{})
+	if herr != nil {
+		return nil, false
+	}
+
+	productCache.Support = support
+	productCache.RefreshedAt = time.Now()
+	return support, true
+}
+
 func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Client, token string) {
 	auth := ucxapi.StackGrantAuth{Token: token}
 
-	support, herr := ucxapi.StackGrantIngressProducts.InvokeEx(client, ucxapi.StackGrantIngressProductsRequest{
-		StackGrantAuth: auth,
-	}, rpc.InvokeOpts{})
-	if herr != nil {
-		log.Warn("k8s controller: could not retrieve the public link products: %s", herr)
+	support, ok := ingressProducts(client, token)
+	if !ok {
+		log.Warn("k8s controller: could not retrieve the public link products")
 		return
 	}
 
@@ -164,7 +189,7 @@ func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Clien
 			continue
 		}
 
-		_, herr := ucxapi.StackGrantCreateIngress.InvokeEx(client, ucxapi.StackGrantCreateIngressRequest{
+		_, herr := ucxapi.StackGrantCreateIngress.InvokeEx(client, ucxapi.StackGrantCreateRequest[orcapi.IngressSpecification]{
 			StackGrantAuth: auth,
 			Items: []orcapi.IngressSpecification{{
 				Domain: domain,
@@ -227,27 +252,6 @@ func eligibleDomain(support orcapi.IngressSupport, domain string) bool {
 	userToken = strings.ToLower(userToken)
 
 	if !okPrefix || !okSuffix {
-		return false
-	}
-
-	if len(userToken) < 5 {
-		return false
-	}
-
-	if strings.Contains(userToken, ".") {
-		return false
-	}
-
-	first := []rune(userToken)[0]
-	if first >= '0' && first <= '9' {
-		return false
-	}
-
-	if strings.HasSuffix(userToken, "-") || strings.HasSuffix(userToken, "_") {
-		return false
-	}
-
-	if !hostnamePartRegex.MatchString(userToken) {
 		return false
 	}
 

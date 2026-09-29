@@ -205,8 +205,7 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 			return "", false
 		}
 
-		if len(ucxsvc.UcxPortLabel(0)) != 2 {
-			ucxsvc.UiSendFailure(app, "The UCX application name and version labels are unavailable, but the control plane nodes need them")
+		if !clusterControlPlaneRequiresUcxLabels(app) {
 			return "", false
 		}
 	}
@@ -312,12 +311,7 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 		orcapi.ResourceLabelInitScript: launcherPath,
 	}
 
-	if trimmedGroup == GroupControlPlane {
-		attachments = append(attachments,
-			ucxsvc.StackSubtreeMount(stack, managementDir, managementMountPath, true),
-		)
-		labels = util.MapMerge(labels, ucxsvc.UcxPortLabel(0))
-	}
+	attachments, labels = clusterControlPlaneWiring(stack, trimmedGroup, attachments, labels)
 
 	job, err := clusterCreateNodeJob(stack, orcapi.JobSpecification{
 		ResourceSpecification: orcapi.ResourceSpecification{
