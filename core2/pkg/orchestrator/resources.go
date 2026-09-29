@@ -1581,29 +1581,74 @@ func resourceIndexLabelsRemoveLocked(idx *resourceIndexBucket, ownerRef string, 
 	}
 }
 
+type resourceLabelIndexRef struct {
+	Ordinal int
+	Ref     string
+	Bucket  *resourceIndexBucket
+}
+
 type resourceLabelIndexer struct {
 	TypeName string
 	Resource *resource
-	bucket   *resourceIndexBucket
-	ownerRef string
+	refs     []resourceLabelIndexRef
 }
 
 func (i *resourceLabelIndexer) Begin() {
-	i.ownerRef = i.Resource.Owner.Project.GetOrDefault(i.Resource.Owner.CreatedBy)
-	i.bucket = resourceGetAndLoadIndex(i.TypeName, i.ownerRef)
-	i.bucket.Mu.Lock()
+	ownerRef := i.Resource.Owner.Project.GetOrDefault(i.Resource.Owner.CreatedBy)
+	i.refs = append(i.refs, resourceLabelIndexRef{
+		Ref: ownerRef,
+	})
+
+	if resourceSpecificationHasProduct(i.Resource.BaseSpec) {
+		i.refs = append(i.refs, resourceLabelIndexRef{
+			Ref: resourceProviderRef(i.Resource.BaseSpec.Product.Provider),
+		})
+	}
+
+	g := resourceGetGlobals(i.TypeName)
+	for j := range i.refs {
+		i.refs[j].Bucket = resourceGetAndLoadIndex(i.TypeName, i.refs[j].Ref)
+		for ordinal, bucket := range g.Indexes {
+			if bucket == i.refs[j].Bucket {
+				i.refs[j].Ordinal = ordinal
+				break
+			}
+		}
+	}
+
+	slices.SortFunc(i.refs, func(a, b resourceLabelIndexRef) int {
+		return a.Ordinal - b.Ordinal
+	})
+
+	lockedOrdinal := -1
+	for _, ref := range i.refs {
+		if ref.Ordinal != lockedOrdinal {
+			ref.Bucket.Mu.Lock()
+			lockedOrdinal = ref.Ordinal
+		}
+	}
 }
 
 func (i *resourceLabelIndexer) Add() {
-	resourceIndexLabelsAddLocked(i.bucket, i.ownerRef, i.Resource.Id, i.Resource.BaseSpec.Labels)
+	for _, ref := range i.refs {
+		resourceIndexLabelsAddLocked(ref.Bucket, ref.Ref, i.Resource.Id, i.Resource.BaseSpec.Labels)
+	}
 }
 
 func (i *resourceLabelIndexer) Remove() {
-	resourceIndexLabelsRemoveLocked(i.bucket, i.ownerRef, i.Resource.Id, i.Resource.BaseSpec.Labels)
+	for _, ref := range i.refs {
+		resourceIndexLabelsRemoveLocked(ref.Bucket, ref.Ref, i.Resource.Id, i.Resource.BaseSpec.Labels)
+	}
 }
 
 func (i *resourceLabelIndexer) Commit() {
-	i.bucket.Mu.Unlock()
+	unlockedOrdinal := -1
+	for _, ref := range i.refs {
+		if ref.Ordinal != unlockedOrdinal {
+			ref.Bucket.Mu.Unlock()
+			unlockedOrdinal = ref.Ordinal
+		}
+	}
 }
 
 type ResourceIndexer interface {
