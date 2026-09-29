@@ -216,6 +216,8 @@ var PublicIpsControlBrowse = rpc.Call[PublicIpsControlBrowseRequest, fnd.PageV2[
 	Roles:       rpc.RolesProvider,
 }
 
+var PublicIpsControlCreate = ControlCreateCall[PublicIPSpecification, fnd.BulkResponse[fnd.FindByStringId]](publicIpControlNamespace)
+
 var PublicIpsControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[PublicIPSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{
 	BaseContext: publicIpControlNamespace,
 	Convention:  rpc.ConventionUpdate,

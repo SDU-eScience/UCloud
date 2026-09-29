@@ -1,0 +1,138 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ucloud-k8s-controller
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ucloud-k8s-controller
+  namespace: ucloud-k8s-controller
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ucloud-k8s-controller
+rules:
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["list", "watch", "get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ucloud-k8s-controller
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ucloud-k8s-controller
+subjects:
+  - kind: ServiceAccount
+    name: ucloud-k8s-controller
+    namespace: ucloud-k8s-controller
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ucloud-k8s-controller
+  namespace: ucloud-k8s-controller
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ucloud-k8s-controller
+  template:
+    metadata:
+      labels:
+        app: ucloud-k8s-controller
+    spec:
+      serviceAccountName: ucloud-k8s-controller
+      automountServiceAccountToken: true
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: ucloud.dk/k8s-node-group
+                    operator: In
+                    values:
+                      - control-plane
+      containers:
+        - name: ucloud-k8s-controller
+          image: ${CONTROLLER_IMAGE}
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 11042
+            runAsGroup: 11042
+          command:
+            - /bin/sh
+            - -c
+            - |
+              WATCHED=/opt/ucloud-ucx/current
+              RUNTIME_DIR=/tmp/ucloud-ucx
+              RUNTIME_BIN="$RUNTIME_DIR/current"
+              mkdir -p "$RUNTIME_DIR"
+
+              file_state() {
+                if [ ! -f "$WATCHED" ]; then
+                  printf 'missing'
+                  return
+                fi
+                stat -c '%s %Y' "$WATCHED"
+              }
+
+              LAST_STATE=""
+              while true; do
+                while [ ! -f "$WATCHED" ]; do
+                  sleep 1
+                done
+
+                CURRENT_STATE="$(file_state)"
+                if [ "$CURRENT_STATE" != "$LAST_STATE" ]; then
+                  cp "$WATCHED" "$RUNTIME_BIN.tmp"
+                  chmod +x "$RUNTIME_BIN.tmp"
+                  mv "$RUNTIME_BIN.tmp" "$RUNTIME_BIN"
+                  LAST_STATE="$CURRENT_STATE"
+                fi
+
+                "$RUNTIME_BIN" controller &
+                PID="$!"
+
+                while kill -0 "$PID" 2>/dev/null; do
+                  sleep 1
+                  NEXT_STATE="$(file_state)"
+                  if [ "$NEXT_STATE" != "$LAST_STATE" ]; then
+                    kill "$PID" 2>/dev/null || true
+                    wait "$PID" 2>/dev/null || true
+                    break
+                  fi
+                done
+
+                wait "$PID" 2>/dev/null || true
+                sleep 1
+              done
+          volumeMounts:
+            - name: ucx-cache
+              mountPath: /opt/ucloud-ucx
+              readOnly: true
+            - name: controller-token
+              mountPath: /etc/ucloud-k8s/controller
+              readOnly: true
+            - name: ucloud-exe
+              mountPath: /opt/ucloud
+              readOnly: true
+      volumes:
+        - name: ucx-cache
+          hostPath:
+            path: /opt/ucloud-ucx
+            type: Directory
+        - name: controller-token
+          hostPath:
+            path: /var/lib/ucloud-k8s/controller
+            type: Directory
+        - name: ucloud-exe
+          hostPath:
+            path: /opt/ucloud
+            type: Directory

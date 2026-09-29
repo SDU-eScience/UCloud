@@ -325,6 +325,47 @@ func ucxOnConnect(conn *ws.Conn) {
 		return util.Empty{}, nil
 	})
 
+	ucxapi.StackGrantToken.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackGrantTokenRequest) (ucxapi.StackGrantTokenResponse, error) {
+		jobId := strings.TrimSpace(request.JobId)
+		if jobId == "" {
+			return ucxapi.StackGrantTokenResponse{}, fmt.Errorf("invalid job")
+		}
+
+		job, ok := ctrl.JobRetrieve(jobId)
+		if !ok {
+			return ucxapi.StackGrantTokenResponse{}, fmt.Errorf("invalid job")
+		}
+
+		if job.Status.State.IsFinal() {
+			return ucxapi.StackGrantTokenResponse{}, fmt.Errorf("the job is in a final state")
+		}
+
+		if job.Owner.CreatedBy != info.Owner.CreatedBy || job.Owner.Project.Value != info.Owner.Project.Value {
+			return ucxapi.StackGrantTokenResponse{}, fmt.Errorf("invalid job owner")
+		}
+
+		if job.Specification.Product.Provider != cfg.Provider.Id {
+			return ucxapi.StackGrantTokenResponse{}, fmt.Errorf("invalid job")
+		}
+
+		stackInstance := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackInstance])
+		if stackInstance == "" {
+			return ucxapi.StackGrantTokenResponse{}, fmt.Errorf("job has no stack instance")
+		}
+
+		mu.Lock()
+		known := confirmedStacks[stackInstance]
+		_, hasLease := stackToDeletionRequest[stackInstance]
+		mu.Unlock()
+
+		if !known && !hasLease {
+			return ucxapi.StackGrantTokenResponse{}, fmt.Errorf("invalid stack instance")
+		}
+
+		token := stackGrantTokenCreate(job)
+		return ucxapi.StackGrantTokenResponse{Token: token}, nil
+	})
+
 	ucxapi.IM.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.Message) (ucxapi.Message, error) {
 		log.Info("Got a message from '%#v': %s", info.Owner, request.Message)
 		return ucxapi.Message{Message: "Hello from the provider!"}, nil

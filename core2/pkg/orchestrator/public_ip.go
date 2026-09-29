@@ -116,6 +116,16 @@ func initPublicIps() {
 		return SupportRetrieveProducts[orcapi.PublicIpSupport](publicIpType), nil
 	})
 
+	orcapi.PublicIpsControlCreate.Handler(controlCreateServe(
+		func(spec orcapi.PublicIPSpecification) orcapi.ResourceSpecification {
+			return spec.ResourceSpecification
+		},
+		PublicIpCreate,
+		func(created []orcapi.PublicIp) fndapi.BulkResponse[fndapi.FindByStringId] {
+			return controlCreateIdsOf(created, func(r orcapi.PublicIp) string { return r.Id })
+		},
+	))
+
 	orcapi.PublicIpsControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.PublicIPSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		var responses []fndapi.FindByStringId
 

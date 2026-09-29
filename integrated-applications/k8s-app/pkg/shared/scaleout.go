@@ -204,6 +204,11 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 			ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster control plane supports at most %d nodes", maxControlPlaneNodes))
 			return "", false
 		}
+
+		if len(ucxsvc.UcxPortLabel(0)) != 2 {
+			ucxsvc.UiSendFailure(app, "The UCX application name and version labels are unavailable, but the control plane nodes need them")
+			return "", false
+		}
 	}
 
 	if !AllocationIdIsValid(record.NextAllocationId) {
@@ -305,6 +310,13 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 		NodeAllocationLabel:            fmt.Sprintf("%d", allocationId),
 		K8sVersionLabel:                release.Release,
 		orcapi.ResourceLabelInitScript: launcherPath,
+	}
+
+	if trimmedGroup == GroupControlPlane {
+		attachments = append(attachments,
+			ucxsvc.StackSubtreeMount(stack, managementDir, managementMountPath, true),
+		)
+		labels = util.MapMerge(labels, ucxsvc.UcxPortLabel(0))
 	}
 
 	job, err := clusterCreateNodeJob(stack, orcapi.JobSpecification{

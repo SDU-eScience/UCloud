@@ -229,7 +229,7 @@ func createIngress(ingress *orc.Ingress) *util.HttpError {
 		return util.UserHttpError("Public link must only contain letters a-z, numbers (0-9), dashes and underscores.")
 	}
 
-	db.NewTx0(func(tx *db.Transaction) {
+	domainOwner, domainOk := db.NewTx2(func(tx *db.Transaction) (string, bool) {
 		db.Exec(
 			tx,
 			`
@@ -241,7 +241,19 @@ func createIngress(ingress *orc.Ingress) *util.HttpError {
 				"owner":  owner,
 			},
 		)
+
+		return db.Get[string](
+			tx,
+			`
+				select owner from ingresses where domain = :domain
+			`,
+			db.Params{"domain": domain},
+		)
 	})
+
+	if !domainOk || domainOwner != owner {
+		return util.UserHttpError("The domain is already in use by someone else.")
+	}
 
 	status := util.Option[string]{}
 	status.Set("Public link is ready for use")

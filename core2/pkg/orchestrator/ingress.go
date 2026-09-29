@@ -130,6 +130,16 @@ func initIngresses() {
 		return util.Empty{}, nil
 	})
 
+	orcapi.IngressesControlCreate.Handler(controlCreateServe(
+		func(spec orcapi.IngressSpecification) orcapi.ResourceSpecification {
+			return spec.ResourceSpecification
+		},
+		IngressCreate,
+		func(created []orcapi.Ingress) fndapi.BulkResponse[fndapi.FindByStringId] {
+			return controlCreateIdsOf(created, func(r orcapi.Ingress) string { return r.Id })
+		},
+	))
+
 	orcapi.IngressesControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.IngressSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		var responses []fndapi.FindByStringId
 
@@ -303,6 +313,12 @@ func IngressCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.IngressSpe
 		)
 
 		if err != nil {
+			ingressesByDomain.Mu.Lock()
+			if ingressesByDomain.Domains[item.Domain] == ResourceId(0) {
+				delete(ingressesByDomain.Domains, item.Domain)
+			}
+			ingressesByDomain.Mu.Unlock()
+
 			return nil, err
 		}
 

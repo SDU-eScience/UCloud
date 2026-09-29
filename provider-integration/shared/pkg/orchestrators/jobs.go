@@ -686,6 +686,8 @@ var JobsControlBrowse = rpc.Call[JobsControlBrowseRequest, fnd.PageV2[Job]]{
 	Roles:       rpc.RolesProvider,
 }
 
+var JobsControlCreate = ControlCreateCall[JobSpecification, fnd.BulkResponse[fnd.FindByStringId]](jobControlNamespace)
+
 var JobsControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[JobSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{
 	BaseContext: jobControlNamespace,
 	Convention:  rpc.ConventionUpdate,

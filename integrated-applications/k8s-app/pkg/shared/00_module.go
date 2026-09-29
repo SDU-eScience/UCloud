@@ -36,6 +36,7 @@ const (
 	KubeconfigTemplatePath          = "management/kubeconfig.tpl"
 	KubernetesConfigurationFileName = "management/kubeconfig"
 	KubernetesTokenFileName         = "management/kube-api-token"
+	ControllerRegistrationTokenPath = "management/controller/token"
 )
 
 const (
@@ -75,7 +76,7 @@ const (
 	clusterRecordPhaseError        = "error"
 )
 
-const ScriptBundleRevision = 8
+const ScriptBundleRevision = 9
 
 func BundlePathForRelease(release K3sRelease) string {
 	return filepath.Join("bundles", strconv.Itoa(ScriptBundleRevision), SanitizeForPath(release.Release))
@@ -216,6 +217,11 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 
 	if spec.ControlPlaneNodes < 1 || spec.ControlPlaneNodes > 7 || spec.ControlPlaneNodes%2 != 1 {
 		ucxsvc.UiSendFailure(app, "The cluster control plane needs an odd number of nodes, between 1 and 7")
+		return &ucxsvc.Stack{}, false
+	}
+
+	if len(ucxsvc.UcxPortLabel(0)) != 2 {
+		ucxsvc.UiSendFailure(app, "The UCX application name and version labels are unavailable, but the control plane nodes need them")
 		return &ucxsvc.Stack{}, false
 	}
 
@@ -413,6 +419,7 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 				diskGb:       pool.diskGb,
 				allocationId: allocationId,
 				customUi:     customUi,
+				session:      session,
 			})
 			if !created {
 				clusterCreateCleanupFailed(stack, record, failReason)
@@ -464,6 +471,7 @@ type clusterNodeOptions struct {
 	diskGb       int
 	allocationId int
 	customUi     ucxsvc.UcxCustomUiServiceInit
+	session      *ucx.Session
 }
 
 func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, string) {
@@ -540,6 +548,12 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 		initScript = Script("launcher.sh") + "\n" + opts.customUi.InitScript
 		initLabels := ucxsvc.StackWriteInitScriptAt(stack, initScript, inputDirFor(opts.allocationId), inputMountPath)
 		labels = util.MapMerge(labels, initLabels)
+	} else if opts.group == GroupControlPlane {
+		attachments = append(attachments,
+			ucxsvc.StackSubtreeMount(stack, managementDir, managementMountPath, true),
+		)
+		labels = util.MapMerge(labels, ucxsvc.UcxPortLabel(0))
+		labels[orcapi.ResourceLabelInitScript] = launcherPath
 	} else {
 		labels[orcapi.ResourceLabelInitScript] = launcherPath
 	}
@@ -585,7 +599,23 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 		return false, ""
 	}
 
+	if firstServer {
+		if !clusterWriteControllerToken(stack, opts.session, job.Id) {
+			return false, "could not write the controller registration token"
+		}
+	}
+
 	return true, ""
+}
+
+func clusterWriteControllerToken(stack *ucxsvc.Stack, session *ucx.Session, jobId string) bool {
+	response, err := ucxapi.StackGrantToken.Invoke(session, ucxapi.StackGrantTokenRequest{JobId: jobId})
+	if err != nil {
+		return false
+	}
+
+	ucxsvc.StackWriteFileAtomicEx(stack, ControllerRegistrationTokenPath, response.Token, 0600)
+	return stack.Ok
 }
 
 func clusterCreateNodeJob(stack *ucxsvc.Stack, spec orcapi.JobSpecification) (orcapi.Job, error) {

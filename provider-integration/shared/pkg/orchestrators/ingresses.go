@@ -172,6 +172,8 @@ var IngressesControlBrowse = rpc.Call[IngressesControlBrowseRequest, fnd.PageV2[
 	Roles:       rpc.RolesProvider,
 }
 
+var IngressesControlCreate = ControlCreateCall[IngressSpecification, fnd.BulkResponse[fnd.FindByStringId]](ingressControlNamespace)
+
 var IngressesControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[IngressSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{
 	BaseContext: ingressControlNamespace,
 	Convention:  rpc.ConventionUpdate,

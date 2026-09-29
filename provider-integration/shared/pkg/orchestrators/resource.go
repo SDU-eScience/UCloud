@@ -155,6 +155,20 @@ type ProviderRegisteredResource[Spec any] struct {
 	ProjectAllWrite     bool                `json:"projectAllWrite"`
 }
 
+type ControlCreateRequest[Spec any] struct {
+	JobId string `json:"jobId"`
+	Items []Spec `json:"items"`
+}
+
+func ControlCreateCall[Spec any, Resp any](namespace string) rpc.Call[ControlCreateRequest[Spec], Resp] {
+	return rpc.Call[ControlCreateRequest[Spec], Resp]{
+		BaseContext: namespace,
+		Convention:  rpc.ConventionUpdate,
+		Roles:       rpc.RolesProvider,
+		Operation:   "create",
+	}
+}
+
 func ResourceOwnerToWalletOwner(resource Resource) acc.WalletOwner {
 	if resource.Owner.Project.Present {
 		return acc.WalletOwnerProject(resource.Owner.Project.Value)

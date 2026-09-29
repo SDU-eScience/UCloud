@@ -144,6 +144,8 @@ var PrivateNetworkIpsControlBrowse = rpc.Call[PrivateNetworkIpsControlBrowseRequ
 	Roles:       rpc.RolesProvider,
 }
 
+var PrivateNetworkIpsControlCreate = ControlCreateCall[PrivateNetworkIpSpecification, fnd.BulkResponse[fnd.FindByStringId]](privateNetworkIpControlNamespace)
+
 var PrivateNetworkIpsControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[PrivateNetworkIpSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{
 	BaseContext: privateNetworkIpControlNamespace,
 	Convention:  rpc.ConventionUpdate,

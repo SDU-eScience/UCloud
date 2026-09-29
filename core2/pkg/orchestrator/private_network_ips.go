@@ -128,6 +128,16 @@ func initPrivateNetworkIps() {
 		return SupportRetrieveProducts[orcapi.PrivateNetworkIpSupport](privateNetworkIpType), nil
 	})
 
+	orcapi.PrivateNetworkIpsControlCreate.Handler(controlCreateServe(
+		func(spec orcapi.PrivateNetworkIpSpecification) orcapi.ResourceSpecification {
+			return spec.ResourceSpecification
+		},
+		PrivateNetworkIpCreate,
+		func(created []orcapi.PrivateNetworkIp) fndapi.BulkResponse[fndapi.FindByStringId] {
+			return controlCreateIdsOf(created, func(r orcapi.PrivateNetworkIp) string { return r.Id })
+		},
+	))
+
 	orcapi.PrivateNetworkIpsControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.PrivateNetworkIpSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		var responses []fndapi.FindByStringId
 

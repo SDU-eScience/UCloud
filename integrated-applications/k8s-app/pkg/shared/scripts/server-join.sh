@@ -85,6 +85,27 @@ wait_k3s_ready
 emit "Waiting for the node to become ready" 75
 wait_node_ready "$NODE_NAME"
 
+log "reading the controller registration token"
+emit "Reading the controller registration token" 77
+CONTROLLER_TOKEN_SOURCE="$MANAGEMENT_DIR/controller/token"
+CONTROLLER_TOKEN_DIR="/var/lib/ucloud-k8s/controller"
+CONTROLLER_TOKEN_TRIES=0
+while [ $CONTROLLER_TOKEN_TRIES -lt 60 ]; do
+	if [ -s "$CONTROLLER_TOKEN_SOURCE" ]; then
+		break
+	fi
+	sleep 5
+	CONTROLLER_TOKEN_TRIES=$(( CONTROLLER_TOKEN_TRIES + 1 ))
+done
+if [ ! -s "$CONTROLLER_TOKEN_SOURCE" ]; then
+	fail "credentials" "the controller registration token was never published"
+fi
+
+install -d -m 0750 -o "$UCX_SERVICE_UID" -g "$UCX_SERVICE_GID" "$CONTROLLER_TOKEN_DIR"
+umask 077
+install -o "$UCX_SERVICE_UID" -g "$UCX_SERVICE_GID" -m 0600 "$CONTROLLER_TOKEN_SOURCE" "$CONTROLLER_TOKEN_DIR/token"
+umask 022
+
 if [ "$FIRST_SERVER" = "True" ]; then
 	/etc/ucloud-k8s/bundle/server-bootstrap.sh
 else

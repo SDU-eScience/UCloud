@@ -88,6 +88,16 @@ func initPrivateNetworks() {
 		return PrivateNetworkRetrieveProducts(info.Actor), nil
 	})
 
+	orcapi.PrivateNetworksControlCreate.Handler(controlCreateServe(
+		func(spec orcapi.PrivateNetworkSpecification) orcapi.ResourceSpecification {
+			return spec.ResourceSpecification
+		},
+		PrivateNetworkCreate,
+		func(created []orcapi.PrivateNetwork) fndapi.BulkResponse[orcapi.PrivateNetwork] {
+			return fndapi.BulkResponse[orcapi.PrivateNetwork]{Responses: created}
+		},
+	))
+
 	orcapi.PrivateNetworksControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.PrivateNetworkSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		var responses []fndapi.FindByStringId
 

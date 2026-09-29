@@ -98,12 +98,6 @@ func initJobs() {
 	go jobNotificationsLoopSendPending()
 
 	orcapi.JobsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		for _, reqItem := range request.Items {
-			if reqItem.Application.Name == "syncthing" {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "this application cannot be started through this endpoint")
-			}
-		}
-
 		created, err := JobCreate(info.Actor, request)
 		if err != nil {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
@@ -319,6 +313,16 @@ func initJobs() {
 	orcapi.JobsSearch.Handler(func(info rpc.RequestInfo, request orcapi.JobsSearchRequest) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
 		return JobsSearch(info.Actor, request.Query, request.Next, request.ItemsPerPage, request.JobFlags)
 	})
+
+	orcapi.JobsControlCreate.Handler(controlCreateServe(
+		func(spec orcapi.JobSpecification) orcapi.ResourceSpecification {
+			return spec.ResourceSpecification
+		},
+		JobCreate,
+		func(created []orcapi.Job) fndapi.BulkResponse[fndapi.FindByStringId] {
+			return controlCreateIdsOf(created, func(r orcapi.Job) string { return r.Id })
+		},
+	))
 
 	orcapi.JobsControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.JobSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
 		var responses []fndapi.FindByStringId
@@ -911,6 +915,13 @@ func initJobs() {
 
 func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecification]) ([]orcapi.Job, *util.HttpError) {
 	created := make([]orcapi.Job, 0, len(request.Items))
+
+	for _, item := range request.Items {
+		if item.Application.Name == reservedSyncthingApplication {
+			return nil, util.HttpErr(http.StatusBadRequest, "this application cannot be started through this endpoint")
+		}
+	}
+
 	jobSettings := JobSettingsRetrieve(actor)
 
 	for _, item := range request.Items {

@@ -59,6 +59,14 @@ k3s kubectl --request-timeout=60s -n headlamp rollout status deploy/headlamp --t
 log "applying the admin service account"
 k3s kubectl --request-timeout=60s apply -f "$BUNDLE_DIR/admin-account.yaml" >/dev/null
 
+log "applying the ucloud controller"
+emit "Applying the UCloud controller" 88
+sed -e "s|\${CONTROLLER_IMAGE}|$CONTROLLER_IMAGE|g" \
+	"$BUNDLE_DIR/controller.yaml" \
+	> /var/lib/rancher/k3s/server/manifests/ucloud-k8s-controller.yaml
+k3s kubectl --request-timeout=60s apply -f /var/lib/rancher/k3s/server/manifests/ucloud-k8s-controller.yaml >/dev/null
+k3s kubectl --request-timeout=60s -n ucloud-k8s-controller rollout status deploy/ucloud-k8s-controller --timeout=180s >/dev/null
+
 log "reading the admin token secret"
 emit "Reading the admin token secret" 90
 ADMIN_TOKEN=""
