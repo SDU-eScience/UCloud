@@ -1097,7 +1097,8 @@ func metadataUpdateAncestors(db *pebble.DB, scanComponents []string, oldContribu
 			return err
 		}
 		if !present || ancestor.EntryType != MetaEntryDirectory {
-			return fmt.Errorf("missing directory ancestor for PATH key %x", key)
+			log.Info("Missing directory ancestor %x in metadata catalog, skipping aggregate updates above it", key)
+			break
 		}
 		if err = metadataApplyAggregateDelta(&ancestor, oldContribution, newContribution); err != nil {
 			return fmt.Errorf("update ancestor PATH key %x: %w", key, err)
