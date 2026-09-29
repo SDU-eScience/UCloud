@@ -195,6 +195,18 @@ var IngressesControlUpdateLabels = rpc.Call[fnd.BulkRequest[IngressesUpdateLabel
 	Operation:   "updateLabels",
 }
 
+type IngressesControlDeleteRequest struct {
+	JobId      string   `json:"jobId"`
+	IngressIds []string `json:"ingressIds"`
+}
+
+var IngressesControlDelete = rpc.Call[IngressesControlDeleteRequest, fnd.BulkResponse[util.Empty]]{
+	BaseContext: ingressControlNamespace,
+	Convention:  rpc.ConventionDelete,
+	Roles:       rpc.RolesProvider,
+	Operation:   "delete",
+}
+
 // Ingress Provider API
 // =====================================================================================================================
 

@@ -224,6 +224,35 @@ func initIngresses() {
 
 		return util.Empty{}, nil
 	})
+
+	orcapi.IngressesControlDelete.Handler(func(info rpc.RequestInfo, request orcapi.IngressesControlDeleteRequest) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		actor, _, stackInstance, err := controlResolveJobActor(info.Actor, request.JobId)
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+
+		ids := make([]fndapi.FindByStringId, 0, len(request.IngressIds))
+		for _, ingressId := range request.IngressIds {
+			ingress, _, _, err := ResourceRetrieveEx[orcapi.Ingress](
+				actor,
+				ingressType,
+				ResourceParseId(ingressId),
+				orcapi.PermissionEdit,
+				orcapi.ResourceFlags{},
+			)
+			if err != nil {
+				return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusNotFound, "unknown public link")
+			}
+
+			if ingress.Specification.Labels[orcapi.ResourceLabelStackInstance] != stackInstance {
+				return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "the public link does not belong to the stack of the job")
+			}
+
+			ids = append(ids, fndapi.FindByStringId{Id: ingressId})
+		}
+
+		return IngressDelete(actor, fndapi.BulkRequestOf(ids...))
+	})
 }
 
 func IngressCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.IngressSpecification]) ([]orcapi.Ingress, *util.HttpError) {

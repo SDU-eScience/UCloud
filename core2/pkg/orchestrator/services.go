@@ -196,6 +196,71 @@ func initServices() {
 
 		return util.Empty{}, nil
 	})
+
+	orcapi.ServicesControlCreate.Handler(controlCreateServe(
+		func(spec orcapi.ServiceSpecification) orcapi.ResourceSpecification {
+			return spec.ResourceSpecification
+		},
+		ServiceCreate,
+		func(created []orcapi.Service) fndapi.BulkResponse[fndapi.FindByStringId] {
+			return controlCreateIdsOf(created, func(r orcapi.Service) string { return r.Id })
+		},
+	))
+
+	orcapi.ServicesControlUpdateMembers.Handler(func(info rpc.RequestInfo, request orcapi.ServicesControlUpdateMembersRequest) (util.Empty, *util.HttpError) {
+		actor, _, stackInstance, err := controlResolveJobActor(info.Actor, request.JobId)
+		if err != nil {
+			return util.Empty{}, err
+		}
+
+		svc, _, _, err := ResourceRetrieveEx[orcapi.Service](
+			actor,
+			serviceType,
+			ResourceParseId(request.Id),
+			orcapi.PermissionEdit,
+			orcapi.ResourceFlags{},
+		)
+		if err != nil {
+			return util.Empty{}, util.HttpErr(http.StatusNotFound, "unknown service")
+		}
+
+		if svc.Specification.Labels[orcapi.ResourceLabelStackInstance] != stackInstance {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "the service does not belong to the stack of the job")
+		}
+
+		for _, jobId := range request.AddedJobIds {
+			member, _, _, err := ResourceRetrieveEx[orcapi.Job](
+				actor,
+				jobType,
+				ResourceParseId(jobId),
+				orcapi.PermissionEdit,
+				orcapi.ResourceFlags{},
+			)
+			if err != nil {
+				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "unknown member job")
+			}
+
+			if member.Specification.Labels[orcapi.ResourceLabelStackInstance] != stackInstance {
+				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "member jobs must belong to the stack of the job")
+			}
+		}
+
+		if len(request.AddedJobIds) > 0 {
+			err := ServiceAddMembers(actor, request.Id, request.AddedJobIds)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		if len(request.RemovedJobIds) > 0 {
+			err := ServiceRemoveMembers(actor, request.Id, request.RemovedJobIds)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
+		return util.Empty{}, nil
+	})
 }
 
 func ServiceCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ServiceSpecification]) ([]orcapi.Service, *util.HttpError) {

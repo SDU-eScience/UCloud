@@ -17,6 +17,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 
+	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
@@ -105,36 +106,46 @@ func triggerReconcile() {
 
 var domainFailures map[string]time.Time
 
-var productCache = struct {
+type productCacheEntry[Support any] struct {
 	sync.Mutex
-	Support     []orcapi.IngressSupport
+	Support     []Support
 	RefreshedAt time.Time
-}{}
+}
 
-func ingressProducts(client *rpc.Client, token string) ([]orcapi.IngressSupport, bool) {
-	productCache.Lock()
-	defer productCache.Unlock()
+var ingressProductCache productCacheEntry[orcapi.IngressSupport]
+var serviceProductCache productCacheEntry[orcapi.ServiceSupport]
 
-	if time.Since(productCache.RefreshedAt) < productCacheInterval {
-		return productCache.Support, true
+func cachedProducts[Support any](
+	cache *productCacheEntry[Support],
+	fetch func() ([]Support, *util.HttpError),
+) ([]Support, bool) {
+	cache.Lock()
+	defer cache.Unlock()
+
+	if time.Since(cache.RefreshedAt) < productCacheInterval {
+		return cache.Support, true
 	}
 
-	support, herr := ucxapi.StackGrantIngressProducts.InvokeEx(client, ucxapi.StackGrantIngressProductsRequest{
-		StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
-	}, rpc.InvokeOpts{})
+	support, herr := fetch()
 	if herr != nil {
 		return nil, false
 	}
 
-	productCache.Support = support
-	productCache.RefreshedAt = time.Now()
+	cache.Support = support
+	cache.RefreshedAt = time.Now()
 	return support, true
 }
+
+const ingressServiceName = "k8s-ingress"
 
 func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Client, token string) {
 	auth := ucxapi.StackGrantAuth{Token: token}
 
-	support, ok := ingressProducts(client, token)
+	support, ok := cachedProducts(&ingressProductCache, func() ([]orcapi.IngressSupport, *util.HttpError) {
+		return ucxapi.StackGrantIngressProducts.InvokeEx(client, ucxapi.StackGrantIngressProductsRequest{
+			StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
+		}, rpc.InvokeOpts{})
+	})
 	if !ok {
 		log.Warn("k8s controller: could not retrieve the public link products")
 		return
@@ -163,6 +174,13 @@ func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Clien
 		log.Warn("k8s controller: could not list the cluster ingresses: %s", err)
 		return
 	}
+
+	service, serviceOk := ensureIngressService(client, token)
+	if !serviceOk {
+		return
+	}
+
+	syncServiceMembers(client, token, service)
 
 	now := time.Now()
 	nextFailures := map[string]time.Time{}
@@ -193,6 +211,10 @@ func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Clien
 			StackGrantAuth: auth,
 			Items: []orcapi.IngressSpecification{{
 				Domain: domain,
+				Target: util.OptValue(orcapi.PublicLinkServiceTarget{
+					ServiceId: service.Id,
+					Port:      "http",
+				}),
 				ResourceSpecification: orcapi.ResourceSpecification{
 					Product: support[matched].Product,
 				},
@@ -208,6 +230,188 @@ func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Clien
 	}
 
 	domainFailures = nextFailures
+
+	hostSet := map[string]util.Empty{}
+	for _, host := range hosts {
+		hostSet[strings.ToLower(host)] = util.Empty{}
+	}
+
+	collectOrphanedLinks(client, token, service, owned, hostSet)
+}
+
+func ensureIngressService(client *rpc.Client, token string) (orcapi.Service, bool) {
+	services, herr := ucxapi.StackGrantBrowseServices.InvokeEx(client, ucxapi.StackGrantBrowseServicesRequest{
+		StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
+	}, rpc.InvokeOpts{})
+	if herr != nil {
+		log.Warn("k8s controller: could not browse the stack services: %s", herr)
+		return orcapi.Service{}, false
+	}
+
+	for _, service := range services {
+		if service.Specification.Name == ingressServiceName {
+			return service, true
+		}
+	}
+
+	products, ok := cachedProducts(&serviceProductCache, func() ([]orcapi.ServiceSupport, *util.HttpError) {
+		return ucxapi.StackGrantServiceProducts.InvokeEx(client, ucxapi.StackGrantServiceProductsRequest{
+			StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
+		}, rpc.InvokeOpts{})
+	})
+	if !ok {
+		log.Warn("k8s controller: could not retrieve the service products")
+		return orcapi.Service{}, false
+	}
+
+	if len(products) == 0 {
+		log.Warn("k8s controller: the provider has no service products")
+		return orcapi.Service{}, false
+	}
+
+	networkId := ""
+	for _, service := range services {
+		if endpoint := service.Specification.InternalEndpoint; endpoint.Present {
+			networkId = endpoint.Value.PrivateNetworkId
+			break
+		}
+	}
+
+	if networkId == "" {
+		log.Warn("k8s controller: could not determine the private network of the stack")
+		return orcapi.Service{}, false
+	}
+
+	spec := orcapi.ServiceSpecification{
+		Name: ingressServiceName,
+		Ports: []orcapi.ServicePort{{
+			Name:                "http",
+			Port:                shared.IngressNodePort,
+			Protocol:            orcapi.ServicePortProtocolTcp,
+			ApplicationProtocol: util.OptValue("HTTP"),
+			HealthCheck: util.OptValue(orcapi.ServiceHealthCheck{
+				Type:               orcapi.ServiceHealthCheckTypeTcp,
+				IntervalSeconds:    5,
+				TimeoutSeconds:     2,
+				HealthyThreshold:   2,
+				UnhealthyThreshold: 2,
+			}),
+		}},
+		InternalEndpoint: util.OptValue(orcapi.ServiceInternalEndpointSpec{
+			PrivateNetworkId: networkId,
+		}),
+		ResourceSpecification: orcapi.ResourceSpecification{
+			Product: products[0].Product,
+		},
+	}
+
+	response, herr := ucxapi.StackGrantCreateService.InvokeEx(client, ucxapi.StackGrantCreateRequest[orcapi.ServiceSpecification]{
+		StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
+		Items:          []orcapi.ServiceSpecification{spec},
+	}, rpc.InvokeOpts{})
+	if herr != nil {
+		log.Warn("k8s controller: could not create the ingress service: %s", herr)
+		return orcapi.Service{}, false
+	}
+
+	if len(response.Responses) == 0 {
+		log.Warn("k8s controller: the ingress service creation returned no id")
+		return orcapi.Service{}, false
+	}
+
+	return orcapi.Service{Resource: orcapi.Resource{Id: response.Responses[0].Id}}, true
+}
+
+func syncServiceMembers(client *rpc.Client, token string, service orcapi.Service) {
+	jobs, herr := ucxapi.StackGrantBrowseJobs.InvokeEx(client, ucxapi.StackGrantBrowseJobsRequest{
+		StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
+	}, rpc.InvokeOpts{})
+	if herr != nil {
+		log.Warn("k8s controller: could not browse the stack jobs: %s", herr)
+		return
+	}
+
+	desired := []string{}
+	for _, job := range jobs {
+		isControlPlane := job.Specification.Labels[shared.StackGroupingLabel] == shared.GroupControlPlane
+		if isControlPlane && !job.Status.State.IsFinal() {
+			if !slices.Contains(desired, job.Id) {
+				desired = append(desired, job.Id)
+			}
+		}
+	}
+
+	adding := []string{}
+	for _, jobId := range desired {
+		if !slices.Contains(service.Status.Members, jobId) {
+			adding = append(adding, jobId)
+		}
+	}
+
+	removing := []string{}
+	for _, jobId := range service.Status.Members {
+		if !slices.Contains(desired, jobId) {
+			removing = append(removing, jobId)
+		}
+	}
+
+	if len(adding) == 0 && len(removing) == 0 {
+		return
+	}
+
+	_, herr = ucxapi.StackGrantServiceUpdateMembers.InvokeEx(client, ucxapi.StackGrantServiceUpdateMembersRequest{
+		StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
+		Id:             service.Id,
+		AddedJobIds:    adding,
+		RemovedJobIds:  removing,
+	}, rpc.InvokeOpts{})
+	if herr != nil {
+		log.Warn("k8s controller: could not update the ingress service members: %s", herr)
+		return
+	}
+
+	log.Info("k8s controller: updated the ingress service members (+%d/-%d)", len(adding), len(removing))
+}
+
+func collectOrphanedLinks(
+	client *rpc.Client,
+	token string,
+	service orcapi.Service,
+	owned []orcapi.Ingress,
+	hostSet map[string]util.Empty,
+) {
+	orphaned := []string{}
+	for _, ingress := range owned {
+		target := ingress.Specification.Target
+		targetsOurService := target.Present && target.Value.ServiceId == service.Id
+		if !targetsOurService {
+			continue
+		}
+
+		if _, stillPresent := hostSet[ingress.Specification.Domain]; stillPresent {
+			continue
+		}
+
+		orphaned = append(orphaned, ingress.Id)
+	}
+
+	if len(orphaned) == 0 {
+		return
+	}
+
+	_, herr := ucxapi.StackGrantDeleteIngress.InvokeEx(client, ucxapi.StackGrantDeleteIngressRequest{
+		StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
+		ServiceId:      service.Id,
+		IngressIds:     orphaned,
+	}, rpc.InvokeOpts{})
+	if herr != nil {
+		log.Warn("k8s controller: could not delete the orphaned public links: %s", herr)
+		return
+	}
+
+	for _, id := range orphaned {
+		log.Info("k8s controller: deleted the orphaned public link %s", id)
+	}
 }
 
 func collectIngressHosts(ctx context.Context, k8s *kubernetes.Clientset) ([]string, error) {

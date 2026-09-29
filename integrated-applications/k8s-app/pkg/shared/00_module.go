@@ -54,9 +54,10 @@ const (
 )
 
 const (
-	ApiPort      = 6443
-	HeadlampPort = 30500
-	customUiPort = 43102
+	ApiPort         = 6443
+	HeadlampPort    = 30500
+	IngressNodePort = 30080
+	customUiPort    = 43102
 )
 
 const clusterRecordSchemaRevision = 2
@@ -76,7 +77,7 @@ const (
 	clusterRecordPhaseError        = "error"
 )
 
-const ScriptBundleRevision = 9
+const ScriptBundleRevision = 10
 
 func BundlePathForRelease(release K3sRelease) string {
 	return filepath.Join("bundles", strconv.Itoa(ScriptBundleRevision), SanitizeForPath(release.Release))

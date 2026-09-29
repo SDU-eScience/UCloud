@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"database/sql"
 	"net/http"
+	"slices"
 	"strings"
 
 	cfg "ucloud.dk/pkg/config"
@@ -199,6 +200,11 @@ func stackGrantInitServer() {
 	stackGrantCreateServer(ucxapi.StackGrantCreateJob, orc.JobsControlCreate,
 		func(s *orc.JobSpecification, labels map[string]string) { s.Labels = util.MapMerge(s.Labels, labels) },
 	)
+	stackGrantCreateServer(ucxapi.StackGrantCreateService, orc.ServicesControlCreate,
+		func(s *orc.ServiceSpecification, labels map[string]string) {
+			s.Labels = util.MapMerge(s.Labels, labels)
+		},
+	)
 
 	ucxapi.StackGrantBrowseIngresses.Handler(func(info rpc.RequestInfo, request ucxapi.StackGrantBrowseIngressesRequest) ([]orc.Ingress, *util.HttpError) {
 		job, err := stackGrantTokenAuthenticate(request.Token)
@@ -206,40 +212,25 @@ func stackGrantInitServer() {
 			return nil, err
 		}
 
-		stackInstance := job.Specification.Labels[orc.ResourceLabelStackInstance]
-		flags := orc.ResourceFlags{
-			FilterLabels: map[string]string{
-				orc.ResourceLabelStackInstance: stackInstance,
-			},
+		return stackGrantBrowseIngresses(job)
+	})
+
+	ucxapi.StackGrantBrowseServices.Handler(func(info rpc.RequestInfo, request ucxapi.StackGrantBrowseServicesRequest) ([]orc.Service, *util.HttpError) {
+		job, err := stackGrantTokenAuthenticate(request.Token)
+		if err != nil {
+			return nil, err
 		}
 
-		result := []orc.Ingress{}
-		next := util.OptNone[string]()
-		for {
-			page, invokeErr := orc.IngressesControlBrowse.Invoke(orc.IngressesControlBrowseRequest{
-				ItemsPerPage: 250,
-				Next:         next,
-				IngressFlags: orc.IngressFlags{ResourceFlags: flags},
-			})
-			if invokeErr != nil {
-				return nil, invokeErr
-			}
+		return stackGrantBrowseServices(job)
+	})
 
-			for _, ingress := range page.Items {
-				sameOwner := ingress.Owner.CreatedBy == job.Owner.CreatedBy &&
-					ingress.Owner.Project.Value == job.Owner.Project.Value
-				if sameOwner {
-					result = append(result, ingress)
-				}
-			}
-
-			next = page.Next
-			if !next.Present || len(page.Items) == 0 {
-				break
-			}
+	ucxapi.StackGrantBrowseJobs.Handler(func(info rpc.RequestInfo, request ucxapi.StackGrantBrowseJobsRequest) ([]orc.Job, *util.HttpError) {
+		job, err := stackGrantTokenAuthenticate(request.Token)
+		if err != nil {
+			return nil, err
 		}
 
-		return result, nil
+		return stackGrantBrowseJobs(job)
 	})
 
 	ucxapi.StackGrantIngressProducts.Handler(func(info rpc.RequestInfo, request ucxapi.StackGrantIngressProductsRequest) ([]orc.IngressSupport, *util.HttpError) {
@@ -250,6 +241,164 @@ func stackGrantInitServer() {
 
 		return shared.LinkSupport, nil
 	})
+
+	ucxapi.StackGrantServiceProducts.Handler(func(info rpc.RequestInfo, request ucxapi.StackGrantServiceProductsRequest) ([]orc.ServiceSupport, *util.HttpError) {
+		_, err := stackGrantTokenAuthenticate(request.Token)
+		if err != nil {
+			return nil, err
+		}
+
+		return shared.ServiceSupport, nil
+	})
+
+	ucxapi.StackGrantServiceUpdateMembers.Handler(func(info rpc.RequestInfo, request ucxapi.StackGrantServiceUpdateMembersRequest) (util.Empty, *util.HttpError) {
+		job, err := stackGrantTokenAuthenticate(request.Token)
+		if err != nil {
+			return util.Empty{}, err
+		}
+
+		_, invokeErr := orc.ServicesControlUpdateMembers.Invoke(orc.ServicesControlUpdateMembersRequest{
+			JobId:         job.Id,
+			Id:            request.Id,
+			AddedJobIds:   request.AddedJobIds,
+			RemovedJobIds: request.RemovedJobIds,
+		})
+		if invokeErr != nil {
+			return util.Empty{}, invokeErr
+		}
+
+		return util.Empty{}, nil
+	})
+
+	ucxapi.StackGrantDeleteIngress.Handler(func(info rpc.RequestInfo, request ucxapi.StackGrantDeleteIngressRequest) (util.Empty, *util.HttpError) {
+		job, err := stackGrantTokenAuthenticate(request.Token)
+		if err != nil {
+			return util.Empty{}, err
+		}
+
+		services, servicesErr := stackGrantBrowseServices(job)
+		if servicesErr != nil {
+			return util.Empty{}, servicesErr
+		}
+
+		if !slices.ContainsFunc(services, func(svc orc.Service) bool { return svc.Id == request.ServiceId }) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "the service does not belong to the stack")
+		}
+
+		ingresses, ingressesErr := stackGrantBrowseIngresses(job)
+		if ingressesErr != nil {
+			return util.Empty{}, ingressesErr
+		}
+
+		ids := []string{}
+		for _, ingress := range ingresses {
+			target := ingress.Specification.Target
+			targetsOurService := target.Present && target.Value.ServiceId == request.ServiceId
+			if targetsOurService && slices.Contains(request.IngressIds, ingress.Id) {
+				ids = append(ids, ingress.Id)
+			}
+		}
+
+		if len(ids) != len(request.IngressIds) {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "one or more public links do not target the service")
+		}
+
+		_, invokeErr := orc.IngressesControlDelete.Invoke(orc.IngressesControlDeleteRequest{
+			JobId:      job.Id,
+			IngressIds: ids,
+		})
+		if invokeErr != nil {
+			return util.Empty{}, invokeErr
+		}
+
+		return util.Empty{}, nil
+	})
+}
+
+func stackGrantBrowseIngresses(job *orc.Job) ([]orc.Ingress, *util.HttpError) {
+	return stackGrantBrowseStack(
+		job,
+		func(next util.Option[string], flags orc.ResourceFlags) (fnd.PageV2[orc.Ingress], *util.HttpError) {
+			return orc.IngressesControlBrowse.Invoke(orc.IngressesControlBrowseRequest{
+				ItemsPerPage: 250,
+				Next:         next,
+				IngressFlags: orc.IngressFlags{ResourceFlags: flags},
+			})
+		},
+		func(item orc.Ingress) orc.ResourceOwner {
+			return item.Owner
+		},
+	)
+}
+
+func stackGrantBrowseServices(job *orc.Job) ([]orc.Service, *util.HttpError) {
+	return stackGrantBrowseStack(
+		job,
+		func(next util.Option[string], flags orc.ResourceFlags) (fnd.PageV2[orc.Service], *util.HttpError) {
+			return orc.ServicesControlBrowse.Invoke(orc.ServicesControlBrowseRequest{
+				ItemsPerPage: 250,
+				Next:         next,
+				ServiceFlags: orc.ServiceFlags{ResourceFlags: flags},
+			})
+		},
+		func(item orc.Service) orc.ResourceOwner {
+			return item.Owner
+		},
+	)
+}
+
+func stackGrantBrowseJobs(job *orc.Job) ([]orc.Job, *util.HttpError) {
+	return stackGrantBrowseStack(
+		job,
+		func(next util.Option[string], flags orc.ResourceFlags) (fnd.PageV2[orc.Job], *util.HttpError) {
+			return orc.JobsControlBrowse.Invoke(orc.JobsControlBrowseRequest{
+				ItemsPerPage: 250,
+				Next:         next,
+				JobFlags:     orc.JobFlags{ResourceFlags: flags},
+			})
+		},
+		func(item orc.Job) orc.ResourceOwner {
+			return item.Owner
+		},
+	)
+}
+
+func stackGrantBrowseStack[Resc any](
+	job *orc.Job,
+	browsePage func(next util.Option[string], flags orc.ResourceFlags) (fnd.PageV2[Resc], *util.HttpError),
+	ownerOf func(Resc) orc.ResourceOwner,
+) ([]Resc, *util.HttpError) {
+	stackInstance := job.Specification.Labels[orc.ResourceLabelStackInstance]
+	flags := orc.ResourceFlags{
+		FilterLabels: map[string]string{
+			orc.ResourceLabelStackInstance: stackInstance,
+		},
+	}
+
+	result := []Resc{}
+	next := util.OptNone[string]()
+	for {
+		page, invokeErr := browsePage(next, flags)
+		if invokeErr != nil {
+			return nil, invokeErr
+		}
+
+		for _, item := range page.Items {
+			owner := ownerOf(item)
+			sameOwner := owner.CreatedBy == job.Owner.CreatedBy &&
+				owner.Project.Value == job.Owner.Project.Value
+			if sameOwner {
+				result = append(result, item)
+			}
+		}
+
+		next = page.Next
+		if !next.Present || len(page.Items) == 0 {
+			break
+		}
+	}
+
+	return result, nil
 }
 
 func stackGrantCreateServer[Spec any](

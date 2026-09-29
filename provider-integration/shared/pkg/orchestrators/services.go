@@ -268,6 +268,22 @@ var ServicesControlUpdateLabels = rpc.Call[fnd.BulkRequest[ServicesUpdateLabelsR
 	Operation:   "updateLabels",
 }
 
+var ServicesControlCreate = ControlCreateCall[ServiceSpecification, fnd.BulkResponse[fnd.FindByStringId]](serviceControlNamespace)
+
+type ServicesControlUpdateMembersRequest struct {
+	JobId         string   `json:"jobId"`
+	Id            string   `json:"id"`
+	AddedJobIds   []string `json:"addedJobIds"`
+	RemovedJobIds []string `json:"removedJobIds"`
+}
+
+var ServicesControlUpdateMembers = rpc.Call[ServicesControlUpdateMembersRequest, util.Empty]{
+	BaseContext: serviceControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "updateMembers",
+}
+
 // Service Provider API
 // =====================================================================================================================
 
