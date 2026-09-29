@@ -1497,13 +1497,15 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
     }
     
     ${k} {
-        --browserActiveRow: var(--gray-10);
-        --browserHoverRow: var(--gray-5);
+        --browserActiveRow: var(--blue-10);
+        --browserHoverRow: var(--blue-5);
+        --tableBackground: var(--gray-5);
     }
     
     html.dark ${k} {
         --browserActiveRow: var(--blue-90);
         --browserHoverRow: var(--blue-80);
+        --tableBackground: #282c34;
     }
 
     ${k} tr[data-highlight="true"]:hover {
