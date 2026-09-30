@@ -1,5 +1,5 @@
 import {useD3} from "@/Utilities/d3";
-import {scaleBand, scaleLinear, scaleOrdinal} from "d3-scale";
+import {scaleBand, scaleLinear} from "d3-scale";
 import {group, max, min, union} from "d3-array";
 import {stack} from "d3-shape";
 import {select} from "d3-selection";
@@ -7,10 +7,10 @@ import {timeFormat} from "d3-time-format";
 import {axisBottom, axisLeft} from "d3-axis";
 import {UsageReport} from "@/Accounting/UsageCore2";
 import React, {useMemo, useState} from "react";
-import {ChartLabel, colorNames} from "@/Accounting/Diagrams/index";
+import {ChartLabel} from "@/Accounting/Diagrams/index";
 import {HTMLTooltipEx} from "@/ui-components/Tooltip";
 import {balanceToStringFromUnit, FrontendAccountingUnit} from "@/Accounting";
-import {truncateText} from "@/ui-components/Truncate";
+import {TruncateClass} from "@/ui-components/Truncate";
 
 export interface AbsoluteOverTimeChart {
     chartRef: React.RefObject<SVGSVGElement | null>
@@ -165,7 +165,8 @@ export function useAbsoluteOverTimeChart(
 
                 {
                     const name = document.createElement("div");
-                    name.append(truncateText(childToLabel(child), 30));
+                    name.className = TruncateClass;
+                    name.append(childToLabel(child));
                     name.style.flexGrow = "1";
                     container.append(name);
                 }

@@ -28,7 +28,6 @@ import {useBreakdownChart} from "@/Accounting/Diagrams/UsageBreakdown";
 import {useUtilizationOverTimeChart} from "@/Accounting/Diagrams/UtilizationOverTime";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
-import {formatNumber} from "@/Utilities/NumberFormatting";
 import {exportUsage} from "@/Accounting/Usage";
 import {useUsageOverTimeChart} from "@/Accounting/Diagrams/UsageOverTime";
 import {useAbsoluteOverTimeChart} from "@/Accounting/Diagrams/AbsoluteOverTime";
@@ -281,7 +280,7 @@ const UsagePage: React.FunctionComponent = () => {
     let utilizationChartWidth = utilizationOnSingleRow ? fullChartWidth - 400 : fullChartWidth;
     const utilizationChartHeight = chartHeight(utilizationChartWidth, 16 / 6);
 
-    let usageChartWidth = fullChartWidth;
+    const usageChartWidth = fullChartWidth;
     const usageChartHeight = chartHeight(usageChartWidth, 16 / 6);
 
     const childProjectIds: string[] = useMemo(() => {
@@ -355,7 +354,7 @@ const UsagePage: React.FunctionComponent = () => {
             }
         }
 
-        return makeColorMap([...children].sort());
+        return makeColorMap([...children]);
     }, [state.openReport]);
 
     const unit = useMemo(() => {

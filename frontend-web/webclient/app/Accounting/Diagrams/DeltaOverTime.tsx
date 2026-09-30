@@ -1,5 +1,5 @@
 import {useD3} from "@/Utilities/d3";
-import {scaleBand, scaleLinear, scaleOrdinal} from "d3-scale";
+import {scaleBand, scaleLinear} from "d3-scale";
 import {group, max, min, union} from "d3-array";
 import {stack} from "d3-shape";
 import {select} from "d3-selection";
@@ -7,10 +7,10 @@ import {timeFormat} from "d3-time-format";
 import {axisBottom, axisLeft} from "d3-axis";
 import {UsageReport} from "@/Accounting/UsageCore2";
 import React, {useMemo, useState} from "react";
-import {ChartLabel, colorNames} from "@/Accounting/Diagrams/index";
+import {ChartLabel} from "@/Accounting/Diagrams/index";
 import {HTMLTooltipEx} from "@/ui-components/Tooltip";
 import {balanceToStringFromUnit, FrontendAccountingUnit, isCreditUnit} from "@/Accounting";
-import {truncateText} from "@/ui-components/Truncate";
+import {TruncateClass} from "@/ui-components/Truncate";
 
 export interface DeltaOverTimeChart {
     chartRef: React.RefObject<SVGSVGElement | null>
@@ -71,39 +71,34 @@ export function useDeltaOverTimeChart(
         // -------------------------------------------------------------------------------------------------------------
         const tsFormatter = timeFormat("%b %d %H:%M");
 
-        const domainSet = new Map<string, number>();
+        // Only positive changes are charted. Products which can report negative usage should not
+        // render this chart, so this is a defensive clamp rather than a data transformation.
+        const positiveChange = (change: number) => Math.max(0, change);
+
+        const sumPositiveChange = (entries: {change: number}[] | undefined) =>
+            (entries ?? []).reduce((sum, d) => sum + positiveChange(d.change), 0);
+
+        const domainSet: Record<string, number> = {};
         for (const point of data) {
             const key = point.child ?? "";
 
-            domainSet.set(
-                key,
-                (domainSet.get(key) ?? 0) + point.change
-            );
+            domainSet[key] = (domainSet[key] ?? 0) + positiveChange(point.change);
         }
 
-        const domain = Array.from(domainSet.keys()).sort((a, b) =>
-            (domainSet.get(b) ?? 0) - (domainSet.get(a) ?? 0)
-        );
+        const domain = Object.keys(domainSet)
+            .filter(key => domainSet[key] > 0)
+            .sort((a, b) => domainSet[b] - domainSet[a]);
+
 
         const byTimestampKey = group(data, d => d.timestamp, d => d.child ?? "");
 
-        // Split stack into positive and negative
         const keys = (union(data.map(it => it.child ?? "")))
 
         const valueStack = stack<number>()
             .keys(keys)
-            .value((ts, key) => {
-                const entries =
-                    byTimestampKey
-                        .get(ts)
-                        ?.get(key) ?? [];
-
-                return entries.reduce(
-                    (sum, d) => sum + Math.max(0, d.change),
-                    0
-                );
-            });
-
+            .value((ts, key) =>
+                sumPositiveChange(byTimestampKey.get(ts)?.get(key))
+            );
 
         const series = valueStack(timestamps);
 
@@ -149,17 +144,15 @@ export function useDeltaOverTimeChart(
 
                 {
                     const name = document.createElement("div");
-                    name.append(truncateText(childToLabel(child), 30));
+                    name.className = TruncateClass
+                    name.append(childToLabel(child));
                     name.style.flexGrow = "1";
                     container.append(name);
                 }
 
                 {
                     const node = document.createElement("div");
-                    const change = usageBucket.get(child)?.reduce(
-                        (sum, d) => sum + d.change,
-                        0
-                    ) ?? 0;
+                    const change = sumPositiveChange(usageBucket.get(child));
                     node.append(balanceToStringFromUnit(null, unitName, change * unitNormalizationFactor));
 
                     container.append(node);

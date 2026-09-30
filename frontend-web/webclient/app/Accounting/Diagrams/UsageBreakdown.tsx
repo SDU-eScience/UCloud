@@ -1,7 +1,7 @@
 import * as React from "react";
 import {UsageReport} from "@/Accounting/UsageCore2";
-import {colorNames, contrastColorNames} from "@/Accounting/Diagrams/index";
-import {useMemo, useState} from "react";
+import {contrastColorNames} from "@/Accounting/Diagrams/index";
+import {useMemo} from "react";
 import {useD3} from "@/Utilities/d3";
 import {scaleOrdinal} from "d3-scale";
 import {select} from "d3-selection";

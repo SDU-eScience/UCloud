@@ -1390,6 +1390,12 @@ func usageSampleEx(now time.Time, bucketFilter func(cat accapi.ProductCategory) 
 		}
 	}
 
+	for _, report := range reportGlobals.Reports {
+		if report.Dirty {
+			lUsagePersistReport(report, batch)
+		}
+	}
+
 	for _, b := range buckets {
 		b.Mu.Unlock()
 	}
@@ -1618,7 +1624,6 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 				Usage:     usage,
 				Child:     util.OptValue(currWallet.Id),
 			})
-		parentReport.Dirty = true
 
 		if delta != 0 {
 			parentReport.UsageOverTime.Delta = append(
@@ -1642,9 +1647,5 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 		case internalGroupHealthAtRisk:
 			parentReport.SubProjectHealth.AtRisk++
 		}
-	}
-
-	if report.Dirty {
-		lUsagePersistReport(report, b)
 	}
 }

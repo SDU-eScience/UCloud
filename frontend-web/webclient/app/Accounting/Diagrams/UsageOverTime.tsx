@@ -1,13 +1,13 @@
 import {useD3} from "@/Utilities/d3";
-import {scaleBand, scaleLinear, scaleOrdinal, scaleTime} from "d3-scale";
+import {scaleLinear, scaleOrdinal, scaleTime} from "d3-scale";
 import {line} from "d3-shape";
 import {pointer, select} from "d3-selection";
 import {timeFormat} from "d3-time-format";
 import {axisBottom, axisLeft} from "d3-axis";
-import {UsageReport, UsageReportAbsoluteDataPoint} from "@/Accounting/UsageCore2";
-import React, {useId, useMemo, useState} from "react";
+import {UsageReport} from "@/Accounting/UsageCore2";
+import React, {useId, useMemo} from "react";
 import {colorNames} from "@/Accounting/Diagrams/index";
-import {axisRight, Selection} from "d3";
+import {Selection} from "d3";
 import {balanceToStringFromUnit, FrontendAccountingUnit} from "@/Accounting";
 import {HTMLTooltipEx} from "@/ui-components/Tooltip";
 
@@ -326,13 +326,10 @@ export function useUsageOverTimeChart(
         overlay.on("mouseleave", tooltipListeners.leaveListener);
     }, [openReport, chartWidth, chartHeight, labelFormatter]);
 
-    // noinspection UnnecessaryLocalVariableJS
-    const result: UsageOverTimeChart = useMemo(() => {
+    return useMemo(() => {
         return {
             chartRef: chart,
             rows: tableRows,
         }
     }, [chart, tableRows]);
-
-    return result;
 }
