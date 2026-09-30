@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"sort"
 	"strings"
 	"time"
 
@@ -232,11 +231,8 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 		ucx.Text(fmt.Sprintf("Node: %s", nodeName)),
 	}
 
-	if hasOperation {
-		content = append(content, maintenanceStatusNodes(operation)...)
-		if !operationMatchesTarget {
-			content = append(content, ucx.Text("The recorded operation belongs to an earlier node identity. New maintenance will target the live node you selected."))
-		}
+	if hasOperation && operation.Error != "" {
+		content = append(content, ucx.Text(fmt.Sprintf("Error: %s", operation.Error)).Sx(ucx.SxColor(ucx.ColorErrorMain)))
 	}
 
 	if mutationsBlocked {
@@ -319,42 +315,6 @@ func (app *stackUiApp) nodeIsCordoned(nodeName string) bool {
 	}
 	row, ok := app.poller.nodeRowForKey(rowKey)
 	return ok && len(row.Cells) > 2 && row.Cells[2] == "Cordoned"
-}
-
-func maintenanceStatusNodes(operation maintenance.MaintenanceOperation) []ucx.UiNode {
-	nodes := []ucx.UiNode{
-		ucx.Text(fmt.Sprintf("Phase: %s", operation.Phase)),
-	}
-
-	if operation.Error != "" {
-		nodes = append(nodes, ucx.Text(fmt.Sprintf("Error: %s", operation.Error)).Sx(ucx.SxColor(ucx.ColorErrorMain)))
-	}
-
-	pods := append([]string(nil), operation.RemainingPods...)
-	sort.Strings(pods)
-	if len(pods) > 0 {
-		nodes = append(nodes, ucx.Text(fmt.Sprintf(
-			"Remaining pods (%d): %s",
-			len(pods),
-			strings.Join(pods, ", "),
-		)))
-	}
-
-	if !operation.Deadline.IsZero() {
-		nodes = append(nodes, ucx.Text(fmt.Sprintf("Deadline: %s", operation.Deadline.UTC().Format(time.RFC3339))))
-	}
-
-	if operation.CancelRequested {
-		nodes = append(nodes, ucx.Text("Cancellation was requested."))
-	}
-
-	if operation.HostTerminationUnverified {
-		nodes = append(nodes, ucx.Text(
-			"Zero-grace pod deletion was requested on this node. Even successful API deletion does not confirm that containers stopped. Check the host before assuming its workloads are gone.",
-		).Sx(ucx.SxColor(ucx.ColorWarningMain)))
-	}
-
-	return nodes
 }
 
 func maintenanceDrainForm(app *stackUiApp, mode string, nodeName string, nodeUid string) ucx.UiNode {

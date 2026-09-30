@@ -543,10 +543,6 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 
 	for i := range rows {
 		rows[i].Actions = resourceRowActions(selection.def, rows[i], p.nodeJobIds, maintenanceSnapshot, maintenanceUnavailable)
-		if isNodes && !strings.HasPrefix(rows[i].Key, provisioningRowKeyPrefix) && len(rows[i].Cells) > 3 {
-			operation, knownRecorded := maintenanceSnapshot[rows[i].Cells[0]]
-			rows[i].Cells[3] = maintenanceCellForOperation(operation, knownRecorded)
-		}
 	}
 
 	rowByKey := make(map[string]ResourceRow, len(rows))
@@ -782,7 +778,6 @@ func resourceRowActions(
 			})
 		}
 	case phaseActive:
-		actions = append(actions, ucx.TableRowAction{Id: "viewMaintenance", Enabled: true})
 		if nodeCordoned {
 			actions = append(actions, ucx.TableRowAction{
 				Id:             "uncordon",
@@ -805,25 +800,6 @@ var (
 	cordonDrainEnabled = ucx.TableRowAction{Id: "cordonDrain", Enabled: true}
 	uncordonEnabled    = ucx.TableRowAction{Id: "uncordon", Enabled: true}
 )
-
-func maintenanceCellForOperation(operation maintenance.MaintenanceOperation, present bool) string {
-	if !present {
-		return ""
-	}
-	switch operation.Kind {
-	case maintenance.MaintenanceKindUncordon:
-		if maintenance.MaintenancePhaseActive(operation.Phase) {
-			return "Uncordoning"
-		}
-		return ""
-	case maintenance.MaintenanceKindCordon:
-		if maintenance.MaintenancePhaseActive(operation.Phase) {
-			return "Cordoning"
-		}
-		return ""
-	}
-	return operation.Phase
-}
 
 func (p *resourcePoller) nodeUidForRowName(nodeName string) (string, bool) {
 	p.mu.Lock()

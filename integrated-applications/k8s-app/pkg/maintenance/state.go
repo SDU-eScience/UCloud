@@ -61,19 +61,17 @@ type MaintenanceOptions struct {
 }
 
 type MaintenanceOperation struct {
-	NodeName                  string
-	NodeUid                   string
-	Kind                      string
-	Phase                     string
-	Options                   MaintenanceOptions
-	OriginalUnschedulable     bool
-	StartedAt                 time.Time
-	UpdatedAt                 time.Time
-	Deadline                  time.Time
-	RemainingPods             []string
-	Error                     string
-	CancelRequested           bool
-	HostTerminationUnverified bool `json:"hostTerminationUnverified"`
+	NodeName              string
+	NodeUid               string
+	Kind                  string
+	Phase                 string
+	Options               MaintenanceOptions
+	OriginalUnschedulable bool
+	StartedAt             time.Time
+	UpdatedAt             time.Time
+	Deadline              time.Time
+	Error                 string
+	CancelRequested       bool
 }
 
 type maintenanceRecord struct {
@@ -104,7 +102,6 @@ func MaintenanceSnapshot() (map[string]MaintenanceOperation, error) {
 
 	snapshot := make(map[string]MaintenanceOperation, len(record.Operations))
 	for name, operation := range record.Operations {
-		operation.RemainingPods = append([]string(nil), operation.RemainingPods...)
 		snapshot[name] = operation
 	}
 	return snapshot, nil
@@ -151,15 +148,14 @@ func maintenanceSubmit(nodeName string, nodeUid string, options MaintenanceOptio
 
 	now := time.Now().UTC()
 	operations[nodeName] = MaintenanceOperation{
-		NodeName:                  nodeName,
-		NodeUid:                   nodeUid,
-		Kind:                      kind,
-		Phase:                     maintenancePhaseRequested,
-		Options:                   options,
-		StartedAt:                 now,
-		UpdatedAt:                 now,
-		Deadline:                  now.Add(time.Duration(options.TimeoutSeconds) * time.Second),
-		HostTerminationUnverified: existing.HostTerminationUnverified,
+		NodeName:  nodeName,
+		NodeUid:   nodeUid,
+		Kind:      kind,
+		Phase:     maintenancePhaseRequested,
+		Options:   options,
+		StartedAt: now,
+		UpdatedAt: now,
+		Deadline:  now.Add(time.Duration(options.TimeoutSeconds) * time.Second),
 	}
 
 	if err := maintenanceWriteStore(operations); err != nil {
@@ -200,14 +196,13 @@ func MaintenanceUncordon(nodeName string, nodeUid string) error {
 
 	now := time.Now().UTC()
 	operations[nodeName] = MaintenanceOperation{
-		NodeName:                  nodeName,
-		NodeUid:                   nodeUid,
-		Kind:                      maintenanceKindUncordon,
-		Phase:                     maintenancePhaseRequested,
-		StartedAt:                 now,
-		UpdatedAt:                 now,
-		Deadline:                  now.Add(maintenanceUncordonTimeout),
-		HostTerminationUnverified: existing.HostTerminationUnverified,
+		NodeName:  nodeName,
+		NodeUid:   nodeUid,
+		Kind:      maintenanceKindUncordon,
+		Phase:     maintenancePhaseRequested,
+		StartedAt: now,
+		UpdatedAt: now,
+		Deadline:  now.Add(maintenanceUncordonTimeout),
 	}
 
 	if err := maintenanceWriteStore(operations); err != nil {

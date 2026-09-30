@@ -767,11 +767,6 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 					Label: "Uncordon",
 					Icon:  ucx.IconRefresh,
 				},
-				ucx.ResourceTableAction{
-					Id:    "viewMaintenance",
-					Label: "Maintenance",
-					Icon:  ucx.IconEye,
-				},
 			)
 			trailingAction = &ucx.ResourceTableAction{
 				Id:       "addWorkerPool",
@@ -1075,7 +1070,7 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 		return
 	}
 
-	if actionId != "goToJob" && actionId != "cordonDrain" && actionId != "uncordon" && actionId != "viewMaintenance" {
+	if actionId != "goToJob" && actionId != "cordonDrain" && actionId != "uncordon" {
 		return
 	}
 
@@ -1089,7 +1084,7 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 	}
 
 	switch actionId {
-	case "cordonDrain", "viewMaintenance":
+	case "cordonDrain":
 		if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
 			return
 		}
@@ -1658,7 +1653,7 @@ func (app *stackUiApp) handleTableAction(ev ucx.UiEvent) {
 	}
 
 	switch actionId {
-	case "cordonDrain", "uncordon", "viewMaintenance":
+	case "cordonDrain", "uncordon":
 		ucxsvc.UiSendFailure(app, "Select a single node before using this action")
 	case "addMachine":
 		if group == "" {

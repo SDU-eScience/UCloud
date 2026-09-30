@@ -511,14 +511,6 @@ func maintenanceDrainNode(ctx context.Context, clientset *kubernetes.Clientset, 
 
 		blockers, deletable, terminating := maintenanceClassifyPods(ctx, clientset, operation, pods, resources)
 
-		remaining := make([]string, 0, len(blockers)+len(deletable)+len(terminating))
-		remaining = append(remaining, blockers...)
-		remaining = append(remaining, terminating...)
-		for _, pod := range deletable {
-			remaining = append(remaining, maintenanceNamespacedName(pod.Namespace, pod.Name))
-		}
-		maintenanceSetRemainingPods(operation, worker, remaining)
-
 		if len(blockers) > 0 && len(deletable) == 0 {
 			if len(terminating) > 0 {
 				if !maintenanceWaitInterruptible(nodeName, worker, maintenanceDrainPollInterval) {
@@ -744,11 +736,6 @@ func maintenanceRemovePod(ctx context.Context, clientset *kubernetes.Clientset, 
 			Preconditions: &metav1.Preconditions{UID: &pod.UID},
 		}
 		if operation.Options.ForceDelete {
-			err := maintenanceMarkHostTerminationUnverified(operation)
-			if err != nil {
-				log.Warn("k8s-app maintenance: could not record the force deletion of pod %s: %s", pod.Name, err)
-				return
-			}
 			grace := int64(0)
 			deleteOptions.GracePeriodSeconds = &grace
 		}
@@ -770,16 +757,6 @@ func maintenanceRemovePod(ctx context.Context, clientset *kubernetes.Clientset, 
 
 	err := clientset.PolicyV1().Evictions(pod.Namespace).Evict(ctx, eviction)
 	maintenanceLogRemoval(pod, "evicted", err)
-}
-
-func maintenanceMarkHostTerminationUnverified(operation MaintenanceOperation) error {
-	return maintenanceMutate(operation.NodeName, operation.NodeUid, operation.StartedAt, func(op *MaintenanceOperation) bool {
-		if op.HostTerminationUnverified {
-			return false
-		}
-		op.HostTerminationUnverified = true
-		return true
-	})
 }
 
 func maintenanceLogRemoval(pod *corev1.Pod, action string, err error) {
@@ -1067,16 +1044,6 @@ func maintenanceSetPhase(operation MaintenanceOperation, worker *maintenanceWork
 			return false
 		}
 		op.Phase = phase
-		return true
-	})
-}
-
-func maintenanceSetRemainingPods(operation MaintenanceOperation, worker *maintenanceWorker, remaining []string) {
-	maintenanceMutate(operation.NodeName, operation.NodeUid, operation.StartedAt, func(op *MaintenanceOperation) bool {
-		if len(op.RemainingPods) == len(remaining) && strings.Join(op.RemainingPods, "\x00") == strings.Join(remaining, "\x00") {
-			return false
-		}
-		op.RemainingPods = remaining
 		return true
 	})
 }
