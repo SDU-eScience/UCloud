@@ -9,6 +9,7 @@ import {
     doNothing,
     isLightThemeStored,
     isLikelyMac,
+    isTouchScreen,
     joinToString,
     useEffectSkipMount,
     useFrameHidden
@@ -100,7 +101,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k}[data-open="false"] {
         transform: translateX(-100%);
     }
-    
+
     ${k}[data-open="true"][data-as-pop-over="true"] {
         transform: translateX(var(--sidebarWidth));
     }
@@ -108,7 +109,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k}[data-open="true"][data-as-pop-over="false"] {
         position: static;
     }
-    
+
     @media screen and (max-width: 640px) {
         ${k}[data-open="true"][data-as-pop-over="true"] {
             position: absolute;
@@ -118,18 +119,18 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
 
     ${k}, ${k} a, ${k} a:hover {
         color: white;
-    } 
+    }
 
     ${k} header {
         align-items: center;
     }
-    
+
     ${k} header h1 {
         font-size: 20px;
         flex-grow: 1;
         margin: 0;
     }
-    
+
     ${k} header div {
         cursor: pointer;
     }
@@ -137,7 +138,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} h2, ${k} h3 {
         margin: 0;
     }
-    
+
     ${k} h3 {
         font-size: 16px;
     }
@@ -146,18 +147,18 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         user-select: none;
         -webkit-user-select: none;
     }
-    
+
     ${k} a.heading, ${k} h3.no-link  {
         margin-top: 15px;
     }
-    
+
     ${k} a, ${k} h3.no-link  {
         border-radius: 10px;
         padding: 5px;
         display: block;
         margin-left: -5px;
     }
-    
+
     ${k} a:hover {
         background-color: rgba(255, 255, 255, 0.25);
     }
@@ -175,7 +176,7 @@ const SidebarContainerClass = injectStyleSimple("sidebar-container", `
 
     /* Note(Jonas): Required by Safari */
     min-width: var(--sidebarWidth);
-    
+
     background-color: var(--sidebarColor);
     z-index: 100;
     padding-bottom: 12px;
@@ -190,11 +191,11 @@ const SidebarMenuItem = injectStyle("sidebar-item", k => `
         height: 32px;
         margin-top: 8px;
     }
-    
+
     ${k}:hover, ${k}[data-active="true"] {
         background-color: rgba(255, 255, 255, 0.25);
     }
-    
+
     ${k} > * {
         margin: auto;
     }
@@ -228,7 +229,7 @@ const sideBarMenuElements: SidebarMenuElements[] = [
             {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
             {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
             {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
-            {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.compute.jobs()}
+            {icon: "heroServer", label: SidebarTabId.COMPUTE, to: AppRoutes.compute.jobs()}
         ],
         predicate: () => Client.isLoggedIn
     },
@@ -452,7 +453,7 @@ function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, proj
         [SidebarTabId.RESOURCES]: ResourceSubLinksEntries,
         [SidebarTabId.INFERENCE]: InferenceSubLinksEntries,
         [SidebarTabId.APPLICATIONS]: [],
-        [SidebarTabId.RUNS]: ComputeSubLinksEntries,
+        [SidebarTabId.COMPUTE]: ComputeSubLinksEntries,
         [SidebarTabId.ADMIN]: [],
         [SidebarTabId.APPLICATION_STUDIO]: ApplicationStudioSubLinksEntries,
         [SidebarTabId.NONE]: [],
@@ -534,8 +535,16 @@ export function Sidebar(): React.ReactNode {
                                 <div
                                     data-active={tab === label}
                                     onMouseEnter={() => setHoveredPage(label)}
-                                    onClick={() => {
-                                        if (selectedPage) {
+                                    onClick={e => {
+                                        if (isTouchScreen(e)) {
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                            if (hoveredPage === label) {
+                                                setHoveredPage(SidebarTabId.NONE);
+                                            } else {
+                                                setHoveredPage(label);
+                                            }
+                                        } else if (selectedPage) {
                                             setSelectedPage(label);
                                         }
                                     }}
@@ -600,7 +609,6 @@ export interface SidebarDialog {
 }
 
 const fileTypeCache: Record<string, FileType | "DELETED"> = {}
-
 
 type DriveChange = void;
 export type DriveChangeEvent = CustomEvent<DriveChange>;
@@ -837,7 +845,7 @@ const ComputeSubLinksEntries: LinkInfo[] = [{
     to: AppRoutes.compute.jobs(),
     text: "Jobs",
     icon: "heroServer",
-    tab: SidebarTabId.RUNS,
+    tab: SidebarTabId.COMPUTE,
 }];
 
 if (hasFeature(Feature.STACKS)) {
@@ -845,7 +853,7 @@ if (hasFeature(Feature.STACKS)) {
         to: AppRoutes.compute.stacks(),
         text: "Stacks",
         icon: "heroServerStack",
-        tab: SidebarTabId.RUNS,
+        tab: SidebarTabId.COMPUTE,
     });
 }
 
@@ -1256,10 +1264,10 @@ function SecondarySidebar({
             </div>
 
             {/* Note(Jonas) Do it this way to ensure that the frontend doesn't fetch icons every time this is shown. */}
-            <div style={{display: active !== SidebarTabId.RUNS ? "none" : undefined}}>
+            <div style={{display: active !== SidebarTabId.COMPUTE ? "none" : undefined}}>
                 <SidebarSectionEmptyHeader />
                 <ComputeSubLinks />
-                <SidebarSectionHeader tab={SidebarTabId.RUNS}>Running jobs</SidebarSectionHeader>
+                <SidebarSectionHeader tab={SidebarTabId.COMPUTE}>Running jobs</SidebarSectionHeader>
                 {recentRuns.length === 0 && <>
                     <SidebarEmpty>No running jobs</SidebarEmpty>
                 </>}
@@ -1276,7 +1284,7 @@ function SecondarySidebar({
                         text={name}
                         icon={<AppLogo name={run.specification.application.name}
                             groupId={run.status.resolvedApplication?.metadata.groupId ?? run.status.resolvedApplication?.metadata.group?.metadata.id} />}
-                        tab={SidebarTabId.RUNS}
+                        tab={SidebarTabId.COMPUTE}
                     />
                 })}
             </div>
