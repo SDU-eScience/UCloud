@@ -20,6 +20,7 @@ import (
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 	"ucloud.dk/shared/pkg/util"
 
+	"ucloud.dk/iapp/k8s/pkg/maintenance"
 	"ucloud.dk/iapp/k8s/pkg/shared"
 )
 
@@ -29,6 +30,8 @@ const clusterFunctionalProbeInterval = 500 * time.Millisecond
 const clusterFunctionalProbeTimeout = 10 * time.Second
 
 const navHomeId = "home"
+
+const provisioningRowKeyPrefix = "provisioning:"
 
 func LocalKubeconfigPath() string {
 	return filepath.Join(managementMountDir, "kubeconfig-internal")
@@ -87,6 +90,17 @@ type stackUiApp struct {
 	ResourceYaml    string
 	Namespaces      []string
 	LogJobId        string
+
+	MaintenanceTimeoutSeconds          int
+	MaintenanceDrain                   bool
+	MaintenanceDeleteVolatilePods      bool
+	MaintenanceBypassDisruptionBudgets bool
+	MaintenanceForceDelete             bool
+	MaintenanceBusy                    bool
+
+	maintenanceNodeName        string `ucx:"-"`
+	maintenanceNodeUid         string `ucx:"-"`
+	maintenanceRetryOptionsFor string `ucx:"-"`
 
 	stackInfo   *ucxapi.StackInfoResponse `ucx:"-"`
 	headlampUrl string                    `ucx:"-"`
@@ -318,6 +332,8 @@ func (app *stackUiApp) UserInterface() ucx.UiNode {
 	switch {
 	case app.RoutePath == "control/new-pool":
 		children = append(children, app.pageAddPool()...)
+	case strings.HasPrefix(app.RoutePath, "maintenance"):
+		children = append(children, maintenancePage(app)...)
 	case app.RoutePath == "control" || strings.HasPrefix(app.RoutePath, "control/"):
 		app.TargetGroup = groupFromRoute(app.RoutePath)
 		children = append(children, app.pageAddMachine()...)
@@ -740,6 +756,23 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 				Icon:     ucx.IconHeroPlusSmall,
 				Shortcut: "a",
 			}
+			tableActions = append(tableActions,
+				ucx.ResourceTableAction{
+					Id:    "cordonDrain",
+					Label: "Cordon and drain",
+					Icon:  ucx.IconBroom,
+				},
+				ucx.ResourceTableAction{
+					Id:    "uncordon",
+					Label: "Uncordon",
+					Icon:  ucx.IconRefresh,
+				},
+				ucx.ResourceTableAction{
+					Id:    "viewMaintenance",
+					Label: "Maintenance",
+					Icon:  ucx.IconEye,
+				},
+			)
 			trailingAction = &ucx.ResourceTableAction{
 				Id:       "addWorkerPool",
 				Label:    "Add worker pool",
@@ -834,6 +867,12 @@ func (app *stackUiApp) pageProvisioning() []ucx.UiNode {
 
 	messages = append(messages, ucx.Text(message))
 
+	maintenanceLinks := app.pageProvisioningMaintenanceLinks()
+	if len(maintenanceLinks) > 0 {
+		messages = append(messages, ucx.Text("Node maintenance (including recovery of finished operations):"))
+		messages = append(messages, maintenanceLinks...)
+	}
+
 	children := []ucx.UiNode{ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).Children(messages...)}
 
 	if record, ok := app.readClusterRecord(); ok {
@@ -852,6 +891,46 @@ func (app *stackUiApp) pageProvisioning() []ucx.UiNode {
 	return []ucx.UiNode{ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 16}).
 		Sx(ucx.SxFlexGrow(1)).
 		Children(children...)}
+}
+
+func (app *stackUiApp) pageProvisioningMaintenanceLinks() []ucx.UiNode {
+	record, recordOk := app.readClusterRecord()
+	if !recordOk {
+		return nil
+	}
+
+	known := maintenanceKnownNodeNames(record)
+
+	snapshot, err := maintenance.MaintenanceSnapshot()
+	if err != nil {
+		return nil
+	}
+
+	names := make([]string, 0, len(snapshot))
+	for nodeName := range snapshot {
+		if known[nodeName] {
+			names = append(names, nodeName)
+		}
+	}
+	sort.Strings(names)
+
+	links := make([]ucx.UiNode, 0, len(names))
+	for _, nodeName := range names {
+		links = append(links, ucx.Link(fmt.Sprintf("maintenance/%s", url.PathEscape(nodeName))).Children(ucx.Text(
+			fmt.Sprintf("%s (%s)", nodeName, snapshot[nodeName].Phase),
+		)))
+	}
+	return links
+}
+
+func maintenanceKnownNodeNames(record shared.ClusterRecord) map[string]bool {
+	known := make(map[string]bool, len(record.Nodes))
+	for _, node := range record.Nodes {
+		if node.Hostname != "" {
+			known[node.Hostname] = true
+		}
+	}
+	return known
 }
 
 func (app *stackUiApp) resourceStreamId() string {
@@ -992,21 +1071,59 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 
 	actionId := ucx.ValueAsString(ev.Value.Object["actionId"])
 	rowKey := ucx.ValueAsString(ev.Value.Object["rowKey"])
-	if actionId != "goToJob" || rowKey == "" {
+	if rowKey == "" {
+		return
+	}
+
+	if actionId != "goToJob" && actionId != "cordonDrain" && actionId != "uncordon" && actionId != "viewMaintenance" {
+		return
+	}
+
+	if app.ActiveType != "nodes" || app.poller == nil {
 		return
 	}
 
 	nodeName, ok := app.poller.nodeNameForRowKey(rowKey)
-	if !ok {
+	if !ok || nodeName == "" {
 		return
 	}
 
-	jobId := app.nodeJobIds()[nodeName]
-	if jobId == "" {
-		return
+	switch actionId {
+	case "cordonDrain", "viewMaintenance":
+		if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
+			return
+		}
+		nodeUid, known := app.nodeUidForName(nodeName)
+		if !known {
+			return
+		}
+		maintenanceOpen(app, nodeName, nodeUid)
+	case "uncordon":
+		if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
+			return
+		}
+		nodeUid, known := app.nodeUidForName(nodeName)
+		if !known {
+			return
+		}
+		if app.MaintenanceBusy {
+			return
+		}
+		maintenanceSubmitAsync(app, "uncordon", nodeName, nodeUid, maintenance.MaintenanceOptions{})
+	case "goToJob":
+		jobId := app.nodeJobIds()[nodeName]
+		if jobId == "" {
+			return
+		}
+		ucxsvc.OpenUrl(app, fmt.Sprintf("/jobs/properties/%s", jobId))
 	}
+}
 
-	ucxsvc.OpenUrl(app, "/jobs/properties/"+jobId)
+func (app *stackUiApp) nodeUidForName(nodeName string) (string, bool) {
+	if app.poller == nil {
+		return "", false
+	}
+	return app.poller.nodeUidForRowName(nodeName)
 }
 
 func (app *stackUiApp) nodeJobIds() map[string]string {
@@ -1034,6 +1151,12 @@ func (app *stackUiApp) provisioningKickNow() {
 	}
 }
 
+func (app *stackUiApp) onMaintenanceRoute() bool {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	return app.RoutePath == "maintenance" || strings.HasPrefix(app.RoutePath, "maintenance/")
+}
+
 func (app *stackUiApp) provisioningWatcher(session *ucx.Session) {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -1043,6 +1166,11 @@ func (app *stackUiApp) provisioningWatcher(session *ucx.Session) {
 		if app.activeTypeIsHome() {
 			go app.refreshStackInfo()
 			go app.refreshClusterHealth()
+		}
+		if app.onMaintenanceRoute() {
+			app.mu.Lock()
+			ucx.AppUpdateUi(app)
+			app.mu.Unlock()
 		}
 
 		select {
@@ -1205,7 +1333,7 @@ func (app *stackUiApp) provisioningResourceRows(def ResourceTypeDef) []ResourceR
 		rows = append(rows, ResourceRow{
 			Key:   "provisioning:" + entry.Hostname,
 			Group: entry.Group,
-			Cells: []string{entry.Hostname, entry.Status, role, "", "", ""},
+			Cells: []string{entry.Hostname, entry.Status, "Schedulable", "", role, "", "", ""},
 		})
 	}
 	return rows
@@ -1530,6 +1658,8 @@ func (app *stackUiApp) handleTableAction(ev ucx.UiEvent) {
 	}
 
 	switch actionId {
+	case "cordonDrain", "uncordon", "viewMaintenance":
+		ucxsvc.UiSendFailure(app, "Select a single node before using this action")
 	case "addMachine":
 		if group == "" {
 			return
@@ -1600,6 +1730,10 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 		}
 
 		if frame.ModelInput.Path == "routePath" {
+			changed = true
+		}
+
+		if frame.ModelInput.Path == "maintenanceDrain" {
 			changed = true
 		}
 

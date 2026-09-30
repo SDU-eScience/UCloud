@@ -46,6 +46,8 @@ var resourceTypes = []ResourceTypeDef{
 		Columns: []ucx.TableColumn{
 			{Key: "name", Label: "Name", Copy: true},
 			{Key: "status", Label: "Status"},
+			{Key: "scheduling", Label: "Scheduling"},
+			{Key: "maintenance", Label: "Maintenance"},
 			{Key: "role", Label: "Roles"},
 			{Key: "version", Label: "Version"},
 			{Key: "ip", Label: "IP", SortType: ucx.TableColumnSortIp},
@@ -491,6 +493,11 @@ func rowsFromNodes(items []unstructured.Unstructured) []ResourceRow {
 			}
 		}
 
+		scheduling := "Schedulable"
+		if unschedulable, ok, _ := unstructured.NestedBool(obj.Object, "spec", "unschedulable"); ok && unschedulable {
+			scheduling = "Cordoned"
+		}
+
 		roles := []string{}
 		for label := range obj.GetLabels() {
 			if role, ok := strings.CutPrefix(label, "node-role.kubernetes.io/"); ok {
@@ -507,6 +514,8 @@ func rowsFromNodes(items []unstructured.Unstructured) []ResourceRow {
 			Cells: []string{
 				obj.GetName(),
 				ready,
+				scheduling,
+				"",
 				strings.Join(roles, ","),
 				firstString(obj, "status", "nodeInfo", "kubeletVersion"),
 				nodeInternalIp(obj),

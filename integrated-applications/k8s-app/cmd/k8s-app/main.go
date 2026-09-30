@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 	"ucloud.dk/iapp/k8s/pkg/controller"
 	"ucloud.dk/iapp/k8s/pkg/creator"
 	"ucloud.dk/iapp/k8s/pkg/dashboard"
+	"ucloud.dk/iapp/k8s/pkg/maintenance"
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/util"
@@ -36,13 +38,20 @@ func main() {
 		}
 	}
 
+	if os.Getenv("UCX_PORT") != "" {
+		if _, err := os.Stat(dashboardMarker); err == nil {
+			go maintenance.MaintenanceRun(context.Background(), dashboard.LocalKubeconfigPath())
+			ucx.AppServe(launch, port)
+			return
+		}
+	}
+
 	ucx.AppServe(launch, port)
 }
 
 func launch() ucx.Application {
 	if os.Getenv("UCX_PORT") != "" {
 		if _, err := os.Stat(dashboardMarker); err == nil {
-			dashboard.WaitForFunctionalCluster()
 			return dashboard.App()
 		}
 	}

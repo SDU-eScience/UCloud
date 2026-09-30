@@ -1417,6 +1417,10 @@ func (n UiNode) ButtonBusy(bindPath string) UiNode {
 	return n.propMutate("busyPath", VString(bindPath))
 }
 
+func (n UiNode) ButtonHoldToConfirm(enabled bool) UiNode {
+	return n.propMutate("holdToConfirm", VBool(enabled))
+}
+
 func (n UiNode) ButtonDisabledWhen(bindPath string) UiNode {
 	return n.propMutate("disabledPath", VString(bindPath))
 }

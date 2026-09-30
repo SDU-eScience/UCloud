@@ -73,6 +73,7 @@ import {useIsLightThemeStored} from "@/ui-components/theme";
 import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {appendToXterm, useXTerm, xtermThemes} from "@/Applications/Jobs/XTermLib";
 import {StreamProcessor, WidgetLabel, WidgetProgressBar, WidgetType} from "@/Applications/Jobs/JobViz";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 type ValueProvider = string | (() => string | Promise<string>);
 export type UcxRpcPayload = PlainValue;
@@ -1170,13 +1171,15 @@ const baseComponents: UcxComponentRegistry = {
         const label = stringProp(node, "label", "");
         const checked = modelBool(model, node.bindPath, scope);
         return <Flex mt="8px" mb="12px" alignItems="center">
-            <Label>
+            <Label style={{display: "flex", alignItems: "center"}}>
                 <Checkbox
                     checked={checked}
                     onClick={() => fn.sendBoundInput(node, {kind: ValueKind.Bool, bool: !checked}, model, scope)}
                     onChange={stopPropagation}
                 />
-                {label}
+                <span style={{flexGrow: 1}}>
+                    <UcxInlineMarkdown text={label} />
+                </span>
             </Label>
         </Flex>;
     },
@@ -2360,6 +2363,7 @@ const UcxButtonField: React.FunctionComponent<{
     const iconLeft = stringProp(node, "iconLeft", "");
     const iconRight = stringProp(node, "iconRight", "");
     const submit = boolProp(node, "submit", false);
+    const holdToConfirm = boolProp(node, "holdToConfirm", false);
     const disabled = boolProp(node, "disabled", false) || busy || disabledByPath;
     const showShortcut = boolProp(node, "showShortcut", false);
     const showEscapeHint = boolProp(node, "showEscapeHint", false);
@@ -2367,6 +2371,31 @@ const UcxButtonField: React.FunctionComponent<{
     const eventValue = eventValuePath ? modelValue(model, eventValuePath, scope) : undefined;
 
     const sx = fn.sxStyle(node);
+
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    if (holdToConfirm) {
+        const fire = async () => {
+            if (submit) {
+                const form = containerRef.current?.closest("form");
+                if (form) {
+                    form.requestSubmit();
+                    return;
+                }
+            }
+            fn.sendUiEvent(node.id, submit ? "submit" : "click", eventValue);
+        };
+
+        return <div ref={containerRef} style={{...sx, display: "flex"}}>
+            <ConfirmationButton
+                color={color as any}
+                disabled={disabled}
+                width={sx.width !== undefined ? "100%" : undefined}
+                actionText={label}
+                onAction={fire}
+            />
+        </div>;
+    }
 
     return <div style={{...sx, display: "flex"}}>
         <Button
@@ -3381,6 +3410,26 @@ const UcxCostEstimateClass = injectStyle("ucx-cost-estimate", key => `
 
 function MarkdownLink(props: {href?: string; children: React.ReactNode}) {
     return <ExternalLink href={props.href}>{props.children}</ExternalLink>;
+}
+
+const UcxInlineMarkdownClass = injectStyle("ucx-inline-markdown", k => `
+    ${k} > p {
+        display: inline;
+        margin: 0;
+    }
+`);
+
+function UcxInlineMarkdown(props: {text: string}): React.ReactNode {
+    if (!props.text) return null;
+    return <span className={UcxInlineMarkdownClass}>
+        <ReactMarkdown
+            allowedElements={["p", "strong", "b", "i", "em", "code", "a"]}
+            components={{
+                a: p => <MarkdownLink href={p.href} children={p.children} />,
+            }}
+            children={props.text}
+        />
+    </span>;
 }
 
 function externalUrlOrigin(url: string): string {

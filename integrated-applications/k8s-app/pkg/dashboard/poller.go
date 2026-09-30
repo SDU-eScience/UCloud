@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 
+	"ucloud.dk/iapp/k8s/pkg/maintenance"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/util"
@@ -485,6 +486,19 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 		return
 	}
 
+	isNodes := selection.def.Id == "nodes"
+	maintenanceSnapshot := map[string]maintenance.MaintenanceOperation{}
+	maintenanceUnavailable := false
+	if isNodes {
+		read, err := maintenance.MaintenanceSnapshot()
+		if err != nil {
+			log.Warn("k8s-app: could not read the maintenance state: %s", err)
+			maintenanceUnavailable = true
+		} else {
+			maintenanceSnapshot = read
+		}
+	}
+
 	p.mu.Lock()
 
 	if p.selectionEpoch != selection.epoch {
@@ -526,8 +540,13 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 		p.mu.Unlock()
 		return
 	}
+
 	for i := range rows {
-		rows[i].Actions = resourceRowActions(selection.def, rows[i], p.nodeJobIds)
+		rows[i].Actions = resourceRowActions(selection.def, rows[i], p.nodeJobIds, maintenanceSnapshot, maintenanceUnavailable)
+		if isNodes && !strings.HasPrefix(rows[i].Key, provisioningRowKeyPrefix) && len(rows[i].Cells) > 3 {
+			operation, knownRecorded := maintenanceSnapshot[rows[i].Cells[0]]
+			rows[i].Cells[3] = maintenanceCellForOperation(operation, knownRecorded)
+		}
 	}
 
 	rowByKey := make(map[string]ResourceRow, len(rows))
@@ -709,12 +728,21 @@ func resourceRowsForType(items []unstructured.Unstructured, def ResourceTypeDef)
 	}
 }
 
-func resourceRowActions(def ResourceTypeDef, row ResourceRow, nodeJobIds func() map[string]string) []ucx.TableRowAction {
+func resourceRowActions(
+	def ResourceTypeDef,
+	row ResourceRow,
+	nodeJobIds func() map[string]string,
+	maintenanceSnapshot map[string]maintenance.MaintenanceOperation,
+	maintenanceUnavailable bool,
+) []ucx.TableRowAction {
 	if def.Id != "nodes" || len(row.Cells) == 0 {
 		return nil
 	}
 
-	jobId := nodeJobIds()[row.Cells[0]]
+	nodeName := row.Cells[0]
+	provisioningRow := strings.HasPrefix(row.Key, provisioningRowKeyPrefix)
+
+	jobId := nodeJobIds()[nodeName]
 	goToJob := ucx.TableRowAction{
 		Id:             "goToJob",
 		Enabled:        false,
@@ -722,12 +750,102 @@ func resourceRowActions(def ResourceTypeDef, row ResourceRow, nodeJobIds func() 
 	}
 	if jobId != "" {
 		goToJob.Enabled = true
+		goToJob.DisabledReason = ""
 	}
 
-	return []ucx.TableRowAction{
+	operation, knownRecorded := maintenanceSnapshot[nodeName]
+	phaseActive := knownRecorded && maintenance.MaintenancePhaseActive(operation.Phase)
+	nodeCordoned := len(row.Cells) > 2 && row.Cells[2] == "Cordoned"
+
+	actions := []ucx.TableRowAction{
 		{Id: "copyNodeName", Enabled: true, Text: row.Cells[0]},
 		goToJob,
 	}
+
+	if provisioningRow {
+		return actions
+	}
+
+	switch {
+	case maintenanceUnavailable:
+		if nodeCordoned {
+			actions = append(actions, ucx.TableRowAction{
+				Id:             "uncordon",
+				Enabled:        false,
+				DisabledReason: "The maintenance state is unavailable",
+			})
+		} else {
+			actions = append(actions, ucx.TableRowAction{
+				Id:             "cordonDrain",
+				Enabled:        false,
+				DisabledReason: "The maintenance state is unavailable",
+			})
+		}
+	case phaseActive:
+		actions = append(actions, ucx.TableRowAction{Id: "viewMaintenance", Enabled: true})
+		if nodeCordoned {
+			actions = append(actions, ucx.TableRowAction{
+				Id:             "uncordon",
+				Enabled:        false,
+				DisabledReason: "An operation is already active on this node",
+			})
+		}
+	default:
+		if nodeCordoned {
+			actions = append(actions, uncordonEnabled)
+		} else {
+			actions = append(actions, cordonDrainEnabled)
+		}
+	}
+
+	return actions
+}
+
+var (
+	cordonDrainEnabled = ucx.TableRowAction{Id: "cordonDrain", Enabled: true}
+	uncordonEnabled    = ucx.TableRowAction{Id: "uncordon", Enabled: true}
+)
+
+func maintenanceCellForOperation(operation maintenance.MaintenanceOperation, present bool) string {
+	if !present {
+		return ""
+	}
+	switch operation.Kind {
+	case maintenance.MaintenanceKindUncordon:
+		if maintenance.MaintenancePhaseActive(operation.Phase) {
+			return "Uncordoning"
+		}
+		return ""
+	case maintenance.MaintenanceKindCordon:
+		if maintenance.MaintenancePhaseActive(operation.Phase) {
+			return "Cordoning"
+		}
+		return ""
+	}
+	return operation.Phase
+}
+
+func (p *resourcePoller) nodeUidForRowName(nodeName string) (string, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for _, row := range p.lastRows {
+		if strings.HasPrefix(row.Key, provisioningRowKeyPrefix) {
+			continue
+		}
+		if len(row.Cells) > 0 && row.Cells[0] == nodeName {
+			return row.Key, true
+		}
+	}
+	return "", false
+}
+
+func (p *resourcePoller) nodeRowForKey(rowKey string) (ResourceRow, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	row, ok := p.lastRows[rowKey]
+	return row, ok
 }
 
 func resourceTableUpsert(row ResourceRow) ucx.TableRow {
