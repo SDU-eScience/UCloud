@@ -110,6 +110,7 @@ export interface OperationProps<EntityType, Extras = undefined> {
     all?: EntityType[];
     openFnRef?: React.RefObject<(left: number, top: number) => void>;
     hidden?: boolean;
+    width?: string;
     forceEvaluationOnOpen?: boolean;
 }
 
@@ -189,6 +190,7 @@ function NewOperations<EntityType, Extras>(props: PropsWithChildren<OperationPro
         if (props.hidden) return <ActionMenu
                 actions={adapted.actions}
                 selected={selected}
+                width={props.width}
                 callbacks={props.extra}
                 appearance={adapted.appearance}
                 openFnRef={props.openFnRef}
@@ -200,6 +202,7 @@ function NewOperations<EntityType, Extras>(props: PropsWithChildren<OperationPro
         return <>
             <div onClick={stopPropagation} className={InRowPrimaryButtonsClass}>
                 <ActionBar
+                    width={props.width}
                     actions={primary}
                     selected={selected}
                     callbacks={props.extra}
@@ -210,6 +213,7 @@ function NewOperations<EntityType, Extras>(props: PropsWithChildren<OperationPro
             </div>
             <Box mr="10px" />
             {overflow.length ? <ActionMenu
+                width={props.width}
                 actions={overflow}
                 selected={selected}
                 callbacks={props.extra}
@@ -249,6 +253,7 @@ function NewOperations<EntityType, Extras>(props: PropsWithChildren<OperationPro
         </Heading.h3>}
         <ActionBar
             actions={primary}
+            width={props.width}
             selected={props.selected}
             callbacks={props.extra}
             appearance={adapted.appearance}
@@ -266,7 +271,7 @@ const InRowPrimaryButtonsClass = injectStyle("in-row-primary-buttons", k => `
         margin-top: 4px;
         margin-left: 8px;
     }
-    
+
     ${k} > button {
         max-width: 150px;
     }

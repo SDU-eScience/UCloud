@@ -66,6 +66,7 @@ export interface ActionMenuProps<T, C> extends CommonActionProps<T, C> {
     onClose?: () => void;
     confirmationMode?: "panel" | "hold";
     disabled?: boolean;
+    width?: string;
 }
 
 export interface ActionBarProps<T, C> extends CommonActionProps<T, C> {
@@ -73,6 +74,7 @@ export interface ActionBarProps<T, C> extends CommonActionProps<T, C> {
     maxVisible?: number;
     compact?: boolean;
     enableShortcuts?: boolean;
+    width?: string;
 }
 
 interface EvaluatedAction<T, C> {
@@ -101,7 +103,7 @@ const ActionMenuClass = injectStyle("action-menu", k => `
         position: fixed;
         z-index: 10000;
         box-sizing: border-box;
-        width: 240px;
+        width: var(--width);
         max-width: calc(100vw - 16px);
         padding: 4px;
         border: 1px solid var(--borderColor);
@@ -418,6 +420,7 @@ function MenuSurface<T, C>({
     runAction,
     confirmationMode,
     appearance,
+    width
 }: {
     level: MenuLevel<T, C>;
     depth: number;
@@ -430,17 +433,20 @@ function MenuSurface<T, C>({
     runAction: (entry: EvaluatedAction<T, C>) => void;
     confirmationMode: "panel" | "hold";
     appearance?: (action: ActionItem<T, C>) => ActionAppearance | undefined;
+    width?: string;
 }): React.ReactNode {
     const hasIcons = level.entries.some(entry => entry !== "divider" && !!entry.action.icon);
     const hasSubmenus = level.entries.some(entry => entry !== "divider" && !!entry.action.children?.length);
     const hasShortcuts = level.entries.some(entry => entry !== "divider" && !!entry.action.shortcut);
     const gridTemplateColumns = `${hasIcons ? "24px " : ""}minmax(0, 1fr)${hasShortcuts ? " auto" : ""}${hasSubmenus ? " 14px" : ""}`;
+    const cssVars: React.CSSProperties = {};
+    cssVars["--width"] = width ?? "240px";
     return <div
         className={ActionMenuClass}
         role="menu"
         tabIndex={-1}
         data-menu-owner={owner}
-        style={{left: level.x, top: level.y, maxHeight: "calc(100vh - 16px)"}}
+        style={{left: level.x, top: level.y, maxHeight: "calc(100vh - 16px)", ...cssVars }}
         onMouseEnter={cancelScheduledClose}
         onMouseLeave={() => scheduleCloseSubmenus(depth - 1)}
     >
@@ -695,6 +701,9 @@ export function ActionMenu<T, C>(props: ActionMenuProps<T, C>): React.ReactNode 
         };
     }, [levels, confirmation, activate, close, openSubmenu, setActive]);
 
+    const cssVars: React.CSSProperties = {};
+    cssVars["--width"] = props.width ?? "240px";
+
     const trigger = props.trigger === undefined ?
         <Icon name="ellipsis" rotation={90} size="1em" /> : props.trigger;
     const portal = levels.length ? ReactDOM.createPortal(<>
@@ -708,6 +717,7 @@ export function ActionMenu<T, C>(props: ActionMenuProps<T, C>): React.ReactNode 
                 top: levels[0].y,
                 width: confirmation.rootWidth,
                 minHeight: confirmation.rootHeight,
+                ...cssVars
             }}
             onClick={event => event.stopPropagation()}
         >
@@ -736,6 +746,7 @@ export function ActionMenu<T, C>(props: ActionMenuProps<T, C>): React.ReactNode 
             level={level}
             depth={depth}
             owner={owner}
+            width={props.width}
             setActive={setActive}
             openSubmenu={openSubmenu}
             scheduleCloseSubmenus={scheduleCloseSubmenus}
