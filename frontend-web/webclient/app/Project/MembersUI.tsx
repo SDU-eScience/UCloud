@@ -21,6 +21,7 @@ import {addStandardDialog} from "@/UtilityComponents";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import BaseLink from "@/ui-components/BaseLink";
 import {sendInformationNotification} from "@/Notifications";
+import {ActionMenu} from "@/ui-components/Actions";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -718,7 +719,7 @@ const MemberCard: React.FunctionComponent<{
                 {props.member.username}
             </Truncate>
         </Flex>}
-        right={<Flex alignItems={"center"} gap="8px">
+        right={<Flex alignItems={"center"}>
             <Box mr="8px">
                 {SUPPORTIVE_ROLES
                     .filter(({role: supportiveRole}) => holdsSupportiveRole(props.member, supportiveRole))
@@ -779,9 +780,9 @@ const MemberCard: React.FunctionComponent<{
                                            onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.USER)} />
                             </> : null}
                     </RadioTilesContainer>
-                    <Operations
-                        location={"IN_ROW"}
-                        operations={[
+                    {showOperations ? <Flex justifyContent="center" width="35px"><ActionMenu
+                        width="260px"
+                        actions={[
                             ...SUPPORTIVE_ROLES
                                 .filter(({role}) => !holdsSupportiveRole(props.member, role))
                                 .map(({role: supportiveRole, title}) => ({
@@ -796,26 +797,20 @@ const MemberCard: React.FunctionComponent<{
                                     shortcut: ShortcutKey.D,
                                 })),
                             {
-                                confirm: !isSelf,
-                                color: "errorMain",
                                 text: isSelf ? "Leave project" : "Remove from project",
                                 icon: "heroTrash",
-                                confirmationText: `Are you sure you want to remove ${props.member.username} from the project?`,
-                                confirmationButtonText: "Remove",
+                                confirmationText: isSelf ? undefined : `Are you sure you want to remove ${props.member.username} from the project?`,
+                                confirmationButtonText: isSelf ? undefined : "Remove",
+                                destructive: true,
                                 enabled: () => canRemoveMember,
                                 onClick: () => props.handleRemoveFromProject(props.member.username),
                                 shortcut: ShortcutKey.R,
                             },
                         ]}
+                        callbacks={undefined}
                         selected={[]}
-                        extra={null}
-                        entityNameSingular={"Member"}
-                        row={42}
                         openFnRef={openFn}
-                        forceEvaluationOnOpen
-                        hidden={!showOperations}
-                    />
-                    {!showOperations ? <Box width={"32px"}></Box> : null}
+                    /></Flex> : <Box width={"35px"}></Box>}
                 </>}
         </Flex>}
     />;
