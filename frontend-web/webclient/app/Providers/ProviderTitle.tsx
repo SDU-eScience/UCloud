@@ -1,25 +1,22 @@
 import * as React from "react";
-import ProviderInfo from "@/Assets/provider_info.json";
 import {capitalized} from "@/UtilityFunctions";
-
-interface ProviderInfo {
-    id: string;
-    title: string;
-    logo: string | null;
-    shortTitle: string;
-}
+import {providerBrandingStore, useProviderProperty} from "@/ProviderBrandings/AutomaticProviderBranding";
 
 export const ProviderTitle: React.FunctionComponent<{providerId: string}> = ({providerId}) => {
-    return <>{getProviderTitle(providerId)}</>;
+    const title = useProviderProperty(providerId, "title");
+    return <>{providerTitleFromBranding(providerId, title)}</>;
 };
 
 export function getProviderTitle(providerId: string): string {
-    const providers: ProviderInfo[] = ProviderInfo.providers;
-    const myInfo = providers.find(p => p.id === providerId);
-    return myInfo?.title ?? capitalized(providerId.replace("_", " ").replace("-", " "));
+    const title = providerBrandingStore.getProviderProperty(providerId, "title");
+    return providerTitleFromBranding(providerId, title);
 }
+
 export function getShortProviderTitle(providerId: string): string {
-    const providers: ProviderInfo[] = ProviderInfo.providers;
-    const myInfo = providers.find(p => p.id === providerId);
-    return myInfo?.shortTitle ?? capitalized(providerId.replace("_", " ").replace("-", " "));
+    const shortTitle = providerBrandingStore.getProviderProperty(providerId, "shortTitle");
+    return providerTitleFromBranding(providerId, shortTitle);
+}
+
+function providerTitleFromBranding(providerId: string, title: string | undefined): string {
+    return title ?? capitalized(providerId.replace("_", " ").replace("-", " "));
 }

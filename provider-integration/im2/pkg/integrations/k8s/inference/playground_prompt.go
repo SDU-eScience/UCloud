@@ -33,7 +33,7 @@ func (app *InferencePlaygroundApp) chatSystemPrompt() string {
 	provider := playgroundModelProvider(model)
 
 	basePrompt := playgroundSystemPromptTemplate
-	if model.ChatSettings.DisableTools {
+	if model.ChatSettings.DisableTools || !app.Chat.WebSearch {
 		basePrompt = playgroundSystemPromptTemplateSimple
 	}
 

@@ -1,4 +1,4 @@
-import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
+import {Client} from "@/Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns";
 import * as React from "react";
 import {Absolute, Box, Flex, Icon, Relative} from "@/ui-components";

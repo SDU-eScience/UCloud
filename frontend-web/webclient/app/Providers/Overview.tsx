@@ -11,9 +11,9 @@ import {classConcat, injectStyle} from "@/Unstyled";
 import {CardClass} from "@/ui-components/Card";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {ProviderBranding} from "@/UCloud/ProviderBrandingApi";
-import {useSelector} from "react-redux";
+import {useProviderBrandings} from "@/ProviderBrandings/AutomaticProviderBranding";
 
-export function ProviderEntry(props: { provider: ProviderBranding }): React.ReactNode {
+export function ProviderEntry(props: {provider: ProviderBranding}): React.ReactNode {
     if (!props.provider.id || !props.provider.title) return null;
 
     return (
@@ -21,11 +21,11 @@ export function ProviderEntry(props: { provider: ProviderBranding }): React.Reac
             <div className={classConcat(CardClass, ProviderCard)}>
                 <Flex mt="12px">
                     <Flex mx="auto">
-                        <ProviderLogo providerId={props.provider.id} size={150}/>
+                        <ProviderLogo providerId={props.provider.id} size={150} />
                     </Flex>
                 </Flex>
                 <h3 style={{textAlign: "center", marginTop: "8px", height: "50px"}}>
-                    <ProviderTitle providerId={props.provider.id}/>
+                    <ProviderTitle providerId={props.provider.id} />
                 </h3>
 
                 <div style={{textAlign: "start"}}>
@@ -36,35 +36,27 @@ export function ProviderEntry(props: { provider: ProviderBranding }): React.Reac
     );
 }
 
-function useProviderBrandings(): Record<string, ProviderBranding> | undefined {
-    const data = useSelector((it: ReduxObject) => it.providerBrandings);
-    return data.providers;
-}
-
 export default function ProviderOverview() {
     usePage("Provider overview", SidebarTabId.NONE);
     const providers = useProviderBrandings();
-    if (!providers) {
-        return null;
-    }
 
     const main = <Box m="12px 24px">
         <GridCardGroup minmax={250}>
             {Object.values(providers).map(provider =>
-                <ProviderEntry key={provider.title} provider={provider}/>
+                <ProviderEntry key={provider.title} provider={provider} />
             )}
         </GridCardGroup>
     </Box>
 
     if (!Client.isLoggedIn) return (<>
-        <NonAuthenticatedHeader/>
-        <Box mb="72px"/>
+        <NonAuthenticatedHeader />
+        <Box mb="72px" />
         <div>
             {main}
         </div>
     </>);
 
-    return (<MainContainer main={main}/>);
+    return (<MainContainer main={main} />);
 }
 
 const ProviderCard = injectStyle("provider-card", k => `

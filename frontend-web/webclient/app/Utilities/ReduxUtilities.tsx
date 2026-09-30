@@ -11,7 +11,6 @@ import {popInReducer} from "@/ui-components/PopIn";
 import {sidebarReducer} from "@/Applications/Redux/Reducer";
 import {EnhancedStore, PayloadAction, ReducersMapObject, configureStore} from "@reduxjs/toolkit";
 import {noopCall} from "@/Authentication/DataHook";
-import {providerBrandingReducer} from "@/ProviderBrandings/AutomaticProviderBranding";
 import {brandingReducer} from "@/Applications/Branding/AutomaticBranding";
 
 export const CONTEXT_SWITCH = "CONTEXT_SWITCH";
@@ -45,7 +44,6 @@ export const store = confStore(initObject(), {
     sidebar: sidebarReducer,
     avatar: avatarReducer,
     terminal: terminalReducer,
-    providerBrandings: providerBrandingReducer,
     branding: brandingReducer,
     project: ProjectRedux.reducer,
     popinChild: popInReducer,

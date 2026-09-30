@@ -119,7 +119,7 @@ export const SimpleAvatarComponentCache = new class {
         const isDefaultAvatar = avatar === defaultAvatar;
         const avatarWrapper = createHTMLElements<HTMLDivElement>({tagType: "div", style: wrapperStyle});
         el.append(avatarWrapper);
-        HTMLTooltip(avatarWrapper, createHTMLElements({tagType: "div", className: TruncateClass, innerText: tooltipText}), {tooltipContentWidth: 250});
+
         const a = this.getAvatar(username);
         if (a) {
             const avatar = a.clone();
@@ -143,6 +143,9 @@ export const SimpleAvatarComponentCache = new class {
             const avatarElement = avatarComponent.clone();
             avatarWrapper.appendChild(avatarElement);
         }
+
+        const svg = avatarWrapper.children.item(0) as HTMLElement | undefined;
+        if (svg) HTMLTooltip(svg, createHTMLElements({tagType: "div", className: TruncateClass, innerText: tooltipText}), {tooltipContentWidth: 250});
         return avatarWrapper;
     }
 }
