@@ -500,6 +500,7 @@ export const UcxBrowserLayout: React.FunctionComponent<UcxBrowserLayoutProps> = 
             }
 
             if (event.key !== "Escape" || props.onEscape === undefined) return;
+            if (event.defaultPrevented) return;
             if (isEditableTarget(event.target)) return;
             const active = document.activeElement;
             const isPrimaryBrowser = document.querySelector("[data-ucx-browser]") === rootRef.current;
@@ -880,6 +881,7 @@ export interface UcxTableActionDef {
     icon?: string;
     kind: string;
     color?: string;
+    shortcut?: string;
 }
 
 export interface UcxTableActionEvent {
@@ -1062,9 +1064,29 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             ? filteredRows.findIndex(row => row.key === selectedKeyRef.current)
             : -1;
 
-        const nextIndex = key === "j" || key === "ArrowDown"
-            ? Math.min(currentIndex + 1, filteredRows.length - 1)
-            : currentIndex < 0 ? filteredRows.length - 1 : Math.max(currentIndex - 1, 0);
+        let nextIndex: number;
+        if (key === "Home") {
+            nextIndex = 0;
+        } else if (key === "End") {
+            nextIndex = filteredRows.length - 1;
+        } else if (key === "PageUp" || key === "PageDown") {
+            const first = scrollRef.current?.querySelector<HTMLElement>("[data-row-key]");
+            const rowHeight = first?.offsetHeight ?? 32;
+            const viewportHeight = scrollRef.current?.clientHeight ?? 10 * rowHeight;
+            const pageSize = Math.max(1, Math.floor(viewportHeight / Math.max(1, rowHeight)) - 1);
+            if (currentIndex < 0) {
+                nextIndex = key === "PageDown"
+                    ? Math.min(pageSize - 1, filteredRows.length - 1)
+                    : 0;
+            } else {
+                const delta = key === "PageDown" ? pageSize : -pageSize;
+                nextIndex = Math.min(Math.max(currentIndex + delta, 0), filteredRows.length - 1);
+            }
+        } else {
+            nextIndex = key === "j" || key === "ArrowDown"
+                ? Math.min(currentIndex + 1, filteredRows.length - 1)
+                : currentIndex < 0 ? filteredRows.length - 1 : Math.max(currentIndex - 1, 0);
+        }
         if (nextIndex === currentIndex) return;
 
         const selected = filteredRows[nextIndex];
@@ -1085,6 +1107,36 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             props.onRowActivated({tableId, rowKey: selected.key, row: selected});
         }
     }, [filteredRows, props, tableId]);
+
+    const triggerActionByShortcut = useCallback((shortcut: string) => {
+        if (shortcut === "") return false;
+        const selected = selectedKeyRef.current != null
+            ? filteredRows.find(row => row.key === selectedKeyRef.current)
+            : undefined;
+        if (selected) {
+            const def = actionDefs.find(candidate => candidate.shortcut?.toLowerCase() === shortcut);
+            if (def) {
+                const action = selected.actions?.find(candidate => candidate.id === def.id);
+                if (action && action.enabled) {
+                    if (def.kind === "copyText" && action.text !== undefined) {
+                        copyToClipboard(action.text);
+                    } else {
+                        props.onRowAction?.({tableId, rowKey: selected.key, actionId: def.id});
+                    }
+                    return true;
+                }
+            }
+        }
+        if (groupAction?.shortcut?.toLowerCase() === shortcut && selected && selected.group !== "") {
+            props.onGroupAction?.({actionId: groupAction.id, group: selected.group});
+            return true;
+        }
+        if (trailingAction?.shortcut?.toLowerCase() === shortcut) {
+            props.onTrailingAction?.({actionId: trailingAction.id, group: ""});
+            return true;
+        }
+        return false;
+    }, [actionDefs, filteredRows, groupAction, props, tableId, trailingAction]);
 
     const startColumnResize = useCallback((columnKey: string, event: React.PointerEvent<HTMLDivElement>) => {
         event.preventDefault();
@@ -1161,6 +1213,17 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         openRowMenuAtButton(row, button);
     }, [openRowMenuAtButton]);
 
+    const openMenuForSelection = useCallback(() => {
+        const selected = selectedKeyRef.current != null
+            ? filteredRows.find(row => row.key === selectedKeyRef.current)
+            : undefined;
+        if (!selected || (selected.actions?.length ?? 0) === 0) return;
+        const button = scrollRef.current
+            ?.querySelector<HTMLButtonElement>(`[data-row-key="${CSS.escape(selected.key)}"] .streamed-table-actions-button`);
+        if (!button) return;
+        toggleRowMenuAtButton(selected, button);
+    }, [filteredRows, toggleRowMenuAtButton]);
+
     const rowMenuEntries = useMemo((): ActionEntry<UcxStreamedRow, undefined>[] => {
         if (menuRowKey === null) return [];
         const row = store.rowsFor(tableId).get(menuRowKey);
@@ -1185,6 +1248,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                         props.onRowAction?.({tableId, rowKey: target.key, actionId: def.id});
                     }
                 },
+                shortcut: def.shortcut && def.shortcut !== "" ? {code: `Key${def.shortcut.toUpperCase()}`, key: def.shortcut, modifier: undefined} : undefined,
             });
         }
         return entries;
@@ -1224,6 +1288,16 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             if (menuOpenRefState.current) return;
             if (filterFocused && event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
 
+            const movementKeys = ["j", "k", "ArrowDown", "ArrowUp", "Home", "End", "PageUp", "PageDown"];
+            if (movementKeys.includes(event.key)) {
+                if (event.ctrlKey || event.metaKey || event.altKey) return;
+                event.preventDefault();
+                moveSelection(event.key);
+                return;
+            }
+
+            if (filterFocused) return;
+
             if (event.key === "/") {
                 const input = document.querySelector<HTMLInputElement>(`[data-ucx-table-filter="${CSS.escape(stateKey)}"]`);
                 if (!input) return;
@@ -1232,21 +1306,36 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                 return;
             }
 
-            if (event.key === "j" || event.key === "ArrowDown" || event.key === "k" || event.key === "ArrowUp") {
+            if (event.key === "Escape") {
+                if (selectedKeyRef.current == null) return;
                 event.preventDefault();
-                moveSelection(event.key);
+                store.setSelected(stateKey, null);
+                return;
+            }
+
+            if (event.key === "x" || event.key === "ContextMenu") {
+                if (event.ctrlKey || event.metaKey || event.altKey) return;
+                event.preventDefault();
+                openMenuForSelection();
                 return;
             }
 
             if (event.key === "Enter") {
                 event.preventDefault();
                 activateSelection();
+                return;
+            }
+
+            if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1) {
+                if (triggerActionByShortcut(event.key.toLowerCase())) {
+                    event.preventDefault();
+                }
             }
         };
 
         document.addEventListener("keydown", onKeyDown);
         return () => document.removeEventListener("keydown", onKeyDown);
-    }, [activateSelection, moveSelection, stateKey]);
+    }, [activateSelection, moveSelection, openMenuForSelection, stateKey, store, triggerActionByShortcut]);
 
     const emptyMessage = props.emptyMessage ?? "No resources found.";
     const colCount = columns.length + (hasActionDefs ? 1 : 0);
@@ -1268,15 +1357,16 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         data-ucx-table={tableId}
         style={{"--ucx-table-width": `${totalWidth}px`} as React.CSSProperties}
     >
-        <div
-            className="streamed-table-scroll"
-            ref={scrollRef}
-            onScroll={ev => {
-                scrollTopRef.current = ev.currentTarget.scrollTop;
-            }}
-            onMouseDown={() => rootRef.current?.focus({preventScroll: true})}
-        >
-            <Table tableType="presentation">
+        <div className="streamed-table-frame">
+            <div
+                className="streamed-table-scroll"
+                ref={scrollRef}
+                onScroll={ev => {
+                    scrollTopRef.current = ev.currentTarget.scrollTop;
+                }}
+                onMouseDown={() => rootRef.current?.focus({preventScroll: true})}
+            >
+            <Table tableType="presentation" aria-role="grid">
                 <colgroup>
                     {columns.map(col => <col key={col.key} data-col-key={col.key} style={{width: `${widths[col.key] ?? UCX_MIN_COLUMN_WIDTH}px`}} />)}
                     {hasActionDefs ? <col className="streamed-table-actions-col" style={{width: "40px"}} /> : null}
@@ -1337,7 +1427,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                         }
                     </TableRow>
                 </TableHeader>
-                <tbody>
+                <tbody role="rowgroup">
                     {groupedRows.length === 0 ?
                         <TableRow>
                             <TableCell colSpan={colCount}>
@@ -1356,7 +1446,9 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                             {groupAction ?
                                                 <span className="group-row-action">
                                                     <IconButton
-                                                        tooltip={groupAction.label}
+                                                        tooltip={groupAction.shortcut && groupAction.shortcut !== ""
+                                                            ? `${groupAction.label} (${groupAction.shortcut})`
+                                                            : groupAction.label}
                                                         icon={groupAction.icon as IconName}
                                                         compact
                                                         color="textPrimary"
@@ -1372,12 +1464,17 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                             }
                             {group.rows.map(row => {
                                 const hasActions = (row.actions?.length ?? 0) > 0;
+                                const isSelected = selectedKey === row.key;
+                                const isFirstRow = row.key === groupedRows[0]?.rows[0]?.key;
                                 return <TableRow
                                     key={row.key}
                                     data-row-key={row.key}
-                                    data-selected={selectedKey === row.key}
+                                    data-selected={isSelected}
+                                    role="row"
+                                    aria-selected={isSelected}
+                                    tabIndex={isSelected || (selectedKey == null && isFirstRow) ? 0 : -1}
                                     highlightOnHover
-                                    highlighted={selectedKey === row.key}
+                                    highlighted={isSelected}
                                     onClick={() => store.setSelected(stateKey, row.key)}
                                     onDoubleClick={() => props.onRowActivated({tableId, rowKey: row.key, row})}
                                     onContextMenu={hasActions ? event => {
@@ -1388,12 +1485,13 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                 >
                                     {columns.map((col, cellIdx) =>
                                         col.copy === true ?
-                                            <TableCell key={col.key} style={{position: "relative"}}>
+                                            <TableCell key={col.key} role="gridcell" style={{position: "relative"}}>
                                                 {row.cells[cellIdx] ?? ""}
                                                 <button
                                                     className="streamed-table-copy-button"
                                                     title="Copy name"
                                                     aria-label="Copy name"
+                                                    tabIndex={-1}
                                                     onClick={event => {
                                                         event.stopPropagation();
                                                         copyToClipboard(row.cells[cellIdx] ?? "");
@@ -1402,16 +1500,17 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                                     <Icon name="heroDocumentDuplicate" size={14} />
                                                 </button>
                                             </TableCell> :
-                                            <TableCell key={col.key}>
+                                            <TableCell key={col.key} role="gridcell">
                                                 {row.cells[cellIdx] ?? ""}
                                             </TableCell>
                                     )}
                                     {hasActions ?
-                                        <TableCell>
+                                        <TableCell role="gridcell">
                                             <div className="streamed-table-actions-cell">
                                                 <button
                                                     className="streamed-table-actions-button"
                                                     title="Row actions"
+                                                    tabIndex={-1}
                                                     onClick={event => {
                                                         event.stopPropagation();
                                                         toggleRowMenuAtButton(row, event.currentTarget);
@@ -1440,6 +1539,9 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                     >
                                         {trailingAction.icon ? <Icon name={trailingAction.icon as IconName} size={16} /> : null}
                                         {trailingAction.label}
+                                        {trailingAction.shortcut && trailingAction.shortcut !== "" ?
+                                            <span className="streamed-table-button-shortcut">{trailingAction.shortcut}</span> :
+                                            null}
                                     </Button>
                                 </span>
                             </TableCell>
@@ -1448,6 +1550,12 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                     }
                 </tbody>
             </Table>
+            </div>
+            <UcxTableShortcutGuide
+                actionDefs={actionDefs}
+                groupAction={groupAction}
+                tableRef={rootRef}
+            />
         </div>
         {menuRowKey !== null && rowMenuEntries.length > 0 ?
             <ActionMenu
@@ -1467,6 +1575,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                 onClose={() => {
                     menuOpenRefState.current = false;
                     closeRowMenu();
+                    rootRef.current?.focus({preventScroll: true});
                 }}
             /> :
             null
@@ -1525,6 +1634,82 @@ export const UcxTableCount: React.FunctionComponent<{
         {stats.loaded ? stats.filtered : "…"} {props.title ?? ""}
     </Text>;
 };
+
+const UcxTableShortcutGuideClass = injectStyle("ucx-table-shortcut-guide", key => `
+    ${key} {
+        color: var(--textSecondary);
+        font-size: 12px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 4px 16px;
+        padding: 8px 12px;
+        border-top: 1px solid var(--borderColor);
+        background: var(--tableBackground, var(--gray-5));
+        flex-shrink: 0;
+        user-select: none;
+    }
+
+    ${key} .shortcut-guide-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    ${key} .shortcut-guide-keys {
+        display: flex;
+        gap: 3px;
+        flex-shrink: 0;
+    }
+
+    ${key} .shortcut-guide-action {
+        white-space: nowrap;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            display: none;
+        }
+    }
+`);
+
+function UcxTableShortcutGuideRow({keys, action}: {keys: string[]; action: string}): React.ReactNode {
+    return <div className="shortcut-guide-row">
+        <span className="shortcut-guide-keys">
+            {keys.map(k => <span key={k} className={ShortcutClass}>{k}</span>)}
+        </span>
+        <span className="shortcut-guide-action">{action}</span>
+    </div>;
+}
+
+function UcxTableShortcutGuide({actionDefs, groupAction, tableRef}: {
+    actionDefs: UcxTableActionDef[];
+    groupAction?: UcxTableActionDef;
+    tableRef: React.RefObject<HTMLDivElement | null>;
+}): React.ReactNode {
+    const rows: {keys: string[]; action: string}[] = [
+        {keys: ["↑", "↓", "j", "k"], action: "Move selection"},
+        {keys: ["Enter"], action: "Open"},
+    ];
+    if (actionDefs.length > 0) rows.push({keys: ["x"], action: "Row actions"});
+    const builtIn = new Set(["j", "k", "x", "/"]);
+    for (const def of actionDefs) {
+        if (def.shortcut && def.shortcut !== "" && !builtIn.has(def.shortcut.toLowerCase())) {
+            rows.push({keys: [def.shortcut], action: def.label});
+        }
+    }
+    if (groupAction?.shortcut && groupAction.shortcut !== "" && !builtIn.has(groupAction.shortcut.toLowerCase())) {
+        rows.push({keys: [groupAction.shortcut], action: groupAction.label});
+    }
+    return <div
+        className={UcxTableShortcutGuideClass}
+        onMouseDown={() => tableRef.current?.focus({preventScroll: true})}
+    >
+        {rows.map((row, index) => <UcxTableShortcutGuideRow key={`${row.keys.join("")}-${index}`} keys={row.keys} action={row.action} />)}
+    </div>;
+}
 
 const UcxBrowserLayoutClass = injectStyle("ucx-browser-layout", key => `
     ${key} {
@@ -1729,12 +1914,20 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
         outline: none;
     }
 
-    ${k} .streamed-table-scroll {
-        overflow: auto;
+    ${k} .streamed-table-frame {
+        display: flex;
+        flex-direction: column;
         flex: 1;
         min-height: 200px;
         border: 1px solid var(--borderColor);
         border-radius: 8px;
+        overflow: hidden;
+    }
+
+    ${k} .streamed-table-scroll {
+        overflow: auto;
+        flex: 1;
+        min-height: 0;
     }
 
     ${k} .streamed-table-loading {
@@ -1745,7 +1938,7 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
         padding: 8px 0;
     }
 
-    ${k}:focus-within .streamed-table-scroll {
+    ${k}:focus-within .streamed-table-frame {
         border-color: var(--primaryMain);
     }
 
@@ -1844,8 +2037,39 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
         padding: 4px 0;
     }
 
-    ${k} .streamed-table-scroll tbody tr:last-child {
-        border-bottom: 1px solid var(--borderColor);
+    ${k} tr.trailing-action-row > td .trailing-action-cell button {
+        position: relative;
+        padding-right: 2.4em;
+    }
+
+    ${k} .streamed-table-button-shortcut {
+        position: absolute;
+        right: 0.6em;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--textPrimary);
+        background-color: var(--backgroundDefault);
+        border-radius: 5px;
+        border: .5px solid var(--gray-70);
+        border-bottom: 2px solid var(--gray-70);
+        font-size: 12px;
+        min-width: 18px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        user-select: none;
+        -webkit-user-select: none;
+        padding: 0 5px;
+    }
+
+    html.dark ${k} .streamed-table-button-shortcut {
+        border-color: var(--gray-60);
+    }
+
+    ${k} .streamed-table-frame .streamed-table-scroll tbody tr:last-child {
+        border-bottom: 0;
     }
 
     @media (max-width: 1000px) {

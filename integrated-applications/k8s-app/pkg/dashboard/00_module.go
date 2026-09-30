@@ -721,27 +721,31 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 		if app.ActiveType == "nodes" && app.clusterReadyForNodes() {
 			tableActions = append(tableActions,
 				ucx.ResourceTableAction{
-					Id:    "copyNodeName",
-					Label: "Copy node name",
-					Icon:  ucx.IconCopy,
-					Kind:  ucx.ResourceTableActionCopyText,
+					Id:       "copyNodeName",
+					Label:    "Copy node name",
+					Icon:     ucx.IconCopy,
+					Kind:     ucx.ResourceTableActionCopyText,
+					Shortcut: "c",
 				},
 				ucx.ResourceTableAction{
-					Id:    "goToJob",
-					Label: "Go to job",
-					Icon:  ucx.IconHeroArrowTopRightOnSquare,
+					Id:       "goToJob",
+					Label:    "Go to job",
+					Icon:     ucx.IconHeroArrowTopRightOnSquare,
+					Shortcut: "g",
 				},
 			)
 			groupAction = &ucx.ResourceTableAction{
-				Id:    "addMachine",
-				Label: "Add machine",
-				Icon:  ucx.IconHeroPlusSmall,
+				Id:       "addMachine",
+				Label:    "Add machine",
+				Icon:     ucx.IconHeroPlusSmall,
+				Shortcut: "a",
 			}
 			trailingAction = &ucx.ResourceTableAction{
-				Id:    "addWorkerPool",
-				Label: "Add worker pool",
-				Icon:  ucx.IconHeroPlusSmall,
-				Color: ucx.ColorPrimaryMain,
+				Id:       "addWorkerPool",
+				Label:    "Add worker pool",
+				Icon:     ucx.IconHeroPlusSmall,
+				Color:    ucx.ColorPrimaryMain,
+				Shortcut: "n",
 			}
 		}
 

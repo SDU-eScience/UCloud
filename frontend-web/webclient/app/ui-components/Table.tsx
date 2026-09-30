@@ -117,13 +117,14 @@ export const TableClass = injectStyle("table", k => `
 
 export const Table: React.FunctionComponent<BoxProps & {
     children?: React.ReactNode;
-    tableType?: "clean" | "presentation"
+    tableType?: "clean" | "presentation";
+    ["aria-role"]?: string;
 }> = props => {
     // NOTE(Dan): The presentation table is a slightly modified version of the table we use on our documentation page.
     // It is currently modified to have slightly less padding.
 
     return <div className={classConcat(TableClass, props.tableType)} style={unbox(props)} >
-        <table {...extractEventHandlers(props)}>
+        <table {...extractEventHandlers(props)} role={props["aria-role"]}>
             {props.children}
         </table>
     </div> ;
@@ -131,8 +132,14 @@ export const Table: React.FunctionComponent<BoxProps & {
 
 Table.displayName = "Table";
 
-export const TableCell: React.FunctionComponent<BoxProps & {children?: React.ReactNode; colSpan?: number; style?: React.CSSProperties;}> = props => {
-    return <td style={{...unbox(props), ...(props.style ?? {})}} {...extractEventHandlers(props)} colSpan={props.colSpan}>{props.children}</td>;
+export const TableCell: React.FunctionComponent<BoxProps & {children?: React.ReactNode; colSpan?: number; style?: React.CSSProperties; role?: string; tabIndex?: number;}> = props => {
+    return <td
+        style={{...unbox(props), ...(props.style ?? {})}}
+        {...extractEventHandlers(props)}
+        colSpan={props.colSpan}
+        role={props.role}
+        tabIndex={props.tabIndex}
+    >{props.children}</td>;
 };
 
 TableCell.displayName = "TableCell";
@@ -142,6 +149,9 @@ export const TableRow: React.FunctionComponent<BoxProps & {
     highlightOnHover?: boolean;
     highlighted?: boolean;
     className?: string;
+    role?: string;
+    tabIndex?: number;
+    ["aria-selected"]?: boolean;
 }> = props => {
     return <tr
         data-highlight={props.highlightOnHover === true}
@@ -150,6 +160,9 @@ export const TableRow: React.FunctionComponent<BoxProps & {
         style={unbox(props)}
         {...extractEventHandlers(props)}
         {...extractDataTags(props as Record<string, string>)}
+        role={props.role}
+        tabIndex={props.tabIndex}
+        aria-selected={props["aria-selected"]}
         children={props.children}
     />;
 };

@@ -892,11 +892,12 @@ type ResourceTableActionKind string
 const ResourceTableActionCopyText ResourceTableActionKind = "copyText"
 
 type ResourceTableAction struct {
-	Id    string
-	Label string
-	Icon  IconName
-	Kind  ResourceTableActionKind
-	Color Color
+	Id       string
+	Label    string
+	Icon     IconName
+	Kind     ResourceTableActionKind
+	Color    Color
+	Shortcut string
 }
 
 type ResourceTableProps struct {
@@ -941,22 +942,30 @@ func ResourceTable(props ResourceTableProps) UiNode {
 	if len(props.Actions) > 0 {
 		actionValues := make([]Value, 0, len(props.Actions))
 		for _, action := range props.Actions {
-			actionValues = append(actionValues, VObject(map[string]Value{
+			actionValue := VObject(map[string]Value{
 				"id":    VString(action.Id),
 				"label": VString(action.Label),
 				"icon":  VIcon(action.Icon),
 				"kind":  VString(string(action.Kind)),
-			}))
+			})
+			if action.Shortcut != "" {
+				actionValue.Object["shortcut"] = VString(action.Shortcut)
+			}
+			actionValues = append(actionValues, actionValue)
 		}
 		nodeProps["actions"] = VList(actionValues)
 	}
 
 	if props.GroupAction != nil {
-		nodeProps["groupAction"] = VObject(map[string]Value{
+		groupValue := VObject(map[string]Value{
 			"id":    VString(props.GroupAction.Id),
 			"label": VString(props.GroupAction.Label),
 			"icon":  VIcon(props.GroupAction.Icon),
 		})
+		if props.GroupAction.Shortcut != "" {
+			groupValue.Object["shortcut"] = VString(props.GroupAction.Shortcut)
+		}
+		nodeProps["groupAction"] = groupValue
 	}
 
 	if props.TrailingAction != nil {
@@ -967,6 +976,9 @@ func ResourceTable(props ResourceTableProps) UiNode {
 		})
 		if props.TrailingAction.Color != "" {
 			trailing.Object["color"] = VColor(props.TrailingAction.Color)
+		}
+		if props.TrailingAction.Shortcut != "" {
+			trailing.Object["shortcut"] = VString(props.TrailingAction.Shortcut)
 		}
 		nodeProps["trailingAction"] = trailing
 	}

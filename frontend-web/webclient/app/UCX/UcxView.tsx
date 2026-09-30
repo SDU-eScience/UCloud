@@ -2469,6 +2469,7 @@ function ucxTableActionsProp(node: UiNode): UcxTableActionDef[] {
             label: asString(item.object["label"], id),
             icon: asString(item.object["icon"], ""),
             kind: asString(item.object["kind"], ""),
+            shortcut: asString(item.object["shortcut"], ""),
         }];
     });
 }
@@ -2484,6 +2485,7 @@ function ucxTableSingleActionProp(node: UiNode, key: string): UcxTableActionDef 
         icon: asString(raw.object["icon"], ""),
         kind: "",
         color: asString(raw.object["color"], ""),
+        shortcut: asString(raw.object["shortcut"], ""),
     };
 }
 
