@@ -590,6 +590,14 @@ const ContentWrapper = injectStyle("content-wrapper", k => `
         box-shadow: var(--defaultShadow);
     }
 
+    @media (max-width: 530px) {
+        ${k} {
+            width: calc(100vw - 16px);
+            bottom: 142px;
+            left: 8px;
+        }
+    }
+
     ${k} > .container-wrapper {
         flex-grow: 1;
         overflow-y: auto;

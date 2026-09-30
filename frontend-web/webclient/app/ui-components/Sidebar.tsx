@@ -100,7 +100,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k}[data-open="false"] {
         transform: translateX(-100%);
     }
-    
+
     ${k}[data-open="true"][data-as-pop-over="true"] {
         transform: translateX(var(--sidebarWidth));
     }
@@ -108,7 +108,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k}[data-open="true"][data-as-pop-over="false"] {
         position: static;
     }
-    
+
     @media screen and (max-width: 640px) {
         ${k}[data-open="true"][data-as-pop-over="true"] {
             position: absolute;
@@ -118,18 +118,18 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
 
     ${k}, ${k} a, ${k} a:hover {
         color: white;
-    } 
+    }
 
     ${k} header {
         align-items: center;
     }
-    
+
     ${k} header h1 {
         font-size: 20px;
         flex-grow: 1;
         margin: 0;
     }
-    
+
     ${k} header div {
         cursor: pointer;
     }
@@ -137,7 +137,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} h2, ${k} h3 {
         margin: 0;
     }
-    
+
     ${k} h3 {
         font-size: 16px;
     }
@@ -146,18 +146,18 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         user-select: none;
         -webkit-user-select: none;
     }
-    
+
     ${k} a.heading, ${k} h3.no-link  {
         margin-top: 15px;
     }
-    
+
     ${k} a, ${k} h3.no-link  {
         border-radius: 10px;
         padding: 5px;
         display: block;
         margin-left: -5px;
     }
-    
+
     ${k} a:hover {
         background-color: rgba(255, 255, 255, 0.25);
     }
@@ -175,7 +175,7 @@ const SidebarContainerClass = injectStyleSimple("sidebar-container", `
 
     /* Note(Jonas): Required by Safari */
     min-width: var(--sidebarWidth);
-    
+
     background-color: var(--sidebarColor);
     z-index: 100;
     padding-bottom: 12px;
@@ -190,11 +190,11 @@ const SidebarMenuItem = injectStyle("sidebar-item", k => `
         height: 32px;
         margin-top: 8px;
     }
-    
+
     ${k}:hover, ${k}[data-active="true"] {
         background-color: rgba(255, 255, 255, 0.25);
     }
-    
+
     ${k} > * {
         margin: auto;
     }
@@ -420,7 +420,6 @@ function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Comma
             }
         }
     }
-    ;
 
     return result;
 }
