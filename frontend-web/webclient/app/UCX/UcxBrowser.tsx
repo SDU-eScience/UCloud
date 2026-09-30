@@ -10,6 +10,7 @@ import {VirtualizedTree, VirtualizedTreeApi} from "@/ui-components/VirtualizedTr
 import {injectStyle} from "@/Unstyled";
 import {copyToClipboard, isLikelyMac} from "@/UtilityFunctions";
 import {TableColumn, TableColumnSortType, TableUpdate} from "@/UCX/protocol";
+import {UcxSpinner} from "@/UCX/UcxSpinner";
 import {
     UCX_MIN_COLUMN_WIDTH,
     computeColumnWidths,
@@ -35,6 +36,7 @@ export interface UcxStreamedRow {
 export interface UcxTableStats {
     filtered: number;
     total: number;
+    loaded: boolean;
 }
 
 export interface UcxTableSort {
@@ -59,6 +61,7 @@ export class UcxTableStore {
     private selected = new Map<string, string | null>();
     private stats = new Map<string, UcxTableStats>();
     private sorts = new Map<string, UcxTableSort>();
+    private loaded = new Map<string, boolean>();
     private activeStates = new Map<string, string>();
     private views = new Map<string, UcxTableViewHandler>();
     private listeners = new Set<UcxTableStoreListener>();
@@ -81,6 +84,8 @@ export class UcxTableStore {
             this.columns.set(update.tableId, update.columns);
         }
 
+        this.loaded.set(update.tableId, true);
+
         this.bumpRevision();
         this.notify();
     }
@@ -94,6 +99,7 @@ export class UcxTableStore {
         this.stats = new Map();
         this.sorts = new Map();
         this.activeStates = new Map();
+        this.loaded = new Map();
         this.bumpRevision();
         this.notify();
     }
@@ -108,6 +114,10 @@ export class UcxTableStore {
 
     rowsFor(tableId: string): Map<string, UcxStreamedRow> {
         return this.rows.get(tableId) ?? new Map<string, UcxStreamedRow>();
+    }
+
+    loadedFor(tableId: string): boolean {
+        return this.loaded.get(tableId) === true;
     }
 
     columnsFor(tableId: string): TableColumn[] {
@@ -145,12 +155,13 @@ export class UcxTableStore {
     }
 
     statsFor(stateKey: string): UcxTableStats {
-        return this.stats.get(stateKey) ?? {filtered: 0, total: 0};
+        return this.stats.get(stateKey) ?? {filtered: 0, total: 0, loaded: false};
     }
 
     setStats(stateKey: string, stats: UcxTableStats) {
         const previous = this.stats.get(stateKey);
-        if (previous && previous.filtered === stats.filtered && previous.total === stats.total) return;
+        if (previous && previous.filtered === stats.filtered && previous.total === stats.total
+            && previous.loaded === stats.loaded) return;
         this.stats.set(stateKey, stats);
         this.bumpRevision();
         this.notify();
@@ -905,7 +916,8 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     const viewId = props.viewId ?? `table:${tableId}`;
     const stateKey = props.stateKey ?? tableId;
     const revision = useUcxTableRevision(store);
-    const rows = useMemo(() => Array.from(store.rowsFor(tableId).values()), [store, tableId, revision]);
+    const loaded = store.loadedFor(tableId);
+    const rows = useMemo(() => Array.from(store.rowsFor(tableId).values()), [store, tableId, revision, loaded]);
     const columns = store.columnsFor(tableId);
     const filter = store.filterFor(stateKey);
     const selectedKey = store.selectedFor(stateKey);
@@ -1029,8 +1041,8 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     }
 
     useEffect(() => {
-        store.setStats(stateKey, {filtered: filteredRows.length, total: orderedRows.length});
-    }, [filteredRows.length, orderedRows.length, stateKey, store, tableId]);
+        store.setStats(stateKey, {filtered: filteredRows.length, total: orderedRows.length, loaded});
+    }, [filteredRows.length, orderedRows.length, stateKey, store, tableId, loaded]);
 
     const toggleSort = useCallback((columnKey: string) => {
         const current = store.sortFor(stateKey);
@@ -1237,6 +1249,17 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     }, [activateSelection, moveSelection, stateKey]);
 
     const emptyMessage = props.emptyMessage ?? "No resources found.";
+    const colCount = columns.length + (hasActionDefs ? 1 : 0);
+    const filterActive = filter.trim() !== "";
+    const emptyRowContent = !loaded ?
+        <span className="streamed-table-loading">
+            <UcxSpinner size={16} />
+            <Text color="textSecondary">Loading resources...</Text>
+        </span> :
+        (filterActive && orderedRows.length > 0 ?
+            <Text color="textSecondary">No resources match your filter.</Text> :
+            <Text color="textSecondary">{emptyMessage}</Text>
+        );
 
     return <div
         ref={rootRef}
@@ -1317,7 +1340,9 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                 <tbody>
                     {groupedRows.length === 0 ?
                         <TableRow>
-                            <TableCell colSpan={columns.length + (hasActionDefs ? 1 : 0)}>{emptyMessage}</TableCell>
+                            <TableCell colSpan={colCount}>
+                                {emptyRowContent}
+                            </TableCell>
                         </TableRow> :
                         null
                     }
@@ -1497,7 +1522,7 @@ export const UcxTableCount: React.FunctionComponent<{
     useUcxTableRevision(props.store);
     const stats = props.store.statsFor(props.stateKey);
     return <Text fontSize={12} color="textSecondary">
-        {stats.filtered} {props.title ?? ""}
+        {stats.loaded ? stats.filtered : "…"} {props.title ?? ""}
     </Text>;
 };
 
@@ -1710,6 +1735,14 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
         min-height: 200px;
         border: 1px solid var(--borderColor);
         border-radius: 8px;
+    }
+
+    ${k} .streamed-table-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 8px 0;
     }
 
     ${k}:focus-within .streamed-table-scroll {
