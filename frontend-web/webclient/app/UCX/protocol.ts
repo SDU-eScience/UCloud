@@ -77,10 +77,24 @@ export interface UiEvent {
     value: Value;
 }
 
+export const enum TableColumnSortType {
+    Text = 0,
+    Number = 1,
+    Duration = 2,
+    Ratio = 3,
+    Capacity = 4,
+    Ip = 5,
+    Bool = 6,
+}
+
+export const TableColumnFlagCopy = 1;
+
 export interface TableColumn {
     key: string;
     label: string;
     jsonPath: string;
+    sortType?: TableColumnSortType;
+    copy?: boolean;
 }
 
 export interface TableRowAction {
@@ -135,6 +149,15 @@ class BinaryWriter {
         this.push(buf);
     }
 
+    writeUvarint(v: number) {
+        let value = v >>> 0;
+        while (value >= 0x80) {
+            this.writeU8((value & 0x7f) | 0x80);
+            value >>>= 7;
+        }
+        this.writeU8(value);
+    }
+
     writeS64(v: number) {
         const buf = new ArrayBuffer(8);
         const dv = new DataView(buf);
@@ -151,7 +174,7 @@ class BinaryWriter {
 
     writeString(v: string) {
         const encoded = this.encoder.encode(v);
-        this.writeU32(encoded.length);
+        this.writeUvarint(encoded.length);
         this.writeBytes(encoded);
     }
 
@@ -190,6 +213,22 @@ class BinaryReader {
         return val;
     }
 
+    readUvarint(): number {
+        let result = 0;
+        let shift = 0;
+        for (;;) {
+            const next = this.readU8();
+            result += (next & 0x7f) * Math.pow(2, shift);
+            if ((next & 0x80) === 0) break;
+            shift += 7;
+            if (shift > 31) {
+                // Values above 2^32 are not meaningful on the web client side; treat as corrupt.
+                throw new Error("uvarint overflow");
+            }
+        }
+        return result >>> 0;
+    }
+
     readS64(): number {
         this.ensure(8);
         const dv = new DataView(this.bytes.buffer, this.bytes.byteOffset + this.offset, 8);
@@ -207,7 +246,7 @@ class BinaryReader {
     }
 
     readString(): string {
-        const len = this.readU32();
+        const len = this.readUvarint();
         return this.decoder.decode(this.readBytes(len));
     }
 
@@ -393,6 +432,11 @@ function encodeTableUpdate(w: BinaryWriter, update: TableUpdate) {
         w.writeString(col.key);
         w.writeString(col.label);
         w.writeString(col.jsonPath);
+        w.writeU8(col.sortType ?? TableColumnSortType.Text);
+
+        let flags = 0;
+        if (col.copy === true) flags |= TableColumnFlagCopy;
+        w.writeU8(flags);
     }
 
     w.writeU32(update.upserts.length);
@@ -431,7 +475,18 @@ function decodeTableUpdate(r: BinaryReader): TableUpdate {
     const columnCount = r.readU32();
     const columns: TableColumn[] = [];
     for (let i = 0; i < columnCount; i++) {
-        columns.push({key: r.readString(), label: r.readString(), jsonPath: r.readString()});
+        const key = r.readString();
+        const label = r.readString();
+        const jsonPath = r.readString();
+        const sortType = r.readU8() as TableColumnSortType;
+        const flags = r.readU8();
+        columns.push({
+            key,
+            label,
+            jsonPath,
+            sortType: sortType === TableColumnSortType.Text ? undefined : sortType,
+            copy: (flags & TableColumnFlagCopy) !== 0 || undefined,
+        });
     }
 
     const rowCount = r.readU32();

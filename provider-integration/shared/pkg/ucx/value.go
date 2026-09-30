@@ -48,7 +48,7 @@ func ValueEncode(buf *util.UBuffer, v Value) {
 	case ValueF64:
 		buf.WriteU64(math.Float64bits(v.F64))
 	case ValueString:
-		buf.WriteString(v.String)
+		buf.WriteStringVarint(v.String)
 	case ValueBinary:
 		buf.WriteU32(uint32(len(v.Binary)))
 		buf.WriteBytes(v.Binary)
@@ -77,7 +77,7 @@ func ValueDecode(buf *util.UBuffer) Value {
 	case ValueF64:
 		result.F64 = math.Float64frombits(buf.ReadU64())
 	case ValueString:
-		result.String = buf.ReadString()
+		result.String = buf.ReadStringVarint()
 	case ValueBinary:
 		result.Binary = buf.ReadNext(int(buf.ReadU32()))
 	case ValueList:
@@ -109,8 +109,8 @@ func StringMapEncode(buf *util.UBuffer, input map[string]string) {
 
 	buf.WriteU32(uint32(len(keys)))
 	for _, k := range keys {
-		buf.WriteString(k)
-		buf.WriteString(input[k])
+		buf.WriteStringVarint(k)
+		buf.WriteStringVarint(input[k])
 	}
 }
 
@@ -118,8 +118,8 @@ func StringMapDecode(buf *util.UBuffer) map[string]string {
 	count := buf.ReadU32()
 	result := make(map[string]string, count)
 	for i := uint32(0); i < count; i++ {
-		k := buf.ReadString()
-		v := buf.ReadString()
+		k := buf.ReadStringVarint()
+		v := buf.ReadStringVarint()
 		result[k] = v
 	}
 	return result
@@ -139,7 +139,7 @@ func ValueMapEncode(buf *util.UBuffer, input map[string]Value) {
 
 	buf.WriteU32(uint32(len(keys)))
 	for _, k := range keys {
-		buf.WriteString(k)
+		buf.WriteStringVarint(k)
 		ValueEncode(buf, input[k])
 	}
 }
@@ -148,7 +148,7 @@ func ValueMapDecode(buf *util.UBuffer) map[string]Value {
 	count := buf.ReadU32()
 	result := make(map[string]Value, count)
 	for i := uint32(0); i < count; i++ {
-		k := buf.ReadString()
+		k := buf.ReadStringVarint()
 		v := ValueDecode(buf)
 		result[k] = v
 	}

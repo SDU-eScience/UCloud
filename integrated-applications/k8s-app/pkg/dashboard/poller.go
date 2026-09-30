@@ -776,7 +776,7 @@ func columnsEqual(a, b []ucx.TableColumn) bool {
 		return false
 	}
 	for i := range a {
-		if a[i].Key != b[i].Key || a[i].Label != b[i].Label {
+		if a[i].Key != b[i].Key || a[i].Label != b[i].Label || a[i].SortType != b[i].SortType {
 			return false
 		}
 	}

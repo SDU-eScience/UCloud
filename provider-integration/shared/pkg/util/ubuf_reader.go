@@ -2,6 +2,7 @@ package util
 
 import (
 	"encoding/binary"
+	"errors"
 	"io"
 	"math"
 )
@@ -104,6 +105,42 @@ func (b *UBufferReader) ReadRemainingBytes() []byte {
 func (b *UBufferReader) ReadString() string {
 	size := b.ReadU32()
 	if size == 0 {
+		return ""
+	}
+
+	output := make([]byte, size)
+	_, err := b._buf.Read(output)
+	if err != nil {
+		b.Error = err
+	}
+	return string(output)
+}
+
+func (b *UBufferReader) ReadUvarint() uint64 {
+	var result uint64
+	var shift uint
+	for {
+		next := b.ReadU8()
+		if b.Error != nil {
+			return 0
+		}
+
+		result |= uint64(next&0x7f) << shift
+		if next&0x80 == 0 {
+			return result
+		}
+
+		shift += 7
+		if shift >= 64 {
+			b.Error = errors.New("uvarint overflow")
+			return 0
+		}
+	}
+}
+
+func (b *UBufferReader) ReadStringVarint() string {
+	size := b.ReadUvarint()
+	if b.Error != nil || size == 0 {
 		return ""
 	}
 

@@ -131,8 +131,8 @@ export const Table: React.FunctionComponent<BoxProps & {
 
 Table.displayName = "Table";
 
-export const TableCell: React.FunctionComponent<BoxProps & {children?: React.ReactNode; colSpan?: number;}> = props => {
-    return <td style={unbox(props)} {...extractEventHandlers(props)} colSpan={props.colSpan}>{props.children}</td>;
+export const TableCell: React.FunctionComponent<BoxProps & {children?: React.ReactNode; colSpan?: number; style?: React.CSSProperties;}> = props => {
+    return <td style={{...unbox(props), ...(props.style ?? {})}} {...extractEventHandlers(props)} colSpan={props.colSpan}>{props.children}</td>;
 };
 
 TableCell.displayName = "TableCell";

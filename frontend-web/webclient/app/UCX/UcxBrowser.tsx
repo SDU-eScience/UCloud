@@ -9,7 +9,7 @@ import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 import {VirtualizedTree, VirtualizedTreeApi} from "@/ui-components/VirtualizedTree";
 import {injectStyle} from "@/Unstyled";
 import {copyToClipboard, isLikelyMac} from "@/UtilityFunctions";
-import {TableColumn, TableUpdate} from "@/UCX/protocol";
+import {TableColumn, TableColumnSortType, TableUpdate} from "@/UCX/protocol";
 import {
     UCX_MIN_COLUMN_WIDTH,
     computeColumnWidths,
@@ -37,6 +37,11 @@ export interface UcxTableStats {
     total: number;
 }
 
+export interface UcxTableSort {
+    columnKey: string;
+    ascending: boolean;
+}
+
 export interface UcxTableViewHandler {
     activate(): void;
     focus(): void;
@@ -53,6 +58,7 @@ export class UcxTableStore {
     private scrolls = new Map<string, number>();
     private selected = new Map<string, string | null>();
     private stats = new Map<string, UcxTableStats>();
+    private sorts = new Map<string, UcxTableSort>();
     private activeStates = new Map<string, string>();
     private views = new Map<string, UcxTableViewHandler>();
     private listeners = new Set<UcxTableStoreListener>();
@@ -86,6 +92,7 @@ export class UcxTableStore {
         this.scrolls = new Map();
         this.selected = new Map();
         this.stats = new Map();
+        this.sorts = new Map();
         this.activeStates = new Map();
         this.bumpRevision();
         this.notify();
@@ -149,6 +156,23 @@ export class UcxTableStore {
         this.notify();
     }
 
+    sortFor(stateKey: string): UcxTableSort | null {
+        return this.sorts.get(stateKey) ?? null;
+    }
+
+    setSort(stateKey: string, sort: UcxTableSort | null) {
+        const previous = this.sorts.get(stateKey) ?? null;
+        if (previous === sort || (previous !== null && sort !== null
+            && previous.columnKey === sort.columnKey && previous.ascending === sort.ascending)) return;
+        if (sort === null) {
+            this.sorts.delete(stateKey);
+        } else {
+            this.sorts.set(stateKey, sort);
+        }
+        this.bumpRevision();
+        this.notify();
+    }
+
     claimView(viewId: string, stateKey: string): string | null {
         const previous = this.activeStates.get(viewId) ?? null;
         this.activeStates.set(viewId, stateKey);
@@ -159,7 +183,8 @@ export class UcxTableStore {
         const hadFilter = this.filters.delete(stateKey);
         const hadScroll = this.scrolls.delete(stateKey);
         const hadSelected = this.selected.delete(stateKey);
-        if (hadFilter || hadScroll || hadSelected) {
+        const hadSort = this.sorts.delete(stateKey);
+        if (hadFilter || hadScroll || hadSelected || hadSort) {
             this.bumpRevision();
             this.notify();
         }
@@ -203,6 +228,143 @@ function useUcxTableRevision(store: UcxTableStore): number {
         listener => store.subscribe(listener),
         () => store.getRevision(),
     );
+}
+
+const DURATION_MULTIPLIERS: Record<string, number> = {
+    s: 1,
+    m: 60,
+    h: 3600,
+    d: 86400,
+};
+
+const CAPACITY_MULTIPLIERS: Record<string, number> = {
+    ki: 1024,
+    mi: 1024 ** 2,
+    gi: 1024 ** 3,
+    ti: 1024 ** 4,
+    k: 1000,
+    m: 1000 ** 2,
+    g: 1000 ** 3,
+    t: 1000 ** 4,
+};
+
+function compareNumbers(a: number, b: number): number {
+    if (a < b) return -1;
+    if (a > b) return 1;
+    return 0;
+}
+
+function compareDurations(a: string, b: string): number {
+    const left = parseDurationSeconds(a);
+    const right = parseDurationSeconds(b);
+    if (left === null || right === null) return NaN;
+    return compareNumbers(left, right);
+}
+
+function parseDurationSeconds(text: string): number | null {
+    const match = /^(\d+)([smhd])$/.exec(text.trim());
+    if (!match) return null;
+    const multiplier = DURATION_MULTIPLIERS[match[2]];
+    if (multiplier === undefined) return null;
+    return parseInt(match[1], 10) * multiplier;
+}
+
+function compareRatios(a: string, b: string): number {
+    const left = a.trim().split("/");
+    const right = b.trim().split("/");
+    if (left.length !== 2 || right.length !== 2) return NaN;
+    const leftNum = Number(left[0]);
+    const leftDen = Number(left[1]);
+    const rightNum = Number(right[0]);
+    const rightDen = Number(right[1]);
+    if (!Number.isFinite(leftNum) || !Number.isFinite(leftDen) || !Number.isFinite(rightNum) || !Number.isFinite(rightDen)) {
+        return NaN;
+    }
+    if (leftDen === 0 && rightDen === 0) return compareNumbers(leftNum, rightNum);
+    if (leftDen === 0 || rightDen === 0) return leftDen === 0 ? 1 : -1;
+    return compareNumbers(leftNum / leftDen, rightNum / rightDen);
+}
+
+function compareNumbersText(a: string, b: string): number {
+    const left = Number(a.trim());
+    const right = Number(b.trim());
+    if (!Number.isFinite(left) || !Number.isFinite(right)) return NaN;
+    return compareNumbers(left, right);
+}
+
+function compareCapacities(a: string, b: string): number {
+    const left = parseCapacityBytes(a);
+    const right = parseCapacityBytes(b);
+    if (left === null || right === null) return NaN;
+    return compareNumbers(left, right);
+}
+
+function parseCapacityBytes(text: string): number | null {
+    const match = /^(\d+(?:\.\d+)?)\s*([kKmMgGtT][iI]?)$/.exec(text.trim());
+    if (!match) {
+        const plain = Number(text.trim());
+        if (Number.isFinite(plain)) return plain;
+        return null;
+    }
+    const multiplier = CAPACITY_MULTIPLIERS[match[2].toLowerCase()];
+    if (multiplier === undefined) return null;
+    return parseFloat(match[1]) * multiplier;
+}
+
+function compareIps(a: string, b: string): number {
+    const left = parseIpOctets(a);
+    const right = parseIpOctets(b);
+    if (left === null || right === null) return NaN;
+    for (let i = 0; i < 4; i++) {
+        const cmp = compareNumbers(left[i], right[i]);
+        if (cmp !== 0) return cmp;
+    }
+    return 0;
+}
+
+function parseIpOctets(text: string): number[] | null {
+    const parts = text.trim().split(".");
+    if (parts.length !== 4) return null;
+    const octets: number[] = [];
+    for (const part of parts) {
+        if (!/^\d{1,3}$/.test(part)) return null;
+        const value = parseInt(part, 10);
+        if (value > 255) return null;
+        octets.push(value);
+    }
+    return octets;
+}
+
+function compareBools(a: string, b: string): number {
+    const left = parseBoolValue(a);
+    const right = parseBoolValue(b);
+    if (left === null || right === null) return NaN;
+    return compareNumbers(left, right);
+}
+
+function parseBoolValue(text: string): number | null {
+    const trimmed = text.trim().toLowerCase();
+    if (trimmed === "true") return 1;
+    if (trimmed === "false") return 0;
+    return null;
+}
+
+const SORT_COMPARATORS: Partial<Record<TableColumnSortType, (a: string, b: string) => number>> = {
+    [TableColumnSortType.Number]: compareNumbersText,
+    [TableColumnSortType.Duration]: compareDurations,
+    [TableColumnSortType.Ratio]: compareRatios,
+    [TableColumnSortType.Capacity]: compareCapacities,
+    [TableColumnSortType.Ip]: compareIps,
+    [TableColumnSortType.Bool]: compareBools,
+};
+
+function compareCells(sortType: TableColumnSortType | undefined, a: string, b: string): number {
+    const comparator = sortType === undefined ? undefined : SORT_COMPARATORS[sortType];
+    if (comparator !== undefined) {
+        const typed = comparator(a, b);
+        if (!Number.isNaN(typed)) return typed;
+    }
+    return a.localeCompare(b);
 }
 
 function regionContains(root: HTMLElement | null): boolean {
@@ -815,6 +977,29 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
 
     const orderedRows = useMemo(() => {
         const sorted = [...rows];
+        const sort = props.sorted !== false ? store.sortFor(stateKey) : null;
+        const sortIdx = sort !== null ? columns.findIndex(col => col.key === sort.columnKey) : -1;
+        if (sort !== null && sortIdx >= 0) {
+            const sortType = columns[sortIdx].sortType;
+            const direction = sort.ascending ? 1 : -1;
+            const groupPrimary = props.showGroupHeaders !== false;
+            sorted.sort((a, b) => {
+                if (groupPrimary) {
+                    const groupCmp = a.group.localeCompare(b.group);
+                    if (groupCmp !== 0) return groupCmp;
+                }
+                const cellA = a.cells[sortIdx] ?? "";
+                const cellB = b.cells[sortIdx] ?? "";
+                const cellCmp = compareCells(sortType, cellA, cellB);
+                if (cellCmp !== 0) return cellCmp * direction;
+                const groupCmp = a.group.localeCompare(b.group);
+                if (groupCmp !== 0) return groupCmp;
+                const nameA = a.cells[0] ?? "";
+                const nameB = b.cells[0] ?? "";
+                return nameA.localeCompare(nameB);
+            });
+            return sorted;
+        }
         if (props.sorted !== false) {
             sorted.sort((a, b) => {
                 const groupCmp = a.group.localeCompare(b.group);
@@ -825,7 +1010,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             });
         }
         return sorted;
-    }, [rows, props.sorted]);
+    }, [rows, props.sorted, columns, stateKey, store, revision]);
 
     const filteredRows = useMemo(() => {
         const needle = filter.trim().toLowerCase();
@@ -846,6 +1031,17 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     useEffect(() => {
         store.setStats(stateKey, {filtered: filteredRows.length, total: orderedRows.length});
     }, [filteredRows.length, orderedRows.length, stateKey, store, tableId]);
+
+    const toggleSort = useCallback((columnKey: string) => {
+        const current = store.sortFor(stateKey);
+        if (current === null || current.columnKey !== columnKey) {
+            store.setSort(stateKey, {columnKey, ascending: true});
+        } else if (current.ascending) {
+            store.setSort(stateKey, {columnKey, ascending: false});
+        } else {
+            store.setSort(stateKey, null);
+        }
+    }, [stateKey, store]);
 
     const moveSelection = useCallback((key: string) => {
         if (filteredRows.length === 0) return;
@@ -882,13 +1078,28 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         event.preventDefault();
         event.stopPropagation();
         const handle = event.currentTarget;
+        const cell = handle.parentElement;
+        const table = handle.closest("table");
+        if (!(cell instanceof HTMLElement) || !(table instanceof HTMLTableElement)) return;
+        const colElement = table.querySelector<HTMLTableColElement>(`col[data-col-key="${CSS.escape(columnKey)}"]`);
+        if (!colElement) return;
         handle.setPointerCapture(event.pointerId);
         const startX = event.clientX;
-        const startWidth = widths[columnKey] ?? UCX_MIN_COLUMN_WIDTH;
+        const startConfigured = widths[columnKey] ?? UCX_MIN_COLUMN_WIDTH;
+        const startRendered = cell.getBoundingClientRect().width;
+        const gain = Math.max(0.25, startRendered / startConfigured);
+        let applied = startConfigured;
         setDragColumn(columnKey);
         const onMove = (moveEvent: PointerEvent) => {
-            const next = Math.max(UCX_MIN_COLUMN_WIDTH, startWidth + (moveEvent.clientX - startX));
-            setUserColumnWidth(columnKey, next);
+            const target = Math.max(UCX_MIN_COLUMN_WIDTH, startRendered + (moveEvent.clientX - startX));
+            for (let i = 0; i < 4; i++) {
+                const rendered = cell.getBoundingClientRect().width;
+                const error = target - rendered;
+                if (Math.abs(error) < 0.5) break;
+                applied = Math.max(UCX_MIN_COLUMN_WIDTH, applied + error / gain);
+                colElement.style.width = `${applied}px`;
+            }
+            setUserColumnWidth(columnKey, applied);
             setWidthRevision(value => value + 1);
         };
         const onUp = () => {
@@ -1044,14 +1255,44 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         >
             <Table tableType="presentation">
                 <colgroup>
-                    {columns.map(col => <col key={col.key} style={{width: `${widths[col.key] ?? UCX_MIN_COLUMN_WIDTH}px`}} />)}
+                    {columns.map(col => <col key={col.key} data-col-key={col.key} style={{width: `${widths[col.key] ?? UCX_MIN_COLUMN_WIDTH}px`}} />)}
                     {hasActionDefs ? <col className="streamed-table-actions-col" style={{width: "40px"}} /> : null}
                 </colgroup>
                 <TableHeader>
                     <TableRow>
-                        {columns.map(col =>
-                            <TableHeaderCell key={col.key}>
-                                <span className="streamed-table-header-label">{col.label}</span>
+                        {columns.map(col => {
+                            const sort = store.sortFor(stateKey);
+                            const isSortColumn = sort !== null && sort.columnKey === col.key;
+                            return <TableHeaderCell key={col.key}>
+                                <span
+                                    className="streamed-table-header-label"
+                                    data-sort-active={isSortColumn ? "true" : undefined}
+                                    tabIndex={0}
+                                    role="button"
+                                    aria-label={`Sort by ${col.label}`}
+                                    onClick={event => {
+                                        event.stopPropagation();
+                                        toggleSort(col.key);
+                                    }}
+                                    onKeyDown={event => {
+                                        if (event.key === "Enter" || event.key === " ") {
+                                            event.preventDefault();
+                                            event.stopPropagation();
+                                            toggleSort(col.key);
+                                        }
+                                    }}
+                                >
+                                    {col.label}
+                                    {isSortColumn ?
+                                        <Icon
+                                            className="streamed-table-sort-arrow"
+                                            name={sort!.ascending ? "heroChevronUp" : "heroChevronDown"}
+                                            size={11}
+                                            color="textPrimary"
+                                        /> :
+                                        null
+                                    }
+                                </span>
                                 <div
                                     className="streamed-table-resize-handle"
                                     data-dragging={dragColumn === col.key}
@@ -1063,8 +1304,8 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                     onClick={event => event.stopPropagation()}
                                     onMouseDown={event => event.stopPropagation()}
                                 />
-                            </TableHeaderCell>
-                        )}
+                            </TableHeaderCell>;
+                        })}
                         {hasActionDefs ?
                             <TableHeaderCell>
                                 <div className="streamed-table-actions-header" />
@@ -1080,8 +1321,8 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                         </TableRow> :
                         null
                     }
-                    {groupedRows.map(group =>
-                        <React.Fragment key={group.group === "" ? "ucx-empty-group" : group.group}>
+                    {groupedRows.map((group, groupIdx) =>
+                        <React.Fragment key={groupIdx}>
                             {props.showGroupHeaders !== false && group.group !== "" ?
                                 <TableRow className="group-row">
                                     <TableCell colSpan={columns.length + (hasActionDefs ? 1 : 0)}>
@@ -1121,9 +1362,24 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                     } : undefined}
                                 >
                                     {columns.map((col, cellIdx) =>
-                                        <TableCell key={col.key}>
-                                            {row.cells[cellIdx] ?? ""}
-                                        </TableCell>
+                                        col.copy === true ?
+                                            <TableCell key={col.key} style={{position: "relative"}}>
+                                                {row.cells[cellIdx] ?? ""}
+                                                <button
+                                                    className="streamed-table-copy-button"
+                                                    title="Copy name"
+                                                    aria-label="Copy name"
+                                                    onClick={event => {
+                                                        event.stopPropagation();
+                                                        copyToClipboard(row.cells[cellIdx] ?? "");
+                                                    }}
+                                                >
+                                                    <Icon name="heroDocumentDuplicate" size={14} />
+                                                </button>
+                                            </TableCell> :
+                                            <TableCell key={col.key}>
+                                                {row.cells[cellIdx] ?? ""}
+                                            </TableCell>
                                     )}
                                     {hasActions ?
                                         <TableCell>
@@ -1565,6 +1821,10 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
         }
     }
 
+    ${k} table {
+        user-select: none;
+    }
+
     ${k} .streamed-table-scroll table {
         width: var(--ucx-table-width, 100%);
         min-width: 100%;
@@ -1577,17 +1837,42 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
         text-overflow: ellipsis;
         white-space: nowrap;
         vertical-align: bottom;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    ${k} .streamed-table-header-label:hover {
+        color: var(--textPrimary);
+    }
+
+    ${k} .streamed-table-header-label[data-sort-active="true"] {
+        font-weight: 500;
+        color: var(--textPrimary);
+    }
+
+    ${k} .streamed-table-sort-arrow {
+        margin-left: 4px;
+        vertical-align: middle;
     }
 
     ${k} .streamed-table-resize-handle {
         position: absolute;
         top: 0;
         right: 0;
-        width: 8px;
+        width: 5px;
         height: 100%;
         cursor: col-resize;
         touch-action: none;
         z-index: 3;
+    }
+
+    ${k} .streamed-table-resize-handle::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -3px;
+        width: 3px;
+        height: 100%;
     }
 
     ${k} .streamed-table-resize-handle[data-dragging="true"] {
@@ -1637,6 +1922,38 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
     }
 
     html.dark ${k} .streamed-table-actions-button:hover {
+        background: var(--gray-100);
+    }
+
+    ${k} .streamed-table-copy-button {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        right: 8px;
+        width: 24px;
+        height: 24px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--textSecondary);
+        cursor: pointer;
+    }
+
+    ${k} tr:hover .streamed-table-copy-button,
+    ${k} tr[data-selected="true"] .streamed-table-copy-button {
+        display: inline-flex;
+    }
+
+    ${k} .streamed-table-copy-button:hover {
+        background: var(--gray-20);
+        color: var(--textPrimary);
+    }
+
+    html.dark ${k} .streamed-table-copy-button:hover {
         background: var(--gray-100);
     }
 `);

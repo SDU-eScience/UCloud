@@ -63,10 +63,28 @@ type ModelInput struct {
 	Value   Value
 }
 
+type TableColumnSortType uint8
+
+const (
+	TableColumnSortText     TableColumnSortType = 0
+	TableColumnSortNumber   TableColumnSortType = 1
+	TableColumnSortDuration TableColumnSortType = 2
+	TableColumnSortRatio    TableColumnSortType = 3
+	TableColumnSortCapacity TableColumnSortType = 4
+	TableColumnSortIp       TableColumnSortType = 5
+	TableColumnSortBool     TableColumnSortType = 6
+)
+
+const (
+	TableColumnFlagCopy uint8 = 1 << iota
+)
+
 type TableColumn struct {
 	Key      string
 	Label    string
 	JsonPath string
+	SortType TableColumnSortType
+	Copy     bool
 }
 
 type TableRowAction struct {
@@ -132,7 +150,7 @@ func FrameEncode(f Frame) ([]byte, error) {
 	case OpTableUpdate:
 		TableUpdateEncode(buf, f.TableUpdate)
 	case OpRpcRequest:
-		buf.WriteString(f.RpcRequestName)
+		buf.WriteStringVarint(f.RpcRequestName)
 		RpcPayloadEncode(buf, f.RpcPayload)
 	case OpRpcResponse:
 		buf.WriteU8(uint8(f.RpcStatus))
@@ -170,7 +188,7 @@ func FrameDecode(data []byte) (Frame, error) {
 	case OpTableUpdate:
 		result.TableUpdate = TableUpdateDecode(buf)
 	case OpRpcRequest:
-		result.RpcRequestName = buf.ReadString()
+		result.RpcRequestName = buf.ReadStringVarint()
 		result.RpcPayload = RpcPayloadDecode(buf)
 	case OpRpcResponse:
 		result.RpcStatus = int(buf.ReadU8())
@@ -196,11 +214,11 @@ func SysHelloEncode(buf *util.UBuffer, msg SysHello) {
 		return
 	}
 
-	buf.WriteString(msg.Payload)
+	buf.WriteStringVarint(msg.Payload)
 }
 
 func SysHelloDecode(buf *util.UBuffer) SysHello {
-	result := SysHello{Payload: buf.ReadString()}
+	result := SysHello{Payload: buf.ReadStringVarint()}
 	if len([]byte(result.Payload)) >= maxSysHelloPayloadBytes {
 		buf.Error = fmt.Errorf("ucx syshello payload too large: %d bytes", len([]byte(result.Payload)))
 	}
@@ -208,24 +226,24 @@ func SysHelloDecode(buf *util.UBuffer) SysHello {
 }
 
 func UiMountEncode(buf *util.UBuffer, msg UiMount) {
-	buf.WriteString(msg.InterfaceId)
+	buf.WriteStringVarint(msg.InterfaceId)
 	UiNodeEncode(buf, msg.Root)
 	ValueMapEncode(buf, msg.Model)
 }
 
 func UiMountDecode(buf *util.UBuffer) UiMount {
 	result := UiMount{}
-	result.InterfaceId = buf.ReadString()
+	result.InterfaceId = buf.ReadStringVarint()
 	result.Root = UiNodeDecode(buf)
 	result.Model = ValueMapDecode(buf)
 	return result
 }
 
 func UiNodeEncode(buf *util.UBuffer, node UiNode) {
-	buf.WriteString(node.Id)
-	buf.WriteString(node.Component)
+	buf.WriteStringVarint(node.Id)
+	buf.WriteStringVarint(node.Component)
 	ValueMapEncode(buf, node.Props)
-	buf.WriteString(node.BindPath)
+	buf.WriteStringVarint(node.BindPath)
 	if node.Optimistic {
 		buf.WriteU8(1)
 	} else {
@@ -239,10 +257,10 @@ func UiNodeEncode(buf *util.UBuffer, node UiNode) {
 
 func UiNodeDecode(buf *util.UBuffer) UiNode {
 	result := UiNode{}
-	result.Id = buf.ReadString()
-	result.Component = buf.ReadString()
+	result.Id = buf.ReadStringVarint()
+	result.Component = buf.ReadStringVarint()
 	result.Props = ValueMapDecode(buf)
-	result.BindPath = buf.ReadString()
+	result.BindPath = buf.ReadStringVarint()
 	result.Optimistic = buf.ReadU8() != 0
 	childrenCount := buf.ReadU32()
 	result.ChildNodes = make([]UiNode, childrenCount)
@@ -264,22 +282,22 @@ func ModelPatchDecode(buf *util.UBuffer) ModelPatch {
 
 func ModelInputEncode(buf *util.UBuffer, msg ModelInput) {
 	buf.WriteS64(msg.EventId)
-	buf.WriteString(msg.NodeId)
-	buf.WriteString(msg.Path)
+	buf.WriteStringVarint(msg.NodeId)
+	buf.WriteStringVarint(msg.Path)
 	ValueEncode(buf, msg.Value)
 }
 
 func ModelInputDecode(buf *util.UBuffer) ModelInput {
 	return ModelInput{
 		EventId: buf.ReadS64(),
-		NodeId:  buf.ReadString(),
-		Path:    buf.ReadString(),
+		NodeId:  buf.ReadStringVarint(),
+		Path:    buf.ReadStringVarint(),
 		Value:   ValueDecode(buf),
 	}
 }
 
 func TableUpdateEncode(buf *util.UBuffer, msg TableUpdate) {
-	buf.WriteString(msg.TableId)
+	buf.WriteStringVarint(msg.TableId)
 	buf.WriteS64(msg.Revision)
 	if msg.Snapshot {
 		buf.WriteU8(1)
@@ -289,24 +307,31 @@ func TableUpdateEncode(buf *util.UBuffer, msg TableUpdate) {
 
 	buf.WriteU32(uint32(len(msg.Columns)))
 	for _, col := range msg.Columns {
-		buf.WriteString(col.Key)
-		buf.WriteString(col.Label)
-		buf.WriteString(col.JsonPath)
+		buf.WriteStringVarint(col.Key)
+		buf.WriteStringVarint(col.Label)
+		buf.WriteStringVarint(col.JsonPath)
+		buf.WriteU8(uint8(col.SortType))
+
+		var flags uint8
+		if col.Copy {
+			flags |= TableColumnFlagCopy
+		}
+		buf.WriteU8(flags)
 	}
 
 	buf.WriteU32(uint32(len(msg.Upserts)))
 	for _, row := range msg.Upserts {
-		buf.WriteString(row.Key)
-		buf.WriteString(row.Group)
+		buf.WriteStringVarint(row.Key)
+		buf.WriteStringVarint(row.Group)
 		buf.WriteU32(uint32(len(row.Cells)))
 		for _, cell := range row.Cells {
-			buf.WriteString(cell)
+			buf.WriteStringVarint(cell)
 		}
 	}
 
 	buf.WriteU32(uint32(len(msg.Removed)))
 	for _, key := range msg.Removed {
-		buf.WriteString(key)
+		buf.WriteStringVarint(key)
 	}
 
 	hasActions := false
@@ -323,14 +348,14 @@ func TableUpdateEncode(buf *util.UBuffer, msg TableUpdate) {
 		for _, row := range msg.Upserts {
 			buf.WriteU32(uint32(len(row.Actions)))
 			for _, action := range row.Actions {
-				buf.WriteString(action.Id)
+				buf.WriteStringVarint(action.Id)
 				if action.Enabled {
 					buf.WriteU8(1)
 				} else {
 					buf.WriteU8(0)
 				}
-				buf.WriteString(action.DisabledReason)
-				buf.WriteString(action.Text)
+				buf.WriteStringVarint(action.DisabledReason)
+				buf.WriteStringVarint(action.Text)
 			}
 		}
 	} else {
@@ -340,7 +365,7 @@ func TableUpdateEncode(buf *util.UBuffer, msg TableUpdate) {
 
 func TableUpdateDecode(buf *util.UBuffer) TableUpdate {
 	result := TableUpdate{
-		TableId:  buf.ReadString(),
+		TableId:  buf.ReadStringVarint(),
 		Revision: buf.ReadS64(),
 		Snapshot: buf.ReadU8() != 0,
 	}
@@ -348,21 +373,28 @@ func TableUpdateDecode(buf *util.UBuffer) TableUpdate {
 	columnCount := buf.ReadU32()
 	result.Columns = make([]TableColumn, columnCount)
 	for i := uint32(0); i < columnCount; i++ {
+		key := buf.ReadStringVarint()
+		label := buf.ReadStringVarint()
+		jsonPath := buf.ReadStringVarint()
+		sortType := buf.ReadU8()
+		flags := buf.ReadU8()
 		result.Columns[i] = TableColumn{
-			Key:      buf.ReadString(),
-			Label:    buf.ReadString(),
-			JsonPath: buf.ReadString(),
+			Key:      key,
+			Label:    label,
+			JsonPath: jsonPath,
+			SortType: TableColumnSortType(sortType),
+			Copy:     flags&TableColumnFlagCopy != 0,
 		}
 	}
 
 	rowCount := buf.ReadU32()
 	result.Upserts = make([]TableRow, rowCount)
 	for i := uint32(0); i < rowCount; i++ {
-		row := TableRow{Key: buf.ReadString(), Group: buf.ReadString()}
+		row := TableRow{Key: buf.ReadStringVarint(), Group: buf.ReadStringVarint()}
 		cellCount := buf.ReadU32()
 		row.Cells = make([]string, cellCount)
 		for j := uint32(0); j < cellCount; j++ {
-			row.Cells[j] = buf.ReadString()
+			row.Cells[j] = buf.ReadStringVarint()
 		}
 		result.Upserts[i] = row
 	}
@@ -370,7 +402,7 @@ func TableUpdateDecode(buf *util.UBuffer) TableUpdate {
 	removedCount := buf.ReadU32()
 	result.Removed = make([]string, removedCount)
 	for i := uint32(0); i < removedCount; i++ {
-		result.Removed[i] = buf.ReadString()
+		result.Removed[i] = buf.ReadStringVarint()
 	}
 
 	if !buf.IsEmpty() && buf.ReadU8() != 0 {
@@ -380,10 +412,10 @@ func TableUpdateDecode(buf *util.UBuffer) TableUpdate {
 			actions := make([]TableRowAction, actionCount)
 			for j := uint32(0); j < actionCount; j++ {
 				actions[j] = TableRowAction{
-					Id:             buf.ReadString(),
+					Id:             buf.ReadStringVarint(),
 					Enabled:        buf.ReadU8() != 0,
-					DisabledReason: buf.ReadString(),
-					Text:           buf.ReadString(),
+					DisabledReason: buf.ReadStringVarint(),
+					Text:           buf.ReadStringVarint(),
 				}
 			}
 			result.Upserts[i].Actions = actions
@@ -394,15 +426,15 @@ func TableUpdateDecode(buf *util.UBuffer) TableUpdate {
 }
 
 func UiEventEncode(buf *util.UBuffer, msg UiEvent) {
-	buf.WriteString(msg.NodeId)
-	buf.WriteString(msg.Event)
+	buf.WriteStringVarint(msg.NodeId)
+	buf.WriteStringVarint(msg.Event)
 	ValueEncode(buf, msg.Value)
 }
 
 func UiEventDecode(buf *util.UBuffer) UiEvent {
 	return UiEvent{
-		NodeId: buf.ReadString(),
-		Event:  buf.ReadString(),
+		NodeId: buf.ReadStringVarint(),
+		Event:  buf.ReadStringVarint(),
 		Value:  ValueDecode(buf),
 	}
 }

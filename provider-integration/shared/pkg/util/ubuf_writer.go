@@ -83,6 +83,21 @@ func (b *UBufferWriter) WriteString(val string) {
 	}
 }
 
+func (b *UBufferWriter) WriteUvarint(val uint64) {
+	var tmp [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(tmp[:], val)
+	b.WriteBytes(tmp[:n])
+}
+
+func (b *UBufferWriter) WriteStringVarint(val string) {
+	valBytes := []byte(val)
+	b.WriteUvarint(uint64(len(valBytes)))
+	_, err := b._buf.Write(valBytes)
+	if err != nil {
+		b.Error = err
+	}
+}
+
 func (b *UBufferWriter) WriteBytes(val []byte) {
 	_, err := b._buf.Write(val)
 	if err != nil {

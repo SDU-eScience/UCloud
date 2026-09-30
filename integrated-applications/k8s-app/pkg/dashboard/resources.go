@@ -44,105 +44,105 @@ var resourceTypes = []ResourceTypeDef{
 		Id: "nodes", Label: "Nodes", Aliases: []string{"no"}, Group: "Cluster",
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "nodes"},
 		Columns: []ucx.TableColumn{
-			{Key: "name", Label: "Name"},
+			{Key: "name", Label: "Name", Copy: true},
 			{Key: "status", Label: "Status"},
 			{Key: "role", Label: "Roles"},
 			{Key: "version", Label: "Version"},
-			{Key: "ip", Label: "IP"},
-			{Key: "age", Label: "Age"},
+			{Key: "ip", Label: "IP", SortType: ucx.TableColumnSortIp},
+			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
 		},
 	},
 	{
 		Id: "pods", Label: "Pods", Aliases: []string{"po"}, Group: "Workloads", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
 		Columns: []ucx.TableColumn{
-			{Key: "name", Label: "Name"},
-			{Key: "ready", Label: "Ready"},
+			{Key: "name", Label: "Name", Copy: true},
+			{Key: "ready", Label: "Ready", SortType: ucx.TableColumnSortRatio},
 			{Key: "status", Label: "Status"},
-			{Key: "restarts", Label: "Restarts"},
+			{Key: "restarts", Label: "Restarts", SortType: ucx.TableColumnSortNumber},
 			{Key: "node", Label: "Node"},
-			{Key: "age", Label: "Age"},
+			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
 		},
 	},
 	{
 		Id: "deployments", Label: "Deployments", Aliases: []string{"deploy"}, Group: "Workloads", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
 		Columns: []ucx.TableColumn{
-			{Key: "name", Label: "Name"},
-			{Key: "ready", Label: "Ready"},
-			{Key: "upToDate", Label: "Up-to-date"},
-			{Key: "available", Label: "Available"},
-			{Key: "age", Label: "Age"},
+			{Key: "name", Label: "Name", Copy: true},
+			{Key: "ready", Label: "Ready", SortType: ucx.TableColumnSortRatio},
+			{Key: "upToDate", Label: "Up-to-date", SortType: ucx.TableColumnSortNumber},
+			{Key: "available", Label: "Available", SortType: ucx.TableColumnSortNumber},
+			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
 		},
 	},
 	{
 		Id: "statefulsets", Label: "StatefulSets", Aliases: []string{"sts"}, Group: "Workloads", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"},
 		Columns: []ucx.TableColumn{
-			{Key: "name", Label: "Name"},
-			{Key: "ready", Label: "Ready"},
-			{Key: "age", Label: "Age"},
+			{Key: "name", Label: "Name", Copy: true},
+			{Key: "ready", Label: "Ready", SortType: ucx.TableColumnSortRatio},
+			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
 		},
 	},
 	{
 		Id: "daemonsets", Label: "DaemonSets", Aliases: []string{"ds"}, Group: "Workloads", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "daemonsets"},
 		Columns: []ucx.TableColumn{
-			{Key: "name", Label: "Name"},
-			{Key: "desired", Label: "Desired"},
-			{Key: "ready", Label: "Ready"},
-			{Key: "age", Label: "Age"},
+			{Key: "name", Label: "Name", Copy: true},
+			{Key: "desired", Label: "Desired", SortType: ucx.TableColumnSortNumber},
+			{Key: "ready", Label: "Ready", SortType: ucx.TableColumnSortNumber},
+			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
 		},
 	},
 	{
 		Id: "jobs", Label: "Jobs", Aliases: []string{"job"}, Group: "Workloads", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "batch", Version: "v1", Resource: "jobs"},
 		Columns: []ucx.TableColumn{
-			{Key: "name", Label: "Name"},
-			{Key: "completions", Label: "Completions"},
-			{Key: "duration", Label: "Duration"},
-			{Key: "age", Label: "Age"},
+			{Key: "name", Label: "Name", Copy: true},
+			{Key: "completions", Label: "Completions", SortType: ucx.TableColumnSortRatio},
+			{Key: "duration", Label: "Duration", SortType: ucx.TableColumnSortDuration},
+			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
 		},
 	},
 	{
 		Id: "cronjobs", Label: "CronJobs", Aliases: []string{"cj"}, Group: "Workloads", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "batch", Version: "v1", Resource: "cronjobs"},
 		Columns: []ucx.TableColumn{
-			{Key: "name", Label: "Name"},
+			{Key: "name", Label: "Name", Copy: true},
 			{Key: "schedule", Label: "Schedule"},
-			{Key: "suspend", Label: "Suspend"},
-			{Key: "active", Label: "Active"},
-			{Key: "age", Label: "Age"},
+			{Key: "suspend", Label: "Suspend", SortType: ucx.TableColumnSortBool},
+			{Key: "active", Label: "Active", SortType: ucx.TableColumnSortNumber},
+			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
 		},
 	},
 	{
 		Id: "services", Label: "Services", Aliases: []string{"svc"}, Group: "Networking", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "services"},
 		Columns: []ucx.TableColumn{
-			{Key: "name", Label: "Name"},
+			{Key: "name", Label: "Name", Copy: true},
 			{Key: "type", Label: "Type"},
-			{Key: "clusterIp", Label: "Cluster IP"},
+			{Key: "clusterIp", Label: "Cluster IP", SortType: ucx.TableColumnSortIp},
 			{Key: "ports", Label: "Ports"},
-			{Key: "age", Label: "Age"},
+			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
 		},
 	},
 	{
 		Id: "ingresses", Label: "Ingresses", Aliases: []string{"ing"}, Group: "Networking", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"},
 		Columns: []ucx.TableColumn{
-			{Key: "name", Label: "Name"},
+			{Key: "name", Label: "Name", Copy: true},
 			{Key: "class", Label: "Class"},
 			{Key: "hosts", Label: "Hosts"},
-			{Key: "age", Label: "Age"},
+			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
 		},
 	},
 	{
 		Id: "configmaps", Label: "ConfigMaps", Aliases: []string{"cm"}, Group: "Config", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"},
 		Columns: []ucx.TableColumn{
-			{Key: "name", Label: "Name"},
-			{Key: "data", Label: "Data"},
-			{Key: "age", Label: "Age"},
+			{Key: "name", Label: "Name", Copy: true},
+			{Key: "data", Label: "Data", SortType: ucx.TableColumnSortNumber},
+			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
 		},
 		HasYaml: false,
 	},
@@ -150,10 +150,10 @@ var resourceTypes = []ResourceTypeDef{
 		Id: "secrets", Label: "Secrets", Aliases: []string{"sec"}, Group: "Config", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
 		Columns: []ucx.TableColumn{
-			{Key: "name", Label: "Name"},
+			{Key: "name", Label: "Name", Copy: true},
 			{Key: "type", Label: "Type"},
-			{Key: "data", Label: "Data"},
-			{Key: "age", Label: "Age"},
+			{Key: "data", Label: "Data", SortType: ucx.TableColumnSortNumber},
+			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
 		},
 		HasYaml: false,
 	},
@@ -161,32 +161,32 @@ var resourceTypes = []ResourceTypeDef{
 		Id: "persistentvolumes", Label: "PVs", Aliases: []string{"pv"}, Group: "Storage",
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "persistentvolumes"},
 		Columns: []ucx.TableColumn{
-			{Key: "name", Label: "Name"},
-			{Key: "capacity", Label: "Capacity"},
+			{Key: "name", Label: "Name", Copy: true},
+			{Key: "capacity", Label: "Capacity", SortType: ucx.TableColumnSortCapacity},
 			{Key: "phase", Label: "Phase"},
-			{Key: "age", Label: "Age"},
+			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
 		},
 	},
 	{
 		Id: "persistentvolumeclaims", Label: "PVCs", Aliases: []string{"pvc"}, Group: "Storage", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "persistentvolumeclaims"},
 		Columns: []ucx.TableColumn{
-			{Key: "name", Label: "Name"},
+			{Key: "name", Label: "Name", Copy: true},
 			{Key: "status", Label: "Status"},
 			{Key: "volume", Label: "Volume"},
-			{Key: "capacity", Label: "Capacity"},
-			{Key: "age", Label: "Age"},
+			{Key: "capacity", Label: "Capacity", SortType: ucx.TableColumnSortCapacity},
+			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
 		},
 	},
 	{
 		Id: "events", Label: "Events", Aliases: []string{"ev"}, Group: "Cluster", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "events"},
 		Columns: []ucx.TableColumn{
-			{Key: "name", Label: "Name"},
+			{Key: "name", Label: "Name", Copy: true},
 			{Key: "reason", Label: "Reason"},
 			{Key: "object", Label: "Object"},
 			{Key: "message", Label: "Message"},
-			{Key: "age", Label: "Age"},
+			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
 		},
 	},
 }
@@ -381,13 +381,29 @@ func (c *K8sClient) CustomResourceTypes(ctx context.Context) []ResourceTypeDef {
 	return result
 }
 
+func crdColumnSortType(printerType any) ucx.TableColumnSortType {
+	text, ok := printerType.(string)
+	if !ok {
+		return ucx.TableColumnSortText
+	}
+
+	switch text {
+	case "integer", "number":
+		return ucx.TableColumnSortNumber
+	case "date":
+		return ucx.TableColumnSortDuration
+	default:
+		return ucx.TableColumnSortText
+	}
+}
+
 func crdPrinterColumns(version map[string]any) []ucx.TableColumn {
 	columns, ok, _ := unstructured.NestedSlice(version, "additionalPrinterColumns")
 	if !ok {
-		return []ucx.TableColumn{{Key: "name", Label: "Name"}, {Key: "age", Label: "Age"}}
+		return []ucx.TableColumn{{Key: "name", Label: "Name", Copy: true}, {Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration}}
 	}
 
-	result := []ucx.TableColumn{{Key: "name", Label: "Name"}}
+	result := []ucx.TableColumn{{Key: "name", Label: "Name", Copy: true}}
 	for _, item := range columns {
 		m, ok := item.(map[string]any)
 		if !ok {
@@ -401,13 +417,13 @@ func crdPrinterColumns(version map[string]any) []ucx.TableColumn {
 		}
 
 		key := "pc:" + strings.ToLower(strings.ReplaceAll(name, " ", "-"))
-		result = append(result, ucx.TableColumn{Key: key, Label: name, JsonPath: jsonPath})
+		result = append(result, ucx.TableColumn{Key: key, Label: name, JsonPath: jsonPath, SortType: crdColumnSortType(m["type"])})
 	}
 
 	if len(result) == 1 {
-		result = append(result, ucx.TableColumn{Key: "age", Label: "Age"})
+		result = append(result, ucx.TableColumn{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration})
 	} else {
-		result = append(result, ucx.TableColumn{Key: "age", Label: "Age"})
+		result = append(result, ucx.TableColumn{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration})
 	}
 	return result
 }
