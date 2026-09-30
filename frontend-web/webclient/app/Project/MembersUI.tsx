@@ -1,6 +1,6 @@
 import * as React from "react";
 import {EventHandler, MouseEvent, useCallback, useEffect, useRef, useState} from "react";
-import {ProjectInvite, ProjectInviteLink, projectRoleToStringIcon, projectSupportiveRoleToStringIcon} from "@/Project/Api";
+import {ProjectInvite, ProjectInviteLink, projectRoleToStringIcon, projectSupportiveRoleToIconName} from "@/Project/Api";
 import {holdsSupportiveRole, isAdminOrPI, OldProjectRole, Project, ProjectGroup, ProjectMember, ProjectRole, SUPPORTIVE_ROLES, SupportiveRole} from "@/Project";
 import {Spacer} from "@/ui-components/Spacer";
 import {Box, Button, Checkbox, Flex, Icon, Input, Link, List, MainContainer, RadioTile, RadioTilesContainer, Select, Truncate} from "@/ui-components";
@@ -717,16 +717,18 @@ const MemberCard: React.FunctionComponent<{
             >
                 {props.member.username}
             </Truncate>
-            {SUPPORTIVE_ROLES
-                .filter(({role: supportiveRole}) => holdsSupportiveRole(props.member, supportiveRole))
-                .map(({role: supportiveRole, title}) => (
-                    <TooltipV2 key={supportiveRole} tooltip={title}>
-                        <Icon name={projectSupportiveRoleToStringIcon(supportiveRole)} size={"16px"} ml={"6px"} />
-                    </TooltipV2>
-                ))}
         </Flex>}
-        right={<Flex alignItems={"center"}>
-            {props.activeGroup && isAdminOrPI(props.myRole) ? <>
+        right={<Flex alignItems={"center"} gap="8px">
+            <Box mr="8px">
+                {SUPPORTIVE_ROLES
+                    .filter(({role: supportiveRole}) => holdsSupportiveRole(props.member, supportiveRole))
+                    .map(({ role: supportiveRole, title }) => (
+                        <TooltipV2 key={supportiveRole} tooltip={title}>
+                            <Icon width="35px" m="auto" name={projectSupportiveRoleToIconName(supportiveRole)} size={"16px"} />
+                        </TooltipV2>
+                ))}
+            </Box>
+                {props.activeGroup && isAdminOrPI(props.myRole) ? <>
                     <Button
                         disabled={isInActiveGroup}
                         color={"successMain"}
@@ -785,7 +787,7 @@ const MemberCard: React.FunctionComponent<{
                                 .map(({role: supportiveRole, title}) => ({
                                     confirm: false,
                                     text: `Give ${title} role`,
-                                    icon: projectSupportiveRoleToStringIcon(supportiveRole),
+                                    icon: projectSupportiveRoleToIconName(supportiveRole),
                                     enabled: () => amIPI,
                                     onClick: () => props.handleChangeSupportiveRole(
                                         props.member.username,

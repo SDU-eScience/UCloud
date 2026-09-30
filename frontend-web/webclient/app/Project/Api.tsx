@@ -232,7 +232,7 @@ export function projectRoleToStringIcon(role: ProjectRole): IconName {
     }
 }
 
-export function projectSupportiveRoleToStringIcon(role: SupportiveRole): IconName {
+export function projectSupportiveRoleToIconName(role: SupportiveRole): IconName {
     switch (role) {
         case SupportiveRole.DATAMANAGER:
             return "heroShieldCheck";
