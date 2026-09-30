@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -77,6 +78,16 @@ func jobRewriteApplicationInCache(ids []ResourceId, application orcapi.NameAndVe
 			},
 		)
 	}
+}
+
+func jobUpdateIsDuplicate(existing []orcapi.JobUpdate, update orcapi.JobUpdate) bool {
+	if len(existing) == 0 {
+		return false
+	}
+
+	last := existing[len(existing)-1]
+	update.Timestamp = last.Timestamp
+	return reflect.DeepEqual(last, update)
 }
 
 func initJobs() {
@@ -187,11 +198,7 @@ func initJobs() {
 			jobBecameFinal := false
 			ok := ResourceUpdate(info.Actor, jobType, ResourceParseId(jobId), orcapi.PermissionProvider, func(r *resource, mapped orcapi.Job) {
 				job := r.Extra.(*internalJob)
-				job.ChangeFlags |= internalJobPartialChange | internalJobChangeUpdates | internalJobChangeMetadata
-
-				if validatedResources.Present {
-					job.ChangeFlags |= internalJobChangeResources
-				}
+				job.ChangeFlags |= internalJobPartialChange
 
 				for _, update := range updates {
 					update.Timestamp = fndapi.Timestamp(now)
@@ -208,6 +215,14 @@ func initJobs() {
 					}
 
 					if shouldApply {
+						if jobUpdateIsDuplicate(job.Updates, update) {
+							continue
+						}
+						job.ChangeFlags |= internalJobChangeUpdates | internalJobChangeMetadata
+						if validatedResources.Present {
+							job.ChangeFlags |= internalJobChangeResources
+						}
+
 						if s := update.State; s.Present && job.State != s.Value {
 							job.State = s.Value
 
@@ -2282,7 +2297,19 @@ type jobLoadRow struct {
 	SshEnabled           bool
 	Parameters           string
 	MountedResources     string
-	Updates              string
+}
+
+type jobLoadRowUpdate struct {
+	Id        int64
+	Resource  int64
+	CreatedAt time.Time
+	Status    sql.NullString
+	Extra     string
+}
+
+type jobLoadBucketData struct {
+	Jobs    []jobLoadRow
+	Updates []jobLoadRowUpdate
 }
 
 func jobLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource) {
@@ -2314,8 +2341,8 @@ func jobLoadCachePopulate() {
 		wg.Add(1)
 		go func(bucket int) {
 			defer wg.Done()
-			rows := jobLoadCachePopulateBucket(bucket, jobLoadCacheConcurrency)
-			jobsByBucket[bucket] = jobLoadRowsToMap(rows)
+			data := jobLoadCachePopulateBucket(bucket, jobLoadCacheConcurrency)
+			jobsByBucket[bucket] = jobLoadRowsToMap(data.Jobs, data.Updates)
 		}(bucket)
 	}
 
@@ -2338,70 +2365,47 @@ func jobLoadCachePopulate() {
 	log.Info("Loaded job cache with %d jobs in %s", len(jobs), duration)
 }
 
-func jobLoadCachePopulateBucket(bucket int, rank int) []jobLoadRow {
-	return db.NewTx(func(tx *db.Transaction) []jobLoadRow {
-		var rows []jobLoadRow
+func jobLoadCachePopulateBucket(bucket int, rank int) jobLoadBucketData {
+	return db.NewTx(func(tx *db.Transaction) jobLoadBucketData {
+		var data jobLoadBucketData
 		var lastResource int64
 		for {
 			batch := db.Select[jobLoadRow](
 				tx,
 				`
-				with
-					jobs as (
-						select j.*
-						from app_orchestrator.jobs j
-						where j.resource % cast(:concurrency as int8) = cast(:bucket as int8)
-							and j.resource > cast(:last_resource as int8)
-							and not exists (
-								select 1
-								from provider.resource_update u
-								where u.resource = j.resource
-								offset 10000
-							)
-						order by j.resource
-						limit 10000
-					),
-					inputs as (
-						select 
-							j.resource, 
-							coalesce(
-								jsonb_agg(jsonb_build_object('name', input.name, 'value', input.value))
-									filter (where input.name is not null),
-								cast('[]' as jsonb)
-							) as parameters
-						from
-							jobs j
-							left join app_orchestrator.job_input_parameters input on j.resource = input.job_id
-						group by j.resource
-					),
-					mounts as (
-						select 
-							j.resource, 
-							coalesce(
-								jsonb_agg(input.resource) filter (where input.resource is not null), 
-								cast('[]' as jsonb)
-							) as mounted_resources
-						from
-							jobs j
-							left join app_orchestrator.job_resources input on j.resource = input.job_id
-						group by j.resource
-					),
-					updates as (
-					    select
-							j.resource,
-							coalesce(
-								jsonb_agg(
-									u.extra || jsonb_build_object(
-										'timestamp', (floor(extract(epoch from u.created_at) * 1000)),
-										'status', u.status
-									)
-								) filter (where u.created_at is not null), 
-								cast('[]' as jsonb)) as updates
-					    from
-					        jobs j
-							left join provider.resource_update u on j.resource = u.resource
-					    group by j.resource
-					)
+				with jobs as (
+					select j.*
+					from app_orchestrator.jobs j
+					where j.resource % cast(:concurrency as int8) = cast(:bucket as int8)
+						and j.resource > cast(:last_resource as int8)
+					order by j.resource
+					limit 10000
+				),
+				inputs as (
+					select
+						j.resource,
+						coalesce(
+							jsonb_agg(jsonb_build_object('name', input.name, 'value', input.value))
+								filter (where input.name is not null),
+							cast('[]' as jsonb)
+						) as parameters
+					from
+						jobs j
+						left join app_orchestrator.job_input_parameters input on j.resource = input.job_id
+					group by j.resource
+				),
+				mounts as (
+					select
+						j.resource,
+						coalesce(
+							jsonb_agg(input.resource) filter (where input.resource is not null),
+							cast('[]' as jsonb)
+						) as mounted_resources
+					from
+						jobs j
+						left join app_orchestrator.job_resources input on j.resource = input.job_id
+					group by j.resource
+				)
 				select
 					j.resource,
 					j.application_name,
@@ -2417,13 +2421,11 @@ func jobLoadCachePopulateBucket(bucket int, rank int) []jobLoadRow {
 					j.opened_file,
 					j.ssh_enabled,
 					i.parameters,
-					m.mounted_resources,
-					u.updates
+					m.mounted_resources
 				from
 					jobs j
 					join inputs i on i.resource = j.resource
 					join mounts m on m.resource = j.resource
-					join updates u on u.resource = j.resource
 				order by j.resource
 				`,
 				db.Params{
@@ -2432,18 +2434,66 @@ func jobLoadCachePopulateBucket(bucket int, rank int) []jobLoadRow {
 					"last_resource": lastResource,
 				},
 			)
-			rows = append(rows, batch...)
+			data.Jobs = append(data.Jobs, batch...)
 			if len(batch) < 10000 {
 				break
 			}
 			lastResource = batch[len(batch)-1].Resource
 			log.Info("%v: Job batch loaded.", bucket)
 		}
-		return rows
+
+		var lastUpdateId int64
+		for {
+			batch := db.Select[jobLoadRowUpdate](
+				tx,
+				`
+					select
+						u.id,
+						u.resource,
+						u.created_at,
+						u.status,
+						u.extra
+					from
+						provider.resource_update u
+						join app_orchestrator.jobs j on j.resource = u.resource
+					where
+						u.resource % cast(:concurrency as int8) = cast(:bucket as int8)
+						and u.id > cast(:last_update_id as int8)
+						and u.created_at is not null
+					order by u.id
+					limit 10000
+				`,
+				db.Params{
+					"bucket":         int64(bucket),
+					"concurrency":    int64(rank),
+					"last_update_id": lastUpdateId,
+				},
+			)
+			data.Updates = append(data.Updates, batch...)
+			if len(batch) < 10000 {
+				break
+			}
+			lastUpdateId = batch[len(batch)-1].Id
+		}
+
+		return data
 	})
 }
 
-func jobLoadRowsToMap(rows []jobLoadRow) map[ResourceId]*internalJob {
+func jobLoadRowsToMap(rows []jobLoadRow, updates []jobLoadRowUpdate) map[ResourceId]*internalJob {
+	updatesByJob := map[int64][]orcapi.JobUpdate{}
+	for _, update := range updates {
+		var decoded orcapi.JobUpdate
+		_ = json.Unmarshal([]byte(update.Extra), &decoded)
+		decoded.Timestamp = fndapi.Timestamp(update.CreatedAt)
+		if update.Status.Valid {
+			decoded.Status.Set(update.Status.String)
+		} else {
+			decoded.Status.Clear()
+		}
+		updatesByJob[update.Resource] = append(updatesByJob[update.Resource], decoded)
+	}
+
 	result := make(map[ResourceId]*internalJob, len(rows))
 	for _, row := range rows {
 		info := &internalJob{
@@ -2485,11 +2535,17 @@ func jobLoadRowsToMap(rows []jobLoadRow) map[ResourceId]*internalJob {
 
 		_ = json.Unmarshal([]byte(row.MountedResources), &info.Resources)
 
-		_ = json.Unmarshal([]byte(row.Updates), &info.Updates)
+		loadedUpdates := updatesByJob[row.Resource]
 
-		slices.SortFunc(info.Updates, func(a, b orcapi.JobUpdate) int {
+		slices.SortStableFunc(loadedUpdates, func(a, b orcapi.JobUpdate) int {
 			return a.Timestamp.Time().Compare(b.Timestamp.Time())
 		})
+
+		for _, update := range loadedUpdates {
+			if !jobUpdateIsDuplicate(info.Updates, update) {
+				info.Updates = append(info.Updates, update)
+			}
+		}
 
 		if row.ExportedParameters.Valid {
 			_ = json.Unmarshal([]byte(row.ExportedParameters.String), &info.JobParametersJson)
