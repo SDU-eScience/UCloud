@@ -1093,9 +1093,19 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         store.setSelected(stateKey, selected.key);
 
         window.setTimeout(() => {
-            scrollRef.current
-                ?.querySelector(`[data-row-key="${CSS.escape(selected.key)}"]`)
-                ?.scrollIntoView({block: "nearest"});
+            const container = scrollRef.current;
+            if (!container) return;
+            const rowEl = container.querySelector<HTMLElement>(`[data-row-key="${CSS.escape(selected.key)}"]`);
+            if (!rowEl) return;
+            const header = container.querySelector("thead");
+            const headerHeight = header instanceof HTMLTableSectionElement ? header.offsetHeight : 0;
+            const containerRect = container.getBoundingClientRect();
+            const rowRect = rowEl.getBoundingClientRect();
+            if (rowRect.top < containerRect.top + headerHeight) {
+                container.scrollTop -= containerRect.top + headerHeight - rowRect.top;
+            } else if (rowRect.bottom > containerRect.bottom) {
+                container.scrollTop += rowRect.bottom - containerRect.bottom;
+            }
         }, 0);
     }, [filteredRows, stateKey, store]);
 
@@ -1540,7 +1550,12 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                         {trailingAction.icon ? <Icon name={trailingAction.icon as IconName} size={16} /> : null}
                                         {trailingAction.label}
                                         {trailingAction.shortcut && trailingAction.shortcut !== "" ?
-                                            <span className="streamed-table-button-shortcut">{trailingAction.shortcut}</span> :
+                                            <span
+                                                className={ShortcutClass}
+                                                style={{marginLeft: "12px", mixBlendMode: "normal"}}
+                                            >
+                                                {trailingAction.shortcut}
+                                            </span> :
                                             null}
                                     </Button>
                                 </span>
@@ -2035,37 +2050,6 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
     ${k} tr.trailing-action-row > td .trailing-action-cell {
         display: inline-flex;
         padding: 4px 0;
-    }
-
-    ${k} tr.trailing-action-row > td .trailing-action-cell button {
-        position: relative;
-        padding-right: 2.4em;
-    }
-
-    ${k} .streamed-table-button-shortcut {
-        position: absolute;
-        right: 0.6em;
-        top: 50%;
-        transform: translateY(-50%);
-        color: var(--textPrimary);
-        background-color: var(--backgroundDefault);
-        border-radius: 5px;
-        border: .5px solid var(--gray-70);
-        border-bottom: 2px solid var(--gray-70);
-        font-size: 12px;
-        min-width: 18px;
-        height: 18px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        line-height: 1;
-        user-select: none;
-        -webkit-user-select: none;
-        padding: 0 5px;
-    }
-
-    html.dark ${k} .streamed-table-button-shortcut {
-        border-color: var(--gray-60);
     }
 
     ${k} .streamed-table-frame .streamed-table-scroll tbody tr:last-child {
