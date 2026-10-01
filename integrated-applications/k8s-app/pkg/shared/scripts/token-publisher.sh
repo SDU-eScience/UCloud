@@ -6,6 +6,7 @@ SERVER_TOKEN_FILE="$K3S_DATA_DIR/server/token"
 AGENT_TOKEN_FILE="$K3S_DATA_DIR/server/agent-token"
 PUBLISHED_SERVER_TOKEN="$MANAGEMENT_DIR/tokens/server"
 PUBLISHED_AGENT_TOKEN="$MANAGEMENT_DIR/tokens/agent"
+PUBLISHED_MAINTENANCE_TOKENS_DIR="$MANAGEMENT_DIR/maintenance-tokens"
 
 publish_role_token() {
 	local role="$1"
@@ -71,6 +72,24 @@ publish_node_tokens() {
 	done
 }
 
+publish_maintenance_tokens() {
+	if [ ! -d "$NODES_DIR" ]; then
+		return 0
+	fi
+
+	install -d -m 0750 -o "$UCX_SERVICE_UID" -g "$UCX_SERVICE_GID" "$PUBLISHED_MAINTENANCE_TOKENS_DIR"
+
+	local inputDir
+	local hostname
+	for inputDir in "$NODES_DIR"/*/input; do
+		[ -d "$inputDir" ] || continue
+		[ -f "$inputDir/node.json" ] || continue
+		[ -s "$inputDir/maintenance-enrollment-secret" ] || continue
+		hostname="$(json_field "$inputDir/node.json" hostname)"
+		publish_token_file "$(cat "$inputDir/maintenance-enrollment-secret")" "$PUBLISHED_MAINTENANCE_TOKENS_DIR/$hostname"
+	done
+}
+
 install -d -m 0755 "$MANAGEMENT_DIR/tokens"
 
 publisher_wait_tries=0
@@ -89,10 +108,12 @@ fi
 publish_role_token "server" "$SERVER_TOKEN_FILE" "$PUBLISHED_SERVER_TOKEN"
 publish_role_token "agent" "$AGENT_TOKEN_FILE" "$PUBLISHED_AGENT_TOKEN"
 publish_node_tokens
+publish_maintenance_tokens
 
 while true; do
 	publish_role_token "server" "$SERVER_TOKEN_FILE" "$PUBLISHED_SERVER_TOKEN"
 	publish_role_token "agent" "$AGENT_TOKEN_FILE" "$PUBLISHED_AGENT_TOKEN"
 	publish_node_tokens
+	publish_maintenance_tokens
 	sleep 60
 done

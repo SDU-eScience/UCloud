@@ -329,37 +329,7 @@ func initJobs() {
 
 			for _, item := range request.Items {
 				job := item.Resource
-
-				permissions := job.Permissions.Value
-				for _, toDelete := range item.Deleted {
-					for i, entry := range permissions.Others {
-						if entry.Entity == toDelete {
-							slices.Delete(permissions.Others, i, i+1)
-						}
-					}
-				}
-
-				for _, toAdd := range item.Added {
-					found := false
-
-					for i := 0; i < len(permissions.Others); i++ {
-						entry := &permissions.Others[i]
-						if entry.Entity == toAdd.Entity {
-							for _, perm := range toAdd.Permissions {
-								entry.Permissions = orcapi.PermissionsAdd(entry.Permissions, perm)
-							}
-							found = true
-							break
-						}
-					}
-
-					if !found {
-						permissions.Others = append(permissions.Others, orcapi.ResourceAclEntry{
-							Entity:      toAdd.Entity,
-							Permissions: toAdd.Permissions,
-						})
-					}
-				}
+				job.Permissions.Value = privateNetworkMergeAcl(job.Permissions.Value, item.Deleted, item.Added)
 
 				JobTrackNew(job)
 
@@ -1008,19 +978,13 @@ func initJobs() {
 		})
 
 		orcapi.PublicIpsProviderUpdateFirewall.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.PublicIpProviderUpdateFirewallRequest]) (util.Empty, *util.HttpError) {
-			var errors []*util.HttpError
-
 			for _, item := range request.Items {
 				copied := item.PublicIp
 				copied.Specification.Firewall = util.OptValue(item.Firewall)
 				PublicIpTrackNew(copied)
 			}
 
-			if len(errors) == 1 && len(request.Items) == 1 {
-				return util.Empty{}, errors[0]
-			} else {
-				return util.Empty{}, nil
-			}
+			return util.Empty{}, nil
 		})
 
 		orcapi.PublicIpsProviderUpdateAcl.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.UpdatedAclWithResource[orcapi.PublicIp]]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
@@ -1028,37 +992,7 @@ func initJobs() {
 
 			for _, item := range request.Items {
 				publicIp := item.Resource
-
-				permissions := publicIp.Permissions.Value
-				for _, toDelete := range item.Deleted {
-					for i, entry := range permissions.Others {
-						if entry.Entity == toDelete {
-							slices.Delete(permissions.Others, i, i+1)
-						}
-					}
-				}
-
-				for _, toAdd := range item.Added {
-					found := false
-
-					for i := 0; i < len(permissions.Others); i++ {
-						entry := &permissions.Others[i]
-						if entry.Entity == toAdd.Entity {
-							for _, perm := range toAdd.Permissions {
-								entry.Permissions = orcapi.PermissionsAdd(entry.Permissions, perm)
-							}
-							found = true
-							break
-						}
-					}
-
-					if !found {
-						permissions.Others = append(permissions.Others, orcapi.ResourceAclEntry{
-							Entity:      toAdd.Entity,
-							Permissions: toAdd.Permissions,
-						})
-					}
-				}
+				publicIp.Permissions.Value = privateNetworkMergeAcl(publicIp.Permissions.Value, item.Deleted, item.Added)
 
 				PublicIpTrackNew(publicIp)
 
@@ -1146,37 +1080,7 @@ func initJobs() {
 
 			for _, item := range request.Items {
 				ingress := item.Resource
-
-				permissions := ingress.Permissions.Value
-				for _, toDelete := range item.Deleted {
-					for i, entry := range permissions.Others {
-						if entry.Entity == toDelete {
-							slices.Delete(permissions.Others, i, i+1)
-						}
-					}
-				}
-
-				for _, toAdd := range item.Added {
-					found := false
-
-					for i := 0; i < len(permissions.Others); i++ {
-						entry := &permissions.Others[i]
-						if entry.Entity == toAdd.Entity {
-							for _, perm := range toAdd.Permissions {
-								entry.Permissions = orcapi.PermissionsAdd(entry.Permissions, perm)
-							}
-							found = true
-							break
-						}
-					}
-
-					if !found {
-						permissions.Others = append(permissions.Others, orcapi.ResourceAclEntry{
-							Entity:      toAdd.Entity,
-							Permissions: toAdd.Permissions,
-						})
-					}
-				}
+				ingress.Permissions.Value = privateNetworkMergeAcl(ingress.Permissions.Value, item.Deleted, item.Added)
 
 				LinkTrack(ingress)
 
@@ -1272,37 +1176,7 @@ func initJobs() {
 
 			for _, item := range request.Items {
 				license := item.Resource
-
-				permissions := license.Permissions.Value
-				for _, toDelete := range item.Deleted {
-					for i, entry := range permissions.Others {
-						if entry.Entity == toDelete {
-							slices.Delete(permissions.Others, i, i+1)
-						}
-					}
-				}
-
-				for _, toAdd := range item.Added {
-					found := false
-
-					for i := 0; i < len(permissions.Others); i++ {
-						entry := &permissions.Others[i]
-						if entry.Entity == toAdd.Entity {
-							for _, perm := range toAdd.Permissions {
-								entry.Permissions = orcapi.PermissionsAdd(entry.Permissions, perm)
-							}
-							found = true
-							break
-						}
-					}
-
-					if !found {
-						permissions.Others = append(permissions.Others, orcapi.ResourceAclEntry{
-							Entity:      toAdd.Entity,
-							Permissions: toAdd.Permissions,
-						})
-					}
-				}
+				license.Permissions.Value = privateNetworkMergeAcl(license.Permissions.Value, item.Deleted, item.Added)
 
 				LicenseTrack(license)
 

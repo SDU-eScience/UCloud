@@ -1,13 +1,11 @@
 package shared
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
-	"syscall"
 	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
@@ -22,6 +20,40 @@ const maxControlPlaneNodes = 7
 const poolNameMaxLen = 30
 
 var poolNameRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
+
+func clusterValidateRecordMutation(
+	app ucx.Application,
+	stack *ucxsvc.Stack,
+	record *ClusterRecord,
+	machine accapi.ProductReference,
+	readyMessage string,
+) bool {
+	if record.StackId != stack.InstanceId {
+		ucxsvc.UiSendFailure(app, "The cluster record belongs to a different stack")
+		return false
+	}
+
+	if record.SchemaRevision != clusterRecordSchemaRevision {
+		ucxsvc.UiSendFailure(app, "The cluster record was written by an incompatible version of the application")
+		return false
+	}
+
+	if record.Phase != clusterRecordPhaseCreated {
+		ucxsvc.UiSendFailure(app, "The cluster is not ready for "+readyMessage+" (current state: "+record.Phase+")")
+		return false
+	}
+
+	if machine.Provider != record.MachineProvider {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf(
+			"The machine must come from the provider that runs the cluster (%s), but %s was selected",
+			record.MachineProvider,
+			machine.Provider,
+		))
+		return false
+	}
+
+	return true
+}
 
 func ClusterAddPool(app ucx.Application, stack *ucxsvc.Stack, pool ClusterPoolSpec) bool {
 	if stack == nil || !stack.Ok {
@@ -59,48 +91,26 @@ func ClusterAddPool(app ucx.Application, stack *ucxsvc.Stack, pool ClusterPoolSp
 		return false
 	}
 
-	releaseLock, locked := clusterLockRecord()
+	flow, releaseLock, locked := clusterOpenRecordFlow(app, "add-pool", "")
 	if !locked {
-		ucxsvc.UiSendFailure(app, "Could not lock the cluster record, another operation may be running")
 		return false
 	}
 	defer releaseLock()
 
-	record, ok := clusterReadRecordLocal()
+	record, ok := flow.Record()
 	if !ok {
 		ucxsvc.UiSendFailure(app, "Could not read the cluster record")
 		return false
 	}
 
-	if record.SchemaRevision != clusterRecordSchemaRevision {
-		ucxsvc.UiSendFailure(app, "The cluster record was written by an incompatible version of the application")
+	if !clusterValidateRecordMutation(app, stack, record, pool.Machine, "new pools") {
 		return false
 	}
-
-	if record.StackId != stack.InstanceId {
-		ucxsvc.UiSendFailure(app, "The cluster record belongs to a different stack")
-		return false
-	}
-
-	if record.Phase != clusterRecordPhaseCreated {
-		ucxsvc.UiSendFailure(app, "The cluster is not ready for new pools (current state: "+record.Phase+")")
-		return false
-	}
-
 	for _, existing := range record.Pools {
 		if existing.Name == name {
 			ucxsvc.UiSendFailure(app, "A pool with this name already exists: "+name)
 			return false
 		}
-	}
-
-	if pool.Machine.Provider != record.MachineProvider {
-		ucxsvc.UiSendFailure(app, fmt.Sprintf(
-			"The machine must come from the provider that runs the cluster (%s), but %s was selected",
-			record.MachineProvider,
-			pool.Machine.Provider,
-		))
-		return false
 	}
 
 	activeNodes, activeOk := clusterActiveNodeCount(stack, record)
@@ -113,19 +123,35 @@ func ClusterAddPool(app ucx.Application, stack *ucxsvc.Stack, pool ClusterPoolSp
 		return false
 	}
 
+	poolOperationUid := ClusterTopologyOperationUid()
+
+	expectedHostnames := []string{}
+	for i := 0; i < pool.Nodes; i++ {
+		allocationId := record.NextAllocationId + i
+		if !AllocationIdIsValid(allocationId) {
+			ucxsvc.UiSendFailure(app, fmt.Sprintf(
+				"The cluster has no free addresses left in its subnet for %d nodes (next allocation: %d)",
+				pool.Nodes,
+				record.NextAllocationId,
+			))
+			return false
+		}
+		expectedHostnames = append(expectedHostnames, ClusterNodeHostname(name, allocationId))
+	}
+
 	record.Pools = append(record.Pools, ClusterPoolRecord{
 		Name:    name,
 		Machine: pool.Machine,
 		DiskGb:  pool.DiskGb,
 	})
 
-	if !clusterWriteRecordLocal(record) {
+	if !flow.Commit(record) {
 		ucxsvc.UiSendFailure(app, "Could not update the cluster record")
 		return false
 	}
 
 	for i := 0; i < pool.Nodes; i++ {
-		if _, nodeOk := ClusterAddNodeLocked(app, stack, record, name, pool.Machine, pool.DiskGb); !nodeOk {
+		if _, nodeOk := ClusterAddNodeLocked(app, stack, flow, record, name, pool.Machine, pool.DiskGb, poolOperationUid); !nodeOk {
 			return false
 		}
 	}
@@ -133,9 +159,18 @@ func ClusterAddPool(app ucx.Application, stack *ucxsvc.Stack, pool ClusterPoolSp
 	return true
 }
 
-// ClusterAddNodeLocked adds a node to the given group. It expects the caller to hold the cluster
-// record lock and to pass a record read while holding it.
-func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *ClusterRecord, group string, machine accapi.ProductReference, diskGb int) (string, bool) {
+// ClusterAddNodeLocked adds a node to the given group. It expects the caller
+// to hold the cluster record flow and to pass a record read through it.
+func ClusterAddNodeLocked(
+	app ucx.Application,
+	stack *ucxsvc.Stack,
+	flow *clusterRecordFlow,
+	record *ClusterRecord,
+	group string,
+	machine accapi.ProductReference,
+	diskGb int,
+	operationUid string,
+) (string, bool) {
 	if stack == nil || !stack.Ok {
 		ucxsvc.UiSendFailure(app, "The cluster stack is not available")
 		return "", false
@@ -157,18 +192,7 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 		return "", false
 	}
 
-	if record.StackId != stack.InstanceId {
-		ucxsvc.UiSendFailure(app, "The cluster record belongs to a different stack")
-		return "", false
-	}
-
-	if record.SchemaRevision != clusterRecordSchemaRevision {
-		ucxsvc.UiSendFailure(app, "The cluster record was written by an incompatible version of the application")
-		return "", false
-	}
-
-	if record.Phase != clusterRecordPhaseCreated {
-		ucxsvc.UiSendFailure(app, "The cluster is not ready for new nodes (current state: "+record.Phase+")")
+	if !clusterValidateRecordMutation(app, stack, record, machine, "new nodes") {
 		return "", false
 	}
 
@@ -184,15 +208,6 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 		return "", false
 	}
 
-	if machine.Provider != record.MachineProvider {
-		ucxsvc.UiSendFailure(app, fmt.Sprintf(
-			"The machine must come from the provider that runs the cluster (%s), but %s was selected",
-			record.MachineProvider,
-			machine.Provider,
-		))
-		return "", false
-	}
-
 	if trimmedGroup == GroupControlPlane {
 		controlPlane := 0
 		for _, node := range record.Nodes {
@@ -204,10 +219,10 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 			ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster control plane supports at most %d nodes", maxControlPlaneNodes))
 			return "", false
 		}
+	}
 
-		if !clusterControlPlaneRequiresUcxLabels(app) {
-			return "", false
-		}
+	if !clusterNodesRequireUcxLabels(app) {
+		return "", false
 	}
 
 	if !AllocationIdIsValid(record.NextAllocationId) {
@@ -218,6 +233,10 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 	release, ok := ReleaseByExactVersion(record.K8sVersion)
 	if !ok {
 		ucxsvc.UiSendFailure(app, "The cluster runs an unknown Kubernetes version: "+record.K8sVersion)
+		return "", false
+	}
+	if trimmedGroup == GroupControlPlane && record.BundlePath != BundlePathForRelease(release) {
+		ucxsvc.UiSendFailure(app, "Control plane nodes cannot be added to a cluster with an older bootstrap bundle; reprovision the cluster first")
 		return "", false
 	}
 
@@ -239,6 +258,7 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 		machine:      machine,
 		diskGb:       diskGb,
 		allocationId: allocationId,
+		session:      *app.Session(),
 	}
 
 	if !clusterWriteNodeInput(stack, record, release, opts.tokens, opts) {
@@ -259,7 +279,7 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 	}
 
 	record.NextAllocationId = allocationId + 1
-	if !clusterWriteRecordLocal(record) {
+	if !flow.Commit(record) {
 		ucxsvc.UiSendFailure(app, "Could not update the cluster record")
 		return "", false
 	}
@@ -268,7 +288,7 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 	if err != nil {
 		ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not reserve an address for the new node: %s", err))
 		if reservation.Id != "" {
-			clusterCleanupNewNode(stack, record, &ClusterNodeRecord{
+			clusterCleanupNewNode(stack, flow, record, &ClusterNodeRecord{
 				AllocationId:  allocationId,
 				Group:         trimmedGroup,
 				Hostname:      hostname,
@@ -292,8 +312,8 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 	}
 	record.Nodes = append(record.Nodes, node)
 
-	if !clusterWriteRecordLocal(record) {
-		clusterCleanupNewNode(stack, record, &node, app)
+	if !flow.Commit(record) {
+		clusterCleanupNewNode(stack, flow, record, &node, app)
 		return "", false
 	}
 
@@ -308,17 +328,19 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 		StackGroupingLabel:  trimmedGroup,
 		NodeAllocationLabel: fmt.Sprintf("%d", allocationId),
 		K8sVersionLabel:     release.Release,
+		TopologyOperationLabel: operationUid,
 	}
 
 	if trimmedGroup == GroupControlPlane {
 		customUi := ucxsvc.UcxInitCustomUiServiceAt(stack, customUiPort, "", managementDir, managementMountPath)
 		if !stack.Ok {
 			ucxsvc.UiSendFailure(app, "Could not prepare the custom UI service for the new control plane node")
-			clusterCleanupNewNode(stack, record, &node, app)
+			clusterCleanupNewNode(stack, flow, record, &node, app)
 			return "", false
 		}
 		attachments, labels = clusterControlPlaneWiring(stack, trimmedGroup, allocationId, customUi, attachments, labels)
 	} else {
+		labels = util.MapMerge(labels, ucxsvc.UcxPortLabel(0))
 		labels[orcapi.ResourceLabelInitScript] = launcherPath
 	}
 
@@ -338,7 +360,7 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 	})
 	if err != nil {
 		ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not create the node: %s", err))
-		clusterCleanupNewNode(stack, record, &node, app)
+		clusterCleanupNewNode(stack, flow, record, &node, app)
 		return "", false
 	}
 
@@ -350,17 +372,46 @@ func ClusterAddNodeLocked(app ucx.Application, stack *ucxsvc.Stack, record *Clus
 		}
 	}
 
-	if trimmedGroup == GroupControlPlane && record.ServiceId != "" {
-		if !ucxsvc.ServiceAddMembers(stack, record.ServiceId, []string{job.Id}) {
-			ucxsvc.UiSendFailure(app, "Could not add the new node to the cluster service")
-			clusterCleanupNewNode(stack, record, &node, app)
+	if !clusterWriteStackIdentity(stack, allocationId, job) {
+		record.Phase = clusterRecordPhaseError
+		record.FailureReason = "could not write the stack identity for job " + job.Id
+		if !flow.Commit(record) {
+			ucxsvc.UiSendFailure(app, "Could not write the stack identity of the new node; the cluster record is out of date and requires an explicit recovery")
+			return "", false
+		}
+		ucxsvc.UiSendFailure(app, "Could not write the stack identity of the new node; the node was retained to avoid a partially provisioned input. Reprovision the node to recover.")
+		return "", false
+	}
+
+	if !flow.Commit(record) {
+		ucxsvc.UiSendFailure(app, "Could not record the new node job id")
+		clusterCleanupNewNode(stack, flow, record, &node, app)
+		return "", false
+	}
+
+	if trimmedGroup == GroupControlPlane {
+		if !clusterWriteControllerToken(stack, opts.session, job.Id, allocationId) {
+			record.Phase = clusterRecordPhaseError
+			record.FailureReason = "could not issue or deliver the controller credential for job " + job.Id
+			if !flow.Commit(record) {
+				ucxsvc.UiSendFailure(app, "Could not issue or deliver the controller credential; the cluster record is out of date and requires an explicit recovery")
+				return "", false
+			}
+			ucxsvc.UiSendFailure(app, "Could not issue or deliver the controller credential; the node was retained to avoid invalidating a possibly issued credential. Reprovision the cluster to recover.")
 			return "", false
 		}
 	}
 
-	if !clusterWriteRecordLocal(record) {
-		node.JobId = job.Id
-		clusterCleanupNewNode(stack, record, &node, app)
+	if trimmedGroup == GroupControlPlane && record.ServiceId != "" {
+		if !ucxsvc.ServiceAddMembers(stack, record.ServiceId, []string{job.Id}) {
+			ucxsvc.UiSendFailure(app, "Could not add the new node to the cluster service")
+			clusterCleanupNewNode(stack, flow, record, &node, app)
+			return "", false
+		}
+	}
+
+	if !flow.Commit(record) {
+		clusterCleanupNewNode(stack, flow, record, &node, app)
 		return "", false
 	}
 
@@ -373,23 +424,125 @@ func ClusterAddNode(app ucx.Application, stack *ucxsvc.Stack, group string, mach
 		return "", false
 	}
 
-	releaseLock, locked := clusterLockRecord()
+	flow, releaseLock, locked := clusterOpenRecordFlow(app, "add-node", "")
 	if !locked {
-		ucxsvc.UiSendFailure(app, "Could not lock the cluster record, another operation may be running")
 		return "", false
 	}
 	defer releaseLock()
 
-	record, ok := clusterReadRecordLocal()
+	record, ok := flow.Record()
 	if !ok {
 		ucxsvc.UiSendFailure(app, "Could not read the cluster record")
 		return "", false
 	}
 
-	return ClusterAddNodeLocked(app, stack, record, group, machine, diskGb)
+	jobId, nodeOk := ClusterAddNodeLocked(app, stack, flow, record, group, machine, diskGb, "")
+	if !nodeOk {
+		return "", false
+	}
+
+	return jobId, true
 }
 
-func clusterCleanupNewNode(stack *ucxsvc.Stack, record *ClusterRecord, node *ClusterNodeRecord, app ucx.Application) {
+func ClusterAddNodesBatch(
+	app ucx.Application,
+	stack *ucxsvc.Stack,
+	group string,
+	machine accapi.ProductReference,
+	diskGb int,
+	count int,
+) (string, bool) {
+	if stack == nil || !stack.Ok {
+		ucxsvc.UiSendFailure(app, "The cluster stack is not available")
+		return "", false
+	}
+
+	if count < 1 {
+		ucxsvc.UiSendFailure(app, "The count must be at least one")
+		return "", false
+	}
+
+	flow, releaseLock, locked := clusterOpenRecordFlow(app, "add-nodes-batch", "")
+	if !locked {
+		return "", false
+	}
+	defer releaseLock()
+
+	record, ok := flow.Record()
+	if !ok {
+		ucxsvc.UiSendFailure(app, "Could not read the cluster record")
+		return "", false
+	}
+
+	trimmedGroup := strings.TrimSpace(group)
+	if trimmedGroup == "" {
+		ucxsvc.UiSendFailure(app, "Please provide a node group")
+		return "", false
+	}
+
+	knownGroup := trimmedGroup == GroupControlPlane
+	for _, pool := range record.Pools {
+		if pool.Name == trimmedGroup {
+			knownGroup = true
+			break
+		}
+	}
+	if !knownGroup {
+		ucxsvc.UiSendFailure(app, "Unknown node group: "+trimmedGroup)
+		return "", false
+	}
+
+	if machine.Id == "" {
+		ucxsvc.UiSendFailure(app, "Select a machine product before adding a node")
+		return "", false
+	}
+
+	if diskGb < 10 {
+		ucxsvc.UiSendFailure(app, "The node needs at least 10 GB of disk")
+		return "", false
+	}
+
+	if !clusterValidateRecordMutation(app, stack, record, machine, "new nodes") {
+		return "", false
+	}
+
+	if !clusterNodesRequireUcxLabels(app) {
+		return "", false
+	}
+
+	expectedHostnames := []string{}
+	for i := 0; i < count; i++ {
+		allocationId := record.NextAllocationId + i
+		if !AllocationIdIsValid(allocationId) {
+			ucxsvc.UiSendFailure(app, fmt.Sprintf(
+				"The cluster has no free addresses left in its subnet for %d nodes (next allocation: %d)",
+				count,
+				record.NextAllocationId,
+			))
+			return "", false
+		}
+		expectedHostnames = append(expectedHostnames, ClusterNodeHostname(trimmedGroup, allocationId))
+	}
+
+	operationUid := ClusterTopologyOperationUid()
+
+	for i := 0; i < count; i++ {
+		jobId, nodeOk := ClusterAddNodeLocked(app, stack, flow, record, trimmedGroup, machine, diskGb, operationUid)
+		if !nodeOk {
+			return "", false
+		}
+		_ = jobId
+	}
+	return "", true
+}
+
+func clusterCleanupNewNode(
+	stack *ucxsvc.Stack,
+	flow *clusterRecordFlow,
+	record *ClusterRecord,
+	node *ClusterNodeRecord,
+	app ucx.Application,
+) {
 	failures := []string{}
 
 	if node.JobId != "" {
@@ -411,8 +564,8 @@ func clusterCleanupNewNode(stack *ucxsvc.Stack, record *ClusterRecord, node *Clu
 
 	if len(failures) == 0 {
 		record.Phase = clusterRecordPhaseCreated
-		if !clusterWriteRecordLocal(record) {
-			ucxsvc.UiSendFailure(app, "Could not update the cluster record after cleanup")
+		if !flow.Commit(record) {
+			ucxsvc.UiSendFailure(app, "The node could not be created and the cleanup outcome could not be recorded; the cluster requires an explicit recovery")
 		}
 		return
 	}
@@ -425,72 +578,77 @@ func clusterCleanupNewNode(stack *ucxsvc.Stack, record *ClusterRecord, node *Clu
 		IpAddress:     node.IpAddress,
 	})
 
-	if clusterWriteRecordLocal(record) {
+	if flow.Commit(record) {
 		ucxsvc.UiSendFailure(app, "The node could not be created and these resources need manual cleanup: "+strings.Join(failures, ", "))
 	} else {
 		ucxsvc.UiSendFailure(app, "The node could not be created and cleanup failed, these resources need manual cleanup: "+strings.Join(failures, ", "))
 	}
 }
 
-func clusterRecordLocalPath() string {
-	return filepath.Join(managementMountPath, filepath.Base(ClusterRecordPath))
+// A cluster record flow holds the cluster record and its revision. Every
+// commit is a compare-and-swap; if another writer changed the record, the
+// commit fails and the operation must be retried.
+type clusterRecordFlow struct {
+	client ClusterStateClient
 }
 
-func clusterReadRecordLocal() (*ClusterRecord, bool) {
-	data, err := os.ReadFile(clusterRecordLocalPath())
+func ClusterTopologyOperationUid() string {
+	return fmt.Sprintf("%s-%d-%s", SanitizeForPath(clusterStateHolderLabel()), time.Now().UnixNano(), util.SecureToken())
+}
+
+func clusterStateHolderLabel() string {
+	hostname, err := os.Hostname()
+	holder := ""
+	if err == nil {
+		holder = strings.TrimSpace(hostname)
+	}
+
+	label := "k8s-app"
+	if holder != "" {
+		label = holder
+	}
+
+	if len(label) > 128 {
+		label = label[:128]
+	}
+	return label
+}
+
+func clusterOpenRecordFlow(app ucx.Application, action string, nodeHostname string) (*clusterRecordFlow, func(), bool) {
+	client, err := ClusterStateClientNewHost()
 	if err != nil {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not open the cluster state: %s", err))
+		return nil, func() {}, false
+	}
+
+	flow := &clusterRecordFlow{client: client}
+	return flow, func() {}, true
+}
+
+func (f *clusterRecordFlow) Record() (*ClusterRecord, bool) {
+	snapshot, err := ClusterStateRead(f.client)
+	if err != nil || !snapshot.Found {
 		return nil, false
 	}
 
-	var record ClusterRecord
-	if err := json.Unmarshal(data, &record); err != nil {
-		return nil, false
-	}
-
-	if record.StackId == "" || record.NetworkId == "" || record.BundlePath == "" || record.NextAllocationId < 1 {
-		return nil, false
-	}
-
+	record := snapshot.Record
+	ClusterStateRecordRevisionSet(&record, snapshot.Revision)
 	return &record, true
 }
 
-func clusterWriteRecordLocal(record *ClusterRecord) bool {
-	data, err := json.MarshalIndent(record, "", "  ")
+func (f *clusterRecordFlow) Commit(record *ClusterRecord) bool {
+	revision, revErr := ClusterStateRecordRevision(record)
+	if revErr != nil {
+		return false
+	}
+
+	newRevision, err := ClusterStateRecordWrite(f.client, record, revision)
 	if err != nil {
 		return false
 	}
 
-	path := clusterRecordLocalPath()
-	tmpPath := path + ".tmp"
-
-	if err := os.WriteFile(tmpPath, data, 0660); err != nil {
-		return false
-	}
-
-	if err := os.Rename(tmpPath, path); err != nil {
-		_ = os.Remove(tmpPath)
-		return false
-	}
-
+	ClusterStateRecordRevisionSet(record, newRevision)
 	return true
-}
-
-func clusterLockRecord() (func(), bool) {
-	lockPath := clusterRecordLocalPath() + ".lock"
-	file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0660)
-	if err != nil {
-		return nil, false
-	}
-
-	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		_ = file.Close()
-		return nil, false
-	}
-
-	return func() {
-		_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
-		_ = file.Close()
-	}, true
 }
 
 func clusterReadManagementTokens(group string) (ClusterTokens, bool) {

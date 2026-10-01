@@ -487,10 +487,10 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 	}
 
 	isNodes := selection.def.Id == "nodes"
-	maintenanceSnapshot := map[string]maintenance.MaintenanceOperation{}
+	maintenanceSnapshot := map[string]maintenance.Operation{}
 	maintenanceUnavailable := false
 	if isNodes {
-		read, err := maintenance.MaintenanceSnapshot()
+		read, err := maintenance.Snapshot()
 		if err != nil {
 			log.Warn("k8s-app: could not read the maintenance state: %s", err)
 			maintenanceUnavailable = true
@@ -543,6 +543,10 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 
 	for i := range rows {
 		rows[i].Actions = resourceRowActions(selection.def, rows[i], p.nodeJobIds, maintenanceSnapshot, maintenanceUnavailable)
+		if isNodes && !strings.HasPrefix(rows[i].Key, provisioningRowKeyPrefix) && len(rows[i].Cells) > 3 {
+			operation, present := maintenanceSnapshot[rows[i].Cells[0]]
+			rows[i].Cells[3] = maintenanceCellForOperation(operation, present)
+		}
 	}
 
 	rowByKey := make(map[string]ResourceRow, len(rows))
@@ -728,7 +732,7 @@ func resourceRowActions(
 	def ResourceTypeDef,
 	row ResourceRow,
 	nodeJobIds func() map[string]string,
-	maintenanceSnapshot map[string]maintenance.MaintenanceOperation,
+	maintenanceSnapshot map[string]maintenance.Operation,
 	maintenanceUnavailable bool,
 ) []ucx.TableRowAction {
 	if def.Id != "nodes" || len(row.Cells) == 0 {
@@ -750,7 +754,7 @@ func resourceRowActions(
 	}
 
 	operation, knownRecorded := maintenanceSnapshot[nodeName]
-	phaseActive := knownRecorded && maintenance.MaintenancePhaseActive(operation.Phase)
+	phaseActive := knownRecorded && maintenance.PhaseActive(operation.Phase)
 	nodeCordoned := len(row.Cells) > 2 && row.Cells[2] == "Cordoned"
 
 	actions := []ucx.TableRowAction{
@@ -761,6 +765,17 @@ func resourceRowActions(
 	if provisioningRow {
 		return actions
 	}
+	isUpgrade := knownRecorded && maintenance.KindIsUpgrade(operation.Kind)
+	recoveryBlocked := isUpgrade && operation.ExecutorSubmitted && operation.RecoveryRequired
+	upgradeNode := ucx.TableRowAction{Id: "upgradeNode", Enabled: true}
+	if maintenanceUnavailable {
+		upgradeNode.Enabled = false
+		upgradeNode.DisabledReason = "The maintenance state is unavailable"
+	} else if phaseActive && !isUpgrade {
+		upgradeNode.Enabled = false
+		upgradeNode.DisabledReason = "An operation is already active on this node"
+	}
+	actions = append(actions, upgradeNode)
 
 	switch {
 	case maintenanceUnavailable:
@@ -787,7 +802,16 @@ func resourceRowActions(
 		}
 	default:
 		if nodeCordoned {
-			actions = append(actions, uncordonEnabled)
+			if recoveryBlocked {
+				actions = append(actions, ucx.TableRowAction{
+					Id:             "uncordon",
+					Enabled:        true,
+					Text:           "Uncordon (recovery)",
+					DisabledReason: "Releases the traffic suspension and returns the node to service on its current release",
+				})
+			} else {
+				actions = append(actions, uncordonEnabled)
+			}
 		} else {
 			actions = append(actions, cordonDrainEnabled)
 		}
@@ -800,6 +824,28 @@ var (
 	cordonDrainEnabled = ucx.TableRowAction{Id: "cordonDrain", Enabled: true}
 	uncordonEnabled    = ucx.TableRowAction{Id: "uncordon", Enabled: true}
 )
+
+func maintenanceCellForOperation(operation maintenance.Operation, present bool) string {
+	if !present {
+		return ""
+	}
+	if maintenance.PhaseActive(operation.Phase) {
+		if maintenance.KindIsUpgrade(operation.Kind) {
+			return "Upgrading"
+		}
+		if operation.Kind == maintenance.KindCordon {
+			return "Cordoning"
+		}
+		if operation.Kind == maintenance.KindUncordon {
+			return "Uncordoning"
+		}
+		return "Draining"
+	}
+	if operation.RecoveryRequired {
+		return "Recovery required"
+	}
+	return operation.Phase
+}
 
 func (p *resourcePoller) nodeUidForRowName(nodeName string) (string, bool) {
 	p.mu.Lock()
@@ -822,6 +868,14 @@ func (p *resourcePoller) nodeRowForKey(rowKey string) (ResourceRow, bool) {
 
 	row, ok := p.lastRows[rowKey]
 	return row, ok
+}
+
+func (p *resourcePoller) nodeRowByName(nodeName string) (ResourceRow, bool) {
+	rowKey, ok := p.nodeUidForRowName(nodeName)
+	if !ok {
+		return ResourceRow{}, false
+	}
+	return p.nodeRowForKey(rowKey)
 }
 
 func resourceTableUpsert(row ResourceRow) ucx.TableRow {

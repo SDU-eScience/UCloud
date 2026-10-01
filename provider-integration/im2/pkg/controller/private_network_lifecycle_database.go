@@ -3,6 +3,7 @@ package controller
 import (
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/netip"
 	"strings"
@@ -25,10 +26,6 @@ func PrivateNetworkCreateAllocate(network *orc.PrivateNetwork) (bool, *util.Http
 		return false, util.UserHttpError("Private networks are not enabled on this provider")
 	}
 
-	if network == nil {
-		return false, util.ServerHttpError("Failed to create private network: network is nil")
-	}
-
 	workspace := PrivateNetworkWorkspaceFromOwner(network.Owner)
 
 	customCidr := ""
@@ -42,39 +39,14 @@ func PrivateNetworkCreateAllocate(network *orc.PrivateNetwork) (bool, *util.Http
 	subdomainConflict := false
 	err := db.NewTx(func(tx *db.Transaction) *util.HttpError {
 		privateNetworkLockReconcile(tx, network.Id)
-		if !tx.Ok {
-			return nil
-		}
-
-		if existingErr := privateNetworkCreateExisting(tx, network, workspace, customCidr); existingErr != nil {
-			return existingErr
-		}
-
-		_, found := privateNetworkSelectNetwork(tx, network.Id)
-		if !tx.Ok {
-			return nil
-		}
-
-		if found {
-			return nil
-		}
-
 		privateNetworkLockPools(tx)
 		privateNetworkLockName(tx)
-		if !tx.Ok {
-			return nil
-		}
-
-		if existingErr := privateNetworkCreateExisting(tx, network, workspace, customCidr); existingErr != nil {
+		existing, existingErr := privateNetworkCreateExisting(tx, network, workspace, customCidr)
+		if existingErr != nil {
 			return existingErr
 		}
 
-		_, found = privateNetworkSelectNetwork(tx, network.Id)
-		if !tx.Ok {
-			return nil
-		}
-
-		if found {
+		if existing {
 			return nil
 		}
 
@@ -93,10 +65,6 @@ func PrivateNetworkCreateAllocate(network *orc.PrivateNetwork) (bool, *util.Http
 				"subdomain":   network.Status.Subdomain,
 			},
 		)
-		if !tx.Ok {
-			return nil
-		}
-
 		if subdomainCount.Count > 0 {
 			subdomainConflict = true
 			return privateNetworkBusinessRollback(tx, nil)
@@ -130,10 +98,6 @@ func PrivateNetworkCreateAllocate(network *orc.PrivateNetwork) (bool, *util.Http
 				"workspace_id": workspace.String(),
 			},
 		)
-		if !tx.Ok {
-			return nil
-		}
-
 		return nil
 	})
 	if err != nil {
@@ -148,29 +112,21 @@ func privateNetworkCreateExisting(
 	network *orc.PrivateNetwork,
 	workspace PrivateNetworkWorkspace,
 	customCidr string,
-) *util.HttpError {
-	if !tx.Ok {
-		return nil
-	}
-
+) (bool, *util.HttpError) {
 	row, found := privateNetworkSelectNetwork(tx, network.Id)
-	if !tx.Ok {
-		return nil
-	}
-
 	if !found {
-		return nil
+		return false, nil
 	}
 
 	if row.State == PrivateNetworkStateDeleting {
-		return privateNetworkBusinessRollback(
+		return false, privateNetworkBusinessRollback(
 			tx,
 			util.HttpErr(http.StatusConflict, "a private network with this identifier is being deleted"),
 		)
 	}
 
 	if row.WorkspaceId != workspace.String() {
-		return privateNetworkBusinessRollback(
+		return false, privateNetworkBusinessRollback(
 			tx,
 			util.HttpErr(http.StatusConflict, "a network with this identifier already exists in another workspace"),
 		)
@@ -180,7 +136,7 @@ func privateNetworkCreateExisting(
 	parsedExisting := privateNetworkUnmarshalResource(row.Resource, &existing)
 
 	if row.CidrBlock.Valid && row.CidrBlock.V != "" && customCidr != "" && row.CidrBlock.V != customCidr {
-		return privateNetworkBusinessRollback(
+		return false, privateNetworkBusinessRollback(
 			tx,
 			util.HttpErr(http.StatusConflict, "a network with this identifier already exists with a different CIDR"),
 		)
@@ -192,23 +148,7 @@ func privateNetworkCreateExisting(
 		merged.Status.Subdomain = existing.Status.Subdomain
 		merged.Specification.Cidr = existing.Specification.Cidr
 		merged.Status.CidrBlock = util.SqlNullToOpt(row.CidrBlock)
-
-		jsonified, _ := json.Marshal(merged)
-		db.Exec(
-			tx,
-			`
-				update tracked_private_networks
-				set
-					resource = :resource
-				where
-					resource_id = :resource_id
-			`,
-			db.Params{
-				"resource_id": network.Id,
-				"resource":    string(jsonified),
-			},
-		)
-		return nil
+		network = &merged
 	}
 
 	jsonified, _ := json.Marshal(network)
@@ -226,7 +166,7 @@ func privateNetworkCreateExisting(
 			"resource":    string(jsonified),
 		},
 	)
-	return nil
+	return true, nil
 }
 
 func privateNetworkAllocateCustomCidr(
@@ -287,10 +227,6 @@ func privateNetworkAllocateAutoCidr(
 		`,
 		db.Params{},
 	)
-	if !tx.Ok {
-		return "", nil
-	}
-
 	var used []netip.Prefix
 	for _, row := range rows {
 		if parsed, ok := orc.PrivateNetworkParseCidr(row.CidrBlock); ok {
@@ -324,13 +260,9 @@ func privateNetworkAllocateAutoCidr(
 	)
 }
 
-func PrivateNetworkMarkReady(networkId string, expectedCidrBlock string) *util.HttpError {
-	err := db.NewTx(func(tx *db.Transaction) *util.HttpError {
-		row, found := privateNetworkLockNetwork(tx, networkId)
-		if !tx.Ok {
-			return nil
-		}
-
+func PrivateNetworkMarkReady(networkId string) *util.HttpError {
+	return db.NewTx(func(tx *db.Transaction) *util.HttpError {
+		row, found := privateNetworkSelectNetwork(tx, networkId)
 		if !found {
 			db.RequestRollback(tx)
 			return util.UserHttpError("Private network %s no longer exists", networkId)
@@ -339,16 +271,6 @@ func PrivateNetworkMarkReady(networkId string, expectedCidrBlock string) *util.H
 		if row.State == PrivateNetworkStateDeleting {
 			db.RequestRollback(tx)
 			return util.UserHttpError("Private network %s is being deleted", networkId)
-		}
-
-		if expectedCidrBlock != "" && (!row.CidrBlock.Valid || row.CidrBlock.V != expectedCidrBlock) {
-			db.RequestRollback(tx)
-			return util.ServerHttpError(
-				"Private network %s has CIDR %s but the reconciler expected %s",
-				networkId,
-				row.CidrBlock.V,
-				expectedCidrBlock,
-			)
 		}
 
 		if row.State == PrivateNetworkStateReady {
@@ -366,17 +288,8 @@ func PrivateNetworkMarkReady(networkId string, expectedCidrBlock string) *util.H
 			`,
 			db.Params{"resource_id": networkId},
 		)
-		if !tx.Ok {
-			return nil
-		}
-
 		return nil
 	})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func privateNetworkLockReconcile(tx *db.Transaction, networkId string) {
@@ -404,16 +317,6 @@ func PrivateNetworkReconcileSerialized(networkId string, operation func()) {
 }
 
 func PrivateNetworkDeleteRequest(target *orc.PrivateNetwork) *util.HttpError {
-	if target == nil {
-		return util.ServerHttpError("Failed to delete private network: network is nil")
-	}
-
-	members := target.Status.Members
-	if fresh, ok := privateNetworkRefreshMetadata(target.Id); ok {
-		fresh.Status.Members = members
-		target = &fresh
-	}
-
 	if len(target.Status.Members) > 0 {
 		return util.UserHttpError(
 			"This private network is currently in use by job: %v",
@@ -425,15 +328,7 @@ func PrivateNetworkDeleteRequest(target *orc.PrivateNetwork) *util.HttpError {
 
 	err := db.NewTx(func(tx *db.Transaction) *util.HttpError {
 		privateNetworkLockReconcile(tx, target.Id)
-		if !tx.Ok {
-			return nil
-		}
-
-		row, found := privateNetworkLockNetwork(tx, target.Id)
-		if !tx.Ok {
-			return nil
-		}
-
+		row, found := privateNetworkSelectNetwork(tx, target.Id)
 		if !found {
 			db.RequestRollback(tx)
 			return util.UserHttpError("This private network no longer exists")
@@ -458,10 +353,6 @@ func PrivateNetworkDeleteRequest(target *orc.PrivateNetwork) *util.HttpError {
 			`,
 			db.Params{"network_id": target.Id},
 		)
-		if !tx.Ok {
-			return nil
-		}
-
 		if leaseCount.Count > 0 {
 			return privateNetworkBusinessRollback(
 				tx,
@@ -480,10 +371,6 @@ func PrivateNetworkDeleteRequest(target *orc.PrivateNetwork) *util.HttpError {
 			`,
 			db.Params{"network_id": target.Id},
 		)
-		if !tx.Ok {
-			return nil
-		}
-
 		if reservationCount.Count > 0 {
 			return privateNetworkBusinessRollback(
 				tx,
@@ -502,10 +389,6 @@ func PrivateNetworkDeleteRequest(target *orc.PrivateNetwork) *util.HttpError {
 			`,
 			db.Params{"resource_id": target.Id},
 		)
-		if !tx.Ok {
-			return nil
-		}
-
 		return nil
 	})
 	if err != nil {
@@ -518,11 +401,8 @@ func PrivateNetworkDeleteRequest(target *orc.PrivateNetwork) *util.HttpError {
 func PrivateNetworkFinishDelete(networkId string, ownerWorkspace PrivateNetworkWorkspace) *util.HttpError {
 	finished := false
 	err := db.NewTx(func(tx *db.Transaction) *util.HttpError {
-		row, found := privateNetworkLockNetwork(tx, networkId)
-		if !tx.Ok {
-			return nil
-		}
-
+		finished = false
+		row, found := privateNetworkSelectNetwork(tx, networkId)
 		if !found {
 			return nil
 		}
@@ -540,47 +420,20 @@ func PrivateNetworkFinishDelete(networkId string, ownerWorkspace PrivateNetworkW
 			)
 		}
 
-		leaseCount, _ := db.Get[struct{ Count int }](
+		remaining, _ := db.Get[struct{ Count int }](
 			tx,
 			`
-				select count(*) as count
-				from
-					private_network_ip_leases
-				where
-					network_id = :network_id
+				select (
+					(select count(*) from private_network_ip_leases where network_id = :network_id)
+					+ (select count(*) from private_network_ip_reservations where network_id = :network_id)
+				) as count
 			`,
 			db.Params{"network_id": networkId},
 		)
-		if !tx.Ok {
-			return nil
-		}
-
-		if leaseCount.Count > 0 {
+		if remaining.Count > 0 {
 			return privateNetworkBusinessRollback(
 				tx,
-				util.ServerHttpError("Private network %s still has active leases", networkId),
-			)
-		}
-
-		reservationCount, _ := db.Get[struct{ Count int }](
-			tx,
-			`
-				select count(*) as count
-				from
-					private_network_ip_reservations
-				where
-					network_id = :network_id
-			`,
-			db.Params{"network_id": networkId},
-		)
-		if !tx.Ok {
-			return nil
-		}
-
-		if reservationCount.Count > 0 {
-			return privateNetworkBusinessRollback(
-				tx,
-				util.ServerHttpError("Private network %s still has reservations", networkId),
+				util.ServerHttpError("Private network %s still has active leases or reservations", networkId),
 			)
 		}
 
@@ -593,10 +446,6 @@ func PrivateNetworkFinishDelete(networkId string, ownerWorkspace PrivateNetworkW
 			`,
 			db.Params{"resource_id": networkId},
 		)
-		if !tx.Ok {
-			return nil
-		}
-
 		finished = true
 		return nil
 	})
@@ -620,9 +469,6 @@ func privateNetworkCacheRemoveAfterDelete(networkId string) {
 func PrivateNetworkDiscardAfterFailedCreate(networkId string) {
 	db.NewTx0(func(tx *db.Transaction) {
 		privateNetworkLockReconcile(tx, networkId)
-		if !tx.Ok {
-			return
-		}
 
 		db.Exec(
 			tx,
@@ -675,23 +521,5 @@ func privateNetworkGenerateMacAddress() (string, bool) {
 	}
 
 	buf[0] = (buf[0] | 0x02) & 0xFE
-	var hardware [6]byte
-	copy(hardware[:], buf)
-	return privateNetworkFormatMac(hardware), true
-}
-
-func privateNetworkFormatMac(value [6]byte) string {
-	var builder strings.Builder
-	for i := 0; i < 6; i++ {
-		if i > 0 {
-			builder.WriteByte(':')
-		}
-		builder.WriteString(privateNetworkHexByte(value[i]))
-	}
-	return builder.String()
-}
-
-func privateNetworkHexByte(value byte) string {
-	const hexDigits = "0123456789abcdef"
-	return string([]byte{hexDigits[value>>4], hexDigits[value&0x0F]})
+	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]), true
 }

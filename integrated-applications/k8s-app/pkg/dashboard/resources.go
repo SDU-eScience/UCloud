@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 	"time"
@@ -47,6 +46,7 @@ var resourceTypes = []ResourceTypeDef{
 			{Key: "name", Label: "Name", Copy: true},
 			{Key: "status", Label: "Status"},
 			{Key: "scheduling", Label: "Scheduling"},
+			{Key: "maintenance", Label: "Maintenance"},
 			{Key: "role", Label: "Roles"},
 			{Key: "version", Label: "Version"},
 			{Key: "ip", Label: "IP", SortType: ucx.TableColumnSortIp},
@@ -278,18 +278,7 @@ func (c *K8sClient) NodeHealth(ctx context.Context) (NodeHealth, error) {
 
 	health := NodeHealth{Total: len(list.Items)}
 	for i := range list.Items {
-		ready := "Unknown"
-		for _, cond := range conditionsOf(&list.Items[i]) {
-			if cond["type"] == "Ready" {
-				if cond["status"] == "True" {
-					ready = "Ready"
-				} else {
-					ready = "NotReady"
-				}
-			}
-		}
-
-		switch ready {
+		switch nodeReadyState(&list.Items[i]) {
 		case "Ready":
 			health.Ready++
 		case "NotReady":
@@ -421,20 +410,8 @@ func crdPrinterColumns(version map[string]any) []ucx.TableColumn {
 		result = append(result, ucx.TableColumn{Key: key, Label: name, JsonPath: jsonPath, SortType: crdColumnSortType(m["type"])})
 	}
 
-	if len(result) == 1 {
-		result = append(result, ucx.TableColumn{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration})
-	} else {
-		result = append(result, ucx.TableColumn{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration})
-	}
+	result = append(result, ucx.TableColumn{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration})
 	return result
-}
-
-func KubeconfigPath() string {
-	path := os.Getenv("KUBECONFIG")
-	if path != "" {
-		return path
-	}
-	return "/etc/ucloud-k8s/management/kubeconfig-internal"
 }
 
 func ageString(t time.Time) string {
@@ -481,17 +458,6 @@ func rowsFromNodes(items []unstructured.Unstructured) []ResourceRow {
 	for i := range items {
 		obj := &items[i]
 
-		ready := "Unknown"
-		for _, cond := range conditionsOf(obj) {
-			if cond["type"] == "Ready" {
-				if cond["status"] == "True" {
-					ready = "Ready"
-				} else {
-					ready = "NotReady"
-				}
-			}
-		}
-
 		scheduling := "Schedulable"
 		if unschedulable, ok, _ := unstructured.NestedBool(obj.Object, "spec", "unschedulable"); ok && unschedulable {
 			scheduling = "Cordoned"
@@ -512,8 +478,9 @@ func rowsFromNodes(items []unstructured.Unstructured) []ResourceRow {
 			Group: group,
 			Cells: []string{
 				obj.GetName(),
-				ready,
+				nodeReadyState(obj),
 				scheduling,
+				"",
 				strings.Join(roles, ","),
 				firstString(obj, "status", "nodeInfo", "kubeletVersion"),
 				nodeInternalIp(obj),
@@ -537,6 +504,18 @@ func conditionsOf(obj *unstructured.Unstructured) []map[string]any {
 		}
 	}
 	return result
+}
+
+func nodeReadyState(obj *unstructured.Unstructured) string {
+	for _, cond := range conditionsOf(obj) {
+		if cond["type"] == "Ready" {
+			if cond["status"] == "True" {
+				return "Ready"
+			}
+			return "NotReady"
+		}
+	}
+	return "Unknown"
 }
 
 func nodeInternalIp(obj *unstructured.Unstructured) string {
@@ -687,35 +666,6 @@ func rowsFromGeneric(items []unstructured.Unstructured, def ResourceTypeDef) []R
 		})
 	}
 	return rows
-}
-
-func (c *K8sClient) ListRows(ctx context.Context, def ResourceTypeDef) ([]ResourceRow, error) {
-	return c.ListRowsInNamespace(ctx, def, "")
-}
-
-func (c *K8sClient) ListRowsInNamespace(ctx context.Context, def ResourceTypeDef, namespace string) ([]ResourceRow, error) {
-	var ri dynamic.ResourceInterface = c.Dynamic.Resource(def.Gvr)
-	if namespace != "" && def.Namespaced {
-		ri = c.Dynamic.Resource(def.Gvr).Namespace(namespace)
-	}
-
-	list, err := ri.List(ctx, listOptions)
-	if err != nil {
-		return nil, err
-	}
-	items := list.Items
-
-	switch def.Id {
-	case "nodes":
-		return rowsFromNodes(items), nil
-	case "pods":
-		return rowsFromPods(items), nil
-	default:
-		if strings.HasPrefix(def.Id, "crd:") {
-			return rowsFromCustom(items, def), nil
-		}
-		return rowsFromGeneric(items, def), nil
-	}
 }
 
 func (c *K8sClient) YamlForUid(ctx context.Context, def ResourceTypeDef, namespace string, name string) (string, error) {

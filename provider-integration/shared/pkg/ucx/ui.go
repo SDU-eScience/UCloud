@@ -758,10 +758,11 @@ func TableNodeEx(id string, bindPath string, columns []Option) UiNode {
 }
 
 type NavItemChild struct {
-	Id      string
-	Label   string
-	Aliases []string
-	Route   string
+	Id       string
+	Label    string
+	Aliases  []string
+	Route    string
+	Disabled bool
 }
 
 type NavItem struct {
@@ -771,6 +772,7 @@ type NavItem struct {
 	Route           string
 	Children        []NavItemChild
 	SeparatorBefore bool
+	Disabled        bool
 }
 
 type BrowserLayoutProps struct {
@@ -861,6 +863,9 @@ func navItemsToValue(items []NavItem) Value {
 		if item.SeparatorBefore {
 			object["separatorBefore"] = VBool(true)
 		}
+		if item.Disabled {
+			object["disabled"] = VBool(true)
+		}
 		if len(item.Children) > 0 {
 			children := make([]Value, 0, len(item.Children))
 			for _, child := range item.Children {
@@ -877,6 +882,9 @@ func navItemsToValue(items []NavItem) Value {
 				}
 				if child.Route != "" {
 					childObject["route"] = VString(child.Route)
+				}
+				if child.Disabled {
+					childObject["disabled"] = VBool(true)
 				}
 				children = append(children, VObject(childObject))
 			}
@@ -1131,6 +1139,14 @@ func (n UiNode) WithStretch() UiNode {
 		n.Props = map[string]Value{}
 	}
 	n.Props["stretch"] = VBool(true)
+	return n
+}
+
+func (n UiNode) WithAutoFocus() UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["autoFocus"] = VBool(true)
 	return n
 }
 

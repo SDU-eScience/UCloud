@@ -4,12 +4,12 @@ import {Box, Button, Icon, Input, Text} from "@/ui-components";
 import {ActionEntry, ActionMenu} from "@/ui-components/Actions";
 import {IconButton} from "@/ui-components/IconButton";
 import {IconName} from "@/ui-components/Icon";
-import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
+import {Table, TableCell, TableHeader, TableHeaderCell, TableRow as UiTableRow} from "@/ui-components/Table";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 import {VirtualizedTree, VirtualizedTreeApi} from "@/ui-components/VirtualizedTree";
 import {injectStyle} from "@/Unstyled";
 import {copyToClipboard, isLikelyMac} from "@/UtilityFunctions";
-import {TableColumn, TableColumnSortType, TableUpdate} from "@/UCX/protocol";
+import {TableColumn, TableColumnSortType, TableRow, TableRowAction, TableUpdate} from "@/UCX/protocol";
 import {UcxSpinner} from "@/UCX/UcxSpinner";
 import {
     UCX_MIN_COLUMN_WIDTH,
@@ -18,20 +18,6 @@ import {
     resetUserColumnWidth,
     setUserColumnWidth,
 } from "@/UCX/UcxTableColumns";
-
-export interface UcxStreamedRowAction {
-    id: string;
-    enabled: boolean;
-    disabledReason?: string;
-    text?: string;
-}
-
-export interface UcxStreamedRow {
-    key: string;
-    group: string;
-    cells: string[];
-    actions?: UcxStreamedRowAction[];
-}
 
 export interface UcxTableStats {
     filtered: number;
@@ -51,24 +37,22 @@ export interface UcxTableViewHandler {
 
 type UcxTableStoreListener = () => void;
 
-let ucxTableStoreRevisionCounter = 0;
-
 export class UcxTableStore {
-    private rows = new Map<string, Map<string, UcxStreamedRow>>();
+    private rows = new Map<string, Map<string, TableRow>>();
     private columns = new Map<string, TableColumn[]>();
     private filters = new Map<string, string>();
     private scrolls = new Map<string, number>();
     private selected = new Map<string, string | null>();
     private stats = new Map<string, UcxTableStats>();
     private sorts = new Map<string, UcxTableSort>();
-    private loaded = new Map<string, boolean>();
+    private loaded = new Set<string>();
     private activeStates = new Map<string, string>();
     private views = new Map<string, UcxTableViewHandler>();
     private listeners = new Set<UcxTableStoreListener>();
     private revision = 0;
 
     apply(update: TableUpdate) {
-        const typeRows = new Map(this.rows.get(update.tableId) ?? []);
+        const typeRows = this.rows.get(update.tableId) ?? new Map<string, TableRow>();
         if (update.snapshot) {
             typeRows.clear();
         }
@@ -84,9 +68,8 @@ export class UcxTableStore {
             this.columns.set(update.tableId, update.columns);
         }
 
-        this.loaded.set(update.tableId, true);
+        this.loaded.add(update.tableId);
 
-        this.bumpRevision();
         this.notify();
     }
 
@@ -99,8 +82,7 @@ export class UcxTableStore {
         this.stats = new Map();
         this.sorts = new Map();
         this.activeStates = new Map();
-        this.loaded = new Map();
-        this.bumpRevision();
+        this.loaded = new Set();
         this.notify();
     }
 
@@ -108,16 +90,12 @@ export class UcxTableStore {
         return this.revision;
     }
 
-    private bumpRevision() {
-        this.revision = ++ucxTableStoreRevisionCounter;
-    }
-
-    rowsFor(tableId: string): Map<string, UcxStreamedRow> {
-        return this.rows.get(tableId) ?? new Map<string, UcxStreamedRow>();
+    rowsFor(tableId: string): Map<string, TableRow> {
+        return this.rows.get(tableId) ?? new Map<string, TableRow>();
     }
 
     loadedFor(tableId: string): boolean {
-        return this.loaded.get(tableId) === true;
+        return this.loaded.has(tableId);
     }
 
     columnsFor(tableId: string): TableColumn[] {
@@ -131,7 +109,6 @@ export class UcxTableStore {
     setFilter(stateKey: string, value: string) {
         if (this.filters.get(stateKey) === value) return;
         this.filters.set(stateKey, value);
-        this.bumpRevision();
         this.notify();
     }
 
@@ -150,7 +127,6 @@ export class UcxTableStore {
         } else {
             this.selected.set(stateKey, key);
         }
-        this.bumpRevision();
         this.notify();
     }
 
@@ -163,7 +139,6 @@ export class UcxTableStore {
         if (previous && previous.filtered === stats.filtered && previous.total === stats.total
             && previous.loaded === stats.loaded) return;
         this.stats.set(stateKey, stats);
-        this.bumpRevision();
         this.notify();
     }
 
@@ -180,7 +155,6 @@ export class UcxTableStore {
         } else {
             this.sorts.set(stateKey, sort);
         }
-        this.bumpRevision();
         this.notify();
     }
 
@@ -196,7 +170,6 @@ export class UcxTableStore {
         const hadSelected = this.selected.delete(stateKey);
         const hadSort = this.sorts.delete(stateKey);
         if (hadFilter || hadScroll || hadSelected || hadSort) {
-            this.bumpRevision();
             this.notify();
         }
     }
@@ -228,6 +201,7 @@ export class UcxTableStore {
     }
 
     private notify() {
+        this.revision++;
         for (const listener of this.listeners) {
             listener();
         }
@@ -424,6 +398,10 @@ export function isEditableTarget(target: EventTarget | null): boolean {
         || (target instanceof HTMLElement && target.isContentEditable);
 }
 
+function isPrimaryBrowser(root: HTMLElement | null): boolean {
+    return document.querySelector("[data-ucx-browser]") === root;
+}
+
 export type UcxBrowserPane = "sidebar" | "content" | "bottom";
 
 interface UcxBrowserLayoutProps {
@@ -474,7 +452,7 @@ export const UcxBrowserLayout: React.FunctionComponent<UcxBrowserLayoutProps> = 
 
     useEffect(() => {
         if (!autoFocusOnPageChange) return;
-        if (document.querySelector("[data-ucx-browser]") !== rootRef.current) return;
+        if (!isPrimaryBrowser(rootRef.current)) return;
 
         const active = document.activeElement;
         const focusOnPane = active instanceof HTMLElement
@@ -501,11 +479,15 @@ export const UcxBrowserLayout: React.FunctionComponent<UcxBrowserLayoutProps> = 
 
             if (event.key !== "Escape" || props.onEscape === undefined) return;
             if (event.defaultPrevented) return;
-            if (isEditableTarget(event.target)) return;
             const active = document.activeElement;
-            const isPrimaryBrowser = document.querySelector("[data-ucx-browser]") === rootRef.current;
-            const inRegion = regionContains(rootRef.current) || (isPrimaryBrowser && active === document.body);
+            const primary = isPrimaryBrowser(rootRef.current);
+            const inRegion = regionContains(rootRef.current) || (primary && active === document.body);
             if (!inRegion) return;
+            if (isEditableTarget(event.target)) {
+                if (event.target instanceof HTMLElement) {
+                    event.target.blur();
+                }
+            }
 
             event.preventDefault();
             props.onEscape();
@@ -596,6 +578,7 @@ export interface UcxNavItem {
     route?: string;
     children?: UcxNavItem[];
     separatorBefore?: boolean;
+    disabled?: boolean;
 }
 
 interface UcxNavTreeNode {
@@ -606,6 +589,7 @@ interface UcxNavTreeNode {
     children: UcxNavTreeNode[];
     isBranch: boolean;
     separatorBefore?: boolean;
+    disabled: boolean;
 }
 
 interface UcxNavTreeProps {
@@ -651,7 +635,7 @@ export const UcxNavTree: React.FunctionComponent<UcxNavTreeProps> = props => {
         const out: UcxNavTreeNode[] = [];
         const walk = (nodes: UcxNavTreeNode[]) => {
             for (const node of nodes) {
-                if (!node.isBranch && matches(node, needle)) out.push(node);
+                if (!node.isBranch && !node.disabled && matches(node, needle)) out.push(node);
                 walk(node.children);
             }
         };
@@ -727,22 +711,6 @@ export const UcxNavTree: React.FunctionComponent<UcxNavTreeProps> = props => {
     }, [activateCommand, focusContent, moveHighlight]);
 
     useEffect(() => {
-        const onFocusIn = (event: FocusEvent) => {
-            const root = rootRef.current;
-            const target = event.target;
-            if (!root || !(target instanceof HTMLElement) || target === document.body) return;
-            if (root.contains(target)) return;
-            const pane = root.closest("[data-ucx-pane]");
-            if (pane != null && target === pane) {
-                treeApiRef.current?.activate();
-            }
-        };
-
-        document.addEventListener("focusin", onFocusIn);
-        return () => document.removeEventListener("focusin", onFocusIn);
-    }, []);
-
-    useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
             if (!searchable || !regionActive || event.key !== commandKey || isEditableTarget(event.target)) return;
             event.preventDefault();
@@ -754,7 +722,16 @@ export const UcxNavTree: React.FunctionComponent<UcxNavTreeProps> = props => {
         return () => document.removeEventListener("keydown", onKeyDown);
     }, [commandKey, regionActive, searchable]);
 
-    return <div ref={rootRef} className={UcxNavTreeClass}>
+    return <div
+        ref={rootRef}
+        className={UcxNavTreeClass}
+        onFocus={event => {
+            const pane = event.target instanceof HTMLElement ? event.target.closest("[data-ucx-pane]") : null;
+            if (pane != null && event.target === pane) {
+                treeApiRef.current?.activate();
+            }
+        }}
+    >
         <div className="nav-tree-scroll">
             <VirtualizedTree
                 apiRef={treeApiRef}
@@ -770,16 +747,17 @@ export const UcxNavTree: React.FunctionComponent<UcxNavTreeProps> = props => {
                     }
                 }}
                 onActivate={node => {
-                    if (!node.isBranch) activate(node.id);
+                    if (!node.isBranch && !node.disabled) activate(node.id);
                 }}
                 renderNode={(node, state) => {
                     const separated = node.separatorBefore === true;
+                    const disabled = node.disabled === true;
                     const body = node.isBranch
                         ? <div className="nav-tree-group" onClick={() => state.toggle()}>
                             <Icon name="heroChevronRight" size={12} rotation={state.expanded ? 90 : undefined} color="textSecondary" />
                             <span className="nav-tree-group-label">{node.label}</span>
                         </div>
-                        : <div className="nav-tree-leaf">
+                        : <div className={disabled ? "nav-tree-leaf nav-tree-leaf-disabled" : "nav-tree-leaf"}>
                             <span className="nav-tree-label">{node.label}</span>
                         </div>;
                     if (!separated) return body;
@@ -825,6 +803,7 @@ function toNavTreeNode(node: UcxNavItem): UcxNavTreeNode {
         children,
         isBranch: children.length > 0,
         separatorBefore: node.separatorBefore === true,
+        disabled: node.disabled === true,
     };
 }
 
@@ -847,7 +826,7 @@ function filteredNavTree(all: UcxNavTreeNode[], candidates: UcxNavTreeNode[]): U
 
 function findExactCandidate(nodes: UcxNavTreeNode[], needle: string): UcxNavTreeNode | undefined {
     for (const node of nodes) {
-        if (!node.isBranch) {
+        if (!node.isBranch && !node.disabled) {
             if (node.aliases.some(alias => alias.toLowerCase() === needle)
                 || node.label.toLowerCase() === needle
                 || node.id.toLowerCase() === needle) {
@@ -862,7 +841,7 @@ function findExactCandidate(nodes: UcxNavTreeNode[], needle: string): UcxNavTree
 
 function findLabelPrefix(nodes: UcxNavTreeNode[], needle: string): UcxNavTreeNode | undefined {
     for (const node of nodes) {
-        if (!node.isBranch && node.label.toLowerCase().startsWith(needle)) return node;
+        if (!node.isBranch && !node.disabled && node.label.toLowerCase().startsWith(needle)) return node;
         const found = findLabelPrefix(node.children, needle);
         if (found) return found;
     }
@@ -872,7 +851,7 @@ function findLabelPrefix(nodes: UcxNavTreeNode[], needle: string): UcxNavTreeNod
 export interface UcxTableActivationEvent {
     tableId: string;
     rowKey: string;
-    row: UcxStreamedRow;
+    row: TableRow;
 }
 
 export interface UcxTableActionDef {
@@ -919,7 +898,8 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     const stateKey = props.stateKey ?? tableId;
     const revision = useUcxTableRevision(store);
     const loaded = store.loadedFor(tableId);
-    const rows = useMemo(() => Array.from(store.rowsFor(tableId).values()), [store, tableId, revision, loaded]);
+    const rowMap = store.rowsFor(tableId);
+    const rows = useMemo(() => Array.from(rowMap.values()), [rowMap, revision]);
     const columns = store.columnsFor(tableId);
     const filter = store.filterFor(stateKey);
     const selectedKey = store.selectedFor(stateKey);
@@ -950,7 +930,6 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     menuRowKeyRef.current = menuRowKey;
     menuOpenRefState.current = menuRowKey !== null;
 
-    const rowMap = store.rowsFor(tableId);
     const autoWidths = useMemo(
         () => computeColumnWidths(columns, Array.from(rowMap.values())),
         [columns, rowMap],
@@ -970,13 +949,6 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         if (previous === stateKey) return;
         store.clearViewState(stateKey);
     }, [store, stateKey, viewId]);
-
-    useEffect(() => {
-        if (selectedKey == null) return;
-        if (!store.rowsFor(tableId).has(selectedKey)) {
-            store.setSelected(stateKey, null);
-        }
-    }, [rows, selectedKey, stateKey, store, tableId]);
 
     useEffect(() => {
         return () => {
@@ -1002,15 +974,11 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                     const groupCmp = a.group.localeCompare(b.group);
                     if (groupCmp !== 0) return groupCmp;
                 }
-                const cellA = a.cells[sortIdx] ?? "";
-                const cellB = b.cells[sortIdx] ?? "";
-                const cellCmp = compareCells(sortType, cellA, cellB);
+                const cellCmp = compareCells(sortType, a.cells[sortIdx], b.cells[sortIdx]);
                 if (cellCmp !== 0) return cellCmp * direction;
                 const groupCmp = a.group.localeCompare(b.group);
                 if (groupCmp !== 0) return groupCmp;
-                const nameA = a.cells[0] ?? "";
-                const nameB = b.cells[0] ?? "";
-                return nameA.localeCompare(nameB);
+                return a.cells[0].localeCompare(b.cells[0]);
             });
             return sorted;
         }
@@ -1018,9 +986,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             sorted.sort((a, b) => {
                 const groupCmp = a.group.localeCompare(b.group);
                 if (groupCmp !== 0) return groupCmp;
-                const nameA = a.cells[0] ?? "";
-                const nameB = b.cells[0] ?? "";
-                return nameA.localeCompare(nameB);
+                return a.cells[0].localeCompare(b.cells[0]);
             });
         }
         return sorted;
@@ -1032,7 +998,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         return orderedRows.filter(row => row.cells.some(cell => cell.toLowerCase().includes(needle)));
     }, [orderedRows, filter]);
 
-    const groupedRows: {group: string; rows: UcxStreamedRow[]}[] = [];
+    const groupedRows: {group: string; rows: TableRow[]}[] = [];
     for (const row of filteredRows) {
         const last = groupedRows[groupedRows.length - 1];
         if (last && last.group === row.group) {
@@ -1159,7 +1125,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         if (!colElement) return;
         handle.setPointerCapture(event.pointerId);
         const startX = event.clientX;
-        const startConfigured = widths[columnKey] ?? UCX_MIN_COLUMN_WIDTH;
+        const startConfigured = widths[columnKey];
         const startRendered = cell.getBoundingClientRect().width;
         const gain = Math.max(0.25, startRendered / startConfigured);
         let applied = startConfigured;
@@ -1199,7 +1165,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         setMenuRowKey(null);
     }, []);
 
-    const openRowMenu = useCallback((row: UcxStreamedRow, x: number, y: number) => {
+    const openRowMenu = useCallback((row: TableRow, x: number, y: number) => {
         if (!hasActionDefs) return;
         if (!row.actions || row.actions.length === 0) return;
         store.setSelected(stateKey, row.key);
@@ -1208,12 +1174,12 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         setMenuRenderTick(value => value + 1);
     }, [hasActionDefs, stateKey, store]);
 
-    const openRowMenuAtButton = useCallback((row: UcxStreamedRow, button: HTMLElement) => {
+    const openRowMenuAtButton = useCallback((row: TableRow, button: HTMLElement) => {
         const rect = button.getBoundingClientRect();
         openRowMenu(row, rect.right, rect.bottom + 2);
     }, [openRowMenu]);
 
-    const toggleRowMenuAtButton = useCallback((row: UcxStreamedRow, button: HTMLElement) => {
+    const toggleRowMenuAtButton = useCallback((row: TableRow, button: HTMLElement) => {
         if (menuRowKeyRef.current === row.key) {
             menuCloseRef.current?.();
             menuRowKeyRef.current = null;
@@ -1234,11 +1200,11 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         toggleRowMenuAtButton(selected, button);
     }, [filteredRows, toggleRowMenuAtButton]);
 
-    const rowMenuEntries = useMemo((): ActionEntry<UcxStreamedRow, undefined>[] => {
+    const rowMenuEntries = useMemo((): ActionEntry<TableRow, undefined>[] => {
         if (menuRowKey === null) return [];
         const row = store.rowsFor(tableId).get(menuRowKey);
         if (!row || !row.actions || row.actions.length === 0) return [];
-        const entries: ActionEntry<UcxStreamedRow, undefined>[] = [];
+        const entries: ActionEntry<TableRow, undefined>[] = [];
         for (const def of actionDefs) {
             const action = row.actions.find(candidate => candidate.id === def.id);
             if (!action) continue;
@@ -1269,12 +1235,6 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         if (menuRowKey === null) return;
         menuOpenRef.current?.(menuPosition.x, menuPosition.y);
     }, [menuRenderTick, menuRowKey, menuPosition.x, menuPosition.y]);
-
-    useEffect(() => {
-        if (menuRowKey !== null && rowMenuEntries.length === 0) {
-            setMenuRowKey(null);
-        }
-    }, [menuRowKey, rowMenuEntries]);
 
     useEffect(() => {
         const handler: UcxTableViewHandler = {
@@ -1378,11 +1338,11 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             >
             <Table tableType="presentation" aria-role="grid">
                 <colgroup>
-                    {columns.map(col => <col key={col.key} data-col-key={col.key} style={{width: `${widths[col.key] ?? UCX_MIN_COLUMN_WIDTH}px`}} />)}
+                    {columns.map(col => <col key={col.key} data-col-key={col.key} style={{width: `${widths[col.key]}px`}} />)}
                     {hasActionDefs ? <col className="streamed-table-actions-col" style={{width: "40px"}} /> : null}
                 </colgroup>
                 <TableHeader>
-                    <TableRow>
+                    <UiTableRow>
                         {columns.map(col => {
                             const sort = store.sortFor(stateKey);
                             const isSortColumn = sort !== null && sort.columnKey === col.key;
@@ -1435,21 +1395,21 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                             </TableHeaderCell> :
                             null
                         }
-                    </TableRow>
+                    </UiTableRow>
                 </TableHeader>
                 <tbody role="rowgroup">
                     {groupedRows.length === 0 ?
-                        <TableRow>
+                        <UiTableRow>
                             <TableCell colSpan={colCount}>
                                 {emptyRowContent}
                             </TableCell>
-                        </TableRow> :
+                        </UiTableRow> :
                         null
                     }
                     {groupedRows.map((group, groupIdx) =>
                         <React.Fragment key={groupIdx}>
                             {props.showGroupHeaders !== false && group.group !== "" ?
-                                <TableRow className="group-row">
+                                <UiTableRow className="group-row">
                                     <TableCell colSpan={columns.length + (hasActionDefs ? 1 : 0)}>
                                         <span className="group-row-inner">
                                             <span className="group-row-label">{group.group}</span>
@@ -1469,14 +1429,14 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                             }
                                         </span>
                                     </TableCell>
-                                </TableRow> :
+                                </UiTableRow> :
                                 null
                             }
                             {group.rows.map(row => {
                                 const hasActions = (row.actions?.length ?? 0) > 0;
                                 const isSelected = selectedKey === row.key;
                                 const isFirstRow = row.key === groupedRows[0]?.rows[0]?.key;
-                                return <TableRow
+                                return <UiTableRow
                                     key={row.key}
                                     data-row-key={row.key}
                                     data-selected={isSelected}
@@ -1496,7 +1456,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                     {columns.map((col, cellIdx) =>
                                         col.copy === true ?
                                             <TableCell key={col.key} role="gridcell" style={{position: "relative"}}>
-                                                {row.cells[cellIdx] ?? ""}
+                                                {row.cells[cellIdx]}
                                                 <button
                                                     className="streamed-table-copy-button"
                                                     title="Copy name"
@@ -1504,14 +1464,14 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                                     tabIndex={-1}
                                                     onClick={event => {
                                                         event.stopPropagation();
-                                                        copyToClipboard(row.cells[cellIdx] ?? "");
+                                                        copyToClipboard(row.cells[cellIdx]);
                                                     }}
                                                 >
                                                     <Icon name="heroDocumentDuplicate" size={14} />
                                                 </button>
                                             </TableCell> :
                                             <TableCell key={col.key} role="gridcell">
-                                                {row.cells[cellIdx] ?? ""}
+                                                {row.cells[cellIdx]}
                                             </TableCell>
                                     )}
                                     {hasActions ?
@@ -1532,12 +1492,12 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                         </TableCell> :
                                         null
                                     }
-                                </TableRow>;
+                                </UiTableRow>;
                             })}
                         </React.Fragment>
                     )}
                     {trailingAction ?
-                        <TableRow
+                        <UiTableRow
                             className="trailing-action-row"
                             data-row-key="ucx-trailing-action"
                         >
@@ -1560,7 +1520,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                     </Button>
                                 </span>
                             </TableCell>
-                        </TableRow> :
+                        </UiTableRow> :
                         null
                     }
                 </tbody>
@@ -1790,11 +1750,22 @@ const UcxBrowserContentClass = injectStyle("ucx-browser-content", key => `
         min-width: 0;
         overflow: hidden;
         outline: none;
+        border: 1px solid var(--borderColor);
+        border-radius: 8px;
+    }
+
+    ${key}[data-pane-active="true"] {
+        border-color: var(--primaryMain);
     }
 
     ${key} > * {
         flex: 1 1 auto;
         min-height: 0;
+    }
+
+    ${key}[data-ucx-pane] .streamed-table-frame {
+        border: 0;
+        border-radius: 0;
     }
 `);
 
@@ -1863,6 +1834,12 @@ const UcxNavTreeClass = injectStyle("ucx-nav-tree", key => `
         font-size: 13.5px;
         min-width: 0;
         color: var(--textPrimary, inherit);
+    }
+
+    ${key} .nav-tree-leaf-disabled {
+        color: var(--textDisabled, var(--textSecondary, inherit));
+        opacity: 0.55;
+        cursor: default;
     }
 
     ${key} .nav-tree-row-separated {

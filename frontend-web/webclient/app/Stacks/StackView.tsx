@@ -113,14 +113,16 @@ export default function StackView(): React.ReactNode {
                 navigate(AppRoutes.stacks.view(payload.id));
             },
             stackInfo: () => {
-                const currentStack = stackRef.current;
-                const currentJobs = jobsRef.current;
                 return {
-                    id: currentStack?.id ?? "",
-                    type: currentStack?.type ?? "",
-                    provider: currentJobs.length > 0 ? currentJobs[0].specification.product.provider : "",
-                    createdAt: currentStack?.createdAt ?? 0,
-                    resourceCount: totalResourceCountRef.current,
+                    id: stack?.id ?? "",
+                    type: stack?.type ?? "",
+                    provider: jobs.length > 0 ? jobs[0].specification.product.provider : "",
+                    createdAt: stack?.createdAt ?? 0,
+                    resourceCount: (status?.jobs?.length ?? 0)
+                        + (status?.licenses?.length ?? 0)
+                        + (status?.publicIps?.length ?? 0)
+                        + (status?.publicLinks?.length ?? 0)
+                        + (status?.networks?.length ?? 0),
                 };
             },
             stackDelete: () => {
@@ -162,17 +164,11 @@ export default function StackView(): React.ReactNode {
                 }
             },
         };
-    }, [navigate, refreshStack, ucxConnectJob]);
+    }, [navigate, refreshStack, ucxConnectJob, stack, jobs, status]);
 
     React.useEffect(() => {
         setUcxAuthenticated(false);
-    }, [ucxConnectJobId]);
-
-    React.useEffect(() => {
-        if (!shouldAttemptUcxConnection) {
-            setUcxAuthenticated(false);
-        }
-    }, [shouldAttemptUcxConnection]);
+    }, [shouldAttemptUcxConnection, ucxConnectJobId]);
 
     const pollIntervalMs = React.useMemo(() => {
         if (uiMode === "Replacement") return 2000;
@@ -264,16 +260,6 @@ export default function StackView(): React.ReactNode {
         (status?.publicIps?.length ?? 0) +
         (status?.publicLinks?.length ?? 0) +
         (status?.networks?.length ?? 0);
-
-    const totalResourceCountRef = React.useRef(totalResourceCount);
-    React.useEffect(() => {
-        totalResourceCountRef.current = totalResourceCount;
-    }, [totalResourceCount]);
-
-    const jobsRef = React.useRef(jobs);
-    React.useEffect(() => {
-        jobsRef.current = jobs;
-    }, [jobs]);
 
     const allowedExternalOrigins = React.useMemo(() => {
         return (status?.publicLinks ?? [])
@@ -377,11 +363,6 @@ export default function StackView(): React.ReactNode {
                     </Card>
                 )}
 
-                {!id ? <p>Missing cluster ID.</p> : null}
-                {id && stackState.loading && !stack ? <p>Loading cluster...</p> : null}
-                {id && stackState.error ? <p>Could not load cluster: {stackState.error.why}</p> : null}
-                {id && !stackState.loading && !stackState.error && !stack ? <p>Cluster not found.</p> : null}
-
                 {!stack || (uiMode === "Replacement" && ucxAuthenticated) ? null : (
                     <MachinesInStack status={status} commandLoading={commandLoading} suspendVm={suspendVm}
                         restartVm={restartVm} />
@@ -399,7 +380,7 @@ export default function StackView(): React.ReactNode {
                         flex: "1 1 auto",
                     }}>
                         <UcxView
-                            key={ucxConnectJobId ?? ""}
+                            key={ucxConnectJobId ?? "ucx"}
                             url={ucxConnectJobUrl}
                             authToken={async () => {
                                 const accessToken = await Client.receiveAccessTokenOrRefreshIt();

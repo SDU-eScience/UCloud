@@ -132,6 +132,11 @@ export class StreamProcessor {
         this.state = 0;
     }
 
+    public clearBuffer() {
+        this.reset();
+        this.buffer = "";
+    }
+
     private processBuffer() {
         while (true) {
             const endOfLine = this.buffer.indexOf("\n");
@@ -146,12 +151,24 @@ export class StreamProcessor {
                 parsed = JSON.parse(line);
             } catch (e) {
                 console.warn("Failed to parse buffer", line, e);
-                return;
+                this.buffer = this.buffer.substring(endOfLine + 1);
+                this.reset();
+                continue;
             }
 
             this.buffer = this.buffer.substring(endOfLine + 1);
             switch (this.state) {
                 case 0: {
+                    const action = parsed?.action;
+                    const looksLikeHeader =
+                        typeof action === "number" &&
+                        (action === WidgetAction.WidgetActionCreate ||
+                            action === WidgetAction.WidgetActionUpdate ||
+                            action === WidgetAction.WidgetActionDelete) &&
+                        Object.keys(parsed).length === 1;
+                    if (!looksLikeHeader) {
+                        break;
+                    }
                     this.header = parsed as WidgetPacketHeader;
                     this.state++;
                     break;

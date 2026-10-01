@@ -1,100 +1,23 @@
 import * as React from "react";
-import {useLayoutEffect, useRef} from "react";
 import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {Card, Flex, Text} from "@/ui-components";
 import {TaskProgress} from "@/Files/Uploader";
-import {injectStyle} from "@/Unstyled";
 import {Job} from "@/UCloud/JobsApi";
 import {isJobStateTerminal} from "@/Applications/Jobs";
-import {StreamProcessor} from "@/Applications/Jobs/JobViz";
-import {WidgetLabel, WidgetProgressBar, WidgetType} from "@/Applications/Jobs/JobViz";
-import {appendToXterm, useXTerm, xtermThemes} from "@/Applications/Jobs/XTermLib";
-
-interface JobsFollowResponse {
-    updates: any[];
-    log: FollowLogMessage[];
-    newStatus?: any;
-    initialJob?: Job | null;
-}
-
-interface FollowLogMessage {
-    rank: number;
-    stdout?: string | null;
-    stderr?: string | null;
-    channel?: string | null;
-}
-
-export const StageLabelId = "ucloud-init-stage";
-export const StageProgressId = "ucloud-init-progress";
-
-class NodeInitTracker {
-    nodes = new Map<string, NodeInitState>();
-    onChange: () => void = () => {};
-
-    track(jobId: string): NodeInitState {
-        let node = this.nodes.get(jobId);
-        if (node) return node;
-
-        const processor = new StreamProcessor();
-        node = {jobId, stageText: null, progress: null, log: [], processor};
-        this.nodes.set(jobId, node);
-
-        processor.on("createAny", ev => {
-            if (ev.id === StageLabelId && ev.type === WidgetType.WidgetTypeLabel) {
-                node!.stageText = (ev.spec as WidgetLabel).text;
-                this.onChange();
-            }
-            if (ev.id === StageProgressId && ev.type === WidgetType.WidgetTypeProgressBar) {
-                node!.progress = (ev.spec as WidgetProgressBar).progress;
-                this.onChange();
-            }
-        });
-        processor.on("updateProgress", ev => {
-            if (ev.id === StageProgressId) {
-                node!.progress = ev.widget.progress;
-                this.onChange();
-            }
-        });
-
-        return node;
-    }
-}
-
-interface NodeInitState {
-    jobId: string;
-    stageText: string | null;
-    progress: number | null;
-    log: string[];
-    processor: StreamProcessor;
-}
-
-function applyFollowResponse(node: NodeInitState, payload: JobsFollowResponse, onChange: () => void): void {
-    if (!payload.log || payload.log.length === 0) return;
-
-    let changed = false;
-    for (const message of payload.log) {
-        const text = message.stdout ?? message.stderr ?? "";
-        if (message.channel === "ui" || message.channel === "data") {
-            node.processor.accept(text);
-        } else if (message.channel == null || message.channel === "serial") {
-            node.log.push(text);
-            changed = true;
-        }
-    }
-
-    if (changed) onChange();
-}
+import {injectStyle} from "@/Unstyled";
+import {
+    applyJobFollowResponse,
+    InitTerminal,
+    JobInitTracker,
+    JobsFollowResponse,
+} from "./JobInitTracking";
 
 export const StackInitProgress: React.FunctionComponent<{
     jobs: Job[];
 }> = ({jobs}) => {
-    const tracker = React.useMemo(() => new NodeInitTracker(), []);
+    const tracker = React.useMemo(() => new JobInitTracker(), []);
     const [, forceUpdate] = React.useReducer(x => x + 1, 0);
     const bump = React.useCallback(() => forceUpdate(), []);
-
-    React.useEffect(() => {
-        tracker.onChange = bump;
-    }, [tracker, bump]);
 
     const [selectedJobId, setSelectedJobId] = React.useState<string | null>(null);
 
@@ -116,7 +39,9 @@ export const StackInitProgress: React.FunctionComponent<{
                         payload: {id},
                         handler: message => {
                             if (message.type === "message" && message.payload) {
-                                applyFollowResponse(node, message.payload as JobsFollowResponse, bump);
+                                if (applyJobFollowResponse(node, message.payload as JobsFollowResponse)) {
+                                    bump();
+                                }
                             }
                         },
                     });
@@ -176,38 +101,11 @@ export const StackInitProgress: React.FunctionComponent<{
                 {selectedNode == null ? (
                     <Text color="textSecondary">Select a machine to view its initialization log.</Text>
                 ) : (
-                    <InitTerminal node={selectedNode} />
+                    <InitTerminal state={selectedNode} />
                 )}
             </div>
         </div>
     </Card>;
-};
-
-const InitTerminal: React.FunctionComponent<{
-    node: NodeInitState;
-}> = ({node}) => {
-    const {termRef, terminal} = useXTerm({autofit: true});
-    const logLengthRef = useRef(0);
-    const lastNodeRef = useRef<NodeInitState | null>(null);
-
-    useLayoutEffect(() => {
-        if (lastNodeRef.current !== node) {
-            lastNodeRef.current = node;
-            terminal.reset();
-            logLengthRef.current = 0;
-        }
-
-        const pending = node.log.slice(logLengthRef.current);
-        if (pending.length === 0) return;
-        logLengthRef.current = node.log.length;
-        for (const chunk of pending) {
-            appendToXterm(terminal, chunk);
-        }
-    });
-
-    return <div className={StackInitTermWrapper}>
-        <div ref={termRef} className="term" />
-    </div>;
 };
 
 const StackInitLayout = injectStyle("stack-init-layout", k => `
@@ -310,27 +208,6 @@ const StackInitDetail = injectStyle("stack-init-detail", k => `
         display: flex;
         flex-direction: column;
         gap: 8px;
-    }
-`);
-
-const StackInitTermWrapper = injectStyle("stack-init-term-wrapper", k => `
-    ${k} {
-        flex: 1;
-        height: 420px;
-        background: ${xtermThemes.light.background};
-        border: 1px solid var(--borderColor);
-        border-radius: 8px;
-        padding: 12px 16px;
-        min-width: 0;
-        box-sizing: border-box;
-    }
-
-    html.dark ${k} {
-        background: ${xtermThemes.dark.background};
-    }
-
-    ${k} .term {
-        height: 100%;
     }
 `);
 

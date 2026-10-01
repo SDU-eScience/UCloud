@@ -30,7 +30,7 @@ dashboard; if that node stops, another control plane node takes over.
 
 The stack folder is split into per-purpose subtrees. Each node mounts only the subtrees it needs:
 
-- `management/` — cluster-wide state and credentials: `cluster.json` (the persistent cluster record), `kubeconfig` (public, downloaded
+- `management/` — cluster-wide credentials and artifacts: `kubeconfig` (public, downloaded
   by the user), `kubeconfig-internal` (used by the dashboard custom UI service), `kube-api-token` and `tokens/` (the k3s join tokens).
   Mounted read-write on every control plane node.
 - `nodes/<id>/input/` — per-node input, written before the node is created. Contains `node.json` and the join token files.
@@ -42,18 +42,28 @@ The stack folder is split into per-purpose subtrees. Each node mounts only the s
 Every control plane node mounts the whole `nodes/` subtree read-write. The token publisher on any control plane node needs write
 access to the input directories of all other nodes.
 
-The persistent cluster record (`management/cluster.json`) is the source of truth for the cluster: its phase, node allocation IDs,
+The provider-backed StackState API is the source of truth for the cluster: its phase, node allocation IDs,
 hostnames, IP addresses, job IDs, the machine provider, the worker pools, the bundle path and the next free allocation ID. It carries
-a schema revision, and the application rejects records written by a newer version. Scale-out reads this record (under a file lock)
-instead of deriving state from job listings.
+a schema revision, and the application rejects records written by a newer version. Scale-out reads this
+record through an owned record lease instead of deriving state from job listings.
+
+The authoritative StackState keys are:
+
+- `cluster/record` — the cluster record.
+- `cluster/workflow` — durable scale-out workflow intents.
+- `maintenance/nodes/<node-name>` — per-node maintenance operations.
+- `coordination/disruption` — the single cluster-wide disruption reservation.
+- `coordination/topology/<operation-uid>` — topology intents.
+- `traffic/state` — the traffic authority: durable ingress exclusions and
+  pending suspend/restore intents (schema revision 1). The maintenance record
+  holds only a non-authoritative summary. Suspend/restore and the controller
+  reconcile use leased, fenced membership writes with
+  `StateLeaseProof`. The transitional traffic file lock is removed.
 
 The record phase is one of `provisioning`, `created`, `error` or `cleanup-pending`. New nodes can only be added while the phase is
 `created`; the shared code enforces this and the dashboard UI shows the current phase instead of the add-machine form otherwise.
 
-If node creation fails partway, the record moves to the `error` (or `cleanup-pending`) phase with a failure reason, and the resources
-that could not be released automatically are listed in `pendingCleanup` with their job and reservation IDs. These need manual cleanup
-by an operator: delete the listed jobs and network IP reservations, then clear the record state. There is no transaction framework;
-the list only records what was left behind.
+If node creation fails partway, the workflow intent stays unreconciled and the disruption reservation stays in place. The operator must inspect the actual provider and Kubernetes outcomes, reconcile only the resources that are confirmed unfinished or unused, and then resolve the matching intent and reservation. There is no transaction framework and no automatic deletion of leftover resources.
 
 ### VM startup scripts
 
@@ -115,8 +125,8 @@ There is no compatibility with stacks created by older versions of the applicati
 
 ### Scale-out
 
-Adding a node goes through `ClusterAddNode` in `pkg/shared/scaleout.go`. It takes a file lock on the persistent cluster record, reads
-it, validates the group, the machine provider and the total node count, takes the next allocation ID, writes the node input files,
+Adding a node goes through `ClusterAddNode` in `pkg/shared/scaleout.go`. It opens an owned record lease on the StackState cluster
+record, validates the group, the machine provider and the total node count, takes the next allocation ID, writes the node input files,
 and creates the VM. Existing jobs are not the source of truth. Pools that are currently empty can still receive new nodes, as long as
 they are present in the record.
 

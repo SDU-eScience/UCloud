@@ -92,17 +92,8 @@ func serviceDelete(service *orc.Service) *util.HttpError {
 	)
 
 	servicesStateMutex.Lock()
-	for _, clusterName := range servicesLastClusters[service.Id] {
-		gw.SendMessage(gw.ConfigurationMessage{
-			ClusterDown: &gw.EnvoyCluster{Name: clusterName},
-		})
-	}
-	delete(servicesLastClusters, service.Id)
-	delete(servicesDrains, service.Id)
-	delete(servicesLastReport, service.Id)
-	delete(servicesProbeState, service.Id)
+	servicesForgetService(service.Id)
 	servicesStateMutex.Unlock()
-
 	controller.ServiceDeleteTracked(*service)
 	serviceReconcileLinkTargets()
 	return nil
@@ -187,12 +178,6 @@ func serviceIngressSetTarget(request orc.IngressesProviderSetTargetRequest) *uti
 }
 
 func servicesReconcileCreated(serviceId string) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Warn("services: reconcile panic: %v", r)
-		}
-	}()
-
 	servicesReconcileMutex.Lock()
 	defer servicesReconcileMutex.Unlock()
 
@@ -254,12 +239,6 @@ func ServicesStartLoop() {
 var servicesReconcileMutex sync.Mutex
 
 func servicesReconcile() {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Warn("services: reconcile panic: %v", r)
-		}
-	}()
-
 	servicesReconcileMutex.Lock()
 	defer servicesReconcileMutex.Unlock()
 
@@ -302,7 +281,7 @@ func servicesReconcileOne(ctx context.Context, service orc.Service) {
 				continue
 			}
 			clusterNames = append(clusterNames, serviceClusterName(service.Id, port.Name))
-			backends = servicesReconcilePort(ctx, service, port, members, backends)
+			backends = servicesReconcilePort(ctx, service, port, members, backends, false)
 		}
 	}
 
@@ -364,59 +343,23 @@ func backendsSummary(backends []orc.ServiceBackendStatus) string {
 	return result
 }
 
-func servicesReconcilePort(
-	ctx context.Context,
-	service orc.Service,
-	port orc.ServicePort,
-	members []serviceBackend,
-	backendsIn []orc.ServiceBackendStatus,
-) []orc.ServiceBackendStatus {
-	backends := backendsIn
-	byMember := map[string]int{}
-	for i, backend := range backends {
-		byMember[backend.JobId+"/"+strconv.Itoa(backend.Rank)] = i
-	}
-
-	for _, member := range members {
-		key := member.JobId + "/" + strconv.Itoa(member.Rank)
-		backendIndex, ok := byMember[key]
-		if !ok {
-			backends = append(backends, orc.ServiceBackendStatus{
-				JobId: member.JobId,
-				Rank:  member.Rank,
-				Ports: []orc.ServiceBackendPortStatus{},
-			})
-			backendIndex = len(backends) - 1
-			byMember[key] = backendIndex
-		}
-
-		healthy, known := servicesProbeMember(service, port, member)
-		state := orc.ServiceBackendPortStateUnhealthy
-		if member.Draining {
-			state = orc.ServiceBackendPortStateDraining
-		} else if healthy {
-			state = orc.ServiceBackendPortStateHealthy
-		}
-
-		if known || member.Draining {
-			backends[backendIndex].Ports = servicesReplacePortState(backends[backendIndex].Ports, port.Name, state)
-		}
-	}
-
-	servicesPushCluster(service, port, members, backends)
-	if service.Specification.InternalEndpoint.Present {
-		servicesEnsureEndpointSlice(ctx, service, port, members, backends)
-	}
-
-	return backends
-}
-
 func servicesReconcileUdpPort(
 	ctx context.Context,
 	service orc.Service,
 	port orc.ServicePort,
 	members []serviceBackend,
 	backendsIn []orc.ServiceBackendStatus,
+) []orc.ServiceBackendStatus {
+	return servicesReconcilePort(ctx, service, port, members, backendsIn, true)
+}
+
+func servicesReconcilePort(
+	ctx context.Context,
+	service orc.Service,
+	port orc.ServicePort,
+	members []serviceBackend,
+	backendsIn []orc.ServiceBackendStatus,
+	udp bool,
 ) []orc.ServiceBackendStatus {
 	backends := backendsIn
 	byMember := map[string]int{}
@@ -440,6 +383,12 @@ func servicesReconcileUdpPort(
 		state := orc.ServiceBackendPortStateHealthy
 		if member.Draining {
 			state = orc.ServiceBackendPortStateDraining
+		} else if !udp {
+			if servicesProbeMember(service, port, member) {
+				state = orc.ServiceBackendPortStateHealthy
+			} else {
+				state = orc.ServiceBackendPortStateUnhealthy
+			}
 		} else if member.Ip == "" && shared.K8sInCluster {
 			state = orc.ServiceBackendPortStateUnhealthy
 		}
@@ -447,6 +396,9 @@ func servicesReconcileUdpPort(
 		backends[backendIndex].Ports = servicesReplacePortState(backends[backendIndex].Ports, port.Name, state)
 	}
 
+	if !udp {
+		servicesPushCluster(service, port, members, backends)
+	}
 	if service.Specification.InternalEndpoint.Present {
 		servicesEnsureEndpointSlice(ctx, service, port, members, backends)
 	}
@@ -473,8 +425,6 @@ func servicesResolveMembers(service orc.Service) []serviceBackend {
 	for jobId, deadline := range servicesDrains[service.Id] {
 		drains[jobId] = deadline
 	}
-	servicesDrainsRef := servicesDrains
-	servicesStateMutex.Unlock()
 
 	candidates := []string{}
 	for _, jobId := range service.Status.Members {
@@ -488,16 +438,26 @@ func servicesResolveMembers(service orc.Service) []serviceBackend {
 		}
 	}
 
+	expired := []string{}
 	for _, jobId := range candidates {
-		deadline, draining := drains[jobId]
-		if draining && now.After(deadline) {
-			servicesStateMutex.Lock()
-			if serviceDrains, ok := servicesDrainsRef[service.Id]; ok {
+		if deadline, draining := drains[jobId]; draining && now.After(deadline) {
+			expired = append(expired, jobId)
+		}
+	}
+	if len(expired) > 0 {
+		if serviceDrains, ok := servicesDrains[service.Id]; ok {
+			for _, jobId := range expired {
 				delete(serviceDrains, jobId)
 			}
-			servicesStateMutex.Unlock()
-			draining = false
 		}
+		for _, jobId := range expired {
+			delete(drains, jobId)
+		}
+	}
+	servicesStateMutex.Unlock()
+
+	for _, jobId := range candidates {
+		_, draining := drains[jobId]
 
 		job, ok := controller.JobRetrieve(jobId)
 		if !ok {
@@ -547,18 +507,22 @@ func servicesPodName(job *orc.Job, rank int) string {
 	return fmt.Sprintf("j-%s-job-%d", job.Id, rank)
 }
 
-func servicesProbeMember(service orc.Service, port orc.ServicePort, member serviceBackend) (bool, bool) {
-	if member.Ip == "" {
-		return false, true
-	}
-
-	check := orc.ServiceHealthCheck{
+func servicesDefaultHealthCheck() orc.ServiceHealthCheck {
+	return orc.ServiceHealthCheck{
 		Type:               orc.ServiceHealthCheckTypeTcp,
 		IntervalSeconds:    5,
 		TimeoutSeconds:     2,
 		HealthyThreshold:   2,
 		UnhealthyThreshold: 2,
 	}
+}
+
+func servicesProbeMember(service orc.Service, port orc.ServicePort, member serviceBackend) bool {
+	if member.Ip == "" {
+		return false
+	}
+
+	check := servicesDefaultHealthCheck()
 	if port.HealthCheck.Present {
 		check = port.HealthCheck.Value
 	}
@@ -588,17 +552,11 @@ func servicesProbeMember(service orc.Service, port orc.ServicePort, member servi
 		delete(record.Failures, key)
 		delete(record.Stable, key)
 		servicesStateMutex.Unlock()
-		return true, true
+		return true
 	}
 
 	healthyThreshold := check.HealthyThreshold
-	if healthyThreshold < 1 {
-		healthyThreshold = 1
-	}
 	unhealthyThreshold := check.UnhealthyThreshold
-	if unhealthyThreshold < 1 {
-		unhealthyThreshold = 1
-	}
 	servicesStateMutex.Unlock()
 
 	serverName := ""
@@ -631,7 +589,7 @@ func servicesProbeMember(service orc.Service, port orc.ServicePort, member servi
 		result = previouslyHealthy
 	}
 
-	return result, true
+	return result
 }
 
 var servicesProbeClient = &http.Client{
@@ -964,13 +922,7 @@ func servicesPushCluster(
 	}
 
 	if shared.K8sInCluster {
-		check := orc.ServiceHealthCheck{
-			Type:               orc.ServiceHealthCheckTypeTcp,
-			IntervalSeconds:    5,
-			TimeoutSeconds:     2,
-			HealthyThreshold:   2,
-			UnhealthyThreshold: 2,
-		}
+		check := servicesDefaultHealthCheck()
 		if port.HealthCheck.Present {
 			check = port.HealthCheck.Value
 		}
@@ -1040,20 +992,24 @@ func servicesPruneOrphans(ctx context.Context, ids map[string]util.Empty) {
 	}
 
 	servicesStateMutex.Lock()
-	for serviceId, clusterNames := range servicesLastClusters {
+	for serviceId := range servicesLastClusters {
 		if _, keep := ids[serviceId]; !keep {
-			for _, clusterName := range clusterNames {
-				gw.SendMessage(gw.ConfigurationMessage{
-					ClusterDown: &gw.EnvoyCluster{Name: clusterName},
-				})
-			}
-			delete(servicesLastClusters, serviceId)
-			delete(servicesDrains, serviceId)
-			delete(servicesLastReport, serviceId)
-			delete(servicesProbeState, serviceId)
+			servicesForgetService(serviceId)
 		}
 	}
 	servicesStateMutex.Unlock()
+}
+
+func servicesForgetService(serviceId string) {
+	for _, clusterName := range servicesLastClusters[serviceId] {
+		gw.SendMessage(gw.ConfigurationMessage{
+			ClusterDown: &gw.EnvoyCluster{Name: clusterName},
+		})
+	}
+	delete(servicesLastClusters, serviceId)
+	delete(servicesDrains, serviceId)
+	delete(servicesLastReport, serviceId)
+	delete(servicesProbeState, serviceId)
 }
 
 var servicesLastRoutes = map[string]*gw.EnvoyRoute{}

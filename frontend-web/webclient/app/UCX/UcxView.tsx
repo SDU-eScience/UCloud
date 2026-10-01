@@ -29,8 +29,7 @@ import {FieldGroup, FieldRow} from "@/Applications/Jobs/Widgets";
 import {FIELD_NAVIGATION_SELECTOR, KeyboardNavigation, SubmitShortcut, useSubmitShortcut} from "@/Applications/KeyboardNavigation";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 import * as Accounting from "@/Accounting";
-import {productCategoryEquals, ProductV2, ProductV2Compute, WalletV2} from "@/Accounting";
-import {calculateProductCost, explainUnit, ProductV2 as ProductV2Alias} from "@/Accounting";
+import {calculateProductCost, explainUnit, productCategoryEquals, ProductV2, ProductV2Compute, WalletV2} from "@/Accounting";
 import {
     decodeFrame,
     Frame,
@@ -71,8 +70,7 @@ import {selectHoverColor, ThemeColor} from "@/ui-components/theme";
 import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {useIsLightThemeStored} from "@/ui-components/theme";
 import {WSFactory} from "@/Authentication/HttpClientInstance";
-import {appendToXterm, useXTerm, xtermThemes} from "@/Applications/Jobs/XTermLib";
-import {StreamProcessor, WidgetLabel, WidgetProgressBar, WidgetType} from "@/Applications/Jobs/JobViz";
+import {applyJobFollowResponse, InitTerminal, JobInitState, JobInitTracker, JobsFollowResponse} from "@/Stacks/JobInitTracking";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 type ValueProvider = string | (() => string | Promise<string>);
@@ -113,7 +111,6 @@ export type UcxComponentRegistry = Record<string, UcxComponentRenderer>;
 export interface UcxFrameRenderArgs {
     connected: boolean;
     transportError: string;
-    reconnectingInSeconds?: number;
     content: React.ReactNode;
     mounted?: boolean;
     root?: UiNode | null;
@@ -126,7 +123,6 @@ export interface UcxViewProps {
     url: string;
     authToken: ValueProvider;
     sysHello: ValueProvider;
-    maxReconnectAttempts?: number;
     renderFrame?: (args: UcxFrameRenderArgs) => React.ReactNode;
     components?: Partial<UcxComponentRegistry>;
     functions?: Partial<UcxFunctionRegistry>;
@@ -147,7 +143,6 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     url,
     authToken,
     sysHello,
-    maxReconnectAttempts = Number.POSITIVE_INFINITY,
     renderFrame,
     components,
     functions,
@@ -165,7 +160,6 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const [root, setRoot] = useState<UiNode | null>(null);
     const [model, setModel] = useState<Record<string, Value>>({});
     const [transportError, setTransportError] = useState("");
-    const [reconnectingInSeconds, setReconnectingInSeconds] = useState<number | undefined>(undefined);
     // NOTE(Dan): model patches can arrive in bursts of hundreds per second during chat streaming. Both
     // setModel and onModelChange re-render the whole page, so they are coalesced to at most one update
     // per animation frame.
@@ -182,15 +176,27 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const activeRouterBindPathRef = useRef<string | undefined>(undefined);
     const queryParamUrlValuesRef = useRef<Record<string, string>>({});
     const currentRoutePath = useMemo(() => routePathFromSearch(location.search), [location.search]);
-    const authTokenRef = useRef<ValueProvider>(authToken);
-    const sysHelloRef = useRef<ValueProvider>(sysHello);
-    const rpcHandlersRef = useRef<Record<string, UcxRpcHandler> | undefined>(rpcHandlers);
-    const allowedExternalOriginsRef = useRef<string[] | undefined>(allowedExternalOrigins);
+    const latestRef = useRef({
+        authToken,
+        sysHello,
+        rpcHandlers,
+        allowedExternalOrigins,
+        onConnected,
+        onDisconnected,
+        onTransportError,
+        onModelChange,
+    });
+    latestRef.current = {
+        authToken,
+        sysHello,
+        rpcHandlers,
+        allowedExternalOrigins,
+        onConnected,
+        onDisconnected,
+        onTransportError,
+        onModelChange,
+    };
     const navigateSpaRef = useRef<(to: string, nodeId: string) => void>(() => undefined);
-    const onConnectedRef = useRef<typeof onConnected>(onConnected);
-    const onDisconnectedRef = useRef<typeof onDisconnected>(onDisconnected);
-    const onTransportErrorRef = useRef<typeof onTransportError>(onTransportError);
-    const onModelChangeRef = useRef<typeof onModelChange>(onModelChange);
     const lastFocusAtRef = useRef(Date.now());
     const lastInboundAtRef = useRef(Date.now());
     const pongArmedRef = useRef(false);
@@ -221,38 +227,6 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     useEffect(() => {
         modelRef.current = model;
     }, [model]);
-
-    useEffect(() => {
-        authTokenRef.current = authToken;
-    }, [authToken]);
-
-    useEffect(() => {
-        sysHelloRef.current = sysHello;
-    }, [sysHello]);
-
-    useEffect(() => {
-        rpcHandlersRef.current = rpcHandlers;
-    }, [rpcHandlers]);
-
-    useEffect(() => {
-        allowedExternalOriginsRef.current = allowedExternalOrigins;
-    }, [allowedExternalOrigins]);
-
-    useEffect(() => {
-        onConnectedRef.current = onConnected;
-    }, [onConnected]);
-
-    useEffect(() => {
-        onDisconnectedRef.current = onDisconnected;
-    }, [onDisconnected]);
-
-    useEffect(() => {
-        onTransportErrorRef.current = onTransportError;
-    }, [onTransportError]);
-
-    useEffect(() => {
-        onModelChangeRef.current = onModelChange;
-    }, [onModelChange]);
 
     const pendingModelUpdaterRef = useRef<((prev: Record<string, Value>) => Record<string, Value>) | null>(null);
     const flushModel = useCallback((nextModel: Record<string, Value>) => {
@@ -285,7 +259,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     }, []);
 
     useEffect(() => {
-        onModelChangeRef.current?.(model);
+        latestRef.current.onModelChange?.(model);
     }, [model]);
 
     const sendFrame = useCallback((frame: Omit<Frame, "seq">) => {
@@ -581,7 +555,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         const setError = (message: string) => {
             setTransportError(message);
             console.error(`[UCX] ${message}`);
-            onTransportErrorRef.current?.(message);
+            latestRef.current.onTransportError?.(message);
         };
 
         const scheduleReconnect = () => {
@@ -591,12 +565,6 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 
             clearReconnectTimer();
 
-            if (reconnectAttemptRef.current >= maxReconnectAttempts) {
-                setReconnectingInSeconds(undefined);
-                setError("Disconnected. Reconnect limit reached.");
-                return;
-            }
-
             const baseDelayMs = 500;
             const capDelayMs = 30000;
             const attempt = reconnectAttemptRef.current;
@@ -605,7 +573,6 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
             reconnectAttemptRef.current = attempt + 1;
 
             const reconnectIn = Math.max(1, Math.ceil(delay / 1000));
-            setReconnectingInSeconds(reconnectIn);
             setError(`Disconnected. Reconnecting in ${reconnectIn}s...`);
             reconnectTimerRef.current = window.setTimeout(connect, delay);
         };
@@ -668,7 +635,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                     const plainPayload = valueMapToPlainPayload(payload) as {path?: unknown};
                     const path = typeof plainPayload.path === "string" ? plainPayload.path : "";
                     if (path.startsWith("https://")) {
-                        const allowed = allowedExternalOriginsRef.current;
+                        const allowed = latestRef.current.allowedExternalOrigins;
                         const origin = externalUrlOrigin(path);
                         if (origin === "" || (allowed === undefined || !allowed.includes(origin))) {
                             return {};
@@ -680,7 +647,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                     return {};
                 });
 
-                const handlers = rpcHandlersRef.current;
+                const handlers = latestRef.current.rpcHandlers;
                 if (handlers) {
                     for (const [name, handler] of Object.entries(handlers)) {
                         sessionRef.current?.registerRpcHandler(name, payload => {
@@ -693,8 +660,8 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 
                 void (async () => {
                     try {
-                        const token = await resolveProvider(authTokenRef.current);
-                        const hello = await resolveProvider(sysHelloRef.current);
+                        const token = await resolveProvider(latestRef.current.authToken);
+                        const hello = await resolveProvider(latestRef.current.sysHello);
 
                         socket.send(token);
                         sendFrame({
@@ -725,14 +692,13 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                         authCompleteRef.current = true;
 
                         setConnected(true);
-                        setReconnectingInSeconds(undefined);
                         setTransportError("");
-                        onConnectedRef.current?.();
+                        latestRef.current.onConnected?.();
 
-                        if (everConnectedRef.current && Object.keys(modelRef.current).length > 0) {
-                            pendingRehydrateModelRef.current = {...modelRef.current};
-                        }
                         if (everConnectedRef.current) {
+                            if (Object.keys(modelRef.current).length > 0) {
+                                pendingRehydrateModelRef.current = {...modelRef.current};
+                            }
                             tableStore.reset();
                         }
                         everConnectedRef.current = true;
@@ -809,7 +775,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 sessionRef.current = null;
                 setConnected(false);
                 const closeReason = `WebSocket closed (code=${event.code}, clean=${event.wasClean}, reason=${event.reason || "none"})`;
-                onDisconnectedRef.current?.(closeReason);
+                latestRef.current.onDisconnected?.(closeReason);
                 if (!disposed) {
                     scheduleReconnect();
                 }
@@ -849,7 +815,6 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         return <>{renderFrame({
             connected,
             transportError,
-            reconnectingInSeconds,
             content,
             mounted: root != null,
             root,
@@ -1091,9 +1056,7 @@ const baseComponents: UcxComponentRegistry = {
             onBlur={() => setRevealed(false)}
             onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
         />;
-        return <>
-            {label === "" ? input : <FieldLabel>{label}{input}</FieldLabel>}
-        </>;
+        return withFieldLabel(label, input);
     },
     input_text: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
@@ -1102,12 +1065,11 @@ const baseComponents: UcxComponentRegistry = {
         const input = <Input
             value={value}
             placeholder={placeholder}
+            autoFocus={boolProp(node, "autoFocus", false)}
             mt={label === "" ? undefined : 8}
             onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
         />;
-        return <>
-            {label === "" ? input : <FieldLabel>{label}{input}</FieldLabel>}
-        </>;
+        return withFieldLabel(label, input);
     },
     input_number: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
@@ -1117,6 +1079,7 @@ const baseComponents: UcxComponentRegistry = {
         const input = <Input
             type="number"
             value={value}
+            autoFocus={boolProp(node, "autoFocus", false)}
             min={min}
             mt={label === "" ? undefined : 8}
             max={max}
@@ -1125,9 +1088,7 @@ const baseComponents: UcxComponentRegistry = {
                 fn.sendBoundInput(node, {kind: ValueKind.S64, s64: isNaN(parsed) ? 0 : parsed}, model, scope);
             }}
         />;
-        return <>
-            {label === "" ? input : <FieldLabel>{label}{input}</FieldLabel>}
-        </>;
+        return withFieldLabel(label, input);
     },
     input_slider: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
@@ -1296,9 +1257,7 @@ const baseComponents: UcxComponentRegistry = {
             placeholder={placeholder}
             onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
         />;
-        return <>
-            {label === "" ? textArea : <FieldLabel>{label}{textArea}</FieldLabel>}
-        </>;
+        return withFieldLabel(label, textArea);
     },
     select: ({node, model, scope, fn}) => {
         return <UcxSelectField node={node} model={model} scope={scope} fn={fn} />;
@@ -1527,30 +1486,7 @@ const baseComponents: UcxComponentRegistry = {
     },
 };
 
-interface UcxJobsFollowResponse {
-    log?: FollowLogMessage[];
-    newStatus?: {state?: string} | null;
-    initialJob?: {status?: {state?: string}} | null;
-}
-
-interface FollowLogMessage {
-    rank: number;
-    stdout?: string | null;
-    stderr?: string | null;
-    channel?: string | null;
-}
-
-interface UcxJobLogsState {
-    jobId: string;
-    stageText: string | null;
-    progress: number | null;
-    jobState: string | null;
-    log: string[];
-    processor: StreamProcessor;
-}
-
-const UcxStageLabelId = "ucloud-init-stage";
-const UcxStageProgressId = "ucloud-init-progress";
+type UcxJobLogsState = JobInitState;
 
 function ucxStageFallback(state: string | null): string {
     switch (state) {
@@ -1590,63 +1526,14 @@ function ucxIsInitDone(state: UcxJobLogsState): boolean {
     return state.jobState === "SUCCESS" || (state.progress != null && state.progress >= 1);
 }
 
-function ucxApplyFollowResponse(state: UcxJobLogsState, payload: UcxJobsFollowResponse): boolean {
-    let changed = false;
-    if (payload.initialJob?.status?.state) {
-        state.jobState = payload.initialJob.status.state;
-        changed = true;
-    }
-    if (payload.newStatus?.state) {
-        state.jobState = payload.newStatus.state;
-        changed = true;
-    }
-
-    const log = payload.log;
-    if (!log || log.length === 0) return changed;
-
-    for (const message of log) {
-        const text = message.stdout ?? message.stderr ?? "";
-        if (message.channel === "ui" || message.channel === "data") {
-            state.processor.accept(text);
-        } else if (message.channel == null || message.channel === "serial") {
-            state.log.push(text);
-            changed = true;
-        }
-    }
-    return changed;
-}
-
 const JobLogsNode: React.FunctionComponent<{
     jobId: string;
     height: number;
     style?: React.CSSProperties;
 }> = ({jobId, height, style}) => {
-    const stateRef = useRef<UcxJobLogsState | null>(null);
-    if (!stateRef.current || stateRef.current.jobId !== jobId) {
-        const processor = new StreamProcessor();
-        processor.on("createAny", ev => {
-            if (ev.id === UcxStageLabelId && ev.type === WidgetType.WidgetTypeLabel) {
-                stateRef.current!.stageText = (ev.spec as WidgetLabel).text;
-            }
-            if (ev.id === UcxStageProgressId && ev.type === WidgetType.WidgetTypeProgressBar) {
-                stateRef.current!.progress = (ev.spec as WidgetProgressBar).progress;
-            }
-        });
-        processor.on("updateProgress", ev => {
-            if (ev.id === UcxStageProgressId) {
-                stateRef.current!.progress = ev.widget.progress;
-            }
-        });
-        stateRef.current = {
-            jobId,
-            stageText: null,
-            progress: null,
-            jobState: null,
-            log: [],
-            processor,
-        };
-    }
-    const state = stateRef.current;
+    const trackerRef = useRef<JobInitTracker | null>(null);
+    if (!trackerRef.current) trackerRef.current = new JobInitTracker();
+    const state: UcxJobLogsState = trackerRef.current.track(jobId);
 
     const [, forceUpdate] = useState(0);
     const bump = useCallback(() => forceUpdate(x => x + 1), []);
@@ -1660,7 +1547,7 @@ const JobLogsNode: React.FunctionComponent<{
                     payload: {id: jobId},
                     handler: message => {
                         if (message.type === "message" && message.payload) {
-                            if (ucxApplyFollowResponse(state, message.payload as UcxJobsFollowResponse)) {
+                            if (applyJobFollowResponse(state, message.payload as JobsFollowResponse)) {
                                 bump();
                             }
                         }
@@ -1671,35 +1558,12 @@ const JobLogsNode: React.FunctionComponent<{
         return () => conn.close();
     }, [jobId, state, bump]);
 
-    const {termRef, terminal} = useXTerm({autofit: true});
-    const logLengthRef = useRef(0);
-    const lastJobIdRef = useRef<string | null>(null);
-
-    useLayoutEffect(() => {
-        if (lastJobIdRef.current !== jobId) {
-            lastJobIdRef.current = jobId;
-            terminal.reset();
-            logLengthRef.current = 0;
-        }
-
-        const pending = state.log.slice(logLengthRef.current);
-        if (pending.length === 0) return;
-        logLengthRef.current = state.log.length;
-        for (const chunk of pending) {
-            appendToXterm(terminal, chunk);
-        }
-    });
-
-    const stageText = state.stageText
-        ?? (ucxIsInitDone(state) ? "Ready" : ucxStageFallback(state.jobState));
-    const stateColor = ucxIsInitDone(state)
-        ? "var(--successMain)"
-        : ucxStateColor(state.jobState);
-
     return <div style={{display: "flex", flexDirection: "column", gap: 8, minHeight: 0, ...style}}>
         <div style={{display: "flex", alignItems: "center", gap: 8}}>
-            <span className={UcxJobLogsDot} style={{background: stateColor}} />
-            <span style={{fontSize: "13px", color: "var(--textPrimary)"}}>{stageText}</span>
+            <span className={UcxJobLogsDot} style={{background: ucxIsInitDone(state) ? "var(--successMain)" : ucxStateColor(state.jobState)}} />
+            <span style={{fontSize: "13px", color: "var(--textPrimary)"}}>
+                {state.stageText ?? (ucxIsInitDone(state) ? "Ready" : ucxStageFallback(state.jobState))}
+            </span>
         </div>
         {state.progress != null ?
             <div className={UcxJobLogsProgressTrack}>
@@ -1712,9 +1576,7 @@ const JobLogsNode: React.FunctionComponent<{
                 />
             </div> :
             null}
-        <div className={UcxJobLogsTermWrapper} style={{height: `${height}px`}}>
-            <div ref={termRef} className="term" />
-        </div>
+        <InitTerminal state={state} height={height} />
     </div>;
 };
 
@@ -1743,25 +1605,6 @@ const UcxJobLogsProgressFill = injectStyle("ucx-job-logs-progress-fill", k => `
         border-radius: 2px;
         background: var(--primaryMain);
         transition: width 200ms ease;
-    }
-`);
-
-const UcxJobLogsTermWrapper = injectStyle("ucx-job-logs-term-wrapper", k => `
-    ${k} {
-        background: ${xtermThemes.light.background};
-        border: 1px solid var(--borderColor);
-        border-radius: 8px;
-        padding: 12px 16px;
-        min-width: 0;
-        box-sizing: border-box;
-    }
-
-    html.dark ${k} {
-        background: ${xtermThemes.dark.background};
-    }
-
-    ${k} .term {
-        height: 100%;
     }
 `);
 
@@ -1864,263 +1707,120 @@ function collectInputBindPaths(root: UiNode): Set<string> {
     return result;
 }
 
+type SxTransform = "px" | "num" | "color" | "font" | "str";
+
+const SX_STYLE_MAP: Record<string, {keys: (keyof React.CSSProperties)[]; transform: SxTransform}> = {
+    m: {keys: ["margin"], transform: "px"},
+    mx: {keys: ["marginLeft", "marginRight"], transform: "px"},
+    my: {keys: ["marginTop", "marginBottom"], transform: "px"},
+    mt: {keys: ["marginTop"], transform: "px"},
+    mr: {keys: ["marginRight"], transform: "px"},
+    mb: {keys: ["marginBottom"], transform: "px"},
+    ml: {keys: ["marginLeft"], transform: "px"},
+    p: {keys: ["padding"], transform: "px"},
+    px: {keys: ["paddingLeft", "paddingRight"], transform: "px"},
+    py: {keys: ["paddingTop", "paddingBottom"], transform: "px"},
+    pt: {keys: ["paddingTop"], transform: "px"},
+    pr: {keys: ["paddingRight"], transform: "px"},
+    pb: {keys: ["paddingBottom"], transform: "px"},
+    pl: {keys: ["paddingLeft"], transform: "px"},
+    gap: {keys: ["gap"], transform: "px"},
+    width: {keys: ["width"], transform: "px"},
+    minWidth: {keys: ["minWidth"], transform: "px"},
+    maxWidth: {keys: ["maxWidth"], transform: "px"},
+    height: {keys: ["height"], transform: "px"},
+    minHeight: {keys: ["minHeight"], transform: "px"},
+    maxHeight: {keys: ["maxHeight"], transform: "px"},
+    top: {keys: ["top"], transform: "px"},
+    right: {keys: ["right"], transform: "px"},
+    bottom: {keys: ["bottom"], transform: "px"},
+    left: {keys: ["left"], transform: "px"},
+    flexBasis: {keys: ["flexBasis"], transform: "px"},
+    borderRadius: {keys: ["borderRadius"], transform: "px"},
+    borderWidth: {keys: ["borderWidth"], transform: "px"},
+    borderTopWidth: {keys: ["borderTopWidth"], transform: "px"},
+    borderRightWidth: {keys: ["borderRightWidth"], transform: "px"},
+    borderBottomWidth: {keys: ["borderBottomWidth"], transform: "px"},
+    borderLeftWidth: {keys: ["borderLeftWidth"], transform: "px"},
+    outlineWidth: {keys: ["outlineWidth"], transform: "px"},
+    fontSize: {keys: ["fontSize"], transform: "px"},
+    letterSpacing: {keys: ["letterSpacing"], transform: "px"},
+    zIndex: {keys: ["zIndex"], transform: "num"},
+    flexGrow: {keys: ["flexGrow"], transform: "num"},
+    flexShrink: {keys: ["flexShrink"], transform: "num"},
+    opacity: {keys: ["opacity"], transform: "num"},
+    borderColor: {keys: ["borderColor"], transform: "color"},
+    borderTopColor: {keys: ["borderTopColor"], transform: "color"},
+    borderRightColor: {keys: ["borderRightColor"], transform: "color"},
+    borderBottomColor: {keys: ["borderBottomColor"], transform: "color"},
+    borderLeftColor: {keys: ["borderLeftColor"], transform: "color"},
+    outlineColor: {keys: ["outlineColor"], transform: "color"},
+    backgroundColor: {keys: ["backgroundColor"], transform: "color"},
+    color: {keys: ["color"], transform: "color"},
+    fontFamily: {keys: ["fontFamily"], transform: "font"},
+    boxSizing: {keys: ["boxSizing"], transform: "str"},
+    overflow: {keys: ["overflow"], transform: "str"},
+    overflowX: {keys: ["overflowX"], transform: "str"},
+    overflowY: {keys: ["overflowY"], transform: "str"},
+    position: {keys: ["position"], transform: "str"},
+    display: {keys: ["display"], transform: "str"},
+    gridTemplateColumns: {keys: ["gridTemplateColumns"], transform: "str"},
+    gridTemplateRows: {keys: ["gridTemplateRows"], transform: "str"},
+    gridColumn: {keys: ["gridColumn"], transform: "str"},
+    gridRow: {keys: ["gridRow"], transform: "str"},
+    flex: {keys: ["flex"], transform: "str"},
+    alignSelf: {keys: ["alignSelf"], transform: "str"},
+    alignItems: {keys: ["alignItems"], transform: "str"},
+    justifyContent: {keys: ["justifyContent"], transform: "str"},
+    flexWrap: {keys: ["flexWrap"], transform: "str"},
+    flexDirection: {keys: ["flexDirection"], transform: "str"},
+    whiteSpace: {keys: ["whiteSpace"], transform: "str"},
+    wordBreak: {keys: ["wordBreak"], transform: "str"},
+    textOverflow: {keys: ["textOverflow"], transform: "str"},
+    borderStyle: {keys: ["borderStyle"], transform: "str"},
+    boxShadow: {keys: ["boxShadow"], transform: "str"},
+    outline: {keys: ["outline"], transform: "str"},
+    background: {keys: ["background"], transform: "str"},
+    backgroundImage: {keys: ["backgroundImage"], transform: "str"},
+    backgroundSize: {keys: ["backgroundSize"], transform: "str"},
+    backgroundPosition: {keys: ["backgroundPosition"], transform: "str"},
+    fontWeight: {keys: ["fontWeight"], transform: "str"},
+    textTransform: {keys: ["textTransform"], transform: "str"},
+    lineHeight: {keys: ["lineHeight"], transform: "str"},
+    textAlign: {keys: ["textAlign"], transform: "str"},
+};
+
 function sxStyle(node: UiNode): React.CSSProperties {
     const sx = prop(node, "sx");
     if (!sx || sx.kind !== ValueKind.Object) {
         return {};
     }
 
-    const style: React.CSSProperties = {};
-
+    const style: Record<string, string | number> = {};
     for (const [key, value] of Object.entries(sx.object)) {
-        const primitive = valueToPrimitive(value);
-        if (primitive === undefined) {
-            continue;
-        }
-
-        switch (key) {
-            case "m":
-                style.margin = px(primitive);
-                break;
-            case "mx":
-                style.marginLeft = px(primitive);
-                style.marginRight = px(primitive);
-                break;
-            case "my":
-                style.marginTop = px(primitive);
-                style.marginBottom = px(primitive);
-                break;
-            case "mt":
-                style.marginTop = px(primitive);
-                break;
-            case "mr":
-                style.marginRight = px(primitive);
-                break;
-            case "mb":
-                style.marginBottom = px(primitive);
-                break;
-            case "ml":
-                style.marginLeft = px(primitive);
-                break;
-            case "p":
-                style.padding = px(primitive);
-                break;
-            case "px":
-                style.paddingLeft = px(primitive);
-                style.paddingRight = px(primitive);
-                break;
-            case "py":
-                style.paddingTop = px(primitive);
-                style.paddingBottom = px(primitive);
-                break;
-            case "pt":
-                style.paddingTop = px(primitive);
-                break;
-            case "pr":
-                style.paddingRight = px(primitive);
-                break;
-            case "pb":
-                style.paddingBottom = px(primitive);
-                break;
-            case "pl":
-                style.paddingLeft = px(primitive);
-                break;
-            case "gap":
-                style.gap = px(primitive);
-                break;
-            case "width":
-                style.width = px(primitive);
-                break;
-            case "minWidth":
-                style.minWidth = px(primitive);
-                break;
-            case "maxWidth":
-                style.maxWidth = px(primitive);
-                break;
-            case "height":
-                style.height = px(primitive);
-                break;
-            case "minHeight":
-                style.minHeight = px(primitive);
-                break;
-            case "maxHeight":
-                style.maxHeight = px(primitive);
-                break;
-            case "boxSizing":
-                style.boxSizing = String(primitive) as React.CSSProperties["boxSizing"];
-                break;
-            case "overflow":
-                style.overflow = String(primitive) as React.CSSProperties["overflow"];
-                break;
-            case "overflowX":
-                style.overflowX = String(primitive) as React.CSSProperties["overflowX"];
-                break;
-            case "overflowY":
-                style.overflowY = String(primitive) as React.CSSProperties["overflowY"];
-                break;
-            case "position":
-                style.position = String(primitive) as React.CSSProperties["position"];
-                break;
-            case "top":
-                style.top = px(primitive);
-                break;
-            case "right":
-                style.right = px(primitive);
-                break;
-            case "bottom":
-                style.bottom = px(primitive);
-                break;
-            case "left":
-                style.left = px(primitive);
-                break;
-            case "zIndex":
-                style.zIndex = Number(primitive);
-                break;
-            case "display":
-                style.display = String(primitive) as React.CSSProperties["display"];
-                break;
-            case "gridTemplateColumns":
-                style.gridTemplateColumns = String(primitive);
-                break;
-            case "gridTemplateRows":
-                style.gridTemplateRows = String(primitive);
-                break;
-            case "gridColumn":
-                style.gridColumn = String(primitive);
-                break;
-            case "gridRow":
-                style.gridRow = String(primitive);
-                break;
-            case "flex":
-                style.flex = String(primitive);
-                break;
-            case "flexGrow":
-                style.flexGrow = Number(primitive);
-                break;
-            case "flexShrink":
-                style.flexShrink = Number(primitive);
-                break;
-            case "flexBasis":
-                style.flexBasis = px(primitive);
-                break;
-            case "alignSelf":
-                style.alignSelf = String(primitive) as React.CSSProperties["alignSelf"];
-                break;
-            case "alignItems":
-                style.alignItems = String(primitive) as React.CSSProperties["alignItems"];
-                break;
-            case "justifyContent":
-                style.justifyContent = String(primitive) as React.CSSProperties["justifyContent"];
-                break;
-            case "flexWrap":
-                style.flexWrap = String(primitive) as React.CSSProperties["flexWrap"];
-                break;
-            case "flexDirection":
-                style.flexDirection = String(primitive) as React.CSSProperties["flexDirection"];
-                break;
-            case "whiteSpace":
-                style.whiteSpace = String(primitive) as React.CSSProperties["whiteSpace"];
-                break;
-            case "wordBreak":
-                style.wordBreak = String(primitive) as React.CSSProperties["wordBreak"];
-                break;
-            case "textOverflow":
-                style.textOverflow = String(primitive) as React.CSSProperties["textOverflow"];
-                break;
-            case "borderRadius":
-                style.borderRadius = px(primitive);
-                break;
-            case "borderWidth":
-                style.borderWidth = px(primitive);
-                break;
-            case "borderStyle":
-                style.borderStyle = String(primitive) as React.CSSProperties["borderStyle"];
-                break;
-            case "borderColor":
-                style.borderColor = toCssColor(String(primitive));
-                break;
-            case "borderTopWidth":
-                style.borderTopWidth = px(primitive);
-                break;
-            case "borderRightWidth":
-                style.borderRightWidth = px(primitive);
-                break;
-            case "borderBottomWidth":
-                style.borderBottomWidth = px(primitive);
-                break;
-            case "borderLeftWidth":
-                style.borderLeftWidth = px(primitive);
-                break;
-            case "borderTopColor":
-                style.borderTopColor = toCssColor(String(primitive));
-                break;
-            case "borderRightColor":
-                style.borderRightColor = toCssColor(String(primitive));
-                break;
-            case "borderBottomColor":
-                style.borderBottomColor = toCssColor(String(primitive));
-                break;
-            case "borderLeftColor":
-                style.borderLeftColor = toCssColor(String(primitive));
-                break;
-            case "opacity":
-                style.opacity = Number(primitive);
-                break;
-            case "boxShadow":
-                style.boxShadow = String(primitive);
-                break;
-            case "outline":
-                style.outline = String(primitive);
-                break;
-            case "outlineColor":
-                style.outlineColor = toCssColor(String(primitive));
-                break;
-            case "outlineWidth":
-                style.outlineWidth = px(primitive);
-                break;
-            case "background":
-                style.background = String(primitive);
-                break;
-            case "backgroundColor":
-                style.backgroundColor = toCssColor(String(primitive));
-                break;
-            case "backgroundImage":
-                style.backgroundImage = String(primitive);
-                break;
-            case "backgroundSize":
-                style.backgroundSize = String(primitive);
-                break;
-            case "backgroundPosition":
-                style.backgroundPosition = String(primitive);
-                break;
-            case "color":
-                style.color = toCssColor(String(primitive));
-                break;
-            case "fontSize":
-                style.fontSize = px(primitive);
-                break;
-            case "fontWeight":
-                style.fontWeight = String(primitive) as React.CSSProperties["fontWeight"];
-                break;
-            case "fontFamily":
-                style.fontFamily = toAllowedFontFamily(String(primitive));
-                break;
-            case "letterSpacing":
-                style.letterSpacing = px(primitive);
-                break;
-            case "textTransform":
-                style.textTransform = String(primitive) as React.CSSProperties["textTransform"];
-                break;
-            case "lineHeight":
-                style.lineHeight = String(primitive) as React.CSSProperties["lineHeight"];
-                break;
-            case "textAlign":
-                style.textAlign = String(primitive) as React.CSSProperties["textAlign"];
-                break;
+        const rule = SX_STYLE_MAP[key];
+        if (!rule) continue;
+        for (const cssKey of rule.keys) {
+            style[cssKey] = sxTransform(rule.transform, value);
         }
     }
 
-    return style;
+    return style as React.CSSProperties;
+}
+
+function sxTransform(transform: SxTransform, value: Value): string | number {
+    switch (transform) {
+        case "num":
+            return Number(valueToPrimitive(value));
+        case "color":
+            return toCssColor(asString(value, ""));
+        case "font":
+            return toAllowedFontFamily(asString(value, ""));
+        case "str":
+            return String(valueToPrimitive(value) ?? "");
+        default:
+            return px(valueToPrimitive(value) ?? 0);
+    }
 }
 
 function valueToPrimitive(value: Value): string | number | boolean | undefined {
@@ -2203,6 +1903,11 @@ function prop(node: UiNode, key: string): Value | undefined {
 
 function stringProp(node: UiNode, key: string, fallback: string): string {
     return asString(prop(node, key), fallback);
+}
+
+function withFieldLabel(label: string, input: React.ReactNode): React.ReactNode {
+    if (label === "") return input;
+    return <FieldLabel>{label}{input}</FieldLabel>;
 }
 
 function numberProp(node: UiNode, key: string, fallback: number): number {
@@ -2437,54 +2142,50 @@ const ResourceTableNode: React.FunctionComponent<{
         groupAction={groupAction}
         trailingAction={trailingAction}
         onRowActivated={event => {
-            fn.sendUiEvent(node.id, "click", {
-                kind: ValueKind.Object,
-                object: {
-                    tableId: {kind: ValueKind.String, string: event.tableId},
-                    stateKey: {kind: ValueKind.String, string: stateKey},
-                    rowKey: {kind: ValueKind.String, string: event.rowKey},
-                    group: {kind: ValueKind.String, string: event.row.group},
-                    cells: {
-                        kind: ValueKind.List,
-                        list: event.row.cells.map(cell => ({kind: ValueKind.String, string: cell})),
-                    },
+            fn.sendUiEvent(node.id, "click", ucxValueObject({
+                tableId: ucxStr(event.tableId),
+                stateKey: ucxStr(stateKey),
+                rowKey: ucxStr(event.rowKey),
+                group: ucxStr(event.row.group),
+                cells: {
+                    kind: ValueKind.List,
+                    list: event.row.cells.map(cell => ucxStr(cell)),
                 },
-            });
+            }));
         }}
         onRowAction={event => {
-            fn.sendUiEvent(node.id, "action", {
-                kind: ValueKind.Object,
-                object: {
-                    actionId: {kind: ValueKind.String, string: event.actionId},
-                    tableId: {kind: ValueKind.String, string: event.tableId},
-                    stateKey: {kind: ValueKind.String, string: stateKey},
-                    rowKey: {kind: ValueKind.String, string: event.rowKey},
-                },
-            });
+            fn.sendUiEvent(node.id, "action", ucxValueObject({
+                actionId: ucxStr(event.actionId),
+                tableId: ucxStr(event.tableId),
+                stateKey: ucxStr(stateKey),
+                rowKey: ucxStr(event.rowKey),
+            }));
         }}
         onGroupAction={event => {
-            fn.sendUiEvent(node.id, "action", {
-                kind: ValueKind.Object,
-                object: {
-                    actionId: {kind: ValueKind.String, string: event.actionId},
-                    tableId: {kind: ValueKind.String, string: tableId},
-                    stateKey: {kind: ValueKind.String, string: stateKey},
-                    group: {kind: ValueKind.String, string: event.group},
-                },
-            });
+            fn.sendUiEvent(node.id, "action", ucxValueObject({
+                actionId: ucxStr(event.actionId),
+                tableId: ucxStr(tableId),
+                stateKey: ucxStr(stateKey),
+                group: ucxStr(event.group),
+            }));
         }}
         onTrailingAction={event => {
-            fn.sendUiEvent(node.id, "action", {
-                kind: ValueKind.Object,
-                object: {
-                    actionId: {kind: ValueKind.String, string: event.actionId},
-                    tableId: {kind: ValueKind.String, string: tableId},
-                    stateKey: {kind: ValueKind.String, string: stateKey},
-                },
-            });
+            fn.sendUiEvent(node.id, "action", ucxValueObject({
+                actionId: ucxStr(event.actionId),
+                tableId: ucxStr(tableId),
+                stateKey: ucxStr(stateKey),
+            }));
         }}
     />;
 };
+
+function ucxStr(value: string): Value {
+    return {kind: ValueKind.String, string: value};
+}
+
+function ucxValueObject(object: Record<string, Value>): Value {
+    return {kind: ValueKind.Object, object};
+}
 
 function ucxTableActionsProp(node: UiNode): UcxTableActionDef[] {
     const raw = prop(node, "actions");
@@ -2683,6 +2384,30 @@ const UcxCodeStretchedClass = injectStyle("ucx-code-stretched", key => `
 `);
 
 
+function useMachineWalletsAndProducts(): {
+    wallets: UCloud.PageV2<WalletV2>;
+    products: UCloud.PageV2<ProductV2Compute>;
+    loading: boolean;
+} {
+    const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<WalletV2>>({noop: true}, emptyPageV2);
+    const [products, fetchProducts] = useCloudAPI<UCloud.PageV2<ProductV2Compute>>({noop: true}, emptyPageV2);
+
+    useEffect(() => {
+        fetchWallets(Accounting.browseWalletsV2({itemsPerPage: 250}));
+        fetchProducts(UCloud.accounting.products.browse({
+            filterUsable: true,
+            filterProductType: "COMPUTE",
+            itemsPerPage: 250,
+        }));
+    }, [fetchProducts, fetchWallets]);
+
+    return {
+        wallets: wallets.data,
+        products: products.data,
+        loading: wallets.loading || products.loading,
+    };
+}
+
 const MachineTypeSelectorNode: React.FunctionComponent<{
     node: UiNode;
     model: Record<string, Value>;
@@ -2694,27 +2419,15 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
     const providerOnly = boolProp(node, "providerOnly", false);
     const boundProvider = providerBindPath ? modelString(model, providerBindPath, scope) : "";
 
-    const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<WalletV2>>({noop: true}, emptyPageV2);
-    const [products, fetchProducts] = useCloudAPI<UCloud.PageV2<ProductV2Compute>>({noop: true}, emptyPageV2);
+    const {wallets, products, loading: walletsAndProductsLoading} = useMachineWalletsAndProducts();
     const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
         {noop: true},
         {productsByProvider: {}}
     );
 
     useEffect(() => {
-        fetchWallets(Accounting.browseWalletsV2({itemsPerPage: 250}));
-        fetchProducts(UCloud.accounting.products.browse({
-            filterUsable: true,
-            filterProductType: "COMPUTE",
-            itemsPerPage: 250,
-            includeBalance: true,
-            includeMaxBalance: true,
-        }));
-    }, [fetchProducts, fetchWallets]);
-
-    useEffect(() => {
         const providers = new Set<string>();
-        products.data.items.forEach(it => providers.add(it.category.provider));
+        products.items.forEach(it => providers.add(it.category.provider));
 
         if (providers.size === 0) {
             return;
@@ -2723,7 +2436,7 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
         fetchMachineSupport(UCloud.compute.jobs.retrieveProducts({
             providers: Array.from(providers).join(","),
         }));
-    }, [fetchMachineSupport, products.data.items]);
+    }, [fetchMachineSupport, products.items]);
 
     const supportItems = useMemo(() => {
         const items: ResolvedSupport[] = [];
@@ -2739,9 +2452,9 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
     const capabilities = useMemo(() => machineCapabilitiesFromNode(node), [node]);
 
     const machines = useMemo(
-        () => findMachinesByCapabilities(products.data.items, wallets.data.items, machineSupport.data, capabilities)
+        () => findMachinesByCapabilities(products.items, wallets.items, machineSupport.data, capabilities)
             .filter(product => !providerBindPath || product.category.provider === boundProvider),
-        [capabilities, machineSupport.data, products.data.items, wallets.data.items, providerBindPath, boundProvider]
+        [capabilities, machineSupport.data, products.items, wallets.items, providerBindPath, boundProvider]
     );
 
     const selectedRef = machineRefFromValue(modelValue(model, node.bindPath, scope));
@@ -2751,7 +2464,7 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
         [machines, selectedRefKey]
     );
 
-    const loading = wallets.loading || products.loading || machineSupport.loading;
+    const loading = walletsAndProductsLoading || machineSupport.loading;
 
     const onSelect = useCallback((product: ProductV2 | null) => {
         if (!product) return;
@@ -2775,9 +2488,10 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
             hideServiceProvider={providerOnly}
         />
         {!loading && machines.length === 0 ? <Text color="textSecondary">No matching machine types found.</Text> : null}
-        {optionalStringProp(node, "description") ? (
-            <Text color="textSecondary" fontSize={13}>{optionalStringProp(node, "description")}</Text>
-        ) : null}
+        {(() => {
+            const description = optionalStringProp(node, "description");
+            return description ? <Text color="textSecondary" fontSize={13}>{description}</Text> : null;
+        })()}
     </div>;
 };
 
@@ -2812,7 +2526,6 @@ function findMachinesByCapabilities(
 
         const support = supportByKey.get(machineKey(product.category.provider, product.category.name, product.name));
         if (!support || !supportMatchesCapabilities(support, capabilities)) {
-            console.log(support, capabilities)
             continue;
         }
 
@@ -3159,24 +2872,14 @@ const UcxServiceProviderSelector: React.FunctionComponent<{
     const label = stringProp(node, "label", "");
     const realProvidersOnly = boolProp(node, "realProvidersOnly", false);
 
-    const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<WalletV2>>({noop: true}, emptyPageV2);
-    const [products, fetchProducts] = useCloudAPI<UCloud.PageV2<ProductV2Compute>>({noop: true}, emptyPageV2);
-
-    useEffect(() => {
-        fetchWallets(Accounting.browseWalletsV2({itemsPerPage: 250}));
-        fetchProducts(UCloud.accounting.products.browse({
-            filterUsable: true,
-            filterProductType: "COMPUTE",
-            itemsPerPage: 250,
-        }));
-    }, [fetchProducts, fetchWallets]);
+    const {wallets, products, loading: walletsAndProductsLoading} = useMachineWalletsAndProducts();
 
     const providers = useMemo(() => {
         const coreProviders = new Set(["ucloud", "aau", "aau-test"]);
         const result = new Set<string>();
 
-        for (const product of products.data.items) {
-            const hasWallet = wallets.data.items.some(wallet =>
+        for (const product of products.items) {
+            const hasWallet = wallets.items.some(wallet =>
                 productCategoryEquals(wallet.paysFor, product.category)
             );
             if (!hasWallet) continue;
@@ -3185,18 +2888,18 @@ const UcxServiceProviderSelector: React.FunctionComponent<{
         }
 
         return Array.from(result).sort().map(key => ({key}));
-    }, [products.data.items, wallets.data.items, realProvidersOnly]);
+    }, [products.items, wallets.items, realProvidersOnly]);
 
     const selectedKey = modelString(model, node.bindPath, scope);
 
     useEffect(() => {
         if (!realProvidersOnly) return;
         if (selectedKey !== "") return;
-        if (products.loading || wallets.loading) return;
+        if (walletsAndProductsLoading) return;
         if (providers.length === 1) {
             fn.sendBoundInput(node, {kind: ValueKind.String, string: providers[0].key}, model, scope);
         }
-    }, [fn, model, node, providers, products.loading, realProvidersOnly, selectedKey, wallets.loading]);
+    }, [fn, model, node, providers, realProvidersOnly, selectedKey, walletsAndProductsLoading]);
 
     return <div style={fn.sxStyle(node)}>
         {label === "" ? null : <FieldLabel>{label}</FieldLabel>}
@@ -3230,7 +2933,7 @@ const UcxCostEstimate: React.FunctionComponent<{
 
     const monthMinutes = 30 * 24 * 60;
 
-    const [walletProducts, fetchWalletProducts] = useCloudAPI<UCloud.PageV2<ProductV2Alias>>({noop: true}, emptyPageV2);
+    const [walletProducts, fetchWalletProducts] = useCloudAPI<UCloud.PageV2<ProductV2>>({noop: true}, emptyPageV2);
 
     useEffect(() => {
         fetchWalletProducts(UCloud.accounting.products.browse({
@@ -3240,7 +2943,7 @@ const UcxCostEstimate: React.FunctionComponent<{
     }, [fetchWalletProducts]);
 
     const productsByRef = useMemo(() => {
-        const result: Record<string, ProductV2Alias> = {};
+        const result: Record<string, ProductV2> = {};
         for (const product of walletProducts.data.items) {
             result[`${product.category.provider}/${product.category.name}/${product.name}`] = product;
         }
@@ -3263,7 +2966,7 @@ const UcxCostEstimate: React.FunctionComponent<{
         return {title, count, product, priceText};
     });
 
-    const totalsByUnit = new Map<string, {value: number, product: ProductV2Alias}>();
+    const totalsByUnit = new Map<string, {value: number, product: ProductV2}>();
     for (const row of rows) {
         if (row.product && row.count > 0) {
             const cost = calculateProductCost(row.product, row.count, monthMinutes);
@@ -3317,7 +3020,7 @@ function totalLabel(units: string[], index: number): string {
     return `Total (${units[index]})`;
 }
 
-function costUnitLabel(rows: {product: ProductV2Alias | null}[], units: string[]): string {
+function costUnitLabel(rows: {product: ProductV2 | null}[], units: string[]): string {
     if (units.length === 1) return `${units[0]} / month`;
     if (units.length > 1) return "per month";
     for (const row of rows) {
@@ -3328,7 +3031,7 @@ function costUnitLabel(rows: {product: ProductV2Alias | null}[], units: string[]
     return "per month";
 }
 
-function formatCostNumber(product: ProductV2Alias | null, value: number): string {
+function formatCostNumber(product: ProductV2 | null, value: number): string {
     if (product === null || value === 0) return "-";
     const unit = explainUnit(product.category);
     const text = Accounting.balanceToStringFromUnit(

@@ -42,6 +42,19 @@ fi
 EOF
 chmod 0755 /usr/local/sbin/ucloud-k8s-bootstrap
 
+cat > /usr/local/sbin/ucloud-k8s-maintenance-agent-setup <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+source /etc/ucloud-k8s/bundle/common.sh
+
+if [ -f /etc/systemd/system/ucloud-k8s-maintenance-agent.service ]; then
+	exit 0
+fi
+
+/etc/ucloud-k8s/bundle/maintenance-agent.sh
+EOF
+chmod 0755 /usr/local/sbin/ucloud-k8s-maintenance-agent-setup
+
 if ! command -v systemctl >/dev/null 2>&1; then
 	if [ -d /work ]; then
 		exec > >(tee -a "$BOOTSTRAP_LOG" >>"$BOOTSTRAP_STDOUT_LOG") 2>&1
@@ -49,8 +62,37 @@ if ! command -v systemctl >/dev/null 2>&1; then
 		exec >>"$BOOTSTRAP_LOG" 2>&1
 	fi
 	log "systemd is not available, running the bootstrap inline"
+	log "WARNING: the maintenance agent setup requires systemd and was skipped; the k3s bootstrap continues without it"
 	exec /usr/local/sbin/ucloud-k8s-bootstrap
 fi
+
+ROLE="$(node_field role)"
+
+REQUIRES_MOUNTS="RequiresMountsFor=/etc/ucloud-k8s/input /etc/ucloud-k8s/bundle /work"
+if [ "$ROLE" = "control-plane" ]; then
+	REQUIRES_MOUNTS="RequiresMountsFor=/etc/ucloud-k8s/input /etc/ucloud-k8s/bundle /work /etc/ucloud-k8s/management /etc/ucloud-k8s/nodes"
+fi
+
+cat > /etc/systemd/system/ucloud-k8s-maintenance-agent-setup.service <<EOF
+[Unit]
+Description=UCloud K8s maintenance agent setup
+Wants=network-online.target
+After=network-online.target remote-fs.target
+$REQUIRES_MOUNTS
+StartLimitIntervalSec=10min
+StartLimitBurst=10
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ucloud-k8s-maintenance-agent-setup
+RemainAfterExit=yes
+TimeoutStartSec=180
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+EOF
 
 cat > /etc/systemd/system/ucloud-k8s-bootstrap.service <<EOF
 [Unit]
@@ -74,5 +116,7 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
+systemctl enable ucloud-k8s-maintenance-agent-setup >/dev/null
+systemctl start --no-block ucloud-k8s-maintenance-agent-setup
 systemctl enable ucloud-k8s-bootstrap >/dev/null
 systemctl start --no-block ucloud-k8s-bootstrap

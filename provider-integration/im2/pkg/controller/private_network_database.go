@@ -188,10 +188,6 @@ func initPrivateNetworkDatabase() {
 		}
 	}
 
-	privateNetworkMutex.Lock()
-	privateNetworks = map[string]*orc.PrivateNetwork{}
-	privateNetworkMutex.Unlock()
-
 	rows := db.NewTx(func(tx *db.Transaction) []privateNetworkTrackedRow {
 		return db.Select[privateNetworkTrackedRow](
 			tx,
@@ -245,7 +241,7 @@ func privateNetworkFetchAll() []orc.PrivateNetwork {
 		page, err := orc.PrivateNetworksControlBrowse.Invoke(request)
 
 		if err != nil {
-			break
+			log.Fatal("Failed to fetch private networks from Core: %v", err)
 		}
 
 		result = append(result, page.Items...)
@@ -265,10 +261,6 @@ func PrivateNetworkTrackNew(network orc.PrivateNetwork) {
 		cacheLive = false
 
 		row, found := privateNetworkSelectNetwork(tx, network.Id)
-		if !tx.Ok {
-			return
-		}
-
 		if !found {
 			return
 		}
@@ -295,25 +287,13 @@ func privateNetworkImportLegacy(network orc.PrivateNetwork) {
 		cacheLive = false
 
 		row, found := privateNetworkSelectNetwork(tx, network.Id)
-		if !tx.Ok {
-			return
-		}
-
 		if found {
 			privateNetworkTrackExisting(tx, &network, row, &cacheLive, false)
 			return
 		}
 
 		privateNetworkLockName(tx)
-		if !tx.Ok {
-			return
-		}
-
 		row, found = privateNetworkSelectNetwork(tx, network.Id)
-		if !tx.Ok {
-			return
-		}
-
 		if found {
 			privateNetworkTrackExisting(tx, &network, row, &cacheLive, false)
 			return
@@ -334,10 +314,6 @@ func privateNetworkImportLegacy(network orc.PrivateNetwork) {
 				"subdomain":   network.Status.Subdomain,
 			},
 		)
-		if !tx.Ok {
-			return
-		}
-
 		if conflictCount.Count > 0 {
 			log.Warn("Skipping import of private network %s: the subdomain is already in use", network.Id)
 			return
@@ -357,10 +333,6 @@ func privateNetworkImportLegacy(network orc.PrivateNetwork) {
 				"workspace_id": workspace.String(),
 			},
 		)
-		if !tx.Ok {
-			return
-		}
-
 		cacheLive = true
 	})
 
@@ -413,9 +385,6 @@ func privateNetworkTrackExisting(
 				"resource":    string(mergedJson),
 			},
 		)
-		if !tx.Ok {
-			return
-		}
 	}
 
 	*cacheLive = true
@@ -457,14 +426,6 @@ func PrivateNetworkRetrieve(id string) (orc.PrivateNetwork, bool) {
 	return network, true
 }
 
-func privateNetworkRefreshMetadata(id string) (orc.PrivateNetwork, bool) {
-	privateNetworkMutex.Lock()
-	delete(privateNetworks, id)
-	privateNetworkMutex.Unlock()
-
-	return PrivateNetworkRetrieve(id)
-}
-
 func privateNetworkOptFromSql(value sql.Null[string]) util.Option[string] {
 	if value.Valid {
 		return util.OptValue(value.V)
@@ -489,38 +450,10 @@ func privateNetworkSelectNetwork(tx *db.Transaction, networkId string) (privateN
 				tracked_private_networks
 			where
 				resource_id = :resource_id
-		`,
-		db.Params{"resource_id": networkId},
-	)
-	if !tx.Ok {
-		return privateNetworkTrackedRow{}, false
-	}
-	return row, found
-}
-
-func privateNetworkLockNetwork(tx *db.Transaction, networkId string) (privateNetworkTrackedRow, bool) {
-	row, found := db.Get[privateNetworkTrackedRow](
-		tx,
-		`
-			select
-				resource_id,
-				created_by,
-				project_id,
-				resource,
-				cidr_block::text as cidr_block,
-				state,
-				workspace_id
-			from
-				tracked_private_networks
-			where
-				resource_id = :resource_id
 			for update
 		`,
 		db.Params{"resource_id": networkId},
 	)
-	if !tx.Ok {
-		return privateNetworkTrackedRow{}, false
-	}
 	return row, found
 }
 
@@ -555,25 +488,15 @@ func privateNetworkLockName(tx *db.Transaction) {
 
 func privateNetworkSortNetworkIds(ids []string) {
 	slices.SortFunc(ids, func(a, b string) int {
-		aValue, aErr := strconv.ParseUint(a, 10, 64)
-		bValue, bErr := strconv.ParseUint(b, 10, 64)
-
-		switch {
-		case aErr == nil && bErr == nil:
-			if aValue != bValue {
-				if aValue < bValue {
-					return -1
-				}
-				return 1
+		aValue, _ := strconv.ParseUint(a, 10, 64)
+		bValue, _ := strconv.ParseUint(b, 10, 64)
+		if aValue != bValue {
+			if aValue < bValue {
+				return -1
 			}
-			return strings.Compare(a, b)
-		case aErr == nil:
-			return -1
-		case bErr == nil:
 			return 1
-		default:
-			return strings.Compare(a, b)
 		}
+		return strings.Compare(a, b)
 	})
 }
 
@@ -668,15 +591,27 @@ type PrivateNetworkSnapshotNetwork struct {
 	WorkspaceId string
 }
 
+type privateNetworkSnapshotRow struct {
+	ResourceId  string
+	Subdomain   string
+	CidrBlock   sql.Null[string]
+	State       string
+	WorkspaceId string
+}
+
+func (row privateNetworkSnapshotRow) toSnapshot() PrivateNetworkSnapshotNetwork {
+	return PrivateNetworkSnapshotNetwork{
+		ResourceId:  row.ResourceId,
+		Subdomain:   row.Subdomain,
+		CidrBlock:   privateNetworkOptFromSql(row.CidrBlock),
+		State:       row.State,
+		WorkspaceId: row.WorkspaceId,
+	}
+}
+
 func PrivateNetworkSnapshotNetworks() []PrivateNetworkSnapshotNetwork {
 	return db.NewTx(func(tx *db.Transaction) []PrivateNetworkSnapshotNetwork {
-		rows := db.Select[struct {
-			ResourceId  string
-			Subdomain   string
-			CidrBlock   sql.Null[string]
-			State       string
-			WorkspaceId string
-		}](
+		rows := db.Select[privateNetworkSnapshotRow](
 			tx,
 			`
 				select
@@ -692,19 +627,9 @@ func PrivateNetworkSnapshotNetworks() []PrivateNetworkSnapshotNetwork {
 			`,
 			db.Params{},
 		)
-		if !tx.Ok {
-			return nil
-		}
-
 		var result []PrivateNetworkSnapshotNetwork
 		for _, row := range rows {
-			result = append(result, PrivateNetworkSnapshotNetwork{
-				ResourceId:  row.ResourceId,
-				Subdomain:   row.Subdomain,
-				CidrBlock:   privateNetworkOptFromSql(row.CidrBlock),
-				State:       row.State,
-				WorkspaceId: row.WorkspaceId,
-			})
+			result = append(result, row.toSnapshot())
 		}
 		return result
 	})
@@ -712,13 +637,7 @@ func PrivateNetworkSnapshotNetworks() []PrivateNetworkSnapshotNetwork {
 
 func PrivateNetworkSnapshotRetrieve(networkId string) (PrivateNetworkSnapshotNetwork, bool) {
 	return db.NewTx2(func(tx *db.Transaction) (PrivateNetworkSnapshotNetwork, bool) {
-		row, found := db.Get[struct {
-			ResourceId  string
-			Subdomain   string
-			CidrBlock   sql.Null[string]
-			State       string
-			WorkspaceId string
-		}](
+		row, found := db.Get[privateNetworkSnapshotRow](
 			tx,
 			`
 				select
@@ -734,21 +653,11 @@ func PrivateNetworkSnapshotRetrieve(networkId string) (PrivateNetworkSnapshotNet
 			`,
 			db.Params{"resource_id": networkId},
 		)
-		if !tx.Ok {
-			return PrivateNetworkSnapshotNetwork{}, false
-		}
-
 		if !found {
 			return PrivateNetworkSnapshotNetwork{}, false
 		}
 
-		return PrivateNetworkSnapshotNetwork{
-			ResourceId:  row.ResourceId,
-			Subdomain:   row.Subdomain,
-			CidrBlock:   privateNetworkOptFromSql(row.CidrBlock),
-			State:       row.State,
-			WorkspaceId: row.WorkspaceId,
-		}, true
+		return row.toSnapshot(), true
 	})
 }
 

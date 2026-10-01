@@ -37,7 +37,7 @@ type StackResourceNode = StackResourceTypeNode | StackResourceEntryNode;
 export function StackResourcesDialog({status}: {status: StackStatus}): React.ReactNode {
     const navigate = useNavigate();
 
-    const groups: {id: string; title: string; icon: IconName; entries: StackResourceEntryNode[]}[] = [
+    const groups = ([
         {
             id: "jobs",
             title: "Jobs",
@@ -104,26 +104,24 @@ export function StackResourcesDialog({status}: {status: StackStatus}): React.Rea
                 icon: "heroKey" as IconName,
             })),
         },
-    ];
+    ].filter(group => group.entries.length > 0)) as {id: string; title: string; icon: IconName; entries: StackResourceEntryNode[]}[];
 
-    const allNodes: StackResourceNode[] = [];
-    let total = 0;
-    for (const group of groups) {
-        if (group.entries.length === 0) continue;
-        total += group.entries.length;
-        const typeId = `type-${group.id}`;
-        allNodes.push({kind: "type", id: typeId, title: group.title, icon: group.icon, count: group.entries.length});
-        for (const entry of group.entries) {
-            allNodes.push({...entry, id: `${typeId}:${entry.id}`});
-        }
-    }
+    const total = groups.reduce((sum, group) => sum + group.entries.length, 0);
 
-    const rootNodeNodes: StackResourceNode[] = allNodes.filter(node => node.kind === "type");
+    const rootNodeNodes: StackResourceTypeNode[] = groups.map(group => ({
+        kind: "type",
+        id: `type-${group.id}`,
+        title: group.title,
+        icon: group.icon,
+        count: group.entries.length,
+    }));
+
+    const entriesByGroupId = new Map<string, StackResourceEntryNode[]>(groups.map(group => [`type-${group.id}`, group.entries]));
 
     const childrenOf = React.useCallback((node: StackResourceNode): readonly StackResourceNode[] => {
         if (node.kind !== "type") return [];
-        return allNodes.filter(candidate => candidate.kind === "entry" && candidate.id.startsWith(node.id + ":"));
-    }, [allNodes]);
+        return entriesByGroupId.get(node.id) ?? [];
+    }, [entriesByGroupId]);
 
     return <div className={StackResourcesDialogClass} onKeyDown={e => e.stopPropagation()}>
         <Flex alignItems="center" gap="8px">
@@ -132,7 +130,7 @@ export function StackResourcesDialog({status}: {status: StackStatus}): React.Rea
             <Text color="textSecondary">{total} resources</Text>
         </Flex>
 
-        {allNodes.length === 0 ?
+        {total === 0 ?
             <Text color="textSecondary">This stack contains no resources.</Text> :
             <div className="tree-container">
                 <VirtualizedTree

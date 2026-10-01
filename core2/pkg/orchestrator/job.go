@@ -1874,37 +1874,31 @@ type jobValueValidation struct {
 	ExistingResources []orcapi.AppParameterValue
 }
 
-func (v *jobValueValidation) resourceUnchanged(value orcapi.AppParameterValue) bool {
-	for _, existing := range v.ExistingResources {
-		if existing.Equal(value) {
-			return true
+func jobNetworkAttachment(existing []orcapi.AppParameterValue, value orcapi.AppParameterValue) (attached, ipsChanged bool) {
+	for _, e := range existing {
+		if e.Type != orcapi.AppParameterValueTypePrivateNetwork || e.Id != value.Id {
+			continue
 		}
+		return true, !slices.Equal(e.Ips, value.Ips)
 	}
-	return false
+	return false, false
 }
 
 func jobNetworkChangesBlocked(job orcapi.Job, newResources []orcapi.AppParameterValue) *util.HttpError {
-	existingNetworks := map[string]orcapi.AppParameterValue{}
-	for _, value := range job.Specification.Resources {
-		if value.Type == orcapi.AppParameterValueTypePrivateNetwork {
-			existingNetworks[value.Id] = value
-		}
-	}
-
 	for _, value := range newResources {
 		if value.Type != orcapi.AppParameterValueTypePrivateNetwork {
 			continue
 		}
 
-		existing, ok := existingNetworks[value.Id]
-		if !ok {
+		attached, ipsChanged := jobNetworkAttachment(job.Specification.Resources, value)
+		if !attached {
 			return util.HttpErr(
 				http.StatusBadRequest,
 				"the networks of a running job cannot change, suspend it first",
 			)
 		}
 
-		if !slices.Equal(existing.Ips, value.Ips) {
+		if ipsChanged {
 			return util.HttpErr(
 				http.StatusBadRequest,
 				"the pinned ip addresses of a running job cannot change, suspend it first",
@@ -2028,7 +2022,8 @@ func jobValidateValue(
 			return util.HttpErr(http.StatusForbidden, "you cannot use this network at this provider")
 		}
 
-		unchanged := validation.resourceUnchanged(*value)
+		attached, ipsChanged := jobNetworkAttachment(validation.ExistingResources, *value)
+		unchanged := attached && !ipsChanged
 		changing := !unchanged || validation.ValueIsRemoval
 
 		if !validation.NetworkChangesAllowed && changing {

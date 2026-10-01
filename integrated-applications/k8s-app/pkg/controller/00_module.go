@@ -133,7 +133,7 @@ func cachedProducts[Support any](
 
 	cache.Support = support
 	cache.RefreshedAt = time.Now()
-	return support, true
+	return cache.Support, true
 }
 
 const ingressServiceName = "k8s-ingress"
@@ -322,7 +322,22 @@ func ensureIngressService(client *rpc.Client, token string) (orcapi.Service, boo
 	return orcapi.Service{Resource: orcapi.Resource{Id: response.Responses[0].Id}}, true
 }
 
+// syncServiceMembers converges the ingress service membership towards the
+// desired state: every live control plane job is a member, unless the traffic
+// record suspends it.
 func syncServiceMembers(client *rpc.Client, token string, service orcapi.Service) {
+	state, stateErr := shared.ClusterStateClientNewHost()
+	if stateErr != nil {
+		log.Warn("k8s controller: could not open the cluster state: %s", stateErr)
+		return
+	}
+
+	traffic, trafficErr := shared.ClusterTrafficRead(state)
+	if trafficErr != nil {
+		log.Warn("k8s controller: could not read the traffic state: %s", trafficErr)
+		return
+	}
+
 	jobs, herr := ucxapi.StackGrantBrowseJobs.InvokeEx(client, ucxapi.StackGrantBrowseJobsRequest{
 		StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
 	}, rpc.InvokeOpts{})
@@ -331,13 +346,59 @@ func syncServiceMembers(client *rpc.Client, token string, service orcapi.Service
 		return
 	}
 
+	suspended := map[string]bool{}
+	for _, jobId := range shared.ClusterTrafficSuspendedJobIds(traffic.Record) {
+		suspended[jobId] = true
+	}
+
+	// A suspension whose job is gone holds nothing. Drop it so the traffic
+	// record cannot block a node that was removed mid-maintenance.
+	staleSuspensions := []string{}
+	for _, suspendedJob := range traffic.Record.SuspendedJobs {
+		jobExists := false
+		for _, job := range jobs {
+			if job.Id == suspendedJob.JobId && !job.Status.State.IsFinal() {
+				jobExists = true
+				break
+			}
+		}
+		if !jobExists {
+			staleSuspensions = append(staleSuspensions, suspendedJob.JobId)
+		}
+	}
+	if len(staleSuspensions) > 0 {
+		record := traffic.Record
+		changed := false
+		for _, jobId := range staleSuspensions {
+			if shared.ClusterTrafficSuspendRemove(&record, jobId) {
+				changed = true
+			}
+		}
+		if changed {
+			_, writeErr := shared.ClusterTrafficRecordWrite(state, &record, traffic.Revision)
+			if writeErr != nil {
+				log.Warn("k8s controller: could not clear the stale traffic suspensions: %s", writeErr)
+				return
+			}
+			log.Info("k8s controller: cleared %d stale traffic suspensions", len(staleSuspensions))
+			traffic.Record = record
+			for _, jobId := range staleSuspensions {
+				delete(suspended, jobId)
+			}
+		}
+	}
+
 	desired := []string{}
 	for _, job := range jobs {
 		isControlPlane := job.Specification.Labels[shared.StackGroupingLabel] == shared.GroupControlPlane
-		if isControlPlane && !job.Status.State.IsFinal() {
-			if !slices.Contains(desired, job.Id) {
-				desired = append(desired, job.Id)
-			}
+		if !isControlPlane || job.Status.State.IsFinal() {
+			continue
+		}
+		if suspended[job.Id] {
+			continue
+		}
+		if !slices.Contains(desired, job.Id) {
+			desired = append(desired, job.Id)
 		}
 	}
 
@@ -360,10 +421,10 @@ func syncServiceMembers(client *rpc.Client, token string, service orcapi.Service
 	}
 
 	_, herr = ucxapi.StackGrantServiceUpdateMembers.InvokeEx(client, ucxapi.StackGrantServiceUpdateMembersRequest{
-		StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
-		Id:             service.Id,
-		AddedJobIds:    adding,
-		RemovedJobIds:  removing,
+		StackGrantAuth:  ucxapi.StackGrantAuth{Token: token},
+		Id:              service.Id,
+		AddedJobIds:     adding,
+		RemovedJobIds:   removing,
 	}, rpc.InvokeOpts{})
 	if herr != nil {
 		log.Warn("k8s controller: could not update the ingress service members: %s", herr)
@@ -402,7 +463,7 @@ func collectOrphanedLinks(
 	_, herr := ucxapi.StackGrantDeleteIngress.InvokeEx(client, ucxapi.StackGrantDeleteIngressRequest{
 		StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
 		ServiceId:      service.Id,
-		IngressIds:     orphaned,
+		IngressIds:      orphaned,
 	}, rpc.InvokeOpts{})
 	if herr != nil {
 		log.Warn("k8s controller: could not delete the orphaned public links: %s", herr)

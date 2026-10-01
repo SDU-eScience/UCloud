@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"slices"
 	"strings"
@@ -38,24 +39,20 @@ func stackGrantTokenHash(secret string) []byte {
 	return hashed[:]
 }
 
-func stackGrantTokenCreate(job *orc.Job) string {
+func stackGrantTokenCreate(job *orc.Job) (string, bool) {
 	secret := util.SecureToken()
 	stackInstance := job.Specification.Labels[orc.ResourceLabelStackInstance]
 
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
+	_, created := db.NewTx2(func(tx *db.Transaction) (struct{ JobId string }, bool) {
+		return db.Get[struct{ JobId string }](
 			tx,
 			`
 				insert into k8s.stack_grant_tokens(
 					job_id, stack_instance, owner_created_by, owner_project, provider, token_hash
 				)
 				values (:job_id, :stack_instance, :owner_created_by, :owner_project, :provider, :token_hash)
-				on conflict (job_id) do update set
-					stack_instance = excluded.stack_instance,
-					owner_created_by = excluded.owner_created_by,
-					owner_project = excluded.owner_project,
-					provider = excluded.provider,
-					token_hash = excluded.token_hash
+				on conflict (job_id) do nothing
+				returning job_id
 			`,
 			db.Params{
 				"job_id":           job.Id,
@@ -68,7 +65,11 @@ func stackGrantTokenCreate(job *orc.Job) string {
 		)
 	})
 
-	return stackGrantTokenPrefix + job.Id + "-" + secret
+	if !created {
+		return "", false
+	}
+
+	return stackGrantTokenPrefix + job.Id + "-" + secret, true
 }
 
 func stackGrantTokenParse(raw string) (string, string, bool) {
@@ -89,8 +90,62 @@ func stackGrantTokenForbidden() *util.HttpError {
 	return util.HttpErr(http.StatusForbidden, "forbidden")
 }
 
+func stackGrantControlPlaneJobValid(job *orc.Job) bool {
+	if job == nil || strings.TrimSpace(job.Id) == "" || job.Status.State.IsFinal() {
+		return false
+	}
+	if strings.TrimSpace(job.Owner.CreatedBy) == "" || strings.TrimSpace(job.Specification.Labels[orc.ResourceLabelStackInstance]) == "" {
+		return false
+	}
+	if job.Specification.Product.Provider != cfg.Provider.Id {
+		return false
+	}
+	return job.Specification.Labels[stackGrantControlPlaneGroupLabel] == stackGrantControlPlaneGroup
+}
+
+func stackGrantOwnerScopeMatches(left orc.ResourceOwner, right orc.ResourceOwner) bool {
+	leftUsername := strings.TrimSpace(left.CreatedBy)
+	rightUsername := strings.TrimSpace(right.CreatedBy)
+	if leftUsername == "" || rightUsername == "" || left.Project.Present != right.Project.Present {
+		return false
+	}
+
+	if left.Project.Present {
+		leftProject := strings.TrimSpace(left.Project.Value)
+		rightProject := strings.TrimSpace(right.Project.Value)
+		return leftProject != "" && leftProject == rightProject
+	}
+
+	return leftUsername == rightUsername
+}
+
+func stackGrantTokenIssue(jobId string, stackInstance string, owner orc.ResourceOwner) (string, error) {
+	jobId = strings.TrimSpace(jobId)
+	stackInstance = strings.TrimSpace(stackInstance)
+	if jobId == "" || stackInstance == "" {
+		return "", fmt.Errorf("invalid control plane job")
+	}
+
+	job, ok := controller.JobRetrieve(jobId)
+	if !ok || !stackGrantControlPlaneJobValid(job) {
+		return "", fmt.Errorf("invalid control plane job")
+	}
+	if strings.TrimSpace(job.Specification.Labels[orc.ResourceLabelStackInstance]) != stackInstance {
+		return "", fmt.Errorf("control plane job belongs to a different stack")
+	}
+	if !stackGrantOwnerScopeMatches(owner, job.Owner) {
+		return "", fmt.Errorf("control plane job belongs to a different stack owner")
+	}
+
+	token, created := stackGrantTokenCreate(job)
+	if !created {
+		return "", fmt.Errorf("a controller credential has already been issued for this job")
+	}
+	return token, nil
+}
+
 func stackGrantJobMatches(job *orc.Job, row *stackGrantTokenRow) bool {
-	if job.Status.State.IsFinal() {
+	if !stackGrantControlPlaneJobValid(job) {
 		return false
 	}
 
@@ -114,7 +169,7 @@ func stackGrantJobMatches(job *orc.Job, row *stackGrantTokenRow) bool {
 		return false
 	}
 
-	return job.Specification.Labels[stackGrantControlPlaneGroupLabel] == stackGrantControlPlaneGroup
+	return true
 }
 
 func stackGrantLiveControlPlaneJob(row *stackGrantTokenRow) (*orc.Job, *util.HttpError) {

@@ -29,6 +29,8 @@ const (
 	StackGroupingLabel  = "ucloud.dk/k8s-node-group"
 	NodeAllocationLabel = "ucloud.dk/k8s-node-id"
 	K8sVersionLabel     = "ucloud.dk/k8s-version"
+
+	TopologyOperationLabel = "ucloud.dk/k8s-topology-operation"
 )
 
 const (
@@ -36,8 +38,9 @@ const (
 	KubeconfigTemplatePath          = "management/kubeconfig.tpl"
 	KubernetesConfigurationFileName = "management/kubeconfig"
 	KubernetesTokenFileName         = "management/kube-api-token"
-	ControllerRegistrationTokenPath = "management/controller/token"
 )
+
+const controllerRegistrationTokenFile = "controller-token"
 
 const (
 	managementDir       = "management"
@@ -77,7 +80,7 @@ const (
 	clusterRecordPhaseError        = "error"
 )
 
-const ScriptBundleRevision = 11
+const ScriptBundleRevision = 17
 
 func BundlePathForRelease(release K3sRelease) string {
 	return filepath.Join("bundles", strconv.Itoa(ScriptBundleRevision), SanitizeForPath(release.Release))
@@ -134,6 +137,8 @@ type ClusterRecord struct {
 	PendingCleanup   []ClusterPendingCleanup `json:"pendingCleanup,omitempty"`
 	Pools            []ClusterPoolRecord     `json:"pools,omitempty"`
 	Nodes            []ClusterNodeRecord     `json:"nodes"`
+
+	stateRevision int64
 }
 
 type ClusterPendingCleanup struct {
@@ -143,18 +148,25 @@ type ClusterPendingCleanup struct {
 	IpAddress     string `json:"ipAddress"`
 }
 
-func ClusterRecordWrite(stack *ucxsvc.Stack, record *ClusterRecord) {
-	data, err := json.MarshalIndent(record, "", "  ")
+func ClusterRecordWrite(client ClusterStateClient, record *ClusterRecord) error {
+	revision, err := ClusterStateRecordRevision(record)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	ucxsvc.StackWriteFileAtomic(stack, ClusterRecordPath, string(data))
+
+	newRevision, err := ClusterStateRecordWrite(client, record, revision)
+	if err != nil {
+		return err
+	}
+
+	ClusterStateRecordRevisionSet(record, newRevision)
+	return nil
 }
 
-func ClusterRecordMarkFailed(stack *ucxsvc.Stack, record *ClusterRecord, reason string) {
+func ClusterRecordMarkFailed(client ClusterStateClient, record *ClusterRecord, reason string) error {
 	record.Phase = clusterRecordPhaseError
 	record.FailureReason = reason
-	ClusterRecordWrite(stack, record)
+	return ClusterRecordWrite(client, record)
 }
 
 type ClusterTokens struct {
@@ -221,7 +233,7 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		return &ucxsvc.Stack{}, false
 	}
 
-	if !clusterControlPlaneRequiresUcxLabels(app) {
+	if !clusterNodesRequireUcxLabels(app) {
 		return &ucxsvc.Stack{}, false
 	}
 
@@ -239,12 +251,29 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		return stack, false
 	}
 
+	session := *app.Session()
+
+	stateClient, clientErr := ClusterStateClientNewSession(session, stack.InstanceId)
+	if clientErr != nil {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not open the cluster state client: %s", clientErr))
+		return stack, false
+	}
+
+	existingState, readErr := ClusterStateRead(stateClient)
+	if readErr != nil {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not check the existing cluster state: %s", readErr))
+		return stack, false
+	}
+	if existingState.Found {
+		ucxsvc.UiSendFailure(app, "A cluster record already exists for this stack; resource creation was not restarted")
+		return stack, false
+	}
+
 	stopHeartbeat, heartbeatFailed := ucxsvc.StackStartHeartbeat(stack)
 	defer func() {
 		_ = stopHeartbeat()
 	}()
 
-	session := *app.Session()
 	linkProducts, err := ucxapi.PublicLinksRetrieveProducts.Invoke(session, util.Empty{})
 	if err != nil || len(linkProducts) == 0 {
 		ucxsvc.UiSendFailure(app, "Could not find a suitable public link product, but this cluster requires it.")
@@ -346,13 +375,8 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		})
 	}
 
-	ClusterRecordWrite(stack, record)
-	if !stack.Ok {
-		return stack, false
-	}
-
-	if heartbeatFailed() {
-		ucxsvc.UiSendFailure(app, "The stack lease was lost during creation, the failed resources are cleaned up automatically.")
+	if err := ClusterRecordWrite(stateClient, record); err != nil {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not create the cluster record: %s", err))
 		return stack, false
 	}
 
@@ -411,18 +435,20 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 			hostname := ClusterNodeHostname(pool.name, allocationId)
 
 			created, failReason := clusterCreateNode(stack, clusterNodeOptions{
-				record:       record,
-				release:      release,
-				tokens:       tokens,
-				group:        pool.name,
-				machine:      pool.machine,
-				diskGb:       pool.diskGb,
-				allocationId: allocationId,
-				customUi:     customUi,
-				session:      session,
+				record:          record,
+				release:         release,
+				tokens:          tokens,
+				group:           pool.name,
+				machine:         pool.machine,
+				diskGb:          pool.diskGb,
+				allocationId:    allocationId,
+				customUi:        customUi,
+				session:         session,
+				stateClient:     stateClient,
+				heartbeatFailed: heartbeatFailed,
 			})
 			if !created {
-				clusterCreateCleanupFailed(stack, record, failReason)
+				clusterCreateCleanupFailed(stateClient, stack, record, failReason)
 				ucxsvc.UiSendFailure(app, "Could not create node "+hostname+". The failed resources are cleaned up automatically.")
 				return stack, false
 			}
@@ -442,8 +468,9 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 	}
 
 	record.Phase = clusterRecordPhaseCreated
-	ClusterRecordWrite(stack, record)
-	if !stack.Ok {
+	if err := ClusterRecordWrite(stateClient, record); err != nil {
+		stack.Ok = false
+		ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster resources were created, but the cluster record could not be finalized: %s", err))
 		return stack, false
 	}
 
@@ -454,32 +481,34 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 	return stack, true
 }
 
-func clusterCreateCleanupFailed(stack *ucxsvc.Stack, record *ClusterRecord, reason string) {
+func clusterCreateCleanupFailed(client ClusterStateClient, stack *ucxsvc.Stack, record *ClusterRecord, reason string) {
 	if reason != "" {
 		record.FailureReason = reason
 	}
 	record.Phase = clusterRecordPhaseError
-	ClusterRecordWrite(stack, record)
+	_ = ClusterRecordWrite(client, record)
 }
 
 type clusterNodeOptions struct {
-	record       *ClusterRecord
-	release      K3sRelease
-	tokens       ClusterTokens
-	group        string
-	machine      accapi.ProductReference
-	diskGb       int
-	allocationId int
-	customUi     ucxsvc.UcxCustomUiServiceInit
-	session      *ucx.Session
+	record          *ClusterRecord
+	release         K3sRelease
+	tokens          ClusterTokens
+	group           string
+	machine         accapi.ProductReference
+	diskGb          int
+	allocationId    int
+	customUi        ucxsvc.UcxCustomUiServiceInit
+	session         *ucx.Session
+	stateClient     ClusterStateClient
+	heartbeatFailed func() bool
 }
 
-func clusterControlPlaneRequiresUcxLabels(app ucx.Application) bool {
+func clusterNodesRequireUcxLabels(app ucx.Application) bool {
 	if len(ucxsvc.UcxPortLabel(0)) == 2 {
 		return true
 	}
 
-	ucxsvc.UiSendFailure(app, "The UCX application name and version labels are unavailable, but the control plane nodes need them")
+	ucxsvc.UiSendFailure(app, "The UCX application name and version labels are unavailable, but all nodes need them")
 	return false
 }
 
@@ -492,6 +521,7 @@ func clusterControlPlaneWiring(
 	labels map[string]string,
 ) ([]orcapi.AppParameterValue, map[string]string) {
 	if group != GroupControlPlane {
+		labels = util.MapMerge(labels, ucxsvc.UcxPortLabel(0))
 		labels[orcapi.ResourceLabelInitScript] = launcherPath
 		return attachments, labels
 	}
@@ -513,7 +543,6 @@ func clusterControlPlaneWiring(
 func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, string) {
 	ipAddress := NodeIpForAllocation(opts.allocationId)
 	hostname := ClusterNodeHostname(opts.group, opts.allocationId)
-	firstServer := opts.group == GroupControlPlane && opts.allocationId == 1
 
 	clusterEnsureDir(stack, storageDir)
 	if opts.group == GroupControlPlane {
@@ -529,15 +558,14 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 
 	record := opts.record
 	record.NextAllocationId = opts.allocationId + 1
-	ClusterRecordWrite(stack, record)
-	if !stack.Ok {
+	if err := ClusterRecordWrite(opts.stateClient, record); err != nil {
 		return false, "could not persist the node allocation"
 	}
 
 	reservation, err := ucxsvc.PrivateNetworkIpReserveRetry(stack, record.NetworkId, ipAddress, 30*time.Second)
 	if err != nil {
 		if reservation.Id != "" {
-			clusterReleaseReservation(stack, record, reservation.Id, hostname)
+			clusterReleaseReservation(opts, stack, record, reservation.Id, hostname)
 		}
 		return false, ""
 	}
@@ -553,9 +581,8 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 		DiskGb:         opts.diskGb,
 		DesiredVersion: opts.release.Release,
 	})
-	ClusterRecordWrite(stack, record)
-	if !stack.Ok {
-		clusterReleaseReservation(stack, record, reservation.Id, hostname)
+	if err := ClusterRecordWrite(opts.stateClient, record); err != nil {
+		clusterReleaseReservation(opts, stack, record, reservation.Id, hostname)
 		return false, ""
 	}
 
@@ -589,7 +616,7 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 		Resources: attachments,
 	})
 	if err != nil {
-		clusterReleaseReservation(stack, record, reservation.Id, hostname)
+		clusterReleaseReservation(opts, stack, record, reservation.Id, hostname)
 		return false, ""
 	}
 
@@ -600,23 +627,32 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 		}
 	}
 
+	if !clusterWriteStackIdentity(stack, opts.allocationId, job) {
+		if clusterCreateAuthorityHeld(opts) {
+			_ = ucxsvc.JobTerminate(stack, job.Id)
+			clusterReleaseReservation(opts, stack, record, reservation.Id, hostname)
+		}
+		return false, "could not write the stack identity of node " + hostname
+	}
+
 	if opts.group == GroupControlPlane {
 		if !ucxsvc.ServiceAddMembers(stack, opts.record.ServiceId, []string{job.Id}) {
-			_ = ucxsvc.JobTerminate(stack, job.Id)
-			clusterReleaseReservation(stack, record, reservation.Id, hostname)
+			if clusterCreateAuthorityHeld(opts) {
+				_ = ucxsvc.JobTerminate(stack, job.Id)
+				clusterReleaseReservation(opts, stack, record, reservation.Id, hostname)
+			}
 			return false, "could not add the node to the cluster service"
 		}
 	}
 
-	ClusterRecordWrite(stack, record)
-	if !stack.Ok {
-		ClusterRecordMarkFailed(stack, record, "could not persist the job id of node "+hostname+
+	if err := ClusterRecordWrite(opts.stateClient, record); err != nil {
+		_ = ClusterRecordMarkFailed(opts.stateClient, record, "could not persist the job id of node "+hostname+
 			"; job id "+job.Id+" and reservation id "+reservation.Id+" may need manual cleanup")
 		return false, ""
 	}
 
-	if firstServer {
-		if !clusterWriteControllerToken(stack, opts.session, job.Id) {
+	if opts.group == GroupControlPlane {
+		if !clusterWriteControllerToken(stack, opts.session, job.Id, opts.allocationId) {
 			return false, "could not write the controller registration token"
 		}
 	}
@@ -624,13 +660,46 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 	return true, ""
 }
 
-func clusterWriteControllerToken(stack *ucxsvc.Stack, session *ucx.Session, jobId string) bool {
+func clusterWriteControllerToken(stack *ucxsvc.Stack, session *ucx.Session, jobId string, allocationId int) bool {
+	if session == nil {
+		return false
+	}
+
 	response, err := ucxapi.StackGrantToken.Invoke(session, ucxapi.StackGrantTokenRequest{JobId: jobId})
 	if err != nil {
 		return false
 	}
 
-	ucxsvc.StackWriteFileAtomicEx(stack, ControllerRegistrationTokenPath, response.Token, 0600)
+	path := filepath.Join(inputDirFor(allocationId), controllerRegistrationTokenFile)
+	ucxsvc.StackWriteFileAtomicEx(stack, path, response.Token, 0600)
+
+	return stack.Ok
+}
+
+func clusterWriteStackIdentity(stack *ucxsvc.Stack, allocationId int, job orcapi.Job) bool {
+	ownerProject := ""
+	if job.Owner.Project.Present {
+		ownerProject = strings.TrimSpace(job.Owner.Project.Value)
+	}
+
+	identity := map[string]string{
+		"stackId":        strings.TrimSpace(stack.InstanceId),
+		"provider":       strings.TrimSpace(job.Specification.Product.Provider),
+		"ownerCreatedBy": strings.TrimSpace(job.Owner.CreatedBy),
+		"ownerProject":   ownerProject,
+	}
+
+	data, err := json.MarshalIndent(identity, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ucxsvc.StackWriteFileAtomicEx(
+		stack,
+		filepath.Join(inputDirFor(allocationId), "stack-identity.json"),
+		string(data),
+		0600,
+	)
 	return stack.Ok
 }
 
@@ -651,18 +720,26 @@ func clusterCreateNodeJob(stack *ucxsvc.Stack, spec orcapi.JobSpecification) (or
 	}
 }
 
-func clusterReleaseReservation(stack *ucxsvc.Stack, record *ClusterRecord, reservationId string, hostname string) {
+func clusterReleaseReservation(opts clusterNodeOptions, stack *ucxsvc.Stack, record *ClusterRecord, reservationId string, hostname string) {
+	if !clusterCreateAuthorityHeld(opts) {
+		return
+	}
+
 	err := ucxsvc.PrivateNetworkIpDelete(stack, reservationId)
 	if err != nil {
 		record.PendingCleanup = append(record.PendingCleanup, ClusterPendingCleanup{
 			ReservationId: reservationId,
 			Hostname:      hostname,
 		})
-		ClusterRecordMarkFailed(stack, record, "could not release the reservation of node "+hostname+
+		_ = ClusterRecordMarkFailed(opts.stateClient, record, "could not release the reservation of node "+hostname+
 			"; reservation id "+reservationId+" needs manual cleanup")
 	} else {
-		ClusterRecordWrite(stack, record)
+		_ = ClusterRecordWrite(opts.stateClient, record)
 	}
+}
+
+func clusterCreateAuthorityHeld(opts clusterNodeOptions) bool {
+	return opts.heartbeatFailed == nil || !opts.heartbeatFailed()
 }
 
 func clusterEnsureDir(stack *ucxsvc.Stack, dir string) {
@@ -719,6 +796,13 @@ func clusterWriteNodeInput(stack *ucxsvc.Stack, record *ClusterRecord, release K
 
 	inputDir := inputDirFor(opts.allocationId)
 	ucxsvc.StackWriteFile(stack, filepath.Join(inputDir, "node.json"), string(nodeData))
+
+	ucxsvc.StackWriteFileAtomicEx(
+		stack,
+		filepath.Join(inputDir, "maintenance-enrollment-secret"),
+		util.SecureToken(),
+		0600,
+	)
 
 	if firstServer {
 		ucxsvc.StackWriteFileEx(stack, filepath.Join(inputDir, "server-token"), tokens.ServerToken, 0600)

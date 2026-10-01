@@ -2234,7 +2234,6 @@ export default function Playground(): React.ReactNode {
                 url={session.connectTo}
                 authToken={session.sessionToken}
                 sysHello={JSON.stringify({})}
-                maxReconnectAttempts={0}
                 onConnected={handleConnected}
                 onDisconnected={handleDisconnected}
                 onTransportError={handleTransportError}

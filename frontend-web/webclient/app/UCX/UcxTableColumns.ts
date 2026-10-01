@@ -73,8 +73,3 @@ export function setUserColumnWidth(columnKey: string, width: number): void {
 export function resetUserColumnWidth(columnKey: string): void {
     userWidthCache.delete(columnKey);
 }
-
-export function clearColumnWidthCache(): void {
-    autoWidthCache.clear();
-    userWidthCache.clear();
-}

@@ -78,4 +78,5 @@ func Init() {
 	db.AddMigration(servicesDatabaseV1())
 	db.AddMigration(stackGrantTokensV1())
 	db.AddMigration(stackGrantTokensV2())
+	db.AddMigration(stackStateV1())
 }

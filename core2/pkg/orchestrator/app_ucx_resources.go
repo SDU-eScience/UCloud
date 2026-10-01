@@ -319,7 +319,10 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 			return util.Empty{}, nil
 		}
 
-		_ = PublicIpUpdateFirewall(actor, fndapi.BulkRequestOf(allowed...))
+		err := PublicIpUpdateFirewall(actor, fndapi.BulkRequestOf(allowed...))
+		if err != nil {
+			return util.Empty{}, err
+		}
 		return util.Empty{}, nil
 	})
 
@@ -757,7 +760,9 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 			if err == nil && appUcxResourceInSession(state, resc, func(r orcapi.Drive) orcapi.ResourceSpecification {
 				return r.Specification.ResourceSpecification
 			}) {
-				_ = DriveRename(actor, reqItem.Id, reqItem.NewTitle)
+				if renameErr := DriveRename(actor, reqItem.Id, reqItem.NewTitle); renameErr != nil {
+					return util.Empty{}, renameErr
+				}
 			}
 		}
 		return util.Empty{}, nil
@@ -920,7 +925,9 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 		}
 
 		if len(allowed) > 0 {
-			_ = JobsRenameBulk(actor, fndapi.BulkRequestOf(allowed...))
+			if err := JobsRenameBulk(actor, fndapi.BulkRequestOf(allowed...)); err != nil {
+				return util.Empty{}, err
+			}
 		}
 
 		return util.Empty{}, nil
@@ -1164,7 +1171,9 @@ func appUcxUpdateLabelsResource[ReqItem any, Resc any](
 		}
 
 		if len(allowed) > 0 {
-			_ = updateLabels(actor, fndapi.BulkRequestOf(allowed...))
+			if err := updateLabels(actor, fndapi.BulkRequestOf(allowed...)); err != nil {
+				return util.Empty{}, err
+			}
 		}
 
 		return util.Empty{}, nil
@@ -1309,24 +1318,24 @@ func appUcxDeleteResource[Resc any](
 ) {
 	call.HandlerProxy(p, func(ctx context.Context, request []string) (util.Empty, error) {
 		actor := s.Actor()
-		deleteCount := 0
 		for _, id := range request {
 			resc, err := retrieve(actor, id)
-			if err == nil {
-				rescSpec := baseSpecGetter(resc)
-				instance := rescSpec.Labels[orcapi.ResourceLabelStackInstance]
-				s.Mu.Lock()
-				_, exists := s.Stacks[instance]
-				s.Mu.Unlock()
+			if err != nil {
+				return util.Empty{}, err
+			}
 
-				if !exists {
-					continue
-				} else {
-					err = delete(actor, id)
-					if err == nil {
-						deleteCount++
-					}
-				}
+			rescSpec := baseSpecGetter(resc)
+			instance := rescSpec.Labels[orcapi.ResourceLabelStackInstance]
+			s.Mu.Lock()
+			_, exists := s.Stacks[instance]
+			s.Mu.Unlock()
+
+			if !exists {
+				continue
+			}
+
+			if err = delete(actor, id); err != nil {
+				return util.Empty{}, err
 			}
 		}
 		return util.Empty{}, nil

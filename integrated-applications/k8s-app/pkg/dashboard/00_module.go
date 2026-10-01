@@ -26,33 +26,12 @@ import (
 
 const managementMountDir = "/etc/ucloud-k8s/management"
 
-const clusterFunctionalProbeInterval = 500 * time.Millisecond
-const clusterFunctionalProbeTimeout = 10 * time.Second
-
 const navHomeId = "home"
 
 const provisioningRowKeyPrefix = "provisioning:"
 
 func LocalKubeconfigPath() string {
 	return filepath.Join(managementMountDir, "kubeconfig-internal")
-}
-
-func clusterFunctional() bool {
-	client, err := K8sClientFromKubeconfig(LocalKubeconfigPath())
-	if err != nil {
-		return false
-	}
-
-	probeCtx, cancel := context.WithTimeout(context.Background(), clusterFunctionalProbeTimeout)
-	defer cancel()
-	_, err = client.ListNamespaces(probeCtx)
-	return err == nil
-}
-
-func WaitForFunctionalCluster() {
-	for !clusterFunctional() {
-		time.Sleep(clusterFunctionalProbeInterval)
-	}
 }
 
 func App() ucx.Application {
@@ -97,10 +76,12 @@ type stackUiApp struct {
 	MaintenanceBypassDisruptionBudgets bool
 	MaintenanceForceDelete             bool
 	MaintenanceBusy                    bool
+	MaintenanceTargetRelease           string
 
 	maintenanceNodeName        string `ucx:"-"`
 	maintenanceNodeUid         string `ucx:"-"`
 	maintenanceRetryOptionsFor string `ucx:"-"`
+	maintenanceMode            string `ucx:"-"`
 
 	stackInfo   *ucxapi.StackInfoResponse `ucx:"-"`
 	headlampUrl string                    `ucx:"-"`
@@ -690,10 +671,11 @@ func (app *stackUiApp) pageHomeActions() []ucx.UiNode {
 
 func (app *stackUiApp) pageResources() []ucx.UiNode {
 	if app.k8sClient == nil {
-		return append([]ucx.UiNode{}, app.pageProvisioning()...)
+		return []ucx.UiNode{app.appShell(appShellProps{
+			Content:        []ucx.UiNode{shellContentBox(1100, app.pageProvisioning()...)},
+			EscapeDisabled: true,
+		})}
 	}
-
-	navItems := app.resourceNavItems()
 
 	detail := app.ResourceDetail
 	inDetail := detail != ""
@@ -708,25 +690,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 		homeChildren := append([]ucx.UiNode{}, app.pageHomeContent()...)
 		homeChildren = append(homeChildren, ucx.Box().Sx(ucx.SxMt(8)).Children(app.pageHomeActions()...))
 
-		main = []ucx.UiNode{ucx.Box().Sx(
-			ucx.SxHeightRaw("100%"),
-			ucx.SxOverflowY("auto"),
-		).Children(
-			ucx.Box().Sx(
-				ucx.SxBorderRadius(8),
-				ucx.SxBorderSolid,
-				ucx.SxBorderWidth(1),
-				ucx.SxBorderColor(ucx.ColorBorderColor),
-				ucx.SxPx(20),
-				ucx.SxPy(20),
-				ucx.SxMinHeightRaw("100%"),
-				ucx.SxBoxSizing("border-box"),
-			).Children(
-				ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 24}).
-					Sx(ucx.SxMaxWidth(1100)).
-					Children(homeChildren...),
-			),
-		)}
+		main = []ucx.UiNode{shellContentBox(1100, homeChildren...)}
 	} else if inDetail {
 		main = []ucx.UiNode{app.resourceDetailNode(detail)}
 		bottom = append(bottom, app.resourceDetailBottomNode(detail))
@@ -767,6 +731,11 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 					Label: "Uncordon",
 					Icon:  ucx.IconRefresh,
 				},
+				ucx.ResourceTableAction{
+					Id:    "upgradeNode",
+					Label: "Upgrade k3s",
+					Icon:  ucx.IconHeroArrowUp,
+				},
 			)
 			trailingAction = &ucx.ResourceTableAction{
 				Id:       "addWorkerPool",
@@ -802,15 +771,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 		bottom = append(bottom, ucx.TableCount("resourceCount", app.ActiveType).WithTitle(app.activeTypeLabel(app.allTypeDefs())))
 	}
 
-	props := ucx.BrowserLayoutProps{
-		Sidebar: ucx.BrowserSidebar(
-			ucx.NavTreeEx("resourceNav", "activeType", navItems).On(ucx.UiEventActivate, func(ev ucx.UiEvent) {
-				app.selectResourceType(ucx.ValueAsString(ev.Value))
-			}),
-		),
-		Content: main,
-	}
-
+	escapePath := ""
 	if inDetail {
 		escapeType := detailType(app.ResourceDetail)
 		if escapeType == "provisioning" {
@@ -819,17 +780,15 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 				escapeType = "nodes"
 			}
 		}
-		props.EscapePath = "browse/" + escapeType
-	} else {
-		props.EscapeDisabled = true
+		escapePath = "browse/" + escapeType
 	}
 
-	if len(bottom) > 0 {
-		props.Bottom = ucx.BrowserBottom(bottom...)
-		props.HasBottom = true
-	}
-
-	return []ucx.UiNode{ucx.BrowserLayout(props)}
+	return []ucx.UiNode{app.appShell(appShellProps{
+		Content:        main,
+		Bottom:         bottom,
+		EscapePath:     escapePath,
+		EscapeDisabled: !inDetail,
+	})}
 }
 
 func (app *stackUiApp) pageProvisioning() []ucx.UiNode {
@@ -883,9 +842,7 @@ func (app *stackUiApp) pageProvisioning() []ucx.UiNode {
 		}
 	}
 
-	return []ucx.UiNode{ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 16}).
-		Sx(ucx.SxFlexGrow(1)).
-		Children(children...)}
+	return children
 }
 
 func (app *stackUiApp) pageProvisioningMaintenanceLinks() []ucx.UiNode {
@@ -896,7 +853,7 @@ func (app *stackUiApp) pageProvisioningMaintenanceLinks() []ucx.UiNode {
 
 	known := maintenanceKnownNodeNames(record)
 
-	snapshot, err := maintenance.MaintenanceSnapshot()
+	snapshot, err := maintenance.Snapshot()
 	if err != nil {
 		return nil
 	}
@@ -1070,7 +1027,7 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 		return
 	}
 
-	if actionId != "goToJob" && actionId != "cordonDrain" && actionId != "uncordon" {
+	if actionId != "goToJob" && actionId != "cordonDrain" && actionId != "uncordon" && actionId != "upgradeNode" {
 		return
 	}
 
@@ -1084,7 +1041,7 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 	}
 
 	switch actionId {
-	case "cordonDrain":
+	case "cordonDrain", "upgradeNode":
 		if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
 			return
 		}
@@ -1092,7 +1049,11 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 		if !known {
 			return
 		}
-		maintenanceOpen(app, nodeName, nodeUid)
+		if actionId == "upgradeNode" {
+			maintenanceOpenWithMode(app, nodeName, nodeUid, maintenanceModeUpgrade)
+		} else {
+			maintenanceOpen(app, nodeName, nodeUid)
+		}
 	case "uncordon":
 		if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
 			return
@@ -1104,7 +1065,7 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 		if app.MaintenanceBusy {
 			return
 		}
-		maintenanceSubmitAsync(app, "uncordon", nodeName, nodeUid, maintenance.MaintenanceOptions{})
+		maintenanceSubmitAsync(app, "uncordon", nodeName, nodeUid, maintenance.Options{})
 	case "goToJob":
 		jobId := app.nodeJobIds()[nodeName]
 		if jobId == "" {
@@ -1344,13 +1305,8 @@ func (app *stackUiApp) provisioningJobId(hostname string) string {
 }
 
 func (app *stackUiApp) readClusterRecord() (shared.ClusterRecord, bool) {
-	data, err := os.ReadFile(filepath.Join(managementMountDir, "cluster.json"))
-	if err != nil {
-		return shared.ClusterRecord{}, false
-	}
-
-	var record shared.ClusterRecord
-	if err := json.Unmarshal(data, &record); err != nil {
+	record, found, err := shared.ClusterStateRecordRead()
+	if err != nil || !found {
 		return shared.ClusterRecord{}, false
 	}
 
@@ -1389,19 +1345,18 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 
 	group := strings.TrimSpace(app.TargetGroup)
 
-	surface := ucx.Surface().Sx(ucx.SxMaxWidth(800)).Children(
-		ucx.Toolbar().Children(
-			ucx.H2("Add machine to "+group),
-			ucx.Link("browse/nodes").Children(ucx.Text("Back to overview")),
-		),
-	)
+	shellEscape := appShellProps{EscapePath: "browse/nodes"}
 
 	if group == "" {
-		return []ucx.UiNode{surface.Children(ucx.Text("No node pool was selected."))}
+		shellEscape.Content = []ucx.UiNode{shellContentBox(800, ucx.Text("No node pool was selected."))}
+		return []ucx.UiNode{app.appShell(shellEscape)}
 	}
 
+	shellEscape.Bottom = []ucx.UiNode{shellBottomNode(app, "nodes", group, "Add machine")}
+
 	if !recordOk {
-		return []ucx.UiNode{surface.Children(ucx.Text("Could not read the cluster record."))}
+		shellEscape.Content = []ucx.UiNode{shellContentBox(800, ucx.Text("Could not read the cluster record."))}
+		return []ucx.UiNode{app.appShell(shellEscape)}
 	}
 
 	if record.Phase != "created" {
@@ -1412,7 +1367,8 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 		if record.FailureReason != "" {
 			content = append(content, ucx.Text("The cluster reported a problem: "+record.FailureReason))
 		}
-		return []ucx.UiNode{surface.Children(content...)}
+		shellEscape.Content = []ucx.UiNode{shellContentBox(800, content...)}
+		return []ucx.UiNode{app.appShell(shellEscape)}
 	}
 
 	var pool *shared.ClusterPoolRecord
@@ -1424,7 +1380,8 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 	}
 
 	if pool == nil {
-		return []ucx.UiNode{surface.Children(ucx.Text("Unknown node pool: " + group))}
+		shellEscape.Content = []ucx.UiNode{shellContentBox(800, ucx.Text("Unknown node pool: "+group))}
+		return []ucx.UiNode{app.appShell(shellEscape)}
 	}
 
 	if app.TargetDiskGb <= 0 {
@@ -1470,7 +1427,7 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 					FieldRowDescription(fmt.Sprintf("The disk size for each new node. This pool uses %d GB by default.", pool.DiskGb)).
 					FieldRowRequired(true).
 					Children(
-						ucx.InputNumber("targetDisk", "", "targetDiskGb", 10, 1024),
+						ucx.InputNumber("targetDisk", "", "targetDiskGb", 10, 1024).WithAutoFocus(),
 					),
 				ucx.FieldRowNodeEx("countRow", "Node count", "targetCount").
 					FieldRowDescription("The number of nodes to add to this pool.").
@@ -1486,11 +1443,15 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 		),
 	}
 
-	return []ucx.UiNode{ucx.KeyboardNavigationNode("keyboardNavigation").
-		HorizontalSelector("[data-job-info-field]").
-		SubmitForm("addNodeForm").
-		SubmitDisabled(app.AddBusy).
-		Children(surface.Children(children...))}
+	shellEscape.Content = []ucx.UiNode{shellContentBox(800,
+		ucx.KeyboardNavigationNode("keyboardNavigation").
+			HorizontalSelector("[data-job-info-field]").
+			SubmitForm("addNodeForm").
+			SubmitDisabled(app.AddBusy).
+			Children(children...),
+	)}
+
+	return []ucx.UiNode{app.appShell(shellEscape)}
 }
 
 // "Add worker pool" page, modeled after the creator's pool card
@@ -1500,15 +1461,13 @@ func (app *stackUiApp) pageAddPool() []ucx.UiNode {
 		app.ClusterProvider = record.MachineProvider
 	}
 
-	surface := ucx.Surface().Sx(ucx.SxMaxWidth(800)).Children(
-		ucx.Toolbar().Children(
-			ucx.H2("Add worker pool"),
-			ucx.Link("browse/nodes").Children(ucx.Text("Back to overview")),
-		),
-	)
+	shellEscape := appShellProps{EscapePath: "browse/nodes"}
+
+	shellEscape.Bottom = []ucx.UiNode{shellBottomNode(app, "nodes", "Add worker pool")}
 
 	if !recordOk {
-		return []ucx.UiNode{surface.Children(ucx.Text("Could not read the cluster record."))}
+		shellEscape.Content = []ucx.UiNode{shellContentBox(800, ucx.Text("Could not read the cluster record."))}
+		return []ucx.UiNode{app.appShell(shellEscape)}
 	}
 
 	if record.Phase != "created" {
@@ -1519,7 +1478,8 @@ func (app *stackUiApp) pageAddPool() []ucx.UiNode {
 		if record.FailureReason != "" {
 			content = append(content, ucx.Text("The cluster reported a problem: "+record.FailureReason))
 		}
-		return []ucx.UiNode{surface.Children(content...)}
+		shellEscape.Content = []ucx.UiNode{shellContentBox(800, content...)}
+		return []ucx.UiNode{app.appShell(shellEscape)}
 	}
 
 	if app.TargetDiskGb <= 0 {
@@ -1559,7 +1519,7 @@ func (app *stackUiApp) pageAddPool() []ucx.UiNode {
 				FieldRowDescription("The Kubernetes node group name for this pool. Must contain only a-z, 0-9 and dashes.").
 				FieldRowRequired(true).
 				Children(
-					ucx.InputText("poolName", "", "workers", "newPoolName"),
+					ucx.InputText("poolName", "", "workers", "newPoolName").WithAutoFocus(),
 				),
 			ucx.FieldRowNodeEx("machineRow", "Machine type", "").
 				FieldRowDescription("The machine type used for the nodes in this pool.").
@@ -1586,11 +1546,15 @@ func (app *stackUiApp) pageAddPool() []ucx.UiNode {
 			Sx(ucx.SxJustifyEnd),
 	)
 
-	return []ucx.UiNode{ucx.KeyboardNavigationNode("keyboardNavigation").
-		HorizontalSelector("[data-job-info-field]").
-		SubmitForm("addPoolForm").
-		SubmitDisabled(app.AddBusy).
-		Children(surface.Children(form))}
+	shellEscape.Content = []ucx.UiNode{shellContentBox(800,
+		ucx.KeyboardNavigationNode("keyboardNavigation").
+			HorizontalSelector("[data-job-info-field]").
+			SubmitForm("addPoolForm").
+			SubmitDisabled(app.AddBusy).
+			Children(form),
+	)}
+
+	return []ucx.UiNode{app.appShell(shellEscape)}
 }
 
 func (app *stackUiApp) addMachinesToGroup(group string, machine accapi.ProductReference, diskGb int, count int) {
@@ -1598,17 +1562,12 @@ func (app *stackUiApp) addMachinesToGroup(group string, machine accapi.ProductRe
 		count = 1
 	}
 
-	for i := 0; i < count; i++ {
-		vmId, ok := shared.ClusterAddNode(app, app.Stack, group, machine, diskGb, nil)
-		if !ok {
-			return
-		}
-
-		if i == count-1 {
-			ucxsvc.UiSendSuccess(app, fmt.Sprintf("Created %d new %s VM(s). Last VM: %s", count, group, vmId))
-		}
+	_, ok := shared.ClusterAddNodesBatch(app, app.Stack, group, machine, diskGb, count)
+	if !ok {
+		return
 	}
 
+	ucxsvc.UiSendSuccess(app, fmt.Sprintf("Created %d new %s VM(s).", count, group))
 	ucxsvc.RouterPushPage(app, "browse/nodes")
 }
 
@@ -1653,7 +1612,7 @@ func (app *stackUiApp) handleTableAction(ev ucx.UiEvent) {
 	}
 
 	switch actionId {
-	case "cordonDrain", "uncordon":
+	case "cordonDrain", "uncordon", "upgradeNode":
 		ucxsvc.UiSendFailure(app, "Select a single node before using this action")
 	case "addMachine":
 		if group == "" {
@@ -1720,15 +1679,8 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 			changed = true
 		}
 
-		if frame.ModelInput.Path == "activeNamespace" {
-			changed = true
-		}
-
-		if frame.ModelInput.Path == "routePath" {
-			changed = true
-		}
-
-		if frame.ModelInput.Path == "maintenanceDrain" {
+		switch frame.ModelInput.Path {
+		case "activeNamespace", "routePath", "maintenanceDrain":
 			changed = true
 		}
 

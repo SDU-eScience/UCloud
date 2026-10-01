@@ -615,19 +615,6 @@ function readValueMap(r: BinaryReader): Record<string, Value> {
     return result;
 }
 
-export function toBase64(data: Uint8Array): string {
-    let binary = "";
-    for (const byte of data) binary += String.fromCharCode(byte);
-    return btoa(binary);
-}
-
-export function fromBase64(base64: string): Uint8Array {
-    const binary = atob(base64);
-    const out = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
-    return out;
-}
-
 export function valueToPlain(value: Value): PlainValue {
     switch (value.kind) {
         case ValueKind.Null:
@@ -697,7 +684,7 @@ export function valueMapToPlain(input: Record<string, Value>): Record<string, Pl
     return result;
 }
 
-export function plainMapToValue(input: Record<string, PlainValue>): Record<string, Value> {
+function plainMapToValue(input: Record<string, PlainValue>): Record<string, Value> {
     const result: Record<string, Value> = {};
     for (const [key, value] of Object.entries(input)) {
         result[key] = plainToValue(value);

@@ -21,15 +21,9 @@ import (
 
 const serviceType = "service"
 
-var servicePortNameRegex = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`)
+var servicePortNameRegex = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$`)
 
-const (
-	serviceHealthCheckDefaultIntervalSeconds    = 5
-	serviceHealthCheckDefaultTimeoutSeconds     = 2
-	serviceHealthCheckDefaultHealthyThreshold   = 2
-	serviceHealthCheckDefaultUnhealthyThreshold = 2
-	serviceDefaultDrainTimeoutSeconds           = 30
-)
+const serviceDefaultDrainTimeoutSeconds = 30
 
 func initServices() {
 	InitResourceType(
@@ -96,41 +90,29 @@ func initServices() {
 	})
 
 	orcapi.ServicesUpdate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.ServicesUpdateRequest]]) (util.Empty, *util.HttpError) {
-		for _, item := range request.Items {
-			err := ServiceUpdate(info.Actor, item.Id, item.Update)
-			if err != nil {
-				return util.Empty{}, err
-			}
-		}
-		return util.Empty{}, nil
+		return util.Empty{}, serviceEach(info.Actor, request.Items, func(actor rpc.Actor, item orcapi.ResourceUpdateAndId[orcapi.ServicesUpdateRequest]) *util.HttpError {
+			return ServiceUpdate(actor, item.Id, item.Update)
+		})
 	})
 
 	orcapi.ServicesAddMembers.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ServicesMembersRequest]) (util.Empty, *util.HttpError) {
-		for _, item := range request.Items {
-			err := ServiceAddMembers(info.Actor, item.Id, item.JobIds)
-			if err != nil {
-				return util.Empty{}, err
-			}
-		}
-		return util.Empty{}, nil
+		return util.Empty{}, serviceEach(info.Actor, request.Items, func(actor rpc.Actor, item orcapi.ServicesMembersRequest) *util.HttpError {
+			return ServiceAddMembers(actor, item.Id, item.JobIds)
+		})
 	})
 
 	orcapi.ServicesRemoveMembers.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ServicesMembersRequest]) (util.Empty, *util.HttpError) {
-		for _, item := range request.Items {
-			err := ServiceRemoveMembers(info.Actor, item.Id, item.JobIds)
-			if err != nil {
-				return util.Empty{}, err
-			}
-		}
-		return util.Empty{}, nil
+		return util.Empty{}, serviceEach(info.Actor, request.Items, func(actor rpc.Actor, item orcapi.ServicesMembersRequest) *util.HttpError {
+			return ServiceRemoveMembers(actor, item.Id, item.JobIds)
+		})
 	})
 
 	orcapi.ServicesUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
-		for _, item := range request.Items {
-			err := ResourceUpdateAcl(info.Actor, serviceType, item)
-			if err != nil {
-				return fndapi.BulkResponse[util.Empty]{}, err
-			}
+		err := serviceEach(info.Actor, request.Items, func(actor rpc.Actor, item orcapi.UpdatedAcl) *util.HttpError {
+			return ResourceUpdateAcl(actor, serviceType, item)
+		})
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, err
 		}
 
 		return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
@@ -187,14 +169,9 @@ func initServices() {
 	})
 
 	orcapi.ServicesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ServicesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		for _, reqItem := range request.Items {
-			err := ResourceUpdateLabels(info.Actor, serviceType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
-			if err != nil {
-				return util.Empty{}, err
-			}
-		}
-
-		return util.Empty{}, nil
+		return util.Empty{}, serviceEach(info.Actor, request.Items, func(actor rpc.Actor, reqItem orcapi.ServicesUpdateLabelsRequest) *util.HttpError {
+			return ResourceUpdateLabels(actor, serviceType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+		})
 	})
 
 	orcapi.ServicesControlCreate.Handler(controlCreateServe(
@@ -213,54 +190,28 @@ func initServices() {
 			return util.Empty{}, err
 		}
 
-		svc, _, _, err := ResourceRetrieveEx[orcapi.Service](
+		err = serviceMutateMembersControl(
 			actor,
-			serviceType,
-			ResourceParseId(request.Id),
-			orcapi.PermissionEdit,
-			orcapi.ResourceFlags{},
+			stackInstance,
+			request.Id,
+			request.AddedJobIds,
+			request.RemovedJobIds,
 		)
 		if err != nil {
-			return util.Empty{}, util.HttpErr(http.StatusNotFound, "unknown service")
-		}
-
-		if svc.Specification.Labels[orcapi.ResourceLabelStackInstance] != stackInstance {
-			return util.Empty{}, util.HttpErr(http.StatusForbidden, "the service does not belong to the stack of the job")
-		}
-
-		for _, jobId := range request.AddedJobIds {
-			member, _, _, err := ResourceRetrieveEx[orcapi.Job](
-				actor,
-				jobType,
-				ResourceParseId(jobId),
-				orcapi.PermissionEdit,
-				orcapi.ResourceFlags{},
-			)
-			if err != nil {
-				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "unknown member job")
-			}
-
-			if member.Specification.Labels[orcapi.ResourceLabelStackInstance] != stackInstance {
-				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "member jobs must belong to the stack of the job")
-			}
-		}
-
-		if len(request.AddedJobIds) > 0 {
-			err := ServiceAddMembers(actor, request.Id, request.AddedJobIds)
-			if err != nil {
-				return util.Empty{}, err
-			}
-		}
-
-		if len(request.RemovedJobIds) > 0 {
-			err := ServiceRemoveMembers(actor, request.Id, request.RemovedJobIds)
-			if err != nil {
-				return util.Empty{}, err
-			}
+			return util.Empty{}, err
 		}
 
 		return util.Empty{}, nil
 	})
+}
+
+func serviceEach[Item any](actor rpc.Actor, items []Item, op func(rpc.Actor, Item) *util.HttpError) *util.HttpError {
+	for _, item := range items {
+		if err := op(actor, item); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func ServiceCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ServiceSpecification]) ([]orcapi.Service, *util.HttpError) {
@@ -434,14 +385,47 @@ func ServiceUpdate(actor rpc.Actor, id string, update orcapi.ServicesUpdateReque
 }
 
 func ServiceAddMembers(actor rpc.Actor, id string, jobIds []string) *util.HttpError {
-	return serviceMutateMembers(actor, id, jobIds, true)
+	return serviceMutateMembers(actor, id, jobIds, nil, nil, nil)
 }
 
 func ServiceRemoveMembers(actor rpc.Actor, id string, jobIds []string) *util.HttpError {
-	return serviceMutateMembers(actor, id, jobIds, false)
+	return serviceMutateMembers(actor, id, nil, jobIds, nil, nil)
 }
 
-func serviceMutateMembers(actor rpc.Actor, id string, jobIds []string, add bool) *util.HttpError {
+func serviceMutateMembersControl(
+	actor rpc.Actor,
+	stackInstance string,
+	id string,
+	addedJobIds []string,
+	removedJobIds []string,
+) *util.HttpError {
+	validateService := func(svc orcapi.Service) *util.HttpError {
+		if svc.Specification.Labels[orcapi.ResourceLabelStackInstance] != stackInstance {
+			return util.HttpErr(http.StatusForbidden, "the service does not belong to the stack of the job")
+		}
+
+		return nil
+	}
+
+	validateMember := func(svc orcapi.Service, job orcapi.Job) *util.HttpError {
+		if job.Specification.Labels[orcapi.ResourceLabelStackInstance] != stackInstance {
+			return util.HttpErr(http.StatusBadRequest, "member jobs must belong to the stack of the job")
+		}
+
+		return nil
+	}
+
+	return serviceMutateMembers(actor, id, addedJobIds, removedJobIds, validateService, validateMember)
+}
+
+func serviceMutateMembers(
+	actor rpc.Actor,
+	id string,
+	addedJobIds []string,
+	removedJobIds []string,
+	validateService func(svc orcapi.Service) *util.HttpError,
+	validateMember func(svc orcapi.Service, job orcapi.Job) *util.HttpError,
+) *util.HttpError {
 	svc, _, _, err := ResourceRetrieveEx[orcapi.Service](
 		actor,
 		serviceType,
@@ -453,37 +437,44 @@ func serviceMutateMembers(actor rpc.Actor, id string, jobIds []string, add bool)
 		return err
 	}
 
+	if validateService != nil {
+		if err := validateService(svc); err != nil {
+			return err
+		}
+	}
+
 	var added []string
 	var removed []string
 	provider := svc.Specification.Product.Provider
 
-	for _, jobId := range jobIds {
-		job, _, _, err := ResourceRetrieveEx[orcapi.Job](
-			actor,
-			jobType,
-			ResourceParseId(jobId),
-			orcapi.PermissionEdit,
-			orcapi.ResourceFlags{},
-		)
+	for _, jobId := range addedJobIds {
+		job, err := serviceRetrieveMember(actor, jobId, provider)
 		if err != nil {
 			return err
 		}
 
-		if job.Specification.Product.Provider != provider {
-			return util.HttpErr(http.StatusBadRequest, "job '%v' belongs to a different provider than the service", jobId)
-		}
-
-		if add {
-			if err := serviceValidateMemberNetworkAttachment(svc, job.Specification.Resources); err != nil {
+		if validateMember != nil {
+			if err := validateMember(svc, job); err != nil {
 				return err
 			}
-			if !slices.Contains(svc.Status.Members, jobId) {
-				added = append(added, jobId)
-			}
-		} else {
-			if slices.Contains(svc.Status.Members, jobId) {
-				removed = append(removed, jobId)
-			}
+		}
+
+		if err := serviceValidateMemberNetworkAttachment(svc, job.Specification.Resources); err != nil {
+			return err
+		}
+
+		if !slices.Contains(svc.Status.Members, jobId) {
+			added = append(added, jobId)
+		}
+	}
+
+	for _, jobId := range removedJobIds {
+		if _, err := serviceRetrieveMember(actor, jobId, provider); err != nil {
+			return err
+		}
+
+		if slices.Contains(svc.Status.Members, jobId) {
+			removed = append(removed, jobId)
 		}
 	}
 
@@ -511,22 +502,36 @@ func serviceMutateMembers(actor rpc.Actor, id string, jobIds []string, add bool)
 		orcapi.PermissionEdit,
 		func(r *resource, mapped orcapi.Service) {
 			svcInternal := r.Extra.(*internalService)
-			for _, jobId := range added {
-				if !slices.Contains(svcInternal.Members, jobId) {
-					svcInternal.Members = append(svcInternal.Members, jobId)
-				}
-			}
+			svcInternal.Members = append(svcInternal.Members, added...)
 			for _, jobId := range removed {
 				svcInternal.Members = util.RemoveFirst(svcInternal.Members, jobId)
 			}
 		},
 	)
-
 	if !ok {
 		return util.HttpErr(http.StatusNotFound, "not found or permission denied")
 	}
 
 	return nil
+}
+
+func serviceRetrieveMember(actor rpc.Actor, jobId string, provider string) (orcapi.Job, *util.HttpError) {
+	job, _, _, err := ResourceRetrieveEx[orcapi.Job](
+		actor,
+		jobType,
+		ResourceParseId(jobId),
+		orcapi.PermissionEdit,
+		orcapi.ResourceFlags{},
+	)
+	if err != nil {
+		return orcapi.Job{}, err
+	}
+
+	if job.Specification.Product.Provider != provider {
+		return orcapi.Job{}, util.HttpErr(http.StatusBadRequest, "job '%v' belongs to a different provider than the service", jobId)
+	}
+
+	return job, nil
 }
 
 func serviceValidateMemberNetworkAttachment(svc orcapi.Service, jobResources []orcapi.AppParameterValue) *util.HttpError {
@@ -622,29 +627,9 @@ func serviceNormalizePorts(ports []orcapi.ServicePort) []orcapi.ServicePort {
 	copy(result, ports)
 
 	for i, port := range result {
-		if drain := port.DrainTimeoutSeconds; !drain.Present {
+		if !port.DrainTimeoutSeconds.Present {
 			result[i].DrainTimeoutSeconds = util.OptValue(serviceDefaultDrainTimeoutSeconds)
 		}
-
-		if !port.HealthCheck.Present {
-			continue
-		}
-
-		check := port.HealthCheck.Value
-		if check.IntervalSeconds <= 0 {
-			check.IntervalSeconds = serviceHealthCheckDefaultIntervalSeconds
-		}
-		if check.TimeoutSeconds <= 0 {
-			check.TimeoutSeconds = serviceHealthCheckDefaultTimeoutSeconds
-		}
-		if check.HealthyThreshold <= 0 {
-			check.HealthyThreshold = serviceHealthCheckDefaultHealthyThreshold
-		}
-		if check.UnhealthyThreshold <= 0 {
-			check.UnhealthyThreshold = serviceHealthCheckDefaultUnhealthyThreshold
-		}
-
-		result[i].HealthCheck = util.OptValue(check)
 	}
 
 	return result
@@ -660,7 +645,7 @@ func serviceValidatePorts(ports []orcapi.ServicePort) ([]orcapi.ServicePort, *ut
 		if strings.TrimSpace(port.Name) == "" {
 			return nil, util.HttpErr(http.StatusBadRequest, "port name must not be empty")
 		}
-		if len(port.Name) > 63 || !servicePortNameRegex.MatchString(port.Name) {
+		if !servicePortNameRegex.MatchString(port.Name) {
 			return nil, util.HttpErr(
 				http.StatusBadRequest,
 				"port name must use lowercase letters, numbers and dashes only",
@@ -954,11 +939,15 @@ var serviceIndex struct {
 	Targets   map[ResourceId][]ResourceId
 }
 
-func serviceIdsOfJob(jobId string) []string {
+func serviceIndexValues[K comparable, V any](m map[K][]V, key K) []V {
 	serviceIndex.Mu.RLock()
-	result := append([]string(nil), serviceIndex.ByJob[jobId]...)
+	result := append([]V(nil), m[key]...)
 	serviceIndex.Mu.RUnlock()
 	return result
+}
+
+func serviceIdsOfJob(jobId string) []string {
+	return serviceIndexValues(serviceIndex.ByJob, jobId)
 }
 
 func serviceReferencesOfJob(jobId string) []orcapi.JobServiceReference {
@@ -986,9 +975,7 @@ func serviceFindPort(ports []orcapi.ServicePort, name string) (orcapi.ServicePor
 func serviceReferencingLinks(serviceId ResourceId) []serviceLinkReference {
 	var result []serviceLinkReference
 
-	serviceIndex.Mu.RLock()
-	targets := serviceIndex.Targets[serviceId]
-	serviceIndex.Mu.RUnlock()
+	targets := serviceIndexValues(serviceIndex.Targets, serviceId)
 
 	for _, id := range targets {
 		b := resourceGetBucket(ingressType, id)
@@ -1021,10 +1008,7 @@ func (i *serviceMembershipIndexer) Begin() {
 }
 
 func (i *serviceMembershipIndexer) Remove() {
-	svc, ok := i.r.Extra.(*internalService)
-	if !ok {
-		return
-	}
+	svc := i.r.Extra.(*internalService)
 
 	serviceId := fmt.Sprint(i.r.Id)
 	if members := svc.Members; members != nil {
@@ -1039,10 +1023,7 @@ func (i *serviceMembershipIndexer) Remove() {
 }
 
 func (i *serviceMembershipIndexer) Add() {
-	svc, ok := i.r.Extra.(*internalService)
-	if !ok {
-		return
-	}
+	svc := i.r.Extra.(*internalService)
 
 	serviceId := fmt.Sprint(i.r.Id)
 	for _, jobId := range svc.Members {
@@ -1071,10 +1052,7 @@ func (i *ingressTargetIndexer) Begin() {
 }
 
 func (i *ingressTargetIndexer) Remove() {
-	ing, ok := i.r.Extra.(*internalIngress)
-	if !ok {
-		return
-	}
+	ing := i.r.Extra.(*internalIngress)
 
 	if target := ing.TargetService; target.Present {
 		serviceIndex.Targets[target.Value] = util.RemoveFirst(serviceIndex.Targets[target.Value], i.r.Id)
@@ -1082,10 +1060,7 @@ func (i *ingressTargetIndexer) Remove() {
 }
 
 func (i *ingressTargetIndexer) Add() {
-	ing, ok := i.r.Extra.(*internalIngress)
-	if !ok {
-		return
-	}
+	ing := i.r.Extra.(*internalIngress)
 
 	if target := ing.TargetService; target.Present {
 		if !slices.Contains(serviceIndex.Targets[target.Value], i.r.Id) {
@@ -1124,11 +1099,7 @@ func serviceFillIndex() {
 		)
 
 		for _, row := range memberRows {
-			serviceId := fmt.Sprint(row.Service)
-			jobId := fmt.Sprint(row.Job)
-			if !slices.Contains(serviceIndex.ByJob[jobId], serviceId) {
-				serviceIndex.ByJob[jobId] = append(serviceIndex.ByJob[jobId], serviceId)
-			}
+			serviceIndex.ByJob[fmt.Sprint(row.Job)] = append(serviceIndex.ByJob[fmt.Sprint(row.Job)], fmt.Sprint(row.Service))
 		}
 
 		networkRows := db.Select[struct {
@@ -1145,11 +1116,10 @@ func serviceFillIndex() {
 
 		for _, row := range networkRows {
 			if row.InternalNetwork.Valid {
-				serviceId := fmt.Sprint(row.Resource)
-				networkId := ResourceId(row.InternalNetwork.V)
-				if !slices.Contains(serviceIndex.ByNetwork[networkId], serviceId) {
-					serviceIndex.ByNetwork[networkId] = append(serviceIndex.ByNetwork[networkId], serviceId)
-				}
+				serviceIndex.ByNetwork[ResourceId(row.InternalNetwork.V)] = append(
+					serviceIndex.ByNetwork[ResourceId(row.InternalNetwork.V)],
+					fmt.Sprint(row.Resource),
+				)
 			}
 		}
 

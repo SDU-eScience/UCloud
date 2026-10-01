@@ -105,10 +105,6 @@ func PrivateNetworkReservationCreate(reservation *orc.PrivateNetworkIp) *util.Ht
 		return util.UserHttpError("Private networks are not enabled on this provider")
 	}
 
-	if reservation == nil {
-		return util.ServerHttpError("Failed to create reserved IP: reservation is nil")
-	}
-
 	workspace := PrivateNetworkWorkspaceFromOwner(reservation.Owner)
 
 	pinnedIp := ""
@@ -122,11 +118,7 @@ func PrivateNetworkReservationCreate(reservation *orc.PrivateNetworkIp) *util.Ht
 		allocatedAddress = ""
 		notifyRequired = false
 
-		network, networkOk := privateNetworkLockNetwork(tx, reservation.Specification.Network)
-		if !tx.Ok {
-			return nil
-		}
-
+		network, networkOk := privateNetworkSelectNetwork(tx, reservation.Specification.Network)
 		if !networkOk {
 			db.RequestRollback(tx)
 			return util.UserHttpError("The private network of this reservation no longer exists")
@@ -157,10 +149,6 @@ func PrivateNetworkReservationCreate(reservation *orc.PrivateNetworkIp) *util.Ht
 		}
 
 		existingRow, existingFound := privateNetworkSelectReservation(tx, reservation.Id)
-		if !tx.Ok {
-			return nil
-		}
-
 		if existingFound {
 			immutable := existingRow.NetworkId == reservation.Specification.Network &&
 				existingRow.WorkspaceId == workspace.String() &&
@@ -215,10 +203,6 @@ func PrivateNetworkReservationCreate(reservation *orc.PrivateNetworkIp) *util.Ht
 				"resource":       string(jsonified),
 			},
 		)
-		if !tx.Ok {
-			return nil
-		}
-
 		allocatedAddress = allocatedIp
 		notifyRequired = true
 		return nil
@@ -246,10 +230,6 @@ func privateNetworkReservationAllocate(
 	pinnedIp string,
 ) (string, *util.HttpError) {
 	used := privateNetworkSelectTakenAddresses(tx, networkId)
-	if !tx.Ok {
-		return "", nil
-	}
-
 	if pinnedIp != "" {
 		addr, err := privateNetworkValidateHostAddress(cidr, pinnedIp)
 		if err != nil {
@@ -343,7 +323,7 @@ func privateNetworkSelectReservation(
 		`,
 		db.Params{"reservation_id": reservationId},
 	)
-	if !tx.Ok || !found {
+	if !found {
 		return privateNetworkReservationFullRow{}, false
 	}
 	return row, true
@@ -354,18 +334,10 @@ func PrivateNetworkReservationDelete(reservation *orc.PrivateNetworkIp) *util.Ht
 		return util.UserHttpError("Private networks are not enabled on this provider")
 	}
 
-	if reservation == nil {
-		return util.ServerHttpError("Failed to delete reserved IP: reservation is nil")
-	}
-
 	ownerWorkspace := PrivateNetworkWorkspaceFromOwner(reservation.Owner)
 
 	err := db.NewTx(func(tx *db.Transaction) *util.HttpError {
 		row, found := privateNetworkSelectReservation(tx, reservation.Id)
-		if !tx.Ok {
-			return nil
-		}
-
 		if !found {
 			return nil
 		}
@@ -378,11 +350,7 @@ func PrivateNetworkReservationDelete(reservation *orc.PrivateNetworkIp) *util.Ht
 			)
 		}
 
-		_, networkOk := privateNetworkLockNetwork(tx, row.NetworkId)
-		if !tx.Ok {
-			return nil
-		}
-
+		_, networkOk := privateNetworkSelectNetwork(tx, row.NetworkId)
 		if networkOk {
 			leaseCount, _ := db.Get[struct{ Count int }](
 				tx,
@@ -395,10 +363,6 @@ func PrivateNetworkReservationDelete(reservation *orc.PrivateNetworkIp) *util.Ht
 				`,
 				db.Params{"reservation_id": reservation.Id},
 			)
-			if !tx.Ok {
-				return nil
-			}
-
 			if leaseCount.Count > 0 {
 				return privateNetworkBusinessRollback(
 					tx,
@@ -416,10 +380,6 @@ func PrivateNetworkReservationDelete(reservation *orc.PrivateNetworkIp) *util.Ht
 			`,
 			db.Params{"reservation_id": reservation.Id},
 		)
-		if !tx.Ok {
-			return nil
-		}
-
 		return nil
 	})
 	if err != nil {
@@ -492,9 +452,6 @@ func PrivateNetworkReservationPendingNotificationSnapshot() []PrivateNetworkRese
 			`,
 			db.Params{},
 		)
-		if !tx.Ok {
-			return nil
-		}
 		return rows
 	})
 }
@@ -562,10 +519,6 @@ func privateNetworkSelectJobLeases(
 			"network_id": networkId,
 		},
 	)
-	if !tx.Ok {
-		return nil
-	}
-
 	result := make([]PrivateNetworkLeaseRow, 0, len(rows))
 	for _, row := range rows {
 		result = append(result, PrivateNetworkLeaseRow{
@@ -620,11 +573,7 @@ func PrivateNetworkLeasesMarkReleasingForJobNetwork(jobId string, networkId stri
 
 func PrivateNetworkLeaseFinishRelease(networkId string, ip string) *util.HttpError {
 	return db.NewTx(func(tx *db.Transaction) *util.HttpError {
-		_, _ = privateNetworkLockNetwork(tx, networkId)
-		if !tx.Ok {
-			return nil
-		}
-
+		_, _ = privateNetworkSelectNetwork(tx, networkId)
 		db.Exec(
 			tx,
 			`
@@ -636,10 +585,6 @@ func PrivateNetworkLeaseFinishRelease(networkId string, ip string) *util.HttpErr
 			`,
 			db.Params{"network_id": networkId, "ip": ip},
 		)
-		if !tx.Ok {
-			return nil
-		}
-
 		return nil
 	})
 }
@@ -676,7 +621,7 @@ func PrivateNetworkJobAllocateLeases(job *orc.Job) ([]PrivateNetworkJobLeases, *
 	workspace := PrivateNetworkWorkspaceFromOwner(job.Resource.Owner)
 	replicas := job.Specification.Replicas
 	if replicas <= 0 {
-		replicas = 1
+		return nil, util.ServerHttpError("Job %s has an invalid replica count: %d", job.Resource.Id, replicas)
 	}
 
 	for _, value := range values {
@@ -722,11 +667,7 @@ func PrivateNetworkJobAllocateLeases(job *orc.Job) ([]PrivateNetworkJobLeases, *
 		cidrByNetwork := map[string]netip.Prefix{}
 		subdomainByNetwork := map[string]string{}
 		for _, networkId := range ids {
-			network, networkOk := privateNetworkLockNetwork(tx, networkId)
-			if !tx.Ok {
-				return nil
-			}
-
+			network, networkOk := privateNetworkSelectNetwork(tx, networkId)
 			if !networkOk {
 				return privateNetworkBusinessRollback(
 					tx,
@@ -813,9 +754,6 @@ func PrivateNetworkJobAllocateLeases(job *orc.Job) ([]PrivateNetworkJobLeases, *
 			}
 
 			perNetwork[networkId] = leases
-			if !tx.Ok {
-				return nil
-			}
 		}
 
 		for _, value := range values {
@@ -928,24 +866,12 @@ func privateNetworkAllocateNetworkLeases(
 	pins := value.Ips
 
 	used := privateNetworkSelectTakenAddresses(tx, value.Id)
-	if !tx.Ok {
-		return nil, nil
-	}
-
 	occupied := privateNetworkSelectOccupiedAddresses(tx, value.Id)
-	if !tx.Ok {
-		return nil, nil
-	}
-
 	existing := privateNetworkSelectJobLeases(
 		tx,
 		sql.Null[string]{V: job.Id, Valid: true},
 		sql.Null[string]{V: value.Id, Valid: true},
 	)
-	if !tx.Ok {
-		return nil, nil
-	}
-
 	isVirtualMachine := false
 	if job.Status.ResolvedApplication.Present {
 		tool := job.Status.ResolvedApplication.Value.Invocation.Tool
@@ -962,30 +888,14 @@ func privateNetworkAllocateNetworkLeases(
 			pins,
 			existing,
 			replicas,
-			isVirtualMachine,
 		)
 		if retryErr != nil {
 			return nil, privateNetworkBusinessRollback(tx, retryErr)
 		}
-		if !tx.Ok {
-			return nil, nil
-		}
 		return reused, nil
 	}
 
-	rankPins := make([]string, replicas)
-	for rank := 0; rank < replicas; rank++ {
-		switch {
-		case len(pins) == 0:
-			rankPins[rank] = ""
-		case len(pins) == 1:
-			if rank == 0 {
-				rankPins[rank] = pins[0]
-			}
-		default:
-			rankPins[rank] = pins[rank]
-		}
-	}
+	rankPins := privateNetworkPinPerRank(pins, replicas)
 
 	type pinResult struct {
 		address       string
@@ -1021,10 +931,6 @@ func privateNetworkAllocateNetworkLeases(
 		}
 
 		reservationRow, found := privateNetworkSelectReservationByIp(tx, value.Id, canonical)
-		if !tx.Ok {
-			return nil, nil
-		}
-
 		result := pinResult{address: canonical}
 		if found {
 			if authErr := privateNetworkReservationAuthorized(
@@ -1072,75 +978,35 @@ func privateNetworkAllocateNetworkLeases(
 
 		macAddress := util.OptNone[string]()
 		if isVirtualMachine {
-			inserted := false
-			for attempt := 0; attempt < 16 && !inserted; attempt++ {
-				mac, macOk := privateNetworkGenerateMacAddress()
-				if !macOk {
-					return nil, privateNetworkBusinessRollback(
-						tx,
-						util.ServerHttpError("Could not generate a MAC address"),
-					)
-				}
-
-				rows := db.Select[struct{ JobId string }](
-					tx,
-					`
-						insert into private_network_ip_leases(network_id, ip, mac_address, job_id, rank, pinned, reservation_id, state, workspace_id)
-						values (:network_id, :ip, :mac_address, :job_id, :rank, :pinned, :reservation_id, 'pending', :workspace_id)
-						on conflict (network_id, mac_address) do nothing
-						returning
-							job_id
-					`,
-					db.Params{
-						"network_id":     value.Id,
-						"ip":             address,
-						"mac_address":    mac,
-						"job_id":         job.Id,
-						"rank":           rank,
-						"pinned":         isPinned,
-						"reservation_id": reservationId.Sql(),
-						"workspace_id":   workspaceId,
-					},
-				)
-				if !tx.Ok {
-					return nil, nil
-				}
-
-				if len(rows) == 1 && rows[0].JobId == job.Id {
-					inserted = true
-					macAddress = util.OptValue(mac)
-				}
-			}
-
-			if !inserted {
+			mac, macOk := privateNetworkGenerateMacAddress()
+			if !macOk {
 				return nil, privateNetworkBusinessRollback(
 					tx,
-					util.ServerHttpError("Could not allocate a MAC address in the private network %s", value.Id),
+					util.ServerHttpError("Could not generate a MAC address"),
 				)
 			}
-		} else {
-			db.Exec(
-				tx,
-				`
-					insert into private_network_ip_leases(network_id, ip, mac_address, job_id, rank, pinned, reservation_id, state, workspace_id)
-					values (:network_id, :ip, :mac_address, :job_id, :rank, :pinned, :reservation_id, 'pending', :workspace_id)
-				`,
-				db.Params{
-					"network_id":     value.Id,
-					"ip":             address,
-					"mac_address":    macAddress.Sql(),
-					"job_id":         job.Id,
-					"rank":           rank,
-					"pinned":         isPinned,
-					"reservation_id": reservationId.Sql(),
-					"workspace_id":   workspaceId,
-				},
-			)
-			if !tx.Ok {
-				return nil, nil
-			}
+			macAddress = util.OptValue(mac)
 		}
 
+		params := db.Params{
+			"network_id":     value.Id,
+			"ip":             address,
+			"mac_address":    macAddress.Sql(),
+			"job_id":         job.Id,
+			"rank":           rank,
+			"pinned":         isPinned,
+			"reservation_id": reservationId.Sql(),
+			"workspace_id":   workspaceId,
+		}
+
+		db.Exec(
+			tx,
+			`
+				insert into private_network_ip_leases(network_id, ip, mac_address, job_id, rank, pinned, reservation_id, state, workspace_id)
+				values (:network_id, :ip, :mac_address, :job_id, :rank, :pinned, :reservation_id, 'pending', :workspace_id)
+			`,
+			params,
+		)
 		result = append(result, PrivateNetworkLeaseRow{
 			NetworkId:     value.Id,
 			Ip:            address,
@@ -1157,6 +1023,23 @@ func privateNetworkAllocateNetworkLeases(
 	return result, nil
 }
 
+func privateNetworkPinPerRank(pins []string, replicas int) []string {
+	result := make([]string, replicas)
+	for rank := 0; rank < replicas; rank++ {
+		switch {
+		case len(pins) == 0:
+			result[rank] = ""
+		case len(pins) == 1:
+			if rank == 0 {
+				result[rank] = pins[0]
+			}
+		default:
+			result[rank] = pins[rank]
+		}
+	}
+	return result
+}
+
 func privateNetworkReuseJobLeases(
 	tx *db.Transaction,
 	jobOwner orc.ResourceOwner,
@@ -1164,7 +1047,6 @@ func privateNetworkReuseJobLeases(
 	pins []string,
 	existing []PrivateNetworkLeaseRow,
 	replicas int,
-	requireMacAddress bool,
 ) ([]PrivateNetworkLeaseRow, *util.HttpError) {
 	if len(existing) != replicas {
 		return nil, privateNetworkBusinessRollback(
@@ -1174,8 +1056,6 @@ func privateNetworkReuseJobLeases(
 			),
 		)
 	}
-
-	jobWorkspace := PrivateNetworkWorkspaceFromOwner(jobOwner)
 
 	for _, lease := range existing {
 		if lease.State == PrivateNetworkLeaseStateReleasing {
@@ -1187,113 +1067,26 @@ func privateNetworkReuseJobLeases(
 				),
 			)
 		}
-
-		if lease.WorkspaceId != jobWorkspace.String() {
-			return nil, privateNetworkBusinessRollback(
-				tx,
-				util.UserHttpError(
-					"A previous submission of this job has leases of another workspace in the private network %s. The old leases must be released before retrying.",
-					networkId,
-				),
-			)
-		}
-
-		if requireMacAddress && !lease.MacAddress.Present {
-			return nil, privateNetworkBusinessRollback(
-				tx,
-				util.UserHttpError(
-					"A previous submission of this job has no MAC address in the private network %s. The old leases must be released before retrying.",
-					networkId,
-				),
-			)
-		}
 	}
 
 	byRank := make([]PrivateNetworkLeaseRow, replicas)
 	for _, lease := range existing {
-		if lease.Rank < 0 || lease.Rank >= replicas {
-			return nil, privateNetworkBusinessRollback(
-				tx,
-				util.UserHttpError(
-					"A previous submission of this job has an invalid rank in the private network %s",
-					networkId,
-				),
-			)
-		}
 		byRank[lease.Rank] = lease
 	}
 
-	expectedPins := make([]string, replicas)
-	for rank := 0; rank < replicas; rank++ {
-		switch {
-		case len(pins) == 0:
-			expectedPins[rank] = ""
-		case len(pins) == 1:
-			if rank == 0 {
-				expectedPins[rank] = pins[0]
-			}
-		default:
-			expectedPins[rank] = pins[rank]
-		}
-	}
+	expectedPins := privateNetworkPinPerRank(pins, replicas)
 
 	for rank, lease := range byRank {
 		expected := expectedPins[rank]
-		if expected == "" && lease.Pinned {
+		pinsDiffer := (expected == "") != (!lease.Pinned) || (expected != "" && lease.Ip != expected)
+		if pinsDiffer {
 			return nil, privateNetworkBusinessRollback(
 				tx,
 				util.UserHttpError(
-					"A previous submission of this job pinned addresses in the private network %s. The old leases must be released before retrying without pins.",
+					"A previous submission of this job used different pinned addresses in the private network %s. The old leases must be released before retrying.",
 					networkId,
 				),
 			)
-		}
-
-		if expected != "" {
-			if !lease.Pinned && lease.Ip != expected {
-				return nil, privateNetworkBusinessRollback(
-					tx,
-					util.UserHttpError(
-						"A previous submission of this job did not pin addresses in the private network %s. The old leases must be released before retrying with pins.",
-						networkId,
-					),
-				)
-			}
-
-			if lease.Ip != expected {
-				return nil, privateNetworkBusinessRollback(
-					tx,
-					util.UserHttpError(
-						"A previous submission of this job pinned different addresses in the private network %s. The old leases must be released before retrying with new pins.",
-						networkId,
-					),
-				)
-			}
-
-			if lease.ReservationId.Present {
-				reservationRow, reservationOk := privateNetworkSelectReservation(tx, lease.ReservationId.Value)
-				if !tx.Ok {
-					return nil, nil
-				}
-
-				if !reservationOk {
-					return nil, privateNetworkBusinessRollback(
-						tx,
-						util.UserHttpError(
-							"The pinned address %s belongs to a reservation that is no longer valid",
-							expected,
-						),
-					)
-				}
-
-				if authErr := privateNetworkReservationAuthorized(
-					jobOwner,
-					reservationRow,
-					lease.WorkspaceId,
-				); authErr != nil {
-					return nil, privateNetworkBusinessRollback(tx, authErr)
-				}
-			}
 		}
 	}
 
@@ -1330,7 +1123,7 @@ func privateNetworkSelectReservationByIp(
 		`,
 		db.Params{"network_id": networkId, "ip": ip},
 	)
-	if !tx.Ok || !found {
+	if !found {
 		return privateNetworkReservationFullRow{}, false
 	}
 
@@ -1377,21 +1170,7 @@ func privateNetworkSelectTakenAddresses(tx *db.Transaction, networkId string) ma
 }
 
 func PrivateNetworkLeaseRowsNormalize(rows []PrivateNetworkLeaseRow) []PrivateNetworkLeaseRow {
-	byRank := make([]PrivateNetworkLeaseRow, 0, len(rows))
-	used := make(map[int]struct{}, len(rows))
-	for _, row := range rows {
-		if row.Rank < 0 {
-			continue
-		}
-
-		if _, duplicate := used[row.Rank]; duplicate {
-			continue
-		}
-		used[row.Rank] = struct{}{}
-
-		byRank = append(byRank, row)
-	}
-
+	byRank := slices.Clone(rows)
 	slices.SortFunc(byRank, func(a, b PrivateNetworkLeaseRow) int {
 		return a.Rank - b.Rank
 	})

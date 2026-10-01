@@ -95,11 +95,11 @@ Description=UCloud K8s secure token publisher
 Wants=network-online.target
 After=network-online.target k3s.service
 Requires=k3s.service
-RequiresMountsFor=/etc/ucloud-k8s/bundle /etc/ucloud-k8s/management /etc/ucloud-k8s/nodes
+RequiresMountsFor=/etc/ucloud-k8s/bundle /etc/ucloud-k8s/management /etc/ucloud-k8s/nodes /etc/ucloud-k8s/input
 
 [Service]
 Type=simple
-ExecStartPre=/bin/sh -c 'mountpoint -q /etc/ucloud-k8s/bundle && mountpoint -q /etc/ucloud-k8s/management && mountpoint -q /etc/ucloud-k8s/nodes || { echo required mounts are not present; exit 1; }'
+ExecStartPre=/bin/sh -c 'mountpoint -q /etc/ucloud-k8s/bundle && mountpoint -q /etc/ucloud-k8s/management && mountpoint -q /etc/ucloud-k8s/nodes && mountpoint -q /etc/ucloud-k8s/input || { echo required mounts are not present; exit 1; }'
 ExecStart=/usr/local/sbin/ucloud-k8s-token-publisher
 Restart=always
 RestartSec=30
@@ -113,7 +113,7 @@ systemctl enable --now ucloud-k8s-token-publisher
 
 log "reading the controller registration token"
 emit "Reading the controller registration token" 77
-CONTROLLER_TOKEN_SOURCE="$MANAGEMENT_DIR/controller/token"
+CONTROLLER_TOKEN_SOURCE="$INPUT_DIR/controller-token"
 CONTROLLER_TOKEN_DIR="/var/lib/ucloud-k8s/controller"
 CONTROLLER_TOKEN_TRIES=0
 while [ $CONTROLLER_TOKEN_TRIES -lt 60 ]; do
@@ -135,6 +135,9 @@ umask 022
 if [ "$FIRST_SERVER" = "True" ]; then
 	/etc/ucloud-k8s/bundle/server-bootstrap.sh
 else
+	log "installing the kubeconfig"
+	emit "Installing the kubeconfig" 90
+	/etc/ucloud-k8s/bundle/kubeconfig-setup.sh
 	log "server joined"
 	emit "Server joined the cluster" 100
 fi
