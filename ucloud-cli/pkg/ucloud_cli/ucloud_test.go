@@ -577,3 +577,65 @@ func TestSshKeyDelete(t *testing.T) {
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }
+
+func TestPublicIPList(t *testing.T) {
+	input := []string{"public-ip", "list"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicIPListByIP(t *testing.T) {
+	input := []string{"public-ip", "list", "--ip", "10.99.0.2-10.99.0.4"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicIPCreate(t *testing.T) {
+	input := []string{"public-ip", "create", "--rule", "1234-2345/tcp", "--rule", "12344/udp"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicIPDelete(t *testing.T) {
+	input := []string{"public-ip", "delete", "--ip", "10.99.0.4-10.99.0.20", "--ip", "10.99.0.2"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+func TestPublicIPDeleteCidr(t *testing.T) {
+	input := []string{"public-ip", "delete", "--ip", "10.99.0.2"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicIPDeleteById(t *testing.T) {
+	input := []string{"public-ip", "delete", "--id", "64", "--id", "66", "--id", "67"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicIPGet(t *testing.T) {
+	input := []string{"public-ip", "get", "--id", "64"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
