@@ -2,6 +2,8 @@ package containers
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"time"
 
 	core "k8s.io/api/core/v1"
@@ -33,7 +35,8 @@ func initIntegratedInferenceSandbox() {
 }
 
 func inferenceSandboxMutateJobBeforeRegistration(owner orc.ResourceOwner, spec *orc.JobSpecification) *util.HttpError {
-	if err := integratedSandboxMutateJobBeforeRegistration("Inference sandbox", spec); err != nil {
+	readableUsername, _, _ := strings.Cut(owner.CreatedBy, "#")
+	if err := integratedSandboxMutateJobBeforeRegistration(fmt.Sprintf("Inference sandbox (%s)", readableUsername), spec); err != nil {
 		return err
 	}
 	spec.Product.Id = shared.IntegratedTerminalAppName

@@ -287,7 +287,7 @@ func iappCreateJob(appName string, owner orc.ResourceOwner, configuration json.R
 			Parameters:  map[string]orc.AppParameterValue{},
 			Resources:   []orc.AppParameterValue{},
 		},
-		Project:   util.OptStringIfNotEmpty(""),
+		Project:   owner.Project,
 		CreatedBy: util.OptStringIfNotEmpty(owner.CreatedBy),
 	}
 

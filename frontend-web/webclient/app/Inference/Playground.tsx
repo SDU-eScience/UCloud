@@ -546,6 +546,7 @@ type PlaygroundFrameProps = {
     error?: string;
     connectionStatus?: string;
     noAllocation?: boolean;
+    noStorage?: boolean;
 };
 
 const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k => `
@@ -1656,9 +1657,11 @@ function ThreadListNode({
     );
 }
 
-function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSession = false, error = "", noAllocation = false}: PlaygroundFrameProps): React.ReactNode {
+function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSession = false, error = "", noAllocation = false, noStorage = false}: PlaygroundFrameProps): React.ReactNode {
     const connectionStatus = loadingSession || !mounted ? "Connecting..." : !connected ? "Reconnecting..." : error !== "" ? "Connection issue" : "Connected";
-    const disabledReason = noAllocation ? "You need to apply for resources before you can use the chat" : "";
+    const disabledReason = noStorage
+        ? "Storage resources are required to use the AI platform"
+        : noAllocation ? "You need to apply for resources before you can use the chat" : "";
 
     return (
         <MainContainer
@@ -1679,6 +1682,7 @@ function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSess
                                 connected={connected && mounted && error === ""}
                                 connectionStatus={connectionStatus}
                                 disabledReason={disabledReason}
+                                disabledReasonIsStorage={noStorage}
                             />
                         </TabbedCardTab>
                     </TabbedCard>
@@ -1696,7 +1700,7 @@ function DeveloperModeToggle({model, fn, connected}: {model: Record<string, Valu
     </Flex>;
 }
 
-function PlaygroundWorkspace({model, fn, connected, connectionStatus, disabledReason = ""}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string; disabledReason?: string}): React.ReactNode {
+function PlaygroundWorkspace({model, fn, connected, connectionStatus, disabledReason = "", disabledReasonIsStorage = false}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string; disabledReason?: string; disabledReasonIsStorage?: boolean}): React.ReactNode {
     const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
     const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
     const [showThreads, setShowThreads] = React.useState(false);
@@ -1766,7 +1770,7 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus, disabledRe
     return (
         <div className="playground-body">
             <div className="playground-main">
-                <PlaygroundConversation model={model} fn={fn} connected={connected} disabledReason={disabledReason}/>
+                <PlaygroundConversation model={model} fn={fn} connected={connected} disabledReason={disabledReason} disabledReasonIsStorage={disabledReasonIsStorage}/>
             </div>
             <div className="playground-sidebar" onClick={stopPropagation} data-open={showThreads} data-collapsed={sidebarCollapsed}>
                 {sidebarCollapsed ? (
@@ -1840,7 +1844,7 @@ function ContextWindowIndicator({model, fn}: {model: Record<string, Value>; fn?:
 
 }
 
-function PlaygroundConversation({model, fn, connected, disabledReason = ""}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; disabledReason?: string}): React.ReactNode {
+function PlaygroundConversation({model, fn, connected, disabledReason = "", disabledReasonIsStorage = false}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; disabledReason?: string; disabledReasonIsStorage?: boolean}): React.ReactNode {
     const messagesValue = fn?.modelValue(model, "chat.messages") ?? model["chat.messages"];
     const messageItems = messagesValue?.kind === ValueKind.List ? messagesValue.list : [];
     const streamingValue = fn?.modelValue(model, "chat.streamingMessages") ?? model["chat.streamingMessages"];
@@ -1926,7 +1930,7 @@ function PlaygroundConversation({model, fn, connected, disabledReason = ""}: {mo
             >
                 <div ref={contentRef}>
                     {disabledReason !== "" ? (
-                        <NoAllocationNotice reason={disabledReason}/>
+                        <NoAllocationNotice reason={disabledReason} storage={disabledReasonIsStorage}/>
                     ) : messages.length === 0 ? (
                         <Text color="textSecondary">No messages yet.</Text>
                     ) : messages.map((message) => {
@@ -1978,12 +1982,17 @@ function DisabledComposerPlaceholder({disabledReason = ""}: {disabledReason?: st
     </Box>;
 }
 
-function NoAllocationNotice({reason}: {reason: string}): React.ReactNode {
+function NoAllocationNotice({reason, storage = false}: {reason: string; storage?: boolean}): React.ReactNode {
     return <Flex flexDirection="column" alignItems="center" justifyContent="center" gap="16px" style={{flex: 1, textAlign: "center"}}>
-        <Icon name="heroChatBubbleLeftRight" size={48} color="textSecondary"/>
+        <Icon name={storage ? "heroArchiveBox" : "heroChatBubbleLeftRight"} size={48} color="textSecondary"/>
         <div>
             <div style={{fontWeight: 600, marginBottom: 8}}>{reason}</div>
-            <Text color="textSecondary">Apply for resources to get access to AI models and start chatting.</Text>
+            {storage ? (
+                <Text color="textSecondary">The chat stores conversations, attachments, and its sandbox in the files of
+                    this workspace, which requires storage resources.</Text>
+            ) : (
+                <Text color="textSecondary">Apply for resources to get access to AI models and start chatting.</Text>
+            )}
         </div>
         <Link to={AppRoutes.grants.editor()}>
             <Button type="button">Apply for resources</Button>
@@ -2128,6 +2137,7 @@ export default function Playground(): React.ReactNode {
     const [loading, setLoading] = React.useState(true);
     const [terminalError, setTerminalError] = React.useState("");
     const [noAllocation, setNoAllocation] = React.useState(false);
+    const [noStorage, setNoStorage] = React.useState(false);
     const [refreshNonce, setRefreshNonce] = React.useState(0);
     const [lastModel, setLastModel] = React.useState<Record<string, Value>>({});
     const openRetryCountRef = React.useRef(0);
@@ -2151,6 +2161,7 @@ export default function Playground(): React.ReactNode {
         setLastModel({});
         setSession(null);
         setNoAllocation(false);
+        setNoStorage(false);
         setRefreshNonce((x) => x + 1);
     }, [projectId]);
 
@@ -2170,6 +2181,7 @@ export default function Playground(): React.ReactNode {
                 setLoading(false);
                 setTerminalError("");
                 setNoAllocation(false);
+                setNoStorage(false);
             })
             .catch((err: any) => {
                 if (cancelled) return;
@@ -2179,9 +2191,11 @@ export default function Playground(): React.ReactNode {
                     : "Failed to open the inference playground";
                 setTerminalError(why);
                 const statusCode = typeof err?.request?.status === "number" ? err.request.status : 0;
+                const errorCode = typeof err?.response?.errorCode === "string" ? err.response.errorCode : "";
                 const permanent = statusCode >= 400 && statusCode < 500;
                 if (permanent) {
-                    setNoAllocation(statusCode === 402);
+                    setNoAllocation(statusCode === 402 && errorCode !== "NOT_ENOUGH_STORAGE_CREDITS");
+                    setNoStorage(statusCode === 402 && errorCode === "NOT_ENOUGH_STORAGE_CREDITS");
                     return;
                 }
                 const retry = openRetryCountRef.current++;
@@ -2240,6 +2254,7 @@ export default function Playground(): React.ReactNode {
                 loadingSession={loading}
                 error={loading ? "" : (terminalError || "Unable to open inference playground.")}
                 noAllocation={noAllocation}
+                noStorage={noStorage}
             />
         );
     }

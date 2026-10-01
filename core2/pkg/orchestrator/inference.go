@@ -22,6 +22,10 @@ func initInference() {
 			return orcapi.InferenceOpenPlaygroundResponse{}, util.HttpErr(http.StatusPaymentRequired, "no credits available for inference")
 		}
 
+		if err := inferenceOwnerHasStorage(info.Actor, selection.ProviderId); err != nil {
+			return orcapi.InferenceOpenPlaygroundResponse{}, err
+		}
+
 		resp, err := InvokeProvider(selection.ProviderId, orcapi.InferenceOpenPlaygroundProvider,
 			orcapi.InferenceOpenPlaygroundProviderRequest{Owner: inferenceActorToOwner(info.Actor)},
 			ProviderCallOpts{Username: util.OptValue(info.Actor.Username)},
@@ -190,4 +194,36 @@ func inferenceActorToOwner(actor rpc.Actor) orcapi.ResourceOwner {
 		owner.Project.Set(string(actor.Project.Value))
 	}
 	return owner
+}
+
+func inferenceOwnerHasStorage(actor rpc.Actor, providerId string) *util.HttpError {
+	var owner accapi.WalletOwner
+	if actor.Project.Present {
+		owner = accapi.WalletOwnerProject(string(actor.Project.Value))
+	} else {
+		owner = accapi.WalletOwnerUser(actor.Username)
+	}
+
+	wallets, err := accapi.WalletsBrowseInternal.Invoke(accapi.WalletsBrowseInternalRequest{Owner: owner})
+	if err != nil {
+		return util.HttpErr(http.StatusInternalServerError, "could not determine the storage resources of this workspace")
+	}
+
+	for _, wallet := range wallets.Wallets {
+		if wallet.PaysFor.ProductType != accapi.ProductTypeStorage {
+			continue
+		}
+		if wallet.PaysFor.Provider != providerId {
+			continue
+		}
+		if wallet.MaxUsable > 0 {
+			return nil
+		}
+	}
+
+	return &util.HttpError{
+		StatusCode: http.StatusPaymentRequired,
+		Why:        "no storage resources available for the inference playground",
+		ErrorCode:  "NOT_ENOUGH_STORAGE_CREDITS",
+	}
 }
