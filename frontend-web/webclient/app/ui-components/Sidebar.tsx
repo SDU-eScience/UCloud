@@ -421,7 +421,6 @@ function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Comma
             }
         }
     }
-    ;
 
     return result;
 }
