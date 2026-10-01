@@ -66,6 +66,15 @@ var terminalBackend TerminalBackend
 var integratedSandboxLeaseMutex sync.Mutex
 var integratedSandboxLeaseUntilByKey = map[string]time.Time{}
 
+var inferenceSandboxInternetMutex sync.Mutex
+var inferenceSandboxInternetEnabledByKey = map[string]bool{}
+
+var inferenceSandboxInternetApply func(jobId string, enabled bool) *util.HttpError
+
+func InferenceSandboxRegisterInternetApply(fn func(jobId string, enabled bool) *util.HttpError) {
+	inferenceSandboxInternetApply = fn
+}
+
 func TerminalRegisterBackend(backend TerminalBackend) {
 	terminalBackend = backend
 }
@@ -393,6 +402,70 @@ func integratedSandboxLeaseKey(appName string, owner orc.ResourceOwner) string {
 		project = owner.Project.Value
 	}
 	return appName + "|" + owner.CreatedBy + "|" + project
+}
+
+func InferenceSandboxInternetEnabled() bool {
+	inferenceSandboxInternetMutex.Lock()
+	defer inferenceSandboxInternetMutex.Unlock()
+	for _, enabled := range inferenceSandboxInternetEnabledByKey {
+		if enabled {
+			return true
+		}
+	}
+	return false
+}
+
+func InferenceSandboxInternetEnabledFor(owner orc.ResourceOwner) bool {
+	key := integratedSandboxLeaseKey(InferenceSandboxAppName, owner)
+	inferenceSandboxInternetMutex.Lock()
+	defer inferenceSandboxInternetMutex.Unlock()
+	return inferenceSandboxInternetEnabledByKey[key]
+}
+
+func InferenceSandboxInternetEnable(owner orc.ResourceOwner) {
+	key := integratedSandboxLeaseKey(InferenceSandboxAppName, owner)
+
+	inferenceSandboxInternetMutex.Lock()
+	alreadyEnabled := inferenceSandboxInternetEnabledByKey[key]
+	inferenceSandboxInternetMutex.Unlock()
+	if alreadyEnabled {
+		return
+	}
+
+	if InferenceSandboxSetInternetAccess(owner, true) == nil {
+		inferenceSandboxInternetMutex.Lock()
+		inferenceSandboxInternetEnabledByKey[key] = true
+		inferenceSandboxInternetMutex.Unlock()
+	}
+}
+
+func InferenceSandboxSetInternetAccess(owner orc.ResourceOwner, enabled bool) *util.HttpError {
+	key := integratedSandboxLeaseKey(InferenceSandboxAppName, owner)
+
+	inferenceSandboxInternetMutex.Lock()
+	known, knownPresent := inferenceSandboxInternetEnabledByKey[key]
+	inferenceSandboxInternetMutex.Unlock()
+	if knownPresent && known == enabled {
+		return nil
+	}
+
+	config := controller.IAppRetrieveConfiguration(InferenceSandboxAppName, owner)
+	if !config.Present {
+		return nil
+	}
+
+	apply := inferenceSandboxInternetApply
+	if apply == nil {
+		return util.ServerHttpError("internet access cannot be applied to the sandbox in this process")
+	}
+	if err := apply(config.Value.JobId, enabled); err != nil {
+		return err
+	}
+
+	inferenceSandboxInternetMutex.Lock()
+	inferenceSandboxInternetEnabledByKey[key] = enabled
+	inferenceSandboxInternetMutex.Unlock()
+	return nil
 }
 
 func integratedSandboxNormalizeFolders(folders []string) []string {

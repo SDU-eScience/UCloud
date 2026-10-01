@@ -97,7 +97,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
     const [projectMemberList, setProjectMemberList] = React.useState<React.ReactNode>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
-        usePage("Jobs", SidebarTabId.RUNS);
+        usePage("Jobs", SidebarTabId.COMPUTE);
     }
 
     function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {

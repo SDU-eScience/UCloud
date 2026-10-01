@@ -479,6 +479,66 @@ func grantsCanApply(actor rpc.Actor, recipient accapi.Recipient, grantGiver stri
 	return allowed
 }
 
+// grantsWouldCreateCycle determines if awarding the given allocation requests to the recipient would create a
+// cycle in one of the wallet graphs of the accounting system. This happens when the recipient already provides
+// resources (directly or indirectly) to one of the grant givers, e.g. when a project applies to one of its own
+// sub-projects. The grant giver of an offending request is returned along with true.
+func grantsWouldCreateCycle(recipient accapi.Recipient, requests []accapi.AllocationRequest) (string, bool) {
+	var recipientRef string
+	switch recipient.Type {
+	case accapi.RecipientTypeExistingProject:
+		recipientRef = recipient.Id.GetOrDefault("")
+
+	case accapi.RecipientTypePersonalWorkspace:
+		recipientRef = recipient.Username.GetOrDefault("")
+
+	case accapi.RecipientTypeNewProject:
+		// New projects cannot provide resources to anyone yet and can never close a cycle.
+		return "", false
+	}
+
+	if recipientRef == "" {
+		return "", false
+	}
+
+	recipientOwner := internalOwnerByReference(recipientRef)
+
+	for _, req := range requests {
+		if req.BalanceRequested.GetOrDefault(0) <= 0 {
+			// Skip these requests entirely (no edge is created).
+			continue
+		}
+
+		cat, catErr := ProductCategoryRetrieve(rpc.ActorSystem, req.Category, req.Provider)
+		if catErr != nil {
+			continue
+		}
+
+		b := internalBucketOrInit(cat)
+
+		recipientWallet, ok := internalWalletByOwnerIfInitialized(b, recipientOwner.Id)
+		if !ok {
+			continue // no wallet implies no incoming or outgoing edges, a cycle is impossible
+		}
+
+		giverOwner := internalOwnerByReference(req.GrantGiver)
+		giverWallet, ok := internalWalletByOwnerIfInitialized(b, giverOwner.Id)
+		if !ok {
+			continue
+		}
+
+		if internalWouldCreateCycle(b, recipientWallet, giverWallet) {
+			title := req.GrantGiver
+			if !grantGlobals.Testing.Enabled {
+				title = grantsRetrieveProjectTitleByProjectId(req.GrantGiver)
+			}
+			return title, true
+		}
+	}
+
+	return "", false
+}
+
 func grantUserCriteriaValid(criteria accapi.UserCriteria) *util.HttpError {
 	var err *util.HttpError
 	util.ValidateEnum(&criteria.Type, accapi.UserCriteriaTypeOptions, "criteria.type", &err)
@@ -736,6 +796,16 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 	if err == nil && app.Application.Status.OverallState != accapi.GrantApplicationStateInProgress {
 		if !slices.Contains(roles, grantActorRoleApprover) {
 			err = util.HttpErr(http.StatusBadRequest, "application has been closed and cannot be changed further")
+		}
+	}
+
+	if err == nil {
+		if giver, wouldCycle := grantsWouldCreateCycle(recipient, revision.AllocationRequests); wouldCycle {
+			err = util.HttpErr(
+				http.StatusBadRequest,
+				"You cannot request resources from %s since it is receiving resources from you",
+				giver,
+			)
 		}
 	}
 
@@ -1294,6 +1364,17 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 
 	if app.Application.Status.OverallState != accapi.GrantApplicationStateInProgress {
 		err = util.HttpErr(http.StatusBadRequest, "application is no longer active")
+	}
+
+	if err == nil && req.NewState == accapi.GrantApplicationStateApproved {
+		doc := app.Application.CurrentRevision.Document
+		if giver, wouldCycle := grantsWouldCreateCycle(doc.Recipient, doc.AllocationRequests); wouldCycle {
+			err = util.HttpErr(
+				http.StatusBadRequest,
+				"This application can no longer be approved: Granting this would create a circular chain of allocations involving %s",
+				giver,
+			)
+		}
 	}
 
 	if err == nil {
@@ -2752,12 +2833,12 @@ func grantSendEmail(event grantEvent) *util.HttpError {
 		break
 	default:
 		// We do not have a template for this yet return error and let the caller log it.
-		return util.HttpErr(http.StatusNotImplemented, fmt.Sprintf("We do not have an template for this event type %v \n", event.Type))
+		return util.HttpErr(http.StatusNotImplemented, "We do not have an template for this event type %v \n", event.Type)
 	}
 
 	mailBytes, err := json.Marshal(mailTemplate)
 	if err != nil {
-		return util.HttpErr(http.StatusInternalServerError, fmt.Sprintf("Failed to marshal mail template: %v", err))
+		return util.HttpErr(http.StatusInternalServerError, "Failed to marshal mail template: %v", err)
 	}
 	mail := fndapi.Mail(mailBytes)
 

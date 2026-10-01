@@ -63,7 +63,9 @@ func bindCommand(args []string, cmd any) error {
 			v.Field(i).SetString(args[pos])
 			pos++
 		}
-
+		if field.Tag.Get("default") != "" {
+			v.Field(i).SetString(field.Tag.Get("default"))
+		}
 		required := field.Tag.Get("required") == "true"
 		if flagName == "" {
 			continue
@@ -104,7 +106,7 @@ func bindCommand(args []string, cmd any) error {
 					*mapPtr = make(map[string]string)
 				}
 
-				(*mapPtr)[key] = val // ✅ accumulate, never replace map
+				(*mapPtr)[key] = val
 				return nil
 			})
 

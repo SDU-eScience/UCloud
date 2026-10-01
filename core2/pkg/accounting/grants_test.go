@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1258,4 +1259,320 @@ func TestTransferErrorCases(t *testing.T) {
 			assert.NotNil(t, err)
 		})
 	}
+}
+
+// Cycle detection tests
+// =====================================================================================================================
+// These tests exercise the checks which prevent applications from creating cycles in the wallet graphs of the
+// accounting system, e.g. a project applying to a sub-project which is itself receiving resources from the
+// applicant (an A -> C -> A resource graph).
+//
+// The checks are enforced at three levels:
+//
+// 1. Submission (GrantsSubmitRevisionEx): rejects an application which would immediately close a cycle.
+// 2. Approval (GrantsUpdateState): re-validates since the graph may have changed since submission.
+// 3. Award (internalAllocateNoCommit): the last line of defense which runs when allocations are created.
+
+// grantCycleEdge grants CPU resources from one project to another, i.e. it inserts the edge (from -> to) into the
+// wallet graph of the CPU category.
+func grantCycleEdge(t *testing.T, from, to string, quota int64) {
+	t.Helper()
+
+	accBucket := internalBucketOrInit(cpuCategory)
+	fromWallet := internalWalletByOwner(accBucket, time.Now(), internalOwnerByReference(from).Id)
+	toWallet := internalWalletByOwner(accBucket, time.Now(), internalOwnerByReference(to).Id)
+
+	_, err := internalAllocateNoCommit(time.Now(), accBucket, time.Now(), time.Now().AddDate(1, 0, 0), quota,
+		toWallet, fromWallet, util.OptNone[accGrantId]())
+	assert.Nil(t, err)
+}
+
+// grantCycleHasEdge determines if `to` currently has any allocations from `from` in the CPU category, i.e. if the
+// edge (from -> to) exists in the wallet graph.
+func grantCycleHasEdge(from, to string) bool {
+	accBucket := internalBucketOrInit(cpuCategory)
+
+	fromWallet, ok := internalWalletByOwnerIfInitialized(accBucket, internalOwnerByReference(from).Id)
+	if !ok {
+		return false
+	}
+
+	toWallet, ok := internalWalletByOwnerIfInitialized(accBucket, internalOwnerByReference(to).Id)
+	if !ok {
+		return false
+	}
+
+	_, has := accBucket.WalletsById[toWallet].AllocationsByParent[fromWallet]
+	return has
+}
+
+// grantCycleProjectRev builds a submission request from an existing project (the recipient) to a grant giver.
+func grantCycleProjectRev(username, project, giver string, quota int64) accapi.GrantsSubmitRevisionRequest {
+	request := rev(username, giver, quota)
+	request.Revision.Recipient = accapi.Recipient{
+		Type: accapi.RecipientTypeExistingProject,
+		Id:   util.OptValue(project),
+	}
+	return request
+}
+
+func TestGrantCycleChecks(t *testing.T) {
+	t.Run("direct cycle rejected on submit", func(t *testing.T) {
+		initGrantsTest(t)
+
+		const applicant = "cycle-applicant"
+		const giver = "cycle-giver"
+		addGrantGiver(t, giver)
+
+		// applicant -> giver
+		grantCycleEdge(t, applicant, giver, 1000)
+
+		admin := actor("applicantAdmin", applicant)
+		_, err := GrantsSubmitRevision(*admin, grantCycleProjectRev(admin.Username, applicant, giver, 100))
+		assert.NotNil(t, err)
+		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+	})
+
+	t.Run("indirect cycle rejected on submit", func(t *testing.T) {
+		initGrantsTest(t)
+
+		const applicant = "cycle-root"
+		const middle = "cycle-middle"
+		const giver = "cycle-leaf"
+		addGrantGiver(t, giver)
+
+		// applicant -> middle -> giver
+		grantCycleEdge(t, applicant, middle, 1000)
+		grantCycleEdge(t, middle, giver, 1000)
+
+		admin := actor("rootAdmin", applicant)
+		_, err := GrantsSubmitRevision(*admin, grantCycleProjectRev(admin.Username, applicant, giver, 100))
+		assert.NotNil(t, err)
+		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+	})
+
+	// An application with multiple grant givers is rejected if any single request would close a cycle. The error
+	// must point at the offending grant giver.
+	t.Run("multi giver application is rejected", func(t *testing.T) {
+		initGrantsTest(t)
+
+		const applicant = "multi-applicant"
+		const normalGiver = "multi-normal-giver"
+		const cyclicGiver = "multi-cyclic-giver"
+		addGrantGiver(t, normalGiver)
+		addGrantGiver(t, cyclicGiver)
+
+		// applicant -> cyclicGiver
+		grantCycleEdge(t, applicant, cyclicGiver, 1000)
+
+		admin := actor("multiAdmin", applicant)
+		request := grantCycleProjectRev(admin.Username, applicant, normalGiver, 100)
+		request.Revision.AllocationRequests = append(request.Revision.AllocationRequests, accapi.AllocationRequest{
+			Category:         cpuCategory.Name,
+			Provider:         cpuCategory.Provider,
+			GrantGiver:       cyclicGiver,
+			BalanceRequested: util.OptValue[int64](100),
+			Period: accapi.Period{
+				End: util.OptValue(fndapi.Timestamp(time.Now().AddDate(1, 0, 0))),
+			},
+		})
+
+		_, err := GrantsSubmitRevision(*admin, request)
+		assert.NotNil(t, err)
+		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+		assert.True(t, strings.Contains(err.Why, cyclicGiver), "the error must name the cyclic grant giver")
+	})
+
+	// The approval check must reject an application which was valid when it was submitted, but whose graph has
+	// changed in the meantime.
+	t.Run("cycle created after submission blocks approval", func(t *testing.T) {
+		initGrantsTest(t)
+
+		const applicant = "late-applicant"
+		const giver = "late-giver"
+		addGrantGiver(t, giver)
+
+		admin := actor("lateAdmin", applicant)
+		id, err := GrantsSubmitRevision(*admin, grantCycleProjectRev(admin.Username, applicant, giver, 100))
+		assert.Nil(t, err)
+
+		// After submission, but before approval, the applicant starts sponsoring the grant giver
+		// applicant -> giver
+		grantCycleEdge(t, applicant, giver, 1000)
+
+		giverAdmin := actor("lateGiverAdmin", giver)
+		err = GrantsUpdateState(*giverAdmin, accapi.GrantsUpdateStateRequest{
+			ApplicationId: strconv.FormatInt(id, 10),
+			NewState:      accapi.GrantApplicationStateApproved,
+		})
+		assert.NotNil(t, err)
+		assert.Equal(t, http.StatusBadRequest, err.StatusCode)
+
+		// The application must be untouched by the failed approval
+		app, retrieveErr := GrantsRetrieve(*admin, strconv.FormatInt(id, 10))
+		assert.Nil(t, retrieveErr)
+		assert.Equal(t, accapi.GrantApplicationStateInProgress, app.Status.OverallState)
+		assert.False(t, grantCycleHasEdge(giver, applicant), "nothing must have been awarded")
+	})
+
+	// Transferring an application to a grant giver which would close a cycle is rejected as well (transfers are
+	// routed through the submission check).
+	t.Run("transfer to cyclic target is rejected", func(t *testing.T) {
+		initGrantsTest(t)
+
+		const applicant = "transfer-applicant"
+		const sourceGiver = "transfer-source"
+		const targetGiver = "transfer-target"
+		addGrantGiver(t, sourceGiver)
+		addGrantGiver(t, targetGiver)
+
+		// applicant -> targetGiver
+		grantCycleEdge(t, applicant, targetGiver, 1000)
+
+		admin := actor("transferAdmin", applicant)
+		id, err := GrantsSubmitRevision(*admin, grantCycleProjectRev(admin.Username, applicant, sourceGiver, 100))
+		assert.Nil(t, err)
+
+		sourceAdmin := actor("transferSourceAdmin", sourceGiver)
+		err = GrantsTransfer(*sourceAdmin, accapi.GrantsTransferRequest{
+			ApplicationId: strconv.FormatInt(id, 10),
+			Target:        targetGiver,
+			Comment:       "transferring",
+		})
+		assert.NotNil(t, err)
+	})
+
+	// The last line of defense: if the graph changes after both the submission and approval checks have passed
+	// (e.g. a race), then the accounting system itself must refuse to create the allocation. This is simulated by
+	// constructing an already approved application directly.
+	t.Run("cycle blocked at award time", func(t *testing.T) {
+		initGrantsTest(t)
+
+		const applicant = "race-applicant"
+		const giver = "race-giver"
+		addGrantGiver(t, giver)
+
+		// applicant -> giver
+		grantCycleEdge(t, applicant, giver, 1000)
+
+		id := accGrantId(grantGlobals.GrantIdAcc.Add(1))
+		app := &grantApplication{
+			Application: &accapi.GrantApplication{
+				Id:        util.IntOrString{strconv.FormatInt(int64(id), 10)},
+				CreatedBy: "raceAdmin",
+				CreatedAt: fndapi.Timestamp(time.Now()),
+				UpdatedAt: fndapi.Timestamp(time.Now()),
+				CurrentRevision: accapi.GrantRevision{
+					Document: accapi.GrantDocument{
+						Recipient: accapi.Recipient{
+							Type: accapi.RecipientTypeExistingProject,
+							Id:   util.OptValue(applicant),
+						},
+						AllocationRequests: []accapi.AllocationRequest{{
+							Category:         cpuCategory.Name,
+							Provider:         cpuCategory.Provider,
+							GrantGiver:       giver,
+							BalanceRequested: util.OptValue[int64](1000),
+							Period: accapi.Period{
+								Start: util.OptValue(fndapi.Timestamp(time.Now())),
+								End:   util.OptValue(fndapi.Timestamp(time.Now().AddDate(1, 0, 0))),
+							},
+						}},
+						AllocationPeriod: util.OptValue(accapi.Period{
+							Start: util.OptValue(fndapi.Timestamp(time.Now())),
+							End:   util.OptValue(fndapi.Timestamp(time.Now().AddDate(1, 0, 0))),
+						}),
+					},
+				},
+				Status: accapi.GrantStatus{
+					OverallState: accapi.GrantApplicationStateApproved,
+				},
+			},
+		}
+
+		b := grantGetAppBucket(id)
+		b.Mu.Lock()
+		b.Applications[id] = app
+		b.Mu.Unlock()
+
+		lGrantsAwardResources(app)
+
+		// The allocation from the giver back to the applicant must not have been created
+		assert.False(t, grantCycleHasEdge(giver, applicant), "the accounting system must refuse the cyclic allocation")
+	})
+
+	// Legitimate applications must not be rejected: applying to an (indirect) parent points in the same direction
+	// as the existing edges and must be allowed all the way through awarding.
+	t.Run("applying to an ancestor is allowed", func(t *testing.T) {
+		initGrantsTest(t)
+
+		const root = "chain-root"
+		const middle = "chain-middle"
+		const leaf = "chain-leaf"
+		addGrantGiver(t, root)
+
+		// root -> middle -> leaf
+		grantCycleEdge(t, root, middle, 1000)
+		grantCycleEdge(t, middle, leaf, 1000)
+
+		admin := actor("leafAdmin", leaf)
+		id, err := GrantsSubmitRevision(*admin, grantCycleProjectRev(admin.Username, leaf, root, 100))
+		assert.Nil(t, err)
+
+		rootAdmin := actor("chainRootAdmin", root)
+		err = GrantsUpdateState(*rootAdmin, accapi.GrantsUpdateStateRequest{
+			ApplicationId: strconv.FormatInt(id, 10),
+			NewState:      accapi.GrantApplicationStateApproved,
+		})
+		assert.Nil(t, err)
+
+		assert.True(t, grantCycleHasEdge(root, leaf), "the allocation from the ancestor must have been awarded")
+	})
+
+	// Requests with a zero balance never create allocations and are deliberately not part of the cycle check
+	t.Run("zero balance requests are not cycle checked", func(t *testing.T) {
+		initGrantsTest(t)
+
+		const applicant = "zero-applicant"
+		const normalGiver = "zero-normal-giver"
+		const cyclicGiver = "zero-cyclic-giver"
+		addGrantGiver(t, normalGiver)
+		addGrantGiver(t, cyclicGiver)
+
+		// applicant -> cyclicGiver
+		grantCycleEdge(t, applicant, cyclicGiver, 1000)
+
+		admin := actor("zeroAdmin", applicant)
+		request := grantCycleProjectRev(admin.Username, applicant, normalGiver, 100)
+		request.Revision.AllocationRequests = append(request.Revision.AllocationRequests, accapi.AllocationRequest{
+			Category:         cpuCategory.Name,
+			Provider:         cpuCategory.Provider,
+			GrantGiver:       cyclicGiver,
+			BalanceRequested: util.OptValue[int64](0),
+			Period: accapi.Period{
+				End: util.OptValue(fndapi.Timestamp(time.Now().AddDate(1, 0, 0))),
+			},
+		})
+
+		id, err := GrantsSubmitRevision(*admin, request)
+		assert.Nil(t, err)
+
+		normalAdmin := actor("zeroNormalAdmin", normalGiver)
+		err = GrantsUpdateState(*normalAdmin, accapi.GrantsUpdateStateRequest{
+			ApplicationId: strconv.FormatInt(id, 10),
+			NewState:      accapi.GrantApplicationStateApproved,
+		})
+		assert.Nil(t, err)
+
+		cyclicAdmin := actor("zeroCyclicAdmin", cyclicGiver)
+		err = GrantsUpdateState(*cyclicAdmin, accapi.GrantsUpdateStateRequest{
+			ApplicationId: strconv.FormatInt(id, 10),
+			NewState:      accapi.GrantApplicationStateApproved,
+		})
+		assert.Nil(t, err)
+
+		// Only the normal grant giver's resources must have been awarded
+		assert.True(t, grantCycleHasEdge(normalGiver, applicant))
+		assert.False(t, grantCycleHasEdge(cyclicGiver, applicant))
+	})
 }

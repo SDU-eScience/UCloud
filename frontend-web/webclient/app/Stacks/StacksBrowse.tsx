@@ -54,7 +54,7 @@ export default function StacksBrowse(): React.ReactNode {
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const projectId = useProjectId();
 
-    usePage("Stacks", SidebarTabId.RUNS);
+    usePage("Stacks", SidebarTabId.COMPUTE);
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
