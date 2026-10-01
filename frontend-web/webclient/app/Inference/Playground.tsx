@@ -138,7 +138,6 @@ const PLAYGROUND_REHYDRATE_PATHS = [
     "developer",
     "chat.modelId",
     "chat.streaming",
-    "chat.webSearch",
     "chat.maxCompletionTokens",
     "chat.temperature",
     "chat.topP",
@@ -1024,13 +1023,13 @@ const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, s
 const ToolDisplayNames: Record<string, string> = {
     bash: "Shell",
     web_fetch: "Fetching web page",
-    wikipedia_search: "Searching Wikipedia",
+    request_internet_access: "Requesting internet access",
 };
 
 const ToolIcons: Record<string, IconName> = {
     bash: "heroCommandLine",
     web_fetch: "heroGlobeEuropeAfrica",
-    wikipedia_search: "heroBookOpen",
+    request_internet_access: "heroGlobeEuropeAfrica",
 };
 
 function renderMessageParts(parts: ChatMessagePart[], streaming: boolean): React.ReactNode[] {
@@ -1138,7 +1137,6 @@ function ToolPartBody({part, body}: {part: ChatMessagePart; body: string}): Reac
 
     switch (part.toolName) {
         case "web_fetch": return <WebFetchToolResult argumentsValue={argumentsValue} result={output.value}/>;
-        case "wikipedia_search": return <WikipediaToolResult argumentsValue={argumentsValue} result={output.value}/>;
         default: return <CodeSnippet lang="json">{JSON.stringify(output.value, null, 2)}</CodeSnippet>;
     }
 }
@@ -1156,17 +1154,6 @@ function WebFetchToolResult({argumentsValue, result}: {argumentsValue: ToolJson 
     return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
         <ToolFields fields={[{label: "URL", value: stringValueFrom(result?.url) || stringValueFrom(argumentsValue?.url)}, {label: "Format", value: format}, {label: "Status", value: result ? String(numberValueFrom(result.status) ?? "") : ""}, {label: "Content type", value: stringValueFrom(result?.content_type)}]}/>
         {result ? (format === "markdown" ? <CodeSnippet lang="markdown">{content}</CodeSnippet> : <CodeSnippet lang="html">{content}</CodeSnippet>) : <UcxSpinner />}
-    </div>;
-}
-
-function WikipediaToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
-    const results = jsonList(result?.results);
-    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "Query", value: stringValueFrom(result?.query) || stringValueFrom(argumentsValue?.query)}, {label: "Results", value: String(numberValueFrom(result?.count) ?? numberValueFrom(argumentsValue?.limit) ?? results.length)}]}/>
-        {result ? results.map((item, index) => <div key={index} style={{display: "flex", flexDirection: "column", gap: 2}}>
-            <div>{stringValueFrom(item.title)}</div>
-            <div>{stringValueFrom(item.snippet)}</div>
-        </div>) : <UcxSpinner />}
     </div>;
 }
 
@@ -1864,6 +1851,8 @@ function PlaygroundConversation({model, fn, connected, disabledReason = "", disa
         ),
         [currentThreadId, messagesValue, streamingThreadId, streamingValue],
     );
+    const permissionValue = fn?.modelValue(model, "chat.internetPermission") ?? model["chat.internetPermission"];
+    const permission = permissionValue?.kind === ValueKind.Object ? permissionValue.object : null;
     const latestMessage = messages[messages.length - 1];
     const latestMessageScrollKey = latestMessage ? chatMessageScrollKey(latestMessage) : "";
     const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -1937,6 +1926,7 @@ function PlaygroundConversation({model, fn, connected, disabledReason = "", disa
                         if (!fn) return null;
                         return <ChatMessageNode key={message.key} message={message} modelOptions={modelOptions} currentModelId={currentModelId} fn={fn}/>;
                     })}
+                    {permission && boolValue(permission.active) && fn ? <InternetPermissionCard fn={fn} threadId={stringValue(permission.threadId)} url={stringValue(permission.url)}/> : null}
                     {loading ? <UcxSpinner /> : null}
                 </div>
             </div>
@@ -1980,6 +1970,43 @@ function DisabledComposerPlaceholder({disabledReason = ""}: {disabledReason?: st
             </button>
         </div>
     </Box>;
+}
+
+function InternetPermissionCard({fn, threadId, url}: {fn: UcxFunctionRegistry; threadId: string; url: string}): React.ReactNode {
+    const respond = (granted: boolean) => {
+        fn.sendUiEvent("internetPermissionResponse", "click", {
+            kind: ValueKind.Object,
+            object: {
+                granted: {kind: ValueKind.Bool, bool: granted},
+                threadId: {kind: ValueKind.String, string: threadId},
+            },
+        });
+    };
+
+    return <div style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 12,
+        padding: 16,
+        borderRadius: 8,
+        border: "1px solid var(--borderGray, #e0e0e0)",
+        background: "var(--backgroundMain, #fafafa)",
+        marginTop: 16,
+    }}>
+        <Icon name="heroGlobeEuropeAfrica" size={24} color="textSecondary" mt={2}/>
+        <div style={{flex: 1, display: "flex", flexDirection: "column", gap: 12}}>
+            <div>
+                <div style={{fontWeight: 600, marginBottom: 4}}>Allow internet access?</div>
+                <Text color="textSecondary">
+                    The assistant wants to access {url === "" ? "the internet" : <code>{url}</code>} to answer your question.
+                </Text>
+            </div>
+            <div style={{display: "flex", gap: 8}}>
+                <Button type="button" onClick={() => respond(true)}>Allow</Button>
+                <Button type="button" color="secondaryMain" onClick={() => respond(false)}>Don't allow</Button>
+            </div>
+        </div>
+    </div>;
 }
 
 function NoAllocationNotice({reason, storage = false}: {reason: string; storage?: boolean}): React.ReactNode {
@@ -2027,26 +2054,10 @@ function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNe
     </div>;
 
 return <PlaygroundSidebarShell header={header} footer={<>
-        <WebSearchToggle model={model} fn={fn} connected={connected}/>
         {footer}
     </>}>
         {fn ? <ThreadListNode node={node} model={model} fn={fn} /> : <Text color="textSecondary">Loading...</Text>}
     </PlaygroundSidebarShell>;
-}
-
-function WebSearchToggle({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
-    const checked = boolValue(fn?.modelValue(model, "chat.webSearch") ?? model["chat.webSearch"]);
-    const toggle = () => {
-        if (!connected || !fn) return;
-        fn.sendModelInput("chat.webSearch", {kind: ValueKind.Bool, bool: !checked}, "chat.webSearch");
-    };
-    return <div
-        onClick={toggle}
-        style={{display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer"}}
-    >
-        <span style={{fontWeight: 600, userSelect: "none"}}>Allow web search</span>
-        <Toggle height={18} checked={checked} onChange={toggle}/>
-    </div>;
 }
 
 const ResponsiveHide = injectStyle("responsive-hide", cl => `

@@ -61,8 +61,11 @@ type InferencePlaygroundApp struct {
 	session        *ucx.Session `ucx:"-"`
 	flusherStarted bool         `ucx:"-"`
 
-	webSearchSetting *bool `ucx:"-"`
-	webSearchDirty   bool  `ucx:"-"`
+	internetPermissionPending   map[string]chan bool `ucx:"-"`
+	internetPermissionPendingMu sync.Mutex           `ucx:"-"`
+
+	threadInternetAccessMu   sync.Mutex        `ucx:"-"`
+	threadInternetAccessById map[string]string `ucx:"-"`
 
 	Owner     orcapi.ResourceOwner `ucx:"-"`
 	SessionId string               `ucx:"-"`
@@ -82,13 +85,6 @@ type InferencePlaygroundApp struct {
 	chatCancels map[string]context.CancelFunc `ucx:"-"`
 }
 
-func (app *InferencePlaygroundApp) webSearchDefault() bool {
-	if app.webSearchSetting != nil {
-		return *app.webSearchSetting
-	}
-	return true
-}
-
 type InferencePlaygroundAppChat struct {
 	Loading                bool
 	Usage                  InferencePlaygroundTokenUsageState
@@ -106,13 +102,21 @@ type InferencePlaygroundAppChat struct {
 	MaxCompletionTokens int64
 	Logprobs            bool
 	TopLogprobs         int64
-	WebSearch           bool
 	Messages            []playgroundChatMessage
+
+	InternetPermission playgroundInternetPermission
 
 	StreamingMessages []playgroundChatMessage
 	StreamingThreadId string
 
 	Curl string
+}
+
+type playgroundInternetPermission struct {
+	Active   bool
+	URL      string
+	ThreadId string
+	Reason   string
 }
 
 type InferencePlaygroundTokenUsageState struct {
@@ -163,17 +167,17 @@ type playgroundChatAttachment struct {
 }
 
 type playgroundChatThread struct {
-	Id          string
-	Title       string
-	CreatedAt   int64
-	UpdatedAt   int64
-	Usage       InferencePlaygroundTokenUsage
-	LastQuery   InferencePlaygroundTokenUsage `ucx:"-"`
-	Messages    []playgroundChatMessage       `ucx:"-"`
-	WebSearch   *bool                         `ucx:"-"`
-	Dirty       bool                          `ucx:"-"`
-	Deleted     bool                          `ucx:"-"`
-	StoragePath string                        `ucx:"-"`
+	Id             string
+	Title          string
+	CreatedAt      int64
+	UpdatedAt      int64
+	Usage          InferencePlaygroundTokenUsage
+	LastQuery      InferencePlaygroundTokenUsage `ucx:"-"`
+	Messages       []playgroundChatMessage       `ucx:"-"`
+	InternetAccess string                        `ucx:"-"`
+	Dirty          bool                          `ucx:"-"`
+	Deleted        bool                          `ucx:"-"`
+	StoragePath    string                        `ucx:"-"`
 }
 
 type playgroundAttachmentCreateRequest struct {
@@ -259,11 +263,13 @@ func InferencePlayground(owner orcapi.ResourceOwner, sessionId string) *Inferenc
 	}
 
 	return &InferencePlaygroundApp{
-		Owner:           owner,
-		SessionId:       sessionId,
-		Developer:       false,
-		DevelopmentMode: util.DevelopmentModeEnabled(),
-		chatCancels:     map[string]context.CancelFunc{},
+		Owner:                     owner,
+		SessionId:                 sessionId,
+		Developer:                 false,
+		DevelopmentMode:           util.DevelopmentModeEnabled(),
+		chatCancels:               map[string]context.CancelFunc{},
+		threadInternetAccessById:  map[string]string{},
+		internetPermissionPending: map[string]chan bool{},
 		Chat: InferencePlaygroundAppChat{
 			Streaming:           true,
 			Temperature:         0.8,
@@ -290,10 +296,8 @@ func (app *InferencePlaygroundApp) sessionContextLocked() context.Context {
 func (app *InferencePlaygroundApp) OnInit() {
 	app.refreshModels()
 	app.loadThreads()
-	app.loadWebSearchSetting()
 	app.registerAttachmentRpcs()
 	app.Chat.ModelId = app.firstModelFor(InferenceTextGeneration)
-	app.Chat.WebSearch = app.webSearchDefault()
 	app.applyChatModelDefaults()
 	app.startThreadFlusher()
 
@@ -370,17 +374,16 @@ func (app *InferencePlaygroundApp) OnMessage(message ucx.Frame) {
 				app.regenerateChat(modelId, messageIndex)
 				ucx.AppUpdateModel(app)
 			}
+		case "internetPermissionResponse":
+			if message.UiEvent.Value.Kind == ucx.ValueObject {
+				granted := message.UiEvent.Value.Object["granted"].Bool
+				threadId := message.UiEvent.Value.Object["threadId"].String
+				app.resolveInternetPermission(threadId, granted)
+			}
 		}
 		return
 	}
 	if message.Opcode == ucx.OpModelInput {
-		if message.ModelInput.Path == "chat.webSearch" {
-			if !app.Developer && !strings.HasPrefix(message.ModelInput.NodeId, "rehydrate:") {
-				app.setWebSearch(app.Chat.WebSearch)
-			}
-			ucx.AppUpdateUi(app)
-			return
-		}
 		if message.ModelInput.Path == "currentThreadId" {
 			if !app.Developer {
 				threadId := strings.TrimSpace(app.CurrentThreadId)
@@ -439,6 +442,14 @@ func (app *InferencePlaygroundApp) UserInterface() ucx.UiNode {
 
 func (app *InferencePlaygroundApp) loadThreads() {
 	app.Threads = inferencePlaygroundThreadsLoad(app.Owner.CreatedBy, app.Owner.Project)
+
+	app.threadInternetAccessMu.Lock()
+	for _, thread := range app.Threads {
+		if thread.InternetAccess != playgroundInternetUndecided {
+			app.threadInternetAccessById[thread.Id] = thread.InternetAccess
+		}
+	}
+	app.threadInternetAccessMu.Unlock()
 }
 
 func (app *InferencePlaygroundApp) startThreadFlusher() {
@@ -490,7 +501,7 @@ func (app *InferencePlaygroundApp) createThread() {
 	app.Chat.StreamingMessages = nil
 	app.Chat.StreamingThreadId = ""
 	app.Chat.Usage = InferencePlaygroundTokenUsageState{}
-	app.Chat.WebSearch = app.webSearchDefault()
+	app.Chat.InternetPermission = playgroundInternetPermission{}
 }
 
 func (app *InferencePlaygroundApp) materializeCurrentThread() {
@@ -547,11 +558,6 @@ func (app *InferencePlaygroundApp) openThread(id string) {
 			app.Chat.Usage.Session = app.Threads[i].Usage
 			app.Chat.Usage.LastQuery = app.Threads[i].LastQuery
 			app.Chat.Loading = app.threadLoading(id)
-			if app.Threads[i].WebSearch != nil {
-				app.Chat.WebSearch = *app.Threads[i].WebSearch
-			} else {
-				app.Chat.WebSearch = app.webSearchDefault()
-			}
 			if modelId := playgroundMostRecentMessageModel(app.Chat.Messages); modelId != "" {
 				app.Chat.ModelId = modelId
 				app.applyChatModelDefaults()
@@ -646,20 +652,125 @@ func (app *InferencePlaygroundApp) sortThreads() {
 	})
 }
 
-func (app *InferencePlaygroundApp) setWebSearch(enabled bool) {
-	app.Chat.WebSearch = enabled
-	app.webSearchSetting = &enabled
-	app.webSearchDirty = true
+const (
+	playgroundInternetUndecided = ""
+	playgroundInternetGranted   = "granted"
+	playgroundInternetDenied    = "denied"
+)
 
-	if !app.Developer && app.CurrentThreadId != "" {
-		if thread, ok := app.currentThread(); ok {
-			value := enabled
-			thread.WebSearch = &value
-			thread.UpdatedAt = time.Now().UnixMilli()
-			thread.Dirty = true
-			app.sortThreads()
+func (app *InferencePlaygroundApp) internetAccessState(threadId string) string {
+	app.threadInternetAccessMu.Lock()
+	defer app.threadInternetAccessMu.Unlock()
+	return app.threadInternetAccessById[threadId]
+}
+
+func (app *InferencePlaygroundApp) currentThreadInternetDenied() bool {
+	state := ""
+	if thread, ok := app.currentThread(); ok {
+		state = thread.InternetAccess
+		if state == "" {
+			state = app.internetAccessState(thread.Id)
 		}
 	}
+	return state == playgroundInternetDenied
+}
+
+func (app *InferencePlaygroundApp) setInternetAccessState(threadId string, state string) {
+	app.threadInternetAccessMu.Lock()
+	app.threadInternetAccessById[threadId] = state
+	app.threadInternetAccessMu.Unlock()
+}
+
+func (app *InferencePlaygroundApp) requestInternetPermission(ctx context.Context, threadId string, url string) bool {
+	app.internetPermissionPendingMu.Lock()
+	if _, ok := app.internetPermissionPending[threadId]; ok {
+		app.internetPermissionPendingMu.Unlock()
+		return app.internetAccessState(threadId) == playgroundInternetGranted
+	}
+	ch := make(chan bool, 1)
+	app.internetPermissionPending[threadId] = ch
+	app.internetPermissionPendingMu.Unlock()
+
+	app.mu.Lock()
+	app.Chat.InternetPermission = playgroundInternetPermission{Active: true, URL: url, ThreadId: threadId}
+	session := app.session
+	model := ucx.AppSnapshot(app)
+	app.mu.Unlock()
+	ucx.AppUpdateModelLocked(session, model)
+
+	select {
+	case granted := <-ch:
+		app.clearInternetPermission()
+		if granted {
+			shared.InferenceSandboxInternetEnable(app.Owner)
+		}
+		return granted
+	case <-ctx.Done():
+		app.internetPermissionPendingMu.Lock()
+		delete(app.internetPermissionPending, threadId)
+		app.internetPermissionPendingMu.Unlock()
+		app.clearInternetPermission()
+		return false
+	}
+}
+
+func (app *InferencePlaygroundApp) resolveInternetPermission(threadId string, granted bool) {
+	app.internetPermissionPendingMu.Lock()
+	ch, ok := app.internetPermissionPending[threadId]
+	delete(app.internetPermissionPending, threadId)
+	app.internetPermissionPendingMu.Unlock()
+
+	app.setInternetAccessState(threadId, playgroundInternetBoolToState(granted))
+
+	for i := range app.Threads {
+		if app.Threads[i].Id == threadId {
+			app.Threads[i].InternetAccess = playgroundInternetBoolToState(granted)
+			app.Threads[i].UpdatedAt = time.Now().UnixMilli()
+			app.Threads[i].Dirty = true
+			app.sortThreads()
+			break
+		}
+	}
+	app.Chat.InternetPermission = playgroundInternetPermission{}
+	app.Chat.Curl = app.buildChatCurl()
+	ucx.AppUpdateModel(app)
+
+	if ok {
+		select {
+		case ch <- granted:
+		default:
+		}
+	}
+}
+
+func (app *InferencePlaygroundApp) clearInternetPermission() {
+	app.mu.Lock()
+	app.Chat.InternetPermission = playgroundInternetPermission{}
+	session := app.session
+	model := ucx.AppSnapshot(app)
+	app.mu.Unlock()
+	ucx.AppUpdateModelLocked(session, model)
+}
+
+func playgroundInternetBoolToState(granted bool) string {
+	if granted {
+		return playgroundInternetGranted
+	}
+	return playgroundInternetDenied
+}
+
+func (app *InferencePlaygroundApp) ensureInternetAccessForTool(ctx context.Context, threadId string, url string) bool {
+	if shared.InferenceSandboxInternetEnabledFor(app.Owner) {
+		return true
+	}
+	if app.internetAccessState(threadId) == playgroundInternetGranted {
+		shared.InferenceSandboxInternetEnable(app.Owner)
+		return shared.InferenceSandboxInternetEnabledFor(app.Owner)
+	}
+	if app.internetAccessState(threadId) == playgroundInternetDenied {
+		return false
+	}
+	return app.requestInternetPermission(ctx, threadId, url)
 }
 
 func (app *InferencePlaygroundApp) flushThreadsLocked() {
@@ -670,19 +781,6 @@ func (app *InferencePlaygroundApp) flushThreadsLocked() {
 		app.DeletedThreadIds = nil
 		app.DeletedThreadPaths = nil
 	}
-	if app.webSearchDirty {
-		if inferencePlaygroundWebSearchSettingStore(app.Owner.CreatedBy, app.Owner.Project, app.webSearchSetting) {
-			app.webSearchDirty = false
-		}
-	}
-}
-
-func (app *InferencePlaygroundApp) loadWebSearchSetting() {
-	value, ok := inferencePlaygroundWebSearchSettingLoad(app.Owner.CreatedBy, app.Owner.Project)
-	if !ok {
-		return
-	}
-	app.webSearchSetting = &value
 }
 
 func playgroundThreadTitle(prompt string) string {
@@ -959,9 +1057,6 @@ func (app *InferencePlaygroundApp) runChatResponse(ctx context.Context, owner ap
 
 func (app *InferencePlaygroundApp) prepareChatTools(request *InferenceChatRequest) {
 	request.Tools = []InferenceChatTool{}
-	if !app.Chat.WebSearch {
-		return
-	}
 	model, ok := app.modelByName(request.Model)
 	if ok && model.ChatSettings.DisableTools {
 		return
@@ -1232,7 +1327,7 @@ func (app *InferencePlaygroundApp) runChatResponseStreamingInner(
 
 		for _, call := range toolCalls {
 			app.appendThreadAssistantPart(threadId, assistantIndex, playgroundToolChatPart(call, "running", ""), request.Model, startedAt)
-			result := app.playgroundToolDispatch(call)
+			result := app.playgroundToolDispatch(ctx, threadId, call)
 			app.appendThreadAssistantPart(threadId, assistantIndex, playgroundToolChatPart(call, playgroundToolStatus(result), playgroundToolPartBody(call, result)), request.Model, startedAt)
 			request.Messages = append(request.Messages, result.Message)
 		}
@@ -1800,7 +1895,7 @@ func (app *InferencePlaygroundApp) buildChatCurl() string {
 	stream := app.Chat.Streaming
 	var tools []InferenceChatTool
 	model, ok := app.modelByName(app.Chat.ModelId)
-	if stream && app.Chat.WebSearch && (!ok || !model.ChatSettings.DisableTools) {
+	if stream && (!ok || !model.ChatSettings.DisableTools) {
 		tools = app.playgroundToolDefinitions()
 	}
 	payload := map[string]any{
@@ -1964,7 +2059,7 @@ func (app *InferencePlaygroundApp) runDeveloperSlashCommand(prompt string) bool 
 			app.appendThreadAssistantPart(threadId, assistantIndex, playgroundChatMessagePart{Kind: "tool", Summary: call.Function.Name, ToolName: call.Function.Name, Status: "error", Body: "Error:\n" + parseErr}, modelId, startedAt)
 		} else {
 			app.appendThreadAssistantPart(threadId, assistantIndex, playgroundToolChatPart(call, "running", ""), modelId, startedAt)
-			result := app.playgroundToolDispatchForDeveloper(call)
+			result := app.playgroundToolDispatchForDeveloper(context.Background(), call)
 			app.appendThreadAssistantPart(threadId, assistantIndex, playgroundToolChatPart(call, playgroundToolStatus(result), playgroundToolPartBody(call, result)), modelId, startedAt)
 		}
 

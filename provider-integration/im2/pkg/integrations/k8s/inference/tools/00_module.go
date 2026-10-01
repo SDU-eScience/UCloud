@@ -18,7 +18,5 @@ func Cli() {
 	switch os.Args[1] {
 	case "web_fetch":
 		ToolWebFetch(payload)
-	case "wikipedia_search":
-		ToolWikipediaSearch(payload)
 	}
 }

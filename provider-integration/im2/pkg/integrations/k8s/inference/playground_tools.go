@@ -2,6 +2,7 @@ package inference
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -22,8 +23,6 @@ const (
 	playgroundWebFetchDefaultTimeoutMs = 15000
 	playgroundWebFetchMaxTimeoutMs     = 30000
 )
-
-var playgroundToolNames = []string{"bash", "web_fetch", "wikipedia_search"}
 
 type playgroundToolResult struct {
 	Message InferenceChatMessage
@@ -71,62 +70,52 @@ func (b *playgroundCappedBuffer) String() string {
 	return result
 }
 
+const playgroundInternetToolWebFetch = "web_fetch"
+const playgroundInternetToolRequestAccess = "request_internet_access"
+
 func (app *InferencePlaygroundApp) playgroundToolDefinitions() []InferenceChatTool {
 	if app == nil || app.Developer {
 		return nil
 	}
 
-	return []InferenceChatTool{
+	tools := []InferenceChatTool{
 		playgroundToolDefinition("bash", "Run a non-interactive shell command in a sandboxed environment for calculations and deterministic analysis.", map[string]any{
 			"command":    map[string]any{"type": "string", "description": "Command to run."},
 			"cwd":        map[string]any{"type": "string", "description": "Optional working directory.", "default": "/"},
 			"timeout_ms": map[string]any{"type": "integer", "description": "Optional timeout in milliseconds.", "default": 60000},
 		}, []string{"command"}),
-		playgroundToolDefinition("web_fetch", "Fetch a public http or https URL from inside the sandbox and return capped markdown or HTML.", map[string]any{
+	}
+
+	if app.currentThreadInternetDenied() {
+		tools = append(tools, playgroundToolDefinition(playgroundInternetToolRequestAccess, "Ask the user for permission to access the internet. Call this tool when answering the question requires internet access.", map[string]any{
+			"reason": map[string]any{"type": "string", "description": "Short explanation of why internet access is needed."},
+		}, []string{"reason"}),
+		)
+	} else {
+		tools = append(tools, playgroundToolDefinition(playgroundInternetToolWebFetch, "Fetch a public http or https URL from inside the sandbox and return capped markdown or HTML.", map[string]any{
 			"url":        map[string]any{"type": "string", "description": "Public http or https URL to fetch."},
 			"format":     map[string]any{"type": "string", "description": "Output format: markdown or html.", "default": "markdown", "enum": []string{"markdown", "html"}},
 			"timeout_ms": map[string]any{"type": "integer", "description": "Optional timeout in milliseconds, capped server-side.", "default": playgroundWebFetchDefaultTimeoutMs},
 		}, []string{"url"}),
-		playgroundToolDefinition("wikipedia_search", "Search Wikipedia and return compact result metadata.", map[string]any{
-			"query": map[string]any{"type": "string", "description": "Search query."},
-			"limit": map[string]any{"type": "integer", "description": "Maximum number of results to return.", "default": 5},
-		}, []string{"query"}),
+		)
 	}
+
+	return tools
 }
 
 func playgroundToolDefinition(name string, description string, properties map[string]any, required []string) InferenceChatTool {
 	return InferenceChatTool{Type: "function", Function: InferenceChatToolFunction{Name: name, Description: description, Strict: util.OptValue(true), Parameters: map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false}}}
 }
 
-// playgroundToolAvailable reports whether the named sandbox tool may run. Takes the application mutex;
-// callers must not hold it.
-func (app *InferencePlaygroundApp) playgroundToolAvailable(name string, allowDeveloper bool) bool {
-	if app == nil {
-		return false
-	}
-	app.mu.Lock()
-	developer := app.Developer
-	app.mu.Unlock()
-	if !allowDeveloper && developer {
-		return false
-	}
-	for _, candidate := range playgroundToolNames {
-		if name == candidate {
-			return true
-		}
-	}
-	return false
+func (app *InferencePlaygroundApp) playgroundToolDispatch(ctx context.Context, threadId string, call InferenceChatToolCall) playgroundToolResult {
+	return app.playgroundToolDispatchWithMode(ctx, threadId, call, false)
 }
 
-func (app *InferencePlaygroundApp) playgroundToolDispatch(call InferenceChatToolCall) playgroundToolResult {
-	return app.playgroundToolDispatchWithMode(call, false)
+func (app *InferencePlaygroundApp) playgroundToolDispatchForDeveloper(ctx context.Context, call InferenceChatToolCall) playgroundToolResult {
+	return app.playgroundToolDispatchWithMode(ctx, "", call, true)
 }
 
-func (app *InferencePlaygroundApp) playgroundToolDispatchForDeveloper(call InferenceChatToolCall) playgroundToolResult {
-	return app.playgroundToolDispatchWithMode(call, true)
-}
-
-func (app *InferencePlaygroundApp) playgroundToolDispatchWithMode(call InferenceChatToolCall, allowDeveloper bool) playgroundToolResult {
+func (app *InferencePlaygroundApp) playgroundToolDispatchWithMode(ctx context.Context, threadId string, call InferenceChatToolCall, allowDeveloper bool) playgroundToolResult {
 	name := strings.TrimSpace(call.Function.Name)
 	if call.Id == "" {
 		call.Id = name
@@ -135,18 +124,25 @@ func (app *InferencePlaygroundApp) playgroundToolDispatchWithMode(call Inference
 		return playgroundToolResult{Message: playgroundToolError(call.Id, fmt.Sprintf("tool %q is not available", name)), Error: "tool is not available"}
 	}
 
-	sandbox, sandboxErr := app.playgroundToolSandbox()
-	if sandboxErr != "" {
-		return playgroundToolResult{Message: playgroundToolError(call.Id, sandboxErr), Error: sandboxErr}
+	if name == playgroundInternetToolRequestAccess {
+		return app.inferenceToolRequestInternetAccess(ctx, threadId, call)
 	}
+	if name == playgroundInternetToolWebFetch {
+		var args struct {
+			URL string `json:"url"`
+		}
+		_ = json.Unmarshal([]byte(call.Function.Arguments), &args)
+		if !app.ensureInternetAccessForTool(ctx, threadId, strings.TrimSpace(args.URL)) {
+			return playgroundToolResult{Message: playgroundToolError(call.Id, "internet access is not enabled in this session"), Error: "internet access is not enabled in this session"}
+		}
+	}
+
 	var result playgroundToolResult
 	switch name {
 	case "bash":
-		result = app.inferenceToolBash(sandbox, call)
-	case "web_fetch":
-		result = app.inferenceToolWebFetch(sandbox, call)
-	case "wikipedia_search":
-		result = app.inferenceToolWikipediaSearch(sandbox, call)
+		result = app.inferenceToolBash(call)
+	case playgroundInternetToolWebFetch:
+		result = app.inferenceToolWebFetch(call)
 	default:
 		result = playgroundToolResult{Message: playgroundToolError(call.Id, fmt.Sprintf("tool %q is not supported", name)), Error: "tool is not supported"}
 	}
@@ -188,10 +184,8 @@ func playgroundDeveloperSlashToolCall(prompt string) (InferenceChatToolCall, boo
 		arguments = strings.TrimSpace(rawArgs)
 	case "bash":
 		arguments = playgroundToolJSON(map[string]any{"command": rest})
-	case "web_fetch":
+	case playgroundInternetToolWebFetch:
 		arguments = playgroundToolJSON(map[string]any{"url": rest})
-	case "wikipedia_search":
-		arguments = playgroundToolJSON(map[string]any{"query": rest})
 	default:
 		return InferenceChatToolCall{}, false, ""
 	}
@@ -208,7 +202,7 @@ func playgroundDeveloperSlashToolCall(prompt string) (InferenceChatToolCall, boo
 	return InferenceChatToolCall{Id: "dev-" + util.SecureToken(), Type: "function", Function: InferenceChatToolCallFunction{Name: toolName, Arguments: arguments}}, true, ""
 }
 
-func (app *InferencePlaygroundApp) inferenceToolBash(sandbox *shared.InferenceSandbox, call InferenceChatToolCall) playgroundToolResult {
+func (app *InferencePlaygroundApp) inferenceToolBash(call InferenceChatToolCall) playgroundToolResult {
 	var args struct {
 		Command   string `json:"command"`
 		Cwd       string `json:"cwd"`
@@ -217,7 +211,8 @@ func (app *InferencePlaygroundApp) inferenceToolBash(sandbox *shared.InferenceSa
 	if err := playgroundToolDecodeArgs(call, &args); err != "" {
 		return playgroundToolResult{Message: playgroundToolError(call.Id, err), Error: err}
 	}
-	if err := playgroundToolBashValidate(args.Command); err != "" {
+	internetEnabled := shared.InferenceSandboxInternetEnabledFor(app.Owner)
+	if err := playgroundToolBashValidate(args.Command, internetEnabled); err != "" {
 		return playgroundToolResult{Message: playgroundToolError(call.Id, err), Error: err}
 	}
 	cwd := strings.TrimSpace(args.Cwd)
@@ -228,6 +223,10 @@ func (app *InferencePlaygroundApp) inferenceToolBash(sandbox *shared.InferenceSa
 		return playgroundToolResult{Message: playgroundToolError(call.Id, "cwd must be an absolute path"), Error: "cwd must be an absolute path"}
 	}
 	timeout := playgroundToolTimeout(args.TimeoutMs)
+	sandbox, sandboxErr := app.playgroundToolSandbox()
+	if sandboxErr != "" {
+		return playgroundToolResult{Message: playgroundToolError(call.Id, sandboxErr), Error: sandboxErr}
+	}
 	commandResult := playgroundRunSandboxCommand(func() *shared.TerminalCmd {
 		cmd := sandbox.Command("/bin/bash", "-lc", args.Command)
 		cmd.Dir = cwd
@@ -236,7 +235,7 @@ func (app *InferencePlaygroundApp) inferenceToolBash(sandbox *shared.InferenceSa
 	return playgroundToolCommandMessage(call.Id, commandResult)
 }
 
-func (app *InferencePlaygroundApp) inferenceToolWebFetch(sandbox *shared.InferenceSandbox, call InferenceChatToolCall) playgroundToolResult {
+func (app *InferencePlaygroundApp) inferenceToolWebFetch(call InferenceChatToolCall) playgroundToolResult {
 	var args struct {
 		URL       string `json:"url"`
 		Format    string `json:"format"`
@@ -259,33 +258,25 @@ func (app *InferencePlaygroundApp) inferenceToolWebFetch(sandbox *shared.Inferen
 	args.TimeoutMs = playgroundWebToolTimeoutMs(args.TimeoutMs)
 
 	payload := playgroundToolJSON(args)
+	sandbox, sandboxErr := app.playgroundToolSandbox()
+	if sandboxErr != "" {
+		return playgroundToolResult{Message: playgroundToolError(call.Id, sandboxErr), Error: sandboxErr}
+	}
 	commandResult := playgroundRunSandboxCommand(func() *shared.TerminalCmd {
 		return playgroundToolExecutable(sandbox, "/", "web_fetch", payload)
 	}, time.Duration(args.TimeoutMs+1000)*time.Millisecond)
 	return playgroundToolCommandMessage(call.Id, commandResult)
 }
 
-func (app *InferencePlaygroundApp) inferenceToolWikipediaSearch(sandbox *shared.InferenceSandbox, call InferenceChatToolCall) playgroundToolResult {
-	var args struct {
-		Query string `json:"query"`
-		Limit int    `json:"limit"`
+func (app *InferencePlaygroundApp) inferenceToolRequestInternetAccess(ctx context.Context, threadId string, call InferenceChatToolCall) playgroundToolResult {
+	granted := app.requestInternetPermission(ctx, threadId, "")
+	if granted {
+		return playgroundToolResult{Message: playgroundToolMessage(call.Id, playgroundToolJSON(map[string]any{"status": "granted"}))}
 	}
-	if err := playgroundToolDecodeArgs(call, &args); err != "" {
-		return playgroundToolResult{Message: playgroundToolError(call.Id, err), Error: err}
+	return playgroundToolResult{
+		Message: playgroundToolMessage(call.Id, playgroundToolJSON(map[string]any{"status": "denied"})),
+		Error:   "internet access was declined",
 	}
-	args.Query = strings.TrimSpace(args.Query)
-	if args.Query == "" {
-		return playgroundToolResult{Message: playgroundToolError(call.Id, "query must not be empty"), Error: "query must not be empty"}
-	}
-	if args.Limit <= 0 || args.Limit > 10 {
-		args.Limit = 5
-	}
-
-	payload := playgroundToolJSON(args)
-	commandResult := playgroundRunSandboxCommand(func() *shared.TerminalCmd {
-		return playgroundToolExecutable(sandbox, "/", "wikipedia_search", payload)
-	}, 20*time.Second)
-	return playgroundToolCommandMessage(call.Id, commandResult)
 }
 
 func playgroundToolDecodeArgs(call InferenceChatToolCall, target any) string {
@@ -317,16 +308,124 @@ func playgroundRunSandboxCommand(newCommand func() *shared.TerminalCmd, timeout 
 		result := playgroundRunSandboxCommandOnce(newCommand(), remaining)
 		lastResult = result
 		if result.Err == nil || !playgroundToolTransientCommandError(result.Err) || result.TimedOut {
-			return result
+			break
 		}
-
-		sleep := time.Duration(attempt+1) * 2 * time.Second
-		if time.Until(deadline) <= sleep {
-			return result
-		}
-		time.Sleep(sleep)
+		time.Sleep(500 * time.Millisecond)
 	}
 	return lastResult
+}
+
+func playgroundToolTimeout(timeoutMs int) time.Duration {
+	if timeoutMs <= 0 {
+		return playgroundToolDefaultTimeout
+	}
+	timeout := time.Duration(timeoutMs) * time.Millisecond
+	if timeout > playgroundToolMaxTimeout {
+		return playgroundToolMaxTimeout
+	}
+	if timeout < time.Second {
+		return time.Second
+	}
+	return timeout
+}
+
+func playgroundWebToolTimeoutMs(timeoutMs int) int {
+	if timeoutMs <= 0 {
+		return playgroundWebFetchDefaultTimeoutMs
+	}
+	if timeoutMs > playgroundWebFetchMaxTimeoutMs {
+		return playgroundWebFetchMaxTimeoutMs
+	}
+	if timeoutMs < 1000 {
+		return 1000
+	}
+	return timeoutMs
+}
+
+func playgroundToolBashValidate(command string, internetEnabled bool) string {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return "command must not be empty"
+	}
+	lower := strings.ToLower(command)
+	blocked := []string{"shred", ":(){", "mkfs", "dd if=", "chmod -r", "chown -r", "ncat"}
+	for _, pattern := range blocked {
+		if strings.Contains(lower, pattern) {
+			return fmt.Sprintf("command is blocked by policy: %s", strings.TrimSpace(pattern))
+		}
+	}
+	blockedCommands := []string{"ssh", "scp", "apk"}
+	for _, cmd := range blockedCommands {
+		if regexp.MustCompile(`(^|[;&|()\s])` + regexp.QuoteMeta(cmd) + `($|[;&|()\s])`).MatchString(lower) {
+			return fmt.Sprintf("command is blocked by policy: %s", cmd)
+		}
+	}
+	if !internetEnabled {
+		blockedNetworkCommands := []string{"curl", "wget", "nc", "apt", "apt-get", "dnf", "yum", "pip", "pip3", "npm", "npx", "yarn", "pnpm", "gem", "cargo", "go"}
+		for _, cmd := range blockedNetworkCommands {
+			if regexp.MustCompile(`(^|[;&|()\s])` + regexp.QuoteMeta(cmd) + `($|[;&|()\s])`).MatchString(lower) {
+				return fmt.Sprintf("network commands are unavailable in this session: %s. Ask the user to enable internet access if network access is required.", cmd)
+			}
+		}
+	}
+	interactive := []string{"vim", "vi", "nano", "less", "more", "top", "htop"}
+	for _, cmd := range interactive {
+		if lower == cmd || strings.HasPrefix(lower, cmd+" ") || strings.Contains(lower, "| "+cmd) {
+			return fmt.Sprintf("interactive command is blocked: %s", cmd)
+		}
+	}
+	return ""
+}
+
+func playgroundToolError(callId string, message string) InferenceChatMessage {
+	return playgroundToolMessage(callId, playgroundToolJSON(map[string]any{"error": message}))
+}
+
+func playgroundToolMessage(callId string, output string) InferenceChatMessage {
+	return InferenceChatMessage{Role: "tool", ToolCallID: callId, Content: inferenceChatTextContent(output)}
+}
+
+func playgroundToolJSON(value any) string {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return `{"error":"failed to encode tool result"}`
+	}
+	return string(data)
+}
+
+func (app *InferencePlaygroundApp) playgroundToolAvailable(name string, allowDeveloper bool) bool {
+	if app == nil {
+		return false
+	}
+	app.mu.Lock()
+	developer := app.Developer
+	currentThreadId := app.CurrentThreadId
+	app.mu.Unlock()
+	if !allowDeveloper && developer {
+		return false
+	}
+
+	switch name {
+	case "bash", playgroundInternetToolRequestAccess, playgroundInternetToolWebFetch:
+	default:
+		return false
+	}
+
+	state := app.internetAccessState(currentThreadId)
+	if state == "" {
+		app.mu.Lock()
+		if thread, ok := app.currentThread(); ok {
+			state = thread.InternetAccess
+		}
+		app.mu.Unlock()
+	}
+	if state == playgroundInternetDenied && name == playgroundInternetToolWebFetch {
+		return false
+	}
+	if state != playgroundInternetDenied && name == playgroundInternetToolRequestAccess {
+		return false
+	}
+	return true
 }
 
 func playgroundRunSandboxCommandOnce(cmd *shared.TerminalCmd, timeout time.Duration) playgroundCommandResult {
@@ -386,76 +485,6 @@ func playgroundToolCommandMessage(callId string, result playgroundCommandResult)
 		toolResult.Error = result.Err.Why
 	}
 	return toolResult
-}
-
-func playgroundToolTimeout(timeoutMs int) time.Duration {
-	if timeoutMs <= 0 {
-		return playgroundToolDefaultTimeout
-	}
-	timeout := time.Duration(timeoutMs) * time.Millisecond
-	if timeout > playgroundToolMaxTimeout {
-		return playgroundToolMaxTimeout
-	}
-	if timeout < time.Second {
-		return time.Second
-	}
-	return timeout
-}
-
-func playgroundWebToolTimeoutMs(timeoutMs int) int {
-	if timeoutMs <= 0 {
-		return playgroundWebFetchDefaultTimeoutMs
-	}
-	if timeoutMs > playgroundWebFetchMaxTimeoutMs {
-		return playgroundWebFetchMaxTimeoutMs
-	}
-	if timeoutMs < 1000 {
-		return 1000
-	}
-	return timeoutMs
-}
-
-func playgroundToolBashValidate(command string) string {
-	command = strings.TrimSpace(command)
-	if command == "" {
-		return "command must not be empty"
-	}
-	lower := strings.ToLower(command)
-	blocked := []string{"shred", ":(){", "mkfs", "dd if=", "chmod -r", "chown -r", "ncat", "apt-get"}
-	for _, pattern := range blocked {
-		if strings.Contains(lower, pattern) {
-			return fmt.Sprintf("command is blocked by policy: %s", strings.TrimSpace(pattern))
-		}
-	}
-	blockedCommands := []string{"nc", "ssh", "scp", "apt", "dnf", "yum", "apk"}
-	for _, cmd := range blockedCommands {
-		if regexp.MustCompile(`(^|[;&|()\s])` + regexp.QuoteMeta(cmd) + `($|[;&|()\s])`).MatchString(lower) {
-			return fmt.Sprintf("command is blocked by policy: %s", cmd)
-		}
-	}
-	interactive := []string{"vim", "vi", "nano", "less", "more", "top", "htop"}
-	for _, cmd := range interactive {
-		if lower == cmd || strings.HasPrefix(lower, cmd+" ") || strings.Contains(lower, "| "+cmd) {
-			return fmt.Sprintf("interactive command is blocked: %s", cmd)
-		}
-	}
-	return ""
-}
-
-func playgroundToolError(callId string, message string) InferenceChatMessage {
-	return playgroundToolMessage(callId, playgroundToolJSON(map[string]any{"error": message}))
-}
-
-func playgroundToolMessage(callId string, output string) InferenceChatMessage {
-	return InferenceChatMessage{Role: "tool", ToolCallID: callId, Content: inferenceChatTextContent(output)}
-}
-
-func playgroundToolJSON(value any) string {
-	data, err := json.Marshal(value)
-	if err != nil {
-		return `{"error":"failed to encode tool result"}`
-	}
-	return string(data)
 }
 
 var _ io.Writer = (*playgroundCappedBuffer)(nil)

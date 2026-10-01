@@ -1,13 +1,16 @@
 package containers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -21,6 +24,7 @@ const inferenceSandboxImage = "dreg.cloud.sdu.dk/ucloud/ucloud-inf-tools:2026.3.
 
 func initIntegratedInferenceSandbox() {
 	if ServiceConfig.Compute.IntegratedTerminal.Enabled {
+		shared.InferenceSandboxRegisterInternetApply(inferenceSandboxApplyInternetAccess)
 		IApps[integratedInferenceSandboxAppName] = ContainerIAppHandler{
 			Flags:                           controller.IntegratedAppInternal,
 			RetrieveDefaultConfiguration:    integratedSandboxRetrieveDefaultConfiguration,
@@ -66,8 +70,37 @@ func inferenceSandboxMutatePod(job *orc.Job, configuration json.RawMessage, pod 
 
 func inferenceSandboxMutateNetworkPolicy(job *orc.Job, configuration json.RawMessage, firewall *networking.NetworkPolicy, pod *core.Pod) *util.HttpError {
 	shared.AllowNetworkToClusterDNS(firewall)
-	shared.AllowNetworkToPublicInternet(firewall, []int32{80, 443})
+	if shared.InferenceSandboxInternetEnabledFor(job.Owner) {
+		shared.AllowNetworkToPublicInternet(firewall, []int32{80, 443})
+	}
 	return nil
+}
+
+func inferenceSandboxApplyInternetAccess(jobId string, enabled bool) *util.HttpError {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	policies := K8sClient.NetworkingV1().NetworkPolicies(ServiceConfig.Compute.Namespace)
+	policy, err := policies.Get(ctx, shared.FirewallName(jobId), meta.GetOptions{})
+	if err != nil {
+		return util.HttpErrorFromErr(err)
+	}
+
+	desired := shared.PublicInternetEgressRule([]int32{80, 443})
+	egress := policy.Spec.Egress[:0]
+	for _, rule := range policy.Spec.Egress {
+		if reflect.DeepEqual(rule, desired) {
+			continue
+		}
+		egress = append(egress, rule)
+	}
+	if enabled {
+		egress = append(egress, desired)
+	}
+	policy.Spec.Egress = egress
+
+	_, err = policies.Update(ctx, policy, meta.UpdateOptions{})
+	return util.HttpErrorFromErr(err)
 }
 
 func inferenceSandboxMutateJobNonPersistent(job *orc.Job, configuration json.RawMessage) {
