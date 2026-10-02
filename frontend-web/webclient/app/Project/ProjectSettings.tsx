@@ -1022,7 +1022,7 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
                         const newAllowedApps = new Set([it.key, ...allowedApps]);
                         setAllowedApps(newAllowedApps);
                         updatePolicyRule(policy.schema.name, "applications", [...newAllowedApps]);
-                        (document.getElementById("allowed-apps") as HTMLInputElement).value = "";
+                        if (ref.current) ref.current.value = "";
                     }}
                     RenderRow={({item}) => (<AppRow item={item} />)}
                     placeholder={"Search by application name..."}
@@ -1064,7 +1064,7 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
                         const newAllowedApps = new Set([it.value, ...allowedApps]);
                         setAllowedApps(newAllowedApps);
                         updatePolicyRule(policy.schema.name, "allowList", [...newAllowedApps]);
-                        (document.getElementById("allowed-integrated-apps") as HTMLInputElement).value = "";
+                        if (ref.current) ref.current.value = "";
                     }}
                     RenderRow={({item}) => (<AppRow item={item} />)}
                     placeholder={"Integrated application name..."}
@@ -1109,7 +1109,7 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
                         allowedOrgs.add(item.key);
                         setAllowedOrgs(new Set([...allowedOrgs]));
                         updatePolicyRule(policy.schema.name, "organizations", [...allowedOrgs]);
-                        (document.getElementById("org-members") as HTMLInputElement).value = "";
+                        if (ref.current) ref.current.value = "";
                     }}
                     items={items}
                     title={""}

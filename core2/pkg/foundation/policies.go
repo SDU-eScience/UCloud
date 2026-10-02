@@ -787,12 +787,16 @@ func intersectSubnets(subnets []string) string {
 			return ""
 		}
 
-		if result.Contains(network.IP) {
+		resultOnes, _ := result.Mask.Size()
+		networkOnes, _ := network.Mask.Size()
+
+		switch {
+		case networkOnes >= resultOnes && result.Contains(network.IP):
 			// network is contained in result (or equal): the intersection is network
 			result = network
-		} else if network.Contains(result.IP) {
+		case resultOnes >= networkOnes && network.Contains(result.IP):
 			// result is contained in network: the intersection is unchanged
-		} else {
+		default:
 			// The blocks are disjoint: no address is allowed by all grant givers
 			return ""
 		}

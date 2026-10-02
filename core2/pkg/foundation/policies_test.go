@@ -389,3 +389,118 @@ func TestPoliciesRequireDataManager(t *testing.T) {
 	policies := mustRetrievePolicies(t, project)
 	assertPolicyEnabled(t, policies, fndapi.RestrictSsh, true)
 }
+
+func TestIntersections(t *testing.T) {
+	t.Run("Subnets", testIntersectSubnets)
+	t.Run("AllowLists", testIntersectAllowLists)
+}
+
+// testIntersectSubnets verifies that intersectSubnets computes the most restrictive CIDR block contained in
+// every input. The intersection is commutative, so every case runs in the given order and in reverse to guard
+// against order-dependent results.
+func testIntersectSubnets(t *testing.T) {
+	testCases := []struct {
+		name    string
+		subnets []string
+		want    string
+	}{
+		// Trivial inputs
+		{"no subnets", nil, ""},
+		{"single block", []string{"10.0.0.0/24"}, "10.0.0.0/24"},
+
+		// Nested blocks with different base addresses: the smallest block wins
+		{"nested blocks", []string{"10.0.0.0/8", "10.1.0.0/16"}, "10.1.0.0/16"},
+		{"default route with block", []string{"0.0.0.0/0", "10.0.0.0/8"}, "10.0.0.0/8"},
+
+		// Nested blocks sharing the same base address: the smallest block must win regardless of order.
+		// A naive Contains-only implementation widens the result when the wider block arrives last.
+		{"same base, wider block last", []string{"10.0.0.0/24", "10.0.0.0/16"}, "10.0.0.0/24"},
+		{"same base, wider block first", []string{"10.0.0.0/16", "10.0.0.0/24"}, "10.0.0.0/24"},
+		{"same base, three blocks", []string{"10.0.0.0/24", "10.0.0.0/24", "10.0.0.0/16"}, "10.0.0.0/24"},
+
+		// Equal blocks
+		{"equal blocks", []string{"10.0.0.0/24", "10.0.0.0/24"}, "10.0.0.0/24"},
+
+		// Host bits are masked away by ParseCIDR and must not affect the result
+		{"host bits set", []string{"10.0.0.99/24", "10.0.0.0/16"}, "10.0.0.0/24"},
+
+		// Disjoint blocks: no address is allowed by all inputs
+		{"adjacent blocks are disjoint", []string{"10.0.0.0/24", "10.0.1.0/24"}, ""},
+		{"sibling halves are disjoint", []string{"10.0.0.0/25", "10.0.0.128/25"}, ""},
+		{"disjoint blocks with different prefix lengths", []string{"10.0.0.0/8", "192.168.0.0/16"}, ""},
+
+		// Three-way intersections
+		{"three nested blocks", []string{"10.0.0.0/8", "10.1.0.0/16", "10.1.2.0/24"}, "10.1.2.0/24"},
+		{"three blocks, one disjoint", []string{"10.0.0.0/8", "10.1.0.0/16", "192.168.0.0/16"}, ""},
+
+		// IPv6 behaves the same way
+		{"ipv6 single block", []string{"2001:db8::/32"}, "2001:db8::/32"},
+		{"ipv6 nested blocks", []string{"2001:db8::/32", "2001:db8:1::/48"}, "2001:db8:1::/48"},
+		{"ipv6 same base", []string{"2001:db8::/32", "2001:db8::/48"}, "2001:db8::/48"},
+		{"ipv6 disjoint blocks", []string{"2001:db8::/32", "2001:db9::/32"}, ""},
+
+		// Mixed address families never contain each other, the intersection is empty
+		{"mixed address families", []string{"10.0.0.0/8", "2001:db8::/32"}, ""},
+
+		// Invalid input anywhere fails closed with an empty result
+		{"invalid first block", []string{"not-a-cidr", "10.0.0.0/24"}, ""},
+		{"invalid middle block", []string{"10.0.0.0/8", "banana", "10.1.0.0/16"}, ""},
+		{"invalid last block", []string{"10.0.0.0/8", "10.0.0.0/24", "garbage"}, ""},
+		{"empty string block", []string{"", "10.0.0.0/24"}, ""},
+		{"missing prefix", []string{"10.0.0.0"}, ""},
+		{"prefix not a number", []string{"10.0.0.0/abc"}, ""},
+		{"negative prefix", []string{"10.0.0.0/-1"}, ""},
+		{"ipv4 prefix too long", []string{"10.0.0.0/33"}, ""},
+		{"ipv6 prefix too long", []string{"2001:db8::/129"}, ""},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			forward := slices.Clone(tc.subnets)
+			if got := intersectSubnets(forward); got != tc.want {
+				t.Fatalf("forward order: expected %q but got %q", tc.want, got)
+			}
+
+			reversed := slices.Clone(tc.subnets)
+			slices.Reverse(reversed)
+			if got := intersectSubnets(reversed); got != tc.want {
+				t.Fatalf("reversed order: expected %q but got %q", tc.want, got)
+			}
+		})
+	}
+}
+
+// testIntersectAllowLists verifies that intersectAllowLists computes the sorted intersection of all lists.
+// Set intersection is commutative, so every case runs with the lists in reverse order as well.
+func testIntersectAllowLists(t *testing.T) {
+	testCases := []struct {
+		name  string
+		lists [][]string
+		want  []string
+	}{
+		{"no lists", nil, nil},
+		{"single list", [][]string{{"app-a", "app-b"}}, []string{"app-a", "app-b"}},
+		{"single list is sorted and deduplicated", [][]string{{"app-b", "app-a", "app-b"}}, []string{"app-a", "app-b"}},
+		{"single empty list", [][]string{{}}, nil},
+		{"common items", [][]string{{"app-a", "app-b"}, {"app-b", "app-c"}}, []string{"app-b"}},
+		{"no common items", [][]string{{"app-a"}, {"app-b"}}, nil},
+		{"empty first list", [][]string{{}, {"app-a"}}, nil},
+		{"empty later list", [][]string{{"app-a"}, {}}, nil},
+		{"duplicates in later lists", [][]string{{"app-a", "app-b", "app-c"}, {"app-c", "app-c", "app-b"}}, []string{"app-b", "app-c"}},
+		{"three lists", [][]string{{"app-a", "app-b", "app-c"}, {"app-b", "app-c", "app-d"}, {"app-c", "app-b"}}, []string{"app-b", "app-c"}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := intersectAllowLists(tc.lists); !slices.Equal(got, tc.want) {
+				t.Fatalf("forward order: expected %v but got %v", tc.want, got)
+			}
+
+			reversed := slices.Clone(tc.lists)
+			slices.Reverse(reversed)
+			if got := intersectAllowLists(reversed); !slices.Equal(got, tc.want) {
+				t.Fatalf("reversed order: expected %v but got %v", tc.want, got)
+			}
+		})
+	}
+}

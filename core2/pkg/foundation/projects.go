@@ -840,7 +840,6 @@ func ProjectChangeRole(actor rpc.Actor, request fndapi.ProjectMemberChangeRoleRe
 	}
 
 	iproject.Mu.Lock()
-	var transferredSupportiveRoles []string
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
@@ -897,10 +896,6 @@ func ProjectChangeRole(actor rpc.Actor, request fndapi.ProjectMemberChangeRoleRe
 		} else if piTransfer && member.Username == actor.Username {
 			member.Role = fndapi.ProjectRoleAdmin
 		}
-	}
-
-	for _, role := range transferredSupportiveRoles {
-		supportiveRoleGrant(pStatus, fndapi.SupportiveRole(role), request.Username)
 	}
 
 	iproject.Mu.Unlock()
