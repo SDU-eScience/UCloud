@@ -874,13 +874,6 @@ func ProjectChangeRole(actor rpc.Actor, request fndapi.ProjectMemberChangeRoleRe
 					"project":  actor.Project.Value,
 				},
 			)
-
-			transferredSupportiveRoles = supportiveRoleHandlePiTransfer(
-				tx,
-				string(actor.Project.Value),
-				actor.Username,
-				request.Username,
-			)
 		}
 
 		db.Exec(

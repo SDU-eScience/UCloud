@@ -306,31 +306,6 @@ func FilesCreateUpload(
 	actor rpc.Actor,
 	request fndapi.BulkRequest[orcapi.FilesCreateUploadRequest],
 ) (fndapi.BulkResponse[orcapi.FilesCreateUploadResponse], *util.HttpError) {
-	if actor.Project.Present {
-		policies := policiesByProject(string(actor.Project.Value))
-
-		specification, ok := policies[fndapi.RestrictUploads]
-
-		if ok {
-			values, ok := specification.GetValues().(fndapi.RestrictUploadsValues)
-			if !ok {
-				return fndapi.BulkResponse[orcapi.FilesCreateUploadResponse]{},
-					util.HttpErr(
-						http.StatusInternalServerError,
-						"Misconfigured Policy",
-					)
-			}
-
-			if values.Enabled {
-				return fndapi.BulkResponse[orcapi.FilesCreateUploadResponse]{},
-					util.HttpErr(
-						http.StatusForbidden,
-						"This project does not allow uploads",
-					)
-			}
-		}
-	}
-
 	var result fndapi.BulkResponse[orcapi.FilesCreateUploadResponse]
 	var paths []string
 	for _, reqItem := range request.Items {
@@ -352,6 +327,28 @@ func FilesCreateUpload(
 
 		if featureSupported(driveType, drive.Specification.Product, driveOpsReadOnly) {
 			return result, util.HttpErr(http.StatusForbidden, "drive is read only")
+		}
+
+		if drive.Owner.Project.Present {
+			policies := policiesByProject(drive.Owner.Project.Value)
+
+			specification, ok := policies[fndapi.RestrictUploads]
+			if ok {
+				values, ok := specification.GetValues().(fndapi.RestrictUploadsValues)
+				if !ok {
+					return result, util.HttpErr(
+						http.StatusInternalServerError,
+						"Misconfigured Policy",
+					)
+				}
+
+				if values.Enabled {
+					return result, util.HttpErr(
+						http.StatusForbidden,
+						"This project does not allow uploads",
+					)
+				}
+			}
 		}
 
 		providerId := drive.Specification.Product.Provider
@@ -410,31 +407,6 @@ func FilesCreateDownload(
 	actor rpc.Actor,
 	request fndapi.BulkRequest[fndapi.FindByStringId],
 ) (fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse], *util.HttpError) {
-	if actor.Project.Present {
-		policies := policiesByProject(actor.Project.String())
-
-		specification, ok := policies[fndapi.RestrictDownloads]
-
-		if ok {
-			values, ok := specification.GetValues().(fndapi.RestrictDownloadsValues)
-			if !ok {
-				return fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]{},
-					util.HttpErr(
-						http.StatusInternalServerError,
-						"Misconfigured Policy",
-					)
-			}
-
-			if values.Enabled {
-				return fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]{},
-					util.HttpErr(
-						http.StatusForbidden,
-						"This project does not allow downloads",
-					)
-			}
-		}
-	}
-
 	var result fndapi.BulkResponse[orcapi.FilesCreateDownloadResponse]
 	var paths []string
 	for _, reqItem := range request.Items {
@@ -452,6 +424,28 @@ func FilesCreateDownload(
 		drive, ok := drives[driveId]
 		if !ok {
 			return result, util.HttpErr(http.StatusNotFound, "download requested from unknown drive")
+		}
+
+		if drive.Owner.Project.Present {
+			policies := policiesByProject(drive.Owner.Project.Value)
+
+			specification, ok := policies[fndapi.RestrictDownloads]
+			if ok {
+				values, ok := specification.GetValues().(fndapi.RestrictDownloadsValues)
+				if !ok {
+					return result, util.HttpErr(
+						http.StatusInternalServerError,
+						"Misconfigured Policy",
+					)
+				}
+
+				if values.Enabled {
+					return result, util.HttpErr(
+						http.StatusForbidden,
+						"This project does not allow downloads",
+					)
+				}
+			}
 		}
 
 		providerId := drive.Specification.Product.Provider

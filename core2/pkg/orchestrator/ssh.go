@@ -22,14 +22,6 @@ import (
 
 func initSsh() {
 	orcapi.SshCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.SshKeySpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		// RestrictSSH: reject creation of SSH keys while operating in the project
-		if info.Actor.Project.Present {
-			policies := policiesByProject(info.Actor.Project.String())
-			if specification, ok := policies[fndapi.RestrictSsh]; ok && specification.IsEnabled() {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{},
-					util.HttpErr(http.StatusForbidden, "Project policies do not allow SSH access")
-			}
-		}
 		result, err := SshKeyCreate(info.Actor, request.Items)
 		if err != nil {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err

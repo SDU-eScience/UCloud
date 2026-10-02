@@ -42,12 +42,6 @@ type supportiveRoleInfo struct {
 	// FallbackToPi transfers this role to the PI when its holder leaves the project. Roles without this flag
 	// instead become vacant when their holder leaves.
 	FallbackToPi bool
-
-	// FollowsPiOffice transfers this role to the incoming PI when the PI office is handed over and the
-	// outgoing PI is the current holder. The role follows the office rather than the person. Roles held by
-	// any other member are explicit appointments and stay with their holder. Without this flag the role
-	// lingers with the outgoing PI after they have been demoted to Admin.
-	FollowsPiOffice bool
 }
 
 var supportiveRoles = map[fndapi.SupportiveRole]supportiveRoleInfo{
@@ -55,7 +49,6 @@ var supportiveRoles = map[fndapi.SupportiveRole]supportiveRoleInfo{
 		AssignableBy:           fndapi.ProjectRoleAdmin,
 		AssignedToPiOnCreation: true,
 		FallbackToPi:           true,
-		FollowsPiOffice:        true,
 	},
 }
 
@@ -132,73 +125,6 @@ func supportiveRolesAssignedOnCreation() []string {
 		}
 	}
 	return result
-}
-
-// supportiveRolesFollowingPiOffice lists every role which follows the PI office when PI-ship is transferred.
-func supportiveRolesFollowingPiOffice() []string {
-	var result []string
-	for role, info := range supportiveRoles {
-		if info.FollowsPiOffice {
-			result = append(result, string(role))
-		}
-	}
-	return result
-}
-
-// supportiveRoleHandlePiTransfer transfers every supportive role which follows the PI office from the outgoing
-// PI to the incoming PI. It runs as part of the PI transfer in ProjectChangeRole. Only roles currently held by
-// the outgoing PI are transferred: roles held by another member are explicit appointments and stay with their
-// holder. The names of the transferred roles are returned such that the caller can update its in-memory state.
-func supportiveRoleHandlePiTransfer(tx *db.Transaction, projectId string, oldPi string, newPi string) []string {
-	officeRoles := supportiveRolesFollowingPiOffice()
-	if len(officeRoles) == 0 {
-		return nil
-	}
-
-	if supportiveRoleGlobals.TestingEnabled {
-		// Tests have no database, apply the transfer to the in-memory holders instead
-		supportiveRoleGlobals.Mu.Lock()
-		defer supportiveRoleGlobals.Mu.Unlock()
-
-		holders := supportiveRoleGlobals.TestHolders[projectId]
-		if holders == nil {
-			return nil
-		}
-
-		var transferred []string
-		for _, role := range officeRoles {
-			if holders[fndapi.SupportiveRole(role)] == oldPi {
-				holders[fndapi.SupportiveRole(role)] = newPi
-				transferred = append(transferred, role)
-			}
-		}
-		return transferred
-	}
-
-	rows := db.Select[struct{ Role string }](
-		tx,
-		`
-			update project.supportive_roles sr
-			set username = :new_pi, modified_at = now()
-			where
-				sr.project_id = :project
-				and sr.username = :old_pi
-				and sr.supportive_role = any(cast(:roles as text[]))
-			returning sr.supportive_role as role
-		`,
-		db.Params{
-			"project": projectId,
-			"old_pi":  oldPi,
-			"new_pi":  newPi,
-			"roles":   officeRoles,
-		},
-	)
-
-	var transferred []string
-	for _, row := range rows {
-		transferred = append(transferred, row.Role)
-	}
-	return transferred
 }
 
 // ActorIsSupportiveRoleHolder reports whether the actor currently holds the given supportive role in their active

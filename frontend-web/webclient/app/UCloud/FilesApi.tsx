@@ -2134,7 +2134,6 @@ class PreviewVfs implements Vfs {
         if (file.status.type !== "FILE") {
             throw window.Error("Only files can be previewed");
         }
-        ;
 
         if (file.status.sizeInBytes === 0) {
             return "";
