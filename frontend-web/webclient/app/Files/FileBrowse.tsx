@@ -14,13 +14,13 @@ import {
     ResourceBrowseFeatures,
     ResourceBrowser,
     ResourceBrowserOpts,
-    ColumnTitleList,
     SelectionMode,
     checkCanConsumeResources,
     getFilterStorageValue,
     favoriteRowIcon,
     ResourceBrowseHeaderControls,
     createProjectSwitcherPortal,
+    ColumnTitleGroup,
     setFilterStorageValue,
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
@@ -78,13 +78,14 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import SharesApi, {OutgoingShareGroup} from "@/UCloud/SharesApi";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
-import {browseWalletsV2, ProductStorage, WalletV2} from "@/Accounting";
+import {browseWalletsV2, WalletV2} from "@/Accounting";
 import {genericSet} from "@/Utilities/ReduxHooks";
 import {createPortal} from "react-dom";
 import {FileBrowserStatusBar, FileBrowserStatusData} from "./FileBrowserStatusBar";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {Feature, hasFeature} from "@/Features";
 import {terminalSetPageContext} from "@/Terminal/State";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 import {FileTree} from "./FileTree";
 import {injectStyle} from "@/Unstyled";
 import {ActionEntry, ResourceBrowserActions} from "@/ui-components/Actions";
@@ -144,14 +145,16 @@ interface AdditionalResourceBrowserOpts {
 }
 let lastActiveProject: string | undefined = "";
 type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
-const rowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
-const selectorRowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Select", columnWidth: 100}];
+const rowTitles: ColumnTitleGroup<SortById> = {
+    [ContainerSize.LARGE]:[{ name: "Name", sortById: "PATH" }, { name: "", columnWidth: 32 }, { name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160 }, { name: "Size", sortById: "SIZE", columnWidth: 100 }]
+};
+const selectorRowTitles: ColumnTitleGroup<SortById> = {
+    [ContainerSize.LARGE]: [{ name: "Name", sortById: "PATH" }, { name: "", columnWidth: 32 }, { name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160 }, { name: "Select", columnWidth: 100 }]
+}
 
+export const FakeFileName = ".00000000000000000000$NEW_DIR";
 const RESOURCE_NAME = "File";
-function FileBrowse({
-    opts,
-    headerControls,
-}: {
+function FileBrowse({opts, headerControls}: {
     opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts;
     headerControls?: ResourceBrowseHeaderControls;
 }): React.ReactNode {
@@ -234,7 +237,7 @@ function FileBrowse({
         let shares: Record<string, OutgoingShareGroup> = {};
         let initialFetchDone = false;
         if (mount && !browserRef.current) {
-            const resourceBrowser = new ResourceBrowser<UFile>(mount, RESOURCE_NAME, opts);
+            const resourceBrowser = new ResourceBrowser<UFile>(mount, RESOURCE_NAME, {...opts});
             resourceBrowser.init(browserRef, features, undefined, browser => {
                 browser.setColumns(isSelector ? selectorRowTitles : rowTitles);
                 if (isSelector) browser.root.style.height = "100%";
@@ -645,13 +648,12 @@ function FileBrowse({
                     }
                 };
 
-                let shouldRemoveFakeDirectory = true;
-                const fakeFileName = ".00000000000000000000$NEW_DIR"
+                let shouldRemoveFakeEntry = true;
                 const showCreateDirectory = () => {
-                    const fakePath = resolvePath(browser.currentPath) + "/" + fakeFileName.split("/")[0];
+                    const fakePath = resolvePath(browser.currentPath) + "/" + FakeFileName.split("/")[0];
                     browser.removeEntryFromCurrentPage(it => it.id === fakePath);
-                    shouldRemoveFakeDirectory = false;
-                    insertFakeEntry(fakeFileName, {type: "DIRECTORY"});
+                    shouldRemoveFakeEntry = false;
+                    insertFakeEntry(FakeFileName, {type: "DIRECTORY"});
                     const idx = browser.findVirtualRowIndex(it => it.id === fakePath);
                     if (idx !== null) browser.ensureRowIsVisible(idx, true);
 
@@ -676,19 +678,19 @@ function FileBrowse({
                                 });
                         },
                         () => {
-                            if (shouldRemoveFakeDirectory) browser.removeEntryFromCurrentPage(it => it.id === fakePath);
+                            if (shouldRemoveFakeEntry) browser.removeEntryFromCurrentPage(it => it.id === fakePath);
                         },
                         ""
                     );
 
-                    shouldRemoveFakeDirectory = true;
+                    shouldRemoveFakeEntry = true;
                 };
 
                 const showCreateFile = () => {
-                    const fakePath = resolvePath(browser.currentPath) + "/" + fakeFileName.split("/")[0];
+                    const fakePath = resolvePath(browser.currentPath) + "/" + FakeFileName.split("/")[0];
                     browser.removeEntryFromCurrentPage(it => it.id === fakePath);
-                    shouldRemoveFakeDirectory = false;
-                    insertFakeEntry(fakeFileName, {type: "FILE"});
+                    shouldRemoveFakeEntry = false;
+                    insertFakeEntry(FakeFileName, {type: "FILE"});
                     const idx = browser.findVirtualRowIndex(it => it.id === fakePath);
                     if (idx !== null) browser.ensureRowIsVisible(idx, true);
 
@@ -708,9 +710,13 @@ function FileBrowse({
 
                             initEmptyFileUpload(realPath);
                         },
-                        noopCall,
+                        () => {
+                            if (shouldRemoveFakeEntry) browser.removeEntryFromCurrentPage(it => it.id === fakePath);
+                        },
                         ""
                     );
+
+                    shouldRemoveFakeEntry = true;
                 };
 
 
@@ -948,7 +954,7 @@ function FileBrowse({
                         onSelectRestriction: opts?.selection?.show ? file => {
                             const restriction = opts.selection!.show!(file);
                             if (typeof restriction === "string") return false;
-                            return restriction && !file.id.endsWith(fakeFileName);
+                            return restriction && !file.id.endsWith(FakeFileName);
                         } : undefined,
                         onSelect: opts?.selection?.onClick,
                     };
@@ -1011,18 +1017,18 @@ function FileBrowse({
                     return renderFileIconFromProperties(ext4, file.status.type === "DIRECTORY", file.status.icon);
                 };
 
-                browser.on("renderRow", (file, row, containerWidth) => {
+                browser.on("renderTitle", (file, titleStat, row) => {
                     row.container.setAttribute("data-file", file.id);
 
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                    row.title.append(icon);
+                    titleStat.append(icon);
 
                     if (syncthingConfig?.folders?.find(it => it.ucloudPath === file.id) != null) {
                         folderNote(icon, "Synchronized with Syncthing", "60px", "12px", 230, "check");
                     }
 
                     const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), row);
-                    row.title.append(title);
+                    titleStat.append(title);
 
                     if (isReadonly(file.permissions.myself)) {
                         folderNote(icon, "Read-only", "60px", "34px", 108, "heroInformationCircle");
@@ -1033,31 +1039,12 @@ function FileBrowse({
                         folderNote(icon, "This file is shared with other users", "30px", "34px", 250, "heroShare", () => navigate(AppRoutes.shares.sharedByMeFile(share.sourceFilePath)))
                     }
 
-                    const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();
-                    row.stat2.replaceChildren(createHTMLElements({
-                        tagType: "div",
-                        style: {marginTop: "auto", marginBottom: "auto"},
-                        innerText: opts?.selection ?
-                            dateToDateStringOrTime(modifiedAt) :
-                            row.stat2.innerText = dateToString(modifiedAt)
-                    }));
-
-                    if (opts?.selection && !file.id.endsWith(fakeFileName) /* Note(Jonas): Disallow using folder being created */) {
-                        const button = browser.defaultButtonRenderer(opts.selection, file);
-                        if (button) {
-                            row.stat3.replaceChildren(button);
-                        }
-                    } else {
-                        if (file.status.sizeIncludingChildrenInBytes != null || file.status.type !== "DIRECTORY") {
-                            row.stat3.replaceChildren(createHTMLElements({
-                                tagType: "div",
-                                style: {marginTop: "auto", marginBottom: "auto"},
-                                innerText: sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null)
-                            }));
-                        }
-                    }
-
                     const isOutOfDate = () => row.container.getAttribute("data-file") !== file.id;
+
+                    renderFileIcon(file).then(url => {
+                        if (isOutOfDate()) return;
+                        setIcon(url);
+                    });
 
                     const favoriteIcon = favoriteRowIcon(row);
 
@@ -1078,10 +1065,16 @@ function FileBrowse({
 
                         favoriteIcon.src = icon;
                     });
+                });
+
+                browser.on("renderStat1", (file, stat, row) => {
+                    const isOutOfDate = () => row.container.getAttribute("data-file") !== file.id;
+                    const wrapper = document.createElement("div");
+                    stat.append(wrapper);
 
                     findSensitivity(file).then(sensitivity => {
                         if (isOutOfDate()) return;
-                        row.stat1.innerHTML = ""; // NOTE(Dan): Clear the container regardless
+                        wrapper.innerHTML = ""; // NOTE(Dan): Clear the container regardless
                         if (!sensitivity) return;
 
                         const badge = divHtml("");
@@ -1094,13 +1087,29 @@ function FileBrowse({
                         });
 
                         HTMLTooltip(badge, divHtml("File's sensitivity is " + sensitivity.toString().toLocaleLowerCase()));
-                        row.stat1.append(badge);
+                        wrapper.append(badge);
                     });
+                });
 
-                    renderFileIcon(file).then(url => {
-                        if (isOutOfDate()) return;
-                        setIcon(url);
-                    });
+                browser.on("renderStat2", (file, stat) => {
+                    const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();
+                    stat.replaceChildren(createHTMLElements({
+                        tagType: "div",
+                        style: {marginTop: "auto", marginBottom: "auto"},
+                        innerText: opts?.selection ?
+                            dateToDateStringOrTime(modifiedAt) :
+                            stat.innerText = dateToString(modifiedAt)
+                    }));
+                });
+
+                browser.on("renderStat3", (file, stat) => {
+                    if (file.status.sizeIncludingChildrenInBytes != null || file.status.type !== "DIRECTORY") {
+                        stat.replaceChildren(createHTMLElements({
+                            tagType: "div",
+                            style: { marginTop: "auto", marginBottom: "auto" },
+                            innerText: sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null)
+                        }));
+                    }
                 });
 
                 ResourceBrowser.icons.renderIcon({
@@ -1190,8 +1199,9 @@ function FileBrowse({
                         const providerIconWrapper = createHTMLElements({
                             tagType: "div",
                             className: "provider-icon",
-                            style: disallowNavigation ? {} : {cursor: "pointer"}
+                            style: disallowNavigation ? {gridArea: "p-icon"} : {cursor: "pointer", gridArea: "p-icon"}
                         });
+
                         if (!disallowNavigation) providerIconWrapper.title = "Go to drives";
                         providerIconWrapper.style.marginRight = "6px";
                         const navbar = browser.header.querySelector("div.header-first-row");
@@ -1425,7 +1435,7 @@ function FileBrowse({
                     }, 500);
                 };
 
-                browser.on("skipOpen", (oldPath, newPath, resource) => resource?.id === fakeFileName);
+                browser.on("skipOpen", (oldPath, newPath, resource) => resource?.id === FakeFileName);
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource?.status.type === "FILE") {
                         if (opts?.selection) {

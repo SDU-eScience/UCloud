@@ -32,7 +32,7 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {IconName} from "@/ui-components/Icon";
 import {inferenceThreadStore} from "./ThreadStore";
-import { findDomAttributeFromAncestors } from "@/Utilities/HTMLUtilities";
+import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 
 type PlaygroundSession = {
     connectTo: string;

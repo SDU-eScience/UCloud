@@ -17,6 +17,7 @@ import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {copyToClipboard} from "@/UtilityFunctions";
 import {sendInformationNotification} from "@/Notifications";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {IconName} from "@/ui-components/Icon";
 
@@ -49,7 +50,12 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Api.ApiToken>(mount, "API tokens", props.opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumns([{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 320}]);
+                browser.setColumns({
+                    [ContainerSize.LARGE]: [{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 320}],
+                    [ContainerSize.MEDIUM]: [{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 250}],
+                    [ContainerSize.SMALL]: [{name: "Title"}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 250 }, {name: "", columnWidth: 0}],
+                    [ContainerSize.TINY]: [{name: "Title"}, {name: "Server URL", columnWidth: 200}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}]
+                });
 
                 browser.on("skipOpen", (oldPath, path, resource) => resource != null);
 
@@ -84,11 +90,11 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                     browser.registerPage(result, path, false);
                 });
 
-                browser.on("renderRow", (token, row, dims) => {
+                browser.on("renderTitle", (token, title, row) => {
                     const isUCloudCore = !token.specification.provider;
                     const pIcon = providerIcon(token.specification.provider ?? "", undefined, isUCloudCore ? "ucloud.png" : undefined);
                     pIcon.style.marginRight = "8px";
-                    row.title.append(pIcon);
+                    title.append(pIcon);
 
                     const context = tokenContextFromOptions(token, optionsRef.current);
                     if (context) {
@@ -114,9 +120,11 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                     }
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(token.specification.title, row));
+                });
 
-                    row.stat1.style.justifyContent = "left";
-                    SimpleAvatarComponentCache.appendTo(row.stat1, token.owner.createdBy, `Created by ${token.owner.createdBy}`).then(wrapper => {
+                function renderAvatar(token: Api.ApiToken, stat: HTMLElement) {
+                    stat.style.justifyContent = "left";
+                    SimpleAvatarComponentCache.appendTo(stat, token.owner.createdBy, `Created by ${token.owner.createdBy}`).then(wrapper => {
                         const div = divText(token.owner.createdBy);
                         div.style.marginTop = div.style.marginBottom = "auto";
                         div.classList.add(TruncateClass);
@@ -125,16 +133,40 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                         wrapper.append(div);
                         wrapper.style.display = "flex";
                     });
+                }
 
-                    row.stat2.append(formatTs(token.specification.expiresAt));
+                browser.on("renderStat1", (token, stat, _, size) => {
+                    if (size == ContainerSize.TINY) {
+                        renderServerUrl(token, stat);
+                    } else if (size == ContainerSize.SMALL) {
+                        renderExpiration(token, stat);
+                    } else {
+                        renderAvatar(token, stat);
+                    }
+                });
 
+                function renderExpiration(token: Api.ApiToken, stat: HTMLElement) {
+                    stat.append(formatTs(token.specification.expiresAt));
+                }
+
+                browser.on("renderStat2", (token, stat, _, size) => {
+                    if (size <= ContainerSize.SMALL) {
+                        renderServerUrl(token, stat);
+                    } else {
+                        renderExpiration(token, stat);
+                    }
+                });
+
+                function renderServerUrl(token: Api.ApiToken, stat: HTMLElement) {
                     const serverUrl = token.status.server?.trim() || "Not available";
                     const serverElement = divText(serverUrl);
                     serverElement.classList.add(TruncateClass);
                     serverElement.title = serverUrl;
-                    row.stat3.append(serverElement);
-                    row.stat3.style.marginTop = row.stat3.style.marginBottom = "auto"
-                });
+                    stat.append(serverElement);
+                    stat.style.marginTop = stat.style.marginBottom = "auto"
+                }
+
+                browser.on("renderStat3", renderServerUrl);
 
                 browser.on("endRenderPage", () => {
                     SimpleAvatarComponentCache.fetchMissingAvatars();

@@ -14,7 +14,7 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {useDiscovery} from "@/Applications/Hooks";
-import {AppCard2} from "./Landing";
+import {AppCard2, HeaderStyle} from "./Landing";
 import {AppGrid} from "@/Applications/Category";
 import {NoResultsBody} from "@/UtilityComponents";
 
@@ -57,10 +57,10 @@ const SearchResults: React.FunctionComponent = () => {
             <div className={GradientWithPolygons}>
                 <MainContainer
                     main={<>
-                        <Flex mb="16px" alignItems={"center"}>
+                        <Flex mb="16px" alignItems={"center"} className={HeaderStyle}>
                             <h3>Search results</h3>
                             <Box ml="auto" />
-                            <UtilityBar onSearch={appSearch} initialSearchQuery={query} />
+                            <UtilityBar responsive onSearch={appSearch} initialSearchQuery={query} />
                         </Flex>
 
                         {results.data.items.length !== 0 ? null : (
