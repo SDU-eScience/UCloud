@@ -783,6 +783,7 @@ const MemberCard: React.FunctionComponent<{
                     {showOperations ? <Flex justifyContent="center" width="35px"><ActionMenu
                         width="260px"
                         actions={[
+                            // TODO(Jonas): Make supportive role assignment into child-array when > 1 support role
                             ...SUPPORTIVE_ROLES
                                 .filter(({role}) => !holdsSupportiveRole(props.member, role))
                                 .map(({role: supportiveRole, title}) => ({
