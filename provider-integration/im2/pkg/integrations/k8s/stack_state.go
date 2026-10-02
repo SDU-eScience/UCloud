@@ -213,7 +213,7 @@ func stackStateList(
 				where stack_scope_hash = :stack_scope_hash
 					and stack_id = :stack_id
 					and left(record_key, char_length(:prefix)) = :prefix
-					and (:next is null or record_key > :next)
+					and (cast(:next as text) is null or record_key > cast(:next as text))
 				order by record_key
 				limit :limit
 			`,

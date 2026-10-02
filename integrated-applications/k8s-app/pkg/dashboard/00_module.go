@@ -1305,6 +1305,20 @@ func (app *stackUiApp) provisioningJobId(hostname string) string {
 }
 
 func (app *stackUiApp) readClusterRecord() (shared.ClusterRecord, bool) {
+	session := app.session
+	stack := app.Stack
+	if session != nil && stack != nil && stack.Ok {
+		client, clientErr := shared.ClusterStateClientNewSession(session, stack.InstanceId)
+		if clientErr == nil {
+			snapshot, readErr := shared.ClusterStateRead(client)
+			if readErr == nil && snapshot.Found {
+				record := snapshot.Record
+				shared.ClusterStateRecordRevisionSet(&record, snapshot.Revision)
+				return record, true
+			}
+		}
+	}
+
 	record, found, err := shared.ClusterStateRecordRead()
 	if err != nil || !found {
 		return shared.ClusterRecord{}, false
