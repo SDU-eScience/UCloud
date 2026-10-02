@@ -249,7 +249,6 @@ export function PrivateNetworkBrowse({
                                         dialogStore.failure();
                                     }}
                                     onCreate={async (name, subdomain, permissions, product) => {
-                                        console.log({name, subdomain, permissions, product})
                                         const network: PrivateNetwork = {
                                             ...dummyEntry,
                                             id: "",
