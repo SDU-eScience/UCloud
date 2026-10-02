@@ -147,7 +147,6 @@ function projectReducer(state: UIState, action: ProjectAction): UIState {
         }
 
         case "ChangeRole": {
-            // TODO(Jonas): If any user is datamanager and a new one is selected, demote original to USER.
             for (const member of project.status.members!) {
                 const change = action.changes.find(it => it.username === member.username);
                 if (!change) continue;
@@ -172,9 +171,6 @@ function projectReducer(state: UIState, action: ProjectAction): UIState {
                 const member = project.status.members!.find(it => it.username === change.username);
                 if (!member) continue;
 
-                // A grant transfers the role: afterwards it is held by exactly the
-                // target. Strip it from the current holder(s) — same idea as the
-                // PI branch in ChangeRole demoting the old PI.
                 for (const other of project.status.members!) {
                     if (other.username === change.username) continue;
                     other.supportiveRoles = (other.supportiveRoles ?? [])

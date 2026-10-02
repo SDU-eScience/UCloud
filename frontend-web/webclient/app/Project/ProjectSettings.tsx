@@ -531,7 +531,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
     const onSave = useCallback(async (e) => {
         e.preventDefault();
 
-        await callAPIWithErrorHandler(
+        const success = await callAPIWithErrorHandler(
             Grants.updateRequestSettings({
                 ...settings,
                 description: description.current!.value,
@@ -542,7 +542,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
             })
         );
 
-        sendSuccessNotification("Project settings saved!");
+        if (success) sendSuccessNotification("Project settings saved!");
     }, [settings]);
 
     if (!projectId || !project) return null;
@@ -564,12 +564,12 @@ export const ProjectSettings: React.FunctionComponent = () => {
     }
     const mySupportiveRoles =
         status.members?.find(it => it.username === Client.username)?.supportiveRoles ?? [];
-    const showPolices = mySupportiveRoles.some(isDataSteward);
+    const showPolicies = mySupportiveRoles.some(isDataSteward);
     const canManageProject = isAdminOrPI(status.myRole);
     const sections: SettingsNavSection[] = [
         {id: "project-information", label: "Project information"},
         ...(canManageProject ? [{id: "grant-applications", label: "Grant applications"}] : []),
-        ...(showPolices ? [
+        ...(showPolicies ? [
             {id: "project-policies", label: "Project policies"},
             {id: "default-policies", label: "Default policies"},
         ] : []),
@@ -707,7 +707,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                 </form>
             </SettingsSection> : null}
 
-            {showPolices ?
+            {showPolicies ?
                 <>
                     <SettingsSection id="project-policies" title="Project policies">
                         <PolicySchemas />
@@ -896,10 +896,6 @@ function PolicySchemas({isDefaultPolicySetting = false}: {isDefaultPolicySetting
             callAPI(PolicyAPI.retrievePolicies({projectId: projectId, defaultPolicy: isDefaultPolicySetting})).then(setSchemas);
         }
     }, [projectId]);
-
-    const submitChanges = React.useCallback((updatedPolicies: Record<PolicyName, Specification>) => {
-        callAPI(PolicyAPI.updatePolicies({updatedPolicies: updatedPolicies, defaultPolicy: isDefaultPolicySetting}));
-    }, []);
 
     const togglePolicy = React.useCallback((schemaName: PolicyName, enabled: boolean) => {
         setSchemas(sc => {
@@ -1148,7 +1144,7 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
                 {providerSet.size === 0 ? "No providers allowed" : [...providerSet].map(it => <LabelTag key={it} onClick={() => {
                     providerSet.delete(it);
                     setProviderSet(new Set([...providerSet]));
-                    updatePolicyRule(policy.schema.name, "organizations", [...providerSet]);
+                    updatePolicyRule(policy.schema.name, "allowedProviders", [...providerSet]);
                 }} label={getProviderTitle(it)} />)}
                 <NewDataList items={providers} id="allowed-providers" title={""} onSelect={provider => {
                     const newProviderSet = new Set([...providerSet, provider.key]);
@@ -1194,7 +1190,7 @@ function PolicyConfiguration({policy, updatePolicyRule}: {policy: Policy; update
 
 const u8Range = /(0|1(\d{0,2})|[3-9]\d{0,1}|2\d{0,1}|2[0-4]\d|25[0-5])/;
 const ipRange = new RegExp(`${u8Range.source}((\.${u8Range.source}){3})`);
-const subnet = /\/(3[0-2]|[1-9]|2[1-9])/;
+const subnet = /\/(3[0-2]|[12]?\d)/;
 const cidrRegexOrEmpty = new RegExp(`^${ipRange.source}${subnet.source}|$`);
 
 function LabelTag({onClick, label}: {onClick(): void; label: string;}): React.ReactNode {

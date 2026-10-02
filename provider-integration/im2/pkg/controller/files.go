@@ -341,6 +341,7 @@ func initFiles() {
 				if item.ResolvedCollection.Owner.Project.Present {
 					policyCache.Mu.RLock()
 					policies := policyCache.PoliciesByProject[item.ResolvedCollection.Owner.Project.Value]
+					policyCache.Mu.RUnlock()
 					if specification, ok := policies[fnd.RestrictUploads]; ok && specification.IsEnabled() {
 						return fnd.BulkResponse[orcapi.FilesProviderCreateUploadResponse]{}, util.HttpErr(http.StatusForbidden, "Project does not allow uploads")
 					}
@@ -1074,6 +1075,7 @@ func filesMoveAndCopyPolicyCheck(sourceDrive orcapi.Drive, destinationDrive orca
 	}
 	policyCache.Mu.RLock()
 	policies := policyCache.PoliciesByProject[sourceProject.Value]
+	policyCache.Mu.RUnlock()
 	if specification, ok := policies[fnd.RestrictMoveAndCopy]; ok && specification.IsEnabled() {
 		return util.HttpErr(
 			http.StatusForbidden,

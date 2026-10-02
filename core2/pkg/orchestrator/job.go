@@ -686,29 +686,6 @@ func initJobs() {
 	})
 
 	orcapi.JobsOpenTerminalInFolder.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsOpenTerminalInFolderRequestItem]) (fndapi.BulkResponse[orcapi.OpenSessionWithProvider], *util.HttpError) {
-		if info.Actor.Project.Present {
-			policies := policiesByProject(string(info.Actor.Project.Value))
-			specification, ok := policies[fndapi.RestrictIntegratedApplications]
-			if ok {
-				values, ok := specification.GetValues().(fndapi.RestrictIntegratedApplicationsValues)
-				if !ok {
-					return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{},
-						util.HttpErr(
-							http.StatusForbidden,
-							"Malformed Policy.",
-						)
-				}
-
-				if values.Enabled && !slices.Contains(values.AllowList, "terminal") {
-					return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{},
-						util.HttpErr(
-							http.StatusForbidden,
-							"Integrated application is not allowed by project polices.",
-						)
-				}
-			}
-		}
-
 		updatesByProvider := map[string][]orcapi.JobsOpenTerminalInFolderRequestItem{}
 		indicesByProvider := map[string][]int{}
 
@@ -721,6 +698,29 @@ func initJobs() {
 			drive, _, _, err := ResourceRetrieveEx[orcapi.Drive](info.Actor, driveType, ResourceParseId(driveId), orcapi.PermissionEdit, orcapi.ResourceFlags{})
 			if err != nil {
 				return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{}, util.HttpErr(http.StatusForbidden, "permission denied")
+			}
+
+			if drive.Owner.Project.Present {
+				policies := policiesByProject(drive.Owner.Project.Value)
+				specification, ok := policies[fndapi.RestrictIntegratedApplications]
+				if ok {
+					values, ok := specification.GetValues().(fndapi.RestrictIntegratedApplicationsValues)
+					if !ok {
+						return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{},
+							util.HttpErr(
+								http.StatusForbidden,
+								"Malformed Policy.",
+							)
+					}
+
+					if values.Enabled && !slices.Contains(values.AllowList, "terminal") {
+						return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{},
+							util.HttpErr(
+								http.StatusForbidden,
+								"Integrated application is not allowed by project polices.",
+							)
+					}
+				}
 			}
 
 			provider := drive.Specification.Product.Provider

@@ -22,6 +22,7 @@ import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
 import BaseLink from "@/ui-components/BaseLink";
 import {sendInformationNotification} from "@/Notifications";
 import {ActionMenu} from "@/ui-components/Actions";
+import {noopCall} from "@/Authentication/DataHook";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -108,35 +109,11 @@ export const MembersContainer: React.FunctionComponent<{
         props.onSearch(value);
     }
 
-    function handleAddToGroup(username: string, groupId: string) {
-        props.onAddToGroup(username, groupId);
-    }
-
-    function handleRemoveFromGroup(username: string, groupId: string) {
-        props.onRemoveFromGroup(username, groupId);
-    }
-
-    function handleRemoveFromProject(username: string) {
-        props.onRemoveFromProject(username);
-    }
-
     function handleCreateGroup(event: React.SyntheticEvent) {
         event.preventDefault();
         props.onCreateGroup(newGroupName);
         setNewGroupName("");
         setNewGroup(false);
-    }
-
-    function handleDeleteGroup(groupId: string) {
-        props.onDeleteGroup(groupId);
-    }
-
-    function handleChangeRole(username: string, newRole: ProjectRole) {
-        props.onChangeRole(username, newRole);
-    }
-
-    function handleChangeSupportiveRole(username: string, newRole: SupportiveRole) {
-        props.onChangeSupportiveRole(username, newRole);
     }
 
     function handleRenameGroup(event: React.SyntheticEvent) {
@@ -239,10 +216,10 @@ export const MembersContainer: React.FunctionComponent<{
                                 myRole={props.project.status.myRole}
                                 member={member}
                                 key={member.username}
-                                handleChangeRole={handleChangeRole}
-                                handleChangeSupportiveRole={handleChangeSupportiveRole}
-                                handleRemoveFromProject={handleRemoveFromProject}
-                                handleAddToGroup={handleAddToGroup}
+                                handleChangeRole={props.onChangeRole}
+                                handleChangeSupportiveRole={props.onChangeSupportiveRole}
+                                handleRemoveFromProject={props.onRemoveFromProject}
+                                handleAddToGroup={props.onAddToGroup}
                                 activeGroup={props.activeGroup}
                             />)}
                     </List>
@@ -274,7 +251,7 @@ export const MembersContainer: React.FunctionComponent<{
                                     myRole={props.project.status.myRole}
                                     member={member}
                                     key={member}
-                                    handleRemoveFromGroup={handleRemoveFromGroup}
+                                    handleRemoveFromGroup={props.onRemoveFromGroup}
                                     activeGroup={props.activeGroup!}
                                 />)}
                             </List>
@@ -321,7 +298,7 @@ export const MembersContainer: React.FunctionComponent<{
                                     <GroupCard
                                         group={group}
                                         key={group.id}
-                                        handleDeleteGroup={handleDeleteGroup}
+                                        handleDeleteGroup={props.onDeleteGroup}
                                         isRenaming={renameGroupId === group.id}
                                         setRename={setRenameGroupName}
                                         renameGroup={renameGroupName}
@@ -723,13 +700,13 @@ const MemberCard: React.FunctionComponent<{
             <Box mr="8px">
                 {SUPPORTIVE_ROLES
                     .filter(({role: supportiveRole}) => holdsSupportiveRole(props.member, supportiveRole))
-                    .map(({ role: supportiveRole, title }) => (
+                    .map(({role: supportiveRole, title}) => (
                         <TooltipV2 key={supportiveRole} tooltip={title}>
                             <Icon width="35px" m="auto" name={projectSupportiveRoleToIconName(supportiveRole)} size={"16px"} />
                         </TooltipV2>
-                ))}
+                    ))}
             </Box>
-                {props.activeGroup && isAdminOrPI(props.myRole) ? <>
+            {props.activeGroup && isAdminOrPI(props.myRole) ? <>
                     <Button
                         disabled={isInActiveGroup}
                         color={"successMain"}
@@ -744,8 +721,7 @@ const MemberCard: React.FunctionComponent<{
                             checked height={35}
                             icon={projectRoleToStringIcon(props.member.role)}
                             label={props.member.role} name={props.member.role + props.member.username}
-                            onChange={() => {
-                            }} /> : null}
+                            onChange={noopCall} /> : null}
 
 
                         {amIPI || role === OldProjectRole.PI && !amIUser ?
