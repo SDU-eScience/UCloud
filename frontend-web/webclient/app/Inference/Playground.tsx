@@ -1135,10 +1135,22 @@ function ToolPartBody({part, body}: {part: ChatMessagePart; body: string}): Reac
     if (part.toolName === "bash") return <BashToolResult command={toolArgument(part)} output={output.text}/>;
     const argumentsValue = toolArguments(part);
 
-    switch (part.toolName) {
-        case "web_fetch": return <WebFetchToolResult argumentsValue={argumentsValue} result={output.value}/>;
-        default: return <CodeSnippet lang="json">{JSON.stringify(output.value, null, 2)}</CodeSnippet>;
+    if (part.toolName === "web_fetch") {
+        const error = output.error || (part.status === "error" ? toolSection(body, "Error:") || output.text || "Tool failed without an error message." : "");
+        return <WebFetchToolResult argumentsValue={argumentsValue} result={output.value} error={error} running={part.status === "running"}/>;
     }
+
+    if (output.error || part.status === "error") {
+        return <CodeSnippet lang="text">{output.error || toolSection(body, "Error:") || output.text || "Tool failed without an error message."}</CodeSnippet>;
+    }
+    if (!output.value) {
+        if (part.status === "running") {
+            return <UcxSpinner />;
+        }
+        return <CodeSnippet lang="text">{output.text || "The tool returned no content."}</CodeSnippet>;
+    }
+
+    return <CodeSnippet lang="json">{JSON.stringify(output.value, null, 2)}</CodeSnippet>;
 }
 
 function BashToolResult({command, output}: {command: string; output: string}): React.ReactNode {
@@ -1148,12 +1160,21 @@ function BashToolResult({command, output}: {command: string; output: string}): R
     </div>;
 }
 
-function WebFetchToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
+function WebFetchToolResult({argumentsValue, result, error, running}: {argumentsValue: ToolJson | null; result: ToolJson | null; error: string; running: boolean}): React.ReactNode {
     const content = stringValueFrom(result?.content);
     const format = stringValueFrom(result?.format) || stringValueFrom(argumentsValue?.format) || "markdown";
+    const cursor = stringValueFrom(result?.next_cursor);
+    const query = stringValueFrom(result?.query) || stringValueFrom(argumentsValue?.query);
     return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "URL", value: stringValueFrom(result?.url) || stringValueFrom(argumentsValue?.url)}, {label: "Format", value: format}, {label: "Status", value: result ? String(numberValueFrom(result.status) ?? "") : ""}, {label: "Content type", value: stringValueFrom(result?.content_type)}]}/>
-        {result ? (format === "markdown" ? <CodeSnippet lang="markdown">{content}</CodeSnippet> : <CodeSnippet lang="html">{content}</CodeSnippet>) : <UcxSpinner />}
+        <ToolFields fields={[
+            {label: "URL", value: stringValueFrom(result?.url) || stringValueFrom(argumentsValue?.url)},
+            {label: "HTTP status", value: result ? String(numberValueFrom(result.status) ?? "") : ""},
+            {label: "Query", value: query},
+        ]}/>
+        {query && result?.query_matched === false ? <span>No sections matched the query. Showing document content instead.</span> : null}
+        {error ? <CodeSnippet lang="text">{error}</CodeSnippet> : running && content.trim() === "" ? <UcxSpinner /> : content.trim() === "" ? <span>The tool returned no content.</span> : <CodeSnippet lang={format === "markdown" ? "markdown" : "html"}>{content}</CodeSnippet>}
+        {result?.download_truncated === true ? <span>The download reached its size limit. The page content is incomplete.</span> : null}
+        {cursor ? <span>More page content is available.</span> : result?.truncated === true && result?.download_truncated !== true ? <span>Content was truncated.</span> : null}
     </div>;
 }
 
@@ -1194,11 +1215,17 @@ function toolArguments(part: ChatMessagePart): ToolJson | null {
     return toolJson(part.text) ?? toolJson(toolSection(part.body, "Arguments:"));
 }
 
-function toolOutput(body: string): {value: ToolJson | null; text: string} {
+function toolOutput(body: string): {value: ToolJson | null; text: string; error: string} {
     const result = toolResult(body);
     const envelope = toolJson(result);
     const stdout = stringValueFrom(envelope?.stdout);
-    return {value: toolJson(stdout) ?? envelope, text: stdout || result};
+    const value = toolJson(stdout) ?? envelope;
+    const failure = stringValueFrom(envelope?.error) || stringValueFrom(value?.error) ||
+        (envelope?.timed_out === true ? "Tool timed out." : "") ||
+        toolSection(body, "Error:");
+    const stderr = stringValueFrom(envelope?.stderr);
+    const error = failure ? [failure, stderr].filter(Boolean).join("\n\n") : stdout.trim() === "" ? stderr : "";
+    return {value, text: stdout || result, error};
 }
 
 function toolSection(body: string, marker: string): string {
