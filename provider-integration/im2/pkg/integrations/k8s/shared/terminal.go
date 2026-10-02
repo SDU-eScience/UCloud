@@ -343,7 +343,10 @@ func integratedSandboxNeedsActivation(config controller.IAppRunningConfiguration
 		return true
 	}
 	job, ok := controller.JobRetrieve(config.JobId)
-	return !ok || job.Status.State.IsFinal() || job.Status.State == orc.JobStateSuspended
+	if !ok || job.Status.State.IsFinal() || job.Status.State == orc.JobStateSuspended {
+		return true
+	}
+	return config.AppName == InferenceSandboxAppName && job.Owner.Project != config.Owner.Project
 }
 
 func integratedSandboxFromConfiguration(appName string, config controller.IAppRunningConfiguration) *IntegratedSandbox {
@@ -422,21 +425,20 @@ func InferenceSandboxInternetEnabledFor(owner orc.ResourceOwner) bool {
 	return inferenceSandboxInternetEnabledByKey[key]
 }
 
-func InferenceSandboxInternetEnable(owner orc.ResourceOwner) {
+func InferenceSandboxInternetEnable(owner orc.ResourceOwner) *util.HttpError {
 	key := integratedSandboxLeaseKey(InferenceSandboxAppName, owner)
 
 	inferenceSandboxInternetMutex.Lock()
 	alreadyEnabled := inferenceSandboxInternetEnabledByKey[key]
 	inferenceSandboxInternetMutex.Unlock()
 	if alreadyEnabled {
-		return
+		return nil
 	}
 
-	if InferenceSandboxSetInternetAccess(owner, true) == nil {
-		inferenceSandboxInternetMutex.Lock()
-		inferenceSandboxInternetEnabledByKey[key] = true
-		inferenceSandboxInternetMutex.Unlock()
+	if _, err := InferenceSandboxOpen(owner, nil); err != nil {
+		return err
 	}
+	return InferenceSandboxSetInternetAccess(owner, true)
 }
 
 func InferenceSandboxSetInternetAccess(owner orc.ResourceOwner, enabled bool) *util.HttpError {

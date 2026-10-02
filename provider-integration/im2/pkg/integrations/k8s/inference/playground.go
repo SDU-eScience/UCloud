@@ -61,8 +61,8 @@ type InferencePlaygroundApp struct {
 	session        *ucx.Session `ucx:"-"`
 	flusherStarted bool         `ucx:"-"`
 
-	internetPermissionPending   map[string]chan bool `ucx:"-"`
-	internetPermissionPendingMu sync.Mutex           `ucx:"-"`
+	internetPermissionPending   map[string]chan struct{} `ucx:"-"`
+	internetPermissionPendingMu sync.Mutex               `ucx:"-"`
 
 	threadInternetAccessMu   sync.Mutex        `ucx:"-"`
 	threadInternetAccessById map[string]string `ucx:"-"`
@@ -269,7 +269,7 @@ func InferencePlayground(owner orcapi.ResourceOwner, sessionId string) *Inferenc
 		DevelopmentMode:           util.DevelopmentModeEnabled(),
 		chatCancels:               map[string]context.CancelFunc{},
 		threadInternetAccessById:  map[string]string{},
-		internetPermissionPending: map[string]chan bool{},
+		internetPermissionPending: map[string]chan struct{}{},
 		Chat: InferencePlaygroundAppChat{
 			Streaming:           true,
 			Temperature:         0.8,
@@ -683,11 +683,20 @@ func (app *InferencePlaygroundApp) setInternetAccessState(threadId string, state
 
 func (app *InferencePlaygroundApp) requestInternetPermission(ctx context.Context, threadId string, url string) bool {
 	app.internetPermissionPendingMu.Lock()
-	if _, ok := app.internetPermissionPending[threadId]; ok {
+	if ch, ok := app.internetPermissionPending[threadId]; ok {
 		app.internetPermissionPendingMu.Unlock()
-		return app.internetAccessState(threadId) == playgroundInternetGranted
+		select {
+		case <-ch:
+			return app.internetAccessState(threadId) == playgroundInternetGranted
+		case <-ctx.Done():
+			return false
+		}
 	}
-	ch := make(chan bool, 1)
+	if app.internetAccessState(threadId) == playgroundInternetGranted {
+		app.internetPermissionPendingMu.Unlock()
+		return true
+	}
+	ch := make(chan struct{})
 	app.internetPermissionPending[threadId] = ch
 	app.internetPermissionPendingMu.Unlock()
 
@@ -699,15 +708,15 @@ func (app *InferencePlaygroundApp) requestInternetPermission(ctx context.Context
 	ucx.AppUpdateModelLocked(session, model)
 
 	select {
-	case granted := <-ch:
+	case <-ch:
 		app.clearInternetPermission()
-		if granted {
-			shared.InferenceSandboxInternetEnable(app.Owner)
-		}
-		return granted
+		return app.internetAccessState(threadId) == playgroundInternetGranted
 	case <-ctx.Done():
 		app.internetPermissionPendingMu.Lock()
-		delete(app.internetPermissionPending, threadId)
+		if app.internetPermissionPending[threadId] == ch {
+			delete(app.internetPermissionPending, threadId)
+			close(ch)
+		}
 		app.internetPermissionPendingMu.Unlock()
 		app.clearInternetPermission()
 		return false
@@ -715,12 +724,14 @@ func (app *InferencePlaygroundApp) requestInternetPermission(ctx context.Context
 }
 
 func (app *InferencePlaygroundApp) resolveInternetPermission(threadId string, granted bool) {
+	app.setInternetAccessState(threadId, playgroundInternetBoolToState(granted))
 	app.internetPermissionPendingMu.Lock()
 	ch, ok := app.internetPermissionPending[threadId]
 	delete(app.internetPermissionPending, threadId)
+	if ok {
+		close(ch)
+	}
 	app.internetPermissionPendingMu.Unlock()
-
-	app.setInternetAccessState(threadId, playgroundInternetBoolToState(granted))
 
 	for i := range app.Threads {
 		if app.Threads[i].Id == threadId {
@@ -735,12 +746,6 @@ func (app *InferencePlaygroundApp) resolveInternetPermission(threadId string, gr
 	app.Chat.Curl = app.buildChatCurl()
 	ucx.AppUpdateModel(app)
 
-	if ok {
-		select {
-		case ch <- granted:
-		default:
-		}
-	}
 }
 
 func (app *InferencePlaygroundApp) clearInternetPermission() {
@@ -759,18 +764,20 @@ func playgroundInternetBoolToState(granted bool) string {
 	return playgroundInternetDenied
 }
 
-func (app *InferencePlaygroundApp) ensureInternetAccessForTool(ctx context.Context, threadId string, url string) bool {
-	if shared.InferenceSandboxInternetEnabledFor(app.Owner) {
-		return true
+func (app *InferencePlaygroundApp) ensureInternetAccessForTool(ctx context.Context, threadId string, url string) string {
+	switch app.internetAccessState(threadId) {
+	case playgroundInternetGranted:
+	case playgroundInternetDenied:
+		return "internet access is not enabled in this session"
+	default:
+		if !app.requestInternetPermission(ctx, threadId, url) {
+			return "internet access is not enabled in this session"
+		}
 	}
-	if app.internetAccessState(threadId) == playgroundInternetGranted {
-		shared.InferenceSandboxInternetEnable(app.Owner)
-		return shared.InferenceSandboxInternetEnabledFor(app.Owner)
+	if err := shared.InferenceSandboxInternetEnable(app.Owner); err != nil {
+		return "failed to enable sandbox internet access: " + err.Why
 	}
-	if app.internetAccessState(threadId) == playgroundInternetDenied {
-		return false
-	}
-	return app.requestInternetPermission(ctx, threadId, url)
+	return ""
 }
 
 func (app *InferencePlaygroundApp) flushThreadsLocked() {
@@ -1262,6 +1269,7 @@ func (app *InferencePlaygroundApp) runChatResponseStreamingInner(
 			)
 			request.ToolChoice = "none"
 		}
+		app.playgroundPruneToolHistory(request)
 		chunks, err := InferenceChatStreaming(ctx, owner, app.tokenUsername(), *request)
 		if err != nil {
 			content, reasoning, _ := publisher.snapshot()
@@ -1325,12 +1333,7 @@ func (app *InferencePlaygroundApp) runChatResponseStreamingInner(
 		toolCalls := playgroundStreamingToolCalls(toolCallsByIndex, toolCallOrder)
 		request.Messages = append(request.Messages, InferenceChatMessage{Role: "assistant", Content: inferenceChatTextContent(""), ToolCalls: toolCalls})
 
-		for _, call := range toolCalls {
-			app.appendThreadAssistantPart(threadId, assistantIndex, playgroundToolChatPart(call, "running", ""), request.Model, startedAt)
-			result := app.playgroundToolDispatch(ctx, threadId, call)
-			app.appendThreadAssistantPart(threadId, assistantIndex, playgroundToolChatPart(call, playgroundToolStatus(result), playgroundToolPartBody(call, result)), request.Model, startedAt)
-			request.Messages = append(request.Messages, result.Message)
-		}
+		app.playgroundRunToolCalls(ctx, request, threadId, assistantIndex, startedAt, toolCalls)
 	}
 
 	content, reasoning, _ := publisher.snapshot()
@@ -1865,6 +1868,11 @@ func playgroundInferenceContent(msg playgroundChatMessage) InferenceChatMessageC
 	}
 	if attachmentPart, ok := playgroundAttachmentPartFromUrl(msg.Content); ok && (attachmentPart.Kind == "image" || attachmentPart.Kind == "video" || attachmentPart.Kind == "audio") {
 		return playgroundInferenceAttachmentContent(attachmentPart.Kind, attachmentPart.Url)
+	}
+	if msg.Role == "assistant" {
+		if records := playgroundToolHistorySourceRecords(msg.Parts); len(records) > 0 {
+			return inferenceChatTextContent(msg.Content + "\n\nPrevious web sources (records only; page content is omitted):\n" + playgroundToolJSON(records))
+		}
 	}
 	return inferenceChatTextContent(msg.Content)
 }

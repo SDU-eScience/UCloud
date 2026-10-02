@@ -3754,6 +3754,7 @@ export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclarat
 
         const fallbackLogo = ProviderInfo.providers.find(it => it.id === providerId)?.logo;
         const img = document.createElement("img");
+        img.style.display = "block";
         img.style.width = "100%";
         img.style.height = "100%";
         img.style.objectFit = "contain";
