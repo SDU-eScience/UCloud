@@ -1,12 +1,15 @@
 import {useSelector} from "react-redux";
-import {randomUUID} from "@/UtilityFunctions";
+import {randomUUID, shortUUID} from "@/UtilityFunctions";
 import {createSlice, PayloadAction} from "@reduxjs/toolkit";
+import {Dispatch} from "@reduxjs/toolkit";
 
 export interface TerminalTab {
     title: string;
     folder: string;
     providerId: string;
     uniqueId?: string;
+    jobId?: string;
+    rank?: number;
 }
 
 export interface TerminalPageContext {
@@ -74,6 +77,10 @@ const terminalSlice = createSlice({
             const tab = state.tabs[action.payload.tabIdx];
             if (tab) tab.title = action.payload.title;
         },
+        terminalUpdateTabProviderId(state, action: PayloadAction<{tabIdx: number; providerId: string}>) {
+            const tab = state.tabs[action.payload.tabIdx];
+            if (tab) tab.providerId = action.payload.providerId;
+        },
         terminalReorderTabs(state, action: PayloadAction<{tabIds: string[]}>) {
             const activeTabId = state.tabs[state.activeTab]?.uniqueId;
             const reorderedTabs = action.payload.tabIds
@@ -90,8 +97,21 @@ const terminalSlice = createSlice({
     }
 });
 
-export const {terminalClose, terminalCloseTab, terminalOpen, terminalOpenTab, terminalSelectTab, terminalUpdateTabTitle, terminalReorderTabs, terminalSetPageContext} = terminalSlice.actions;
+export const {terminalClose, terminalCloseTab, terminalOpen, terminalOpenTab, terminalSelectTab, terminalUpdateTabTitle, terminalUpdateTabProviderId, terminalReorderTabs, terminalSetPageContext} = terminalSlice.actions;
 export const terminalReducer = terminalSlice.reducer;
+
+export function openJobShellTab(dispatch: Dispatch, jobId: string, rank = 0): void {
+    dispatch(terminalOpen());
+    dispatch(terminalOpenTab({
+        tab: {
+            title: `Shell ${shortUUID(jobId)}`,
+            folder: "",
+            providerId: "",
+            jobId,
+            rank,
+        },
+    }));
+}
 
 export function useTerminalState(): TerminalState {
     return useSelector<ReduxObject, TerminalState>(it => it.terminal);

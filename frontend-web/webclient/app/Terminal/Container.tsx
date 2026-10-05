@@ -1,5 +1,5 @@
 import * as React from "react";
-import {terminalClose, terminalCloseTab, terminalOpen, terminalOpenTab, terminalReorderTabs, terminalSelectTab, terminalUpdateTabTitle, TerminalState, TerminalPageContext, TerminalTab, useTerminalState} from "@/Terminal/State";
+import {terminalClose, terminalCloseTab, terminalOpen, terminalOpenTab, terminalReorderTabs, terminalSelectTab, terminalUpdateTabProviderId, terminalUpdateTabTitle, TerminalState, TerminalPageContext, TerminalTab, useTerminalState} from "@/Terminal/State";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useLocation} from "react-router-dom";
 import {IconButton} from "@/ui-components/IconButton";
@@ -157,7 +157,7 @@ async function resolveNewTerminalLocation(
     search: string,
 ): Promise<TerminalPageContext> {
     const activeTab = state.tabs[state.activeTab];
-    if (activeTab) {
+    if (activeTab && !activeTab.jobId) {
         return {
             folder: activeTab.folder,
             providerId: activeTab.providerId,
@@ -460,16 +460,29 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: num
     );
 
     const doReconnect = useCallback(() => {
+        if (props.tab.jobId) {
+            return openSession(JobsApi.openInteractiveSession(
+                bulkRequestOf({id: props.tab.jobId, rank: props.tab.rank ?? 0, sessionType: "SHELL"})
+            ));
+        }
         return openSession(JobsApi.openTerminalInFolder(
             bulkRequestOf({folder: props.tab.folder}))
         );
-    }, [openSession, props.tab.folder]);
+    }, [openSession, props.tab.folder, props.tab.jobId, props.tab.rank]);
+
+    const sessionWithProvider = sessionResp.data.responses.length > 0 ? sessionResp.data.responses[0] : null;
 
     const updateTitle = useCallback((title: string) => {
         const normalizedTitle = title.trim();
         if (normalizedTitle.length === 0 || normalizedTitle === props.tab.title) return;
         dispatch(terminalUpdateTabTitle({tabIdx: props.tabIdx, title: normalizedTitle}));
     }, [props.tab.title, props.tabIdx]);
+
+    useEffect(() => {
+        if (!props.tab.jobId || !sessionWithProvider) return;
+        if (props.tab.providerId === sessionWithProvider.providerId) return;
+        dispatch(terminalUpdateTabProviderId({tabIdx: props.tabIdx, providerId: sessionWithProvider.providerId}));
+    }, [dispatch, props.tab.jobId, props.tab.providerId, props.tabIdx, sessionWithProvider]);
 
     useEffect(() => {
         doReconnect();
@@ -502,7 +515,6 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: num
         terminal.current?.resize(cols, rows);
     }, [size[0], size[1]]);
 
-    const sessionWithProvider = sessionResp.data.responses.length > 0 ? sessionResp.data.responses[0] : null;
     return <div style={{display: props.hidden ? "none" : "block"}}>
         <ShellWithSession
             sessionWithProvider={sessionWithProvider}
@@ -513,6 +525,7 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: num
             reconnect={doReconnect}
             maxReconnectAttempts={INTEGRATED_TERMINAL_RECONNECT_ATTEMPTS}
             onTitleChange={updateTitle}
+            jobId={props.tab.jobId}
         />
     </div>;
 }

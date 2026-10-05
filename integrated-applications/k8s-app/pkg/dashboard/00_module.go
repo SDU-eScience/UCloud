@@ -716,6 +716,12 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 					Icon:     ucx.IconHeroArrowTopRightOnSquare,
 					Shortcut: "g",
 				},
+				ucx.ResourceTableAction{
+					Id:       "openShell",
+					Label:    "Open shell",
+					Icon:     ucx.IconHeroCommandLine,
+					Shortcut: "s",
+				},
 			)
 			groupAction = &ucx.ResourceTableAction{
 				Id:       "addMachine",
@@ -1036,7 +1042,7 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 		return
 	}
 
-	if actionId != "goToJob" && actionId != "cordonDrain" && actionId != "uncordon" && actionId != "upgradeNode" && actionId != "removeNode" {
+	if actionId != "goToJob" && actionId != "openShell" && actionId != "cordonDrain" && actionId != "uncordon" && actionId != "upgradeNode" && actionId != "removeNode" {
 		return
 	}
 
@@ -1086,6 +1092,12 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 			return
 		}
 		ucxsvc.OpenUrl(app, fmt.Sprintf("/jobs/properties/%s", jobId))
+	case "openShell":
+		jobId := app.nodeJobIds()[nodeName]
+		if jobId == "" {
+			return
+		}
+		ucxsvc.TerminalOpenShellToJob(app, jobId, 0)
 	}
 }
 

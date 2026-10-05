@@ -42,29 +42,9 @@ log "reading the admin token secret"
 emit "Reading the admin token secret" 90
 /etc/ucloud-k8s/bundle/kubeconfig-setup.sh
 
-log "installing the user kubeconfig"
-emit "Installing the user kubeconfig" 95
-if id ucloud >/dev/null 2>&1; then
-	install -d -m 0700 -o ucloud -g ucloud /home/ucloud/.kube
-	install -m 0600 -o ucloud -g ucloud /etc/rancher/k3s/k3s.yaml /home/ucloud/.kube/config
-	grep -q 'KUBECONFIG' /home/ucloud/.bashrc 2>/dev/null || \
-		echo 'export KUBECONFIG=/home/ucloud/.kube/config' >> /home/ucloud/.bashrc
-
-	KUBECTL_VERSION="$(node_field k8sVersion)"
-	KUBECTL_VERSION="${KUBECTL_VERSION%%+*}"
-	KUBECTL_TMP="/tmp/kubectl.$$"
-	install -d -m 0755 -o ucloud -g ucloud /home/ucloud/.local/bin
-	if curl -sfL --connect-timeout 15 --max-time 300 "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/$(node_arch)/kubectl" -o "$KUBECTL_TMP" &&
-		curl -sfL --connect-timeout 15 --max-time 60 "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/$(node_arch)/kubectl.sha256" -o "${KUBECTL_TMP}.sha256" &&
-		[ "$(sha256sum "$KUBECTL_TMP" | awk '{print $1}')" = "$(cat "${KUBECTL_TMP}.sha256")" ]; then
-		install -m 0755 -o ucloud -g ucloud "$KUBECTL_TMP" /home/ucloud/.local/bin/kubectl
-	else
-		log "could not install the standalone kubectl, falling back to the k3s kubectl wrapper"
-	fi
-	rm -f "$KUBECTL_TMP" "${KUBECTL_TMP}.sha256"
-	grep -q '\.local/bin' /home/ucloud/.bashrc 2>/dev/null || \
-		echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/ucloud/.bashrc
-fi
+log "installing the client tools"
+emit "Installing the client tools" 95
+/etc/ucloud-k8s/bundle/client-tools.sh
 
 log "cluster bootstrapped"
 

@@ -137,6 +137,11 @@ else
 	log "installing the kubeconfig"
 	emit "Installing the kubeconfig" 90
 	/etc/ucloud-k8s/bundle/kubeconfig-setup.sh
+
+	log "installing the client tools"
+	emit "Installing the client tools" 95
+	/etc/ucloud-k8s/bundle/client-tools.sh
+
 	log "server joined"
 	emit "Server joined the cluster" 100
 fi

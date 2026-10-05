@@ -748,9 +748,16 @@ func resourceRowActions(
 		Enabled:        false,
 		DisabledReason: "No UCloud job is associated with this node",
 	}
+	openShell := ucx.TableRowAction{
+		Id:             "openShell",
+		Enabled:        false,
+		DisabledReason: "No UCloud job is associated with this node",
+	}
 	if jobId != "" {
 		goToJob.Enabled = true
 		goToJob.DisabledReason = ""
+		openShell.Enabled = true
+		openShell.DisabledReason = ""
 	}
 
 	operation, knownRecorded := maintenanceSnapshot[nodeName]
@@ -760,6 +767,7 @@ func resourceRowActions(
 	actions := []ucx.TableRowAction{
 		{Id: "copyNodeName", Enabled: true, Text: row.Cells[0]},
 		goToJob,
+		openShell,
 	}
 
 	if provisioningRow {

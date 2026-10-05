@@ -73,6 +73,8 @@ import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {applyJobFollowResponse, InitTerminal, JobInitState, JobInitTracker, JobsFollowResponse} from "@/Stacks/JobInitTracking";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import Warning from "@/ui-components/Warning";
+import {useDispatch} from "react-redux";
+import {openJobShellTab} from "@/Terminal/State";
 
 type ValueProvider = string | (() => string | Promise<string>);
 export type UcxRpcPayload = PlainValue;
@@ -157,6 +159,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 }) => {
     const location = useLocation();
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     const [connected, setConnected] = useState(false);
     const [root, setRoot] = useState<UiNode | null>(null);
     const [model, setModel] = useState<Record<string, Value>>({});
@@ -645,6 +648,15 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                     } else if (path.startsWith("/") && !path.startsWith("//")) {
                         window.open("/app" + path, "_blank", "noopener,noreferrer");
                     }
+                    return {};
+                });
+
+                sessionRef.current?.registerRpcHandler("terminalOpenShellToJob", payload => {
+                    const plainPayload = valueMapToPlainPayload(payload) as {jobId?: unknown; rank?: unknown};
+                    const jobId = typeof plainPayload.jobId === "string" ? plainPayload.jobId : "";
+                    if (jobId === "") return {};
+                    const rank = typeof plainPayload.rank === "number" ? plainPayload.rank : 0;
+                    openJobShellTab(dispatch, jobId, rank);
                     return {};
                 });
 
