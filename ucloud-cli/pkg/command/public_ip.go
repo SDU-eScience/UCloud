@@ -120,7 +120,7 @@ func printPublicIps(wsName string, publicIps []orcapi.PublicIp) {
 
 func (c PublicIPListCommand) Execute() error {
 	cfg := shared.InitializeUCloudClient()
-	wsName, err := setActiveWorkspace(cfg, c.Workspace)
+	wsName, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (c PublicIPListCommand) Execute() error {
 
 func (c PublicIPGetCommand) Execute() error {
 	cfg := shared.InitializeUCloudClient()
-	wsName, err := setActiveWorkspace(cfg, c.Workspace)
+	wsName, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
 	if err != nil {
 		return err
 	}
@@ -201,7 +201,7 @@ func findPublicIpByIds(ids []string, publicIps []orcapi.PublicIp) ([]orcapi.Publ
 
 func (c PublicIPDeleteCommand) Execute() error {
 	cfg := shared.InitializeUCloudClient()
-	_, err := setActiveWorkspace(cfg, c.Workspace)
+	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
 	if err != nil {
 		return err
 	}
@@ -301,35 +301,9 @@ func createPortRangeAndProto(rules []string) ([]orcapi.PortRangeAndProto, error)
 	return portRanges, nil
 }
 
-func setActiveWorkspace(cfg *shared.Config, wsName string) (string, error) {
-	found := ""
-	if wsName != "" {
-		ws, err := FindWorkspaceByName(wsName)
-		if err != nil {
-			return "", err
-		}
-		if ws != nil {
-			found = ws.Name
-			shared.SetActiveWorkspace(ws.Id)
-		}
-	} else {
-		getWs, err := shared.GetActiveWorkspace(cfg)
-		if err != nil {
-			return found, err
-		}
-		ws, err := FindWorkspaceByName(getWs)
-		if err != nil {
-			return found, err
-		}
-		shared.SetActiveWorkspace(ws.Id)
-		found = ws.Name
-	}
-	return found, nil
-}
-
 func (c PublicIPCreateCommand) Execute() error {
 	cfg := shared.InitializeUCloudClient()
-	_, err := setActiveWorkspace(cfg, c.Workspace)
+	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
 	if err != nil {
 		return err
 	}
