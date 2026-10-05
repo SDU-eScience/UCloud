@@ -657,3 +657,12 @@ func TestPublicLinkCreate(t *testing.T) {
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }
+
+func TestPublicLinkDelete(t *testing.T) {
+	input := []string{"public-link", "delete", "barlinkagain", "barlink", "--workspace", "testmain"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}

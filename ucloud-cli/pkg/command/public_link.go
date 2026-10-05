@@ -152,32 +152,49 @@ func (c PublicLinkCreateCommand) Execute() error {
 			},
 		}},
 	}
-	_, httpEerr := orcapi.IngressesCreate.Invoke(request)
-	if httpEerr.AsError() != nil {
-		return fmt.Errorf("failed to create public link: %s", httpEerr.Why)
+	_, httpCreateErr := orcapi.IngressesCreate.Invoke(request)
+	if httpCreateErr.AsError() != nil {
+		return fmt.Errorf("failed to create public link: %s", httpCreateErr.Why)
 	}
 	fmt.Printf("Successfully created public link %v\n", createdLinks)
 	return nil
 }
 
 func (c PublicLinkDeleteCommand) Execute() error {
-	shared.InitializeUCloudClient()
-	request := fnd.BulkRequest[fnd.FindByStringId]{}
-	_, httpEerr := orcapi.IngressesDelete.Invoke(request)
-	if httpEerr.AsError() != nil {
-		return fmt.Errorf("failed to delete public link: %s", httpEerr.Why)
+	cfg := shared.InitializeUCloudClient()
+	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
+	if err != nil {
+		return err
 	}
+	request := fnd.BulkRequest[fnd.FindByStringId]{}
+
 	links, err := retrievePublicLinks()
 	if err != nil {
 		return err
 	}
+
+	deletedLinks := make([]string, 0)
+	notFoundLinks := make([]string, 0)
 	for _, name := range c.Name {
-		_, ok := links[name]
+		found, ok := links[name]
 		if ok {
-			return fmt.Errorf("public link %s not found", name)
+			request.Items = append(request.Items, fnd.FindByStringId{Id: found.Id})
+			deletedLinks = append(deletedLinks, name)
+		} else {
+			notFoundLinks = append(notFoundLinks, name)
 		}
+
 	}
-	// proceed to delete
-	fmt.Printf("Successfully deleted public link %s\n", c.Name)
+	if len(request.Items) == 0 {
+		return fmt.Errorf("the names %v were not found", c.Name)
+	}
+	_, httpEerr := orcapi.IngressesDelete.Invoke(request)
+	if httpEerr.AsError() != nil {
+		return fmt.Errorf("failed to delete public link: %s", httpEerr.Why)
+	}
+	fmt.Printf("Successfully deleted public link %v\n", deletedLinks)
+	if len(notFoundLinks) > 0 {
+		fmt.Printf("public link with name %v wasn't found\n", notFoundLinks)
+	}
 	return nil
 }
