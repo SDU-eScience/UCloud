@@ -1277,6 +1277,14 @@ func JobLogsBoundEx(id string, jobIdBindPath string) UiNode {
 	}
 }
 
+func ContainerLogsBoundEx(id string, logsBindPath string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "container_logs",
+		BindPath:  logsBindPath,
+	}
+}
+
 func (n UiNode) WithLogHeight(px int64) UiNode {
 	if n.Props == nil {
 		n.Props = map[string]Value{}

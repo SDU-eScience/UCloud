@@ -1113,14 +1113,16 @@ func OpenUrl(app ucx.Application, target string) {
 	_, _ = ucxapi.OpenUrl.Invoke(session, ucxapi.OpenUrlRequest{Path: resolved})
 }
 
-func TerminalOpenShellToJob(app ucx.Application, jobId string, rank int) {
+func TerminalOpenShellToJob(app ucx.Application, jobId string, rank int, command string, clearAfter bool) {
 	if jobId == "" {
 		return
 	}
 
 	session := *app.Session()
 	_, _ = ucxapi.TerminalOpenShellToJob.Invoke(session, ucxapi.TerminalOpenShellToJobRequest{
-		JobId: jobId,
-		Rank:  rank,
+		JobId:      jobId,
+		Rank:       rank,
+		Command:    command,
+		ClearAfter: clearAfter,
 	})
 }

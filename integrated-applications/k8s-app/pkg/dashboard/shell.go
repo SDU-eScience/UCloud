@@ -1,6 +1,8 @@
 package dashboard
 
 import (
+	"strings"
+
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 )
@@ -72,9 +74,9 @@ func shellBottomNode(app *stackUiApp, backTarget string, labels ...string) ucx.U
 		ucx.Box(),
 	)
 
-	for _, label := range labels {
+	if len(labels) > 0 {
 		bottom = bottom.Children(
-			ucx.Text(label).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+			ucx.Text(strings.Join(labels, " / ")).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
 		)
 	}
 

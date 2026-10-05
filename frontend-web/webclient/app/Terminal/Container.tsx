@@ -214,7 +214,6 @@ export const TerminalContainer: React.FunctionComponent = () => {
     const activeTerminalRef = useRef<Terminal | null>(null);
     const terminalRoot = useRef<HTMLDivElement | null>(null);
     const creatingTerminal = useRef(false);
-    const focusAfterCreate = useRef(false);
     const activeTabId = state.tabs[state.activeTab]?.uniqueId;
     const previousActiveTabId = useRef(activeTabId);
     const newTerminalShortcut = preferredNewTerminalShortcut();
@@ -244,7 +243,6 @@ export const TerminalContainer: React.FunctionComponent = () => {
         creatingTerminal.current = true;
         try {
             const terminalLocation = await resolveNewTerminalLocation(state, location.pathname, location.search);
-            focusAfterCreate.current = true;
             dispatch(terminalOpen());
             dispatch(terminalOpenTab({
                 select: true,
@@ -255,7 +253,6 @@ export const TerminalContainer: React.FunctionComponent = () => {
                 },
             }));
         } catch (error) {
-            focusAfterCreate.current = false;
             sendFailureNotification(error instanceof Error ? error.message : "Failed to create terminal.");
         } finally {
             creatingTerminal.current = false;
@@ -293,10 +290,9 @@ export const TerminalContainer: React.FunctionComponent = () => {
 
     useEffect(() => {
         const tabChanged = previousActiveTabId.current !== activeTabId;
-        const shouldFocus = tabChanged && (previousActiveTabId.current !== undefined || focusAfterCreate.current);
+        const shouldFocus = tabChanged && activeTabId !== undefined;
         previousActiveTabId.current = activeTabId;
         if (!shouldFocus) return;
-        focusAfterCreate.current = false;
 
         const frame = window.requestAnimationFrame(() => activeTerminalRef.current?.focus());
         return () => window.cancelAnimationFrame(frame);
@@ -526,6 +522,8 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: num
             maxReconnectAttempts={INTEGRATED_TERMINAL_RECONNECT_ATTEMPTS}
             onTitleChange={updateTitle}
             jobId={props.tab.jobId}
+            initialCommand={props.tab.initialCommand}
+            clearAfter={props.tab.clearAfter}
         />
     </div>;
 }

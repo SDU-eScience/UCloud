@@ -21,6 +21,7 @@ const (
 	OpModelPatch  Opcode = 0x13
 	OpModelInput  Opcode = 0x14
 	OpTableUpdate Opcode = 0x15
+	OpStringAppend Opcode = 0x16
 	OpRpcRequest  Opcode = 0x20
 	OpRpcResponse Opcode = 0x21
 )
@@ -36,6 +37,7 @@ type Frame struct {
 	ModelPatch     ModelPatch
 	ModelInput     ModelInput
 	TableUpdate    TableUpdate
+	StringAppend   StringAppend
 	RpcRequestName string
 	RpcPayload     map[string]Value
 	RpcStatus      int
@@ -43,6 +45,11 @@ type Frame struct {
 
 type SysHello struct {
 	Payload string
+}
+
+type StringAppend struct {
+	Path  string
+	Chunk string
 }
 
 type UiMount struct {
@@ -149,6 +156,8 @@ func FrameEncode(f Frame) ([]byte, error) {
 		ModelInputEncode(buf, f.ModelInput)
 	case OpTableUpdate:
 		TableUpdateEncode(buf, f.TableUpdate)
+	case OpStringAppend:
+		StringAppendEncode(buf, f.StringAppend)
 	case OpRpcRequest:
 		buf.WriteStringVarint(f.RpcRequestName)
 		RpcPayloadEncode(buf, f.RpcPayload)
@@ -187,6 +196,8 @@ func FrameDecode(data []byte) (Frame, error) {
 		result.ModelInput = ModelInputDecode(buf)
 	case OpTableUpdate:
 		result.TableUpdate = TableUpdateDecode(buf)
+	case OpStringAppend:
+		result.StringAppend = StringAppendDecode(buf)
 	case OpRpcRequest:
 		result.RpcRequestName = buf.ReadStringVarint()
 		result.RpcPayload = RpcPayloadDecode(buf)
@@ -277,6 +288,18 @@ func ModelPatchEncode(buf *util.UBuffer, msg ModelPatch) {
 func ModelPatchDecode(buf *util.UBuffer) ModelPatch {
 	return ModelPatch{
 		Changes: ValueMapDecode(buf),
+	}
+}
+
+func StringAppendEncode(buf *util.UBuffer, msg StringAppend) {
+	buf.WriteStringVarint(msg.Path)
+	buf.WriteStringVarint(msg.Chunk)
+}
+
+func StringAppendDecode(buf *util.UBuffer) StringAppend {
+	return StringAppend{
+		Path:  buf.ReadStringVarint(),
+		Chunk: buf.ReadStringVarint(),
 	}
 }
 

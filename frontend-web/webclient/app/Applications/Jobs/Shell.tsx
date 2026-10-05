@@ -62,7 +62,9 @@ export const ShellWithSession: React.FunctionComponent<{
     maxReconnectAttempts?: number;
     jobId?: string;
     onTitleChange?: (title: string) => void;
-}> = ({sessionWithProvider, connectionError, autofit, xtermRef, focusedTerminalRef, reconnect, maxReconnectAttempts = 0, jobId, onTitleChange}) => {
+    initialCommand?: string;
+    clearAfter?: boolean;
+}> = ({sessionWithProvider, connectionError, autofit, xtermRef, focusedTerminalRef, reconnect, maxReconnectAttempts = 0, jobId, onTitleChange, initialCommand, clearAfter}) => {
     const {termRef, terminal, fitAddon} = useXTerm({autofit});
     const [closed, setClosed] = useState<boolean>(false);
     const [reconnecting, setReconnecting] = useState(false);
@@ -215,7 +217,25 @@ export const ShellWithSession: React.FunctionComponent<{
                         },
                         handler: message => {
                             if (message.type === "message") {
-                                const payload = message.payload as {data: string} | any;
+                                const payload = message.payload as {type?: string, data: string} | any;
+                                if (payload?.type === "initialize" && initialCommand) {
+                                    conn.call({
+                                        call: `jobs.compute.${sessionWithProvider.providerId}.shell.open`,
+                                        payload: {
+                                            type: "input",
+                                            data: initialCommand + "\r"
+                                        }
+                                    });
+                                    if (clearAfter) {
+                                        conn.call({
+                                            call: `jobs.compute.${sessionWithProvider.providerId}.shell.open`,
+                                            payload: {
+                                                type: "input",
+                                                data: "\x0c"
+                                            }
+                                        });
+                                    }
+                                }
                                 if ("data" in payload) {
                                     terminal.write(payload.data);
                                 }

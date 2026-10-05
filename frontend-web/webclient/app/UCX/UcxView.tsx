@@ -71,6 +71,7 @@ import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle
 import {useIsLightThemeStored} from "@/ui-components/theme";
 import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {applyJobFollowResponse, InitTerminal, JobInitState, JobInitTracker, JobsFollowResponse} from "@/Stacks/JobInitTracking";
+import {appendToXterm, useXTerm, xtermThemes} from "@/Applications/Jobs/XTermLib";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import Warning from "@/ui-components/Warning";
 import {useDispatch} from "react-redux";
@@ -318,15 +319,24 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         });
     }, [sendFrame]);
 
+    const sendRouterInput = useCallback((bindPath: string, routePath: string, nodeId: string) => {
+        const browserRoutePath = routePathFromSearch(window.location.search);
+        if (routePath !== browserRoutePath) {
+            return;
+        }
+
+        sendModelInput(bindPath, {kind: ValueKind.String, string: routePath}, nodeId);
+    }, [sendModelInput]);
+
     const registerRouter = useCallback((bindPath: string, nodeId: string, model: Record<string, Value>, scope?: Record<string, Value>) => {
         if (!bindPath) return;
         activeRouterBindPathRef.current = bindPath;
 
         const bound = modelString(model, bindPath, scope);
         if (bound !== currentRoutePath) {
-            sendModelInput(bindPath, {kind: ValueKind.String, string: currentRoutePath}, `router:${nodeId}`);
+            sendRouterInput(bindPath, currentRoutePath, `router:${nodeId}`);
         }
-    }, [currentRoutePath, sendModelInput]);
+    }, [currentRoutePath, sendRouterInput]);
 
     const registerQueryParam = useCallback((bindPath: string, nodeId: string, key: string, model: Record<string, Value>, scope?: Record<string, Value>, options?: {replace?: boolean; removeWhenEmpty?: boolean; sendMissing?: boolean; writeToUrl?: boolean; clearKeys?: string[]}) => {
         if (!bindPath || !key) return;
@@ -394,7 +404,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     }, [location.hash, location.pathname, location.search]);
 
     const setSpaRoute = useCallback((to: string) => {
-        const params = new URLSearchParams(location.search);
+        const params = new URLSearchParams(window.location.search);
         if (to === "") {
             params.delete("p");
         } else {
@@ -406,7 +416,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
             search: search ? `?${search}` : "",
             hash: location.hash,
         });
-    }, [location.hash, location.pathname, location.search, navigate]);
+    }, [location.hash, location.pathname, navigate]);
 
     const navigateSpa = useCallback((to: string, nodeId: string) => {
         const bindPath = activeRouterBindPathRef.current;
@@ -415,7 +425,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         }
 
         const nextTo = to ?? "";
-        const params = new URLSearchParams(location.search);
+        const params = new URLSearchParams(window.location.search);
         params.set("p", nextTo);
         const search = params.toString();
 
@@ -425,8 +435,8 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
             hash: location.hash,
         });
 
-        sendModelInput(bindPath, {kind: ValueKind.String, string: nextTo}, `link:${nodeId}`);
-    }, [location.hash, location.pathname, location.search, navigate, sendModelInput]);
+        sendRouterInput(bindPath, nextTo, `link:${nodeId}`);
+    }, [location.hash, location.pathname, navigate, sendRouterInput]);
 
     useEffect(() => {
         navigateSpaRef.current = navigateSpa;
@@ -507,8 +517,8 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     useEffect(() => {
         const bindPath = activeRouterBindPathRef.current;
         if (!bindPath) return;
-        sendModelInput(bindPath, {kind: ValueKind.String, string: currentRoutePath}, "router:location");
-    }, [currentRoutePath, sendModelInput]);
+        sendRouterInput(bindPath, currentRoutePath, "router:location");
+    }, [currentRoutePath, sendRouterInput]);
 
     const mergedFunctions = useMemo<UcxFunctionRegistry>(() => ({
         ...baseFunctions,
@@ -652,11 +662,13 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 });
 
                 sessionRef.current?.registerRpcHandler("terminalOpenShellToJob", payload => {
-                    const plainPayload = valueMapToPlainPayload(payload) as {jobId?: unknown; rank?: unknown};
+                    const plainPayload = valueMapToPlainPayload(payload) as {jobId?: unknown; rank?: unknown; command?: unknown; clearAfter?: unknown};
                     const jobId = typeof plainPayload.jobId === "string" ? plainPayload.jobId : "";
                     if (jobId === "") return {};
                     const rank = typeof plainPayload.rank === "number" ? plainPayload.rank : 0;
-                    openJobShellTab(dispatch, jobId, rank);
+                    const command = typeof plainPayload.command === "string" ? plainPayload.command : undefined;
+                    const clearAfter = plainPayload.clearAfter === true;
+                    openJobShellTab(dispatch, jobId, rank, command, clearAfter);
                     return {};
                 });
 
@@ -772,6 +784,13 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                                 }
                             }
                             return next;
+                        });
+                    } else if (frame.opcode === Opcode.StringAppend && frame.stringAppend) {
+                        const append = frame.stringAppend;
+                        scheduleModelFlush(prev => {
+                            const current = prev[append.path];
+                            if (!current || current.kind !== ValueKind.String) return prev;
+                            return {...prev, [append.path]: {kind: ValueKind.String, string: current.string + append.chunk}};
                         });
                     }
                 } catch (err) {
@@ -1502,6 +1521,10 @@ const baseComponents: UcxComponentRegistry = {
         const height = numberProp(node, "height", 320);
         return <JobLogsNode jobId={jobId} height={height} style={fn.sxStyle(node)} />;
     },
+    container_logs: ({node, model, scope, fn}) => {
+        const logs = node.bindPath ? modelString(model, node.bindPath, scope) : "";
+        return <ContainerLogsNode logs={logs} style={fn.sxStyle(node)} />;
+    },
 };
 
 type UcxJobLogsState = JobInitState;
@@ -1597,6 +1620,52 @@ const JobLogsNode: React.FunctionComponent<{
         <InitTerminal state={state} height={height} />
     </div>;
 };
+
+const ContainerLogsNode: React.FunctionComponent<{
+    logs: string;
+    style?: React.CSSProperties;
+}> = ({logs, style}) => {
+    const {termRef, terminal} = useXTerm({autofit: true, readOnly: true});
+    const writtenRef = useRef("");
+
+    useLayoutEffect(() => {
+        if (writtenRef.current === "") {
+            terminal.reset();
+        } else if (!logs.startsWith(writtenRef.current)) {
+            terminal.reset();
+            writtenRef.current = "";
+        }
+
+        if (logs.length > writtenRef.current.length) {
+            appendToXterm(terminal, logs.slice(writtenRef.current.length));
+            writtenRef.current = logs;
+        }
+    }, [logs, terminal]);
+
+    return <div className={UcxContainerLogsWrapper} style={style}>
+        <div ref={termRef} className="term" />
+    </div>;
+};
+
+const UcxContainerLogsWrapper = injectStyle("ucx-container-logs", k => `
+    ${k} {
+        flex: 1 1 auto;
+        min-height: 0;
+        background: ${xtermThemes.light.background};
+        border-radius: 8px;
+        padding: 12px 16px;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    html.dark ${k} {
+        background: ${xtermThemes.dark.background};
+    }
+
+    ${k} .term {
+        height: 100%;
+    }
+`);
 
 const UcxJobLogsDot = injectStyle("ucx-job-logs-dot", k => `
     ${k} {
@@ -2090,12 +2159,39 @@ const UcxButtonField: React.FunctionComponent<{
     const disabled = boolProp(node, "disabled", false) || busy || disabledByPath;
     const showShortcut = boolProp(node, "showShortcut", false);
     const showEscapeHint = boolProp(node, "showEscapeHint", false);
+    const shortcutKey = optionalStringProp(node, "shortcutKey");
     const eventValuePath = stringProp(node, "eventValuePath", "");
     const eventValue = eventValuePath ? modelValue(model, eventValuePath, scope) : undefined;
 
     const sx = fn.sxStyle(node);
 
     const containerRef = useRef<HTMLDivElement>(null);
+
+    const fireFromShortcut = useCallback(() => {
+        if (disabled) return;
+        fn.sendUiEvent(node.id, submit ? "submit" : "click", eventValue);
+    }, [disabled, eventValue, fn, node.id, submit]);
+
+    useEffect(() => {
+        if (!shortcutKey) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.ctrlKey || event.metaKey || event.altKey) return;
+            if (event.key.length !== 1 || event.key.toLowerCase() !== shortcutKey.toLowerCase()) return;
+            const container = containerRef.current;
+            if (!container) return;
+            const dialog = container.closest(".ReactModal__Content");
+            if (!dialog) return;
+            const target = event.target instanceof Node ? event.target : null;
+            if (!target || !dialog.contains(target)) return;
+            if (isEditableTarget(event.target)) return;
+
+            event.preventDefault();
+            fireFromShortcut();
+        };
+
+        document.addEventListener("keydown", onKeyDown, true);
+        return () => document.removeEventListener("keydown", onKeyDown, true);
+    }, [fireFromShortcut, shortcutKey]);
 
     if (holdToConfirm) {
         const fire = async () => {
@@ -2120,7 +2216,7 @@ const UcxButtonField: React.FunctionComponent<{
         </div>;
     }
 
-    return <div style={{...sx, display: "flex"}}>
+    return <div ref={containerRef} style={{...sx, display: "flex"}}>
         <Button
             color={color as any}
             type={submit ? "submit" : "button"}
@@ -2133,6 +2229,7 @@ const UcxButtonField: React.FunctionComponent<{
             {label}
             {iconRight ? <Icon name={iconRight as any} size={15} ml="6px" /> : null}
             {showEscapeHint ? <span style={{marginLeft: "8px"}} className={ShortcutClass}>esc</span> : null}
+            {shortcutKey ? <span style={{marginLeft: "12px"}} className={ShortcutClass}>{shortcutKey}</span> : null}
             {showShortcut && !busy ? <SubmitShortcut /> : null}
         </Button>
     </div>;
@@ -2153,6 +2250,7 @@ const ResourceTableNode: React.FunctionComponent<{
         tableId={tableId}
         store={store}
         stateKey={stateKey}
+        viewId={optionalStringProp(node, "viewId")}
         emptyMessage={stringProp(node, "emptyMessage", "No resources found.")}
         showGroupHeaders={boolProp(node, "showGroupHeaders", true)}
         sorted={boolProp(node, "sorted", true)}

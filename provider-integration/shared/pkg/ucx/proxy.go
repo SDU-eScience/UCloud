@@ -224,6 +224,11 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 						latestModel[key] = cloneValue(value)
 					}
 				}
+
+			case OpStringAppend:
+				if current, ok := latestModel[frame.StringAppend.Path]; ok && current.Kind == ValueString {
+					latestModel[frame.StringAppend.Path] = VString(current.String + frame.StringAppend.Chunk)
+				}
 			}
 
 			if p.handleProxyRpc(ctx, frame, upstreamOutgoing) {

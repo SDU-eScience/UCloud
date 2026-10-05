@@ -248,6 +248,37 @@ func (s *Session) SendModelPatch(changes map[string]Value) {
 	})
 }
 
+// SendStringAppend appends a chunk to a string value already present in the model. This is used for
+// high-frequency streaming (for example log tails) where re-sending the accumulated string is too
+// costly. The value at path must already be a string, otherwise the call is a no-op and returns
+// false. Callers should fall back to SendModelPatch with the full value when it returns false.
+func (s *Session) SendStringAppend(path string, chunk string) bool {
+	if chunk == "" {
+		return true
+	}
+
+	s.modelMu.Lock()
+	defer s.modelMu.Unlock()
+
+	current, ok := s.sentModel[path]
+	if !ok || current.Kind != ValueString {
+		return false
+	}
+
+	s.sentModel[path] = VString(current.String + chunk)
+
+	s.Send(Frame{
+		ReplyToSeq:  0,
+		Opcode:      OpStringAppend,
+		StringAppend: StringAppend{
+			Path:  path,
+			Chunk: chunk,
+		},
+	})
+
+	return true
+}
+
 func (s *Session) SendTableUpdate(update TableUpdate) {
 	s.Send(Frame{
 		ReplyToSeq:  0,

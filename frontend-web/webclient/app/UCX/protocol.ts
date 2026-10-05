@@ -7,6 +7,7 @@ export enum Opcode {
     ModelPatch = 0x13,
     ModelInput = 0x14,
     TableUpdate = 0x15,
+    StringAppend = 0x16,
     RpcRequest = 0x20,
     RpcResponse = 0x21,
 }
@@ -62,6 +63,11 @@ export interface UiMount {
 
 export interface ModelPatch {
     changes: Record<string, Value>;
+}
+
+export interface StringAppend {
+    path: string;
+    chunk: string;
 }
 
 export interface ModelInput {
@@ -131,6 +137,7 @@ export interface Frame {
     modelPatch?: ModelPatch;
     modelInput?: ModelInput;
     tableUpdate?: TableUpdate;
+    stringAppend?: StringAppend;
     rpcRequestName?: string;
     rpcPayload?: Record<string, Value>;
     rpcStatus?: number;
@@ -300,6 +307,9 @@ export function encodeFrame(frame: Frame): Uint8Array {
         case Opcode.TableUpdate:
             encodeTableUpdate(w, frame.tableUpdate!);
             break;
+        case Opcode.StringAppend:
+            encodeStringAppend(w, frame.stringAppend!);
+            break;
         case Opcode.RpcRequest:
             w.writeString(frame.rpcRequestName ?? "");
             writeValueMap(w, frame.rpcPayload ?? {});
@@ -347,6 +357,9 @@ export function decodeFrame(input: Uint8Array): Frame {
             break;
         case Opcode.TableUpdate:
             frame.tableUpdate = decodeTableUpdate(r);
+            break;
+        case Opcode.StringAppend:
+            frame.stringAppend = decodeStringAppend(r);
             break;
         case Opcode.RpcRequest:
             frame.rpcRequestName = r.readString();
@@ -404,6 +417,15 @@ function encodeModelPatch(w: BinaryWriter, patch: ModelPatch) {
 
 function decodeModelPatch(r: BinaryReader): ModelPatch {
     return {changes: readValueMap(r)};
+}
+
+function encodeStringAppend(w: BinaryWriter, append: StringAppend) {
+    w.writeString(append.path);
+    w.writeString(append.chunk);
+}
+
+function decodeStringAppend(r: BinaryReader): StringAppend {
+    return {path: r.readString(), chunk: r.readString()};
 }
 
 function encodeModelInput(w: BinaryWriter, input: ModelInput) {

@@ -393,6 +393,7 @@ function useBrowserRegionActive(ref: React.RefObject<HTMLElement | null>): boole
 }
 
 export function isEditableTarget(target: EventTarget | null): boolean {
+    if (target instanceof HTMLTextAreaElement && target.readOnly) return false;
     return target instanceof HTMLInputElement
         || target instanceof HTMLTextAreaElement
         || (target instanceof HTMLElement && target.isContentEditable);
@@ -1084,13 +1085,20 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         }
     }, [filteredRows, props, tableId]);
 
-    const triggerActionByShortcut = useCallback((shortcut: string) => {
+    const triggerActionByShortcut = useCallback((shortcut: string, rawKey?: string) => {
         if (shortcut === "") return false;
         const selected = selectedKeyRef.current != null
             ? filteredRows.find(row => row.key === selectedKeyRef.current)
             : undefined;
         if (selected) {
-            const def = actionDefs.find(candidate => candidate.shortcut?.toLowerCase() === shortcut);
+            const def = actionDefs.find(candidate => {
+                const candidateShortcut = candidate.shortcut ?? "";
+                if (candidateShortcut === "") return false;
+                if (candidateShortcut !== candidateShortcut.toLowerCase()) {
+                    return rawKey !== undefined && candidateShortcut === rawKey;
+                }
+                return candidateShortcut.toLowerCase() === shortcut;
+            });
             if (def) {
                 const action = selected.actions?.find(candidate => candidate.id === def.id);
                 if (action && action.enabled) {
@@ -1103,11 +1111,11 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                 }
             }
         }
-        if (groupAction?.shortcut?.toLowerCase() === shortcut && selected && selected.group !== "") {
+        if (groupAction?.shortcut && groupAction.shortcut !== "" && groupAction.shortcut.toLowerCase() === shortcut && selected && selected.group !== "") {
             props.onGroupAction?.({actionId: groupAction.id, group: selected.group});
             return true;
         }
-        if (trailingAction?.shortcut?.toLowerCase() === shortcut) {
+        if (trailingAction?.shortcut && trailingAction.shortcut !== "" && trailingAction.shortcut.toLowerCase() === shortcut) {
             props.onTrailingAction?.({actionId: trailingAction.id, group: ""});
             return true;
         }
@@ -1266,6 +1274,13 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                 return;
             }
 
+            if (event.key === "g" || event.key === "G") {
+                if (event.ctrlKey || event.metaKey || event.altKey) return;
+                event.preventDefault();
+                moveSelection(event.key === "g" ? "Home" : "End");
+                return;
+            }
+
             if (filterFocused) return;
 
             if (event.key === "/") {
@@ -1297,7 +1312,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             }
 
             if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1) {
-                if (triggerActionByShortcut(event.key.toLowerCase())) {
+                if (triggerActionByShortcut(event.key.toLowerCase(), event.key)) {
                     event.preventDefault();
                 }
             }
@@ -1669,7 +1684,7 @@ function UcxTableShortcutGuide({actionDefs, groupAction, tableRef}: {
         {keys: ["Enter"], action: "Open"},
     ];
     if (actionDefs.length > 0) rows.push({keys: ["x"], action: "Row actions"});
-    const builtIn = new Set(["j", "k", "x", "/"]);
+    const builtIn = new Set(["j", "k", "g", "G", "x", "/"]);
     for (const def of actionDefs) {
         if (def.shortcut && def.shortcut !== "" && !builtIn.has(def.shortcut.toLowerCase())) {
             rows.push({keys: [def.shortcut], action: def.label});
@@ -2030,7 +2045,7 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
     }
 
     ${k} .streamed-table-frame .streamed-table-scroll tbody tr:last-child {
-        border-bottom: 0;
+        border-bottom: 1px solid var(--borderColor);
     }
 
     @media (max-width: 1000px) {

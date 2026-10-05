@@ -208,7 +208,7 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 		app.maintenanceMode = ""
 	}
 
-	bottom := []ucx.UiNode{shellBottomNode(app, "nodes", nodeName, "Node maintenance")}
+	bottom := []ucx.UiNode{shellBottomNode(app, "nodes", "Node maintenance", "nodes/"+nodeName)}
 
 	record, recordOk := app.readClusterRecord()
 	if !recordOk {

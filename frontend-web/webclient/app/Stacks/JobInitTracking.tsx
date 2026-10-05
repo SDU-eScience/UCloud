@@ -98,7 +98,7 @@ export const InitTerminal: React.FunctionComponent<{
     state: JobInitState;
     height?: number;
 }> = ({state, height}) => {
-    const {termRef, terminal} = useXTerm({autofit: true});
+    const {termRef, terminal} = useXTerm({autofit: true, readOnly: true});
     const logLengthRef = useRef(0);
     const lastStateRef = useRef<JobInitState | null>(null);
     const lastGenerationRef = useRef(0);

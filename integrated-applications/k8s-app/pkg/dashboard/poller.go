@@ -56,7 +56,41 @@ type resourceSelection struct {
 	epoch     uint64
 	typeId    string
 	namespace string
+	filter    resourceFilter
 	def       ResourceTypeDef
+}
+
+type resourceFilter struct {
+	fieldSelector string
+	labelSelector string
+	title         string
+}
+
+func (f resourceFilter) key() string {
+	result := "f:" + f.fieldSelector + "|l:" + f.labelSelector
+	if f.title != "" {
+		result = result + "|t:" + f.title
+	}
+	return result
+}
+
+func parseResourceFilterKey(key string) resourceFilter {
+	if !strings.HasPrefix(key, "f:") {
+		return resourceFilter{fieldSelector: key}
+	}
+
+	rest := strings.TrimPrefix(key, "f:")
+	fieldSelector, rest, _ := strings.Cut(rest, "|l:")
+	labelSelector, rest, _ := strings.Cut(rest, "|t:")
+	return resourceFilter{
+		fieldSelector: fieldSelector,
+		labelSelector: labelSelector,
+		title:         rest,
+	}
+}
+
+func (f resourceFilter) isEmpty() bool {
+	return f.fieldSelector == "" && f.labelSelector == ""
 }
 
 type resourcePoller struct {
@@ -67,6 +101,7 @@ type resourcePoller struct {
 	cancel          context.CancelFunc
 	activeType      string
 	activeNamespace string
+	activeFilter    resourceFilter
 	selectionEpoch  uint64
 	selectionCancel context.CancelFunc
 	pollNow         chan util.Empty
@@ -130,6 +165,20 @@ func (p *resourcePoller) SetActiveNamespace(namespace string) {
 	changed := p.activeNamespace != namespace
 	if changed {
 		p.activeNamespace = namespace
+		p.resetTableLocked()
+	}
+	p.mu.Unlock()
+
+	if changed {
+		p.signalPollNow()
+	}
+}
+
+func (p *resourcePoller) SetActiveFilter(filter resourceFilter) {
+	p.mu.Lock()
+	changed := p.activeFilter != filter
+	if changed {
+		p.activeFilter = filter
 		p.resetTableLocked()
 	}
 	p.mu.Unlock()
@@ -217,6 +266,7 @@ func (p *resourcePoller) resourceCurrentSelection() (resourceSelection, bool) {
 	p.mu.Lock()
 	typeId := p.activeType
 	namespace := p.activeNamespace
+	filter := p.activeFilter
 	epoch := p.selectionEpoch
 	customTypes := p.customTypes
 	p.mu.Unlock()
@@ -239,7 +289,7 @@ func (p *resourcePoller) resourceCurrentSelection() (resourceSelection, bool) {
 		return resourceSelection{}, false
 	}
 
-	return resourceSelection{epoch: epoch, typeId: typeId, namespace: namespace, def: def}, true
+	return resourceSelection{epoch: epoch, typeId: typeId, namespace: namespace, filter: filter, def: def}, true
 }
 
 func (p *resourcePoller) resourceRunWatchCycle(ctx context.Context, selection resourceSelection) resourceWatchResult {
@@ -295,7 +345,7 @@ func (p *resourcePoller) resourceListAndSend(rootCtx context.Context, cycleCtx c
 	}
 
 	listCtx, cancelList := context.WithTimeout(cycleCtx, resourceListTimeout)
-	list, err := p.resourceInterface(selection).List(listCtx, listOptions)
+	list, err := p.resourceInterface(selection).List(listCtx, p.resourceListOptions(selection))
 	cancelList()
 	if err != nil {
 		if cycleCtx.Err() != nil {
@@ -425,6 +475,8 @@ func (p *resourcePoller) resourceEstablishWatch(cycleCtx context.Context, select
 
 	watcher, err := p.resourceInterface(selection).Watch(watchCtx, metav1.ListOptions{
 		ResourceVersion:     rv,
+		FieldSelector:       selection.filter.fieldSelector,
+		LabelSelector:       selection.filter.labelSelector,
 		AllowWatchBookmarks: true,
 		TimeoutSeconds:      &resourceWatchServerTimeoutSeconds,
 	})
@@ -489,6 +541,7 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 	isNodes := selection.def.Id == "nodes"
 	maintenanceSnapshot := map[string]maintenance.Operation{}
 	maintenanceUnavailable := false
+	nodeJobIds := map[string]string{}
 	if isNodes {
 		read, err := maintenance.Snapshot()
 		if err != nil {
@@ -496,6 +549,9 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 			maintenanceUnavailable = true
 		} else {
 			maintenanceSnapshot = read
+		}
+		if p.nodeJobIds != nil {
+			nodeJobIds = p.nodeJobIds()
 		}
 	}
 
@@ -542,7 +598,7 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 	}
 
 	for i := range rows {
-		rows[i].Actions = resourceRowActions(selection.def, rows[i], p.nodeJobIds, maintenanceSnapshot, maintenanceUnavailable)
+		rows[i].Actions = resourceRowActions(selection.def, rows[i], nodeJobIds, maintenanceSnapshot, maintenanceUnavailable)
 		if isNodes && !strings.HasPrefix(rows[i].Key, provisioningRowKeyPrefix) && len(rows[i].Cells) > 3 {
 			operation, present := maintenanceSnapshot[rows[i].Cells[0]]
 			rows[i].Cells[3] = maintenanceCellForOperation(operation, present)
@@ -607,10 +663,14 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 }
 
 func resourceDatasetId(selection resourceSelection) string {
+	id := selection.typeId
 	if selection.namespace != "" && selection.def.Namespaced {
-		return selection.typeId + "/" + selection.namespace
+		id = id + "/" + selection.namespace
 	}
-	return selection.typeId
+	if selection.filter.fieldSelector != "" || selection.filter.labelSelector != "" {
+		id = id + "?" + selection.filter.fieldSelector + "&" + selection.filter.labelSelector
+	}
+	return id
 }
 
 func (p *resourcePoller) resourceSelectionChanged(selection resourceSelection) bool {
@@ -641,10 +701,21 @@ func (p *resourcePoller) resourceWait(ctx context.Context, delay time.Duration) 
 
 func (p *resourcePoller) resourceInterface(selection resourceSelection) dynamic.ResourceInterface {
 	var ri dynamic.ResourceInterface = p.client.Dynamic.Resource(selection.def.Gvr)
-	if selection.namespace != "" && selection.def.Namespaced {
+	if selection.namespace != "" && selection.def.Namespaced && !strings.Contains(selection.filter.fieldSelector, "metadata.namespace=") {
 		ri = p.client.Dynamic.Resource(selection.def.Gvr).Namespace(selection.namespace)
 	}
 	return ri
+}
+
+func (p *resourcePoller) resourceListOptions(selection resourceSelection) metav1.ListOptions {
+	opts := metav1.ListOptions{}
+	if selection.filter.fieldSelector != "" {
+		opts.FieldSelector = selection.filter.fieldSelector
+	}
+	if selection.filter.labelSelector != "" {
+		opts.LabelSelector = selection.filter.labelSelector
+	}
+	return opts
 }
 
 func (p *resourcePoller) refreshCustomTypes(ctx context.Context) {
@@ -721,6 +792,8 @@ func resourceRowsForType(items []unstructured.Unstructured, def ResourceTypeDef)
 		return rowsFromNodes(items)
 	case def.Id == "pods":
 		return rowsFromPods(items)
+	case def.Id == containersTypeId:
+		return rowsFromContainers(items)
 	case strings.HasPrefix(def.Id, "crd:"):
 		return rowsFromCustom(items, def)
 	default:
@@ -731,18 +804,45 @@ func resourceRowsForType(items []unstructured.Unstructured, def ResourceTypeDef)
 func resourceRowActions(
 	def ResourceTypeDef,
 	row ResourceRow,
-	nodeJobIds func() map[string]string,
+	nodeJobIds map[string]string,
 	maintenanceSnapshot map[string]maintenance.Operation,
 	maintenanceUnavailable bool,
 ) []ucx.TableRowAction {
-	if def.Id != "nodes" || len(row.Cells) == 0 {
+	if len(row.Cells) == 0 {
 		return nil
 	}
 
-	nodeName := row.Cells[0]
 	provisioningRow := strings.HasPrefix(row.Key, provisioningRowKeyPrefix)
 
-	jobId := nodeJobIds()[nodeName]
+	viewYaml := ucx.TableRowAction{Id: "viewYaml", Enabled: false}
+	if !provisioningRow {
+		viewYaml.Enabled = true
+	}
+
+	if def.Id == "pods" || def.Id == containersTypeId {
+		if provisioningRow {
+			return []ucx.TableRowAction{viewYaml}
+		}
+		return []ucx.TableRowAction{
+			{Id: "openShell", Enabled: true},
+			viewYaml,
+		}
+	}
+
+	if rolloutRestartSupported(def.Id) {
+		return []ucx.TableRowAction{
+			{Id: "rolloutRestart", Enabled: true},
+			viewYaml,
+		}
+	}
+
+	if def.Id != "nodes" {
+		return []ucx.TableRowAction{viewYaml}
+	}
+
+	nodeName := row.Cells[0]
+
+	jobId := nodeJobIds[nodeName]
 	goToJob := ucx.TableRowAction{
 		Id:             "goToJob",
 		Enabled:        false,
@@ -768,6 +868,7 @@ func resourceRowActions(
 		{Id: "copyNodeName", Enabled: true, Text: row.Cells[0]},
 		goToJob,
 		openShell,
+		viewYaml,
 	}
 
 	if provisioningRow {
@@ -911,11 +1012,24 @@ func resourceTableUpsert(row ResourceRow) ucx.TableRow {
 	}
 }
 
-func (p *resourcePoller) nodeNameForRowKey(rowKey string) (string, bool) {
+func (p *resourcePoller) rowForKey(rowKey string) (ResourceRow, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	row, ok := p.lastRows[rowKey]
+	return row, ok
+}
+
+func (p *resourcePoller) objectForUid(uid string) (*unstructured.Unstructured, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	obj, ok := p.cache[uid]
+	return obj, ok
+}
+
+func (p *resourcePoller) nodeNameForRowKey(rowKey string) (string, bool) {
+	row, ok := p.rowForKey(rowKey)
 	if !ok || len(row.Cells) == 0 {
 		return "", false
 	}

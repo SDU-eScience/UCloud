@@ -11,8 +11,10 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
@@ -194,11 +196,37 @@ var resourceTypes = []ResourceTypeDef{
 	},
 }
 
+const containersTypeId = "containers"
+
+// containersTypeDef is a synthetic resource type used to drill into the containers of a single pod.
+// It lists pods (filtered to exactly one) and renders one row per container of that pod.
+var containersTypeDef = ResourceTypeDef{
+	Id:         containersTypeId,
+	Label:      "Containers",
+	Group:      "Workloads",
+	Gvr:        schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+	Namespaced: true,
+	Columns: []ucx.TableColumn{
+		{Key: "name", Label: "Name", Copy: true},
+		{Key: "image", Label: "Image"},
+		{Key: "ready", Label: "Ready"},
+		{Key: "restarts", Label: "Restarts", SortType: ucx.TableColumnSortNumber},
+		{Key: "state", Label: "State"},
+	},
+}
+
 func ResourceTypes() []ResourceTypeDef {
-	return resourceTypes
+	result := make([]ResourceTypeDef, 0, len(resourceTypes)+1)
+	for _, def := range resourceTypes {
+		result = append(result, def)
+	}
+	return result
 }
 
 func ResourceType(id string) (ResourceTypeDef, bool) {
+	if id == containersTypeId {
+		return containersTypeDef, true
+	}
 	for _, def := range resourceTypes {
 		if def.Id == id {
 			return def, true
@@ -209,6 +237,7 @@ func ResourceType(id string) (ResourceTypeDef, bool) {
 
 type K8sClient struct {
 	Dynamic dynamic.Interface
+	Typed   kubernetes.Interface
 }
 
 func K8sClientFromKubeconfig(path string) (*K8sClient, error) {
@@ -225,11 +254,24 @@ func K8sClientFromKubeconfig(path string) (*K8sClient, error) {
 		return nil, err
 	}
 
-	return &K8sClient{Dynamic: dyn}, nil
+	typed, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return &K8sClient{Dynamic: dyn, Typed: typed}, nil
 }
 
 func (c *K8sClient) List(ctx context.Context, def ResourceTypeDef) ([]unstructured.Unstructured, error) {
 	list, err := c.Dynamic.Resource(def.Gvr).List(ctx, listOptions)
+	if err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+func (c *K8sClient) ListWithLabelSelector(ctx context.Context, def ResourceTypeDef, labelSelector string) ([]unstructured.Unstructured, error) {
+	list, err := c.Dynamic.Resource(def.Gvr).List(ctx, v1.ListOptions{LabelSelector: labelSelector})
 	if err != nil {
 		return nil, err
 	}
@@ -266,10 +308,10 @@ func (c *K8sClient) NodeNames(ctx context.Context) (map[string]bool, error) {
 }
 
 type NodeHealth struct {
-	Total    int
-	Ready    int
-	NotReady int
-	Unknown  int
+	Total               int
+	Ready               int
+	NotReady            int
+	Unknown             int
 	ControlPlaneVersion string
 }
 
@@ -483,6 +525,61 @@ func firstString(obj *unstructured.Unstructured, path ...string) string {
 	return value
 }
 
+func workloadLabelSelector(owner *unstructured.Unstructured) string {
+	selector, ok, _ := unstructured.NestedMap(owner.Object, "spec", "selector")
+	if !ok {
+		return ""
+	}
+
+	return labelSelectorString(selector)
+}
+
+func labelSelectorString(selector map[string]any) string {
+	matchLabels, _ := selector["matchLabels"].(map[string]any)
+	parts := make([]string, 0, len(matchLabels))
+	for key, rawValue := range matchLabels {
+		value, _ := rawValue.(string)
+		parts = append(parts, key+"="+value)
+	}
+	sort.Strings(parts)
+
+	matchExpressions, _ := selector["matchExpressions"].([]any)
+	for _, rawExpression := range matchExpressions {
+		expression, ok := rawExpression.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		key, _ := expression["key"].(string)
+		operator, _ := expression["operator"].(string)
+		if key == "" || operator == "" {
+			continue
+		}
+
+		rawValues, _ := expression["values"].([]any)
+		values := make([]string, 0, len(rawValues))
+		for _, rawValue := range rawValues {
+			value, _ := rawValue.(string)
+			if value != "" {
+				values = append(values, value)
+			}
+		}
+
+		switch operator {
+		case "In":
+			parts = append(parts, key+" in ("+strings.Join(values, ",")+")")
+		case "NotIn":
+			parts = append(parts, key+" notin ("+strings.Join(values, ",")+")")
+		case "Exists":
+			parts = append(parts, key)
+		case "DoesNotExist":
+			parts = append(parts, "!"+key)
+		}
+	}
+
+	return strings.Join(parts, ",")
+}
+
 func firstInt64(obj *unstructured.Unstructured, path ...string) int64 {
 	value, ok, _ := unstructured.NestedInt64(obj.Object, path...)
 	if !ok {
@@ -605,6 +702,67 @@ func rowsFromPods(items []unstructured.Unstructured) []ResourceRow {
 				objectAge(obj),
 			},
 		})
+	}
+	return rows
+}
+
+func rowsFromContainers(items []unstructured.Unstructured) []ResourceRow {
+	rows := make([]ResourceRow, 0, 4)
+	for i := range items {
+		obj := &items[i]
+		statuses := map[string]map[string]any{}
+		for _, status := range containerStatusesOf(obj) {
+			if name, ok := status["name"].(string); ok {
+				statuses[name] = status
+			}
+		}
+
+		specs, ok, _ := unstructured.NestedSlice(obj.Object, "spec", "containers")
+		if !ok {
+			continue
+		}
+
+		for _, rawSpec := range specs {
+			spec, ok := rawSpec.(map[string]any)
+			if !ok {
+				continue
+			}
+
+			name, _ := spec["name"].(string)
+			image, _ := spec["image"].(string)
+
+			ready := "Unknown"
+			restarts := ""
+			state := "Unknown"
+			if status, ok := statuses[name]; ok {
+				if status["ready"] == true {
+					ready = "Yes"
+				} else {
+					ready = "No"
+				}
+				if v, ok := status["restartCount"].(float64); ok {
+					restarts = fmt.Sprintf("%d", int64(v))
+				}
+				if rawState, ok := status["state"].(map[string]any); ok && len(rawState) > 0 {
+					for stateKind := range rawState {
+						state = stateKind
+						break
+					}
+				}
+			}
+
+			rows = append(rows, ResourceRow{
+				Key:   string(obj.GetUID()) + "/" + name,
+				Group: obj.GetNamespace(),
+				Cells: []string{
+					name,
+					image,
+					ready,
+					restarts,
+					state,
+				},
+			})
+		}
 	}
 	return rows
 }
@@ -732,6 +890,36 @@ func (c *K8sClient) YamlForUid(ctx context.Context, def ResourceTypeDef, namespa
 		return "", err
 	}
 	return string(out), nil
+}
+
+func (c *K8sClient) RolloutRestart(ctx context.Context, typeId string, namespace string, name string) error {
+	def, ok := ResourceType(typeId)
+	if !ok || !rolloutRestartSupported(typeId) {
+		return fmt.Errorf("rollout restart is not supported for %s", typeId)
+	}
+
+	var ri dynamic.ResourceInterface = c.Dynamic.Resource(def.Gvr)
+	if def.Namespaced && namespace != "" {
+		ri = c.Dynamic.Resource(def.Gvr).Namespace(namespace)
+	}
+
+	if typeId == "deployments" {
+		obj, err := ri.Get(ctx, name, v1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if paused, ok, _ := unstructured.NestedBool(obj.Object, "spec", "paused"); ok && paused {
+			return fmt.Errorf("can't restart paused deployment (run rollout resume first)")
+		}
+	}
+
+	patch := []byte(fmt.Sprintf(
+		`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":%q}}}}}`,
+		time.Now().Format(time.RFC3339),
+	))
+
+	_, err := ri.Patch(ctx, name, types.StrategicMergePatchType, patch, v1.PatchOptions{})
+	return err
 }
 
 func namespaceGroup(def ResourceTypeDef, obj *unstructured.Unstructured) string {

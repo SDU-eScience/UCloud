@@ -10,6 +10,8 @@ export interface TerminalTab {
     uniqueId?: string;
     jobId?: string;
     rank?: number;
+    initialCommand?: string;
+    clearAfter?: boolean;
 }
 
 export interface TerminalPageContext {
@@ -100,15 +102,18 @@ const terminalSlice = createSlice({
 export const {terminalClose, terminalCloseTab, terminalOpen, terminalOpenTab, terminalSelectTab, terminalUpdateTabTitle, terminalUpdateTabProviderId, terminalReorderTabs, terminalSetPageContext} = terminalSlice.actions;
 export const terminalReducer = terminalSlice.reducer;
 
-export function openJobShellTab(dispatch: Dispatch, jobId: string, rank = 0): void {
+export function openJobShellTab(dispatch: Dispatch, jobId: string, rank = 0, command?: string, clearAfter = false): void {
     dispatch(terminalOpen());
     dispatch(terminalOpenTab({
+        select: true,
         tab: {
             title: `Shell ${shortUUID(jobId)}`,
             folder: "",
             providerId: "",
             jobId,
             rank,
+            initialCommand: command,
+            clearAfter,
         },
     }));
 }

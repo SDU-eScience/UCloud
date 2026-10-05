@@ -47,7 +47,7 @@ export const xtermThemes: {light: ITheme; dark: ITheme} = {
     }
 };
 
-export function useXTerm(props: {autofit?: boolean} = {}): XtermHook {
+export function useXTerm(props: {autofit?: boolean, readOnly?: boolean} = {}): XtermHook {
     const didMount = useRef(false);
 
     const fitAddon = React.useMemo(() => new FitAddon(), []);
@@ -62,11 +62,20 @@ export function useXTerm(props: {autofit?: boolean} = {}): XtermHook {
     }, []);
     const elem = useRef<HTMLDivElement>(null);
 
+    React.useEffect(() => {
+        if (!props.readOnly) return;
+        term.attachCustomKeyEventHandler(readOnlyTermKeyHandler);
+        return () => term.attachCustomKeyEventHandler(() => true);
+    }, [props.readOnly, term]);
+
     useEffect(() => {
         if (elem.current) {
             if (!didMount.current) {
                 term.open(elem.current);
                 didMount.current = true;
+                if (props.readOnly && term.textarea) {
+                    term.textarea.readOnly = true;
+                }
             }
         } else if (elem.current === null) {
             didMount.current = false;
@@ -115,6 +124,11 @@ export function useXTerm(props: {autofit?: boolean} = {}): XtermHook {
 export function appendToXterm(term: Terminal, textToAppend: string): void {
     const remainingString = textToAppend.replace(/\n/g, "\r\n");
     term.write(remainingString);
+}
+
+function readOnlyTermKeyHandler(ev: KeyboardEvent): boolean {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return false;
+    return ev.shiftKey && (ev.key === "PageUp" || ev.key === "PageDown");
 }
 
 function getTheme(): ITheme {

@@ -22,6 +22,8 @@ import (
 
 	"ucloud.dk/iapp/k8s/pkg/maintenance"
 	"ucloud.dk/iapp/k8s/pkg/shared"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const managementMountDir = "/etc/ucloud-k8s/management"
@@ -65,10 +67,13 @@ type stackUiApp struct {
 
 	ActiveType      string
 	ActiveNamespace string
+	ActiveFilter    resourceFilter `ucx:"-"`
+	filterOrigin    string         `ucx:"-"`
 	ResourceDetail  string
 	ResourceYaml    string
 	Namespaces      []string
 	LogJobId        string
+	ContainerLogs   string
 
 	MaintenanceTimeoutSeconds          int
 	MaintenanceDrain                   bool
@@ -90,12 +95,22 @@ type stackUiApp struct {
 	ShowHeadlampDialog bool   `ucx:"-"`
 	headlampToken      string `ucx:"-"`
 
+	ShowRolloutRestartDialog bool                 `ucx:"-"`
+	rolloutRestartTarget     rolloutRestartTarget `ucx:"-"`
+
 	clusterHealth *NodeHealth `ucx:"-"`
 
 	provisioningCache []provisioningEntry `ucx:"-"`
 	provisioningKick  chan util.Empty     `ucx:"-"`
 
 	prevDetail string `ucx:"-"`
+
+	containerLogTarget     string             `ucx:"-"`
+	containerLogCancel     context.CancelFunc `ucx:"-"`
+	containerLogFlushTimer *time.Timer        `ucx:"-"`
+	containerLogGeneration uint64             `ucx:"-"`
+	containerLogPending    string             `ucx:"-"`
+	containerLogTruncated  bool               `ucx:"-"`
 }
 
 type provisioningEntry struct {
@@ -218,6 +233,7 @@ func (app *stackUiApp) startK8sClientWhenReady(session *ucx.Session, activeType 
 							ucx.AppUpdateUi(app)
 							app.mu.Unlock()
 						})
+						app.syncContainerLogStream()
 					}
 					ucx.AppUpdateUi(app)
 					app.mu.Unlock()
@@ -343,6 +359,10 @@ func (app *stackUiApp) UserInterface() ucx.UiNode {
 		}))
 	}
 
+	if app.ShowRolloutRestartDialog {
+		children = append(children, app.rolloutRestartDialogNode())
+	}
+
 	return ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 32}).
 		Sx(
 			ucx.SxP(4),
@@ -364,6 +384,30 @@ func (app *stackUiApp) allTypeDefs() []ResourceTypeDef {
 		typeDefs = append(typeDefs, app.poller.customTypesSnapshot()...)
 	}
 	return typeDefs
+}
+
+func (app *stackUiApp) browseRoute(typeId string, filter resourceFilter) string {
+	route := "browse/" + typeId
+	if filter.key() != "" {
+		route = route + "?" + url.QueryEscape(filter.key())
+	}
+	return route
+}
+
+func filterFromRoute(routePath string) resourceFilter {
+	if !strings.HasPrefix(routePath, "browse/") {
+		return resourceFilter{}
+	}
+	rest := strings.TrimPrefix(routePath, "browse/")
+	_, filter, found := strings.Cut(rest, "?")
+	if !found {
+		return resourceFilter{}
+	}
+	decoded, err := url.QueryUnescape(filter)
+	if err != nil {
+		return resourceFilter{}
+	}
+	return parseResourceFilterKey(decoded)
 }
 
 func (app *stackUiApp) resourceNavItems() []ucx.NavItem {
@@ -699,6 +743,31 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 		bottom = append(bottom, app.resourceDetailBottomNode(detail))
 	} else {
 		var tableActions []ucx.ResourceTableAction
+		tableActions = append(tableActions, ucx.ResourceTableAction{
+			Id:       "viewYaml",
+			Label:    "View YAML",
+			Icon:     ucx.IconHeroCodeBracket,
+			Shortcut: "y",
+		})
+
+		if app.ActiveType == "pods" || app.ActiveType == containersTypeId {
+			tableActions = append(tableActions, ucx.ResourceTableAction{
+				Id:       "openShell",
+				Label:    "Open shell",
+				Icon:     ucx.IconHeroCommandLine,
+				Shortcut: "s",
+			})
+		}
+
+		if rolloutRestartSupported(app.ActiveType) {
+			tableActions = append(tableActions, ucx.ResourceTableAction{
+				Id:       "rolloutRestart",
+				Label:    "Restart rollout",
+				Icon:     ucx.IconHeroArrowPath,
+				Shortcut: "r",
+			})
+		}
+
 		var groupAction *ucx.ResourceTableAction
 		var trailingAction *ucx.ResourceTableAction
 		if app.ActiveType == "nodes" && app.clusterReadyForNodes() {
@@ -714,7 +783,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 					Id:       "goToJob",
 					Label:    "Go to job",
 					Icon:     ucx.IconHeroArrowTopRightOnSquare,
-					Shortcut: "g",
+					Shortcut: "o",
 				},
 				ucx.ResourceTableAction{
 					Id:       "openShell",
@@ -771,18 +840,23 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 			GroupAction:      groupAction,
 			TrailingAction:   trailingAction,
 		}).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-			typeId, namespace, name := rowActivationValue(ev.Value)
-			app.handleRowActivated(typeId, namespace, name)
+			typeId, namespace, name, rowKey := rowActivationValue(ev.Value)
+			app.handleRowActivated(typeId, namespace, name, rowKey)
 		}).On(ucx.UiEventAction, func(ev ucx.UiEvent) {
 			app.handleTableAction(ev)
 		})}
 
 		bottom = append(bottom, ucx.TableFilter("resourceFilter", app.ActiveType))
-		if namespaced {
+		if namespaced && app.ActiveFilter.isEmpty() {
 			bottom = append(bottom, app.namespaceSelectorNode())
 		}
 		bottom = append(bottom, ucx.Box().Sx(ucx.SxFlexGrow(1)))
-		bottom = append(bottom, ucx.TableCount("resourceCount", app.ActiveType).WithTitle(app.activeTypeLabel(app.allTypeDefs())))
+
+		countTitle := app.activeTypeLabel(app.allTypeDefs())
+		if !app.ActiveFilter.isEmpty() && app.ActiveFilter.title != "" {
+			countTitle = app.ActiveFilter.title
+		}
+		bottom = append(bottom, ucx.TableCount("resourceCount", app.ActiveType).WithTitle(countTitle))
 	}
 
 	escapePath := ""
@@ -793,15 +867,23 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 			if escapeType == navHomeId {
 				escapeType = "nodes"
 			}
+			escapePath = app.browseRoute(escapeType, resourceFilter{})
+		} else if escapeType == containersTypeId {
+			escapePath = app.containersBackTarget()
+		} else {
+			escapePath = app.browseRoute(escapeType, app.ActiveFilter)
 		}
-		escapePath = "browse/" + escapeType
+	} else if app.ActiveType == containersTypeId && !app.ActiveFilter.isEmpty() {
+		escapePath = app.browseRoute("pods", resourceFilter{})
+	} else if app.filterOrigin != "" && !app.ActiveFilter.isEmpty() {
+		escapePath = app.browseRoute(app.filterOrigin, resourceFilter{})
 	}
 
 	return []ucx.UiNode{app.appShell(appShellProps{
 		Content:        main,
 		Bottom:         bottom,
 		EscapePath:     escapePath,
-		EscapeDisabled: !inDetail,
+		EscapeDisabled: escapePath == "",
 	})}
 }
 
@@ -904,11 +986,19 @@ func (app *stackUiApp) resourceStreamId() string {
 	return resourceDatasetId(resourceSelection{
 		typeId:    app.ActiveType,
 		namespace: app.ActiveNamespace,
+		filter:    app.pollerFilter(),
 		def:       def,
 	})
 }
 
+func (app *stackUiApp) pollerFilter() resourceFilter {
+	return app.ActiveFilter
+}
+
 func (app *stackUiApp) activeTypeLabel(typeDefs []ResourceTypeDef) string {
+	if def, ok := app.resolveType(app.ActiveType); ok && def.Id == app.ActiveType {
+		return def.Label
+	}
 	for _, def := range typeDefs {
 		if def.Id == app.ActiveType {
 			return def.Label
@@ -924,7 +1014,10 @@ func (app *stackUiApp) selectResourceType(typeId string) {
 
 	if typeId != app.ActiveType {
 		app.ActiveType = typeId
+		app.ActiveFilter = resourceFilter{}
+		app.filterOrigin = ""
 		if app.poller != nil {
+			app.poller.SetActiveFilter(resourceFilter{})
 			app.poller.SetActiveType(typeId)
 		}
 		if def, ok := app.resolveType(typeId); ok && def.Namespaced {
@@ -964,6 +1057,10 @@ func (app *stackUiApp) resourceDetailNode(detail string) ucx.UiNode {
 		return ucx.JobLogsBound("detailInitLogs", "logJobId").
 			Sx(ucx.SxP(16), ucx.SxBoxSizing("border-box"))
 	}
+	if strings.HasPrefix(detail, containersTypeId+"/") {
+		return ucx.ContainerLogsBoundEx("detailContainerLogs", "containerLogs").
+			Sx(ucx.SxP(16), ucx.SxBoxSizing("border-box"))
+	}
 	return ucx.CodeBoundEx("resourceYaml", "resourceYaml").WithLang("yaml").WithStretch()
 }
 
@@ -978,34 +1075,50 @@ func (app *stackUiApp) resourceDetailBottomNode(detail string) ucx.UiNode {
 	if len(parts) > 2 {
 		name = parts[2]
 	}
-
+	container := ""
+	if typeId == containersTypeId && len(parts) > 3 {
+		container = parts[3]
+	}
 	label := typeId
 	if typeId == "provisioning" {
 		label = "Provisioning"
+	} else if typeId == containersTypeId {
+		label = "Container logs"
 	} else if def, ok := app.resolveType(typeId); ok {
 		label = def.Label
 	}
 
-	backTarget := typeId
+	backTarget := "browse/" + typeId
 	if typeId == "provisioning" {
-		backTarget = app.ActiveType
-		if backTarget == navHomeId {
-			backTarget = "nodes"
+		backTarget = "browse/" + app.ActiveType
+		if backTarget == "browse/"+navHomeId {
+			backTarget = "browse/nodes"
 		}
+	} else if typeId == containersTypeId {
+		backTarget = app.containersBackTarget()
+	}
+
+	segments := []string{label}
+	if namespace != "" {
+		segments = append(segments, namespace)
+	}
+	if name != "" {
+		segments = append(segments, name)
+	}
+	if container != "" {
+		segments = append(segments, container)
 	}
 
 	return ucx.Toolbar().Children(
 		ucx.ButtonEx("backToTable", "Back to table", ucx.ColorSecondaryMain, ucx.IconHeroArrowLeft, "", "").ButtonEscapeHint(true).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-			ucxsvc.RouterPushPage(app, "browse/"+backTarget)
+			ucxsvc.RouterPushPage(app, backTarget)
 		}),
 		ucx.Box(),
-		ucx.Text(name).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
-		ucx.Text(namespace).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
-		ucx.Text(label).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+		ucx.Text(strings.Join(segments, " / ")).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
 	)
 }
 
-func (app *stackUiApp) handleRowActivated(tableId string, namespace string, name string) {
+func (app *stackUiApp) handleRowActivated(tableId string, namespace string, name string, rowKey string) {
 	if tableId == "" || name == "" {
 		return
 	}
@@ -1024,6 +1137,229 @@ func (app *stackUiApp) handleRowActivated(tableId string, namespace string, name
 		return
 	}
 
+	if tableId == "pods" {
+		app.openPodContainers(namespace, name)
+		return
+	}
+
+	if tableId == containersTypeId {
+		app.openContainerLogs(namespace, name, rowKey)
+		return
+	}
+
+	if isWorkloadOwnerType(tableId) {
+		app.openOwnedPods(tableId, namespace, name, rowKey)
+		return
+	}
+
+	if tableId == "nodes" {
+		app.openNodePods(name)
+		return
+	}
+
+	app.ResourceDetail = tableId + "/" + namespace + "/" + name
+	app.prevDetail = app.ResourceDetail
+	app.loadResourceYaml(app.ResourceDetail)
+	ucxsvc.RouterPushPage(app, "detail/"+url.PathEscape(tableId)+"/"+url.PathEscape(namespace)+"/"+url.PathEscape(name))
+	ucx.AppUpdateUi(app)
+}
+
+func isWorkloadOwnerType(typeId string) bool {
+	switch typeId {
+	case "deployments", "statefulsets", "daemonsets", "jobs":
+		return true
+	default:
+		return false
+	}
+}
+
+func (app *stackUiApp) openContainerLogs(namespace string, containerName string, rowKey string) {
+	if app.poller == nil || rowKey == "" {
+		return
+	}
+
+	podUid := rowKey
+	if idx := strings.Index(rowKey, "/"); idx >= 0 {
+		podUid = rowKey[:idx]
+	}
+
+	pod, ok := app.poller.objectForUid(podUid)
+	if !ok {
+		return
+	}
+
+	podNamespace := pod.GetNamespace()
+	if podNamespace == "" {
+		podNamespace = namespace
+	}
+	podName := pod.GetName()
+
+	app.ResourceDetail = containersTypeId + "/" + podNamespace + "/" + podName + "/" + containerName
+	app.prevDetail = app.ResourceDetail
+	app.ResourceYaml = ""
+	app.startContainerLogsLocked(podNamespace, podName, containerName)
+
+	ucxsvc.RouterPushPage(app, "detail/"+
+		url.PathEscape(containersTypeId)+"/"+
+		url.PathEscape(podNamespace)+"/"+
+		url.PathEscape(podName)+"/"+
+		url.PathEscape(containerName))
+	ucx.AppUpdateUi(app)
+}
+
+func (app *stackUiApp) openOwnedPods(tableId string, namespace string, name string, rowKey string) {
+	if app.poller == nil {
+		return
+	}
+
+	var owner *unstructured.Unstructured
+	if rowKey != "" {
+		owner, _ = app.poller.objectForUid(rowKey)
+	}
+	if owner == nil {
+		return
+	}
+
+	labelSelector := workloadLabelSelector(owner)
+	if labelSelector == "" {
+		ucxsvc.UiSendFailure(app, "This workload has no pod selector")
+		return
+	}
+
+	originPath := name
+	if namespace != "" {
+		originPath = namespace + "/" + name
+	}
+
+	originLabel := tableId
+	if def, ok := app.resolveType(tableId); ok && def.Label != "" {
+		originLabel = def.Label
+	}
+
+	filter := resourceFilter{
+		labelSelector: labelSelector,
+		title:         "Pods of " + originLabel + "/" + originPath,
+	}
+	if namespace != "" {
+		filter.fieldSelector = "metadata.namespace=" + namespace
+	}
+
+	app.ActiveType = "pods"
+	app.ActiveFilter = filter
+	app.filterOrigin = tableId
+	app.ResourceDetail = ""
+	app.prevDetail = ""
+	app.ResourceYaml = ""
+	app.poller.SetActiveFilter(filter)
+	app.poller.SetActiveType("pods")
+	ucxsvc.RouterPushPage(app, app.browseRoute("pods", filter))
+	ucx.AppUpdateUi(app)
+}
+
+func (app *stackUiApp) openNodePods(nodeName string) {
+	if app.poller == nil {
+		return
+	}
+
+	filter := resourceFilter{
+		fieldSelector: "spec.nodeName=" + nodeName,
+		title:         "Pods on nodes/" + nodeName,
+	}
+
+	app.ActiveType = "pods"
+	app.ActiveFilter = filter
+	app.filterOrigin = "nodes"
+	app.ResourceDetail = ""
+	app.prevDetail = ""
+	app.ResourceYaml = ""
+	app.poller.SetActiveFilter(filter)
+	app.poller.SetActiveType("pods")
+	ucxsvc.RouterPushPage(app, app.browseRoute("pods", filter))
+	ucx.AppUpdateUi(app)
+}
+
+func (app *stackUiApp) containersBackTarget() string {
+	if !app.ActiveFilter.isEmpty() {
+		return app.browseRoute(containersTypeId, app.ActiveFilter)
+	}
+
+	parts := strings.Split(app.ResourceDetail, "/")
+	if len(parts) == 4 && parts[0] == containersTypeId {
+		fieldSelector := "metadata.name=" + parts[2]
+		if parts[1] != "" {
+			fieldSelector = "metadata.namespace=" + parts[1] + ",metadata.name=" + parts[2]
+		}
+		return app.browseRoute(containersTypeId, resourceFilter{fieldSelector: fieldSelector})
+	}
+
+	return app.browseRoute(containersTypeId, resourceFilter{})
+}
+
+func (app *stackUiApp) openPodContainers(namespace string, podName string) {
+	fieldSelector := ""
+	originPath := podName
+	if namespace != "" {
+		fieldSelector = "metadata.namespace=" + namespace + ",metadata.name=" + podName
+		originPath = namespace + "/" + podName
+	} else {
+		fieldSelector = "metadata.name=" + podName
+	}
+
+	filter := resourceFilter{
+		fieldSelector: fieldSelector,
+		title:         "Containers of pods/" + originPath,
+	}
+	app.ActiveType = containersTypeId
+	app.ActiveFilter = filter
+	app.filterOrigin = "pods"
+	app.ResourceDetail = ""
+	app.prevDetail = ""
+	app.ResourceYaml = ""
+	if app.poller != nil {
+		app.poller.SetActiveFilter(filter)
+		app.poller.SetActiveType(containersTypeId)
+	}
+	ucxsvc.RouterPushPage(app, app.browseRoute(containersTypeId, filter))
+	ucx.AppUpdateUi(app)
+}
+
+func (app *stackUiApp) openYamlForRowKey(rowKey string) {
+	if app.poller == nil {
+		return
+	}
+	if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
+		return
+	}
+
+	row, ok := app.poller.rowForKey(rowKey)
+	if !ok || len(row.Cells) == 0 {
+		return
+	}
+
+	typeId := app.ActiveType
+	namespace := row.Group
+	name := row.Cells[0]
+
+	if typeId == containersTypeId {
+		podUid := rowKey
+		if idx := strings.Index(rowKey, "/"); idx >= 0 {
+			podUid = rowKey[:idx]
+		}
+
+		pod, ok := app.poller.objectForUid(podUid)
+		if !ok {
+			return
+		}
+
+		typeId = "pods"
+		namespace = pod.GetNamespace()
+		name = pod.GetName()
+	}
+
+	app.openResourceDetail(typeId, namespace, name)
+}
+
+func (app *stackUiApp) openResourceDetail(tableId string, namespace string, name string) {
 	app.ResourceDetail = tableId + "/" + namespace + "/" + name
 	app.prevDetail = app.ResourceDetail
 	app.loadResourceYaml(app.ResourceDetail)
@@ -1039,6 +1375,21 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 	actionId := ucx.ValueAsString(ev.Value.Object["actionId"])
 	rowKey := ucx.ValueAsString(ev.Value.Object["rowKey"])
 	if rowKey == "" {
+		return
+	}
+
+	if actionId == "viewYaml" {
+		app.openYamlForRowKey(rowKey)
+		return
+	}
+
+	if actionId == "openShell" && (app.ActiveType == "pods" || app.ActiveType == containersTypeId) {
+		app.openShellToPod(rowKey)
+		return
+	}
+
+	if actionId == "rolloutRestart" {
+		app.openRolloutRestartDialog(rowKey)
 		return
 	}
 
@@ -1097,8 +1448,121 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 		if jobId == "" {
 			return
 		}
-		ucxsvc.TerminalOpenShellToJob(app, jobId, 0)
+		ucxsvc.TerminalOpenShellToJob(app, jobId, 0, "", false)
 	}
+}
+
+func (app *stackUiApp) openShellToPod(rowKey string) {
+	if app.poller == nil {
+		return
+	}
+	if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
+		return
+	}
+
+	namespace := ""
+	podName := ""
+	containerName := ""
+
+	if app.ActiveType == containersTypeId {
+		podUid := rowKey
+		if idx := strings.Index(rowKey, "/"); idx >= 0 {
+			podUid = rowKey[:idx]
+			containerName = rowKey[idx+1:]
+		}
+
+		pod, ok := app.poller.objectForUid(podUid)
+		if !ok {
+			return
+		}
+
+		namespace = pod.GetNamespace()
+		podName = pod.GetName()
+	} else {
+		row, ok := app.poller.rowForKey(rowKey)
+		if !ok || len(row.Cells) == 0 {
+			return
+		}
+
+		namespace = row.Group
+		podName = row.Cells[0]
+	}
+
+	if namespace == "" || podName == "" {
+		return
+	}
+
+	shellCommand := "sh -c 'if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi'"
+	title := podName
+	if containerName != "" {
+		title = podName + "/" + containerName
+	}
+	command := fmt.Sprintf("printf '\\033]0;%s\\007' && kubectl exec -it -n %s %s -- %s", title, namespace, podName, shellCommand)
+	if containerName != "" {
+		command = fmt.Sprintf("printf '\\033]0;%s\\007' && kubectl exec -it -n %s %s -c %s -- %s", title, namespace, podName, containerName, shellCommand)
+	}
+
+	jobId, ok := app.firstControlPlaneNodeWithShell()
+	if !ok {
+		ucxsvc.UiSendFailure(app, "No control-plane node with a UCloud job is available to run the shell from.")
+		return
+	}
+
+	ucxsvc.TerminalOpenShellToJob(app, jobId, 0, command, true)
+}
+
+func (app *stackUiApp) firstControlPlaneNodeWithShell() (string, bool) {
+	client := app.k8sClient
+	session := app.session
+	if client == nil || session == nil {
+		return "", false
+	}
+
+	ctx, cancel := context.WithTimeout(session.Context(), 10*time.Second)
+	defer cancel()
+
+	nodesDef, ok := ResourceType("nodes")
+	if !ok {
+		return "", false
+	}
+
+	nodeJobIds := app.nodeJobIds()
+
+	firstCordoned := ""
+	for _, labelSelector := range []string{
+		"node-role.kubernetes.io/control-plane",
+		"node-role.kubernetes.io/master",
+	} {
+		items, err := client.ListWithLabelSelector(ctx, nodesDef, labelSelector)
+		if err != nil {
+			return "", false
+		}
+
+		for i := range items {
+			node := &items[i]
+
+			jobId, hasJob := nodeJobIds[node.GetName()]
+			if !hasJob || jobId == "" {
+				continue
+			}
+
+			unschedulable, ok, _ := unstructured.NestedBool(node.Object, "spec", "unschedulable")
+			cordoned := ok && unschedulable
+			if !cordoned {
+				return jobId, true
+			}
+
+			if firstCordoned == "" {
+				firstCordoned = jobId
+			}
+		}
+
+		if firstCordoned != "" {
+			return firstCordoned, true
+		}
+	}
+
+	return "", false
 }
 
 func (app *stackUiApp) nodeUidForName(nodeName string) (string, bool) {
@@ -1394,7 +1858,7 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 		return []ucx.UiNode{app.appShell(shellEscape)}
 	}
 
-	shellEscape.Bottom = []ucx.UiNode{shellBottomNode(app, "nodes", group, "Add machine")}
+	shellEscape.Bottom = []ucx.UiNode{shellBottomNode(app, "nodes", "Add machine", "nodes/"+group)}
 
 	if !recordOk {
 		shellEscape.Content = []ucx.UiNode{shellContentBox(800, ucx.Text("Could not read the cluster record."))}
@@ -1656,6 +2120,8 @@ func (app *stackUiApp) handleTableAction(ev ucx.UiEvent) {
 	switch actionId {
 	case "cordonDrain", "uncordon", "upgradeNode", "removeNode":
 		ucxsvc.UiSendFailure(app, "Select a single node before using this action")
+	case "rolloutRestart":
+		ucxsvc.UiSendFailure(app, "Select a single resource before using this action")
 	case "addMachine":
 		if group == "" {
 			return
@@ -1694,20 +2160,41 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 			routeType = navHomeId
 		} else if strings.HasPrefix(app.RoutePath, "browse/") {
 			routeType = strings.TrimPrefix(app.RoutePath, "browse/")
+			if idx := strings.Index(routeType, "?"); idx >= 0 {
+				routeType = routeType[:idx]
+			}
 			if _, ok := app.resolveType(routeType); !ok && routeType != navHomeId {
 				routeType = app.ActiveType
 			}
+		}
+
+		routeFilter := resourceFilter{}
+		if strings.HasPrefix(app.RoutePath, "browse/") {
+			routeFilter = filterFromRoute(app.RoutePath)
+		} else if strings.HasPrefix(app.RoutePath, "detail/") {
+			routeFilter = app.ActiveFilter
 		}
 
 		changed := routeDetail != app.ResourceDetail
 
 		if routeType != app.ActiveType {
 			app.ActiveType = routeType
+			app.ActiveFilter = routeFilter
 			if app.poller != nil {
+				app.poller.SetActiveFilter(routeFilter)
 				app.poller.SetActiveType(routeType)
 			}
 			if def, ok := app.resolveType(routeType); ok && def.Namespaced {
 				app.loadNamespaces()
+			}
+			changed = true
+		} else if routeFilter != app.ActiveFilter {
+			app.ActiveFilter = routeFilter
+			if routeFilter.isEmpty() {
+				app.filterOrigin = ""
+			}
+			if app.poller != nil {
+				app.poller.SetActiveFilter(routeFilter)
 			}
 			changed = true
 		}
@@ -1717,7 +2204,13 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 			if jobId := app.provisioningJobId(detailHostname(app.ResourceDetail)); jobId != "" {
 				app.LogJobId = jobId
 			}
-			app.loadResourceYaml(app.ResourceDetail)
+			if detailType(app.ResourceDetail) != containersTypeId {
+				app.loadResourceYaml(app.ResourceDetail)
+			}
+			app.syncContainerLogStream()
+			changed = true
+		} else if routeDetail == "" && app.containerLogTarget != "" {
+			app.stopContainerLogsLocked()
 			changed = true
 		}
 
@@ -1734,31 +2227,25 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 
 func detailFromRoute(routePath string) string {
 	parts := strings.Split(strings.TrimPrefix(routePath, "detail/"), "/")
-	if len(parts) != 3 {
+	if len(parts) != 3 && len(parts) != 4 {
 		return ""
 	}
 
-	typeId, err := url.PathUnescape(parts[0])
-	if err != nil {
-		return ""
+	decoded := make([]string, 0, len(parts))
+	for _, part := range parts {
+		value, err := url.PathUnescape(part)
+		if err != nil {
+			return ""
+		}
+		decoded = append(decoded, value)
 	}
 
-	namespace, err := url.PathUnescape(parts[1])
-	if err != nil {
-		return ""
-	}
-
-	name, err := url.PathUnescape(parts[2])
-	if err != nil {
-		return ""
-	}
-
-	return typeId + "/" + namespace + "/" + name
+	return strings.Join(decoded, "/")
 }
 
 func detailHostname(detail string) string {
 	parts := strings.Split(detail, "/")
-	if len(parts) != 3 {
+	if len(parts) != 3 && len(parts) != 4 {
 		return ""
 	}
 	hostname, err := url.PathUnescape(parts[2])
@@ -1770,7 +2257,7 @@ func detailHostname(detail string) string {
 
 func detailType(detail string) string {
 	parts := strings.Split(detail, "/")
-	if len(parts) != 3 {
+	if len(parts) < 3 {
 		return ""
 	}
 	typeId, err := url.PathUnescape(parts[0])
@@ -1780,9 +2267,9 @@ func detailType(detail string) string {
 	return typeId
 }
 
-func rowActivationValue(value ucx.Value) (string, string, string) {
+func rowActivationValue(value ucx.Value) (string, string, string, string) {
 	if value.Kind != ucx.ValueObject {
-		return "", "", ""
+		return "", "", "", ""
 	}
 
 	tableId := ucx.ValueAsString(value.Object["stateKey"])
@@ -1790,13 +2277,14 @@ func rowActivationValue(value ucx.Value) (string, string, string) {
 		tableId = ucx.ValueAsString(value.Object["tableId"])
 	}
 	group := ucx.ValueAsString(value.Object["group"])
+	rowKey := ucx.ValueAsString(value.Object["rowKey"])
 
 	cells := ""
 	if rawCells, ok := value.Object["cells"]; ok && rawCells.Kind == ucx.ValueList && len(rawCells.List) > 0 {
 		cells = ucx.ValueAsString(rawCells.List[0])
 	}
 
-	return tableId, group, cells
+	return tableId, group, cells, rowKey
 }
 
 func (app *stackUiApp) loadResourceYaml(detail string) {
