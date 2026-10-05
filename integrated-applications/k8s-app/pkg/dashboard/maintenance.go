@@ -51,6 +51,7 @@ func maintenanceOpenWithMode(app *stackUiApp, nodeName string, nodeUid string, m
 	app.maintenanceRetryOptionsFor = ""
 	app.MaintenanceTimeoutSeconds = maintenanceDefaultTimeoutSeconds
 	app.MaintenanceDrain = false
+	app.MaintenanceCordon = false
 	app.MaintenanceDeleteVolatilePods = false
 	app.MaintenanceBypassDisruptionBudgets = false
 	app.MaintenanceForceDelete = false
@@ -63,6 +64,8 @@ func maintenanceOpenWithMode(app *stackUiApp, nodeName string, nodeUid string, m
 func maintenanceOptionsFromApp(app *stackUiApp) maintenance.Options {
 	return maintenance.Options{
 		TimeoutSeconds:          app.MaintenanceTimeoutSeconds,
+		Cordon:                  app.MaintenanceCordon,
+		Drain:                   app.MaintenanceDrain,
 		DeleteVolatilePods:      app.MaintenanceDeleteVolatilePods,
 		BypassDisruptionBudgets: app.MaintenanceBypassDisruptionBudgets,
 		ForceDelete:             app.MaintenanceForceDelete,
@@ -188,6 +191,7 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 		app.maintenanceRetryOptionsFor = ""
 		app.MaintenanceTimeoutSeconds = maintenanceDefaultTimeoutSeconds
 		app.MaintenanceDrain = false
+		app.MaintenanceCordon = false
 		app.MaintenanceDeleteVolatilePods = false
 		app.MaintenanceBypassDisruptionBudgets = false
 		app.MaintenanceForceDelete = false
@@ -317,9 +321,15 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 		))
 	}
 	if recoveryBlocked && operationMatchesTarget && !maintenance.PhaseActive(operation.Phase) {
-		content = append(content, ucx.Text(
-			"The upgrade failed and the node remains cordoned. Retry the upgrade, or use Uncordon in the node table to return the node to service on its current release.",
-		))
+		if maintenance.UpgradeCordons(operation) {
+			content = append(content, ucx.Text(
+				"The upgrade failed and the node remains cordoned. Retry the upgrade, or use Uncordon in the node table to return the node to service on its current release.",
+			))
+		} else {
+			content = append(content, ucx.Text(
+				"The upgrade failed. Retry the upgrade to recover the node.",
+			))
+		}
 	}
 	upgradePage := app.maintenanceMode == maintenanceModeUpgrade || (app.maintenanceMode == "" && isUpgrade)
 	if upgradePage && !mutationsBlocked && targetUid != "" && !maintenance.PhaseActive(operation.Phase) {
@@ -327,6 +337,8 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 			if app.maintenanceRetryOptionsFor != nodeName {
 				app.maintenanceRetryOptionsFor = nodeName
 				app.MaintenanceTimeoutSeconds = operation.Options.TimeoutSeconds
+				app.MaintenanceCordon = operation.Options.Cordon
+				app.MaintenanceDrain = operation.Options.Drain
 				app.MaintenanceDeleteVolatilePods = operation.Options.DeleteVolatilePods
 				app.MaintenanceBypassDisruptionBudgets = operation.Options.BypassDisruptionBudgets
 				app.MaintenanceTargetRelease = operation.TargetRelease
@@ -551,14 +563,30 @@ func maintenanceUpgradeForm(
 			Children(ucx.Select("maintenanceTargetReleaseSelect", "", "maintenanceTargetRelease", options)))
 	}
 	children = append(children,
-		ucx.FieldGroupNode().Children(
+		ucx.Checkbox(
+			"maintenanceUpgradeCordon",
+			"**Cordon:** mark the node as unschedulable before the upgrade. No new pods are placed on it while it upgrades.",
+			"maintenanceCordon",
+			false,
+		),
+		ucx.Checkbox(
+			"maintenanceUpgradeDrain",
+			"**Drain:** evict all pods from the node after it is cordoned. Replacements may be unavailable immediately.",
+			"maintenanceDrain",
+			false,
+		),
+	)
+	if app.MaintenanceDrain {
+		children = append(children, ucx.FieldGroupNode().Children(
 			ucx.FieldRowNodeEx("maintenanceUpgradeTimeoutRow", "Drain timeout (seconds)", "maintenanceTimeoutSeconds").
 				FieldRowDescription("The drain gives up after this many seconds. Upgrading and verifying the node have a separate time limit.").
 				FieldRowRequired(true).
 				Children(ucx.InputNumber("maintenanceUpgradeTimeout", "", "maintenanceTimeoutSeconds", 30, 3600)),
 			ucx.Checkbox("maintenanceDeleteVolatilePods", "**Delete volatile pods:** also evict pods with emptyDir data and pods without a controller. Their data is lost.", "maintenanceDeleteVolatilePods", false),
 			ucx.Checkbox("maintenanceBypassDisruptionBudgets", "**Bypass budgets:** evict pods even when a `PodDisruptionBudget` forbids it.", "maintenanceBypassDisruptionBudgets", false),
-		),
+		))
+	}
+	children = append(children,
 		ucx.SubmitButton("maintenanceUpgradeSubmit", submitLabel, ucx.ColorErrorMain).
 			ButtonBusy("maintenanceBusy").
 			ButtonHoldToConfirm(true).
@@ -586,6 +614,9 @@ func maintenanceUpgradeForm(
 		app.MaintenanceTargetRelease = target
 		upgradeOptions := maintenanceOptionsFromApp(app)
 		upgradeOptions.ForceDelete = false
+		if upgradeOptions.Drain {
+			upgradeOptions.Cordon = true
+		}
 		maintenanceSubmitAsync(app, mode, nodeName, nodeUid, upgradeOptions)
 	}).Children(children...)
 }

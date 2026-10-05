@@ -85,12 +85,18 @@ func KindIsUpgrade(kind string) bool {
 	return kind == KindUpgrade
 }
 
+func UpgradeCordons(operation Operation) bool {
+	return operation.Options.Cordon || operation.Options.Drain
+}
+
 func PhaseActive(phase string) bool {
 	return phase == PhasePending || phase == PhaseRunning
 }
 
 type Options struct {
 	TimeoutSeconds          int
+	Cordon                  bool
+	Drain                   bool
 	DeleteVolatilePods      bool
 	BypassDisruptionBudgets bool
 	ForceDelete             bool
@@ -132,10 +138,13 @@ func upgradeBlockedByRecovery(operation Operation) bool {
 // =====================================================================================================================
 
 func Start(nodeName string, nodeUid string, options Options) error {
+	options.Cordon = true
+	options.Drain = true
 	return submitStart(nodeName, nodeUid, KindCordonDrain, options, "")
 }
 
 func Cordon(nodeName string, nodeUid string, options Options) error {
+	options.Cordon = true
 	return submitStart(nodeName, nodeUid, KindCordon, options, "")
 }
 
@@ -384,9 +393,11 @@ func submitRecord(submit submission, existing Operation) Operation {
 	}
 
 	if upgradeBlockedByRecovery(existing) {
-		operation.OriginalUnschedulable = existing.OriginalUnschedulable
-		operation.OriginalSchedulingCaptured = existing.OriginalSchedulingCaptured
 		operation.SuspendedJobIds = append([]string(nil), existing.SuspendedJobIds...)
+		if submit.options.Cordon || submit.options.Drain {
+			operation.OriginalUnschedulable = existing.OriginalUnschedulable
+			operation.OriginalSchedulingCaptured = existing.OriginalSchedulingCaptured
+		}
 	}
 
 	return operation

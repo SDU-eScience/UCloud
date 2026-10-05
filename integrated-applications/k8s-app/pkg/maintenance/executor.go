@@ -141,7 +141,7 @@ func (worker *nodeWorker) checkpoint() (Operation, bool) {
 		return Operation{}, false
 	}
 	if operation.CancelRequested {
-		finish(worker, PhaseCancelled, cancelMessage(operation.Kind))
+		finish(worker, PhaseCancelled, cancelMessage(operation))
 		return Operation{}, false
 	}
 	if worker.ctx.Err() != nil {
@@ -281,7 +281,7 @@ func runOperation(
 	case KindCordon:
 		runErr = runCordon(workerCtx, clientset, current, worker)
 	case KindCordonDrain:
-		outcome, cordonErr := runCordonDrain(workerCtx, clientset, current, worker, false)
+		outcome, cordonErr := runCordonDrain(workerCtx, clientset, current, worker, false, true)
 		runErr = cordonErr
 		if runErr == nil && outcome == drainDone {
 			finish(worker, PhaseCompleted, "")
@@ -302,8 +302,11 @@ func runOperation(
 // The functions in this section implement the four operation kinds. They all revalidate the node before they act,
 // because the node may have been replaced between submission and execution.
 
-func cancelMessage(kind string) string {
-	if kind == KindUncordon {
+func cancelMessage(operation Operation) string {
+	if operation.Kind == KindUncordon {
+		return "cancelled by request"
+	}
+	if KindIsUpgrade(operation.Kind) && !UpgradeCordons(operation) {
 		return "cancelled by request"
 	}
 	return "cancelled by request. The node remains cordoned"
@@ -315,6 +318,7 @@ func runCordonDrain(
 	operation Operation,
 	worker *nodeWorker,
 	verified bool,
+	drain bool,
 ) (drainOutcome, error) {
 	record, err := worker.clusterRecord()
 	if err != nil {
@@ -346,6 +350,10 @@ func runCordonDrain(
 
 	if cordonErr := cordonNode(ctx, clientset, worker, node); cordonErr != nil {
 		return drainConcluded, cordonErr
+	}
+
+	if !drain {
+		return drainDone, nil
 	}
 
 	operationLogStage(

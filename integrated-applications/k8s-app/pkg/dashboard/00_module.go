@@ -72,6 +72,7 @@ type stackUiApp struct {
 
 	MaintenanceTimeoutSeconds          int
 	MaintenanceDrain                   bool
+	MaintenanceCordon                  bool
 	MaintenanceDeleteVolatilePods      bool
 	MaintenanceBypassDisruptionBudgets bool
 	MaintenanceForceDelete             bool

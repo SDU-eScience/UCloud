@@ -31,9 +31,38 @@ const (
 
 // Upgrades
 // =====================================================================================================================
-// An upgrade runs in two stages. The first stage is local only: preflight checks, cordon, and drain. The second
-// stage drives the node agent remotely and polls its status until the upgrade completes or fails. The two stages are
-// split by the ExecutorSubmitted flag, which makes an interrupted upgrade resume at the remote stage.
+// An upgrade runs in two stages. The first stage is local only: preflight checks, followed by an optional cordon and
+// drain. The second stage drives the node agent remotely and polls its status until the upgrade completes or fails.
+// The two stages are split by the ExecutorSubmitted flag, which makes an interrupted upgrade resume at the remote
+// stage.
+
+func upgradeSubmitMessage(operation Operation) string {
+	if operation.Options.Drain {
+		return fmt.Sprintf(
+			"The drain of %s completed. The upgrade to %s is being submitted to the node executor",
+			operation.NodeName,
+			operation.TargetRelease,
+		)
+	}
+	if operation.Options.Cordon {
+		return fmt.Sprintf(
+			"The node %s is cordoned. The upgrade to %s is being submitted to the node executor",
+			operation.NodeName,
+			operation.TargetRelease,
+		)
+	}
+	return fmt.Sprintf(
+		"The upgrade to %s is being submitted to the node executor",
+		operation.TargetRelease,
+	)
+}
+
+func upgradeFailureRecoveryMessage(operation Operation) string {
+	if UpgradeCordons(operation) {
+		return "An explicit retry is required and the node remains cordoned"
+	}
+	return "An explicit retry is required"
+}
 
 func upgradeNodeRecord(record shared.ClusterRecord, nodeName string) (shared.ClusterNodeRecord, bool) {
 	for _, recorded := range record.Nodes {
@@ -56,22 +85,20 @@ func runUpgrade(
 			return preflightErr
 		}
 
-		outcome, cordonErr := runCordonDrain(ctx, clientset, operation, worker, true)
-		if cordonErr != nil {
-			return cordonErr
-		}
-		if outcome != drainDone {
-			return nil
+		if UpgradeCordons(operation) {
+			outcome, cordonErr := runCordonDrain(ctx, clientset, operation, worker, true, operation.Options.Drain)
+			if cordonErr != nil {
+				return cordonErr
+			}
+			if outcome != drainDone {
+				return nil
+			}
 		}
 
 		operationLogStage(
 			worker,
 			"submitting",
-			fmt.Sprintf(
-				"The drain of %s completed. The upgrade to %s is being submitted to the node executor",
-				operation.NodeName,
-				operation.TargetRelease,
-			),
+			upgradeSubmitMessage(operation),
 		)
 
 		current, ok := worker.checkpoint()
@@ -479,14 +506,15 @@ func upgradeDriveRemote(
 			executorMessage = "the node executor did not report an error"
 		}
 		upgradeFail(operation, worker, fmt.Sprintf(
-			"the upgrade to %s failed on the node: %s. An explicit retry is required and the node remains cordoned",
+			"the upgrade to %s failed on the node: %s. %s",
 			operation.TargetRelease,
 			executorMessage,
+			upgradeFailureRecoveryMessage(operation),
 		))
 		return true
 
 	case shared.NodeAgentPhaseIdle:
-		if !operation.ExecutorSubmitted {
+		if !operation.ExecutorSubmitted && UpgradeCordons(operation) {
 			node, nodeErr := getNode(ctx, clientset, nodeName)
 			if nodeErr != nil {
 				log.Warn("k8s-app maintenance %s: could not read the node before the submission: %s", nodeName, nodeErr)
@@ -530,15 +558,17 @@ func upgradeSubmit(
 ) bool {
 	nodeName := operation.NodeName
 
-	trafficErr := upgradeSuspendTraffic(operation, worker)
-	if trafficErr != nil {
-		log.Warn("k8s-app maintenance %s: could not suspend traffic before the upgrade: %s", nodeName, trafficErr)
-		operationLogStage(
-			worker,
-			"submit-retry-traffic",
-			fmt.Sprintf("Waiting to suspend the traffic of the node before the upgrade: %s", trafficErr),
-		)
-		return false
+	if operation.Options.Drain {
+		trafficErr := upgradeSuspendTraffic(operation, worker)
+		if trafficErr != nil {
+			log.Warn("k8s-app maintenance %s: could not suspend traffic before the upgrade: %s", nodeName, trafficErr)
+			operationLogStage(
+				worker,
+				"submit-retry-traffic",
+				fmt.Sprintf("Waiting to suspend the traffic of the node before the upgrade: %s", trafficErr),
+			)
+			return false
+		}
 	}
 
 	persistErr := worker.mutate(func(op *Operation) bool {
@@ -642,6 +672,11 @@ func upgradeComplete(
 			"k8s-app maintenance %s: the node remains cordoned because it was cordoned before the upgrade",
 			nodeName,
 		)
+		upgradeFinish(operation, worker)
+		return
+	}
+
+	if !UpgradeCordons(operation) {
 		upgradeFinish(operation, worker)
 		return
 	}
