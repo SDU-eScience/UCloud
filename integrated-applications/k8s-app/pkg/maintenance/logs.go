@@ -26,6 +26,8 @@ const (
 	logSendRetryDelay = 500 * time.Millisecond
 	logDrainTimeout   = 5 * time.Second
 	logBatchTtl       = 30 * time.Second
+
+	nodeLogResetTimeout = 5 * time.Second
 )
 
 type logBatch struct {
@@ -197,6 +199,38 @@ func (relay *logRelay) deliver(batch logBatch) {
 		logSendAttempts,
 		lastErr,
 	)
+}
+
+func resetNodeLog(nodeName string, operationUid string) {
+	record, err := readClusterRecord()
+	if err != nil {
+		log.Warn(
+			"k8s-app maintenance %s: the node log could not be reset: could not read the cluster record: %s",
+			nodeName,
+			err,
+		)
+		return
+	}
+
+	nodeRecord, known := upgradeNodeRecord(record, nodeName)
+	if !known || nodeRecord.IpAddress == "" {
+		log.Warn(
+			"k8s-app maintenance %s: the node log could not be reset: the node has no IP address",
+			nodeName,
+		)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), nodeLogResetTimeout)
+	defer cancel()
+
+	if err := shared.NodeAgentClientResetLog(ctx, nodeName, nodeRecord.IpAddress, operationUid); err != nil {
+		log.Warn(
+			"k8s-app maintenance %s: the node log could not be reset: %s",
+			nodeName,
+			err,
+		)
+	}
 }
 
 func operationLogStage(worker *nodeWorker, stage string, lines ...string) {

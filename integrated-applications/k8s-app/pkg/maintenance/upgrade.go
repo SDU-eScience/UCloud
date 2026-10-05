@@ -51,13 +51,9 @@ func runUpgrade(
 	worker *nodeWorker,
 ) error {
 	if !operation.ExecutorSubmitted {
-		node, preflightErr := upgradePreflight(ctx, clientset, operation, worker)
+		preflightErr := upgradePreflight(ctx, clientset, operation)
 		if preflightErr != nil {
 			return preflightErr
-		}
-
-		if !node.Spec.Unschedulable {
-			return errors.New("the node was uncordoned before the upgrade was submitted")
 		}
 
 		outcome, cordonErr := runCordonDrain(ctx, clientset, operation, worker, true)
@@ -67,6 +63,16 @@ func runUpgrade(
 		if outcome != drainDone {
 			return nil
 		}
+
+		operationLogStage(
+			worker,
+			"submitting",
+			fmt.Sprintf(
+				"The drain of %s completed. The upgrade to %s is being submitted to the node executor",
+				operation.NodeName,
+				operation.TargetRelease,
+			),
+		)
 
 		current, ok := worker.checkpoint()
 		if !ok {
@@ -97,53 +103,52 @@ func upgradePreflight(
 	ctx context.Context,
 	clientset *kubernetes.Clientset,
 	operation Operation,
-	worker *nodeWorker,
-) (*corev1.Node, error) {
+) error {
 	nodeName := operation.NodeName
 
 	if operation.Options.ForceDelete {
-		return nil, errors.New("zero grace deletion cannot be used with node upgrades because it is not possible to prove that the workloads stopped")
+		return errors.New("zero grace deletion cannot be used with node upgrades because it is not possible to prove that the workloads stopped")
 	}
 
 	if operation.HostTerminationUnverified {
-		return nil, errors.New("the node has unverified host terminations from a previous force delete and cannot be upgraded")
+		return errors.New("the node has unverified host terminations from a previous force delete and cannot be upgraded")
 	}
 
 	_, releaseKnown := shared.ReleaseByExactVersion(operation.TargetRelease)
 	if !releaseKnown {
-		return nil, fmt.Errorf("the release %s is not a known k3s release", operation.TargetRelease)
+		return fmt.Errorf("the release %s is not a known Kubernetes release", operation.TargetRelease)
 	}
 
 	record, err := readClusterRecord()
 	if err != nil {
-		return nil, fmt.Errorf("could not read the cluster record: %s", err)
+		return fmt.Errorf("could not read the cluster record: %s", err)
 	}
 
 	if record.Phase != "created" {
-		return nil, fmt.Errorf("the cluster is not ready (state: %s)", record.Phase)
+		return fmt.Errorf("the cluster is not ready (state: %s)", record.Phase)
 	}
 
 	nodeRecord, nodeKnown := upgradeNodeRecord(record, nodeName)
 	if !nodeKnown {
-		return nil, errors.New("the node is not part of this cluster")
+		return errors.New("the node is not part of this cluster")
 	}
 
 	node, err := clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("could not read the node: %s", err)
+		return fmt.Errorf("could not read the node: %s", err)
 	}
 
 	if string(node.UID) != operation.NodeUid {
-		return nil, errors.New("the node uid does not match the requested node")
+		return errors.New("the node uid does not match the requested node")
 	}
 
 	if !nodeIsReady(node) {
-		return nil, errors.New("the node is not ready")
+		return errors.New("the node is not ready")
 	}
 
 	listed, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("could not list the nodes of the cluster: %s", err)
+		return fmt.Errorf("could not list the nodes of the cluster: %s", err)
 	}
 
 	liveNodes := make(map[string]*corev1.Node, len(listed.Items))
@@ -153,25 +158,25 @@ func upgradePreflight(
 
 	snapshot, err := Snapshot()
 	if err != nil {
-		return nil, fmt.Errorf("could not read the maintenance state: %s", err)
+		return fmt.Errorf("could not read the maintenance state: %s", err)
 	}
 
 	currentVersion := node.Status.NodeInfo.KubeletVersion
 	_, err = version.ParseSemantic(currentVersion)
 	if err != nil {
-		return nil, fmt.Errorf("the version %s of node %s could not be parsed", currentVersion, nodeName)
+		return fmt.Errorf("the version %s of node %s could not be parsed", currentVersion, nodeName)
 	}
 
 	_, err = version.ParseSemantic(operation.TargetRelease)
 	if err != nil {
-		return nil, fmt.Errorf("the release %s could not be parsed", operation.TargetRelease)
+		return fmt.Errorf("the release %s could not be parsed", operation.TargetRelease)
 	}
 
 	if currentVersion == operation.TargetRelease {
-		return nil, errors.New("the node already runs the target release")
+		return errors.New("the node already runs the target release")
 	} else if !shared.NodeAgentUpgradeAllowed(currentVersion, operation.TargetRelease) {
-		return nil, fmt.Errorf(
-			"the upgrade from %s to %s is not allowed; only a forward patch or the next minor release is allowed",
+		return fmt.Errorf(
+			"the upgrade from %s to %s is not allowed. Only a forward patch or the next minor release is allowed",
 			currentVersion,
 			operation.TargetRelease,
 		)
@@ -185,7 +190,7 @@ func upgradePreflight(
 
 		live, liveKnown := liveNodes[recorded.Hostname]
 		if !liveKnown {
-			return nil, fmt.Errorf("the node %s of the cluster is missing from Kubernetes", recorded.Hostname)
+			return fmt.Errorf("the node %s of the cluster is missing from Kubernetes", recorded.Hostname)
 		}
 
 		resulting := live.Status.NodeInfo.KubeletVersion
@@ -204,7 +209,7 @@ func upgradePreflight(
 
 		parsed, err := version.ParseSemantic(resulting)
 		if err != nil {
-			return nil, fmt.Errorf("the version %s of node %s could not be parsed", resulting, recorded.Hostname)
+			return fmt.Errorf("the version %s of node %s could not be parsed", resulting, recorded.Hostname)
 		}
 
 		if recorded.Group == shared.GroupControlPlane {
@@ -216,26 +221,26 @@ func upgradePreflight(
 
 	spreadErr := upgradeCheckControlPlaneSpread(controlPlaneVersions)
 	if spreadErr != nil {
-		return nil, spreadErr
+		return spreadErr
 	}
 
 	skewErr := upgradeCheckWorkerSkew(workerVersions, controlPlaneVersions)
 	if skewErr != nil {
-		return nil, skewErr
+		return skewErr
 	}
 
 	guardErr := upgradeControlPlaneGuard(ctx, clientset, operation)
 	if guardErr != nil {
-		return nil, guardErr
+		return guardErr
 	}
 
 	status, err := shared.NodeAgentClientStatus(ctx, nodeName, nodeRecord.IpAddress)
 	if err != nil {
-		return nil, fmt.Errorf("could not read the node executor status of %s: %s", nodeName, err)
+		return fmt.Errorf("could not read the node executor status of %s: %s", nodeName, err)
 	}
 
 	if status.NodeName != nodeName {
-		return nil, fmt.Errorf(
+		return fmt.Errorf(
 			"the node executor at %s reports node %s, but %s was requested",
 			nodeRecord.IpAddress,
 			status.NodeName,
@@ -245,7 +250,7 @@ func upgradePreflight(
 
 	if shared.NodeAgentPhaseActive(status.Phase) {
 		if status.Release != operation.TargetRelease {
-			return nil, fmt.Errorf(
+			return fmt.Errorf(
 				"the node executor of %s is already upgrading to %s",
 				nodeName,
 				status.Release,
@@ -254,14 +259,14 @@ func upgradePreflight(
 	}
 
 	if status.Phase == shared.NodeAgentPhaseFailed && status.Release != operation.TargetRelease {
-		return nil, fmt.Errorf(
-			"the node executor of %s failed an upgrade to %s; the target release does not match",
+		return fmt.Errorf(
+			"the node executor of %s failed an upgrade to %s. The target release does not match",
 			nodeName,
 			status.Release,
 		)
 	}
 
-	return node, nil
+	return nil
 }
 
 func upgradeControlPlaneGuard(ctx context.Context, clientset *kubernetes.Clientset, operation Operation) error {
@@ -401,12 +406,22 @@ func upgradeDriveRemote(
 	nodeIp, ipErr := upgradeNodeIp(worker, operation)
 	if ipErr != nil {
 		log.Warn("k8s-app maintenance %s: could not resolve the address of the node executor: %s", nodeName, ipErr)
+		operationLogStage(
+			worker,
+			"submit-retry-address",
+			fmt.Sprintf("Waiting to resolve the address of the node executor: %s", ipErr),
+		)
 		return false
 	}
 
 	status, statusErr := shared.NodeAgentClientStatus(ctx, nodeName, nodeIp)
 	if statusErr != nil {
 		log.Warn("k8s-app maintenance %s: could not read the node executor status: %s", nodeName, statusErr)
+		operationLogStage(
+			worker,
+			"submit-retry-status",
+			fmt.Sprintf("Waiting to read the status of the node executor: %s", statusErr),
+		)
 		return false
 	}
 
@@ -428,6 +443,11 @@ func upgradeDriveRemote(
 			))
 			return true
 		}
+		operationLogStage(
+			worker,
+			fmt.Sprintf("executor-%s", status.Phase),
+			fmt.Sprintf("The node executor is %s", status.Phase),
+		)
 		return false
 	}
 
@@ -447,7 +467,7 @@ func upgradeDriveRemote(
 	case shared.NodeAgentPhaseFailed:
 		if status.Release != operation.TargetRelease {
 			upgradeFail(operation, worker, fmt.Sprintf(
-				"the node executor of %s failed an upgrade to %s; the target release does not match",
+				"the node executor of %s failed an upgrade to %s. The target release does not match",
 				nodeName,
 				status.Release,
 			))
@@ -459,7 +479,7 @@ func upgradeDriveRemote(
 			executorMessage = "the node executor did not report an error"
 		}
 		upgradeFail(operation, worker, fmt.Sprintf(
-			"the upgrade to %s failed on the node: %s; an explicit retry is required and the node remains cordoned",
+			"the upgrade to %s failed on the node: %s. An explicit retry is required and the node remains cordoned",
 			operation.TargetRelease,
 			executorMessage,
 		))
@@ -467,7 +487,26 @@ func upgradeDriveRemote(
 
 	case shared.NodeAgentPhaseIdle:
 		if !operation.ExecutorSubmitted {
-			return upgradeSubmit(ctx, operation, worker, nodeIp, status)
+			node, nodeErr := getNode(ctx, clientset, nodeName)
+			if nodeErr != nil {
+				log.Warn("k8s-app maintenance %s: could not read the node before the submission: %s", nodeName, nodeErr)
+				operationLogStage(
+					worker,
+					"submit-retry-node",
+					fmt.Sprintf("Waiting to read the node before the submission: %s", nodeErr),
+				)
+				return false
+			}
+
+			if string(node.UID) != operation.NodeUid {
+				upgradeFail(operation, worker, "the node was replaced during the upgrade")
+				return true
+			}
+
+			if !node.Spec.Unschedulable {
+				upgradeFail(operation, worker, "the node was uncordoned before the upgrade was submitted")
+				return true
+			}
 		}
 
 		return upgradeSubmit(ctx, operation, worker, nodeIp, status)
@@ -494,6 +533,11 @@ func upgradeSubmit(
 	trafficErr := upgradeSuspendTraffic(operation, worker)
 	if trafficErr != nil {
 		log.Warn("k8s-app maintenance %s: could not suspend traffic before the upgrade: %s", nodeName, trafficErr)
+		operationLogStage(
+			worker,
+			"submit-retry-traffic",
+			fmt.Sprintf("Waiting to suspend the traffic of the node before the upgrade: %s", trafficErr),
+		)
 		return false
 	}
 
@@ -503,6 +547,11 @@ func upgradeSubmit(
 	})
 	if persistErr != nil {
 		log.Warn("k8s-app maintenance %s: could not record the submission to the node executor: %s", nodeName, persistErr)
+		operationLogStage(
+			worker,
+			"submit-retry-persist",
+			fmt.Sprintf("Waiting to record the submission to the node executor: %s", persistErr),
+		)
 		return false
 	}
 
@@ -510,6 +559,11 @@ func upgradeSubmit(
 	_, postErr := shared.NodeAgentClientUpgrade(ctx, nodeName, nodeIp, operation.TargetRelease, resubmit, operation.Uid)
 	if postErr != nil {
 		log.Warn("k8s-app maintenance %s: could not submit the upgrade to the node executor: %s", nodeName, postErr)
+		operationLogStage(
+			worker,
+			"submit-retry-post",
+			fmt.Sprintf("Waiting to submit the upgrade to the node executor: %s", postErr),
+		)
 		return false
 	}
 
@@ -610,7 +664,7 @@ func upgradeComplete(
 				return
 			}
 		} else {
-			operationLogLines(worker, fmt.Sprintf("The node %s was uncordoned; it accepts workloads again", nodeName))
+			operationLogLines(worker, fmt.Sprintf("The node %s was uncordoned. It accepts workloads again", nodeName))
 		}
 	}
 
@@ -678,7 +732,7 @@ func upgradeFinish(operation Operation, worker *nodeWorker) {
 	finishErr := finishQuiet(worker, PhaseCompleted, "")
 	if finishErr != nil {
 		upgradeFail(operation, worker, fmt.Sprintf(
-			"the upgrade to %s completed on the node, but the result could not be recorded: %s; an explicit retry recovers it without draining the node again",
+			"the upgrade to %s completed on the node, but the result could not be recorded: %s. An explicit retry recovers it without draining the node again",
 			operation.TargetRelease,
 			finishErr,
 		))
@@ -906,7 +960,7 @@ func trafficMoveMember(worker *nodeWorker, jobId string, remove bool) error {
 
 	for _, service := range services {
 		member := slices.Contains(service.Status.Members, jobId)
-		if member == remove {
+		if member != remove {
 			continue
 		}
 
@@ -951,7 +1005,7 @@ func trafficMemberActive(worker *nodeWorker, jobId string) (bool, error) {
 func upgradeSuspendTraffic(operation Operation, worker *nodeWorker) error {
 	jobId, err := trafficSuspendRecords(worker, operation)
 	if err != nil {
-		return err
+		return fmt.Errorf("could not record the traffic suspension: %s", err)
 	}
 	if jobId == "" {
 		return nil
@@ -969,12 +1023,12 @@ func upgradeSuspendTraffic(operation Operation, worker *nodeWorker) error {
 	}
 
 	if removeErr := trafficMoveMember(worker, jobId, true); removeErr != nil {
-		return removeErr
+		return fmt.Errorf("could not remove the job %s from the traffic services: %s", jobId, removeErr)
 	}
 
 	active, activeErr := trafficMemberActive(worker, jobId)
 	if activeErr != nil {
-		return activeErr
+		return fmt.Errorf("could not verify the traffic services after the removal: %s", activeErr)
 	}
 	if active {
 		return fmt.Errorf(
@@ -983,6 +1037,12 @@ func upgradeSuspendTraffic(operation Operation, worker *nodeWorker) error {
 			operation.NodeName,
 		)
 	}
+
+	operationLogLines(worker, fmt.Sprintf(
+		"The traffic of %s was suspended. The job %s no longer receives traffic",
+		operation.NodeName,
+		jobId,
+	))
 
 	return nil
 }

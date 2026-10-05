@@ -47,10 +47,6 @@ cat > /usr/local/sbin/ucloud-k8s-maintenance-agent-setup <<'EOF'
 set -euo pipefail
 source /etc/ucloud-k8s/bundle/common.sh
 
-if [ -f /etc/systemd/system/ucloud-k8s-maintenance-agent.service ]; then
-	exit 0
-fi
-
 /etc/ucloud-k8s/bundle/maintenance-agent.sh
 EOF
 chmod 0755 /usr/local/sbin/ucloud-k8s-maintenance-agent-setup
@@ -62,7 +58,7 @@ if ! command -v systemctl >/dev/null 2>&1; then
 		exec >>"$BOOTSTRAP_LOG" 2>&1
 	fi
 	log "systemd is not available, running the bootstrap inline"
-	log "WARNING: the maintenance agent setup requires systemd and was skipped; the k3s bootstrap continues without it"
+	log "WARNING: the maintenance agent setup requires systemd and was skipped. The Kubernetes bootstrap continues without it"
 	exec /usr/local/sbin/ucloud-k8s-bootstrap
 fi
 

@@ -122,28 +122,28 @@ func maintenanceSubmitAsync(
 			ucx.AppUpdateUiLocked(session, updatedUi, updatedModel)
 			if err != nil {
 				maintenanceSendUiMessage(session, err.Error(), false)
-			} else {
+			} else if !maintenanceSubmitStartsOperation(action) {
 				maintenanceSendUiMessage(session, maintenanceSubmitMessage(action, nodeName), true)
-			}
-			if err == nil && (action == "cordon" || action == "start" || action == "retry" || action == "upgrade-start" || action == "upgrade-retry") {
-				maintenanceReturnToNodes(session, app)
 			}
 		}
 	}()
 }
 
-func maintenanceReturnToNodes(session *ucx.Session, app *stackUiApp) {
-	if session.Context().Err() != nil {
-		return
+func maintenanceSubmitStartsOperation(action string) bool {
+	switch action {
+	case "cordon":
+		return true
+	case "start":
+		return true
+	case "retry":
+		return true
+	case "upgrade-start":
+		return true
+	case "upgrade-retry":
+		return true
+	default:
+		return false
 	}
-
-	app.mu.Lock()
-	app.maintenanceNodeName = ""
-	app.maintenanceNodeUid = ""
-	app.maintenanceRetryOptionsFor = ""
-	app.mu.Unlock()
-
-	_, _ = ucxapi.RouterPushPage.InvokeEx(session.Context(), session, ucxapi.RouterPushPageRequest{Path: "browse/nodes"})
 }
 
 func maintenanceSendUiMessage(session *ucx.Session, message string, success bool) {
@@ -162,16 +162,6 @@ func maintenanceSendUiMessage(session *ucx.Session, message string, success bool
 
 func maintenanceSubmitMessage(action string, nodeName string) string {
 	switch action {
-	case "cordon":
-		return fmt.Sprintf("Cordon of %s started", nodeName)
-	case "start":
-		return fmt.Sprintf("Cordon and drain of %s started", nodeName)
-	case "retry":
-		return fmt.Sprintf("Retry of the drain of %s started", nodeName)
-	case "upgrade-start":
-		return fmt.Sprintf("Upgrade of %s started", nodeName)
-	case "upgrade-retry":
-		return fmt.Sprintf("Retry of the upgrade of %s started", nodeName)
 	case "uncordon":
 		return fmt.Sprintf("Uncordon of %s started", nodeName)
 	case "cancel":
@@ -255,7 +245,7 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 	mutationsBlocked := app.Stack == nil
 
 	content := []ucx.UiNode{
-		ucx.Text(fmt.Sprintf("Node: %s", nodeName)),
+		ucx.H3Ex("maintenanceNodeHeading", nodeName),
 	}
 
 	if hasOperation && operation.Error != "" {
@@ -269,9 +259,8 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 			break
 		}
 	}
-	if logJobId != "" {
+	if logJobId != "" && hasOperation && maintenance.PhaseActive(operation.Phase) {
 		content = append(content,
-			ucx.H3Ex(fmt.Sprintf("maintenanceLogHeading-%s", logJobId), "Node log"),
 			ucx.JobLogs(fmt.Sprintf("maintenanceLog-%s", logJobId), logJobId),
 		)
 	}
@@ -324,7 +313,7 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 	}
 	if recoveryBlocked && !operationMatchesTarget {
 		content = append(content, ucx.Text(
-			"The earlier node requires upgrade recovery; retry the upgrade or uncordon it in the node table.",
+			"The earlier node requires upgrade recovery. Retry the upgrade or uncordon it in the node table.",
 		))
 	}
 	if recoveryBlocked && operationMatchesTarget && !maintenance.PhaseActive(operation.Phase) {
@@ -514,14 +503,17 @@ func maintenanceUpgradeForm(
 	isRetry := mode == "upgrade-retry"
 	currentVersion := app.maintenanceNodeVersion(nodeName, record)
 	options := maintenanceUpgradeReleaseOptions(currentVersion)
-	submitLabel := "Upgrade k3s"
+	submitLabel := "Upgrade Kubernetes"
 	if isRetry {
 		submitLabel = "Retry upgrade"
 		app.MaintenanceTargetRelease = operation.TargetRelease
 		options = []ucx.Option{{Key: operation.TargetRelease, Value: operation.TargetRelease}}
 	}
 	if len(options) == 0 {
-		return ucx.Text("No supported upgrade is available for the node's current version.")
+		return ucx.Text(fmt.Sprintf(
+			"The node already runs the newest supported release, %s.",
+			currentVersion,
+		))
 	}
 	selected := false
 	for _, option := range options {
@@ -536,9 +528,7 @@ func maintenanceUpgradeForm(
 	if app.MaintenanceTimeoutSeconds <= 0 {
 		app.MaintenanceTimeoutSeconds = maintenanceDefaultTimeoutSeconds
 	}
-	children := []ucx.UiNode{
-		ucx.Text("The node is drained before k3s restarts. Failed upgrades leave it cordoned; there is no automatic rollback. Hold the button to confirm."),
-	}
+	children := []ucx.UiNode{}
 	controlPlanes := 0
 	targetIsControlPlane := false
 	for _, node := range record.Nodes {
@@ -555,6 +545,7 @@ func maintenanceUpgradeForm(
 	if isRetry {
 		children = append(children, ucx.Text(fmt.Sprintf("Retry target: %s", operation.TargetRelease)))
 	} else {
+		children = append(children, ucx.Text(fmt.Sprintf("Current version: %s", currentVersion)))
 		children = append(children, ucx.FieldRowNodeEx("maintenanceTargetReleaseRow", "Target release", "maintenanceTargetRelease").
 			FieldRowRequired(true).
 			Children(ucx.Select("maintenanceTargetReleaseSelect", "", "maintenanceTargetRelease", options)))

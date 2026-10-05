@@ -64,9 +64,9 @@ install_k3s_binary() {
 			return 0
 		fi
 		if k3s_cluster_state_exists; then
-			fail "install" "the installed k3s version does not match $k3sVersion; an explicit upgrade is required"
+			fail "install" "the installed Kubernetes version does not match $k3sVersion. An explicit upgrade is required"
 		fi
-		log "the installed k3s binary is corrupt or outdated, replacing it"
+		log "the installed Kubernetes binary is corrupt or outdated, replacing it"
 	fi
 
 	if [ -s "$BUNDLE_DIR/artifacts/k3s-$(node_arch)" ]; then
@@ -76,17 +76,17 @@ install_k3s_binary() {
 	fi
 
 	if [ -n "$sourceFile" ]; then
-		emit "Installing k3s from offline artifacts" 30
-		log "installing k3s from offline artifacts"
+		emit "Installing Kubernetes from offline artifacts" 30
+		log "installing Kubernetes from offline artifacts"
 		if [ "$(file_sha256 "$sourceFile")" != "$expectedChecksum" ]; then
-			fail "install" "the offline k3s artifact checksum does not match the pinned release"
+			fail "install" "the offline artifact checksum does not match the pinned release"
 		fi
 		install -m 0755 "$sourceFile" "$K3S_BINARY"
 		return 0
 	fi
 
-	emit "Downloading k3s" 30
-	log "downloading pinned k3s"
+	emit "Downloading Kubernetes" 30
+	log "downloading the pinned Kubernetes release"
 	while [ $tries -lt $maxTries ]; do
 		if curl -sfL --connect-timeout 15 --max-time 900 --retry 3 --retry-delay 5 "$(node_k3s_url)" -o "$tmpFile"; then
 			downloaded=true
@@ -98,11 +98,11 @@ install_k3s_binary() {
 	done
 	if [ "$downloaded" != "true" ]; then
 		rm -f "$tmpFile"
-		fail "install" "could not download k3s from $(node_k3s_url)"
+		fail "install" "could not download Kubernetes from $(node_k3s_url)"
 	fi
 	if [ "$(file_sha256 "$tmpFile")" != "$expectedChecksum" ]; then
 		rm -f "$tmpFile"
-		fail "install" "the downloaded k3s checksum does not match the pinned release"
+		fail "install" "the downloaded checksum does not match the pinned release"
 	fi
 	chmod 0755 "$tmpFile"
 	mv -f "$tmpFile" "$K3S_BINARY"

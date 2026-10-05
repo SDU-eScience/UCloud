@@ -11,10 +11,12 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
 
+	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/ucx"
 )
 
@@ -268,6 +270,7 @@ type NodeHealth struct {
 	Ready    int
 	NotReady int
 	Unknown  int
+	ControlPlaneVersion string
 }
 
 func (c *K8sClient) NodeHealth(ctx context.Context) (NodeHealth, error) {
@@ -277,8 +280,11 @@ func (c *K8sClient) NodeHealth(ctx context.Context) (NodeHealth, error) {
 	}
 
 	health := NodeHealth{Total: len(list.Items)}
+	minControlPlaneString := ""
+	var minControlPlane *version.Version
 	for i := range list.Items {
-		switch nodeReadyState(&list.Items[i]) {
+		obj := &list.Items[i]
+		switch nodeReadyState(obj) {
 		case "Ready":
 			health.Ready++
 		case "NotReady":
@@ -286,9 +292,41 @@ func (c *K8sClient) NodeHealth(ctx context.Context) (NodeHealth, error) {
 		default:
 			health.Unknown++
 		}
+
+		if !nodeIsControlPlane(obj) {
+			continue
+		}
+
+		kubelet := firstString(obj, "status", "nodeInfo", "kubeletVersion")
+		parsed, parseErr := version.ParseSemantic(kubelet)
+		if parseErr != nil {
+			continue
+		}
+
+		if minControlPlane == nil || parsed.LessThan(minControlPlane) {
+			minControlPlane = parsed
+			minControlPlaneString = kubelet
+		}
 	}
 
+	health.ControlPlaneVersion = minControlPlaneString
 	return health, nil
+}
+
+func nodeIsControlPlane(obj *unstructured.Unstructured) bool {
+	labels := obj.GetLabels()
+	if labels[nodeGroupLabel] == shared.GroupControlPlane {
+		return true
+	}
+
+	for label := range labels {
+		role, ok := strings.CutPrefix(label, "node-role.kubernetes.io/")
+		if ok && (role == "control-plane" || role == "master") {
+			return true
+		}
+	}
+
+	return false
 }
 
 var crdGvr = schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}

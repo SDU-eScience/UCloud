@@ -5,6 +5,9 @@ source /etc/ucloud-k8s/bundle/common.sh
 
 PROVIDER_UCX_BIN="/opt/ucloud-ucx/current"
 AGENT_BIN="/usr/local/sbin/ucloud-k8s-maintenance-agent"
+SUPERVISOR_BIN="/usr/local/sbin/ucloud-k8s-maintenance-agent-run"
+UNIT_FILE="/etc/systemd/system/ucloud-k8s-maintenance-agent.service"
+STATE_FILE="/var/lib/ucloud-k8s/maintenance/upgrade-state.json"
 
 if [ "$(id -u)" -ne 0 ]; then
 	echo "[ucloud-k8s] the maintenance agent installer must run as root" >&2
@@ -47,14 +50,89 @@ while true; do
 	waited=$((waited + 5))
 done
 
-install -o root -g root -m 0755 "$PROVIDER_UCX_BIN" "$AGENT_BIN"
+agent_idle() {
+	if [ ! -f "$STATE_FILE" ]; then
+		return 0
+	fi
+	! grep -Eq '"phase": *"(downloading|snapshotting|installing|restarting|verifying)"' "$STATE_FILE"
+}
 
-if [ ! -x "$AGENT_BIN" ]; then
-	echo "[ucloud-k8s] the maintenance agent binary could not be installed at $AGENT_BIN" >&2
-	exit 1
+SUPERVISOR_TMP="$SUPERVISOR_BIN.tmp"
+cat > "$SUPERVISOR_TMP" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROVIDER_UCX_BIN="/opt/ucloud-ucx/current"
+AGENT_BIN="/usr/local/sbin/ucloud-k8s-maintenance-agent"
+STATE_FILE="/var/lib/ucloud-k8s/maintenance/upgrade-state.json"
+
+file_state() {
+	if [ ! -f "$PROVIDER_UCX_BIN" ]; then
+		printf 'missing'
+		return
+	fi
+	stat -c '%s %Y' "$PROVIDER_UCX_BIN"
+}
+
+agent_idle() {
+	if [ ! -f "$STATE_FILE" ]; then
+		return 0
+	fi
+	! grep -Eq '"phase": *"(downloading|snapshotting|installing|restarting|verifying)"' "$STATE_FILE"
+}
+
+update_agent_bin() {
+	cp "$PROVIDER_UCX_BIN" "$AGENT_BIN.tmp"
+	chmod 0755 "$AGENT_BIN.tmp"
+	mv "$AGENT_BIN.tmp" "$AGENT_BIN"
+}
+
+while true; do
+	while [ ! -f "$PROVIDER_UCX_BIN" ]; do
+		sleep 1
+	done
+
+	if ! cmp -s "$PROVIDER_UCX_BIN" "$AGENT_BIN"; then
+		update_agent_bin
+	fi
+	LAST_STATE="$(file_state)"
+
+	"$AGENT_BIN" agent &
+	PID="$!"
+
+	while kill -0 "$PID" 2>/dev/null; do
+		sleep 1
+		NEXT_STATE="$(file_state)"
+		if [ "$NEXT_STATE" != "$LAST_STATE" ] && [ -f "$PROVIDER_UCX_BIN" ] && agent_idle; then
+			kill "$PID" 2>/dev/null || true
+			wait "$PID" 2>/dev/null || true
+			break
+		fi
+	done
+
+	wait "$PID" 2>/dev/null || true
+
+	NEXT_STATE="$(file_state)"
+	if [ "$NEXT_STATE" != "$LAST_STATE" ] && [ -f "$PROVIDER_UCX_BIN" ]; then
+		update_agent_bin
+		LAST_STATE="$NEXT_STATE"
+	fi
+
+	sleep 1
+done
+EOF
+chmod 0755 "$SUPERVISOR_TMP"
+
+CHANGED=0
+if [ ! -x "$SUPERVISOR_BIN" ] || ! cmp -s "$SUPERVISOR_TMP" "$SUPERVISOR_BIN"; then
+	mv "$SUPERVISOR_TMP" "$SUPERVISOR_BIN"
+	CHANGED=1
+else
+	rm -f "$SUPERVISOR_TMP"
 fi
 
-cat > /etc/systemd/system/ucloud-k8s-maintenance-agent.service <<EOF
+UNIT_TMP="$UNIT_FILE.tmp"
+cat > "$UNIT_TMP" <<EOF
 [Unit]
 Description=UCloud K8s maintenance agent
 Wants=network-online.target
@@ -65,7 +143,7 @@ StartLimitBurst=10
 
 [Service]
 Type=simple
-ExecStart=/usr/local/sbin/ucloud-k8s-maintenance-agent agent
+ExecStart=$SUPERVISOR_BIN
 Restart=on-failure
 RestartSec=10
 
@@ -73,6 +151,21 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-systemctl daemon-reload
-systemctl enable ucloud-k8s-maintenance-agent >/dev/null
-systemctl start --no-block ucloud-k8s-maintenance-agent
+SERVICE_STATE="$(systemctl is-active ucloud-k8s-maintenance-agent 2>/dev/null || true)"
+
+if [ "$CHANGED" = 0 ] && { [ "$SERVICE_STATE" = "active" ] || [ "$SERVICE_STATE" = "activating" ]; } && cmp -s "$UNIT_TMP" "$UNIT_FILE"; then
+	rm -f "$UNIT_TMP"
+	exit 0
+fi
+
+if ! { [ "$SERVICE_STATE" = "active" ] || [ "$SERVICE_STATE" = "activating" ]; } || agent_idle; then
+	mv "$UNIT_TMP" "$UNIT_FILE"
+	systemctl daemon-reload
+	systemctl enable ucloud-k8s-maintenance-agent >/dev/null
+	systemctl restart ucloud-k8s-maintenance-agent
+	exit 0
+fi
+
+rm -f "$UNIT_TMP"
+echo "[ucloud-k8s] the maintenance agent is busy, the setup retries when the node is idle" >&2
+exit 1

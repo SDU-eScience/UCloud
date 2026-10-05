@@ -143,11 +143,16 @@ func Serve(ctx context.Context) error {
 
 	recoverInterrupted()
 
+	if identityConfig.Role == shared.GroupControlPlane {
+		go startTokenPublisher()
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/status", handleStatus)
 	mux.HandleFunc("/upgrade", handleUpgrade)
 	mux.HandleFunc("/retry", handleRetry)
 	mux.HandleFunc("/log", handleLog)
+	mux.HandleFunc("/log/reset", handleLogReset)
 
 	server := &http.Server{
 		Addr:              net.JoinHostPort(identityConfig.IpAddress, fmt.Sprintf("%d", shared.NodeAgentPort)),
@@ -365,7 +370,7 @@ func handleUpgradeOrRetry(writer http.ResponseWriter, request *http.Request, ret
 			return
 		}
 		writeError(writer, http.StatusConflict, fmt.Sprintf(
-			"an upgrade to %s is already running; a different target was rejected",
+			"an upgrade to %s is already running. A different target was rejected",
 			state.Release,
 		))
 		return
@@ -373,7 +378,7 @@ func handleUpgradeOrRetry(writer http.ResponseWriter, request *http.Request, ret
 
 	if state.Phase == shared.NodeAgentPhaseFailed {
 		if state.Release == "" {
-			writeError(writer, http.StatusInternalServerError, "the upgrade state is corrupted; manual recovery is required")
+			writeError(writer, http.StatusInternalServerError, "the upgrade state is corrupted. Manual recovery is required")
 			return
 		}
 		if !retry {
@@ -382,7 +387,7 @@ func handleUpgradeOrRetry(writer http.ResponseWriter, request *http.Request, ret
 		}
 		if state.Release != release {
 			writeError(writer, http.StatusConflict, fmt.Sprintf(
-				"the failed upgrade targets %s; the retry does not match",
+				"the failed upgrade targets %s. The retry does not match",
 				state.Release,
 			))
 			return
@@ -401,7 +406,7 @@ func handleUpgradeOrRetry(writer http.ResponseWriter, request *http.Request, ret
 			return
 		}
 		if state.PreviousRelease == "" {
-			writeError(writer, http.StatusInternalServerError, "the completed upgrade has no recorded previous release; manual verification is required")
+			writeError(writer, http.StatusInternalServerError, "the completed upgrade has no recorded previous release. Manual verification is required")
 			return
 		}
 		startUpgrade(writer, release, state, operationUid)
@@ -418,7 +423,7 @@ func handleUpgradeOrRetry(writer http.ResponseWriter, request *http.Request, ret
 	}
 
 	writeError(writer, http.StatusInternalServerError, fmt.Sprintf(
-		"the upgrade state reports phase %s without a target release; manual recovery is required",
+		"the upgrade state reports phase %s without a target release. Manual recovery is required",
 		state.Phase,
 	))
 }
@@ -460,7 +465,7 @@ func startUpgrade(writer http.ResponseWriter, release string, state upgradeState
 	current := stateLoad()
 	stateChanged := current.Phase != state.Phase || current.Release != state.Release || !current.UpdatedAt.Equal(state.UpdatedAt)
 	if current.NeedsStateRecovery || stateChanged {
-		writeError(writer, http.StatusConflict, "the upgrade state changed; read its status before submitting again")
+		writeError(writer, http.StatusConflict, "the upgrade state changed. Read its status before submitting again")
 		return
 	}
 

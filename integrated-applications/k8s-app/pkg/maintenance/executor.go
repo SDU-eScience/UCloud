@@ -306,7 +306,7 @@ func cancelMessage(kind string) string {
 	if kind == KindUncordon {
 		return "cancelled by request"
 	}
-	return "cancelled by request; the node remains cordoned"
+	return "cancelled by request. The node remains cordoned"
 }
 
 func runCordonDrain(
@@ -351,7 +351,7 @@ func runCordonDrain(
 	operationLogStage(
 		worker,
 		"draining",
-		fmt.Sprintf("The node %s is cordoned; its pods are drained", operation.NodeName),
+		fmt.Sprintf("The node %s is cordoned. Its pods are drained", operation.NodeName),
 	)
 
 	return drainNode(ctx, clientset, operation, worker), nil
@@ -497,7 +497,7 @@ func drainNode(
 			}
 			message := fmt.Sprintf(
 				"the drain is blocked by pods that were not approved for deletion: %s",
-				strings.Join(blockers, "; "),
+				strings.Join(blockers, ", "),
 			)
 			operationLogLines(worker, fmt.Sprintf("The drain is blocked: %s", message))
 			finish(worker, PhaseBlocked, message)

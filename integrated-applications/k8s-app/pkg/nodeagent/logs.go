@@ -143,6 +143,30 @@ func progressAppendFile(name string, data []byte, mode os.FileMode) {
 	return
 }
 
+func progressTruncate(name string, mode os.FileMode) {
+	path := filepath.Join(workMount, name)
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, mode)
+	if err != nil {
+		return
+	}
+
+	if closeErr := file.Close(); closeErr != nil {
+		return
+	}
+
+	_ = os.Chown(path, serviceUid, serviceGid)
+}
+
+func progressReset() {
+	progressMu.Lock()
+	defer progressMu.Unlock()
+
+	progressTruncate(stdoutLogName, 0644)
+	progressTruncate(uiChannelName, 0600)
+	progressWidget(progressLabelId, 0, widgetLabel{Text: "Maintenance in progress"})
+	progressWidget(progressBarId, 1, widgetProgress{Progress: 0})
+}
+
 func handleLog(writer http.ResponseWriter, request *http.Request) {
 	if !authorizePeer(writer, request) {
 		return
@@ -204,4 +228,36 @@ func handleLog(writer http.ResponseWriter, request *http.Request) {
 	_ = json.NewEncoder(writer).Encode(struct {
 		Written int `json:"written"`
 	}{Written: written})
+}
+
+func handleLogReset(writer http.ResponseWriter, request *http.Request) {
+	if !authorizePeer(writer, request) {
+		return
+	}
+	if request.Method != http.MethodPost {
+		writeError(writer, http.StatusMethodNotAllowed, "this endpoint only accepts POST")
+		return
+	}
+
+	operationUid, ok := readCommandAuthorization(writer, request)
+	if !ok {
+		return
+	}
+
+	if fenceErr := validateCommandOwnership(operationUid); fenceErr != nil {
+		writeError(writer, http.StatusForbidden, fenceErr.Error())
+		return
+	}
+
+	progressReset()
+	log.Info(
+		"k8s-app node agent: reset the node log for node operation %s",
+		operationUid,
+	)
+
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(writer).Encode(struct {
+		Reset bool `json:"reset"`
+	}{Reset: true})
 }

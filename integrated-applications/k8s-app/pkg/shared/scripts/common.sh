@@ -151,7 +151,7 @@ wait_k3s_ready() {
 		sleep "$SERVICE_WAIT_INTERVAL"
 		tries=$((tries + 1))
 	done
-	fail "k3s" "k3s did not become ready"
+	fail "start" "Kubernetes did not become ready"
 }
 
 wait_node_ready() {
@@ -214,7 +214,7 @@ if ! mountpoint -q "\$storage"; then
 	exit 1
 fi
 if [ ! -x "$K3S_BINARY" ]; then
-	echo "k3s binary is missing at $K3S_BINARY" >&2
+	echo "the Kubernetes binary is missing at $K3S_BINARY" >&2
 	exit 1
 fi
 if ! "$IP_CHECK_BIN" "\$ip"; then

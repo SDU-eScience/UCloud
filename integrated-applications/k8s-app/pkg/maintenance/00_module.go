@@ -62,12 +62,12 @@ const (
 	KindUncordon    = "uncordon"
 	KindUpgrade     = "upgrade"
 
-	PhasePending   = "pending"
-	PhaseRunning   = "running"
-	PhaseCompleted = "completed"
-	PhaseBlocked   = "blocked"
-	PhaseFailed    = "failed"
-	PhaseCancelled = "cancelled"
+	PhasePending   = "Pending"
+	PhaseRunning   = "Running"
+	PhaseCompleted = "Completed"
+	PhaseBlocked   = "Blocked"
+	PhaseFailed    = "Failed"
+	PhaseCancelled = "Cancelled"
 
 	timeoutMinSeconds = 30
 	timeoutMaxSeconds = 3600
@@ -185,18 +185,48 @@ func CancelActiveOperation(nodeName string) error {
 
 	operation.CancelRequested = true
 	operation.UpdatedAt = time.Now().UTC()
+	operation.HeartbeatAt = time.Time{}
 
 	value, marshalErr := json.Marshal(operation)
 	if marshalErr != nil {
 		return marshalErr
 	}
 
-	_, writeErr := stackWrite(client, stackNodeKey(nodeName), value, record.Revision)
-	if writeErr != nil {
-		return writeErr
-	}
+	for attempt := 0; ; attempt++ {
+		_, writeErr := stackWrite(client, stackNodeKey(nodeName), value, record.Revision)
+		if writeErr == nil {
+			return nil
+		}
+		if !shared.IsConflict(writeErr) || attempt >= 8 {
+			return writeErr
+		}
 
-	return nil
+		time.Sleep(2 * time.Second)
+
+		record, err = stackRead(client, stackNodeKey(nodeName))
+		if err != nil {
+			return err
+		}
+		if !record.Found || record.Operation.NodeName == "" {
+			return fmt.Errorf("no operation exists for node %s", nodeName)
+		}
+		if !PhaseActive(record.Operation.Phase) {
+			return fmt.Errorf("the operation on node %s already finished", nodeName)
+		}
+		if KindIsUpgrade(record.Operation.Kind) && record.Operation.ExecutorSubmitted {
+			return errors.New("the upgrade was submitted to the node and cannot be cancelled")
+		}
+
+		operation = record.Operation
+		operation.CancelRequested = true
+		operation.UpdatedAt = time.Now().UTC()
+		operation.HeartbeatAt = time.Time{}
+
+		value, marshalErr = json.Marshal(operation)
+		if marshalErr != nil {
+			return marshalErr
+		}
+	}
 }
 
 func Snapshot() (map[string]Operation, error) {
@@ -266,7 +296,7 @@ func submitStart(
 	}
 	if KindIsUpgrade(kind) {
 		if _, ok := shared.ReleaseByExactVersion(release); !ok {
-			return fmt.Errorf("the release %s is not a known k3s release", release)
+			return fmt.Errorf("the release %s is not a known Kubernetes release", release)
 		}
 		if options.ForceDelete {
 			return errors.New("force delete cannot be used with node upgrades because it is not possible to prove that the workloads stopped")
@@ -301,7 +331,7 @@ func submitValid(submit submission, existing Operation, exists bool) error {
 	if upgradeBlockedByRecovery(existing) && submit.kind != KindUncordon {
 		if !KindIsUpgrade(submit.kind) {
 			return fmt.Errorf(
-				"node %s requires upgrade recovery before a new operation can start; retry the upgrade or uncordon the node",
+				"node %s requires upgrade recovery before a new operation can start. Retry the upgrade or uncordon the node",
 				submit.nodeName,
 			)
 		}
@@ -396,6 +426,8 @@ func submitWrite(submit submission) error {
 	if writeErr != nil {
 		return writeErr
 	}
+
+	resetNodeLog(submit.nodeName, operation.Uid)
 
 	return nil
 }

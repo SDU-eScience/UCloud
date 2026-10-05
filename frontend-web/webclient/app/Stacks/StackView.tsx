@@ -101,7 +101,9 @@ export default function StackView(): React.ReactNode {
         return {
             uiSendMessage: raw => {
                 const payload = raw as {message: string; success: boolean};
-                if (!payload.success) {
+                if (payload.success) {
+                    sendSuccessNotification(payload.message);
+                } else {
                     sendFailureNotification(payload.message);
                 }
             },

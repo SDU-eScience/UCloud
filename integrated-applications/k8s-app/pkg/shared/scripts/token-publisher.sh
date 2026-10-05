@@ -101,7 +101,7 @@ while [ $publisher_wait_tries -lt 180 ]; do
 	publisher_wait_tries=$(( publisher_wait_tries + 1 ))
 done
 if [ ! -s "$SERVER_TOKEN_FILE" ]; then
-	log "k3s never wrote the secure server token at $SERVER_TOKEN_FILE"
+	log "the Kubernetes server never wrote the secure server token at $SERVER_TOKEN_FILE"
 	exit 1
 fi
 

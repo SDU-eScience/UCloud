@@ -14,9 +14,9 @@ wait_for_token_files "agent"
 
 TOKEN="$(cat "$INPUT_DIR/agent-token.ca")"
 
-log "installing k3s agent"
+log "installing the Kubernetes agent"
 
-emit "Installing k3s agent" 60
+emit "Installing the Kubernetes agent" 60
 
 install -d -m 0700 /etc/rancher/k3s
 umask 077

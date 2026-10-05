@@ -80,7 +80,7 @@ const (
 	clusterRecordPhaseError        = "error"
 )
 
-const ScriptBundleRevision = 17
+const ScriptBundleRevision = 18
 
 func BundlePathForRelease(release K3sRelease) string {
 	return filepath.Join("bundles", strconv.Itoa(ScriptBundleRevision), SanitizeForPath(release.Release))
@@ -265,7 +265,7 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		return stack, false
 	}
 	if existingState.Found {
-		ucxsvc.UiSendFailure(app, "A cluster record already exists for this stack; resource creation was not restarted")
+		ucxsvc.UiSendFailure(app, "A cluster record already exists for this stack. Resource creation was not restarted")
 		return stack, false
 	}
 
@@ -647,7 +647,7 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 
 	if err := ClusterRecordWrite(opts.stateClient, record); err != nil {
 		_ = ClusterRecordMarkFailed(opts.stateClient, record, "could not persist the job id of node "+hostname+
-			"; job id "+job.Id+" and reservation id "+reservation.Id+" may need manual cleanup")
+			". Job id "+job.Id+" and reservation id "+reservation.Id+" may need manual cleanup")
 		return false, ""
 	}
 
@@ -732,7 +732,7 @@ func clusterReleaseReservation(opts clusterNodeOptions, stack *ucxsvc.Stack, rec
 			Hostname:      hostname,
 		})
 		_ = ClusterRecordMarkFailed(opts.stateClient, record, "could not release the reservation of node "+hostname+
-			"; reservation id "+reservationId+" needs manual cleanup")
+			". Reservation id "+reservationId+" needs manual cleanup")
 	} else {
 		_ = ClusterRecordWrite(opts.stateClient, record)
 	}

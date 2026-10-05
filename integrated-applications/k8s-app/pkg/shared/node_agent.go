@@ -146,6 +146,15 @@ func NodeAgentClientAppendLog(ctx context.Context, nodeName string, nodeIp strin
 	return err
 }
 
+func NodeAgentClientResetLog(ctx context.Context, nodeName string, nodeIp string, operationUid string) error {
+	if err := nodeAgentClientValidateIp(nodeIp); err != nil {
+		return err
+	}
+
+	_, err := nodeAgentClientCall(ctx, http.MethodPost, nodeAgentClientUrl(nodeIp, "/log/reset"), "", nodeName, operationUid)
+	return err
+}
+
 func nodeAgentClientStatusCall(
 	ctx context.Context,
 	nodeName string,

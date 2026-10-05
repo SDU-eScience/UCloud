@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/version"
+
 	accapi "ucloud.dk/shared/pkg/accounting"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
@@ -20,6 +22,38 @@ const maxControlPlaneNodes = 7
 const poolNameMaxLen = 30
 
 var poolNameRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
+
+func clusterMinimumControlPlaneVersion(record *ClusterRecord) (string, error) {
+	result := ""
+	var resultParsed *version.Version
+
+	for i := range record.Nodes {
+		node := &record.Nodes[i]
+		if node.Group != GroupControlPlane || node.DesiredVersion == "" {
+			continue
+		}
+
+		parsed, err := version.ParseSemantic(node.DesiredVersion)
+		if err != nil {
+			return "", fmt.Errorf("the desired version %s of node %s could not be parsed", node.DesiredVersion, node.Hostname)
+		}
+
+		if resultParsed == nil || parsed.LessThan(resultParsed) {
+			result = node.DesiredVersion
+			resultParsed = parsed
+		}
+	}
+
+	if result != "" {
+		return result, nil
+	}
+
+	if _, parseErr := version.ParseSemantic(record.K8sVersion); parseErr != nil {
+		return "", fmt.Errorf("the cluster version %s could not be parsed", record.K8sVersion)
+	}
+
+	return record.K8sVersion, nil
+}
 
 func clusterValidateRecordMutation(
 	app ucx.Application,
@@ -230,14 +264,32 @@ func ClusterAddNodeLocked(
 		return "", false
 	}
 
-	release, ok := ReleaseByExactVersion(record.K8sVersion)
-	if !ok {
-		ucxsvc.UiSendFailure(app, "The cluster runs an unknown Kubernetes version: "+record.K8sVersion)
+	clusterVersion, versionErr := clusterMinimumControlPlaneVersion(record)
+	if versionErr != nil {
+		ucxsvc.UiSendFailure(app, versionErr.Error())
 		return "", false
 	}
-	if trimmedGroup == GroupControlPlane && record.BundlePath != BundlePathForRelease(release) {
-		ucxsvc.UiSendFailure(app, "Control plane nodes cannot be added to a cluster with an older bootstrap bundle; reprovision the cluster first")
+
+	release, ok := ReleaseByExactVersion(clusterVersion)
+	if !ok {
+		ucxsvc.UiSendFailure(app, "The cluster runs an unknown Kubernetes version: "+clusterVersion)
 		return "", false
+	}
+
+	bundleTarget := BundlePathForRelease(release)
+	if clusterVersion != record.K8sVersion || record.BundlePath != bundleTarget {
+		writeBundle(stack, bundleTarget)
+		if !stack.Ok {
+			ucxsvc.UiSendFailure(app, "Could not write the bootstrap bundle for release "+release.Release)
+			return "", false
+		}
+
+		record.K8sVersion = clusterVersion
+		record.BundlePath = bundleTarget
+		if !flow.Commit(record) {
+			ucxsvc.UiSendFailure(app, "Could not update the cluster record")
+			return "", false
+		}
 	}
 
 	tokens, ok := clusterReadManagementTokens(trimmedGroup)
@@ -376,10 +428,10 @@ func ClusterAddNodeLocked(
 		record.Phase = clusterRecordPhaseError
 		record.FailureReason = "could not write the stack identity for job " + job.Id
 		if !flow.Commit(record) {
-			ucxsvc.UiSendFailure(app, "Could not write the stack identity of the new node; the cluster record is out of date and requires an explicit recovery")
+			ucxsvc.UiSendFailure(app, "Could not write the stack identity of the new node. The cluster record is out of date and requires an explicit recovery")
 			return "", false
 		}
-		ucxsvc.UiSendFailure(app, "Could not write the stack identity of the new node; the node was retained to avoid a partially provisioned input. Reprovision the node to recover.")
+		ucxsvc.UiSendFailure(app, "Could not write the stack identity of the new node. The node was retained to avoid a partially provisioned input. Reprovision the node to recover.")
 		return "", false
 	}
 
@@ -394,10 +446,10 @@ func ClusterAddNodeLocked(
 			record.Phase = clusterRecordPhaseError
 			record.FailureReason = "could not issue or deliver the controller credential for job " + job.Id
 			if !flow.Commit(record) {
-				ucxsvc.UiSendFailure(app, "Could not issue or deliver the controller credential; the cluster record is out of date and requires an explicit recovery")
+				ucxsvc.UiSendFailure(app, "Could not issue or deliver the controller credential. The cluster record is out of date and requires an explicit recovery")
 				return "", false
 			}
-			ucxsvc.UiSendFailure(app, "Could not issue or deliver the controller credential; the node was retained to avoid invalidating a possibly issued credential. Reprovision the cluster to recover.")
+			ucxsvc.UiSendFailure(app, "Could not issue or deliver the controller credential. The node was retained to avoid invalidating a possibly issued credential. Reprovision the cluster to recover.")
 			return "", false
 		}
 	}
@@ -565,7 +617,7 @@ func clusterCleanupNewNode(
 	if len(failures) == 0 {
 		record.Phase = clusterRecordPhaseCreated
 		if !flow.Commit(record) {
-			ucxsvc.UiSendFailure(app, "The node could not be created and the cleanup outcome could not be recorded; the cluster requires an explicit recovery")
+			ucxsvc.UiSendFailure(app, "The node could not be created and the cleanup outcome could not be recorded. The cluster requires an explicit recovery")
 		}
 		return
 	}

@@ -88,7 +88,7 @@ func runUpgrade(release string, previousState upgradeState) {
 
 	binaryVersion := installedVersion(workerCtx)
 	if binaryVersion == "" {
-		finishFailure(release, previousState, "", "could not determine the currently installed k3s version")
+		finishFailure(release, previousState, "", "could not determine the currently installed Kubernetes version")
 		return
 	}
 
@@ -113,7 +113,7 @@ func runUpgrade(release string, previousState upgradeState) {
 				finishFailure(release, previousState, "", "could not persist the phase verifying")
 				return
 			}
-			progressStageLabel(fmt.Sprintf("%s is already installed; verifying it", release))
+			progressStageLabel(fmt.Sprintf("%s is already installed. Verifying it", release))
 			verifyErr := verifyUpgrade(workerCtx, release, identityConfig.Role, serviceName)
 			if verifyErr != nil {
 				finishFailure(release, previousState, "", verifyErr.Error())
@@ -134,7 +134,7 @@ func runUpgrade(release string, previousState upgradeState) {
 	}
 	if binaryVersion != release && !shared.NodeAgentUpgradeAllowed(binaryVersion, release) {
 		finishFailure(release, previousState, binaryVersion, fmt.Sprintf(
-			"the upgrade from %s to %s is not allowed; only a forward patch or the next minor release is allowed",
+			"the upgrade from %s to %s is not allowed. Only a forward patch or the next minor release is allowed",
 			binaryVersion,
 			release,
 		))
@@ -202,7 +202,7 @@ func runUpgrade(release string, previousState upgradeState) {
 		)
 		backupPath, backupErr := backupBinary(k3sBinary, binaryVersion)
 		if backupErr != nil {
-			finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not back up the k3s binary: %s", backupErr))
+			finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not back up the server binary: %s", backupErr))
 			return
 		}
 		progressText(fmt.Sprintf("The previous binary was retained at %s", backupPath))
@@ -210,7 +210,7 @@ func runUpgrade(release string, previousState upgradeState) {
 
 		prepareErr := prepareReplacement(staged.Path, k3sReplacement)
 		if prepareErr != nil {
-			finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not prepare the new k3s binary: %s", prepareErr))
+			finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not prepare the new Kubernetes binary: %s", prepareErr))
 			return
 		}
 
@@ -231,7 +231,7 @@ func runUpgrade(release string, previousState upgradeState) {
 			if startErr != nil {
 				log.Warn("k8s-app node agent: could not start %s after a failed swap: %s", serviceName, startErr)
 			}
-			finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not install the new k3s binary: %s", swapErr))
+			finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not install the new Kubernetes binary: %s", swapErr))
 			return
 		}
 	}
@@ -249,6 +249,10 @@ func runUpgrade(release string, previousState upgradeState) {
 	if startErr != nil {
 		finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not start %s: %s", serviceName, startErr))
 		return
+	}
+
+	if identityConfig.Role == shared.GroupControlPlane {
+		startTokenPublisher()
 	}
 
 	if !setPhase(shared.NodeAgentPhaseVerifying) {
@@ -287,6 +291,16 @@ func serviceForRole(role string) string {
 		return serviceWorker
 	}
 	return ""
+}
+
+func startTokenPublisher() {
+	commandCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	output, err := exec.CommandContext(commandCtx, "systemctl", "start", "ucloud-k8s-token-publisher").CombinedOutput()
+	if err != nil {
+		log.Warn("k8s-app node agent: could not start the token publisher: %s", strings.TrimSpace(string(output)))
+	}
 }
 
 func roleValid(role string) bool {
@@ -396,7 +410,7 @@ func recoverInterrupted() {
 	interruptedPhase := state.Phase
 	state.Phase = shared.NodeAgentPhaseFailed
 	state.Error = fmt.Sprintf(
-		"the upgrade to %s was interrupted at phase %s; recovery is required",
+		"the upgrade to %s was interrupted at phase %s. Recovery is required",
 		state.Release,
 		interruptedPhase,
 	)
@@ -411,7 +425,7 @@ func recoverInterrupted() {
 
 	progressStageLabel(fmt.Sprintf("The upgrade to %s was interrupted", state.Release))
 	progressText(fmt.Sprintf(
-		"The upgrade to %s was interrupted at phase %s; an explicit retry is required",
+		"The upgrade to %s was interrupted at phase %s. An explicit retry is required",
 		state.Release,
 		interruptedPhase,
 	))
@@ -553,7 +567,7 @@ func workingDir() string {
 func StageRelease(ctx context.Context, release string) (StagedRelease, error) {
 	record, ok := shared.ReleaseByExactVersion(release)
 	if !ok {
-		return StagedRelease{}, fmt.Errorf("unknown k3s release: %s", release)
+		return StagedRelease{}, fmt.Errorf("unknown Kubernetes release: %s", release)
 	}
 
 	arch := runtime.GOARCH
@@ -640,7 +654,7 @@ func download(ctx context.Context, url string, stagedPath string, expectedSha st
 		Timeout: downloadTimeout,
 		CheckRedirect: func(redirect *http.Request, via []*http.Request) error {
 			if redirect.URL.Scheme != "https" {
-				return errors.New("the k3s download redirected away from HTTPS")
+				return errors.New("the download redirected away from HTTPS")
 			}
 			return nil
 		},
@@ -653,7 +667,7 @@ func download(ctx context.Context, url string, stagedPath string, expectedSha st
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("the k3s download returned status %s", response.Status)
+		return fmt.Errorf("the download returned status %s", response.Status)
 	}
 
 	tempFile, err := os.CreateTemp(stagingDir, ".k3s-stage-")
@@ -693,11 +707,11 @@ func writeVerified(file *os.File, body io.Reader, expectedSha string) error {
 		return err
 	}
 	if written == 0 {
-		return errors.New("the downloaded k3s binary is empty")
+		return errors.New("the downloaded binary is empty")
 	}
 
 	if hex.EncodeToString(hasher.Sum(nil)) != expectedSha {
-		return errors.New("the downloaded k3s checksum does not match the pinned release")
+		return errors.New("the downloaded checksum does not match the pinned release")
 	}
 
 	return file.Sync()
@@ -709,7 +723,7 @@ func installedVersion(ctx context.Context) string {
 
 	output, err := exec.CommandContext(commandCtx, k3sBinary, "--version").CombinedOutput()
 	if err != nil {
-		log.Warn("k8s-app node agent: could not read the installed k3s version: %s", err)
+		log.Warn("k8s-app node agent: could not read the installed Kubernetes version: %s", err)
 		return ""
 	}
 
@@ -920,7 +934,7 @@ func stopService(ctx context.Context, service string) error {
 		select {
 		case <-pollCtx.Done():
 			return fmt.Errorf(
-				"the stop of %s did not reach a terminal state within %s; the last state was %s",
+				"the stop of %s did not reach a terminal state within %s. The last state was %s",
 				service,
 				stopTimeout,
 				activeState,
@@ -952,14 +966,14 @@ func verifyUpgrade(ctx context.Context, release string, role string, service str
 
 	versionOutput, err := exec.CommandContext(verifyCtx, k3sBinary, "--version").CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("could not read the installed k3s version: %s", err)
+		return fmt.Errorf("could not read the installed Kubernetes version: %s", err)
 	}
 
 	fields := strings.Fields(strings.TrimSpace(string(versionOutput)))
 	versionMatches := len(fields) >= 3 && fields[0] == "k3s" && fields[1] == "version" && fields[2] == release
 	if !versionMatches {
 		return fmt.Errorf(
-			"the installed k3s version does not match the target release: %s",
+			"the installed Kubernetes version does not match the target release: %s",
 			strings.TrimSpace(string(versionOutput)),
 		)
 	}

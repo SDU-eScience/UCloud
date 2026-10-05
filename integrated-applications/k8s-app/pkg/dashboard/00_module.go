@@ -461,7 +461,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 			clusterStateColor = ucx.ColorWarningMain
 		}
 		if record.FailureReason != "" {
-			clusterState = record.Phase + " — " + record.FailureReason
+			clusterState = record.Phase + ": " + record.FailureReason
 			clusterStateColor = ucx.ColorErrorMain
 		}
 	}
@@ -490,7 +490,9 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 	nodesLabel := fmt.Sprintf("%d / %d", nodesReady, nodesTotal)
 
 	k8sVersion := "-"
-	if recordOk && record.K8sVersion != "" {
+	if health := app.clusterHealth; health != nil && health.ControlPlaneVersion != "" {
+		k8sVersion = health.ControlPlaneVersion
+	} else if recordOk && record.K8sVersion != "" {
 		k8sVersion = record.K8sVersion
 	}
 
@@ -646,7 +648,7 @@ func (app *stackUiApp) pageHomeActions() []ucx.UiNode {
 			ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 12}).Children(
 				ucx.Markdown("Headlamp is a Kubernetes dashboard that runs in your browser. It shows workloads, nodes and other resources of the cluster. Nothing needs to be installed."),
 				ucx.Markdown(
-					"- Open it with the **Open Headlamp** button; it first lets you copy the login token.\n"+
+					"- Open it with the **Open Headlamp** button. It first lets you copy the login token.\n"+
 						"- The token is the cluster's admin token and must be pasted into Headlamp's login screen."),
 				ucx.ButtonEx("homeOpenHeadlampAccordion", "Open Headlamp", ucx.ColorPrimaryMain, ucx.IconHeroArrowTopRightOnSquare, "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 					app.openHeadlampDialog()
@@ -733,7 +735,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 				},
 				ucx.ResourceTableAction{
 					Id:    "upgradeNode",
-					Label: "Upgrade k3s",
+					Label: "Upgrade Kubernetes",
 					Icon:  ucx.IconHeroArrowUp,
 				},
 			)
@@ -947,7 +949,8 @@ func (app *stackUiApp) namespaceSelectorNode() ucx.UiNode {
 
 func (app *stackUiApp) resourceDetailNode(detail string) ucx.UiNode {
 	if strings.HasPrefix(detail, "provisioning/") {
-		return ucx.JobLogsBound("detailInitLogs", "logJobId")
+		return ucx.JobLogsBound("detailInitLogs", "logJobId").
+			Sx(ucx.SxP(16), ucx.SxBoxSizing("border-box"))
 	}
 	return ucx.CodeBoundEx("resourceYaml", "resourceYaml").WithLang("yaml").WithStretch()
 }
@@ -1121,6 +1124,8 @@ func (app *stackUiApp) provisioningWatcher(session *ucx.Session) {
 		app.refreshProvisioningRows(session)
 		if app.activeTypeIsHome() {
 			go app.refreshStackInfo()
+		}
+		if app.activeTypeIsHome() || app.onMaintenanceRoute() {
 			go app.refreshClusterHealth()
 		}
 		if app.onMaintenanceRoute() {

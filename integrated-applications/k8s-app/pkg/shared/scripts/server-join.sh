@@ -18,7 +18,7 @@ else
 	emit "Joining the cluster" 45
 fi
 
-log "installing k3s server"
+log "installing the Kubernetes server"
 
 install -d -m 0700 /etc/rancher/k3s
 
@@ -77,7 +77,7 @@ umask 022
 
 install_k3s_unit "k3s" "server" "$IP_ADDRESS"
 systemctl enable k3s >/dev/null
-emit "Starting k3s" 60
+emit "Starting Kubernetes" 60
 start_k3s_unit "k3s"
 
 wait_k3s_ready
@@ -93,8 +93,7 @@ cat > /etc/systemd/system/ucloud-k8s-token-publisher.service <<EOF
 [Unit]
 Description=UCloud K8s secure token publisher
 Wants=network-online.target
-After=network-online.target k3s.service
-Requires=k3s.service
+After=network-online.target remote-fs.target
 RequiresMountsFor=/etc/ucloud-k8s/bundle /etc/ucloud-k8s/management /etc/ucloud-k8s/nodes /etc/ucloud-k8s/input
 
 [Service]
