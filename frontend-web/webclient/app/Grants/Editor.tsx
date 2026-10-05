@@ -32,7 +32,7 @@ import {CSSVarCurrentSidebarStickyWidth} from "@/ui-components/List";
 import MainContainer from "@/ui-components/MainContainer";
 import {DocumentTypography, MarkdownDocument, SimpleMarkdown} from "@/ui-components/Markdown";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import Tooltip, {TooltipV2} from "@/ui-components/Tooltip";
+import {TooltipV2} from "@/ui-components/Tooltip";
 import Warning from "@/ui-components/Warning";
 import {interval, isBefore, isWithinInterval, subDays} from "date-fns";
 import {formatDistance} from "date-fns/formatDistance";
