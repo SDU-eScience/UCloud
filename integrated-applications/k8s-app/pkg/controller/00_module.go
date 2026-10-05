@@ -139,11 +139,11 @@ func cachedProducts[Support any](
 const ingressServiceName = "k8s-ingress"
 
 func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Client, token string) {
-	auth := ucxapi.StackGrantAuth{Token: token}
+	auth := ucxapi.StackCredentialAuth{Token: token}
 
 	support, ok := cachedProducts(&ingressProductCache, func() ([]orcapi.IngressSupport, *util.HttpError) {
-		return ucxapi.StackGrantIngressProducts.InvokeEx(client, ucxapi.StackGrantIngressProductsRequest{
-			StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
+		return ucxapi.StackControlIngressProducts.InvokeEx(client, ucxapi.StackControlProductsRequest{
+			StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
 		}, rpc.InvokeOpts{})
 	})
 	if !ok {
@@ -156,9 +156,7 @@ func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Clien
 		return
 	}
 
-	owned, herr := ucxapi.StackGrantBrowseIngresses.InvokeEx(client, ucxapi.StackGrantBrowseIngressesRequest{
-		StackGrantAuth: auth,
-	}, rpc.InvokeOpts{})
+	owned, herr := shared.RpcGrantBrowseIngresses(client, token)
 	if herr != nil {
 		log.Warn("k8s controller: could not browse the owned public links: %s", herr)
 		return
@@ -207,18 +205,20 @@ func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Clien
 			continue
 		}
 
-		_, herr := ucxapi.StackGrantCreateIngress.InvokeEx(client, ucxapi.StackGrantCreateRequest[orcapi.IngressSpecification]{
-			StackGrantAuth: auth,
-			Items: []orcapi.IngressSpecification{{
-				Domain: domain,
-				Target: util.OptValue(orcapi.PublicLinkServiceTarget{
-					ServiceId: service.Id,
-					Port:      "http",
-				}),
-				ResourceSpecification: orcapi.ResourceSpecification{
-					Product: support[matched].Product,
-				},
-			}},
+		_, herr := ucxapi.StackControlCreateIngress.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.ControlCreateRequest[orcapi.IngressSpecification]]{
+			StackCredentialAuth: auth,
+			Request: orcapi.ControlCreateRequest[orcapi.IngressSpecification]{
+				Items: []orcapi.IngressSpecification{{
+					Domain: domain,
+					Target: util.OptValue(orcapi.PublicLinkServiceTarget{
+						ServiceId: service.Id,
+						Port:      "http",
+					}),
+					ResourceSpecification: orcapi.ResourceSpecification{
+						Product: support[matched].Product,
+					},
+				}},
+			},
 		}, rpc.InvokeOpts{})
 		if herr != nil {
 			log.Warn("k8s controller: could not create the public link for %s: %s", domain, herr)
@@ -240,9 +240,7 @@ func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Clien
 }
 
 func ensureIngressService(client *rpc.Client, token string) (orcapi.Service, bool) {
-	services, herr := ucxapi.StackGrantBrowseServices.InvokeEx(client, ucxapi.StackGrantBrowseServicesRequest{
-		StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
-	}, rpc.InvokeOpts{})
+	services, herr := shared.RpcGrantBrowseServices(client, token)
 	if herr != nil {
 		log.Warn("k8s controller: could not browse the stack services: %s", herr)
 		return orcapi.Service{}, false
@@ -255,8 +253,8 @@ func ensureIngressService(client *rpc.Client, token string) (orcapi.Service, boo
 	}
 
 	products, ok := cachedProducts(&serviceProductCache, func() ([]orcapi.ServiceSupport, *util.HttpError) {
-		return ucxapi.StackGrantServiceProducts.InvokeEx(client, ucxapi.StackGrantServiceProductsRequest{
-			StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
+		return ucxapi.StackControlServiceProducts.InvokeEx(client, ucxapi.StackControlProductsRequest{
+			StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
 		}, rpc.InvokeOpts{})
 	})
 	if !ok {
@@ -305,9 +303,11 @@ func ensureIngressService(client *rpc.Client, token string) (orcapi.Service, boo
 		},
 	}
 
-	response, herr := ucxapi.StackGrantCreateService.InvokeEx(client, ucxapi.StackGrantCreateRequest[orcapi.ServiceSpecification]{
-		StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
-		Items:          []orcapi.ServiceSpecification{spec},
+	response, herr := ucxapi.StackControlCreateService.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.ControlCreateRequest[orcapi.ServiceSpecification]]{
+		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
+		Request: orcapi.ControlCreateRequest[orcapi.ServiceSpecification]{
+			Items: []orcapi.ServiceSpecification{spec},
+		},
 	}, rpc.InvokeOpts{})
 	if herr != nil {
 		log.Warn("k8s controller: could not create the ingress service: %s", herr)
@@ -338,9 +338,7 @@ func syncServiceMembers(client *rpc.Client, token string, service orcapi.Service
 		return
 	}
 
-	jobs, herr := ucxapi.StackGrantBrowseJobs.InvokeEx(client, ucxapi.StackGrantBrowseJobsRequest{
-		StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
-	}, rpc.InvokeOpts{})
+	jobs, herr := shared.RpcGrantBrowseJobs(client, token)
 	if herr != nil {
 		log.Warn("k8s controller: could not browse the stack jobs: %s", herr)
 		return
@@ -420,11 +418,13 @@ func syncServiceMembers(client *rpc.Client, token string, service orcapi.Service
 		return
 	}
 
-	_, herr = ucxapi.StackGrantServiceUpdateMembers.InvokeEx(client, ucxapi.StackGrantServiceUpdateMembersRequest{
-		StackGrantAuth:  ucxapi.StackGrantAuth{Token: token},
-		Id:              service.Id,
-		AddedJobIds:     adding,
-		RemovedJobIds:   removing,
+	_, herr = ucxapi.StackControlUpdateMembers.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.ServicesControlUpdateMembersRequest]{
+		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
+		Request: orcapi.ServicesControlUpdateMembersRequest{
+			Id:            service.Id,
+			AddedJobIds:   adding,
+			RemovedJobIds: removing,
+		},
 	}, rpc.InvokeOpts{})
 	if herr != nil {
 		log.Warn("k8s controller: could not update the ingress service members: %s", herr)
@@ -460,10 +460,11 @@ func collectOrphanedLinks(
 		return
 	}
 
-	_, herr := ucxapi.StackGrantDeleteIngress.InvokeEx(client, ucxapi.StackGrantDeleteIngressRequest{
-		StackGrantAuth: ucxapi.StackGrantAuth{Token: token},
-		ServiceId:      service.Id,
-		IngressIds:      orphaned,
+	_, herr := ucxapi.StackControlDeleteIngress.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.IngressesControlDeleteRequest]{
+		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
+		Request: orcapi.IngressesControlDeleteRequest{
+			IngressIds: orphaned,
+		},
 	}, rpc.InvokeOpts{})
 	if herr != nil {
 		log.Warn("k8s controller: could not delete the orphaned public links: %s", herr)

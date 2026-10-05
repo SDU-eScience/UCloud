@@ -360,7 +360,7 @@ func stackStateRegisterProxyHandlers(
 	})
 }
 
-func stackStateGrantHttpError(err error) *util.HttpError {
+func stackStateControlHttpError(err error) *util.HttpError {
 	if errors.Is(err, stackStateErrInvalid) {
 		return util.HttpErr(http.StatusBadRequest, "invalid stack state request")
 	}
@@ -370,61 +370,61 @@ func stackStateGrantHttpError(err error) *util.HttpError {
 	return util.HttpErr(http.StatusInternalServerError, "stack state operation failed")
 }
 
-func stackStateGrantPrincipal(token string) (string, []byte, []byte, *util.HttpError) {
-	_, stackId, scopeHash, principalHash, herr := stackStateGrantPrincipalWithJob(token)
+func stackStateControlPrincipal(token string) (string, []byte, []byte, *util.HttpError) {
+	_, stackId, scopeHash, principalHash, herr := stackStateControlPrincipalWithJob(token)
 	return stackId, scopeHash, principalHash, herr
 }
 
-func stackStateGrantPrincipalWithJob(token string) (*orc.Job, string, []byte, []byte, *util.HttpError) {
-	job, herr := stackGrantTokenAuthenticate(token)
+func stackStateControlPrincipalWithJob(token string) (*orc.Job, string, []byte, []byte, *util.HttpError) {
+	job, herr := stackControlTokenAuthenticate(token)
 	if herr != nil {
 		return nil, "", nil, nil, herr
 	}
 
 	stackId := strings.TrimSpace(job.Specification.Labels[orc.ResourceLabelStackInstance])
 	if stackId == "" {
-		return nil, "", nil, nil, stackGrantTokenForbidden()
+		return nil, "", nil, nil, stackControlForbidden()
 	}
 
 	scopeHash, err := stackStateStackScopeHash(job.Owner)
 	if err != nil {
-		return nil, "", nil, nil, stackStateGrantHttpError(err)
+		return nil, "", nil, nil, stackStateControlHttpError(err)
 	}
 	principalHash, err := stackStateJobPrincipalHash(job.Id)
 	if err != nil {
-		return nil, "", nil, nil, stackStateGrantHttpError(err)
+		return nil, "", nil, nil, stackStateControlHttpError(err)
 	}
 
 	return job, stackId, scopeHash, principalHash, nil
 }
 
-func stackStateGrantInitServer() {
-	ucxapi.StackGrantStateRead.Handler(func(_ rpc.RequestInfo, request ucxapi.StackGrantStateReadRequest) (ucxapi.StackStateReadResponse, *util.HttpError) {
-		stackId, scopeHash, _, herr := stackStateGrantPrincipal(request.Token)
+func stackStateControlInitServer() {
+	ucxapi.StackControlStateRead.Handler(func(_ rpc.RequestInfo, request ucxapi.StackControlStateReadRequest) (ucxapi.StackStateReadResponse, *util.HttpError) {
+		stackId, scopeHash, _, herr := stackStateControlPrincipal(request.Token)
 		if herr != nil {
 			return ucxapi.StackStateReadResponse{}, herr
 		}
 		response, err := stackStateRead(scopeHash, stackId, request.Key)
 		if err != nil {
-			return ucxapi.StackStateReadResponse{}, stackStateGrantHttpError(err)
+			return ucxapi.StackStateReadResponse{}, stackStateControlHttpError(err)
 		}
 		return response, nil
 	})
 
-	ucxapi.StackGrantStateList.Handler(func(_ rpc.RequestInfo, request ucxapi.StackGrantStateListRequest) (fnd.PageV2[ucxapi.StackStateRecord], *util.HttpError) {
-		stackId, scopeHash, _, herr := stackStateGrantPrincipal(request.Token)
+	ucxapi.StackControlStateList.Handler(func(_ rpc.RequestInfo, request ucxapi.StackControlStateListRequest) (fnd.PageV2[ucxapi.StackStateRecord], *util.HttpError) {
+		stackId, scopeHash, _, herr := stackStateControlPrincipal(request.Token)
 		if herr != nil {
 			return fnd.PageV2[ucxapi.StackStateRecord]{}, herr
 		}
 		page, err := stackStateList(scopeHash, stackId, request.Prefix, request.Next, request.ItemsPerPage)
 		if err != nil {
-			return fnd.PageV2[ucxapi.StackStateRecord]{}, stackStateGrantHttpError(err)
+			return fnd.PageV2[ucxapi.StackStateRecord]{}, stackStateControlHttpError(err)
 		}
 		return page, nil
 	})
 
-	ucxapi.StackGrantStateWrite.Handler(func(_ rpc.RequestInfo, request ucxapi.StackGrantStateWriteRequest) (ucxapi.StackStateWriteResponse, *util.HttpError) {
-		stackId, scopeHash, _, herr := stackStateGrantPrincipal(request.Token)
+	ucxapi.StackControlStateWrite.Handler(func(_ rpc.RequestInfo, request ucxapi.StackControlStateWriteRequest) (ucxapi.StackStateWriteResponse, *util.HttpError) {
+		stackId, scopeHash, _, herr := stackStateControlPrincipal(request.Token)
 		if herr != nil {
 			return ucxapi.StackStateWriteResponse{}, herr
 		}
@@ -434,7 +434,7 @@ func stackStateGrantInitServer() {
 			ExpectedRevision: request.ExpectedRevision,
 		})
 		if err != nil {
-			return ucxapi.StackStateWriteResponse{}, stackStateGrantHttpError(err)
+			return ucxapi.StackStateWriteResponse{}, stackStateControlHttpError(err)
 		}
 		return response, nil
 	})

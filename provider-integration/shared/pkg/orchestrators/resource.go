@@ -169,6 +169,20 @@ func ControlCreateCall[Spec any, Resp any](namespace string) rpc.Call[ControlCre
 	}
 }
 
+type ControlMutateRequest[Item any] struct {
+	JobId string `json:"jobId,omitempty"`
+	Items []Item `json:"items"`
+}
+
+func ControlMutateCall[Item any, Resp any](namespace string, operation string) rpc.Call[ControlMutateRequest[Item], Resp] {
+	return rpc.Call[ControlMutateRequest[Item], Resp]{
+		BaseContext: namespace,
+		Convention:  rpc.ConventionUpdate,
+		Roles:       rpc.RolesProvider,
+		Operation:   operation,
+	}
+}
+
 func ResourceOwnerToWalletOwner(resource Resource) acc.WalletOwner {
 	if resource.Owner.Project.Present {
 		return acc.WalletOwnerProject(resource.Owner.Project.Value)

@@ -231,7 +231,8 @@ var ServicesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[ServiceSup
 const serviceControlNamespace = "services/control"
 
 type ServicesControlRetrieveRequest struct {
-	Id string `json:"id"`
+	JobId string `json:"jobId,omitempty"`
+	Id    string `json:"id"`
 	ServiceFlags
 }
 
@@ -242,6 +243,7 @@ var ServicesControlRetrieve = rpc.Call[ServicesControlRetrieveRequest, Service]{
 }
 
 type ServicesControlBrowseRequest struct {
+	JobId        string              `json:"jobId,omitempty"`
 	ItemsPerPage int                 `json:"itemsPerPage"`
 	Next         util.Option[string] `json:"next"`
 
@@ -261,7 +263,7 @@ var ServicesControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[Serv
 	Operation:   "update",
 }
 
-var ServicesControlUpdateLabels = rpc.Call[fnd.BulkRequest[ServicesUpdateLabelsRequest], util.Empty]{
+var ServicesControlUpdateLabels = rpc.Call[ControlMutateRequest[ServicesUpdateLabelsRequest], util.Empty]{
 	BaseContext: serviceControlNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesProvider,
@@ -283,6 +285,9 @@ var ServicesControlUpdateMembers = rpc.Call[ServicesControlUpdateMembersRequest,
 	Roles:       rpc.RolesProvider,
 	Operation:   "updateMembers",
 }
+
+var ServicesControlDelete = ControlMutateCall[fnd.FindByStringId, fnd.BulkResponse[util.Empty]](serviceControlNamespace, "delete")
+var ServicesControlUpdateSpec = ControlMutateCall[ResourceUpdateAndId[ServicesUpdateRequest], util.Empty](serviceControlNamespace, "updateSpec")
 
 // Service Provider API
 // =====================================================================================================================

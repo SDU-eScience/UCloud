@@ -10,9 +10,9 @@ import (
 )
 
 type StackStateRecord struct {
-	Key         string          `json:"key"`
-	Value       json.RawMessage `json:"value"`
-	Revision    int64           `json:"revision"`
+	Key      string          `json:"key"`
+	Value    json.RawMessage `json:"value"`
+	Revision int64           `json:"revision"`
 }
 
 func (record StackStateRecord) IsEmpty() bool {
@@ -53,51 +53,39 @@ type StackStateWriteResponse struct {
 
 var StackStateWrite = ucx.Rpc[StackStateWriteRequest, StackStateWriteResponse]{CallName: "stackStateWrite"}
 
-type StackGrantStateReadRequest struct {
-	StackGrantAuth
+func stackControlStateCall[Req StackControlRequest, Resp any](operation string) rpc.Call[Req, Resp] {
+	return rpc.Call[Req, Resp]{
+		BaseContext: StackControlBaseContext,
+		Convention:  rpc.ConventionUpdate,
+		Roles:       rpc.RolesPublic,
+		Operation:   operation,
+		Audit: rpc.AuditRules{
+			Transformer: stackControlAuditTransformer,
+		},
+	}
+}
+
+type StackControlStateReadRequest struct {
+	StackCredentialAuth
 	Key string `json:"key"`
 }
 
-var StackGrantStateRead = rpc.Call[StackGrantStateReadRequest, StackStateReadResponse]{
-	BaseContext: stackGrantBaseContext,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesPublic,
-	Operation:   "stateRead",
-	Audit: rpc.AuditRules{
-		Transformer: stackGrantAuditTransformer,
-	},
-}
+var StackControlStateRead = stackControlStateCall[StackControlStateReadRequest, StackStateReadResponse]("stateRead")
 
-type StackGrantStateListRequest struct {
-	StackGrantAuth
+type StackControlStateListRequest struct {
+	StackCredentialAuth
 	Prefix       string              `json:"prefix"`
 	Next         util.Option[string] `json:"next"`
 	ItemsPerPage int                 `json:"itemsPerPage"`
 }
 
-var StackGrantStateList = rpc.Call[StackGrantStateListRequest, fnd.PageV2[StackStateRecord]]{
-	BaseContext: stackGrantBaseContext,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesPublic,
-	Operation:   "stateList",
-	Audit: rpc.AuditRules{
-		Transformer: stackGrantAuditTransformer,
-	},
-}
+var StackControlStateList = stackControlStateCall[StackControlStateListRequest, fnd.PageV2[StackStateRecord]]("stateList")
 
-type StackGrantStateWriteRequest struct {
-	StackGrantAuth
+type StackControlStateWriteRequest struct {
+	StackCredentialAuth
 	Key              string          `json:"key"`
 	Value            json.RawMessage `json:"value"`
 	ExpectedRevision int64           `json:"expectedRevision"`
 }
 
-var StackGrantStateWrite = rpc.Call[StackGrantStateWriteRequest, StackStateWriteResponse]{
-	BaseContext: stackGrantBaseContext,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesPublic,
-	Operation:   "stateWrite",
-	Audit: rpc.AuditRules{
-		Transformer: stackGrantAuditTransformer,
-	},
-}
+var StackControlStateWrite = stackControlStateCall[StackControlStateWriteRequest, StackStateWriteResponse]("stateWrite")

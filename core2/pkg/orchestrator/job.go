@@ -310,7 +310,12 @@ func initJobs() {
 	})
 
 	orcapi.JobsControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.JobsControlBrowseRequest) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
-		return JobsBrowse(info.Actor, request.Next, request.ItemsPerPage, request.JobFlags)
+		actor, err := controlBrowseJobScoped(info, request.JobId, &request.JobFlags.ResourceFlags)
+		if err != nil {
+			return fndapi.PageV2[orcapi.Job]{}, err
+		}
+
+		return JobsBrowse(actor, request.Next, request.ItemsPerPage, request.JobFlags)
 	})
 
 	orcapi.JobsRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.JobsRetrieveRequest) (orcapi.Job, *util.HttpError) {
@@ -318,7 +323,11 @@ func initJobs() {
 	})
 
 	orcapi.JobsControlRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.JobsControlRetrieveRequest) (orcapi.Job, *util.HttpError) {
-		return JobsRetrieve(info.Actor, request.Id, request.JobFlags)
+		actor, err := controlRetrieveJobScoped(info, request.JobId, jobType, request.Id)
+		if err != nil {
+			return orcapi.Job{}, err
+		}
+		return JobsRetrieve(actor, request.Id, request.JobFlags)
 	})
 
 	orcapi.JobsRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.SupportByProvider[orcapi.JobSupport], *util.HttpError) {
@@ -330,8 +339,8 @@ func initJobs() {
 	})
 
 	orcapi.JobsControlCreate.Handler(controlCreateServe(
-		func(spec orcapi.JobSpecification) orcapi.ResourceSpecification {
-			return spec.ResourceSpecification
+		func(spec *orcapi.JobSpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
 		},
 		JobCreate,
 		func(created []orcapi.Job) fndapi.BulkResponse[fndapi.FindByStringId] {
@@ -897,15 +906,66 @@ func initJobs() {
 		return util.Empty{}, JobsUpdateLabelsBulk(info.Actor, request)
 	})
 
-	orcapi.JobsControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		for _, reqItem := range request.Items {
-			err := ResourceUpdateLabels(info.Actor, jobType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
-			if err != nil {
-				return util.Empty{}, err
+	orcapi.JobsControlUpdateLabels.Handler(func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[orcapi.JobsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		if request.JobId == "" {
+			for _, reqItem := range request.Items {
+				err := ResourceUpdateLabels(info.Actor, jobType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+				if err != nil {
+					return util.Empty{}, err
+				}
 			}
+			return util.Empty{}, nil
 		}
-		return util.Empty{}, nil
+
+		authorize := controlMutateServe(
+			jobType,
+			func(item orcapi.JobsUpdateLabelsRequest) string { return item.Id },
+			func(actor rpc.Actor, items []orcapi.JobsUpdateLabelsRequest) (util.Empty, *util.HttpError) {
+				return util.Empty{}, JobsUpdateLabelsBulk(actor, fndapi.BulkRequestOf(items...))
+			},
+		)
+		return authorize(info, request)
 	})
+
+	orcapi.JobsControlTerminate.Handler(controlMutateServe(
+		jobType,
+		func(item fndapi.FindByStringId) string { return item.Id },
+		func(actor rpc.Actor, items []fndapi.FindByStringId) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+			return JobsTerminateBulk(actor, fndapi.BulkRequestOf(items...))
+		},
+	))
+
+	orcapi.JobsControlSuspend.Handler(controlMutateServe(
+		jobType,
+		func(item fndapi.FindByStringId) string { return item.Id },
+		func(actor rpc.Actor, items []fndapi.FindByStringId) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+			return JobsSuspendBulk(actor, fndapi.BulkRequestOf(items...))
+		},
+	))
+
+	orcapi.JobsControlUnsuspend.Handler(controlMutateServe(
+		jobType,
+		func(item fndapi.FindByStringId) string { return item.Id },
+		func(actor rpc.Actor, items []fndapi.FindByStringId) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+			return JobsUnsuspendBulk(actor, fndapi.BulkRequestOf(items...))
+		},
+	))
+
+	orcapi.JobsControlExtend.Handler(controlMutateServe(
+		jobType,
+		func(item orcapi.JobsExtendRequestItem) string { return item.JobId },
+		func(actor rpc.Actor, items []orcapi.JobsExtendRequestItem) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+			return JobsExtendBulk(actor, fndapi.BulkRequestOf(items...))
+		},
+	))
+
+	orcapi.JobsControlRename.Handler(controlMutateServe(
+		jobType,
+		func(item orcapi.JobRenameRequest) string { return item.Id },
+		func(actor rpc.Actor, items []orcapi.JobRenameRequest) (util.Empty, *util.HttpError) {
+			return util.Empty{}, JobsRenameBulk(actor, fndapi.BulkRequestOf(items...))
+		},
+	))
 
 	wsUpgrader := ws.Upgrader{
 		ReadBufferSize:  1024 * 4,

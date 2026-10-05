@@ -35,7 +35,6 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
 	"ucloud.dk/pkg/integrations/k8s/shared"
-	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
@@ -2143,10 +2142,12 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 					serviceAddr := service.Spec.ClusterIP
 					if serviceAddr != "" && job.Specification.Labels[orc.ResourceLabelServiceIpAddress] != serviceAddr {
 						job.Specification.Labels[orc.ResourceLabelServiceIpAddress] = serviceAddr
-						_, _ = orc.JobsControlUpdateLabels.Invoke(fndapi.BulkRequestOf(orc.JobsUpdateLabelsRequest{
-							Id:     job.Id,
-							Labels: job.Specification.Labels,
-						}))
+						_, _ = orc.JobsControlUpdateLabels.Invoke(orc.ControlMutateRequest[orc.JobsUpdateLabelsRequest]{
+							Items: []orc.JobsUpdateLabelsRequest{{
+								Id:     job.Id,
+								Labels: job.Specification.Labels,
+							}},
+						})
 						ctrl.JobTrackNew(*job)
 					}
 				}
@@ -2198,10 +2199,12 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 				if herr == nil {
 					serviceAddr := baseService.Spec.ClusterIP
 					job.Specification.Labels[orc.ResourceLabelServiceIpAddress] = serviceAddr
-					_, _ = orc.JobsControlUpdateLabels.Invoke(fndapi.BulkRequestOf(orc.JobsUpdateLabelsRequest{
-						Id:     job.Id,
-						Labels: job.Specification.Labels,
-					}))
+					_, _ = orc.JobsControlUpdateLabels.Invoke(orc.ControlMutateRequest[orc.JobsUpdateLabelsRequest]{
+						Items: []orc.JobsUpdateLabelsRequest{{
+							Id:     job.Id,
+							Labels: job.Specification.Labels,
+						}},
+					})
 					ctrl.JobTrackNew(*job)
 				}
 			}

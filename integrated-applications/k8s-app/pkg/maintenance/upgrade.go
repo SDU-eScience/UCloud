@@ -884,9 +884,7 @@ func trafficServices(worker *nodeWorker) ([]orcapi.Service, error) {
 		return nil, clientErr
 	}
 
-	services, herr := ucxapi.StackGrantBrowseServices.InvokeEx(client.Rpc, ucxapi.StackGrantBrowseServicesRequest{
-		StackGrantAuth: ucxapi.StackGrantAuth{Token: client.Token},
-	}, rpc.InvokeOpts{})
+	services, herr := shared.RpcGrantBrowseServices(client.Rpc, client.Token)
 	if herr != nil {
 		return nil, fmt.Errorf("could not browse the stack services: %s", herr)
 	}
@@ -999,17 +997,19 @@ func trafficMoveMember(worker *nodeWorker, jobId string, remove bool) error {
 			continue
 		}
 
-		request := ucxapi.StackGrantServiceUpdateMembersRequest{
-			StackGrantAuth: ucxapi.StackGrantAuth{Token: client.Token},
-			Id:             service.Id,
+		request := ucxapi.StackControlRequestOf[orcapi.ServicesControlUpdateMembersRequest]{
+			StackCredentialAuth: ucxapi.StackCredentialAuth{Token: client.Token},
+			Request: orcapi.ServicesControlUpdateMembersRequest{
+				Id: service.Id,
+			},
 		}
 		if remove {
-			request.RemovedJobIds = []string{jobId}
+			request.Request.RemovedJobIds = []string{jobId}
 		} else {
-			request.AddedJobIds = []string{jobId}
+			request.Request.AddedJobIds = []string{jobId}
 		}
 
-		_, herr := ucxapi.StackGrantServiceUpdateMembers.InvokeEx(client.Rpc, request, rpc.InvokeOpts{})
+		_, herr := ucxapi.StackControlUpdateMembers.InvokeEx(client.Rpc, request, rpc.InvokeOpts{})
 		if herr != nil {
 			return fmt.Errorf(
 				"could not update the membership of the job %s in the service %s: %s",

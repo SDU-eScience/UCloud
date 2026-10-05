@@ -67,12 +67,21 @@ func initPrivateNetworkIps() {
 	})
 
 	orcapi.PrivateNetworkIpsControlRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.PrivateNetworkIpsControlRetrieveRequest) (orcapi.PrivateNetworkIp, *util.HttpError) {
-		return ResourceRetrieve[orcapi.PrivateNetworkIp](info.Actor, privateNetworkIpType, ResourceParseId(request.Id), request.ResourceFlags)
+		actor, err := controlRetrieveJobScoped(info, request.JobId, privateNetworkIpType, request.Id)
+		if err != nil {
+			return orcapi.PrivateNetworkIp{}, err
+		}
+		return ResourceRetrieve[orcapi.PrivateNetworkIp](actor, privateNetworkIpType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
 	orcapi.PrivateNetworkIpsControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.PrivateNetworkIpsControlBrowseRequest) (fndapi.PageV2[orcapi.PrivateNetworkIp], *util.HttpError) {
+		actor, err := controlBrowseJobScoped(info, request.JobId, &request.ResourceFlags)
+		if err != nil {
+			return fndapi.PageV2[orcapi.PrivateNetworkIp]{}, err
+		}
+
 		return ResourceBrowse[orcapi.PrivateNetworkIp](
-			info.Actor,
+			actor,
 			privateNetworkIpType,
 			request.Next,
 			request.ItemsPerPage,
@@ -129,8 +138,8 @@ func initPrivateNetworkIps() {
 	})
 
 	orcapi.PrivateNetworkIpsControlCreate.Handler(controlCreateServe(
-		func(spec orcapi.PrivateNetworkIpSpecification) orcapi.ResourceSpecification {
-			return spec.ResourceSpecification
+		func(spec *orcapi.PrivateNetworkIpSpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
 		},
 		PrivateNetworkIpCreate,
 		func(created []orcapi.PrivateNetworkIp) fndapi.BulkResponse[fndapi.FindByStringId] {
@@ -255,16 +264,42 @@ func initPrivateNetworkIps() {
 		return util.Empty{}, nil
 	})
 
-	orcapi.PrivateNetworkIpsControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PrivateNetworkIpsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		for _, reqItem := range request.Items {
-			err := ResourceUpdateLabels(info.Actor, privateNetworkIpType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
-			if err != nil {
-				return util.Empty{}, err
+	orcapi.PrivateNetworkIpsControlUpdateLabels.Handler(func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[orcapi.PrivateNetworkIpsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		if request.JobId == "" {
+			for _, reqItem := range request.Items {
+				err := ResourceUpdateLabels(info.Actor, privateNetworkIpType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+				if err != nil {
+					return util.Empty{}, err
+				}
 			}
+
+			return util.Empty{}, nil
 		}
 
-		return util.Empty{}, nil
+		authorize := controlMutateServe(
+			privateNetworkIpType,
+			func(item orcapi.PrivateNetworkIpsUpdateLabelsRequest) string { return item.Id },
+			func(actor rpc.Actor, items []orcapi.PrivateNetworkIpsUpdateLabelsRequest) (util.Empty, *util.HttpError) {
+				return util.Empty{}, PrivateNetworkIpUpdateLabels(actor, fndapi.BulkRequestOf(items...))
+			},
+		)
+		return authorize(info, request)
 	})
+
+	orcapi.PrivateNetworkIpsControlDelete.Handler(controlMutateServe(
+		privateNetworkIpType,
+		func(item fndapi.FindByStringId) string { return item.Id },
+		func(actor rpc.Actor, items []fndapi.FindByStringId) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+			for _, item := range items {
+				err := ResourceDeleteThroughProvider(actor, privateNetworkIpType, item.Id, orcapi.PrivateNetworkIpsProviderDelete)
+				if err != nil {
+					return fndapi.BulkResponse[util.Empty]{}, err
+				}
+			}
+
+			return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(items))}, nil
+		},
+	))
 }
 
 func PrivateNetworkIpCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.PrivateNetworkIpSpecification]) ([]orcapi.PrivateNetworkIp, *util.HttpError) {

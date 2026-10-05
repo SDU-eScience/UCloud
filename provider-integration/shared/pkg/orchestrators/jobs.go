@@ -663,7 +663,8 @@ var JobsCreateApplicationVariant = rpc.Call[JobsCreateApplicationVariantRequest,
 const jobControlNamespace = "jobs/control"
 
 type JobsControlRetrieveRequest struct {
-	Id string `json:"id"`
+	JobId string `json:"jobId,omitempty"`
+	Id    string `json:"id"`
 	JobFlags
 }
 
@@ -674,6 +675,7 @@ var JobsControlRetrieve = rpc.Call[JobsControlRetrieveRequest, Job]{
 }
 
 type JobsControlBrowseRequest struct {
+	JobId        string              `json:"jobId,omitempty"`
 	ItemsPerPage int                 `json:"itemsPerPage"`
 	Next         util.Option[string] `json:"next"`
 
@@ -740,12 +742,18 @@ var JobsControlCheckCredits = rpc.Call[fnd.BulkRequest[JobsLegacyCheckCreditsReq
 	Roles:       rpc.RoleProvider,
 }
 
-var JobsControlUpdateLabels = rpc.Call[fnd.BulkRequest[JobsUpdateLabelsRequest], util.Empty]{
+var JobsControlUpdateLabels = rpc.Call[ControlMutateRequest[JobsUpdateLabelsRequest], util.Empty]{
 	BaseContext: jobControlNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "updateLabels",
 	Roles:       rpc.RoleProvider,
 }
+
+var JobsControlTerminate = ControlMutateCall[fnd.FindByStringId, fnd.BulkResponse[util.Empty]](jobControlNamespace, "terminate")
+var JobsControlSuspend = ControlMutateCall[fnd.FindByStringId, fnd.BulkResponse[util.Empty]](jobControlNamespace, "suspend")
+var JobsControlUnsuspend = ControlMutateCall[fnd.FindByStringId, fnd.BulkResponse[util.Empty]](jobControlNamespace, "unsuspend")
+var JobsControlExtend = ControlMutateCall[JobsExtendRequestItem, fnd.BulkResponse[util.Empty]](jobControlNamespace, "extend")
+var JobsControlRename = ControlMutateCall[JobRenameRequest, util.Empty](jobControlNamespace, "rename")
 
 // Job Provider API
 // =====================================================================================================================

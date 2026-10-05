@@ -50,8 +50,13 @@ func initServices() {
 	})
 
 	orcapi.ServicesControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.ServicesControlBrowseRequest) (fndapi.PageV2[orcapi.Service], *util.HttpError) {
+		actor, err := controlBrowseJobScoped(info, request.JobId, &request.ResourceFlags)
+		if err != nil {
+			return fndapi.PageV2[orcapi.Service]{}, err
+		}
+
 		return ResourceBrowse[orcapi.Service](
-			info.Actor,
+			actor,
 			serviceType,
 			request.Next,
 			request.ItemsPerPage,
@@ -86,7 +91,11 @@ func initServices() {
 	})
 
 	orcapi.ServicesControlRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.ServicesControlRetrieveRequest) (orcapi.Service, *util.HttpError) {
-		return ResourceRetrieve[orcapi.Service](info.Actor, serviceType, ResourceParseId(request.Id), request.ResourceFlags)
+		actor, err := controlRetrieveJobScoped(info, request.JobId, serviceType, request.Id)
+		if err != nil {
+			return orcapi.Service{}, err
+		}
+		return ResourceRetrieve[orcapi.Service](actor, serviceType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
 	orcapi.ServicesUpdate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.ServicesUpdateRequest]]) (util.Empty, *util.HttpError) {
@@ -168,15 +177,44 @@ func initServices() {
 		return util.Empty{}, nil
 	})
 
-	orcapi.ServicesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ServicesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		return util.Empty{}, serviceEach(info.Actor, request.Items, func(actor rpc.Actor, reqItem orcapi.ServicesUpdateLabelsRequest) *util.HttpError {
-			return ResourceUpdateLabels(actor, serviceType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
-		})
+	orcapi.ServicesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[orcapi.ServicesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		if request.JobId == "" {
+			return util.Empty{}, serviceEach(info.Actor, request.Items, func(actor rpc.Actor, reqItem orcapi.ServicesUpdateLabelsRequest) *util.HttpError {
+				return ResourceUpdateLabels(actor, serviceType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+			})
+		}
+
+		authorize := controlMutateServe(
+			serviceType,
+			func(item orcapi.ServicesUpdateLabelsRequest) string { return item.Id },
+			func(actor rpc.Actor, items []orcapi.ServicesUpdateLabelsRequest) (util.Empty, *util.HttpError) {
+				return util.Empty{}, ServiceUpdateLabels(actor, fndapi.BulkRequestOf(items...))
+			},
+		)
+		return authorize(info, request)
 	})
 
+	orcapi.ServicesControlDelete.Handler(controlMutateServe(
+		serviceType,
+		func(item fndapi.FindByStringId) string { return item.Id },
+		func(actor rpc.Actor, items []fndapi.FindByStringId) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+			return ServiceDelete(actor, fndapi.BulkRequestOf(items...))
+		},
+	))
+
+	orcapi.ServicesControlUpdateSpec.Handler(controlMutateServe(
+		serviceType,
+		func(item orcapi.ResourceUpdateAndId[orcapi.ServicesUpdateRequest]) string { return item.Id },
+		func(actor rpc.Actor, items []orcapi.ResourceUpdateAndId[orcapi.ServicesUpdateRequest]) (util.Empty, *util.HttpError) {
+			return util.Empty{}, serviceEach(actor, items, func(actor rpc.Actor, item orcapi.ResourceUpdateAndId[orcapi.ServicesUpdateRequest]) *util.HttpError {
+				return ServiceUpdate(actor, item.Id, item.Update)
+			})
+		},
+	))
+
 	orcapi.ServicesControlCreate.Handler(controlCreateServe(
-		func(spec orcapi.ServiceSpecification) orcapi.ResourceSpecification {
-			return spec.ResourceSpecification
+		func(spec *orcapi.ServiceSpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
 		},
 		ServiceCreate,
 		func(created []orcapi.Service) fndapi.BulkResponse[fndapi.FindByStringId] {

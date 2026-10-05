@@ -325,15 +325,15 @@ func ucxOnConnect(conn *ws.Conn) {
 		return util.Empty{}, nil
 	})
 
-	ucxapi.StackGrantToken.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackGrantTokenRequest) (ucxapi.StackGrantTokenResponse, error) {
+	ucxapi.StackControlToken.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackControlTokenRequest) (ucxapi.StackControlTokenResponse, error) {
 		jobId := strings.TrimSpace(request.JobId)
 		if jobId == "" {
-			return ucxapi.StackGrantTokenResponse{}, fmt.Errorf("invalid job")
+			return ucxapi.StackControlTokenResponse{}, fmt.Errorf("invalid job")
 		}
 
 		job, ok := ctrl.JobRetrieve(jobId)
-		if !ok || !stackGrantControlPlaneJobValid(job) {
-			return ucxapi.StackGrantTokenResponse{}, fmt.Errorf("invalid job")
+		if !ok || !stackControlControlPlaneJobValid(job) {
+			return ucxapi.StackControlTokenResponse{}, fmt.Errorf("invalid job")
 		}
 
 		stackInstance := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackInstance])
@@ -344,14 +344,14 @@ func ucxOnConnect(conn *ws.Conn) {
 		mu.Unlock()
 
 		if !known && !hasLease {
-			return ucxapi.StackGrantTokenResponse{}, fmt.Errorf("invalid stack instance")
+			return ucxapi.StackControlTokenResponse{}, fmt.Errorf("invalid stack instance")
 		}
 
-		token, err := stackGrantTokenIssue(jobId, stackInstance, info.Owner)
+		token, err := stackControlTokenIssue(jobId, stackInstance, info.Owner)
 		if err != nil {
-			return ucxapi.StackGrantTokenResponse{}, err
+			return ucxapi.StackControlTokenResponse{}, err
 		}
-		return ucxapi.StackGrantTokenResponse{Token: token}, nil
+		return ucxapi.StackControlTokenResponse{Token: token}, nil
 	})
 
 	ucxapi.IM.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.Message) (ucxapi.Message, error) {
@@ -436,19 +436,19 @@ func ucxOnConnectJob(conn *ws.Conn) {
 		return ucxapi.Message{Message: "Hello from the provider job session!"}, nil
 	})
 
-	ucxapi.StackGrantToken.HandlerProxy(proxy, func(_ context.Context, request ucxapi.StackGrantTokenRequest) (ucxapi.StackGrantTokenResponse, error) {
+	ucxapi.StackControlToken.HandlerProxy(proxy, func(_ context.Context, request ucxapi.StackControlTokenRequest) (ucxapi.StackControlTokenResponse, error) {
 		callerJobId := strings.TrimSpace(info.Job.Id)
 		callerJob, ok := ctrl.JobRetrieve(callerJobId)
-		if !ok || callerJob.Id != callerJobId || !stackGrantControlPlaneJobValid(callerJob) {
-			return ucxapi.StackGrantTokenResponse{}, fmt.Errorf("invalid control plane caller")
+		if !ok || callerJob.Id != callerJobId || !stackControlControlPlaneJobValid(callerJob) {
+			return ucxapi.StackControlTokenResponse{}, fmt.Errorf("invalid control plane caller")
 		}
 
 		callerStack := strings.TrimSpace(callerJob.Specification.Labels[orcapi.ResourceLabelStackInstance])
-		token, err := stackGrantTokenIssue(request.JobId, callerStack, callerJob.Owner)
+		token, err := stackControlTokenIssue(request.JobId, callerStack, callerJob.Owner)
 		if err != nil {
-			return ucxapi.StackGrantTokenResponse{}, err
+			return ucxapi.StackControlTokenResponse{}, err
 		}
-		return ucxapi.StackGrantTokenResponse{Token: token}, nil
+		return ucxapi.StackControlTokenResponse{Token: token}, nil
 	})
 
 	stackStateInitJobProxy(proxy, func() orcapi.Job {

@@ -8,7 +8,7 @@ import (
 )
 
 type PrivateNetworkIpSpecification struct {
-	Network string `json:"network"`
+	Network   string              `json:"network"`
 	IpAddress util.Option[string] `json:"ipAddress"`
 
 	ResourceSpecification
@@ -121,7 +121,8 @@ var PrivateNetworkIpsRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[P
 const privateNetworkIpControlNamespace = "private-network-ips/control"
 
 type PrivateNetworkIpsControlRetrieveRequest struct {
-	Id string `json:"id"`
+	JobId string `json:"jobId,omitempty"`
+	Id    string `json:"id"`
 	PrivateNetworkIpFlags
 }
 
@@ -132,6 +133,7 @@ var PrivateNetworkIpsControlRetrieve = rpc.Call[PrivateNetworkIpsControlRetrieve
 }
 
 type PrivateNetworkIpsControlBrowseRequest struct {
+	JobId        string              `json:"jobId,omitempty"`
 	ItemsPerPage int                 `json:"itemsPerPage"`
 	Next         util.Option[string] `json:"next"`
 
@@ -165,12 +167,14 @@ var PrivateNetworkIpsControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateA
 	Operation:   "update",
 }
 
-var PrivateNetworkIpsControlUpdateLabels = rpc.Call[fnd.BulkRequest[PrivateNetworkIpsUpdateLabelsRequest], util.Empty]{
+var PrivateNetworkIpsControlUpdateLabels = rpc.Call[ControlMutateRequest[PrivateNetworkIpsUpdateLabelsRequest], util.Empty]{
 	BaseContext: privateNetworkIpControlNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesProvider,
 	Operation:   "updateLabels",
 }
+
+var PrivateNetworkIpsControlDelete = ControlMutateCall[fnd.FindByStringId, fnd.BulkResponse[util.Empty]](privateNetworkIpControlNamespace, "delete")
 
 // Private Network IP Provider API
 // =====================================================================================================================

@@ -44,8 +44,13 @@ func initIngresses() {
 	})
 
 	orcapi.IngressesControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.IngressesControlBrowseRequest) (fndapi.PageV2[orcapi.Ingress], *util.HttpError) {
+		actor, err := controlBrowseJobScoped(info, request.JobId, &request.ResourceFlags)
+		if err != nil {
+			return fndapi.PageV2[orcapi.Ingress]{}, err
+		}
+
 		return ResourceBrowse[orcapi.Ingress](
-			info.Actor,
+			actor,
 			ingressType,
 			request.Next,
 			request.ItemsPerPage,
@@ -98,7 +103,11 @@ func initIngresses() {
 	})
 
 	orcapi.IngressesControlRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.IngressesControlRetrieveRequest) (orcapi.Ingress, *util.HttpError) {
-		return ResourceRetrieve[orcapi.Ingress](info.Actor, ingressType, ResourceParseId(request.Id), request.ResourceFlags)
+		actor, err := controlRetrieveJobScoped(info, request.JobId, ingressType, request.Id)
+		if err != nil {
+			return orcapi.Ingress{}, err
+		}
+		return ResourceRetrieve[orcapi.Ingress](actor, ingressType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
 	orcapi.IngressesUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
@@ -131,8 +140,8 @@ func initIngresses() {
 	})
 
 	orcapi.IngressesControlCreate.Handler(controlCreateServe(
-		func(spec orcapi.IngressSpecification) orcapi.ResourceSpecification {
-			return spec.ResourceSpecification
+		func(spec *orcapi.IngressSpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
 		},
 		IngressCreate,
 		func(created []orcapi.Ingress) fndapi.BulkResponse[fndapi.FindByStringId] {
@@ -214,9 +223,50 @@ func initIngresses() {
 		return util.Empty{}, nil
 	})
 
-	orcapi.IngressesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.IngressesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		for _, reqItem := range request.Items {
-			err := ResourceUpdateLabels(info.Actor, ingressType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+	orcapi.IngressesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[orcapi.IngressesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
+		if request.JobId == "" {
+			for _, reqItem := range request.Items {
+				err := ResourceUpdateLabels(info.Actor, ingressType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+				if err != nil {
+					return util.Empty{}, err
+				}
+			}
+
+			return util.Empty{}, nil
+		}
+
+		authorize := controlMutateServe(
+			ingressType,
+			func(item orcapi.IngressesUpdateLabelsRequest) string { return item.Id },
+			func(actor rpc.Actor, items []orcapi.IngressesUpdateLabelsRequest) (util.Empty, *util.HttpError) {
+				return util.Empty{}, IngressUpdateLabels(actor, fndapi.BulkRequestOf(items...))
+			},
+		)
+		return authorize(info, request)
+	})
+
+	orcapi.IngressesControlSetTarget.Handler(func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[orcapi.IngressesSetTargetRequest]) (util.Empty, *util.HttpError) {
+		actor, _, stackInstance, err := controlResolveJobActor(info.Actor, request.JobId)
+		if err != nil {
+			return util.Empty{}, err
+		}
+
+		for _, item := range request.Items {
+			err := controlVerifyStackMembership(actor, ingressType, item.Id, stackInstance)
+			if err != nil {
+				return util.Empty{}, err
+			}
+
+			if target := item.Target; target.Present {
+				err := controlVerifyStackMembership(actor, serviceType, target.Value.ServiceId, stackInstance)
+				if err != nil {
+					return util.Empty{}, err
+				}
+			}
+		}
+
+		for _, item := range request.Items {
+			err := IngressSetTarget(actor, item.Id, item.Target)
 			if err != nil {
 				return util.Empty{}, err
 			}

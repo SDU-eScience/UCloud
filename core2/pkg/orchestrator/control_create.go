@@ -11,7 +11,7 @@ import (
 )
 
 func controlCreateServe[Spec any, Resc any, Resp any](
-	specificationOf func(Spec) orcapi.ResourceSpecification,
+	specificationOf func(*Spec) *orcapi.ResourceSpecification,
 	create func(rpc.Actor, fndapi.BulkRequest[Spec]) ([]Resc, *util.HttpError),
 	responseOf func([]Resc) Resp,
 ) rpc.ServerHandler[orcapi.ControlCreateRequest[Spec], Resp] {
@@ -23,14 +23,24 @@ func controlCreateServe[Spec any, Resc any, Resp any](
 			return empty, util.HttpErr(http.StatusForbidden, "forbidden")
 		}
 
-		actor, _, stackInstance, err := controlResolveJobActor(info.Actor, request.JobId)
+		actor, job, stackInstance, err := controlResolveJobActor(info.Actor, request.JobId)
 		if err != nil {
 			return empty, err
 		}
 
-		for _, item := range request.Items {
-			spec := specificationOf(item)
-			if !resourceSpecificationHasProduct(spec) {
+		stackLabels := map[string]string{
+			orcapi.ResourceLabelStackInstance: stackInstance,
+		}
+		if value := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStack]); value != "" {
+			stackLabels[orcapi.ResourceLabelStack] = value
+		}
+		if value := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackName]); value != "" {
+			stackLabels[orcapi.ResourceLabelStackName] = value
+		}
+
+		for i := range request.Items {
+			spec := specificationOf(&request.Items[i])
+			if !resourceSpecificationHasProduct(*spec) {
 				return empty, util.HttpErr(http.StatusBadRequest, "resource does not specify a product")
 			}
 
@@ -38,11 +48,9 @@ func controlCreateServe[Spec any, Resc any, Resp any](
 				return empty, util.HttpErr(http.StatusForbidden, "forbidden")
 			}
 
-			if spec.Labels[orcapi.ResourceLabelStackInstance] != stackInstance {
-				return empty, util.HttpErr(http.StatusBadRequest, "all resources must belong to the stack of the job")
-			}
+			spec.Labels = util.MapMerge(spec.Labels, stackLabels)
 
-			if networkSpec, ok := any(item).(orcapi.PrivateNetworkIpSpecification); ok {
+			if networkSpec, ok := any(request.Items[i]).(orcapi.PrivateNetworkIpSpecification); ok {
 				network, _, _, err := ResourceRetrieveEx[orcapi.PrivateNetwork](
 					rpc.ActorSystem,
 					privateNetworkType,
@@ -59,7 +67,7 @@ func controlCreateServe[Spec any, Resc any, Resp any](
 				}
 			}
 
-			if serviceSpec, ok := any(item).(orcapi.ServiceSpecification); ok {
+			if serviceSpec, ok := any(request.Items[i]).(orcapi.ServiceSpecification); ok {
 				if endpoint := serviceSpec.InternalEndpoint; endpoint.Present {
 					network, _, _, err := ResourceRetrieveEx[orcapi.PrivateNetwork](
 						rpc.ActorSystem,
@@ -85,6 +93,94 @@ func controlCreateServe[Spec any, Resc any, Resp any](
 		}
 
 		return responseOf(created), nil
+	}
+}
+
+func controlBrowseJobScoped(
+	info rpc.RequestInfo,
+	jobId string,
+	flags *orcapi.ResourceFlags,
+) (rpc.Actor, *util.HttpError) {
+	if strings.TrimSpace(jobId) == "" {
+		return info.Actor, nil
+	}
+
+	actor, _, stackInstance, err := controlResolveJobActor(info.Actor, jobId)
+	if err != nil {
+		return rpc.Actor{}, err
+	}
+
+	if flags.FilterLabels == nil {
+		flags.FilterLabels = map[string]string{}
+	}
+	flags.FilterLabels[orcapi.ResourceLabelStackInstance] = stackInstance
+
+	return actor, nil
+}
+
+func controlRetrieveJobScoped(
+	info rpc.RequestInfo,
+	jobId string,
+	typeName string,
+	id string,
+) (rpc.Actor, *util.HttpError) {
+	if strings.TrimSpace(jobId) == "" {
+		return info.Actor, nil
+	}
+
+	actor, _, stackInstance, err := controlResolveJobActor(info.Actor, jobId)
+	if err != nil {
+		return rpc.Actor{}, err
+	}
+
+	err = controlVerifyStackMembership(actor, typeName, id, stackInstance)
+	if err != nil {
+		return rpc.Actor{}, err
+	}
+
+	return actor, nil
+}
+
+func controlVerifyStackMembership(actor rpc.Actor, typeName string, id string, stackInstance string) *util.HttpError {
+	_, _, spec, err := ResourceRetrieveEx[any](
+		actor,
+		typeName,
+		ResourceParseId(id),
+		orcapi.PermissionRead,
+		orcapi.ResourceFlags{},
+	)
+	if err != nil {
+		return util.HttpErr(http.StatusNotFound, "not found")
+	}
+
+	if spec.Labels[orcapi.ResourceLabelStackInstance] != stackInstance {
+		return util.HttpErr(http.StatusForbidden, "the resource does not belong to the stack of the job")
+	}
+
+	return nil
+}
+
+func controlMutateServe[Item any, Resp any](
+	typeName string,
+	idOf func(Item) string,
+	mutate func(actor rpc.Actor, items []Item) (Resp, *util.HttpError),
+) rpc.ServerHandler[orcapi.ControlMutateRequest[Item], Resp] {
+	return func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[Item]) (Resp, *util.HttpError) {
+		var zero Resp
+
+		actor, _, stackInstance, err := controlResolveJobActor(info.Actor, request.JobId)
+		if err != nil {
+			return zero, err
+		}
+
+		for _, item := range request.Items {
+			err := controlVerifyStackMembership(actor, typeName, idOf(item), stackInstance)
+			if err != nil {
+				return zero, err
+			}
+		}
+
+		return mutate(actor, request.Items)
 	}
 }
 

@@ -149,7 +149,8 @@ var IngressesSetTarget = rpc.Call[fnd.BulkRequest[IngressesSetTargetRequest], ut
 const ingressControlNamespace = "ingresses/control"
 
 type IngressesControlRetrieveRequest struct {
-	Id string `json:"id"`
+	JobId string `json:"jobId,omitempty"`
+	Id    string `json:"id"`
 	IngressFlags
 }
 
@@ -160,6 +161,7 @@ var IngressesControlRetrieve = rpc.Call[IngressesControlRetrieveRequest, Ingress
 }
 
 type IngressesControlBrowseRequest struct {
+	JobId        string              `json:"jobId,omitempty"`
 	ItemsPerPage int                 `json:"itemsPerPage"`
 	Next         util.Option[string] `json:"next"`
 
@@ -188,7 +190,7 @@ var IngressesControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[Ing
 	Operation:   "update",
 }
 
-var IngressesControlUpdateLabels = rpc.Call[fnd.BulkRequest[IngressesUpdateLabelsRequest], util.Empty]{
+var IngressesControlUpdateLabels = rpc.Call[ControlMutateRequest[IngressesUpdateLabelsRequest], util.Empty]{
 	BaseContext: ingressControlNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesProvider,
@@ -206,6 +208,8 @@ var IngressesControlDelete = rpc.Call[IngressesControlDeleteRequest, fnd.BulkRes
 	Roles:       rpc.RolesProvider,
 	Operation:   "delete",
 }
+
+var IngressesControlSetTarget = ControlMutateCall[IngressesSetTargetRequest, util.Empty](ingressControlNamespace, "setTarget")
 
 // Ingress Provider API
 // =====================================================================================================================

@@ -193,7 +193,8 @@ var PublicIpsUpdateFirewall = rpc.Call[fnd.BulkRequest[PublicIpUpdateFirewallReq
 const publicIpControlNamespace = "networkips/control"
 
 type PublicIpsControlRetrieveRequest struct {
-	Id string `json:"id"`
+	JobId string `json:"jobId,omitempty"`
+	Id    string `json:"id"`
 	PublicIpFlags
 }
 
@@ -204,6 +205,7 @@ var PublicIpsControlRetrieve = rpc.Call[PublicIpsControlRetrieveRequest, PublicI
 }
 
 type PublicIpsControlBrowseRequest struct {
+	JobId        string              `json:"jobId,omitempty"`
 	ItemsPerPage int                 `json:"itemsPerPage"`
 	Next         util.Option[string] `json:"next"`
 
@@ -239,7 +241,10 @@ var PublicIpsControlReclaim = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.
 	Operation:   "reclaim",
 }
 
-var PublicIpsControlUpdateLabels = rpc.Call[fnd.BulkRequest[PublicIpsUpdateLabelsRequest], util.Empty]{
+var PublicIpsControlDelete = ControlMutateCall[fnd.FindByStringId, fnd.BulkResponse[util.Empty]](publicIpControlNamespace, "delete")
+var PublicIpsControlUpdateFirewall = ControlMutateCall[PublicIpUpdateFirewallRequest, util.Empty](publicIpControlNamespace, "firewall")
+
+var PublicIpsControlUpdateLabels = rpc.Call[ControlMutateRequest[PublicIpsUpdateLabelsRequest], util.Empty]{
 	BaseContext: publicIpControlNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesProvider,

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	fnd "ucloud.dk/shared/pkg/foundation"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
@@ -77,9 +78,9 @@ func rpcGrantError(herr *util.HttpError) error {
 }
 
 func RpcGrantStateRead(client RpcGrantClient, key string) (ucxapi.StackStateRecord, bool, error) {
-	response, herr := ucxapi.StackGrantStateRead.InvokeEx(client.Rpc, ucxapi.StackGrantStateReadRequest{
-		StackGrantAuth: ucxapi.StackGrantAuth{Token: client.Token},
-		Key:            key,
+	response, herr := ucxapi.StackControlStateRead.InvokeEx(client.Rpc, ucxapi.StackControlStateReadRequest{
+		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: client.Token},
+		Key:                 key,
 	}, rpc.InvokeOpts{})
 	if herr != nil {
 		return ucxapi.StackStateRecord{}, false, rpcGrantError(herr)
@@ -93,14 +94,14 @@ func RpcGrantStateRead(client RpcGrantClient, key string) (ucxapi.StackStateReco
 }
 
 func RpcGrantStateWrite(client RpcGrantClient, key string, value json.RawMessage, expectedRevision int64) (int64, error) {
-	request := ucxapi.StackGrantStateWriteRequest{
-		StackGrantAuth:   ucxapi.StackGrantAuth{Token: client.Token},
-		Key:              key,
-		Value:            value,
-		ExpectedRevision: expectedRevision,
+	request := ucxapi.StackControlStateWriteRequest{
+		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: client.Token},
+		Key:                 key,
+		Value:               value,
+		ExpectedRevision:    expectedRevision,
 	}
 
-	response, herr := ucxapi.StackGrantStateWrite.InvokeEx(client.Rpc, request, rpc.InvokeOpts{})
+	response, herr := ucxapi.StackControlStateWrite.InvokeEx(client.Rpc, request, rpc.InvokeOpts{})
 	if herr != nil {
 		return 0, rpcGrantError(herr)
 	}
@@ -108,14 +109,69 @@ func RpcGrantStateWrite(client RpcGrantClient, key string, value json.RawMessage
 }
 
 func RpcGrantStateList(client RpcGrantClient, prefix string, next util.Option[string], itemsPerPage int) (fnd.PageV2[ucxapi.StackStateRecord], error) {
-	response, herr := ucxapi.StackGrantStateList.InvokeEx(client.Rpc, ucxapi.StackGrantStateListRequest{
-		StackGrantAuth: ucxapi.StackGrantAuth{Token: client.Token},
-		Prefix:         prefix,
-		Next:           next,
-		ItemsPerPage:   itemsPerPage,
+	response, herr := ucxapi.StackControlStateList.InvokeEx(client.Rpc, ucxapi.StackControlStateListRequest{
+		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: client.Token},
+		Prefix:              prefix,
+		Next:                next,
+		ItemsPerPage:        itemsPerPage,
 	}, rpc.InvokeOpts{})
 	if herr != nil {
 		return fnd.PageV2[ucxapi.StackStateRecord]{}, rpcGrantError(herr)
 	}
 	return response, nil
+}
+
+func rpcGrantBrowseAll[Resc any](
+	browsePage func(next util.Option[string]) (fnd.PageV2[Resc], *util.HttpError),
+) ([]Resc, error) {
+	result := []Resc{}
+	next := util.OptNone[string]()
+	for {
+		page, herr := browsePage(next)
+		if herr != nil {
+			return nil, rpcGrantError(herr)
+		}
+
+		result = append(result, page.Items...)
+		next = page.Next
+		if !next.Present || len(page.Items) == 0 {
+			return result, nil
+		}
+	}
+}
+
+func RpcGrantBrowseIngresses(client *rpc.Client, token string) ([]orcapi.Ingress, error) {
+	return rpcGrantBrowseAll(func(next util.Option[string]) (fnd.PageV2[orcapi.Ingress], *util.HttpError) {
+		return ucxapi.StackControlBrowseIngresses.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.IngressesControlBrowseRequest]{
+			StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
+			Request: orcapi.IngressesControlBrowseRequest{
+				ItemsPerPage: 250,
+				Next:         next,
+			},
+		}, rpc.InvokeOpts{})
+	})
+}
+
+func RpcGrantBrowseServices(client *rpc.Client, token string) ([]orcapi.Service, error) {
+	return rpcGrantBrowseAll(func(next util.Option[string]) (fnd.PageV2[orcapi.Service], *util.HttpError) {
+		return ucxapi.StackControlBrowseServices.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.ServicesControlBrowseRequest]{
+			StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
+			Request: orcapi.ServicesControlBrowseRequest{
+				ItemsPerPage: 250,
+				Next:         next,
+			},
+		}, rpc.InvokeOpts{})
+	})
+}
+
+func RpcGrantBrowseJobs(client *rpc.Client, token string) ([]orcapi.Job, error) {
+	return rpcGrantBrowseAll(func(next util.Option[string]) (fnd.PageV2[orcapi.Job], *util.HttpError) {
+		return ucxapi.StackControlBrowseJobs.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.JobsControlBrowseRequest]{
+			StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
+			Request: orcapi.JobsControlBrowseRequest{
+				ItemsPerPage: 250,
+				Next:         next,
+			},
+		}, rpc.InvokeOpts{})
+	})
 }

@@ -198,7 +198,8 @@ type PrivateNetworkUpdate struct {
 }
 
 type PrivateNetworksControlRetrieveRequest struct {
-	Id string `json:"id"`
+	JobId string `json:"jobId,omitempty"`
+	Id    string `json:"id"`
 	PrivateNetworkFlags
 }
 
@@ -209,6 +210,7 @@ var PrivateNetworksControlRetrieve = rpc.Call[PrivateNetworksControlRetrieveRequ
 }
 
 type PrivateNetworksControlBrowseRequest struct {
+	JobId        string              `json:"jobId,omitempty"`
 	ItemsPerPage int                 `json:"itemsPerPage"`
 	Next         util.Option[string] `json:"next"`
 
@@ -237,12 +239,14 @@ var PrivateNetworksControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAnd
 	Operation:   "update",
 }
 
-var PrivateNetworksControlUpdateLabels = rpc.Call[fnd.BulkRequest[PrivateNetworksUpdateLabelsRequest], util.Empty]{
+var PrivateNetworksControlUpdateLabels = rpc.Call[ControlMutateRequest[PrivateNetworksUpdateLabelsRequest], util.Empty]{
 	BaseContext: privateNetworkControlNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesProvider,
 	Operation:   "updateLabels",
 }
+
+var PrivateNetworksControlDelete = ControlMutateCall[fnd.FindByStringId, fnd.BulkResponse[util.Empty]](privateNetworkControlNamespace, "delete")
 
 // Private Network Provider API
 // =====================================================================================================================

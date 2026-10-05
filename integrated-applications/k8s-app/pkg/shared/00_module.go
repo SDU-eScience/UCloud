@@ -665,7 +665,7 @@ func clusterWriteControllerToken(stack *ucxsvc.Stack, session *ucx.Session, jobI
 		return false
 	}
 
-	response, err := ucxapi.StackGrantToken.Invoke(session, ucxapi.StackGrantTokenRequest{JobId: jobId})
+	response, err := ucxapi.StackControlToken.Invoke(session, ucxapi.StackControlTokenRequest{JobId: jobId})
 	if err != nil {
 		return false
 	}

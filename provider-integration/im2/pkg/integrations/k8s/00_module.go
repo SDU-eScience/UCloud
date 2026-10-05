@@ -96,8 +96,8 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	filesystem.InitMetadataCli()
 	initJobsCli()
 	job_introspection.InitServerHandlers()
-	stackGrantInitServer()
-	stackStateGrantInitServer()
+	stackControlInitServer()
+	stackStateControlInitServer()
 	syncthing_metrics.InitCollector()
 	inference.Init()
 	if config.Registry.Enabled {
