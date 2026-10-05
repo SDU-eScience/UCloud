@@ -72,6 +72,7 @@ import {useIsLightThemeStored} from "@/ui-components/theme";
 import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {applyJobFollowResponse, InitTerminal, JobInitState, JobInitTracker, JobsFollowResponse} from "@/Stacks/JobInitTracking";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import Warning from "@/ui-components/Warning";
 
 type ValueProvider = string | (() => string | Promise<string>);
 export type UcxRpcPayload = PlainValue;
@@ -1035,6 +1036,11 @@ const baseComponents: UcxComponentRegistry = {
                 remarkPlugins={[remarkGfm]}
             />
         </div>;
+    },
+    warning: ({node, model, scope}) => {
+        const text = boundOrStaticText(node, model, scope);
+        if (!text) return null;
+        return <Warning>{text as string}</Warning>;
     },
     icon: ({node, fn}) => {
         const name = stringProp(node, "name", "bug");
