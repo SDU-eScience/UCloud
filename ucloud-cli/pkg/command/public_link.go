@@ -188,9 +188,9 @@ func (c PublicLinkDeleteCommand) Execute() error {
 	if len(request.Items) == 0 {
 		return fmt.Errorf("the names %v were not found", c.Name)
 	}
-	_, httpEerr := orcapi.IngressesDelete.Invoke(request)
-	if httpEerr.AsError() != nil {
-		return fmt.Errorf("failed to delete public link: %s", httpEerr.Why)
+	_, httpDeleteErr := orcapi.IngressesDelete.Invoke(request)
+	if httpDeleteErr.AsError() != nil {
+		return fmt.Errorf("failed to delete public link: %s", httpDeleteErr.Why)
 	}
 	fmt.Printf("Successfully deleted public link %v\n", deletedLinks)
 	if len(notFoundLinks) > 0 {
