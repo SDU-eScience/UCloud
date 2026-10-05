@@ -106,6 +106,7 @@ const DriveBrowse: React.FunctionComponent<{
     React.useEffect(() => {
         const p = project.fetch();
         const oldPermission = isWorkspaceAdmin.current;
+        // Note(Jonas): Well, not anymore!!
         // Note(Jonas): project.fetch() always returns a project after having had one active before,
         // so use `projectId` instead.
         if (projectId) {
