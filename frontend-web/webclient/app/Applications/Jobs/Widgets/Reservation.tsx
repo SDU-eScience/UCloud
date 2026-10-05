@@ -123,7 +123,7 @@ export function ReservationParameter({
         if (isNaN(amount)) return;
         const hours = document.querySelector<HTMLInputElement>(`#${reservationHours}`);
         if (!hours) return;
-        let existing = hours.valueAsNumber;
+        let existing = parseInt(hours.value);
         if (isNaN(existing)) existing = 0;
         const hourAmount = existing + amount;
         hours.value = hourAmount.toString();
