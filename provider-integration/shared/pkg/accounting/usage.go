@@ -53,6 +53,14 @@ type UsageReportDeltaDataPoint struct {
 	Child util.Option[string] `json:"child"`
 }
 
+type UsageReportAbsoluteChildrenDataPoint struct {
+	Timestamp fnd.Timestamp `json:"timestamp"`
+	Usage     int64         `json:"usage"`
+
+	// Not present for local use. "Other" means projects not named. Otherwise, the content will be a project ID.
+	Child util.Option[string] `json:"child"`
+}
+
 type UsageReportAbsoluteDataPoint struct {
 	Timestamp             fnd.Timestamp `json:"timestamp"`
 	Usage                 int64         `json:"usage"`
@@ -60,8 +68,9 @@ type UsageReportAbsoluteDataPoint struct {
 }
 
 type UsageReportOverTime struct {
-	Delta    []UsageReportDeltaDataPoint    `json:"delta"`
-	Absolute []UsageReportAbsoluteDataPoint `json:"absolute"`
+	Delta            []UsageReportDeltaDataPoint    `json:"delta"`
+	Absolute         []UsageReportAbsoluteDataPoint `json:"absolute"`
+	ChildrenAbsolute []UsageReportAbsoluteChildrenDataPoint `json:"childrenAbsolute"`
 }
 
 type UsageReportKpis struct {
