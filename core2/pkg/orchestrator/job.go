@@ -98,59 +98,6 @@ func initJobs() {
 	go jobNotificationsLoopSendPending()
 
 	orcapi.JobsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		for _, reqItem := range request.Items {
-			if reqItem.Application.Name == "syncthing" {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "this application cannot be started through this endpoint")
-			}
-
-			// RestrictSSH: reject creation of jobs which request SSH access
-			if reqItem.SshEnabled && info.Actor.Project.Present {
-				policies := policiesByProject(string(info.Actor.Project.Value))
-				if specification, ok := policies[fndapi.RestrictSsh]; ok && specification.IsEnabled() {
-					return fndapi.BulkResponse[fndapi.FindByStringId]{},
-						util.HttpErr(http.StatusForbidden, "Project policies do not allow SSH access")
-				}
-			}
-
-			// Check if any policies that might be enabled
-			if len(reqItem.Resources) > 0 && info.Actor.Project.Present {
-				policies := policiesByProject(string(info.Actor.Project.Value))
-				for _, value := range reqItem.Resources {
-					// Public IPs
-					if value.Type == orcapi.AppParameterValueTypeNetwork {
-						specification, ok := policies[fndapi.RestrictPublicIPs]
-						if ok {
-							values, ok := specification.GetValues().(fndapi.RestrictPublicIPsValues)
-							if !ok {
-								return fndapi.BulkResponse[fndapi.FindByStringId]{},
-									util.HttpErr(http.StatusInternalServerError, "Malformed policy")
-							}
-							if values.Enabled {
-								return fndapi.BulkResponse[fndapi.FindByStringId]{},
-									util.HttpErr(http.StatusForbidden, "Project policies does not allow usage of public IPs")
-							}
-						}
-					}
-
-					// Public Links
-					if value.Type == orcapi.AppParameterValueTypeIngress {
-						specification, ok := policies[fndapi.RestrictPublicLinks]
-						if ok {
-							values, ok := specification.GetValues().(fndapi.RestrictPublicLinksValues)
-							if !ok {
-								return fndapi.BulkResponse[fndapi.FindByStringId]{},
-									util.HttpErr(http.StatusInternalServerError, "Malformed policy")
-							}
-							if values.Enabled {
-								return fndapi.BulkResponse[fndapi.FindByStringId]{},
-									util.HttpErr(http.StatusForbidden, "Project policies does not allow usage of public links")
-							}
-						}
-					}
-				}
-			}
-		}
-
 		created, err := JobCreate(info.Actor, request)
 		if err != nil {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
@@ -920,12 +867,47 @@ func initJobs() {
 	})
 }
 
+// jobsEnforceCreationPolicies enforces project-level restrictions that apply to job creation.
+// It must run on every code path that creates jobs (HTTP handler, UCX proxy, ...).
+func jobsEnforceCreationPolicies(actor rpc.Actor, spec *orcapi.JobSpecification) *util.HttpError {
+	if !actor.Project.Present {
+		return nil
+	}
+
+	policies := policiesByProject(string(actor.Project.Value))
+
+	// RestrictSSH: reject creation of jobs which request SSH access
+	if spec.SshEnabled {
+		if specification, ok := policies[fndapi.RestrictSsh]; ok && specification.IsEnabled() {
+			return util.HttpErr(http.StatusForbidden, "Project policies do not allow SSH access")
+		}
+	}
+
+	for _, value := range spec.Resources {
+		switch value.Type {
+		case orcapi.AppParameterValueTypeNetwork:
+			if specification, ok := policies[fndapi.RestrictPublicIPs]; ok && specification.IsEnabled() {
+				return util.HttpErr(http.StatusForbidden, "Project policies does not allow usage of public IPs")
+			}
+		case orcapi.AppParameterValueTypeIngress:
+			if specification, ok := policies[fndapi.RestrictPublicLinks]; ok && specification.IsEnabled() {
+				return util.HttpErr(http.StatusForbidden, "Project policies does not allow usage of public links")
+			}
+		}
+	}
+
+	return nil
+}
+
 func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecification]) ([]orcapi.Job, *util.HttpError) {
 	created := make([]orcapi.Job, 0, len(request.Items))
 	jobSettings := JobSettingsRetrieve(actor)
-
 	for _, item := range request.Items {
 		spec := item
+		if err := jobsEnforceCreationPolicies(actor, &spec); err != nil {
+			return nil, err
+		}
+
 		err := jobsValidateForSubmission(actor, &spec)
 		if err != nil {
 			return nil, err

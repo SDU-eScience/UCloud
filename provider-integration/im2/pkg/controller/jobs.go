@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"slices"
 	"strings"
@@ -419,7 +418,7 @@ func initJobs() {
 							if !ok {
 								errors = append(errors, &util.HttpError{
 									StatusCode: http.StatusInternalServerError,
-									Why: "Misconfigured Policy",
+									Why:        "Misconfigured Policy",
 								})
 								continue
 							}
@@ -538,11 +537,6 @@ func initJobs() {
 				}
 
 				policies := RetrievePoliciesByProject(dInfo.Owner.Project.Value)
-
-				if IsSourceIPRestricted(policies, info) {
-					return fnd.BulkResponse[orcapi.OpenSession]{},
-						util.HttpErr(http.StatusForbidden, "Client IP is not allowed")
-				}
 
 				if policy, ok := policies[fnd.RestrictIntegratedApplications]; ok {
 					values, ok := policy.GetValues().(fnd.RestrictIntegratedApplicationsValues)
@@ -2188,28 +2182,4 @@ func jobRoutesRefresh() {
 	}
 
 	webSessionsMutex.Unlock()
-}
-
-func IsSourceIPRestricted(projectPolicies map[fnd.PolicyName]fnd.Specification, info rpc.RequestInfo) bool {
-	policy, ok := projectPolicies[fnd.RestrictSourceIPRange]
-	if !ok {
-		return false
-	}
-
-	values, ok := policy.GetValues().(fnd.RestrictSourceIPRangeValues)
-	if !ok || !values.Enabled {
-		return false
-	}
-
-	if values.AllowedSubnets == "" {
-		return true
-	}
-
-	_, subnet, err := net.ParseCIDR(values.AllowedSubnets)
-	if err != nil {
-		return true
-	}
-
-	ip := net.ParseIP(util.ClientIP(info.HttpRequest).String())
-	return !subnet.Contains(ip)
 }

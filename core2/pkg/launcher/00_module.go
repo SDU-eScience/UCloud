@@ -21,6 +21,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	acc "ucloud.dk/core/pkg/accounting"
 	cfg "ucloud.dk/core/pkg/config"
+	"ucloud.dk/core/pkg/coreutil"
 	fnd "ucloud.dk/core/pkg/foundation"
 	"ucloud.dk/core/pkg/migrations"
 	orc "ucloud.dk/core/pkg/orchestrator"
@@ -319,7 +320,7 @@ func Launch() {
 		return rpc.BearerAuthenticator(bearer, projectHeader)
 	}
 
-	rpc.DefaultServer.RequestPolicies = fnd.SourceIpPolicy
+	rpc.DefaultServer.RequestPolicies = coreutil.SourceIpPolicy
 
 	rpc.LookupActor = func(username string) (rpc.Actor, bool) {
 		atuple := util.RetryOrPanic("rpc.LookupActor", func() (util.Tuple2[rpc.Actor, bool], error) {
@@ -660,7 +661,7 @@ func authenticateViaApiToken(bearer string) (rpc.Actor, *util.HttpError) {
 		// RestrictApiTokens: reject usage of API tokens in projects which do not allow them.
 		// Evaluated on every request (outside the token cache) so that policy changes
 		// take effect immediately.
-		if actor.Project.Present && fnd.ApiTokensIsRestricted(string(actor.Project.Value)) {
+		if actor.Project.Present && coreutil.ApiTokensIsRestricted(string(actor.Project.Value)) {
 			return rpc.Actor{}, util.HttpErr(
 				http.StatusForbidden,
 				"API tokens are not allowed by the policies of the project",

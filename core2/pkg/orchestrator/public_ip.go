@@ -50,19 +50,6 @@ func initPublicIps() {
 	})
 
 	orcapi.PublicIpsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PublicIPSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		if info.Actor.Project.Present {
-			policies := policiesByProject(string(info.Actor.Project.Value))
-
-			specification, ok := policies[fndapi.RestrictPublicIPs]
-			if ok && specification.IsEnabled() {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{},
-					util.HttpErr(
-						http.StatusForbidden,
-						"Project does not allow public IPs.",
-					)
-			}
-		}
-
 		created, err := PublicIpCreate(info.Actor, request)
 		if err != nil {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
@@ -310,6 +297,18 @@ func PublicIpUpdateFirewall(actor rpc.Actor, request fndapi.BulkRequest[orcapi.P
 }
 
 func PublicIpCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.PublicIPSpecification]) ([]orcapi.PublicIp, *util.HttpError) {
+	if actor.Project.Present {
+		policies := policiesByProject(string(actor.Project.Value))
+
+		specification, ok := policies[fndapi.RestrictPublicIPs]
+		if ok && specification.IsEnabled() {
+			return nil,
+				util.HttpErr(
+					http.StatusForbidden,
+					"Project does not allow public IPs.",
+				)
+		}
+	}
 	var created []orcapi.PublicIp
 	for _, item := range request.Items {
 		supp, ok := SupportByProduct[orcapi.PublicIpSupport](publicIpType, item.Product)

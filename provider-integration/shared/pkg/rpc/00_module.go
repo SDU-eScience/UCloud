@@ -136,7 +136,6 @@ type serverHandlerData struct {
 }
 
 type RequestPolicy func(
-	callName string,
 	info RequestInfo,
 	restrictSourceIP bool,
 ) *util.HttpError
@@ -495,7 +494,9 @@ func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, R
 						Actor:       actor,
 					}
 
-					err = server.RequestPolicies(c.FullName(), info, c.RestrictSourceIP)
+					if server.RequestPolicies != nil {
+						err = server.RequestPolicies(info, c.RestrictSourceIP)
+					}
 
 					if err == nil {
 						response, err = rpcServerSafeInvokeHandler(c, handler, info, request)

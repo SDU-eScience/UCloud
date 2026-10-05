@@ -101,6 +101,19 @@ func initAppUcx() {
 				}
 			}
 
+			// RestrictApplications: only allow UCX apps permitted by the actor's active project
+			if bearerActor.Project.Present {
+				policies := policiesByProject(string(bearerActor.Project.Value))
+				if specification, ok := policies[fndapi.RestrictApplications]; ok {
+					if values, ok := specification.GetValues().(fndapi.RestrictApplicationsValues); ok && values.Enabled {
+						if len(values.Applications) == 0 || !slices.Contains(values.Applications, reqInfo.Name) {
+							log.Warn("UCX core: application %q is not allowed by project policy", reqInfo.Name)
+							return ucx.ProxyUpstreamSelection{Allowed: false}
+						}
+					}
+				}
+			}
+
 			providerResp, err := accapi.FindRelevantProviders.Invoke(fndapi.BulkRequestOf(accapi.FindRelevantProvidersRequest{
 				Username: bearerActor.Username,
 				Project: util.OptMap(bearerActor.Project, func(value rpc.ProjectId) string {

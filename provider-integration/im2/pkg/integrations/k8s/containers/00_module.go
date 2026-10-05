@@ -561,9 +561,15 @@ func openWebSession(
 			}
 
 			if values.Enabled {
+				password := VNCRedirectPasswordForJob(job.Id, rank)
+				if password == "" {
+					return controller.ConfiguredWebSessionResult{},
+						util.ServerHttpError("failed to resolve the VNC redirect password of job %v", job.Id)
+				}
+
 				flags = controller.RegisteredIngressFlagsVnc
 				port = 6080
-				vncRedirectPassword.Set(VNCRedirectPassword)
+				vncRedirectPassword.Set(password)
 			}
 		}
 	}
@@ -691,8 +697,21 @@ func JobAnnotations(job *orc.Job, rank int) map[string]string {
 }
 
 const (
-	ContainerUserJob    = "user-job"
-	ContainerAuditLog   = "audit-log"
-	ContainerProxyVNC   = "proxy-vnc"
-	VNCRedirectPassword = "UIA7uBhFW82rc6Jj3ht1u3eqyd17gxFFBVI35DjBJlSUxziF845RGvjtMyIkROMT"
+	ContainerUserJob  = "user-job"
+	ContainerAuditLog = "audit-log"
+	ContainerProxyVNC = "proxy-vnc"
 )
+
+const AnnotationVncRedirectPassword = "ucloud.dk/vnc-redirect-password"
+
+// VNCRedirectPasswordForJob returns the password that was injected into the cut-and-paste
+// restricted VNC sidecar when the pod was created.
+func VNCRedirectPasswordForJob(jobId string, rank int) string {
+	pod := findPodByJobIdAndRank(jobId, rank)
+	if pod.Present {
+		if pw := util.OptMapGet(pod.Value.Annotations, AnnotationVncRedirectPassword); pw.Present {
+			return pw.Value
+		}
+	}
+	return ""
+}

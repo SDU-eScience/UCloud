@@ -239,12 +239,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 				}
 
 				vnc := orc.VncDescription{
-					Password: VNCRedirectPassword,
+					Password: util.RandomToken(32),
 					Port:     20000,
 				}
 				if job.Status.ResolvedApplication.Present && job.Status.ResolvedApplication.Value.Invocation.Vnc.Present {
 					vnc = job.Status.ResolvedApplication.Value.Invocation.Vnc.Value
 				}
+
+				pod.Annotations[AnnotationVncRedirectPassword] = vnc.Password
 
 				spec.Containers = append(spec.Containers, core.Container{
 					Name:  ContainerProxyVNC,

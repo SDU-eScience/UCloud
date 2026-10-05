@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/exp/maps"
 	"gopkg.in/yaml.v3"
+	"ucloud.dk/core/pkg/coreutil"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -132,6 +133,8 @@ func loadProjectPoliciesFromDB() {
 			specification, err := decoder(data)
 
 			if err != nil {
+				// Should fail due to this is used during startup and if any policies are
+				// not decodable we are missing migration or implementation
 				log.Fatal("Error loading policy %v : %v", policyName, err)
 			}
 
@@ -484,6 +487,7 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 	}
 
 	//Updating cache
+	coreutil.ProjectPoliciesInvalidateCache()
 	projectPolicies.Mu.Lock()
 	defer projectPolicies.Mu.Unlock()
 
@@ -984,89 +988,4 @@ func mergeDefaultPolicyValues(policyName fndapi.PolicyName, values []any) (any, 
 		log.Warn("Cannot merge default policy values of unknown policy: %v", policyName)
 		return nil, false
 	}
-}
-
-// ApiTokensIsRestricted reports whether the project has enabled the "RestrictApiTokens" policy.
-// When true, authentication via API tokens must be rejected for the project.
-func ApiTokensIsRestricted(projectId string) bool {
-	projectPolicies.Mu.RLock()
-	configured, ok := projectPolicies.PoliciesByProject[projectId]
-	projectPolicies.Mu.RUnlock()
-
-	if !ok {
-		return false
-	}
-
-	specification, ok := configured.ConfiguredPolicies[fndapi.RestrictApiTokens]
-	if !ok {
-		return false
-	}
-
-	return specification.IsEnabled()
-}
-
-// SourceIpPolicy enforces the "RestrictSourceIPRange" project policy for a single RPC call. It is
-// installed as the request policy of the RPC server and is consulted before every incoming request.
-//
-// Only the endpoints marked with restrictSourceIp = true are subject to the check. For those
-// endpoints, the call is rejected if the client's IP address is not permitted by the policy of the
-// actor's active project. Calls which are not subject to the policy, and calls which the policy
-// allows, return a nil error.
-func SourceIpPolicy(callName string, info rpc.RequestInfo, restrictSourceIP bool) *util.HttpError {
-	if !restrictSourceIP {
-		return nil
-	}
-
-	if SourceIpIsRestricted(info) {
-		return util.HttpErr(
-			http.StatusForbidden,
-			"Client IP is not allowed by project",
-		)
-	}
-
-	return nil
-}
-
-func SourceIpIsRestricted(info rpc.RequestInfo) bool {
-	if !info.Actor.Project.Present {
-		return false
-	}
-
-	projectPolicies.Mu.RLock()
-	entry, found := projectPolicies.PoliciesByProject[string(info.Actor.Project.Value)]
-	var specification fndapi.Specification
-	if found {
-		specification = entry.ConfiguredPolicies[fndapi.RestrictSourceIPRange]
-	}
-	projectPolicies.Mu.RUnlock()
-
-	if specification == nil {
-		return false
-	}
-
-	sourceIPSpecification, ok := specification.(*fndapi.RestrictSourceIPRangeSpecification)
-	if !ok {
-		return false
-	}
-
-	if !sourceIPSpecification.IsEnabled() {
-		return false
-	}
-
-	allowedSubnets := sourceIPSpecification.Values.AllowedSubnets
-	if allowedSubnets == "" {
-		return true
-	}
-
-	ip := net.ParseIP(util.ClientIP(info.HttpRequest).String())
-	if ip == nil {
-		return true
-	}
-
-	_, subnet, err := net.ParseCIDR(allowedSubnets)
-	if err != nil {
-		return true
-	}
-
-	return !subnet.Contains(ip)
 }

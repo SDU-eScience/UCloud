@@ -89,7 +89,10 @@ func cleanIPToken(s string) net.IP {
 	}
 	// Forwarded: for= may be quoted and may include port.
 	s = strings.Trim(s, "\"")
-	s = strings.TrimPrefix(s, "for=")
+	// Parameter names are case-insensitive per RFC 7239 ("For=", "FOR=").
+	if len(s) >= 4 && strings.EqualFold(s[:4], "for=") {
+		s = s[4:]
+	}
 
 	// Remove IPv6 brackets [::1]:1234
 	s = strings.TrimPrefix(s, "[")
@@ -134,52 +137,54 @@ func ClientIPEx(r *http.Request, cfg ClientIPConfig) net.IP {
 		return remoteIP
 	}
 
-	// 1) RFC 7239 Forwarded header (may appear multiple times, comma-separated)
-	// Example: Forwarded: for=203.0.113.60;proto=https;by=203.0.113.43
-	if fwd := r.Header.Values("Forwarded"); len(fwd) > 0 {
-		joined := strings.Join(fwd, ",")
-		parts := strings.Split(joined, ",")
-		for _, p := range parts {
-			// Find "for=" parameter inside this element.
-			semi := strings.Split(p, ";")
-			for _, kv := range semi {
+	// Build the hop chain in wire order (leftmost = original client side,
+	// rightmost = closest to us, i.e. what the trusted proxy appended).
+	// Pick exactly ONE header family; never fall through between them.
+	var chain []net.IP
+	switch {
+	case len(r.Header.Values("Forwarded")) > 0:
+		joined := strings.Join(r.Header.Values("Forwarded"), ",")
+		for _, p := range strings.Split(joined, ",") {
+			for _, kv := range strings.Split(p, ";") {
 				kv = strings.TrimSpace(kv)
-				if strings.HasPrefix(strings.ToLower(kv), "for=") {
-					ip := cleanIPToken(kv)
-					if ip == nil {
-						continue
-					}
-					if !cfg.AllowPrivate && isPrivateOrLoopback(ip) {
-						continue
-					}
-					return ip
+				if len(kv) >= 4 && strings.EqualFold(kv[:4], "for=") {
+					chain = append(chain, cleanIPToken(kv))
 				}
 			}
 		}
+	case r.Header.Get("X-Forwarded-For") != "":
+		for _, token := range strings.Split(r.Header.Get("X-Forwarded-For"), ",") {
+			chain = append(chain, cleanIPToken(token))
+		}
+	default:
+		// X-Real-IP: single value owned by the trusted proxy; no chain to
+		// validate. Only consulted when both chain headers are absent.
+		if xrip := r.Header.Get("X-Real-IP"); xrip != "" {
+			if ip := cleanIPToken(xrip); ip != nil &&
+				(cfg.AllowPrivate || !isPrivateOrLoopback(ip)) {
+				return ip
+			}
+		}
+		return remoteIP
 	}
 
-	// 2) X-Forwarded-For: client, proxy1, proxy2
-	// We typically want the left-most valid IP. If you have multiple proxy layers you control,
-	// this still works as long as your edge proxy preserves the chain.
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		for _, token := range strings.Split(xff, ",") {
-			ip := cleanIPToken(token)
-			if ip == nil {
-				continue
-			}
-			if !cfg.AllowPrivate && isPrivateOrLoopback(ip) {
-				continue
-			}
-			return ip
+	// Walk right-to-left: skip hops that are trusted proxies. The first
+	// untrusted hop is the actual client. Client-injected entries at the
+	// FRONT of the chain are never selected, because the proxy-appended
+	// entry at the back is processed first.
+	for i := len(chain) - 1; i >= 0; i-- {
+		ip := chain[i]
+		if ip == nil {
+			// Malformed entry breaks chain integrity; stop and fall back.
+			break
 		}
-	}
-
-	// 3) X-Real-IP (often set by nginx)
-	if xrip := r.Header.Get("X-Real-IP"); xrip != "" {
-		ip := cleanIPToken(xrip)
-		if ip != nil && (cfg.AllowPrivate || !isPrivateOrLoopback(ip)) {
-			return ip
+		if isTrustedProxy(ip, trusted) {
+			continue
 		}
+		if !cfg.AllowPrivate && isPrivateOrLoopback(ip) {
+			break
+		}
+		return ip
 	}
 
 	// Fallback: TCP peer.

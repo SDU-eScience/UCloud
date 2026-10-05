@@ -1074,15 +1074,14 @@ func filesMoveAndCopyPolicyCheck(sourceDrive orcapi.Drive, destinationDrive orca
 		return nil
 	}
 	policyCache.Mu.RLock()
+	defer policyCache.Mu.RUnlock()
 	policies := policyCache.PoliciesByProject[sourceProject.Value]
-	policyCache.Mu.RUnlock()
 	if specification, ok := policies[fnd.RestrictMoveAndCopy]; ok && specification.IsEnabled() {
 		return util.HttpErr(
 			http.StatusForbidden,
 			"Project policies do not allow files to be moved or copied out of the project.",
 		)
 	}
-	policyCache.Mu.RUnlock()
 
 	return nil
 }

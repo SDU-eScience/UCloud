@@ -57,30 +57,6 @@ func initIngresses() {
 	})
 
 	orcapi.IngressesCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.IngressSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-
-		if info.Actor.Project.Present {
-			policies := policiesByProject(info.Actor.Project.String())
-
-			specification, ok := policies[fndapi.RestrictPublicLinks]
-			if ok {
-				values, ok := specification.GetValues().(fndapi.RestrictPublicLinksValues)
-				if !ok {
-					return fndapi.BulkResponse[fndapi.FindByStringId]{},
-					util.HttpErr(
-						http.StatusInternalServerError,
-						"Misconfigured Policy",
-					)
-				}
-				if values.Enabled {
-					return fndapi.BulkResponse[fndapi.FindByStringId]{},
-						util.HttpErr(
-							http.StatusForbidden,
-							"Project does not allow creation of public links",
-						)
-				}
-			}
-		}
-
 		created, err := IngressCreate(info.Actor, request)
 		if err != nil {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
@@ -230,6 +206,28 @@ func initIngresses() {
 }
 
 func IngressCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.IngressSpecification]) ([]orcapi.Ingress, *util.HttpError) {
+	if actor.Project.Present {
+		policies := policiesByProject(actor.Project.String())
+
+		specification, ok := policies[fndapi.RestrictPublicLinks]
+		if ok {
+			values, ok := specification.GetValues().(fndapi.RestrictPublicLinksValues)
+			if !ok {
+				return nil,
+					util.HttpErr(
+						http.StatusInternalServerError,
+						"Misconfigured Policy",
+					)
+			}
+			if values.Enabled {
+				return nil,
+					util.HttpErr(
+						http.StatusForbidden,
+						"Project does not allow creation of public links",
+					)
+			}
+		}
+	}
 	var created []orcapi.Ingress
 	for _, item := range request.Items {
 		supp, ok := SupportByProduct[orcapi.IngressSupport](ingressType, item.Product)
