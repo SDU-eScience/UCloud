@@ -642,6 +642,7 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 
 		case projectPolicies, ok := <-policyUpdates:
 			if ok {
+				coreutil.ProjectPoliciesInvalidateCache()
 				appendPolicies(projectPolicies, true)
 			}
 		}

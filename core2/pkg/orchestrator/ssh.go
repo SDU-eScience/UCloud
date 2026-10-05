@@ -264,7 +264,7 @@ func SshKeyBrowse(actor rpc.Actor, pagination orcapi.SshKeysBrowseRequest) fndap
 			Key       string
 		}](
 			tx,
-			fmt.Sprintf(`
+			`
 				select id, owner, created_at, title, key
 				from app_orchestrator.ssh_keys
 				where
@@ -274,11 +274,12 @@ func SshKeyBrowse(actor rpc.Actor, pagination orcapi.SshKeysBrowseRequest) fndap
 						or id > :next::bigint
 					)
 				order by id
-				limit %v
-			`, itemsPerPage),
+				limit :limit
+			`,
 			db.Params{
 				"next":  pagination.Next.Sql(),
 				"owner": actor.Username,
+				"limit": itemsPerPage,
 			},
 		)
 
@@ -412,7 +413,7 @@ func SshKeyRetrieveByJob(actor rpc.Actor, jobId string, onlyOwner bool) ([]orcap
 		for _, row := range items {
 			result = append(result, orcapi.SshKey{
 				Id:        strconv.Itoa(row.Id),
-				Owner:     actor.Username,
+				Owner:     row.Owner,
 				CreatedAt: fndapi.Timestamp(row.CreatedAt),
 				Specification: orcapi.SshKeySpecification{
 					Title: row.Title,

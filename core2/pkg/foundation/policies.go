@@ -224,6 +224,13 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 		}
 	}
 
+	// Reject policies which are known to the enum but have no schema document loaded (missing YAML).
+	for _, specification := range request.UpdatedPolicies {
+		if _, ok := policySchemas[specification.GetSpecificationName()]; !ok {
+			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Unknown policy")
+		}
+	}
+
 	// Validate Specification Values
 	for _, specification := range request.UpdatedPolicies {
 		switch specification.GetSpecificationName() {
@@ -371,11 +378,31 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 			}
 		}
 	}
+
+	type persistablePolicy struct {
+		Specification fndapi.Specification
+		Properties    []byte
+	}
+
+	persistable := make([]persistablePolicy, 0, len(request.UpdatedPolicies))
+	for _, specification := range request.UpdatedPolicies {
+		properties, err := json.Marshal(specification.GetValues())
+		if err != nil {
+			log.Warn("Failed to marshal policy %s: %v", specification.GetSpecificationName(), err)
+			continue
+		}
+
+		persistable = append(persistable, persistablePolicy{
+			Specification: specification,
+			Properties:    properties,
+		})
+	}
+
 	if request.DefaultPolicy {
 		if policyGlobals.TestingEnabled {
 			// Tests have no database, keep the setting in memory instead
-			for _, specification := range request.UpdatedPolicies {
-				projectID := string(specification.GetProject())
+			for _, policy := range persistable {
+				projectID := string(policy.Specification.GetProject())
 
 				policies := policyGlobals.TestDefaultPolicySettings[projectID]
 				if policies == nil {
@@ -383,27 +410,14 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 					policyGlobals.TestDefaultPolicySettings[projectID] = policies
 				}
 
-				policies[specification.GetSpecificationName()] = specification
+				policies[policy.Specification.GetSpecificationName()] = policy.Specification
 			}
 
 			return util.Empty{}, nil
 		}
 		db.NewTx0(func(tx *db.Transaction) {
 			b := db.BatchNew(tx)
-			for _, specification := range request.UpdatedPolicies {
-				policyName := specification.GetSpecificationName()
-
-				if _, ok := policySchemas[policyName]; !ok {
-					log.Warn("Unknown Schema: %v ", policyName)
-					continue
-				}
-
-				properties, err := json.Marshal(specification.GetValues())
-				if err != nil {
-					log.Warn("Failed to marshal policy %s: %v", policyName, err)
-					continue
-				}
-
+			for _, policy := range persistable {
 				db.BatchExec(
 					b,
 					`
@@ -425,9 +439,9 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 						modified_at = now()
 					`,
 					db.Params{
-						"project_id":        specification.GetProject(),
-						"policy_name":       policyName,
-						"policy_properties": properties,
+						"project_id":        policy.Specification.GetProject(),
+						"policy_name":       policy.Specification.GetSpecificationName(),
+						"policy_properties": policy.Properties,
 					},
 				)
 			}
@@ -440,20 +454,7 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 	if !policyGlobals.TestingEnabled {
 		db.NewTx0(func(tx *db.Transaction) {
 			b := db.BatchNew(tx)
-			for _, specification := range request.UpdatedPolicies {
-				policyName := specification.GetSpecificationName()
-
-				if _, ok := policySchemas[policyName]; !ok {
-					log.Warn("Unknown Schema: %v ", policyName)
-					continue
-				}
-
-				properties, err := json.Marshal(specification.GetValues())
-				if err != nil {
-					log.Warn("Failed to marshal policy %s: %v", policyName, err)
-					continue
-				}
-
+			for _, policy := range persistable {
 				db.BatchExec(
 					b,
 					`
@@ -475,9 +476,9 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 						modified_at = now()
 					`,
 					db.Params{
-						"project_id":        specification.GetProject(),
-						"policy_name":       policyName,
-						"policy_properties": properties,
+						"project_id":        policy.Specification.GetProject(),
+						"policy_name":       policy.Specification.GetSpecificationName(),
+						"policy_properties": policy.Properties,
 					},
 				)
 			}
@@ -491,8 +492,8 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 	projectPolicies.Mu.Lock()
 	defer projectPolicies.Mu.Unlock()
 
-	for _, specification := range request.UpdatedPolicies {
-		projectID := string(specification.GetProject())
+	for _, policy := range persistable {
+		projectID := string(policy.Specification.GetProject())
 
 		policies := projectPolicies.PoliciesByProject[projectID]
 		if policies == nil {
@@ -502,7 +503,7 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 			projectPolicies.PoliciesByProject[projectID] = policies
 		}
 
-		policies.ConfiguredPolicies[specification.GetSpecificationName()] = specification
+		policies.ConfiguredPolicies[policy.Specification.GetSpecificationName()] = policy.Specification
 	}
 
 	return util.Empty{}, nil

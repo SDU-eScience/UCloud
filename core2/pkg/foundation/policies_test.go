@@ -202,6 +202,43 @@ func TestProjectPolicyEnableDisable(t *testing.T) {
 	assertPolicyEnabled(t, policies, fndapi.RestrictSsh, true)
 }
 
+func TestUpdatePolicyWithoutSchemaIsRejected(t *testing.T) {
+	initPoliciesTest(t)
+
+	const project = "missing-schema-project"
+	admin := policyTestActor("missing-schema-admin", project)
+
+	// Simulate a policy which is known to the enum and the validation switch but whose schema document is
+	// not loaded. Such a policy cannot be persisted to the database.
+	delete(policySchemas, fndapi.RestrictSsh)
+	defer policyPopulateSchemaCache()
+
+	// A policy without a schema must be rejected instead of being applied to the in-memory cache only, which
+	// would produce a state that does not survive a restart.
+	_, err := policiesUpdate(admin, fndapi.PoliciesUpdateRequest{
+		UpdatedPolicies: map[fndapi.PolicyName]fndapi.Specification{
+			fndapi.RestrictSsh: sshSpecification(project, true),
+		},
+	})
+	if err == nil {
+		t.Fatalf("expected policiesUpdate to fail for a policy without a loaded schema")
+	}
+
+	projectPolicies.Mu.RLock()
+	entry, hasEntry := projectPolicies.PoliciesByProject[project]
+	projectPolicies.Mu.RUnlock()
+	if hasEntry {
+		if _, configured := entry.ConfiguredPolicies[fndapi.RestrictSsh]; configured {
+			t.Fatalf("expected the in-memory policy cache to not contain the %v policy", fndapi.RestrictSsh)
+		}
+	}
+
+	// Policies with a loaded schema remain updatable while the broken one is rejected
+	mustUpdatePolicies(t, admin, false, uploadSpecification(project, true))
+	policies := mustRetrievePolicies(t, project)
+	assertPolicyEnabled(t, policies, fndapi.RestrictUploads, true)
+}
+
 func TestDefaultPoliciesAppliedToNewSubproject(t *testing.T) {
 	initPoliciesTest(t)
 

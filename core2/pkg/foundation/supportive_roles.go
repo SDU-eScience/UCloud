@@ -262,6 +262,10 @@ func SupportiveRoleChange(actor rpc.Actor, request fndapi.ProjectSupportiveRoleC
 				"project": projectId,
 			},
 		)
+
+		if dbErr := tx.ConsumeError(); dbErr != nil {
+			err = util.HttpErr(http.StatusInternalServerError, "Failed to transfer the supportive role. Try again later.")
+		}
 	})
 
 	if err != nil {
