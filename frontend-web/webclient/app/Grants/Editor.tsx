@@ -23,8 +23,8 @@ import {fetchAll} from "@/Utilities/PageUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {addStandardInputDialog} from "@/UtilityComponents";
-import {deepEquals, errorMessageOrDefault, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
-import {Box, Button, Checkbox, ExternalLink, Flex, Heading, Icon, Input, Label, Select, TextArea} from "@/ui-components";
+import {deepEquals, errorMessageOrDefault, timestampUnixMs} from "@/UtilityFunctions";
+import {Box, Button, Checkbox, ExternalLink, Flex, Icon, Input, Label, Select, TextArea} from "@/ui-components";
 import {BaseLinkClass} from "@/ui-components/BaseLink";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {IconName} from "@/ui-components/Icon";
@@ -2153,45 +2153,47 @@ export function Editor(): React.ReactNode {
                                     {state.stateDuringEdit && "Grant givers"}
                                 </h3>
                                 <div className={"select-grant-givers"}>
-                                    {state.allocators.map(it =>
-                                        <GrantGiver
-                                            key={it.id}
-                                            projectId={it.id}
-                                            title={it.title}
-                                            description={it.description}
-                                            checked={it.checked}
-                                            onChange={onAllocatorChecked}
-                                            adminOfProjects={state.loadedProjects}
-                                            isEditing={state.stateDuringEdit !== undefined}
-                                            onStateChange={onStateChange}
-                                            replaceApproval={!isReadyToApprove || isViewingHistoricEntry || !state.locked || isClosed ? <>
-                                                {!isViewingHistoricEntry && state.locked && !isClosed && <>
-                                                    <Button onClick={onUnlock} mr={8}>Set allocations (required to
-                                                        approve)</Button>
-                                                </>}
-                                            </> : undefined}
-                                            replaceReject={isViewingHistoricEntry || !state.locked || isClosed ? <>
-                                                {isClosed ?
-                                                    <>This application has been closed.</> :
-                                                    <>
-                                                        {isViewingHistoricEntry &&
-                                                            <>You cannot approve/reject a request while viewing an old
-                                                                version.</>}
-                                                        {!state.locked &&
-                                                            <>You cannot approve/reject while you are editing an
-                                                                application.</>}
-                                                    </>
-                                                }
+                                    {state.allocators.length === 0 ?
+                                        <NoProviders /> :
+                                        state.allocators.map(it =>
+                                            <GrantGiver
+                                                key={it.id}
+                                                projectId={it.id}
+                                                title={it.title}
+                                                description={it.description}
+                                                checked={it.checked}
+                                                onChange={onAllocatorChecked}
+                                                adminOfProjects={state.loadedProjects}
+                                                isEditing={state.stateDuringEdit !== undefined}
+                                                onStateChange={onStateChange}
+                                                replaceApproval={!isReadyToApprove || isViewingHistoricEntry || !state.locked || isClosed ? <>
+                                                    {!isViewingHistoricEntry && state.locked && !isClosed && <>
+                                                        <Button onClick={onUnlock} mr={8}>Set allocations (required to
+                                                            approve)</Button>
+                                                    </>}
+                                                </> : undefined}
+                                                replaceReject={isViewingHistoricEntry || !state.locked || isClosed ? <>
+                                                    {isClosed ?
+                                                        <>This application has been closed.</> :
+                                                        <>
+                                                            {isViewingHistoricEntry &&
+                                                                <>You cannot approve/reject a request while viewing an old
+                                                                    version.</>}
+                                                            {!state.locked &&
+                                                                <>You cannot approve/reject while you are editing an
+                                                                    application.</>}
+                                                        </>
+                                                    }
 
-                                            </> : undefined
-                                            }
-                                            state={state.stateDuringEdit?.stateByGrantGiver[it.id]}
-                                            stateUpdater={state.stateDuringEdit?.stateUpdaterByGrantGiver[it.id]}
-                                            allAllocators={state.allocators}
-                                            transfers={state.possibleTransfers}
-                                            onTransfer={onTransfer}
-                                        />
-                                    )}
+                                                </> : undefined
+                                                }
+                                                state={state.stateDuringEdit?.stateByGrantGiver[it.id]}
+                                                stateUpdater={state.stateDuringEdit?.stateUpdaterByGrantGiver[it.id]}
+                                                allAllocators={state.allocators}
+                                                transfers={state.possibleTransfers}
+                                                onTransfer={onTransfer}
+                                            />
+                                        )}
                                 </div>
 
                                 {state.stateDuringEdit && <>
@@ -3227,10 +3229,6 @@ function getExpirationWarning({end}: {end: number}): string | undefined {
 const GRANT_GIVER_INITIATED_ID = "_GRANT_GIVER_INITIATED_FAKE_ID_";
 
 const grantGiverInitiatedPrefix = "Sub-allocation description";
-const grantGiverInitiatedTemplate = `${grantGiverInitiatedPrefix}
---------------------------------------------------
-
-Describe the reason for creating this sub-allocation (max 4000 ch).`;
 
 const grantGiverInitiatedForm: Grants.AnswerForm = {
     allocatorId: "",
@@ -3247,5 +3245,9 @@ const grantGiverInitiatedForm: Grants.AnswerForm = {
     }],
     templateRevisionNumber: -1,
 };
+
+function NoProviders(): React.ReactNode {
+    return <div className="description">You do not have access to any existing grant providers. If you want to purchase resources, contact support.</div>
+}
 
 export default Editor;
