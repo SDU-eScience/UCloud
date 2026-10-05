@@ -739,6 +739,11 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 					Label: "Upgrade Kubernetes",
 					Icon:  ucx.IconHeroArrowUp,
 				},
+				ucx.ResourceTableAction{
+					Id:    "removeNode",
+					Label: "Remove node",
+					Icon:  ucx.IconTrash,
+				},
 			)
 			trailingAction = &ucx.ResourceTableAction{
 				Id:       "addWorkerPool",
@@ -1031,7 +1036,7 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 		return
 	}
 
-	if actionId != "goToJob" && actionId != "cordonDrain" && actionId != "uncordon" && actionId != "upgradeNode" {
+	if actionId != "goToJob" && actionId != "cordonDrain" && actionId != "uncordon" && actionId != "upgradeNode" && actionId != "removeNode" {
 		return
 	}
 
@@ -1045,8 +1050,11 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 	}
 
 	switch actionId {
-	case "cordonDrain", "upgradeNode":
+	case "cordonDrain", "upgradeNode", "removeNode":
 		if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
+			if actionId == "removeNode" {
+				maintenanceOpenWithMode(app, nodeName, "", maintenanceModeRemove)
+			}
 			return
 		}
 		nodeUid, known := app.nodeUidForName(nodeName)
@@ -1055,6 +1063,8 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 		}
 		if actionId == "upgradeNode" {
 			maintenanceOpenWithMode(app, nodeName, nodeUid, maintenanceModeUpgrade)
+		} else if actionId == "removeNode" {
+			maintenanceOpenWithMode(app, nodeName, nodeUid, maintenanceModeRemove)
 		} else {
 			maintenanceOpen(app, nodeName, nodeUid)
 		}
@@ -1632,7 +1642,7 @@ func (app *stackUiApp) handleTableAction(ev ucx.UiEvent) {
 	}
 
 	switch actionId {
-	case "cordonDrain", "uncordon", "upgradeNode":
+	case "cordonDrain", "uncordon", "upgradeNode", "removeNode":
 		ucxsvc.UiSendFailure(app, "Select a single node before using this action")
 	case "addMachine":
 		if group == "" {

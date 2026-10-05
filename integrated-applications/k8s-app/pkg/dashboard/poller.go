@@ -763,6 +763,13 @@ func resourceRowActions(
 	}
 
 	if provisioningRow {
+		if !maintenanceUnavailable {
+			actions = append(actions, ucx.TableRowAction{
+				Id:             "removeNode",
+				Enabled:        true,
+				DisabledReason: "Removes the node from the cluster",
+			})
+		}
 		return actions
 	}
 	isUpgrade := knownRecorded && maintenance.KindIsUpgrade(operation.Kind)
@@ -815,6 +822,7 @@ func resourceRowActions(
 		} else {
 			actions = append(actions, cordonDrainEnabled)
 		}
+		actions = append(actions, removeNodeEnabled)
 	}
 
 	return actions
@@ -823,6 +831,11 @@ func resourceRowActions(
 var (
 	cordonDrainEnabled = ucx.TableRowAction{Id: "cordonDrain", Enabled: true}
 	uncordonEnabled    = ucx.TableRowAction{Id: "uncordon", Enabled: true}
+	removeNodeEnabled  = ucx.TableRowAction{
+		Id:             "removeNode",
+		Enabled:        true,
+		DisabledReason: "Removes the node from the cluster",
+	}
 )
 
 func maintenanceCellForOperation(operation maintenance.Operation, present bool) string {
@@ -838,6 +851,9 @@ func maintenanceCellForOperation(operation maintenance.Operation, present bool) 
 		}
 		if operation.Kind == maintenance.KindUncordon {
 			return "Uncordoning"
+		}
+		if operation.Kind == maintenance.KindRemove {
+			return "Removing"
 		}
 		return "Draining"
 	}

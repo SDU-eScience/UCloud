@@ -223,27 +223,12 @@ func initIngresses() {
 		return util.Empty{}, nil
 	})
 
-	orcapi.IngressesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[orcapi.IngressesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		if request.JobId == "" {
-			for _, reqItem := range request.Items {
-				err := ResourceUpdateLabels(info.Actor, ingressType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
-				if err != nil {
-					return util.Empty{}, err
-				}
-			}
-
-			return util.Empty{}, nil
-		}
-
-		authorize := controlMutateServe(
-			ingressType,
-			func(item orcapi.IngressesUpdateLabelsRequest) string { return item.Id },
-			func(actor rpc.Actor, items []orcapi.IngressesUpdateLabelsRequest) (util.Empty, *util.HttpError) {
-				return util.Empty{}, IngressUpdateLabels(actor, fndapi.BulkRequestOf(items...))
-			},
-		)
-		return authorize(info, request)
-	})
+	orcapi.IngressesControlUpdateLabels.Handler(controlUpdateLabelsServe(
+		ingressType,
+		func(item orcapi.IngressesUpdateLabelsRequest) string { return item.Id },
+		func(item orcapi.IngressesUpdateLabelsRequest) map[string]string { return item.Labels },
+		IngressUpdateLabels,
+	))
 
 	orcapi.IngressesControlSetTarget.Handler(func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[orcapi.IngressesSetTargetRequest]) (util.Empty, *util.HttpError) {
 		actor, _, stackInstance, err := controlResolveJobActor(info.Actor, request.JobId)
@@ -252,13 +237,13 @@ func initIngresses() {
 		}
 
 		for _, item := range request.Items {
-			err := controlVerifyStackMembership(actor, ingressType, item.Id, stackInstance)
+			_, err := controlVerifyStackMembership(actor, ingressType, item.Id, stackInstance)
 			if err != nil {
 				return util.Empty{}, err
 			}
 
 			if target := item.Target; target.Present {
-				err := controlVerifyStackMembership(actor, serviceType, target.Value.ServiceId, stackInstance)
+				_, err := controlVerifyStackMembership(actor, serviceType, target.Value.ServiceId, stackInstance)
 				if err != nil {
 					return util.Empty{}, err
 				}

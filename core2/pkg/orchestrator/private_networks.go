@@ -171,27 +171,12 @@ func initPrivateNetworks() {
 		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
 	})
 
-	orcapi.PrivateNetworksControlUpdateLabels.Handler(func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[orcapi.PrivateNetworksUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		if request.JobId == "" {
-			for _, reqItem := range request.Items {
-				err := ResourceUpdateLabels(info.Actor, privateNetworkType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
-				if err != nil {
-					return util.Empty{}, err
-				}
-			}
-
-			return util.Empty{}, nil
-		}
-
-		authorize := controlMutateServe(
-			privateNetworkType,
-			func(item orcapi.PrivateNetworksUpdateLabelsRequest) string { return item.Id },
-			func(actor rpc.Actor, items []orcapi.PrivateNetworksUpdateLabelsRequest) (util.Empty, *util.HttpError) {
-				return util.Empty{}, PrivateNetworkUpdateLabels(actor, fndapi.BulkRequestOf(items...))
-			},
-		)
-		return authorize(info, request)
-	})
+	orcapi.PrivateNetworksControlUpdateLabels.Handler(controlUpdateLabelsServe(
+		privateNetworkType,
+		func(item orcapi.PrivateNetworksUpdateLabelsRequest) string { return item.Id },
+		func(item orcapi.PrivateNetworksUpdateLabelsRequest) map[string]string { return item.Labels },
+		PrivateNetworkUpdateLabels,
+	))
 
 	orcapi.PrivateNetworksControlDelete.Handler(controlMutateServe(
 		privateNetworkType,

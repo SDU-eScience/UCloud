@@ -133,7 +133,7 @@ func controlRetrieveJobScoped(
 		return rpc.Actor{}, err
 	}
 
-	err = controlVerifyStackMembership(actor, typeName, id, stackInstance)
+	_, err = controlVerifyStackMembership(actor, typeName, id, stackInstance)
 	if err != nil {
 		return rpc.Actor{}, err
 	}
@@ -141,7 +141,7 @@ func controlRetrieveJobScoped(
 	return actor, nil
 }
 
-func controlVerifyStackMembership(actor rpc.Actor, typeName string, id string, stackInstance string) *util.HttpError {
+func controlVerifyStackMembership(actor rpc.Actor, typeName string, id string, stackInstance string) (orcapi.ResourceSpecification, *util.HttpError) {
 	_, _, spec, err := ResourceRetrieveEx[any](
 		actor,
 		typeName,
@@ -150,14 +150,66 @@ func controlVerifyStackMembership(actor rpc.Actor, typeName string, id string, s
 		orcapi.ResourceFlags{},
 	)
 	if err != nil {
-		return util.HttpErr(http.StatusNotFound, "not found")
+		return orcapi.ResourceSpecification{}, util.HttpErr(http.StatusNotFound, "not found")
 	}
 
 	if spec.Labels[orcapi.ResourceLabelStackInstance] != stackInstance {
-		return util.HttpErr(http.StatusForbidden, "the resource does not belong to the stack of the job")
+		return orcapi.ResourceSpecification{}, util.HttpErr(http.StatusForbidden, "the resource does not belong to the stack of the job")
 	}
 
-	return nil
+	return spec, nil
+}
+
+var controlStackLabelKeys = []string{
+	orcapi.ResourceLabelStack,
+	orcapi.ResourceLabelStackController,
+	orcapi.ResourceLabelStackName,
+	orcapi.ResourceLabelStackInstance,
+}
+
+func controlUpdateLabelsServe[Item any](
+	typeName string,
+	idOf func(Item) string,
+	labelsOf func(Item) map[string]string,
+	update func(rpc.Actor, fndapi.BulkRequest[Item]) *util.HttpError,
+) rpc.ServerHandler[orcapi.ControlMutateRequest[Item], util.Empty] {
+	return func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[Item]) (util.Empty, *util.HttpError) {
+		if strings.TrimSpace(request.JobId) == "" {
+			for _, item := range request.Items {
+				err := ResourceUpdateLabels(info.Actor, typeName, idOf(item), labelsOf(item), orcapi.PermissionProvider)
+				if err != nil {
+					return util.Empty{}, err
+				}
+			}
+
+			return util.Empty{}, nil
+		}
+
+		actor, _, stackInstance, err := controlResolveJobActor(info.Actor, request.JobId)
+		if err != nil {
+			return util.Empty{}, err
+		}
+
+		for _, item := range request.Items {
+			spec, err := controlVerifyStackMembership(actor, typeName, idOf(item), stackInstance)
+			if err != nil {
+				return util.Empty{}, err
+			}
+
+			normalized, err := ResourceValidateLabels(labelsOf(item))
+			if err != nil {
+				return util.Empty{}, err
+			}
+
+			for _, key := range controlStackLabelKeys {
+				if spec.Labels[key] != normalized[key] {
+					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "the stack labels of a resource cannot be changed")
+				}
+			}
+		}
+
+		return util.Empty{}, update(actor, fndapi.BulkRequestOf(request.Items...))
+	}
 }
 
 func controlMutateServe[Item any, Resp any](
@@ -174,7 +226,7 @@ func controlMutateServe[Item any, Resp any](
 		}
 
 		for _, item := range request.Items {
-			err := controlVerifyStackMembership(actor, typeName, idOf(item), stackInstance)
+			_, err := controlVerifyStackMembership(actor, typeName, idOf(item), stackInstance)
 			if err != nil {
 				return zero, err
 			}

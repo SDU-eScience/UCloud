@@ -175,3 +175,34 @@ func RpcGrantBrowseJobs(client *rpc.Client, token string) ([]orcapi.Job, error) 
 		}, rpc.InvokeOpts{})
 	})
 }
+
+func RpcGrantRetrieveJob(client RpcGrantClient, jobId string) (orcapi.Job, bool, *util.HttpError) {
+	job, herr := ucxapi.StackControlRetrieveJob.InvokeEx(client.Rpc, ucxapi.StackControlRequestOf[orcapi.JobsControlRetrieveRequest]{
+		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: client.Token},
+		Request:             orcapi.JobsControlRetrieveRequest{Id: jobId},
+	}, rpc.InvokeOpts{})
+	if herr != nil {
+		return orcapi.Job{}, false, herr
+	}
+	return job, true, nil
+}
+
+func RpcGrantTerminateJob(client RpcGrantClient, jobId string) *util.HttpError {
+	_, herr := ucxapi.StackControlTerminateJobs.InvokeEx(client.Rpc, ucxapi.StackControlRequestOf[orcapi.ControlMutateRequest[fnd.FindByStringId]]{
+		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: client.Token},
+		Request: orcapi.ControlMutateRequest[fnd.FindByStringId]{
+			Items: []fnd.FindByStringId{{Id: jobId}},
+		},
+	}, rpc.InvokeOpts{})
+	return herr
+}
+
+func RpcGrantDeletePrivateNetworkIp(client RpcGrantClient, reservationId string) *util.HttpError {
+	_, herr := ucxapi.StackControlDeletePrivateNetworkIp.InvokeEx(client.Rpc, ucxapi.StackControlRequestOf[orcapi.ControlMutateRequest[fnd.FindByStringId]]{
+		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: client.Token},
+		Request: orcapi.ControlMutateRequest[fnd.FindByStringId]{
+			Items: []fnd.FindByStringId{{Id: reservationId}},
+		},
+	}, rpc.InvokeOpts{})
+	return herr
+}

@@ -332,7 +332,7 @@ func ucxOnConnect(conn *ws.Conn) {
 		}
 
 		job, ok := ctrl.JobRetrieve(jobId)
-		if !ok || !stackControlControlPlaneJobValid(job) {
+		if !ok || !stackControlJobValid(job) {
 			return ucxapi.StackControlTokenResponse{}, fmt.Errorf("invalid job")
 		}
 
@@ -439,7 +439,7 @@ func ucxOnConnectJob(conn *ws.Conn) {
 	ucxapi.StackControlToken.HandlerProxy(proxy, func(_ context.Context, request ucxapi.StackControlTokenRequest) (ucxapi.StackControlTokenResponse, error) {
 		callerJobId := strings.TrimSpace(info.Job.Id)
 		callerJob, ok := ctrl.JobRetrieve(callerJobId)
-		if !ok || callerJob.Id != callerJobId || !stackControlControlPlaneJobValid(callerJob) {
+		if !ok || callerJob.Id != callerJobId || !stackControlJobValid(callerJob) {
 			return ucxapi.StackControlTokenResponse{}, fmt.Errorf("invalid control plane caller")
 		}
 

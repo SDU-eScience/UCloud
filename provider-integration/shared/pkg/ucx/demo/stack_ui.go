@@ -37,7 +37,7 @@ type stackUiApp struct {
 	Machine   accapi.ProductReference
 }
 
-const stackGroupingLabel = "ucloud.dk/k8s-node-group"
+const stackGroupingLabel = "ucloud.dk/demo-node-group"
 const stackConfigurationFileName = "configuration.yaml"
 
 func (app *stackUiApp) Mutex() *sync.Mutex     { return &app.mu }

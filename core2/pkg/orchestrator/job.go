@@ -906,26 +906,12 @@ func initJobs() {
 		return util.Empty{}, JobsUpdateLabelsBulk(info.Actor, request)
 	})
 
-	orcapi.JobsControlUpdateLabels.Handler(func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[orcapi.JobsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		if request.JobId == "" {
-			for _, reqItem := range request.Items {
-				err := ResourceUpdateLabels(info.Actor, jobType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
-				if err != nil {
-					return util.Empty{}, err
-				}
-			}
-			return util.Empty{}, nil
-		}
-
-		authorize := controlMutateServe(
-			jobType,
-			func(item orcapi.JobsUpdateLabelsRequest) string { return item.Id },
-			func(actor rpc.Actor, items []orcapi.JobsUpdateLabelsRequest) (util.Empty, *util.HttpError) {
-				return util.Empty{}, JobsUpdateLabelsBulk(actor, fndapi.BulkRequestOf(items...))
-			},
-		)
-		return authorize(info, request)
-	})
+	orcapi.JobsControlUpdateLabels.Handler(controlUpdateLabelsServe(
+		jobType,
+		func(item orcapi.JobsUpdateLabelsRequest) string { return item.Id },
+		func(item orcapi.JobsUpdateLabelsRequest) map[string]string { return item.Labels },
+		JobsUpdateLabelsBulk,
+	))
 
 	orcapi.JobsControlTerminate.Handler(controlMutateServe(
 		jobType,

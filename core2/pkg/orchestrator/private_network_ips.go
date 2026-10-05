@@ -264,27 +264,12 @@ func initPrivateNetworkIps() {
 		return util.Empty{}, nil
 	})
 
-	orcapi.PrivateNetworkIpsControlUpdateLabels.Handler(func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[orcapi.PrivateNetworkIpsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		if request.JobId == "" {
-			for _, reqItem := range request.Items {
-				err := ResourceUpdateLabels(info.Actor, privateNetworkIpType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
-				if err != nil {
-					return util.Empty{}, err
-				}
-			}
-
-			return util.Empty{}, nil
-		}
-
-		authorize := controlMutateServe(
-			privateNetworkIpType,
-			func(item orcapi.PrivateNetworkIpsUpdateLabelsRequest) string { return item.Id },
-			func(actor rpc.Actor, items []orcapi.PrivateNetworkIpsUpdateLabelsRequest) (util.Empty, *util.HttpError) {
-				return util.Empty{}, PrivateNetworkIpUpdateLabels(actor, fndapi.BulkRequestOf(items...))
-			},
-		)
-		return authorize(info, request)
-	})
+	orcapi.PrivateNetworkIpsControlUpdateLabels.Handler(controlUpdateLabelsServe(
+		privateNetworkIpType,
+		func(item orcapi.PrivateNetworkIpsUpdateLabelsRequest) string { return item.Id },
+		func(item orcapi.PrivateNetworkIpsUpdateLabelsRequest) map[string]string { return item.Labels },
+		PrivateNetworkIpUpdateLabels,
+	))
 
 	orcapi.PrivateNetworkIpsControlDelete.Handler(controlMutateServe(
 		privateNetworkIpType,

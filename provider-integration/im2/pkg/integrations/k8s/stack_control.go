@@ -21,9 +21,6 @@ import (
 
 const stackControlTokenPrefix = "sgr-"
 
-const stackControlControlPlaneGroup = "control-plane"
-const stackControlControlPlaneGroupLabel = "ucloud.dk/k8s-node-group"
-
 type stackControlTokenRow struct {
 	JobId          string
 	StackInstance  string
@@ -89,7 +86,7 @@ func stackControlForbidden() *util.HttpError {
 	return util.HttpErr(http.StatusForbidden, "forbidden")
 }
 
-func stackControlControlPlaneJobValid(job *orc.Job) bool {
+func stackControlJobValid(job *orc.Job) bool {
 	if job == nil || strings.TrimSpace(job.Id) == "" || job.Status.State.IsFinal() {
 		return false
 	}
@@ -99,7 +96,7 @@ func stackControlControlPlaneJobValid(job *orc.Job) bool {
 	if job.Specification.Product.Provider != cfg.Provider.Id {
 		return false
 	}
-	return job.Specification.Labels[stackControlControlPlaneGroupLabel] == stackControlControlPlaneGroup
+	return strings.EqualFold(job.Specification.Labels[orc.ResourceLabelStackController], "true")
 }
 
 func stackControlOwnerScopeMatches(left orc.ResourceOwner, right orc.ResourceOwner) bool {
@@ -126,7 +123,7 @@ func stackControlTokenIssue(jobId string, stackInstance string, owner orc.Resour
 	}
 
 	job, ok := controller.JobRetrieve(jobId)
-	if !ok || !stackControlControlPlaneJobValid(job) {
+	if !ok || !stackControlJobValid(job) {
 		return "", fmt.Errorf("invalid control plane job")
 	}
 	if strings.TrimSpace(job.Specification.Labels[orc.ResourceLabelStackInstance]) != stackInstance {
@@ -144,7 +141,7 @@ func stackControlTokenIssue(jobId string, stackInstance string, owner orc.Resour
 }
 
 func stackControlJobMatches(job *orc.Job, row *stackControlTokenRow) bool {
-	if !stackControlControlPlaneJobValid(job) {
+	if !stackControlJobValid(job) {
 		return false
 	}
 

@@ -44,7 +44,7 @@ const NodeAgentTokenHeader = "X-Ucloud-Maintenance-Token"
 
 const NodeAgentOperationHeader = "X-Ucloud-Maintenance-Operation"
 
-const nodeAgentCoordinatorTokensDir = "/etc/ucloud-k8s/management/maintenance-tokens"
+const NodeAgentCoordinatorTokensDir = "/etc/ucloud-k8s/management/maintenance-tokens"
 
 type NodeAgentStatus struct {
 	NodeName  string    `json:"nodeName"`
@@ -227,7 +227,7 @@ func nodeAgentClientCall(ctx context.Context, method string, url string, body st
 }
 
 func nodeAgentCoordinatorToken(nodeName string) (string, error) {
-	path := filepath.Join(nodeAgentCoordinatorTokensDir, SanitizeForPath(nodeName))
+	path := filepath.Join(NodeAgentCoordinatorTokensDir, SanitizeForPath(nodeName))
 
 	data, err := os.ReadFile(path)
 	if err != nil {

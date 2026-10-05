@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -27,6 +28,11 @@ func namespacedName(namespace string, name string) string {
 		return name
 	}
 	return fmt.Sprintf("%s/%s", namespace, name)
+}
+
+func localHostname() string {
+	hostname, _ := os.Hostname()
+	return hostname
 }
 
 // Worker state
@@ -140,7 +146,7 @@ func (worker *nodeWorker) checkpoint() (Operation, bool) {
 	if !PhaseActive(operation.Phase) {
 		return Operation{}, false
 	}
-	if operation.CancelRequested {
+	if operation.CancelRequested && !removePastPointOfNoReturn(operation) {
 		finish(worker, PhaseCancelled, cancelMessage(operation))
 		return Operation{}, false
 	}
@@ -203,6 +209,10 @@ func sweep(ctx context.Context, kubeconfigPath string) {
 		}
 
 		if !operationStale(operation, time.Now()) {
+			continue
+		}
+
+		if operation.Kind == KindRemove && operation.NodeName == localHostname() {
 			continue
 		}
 
@@ -288,6 +298,8 @@ func runOperation(
 		}
 	case KindUpgrade:
 		runErr = runUpgrade(workerCtx, clientset, current, worker)
+	case KindRemove:
+		runErr = runRemove(workerCtx, clientset, current, worker)
 	default:
 		runErr = fmt.Errorf("the operation kind %s is not supported", current.Kind)
 	}
@@ -305,6 +317,12 @@ func runOperation(
 func cancelMessage(operation Operation) string {
 	if operation.Kind == KindUncordon {
 		return "cancelled by request"
+	}
+	if operation.Kind == KindRemove {
+		if operation.NodeDeleted {
+			return "cancelled by request. The Kubernetes node was already deleted and the removal must be retried"
+		}
+		return "cancelled by request. The node remains part of the cluster"
 	}
 	if KindIsUpgrade(operation.Kind) && !UpgradeCordons(operation) {
 		return "cancelled by request"

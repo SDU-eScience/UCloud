@@ -61,6 +61,7 @@ const (
 	KindCordon      = "cordon"
 	KindUncordon    = "uncordon"
 	KindUpgrade     = "upgrade"
+	KindRemove      = "remove"
 
 	PhasePending   = "Pending"
 	PhaseRunning   = "Running"
@@ -124,6 +125,8 @@ type Operation struct {
 	SuspendedJobIds            []string  `json:"suspendedJobIds,omitempty"`
 	LogStage                   string    `json:"logStage,omitempty"`
 	LogStageUpdatedAt          time.Time `json:"logStageUpdatedAt"`
+	NodeDeleted                bool      `json:"nodeDeleted"`
+	ResourcesRemoved           bool      `json:"resourcesRemoved"`
 }
 
 func operationStale(operation Operation, now time.Time) bool {
@@ -162,6 +165,13 @@ func UpgradeStart(nodeName string, nodeUid string, release string, options Optio
 	return submitStart(nodeName, nodeUid, KindUpgrade, options, release)
 }
 
+func RemoveStart(nodeName string, nodeUid string, options Options) error {
+	if err := removeSubmitGuard(nodeName); err != nil {
+		return err
+	}
+	return submitStart(nodeName, nodeUid, KindRemove, options, "")
+}
+
 func CancelActiveOperation(nodeName string) error {
 	nodeName = strings.TrimSpace(nodeName)
 	if nodeName == "" {
@@ -187,6 +197,9 @@ func CancelActiveOperation(nodeName string) error {
 	}
 	if KindIsUpgrade(operation.Kind) && operation.ExecutorSubmitted {
 		return errors.New("the upgrade was submitted to the node and cannot be cancelled")
+	}
+	if removePastPointOfNoReturn(operation) {
+		return errors.New("the node removal passed the point of no return and cannot be cancelled")
 	}
 	if operation.CancelRequested {
 		return nil
@@ -224,6 +237,9 @@ func CancelActiveOperation(nodeName string) error {
 		}
 		if KindIsUpgrade(record.Operation.Kind) && record.Operation.ExecutorSubmitted {
 			return errors.New("the upgrade was submitted to the node and cannot be cancelled")
+		}
+		if removePastPointOfNoReturn(record.Operation) {
+			return errors.New("the node removal passed the point of no return and cannot be cancelled")
 		}
 
 		operation = record.Operation
@@ -300,7 +316,7 @@ func submitStart(
 	if nodeName == "" {
 		return errors.New("no node name was provided")
 	}
-	if nodeUid == "" {
+	if nodeUid == "" && kind != KindRemove {
 		return errors.New("no node uid was provided")
 	}
 	if KindIsUpgrade(kind) {
@@ -337,7 +353,7 @@ func submitValid(submit submission, existing Operation, exists bool) error {
 		return fmt.Errorf("an operation is already active for node %s", submit.nodeName)
 	}
 
-	if upgradeBlockedByRecovery(existing) && submit.kind != KindUncordon {
+	if upgradeBlockedByRecovery(existing) && submit.kind != KindUncordon && submit.kind != KindRemove {
 		if !KindIsUpgrade(submit.kind) {
 			return fmt.Errorf(
 				"node %s requires upgrade recovery before a new operation can start. Retry the upgrade or uncordon the node",
@@ -357,7 +373,7 @@ func submitValid(submit submission, existing Operation, exists bool) error {
 		}
 	}
 
-	if existing.HostTerminationUnverified {
+	if existing.HostTerminationUnverified && submit.kind != KindRemove {
 		return fmt.Errorf(
 			"node %s has unverified host terminations from a previous force delete and cannot be maintained",
 			submit.nodeName,
@@ -398,6 +414,12 @@ func submitRecord(submit submission, existing Operation) Operation {
 			operation.OriginalUnschedulable = existing.OriginalUnschedulable
 			operation.OriginalSchedulingCaptured = existing.OriginalSchedulingCaptured
 		}
+	}
+
+	if submit.kind == KindRemove && existing.Kind == KindRemove {
+		operation.NodeDeleted = existing.NodeDeleted
+		operation.ResourcesRemoved = existing.ResourcesRemoved
+		operation.SuspendedJobIds = append([]string(nil), existing.SuspendedJobIds...)
 	}
 
 	return operation
@@ -473,6 +495,69 @@ func clusterReadyGuard() error {
 		return fmt.Errorf("the cluster is not ready for maintenance (state: %s)", record.Phase)
 	}
 	return nil
+}
+
+func removeSubmitGuard(nodeName string) error {
+	record, err := readClusterRecord()
+	if err != nil {
+		return fmt.Errorf("could not read the cluster record: %s", err)
+	}
+	if record.Phase != "created" {
+		return fmt.Errorf("the cluster is not ready for maintenance (state: %s)", record.Phase)
+	}
+
+	client, clientErr := stackClientNew()
+	if clientErr != nil {
+		return fmt.Errorf("could not read the maintenance state: %s", clientErr)
+	}
+
+	existingRecord, readErr := stackRead(client, stackNodeKey(nodeName))
+	if readErr != nil {
+		return fmt.Errorf("could not read the maintenance state: %s", readErr)
+	}
+
+	removeRetry := existingRecord.Found && existingRecord.Operation.NodeName != "" &&
+		existingRecord.Operation.Kind == KindRemove && !PhaseActive(existingRecord.Operation.Phase)
+
+	node, known := removeNodeRecord(record, nodeName)
+	if !known && !removeRetry {
+		return fmt.Errorf("the node %s is not part of this cluster", nodeName)
+	}
+
+	if known && node.Group == shared.GroupControlPlane {
+		controlPlanes := controlPlaneNames(record)
+		remaining := len(controlPlanes) - 1
+		if remaining < 2 {
+			return errors.New(
+				"the control plane must keep at least two nodes for the etcd quorum, so this node cannot be removed",
+			)
+		}
+	}
+
+	snapshot, err := Snapshot()
+	if err != nil {
+		return fmt.Errorf("could not read the maintenance state: %s", err)
+	}
+
+	for otherName, other := range snapshot {
+		if otherName == nodeName {
+			continue
+		}
+		if other.Kind == KindRemove && PhaseActive(other.Phase) {
+			return errors.New("another node is already being removed")
+		}
+	}
+
+	return nil
+}
+
+func removeNodeRecord(record shared.ClusterRecord, nodeName string) (shared.ClusterNodeRecord, bool) {
+	for _, node := range record.Nodes {
+		if node.Hostname == nodeName {
+			return node, true
+		}
+	}
+	return shared.ClusterNodeRecord{}, false
 }
 
 func readClusterRecord() (shared.ClusterRecord, error) {

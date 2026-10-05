@@ -1105,6 +1105,15 @@ func Markdown(text string) UiNode {
 	}
 }
 
+func Warning(text string) UiNode {
+	return UiNode{
+		Component: "warning",
+		Props: map[string]Value{
+			"text": VString(text),
+		},
+	}
+}
+
 func MarkdownBound(bindPath string) UiNode {
 	return UiNode{
 		Component: "markdown",

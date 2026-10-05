@@ -214,27 +214,12 @@ func initPublicIps() {
 		return util.Empty{}, nil
 	})
 
-	orcapi.PublicIpsControlUpdateLabels.Handler(func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[orcapi.PublicIpsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		if request.JobId == "" {
-			for _, reqItem := range request.Items {
-				err := ResourceUpdateLabels(info.Actor, publicIpType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
-				if err != nil {
-					return util.Empty{}, err
-				}
-			}
-
-			return util.Empty{}, nil
-		}
-
-		authorize := controlMutateServe(
-			publicIpType,
-			func(item orcapi.PublicIpsUpdateLabelsRequest) string { return item.Id },
-			func(actor rpc.Actor, items []orcapi.PublicIpsUpdateLabelsRequest) (util.Empty, *util.HttpError) {
-				return util.Empty{}, PublicIpUpdateLabels(actor, fndapi.BulkRequestOf(items...))
-			},
-		)
-		return authorize(info, request)
-	})
+	orcapi.PublicIpsControlUpdateLabels.Handler(controlUpdateLabelsServe(
+		publicIpType,
+		func(item orcapi.PublicIpsUpdateLabelsRequest) string { return item.Id },
+		func(item orcapi.PublicIpsUpdateLabelsRequest) map[string]string { return item.Labels },
+		PublicIpUpdateLabels,
+	))
 
 	orcapi.PublicIpsControlDelete.Handler(controlMutateServe(
 		publicIpType,

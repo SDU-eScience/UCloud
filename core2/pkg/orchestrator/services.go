@@ -177,22 +177,12 @@ func initServices() {
 		return util.Empty{}, nil
 	})
 
-	orcapi.ServicesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[orcapi.ServicesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		if request.JobId == "" {
-			return util.Empty{}, serviceEach(info.Actor, request.Items, func(actor rpc.Actor, reqItem orcapi.ServicesUpdateLabelsRequest) *util.HttpError {
-				return ResourceUpdateLabels(actor, serviceType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
-			})
-		}
-
-		authorize := controlMutateServe(
-			serviceType,
-			func(item orcapi.ServicesUpdateLabelsRequest) string { return item.Id },
-			func(actor rpc.Actor, items []orcapi.ServicesUpdateLabelsRequest) (util.Empty, *util.HttpError) {
-				return util.Empty{}, ServiceUpdateLabels(actor, fndapi.BulkRequestOf(items...))
-			},
-		)
-		return authorize(info, request)
-	})
+	orcapi.ServicesControlUpdateLabels.Handler(controlUpdateLabelsServe(
+		serviceType,
+		func(item orcapi.ServicesUpdateLabelsRequest) string { return item.Id },
+		func(item orcapi.ServicesUpdateLabelsRequest) map[string]string { return item.Labels },
+		ServiceUpdateLabels,
+	))
 
 	orcapi.ServicesControlDelete.Handler(controlMutateServe(
 		serviceType,

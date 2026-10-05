@@ -54,6 +54,7 @@ const (
 	launcherPath        = bundleMountPath + "/launcher.sh"
 
 	ManagementMountPath = managementMountPath
+	NodesMountPath      = nodesMountPath
 )
 
 const (
@@ -532,6 +533,7 @@ func clusterControlPlaneWiring(
 	)
 
 	labels = util.MapMerge(labels, customUi.Labels)
+	labels[orcapi.ResourceLabelStackController] = "true"
 
 	initScript := Script("launcher.sh") + "\n" + customUi.InitScript
 	initLabels := ucxsvc.StackWriteInitScriptAt(stack, initScript, inputDirFor(allocationId), inputMountPath)
@@ -770,10 +772,7 @@ func clusterWriteNodeInput(stack *ucxsvc.Stack, record *ClusterRecord, release K
 	firstServer := opts.group == GroupControlPlane && opts.allocationId == 1
 	ipAddress := NodeIpForAllocation(opts.allocationId)
 
-	serverUrl := fmt.Sprintf("https://%s:%d", NodeIpForAllocation(1), ApiPort)
-	if record.ServiceDnsName != "" {
-		serverUrl = fmt.Sprintf("https://%s:%d", record.ServiceDnsName, ApiPort)
-	}
+	serverUrl := fmt.Sprintf("https://%s:%d", record.ServiceDnsName, ApiPort)
 
 	nodeJson := map[string]any{
 		"role":        opts.group,
@@ -814,6 +813,10 @@ func clusterWriteNodeInput(stack *ucxsvc.Stack, record *ClusterRecord, release K
 
 func inputDirFor(allocationId int) string {
 	return filepath.Join(nodesDir, strconv.Itoa(allocationId), "input")
+}
+
+func NodeDirForAllocation(allocationId int) string {
+	return filepath.Join(nodesMountPath, strconv.Itoa(allocationId))
 }
 
 func ClusterNodeHostname(group string, allocationId int) string {
