@@ -316,10 +316,6 @@ func submitStart(
 	if nodeName == "" {
 		return errors.New("no node name was provided")
 	}
-	rollingErr := rollingUpgradeNodeGuard(nodeName)
-	if rollingErr != nil {
-		return rollingErr
-	}
 	if nodeUid == "" && kind != KindRemove {
 		return errors.New("no node uid was provided")
 	}
@@ -434,6 +430,10 @@ func submitWrite(submit submission) error {
 	if err != nil {
 		return err
 	}
+	rollingCondition, rollingErr := rollingUpgradeNodeGuard(client, submit.nodeName)
+	if rollingErr != nil {
+		return rollingErr
+	}
 
 	record, readErr := stackRead(client, stackNodeKey(submit.nodeName))
 	if readErr != nil {
@@ -459,7 +459,15 @@ func submitWrite(submit submission) error {
 		expectedRevision = record.Revision
 	}
 
-	_, writeErr := stackWrite(client, stackNodeKey(submit.nodeName), value, expectedRevision)
+	_, writeErr := shared.RpcGrantStateWriteChecked(
+		client,
+		stackNodeKey(submit.nodeName),
+		value,
+		expectedRevision,
+		[]ucxapi.StackStateRevisionCondition{rollingCondition},
+		nil,
+		util.OptNone[int64](),
+	)
 	if writeErr != nil {
 		return writeErr
 	}

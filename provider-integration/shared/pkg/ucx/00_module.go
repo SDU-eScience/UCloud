@@ -129,6 +129,7 @@ const (
 	UiEventBlur     UiEventType = "blur"
 	UiEventActivate UiEventType = "activate"
 	UiEventClose    UiEventType = "close"
+	UiEventSave     UiEventType = "save"
 )
 
 type UiEvent struct {

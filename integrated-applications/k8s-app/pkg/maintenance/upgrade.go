@@ -651,59 +651,68 @@ func upgradeComplete(
 		}
 	}
 
-	recordErr := upgradeRecordDesiredVersion(operation, worker)
-	if recordErr != nil {
-		log.Warn("k8s-app maintenance %s: could not record the desired version of the node: %s", nodeName, recordErr)
-		if !waitInterruptible(worker, apiRetryDelay) {
+	for {
+		current, ok := worker.checkpoint()
+		if !ok {
 			return
 		}
-	}
-
-	trafficErr := upgradeRestoreTraffic(operation, worker)
-	if trafficErr != nil {
-		log.Warn("k8s-app maintenance %s: could not restore traffic after the upgrade: %s", nodeName, trafficErr)
-		if !waitInterruptible(worker, apiRetryDelay) {
-			return
-		}
-	}
-
-	if operation.OriginalUnschedulable {
-		log.Info(
-			"k8s-app maintenance %s: the node remains cordoned because it was cordoned before the upgrade",
-			nodeName,
-		)
-		upgradeFinish(operation, worker)
-		return
-	}
-
-	if !UpgradeCordons(operation) {
-		upgradeFinish(operation, worker)
-		return
-	}
-
-	node, err := upgradeGetNode(worker.ctx, worker, operation, clientset)
-	if err != nil {
-		log.Warn("k8s-app maintenance %s: could not read the node after the upgrade: %s", nodeName, err)
-		if !waitInterruptible(worker, apiRetryDelay) {
-			return
-		}
-		upgradeFinish(operation, worker)
-		return
-	}
-
-	if node.Spec.Unschedulable {
-		_, patchErr := patchUnschedulable(worker.ctx, clientset, node, false)
-		if patchErr != nil {
-			log.Warn("k8s-app maintenance %s: could not uncordon the node: %s", nodeName, patchErr)
+		operation = current
+		recordErr := upgradeRecordDesiredVersion(operation, worker)
+		if recordErr != nil {
+			log.Warn("k8s-app maintenance %s: could not record the desired version of the node: %s", nodeName, recordErr)
 			if !waitInterruptible(worker, apiRetryDelay) {
 				return
 			}
-		} else {
+			continue
+		}
+
+		trafficErr := upgradeRestoreTraffic(operation, worker)
+		if trafficErr != nil {
+			log.Warn("k8s-app maintenance %s: could not restore traffic after the upgrade: %s", nodeName, trafficErr)
+			if !waitInterruptible(worker, apiRetryDelay) {
+				return
+			}
+			continue
+		}
+
+		if operation.OriginalUnschedulable {
+			log.Info(
+				"k8s-app maintenance %s: the node remains cordoned because it was cordoned before the upgrade",
+				nodeName,
+			)
+			upgradeFinish(operation, worker)
+			return
+		}
+
+		if !UpgradeCordons(operation) {
+			upgradeFinish(operation, worker)
+			return
+		}
+
+		node, err := upgradeGetNode(worker.ctx, worker, operation, clientset)
+		if err != nil {
+			log.Warn("k8s-app maintenance %s: could not read the node after the upgrade: %s", nodeName, err)
+			if !waitInterruptible(worker, apiRetryDelay) {
+				return
+			}
+			continue
+		}
+
+		if node.Spec.Unschedulable {
+			_, patchErr := patchUnschedulable(worker.ctx, clientset, node, false)
+			if patchErr != nil {
+				log.Warn("k8s-app maintenance %s: could not uncordon the node: %s", nodeName, patchErr)
+				if !waitInterruptible(worker, apiRetryDelay) {
+					return
+				}
+				continue
+			}
 			operationLogLines(worker, fmt.Sprintf("The node %s was uncordoned. It accepts workloads again", nodeName))
 		}
-	}
 
-	upgradeFinish(operation, worker)
+		upgradeFinish(operation, worker)
+		return
+	}
 }
 
 func upgradeGetNode(
@@ -1088,17 +1097,6 @@ func upgradeRestoreTraffic(operation Operation, worker *nodeWorker) error {
 		return err
 	}
 
-	persistErr := worker.mutate(func(op *Operation) bool {
-		if len(op.SuspendedJobIds) == 0 {
-			return false
-		}
-		op.SuspendedJobIds = nil
-		return true
-	})
-	if persistErr != nil {
-		return persistErr
-	}
-
 	if !restored && len(operation.SuspendedJobIds) == 0 {
 		return nil
 	}
@@ -1110,6 +1108,16 @@ func upgradeRestoreTraffic(operation Operation, worker *nodeWorker) error {
 
 	if addErr := trafficMoveMember(worker, jobId, false); addErr != nil {
 		return addErr
+	}
+	persistErr := worker.mutate(func(op *Operation) bool {
+		if len(op.SuspendedJobIds) == 0 {
+			return false
+		}
+		op.SuspendedJobIds = nil
+		return true
+	})
+	if persistErr != nil {
+		return persistErr
 	}
 
 	log.Info(

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -13,6 +14,8 @@ import (
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
+	"ucloud.dk/shared/pkg/util"
 )
 
 const rollingUpgradeKey = "maintenance/rolling-upgrade"
@@ -61,13 +64,23 @@ func RollingUpgradeSnapshot() (RollingUpgrade, error) {
 }
 
 func rollingUpgradeWrite(client stackClient, upgrade RollingUpgrade, revision int64) error {
+	_, err := rollingUpgradeWriteChecked(client, upgrade, revision, nil, util.OptNone[int64]())
+	return err
+}
+
+func rollingUpgradeWriteChecked(
+	client stackClient,
+	upgrade RollingUpgrade,
+	revision int64,
+	conditions []ucxapi.StackStateRevisionCondition,
+	validUntil util.Option[int64],
+) (int64, error) {
 	upgrade.UpdatedAt = time.Now().UTC()
 	value, err := json.Marshal(upgrade)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	_, err = stackWrite(client, rollingUpgradeKey, value, revision)
-	return err
+	return shared.RpcGrantStateWriteChecked(client, rollingUpgradeKey, value, revision, conditions, nil, validUntil)
 }
 
 func RollingUpgradeStart(ctx context.Context, kubeconfigPath string, release string, groups map[string]Options) error {
@@ -105,6 +118,10 @@ func RollingUpgradeStart(ctx context.Context, kubeconfigPath string, release str
 	if err != nil {
 		return err
 	}
+	operations, err := rollingUpgradeNodeRecords(ctx, client)
+	if err != nil {
+		return err
+	}
 	upgrade := RollingUpgrade{
 		Uid:           newOperationUid(),
 		TargetRelease: release,
@@ -124,10 +141,7 @@ func RollingUpgradeStart(ctx context.Context, kubeconfigPath string, release str
 		if options.ForceDelete {
 			return errors.New("force delete cannot be used with rolling upgrades")
 		}
-		operation, readErr := stackRead(client, stackNodeKey(recorded.Hostname))
-		if readErr != nil {
-			return readErr
-		}
+		operation := operations[recorded.Hostname]
 		if PhaseActive(operation.Operation.Phase) || upgradeBlockedByRecovery(operation.Operation) || operation.Operation.HostTerminationUnverified {
 			return fmt.Errorf("node %s has active maintenance or requires recovery", recorded.Hostname)
 		}
@@ -160,26 +174,129 @@ func RollingUpgradeStart(ctx context.Context, kubeconfigPath string, release str
 		}
 		upgrade.Nodes = append(upgrade.Nodes, node)
 	}
-	return rollingUpgradeWrite(client, upgrade, revision)
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	conditions := rollingUpgradeNodeConditions(upgrade, operations, "")
+	_, err = rollingUpgradeWriteChecked(client, upgrade, revision, conditions, util.OptNone[int64]())
+	return err
 }
 
-func rollingUpgradeNodeGuard(nodeName string) error {
-	upgrade, err := RollingUpgradeSnapshot()
+func rollingUpgradeNodeGuard(client stackClient, nodeName string) (ucxapi.StackStateRevisionCondition, error) {
+	upgrade, revision, err := rollingUpgradeRead(client)
+	condition := ucxapi.StackStateRevisionCondition{
+		Key:              rollingUpgradeKey,
+		ExpectedRevision: revision,
+	}
 	if err != nil {
-		return err
+		return condition, err
 	}
 	if !PhaseActive(upgrade.Phase) {
-		return nil
+		return condition, nil
 	}
 	for _, node := range upgrade.Nodes {
 		if node.Name == nodeName {
-			return errors.New("a rolling upgrade is active; wait for it to finish before starting node maintenance")
+			return condition, errors.New("a rolling upgrade is active. Wait for it to finish before starting node maintenance")
 		}
 	}
-	return nil
+	return condition, nil
 }
 
-func rollingUpgradeSweep(client stackClient) error {
+func rollingUpgradeNodeRecords(ctx context.Context, client stackClient) (map[string]stackRecord, error) {
+	result := map[string]stackRecord{}
+	next := util.OptNone[string]()
+	for {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		page, err := shared.RpcGrantStateList(client, stackKeyPrefix, next, stackListPageSize)
+		if err != nil {
+			return nil, err
+		}
+		for _, record := range page.Items {
+			state := stackRecord{
+				Found:    true,
+				Revision: record.Revision,
+			}
+			if !record.IsEmpty() {
+				err = json.Unmarshal(record.Value, &state.Operation)
+				if err != nil {
+					return nil, fmt.Errorf("could not parse maintenance record %s: %s", record.Key, err)
+				}
+			}
+			result[strings.TrimPrefix(record.Key, stackKeyPrefix)] = state
+		}
+		if !page.Next.Present {
+			return result, nil
+		}
+		next = page.Next
+	}
+}
+
+func rollingUpgradeNodeConditions(upgrade RollingUpgrade, records map[string]stackRecord, skipNode string) []ucxapi.StackStateRevisionCondition {
+	conditions := make([]ucxapi.StackStateRevisionCondition, 0, len(upgrade.Nodes))
+	for _, node := range upgrade.Nodes {
+		if node.Name == skipNode {
+			continue
+		}
+		conditions = append(conditions, ucxapi.StackStateRevisionCondition{
+			Key:              stackNodeKey(node.Name),
+			ExpectedRevision: records[node.Name].Revision,
+		})
+	}
+	return conditions
+}
+
+func rollingUpgradeSubmissionConditions(
+	upgrade RollingUpgrade,
+	records map[string]stackRecord,
+	skipNode string,
+) ([]ucxapi.StackStateRevisionCondition, []ucxapi.StackStateValueCondition) {
+	revisions := []ucxapi.StackStateRevisionCondition{}
+	values := []ucxapi.StackStateValueCondition{}
+	release, _ := json.Marshal(upgrade.TargetRelease)
+	for _, node := range upgrade.Nodes {
+		if node.Name == skipNode {
+			continue
+		}
+		record := records[node.Name]
+		operation := record.Operation
+		submitted := operation.Uid == node.OperationUid && KindIsUpgrade(operation.Kind) &&
+			(PhaseActive(operation.Phase) || operation.Phase == PhaseCompleted)
+		if !submitted {
+			revisions = append(revisions, ucxapi.StackStateRevisionCondition{
+				Key:              stackNodeKey(node.Name),
+				ExpectedRevision: record.Revision,
+			})
+			continue
+		}
+		phases := []json.RawMessage{
+			json.RawMessage(`"Pending"`),
+			json.RawMessage(`"Running"`),
+			json.RawMessage(`"Completed"`),
+		}
+		if operation.Phase == PhaseCompleted {
+			phases = []json.RawMessage{json.RawMessage(`"Completed"`)}
+		}
+		uid, _ := json.Marshal(node.OperationUid)
+		nodeUid, _ := json.Marshal(node.Uid)
+		values = append(values, ucxapi.StackStateValueCondition{
+			Key: stackNodeKey(node.Name),
+			Fields: map[string][]json.RawMessage{
+				"uid":              {uid},
+				"nodeUid":          {nodeUid},
+				"kind":             {json.RawMessage(`"upgrade"`)},
+				"targetRelease":    {release},
+				"phase":            phases,
+				"cancelRequested":  {json.RawMessage("false")},
+				"recoveryRequired": {json.RawMessage("false")},
+			},
+		})
+	}
+	return revisions, values
+}
+
+func rollingUpgradeSweep(ctx context.Context, client stackClient) error {
 	upgrade, revision, err := rollingUpgradeRead(client)
 	if err != nil || !PhaseActive(upgrade.Phase) {
 		return err
@@ -187,17 +304,18 @@ func rollingUpgradeSweep(client stackClient) error {
 	if upgrade.CoordinatorUid != "" && time.Now().Before(upgrade.CoordinatorDeadline) {
 		return nil
 	}
-	upgrade.CoordinatorUid = newOperationUid()
-	upgrade.CoordinatorDeadline = time.Now().Add(staleAfter)
-	claim, err := json.Marshal(upgrade)
+	records, err := rollingUpgradeNodeRecords(ctx, client)
 	if err != nil {
 		return err
 	}
-	revision, err = stackWrite(client, rollingUpgradeKey, claim, revision)
+	upgrade.CoordinatorUid = newOperationUid()
+	upgrade.CoordinatorDeadline = time.Now().Add(staleAfter)
+	revision, err = rollingUpgradeWriteChecked(client, upgrade, revision, nil, util.OptNone[int64]())
 	if err != nil {
 		return err
 	}
 	defer rollingUpgradeReleaseCoordinator(client, upgrade.CoordinatorUid)
+	validUntil := util.OptValue(upgrade.CoordinatorDeadline.UnixMilli())
 	changed := false
 	controlPlaneDone := true
 	allDone := true
@@ -207,10 +325,7 @@ func rollingUpgradeSweep(client stackClient) error {
 		if node.Phase == PhaseCompleted {
 			continue
 		}
-		record, readErr := stackRead(client, stackNodeKey(node.Name))
-		if readErr != nil {
-			return readErr
-		}
+		record := records[node.Name]
 		operation := record.Operation
 		if operation.Uid == node.OperationUid {
 			if node.Phase != operation.Phase {
@@ -220,7 +335,8 @@ func rollingUpgradeSweep(client stackClient) error {
 			if !PhaseActive(operation.Phase) && operation.Phase != PhaseCompleted {
 				upgrade.Phase = PhaseFailed
 				upgrade.Error = fmt.Sprintf("Upgrade of %s stopped: %s", node.Name, operation.Error)
-				return rollingUpgradeWrite(client, upgrade, revision)
+				_, err = rollingUpgradeWriteChecked(client, upgrade, revision, nil, validUntil)
+				return err
 			}
 			if operation.Phase != PhaseCompleted {
 				busyGroups[node.Group] = true
@@ -228,7 +344,8 @@ func rollingUpgradeSweep(client stackClient) error {
 		} else if record.Revision != node.Revision {
 			upgrade.Phase = PhaseFailed
 			upgrade.Error = fmt.Sprintf("Maintenance on %s changed during the rolling upgrade", node.Name)
-			return rollingUpgradeWrite(client, upgrade, revision)
+			_, err = rollingUpgradeWriteChecked(client, upgrade, revision, nil, validUntil)
+			return err
 		}
 		if node.Phase != PhaseCompleted {
 			allDone = false
@@ -239,14 +356,16 @@ func rollingUpgradeSweep(client stackClient) error {
 	}
 	if allDone {
 		upgrade.Phase = PhaseCompleted
-		return rollingUpgradeWrite(client, upgrade, revision)
+		_, err = rollingUpgradeWriteChecked(client, upgrade, revision, nil, validUntil)
+		return err
 	}
 	if changed {
-		return rollingUpgradeWrite(client, upgrade, revision)
+		_, err = rollingUpgradeWriteChecked(client, upgrade, revision, nil, validUntil)
+		return err
 	}
 	for _, node := range upgrade.Nodes {
-		if time.Now().After(upgrade.CoordinatorDeadline) {
-			return nil
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
 		if node.Phase != PhasePending || busyGroups[node.Group] {
 			continue
@@ -254,11 +373,16 @@ func rollingUpgradeSweep(client stackClient) error {
 		if node.Group != shared.GroupControlPlane && !controlPlaneDone {
 			continue
 		}
-		busyGroups[node.Group] = true
-		record, readErr := stackRead(client, stackNodeKey(node.Name))
-		if readErr != nil {
-			return readErr
+		if time.Until(upgrade.CoordinatorDeadline) < staleAfter/2 {
+			upgrade.CoordinatorDeadline = time.Now().Add(staleAfter)
+			revision, err = rollingUpgradeWriteChecked(client, upgrade, revision, nil, validUntil)
+			if err != nil {
+				return err
+			}
+			validUntil = util.OptValue(upgrade.CoordinatorDeadline.UnixMilli())
 		}
+		busyGroups[node.Group] = true
+		record := records[node.Name]
 		if record.Operation.Uid == node.OperationUid {
 			continue
 		}
@@ -277,9 +401,27 @@ func rollingUpgradeSweep(client stackClient) error {
 		if marshalErr != nil {
 			return marshalErr
 		}
-		_, writeErr := stackWrite(client, stackNodeKey(node.Name), value, node.Revision)
+		conditions, valueConditions := rollingUpgradeSubmissionConditions(upgrade, records, node.Name)
+		conditions = append(conditions, ucxapi.StackStateRevisionCondition{
+			Key:              rollingUpgradeKey,
+			ExpectedRevision: revision,
+		})
+		operationRevision, writeErr := shared.RpcGrantStateWriteChecked(
+			client,
+			stackNodeKey(node.Name),
+			value,
+			node.Revision,
+			conditions,
+			valueConditions,
+			validUntil,
+		)
 		if writeErr != nil {
 			return writeErr
+		}
+		records[node.Name] = stackRecord{
+			Found:     true,
+			Operation: operation,
+			Revision:  operationRevision,
 		}
 		resetNodeLog(node.Name, operation.Uid)
 	}
@@ -299,9 +441,21 @@ func rollingUpgradeReleaseCoordinator(client stackClient, coordinatorUid string)
 	}
 }
 
-func rollingUpgradeSweepLogged(client stackClient) {
-	err := rollingUpgradeSweep(client)
-	if err != nil && !shared.IsConflict(err) {
-		log.Warn("k8s-app rolling upgrade: %s", err)
+func rollingUpgradeRun(ctx context.Context) {
+	ticker := time.NewTicker(runInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			client, err := stackClientNew()
+			if err == nil {
+				err = rollingUpgradeSweep(ctx, client)
+			}
+			if err != nil && !shared.IsConflict(err) && ctx.Err() == nil {
+				log.Warn("k8s-app rolling upgrade: %s", err)
+			}
+		}
 	}
 }

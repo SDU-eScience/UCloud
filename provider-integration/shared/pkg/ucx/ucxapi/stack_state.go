@@ -41,10 +41,23 @@ type StackStateListRequest struct {
 var StackStateList = ucx.Rpc[StackStateListRequest, fnd.PageV2[StackStateRecord]]{CallName: "stackStateList"}
 
 type StackStateWriteRequest struct {
-	StackId          string          `json:"stackId"`
-	Key              string          `json:"key"`
-	Value            json.RawMessage `json:"value"`
-	ExpectedRevision int64           `json:"expectedRevision"`
+	StackId          string                        `json:"stackId"`
+	Key              string                        `json:"key"`
+	Value            json.RawMessage               `json:"value"`
+	ExpectedRevision int64                         `json:"expectedRevision"`
+	Conditions       []StackStateRevisionCondition `json:"conditions,omitempty"`
+	ValueConditions  []StackStateValueCondition    `json:"valueConditions,omitempty"`
+	ValidUntil       util.Option[int64]            `json:"validUntil"`
+}
+
+type StackStateRevisionCondition struct {
+	Key              string `json:"key"`
+	ExpectedRevision int64  `json:"expectedRevision"`
+}
+
+type StackStateValueCondition struct {
+	Key    string                       `json:"key"`
+	Fields map[string][]json.RawMessage `json:"fields"`
 }
 
 type StackStateWriteResponse struct {
@@ -52,6 +65,10 @@ type StackStateWriteResponse struct {
 }
 
 var StackStateWrite = ucx.Rpc[StackStateWriteRequest, StackStateWriteResponse]{CallName: "stackStateWrite"}
+
+var StackStateWriteChecked = ucx.Rpc[StackStateWriteRequest, StackStateWriteResponse]{CallName: "stackStateWriteChecked"}
+
+var StackStateWriteCheckedValues = ucx.Rpc[StackStateWriteRequest, StackStateWriteResponse]{CallName: "stackStateWriteCheckedValues"}
 
 func stackControlStateCall[Req StackControlRequest, Resp any](operation string) rpc.Call[Req, Resp] {
 	return rpc.Call[Req, Resp]{
@@ -83,9 +100,16 @@ var StackControlStateList = stackControlStateCall[StackControlStateListRequest, 
 
 type StackControlStateWriteRequest struct {
 	StackCredentialAuth
-	Key              string          `json:"key"`
-	Value            json.RawMessage `json:"value"`
-	ExpectedRevision int64           `json:"expectedRevision"`
+	Key              string                        `json:"key"`
+	Value            json.RawMessage               `json:"value"`
+	ExpectedRevision int64                         `json:"expectedRevision"`
+	Conditions       []StackStateRevisionCondition `json:"conditions,omitempty"`
+	ValueConditions  []StackStateValueCondition    `json:"valueConditions,omitempty"`
+	ValidUntil       util.Option[int64]            `json:"validUntil"`
 }
 
 var StackControlStateWrite = stackControlStateCall[StackControlStateWriteRequest, StackStateWriteResponse]("stateWrite")
+
+var StackControlStateWriteChecked = stackControlStateCall[StackControlStateWriteRequest, StackStateWriteResponse]("stateWriteChecked")
+
+var StackControlStateWriteCheckedValues = stackControlStateCall[StackControlStateWriteRequest, StackStateWriteResponse]("stateWriteCheckedValues")

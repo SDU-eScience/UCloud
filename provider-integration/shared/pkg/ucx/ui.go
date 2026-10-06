@@ -28,6 +28,7 @@ var interactiveComponents = map[string]bool{
 	"checkbox":                 true,
 	"button":                   true,
 	"textarea":                 true,
+	"code_editor":              true,
 	"select":                   true,
 	"machine_type_selector":    true,
 	"radio_group":              true,
@@ -1162,6 +1163,43 @@ func CodeBound(bindPath string) UiNode {
 
 func CodeBoundEx(id string, bindPath string) UiNode {
 	return UiNode{Id: id, Component: "code", BindPath: bindPath}
+}
+
+type CodeEditorProps struct {
+	DocumentId  string
+	Revision    string
+	Lang        string
+	ReadOnly    bool
+	Saving      bool
+	ShowSave    bool
+	ShowClose   bool
+	HideToolbar bool
+}
+
+func CodeEditor(id string, bindPath string, props CodeEditorProps) UiNode {
+	requireExplicitId(id, "code_editor")
+	if props.DocumentId == "" {
+		props.DocumentId = id
+	}
+	if props.Lang == "" {
+		props.Lang = "plaintext"
+	}
+	return UiNode{
+		Id:         id,
+		Component:  "code_editor",
+		BindPath:   bindPath,
+		Optimistic: true,
+		Props: map[string]Value{
+			"documentId":  VString(props.DocumentId),
+			"revision":    VString(props.Revision),
+			"lang":        VString(props.Lang),
+			"readOnly":    VBool(props.ReadOnly),
+			"saving":      VBool(props.Saving),
+			"showSave":    VBool(props.ShowSave),
+			"showClose":   VBool(props.ShowClose),
+			"hideToolbar": VBool(props.HideToolbar),
+		},
+	}
 }
 
 func CopyButton(text string) UiNode {

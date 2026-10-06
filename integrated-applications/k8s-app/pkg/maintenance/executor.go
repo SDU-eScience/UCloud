@@ -150,11 +150,11 @@ func (worker *nodeWorker) checkpoint() (Operation, bool) {
 		finish(worker, PhaseCancelled, cancelMessage(operation))
 		return Operation{}, false
 	}
-	if worker.ctx.Err() != nil {
-		return Operation{}, false
-	}
 	if time.Now().After(operation.Deadline) {
 		finish(worker, PhaseFailed, "the operation timed out")
+		return Operation{}, false
+	}
+	if worker.ctx.Err() != nil {
 		return Operation{}, false
 	}
 
@@ -170,10 +170,16 @@ func (worker *nodeWorker) checkpoint() (Operation, bool) {
 func Run(ctx context.Context, kubeconfigPath string) {
 	ticker := time.NewTicker(runInterval)
 	defer ticker.Stop()
+	rollingDone := make(chan struct{})
+	go func() {
+		defer close(rollingDone)
+		rollingUpgradeRun(ctx)
+	}()
 
 	for {
 		select {
 		case <-ctx.Done():
+			<-rollingDone
 			workers.Wait()
 			return
 		case <-ticker.C:
@@ -187,7 +193,6 @@ func sweep(ctx context.Context, kubeconfigPath string) {
 	if err != nil {
 		return
 	}
-	rollingUpgradeSweepLogged(client)
 
 	records, err := stackList(client, stackKeyPrefix)
 	if err != nil {
@@ -307,6 +312,8 @@ func runOperation(
 
 	if runErr != nil {
 		failOperation(worker, runErr.Error())
+	} else if errors.Is(workerCtx.Err(), context.DeadlineExceeded) {
+		worker.checkpoint()
 	}
 }
 

@@ -244,9 +244,6 @@ func stackStateList(
 	return page, nil
 }
 
-// stackStateWrite replaces the record at the key. A write with the expected
-// revision zero creates the record and only succeeds if it does not exist.
-// Any other expected revision fails with a conflict if the record changed.
 func stackStateWrite(
 	scopeHash []byte,
 	stackId string,
@@ -267,8 +264,119 @@ func stackStateWrite(
 	if request.ExpectedRevision < 0 || !json.Valid(request.Value) {
 		return ucxapi.StackStateWriteResponse{}, fmt.Errorf("%w: invalid value or expected revision", stackStateErrInvalid)
 	}
+	conditionKeys := make([]string, 0, len(request.Conditions))
+	for _, condition := range request.Conditions {
+		err = stackStateValidateKey(condition.Key)
+		if err != nil {
+			return ucxapi.StackStateWriteResponse{}, err
+		}
+		if condition.ExpectedRevision < 0 {
+			return ucxapi.StackStateWriteResponse{}, fmt.Errorf("%w: invalid condition revision", stackStateErrInvalid)
+		}
+		conditionKeys = append(conditionKeys, condition.Key)
+	}
+	for _, condition := range request.ValueConditions {
+		err = stackStateValidateKey(condition.Key)
+		if err != nil {
+			return ucxapi.StackStateWriteResponse{}, err
+		}
+		if len(condition.Fields) == 0 {
+			return ucxapi.StackStateWriteResponse{}, fmt.Errorf("%w: empty value condition", stackStateErrInvalid)
+		}
+		for field, values := range condition.Fields {
+			if field == "" || len(values) == 0 {
+				return ucxapi.StackStateWriteResponse{}, fmt.Errorf("%w: invalid value condition field", stackStateErrInvalid)
+			}
+			for _, value := range values {
+				if !json.Valid(value) {
+					return ucxapi.StackStateWriteResponse{}, fmt.Errorf("%w: invalid value condition", stackStateErrInvalid)
+				}
+			}
+		}
+	}
+	valueConditions, err := json.Marshal(request.ValueConditions)
+	if err != nil {
+		return ucxapi.StackStateWriteResponse{}, fmt.Errorf("%w: invalid value conditions", stackStateErrInvalid)
+	}
 
 	row, ok := db.NewTx2(func(tx *db.Transaction) (struct{ Revision int64 }, bool) {
+		db.Exec(
+			tx,
+			`
+				select pg_advisory_xact_lock(hashtextextended(
+					encode(cast(:stack_scope_hash as bytea), 'hex') || ':' || cast(:stack_id as text),
+					0
+				))
+			`,
+			db.Params{
+				"stack_scope_hash": scopeHash,
+				"stack_id":         stackId,
+			},
+		)
+		if len(conditionKeys) > 0 {
+			conditions := db.Select[struct {
+				RecordKey string
+				Revision  int64
+			}](
+				tx,
+				`
+					select record_key, revision
+					from k8s.stack_state_records
+					where stack_scope_hash = :stack_scope_hash
+						and stack_id = :stack_id
+						and record_key = any(cast(:condition_keys as text[]))
+				`,
+				db.Params{
+					"stack_scope_hash": scopeHash,
+					"stack_id":         stackId,
+					"condition_keys":   conditionKeys,
+				},
+			)
+			revisions := make(map[string]int64, len(conditions))
+			for _, condition := range conditions {
+				revisions[condition.RecordKey] = condition.Revision
+			}
+			for _, condition := range request.Conditions {
+				if revisions[condition.Key] != condition.ExpectedRevision {
+					return struct{ Revision int64 }{}, false
+				}
+			}
+		}
+		if len(request.ValueConditions) > 0 {
+			check, _ := db.Get[struct{ Valid bool }](
+				tx,
+				`
+					select not exists (
+						select 1
+						from
+							jsonb_array_elements(cast(:value_conditions as jsonb)) expected
+							left join k8s.stack_state_records r on
+								r.stack_scope_hash = :stack_scope_hash
+								and r.stack_id = :stack_id
+								and r.record_key = expected.value ->> 'key'
+						where
+							r.record_key is null
+							or exists (
+								select 1
+								from jsonb_each(expected.value -> 'fields') expected_field
+								where not exists (
+									select 1
+									from jsonb_array_elements(expected_field.value) allowed_value
+									where r.value -> expected_field.key = allowed_value.value
+								)
+							)
+					) as valid
+				`,
+				db.Params{
+					"stack_scope_hash": scopeHash,
+					"stack_id":         stackId,
+					"value_conditions": string(valueConditions),
+				},
+			)
+			if !check.Valid {
+				return struct{ Revision int64 }{}, false
+			}
+		}
 		if request.ExpectedRevision == 0 {
 			return db.Get[struct{ Revision int64 }](
 				tx,
@@ -280,17 +388,22 @@ func stackStateWrite(
 						value,
 						revision
 					)
-					values (
+					select
 						:stack_scope_hash,
 						:stack_id,
 						:record_key,
 						cast(:value as jsonb),
 						1
-					)
+					where cast(:valid_until as bigint) is null
+						or clock_timestamp() < to_timestamp(cast(:valid_until as double precision) / 1000)
 					on conflict (stack_scope_hash, stack_id, record_key) do update set
 						value = excluded.value,
 						revision = existing_record.revision + 1
 					where existing_record.revision = 0
+						and (
+							cast(:valid_until as bigint) is null
+							or clock_timestamp() < to_timestamp(cast(:valid_until as double precision) / 1000)
+						)
 					returning revision
 				`,
 				db.Params{
@@ -298,6 +411,7 @@ func stackStateWrite(
 					"stack_id":         stackId,
 					"record_key":       request.Key,
 					"value":            string(request.Value),
+					"valid_until":      request.ValidUntil.Sql(),
 				},
 			)
 		}
@@ -312,6 +426,10 @@ func stackStateWrite(
 					and stack_id = :stack_id
 					and record_key = :record_key
 					and revision = :expected_revision
+					and (
+						cast(:valid_until as bigint) is null
+						or clock_timestamp() < to_timestamp(cast(:valid_until as double precision) / 1000)
+					)
 				returning revision
 			`,
 			db.Params{
@@ -320,6 +438,7 @@ func stackStateWrite(
 				"stack_id":          stackId,
 				"record_key":        request.Key,
 				"expected_revision": request.ExpectedRevision,
+				"valid_until":       request.ValidUntil.Sql(),
 			},
 		)
 	})
@@ -351,13 +470,16 @@ func stackStateRegisterProxyHandlers(
 		return stackStateList(scopeHash, stackId, request.Prefix, request.Next, request.ItemsPerPage)
 	})
 
-	ucxapi.StackStateWrite.HandlerProxy(proxy, func(_ context.Context, request ucxapi.StackStateWriteRequest) (ucxapi.StackStateWriteResponse, error) {
+	write := func(_ context.Context, request ucxapi.StackStateWriteRequest) (ucxapi.StackStateWriteResponse, error) {
 		stackId, scopeHash, _, err := authorize(request.StackId)
 		if err != nil {
 			return ucxapi.StackStateWriteResponse{}, err
 		}
 		return stackStateWrite(scopeHash, stackId, request)
-	})
+	}
+	ucxapi.StackStateWrite.HandlerProxy(proxy, write)
+	ucxapi.StackStateWriteChecked.HandlerProxy(proxy, write)
+	ucxapi.StackStateWriteCheckedValues.HandlerProxy(proxy, write)
 }
 
 func stackStateControlHttpError(err error) *util.HttpError {
@@ -423,7 +545,7 @@ func stackStateControlInitServer() {
 		return page, nil
 	})
 
-	ucxapi.StackControlStateWrite.Handler(func(_ rpc.RequestInfo, request ucxapi.StackControlStateWriteRequest) (ucxapi.StackStateWriteResponse, *util.HttpError) {
+	write := func(_ rpc.RequestInfo, request ucxapi.StackControlStateWriteRequest) (ucxapi.StackStateWriteResponse, *util.HttpError) {
 		stackId, scopeHash, _, herr := stackStateControlPrincipal(request.Token)
 		if herr != nil {
 			return ucxapi.StackStateWriteResponse{}, herr
@@ -432,12 +554,18 @@ func stackStateControlInitServer() {
 			Key:              request.Key,
 			Value:            request.Value,
 			ExpectedRevision: request.ExpectedRevision,
+			Conditions:       request.Conditions,
+			ValueConditions:  request.ValueConditions,
+			ValidUntil:       request.ValidUntil,
 		})
 		if err != nil {
 			return ucxapi.StackStateWriteResponse{}, stackStateControlHttpError(err)
 		}
 		return response, nil
-	})
+	}
+	ucxapi.StackControlStateWrite.Handler(write)
+	ucxapi.StackControlStateWriteChecked.Handler(write)
+	ucxapi.StackControlStateWriteCheckedValues.Handler(write)
 }
 
 func stackStateAppAuthorize(

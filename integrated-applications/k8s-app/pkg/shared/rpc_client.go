@@ -94,14 +94,36 @@ func RpcGrantStateRead(client RpcGrantClient, key string) (ucxapi.StackStateReco
 }
 
 func RpcGrantStateWrite(client RpcGrantClient, key string, value json.RawMessage, expectedRevision int64) (int64, error) {
+	return RpcGrantStateWriteChecked(client, key, value, expectedRevision, nil, nil, util.OptNone[int64]())
+}
+
+func RpcGrantStateWriteChecked(
+	client RpcGrantClient,
+	key string,
+	value json.RawMessage,
+	expectedRevision int64,
+	conditions []ucxapi.StackStateRevisionCondition,
+	valueConditions []ucxapi.StackStateValueCondition,
+	validUntil util.Option[int64],
+) (int64, error) {
 	request := ucxapi.StackControlStateWriteRequest{
 		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: client.Token},
 		Key:                 key,
 		Value:               value,
 		ExpectedRevision:    expectedRevision,
+		Conditions:          conditions,
+		ValueConditions:     valueConditions,
+		ValidUntil:          validUntil,
 	}
 
-	response, herr := ucxapi.StackControlStateWrite.InvokeEx(client.Rpc, request, rpc.InvokeOpts{})
+	call := ucxapi.StackControlStateWrite
+	if len(conditions) > 0 || validUntil.Present {
+		call = ucxapi.StackControlStateWriteChecked
+	}
+	if len(valueConditions) > 0 {
+		call = ucxapi.StackControlStateWriteCheckedValues
+	}
+	response, herr := call.InvokeEx(client.Rpc, request, rpc.InvokeOpts{})
 	if herr != nil {
 		return 0, rpcGrantError(herr)
 	}
