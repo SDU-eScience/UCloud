@@ -359,6 +359,13 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 		}
 	}
 	upgradePage := app.maintenanceMode == maintenanceModeUpgrade || (app.maintenanceMode == "" && isUpgrade)
+	if upgradePage {
+		content = append(content, ucx.LinkButton("maintenanceRollingUpgrade", "Want to upgrade the entire cluster in a rolling fashion?", ucx.ColorPrimaryMain).
+			Sx(ucx.SxFontSize(14), ucx.SxFontWeight("400")).
+			On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+				ucxsvc.RouterPushPage(app, "rolling-upgrade")
+			}))
+	}
 	removePage := app.maintenanceMode == maintenanceModeRemove || (app.maintenanceMode == "" && isRemove)
 	if upgradePage && !mutationsBlocked && targetUid != "" && !maintenance.PhaseActive(operation.Phase) {
 		if retryable && isUpgrade {
@@ -743,6 +750,7 @@ func maintenanceUpgradeForm(
 			Children(ucx.Select("maintenanceTargetReleaseSelect", "", "maintenanceTargetRelease", options)))
 	}
 	children = append(children,
+		ucx.Tip("Neither cordon nor drain is usually needed for a Kubernetes upgrade. Leave both unchecked unless your workloads require it. Nodes cordoned by this upgrade are automatically uncordoned after success. Nodes already cordoned stay cordoned."),
 		ucx.Checkbox(
 			"maintenanceUpgradeCordon",
 			"**Cordon:** mark the node as unschedulable before the upgrade. No new pods are placed on it while it upgrades.",
@@ -767,7 +775,7 @@ func maintenanceUpgradeForm(
 		))
 	}
 	children = append(children,
-		ucx.SubmitButton("maintenanceUpgradeSubmit", submitLabel, ucx.ColorErrorMain).
+		ucx.SubmitButton("maintenanceUpgradeSubmit", submitLabel, ucx.ColorSuccessMain).
 			ButtonBusy("maintenanceBusy").
 			ButtonHoldToConfirm(true).
 			Sx(ucx.SxJustifyEnd),

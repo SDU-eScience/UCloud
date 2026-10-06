@@ -187,6 +187,7 @@ func sweep(ctx context.Context, kubeconfigPath string) {
 	if err != nil {
 		return
 	}
+	rollingUpgradeSweepLogged(client)
 
 	records, err := stackList(client, stackKeyPrefix)
 	if err != nil {

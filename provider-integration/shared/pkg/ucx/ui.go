@@ -1105,6 +1105,12 @@ func Warning(text string) UiNode {
 	}
 }
 
+func Tip(text string) UiNode {
+	node := Warning(text)
+	node.Props["variant"] = VString("tip")
+	return node
+}
+
 func MarkdownBound(bindPath string) UiNode {
 	return UiNode{
 		Component: "markdown",

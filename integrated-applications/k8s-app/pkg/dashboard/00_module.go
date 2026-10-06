@@ -84,6 +84,9 @@ type stackUiApp struct {
 	MaintenanceForceDelete             bool
 	MaintenanceBusy                    bool
 	MaintenanceTargetRelease           string
+	RollingUpgradeTargetRelease        string
+	RollingUpgradeGroups               []rollingUpgradeGroup
+	RollingUpgradeBusy                 bool
 
 	maintenanceNodeName        string `ucx:"-"`
 	maintenanceNodeUid         string `ucx:"-"`
@@ -334,6 +337,8 @@ func (app *stackUiApp) UserInterface() ucx.UiNode {
 	}
 
 	switch {
+	case app.RoutePath == "rolling-upgrade":
+		children = append(children, rollingUpgradePage(app)...)
 	case app.RoutePath == "control/new-pool":
 		children = append(children, app.pageAddPool()...)
 	case strings.HasPrefix(app.RoutePath, "maintenance"):
@@ -563,8 +568,9 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 		k8sVersion = record.K8sVersion
 	}
 
-	manageNodes := ucx.LinkButton("homeManageNodes", "(Manage)", ucx.ColorTextSecondary).Sx(
+	manageNodes := ucx.LinkButton("homeManageNodes", "(Manage)", ucx.ColorLinkColor).Sx(
 		ucx.SxFontSize(12),
+		ucx.SxFontWeight("400"),
 	).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 		app.selectResourceType("nodes")
 	})
@@ -608,7 +614,13 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 		app.homeMetricsRow(
 			app.homeMetric("Cluster state", homeMetricText(clusterState, clusterStateColor)),
 			app.homeMetricEx("Nodes ready", []ucx.UiNode{manageNodes}, homeMetricText(nodesLabel, ucx.ColorTextPrimary)),
-			app.homeMetric("Kubernetes version", homeMetricText(k8sVersion, ucx.ColorTextPrimary)),
+			app.homeMetricEx("Kubernetes version", []ucx.UiNode{
+				ucx.LinkButton("homeRollingUpgrade", "(Rolling upgrade)", ucx.ColorLinkColor).
+					Sx(ucx.SxFontSize(12), ucx.SxFontWeight("400")).
+					On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+						ucxsvc.RouterPushPage(app, "rolling-upgrade")
+					}),
+			}, homeMetricText(k8sVersion, ucx.ColorTextPrimary)),
 		),
 	)
 
@@ -1656,7 +1668,7 @@ func (app *stackUiApp) provisioningKickNow() {
 func (app *stackUiApp) onMaintenanceRoute() bool {
 	app.mu.Lock()
 	defer app.mu.Unlock()
-	return app.RoutePath == "maintenance" || strings.HasPrefix(app.RoutePath, "maintenance/")
+	return app.RoutePath == "rolling-upgrade" || app.RoutePath == "maintenance" || strings.HasPrefix(app.RoutePath, "maintenance/")
 }
 
 func (app *stackUiApp) provisioningWatcher(session *ucx.Session) {

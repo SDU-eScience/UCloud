@@ -316,6 +316,10 @@ func submitStart(
 	if nodeName == "" {
 		return errors.New("no node name was provided")
 	}
+	rollingErr := rollingUpgradeNodeGuard(nodeName)
+	if rollingErr != nil {
+		return rollingErr
+	}
 	if nodeUid == "" && kind != KindRemove {
 		return errors.New("no node uid was provided")
 	}

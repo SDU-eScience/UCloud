@@ -12,7 +12,6 @@ The configurable options are:
   release is pinned to an exact k3s release with a known SHA-256 checksum per architecture.
 - The number of control plane nodes. The count must be an odd number from 1 to 7.
 - Any number of worker pools, each with its own machine type, node count and disk size.
-- The exposed ports, each of which is mapped to a public URL.
 
 The cluster supports at most 256 nodes in total. All machines (control plane, workers and later scale-out additions) must come from the
 service provider that runs the cluster. The creator validates this before the stack is created, and scale-out rejects machines from any
@@ -105,7 +104,8 @@ The Kubernetes API is exposed on port 6443 of every control plane node, and Head
 backed by the cluster service, which load-balances over all control plane nodes. The API is reachable from inside the private network
 on any control plane node; cluster availability when nodes fail depends on the etcd quorum.
 
-Public links of the form `{cluster-ID}-{port}` are created for each user-exposed port, backed by the cluster service.
+Applications are exposed through Kubernetes Ingress resources. The controller creates public links for eligible
+Ingress hosts, backed by a separate ingress service on port 30080.
 
 ### Security
 

@@ -100,7 +100,6 @@ type ClusterSpec struct {
 	ControlPlaneDiskGb  int
 	WorkerPools         []ClusterPoolSpec
 	K8sVersion          string
-	Ports               []int
 }
 
 type ClusterNodeRecord struct {
@@ -130,7 +129,6 @@ type ClusterRecord struct {
 	ServiceDnsName   string                  `json:"serviceDnsName"`
 	MachineProvider  string                  `json:"machineProvider"`
 	Subnets          []string                `json:"subnets"`
-	Ports            []int                   `json:"ports"`
 	BundlePath       string                  `json:"bundlePath"`
 	NextAllocationId int                     `json:"nextAllocationId"`
 	Phase            string                  `json:"phase"`
@@ -332,15 +330,6 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 			}),
 		},
 	}
-	for _, port := range spec.Ports {
-		servicePorts = append(servicePorts, orcapi.ServicePort{
-			Name:                fmt.Sprintf("node-%d", port),
-			Port:                port,
-			Protocol:            orcapi.ServicePortProtocolTcp,
-			ApplicationProtocol: util.OptValue("HTTP"),
-		})
-	}
-
 	clusterService := ucxsvc.ServiceCreate(stack, stackId+"-k8s", servicePorts, util.OptValue(network.Id))
 	if !stack.Ok {
 		return stack, false
@@ -362,7 +351,6 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		ServiceDnsName:   serviceDnsName,
 		MachineProvider:  spec.ControlPlaneMachine.Provider,
 		Subnets:          []string{ClusterVmCidr, ClusterPodCidr, ClusterServiceCidr},
-		Ports:            spec.Ports,
 		BundlePath:       BundlePathForRelease(release),
 		NextAllocationId: 1,
 		Phase:            clusterRecordPhaseProvisioning,
@@ -408,14 +396,6 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 			Port:      "headlamp",
 		}),
 	})
-	for _, port := range spec.Ports {
-		ucxsvc.PublicLinkCreate(stack, fmt.Sprintf("%s-%d", stackId, port), ucxsvc.PublicLinkCreateOptions{
-			ServiceTarget: util.OptValue(orcapi.PublicLinkServiceTarget{
-				ServiceId: clusterService.Id,
-				Port:      fmt.Sprintf("node-%d", port),
-			}),
-		})
-	}
 	if !stack.Ok {
 		return stack, false
 	}

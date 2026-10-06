@@ -17,11 +17,8 @@ contain a-z, 0-9 and dashes.
 
 The cluster supports at most 256 nodes in total.
 
-Then, list the ports you wish to expose. Each of these ports will be exposed as a public link named
-`<cluster-id>-<port>` on your provider's public link domain.
-The ports must be listed separated by a comma (e.g. `8080,8081,8443,9090`).
-
-Ports 6443, 6444 and 30500 cannot be reserved, as they are used by the Kubernetes API and the Headlamp dashboard.
+Use Kubernetes Ingress resources to expose applications. The cluster controller creates public links for
+Ingress hosts that match the provider's supported public link domains.
 
 The cluster takes a few minutes to be set up.
 

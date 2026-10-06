@@ -5,6 +5,7 @@ import {injectStyleSimple} from "@/Unstyled";
 import {IconButton} from "@/ui-components/IconButton";
 
 interface WarningProps {
+    variant?: "warning" | "tip";
     clearWarning?: () => void;
     warning?: string;
     children?: React.ReactNode
@@ -30,9 +31,12 @@ const WarningClass = injectStyleSimple("warning", `
 const Warning: React.FunctionComponent<WarningProps> = props => {
     if (!props.warning && !props.children) return null;
 
+    const color = props.variant === "tip" ? "primaryMain" : "warningMain";
+    const icon = props.variant === "tip" ? "heroInformationCircle" : "warning";
+
     return (
-        <Box className={WarningClass} mb={props.mb}>
-            <Icon name="warning" size={20} color="warningMain" />
+        <Box className={WarningClass} mb={props.mb} style={{borderColor: `var(--${color})`}}>
+            <Icon name={icon} size={20} color={color} />
             <div className={WarningContentClass}>
                 {props.warning ? <div>{props.warning}</div> : null}
                 {props.children}

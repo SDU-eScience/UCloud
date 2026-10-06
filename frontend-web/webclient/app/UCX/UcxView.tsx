@@ -1072,7 +1072,8 @@ const baseComponents: UcxComponentRegistry = {
     warning: ({node, model, scope}) => {
         const text = boundOrStaticText(node, model, scope);
         if (!text) return null;
-        return <Warning>{text as string}</Warning>;
+        const variant = stringProp(node, "variant", "warning") === "tip" ? "tip" : "warning";
+        return <Warning variant={variant}>{text as string}</Warning>;
     },
     icon: ({node, fn}) => {
         const name = stringProp(node, "name", "bug");
