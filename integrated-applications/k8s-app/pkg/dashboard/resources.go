@@ -38,6 +38,7 @@ type ResourceRow struct {
 	Group   string
 	Cells   []string
 	Actions []ucx.TableRowAction
+	Busy    bool
 }
 
 const nodeGroupLabel = "ucloud.dk/k8s-node-group"
@@ -853,6 +854,7 @@ func rowsFromGeneric(items []unstructured.Unstructured, def ResourceTypeDef) []R
 			Key:   string(obj.GetUID()),
 			Group: namespaceGroup(def, obj),
 			Cells: genericCells(def, obj),
+			Busy:  rolloutRestartBusy(def.Id, obj),
 		})
 	}
 	return rows

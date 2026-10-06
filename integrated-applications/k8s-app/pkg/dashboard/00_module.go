@@ -769,7 +769,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 		if rolloutRestartSupported(app.ActiveType) {
 			tableActions = append(tableActions, ucx.ResourceTableAction{
 				Id:       "rolloutRestart",
-				Label:    "Restart rollout",
+				Label:    "Restart",
 				Icon:     ucx.IconHeroArrowPath,
 				Shortcut: "r",
 			})
@@ -1053,9 +1053,9 @@ func (app *stackUiApp) selectResourceType(typeId string) {
 		app.ResourceYaml = ""
 	}
 
-	targetRoute := "browse/" + typeId
-	if typeId == navHomeId {
-		targetRoute = ""
+	targetRoute := ""
+	if typeId != navHomeId {
+		targetRoute = dashboardNavigationSelectType(app)
 	}
 	if app.RoutePath != targetRoute {
 		ucxsvc.RouterPushPage(app, targetRoute)
@@ -2174,6 +2174,8 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 		app.RoutePath = strings.TrimSpace(app.RoutePath)
 		if frame.ModelInput.Path == "routePath" {
 			dashboardNavigationRestore(app)
+		} else if frame.ModelInput.Path == "activeNamespace" {
+			dashboardNavigationUpdateNamespace(app)
 		}
 		routePath := dashboardNavigationCurrentRoute(app)
 

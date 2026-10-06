@@ -50,10 +50,38 @@ func dashboardNavigationSnapshot(app *stackUiApp, route string, label string) da
 
 func dashboardNavigationPush(app *stackUiApp, route string, label string) {
 	app.resourceNavigation = append(app.resourceNavigation, dashboardNavigationSnapshot(app, route, label))
+	ucxsvc.RouterPushPage(app, dashboardNavigationUpdateRoutes(app))
+}
+
+func dashboardNavigationUpdateRoutes(app *stackUiApp) string {
 	for i := range app.resourceNavigation {
 		app.resourceNavigation[i].route = dashboardNavigationRoute(app.resourceNavigation[:i+1])
 	}
-	ucxsvc.RouterPushPage(app, app.resourceNavigation[len(app.resourceNavigation)-1].route)
+	return app.resourceNavigation[len(app.resourceNavigation)-1].route
+}
+
+func dashboardNavigationSelectType(app *stackUiApp) string {
+	app.resourceNavigation = []dashboardNavigationEntry{dashboardNavigationSnapshot(
+		app,
+		"browse/"+app.ActiveType,
+		app.activeTypeLabel(app.allTypeDefs()),
+	)}
+	return dashboardNavigationUpdateRoutes(app)
+}
+
+func dashboardNavigationUpdateNamespace(app *stackUiApp) {
+	if app.ActiveType == navHomeId || app.ResourceDetail != "" {
+		return
+	}
+	if len(app.resourceNavigation) == 0 {
+		dashboardNavigationSelectType(app)
+	} else {
+		dashboardNavigationStart(app)
+	}
+	route := dashboardNavigationUpdateRoutes(app)
+	if route != app.RoutePath {
+		ucxsvc.RouterPushPage(app, route)
+	}
 }
 
 func dashboardNavigationRestore(app *stackUiApp) {

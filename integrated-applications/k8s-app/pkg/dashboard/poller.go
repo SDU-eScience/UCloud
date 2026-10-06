@@ -1009,6 +1009,7 @@ func resourceTableUpsert(row ResourceRow) ucx.TableRow {
 		Group:   row.Group,
 		Cells:   row.Cells,
 		Actions: row.Actions,
+		Busy:    row.Busy,
 	}
 }
 
@@ -1038,7 +1039,7 @@ func (p *resourcePoller) nodeNameForRowKey(rowKey string) (string, bool) {
 }
 
 func rowsEqual(a, b ResourceRow) bool {
-	if a.Key != b.Key || a.Group != b.Group || len(a.Cells) != len(b.Cells) {
+	if a.Key != b.Key || a.Group != b.Group || a.Busy != b.Busy || len(a.Cells) != len(b.Cells) {
 		return false
 	}
 	for i := range a.Cells {

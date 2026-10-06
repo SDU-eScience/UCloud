@@ -115,6 +115,7 @@ export interface TableRow {
     group: string;
     cells: string[];
     actions?: TableRowAction[];
+    busy?: boolean;
 }
 
 export interface TableUpdate {
@@ -487,6 +488,11 @@ function encodeTableUpdate(w: BinaryWriter, update: TableUpdate) {
             }
         }
     }
+    if (update.upserts.some(row => row.busy === true)) {
+        w.writeU8(1);
+        w.writeU32(update.upserts.length);
+        for (const row of update.upserts) w.writeU8(row.busy ? 1 : 0);
+    }
 }
 
 function decodeTableUpdate(r: BinaryReader): TableUpdate {
@@ -544,6 +550,13 @@ function decodeTableUpdate(r: BinaryReader): TableUpdate {
                 });
             }
             if (actions.length > 0) upserts[i].actions = actions;
+        }
+    }
+
+    if (!r.isAtEnd() && r.readU8() !== 0) {
+        const busyRowCount = r.readU32();
+        for (let i = 0; i < busyRowCount && i < upserts.length; i++) {
+            upserts[i].busy = r.readU8() !== 0;
         }
     }
 

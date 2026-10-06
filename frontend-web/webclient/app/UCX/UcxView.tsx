@@ -44,7 +44,7 @@ import {
     valueMapToPlainPayload,
 } from "@/UCX/protocol";
 import {UcxSession} from "@/UCX/session";
-import {UcxBrowserLayout, UcxNavTree, UcxNavItem, UcxStreamedTable, UcxTableActionDef, UcxTableStore, UcxTableCount, UcxTableFilter, isEditableTarget, useUcxFocusContent} from "@/UCX/UcxBrowser";
+import {UcxBrowserLayout, UcxNavTree, UcxNavItem, UcxStreamedTable, UcxTableActionDef, UcxTableStore, UcxTableCount, UcxTableFilter, isEditableTarget, useUcxRestorePaneFocus} from "@/UCX/UcxBrowser";
 import {stopPropagation} from "@/UtilityFunctions";
 import {isLikelyMac} from "@/UtilityFunctions";
 import Label from "@/ui-components/Label";
@@ -2837,14 +2837,14 @@ const UcxSelectField = ({node, model, scope, fn}: {
     const openFnRef = useRef<(left: number, top: number) => void>(() => undefined);
     const triggerRef = useRef<HTMLDivElement | null>(null);
     const shortcutKey = optionalStringProp(node, "shortcutKey");
+    const capturePaneFocus = useUcxRestorePaneFocus();
+    const restorePaneFocusRef = useRef<(() => void) | null>(null);
 
     const openSelect = useCallback((ev: React.MouseEvent) => {
         ev.stopPropagation();
         ev.preventDefault();
         openFnRef.current?.(0, 0);
     }, []);
-
-    const focusContent = useUcxFocusContent();
 
     useEffect(() => {
         if (!shortcutKey) return;
@@ -2861,19 +2861,21 @@ const UcxSelectField = ({node, model, scope, fn}: {
             if (!inRegion) return;
 
             event.preventDefault();
+            restorePaneFocusRef.current = capturePaneFocus();
             openFnRef.current?.(0, 0);
         };
 
         document.addEventListener("keydown", onKeyDown);
         return () => document.removeEventListener("keydown", onKeyDown);
-    }, [shortcutKey]);
+    }, [shortcutKey, capturePaneFocus]);
 
     const select = <SimpleRichSelect
         items={options}
         selected={selected}
         onSelect={item => {
             fn.sendBoundInput(node, {kind: ValueKind.String, string: item.key}, model, scope);
-            focusContent();
+            restorePaneFocusRef.current?.();
+            restorePaneFocusRef.current = null;
         }}
         placeholder={stringProp(node, "placeholder", "Select...")}
         mt={label === "" ? undefined : 8}
@@ -2883,7 +2885,18 @@ const UcxSelectField = ({node, model, scope, fn}: {
         shortcutHint={shortcutKey ? createKeyboardShortcut(shortcutKey.toUpperCase(), ["ctrl", "alt"]) : undefined}
     />;
 
-    return <div style={fn.sxStyle(node)}>
+    return <div
+        style={fn.sxStyle(node)}
+        onPointerDownCapture={event => {
+            if (!event.currentTarget.contains(event.target as Node)) return;
+            restorePaneFocusRef.current = capturePaneFocus();
+        }}
+        onKeyDownCapture={event => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            if (!event.currentTarget.contains(event.target as Node)) return;
+            restorePaneFocusRef.current = capturePaneFocus();
+        }}
+    >
         {label === "" ? null : <FieldLabel onClick={openSelect}>{label}</FieldLabel>}
         {select}
     </div>;

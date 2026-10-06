@@ -13,17 +13,17 @@ const maxSysHelloPayloadBytes = 1024 * 1024 * 8
 type Opcode uint8
 
 const (
-	OpSysHello    Opcode = 0x01
-	OpPing        Opcode = 0x02
-	OpPong        Opcode = 0x03
-	OpUiEvent     Opcode = 0x11
-	OpUiMount     Opcode = 0x12
-	OpModelPatch  Opcode = 0x13
-	OpModelInput  Opcode = 0x14
-	OpTableUpdate Opcode = 0x15
+	OpSysHello     Opcode = 0x01
+	OpPing         Opcode = 0x02
+	OpPong         Opcode = 0x03
+	OpUiEvent      Opcode = 0x11
+	OpUiMount      Opcode = 0x12
+	OpModelPatch   Opcode = 0x13
+	OpModelInput   Opcode = 0x14
+	OpTableUpdate  Opcode = 0x15
 	OpStringAppend Opcode = 0x16
-	OpRpcRequest  Opcode = 0x20
-	OpRpcResponse Opcode = 0x21
+	OpRpcRequest   Opcode = 0x20
+	OpRpcResponse  Opcode = 0x21
 )
 
 type Frame struct {
@@ -106,6 +106,7 @@ type TableRow struct {
 	Group   string
 	Cells   []string
 	Actions []TableRowAction
+	Busy    bool
 }
 
 type TableUpdate struct {
@@ -384,6 +385,25 @@ func TableUpdateEncode(buf *util.UBuffer, msg TableUpdate) {
 	} else {
 		buf.WriteU8(0)
 	}
+
+	hasBusy := false
+	for _, row := range msg.Upserts {
+		if row.Busy {
+			hasBusy = true
+			break
+		}
+	}
+	if hasBusy {
+		buf.WriteU8(1)
+		buf.WriteU32(uint32(len(msg.Upserts)))
+		for _, row := range msg.Upserts {
+			if row.Busy {
+				buf.WriteU8(1)
+			} else {
+				buf.WriteU8(0)
+			}
+		}
+	}
 }
 
 func TableUpdateDecode(buf *util.UBuffer) TableUpdate {
@@ -442,6 +462,13 @@ func TableUpdateDecode(buf *util.UBuffer) TableUpdate {
 				}
 			}
 			result.Upserts[i].Actions = actions
+		}
+	}
+
+	if !buf.IsEmpty() && buf.ReadU8() != 0 {
+		busyRowCount := buf.ReadU32()
+		for i := uint32(0); i < busyRowCount && int(i) < len(result.Upserts); i++ {
+			result.Upserts[i].Busy = buf.ReadU8() != 0
 		}
 	}
 

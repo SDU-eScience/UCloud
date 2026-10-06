@@ -415,14 +415,21 @@ interface UcxBrowserLayoutProps {
 }
 
 const UcxBrowserFocusContentContext = React.createContext<(() => void) | null>(null);
+const UcxBrowserRestorePaneFocusContext = React.createContext<(() => () => void) | null>(null);
 
 export function useUcxFocusContent(): () => void {
     const focus = React.useContext(UcxBrowserFocusContentContext);
     return focus ?? (() => undefined);
 }
 
+export function useUcxRestorePaneFocus(): () => () => void {
+    const capture = React.useContext(UcxBrowserRestorePaneFocusContext);
+    return capture ?? (() => () => undefined);
+}
+
 export const UcxBrowserLayout: React.FunctionComponent<UcxBrowserLayoutProps> = props => {
     const [activePane, setActivePane] = useState<UcxBrowserPane | null>(null);
+    const activePaneRef = useRef<UcxBrowserPane>("content");
     const rootRef = useRef<HTMLDivElement | null>(null);
     const sidebarRef = useRef<HTMLDivElement | null>(null);
     const contentRef = useRef<HTMLDivElement | null>(null);
@@ -447,6 +454,17 @@ export const UcxBrowserLayout: React.FunctionComponent<UcxBrowserLayoutProps> = 
 
     const focusContent = useCallback(() => {
         focusPane("content");
+    }, [focusPane]);
+
+    const capturePaneFocus = useCallback(() => {
+        const pane = activePaneRef.current;
+        return () => {
+            window.requestAnimationFrame(() => {
+                window.requestAnimationFrame(() => {
+                    if (rootRef.current?.isConnected) focusPane(pane);
+                });
+            });
+        };
     }, [focusPane]);
 
     const autoFocusOnPageChange = props.autoFocusOnPageChange !== false;
@@ -511,7 +529,9 @@ export const UcxBrowserLayout: React.FunctionComponent<UcxBrowserLayoutProps> = 
             if (!(target instanceof HTMLElement)) return;
             const pane = target.closest<HTMLElement>("[data-ucx-pane]");
             if (pane?.closest("[data-ucx-browser]") === rootRef.current) {
-                setActivePane(pane.dataset.ucxPane as UcxBrowserPane);
+                const nextPane = pane.dataset.ucxPane as UcxBrowserPane;
+                activePaneRef.current = nextPane;
+                setActivePane(nextPane);
             }
         }}
         onBlur={ev => {
@@ -533,6 +553,7 @@ export const UcxBrowserLayout: React.FunctionComponent<UcxBrowserLayoutProps> = 
         }}
     >
         <UcxBrowserFocusContentContext.Provider value={focusContent}>
+        <UcxBrowserRestorePaneFocusContext.Provider value={capturePaneFocus}>
         {hasSidebar ?
             <aside
                 ref={sidebarRef}
@@ -568,6 +589,7 @@ export const UcxBrowserLayout: React.FunctionComponent<UcxBrowserLayoutProps> = 
                 null
             }
         </main>
+        </UcxBrowserRestorePaneFocusContext.Provider>
         </UcxBrowserFocusContentContext.Provider>
     </div>;
 };
@@ -1472,6 +1494,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                         col.copy === true ?
                                             <TableCell key={col.key} role="gridcell" style={{position: "relative"}}>
                                                 {row.cells[cellIdx]}
+                                                {cellIdx === 0 && row.busy ? <UcxSpinner size={12} margin="0 0 0 6px" /> : null}
                                                 <button
                                                     className="streamed-table-copy-button"
                                                     title="Copy name"
@@ -1487,6 +1510,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                             </TableCell> :
                                             <TableCell key={col.key} role="gridcell">
                                                 {row.cells[cellIdx]}
+                                                {cellIdx === 0 && row.busy ? <UcxSpinner size={12} margin="0 0 0 6px" /> : null}
                                             </TableCell>
                                     )}
                                     {hasActions ?

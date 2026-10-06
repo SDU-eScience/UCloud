@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
@@ -23,6 +25,57 @@ func rolloutRestartSupported(typeId string) bool {
 	default:
 		return false
 	}
+}
+
+func rolloutRestartBusy(typeId string, obj *unstructured.Unstructured) bool {
+	if !rolloutRestartSupported(typeId) {
+		return false
+	}
+	if firstInt64(obj, "status", "observedGeneration") < obj.GetGeneration() {
+		return true
+	}
+	if firstInt64(obj, "status", "terminatingReplicas") > 0 {
+		return true
+	}
+
+	if typeId == "daemonsets" {
+		desired := firstInt64(obj, "status", "desiredNumberScheduled")
+		countsChanging := firstInt64(obj, "status", "currentNumberScheduled") != desired ||
+			firstInt64(obj, "status", "numberReady") != desired ||
+			firstInt64(obj, "status", "numberAvailable") != desired ||
+			firstInt64(obj, "status", "numberMisscheduled") > 0
+		if countsChanging {
+			return true
+		}
+		if firstString(obj, "spec", "updateStrategy", "type") == "OnDelete" {
+			return false
+		}
+		return firstInt64(obj, "status", "updatedNumberScheduled") != desired
+	}
+
+	desired := firstInt64(obj, "spec", "replicas")
+	countsChanging := firstInt64(obj, "status", "replicas") != desired ||
+		firstInt64(obj, "status", "readyReplicas") != desired
+	if countsChanging {
+		return true
+	}
+	if typeId == "deployments" {
+		return firstInt64(obj, "status", "updatedReplicas") != desired ||
+			firstInt64(obj, "status", "availableReplicas") != desired
+	}
+
+	if firstString(obj, "spec", "updateStrategy", "type") == "OnDelete" {
+		return false
+	}
+	partition := firstInt64(obj, "spec", "updateStrategy", "rollingUpdate", "partition")
+	updateTarget := max(0, desired-partition)
+	if firstInt64(obj, "status", "updatedReplicas") < updateTarget {
+		return true
+	}
+	if partition > 0 || desired == 0 {
+		return false
+	}
+	return firstString(obj, "status", "currentRevision") != firstString(obj, "status", "updateRevision")
 }
 
 func rolloutRestartSingularLabel(typeId string) string {
@@ -115,9 +168,9 @@ func rolloutRestartResultMessage(typeLabel string, targetPath string, err error)
 }
 
 func (app *stackUiApp) rolloutRestartDialogNode() ucx.UiNode {
-	return ucx.DialogEx("rolloutRestartDialog", "Restart rollout", true).Children(
+	return ucx.DialogEx("rolloutRestartDialog", "Restart", true).Children(
 		ucx.TextEx("", fmt.Sprintf(
-			"Restart %s %s? Its pods are replaced one at a time.",
+			"Restart %s %s?",
 			rolloutRestartSingularLabel(app.rolloutRestartTarget.TypeId),
 			app.rolloutRestartTargetPath(),
 		)).Sx(ucx.SxMinHeight(200)),
