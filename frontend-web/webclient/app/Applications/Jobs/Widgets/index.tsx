@@ -408,7 +408,6 @@ const FieldRowClass = injectStyleSimple("job-field-row", `
     display: grid;
     grid-template-columns: minmax(180px, 2fr) minmax(240px, 3fr);
     min-height: 64px;
-    background: var(--backgroundCard);
     column-gap: 24px;
 
     &:has(> div:nth-child(2) > div:first-child :focus) > div:first-child {

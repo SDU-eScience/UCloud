@@ -65,15 +65,16 @@ type stackUiApp struct {
 	NewPoolName  string
 	AddBusy      bool
 
-	ActiveType      string
-	ActiveNamespace string
-	ActiveFilter    resourceFilter `ucx:"-"`
-	filterOrigin    string         `ucx:"-"`
-	ResourceDetail  string
-	ResourceYaml    string
-	Namespaces      []string
-	LogJobId        string
-	ContainerLogs   string
+	ActiveType         string
+	ActiveNamespace    string
+	ActiveFilter       resourceFilter             `ucx:"-"`
+	filterOrigin       string                     `ucx:"-"`
+	resourceNavigation []dashboardNavigationEntry `ucx:"-"`
+	ResourceDetail     string
+	ResourceYaml       string
+	Namespaces         []string
+	LogJobId           string
+	ContainerLogs      string
 
 	MaintenanceTimeoutSeconds          int
 	MaintenanceDrain                   bool
@@ -846,17 +847,26 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 			app.handleTableAction(ev)
 		})}
 
+		if len(app.resourceNavigation) > 1 {
+			bottom = append(bottom, dashboardNavigationBack(app))
+		}
 		bottom = append(bottom, ucx.TableFilter("resourceFilter", app.ActiveType))
 		if namespaced && app.ActiveFilter.isEmpty() {
 			bottom = append(bottom, app.namespaceSelectorNode())
 		}
 		bottom = append(bottom, ucx.Box().Sx(ucx.SxFlexGrow(1)))
-
-		countTitle := app.activeTypeLabel(app.allTypeDefs())
-		if !app.ActiveFilter.isEmpty() && app.ActiveFilter.title != "" {
-			countTitle = app.ActiveFilter.title
+		if len(app.resourceNavigation) > 1 {
+			bottom = append(bottom, dashboardNavigationBreadcrumbs(app))
+		} else {
+			bottom = append(bottom, ucx.TableCount("resourceCount", app.ActiveType).WithTitle(app.activeTypeLabel(app.allTypeDefs())))
 		}
-		bottom = append(bottom, ucx.TableCount("resourceCount", app.ActiveType).WithTitle(countTitle))
+	}
+	if inDetail && len(app.resourceNavigation) > 1 {
+		bottom = []ucx.UiNode{
+			dashboardNavigationBack(app),
+			ucx.Box().Sx(ucx.SxFlexGrow(1)),
+			dashboardNavigationBreadcrumbs(app),
+		}
 	}
 
 	escapePath := ""
@@ -877,6 +887,9 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 		escapePath = app.browseRoute("pods", resourceFilter{})
 	} else if app.filterOrigin != "" && !app.ActiveFilter.isEmpty() {
 		escapePath = app.browseRoute(app.filterOrigin, resourceFilter{})
+	}
+	if len(app.resourceNavigation) > 1 {
+		escapePath = app.resourceNavigation[len(app.resourceNavigation)-2].route
 	}
 
 	return []ucx.UiNode{app.appShell(appShellProps{
@@ -1011,13 +1024,16 @@ func (app *stackUiApp) selectResourceType(typeId string) {
 	if typeId == "" {
 		return
 	}
+	app.resourceNavigation = nil
+	app.ActiveFilter = resourceFilter{}
+	app.filterOrigin = ""
+	if app.poller != nil {
+		app.poller.SetActiveFilter(resourceFilter{})
+	}
 
 	if typeId != app.ActiveType {
 		app.ActiveType = typeId
-		app.ActiveFilter = resourceFilter{}
-		app.filterOrigin = ""
 		if app.poller != nil {
-			app.poller.SetActiveFilter(resourceFilter{})
 			app.poller.SetActiveType(typeId)
 		}
 		if def, ok := app.resolveType(typeId); ok && def.Namespaced {
@@ -1025,7 +1041,7 @@ func (app *stackUiApp) selectResourceType(typeId string) {
 		}
 	}
 
-	if strings.HasPrefix(app.RoutePath, "detail/") {
+	if app.ResourceDetail != "" {
 		app.ResourceDetail = ""
 		app.prevDetail = ""
 		app.ResourceYaml = ""
@@ -1128,11 +1144,12 @@ func (app *stackUiApp) handleRowActivated(tableId string, namespace string, name
 	}
 
 	if jobId := app.provisioningJobId(name); jobId != "" {
+		dashboardNavigationStart(app)
 		app.ResourceDetail = "provisioning/" + namespace + "/" + name
 		app.prevDetail = app.ResourceDetail
 		app.LogJobId = jobId
 		app.ResourceYaml = ""
-		ucxsvc.RouterPushPage(app, "detail/"+url.PathEscape("provisioning")+"/"+url.PathEscape(namespace)+"/"+url.PathEscape(name))
+		dashboardNavigationPush(app, "detail/"+url.PathEscape("provisioning")+"/"+url.PathEscape(namespace)+"/"+url.PathEscape(name), strings.TrimPrefix(namespace+"/"+name, "/"))
 		ucx.AppUpdateUi(app)
 		return
 	}
@@ -1157,11 +1174,7 @@ func (app *stackUiApp) handleRowActivated(tableId string, namespace string, name
 		return
 	}
 
-	app.ResourceDetail = tableId + "/" + namespace + "/" + name
-	app.prevDetail = app.ResourceDetail
-	app.loadResourceYaml(app.ResourceDetail)
-	ucxsvc.RouterPushPage(app, "detail/"+url.PathEscape(tableId)+"/"+url.PathEscape(namespace)+"/"+url.PathEscape(name))
-	ucx.AppUpdateUi(app)
+	app.openResourceDetail(tableId, namespace, name)
 }
 
 func isWorkloadOwnerType(typeId string) bool {
@@ -1194,16 +1207,17 @@ func (app *stackUiApp) openContainerLogs(namespace string, containerName string,
 	}
 	podName := pod.GetName()
 
+	dashboardNavigationStart(app)
 	app.ResourceDetail = containersTypeId + "/" + podNamespace + "/" + podName + "/" + containerName
 	app.prevDetail = app.ResourceDetail
 	app.ResourceYaml = ""
 	app.startContainerLogsLocked(podNamespace, podName, containerName)
 
-	ucxsvc.RouterPushPage(app, "detail/"+
+	dashboardNavigationPush(app, "detail/"+
 		url.PathEscape(containersTypeId)+"/"+
 		url.PathEscape(podNamespace)+"/"+
 		url.PathEscape(podName)+"/"+
-		url.PathEscape(containerName))
+		url.PathEscape(containerName), containerName)
 	ucx.AppUpdateUi(app)
 }
 
@@ -1244,6 +1258,7 @@ func (app *stackUiApp) openOwnedPods(tableId string, namespace string, name stri
 		filter.fieldSelector = "metadata.namespace=" + namespace
 	}
 
+	dashboardNavigationStart(app)
 	app.ActiveType = "pods"
 	app.ActiveFilter = filter
 	app.filterOrigin = tableId
@@ -1252,7 +1267,7 @@ func (app *stackUiApp) openOwnedPods(tableId string, namespace string, name stri
 	app.ResourceYaml = ""
 	app.poller.SetActiveFilter(filter)
 	app.poller.SetActiveType("pods")
-	ucxsvc.RouterPushPage(app, app.browseRoute("pods", filter))
+	dashboardNavigationPush(app, app.browseRoute("pods", filter), originPath)
 	ucx.AppUpdateUi(app)
 }
 
@@ -1266,6 +1281,7 @@ func (app *stackUiApp) openNodePods(nodeName string) {
 		title:         "Pods on nodes/" + nodeName,
 	}
 
+	dashboardNavigationStart(app)
 	app.ActiveType = "pods"
 	app.ActiveFilter = filter
 	app.filterOrigin = "nodes"
@@ -1274,7 +1290,7 @@ func (app *stackUiApp) openNodePods(nodeName string) {
 	app.ResourceYaml = ""
 	app.poller.SetActiveFilter(filter)
 	app.poller.SetActiveType("pods")
-	ucxsvc.RouterPushPage(app, app.browseRoute("pods", filter))
+	dashboardNavigationPush(app, app.browseRoute("pods", filter), nodeName)
 	ucx.AppUpdateUi(app)
 }
 
@@ -1309,6 +1325,7 @@ func (app *stackUiApp) openPodContainers(namespace string, podName string) {
 		fieldSelector: fieldSelector,
 		title:         "Containers of pods/" + originPath,
 	}
+	dashboardNavigationStart(app)
 	app.ActiveType = containersTypeId
 	app.ActiveFilter = filter
 	app.filterOrigin = "pods"
@@ -1319,7 +1336,7 @@ func (app *stackUiApp) openPodContainers(namespace string, podName string) {
 		app.poller.SetActiveFilter(filter)
 		app.poller.SetActiveType(containersTypeId)
 	}
-	ucxsvc.RouterPushPage(app, app.browseRoute(containersTypeId, filter))
+	dashboardNavigationPush(app, app.browseRoute(containersTypeId, filter), originPath)
 	ucx.AppUpdateUi(app)
 }
 
@@ -1360,10 +1377,11 @@ func (app *stackUiApp) openYamlForRowKey(rowKey string) {
 }
 
 func (app *stackUiApp) openResourceDetail(tableId string, namespace string, name string) {
+	dashboardNavigationStart(app)
 	app.ResourceDetail = tableId + "/" + namespace + "/" + name
 	app.prevDetail = app.ResourceDetail
 	app.loadResourceYaml(app.ResourceDetail)
-	ucxsvc.RouterPushPage(app, "detail/"+url.PathEscape(tableId)+"/"+url.PathEscape(namespace)+"/"+url.PathEscape(name))
+	dashboardNavigationPush(app, "detail/"+url.PathEscape(tableId)+"/"+url.PathEscape(namespace)+"/"+url.PathEscape(name), strings.TrimPrefix(namespace+"/"+name, "/"))
 	ucx.AppUpdateUi(app)
 }
 
@@ -2144,6 +2162,10 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 	switch frame.Opcode {
 	case ucx.OpModelInput:
 		app.RoutePath = strings.TrimSpace(app.RoutePath)
+		if frame.ModelInput.Path == "routePath" {
+			dashboardNavigationRestore(app)
+		}
+		routePath := dashboardNavigationCurrentRoute(app)
 
 		if app.poller != nil {
 			app.poller.SetActiveType(app.ActiveType)
@@ -2151,15 +2173,15 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 		}
 
 		routeDetail := ""
-		if strings.HasPrefix(app.RoutePath, "detail/") {
-			routeDetail = detailFromRoute(app.RoutePath)
+		if strings.HasPrefix(routePath, "detail/") {
+			routeDetail = detailFromRoute(routePath)
 		}
 
 		routeType := app.ActiveType
-		if app.RoutePath == "" {
+		if routePath == "" {
 			routeType = navHomeId
-		} else if strings.HasPrefix(app.RoutePath, "browse/") {
-			routeType = strings.TrimPrefix(app.RoutePath, "browse/")
+		} else if strings.HasPrefix(routePath, "browse/") {
+			routeType = strings.TrimPrefix(routePath, "browse/")
 			if idx := strings.Index(routeType, "?"); idx >= 0 {
 				routeType = routeType[:idx]
 			}
@@ -2169,9 +2191,9 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 		}
 
 		routeFilter := resourceFilter{}
-		if strings.HasPrefix(app.RoutePath, "browse/") {
-			routeFilter = filterFromRoute(app.RoutePath)
-		} else if strings.HasPrefix(app.RoutePath, "detail/") {
+		if strings.HasPrefix(routePath, "browse/") {
+			routeFilter = filterFromRoute(routePath)
+		} else if strings.HasPrefix(routePath, "detail/") {
 			routeFilter = app.ActiveFilter
 		}
 
