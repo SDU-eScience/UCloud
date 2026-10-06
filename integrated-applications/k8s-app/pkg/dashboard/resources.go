@@ -428,17 +428,11 @@ func (c *K8sClient) CustomResourceTypes(ctx context.Context) []ResourceTypeDef {
 
 			scope, _, _ := unstructured.NestedString(crd.Object, "spec", "scope")
 
-			parts := strings.Split(group, ".")
-			crdGroup := group
-			if len(parts) >= 2 {
-				crdGroup = parts[len(parts)-2] + "." + parts[len(parts)-1]
-			}
-
 			result = append(result, ResourceTypeDef{
 				Id:         "crd:" + name,
 				Label:      label,
 				Aliases:    aliases,
-				Group:      crdGroup,
+				Group:      group,
 				Gvr:        schema.GroupVersionResource{Group: group, Version: versionName, Resource: resource},
 				Columns:    crdPrinterColumns(version),
 				HasYaml:    true,

@@ -763,6 +763,7 @@ type NavItemChild struct {
 	Aliases  []string
 	Route    string
 	Disabled bool
+	Children []NavItemChild
 }
 
 type NavItem struct {
@@ -867,28 +868,18 @@ func navItemsToValue(items []NavItem) Value {
 			object["disabled"] = VBool(true)
 		}
 		if len(item.Children) > 0 {
-			children := make([]Value, 0, len(item.Children))
+			children := make([]NavItem, 0, len(item.Children))
 			for _, child := range item.Children {
-				childObject := map[string]Value{
-					"id":    VString(child.Id),
-					"label": VString(child.Label),
-				}
-				if len(child.Aliases) > 0 {
-					aliases := make([]Value, 0, len(child.Aliases))
-					for _, alias := range child.Aliases {
-						aliases = append(aliases, VString(alias))
-					}
-					childObject["aliases"] = VList(aliases)
-				}
-				if child.Route != "" {
-					childObject["route"] = VString(child.Route)
-				}
-				if child.Disabled {
-					childObject["disabled"] = VBool(true)
-				}
-				children = append(children, VObject(childObject))
+				children = append(children, NavItem{
+					Id:       child.Id,
+					Label:    child.Label,
+					Aliases:  child.Aliases,
+					Route:    child.Route,
+					Disabled: child.Disabled,
+					Children: child.Children,
+				})
 			}
-			object["children"] = VList(children)
+			object["children"] = navItemsToValue(children)
 		}
 		list = append(list, VObject(object))
 	}

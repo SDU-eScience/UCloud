@@ -1851,6 +1851,10 @@ const UcxNavTreeClass = injectStyle("ucx-nav-tree", key => `
         color: var(--textPrimary, inherit);
     }
 
+    ${key} [role="treeitem"]:not([aria-level="1"]) .nav-tree-leaf {
+        padding-left: 4px;
+    }
+
     ${key} .nav-tree-leaf-disabled {
         color: var(--textDisabled, var(--textSecondary, inherit));
         opacity: 0.55;

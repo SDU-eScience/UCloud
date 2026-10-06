@@ -416,7 +416,12 @@ func (app *stackUiApp) resourceNavItems() []ucx.NavItem {
 
 	navItems := make([]ucx.NavItem, 0, 8)
 	groups := map[string][]ucx.NavItemChild{}
+	var customTypes []ResourceTypeDef
 	for _, def := range typeDefs {
+		if strings.HasPrefix(def.Id, "crd:") {
+			customTypes = append(customTypes, def)
+			continue
+		}
 		group := def.Group
 		if group == "" {
 			group = "Other"
@@ -434,6 +439,7 @@ func (app *stackUiApp) resourceNavItems() []ucx.NavItem {
 			Children: children,
 		})
 	}
+	navItems = append(navItems, dashboardCustomNavItems(customTypes)...)
 	sort.Slice(navItems, func(i, j int) bool {
 		return navItems[i].Label < navItems[j].Label
 	})
