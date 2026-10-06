@@ -45,7 +45,7 @@ const nodeGroupLabel = "ucloud.dk/k8s-node-group"
 
 var resourceTypes = []ResourceTypeDef{
 	{
-		Id: "nodes", Label: "Nodes", Aliases: []string{"no"}, Group: "Cluster",
+		Id: "nodes", Label: "Nodes", Aliases: []string{"node", "no"}, Group: "Cluster",
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "nodes"},
 		Columns: []ucx.TableColumn{
 			{Key: "name", Label: "Name", Copy: true},
@@ -59,7 +59,7 @@ var resourceTypes = []ResourceTypeDef{
 		},
 	},
 	{
-		Id: "pods", Label: "Pods", Aliases: []string{"po"}, Group: "Workloads", Namespaced: true,
+		Id: "pods", Label: "Pods", Aliases: []string{"pod", "po"}, Group: "Workloads", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
 		Columns: []ucx.TableColumn{
 			{Key: "name", Label: "Name", Copy: true},
@@ -71,7 +71,7 @@ var resourceTypes = []ResourceTypeDef{
 		},
 	},
 	{
-		Id: "deployments", Label: "Deployments", Aliases: []string{"deploy"}, Group: "Workloads", Namespaced: true,
+		Id: "deployments", Label: "Deployments", Aliases: []string{"deployment", "deploy"}, Group: "Workloads", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
 		Columns: []ucx.TableColumn{
 			{Key: "name", Label: "Name", Copy: true},
@@ -82,7 +82,7 @@ var resourceTypes = []ResourceTypeDef{
 		},
 	},
 	{
-		Id: "statefulsets", Label: "StatefulSets", Aliases: []string{"sts"}, Group: "Workloads", Namespaced: true,
+		Id: "statefulsets", Label: "StatefulSets", Aliases: []string{"statefulset", "sts"}, Group: "Workloads", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"},
 		Columns: []ucx.TableColumn{
 			{Key: "name", Label: "Name", Copy: true},
@@ -91,7 +91,7 @@ var resourceTypes = []ResourceTypeDef{
 		},
 	},
 	{
-		Id: "daemonsets", Label: "DaemonSets", Aliases: []string{"ds"}, Group: "Workloads", Namespaced: true,
+		Id: "daemonsets", Label: "DaemonSets", Aliases: []string{"daemonset", "ds"}, Group: "Workloads", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "daemonsets"},
 		Columns: []ucx.TableColumn{
 			{Key: "name", Label: "Name", Copy: true},
@@ -111,7 +111,7 @@ var resourceTypes = []ResourceTypeDef{
 		},
 	},
 	{
-		Id: "cronjobs", Label: "CronJobs", Aliases: []string{"cj"}, Group: "Workloads", Namespaced: true,
+		Id: "cronjobs", Label: "CronJobs", Aliases: []string{"cronjob", "cj"}, Group: "Workloads", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "batch", Version: "v1", Resource: "cronjobs"},
 		Columns: []ucx.TableColumn{
 			{Key: "name", Label: "Name", Copy: true},
@@ -122,7 +122,7 @@ var resourceTypes = []ResourceTypeDef{
 		},
 	},
 	{
-		Id: "services", Label: "Services", Aliases: []string{"svc"}, Group: "Networking", Namespaced: true,
+		Id: "services", Label: "Services", Aliases: []string{"service", "svc"}, Group: "Networking", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "services"},
 		Columns: []ucx.TableColumn{
 			{Key: "name", Label: "Name", Copy: true},
@@ -133,7 +133,7 @@ var resourceTypes = []ResourceTypeDef{
 		},
 	},
 	{
-		Id: "ingresses", Label: "Ingresses", Aliases: []string{"ing"}, Group: "Networking", Namespaced: true,
+		Id: "ingresses", Label: "Ingresses", Aliases: []string{"ingress", "ing"}, Group: "Networking", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "networking.k8s.io", Version: "v1", Resource: "ingresses"},
 		Columns: []ucx.TableColumn{
 			{Key: "name", Label: "Name", Copy: true},
@@ -143,7 +143,7 @@ var resourceTypes = []ResourceTypeDef{
 		},
 	},
 	{
-		Id: "configmaps", Label: "ConfigMaps", Aliases: []string{"cm"}, Group: "Config", Namespaced: true,
+		Id: "configmaps", Label: "ConfigMaps", Aliases: []string{"configmap", "cm"}, Group: "Config", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "configmaps"},
 		Columns: []ucx.TableColumn{
 			{Key: "name", Label: "Name", Copy: true},
@@ -153,7 +153,7 @@ var resourceTypes = []ResourceTypeDef{
 		HasYaml: false,
 	},
 	{
-		Id: "secrets", Label: "Secrets", Aliases: []string{"sec"}, Group: "Config", Namespaced: true,
+		Id: "secrets", Label: "Secrets", Aliases: []string{"secret"}, Group: "Config", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "secrets"},
 		Columns: []ucx.TableColumn{
 			{Key: "name", Label: "Name", Copy: true},
@@ -164,7 +164,7 @@ var resourceTypes = []ResourceTypeDef{
 		HasYaml: false,
 	},
 	{
-		Id: "persistentvolumes", Label: "PVs", Aliases: []string{"pv"}, Group: "Storage",
+		Id: "persistentvolumes", Label: "PVs", Aliases: []string{"persistentvolume", "pv"}, Group: "Storage",
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "persistentvolumes"},
 		Columns: []ucx.TableColumn{
 			{Key: "name", Label: "Name", Copy: true},
@@ -174,7 +174,7 @@ var resourceTypes = []ResourceTypeDef{
 		},
 	},
 	{
-		Id: "persistentvolumeclaims", Label: "PVCs", Aliases: []string{"pvc"}, Group: "Storage", Namespaced: true,
+		Id: "persistentvolumeclaims", Label: "PVCs", Aliases: []string{"persistentvolumeclaim", "pvc"}, Group: "Storage", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "persistentvolumeclaims"},
 		Columns: []ucx.TableColumn{
 			{Key: "name", Label: "Name", Copy: true},
@@ -185,7 +185,7 @@ var resourceTypes = []ResourceTypeDef{
 		},
 	},
 	{
-		Id: "events", Label: "Events", Aliases: []string{"ev"}, Group: "Cluster", Namespaced: true,
+		Id: "events", Label: "Events", Aliases: []string{"event", "ev"}, Group: "Cluster", Namespaced: true,
 		Gvr: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "events"},
 		Columns: []ucx.TableColumn{
 			{Key: "name", Label: "Name", Copy: true},

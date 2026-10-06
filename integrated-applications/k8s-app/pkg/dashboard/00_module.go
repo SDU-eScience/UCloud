@@ -231,7 +231,12 @@ func (app *stackUiApp) startK8sClientWhenReady(session *ucx.Session, activeType 
 
 						app.poller = newResourcePoller(client, session, activeType, app.nodeJobIds, app.provisioningResourceRows, func() {
 							app.mu.Lock()
-							ucx.AppUpdateUi(app)
+							app.OnMessage(ucx.Frame{
+								Opcode: ucx.OpModelInput,
+								ModelInput: ucx.ModelInput{
+									Path: "routePath",
+								},
+							})
 							app.mu.Unlock()
 						})
 						app.syncContainerLogStream()
@@ -380,11 +385,10 @@ func groupFromRoute(routePath string) string {
 }
 
 func (app *stackUiApp) allTypeDefs() []ResourceTypeDef {
-	typeDefs := ResourceTypes()
 	if app.poller != nil {
-		typeDefs = append(typeDefs, app.poller.customTypesSnapshot()...)
+		return app.poller.resourceTypesSnapshot()
 	}
-	return typeDefs
+	return ResourceTypes()
 }
 
 func (app *stackUiApp) browseRoute(typeId string, filter resourceFilter) string {
@@ -422,17 +426,18 @@ func (app *stackUiApp) resourceNavItems() []ucx.NavItem {
 			customTypes = append(customTypes, def)
 			continue
 		}
-		group := def.Group
-		if group == "" {
-			group = "Other"
-		}
-		groups[group] = append(groups[group], ucx.NavItemChild{
+		path := dashboardBuiltinNavPath(def)
+		group := path[0]
+		children := groups[group]
+		dashboardBuiltinNavAdd(&children, path[1:], "group:"+group, ucx.NavItemChild{
 			Id:      def.Id,
 			Label:   def.Label,
 			Aliases: def.Aliases,
 		})
+		groups[group] = children
 	}
 	for group, children := range groups {
+		dashboardNavSort(children)
 		navItems = append(navItems, ucx.NavItem{
 			Id:       "group:" + group,
 			Label:    group,
@@ -441,6 +446,16 @@ func (app *stackUiApp) resourceNavItems() []ucx.NavItem {
 	}
 	navItems = append(navItems, dashboardCustomNavItems(customTypes)...)
 	sort.Slice(navItems, func(i, j int) bool {
+		leftCluster := navItems[i].Id == "group:Cluster"
+		rightCluster := navItems[j].Id == "group:Cluster"
+		if leftCluster != rightCluster {
+			return leftCluster
+		}
+		leftDirectory := len(navItems[i].Children) > 0
+		rightDirectory := len(navItems[j].Children) > 0
+		if leftDirectory != rightDirectory {
+			return leftDirectory
+		}
 		return navItems[i].Label < navItems[j].Label
 	})
 
@@ -1521,9 +1536,22 @@ func (app *stackUiApp) openShellToPod(rowKey string) {
 	if containerName != "" {
 		title = podName + "/" + containerName
 	}
-	command := fmt.Sprintf("printf '\\033]777;ucloud-shell-ready\\007\\033]0;%s\\007' && kubectl exec -it -n %s %s -- %s", title, namespace, podName, shellCommand)
+	command := fmt.Sprintf(
+		"printf '\\033]777;ucloud-shell-ready\\007\\033]0;%%s\\007' %s && kubectl exec -it -n %s %s -- %s",
+		orcapi.EscapeBash(title),
+		orcapi.EscapeBash(namespace),
+		orcapi.EscapeBash(podName),
+		shellCommand,
+	)
 	if containerName != "" {
-		command = fmt.Sprintf("printf '\\033]777;ucloud-shell-ready\\007\\033]0;%s\\007' && kubectl exec -it -n %s %s -c %s -- %s", title, namespace, podName, containerName, shellCommand)
+		command = fmt.Sprintf(
+			"printf '\\033]777;ucloud-shell-ready\\007\\033]0;%%s\\007' %s && kubectl exec -it -n %s %s -c %s -- %s",
+			orcapi.EscapeBash(title),
+			orcapi.EscapeBash(namespace),
+			orcapi.EscapeBash(podName),
+			orcapi.EscapeBash(containerName),
+			shellCommand,
+		)
 	}
 
 	jobId, ok := app.firstControlPlaneNodeWithShell()
@@ -2380,12 +2408,8 @@ func (app *stackUiApp) loadResourceYaml(detail string) {
 }
 
 func (app *stackUiApp) resolveType(typeId string) (ResourceTypeDef, bool) {
-	if def, ok := ResourceType(typeId); ok {
-		return def, true
-	}
 	if app.poller != nil {
-		def := app.poller.customTypeById(typeId)
-		return def, def.Id != ""
+		return app.poller.resourceTypeById(typeId)
 	}
-	return ResourceTypeDef{}, false
+	return ResourceType(typeId)
 }

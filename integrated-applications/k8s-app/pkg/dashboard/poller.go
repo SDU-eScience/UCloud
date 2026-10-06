@@ -3,6 +3,7 @@ package dashboard
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -111,7 +112,8 @@ type resourcePoller struct {
 	lastRv          string
 	cache           map[string]*unstructured.Unstructured
 	customTypes     []ResourceTypeDef
-	customAt        atomic.Int64
+	builtinTypes    []ResourceTypeDef
+	resourceTypesAt atomic.Int64
 	onTypesChanged  func()
 	nodeJobIds      func() map[string]string
 	extraRows       func(ResourceTypeDef) []ResourceRow
@@ -209,10 +211,10 @@ func (p *resourcePoller) signalPollNow() {
 }
 
 func (p *resourcePoller) run(ctx context.Context) {
-	p.refreshCustomTypes(ctx)
+	p.resourceRefreshTypes(ctx)
 
 	for {
-		p.resourceMaybeRefreshCustomTypes(ctx)
+		p.resourceMaybeRefreshTypes(ctx)
 
 		selection, ok := p.resourceCurrentSelection()
 		if !ok {
@@ -251,14 +253,14 @@ func (p *resourcePoller) resourceWaitForSelection(ctx context.Context) bool {
 		return false
 	case <-p.pollNow:
 	case <-ticker.C:
-		p.resourceMaybeRefreshCustomTypes(ctx)
+		p.resourceMaybeRefreshTypes(ctx)
 	}
 	return true
 }
 
-func (p *resourcePoller) resourceMaybeRefreshCustomTypes(ctx context.Context) {
-	if time.Since(time.Unix(0, p.customAt.Load())) > time.Minute {
-		p.refreshCustomTypes(ctx)
+func (p *resourcePoller) resourceMaybeRefreshTypes(ctx context.Context) {
+	if time.Since(time.Unix(0, p.resourceTypesAt.Load())) > time.Minute {
+		p.resourceRefreshTypes(ctx)
 	}
 }
 
@@ -268,23 +270,13 @@ func (p *resourcePoller) resourceCurrentSelection() (resourceSelection, bool) {
 	namespace := p.activeNamespace
 	filter := p.activeFilter
 	epoch := p.selectionEpoch
-	customTypes := p.customTypes
 	p.mu.Unlock()
 
 	if p.client == nil || typeId == "" {
 		return resourceSelection{}, false
 	}
 
-	def, ok := ResourceType(typeId)
-	if !ok {
-		for i := range customTypes {
-			if customTypes[i].Id == typeId {
-				def = customTypes[i]
-				ok = true
-				break
-			}
-		}
-	}
+	def, ok := p.resourceTypeById(typeId)
 	if !ok {
 		return resourceSelection{}, false
 	}
@@ -320,7 +312,7 @@ func (p *resourcePoller) resourceRunWatchCycle(ctx context.Context, selection re
 			return resourceWatchRelist
 		}
 
-		p.resourceMaybeRefreshCustomTypes(cycleCtx)
+		p.resourceMaybeRefreshTypes(cycleCtx)
 
 		if !p.resourceWait(cycleCtx, resourceWatchRetryDelay) {
 			return p.resourceCycleResult(ctx)
@@ -422,7 +414,7 @@ func (p *resourcePoller) resourceWatchLoop(rootCtx context.Context, cycleCtx con
 			flush()
 
 		case <-renderTicker.C:
-			p.resourceMaybeRefreshCustomTypes(cycleCtx)
+			p.resourceMaybeRefreshTypes(cycleCtx)
 			flush()
 
 		case <-batchC:
@@ -718,7 +710,7 @@ func (p *resourcePoller) resourceListOptions(selection resourceSelection) metav1
 	return opts
 }
 
-func (p *resourcePoller) refreshCustomTypes(ctx context.Context) {
+func (p *resourcePoller) resourceRefreshTypes(ctx context.Context) {
 	if p.client == nil {
 		return
 	}
@@ -727,36 +719,56 @@ func (p *resourcePoller) refreshCustomTypes(ctx context.Context) {
 	defer cancel()
 
 	types := p.client.CustomResourceTypes(discoveryCtx)
+	builtinCtx, builtinCancel := context.WithTimeout(ctx, pollInterval)
+	defer builtinCancel()
+	builtinTypes, err := resourceBuiltinTypes(builtinCtx, p.client, types)
+	if err != nil {
+		log.Warn("k8s-app: failed to discover built-in resource types: %s", err)
+	}
 
 	p.mu.Lock()
-	firstDiscovery := len(p.customTypes) == 0 && len(types) > 0
+	typesChanged := !reflect.DeepEqual(p.customTypes, types)
 	p.customTypes = types
+	if err == nil {
+		typesChanged = typesChanged || !reflect.DeepEqual(p.builtinTypes, builtinTypes)
+		p.builtinTypes = builtinTypes
+	}
 	p.mu.Unlock()
-	p.customAt.Store(time.Now().UnixNano())
-	log.Info("k8s-app: discovered %d custom resource types", len(types))
+	p.resourceTypesAt.Store(time.Now().UnixNano())
+	log.Info("k8s-app: discovered %d built-in and %d custom resource types", len(builtinTypes), len(types))
 
-	if firstDiscovery {
+	if typesChanged {
 		if onTypesChanged := p.onTypesChanged; onTypesChanged != nil {
 			onTypesChanged()
 		}
 	}
 }
 
-func (p *resourcePoller) customTypeById(typeId string) ResourceTypeDef {
+func (p *resourcePoller) resourceTypeById(typeId string) (ResourceTypeDef, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	for _, def := range p.customTypes {
+	for _, def := range p.builtinTypes {
 		if def.Id == typeId {
-			return def
+			return def, true
 		}
 	}
-	return ResourceTypeDef{}
+	for _, def := range p.customTypes {
+		if def.Id == typeId {
+			return def, true
+		}
+	}
+	return ResourceType(typeId)
 }
 
-func (p *resourcePoller) customTypesSnapshot() []ResourceTypeDef {
+func (p *resourcePoller) resourceTypesSnapshot() []ResourceTypeDef {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return append([]ResourceTypeDef(nil), p.customTypes...)
+	types := p.builtinTypes
+	if types == nil {
+		types = ResourceTypes()
+	}
+	result := append([]ResourceTypeDef(nil), types...)
+	return append(result, p.customTypes...)
 }
 
 func resourceClassifyWatchFailure(err error) resourceWatchFailure {

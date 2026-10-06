@@ -29,12 +29,16 @@ func (app *stackUiApp) appShell(props appShellProps) ucx.UiNode {
 		}
 	}
 
+	navTree := ucx.NavTreeEx("resourceNav", "activeType", navItems).On(ucx.UiEventActivate, func(ev ucx.UiEvent) {
+		app.selectResourceType(ucx.ValueAsString(ev.Value))
+	})
+	navTree.Props["initialExpandedIds"] = ucx.VList([]ucx.Value{
+		ucx.VString("group:Cluster"),
+		ucx.VString("group:Workloads"),
+	})
+
 	layoutProps := ucx.BrowserLayoutProps{
-		Sidebar: ucx.BrowserSidebar(
-			ucx.NavTreeEx("resourceNav", "activeType", navItems).On(ucx.UiEventActivate, func(ev ucx.UiEvent) {
-				app.selectResourceType(ucx.ValueAsString(ev.Value))
-			}),
-		),
+		Sidebar:        ucx.BrowserSidebar(navTree),
 		Content:        props.Content,
 		EscapePath:     props.EscapePath,
 		EscapeDisabled: props.EscapeDisabled,
