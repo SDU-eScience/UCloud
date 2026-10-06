@@ -147,11 +147,20 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
 
         @container header-first-row (width < ${ContainerSize.MEDIUM}px) {
-             ${BrowserClass.dot} header input.search-field {
-                width: 100%;
-             }
+            ${BrowserClass.dot} header input.search-field {
+               width: 100%;
+            }
 
             ${BrowserClass.dot} header div.header-first-row {
+                display: grid;
+                gap: 8px;
+                grid-template-columns: 32px auto 222px;
+                grid-template-areas:
+                    "refresh  .        project-switcher"
+                    "location location location        ";
+            }
+
+            ${BrowserClass.dot} header div.header-first-row:has(.search-icon:visible) {
                 display: grid;
                 gap: 8px;
                 grid-template-columns: 36px 32px auto 222px;
