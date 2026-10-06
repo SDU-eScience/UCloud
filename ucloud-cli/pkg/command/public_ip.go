@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"net/netip"
 	"strconv"
 	"strings"
 
@@ -27,13 +28,21 @@ type PublicIPGetCommand struct {
 
 type PublicIPDeleteCommand struct {
 	Ids       []string `flag:"id" usage:"--id 15 --id 16"`
-	IPAddress []string `flag:"ip" usage:"10.99.0.2 10.99.0.7-10.99.0.8"`
+	IPAddress []string `flag:"ip" usage:"--ip 10.99.0.2 10.99.0.7-10.99.0.8"`
 	Workspace string   `flag:"workspace" usage:"eg. --workspace myworkspace"`
 }
 
 type PublicIPCreateCommand struct {
 	// TODO: add named public-ip, when it is supported by the API
 	Rule      []string `flag:"rule" usage:"eg. 1234-2345/tcp" required:"true"`
+	Workspace string   `flag:"workspace" usage:"Workspace to create the public-ip in"`
+	Provider  string   `flag:"provider" usage:"Provider name" default:"k8s"`
+}
+
+type PublicIPFirewallCommand struct {
+	Id        string   `positional:"id" usage:"Public IP ID"`
+	IPAddress string   `flag:"ip" usage:"eg. --ip 10.99.0.3"`
+	Rule      []string `flag:"rule" usage:"eg. --rule 1234-2345/tcp" required:"true"`
 	Workspace string   `flag:"workspace" usage:"Workspace to create the public-ip in"`
 	Provider  string   `flag:"provider" usage:"Provider name" default:"k8s"`
 }
@@ -45,10 +54,11 @@ type PortRange struct {
 }
 
 var PublicIPCommands = map[string]CommandFunc{
-	"list":   func() Command { return &PublicIPListCommand{} },
-	"get":    func() Command { return &PublicIPGetCommand{} },
-	"delete": func() Command { return &PublicIPDeleteCommand{} },
-	"create": func() Command { return &PublicIPCreateCommand{} },
+	"list":     func() Command { return &PublicIPListCommand{} },
+	"get":      func() Command { return &PublicIPGetCommand{} },
+	"delete":   func() Command { return &PublicIPDeleteCommand{} },
+	"create":   func() Command { return &PublicIPCreateCommand{} },
+	"firewall": func() Command { return &PublicIPFirewallCommand{} },
 }
 
 func makeHeader(t *termio.Table) {
@@ -332,5 +342,80 @@ func (c PublicIPCreateCommand) Execute() error {
 		return fmt.Errorf("failed to create public ip: %s", httpErr.Why)
 	}
 	fmt.Printf("Successfully create public ip %v\n", res.Responses[0].Id)
+	return nil
+}
+
+func (c PublicIPFirewallCommand) Execute() error {
+	cfg := shared.InitializeUCloudClient()
+	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
+	if err != nil {
+		return err
+	}
+	// id takes precedence over ip address
+	publicId := c.Id
+	var foundIps []orcapi.PublicIp
+
+	publicIps, err := retrievePublicIps()
+	if err != nil {
+		return err
+	}
+	// if id is specified, we only look for that id
+	if publicId != "" {
+		foundIps, err = findPublicIpByIds([]string{c.Id}, publicIps)
+	} else if c.IPAddress != "" {
+		// we look for the ip address if id is not specified
+		parsedIp, err := netip.ParseAddr(strings.TrimSpace(c.IPAddress))
+		if err != nil {
+			return fmt.Errorf("invalid start IP %q: %w", parsedIp, err)
+		}
+		foundIps, err = findPublicIpByIpRange([]string{parsedIp.String()}, publicIps)
+	} else {
+		return fmt.Errorf("either id or ip address must be specified, id has precedence over ip address")
+	}
+
+	if err != nil {
+		return err
+	}
+	if len(foundIps) == 0 {
+		return fmt.Errorf("public ip not found")
+	}
+
+	// we found the id
+	foundPublicIp := foundIps[0]
+	ports, err := createPortRangeAndProto(c.Rule)
+
+	if err != nil {
+		return err
+	}
+	requests := fnd.BulkRequest[orcapi.PublicIpUpdateFirewallRequest]{
+		Items: []orcapi.PublicIpUpdateFirewallRequest{
+			{Id: foundPublicIp.Id,
+				Firewall: orcapi.Firewall{
+					OpenPorts: ports,
+				},
+			},
+		},
+	}
+	_, httpErr := orcapi.PublicIpsUpdateFirewall.Invoke(requests)
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to update public ip: %s", httpErr.Why)
+	}
+	fmt.Println("Successfully updated public ip")
+	t := termio.Table{}
+	t.AppendHeader("Id")
+	t.Cell(foundPublicIp.Id)
+	t.AppendHeader("IP Address")
+	t.Cell(foundPublicIp.Status.IpAddress.GetOrDefault(""))
+	t.AppendHeader("Ports")
+	portStr := ""
+	for _, port := range ports {
+		if port.Start == port.End {
+			portStr += fmt.Sprintf("%v/%v\n", port.Start, port.Protocol)
+		} else {
+			portStr += fmt.Sprintf("%v-%v/%v\n", port.Start, port.End, port.Protocol)
+		}
+	}
+	t.Cell(portStr)
+	t.Print()
 	return nil
 }
