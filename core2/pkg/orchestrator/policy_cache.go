@@ -23,7 +23,6 @@ func initPolicySubscriptions() {
 
 	go func() {
 		policyUpdates := db.Listen(context.Background(), "policy_updates")
-		policyDeletes := db.Listen(context.Background(), "policy_deleted")
 
 		var projectId string
 		var policySpecifications map[fndapi.PolicyName]fndapi.Specification
@@ -32,11 +31,6 @@ func initPolicySubscriptions() {
 		for {
 			select {
 			case projectId = <-policyUpdates:
-
-				db.NewTx0(func(tx *db.Transaction) {
-					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
-				})
-			case projectId = <-policyDeletes:
 
 				db.NewTx0(func(tx *db.Transaction) {
 					policySpecifications, policiesOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
@@ -54,20 +48,31 @@ func initPolicySubscriptions() {
 // policiesByProject returns mapping of [schema Name] => PolicySpecification. If no policy is cached for the project it
 // will attempt to retrieve it from DB. This is also how it is populated.
 func policiesByProject(projectId string) map[fndapi.PolicyName]fndapi.Specification {
-	policyCache.Mu.Lock()
+	policyCache.Mu.RLock()
 	projectPolicies, ok := policyCache.PoliciesByProject[projectId]
-	if !ok {
-		db.NewTx0(func(tx *db.Transaction) {
-			policySpecifications, policiesOk := coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
-			if policiesOk {
-				policyCache.PoliciesByProject[projectId] = policySpecifications
-				projectPolicies = policySpecifications
-			}
-		})
+	policyCache.Mu.RUnlock()
+	if ok {
+		return projectPolicies
 	}
-	policyCache.Mu.Unlock()
+	var fetched map[fndapi.PolicyName]fndapi.Specification
+	var fetchedOk bool
+	db.NewTx0(func(tx *db.Transaction) {
+		fetched, fetchedOk = coreutil.PolicySpecificationsRetrieveFromDatabase(tx, projectId)
+	})
 
-	return projectPolicies
+	if !fetchedOk {
+		return nil
+	}
+
+	policyCache.Mu.Lock()
+	defer policyCache.Mu.Unlock()
+
+	if existing, exists := policyCache.PoliciesByProject[projectId]; exists {
+		return existing
+	}
+
+	policyCache.PoliciesByProject[projectId] = fetched
+	return fetched
 }
 
 func updatePolicyCacheForProject(projectId string, policySpecifications map[fndapi.PolicyName]fndapi.Specification) {

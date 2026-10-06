@@ -1,12 +1,15 @@
 package coreutil
 
 import (
+	"context"
+	"fmt"
 	"net"
 	"net/http"
 	"time"
 
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -16,7 +19,7 @@ var projectPolicyCache = util.NewCache[string, map[fndapi.PolicyName]fndapi.Spec
 // ProjectPoliciesRetrieve returns the configured policies of a project. The policies are read directly from the
 // database through a short-lived cache, such that the result is correct in every deployment of the Core.
 func ProjectPoliciesRetrieve(projectId string) map[fndapi.PolicyName]fndapi.Specification {
-	policies, _ := projectPolicyCache.Get(
+	policies, err := projectPolicyCache.Get(
 		projectId,
 		func() (map[fndapi.PolicyName]fndapi.Specification, error) {
 			result, ok := db.NewTx2(func(tx *db.Transaction) (map[fndapi.PolicyName]fndapi.Specification, bool) {
@@ -24,18 +27,35 @@ func ProjectPoliciesRetrieve(projectId string) map[fndapi.PolicyName]fndapi.Spec
 			})
 
 			if !ok {
-				result = make(map[fndapi.PolicyName]fndapi.Specification)
+				return nil, fmt.Errorf("failed to read the policies of project %s from the database", projectId)
 			}
 
 			return result, nil
 		},
 	)
 
+	if err == false {
+		log.Warn(
+			"Failed to retrieve the policies of project %s: %v. The project is treated as having no configured policies until the read succeeds",
+			projectId,
+			err,
+		)
+		return make(map[fndapi.PolicyName]fndapi.Specification)
+	}
+
 	return policies
 }
 
 func ProjectPoliciesInvalidateCache() {
 	projectPolicyCache.InvalidateAll()
+}
+
+func ProjectPoliciesSubscribeToNotifications() {
+	go func() {
+		for range db.Listen(context.Background(), "policy_updates") {
+			projectPolicyCache.InvalidateAll()
+		}
+	}()
 }
 
 // SourceIpPolicy enforces the "RestrictSourceIPRange" project policy for a single RPC call. It is installed as

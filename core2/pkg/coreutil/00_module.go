@@ -228,8 +228,8 @@ func PolicySpecificationsRetrieveFromDatabase(
 		policyName := fndapi.PolicyName(row.PolicyName)
 		decoder, ok := fndapi.SpecificationDecoders[policyName]
 		if !ok {
-			log.Warn("Unknown policy %s", row.PolicyName)
-			return nil, false
+			log.Warn("Unknown policy %s in project %s, skipping it", row.PolicyName, projectId)
+			continue
 		}
 		specificationData := policySpecificationRaw{
 			Schema:  policyName,
@@ -238,12 +238,13 @@ func PolicySpecificationsRetrieveFromDatabase(
 		}
 		data, err := json.Marshal(specificationData)
 		if err != nil {
-			log.Warn("Failed to marshal policy specification: %v", err)
+			log.Warn("Failed to marshal policy specification of %s in project %s: %v", row.PolicyName, projectId, err)
+			continue
 		}
 		specification, err := decoder(data)
 		if err != nil {
-			log.Warn("Error unmarshalling policy %s: %v", row.PolicyName, err)
-			return nil, false
+			log.Warn("Error unmarshalling policy %s in project %s, skipping it: %v", row.PolicyName, projectId, err)
+			continue
 		}
 
 		policies[policyName] = specification

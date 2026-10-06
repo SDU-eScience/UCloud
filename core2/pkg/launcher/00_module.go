@@ -90,6 +90,8 @@ func Launch() {
 	migrations.Init()
 	db.Migrate()
 
+	coreutil.ProjectPoliciesSubscribeToNotifications()
+
 	if util.DevelopmentModeEnabled() {
 		db.NewTx0(func(tx *db.Transaction) {
 			_, ok := db.Get[struct {

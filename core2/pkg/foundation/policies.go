@@ -219,6 +219,9 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 
 	//Validate that all updates are for the active project
 	for _, specification := range request.UpdatedPolicies {
+		if specification == nil {
+			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "Malformed policy specification")
+		}
 		if specification.GetProject() != actor.Project.Value {
 			return util.Empty{}, util.HttpErr(http.StatusBadRequest, "You can only update policies in the current project")
 		}
@@ -398,6 +401,9 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 		})
 	}
 
+	var err *util.HttpError
+
+
 	if request.DefaultPolicy {
 		if policyGlobals.TestingEnabled {
 			// Tests have no database, keep the setting in memory instead
@@ -447,7 +453,15 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 			}
 
 			db.BatchSend(b)
+
+			if dbErr := tx.ConsumeError(); dbErr != nil {
+				err = util.HttpErr(http.StatusInternalServerError, "Failed to update the default policies. Try again later.")
+			}
 		})
+
+		if err != nil {
+			return util.Empty{}, err
+		}
 
 		return util.Empty{}, nil
 	}
@@ -484,7 +498,18 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 			}
 
 			db.BatchSend(b)
+
+			if dbErr := tx.ConsumeError(); dbErr != nil {
+				err = util.HttpErr(http.StatusInternalServerError, "Failed to update the policies. Try again later.")
+			}
 		})
+
+		if err != nil {
+			// The database was not updated. Do not touch the in-memory caches below: otherwise this
+			// service would enforce a policy which the database does not have and which silently
+			// disappears on restart (fail-open).
+			return util.Empty{}, err
+		}
 	}
 
 	//Updating cache
@@ -509,6 +534,9 @@ func policiesUpdate(actor rpc.Actor, request fndapi.PoliciesUpdateRequest) (util
 	return util.Empty{}, nil
 }
 
+// Default Policies are given to a project on creation based on the parent project(s) defined default
+// After creation it is the PI/DataManagers job to modify to their requirements. The default given
+// is currently only intended as a boilerplate. Current model allows for looser policies than the parents.
 func defaultPoliciesReadFromDb(projectId string) map[fndapi.PolicyName]fndapi.Specification {
 	if policyGlobals.TestingEnabled {
 		return maps.Clone(policyGlobals.TestDefaultPolicySettings[projectId])
@@ -705,6 +733,7 @@ func applyDefaultPoliciesToNewSubproject(grantGiverProjectIds []string, projectI
 		}
 	}
 
+	var dbErr error
 	if policyGlobals.TestingEnabled {
 		applyMergedPolicies(nil)
 	} else {
@@ -712,7 +741,15 @@ func applyDefaultPoliciesToNewSubproject(grantGiverProjectIds []string, projectI
 			b := db.BatchNew(tx)
 			applyMergedPolicies(b)
 			db.BatchSend(b)
+			if err := tx.ConsumeError(); err != nil {
+				dbErr = err
+			}
 		})
+	}
+
+	if dbErr != nil {
+		log.Error("Failed to apply the default policies to the new subproject %s: %v", projectId, dbErr)
+		return
 	}
 
 	// Update the in-memory policy cache of this service if any changes even apply.
@@ -746,6 +783,7 @@ func applyDefaultPoliciesToNewSubproject(grantGiverProjectIds []string, projectI
 		}
 		projectPolicies.Mu.Unlock()
 	}
+	return
 }
 
 func intersectAllowLists(lists [][]string) []string {

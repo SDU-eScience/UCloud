@@ -158,6 +158,15 @@ func initJobs() {
 								validatedResources.Present = true
 
 								for _, value := range resourceList.Value {
+									// RestrictPublicIPs / RestrictPublicLinks also apply to resources which the
+									// provider attaches to a running job after its creation.
+									if job.Owner.Project.Present {
+										err = jobsNetworkPolicyCheck(job.Owner.Project.Value, value)
+										if err != nil {
+											return util.Empty{}, err
+										}
+									}
+
 									err = jobValidateValue(jobOwner, &value, toolBackend, support, util.OptValue(job.Id))
 									if err == nil {
 										validatedResources.Value = append(validatedResources.Value, value)
@@ -296,6 +305,12 @@ func initJobs() {
 			if reqItem.Spec.Product.Provider != providerId {
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
 			}
+
+			if reqItem.Project.Present && reqItem.Project.Value != "" {
+    				if err := jobsEnforceCreationPoliciesForProject(reqItem.Project.Value, &reqItem.Spec); err != nil {
+    					return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+    				}
+    			}
 		}
 
 		for _, reqItem := range request.Items {
@@ -426,6 +441,16 @@ func initJobs() {
 
 		resource := request.Resource
 		toolBackend := resc.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
+
+		// RestrictPublicIPs / RestrictPublicLinks also apply to resources which are attached to a running job
+		// after its creation, otherwise a job could be created without the resource and receive it afterwards.
+		if resc.Owner.Project.Present {
+			err = jobsNetworkPolicyCheck(resc.Owner.Project.Value, resource)
+			if err != nil {
+				return util.Empty{}, err
+			}
+		}
+
 		err = jobValidateValue(info.Actor, &resource, toolBackend, support, util.OptValue(resc.Id))
 		if err != nil {
 			return util.Empty{}, err
@@ -873,14 +898,26 @@ func initJobs() {
 	})
 }
 
-// jobsEnforceCreationPolicies enforces project-level restrictions that apply to job creation.
-// It must run on every code path that creates jobs (HTTP handler, UCX proxy, ...).
-func jobsEnforceCreationPolicies(actor rpc.Actor, spec *orcapi.JobSpecification) *util.HttpError {
-	if !actor.Project.Present {
-		return nil
+func jobsNetworkPolicyCheck(projectId string, value orcapi.AppParameterValue) *util.HttpError {
+	switch value.Type {
+	case orcapi.AppParameterValueTypeNetwork:
+		if specification, ok := policiesByProject(projectId)[fndapi.RestrictPublicIPs]; ok && specification.IsEnabled() {
+			return util.HttpErr(http.StatusForbidden, "Project policies does not allow usage of public IPs")
+		}
+	case orcapi.AppParameterValueTypeIngress:
+		if specification, ok := policiesByProject(projectId)[fndapi.RestrictPublicLinks]; ok && specification.IsEnabled() {
+			return util.HttpErr(http.StatusForbidden, "Project policies does not allow usage of public links")
+		}
 	}
 
-	policies := policiesByProject(string(actor.Project.Value))
+	return nil
+}
+
+
+// jobsEnforceCreationPoliciesForProject enforces the project-level restrictions which apply to job creation
+// in the given project. The projectId must be the project which owns the created job.
+func jobsEnforceCreationPoliciesForProject(projectId string, spec *orcapi.JobSpecification) *util.HttpError {
+	policies := policiesByProject(projectId)
 
 	// RestrictSSH: reject creation of jobs which request SSH access
 	if spec.SshEnabled {
@@ -889,20 +926,31 @@ func jobsEnforceCreationPolicies(actor rpc.Actor, spec *orcapi.JobSpecification)
 		}
 	}
 
+	// RestrictPublicIPs / RestrictPublicLinks: public IPs and public links can be supplied both as resources and
+	// as application parameters, every value of both collections must be checked.
 	for _, value := range spec.Resources {
-		switch value.Type {
-		case orcapi.AppParameterValueTypeNetwork:
-			if specification, ok := policies[fndapi.RestrictPublicIPs]; ok && specification.IsEnabled() {
-				return util.HttpErr(http.StatusForbidden, "Project policies does not allow usage of public IPs")
-			}
-		case orcapi.AppParameterValueTypeIngress:
-			if specification, ok := policies[fndapi.RestrictPublicLinks]; ok && specification.IsEnabled() {
-				return util.HttpErr(http.StatusForbidden, "Project policies does not allow usage of public links")
-			}
+		if err := jobsNetworkPolicyCheck(projectId, value); err != nil {
+			return err
+		}
+	}
+
+	for _, value := range spec.Parameters {
+		if err := jobsNetworkPolicyCheck(projectId, value); err != nil {
+			return err
 		}
 	}
 
 	return nil
+}
+
+// jobsEnforceCreationPolicies enforces project-level restrictions that apply to job creation.
+// It must run on every code path that creates jobs (HTTP handler, UCX proxy, ...).
+func jobsEnforceCreationPolicies(actor rpc.Actor, spec *orcapi.JobSpecification) *util.HttpError {
+	if !actor.Project.Present {
+		return nil
+	}
+
+	return jobsEnforceCreationPoliciesForProject(string(actor.Project.Value), spec)
 }
 
 func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecification]) ([]orcapi.Job, *util.HttpError) {
