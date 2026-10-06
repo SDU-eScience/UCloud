@@ -536,6 +536,26 @@ func ButtonEx(id string, label string, color Color, iconLeft IconName, iconRight
 	}
 }
 
+func IconButtonEx(id string, tooltip string, color Color, icon IconName) UiNode {
+	requireExplicitId(id, "button")
+
+	props := map[string]Value{
+		"label":    VString(tooltip),
+		"color":    VColor(color),
+		"iconOnly": VBool(true),
+		"submit":   VBool(false),
+	}
+	if icon != "" {
+		props["iconLeft"] = VIcon(icon)
+	}
+
+	return UiNode{
+		Id:        id,
+		Component: "button",
+		Props:     props,
+	}
+}
+
 func TextArea(id string, label string, placeholder string, bindPath string, rows int64) UiNode {
 	requireExplicitId(id, "textarea")
 
@@ -1173,7 +1193,10 @@ type CodeEditorProps struct {
 	Saving      bool
 	ShowSave    bool
 	ShowClose   bool
+	CloseLabel  string
 	HideToolbar bool
+	AutoFocus   bool
+	TabLabel    string
 }
 
 func CodeEditor(id string, bindPath string, props CodeEditorProps) UiNode {
@@ -1184,21 +1207,30 @@ func CodeEditor(id string, bindPath string, props CodeEditorProps) UiNode {
 	if props.Lang == "" {
 		props.Lang = "plaintext"
 	}
+	if props.CloseLabel == "" {
+		props.CloseLabel = "Close"
+	}
+	propsMap := map[string]Value{
+		"documentId":  VString(props.DocumentId),
+		"revision":    VString(props.Revision),
+		"lang":        VString(props.Lang),
+		"readOnly":    VBool(props.ReadOnly),
+		"saving":      VBool(props.Saving),
+		"showSave":    VBool(props.ShowSave),
+		"showClose":   VBool(props.ShowClose),
+		"closeLabel":  VString(props.CloseLabel),
+		"hideToolbar": VBool(props.HideToolbar),
+		"autoFocus":   VBool(props.AutoFocus),
+	}
+	if props.TabLabel != "" {
+		propsMap["tabLabel"] = VString(props.TabLabel)
+	}
 	return UiNode{
 		Id:         id,
 		Component:  "code_editor",
 		BindPath:   bindPath,
 		Optimistic: true,
-		Props: map[string]Value{
-			"documentId":  VString(props.DocumentId),
-			"revision":    VString(props.Revision),
-			"lang":        VString(props.Lang),
-			"readOnly":    VBool(props.ReadOnly),
-			"saving":      VBool(props.Saving),
-			"showSave":    VBool(props.ShowSave),
-			"showClose":   VBool(props.ShowClose),
-			"hideToolbar": VBool(props.HideToolbar),
-		},
+		Props:      propsMap,
 	}
 }
 

@@ -2,7 +2,6 @@ package dashboard
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -16,7 +15,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/yaml"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/ucx"
@@ -30,6 +28,7 @@ type ResourceTypeDef struct {
 	Gvr        schema.GroupVersionResource
 	Columns    []ucx.TableColumn
 	HasYaml    bool
+	CanUpdate  bool
 	Namespaced bool
 }
 
@@ -219,6 +218,7 @@ var containersTypeDef = ResourceTypeDef{
 func ResourceTypes() []ResourceTypeDef {
 	result := make([]ResourceTypeDef, 0, len(resourceTypes)+1)
 	for _, def := range resourceTypes {
+		def.CanUpdate = true
 		result = append(result, def)
 	}
 	return result
@@ -230,6 +230,7 @@ func ResourceType(id string) (ResourceTypeDef, bool) {
 	}
 	for _, def := range resourceTypes {
 		if def.Id == id {
+			def.CanUpdate = true
 			return def, true
 		}
 	}
@@ -437,6 +438,7 @@ func (c *K8sClient) CustomResourceTypes(ctx context.Context) []ResourceTypeDef {
 				Gvr:        schema.GroupVersionResource{Group: group, Version: versionName, Resource: resource},
 				Columns:    crdPrinterColumns(version),
 				HasYaml:    true,
+				CanUpdate:  true,
 				Namespaced: scope == "Namespaced",
 			})
 			break
@@ -858,34 +860,6 @@ func rowsFromGeneric(items []unstructured.Unstructured, def ResourceTypeDef) []R
 		})
 	}
 	return rows
-}
-
-func (c *K8sClient) YamlForUid(ctx context.Context, def ResourceTypeDef, namespace string, name string) (string, error) {
-	var ri dynamic.ResourceInterface = c.Dynamic.Resource(def.Gvr)
-	if def.Namespaced && namespace != "" {
-		ri = c.Dynamic.Resource(def.Gvr).Namespace(namespace)
-	}
-
-	obj, err := ri.Get(ctx, name, v1.GetOptions{})
-	if err != nil {
-		return "", err
-	}
-
-	data, err := obj.MarshalJSON()
-	if err != nil {
-		return "", err
-	}
-
-	var generic any
-	if err := json.Unmarshal(data, &generic); err != nil {
-		return "", err
-	}
-
-	out, err := yaml.Marshal(generic)
-	if err != nil {
-		return "", err
-	}
-	return string(out), nil
 }
 
 func (c *K8sClient) RolloutRestart(ctx context.Context, typeId string, namespace string, name string) error {

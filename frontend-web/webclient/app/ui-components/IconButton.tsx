@@ -33,6 +33,11 @@ const style = injectStyle("vm-icon-button", k => `
         outline: 2px solid var(--primaryMain);
         outline-offset: 1px;
     }
+
+    ${k}:disabled {
+        cursor: default;
+        opacity: 0.5;
+    }
 `);
 
 export const IconButton: React.FunctionComponent<{
@@ -45,12 +50,14 @@ export const IconButton: React.FunctionComponent<{
     compact?: boolean;
     hoverColor?: ThemeColor | `#${string}`;
     navigationField?: boolean;
+    disabled?: boolean;
 }> = props => {
     const color = props.color ?? "textSecondary";
     const hoverColor = props.hoverColor === undefined ? undefined :
         props.hoverColor.startsWith("#") ? props.hoverColor : `var(--${props.hoverColor})`;
     return <TooltipV2 tooltip={props.tooltip}>
         <button type="button" className={style} onClick={props.onClick}
+            disabled={props.disabled}
             aria-label={typeof props.tooltip === "string" ? props.tooltip : undefined}
             aria-expanded={props.ariaExpanded}
             data-compact={props.compact}

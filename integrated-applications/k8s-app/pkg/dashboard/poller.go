@@ -831,6 +831,11 @@ func resourceRowActions(
 		viewYaml.Enabled = true
 	}
 
+	editYaml := ucx.TableRowAction{Id: "editYaml", Enabled: false}
+	if !provisioningRow && (def.CanUpdate || def.Id == containersTypeId) {
+		editYaml.Enabled = true
+	}
+
 	if def.Id == "pods" || def.Id == containersTypeId {
 		if provisioningRow {
 			return []ucx.TableRowAction{viewYaml}
@@ -838,6 +843,7 @@ func resourceRowActions(
 		return []ucx.TableRowAction{
 			{Id: "openShell", Enabled: true},
 			viewYaml,
+			editYaml,
 		}
 	}
 
@@ -845,11 +851,12 @@ func resourceRowActions(
 		return []ucx.TableRowAction{
 			{Id: "rolloutRestart", Enabled: true},
 			viewYaml,
+			editYaml,
 		}
 	}
 
 	if def.Id != "nodes" {
-		return []ucx.TableRowAction{viewYaml}
+		return []ucx.TableRowAction{viewYaml, editYaml}
 	}
 
 	nodeName := row.Cells[0]
@@ -881,6 +888,7 @@ func resourceRowActions(
 		goToJob,
 		openShell,
 		viewYaml,
+		editYaml,
 	}
 
 	if provisioningRow {

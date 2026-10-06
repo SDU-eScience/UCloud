@@ -19,6 +19,7 @@ import {SimpleRichSelect} from "@/ui-components/RichSelect";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
+import {IconButton} from "@/ui-components/IconButton";
 import {UcxCodeEditor} from "@/UCX/UcxCodeEditor";
 import {atomOneDark, atomOneLight} from "react-syntax-highlighter/dist/esm/styles/hljs";
 import SyntaxHighlighter from "react-syntax-highlighter";
@@ -1505,7 +1506,7 @@ const baseComponents: UcxComponentRegistry = {
             {renderChildren()}
         </form>;
     },
-    code_editor: ({node, model, scope, fn}) => {
+    code_editor: ({node, model, scope, fn, renderChildren}) => {
         const documentId = stringProp(node, "documentId", node.id);
         const revision = stringProp(node, "revision", "");
         return <UcxCodeEditor
@@ -1515,7 +1516,11 @@ const baseComponents: UcxComponentRegistry = {
             language={stringProp(node, "lang", "plaintext")}
             readOnly={boolProp(node, "readOnly", false)}
             saving={boolProp(node, "saving", false)}
+            closeLabel={stringProp(node, "closeLabel", "Close")}
+            autoFocus={boolProp(node, "autoFocus", false)}
+            tabLabel={optionalStringProp(node, "tabLabel")}
             showToolbar={!boolProp(node, "hideToolbar", false)}
+            toolbar={renderChildren()}
             style={{height: "400px", ...fn.sxStyle(node), ...(boolProp(node, "stretch", false) ? {flex: "1 1 0", height: "100%", minHeight: 0} : {})}}
             onChange={value => fn.sendBoundInput(node, {kind: ValueKind.String, string: value}, model, scope)}
             onSave={boolProp(node, "showSave", false) ? value => {
@@ -2182,6 +2187,7 @@ const UcxButtonField: React.FunctionComponent<{
     const iconRight = stringProp(node, "iconRight", "");
     const submit = boolProp(node, "submit", false);
     const holdToConfirm = boolProp(node, "holdToConfirm", false);
+    const iconOnly = boolProp(node, "iconOnly", false);
     const disabled = boolProp(node, "disabled", false) || busy || disabledByPath;
     const showShortcut = boolProp(node, "showShortcut", false);
     const showEscapeHint = boolProp(node, "showEscapeHint", false);
@@ -2231,6 +2237,19 @@ const UcxButtonField: React.FunctionComponent<{
             fn.sendUiEvent(node.id, submit ? "submit" : "click", eventValue);
         };
 
+        if (iconOnly) {
+            return <div ref={containerRef} style={{...sx, display: "flex"}}>
+                {busy ? <UcxSpinner size={16} color="textPrimary" margin="0 4px 0 0" /> : null}
+                <IconButton
+                    tooltip={label}
+                    icon={(iconLeft || "edit") as any}
+                    color={color as any}
+                    disabled={disabled || busy}
+                    onClick={fire}
+                />
+            </div>;
+        }
+
         return <div ref={containerRef} style={{...sx, display: "flex"}}>
             <ConfirmationButton
                 color={color as any}
@@ -2243,7 +2262,25 @@ const UcxButtonField: React.FunctionComponent<{
     }
 
     return <div ref={containerRef} style={{...sx, display: "flex"}}>
-        <Button
+        {iconOnly ? <>
+            {busy ? <UcxSpinner size={16} color="textPrimary" margin="0 4px 0 0" /> : null}
+            <IconButton
+                tooltip={label}
+                icon={(iconLeft || "edit") as any}
+                color={color as any}
+                disabled={disabled}
+                onClick={() => {
+                    if (submit) {
+                        const form = containerRef.current?.closest("form");
+                        if (form) {
+                            form.requestSubmit();
+                            return;
+                        }
+                    }
+                    fn.sendUiEvent(node.id, "click", eventValue);
+                }}
+            />
+        </> : <Button
             color={color as any}
             type={submit ? "submit" : "button"}
             disabled={disabled}
@@ -2257,7 +2294,7 @@ const UcxButtonField: React.FunctionComponent<{
             {showEscapeHint ? <span style={{marginLeft: "8px"}} className={ShortcutClass}>esc</span> : null}
             {shortcutKey ? <span style={{marginLeft: "12px"}} className={ShortcutClass}>{shortcutKey}</span> : null}
             {showShortcut && !busy ? <SubmitShortcut /> : null}
-        </Button>
+        </Button>}
     </div>;
 };
 

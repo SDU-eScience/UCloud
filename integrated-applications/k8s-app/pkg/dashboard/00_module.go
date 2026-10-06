@@ -72,6 +72,8 @@ type stackUiApp struct {
 	resourceNavigation []dashboardNavigationEntry `ucx:"-"`
 	ResourceDetail     string
 	ResourceYaml       string
+	ResourceDraft      string
+	resourceEditor     dashboardResourceEditorState `ucx:"-"`
 	Namespaces         []string
 	LogJobId           string
 	ContainerLogs      string
@@ -784,6 +786,15 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 			Shortcut: "y",
 		})
 
+		if activeDef.CanUpdate || app.ActiveType == containersTypeId {
+			tableActions = append(tableActions, ucx.ResourceTableAction{
+				Id:       "editYaml",
+				Label:    "Edit",
+				Icon:     ucx.IconHeroPencilSquare,
+				Shortcut: "e",
+			})
+		}
+
 		if app.ActiveType == "pods" || app.ActiveType == containersTypeId {
 			tableActions = append(tableActions, ucx.ResourceTableAction{
 				Id:       "openShell",
@@ -1110,7 +1121,7 @@ func (app *stackUiApp) resourceDetailNode(detail string) ucx.UiNode {
 		return ucx.ContainerLogsBoundEx("detailContainerLogs", "containerLogs").
 			Sx(ucx.SxP(16), ucx.SxBoxSizing("border-box"))
 	}
-	return ucx.CodeBoundEx("resourceYaml", "resourceYaml").WithLang("yaml").WithStretch()
+	return dashboardResourceEditorNode(app, detail)
 }
 
 func (app *stackUiApp) resourceDetailBottomNode(detail string) ucx.UiNode {
@@ -1207,7 +1218,7 @@ func (app *stackUiApp) handleRowActivated(tableId string, namespace string, name
 		return
 	}
 
-	app.openResourceDetail(tableId, namespace, name)
+	app.openResourceDetail(tableId, namespace, name, false)
 }
 
 func isWorkloadOwnerType(typeId string) bool {
@@ -1373,7 +1384,7 @@ func (app *stackUiApp) openPodContainers(namespace string, podName string) {
 	ucx.AppUpdateUi(app)
 }
 
-func (app *stackUiApp) openYamlForRowKey(rowKey string) {
+func (app *stackUiApp) openYamlForRowKey(rowKey string, editing bool) {
 	if app.poller == nil {
 		return
 	}
@@ -1406,14 +1417,14 @@ func (app *stackUiApp) openYamlForRowKey(rowKey string) {
 		name = pod.GetName()
 	}
 
-	app.openResourceDetail(typeId, namespace, name)
+	app.openResourceDetail(typeId, namespace, name, editing)
 }
 
-func (app *stackUiApp) openResourceDetail(tableId string, namespace string, name string) {
+func (app *stackUiApp) openResourceDetail(tableId string, namespace string, name string, editing bool) {
 	dashboardNavigationStart(app)
 	app.ResourceDetail = tableId + "/" + namespace + "/" + name
 	app.prevDetail = app.ResourceDetail
-	app.loadResourceYaml(app.ResourceDetail)
+	dashboardResourceEditorLoad(app, app.ResourceDetail, editing)
 	dashboardNavigationPush(app, "detail/"+url.PathEscape(tableId)+"/"+url.PathEscape(namespace)+"/"+url.PathEscape(name), strings.TrimPrefix(namespace+"/"+name, "/"))
 	ucx.AppUpdateUi(app)
 }
@@ -1430,7 +1441,12 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 	}
 
 	if actionId == "viewYaml" {
-		app.openYamlForRowKey(rowKey)
+		app.openYamlForRowKey(rowKey, false)
+		return
+	}
+
+	if actionId == "editYaml" {
+		app.openYamlForRowKey(rowKey, true)
 		return
 	}
 
@@ -2211,6 +2227,9 @@ func (app *stackUiApp) handleTableAction(ev ucx.UiEvent) {
 func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 	switch frame.Opcode {
 	case ucx.OpModelInput:
+		if frame.ModelInput.Path == "resourceDraft" {
+			return
+		}
 		app.RoutePath = strings.TrimSpace(app.RoutePath)
 		if frame.ModelInput.Path == "routePath" {
 			dashboardNavigationRestore(app)
@@ -2362,61 +2381,7 @@ func rowActivationValue(value ucx.Value) (string, string, string, string) {
 }
 
 func (app *stackUiApp) loadResourceYaml(detail string) {
-	app.ResourceYaml = ""
-
-	if detail == "" {
-		return
-	}
-
-	parts := strings.Split(detail, "/")
-	if len(parts) != 3 {
-		return
-	}
-
-	typeId := parts[0]
-	namespace := parts[1]
-	name := parts[2]
-
-	if typeId == "provisioning" {
-		return
-	}
-
-	def, ok := app.resolveType(typeId)
-	if !ok {
-		app.ResourceYaml = fmt.Sprintf("Unknown resource type: %s", typeId)
-		return
-	}
-
-	client := app.k8sClient
-	if client == nil {
-		app.ResourceYaml = "Kubernetes client is not available"
-		return
-	}
-
-	session := app.session
-	if session == nil {
-		app.ResourceYaml = "Kubernetes client is not available"
-		return
-	}
-
-	target := app.ResourceDetail
-
-	go func() {
-		ctx, cancel := context.WithTimeout(session.Context(), 15*time.Second)
-		defer cancel()
-
-		yamlText, err := client.YamlForUid(ctx, def, namespace, name)
-		if err != nil {
-			yamlText = fmt.Sprintf("Failed to fetch YAML: %s", err)
-		}
-
-		app.mu.Lock()
-		if app.ResourceDetail == target {
-			app.ResourceYaml = yamlText
-			ucx.AppUpdateUi(app)
-		}
-		app.mu.Unlock()
-	}()
+	dashboardResourceEditorLoad(app, detail, false)
 }
 
 func (app *stackUiApp) resolveType(typeId string) (ResourceTypeDef, bool) {

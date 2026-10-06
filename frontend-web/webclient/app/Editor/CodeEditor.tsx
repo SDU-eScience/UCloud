@@ -3,8 +3,10 @@ import {useEffect, useId, useLayoutEffect, useRef, useState} from "react";
 import {useSelector} from "react-redux";
 import {editor} from "monaco-editor";
 import {initVimMode, VimMode} from "monaco-vim";
-import {Button, Flex} from "@/ui-components";
+import {Flex, Text} from "@/ui-components";
 import {IconButton} from "@/ui-components/IconButton";
+import {TabStrip} from "@/ui-components/TabStrip";
+import {FullpathFileLanguageIcon} from "@/Editor/Editor";
 import {injectStyle} from "@/Unstyled";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {sendFailureNotification} from "@/Notifications";
@@ -17,6 +19,10 @@ export interface CodeEditorProps {
     language?: string;
     readOnly?: boolean;
     saving?: boolean;
+    closeLabel?: string;
+    dirty?: boolean;
+    autoFocus?: boolean;
+    tabLabel?: string;
     manageModel?: boolean;
     showToolbar?: boolean;
     settingsOpen?: boolean;
@@ -112,7 +118,10 @@ export function CodeEditor(props: CodeEditorProps) {
     };
     const currentCommands: EditorCommands = {
         save,
-        close: () => { void latest.current.onClose?.(); },
+        close: () => {
+            if (latest.current.saving || savingRef.current) return;
+            void latest.current.onClose?.();
+        },
         open: path => latest.current.onOpenFile?.(path),
     };
     const commands = useRef(currentCommands);
@@ -225,6 +234,12 @@ export function CodeEditor(props: CodeEditorProps) {
         instance?.updateOptions({readOnly: props.readOnly === true});
     }, [instance, props.readOnly]);
 
+    useLayoutEffect(() => {
+        if (!instance || !props.autoFocus || props.readOnly === true) return;
+        if (!instance.getModel()) return;
+        instance.focus();
+    }, [instance, props.autoFocus, props.readOnly, props.value]);
+
     useEffect(() => {
         monaco?.editor.setTheme(theme === "light" ? "vs" : "ucloud-dark");
     }, [monaco, theme]);
@@ -237,11 +252,29 @@ export function CodeEditor(props: CodeEditorProps) {
     };
 
     return <div className={CodeEditorClass} style={props.style}>
-        {props.showToolbar !== false ? <Flex alignItems="center" gap="8px" p="8px">
-            {props.toolbar}
+        {props.showToolbar !== false ? <Flex alignItems="center" p="8px">
+            {props.tabLabel !== undefined ? <div className={CodeEditorTabBar}>
+                <TabStrip
+                    items={[{
+                        id: "document",
+                        title: props.tabLabel,
+                        icon: <FullpathFileLanguageIcon filePath={props.tabLabel} size="14px" />,
+                        closeLabel: "",
+                        showClose: false,
+                    }]}
+                    activeId="document"
+                    slim
+                    autoSize={false}
+                    onActivate={() => undefined}
+                    onClose={() => undefined}
+                    onReorder={() => undefined}
+                />
+            </div> : null}
+            {props.dirty ? <Text color="textSecondary" ml="12px">Unsaved changes</Text> : null}
             <Flex ml="auto" gap="8px" alignItems="center">
-                {props.onSave ? <Button disabled={props.readOnly || saving || !instance} onClick={() => void save()}>{saving ? "Saving…" : "Save"}</Button> : null}
-                {props.onClose ? <Button onClick={() => void props.onClose?.()}>Close</Button> : null}
+                {props.toolbar}
+                {props.onSave ? <IconButton tooltip={saving ? "Saving…" : "Save"} icon="heroCheck" color="successMain" disabled={props.readOnly || saving || !instance} onClick={() => void save()} /> : null}
+                {props.onClose ? <IconButton tooltip={props.closeLabel ?? "Close"} icon="heroXMark" disabled={saving} onClick={() => commands.current.close()} /> : null}
                 <IconButton tooltip="Settings" icon="heroCog6Tooth" onClick={toggleSettings} />
             </Flex>
         </Flex> : null}
@@ -252,7 +285,7 @@ export function CodeEditor(props: CodeEditorProps) {
             </div> : props.showContent ? props.children : null}
         </div>
         <div className={props.statusBarClassName}>
-            <Flex alignItems="center" gap="18px" width="100%" minHeight="32px" px="8px">
+            <Flex alignItems="center" gap="18px" width="100%" minHeight="32px" p="8px">
                 {props.statusBarStart}
                 <div ref={commandBar} className={VimCommandBar} />
                 <Flex ml="auto" alignItems="center" gap="18px">
@@ -284,6 +317,30 @@ const CodeEditorClass = injectStyle("embeddable-code-editor", k => `
         min-width: 0;
         color: var(--textPrimary);
         background: var(--backgroundDefault);
+    }
+`);
+
+const CodeEditorTabBar = injectStyle("embeddable-code-editor-tab-bar", k => `
+    ${k} {
+        display: flex;
+        align-items: center;
+        width: fit-content;
+        max-width: 50%;
+        flex: 0 1 auto;
+        min-width: 0;
+        user-select: none;
+    }
+
+    ${k} > [role="tablist"] {
+        flex: 0 1 auto;
+        width: fit-content;
+    }
+
+    ${k} > [role="tablist"][data-slim="true"][data-auto-size="false"] .tab-strip-item {
+        min-width: 0;
+        width: fit-content;
+        max-width: none;
+        flex: 0 1 auto;
     }
 `);
 

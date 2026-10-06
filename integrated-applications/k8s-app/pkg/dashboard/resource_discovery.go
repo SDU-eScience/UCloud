@@ -66,9 +66,11 @@ func resourceBuiltinTypes(ctx context.Context, client *K8sClient, customTypes []
 			}
 			canList := false
 			canWatch := false
+			canUpdate := false
 			for _, verb := range resource.Verbs {
 				canList = canList || verb == "list"
 				canWatch = canWatch || verb == "watch"
+				canUpdate = canUpdate || verb == "update"
 			}
 			key := schema.GroupResource{Group: version.Group, Resource: resource.Name}
 			if !canList || !canWatch || seen[key] {
@@ -90,6 +92,7 @@ func resourceBuiltinTypes(ctx context.Context, client *K8sClient, customTypes []
 			}
 			def.Gvr = version.WithResource(resource.Name)
 			def.Namespaced = resource.Namespaced
+			def.CanUpdate = canUpdate
 			def.Aliases = resourceBuiltinAliases(resource, version.Group)
 			result = append(result, def)
 		}
