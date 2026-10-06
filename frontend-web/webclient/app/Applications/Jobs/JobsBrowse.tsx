@@ -72,16 +72,14 @@ const FEATURES: ResourceBrowseFeatures = {
     showColumnTitles: true,
 };
 
-const Title: Omit<ColumnTitle, "columnWidth"> = { name: "Job name" };
+const Title: Omit<ColumnTitle, "columnWidth"> = {name: "Job name"};
 
-const Empty = columnTitle("", 0);
 const State = columnTitle("State", 50);
-
 const columnTitles: ColumnTitleGroup = {
     [ContainerSize.LARGE]: [Title, columnTitle("Created by", 250), columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft"), State],
-    [ContainerSize.MEDIUM]: [Title, State, columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft"), Empty],
-    [ContainerSize.SMALL]: [Title, columnTitle("Time left", 100), State, Empty, Empty],
-    [ContainerSize.TINY]: [Title, State, Empty, Empty, Empty],
+    [ContainerSize.MEDIUM]: [Title, State, columnTitle("Created at", 160, "createdAt"), columnTitle("Time left", 160, "timeLeft")],
+    [ContainerSize.SMALL]: [Title, columnTitle("Time left", 100), State],
+    [ContainerSize.TINY]: [Title, State],
 };
 
 const RESOURCE_NAME = "JOBS";

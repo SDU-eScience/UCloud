@@ -382,6 +382,8 @@ export interface ResourceBrowseFeatures {
     showColumnTitles?: boolean;
 }
 
+type RenderStatOperation = "renderStat1" | "renderStat2" | "renderStat3" | "renderStat4";
+
 export interface ColumnTitle<SortById = string> {
     name: string;
     columnWidth: number;
@@ -397,8 +399,7 @@ export function columnTitle(name: string, columnWidth: number, sortById?: string
 }
 
 export type ColumnTitleList<SortById = string> =
-    | [Omit<ColumnTitle<SortById>, "columnWidth">, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>]
-    | [Omit<ColumnTitle<SortById>, "columnWidth">, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>, ColumnTitle<SortById>];
+    | [Omit<ColumnTitle<SortById>, "columnWidth">, ...(null | ColumnTitle<SortById>)[]]
 
 export interface ColumnTitleGroup<SortById = string> {
     [ContainerSize.LARGE]: ColumnTitleList<SortById>;
@@ -561,7 +562,6 @@ export class ResourceBrowser<T> {
     private allowEventListenerAction(): boolean {
         if (ResourceBrowser.isAnyModalOpen && !this.isModal) return false;
         if (this.opts.embedded?.disableKeyhandlers) return false;
-
         return true;
     }
 
@@ -1284,7 +1284,6 @@ export class ResourceBrowser<T> {
         if (!this.canConsumeResources) return;
 
         const containerSize = containerSizeFromWidth(containerWidth);
-        const statsRenderer = StatsRenderers[containerSize];
 
         // Render the visible rows by iterating over all items
         this.dispatchMessage("startRenderPage", fn => fn());
@@ -1310,7 +1309,11 @@ export class ResourceBrowser<T> {
                 x, y
             }));
 
-            statsRenderer(entry, this, row, containerSize);
+            for (let i = 1; i < 5; i++) {
+                if (this.opts.columnTitles[i - 1] !== null) {
+                    this.dispatchMessage(`renderStat${i}` as RenderStatOperation, fn => fn(entry, row[`stat${i}`], row, containerSize));
+                }
+            }
 
             if (this.opts.selection) {
                 const button = this.defaultButtonRenderer(this.opts.selection, entry);
@@ -3467,12 +3470,15 @@ export class ResourceBrowser<T> {
 
         const width = containerSizeFromWidth(this.root.getBoundingClientRect().width);
         const titles = titleGroup[width] ?? titleGroup[ContainerSize.LARGE];
-        this.root.style.setProperty("--stat1Width", titles[1].columnWidth + "px");
-        this.root.style.setProperty("--stat2Width", titles[2].columnWidth + "px");
-        this.root.style.setProperty("--stat3Width", titles[3].columnWidth + "px");
 
-        // For 5-column layouts (e.g., Jobs browse with Time left column)
-        this.root.style.setProperty("--stat4Width", titles.length === 5 ? titles[4].columnWidth + "px" : "0px");
+        for (let i = 1; i < 5; i++) {
+            const title = titles[i];
+            if (title && "columnWidth" in title) {
+                this.root.style.setProperty(`--stat${i}Width`, title.columnWidth + "px");
+            } else {
+                this.root.style.setProperty(`--stat${i}Width`, "0px");
+            }
+        }
         this.renderColumnTitles();
     }
 
@@ -3480,27 +3486,26 @@ export class ResourceBrowser<T> {
         const titleRow = this.root.querySelector(".row.rows-title");
         if (!titleRow) return;
 
-        const width = containerSizeFromWidth(titleRow.getBoundingClientRect().width);
-        const titles = this.opts.columnTitles[width] ?? this.opts.columnTitles[ContainerSize.LARGE];
 
-        for (const title of titles) {
-            if (title.sortById) {
-                const value = getFilterStorageValue(this.resourceName, SORT_BY);
-                if (value) this.browseFilters["sortBy"] = value;
-            }
-        }
         if (this.features.sorting) {
             const value = getFilterStorageValue(this.resourceName, SORT_DIRECTION);
             if (value) this.browseFilters[SORT_DIRECTION] = value;
         }
 
-
+        const width = containerSizeFromWidth(titleRow.getBoundingClientRect().width);
+        const titles = this.opts.columnTitles[width] ?? this.opts.columnTitles[ContainerSize.LARGE];
 
         this.setTitleAndHandlers(titleRow.querySelector(".title")!, titles[0], "right");
-        this.setTitleAndHandlers(titleRow.querySelector(".stat1")!, titles[1], "left");
-        this.setTitleAndHandlers(titleRow.querySelector(".stat2")!, titles[2], "left");
-        if (titles[3]) this.setTitleAndHandlers(titleRow.querySelector(".stat3")!, titles[3], "left");
-        if (titles[4]) this.setTitleAndHandlers(titleRow.querySelector(".stat4")!, titles[4], "right");
+        for (let i = 1; i < titles.length; i++) {
+            const title = titles[i];
+            if (title) {
+                this.setTitleAndHandlers(titleRow.querySelector(`.stat${i}`)!, title, i === titles.length - 1 ?  "right" : "left");
+                if (title.sortById){
+                    const value = getFilterStorageValue(this.resourceName, SORT_BY);
+                    if (value) this.browseFilters["sortBy"] = value;
+                }
+            }
+        }
 
         if (this.opts.selection) {
             const size = containerSizeFromWidth(this.scrollingContainerWidth);
