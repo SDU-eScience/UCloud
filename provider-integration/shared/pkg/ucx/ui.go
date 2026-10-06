@@ -1186,18 +1186,20 @@ func CodeBoundEx(id string, bindPath string) UiNode {
 }
 
 type CodeEditorProps struct {
-	DocumentId  string
-	SchemaId    string
-	Revision    string
-	Lang        string
-	ReadOnly    bool
-	Saving      bool
-	ShowSave    bool
-	ShowClose   bool
-	CloseLabel  string
-	HideToolbar bool
-	AutoFocus   bool
-	TabLabel    string
+	ShowSchemaReference bool
+	MarkdownFixer       string
+	DocumentId          string
+	SchemaId            string
+	Revision            string
+	Lang                string
+	ReadOnly            bool
+	Saving              bool
+	ShowSave            bool
+	ShowClose           bool
+	CloseLabel          string
+	HideToolbar         bool
+	AutoFocus           bool
+	TabLabel            string
 }
 
 func CodeEditor(id string, bindPath string, props CodeEditorProps) UiNode {
@@ -1228,6 +1230,12 @@ func CodeEditor(id string, bindPath string, props CodeEditorProps) UiNode {
 	}
 	if props.SchemaId != "" {
 		propsMap["schemaId"] = VString(props.SchemaId)
+	}
+	if props.ShowSchemaReference {
+		propsMap["showSchemaReference"] = VBool(true)
+	}
+	if props.MarkdownFixer != "" {
+		propsMap["markdownFixer"] = VString(props.MarkdownFixer)
 	}
 	return UiNode{
 		Id:         id,

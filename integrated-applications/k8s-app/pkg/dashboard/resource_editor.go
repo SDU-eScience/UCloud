@@ -42,17 +42,19 @@ func dashboardResourceEditorNode(app *stackUiApp, detail string) ucx.UiNode {
 	}
 	id := fmt.Sprintf("resourceYamlEditor:%d", state.Revision)
 	editor := ucx.CodeEditor(id, bindPath, ucx.CodeEditorProps{
-		DocumentId: detail,
-		SchemaId:   state.SchemaId,
-		Revision:   fmt.Sprint(state.Revision),
-		Lang:       "yaml",
-		ReadOnly:   !state.Editing || state.Loading || state.Saving,
-		Saving:     state.Saving,
-		ShowSave:   state.Editing,
-		ShowClose:  state.Editing,
-		CloseLabel: "Cancel",
-		AutoFocus:  state.Editing,
-		TabLabel:   tabLabel,
+		ShowSchemaReference: true,
+		MarkdownFixer:       "k8s-api",
+		DocumentId:          detail,
+		SchemaId:            state.SchemaId,
+		Revision:            fmt.Sprint(state.Revision),
+		Lang:                "yaml",
+		ReadOnly:            !state.Editing || state.Loading || state.Saving,
+		Saving:              state.Saving,
+		ShowSave:            state.Editing,
+		ShowClose:           state.Editing,
+		CloseLabel:          "Cancel",
+		AutoFocus:           state.Editing,
+		TabLabel:            tabLabel,
 	}).WithStretch().On(ucx.UiEventSave, func(ev ucx.UiEvent) {
 		if app.resourceEditor.Revision != state.Revision || ev.Value.Kind != ucx.ValueString {
 			return
