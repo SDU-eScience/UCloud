@@ -154,27 +154,23 @@ export function injectResourceBrowserStyle(rowSize: number) {
             ${BrowserClass.dot} header div.header-first-row {
                 display: grid;
                 gap: 8px;
-                grid-template-columns: 32px auto 222px;
+                grid-template-columns: 36px 32px auto 222px;
                 grid-template-areas:
-                    "refresh  .        project-switcher"
-                    "location location location        ";
+                    "refresh  .        .        project-switcher"
+                    "location location        location location        ";
             }
 
-            ${BrowserClass.dot} header div.header-first-row:has(.search-icon:visible) {
-                display: grid;
-                gap: 8px;
-                grid-template-columns: 36px 32px auto 222px;
+            ${BrowserClass.dot} header div.header-first-row:has(.search-icon[data-shown]) {
                 grid-template-areas:
                     "search-icon refresh  .         project-switcher"
                     "location    location location  location        ";
             }
 
-            ${BrowserClass.dot} header[has-location-bar] div.header-first-row {
+            ${BrowserClass.dot} header[has-location-bar] div.header-first-row:has(.search-icon[data-shown]) {
                 grid-template-areas:
                     "search-icon refresh  .         project-switcher"
                     "p-icon      location location  location        ";
             }
-
 
             ${BrowserClass.dot} header div.header-first-row .search-field-wrapper {
                 position: absolute;
