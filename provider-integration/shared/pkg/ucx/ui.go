@@ -1187,6 +1187,7 @@ func CodeBoundEx(id string, bindPath string) UiNode {
 
 type CodeEditorProps struct {
 	DocumentId  string
+	SchemaId    string
 	Revision    string
 	Lang        string
 	ReadOnly    bool
@@ -1224,6 +1225,9 @@ func CodeEditor(id string, bindPath string, props CodeEditorProps) UiNode {
 	}
 	if props.TabLabel != "" {
 		propsMap["tabLabel"] = VString(props.TabLabel)
+	}
+	if props.SchemaId != "" {
+		propsMap["schemaId"] = VString(props.SchemaId)
 	}
 	return UiNode{
 		Id:         id,

@@ -46,6 +46,7 @@ import {
     valueMapToPlainPayload,
 } from "@/UCX/protocol";
 import {UcxSession} from "@/UCX/session";
+import {clearEditorSchemas, createEditorSchemaRegistry, EditorSchemaRegistration, EditorSchemaRegistry, registerEditorSchemas, unregisterEditorSchemas} from "@/Editor/SchemaRegistry";
 import {UcxBrowserLayout, UcxNavTree, UcxNavItem, UcxStreamedTable, UcxTableActionDef, UcxTableStore, UcxTableCount, UcxTableFilter, isEditableTarget, useUcxRestorePaneFocus} from "@/UCX/UcxBrowser";
 import {stopPropagation} from "@/UtilityFunctions";
 import {isLikelyMac} from "@/UtilityFunctions";
@@ -96,6 +97,7 @@ export interface UcxFunctionRegistry {
     invokeRpc: (name: string, payload?: UcxRpcPayload, timeoutMs?: number) => Promise<UcxRpcPayload>;
     subscribeTable: (tableId: string, listener: (update: TableUpdate) => void) => () => void;
     tableStore: UcxTableStore;
+    editorSchemaRegistry: EditorSchemaRegistry;
     modelValue: (model: Record<string, Value>, path: string, scope?: Record<string, Value>) => Value | undefined;
     sxStyle: (node: UiNode) => React.CSSProperties;
 
@@ -173,6 +175,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const modelFlushScheduledRef = useRef(false);
     const connRef = useRef<WebSocket | null>(null);
     const sessionRef = useRef<UcxSession | null>(null);
+    const [editorSchemaRegistry] = useState(createEditorSchemaRegistry);
     const eventIdRef = useRef(1);
     const reconnectAttemptRef = useRef(0);
     const reconnectTimerRef = useRef<number | null>(null);
@@ -512,9 +515,10 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         invokeRpc,
         subscribeTable,
         tableStore,
+        editorSchemaRegistry,
         modelValue,
         sxStyle,
-    }), [buildSpaHref, currentRoutePath, invokeRpc, navigateSpa, registerQueryParam, registerRouter, sendBoundInput, sendModelInput, sendUiEvent, setSpaRoute, subscribeTable, tableStore]);
+    }), [buildSpaHref, currentRoutePath, editorSchemaRegistry, invokeRpc, navigateSpa, registerQueryParam, registerRouter, sendBoundInput, sendModelInput, sendUiEvent, setSpaRoute, subscribeTable, tableStore]);
 
     useEffect(() => {
         const bindPath = activeRouterBindPathRef.current;
@@ -644,6 +648,17 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                     const plainPayload = valueMapToPlainPayload(payload) as {path?: unknown};
                     const path = typeof plainPayload.path === "string" ? plainPayload.path : "";
                     navigateSpaRef.current(path, "rpc:routerPushPage");
+                    return {};
+                });
+
+                sessionRef.current?.registerRpcHandler("editorRegisterSchemas", async payload => {
+                    const request = valueMapToPlainPayload(payload) as unknown as {schemas: EditorSchemaRegistration[]};
+                    await registerEditorSchemas(editorSchemaRegistry, request.schemas);
+                    return {};
+                });
+                sessionRef.current?.registerRpcHandler("editorUnregisterSchemas", async payload => {
+                    const request = valueMapToPlainPayload(payload) as {schemaIds: string[]};
+                    await unregisterEditorSchemas(editorSchemaRegistry, request.schemaIds);
                     return {};
                 });
 
@@ -803,6 +818,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 
             socket.onclose = event => {
                 clearKeepaliveTimer();
+                clearEditorSchemas(editorSchemaRegistry);
                 if (connRef.current === socket) {
                     connRef.current = null;
                 }
@@ -826,6 +842,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 
         return () => {
             disposed = true;
+            clearEditorSchemas(editorSchemaRegistry);
             clearReconnectTimer();
             clearKeepaliveTimer();
             sessionRef.current?.close("UCX session disposed");
@@ -836,7 +853,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 conn.close();
             }
         };
-    }, [dispatchTableUpdate, resendModelAfterReconnect, sendFrame, url]);
+    }, [dispatchTableUpdate, editorSchemaRegistry, resendModelAfterReconnect, sendFrame, url]);
 
     const content = root == null ? <Text>Waiting for UI mount...</Text> :
         <NodeRenderer
@@ -1514,6 +1531,8 @@ const baseComponents: UcxComponentRegistry = {
             documentId={documentId}
             value={modelString(model, node.bindPath, scope)}
             language={stringProp(node, "lang", "plaintext")}
+            schemaId={optionalStringProp(node, "schemaId")}
+            schemaRegistry={fn.editorSchemaRegistry}
             readOnly={boolProp(node, "readOnly", false)}
             saving={boolProp(node, "saving", false)}
             closeLabel={stringProp(node, "closeLabel", "Close")}

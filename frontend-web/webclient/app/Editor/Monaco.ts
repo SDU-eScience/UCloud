@@ -13,6 +13,7 @@ export async function getMonaco() {
         const cssWorker = (await import('monaco-editor/language/css/css.worker?worker')).default;
         const htmlWorker = (await import('monaco-editor/language/html/html.worker?worker')).default;
         const tsWorker = (await import('monaco-editor/language/typescript/ts.worker?worker')).default;
+        const yamlWorker = (await import('./Yaml.worker?worker')).default;
 
         populateLanguages(monaco.languages.getLanguages().map(l =>
             ({language: l.id, extensions: l.extensions?.map(it => it.slice(1)) ?? []}))
@@ -20,6 +21,7 @@ export async function getMonaco() {
         self.MonacoEnvironment = {
             getWorker(_workerId, label) {
                 switch (label) {
+                    case 'yaml': return new yamlWorker();
                     case 'json': return new jsonWorker();
                     case 'css':
                     case 'scss':

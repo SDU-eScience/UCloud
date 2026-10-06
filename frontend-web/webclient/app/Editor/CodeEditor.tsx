@@ -11,12 +11,15 @@ import {injectStyle} from "@/Unstyled";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {sendFailureNotification} from "@/Notifications";
 import {useMonaco} from "./Monaco";
+import {bindEditorSchema, EditorSchemaRegistry} from "./SchemaRegistry";
 import {allowEditDialog, getEditorOptions, mapStoredBindings, MonacoEditorSettings, subscribeEditorSettings} from "./EditorSettings";
 
 export interface CodeEditorProps {
     documentId?: string;
     value?: string;
     language?: string;
+    schemaId?: string;
+    schemaRegistry?: EditorSchemaRegistry;
     readOnly?: boolean;
     saving?: boolean;
     closeLabel?: string;
@@ -91,6 +94,7 @@ export function CodeEditor(props: CodeEditorProps) {
     const [vimMode, setVimMode] = useState<string | null>(null);
     const [localSettingsOpen, setLocalSettingsOpen] = useState(false);
     const [localSaving, setLocalSaving] = useState(false);
+    const [schemaAvailable, setSchemaAvailable] = useState(false);
     const savingRef = useRef(false);
     const ownedModel = useRef<editor.ITextModel | null>(null);
     const vimAdapter = useRef<ReturnType<typeof initVimMode> | null>(null);
@@ -221,6 +225,29 @@ export function CodeEditor(props: CodeEditorProps) {
         };
     }, [monaco, instance, instanceId, props.documentId, props.manageModel]);
 
+    useEffect(() => {
+        const schemaId = props.schemaId;
+        const registry = props.schemaRegistry;
+        if (!instance || !schemaId || !registry) return;
+        const bind = () => {
+            const model = instance.getModel();
+            if (!model) {
+                setSchemaAvailable(false);
+                return () => {};
+            }
+            return bindEditorSchema(registry, schemaId, model, setSchemaAvailable);
+        };
+        let unbind = bind();
+        const change = instance.onDidChangeModel(() => {
+            unbind();
+            unbind = bind();
+        });
+        return () => {
+            change.dispose();
+            unbind();
+        };
+    }, [instance, props.schemaId, props.schemaRegistry, props.documentId]);
+
     useLayoutEffect(() => {
         const model = ownedModel.current;
         if (model && props.value !== undefined && model.getValue() !== props.value) model.setValue(props.value);
@@ -287,6 +314,7 @@ export function CodeEditor(props: CodeEditorProps) {
         <div className={props.statusBarClassName}>
             <Flex alignItems="center" gap="18px" width="100%" minHeight="32px" p="8px">
                 {props.statusBarStart}
+                {props.schemaId && (!props.schemaRegistry || !schemaAvailable) ? <Text fontSize="12px" color="textSecondary">Schema validation unavailable</Text> : null}
                 <div ref={commandBar} className={VimCommandBar} />
                 <Flex ml="auto" alignItems="center" gap="18px">
                     {vimMode ? <span className={StatusModeBadge}>{vimMode}</span> : null}

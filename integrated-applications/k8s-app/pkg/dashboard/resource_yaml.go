@@ -43,7 +43,18 @@ func dashboardResourceYaml(object *unstructured.Unstructured) (string, error) {
 }
 
 func dashboardResourceYamlTexts(object *unstructured.Unstructured) (string, string, error) {
-	view, err := dashboardResourceYaml(object)
+	viewObject := object.DeepCopy()
+	unstructured.RemoveNestedField(viewObject.Object, "metadata", "managedFields")
+	unstructured.RemoveNestedField(viewObject.Object, "metadata", "selfLink")
+	unstructured.RemoveNestedField(viewObject.Object, "metadata", "resourceVersion")
+	annotations := viewObject.GetAnnotations()
+	delete(annotations, "kubectl.kubernetes.io/last-applied-configuration")
+	if len(annotations) == 0 {
+		unstructured.RemoveNestedField(viewObject.Object, "metadata", "annotations")
+	} else {
+		viewObject.SetAnnotations(annotations)
+	}
+	view, err := dashboardResourceYaml(viewObject)
 	if err != nil {
 		return "", "", err
 	}

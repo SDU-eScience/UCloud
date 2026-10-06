@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -238,8 +239,10 @@ func ResourceType(id string) (ResourceTypeDef, bool) {
 }
 
 type K8sClient struct {
-	Dynamic dynamic.Interface
-	Typed   kubernetes.Interface
+	Dynamic     dynamic.Interface
+	Typed       kubernetes.Interface
+	schemaMutex sync.Mutex
+	schemaCache map[string]dashboardResourceSchemaCache
 }
 
 func K8sClientFromKubeconfig(path string) (*K8sClient, error) {

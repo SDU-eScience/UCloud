@@ -48,6 +48,7 @@
         "mermaid": "^11.16.1",
         "monaco-editor": "0.56.0",
         "monaco-vim": "0.4.2",
+        "monaco-yaml": "5.5.1",
         "react": "19.2.7",
         "react-datepicker": "9.1.0",
         "react-dom": "19.2.7",

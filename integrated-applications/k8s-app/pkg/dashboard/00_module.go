@@ -1421,6 +1421,9 @@ func (app *stackUiApp) openYamlForRowKey(rowKey string, editing bool) {
 }
 
 func (app *stackUiApp) openResourceDetail(tableId string, namespace string, name string, editing bool) {
+	if editing && app.resourceEditor.Saving {
+		return
+	}
 	dashboardNavigationStart(app)
 	app.ResourceDetail = tableId + "/" + namespace + "/" + name
 	app.prevDetail = app.ResourceDetail

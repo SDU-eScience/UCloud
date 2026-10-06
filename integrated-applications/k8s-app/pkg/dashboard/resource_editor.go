@@ -13,14 +13,17 @@ import (
 )
 
 type dashboardResourceEditorState struct {
-	Detail   string
-	Revision uint64
-	Def      ResourceTypeDef
-	Snapshot *unstructured.Unstructured
-	Loading  bool
-	Editing  bool
-	Saving   bool
-	Error    string
+	Detail       string
+	Revision     uint64
+	Def          ResourceTypeDef
+	Snapshot     *unstructured.Unstructured
+	Loading      bool
+	Editing      bool
+	Saving       bool
+	Error        string
+	SchemaId     string
+	SchemaError  string
+	SchemaCancel context.CancelFunc
 }
 
 func dashboardResourceEditorNode(app *stackUiApp, detail string) ucx.UiNode {
@@ -40,6 +43,7 @@ func dashboardResourceEditorNode(app *stackUiApp, detail string) ucx.UiNode {
 	id := fmt.Sprintf("resourceYamlEditor:%d", state.Revision)
 	editor := ucx.CodeEditor(id, bindPath, ucx.CodeEditorProps{
 		DocumentId: detail,
+		SchemaId:   state.SchemaId,
 		Revision:   fmt.Sprint(state.Revision),
 		Lang:       "yaml",
 		ReadOnly:   !state.Editing || state.Loading || state.Saving,
@@ -76,6 +80,9 @@ func dashboardResourceEditorNode(app *stackUiApp, detail string) ucx.UiNode {
 	if state.Error != "" {
 		children = append(children, ucx.Warning(state.Error).Sx(ucx.SxM(8)))
 	}
+	if state.SchemaError != "" {
+		children = append(children, ucx.Warning(state.SchemaError).Sx(ucx.SxM(8)))
+	}
 	children = append(children, editor)
 	return ucx.Flex(ucx.FlexProps{Direction: "column"}).
 		Sx(ucx.SxFlex("1 1 0"), ucx.SxMinHeight(0), ucx.SxHeightPercent(100)).
@@ -83,17 +90,24 @@ func dashboardResourceEditorNode(app *stackUiApp, detail string) ucx.UiNode {
 }
 
 func dashboardResourceEditorLoad(app *stackUiApp, detail string, editing bool) {
-	if editing && (app.resourceEditor.Editing || app.resourceEditor.Loading || app.resourceEditor.Saving) {
+	if editing && app.resourceEditor.Saving {
+		return
+	}
+	sameResource := app.resourceEditor.Detail == detail
+	if editing && sameResource && (app.resourceEditor.Editing || app.resourceEditor.Loading) {
 		return
 	}
 	revision := app.resourceEditor.Revision + 1
+	if app.resourceEditor.SchemaCancel != nil {
+		app.resourceEditor.SchemaCancel()
+	}
 	app.resourceEditor = dashboardResourceEditorState{
 		Detail:   detail,
 		Revision: revision,
 	}
 	defer ucx.AppUpdateUi(app)
 	app.ResourceDraft = ""
-	if !editing {
+	if !editing || !sameResource {
 		app.ResourceYaml = ""
 	}
 	parts := strings.Split(detail, "/")
@@ -139,6 +153,7 @@ func dashboardResourceEditorLoad(app *stackUiApp, detail string, editing bool) {
 			app.ResourceYaml = view
 			app.ResourceDraft = draft
 			app.resourceEditor.Revision++
+			dashboardResourceEditorSchemasStart(app)
 		}
 		ucx.AppUpdateUi(app)
 	}()
@@ -152,6 +167,7 @@ func dashboardResourceEditorCancel(app *stackUiApp) {
 	state.Editing = false
 	state.Error = ""
 	state.Revision++
+	dashboardResourceEditorSchemasStart(app)
 	app.ResourceDraft = ""
 	ucx.AppUpdateUi(app)
 }
@@ -201,6 +217,9 @@ func dashboardResourceEditorSave(app *stackUiApp, source string) {
 				app.resourceEditor.Error = fmt.Sprintf("Failed to save YAML: %s", err)
 			}
 		} else if len(app.resourceNavigation) > 1 {
+			if app.resourceEditor.SchemaCancel != nil {
+				app.resourceEditor.SchemaCancel()
+			}
 			app.resourceEditor = dashboardResourceEditorState{}
 			app.ResourceYaml = ""
 			app.ResourceDraft = ""
@@ -219,6 +238,7 @@ func dashboardResourceEditorSave(app *stackUiApp, source string) {
 			app.ResourceYaml = view
 			app.ResourceDraft = draft
 			app.resourceEditor.Revision++
+			dashboardResourceEditorSchemasStart(app)
 			if app.poller != nil {
 				app.poller.signalPollNow()
 			}
