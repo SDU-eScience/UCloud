@@ -631,6 +631,23 @@ func TestPublicIPGet(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestPublicIPFirewall(t *testing.T) {
+	input := []string{"public-ip", "firewall", "65", "--rule", "1337/tcp", "--rule", "8821-8825/udp"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+func TestPublicIPFirewallByIp(t *testing.T) {
+	input := []string{"public-ip", "firewall", "--ip", "10.99.0.3", "--rule", "1337/tcp", "--rule", "1234-1235/udp"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
 func TestPublicLinkList(t *testing.T) {
 	input := []string{"public-link", "list"}
 	cmd, err := Parse(input)
