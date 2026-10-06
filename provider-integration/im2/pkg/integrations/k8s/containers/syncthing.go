@@ -46,7 +46,7 @@ const syncthingAppName = "syncthing"
 const (
 	syncthingUcxExecutable         = "builtin://ucx-syncthing"
 	syncthingUcxIntegrationVersion = "1"
-	syncthingImageVersion          = "2.1.5"
+	syncthingImageVersion          = "2.1.6"
 	syncthingUcxPort               = 8435
 	syncthingPolicyCheckInterval   = time.Minute
 )
