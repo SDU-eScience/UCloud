@@ -195,10 +195,11 @@ type OpenUrlRequest struct {
 var OpenUrl = ucx.Rpc[OpenUrlRequest, util.Empty]{CallName: "openUrl"}
 
 type TerminalOpenShellToJobRequest struct {
-	JobId       string
-	Rank        int
-	Command     string
-	ClearAfter  bool
+	JobId         string
+	Rank          int
+	Command       string
+	ClearAfter    bool
+	SuppressUntil string
 }
 
 var TerminalOpenShellToJob = ucx.Rpc[TerminalOpenShellToJobRequest, util.Empty]{CallName: "terminalOpenShellToJob"}

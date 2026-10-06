@@ -1521,9 +1521,9 @@ func (app *stackUiApp) openShellToPod(rowKey string) {
 	if containerName != "" {
 		title = podName + "/" + containerName
 	}
-	command := fmt.Sprintf("printf '\\033]0;%s\\007' && kubectl exec -it -n %s %s -- %s", title, namespace, podName, shellCommand)
+	command := fmt.Sprintf("printf '\\033]777;ucloud-shell-ready\\007\\033]0;%s\\007' && kubectl exec -it -n %s %s -- %s", title, namespace, podName, shellCommand)
 	if containerName != "" {
-		command = fmt.Sprintf("printf '\\033]0;%s\\007' && kubectl exec -it -n %s %s -c %s -- %s", title, namespace, podName, containerName, shellCommand)
+		command = fmt.Sprintf("printf '\\033]777;ucloud-shell-ready\\007\\033]0;%s\\007' && kubectl exec -it -n %s %s -c %s -- %s", title, namespace, podName, containerName, shellCommand)
 	}
 
 	jobId, ok := app.firstControlPlaneNodeWithShell()
@@ -1532,7 +1532,11 @@ func (app *stackUiApp) openShellToPod(rowKey string) {
 		return
 	}
 
-	ucxsvc.TerminalOpenShellToJob(app, jobId, 0, command, true)
+	ucxsvc.TerminalOpenShellToJobEx(app, ucxapi.TerminalOpenShellToJobRequest{
+		JobId:         jobId,
+		Command:       command,
+		SuppressUntil: "\x1b]777;ucloud-shell-ready\x07",
+	})
 }
 
 func (app *stackUiApp) firstControlPlaneNodeWithShell() (string, bool) {

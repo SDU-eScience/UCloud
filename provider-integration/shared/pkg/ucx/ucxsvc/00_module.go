@@ -1114,15 +1114,19 @@ func OpenUrl(app ucx.Application, target string) {
 }
 
 func TerminalOpenShellToJob(app ucx.Application, jobId string, rank int, command string, clearAfter bool) {
-	if jobId == "" {
-		return
-	}
-
-	session := *app.Session()
-	_, _ = ucxapi.TerminalOpenShellToJob.Invoke(session, ucxapi.TerminalOpenShellToJobRequest{
+	TerminalOpenShellToJobEx(app, ucxapi.TerminalOpenShellToJobRequest{
 		JobId:      jobId,
 		Rank:       rank,
 		Command:    command,
 		ClearAfter: clearAfter,
 	})
+}
+
+func TerminalOpenShellToJobEx(app ucx.Application, request ucxapi.TerminalOpenShellToJobRequest) {
+	if request.JobId == "" {
+		return
+	}
+
+	session := *app.Session()
+	_, _ = ucxapi.TerminalOpenShellToJob.Invoke(session, request)
 }

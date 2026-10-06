@@ -12,6 +12,7 @@ export interface TerminalTab {
     rank?: number;
     initialCommand?: string;
     clearAfter?: boolean;
+    suppressUntil?: string;
 }
 
 export interface TerminalPageContext {
@@ -102,7 +103,7 @@ const terminalSlice = createSlice({
 export const {terminalClose, terminalCloseTab, terminalOpen, terminalOpenTab, terminalSelectTab, terminalUpdateTabTitle, terminalUpdateTabProviderId, terminalReorderTabs, terminalSetPageContext} = terminalSlice.actions;
 export const terminalReducer = terminalSlice.reducer;
 
-export function openJobShellTab(dispatch: Dispatch, jobId: string, rank = 0, command?: string, clearAfter = false): void {
+export function openJobShellTab(dispatch: Dispatch, jobId: string, rank = 0, command?: string, clearAfter = false, suppressUntil?: string): void {
     dispatch(terminalOpen());
     dispatch(terminalOpenTab({
         select: true,
@@ -114,6 +115,7 @@ export function openJobShellTab(dispatch: Dispatch, jobId: string, rank = 0, com
             rank,
             initialCommand: command,
             clearAfter,
+            suppressUntil,
         },
     }));
 }

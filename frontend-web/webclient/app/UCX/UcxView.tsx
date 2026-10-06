@@ -662,13 +662,14 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 });
 
                 sessionRef.current?.registerRpcHandler("terminalOpenShellToJob", payload => {
-                    const plainPayload = valueMapToPlainPayload(payload) as {jobId?: unknown; rank?: unknown; command?: unknown; clearAfter?: unknown};
+                    const plainPayload = valueMapToPlainPayload(payload) as {jobId?: unknown; rank?: unknown; command?: unknown; clearAfter?: unknown; suppressUntil?: unknown};
                     const jobId = typeof plainPayload.jobId === "string" ? plainPayload.jobId : "";
                     if (jobId === "") return {};
                     const rank = typeof plainPayload.rank === "number" ? plainPayload.rank : 0;
                     const command = typeof plainPayload.command === "string" ? plainPayload.command : undefined;
                     const clearAfter = plainPayload.clearAfter === true;
-                    openJobShellTab(dispatch, jobId, rank, command, clearAfter);
+                    const suppressUntil = typeof plainPayload.suppressUntil === "string" ? plainPayload.suppressUntil : undefined;
+                    openJobShellTab(dispatch, jobId, rank, command, clearAfter, suppressUntil);
                     return {};
                 });
 

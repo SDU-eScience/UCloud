@@ -524,6 +524,7 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: num
             jobId={props.tab.jobId}
             initialCommand={props.tab.initialCommand}
             clearAfter={props.tab.clearAfter}
+            suppressUntil={props.tab.suppressUntil}
         />
     </div>;
 }

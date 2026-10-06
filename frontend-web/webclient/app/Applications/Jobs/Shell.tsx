@@ -64,7 +64,8 @@ export const ShellWithSession: React.FunctionComponent<{
     onTitleChange?: (title: string) => void;
     initialCommand?: string;
     clearAfter?: boolean;
-}> = ({sessionWithProvider, connectionError, autofit, xtermRef, focusedTerminalRef, reconnect, maxReconnectAttempts = 0, jobId, onTitleChange, initialCommand, clearAfter}) => {
+    suppressUntil?: string;
+}> = ({sessionWithProvider, connectionError, autofit, xtermRef, focusedTerminalRef, reconnect, maxReconnectAttempts = 0, jobId, onTitleChange, initialCommand, clearAfter, suppressUntil}) => {
     const {termRef, terminal, fitAddon} = useXTerm({autofit});
     const [closed, setClosed] = useState<boolean>(false);
     const [reconnecting, setReconnecting] = useState(false);
@@ -198,6 +199,9 @@ export const ShellWithSession: React.FunctionComponent<{
         setClosed(false);
 
         let disposed = false;
+        const outputMarker = initialCommand ? (suppressUntil ?? "") : "";
+        let suppressOutput = outputMarker !== "";
+        let pendingOutput = "";
         const wsConnection = WSFactory.open(
             `${sessionWithProvider.providerDomain}/ucloud/${sessionWithProvider.providerId}/websocket?session=${sessionIdentifier}&usernameHint=${b64EncodeUnicode(Client.activeUsername!)}`,
             {
@@ -237,7 +241,19 @@ export const ShellWithSession: React.FunctionComponent<{
                                     }
                                 }
                                 if ("data" in payload) {
-                                    terminal.write(payload.data);
+                                    let output = payload.data as string;
+                                    if (suppressOutput) {
+                                        pendingOutput += output;
+                                        const markerIndex = pendingOutput.indexOf(outputMarker);
+                                        if (markerIndex === -1) {
+                                            pendingOutput = pendingOutput.slice(Math.max(0, pendingOutput.length - outputMarker.length + 1));
+                                            return;
+                                        }
+                                        output = pendingOutput.slice(markerIndex + outputMarker.length);
+                                        pendingOutput = "";
+                                        suppressOutput = false;
+                                    }
+                                    terminal.write(output);
                                 }
                             }
                         }
@@ -245,6 +261,9 @@ export const ShellWithSession: React.FunctionComponent<{
                 },
                 onClose: () => {
                     if (disposed) return;
+                    if (suppressOutput) {
+                        terminal.write("\r\nThe connection closed before the shell startup command signaled readiness.\r\n");
+                    }
                     setClosed(true);
                 },
             });
@@ -283,7 +302,7 @@ export const ShellWithSession: React.FunctionComponent<{
             resizeListener.dispose();
             window.removeEventListener("resize", windowResizeListener);
         };
-    }, [sessionIdentifier, sessionWithProvider, terminal]);
+    }, [sessionIdentifier, sessionWithProvider, terminal, initialCommand, clearAfter, suppressUntil]);
 
     return <TermAndShellWrapper addPadding>
         {closed || reconnecting ? (
