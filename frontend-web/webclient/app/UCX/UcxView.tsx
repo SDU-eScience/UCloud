@@ -19,6 +19,7 @@ import {SimpleRichSelect} from "@/ui-components/RichSelect";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
+import {UcxCodeEditor} from "@/UCX/UcxCodeEditor";
 import {atomOneDark, atomOneLight} from "react-syntax-highlighter/dist/esm/styles/hljs";
 import SyntaxHighlighter from "react-syntax-highlighter";
 import {copyToClipboard, createKeyboardShortcut} from "@/UtilityFunctions";
@@ -1504,6 +1505,28 @@ const baseComponents: UcxComponentRegistry = {
             {renderChildren()}
         </form>;
     },
+    code_editor: ({node, model, scope, fn}) => {
+        const documentId = stringProp(node, "documentId", node.id);
+        const revision = stringProp(node, "revision", "");
+        return <UcxCodeEditor
+            key={JSON.stringify([documentId, revision])}
+            documentId={documentId}
+            value={modelString(model, node.bindPath, scope)}
+            language={stringProp(node, "lang", "plaintext")}
+            readOnly={boolProp(node, "readOnly", false)}
+            saving={boolProp(node, "saving", false)}
+            showToolbar={!boolProp(node, "hideToolbar", false)}
+            style={{height: "400px", ...fn.sxStyle(node), ...(boolProp(node, "stretch", false) ? {flex: "1 1 0", height: "100%", minHeight: 0} : {})}}
+            onChange={value => fn.sendBoundInput(node, {kind: ValueKind.String, string: value}, model, scope)}
+            onSave={boolProp(node, "showSave", false) ? value => {
+                const input: Value = {kind: ValueKind.String, string: value};
+                fn.sendBoundInput(node, input, model, scope);
+                fn.sendUiEvent(node.id, "save", input);
+                return false;
+            } : undefined}
+            onClose={boolProp(node, "showClose", false) ? () => fn.sendUiEvent(node.id, "close") : undefined}
+        />;
+    },
     code: ({node, model, scope, fn}) => {
         const code = node.bindPath ? modelString(model, node.bindPath, scope) : stringProp(node, "text", "");
         const maxHeight = stringProp(node, "maxHeight", "400px");
@@ -1782,7 +1805,7 @@ function tabRouteKey(node: UiNode, idx: number): string {
 
 function collectInputBindPaths(root: UiNode): Set<string> {
     const result = new Set<string>();
-    const rehydratable = new Set(["input_text", "input_number", "input_slider", "checkbox", "textarea", "select", "enum_selector", "service_provider_selector", "machine_type_selector", "toggle", "radio_group", "list", "inference_chat_composer", "inference_image_composer", "inference_toggle"]);
+    const rehydratable = new Set(["input_text", "input_number", "input_slider", "checkbox", "textarea", "code_editor", "select", "enum_selector", "service_provider_selector", "machine_type_selector", "toggle", "radio_group", "list", "inference_chat_composer", "inference_image_composer", "inference_toggle"]);
 
     const walk = (node: UiNode) => {
         if (node.bindPath && rehydratable.has(node.component) && !node.bindPath.startsWith("./")) {

@@ -35,7 +35,7 @@ import {
 } from "@/Applications/Creator/InvocationMonaco";
 import {CreatorSourceParseError} from "@/Applications/Creator/SourceParser";
 import {creatorRegisterCodeEditorFocus} from "@/Applications/Creator/CreatorKeyboard";
-import {useMonaco} from "@/Editor/Editor";
+import {useMonaco} from "@/Editor/Monaco";
 
 import IStandaloneCodeEditor = editor.IStandaloneCodeEditor;
 import IMarkerData = editor.IMarkerData;

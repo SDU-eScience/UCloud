@@ -30,7 +30,7 @@ import {
 import {invocationLint} from "@/Applications/Creator/InvocationLinter";
 import type {InvocationParameters} from "@/Applications/Creator/InvocationScope";
 import {InvocationHelp} from "@/Applications/Creator/InvocationHelp";
-import {useMonaco} from "@/Editor/Editor";
+import {useMonaco} from "@/Editor/Monaco";
 import {createKeyboardShortcut} from "@/UtilityFunctions";
 import {creatorRegisterCodeEditorFocus, CreatorShortcutControl} from "@/Applications/Creator/CreatorKeyboard";
 

@@ -395,6 +395,7 @@ function useBrowserRegionActive(ref: React.RefObject<HTMLElement | null>): boole
 }
 
 export function isEditableTarget(target: EventTarget | null): boolean {
+    if (target instanceof HTMLElement && target.closest(".monaco-editor")) return true;
     if (target instanceof HTMLTextAreaElement && target.readOnly) return false;
     return target instanceof HTMLInputElement
         || target instanceof HTMLTextAreaElement
