@@ -35,6 +35,7 @@ type PrivateNetworkDeleteCommand struct {
 type PrivateNetworkMembersCommand struct {
 	Name      string `positional:"name" usage:"Private network name" required:"true"`
 	Workspace string `flag:"workspace" usage:"eg. --workspace myworkspace"`
+	Provider  string `flag:"provider" usage:"eg. --provider k8s" default:"k8s"`
 }
 
 var PrivateNetworkCommands = map[string]CommandFunc{
@@ -186,13 +187,52 @@ func (c PrivateNetworkMembersCommand) Execute() error {
 	if !ok {
 		return fmt.Errorf("private network %s not found", c.Name)
 	}
-
-	t := termio.Table{}
-	t.AppendHeader("Name")
-	t.AppendHeader("Members")
-	for name, l := range network.Specification.Labels {
-		t.Cell("%v %v", name, l)
+	privateNetworkJobs, err := privateNetworkJobs(c.Provider)
+	if err != nil {
+		return err
 	}
-	t.Print()
+	foundJobs := make([]orcapi.Job, 0)
+	for _, jobArr := range privateNetworkJobs {
+		for _, job := range jobArr {
+			if job.ResourceId == network.Id {
+				foundJobs = append(foundJobs, job.Job)
+			}
+		}
+	}
+	fmt.Printf("Found %d jobs using private network %s\n", len(foundJobs), c.Name)
+	printJobs(map[string][]orcapi.Job{c.Name: foundJobs})
 	return nil
+}
+
+type JobPrivateNetwork struct {
+	orcapi.Job
+	ResourceId string
+}
+
+func privateNetworkJobs(provider string) (map[string][]JobPrivateNetwork, error) {
+	filter := orcapi.JobFlags{
+		FilterType: util.OptValue(orcapi.JobTypeFilterJobsOnly),
+	}
+	filter.FilterProvider = util.OptValue(provider)
+	jobsMap, err := retrieveJobs(filter)
+	if err != nil {
+		return nil, err
+	}
+	privateNetworkJobs := make(map[string][]JobPrivateNetwork, 0)
+
+	// Find all jobs that use a private network
+	for name, jobArr := range jobsMap {
+		for _, job := range jobArr {
+			for _, r := range job.Specification.Resources {
+				if r.Type != "private_network" {
+					continue
+				}
+				privateNetworkJobs[name] = append(privateNetworkJobs[name], JobPrivateNetwork{
+					Job:        job,
+					ResourceId: r.Id,
+				})
+			}
+		}
+	}
+	return privateNetworkJobs, nil
 }

@@ -704,7 +704,7 @@ func TestPrivateNetworkDelete(t *testing.T) {
 }
 
 func TestPrivateNetworMembers(t *testing.T) {
-	input := []string{"private-network", "members", "dannetwork"}
+	input := []string{"private-network", "members", "dannetwork", "--workspace", "testmain"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
