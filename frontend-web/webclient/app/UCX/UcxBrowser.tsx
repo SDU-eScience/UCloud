@@ -19,6 +19,8 @@ import {
     setUserColumnWidth,
 } from "@/UCX/UcxTableColumns";
 
+const UCX_ACTION_COLUMN_WIDTH = 40;
+
 export interface UcxTableStats {
     filtered: number;
     total: number;
@@ -940,6 +942,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     const scrollTopRef = useRef(0);
     const [dragColumn, setDragColumn] = useState<string | null>(null);
     const [widthRevision, setWidthRevision] = useState(0);
+    const [viewportWidth, setViewportWidth] = useState(0);
     const actionDefs = props.actions ?? [];
     const hasActionDefs = actionDefs.length > 0;
     const groupAction = props.groupAction;
@@ -962,11 +965,28 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         () => resolveColumnWidths(columns, autoWidths),
         [columns, autoWidths, widthRevision],
     );
-    const totalWidth = useMemo(() => {
-        const values = Object.values(widths);
-        const sum = values.reduce((a, b) => a + b, 0);
-        return hasActionDefs ? sum + 40 : sum;
-    }, [widths, hasActionDefs]);
+    const dataWidth = useMemo(() => Object.values(widths).reduce((a, b) => a + b, 0), [widths]);
+    const totalWidth = hasActionDefs && dataWidth > 0
+        ? Math.max(dataWidth + UCX_ACTION_COLUMN_WIDTH, viewportWidth)
+        : dataWidth + (hasActionDefs ? UCX_ACTION_COLUMN_WIDTH : 0);
+    const renderedWidths = useMemo(() => {
+        if (!hasActionDefs || dataWidth === 0) return widths;
+        const scale = (totalWidth - UCX_ACTION_COLUMN_WIDTH) / dataWidth;
+        const result: Record<string, number> = {};
+        for (const column of columns) result[column.key] = widths[column.key] * scale;
+        return result;
+    }, [columns, widths, dataWidth, totalWidth, hasActionDefs]);
+
+    useLayoutEffect(() => {
+        if (!hasActionDefs) return;
+        const viewport = scrollRef.current;
+        if (!viewport) return;
+        const updateWidth = () => setViewportWidth(viewport.clientWidth);
+        updateWidth();
+        const observer = new ResizeObserver(updateWidth);
+        observer.observe(viewport);
+        return () => observer.disconnect();
+    }, [hasActionDefs]);
 
     useLayoutEffect(() => {
         const previous = store.claimView(viewId, stateKey);
@@ -1163,12 +1183,22 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         setDragColumn(columnKey);
         const onMove = (moveEvent: PointerEvent) => {
             const target = Math.max(UCX_MIN_COLUMN_WIDTH, startRendered + (moveEvent.clientX - startX));
-            for (let i = 0; i < 4; i++) {
-                const rendered = cell.getBoundingClientRect().width;
-                const error = target - rendered;
-                if (Math.abs(error) < 0.5) break;
-                applied = Math.max(UCX_MIN_COLUMN_WIDTH, applied + error / gain);
-                colElement.style.width = `${applied}px`;
+            if (hasActionDefs) {
+                const otherWidth = dataWidth - startConfigured;
+                const availableWidth = (scrollRef.current?.clientWidth ?? 0) - UCX_ACTION_COLUMN_WIDTH;
+                const fitsWithoutStretching = target + otherWidth >= availableWidth;
+                applied = target;
+                if (!fitsWithoutStretching && otherWidth > 0) {
+                    applied = Math.max(UCX_MIN_COLUMN_WIDTH, target * otherWidth / (availableWidth - target));
+                }
+            } else {
+                for (let i = 0; i < 4; i++) {
+                    const rendered = cell.getBoundingClientRect().width;
+                    const error = target - rendered;
+                    if (Math.abs(error) < 0.5) break;
+                    applied = Math.max(UCX_MIN_COLUMN_WIDTH, applied + error / gain);
+                    colElement.style.width = `${applied}px`;
+                }
             }
             setUserColumnWidth(columnKey, applied);
             setWidthRevision(value => value + 1);
@@ -1185,7 +1215,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         handle.addEventListener("pointermove", onMove);
         handle.addEventListener("pointerup", onUp);
         handle.addEventListener("pointercancel", onUp);
-    }, [widths]);
+    }, [widths, dataWidth, hasActionDefs]);
 
     const resetColumnWidth = useCallback((columnKey: string) => {
         resetUserColumnWidth(columnKey);
@@ -1363,6 +1393,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         tabIndex={-1}
         className={UcxStreamedTableClass}
         data-ucx-table={tableId}
+        data-has-actions={hasActionDefs ? "true" : undefined}
         style={{"--ucx-table-width": `${totalWidth}px`} as React.CSSProperties}
     >
         <div className="streamed-table-frame">
@@ -1376,8 +1407,8 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             >
             <Table tableType="presentation" aria-role="grid">
                 <colgroup>
-                    {columns.map(col => <col key={col.key} data-col-key={col.key} style={{width: `${widths[col.key]}px`}} />)}
-                    {hasActionDefs ? <col className="streamed-table-actions-col" style={{width: "40px"}} /> : null}
+                    {columns.map(col => <col key={col.key} data-col-key={col.key} style={{width: `${renderedWidths[col.key]}px`}} />)}
+                    {hasActionDefs ? <col className="streamed-table-actions-col" style={{width: `${UCX_ACTION_COLUMN_WIDTH}px`}} /> : null}
                 </colgroup>
                 <TableHeader>
                     <UiTableRow>
@@ -2092,6 +2123,10 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
         min-width: 100%;
     }
 
+    ${k}[data-has-actions="true"] .streamed-table-scroll table {
+        min-width: 0;
+    }
+
     ${k} .streamed-table-header-label {
         display: inline-block;
         max-width: calc(100% - 16px);
@@ -2142,18 +2177,18 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
     }
 
     ${k} .streamed-table-actions-col {
-        width: 40px;
+        width: ${UCX_ACTION_COLUMN_WIDTH}px;
     }
 
     ${k} th:has(> .streamed-table-actions-header) {
-        width: 40px;
-        min-width: 40px;
+        width: ${UCX_ACTION_COLUMN_WIDTH}px;
+        min-width: ${UCX_ACTION_COLUMN_WIDTH}px;
         padding: 0 !important;
     }
 
     ${k} td:has(> .streamed-table-actions-cell) {
-        width: 40px;
-        min-width: 40px;
+        width: ${UCX_ACTION_COLUMN_WIDTH}px;
+        min-width: ${UCX_ACTION_COLUMN_WIDTH}px;
         padding: 0 !important;
         vertical-align: middle;
     }
