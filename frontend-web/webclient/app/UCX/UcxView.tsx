@@ -1420,6 +1420,7 @@ const baseComponents: UcxComponentRegistry = {
         return <UcxNavTree
             nodes={items}
             selectedId={selectedId === "" ? undefined : selectedId}
+            initialExpandedIds={node.props.initialExpandedIds === undefined ? undefined : stringListProp(node, "initialExpandedIds")}
             onActivate={id => {
                 fn.sendUiEvent(node.id, "activate", {kind: ValueKind.String, string: id});
             }}

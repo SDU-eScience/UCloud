@@ -622,6 +622,7 @@ interface UcxNavTreeProps {
     commandKey?: string;
     placeholder?: string;
     searchable?: boolean;
+    initialExpandedIds?: string[];
 }
 
 export const UcxNavTree: React.FunctionComponent<UcxNavTreeProps> = props => {
@@ -790,7 +791,7 @@ export const UcxNavTree: React.FunctionComponent<UcxNavTreeProps> = props => {
                     </div>;
                 }}
                 ariaLabel={node => node.label}
-                initialExpandedIds={allNodes.map(node => node.id)}
+                initialExpandedIds={props.initialExpandedIds ?? allNodes.map(node => node.id)}
                 rowHeight={26}
                 rowHeightOf={node => node.separatorBefore === true ? 38 : 26}
                 indent={12}
