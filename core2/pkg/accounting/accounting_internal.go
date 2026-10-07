@@ -320,6 +320,14 @@ func internalAllocateNoCommit(
 		b.Mu.Lock()
 		defer b.Mu.Unlock()
 
+		if lInternalWouldCreateCycle(b, recipient, parent) {
+			return 0, util.HttpErr(
+				http.StatusBadRequest,
+				"this allocation would create a cycle in the resource graph: the recipient already provides "+
+					"resources (directly or indirectly) to the sender",
+			)
+		}
+
 		recipientWallet := b.WalletsById[recipient]
 		var parentWallet *internalWallet
 		if parent != internalGraphRoot {
@@ -706,6 +714,74 @@ func internalWalletByReferenceAndCategory(now time.Time, reference string, categ
 		w := internalWalletByOwner(b, now, owner.Id)
 		return w, true
 	}
+}
+
+// internalWalletByOwnerIfInitialized returns the wallet of an owner in a bucket. Unlike internalWalletByOwner, this
+// does not initialize anything if the wallet does not already exist.
+func internalWalletByOwnerIfInitialized(b *internalBucket, owner accOwnerId) (AccWalletId, bool) {
+	b.Mu.RLock()
+	defer b.Mu.RUnlock()
+
+	w, ok := b.WalletsByOwner[owner]
+	if !ok {
+		return 0, false
+	}
+	return w.Id, true
+}
+
+func internalWouldCreateCycle(b *internalBucket, recipient AccWalletId, parent AccWalletId) bool {
+	b.Mu.RLock()
+	defer b.Mu.RUnlock()
+	return lInternalWouldCreateCycle(b, recipient, parent)
+}
+
+// lInternalWouldCreateCycle returns true if an allocation from parent to recipient would introduce a cycle in the
+// wallet graph of the bucket.
+//
+// An allocation from P to R closes a cycle exactly when R already provides resources to P, that is, when P can
+// already reach R by following the allocations it has received (P's ancestors). Example: if C has resources from A
+// (edge A -> C), then an allocation from C to A closes the cycle A -> C -> A and must be rejected.
+//
+// The walk is purely structural: edges are followed regardless of quota and retirement state since allocation
+// groups persist in the graph even after all of their allocations have retired.
+func lInternalWouldCreateCycle(b *internalBucket, recipient AccWalletId, parent AccWalletId) bool {
+	if parent == recipient {
+		return true
+	}
+	if parent == internalGraphRoot {
+		return false
+	}
+
+	visited := map[AccWalletId]util.Empty{}
+	visited[parent] = util.Empty{}
+	queue := []AccWalletId{parent}
+
+	for len(queue) > 0 {
+		current := queue[0]
+		queue = queue[1:]
+
+		w, ok := b.WalletsById[current]
+		if !ok {
+			continue
+		}
+
+		for ancestor := range w.AllocationsByParent {
+			if ancestor == recipient {
+				return true
+			}
+
+			if ancestor == internalGraphRoot {
+				continue
+			}
+
+			if _, seen := visited[ancestor]; !seen {
+				visited[ancestor] = util.Empty{}
+				queue = append(queue, ancestor)
+			}
+		}
+	}
+
+	return false
 }
 
 func lInternalWalletByOwner(b *internalBucket, now time.Time, owner accOwnerId) *internalWallet {

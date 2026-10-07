@@ -23,6 +23,7 @@ import (
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
@@ -116,6 +117,12 @@ func ucxOnConnect(conn *ws.Conn) {
 		if !ok {
 			return ucxapi.Stack{}, fmt.Errorf("internal error")
 		}
+
+		filesystem.ActivityRecord(rpc.Actor{Username: info.Owner.CreatedBy}, filesystem.ActivityEvent{
+			Kind:      filesystem.ActivityDirect,
+			Operation: filesystem.ActivityOperationCreate,
+			Targets:   []filesystem.ActivityTarget{{UCloudPath: ucloudPath}},
+		})
 
 		id, err := orcapi.StacksControlRequestDeletion.Invoke(orcapi.StacksControlRequestDeletionRequest{
 			Id:             instanceId,
@@ -270,7 +277,7 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, path 
 		return util.Empty{}, fmt.Errorf("input data is too large")
 	}
 
-	internalPathMemberFiles, _, err := filesystem.InitializeMemberFiles(owner.CreatedBy, owner.Project)
+	internalPathMemberFiles, drive, err := filesystem.InitializeMemberFiles(owner.CreatedBy, owner.Project)
 	if err != nil {
 		return util.Empty{}, err.AsError()
 	}
@@ -291,6 +298,14 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, path 
 	parentPath := util.Parent(requestedPath)
 	if err = filesystem.DoCreateFolder(parentPath); err != nil {
 		return util.Empty{}, err.AsError()
+	}
+
+	if ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, parentPath); ok {
+		filesystem.ActivityRecord(rpc.Actor{Username: owner.CreatedBy}, filesystem.ActivityEvent{
+			Kind:      filesystem.ActivityDirect,
+			Operation: filesystem.ActivityOperationCreate,
+			Targets:   []filesystem.ActivityTarget{{UCloudPath: ucloudPath}},
+		})
 	}
 
 	file, ok := filesystem.OpenFile(requestedPath, unix.O_CREAT|unix.O_WRONLY|writeFlag, perm)

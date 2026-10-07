@@ -545,6 +545,7 @@ type PlaygroundFrameProps = {
     error?: string;
     connectionStatus?: string;
     noAllocation?: boolean;
+    noStorage?: boolean;
 };
 
 const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k => `
@@ -1022,13 +1023,13 @@ const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, s
 const ToolDisplayNames: Record<string, string> = {
     bash: "Shell",
     web_fetch: "Fetching web page",
-    wikipedia_search: "Searching Wikipedia",
+    request_internet_access: "Requesting internet access",
 };
 
 const ToolIcons: Record<string, IconName> = {
     bash: "heroCommandLine",
     web_fetch: "heroGlobeEuropeAfrica",
-    wikipedia_search: "heroBookOpen",
+    request_internet_access: "heroGlobeEuropeAfrica",
 };
 
 function renderMessageParts(parts: ChatMessagePart[], streaming: boolean): React.ReactNode[] {
@@ -1134,11 +1135,22 @@ function ToolPartBody({part, body}: {part: ChatMessagePart; body: string}): Reac
     if (part.toolName === "bash") return <BashToolResult command={toolArgument(part)} output={output.text}/>;
     const argumentsValue = toolArguments(part);
 
-    switch (part.toolName) {
-        case "web_fetch": return <WebFetchToolResult argumentsValue={argumentsValue} result={output.value}/>;
-        case "wikipedia_search": return <WikipediaToolResult argumentsValue={argumentsValue} result={output.value}/>;
-        default: return <CodeSnippet lang="json">{JSON.stringify(output.value, null, 2)}</CodeSnippet>;
+    if (part.toolName === "web_fetch") {
+        const error = output.error || (part.status === "error" ? toolSection(body, "Error:") || output.text || "Tool failed without an error message." : "");
+        return <WebFetchToolResult argumentsValue={argumentsValue} result={output.value} error={error} running={part.status === "running"}/>;
     }
+
+    if (output.error || part.status === "error") {
+        return <CodeSnippet lang="text">{output.error || toolSection(body, "Error:") || output.text || "Tool failed without an error message."}</CodeSnippet>;
+    }
+    if (!output.value) {
+        if (part.status === "running") {
+            return <UcxSpinner />;
+        }
+        return <CodeSnippet lang="text">{output.text || "The tool returned no content."}</CodeSnippet>;
+    }
+
+    return <CodeSnippet lang="json">{JSON.stringify(output.value, null, 2)}</CodeSnippet>;
 }
 
 function BashToolResult({command, output}: {command: string; output: string}): React.ReactNode {
@@ -1148,23 +1160,21 @@ function BashToolResult({command, output}: {command: string; output: string}): R
     </div>;
 }
 
-function WebFetchToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
+function WebFetchToolResult({argumentsValue, result, error, running}: {argumentsValue: ToolJson | null; result: ToolJson | null; error: string; running: boolean}): React.ReactNode {
     const content = stringValueFrom(result?.content);
     const format = stringValueFrom(result?.format) || stringValueFrom(argumentsValue?.format) || "markdown";
+    const cursor = stringValueFrom(result?.next_cursor);
+    const query = stringValueFrom(result?.query) || stringValueFrom(argumentsValue?.query);
     return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "URL", value: stringValueFrom(result?.url) || stringValueFrom(argumentsValue?.url)}, {label: "Format", value: format}, {label: "Status", value: result ? String(numberValueFrom(result.status) ?? "") : ""}, {label: "Content type", value: stringValueFrom(result?.content_type)}]}/>
-        {result ? (format === "markdown" ? <CodeSnippet lang="markdown">{content}</CodeSnippet> : <CodeSnippet lang="html">{content}</CodeSnippet>) : <UcxSpinner />}
-    </div>;
-}
-
-function WikipediaToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
-    const results = jsonList(result?.results);
-    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "Query", value: stringValueFrom(result?.query) || stringValueFrom(argumentsValue?.query)}, {label: "Results", value: String(numberValueFrom(result?.count) ?? numberValueFrom(argumentsValue?.limit) ?? results.length)}]}/>
-        {result ? results.map((item, index) => <div key={index} style={{display: "flex", flexDirection: "column", gap: 2}}>
-            <div>{stringValueFrom(item.title)}</div>
-            <div>{stringValueFrom(item.snippet)}</div>
-        </div>) : <UcxSpinner />}
+        <ToolFields fields={[
+            {label: "URL", value: stringValueFrom(result?.url) || stringValueFrom(argumentsValue?.url)},
+            {label: "HTTP status", value: result ? String(numberValueFrom(result.status) ?? "") : ""},
+            {label: "Query", value: query},
+        ]}/>
+        {query && result?.query_matched === false ? <span>No sections matched the query. Showing document content instead.</span> : null}
+        {error ? <CodeSnippet lang="text">{error}</CodeSnippet> : running && content.trim() === "" ? <UcxSpinner /> : content.trim() === "" ? <span>The tool returned no content.</span> : <CodeSnippet lang={format === "markdown" ? "markdown" : "html"}>{content}</CodeSnippet>}
+        {result?.download_truncated === true ? <span>The download reached its size limit. The page content is incomplete.</span> : null}
+        {cursor ? <span>More page content is available.</span> : result?.truncated === true && result?.download_truncated !== true ? <span>Content was truncated.</span> : null}
     </div>;
 }
 
@@ -1205,11 +1215,17 @@ function toolArguments(part: ChatMessagePart): ToolJson | null {
     return toolJson(part.text) ?? toolJson(toolSection(part.body, "Arguments:"));
 }
 
-function toolOutput(body: string): {value: ToolJson | null; text: string} {
+function toolOutput(body: string): {value: ToolJson | null; text: string; error: string} {
     const result = toolResult(body);
     const envelope = toolJson(result);
     const stdout = stringValueFrom(envelope?.stdout);
-    return {value: toolJson(stdout) ?? envelope, text: stdout || result};
+    const value = toolJson(stdout) ?? envelope;
+    const failure = stringValueFrom(envelope?.error) || stringValueFrom(value?.error) ||
+        (envelope?.timed_out === true ? "Tool timed out." : "") ||
+        toolSection(body, "Error:");
+    const stderr = stringValueFrom(envelope?.stderr);
+    const error = failure ? [failure, stderr].filter(Boolean).join("\n\n") : stdout.trim() === "" ? stderr : "";
+    return {value, text: stdout || result, error};
 }
 
 function toolSection(body: string, marker: string): string {
@@ -1655,9 +1671,11 @@ function ThreadListNode({
     );
 }
 
-function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSession = false, error = "", noAllocation = false}: PlaygroundFrameProps): React.ReactNode {
+function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSession = false, error = "", noAllocation = false, noStorage = false}: PlaygroundFrameProps): React.ReactNode {
     const connectionStatus = loadingSession || !mounted ? "Connecting..." : !connected ? "Reconnecting..." : error !== "" ? "Connection issue" : "Connected";
-    const disabledReason = noAllocation ? "You need to apply for resources before you can use the chat" : "";
+    const disabledReason = noStorage
+        ? "Storage resources are required to use the AI platform"
+        : noAllocation ? "You need to apply for resources before you can use the chat" : "";
 
     return (
         <MainContainer
@@ -1678,6 +1696,7 @@ function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSess
                                 connected={connected && mounted && error === ""}
                                 connectionStatus={connectionStatus}
                                 disabledReason={disabledReason}
+                                disabledReasonIsStorage={noStorage}
                             />
                         </TabbedCardTab>
                     </TabbedCard>
@@ -1695,7 +1714,7 @@ function DeveloperModeToggle({model, fn, connected}: {model: Record<string, Valu
     </Flex>;
 }
 
-function PlaygroundWorkspace({model, fn, connected, connectionStatus, disabledReason = ""}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string; disabledReason?: string}): React.ReactNode {
+function PlaygroundWorkspace({model, fn, connected, connectionStatus, disabledReason = "", disabledReasonIsStorage = false}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string; disabledReason?: string; disabledReasonIsStorage?: boolean}): React.ReactNode {
     const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
     const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
     const [showThreads, setShowThreads] = React.useState(false);
@@ -1765,7 +1784,7 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus, disabledRe
     return (
         <div className="playground-body">
             <div className="playground-main">
-                <PlaygroundConversation model={model} fn={fn} connected={connected} disabledReason={disabledReason}/>
+                <PlaygroundConversation model={model} fn={fn} connected={connected} disabledReason={disabledReason} disabledReasonIsStorage={disabledReasonIsStorage}/>
             </div>
             <div className="playground-sidebar" onClick={stopPropagation} data-open={showThreads} data-collapsed={sidebarCollapsed}>
                 {sidebarCollapsed ? (
@@ -1839,7 +1858,7 @@ function ContextWindowIndicator({model, fn}: {model: Record<string, Value>; fn?:
 
 }
 
-function PlaygroundConversation({model, fn, connected, disabledReason = ""}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; disabledReason?: string}): React.ReactNode {
+function PlaygroundConversation({model, fn, connected, disabledReason = "", disabledReasonIsStorage = false}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; disabledReason?: string; disabledReasonIsStorage?: boolean}): React.ReactNode {
     const messagesValue = fn?.modelValue(model, "chat.messages") ?? model["chat.messages"];
     const messageItems = messagesValue?.kind === ValueKind.List ? messagesValue.list : [];
     const streamingValue = fn?.modelValue(model, "chat.streamingMessages") ?? model["chat.streamingMessages"];
@@ -1859,6 +1878,8 @@ function PlaygroundConversation({model, fn, connected, disabledReason = ""}: {mo
         ),
         [currentThreadId, messagesValue, streamingThreadId, streamingValue],
     );
+    const permissionValue = fn?.modelValue(model, "chat.internetPermission") ?? model["chat.internetPermission"];
+    const permission = permissionValue?.kind === ValueKind.Object ? permissionValue.object : null;
     const latestMessage = messages[messages.length - 1];
     const latestMessageScrollKey = latestMessage ? chatMessageScrollKey(latestMessage) : "";
     const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -1925,13 +1946,14 @@ function PlaygroundConversation({model, fn, connected, disabledReason = ""}: {mo
             >
                 <div ref={contentRef}>
                     {disabledReason !== "" ? (
-                        <NoAllocationNotice reason={disabledReason}/>
+                        <NoAllocationNotice reason={disabledReason} storage={disabledReasonIsStorage}/>
                     ) : messages.length === 0 ? (
                         <Text color="textSecondary">No messages yet.</Text>
                     ) : messages.map((message) => {
                         if (!fn) return null;
                         return <ChatMessageNode key={message.key} message={message} modelOptions={modelOptions} currentModelId={currentModelId} fn={fn}/>;
                     })}
+                    {permission && boolValue(permission.active) && fn ? <InternetPermissionCard fn={fn} threadId={stringValue(permission.threadId)} url={stringValue(permission.url)}/> : null}
                     {loading ? <UcxSpinner /> : null}
                 </div>
             </div>
@@ -1977,12 +1999,54 @@ function DisabledComposerPlaceholder({disabledReason = ""}: {disabledReason?: st
     </Box>;
 }
 
-function NoAllocationNotice({reason}: {reason: string}): React.ReactNode {
+function InternetPermissionCard({fn, threadId, url}: {fn: UcxFunctionRegistry; threadId: string; url: string}): React.ReactNode {
+    const respond = (granted: boolean) => {
+        fn.sendUiEvent("internetPermissionResponse", "click", {
+            kind: ValueKind.Object,
+            object: {
+                granted: {kind: ValueKind.Bool, bool: granted},
+                threadId: {kind: ValueKind.String, string: threadId},
+            },
+        });
+    };
+
+    return <div style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 12,
+        padding: 16,
+        borderRadius: 8,
+        border: "1px solid var(--borderGray, #e0e0e0)",
+        background: "var(--backgroundMain, #fafafa)",
+        marginTop: 16,
+    }}>
+        <Icon name="heroGlobeEuropeAfrica" size={24} color="textSecondary" mt={2}/>
+        <div style={{flex: 1, display: "flex", flexDirection: "column", gap: 12}}>
+            <div>
+                <div style={{fontWeight: 600, marginBottom: 4}}>Allow internet access?</div>
+                <Text color="textSecondary">
+                    The assistant wants to access {url === "" ? "the internet" : <code>{url}</code>} to answer your question.
+                </Text>
+            </div>
+            <div style={{display: "flex", gap: 8}}>
+                <Button type="button" onClick={() => respond(true)}>Allow</Button>
+                <Button type="button" color="secondaryMain" onClick={() => respond(false)}>Don't allow</Button>
+            </div>
+        </div>
+    </div>;
+}
+
+function NoAllocationNotice({reason, storage = false}: {reason: string; storage?: boolean}): React.ReactNode {
     return <Flex flexDirection="column" alignItems="center" justifyContent="center" gap="16px" style={{flex: 1, textAlign: "center"}}>
-        <Icon name="heroChatBubbleLeftRight" size={48} color="textSecondary"/>
+        <Icon name={storage ? "heroArchiveBox" : "heroChatBubbleLeftRight"} size={48} color="textSecondary"/>
         <div>
             <div style={{fontWeight: 600, marginBottom: 8}}>{reason}</div>
-            <Text color="textSecondary">Apply for resources to get access to AI models and start chatting.</Text>
+            {storage ? (
+                <Text color="textSecondary">The chat stores conversations, attachments, and its sandbox in the files of
+                    this workspace, which requires storage resources.</Text>
+            ) : (
+                <Text color="textSecondary">Apply for resources to get access to AI models and start chatting.</Text>
+            )}
         </div>
         <Link to={AppRoutes.grants.editor()}>
             <Button type="button">Apply for resources</Button>
@@ -2016,7 +2080,9 @@ function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNe
         </div>
     </div>;
 
-return <PlaygroundSidebarShell header={header} footer={footer}>
+return <PlaygroundSidebarShell header={header} footer={<>
+        {footer}
+    </>}>
         {fn ? <ThreadListNode node={node} model={model} fn={fn} /> : <Text color="textSecondary">Loading...</Text>}
     </PlaygroundSidebarShell>;
 }
@@ -2109,6 +2175,7 @@ export default function Playground(): React.ReactNode {
     const [loading, setLoading] = React.useState(true);
     const [terminalError, setTerminalError] = React.useState("");
     const [noAllocation, setNoAllocation] = React.useState(false);
+    const [noStorage, setNoStorage] = React.useState(false);
     const [refreshNonce, setRefreshNonce] = React.useState(0);
     const [lastModel, setLastModel] = React.useState<Record<string, Value>>({});
     const openRetryCountRef = React.useRef(0);
@@ -2132,6 +2199,7 @@ export default function Playground(): React.ReactNode {
         setLastModel({});
         setSession(null);
         setNoAllocation(false);
+        setNoStorage(false);
         setRefreshNonce((x) => x + 1);
     }, [projectId]);
 
@@ -2151,6 +2219,7 @@ export default function Playground(): React.ReactNode {
                 setLoading(false);
                 setTerminalError("");
                 setNoAllocation(false);
+                setNoStorage(false);
             })
             .catch((err: any) => {
                 if (cancelled) return;
@@ -2160,9 +2229,11 @@ export default function Playground(): React.ReactNode {
                     : "Failed to open the inference playground";
                 setTerminalError(why);
                 const statusCode = typeof err?.request?.status === "number" ? err.request.status : 0;
+                const errorCode = typeof err?.response?.errorCode === "string" ? err.response.errorCode : "";
                 const permanent = statusCode >= 400 && statusCode < 500;
                 if (permanent) {
-                    setNoAllocation(statusCode === 402);
+                    setNoAllocation(statusCode === 402 && errorCode !== "NOT_ENOUGH_STORAGE_CREDITS");
+                    setNoStorage(statusCode === 402 && errorCode === "NOT_ENOUGH_STORAGE_CREDITS");
                     return;
                 }
                 const retry = openRetryCountRef.current++;
@@ -2221,6 +2292,7 @@ export default function Playground(): React.ReactNode {
                 loadingSession={loading}
                 error={loading ? "" : (terminalError || "Unable to open inference playground.")}
                 noAllocation={noAllocation}
+                noStorage={noStorage}
             />
         );
     }

@@ -1,7 +1,6 @@
 package command
 
 import (
-	"errors"
 	"fmt"
 
 	"ucloud.dk/shared/pkg/cli"
@@ -31,23 +30,9 @@ var WorkspaceCommands = map[string]CommandFunc{
 	"rename": func() Command { return &WorkspaceRenameCommand{} },
 }
 
-func retrieveWorkspaces() (map[string]fndapi.Project, error) {
-	result, httpErr := fndapi.ProjectBrowse.Invoke(fndapi.ProjectBrowseRequest{})
-	if httpErr.AsError() != nil {
-		return map[string]fndapi.Project{}, fmt.Errorf("failed to list workspaces: %s", httpErr.Why)
-	}
-	workspaces := make(map[string]fndapi.Project)
-	for _, workspace := range result.Items {
-		repoName := shared.RepositoryProjectName(workspace.Specification.Title)
-		workspaces[repoName] = workspace
-
-	}
-	return workspaces, nil
-}
-
 func (c WorkspaceListCommand) Execute() error {
 	shared.InitializeUCloudClient()
-	workspaces, err := retrieveWorkspaces()
+	workspaces, err := shared.RetrieveWorkspaces()
 	if err != nil {
 		return err
 	}
@@ -68,21 +53,6 @@ func (c WorkspaceListCommand) Execute() error {
 	return nil
 }
 
-func findWorkspace(name string) (*shared.Workspace, error) {
-	workspaces, err := retrieveWorkspaces()
-	if err != nil {
-		return nil, err
-	}
-	proj, ok := workspaces[name]
-	if !ok {
-		return nil, errors.New(fmt.Sprintf("Workspace %s does not exist", name))
-	}
-	return &shared.Workspace{
-		Id:   proj.Id,
-		Name: name,
-	}, nil
-}
-
 func checkIfEnviromentExists(name string) bool {
 	cfg, err := shared.ReadConfig()
 	if err != nil {
@@ -94,7 +64,7 @@ func checkIfEnviromentExists(name string) bool {
 
 func (c WorkspaceUseCommand) Execute() error {
 	shared.InitializeUCloudClient()
-	ws, err := findWorkspace(c.Name)
+	ws, err := shared.FindWorkspaceByName(c.Name)
 	if err != nil {
 		return err
 	}
@@ -112,7 +82,7 @@ func (c WorkspaceUseCommand) Execute() error {
 
 func (c WorkspaceGetCommand) Execute() error {
 	shared.InitializeUCloudClient()
-	workspaces, err := retrieveWorkspaces()
+	workspaces, err := shared.RetrieveWorkspaces()
 	if err != nil {
 		return err
 	}
@@ -158,7 +128,7 @@ func (c WorkspaceGetCommand) Execute() error {
 
 func (c WorkspaceRenameCommand) Execute() error {
 	shared.InitializeUCloudClient()
-	workspaces, err := retrieveWorkspaces()
+	workspaces, err := shared.RetrieveWorkspaces()
 	if err != nil {
 		return err
 	}

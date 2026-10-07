@@ -42,7 +42,7 @@ const SpinAnimation = makeKeyframe("spin", `
     }
     100% {
         transform: rotate(360deg);
-    }    
+    }
 `)
 
 enum TaskState {
@@ -496,10 +496,34 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
 
     const isOpen = dialog === "BackgroundTask";
 
+    const [sizes, setSizes] = React.useState({left: "", width: "", bottom: ""});
+    React.useEffect(() => {
+        function calculateSizes() {
+            const width = window.innerWidth;
+            if (width > 530) {
+                setSizes({
+                    left: "60px",
+                    bottom: "-148px",
+                    width: "450px"
+                });
+            } else {
+                setSizes({
+                    left: "-6px",
+                    bottom: "32px",
+                    width: "calc(100vw - 12px)"
+                });
+            }
+        }
+
+        calculateSizes();
+        window.addEventListener("resize", calculateSizes);
+        return () => window.removeEventListener("resize", calculateSizes);
+    }, []);
+
     return (
         <ClickableDropdown
-            left="60px"
-            bottom="-148px"
+            left={sizes.left}
+            bottom={sizes.bottom}
             colorOnHover={false}
             open={isOpen}
             onOpeningTriggerClick={() => setOpenDialog("BackgroundTask")}
@@ -508,7 +532,7 @@ export function TaskList({dialog, setOpenDialog}: SidebarDialog): React.ReactNod
                 <div ref={rippleRef} className={RippleCenter} style={rippleColoring} />
             </TooltipV2>}
         >
-            <Card cursor="default" backgroundColor={"var(--backgroundDefault)"} onClick={stopPropagation} width="450px" maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
+            <Card cursor="default" backgroundColor={"var(--backgroundDefault)"} onClick={stopPropagation} width={sizes.width} maxHeight={"566px"} style={{paddingTop: "20px", paddingBottom: "20px"}}>
                 <Box height={"526px"} overflowY="auto">
                     {noEntries ? <Flex height="100%">
                         <Heading m="auto">

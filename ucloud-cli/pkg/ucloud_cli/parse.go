@@ -60,10 +60,26 @@ func bindCommand(args []string, cmd any) error {
 				continue
 			}
 
-			v.Field(i).SetString(args[pos])
+			arg := args[pos]
+			// for positional slice of strings
+			if field.Type.Kind() == reflect.Slice && field.Type.Elem().Kind() == reflect.String && !strings.HasPrefix(arg, "-") {
+				for newPos, a := range args[pos:] {
+					if strings.HasPrefix(a, "-") {
+						// We reached a flag we update the pos to newPos, we -1, since we increment in the end for the outer-loop
+						pos = newPos - 1
+						break
+					}
+					fieldValue.Set(reflect.Append(fieldValue, reflect.ValueOf(a)))
+				}
+			} else {
+				v.Field(i).SetString(arg)
+			}
+
 			pos++
 		}
-
+		if field.Tag.Get("default") != "" {
+			v.Field(i).SetString(field.Tag.Get("default"))
+		}
 		required := field.Tag.Get("required") == "true"
 		if flagName == "" {
 			continue
@@ -104,7 +120,7 @@ func bindCommand(args []string, cmd any) error {
 					*mapPtr = make(map[string]string)
 				}
 
-				(*mapPtr)[key] = val // ✅ accumulate, never replace map
+				(*mapPtr)[key] = val
 				return nil
 			})
 
