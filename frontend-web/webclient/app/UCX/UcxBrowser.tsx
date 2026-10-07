@@ -6,7 +6,7 @@ import {IconButton} from "@/ui-components/IconButton";
 import {IconName} from "@/ui-components/Icon";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow as UiTableRow} from "@/ui-components/Table";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
-import {VirtualizedTree, VirtualizedTreeApi} from "@/ui-components/VirtualizedTree";
+import {VirtualizedTree} from "@/ui-components/VirtualizedTree";
 import {injectStyle} from "@/Unstyled";
 import {copyToClipboard, isLikelyMac} from "@/UtilityFunctions";
 import {TableColumn, TableColumnSortType, TableRow, TableRowAction, TableUpdate} from "@/UCX/protocol";
@@ -446,7 +446,8 @@ export const UcxBrowserLayout: React.FunctionComponent<UcxBrowserLayoutProps> = 
 
     const focusPane = useCallback((pane: UcxBrowserPane) => {
         if (pane === "sidebar") {
-            sidebarRef.current?.focus({preventScroll: true});
+            const tree = sidebarRef.current?.querySelector<HTMLElement>('[role="tree"][tabindex]');
+            (tree ?? sidebarRef.current)?.focus({preventScroll: true});
         } else if (pane === "content") {
             const table = contentRef.current?.querySelector<HTMLElement>("[data-ucx-table]");
             (table ?? contentRef.current)?.focus({preventScroll: true});
@@ -638,7 +639,6 @@ export const UcxNavTree: React.FunctionComponent<UcxNavTreeProps> = props => {
         setLocalSelectedId(props.selectedId);
     }
     const rootRef = useRef<HTMLDivElement | null>(null);
-    const treeApiRef = useRef<VirtualizedTreeApi | null>(null);
     const commandInputRef = useRef<HTMLInputElement | null>(null);
     const commandHighlightRef = useRef<number | null>(null);
     commandHighlightRef.current = commandHighlight;
@@ -752,16 +752,9 @@ export const UcxNavTree: React.FunctionComponent<UcxNavTreeProps> = props => {
     return <div
         ref={rootRef}
         className={UcxNavTreeClass}
-        onFocus={event => {
-            const pane = event.target instanceof HTMLElement ? event.target.closest("[data-ucx-pane]") : null;
-            if (pane != null && event.target === pane) {
-                treeApiRef.current?.activate();
-            }
-        }}
     >
         <div className="nav-tree-scroll">
             <VirtualizedTree
-                apiRef={treeApiRef}
                 nodes={visibleNodes}
                 getId={node => node.id}
                 getChildren={node => node.children}
@@ -888,6 +881,13 @@ export interface UcxTableActionDef {
     kind: string;
     color?: string;
     shortcut?: string;
+    destructive?: boolean;
+    skipConfirmation?: boolean;
+}
+
+function ucxOpenTableActionUrl(url: string): void {
+    if (!/^https?:\/\//i.test(url)) return;
+    window.open(url, "_blank", "noopener,noreferrer");
 }
 
 export interface UcxTableActionEvent {
@@ -929,7 +929,9 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     const rows = useMemo(() => Array.from(rowMap.values()), [rowMap, revision]);
     const columns = store.columnsFor(tableId);
     const filter = store.filterFor(stateKey);
-    const selectedKey = store.selectedFor(stateKey);
+    const sort = props.sorted !== false ? store.sortFor(stateKey) : null;
+    const storedSelectedKey = store.selectedFor(stateKey);
+    const selectedTableRef = useRef<{tableId: string; stateKey: string; viewId: string} | null>(null);
     const rootRef = useRef<HTMLDivElement | null>(null);
     const scrollRef = useRef<HTMLDivElement | null>(null);
     useLayoutEffect(() => {
@@ -939,7 +941,6 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         }
     }, []);
     const selectedKeyRef = useRef<string | null>(null);
-    selectedKeyRef.current = selectedKey;
     const scrollTopRef = useRef(0);
     const [dragColumn, setDragColumn] = useState<string | null>(null);
     const [widthRevision, setWidthRevision] = useState(0);
@@ -1008,7 +1009,6 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
 
     const orderedRows = useMemo(() => {
         const sorted = [...rows];
-        const sort = props.sorted !== false ? store.sortFor(stateKey) : null;
         const sortIdx = sort !== null ? columns.findIndex(col => col.key === sort.columnKey) : -1;
         if (sort !== null && sortIdx >= 0) {
             const sortType = columns[sortIdx].sortType;
@@ -1035,13 +1035,27 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             });
         }
         return sorted;
-    }, [rows, props.sorted, columns, stateKey, store, revision]);
+    }, [rows, props.sorted, columns, sort, stateKey, store, revision]);
 
     const filteredRows = useMemo(() => {
         const needle = filter.trim().toLowerCase();
         if (needle === "") return orderedRows;
         return orderedRows.filter(row => row.cells.some(cell => cell.toLowerCase().includes(needle)));
     }, [orderedRows, filter]);
+
+    const selectedTable = selectedTableRef.current;
+    const tableChanged = selectedTable?.tableId !== tableId || selectedTable?.stateKey !== stateKey || selectedTable?.viewId !== viewId;
+    const selectedKey = !tableChanged && filteredRows.some(row => row.key === storedSelectedKey)
+        ? storedSelectedKey
+        : filteredRows[0]?.key ?? null;
+    selectedKeyRef.current = selectedKey;
+
+    useLayoutEffect(() => {
+        if (store.filterFor(stateKey) !== filter) return;
+        if (props.sorted !== false && store.sortFor(stateKey) !== sort) return;
+        selectedTableRef.current = {tableId, stateKey, viewId};
+        store.setSelected(stateKey, selectedKey);
+    }, [filter, props.sorted, selectedKey, sort, stateKey, store, tableId, viewId]);
 
     const groupedRows: {group: string; rows: TableRow[]}[] = [];
     for (const row of filteredRows) {
@@ -1136,6 +1150,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             : undefined;
         if (selected) {
             const def = actionDefs.find(candidate => {
+                if (candidate.destructive && !candidate.skipConfirmation) return false;
                 const candidateShortcut = candidate.shortcut ?? "";
                 if (candidateShortcut === "") return false;
                 if (candidateShortcut !== candidateShortcut.toLowerCase()) {
@@ -1148,6 +1163,8 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                 if (action && action.enabled) {
                     if (def.kind === "copyText" && action.text !== undefined) {
                         copyToClipboard(action.text);
+                    } else if (def.kind === "openUrl" && action.text !== undefined) {
+                        ucxOpenTableActionUrl(action.text);
                     } else {
                         props.onRowAction?.({tableId, rowKey: selected.key, actionId: def.id});
                     }
@@ -1273,6 +1290,8 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             entries.push({
                 text: def.label,
                 icon: def.icon !== "" ? (def.icon as IconName) : undefined,
+                destructive: def.destructive,
+                skipConfirmation: def.skipConfirmation,
                 enabled: action.enabled
                     ? () => true
                     : () => action.disabledReason ?? false,
@@ -1282,11 +1301,17 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                     if (!entry) return;
                     if (def.kind === "copyText" && entry.text !== undefined) {
                         copyToClipboard(entry.text);
+                    } else if (def.kind === "openUrl" && entry.text !== undefined) {
+                        ucxOpenTableActionUrl(entry.text);
                     } else {
                         props.onRowAction?.({tableId, rowKey: target.key, actionId: def.id});
                     }
                 },
-                shortcut: def.shortcut && def.shortcut !== "" ? {code: `Key${def.shortcut.toUpperCase()}`, key: def.shortcut, modifier: undefined} : undefined,
+                shortcut: def.shortcut && def.shortcut !== "" ? {
+                    code: def.shortcut.length === 1 ? `Key${def.shortcut.toUpperCase()}` : def.shortcut,
+                    key: def.shortcut,
+                    modifier: undefined,
+                } : undefined,
             });
         }
         return entries;
@@ -1345,13 +1370,6 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                 return;
             }
 
-            if (event.key === "Escape") {
-                if (selectedKeyRef.current == null) return;
-                event.preventDefault();
-                store.setSelected(stateKey, null);
-                return;
-            }
-
             if (event.key === "x" || event.key === "ContextMenu") {
                 if (event.ctrlKey || event.metaKey || event.altKey) return;
                 event.preventDefault();
@@ -1365,7 +1383,14 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                 return;
             }
 
-            if (!event.ctrlKey && !event.metaKey && !event.altKey && event.key.length === 1) {
+            if (isLikelyMac && event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && event.key === "Backspace") {
+                if (triggerActionByShortcut("delete", "Delete")) {
+                    event.preventDefault();
+                }
+                return;
+            }
+
+            if (!event.ctrlKey && !event.metaKey && !event.altKey) {
                 if (triggerActionByShortcut(event.key.toLowerCase(), event.key)) {
                     event.preventDefault();
                 }
@@ -1505,14 +1530,13 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                             {group.rows.map(row => {
                                 const hasActions = (row.actions?.length ?? 0) > 0;
                                 const isSelected = selectedKey === row.key;
-                                const isFirstRow = row.key === groupedRows[0]?.rows[0]?.key;
                                 return <UiTableRow
                                     key={row.key}
                                     data-row-key={row.key}
                                     data-selected={isSelected}
                                     role="row"
                                     aria-selected={isSelected}
-                                    tabIndex={isSelected || (selectedKey == null && isFirstRow) ? 0 : -1}
+                                    tabIndex={isSelected ? 0 : -1}
                                     highlightOnHover
                                     highlighted={isSelected}
                                     onClick={() => store.setSelected(stateKey, row.key)}
@@ -1744,7 +1768,7 @@ function UcxTableShortcutGuide({actionDefs, groupAction, tableRef}: {
     const builtIn = new Set(["j", "k", "g", "G", "x", "/"]);
     for (const def of actionDefs) {
         if (def.shortcut && def.shortcut !== "" && !builtIn.has(def.shortcut.toLowerCase())) {
-            rows.push({keys: [def.shortcut], action: def.label});
+            rows.push({keys: def.shortcut === "Delete" && isLikelyMac ? ["⌘⌫"] : [def.shortcut], action: def.label});
         }
     }
     if (groupAction?.shortcut && groupAction.shortcut !== "" && !builtIn.has(groupAction.shortcut.toLowerCase())) {

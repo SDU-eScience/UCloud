@@ -21,6 +21,7 @@ import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {IconButton} from "@/ui-components/IconButton";
 import {UcxCodeEditor} from "@/UCX/UcxCodeEditor";
+import type {YamlFieldLink, YamlFieldPath} from "@/Editor/YamlFieldLinks";
 import {atomOneDark, atomOneLight} from "react-syntax-highlighter/dist/esm/styles/hljs";
 import SyntaxHighlighter from "react-syntax-highlighter";
 import {copyToClipboard, createKeyboardShortcut} from "@/UtilityFunctions";
@@ -1088,11 +1089,11 @@ const baseComponents: UcxComponentRegistry = {
             />
         </div>;
     },
-    warning: ({node, model, scope}) => {
+    warning: ({node, model, scope, fn}) => {
         const text = boundOrStaticText(node, model, scope);
         if (!text) return null;
         const variant = stringProp(node, "variant", "warning") === "tip" ? "tip" : "warning";
-        return <Warning variant={variant}>{text as string}</Warning>;
+        return <Warning variant={variant} style={fn.sxStyle(node)}>{text as string}</Warning>;
     },
     icon: ({node, fn}) => {
         const name = stringProp(node, "name", "bug");
@@ -1535,6 +1536,7 @@ const baseComponents: UcxComponentRegistry = {
             schemaRegistry={fn.editorSchemaRegistry}
             showSchemaReference={boolProp(node, "showSchemaReference", false)}
             markdownFixer={optionalStringProp(node, "markdownFixer")}
+            yamlFieldLinks={ucxYamlFieldLinksProp(node)}
             readOnly={boolProp(node, "readOnly", false)}
             saving={boolProp(node, "saving", false)}
             closeLabel={stringProp(node, "closeLabel", "Close")}
@@ -2387,6 +2389,33 @@ function ucxValueObject(object: Record<string, Value>): Value {
     return {kind: ValueKind.Object, object};
 }
 
+function ucxYamlFieldPath(value: Value | undefined): YamlFieldPath | undefined {
+    if (value?.kind !== ValueKind.List) return undefined;
+    const path: YamlFieldPath = [];
+    for (const part of value.list) {
+        if (part.kind === ValueKind.String) path.push(part.string);
+        else if (part.kind === ValueKind.S64 && part.s64 >= 0) path.push(part.s64);
+        else return undefined;
+    }
+    return path;
+}
+
+function ucxYamlFieldLinksProp(node: UiNode): YamlFieldLink[] {
+    const raw = prop(node, "yamlFieldLinks");
+    if (raw?.kind !== ValueKind.List) return [];
+    return raw.list.flatMap(item => {
+        if (item.kind !== ValueKind.Object) return [];
+        const source = ucxYamlFieldPath(item.object["source"]);
+        const rawTargets = item.object["targets"];
+        if (!source || rawTargets?.kind !== ValueKind.List) return [];
+        const targets = rawTargets.list.flatMap(item => {
+            const path = ucxYamlFieldPath(item);
+            return path ? [path] : [];
+        });
+        return [{source, targets}];
+    });
+}
+
 function ucxTableActionsProp(node: UiNode): UcxTableActionDef[] {
     const raw = prop(node, "actions");
     if (!raw || raw.kind !== ValueKind.List) return [];
@@ -2400,6 +2429,8 @@ function ucxTableActionsProp(node: UiNode): UcxTableActionDef[] {
             icon: asString(item.object["icon"], ""),
             kind: asString(item.object["kind"], ""),
             shortcut: asString(item.object["shortcut"], ""),
+            destructive: item.object["destructive"]?.kind === ValueKind.Bool && item.object["destructive"].bool === true,
+            skipConfirmation: item.object["skipConfirmation"]?.kind === ValueKind.Bool && item.object["skipConfirmation"].bool === true,
         }];
     });
 }

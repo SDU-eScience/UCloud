@@ -157,6 +157,47 @@ func dashboardResourceSchemaBuild(schemas map[string]any, gvk schema.GroupVersio
 	return root, nil
 }
 
+func dashboardResourceEditorSchemaFetch(ctx context.Context, client *K8sClient, gvk schema.GroupVersionKind, namespaced bool) (ucxapi.EditorSchemaRegistration, error) {
+	registration, err := dashboardResourceSchemaFetch(ctx, client, gvk)
+	if err != nil || !namespaced {
+		return registration, err
+	}
+	namespaces, err := client.ListNamespaces(ctx)
+	if err != nil || len(namespaces) == 0 {
+		return registration, nil
+	}
+	definitions, _ := registration.Schema["definitions"].(map[string]any)
+	metadata := dashboardResourceTemplateProperty(registration.Schema, definitions, "metadata")
+	if reference, ok := metadata["$ref"].(string); ok {
+		key := strings.TrimPrefix(reference, "#/definitions/")
+		key = strings.ReplaceAll(strings.ReplaceAll(key, "~1", "/"), "~0", "~")
+		metadata, _ = definitions[key].(map[string]any)
+	}
+	if metadata == nil {
+		return registration, nil
+	}
+	namespace := dashboardResourceTemplateProperty(metadata, definitions, "namespace")
+	if namespace == nil {
+		properties, _ := metadata["properties"].(map[string]any)
+		if properties == nil {
+			properties = map[string]any{}
+			metadata["properties"] = properties
+		}
+		namespace = map[string]any{"type": "string"}
+		properties["namespace"] = namespace
+	}
+	values := make([]any, 0, len(namespaces))
+	for _, name := range namespaces {
+		values = append(values, name)
+	}
+	namespace["anyOf"] = []any{
+		map[string]any{"enum": values},
+		map[string]any{"type": "string"},
+	}
+	registration.Revision += fmt.Sprintf(":%x", sha256.Sum256([]byte(strings.Join(namespaces, "\n"))))
+	return registration, nil
+}
+
 func dashboardResourceSchemaNormalize(source map[string]any, schemas map[string]any, definitions map[string]any) (map[string]any, error) {
 	result := make(map[string]any, len(source))
 	for key, value := range source {
@@ -306,6 +347,7 @@ func dashboardResourceEditorSchemasStart(app *stackUiApp) {
 		return
 	}
 	gvk := state.Snapshot.GroupVersionKind()
+	namespaced := state.Def.Namespaced
 	state.SchemaId = dashboardResourceSchemaId(gvk)
 	revision := state.Revision
 	detail := state.Detail
@@ -326,7 +368,7 @@ func dashboardResourceEditorSchemasStart(app *stackUiApp) {
 				return
 			}
 			fetchCtx, fetchCancel := context.WithTimeout(ctx, 15*time.Second)
-			registration, err := dashboardResourceSchemaFetch(fetchCtx, client, gvk)
+			registration, err := dashboardResourceEditorSchemaFetch(fetchCtx, client, gvk, namespaced)
 			if err == nil && registration.Revision != registeredRevision {
 				_, err = ucxapi.EditorRegisterSchemas.InvokeEx(fetchCtx, session, ucxapi.EditorRegisterSchemasRequest{
 					Schemas: []ucxapi.EditorSchemaRegistration{registration},

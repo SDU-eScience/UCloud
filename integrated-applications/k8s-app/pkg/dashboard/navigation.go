@@ -116,7 +116,7 @@ func dashboardNavigationRoute(entries []dashboardNavigationEntry) string {
 		if i == 0 || entry.namespace != "" {
 			query.Set(fmt.Sprintf("namespace%d", i), entry.namespace)
 		}
-		if strings.HasPrefix(level, "detail/") {
+		if strings.HasPrefix(level, "detail/") || strings.HasPrefix(level, "create/") {
 			query.Set(fmt.Sprintf("type%d", i), entry.typeId)
 		}
 	}
@@ -170,13 +170,16 @@ func dashboardNavigationParse(app *stackUiApp, route string) []dashboardNavigati
 				}
 				label = strings.Join(names, "/")
 			}
-		case "detail":
+		case "detail", "create":
 			detail := detailFromRoute(level)
 			if detail == "" {
 				return nil
 			}
 			detailParts := strings.Split(detail, "/")
 			label = strings.TrimPrefix(detailParts[1]+"/"+detailParts[2], "/")
+			if parts[0] == "create" {
+				label = "Create"
+			}
 			if len(detailParts) == 4 {
 				label = detailParts[3]
 			}

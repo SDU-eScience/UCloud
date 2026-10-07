@@ -31,7 +31,7 @@ let updates = Promise.resolve();
 let disposed = false;
 let yamlWorker: {
     settings: Record<string, unknown>;
-    inspect: (model: editor.ITextModel) => Promise<unknown>;
+    inspect: (model: editor.ITextModel, position?: {lineNumber: number; column: number}) => Promise<unknown>;
 } | undefined;
 
 export function createEditorSchemaRegistry(): EditorSchemaRegistry {
@@ -67,14 +67,19 @@ function editorSchemaLanguageService() {
                         });
                         yamlWorker = {
                             settings: options.createData as Record<string, unknown>,
-                            inspect: async model => {
+                            inspect: async (model, position) => {
                                 const proxy = await client.withSyncedResources([model.uri]) as {
                                     getCodeLens: (uri: string) => Promise<unknown>;
                                     doValidation: (uri: string) => Promise<unknown>;
+                                    doComplete: (uri: string, position: {line: number; character: number}) => Promise<unknown>;
                                 };
                                 return {
                                     resolvedSchemas: await proxy.getCodeLens(model.uri.toString()),
                                     diagnostics: await proxy.doValidation(model.uri.toString()),
+                                    completions: position ? await proxy.doComplete(model.uri.toString(), {
+                                        line: position.lineNumber - 1,
+                                        character: position.column - 1,
+                                    }) : undefined,
                                 };
                             },
                         };
@@ -240,14 +245,30 @@ export async function getEditorSchemaDiagnostics() {
     }));
     const documents = [];
     for (const model of models) {
+        const instance = monaco.editor.getEditors().find(instance => instance.getModel() === model);
+        const position = instance?.getPosition() ?? undefined;
         let result: unknown;
         try {
-            result = await worker?.inspect(model);
+            result = await worker?.inspect(model, position);
         } catch (error) {
             result = {error: String(error)};
         }
         documents.push({
             uri: model.uri.toString(),
+            editor: instance ? {
+                position,
+                readOnly: instance.getOption(monaco.editor.EditorOption.readOnly),
+                quickSuggestions: instance.getOption(monaco.editor.EditorOption.quickSuggestions),
+                suggestOnTriggerCharacters: instance.getOption(monaco.editor.EditorOption.suggestOnTriggerCharacters),
+                suggest: instance.getOption(monaco.editor.EditorOption.suggest),
+                suggestActionSupported: instance.getAction("editor.action.triggerSuggest")?.isSupported(),
+                suggestWidgets: Array.from(instance.getDomNode()?.querySelectorAll(".suggest-widget") ?? []).map(widget => ({
+                    display: getComputedStyle(widget).display,
+                    visibility: getComputedStyle(widget).visibility,
+                    bounds: widget.getBoundingClientRect().toJSON(),
+                    text: widget.textContent,
+                })),
+            } : undefined,
             bindings: Array.from(registries).flatMap(registry => {
                 const schemaId = registry.bindings.get(model);
                 return schemaId ? [{registryId: registry.id, schemaId, registered: registry.schemas.has(schemaId)}] : [];

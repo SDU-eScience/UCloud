@@ -909,15 +909,20 @@ func navItemsToValue(items []NavItem) Value {
 
 type ResourceTableActionKind string
 
-const ResourceTableActionCopyText ResourceTableActionKind = "copyText"
+const (
+	ResourceTableActionCopyText ResourceTableActionKind = "copyText"
+	ResourceTableActionOpenUrl  ResourceTableActionKind = "openUrl"
+)
 
 type ResourceTableAction struct {
-	Id       string
-	Label    string
-	Icon     IconName
-	Kind     ResourceTableActionKind
-	Color    Color
-	Shortcut string
+	Id               string
+	Label            string
+	Icon             IconName
+	Kind             ResourceTableActionKind
+	Color            Color
+	Shortcut         string
+	Destructive      bool
+	SkipConfirmation bool
 }
 
 type ResourceTableProps struct {
@@ -970,6 +975,12 @@ func ResourceTable(props ResourceTableProps) UiNode {
 			})
 			if action.Shortcut != "" {
 				actionValue.Object["shortcut"] = VString(action.Shortcut)
+			}
+			if action.Destructive {
+				actionValue.Object["destructive"] = VBool(true)
+			}
+			if action.SkipConfirmation {
+				actionValue.Object["skipConfirmation"] = VBool(true)
 			}
 			actionValues = append(actionValues, actionValue)
 		}
@@ -1185,7 +1196,13 @@ func CodeBoundEx(id string, bindPath string) UiNode {
 	return UiNode{Id: id, Component: "code", BindPath: bindPath}
 }
 
+type CodeEditorYamlFieldLink struct {
+	Source  []any
+	Targets [][]any
+}
+
 type CodeEditorProps struct {
+	YamlFieldLinks      []CodeEditorYamlFieldLink
 	ShowSchemaReference bool
 	MarkdownFixer       string
 	DocumentId          string
@@ -1236,6 +1253,11 @@ func CodeEditor(id string, bindPath string, props CodeEditorProps) UiNode {
 	}
 	if props.MarkdownFixer != "" {
 		propsMap["markdownFixer"] = VString(props.MarkdownFixer)
+	}
+	if len(props.YamlFieldLinks) > 0 {
+		propsMap["yamlFieldLinks"] = ValueMarshalOrLog(struct {
+			Links []CodeEditorYamlFieldLink
+		}{Links: props.YamlFieldLinks})["links"]
 	}
 	return UiNode{
 		Id:         id,

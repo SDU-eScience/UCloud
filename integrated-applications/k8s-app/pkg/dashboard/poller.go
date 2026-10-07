@@ -590,7 +590,7 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 	}
 
 	for i := range rows {
-		rows[i].Actions = resourceRowActions(selection.def, rows[i], nodeJobIds, maintenanceSnapshot, maintenanceUnavailable)
+		rows[i].Actions = resourceRowActions(selection.def, rows[i], p.cache[rows[i].Key], nodeJobIds, maintenanceSnapshot, maintenanceUnavailable)
 		if isNodes && !strings.HasPrefix(rows[i].Key, provisioningRowKeyPrefix) && len(rows[i].Cells) > 3 {
 			operation, present := maintenanceSnapshot[rows[i].Cells[0]]
 			rows[i].Cells[3] = maintenanceCellForOperation(operation, present)
@@ -816,6 +816,7 @@ func resourceRowsForType(items []unstructured.Unstructured, def ResourceTypeDef)
 func resourceRowActions(
 	def ResourceTypeDef,
 	row ResourceRow,
+	obj *unstructured.Unstructured,
 	nodeJobIds map[string]string,
 	maintenanceSnapshot map[string]maintenance.Operation,
 	maintenanceUnavailable bool,
@@ -840,11 +841,15 @@ func resourceRowActions(
 		if provisioningRow {
 			return []ucx.TableRowAction{viewYaml}
 		}
-		return []ucx.TableRowAction{
+		actions := []ucx.TableRowAction{
 			{Id: "openShell", Enabled: true},
 			viewYaml,
 			editYaml,
 		}
+		if dashboardResourceDeleteSupported(def) {
+			actions = append(actions, ucx.TableRowAction{Id: "deleteResource", Enabled: true})
+		}
+		return actions
 	}
 
 	if rolloutRestartSupported(def.Id) {
@@ -852,11 +857,22 @@ func resourceRowActions(
 			{Id: "rolloutRestart", Enabled: true},
 			viewYaml,
 			editYaml,
+			{Id: "deleteResource", Enabled: dashboardResourceDeleteSupported(def)},
 		}
 	}
 
 	if def.Id != "nodes" {
-		return []ucx.TableRowAction{viewYaml, editYaml}
+		actions := []ucx.TableRowAction{
+			viewYaml,
+			editYaml,
+			{Id: "deleteResource", Enabled: dashboardResourceDeleteSupported(def)},
+		}
+		if def.Id == "ingresses" && obj != nil {
+			if serviceUrl := dashboardIngressServiceUrl(obj); serviceUrl != "" {
+				actions = append(actions, ucx.TableRowAction{Id: "openService", Enabled: true, Text: serviceUrl})
+			}
+		}
+		return actions
 	}
 
 	nodeName := row.Cells[0]

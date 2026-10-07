@@ -28,6 +28,7 @@ export interface ActionItem<T, C = undefined> {
     enabled: (selected: T[], callbacks: C) => boolean | string;
     icon?: IconName;
     destructive?: boolean;
+    skipConfirmation?: boolean;
     confirmationText?: string | ((selected: T[], callbacks: C) => string);
     confirmationButtonText?: string | ((selected: T[], callbacks: C) => string);
     tag?: string;
@@ -363,6 +364,9 @@ function nextEnabledIndex<T, C>(entries: EvaluatedEntry<T, C>[], current: number
 
 function Shortcut({shortcut}: {shortcut: ActionShortcut}): React.ReactNode {
     if (typeof shortcut !== "string") {
+        if (shortcut.code === "Delete" && shortcut.modifier === undefined && isLikelyMac) {
+            return <span className={ShortcutClass}>⌘⌫</span>;
+        }
         return <>
             {shortcut.modifier === "primary" ?
                 <span className={ShortcutClass}>{isLikelyMac ? "⌘" : "Ctrl"}</span> : null}
@@ -379,6 +383,10 @@ function matchesShortcut(shortcut: ActionShortcut | undefined, event: KeyboardEv
     if (!shortcut) return false;
     if (typeof shortcut === "string") {
         return event.altKey && !event.ctrlKey && !event.metaKey && shortcut === event.code;
+    }
+    if (shortcut.code === "Delete" && shortcut.modifier === undefined && isLikelyMac &&
+        event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && event.code === "Backspace") {
+        return true;
     }
     const hasPrimaryModifier = isLikelyMac ? event.metaKey : event.ctrlKey;
     return shortcut.code === event.code &&
@@ -447,7 +455,7 @@ function MenuSurface<T, C>({
         {level.entries.map((entry, index) => {
             if (entry === "divider") return <div className={ActionDividerClass} role="separator" key={`divider-${index}`} />;
             const hasChildren = !!entry.action.children?.length;
-            if (entry.action.destructive && confirmationMode === "hold") {
+            if (entry.action.destructive && !entry.action.skipConfirmation && confirmationMode === "hold") {
                 const button = <div data-tag={actionTag(entry.text, entry.action.tag)}>
                     <ConfirmationButton
                         actionText={entry.text}
@@ -583,7 +591,7 @@ export function ActionMenu<T, C>(props: ActionMenuProps<T, C>): React.ReactNode 
     }, [close]);
 
     const activate = useCallback((entry: EvaluatedAction<T, C>) => {
-        if (entry.action.destructive) {
+        if (entry.action.destructive && !entry.action.skipConfirmation) {
             if (propsRef.current.confirmationMode !== "hold") {
                 const root = document.querySelector<HTMLElement>(`[data-menu-owner="${owner}"]`);
                 const bounds = root?.getBoundingClientRect();
@@ -791,14 +799,14 @@ function ActionBarButton<T, C>({entry, props, split = false}: {
             mr={entry.text ? appearance?.iconSpacing ?? "5px" : undefined}
         /> : null}
         {entry.text ? <span>{entry.text}</span> : null}
-        {!entry.action.destructive && !props.hideShortcuts && entry.action.shortcut ?
+        {(!entry.action.destructive || entry.action.skipConfirmation) && !props.hideShortcuts && entry.action.shortcut ?
             <span style={{display: "inline-flex", gap: "3px", marginLeft: "8px"}}>
                 <Shortcut shortcut={entry.action.shortcut} />
             </span> : null}
     </>;
 
     let result: React.ReactNode;
-    if (entry.action.destructive) {
+    if (entry.action.destructive && !entry.action.skipConfirmation) {
         result = <span
             data-tag={actionTag(entry.text, entry.action.tag)}
             data-destructive-action="true"
@@ -817,7 +825,7 @@ function ActionBarButton<T, C>({entry, props, split = false}: {
         </span>;
     } else {
         result = <Button
-            color={appearance?.color ?? "secondaryMain"}
+            color={appearance?.color ?? (entry.action.destructive ? "errorMain" : "secondaryMain")}
             attachedLeft={split}
             disabled={disabled}
             data-tag={actionTag(entry.text, entry.action.tag)}
@@ -875,7 +883,7 @@ export function ActionBar<T, C>(props: ActionBarProps<T, C>): React.ReactNode {
         if (props.enableShortcuts === false) return;
         const onKeyDown = (event: KeyboardEvent) => {
             const entry = entries.find(candidate =>
-                candidate.enabled === true && !candidate.action.destructive &&
+                candidate.enabled === true && (!candidate.action.destructive || candidate.action.skipConfirmation) &&
                 matchesShortcut(candidate.action.shortcut, event)
             );
             if (!entry) return;

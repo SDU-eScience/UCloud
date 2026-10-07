@@ -34,15 +34,16 @@ func rolloutRestartBusy(typeId string, obj *unstructured.Unstructured) bool {
 	if firstInt64(obj, "status", "observedGeneration") < obj.GetGeneration() {
 		return true
 	}
-	if firstInt64(obj, "status", "terminatingReplicas") > 0 {
-		return true
+	if typeId == "deployments" {
+		desired := firstInt64(obj, "spec", "replicas")
+		active := firstInt64(obj, "status", "replicas")
+		return firstInt64(obj, "status", "updatedReplicas") != desired ||
+			firstInt64(obj, "status", "readyReplicas") < max(desired, active)
 	}
-
 	if typeId == "daemonsets" {
 		desired := firstInt64(obj, "status", "desiredNumberScheduled")
 		countsChanging := firstInt64(obj, "status", "currentNumberScheduled") != desired ||
 			firstInt64(obj, "status", "numberReady") != desired ||
-			firstInt64(obj, "status", "numberAvailable") != desired ||
 			firstInt64(obj, "status", "numberMisscheduled") > 0
 		if countsChanging {
 			return true
@@ -59,11 +60,6 @@ func rolloutRestartBusy(typeId string, obj *unstructured.Unstructured) bool {
 	if countsChanging {
 		return true
 	}
-	if typeId == "deployments" {
-		return firstInt64(obj, "status", "updatedReplicas") != desired ||
-			firstInt64(obj, "status", "availableReplicas") != desired
-	}
-
 	if firstString(obj, "spec", "updateStrategy", "type") == "OnDelete" {
 		return false
 	}
@@ -168,35 +164,11 @@ func rolloutRestartResultMessage(typeLabel string, targetPath string, err error)
 }
 
 func (app *stackUiApp) rolloutRestartDialogNode() ucx.UiNode {
-	return ucx.DialogEx("rolloutRestartDialog", "Restart", true).Children(
-		ucx.TextEx("", fmt.Sprintf(
+	return dashboardResourceActionDialog(
+		"rolloutRestart", "Restart", fmt.Sprintf(
 			"Restart %s %s?",
 			rolloutRestartSingularLabel(app.rolloutRestartTarget.TypeId),
 			app.rolloutRestartTargetPath(),
-		)).Sx(ucx.SxMinHeight(200)),
-		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).
-			Sx(
-				ucx.SxWidthAuto(),
-				ucx.SxJustifyEnd,
-				ucx.SxMx(-20),
-				ucx.SxMb(-20),
-				ucx.SxPx(20),
-				ucx.SxPy(12),
-				ucx.SxBackground("var(--dialogToolbar)"),
-			).
-			Children(
-				ucx.ButtonEx("rolloutRestartCancel", "Cancel", ucx.ColorSecondaryMain, "", "", "").
-					WithShortcutKey("n").
-					On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-						app.closeRolloutRestartDialog()
-					}),
-				ucx.ButtonEx("rolloutRestartConfirm", "Restart", ucx.ColorErrorMain, ucx.IconHeroArrowPath, "", "").
-					WithShortcutKey("y").
-					On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-						app.performRolloutRestart()
-					}),
-			),
-	).On(ucx.UiEventClose, func(ev ucx.UiEvent) {
-		app.closeRolloutRestartDialog()
-	})
+		), ucx.IconHeroArrowPath, app.closeRolloutRestartDialog, app.performRolloutRestart,
+	)
 }

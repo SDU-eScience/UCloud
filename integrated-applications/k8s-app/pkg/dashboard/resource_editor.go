@@ -19,6 +19,7 @@ type dashboardResourceEditorState struct {
 	Snapshot     *unstructured.Unstructured
 	Loading      bool
 	Editing      bool
+	Creating     bool
 	Saving       bool
 	Error        string
 	SchemaId     string
@@ -41,6 +42,13 @@ func dashboardResourceEditorNode(app *stackUiApp, detail string) ucx.UiNode {
 		tabLabel += ".yaml"
 	}
 	id := fmt.Sprintf("resourceYamlEditor:%d", state.Revision)
+	if state.Creating {
+		tabLabel = "Create " + state.Def.Label + ".yaml"
+	}
+	var yamlFieldLinks []ucx.CodeEditorYamlFieldLink
+	if state.Creating {
+		yamlFieldLinks = dashboardResourceCreateFieldLinks(state.Def)
+	}
 	editor := ucx.CodeEditor(id, bindPath, ucx.CodeEditorProps{
 		ShowSchemaReference: true,
 		MarkdownFixer:       "k8s-api",
@@ -55,6 +63,7 @@ func dashboardResourceEditorNode(app *stackUiApp, detail string) ucx.UiNode {
 		CloseLabel:          "Cancel",
 		AutoFocus:           state.Editing,
 		TabLabel:            tabLabel,
+		YamlFieldLinks:      yamlFieldLinks,
 	}).WithStretch().On(ucx.UiEventSave, func(ev ucx.UiEvent) {
 		if app.resourceEditor.Revision != state.Revision || ev.Value.Kind != ucx.ValueString {
 			return
@@ -80,7 +89,7 @@ func dashboardResourceEditorNode(app *stackUiApp, detail string) ucx.UiNode {
 	}
 	children := []ucx.UiNode{}
 	if state.Error != "" {
-		children = append(children, ucx.Warning(state.Error).Sx(ucx.SxM(8)))
+		children = append(children, ucx.Warning(state.Error).Sx(ucx.SxM(8), ucx.SxMt(16)))
 	}
 	if state.SchemaError != "" {
 		children = append(children, ucx.Warning(state.SchemaError).Sx(ucx.SxM(8)))
@@ -121,7 +130,7 @@ func dashboardResourceEditorLoad(app *stackUiApp, detail string, editing bool) {
 		app.resourceEditor.Error = fmt.Sprintf("Unknown resource type: %s", parts[0])
 		return
 	}
-	if editing && !def.CanUpdate {
+	if editing && parts[2] != "@create" && !def.CanUpdate {
 		app.resourceEditor.Error = "This resource type does not support updates"
 		return
 	}
@@ -133,6 +142,10 @@ func dashboardResourceEditorLoad(app *stackUiApp, detail string, editing bool) {
 	}
 	app.resourceEditor.Def = def
 	app.resourceEditor.Loading = true
+	if parts[2] == "@create" {
+		dashboardResourceCreateLoad(app, parts[1])
+		return
+	}
 	go func() {
 		ctx, cancel := context.WithTimeout(session.Context(), 15*time.Second)
 		defer cancel()
@@ -166,6 +179,10 @@ func dashboardResourceEditorCancel(app *stackUiApp) {
 	if !state.Editing || state.Saving || state.Detail != app.ResourceDetail {
 		return
 	}
+	if state.Creating {
+		dashboardResourceCreateBack(app)
+		return
+	}
 	state.Editing = false
 	state.Error = ""
 	state.Revision++
@@ -187,17 +204,25 @@ func dashboardResourceEditorSave(app *stackUiApp, source string) {
 		return
 	}
 	app.ResourceDraft = source
+	dashboardResourceCreateDraftKeep(app)
 	state.Saving = true
 	state.Error = ""
 	detail := state.Detail
 	revision := state.Revision
 	def := state.Def
 	original := state.Snapshot.DeepCopy()
+	creating := state.Creating
 	ucx.AppUpdateUi(app)
 	go func() {
 		ctx, cancel := context.WithTimeout(session.Context(), 15*time.Second)
 		defer cancel()
-		object, err := dashboardResourceUpdateYaml(ctx, client, def, original, source)
+		var object *unstructured.Unstructured
+		var err error
+		if creating {
+			object, err = dashboardResourceCreateYaml(ctx, client, def, original, source)
+		} else {
+			object, err = dashboardResourceUpdateYaml(ctx, client, def, original, source)
+		}
 		var view, draft string
 		if err == nil {
 			view, draft, err = dashboardResourceYamlTexts(object)
@@ -218,6 +243,10 @@ func dashboardResourceEditorSave(app *stackUiApp, source string) {
 			} else {
 				app.resourceEditor.Error = fmt.Sprintf("Failed to save YAML: %s", err)
 			}
+		} else if creating {
+			delete(app.resourceCreateDrafts, detail)
+			dashboardResourceCreateBack(app)
+			return
 		} else if len(app.resourceNavigation) > 1 {
 			if app.resourceEditor.SchemaCancel != nil {
 				app.resourceEditor.SchemaCancel()

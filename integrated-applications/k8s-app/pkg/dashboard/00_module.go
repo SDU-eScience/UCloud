@@ -65,18 +65,19 @@ type stackUiApp struct {
 	NewPoolName  string
 	AddBusy      bool
 
-	ActiveType         string
-	ActiveNamespace    string
-	ActiveFilter       resourceFilter             `ucx:"-"`
-	filterOrigin       string                     `ucx:"-"`
-	resourceNavigation []dashboardNavigationEntry `ucx:"-"`
-	ResourceDetail     string
-	ResourceYaml       string
-	ResourceDraft      string
-	resourceEditor     dashboardResourceEditorState `ucx:"-"`
-	Namespaces         []string
-	LogJobId           string
-	ContainerLogs      string
+	ActiveType           string
+	ActiveNamespace      string
+	ActiveFilter         resourceFilter             `ucx:"-"`
+	filterOrigin         string                     `ucx:"-"`
+	resourceNavigation   []dashboardNavigationEntry `ucx:"-"`
+	ResourceDetail       string
+	ResourceYaml         string
+	ResourceDraft        string
+	resourceEditor       dashboardResourceEditorState `ucx:"-"`
+	resourceCreateDrafts map[string]string            `ucx:"-"`
+	Namespaces           []string
+	LogJobId             string
+	ContainerLogs        string
 
 	MaintenanceTimeoutSeconds          int
 	MaintenanceDrain                   bool
@@ -101,8 +102,10 @@ type stackUiApp struct {
 	ShowHeadlampDialog bool   `ucx:"-"`
 	headlampToken      string `ucx:"-"`
 
-	ShowRolloutRestartDialog bool                 `ucx:"-"`
-	rolloutRestartTarget     rolloutRestartTarget `ucx:"-"`
+	ShowRolloutRestartDialog bool                          `ucx:"-"`
+	rolloutRestartTarget     rolloutRestartTarget          `ucx:"-"`
+	ShowResourceDeleteDialog bool                          `ucx:"-"`
+	resourceDeleteTarget     dashboardResourceDeleteTarget `ucx:"-"`
 
 	clusterHealth *NodeHealth `ucx:"-"`
 
@@ -374,6 +377,9 @@ func (app *stackUiApp) UserInterface() ucx.UiNode {
 
 	if app.ShowRolloutRestartDialog {
 		children = append(children, app.rolloutRestartDialogNode())
+	}
+	if app.ShowResourceDeleteDialog {
+		children = append(children, dashboardResourceDeleteDialog(app))
 	}
 
 	return ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 32}).
@@ -804,6 +810,15 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 			})
 		}
 
+		if app.ActiveType == "ingresses" {
+			tableActions = append(tableActions, ucx.ResourceTableAction{
+				Id:    "openService",
+				Label: "Open service",
+				Icon:  ucx.IconHeroArrowTopRightOnSquare,
+				Kind:  ucx.ResourceTableActionOpenUrl,
+			})
+		}
+
 		if rolloutRestartSupported(app.ActiveType) {
 			tableActions = append(tableActions, ucx.ResourceTableAction{
 				Id:       "rolloutRestart",
@@ -813,8 +828,28 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 			})
 		}
 
+		if dashboardResourceDeleteSupported(activeDef) {
+			tableActions = append(tableActions, ucx.ResourceTableAction{
+				Id:               "deleteResource",
+				Label:            "Delete",
+				Icon:             ucx.IconHeroTrash,
+				Shortcut:         "Delete",
+				Destructive:      true,
+				SkipConfirmation: true,
+			})
+		}
+
 		var groupAction *ucx.ResourceTableAction
 		var trailingAction *ucx.ResourceTableAction
+		if activeDef.CanCreate {
+			trailingAction = &ucx.ResourceTableAction{
+				Id:       "createResource",
+				Label:    "Create",
+				Icon:     ucx.IconHeroPlusSmall,
+				Color:    ucx.ColorPrimaryMain,
+				Shortcut: "n",
+			}
+		}
 		if app.ActiveType == "nodes" && app.clusterReadyForNodes() {
 			tableActions = append(tableActions,
 				ucx.ResourceTableAction{
@@ -860,9 +895,12 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 					Icon:  ucx.IconHeroArrowUp,
 				},
 				ucx.ResourceTableAction{
-					Id:    "removeNode",
-					Label: "Remove node",
-					Icon:  ucx.IconTrash,
+					Id:               "removeNode",
+					Label:            "Remove node",
+					Icon:             ucx.IconTrash,
+					Shortcut:         "Delete",
+					Destructive:      true,
+					SkipConfirmation: true,
 				},
 			)
 			trailingAction = &ucx.ResourceTableAction{
@@ -1118,7 +1156,7 @@ func (app *stackUiApp) resourceDetailNode(detail string) ucx.UiNode {
 			Sx(ucx.SxP(16), ucx.SxBoxSizing("border-box"))
 	}
 	if strings.HasPrefix(detail, containersTypeId+"/") {
-		return ucx.ContainerLogsBoundEx("detailContainerLogs", "containerLogs").
+		return ucx.ContainerLogsBoundEx(fmt.Sprintf("detailContainerLogs-%d", app.containerLogGeneration), "containerLogs").
 			Sx(ucx.SxP(16), ucx.SxBoxSizing("border-box"))
 	}
 	return dashboardResourceEditorNode(app, detail)
@@ -1134,6 +1172,9 @@ func (app *stackUiApp) resourceDetailBottomNode(detail string) ucx.UiNode {
 	}
 	if len(parts) > 2 {
 		name = parts[2]
+	}
+	if name == "@create" {
+		name = "Create"
 	}
 	container := ""
 	if typeId == containersTypeId && len(parts) > 3 {
@@ -1255,6 +1296,7 @@ func (app *stackUiApp) openContainerLogs(namespace string, containerName string,
 	app.ResourceDetail = containersTypeId + "/" + podNamespace + "/" + podName + "/" + containerName
 	app.prevDetail = app.ResourceDetail
 	app.ResourceYaml = ""
+	app.stopContainerLogsLocked()
 	app.startContainerLogsLocked(podNamespace, podName, containerName)
 
 	dashboardNavigationPush(app, "detail/"+
@@ -1460,6 +1502,10 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 
 	if actionId == "rolloutRestart" {
 		app.openRolloutRestartDialog(rowKey)
+		return
+	}
+	if actionId == "deleteResource" {
+		dashboardResourceDeleteOpen(app, rowKey)
 		return
 	}
 
@@ -2198,6 +2244,10 @@ func (app *stackUiApp) handleTableAction(ev ucx.UiEvent) {
 	actionId := ucx.ValueAsString(ev.Value.Object["actionId"])
 	rowKey := ucx.ValueAsString(ev.Value.Object["rowKey"])
 	group := ucx.ValueAsString(ev.Value.Object["group"])
+	if actionId == "createResource" {
+		dashboardResourceCreateOpen(app)
+		return
+	}
 
 	if rowKey != "" {
 		app.handleRowAction(ev)
@@ -2207,7 +2257,7 @@ func (app *stackUiApp) handleTableAction(ev ucx.UiEvent) {
 	switch actionId {
 	case "cordonDrain", "uncordon", "upgradeNode", "removeNode":
 		ucxsvc.UiSendFailure(app, "Select a single node before using this action")
-	case "rolloutRestart":
+	case "rolloutRestart", "deleteResource":
 		ucxsvc.UiSendFailure(app, "Select a single resource before using this action")
 	case "addMachine":
 		if group == "" {
@@ -2231,6 +2281,7 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 	switch frame.Opcode {
 	case ucx.OpModelInput:
 		if frame.ModelInput.Path == "resourceDraft" {
+			dashboardResourceCreateDraftKeep(app)
 			return
 		}
 		app.RoutePath = strings.TrimSpace(app.RoutePath)
@@ -2247,7 +2298,7 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 		}
 
 		routeDetail := ""
-		if strings.HasPrefix(routePath, "detail/") {
+		if strings.HasPrefix(routePath, "detail/") || strings.HasPrefix(routePath, "create/") {
 			routeDetail = detailFromRoute(routePath)
 		}
 
@@ -2267,7 +2318,7 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 		routeFilter := resourceFilter{}
 		if strings.HasPrefix(routePath, "browse/") {
 			routeFilter = filterFromRoute(routePath)
-		} else if strings.HasPrefix(routePath, "detail/") {
+		} else if strings.HasPrefix(routePath, "detail/") || strings.HasPrefix(routePath, "create/") {
 			routeFilter = app.ActiveFilter
 		}
 
@@ -2322,6 +2373,9 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 }
 
 func detailFromRoute(routePath string) string {
+	if strings.HasPrefix(routePath, "create/") {
+		return detailFromRoute("detail/" + strings.TrimPrefix(routePath, "create/") + "/@create")
+	}
 	parts := strings.Split(strings.TrimPrefix(routePath, "detail/"), "/")
 	if len(parts) != 3 && len(parts) != 4 {
 		return ""

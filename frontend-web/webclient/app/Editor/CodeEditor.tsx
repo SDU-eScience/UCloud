@@ -161,6 +161,7 @@ export function CodeEditor(props: CodeEditorProps) {
             fontFamily: "Jetbrains Mono",
             fontSize: 14,
             wordWrap: "off",
+            quickSuggestions: {other: true, strings: true, comments: false},
             ...settings,
             readOnly: latest.current.readOnly === true,
             readOnlyMessage: {value: ""},

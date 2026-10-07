@@ -10,6 +10,7 @@ interface WarningProps {
     warning?: string;
     children?: React.ReactNode
     mb?: string;
+    style?: React.CSSProperties;
 }
 
 const WarningClass = injectStyleSimple("warning", `
@@ -35,7 +36,7 @@ const Warning: React.FunctionComponent<WarningProps> = props => {
     const icon = props.variant === "tip" ? "heroInformationCircle" : "warning";
 
     return (
-        <Box className={WarningClass} mb={props.mb} style={{borderColor: `var(--${color})`}}>
+        <Box className={WarningClass} mb={props.mb} style={{borderColor: `var(--${color})`, ...props.style}}>
             <Icon name={icon} size={20} color={color} />
             <div className={WarningContentClass}>
                 {props.warning ? <div>{props.warning}</div> : null}

@@ -30,6 +30,7 @@ type ResourceTypeDef struct {
 	Columns    []ucx.TableColumn
 	HasYaml    bool
 	CanUpdate  bool
+	CanCreate  bool
 	Namespaced bool
 }
 
@@ -220,6 +221,7 @@ func ResourceTypes() []ResourceTypeDef {
 	result := make([]ResourceTypeDef, 0, len(resourceTypes)+1)
 	for _, def := range resourceTypes {
 		def.CanUpdate = true
+		def.CanCreate = def.Id != "nodes"
 		result = append(result, def)
 	}
 	return result
@@ -232,6 +234,7 @@ func ResourceType(id string) (ResourceTypeDef, bool) {
 	for _, def := range resourceTypes {
 		if def.Id == id {
 			def.CanUpdate = true
+			def.CanCreate = def.Id != "nodes"
 			return def, true
 		}
 	}
@@ -442,6 +445,7 @@ func (c *K8sClient) CustomResourceTypes(ctx context.Context) []ResourceTypeDef {
 				Columns:    crdPrinterColumns(version),
 				HasYaml:    true,
 				CanUpdate:  true,
+				CanCreate:  true,
 				Namespaced: scope == "Namespaced",
 			})
 			break
@@ -783,6 +787,9 @@ func containerStatusesOf(obj *unstructured.Unstructured) []map[string]any {
 }
 
 func podPhase(obj *unstructured.Unstructured) string {
+	if obj.GetDeletionTimestamp() != nil {
+		return "Terminating"
+	}
 	phase := firstString(obj, "status", "phase")
 	if phase == "" {
 		return "Unknown"
