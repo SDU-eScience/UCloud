@@ -163,15 +163,7 @@ export function PublicLinkBrowse({
                     browser.registerPage(result, path, false);
                 });
 
-                browser.on("fetchFilters", () => [
-                    dateRanges,
-                    {
-                        type: "input",
-                        icon: "user",
-                        key: "filterCreatedBy",
-                        text: "Created by"
-                    }
-                ]);
+                browser.on("fetchFilters", () => [dateRanges]);
 
                 browser.on("startRenderPage", () => {
                     const inputField = browser.renameField;
