@@ -11,6 +11,7 @@ import {injectStyle} from "@/Unstyled";
 import {copyToClipboard, isLikelyMac} from "@/UtilityFunctions";
 import {TableColumn, TableColumnSortType, TableRow, TableRowAction, TableUpdate} from "@/UCX/protocol";
 import {UcxSpinner} from "@/UCX/UcxSpinner";
+import {UcxTableItem, useUcxTableVirtualization} from "@/UCX/UcxTableVirtualization";
 import {
     UCX_MIN_COLUMN_WIDTH,
     computeColumnWidths,
@@ -934,6 +935,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     const selectedTableRef = useRef<{tableId: string; stateKey: string; viewId: string} | null>(null);
     const rootRef = useRef<HTMLDivElement | null>(null);
     const scrollRef = useRef<HTMLDivElement | null>(null);
+    const bodyRef = useRef<HTMLTableSectionElement | null>(null);
     useLayoutEffect(() => {
         const pane = rootRef.current?.closest("[data-ucx-pane='content']");
         if (pane && document.activeElement === pane) {
@@ -950,6 +952,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
     const groupAction = props.groupAction;
     const trailingAction = props.trailingAction;
     const [menuRowKey, setMenuRowKey] = useState<string | null>(null);
+    const [pendingMenuRowKey, setPendingMenuRowKey] = useState<string | null>(null);
     const [menuPosition, setMenuPosition] = useState({x: 0, y: 0});
     const [menuRenderTick, setMenuRenderTick] = useState(0);
     const menuOpenRef = useRef<((left: number, top: number) => void) | null>(null);
@@ -1002,11 +1005,6 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         };
     }, [stateKey, store, viewId]);
 
-    useLayoutEffect(() => {
-        const el = scrollRef.current;
-        if (el) el.scrollTop = store.scrollFor(stateKey);
-    }, [stateKey, store]);
-
     const orderedRows = useMemo(() => {
         const sorted = [...rows];
         const sortIdx = sort !== null ? columns.findIndex(col => col.key === sort.columnKey) : -1;
@@ -1057,15 +1055,31 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         store.setSelected(stateKey, selectedKey);
     }, [filter, props.sorted, selectedKey, sort, stateKey, store, tableId, viewId]);
 
-    const groupedRows: {group: string; rows: TableRow[]}[] = [];
-    for (const row of filteredRows) {
-        const last = groupedRows[groupedRows.length - 1];
-        if (last && last.group === row.group) {
-            last.rows.push(row);
-        } else {
-            groupedRows.push({group: row.group, rows: [row]});
+    const tableItems = useMemo(() => {
+        const items: UcxTableItem[] = [];
+        let previousGroup: string | undefined;
+        for (const row of filteredRows) {
+            if (props.showGroupHeaders !== false && row.group !== "" && previousGroup !== row.group) {
+                items.push({key: `group:${row.key}`, kind: "group", group: row.group});
+            }
+            items.push({key: `row:${row.key}`, kind: "row", rowKey: row.key});
+            previousGroup = row.group;
         }
-    }
+        if (filteredRows.length === 0) items.push({key: "empty", kind: "empty"});
+        if (trailingAction) items.push({key: "trailing", kind: "trailing"});
+        return items;
+    }, [filteredRows, props.showGroupHeaders, Boolean(trailingAction)]);
+    const virtualization = useUcxTableVirtualization(tableItems, scrollRef, bodyRef);
+    const restoredStateRef = useRef<string | null>(null);
+    useLayoutEffect(() => {
+        if (!loaded || restoredStateRef.current === stateKey) return;
+        const el = scrollRef.current;
+        if (!el) return;
+        el.scrollTop = store.scrollFor(stateKey);
+        scrollTopRef.current = el.scrollTop;
+        restoredStateRef.current = stateKey;
+        virtualization.updateViewport();
+    }, [loaded, stateKey, store, virtualization.updateViewport]);
 
     useEffect(() => {
         store.setStats(stateKey, {filtered: filteredRows.length, total: orderedRows.length, loaded});
@@ -1097,7 +1111,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         } else if (key === "PageUp" || key === "PageDown") {
             const first = scrollRef.current?.querySelector<HTMLElement>("[data-row-key]");
             const rowHeight = first?.offsetHeight ?? 32;
-            const viewportHeight = scrollRef.current?.clientHeight ?? 10 * rowHeight;
+            const viewportHeight = (scrollRef.current?.clientHeight ?? 10 * rowHeight) - virtualization.headerHeight;
             const pageSize = Math.max(1, Math.floor(viewportHeight / Math.max(1, rowHeight)) - 1);
             if (currentIndex < 0) {
                 nextIndex = key === "PageDown"
@@ -1115,24 +1129,10 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         if (nextIndex === currentIndex) return;
 
         const selected = filteredRows[nextIndex];
+        selectedKeyRef.current = selected.key;
         store.setSelected(stateKey, selected.key);
-
-        window.setTimeout(() => {
-            const container = scrollRef.current;
-            if (!container) return;
-            const rowEl = container.querySelector<HTMLElement>(`[data-row-key="${CSS.escape(selected.key)}"]`);
-            if (!rowEl) return;
-            const header = container.querySelector("thead");
-            const headerHeight = header instanceof HTMLTableSectionElement ? header.offsetHeight : 0;
-            const containerRect = container.getBoundingClientRect();
-            const rowRect = rowEl.getBoundingClientRect();
-            if (rowRect.top < containerRect.top + headerHeight) {
-                container.scrollTop -= containerRect.top + headerHeight - rowRect.top;
-            } else if (rowRect.bottom > containerRect.bottom) {
-                container.scrollTop += rowRect.bottom - containerRect.bottom;
-            }
-        }, 0);
-    }, [filteredRows, stateKey, store]);
+        virtualization.scrollToRow(selected.key);
+    }, [filteredRows, stateKey, store, virtualization.scrollToRow, virtualization.headerHeight]);
 
     const activateSelection = useCallback(() => {
         const selected = selectedKeyRef.current != null
@@ -1273,11 +1273,23 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
             ? filteredRows.find(row => row.key === selectedKeyRef.current)
             : undefined;
         if (!selected || (selected.actions?.length ?? 0) === 0) return;
+        virtualization.scrollToRow(selected.key);
+        setPendingMenuRowKey(selected.key);
+    }, [filteredRows, virtualization.scrollToRow]);
+
+    useLayoutEffect(() => {
+        if (pendingMenuRowKey === null) return;
+        const row = rowMap.get(pendingMenuRowKey);
+        if (!row || !filteredRows.some(candidate => candidate.key === pendingMenuRowKey)) {
+            setPendingMenuRowKey(null);
+            return;
+        }
         const button = scrollRef.current
-            ?.querySelector<HTMLButtonElement>(`[data-row-key="${CSS.escape(selected.key)}"] .streamed-table-actions-button`);
+            ?.querySelector<HTMLButtonElement>(`[data-row-key="${CSS.escape(pendingMenuRowKey)}"] .streamed-table-actions-button`);
         if (!button) return;
-        toggleRowMenuAtButton(selected, button);
-    }, [filteredRows, toggleRowMenuAtButton]);
+        toggleRowMenuAtButton(row, button);
+        setPendingMenuRowKey(null);
+    }, [pendingMenuRowKey, filteredRows, rowMap, toggleRowMenuAtButton, virtualization.visible, virtualization.offsets]);
 
     const rowMenuEntries = useMemo((): ActionEntry<TableRow, undefined>[] => {
         if (menuRowKey === null) return [];
@@ -1420,7 +1432,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         className={UcxStreamedTableClass}
         data-ucx-table={tableId}
         data-has-actions={hasActionDefs ? "true" : undefined}
-        style={{"--ucx-table-width": `${totalWidth}px`} as React.CSSProperties}
+        style={{"--ucx-table-width": `${totalWidth}px`, "--ucx-table-header-height": `${virtualization.headerHeight}px`} as React.CSSProperties}
     >
         <div className="streamed-table-frame">
             <div
@@ -1428,6 +1440,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                 ref={scrollRef}
                 onScroll={ev => {
                     scrollTopRef.current = ev.currentTarget.scrollTop;
+                    virtualization.updateViewport();
                 }}
                 onMouseDown={() => rootRef.current?.focus({preventScroll: true})}
             >
@@ -1492,22 +1505,28 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                         }
                     </UiTableRow>
                 </TableHeader>
-                <tbody role="rowgroup">
-                    {groupedRows.length === 0 ?
-                        <UiTableRow>
-                            <TableCell colSpan={colCount}>
-                                {emptyRowContent}
-                            </TableCell>
-                        </UiTableRow> :
-                        null
-                    }
-                    {groupedRows.map((group, groupIdx) =>
-                        <React.Fragment key={groupIdx}>
-                            {props.showGroupHeaders !== false && group.group !== "" ?
-                                <UiTableRow className="group-row">
+                <tbody role="rowgroup" ref={bodyRef}>
+                    {virtualization.visible.map((itemIndex, visibleIndex) => {
+                        const item = tableItems[itemIndex];
+                        const previousIndex = virtualization.visible[visibleIndex - 1];
+                        const gap = virtualization.offsets[itemIndex] - virtualization.offsets[previousIndex === undefined ? 0 : previousIndex + 1];
+                        return <React.Fragment key={item.key}>
+                            {gap > 0 ? <tr className="streamed-table-spacer" aria-hidden="true">
+                                <td colSpan={colCount} style={{height: gap}} />
+                            </tr> : null}
+                            {item.kind === "empty" ?
+                                <UiTableRow data-ucx-virtual-key={item.key}>
+                                    <TableCell colSpan={colCount}>
+                                        {emptyRowContent}
+                                    </TableCell>
+                                </UiTableRow> :
+                                null
+                            }
+                            {item.kind === "group" ?
+                                <UiTableRow className="group-row" data-ucx-virtual-key={item.key}>
                                     <TableCell colSpan={columns.length + (hasActionDefs ? 1 : 0)}>
                                         <span className="group-row-inner">
-                                            <span className="group-row-label">{group.group}</span>
+                                            <span className="group-row-label">{item.group}</span>
                                             {groupAction ?
                                                 <span className="group-row-action">
                                                     <IconButton
@@ -1517,7 +1536,7 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                                         icon={groupAction.icon as IconName}
                                                         compact
                                                         color="textPrimary"
-                                                        onClick={() => props.onGroupAction?.({actionId: groupAction.id, group: group.group})}
+                                                        onClick={() => props.onGroupAction?.({actionId: groupAction.id, group: item.group})}
                                                     />
                                                 </span> :
                                                 null
@@ -1527,12 +1546,14 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                 </UiTableRow> :
                                 null
                             }
-                            {group.rows.map(row => {
+                            {item.kind === "row" ? (() => {
+                                const row = rowMap.get(item.rowKey)!;
                                 const hasActions = (row.actions?.length ?? 0) > 0;
                                 const isSelected = selectedKey === row.key;
                                 return <UiTableRow
                                     key={row.key}
                                     data-row-key={row.key}
+                                    data-ucx-virtual-key={item.key}
                                     data-selected={isSelected}
                                     role="row"
                                     aria-selected={isSelected}
@@ -1589,36 +1610,41 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
                                         null
                                     }
                                 </UiTableRow>;
-                            })}
-                        </React.Fragment>
-                    )}
-                    {trailingAction ?
-                        <UiTableRow
-                            className="trailing-action-row"
-                            data-row-key="ucx-trailing-action"
-                        >
-                            <TableCell colSpan={columns.length + (hasActionDefs ? 1 : 0)}>
-                                <span className="trailing-action-cell">
-                                    <Button
-                                        color={(trailingAction.color as any) ?? "secondaryMain"}
-                                        onClick={() => props.onTrailingAction?.({actionId: trailingAction.id, group: ""})}
-                                    >
-                                        {trailingAction.icon ? <Icon name={trailingAction.icon as IconName} size={16} /> : null}
-                                        {trailingAction.label}
-                                        {trailingAction.shortcut && trailingAction.shortcut !== "" ?
-                                            <span
-                                                className={ShortcutClass}
-                                                style={{marginLeft: "12px", mixBlendMode: "normal"}}
+                            })() : null}
+                            {item.kind === "trailing" && trailingAction ?
+                                <UiTableRow
+                                    className="trailing-action-row"
+                                    data-row-key="ucx-trailing-action"
+                                    data-ucx-virtual-key={item.key}
+                                >
+                                    <TableCell colSpan={colCount}>
+                                        <span className="trailing-action-cell">
+                                            <Button
+                                                color={(trailingAction.color as any) ?? "secondaryMain"}
+                                                onClick={() => props.onTrailingAction?.({actionId: trailingAction.id, group: ""})}
                                             >
-                                                {trailingAction.shortcut}
-                                            </span> :
-                                            null}
-                                    </Button>
-                                </span>
-                            </TableCell>
-                        </UiTableRow> :
-                        null
-                    }
+                                                {trailingAction.icon ? <Icon name={trailingAction.icon as IconName} size={16} /> : null}
+                                                {trailingAction.label}
+                                                {trailingAction.shortcut && trailingAction.shortcut !== "" ?
+                                                    <span
+                                                        className={ShortcutClass}
+                                                        style={{marginLeft: "12px", mixBlendMode: "normal"}}
+                                                    >
+                                                        {trailingAction.shortcut}
+                                                    </span> :
+                                                    null}
+                                            </Button>
+                                        </span>
+                                    </TableCell>
+                                </UiTableRow> :
+                                null
+                            }
+                        </React.Fragment>;
+                    })}
+                    {virtualization.offsets[tableItems.length] > virtualization.offsets[(virtualization.visible.at(-1) ?? -1) + 1] ?
+                        <tr className="streamed-table-spacer" aria-hidden="true">
+                            <td colSpan={colCount} style={{height: virtualization.offsets[tableItems.length] - virtualization.offsets[(virtualization.visible.at(-1) ?? -1) + 1]}} />
+                        </tr> : null}
                 </tbody>
             </Table>
             </div>
@@ -2018,6 +2044,7 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
 
     ${k} .streamed-table-scroll {
         overflow: auto;
+        overflow-anchor: none;
         flex: 1;
         min-height: 0;
     }
@@ -2066,7 +2093,7 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
 
     ${k} tr.group-row {
         position: sticky;
-        top: 34px;
+        top: var(--ucx-table-header-height);
         z-index: 1;
     }
     
@@ -2131,6 +2158,13 @@ const UcxStreamedTableClass = injectStyle("ucx-streamed-table", k => `
 
     ${k} .streamed-table-frame .streamed-table-scroll tbody tr:last-child {
         border-bottom: 1px solid var(--borderColor);
+    }
+
+    ${k} .streamed-table-scroll tr.streamed-table-spacer,
+    ${k} .streamed-table-scroll tr.streamed-table-spacer > td {
+        padding: 0;
+        border: 0;
+        line-height: 0;
     }
 
     @media (max-width: 1000px) {
