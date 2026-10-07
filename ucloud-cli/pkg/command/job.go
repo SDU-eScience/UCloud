@@ -84,15 +84,18 @@ type JobOpenCommand struct {
 }
 
 type JobAttachCommand struct {
-	JobID          string `positional:"job-id" usage:"Job ID"`
-	PublicIp       string `flag:"public-ip" usage:"Public IP"`
-	PublicLink     string `flag:"public-link" usage:"Public link"`
-	PrivateNetwork string `flag:"private-network" usage:"Private network"`
+	JobID          string `positional:"job-id" usage:"Job ID" required:"true"`
+	PublicIp       string `flag:"public-ip" usage:"eg. --public-ip 35"`
+	PublicLink     string `flag:"public-link" usage:"eg. --public-link notebook:8888"`
+	PrivateNetwork string `flag:"private-network" usage:"eg. --private-network mynetwork"`
+	Workspace      string `flag:"workspace" usage:"--workspace myworkspace"`
+	Provider       string `flag:"provider" usage:"eg. --provider k8s" default:"k8s"`
 }
 
 type JobDetachCommand struct {
-	JobID    string `positional:"job-id" usage:"Job ID"`
-	PublicIp string `flag:"public-ip" usage:"Public IP"`
+	JobID     string `positional:"job-id" usage:"Job ID"`
+	PublicIp  string `flag:"public-ip" usage:"eg. --public-ip 35"`
+	Workspace string `flag:"workspace" usage:"--workspace myworkspace"`
 }
 
 var JobCommands = map[string]CommandFunc{
@@ -703,12 +706,77 @@ func (c JobResumeCommand) Execute() error {
 	return nil
 }
 
+func attachResourceToJob(jobId string, resource orcapi.AppParameterValue) error {
+	_, httpErr := orcapi.JobsAttachResource.Invoke(orcapi.JobsAttachResourceRequest{
+		JobId:    jobId,
+		Resource: resource,
+	})
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to attach resource to job: %s", httpErr.Why)
+	}
+	return nil
+}
+
 func (c JobAttachCommand) Execute() error {
-	return fmt.Errorf("job attach not implemented")
+	cfg := shared.InitializeUCloudClient()
+	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
+	if err != nil {
+		return err
+	}
+
+	if c.PrivateNetwork != "" {
+		return fmt.Errorf("private network not implemented")
+	}
+	if c.PublicIp != "" {
+		_, err := orcapi.PublicIpsRetrieve.Invoke(orcapi.PublicIpsRetrieveRequest{
+			Id: c.PublicIp,
+		})
+		if err != nil {
+			return err
+		}
+		attachErr := attachResourceToJob(c.JobID, orcapi.AppParameterValue{
+			Id: c.PublicIp, Type: "public-ip",
+		})
+		if attachErr != nil {
+			return attachErr
+		}
+		fmt.Printf("Public IP %s attached to job %s\n", c.PublicIp, c.JobID)
+	}
+	if c.PublicLink != "" {
+		splitted := strings.Split(c.PublicLink, ":")
+		if len(splitted) != 2 {
+			return fmt.Errorf("invalid public link format: %s", c.PublicLink)
+		}
+		if splitted[0] == "" {
+			return fmt.Errorf("please declare name of public link name: %s", c.PublicLink)
+		}
+		if splitted[1] == "" {
+			return fmt.Errorf("please declare port for the public link: eg. notebook:8888")
+		}
+		name := splitted[0]
+		port := splitted[1]
+		parsedPort, err := strconv.Atoi(port)
+		if err != nil {
+			return fmt.Errorf("invalid port number: %s", port)
+		}
+		found, err := FindPublicLinkByName(name)
+		if err != nil {
+			return err
+		}
+		err = attachResourceToJob(c.JobID, orcapi.AppParameterValue{JobId: c.JobID, Id: found.Id, Type: orcapi.AppParameterValueTypeIngress, Port: parsedPort})
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Public link %s attached to job %s\n", c.PublicLink, c.JobID)
+	}
+	if c.PrivateNetwork != "" {
+		return fmt.Errorf("private network not implemented")
+	}
+	return nil
 }
 
 func (c JobDetachCommand) Execute() error {
-	return fmt.Errorf("job detach not implemented")
+	return nil
 }
 
 func (c JobVNCCommand) Execute() error {

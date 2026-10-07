@@ -666,3 +666,12 @@ func TestPublicLinkDelete(t *testing.T) {
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }
+
+func TestJobAttach(t *testing.T) {
+	input := []string{"job", "attach", "81", "--public-link", "fofooo:1234"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}

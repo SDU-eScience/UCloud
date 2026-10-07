@@ -48,6 +48,18 @@ var PublicLinkCommands = map[string]CommandFunc{
 	},
 }
 
+func FindPublicLinkByName(name string) (orcapi.Ingress, error) {
+	links, err := retrievePublicLinks()
+	if err != nil {
+		return orcapi.Ingress{}, err
+	}
+	link, ok := links[name]
+	if !ok {
+		return orcapi.Ingress{}, fmt.Errorf("public link %s not found", name)
+	}
+	return link, nil
+}
+
 func retrievePublicLinks() (map[string]orcapi.Ingress, error) {
 	result, httpErr := orcapi.IngressesBrowse.Invoke(orcapi.IngressesBrowseRequest{})
 	links := make(map[string]orcapi.Ingress)
