@@ -138,6 +138,7 @@ interface PermissionsProps {
     readIcon?: IconName;
     writeLabel?: string;
     writeIcon?: IconName;
+    hideRead?: boolean;
     title: string;
     acl: ResourceAclEntry[];
     updateAcl: (group: string, permission: Permission | null) => Promise<void>;
@@ -154,6 +155,7 @@ export function PermissionsTable({
     readIcon = "heroMagnifyingGlass",
     writeLabel = "Write",
     writeIcon = "heroPencil",
+    hideRead = false,
 }: PermissionsProps) {
     const projectId = useProjectId();
     const project = useProject();
@@ -280,7 +282,7 @@ export function PermissionsTable({
                                         fontSize={"0.5em"}
                                     />
                                 </div>
-                                <div data-permission-tile>
+                                {!hideRead && <div data-permission-tile>
                                     <RadioTile
                                         id={"Read" + summary.id}
                                         label={readLabel}
@@ -291,7 +293,7 @@ export function PermissionsTable({
                                         height={40}
                                         fontSize={"0.5em"}
                                     />
-                                </div>
+                                </div>}
                                 <div data-permission-tile>
                                     <RadioTile
                                         id={"Write" + summary.id}

@@ -27,6 +27,7 @@ var interactiveComponents = map[string]bool{
 	"inference_image_composer": true,
 	"checkbox":                 true,
 	"button":                   true,
+	"stack_permissions":        true,
 	"textarea":                 true,
 	"code_editor":              true,
 	"select":                   true,
@@ -1353,6 +1354,32 @@ func ProviderTitleEx(id string, providerId string, short bool) UiNode {
 func JobLogs(id string, jobId string) UiNode {
 	requireExplicitId(id, "job_logs")
 	return JobLogsEx(id, jobId)
+}
+
+func StackPermissions(id string, stackId string) UiNode {
+	return StackPermissionsEx(id, stackId, StackPermissionsProps{})
+}
+
+type StackPermissionsProps struct {
+	AccessDescription string
+	PermissionLabel   string
+	PermissionIcon    IconName
+	ButtonIcon        IconName
+}
+
+func StackPermissionsEx(id string, stackId string, props StackPermissionsProps) UiNode {
+	requireExplicitId(id, "stack_permissions")
+	return UiNode{
+		Id:        id,
+		Component: "stack_permissions",
+		Props: map[string]Value{
+			"stackId":           VString(stackId),
+			"accessDescription": VString(props.AccessDescription),
+			"permissionLabel":   VString(props.PermissionLabel),
+			"permissionIcon":    VString(string(props.PermissionIcon)),
+			"buttonIcon":        VString(string(props.ButtonIcon)),
+		},
+	}
 }
 
 func JobLogsEx(id string, jobId string) UiNode {

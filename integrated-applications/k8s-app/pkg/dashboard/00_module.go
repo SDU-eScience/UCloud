@@ -745,6 +745,15 @@ func (app *stackUiApp) pageHomeActions() []ucx.UiNode {
 	}
 
 	if app.Stack != nil && app.Stack.Ok {
+		actions = append(actions, ucx.SettingsAction("homePermissionsAction",
+			"Permissions",
+			"Share cluster admin rights for this Kubernetes cluster with others in your project.",
+		).Children(ucx.StackPermissionsEx("homePermissions", app.Stack.InstanceId, ucx.StackPermissionsProps{
+			AccessDescription: "Cluster admin grants full Kubernetes cluster-admin access, including cluster resources, credentials, VM shells, and logs. The cluster creator and project administrators keep access.",
+			PermissionLabel:   "Cluster admin",
+			PermissionIcon:    ucx.IconHeroShieldCheck,
+			ButtonIcon:        ucx.IconHeroShare,
+		})))
 		actions = append(actions, ucx.SettingsAction("homeDeleteAction",
 			"Delete cluster",
 			"Permanently deletes the cluster and all of its resources. This cannot be undone.",

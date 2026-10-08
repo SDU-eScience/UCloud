@@ -1,10 +1,7 @@
 import * as React from "react";
-import {PermissionsTable} from "@/Resource/PermissionEditor";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {useProjectId} from "@/Project/Api";
-import {sendFailureNotification} from "@/Notifications";
 import {bulkRequestOf, doNothing} from "@/UtilityFunctions";
-import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
 import {Box, Button, Divider, Input, Text} from "@/ui-components";
@@ -25,10 +22,9 @@ import {
     ResourceBrowser,
 } from "@/ui-components/ResourceBrowser";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {DELETE_TAG, Permission, ResourceAclEntry} from "@/UCloud/ResourceApi";
+import {DELETE_TAG} from "@/UCloud/ResourceApi";
 
 import * as StackApi from "./api";
-import Flex from "@/ui-components/Flex";
 import {stackLogoUrl} from "@/Stacks/Logos";
 
 const defaultRetrieveFlags = {
@@ -176,24 +172,6 @@ export default function StacksBrowse(): React.ReactNode {
 function retrieveOperations(): Operation<StackApi.Stack, StackOperationCallbacks>[] {
     return [
         {
-            text: "Permissions",
-            icon: "share",
-            enabled: (selected, cb) => {
-                if (selected.length !== 1) return false;
-                const permissions = selected[0].permissions?.myself ?? [];
-                return permissions.includes("ADMIN") && cb.projectId != null;
-            },
-            onClick: ([stack], cb) => {
-                dialogStore.addDialog(
-                    <StackPermissionsEditor stack={stack} onDone={() => cb.reload()} />,
-                    doNothing,
-                    true,
-                    slimModalStyle,
-                );
-            },
-            shortcut: ShortcutKey.W,
-        },
-        {
             text: "Delete",
             icon: "trash",
             color: "errorMain",
@@ -213,73 +191,6 @@ function retrieveOperations(): Operation<StackApi.Stack, StackOperationCallbacks
 interface StackOperationCallbacks {
     projectId?: string;
     reload: () => void;
-}
-
-function StackPermissionsEditor({stack, onDone}: {stack: StackApi.Stack; onDone: () => void}): React.ReactNode {
-    const projectId = useProjectId();
-    const [acl, setAcl] = React.useState<ResourceAclEntry[]>(stack.permissions?.others ?? []);
-
-    const updateAcl = React.useCallback(async (group: string, permission: Permission | null) => {
-        if (!projectId) return;
-        const existing = acl.find(it => it.entity.type === "project_group" && it.entity.group === group && it.entity.projectId === projectId);
-
-        const deleted = existing ? [existing.entity] : [];
-        const added = permission ? [{
-            entity: {type: "project_group" as const, projectId, group},
-            permissions: permission === "EDIT" ? ["READ", "EDIT"] as Permission[] : ["READ"] as Permission[],
-        }] : [];
-
-        try {
-            await callAPI(StackApi.updateAcl(bulkRequestOf({
-                id: stack.id,
-                added,
-                deleted,
-            })));
-        } catch {
-            sendFailureNotification("Failed to update permissions.");
-            return;
-        }
-
-        const nextAcl = acl.filter(it => {
-            if (it.entity.type !== "project_group") return true;
-            return !(it.entity.projectId === projectId && it.entity.group === group);
-        });
-
-        if (added.length > 0) {
-            nextAcl.push(added[0]);
-        }
-
-        setAcl(nextAcl);
-    }, [acl, projectId, stack.id]);
-
-    return <div onKeyDown={e => e.stopPropagation()}>
-        <Heading.h3>Permissions for stack</Heading.h3>
-        <Divider />
-        <Box mt="8px" mb="12px">
-            <Text>
-                Control which project groups can use this stack in new jobs.
-            </Text>
-        </Box>
-
-        {!projectId ? <Text>This operation is only available inside a project workspace.</Text> : null}
-
-        {!projectId ? null : <PermissionsTable
-            acl={acl}
-            anyGroupHasPermission={acl.some(it => it.permissions.length > 0)}
-            showMissingPermissionHelp={false}
-            replaceWriteWithUse
-            warning="Warning"
-            title="Stack"
-            updateAcl={updateAcl}
-        />}
-
-        <Flex mt={"20px"} justifyContent={"end"}>
-            <Button color="primaryMain" onClick={() => {
-                onDone();
-                dialogStore.success();
-            }}>Done</Button>
-        </Flex>
-    </div>;
 }
 
 function StackDeleteDialog({selected, onDeleted}: {selected: StackApi.Stack[]; onDeleted: () => void}): React.ReactNode {

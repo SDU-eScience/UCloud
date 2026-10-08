@@ -597,9 +597,11 @@ func initJobs() {
 				return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", item.Id)
 			}
 
-			app, _ := AppRetrieve(info.Actor, resc.Specification.Application.Name,
-				resc.Specification.Application.Version, AppDiscoveryAll, 0)
-			appBackend := app.Invocation.Tool.Tool.Value.Description.Backend
+			app := resc.Status.ResolvedApplication
+			if !app.Present || !app.Value.Invocation.Tool.Tool.Present {
+				return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{}, util.HttpErr(http.StatusBadRequest, "the job application is unavailable")
+			}
+			appBackend := app.Value.Invocation.Tool.Tool.Value.Description.Backend
 
 			support, ok := SupportByProduct[orcapi.JobSupport](jobType, resc.Specification.Product)
 			if item.SessionType == orcapi.InteractiveSessionTypeShell {
@@ -1220,9 +1222,11 @@ func JobsExtendBulk(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobsExten
 			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", item.JobId)
 		}
 
-		app, _ := AppRetrieve(actor, resc.Specification.Application.Name,
-			resc.Specification.Application.Version, AppDiscoveryAll, 0)
-		appBackend := app.Invocation.Tool.Tool.Value.Description.Backend
+		app := resc.Status.ResolvedApplication
+		if !app.Present || !app.Value.Invocation.Tool.Tool.Present {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusBadRequest, "the job application is unavailable")
+		}
+		appBackend := app.Value.Invocation.Tool.Tool.Value.Description.Backend
 
 		support, ok := SupportByProduct[orcapi.JobSupport](jobType, resc.Specification.Product)
 		if !ok || !support.Has(jobFeatureExtensionByBackend[appBackend]) {
@@ -1523,10 +1527,9 @@ func jobsFollow(conn *ws.Conn) {
 		hasSupport := false
 		support, ok := SupportByProduct[orcapi.JobSupport](jobType, initialJob.Specification.Product)
 		if ok {
-			appNv := initialJob.Specification.Application
-			app, ok := AppRetrieve(actor, appNv.Name, appNv.Version, AppDiscoveryAll, 0)
-			if ok {
-				backend := app.Invocation.Tool.Tool.Value.Description.Backend
+			app := initialJob.Status.ResolvedApplication
+			if app.Present && app.Value.Invocation.Tool.Tool.Present {
+				backend := app.Value.Invocation.Tool.Tool.Value.Description.Backend
 				hasSupport = support.Has(jobFeatureLogsByBackend[backend])
 			}
 		}

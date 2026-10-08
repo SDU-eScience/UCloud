@@ -1138,7 +1138,7 @@ func ResourceUpdateAcl(
 			provider = r.BaseSpec.Product.Provider
 			snapshot := r.ToApi(nil)
 			snapshot.Permissions.Value.Others = stacksCloneAcl(r.Acl)
-			providerResource = resourceGetGlobals(typeName).Transformer(snapshot, r.BaseSpec, r.Extra, orcapi.ResourceFlags{IncludeOthers: true}, actor)
+			providerResource = resourceGetGlobals(typeName).Transformer(snapshot, r.BaseSpec, r.Extra, orcapi.ResourceFlags{IncludeOthers: true, IncludeProduct: true, IncludeSupport: true}, actor)
 		}
 		var newAcl []orcapi.ResourceAclEntry
 		for _, entry := range r.Acl {
@@ -1470,7 +1470,7 @@ func ResourceConfirm(typeName string, id ResourceId) {
 				provider = r.BaseSpec.Product.Provider
 				snapshot := r.ToApi(nil)
 				snapshot.Permissions.Value.Others = stacksCloneAcl(r.Acl)
-				stackResource = resourceGetGlobals(typeName).Transformer(snapshot, r.BaseSpec, r.Extra, orcapi.ResourceFlags{IncludeOthers: true}, rpc.ActorSystem)
+				stackResource = resourceGetGlobals(typeName).Transformer(snapshot, r.BaseSpec, r.Extra, orcapi.ResourceFlags{IncludeOthers: true, IncludeProduct: true, IncludeSupport: true}, rpc.ActorSystem)
 			}
 			r.BaseSpec.StackResource = nil
 		},

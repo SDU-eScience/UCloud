@@ -45,6 +45,15 @@ The normal drive API still accepts stack-instance labels without a Core stack en
 Stack API resource creation copies the current stack ACL and owner before provider creation.
 This includes node jobs created during scale-out. Creator and project-admin access use the normal resource rules.
 Stack grants use project groups with READ and EDIT permissions.
+The cluster home page has a Permissions button for the creator and project administrators.
+The Permissions action uses the two-column settings layout between Connect and Delete cluster.
+Its dialog uses the standard project-group permission controls without a heading or Done button.
+Cluster admin grants READ and EDIT plus full Kubernetes cluster-admin access; None removes the grant.
+UCX supplies the reusable stack permission control through StackPermissionsEx and StackPermissionsProps.
+The control renders only a button with its dialog. The Kubernetes app wraps it in SettingsAction to set the layout.
+The Kubernetes app supplies the dialog description, Cluster admin label, shield icon, and Permissions button icon.
+The frontend submits changes through StacksUpdateAcl. Core enforces access; the app stores no separate ACL.
+The generic Stacks list has no Permissions action.
 Stack ACL updates replace child ACLs, including the state drive ACL. This repairs missing grants and removes stale grants.
 Direct drive ACL edits remain allowed. A later stack ACL update replaces these edits.
 

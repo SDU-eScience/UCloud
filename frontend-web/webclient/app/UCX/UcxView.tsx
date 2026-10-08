@@ -20,11 +20,12 @@ import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-com
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {IconButton} from "@/ui-components/IconButton";
+import {IconName} from "@/ui-components/Icon";
 import {UcxCodeEditor} from "@/UCX/UcxCodeEditor";
 import type {YamlFieldLink, YamlFieldPath} from "@/Editor/YamlFieldLinks";
 import {atomOneDark, atomOneLight} from "react-syntax-highlighter/dist/esm/styles/hljs";
 import SyntaxHighlighter from "react-syntax-highlighter";
-import {copyToClipboard, createKeyboardShortcut} from "@/UtilityFunctions";
+import {bulkRequestOf, copyToClipboard, createKeyboardShortcut, doNothing} from "@/UtilityFunctions";
 import {CopyButton} from "@/ui-components/CopyButton";
 import {Toggle} from "@/ui-components/Toggle";
 import * as UCloud from "@/UCloud";
@@ -52,10 +53,10 @@ import {UcxBrowserLayout, UcxNavTree, UcxNavItem, UcxStreamedTable, UcxTableActi
 import {stopPropagation} from "@/UtilityFunctions";
 import {isLikelyMac} from "@/UtilityFunctions";
 import Label from "@/ui-components/Label";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {formatNumber} from "@/Utilities/NumberFormatting";
-import {ResolvedSupport} from "@/UCloud/ResourceApi";
+import {Permission, ResourceAclEntry, ResolvedSupport} from "@/UCloud/ResourceApi";
 import {ProductSelector} from "@/Products/Selector";
 import {ServiceProviderSelector, ServiceProviderItem} from "@/Applications/ApiTokens/Add";
 import BaseLink from "@/ui-components/BaseLink";
@@ -80,6 +81,11 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import Warning from "@/ui-components/Warning";
 import {useDispatch} from "react-redux";
 import {openJobShellTab} from "@/Terminal/State";
+import {PermissionsTable} from "@/Resource/PermissionEditor";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {useProjectId} from "@/Project/Api";
+import {sendFailureNotification} from "@/Notifications";
+import * as StackApi from "@/Stacks/api";
 
 type ValueProvider = string | (() => string | Promise<string>);
 export type UcxRpcPayload = PlainValue;
@@ -1575,6 +1581,13 @@ const baseComponents: UcxComponentRegistry = {
         const height = numberProp(node, "height", 320);
         return <JobLogsNode jobId={jobId} height={height} style={fn.sxStyle(node)} />;
     },
+    stack_permissions: ({node, fn}) => <StackPermissionsNode
+        stackId={stringProp(node, "stackId", "")} style={fn.sxStyle(node)}
+        accessDescription={stringProp(node, "accessDescription", "") || "Choose which project groups can use this stack. The creator and project administrators keep access."}
+        permissionLabel={stringProp(node, "permissionLabel", "") || "Use"}
+        permissionIcon={(stringProp(node, "permissionIcon", "") || "heroCheck") as IconName}
+        buttonIcon={(stringProp(node, "buttonIcon", "") || "share") as IconName}
+    />,
     container_logs: ({node, model, scope, fn}) => {
         const logs = node.bindPath ? modelString(model, node.bindPath, scope) : "";
         return <ContainerLogsNode logs={logs} style={fn.sxStyle(node)} />;
@@ -1582,6 +1595,95 @@ const baseComponents: UcxComponentRegistry = {
 };
 
 type UcxJobLogsState = JobInitState;
+
+interface StackPermissionsProps {
+    stackId: string;
+    style: React.CSSProperties;
+    accessDescription: string;
+    permissionLabel: string;
+    permissionIcon: IconName;
+    buttonIcon: IconName;
+}
+
+function StackPermissionsNode({stackId, style, accessDescription, permissionLabel, permissionIcon, buttonIcon}: StackPermissionsProps): React.ReactNode {
+    const projectId = useProjectId();
+    const [stack, setStack] = useState<StackApi.Stack | null>(null);
+    const [busy, setBusy] = useState(false);
+
+    useEffect(() => {
+        setStack(null);
+        if (!stackId || !projectId) return;
+        let cancelled = false;
+        callAPI({...StackApi.retrieve({id: stackId}), projectOverride: projectId}).then(result => {
+            if (!cancelled) setStack(result);
+        }).catch(doNothing);
+        return () => { cancelled = true; };
+    }, [stackId, projectId]);
+
+    if (!stackId || !projectId || (stack && !stack.permissions.myself.includes("ADMIN"))) return null;
+
+    return <Button color="primaryMain" style={style} disabled={busy} onClick={async () => {
+        setBusy(true);
+        try {
+            const current = await callAPI({...StackApi.retrieve({id: stackId}), projectOverride: projectId});
+            setStack(current);
+            if (!current.permissions.myself.includes("ADMIN")) {
+                sendFailureNotification("Only the stack creator and project administrators can change permissions.");
+                return;
+            }
+            dialogStore.addDialog(<StackPermissionsEditor stack={current} projectId={projectId}
+                accessDescription={accessDescription} permissionLabel={permissionLabel} permissionIcon={permissionIcon} />, doNothing, true);
+        } catch {
+            sendFailureNotification("Failed to load stack permissions.");
+        } finally {
+            setBusy(false);
+        }
+    }}><Icon name={buttonIcon} size={15} mr="6px" />Permissions</Button>;
+
+}
+
+function StackPermissionsEditor({stack, projectId, accessDescription, permissionLabel, permissionIcon}: {
+    stack: StackApi.Stack;
+    projectId: string;
+    accessDescription: string;
+    permissionLabel: string;
+    permissionIcon: IconName;
+}): React.ReactNode {
+    const currentProjectId = useProjectId();
+    const [acl, setAcl] = useState<ResourceAclEntry[]>(stack.permissions.others ?? []);
+    const [busy, setBusy] = useState(false);
+    const updateAcl = async (group: string, permission: Permission | null) => {
+        if (busy || currentProjectId !== projectId) return;
+        const matches = (entry: ResourceAclEntry) => entry.entity.type === "project_group" && entry.entity.projectId === projectId && entry.entity.group === group;
+        const existing = acl.find(matches);
+        const added: ResourceAclEntry[] = permission ? [{
+            entity: {type: "project_group", projectId, group},
+            permissions: ["READ", "EDIT"],
+        }] : [];
+        setBusy(true);
+        try {
+            await callAPI({...StackApi.updateAcl(bulkRequestOf({id: stack.id, added, deleted: existing ? [existing.entity] : []})), projectOverride: projectId});
+            setAcl(previous => [...previous.filter(entry => !matches(entry)), ...added]);
+        } catch {
+            sendFailureNotification("Failed to update stack permissions.");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return <Box mb="20px" onKeyDown={e => e.stopPropagation()}>
+        <Label>Choose access</Label>
+        <Box maxHeight="400px" overflowY="auto">
+            <p>{accessDescription}</p>
+            {currentProjectId !== projectId ? <Text>Return to the original project to change permissions.</Text> :
+                <fieldset disabled={busy} style={{border: 0, margin: 0, padding: 0, minWidth: 0}}>
+                    <PermissionsTable acl={acl} anyGroupHasPermission={acl.some(entry => entry.permissions.length > 0)}
+                        showMissingPermissionHelp={false} hideRead writeLabel={permissionLabel} writeIcon={permissionIcon}
+                        warning="Warning" title="Stack" updateAcl={updateAcl} />
+                </fieldset>}
+        </Box>
+    </Box>;
+}
 
 function ucxStageFallback(state: string | null): string {
     switch (state) {

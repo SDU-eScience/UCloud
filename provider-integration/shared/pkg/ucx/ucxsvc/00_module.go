@@ -205,7 +205,7 @@ func stackCreate(app ucx.Application, id string, stackType string, createDrive b
 				return &Stack{}, false
 			}
 			drives, driveErr := ucxapi.DrivesCreate.Invoke(session, []orcapi.DriveSpecification{{
-				Title: id + " state",
+				Title: id,
 				ResourceSpecification: orcapi.ResourceSpecification{
 					Product: product,
 					Labels: map[string]string{
