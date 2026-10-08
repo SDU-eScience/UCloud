@@ -1614,7 +1614,10 @@ function StackPermissionsNode({stackId, style, accessDescription, permissionLabe
         setStack(null);
         if (!stackId || !projectId) return;
         let cancelled = false;
-        callAPI({...StackApi.retrieve({id: stackId}), projectOverride: projectId}).then(result => {
+        callAPI<StackApi.Stack>({
+            ...StackApi.retrieve({id: stackId}),
+            projectOverride: projectId,
+        }).then(result => {
             if (!cancelled) setStack(result);
         }).catch(doNothing);
         return () => { cancelled = true; };
@@ -1622,24 +1625,40 @@ function StackPermissionsNode({stackId, style, accessDescription, permissionLabe
 
     if (!stackId || !projectId || (stack && !stack.permissions.myself.includes("ADMIN"))) return null;
 
-    return <Button color="primaryMain" style={style} disabled={busy} onClick={async () => {
-        setBusy(true);
-        try {
-            const current = await callAPI({...StackApi.retrieve({id: stackId}), projectOverride: projectId});
-            setStack(current);
-            if (!current.permissions.myself.includes("ADMIN")) {
-                sendFailureNotification("Only the stack creator and project administrators can change permissions.");
-                return;
+    return <span style={style}>
+        <Button color="primaryMain" disabled={busy} onClick={async () => {
+            setBusy(true);
+            try {
+                const current = await callAPI<StackApi.Stack>({
+                    ...StackApi.retrieve({id: stackId}),
+                    projectOverride: projectId,
+                });
+                setStack(current);
+                if (!current.permissions.myself.includes("ADMIN")) {
+                    sendFailureNotification("Only the stack creator and project administrators can change permissions.");
+                    return;
+                }
+                dialogStore.addDialog(
+                    <StackPermissionsEditor
+                        stack={current}
+                        projectId={projectId}
+                        accessDescription={accessDescription}
+                        permissionLabel={permissionLabel}
+                        permissionIcon={permissionIcon}
+                    />,
+                    doNothing,
+                    true,
+                );
+            } catch {
+                sendFailureNotification("Failed to load stack permissions.");
+            } finally {
+                setBusy(false);
             }
-            dialogStore.addDialog(<StackPermissionsEditor stack={current} projectId={projectId}
-                accessDescription={accessDescription} permissionLabel={permissionLabel} permissionIcon={permissionIcon} />, doNothing, true);
-        } catch {
-            sendFailureNotification("Failed to load stack permissions.");
-        } finally {
-            setBusy(false);
-        }
-    }}><Icon name={buttonIcon} size={15} mr="6px" />Permissions</Button>;
-
+        }}>
+            <Icon name={buttonIcon} size={15} mr="6px" />
+            Permissions
+        </Button>
+    </span>;
 }
 
 function StackPermissionsEditor({stack, projectId, accessDescription, permissionLabel, permissionIcon}: {

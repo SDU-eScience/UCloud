@@ -143,8 +143,9 @@ func ensureUcxDeploymentAuthToken(ctx context.Context, namespace string, name st
 
 func initAppUcx() ctrl.UcxApplicationService {
 	return ctrl.UcxApplicationService{
-		OnConnect:    ucxOnConnect,
-		OnConnectJob: ucxOnConnectJob,
+		OnConnect:      ucxOnConnect,
+		OnConnectJob:   ucxOnConnectJob,
+		OnStackDeleted: stackStateDelete,
 		InferencePlaygroundFactory: func(owner orcapi.ResourceOwner, sessionId string) ucx.Application {
 			return inference.InferencePlayground(owner, sessionId)
 		},

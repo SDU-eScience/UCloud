@@ -19,6 +19,7 @@ import {UcxSpinner} from "@/UCX/UcxView";
 
 export const INTEGRATED_TERMINAL_RECONNECT_ATTEMPTS = 5;
 const JOB_RECONNECT_ATTEMPTS = 1;
+const SHELL_EXIT_OSC_PREFIX = "ucloud-shell-exit;";
 
 export const Shell: React.FunctionComponent = () => {
     const params = useParams<{jobId: string, rank: string}>();
@@ -62,26 +63,35 @@ export const ShellWithSession: React.FunctionComponent<{
     maxReconnectAttempts?: number;
     jobId?: string;
     onTitleChange?: (title: string) => void;
+    onRequestClose?: () => void;
     initialCommand?: string;
     clearAfter?: boolean;
     suppressUntil?: string;
-}> = ({sessionWithProvider, connectionError, autofit, xtermRef, focusedTerminalRef, reconnect, maxReconnectAttempts = 0, jobId, onTitleChange, initialCommand, clearAfter, suppressUntil}) => {
+}> = ({sessionWithProvider, connectionError, autofit, xtermRef, focusedTerminalRef, reconnect, maxReconnectAttempts = 0, jobId, onTitleChange, onRequestClose, initialCommand, clearAfter, suppressUntil}) => {
     const {termRef, terminal, fitAddon} = useXTerm({autofit});
     const [closed, setClosed] = useState<boolean>(false);
     const [reconnecting, setReconnecting] = useState(false);
     const [jobEndedMessage, setJobEndedMessage] = useState<string | null>(null);
+    const [shellExitCode, setShellExitCode] = useState<number | null>(null);
     const [retryTick, setRetryTick] = useState(0);
     const reconnectTimerRef = React.useRef<number | null>(null);
     const reconnectInFlightRef = React.useRef(false);
     const reconnectAttemptRef = React.useRef(0);
     const jobEndedRef = React.useRef<string | null>(null);
+    const shellExitedRef = React.useRef(false);
+    const onRequestCloseRef = React.useRef(onRequestClose);
     let sessionIdentifier: string | null = null;
     if (sessionWithProvider?.session?.type === "shell") {
         sessionIdentifier = sessionWithProvider.session.sessionIdentifier;
     }
 
+    const shellExitMessage = shellExitCode !== null ? `The shell session ended (exit code ${shellExitCode}). See the output above for details.` : null;
     const reconnectMessage = jobEndedMessage ?? (jobId ? "The connection to the job was lost." : "The terminal connection was lost.");
     jobEndedRef.current = jobEndedMessage;
+
+    React.useEffect(() => {
+        onRequestCloseRef.current = onRequestClose;
+    }, [onRequestClose]);
 
     React.useEffect(() => {
         reconnectAttemptRef.current = 0;
@@ -89,7 +99,7 @@ export const ShellWithSession: React.FunctionComponent<{
     }, [jobId]);
 
     const scheduleReconnect = React.useCallback(() => {
-        if (!closed || jobEndedMessage || reconnectInFlightRef.current || reconnectTimerRef.current !== null) return;
+        if (!closed || jobEndedMessage || shellExitedRef.current || reconnectInFlightRef.current || reconnectTimerRef.current !== null) return;
 
         if (reconnectAttemptRef.current >= maxReconnectAttempts) {
             setReconnecting(false);
@@ -268,6 +278,29 @@ export const ShellWithSession: React.FunctionComponent<{
                 },
             });
 
+        const shellExitListener = terminal.parser.registerOscHandler(777, data => {
+            if (!initialCommand || !data.startsWith(SHELL_EXIT_OSC_PREFIX)) return false;
+            if (shellExitedRef.current) return true;
+
+            const parsed = Number.parseInt(data.slice(SHELL_EXIT_OSC_PREFIX.length), 10);
+            const exitCode = Number.isFinite(parsed) ? parsed : 1;
+
+            shellExitedRef.current = true;
+            if (reconnectTimerRef.current !== null) {
+                window.clearTimeout(reconnectTimerRef.current);
+                reconnectTimerRef.current = null;
+            }
+            setReconnecting(false);
+            setShellExitCode(exitCode);
+            setClosed(true);
+            wsConnection.close();
+
+            if (exitCode === 0) {
+                onRequestCloseRef.current?.();
+            }
+            return true;
+        });
+
         const dataListener = terminal.onData((data) => {
             wsConnection.call({
                 call: `jobs.compute.${sessionWithProvider.providerId}.shell.open`,
@@ -298,6 +331,7 @@ export const ShellWithSession: React.FunctionComponent<{
         return () => {
             disposed = true;
             wsConnection.close();
+            shellExitListener.dispose();
             dataListener.dispose();
             resizeListener.dispose();
             window.removeEventListener("resize", windowResizeListener);
@@ -308,8 +342,8 @@ export const ShellWithSession: React.FunctionComponent<{
         {closed || reconnecting ? (
             <div className={`warn`} role={reconnecting ? "status" : "alert"}>
                 {reconnecting ? <UcxSpinner size={22} /> : <Icon name="heroExclamationTriangle" color="warningMain" size={22} />}
-                <span style={{flexGrow: 1}}>{reconnecting ? "Reconnecting..." : reconnectMessage}</span>
-                {!reconnecting && !jobEndedMessage ? <button type="button" className="reconnect-button" onClick={retryNow}>Reconnect?</button> : null}
+                <span style={{flexGrow: 1}}>{reconnecting ? "Reconnecting..." : (shellExitMessage ?? reconnectMessage)}</span>
+                {!reconnecting && !jobEndedMessage && shellExitCode === null ? <button type="button" className="reconnect-button" onClick={retryNow}>Reconnect?</button> : null}
             </div>
         ) : null}
 

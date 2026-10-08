@@ -200,7 +200,7 @@ func initAppUcx() {
 			if !state.AllowStackCreation {
 				return util.Empty{}, fmt.Errorf("stack creation is not allowed")
 			}
-			err := StacksCreate(state.Actor(), request.StackId, request.StackType, request.StateFolder)
+			err := StacksCreate(state.Actor(), request.StackId, request.StackType, request.StateFolder, state.Provider())
 			if err != nil {
 				return util.Empty{}, err.AsError()
 			}

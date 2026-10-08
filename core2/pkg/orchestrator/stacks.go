@@ -59,7 +59,7 @@ func stacksFindEntity(actor rpc.Actor, id string) (orcapi.Resource, bool) {
 	return orcapi.Resource{}, false
 }
 
-func StacksCreate(actor rpc.Actor, id string, name string, stateFolder string) *util.HttpError {
+func StacksCreate(actor rpc.Actor, id string, name string, stateFolder string, provider string) *util.HttpError {
 	if strings.TrimSpace(id) == "" || strings.TrimSpace(name) == "" {
 		return util.HttpErr(http.StatusBadRequest, "stack id and type are required")
 	}
@@ -90,6 +90,7 @@ func StacksCreate(actor rpc.Actor, id string, name string, stateFolder string) *
 			orcapi.ResourceLabelStackInstance:    id,
 			orcapi.ResourceLabelStackName:        name,
 			orcapi.ResourceLabelStackStateFolder: stateFolder,
+			orcapi.ResourceLabelStackProvider:    provider,
 		},
 	}, nil)
 	if err != nil {
@@ -177,9 +178,11 @@ func initStacks() {
 		return StacksRetrieve(info.Actor, request.Id)
 	})
 
-	orcapi.StacksDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (util.Empty, *util.HttpError) {
+	orcapi.StacksDelete.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.StacksDeleteRequest]) (util.Empty, *util.HttpError) {
 		for _, id := range request.Items {
-			StacksDelete(info.Actor, id.Id)
+			if err := StacksDelete(info.Actor, id.Id, id.DeleteStateDrive); err != nil {
+				return util.Empty{}, err
+			}
 		}
 		return util.Empty{}, nil
 	})
@@ -205,39 +208,29 @@ func initStacks() {
 			return value.Time()
 		})
 
-		httpErr := (*util.HttpError)(nil)
 		id := db.NewTx(func(tx *db.Transaction) int {
 			row, rowOk := db.Get[struct{ RequestId int }](
 				tx,
 				`
 					insert into app_orchestrator.stack_deletion_requests (stack_id, provider_filter, activation_time, 
-						owner_created_by, owner_project) 
-					values (:stack_id, :provider, :time, :username, :project)
+						owner_created_by, owner_project, delete_state_drive)
+					values (:stack_id, :provider, :time, :username, :project, :delete_state_drive)
 					returning request_id
 				`,
 				db.Params{
-					"stack_id": request.Id,
-					"provider": providerId,
-					"time":     activation.Sql(),
-					"username": request.Owner.CreatedBy,
-					"project":  request.Owner.Project.Sql(),
+					"stack_id":           request.Id,
+					"provider":           providerId,
+					"time":               activation.Sql(),
+					"username":           request.Owner.CreatedBy,
+					"project":            request.Owner.Project.Sql(),
+					"delete_state_drive": request.DeleteStateDrive,
 				},
 			)
-			if err := tx.PeekError(); err != nil {
-				tx.ConsumeError()
-				httpErr = util.HttpErr(http.StatusInternalServerError, "failed to create deletion request")
-				return 0
-			}
 			if !rowOk {
-				httpErr = util.HttpErr(http.StatusInternalServerError, "failed to create deletion request")
-				return 0
+				log.Fatal("failed to create deletion request")
 			}
 			return row.RequestId
 		})
-
-		if httpErr != nil {
-			return fndapi.FindByIntId{}, httpErr
-		}
 
 		return fndapi.FindByIntId{Id: id}, nil
 	})
@@ -254,7 +247,6 @@ func initStacks() {
 
 		activation := request.ActivationTime.Value.Time()
 
-		httpErr := (*util.HttpError)(nil)
 		renewed := db.NewTx(func(tx *db.Transaction) bool {
 			row, rowOk := db.Get[struct{ RequestId int }](
 				tx,
@@ -273,20 +265,11 @@ func initStacks() {
 					"activation": activation,
 				},
 			)
-			if err := tx.PeekError(); err != nil {
-				tx.ConsumeError()
-				httpErr = util.HttpErr(http.StatusInternalServerError, "failed to renew deletion request")
-				return false
-			}
 			if !rowOk {
 				return false
 			}
 			return row.RequestId == request.RequestId
 		})
-
-		if httpErr != nil {
-			return util.Empty{}, httpErr
-		}
 
 		if !renewed {
 			return util.Empty{}, util.HttpErr(http.StatusConflict, "deletion request is no longer pending")
@@ -301,7 +284,6 @@ func initStacks() {
 			return util.Empty{}, util.HttpErr(http.StatusForbidden, "forbidden")
 		}
 
-		httpErr := (*util.HttpError)(nil)
 		cancelled := db.NewTx(func(tx *db.Transaction) bool {
 			row, rowOk := db.Get[struct{ RequestId int }](
 				tx,
@@ -318,20 +300,11 @@ func initStacks() {
 					"provider": providerId,
 				},
 			)
-			if err := tx.PeekError(); err != nil {
-				tx.ConsumeError()
-				httpErr = util.HttpErr(http.StatusInternalServerError, "failed to cancel deletion request")
-				return false
-			}
 			if !rowOk {
 				return false
 			}
 			return row.RequestId == request.Id
 		})
-
-		if httpErr != nil {
-			return util.Empty{}, httpErr
-		}
 
 		if !cancelled {
 			return util.Empty{}, util.HttpErr(http.StatusConflict, "deletion request is no longer pending")
@@ -450,7 +423,43 @@ func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) 
 	return stack, nil
 }
 
-func StacksDelete(actor rpc.Actor, id string) {
+func stacksDeletionDetails(actor rpc.Actor, id string) (orcapi.Resource, string, []string, *util.HttpError) {
+	entity, exists := stacksFindEntity(actor, id)
+	if !exists {
+		return orcapi.Resource{}, "", nil, util.HttpErr(http.StatusNotFound, "stack not found")
+	}
+	_, entity, specification, err := ResourceRetrieveEx[orcapi.Stack](actor, stackType, ResourceParseId(entity.Id), orcapi.PermissionEdit, orcapi.ResourceFlags{})
+	if err != nil {
+		return orcapi.Resource{}, "", nil, err
+	}
+	var providers []string
+	if provider := specification.Labels[orcapi.ResourceLabelStackProvider]; provider != "" {
+		providers = append(providers, provider)
+	}
+	for _, typeName := range []string{jobType, driveType, licenseType, publicIpType, ingressType, privateNetworkType, privateNetworkIpType, serviceType, containerRepositoryType} {
+		for _, resourceId := range stacksResourceIds(typeName, entity.Owner, entity.Id) {
+			_, child, spec, err := ResourceRetrieveEx[any](rpc.ActorSystem, typeName, resourceId, orcapi.PermissionRead, orcapi.ResourceFlags{})
+			if err == nil && child.Owner == entity.Owner && resourceSpecificationHasProduct(spec) {
+				providers = util.AppendUnique(providers, spec.Product.Provider)
+			}
+		}
+	}
+	stateDrive := ""
+	folder := specification.Labels[orcapi.ResourceLabelStackStateFolder]
+	if driveId, valid := orcapi.DriveIdFromUCloudPath(folder); valid && folder == "/"+driveId {
+		_, drive, spec, err := ResourceRetrieveEx[orcapi.Drive](rpc.ActorSystem, driveType, ResourceParseId(driveId), orcapi.PermissionRead, orcapi.ResourceFlags{})
+		if err == nil && drive.Owner == entity.Owner && spec.Labels[orcapi.ResourceLabelStackEntity] == entity.Id {
+			stateDrive = driveId
+		}
+	}
+	return entity, stateDrive, util.NonNilSlice(providers), nil
+}
+
+func StacksDelete(actor rpc.Actor, id string, deleteStateDrive bool) *util.HttpError {
+	entity, _, _, err := stacksDeletionDetails(actor, id)
+	if err != nil {
+		return err
+	}
 	db.NewTx0(func(tx *db.Transaction) {
 		projectId := util.OptMap(actor.Project, func(value rpc.ProjectId) string {
 			return string(value)
@@ -460,16 +469,21 @@ func StacksDelete(actor rpc.Actor, id string) {
 			tx,
 			`
 				insert into app_orchestrator.stack_deletion_requests (stack_id, provider_filter, activation_time, 
-					owner_created_by, owner_project) 
-				values (:stack_id, null, null, :username, :project)
+					owner_created_by, owner_project, delete_state_drive, entity_resource)
+				values (:stack_id, null, null, :username, :project, :delete_state_drive, :entity)
+				on conflict (entity_resource) where provider_filter is null and entity_resource is not null
+				do update set delete_state_drive = app_orchestrator.stack_deletion_requests.delete_state_drive or excluded.delete_state_drive
 		    `,
 			db.Params{
-				"stack_id": id,
-				"username": actor.Username,
-				"project":  projectId.Sql(),
+				"stack_id":           id,
+				"username":           actor.Username,
+				"project":            projectId.Sql(),
+				"delete_state_drive": deleteStateDrive,
+				"entity":             int64(ResourceParseId(entity.Id)),
 			},
 		)
 	})
+	return nil
 }
 
 func StacksUpdateAcl(actor rpc.Actor, request orcapi.UpdatedAcl) *util.HttpError {
@@ -503,12 +517,13 @@ func StacksUpdateAcl(actor rpc.Actor, request orcapi.UpdatedAcl) *util.HttpError
 
 func stacksHandleDeletions() {
 	type deletionRequest struct {
-		RequestId      int
-		StackId        string
-		ProviderFilter sql.Null[string]
-		ActivationTime sql.Null[time.Time]
-		OwnerCreatedBy string
-		OwnerProject   sql.Null[string]
+		RequestId        int
+		StackId          string
+		ProviderFilter   sql.Null[string]
+		ActivationTime   sql.Null[time.Time]
+		OwnerCreatedBy   string
+		OwnerProject     sql.Null[string]
+		DeleteStateDrive bool
 	}
 
 	for {
@@ -516,7 +531,7 @@ func stacksHandleDeletions() {
 			return db.Select[deletionRequest](
 				tx,
 				`
-					select request_id, stack_id, provider_filter, activation_time, owner_created_by, owner_project
+					select request_id, stack_id, provider_filter, activation_time, owner_created_by, owner_project, delete_state_drive
 					from app_orchestrator.stack_deletion_requests
 					where activation_time is null or now() >= activation_time
 				`,
@@ -527,8 +542,8 @@ func stacksHandleDeletions() {
 		var handled []int
 
 		for _, req := range requests {
-			actor, ok := rpc.LookupActor(req.OwnerCreatedBy)
-			if !ok {
+			actor, actorOk := rpc.LookupActor(req.OwnerCreatedBy)
+			if !actorOk {
 				log.Info("Attempting to delete stack %v but owner is not known (%v)!", req.StackId, req.OwnerCreatedBy)
 				handled = append(handled, req.RequestId)
 				continue
@@ -544,16 +559,48 @@ func stacksHandleDeletions() {
 				}
 			}
 
-			stack, err := StacksRetrieve(actor, req.StackId)
-			if err != nil {
-				handled = append(handled, req.RequestId)
+			entity, stateDrive, providers, err := stacksDeletionDetails(actor, req.StackId)
+			if err != nil && err.StatusCode != http.StatusNotFound {
+				log.Warn("Unable to prepare stack deletion %s: %v", req.StackId, err)
+				continue
+			}
+			if req.ProviderFilter.Valid {
+				providers = []string{req.ProviderFilter.V}
+			}
+
+			owner := orcapi.ResourceOwner{CreatedBy: req.OwnerCreatedBy, Project: util.SqlNullToOpt(req.OwnerProject)}
+			stack := orcapi.Stack{Status: util.OptValue(orcapi.StackStatus{})}
+			if entity.Id != "" {
+				owner = entity.Owner
+				stack, err = StacksRetrieve(actor, req.StackId)
+				if err != nil {
+					log.Warn("Unable to retrieve stack during deletion %s: %v", req.StackId, err)
+					continue
+				}
+			}
+
+			ok := true
+
+			for _, provider := range providers {
+				_, err := InvokeProvider(provider, orcapi.StacksProviderDelete, orcapi.StacksProviderDeleteRequest{Id: req.StackId, Owner: owner}, ProviderCallOpts{})
+				if err == nil {
+					continue
+				}
+				if err.StatusCode == http.StatusBadRequest || err.StatusCode == http.StatusNotFound || err.StatusCode == http.StatusServiceUnavailable {
+					log.Info("Provider %s does not handle stack deletion for %s; continuing", provider, req.StackId)
+					continue
+				}
+				log.Warn("Unable to notify provider %s of stack deletion %s: %v", provider, req.StackId, err)
+				ok = false
+			}
+
+			if !ok {
 				continue
 			}
 
-			ok = true
 			complete := true
-
 			stackStatus := stack.Status.Value
+
 			for _, job := range stackStatus.Jobs {
 				if req.ProviderFilter.Valid && req.ProviderFilter.V != job.Specification.Product.Provider {
 					complete = false
@@ -626,14 +673,28 @@ func stacksHandleDeletions() {
 				}
 			}
 
-			if ok {
-				if complete {
-					if entity, exists := stacksFindEntity(actor, req.StackId); exists {
-						ResourceDelete(actor, stackType, ResourceParseId(entity.Id))
-					}
-				}
-				handled = append(handled, req.RequestId)
+			if !ok {
+				continue
 			}
+
+			if req.DeleteStateDrive && stateDrive != "" {
+				_, _, specification, err := ResourceRetrieveEx[orcapi.Drive](rpc.ActorSystem, driveType, ResourceParseId(stateDrive), orcapi.PermissionRead, orcapi.ResourceFlags{})
+				if err == nil && (!req.ProviderFilter.Valid || req.ProviderFilter.V == specification.Product.Provider) {
+					_, err = DriveDelete(actor, fndapi.BulkRequestOf(fndapi.FindByStringId{Id: stateDrive}))
+				} else if err != nil && (err.StatusCode == http.StatusNotFound || err.StatusCode == http.StatusForbidden) {
+					err = nil
+				}
+				if err != nil {
+					log.Warn("Unable to delete state drive for stack %s: %v", req.StackId, err)
+					continue
+				}
+			}
+
+			if complete && entity.Id != "" {
+				ResourceDelete(actor, stackType, ResourceParseId(entity.Id))
+			}
+
+			handled = append(handled, req.RequestId)
 		}
 
 		if len(handled) > 0 {

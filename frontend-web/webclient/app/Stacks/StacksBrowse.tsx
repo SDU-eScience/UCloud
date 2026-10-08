@@ -1,10 +1,11 @@
 import * as React from "react";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {sendFailureNotification} from "@/Notifications";
 import {useProjectId} from "@/Project/Api";
 import {bulkRequestOf, doNothing} from "@/UtilityFunctions";
 import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
-import {Box, Button, Divider, Input, Text} from "@/ui-components";
+import {Box, Button, Checkbox, Divider, Input} from "@/ui-components";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router-dom";
 
@@ -194,6 +195,7 @@ interface StackOperationCallbacks {
 }
 
 function StackDeleteDialog({selected, onDeleted}: {selected: StackApi.Stack[]; onDeleted: () => void}): React.ReactNode {
+    const [deleteStateDrive, setDeleteStateDrive] = React.useState(true);
     const singleStack = selected.length === 1;
     const requiredText = singleStack
         ? selected[0].id
@@ -227,7 +229,7 @@ function StackDeleteDialog({selected, onDeleted}: {selected: StackApi.Stack[]; o
             }
 
             try {
-                await callAPI(StackApi.remove(bulkRequestOf(...selected.map(it => ({id: it.id})))));
+                await callAPI(StackApi.remove(bulkRequestOf(...selected.map(it => ({id: it.id, deleteStateDrive})))));
                 dialogStore.success();
                 onDeleted();
             } catch {
@@ -235,6 +237,12 @@ function StackDeleteDialog({selected, onDeleted}: {selected: StackApi.Stack[]; o
             }
         }}>
             <Input id="stackDeleteName" autoFocus mb="8px" />
+            <Box mb="12px">
+                <label>
+                    <Checkbox checked={deleteStateDrive} onChange={e => setDeleteStateDrive(e.target.checked)} />
+                    Delete dedicated application drives and all their files
+                </label>
+            </Box>
             <Button color="errorMain" type="submit" fullWidth>
                 I understand what I am doing, delete permanently
             </Button>

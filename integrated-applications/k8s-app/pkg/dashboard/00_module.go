@@ -756,7 +756,7 @@ func (app *stackUiApp) pageHomeActions() []ucx.UiNode {
 		})))
 		actions = append(actions, ucx.SettingsAction("homeDeleteAction",
 			"Delete cluster",
-			"Permanently deletes the cluster and all of its resources. This cannot be undone.",
+			"Permanently deletes the cluster and its VMs.",
 		).Children(
 			ucx.ButtonEx("homeDeleteCluster", "Delete cluster", ucx.ColorErrorMain, ucx.IconTrash, "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 				ucxsvc.StackDelete(app)
@@ -1639,6 +1639,7 @@ func (app *stackUiApp) openShellToPod(rowKey string) {
 			shellCommand,
 		)
 	}
+	command += "; printf '\\033]777;ucloud-shell-exit;%s\\007' \"$?\""
 
 	jobId, ok := app.firstControlPlaneNodeWithShell()
 	if !ok {

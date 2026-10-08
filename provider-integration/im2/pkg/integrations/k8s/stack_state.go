@@ -28,6 +28,53 @@ var (
 
 const stackStateMaxKeyLength = 512
 
+func stackStateDelete(request orc.StacksProviderDeleteRequest) *util.HttpError {
+	if strings.TrimSpace(request.Id) == "" {
+		return util.HttpErr(http.StatusBadRequest, "stack id is required")
+	}
+	scopeHash, err := stackStateStackScopeHash(request.Owner)
+	if err != nil {
+		return util.HttpErr(http.StatusBadRequest, "invalid stack owner")
+	}
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				delete from k8s.stack_state_records
+				where stack_scope_hash = :scope_hash and stack_id = :stack_id
+			`,
+			db.Params{
+				"scope_hash": scopeHash,
+				"stack_id":   request.Id,
+			},
+		)
+		db.Exec(
+			tx,
+			`
+				delete from k8s.stack_grant_tokens
+				where
+					stack_instance = :stack_id
+					and provider = :provider
+					and (
+						owner_project = cast(:project as text)
+						or (
+							owner_project is null
+							and cast(:project as text) is null
+							and owner_created_by = :username
+						)
+					)
+			`,
+			db.Params{
+				"stack_id": request.Id,
+				"provider": cfg.Provider.Id,
+				"project":  request.Owner.Project.Sql(),
+				"username": request.Owner.CreatedBy,
+			},
+		)
+	})
+	return nil
+}
+
 type stackStateDbRow struct {
 	RecordKey string
 	Value     string

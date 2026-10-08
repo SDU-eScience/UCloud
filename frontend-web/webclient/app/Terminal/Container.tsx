@@ -521,6 +521,7 @@ const IndividualTerminal: React.FunctionComponent<{tab: TerminalTab, tabIdx: num
             reconnect={doReconnect}
             maxReconnectAttempts={INTEGRATED_TERMINAL_RECONNECT_ATTEMPTS}
             onTitleChange={updateTitle}
+            onRequestClose={() => dispatch(terminalCloseTab({tabIdx: props.tabIdx}))}
             jobId={props.tab.jobId}
             initialCommand={props.tab.initialCommand}
             clearAfter={props.tab.clearAfter}

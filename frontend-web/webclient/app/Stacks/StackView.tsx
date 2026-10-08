@@ -7,7 +7,7 @@ import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
 import {getStoredProject} from "@/Project/ReduxState";
-import {Box, Button, Card, Divider, ExternalLink, Flex, Icon, Input, Text} from "@/ui-components";
+import {Box, Button, Card, Checkbox, Divider, ExternalLink, Flex, Icon, Input, Text} from "@/ui-components";
 import {CopyButton} from "@/ui-components/CopyButton";
 import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
@@ -524,6 +524,7 @@ const MachinesInStack: React.FunctionComponent<{
 }
 
 function StackDeleteDialog({stack, onDeleted}: {stack: StackApi.Stack; onDeleted: () => void}): React.ReactNode {
+    const [deleteStateDrive, setDeleteStateDrive] = React.useState(true);
     const requiredText = stack.id;
 
     return <div onKeyDown={e => e.stopPropagation()}>
@@ -547,7 +548,7 @@ function StackDeleteDialog({stack, onDeleted}: {stack: StackApi.Stack; onDeleted
             }
 
             try {
-                await callAPI(StackApi.remove(bulkRequestOf({id: stack.id})));
+                await callAPI(StackApi.remove(bulkRequestOf({id: stack.id, deleteStateDrive})));
                 dialogStore.success();
                 onDeleted();
             } catch {
@@ -555,6 +556,12 @@ function StackDeleteDialog({stack, onDeleted}: {stack: StackApi.Stack; onDeleted
             }
         }}>
             <Input id="stackDeleteName" autoFocus mb="8px" />
+            <Box mb="12px">
+                <label>
+                    <Checkbox checked={deleteStateDrive} onChange={e => setDeleteStateDrive(e.target.checked)} />
+                    Delete the dedicated application drive and all its files
+                </label>
+            </Box>
             <Button color="errorMain" type="submit" fullWidth>
                 I understand what I am doing, delete permanently
             </Button>

@@ -16,10 +16,17 @@ type UcxApplicationService struct {
 	OnConnect                  func(conn *ws.Conn)
 	OnConnectJob               func(conn *ws.Conn)
 	InferencePlaygroundFactory func(owner orcapi.ResourceOwner, sessionId string) ucx.Application
+	OnStackDeleted             func(request orcapi.StacksProviderDeleteRequest) *util.HttpError
 }
 
 func initUcxApplications() {
 	if RunsServerCode() {
+		orcapi.StacksProviderDelete.Handler(func(info rpc.RequestInfo, request orcapi.StacksProviderDeleteRequest) (util.Empty, *util.HttpError) {
+			if UcxApplications.OnStackDeleted == nil {
+				return util.Empty{}, util.HttpErr(http.StatusBadRequest, "stack deletion is not supported by this provider")
+			}
+			return util.Empty{}, UcxApplications.OnStackDeleted(request)
+		})
 		orcapi.AppUcxConnectProvider.Handler(func(info rpc.RequestInfo, request util.Empty) (util.Empty, *util.HttpError) {
 			handler := UcxApplications.OnConnect
 			if handler == nil {
