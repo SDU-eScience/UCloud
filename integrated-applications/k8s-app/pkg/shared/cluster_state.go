@@ -91,6 +91,37 @@ func ClusterStateRecordWrite(client ClusterStateClient, record *ClusterRecord, e
 	return clusterStateWrite(client, ClusterStateRecordKey, value, expectedRevision)
 }
 
+type ClusterStateValue struct {
+	Value    json.RawMessage
+	Revision int64
+	Found    bool
+	Empty    bool
+}
+
+func ClusterStateValueRead(client ClusterStateClient, key string) (ClusterStateValue, error) {
+	record, found, err := clusterStateReadRaw(client, key)
+	if err != nil {
+		return ClusterStateValue{}, err
+	}
+	if !found {
+		return ClusterStateValue{}, nil
+	}
+
+	return ClusterStateValue{
+		Value:    record.Value,
+		Revision: record.Revision,
+		Found:    true,
+		Empty:    record.IsEmpty(),
+	}, nil
+}
+
+func ClusterStateValueWrite(client ClusterStateClient, key string, value json.RawMessage, expectedRevision int64) (int64, error) {
+	if expectedRevision < 0 {
+		return 0, errors.New("the expected revision is negative")
+	}
+	return clusterStateWrite(client, key, value, expectedRevision)
+}
+
 func clusterStateReadRaw(client ClusterStateClient, key string) (ucxapi.StackStateRecord, bool, error) {
 	if client.session != nil {
 		response, err := ucxapi.StackStateRead.Invoke(client.session, ucxapi.StackStateReadRequest{

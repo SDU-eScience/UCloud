@@ -23,9 +23,9 @@ ROLE="$(node_field role)"
 
 REQUIRES_MOUNTS="RequiresMountsFor=/etc/ucloud-k8s/input /etc/ucloud-k8s/bundle /work"
 if [ "$ROLE" = "control-plane" ]; then
-	REQUIRES_MOUNTS="RequiresMountsFor=/etc/ucloud-k8s/input /etc/ucloud-k8s/bundle /work /etc/ucloud-k8s/management /etc/ucloud-k8s/nodes"
-	if ! mountpoint -q /etc/ucloud-k8s/management || ! mountpoint -q /etc/ucloud-k8s/nodes; then
-		echo "[ucloud-k8s] the control plane maintenance agent requires the management and nodes mounts" >&2
+	REQUIRES_MOUNTS="RequiresMountsFor=/etc/ucloud-k8s/input /etc/ucloud-k8s/bundle /work /etc/ucloud-k8s/management /etc/ucloud-k8s/nodes /etc/ucloud-k8s/backups"
+	if ! mountpoint -q /etc/ucloud-k8s/management || ! mountpoint -q /etc/ucloud-k8s/nodes || ! mountpoint -q "$BACKUPS_DIR"; then
+		echo "[ucloud-k8s] the control plane maintenance agent requires the management, nodes and backups mounts" >&2
 		exit 1
 	fi
 fi

@@ -47,6 +47,8 @@ const (
 	managementMountPath = "/etc/ucloud-k8s/management"
 	nodesDir            = "nodes"
 	nodesMountPath      = "/etc/ucloud-k8s/nodes"
+	backupsDir          = "backups"
+	backupsMountPath    = "/etc/ucloud-k8s/backups"
 	storageDir          = "k3s-storage"
 	storageMountPath    = "/etc/ucloud-stack/k3s/storage"
 	vmDisksDir          = "vm-disks"
@@ -56,6 +58,7 @@ const (
 
 	ManagementMountPath = managementMountPath
 	NodesMountPath      = nodesMountPath
+	BackupsMountPath    = backupsMountPath
 )
 
 const (
@@ -82,7 +85,7 @@ const (
 	clusterRecordPhaseError        = "error"
 )
 
-const ScriptBundleRevision = 18
+const ScriptBundleRevision = 19
 
 func BundlePathForRelease(release K3sRelease) string {
 	return filepath.Join("bundles", strconv.Itoa(ScriptBundleRevision), SanitizeForPath(release.Release))
@@ -511,6 +514,7 @@ func clusterControlPlaneWiring(
 	attachments = append(attachments,
 		ucxsvc.StackSubtreeMount(stack, managementDir, managementMountPath, false),
 		ucxsvc.StackSubtreeMount(stack, nodesDir, nodesMountPath, false),
+		ucxsvc.StackSubtreeMount(stack, backupsDir, backupsMountPath, false),
 	)
 
 	labels = util.MapMerge(labels, customUi.Labels)
@@ -530,6 +534,7 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 	clusterEnsureDir(stack, storageDir)
 	if opts.group == GroupControlPlane {
 		clusterEnsureDir(stack, nodesDir)
+		clusterEnsureDir(stack, backupsDir)
 	}
 	if !stack.Ok {
 		return false, "could not prepare the node directories"

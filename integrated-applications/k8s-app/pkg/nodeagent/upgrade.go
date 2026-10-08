@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"ucloud.dk/iapp/k8s/pkg/backup"
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/log"
 )
@@ -32,6 +33,12 @@ const (
 	serviceWorker       = "k3s-agent.service"
 
 	etcdSnapshotName = "preupgrade"
+
+	backupSnapshotName = "backup"
+	backupPartPrefix   = ".part-"
+
+	backupWorkDeadline = 20 * time.Minute
+	backupPartStaleAge = 30 * time.Minute
 
 	workDeadline       = 20 * time.Minute
 	stopTimeout        = 60 * time.Second
@@ -735,13 +742,17 @@ func installedVersion(ctx context.Context) string {
 }
 
 func snapshotEtcd(ctx context.Context) (string, error) {
+	return snapshotEtcdNamed(ctx, etcdSnapshotName)
+}
+
+func snapshotEtcdNamed(ctx context.Context, snapshotName string) (string, error) {
 	dir := etcdSnapshotDir()
 	err := os.MkdirAll(dir, 0700)
 	if err != nil {
 		return "", err
 	}
 
-	name := fmt.Sprintf("%s-%d", etcdSnapshotName, time.Now().Unix())
+	name := fmt.Sprintf("%s-%d", snapshotName, time.Now().Unix())
 
 	output, err := exec.CommandContext(
 		ctx,
@@ -806,6 +817,361 @@ func latestSnapshot(dir string, name string) (string, error) {
 	}
 
 	return latestPath, nil
+}
+
+type backupCopyInfo struct {
+	SizeBytes int64
+	Sha256    string
+}
+
+func runBackup(ctx context.Context, trigger string, attemptUid string) (shared.NodeAgentBackupResult, error) {
+	workerCtx, cancel := context.WithTimeout(ctx, backupWorkDeadline)
+	defer cancel()
+
+	identityConfig := identitySnapshot()
+	if identityConfig.Role != shared.GroupControlPlane {
+		return shared.NodeAgentBackupResult{}, errors.New("backups can only run on a control-plane node")
+	}
+
+	stackId, identityErr := readBackupStackIdentity()
+	if identityErr != nil {
+		return shared.NodeAgentBackupResult{}, identityErr
+	}
+
+	release := installedVersion(workerCtx)
+	if release == "" {
+		release = identityConfig.K8sVersion
+	}
+	if release == "" {
+		return shared.NodeAgentBackupResult{}, errors.New("the installed Kubernetes version could not be determined")
+	}
+
+	createdAt := time.Now().UTC()
+	backupId := backup.NewId(createdAt)
+
+	_, prePruneWarnings := pruneBackups(createdAt)
+
+	partDir := filepath.Join(shared.BackupsMountPath, backupPartPrefix+shared.SanitizeForPath(attemptUid))
+
+	_ = os.RemoveAll(partDir)
+	partErr := os.MkdirAll(partDir, 0700)
+	if partErr != nil {
+		return shared.NodeAgentBackupResult{}, fmt.Errorf("could not create the partial backup directory: %s", partErr)
+	}
+	if chownErr := backupChown(partDir); chownErr != nil {
+		return shared.NodeAgentBackupResult{}, chownErr
+	}
+
+	committed := false
+	defer func() {
+		if !committed {
+			_ = os.RemoveAll(partDir)
+		}
+	}()
+
+	snapshotPath, snapshotErr := snapshotEtcdNamed(workerCtx, backupSnapshotName)
+	if snapshotErr != nil {
+		return shared.NodeAgentBackupResult{}, snapshotErr
+	}
+	defer func() {
+		_ = os.Remove(snapshotPath)
+	}()
+
+	snapshotInfo, copyErr := copyBackupFile(snapshotPath, filepath.Join(partDir, "snapshot"))
+	if copyErr != nil {
+		return shared.NodeAgentBackupResult{}, fmt.Errorf("could not copy the etcd snapshot: %s", copyErr)
+	}
+
+	credentialsDir := filepath.Join(partDir, "credentials")
+	credentialsErr := os.MkdirAll(credentialsDir, 0700)
+	if credentialsErr != nil {
+		return shared.NodeAgentBackupResult{}, fmt.Errorf("could not create the credentials directory: %s", credentialsErr)
+	}
+	if chownErr := backupChown(credentialsDir); chownErr != nil {
+		return shared.NodeAgentBackupResult{}, chownErr
+	}
+
+	serverTokenInfo, serverTokenErr := copyBackupFile(
+		filepath.Join(shared.ManagementMountPath, "tokens", "server"),
+		filepath.Join(credentialsDir, "server-token"),
+	)
+	if serverTokenErr != nil {
+		return shared.NodeAgentBackupResult{}, fmt.Errorf("could not copy the server token: %s", serverTokenErr)
+	}
+
+	agentTokenInfo, agentTokenErr := copyBackupFile(
+		filepath.Join(shared.ManagementMountPath, "tokens", "agent"),
+		filepath.Join(credentialsDir, "agent-token"),
+	)
+	if agentTokenErr != nil {
+		return shared.NodeAgentBackupResult{}, fmt.Errorf("could not copy the agent token: %s", agentTokenErr)
+	}
+
+	maintenanceErr := copyBackupDir(
+		shared.NodeAgentCoordinatorTokensDir,
+		filepath.Join(credentialsDir, "maintenance-tokens"),
+	)
+	if maintenanceErr != nil {
+		return shared.NodeAgentBackupResult{}, fmt.Errorf("could not copy the maintenance tokens: %s", maintenanceErr)
+	}
+
+	metadata := backup.Metadata{
+		SchemaRevision: backup.SchemaRevision,
+		BackupId:       backupId,
+		ClusterId:      stackId,
+		StackId:        stackId,
+		Release:        release,
+		CreatedAt:      createdAt,
+		CreatedByNode:  identityConfig.NodeName,
+		Trigger:        trigger,
+		Snapshot: backup.SnapshotInfo{
+			File:      "snapshot",
+			SizeBytes: snapshotInfo.SizeBytes,
+			Sha256:    snapshotInfo.Sha256,
+		},
+		Credentials: backup.CredentialsInfo{
+			ServerTokenSha256: serverTokenInfo.Sha256,
+			AgentTokenSha256:  agentTokenInfo.Sha256,
+		},
+		Restore: backup.RestoreInfo{
+			ClusterResetRequired: true,
+		},
+	}
+
+	metadataData, metadataErr := json.MarshalIndent(metadata, "", "  ")
+	if metadataErr != nil {
+		return shared.NodeAgentBackupResult{}, metadataErr
+	}
+
+	metadataPath := filepath.Join(partDir, "metadata.json")
+	writeErr := writeFileAtomic(metadataPath, metadataData, 0600)
+	if writeErr != nil {
+		return shared.NodeAgentBackupResult{}, fmt.Errorf("could not write the backup metadata: %s", writeErr)
+	}
+	if chownErr := backupChown(metadataPath); chownErr != nil {
+		return shared.NodeAgentBackupResult{}, chownErr
+	}
+
+	dirErr := syncDir(partDir)
+	if dirErr != nil {
+		return shared.NodeAgentBackupResult{}, fmt.Errorf("could not synchronize the backup directory: %s", dirErr)
+	}
+
+	finalDir := filepath.Join(shared.BackupsMountPath, backupId)
+	renameErr := os.Rename(partDir, finalDir)
+	if renameErr != nil {
+		return shared.NodeAgentBackupResult{}, fmt.Errorf("could not commit the backup: %s", renameErr)
+	}
+	committed = true
+
+	if syncErr := syncDir(shared.BackupsMountPath); syncErr != nil {
+		log.Warn("k8s-app node agent: could not synchronize the backups directory: %s", syncErr)
+	}
+
+	retained, warnings := pruneBackups(time.Now().UTC())
+	warnings = append(prePruneWarnings, warnings...)
+
+	return shared.NodeAgentBackupResult{
+		Metadata:      metadata,
+		Retained:      retained,
+		PruneWarnings: warnings,
+	}, nil
+}
+
+func readBackupStackIdentity() (string, error) {
+	data, err := os.ReadFile(filepath.Join(inputDir, "stack-identity.json"))
+	if err != nil {
+		return "", fmt.Errorf("could not read the stack identity: %s", err)
+	}
+
+	var identity struct {
+		StackId string `json:"stackId"`
+	}
+	err = json.Unmarshal(data, &identity)
+	if err != nil {
+		return "", fmt.Errorf("the stack identity is invalid: %s", err)
+	}
+
+	stackId := strings.TrimSpace(identity.StackId)
+	if stackId == "" {
+		return "", errors.New("the stack identity has no stack id")
+	}
+	return stackId, nil
+}
+
+func copyBackupFile(source string, destination string) (backupCopyInfo, error) {
+	sourceFile, err := os.Open(source)
+	if err != nil {
+		return backupCopyInfo{}, err
+	}
+	defer sourceFile.Close()
+
+	destinationFile, err := os.OpenFile(destination, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	if err != nil {
+		return backupCopyInfo{}, err
+	}
+
+	hasher := sha256.New()
+	written, err := io.Copy(io.MultiWriter(destinationFile, hasher), sourceFile)
+	if err == nil && written == 0 {
+		err = errors.New("the source file is empty")
+	}
+	if err == nil {
+		err = destinationFile.Sync()
+	}
+	if closeErr := destinationFile.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		_ = os.Remove(destination)
+		return backupCopyInfo{}, err
+	}
+
+	chownErr := backupChown(destination)
+	if chownErr != nil {
+		return backupCopyInfo{}, chownErr
+	}
+
+	return backupCopyInfo{
+		SizeBytes: written,
+		Sha256:    hex.EncodeToString(hasher.Sum(nil)),
+	}, nil
+}
+
+func copyBackupDir(sourceDir string, destinationDir string) error {
+	entries, err := os.ReadDir(sourceDir)
+	if err != nil {
+		return err
+	}
+
+	err = os.MkdirAll(destinationDir, 0700)
+	if err != nil {
+		return err
+	}
+	if chownErr := backupChown(destinationDir); chownErr != nil {
+		return chownErr
+	}
+
+	for _, entry := range entries {
+		if !entry.Type().IsRegular() {
+			continue
+		}
+
+		_, copyErr := copyBackupFile(
+			filepath.Join(sourceDir, entry.Name()),
+			filepath.Join(destinationDir, entry.Name()),
+		)
+		if copyErr != nil {
+			return copyErr
+		}
+	}
+
+	return syncDir(destinationDir)
+}
+
+func backupChown(path string) error {
+	err := os.Chown(path, serviceUid, serviceGid)
+	if err != nil {
+		return fmt.Errorf("could not assign the backup data to the cluster service: %s", err)
+	}
+	return nil
+}
+
+func pruneBackups(now time.Time) ([]backup.BackupInfo, []string) {
+	var warnings []string
+
+	entries, err := os.ReadDir(shared.BackupsMountPath)
+	if err != nil {
+		return nil, []string{fmt.Sprintf("could not list the backups: %s", err)}
+	}
+
+	var ids []string
+	for _, entry := range entries {
+		entryName := entry.Name()
+		if !entry.IsDir() {
+			continue
+		}
+		if strings.HasPrefix(entryName, backupPartPrefix) {
+			info, infoErr := entry.Info()
+			if infoErr != nil {
+				warnings = append(warnings, fmt.Sprintf("could not inspect the partial backup %s: %s", entryName, infoErr))
+				continue
+			}
+			if now.Sub(info.ModTime()) < backupPartStaleAge {
+				continue
+			}
+			removeErr := os.RemoveAll(filepath.Join(shared.BackupsMountPath, entryName))
+			if removeErr != nil {
+				warnings = append(warnings, fmt.Sprintf("could not remove the partial backup %s: %s", entryName, removeErr))
+			}
+			continue
+		}
+		if _, ok := backup.ParseId(entryName); ok {
+			ids = append(ids, entryName)
+		}
+	}
+
+	deletes, retentionErr := backup.RetentionDeleteIds(ids, now)
+	if retentionErr != nil {
+		return retainedBackups(ids), append(warnings, fmt.Sprintf("could not compute the retention: %s", retentionErr))
+	}
+
+	deleted := map[string]bool{}
+	for _, id := range deletes {
+		removeErr := os.RemoveAll(filepath.Join(shared.BackupsMountPath, id))
+		if removeErr != nil {
+			warnings = append(warnings, fmt.Sprintf("could not delete the backup %s: %s", id, removeErr))
+			continue
+		}
+		deleted[id] = true
+	}
+
+	kept := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if !deleted[id] {
+			kept = append(kept, id)
+		}
+	}
+
+	return retainedBackups(kept), warnings
+}
+
+func retainedBackups(ids []string) []backup.BackupInfo {
+	retained := make([]backup.BackupInfo, 0, len(ids))
+	for i := len(ids) - 1; i >= 0; i-- {
+		id := ids[i]
+		info := backup.BackupInfo{Id: id}
+		if createdAt, ok := backup.ParseId(id); ok {
+			info.CreatedAt = createdAt
+		}
+		metadata, err := readBackupMetadata(filepath.Join(shared.BackupsMountPath, id))
+		if err == nil {
+			info.Release = metadata.Release
+			info.SizeBytes = metadata.Snapshot.SizeBytes
+			info.Sha256 = metadata.Snapshot.Sha256
+			info.Trigger = metadata.Trigger
+			info.CreatedByNode = metadata.CreatedByNode
+		}
+		retained = append(retained, info)
+	}
+	return retained
+}
+
+func readBackupMetadata(dir string) (backup.Metadata, error) {
+	data, err := os.ReadFile(filepath.Join(dir, "metadata.json"))
+	if err != nil {
+		return backup.Metadata{}, err
+	}
+
+	var metadata backup.Metadata
+	err = json.Unmarshal(data, &metadata)
+	if err != nil {
+		return backup.Metadata{}, err
+	}
+	if metadata.SchemaRevision != backup.SchemaRevision {
+		return backup.Metadata{}, errors.New("the backup metadata was written by an incompatible version of the application")
+	}
+	return metadata, nil
 }
 
 func backupBinary(binaryPath string, release string) (string, error) {

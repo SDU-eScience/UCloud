@@ -66,7 +66,7 @@ ROLE="$(node_field role)"
 
 REQUIRES_MOUNTS="RequiresMountsFor=/etc/ucloud-k8s/input /etc/ucloud-k8s/bundle /work"
 if [ "$ROLE" = "control-plane" ]; then
-	REQUIRES_MOUNTS="RequiresMountsFor=/etc/ucloud-k8s/input /etc/ucloud-k8s/bundle /work /etc/ucloud-k8s/management /etc/ucloud-k8s/nodes"
+	REQUIRES_MOUNTS="RequiresMountsFor=/etc/ucloud-k8s/input /etc/ucloud-k8s/bundle /work /etc/ucloud-k8s/management /etc/ucloud-k8s/nodes /etc/ucloud-k8s/backups"
 fi
 
 cat > /etc/systemd/system/ucloud-k8s-maintenance-agent-setup.service <<EOF

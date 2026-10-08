@@ -154,11 +154,30 @@ func stacksApplyAcl(entity orcapi.Resource) *util.HttpError {
 	return result
 }
 
+type internalStack struct {
+	InstanceId string
+	Name       string
+}
+
+func stackLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource) {
+	for _, id := range ids {
+		r, ok := resources[ResourceId(id)]
+		if !ok {
+			continue
+		}
+
+		r.Extra = &internalStack{
+			InstanceId: r.BaseSpec.Labels[orcapi.ResourceLabelStackInstance],
+			Name:       r.BaseSpec.Labels[orcapi.ResourceLabelStackName],
+		}
+	}
+}
+
 func initStacks() {
 	InitResourceType(
 		stackType,
 		resourceTypeCreateWithoutAdmin,
-		func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource) {},
+		stackLoad,
 		func(batch *db.Batch, resource *resource) {},
 		func(resource orcapi.Resource, specification orcapi.ResourceSpecification, extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
 			return orcapi.Stack{

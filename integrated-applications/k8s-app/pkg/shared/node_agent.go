@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/version"
+
+	"ucloud.dk/iapp/k8s/pkg/backup"
 )
 
 const NodeAgentPhaseIdle = "idle"
@@ -40,6 +42,8 @@ const NodeAgentPort = 9444
 
 const nodeAgentClientTimeout = 10 * time.Second
 
+const nodeAgentBackupClientTimeout = 25 * time.Minute
+
 const NodeAgentTokenHeader = "X-Ucloud-Maintenance-Token"
 
 const NodeAgentOperationHeader = "X-Ucloud-Maintenance-Operation"
@@ -52,6 +56,12 @@ type NodeAgentStatus struct {
 	Phase     string    `json:"phase"`
 	Error     string    `json:"error"`
 	UpdatedAt time.Time `json:"updatedAt"`
+}
+
+type NodeAgentBackupResult struct {
+	Metadata      backup.Metadata     `json:"metadata"`
+	Retained      []backup.BackupInfo `json:"retained,omitempty"`
+	PruneWarnings []string            `json:"pruneWarnings,omitempty"`
 }
 
 func NodeAgentPhaseActive(phase string) bool {
@@ -126,6 +136,39 @@ func NodeAgentClientUpgrade(ctx context.Context, nodeName string, nodeIp string,
 	return nodeAgentClientStatusCall(ctx, nodeName, nodeIp, http.MethodPost, endpoint, string(body), operationUid)
 }
 
+func NodeAgentClientBackup(ctx context.Context, nodeName string, nodeIp string, trigger string, operationUid string) (NodeAgentBackupResult, error) {
+	body, err := json.Marshal(struct {
+		Trigger string `json:"trigger"`
+	}{Trigger: trigger})
+	if err != nil {
+		return NodeAgentBackupResult{}, err
+	}
+
+	if err := nodeAgentClientValidateIp(nodeIp); err != nil {
+		return NodeAgentBackupResult{}, err
+	}
+
+	responseBody, err := nodeAgentClientCallTimeout(
+		ctx,
+		http.MethodPost,
+		nodeAgentClientUrl(nodeIp, "/backup"),
+		string(body),
+		nodeName,
+		operationUid,
+		nodeAgentBackupClientTimeout,
+	)
+	if err != nil {
+		return NodeAgentBackupResult{}, err
+	}
+
+	var result NodeAgentBackupResult
+	if err := json.Unmarshal(responseBody, &result); err != nil {
+		return NodeAgentBackupResult{}, fmt.Errorf("could not parse the node agent response: %s", err)
+	}
+
+	return result, nil
+}
+
 func NodeAgentClientAppendLog(ctx context.Context, nodeName string, nodeIp string, lines []string, operationUid string) error {
 	if len(lines) == 0 {
 		return nil
@@ -182,12 +225,24 @@ func nodeAgentClientStatusCall(
 }
 
 func nodeAgentClientCall(ctx context.Context, method string, url string, body string, nodeName string, operationUid string) (json.RawMessage, error) {
+	return nodeAgentClientCallTimeout(ctx, method, url, body, nodeName, operationUid, nodeAgentClientTimeout)
+}
+
+func nodeAgentClientCallTimeout(
+	ctx context.Context,
+	method string,
+	url string,
+	body string,
+	nodeName string,
+	operationUid string,
+	timeout time.Duration,
+) (json.RawMessage, error) {
 	token, err := nodeAgentCoordinatorToken(nodeName)
 	if err != nil {
 		return nil, err
 	}
 
-	requestCtx, cancel := context.WithTimeout(ctx, nodeAgentClientTimeout)
+	requestCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	var requestBody io.Reader
@@ -205,7 +260,7 @@ func nodeAgentClientCall(ctx context.Context, method string, url string, body st
 		request.Header.Set(NodeAgentOperationHeader, operationUid)
 	}
 
-	client := &http.Client{Timeout: nodeAgentClientTimeout}
+	client := &http.Client{Timeout: timeout}
 	defer client.CloseIdleConnections()
 
 	response, err := client.Do(request)

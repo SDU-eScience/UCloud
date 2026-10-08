@@ -66,6 +66,7 @@ import (
 	"sync"
 	"time"
 
+	"ucloud.dk/iapp/k8s/pkg/backup"
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/log"
 )
@@ -105,12 +106,14 @@ var globals struct {
 	Identity Config
 
 	CommandMu sync.Mutex
+	BackupMu  sync.Mutex
 }
 
 type Config struct {
-	NodeName  string
-	IpAddress string
-	Role      string
+	NodeName   string
+	IpAddress  string
+	Role       string
+	K8sVersion string
 }
 
 type nodeFile struct {
@@ -118,6 +121,7 @@ type nodeFile struct {
 	IpAddress   string `json:"ipAddress"`
 	Role        string `json:"role"`
 	FirstServer bool   `json:"firstServer"`
+	K8sVersion  string `json:"k8sVersion"`
 }
 
 func identitySnapshot() Config {
@@ -151,6 +155,7 @@ func Serve(ctx context.Context) error {
 	mux.HandleFunc("/status", handleStatus)
 	mux.HandleFunc("/upgrade", handleUpgrade)
 	mux.HandleFunc("/retry", handleRetry)
+	mux.HandleFunc("/backup", handleBackup)
 	mux.HandleFunc("/log", handleLog)
 	mux.HandleFunc("/log/reset", handleLogReset)
 
@@ -198,9 +203,10 @@ func Identity(ctx context.Context) (Config, error) {
 	}
 
 	return Config{
-		NodeName:  nodeJson.Hostname,
-		IpAddress: nodeJson.IpAddress,
-		Role:      nodeJson.Role,
+		NodeName:   nodeJson.Hostname,
+		IpAddress:  nodeJson.IpAddress,
+		Role:       nodeJson.Role,
+		K8sVersion: nodeJson.K8sVersion,
 	}, nil
 }
 
@@ -461,6 +467,83 @@ func decodeRelease(writer http.ResponseWriter, request *http.Request) (string, b
 	return parsed.Release, true
 }
 
+func handleBackup(writer http.ResponseWriter, request *http.Request) {
+	if !authorizePeer(writer, request) {
+		return
+	}
+	if request.Method != http.MethodPost {
+		writeError(writer, http.StatusMethodNotAllowed, "this endpoint only accepts POST")
+		return
+	}
+
+	trigger, ok := decodeBackupTrigger(writer, request)
+	if !ok {
+		return
+	}
+
+	attemptUid, ok := readCommandAuthorization(writer, request)
+	if !ok {
+		return
+	}
+
+	controller := http.NewResponseController(writer)
+	_ = controller.SetWriteDeadline(time.Now().Add(backupWorkDeadline + writeTimeout))
+
+	if !globals.BackupMu.TryLock() {
+		writeError(writer, http.StatusConflict, "a backup is already running")
+		return
+	}
+	defer globals.BackupMu.Unlock()
+
+	state := stateLoad()
+	if state.NeedsStateRecovery {
+		writeError(writer, http.StatusInternalServerError, "the upgrade state of the node is unreadable")
+		return
+	}
+	if shared.NodeAgentPhaseActive(state.Phase) {
+		writeError(writer, http.StatusConflict, "an upgrade is running on the node")
+		return
+	}
+
+	result, err := runBackup(request.Context(), trigger, attemptUid)
+	if err != nil {
+		log.Warn("k8s-app node agent: the backup failed: %s", err)
+		writeError(writer, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJson(writer, http.StatusOK, result)
+}
+
+func decodeBackupTrigger(writer http.ResponseWriter, request *http.Request) (string, bool) {
+	body := request.Body
+	if request.ContentLength > maxRequestBody {
+		writeError(writer, http.StatusRequestEntityTooLarge, "the request body is too large")
+		return "", false
+	}
+	body = http.MaxBytesReader(writer, body, maxRequestBody)
+
+	var parsed struct {
+		Trigger string `json:"trigger"`
+	}
+	decoder := json.NewDecoder(body)
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&parsed)
+	if err != nil {
+		writeError(writer, http.StatusBadRequest, fmt.Sprintf("invalid request body: %s", err))
+		return "", false
+	}
+	if decoder.Decode(&struct{}{}) != io.EOF {
+		writeError(writer, http.StatusBadRequest, "the request body must contain a single JSON object")
+		return "", false
+	}
+	if parsed.Trigger != backup.TriggerScheduled && parsed.Trigger != backup.TriggerManual {
+		writeError(writer, http.StatusBadRequest, fmt.Sprintf("unknown backup trigger: %s", parsed.Trigger))
+		return "", false
+	}
+	return parsed.Trigger, true
+}
+
 func startUpgrade(writer http.ResponseWriter, release string, state upgradeState, operationUid string) {
 	current := stateLoad()
 	stateChanged := current.Phase != state.Phase || current.Release != state.Release || !current.UpdatedAt.Equal(state.UpdatedAt)
@@ -570,6 +653,12 @@ func writeError(writer http.ResponseWriter, statusCode int, message string) {
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(statusCode)
 	_ = json.NewEncoder(writer).Encode(map[string]string{"error": message})
+}
+
+func writeJson(writer http.ResponseWriter, statusCode int, value any) {
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(statusCode)
+	_ = json.NewEncoder(writer).Encode(value)
 }
 
 // Command ownership

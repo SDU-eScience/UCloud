@@ -91,6 +91,10 @@ type stackUiApp struct {
 	RollingUpgradeGroups               []rollingUpgradeGroup
 	RollingUpgradeBusy                 bool
 
+	BackupsBusy      bool
+	BackupsBlocked   bool
+	backupsRequester string `ucx:"-"`
+
 	maintenanceNodeName        string `ucx:"-"`
 	maintenanceNodeUid         string `ucx:"-"`
 	maintenanceRetryOptionsFor string `ucx:"-"`
@@ -147,6 +151,9 @@ func (app *stackUiApp) OnSysHello(payload string) {
 	}
 
 	app.Stack = stack
+	if request.Job.Owner.CreatedBy != "" {
+		app.backupsRequester = request.Job.Owner.CreatedBy
+	}
 
 	if app.ActiveType == "" {
 		app.ActiveType = navHomeId
@@ -344,6 +351,8 @@ func (app *stackUiApp) UserInterface() ucx.UiNode {
 	switch {
 	case app.RoutePath == "rolling-upgrade":
 		children = append(children, rollingUpgradePage(app)...)
+	case app.RoutePath == "backups":
+		children = append(children, backupPage(app)...)
 	case app.RoutePath == "control/new-pool":
 		children = append(children, app.pageAddPool()...)
 	case strings.HasPrefix(app.RoutePath, "maintenance"):
@@ -632,18 +641,19 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 		),
 	)
 
+	resourcesMetric := []ucx.UiNode{}
 	if stackInfo != nil {
-		resourcesMetric := app.homeMetric("Resources",
+		resourcesMetric = app.homeMetric("Resources",
 			ucx.LinkButton("homeShowResources", fmt.Sprintf("%d", stackInfo.ResourceCount), ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 				ucxsvc.StackShowResources(app)
 			}),
 		)
-		children = append(children,
-			app.homeMetricsRow(
-				resourcesMetric,
-			),
-		)
 	}
+	children = append(children, app.homeMetricsRow(
+		resourcesMetric,
+		app.homeBackupsMetric(),
+		[]ucx.UiNode{},
+	))
 
 	return children
 }
@@ -1743,7 +1753,7 @@ func (app *stackUiApp) provisioningKickNow() {
 func (app *stackUiApp) onMaintenanceRoute() bool {
 	app.mu.Lock()
 	defer app.mu.Unlock()
-	return app.RoutePath == "rolling-upgrade" || app.RoutePath == "maintenance" || strings.HasPrefix(app.RoutePath, "maintenance/")
+	return app.RoutePath == "rolling-upgrade" || app.RoutePath == "backups" || app.RoutePath == "maintenance" || strings.HasPrefix(app.RoutePath, "maintenance/")
 }
 
 func (app *stackUiApp) provisioningWatcher(session *ucx.Session) {
