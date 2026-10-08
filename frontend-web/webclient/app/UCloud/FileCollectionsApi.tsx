@@ -27,14 +27,22 @@ import {DriveChange} from "@/ui-components/Sidebar";
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
+export function isApplicationDrive(drive: FileCollection): boolean {
+    return (drive.specification.labels?.["ucloud.dk/stack-instance"] ?? "").trim() !== "";
+}
+
 export type FileCollectionUpdate = ResourceUpdate;
 export interface FileCollectionStatus extends ResourceStatus {
     preferredDrive?: boolean | null;
 }
 export interface FileCollectionSpecification extends ResourceSpecification {
     title: string;
+    labels?: Record<string, string>;
 }
-export type FileCollectionFlags = ResourceIncludeFlags & {filterMemberFiles?: string};
+export type FileCollectionFlags = ResourceIncludeFlags & {
+    filterMemberFiles?: string;
+    filterApplicationFiles?: "all" | "ordinary" | "application";
+};
 export interface FileCollectionSupport extends ProductSupport {
     stats: {
         sizeInBytes?: boolean;
@@ -130,6 +138,7 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         if (permissions) {
             const enabled = permissions.enabled;
             permissions.enabled = (selected, cb, all) => {
+                if (selected.some(isApplicationDrive)) return false;
                 const isEnabled = enabled(selected, cb, all);
                 if (isEnabled !== true) return isEnabled;
                 const support = findSupport(cb.supportByProvider, selected[0])?.support as FileCollectionSupport;

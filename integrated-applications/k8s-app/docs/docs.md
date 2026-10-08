@@ -27,6 +27,14 @@ dashboard; if that node stops, another control plane node takes over.
 
 ### State and file layout
 
+New clusters store their backing files on a dedicated project-owned drive, created through the normal drive API.
+The drive uses the provider's default creatable storage product and has the `ucloud.dk/stack-instance` label.
+Project members can create these labeled drives without project-admin rights. Unlabeled project drives still require those rights.
+Existing clusters keep their current state folder. This change does not move their files.
+
+The drive browser groups these drives under the virtual `Application drives` directory.
+The file dialog groups them under the same name. Real file paths and drive ACLs stay unchanged.
+
 The stack folder is split into per-purpose subtrees. Each node mounts only the subtrees it needs:
 
 - `management/` — cluster-wide credentials and artifacts: `kubeconfig` (public, downloaded

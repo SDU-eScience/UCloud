@@ -199,6 +199,7 @@ func ucxOnConnect(conn *ws.Conn) {
 	mu := sync.Mutex{}
 	stackToDeletionRequest := map[string]int{}
 	confirmedStacks := map[string]bool{}
+	stackStateFolders := map[string]string{}
 
 	renewStackLease := func(instanceId string) error {
 		mu.Lock()
@@ -253,20 +254,32 @@ func ucxOnConnect(conn *ws.Conn) {
 
 		instanceId := request.StackId
 
-		internalPathMemberFiles, drive, err := filesystem.InitializeMemberFiles(info.Owner.CreatedBy, info.Owner.Project)
-		if err != nil {
-			return ucxapi.Stack{}, err.AsError()
-		}
-
-		instanceFolder := filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
-		err = filesystem.DoCreateFolder(instanceFolder)
-		if err != nil {
-			return ucxapi.Stack{}, err.AsError()
-		}
-
-		ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, instanceFolder)
-		if !ok {
-			return ucxapi.Stack{}, fmt.Errorf("internal error")
+		ucloudPath := strings.TrimSpace(request.StateFolder)
+		if ucloudPath != "" {
+			driveId, ok := orcapi.DriveIdFromUCloudPath(ucloudPath)
+			if !ok || ucloudPath != "/"+driveId {
+				return ucxapi.Stack{}, fmt.Errorf("invalid stack state drive")
+			}
+			drive, ok := ctrl.DriveRetrieve(driveId)
+			if !ok || drive.Owner.Project != info.Owner.Project ||
+				drive.Specification.Labels[orcapi.ResourceLabelStackInstance] != instanceId ||
+				!ctrl.DriveCanUse(info.Owner, driveId, false) {
+				return ucxapi.Stack{}, fmt.Errorf("stack state drive is not accessible")
+			}
+		} else {
+			internalPathMemberFiles, drive, err := filesystem.InitializeMemberFiles(info.Owner.CreatedBy, info.Owner.Project)
+			if err != nil {
+				return ucxapi.Stack{}, err.AsError()
+			}
+			instanceFolder := filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
+			if err = filesystem.DoCreateFolder(instanceFolder); err != nil {
+				return ucxapi.Stack{}, err.AsError()
+			}
+			var ok bool
+			ucloudPath, ok = filesystem.InternalToUCloudWithDrive(drive, instanceFolder)
+			if !ok {
+				return ucxapi.Stack{}, fmt.Errorf("internal error")
+			}
 		}
 
 		id, err := orcapi.StacksControlRequestDeletion.Invoke(orcapi.StacksControlRequestDeletionRequest{
@@ -281,6 +294,7 @@ func ucxOnConnect(conn *ws.Conn) {
 
 		mu.Lock()
 		stackToDeletionRequest[instanceId] = id.Id
+		stackStateFolders[instanceId] = ucloudPath
 		mu.Unlock()
 
 		return ucxapi.Stack{
@@ -300,7 +314,10 @@ func ucxOnConnect(conn *ws.Conn) {
 			return util.Empty{}, err
 		}
 
-		return ucxStackDataWrite(info.Owner, request)
+		mu.Lock()
+		stateFolder := stackStateFolders[request.InstanceId]
+		mu.Unlock()
+		return ucxStackDataWrite(info.Owner, request, stateFolder)
 	})
 
 	ucxapi.StackDataAppend.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackDataAppendRequest) (util.Empty, error) {
@@ -308,7 +325,10 @@ func ucxOnConnect(conn *ws.Conn) {
 			return util.Empty{}, err
 		}
 
-		return ucxStackDataAppend(info.Owner, request)
+		mu.Lock()
+		stateFolder := stackStateFolders[request.InstanceId]
+		mu.Unlock()
+		return ucxStackDataAppend(info.Owner, request, stateFolder)
 	})
 
 	ucxapi.StackConfirm.HandlerProxy(proxy, func(ctx context.Context, request fnd.FindByStringId) (util.Empty, error) {
@@ -415,7 +435,7 @@ func ucxOnConnectJob(conn *ws.Conn) {
 			return util.Empty{}, fmt.Errorf("invalid stack instance")
 		}
 
-		return ucxStackDataWrite(info.Job.Owner, request)
+		return ucxStackDataWrite(info.Job.Owner, request, info.Job.Specification.Labels[orcapi.ResourceLabelStackStateFolder])
 	})
 
 	ucxapi.StackDataAppend.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackDataAppendRequest) (util.Empty, error) {
@@ -428,7 +448,7 @@ func ucxOnConnectJob(conn *ws.Conn) {
 			return util.Empty{}, fmt.Errorf("invalid stack instance")
 		}
 
-		return ucxStackDataAppend(info.Job.Owner, request)
+		return ucxStackDataAppend(info.Job.Owner, request, info.Job.Specification.Labels[orcapi.ResourceLabelStackStateFolder])
 	})
 
 	ucxapi.IM.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.Message) (ucxapi.Message, error) {
@@ -472,15 +492,15 @@ func ucxResolveJobUpstream(job orcapi.Job, port int) (string, error) {
 	return containers.ResolveUcxJobSessionUpstream(&job, port)
 }
 
-func ucxStackDataWrite(owner orcapi.ResourceOwner, request ucxapi.StackDataWriteRequest) (util.Empty, error) {
-	return ucxStackDataWriteBytes(owner, request.InstanceId, request.Path, []byte(request.Data), request.Perm, unix.O_TRUNC, request.Atomic)
+func ucxStackDataWrite(owner orcapi.ResourceOwner, request ucxapi.StackDataWriteRequest, stateFolder string) (util.Empty, error) {
+	return ucxStackDataWriteBytes(owner, request.InstanceId, stateFolder, request.Path, []byte(request.Data), request.Perm, unix.O_TRUNC, request.Atomic)
 }
 
-func ucxStackDataAppend(owner orcapi.ResourceOwner, request ucxapi.StackDataAppendRequest) (util.Empty, error) {
-	return ucxStackDataWriteBytes(owner, request.InstanceId, request.Path, request.Data, request.Perm, unix.O_APPEND, false)
+func ucxStackDataAppend(owner orcapi.ResourceOwner, request ucxapi.StackDataAppendRequest, stateFolder string) (util.Empty, error) {
+	return ucxStackDataWriteBytes(owner, request.InstanceId, stateFolder, request.Path, request.Data, request.Perm, unix.O_APPEND, false)
 }
 
-func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, path string, data []byte, perm uint32, writeFlag int, atomicWrite bool) (util.Empty, error) {
+func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, stateFolder string, path string, data []byte, perm uint32, writeFlag int, atomicWrite bool) (util.Empty, error) {
 	if atomicWrite && writeFlag != unix.O_TRUNC {
 		return util.Empty{}, fmt.Errorf("atomic write is not supported for append")
 	}
@@ -493,14 +513,24 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, path 
 		return util.Empty{}, fmt.Errorf("input data is too large")
 	}
 
-	internalPathMemberFiles, _, err := filesystem.InitializeMemberFiles(owner.CreatedBy, owner.Project)
-	if err != nil {
-		return util.Empty{}, err.AsError()
+	requestedPath := ""
+	if stateFolder != "" {
+		driveId, ok := orcapi.DriveIdFromUCloudPath(stateFolder)
+		if !ok || !ctrl.DriveCanUse(owner, driveId, false) {
+			return util.Empty{}, fmt.Errorf("stack state drive is not accessible")
+		}
+		requestedPath, ok, _ = filesystem.UCloudToInternal(stateFolder)
+		if !ok {
+			return util.Empty{}, fmt.Errorf("invalid stack state folder")
+		}
+	} else {
+		internalPathMemberFiles, _, err := filesystem.InitializeMemberFiles(owner.CreatedBy, owner.Project)
+		if err != nil {
+			return util.Empty{}, err.AsError()
+		}
+		requestedPath = filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
 	}
-
-	requestedPath := filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
-	err = filesystem.DoCreateFolder(requestedPath)
-	if err != nil {
+	if err := filesystem.DoCreateFolder(requestedPath); err != nil {
 		return util.Empty{}, err.AsError()
 	}
 
@@ -519,7 +549,7 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, path 
 	}
 
 	parentPath := util.Parent(requestedPath)
-	if err = filesystem.DoCreateFolder(parentPath); err != nil {
+	if err := filesystem.DoCreateFolder(parentPath); err != nil {
 		return util.Empty{}, err.AsError()
 	}
 

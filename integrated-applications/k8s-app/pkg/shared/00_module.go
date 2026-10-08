@@ -245,7 +245,7 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		return &ucxsvc.Stack{}, false
 	}
 
-	stack, ok := ucxsvc.StackCreate(app, stackId, "Kubernetes")
+	stack, ok := ucxsvc.StackCreateWithDrive(app, stackId, "Kubernetes")
 	if !ok {
 		return stack, false
 	}

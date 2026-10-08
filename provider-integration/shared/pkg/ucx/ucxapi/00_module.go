@@ -122,8 +122,9 @@ var JobsRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.J
 // =====================================================================================================================
 
 type StackCreateRequest struct {
-	StackType string
-	StackId   string
+	StackType   string
+	StackId     string
+	StateFolder string
 }
 
 type Stack struct {

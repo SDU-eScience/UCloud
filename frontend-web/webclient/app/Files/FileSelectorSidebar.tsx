@@ -1,7 +1,7 @@
 import * as React from "react";
 import {callAPI as callAPIBase} from "@/Authentication/DataHook";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {FileCollection, api as FileCollectionsApi} from "@/UCloud/FileCollectionsApi";
+import {FileCollection, api as FileCollectionsApi, isApplicationDrive} from "@/UCloud/FileCollectionsApi";
 import FilesApi from "@/UCloud/FilesApi";
 import {UFile} from "@/UCloud/UFile";
 import {fetchProjects} from "@/Project/ProjectSwitcher";
@@ -23,7 +23,7 @@ import {ThemeColor} from "@/ui-components/theme";
 export type FileTreeResourceNode = {
     id: string;
     title: string;
-    kind: "favorites" | "project" | "member-files" | "provider" | "drive" | "directory" | "file" | "placeholder";
+    kind: "favorites" | "project" | "member-files" | "application-drives" | "provider" | "drive" | "directory" | "file" | "placeholder";
     project?: string;
     provider?: string;
     path?: string;
@@ -159,24 +159,36 @@ export function FileSelectorSidebar({tree, initialPath, initialProject, addition
         if (existing) return existing;
         const promise = (async () => {
             if (node.kind === "project") {
-                const request = (filterMemberFiles: string) => callAPI(FileCollectionsApi.browse({
+                const request = (filterMemberFiles: string) => fetchAll<FileCollection>(next => callAPI(FileCollectionsApi.browse({
                     itemsPerPage: 250,
                     ...additionalFilters,
                     filterMemberFiles,
-                }), node.project);
-                const [allDrives, memberDrives] = await Promise.all([request("all"), node.project ? request("true") : Promise.resolve({items: []})]);
-                const memberIds = new Set(memberDrives.items.map(drive => drive.id));
-                const ownDrives = allDrives.items.filter(drive => !memberIds.has(drive.id));
-                const providers = new Set(allDrives.items.map(drive => drive.specification.product.provider));
+                    next,
+                }), node.project));
+                const [allDrives, memberDrives] = await Promise.all([request("all"), node.project ? request("true") : Promise.resolve([])]);
+                const memberIds = new Set(memberDrives.map(drive => drive.id));
+                const applicationDrives = allDrives.filter(isApplicationDrive);
+                const ownDrives = allDrives.filter(drive => !memberIds.has(drive.id) && !isApplicationDrive(drive));
+                const providers = new Set(allDrives.map(drive => drive.specification.product.provider));
                 const driveNodes = makeDriveNodes(ownDrives, node.project, providers.size > 1, node.id);
-                const children = memberDrives.items.length === 0 ? driveNodes : [{
+                const children: FileTreeResourceNode[] = [...driveNodes];
+                if (applicationDrives.length > 0) children.unshift({
+                    id: `${node.id}:applications`,
+                    title: "Application drives",
+                    kind: "application-drives",
+                    project: node.project,
+                    children: makeDriveNodes(applicationDrives, node.project, providers.size > 1, `${node.id}:applications`),
+                    loaded: true,
+                });
+                const ordinaryMemberDrives = memberDrives.filter(drive => !isApplicationDrive(drive));
+                if (ordinaryMemberDrives.length > 0) children.unshift({
                     id: `${node.id}:members`,
                     title: "Member files",
                     kind: "member-files" as const,
                     project: node.project,
-                    children: makeDriveNodes(memberDrives.items, node.project, providers.size > 1, `${node.id}:members`),
+                    children: makeDriveNodes(ordinaryMemberDrives, node.project, providers.size > 1, `${node.id}:members`),
                     loaded: true,
-                }, ...driveNodes];
+                });
                 replaceNode(node.id, current => ({...current, children, loaded: true}));
                 return {...node, children, loaded: true};
             } else if ((node.kind === "drive" || node.kind === "directory") && node.path) {
@@ -406,6 +418,7 @@ function iconForNode(node: FileTreeResourceNode): IconName {
         case "favorites": return "starFilled";
         case "project": return node.id === "project:workspace" ? "heroUser" : "heroUserGroup";
         case "member-files": return "heroUsers";
+        case "application-drives": return "heroFolder";
         case "drive": return "ftFileSystem";
         default: return "ftFolder";
     }

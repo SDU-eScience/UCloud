@@ -169,6 +169,14 @@ func stackFindMountPath(job orcapi.Job) string {
 }
 
 func StackCreate(app ucx.Application, id string, stackType string) (*Stack, bool) {
+	return stackCreate(app, id, stackType, false)
+}
+
+func StackCreateWithDrive(app ucx.Application, id string, stackType string) (*Stack, bool) {
+	return stackCreate(app, id, stackType, true)
+}
+
+func stackCreate(app ucx.Application, id string, stackType string, createDrive bool) (*Stack, bool) {
 	session := *app.Session()
 	ok, err := ucxapi.StackAvailable.Invoke(session, fndapi.FindByStringId{Id: id})
 	if err != nil {
@@ -178,7 +186,42 @@ func StackCreate(app ucx.Application, id string, stackType string) (*Stack, bool
 		UiSendFailure(app, "An application stack with this name already exists, try another.")
 		return &Stack{}, false
 	} else {
-		stack, err := ucxapi.StackCreate.Invoke(session, ucxapi.StackCreateRequest{StackId: id, StackType: stackType})
+		request := ucxapi.StackCreateRequest{StackId: id, StackType: stackType}
+		if createDrive {
+			products, productErr := ucxapi.DrivesRetrieveProducts.Invoke(session, util.Empty{})
+			if productErr != nil {
+				UiSendFailure(app, "Unable to retrieve storage products for the application stack.")
+				return &Stack{}, false
+			}
+			product := accapi.ProductReference{}
+			for _, candidate := range products {
+				if candidate.Support.Collection.UsersCanCreate {
+					product = candidate.Product.ToReference()
+					break
+				}
+			}
+			if product == (accapi.ProductReference{}) {
+				UiSendFailure(app, "No storage product supports application stack drives.")
+				return &Stack{}, false
+			}
+			drives, driveErr := ucxapi.DrivesCreate.Invoke(session, []orcapi.DriveSpecification{{
+				Title: id + " state",
+				ResourceSpecification: orcapi.ResourceSpecification{
+					Product: product,
+					Labels: map[string]string{
+						orcapi.ResourceLabelStack:         "true",
+						orcapi.ResourceLabelStackName:     stackType,
+						orcapi.ResourceLabelStackInstance: id,
+					},
+				},
+			}})
+			if driveErr != nil || len(drives) != 1 {
+				UiSendFailure(app, "Unable to create the application stack drive.")
+				return &Stack{}, false
+			}
+			request.StateFolder = "/" + drives[0].Id
+		}
+		stack, err := ucxapi.StackCreate.Invoke(session, request)
 		if err != nil {
 			UiSendFailure(app, "Unable to start application stack, try again later.")
 			return &Stack{}, false

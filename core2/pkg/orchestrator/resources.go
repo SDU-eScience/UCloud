@@ -1404,7 +1404,14 @@ func ResourceCreate[T any](
 		}
 	}
 
-	if g.Flags&resourceTypeCreateWithoutAdmin == 0 {
+	stackDrive := typeName == driveType && strings.TrimSpace(specification.Labels[orcapi.ResourceLabelStackInstance]) != ""
+	if stackDrive && actor.Project.Present {
+		if _, isMember := actor.Membership[actor.Project.Value]; !isMember {
+			var t T
+			return 0, t, util.HttpErr(http.StatusForbidden, "you must be a project member to create a drive")
+		}
+	}
+	if g.Flags&resourceTypeCreateWithoutAdmin == 0 && !stackDrive {
 		if actor.Project.Present && !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
 			var t T
 			return 0, t, util.HttpErr(http.StatusForbidden, "you need administrator privileges to do this operation")

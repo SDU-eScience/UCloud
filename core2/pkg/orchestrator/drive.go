@@ -63,7 +63,8 @@ func initDrives() {
 		// TODO Sorting through the items would be ideal
 
 		items := ResourceBrowse[orcapi.Drive](info.Actor, driveType, request.Next, request.ItemsPerPage, request.ResourceFlags, func(item orcapi.Drive) bool {
-			return strings.Contains(strings.ToLower(item.Specification.Title), strings.ToLower(request.Query))
+			return driveMatchesApplicationFiles(item, request.FilterApplicationFiles) &&
+				strings.Contains(strings.ToLower(item.Specification.Title), strings.ToLower(request.Query))
 		}, nil)
 
 		return items, nil
@@ -238,6 +239,18 @@ func DriveCreateBulk(actor rpc.Actor, request fndapi.BulkRequest[orcapi.DriveSpe
 	return created, nil
 }
 
+func driveMatchesApplicationFiles(drive orcapi.Drive, filter util.Option[orcapi.ApplicationFilesFilter]) bool {
+	application := strings.TrimSpace(drive.Specification.Labels[orcapi.ResourceLabelStackInstance]) != ""
+	switch filter.GetOrDefault(orcapi.ApplicationFilesAll) {
+	case orcapi.ApplicationFilesOrdinary:
+		return !application
+	case orcapi.ApplicationFilesOnly:
+		return application
+	default:
+		return true
+	}
+}
+
 func DriveBrowse(actor rpc.Actor, request orcapi.DrivesBrowseRequest) fndapi.PageV2[orcapi.Drive] {
 	sortByFn := ResourceDefaultComparator(func(item orcapi.Drive) orcapi.Resource {
 		return item.Resource
@@ -263,6 +276,9 @@ func DriveBrowse(actor rpc.Actor, request orcapi.DrivesBrowseRequest) fndapi.Pag
 		request.ItemsPerPage,
 		request.ResourceFlags,
 		func(item orcapi.Drive) bool {
+			if !driveMatchesApplicationFiles(item, request.FilterApplicationFiles) {
+				return false
+			}
 			if request.FilterMemberFiles.Present {
 				isMemberFile := strings.HasPrefix(item.Specification.Title, "Member Files: ") || item.Status.PreferredDrive
 				switch request.FilterMemberFiles.Value {

@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useNavigate} from "react-router-dom";
+import {useLocation, useNavigate} from "react-router-dom";
 import {useCallback, useEffect, useLayoutEffect, useRef} from "react";
 import {
     EmptyReasonTag,
@@ -10,11 +10,12 @@ import {
     createProjectSwitcherPortal,
     providerIcon,
     ResourceBrowserOpts,
+    SelectionMode,
 } from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import MainContainer from "@/ui-components/MainContainer";
 import {callAPI, noopCall} from "@/Authentication/DataHook";
-import {api as FileCollectionsApi, FileCollection, FileCollectionSupport, FileCollectionSpecification} from "@/UCloud/FileCollectionsApi";
+import {api as FileCollectionsApi, FileCollection, FileCollectionSupport, FileCollectionSpecification, isApplicationDrive} from "@/UCloud/FileCollectionsApi";
 import {AsyncCache} from "@/Utilities/AsyncCache";
 import {FindByStringId, PageV2} from "@/UCloud";
 import {dateToString} from "@/Utilities/DateUtilities";
@@ -51,6 +52,19 @@ import {useProjectId} from "@/Project/Api";
 import {sendFailureNotification} from "@/Notifications";
 import {DriveChange} from "@/ui-components/Sidebar";
 
+const applicationDrivesPath = "/application-drives";
+
+type ApplicationDriveDirectory = {id: typeof applicationDrivesPath; title: string; virtual: true};
+type DriveBrowserEntry = FileCollection | ApplicationDriveDirectory;
+
+function isDriveEntry(entry: DriveBrowserEntry): entry is FileCollection {
+    return !("virtual" in entry);
+}
+
+function driveEntryTitle(entry: DriveBrowserEntry): string {
+    return isDriveEntry(entry) ? entry.specification.title : entry.title;
+}
+
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
     globalTtl: 60_000
@@ -70,7 +84,7 @@ const FEATURES: ResourceBrowseFeatures = {
     locationBar: false,
     showStar: false,
     renderSpinnerWhenLoading: true,
-    breadcrumbsSeparatedBySlashes: false,
+    breadcrumbsSeparatedBySlashes: true,
     search: true,
     // Note(Jonas): This feature is modified on project-change.
     // Initial value is based on having an active project context.
@@ -86,8 +100,11 @@ const DriveBrowse: React.FunctionComponent<{
     headerControls?: ResourceBrowseHeaderControls;
 }> = ({opts, headerControls}) => {
     const navigate = useNavigate();
+    const location = useLocation();
+    const locationRef = useRef(location);
+    locationRef.current = location;
     const mountRef = useRef<HTMLDivElement | null>(null);
-    const browserRef = useRef<ResourceBrowser<FileCollection> | null>(null);
+    const browserRef = useRef<ResourceBrowser<DriveBrowserEntry> | null>(null);
     const dispatch = useDispatch();
     usePage("Drives", SidebarTabId.FILES);
 
@@ -102,6 +119,12 @@ const DriveBrowse: React.FunctionComponent<{
     const isWorkspaceAdmin = React.useRef(!Client.hasActiveProject);
     const project = useProject();
     const projectId = useProjectId();
+
+    React.useEffect(() => {
+        if (opts?.embedded || opts?.isModal) return;
+        const path = new URLSearchParams(location.search).get("driveView") === "application" ? applicationDrivesPath : "/";
+        browserRef.current?.open(path);
+    }, [location.search]);
 
     React.useEffect(() => {
         const p = project.fetch();
@@ -124,7 +147,19 @@ const DriveBrowse: React.FunctionComponent<{
     useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<FileCollection>(mount, RESOURCE_NAME, opts).init(browserRef, FEATURES, "/", browser => {
+            const browserOpts: ResourceBrowserOpts<DriveBrowserEntry> = {
+                ...opts,
+                selection: opts?.selection ? {
+                    ...opts.selection,
+                    show: entry => isDriveEntry(entry) ? opts.selection!.show(entry) : false,
+                    onClick: entry => {if (isDriveEntry(entry)) opts.selection!.onClick(entry);},
+                } : undefined,
+            };
+            const initialPath = !opts?.embedded && !opts?.isModal && new URLSearchParams(locationRef.current.search).get("driveView") === "application" ? applicationDrivesPath : "/";
+            let searchOrigin = initialPath;
+            const applicationFilter = (path: string): "ordinary" | "application" => path === applicationDrivesPath ? "application" : "ordinary";
+            const directory: ApplicationDriveDirectory = {id: applicationDrivesPath, title: "Application drives", virtual: true};
+            new ResourceBrowser<DriveBrowserEntry>(mount, RESOURCE_NAME, browserOpts).init(browserRef, FEATURES, initialPath, browser => {
                 addProjectListener("drive-browse", p => {
                     browser.features.filters = !!p;
                     if (p) {
@@ -133,6 +168,9 @@ const DriveBrowse: React.FunctionComponent<{
                         browser.header.removeAttribute("data-has-filters");
                     }
                     fetchSupport(p ?? undefined);
+                    browser.cachedData = {};
+                    browser.cachedNext = {};
+                    browser.open(browser.currentPath === applicationDrivesPath ? applicationDrivesPath : "/", true);
                     browser.reevaluateSize();
                     browser.rerender();
                 });
@@ -165,8 +203,8 @@ const DriveBrowse: React.FunctionComponent<{
                         it => it.id === resource.id,
                         () => {
                             const oldTitle = resource.specification.title;
-                            const page = browser.cachedData["/"] ?? [];
-                            const drive = page.find(it => it.id === resource.id);
+                            const page = browser.cachedData[browser.currentPath] ?? [];
+                            const drive = page.filter(isDriveEntry).find(it => it.id === resource.id);
                             if (drive) {
                                 drive.specification.title = browser.renameValue;
                                 browser.dispatchMessage("sort", fn => fn(page));
@@ -229,7 +267,7 @@ const DriveBrowse: React.FunctionComponent<{
                         invokeCommand: call => callAPI(call),
                         api: FileCollectionsApi,
                         isCreating: false,
-                        creationDisabled: browser.browseFilters[memberFilesKey] === "true" || browser.cachedData[browser.currentPath] == null,
+                        creationDisabled: browser.currentPath !== "/" || browser.browseFilters[memberFilesKey] === "true" || browser.cachedData[browser.currentPath] == null,
                     };
 
                     return callbacks;
@@ -237,9 +275,10 @@ const DriveBrowse: React.FunctionComponent<{
 
                 browser.on("fetchOperations", () => {
                     const selected = browser.findSelectedEntries();
+                    if (selected.some(entry => !isDriveEntry(entry))) return [];
+                    const drives = selected.filter(isDriveEntry);
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as unknown as any;
-                    const actions = FileCollectionsApi.retrieveActions();
-                    if (!Array.isArray(actions)) return actions;
+                    const actions = FileCollectionsApi.retrieveOperations();
                     const operations = actions;
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
@@ -326,7 +365,22 @@ const DriveBrowse: React.FunctionComponent<{
                             );
                         }
                     }
-                    return operations.filter(op => op.enabled(selected, callbacks, selected));
+                    return operations.filter(op => op.enabled(drives, callbacks, drives)).map(op => ({
+                        ...op,
+                        text: typeof op.text === "function" ? op.text(drives, callbacks) : op.text,
+                        confirmationText: typeof op.confirmationText === "function" ? op.confirmationText(drives, callbacks) : op.confirmationText,
+                        confirmationButtonText: typeof op.confirmationButtonText === "function" ? op.confirmationButtonText(drives, callbacks) : op.confirmationButtonText,
+                        operationType: op.operationType ? (location => op.operationType!(location, operations)) : undefined,
+                        enabled: (entries: DriveBrowserEntry[]) => entries.every(isDriveEntry) && op.enabled(entries.filter(isDriveEntry), callbacks, entries.filter(isDriveEntry)),
+                        onClick: (entries: DriveBrowserEntry[]) => {if (entries.every(isDriveEntry)) op.onClick(entries.filter(isDriveEntry), callbacks, entries.filter(isDriveEntry));},
+                    }));
+                });
+
+                browser.on("rowSelectionUpdated", () => {
+                    const selected = browser.findSelectedEntries();
+                    if (selected.length <= 1 || selected.every(isDriveEntry)) return;
+                    const index = browser.findVirtualRowIndex(entry => !isDriveEntry(entry));
+                    if (index !== null) browser.select(index, SelectionMode.TOGGLE_SINGLE);
                 });
 
                 browser.on("unhandledShortcut", (ev) => {
@@ -354,7 +408,7 @@ const DriveBrowse: React.FunctionComponent<{
                         switch (ev.code) {
                             case "F2": {
                                 const selected = browser.findSelectedEntries();
-                                if (selected.length === 1) {
+                                if (selected.length === 1 && isDriveEntry(selected[0])) {
                                     startRenaming(selected[0]);
                                 }
                                 break;
@@ -381,8 +435,12 @@ const DriveBrowse: React.FunctionComponent<{
                 // Rendering of breadcrumbs
                 // =========================================================================================================
                 browser.on("generateBreadcrumbs", () => {
-                    if (browser.searchQuery === "") return [{title: "Drives", absolutePath: "/"}];
-                    return [{title: "Drives", absolutePath: "/"}, {
+                    const breadcrumbs = [{title: "Drives", absolutePath: "/"}];
+                    if (browser.currentPath === applicationDrivesPath || browser.currentPath === "/search" && searchOrigin === applicationDrivesPath) {
+                        breadcrumbs.push({title: "Application drives", absolutePath: applicationDrivesPath});
+                    }
+                    if (browser.searchQuery === "") return breadcrumbs;
+                    return [...breadcrumbs, {
                         absolutePath: "",
                         title: `Search results for ${browser.searchQuery}`
                     }];
@@ -391,6 +449,14 @@ const DriveBrowse: React.FunctionComponent<{
                 // Rendering of rows and empty pages
                 // =========================================================================================================
                 browser.on("renderRow", (drive, row, dims) => {
+                    if (!isDriveEntry(drive)) {
+                        const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                        row.title.append(icon);
+                        ResourceBrowser.icons.renderIcon({name: "ftFolder", color: "FtFolderColor", color2: "FtFolderColor2", height: 64, width: 64}).then(setIcon);
+                        icon.style.marginRight = "8px";
+                        row.title.append(ResourceBrowser.defaultTitleRenderer(drive.title, row));
+                        return;
+                    }
                     if (drive.specification.product.provider) {
                         if (isShare(drive)) {
                             const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
@@ -412,6 +478,14 @@ const DriveBrowse: React.FunctionComponent<{
 
                     const title = ResourceBrowser.defaultTitleRenderer(drive.specification.title, row)
                     row.title.append(title);
+                    if (browser.currentPath === "/search" && isApplicationDrive(drive)) {
+                        const marker = document.createElement("span");
+                        marker.innerText = "Application storage";
+                        marker.style.marginLeft = "8px";
+                        marker.style.fontSize = "12px";
+                        marker.style.color = "var(--textSecondary)";
+                        row.title.append(marker);
+                    }
                     row.stat1.innerText = getShortProviderTitle(drive.specification.product.provider);
                     if (drive.owner.createdBy !== "_ucloud") {
                         const createdByElement = ResourceBrowser.defaultTitleRenderer(drive.owner.createdBy, row);
@@ -436,7 +510,7 @@ const DriveBrowse: React.FunctionComponent<{
                         }
 
                         case EmptyReasonTag.EMPTY: {
-                            e.reason.append("No drives found.");
+                            e.reason.append(browser.currentPath === applicationDrivesPath ? "No application drives found." : "No drives found.");
                             break;
                         }
 
@@ -457,7 +531,9 @@ const DriveBrowse: React.FunctionComponent<{
                 // Network requests
                 // =========================================================================================================
                 browser.on("skipOpen", (oldPath, newPath, resource) => {
+                    if (newPath === applicationDrivesPath || newPath === "/") return false;
                     if (!resource) return true;
+                    if (!isDriveEntry(resource)) return false;
                     const isConnected = connectionState.isConnected(resource?.specification.product.provider);
                     if (!isConnected) {
                         const canConnect = connectionState.canConnectToProvider(resource?.specification.product.provider);
@@ -469,32 +545,71 @@ const DriveBrowse: React.FunctionComponent<{
                 });
 
                 browser.on("open", (oldPath, newPath) => {
-                    if (newPath !== "/") {
+                    if (newPath !== "/" && newPath !== applicationDrivesPath) {
                         const p = newPath.startsWith("/") ? newPath : "/" + newPath;
                         navigate(AppRoutes.files.path(p));
                         return;
                     }
 
+                    if (!opts?.embedded && !opts?.isModal) {
+                        const current = locationRef.current;
+                        const params = new URLSearchParams(current.search);
+                        if (newPath === applicationDrivesPath) params.set("driveView", "application");
+                        else params.delete("driveView");
+                        const search = params.toString();
+                        if ((search ? "?" + search : "") !== current.search) navigate({pathname: current.pathname, search});
+                    }
+
                     // Note(Jonas): This is to ensure no project and active project correctly reloads. Using "" as the key
                     // will not always work correctly, e.g. going from project to personal workspace with "View member files" active.
-                    const collectionKey = `${Client.projectId}-${browser.browseFilters[memberFilesKey]}`;
-                    collectionsOnOpen.retrieve(collectionKey, () =>
+                    const project = Client.projectId;
+                    const collectionKey = JSON.stringify([project, newPath, browser.browseFilters, opts?.additionalFilters]);
+                    const page = collectionsOnOpen.retrieve(collectionKey, () =>
                         callAPI(FileCollectionsApi.browse({
                             ...defaultRetrieveFlags,
-                            ...browser.browseFilters
+                            ...browser.browseFilters,
+                            ...opts?.additionalFilters,
+                            filterApplicationFiles: applicationFilter(newPath),
                         }))
-                    ).then(res => {
-                        browser.registerPage(res, newPath, true);
+                    );
+                    const applications = newPath === "/" ? collectionsOnOpen.retrieve(`${collectionKey}-applications`, () =>
+                        callAPI(FileCollectionsApi.browse({
+                            ...defaultRetrieveFlags,
+                            ...browser.browseFilters,
+                            ...opts?.additionalFilters,
+                            itemsPerPage: 1,
+                            filterApplicationFiles: "application",
+                        }))
+                    ) : Promise.resolve(undefined);
+                    Promise.all([page, applications]).then(([res, applicationPage]) => {
+                        if (Client.projectId !== project) return;
+                        const items: DriveBrowserEntry[] = applicationPage?.items.length ? [directory, ...res.items] : res.items;
+                        browser.registerPage({...res, items}, newPath, true);
                         browser.rerender();
                     });
                 });
 
                 browser.on("wantToFetchNextPage", async (path) => {
+                    if (path === "/search") {
+                        const query = browser.searchQuery;
+                        const result = await callAPI(FileCollectionsApi.search({
+                            query,
+                            next: browser.cachedNext[path] ?? undefined,
+                            flags: {},
+                            ...defaultRetrieveFlags,
+                            ...opts?.additionalFilters,
+                            ...{filterApplicationFiles: searchOrigin === applicationDrivesPath ? "application" : "all"},
+                        }));
+                        if (path === browser.currentPath && query === browser.searchQuery) browser.registerPage(result, path, false);
+                        return;
+                    }
                     const result = await callAPI(
                         FileCollectionsApi.browse({
                             next: browser.cachedNext[path] ?? undefined,
                             ...defaultRetrieveFlags,
-                            ...browser.browseFilters
+                            ...browser.browseFilters,
+                            ...opts?.additionalFilters,
+                            filterApplicationFiles: applicationFilter(path),
                         })
                     );
 
@@ -504,6 +619,7 @@ const DriveBrowse: React.FunctionComponent<{
                 });
 
                 browser.on("search", async query => {
+                    if (browser.currentPath !== "/search") searchOrigin = browser.currentPath;
                     browser.searchQuery = query;
                     browser.currentPath = "/search";
                     browser.cachedData["/search"] = [];
@@ -511,10 +627,12 @@ const DriveBrowse: React.FunctionComponent<{
                     browser.renderOperations();
                     callAPI(FileCollectionsApi.search({
                         query,
-                        itemsPerPage: 250,
                         flags: {},
+                        ...defaultRetrieveFlags,
+                        ...opts?.additionalFilters,
+                        ...{filterApplicationFiles: searchOrigin === applicationDrivesPath ? "application" : "all"},
                     })).then(res => {
-                        if (browser.currentPath !== "/search") return;
+                        if (browser.currentPath !== "/search" || browser.searchQuery !== query) return;
                         browser.registerPage(res, "/search", true);
                         browser.renderRows();
                         browser.renderBreadcrumbs();
@@ -522,7 +640,7 @@ const DriveBrowse: React.FunctionComponent<{
                 });
 
                 browser.on("searchHidden", () => {
-                    browser.open("/", true);
+                    browser.open(searchOrigin, true);
                 });
 
                 // Utilities required for the ResourceBrowser to understand the structure of the file-system
@@ -530,8 +648,8 @@ const DriveBrowse: React.FunctionComponent<{
                 // This usually includes short functions which describe when certain actions should take place and what
                 // the internal structure of a file is.
                 browser.on("pathToEntry", f => f.id);
-                browser.on("nameOfEntry", f => f.specification.title);
-                browser.on("sort", page => page.sort((a, b) => a.specification.title.localeCompare(b.specification.title)));
+                browser.on("nameOfEntry", driveEntryTitle);
+                browser.on("sort", page => page.sort((a, b) => !isDriveEntry(a) ? -1 : !isDriveEntry(b) ? 1 : driveEntryTitle(a).localeCompare(driveEntryTitle(b))));
             });
             addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
         }
