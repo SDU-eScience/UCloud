@@ -248,7 +248,6 @@ const SpotlightsEditor: React.FunctionComponent = () => {
                 content: {
                     ...largeModalStyle.content,
                     width: "1140px",
-                    left: `calc(50vw - 570px)`,
                 }
             }
         );
