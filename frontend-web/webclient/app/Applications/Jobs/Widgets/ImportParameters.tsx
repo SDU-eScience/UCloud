@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as UCloud from "@/UCloud";
 import {default as ReactModal} from "react-modal";
-import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
+import {defaultModalStyle, fileSelectorModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
 import {Box, Button, Flex, Icon} from "@/ui-components";
 import CONF from "../../../../site.config.json";
 import {useCallback} from "react";
@@ -137,7 +137,7 @@ export function ImportParameters({application, dynamicParameters, onImport, auto
             isOpen={importDialogOpen}
             shouldCloseOnEsc
             onRequestClose={onImportDialogClose}
-            style={defaultModalStyle}
+            style={largeModalStyle}
             ariaHideApp={false}
             className={CardClass}
         >
@@ -193,7 +193,7 @@ export function ImportParameters({application, dynamicParameters, onImport, auto
                             />,
                             () => undefined,
                             true,
-                            largeModalStyle
+                            fileSelectorModalStyle
                         );
                     },
                     text: `Select file from ${CONF.PRODUCT_NAME}`,
