@@ -59,6 +59,9 @@ func Init() {
 	initShareLinks()
 	times["ShareLinks"] = t.Mark()
 
+	initDatasets()
+	times["Datasets"] = t.Mark()
+
 	// Compute
 	//==================================================================================================================
 

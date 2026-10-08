@@ -52,4 +52,5 @@ func Init() {
 	db.AddMigration(customApplicationsV4())
 	db.AddMigration(featuresV1())
 	db.AddMigration(grantV5())
+	db.AddMigration(dataArchivalV1())
 }

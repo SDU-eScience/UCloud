@@ -80,6 +80,19 @@ var TasksBrowse = rpc.Call[TasksBrowseRequest, PageV2[Task]]{
 	Roles:       rpc.RolesEndUser,
 }
 
+type TasksBrowseInternalRequest struct {
+	User         string              `json:"user"`
+	ItemsPerPage int                 `json:"itemsPerPage"`
+	Next         util.Option[string] `json:"next"`
+}
+
+var TasksBrowseInternal = rpc.Call[TasksBrowseInternalRequest, PageV2[Task]]{
+	BaseContext: tasksNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Operation:   "internal",
+	Roles:       rpc.RolesService,
+}
+
 var TasksRetrieve = rpc.Call[FindByIntId, Task]{
 	BaseContext: tasksNamespace,
 	Convention:  rpc.ConventionRetrieve,

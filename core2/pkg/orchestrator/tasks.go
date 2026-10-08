@@ -27,3 +27,11 @@ func initTasks() {
 		return util.Empty{}, err
 	})
 }
+
+func TasksBrowseForUser(username string, itemsPerPage int, next util.Option[string]) (fndapi.PageV2[fndapi.Task], *util.HttpError) {
+	return fndapi.TasksBrowseInternal.Invoke(fndapi.TasksBrowseInternalRequest{
+		User:         username,
+		ItemsPerPage: itemsPerPage,
+		Next:         next,
+	})
+}

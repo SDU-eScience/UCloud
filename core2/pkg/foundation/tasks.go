@@ -70,6 +70,14 @@ func initTasks() {
 		return TaskBrowse(info.Actor, request.ItemsPerPage, request.Next), nil
 	})
 
+	fndapi.TasksBrowseInternal.Handler(func(info rpc.RequestInfo, request fndapi.TasksBrowseInternalRequest) (fndapi.PageV2[fndapi.Task], *util.HttpError) {
+		owner, ok := rpc.LookupActor(request.User)
+		if !ok {
+			return fndapi.PageV2[fndapi.Task]{}, util.HttpErr(http.StatusNotFound, "unknown user specified")
+		}
+		return TaskBrowse(owner, request.ItemsPerPage, request.Next), nil
+	})
+
 	fndapi.TasksCreate.Handler(func(info rpc.RequestInfo, request fndapi.TasksCreateRequest) (fndapi.Task, *util.HttpError) {
 		return TaskCreate(info.Actor, request)
 	})
