@@ -49,8 +49,8 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 		func(r orcapi.PrivateNetwork) orcapi.ResourceSpecification {
 			return r.Specification.ResourceSpecification
 		},
-		func(r orcapi.PrivateNetworkSpecification) orcapi.ResourceSpecification {
-			return r.ResourceSpecification
+		func(r *orcapi.PrivateNetworkSpecification) *orcapi.ResourceSpecification {
+			return &r.ResourceSpecification
 		},
 	)
 
@@ -135,8 +135,8 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 		func(r orcapi.PrivateNetworkIp) orcapi.ResourceSpecification {
 			return r.Specification.ResourceSpecification
 		},
-		func(r orcapi.PrivateNetworkIpSpecification) orcapi.ResourceSpecification {
-			return r.ResourceSpecification
+		func(r *orcapi.PrivateNetworkIpSpecification) *orcapi.ResourceSpecification {
+			return &r.ResourceSpecification
 		},
 	)
 
@@ -235,8 +235,8 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 		func(r orcapi.PublicIp) orcapi.ResourceSpecification {
 			return r.Specification.ResourceSpecification
 		},
-		func(r orcapi.PublicIPSpecification) orcapi.ResourceSpecification {
-			return r.ResourceSpecification
+		func(r *orcapi.PublicIPSpecification) *orcapi.ResourceSpecification {
+			return &r.ResourceSpecification
 		},
 	)
 
@@ -345,8 +345,8 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 		func(r orcapi.Ingress) orcapi.ResourceSpecification {
 			return r.Specification.ResourceSpecification
 		},
-		func(r orcapi.IngressSpecification) orcapi.ResourceSpecification {
-			return r.ResourceSpecification
+		func(r *orcapi.IngressSpecification) *orcapi.ResourceSpecification {
+			return &r.ResourceSpecification
 		},
 	)
 
@@ -432,8 +432,8 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 		func(r orcapi.Service) orcapi.ResourceSpecification {
 			return r.Specification.ResourceSpecification
 		},
-		func(r orcapi.ServiceSpecification) orcapi.ResourceSpecification {
-			return r.ResourceSpecification
+		func(r *orcapi.ServiceSpecification) *orcapi.ResourceSpecification {
+			return &r.ResourceSpecification
 		},
 	)
 
@@ -598,8 +598,8 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 		func(r orcapi.License) orcapi.ResourceSpecification {
 			return r.Specification.ResourceSpecification
 		},
-		func(r orcapi.LicenseSpecification) orcapi.ResourceSpecification {
-			return r.ResourceSpecification
+		func(r *orcapi.LicenseSpecification) *orcapi.ResourceSpecification {
+			return &r.ResourceSpecification
 		},
 	)
 
@@ -685,8 +685,8 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 		func(r orcapi.Drive) orcapi.ResourceSpecification {
 			return r.Specification.ResourceSpecification
 		},
-		func(r orcapi.DriveSpecification) orcapi.ResourceSpecification {
-			return r.ResourceSpecification
+		func(r *orcapi.DriveSpecification) *orcapi.ResourceSpecification {
+			return &r.ResourceSpecification
 		},
 	)
 
@@ -787,8 +787,8 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 		func(r orcapi.ContainerRepository) orcapi.ResourceSpecification {
 			return r.Specification.ResourceSpecification
 		},
-		func(r orcapi.ContainerRepositorySpecification) orcapi.ResourceSpecification {
-			return r.ResourceSpecification
+		func(r *orcapi.ContainerRepositorySpecification) *orcapi.ResourceSpecification {
+			return &r.ResourceSpecification
 		},
 	)
 
@@ -876,8 +876,8 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 		func(r orcapi.Job) orcapi.ResourceSpecification {
 			return r.Specification.ResourceSpecification
 		},
-		func(r orcapi.JobSpecification) orcapi.ResourceSpecification {
-			return r.ResourceSpecification
+		func(r *orcapi.JobSpecification) *orcapi.ResourceSpecification {
+			return &r.ResourceSpecification
 		},
 	)
 
@@ -1029,14 +1029,14 @@ func appUcxCreateResource[Spec any, Resc any](
 	call ucx.Rpc[[]Spec, []Resc],
 	creator func(actor rpc.Actor, specs []Spec) ([]Resc, *util.HttpError),
 	baseSpecGetter func(r Resc) orcapi.ResourceSpecification,
-	baseSpecGetterFromRescSpec func(r Spec) orcapi.ResourceSpecification,
+	baseSpecGetterFromRescSpec func(r *Spec) *orcapi.ResourceSpecification,
 ) {
 	call.HandlerProxy(p, func(ctx context.Context, request []Spec) ([]Resc, error) {
 		actor := s.Actor()
 
 		if !s.AllowStackCreation {
-			for _, spec := range request {
-				baseSpec := baseSpecGetterFromRescSpec(spec)
+			for i := range request {
+				baseSpec := baseSpecGetterFromRescSpec(&request[i])
 				if baseSpec.Labels == nil {
 					continue
 				}
@@ -1052,6 +1052,11 @@ func appUcxCreateResource[Spec any, Resc any](
 			}
 		}
 
+		for i := range request {
+			if err := stacksPrepareResource(actor, baseSpecGetterFromRescSpec(&request[i])); err != nil {
+				return nil, err.AsError()
+			}
+		}
 		created, err := creator(actor, request)
 		if err != nil {
 			return nil, err.AsError()

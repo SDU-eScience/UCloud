@@ -234,6 +234,7 @@ func InitResources() {
 	ResourceRegisterIndexedLabelKey(orcapi.ResourceLabelStack)
 	ResourceRegisterIndexedLabelKey(orcapi.ResourceLabelStackName)
 	ResourceRegisterIndexedLabelKey(orcapi.ResourceLabelStackInstance)
+	ResourceRegisterIndexedLabelKey(orcapi.ResourceLabelStackEntity)
 
 	if !resourceGlobals.Testing.Enabled {
 		orcapi.ResourcesControlCheckExistence.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceExistenceCheck]) (fndapi.BulkResponse[bool], *util.HttpError) {
@@ -1129,8 +1130,16 @@ func ResourceUpdateAcl(
 	}
 
 	var addedUsers []string
+	var providerResource any
+	var provider string
 	pId := ResourceParseId(acl.Id)
 	ok := ResourceUpdate[any](actor, typeName, pId, orcapi.PermissionAdmin, func(r *resource, mapped any) {
+		if resourceSpecificationHasProduct(r.BaseSpec) {
+			provider = r.BaseSpec.Product.Provider
+			snapshot := r.ToApi(nil)
+			snapshot.Permissions.Value.Others = stacksCloneAcl(r.Acl)
+			providerResource = resourceGetGlobals(typeName).Transformer(snapshot, r.BaseSpec, r.Extra, orcapi.ResourceFlags{IncludeOthers: true}, actor)
+		}
 		var newAcl []orcapi.ResourceAclEntry
 		for _, entry := range r.Acl {
 			wasDeleted := false
@@ -1195,6 +1204,9 @@ func ResourceUpdateAcl(
 	if !ok {
 		return util.HttpErr(http.StatusNotFound, "not found or permission denied")
 	} else {
+		if providerResource != nil {
+			resourcePushAcl(provider, providerResource, acl)
+		}
 		return nil
 	}
 }
@@ -1425,7 +1437,19 @@ func ResourceCreate[T any](
 		}),
 	}
 
-	return ResourceCreateEx[T](typeName, owner, nil, specification, util.OptNone[string](), extra, 0)
+	var acl []orcapi.ResourceAclEntry
+	if stack := specification.StackResource; stack != nil {
+		stacksMutationMu.Lock()
+		defer stacksMutationMu.Unlock()
+		_, stack, _, err := ResourceRetrieveEx[orcapi.Stack](actor, stackType, ResourceParseId(stack.Id), orcapi.PermissionEdit, orcapi.ResourceFlags{IncludeOthers: true})
+		if err != nil {
+			var empty T
+			return 0, empty, err
+		}
+		owner = stack.Owner
+		acl = stacksCloneAcl(stack.Permissions.Value.Others)
+	}
+	return ResourceCreateEx[T](typeName, owner, acl, specification, util.OptNone[string](), extra, 0)
 }
 
 func resourceSpecificationHasProduct(specification orcapi.ResourceSpecification) bool {
@@ -1433,6 +1457,8 @@ func resourceSpecificationHasProduct(specification orcapi.ResourceSpecification)
 }
 
 func ResourceConfirm(typeName string, id ResourceId) {
+	var stackResource any
+	var provider string
 	ResourceUpdate[any](
 		rpc.ActorSystem,
 		typeName,
@@ -1440,8 +1466,18 @@ func ResourceConfirm(typeName string, id ResourceId) {
 		orcapi.PermissionRead,
 		func(r *resource, mapped any) {
 			r.Confirmed = true
+			if r.BaseSpec.StackResource != nil && resourceSpecificationHasProduct(r.BaseSpec) {
+				provider = r.BaseSpec.Product.Provider
+				snapshot := r.ToApi(nil)
+				snapshot.Permissions.Value.Others = stacksCloneAcl(r.Acl)
+				stackResource = resourceGetGlobals(typeName).Transformer(snapshot, r.BaseSpec, r.Extra, orcapi.ResourceFlags{IncludeOthers: true}, rpc.ActorSystem)
+			}
+			r.BaseSpec.StackResource = nil
 		},
 	)
+	if stackResource != nil {
+		resourcePushAcl(provider, stackResource, orcapi.UpdatedAcl{Id: strconv.FormatUint(uint64(id), 10)})
+	}
 }
 
 func ResourceDelete(actor rpc.Actor, typeName string, id ResourceId) bool {

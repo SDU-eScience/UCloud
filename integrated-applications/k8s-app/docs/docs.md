@@ -35,6 +35,29 @@ Existing clusters keep their current state folder. This change does not move the
 The drive browser groups these drives under the virtual `Application drives` directory.
 The file dialog groups them under the same name. Real file paths and drive ACLs stay unchanged.
 
+### Stack access
+
+Stacks require a Core resource entity. Core stores the stack ACL in the existing resource tables.
+The entity records the stack type, instance ID, state folder, and creator.
+Core links stack resources and the state drive with the `ucloud.dk/stack-entity` label.
+The normal drive API still accepts stack-instance labels without a Core stack entity.
+
+Stack API resource creation copies the current stack ACL and owner before provider creation.
+This includes node jobs created during scale-out. Creator and project-admin access use the normal resource rules.
+Stack grants use project groups with READ and EDIT permissions.
+Stack ACL updates replace child ACLs, including the state drive ACL. This repairs missing grants and removes stale grants.
+Direct drive ACL edits remain allowed. A later stack ACL update replaces these edits.
+
+Stack browse lists accessible Core entities. Stack retrieve checks the entity before it fetches linked resources.
+Empty stacks remain visible. Stacks without a Core entity return not found; there is no legacy fallback.
+
+Core sends resource ACL updates to providers through the normal resource ACL path.
+This covers drives, jobs, licenses, public IPs, ingresses, private networks, private network IPs, services, and container repositories.
+Delivery is best effort. Core logs failed delivery, but keeps its ACL change.
+Core makes one delivery attempt. It does not queue retries or migrate old stacks.
+
+### Stack files
+
 The stack folder is split into per-purpose subtrees. Each node mounts only the subtrees it needs:
 
 - `management/` — cluster-wide credentials and artifacts: `kubeconfig` (public, downloaded

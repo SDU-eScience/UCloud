@@ -1547,6 +1547,7 @@ func initJobs() {
 
 			for _, item := range request.Items {
 				fn := Jobs.Services.UpdateAcl
+				item.Resource.Permissions.Value = privateNetworkMergeAcl(item.Resource.Permissions.Value, item.Deleted, item.Added)
 				if fn != nil {
 					if err := fn(&item.Resource); err != nil {
 						return resp, err

@@ -226,6 +226,11 @@ func stackCreate(app ucx.Application, id string, stackType string, createDrive b
 			UiSendFailure(app, "Unable to start application stack, try again later.")
 			return &Stack{}, false
 		} else {
+			request.StateFolder = stack.Labels[orcapi.ResourceLabelStackStateFolder]
+			if _, registerErr := ucxapi.StackRegister.Invoke(session, request); registerErr != nil {
+				UiSendFailure(app, "Unable to register the application stack, try again later.")
+				return &Stack{}, false
+			}
 			return &Stack{
 				InstanceId: id,
 				MountPath:  "/etc/ucloud-stack",

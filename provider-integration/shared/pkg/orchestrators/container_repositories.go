@@ -190,6 +190,13 @@ var ContainerRepositoriesProviderDelete = rpc.Call[fnd.BulkRequest[ContainerRepo
 	Roles:       rpc.RolesPrivileged,
 }
 
+var ContainerRepositoriesProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAclWithResource[ContainerRepository]], fnd.BulkResponse[util.Empty]]{
+	BaseContext: containerRepositoryProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "updateAcl",
+}
+
 var ContainerRepositoriesProviderOnUpdatedLabels = rpc.Call[fnd.BulkRequest[ContainerRepository], util.Empty]{
 	BaseContext: containerRepositoryProviderNamespace,
 	Convention:  rpc.ConventionUpdate,

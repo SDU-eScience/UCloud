@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"slices"
 	"strings"
 
@@ -197,10 +196,26 @@ func initAppUcx() {
 
 		appUcxResourceHandlers(&state.appUcxBaseState, proxy)
 
+		ucxapi.StackRegister.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackCreateRequest) (util.Empty, error) {
+			if !state.AllowStackCreation {
+				return util.Empty{}, fmt.Errorf("stack creation is not allowed")
+			}
+			err := StacksCreate(state.Actor(), request.StackId, request.StackType, request.StateFolder)
+			if err != nil {
+				return util.Empty{}, err.AsError()
+			}
+			state.Mu.Lock()
+			state.Stacks[request.StackId] = util.Empty{}
+			state.Mu.Unlock()
+			return util.Empty{}, nil
+		})
+
 		ucxapi.StackAvailable.HandlerProxy(proxy, func(ctx context.Context, request fndapi.FindByStringId) (bool, error) {
 			actor := state.Actor()
-			_, err := StacksRetrieve(actor, request.Id)
-			return err != nil && err.StatusCode == http.StatusNotFound, nil
+			if _, exists := stacksFindEntity(actor, request.Id); exists {
+				return false, nil
+			}
+			return true, nil
 		})
 
 		ucxapi.Core.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.Message) (ucxapi.Message, error) {

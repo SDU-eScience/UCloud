@@ -49,6 +49,9 @@ func controlCreateServe[Spec any, Resc any, Resp any](
 			}
 
 			spec.Labels = util.MapMerge(spec.Labels, stackLabels)
+			if err := stacksPrepareResource(actor, spec); err != nil {
+				return empty, err
+			}
 
 			if networkSpec, ok := any(request.Items[i]).(orcapi.PrivateNetworkIpSpecification); ok {
 				network, _, _, err := ResourceRetrieveEx[orcapi.PrivateNetwork](

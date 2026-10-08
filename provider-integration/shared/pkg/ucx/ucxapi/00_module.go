@@ -135,6 +135,8 @@ type Stack struct {
 
 var StackCreate = ucx.Rpc[StackCreateRequest, Stack]{CallName: "stackCreate"}
 
+var StackRegister = ucx.Rpc[StackCreateRequest, util.Empty]{CallName: "stackRegister"}
+
 type StackDataWriteRequest struct {
 	InstanceId string `json:"instanceId"`
 	Path       string `json:"path"`

@@ -1,12 +1,12 @@
 package orchestrator
 
 import (
-	"cmp"
 	"database/sql"
 	"net/http"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	db "ucloud.dk/shared/pkg/database"
@@ -17,7 +17,158 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+const stackType = "stack"
+
+var stacksMutationMu sync.Mutex
+
+func stacksCloneAcl(acl []orcapi.ResourceAclEntry) []orcapi.ResourceAclEntry {
+	result := slices.Clone(acl)
+	for i := range result {
+		result[i].Permissions = slices.Clone(result[i].Permissions)
+	}
+	return result
+}
+
+func stacksResourceIds(typeName string, owner orcapi.ResourceOwner, id string) []ResourceId {
+	reference := owner.Project.GetOrDefault(owner.CreatedBy)
+	index := resourceGetAndLoadIndex(typeName, reference)
+	label := orcapi.ResourceLabelStackEntity
+	if typeName == stackType {
+		label = orcapi.ResourceLabelStackInstance
+	}
+	index.Mu.RLock()
+	ids, _ := resourceFilterByIndexedLabelsLocked(index, reference, index.ByOwner[reference], map[string]string{
+		label: id,
+	})
+	ids = slices.Clone(ids)
+	index.Mu.RUnlock()
+	return ids
+}
+
+func stacksFindEntity(actor rpc.Actor, id string) (orcapi.Resource, bool) {
+	owner := orcapi.ResourceOwner{
+		CreatedBy: actor.Username,
+		Project:   util.OptMap(actor.Project, func(value rpc.ProjectId) string { return string(value) }),
+	}
+	for _, resourceId := range stacksResourceIds(stackType, owner, id) {
+		_, entity, _, err := ResourceRetrieveEx[orcapi.Stack](rpc.ActorSystem, stackType, resourceId, orcapi.PermissionRead, orcapi.ResourceFlags{IncludeOthers: true})
+		if err == nil {
+			return entity, true
+		}
+	}
+	return orcapi.Resource{}, false
+}
+
+func StacksCreate(actor rpc.Actor, id string, name string, stateFolder string) *util.HttpError {
+	if strings.TrimSpace(id) == "" || strings.TrimSpace(name) == "" {
+		return util.HttpErr(http.StatusBadRequest, "stack id and type are required")
+	}
+	if actor.Project.Present {
+		if _, member := actor.Membership[actor.Project.Value]; !member {
+			return util.HttpErr(http.StatusForbidden, "project membership is required")
+		}
+	}
+	stacksMutationMu.Lock()
+	defer stacksMutationMu.Unlock()
+	if _, exists := stacksFindEntity(actor, id); exists {
+		return util.HttpErr(http.StatusConflict, "stack already exists")
+	}
+	var stateDrive util.Option[orcapi.Drive]
+	if driveId, valid := orcapi.DriveIdFromUCloudPath(stateFolder); valid && stateFolder == "/"+driveId {
+		drive, err := ResourceRetrieve[orcapi.Drive](actor, driveType, ResourceParseId(driveId), orcapi.ResourceFlags{})
+		if err != nil {
+			return err
+		}
+		project := util.OptMap(actor.Project, func(value rpc.ProjectId) string { return string(value) })
+		if drive.Owner.CreatedBy != actor.Username || drive.Owner.Project != project || drive.Specification.Labels[orcapi.ResourceLabelStackInstance] != id {
+			return util.HttpErr(http.StatusBadRequest, "state drive must belong to the stack creator")
+		}
+		stateDrive.Set(drive)
+	}
+	resourceId, _, err := ResourceCreate[orcapi.Stack](actor, stackType, orcapi.ResourceSpecification{
+		Labels: map[string]string{
+			orcapi.ResourceLabelStackInstance:    id,
+			orcapi.ResourceLabelStackName:        name,
+			orcapi.ResourceLabelStackStateFolder: stateFolder,
+		},
+	}, nil)
+	if err != nil {
+		return err
+	}
+	ResourceConfirm(stackType, resourceId)
+	if stateDrive.Present {
+		labels := util.MapMerge(stateDrive.Value.Specification.Labels, map[string]string{
+			orcapi.ResourceLabelStackEntity: strconv.FormatUint(uint64(resourceId), 10),
+		})
+		return ResourceUpdateLabels(actor, driveType, stateDrive.Value.Id, labels, orcapi.PermissionAdmin)
+	}
+	return nil
+}
+
+func stacksPrepareResource(actor rpc.Actor, specification *orcapi.ResourceSpecification) *util.HttpError {
+	id := strings.TrimSpace(specification.Labels[orcapi.ResourceLabelStackInstance])
+	if id == "" {
+		return nil
+	}
+	entity, exists := stacksFindEntity(actor, id)
+	if !exists {
+		return nil
+	}
+	_, stack, _, err := ResourceRetrieveEx[orcapi.Stack](actor, stackType, ResourceParseId(entity.Id), orcapi.PermissionEdit, orcapi.ResourceFlags{IncludeOthers: true})
+	if err != nil {
+		return err
+	}
+	stack.Permissions.Value.Others = stacksCloneAcl(stack.Permissions.Value.Others)
+	specification.StackResource = &stack
+	specification.Labels = util.MapMerge(specification.Labels, map[string]string{
+		orcapi.ResourceLabelStackEntity: entity.Id,
+	})
+	return nil
+}
+
+func stacksApplyAcl(entity orcapi.Resource) *util.HttpError {
+	var result *util.HttpError
+	for _, typeName := range []string{jobType, driveType, licenseType, publicIpType, ingressType, privateNetworkType, privateNetworkIpType, serviceType, containerRepositoryType} {
+		for _, resourceId := range stacksResourceIds(typeName, entity.Owner, entity.Id) {
+			_, child, _, err := ResourceRetrieveEx[any](rpc.ActorSystem, typeName, resourceId, orcapi.PermissionRead, orcapi.ResourceFlags{IncludeOthers: true})
+			if err != nil {
+				result = util.MergeHttpErr(result, err)
+				continue
+			}
+			if child.Owner != entity.Owner {
+				continue
+			}
+			var deleted []orcapi.AclEntity
+			for _, entry := range child.Permissions.Value.Others {
+				deleted = append(deleted, entry.Entity)
+			}
+			err = ResourceUpdateAcl(rpc.ActorSystem, typeName, orcapi.UpdatedAcl{
+				Id:      child.Id,
+				Added:   stacksCloneAcl(entity.Permissions.Value.Others),
+				Deleted: deleted,
+			})
+			result = util.MergeHttpErr(result, err)
+		}
+	}
+	return result
+}
+
 func initStacks() {
+	InitResourceType(
+		stackType,
+		resourceTypeCreateWithoutAdmin,
+		func(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource) {},
+		func(batch *db.Batch, resource *resource) {},
+		func(resource orcapi.Resource, specification orcapi.ResourceSpecification, extra any, flags orcapi.ResourceFlags, actor rpc.Actor) any {
+			return orcapi.Stack{
+				Id:          specification.Labels[orcapi.ResourceLabelStackInstance],
+				Type:        specification.Labels[orcapi.ResourceLabelStackName],
+				CreatedAt:   resource.CreatedAt,
+				Permissions: resource.Permissions.Value,
+			}
+		},
+		nil,
+	)
 	orcapi.StacksBrowse.Handler(func(info rpc.RequestInfo, request orcapi.StacksBrowseRequest) (fndapi.PageV2[orcapi.Stack], *util.HttpError) {
 		return StacksBrowse(info.Actor, request.Next, request.ItemsPerPage)
 	})
@@ -193,87 +344,27 @@ func initStacks() {
 }
 
 func StacksBrowse(actor rpc.Actor, next util.Option[string], itemsPerPage int) (fndapi.PageV2[orcapi.Stack], *util.HttpError) {
-	itemsPerPage = fndapi.ItemsPerPage(itemsPerPage)
-	result := fndapi.PageV2[orcapi.Stack]{ItemsPerPage: itemsPerPage}
-
-	stacksById := map[string]orcapi.Stack{}
-
-	for {
-		if len(stacksById) > itemsPerPage {
-			break
-		}
-
-		jobs, err := JobsBrowse(
-			actor,
-			next,
-			itemsPerPage,
-			orcapi.JobFlags{
-				ResourceFlags: orcapi.ResourceFlags{
-					IncludeOthers: true,
-					FilterLabels: map[string]string{
-						orcapi.ResourceLabelStack: "true",
-					},
-				},
-			},
-		)
-
-		if err != nil {
-			return fndapi.PageV2[orcapi.Stack]{}, err
-		}
-
-		for _, job := range jobs.Items {
-			if job.Status.State.IsFinal() {
-				continue
-			}
-
-			jobStack := orcapi.Stack{
-				Id:          job.Specification.Labels[orcapi.ResourceLabelStackInstance],
-				Type:        job.Specification.Labels[orcapi.ResourceLabelStackName],
-				CreatedAt:   job.CreatedAt,
-				Permissions: job.Permissions.Value,
-			}
-
-			if _, exists := stacksById[jobStack.Id]; !exists {
-				stacksById[jobStack.Id] = jobStack
-			}
-		}
-
-		next = jobs.Next
-		if !next.Present {
-			break
-		}
-	}
-
-	var stacks []orcapi.Stack
-	for _, stack := range stacksById {
-		stacks = append(stacks, stack)
-	}
-
-	slices.SortFunc(stacks, func(a, b orcapi.Stack) int {
-		return cmp.Compare(a.CreatedAt.Time().UnixMilli(), b.CreatedAt.Time().UnixMilli()) * -1
-	})
-
-	result.Items = stacks
-	result.Next = next
-	return result, nil
+	return ResourceBrowse[orcapi.Stack](actor, stackType, next, itemsPerPage, orcapi.ResourceFlags{IncludeOthers: true}, nil, nil), nil
 }
 
 func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) {
+	entity, exists := stacksFindEntity(actor, id)
+	if !exists {
+		return orcapi.Stack{}, util.HttpErr(http.StatusNotFound, "stack not found")
+	}
+	stack, _, _, err := ResourceRetrieveEx[orcapi.Stack](actor, stackType, ResourceParseId(entity.Id), orcapi.PermissionRead, orcapi.ResourceFlags{IncludeOthers: true})
+	if err != nil {
+		return orcapi.Stack{}, err
+	}
 	flags := orcapi.ResourceFlags{
 		FilterLabels: map[string]string{
-			orcapi.ResourceLabelStackInstance: id,
+			orcapi.ResourceLabelStackEntity: entity.Id,
 		},
 		SortBy:        util.OptValue("createdAt"),
 		SortDirection: util.OptValue(orcapi.SortDirectionAscending),
 	}
-
-	var err *util.HttpError
 	stackStatus := orcapi.StackStatus{}
 	stackStatus.Jobs = fndapi.BrowseAll(0, func(next util.Option[string]) fndapi.PageV2[orcapi.Job] {
-		// NOTE(Dan): This purposefully returns a stack even if none of the jobs are in a non-terminal state. This is
-		// needed to make the cleanup procedure easier in case of a partial failure where all the jobs are stopped,
-		// but some of the other resources are left dangling.
-
 		page, pageErr := JobsBrowse(actor, next, 250, orcapi.JobFlags{IncludeApplication: true, ResourceFlags: flags})
 		err = util.MergeHttpErr(err, pageErr)
 		return page
@@ -308,12 +399,6 @@ func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) 
 		return orcapi.Stack{}, err
 	}
 
-	if len(stackStatus.Jobs) == 0 {
-		return orcapi.Stack{}, util.HttpErr(http.StatusNotFound, "stack not found")
-	}
-
-	referenceJob := stackStatus.Jobs[0]
-
 	var filteredJobs []orcapi.Job
 	for _, job := range stackStatus.Jobs {
 		if job.Status.State.IsFinal() {
@@ -323,9 +408,6 @@ func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) 
 		filteredJobs = append(filteredJobs, job)
 	}
 	stackStatus.Jobs = filteredJobs
-	if len(stackStatus.Jobs) > 0 {
-		referenceJob = stackStatus.Jobs[0]
-	}
 
 	stackStatus.UcxUiMode = orcapi.UcxUiNone
 	stackStatus.UcxConnectJobId = util.OptNone[string]()
@@ -364,24 +446,8 @@ func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) 
 		stackStatus.UcxUiMode = orcapi.UcxUiReplacement
 	}
 
-	isEmpty := len(stackStatus.Jobs) == 0
-	isEmpty = isEmpty && len(stackStatus.Licenses) == 0
-	isEmpty = isEmpty && len(stackStatus.PublicIps) == 0
-	isEmpty = isEmpty && len(stackStatus.PublicLinks) == 0
-	isEmpty = isEmpty && len(stackStatus.Networks) == 0
-	isEmpty = isEmpty && len(stackStatus.Services) == 0
-
-	if isEmpty {
-		return orcapi.Stack{}, util.HttpErr(http.StatusNotFound, "stack not found")
-	}
-
-	return orcapi.Stack{
-		Id:          referenceJob.Specification.Labels[orcapi.ResourceLabelStackInstance],
-		Type:        referenceJob.Specification.Labels[orcapi.ResourceLabelStackName],
-		CreatedAt:   referenceJob.CreatedAt,
-		Permissions: referenceJob.Permissions.Value,
-		Status:      util.OptValue(stackStatus),
-	}, nil
+	stack.Status = util.OptValue(stackStatus)
+	return stack, nil
 }
 
 func StacksDelete(actor rpc.Actor, id string) {
@@ -407,50 +473,32 @@ func StacksDelete(actor rpc.Actor, id string) {
 }
 
 func StacksUpdateAcl(actor rpc.Actor, request orcapi.UpdatedAcl) *util.HttpError {
-	stack, err := StacksRetrieve(actor, request.Id)
+	stacksMutationMu.Lock()
+	defer stacksMutationMu.Unlock()
+	entity, exists := stacksFindEntity(actor, request.Id)
+	if !exists {
+		return util.HttpErr(http.StatusNotFound, "stack not found")
+	}
+	for _, entry := range request.Added {
+		if entry.Entity.Type != orcapi.AclEntityTypeProjectGroup {
+			return util.HttpErr(http.StatusBadRequest, "stack grants must use project groups")
+		}
+		for _, permission := range entry.Permissions {
+			if permission != orcapi.PermissionRead && permission != orcapi.PermissionEdit {
+				return util.HttpErr(http.StatusBadRequest, "stack grants must use READ or EDIT")
+			}
+		}
+	}
+	update := request
+	update.Id = entity.Id
+	if err := ResourceUpdateAcl(actor, stackType, update); err != nil {
+		return err
+	}
+	_, entity, _, err := ResourceRetrieveEx[orcapi.Stack](actor, stackType, ResourceParseId(entity.Id), orcapi.PermissionRead, orcapi.ResourceFlags{IncludeOthers: true})
 	if err != nil {
 		return err
 	}
-
-	updateRequest := func(id string) orcapi.UpdatedAcl {
-		return orcapi.UpdatedAcl{
-			Id:      id,
-			Added:   request.Added,
-			Deleted: request.Deleted,
-		}
-	}
-
-	for _, job := range stack.Status.Value.Jobs {
-		serr := ResourceUpdateAcl(actor, jobType, updateRequest(job.Id))
-		err = util.MergeHttpErr(err, serr)
-	}
-
-	for _, resc := range stack.Status.Value.Licenses {
-		serr := ResourceUpdateAcl(actor, licenseType, updateRequest(resc.Id))
-		err = util.MergeHttpErr(err, serr)
-	}
-
-	for _, resc := range stack.Status.Value.PublicIps {
-		serr := ResourceUpdateAcl(actor, publicIpType, updateRequest(resc.Id))
-		err = util.MergeHttpErr(err, serr)
-	}
-
-	for _, resc := range stack.Status.Value.PublicLinks {
-		serr := ResourceUpdateAcl(actor, ingressType, updateRequest(resc.Id))
-		err = util.MergeHttpErr(err, serr)
-	}
-
-	for _, resc := range stack.Status.Value.Networks {
-		serr := ResourceUpdateAcl(actor, privateNetworkType, updateRequest(resc.Id))
-		err = util.MergeHttpErr(err, serr)
-	}
-
-	for _, resc := range stack.Status.Value.Services {
-		serr := ResourceUpdateAcl(actor, serviceType, updateRequest(resc.Id))
-		err = util.MergeHttpErr(err, serr)
-	}
-
-	return err
+	return stacksApplyAcl(entity)
 }
 
 func stacksHandleDeletions() {
@@ -503,10 +551,12 @@ func stacksHandleDeletions() {
 			}
 
 			ok = true
+			complete := true
 
 			stackStatus := stack.Status.Value
 			for _, job := range stackStatus.Jobs {
 				if req.ProviderFilter.Valid && req.ProviderFilter.V != job.Specification.Product.Provider {
+					complete = false
 					continue
 				}
 
@@ -518,6 +568,7 @@ func stacksHandleDeletions() {
 
 			for _, resc := range stackStatus.Licenses {
 				if req.ProviderFilter.Valid && req.ProviderFilter.V != resc.Specification.Product.Provider {
+					complete = false
 					continue
 				}
 
@@ -529,6 +580,7 @@ func stacksHandleDeletions() {
 
 			for _, resc := range stackStatus.PublicIps {
 				if req.ProviderFilter.Valid && req.ProviderFilter.V != resc.Specification.Product.Provider {
+					complete = false
 					continue
 				}
 
@@ -540,6 +592,7 @@ func stacksHandleDeletions() {
 
 			for _, resc := range stackStatus.PublicLinks {
 				if req.ProviderFilter.Valid && req.ProviderFilter.V != resc.Specification.Product.Provider {
+					complete = false
 					continue
 				}
 
@@ -551,6 +604,7 @@ func stacksHandleDeletions() {
 
 			for _, resc := range stackStatus.Services {
 				if req.ProviderFilter.Valid && req.ProviderFilter.V != resc.Specification.Product.Provider {
+					complete = false
 					continue
 				}
 
@@ -562,6 +616,7 @@ func stacksHandleDeletions() {
 
 			for _, resc := range stackStatus.Networks {
 				if req.ProviderFilter.Valid && req.ProviderFilter.V != resc.Specification.Product.Provider {
+					complete = false
 					continue
 				}
 
@@ -572,6 +627,11 @@ func stacksHandleDeletions() {
 			}
 
 			if ok {
+				if complete {
+					if entity, exists := stacksFindEntity(actor, req.StackId); exists {
+						ResourceDelete(actor, stackType, ResourceParseId(entity.Id))
+					}
+				}
 				handled = append(handled, req.RequestId)
 			}
 		}

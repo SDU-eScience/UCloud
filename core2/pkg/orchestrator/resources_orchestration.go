@@ -10,6 +10,45 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+func resourcePushAclToProvider[T any](
+	provider string,
+	call rpc.Call[fndapi.BulkRequest[orcapi.UpdatedAclWithResource[T]], fndapi.BulkResponse[util.Empty]],
+	resource T,
+	acl orcapi.UpdatedAcl,
+) {
+	_, err := InvokeProvider(provider, call, fndapi.BulkRequestOf(orcapi.UpdatedAclWithResource[T]{
+		Resource: resource,
+		Added:    stacksCloneAcl(acl.Added),
+		Deleted:  acl.Deleted,
+	}), ProviderCallOpts{})
+	if err != nil {
+		log.Warn("Failed to send ACL update to provider %s for resource %s (%s): %v", provider, acl.Id, call.FullName(), err)
+	}
+}
+
+func resourcePushAcl(provider string, resource any, acl orcapi.UpdatedAcl) {
+	switch resource := resource.(type) {
+	case orcapi.Drive:
+		resourcePushAclToProvider(provider, orcapi.DrivesProviderUpdateAcl, resource, acl)
+	case orcapi.Job:
+		resourcePushAclToProvider(provider, orcapi.JobsProviderUpdateAcl, resource, acl)
+	case orcapi.License:
+		resourcePushAclToProvider(provider, orcapi.LicensesProviderUpdateAcl, resource, acl)
+	case orcapi.PublicIp:
+		resourcePushAclToProvider(provider, orcapi.PublicIpsProviderUpdateAcl, resource, acl)
+	case orcapi.Ingress:
+		resourcePushAclToProvider(provider, orcapi.IngressesProviderUpdateAcl, resource, acl)
+	case orcapi.PrivateNetwork:
+		resourcePushAclToProvider(provider, orcapi.PrivateNetworksProviderUpdateAcl, resource, acl)
+	case orcapi.PrivateNetworkIp:
+		resourcePushAclToProvider(provider, orcapi.PrivateNetworkIpsProviderUpdateAcl, resource, acl)
+	case orcapi.Service:
+		resourcePushAclToProvider(provider, orcapi.ServicesProviderUpdateAcl, resource, acl)
+	case orcapi.ContainerRepository:
+		resourcePushAclToProvider(provider, orcapi.ContainerRepositoriesProviderUpdateAcl, resource, acl)
+	}
+}
+
 func ResourceCreateThroughProvider[T any](
 	actor rpc.Actor,
 	typeName string,

@@ -137,8 +137,9 @@ type ResourceBrowseRequest[Flags any] struct {
 }
 
 type ResourceSpecification struct {
-	Product acc.ProductReference `json:"product"`
-	Labels  map[string]string    `json:"labels"`
+	Product       acc.ProductReference `json:"product"`
+	Labels        map[string]string    `json:"labels"`
+	StackResource *Resource            `json:"-"`
 }
 
 type ResourceRetrieveRequest[Flags any] struct {
