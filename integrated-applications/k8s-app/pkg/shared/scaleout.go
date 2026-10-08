@@ -377,9 +377,9 @@ func ClusterAddNodeLocked(
 	}
 
 	labels := map[string]string{
-		StackGroupingLabel:  trimmedGroup,
-		NodeAllocationLabel: fmt.Sprintf("%d", allocationId),
-		K8sVersionLabel:     release.Release,
+		StackGroupingLabel:     trimmedGroup,
+		NodeAllocationLabel:    fmt.Sprintf("%d", allocationId),
+		K8sVersionLabel:        release.Release,
 		TopologyOperationLabel: operationUid,
 	}
 
@@ -404,11 +404,9 @@ func ClusterAddNodeLocked(
 		Application: ucxsvc.VmImageUbuntu26_04,
 		Name:        hostname,
 		Hostname:    util.OptValue[string](hostname),
-		Parameters: map[string]orcapi.AppParameterValue{
-			"diskSize": orcapi.AppParameterValueInteger(int64(diskGb)),
-		},
-		Replicas:  1,
-		Resources: attachments,
+		Parameters:  clusterNodeParameters(stack, hostname, diskGb),
+		Replicas:    1,
+		Resources:   attachments,
 	})
 	if err != nil {
 		ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not create the node: %s", err))

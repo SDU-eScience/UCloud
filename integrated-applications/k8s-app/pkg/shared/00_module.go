@@ -49,6 +49,7 @@ const (
 	nodesMountPath      = "/etc/ucloud-k8s/nodes"
 	storageDir          = "k3s-storage"
 	storageMountPath    = "/etc/ucloud-stack/k3s/storage"
+	vmDisksDir          = "vm-disks"
 	bundleMountPath     = "/etc/ucloud-k8s/bundle"
 	inputMountPath      = "/etc/ucloud-k8s/input"
 	launcherPath        = bundleMountPath + "/launcher.sh"
@@ -591,11 +592,9 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 		Application: ucxsvc.VmImageUbuntu26_04,
 		Name:        hostname,
 		Hostname:    util.OptValue[string](hostname),
-		Parameters: map[string]orcapi.AppParameterValue{
-			"diskSize": orcapi.AppParameterValueInteger(int64(opts.diskGb)),
-		},
-		Replicas:  1,
-		Resources: attachments,
+		Parameters:  clusterNodeParameters(stack, hostname, opts.diskGb),
+		Replicas:    1,
+		Resources:   attachments,
 	})
 	if err != nil {
 		clusterReleaseReservation(opts, stack, record, reservation.Id, hostname)
@@ -700,6 +699,19 @@ func clusterCreateNodeJob(stack *ucxsvc.Stack, spec orcapi.JobSpecification) (or
 
 		time.Sleep(2 * time.Second)
 	}
+}
+
+func clusterNodeParameters(stack *ucxsvc.Stack, hostname string, diskGb int) map[string]orcapi.AppParameterValue {
+	parameters := map[string]orcapi.AppParameterValue{
+		"diskSize": orcapi.AppParameterValueInteger(int64(diskGb)),
+	}
+
+	diskFolder := ucxsvc.StackSubtreeMount(stack, filepath.Join(vmDisksDir, hostname), "", false)
+	if diskFolder.Type == orcapi.AppParameterValueTypeFile {
+		parameters[orcapi.JobParameterVmDiskFolder] = diskFolder
+	}
+
+	return parameters
 }
 
 func clusterReleaseReservation(opts clusterNodeOptions, stack *ucxsvc.Stack, record *ClusterRecord, reservationId string, hostname string) {

@@ -636,6 +636,8 @@ const (
 	AppParameterValueTypeApiServer      AppParameterValueType = "api_server"
 )
 
+const JobParameterVmDiskFolder = "_injected_vmDiskFolder"
+
 func AppParameterValuePrivateNetwork(networkId string, ips ...string) AppParameterValue {
 	return AppParameterValue{
 		Type: AppParameterValueTypePrivateNetwork,
