@@ -52,7 +52,7 @@ function editorSchemaLanguageService() {
                 ...monaco,
                 editor: {
                     ...monaco.editor,
-                    createWebWorker: <T>(options: {
+                    createWebWorker: <T extends object>(options: {
                         createData?: unknown;
                         host?: Record<string, Function>;
                         keepIdleModels?: boolean;
@@ -243,7 +243,7 @@ export async function getEditorSchemaDiagnostics() {
         fileMatch: schema.fileMatch,
         properties: Object.keys(schema.schema?.properties ?? {}),
     }));
-    const documents = [];
+    const documents: unknown[] = [];
     for (const model of models) {
         const instance = monaco.editor.getEditors().find(instance => instance.getModel() === model);
         const position = instance?.getPosition() ?? undefined;
