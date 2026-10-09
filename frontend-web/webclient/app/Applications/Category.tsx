@@ -368,9 +368,24 @@ function CategoryManagementDialog(props: {
 }
 
 export function AppGrid(props: React.PropsWithChildren): React.ReactNode {
-    return <Grid gridTemplateColumns={"repeat(auto-fit, minmax(500px, 1fr))"} columnGap={"16px"} rowGap={"16px"}>
+    return <div className={AppGridStyle}>
         {props.children}
-    </Grid>
+    </div>
 }
+
+const AppGridStyle = injectStyle("app-grid", k => `
+    ${k} {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+        column-gap: 16px;
+        row-gap: 16px;
+    }
+
+    @media (max-width: 600px) {
+        ${k} {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+    }
+`);
 
 export default ApplicationsCategory;

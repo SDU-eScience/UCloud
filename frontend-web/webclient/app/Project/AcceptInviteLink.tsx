@@ -1,30 +1,28 @@
 
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import React, {useEffect} from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate, useParams} from "react-router-dom";
 import api, {AcceptInviteLinkResponse, RetrieveInviteLinkInfoResponse} from "./Api";
 import * as Heading from "@/ui-components/Heading";
 import {dispatchSetProjectAction} from "./ReduxState";
-import {Button, Flex} from "@/ui-components";
-import MainContainer from "@/ui-components/MainContainer";
+import {Box, Button, Flex, Text} from "@/ui-components";
 import Spinner from "@/LoadingIcon/LoadingIcon";
-import {injectStyleSimple} from "@/Unstyled";
 import AppRoutes from "@/Routes";
 import {addOrgInfoModalIfNotFilled} from "@/UserSettings/ChangeUserDetails";
-import {usePage} from "@/Navigation/Redux";
-import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {prettierString} from "@/UtilityFunctions";
+import {formatDate} from "date-fns";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {ModalBottom, slimModalStyle} from "@/Utilities/ModalUtilities";
+import {injectStyle} from "@/Unstyled";
 
 export const AcceptInviteLink: React.FunctionComponent = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
 
-    usePage("Project invite", SidebarTabId.NONE);
-
     const locationParams = useParams<{id: string;}>();
     let token = locationParams.id ? decodeURIComponent(locationParams.id) : undefined;
 
-    const [acceptedInvite, acceptInvite] = useCloudAPI<AcceptInviteLinkResponse | null>({noop: true}, null);
     const [linkInfo, fetchLinkInfo] = useCloudAPI<RetrieveInviteLinkInfoResponse | null>({noop: true}, null);
 
     useEffect(() => {
@@ -34,51 +32,67 @@ export const AcceptInviteLink: React.FunctionComponent = () => {
     }, [token]);
 
     useEffect(() => {
-        if (linkInfo.data) {
-            if (linkInfo.data.isMember) {
-                dispatchSetProjectAction(dispatch, linkInfo.data.project.id);
-                navigate(AppRoutes.project.members());
-            }
+        if (linkInfo.data?.isMember && !Math) {
+            dispatchSetProjectAction(dispatch, linkInfo.data.project.id);
+            navigate(AppRoutes.project.members());
+        } else if (linkInfo.data || linkInfo.error) {
+            navigate(AppRoutes.dashboard.dashboardA());
+            window.setTimeout(() => {
+                dialogStore.addDialog(<>
+                    {linkInfo.loading ? <Spinner /> :
+                        linkInfo.error ? <div className={Container}>
+                            <Heading.h3>Invitation link has expired</Heading.h3>
+                            Contact the relevant PI or admin of the project to get a new link.
+                            <Box pt="40px">
+                                <ModalBottom>
+                                    <Button onClick={() => dialogStore.failure()}>Done</Button>
+                                </ModalBottom>
+                            </Box>
+                        </div> : <div className={Container}>
+                            <Box><Heading.h3>You have been invited to join '{linkInfo.data?.project.specification.title}'</Heading.h3></Box>
+                            <Box>
+                                {linkInfo.data?.roleAssignment != null ? <Box>
+                                    By accepting this invite, you will join the project as '{prettierString(linkInfo.data.roleAssignment)}'
+                                </Box> : null}
+                                {linkInfo.data?.expires != null ? <Box>
+                                    <Text color="textSecondary">This invitation will expire on {formatDate(linkInfo.data.expires, "dd/MM/yyyy")}</Text>
+                                </Box> : null}
+                            </Box>
+
+                            <Box flexGrow={1} />
+
+                            <ModalBottom>
+                                <Button
+                                    color="successMain"
+                                    onClick={async () => {
+                                        if (token) {
+                                            const acceptedInvite = await callAPI<AcceptInviteLinkResponse | null>(
+                                                api.acceptInviteLink({token})
+                                            );
+                                            if (!acceptedInvite) return;
+                                            dispatchSetProjectAction(dispatch, acceptedInvite.project);
+                                            navigate(AppRoutes.project.members());
+                                            addOrgInfoModalIfNotFilled();
+                                        }
+                                    }}
+                                >Join project</Button>
+                                <Button color="errorMain" onClick={() => dialogStore.failure()}>Ignore</Button>
+                            </ModalBottom>
+                        </div>}
+                </>, () => void 0, undefined, slimModalStyle);
+            }, 100);
         }
     }, [linkInfo]);
 
-    useEffect(() => {
-        if (acceptedInvite.data) {
-            dispatchSetProjectAction(dispatch, acceptedInvite.data?.project);
-            navigate(AppRoutes.project.members());
-            addOrgInfoModalIfNotFilled();
-        }
-    }, [acceptedInvite]);
-
-    return <MainContainer
-        main={
-            linkInfo.loading ? <Spinner /> :
-                linkInfo.error ? <div className={AcceptProjectLinkContainer}>
-                    <Heading.h3>Invitation link has expired</Heading.h3>
-                    Contact the relevant PI or admin of the project to get a new link.
-                </div> : <div className={AcceptProjectLinkContainer}>
-                    <Heading.h3>You have been invited to join {linkInfo.data?.project.specification.title}</Heading.h3>
-                    <Flex mt="15px" width="300px" mx="auto" justifyContent={"center"}>
-                        <Button
-                            color="successMain"
-                            mr="10px"
-                            onClick={() => {
-                                if (token) {
-                                    acceptInvite(api.acceptInviteLink({token}))
-                                }
-                            }}
-                        >Join project</Button>
-                        <Button color="errorMain" onClick={() => navigate(AppRoutes.dashboard.dashboardA())}>Ignore</Button>
-                    </Flex>
-                </div>
-        }
-    />;
+    return null;
 }
 
-const AcceptProjectLinkContainer = injectStyleSimple("accept-project-link", `
-    text-align: center;
-    margin-top: 50px;
+const Container = injectStyle("container", k => `
+    ${k} {
+        display: flex;
+        gap: 24px;
+        flex-direction: column;
+    }
 `);
-
 
 export default AcceptInviteLink;
