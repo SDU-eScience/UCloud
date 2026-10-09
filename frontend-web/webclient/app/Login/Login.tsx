@@ -496,8 +496,8 @@ const DropdownLikeClass = injectStyle("dropdown-like", cl => `
       width: 315px;
       padding: 16px 16px;
    }
-   
-   ${cl}[data-is-generic="true"] { 
+
+   ${cl}[data-is-generic="true"] {
       background-color: var(--primaryLight);
 }`);
 
@@ -512,7 +512,7 @@ const LoginInputClass = injectStyle("login-input", k => `
         background-color: white;
         color: black;
     }
-    
+
     ${k}::placeholder {
         color: gray;
     }
@@ -567,9 +567,8 @@ function LoginWrapper({branding, selection, ...props}: React.PropsWithChildren<T
                 {!branding.supportEmail ? null : (
                     <ClickableDropdown
                         width="238px"
-                        top="0"
-                        left="-248px"
                         right="5px"
+                        top="24px"
                         colorOnHover={false}
                         trigger={<Relative><Icon color={textColor} color2={textColor} mr={"1em"}
                             name="suggestion" /></Relative>}
