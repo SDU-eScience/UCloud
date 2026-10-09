@@ -12,6 +12,7 @@ import (
 	"ucloud.dk/iapp/k8s/pkg/dashboard"
 	"ucloud.dk/iapp/k8s/pkg/maintenance"
 	"ucloud.dk/iapp/k8s/pkg/nodeagent"
+	"ucloud.dk/iapp/k8s/pkg/recovery"
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/util"
@@ -52,6 +53,11 @@ func main() {
 		if err == nil {
 			port.Set(converted)
 		}
+	}
+
+	if len(os.Args) >= 2 && os.Args[1] == "recovery" {
+		ucx.AppServe(recovery.App, port)
+		return
 	}
 
 	if os.Getenv("UCX_PORT") != "" {

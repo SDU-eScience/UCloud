@@ -58,6 +58,7 @@ func clusterMinimumControlPlaneVersion(record *ClusterRecord) (string, error) {
 func clusterValidateRecordMutation(
 	app ucx.Application,
 	stack *ucxsvc.Stack,
+	client ClusterStateClient,
 	record *ClusterRecord,
 	machine accapi.ProductReference,
 	readyMessage string,
@@ -72,8 +73,18 @@ func clusterValidateRecordMutation(
 		return false
 	}
 
-	if record.Phase != clusterRecordPhaseCreated {
+	if record.Phase != ClusterRecordPhaseCreated {
 		ucxsvc.UiSendFailure(app, "The cluster is not ready for "+readyMessage+" (current state: "+record.Phase+")")
+		return false
+	}
+
+	recoveryActive, recoveryErr := ClusterRecoveryActive(client)
+	if recoveryErr != nil {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not read the recovery state: %s", recoveryErr))
+		return false
+	}
+	if recoveryActive {
+		ucxsvc.UiSendFailure(app, "A recovery operation is in progress for this cluster")
 		return false
 	}
 
@@ -137,7 +148,7 @@ func ClusterAddPool(app ucx.Application, stack *ucxsvc.Stack, pool ClusterPoolSp
 		return false
 	}
 
-	if !clusterValidateRecordMutation(app, stack, record, pool.Machine, "new pools") {
+	if !clusterValidateRecordMutation(app, stack, flow.client, record, pool.Machine, "new pools") {
 		return false
 	}
 	for _, existing := range record.Pools {
@@ -226,7 +237,7 @@ func ClusterAddNodeLocked(
 		return "", false
 	}
 
-	if !clusterValidateRecordMutation(app, stack, record, machine, "new nodes") {
+	if !clusterValidateRecordMutation(app, stack, flow.client, record, machine, "new nodes") {
 		return "", false
 	}
 
@@ -313,7 +324,10 @@ func ClusterAddNodeLocked(
 		session:      *app.Session(),
 	}
 
-	if !clusterWriteNodeInput(stack, record, release, opts.tokens, opts) {
+	if !clusterWriteNodeInput(stack, record, release, clusterNodeInputSpec{
+		group:        trimmedGroup,
+		allocationId: allocationId,
+	}) {
 		ucxsvc.UiSendFailure(app, "Could not write the input files for the new node")
 		return "", false
 	}
@@ -384,7 +398,7 @@ func ClusterAddNodeLocked(
 	}
 
 	if trimmedGroup == GroupControlPlane {
-		customUi := ucxsvc.UcxInitCustomUiServiceAt(stack, customUiPort, "", managementDir, managementMountPath)
+		customUi := ClusterNodeCustomUi(stack)
 		if !stack.Ok {
 			ucxsvc.UiSendFailure(app, "Could not prepare the custom UI service for the new control plane node")
 			clusterCleanupNewNode(stack, flow, record, &node, app)
@@ -552,7 +566,7 @@ func ClusterAddNodesBatch(
 		return "", false
 	}
 
-	if !clusterValidateRecordMutation(app, stack, record, machine, "new nodes") {
+	if !clusterValidateRecordMutation(app, stack, flow.client, record, machine, "new nodes") {
 		return "", false
 	}
 
@@ -613,7 +627,7 @@ func clusterCleanupNewNode(
 	}
 
 	if len(failures) == 0 {
-		record.Phase = clusterRecordPhaseCreated
+		record.Phase = ClusterRecordPhaseCreated
 		if !flow.Commit(record) {
 			ucxsvc.UiSendFailure(app, "The node could not be created and the cleanup outcome could not be recorded. The cluster requires an explicit recovery")
 		}

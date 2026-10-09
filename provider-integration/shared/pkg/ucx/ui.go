@@ -1631,3 +1631,92 @@ func (b SidebarLayoutNodeBuilder) Children(children ...UiNode) UiNode {
 
 	return b.node.Children(all...)
 }
+
+func TutorialWizard(id string, step int64, stepCount int64) TutorialWizardNodeBuilder {
+	requireExplicitId(id, "tutorial_wizard")
+	if stepCount < 1 {
+		panic("ucx: tutorial_wizard requires at least one step")
+	}
+	if step < 0 || step >= stepCount {
+		panic("ucx: tutorial_wizard step is out of range")
+	}
+
+	return TutorialWizardNodeBuilder{node: UiNode{
+		Id:        id,
+		Component: "tutorial_wizard",
+		Props: map[string]Value{
+			"step":      VS64(step),
+			"stepCount": VS64(stepCount),
+		},
+	}}
+}
+
+type TutorialWizardNodeBuilder struct {
+	node        UiNode
+	actionNodes []UiNode
+}
+
+func (b TutorialWizardNodeBuilder) PreviousLabel(label string) TutorialWizardNodeBuilder {
+	return b.prop("previousLabel", VString(label))
+}
+
+func (b TutorialWizardNodeBuilder) NextLabel(label string) TutorialWizardNodeBuilder {
+	return b.prop("nextLabel", VString(label))
+}
+
+func (b TutorialWizardNodeBuilder) ShowPrevious(show bool) TutorialWizardNodeBuilder {
+	return b.prop("showPrevious", VBool(show))
+}
+
+func (b TutorialWizardNodeBuilder) ShowNext(show bool) TutorialWizardNodeBuilder {
+	return b.prop("showNext", VBool(show))
+}
+
+func (b TutorialWizardNodeBuilder) NextHoldToConfirm(enabled bool) TutorialWizardNodeBuilder {
+	return b.prop("nextHoldToConfirm", VBool(enabled))
+}
+
+func (b TutorialWizardNodeBuilder) NextColor(color Color) TutorialWizardNodeBuilder {
+	return b.prop("nextColor", VColor(color))
+}
+
+func (b TutorialWizardNodeBuilder) NextBusy(bindPath string) TutorialWizardNodeBuilder {
+	return b.prop("nextBusyPath", VString(bindPath))
+}
+
+func (b TutorialWizardNodeBuilder) NextDisabledWhen(bindPath string) TutorialWizardNodeBuilder {
+	return b.prop("nextDisabledPath", VString(bindPath))
+}
+
+func (b TutorialWizardNodeBuilder) OnPrevious(handler UiEventHandlerSimple) TutorialWizardNodeBuilder {
+	return b.action("previous", handler)
+}
+
+func (b TutorialWizardNodeBuilder) OnNext(handler UiEventHandlerSimple) TutorialWizardNodeBuilder {
+	return b.action("next", handler)
+}
+
+func (b TutorialWizardNodeBuilder) action(name string, handler UiEventHandlerSimple) TutorialWizardNodeBuilder {
+	action := UiNode{
+		Id:        b.node.Id + "-" + name,
+		Component: "tutorial_wizard_action",
+	}
+	b.actionNodes = append(b.actionNodes, action.On(UiEventClick, handler))
+	return b
+}
+
+func (b TutorialWizardNodeBuilder) prop(key string, value Value) TutorialWizardNodeBuilder {
+	if b.node.Props == nil {
+		b.node.Props = map[string]Value{}
+	}
+	b.node.Props[key] = value
+	return b
+}
+
+func (b TutorialWizardNodeBuilder) Children(children ...UiNode) UiNode {
+	all := make([]UiNode, 0, len(children)+len(b.actionNodes))
+	all = append(all, children...)
+	all = append(all, b.actionNodes...)
+	b.node.ChildNodes = all
+	return b.node
+}

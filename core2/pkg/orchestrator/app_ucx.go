@@ -45,6 +45,12 @@ func initAppUcx() {
 			state.Mu.RUnlock()
 			return provider
 		}
+		state.appUcxBaseState.Application = func() orcapi.NameAndVersion {
+			state.Mu.RLock()
+			application := orcapi.NameAndVersion{Name: state.reqInfo.Name, Version: state.reqInfo.Version}
+			state.Mu.RUnlock()
+			return application
+		}
 
 		proxy.RegisterUpstreamSelector(func(ctx context.Context, downstreamToken string, downstreamSysHello string) ucx.ProxyUpstreamSelection {
 			reqInfo := orcapi.AppUcxConnectRequest{}
@@ -200,7 +206,7 @@ func initAppUcx() {
 			if !state.AllowStackCreation {
 				return util.Empty{}, fmt.Errorf("stack creation is not allowed")
 			}
-			err := StacksCreate(state.Actor(), request.StackId, request.StackType, request.StateFolder, state.Provider())
+			err := StacksCreate(state.Actor(), request.StackId, request.StackType, request.StateFolder, state.Provider(), state.Application())
 			if err != nil {
 				return util.Empty{}, err.AsError()
 			}
@@ -216,6 +222,24 @@ func initAppUcx() {
 				return false, nil
 			}
 			return true, nil
+		})
+
+		ucxapi.StackBrowse.HandlerProxy(proxy, func(ctx context.Context, request orcapi.StacksBrowseRequest) (fndapi.PageV2[orcapi.Stack], error) {
+			actor := state.Actor()
+			page, err := StacksBrowse(actor, request.Next, request.ItemsPerPage)
+			if err != nil {
+				return fndapi.PageV2[orcapi.Stack]{}, err.AsError()
+			}
+			return page, nil
+		})
+
+		ucxapi.StackSpawnDeclaredJob.HandlerProxy(proxy, func(ctx context.Context, request fndapi.FindByStringId) (util.Empty, error) {
+			actor := state.Actor()
+			err := stacksSpawnDeclaredJob(actor, request.Id)
+			if err != nil {
+				return util.Empty{}, err.AsError()
+			}
+			return util.Empty{}, nil
 		})
 
 		ucxapi.Core.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.Message) (ucxapi.Message, error) {

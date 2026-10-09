@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -59,9 +60,12 @@ func stacksFindEntity(actor rpc.Actor, id string) (orcapi.Resource, bool) {
 	return orcapi.Resource{}, false
 }
 
-func StacksCreate(actor rpc.Actor, id string, name string, stateFolder string, provider string) *util.HttpError {
+func StacksCreate(actor rpc.Actor, id string, name string, stateFolder string, provider string, application orcapi.NameAndVersion) *util.HttpError {
 	if strings.TrimSpace(id) == "" || strings.TrimSpace(name) == "" {
 		return util.HttpErr(http.StatusBadRequest, "stack id and type are required")
+	}
+	if strings.TrimSpace(application.Name) == "" || strings.TrimSpace(application.Version) == "" {
+		return util.HttpErr(http.StatusBadRequest, "the application name and version are required")
 	}
 	if actor.Project.Present {
 		if _, member := actor.Membership[actor.Project.Value]; !member {
@@ -91,6 +95,8 @@ func StacksCreate(actor rpc.Actor, id string, name string, stateFolder string, p
 			orcapi.ResourceLabelStackName:        name,
 			orcapi.ResourceLabelStackStateFolder: stateFolder,
 			orcapi.ResourceLabelStackProvider:    provider,
+			orcapi.ResourceLabelUcxAppName:       application.Name,
+			orcapi.ResourceLabelUcxAppVersion:    application.Version,
 		},
 	}, nil)
 	if err != nil {
@@ -215,6 +221,10 @@ func initStacks() {
 		}
 
 		return util.Empty{}, nil
+	})
+
+	orcapi.StacksSpawnDeclaredJob.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (util.Empty, *util.HttpError) {
+		return util.Empty{}, stacksSpawnDeclaredJob(info.Actor, request.Id)
 	})
 
 	orcapi.StacksControlRequestDeletion.Handler(func(info rpc.RequestInfo, request orcapi.StacksControlRequestDeletionRequest) (fndapi.FindByIntId, *util.HttpError) {
@@ -344,7 +354,7 @@ func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) 
 	if !exists {
 		return orcapi.Stack{}, util.HttpErr(http.StatusNotFound, "stack not found")
 	}
-	stack, _, _, err := ResourceRetrieveEx[orcapi.Stack](actor, stackType, ResourceParseId(entity.Id), orcapi.PermissionRead, orcapi.ResourceFlags{IncludeOthers: true})
+	stack, _, stackSpec, err := ResourceRetrieveEx[orcapi.Stack](actor, stackType, ResourceParseId(entity.Id), orcapi.PermissionRead, orcapi.ResourceFlags{IncludeOthers: true})
 	if err != nil {
 		return orcapi.Stack{}, err
 	}
@@ -391,6 +401,17 @@ func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) 
 		return orcapi.Stack{}, err
 	}
 
+	appName := strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelUcxAppName])
+	appVersion := strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelUcxAppVersion])
+	if appName != "" && appVersion != "" {
+		if app, ok := AppRetrieve(actor, appName, appVersion, AppDiscoveryAll, 0); ok {
+			ucx := app.Invocation.Ucx
+			if ucx.Present && ucx.Value.DisasterRecovery.Present && ucx.Value.DisasterRecovery.Value.Enabled {
+				stackStatus.DisasterRecoveryDeclared = true
+			}
+		}
+	}
+
 	var filteredJobs []orcapi.Job
 	for _, job := range stackStatus.Jobs {
 		if job.Status.State.IsFinal() {
@@ -424,9 +445,16 @@ func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) 
 			oldestCandidate.Set(job.Id)
 		}
 
-		if job.Status.State == orcapi.JobStateRunning {
+		if job.Status.State != orcapi.JobStateRunning {
+			continue
+		}
+
+		if strings.EqualFold(job.Specification.Labels[orcapi.ResourceLabelDisasterRecovery], "true") {
 			stackStatus.UcxConnectJobId.Set(job.Id)
 			break
+		}
+		if !stackStatus.UcxConnectJobId.Present {
+			stackStatus.UcxConnectJobId.Set(job.Id)
 		}
 	}
 
@@ -440,6 +468,176 @@ func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) 
 
 	stack.Status = util.OptValue(stackStatus)
 	return stack, nil
+}
+
+func stacksSpawnDeclaredJob(actor rpc.Actor, id string) *util.HttpError {
+	stacksMutationMu.Lock()
+	defer stacksMutationMu.Unlock()
+
+	entity, exists := stacksFindEntity(actor, id)
+	if !exists {
+		return util.HttpErr(http.StatusNotFound, "stack not found")
+	}
+
+	_, stack, stackSpec, err := ResourceRetrieveEx[orcapi.Stack](
+		actor,
+		stackType,
+		ResourceParseId(entity.Id),
+		orcapi.PermissionEdit,
+		orcapi.ResourceFlags{IncludeOthers: true},
+	)
+	if err != nil {
+		return err
+	}
+
+	jobs := fndapi.BrowseAll(0, func(next util.Option[string]) fndapi.PageV2[orcapi.Job] {
+		page, pageErr := JobsBrowse(actor, next, 250, orcapi.JobFlags{
+			IncludeApplication: true,
+			ResourceFlags: orcapi.ResourceFlags{
+				FilterLabels: map[string]string{
+					orcapi.ResourceLabelStackEntity: entity.Id,
+				},
+			},
+		})
+		err = util.MergeHttpErr(err, pageErr)
+		return page
+	})
+	if err != nil {
+		return err
+	}
+
+	appName := strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelUcxAppName])
+	appVersion := strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelUcxAppVersion])
+	if appName == "" || appVersion == "" {
+		return util.HttpErr(http.StatusBadRequest, "the stack has no application")
+	}
+	app, ok := AppRetrieve(actor, appName, appVersion, AppDiscoveryAll, 0)
+	if !ok {
+		return util.HttpErr(http.StatusBadRequest, "the application of this stack could not be found")
+	}
+
+	disasterRecovery := util.OptNone[orcapi.UcxDisasterRecoveryDescription]()
+	resolvedUcx := app.Invocation.Ucx
+	if resolvedUcx.Present && resolvedUcx.Value.DisasterRecovery.Present {
+		disasterRecovery.Set(resolvedUcx.Value.DisasterRecovery.Value)
+	}
+	if !disasterRecovery.Present || !disasterRecovery.Value.Enabled {
+		return util.HttpErr(http.StatusBadRequest, "the application of this stack does not declare disaster recovery")
+	}
+
+	declaration := disasterRecovery.Value.Job
+	if len(declaration.Args) == 0 {
+		return util.HttpErr(http.StatusBadRequest, "the declared disaster recovery job has no arguments")
+	}
+	provider := strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelStackProvider])
+	if provider == "" {
+		return util.HttpErr(http.StatusBadRequest, "the stack has no known provider")
+	}
+	product, productErr := stacksSelectDeclaredJobProduct(provider, declaration.Cpu, declaration.MemoryInGigs)
+	if productErr != nil {
+		return productErr
+	}
+
+	for i := range jobs {
+		job := &jobs[i]
+		if job.Specification.Application.Name != "unknown" {
+			continue
+		}
+		if job.Status.State.IsFinal() {
+			continue
+		}
+		if !strings.EqualFold(job.Specification.Labels[orcapi.ResourceLabelStackController], "true") {
+			continue
+		}
+		if strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelUcxPort]) == "" {
+			continue
+		}
+		return util.HttpErr(http.StatusConflict, "a recovery job is already running")
+	}
+
+	stateFolder := strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelStackStateFolder])
+	if stateFolder == "" {
+		return util.HttpErr(http.StatusBadRequest, "the stack has no state folder")
+	}
+	stackName := strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelStackName])
+	if stackName == "" {
+		stackName = id
+	}
+
+	response, err := InvokeProvider(provider, orcapi.StacksProviderSpawnDeclaredJob, orcapi.StacksProviderSpawnDeclaredJobRequest{
+		StackInstance: id,
+		StackName:     stackName,
+		StackEntityId: entity.Id,
+		StateFolder:   stateFolder,
+		Owner:         entity.Owner,
+		Application:   orcapi.NameAndVersion{Name: appName, Version: appVersion},
+		Product:       product,
+		Job:           declaration,
+	}, ProviderCallOpts{
+		Username: util.OptValue(actor.Username),
+		Reason:   util.OptValue("Starting disaster recovery for stack " + id),
+	})
+	if err != nil {
+		return err
+	}
+
+	acl := stacksCloneAcl(stack.Permissions.Value.Others)
+	if len(acl) > 0 {
+		_ = ResourceUpdateAcl(rpc.ActorSystem, jobType, orcapi.UpdatedAcl{
+			Id:    response.Id,
+			Added: acl,
+		})
+	}
+
+	return nil
+}
+
+func stacksSelectDeclaredJobProduct(provider string, minCpu int, minMemoryInGigs int) (accapi.ProductReference, *util.HttpError) {
+	candidates := SupportRetrieveProducts[orcapi.JobSupport](jobType).ProductsByProvider[provider]
+
+	var chosen accapi.ProductV2
+	found := false
+	for _, candidate := range candidates {
+		product := candidate.Product
+		if product.Gpu != 0 {
+			continue
+		}
+		if product.Category.FreeToUse {
+			continue
+		}
+		if product.HiddenInGrantApplications {
+			continue
+		}
+		if !candidate.Support.Docker.Enabled {
+			continue
+		}
+		if product.Cpu < minCpu || product.MemoryInGigs < minMemoryInGigs {
+			continue
+		}
+		if !found || stacksDeclaredJobProductIsSmaller(product, chosen) {
+			chosen = product
+			found = true
+		}
+	}
+
+	if !found {
+		return accapi.ProductReference{}, util.HttpErr(
+			http.StatusBadRequest,
+			"no product on this provider meets the declared disaster recovery requirements",
+		)
+	}
+
+	return chosen.ToReference(), nil
+}
+
+func stacksDeclaredJobProductIsSmaller(a accapi.ProductV2, b accapi.ProductV2) bool {
+	if a.Cpu != b.Cpu {
+		return a.Cpu < b.Cpu
+	}
+	if a.MemoryInGigs != b.MemoryInGigs {
+		return a.MemoryInGigs < b.MemoryInGigs
+	}
+	return a.Name < b.Name
 }
 
 func stacksDeletionDetails(actor rpc.Actor, id string) (orcapi.Resource, string, []string, *util.HttpError) {

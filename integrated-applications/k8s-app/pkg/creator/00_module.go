@@ -1,14 +1,21 @@
 package creator
 
 import (
+	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
+	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 	"ucloud.dk/shared/pkg/util"
 
@@ -50,6 +57,16 @@ type k8sApp struct {
 	PoolDisksGb  []int
 
 	DeployBusy bool
+
+	RecoverStacks  []recoverStackEntry `ucx:"-"`
+	RecoverLoaded  bool                `ucx:"-"`
+	RecoverStackId string
+	RecoverBusy    bool
+}
+
+type recoverStackEntry struct {
+	Id   string
+	Name string
 }
 
 func (app *k8sApp) Mutex() *sync.Mutex {
@@ -99,6 +116,7 @@ func (app *k8sApp) UserInterface() ucx.UiNode {
 			app.cardMetadata(),
 			app.cardControlPlane(),
 			app.cardWorkerPools(),
+			app.cardRecover(),
 		),
 	)
 }
@@ -238,6 +256,142 @@ func (app *k8sApp) removePool(index int) {
 	app.PoolNodes = append(app.PoolNodes[:index], app.PoolNodes[index+1:]...)
 	app.PoolDisksGb = append(app.PoolDisksGb[:index], app.PoolDisksGb[index+1:]...)
 	app.PoolCount--
+}
+
+func (app *k8sApp) cardRecover() ucx.UiNode {
+	card := ucx.SurfaceEx("recoverCard").Children(
+		ucx.H3Ex("recoverHeading", "Recover an existing cluster"),
+	)
+
+	if !app.RecoverLoaded {
+		return card.Children(ucx.TextEx("recoverLoading", "Looking for clusters..."))
+	}
+
+	if len(app.RecoverStacks) == 0 {
+		return card.Children(ucx.TextEx(
+			"recoverEmpty",
+			"No clusters are available for recovery. You must have EDIT access to a cluster to recover it.",
+		))
+	}
+
+	options := make([]ucx.Option, 0, len(app.RecoverStacks))
+	for _, stack := range app.RecoverStacks {
+		options = append(options, ucx.Option{
+			Key:   stack.Id,
+			Value: fmt.Sprintf("%s (%s)", stack.Name, stack.Id),
+		})
+	}
+
+	return card.Children(
+		ucx.FieldGroupNode().Children(
+			ucx.FieldRowNodeEx("recoverClusterRow", "Cluster", "recoverStackId").
+				FieldRowDescription("The cluster to recover. The recovery job runs on the cluster's state drive.").
+				FieldRowRequired(true).
+				Children(
+					ucx.EnumSelectorNode("recoverClusterSelect", "recoverStackId", options),
+				),
+			ucx.Button("recover", "Start recovery", ucx.ColorErrorMain).
+				ButtonBusy("recoverBusy").
+				ButtonHoldToConfirm(true).
+				Sx(
+					ucx.SxMt(12),
+					ucx.SxWidthPercent(100),
+				).
+				On(ucx.UiEventClick, app.recover),
+		),
+	)
+}
+
+func (app *k8sApp) OnSysHello(payload string) {
+	go app.loadRecoverStacks()
+}
+
+func (app *k8sApp) loadRecoverStacks() {
+	session := *app.Session()
+	if session == nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(session.Context(), 15*time.Second)
+	defer cancel()
+
+	entries := make([]recoverStackEntry, 0)
+	next := util.OptNone[string]()
+	for {
+		page, err := ucxapi.StackBrowse.InvokeEx(ctx, session, orcapi.StacksBrowseRequest{
+			ItemsPerPage: 100,
+			Next:         next,
+		})
+		if err != nil {
+			log.Warn("k8s-app: could not list clusters for recovery: %v", err)
+			return
+		}
+
+		for _, stack := range page.Items {
+			if strings.TrimSpace(stack.Type) != shared.StackType {
+				continue
+			}
+			if !slices.Contains(stack.Permissions.Myself, orcapi.PermissionEdit) {
+				continue
+			}
+
+			entries = append(entries, recoverStackEntry{Id: stack.Id, Name: shared.StackType})
+		}
+
+		if !page.Next.Present {
+			break
+		}
+		next = page.Next
+	}
+
+	slices.SortFunc(entries, func(a recoverStackEntry, b recoverStackEntry) int {
+		return strings.Compare(a.Id, b.Id)
+	})
+
+	app.mu.Lock()
+	app.RecoverLoaded = true
+	app.RecoverStacks = entries
+	if !slices.ContainsFunc(entries, func(entry recoverStackEntry) bool { return entry.Id == app.RecoverStackId }) {
+		app.RecoverStackId = ""
+		if len(entries) > 0 {
+			app.RecoverStackId = entries[0].Id
+		}
+	}
+	ucx.AppUpdateUi(app)
+	app.mu.Unlock()
+}
+
+func (app *k8sApp) recover(ev ucx.UiEvent) {
+	if app.RecoverBusy {
+		return
+	}
+
+	stackId := strings.TrimSpace(app.RecoverStackId)
+	if stackId == "" {
+		ucxsvc.UiSendFailure(app, "Select a cluster to recover")
+		return
+	}
+
+	session := *app.Session()
+	app.RecoverBusy = true
+	ucx.AppUpdateModelPatch(session, map[string]ucx.Value{"recoverBusy": ucx.VBool(true)})
+
+	go func() {
+		_, err := ucxapi.StackSpawnDeclaredJob.Invoke(session, fndapi.FindByStringId{Id: stackId})
+
+		app.mu.Lock()
+		app.RecoverBusy = false
+		ucx.AppUpdateUi(app)
+		app.mu.Unlock()
+
+		if err != nil {
+			ucxsvc.UiSendFailure(app, "Could not start recovery: "+err.Error())
+			return
+		}
+
+		ucxsvc.UiSendSuccess(app, "Recovery started for "+stackId)
+		_, _ = ucxapi.StackOpen.Invoke(session, fndapi.FindByStringId{Id: stackId})
+	}()
 }
 
 func (app *k8sApp) deploy(ev ucx.UiEvent) {

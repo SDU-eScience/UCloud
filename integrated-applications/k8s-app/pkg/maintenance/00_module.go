@@ -506,7 +506,33 @@ func clusterReadyGuard() error {
 	if record.Phase != "created" {
 		return fmt.Errorf("the cluster is not ready for maintenance (state: %s)", record.Phase)
 	}
+
+	return recoveryIntentGuard()
+}
+
+func recoveryIntentGuard() error {
+	active, err := recoveryIntentActive()
+	if err != nil {
+		return err
+	}
+	if active {
+		return errors.New("a recovery operation is in progress for this cluster")
+	}
 	return nil
+}
+
+func recoveryIntentActive() (bool, error) {
+	client, err := shared.ClusterStateClientNewHost()
+	if err != nil {
+		return false, fmt.Errorf("could not read the recovery state: %s", err)
+	}
+
+	active, err := shared.ClusterRecoveryActive(client)
+	if err != nil {
+		return false, fmt.Errorf("could not read the recovery state: %s", err)
+	}
+
+	return active, nil
 }
 
 func removeSubmitGuard(nodeName string) error {
@@ -516,6 +542,9 @@ func removeSubmitGuard(nodeName string) error {
 	}
 	if record.Phase != "created" {
 		return fmt.Errorf("the cluster is not ready for maintenance (state: %s)", record.Phase)
+	}
+	if err := recoveryIntentGuard(); err != nil {
+		return err
 	}
 
 	client, clientErr := stackClientNew()

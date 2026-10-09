@@ -11,7 +11,7 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 APP_NAME=kubernetes
-APP_VERSION=0.1.3
+APP_VERSION=0.1.5
 PROVIDER_DOMAIN=k8s.localhost.direct
 
 export PATH=$PATH:/usr/local/go/bin

@@ -7,11 +7,14 @@ STORAGE_DIR="/etc/ucloud-stack/k3s/storage"
 NODE_JSON="$INPUT_DIR/node.json"
 BOOTSTRAP_STATE_DIR="/var/lib/ucloud-k8s"
 BOOTSTRAP_MARKER="$BOOTSTRAP_STATE_DIR/bootstrap-complete"
+INPUT_GENERATION_FILE="$BOOTSTRAP_STATE_DIR/input-generation"
 BOOTSTRAP_LOG="/var/log/ucloud-k8s-bootstrap.log"
 K3S_DATA_DIR="/var/lib/rancher/k3s"
 MANAGEMENT_DIR="/etc/ucloud-k8s/management"
 NODES_DIR="/etc/ucloud-k8s/nodes"
 BACKUPS_DIR="/etc/ucloud-k8s/backups"
+RECOVERY_DIR="/etc/ucloud-k8s/recovery"
+DECOMMISSIONED_MARKER="decommissioned"
 K3S_BINARY="/usr/local/bin/k3s"
 K3S_PRECHECK="/usr/local/sbin/ucloud-k8s-k3s-precheck"
 IP_CHECK_BIN="/usr/local/sbin/ucloud-k8s-ip-check"
@@ -20,6 +23,8 @@ UCX_SERVICE_UID=11042
 UCX_SERVICE_GID=11042
 
 BOOTSTRAP_TIMEOUT_SECONDS=3600
+RECOVERY_BOOTSTRAP_TIMEOUT_SECONDS=7200
+RECOVERY_RESET_TIMEOUT_SECONDS=5400
 SERVICE_WAIT_TRIES=120
 SERVICE_WAIT_INTERVAL=5
 TOKEN_WAIT_TRIES=90
@@ -84,6 +89,23 @@ require_file() {
 }
 
 node_field() { json_field "$NODE_JSON" "$1"; }
+
+node_field_opt() {
+	local field="$1"
+	local fallback="${2:-}"
+	python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get(sys.argv[2], sys.argv[3]))" "$NODE_JSON" "$field" "$fallback"
+}
+
+record_input_generation() {
+	local generation
+	generation="$(node_field_opt generation)"
+	if [ -z "$generation" ]; then
+		return 0
+	fi
+
+	install -d -m 0755 "$BOOTSTRAP_STATE_DIR"
+	printf '%s' "$generation" > "$INPUT_GENERATION_FILE"
+}
 
 node_arch() {
 	case "$(uname -m)" in
@@ -210,6 +232,26 @@ PYEOF
 set -euo pipefail
 ip="$nodeIp"
 storage="$STORAGE_DIR"
+decommissionedMarker="$INPUT_DIR/$DECOMMISSIONED_MARKER"
+nodeJson="$NODE_JSON"
+generationFile="$INPUT_GENERATION_FILE"
+if [ -s "\$decommissionedMarker" ]; then
+	echo "the node input is decommissioned" >&2
+	exit 1
+fi
+if [ -s "\$nodeJson" ]; then
+	generation="\$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("generation", ""))' "\$nodeJson" 2>/dev/null || true)"
+	if [ -n "\$generation" ]; then
+		recorded=""
+		if [ -s "\$generationFile" ]; then
+			recorded="\$(cat "\$generationFile")"
+		fi
+		if [ "\$generation" != "\$recorded" ]; then
+			echo "the node input generation does not match the generation recorded on this node" >&2
+			exit 1
+		fi
+	fi
+fi
 if ! mountpoint -q "\$storage"; then
 	echo "shared storage is not mounted at \$storage" >&2
 	exit 1

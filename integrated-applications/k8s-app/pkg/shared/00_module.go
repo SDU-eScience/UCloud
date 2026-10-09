@@ -3,6 +3,7 @@ package shared
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -25,6 +26,8 @@ var scriptFiles embed.FS
 
 const GroupControlPlane = "control-plane"
 
+const StackType = "Kubernetes"
+
 const (
 	StackGroupingLabel  = "ucloud.dk/k8s-node-group"
 	NodeAllocationLabel = "ucloud.dk/k8s-node-id"
@@ -42,6 +45,8 @@ const (
 
 const controllerRegistrationTokenFile = "controller-token"
 
+const nodeDecommissionedMarker = "decommissioned"
+
 const (
 	managementDir       = "management"
 	managementMountPath = "/etc/ucloud-k8s/management"
@@ -54,6 +59,7 @@ const (
 	vmDisksDir          = "vm-disks"
 	bundleMountPath     = "/etc/ucloud-k8s/bundle"
 	inputMountPath      = "/etc/ucloud-k8s/input"
+	recoveryMountPath   = "/etc/ucloud-k8s/recovery"
 	launcherPath        = bundleMountPath + "/launcher.sh"
 
 	ManagementMountPath = managementMountPath
@@ -68,7 +74,7 @@ const (
 	customUiPort    = 43102
 )
 
-const clusterRecordSchemaRevision = 2
+const clusterRecordSchemaRevision = 3
 
 func Script(name string) string {
 	data, err := scriptFiles.ReadFile("scripts/" + name)
@@ -80,12 +86,14 @@ func Script(name string) string {
 
 const (
 	clusterRecordPhaseProvisioning = "provisioning"
-	clusterRecordPhaseCreated      = "created"
 	clusterRecordPhaseCleanup      = "cleanup-pending"
 	clusterRecordPhaseError        = "error"
+
+	ClusterRecordPhaseCreated    = "created"
+	ClusterRecordPhaseRecovering = "recovering"
 )
 
-const ScriptBundleRevision = 19
+const ScriptBundleRevision = 20
 
 func BundlePathForRelease(release K3sRelease) string {
 	return filepath.Join("bundles", strconv.Itoa(ScriptBundleRevision), SanitizeForPath(release.Release))
@@ -249,7 +257,7 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		return &ucxsvc.Stack{}, false
 	}
 
-	stack, ok := ucxsvc.StackCreateWithDrive(app, stackId, "Kubernetes")
+	stack, ok := ucxsvc.StackCreateWithDrive(app, stackId, StackType)
 	if !ok {
 		return stack, false
 	}
@@ -404,7 +412,7 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		return stack, false
 	}
 
-	customUi := ucxsvc.UcxInitCustomUiServiceAt(stack, customUiPort, "", managementDir, managementMountPath)
+	customUi := ClusterNodeCustomUi(stack)
 	if !stack.Ok {
 		return stack, false
 	}
@@ -452,7 +460,7 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		return stack, false
 	}
 
-	record.Phase = clusterRecordPhaseCreated
+	record.Phase = ClusterRecordPhaseCreated
 	if err := ClusterRecordWrite(stateClient, record); err != nil {
 		stack.Ok = false
 		ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster resources were created, but the cluster record could not be finalized: %s", err))
@@ -540,7 +548,12 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 		return false, "could not prepare the node directories"
 	}
 
-	if !clusterWriteNodeInput(stack, opts.record, opts.release, opts.tokens, opts) {
+	if !clusterWriteNodeInput(stack, opts.record, opts.release, clusterNodeInputSpec{
+		group:        opts.group,
+		allocationId: opts.allocationId,
+		firstServer:  opts.group == GroupControlPlane && opts.allocationId == 1,
+		tokens:       opts.tokens,
+	}) {
 		return false, "could not write the input files of the node"
 	}
 
@@ -646,6 +659,199 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 	return true, ""
 }
 
+type ClusterRecoveryNodeSpec struct {
+	AllocationId   int
+	FirstServer    bool
+	Release        K3sRelease
+	BackupId       string
+	SnapshotSha256 string
+	ServerToken    string
+	AgentToken     string
+	CustomUi       ucxsvc.UcxCustomUiServiceInit
+	Session        *ucx.Session
+	Progress       func(string)
+}
+
+func ClusterNodeCustomUi(stack *ucxsvc.Stack) ucxsvc.UcxCustomUiServiceInit {
+	return ucxsvc.UcxInitCustomUiServiceAt(stack, customUiPort, "", managementDir, managementMountPath)
+}
+
+func ClusterRecoveryFirstServerAllocation(record *ClusterRecord) int {
+	lowest := 0
+	if record == nil {
+		return lowest
+	}
+
+	for _, node := range record.Nodes {
+		if node.Group != GroupControlPlane {
+			continue
+		}
+		if lowest == 0 || node.AllocationId < lowest {
+			lowest = node.AllocationId
+		}
+	}
+
+	return lowest
+}
+
+func ClusterRecoveryCreateNode(
+	stack *ucxsvc.Stack,
+	client ClusterStateClient,
+	record *ClusterRecord,
+	spec ClusterRecoveryNodeSpec,
+) error {
+	if stack == nil || !stack.Ok {
+		return errors.New("the cluster stack is not available")
+	}
+	if record == nil {
+		return errors.New("the cluster record is nil")
+	}
+	if spec.Release.Release == "" {
+		return errors.New("the recovery release is empty")
+	}
+	if !AllocationIdIsValid(spec.AllocationId) {
+		return fmt.Errorf("the allocation id %d is not valid", spec.AllocationId)
+	}
+	if spec.FirstServer {
+		if spec.BackupId == "" || spec.SnapshotSha256 == "" || spec.ServerToken == "" || spec.AgentToken == "" {
+			return errors.New("the recovery first server needs a backup, its checksum and the backup credentials")
+		}
+	}
+
+	active, err := ClusterRecoveryActive(client)
+	if err != nil {
+		return fmt.Errorf("could not read the recovery state: %s", err)
+	}
+	if !active {
+		return errors.New("no recovery operation is active for this cluster")
+	}
+
+	nodeIndex := -1
+	for i := range record.Nodes {
+		if record.Nodes[i].AllocationId == spec.AllocationId {
+			nodeIndex = i
+			break
+		}
+	}
+	if nodeIndex < 0 {
+		return fmt.Errorf("the cluster record has no node with allocation id %d", spec.AllocationId)
+	}
+
+	node := record.Nodes[nodeIndex]
+	if node.Group != GroupControlPlane {
+		return fmt.Errorf("node %s is not a control-plane node", node.Hostname)
+	}
+	if node.ReservationId == "" {
+		return fmt.Errorf("node %s has no address reservation in the cluster record", node.Hostname)
+	}
+
+	bundleTarget := BundlePathForRelease(spec.Release)
+	if record.BundlePath != bundleTarget || record.K8sVersion != spec.Release.Release {
+		writeBundle(stack, bundleTarget)
+		if !stack.Ok {
+			return errors.New("could not write the bootstrap bundle for release " + spec.Release.Release)
+		}
+		record.BundlePath = bundleTarget
+		record.K8sVersion = spec.Release.Release
+	}
+
+	var recovery *clusterRecoveryInput
+	if spec.FirstServer {
+		recovery = &clusterRecoveryInput{
+			backupId:       spec.BackupId,
+			snapshotSha256: spec.SnapshotSha256,
+		}
+	}
+
+	if !clusterWriteNodeInput(stack, record, spec.Release, clusterNodeInputSpec{
+		group:        GroupControlPlane,
+		allocationId: spec.AllocationId,
+		firstServer:  spec.FirstServer,
+		tokens:       ClusterTokens{ServerToken: spec.ServerToken, AgentToken: spec.AgentToken},
+		recovery:     recovery,
+	}) {
+		return errors.New("could not write the input files of node " + node.Hostname)
+	}
+
+	ucxsvc.StackWriteFileEx(
+		stack,
+		filepath.Join(inputDirFor(spec.AllocationId), nodeDecommissionedMarker),
+		"",
+		0600,
+	)
+	if !stack.Ok {
+		return errors.New("could not clear the decommissioned marker of node " + node.Hostname)
+	}
+
+	attachments := []orcapi.AppParameterValue{
+		orcapi.AppParameterValuePrivateNetwork(record.NetworkId, node.IpAddress),
+		ucxsvc.StackSubtreeMount(stack, record.BundlePath, bundleMountPath, true),
+		ucxsvc.StackSubtreeMount(stack, inputDirFor(spec.AllocationId), inputMountPath, true),
+		ucxsvc.StackSubtreeMount(stack, storageDir, storageMountPath, false),
+	}
+	if spec.FirstServer {
+		attachments = append(attachments, ucxsvc.StackSubtreeMount(
+			stack,
+			filepath.Join(backupsDir, spec.BackupId),
+			recoveryMountPath,
+			true,
+		))
+	}
+
+	labels := map[string]string{
+		StackGroupingLabel:  GroupControlPlane,
+		NodeAllocationLabel: strconv.Itoa(spec.AllocationId),
+		K8sVersionLabel:     spec.Release.Release,
+	}
+	attachments, labels = clusterControlPlaneWiring(stack, GroupControlPlane, spec.AllocationId, spec.CustomUi, attachments, labels)
+
+	jobSpec := orcapi.JobSpecification{
+		ResourceSpecification: orcapi.ResourceSpecification{
+			Product: node.Machine,
+			Labels:  labels,
+		},
+		Application: ucxsvc.VmImageUbuntu26_04,
+		Name:        node.Hostname,
+		Hostname:    util.OptValue[string](node.Hostname),
+		Parameters:  clusterNodeParameters(stack, node.Hostname, node.DiskGb),
+		Replicas:    1,
+		Resources:   attachments,
+	}
+	job, err := clusterCreateNodeJobWithAddressWait(stack, jobSpec, func() {
+		if spec.Progress != nil {
+			spec.Progress("Waiting for IP address " + node.IpAddress + " to be released")
+		}
+	})
+	if err != nil {
+		return fmt.Errorf("could not create the replacement job of node %s: %s", node.Hostname, err)
+	}
+
+	if !clusterWriteStackIdentity(stack, spec.AllocationId, job) {
+		_ = ucxsvc.JobTerminate(stack, job.Id)
+		return errors.New("could not write the stack identity of node " + node.Hostname)
+	}
+
+	if record.ServiceId != "" {
+		if !ucxsvc.ServiceAddMembers(stack, record.ServiceId, []string{job.Id}) {
+			_ = ucxsvc.JobTerminate(stack, job.Id)
+			return errors.New("could not add node " + node.Hostname + " to the cluster service")
+		}
+	}
+
+	record.Nodes[nodeIndex].JobId = job.Id
+	record.Nodes[nodeIndex].DesiredVersion = spec.Release.Release
+	if err := ClusterRecordWrite(client, record); err != nil {
+		_ = ucxsvc.JobTerminate(stack, job.Id)
+		return fmt.Errorf("could not record the replacement job of node %s: %s", node.Hostname, err)
+	}
+
+	if !clusterWriteControllerToken(stack, spec.Session, job.Id, spec.AllocationId) {
+		return errors.New("could not write the controller registration token of node " + node.Hostname)
+	}
+
+	return nil
+}
+
 func clusterWriteControllerToken(stack *ucxsvc.Stack, session *ucx.Session, jobId string, allocationId int) bool {
 	if session == nil {
 		return false
@@ -690,12 +896,28 @@ func clusterWriteStackIdentity(stack *ucxsvc.Stack, allocationId int, job orcapi
 }
 
 func clusterCreateNodeJob(stack *ucxsvc.Stack, spec orcapi.JobSpecification) (orcapi.Job, error) {
+	return clusterCreateNodeJobWithAddressWait(stack, spec, nil)
+}
+
+func clusterCreateNodeJobWithAddressWait(stack *ucxsvc.Stack, spec orcapi.JobSpecification, addressWait func()) (orcapi.Job, error) {
 	deadline := time.Now().Add(30 * time.Second)
+	addressDeadline := time.Time{}
 
 	for {
 		job, err := ucxsvc.JobCreateJob(stack, spec)
 		if err == nil {
 			return job, nil
+		}
+		if addressWait != nil && strings.Contains(err.Error(), "The pinned address ") && strings.Contains(err.Error(), " is already in use") {
+			if addressDeadline.IsZero() {
+				addressDeadline = time.Now().Add(5 * time.Minute)
+			}
+			if time.Now().After(addressDeadline) {
+				return orcapi.Job{}, fmt.Errorf("the IP address was not released within 5 minutes: %w", err)
+			}
+			addressWait()
+			time.Sleep(5 * time.Second)
+			continue
 		}
 
 		if !strings.Contains(err.Error(), "is not ready yet") || time.Now().After(deadline) {
@@ -765,16 +987,28 @@ func writeBundle(stack *ucxsvc.Stack, bundlePath string) {
 	}
 }
 
-func clusterWriteNodeInput(stack *ucxsvc.Stack, record *ClusterRecord, release K3sRelease, tokens ClusterTokens, opts clusterNodeOptions) bool {
-	firstServer := opts.group == GroupControlPlane && opts.allocationId == 1
-	ipAddress := NodeIpForAllocation(opts.allocationId)
+type clusterNodeInputSpec struct {
+	group        string
+	allocationId int
+	firstServer  bool
+	tokens       ClusterTokens
+	recovery     *clusterRecoveryInput
+}
+
+type clusterRecoveryInput struct {
+	backupId       string
+	snapshotSha256 string
+}
+
+func clusterWriteNodeInput(stack *ucxsvc.Stack, record *ClusterRecord, release K3sRelease, spec clusterNodeInputSpec) bool {
+	ipAddress := NodeIpForAllocation(spec.allocationId)
 
 	serverUrl := fmt.Sprintf("https://%s:%d", record.ServiceDnsName, ApiPort)
 
 	nodeJson := map[string]any{
-		"role":        opts.group,
-		"firstServer": firstServer,
-		"hostname":    ClusterNodeHostname(opts.group, opts.allocationId),
+		"role":        spec.group,
+		"firstServer": spec.firstServer,
+		"hostname":    ClusterNodeHostname(spec.group, spec.allocationId),
 		"ipAddress":   ipAddress,
 		"serverUrl":   serverUrl,
 		"serviceDns":  record.ServiceDnsName,
@@ -783,6 +1017,13 @@ func clusterWriteNodeInput(stack *ucxsvc.Stack, record *ClusterRecord, release K
 		"sha256Arm64": release.Sha256Arm64,
 		"clusterCidr": ClusterPodCidr,
 		"serviceCidr": ClusterServiceCidr,
+		"generation":  util.SecureToken(),
+	}
+
+	if spec.recovery != nil {
+		nodeJson["recoveryEnabled"] = true
+		nodeJson["recoveryBackupId"] = spec.recovery.backupId
+		nodeJson["recoverySnapshotSha256"] = spec.recovery.snapshotSha256
 	}
 
 	nodeData, err := json.MarshalIndent(nodeJson, "", "  ")
@@ -790,7 +1031,7 @@ func clusterWriteNodeInput(stack *ucxsvc.Stack, record *ClusterRecord, release K
 		log.Fatal(err)
 	}
 
-	inputDir := inputDirFor(opts.allocationId)
+	inputDir := inputDirFor(spec.allocationId)
 	ucxsvc.StackWriteFile(stack, filepath.Join(inputDir, "node.json"), string(nodeData))
 
 	ucxsvc.StackWriteFileAtomicEx(
@@ -800,9 +1041,9 @@ func clusterWriteNodeInput(stack *ucxsvc.Stack, record *ClusterRecord, release K
 		0600,
 	)
 
-	if firstServer {
-		ucxsvc.StackWriteFileEx(stack, filepath.Join(inputDir, "server-token"), tokens.ServerToken, 0600)
-		ucxsvc.StackWriteFileEx(stack, filepath.Join(inputDir, "agent-token"), tokens.AgentToken, 0600)
+	if spec.firstServer {
+		ucxsvc.StackWriteFileEx(stack, filepath.Join(inputDir, "server-token"), spec.tokens.ServerToken, 0600)
+		ucxsvc.StackWriteFileEx(stack, filepath.Join(inputDir, "agent-token"), spec.tokens.AgentToken, 0600)
 	}
 
 	return stack.Ok

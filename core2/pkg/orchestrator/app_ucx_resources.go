@@ -23,8 +23,9 @@ type appUcxBaseState struct {
 	Stacks             map[string]util.Empty
 	AllowStackCreation bool
 
-	Actor    func() rpc.Actor
-	Provider func() string
+	Actor       func() rpc.Actor
+	Provider    func() string
+	Application func() orcapi.NameAndVersion
 }
 
 func (s *appUcxBaseState) StackInstances() []string {

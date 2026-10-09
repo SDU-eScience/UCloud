@@ -1,6 +1,7 @@
 package orchestrators
 
 import (
+	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -22,14 +23,15 @@ const (
 )
 
 type StackStatus struct {
-	UcxUiMode       UcxUiMode           `json:"ucxUiMode"`
-	UcxConnectJobId util.Option[string] `json:"ucxConnectJobId"`
-	Jobs            []Job               `json:"jobs"`
-	Licenses        []License           `json:"licenses"`
-	PublicIps       []PublicIp          `json:"publicIps"`
-	PublicLinks     []Ingress           `json:"publicLinks"`
-	Networks        []PrivateNetwork    `json:"networks"`
-	Services        []Service           `json:"services"`
+	DisasterRecoveryDeclared bool                `json:"disasterRecoveryDeclared"`
+	UcxUiMode                UcxUiMode           `json:"ucxUiMode"`
+	UcxConnectJobId          util.Option[string] `json:"ucxConnectJobId"`
+	Jobs                     []Job               `json:"jobs"`
+	Licenses                 []License           `json:"licenses"`
+	PublicIps                []PublicIp          `json:"publicIps"`
+	PublicLinks              []Ingress           `json:"publicLinks"`
+	Networks                 []PrivateNetwork    `json:"networks"`
+	Services                 []Service           `json:"services"`
 }
 
 const stacksContext = "jobs/stacks"
@@ -67,6 +69,31 @@ var StacksUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], util.Empty]{
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "updateAcl",
+}
+
+var StacksSpawnDeclaredJob = rpc.Call[fnd.FindByStringId, util.Empty]{
+	BaseContext: stacksContext,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "spawnDeclaredJob",
+	Roles:       rpc.RolesEndUser,
+}
+
+type StacksProviderSpawnDeclaredJobRequest struct {
+	StackInstance string                            `json:"stackInstance"`
+	StackName     string                            `json:"stackName"`
+	StackEntityId string                            `json:"stackEntityId"`
+	StateFolder   string                            `json:"stateFolder"`
+	Owner         ResourceOwner                     `json:"owner"`
+	Application   NameAndVersion                    `json:"application"`
+	Product       apm.ProductReference              `json:"product"`
+	Job           UcxDisasterRecoveryJobDescription `json:"job"`
+}
+
+var StacksProviderSpawnDeclaredJob = rpc.Call[StacksProviderSpawnDeclaredJobRequest, fnd.FindByStringId]{
+	BaseContext: "ucloud/" + rpc.ProviderPlaceholder + "/stacks",
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "spawnDeclaredJob",
+	Roles:       rpc.RolesPrivileged,
 }
 
 type StacksControlRequestDeletionRequest struct {

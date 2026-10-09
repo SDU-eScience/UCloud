@@ -231,13 +231,27 @@ type ApplicationInvocationDescription struct {
 }
 
 type UcxDescription struct {
-	Executable util.Option[UcxExecutableDescription] `json:"executable" yaml:"executable"`
+	Executable       util.Option[UcxExecutableDescription]       `json:"executable" yaml:"executable"`
+	DisasterRecovery util.Option[UcxDisasterRecoveryDescription] `json:"disasterRecovery" yaml:"disasterRecovery"`
 }
 
 type UcxExecutableDescription struct {
 	ManifestUrl string `json:"manifestUrl" yaml:"manifestUrl"`
 	PublicKey   string `json:"publicKey" yaml:"publicKey"`
 	BinaryName  string `json:"binaryName" yaml:"binaryName"`
+}
+
+type UcxDisasterRecoveryDescription struct {
+	Enabled bool                              `json:"enabled" yaml:"enabled"`
+	Job     UcxDisasterRecoveryJobDescription `json:"job" yaml:"job"`
+}
+
+type UcxDisasterRecoveryJobDescription struct {
+	Image        string   `json:"image" yaml:"image"`
+	Cpu          int      `json:"cpu" yaml:"cpu"`
+	MemoryInGigs int      `json:"memoryInGigs" yaml:"memoryInGigs"`
+	Args         []string `json:"args" yaml:"args"`
+	Port         int      `json:"port" yaml:"port"`
 }
 
 type VncDescription struct {

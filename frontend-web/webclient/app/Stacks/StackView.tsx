@@ -70,6 +70,20 @@ export default function StackView(): React.ReactNode {
     const ucxTargetRunning = ucxConnectJob?.status.state === "RUNNING";
     const shouldAttemptUcxConnection = uiMode === "Replacement" && !!ucxConnectJobId && ucxTargetRunning;
 
+    const uiJobActive = React.useMemo(() => {
+        return jobs.some(job => {
+            const spec = job.specification as (Job["specification"] & {labels?: Record<string, string>}) | undefined;
+            const portLabel = spec?.labels?.["ucloud.dk/ucxport"] ?? "";
+            const port = parseInt(portLabel, 10);
+            return Number.isFinite(port) && port > 0;
+        });
+    }, [jobs]);
+
+    const canRecover = !!stack &&
+        status?.disasterRecoveryDeclared === true &&
+        !uiJobActive &&
+        (stack.permissions?.myself ?? []).includes("EDIT");
+
     const stackRef = React.useRef(stack);
     React.useEffect(() => {
         stackRef.current = stack;
@@ -257,6 +271,29 @@ export default function StackView(): React.ReactNode {
         );
     }, []);
 
+    const openRecoverDialog = React.useCallback(() => {
+        const currentStack = stackRef.current;
+        if (!currentStack) return;
+
+        addStandardDialog({
+            title: "Start disaster recovery?",
+            message: "This starts a recovery job for the cluster. The job runs on the cluster's state drive and guides " +
+                "you through restoring the control plane. All current control-plane machines are replaced during recovery.",
+            confirmText: "Start recovery",
+            confirmButtonColor: "errorMain",
+            cancelButtonColor: "secondaryMain",
+            onConfirm: async () => {
+                try {
+                    await invokeCommand(StackApi.spawnDeclaredJob({id: currentStack.id}));
+                    sendSuccessNotification("Recovery started");
+                    refreshStack();
+                } catch (e) {
+                    displayErrorMessageOrDefault(e, "Failed to start recovery.");
+                }
+            },
+        });
+    }, [invokeCommand, refreshStack]);
+
     const totalResourceCount = (status?.jobs?.length ?? 0) +
         (status?.licenses?.length ?? 0) +
         (status?.publicIps?.length ?? 0) +
@@ -352,6 +389,12 @@ export default function StackView(): React.ReactNode {
                             <StackLogo type={stack?.type ?? ""} size={36} />
                             <Heading.h2>{stack?.type ?? "Stack details"}</Heading.h2>
                             <Box flexGrow={1} />
+                            {canRecover ? (
+                                <Button color="warningMain" onClick={openRecoverDialog} disabled={commandLoading}>
+                                    <Icon name="heroArrowPath" mr="8px" />
+                                    Recover
+                                </Button>
+                            ) : null}
                             <Button color="errorMain" onClick={openDeleteDialog} disabled={!stack || commandLoading}>
                                 <Icon name="trash" mr="8px" />
                                 Delete cluster

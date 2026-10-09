@@ -23,6 +23,10 @@ var IM = ucx.Rpc[Message, Message]{CallName: "im"}
 
 var StackAvailable = ucx.Rpc[fndapi.FindByStringId, bool]{CallName: "stackAvailable"}
 
+var StackBrowse = ucx.Rpc[orcapi.StacksBrowseRequest, fndapi.PageV2[orcapi.Stack]]{CallName: "stackBrowse"}
+
+var StackSpawnDeclaredJob = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stackSpawnDeclaredJob"}
+
 // Private networks
 // ---------------------------------------------------------------------------------------------------------------------
 

@@ -11,6 +11,9 @@ SERVER_URL="$(node_field serverUrl)"
 NODE_NAME="$(node_field hostname)"
 NODE_GROUP="$(node_field role)"
 SERVICE_DNS="$(node_field serviceDns)"
+RECOVERY_ENABLED="$(node_field_opt recoveryEnabled)"
+
+record_input_generation
 
 if [ "$FIRST_SERVER" = "True" ]; then
 	emit "Starting the first server" 45
@@ -75,6 +78,28 @@ fi
 chmod 0600 /etc/rancher/k3s/config.yaml
 umask 022
 
+if [ "$FIRST_SERVER" = "True" ] && [ "$RECOVERY_ENABLED" = "True" ]; then
+	log "recovery mode: verifying the snapshot"
+	emit "Verifying the recovery snapshot" 55
+	RECOVERY_SNAPSHOT="$RECOVERY_DIR/snapshot"
+	require_file "$RECOVERY_SNAPSHOT" "the recovery snapshot"
+	RECOVERY_SHA256="$(node_field_opt recoverySnapshotSha256)"
+	if [ -z "$RECOVERY_SHA256" ]; then
+		fail "recovery" "the recovery snapshot checksum is missing from the node input"
+	fi
+	OBSERVED_SHA256="$(sha256sum "$RECOVERY_SNAPSHOT" | awk '{print $1}')"
+	if [ "$OBSERVED_SHA256" != "$RECOVERY_SHA256" ]; then
+		fail "recovery" "the recovery snapshot does not match the backup metadata"
+	fi
+
+	log "recovery mode: restoring the etcd snapshot"
+	emit "Restoring the etcd snapshot" 58
+	if ! timeout "$RECOVERY_RESET_TIMEOUT_SECONDS" k3s server --cluster-reset --cluster-reset-restore-path="$RECOVERY_SNAPSHOT"; then
+		fail "recovery" "the etcd restore failed"
+	fi
+	log "recovery mode: the etcd restore is complete"
+fi
+
 install_k3s_unit "k3s" "server" "$IP_ADDRESS"
 systemctl enable k3s >/dev/null
 emit "Starting Kubernetes" 60
@@ -131,7 +156,7 @@ umask 077
 install -o "$UCX_SERVICE_UID" -g "$UCX_SERVICE_GID" -m 0600 "$CONTROLLER_TOKEN_SOURCE" "$CONTROLLER_TOKEN_DIR/token"
 umask 022
 
-if [ "$FIRST_SERVER" = "True" ]; then
+if [ "$FIRST_SERVER" = "True" ] && [ "$RECOVERY_ENABLED" != "True" ]; then
 	/etc/ucloud-k8s/bundle/server-bootstrap.sh
 else
 	log "installing the kubeconfig"

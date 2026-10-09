@@ -8,6 +8,8 @@ SERVER_URL="$(node_field serverUrl)"
 NODE_NAME="$(node_field hostname)"
 NODE_GROUP="$(node_field role)"
 
+record_input_generation
+
 log "waiting for the secure agent token"
 emit "Waiting for the secure agent token" 50
 wait_for_token_files "agent"

@@ -39,6 +39,7 @@ import {PageV2} from "@/UCloud";
 import {addStandardDialog} from "@/UtilityComponents";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
 import {DocumentTypography} from "@/ui-components/Markdown";
+import {TutorialWizard, TutorialWizardClass} from "@/ui-components/TutorialWizard";
 import UcxView, {UcxFunctionRegistry} from "@/UCX/UcxView";
 import {Value, ValueKind, valueToPlain} from "@/UCX/protocol";
 import {ServiceProviderSelector} from "@/Applications/ApiTokens/Add";
@@ -1111,74 +1112,72 @@ const AddDeviceWizard: React.FunctionComponent<{
             </>;
         }
 
-        return <div className={TutorialWizardClass}>
-            <DocumentTypography className="tutorial-content">{tutorialContent}</DocumentTypography>
-            <footer className="tutorial-actions">
-                <div className="tutorial-progress" aria-label={`Step ${tutorialStep + 1} of ${STEP_LAST + 1}`}>
-                    <span>Step {tutorialStep + 1} of {STEP_LAST + 1}</span>
-                    <div className="tutorial-progress-track" aria-hidden="true">
-                        <div style={{width: `${((tutorialStep + 1) / (STEP_LAST + 1)) * 100}%`}} />
-                    </div>
-                </div>
-                <Box flexGrow={1} />
-                {tutorialStep === STEP_INTRO ? null :
-                    <Button color="secondaryMain" onClick={tutorialPrevious}>Previous step</Button>}
-                <Button onClick={tutorialNext}>{tutorialStep === STEP_LAST ? "Add device" : "Next step"}</Button>
-            </footer>
-        </div>;
+        return <TutorialWizard
+            step={tutorialStep}
+            stepCount={STEP_LAST + 1}
+            previousLabel="Previous step"
+            nextLabel={tutorialStep === STEP_LAST ? "Add device" : "Next step"}
+            showPrevious={tutorialStep !== STEP_INTRO}
+            onPrevious={tutorialPrevious}
+            onNext={tutorialNext}
+        >
+            <div className={AddDeviceWizardClass}>{tutorialContent}</div>
+        </TutorialWizard>;
     }
 
     return <div className={TutorialWizardClass} data-modal={props.modal === true}>
         <DocumentTypography className="tutorial-content">
-            <h2 className={"tutorial-header"}>
-                Connect a device
-                <ExternalLink href="https://syncthing.net/downloads/">
-                    <Button><Icon name="open" mr="4px" size="14px" /> Download Syncthing</Button>
-                </ExternalLink>
-            </h2>
-            <p>Enter the Device ID from Syncthing to synchronize files with UCloud.</p>
+            <div className={AddDeviceWizardClass} data-modal={props.modal === true}>
+                <h2 className={"tutorial-header"}>
+                    Connect a device
+                    <ExternalLink href="https://syncthing.net/downloads/">
+                        <Button><Icon name="open" mr="4px" size="14px" /> Download Syncthing</Button>
+                    </ExternalLink>
+                </h2>
+                <p>Enter the Device ID from Syncthing to synchronize files with UCloud.</p>
 
-            <form className="tutorial-form" onSubmit={addDevice}>
-                <div className="tutorial-fields">
-                    <Label>
-                        Device name
-                        <Input inputRef={deviceNameRef} placeholder="My phone" error={deviceNameError !== null} />
-                        {deviceNameError ? <Text color="errorMain">{deviceNameError}</Text> :
-                            <Text color="textSecondary">For example: "Work phone".</Text>}
-                    </Label>
-                    <Label>
-                        Device ID
-                        <Input
-                            inputRef={deviceIdRef}
-                            placeholder="XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX"
-                            error={deviceIdError !== null}
-                        />
-                        {deviceIdError ? <Text color="errorMain">{deviceIdError}</Text> : null}
-                        <Text color="textSecondary">
-                            Need help finding your Device ID?{" "}
-                            <button type="button" className="tutorial-help-link" onClick={() => setShowInstructions(current => !current)}>
-                                {showInstructions ? "Hide the setup instructions." : "View the setup instructions."}
-                            </button>
-                        </Text>
-                    </Label>
-                </div>
-                <button type="submit" style={{display: "none"}}>Add device</button>
-            </form>
+                <form className="tutorial-form" onSubmit={addDevice}>
+                    <div className="tutorial-fields">
+                        <Label>
+                            Device name
+                            <Input inputRef={deviceNameRef} placeholder="My phone" error={deviceNameError !== null} />
+                            {deviceNameError ? <Text color="errorMain">{deviceNameError}</Text> :
+                                <Text color="textSecondary">For example: "Work phone".</Text>}
+                        </Label>
+                        <Label>
+                            Device ID
+                            <Input
+                                inputRef={deviceIdRef}
+                                placeholder="XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX"
+                                error={deviceIdError !== null}
+                            />
+                            {deviceIdError ? <Text color="errorMain">{deviceIdError}</Text> : null}
+                            <Text color="textSecondary">
+                                Need help finding your Device ID?{" "}
+                                <button type="button" className="tutorial-help-link" onClick={() => setShowInstructions(current => !current)}>
+                                    {showInstructions ? "Hide the setup instructions." : "View the setup instructions."}
+                                </button>
+                            </Text>
+                        </Label>
+                    </div>
+                    <button type="submit" style={{display: "none"}}>Add device</button>
+                </form>
 
-            {showInstructions ?
-                <div className="device-setup-grid">
-                    <section>
-                        <h3>1. Open Syncthing</h3>
-                        <p>Install the downloaded application, then open Syncthing on the device you want to connect.</p>
-                        <Screenshot src={syncthingScreen4} alt="The Syncthing application after installation." />
-                    </section>
+                {showInstructions ?
+                    <div className="device-setup-grid">
+                        <section>
+                            <h3>1. Open Syncthing</h3>
+                            <p>Install the downloaded application, then open Syncthing on the device you want to connect.</p>
+                            <Screenshot src={syncthingScreen4} alt="The Syncthing application after installation." />
+                        </section>
 
-                    <section>
-                        <h3>2. Copy the Device ID</h3>
-                        <p>In Syncthing, open <i>Actions</i>, select <i>Show ID</i>, and copy the Device ID.</p>
-                        <Screenshot src={syncthingScreen1} alt="The Show ID option in Syncthing's Actions menu." />
-                    </section>
-                </div> : null}
+                        <section>
+                            <h3>2. Copy the Device ID</h3>
+                            <p>In Syncthing, open <i>Actions</i>, select <i>Show ID</i>, and copy the Device ID.</p>
+                            <Screenshot src={syncthingScreen1} alt="The Show ID option in Syncthing's Actions menu." />
+                        </section>
+                    </div> : null}
+            </div>
         </DocumentTypography>
         <footer className="tutorial-actions">
             <Button color="successMain" onClick={addDevice}>Add device</Button>
@@ -1627,52 +1626,7 @@ const ScreenshotClass = injectStyleSimple("screenshot", `
     max-height: 250px;
 `);
 
-const TutorialWizardClass = injectStyle("tutorial-wizard", k => `
-    ${k} {
-        width: 100%;
-        max-width: 1080px;
-        height: calc(100vh - 48px);
-        margin: 0 auto;
-        display: flex;
-        flex-direction: column;
-        background: var(--backgroundDefault);
-    }
-
-    ${k}[data-modal="true"] {
-        height: 100%;
-    }
-
-    ${k} .tutorial-progress {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        color: var(--textSecondary);
-        font-size: 13px;
-        font-weight: 600;
-    }
-
-    ${k} .tutorial-progress-track {
-        width: 120px;
-        height: 5px;
-        overflow: hidden;
-        border-radius: 999px;
-        background: var(--borderColor);
-    }
-
-    ${k} .tutorial-progress-track > div {
-        height: 100%;
-        border-radius: inherit;
-        background: var(--primaryMain);
-        transition: width 180ms ease-out;
-    }
-
-    ${k} .tutorial-content {
-        min-height: 0;
-        overflow-y: auto;
-        padding: 12px 24px 32px;
-        flex-grow: 1;
-    }
-
+const AddDeviceWizardClass = injectStyle("add-device-wizard", k => `
     ${k} .tutorial-header {
         display: flex;
         align-items: center;
@@ -1768,7 +1722,7 @@ const TutorialWizardClass = injectStyle("tutorial-wizard", k => `
         color: var(--linkColorHover);
         text-decoration: underline;
     }
-    
+
     ${k} .tutorial-form {
         margin-top: 32px;
     }
@@ -1793,35 +1747,7 @@ const TutorialWizardClass = injectStyle("tutorial-wizard", k => `
         box-shadow: var(--defaultShadow);
     }
 
-    ${k} .tutorial-actions {
-        display: flex;
-        gap: 12px;
-        height: 68px;
-        padding: 16px 0;
-        border-top: 1px solid var(--borderColor);
-        background: var(--backgroundDefault);
-        justify-content: center;
-    }
-
-    ${k}[data-modal="true"] .tutorial-actions {
-        flex: 0 0 auto;
-        height: auto;
-        padding: 16px 24px;
-        border-top: 0;
-        background: var(--dialogToolbar);
-        justify-content: flex-end;
-    }
-
     @media (max-width: 760px) {
-        ${k} {
-            height: calc(100vh - 24px);
-            min-height: 0;
-        }
-
-        ${k}[data-modal="true"] {
-            height: 100%;
-        }
-
         ${k} .tutorial-device-instructions, ${k} .device-setup-grid, ${k} .tutorial-fields {
             grid-template-columns: 1fr;
         }

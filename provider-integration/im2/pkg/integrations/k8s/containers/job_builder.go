@@ -517,6 +517,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		}
 	}
 
+	if herr = stackDeclaredJobMutatePod(job, pod); herr != nil {
+		return herr
+	}
+
 	addSnapshotExcludedMounts(pod, userContainer)
 	if hasCachedImage {
 		applicationPullSecret, applicationPullTokenId, herr = createApplicationPullSecret(job.Owner, namespace, podName)

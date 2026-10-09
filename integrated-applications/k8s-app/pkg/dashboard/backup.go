@@ -362,34 +362,13 @@ func backupRetainedNodes(status dashboardBackupStatus) []ucx.UiNode {
 }
 
 func backupRetainedRow(info backup.BackupInfo) ucx.UiNode {
-	children := []ucx.UiNode{
-		ucx.Text(info.Id),
-	}
-
-	details := []string{}
-	if info.Release != "" {
-		details = append(details, info.Release)
-	}
-	if size := backupSizeLabel(info.SizeBytes); size != "" {
-		details = append(details, size)
-	}
-	if info.CreatedByNode != "" {
-		details = append(details, "backed up by "+info.CreatedByNode)
-	}
-	if len(details) > 0 {
-		children = append(children, ucx.Text(strings.Join(details, " — ")).Sx(
-			ucx.SxColor(ucx.ColorTextSecondary),
-		))
-	}
-
-	children = append(children,
-		ucx.Box().Sx(ucx.SxFlexGrow(1)),
+	return backup.UIBackupRow(
+		info.Id,
+		info.Release,
+		info.SizeBytes,
+		info.CreatedByNode,
 		ucx.Text("ok").Sx(ucx.SxColor(ucx.ColorSuccessMain)),
 	)
-
-	return ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 12}).
-		Sx(ucx.SxAlignItemsCenter).
-		Children(children...)
 }
 
 func backupProgressLine(text string) ucx.UiNode {
@@ -421,27 +400,4 @@ func backupAgeLabel(t time.Time, now time.Time) string {
 		return "1 day ago"
 	}
 	return fmt.Sprintf("%d days ago", days)
-}
-
-func backupSizeLabel(sizeBytes int64) string {
-	if sizeBytes <= 0 {
-		return ""
-	}
-
-	const (
-		kilo = int64(1000)
-		mega = 1000 * kilo
-		giga = 1000 * mega
-	)
-
-	switch {
-	case sizeBytes >= giga:
-		return fmt.Sprintf("%.1f GB", float64(sizeBytes)/float64(giga))
-	case sizeBytes >= mega:
-		return fmt.Sprintf("%.0f MB", float64(sizeBytes)/float64(mega))
-	case sizeBytes >= kilo:
-		return fmt.Sprintf("%.0f KB", float64(sizeBytes)/float64(kilo))
-	default:
-		return fmt.Sprintf("%d B", sizeBytes)
-	}
 }

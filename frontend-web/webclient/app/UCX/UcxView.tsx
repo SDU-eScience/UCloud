@@ -78,6 +78,7 @@ import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {applyJobFollowResponse, InitTerminal, JobInitState, JobInitTracker, JobsFollowResponse} from "@/Stacks/JobInitTracking";
 import {appendToXterm, useXTerm, xtermThemes} from "@/Applications/Jobs/XTermLib";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {TutorialWizard} from "@/ui-components/TutorialWizard";
 import Warning from "@/ui-components/Warning";
 import {useDispatch} from "react-redux";
 import {openJobShellTab} from "@/Terminal/State";
@@ -1028,6 +1029,32 @@ const baseComponents: UcxComponentRegistry = {
             <div style={{minWidth: 0, flex: 1}}>{children[0]}</div>
             <div style={{display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap"}}>{children.slice(1)}</div>
         </div>;
+    },
+    tutorial_wizard: ({node, model, scope, fn, renderChildren}) => {
+        const step = numberProp(node, "step", 0);
+        const stepCount = Math.max(1, numberProp(node, "stepCount", 1));
+        const nextBusyPath = optionalStringProp(node, "nextBusyPath");
+        const nextDisabledPath = optionalStringProp(node, "nextDisabledPath");
+        const nextBusy = nextBusyPath ? modelBool(model, nextBusyPath, scope) : false;
+        const nextDisabled = nextDisabledPath ? modelBool(model, nextDisabledPath, scope) : false;
+
+        return <TutorialWizard
+            step={step}
+            stepCount={stepCount}
+            previousLabel={stringProp(node, "previousLabel", "Previous step")}
+            nextLabel={stringProp(node, "nextLabel", "Next step")}
+            showPrevious={boolProp(node, "showPrevious", false)}
+            showNext={boolProp(node, "showNext", true)}
+            nextHoldToConfirm={boolProp(node, "nextHoldToConfirm", false)}
+            nextColor={optionalStringProp(node, "nextColor")}
+            nextBusy={nextBusy}
+            nextDisabled={nextDisabled}
+            embedded={true}
+            onPrevious={() => fn.sendUiEvent(node.id + "-previous", "click")}
+            onNext={() => fn.sendUiEvent(node.id + "-next", "click")}
+        >
+            {renderChildren()}
+        </TutorialWizard>;
     },
     router: ({node, model, scope, fn}) => <RouterNode node={node} model={model} scope={scope} fn={fn} />,
     query_param: ({node, model, scope, fn}) => <QueryParamNode node={node} model={model} scope={scope} fn={fn} />,

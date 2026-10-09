@@ -160,9 +160,6 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 	for {
 		select {
 		case <-ctx.Done():
-			if upstreamOutgoing != nil {
-				close(upstreamOutgoing)
-			}
 			if connectedUpstream != nil {
 				_ = connectedUpstream.Close()
 			}
@@ -187,9 +184,6 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 
 		case <-upstreamClosed:
 			log.Warn("UCX proxy: upstream closed, forcing downstream reconnect for fresh auth")
-			if upstreamOutgoing != nil {
-				close(upstreamOutgoing)
-			}
 			if connectedUpstream != nil {
 				_ = connectedUpstream.Close()
 			}

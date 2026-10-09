@@ -64,6 +64,11 @@ fi
 
 ROLE="$(node_field role)"
 
+BOOTSTRAP_TIMEOUT="$BOOTSTRAP_TIMEOUT_SECONDS"
+if [ "$(node_field_opt recoveryEnabled)" = "True" ]; then
+	BOOTSTRAP_TIMEOUT="$RECOVERY_BOOTSTRAP_TIMEOUT_SECONDS"
+fi
+
 REQUIRES_MOUNTS="RequiresMountsFor=/etc/ucloud-k8s/input /etc/ucloud-k8s/bundle /work"
 if [ "$ROLE" = "control-plane" ]; then
 	REQUIRES_MOUNTS="RequiresMountsFor=/etc/ucloud-k8s/input /etc/ucloud-k8s/bundle /work /etc/ucloud-k8s/management /etc/ucloud-k8s/nodes /etc/ucloud-k8s/backups"
@@ -103,7 +108,7 @@ Type=oneshot
 ExecStartPre=/bin/sh -c 'mountpoint -q /etc/ucloud-k8s/bundle && mountpoint -q /etc/ucloud-k8s/input || { echo required mounts are not present; exit 1; }'
 ExecStart=/usr/local/sbin/ucloud-k8s-bootstrap
 RemainAfterExit=yes
-TimeoutStartSec=$((BOOTSTRAP_TIMEOUT_SECONDS + 300))
+TimeoutStartSec=$((BOOTSTRAP_TIMEOUT + 300))
 Restart=on-failure
 RestartSec=15
 

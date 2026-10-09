@@ -95,6 +95,9 @@ func RollingUpgradeStart(ctx context.Context, kubeconfigPath string, release str
 	if record.Phase != "created" || len(record.Nodes) == 0 {
 		return errors.New("the cluster is not ready for a rolling upgrade")
 	}
+	if err := recoveryIntentGuard(); err != nil {
+		return err
+	}
 	client, err := stackClientNew()
 	if err != nil {
 		return err
@@ -300,6 +303,13 @@ func rollingUpgradeSweep(ctx context.Context, client stackClient) error {
 	upgrade, revision, err := rollingUpgradeRead(client)
 	if err != nil || !PhaseActive(upgrade.Phase) {
 		return err
+	}
+	recovery, recoveryErr := recoveryIntentActive()
+	if recoveryErr != nil {
+		return recoveryErr
+	}
+	if recovery {
+		return nil
 	}
 	if upgrade.CoordinatorUid != "" && time.Now().Before(upgrade.CoordinatorDeadline) {
 		return nil
