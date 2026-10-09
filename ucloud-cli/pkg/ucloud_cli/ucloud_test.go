@@ -666,3 +666,48 @@ func TestPublicLinkDelete(t *testing.T) {
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }
+
+func TestPrivateNetworkList(t *testing.T) {
+	input := []string{"private-network", "list"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPrivateNetworkGet(t *testing.T) {
+	input := []string{"private-network", "get", "lolex"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPrivateNetworkCreate(t *testing.T) {
+	input := []string{"private-network", "create", "mynetwork", "mysubdomain"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPrivateNetworkDelete(t *testing.T) {
+	input := []string{"private-network", "delete", "mynetwork", "lolex"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPrivateNetworMembers(t *testing.T) {
+	input := []string{"private-network", "members", "dannetwork", "--workspace", "testmain"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}

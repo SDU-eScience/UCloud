@@ -115,25 +115,24 @@ var JobCommands = map[string]CommandFunc{
 	"logs":  func() Command { return &JobLogsCommand{} },
 }
 
-func retrieveJobs(filter orcapi.JobFlags) (map[string]orcapi.Job, error) {
+func retrieveJobs(filter orcapi.JobFlags) (map[string][]orcapi.Job, error) {
 	result, httpErr := orcapi.JobsBrowse.Invoke(orcapi.JobsBrowseRequest{
 		JobFlags: filter,
 	})
 
 	if httpErr.AsError() != nil {
-		return map[string]orcapi.Job{}, fmt.Errorf("failed to list jobs: %s", httpErr.Why)
+		return map[string][]orcapi.Job{}, fmt.Errorf("failed to list jobs: %s", httpErr.Why)
 	}
-	jobs := make(map[string]orcapi.Job)
+	jobs := make(map[string][]orcapi.Job)
 	for _, job := range result.Items {
-		repoName := job.Specification.Name
-		jobs[repoName] = job
+		repoName := shared.RepositoryProjectName(job.Specification.Name)
+		jobs[repoName] = append(jobs[repoName], job)
 
 	}
 	return jobs, nil
 }
 
-func printJobs(workspace string, jobs map[string]orcapi.Job) {
-	fmt.Printf("Jobs of %s:\n", workspace)
+func printJobs(jobsMap map[string][]orcapi.Job) {
 	t := termio.Table{}
 	t.AppendHeader("Provider")
 	t.AppendHeader("Application")
@@ -143,14 +142,16 @@ func printJobs(workspace string, jobs map[string]orcapi.Job) {
 	t.AppendHeader("Owner")
 	t.AppendHeader("JobStartTime")
 
-	for _, job := range jobs {
-		t.Cell("%v", job.Specification.Product.Provider)
-		t.Cell("%v", job.Specification.Application.Name)
-		t.Cell(job.Id)
-		t.Cell("%v", job.Specification.Name)
-		t.Cell("%v", job.Status.State)
-		t.Cell("%v", job.Owner.Project.GetOrDefault(""))
-		t.Cell("%v", cli.FormatTime(job.CreatedAt))
+	for _, jobMap := range jobsMap {
+		for _, job := range jobMap {
+			t.Cell("%v", job.Specification.Product.Provider)
+			t.Cell("%v", job.Specification.Application.Name)
+			t.Cell(job.Id)
+			t.Cell("%v", job.Specification.Name)
+			t.Cell("%v", job.Status.State)
+			t.Cell("%v", job.Owner.Project.GetOrDefault(""))
+			t.Cell("%v", cli.FormatTime(job.CreatedAt))
+		}
 	}
 	t.Print()
 }
@@ -205,11 +206,13 @@ func (c JobSearchCommand) Execute() error {
 		return fmt.Errorf("failed to search for jobs: %s", httpErr.Why)
 	}
 
-	jobs := make(map[string]orcapi.Job)
+	jobs := make(map[string][]orcapi.Job)
 	for _, job := range result.Items {
-		jobs[job.Id] = job
+		repoName := shared.RepositoryProjectName(job.Specification.Name)
+		jobs[repoName] = append(jobs[repoName], job)
 	}
-	printJobs(c.JobName, jobs)
+	fmt.Printf("Jobs of %v\n", currentWs)
+	printJobs(jobs)
 	return nil
 }
 
@@ -325,7 +328,8 @@ func (c JobListCommand) Execute() error {
 	if err != nil {
 		return err
 	}
-	printJobs(currentWs, jobs)
+	fmt.Printf("Jobs of %v\n", currentWs)
+	printJobs(jobs)
 	return nil
 }
 
