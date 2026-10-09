@@ -909,7 +909,8 @@ func privateNetworkEnsureServiceAndPolicy(
 	memberLabel := PrivateNetworkMembershipLabel(desired.networkId)
 	selectorValue, selectorFound := svc.Spec.Selector[memberLabel]
 	if !selectorFound || selectorValue != "true" ||
-		!privateNetworkObjectManagedBy(svc, desired.networkId) {
+		!privateNetworkObjectManagedBy(svc, desired.networkId) ||
+		!privateNetworkLabelsEqual(svc.Labels, privateNetworkObjectLabels(desired.networkId)) {
 		updated := svc.DeepCopy()
 		updated.Labels = privateNetworkObjectLabels(desired.networkId)
 		updated.Spec.Selector = PrivateNetworkMemberSelector(desired.networkId)
@@ -993,6 +994,10 @@ func privateNetworkPolicyDrift(policy *k8snetwork.NetworkPolicy, networkId strin
 		return true
 	}
 
+	if !privateNetworkLabelsEqual(policy.Labels, privateNetworkObjectLabels(networkId)) {
+		return true
+	}
+
 	if len(policy.OwnerReferences) != 1 || policy.OwnerReferences[0].UID != svc.UID {
 		return true
 	}
@@ -1014,7 +1019,7 @@ func privateNetworkObjectOwnedBy(obj k8smeta.Object, networkId string) bool {
 
 func privateNetworkObjectManagedBy(obj k8smeta.Object, networkId string) bool {
 	labels := obj.GetLabels()
-	return labels[PrivateNetworkManagedByLabel] == PrivateNetworkManagedBy &&
+	return privateNetworkIsManagedByIm(labels) &&
 		labels[PrivateNetworkIdLabel] == networkId
 }
 
@@ -1095,7 +1100,7 @@ func privateNetworkDeleteOwnedObject(
 	isLegacy func() bool,
 	delete func() error,
 ) bool {
-	shouldDelete := labels[PrivateNetworkManagedByLabel] == PrivateNetworkManagedBy &&
+	shouldDelete := privateNetworkIsManagedByIm(labels) &&
 		labels[PrivateNetworkIdLabel] == networkId
 	if legacy {
 		shouldDelete = isLegacy()
@@ -1225,7 +1230,7 @@ func privateNetworkReconcileOrphans(ctx context.Context) int {
 	}
 
 	for _, item := range privateNetworkVpcTracker.List() {
-		if item.GetLabels()[PrivateNetworkManagedByLabel] != PrivateNetworkManagedBy {
+		if !privateNetworkIsManagedByIm(item.GetLabels()) {
 			continue
 		}
 
@@ -1248,7 +1253,7 @@ func privateNetworkReconcileOrphans(ctx context.Context) int {
 	}
 
 	for _, item := range privateNetworkSubnetTracker.List() {
-		if item.GetLabels()[PrivateNetworkManagedByLabel] != PrivateNetworkManagedBy {
+		if !privateNetworkIsManagedByIm(item.GetLabels()) {
 			continue
 		}
 
@@ -1271,7 +1276,7 @@ func privateNetworkReconcileOrphans(ctx context.Context) int {
 	}
 
 	for _, item := range privateNetworkNadTracker.List() {
-		if item.GetLabels()[PrivateNetworkManagedByLabel] != PrivateNetworkManagedBy {
+		if !privateNetworkIsManagedByIm(item.GetLabels()) {
 			continue
 		}
 

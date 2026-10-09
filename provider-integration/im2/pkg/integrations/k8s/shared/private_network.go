@@ -19,12 +19,18 @@ import (
 const (
 	PrivateNetworkManagedByLabel          = "ucloud.dk/managed-by"
 	PrivateNetworkIdLabel                 = "ucloud.dk/private-network-id"
-	PrivateNetworkManagedBy               = "im"
+	PrivateNetworkManagedBy               = "im-private-network"
+	PrivateNetworkManagedByLegacy         = "im"
 	PrivateNetworkMultusAnnotation        = "k8s.v1.cni.cncf.io/networks"
 	PrivateNetworkNetworkStatusAnnotation = "k8s.v1.cni.cncf.io/network-status"
 
 	privateNetworkSubnetSuffix = "-net"
 )
+
+func privateNetworkIsManagedByIm(labels map[string]string) bool {
+	value := labels[PrivateNetworkManagedByLabel]
+	return value == PrivateNetworkManagedBy || value == PrivateNetworkManagedByLegacy
+}
 
 func PrivateNetworkSelector(subdomain string) map[string]string {
 	return map[string]string{
@@ -231,7 +237,7 @@ func PrivateNetworkDelete(network *orc.PrivateNetwork) *util.HttpError {
 }
 
 func privateNetworkServiceIsLegacy(svc *k8score.Service, subdomain string) bool {
-	if svc.Labels[PrivateNetworkManagedByLabel] == PrivateNetworkManagedBy {
+	if privateNetworkIsManagedByIm(svc.Labels) {
 		return false
 	}
 
@@ -239,7 +245,7 @@ func privateNetworkServiceIsLegacy(svc *k8score.Service, subdomain string) bool 
 }
 
 func privateNetworkPolicyIsLegacy(policy *k8snetwork.NetworkPolicy, subdomain string) bool {
-	if policy.Labels[PrivateNetworkManagedByLabel] == PrivateNetworkManagedBy {
+	if privateNetworkIsManagedByIm(policy.Labels) {
 		return false
 	}
 

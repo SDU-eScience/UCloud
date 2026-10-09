@@ -977,7 +977,13 @@ func servicesPruneOrphans(ctx context.Context, ids map[string]util.Empty) {
 		if item.Labels[servicesManagedByLabel] != servicesManagedBy {
 			continue
 		}
-		if _, keep := ids[item.Labels[servicesIdLabel]]; !keep {
+
+		serviceId := item.Labels[servicesIdLabel]
+		if serviceId == "" {
+			continue
+		}
+
+		if _, keep := ids[serviceId]; !keep {
 			_ = shared.K8sClient.CoreV1().Services(namespace).Delete(ctx, item.Name, k8smeta.DeleteOptions{})
 		}
 	}
@@ -986,7 +992,13 @@ func servicesPruneOrphans(ctx context.Context, ids map[string]util.Empty) {
 		if item.Labels[servicesManagedByLabel] != servicesManagedBy {
 			continue
 		}
-		if _, keep := ids[item.Labels[servicesIdLabel]]; !keep {
+
+		serviceId := item.Labels[servicesIdLabel]
+		if serviceId == "" {
+			continue
+		}
+
+		if _, keep := ids[serviceId]; !keep {
 			_ = shared.K8sClient.DiscoveryV1().EndpointSlices(namespace).Delete(ctx, item.Name, k8smeta.DeleteOptions{})
 		}
 	}
