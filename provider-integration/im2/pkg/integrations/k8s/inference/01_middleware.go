@@ -477,12 +477,13 @@ func inferenceNormalizeToolCallArguments(arguments string) string {
 }
 
 type InferenceChatResponse struct {
-	Id      string                `json:"id"`
-	Object  string                `json:"object"`
-	Created int64                 `json:"created"`
-	Model   string                `json:"model"`
-	Choices []InferenceChatChoice `json:"choices"`
-	Usage   InferenceChatUsage    `json:"usage"`
+	Id                       string                `json:"id"`
+	Object                   string                `json:"object"`
+	Created                  int64                 `json:"created"`
+	Model                    string                `json:"model"`
+	Choices                  []InferenceChatChoice `json:"choices"`
+	Usage                    InferenceChatUsage    `json:"usage"`
+	UCloudGeneratedByAiModel string                `json:"ucloudGeneratedByAiModel"`
 }
 
 func (r InferenceChatResponse) MarshalJSON() ([]byte, error) {
@@ -500,12 +501,13 @@ type InferenceChatChoice struct {
 }
 
 type InferenceChatStreamingResponse struct {
-	Id      string                         `json:"id"`
-	Object  string                         `json:"object"`
-	Created int64                          `json:"created"`
-	Model   string                         `json:"model"`
-	Choices []InferenceChatStreamingChoice `json:"choices"`
-	Usage   InferenceChatUsage             `json:"usage"`
+	Id                       string                         `json:"id"`
+	Object                   string                         `json:"object"`
+	Created                  int64                          `json:"created"`
+	Model                    string                         `json:"model"`
+	Choices                  []InferenceChatStreamingChoice `json:"choices"`
+	Usage                    InferenceChatUsage             `json:"usage"`
+	UCloudGeneratedByAiModel string                         `json:"ucloudGeneratedByAiModel"`
 }
 
 func (r InferenceChatStreamingResponse) MarshalJSON() ([]byte, error) {
@@ -750,12 +752,13 @@ func InferenceChatEx(ctx context.Context, owner apm.WalletOwner, username string
 	}
 	auditUsage = inferenceChatUsage(resp.Usage)
 	return InferenceChatResponse{
-		Id:      resp.Id,
-		Object:  resp.Object,
-		Created: resp.Created,
-		Model:   model.Name,
-		Choices: resp.Choices,
-		Usage:   usage,
+		Id:                       resp.Id,
+		Object:                   resp.Object,
+		Created:                  resp.Created,
+		Model:                    model.Name,
+		Choices:                  resp.Choices,
+		Usage:                    usage,
+		UCloudGeneratedByAiModel: model.Name,
 	}, nil
 }
 
@@ -898,7 +901,7 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username
 				estimatedOutputTokens := int(elapsedSeconds * inferenceEstimatedNonStreamingOutputTokensPerSecond)
 				usageSeen = inferenceReportCancelledUsage(owner, username, model, history, estimatedOutputTokens)
 				auditUsage = usageSeen
-				ch <- InferenceChatStreamingResponse{Object: "chat.completion.chunk", Model: model.Name, Usage: usageSeen}
+				ch <- InferenceChatStreamingResponse{Object: "chat.completion.chunk", Model: model.Name, Usage: usageSeen, UCloudGeneratedByAiModel: model.Name}
 				streamOutcome = "client_cancelled"
 				auditAborted = true
 			} else {
@@ -983,11 +986,11 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username
 			if ctx.Err() != nil && !usageDelivered {
 				// The upstream's usage chunk arrived during cancellation, but the send to the consumer
 				// lost the race against the context. Deliver it now.
-				ch <- InferenceChatStreamingResponse{Object: "chat.completion.chunk", Model: model.Name, Usage: usageSeen}
+				ch <- InferenceChatStreamingResponse{Object: "chat.completion.chunk", Model: model.Name, Usage: usageSeen, UCloudGeneratedByAiModel: model.Name}
 			}
 		} else if ctx.Err() != nil {
 			usageSeen = inferenceReportCancelledUsage(owner, username, model, history, inferenceEstimateTokensFromText(outputSeen.String()))
-			ch <- InferenceChatStreamingResponse{Object: "chat.completion.chunk", Model: model.Name, Usage: usageSeen}
+			ch <- InferenceChatStreamingResponse{Object: "chat.completion.chunk", Model: model.Name, Usage: usageSeen, UCloudGeneratedByAiModel: model.Name}
 		} else if streamCtx.Err() == nil {
 			inferenceWarnMissingUsage("chat-stream", model.Name)
 		}
@@ -1264,12 +1267,13 @@ func inferenceChatStreamingResponseFromRaw(raw []byte, modelName string, usageSe
 		}
 	}
 	return InferenceChatStreamingResponse{
-		Id:      chunk.Id,
-		Object:  chunk.Object,
-		Created: chunk.Created,
-		Model:   chunk.Model,
-		Choices: chunk.Choices,
-		Usage:   usageSeen,
+		Id:                       chunk.Id,
+		Object:                   chunk.Object,
+		Created:                  chunk.Created,
+		Model:                    chunk.Model,
+		Choices:                  chunk.Choices,
+		Usage:                    usageSeen,
+		UCloudGeneratedByAiModel: modelName,
 	}, usageSeen, true, usagePresent
 }
 

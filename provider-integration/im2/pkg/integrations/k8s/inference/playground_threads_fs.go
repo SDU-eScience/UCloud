@@ -40,14 +40,15 @@ const (
 )
 
 type playgroundPersistedThread struct {
-	Version   int                           `json:"version"`
-	Id        string                        `json:"id"`
-	Title     string                        `json:"title"`
-	CreatedAt string                        `json:"createdAt"`
-	UpdatedAt string                        `json:"updatedAt"`
-	Usage     InferencePlaygroundTokenUsage `json:"usage"`
-	LastQuery InferencePlaygroundTokenUsage `json:"lastQuery"`
-	Messages  []playgroundPersistedMessage  `json:"messages"`
+	Version        int                           `json:"version"`
+	Id             string                        `json:"id"`
+	Title          string                        `json:"title"`
+	CreatedAt      string                        `json:"createdAt"`
+	UpdatedAt      string                        `json:"updatedAt"`
+	Usage          InferencePlaygroundTokenUsage `json:"usage"`
+	LastQuery      InferencePlaygroundTokenUsage `json:"lastQuery"`
+	Messages       []playgroundPersistedMessage  `json:"messages"`
+	InternetAccess string                        `json:"internetAccess,omitempty"`
 }
 
 type playgroundPersistedMessage struct {
@@ -311,14 +312,15 @@ func playgroundThreadPersisted(thread playgroundChatThread) playgroundPersistedT
 		})
 	}
 	return playgroundPersistedThread{
-		Version:   1,
-		Id:        thread.Id,
-		Title:     thread.Title,
-		CreatedAt: playgroundFormatTime(thread.CreatedAt),
-		UpdatedAt: playgroundFormatTime(thread.UpdatedAt),
-		Usage:     thread.Usage,
-		LastQuery: thread.LastQuery,
-		Messages:  messages,
+		Version:        1,
+		Id:             thread.Id,
+		Title:          thread.Title,
+		CreatedAt:      playgroundFormatTime(thread.CreatedAt),
+		UpdatedAt:      playgroundFormatTime(thread.UpdatedAt),
+		Usage:          thread.Usage,
+		LastQuery:      thread.LastQuery,
+		Messages:       messages,
+		InternetAccess: thread.InternetAccess,
 	}
 }
 
@@ -369,13 +371,14 @@ func playgroundThreadFromPersisted(persisted playgroundPersistedThread) (playgro
 		lastQuery = playgroundPersistedLastQueryFallback(persisted.Usage, messages)
 	}
 	return playgroundChatThread{
-		Id:        persisted.Id,
-		Title:     title,
-		CreatedAt: createdAt,
-		UpdatedAt: updatedAt,
-		Usage:     persisted.Usage,
-		LastQuery: lastQuery,
-		Messages:  messages,
+		Id:             persisted.Id,
+		Title:          title,
+		CreatedAt:      createdAt,
+		UpdatedAt:      updatedAt,
+		Usage:          persisted.Usage,
+		LastQuery:      lastQuery,
+		Messages:       messages,
+		InternetAccess: persisted.InternetAccess,
 	}, true
 }
 

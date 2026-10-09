@@ -35,5 +35,4 @@ export class ProviderBrandingApi {
     }
 }
 
-const providerBrandingApi = new ProviderBrandingApi();
-export { providerBrandingApi };
+export const providerBrandingApi = new ProviderBrandingApi();

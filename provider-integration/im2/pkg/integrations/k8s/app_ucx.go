@@ -26,6 +26,7 @@ import (
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
@@ -284,6 +285,12 @@ func ucxOnConnect(conn *ws.Conn) {
 			}
 		}
 
+		filesystem.ActivityRecord(rpc.Actor{Username: info.Owner.CreatedBy}, filesystem.ActivityEvent{
+			Kind:      filesystem.ActivityDirect,
+			Operation: filesystem.ActivityOperationCreate,
+			Targets:   []filesystem.ActivityTarget{{UCloudPath: ucloudPath}},
+		})
+
 		id, err := orcapi.StacksControlRequestDeletion.Invoke(orcapi.StacksControlRequestDeletionRequest{
 			Id:             instanceId,
 			ActivationTime: util.OptValue[fnd.Timestamp](fnd.Timestamp(time.Now().Add(2 * time.Minute))),
@@ -515,21 +522,23 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, state
 		return util.Empty{}, fmt.Errorf("input data is too large")
 	}
 
+	var drive *orcapi.Drive
 	requestedPath := ""
 	if stateFolder != "" {
 		driveId, ok := orcapi.DriveIdFromUCloudPath(stateFolder)
 		if !ok || !ctrl.DriveCanUse(owner, driveId, false) {
 			return util.Empty{}, fmt.Errorf("stack state drive is not accessible")
 		}
-		requestedPath, ok, _ = filesystem.UCloudToInternal(stateFolder)
+		requestedPath, ok, drive = filesystem.UCloudToInternal(stateFolder)
 		if !ok {
 			return util.Empty{}, fmt.Errorf("invalid stack state folder")
 		}
 	} else {
-		internalPathMemberFiles, _, err := filesystem.InitializeMemberFiles(owner.CreatedBy, owner.Project)
+		internalPathMemberFiles, memberDrive, err := filesystem.InitializeMemberFiles(owner.CreatedBy, owner.Project)
 		if err != nil {
 			return util.Empty{}, err.AsError()
 		}
+		drive = memberDrive
 		requestedPath = filepath.Join(internalPathMemberFiles, "Jobs", "Stacks", instanceId)
 	}
 	if err := filesystem.DoCreateFolder(requestedPath); err != nil {
@@ -553,6 +562,14 @@ func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, state
 	parentPath := util.Parent(requestedPath)
 	if err := filesystem.DoCreateFolder(parentPath); err != nil {
 		return util.Empty{}, err.AsError()
+	}
+
+	if ucloudPath, ok := filesystem.InternalToUCloudWithDrive(drive, parentPath); ok {
+		filesystem.ActivityRecord(rpc.Actor{Username: owner.CreatedBy}, filesystem.ActivityEvent{
+			Kind:      filesystem.ActivityDirect,
+			Operation: filesystem.ActivityOperationCreate,
+			Targets:   []filesystem.ActivityTarget{{UCloudPath: ucloudPath}},
+		})
 	}
 
 	file, ok := filesystem.OpenFile(requestedPath, unix.O_CREAT|unix.O_WRONLY|writeFlag, perm)

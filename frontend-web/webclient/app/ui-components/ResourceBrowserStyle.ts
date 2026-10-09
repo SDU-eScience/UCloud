@@ -96,7 +96,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             margin-bottom: 8px;
         }
 
-        ${BrowserClass.dot} header .header-first-row img {
+        ${BrowserClass.dot} header .header-first-row > img {
             cursor: pointer;
             flex-shrink: 0;
             margin-left: 16px;

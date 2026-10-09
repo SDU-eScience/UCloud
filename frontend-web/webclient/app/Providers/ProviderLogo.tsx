@@ -1,22 +1,36 @@
 import * as React from "react";
 import {Image} from "@/ui-components";
-import ProviderInfo from "@/Assets/provider_info.json";
 import {classConcat} from "@/Unstyled";
 import {injectStyle} from "@/Unstyled";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {getProviderTitle} from "@/Providers/ProviderTitle";
+import {providerBrandingStore, providerLogoUrl, useProviderProperty} from "@/ProviderBrandings/AutomaticProviderBranding";
+import ProviderInfo from "@/Assets/provider_info.json";
 
 export function providerLogoPath(providerId: string): string {
-    const logo = ProviderInfo.providers.find(p => p.id === providerId)?.logo ?? "";
-    if (logo) return `/Images/${logo}`;
-    return "";
+    const logo = providerBrandingStore.getProviderProperty(providerId, "logo");
+    return logo ? providerLogoUrl(logo) : "";
 }
 
 export const ProviderLogo: React.FunctionComponent<{providerId: string; size: number; className?: string;}> = ({providerId, size, className}) => {
-    const myInfo = ProviderInfo.providers.find(p => p.id === providerId);
+    const [failedUrl, setFailedUrl] = React.useState<string | null>(null);
+    const brandingLogo = useProviderProperty(providerId, "logo");
+    const fallbackLogo = ProviderInfo.providers.find(it => it.id === providerId)?.logo;
+
+    let resolvedLogo = brandingLogo;
+    if (brandingLogo && failedUrl === providerLogoUrl(brandingLogo)) {
+        resolvedLogo = brandingLogo === fallbackLogo ? undefined : fallbackLogo;
+    }
+
     return <ProviderLogoWrapper size={size} className={className} tooltip={getProviderTitle(providerId)}>
-        {!myInfo ? (providerId[0] ?? "?").toUpperCase() : <Image src={`/Images/${myInfo.logo}`} alt={`Logo for ${myInfo.title}`} />}
-    </ProviderLogoWrapper>
+        {!resolvedLogo ? (providerId[0] ?? "?").toUpperCase() : (
+            <Image
+                src={providerLogoUrl(resolvedLogo)}
+                alt={`Logo for ${getProviderTitle(providerId)}`}
+                onError={() => setFailedUrl(providerLogoUrl(resolvedLogo!))}
+            />
+        )}
+    </ProviderLogoWrapper>;
 };
 
 export function ProviderLogoWrapper({size, tooltip, children, className}: React.PropsWithChildren<{size: number; tooltip: React.ReactNode; className?: string;}>): React.ReactNode {

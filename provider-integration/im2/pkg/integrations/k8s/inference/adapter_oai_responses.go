@@ -70,34 +70,35 @@ type OaiResponseTextConfig struct {
 }
 
 type OaiResponse struct {
-	Id                 string                     `json:"id"`
-	Object             string                     `json:"object"`
-	CreatedAt          int64                      `json:"created_at"`
-	Status             string                     `json:"status,omitempty"`
-	CompletedAt        *int64                     `json:"completed_at"`
-	Error              any                        `json:"error"`
-	IncompleteDetails  any                        `json:"incomplete_details"`
-	Instructions       any                        `json:"instructions"`
-	MaxOutputTokens    *int                       `json:"max_output_tokens"`
-	Model              string                     `json:"model"`
-	Output             []any                      `json:"output"`
-	OutputText         string                     `json:"output_text,omitempty"`
-	ParallelToolCalls  bool                       `json:"parallel_tool_calls"`
-	PreviousResponseID any                        `json:"previous_response_id"`
-	Conversation       string                     `json:"conversation,omitempty"`
-	Reasoning          OaiResponseReasoningReturn `json:"reasoning"`
-	Store              bool                       `json:"store"`
-	Temperature        float64                    `json:"temperature"`
-	Text               OaiResponseTextReturn      `json:"text"`
-	ToolChoice         any                        `json:"tool_choice"`
-	Tools              []any                      `json:"tools"`
-	TopLogprobs        *int                       `json:"top_logprobs,omitempty"`
-	TopP               float64                    `json:"top_p"`
-	Truncation         string                     `json:"truncation"`
-	Usage              *OaiResponseUsage          `json:"usage"`
-	User               any                        `json:"user"`
-	Metadata           map[string]string          `json:"metadata"`
-	Background         bool                       `json:"background,omitempty"`
+	Id                       string                     `json:"id"`
+	Object                   string                     `json:"object"`
+	CreatedAt                int64                      `json:"created_at"`
+	Status                   string                     `json:"status,omitempty"`
+	CompletedAt              *int64                     `json:"completed_at"`
+	Error                    any                        `json:"error"`
+	IncompleteDetails        any                        `json:"incomplete_details"`
+	Instructions             any                        `json:"instructions"`
+	MaxOutputTokens          *int                       `json:"max_output_tokens"`
+	Model                    string                     `json:"model"`
+	Output                   []any                      `json:"output"`
+	OutputText               string                     `json:"output_text,omitempty"`
+	ParallelToolCalls        bool                       `json:"parallel_tool_calls"`
+	PreviousResponseID       any                        `json:"previous_response_id"`
+	Conversation             string                     `json:"conversation,omitempty"`
+	Reasoning                OaiResponseReasoningReturn `json:"reasoning"`
+	Store                    bool                       `json:"store"`
+	Temperature              float64                    `json:"temperature"`
+	Text                     OaiResponseTextReturn      `json:"text"`
+	ToolChoice               any                        `json:"tool_choice"`
+	Tools                    []any                      `json:"tools"`
+	TopLogprobs              *int                       `json:"top_logprobs,omitempty"`
+	TopP                     float64                    `json:"top_p"`
+	Truncation               string                     `json:"truncation"`
+	Usage                    *OaiResponseUsage          `json:"usage"`
+	User                     any                        `json:"user"`
+	Metadata                 map[string]string          `json:"metadata"`
+	Background               bool                       `json:"background,omitempty"`
+	UCloudGeneratedByAiModel string                     `json:"ucloudGeneratedByAiModel,omitempty"`
 }
 
 type OaiResponseReasoningReturn struct {
@@ -541,6 +542,7 @@ func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner
 		var pendingText strings.Builder
 		var reasoning strings.Builder
 		var usage InferenceChatUsage
+		generatedByAiModel := ""
 		defer func() {
 			if !auditUsagePresent && usage.TotalTokens != 0 {
 				auditUsage = usage
@@ -600,6 +602,15 @@ func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner
 			}
 		}
 		for chunk := range chatChunks {
+			if generatedByAiModel == "" {
+				generatedByAiModel = chunk.UCloudGeneratedByAiModel
+				if generatedByAiModel == "" {
+					generatedByAiModel = chunk.Model
+				}
+				if generatedByAiModel != "" {
+					resp.UCloudGeneratedByAiModel = generatedByAiModel
+				}
+			}
 			if chunk.Usage.TotalTokens != 0 || chunk.Usage.PromptTokens != 0 || chunk.Usage.CompletionTokens != 0 {
 				usage = chunk.Usage
 			}
@@ -738,6 +749,10 @@ func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner
 		completedAt := time.Now().Unix()
 		resp.Status = "completed"
 		resp.CompletedAt = &completedAt
+		resp.Model = generatedByAiModel
+		if resp.Model == "" {
+			resp.Model = request.Model
+		}
 		if messageId != "" {
 			resp.OutputText = finalText
 		}
@@ -756,6 +771,7 @@ func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner
 		conversation := inferenceResponseConversationFromTurn(request.Input, resp, conversationId)
 		if err := inferenceResponseStoreSet(owner, username, resp, conversation); err != nil {
 			failed := inferenceResponseFailed(resp.Id, createdAt, request, err.Why)
+			failed.UCloudGeneratedByAiModel = resp.UCloudGeneratedByAiModel
 			ch <- OaiResponseStreamEvent{Type: "response.failed", Response: &failed}
 			requestOutcome = "error"
 			return
@@ -1869,6 +1885,10 @@ func inferenceResponseFromChat(id string, request OaiResponseCreateRequest, chat
 	resp.Status = "completed"
 	resp.CompletedAt = &completedAt
 	resp.Model = chatResponse.Model
+	resp.UCloudGeneratedByAiModel = chatResponse.UCloudGeneratedByAiModel
+	if resp.UCloudGeneratedByAiModel == "" {
+		resp.UCloudGeneratedByAiModel = chatResponse.Model
+	}
 
 	var output []any
 	var outputText strings.Builder

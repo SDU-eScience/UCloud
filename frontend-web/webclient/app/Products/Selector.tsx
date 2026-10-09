@@ -17,11 +17,11 @@ import {MandatoryField, NoResultsBody} from "@/UtilityComponents";
 import {ComputeSupport, JobQueueStatus} from "@/UCloud/JobsApi";
 import {ThemeColor} from "@/ui-components/theme";
 import {TooltipV2} from "@/ui-components/Tooltip";
-import {useSelector} from "react-redux";
 import {ServiceProviderItem, ServiceProviderSelector} from "@/Applications/ApiTokens/Add";
 import {InputClass} from "@/ui-components/Input";
 import {useProjectId} from "@/Project/Api";
 import {stupidPluralize} from "@/Utilities/TextUtilities";
+import {useProviderBrandings} from "@/ProviderBrandings/AutomaticProviderBranding";
 import {announceDropdownOpen, DROPDOWN_OPENED_EVENT} from "@/ui-components/ClickableDropdown";
 import {IconName} from "@/ui-components/Icon";
 
@@ -49,7 +49,7 @@ export const ProductSelector: React.FunctionComponent<{
 }> = ({selected, ...props}) => {
     const dropdownIdRef = React.useRef(`product-selector-${Math.random().toString(36).slice(2)}`);
     const portal = usePortal();
-    
+
     useUState(connectionState);
     const [filteredProducts, setFilteredProducts] = React.useState<ProductV2[]>([]);
     const type = props.products.length > 0 ? props.products[0].productType : props.type;
@@ -586,7 +586,7 @@ function ProductDescription({className, serviceProvider, category}: {className?:
 }
 
 function useProductDescription(serviceProvider: string, category: string): string {
-    const providerBrandings = useSelector((r: ReduxObject) => r.providerBrandings.providers);
+    const providerBrandings = useProviderBrandings();
     return providerBrandings[serviceProvider]?.productDescription.find(it => it.category === category)?.shortDescription ?? "No description"
 }
 
@@ -1216,9 +1216,11 @@ function JobQueueStatusIndicator(props: {
 
     const size = "12px";
 
-    return <TooltipV2 tooltip={props.multiple ? messageMultiple : message}>
-        <div tabIndex={0} style={{width: size, height: size, borderRadius: size, backgroundColor: `var(--${color})`}} />
-    </TooltipV2>;
+    return <div style={{width: size}}>
+        <TooltipV2 tooltip={props.multiple ? messageMultiple : message}>
+            <div tabIndex={0} style={{width: size, height: size, borderRadius: size, backgroundColor: `var(--${color})`}} />
+        </TooltipV2>
+    </div>;
 }
 
 function useDialogSize(headerCount: number, alignment: "rightAligned" | "centered"): {boxRef: React.RefObject<HTMLDivElement | null>; dialogX: number; dialogY: number; dialogHeight: number; dialogWidth: number;} {

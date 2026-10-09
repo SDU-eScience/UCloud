@@ -1,4 +1,4 @@
-import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
+import {Client} from "@/Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns";
 import * as React from "react";
 import {Absolute, Box, Flex, Icon, Relative} from "@/ui-components";
@@ -588,6 +588,14 @@ const ContentWrapper = injectStyle("content-wrapper", k => `
         flex-direction: column;
 
         box-shadow: var(--defaultShadow);
+    }
+
+    @media (max-width: 530px) {
+        ${k} {
+            width: calc(100vw - 16px);
+            bottom: 142px;
+            left: 8px;
+        }
     }
 
     ${k} > .container-wrapper {

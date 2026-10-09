@@ -172,7 +172,7 @@ const Container = injectStyle("job-container", k => `
   }
 
   ${k} .fake-logo {
-    /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo, 
+    /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo,
     this basically fixes our document flow */
     display: block;
     width: var(--logoSize);
@@ -236,7 +236,7 @@ const Container = injectStyle("job-container", k => `
   ${k}.IN_QUEUE .logo {
     animation: 2s ${enterAnimation} infinite;
   }
-  
+
   ${k}.RUNNING {
     --logoSize: 96px;
   }
@@ -313,7 +313,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
     const [jobUpdates, setJobUpdates] = useState(job?.updates ?? []);
 
     if (!props.embedded) {
-        usePage(`Job ${shortUUID(id)}`, SidebarTabId.RUNS);
+        usePage(`Job ${shortUUID(id)}`, SidebarTabId.COMPUTE);
     }
 
     const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
@@ -658,7 +658,7 @@ const Content = injectStyle("content", k => `
         display: flex;
         gap: 16px;
     }
-    
+
     ${k} > * {
         flex-grow: 1;
         flex-shrink: 0;
@@ -868,7 +868,7 @@ const RunningInfoWrapper = injectStyle("running-info-wrapper", k => `
         gap: 16px;
         flex-wrap: wrap;
     }
-    
+
     ${k} > * {
         flex-basis: 300px;
         flex-grow: 1;
@@ -1321,7 +1321,7 @@ const RunningContent: React.FunctionComponent<{
 };
 
 
-/* 
+/*
  *  tests:
     console.log(transformToSSHUrl("foobar baz -p bar"), "invalid");
     console.log(transformToSSHUrl("ssh baz -p bar"), "invalid");

@@ -188,15 +188,6 @@ func TestPublicIPCreateOpenPort(t *testing.T) {
 	assert.NotNil(t, cmd)
 }
 
-func TestPublicLinkCreate(t *testing.T) {
-	input := []string{"public-link", "create", "notebook"}
-	cmd, err := Parse(input)
-	concrete := cmd.(*command.PublicLinkCreateCommand)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	assert.NotEmpty(t, concrete.Name)
-}
-
 func TestJobList(t *testing.T) {
 	input := []string{"job", "list", "--workspace", "testmain", "--provider", "k8s", "--app", "terminal-ubuntu"}
 	cmd, err := Parse(input)
@@ -486,4 +477,192 @@ func TestJobExtendMissingTime(t *testing.T) {
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
 	assert.Error(t, err)
+}
+
+func TestCompletion(t *testing.T) {
+	input := []string{"completion"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.Error(t, err)
+}
+
+func TestAppList(t *testing.T) {
+	input := []string{"app", "list", "--category", "slurm-hpc"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestAppCategories(t *testing.T) {
+	input := []string{"app", "categories"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestAppSearch(t *testing.T) {
+	input := []string{"app", "search"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestAppGet(t *testing.T) {
+	input := []string{"app", "get", "coder"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestComputeProducts(t *testing.T) {
+	input := []string{"compute", "products", "--provider", "k8s", "--verbose"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestSshKeyList(t *testing.T) {
+	input := []string{"ssh-key", "list"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestSshKeyAdd(t *testing.T) {
+	input := []string{"ssh-key", "add", "myfoobarkey", "/Users/danvu/.ssh/id_ed25519.pub"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestSshKeyGet(t *testing.T) {
+	input := []string{"ssh-key", "get", "myfoobarkey"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestSshKeyDelete(t *testing.T) {
+	input := []string{"ssh-key", "delete", "myfoobarkey"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicIPList(t *testing.T) {
+	input := []string{"public-ip", "list"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicIPListByIP(t *testing.T) {
+	input := []string{"public-ip", "list", "--ip", "10.99.0.2-10.99.0.4"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicIPCreate(t *testing.T) {
+	input := []string{"public-ip", "create", "--rule", "1234-2345/tcp", "--rule", "12344/udp"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicIPDelete(t *testing.T) {
+	input := []string{"public-ip", "delete", "--ip", "10.99.0.4-10.99.0.20", "--ip", "10.99.0.2"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+func TestPublicIPDeleteCidr(t *testing.T) {
+	input := []string{"public-ip", "delete", "--ip", "10.99.0.2"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicIPDeleteById(t *testing.T) {
+	input := []string{"public-ip", "delete", "--id", "64", "--id", "66", "--id", "67"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicIPGet(t *testing.T) {
+	input := []string{"public-ip", "get", "--id", "64"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicLinkList(t *testing.T) {
+	input := []string{"public-link", "list"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicLinkGet(t *testing.T) {
+	input := []string{"public-link", "get", "testmain-cli"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicLinkCreate(t *testing.T) {
+	input := []string{"public-link", "create", "barlinkagain", "--provider", "k8s"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicLinkDelete(t *testing.T) {
+	input := []string{"public-link", "delete", "barlinkagain", "barlink", "--workspace", "testmain"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
 }

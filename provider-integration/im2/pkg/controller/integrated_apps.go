@@ -29,6 +29,7 @@ type IntegratedApplicationFlag int
 
 const (
 	IntegratedAppInternal IntegratedApplicationFlag = 1 << iota
+	IntegratedAppProjectScoped
 )
 
 type IntegratedApplicationHandler struct {
@@ -275,6 +276,10 @@ func iappCreateJob(appName string, owner orc.ResourceOwner, configuration json.R
 
 	key := iappConfigKey{AppName: appName, Owner: owner}
 	newEtag := util.RandomToken(16)
+	project := util.OptNone[string]()
+	if svc.Flags&IntegratedAppProjectScoped != 0 {
+		project = owner.Project
+	}
 
 	res := orc.ProviderRegisteredResource[orc.JobSpecification]{
 		Spec: orc.JobSpecification{
@@ -287,7 +292,7 @@ func iappCreateJob(appName string, owner orc.ResourceOwner, configuration json.R
 			Parameters:  map[string]orc.AppParameterValue{},
 			Resources:   []orc.AppParameterValue{},
 		},
-		Project:   util.OptStringIfNotEmpty(""),
+		Project:   project,
 		CreatedBy: util.OptStringIfNotEmpty(owner.CreatedBy),
 	}
 
@@ -394,6 +399,13 @@ func iappConfigure(appName string, owner orc.ResourceOwner, etag util.Option[str
 	job, ok := JobRetrieve(config.JobId)
 	if !ok || job.Status.State.IsFinal() {
 		return iappRestart(appName, owner)
+	}
+	if svc.Flags&IntegratedAppProjectScoped != 0 && job.Owner.Project != owner.Project {
+		if err := Jobs.Terminate(JobTerminateRequest{Job: job}); err != nil {
+			return err
+		}
+		iappDetachConfig(key, config)
+		return iappConfigure(appName, owner, util.OptNone[string](), configuration)
 	}
 
 	err := svc.UpdateConfiguration(job, newEtag, configuration)

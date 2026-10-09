@@ -9,7 +9,7 @@ export enum SidebarTabId {
     PROJECT = "Project",
     RESOURCES = "Resources",
     APPLICATIONS = "Applications",
-    RUNS = "Compute",
+    COMPUTE = "Compute",
     ADMIN = "Admin",
     APPLICATION_STUDIO = "Application Studio",
     INFERENCE = "AI",

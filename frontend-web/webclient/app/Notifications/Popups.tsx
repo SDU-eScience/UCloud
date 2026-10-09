@@ -7,7 +7,7 @@ import {useForcedRender} from "@/Utilities/ReactUtilities";
 
 // NOTE(Dan): The <NotificationPopups> component is responsible for displaying incoming <NotificationCard>s in an
 // orderly manner. A new notification is triggered with `triggerNotificationPopup` which will display the notification
-// if possible. 
+// if possible.
 //
 // The container allows for up to 6 notifications shown at once, two of which are reserved for pinned
 // notifications. No more than two pinned notification can be displayed at any point in time. Pinned notifications
@@ -16,7 +16,7 @@ import {useForcedRender} from "@/Utilities/ReactUtilities";
 // notifications enter the screen for a very long time. Thus if 50 notifications are fired, then up to 6 are shown and
 // the rest are discarded (moved to the tray).
 //
-// This component does not use a React way of programming, it also doesn't use Redux for state management. This is a 
+// This component does not use a React way of programming, it also doesn't use Redux for state management. This is a
 // very intentional choice, since I believe the logic is easier to manage this way. For the most part we simply manage
 // the state globally (the component is assumed to be mounted at all relevant times) and force a rerender of the
 // active component via the `callback` variable.
@@ -146,7 +146,7 @@ function startDeletionTimer(slot: ActiveNotification) {
             slot.notification = undefined;
             triggerCallback();
         }
-        // NOTE(Dan): We often get flashes if we wait until the end. This is probably because setTimeout is not 
+        // NOTE(Dan): We often get flashes if we wait until the end. This is probably because setTimeout is not
         // super precise and React isn't always super fast.
     }, EXIT_ANIMATION - 30);
 }
@@ -206,6 +206,8 @@ export const NotificationPopups: React.FunctionComponent = () => {
 
     const baseOffset = 12;
 
+    const cardGap = window.innerWidth < 500 ? CARD_GAP * 2 : CARD_GAP;
+
     for (let i = 0; i < pinnedSlots.length; i++) {
         const slot = pinnedSlots[i];
         if (slot === null) continue;
@@ -213,7 +215,7 @@ export const NotificationPopups: React.FunctionComponent = () => {
         elems.push(
             <NotificationCard
                 key={i}
-                bottom={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`}
+                bottom={`${baseOffset + (CARD_SIZE + cardGap) * i}px`}
                 exit={slot.needsExit}
                 callbackItem={slot}
                 {...slot.notification}
@@ -228,7 +230,7 @@ export const NotificationPopups: React.FunctionComponent = () => {
             elems.push(
                 <NotificationCard
                     key={slot.uniqueId}
-                    bottom={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`}
+                    bottom={`${baseOffset + (CARD_SIZE + cardGap) * i}px`}
                     exit={slot.needsExit}
                     {...slot.notification}
                     callbackItem={slot}
@@ -242,4 +244,3 @@ export const NotificationPopups: React.FunctionComponent = () => {
 
     return <>{elems}</>;
 };
-

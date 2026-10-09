@@ -47,7 +47,7 @@ export default function StackView(): React.ReactNode {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [ucxAuthenticated, setUcxAuthenticated] = React.useState(false);
 
-    usePage("Stack", SidebarTabId.RUNS);
+    usePage("Stack", SidebarTabId.COMPUTE);
 
     const refreshStack = React.useCallback(() => {
         if (!id) return;
