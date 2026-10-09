@@ -135,10 +135,10 @@ joined yet. Publishing is idempotent, so multiple publishers on different contro
 
 All cluster subnets are fixed and known in advance:
 
-- VM network: `10.199.0.0/16`. The node with allocation ID `n` gets address `10.199.((n+2) div 256).((n+2) mod 256)`, so the first
-  control plane node is `10.199.0.3`.
-- Pod network: `10.200.0.0/16`
-- Service network: `10.201.0.0/16`
+- VM network: `172.31.0.0/16`. The node with allocation ID `n` gets address `172.31.((n+2) div 256).((n+2) mod 256)`, so the first
+  control plane node is `172.31.0.3`.
+- Pod network: `10.14.0.0/16`
+- Service network: `10.15.0.0/16`
 
 The Kubernetes API is exposed on port 6443 of every control plane node, and Headlamp on port 30500. Both are exposed as public links
 backed by the cluster service, which load-balances over all control plane nodes. The API is reachable from inside the private network

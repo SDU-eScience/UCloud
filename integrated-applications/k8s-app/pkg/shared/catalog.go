@@ -41,12 +41,12 @@ func NodeIpForAllocation(allocationId int) string {
 func ipFromOffset(offset int) netip.Addr {
 	third := offset / 256
 	fourth := offset % 256
-	return netip.AddrFrom4([4]byte{10, 199, byte(third), byte(fourth)})
+	return netip.AddrFrom4([4]byte{172, 31, byte(third), byte(fourth)})
 }
 
-const ClusterVmCidr = "10.199.0.0/16"
-const ClusterPodCidr = "10.200.0.0/16"
-const ClusterServiceCidr = "10.201.0.0/16"
+const ClusterVmCidr = "172.31.0.0/16"
+const ClusterPodCidr = "10.14.0.0/16"
+const ClusterServiceCidr = "10.15.0.0/16"
 const ClusterMaxNodes = 256
 
 const maxAllocationOffset = 65534

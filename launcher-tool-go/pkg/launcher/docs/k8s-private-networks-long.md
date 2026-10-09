@@ -32,14 +32,18 @@ The script applies several workarounds that are specific to running K3s inside D
 
 ## Address space
 
-The development CIDR pool for private networks is `172.31.100.0/22` with `/24` blocks per network. These ranges are
-blocked for private networks:
+The development CIDR pools for private networks are `100.100.0.0/16` and `172.31.0.0/16` with `/24` blocks by
+default. The K8s integrated application uses the whole `172.31.0.0/16` block for the VM network of a cluster.
+These ranges are blocked for private networks:
 
 - `10.42.0.0/16` (K3s pod CIDR)
 - `10.43.0.0/16` (K3s service CIDR)
 - `100.64.0.0/16` (Kube-OVN join subnet)
 - `172.17.0.0/16`, `172.18.0.0/16`, `172.19.0.0/16` (Docker networks)
-- `172.31.0.0/16` (Docker default bridge pool)
+
+`172.31.0.0/16` is also in Docker's default address pool range (`172.17.0.0/16` through `172.31.0.0/16`).
+Docker allocates those blocks in order, so a collision becomes possible only after the lower blocks are
+exhausted. Check the host Docker networks if VM connectivity breaks.
 
 ## Troubleshooting
 
