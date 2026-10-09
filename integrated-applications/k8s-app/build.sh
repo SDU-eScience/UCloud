@@ -15,7 +15,7 @@ APP_VERSION=0.1.5
 PROVIDER_DOMAIN=k8s.localhost.direct
 
 export PATH=$PATH:/usr/local/go/bin
-go build -o bin/k8s-app ./cmd/k8s-app
+CGO_ENABLED=0 go build -o bin/k8s-app -trimpath ./cmd/k8s-app
 
 ucloud ucx-sign \
     --binary bin/k8s-app \
