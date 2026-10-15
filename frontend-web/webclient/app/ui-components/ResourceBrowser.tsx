@@ -473,7 +473,7 @@ export class ResourceBrowser<T> {
 
     private static undoStack: Record<string, (() => void)[]> = {};
     public static addUndoAction(namespace: string, action: () => void): void {
-        const actions = this.undoStack[namespace] ?? [];
+        const actions = this.undoStack[namespace];
         actions.unshift(action);
     }
     public static undoShift(namespace: string): undefined | (() => void) {
@@ -482,12 +482,12 @@ export class ResourceBrowser<T> {
 
     private static redoStack: Record<string, (() => void)[]> = {};
     public static addRedoAction(namespace: string, action: () => void): void {
-        const actions = this.redoStack[namespace] ?? [];
+        const actions = this.redoStack[namespace];
         actions.unshift(action);
     }
 
     public static redoShift(namespace: string): undefined | (() => void) {
-        return this.undoStack[namespace].shift();
+        return this.redoStack[namespace].shift();
     }
 
     // Empty pages
@@ -570,6 +570,10 @@ export class ResourceBrowser<T> {
                 columnWidth: 20
             }]
         }
+
+        if (!ResourceBrowser.undoStack[resourceName]) ResourceBrowser.undoStack[resourceName] = [];
+        if (!ResourceBrowser.redoStack[resourceName]) ResourceBrowser.redoStack[resourceName] = [];
+
         if (opts?.selection) ResourceBrowser.selectionBrowsers.push(this);
     };
 
