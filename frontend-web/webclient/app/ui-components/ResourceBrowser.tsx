@@ -392,7 +392,6 @@ export class ResourceBrowser<T> {
     // DOM component references
     root: HTMLElement;
     private operations: HTMLElement;
-    allocations: HTMLElement;
     filters: HTMLElement;
     rightFilters: HTMLElement;
     sessionFilters: HTMLElement;
@@ -660,7 +659,6 @@ export class ResourceBrowser<T> {
         `;
 
         this.operations = this.root.querySelector<HTMLElement>(".operations")!;
-        this.allocations = this.root.querySelector<HTMLElement>(".allocations")!;
         this.dragIndicator = this.root.querySelector<HTMLDivElement>(".drag-indicator")!;
         this.entryDragIndicator = this.root.querySelector<HTMLDivElement>(".file-drag-indicator")!;
         this.entryDragIndicatorContent = this.root.querySelector<HTMLDivElement>(".file-drag-indicator-content")!;
