@@ -15,7 +15,6 @@ import {
     doNothing,
     isLikelyMac,
     stopPropagation,
-    stopPropagationAndPreventDefault,
     timestampUnixMs
 } from "@/UtilityFunctions";
 import {ReactStaticRenderer} from "@/Utilities/ReactStaticRenderer";
@@ -29,7 +28,7 @@ import {injectStyle as unstyledInjectStyle} from "@/Unstyled";
 import {InputClass} from "./Input";
 import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal, flushSync} from "react-dom";
-import {ProjectSwitcher, FilterInputClass, projectCache, fetchProjects} from "@/Project/ProjectSwitcher";
+import {ProjectSwitcher, projectCache, fetchProjects} from "@/Project/ProjectSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {ProductType, ProductV2} from "@/Accounting";
 import {ProductSelector} from "@/Products/Selector";
@@ -44,7 +43,7 @@ import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {isAdminOrPI} from "@/Project";
 import {noopCall} from "@/Authentication/DataHook";
-import {injectResourceBrowserStyle, ShortcutClass} from "./ResourceBrowserStyle";
+import {injectResourceBrowserStyle, ShortcutClass } from "./ResourceBrowserStyle";
 import {ASC, DESC, Filter, FilterCheckbox, FilterInput, FilterOption, FilterWithOptions, MultiOption, MultiOptionFilter, SORT_BY, SORT_DIRECTION} from "./ResourceBrowserFilters";
 import {sendInformationNotification} from "@/Notifications";
 import {providerBrandingStore, providerLogoUrl} from "@/ProviderBrandings/AutomaticProviderBranding";
@@ -52,7 +51,6 @@ import ProviderInfo from "@/Assets/provider_info.json";
 import ReactClient from "react-dom/client";
 import type {Root} from "react-dom/client";
 
-const CLEAR_FILTER_VALUE = "\n\nCLEAR_FILTER\n\n";
 const UTILITY_COLOR: ThemeColor = "textPrimary";
 
 export function dateRangeFilters(text: string): MultiOptionFilter {
@@ -436,8 +434,6 @@ export class ResourceBrowser<T> {
     //private altShortcuts: (() => void)[] = [doNothing, doNothing, doNothing, doNothing, doNothing];
 
     // Context menu
-    private contextMenu: HTMLDivElement;
-    private contextMenuHandlers: (() => void)[] = [];
     private actionBarRoot?: Root;
     private actionMenuRoot?: Root;
     private actionMenuOpenRef = React.createRef<(left: number, top: number) => void>();
@@ -674,7 +670,6 @@ export class ResourceBrowser<T> {
         this.dragOverlay.style.display = "contents";
         this.dragOverlay.append(this.entryDragIndicatorContent, this.entryDragIndicator, this.dragIndicator);
         document.body.appendChild(this.dragOverlay);
-        this.contextMenu = this.root.querySelector<HTMLDivElement>(".context-menu")!;
         this.scrolling = this.root.querySelector<HTMLDivElement>(".scrolling")!;
         this.renameField = this.root.querySelector<HTMLInputElement>(".rename-field")!;
         this.locationBar = this.root.querySelector<HTMLInputElement>(".location-bar")!;
@@ -945,8 +940,8 @@ export class ResourceBrowser<T> {
                 return;
             }
 
-            if (this.contextMenuHandlers.length || this.reactActionMenuOpen) {
-                this.closeContextMenu();
+            if (this.reactActionMenuOpen) {
+                this.closeActionMenu();
             }
 
             attemptCloseRenameField(ev);
@@ -966,7 +961,7 @@ export class ResourceBrowser<T> {
 
             attemptCloseRenameField(e);
 
-            if (this.contextMenuHandlers.length || this.reactActionMenuOpen) this.closeContextMenu();
+            if (this.reactActionMenuOpen) this.closeActionMenu();
         });
 
         const clearEntryBelowCursor = () => {
@@ -1152,7 +1147,7 @@ export class ResourceBrowser<T> {
         // NOTE(Dan): We need to scroll to the position _after_ we have rendered the page.
         this.scrolling.parentElement!.scrollTo({top: scrollPositionElement ?? 0});
         // NOTE(Jonas): Navigating using mouse buttons or keyboard keys can otherwise leave the context menu open.
-        this.closeContextMenu();
+        this.closeActionMenu();
         this.dispatchMessage("open", fn => fn(oldPath, path, resource));
     }
 
@@ -1753,158 +1748,6 @@ export class ResourceBrowser<T> {
         this.actionMenuOpenRef.current?.(x, y);
     }
 
-    private renderFiltersInContextMenu(filter: FilterWithOptions | MultiOptionFilter, x: number, y: number) {
-        const renderOpIconAndText = (
-            op: {text: string; icon: IconName; color: ThemeColor},
-            element: HTMLElement,
-            shortcut?: string,
-        ) => {
-            {
-                // Set the icon
-                const icon = image(placeholderImage, {height: 16, width: 16, alt: "Icon"});
-                element.append(icon);
-                ResourceBrowser.icons.renderIcon({
-                    name: op.icon as IconName,
-                    color: op.color as ThemeColor,
-                    color2: "iconColor2",
-                    width: 64,
-                    height: 64,
-                }).then(url => icon.src = url);
-            }
-
-            {
-                // ...and the text
-                const operationText = op.text;
-                if (operationText) element.append(operationText);
-                if (operationText && shortcut) {
-                    const shortcutElem = document.createElement("div");
-                    shortcutElem.classList.add(ShortcutClass);
-                    shortcutElem.style.marginLeft = "auto";
-                    shortcutElem.append(shortcut);
-                    element.append(shortcutElem);
-                }
-            }
-        }
-
-        const renderFilterInContextMenu = (
-            options: FilterOption[] | MultiOption[],
-            posX: number,
-            posY: number
-        ) => {
-            const counter = 1;
-            this.prepareContextMenu(posX, posY, options.length);
-            const menu = this.contextMenu;
-            const menuList = document.createElement("ul");
-            menu.append(menuList);
-            let shortcutNumber = counter;
-            for (const child of options) {
-                const item = document.createElement("li");
-                renderOpIconAndText(child, item, shortcutNumber <= 9 ? `${shortcutNumber}` : undefined);
-
-                const myIndex = shortcutNumber - 1;
-                this.contextMenuHandlers.push(() => {
-                    if (filter.type === "options") {
-                        const c = child as FilterOption;
-                        this.browseFilters[filter.key] = c.value;
-                        if (c.value === CLEAR_FILTER_VALUE) {
-                            clearFilterStorageValue(this.resourceName, filter.key);
-                        } else {
-                            setFilterStorageValue(this.resourceName, filter.key, c.value);
-                        }
-                    } else if (filter.type === "multi-option") {
-                        const c = child as MultiOption;
-                        const [keyOne, keyTwo] = filter.keys;
-                        const [valueOne, valueTwo] = c.values;
-                        this.browseFilters[keyOne] = valueOne;
-                        if (valueTwo) this.browseFilters[keyTwo] = valueTwo;
-                        else delete this.browseFilters[keyTwo];
-                        if (valueOne === CLEAR_FILTER_VALUE) {
-                            clearFilterStorageValue(this.resourceName, keyOne);
-                            clearFilterStorageValue(this.resourceName, keyTwo);
-                        } else {
-                            setFilterStorageValue(this.resourceName, keyOne, valueOne);
-                            if (valueTwo) setFilterStorageValue(this.resourceName, keyTwo, valueTwo);
-                            else clearFilterStorageValue(this.resourceName, keyTwo);
-                        }
-                    }
-                    this.refresh();
-                });
-                item.addEventListener("mouseover", () => {
-                    this.findActiveContextMenuItem(true);
-                    this.selectContextMenuItem(myIndex);
-                });
-                item.addEventListener("click", ev => {
-                    ev.stopPropagation();
-                    this.findActiveContextMenuItem(true);
-                    this.selectContextMenuItem(myIndex);
-                    this.onContextMenuItemSelection();
-                });
-
-                menuList.append(item);
-                shortcutNumber++;
-            }
-        };
-
-        if (filter.type === "options") {
-            const filters = filter.options.slice();
-            if (filter.clearable) {
-                filters.unshift({
-                    text: "Clear filter",
-                    color: "errorMain",
-                    icon: "close",
-                    value: CLEAR_FILTER_VALUE
-                });
-            }
-            renderFilterInContextMenu(filters, x, y);
-        } else if (filter.type === "multi-option") {
-            const filters = filter.options.slice();
-            filters.unshift({
-                text: "Clear filter",
-                color: "errorMain",
-                icon: "close",
-                values: [CLEAR_FILTER_VALUE, ""]
-            });
-            renderFilterInContextMenu(filters, x, y);
-        }
-    }
-
-    public setToContextMenuEntries(elements: HTMLElement[], handlers: (() => void)[], clearExistingHandlers?: boolean, maxHeight?: number): void {
-        const menu = this.contextMenu;
-        const menuList = document.createElement("ul");
-        menu.append(menuList);
-
-        if (maxHeight) {
-            menuList.style.maxHeight = `${maxHeight}px`;
-            menuList.style.overflowY = "scroll";
-        }
-
-        if (clearExistingHandlers) this.contextMenuHandlers = [];
-        let shortcutNumber = 1;
-        for (const element of elements) {
-            const myIndex = shortcutNumber - 1;
-            this.contextMenuHandlers.push(() => {
-                const handler = handlers[myIndex];
-                handler?.();
-            });
-
-            shortcutNumber++;
-
-            element.addEventListener("mouseover", () => {
-                this.findActiveContextMenuItem(true);
-                this.selectContextMenuItem(myIndex);
-            });
-
-            element.addEventListener("click", ev => {
-                ev.stopPropagation();
-                const handler = handlers[myIndex];
-                handler?.();
-                this.selectContextMenuItem(myIndex);
-            });
-
-            menuList.append(element);
-        }
-    }
-
     clearFilters() {
         const filtersToKeep = this.dispatchMessage("fetchFilters", fn => fn())
             .flatMap(filter => filter.type === "multi-option" ? filter.keys : [filter.key]);
@@ -2123,41 +1966,9 @@ export class ResourceBrowser<T> {
     }
 
     // Context menu
-    closeContextMenu() {
+    closeActionMenu() {
         this.actionMenuCloseRef.current?.();
         this.reactActionMenuOpen = false;
-        this.contextMenuHandlers = [];
-        this.contextMenu.style.removeProperty("transform");
-        this.contextMenu.style.removeProperty("max-height");
-        this.contextMenu.style.removeProperty("overflow-y");
-        this.contextMenu.style.opacity = "0";
-        window.setTimeout(() => {
-            if (this.contextMenu.style.opacity === "0") {
-                this.contextMenu.style.display = "none";
-                this.contextMenu.style.opacity = "1";
-            }
-        }, 240);
-    }
-
-    findActiveContextMenuItem(clearActive: boolean = true): number {
-        const listItems = this.contextMenu.querySelectorAll(".context-menu > ul > li");
-        let selectedIndex = -1;
-        for (let i = 0; i < listItems.length; i++) {
-            const item = listItems.item(i);
-            if (item.getAttribute("data-selected") === "true") {
-                selectedIndex = i;
-            }
-
-            if (clearActive) item.removeAttribute("data-selected");
-        }
-
-        return selectedIndex;
-    }
-
-    selectContextMenuItem(index: number) {
-        const listItems = this.contextMenu.querySelectorAll(".context-menu > ul > li");
-        if (index < 0 || index >= listItems.length) return;
-        listItems.item(index).setAttribute("data-selected", "true");
     }
 
     // Row event handlers
@@ -2536,7 +2347,7 @@ export class ResourceBrowser<T> {
             this.renderRows();
         }
 
-        if (this.contextMenuHandlers.length || this.reactActionMenuOpen) this.closeContextMenu();
+        if (this.reactActionMenuOpen) this.closeActionMenu();
         this.openActionMenu(event.clientX, event.clientY);
     }
 
@@ -2599,51 +2410,13 @@ export class ResourceBrowser<T> {
             }
         };
 
-        const relativeContextMenuSelect = (delta: number) => {
-            const ul = this.contextMenu.querySelector("ul");
-            if (!ul) return;
-            const listItems = ul.querySelectorAll(":scope > li");
-
-            let selectedIndex = -1;
-            for (let i = 0; i < listItems.length; i++) {
-                const item = listItems.item(i);
-                if (item.getAttribute("data-selected") === "true") {
-                    selectedIndex = i;
-                }
-
-                item.removeAttribute("data-selected");
-            }
-
-            selectedIndex = selectedIndex + delta;
-            if (Math.abs(delta) > 1 && (selectedIndex < 0 || selectedIndex >= listItems.length)) {
-                // Large jumps should not cause wrap around, instead move to either the top or the bottom.
-                if (selectedIndex < 0) selectedIndex = 0;
-                else selectedIndex = listItems.length - 1;
-            }
-
-            // Note(Jonas): Skip disabled and confirm-button entries. Ensure that both directions are valid.
-            const order = delta > 0 ? 1 : -1;
-            while (listItems.item(selectedIndex)?.getAttribute("disabled") === "true"
-                || listItems.item(selectedIndex)?.getAttribute("data-is-confirm") === "true") {
-                selectedIndex += order;
-            }
-
-            // Wrap around the selection, moving up from the top should go to the bottom and vice-versa.
-            if (selectedIndex < 0) selectedIndex = listItems.length - 1;
-            else if (selectedIndex >= listItems.length) selectedIndex = 0;
-
-            listItems.item(selectedIndex).setAttribute("data-selected", "true");
-        };
-
         const relativeSelect = (delta: number, forceShift?: boolean) => {
-            if (!this.contextMenuHandlers.length) {
+            if (!this.reactActionMenuOpen) {
                 return relativeSelectFiles(delta, forceShift);
-            } else {
-                return relativeContextMenuSelect(delta);
             }
         };
 
-        if (!this.contextMenuHandlers.length) {
+        if (!this.reactActionMenuOpen) {
             this.dispatchMessage("beforeShortcut", fn => fn(ev));
             if (ev.defaultPrevented) return;
         }
@@ -2652,7 +2425,7 @@ export class ResourceBrowser<T> {
             let didHandle = true;
             switch (ev.code) {
                 case "KeyA": {
-                    if (this.contextMenuHandlers.length) return;
+                    if (this.reactActionMenuOpen) return;
 
                     relativeSelect(-1000000000, false);
                     relativeSelect(1000000000, true);
@@ -2666,7 +2439,7 @@ export class ResourceBrowser<T> {
                     } else if (!this.features.supportsMove || !this.features.supportsCopy) {
                         didHandle = false;
                     } else {
-                        if (this.contextMenuHandlers.length) return;
+                        if (this.reactActionMenuOpen) return;
 
                         this.copyToClipboard(this.findSelectedEntries(), ev.code === "KeyX");
                     }
@@ -2677,7 +2450,7 @@ export class ResourceBrowser<T> {
                     if (!this.features.supportsMove || !this.features.supportsCopy) {
                         didHandle = false;
                     } else {
-                        if (this.contextMenuHandlers.length) return;
+                        if (this.reactActionMenuOpen) return;
                         this.pasteFromClipboard();
                     }
                     break;
@@ -2687,21 +2460,21 @@ export class ResourceBrowser<T> {
                     if (!this.features.locationBar) {
                         didHandle = false;
                     } else {
-                        if (this.contextMenuHandlers.length) return;
+                        if (this.reactActionMenuOpen) return;
                         this.toggleLocationBar();
                     }
                     break;
                 }
 
                 case "KeyZ": {
-                    if (this.contextMenuHandlers.length) return;
+                    if (this.reactActionMenuOpen) return;
                     const fn = ResourceBrowser.undoShift(this.resourceName);
                     if (fn !== undefined) fn();
                     break;
                 }
 
                 case "KeyY": {
-                    if (this.contextMenuHandlers.length) return;
+                    if (this.reactActionMenuOpen) return;
                     const fn = ResourceBrowser.redoShift(this.resourceName);
                     if (fn !== undefined) fn();
                     break;
@@ -2737,12 +2510,8 @@ export class ResourceBrowser<T> {
             // NOTE(Jonas): ev.key instead of ev.code should handle things like NumpadEnter and Enter should work the same.
             switch (ev.key) {
                 case "Escape": {
-                    if (this.contextMenuHandlers.length) {
-                        this.closeContextMenu();
-                    } else {
-                        this.clearSelected();
-                        this.searchQuery = "";
-                    }
+                    this.clearSelected();
+                    this.searchQuery = "";
                     break;
                 }
 
@@ -2783,48 +2552,33 @@ export class ResourceBrowser<T> {
                 }
 
                 case "Backspace": {
-                    if (this.contextMenuHandlers.length) return;
                     const crumbs = this.dispatchMessage("generateBreadcrumbs", fn => fn(this.currentPath));
                     if (crumbs === "custom-rendering") return;
                     const parent = crumbs[crumbs.length - 2];
-                    this.open(parent.absolutePath);
+                    if (parent) this.open(parent.absolutePath);
                     break;
                 }
 
                 case "Enter": {
-                    if (this.contextMenuHandlers.length) {
-                        this.onContextMenuItemSelection();
-                    } else {
-                        const selected = this.isSelected;
-                        if (this.findSelectedEntries().length > 1) break;
-                        for (let i = 0; i < selected.length; i++) {
-                            if (selected[i] !== 0) {
-                                const entry = this.cachedData[this.currentPath][i];
-                                const path = this.dispatchMessage("pathToEntry", fn => fn(entry));
-                                if (!this.dispatchMessage("skipOpen", fn => fn(this.currentPath, path, entry))) {
-                                    this.open(path, false, entry);
-                                }
-
-                                break;
+                    const selected = this.isSelected;
+                    if (this.findSelectedEntries().length > 1) break;
+                    for (let i = 0; i < selected.length; i++) {
+                        if (selected[i] !== 0) {
+                            const entry = this.cachedData[this.currentPath][i];
+                            const path = this.dispatchMessage("pathToEntry", fn => fn(entry));
+                            if (!this.dispatchMessage("skipOpen", fn => fn(this.currentPath, path, entry))) {
+                                this.open(path, false, entry);
                             }
+
+                            break;
                         }
                     }
                     break;
                 }
 
                 default: {
-                    if (this.contextMenuHandlers.length) {
-                        if (ev.code.startsWith("Digit") || ev.code.startsWith("Numpad")) {
-                            this.processingShortcut = true;
-                            window.setTimeout(() => {
-                                this.processingShortcut = false;
-                            }, 0);
-
-                            const selectedItem = parseInt(ev.key, 10);
-                            if (!isNaN(selectedItem) && selectedItem !== 0) {
-                                this.onContextMenuItemSelection(selectedItem - 1);
-                            }
-                        }
+                    if (this.reactActionMenuOpen) {
+                        return
                     } else {
                         // NOTE(Dan): Initiate search if the input is printable
                         const printableChar = ev.key;
@@ -2936,15 +2690,6 @@ export class ResourceBrowser<T> {
                 }
             }
         }
-    }
-
-    // Context menu event handlers
-    private onContextMenuItemSelection(fixedIdx?: number) {
-        if (!this.contextMenuHandlers.length) return;
-        const idx = fixedIdx ?? this.findActiveContextMenuItem(false);
-        if (idx < 0 || idx >= this.contextMenuHandlers.length) return;
-        this.contextMenuHandlers[idx]();
-        this.closeContextMenu();
     }
 
     triggerOperation(predicate: (op: {tag?: string}) => boolean): boolean {
@@ -3110,103 +2855,6 @@ export class ResourceBrowser<T> {
         return result;
     }
 
-    public CONTEXT_MENU_ITEM_SIZE = 40;
-
-    public prepareContextMenu(posX: number, posY: number, entryCount: number, maxHeight?: number) {
-        let actualPosX = posX;
-        let actualPosY = posY;
-        const menu = this.contextMenu;
-        menu.innerHTML = "";
-        const itemSize = this.CONTEXT_MENU_ITEM_SIZE;
-        const listHeight = Math.min(maxHeight ?? entryCount * itemSize, entryCount * itemSize);
-        const listWidth = 400;
-
-        const rootWidth = window.innerWidth;
-        const rootHeight = window.innerHeight;
-
-        if (posX + listWidth >= rootWidth - 32) {
-            actualPosX = rootWidth - listWidth - 32;
-        }
-
-        if (posY + listHeight >= rootHeight - 32) {
-            actualPosY = rootHeight - listHeight - 32;
-        }
-
-        menu.style.display = "block";
-        menu.style.opacity = "1";
-
-        if (maxHeight && maxHeight > entryCount * itemSize) {
-            menu.style.maxHeight = maxHeight + "px";
-            menu.style.overflowY = "scroll";
-        }
-
-        menu.style.top = actualPosY + "px";
-        menu.style.left = actualPosX + "px";
-    }
-
-
-    public addContextMenuSearchField(onKeyUp: (input: string) => void): void {
-        const searchWrapper = createHTMLElements<HTMLDivElement>({
-            tagType: "div",
-            className: FlexClass,
-            style: {height: "35px"}
-        });
-
-        const search = createHTMLElements<HTMLInputElement>({
-            tagType: "input",
-            className: FilterInputClass,
-            style: {paddingLeft: "8px"},
-        });
-
-        searchWrapper.appendChild(search);
-
-        const [searchIcon, setSearchIcon] = ResourceBrowser.defaultIconRenderer();
-        searchIcon.style.marginLeft = "-34px";
-        searchIcon.style.marginTop = "8px";
-        searchIcon.style.width = searchIcon.style.height = "18px";
-        search.appendChild(searchIcon);
-
-        searchWrapper.append(searchIcon);
-
-        ResourceBrowser.icons
-            .renderIcon({name: "search", color: "textPrimary", color2: "textPrimary", height: 64, width: 64})
-            .then(setSearchIcon);
-
-        search.placeholder = "Search drives...";
-
-        search.addEventListener("click", e => {
-            e.stopImmediatePropagation();
-            stopPropagationAndPreventDefault(e)
-        });
-
-        search.addEventListener("keydown", e => {
-            if (!["ArrowDown", "ArrowUp", "Enter"].includes(e.key)) {
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-            }
-        });
-        search.addEventListener("keyup", e => {
-            const value = (e.target as {value: string} | null)?.value;
-            if (e.key === "Escape") {
-                if (value === "") {
-                    this.closeContextMenu();
-                } else {
-                    search.value = "";
-                    onKeyUp("");
-                }
-                return;
-            }
-            if (!["ArrowDown", "ArrowUp"].includes(e.key)) {
-                onKeyUp(value ?? "");
-                for (let i = 1; i < this.contextMenu.children.length; i++) {
-                    this.contextMenu.removeChild(this.contextMenu.children.item(i)!);
-                }
-            }
-        });
-
-        this.contextMenu.appendChild(searchWrapper);
-    }
-
     static rowTitleSizePercentage = 56;
     static rowSize = 55;
     static extraRowsToPreRender = 6;
@@ -3285,7 +2933,10 @@ export class ResourceBrowser<T> {
             innerText: filter.text
         });
 
+        let isActive = false;
+
         if (valueFromStorage != null) {
+            isActive = true;
             if (filter.type === "options") {
                 const option = filter.options.find(it => it.value === valueFromStorage);
                 if (option) {
@@ -3314,13 +2965,67 @@ export class ResourceBrowser<T> {
         }
 
         wrapper.onclick = e => {
-            const wrapperRect = wrapper.getBoundingClientRect();
-            e.stopImmediatePropagation();
-            this.renderFiltersInContextMenu(
-                filter,
-                wrapperRect.x,
-                wrapperRect.y + wrapperRect.height,
-            );
+            e.stopImmediatePropagation()
+            e.stopPropagation();
+            e.preventDefault();
+
+            const actions = filter.options.map((f: FilterOption | MultiOption) => {
+                return ({
+                    text: f.text,
+                    onClick: () => {
+                        if (filter.type === "options") {
+                            const c = f as FilterOption;
+                            this.browseFilters[filter.key] = c.value;
+                            setFilterStorageValue(this.resourceName, filter.key, c.value);
+                        } else if (filter.type === "multi-option") {
+                            const c = f as MultiOption;
+                            const [keyOne, keyTwo] = filter.keys;
+                            const [valueOne, valueTwo] = c.values;
+                            this.browseFilters[keyOne] = valueOne;
+                            if (valueTwo) this.browseFilters[keyTwo] = valueTwo;
+                            else delete this.browseFilters[keyTwo];
+                            setFilterStorageValue(this.resourceName, keyOne, valueOne);
+                            if (valueTwo) setFilterStorageValue(this.resourceName, keyTwo, valueTwo);
+                            else clearFilterStorageValue(this.resourceName, keyTwo);
+                        }
+                        this.refresh();
+                    },
+                    enabled: () => true,
+                    icon: f.icon,
+                })
+            });
+
+            actions.unshift({
+                icon: "close",
+                text: "Clear filter",
+                enabled: () => filter.clearable && isActive,
+                onClick: () => {
+                    if (filter.type === "options") {
+                        delete this.browseFilters[filter.key];
+                        clearFilterStorageValue(this.resourceName, filter.key);
+                    } else if (filter.type === "multi-option") {
+                        const [keyOne, keyTwo] = filter.keys;
+                        delete this.browseFilters[keyTwo];
+                        clearFilterStorageValue(this.resourceName, keyOne);
+                        clearFilterStorageValue(this.resourceName, keyTwo);
+                    }
+                    this.refresh();
+                }
+            });
+
+            flushSync(() => this.actionMenuRoot?.render(<ActionMenu
+                actions={actions}
+                selected={[]}
+                trigger={null}
+                callbacks={() => ({})}
+                openFnRef={this.actionMenuOpenRef}
+                closeFnRef={this.actionMenuCloseRef}
+                onOpen={() => this.reactActionMenuOpen = true}
+                onClose={() => this.reactActionMenuOpen = false}
+            />));
+
+            const boundingBox = wrapper.getBoundingClientRect();
+            this.actionMenuOpenRef.current?.(boundingBox.right, boundingBox.bottom);
         };
     }
 
