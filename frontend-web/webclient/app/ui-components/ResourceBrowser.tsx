@@ -942,10 +942,6 @@ export class ResourceBrowser<T> {
                 return;
             }
 
-            if (this.reactActionMenuOpen) {
-                this.closeActionMenu();
-            }
-
             attemptCloseRenameField(ev);
 
             // Attempt to allow deselecting by clicking outside table
@@ -962,8 +958,6 @@ export class ResourceBrowser<T> {
             e.stopImmediatePropagation();
 
             attemptCloseRenameField(e);
-
-            if (this.reactActionMenuOpen) this.closeActionMenu();
         });
 
         const clearEntryBelowCursor = () => {
@@ -2371,7 +2365,6 @@ export class ResourceBrowser<T> {
             this.renderRows();
         }
 
-        if (this.reactActionMenuOpen) this.closeActionMenu();
         this.openActionMenu(event.clientX, event.clientY);
     }
 
@@ -2455,8 +2448,6 @@ export class ResourceBrowser<T> {
             let didHandle = true;
             switch (ev.code) {
                 case "KeyA": {
-                    if (this.reactActionMenuOpen) return;
-
                     relativeSelect(-1000000000, false);
                     relativeSelect(1000000000, true);
                     break;
