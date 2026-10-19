@@ -23,6 +23,7 @@ import BaseLink from "@/ui-components/BaseLink";
 import {sendInformationNotification} from "@/Notifications";
 import {ActionMenu} from "@/ui-components/Actions";
 import {noopCall} from "@/Authentication/DataHook";
+import {Feature, hasFeature} from "@/Features";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -670,7 +671,9 @@ const MemberCard: React.FunctionComponent<{
     const isSelf = props.member.username === Client.activeUsername;
     const canRemoveMember = !isUserPIRole && (isAdminOrPI(props.myRole) || isSelf);
 
-    const grantableSupportiveRoles = SUPPORTIVE_ROLES
+    const visibleSupportiveRoles = hasFeature(Feature.PROJECT_POLICIES) ? SUPPORTIVE_ROLES : [];
+
+    const grantableSupportiveRoles = visibleSupportiveRoles
         .filter(({role}) => !holdsSupportiveRole(props.member, role));
 
     const showOperations = (amIPI && grantableSupportiveRoles.length > 0) || canRemoveMember;
@@ -698,7 +701,7 @@ const MemberCard: React.FunctionComponent<{
         </Flex>}
         right={<Flex alignItems={"center"}>
             <Box mr="8px">
-                {SUPPORTIVE_ROLES
+                {visibleSupportiveRoles
                     .filter(({role: supportiveRole}) => holdsSupportiveRole(props.member, supportiveRole))
                     .map(({role: supportiveRole, title}) => (
                         <TooltipV2 key={supportiveRole} tooltip={title}>
@@ -760,7 +763,7 @@ const MemberCard: React.FunctionComponent<{
                         width="260px"
                         actions={[
                             // TODO(Jonas): Make supportive role assignment into child-array when > 1 support role
-                            ...SUPPORTIVE_ROLES
+                            ...visibleSupportiveRoles
                                 .filter(({role}) => !holdsSupportiveRole(props.member, role))
                                 .map(({role: supportiveRole, title}) => ({
                                     confirm: false,

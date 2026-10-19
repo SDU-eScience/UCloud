@@ -27,7 +27,7 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {ProjectSwitcher} from "./ProjectSwitcher";
 import WAYF from "@/Grants/wayf-idps.json";
 import {FlexClass} from "@/ui-components/Flex";
-import {isAdminOrPI, isDataSteward, OldProjectRole, SupportiveRole} from ".";
+import {isAdminOrPI, isDataSteward, OldProjectRole} from ".";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import AppRoutes from "@/Routes";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
@@ -43,6 +43,7 @@ import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {NewDataList} from "@/UserSettings/ChangeUserDetails";
 import {Tree, TreeNode} from "@/ui-components/Tree";
+import {Feature, hasFeature} from "@/Features";
 
 const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
@@ -564,7 +565,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
     }
     const mySupportiveRoles =
         status.members?.find(it => it.username === Client.username)?.supportiveRoles ?? [];
-    const showPolicies = mySupportiveRoles.some(isDataSteward);
+    const showPolicies = hasFeature(Feature.PROJECT_POLICIES) && mySupportiveRoles.some(isDataSteward);
     const canManageProject = isAdminOrPI(status.myRole);
     const sections: SettingsNavSection[] = [
         {id: "project-information", label: "Project information"},

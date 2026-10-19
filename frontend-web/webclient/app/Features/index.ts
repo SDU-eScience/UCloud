@@ -14,7 +14,7 @@ export enum Feature {
 
     CONTAINER_REPOSITORIES,
 
-    DATAMANAGER_ROLE,
+    PROJECT_POLICIES,
 }
 
 enum Environment {
@@ -89,9 +89,8 @@ const featureMap: Record<string, FeatureConfig> = {
         useBackend: true,
     },
 
-    "data-manager-role": {
-        feature: Feature.DATAMANAGER_ROLE,
-        showWithoutFlag: allDevEnvironments,
+    "project-policies": {
+        feature: Feature.PROJECT_POLICIES,
         showWithFlag: allEnvironments,
     }
 };
