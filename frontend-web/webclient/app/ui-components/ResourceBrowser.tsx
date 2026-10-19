@@ -3025,10 +3025,10 @@ export class ResourceBrowser<T> {
                         delete this.browseFilters[filter.key];
                         clearFilterStorageValue(this.resourceName, filter.key);
                     } else if (filter.type === "multi-option") {
-                        const [keyOne, keyTwo] = filter.keys;
-                        delete this.browseFilters[keyTwo];
-                        clearFilterStorageValue(this.resourceName, keyOne);
-                        clearFilterStorageValue(this.resourceName, keyTwo);
+                        for (const key of filter.keys) {
+                            delete this.browseFilters[key];
+                            clearFilterStorageValue(this.resourceName, key);
+                        }
                     }
                     this.refresh();
                 }
