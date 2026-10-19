@@ -1003,6 +1003,27 @@ export class ResourceBrowser<T> {
                 // Attempt to allow deselecting by clicking outside table END
                 this.onRowClicked(myIndex, e);
             });
+            let touchTimeout = -1;
+            row.addEventListener("touchstart", e => {
+                // Similar behavior to single-click
+                e.preventDefault();
+                this.onRowClicked(myIndex, e as unknown as MouseEvent);
+                const targetTouch = e.touches.item(0)!;
+                const touchX = targetTouch.clientX;
+                const touchY = targetTouch.clientY;
+
+                touchTimeout = window.setTimeout(() => {
+                    this.openActionMenu(touchX, touchY);
+                    touchTimeout = -1;
+                }, 400);
+            });
+
+            row.addEventListener("touchend", e => {
+                if (touchTimeout !== -1) {
+                    clearTimeout(touchTimeout);
+                }
+            });
+
             row.addEventListener("dblclick", ev => {
                 this.onRowDoubleClicked(myIndex);
                 // Attempt to allow deselecting by clicking outside table
@@ -1020,6 +1041,7 @@ export class ResourceBrowser<T> {
 
                 this.onRowContextMenu(myIndex, e);
             });
+
             rows.push(row);
 
             const r = {
