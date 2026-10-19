@@ -23,7 +23,10 @@ import (
 )
 
 func App() ucx.Application {
-	defaultRelease := shared.K3sCatalog[0]
+	defaultRelease := shared.K3sRelease{}
+	if releases := shared.CreationReleases(time.Now().UTC()); len(releases) > 0 {
+		defaultRelease = releases[0]
+	}
 	return &k8sApp{
 		ClusterId:          fmt.Sprintf("k8s-%v", util.RandomTokenNoTs(4)),
 		K8sVersion:         defaultRelease.Release,
@@ -554,11 +557,14 @@ func (app *k8sApp) deploy(ev ucx.UiEvent) {
 func (app *k8sApp) OnMessage(msg ucx.Frame) {}
 
 func k8sVersionOptions() []ucx.Option {
-	options := make([]ucx.Option, 0, len(shared.K3sCatalog))
-	for _, release := range shared.K3sCatalog {
+	now := time.Now().UTC()
+	releases := shared.CreationReleases(now)
+
+	options := make([]ucx.Option, 0, len(releases))
+	for _, release := range releases {
 		options = append(options, ucx.Option{
 			Key:   release.Release,
-			Value: fmt.Sprintf("Kubernetes %s", release.Release),
+			Value: shared.ReleaseSupportLabel(release, now),
 		})
 	}
 	return options

@@ -23,6 +23,12 @@ func rollingUpgradePage(app *stackUiApp) []ucx.UiNode {
 	content := []ucx.UiNode{
 		ucx.Text("Rolling upgrade").Sx(ucx.SxFontSize(20), ucx.SxFontWeight("600")),
 		ucx.Text("The cluster will upgrade in a rolling fashion. Control plane nodes first, then worker groups in parallel. One node at a time per group.").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).Sx(ucx.SxAlignItemsCenter).Children(
+			ucx.Text("Upgrades can also run automatically in the maintenance window.").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+			ucx.LinkButton("rollingUpgradeAutoMaintenance", "Automatic maintenance", ucx.ColorLinkColor).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+				ucxsvc.RouterPushPage(app, "automatic-maintenance")
+			}),
+		),
 	}
 	upgrade, err := maintenance.RollingUpgradeSnapshot()
 	if err != nil {
@@ -191,8 +197,9 @@ func rollingUpgradeProgress(app *stackUiApp, upgrade maintenance.RollingUpgrade,
 }
 
 func rollingUpgradeReleaseOptions(app *stackUiApp, record shared.ClusterRecord) []ucx.Option {
+	now := time.Now().UTC()
 	options := []ucx.Option{}
-	for _, release := range shared.K3sCatalog {
+	for _, release := range shared.StableReleases(now) {
 		allowed := true
 		needsUpgrade := false
 		for _, node := range record.Nodes {
@@ -207,7 +214,7 @@ func rollingUpgradeReleaseOptions(app *stackUiApp, record shared.ClusterRecord) 
 			needsUpgrade = true
 		}
 		if allowed && needsUpgrade {
-			options = append(options, ucx.Option{Key: release.Release, Value: release.Release})
+			options = append(options, ucx.Option{Key: release.Release, Value: shared.ReleaseSupportLabel(release, now)})
 		}
 	}
 	return options

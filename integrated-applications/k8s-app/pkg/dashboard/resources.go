@@ -321,6 +321,22 @@ type NodeHealth struct {
 	NotReady            int
 	Unknown             int
 	ControlPlaneVersion string
+	Versions            map[string]string
+}
+
+func nodeHealthEqual(left NodeHealth, right NodeHealth) bool {
+	if left.Total != right.Total || left.Ready != right.Ready || left.NotReady != right.NotReady || left.Unknown != right.Unknown || left.ControlPlaneVersion != right.ControlPlaneVersion {
+		return false
+	}
+	if len(left.Versions) != len(right.Versions) {
+		return false
+	}
+	for name, nodeVersion := range left.Versions {
+		if right.Versions[name] != nodeVersion {
+			return false
+		}
+	}
+	return true
 }
 
 func (c *K8sClient) NodeHealth(ctx context.Context) (NodeHealth, error) {
@@ -329,7 +345,7 @@ func (c *K8sClient) NodeHealth(ctx context.Context) (NodeHealth, error) {
 		return NodeHealth{}, err
 	}
 
-	health := NodeHealth{Total: len(list.Items)}
+	health := NodeHealth{Total: len(list.Items), Versions: map[string]string{}}
 	minControlPlaneString := ""
 	var minControlPlane *version.Version
 	for i := range list.Items {
@@ -343,11 +359,15 @@ func (c *K8sClient) NodeHealth(ctx context.Context) (NodeHealth, error) {
 			health.Unknown++
 		}
 
+		kubelet := firstString(obj, "status", "nodeInfo", "kubeletVersion")
+		if kubelet != "" {
+			health.Versions[obj.GetName()] = kubelet
+		}
+
 		if !nodeIsControlPlane(obj) {
 			continue
 		}
 
-		kubelet := firstString(obj, "status", "nodeInfo", "kubeletVersion")
 		parsed, parseErr := version.ParseSemantic(kubelet)
 		if parseErr != nil {
 			continue

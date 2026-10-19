@@ -15,7 +15,15 @@ const ClusterStateRecordKey = "cluster/record"
 var ClusterStateErrConflict = RpcGrantErrConflict
 
 func IsConflict(err error) bool {
-	return err != nil && (errors.Is(err, ClusterStateErrConflict) || errors.Is(err, RpcGrantErrConflict))
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, ClusterStateErrConflict) || errors.Is(err, RpcGrantErrConflict) {
+		return true
+	}
+
+	var callErr ucx.RpcCallError
+	return errors.As(err, &callErr) && callErr.Status == ucx.RpcStatusConflict
 }
 
 type ClusterStateClient struct {

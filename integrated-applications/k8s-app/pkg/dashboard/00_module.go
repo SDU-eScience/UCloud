@@ -95,6 +95,15 @@ type stackUiApp struct {
 	BackupsBlocked   bool
 	backupsRequester string `ucx:"-"`
 
+	AutoMaintenanceK8sEnabled bool
+	AutoMaintenanceOsEnabled  bool
+	AutoWindowDay             string
+	AutoWindowStartHour       string
+	AutoWindowDuration        string
+	AutoDefer                 string
+	AutoMaintenanceBusy       bool
+	autoMaintenanceLoaded     bool `ucx:"-"`
+
 	maintenanceNodeName        string `ucx:"-"`
 	maintenanceNodeUid         string `ucx:"-"`
 	maintenanceRetryOptionsFor string `ucx:"-"`
@@ -344,6 +353,10 @@ func (app *stackUiApp) loadNamespaces() {
 }
 
 func (app *stackUiApp) UserInterface() ucx.UiNode {
+	if app.RoutePath != "automatic-maintenance" {
+		app.autoMaintenanceLoaded = false
+	}
+
 	children := []ucx.UiNode{
 		ucx.Router("routePath"),
 	}
@@ -351,6 +364,8 @@ func (app *stackUiApp) UserInterface() ucx.UiNode {
 	switch {
 	case app.RoutePath == "rolling-upgrade":
 		children = append(children, rollingUpgradePage(app)...)
+	case app.RoutePath == "automatic-maintenance":
+		children = append(children, autoMaintenancePage(app)...)
 	case app.RoutePath == "backups":
 		children = append(children, backupPage(app)...)
 	case app.RoutePath == "control/new-pool":
@@ -579,10 +594,17 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 	nodesLabel := fmt.Sprintf("%d / %d", nodesReady, nodesTotal)
 
 	k8sVersion := "-"
+	k8sVersionColor := ucx.ColorTextPrimary
 	if health := app.clusterHealth; health != nil && health.ControlPlaneVersion != "" {
 		k8sVersion = health.ControlPlaneVersion
 	} else if recordOk && record.K8sVersion != "" {
 		k8sVersion = record.K8sVersion
+	}
+	if k8sVersion != "-" {
+		if eolAt, ok := shared.SupportEnds(k8sVersion); ok && !eolAt.After(time.Now().UTC()) {
+			k8sVersionColor = ucx.ColorErrorMain
+			k8sVersion += " · out of support"
+		}
 	}
 
 	manageNodes := ucx.LinkButton("homeManageNodes", "(Manage)", ucx.ColorLinkColor).Sx(
@@ -637,7 +659,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 					On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 						ucxsvc.RouterPushPage(app, "rolling-upgrade")
 					}),
-			}, homeMetricText(k8sVersion, ucx.ColorTextPrimary)),
+			}, homeMetricText(k8sVersion, k8sVersionColor)),
 		),
 	)
 
@@ -652,7 +674,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 	children = append(children, app.homeMetricsRow(
 		resourcesMetric,
 		app.homeBackupsMetric(),
-		[]ucx.UiNode{},
+		app.homeAutoMaintenanceMetric(),
 	))
 
 	return children
@@ -1753,7 +1775,7 @@ func (app *stackUiApp) provisioningKickNow() {
 func (app *stackUiApp) onMaintenanceRoute() bool {
 	app.mu.Lock()
 	defer app.mu.Unlock()
-	return app.RoutePath == "rolling-upgrade" || app.RoutePath == "backups" || app.RoutePath == "maintenance" || strings.HasPrefix(app.RoutePath, "maintenance/")
+	return app.RoutePath == "rolling-upgrade" || app.RoutePath == "backups" || app.RoutePath == "automatic-maintenance" || app.RoutePath == "maintenance" || strings.HasPrefix(app.RoutePath, "maintenance/")
 }
 
 func (app *stackUiApp) provisioningWatcher(session *ucx.Session) {
@@ -1799,7 +1821,7 @@ func (app *stackUiApp) refreshClusterHealth() {
 	}
 
 	app.mu.Lock()
-	changed := app.clusterHealth == nil || *app.clusterHealth != health
+	changed := app.clusterHealth == nil || !nodeHealthEqual(*app.clusterHealth, health)
 	if changed {
 		app.clusterHealth = &health
 		ucx.AppUpdateUi(app)

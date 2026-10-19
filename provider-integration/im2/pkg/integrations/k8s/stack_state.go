@@ -522,7 +522,12 @@ func stackStateRegisterProxyHandlers(
 		if err != nil {
 			return ucxapi.StackStateWriteResponse{}, err
 		}
-		return stackStateWrite(scopeHash, stackId, request)
+
+		response, writeErr := stackStateWrite(scopeHash, stackId, request)
+		if errors.Is(writeErr, stackStateErrConflict) {
+			return response, util.HttpErr(http.StatusConflict, "stack state revision or lease conflict")
+		}
+		return response, writeErr
 	}
 	ucxapi.StackStateWrite.HandlerProxy(proxy, write)
 	ucxapi.StackStateWriteChecked.HandlerProxy(proxy, write)

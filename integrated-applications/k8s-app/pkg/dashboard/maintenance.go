@@ -549,12 +549,13 @@ func (app *stackUiApp) maintenanceNodeVersion(nodeName string, record shared.Clu
 }
 
 func maintenanceUpgradeReleaseOptions(currentVersion string) []ucx.Option {
+	now := time.Now().UTC()
 	options := []ucx.Option{}
-	for _, release := range shared.K3sCatalog {
+	for _, release := range shared.StableReleases(now) {
 		if !shared.NodeAgentUpgradeAllowed(currentVersion, release.Release) {
 			continue
 		}
-		options = append(options, ucx.Option{Key: release.Release, Value: release.Release})
+		options = append(options, ucx.Option{Key: release.Release, Value: shared.ReleaseSupportLabel(release, now)})
 	}
 	return options
 }
@@ -710,7 +711,7 @@ func maintenanceUpgradeForm(
 	}
 	if len(options) == 0 {
 		return ucx.Text(fmt.Sprintf(
-			"The node already runs the newest supported release, %s.",
+			"No upgrade path is allowed for the node running %s. It may already run the newest supported release, or the jump may be more than one minor. A jump of more than one minor needs a manual multi-step upgrade or node replacement.",
 			currentVersion,
 		))
 	}
@@ -744,7 +745,7 @@ func maintenanceUpgradeForm(
 	if isRetry {
 		children = append(children, ucx.Text(fmt.Sprintf("Retry target: %s", operation.TargetRelease)))
 	} else {
-		children = append(children, ucx.Text(fmt.Sprintf("Current version: %s", currentVersion)))
+		children = append(children, ucx.Text(fmt.Sprintf("Current version: %s", shared.VersionSupportLabel(currentVersion, time.Now().UTC()))))
 		children = append(children, ucx.FieldRowNodeEx("maintenanceTargetReleaseRow", "Target release", "maintenanceTargetRelease").
 			FieldRowRequired(true).
 			Children(ucx.Select("maintenanceTargetReleaseSelect", "", "maintenanceTargetRelease", options)))

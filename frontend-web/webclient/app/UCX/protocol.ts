@@ -18,6 +18,7 @@ export enum RpcStatus {
     NotFound = 2,
     Internal = 3,
     Canceled = 4,
+    Conflict = 5,
 }
 
 export enum ValueKind {
