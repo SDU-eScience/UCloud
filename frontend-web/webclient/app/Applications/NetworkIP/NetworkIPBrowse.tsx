@@ -163,15 +163,7 @@ export function NetworkIPBrowse({
 
                 browser.setEmptyIcon(productTypeToIcon("NETWORK_IP"));
 
-                browser.on("fetchFilters", () => [
-                    dateRanges,
-                    {
-                        type: "input",
-                        icon: "user",
-                        key: "filterCreatedBy",
-                        text: "Created by"
-                    }
-                ]);
+                browser.on("fetchFilters", () => [dateRanges]);
 
                 browser.on("renderTitle", (ip, title, row) => {
                     if (ip.id !== DUMMY_ENTRY_ID) {

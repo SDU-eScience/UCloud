@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -191,6 +192,10 @@ func chunkWeight(chunk []byte) int64 {
 	return int64(len(chunk))
 }
 
+func uploadPathIsLocal(path string) bool {
+	return path == "" || filepath.IsLocal(path)
+}
+
 func ProcessServer(socket *ws.Conn, fs ServerFileSystem, session ServerSession) bool {
 	uploads := map[int32]*serverFileUpload{}
 
@@ -206,7 +211,8 @@ func ProcessServer(socket *ws.Conn, fs ServerFileSystem, session ServerSession) 
 	// Acquired by the main goroutine (this one) and released by the serverFileUpload goroutine. This is acquired in
 	// the main goroutine to ensure that we do not accumulate a backlog of too many data packets. This way, we will
 	// simply stop acknowledging the network traffic which should ensure that we don't suddenly run out of memory.
-	chunkSemaphore := semaphore.NewWeighted(1024 * 1024 * 64)
+	const chunkCapacity = 1024 * 1024 * 64
+	chunkSemaphore := semaphore.NewWeighted(chunkCapacity)
 
 	sessionContext, cancel := context.WithCancel(context.Background())
 	maintenanceTicker := time.NewTicker(maintenanceTickRateMs * time.Millisecond)
@@ -215,16 +221,19 @@ func ProcessServer(socket *ws.Conn, fs ServerFileSystem, session ServerSession) 
 	// NOTE(Dan): This channel is bounded to make sure that we don't create a massive backlog of unprocessed data
 	incomingWebsocket := make(chan []byte, 1)
 	go func() {
+		defer close(incomingWebsocket)
 		for {
 			_, data, readErr := socket.ReadMessage()
 			if readErr != nil {
 				break
 			}
 
-			incomingWebsocket <- data
+			select {
+			case incomingWebsocket <- data:
+			case <-sessionContext.Done():
+				return
+			}
 		}
-
-		cancel()
 	}()
 
 	completedFiles := int32(0)
@@ -302,6 +311,10 @@ outer:
 				continue
 			}
 
+			if len(data) == 0 {
+				continue
+			}
+
 			buf := util.NewBuffer(bytes.NewBuffer(data))
 			t := messageType(buf.ReadU8())
 
@@ -311,7 +324,7 @@ outer:
 			// of the remaining frame will only contain listing entries.
 			mustReadOpcode := false
 
-			for !buf.IsEmpty() {
+			for {
 				if mustReadOpcode {
 					t = messageType(buf.ReadU8())
 				}
@@ -326,6 +339,11 @@ outer:
 					_, existsAlready := uploads[msg.FileId]
 					if existsAlready {
 						log.Warn("Received a chunk we already knew about with ID: %v at path: %v", msg.FileId, msg.Path)
+						break outer
+					}
+
+					if !uploadPathIsLocal(msg.Path) {
+						log.Warn("Received a listing outside of the session root with ID: %v at path: %v (root: %v)", msg.FileId, msg.Path, session.UserData)
 						break outer
 					}
 
@@ -357,6 +375,11 @@ outer:
 					upload.ChunksOrSkip <- nil
 
 				case *messageChunk:
+					if chunkWeight(msg.Data) > chunkCapacity {
+						log.Warn("Received an oversized upload chunk with ID %v (len = %v)", msg.FileId, len(msg.Data))
+						break outer
+					}
+
 					// NOTE(Dan): Ignore chunks which are empty, the serverFileUpload should already take care of these
 					if len(msg.Data) > 0 {
 						err := chunkSemaphore.Acquire(sessionContext, chunkWeight(msg.Data))
@@ -382,6 +405,9 @@ outer:
 				}
 
 				mustReadOpcode = t != messageTypeListing
+				if buf.IsEmpty() {
+					break
+				}
 			}
 		}
 	}

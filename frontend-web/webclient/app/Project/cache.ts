@@ -31,7 +31,10 @@ export function useProject(): {fetch(): Project; reload(): void; loading: boolea
     const reload = useCallback(async () => {
         if (cacheIsLoading) return;
         const projectId = getStoredProject();
-        if (!projectId) return;
+        if (!projectId) {
+            setCache({expiresAt: Number.MAX_SAFE_INTEGER, project: emptyProject()});
+            return;
+        }
         try {
             cacheIsLoading = true;
             const project = await invokeCommand<Project>(ProjectAPI.retrieve({

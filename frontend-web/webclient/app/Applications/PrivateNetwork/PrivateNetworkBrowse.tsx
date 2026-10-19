@@ -155,15 +155,7 @@ export function PrivateNetworkBrowse({
 
                 browser.setEmptyIcon(productTypeToIcon("PRIVATE_NETWORK"));
 
-                browser.on("fetchFilters", () => [
-                    dateRanges,
-                    {
-                        type: "input",
-                        icon: "user",
-                        key: "filterCreatedBy",
-                        text: "Created by"
-                    }
-                ]);
+                browser.on("fetchFilters", () => [dateRanges]);
 
                 browser.on("renderTitle", (network, title, row) => {
                     if (network.id !== DUMMY_ENTRY_ID) {
@@ -245,7 +237,6 @@ export function PrivateNetworkBrowse({
                                         dialogStore.failure();
                                     }}
                                     onCreate={async (name, subdomain, permissions, product) => {
-                                        console.log({name, subdomain, permissions, product})
                                         const network: PrivateNetwork = {
                                             ...dummyEntry,
                                             id: "",

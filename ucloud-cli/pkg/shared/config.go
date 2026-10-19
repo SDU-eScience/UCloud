@@ -161,10 +161,6 @@ func (cfg *Config) initUCloudClient() {
 	}
 }
 
-func SetActiveWorkspace(projectId string) {
-	rpc.DefaultClient.ProjectId = util.OptValue(projectId)
-}
-
 func (cfg *Config) InitUCloudClient() {
 	cfg.initUCloudClient()
 }

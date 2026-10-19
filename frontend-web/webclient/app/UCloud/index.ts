@@ -490,12 +490,12 @@ export interface FilesCreateDownloadRequestItem {
 }
 export interface FilesCreateUploadResponseItem {
     endpoint: string,
-    protocol: ("CHUNKED" | "WEBSOCKET" | "WEBSOCKET_V1" | "WEBSOCKET_V2"),
+    protocol: ("CHUNKED" | "WEBSOCKET" | "WEBSOCKET_V1" | "WEBSOCKET_V2" | "WEBSOCKET_V3"),
     token: string,
 }
 export interface FilesCreateUploadRequestItem {
     path: string,
-    supportedProtocols: ("CHUNKED"|"WEBSOCKET"|"WEBSOCKET_V1"|"WEBSOCKET_V2")[],
+    supportedProtocols: ("CHUNKED"|"WEBSOCKET"|"WEBSOCKET_V1"|"WEBSOCKET_V2"|"WEBSOCKET_V3")[],
     conflictPolicy: ("RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME"),
 }
 export interface FilesCreateFolderRequestItem {

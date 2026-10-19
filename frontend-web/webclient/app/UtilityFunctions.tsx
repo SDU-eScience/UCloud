@@ -716,6 +716,6 @@ export function usePortal() {
     return portalRef.current;
 }
 
-export function isTouchScreen(e: React.SyntheticEvent) {
-    return e.nativeEvent["pointerType"] === "touch";
+export function isTouchScreen(e: MouseEvent) {
+    return e["pointerType"] === "touch";
 }

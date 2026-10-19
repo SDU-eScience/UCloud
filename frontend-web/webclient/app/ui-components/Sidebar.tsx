@@ -535,7 +535,7 @@ export function Sidebar(): React.ReactNode {
                                     data-active={tab === label}
                                     onMouseEnter={() => setHoveredPage(label)}
                                     onClick={e => {
-                                        if (isTouchScreen(e)) {
+                                        if (isTouchScreen(e.nativeEvent)) {
                                             e.stopPropagation();
                                             e.preventDefault();
                                             if (hoveredPage === label) {

@@ -1129,11 +1129,16 @@ func DoStageFileForDeletion(internalPath string, stagingName string) *util.HttpE
 }
 
 func transferSourceInitiate(request orc.FilesProviderTransferRequestInitiateSource) ([]string, *util.HttpError) {
-	return []string{"built-in"}, nil
+	return []string{"built-in-v3", "built-in"}, nil
 }
 
 func transferDestinationInitiate(actor rpc.Actor, request orc.FilesProviderTransferRequestInitiateDestination) (orc.FilesProviderTransferResponse, *util.HttpError) {
-	if !slices.Contains(request.SupportedProtocols, "built-in") {
+	protocol := "built-in"
+	uploadProtocol := orc.UploadProtocolWebSocketV2
+	if slices.Contains(request.SupportedProtocols, "built-in-v3") {
+		protocol = "built-in-v3"
+		uploadProtocol = orc.UploadProtocolWebSocketV3
+	} else if !slices.Contains(request.SupportedProtocols, "built-in") {
 		return orc.FilesProviderTransferResponse{}, &util.HttpError{
 			StatusCode: http.StatusBadRequest,
 			Why:        "Unable to fulfill this request, no overlap in protocols.",
@@ -1152,7 +1157,11 @@ func transferDestinationInitiate(actor rpc.Actor, request orc.FilesProviderTrans
 		return orc.FilesProviderTransferResponse{}, util.PaymentError()
 	}
 
-	_, target := controller.FileCreateFolderUpload(request.DestinationPath, orc.WriteConflictPolicyMergeRename, localDestinationPath)
+	session, target := controller.FileCreateFolderUpload(request.DestinationPath, orc.WriteConflictPolicyMergeRename, localDestinationPath, uploadProtocol)
+	token := ""
+	if uploadProtocol == orc.UploadProtocolWebSocketV3 {
+		token = session.Id
+	}
 
 	if request.SourceProvider == cfg.Provider.Id {
 		// NOTE(Dan): This only happens during local development
@@ -1161,9 +1170,10 @@ func transferDestinationInitiate(actor rpc.Actor, request orc.FilesProviderTrans
 	}
 
 	response := controller.FilesTransferResponseInitiateDestination(
-		"built-in",
+		protocol,
 		controller.TransferBuiltInParameters{
 			Endpoint: target,
+			Token:    token,
 		},
 	)
 	ActivityRecord(actor, ActivityEvent{
@@ -1191,6 +1201,7 @@ func transferSourceBegin(actor rpc.Actor, request orc.FilesProviderTransferReque
 		Type:             TaskTypeTransfer,
 		Source:           session.SourcePath,
 		TransferEndpoint: parameters.Endpoint,
+		TransferToken:    parameters.Token,
 		Mounts: []TaskMount{
 			{UCloudPath: session.SourcePath},
 		},

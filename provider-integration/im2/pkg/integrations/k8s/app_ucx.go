@@ -101,6 +101,9 @@ func ucxOnConnect(conn *ws.Conn) {
 		}
 
 		instanceId := request.StackId
+		if !ucxStackIdIsValid(instanceId) {
+			return ucxapi.Stack{}, fmt.Errorf("invalid stack instance")
+		}
 
 		internalPathMemberFiles, drive, err := filesystem.InitializeMemberFiles(info.Owner.CreatedBy, info.Owner.Project)
 		if err != nil {
@@ -272,7 +275,15 @@ func ucxStackDataAppend(owner orcapi.ResourceOwner, request ucxapi.StackDataAppe
 	return ucxStackDataWriteBytes(owner, request.InstanceId, request.Path, request.Data, request.Perm, unix.O_APPEND)
 }
 
+func ucxStackIdIsValid(id string) bool {
+	return id != "." && filepath.IsLocal(id) && filepath.Base(id) == id
+}
+
 func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, path string, data []byte, perm uint32, writeFlag int) (util.Empty, error) {
+	if !ucxStackIdIsValid(instanceId) {
+		return util.Empty{}, fmt.Errorf("invalid stack instance")
+	}
+
 	if len(data) >= 1024*64 {
 		return util.Empty{}, fmt.Errorf("input data is too large")
 	}

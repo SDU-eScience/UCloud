@@ -100,7 +100,7 @@ async function processUpload(upload: Upload) {
         return;
     }
 
-    if (strategy.protocol !== "CHUNKED" && strategy.protocol !== "WEBSOCKET" && strategy.protocol !== "WEBSOCKET_V1" && strategy.protocol !== "WEBSOCKET_V2") {
+    if (strategy.protocol !== "CHUNKED" && strategy.protocol !== "WEBSOCKET" && strategy.protocol !== "WEBSOCKET_V1" && strategy.protocol !== "WEBSOCKET_V2" && strategy.protocol !== "WEBSOCKET_V3") {
         upload.error = "Upload not supported for this provider";
         upload.state = UploadState.DONE;
         return;
@@ -128,7 +128,7 @@ async function processUpload(upload: Upload) {
 
         upload.resume = protocolHandlerChunkedAndWebSocketV1(reader, upload, strategy, fullFilePath);
         await upload.resume();
-    } else if (strategy.protocol === "WEBSOCKET_V2") {
+    } else if (strategy.protocol === "WEBSOCKET_V2" || strategy.protocol === "WEBSOCKET_V3") {
         upload.initialProgress = 0;
         upload.resume = protocolHandlerWebSocketV2(upload, strategy, upload.folderName ?? "");
         await upload.resume();
@@ -143,6 +143,7 @@ enum FolderUploadMessageType {
     SKIP,
     LISTING,
     FILES_COMPLETED,
+    CLOSE,
     // ADD STUFF HERE
 }
 
@@ -183,6 +184,9 @@ function protocolHandlerWebSocketV2(
 
                 if (!didInit) {
                     didInit = true;
+                    if (strategy.protocol === "WEBSOCKET_V3") {
+                        uploadSocket.send(strategy.token);
+                    }
                     for (let i = 0; i < UploadConfig.MAX_CONCURRENT_UPLOADS_IN_FOLDER; i++) {
                         startLoop(i);
                     }
@@ -205,6 +209,7 @@ function protocolHandlerWebSocketV2(
                 if (fileList == null) {
                     resolve(true);
                     upload.state = UploadState.DONE;
+                    uploadSocket.send(new Uint8Array([FolderUploadMessageType.CLOSE]));
                     uploadSocket.close();
                     return;
                 }
@@ -1088,7 +1093,7 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
             title={title}
             progress={right}
             isPaused={isPaused}
-            pause={upload.uploadResponse?.protocol === "WEBSOCKET_V2" ? undefined : inProgress || isPaused ? (
+            pause={upload.uploadResponse?.protocol === "WEBSOCKET_V2" || upload.uploadResponse?.protocol === "WEBSOCKET_V3" ? undefined : inProgress || isPaused ? (
                 upload.paused ?
                     <Icon cursor="pointer" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> :
                     <Icon cursor="pointer" name="pauseSolid" onClick={() => callbacks.pauseUploads([upload])} color="primaryMain" />
