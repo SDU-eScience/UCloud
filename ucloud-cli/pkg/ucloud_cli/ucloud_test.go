@@ -579,7 +579,7 @@ func TestPublicIPList(t *testing.T) {
 }
 
 func TestPublicIPListByIP(t *testing.T) {
-	input := []string{"public-ip", "list", "--ip", "10.99.0.2-10.99.0.4"}
+	input := []string{"public-ip", "list", "--ip", "10.99.0.2-10.99.0.4", "--workspace", "testmain"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -588,7 +588,7 @@ func TestPublicIPListByIP(t *testing.T) {
 }
 
 func TestPublicIPCreate(t *testing.T) {
-	input := []string{"public-ip", "create", "--rule", "1234-2345/tcp", "--rule", "12344/udp"}
+	input := []string{"public-ip", "create", "--rule", "1234-2345/tcp", "--rule", "12344/udp", "--workspace", "testmain"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -632,15 +632,25 @@ func TestPublicIPGet(t *testing.T) {
 }
 
 func TestPublicIPFirewall(t *testing.T) {
-	input := []string{"public-ip", "firewall", "65", "--rule", "1337/tcp", "--rule", "8821-8825/udp"}
+	input := []string{"public-ip", "firewall", "8", "--rule", "1337/tcp", "--rule", "8821-8825/udp", "--workspace", "testmain"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }
+
 func TestPublicIPFirewallByIp(t *testing.T) {
-	input := []string{"public-ip", "firewall", "--ip", "10.99.0.3", "--rule", "1337/tcp", "--rule", "1234-1235/udp"}
+	input := []string{"public-ip", "firewall", "--ip", "10.99.0.3", "--rule", "1337/tcp", "--rule", "1234-1235/udp", "--workspace", "testmain"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+}
+
+func TestPublicIPFirewallByIdAndIp(t *testing.T) {
+	input := []string{"public-ip", "firewall", "8", "--ip", "10.99.0.3", "--rule", "1337/tcp", "--rule", "1234-1235/udp", "--workspace", "testmain"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
