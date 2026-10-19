@@ -92,31 +92,23 @@ func printPublicIpCells(t *termio.Table, workspaceName string, p orcapi.PublicIp
 	t.Cell("%v", portsToStr(p.Specification.Firewall.GetOrDefault(orcapi.Firewall{}).OpenPorts))
 	t.Cell("%v", cli.FormatTime(p.CreatedAt))
 }
-func retrievePublicIps() ([]orcapi.PublicIp, error) {
-	result, httpErr := orcapi.PublicIpsBrowse.Invoke(orcapi.PublicIpsBrowseRequest{})
+func retrievePublicIps(ids []string) ([]orcapi.PublicIp, error) {
+	strId := strings.Join(ids, ",")
+	flags := orcapi.PublicIpFlags{
+		ResourceFlags: orcapi.ResourceFlags{
+			FilterIds: util.OptValue(strId),
+		},
+	}
+
+	request := orcapi.PublicIpsBrowseRequest{}
+	if len(ids) > 0 {
+		request.PublicIpFlags = flags
+	}
+	result, httpErr := orcapi.PublicIpsBrowse.Invoke(request)
 	if httpErr.AsError() != nil {
 		return nil, fmt.Errorf("failed to list public ips: %s", httpErr.Why)
 	}
 	return result.Items, nil
-}
-
-func findPublicIpById(ids []string) ([]orcapi.PublicIp, error) {
-	publicIps, err := retrievePublicIps()
-	found := make([]orcapi.PublicIp, 0)
-	if err != nil {
-		return found, err
-	}
-	for _, id := range ids {
-		for _, ip := range publicIps {
-			if id == ip.Id {
-				found = append(found, ip)
-			}
-		}
-	}
-	if len(found) > 0 {
-		return found, nil
-	}
-	return nil, fmt.Errorf("public ip not found")
 }
 
 func printPublicIps(wsName string, publicIps []orcapi.PublicIp) {
@@ -135,7 +127,7 @@ func (c PublicIPListCommand) Execute() error {
 		return err
 	}
 
-	result, err := retrievePublicIps()
+	result, err := retrievePublicIps(make([]string, 0))
 	if err != nil {
 		return err
 	}
@@ -157,7 +149,7 @@ func (c PublicIPGetCommand) Execute() error {
 	if err != nil {
 		return err
 	}
-	foundIps, err := findPublicIpById(c.Id)
+	foundIps, err := retrievePublicIps(c.Id)
 	if err != nil {
 		return err
 	}
@@ -215,7 +207,7 @@ func (c PublicIPDeleteCommand) Execute() error {
 	if err != nil {
 		return err
 	}
-	result, err := retrievePublicIps()
+	result, err := retrievePublicIps(make([]string, 0))
 	if err != nil {
 		return err
 	}
@@ -351,31 +343,29 @@ func (c PublicIPFirewallCommand) Execute() error {
 	if err != nil {
 		return err
 	}
+	if c.Id != "" && c.IPAddress != "" {
+		fmt.Println("Currently id and ip are mutually exclusive, ip addresses will be ignored")
+	}
 	// id takes precedence over ip address
-	publicId := c.Id
-	var foundIps []orcapi.PublicIp
+	filterId := make([]string, 0)
+	if c.Id != "" {
+		filterId = append(filterId, c.Id)
+	}
 
-	publicIps, err := retrievePublicIps()
+	foundIps, err := retrievePublicIps(filterId)
+
 	if err != nil {
 		return err
 	}
-	// if id is specified, we only look for that id
-	if publicId != "" {
-		foundIps, err = findPublicIpByIds([]string{c.Id}, publicIps)
-	} else if c.IPAddress != "" {
-		// we look for the ip address if id is not specified
+	// TODO: make it no longer mutually exclusive, by expanding filtering by ip address to the API
+	if c.IPAddress != "" && c.Id == "" {
 		parsedIp, err := netip.ParseAddr(strings.TrimSpace(c.IPAddress))
 		if err != nil {
 			return fmt.Errorf("invalid start IP %q: %w", parsedIp, err)
 		}
-		foundIps, err = findPublicIpByIpRange([]string{parsedIp.String()}, publicIps)
-	} else {
-		return fmt.Errorf("either id or ip address must be specified, id has precedence over ip address")
+		foundIps, err = findPublicIpByIpRange([]string{parsedIp.String()}, foundIps)
 	}
 
-	if err != nil {
-		return err
-	}
 	if len(foundIps) == 0 {
 		return fmt.Errorf("public ip not found")
 	}
