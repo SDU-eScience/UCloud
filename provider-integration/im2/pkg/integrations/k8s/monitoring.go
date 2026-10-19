@@ -693,7 +693,7 @@ func loopMonitoring() {
 			kubevirtJobs[jobId] = job
 		}
 	}
-	kubevirt.Monitor(tracker, kubevirtJobs)
+	vmNodeAssignments := kubevirt.Monitor(tracker, kubevirtJobs)
 	metricMonitoring.WithLabelValues("VirtualMachineMonitor").Observe(timer.Mark().Seconds())
 	publishNodeLifecycleEvents(tracker, nodeLifecycleEvents)
 
@@ -927,6 +927,21 @@ func loopMonitoring() {
 		allPods := shared.JobPods.List()
 
 		resourcesByNode := map[string]map[string]int64{}
+		groupsByNode := map[string]map[string]util.Empty{}
+
+		for jobId, nodeName := range vmNodeAssignments {
+			group := shared.JobAntiAffinityGroup(kubevirtJobs[jobId])
+			if !group.Present {
+				continue
+			}
+
+			groups := groupsByNode[nodeName]
+			if groups == nil {
+				groups = map[string]util.Empty{}
+				groupsByNode[nodeName] = groups
+			}
+			groups[group.Value] = util.Empty{}
+		}
 
 		for _, pod := range allPods {
 			nodeName := pod.Spec.NodeName
@@ -934,6 +949,20 @@ func loopMonitoring() {
 			if !ok {
 				resources = make(map[string]int64)
 				resourcesByNode[nodeName] = resources
+			}
+
+			if nodeName != "" {
+				if job, jobOk := activeJobs[pod.Labels["ucloud.dk/jobId"]]; jobOk {
+					group := shared.JobAntiAffinityGroup(job)
+					if group.Present {
+						groups, groupsOk := groupsByNode[nodeName]
+						if !groupsOk {
+							groups = map[string]util.Empty{}
+							groupsByNode[nodeName] = groups
+						}
+						groups[group.Value] = util.Empty{}
+					}
+				}
 			}
 
 			for _, c := range pod.Spec.Containers {
@@ -984,6 +1013,7 @@ func loopMonitoring() {
 					}
 				}
 
+				sched.SynchronizeNodeAntiAffinity(nodeName, groupsByNode[nodeName])
 				sched.SynchronizeNodeUsage(nodeName, dims)
 			}
 		}
@@ -1017,7 +1047,8 @@ func loopMonitoring() {
 			}
 
 			sched.RegisterJobInQueue(entry.Id, shared.JobDimensions(entry),
-				entry.Specification.Replicas, entry, entry.CreatedAt, timeAllocationOrDefault(entry.Specification.TimeAllocation))
+				entry.Specification.Replicas, shared.JobAntiAffinityGroup(entry), entry, entry.CreatedAt,
+				timeAllocationOrDefault(entry.Specification.TimeAllocation))
 
 			if !sched.JobInQueue(entry.Id) {
 				shared.RequestSchedule(entry)
@@ -1160,8 +1191,8 @@ func loopMonitoring() {
 			Replicas:            2,
 		}
 
-		anyAvailable := sched.trySchedule(singleEntry, allNodes, true) != nil
-		moreAvailable := sched.trySchedule(doubleEntry, allNodes, true) != nil
+		anyAvailable := sched.trySchedule(singleEntry, allNodes, true, nil) != nil
+		moreAvailable := sched.trySchedule(doubleEntry, allNodes, true, nil) != nil
 
 		status := orc.JobQueueFull
 		if anyAvailable && moreAvailable {

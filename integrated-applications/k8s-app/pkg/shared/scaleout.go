@@ -391,10 +391,11 @@ func ClusterAddNodeLocked(
 	}
 
 	labels := map[string]string{
-		StackGroupingLabel:     trimmedGroup,
-		NodeAllocationLabel:    fmt.Sprintf("%d", allocationId),
-		K8sVersionLabel:        release.Release,
-		TopologyOperationLabel: operationUid,
+		StackGroupingLabel:                    trimmedGroup,
+		NodeAllocationLabel:                   fmt.Sprintf("%d", allocationId),
+		K8sVersionLabel:                       release.Release,
+		TopologyOperationLabel:                operationUid,
+		orcapi.ResourceLabelAntiAffinityGroup: clusterAntiAffinityGroup(stack, trimmedGroup),
 	}
 
 	if trimmedGroup == GroupControlPlane {

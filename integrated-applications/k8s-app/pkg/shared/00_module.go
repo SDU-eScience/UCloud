@@ -595,9 +595,10 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 	}
 
 	labels := map[string]string{
-		StackGroupingLabel:  opts.group,
-		NodeAllocationLabel: strconv.Itoa(opts.allocationId),
-		K8sVersionLabel:     opts.release.Release,
+		StackGroupingLabel:                    opts.group,
+		NodeAllocationLabel:                   strconv.Itoa(opts.allocationId),
+		K8sVersionLabel:                       opts.release.Release,
+		orcapi.ResourceLabelAntiAffinityGroup: clusterAntiAffinityGroup(stack, opts.group),
 	}
 
 	attachments, labels = clusterControlPlaneWiring(stack, opts.group, opts.allocationId, opts.customUi, attachments, labels)
@@ -799,9 +800,10 @@ func ClusterRecoveryCreateNode(
 	}
 
 	labels := map[string]string{
-		StackGroupingLabel:  GroupControlPlane,
-		NodeAllocationLabel: strconv.Itoa(spec.AllocationId),
-		K8sVersionLabel:     spec.Release.Release,
+		StackGroupingLabel:                    GroupControlPlane,
+		NodeAllocationLabel:                   strconv.Itoa(spec.AllocationId),
+		K8sVersionLabel:                       spec.Release.Release,
+		orcapi.ResourceLabelAntiAffinityGroup: clusterAntiAffinityGroup(stack, GroupControlPlane),
 	}
 	attachments, labels = clusterControlPlaneWiring(stack, GroupControlPlane, spec.AllocationId, spec.CustomUi, attachments, labels)
 
@@ -1059,4 +1061,8 @@ func NodeDirForAllocation(allocationId int) string {
 
 func ClusterNodeHostname(group string, allocationId int) string {
 	return fmt.Sprintf("%s-%v", group, allocationId)
+}
+
+func clusterAntiAffinityGroup(stack *ucxsvc.Stack, group string) string {
+	return stack.InstanceId + "-" + group
 }

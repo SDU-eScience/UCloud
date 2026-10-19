@@ -239,6 +239,20 @@ func JobDimensions(job *orc.Job) SchedulerDimensions {
 	}
 }
 
+func JobAntiAffinityGroup(job *orc.Job) util.Option[string] {
+	if job == nil {
+		return util.OptNone[string]()
+	}
+
+	group := strings.TrimSpace(job.Specification.Labels[orc.ResourceLabelAntiAffinityGroup])
+	if group == "" {
+		return util.OptNone[string]()
+	}
+
+	workspace := job.Owner.Project.GetOrDefault(job.Owner.CreatedBy)
+	return util.OptValue(workspace + "/" + group)
+}
+
 func JobDimensionsFromProductOnly(prod *apm.ProductV2) SchedulerDimensions {
 	nodeCat, _ := NodeCategoryAndConfiguration(prod)
 	dims := SchedulerDimensions{

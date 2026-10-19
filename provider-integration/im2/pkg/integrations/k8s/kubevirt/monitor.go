@@ -28,7 +28,7 @@ var releasedPvCleanupState struct {
 	deletePermissionLogged bool
 }
 
-func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
+func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) map[string]string {
 	for jobId := range missingVmSince {
 		if _, active := jobs[jobId]; !active {
 			delete(missingVmSince, jobId)
@@ -43,7 +43,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 
 	if !Enabled {
 		missingVmSince = map[string]time.Time{}
-		return
+		return nil
 	}
 
 	cleanupReleasedPVs()
@@ -52,7 +52,7 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 	if err != nil {
 		missingVmSince = map[string]time.Time{}
 		log.Info("Failed to fetch virtual machines instances: %v", err)
-		return
+		return nil
 	}
 
 	instancesByName := map[string]*kvcore.VirtualMachineInstance{}
@@ -66,10 +66,11 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 	if err != nil {
 		missingVmSince = map[string]time.Time{}
 		log.Info("Failed to fetch virtual machines: %v", err)
-		return
+		return nil
 	}
 
 	seenJobs := map[string]util.Empty{}
+	nodeAssignments := map[string]string{}
 	length = len(activeMachines.Items)
 	for i := 0; i < length; i++ {
 		machine := &activeMachines.Items[i]
@@ -83,6 +84,18 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		}
 		seenJobs[jobId] = util.Empty{}
 		delete(missingVmSince, jobId)
+
+		if !jobs[jobId].Status.State.IsFinal() && machine.DeletionTimestamp == nil &&
+			machine.Spec.Template != nil && machine.Spec.RunStrategy != nil &&
+			*machine.Spec.RunStrategy == kvcore.RunStrategyAlways {
+			node := machine.Spec.Template.Spec.NodeSelector["kubernetes.io/hostname"]
+			if hasInstance && instance.Status.NodeName != "" {
+				node = instance.Status.NodeName
+			}
+			if node != "" {
+				nodeAssignments[jobId] = node
+			}
+		}
 
 		if hasInstance && machine.Status.Ready {
 			tracker.TrackState(
@@ -147,6 +160,8 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 			Status: util.OptValue("The virtual machine is powered off."),
 		})
 	}
+
+	return nodeAssignments
 }
 
 func cleanupReleasedPVs() {
