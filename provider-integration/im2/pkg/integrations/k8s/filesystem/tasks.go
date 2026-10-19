@@ -33,6 +33,7 @@ const (
 
 type TaskMount struct {
 	UCloudPath string
+	ReadOnly   bool
 }
 
 type TaskSpec struct {
@@ -45,6 +46,7 @@ type TaskSpec struct {
 	Source           string // UCloud path prior to submission, mount path in job task
 	Destination      string // UCloud path prior to submission, mount path in job task
 	TransferEndpoint string
+	TransferToken    string
 	ConflictPolicy   string
 
 	CreationState struct {
@@ -440,6 +442,7 @@ func TaskSubmitWithInfo(spec TaskSpec) (TaskSubmission, *util.HttpError) {
 								{Name: taskEnvSource, Value: sourcePath},
 								{Name: taskEnvDestination, Value: destinationPath},
 								{Name: taskEnvTransferEndpoint, Value: spec.TransferEndpoint},
+								{Name: taskEnvTransferToken, Value: spec.TransferToken},
 								{Name: taskEnvTaskToken, Value: spec.TaskToken},
 								{Name: taskEnvConflictPolicy, Value: spec.ConflictPolicy},
 							},
@@ -586,6 +589,12 @@ func resolveTaskMounts(spec TaskSpec) ([]k8score.VolumeMount, map[string]string)
 
 	addMount := func(containerPath, subpath string, readOnly bool) {
 		existing, _ := resolvedMounts[containerPath]
+		for i := range existing {
+			if existing[i].First == subpath {
+				existing[i].Second = existing[i].Second && readOnly
+				return
+			}
+		}
 		existing = append(existing, util.Tuple2[string, bool]{subpath, readOnly})
 		resolvedMounts[containerPath] = existing
 	}
@@ -623,7 +632,7 @@ func resolveTaskMounts(spec TaskSpec) ([]k8score.VolumeMount, map[string]string)
 		}
 
 		containerPath := filepath.Join(taskStorageMountDir, title)
-		addUCloudMount(containerPath, ucloudPath, false)
+		addUCloudMount(containerPath, ucloudPath, mount.ReadOnly)
 	}
 
 	var folders []candidateMount

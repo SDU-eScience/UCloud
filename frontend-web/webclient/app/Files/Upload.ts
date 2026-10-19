@@ -164,4 +164,4 @@ export function useUploads(): [Upload[], (u: Upload[]) => void] {
     return [uploads, u => uploadStore.setUploads(u)];
 }
 
-export const supportedProtocols: UploadProtocol[] = ["CHUNKED", "WEBSOCKET"];
+export const supportedProtocols: UploadProtocol[] = ["CHUNKED", "WEBSOCKET", "WEBSOCKET_V2", "WEBSOCKET_V3"];
