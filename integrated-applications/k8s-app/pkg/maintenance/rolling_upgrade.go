@@ -32,6 +32,8 @@ type RollingUpgradeNode struct {
 type RollingUpgrade struct {
 	Uid                 string
 	TargetRelease       string
+	Trigger             string
+	AutoRunUid          string
 	Phase               string
 	Error               string
 	StartedAt           time.Time
@@ -84,6 +86,23 @@ func rollingUpgradeWriteChecked(
 }
 
 func RollingUpgradeStart(ctx context.Context, kubeconfigPath string, release string, groups map[string]Options) error {
+	return rollingUpgradeStart(ctx, kubeconfigPath, release, groups, rollingUpgradeStartOptions{trigger: AutoTriggerManual})
+}
+
+type rollingUpgradeStartOptions struct {
+	trigger    string
+	autoRunUid string
+	conditions []ucxapi.StackStateRevisionCondition
+	validUntil util.Option[int64]
+}
+
+func rollingUpgradeStart(
+	ctx context.Context,
+	kubeconfigPath string,
+	release string,
+	groups map[string]Options,
+	start rollingUpgradeStartOptions,
+) error {
 	_, known := shared.ReleaseByExactVersion(release)
 	if !known {
 		return errors.New("select a supported target release")
@@ -128,6 +147,8 @@ func RollingUpgradeStart(ctx context.Context, kubeconfigPath string, release str
 	upgrade := RollingUpgrade{
 		Uid:           newOperationUid(),
 		TargetRelease: release,
+		Trigger:       start.trigger,
+		AutoRunUid:    start.autoRunUid,
 		Phase:         PhaseRunning,
 		StartedAt:     time.Now().UTC(),
 		Groups:        groups,
@@ -181,7 +202,20 @@ func RollingUpgradeStart(ctx context.Context, kubeconfigPath string, release str
 		return ctx.Err()
 	}
 	conditions := rollingUpgradeNodeConditions(upgrade, operations, "")
-	_, err = rollingUpgradeWriteChecked(client, upgrade, revision, conditions, util.OptNone[int64]())
+	conditions = append(conditions, start.conditions...)
+	if start.trigger == AutoTriggerWindow {
+		gate, gateErr := autoUpgradeScheduleGate(client, time.Now().UTC())
+		if gateErr != nil {
+			return gateErr
+		}
+		if !gate.open {
+			return errAutoSchedulePaused
+		}
+		conditions = append(conditions, gate.condition)
+		deadline := gate.deadline.UnixMilli()
+		start.validUntil = util.OptValue(min(start.validUntil.GetOrDefault(deadline), deadline))
+	}
+	_, err = rollingUpgradeWriteChecked(client, upgrade, revision, conditions, start.validUntil)
 	return err
 }
 
@@ -416,6 +450,18 @@ func rollingUpgradeSweep(ctx context.Context, client stackClient) error {
 			Key:              rollingUpgradeKey,
 			ExpectedRevision: revision,
 		})
+		submissionDeadline := validUntil
+		if upgrade.Trigger == AutoTriggerWindow {
+			gate, gateErr := autoUpgradeScheduleGate(client, time.Now().UTC())
+			if gateErr != nil {
+				return gateErr
+			}
+			if !gate.open {
+				return nil
+			}
+			conditions = append(conditions, gate.condition)
+			submissionDeadline = util.OptValue(min(validUntil.Value, gate.deadline.UnixMilli()))
+		}
 		operationRevision, writeErr := shared.RpcGrantStateWriteChecked(
 			client,
 			stackNodeKey(node.Name),
@@ -423,7 +469,7 @@ func rollingUpgradeSweep(ctx context.Context, client stackClient) error {
 			node.Revision,
 			conditions,
 			valueConditions,
-			validUntil,
+			submissionDeadline,
 		)
 		if writeErr != nil {
 			return writeErr

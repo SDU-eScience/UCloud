@@ -41,6 +41,13 @@ func rollingUpgradePage(app *stackUiApp) []ucx.UiNode {
 			status = "Upgrading to " + upgrade.TargetRelease
 		}
 		content = append(content, ucx.Text(status))
+		if upgrade.Trigger == maintenance.AutoTriggerWindow {
+			label := "Started automatically in the maintenance window."
+			if upgrade.AutoRunUid != "" {
+				label += " Run " + upgrade.AutoRunUid + "."
+			}
+			content = append(content, ucx.Text(label).Sx(ucx.SxColor(ucx.ColorTextSecondary)))
+		}
 		if upgrade.Error != "" {
 			content = append(content, ucx.Warning(upgrade.Error))
 			content = append(content, ucx.Text("Recover failed nodes before restarting. Upgrades already running will finish.").Sx(ucx.SxColor(ucx.ColorTextSecondary)))

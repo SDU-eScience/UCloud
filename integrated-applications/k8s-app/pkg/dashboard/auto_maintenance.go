@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -244,7 +245,7 @@ func autoMaintenancePage(app *stackUiApp) []ucx.UiNode {
 		autoSettingsSubmitAsync(app, client, autoSettingsFromModel(app))
 	}).Children(formChildren...))
 
-	content = append(content, autoMaintenanceRunNodes(status)...)
+	content = append(content, autoMaintenanceRunNodes(app, status, policy)...)
 
 	return autoMaintenancePageShell(app, content)
 }
@@ -267,6 +268,7 @@ func autoMaintenanceKubernetesNodes(app *stackUiApp, now time.Time) []ucx.UiNode
 	nodes := []ucx.UiNode{
 		ucx.Text("Kubernetes upgrades").Sx(ucx.SxFontSize(16), ucx.SxFontWeight("600")),
 		ucx.Checkbox("autoMaintenanceK8sEnabled", "Upgrade Kubernetes in the maintenance window. The target is the newest supported release that every node can reach.", "autoMaintenanceK8sEnabled", true),
+		ucx.Text("Disabling pauses scheduled node upgrades. Running nodes finish, and manual runs continue.").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
 	}
 
 	record, recordOk := app.readClusterRecord()
@@ -473,38 +475,194 @@ func autoMaintenanceSubmitNodes() []ucx.UiNode {
 	}
 }
 
-func autoMaintenanceRunNodes(status dashboardAutoStatus) []ucx.UiNode {
+func autoMaintenanceRunNodes(app *stackUiApp, status dashboardAutoStatus, policy maintenance.AutoPolicy) []ucx.UiNode {
+	now := time.Now().UTC()
 	nodes := []ucx.UiNode{
 		ucx.Text("Last automatic run").Sx(ucx.SxFontSize(16), ucx.SxFontWeight("600")),
 	}
 
+	blocked := status.StateFound && maintenance.AutoStateBlocked(status.State)
+	active := status.StateFound && maintenance.AutoRunActive(status.State.LastRun)
+	stoppable := active && status.State.LastRun.Phase != maintenance.AutoPhaseRunning
+
 	if !status.StateFound || status.State.LastRun.Phase == "" {
 		nodes = append(nodes, ucx.Text("No automatic run has started yet.").Sx(ucx.SxColor(ucx.ColorTextSecondary)))
-		return nodes
+	} else {
+		run := status.State.LastRun
+		channel := "Kubernetes"
+		if run.Channel == maintenance.AutoChannelOs {
+			channel = "Operating system"
+		}
+
+		line := fmt.Sprintf("%s · %s", channel, run.Phase)
+		if run.TargetRelease != "" {
+			line += " · target " + run.TargetRelease
+		}
+		if run.Trigger != "" {
+			line += " · " + autoTriggerLabel(run.Trigger)
+		}
+		if label := autoRunWindowLabel(run); label != "" {
+			line += " · " + label
+		}
+		if !run.FinishedAt.IsZero() {
+			line += " · finished " + autoTimestampLabel(run.FinishedAt)
+		} else if !run.StartedAt.IsZero() {
+			line += " · started " + autoTimestampLabel(run.StartedAt)
+		}
+		if run.Phase == maintenance.AutoPhaseBlocked && !blocked {
+			line += " · resolved"
+		}
+		nodes = append(nodes, ucx.Text(line).Sx(ucx.SxColor(ucx.ColorTextSecondary)))
+
+		if blocked {
+			nodes = append(nodes, ucx.Warning("Automatic maintenance is stopped: "+run.Error))
+			nodes = append(nodes, ucx.Text("Resolve the problem, then press Resume automatic maintenance. The next window starts a fresh run.").Sx(ucx.SxColor(ucx.ColorTextSecondary)))
+		}
+
+		if active {
+			for _, check := range run.Checks {
+				if check.Ok || check.Detail == "" {
+					continue
+				}
+				nodes = append(nodes, ucx.Text(autoCheckLabel(check.Name)+" · "+check.Detail).Sx(ucx.SxColor(ucx.ColorTextSecondary)))
+			}
+			if run.Trigger == maintenance.AutoTriggerWindow && (!policy.K8s.Enabled || !maintenance.AutoScheduleOpen(now, policy)) {
+				nodes = append(nodes, ucx.Text(autoSchedulePausedLabel(policy, now)).Sx(ucx.SxColor(ucx.ColorTextSecondary)))
+			}
+		}
 	}
 
-	run := status.State.LastRun
-	channel := "Kubernetes"
-	if run.Channel == maintenance.AutoChannelOs {
-		channel = "Operating system"
+	actions := []ucx.UiNode{}
+	if blocked {
+		actions = append(actions, ucx.Button("autoMaintenanceResume", "Resume automatic maintenance", ucx.ColorPrimaryMain).
+			ButtonBusy("autoMaintenanceBusy").
+			WithTooltip("Allows the schedule to start new runs. The blocked run keeps its recorded reason.").
+			On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+				autoMaintenanceActionAsync(app, "Automatic maintenance resumed.", maintenance.AutoResume)
+			}))
+	} else if stoppable {
+		actions = append(actions, ucx.Button("autoMaintenanceStop", "Stop run", ucx.ColorErrorMain).
+			ButtonBusy("autoMaintenanceBusy").
+			WithTooltip("Stops the current run before it touches any node. The schedule stays stopped until you resume.").
+			On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+				autoMaintenanceActionAsync(app, "The automatic run was stopped.", maintenance.AutoStopRun)
+			}))
+	} else if !active && policy.K8s.Enabled {
+		actions = append(actions, ucx.Button("autoMaintenanceRunNow", "Run now", ucx.ColorSecondaryMain).
+			ButtonBusy("autoMaintenanceBusy").
+			WithTooltip("Starts an automatic run outside the maintenance window. The gates and the fresh-backup rule still apply.").
+			On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+				kubeconfig := LocalKubeconfigPath()
+				autoMaintenanceActionAsync(app, "The automatic run started.", func() error {
+					return maintenance.AutoRunNow(context.Background(), kubeconfig)
+				})
+			}))
 	}
 
-	line := fmt.Sprintf("%s · %s", channel, run.Phase)
-	if run.TargetRelease != "" {
-		line += " · target " + run.TargetRelease
-	}
-	if !run.FinishedAt.IsZero() {
-		line += " · finished " + autoTimestampLabel(run.FinishedAt)
-	} else if !run.StartedAt.IsZero() {
-		line += " · started " + autoTimestampLabel(run.StartedAt)
-	}
-	nodes = append(nodes, ucx.Text(line).Sx(ucx.SxColor(ucx.ColorTextSecondary)))
-
-	if run.Phase == maintenance.AutoPhaseBlocked && run.Error != "" {
-		nodes = append(nodes, ucx.Warning("Automatic maintenance is stopped: "+run.Error))
+	if len(actions) > 0 {
+		nodes = append(nodes, ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).Children(actions...))
 	}
 
 	return nodes
+}
+
+func autoTriggerLabel(trigger string) string {
+	if trigger == maintenance.AutoTriggerManual {
+		return "started manually"
+	}
+	return "started by the window"
+}
+
+func autoRunWindowLabel(run maintenance.AutoRun) string {
+	if run.WindowStart.IsZero() {
+		return ""
+	}
+
+	start := run.WindowStart.UTC()
+	end := run.WindowEnd.UTC()
+	endLabel := end.Format("15:04")
+	if end.Format("2006-01-02") != start.Format("2006-01-02") {
+		endLabel = end.Format("Mon 15:04")
+	}
+
+	return fmt.Sprintf("window %s %s–%s UTC", start.Format("Mon"), start.Format("15:04"), endLabel)
+}
+
+func autoSchedulePausedLabel(policy maintenance.AutoPolicy, now time.Time) string {
+	if !policy.K8s.Enabled {
+		return "Automatic Kubernetes upgrades are disabled. Enable them to continue scheduled node upgrades."
+	}
+	if policy.DeferUntil.After(now) {
+		return "The schedule is deferred until " + autoDateLabel(policy.DeferUntil) + ". The run continues in the next window after the deferral."
+	}
+
+	start, _, ok := maintenance.AutoEffectiveWindow(now, policy)
+	if !ok {
+		return "The window is closed. The run continues in the next window."
+	}
+
+	return "The window is closed. The run continues in the next window, " + start.UTC().Format("Monday 15:04") + " UTC."
+}
+
+func autoCheckLabel(name string) string {
+	switch name {
+	case maintenance.AutoCheckCluster:
+		return "Cluster"
+	case maintenance.AutoCheckRecovery:
+		return "Recovery"
+	case maintenance.AutoCheckOperations:
+		return "Maintenance state"
+	case maintenance.AutoCheckNodes:
+		return "Nodes"
+	case maintenance.AutoCheckQuorum:
+		return "Quorum"
+	case maintenance.AutoCheckAgents:
+		return "Node agents"
+	case maintenance.AutoCheckVersions:
+		return "Version spread"
+	case maintenance.AutoCheckPath:
+		return "Upgrade path"
+	case maintenance.AutoCheckRolling:
+		return "Rolling upgrade"
+	case maintenance.AutoCheckBackup:
+		return "Backup"
+	}
+	return name
+}
+
+func autoMaintenanceActionAsync(app *stackUiApp, success string, action func() error) {
+	if app.AutoMaintenanceBusy {
+		return
+	}
+
+	session := *app.Session()
+	if session == nil {
+		return
+	}
+
+	app.AutoMaintenanceBusy = true
+	ucx.AppUpdateModelPatch(session, map[string]ucx.Value{
+		"autoMaintenanceBusy": ucx.VBool(true),
+	})
+
+	go func() {
+		err := action()
+
+		app.mu.Lock()
+		app.AutoMaintenanceBusy = false
+		updatedUi := app.UserInterface()
+		updatedModel := ucx.AppSnapshot(app)
+		app.mu.Unlock()
+
+		if session.Context().Err() == nil {
+			ucx.AppUpdateUiLocked(session, updatedUi, updatedModel)
+			if err != nil {
+				maintenanceSendUiMessage(session, err.Error(), false)
+			} else {
+				maintenanceSendUiMessage(session, success, true)
+			}
+		}
+	}()
 }
 
 func autoMaintenanceInitForm(app *stackUiApp, policy maintenance.AutoPolicy) {
@@ -541,7 +699,7 @@ func (app *stackUiApp) homeAutoMaintenanceMetric() []ucx.UiNode {
 		switch {
 		case !policy.K8s.Enabled && !policy.Os.Enabled:
 			value = "Off"
-		case status.StateFound && status.State.LastRun.Phase == maintenance.AutoPhaseBlocked:
+		case status.StateFound && maintenance.AutoStateBlocked(status.State):
 			value = "Blocked"
 			color = ucx.ColorErrorMain
 		case policy.DeferUntil.After(now):

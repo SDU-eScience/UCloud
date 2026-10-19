@@ -63,9 +63,8 @@ type AutoPolicy struct {
 }
 
 type AutoK8sPolicy struct {
-	Enabled       bool          `json:"enabled"`
-	TargetRelease string        `json:"targetRelease,omitempty"`
-	MaxBackupAge  time.Duration `json:"maxBackupAge"`
+	Enabled      bool          `json:"enabled"`
+	MaxBackupAge time.Duration `json:"maxBackupAge"`
 }
 
 type AutoOsPolicy struct {
@@ -80,6 +79,7 @@ type AutoCheck struct {
 }
 
 type AutoRun struct {
+	Uid           string      `json:"uid,omitempty"`
 	Channel       string      `json:"channel"`
 	Trigger       string      `json:"trigger"`
 	Phase         string      `json:"phase"`
@@ -106,6 +106,7 @@ type AutoState struct {
 	ClaimUid       string             `json:"claimUid,omitempty"`
 	ClaimDeadline  time.Time          `json:"claimDeadline,omitempty"`
 	NextWindowAt   time.Time          `json:"nextWindowAt,omitempty"`
+	ResumedAt      time.Time          `json:"resumedAt,omitempty"`
 	LastRun        AutoRun            `json:"lastRun,omitempty"`
 	OsReports      []AutoUpdateReport `json:"osReports,omitempty"`
 }
@@ -263,15 +264,6 @@ func autoPolicyRead(client stackClient) (autoPolicyRecord, error) {
 	return result, nil
 }
 
-func autoPolicyWrite(client stackClient, policy AutoPolicy, expectedRevision int64) (int64, error) {
-	value, err := json.Marshal(policy)
-	if err != nil {
-		return 0, err
-	}
-
-	return shared.RpcGrantStateWrite(client, AutoPolicyKey, value, expectedRevision)
-}
-
 func autoStateRead(client stackClient) (autoStateRecord, error) {
 	record, found, err := shared.RpcGrantStateRead(client, AutoStateKey)
 	if err != nil {
@@ -309,6 +301,18 @@ func autoStateClaimActive(state AutoState, now time.Time) bool {
 	return state.ClaimUid != "" && now.Before(state.ClaimDeadline)
 }
 
+func AutoRunActive(run AutoRun) bool {
+	switch run.Phase {
+	case AutoPhasePending, AutoPhasePreflight, AutoPhaseBackup, AutoPhaseRunning:
+		return true
+	}
+	return false
+}
+
+func AutoStateBlocked(state AutoState) bool {
+	return state.LastRun.Phase == AutoPhaseBlocked && !state.ResumedAt.After(state.LastRun.FinishedAt)
+}
+
 func autoStateClaim(client stackClient, record autoStateRecord, uid string, now time.Time) (autoStateRecord, error) {
 	if autoStateClaimActive(record.State, now) {
 		return record, fmt.Errorf(
@@ -330,7 +334,11 @@ func autoStateClaim(client stackClient, record autoStateRecord, uid string, now 
 	return autoStateRecord{Found: true, State: state, Revision: revision}, nil
 }
 
-func autoStateRelease(client stackClient, record autoStateRecord) (autoStateRecord, error) {
+func autoStateRelease(client stackClient, record autoStateRecord, claimUid string) (autoStateRecord, error) {
+	if record.State.ClaimUid != claimUid {
+		return record, nil
+	}
+
 	state := record.State
 	state.SchemaRevision = AutoSchemaRevision
 	state.ClaimUid = ""

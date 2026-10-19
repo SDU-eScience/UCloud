@@ -180,12 +180,18 @@ func Run(ctx context.Context, kubeconfigPath string) {
 		defer close(backupDone)
 		backupRun(ctx)
 	}()
+	autoDone := make(chan struct{})
+	go func() {
+		defer close(autoDone)
+		autoUpgradeRun(ctx, kubeconfigPath)
+	}()
 
 	for {
 		select {
 		case <-ctx.Done():
 			<-rollingDone
 			<-backupDone
+			<-autoDone
 			workers.Wait()
 			return
 		case <-ticker.C:
