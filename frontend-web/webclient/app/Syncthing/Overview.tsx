@@ -314,7 +314,7 @@ const NewOverview: React.FunctionComponent = () => {
                     selection: {
                         text: "Sync",
                         show(file) {
-                            if (file.id === FakeFileName) return false;
+                            if (file.id.endsWith(FakeFileName)) return false;
                             if (file.status.type !== "DIRECTORY") return false;
                             if (file.specification.product.id === "share") return false;
                             if (file.specification.product.provider != provider) return false;

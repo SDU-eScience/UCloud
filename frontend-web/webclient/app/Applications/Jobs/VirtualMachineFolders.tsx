@@ -70,7 +70,7 @@ export const VirtualMachineFolders: React.FunctionComponent<{
         const normalize = (path: string) => removeTrailingSlash(path);
 
         const showFolder = (file: UFile): boolean | string => {
-            if (file.id === FakeFileName) return false;
+            if (file.id.endsWith(FakeFileName)) return false;
 
             if (file.status.type !== "DIRECTORY") {
                 return "Only directories can be attached";

@@ -1435,7 +1435,7 @@ function FileBrowse({opts, headerControls}: {
                     }, 500);
                 };
 
-                browser.on("skipOpen", (oldPath, newPath, resource) => resource?.id === FakeFileName);
+                browser.on("skipOpen", (oldPath, newPath, resource) => resource?.id.endsWith(FakeFileName) ?? false);
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource?.status.type === "FILE") {
                         if (opts?.selection) {

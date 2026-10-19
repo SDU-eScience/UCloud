@@ -79,7 +79,7 @@ export const FilesParameter: React.FunctionComponent<FilesProps> = props => {
         }
 
         function providerRestriction(file: UFile): boolean | string {
-            if (file.id === FakeFileName) return false;
+            if (file.id.endsWith(FakeFileName)) return false;
             const fileProvider = file.specification.product.provider;
             const isCorrectlyDir = isDirectoryInput && file.status.type === "DIRECTORY";
             const isCorrectlyFile = !isDirectoryInput && file.status.type === "FILE";

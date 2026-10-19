@@ -32,7 +32,7 @@ export const AcceptInviteLink: React.FunctionComponent = () => {
     }, [token]);
 
     useEffect(() => {
-        if (linkInfo.data?.isMember && !Math) {
+        if (linkInfo.data?.isMember) {
             dispatchSetProjectAction(dispatch, linkInfo.data.project.id);
             navigate(AppRoutes.project.members());
         } else if (linkInfo.data || linkInfo.error) {
