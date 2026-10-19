@@ -533,7 +533,7 @@ func stacksSpawnDeclaredJob(actor rpc.Actor, id string) *util.HttpError {
 	if provider == "" {
 		return util.HttpErr(http.StatusBadRequest, "the stack has no known provider")
 	}
-	product, productErr := stacksSelectDeclaredJobProduct(provider, declaration.Cpu, declaration.MemoryInGigs)
+	product, productErr := stacksSelectDeclaredJobProduct(entity, provider, jobs, declaration.Cpu, declaration.MemoryInGigs)
 	if productErr != nil {
 		return productErr
 	}
@@ -592,9 +592,40 @@ func stacksSpawnDeclaredJob(actor rpc.Actor, id string) *util.HttpError {
 	return nil
 }
 
-func stacksSelectDeclaredJobProduct(provider string, minCpu int, minMemoryInGigs int) (accapi.ProductReference, *util.HttpError) {
+func stacksSelectDeclaredJobProduct(
+	entity orcapi.Resource,
+	provider string,
+	jobs []orcapi.Job,
+	minCpu int,
+	minMemoryInGigs int,
+) (accapi.ProductReference, *util.HttpError) {
+	unlockedCategories, walletErr := stacksDeclaredJobUnlockedCategories(entity, provider)
+	if walletErr != nil {
+		return accapi.ProductReference{}, walletErr
+	}
+
+	controlPlaneCategories := map[string]util.Empty{}
+	workerCategories := map[string]util.Empty{}
+	for _, job := range jobs {
+		if job.Specification.Application.Name == "unknown" || job.Specification.Product.Provider != provider {
+			continue
+		}
+
+		category := job.Specification.Product.Category
+		if category == "" {
+			continue
+		}
+
+		if strings.EqualFold(job.Specification.Labels[orcapi.ResourceLabelStackController], "true") {
+			controlPlaneCategories[category] = util.Empty{}
+		} else {
+			workerCategories[category] = util.Empty{}
+		}
+	}
+
 	candidates := SupportRetrieveProducts[orcapi.JobSupport](jobType).ProductsByProvider[provider]
 
+	chosenTier := -1
 	var chosen accapi.ProductV2
 	found := false
 	for _, candidate := range candidates {
@@ -614,8 +645,20 @@ func stacksSelectDeclaredJobProduct(provider string, minCpu int, minMemoryInGigs
 		if product.Cpu < minCpu || product.MemoryInGigs < minMemoryInGigs {
 			continue
 		}
-		if !found || stacksDeclaredJobProductIsSmaller(product, chosen) {
+		if _, ok := unlockedCategories[product.Category.Name]; !ok {
+			continue
+		}
+
+		tier := 2
+		if _, ok := controlPlaneCategories[product.Category.Name]; ok {
+			tier = 0
+		} else if _, ok := workerCategories[product.Category.Name]; ok {
+			tier = 1
+		}
+
+		if !found || tier < chosenTier || (tier == chosenTier && stacksDeclaredJobProductIsSmaller(product, chosen)) {
 			chosen = product
+			chosenTier = tier
 			found = true
 		}
 	}
@@ -628,6 +671,26 @@ func stacksSelectDeclaredJobProduct(provider string, minCpu int, minMemoryInGigs
 	}
 
 	return chosen.ToReference(), nil
+}
+
+func stacksDeclaredJobUnlockedCategories(entity orcapi.Resource, provider string) (map[string]util.Empty, *util.HttpError) {
+	wallets, err := accapi.WalletsBrowseInternal.Invoke(accapi.WalletsBrowseInternalRequest{
+		Owner: orcapi.ResourceOwnerToWalletOwner(entity),
+	})
+	if err != nil {
+		return nil, util.HttpErr(
+			http.StatusBadGateway,
+			"could not determine the allocations of the workspace - try again later",
+		)
+	}
+
+	result := map[string]util.Empty{}
+	for _, wallet := range wallets.Wallets {
+		if wallet.PaysFor.Provider == provider && wallet.MaxUsable > 0 {
+			result[wallet.PaysFor.Name] = util.Empty{}
+		}
+	}
+	return result, nil
 }
 
 func stacksDeclaredJobProductIsSmaller(a accapi.ProductV2, b accapi.ProductV2) bool {
