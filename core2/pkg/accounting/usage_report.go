@@ -742,6 +742,7 @@ func usageCollapseReports(reports []internalUsageReportWithProduct) internalUsag
 
 	// Delta data grouped by child (for later)
 	deltaByChild := map[string]map[time.Time]int64{}
+	deltaByChildAndProduct := map[string]map[accapi.ProductCategory]map[time.Time]int64{}
 	allDeltaTimestamps := map[time.Time]util.Empty{}
 
 	absoluteByProduct := map[accapi.ProductCategory]absoluteTimeline{}
@@ -753,8 +754,14 @@ func usageCollapseReports(reports []internalUsageReportWithProduct) internalUsag
 		abstimeline := absoluteByProduct[product]
 
 		if abstimeline == nil {
-			abstimeline = absoluteTimeline{}
+			abstimeline = absoluteTimeline{
+				report.ValidFrom: {
+					Usage: report.Kpis.TotalUsageAtStart,
+					Quota: report.Kpis.QuotaAtStart,
+				},
+			}
 			absoluteByProduct[product] = abstimeline
+			allTimestamps[report.ValidFrom] = util.Empty{}
 		}
 
 		for _, point := range report.UsageOverTime.Absolute {
@@ -770,23 +777,33 @@ func usageCollapseReports(reports []internalUsageReportWithProduct) internalUsag
 
 		// Delta timeline
 		for _, item := range report.UsageOverTime.Delta {
-			if !item.Child.Present {
-				continue
+			childKey := ""
+			if item.Child.Present {
+				child, ok := walletToUsageReportChild(item.Child.Value)
+				if !ok || child.Key == "" {
+					continue
+				}
+
+				childKey = child.Key
+				if _, exists := childWallets[childKey]; !exists {
+					childWallets[childKey] = child.Wallet
+				}
+
+				byProduct := deltaByChildAndProduct[childKey]
+				if byProduct == nil {
+					byProduct = make(map[accapi.ProductCategory]map[time.Time]int64)
+					deltaByChildAndProduct[childKey] = byProduct
+				}
+				if byProduct[product] == nil {
+					byProduct[product] = make(map[time.Time]int64)
+				}
+				byProduct[product][item.Timestamp] += item.Change
 			}
 
-			child, ok := walletToUsageReportChild(item.Child.Value)
-			if !ok || child.Key == "" {
-				continue
-			}
-
-			if _, exists := childWallets[child.Key]; !exists {
-				childWallets[child.Key] = child.Wallet
-			}
-
-			timeline, ok := deltaByChild[child.Key]
+			timeline, ok := deltaByChild[childKey]
 			if !ok {
 				timeline = make(map[time.Time]int64)
-				deltaByChild[child.Key] = timeline
+				deltaByChild[childKey] = timeline
 			}
 
 			// Multiple changes can happen at the same timestamp.
@@ -854,22 +871,7 @@ func usageCollapseReports(reports []internalUsageReportWithProduct) internalUsag
 			continue
 		}
 
-		knownTimestamps := make([]time.Time, 0, len(timeline))
-
-		for timestamp := range timeline {
-			knownTimestamps = append(knownTimestamps, timestamp)
-		}
-
-		slices.SortFunc(knownTimestamps, func(a, b time.Time) int {
-			return a.Compare(b)
-		})
-
-		// Your required semantics:
-		//
-		// before first observation -> first known value
-		// between observations      -> previous known value
-		// after last observation    -> last known value
-		lastPoint := timeline[knownTimestamps[0]]
+		lastPoint := absolutePointByProduct{}
 
 		filled := make(absoluteTimeline, len(timestamps))
 
@@ -913,32 +915,34 @@ func usageCollapseReports(reports []internalUsageReportWithProduct) internalUsag
 	for child, byProduct := range absoluteUsageByChild {
 		filled := make(map[time.Time]int64)
 
-		for _, timeline := range byProduct {
-			// Sort the timestamps where this child has a datapoint.
-			childTimestamps := make([]time.Time, 0, len(timeline))
+		for product, timeline := range byProduct {
+			var firstTimestamp time.Time
 			for ts := range timeline {
-				childTimestamps = append(childTimestamps, ts)
+				if firstTimestamp.IsZero() || ts.Before(firstTimestamp) {
+					firstTimestamp = ts
+				}
 			}
 
-			slices.SortFunc(childTimestamps, func(a, b time.Time) int {
-				return a.Compare(b)
-			})
-
-			// Shouldn't happen, but be safe.
-			if len(childTimestamps) == 0 {
+			if len(timeline) == 0 {
 				continue
 			}
 
-			currentUsage := timeline[childTimestamps[0]]
-			nextIndex := 0
+			start := reportsByProducts[product][0].ValidFrom
+			if firstTimestamp.After(start) {
+				startingUsage := timeline[firstTimestamp]
+				for ts, change := range deltaByChildAndProduct[child][product] {
+					if !ts.After(firstTimestamp) {
+						startingUsage -= change
+					}
+				}
+				timeline[start] = startingUsage
+			}
+
+			currentUsage := int64(0)
 
 			for _, ts := range timestamps {
-				// Advance whenever we reach another real datapoint.
-				if nextIndex < len(childTimestamps) &&
-					ts.Equal(childTimestamps[nextIndex]) {
-
-					currentUsage = timeline[childTimestamps[nextIndex]]
-					nextIndex++
+				if usage, ok := timeline[ts]; ok {
+					currentUsage = usage
 				}
 
 				// Sum the (carried-forward) usage of every product into the child's series.
@@ -1067,7 +1071,9 @@ func usageCollapseReports(reports []internalUsageReportWithProduct) internalUsag
 		// Decide if this child gets its own series
 		outputChild := util.OptValue(usageReportOtherChild)
 
-		if _, ok := topUserSet[child]; ok {
+		if child == "" {
+			outputChild = util.OptNone[AccWalletId]()
+		} else if _, ok := topUserSet[child]; ok {
 			outputChild = util.OptValue(childWallets[child])
 		}
 
@@ -1615,6 +1621,7 @@ func lUsageSampleWallet(now time.Time, cmp internalSnapshotComparison, b *db.Bat
 		delta := usage - prevUsage
 
 		parentReport := reportGlobals.Reports[parent]
+		parentReport.Dirty = true
 		parentReport.SubProjectHealth.SubProjectCount++
 
 		parentReport.UsageOverTime.ChildrenAbsolute = append(
