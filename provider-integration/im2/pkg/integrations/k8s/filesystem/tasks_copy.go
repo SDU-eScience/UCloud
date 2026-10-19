@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -314,7 +315,7 @@ func copyFiles(actor rpc.Actor, request orc.FilesProviderMoveOrCopyRequest) *uti
 		Destination:    request.NewId,
 		ConflictPolicy: string(request.ConflictPolicy),
 		Mounts: []TaskMount{
-			{UCloudPath: sourceMount},
+			{UCloudPath: sourceMount, ReadOnly: true},
 			{UCloudPath: destMount},
 		},
 	}
@@ -386,6 +387,35 @@ outer:
 	}
 }
 
+func copyOpenDestinationParent(rootFd int, path string) (int, string, error) {
+	if !filepath.IsLocal(path) {
+		return -1, "", fmt.Errorf("invalid copy destination path")
+	}
+
+	components := strings.Split(filepath.Clean(path), "/")
+	fd, err := unix.Dup(rootFd)
+	if err != nil {
+		return -1, "", err
+	}
+
+	for _, component := range components[:len(components)-1] {
+		err = unix.Mkdirat(fd, component, 0770)
+		if err != nil && !errors.Is(err, unix.EEXIST) {
+			_ = unix.Close(fd)
+			return -1, "", err
+		}
+
+		nextFd, err := unix.Openat(fd, component, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+		_ = unix.Close(fd)
+		if err != nil {
+			return -1, "", err
+		}
+		fd = nextFd
+	}
+
+	return fd, components[len(components)-1], nil
+}
+
 func (w *copyWorker) copyFile(entry discoveredFile) (int64, bool) {
 	var err error = nil
 	destFileFd := w.DestFileFd
@@ -394,24 +424,25 @@ func (w *copyWorker) copyFile(entry discoveredFile) (int64, bool) {
 		return 0, true
 	}
 
-	for i := 0; i < len(entry.InternalPath); i++ {
-		if entry.InternalPath[i] == '/' {
-			err := unix.Mkdirat(destFileFd, entry.InternalPath[:i], 0770)
-			if err != nil && !errors.Is(err, unix.ENOTDIR) && !errors.Is(err, unix.EEXIST) {
-				log.Info("Failed to create directory: %s (%#v)", err, entry)
-				return 0, false
-			}
+	parentFd := destFileFd
+	name := entry.InternalPath
+	if entry.InternalPath != "" {
+		parentFd, name, err = copyOpenDestinationParent(destFileFd, entry.InternalPath)
+		if err != nil {
+			log.Info("Failed to open destination parent: %s (%#v)", err, entry)
+			return 0, false
 		}
+		defer unix.Close(parentFd)
 	}
 
 	if entry.LinkTo != "" {
-		return 0, unix.Symlinkat(entry.LinkTo, destFileFd, entry.InternalPath) == nil
+		return 0, unix.Symlinkat(entry.LinkTo, parentFd, name) == nil
 	} else if !entry.FileInfo.IsDir() {
 		fd := int(0)
 		if entry.InternalPath == "" {
 			fd = destFileFd
 		} else {
-			fd, err = unix.Openat(destFileFd, entry.InternalPath, unix.O_RDWR|unix.O_TRUNC|unix.O_CREAT, 0660)
+			fd, err = unix.Openat(parentFd, name, unix.O_RDWR|unix.O_TRUNC|unix.O_CREAT|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0660)
 			if err != nil {
 				log.Info("Failed to open: %s (%#v)", err, entry)
 				return 0, false
@@ -430,9 +461,19 @@ func (w *copyWorker) copyFile(entry discoveredFile) (int64, bool) {
 
 		return bytesCopied, true
 	} else {
-		_ = unix.Mkdirat(destFileFd, entry.InternalPath, 0770)
-		_ = unix.Fchownat(destFileFd, entry.InternalPath, FileUid(entry.FileInfo), FileGid(entry.FileInfo), 0)
-		err := unix.Fchmodat(destFileFd, entry.InternalPath, uint32(entry.FileInfo.Mode().Perm()), 0)
+		err = unix.Mkdirat(parentFd, name, 0770)
+		if err != nil && !errors.Is(err, unix.EEXIST) {
+			log.Info("Failed to create directory: %s (%#v)", err, entry)
+			return 0, false
+		}
+		fd, err := unix.Openat(parentFd, name, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+		if err != nil {
+			log.Info("Failed to open directory: %s (%#v)", err, entry)
+			return 0, false
+		}
+		defer unix.Close(fd)
+		_ = unix.Fchown(fd, FileUid(entry.FileInfo), FileGid(entry.FileInfo))
+		err = unix.Fchmod(fd, uint32(entry.FileInfo.Mode().Perm()))
 		if err != nil {
 			log.Info("Failed to copy: %s (%#v)", err, entry)
 		}

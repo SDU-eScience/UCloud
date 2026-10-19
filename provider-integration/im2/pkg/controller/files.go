@@ -132,6 +132,7 @@ func FilesTransferResponseStart() orcapi.FilesProviderTransferResponse {
 
 type TransferBuiltInParameters struct {
 	Endpoint string
+	Token    string `json:",omitempty"`
 }
 
 func initFiles() {
@@ -337,13 +338,17 @@ func initFiles() {
 					return fnd.BulkResponse[orcapi.FilesProviderCreateUploadResponse]{}, err
 				}
 
-				session, uploadPath := FileCreateFolderUpload(item.Id, item.ConflictPolicy, sessionData)
+				protocol := orcapi.UploadProtocolWebSocketV2
+				if slices.Contains(item.SupportedProtocols, orcapi.UploadProtocolWebSocketV3) {
+					protocol = orcapi.UploadProtocolWebSocketV3
+				}
+				session, uploadPath := FileCreateFolderUpload(item.Id, item.ConflictPolicy, sessionData, protocol)
 
 				resp.Responses = append(
 					resp.Responses,
 					orcapi.FilesProviderCreateUploadResponse{
 						Endpoint: uploadPath,
-						Protocol: orcapi.UploadProtocolWebSocketV2,
+						Protocol: protocol,
 						Token:    session.Id,
 					},
 				)
@@ -369,6 +374,22 @@ func initFiles() {
 				if err != nil {
 					log.Debug("Expected a websocket connection, but couldn't upgrade: %v", err)
 					return
+				}
+
+				if r.URL.Query().Get("protocol") == string(orcapi.UploadProtocolWebSocketV3) {
+					conn.SetReadLimit(1024)
+					if err := conn.SetReadDeadline(time.Now().Add(30 * time.Second)); err != nil {
+						return
+					}
+					messageType, data, err := conn.ReadMessage()
+					if err != nil || messageType != ws.TextMessage || len(data) == 0 {
+						return
+					}
+					token = string(data)
+					conn.SetReadLimit(0)
+					if err := conn.SetReadDeadline(time.Time{}); err != nil {
+						return
+					}
 				}
 
 				session, ok := fileRetrieveUploadSession(token)
@@ -1007,7 +1028,7 @@ func initFiles() {
 	})
 }
 
-func FileCreateFolderUpload(path string, conflictPolicy orcapi.WriteConflictPolicy, sessionData string) (upload.ServerSession, string) {
+func FileCreateFolderUpload(path string, conflictPolicy orcapi.WriteConflictPolicy, sessionData string, protocol orcapi.UploadProtocol) (upload.ServerSession, string) {
 	session := upload.ServerSession{
 		Id:             util.RandomToken(32),
 		ConflictPolicy: conflictPolicy,
@@ -1015,7 +1036,7 @@ func FileCreateFolderUpload(path string, conflictPolicy orcapi.WriteConflictPoli
 		UserData:       sessionData,
 	}
 
-	uploadPath := fileGenerateUploadPath(cfg.Provider, cfg.Provider.Id, orcapi.UploadProtocolWebSocketV2, session.Id, UCloudUsername)
+	uploadPath := fileGenerateUploadPath(cfg.Provider, cfg.Provider.Id, protocol, session.Id, UCloudUsername)
 	fileCreateUploadSession(session)
 	return session, uploadPath
 }
@@ -1032,16 +1053,19 @@ func fileGenerateUploadPath(
 		switch protocol {
 		case orcapi.UploadProtocolChunked:
 			hostPath = config.Hosts.SelfPublic.ToURL()
-		case orcapi.UploadProtocolWebSocketV2:
+		case orcapi.UploadProtocolWebSocketV2, orcapi.UploadProtocolWebSocketV3:
 			hostPath = config.Hosts.SelfPublic.ToWebSocketUrl()
 		}
 	}
 
-	if LaunchUserInstances {
-		return fmt.Sprintf("%s/ucloud/%s/upload?token=%s&usernameHint=%s", hostPath, providerId, token, base64.URLEncoding.EncodeToString([]byte(username)))
-	} else {
-		return fmt.Sprintf("%s/ucloud/%s/upload?token=%s", hostPath, providerId, token)
+	query := "token=" + url.QueryEscape(token)
+	if protocol == orcapi.UploadProtocolWebSocketV3 {
+		query = "protocol=" + string(protocol)
 	}
+	if LaunchUserInstances {
+		query += "&usernameHint=" + base64.URLEncoding.EncodeToString([]byte(username))
+	}
+	return fmt.Sprintf("%s/ucloud/%s/upload?%s", hostPath, providerId, query)
 }
 
 func fileCreateUploadSession(session upload.ServerSession) {
