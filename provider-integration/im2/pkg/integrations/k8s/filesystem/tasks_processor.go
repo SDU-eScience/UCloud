@@ -45,6 +45,7 @@ func TaskProcessor() {
 		Source:           os.Getenv(taskEnvSource),
 		Destination:      os.Getenv(taskEnvDestination),
 		TransferEndpoint: os.Getenv(taskEnvTransferEndpoint),
+		TransferToken:    os.Getenv(taskEnvTransferToken),
 		TaskToken:        os.Getenv(taskEnvTaskToken),
 	}
 
@@ -118,6 +119,7 @@ const (
 	taskEnvSource           = "UCLOUD_JOB_SOURCE"
 	taskEnvDestination      = "UCLOUD_JOB_DESTINATION"
 	taskEnvTransferEndpoint = "UCLOUD_JOB_TRANSFER_ENDPOINT"
+	taskEnvTransferToken    = "UCLOUD_JOB_TRANSFER_TOKEN"
 	taskEnvTaskToken        = "UCLOUD_JOB_TASK_TOKEN"
 	taskEnvConflictPolicy   = "UCLOUD_JOB_CONFLICT_POLICY"
 )
