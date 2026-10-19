@@ -6,7 +6,7 @@ import (
 )
 
 func Components(path string) []string {
-	clean := strings.ReplaceAll(filepath.Clean(path), "\\", "/")
+	clean := filepath.Clean(path)
 	clean, _ = strings.CutPrefix(clean, "/")
 	clean, _ = strings.CutSuffix(clean, "/")
 	return strings.Split(clean, "/")

@@ -256,6 +256,9 @@ func ucxOnConnect(conn *ws.Conn) {
 		}
 
 		instanceId := request.StackId
+		if !ucxStackIdIsValid(instanceId) {
+			return ucxapi.Stack{}, fmt.Errorf("invalid stack instance")
+		}
 
 		ucloudPath := strings.TrimSpace(request.StateFolder)
 		if ucloudPath != "" {
@@ -509,7 +512,15 @@ func ucxStackDataAppend(owner orcapi.ResourceOwner, request ucxapi.StackDataAppe
 	return ucxStackDataWriteBytes(owner, request.InstanceId, stateFolder, request.Path, request.Data, request.Perm, unix.O_APPEND, false)
 }
 
+func ucxStackIdIsValid(id string) bool {
+	return id != "." && filepath.IsLocal(id) && filepath.Base(id) == id
+}
+
 func ucxStackDataWriteBytes(owner orcapi.ResourceOwner, instanceId string, stateFolder string, path string, data []byte, perm uint32, writeFlag int, atomicWrite bool) (util.Empty, error) {
+	if !ucxStackIdIsValid(instanceId) {
+		return util.Empty{}, fmt.Errorf("invalid stack instance")
+	}
+
 	if atomicWrite && writeFlag != unix.O_TRUNC {
 		return util.Empty{}, fmt.Errorf("atomic write is not supported for append")
 	}
