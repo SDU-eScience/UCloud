@@ -3,6 +3,17 @@ export interface ChartLabel {
     color: string;
 }
 
+export function makeColorMap(children: string[]): Map<string, string> {
+    const sorted = [...children].sort();
+
+    return new Map(
+        sorted.map((child, index) => [
+            child,
+            colorNames[index % colorNames.length],
+        ])
+    );
+}
+
 export const colorNames: string[] = (() => {
     const colorStrength = ["main", "alt", "muted"];
     const shades = ["blue", "purple", "orange", "green", "red", "yellow", "pink"];

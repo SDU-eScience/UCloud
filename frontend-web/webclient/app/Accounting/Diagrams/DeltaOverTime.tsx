@@ -1,17 +1,16 @@
 import {useD3} from "@/Utilities/d3";
-import {scaleBand, scaleLinear, scaleOrdinal} from "d3-scale";
-import {index, max, min, union} from "d3-array";
-import {Series, stack} from "d3-shape";
+import {scaleBand, scaleLinear} from "d3-scale";
+import {group, max, min, union} from "d3-array";
+import {stack} from "d3-shape";
 import {select} from "d3-selection";
 import {timeFormat} from "d3-time-format";
 import {axisBottom, axisLeft} from "d3-axis";
 import {UsageReport} from "@/Accounting/UsageCore2";
 import React, {useMemo, useState} from "react";
-import {ChartLabel, colorNames} from "@/Accounting/Diagrams/index";
+import {ChartLabel} from "@/Accounting/Diagrams/index";
 import {HTMLTooltipEx} from "@/ui-components/Tooltip";
 import {balanceToStringFromUnit, FrontendAccountingUnit, isCreditUnit} from "@/Accounting";
-import truncate, {truncateText} from "@/ui-components/Truncate";
-import {groupBy} from "@/Utilities/CollectionUtilities";
+import {TruncateClass} from "@/ui-components/Truncate";
 
 export interface DeltaOverTimeChart {
     chartRef: React.RefObject<SVGSVGElement | null>
@@ -24,6 +23,7 @@ export function useDeltaOverTimeChart(
     chartHeight: number,
     unit: FrontendAccountingUnit | null,
     childToLabel: (child: string | null) => string,
+    childColors: Map<string, string>,
 ): DeltaOverTimeChart {
     const [childrenLabels, setChildrenLabels] = useState<ChartLabel[]>([]);
 
@@ -71,54 +71,44 @@ export function useDeltaOverTimeChart(
         // -------------------------------------------------------------------------------------------------------------
         const tsFormatter = timeFormat("%b %d %H:%M");
 
+        // Only positive changes are charted. Products which can report negative usage should not
+        // render this chart, so this is a defensive clamp rather than a data transformation.
+        const positiveChange = (change: number) => Math.max(0, change);
+
+        const sumPositiveChange = (entries: {change: number}[] | undefined) =>
+            (entries ?? []).reduce((sum, d) => sum + positiveChange(d.change), 0);
+
         const domainSet: Record<string, number> = {};
         for (const point of data) {
-            domainSet[point.child ?? ""] = (domainSet[point.child ?? ""] ?? 0) + point.change;
+            const key = point.child ?? "";
+
+            domainSet[key] = (domainSet[key] ?? 0) + positiveChange(point.change);
         }
 
-        const domain = Object.keys(domainSet).sort((a, b) => {
-            if (domainSet[a] > domainSet[b]) {
-                return -1;
-            } else if (domainSet[a] < domainSet[b]) {
-                return 1;
-            } else {
-                return 0;
-            }
-        });
+        const domain = Object.keys(domainSet)
+            .filter(key => domainSet[key] > 0)
+            .sort((a, b) => domainSet[b] - domainSet[a]);
 
-        const summed: Array<{ timestamp: number; child: string | null; change: number }> = [];
 
-        const byTs = groupBy(openReport!.usageOverTime.delta, d => d.timestamp.toString());
-        for (const [tsStr, entriesAtTs] of Object.entries(byTs)) {
-            const ts = Number(tsStr);
-            const byChild = groupBy(entriesAtTs, e => e.child ?? "");
-            for (const [childKey, childEntries] of Object.entries(byChild)) {
-                const change = childEntries.reduce((acc, e) => acc + e.change, 0);
-                summed.push({ timestamp: ts, child: childKey === "" ? null : childKey, change });
-            }
-        }
+        const byTimestampKey = group(data, d => d.timestamp, d => d.child ?? "");
 
-        data = summed;
+        const keys = (union(data.map(it => it.child ?? "")))
 
-        const byTimestampKey = index(data, d => d.timestamp, d => d.child ?? "");
+        const valueStack = stack<number>()
+            .keys(keys)
+            .value((ts, key) =>
+                sumPositiveChange(byTimestampKey.get(ts)?.get(key))
+            );
 
-        const seriesGenerator = stack<number>()
-            .keys(union(data.map(it => it.child ?? "")))
-            .value((ts, key) => {
-                return byTimestampKey.get(ts)?.get(key)?.change ?? 0;
-            });
-
-        const series = seriesGenerator(timestamps);
+        const series = valueStack(timestamps);
 
         // Color scheme
         // -------------------------------------------------------------------------------------------------------------
-        const color = scaleOrdinal<string>()
-            .domain(domain)
-            .range(colorNames)
-            .unknown("#ccc");
+        const color = (child: string) =>
+            childColors.get(child) ?? "#ccc";
 
         setChildrenLabels(domain.map(d => {
-            return {child: d, color: color(d ?? "")};
+            return {child: d, color: color(d)};
         }));
 
         // Tooltips
@@ -154,14 +144,15 @@ export function useDeltaOverTimeChart(
 
                 {
                     const name = document.createElement("div");
-                    name.append(truncateText(childToLabel(child), 30));
+                    name.className = TruncateClass
+                    name.append(childToLabel(child));
                     name.style.flexGrow = "1";
                     container.append(name);
                 }
 
                 {
                     const node = document.createElement("div");
-                    const change = usageBucket.get(child)?.change ?? 0;
+                    const change = sumPositiveChange(usageBucket.get(child));
                     node.append(balanceToStringFromUnit(null, unitName, change * unitNormalizationFactor));
 
                     container.append(node);
@@ -170,18 +161,19 @@ export function useDeltaOverTimeChart(
                 tooltip.append(container);
             }
 
-            tooltips[ts] = HTMLTooltipEx(tooltip, { tooltipContentWidth: 400 });
+            tooltips[ts] = HTMLTooltipEx(tooltip, {tooltipContentWidth: 400});
         }
 
         // Y-axis
         // -------------------------------------------------------------------------------------------------------------
-        const yScaleMin = (min(series, datum => {
-            return min(datum, d => d[0])
-        }) ?? 0) * unitNormalizationFactor;
+        const yScaleMin =
+            (min(series, s => min(s, d => d[0])) ?? 0)
+            * unitNormalizationFactor;
 
-        const yScaleMax = (max(series, datum => {
-            return max(datum, d => d[1])
-        }) ?? 100) * unitNormalizationFactor;
+
+        const yScaleMax =
+            (max(series, s => max(s, d => d[1])) ?? 100)
+            * unitNormalizationFactor;
 
         const yScale = scaleLinear().domain([yScaleMin, yScaleMax]).nice().range([innerH, margin.top]);
 
@@ -203,11 +195,19 @@ export function useDeltaOverTimeChart(
             .selectAll("rect")
             .data(D => D.map(d => d))
             .join("rect")
-            .attr("x", d => {
-                return xSlot(d.data) ?? 0;
+            .attr("x", d => xSlot(d.data) ?? 0)
+            .attr("y", d => {
+                const y0 = yScale(d[0] * unitNormalizationFactor);
+                const y1 = yScale(d[1] * unitNormalizationFactor);
+
+                return Math.min(y0, y1);
             })
-            .attr("y", d => yScale(d[1] * unitNormalizationFactor))
-            .attr("height", d => yScale(d[0] * unitNormalizationFactor) - yScale(d[1] * unitNormalizationFactor))
+            .attr("height", d => {
+                const y0 = yScale(d[0] * unitNormalizationFactor);
+                const y1 = yScale(d[1] * unitNormalizationFactor);
+
+                return Math.abs(y1 - y0);
+            })
             .attr("width", xSlot.bandwidth())
             .each((datum, index, elements) => {
                 const rect = elements[index] as SVGRectElement;
