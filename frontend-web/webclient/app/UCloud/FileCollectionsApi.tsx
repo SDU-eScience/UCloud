@@ -28,13 +28,17 @@ import {DriveChange} from "@/ui-components/Sidebar";
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
 export type FileCollectionUpdate = ResourceUpdate;
+
 export interface FileCollectionStatus extends ResourceStatus {
     preferredDrive?: boolean | null;
 }
+
 export interface FileCollectionSpecification extends ResourceSpecification {
     title: string;
 }
+
 export type FileCollectionFlags = ResourceIncludeFlags & {filterMemberFiles?: string};
+
 export interface FileCollectionSupport extends ProductSupport {
     stats: {
         sizeInBytes?: boolean;

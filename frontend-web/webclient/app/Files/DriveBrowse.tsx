@@ -50,6 +50,7 @@ import {connectionState} from "@/Providers/ConnectionState";
 import {useProjectId} from "@/Project/Api";
 import {sendFailureNotification} from "@/Notifications";
 import {DriveChange} from "@/ui-components/Sidebar";
+import {DATASET_ARCHIVE_DRIVE_PREFIX} from "@/UCloud/DatasetsApi";
 
 const collectionsOnOpen = new AsyncCache<PageV2<FileCollection>>({globalTtl: 500});
 const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2Storage, FileCollectionSupport>>({
@@ -269,7 +270,7 @@ const DriveBrowse: React.FunctionComponent<{
                                         };
 
                                         const driveBeingCreated = {
-                                            owner: {createdBy: Client.username ?? "", },
+                                            owner: {createdBy: Client.username ?? "",},
                                             updates: [],
                                             createdAt: timestampUnixMs(),
                                             status: {},
@@ -398,6 +399,17 @@ const DriveBrowse: React.FunctionComponent<{
                             row.title.append(icon);
                             ResourceBrowser.icons.renderIcon({
                                 name: "ftSharesFolder",
+                                color: "FtFolderColor",
+                                color2: "FtFolderColor2",
+                                height: 64,
+                                width: 64,
+                            }).then(setIcon);
+                            icon.style.marginRight = "8px";
+                        } else if (isDataArchiveDrive(drive)) {
+                            const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
+                            row.title.append(icon);
+                            ResourceBrowser.icons.renderIcon({
+                                name: "heroShieldCheck",
                                 color: "FtFolderColor",
                                 color2: "FtFolderColor2",
                                 height: 64,
@@ -565,8 +577,13 @@ function isShare(d: FileCollection) {
     return d.specification.product.id === "share";
 }
 
+function isDataArchiveDrive(d: FileCollection) {
+    return d.id.startsWith(DATASET_ARCHIVE_DRIVE_PREFIX);
+}
+
 interface CreationWithInputFieldProps {
     onCreate(product: ProductV2, driveName: string, permissions: ResourceAclEntry[]): void;
+
     onCancel: () => void;
     products: ProductV2[];
 }

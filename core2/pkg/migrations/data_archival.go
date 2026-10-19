@@ -12,11 +12,11 @@ func dataArchivalV1() db.MigrationScript {
 				`,
 				`
 					create table data_archival.datasets (
-					    resource int8 not null primary key,
+					    resource_id text not null primary key,
 					    drive text not null,
 					    created_at timestamp with time zone not null default now(),
 					    created_by text not null references auth.principals(id),
-					    source_project_id text not null references project.project(id),
+					    source_project_id text not null references project.projects(id),
 					    current_state text not null default 'DRAFT',
 					    entries jsonb not null default '[]',
 					    path text,
@@ -31,7 +31,7 @@ func dataArchivalV1() db.MigrationScript {
 					    id text not null primary key,
 					    doi text,
 					    ark_id text,
-					    dataset text not null references data_archival.datasets(resource),
+					    dataset text not null references data_archival.datasets(resource_id),
 					    metadata jsonb not null,
    					    current_state text not null default 'DRAFT'
 					)

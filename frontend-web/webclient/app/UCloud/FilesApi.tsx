@@ -102,6 +102,7 @@ import {terminalOpen, terminalOpenTab} from "@/Terminal/State";
 import {genericSet} from "@/Utilities/ReduxHooks";
 import {registerJobBackgroundTask} from "@/Services/BackgroundTasks/JobBackgroundTask";
 import {UcxSpinner} from "@/UCX/UcxView";
+import {addDatasetArchiveDialog} from "@/Files/DatasetArchiveDialog";
 
 export function normalizeDownloadEndpoint(endpoint: string): string {
     const e = endpoint.replace("integration-module:8889", "localhost:8889");
@@ -117,18 +118,26 @@ export interface ExtraFileCallbacks {
     collection?: FileCollection;
     directory?: UFile;
     isModal?: boolean;
+
     startFileCreation(): void;
+
     startFolderCreation(): void;
+
     isSearch: boolean;
     // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in
     // special case.
     allowMoveCopyOverride?: boolean;
     syncthingConfig?: SyncthingConfig;
     setSynchronization?: (file: UFile[], shouldAdd: boolean) => void;
+
     openFile(file: UFile, newWindow: boolean): void;
+
     copyToClipboard(files: UFile[], cut: boolean): void;
+
     canPasteFromClipboard(): boolean;
+
     pasteFromClipboard(): void;
+
     reloadCurrentFolderIfUnpaginated(path: string): void;
 }
 
@@ -136,6 +145,7 @@ export type FileBrowseCallbacks = ResourceBrowseCallbacks<UFile, ProductStorage>
 
 const FILE_SYNCHRONIZATION_TAG = "file-synchronization";
 const FILE_SELECTED_EMPTY_TRASH_TAG = "file-selected-empty-trash";
+const FILE_ARCHIVE_TAG = "file-archive-to-dataset";
 const COPY_SHORTCUT: CommonActionShortcut = {code: "KeyC", key: "C", modifier: "primary"};
 const CUT_SHORTCUT: CommonActionShortcut = {code: "KeyX", key: "X", modifier: "primary"};
 const PASTE_SHORTCUT: CommonActionShortcut = {code: "KeyV", key: "V", modifier: "primary"};
@@ -364,8 +374,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         return apiUpdate(request, "/api/files", "visualize");
     }
 
-    renderer: ItemRenderer<UFile, FileBrowseCallbacks> = {
-    };
+    renderer: ItemRenderer<UFile, FileBrowseCallbacks> = {};
 
     private defaultRetrieveFlags: Partial<UFileIncludeFlags> = {
         includeMetadata: true,
@@ -509,6 +518,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 }
             }
         };
+        const archiveToDataset = withOverrides(byText("Archive to dataset"), {text: "Archive"});
         const download = withoutShortcut(byText("Download"));
         const copyTo = withOverrides(withoutShortcut(byText("Copy to...")), {icon: undefined});
         const moveTo = withOverrides(withoutShortcut(byText("Move to...")), {icon: undefined});
@@ -561,6 +571,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             ["Open with...", 1],
             ["Download", 2],
             ["Share", 3],
+            ["Archive to dataset", 4],
             ["Rename", 5],
             ["Move to trash", 6],
             ["Empty Trash", 7],
@@ -606,6 +617,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 share,
                 compress,
                 uncompress,
+                archiveToDataset,
                 addToSynchronization,
                 "divider",
                 rename,
@@ -880,6 +892,28 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     addShareModal({path: selected[0].id, product: selected[0].specification.product}, cb);
                 },
                 shortcut: ShortcutKey.S
+            },
+            {
+                text: "Archive to dataset",
+                icon: "heroArchiveBox",
+                tag: FILE_ARCHIVE_TAG,
+                enabled: (selected, cb) => {
+                    if (cb.isSearch) return false;
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if (selected.some(it => it.status.icon === "DIRECTORY_TRASH")) return false;
+                    return selected.length > 0 &&
+                        selected.every(it => hasReadPermission(it.permissions.myself));
+                },
+                onClick: (selected, cb) => {
+                    addDatasetArchiveDialog(
+                        selected.map(f => ({id: f.id, path: f.id})),
+                        selected[0].specification.product,
+                        cb.reload
+                    );
+                },
+                shortcut: ShortcutKey.A
+
             },
             {
                 text: "Change sensitivity",
@@ -1263,7 +1297,8 @@ function handleSyncthingWarning(files: UFile[], cb: ExtraFileCallbacks, op: () =
                 {(["Moving", "Renaming"] as typeof operationText[]).includes(operationText) ?
                     <div>
                         <br />
-                        To learn how to move a folder or rename a folder with Syncthing, click <ExternalLink href={"https://docs.syncthing.net/users/faq.html#how-do-i-rename-move-a-synced-folder"}>here</ExternalLink>.
+                        To learn how to move a folder or rename a folder with Syncthing,
+                        click <ExternalLink href={"https://docs.syncthing.net/users/faq.html#how-do-i-rename-move-a-synced-folder"}>here</ExternalLink>.
                     </div> : null}
             </div>,
             onConfirm: op,
@@ -1536,7 +1571,7 @@ export async function addFileSensitivityDialog(file: UFile, invokeCommand: Invok
     }
 
     dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand}
-        onUpdated={onUpdated} />, () => undefined, true);
+                                             onUpdated={onUpdated} />, () => undefined, true);
 }
 
 const api = new FilesApi();
@@ -1792,7 +1827,11 @@ export function FilePreview({initialFile}: {
         }, 1000);
     }, [openFile[0]]);
 
-    const onRename = React.useCallback(async ({newAbsolutePath, oldAbsolutePath, cancel}: {newAbsolutePath: string, oldAbsolutePath: string, cancel: boolean}): Promise<boolean> => {
+    const onRename = React.useCallback(async ({newAbsolutePath, oldAbsolutePath, cancel}: {
+        newAbsolutePath: string,
+        oldAbsolutePath: string,
+        cancel: boolean
+    }): Promise<boolean> => {
         let success = false;
         if (cancel) {
             setRenamingFile(undefined);
@@ -2119,7 +2158,8 @@ class PreviewVfs implements Vfs {
 
         if (file.status.type !== "FILE") {
             throw window.Error("Only files can be previewed");
-        };
+        }
+        ;
 
         if (file.status.sizeInBytes === 0) {
             return "";
@@ -2296,29 +2336,56 @@ function FileProperties({file, routingNamespace}: {file: UFile, routingNamespace
             </div>
         </div>
         <dl className="details">
-            <div><dt><b>Path:</b></dt><dd>
-                <Flex alignItems="center" gap="8px" minWidth={0}>
-                    <Truncate flexGrow={1} title={prettyPath}>{prettyPath}</Truncate>
-                    <CopyButton tooltip="Copy file path" onClick={() => copyToClipboard(prettyPath)} />
-                </Flex>
-            </dd></div>
-            <div><dt><b>Product:</b></dt><dd>
-                {file.specification.product.id === file.specification.product.category ?
-                    file.specification.product.id :
-                    `${file.specification.product.id} / ${file.specification.product.category}`
-                } @ <ProviderTitle providerId={file.specification.product.provider} />
-            </dd></div>
-            <div><dt><b>Created at:</b></dt><dd>{dateToString(file.createdAt)}</dd></div>
-            {file.status.modifiedAt ? <div><dt><b>Modified at:</b></dt><dd>{dateToString(file.status.modifiedAt)}</dd></div> : null}
-            {file.status.accessedAt ? <div><dt><b>Accessed at:</b></dt><dd>{dateToString(file.status.accessedAt)}</dd></div> : null}
+            <div>
+                <dt><b>Path:</b></dt>
+                <dd>
+                    <Flex alignItems="center" gap="8px" minWidth={0}>
+                        <Truncate flexGrow={1} title={prettyPath}>{prettyPath}</Truncate>
+                        <CopyButton tooltip="Copy file path" onClick={() => copyToClipboard(prettyPath)} />
+                    </Flex>
+                </dd>
+            </div>
+            <div>
+                <dt><b>Product:</b></dt>
+                <dd>
+                    {file.specification.product.id === file.specification.product.category ?
+                        file.specification.product.id :
+                        `${file.specification.product.id} / ${file.specification.product.category}`
+                    } @ <ProviderTitle providerId={file.specification.product.provider} />
+                </dd>
+            </div>
+            <div>
+                <dt><b>Created at:</b></dt>
+                <dd>{dateToString(file.createdAt)}</dd>
+            </div>
+            {file.status.modifiedAt ? <div>
+                <dt><b>Modified at:</b></dt>
+                <dd>{dateToString(file.status.modifiedAt)}</dd>
+            </div> : null}
+            {file.status.accessedAt ? <div>
+                <dt><b>Accessed at:</b></dt>
+                <dd>{dateToString(file.status.accessedAt)}</dd>
+            </div> : null}
             {file.status.sizeInBytes != null && file.status.type !== "DIRECTORY" ?
-                <div><dt><b>Size:</b></dt><dd>{sizeToString(file.status.sizeInBytes)}</dd></div> : null}
+                <div>
+                    <dt><b>Size:</b></dt>
+                    <dd>{sizeToString(file.status.sizeInBytes)}</dd>
+                </div> : null}
             {file.status.sizeIncludingChildrenInBytes != null && file.status.type === "DIRECTORY" ?
-                <div><dt><b>Size:</b></dt><dd>{sizeToString(file.status.sizeIncludingChildrenInBytes)}</dd></div> : null}
+                <div>
+                    <dt><b>Size:</b></dt>
+                    <dd>{sizeToString(file.status.sizeIncludingChildrenInBytes)}</dd>
+                </div> : null}
             {file.status.unixOwner != null && file.status.unixGroup != null ?
-                <div><dt><b>UID/GID:</b></dt><dd>{file.status.unixOwner}/{file.status.unixGroup}</dd></div> : null}
+                <div>
+                    <dt><b>UID/GID:</b></dt>
+                    <dd>{file.status.unixOwner}/{file.status.unixGroup}</dd>
+                </div> : null}
             {file.status.unixMode != null ?
-                <div><dt><b>Unix mode:</b></dt><dd>{readableUnixMode(file.status.unixMode)}</dd></div> : null}
+                <div>
+                    <dt><b>Unix mode:</b></dt>
+                    <dd>{readableUnixMode(file.status.unixMode)}</dd>
+                </div> : null}
         </dl>
         <div className="actions">
             <Link to={buildQueryString(`/${routingNamespace}`, {path: getParentPath(file.id)})}>
