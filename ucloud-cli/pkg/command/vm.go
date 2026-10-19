@@ -2,7 +2,8 @@ package command
 
 import "fmt"
 
-type VMListCommand struct{}
+type VMListCommand struct {
+}
 
 type VMGetCommand struct {
 	VMId string `positional:"vm-id" usage:"VM Id"`

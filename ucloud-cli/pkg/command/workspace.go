@@ -22,12 +22,33 @@ type WorkspaceRenameCommand struct {
 	FromName string `positional:"from" usage:"Workspace name" required:"true"`
 	ToName   string `positional:"to" usage:"Workspace name" required:"true"`
 }
+type WorkspaceCreateCommand struct {
+	Name string `positional:"name" usage:"Workspace name" required:"true"`
+}
 
 var WorkspaceCommands = map[string]CommandFunc{
 	"list":   func() Command { return &WorkspaceListCommand{} },
 	"use":    func() Command { return &WorkspaceUseCommand{} },
 	"get":    func() Command { return &WorkspaceGetCommand{} },
 	"rename": func() Command { return &WorkspaceRenameCommand{} },
+	"create": func() Command { return &WorkspaceCreateCommand{} },
+}
+
+func (c WorkspaceCreateCommand) Execute() error {
+	shared.InitializeUCloudClient()
+	_, httpErr := fndapi.ProjectCreate.Invoke(fndapi.BulkRequest[fndapi.ProjectSpecification]{
+		Items: []fndapi.ProjectSpecification{
+			{
+				Title:               c.Name,
+				CanConsumeResources: true,
+			},
+		},
+	})
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to create workspace with name %s: %s", c.Name, httpErr.Why)
+	}
+	fmt.Printf("Successfully created workspace %v\n", c.Name)
+	return nil
 }
 
 func (c WorkspaceListCommand) Execute() error {
