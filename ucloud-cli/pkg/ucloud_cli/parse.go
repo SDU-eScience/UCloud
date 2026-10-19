@@ -10,9 +10,6 @@ import (
 )
 
 func bindCommand(args []string, cmd any) error {
-	if len(args) == 0 {
-		return nil
-	}
 	v := reflect.ValueOf(cmd)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("bind expects pointer to struct")

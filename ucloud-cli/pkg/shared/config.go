@@ -22,6 +22,8 @@ type Config struct {
 	Defaults           Defaults               `yaml:"defaults"`
 }
 
+var TestMode = false
+
 type Environment struct {
 	URL string `yaml:"url"`
 }
@@ -37,13 +39,20 @@ type Defaults struct {
 }
 
 func GetUCloudDir() string {
+	if TestMode {
+		return testUCloudDir()
+	}
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".config", "ucloud")
 }
 
-func GetConfigPath() string {
+func testUCloudDir() string {
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "ucloud", "config.yaml")
+	return filepath.Join(home, ".config", "test_ucloud")
+}
+
+func GetConfigPath() string {
+	return filepath.Join(GetUCloudDir(), "config.yaml")
 }
 
 func ReadConfig() (*Config, error) {
