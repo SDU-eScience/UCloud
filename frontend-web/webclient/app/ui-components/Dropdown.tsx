@@ -10,7 +10,7 @@ export const DropdownClass = injectStyle("dropdown", k => `
         position: relative;
         display: inline-block;
     }
-    
+
     ${k}[data-full-width="true"] {
         width: 100%;
     }
@@ -22,7 +22,7 @@ export const DropdownClass = injectStyle("dropdown", k => `
     ${k}:focus > [data-dropdown-trigger] > * {
         border-color: var(--primaryMain);
     }
-    
+
     ${k}[data-hover="true"]:hover > div {
         display: block;
     }
@@ -74,11 +74,11 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
         user-select: none;
         -webkit-user-select: none;
     }
-    
+
     ${k}[data-padding-controlled="false"] {
         padding: 0px 17px;
     }
-    
+
     ${k}[data-padding-controlled="false"] > div {
         margin-left: -17px;
         margin-right: -17px;
@@ -100,23 +100,23 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
         border-bottom-left-radius: 4px;
         border-bottom-right-radius: 4px;
     }
-    
+
     ${k}[data-square="true"] {
         border-top-left-radius: 0;
         border-top-right-radius: 0;
     }
-    
+
     ${k}[data-fixed="true"] {
         position: fixed;
     }
-    
+
     ${k}[data-visible="false"] {
         visibility: hidden;
         opacity: 0;
         pointer-events: none;
     }
-    
-    ${k}[data-hover-color="true"] > *:hover:not(.${ButtonClass}) {
+
+    ${k}[data-hover-color="true"] > *:hover:not(.${ButtonClass}), ${k}[data-hover-color=true] a div:hover{
         background: var(--rowHover);
     }
 
@@ -130,10 +130,6 @@ export const DropdownContentClass = injectStyle("dropdown-content", k => `
 
     ${k} a div {
         background: none;
-    }
-
-    ${k} a div:hover {
-        background: var(--rowHover);
     }
 `);
 

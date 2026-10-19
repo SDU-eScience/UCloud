@@ -90,6 +90,7 @@ const (
 	UploadProtocolChunked     UploadProtocol = "CHUNKED"
 	UploadProtocolWebSocketV1 UploadProtocol = "WEBSOCKET_V1"
 	UploadProtocolWebSocketV2 UploadProtocol = "WEBSOCKET_V2"
+	UploadProtocolWebSocketV3 UploadProtocol = "WEBSOCKET_V3"
 )
 
 // File API

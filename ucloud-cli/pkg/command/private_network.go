@@ -1,24 +1,41 @@
 package command
 
-import "fmt"
+import (
+	"fmt"
 
-type PrivateNetworkListCommand struct{}
+	acc "ucloud.dk/shared/pkg/accounting"
+	"ucloud.dk/shared/pkg/cli"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/util"
+	"ucloud.dk/ucloud_cli/pkg/shared"
+)
+
+type PrivateNetworkListCommand struct {
+	Workspace string `flag:"workspace" usage:"eg. --workspace myworkspace"`
+}
 
 type PrivateNetworkCreateCommand struct {
-	Name      string `positional:"name" usage:"Private network name"`
-	SubDomain string `flag:"sub-domain" usage:"Sub domain"`
-	Product   string `flag:"product" usage:"Product"`
+	Name      string `positional:"name" usage:"Private network name" required:"true"`
+	SubDomain string `positional:"sub-domain" usage:"Sub domain" required:"true"`
+	Workspace string `flag:"workspace" usage:"eg. --workspace myworkspace"`
+	Provider  string `flag:"provider" usage:"eg. --provider k8s" default:"k8s"`
 }
 type PrivateNetworkGetCommand struct {
-	Name string `positional:"name" usage:"Private network name"`
+	Name      string `positional:"name" usage:"Private network name" required:"true"`
+	Workspace string `flag:"workspace" usage:"eg. --workspace myworkspace"`
 }
 
 type PrivateNetworkDeleteCommand struct {
-	Name string `positional:"name" usage:"Private network name"`
+	Name      []string `positional:"name" usage:"Private network name" required:"true"`
+	Workspace string   `flag:"workspace" usage:"eg. --workspace myworkspace"`
 }
 
 type PrivateNetworkMembersCommand struct {
-	Name string `positional:"name" usage:"Private network name"`
+	Name      string `positional:"name" usage:"Private network name" required:"true"`
+	Workspace string `flag:"workspace" usage:"eg. --workspace myworkspace"`
+	Provider  string `flag:"provider" usage:"eg. --provider k8s" default:"k8s"`
 }
 
 var PrivateNetworkCommands = map[string]CommandFunc{
@@ -29,22 +46,193 @@ var PrivateNetworkCommands = map[string]CommandFunc{
 	"members": func() Command { return &PrivateNetworkMembersCommand{} },
 }
 
+func retrievePrivateNetworks() (map[string]orcapi.PrivateNetwork, error) {
+	result, httpErr := orcapi.PrivateNetworksBrowse.Invoke(orcapi.PrivateNetworksBrowseRequest{})
+	if httpErr != nil {
+		return nil, httpErr
+	}
+	networks := make(map[string]orcapi.PrivateNetwork)
+	for _, network := range result.Items {
+		networks[network.Specification.Name] = network
+	}
+	return networks, nil
+}
+
+func printPrivateNetworks(networks map[string]orcapi.PrivateNetwork) {
+	t := termio.Table{}
+	t.AppendHeader("Name")
+	t.AppendHeader("SubDomain")
+	t.AppendHeader("CreatedAt")
+	for name, network := range networks {
+		t.Cell("%v", name)
+		t.Cell("%v", network.Specification.Subdomain)
+		t.Cell("%v", cli.FormatTime(network.CreatedAt))
+	}
+	t.Print()
+}
+
 func (c PrivateNetworkListCommand) Execute() error {
-	return fmt.Errorf("private network list not implemented")
+	cfg := shared.InitializeUCloudClient()
+	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
+	if err != nil {
+		return err
+	}
+	networks, err := retrievePrivateNetworks()
+	if err != nil {
+		return err
+	}
+	printPrivateNetworks(networks)
+	return nil
 }
 
 func (c PrivateNetworkCreateCommand) Execute() error {
-	return fmt.Errorf("private network create not implemented")
+	cfg := shared.InitializeUCloudClient()
+	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
+	if err != nil {
+		return err
+	}
+
+	created, httpErr := orcapi.PrivateNetworksCreate.Invoke(fnd.BulkRequest[orcapi.PrivateNetworkSpecification]{
+		Items: []orcapi.PrivateNetworkSpecification{
+			{
+				Name:      c.Name,
+				Subdomain: c.SubDomain,
+				ResourceSpecification: orcapi.ResourceSpecification{
+					Product: acc.ProductReference{
+						Id:       "private-network",
+						Category: "private-network",
+						Provider: c.Provider,
+					},
+					Labels: map[string]string{},
+				},
+			},
+		},
+	})
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to create private network: %s", httpErr.Why)
+	}
+	fmt.Printf("Successfully created private network %v\n", created.Responses[0].Id)
+	networks, err := retrievePrivateNetworks()
+	if err != nil {
+		return err
+	}
+	printPrivateNetworks(networks)
+	return nil
 }
 
 func (c PrivateNetworkGetCommand) Execute() error {
-	return fmt.Errorf("private network get not implemented")
+	cfg := shared.InitializeUCloudClient()
+	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
+	if err != nil {
+		return err
+	}
+	networks, err := retrievePrivateNetworks()
+	if err != nil {
+		return err
+	}
+	network, ok := networks[c.Name]
+	if !ok {
+		return fmt.Errorf("private network %s not found", c.Name)
+	}
+	printPrivateNetworks(map[string]orcapi.PrivateNetwork{c.Name: network})
+	return nil
 }
 
 func (c PrivateNetworkDeleteCommand) Execute() error {
-	return fmt.Errorf("private network delete not implemented")
+	cfg := shared.InitializeUCloudClient()
+	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
+	if err != nil {
+		return err
+	}
+	networks, err := retrievePrivateNetworks()
+	foundNetworks := map[string]fnd.FindByStringId{}
+	notFoundNetworkNames := make([]string, 0)
+	for _, name := range c.Name {
+		network, ok := networks[name]
+		if !ok {
+			notFoundNetworkNames = append(notFoundNetworkNames, name)
+			continue
+		}
+		foundNetworks[name] = fnd.FindByStringId{Id: network.Id}
+
+	}
+	if len(foundNetworks) == 0 {
+		return fmt.Errorf("no private network found with name: %s", c.Name)
+	}
+	_, httpDeleteErr := orcapi.PrivateNetworksDelete.Invoke(fnd.BulkRequest[fnd.FindByStringId]{
+		Items: util.MapValues(foundNetworks),
+	})
+	if httpDeleteErr.AsError() != nil {
+		return fmt.Errorf("failed to delete private network: %s", httpDeleteErr.Why)
+	}
+	if len(notFoundNetworkNames) > 0 {
+		fmt.Printf("The following private networks were not found: %v\n", notFoundNetworkNames)
+	}
+	fmt.Printf("Successfully deleted private network %v\n", util.MapKeys(foundNetworks))
+
+	return nil
 }
 
 func (c PrivateNetworkMembersCommand) Execute() error {
-	return fmt.Errorf("private network members not implemented")
+	cfg := shared.InitializeUCloudClient()
+	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
+	if err != nil {
+		return err
+	}
+	networks, err := retrievePrivateNetworks()
+	if err != nil {
+		return err
+	}
+	network, ok := networks[c.Name]
+	if !ok {
+		return fmt.Errorf("private network %s not found", c.Name)
+	}
+	privateNetworkJobs, err := privateNetworkJobs(c.Provider)
+	if err != nil {
+		return err
+	}
+	foundJobs := make([]orcapi.Job, 0)
+	for _, jobArr := range privateNetworkJobs {
+		for _, job := range jobArr {
+			if job.ResourceId == network.Id {
+				foundJobs = append(foundJobs, job.Job)
+			}
+		}
+	}
+	fmt.Printf("Found %d jobs using private network %s\n", len(foundJobs), c.Name)
+	printJobs(map[string][]orcapi.Job{c.Name: foundJobs})
+	return nil
+}
+
+type JobPrivateNetwork struct {
+	orcapi.Job
+	ResourceId string
+}
+
+func privateNetworkJobs(provider string) (map[string][]JobPrivateNetwork, error) {
+	filter := orcapi.JobFlags{
+		FilterType: util.OptValue(orcapi.JobTypeFilterJobsOnly),
+	}
+	filter.FilterProvider = util.OptValue(provider)
+	jobsMap, err := retrieveJobs(filter)
+	if err != nil {
+		return nil, err
+	}
+	privateNetworkJobs := make(map[string][]JobPrivateNetwork, 0)
+
+	// Find all jobs that use a private network
+	for name, jobArr := range jobsMap {
+		for _, job := range jobArr {
+			for _, r := range job.Specification.Resources {
+				if r.Type != "private_network" {
+					continue
+				}
+				privateNetworkJobs[name] = append(privateNetworkJobs[name], JobPrivateNetwork{
+					Job:        job,
+					ResourceId: r.Id,
+				})
+			}
+		}
+	}
+	return privateNetworkJobs, nil
 }

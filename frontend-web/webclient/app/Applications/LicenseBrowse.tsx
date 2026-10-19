@@ -139,15 +139,7 @@ export function LicenseBrowse({
                     browser.registerPage(result, path, false);
                 });
 
-                browser.on("fetchFilters", () => [
-                    dateRanges,
-                    {
-                        type: "input",
-                        icon: "user",
-                        key: "filterCreatedBy",
-                        text: "Created by"
-                    },
-                ]);
+                browser.on("fetchFilters", () => [dateRanges]);
 
                 if (!getFilterStorageValue(browser.resourceName, "status")) {
                     setFilterStorageValue(browser.resourceName, "status", "READY");
@@ -275,8 +267,8 @@ export function LicenseBrowse({
                                     )).responses[0] as unknown as FindByStringId;
 
                                     /* Note(Jonas): I can't find the creation function in the backend,
-                                       but either I'm sending it in the wrong way, or permissions are ignored when creating them initially.  
-                                       
+                                       but either I'm sending it in the wrong way, or permissions are ignored when creating them initially.
+
                                        Seems to be ignored in the backend.
                                     */
                                     if (response) {

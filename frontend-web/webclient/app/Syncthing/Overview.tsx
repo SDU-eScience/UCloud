@@ -18,7 +18,7 @@ import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {api as FilesApi, downloadFileContent, findSensitivity} from "@/UCloud/FilesApi";
-import {randomUUID, doNothing, removeTrailingSlash, copyToClipboard} from "@/UtilityFunctions";
+import {randomUUID, doNothing, removeTrailingSlash, copyToClipboard, displayErrorMessageOrDefault} from "@/UtilityFunctions";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
@@ -44,6 +44,7 @@ import {Value, ValueKind, valueToPlain} from "@/UCX/protocol";
 import {ServiceProviderSelector} from "@/Applications/ApiTokens/Add";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {SettingsAction} from "@/ui-components/SettingsComponents";
+import {productCategoryEquals} from "@/Accounting";
 
 // UI state management
 // ================================================================================
@@ -282,7 +283,15 @@ const NewOverview: React.FunctionComponent = () => {
 
         Sync.fetchProducts(provider).then(product => {
             if (providerRef.current === provider && product.length > 0) {
-                setSelectedProduct(product[0]);
+                setSelectedProduct(p => {
+                    const firstProduct = product[0];
+                    if (!p) return firstProduct;
+
+                    if (productCategoryEquals(p.product.category, firstProduct.product.category)) {
+                        return p;
+                    }
+                    return firstProduct;
+                });
             }
         });
     }, [provider, didUnmount]);
@@ -360,19 +369,23 @@ const NewOverview: React.FunctionComponent = () => {
             if (selectedProduct === null) return;
 
             if (uiState.updateCount !== undefined && uiState.updateCount > 0) {
-                await callAPI(Sync.api.updateConfiguration({
-                    productId: selectedProduct.product.name,
-                    provider: provider,
-                    expectedETag: eTagRef.current,
-                    config: {
-                        devices: devices,
-                        folders: folders,
-                    }
-                }));
-
-                if (!didCancel) reload();
+                try {
+                    await callAPI(Sync.api.updateConfiguration({
+                        productId: selectedProduct.product.name,
+                        provider: provider,
+                        expectedETag: eTagRef.current,
+                        config: {
+                            devices: devices,
+                            folders: folders,
+                        }
+                    }));
+                } catch (e) {
+                    displayErrorMessageOrDefault(e, "Failed to update configuration");
+                } finally {
+                    if (!didCancel) reload();
+                }
             }
-        })()
+        })();
 
         return () => {
             didCancel = true;
@@ -1768,7 +1781,7 @@ const TutorialWizardClass = injectStyle("tutorial-wizard", k => `
         color: var(--linkColorHover);
         text-decoration: underline;
     }
-    
+
     ${k} .tutorial-form {
         margin-top: 32px;
     }

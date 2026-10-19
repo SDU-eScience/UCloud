@@ -154,15 +154,7 @@ export function PrivateNetworkBrowse({
 
                 browser.setEmptyIcon(productTypeToIcon("PRIVATE_NETWORK"));
 
-                browser.on("fetchFilters", () => [
-                    dateRanges,
-                    {
-                        type: "input",
-                        icon: "user",
-                        key: "filterCreatedBy",
-                        text: "Created by"
-                    }
-                ]);
+                browser.on("fetchFilters", () => [dateRanges]);
 
                 browser.on("renderRow", (network, row) => {
                     if (network.id !== DUMMY_ENTRY_ID) {
