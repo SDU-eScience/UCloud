@@ -42,7 +42,7 @@ func alreadyRootAllocated() bool {
 	return quota > 0
 }
 
-func allocateRoot() error {
+func allocateRoot(grantId string) error {
 
 	provider := "k8s"
 	start := fndapi.Timestamp(time.Now())
@@ -90,17 +90,83 @@ func allocateRoot() error {
 	if httpErr.AsError() != nil {
 		return fmt.Errorf("failed to allocate test workspace: %s", httpErr.Why)
 	}
-	err := createGrant()
+	err := createGrant(grantId)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func createGrant() error {
+func createTestGrant(grantGiverId string) accapi.GrantDocument {
+	provider := "k8s"
+	grant := accapi.GrantDocument{
+		AllocationRequests: []accapi.AllocationRequest{
+			{
+				Category:         "public-ip",
+				BalanceRequested: util.OptValue(int64(5)),
+				Period: accapi.Period{
+					Start: util.OptValue(fndapi.Timestamp(time.Now())),
+					End:   util.OptValue(fndapi.Timestamp(time.Now().Add(time.Hour * 24 * 365 * 10))),
+				},
+				GrantGiver: grantGiverId,
+				Provider:   provider,
+			},
+			{
+				Category:         "storage",
+				BalanceRequested: util.OptValue(int64(5)),
+				Period: accapi.Period{
+					Start: util.OptValue(fndapi.Timestamp(time.Now())),
+					End:   util.OptValue(fndapi.Timestamp(time.Now().Add(time.Hour * 24 * 365 * 10))),
+				},
+				GrantGiver: grantGiverId,
+				Provider:   provider,
+			},
+			{
+				Category:         "u1-standard",
+				BalanceRequested: util.OptValue(int64(60)),
+				Period: accapi.Period{
+					Start: util.OptValue(fndapi.Timestamp(time.Now())),
+					End:   util.OptValue(fndapi.Timestamp(time.Now().Add(time.Hour * 24 * 365 * 10))),
+				},
+				GrantGiver: grantGiverId,
+				Provider:   provider,
+			},
+		},
+		Recipient: accapi.Recipient{
+			Title: util.OptValue("test-workspace"),
+			Type:  accapi.RecipientTypeNewProject,
+		},
+		Form: accapi.Form{
+			AnswerForms: []accapi.AnswerForm{
+				{
+					AllocatorId: grantGiverId,
+					AnswerFields: []accapi.AnswerFieldForm{
+						{
+							Answer: "Hello World",
+							Field: accapi.FormField{
+								Name:        "new_project",
+								Description: "Please describe why you are applying for this resources",
+								Optional:    false,
+								Title:       "Application",
+							},
+						},
+					},
+					TemplateRevisionNumber: 0,
+				},
+			},
+			Type:         accapi.FormTypeStructured,
+			SubAllocator: util.OptValue(false),
+			Text:         "",
+		},
+	}
+	return grant
+}
+
+func createGrant(grantId string) error {
 	// TODO: We need to mimic the frontend and create a grant
 	grant, httpErr := accapi.GrantsSubmitRevision.Invoke(accapi.GrantsSubmitRevisionRequest{
-		Comment: "test grant",
+		Comment:  "Submitted the application",
+		Revision: createTestGrant(grantId),
 	})
 	if httpErr.AsError() != nil {
 		return fmt.Errorf("failed to create grants: %s", httpErr.Why)
@@ -112,6 +178,7 @@ func createGrant() error {
 	if httpErr.AsError() != nil {
 		return fmt.Errorf("failed to update grants: %s", httpErr.Why)
 	}
+	fmt.Printf("Successfully created grants %v\n", grant)
 	return nil
 }
 
@@ -120,7 +187,7 @@ func CreateTestWorkspace() error {
 		return nil
 	}
 
-	cfg := shared.InitializeUCloudClient()
+	shared.InitializeUCloudClient()
 
 	rootWs, err := shared.FindWorkspaceByName("provider-k8s")
 	if err != nil {
@@ -128,26 +195,24 @@ func CreateTestWorkspace() error {
 	}
 	shared.SetActiveWorkspace(rootWs.Id)
 
-	allocateErr := allocateRoot()
+	wss, wsErr := fndapi.ProjectBrowse.Invoke(fndapi.ProjectBrowseRequest{})
+	if wsErr.AsError() != nil {
+		return fmt.Errorf("failed to list workspaces: %s", wsErr.Why)
+	}
+	for _, ws := range wss.Items {
+		if ws.Specification.Title == "test-workspace" {
+			shared.SetActiveWorkspace(ws.Id)
+			fmt.Println("test-workspace is already made, skipping creation.")
+			return nil
+		}
+	}
+	// allocate root resources and create test-workspace
+	allocateErr := allocateRoot(rootWs.Id)
+
 	if allocateErr != nil {
 		return allocateErr
 	}
-
-	ws, httpErr := fndapi.ProjectCreate.Invoke(fndapi.BulkRequest[fndapi.ProjectSpecification]{
-		Items: []fndapi.ProjectSpecification{
-			{
-				Title:               "test-workspace",
-				CanConsumeResources: true,
-			},
-		},
-	})
-	if httpErr.AsError() != nil {
-		return fmt.Errorf("failed to create test workspace: %s", httpErr.Why)
-	}
-	cfg.CurrentWorkspace = util.OptValue(ws.Responses[0].Id)
-
 	TestEnvCreated = true
-	accapi.GrantsSubmitRevision.Invoke(accapi.GrantsSubmitRevisionRequest{})
 	return nil
 }
 
