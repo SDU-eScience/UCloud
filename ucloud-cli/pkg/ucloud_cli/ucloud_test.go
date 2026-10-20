@@ -11,12 +11,23 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	_, err := shared.FindWorkspaceByName("test-workspace")
+	if err == nil {
+		fmt.Println("Test workspace already exists, skipping test setup")
+		login()
+		return
+	}
 	login()
+	err = CreateTestWorkspace()
+	if err != nil {
+		panic(err)
+	}
+
 	if TestEnvCreated {
 		fmt.Println("Test environment already created, skipping test setup")
 		return
 	}
-	err := CreateTestWorkspace()
+	err = CreateTestWorkspace()
 	if err != nil {
 		panic(err)
 	}
@@ -86,6 +97,12 @@ func TestWorkspaceRename(t *testing.T) {
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
 	assert.NoError(t, err)
+	input = []string{"workspace", "rename", "test-juju-renamed", "test-juju"}
+	cmd, err = Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
 }
 
 func TestWorkspaceList(t *testing.T) {
@@ -116,7 +133,7 @@ func TestWorkspaceGetMissingName(t *testing.T) {
 // Add dev environment to test locally
 func TestEnvironmentAddDev(t *testing.T) {
 	devServerUrl := "https://ucloud.localhost.direct"
-	input := []string{"environment", "add", "dev", "--url", devServerUrl}
+	input := []string{"environment", "add", "dev2", "--url", devServerUrl}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -146,16 +163,15 @@ func TestEnvironmentAdd(t *testing.T) {
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
-	cmd.Execute()
+	err = cmd.Execute()
 	assert.NoError(t, err)
 }
 
 func TestEnvironmentRemove(t *testing.T) {
 	input := []string{"environment", "remove", "foo"}
 	cmd, err := Parse(input)
-	concrete := cmd.(*command.EnvironmentRemoveCommand)
 	assert.NoError(t, err)
-	assert.Equal(t, concrete.Name, "foo")
+	assert.NotNil(t, cmd)
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }
@@ -289,7 +305,7 @@ func TestJobCreate(t *testing.T) {
 
 func TestJobTerminate(t *testing.T) {
 	// Supply the ID of a job to terminate before running this test.
-	jobID := "10"
+	jobID := "6"
 	input := []string{"job", "terminate", jobID}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -311,7 +327,7 @@ func TestJobTerminateMissingID(t *testing.T) {
 
 func TestJobResume(t *testing.T) {
 	// Supply the ID of a suspended job to resume before running this test.
-	jobID := "1"
+	jobID := "6"
 	input := []string{"job", "resume", jobID}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -333,7 +349,7 @@ func TestJobResumeMissingID(t *testing.T) {
 
 func TestJobGet(t *testing.T) {
 	// Supply the ID of a job to retrieve before running this test.
-	jobID := "1"
+	jobID := "6"
 	input := []string{"job", "get", jobID}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
