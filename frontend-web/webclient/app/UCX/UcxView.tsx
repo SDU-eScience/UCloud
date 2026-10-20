@@ -70,6 +70,8 @@ import {CardClass} from "@/ui-components/Card";
 import {UcxAccordion} from "@/UCX/UcxAccordion";
 import {UcxSpinner} from "@/UCX/UcxSpinner";
 export {UcxSpinner};
+
+const confirmedFormSubmissions = new WeakSet<HTMLFormElement>();
 import {injectStyle} from "@/Unstyled";
 import {selectHoverColor, ThemeColor} from "@/ui-components/theme";
 import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle";
@@ -1122,11 +1124,13 @@ const baseComponents: UcxComponentRegistry = {
             />
         </div>;
     },
-    warning: ({node, model, scope, fn}) => {
+    warning: ({node, model, scope, fn, renderChildren}) => {
         const text = boundOrStaticText(node, model, scope);
-        if (!text) return null;
         const variant = stringProp(node, "variant", "warning") === "tip" ? "tip" : "warning";
-        return <Warning variant={variant} style={fn.sxStyle(node)}>{text as string}</Warning>;
+        const centered = boolProp(node, "centered", false);
+        const trailing = node.children.length > 0 ? renderChildren() : undefined;
+        if (!text && !trailing) return null;
+        return <Warning variant={variant} centered={centered} style={fn.sxStyle(node)} trailing={trailing}>{text as string}</Warning>;
     },
     icon: ({node, fn}) => {
         const name = stringProp(node, "name", "bug");
@@ -1223,7 +1227,7 @@ const baseComponents: UcxComponentRegistry = {
     checkbox: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
         const checked = modelBool(model, node.bindPath, scope);
-        return <Flex mt="8px" mb="12px" alignItems="center">
+        return <Flex mt="8px" mb="12px" alignItems="center" style={fn.sxStyle(node)}>
             <Label style={{display: "flex", alignItems: "center"}}>
                 <Checkbox
                     checked={checked}
@@ -1551,6 +1555,11 @@ const baseComponents: UcxComponentRegistry = {
             style={fn.sxStyle(node)}
             onSubmit={ev => {
                 ev.preventDefault();
+                if (ev.currentTarget.querySelector('[data-ucx-hold-submit="true"]') &&
+                    !confirmedFormSubmissions.delete(ev.currentTarget)) {
+                    ev.currentTarget.querySelector<HTMLButtonElement>('[data-tag="confirm-button"]')?.focus();
+                    return;
+                }
                 fn.sendUiEvent(node.id, "submit", {kind: ValueKind.Null});
             }}
         >
@@ -1606,7 +1615,7 @@ const baseComponents: UcxComponentRegistry = {
     job_logs: ({node, model, scope, fn}) => {
         const jobId = node.bindPath ? modelString(model, node.bindPath, scope) : stringProp(node, "jobId", "");
         const height = numberProp(node, "height", 320);
-        return <JobLogsNode jobId={jobId} height={height} style={fn.sxStyle(node)} />;
+        return <JobLogsNode jobId={jobId} height={height} collapsible={boolProp(node, "collapsible", false)} style={fn.sxStyle(node)} />;
     },
     stack_permissions: ({node, fn}) => <StackPermissionsNode
         stackId={stringProp(node, "stackId", "")} style={fn.sxStyle(node)}
@@ -1772,8 +1781,10 @@ function ucxIsInitDone(state: UcxJobLogsState): boolean {
 const JobLogsNode: React.FunctionComponent<{
     jobId: string;
     height: number;
+    collapsible: boolean;
     style?: React.CSSProperties;
-}> = ({jobId, height, style}) => {
+}> = ({jobId, height, collapsible, style}) => {
+    const [logsOpen, setLogsOpen] = useState(!collapsible);
     const trackerRef = useRef<JobInitTracker | null>(null);
     if (!trackerRef.current) trackerRef.current = new JobInitTracker();
     const state: UcxJobLogsState = trackerRef.current.track(jobId);
@@ -1808,18 +1819,25 @@ const JobLogsNode: React.FunctionComponent<{
                 {state.stageText ?? (ucxIsInitDone(state) ? "Ready" : ucxStageFallback(state.jobState))}
             </span>
         </div>
-        {state.progress != null ?
-            <div className={UcxJobLogsProgressTrack}>
+        {state.progress != null || collapsible ?
+            <div className={UcxJobLogsProgressTrack} role="progressbar" aria-label="Node maintenance progress"
+                aria-valuemin={0} aria-valuemax={100}
+                aria-valuenow={state.progress == null ? undefined : Math.round(Math.min(1, Math.max(0, state.progress)) * 100)}>
                 <div
                     className={UcxJobLogsProgressFill}
                     style={{
-                        width: `${Math.round(Math.min(1, Math.max(0, state.progress)) * 100)}%`,
+                        width: `${Math.round(Math.min(1, Math.max(0, state.progress ?? 0)) * 100)}%`,
                         background: ucxIsInitDone(state) ? "var(--successMain)" : undefined,
                     }}
                 />
             </div> :
             null}
-        <InitTerminal state={state} height={height} />
+        {collapsible ? <div>
+            <Button type="button" color="secondaryMain" aria-expanded={logsOpen} onClick={() => setLogsOpen(open => !open)}>
+                {logsOpen ? "Hide logs" : "Show logs"}
+            </Button>
+        </div> : null}
+        {logsOpen ? <InitTerminal state={state} height={height} /> : null}
     </div>;
 };
 
@@ -2372,8 +2390,12 @@ const UcxButtonField: React.FunctionComponent<{
 
     const fireFromShortcut = useCallback(() => {
         if (disabled) return;
+        if (holdToConfirm) {
+            containerRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+            return;
+        }
         fn.sendUiEvent(node.id, submit ? "submit" : "click", eventValue);
-    }, [disabled, eventValue, fn, node.id, submit]);
+    }, [disabled, eventValue, fn, holdToConfirm, node.id, submit]);
 
     useEffect(() => {
         if (!shortcutKey) return;
@@ -2401,30 +2423,23 @@ const UcxButtonField: React.FunctionComponent<{
             if (submit) {
                 const form = containerRef.current?.closest("form");
                 if (form) {
-                    form.requestSubmit();
+                    confirmedFormSubmissions.add(form);
+                    try {
+                        form.requestSubmit();
+                    } finally {
+                        confirmedFormSubmissions.delete(form);
+                    }
                     return;
                 }
             }
             fn.sendUiEvent(node.id, submit ? "submit" : "click", eventValue);
         };
 
-        if (iconOnly) {
-            return <div ref={containerRef} style={{...sx, display: "flex"}}>
-                {busy ? <UcxSpinner size={16} color="textPrimary" margin="0 4px 0 0" /> : null}
-                <IconButton
-                    tooltip={label}
-                    icon={(iconLeft || "edit") as any}
-                    color={color as any}
-                    disabled={disabled || busy}
-                    onClick={fire}
-                />
-            </div>;
-        }
-
-        return <div ref={containerRef} style={{...sx, display: "flex"}}>
+        return <div ref={containerRef} data-ucx-hold-submit={submit ? "true" : undefined} style={{...sx, display: "flex"}}>
             <ConfirmationButton
+                type="button"
                 color={color as any}
-                disabled={disabled}
+                disabled={disabled || busy}
                 width={sx.width !== undefined ? "100%" : undefined}
                 actionText={label}
                 onAction={fire}

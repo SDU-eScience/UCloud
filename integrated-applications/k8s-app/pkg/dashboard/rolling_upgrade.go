@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strings"
 	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/maintenance"
@@ -36,7 +37,7 @@ func rollingUpgradePage(app *stackUiApp) []ucx.UiNode {
 		return rollingUpgradePageShell(app, content)
 	}
 	if upgrade.Uid != "" {
-		status := fmt.Sprintf("%s · %s", upgrade.TargetRelease, upgrade.Phase)
+		status := fmt.Sprintf("%s: %s", upgrade.TargetRelease, upgrade.Phase)
 		if maintenance.PhaseActive(upgrade.Phase) {
 			status = "Upgrading to " + upgrade.TargetRelease
 		}
@@ -136,6 +137,14 @@ func rollingUpgradePageShell(app *stackUiApp, content []ucx.UiNode) []ucx.UiNode
 }
 
 func rollingUpgradeProgress(app *stackUiApp, upgrade maintenance.RollingUpgrade, snapshot map[string]maintenance.Operation) ucx.UiNode {
+	jobIds := map[string]string{}
+	if record, found := app.readClusterRecord(); found {
+		for _, node := range record.Nodes {
+			jobIds[node.Hostname] = node.JobId
+		}
+	}
+
+	now := time.Now().UTC()
 	rows := map[string][]ucx.UiNode{}
 	completed := map[string]int{}
 	groupNames := []string{}
@@ -143,58 +152,76 @@ func rollingUpgradeProgress(app *stackUiApp, upgrade maintenance.RollingUpgrade,
 		if _, present := rows[node.Group]; !present {
 			groupNames = append(groupNames, node.Group)
 		}
+
 		phase := node.Phase
+		operation := maintenance.Operation{}
 		submitted := false
-		if operation, present := snapshot[node.Name]; present && operation.Uid == node.OperationUid {
-			phase = operation.Phase
+		if candidate, present := snapshot[node.Name]; present && candidate.Uid == node.OperationUid {
+			operation = candidate
+			phase = candidate.Phase
 			submitted = true
 		}
 		active := submitted && maintenance.PhaseActive(phase)
-		label := phase
+
+		label := maintenancePhaseLabel(phase)
 		color := ucx.ColorTextSecondary
-		if active {
-			label = "Upgrading"
+		switch {
+		case active:
+			label = ""
 			color = ucx.ColorTextPrimary
-		}
-		if phase == maintenance.PhasePending && !submitted {
+		case phase == maintenance.PhaseCompleted:
+			completed[node.Group]++
+			label = "Completed"
+			color = ucx.ColorSuccessMain
+		case phase == maintenance.PhasePending:
 			label = "Waiting"
-			if !maintenance.PhaseActive(upgrade.Phase) {
+			if !submitted && !maintenance.PhaseActive(upgrade.Phase) {
 				label = "Not started"
 			}
-		}
-		if phase == maintenance.PhaseCompleted {
-			completed[node.Group]++
-			color = ucx.ColorSuccessMain
-		} else if phase == maintenance.PhaseFailed || phase == maintenance.PhaseBlocked {
+		case phase == maintenance.PhaseFailed || phase == maintenance.PhaseBlocked:
 			color = ucx.ColorErrorMain
 		}
-		children := []ucx.UiNode{
-			ucx.Box().Sx(ucx.SxFlexGrow(1)).Children(
+
+		heading := []ucx.UiNode{
+			ucx.Box().Sx(ucx.SxFlexGrow(1), ucx.SxMinWidth(0), ucx.SxTextOverflow("ellipsis"), ucx.SxOverflow("hidden"), ucx.SxWhiteSpace("nowrap")).Children(
 				ucx.LinkButton(fmt.Sprintf("rollingUpgradeNode%d", i), node.Name, ucx.ColorLinkColor).
 					Sx(ucx.SxFontSize(14), ucx.SxFontWeight("400")).
 					On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 						ucxsvc.RouterPushPage(app, "maintenance/"+url.PathEscape(node.Name))
 					}),
 			),
-			ucx.Text(label).Sx(ucx.SxFontSize(12), ucx.SxColor(color)),
 		}
 		if active {
-			children = append(children, ucx.Spinner(16))
+			heading = append(heading, ucx.Spinner(16))
+		} else if label != "" {
+			heading = append(heading, ucx.Text(label).Sx(ucx.SxFontSize(12), ucx.SxColor(color), ucx.SxWhiteSpace("nowrap")))
 		}
-		rows[node.Group] = append(rows[node.Group], ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).
-			Sx(ucx.SxAlignItemsCenter).
-			Children(children...))
+		children := []ucx.UiNode{ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).
+			Sx(ucx.SxAlignItemsCenter, ucx.SxMinWidth(0)).
+			Children(heading...)}
+
+		failed := phase == maintenance.PhaseFailed || phase == maintenance.PhaseBlocked
+		if active || failed {
+			if jobId := jobIds[node.Name]; jobId != "" {
+				children = append(children, ucx.JobLogs("rollingUpgradeLog-"+jobId, jobId).
+					WithLogHeight(260))
+			}
+		}
+		if !active && operation.Error != "" && !strings.Contains(upgrade.Error, operation.Error) {
+			children = append(children, ucx.Warning(operation.Error))
+		}
+
+		rows[node.Group] = append(rows[node.Group], ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).
+			Sx(ucx.SxMinWidth(0)).Children(children...))
 	}
-	sort.Slice(groupNames, func(i, j int) bool {
-		if groupNames[i] == shared.GroupControlPlane || groupNames[j] == shared.GroupControlPlane {
-			return groupNames[i] == shared.GroupControlPlane
-		}
-		return groupNames[i] < groupNames[j]
-	})
+	maintenanceSortGroups(groupNames)
 	groups := []ucx.UiNode{}
+	if activity, ok := maintenanceActivityLabel(upgrade.StartedAt, now); ok {
+		groups = append(groups, ucx.Text(activity).Sx(ucx.SxColor(ucx.ColorTextSecondary), ucx.SxFontSize(12), ucx.SxWhiteSpace("nowrap")))
+	}
 	for _, name := range groupNames {
 		children := []ucx.UiNode{
-			ucx.Text(fmt.Sprintf("%s · %d / %d completed", name, completed[name], len(rows[name]))).
+			ucx.Text(fmt.Sprintf("%s: %d of %d completed", name, completed[name], len(rows[name]))).
 				Sx(ucx.SxFontSize(14), ucx.SxFontWeight("600")),
 		}
 		children = append(children, rows[name]...)

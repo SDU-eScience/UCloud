@@ -425,49 +425,144 @@ func StacksRetrieve(actor rpc.Actor, id string) (orcapi.Stack, *util.HttpError) 
 	stackStatus.UcxUiMode = orcapi.UcxUiNone
 	stackStatus.UcxConnectJobId = util.OptNone[string]()
 
-	oldestCandidate := util.OptNone[string]()
-	for _, job := range stackStatus.Jobs {
-		if job.Specification.Labels == nil {
-			continue
-		}
-
-		portLabel, hasUcxPort := job.Specification.Labels[resourceLabelUcxPort]
-		if !hasUcxPort {
-			continue
-		}
-
-		port, err := strconv.Atoi(portLabel)
-		if err != nil || port <= 0 || port > 65535 {
-			continue
-		}
-
-		if !oldestCandidate.Present {
-			oldestCandidate.Set(job.Id)
-		}
-
-		if job.Status.State != orcapi.JobStateRunning {
-			continue
-		}
-
-		if strings.EqualFold(job.Specification.Labels[orcapi.ResourceLabelDisasterRecovery], "true") {
-			stackStatus.UcxConnectJobId.Set(job.Id)
-			break
-		}
-		if !stackStatus.UcxConnectJobId.Present {
-			stackStatus.UcxConnectJobId.Set(job.Id)
-		}
-	}
-
-	if !stackStatus.UcxConnectJobId.Present && oldestCandidate.Present {
-		stackStatus.UcxConnectJobId = oldestCandidate
-	}
-
-	if stackStatus.UcxConnectJobId.Present {
+	if candidate, hasCandidate := stacksUcxUiJob(entity.Id, stackStatus.Jobs); hasCandidate {
+		stackStatus.UcxConnectJobId.Set(candidate)
 		stackStatus.UcxUiMode = orcapi.UcxUiReplacement
+		ucxUiRememberSelectedJob(entity.Id, candidate)
 	}
 
 	stack.Status = util.OptValue(stackStatus)
 	return stack, nil
+}
+
+// stacksUcxUiJob selects the job that serves the user interface of the stack. The previous choice
+// is kept while it runs and answers. It moves to another running job when the previous one stops
+// answering, for example while the machine that hosts it reboots during maintenance. A running
+// disaster recovery job takes precedence.
+func stacksUcxUiJob(entityId string, jobs []orcapi.Job) (string, bool) {
+	running := []string{}
+	fallback := []string{}
+	disasterRecovery := ""
+
+	for _, job := range jobs {
+		if _, hasUcxPort := stacksUcxUiPort(job); !hasUcxPort {
+			continue
+		}
+
+		if strings.EqualFold(job.Specification.Labels[orcapi.ResourceLabelDisasterRecovery], "true") {
+			if job.Status.State == orcapi.JobStateRunning && disasterRecovery == "" {
+				disasterRecovery = job.Id
+			}
+			continue
+		}
+
+		if job.Status.State == orcapi.JobStateRunning {
+			running = append(running, job.Id)
+			continue
+		}
+		fallback = append(fallback, job.Id)
+	}
+
+	if disasterRecovery != "" {
+		return disasterRecovery, true
+	}
+
+	if previous := ucxUiSelectedJob(entityId); previous != "" {
+		for _, jobId := range running {
+			if jobId == previous && ucxUiJobAvailable(jobId) {
+				return previous, true
+			}
+		}
+	}
+
+	for _, jobId := range running {
+		if ucxUiJobAvailable(jobId) {
+			return jobId, true
+		}
+	}
+	for _, jobId := range fallback {
+		if ucxUiJobAvailable(jobId) {
+			return jobId, true
+		}
+	}
+	if len(fallback) > 0 {
+		return fallback[0], true
+	}
+	if len(running) > 0 {
+		return running[0], true
+	}
+	return "", false
+}
+
+func stacksUcxUiPort(job orcapi.Job) (int, bool) {
+	portLabel, hasUcxPort := job.Specification.Labels[resourceLabelUcxPort]
+	if !hasUcxPort {
+		return 0, false
+	}
+
+	port, err := strconv.Atoi(portLabel)
+	if err != nil || port <= 0 || port > 65535 {
+		return 0, false
+	}
+	return port, true
+}
+
+// stacksUcxUiAlternativeJob finds another running UI job of the same stack. It is used when the
+// selected job cannot be reached, for example while its machine reboots during maintenance.
+func stacksUcxUiAlternativeJob(actor rpc.Actor, current orcapi.Job) (orcapi.Job, int, bool) {
+	entityId := strings.TrimSpace(current.Specification.Labels[orcapi.ResourceLabelStackEntity])
+	if entityId == "" {
+		return orcapi.Job{}, 0, false
+	}
+	if strings.EqualFold(current.Specification.Labels[orcapi.ResourceLabelDisasterRecovery], "true") {
+		return orcapi.Job{}, 0, false
+	}
+
+	jobs, jobErr := stacksUcxUiJobs(actor, entityId)
+	if jobErr != nil {
+		return orcapi.Job{}, 0, false
+	}
+
+	for _, job := range jobs {
+		if job.Id == current.Id || job.Status.State != orcapi.JobStateRunning {
+			continue
+		}
+		if !ucxUiJobAvailable(job.Id) {
+			continue
+		}
+		if strings.EqualFold(job.Specification.Labels[orcapi.ResourceLabelDisasterRecovery], "true") {
+			continue
+		}
+
+		port, hasUcxPort := stacksUcxUiPort(job)
+		if !hasUcxPort {
+			continue
+		}
+		return job, port, true
+	}
+
+	return orcapi.Job{}, 0, false
+}
+
+func stacksUcxUiJobs(actor rpc.Actor, entityId string) ([]orcapi.Job, *util.HttpError) {
+	var err *util.HttpError
+	flags := orcapi.ResourceFlags{
+		FilterLabels: map[string]string{
+			orcapi.ResourceLabelStackEntity: entityId,
+		},
+		SortBy:        util.OptValue("createdAt"),
+		SortDirection: util.OptValue(orcapi.SortDirectionAscending),
+	}
+
+	jobs := fndapi.BrowseAll(0, func(next util.Option[string]) fndapi.PageV2[orcapi.Job] {
+		page, pageErr := JobsBrowse(actor, next, 250, orcapi.JobFlags{ResourceFlags: flags})
+		err = util.MergeHttpErr(err, pageErr)
+		return page
+	})
+	if err != nil {
+		return nil, err
+	}
+	return jobs, nil
 }
 
 func stacksSpawnDeclaredJob(actor rpc.Actor, id string) *util.HttpError {

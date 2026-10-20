@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -99,6 +100,14 @@ func initJobUcx() {
 					}
 				}
 				port = parsedPort
+
+				if !ucxUiJobAvailable(job.Id) {
+					if alternative, alternativePort, found := stacksUcxUiAlternativeJob(state.actor, job); found {
+						log.Info("UCX job: the job %s did not answer recently, connecting to %s", job.Id, alternative.Id)
+						job = alternative
+						port = alternativePort
+					}
+				}
 			}
 
 			providerId := job.Specification.Product.Provider
@@ -166,12 +175,19 @@ func initJobUcx() {
 
 		appUcxResourceHandlers(&state.appUcxBaseState, proxy)
 
-		if gerr := proxy.Run(context.Background(), info.WebSocket); gerr != nil {
-			log.Warn("UCX job: proxy failed: %v", gerr)
+		startedAt := time.Now()
+		runErr := proxy.Run(context.Background(), info.WebSocket)
+
+		state.Mu.RLock()
+		sessionJobId := state.job.Id
+		state.Mu.RUnlock()
+		ucxUiNoteSessionEnd(sessionJobId, time.Since(startedAt))
+
+		if runErr != nil {
+			log.Warn("UCX job: proxy failed: %v", runErr)
 			return util.Empty{}, util.ServerHttpError("Internal error")
-		} else {
-			return util.Empty{}, nil
 		}
+		return util.Empty{}, nil
 	})
 }
 

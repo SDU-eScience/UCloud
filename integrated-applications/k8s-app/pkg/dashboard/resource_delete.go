@@ -97,7 +97,7 @@ func dashboardResourceDeleteDialog(app *stackUiApp) ucx.UiNode {
 	return dashboardResourceActionDialog(
 		"resourceDelete", "Delete",
 		fmt.Sprintf("Delete %s?", dashboardResourceDeletePath(app.resourceDeleteTarget)),
-		ucx.IconHeroTrash,
+		ucx.IconHeroTrash, ucx.ColorErrorMain,
 		func() { dashboardResourceDeleteClose(app) },
 		func() { dashboardResourceDeletePerform(app) },
 	)

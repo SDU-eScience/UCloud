@@ -564,7 +564,7 @@ func k8sVersionOptions() []ucx.Option {
 	for _, release := range releases {
 		options = append(options, ucx.Option{
 			Key:   release.Release,
-			Value: shared.ReleaseSupportLabel(release, now),
+			Value: shared.ReleaseOptionLabel(release, now),
 		})
 	}
 	return options

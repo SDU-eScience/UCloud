@@ -1392,6 +1392,14 @@ func JobLogsEx(id string, jobId string) UiNode {
 	}
 }
 
+func (n UiNode) WithCollapsibleLogs() UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["collapsible"] = VBool(true)
+	return n
+}
+
 func JobLogsBound(id string, jobIdBindPath string) UiNode {
 	requireExplicitId(id, "job_logs")
 	return JobLogsBoundEx(id, jobIdBindPath)
@@ -1588,6 +1596,10 @@ func (n UiNode) ButtonDisabledWhen(bindPath string) UiNode {
 
 func (n UiNode) ButtonEscapeHint(enabled bool) UiNode {
 	return n.propMutate("showEscapeHint", VBool(enabled))
+}
+
+func (n UiNode) WarningCentered(enabled bool) UiNode {
+	return n.propMutate("centered", VBool(enabled))
 }
 
 func SidebarLayout() SidebarLayoutNodeBuilder {

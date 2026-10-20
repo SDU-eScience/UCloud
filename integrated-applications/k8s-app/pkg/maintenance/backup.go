@@ -314,7 +314,7 @@ func backupSelectNode(ctx context.Context, record shared.ClusterRecord) (shared.
 
 	busy := map[string]bool{}
 	for nodeName, operation := range operations {
-		if PhaseActive(operation.Phase) || upgradeBlockedByRecovery(operation) || operation.HostTerminationUnverified {
+		if PhaseActive(operation.Phase) || operationBlockedByRecovery(operation) || operation.HostTerminationUnverified {
 			busy[nodeName] = true
 		}
 	}

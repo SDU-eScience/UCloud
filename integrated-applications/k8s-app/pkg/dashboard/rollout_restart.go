@@ -169,6 +169,6 @@ func (app *stackUiApp) rolloutRestartDialogNode() ucx.UiNode {
 			"Restart %s %s?",
 			rolloutRestartSingularLabel(app.rolloutRestartTarget.TypeId),
 			app.rolloutRestartTargetPath(),
-		), ucx.IconHeroArrowPath, app.closeRolloutRestartDialog, app.performRolloutRestart,
+		), ucx.IconHeroArrowPath, ucx.ColorErrorMain, app.closeRolloutRestartDialog, app.performRolloutRestart,
 	)
 }

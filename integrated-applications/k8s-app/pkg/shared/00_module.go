@@ -93,7 +93,7 @@ const (
 	ClusterRecordPhaseRecovering = "recovering"
 )
 
-const ScriptBundleRevision = 20
+const ScriptBundleRevision = 22
 
 func BundlePathForRelease(release K3sRelease) string {
 	return filepath.Join("bundles", strconv.Itoa(ScriptBundleRevision), SanitizeForPath(release.Release))

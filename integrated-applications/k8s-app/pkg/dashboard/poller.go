@@ -3,6 +3,7 @@ package dashboard
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"sync"
@@ -533,6 +534,7 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 	isNodes := selection.def.Id == "nodes"
 	maintenanceSnapshot := map[string]maintenance.Operation{}
 	maintenanceUnavailable := false
+	osReports := map[string]maintenance.AutoUpdateReport{}
 	nodeJobIds := map[string]string{}
 	if isNodes {
 		read, err := maintenance.Snapshot()
@@ -541,6 +543,14 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 			maintenanceUnavailable = true
 		} else {
 			maintenanceSnapshot = read
+		}
+		reports, reportsErr := maintenance.AutoOsReportsRead()
+		if reportsErr != nil {
+			log.Warn("k8s-app: could not read the operating-system update reports: %s", reportsErr)
+		} else {
+			for _, report := range reports {
+				osReports[report.NodeName] = report
+			}
 		}
 		if p.nodeJobIds != nil {
 			nodeJobIds = p.nodeJobIds()
@@ -594,6 +604,10 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 		if isNodes && !strings.HasPrefix(rows[i].Key, provisioningRowKeyPrefix) && len(rows[i].Cells) > 3 {
 			operation, present := maintenanceSnapshot[rows[i].Cells[0]]
 			rows[i].Cells[3] = maintenanceCellForOperation(operation, present)
+		}
+		if isNodes && !strings.HasPrefix(rows[i].Key, provisioningRowKeyPrefix) && len(rows[i].Cells) > 6 {
+			report, present := osReports[rows[i].Cells[0]]
+			rows[i].Cells[6] = osUpdateCellForReport(report, present)
 		}
 	}
 
@@ -918,7 +932,8 @@ func resourceRowActions(
 		return actions
 	}
 	isUpgrade := knownRecorded && maintenance.KindIsUpgrade(operation.Kind)
-	recoveryBlocked := isUpgrade && operation.ExecutorSubmitted && operation.RecoveryRequired
+	recoveryBlocked := knownRecorded && maintenance.KindRequiresRecovery(operation.Kind) &&
+		operation.ExecutorSubmitted && operation.RecoveryRequired
 	upgradeNode := ucx.TableRowAction{Id: "upgradeNode", Enabled: true}
 	if maintenanceUnavailable {
 		upgradeNode.Enabled = false
@@ -983,6 +998,30 @@ var (
 	}
 )
 
+func osUpdateCellForReport(report maintenance.AutoUpdateReport, present bool) string {
+	if !present || report.CheckedAt.IsZero() {
+		return ""
+	}
+	if report.Error != "" {
+		return "check failed"
+	}
+
+	parts := []string{}
+	if report.Pending > 0 {
+		parts = append(parts, fmt.Sprintf("%d pending", report.Pending))
+		if report.Security > 0 {
+			parts = append(parts, fmt.Sprintf("%d security", report.Security))
+		}
+	}
+	if report.RebootRequired {
+		parts = append(parts, "reboot required")
+	}
+	if len(parts) == 0 {
+		return "up to date"
+	}
+	return strings.Join(parts, ", ")
+}
+
 func maintenanceCellForOperation(operation maintenance.Operation, present bool) string {
 	if !present {
 		return ""
@@ -990,6 +1029,9 @@ func maintenanceCellForOperation(operation maintenance.Operation, present bool) 
 	if maintenance.PhaseActive(operation.Phase) {
 		if maintenance.KindIsUpgrade(operation.Kind) {
 			return "Upgrading"
+		}
+		if maintenance.KindIsOsUpdate(operation.Kind) {
+			return "Updating"
 		}
 		if operation.Kind == maintenance.KindCordon {
 			return "Cordoning"

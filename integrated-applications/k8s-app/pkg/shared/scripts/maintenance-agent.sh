@@ -8,6 +8,7 @@ AGENT_BIN="/usr/local/sbin/ucloud-k8s-maintenance-agent"
 SUPERVISOR_BIN="/usr/local/sbin/ucloud-k8s-maintenance-agent-run"
 UNIT_FILE="/etc/systemd/system/ucloud-k8s-maintenance-agent.service"
 STATE_FILE="/var/lib/ucloud-k8s/maintenance/upgrade-state.json"
+OS_STATE_FILE="/var/lib/ucloud-k8s/maintenance/os-state.json"
 
 if [ "$(id -u)" -ne 0 ]; then
 	echo "[ucloud-k8s] the maintenance agent installer must run as root" >&2
@@ -51,10 +52,13 @@ while true; do
 done
 
 agent_idle() {
-	if [ ! -f "$STATE_FILE" ]; then
-		return 0
+	if [ -f "$STATE_FILE" ] && grep -Eq '"phase": *"(downloading|snapshotting|installing|restarting|verifying)"' "$STATE_FILE"; then
+		return 1
 	fi
-	! grep -Eq '"phase": *"(downloading|snapshotting|installing|restarting|verifying)"' "$STATE_FILE"
+	if [ -f "$OS_STATE_FILE" ] && grep -Eq '"phase": *"(staging|staged|applying|rebooting|verifying)"' "$OS_STATE_FILE"; then
+		return 1
+	fi
+	return 0
 }
 
 SUPERVISOR_TMP="$SUPERVISOR_BIN.tmp"
@@ -65,6 +69,7 @@ set -euo pipefail
 PROVIDER_UCX_BIN="/opt/ucloud-ucx/current"
 AGENT_BIN="/usr/local/sbin/ucloud-k8s-maintenance-agent"
 STATE_FILE="/var/lib/ucloud-k8s/maintenance/upgrade-state.json"
+OS_STATE_FILE="/var/lib/ucloud-k8s/maintenance/os-state.json"
 
 file_state() {
 	if [ ! -f "$PROVIDER_UCX_BIN" ]; then
@@ -75,10 +80,13 @@ file_state() {
 }
 
 agent_idle() {
-	if [ ! -f "$STATE_FILE" ]; then
-		return 0
+	if [ -f "$STATE_FILE" ] && grep -Eq '"phase": *"(downloading|snapshotting|installing|restarting|verifying)"' "$STATE_FILE"; then
+		return 1
 	fi
-	! grep -Eq '"phase": *"(downloading|snapshotting|installing|restarting|verifying)"' "$STATE_FILE"
+	if [ -f "$OS_STATE_FILE" ] && grep -Eq '"phase": *"(staging|staged|applying|rebooting|verifying)"' "$OS_STATE_FILE"; then
+		return 1
+	fi
+	return 0
 }
 
 update_agent_bin() {

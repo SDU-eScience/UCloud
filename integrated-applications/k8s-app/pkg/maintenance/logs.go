@@ -117,7 +117,7 @@ func logPackLines(lines []string) []string {
 			break
 		}
 
-		trimmed := strings.TrimSpace(fmt.Sprintf("[ucloud-k8s] %s", line))
+		trimmed := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "[ucloud-k8s] "))
 		if trimmed == "" {
 			continue
 		}
@@ -233,6 +233,20 @@ func resetNodeLog(nodeName string, operationUid string) {
 	}
 }
 
+func operationExecutorProgress(worker *nodeWorker, operationUid string, progress shared.NodeAgentProgress) {
+	err := worker.mutate(func(op *Operation) bool {
+		op.ExecutorSeenAt = time.Now().UTC()
+		if progress.OperationUid == operationUid {
+			progress.Percent = max(progress.Percent, op.Progress.Percent)
+			op.Progress = progress
+		}
+		return true
+	})
+	if err != nil {
+		logMutateFailure(worker.nodeName, err)
+	}
+}
+
 func operationLogStage(worker *nodeWorker, stage string, lines ...string) {
 	if worker == nil {
 		return
@@ -256,7 +270,7 @@ func operationLogStage(worker *nodeWorker, stage string, lines ...string) {
 		return
 	}
 
-	if worker.logs != nil {
+	if worker.logs != nil && len(lines) > 0 {
 		worker.logs.submit(lines)
 	}
 }
@@ -290,10 +304,13 @@ func (drainLog *drainLogger) report(deletable int, terminating int, blockers int
 	drainLog.lastTerminating = terminating
 	drainLog.lastBlocked = blockers
 
-	line := fmt.Sprintf("Draining %s: %d pods to remove, %d pods terminating", drainLog.worker.nodeName, deletable, terminating)
+	line := fmt.Sprintf("%s: moving %d pods; waiting for %d pods to stop", drainLog.worker.nodeName, deletable, terminating)
+	if deletable == 0 && terminating == 0 && blockers == 0 {
+		line = fmt.Sprintf("Workloads have stopped on %s", drainLog.worker.nodeName)
+	}
 	if blockers > 0 {
 		line = fmt.Sprintf(
-			"Draining %s: %d pods to remove, %d pods terminating, %d pods blocked",
+			"%s: %d pods to move, %d stopping, %d blocked",
 			drainLog.worker.nodeName,
 			deletable,
 			terminating,

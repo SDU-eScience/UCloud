@@ -36,11 +36,42 @@ var NodeAgentPhases = []string{
 	NodeAgentPhaseVerifying,
 }
 
+const NodeAgentOsPhaseIdle = "idle"
+const NodeAgentOsPhaseStaging = "staging"
+const NodeAgentOsPhaseStaged = "staged"
+const NodeAgentOsPhaseApplying = "applying"
+const NodeAgentOsPhaseRebooting = "rebooting"
+const NodeAgentOsPhaseVerifying = "verifying"
+const NodeAgentOsPhaseCompleted = "completed"
+const NodeAgentOsPhaseFailed = "failed"
+
+var NodeAgentOsPhases = []string{
+	NodeAgentOsPhaseStaging,
+	NodeAgentOsPhaseApplying,
+	NodeAgentOsPhaseRebooting,
+	NodeAgentOsPhaseVerifying,
+}
+
+const (
+	NodeAgentOsCommandCheck      = "check"
+	NodeAgentOsCommandStage      = "stage"
+	NodeAgentOsCommandStageRetry = "stage-retry"
+	NodeAgentOsCommandApply      = "apply"
+	NodeAgentOsCommandRetry      = "retry"
+)
+
+const (
+	NodeAgentOsRebootWhenRequired = "whenRequired"
+	NodeAgentOsRebootAlways       = "always"
+)
+
 const NodeAgentMaxLogBody = 16 * 1024
 
 const NodeAgentPort = 9444
 
 const nodeAgentClientTimeout = 10 * time.Second
+
+const nodeAgentOsCheckClientTimeout = 11 * time.Minute
 
 const nodeAgentBackupClientTimeout = 25 * time.Minute
 
@@ -51,11 +82,52 @@ const NodeAgentOperationHeader = "X-Ucloud-Maintenance-Operation"
 const NodeAgentCoordinatorTokensDir = "/etc/ucloud-k8s/management/maintenance-tokens"
 
 type NodeAgentStatus struct {
-	NodeName  string    `json:"nodeName"`
-	Release   string    `json:"release"`
-	Phase     string    `json:"phase"`
-	Error     string    `json:"error"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	Progress     NodeAgentProgress `json:"progress"`
+	OperationUid string            `json:"operationUid,omitempty"`
+	NodeName     string            `json:"nodeName"`
+	Release      string            `json:"release"`
+	Phase        string            `json:"phase"`
+	Error        string            `json:"error"`
+	UpdatedAt    time.Time         `json:"updatedAt"`
+}
+
+type NodeAgentOsStatus struct {
+	Progress           NodeAgentProgress `json:"progress"`
+	StagingSupported   bool              `json:"stagingSupported,omitempty"`
+	OperationUid       string            `json:"operationUid,omitempty"`
+	NodeName           string            `json:"nodeName"`
+	Phase              string            `json:"phase"`
+	Error              string            `json:"error"`
+	NeedsRecovery      bool              `json:"needsRecovery"`
+	NeedsStateRecovery bool              `json:"needsStateRecovery,omitempty"`
+	Pending            int               `json:"pending"`
+	Security           int               `json:"security"`
+	RebootRequired     bool              `json:"rebootRequired"`
+	KernelRunning      string            `json:"kernelRunning,omitempty"`
+	KernelPending      string            `json:"kernelPending,omitempty"`
+	CheckedAt          time.Time         `json:"checkedAt,omitempty"`
+	CheckError         string            `json:"checkError,omitempty"`
+	BootId             string            `json:"bootId,omitempty"`
+	UpdatedAt          time.Time         `json:"updatedAt"`
+}
+
+type NodeAgentProgress struct {
+	OperationUid string                   `json:"operationUid,omitempty"`
+	Percent      int                      `json:"percent"`
+	Stage        string                   `json:"stage,omitempty"`
+	Detail       string                   `json:"detail,omitempty"`
+	UpdatedAt    time.Time                `json:"updatedAt,omitempty"`
+	Events       []NodeAgentProgressEvent `json:"events,omitempty"`
+}
+
+type NodeAgentProgressEvent struct {
+	At   time.Time `json:"at"`
+	Text string    `json:"text"`
+}
+
+type NodeAgentOsRequest struct {
+	Command string `json:"command"`
+	Reboot  string `json:"reboot,omitempty"`
 }
 
 type NodeAgentBackupResult struct {
@@ -66,6 +138,15 @@ type NodeAgentBackupResult struct {
 
 func NodeAgentPhaseActive(phase string) bool {
 	for _, candidate := range NodeAgentPhases {
+		if phase == candidate {
+			return true
+		}
+	}
+	return false
+}
+
+func NodeAgentOsPhaseActive(phase string) bool {
+	for _, candidate := range NodeAgentOsPhases {
 		if phase == candidate {
 			return true
 		}
@@ -134,6 +215,73 @@ func NodeAgentClientUpgrade(ctx context.Context, nodeName string, nodeIp string,
 	}
 
 	return nodeAgentClientStatusCall(ctx, nodeName, nodeIp, http.MethodPost, endpoint, string(body), operationUid)
+}
+
+func NodeAgentClientOsStatus(ctx context.Context, nodeName string, nodeIp string) (NodeAgentOsStatus, error) {
+	if err := nodeAgentClientValidateIp(nodeIp); err != nil {
+		return NodeAgentOsStatus{}, err
+	}
+
+	responseBody, err := nodeAgentClientCall(
+		ctx,
+		http.MethodGet,
+		nodeAgentClientUrl(nodeIp, "/os/status"),
+		"",
+		nodeName,
+		"",
+	)
+	if err != nil {
+		return NodeAgentOsStatus{}, err
+	}
+
+	var status NodeAgentOsStatus
+	if err := json.Unmarshal(responseBody, &status); err != nil {
+		return NodeAgentOsStatus{}, fmt.Errorf("could not parse the node agent response: %s", err)
+	}
+
+	return status, nil
+}
+
+func NodeAgentClientOsCommand(
+	ctx context.Context,
+	nodeName string,
+	nodeIp string,
+	request NodeAgentOsRequest,
+	operationUid string,
+) (NodeAgentOsStatus, error) {
+	body, err := json.Marshal(request)
+	if err != nil {
+		return NodeAgentOsStatus{}, err
+	}
+
+	if err := nodeAgentClientValidateIp(nodeIp); err != nil {
+		return NodeAgentOsStatus{}, err
+	}
+
+	timeout := nodeAgentClientTimeout
+	if request.Command == NodeAgentOsCommandCheck {
+		timeout = nodeAgentOsCheckClientTimeout
+	}
+
+	responseBody, err := nodeAgentClientCallTimeout(
+		ctx,
+		http.MethodPost,
+		nodeAgentClientUrl(nodeIp, "/os/update"),
+		string(body),
+		nodeName,
+		operationUid,
+		timeout,
+	)
+	if err != nil {
+		return NodeAgentOsStatus{}, err
+	}
+
+	var status NodeAgentOsStatus
+	if err := json.Unmarshal(responseBody, &status); err != nil {
+		return NodeAgentOsStatus{}, fmt.Errorf("could not parse the node agent response: %s", err)
+	}
+
+	return status, nil
 }
 
 func NodeAgentClientBackup(ctx context.Context, nodeName string, nodeIp string, trigger string, operationUid string) (NodeAgentBackupResult, error) {

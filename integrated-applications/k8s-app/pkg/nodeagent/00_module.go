@@ -146,6 +146,7 @@ func Serve(ctx context.Context) error {
 	globals.Mu.Unlock()
 
 	recoverInterrupted()
+	recoverInterruptedOs()
 
 	if identityConfig.Role == shared.GroupControlPlane {
 		go startTokenPublisher()
@@ -156,6 +157,8 @@ func Serve(ctx context.Context) error {
 	mux.HandleFunc("/upgrade", handleUpgrade)
 	mux.HandleFunc("/retry", handleRetry)
 	mux.HandleFunc("/backup", handleBackup)
+	mux.HandleFunc("/os/status", handleOsStatus)
+	mux.HandleFunc("/os/update", handleOsUpdate)
 	mux.HandleFunc("/log", handleLog)
 	mux.HandleFunc("/log/reset", handleLogReset)
 
@@ -359,10 +362,17 @@ func handleUpgradeOrRetry(writer http.ResponseWriter, request *http.Request, ret
 		return
 	}
 
-	fenceErr := validateFence(operationUid, shared.NodeAgentPhaseActive(state.Phase))
+	osActive := shared.NodeAgentOsPhaseActive(osStateLoad().Phase)
+
+	fenceErr := validateFence(operationUid, shared.NodeAgentPhaseActive(state.Phase) || osActive)
 	if fenceErr != nil {
 		log.Warn("k8s-app node agent: the command was rejected because its ownership could not be verified: %s", fenceErr)
 		writeError(writer, http.StatusForbidden, fenceErr.Error())
+		return
+	}
+
+	if osActive {
+		writeError(writer, http.StatusConflict, "an operating-system update is running on the node")
 		return
 	}
 
@@ -504,6 +514,10 @@ func handleBackup(writer http.ResponseWriter, request *http.Request) {
 		writeError(writer, http.StatusConflict, "an upgrade is running on the node")
 		return
 	}
+	if shared.NodeAgentOsPhaseActive(osStateLoad().Phase) {
+		writeError(writer, http.StatusConflict, "an operating-system update is running on the node")
+		return
+	}
 
 	result, err := runBackup(request.Context(), trigger, attemptUid)
 	if err != nil {
@@ -544,6 +558,230 @@ func decodeBackupTrigger(writer http.ResponseWriter, request *http.Request) (str
 	return parsed.Trigger, true
 }
 
+func writeOsStatus(writer http.ResponseWriter, statusCode int) {
+	writeJson(writer, statusCode, osStatusFromState(identitySnapshot()))
+}
+
+type osUpdateRequest struct {
+	Command string `json:"command"`
+	Reboot  string `json:"reboot"`
+}
+
+func handleOsStatus(writer http.ResponseWriter, request *http.Request) {
+	if !authorizePeer(writer, request) {
+		return
+	}
+	if request.Method != http.MethodGet {
+		writeError(writer, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	globals.CommandMu.Lock()
+	defer globals.CommandMu.Unlock()
+	writeOsStatus(writer, http.StatusOK)
+}
+
+func handleOsUpdate(writer http.ResponseWriter, request *http.Request) {
+	if !authorizePeer(writer, request) {
+		return
+	}
+	if request.Method != http.MethodPost {
+		writeError(writer, http.StatusMethodNotAllowed, "this endpoint only accepts POST")
+		return
+	}
+
+	parsed, ok := decodeOsUpdate(writer, request)
+	if !ok {
+		return
+	}
+
+	globals.CommandMu.Lock()
+	defer globals.CommandMu.Unlock()
+
+	operationUid, ok := readCommandAuthorization(writer, request)
+	if !ok {
+		return
+	}
+
+	state := osStateLoad()
+	if state.NeedsStateRecovery {
+		writeError(writer, http.StatusInternalServerError, state.StateError)
+		return
+	}
+
+	upgradeActive := shared.NodeAgentPhaseActive(stateLoad().Phase)
+	osActive := shared.NodeAgentOsPhaseActive(state.Phase)
+
+	if parsed.Command == shared.NodeAgentOsCommandCheck {
+		if upgradeActive {
+			writeError(writer, http.StatusConflict, "an upgrade is running on the node")
+			return
+		}
+		if osActive {
+			writeError(writer, http.StatusConflict, "an operating-system update is running on the node")
+			return
+		}
+	}
+
+	fenceErr := validateFence(operationUid, upgradeActive || osActive)
+	if fenceErr != nil {
+		log.Warn("k8s-app node agent: the operating-system command was rejected because its ownership could not be verified: %s", fenceErr)
+		writeError(writer, http.StatusForbidden, fenceErr.Error())
+		return
+	}
+
+	if parsed.Command == shared.NodeAgentOsCommandCheck {
+		if err := acceptOperation(operationUid); err != nil {
+			writeError(writer, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		controller := http.NewResponseController(writer)
+		_ = controller.SetWriteDeadline(time.Now().Add(2*osCheckTimeout + osCommandShortTimeout + writeTimeout))
+
+		status := runOsCheck(request.Context())
+		writeJson(writer, http.StatusOK, status)
+		return
+	}
+
+	if upgradeActive {
+		writeError(writer, http.StatusConflict, "an upgrade is running on the node")
+		return
+	}
+
+	if osActive {
+		if err := acceptOperation(operationUid); err != nil {
+			writeError(writer, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeOsStatus(writer, http.StatusAccepted)
+		return
+	}
+
+	staging := parsed.Command == shared.NodeAgentOsCommandStage || parsed.Command == shared.NodeAgentOsCommandStageRetry
+	if state.OperationUid == operationUid && (state.Phase == shared.NodeAgentOsPhaseCompleted ||
+		(staging && state.Phase == shared.NodeAgentOsPhaseStaged)) {
+		writeOsStatus(writer, http.StatusOK)
+		return
+	}
+	if parsed.Command == shared.NodeAgentOsCommandApply && state.Phase == shared.NodeAgentOsPhaseStaged && state.OperationUid == operationUid {
+		if err := acceptOperation(operationUid); err != nil {
+			writeError(writer, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if !osSetPhase(shared.NodeAgentOsPhaseApplying, nil) {
+			writeError(writer, http.StatusInternalServerError, "could not persist the accepted operating-system installation")
+			return
+		}
+		go runOsApply(parsed.Reboot)
+		writeOsStatus(writer, http.StatusAccepted)
+		return
+	}
+
+	if state.Phase == shared.NodeAgentOsPhaseFailed && parsed.Command != shared.NodeAgentOsCommandRetry && parsed.Command != shared.NodeAgentOsCommandStageRetry {
+		writeError(writer, http.StatusConflict, "the failed operating-system update requires an explicit retry")
+		return
+	}
+
+	startOsUpdate(writer, parsed, state, operationUid)
+}
+
+func decodeOsUpdate(writer http.ResponseWriter, request *http.Request) (osUpdateRequest, bool) {
+	body := request.Body
+	if request.ContentLength > maxRequestBody {
+		writeError(writer, http.StatusRequestEntityTooLarge, "the request body is too large")
+		return osUpdateRequest{}, false
+	}
+	body = http.MaxBytesReader(writer, body, maxRequestBody)
+
+	var parsed osUpdateRequest
+	decoder := json.NewDecoder(body)
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&parsed)
+	if err != nil {
+		writeError(writer, http.StatusBadRequest, fmt.Sprintf("invalid request body: %s", err))
+		return osUpdateRequest{}, false
+	}
+	if decoder.Decode(&struct{}{}) != io.EOF {
+		writeError(writer, http.StatusBadRequest, "the request body must contain a single JSON object")
+		return osUpdateRequest{}, false
+	}
+
+	switch parsed.Command {
+	case shared.NodeAgentOsCommandCheck, shared.NodeAgentOsCommandStage, shared.NodeAgentOsCommandStageRetry,
+		shared.NodeAgentOsCommandApply, shared.NodeAgentOsCommandRetry:
+	default:
+		writeError(writer, http.StatusBadRequest, fmt.Sprintf("unknown operating-system command: %s", parsed.Command))
+		return osUpdateRequest{}, false
+	}
+
+	switch parsed.Reboot {
+	case "":
+		parsed.Reboot = shared.NodeAgentOsRebootWhenRequired
+	case shared.NodeAgentOsRebootWhenRequired, shared.NodeAgentOsRebootAlways:
+	default:
+		writeError(writer, http.StatusBadRequest, fmt.Sprintf("unknown reboot policy: %s", parsed.Reboot))
+		return osUpdateRequest{}, false
+	}
+
+	return parsed, true
+}
+
+func startOsUpdate(writer http.ResponseWriter, parsed osUpdateRequest, state osState, operationUid string) {
+	current := osStateLoad()
+	stateChanged := current.Phase != state.Phase || !current.UpdatedAt.Equal(state.UpdatedAt)
+	if current.NeedsStateRecovery || stateChanged {
+		writeError(writer, http.StatusConflict, "the operating-system update state changed. Read its status before submitting again")
+		return
+	}
+
+	fence, fenceErr := fenceLoad()
+	if fenceErr != nil {
+		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not read the fence state: %s", fenceErr))
+		return
+	}
+	if fence.LastOperation != "" && fence.LastOperation != operationUid && shared.NodeAgentOsPhaseActive(current.Phase) {
+		writeError(writer, http.StatusConflict, "the command comes from obsolete node ownership and was rejected")
+		return
+	}
+
+	fenceErr = fenceStore(operationUid)
+	if fenceErr != nil {
+		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not persist the fence state: %s", fenceErr))
+		return
+	}
+
+	identity := identitySnapshot()
+	progressBegin(operationUid)
+	persistErr := osStateStore(&osState{
+		SchemaRevision: osStateSchemaRevision,
+		OperationUid:   operationUid,
+		NodeName:       identity.NodeName,
+		IpAddress:      identity.IpAddress,
+		Role:           identity.Role,
+		Phase:          shared.NodeAgentOsPhaseStaging,
+		UpdatedAt:      time.Now().UTC(),
+		KernelRunning:  current.KernelRunning,
+		KernelPending:  current.KernelPending,
+		Pending:        current.Pending,
+		Security:       current.Security,
+		RebootRequired: current.RebootRequired,
+		CheckedAt:      current.CheckedAt,
+		CheckError:     current.CheckError,
+	})
+	if persistErr != nil {
+		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not persist the accepted operating-system update: %s", persistErr))
+		return
+	}
+
+	if parsed.Command == shared.NodeAgentOsCommandStage || parsed.Command == shared.NodeAgentOsCommandStageRetry {
+		go runOsStage()
+	} else {
+		go runOsUpdate(parsed.Reboot)
+	}
+
+	writeOsStatus(writer, http.StatusAccepted)
+}
+
 func startUpgrade(writer http.ResponseWriter, release string, state upgradeState, operationUid string) {
 	current := stateLoad()
 	stateChanged := current.Phase != state.Phase || current.Release != state.Release || !current.UpdatedAt.Equal(state.UpdatedAt)
@@ -569,12 +807,14 @@ func startUpgrade(writer http.ResponseWriter, release string, state upgradeState
 	}
 
 	identity := identitySnapshot()
+	progressBegin(operationUid)
 	previousRelease := ""
 	if state.Release == release {
 		previousRelease = state.PreviousRelease
 	}
 	persistErr := stateStore(&upgradeState{
 		SchemaRevision:  stateSchemaRevision,
+		OperationUid:    operationUid,
 		NodeName:        identity.NodeName,
 		IpAddress:       identity.IpAddress,
 		Role:            identity.Role,

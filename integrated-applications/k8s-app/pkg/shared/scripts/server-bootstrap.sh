@@ -25,7 +25,6 @@ k3s kubectl --request-timeout=60s apply -f /var/lib/rancher/k3s/server/manifests
 
 emit "Waiting for addons" 88
 k3s kubectl --request-timeout=60s -n local-path-storage rollout status deploy/local-path-provisioner --timeout=180s >/dev/null
-k3s kubectl --request-timeout=60s -n headlamp rollout status deploy/headlamp --timeout=180s >/dev/null
 
 log "applying the admin service account"
 k3s kubectl --request-timeout=60s apply -f "$BUNDLE_DIR/admin-account.yaml" >/dev/null

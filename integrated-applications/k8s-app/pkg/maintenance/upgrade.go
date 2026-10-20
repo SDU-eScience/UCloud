@@ -327,7 +327,7 @@ func upgradeControlPlaneGuard(ctx context.Context, clientset *kubernetes.Clients
 	for otherName, other := range snapshot {
 		otherControlPlaneUpgrading := otherName != operation.NodeName && controlPlanes[otherName] &&
 			other.Kind != KindUncordon &&
-			(PhaseActive(other.Phase) || upgradeBlockedByRecovery(other))
+			(PhaseActive(other.Phase) || operationBlockedByRecovery(other))
 		if otherControlPlaneUpgrading {
 			upgrading[otherName] = true
 		}
@@ -460,6 +460,7 @@ func upgradeDriveRemote(
 		))
 		return true
 	}
+	operationExecutorProgress(worker, operation.Uid, status.Progress)
 
 	if shared.NodeAgentPhaseActive(status.Phase) {
 		if status.Release != operation.TargetRelease {
@@ -473,7 +474,6 @@ func upgradeDriveRemote(
 		operationLogStage(
 			worker,
 			fmt.Sprintf("executor-%s", status.Phase),
-			fmt.Sprintf("The node executor is %s", status.Phase),
 		)
 		return false
 	}
@@ -499,6 +499,10 @@ func upgradeDriveRemote(
 				status.Release,
 			))
 			return true
+		}
+
+		if !operationSawStatus(operation, status.OperationUid) {
+			return upgradeSubmit(ctx, operation, worker, nodeIp, status)
 		}
 
 		executorMessage := status.Error
@@ -572,7 +576,13 @@ func upgradeSubmit(
 	}
 
 	persistErr := worker.mutate(func(op *Operation) bool {
+		if op.ExecutorSubmitted && !op.SubmittedAt.IsZero() {
+			return false
+		}
 		op.ExecutorSubmitted = true
+		if op.SubmittedAt.IsZero() {
+			op.SubmittedAt = time.Now().UTC()
+		}
 		return true
 	})
 	if persistErr != nil {
@@ -1083,9 +1093,8 @@ func upgradeSuspendTraffic(operation Operation, worker *nodeWorker) error {
 	}
 
 	operationLogLines(worker, fmt.Sprintf(
-		"The traffic of %s was suspended. The job %s no longer receives traffic",
+		"Network traffic is now routed away from %s",
 		operation.NodeName,
-		jobId,
 	))
 
 	return nil

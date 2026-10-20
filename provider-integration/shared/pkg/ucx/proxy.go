@@ -3,6 +3,7 @@ package ucx
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -30,11 +31,12 @@ type ProxyUpstreamSelection struct {
 type Proxy struct {
 	upstreamUrl string
 
-	mu       sync.RWMutex
-	handlers map[string]RpcHandler
-	auth     ProxyAuthHandler
-	sysHello ProxySysHelloHandler
-	upstream ProxyUpstreamSelector
+	mu        sync.RWMutex
+	handlers  map[string]RpcHandler
+	auth      ProxyAuthHandler
+	sysHello  ProxySysHelloHandler
+	upstream  ProxyUpstreamSelector
+	dialGrace time.Duration
 
 	nextSyntheticSeq atomic.Int64
 }
@@ -68,6 +70,31 @@ func (p *Proxy) RegisterUpstreamSelector(selector ProxyUpstreamSelector) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.upstream = selector
+}
+
+func (p *Proxy) SetUpstreamDialGrace(grace time.Duration) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.dialGrace = grace
+}
+
+func (p *Proxy) upstreamDialGrace() time.Duration {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.dialGrace
+}
+
+func (p *Proxy) dialUpstream(url string, header http.Header, timeout time.Duration) (*ws.Conn, *http.Response, error) {
+	if timeout <= 0 {
+		return ws.DefaultDialer.Dial(url, header)
+	}
+
+	dialer := ws.Dialer{
+		Proxy:            http.ProxyFromEnvironment,
+		HandshakeTimeout: timeout,
+		NetDialContext:   (&net.Dialer{Timeout: timeout}).DialContext,
+	}
+	return dialer.Dial(url, header)
 }
 
 func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
@@ -149,6 +176,7 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 	upstreamOutgoing := (chan Frame)(nil)
 	upstreamClosed := (<-chan struct{})(nil)
 	reconnectTimer := time.After(0)
+	upstreamDeadline := time.Time{}
 	acknowledgedDownstream := false
 
 	pendingDownstream := []Frame{}
@@ -254,12 +282,28 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 				header = http.Header{"Authorization": []string{fmt.Sprintf("Bearer %s", selection.UpstreamToken)}}
 			}
 
-			upstream, _, err := ws.DefaultDialer.Dial(selection.UpstreamUrl, header)
+			dialTimeout := time.Duration(0)
+			if dialGrace := p.upstreamDialGrace(); dialGrace > 0 {
+				if upstreamDeadline.IsZero() {
+					upstreamDeadline = time.Now().Add(dialGrace)
+				}
+				remaining := time.Until(upstreamDeadline)
+				if remaining <= 0 {
+					log.Warn("UCX proxy: the upstream %q stayed unreachable for %s, ending the session", selection.UpstreamUrl, dialGrace)
+					_ = downstream.WriteMessage(ws.TextMessage, []byte("Forbidden"))
+					cancel()
+					continue
+				}
+				dialTimeout = remaining
+			}
+
+			upstream, _, err := p.dialUpstream(selection.UpstreamUrl, header, dialTimeout)
 			if err != nil {
 				log.Warn("UCX proxy: failed to dial upstream %q: %v", selection.UpstreamUrl, err)
 				reconnectTimer = time.After(1 * time.Second)
 				continue
 			}
+			upstreamDeadline = time.Time{}
 
 			downstreamHelloFrame.SysHello.Payload = selection.UpstreamSysHello
 			encodedHello, err := FrameEncode(downstreamHelloFrame)

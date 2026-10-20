@@ -37,6 +37,7 @@ const (
 	AutoCheckPath       = "path"
 	AutoCheckRolling    = "rollingUpgrade"
 	AutoCheckBackup     = "backup"
+	AutoCheckOs         = "os"
 )
 
 type autoOutcome int
@@ -89,6 +90,9 @@ func autoWindowOpenNow(now time.Time, window AutoWindow) (time.Time, time.Time, 
 }
 
 func AutoScheduleOpen(now time.Time, policy AutoPolicy) bool {
+	if AutoTestWindowOpen(now, policy) {
+		return true
+	}
 	if policy.DeferUntil.After(now) {
 		return false
 	}
@@ -110,11 +114,12 @@ func autoUpgradeScheduleGate(client stackClient, now time.Time) (autoScheduleGat
 	if err != nil {
 		return autoScheduleGate{}, err
 	}
-	if !policyRecord.Found || !policyRecord.Policy.K8s.Enabled || policyRecord.Policy.DeferUntil.After(now) {
+	policy := AutoPolicyNormalize(policyRecord.Policy)
+	if !policyRecord.Found || !policy.K8s.Enabled || !AutoScheduleOpen(now, policy) {
 		return autoScheduleGate{}, nil
 	}
 
-	_, end, open := autoWindowOpenNow(now, policyRecord.Policy.Window)
+	_, end, open := autoPolicyWindowOpenNow(now, policy)
 	return autoScheduleGate{
 		open: open,
 		condition: ucxapi.StackStateRevisionCondition{
@@ -204,31 +209,13 @@ func autoUpgradeClusterChecks(
 		return list, fmt.Errorf("could not read the maintenance state: %s", err)
 	}
 
-	for _, node := range record.Nodes {
-		operation, present := snapshot[node.Hostname]
-		if !present {
-			continue
-		}
-		if PhaseActive(operation.Phase) {
-			autoCheckRecord(&list, AutoCheckOperations, autoOutcomeWait, fmt.Sprintf("Node %s has an active maintenance operation.", node.Hostname))
-			return list, nil
-		}
-		if upgradeBlockedByRecovery(operation) {
-			autoCheckRecord(&list, AutoCheckOperations, autoOutcomeStop, fmt.Sprintf(
-				"Node %s requires upgrade recovery. Retry the failed upgrade or uncordon the node, then press Resume automatic maintenance.",
-				node.Hostname,
-			))
-			return list, nil
-		}
-		if operation.HostTerminationUnverified {
-			autoCheckRecord(&list, AutoCheckOperations, autoOutcomeStop, fmt.Sprintf(
-				"Node %s has an unverified host termination from a previous force delete. Resolve it, then press Resume automatic maintenance.",
-				node.Hostname,
-			))
-			return list, nil
-		}
+	proceed, err := autoOperationsCheck(record, snapshot, &list)
+	if err != nil {
+		return list, err
 	}
-	autoCheckRecord(&list, AutoCheckOperations, autoOutcomeProceed, "")
+	if !proceed {
+		return list, nil
+	}
 
 	listed, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
@@ -273,27 +260,13 @@ func autoUpgradeClusterChecks(
 	}
 	autoCheckRecord(&list, AutoCheckNodes, autoOutcomeProceed, fmt.Sprintf("All %d nodes are ready.", len(record.Nodes)))
 
-	controlPlanes := controlPlaneNames(record)
-	if len(controlPlanes) == 2 {
-		autoCheckRecord(&list, AutoCheckQuorum, autoOutcomeStop, "A cluster with two control plane nodes cannot preserve the etcd quorum during an upgrade. Add or remove a control plane node first.")
+	proceed, err = autoQuorumCheck(ctx, clientset, record, &list, "an upgrade")
+	if err != nil {
+		return list, err
+	}
+	if !proceed {
 		return list, nil
 	}
-	if len(controlPlanes) > 2 {
-		required := len(controlPlanes)/2 + 1
-		remaining, remainingErr := controlPlaneRemainingCount(ctx, clientset, controlPlanes, "", map[string]bool{})
-		if remainingErr != nil {
-			return list, fmt.Errorf("could not count the control plane nodes: %s", remainingErr)
-		}
-		if remaining < required {
-			autoCheckRecord(&list, AutoCheckQuorum, autoOutcomeStop, fmt.Sprintf(
-				"At least %d healthy, schedulable control plane nodes must remain during an upgrade, but only %d were found.",
-				required,
-				remaining,
-			))
-			return list, nil
-		}
-	}
-	autoCheckRecord(&list, AutoCheckQuorum, autoOutcomeProceed, "")
 
 	target, targetProblem := autoUpgradeTarget(versions, now)
 	if targetProblem != "" {
@@ -387,6 +360,87 @@ func autoUpgradeClusterChecks(
 		target.Release,
 	))
 	return list, nil
+}
+
+func autoOperationsCheck(
+	record shared.ClusterRecord,
+	snapshot map[string]Operation,
+	list *autoCheckList,
+) (bool, error) {
+	for _, node := range record.Nodes {
+		operation, present := snapshot[node.Hostname]
+		if !present {
+			continue
+		}
+		if PhaseActive(operation.Phase) {
+			autoCheckRecord(list, AutoCheckOperations, autoOutcomeWait, fmt.Sprintf("Node %s has an active maintenance operation.", node.Hostname))
+			return false, nil
+		}
+		if operationBlockedByRecovery(operation) {
+			autoCheckRecord(list, AutoCheckOperations, autoOutcomeStop, autoRecoveryRequiredDetail(node.Hostname, operation))
+			return false, nil
+		}
+		if operation.HostTerminationUnverified {
+			autoCheckRecord(list, AutoCheckOperations, autoOutcomeStop, fmt.Sprintf(
+				"Node %s has an unverified host termination from a previous force delete. Resolve it, then press Resume automatic maintenance.",
+				node.Hostname,
+			))
+			return false, nil
+		}
+	}
+	autoCheckRecord(list, AutoCheckOperations, autoOutcomeProceed, "")
+	return true, nil
+}
+
+func autoRecoveryRequiredDetail(nodeName string, operation Operation) string {
+	if KindIsOsUpdate(operation.Kind) {
+		return fmt.Sprintf(
+			"Node %s requires operating-system update recovery. Retry the update or uncordon the node.",
+			nodeName,
+		)
+	}
+	return fmt.Sprintf(
+		"Node %s requires upgrade recovery. Retry the failed upgrade or uncordon the node, then press Resume automatic maintenance.",
+		nodeName,
+	)
+}
+
+func autoQuorumCheck(
+	ctx context.Context,
+	clientset *kubernetes.Clientset,
+	record shared.ClusterRecord,
+	list *autoCheckList,
+	operationLabel string,
+) (bool, error) {
+	controlPlanes := controlPlaneNames(record)
+
+	if len(controlPlanes) == 2 {
+		autoCheckRecord(list, AutoCheckQuorum, autoOutcomeStop, fmt.Sprintf(
+			"A cluster with two control plane nodes cannot preserve the etcd quorum during %s. Add or remove a control plane node first.",
+			operationLabel,
+		))
+		return false, nil
+	}
+
+	if len(controlPlanes) > 2 {
+		required := len(controlPlanes)/2 + 1
+		remaining, remainingErr := controlPlaneRemainingCount(ctx, clientset, controlPlanes, "", map[string]bool{})
+		if remainingErr != nil {
+			return false, fmt.Errorf("could not count the control plane nodes: %s", remainingErr)
+		}
+		if remaining < required {
+			autoCheckRecord(list, AutoCheckQuorum, autoOutcomeStop, fmt.Sprintf(
+				"At least %d healthy, schedulable control plane nodes must remain during %s, but only %d were found.",
+				required,
+				operationLabel,
+				remaining,
+			))
+			return false, nil
+		}
+	}
+
+	autoCheckRecord(list, AutoCheckQuorum, autoOutcomeProceed, "")
+	return true, nil
 }
 
 func autoUpgradeBackupGate(
@@ -512,6 +566,9 @@ func autoRunWaiting(write *autoRunWrite, phase string, checks []AutoCheck, targe
 		run.Checks = checks
 		if target != "" {
 			run.TargetRelease = target
+			if run.Channel != AutoChannelOs {
+				run.K8sRelease = target
+			}
 		}
 	})
 }
@@ -558,6 +615,15 @@ func autoRunTerminal(
 		run.Checks = checks
 		if target != "" {
 			run.TargetRelease = target
+			if run.Channel != AutoChannelOs {
+				run.K8sRelease = target
+			}
+		}
+		if run.Channel != AutoChannelOs && phase == AutoPhaseCompleted {
+			if run.K8sRelease == "" {
+				run.K8sRelease = run.TargetRelease
+			}
+			run.K8sCompletedAt = write.now.UTC()
 		}
 		run.Error = message
 		run.FinishedAt = write.now.UTC()
@@ -566,6 +632,9 @@ func autoRunTerminal(
 
 func autoRunAdvance(write *autoRunWrite, ctx context.Context, kubeconfigPath string, record shared.ClusterRecord) error {
 	run := write.state.State.LastRun
+	if run.Channel == AutoChannelOs {
+		return autoOsAdvance(write, ctx, kubeconfigPath, record)
+	}
 	if run.Phase == AutoPhaseRunning {
 		return autoRunWatch(write)
 	}
@@ -604,14 +673,16 @@ func autoRunStart(
 ) error {
 	_, err := autoRunPersist(write, func(state *AutoState) {
 		state.LastRun = AutoRun{
-			Uid:         newOperationUid(),
-			Channel:     AutoChannelK8s,
-			Trigger:     trigger,
-			Phase:       AutoPhasePending,
-			WindowStart: windowStart.UTC(),
-			WindowEnd:   windowEnd.UTC(),
-			StartedAt:   write.now.UTC(),
+			Uid:          newOperationUid(),
+			Channel:      AutoChannelK8s,
+			Trigger:      trigger,
+			Phase:        AutoPhasePending,
+			WindowStart:  windowStart.UTC(),
+			WindowEnd:    windowEnd.UTC(),
+			StartedAt:    write.now.UTC(),
+			ManualWindow: windowStart.Equal(write.policy.TestWindowStart) && AutoTestWindowOpen(write.now, write.policy),
 		}
+		state.LastRun.K8sRunUid = state.LastRun.Uid
 	})
 	if err != nil {
 		return err
@@ -798,7 +869,7 @@ func autoUpgradeSweep(ctx context.Context, kubeconfigPath string, client stackCl
 	if !policyRecord.Found {
 		return nil
 	}
-	policy := policyRecord.Policy
+	policy := AutoPolicyNormalize(policyRecord.Policy)
 
 	stateRecord, err := autoStateRead(client)
 	if err != nil {
@@ -812,27 +883,42 @@ func autoUpgradeSweep(ctx context.Context, kubeconfigPath string, client stackCl
 
 	run := stateRecord.State.LastRun
 	active := AutoRunActive(run)
-	windowStart, windowEnd, windowOpen := autoWindowOpenNow(now, policy.Window)
+	resumed := AutoStateResumed(stateRecord.State)
+	windowStart, windowEnd, _ := autoPolicyWindowOpenNow(now, policy)
 
 	if !active {
-		if !policy.K8s.Enabled || AutoStateBlocked(stateRecord.State) || !AutoScheduleOpen(now, policy) {
+		if AutoStateBlocked(stateRecord.State) || !AutoScheduleOpen(now, policy) {
 			return nil
 		}
-		if windowOpen && run.WindowStart.Equal(windowStart) {
+		if !autoChannelStartAllowed(run, policy, windowStart, resumed) {
 			return nil
 		}
 	} else {
-		rolling, _, readErr := rollingUpgradeRead(client)
-		if readErr != nil {
-			return readErr
-		}
-		owned := run.Uid != "" && rolling.AutoRunUid == run.Uid
-		if run.Phase == AutoPhaseRunning {
-			if PhaseActive(rolling.Phase) && (owned || run.Uid == "") {
+		if run.Channel == AutoChannelOs {
+			if run.Phase == AutoPhaseRunning {
+				snapshot, snapErr := Snapshot()
+				if snapErr != nil {
+					return nil
+				}
+				if operation, found := autoOsRunOperation(snapshot, run); found && PhaseActive(operation.Phase) {
+					return nil
+				}
+			} else if run.Trigger == AutoTriggerWindow && !AutoScheduleOpen(now, policy) {
 				return nil
 			}
-		} else if !owned && run.Trigger == AutoTriggerWindow && (!policy.K8s.Enabled || !AutoScheduleOpen(now, policy)) {
-			return nil
+		} else {
+			rolling, _, readErr := rollingUpgradeRead(client)
+			if readErr != nil {
+				return readErr
+			}
+			owned := run.Uid != "" && rolling.AutoRunUid == run.Uid
+			if run.Phase == AutoPhaseRunning {
+				if PhaseActive(rolling.Phase) && (owned || run.Uid == "") {
+					return nil
+				}
+			} else if !owned && run.Trigger == AutoTriggerWindow && (!policy.K8s.Enabled || !AutoScheduleOpen(now, policy)) {
+				return nil
+			}
 		}
 	}
 
@@ -858,6 +944,9 @@ func autoUpgradeSweep(ctx context.Context, kubeconfigPath string, client stackCl
 		return autoRunAdvance(write, ctx, kubeconfigPath, record)
 	}
 
+	if autoWindowChannel(run, policy, windowStart, resumed) == AutoChannelOs {
+		return autoOsStart(write, ctx, kubeconfigPath, record, windowStart, windowEnd)
+	}
 	return autoRunStart(write, ctx, kubeconfigPath, record, AutoTriggerWindow, windowStart, windowEnd)
 }
 
@@ -882,79 +971,21 @@ func autoUpgradeRun(ctx context.Context, kubeconfigPath string) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			client, err := stackClientNew()
-			if err == nil {
-				err = autoUpgradeSweep(ctx, kubeconfigPath, client)
-			}
-			if err != nil && !shared.IsConflict(err) && !errors.Is(err, errAutoRunSuperseded) && ctx.Err() == nil {
-				log.Warn("k8s-app automatic maintenance: %s", err)
-			}
+			autoUpgradeSweepOnce(ctx, kubeconfigPath)
+		case <-autoMaintenanceWake:
+			autoUpgradeSweepOnce(ctx, kubeconfigPath)
 		}
 	}
 }
 
-func AutoRunNow(ctx context.Context, kubeconfigPath string) error {
+func autoUpgradeSweepOnce(ctx context.Context, kubeconfigPath string) {
 	client, err := stackClientNew()
-	if err != nil {
-		return err
+	if err == nil {
+		err = autoUpgradeSweep(ctx, kubeconfigPath, client)
 	}
-
-	record, err := readClusterRecord()
-	if err != nil {
-		return err
+	if err != nil && !shared.IsConflict(err) && !errors.Is(err, errAutoRunSuperseded) && ctx.Err() == nil {
+		log.Warn("k8s-app automatic maintenance: %s", err)
 	}
-	if record.Phase != "created" {
-		return errors.New("the cluster is not ready for maintenance")
-	}
-
-	policyRecord, err := autoPolicyRead(client)
-	if err != nil {
-		return err
-	}
-	if !policyRecord.Found || !policyRecord.Policy.K8s.Enabled {
-		return errors.New("enable automatic Kubernetes upgrades before starting a run")
-	}
-	policy := policyRecord.Policy
-
-	now := time.Now().UTC()
-	stateRecord, err := autoStateRead(client)
-	if err != nil {
-		return err
-	}
-	if autoStateClaimActive(stateRecord.State, now) {
-		return errors.New("another automatic run is already in progress")
-	}
-	if AutoRunActive(stateRecord.State.LastRun) {
-		return errors.New("an automatic run is already in progress")
-	}
-	if AutoStateBlocked(stateRecord.State) {
-		return errors.New("automatic maintenance is stopped; resolve the problem and press Resume automatic maintenance")
-	}
-
-	claimUid := newOperationUid()
-	stateRecord, err = autoStateClaim(client, stateRecord, claimUid, now)
-	if err != nil {
-		if shared.IsConflict(err) {
-			return errors.New("another automatic run started at the same time")
-		}
-		return err
-	}
-	defer autoUpgradeReleaseClaim(client, claimUid)
-
-	windowStart, windowEnd, _ := autoWindowOpenNow(now, policy.Window)
-	write := &autoRunWrite{
-		client:   client,
-		state:    stateRecord,
-		policy:   policy,
-		claimUid: claimUid,
-		now:      now,
-	}
-
-	err = autoRunStart(write, ctx, kubeconfigPath, record, AutoTriggerManual, windowStart, windowEnd)
-	if errors.Is(err, errAutoRunSuperseded) {
-		return errors.New("the automatic run changed while starting it; please try again")
-	}
-	return err
 }
 
 func AutoStopRun() error {
@@ -973,12 +1004,19 @@ func AutoStopRun() error {
 		return errors.New("no waiting automatic run can be stopped")
 	}
 
-	rolling, rollingRevision, err := rollingUpgradeRead(client)
-	if err != nil {
-		return err
-	}
-	if PhaseActive(rolling.Phase) {
-		return errors.New("a rolling upgrade already started and cannot be stopped; it will finish")
+	conditions := []ucxapi.StackStateRevisionCondition{}
+	if run.Channel != AutoChannelOs {
+		rolling, rollingRevision, err := rollingUpgradeRead(client)
+		if err != nil {
+			return err
+		}
+		if PhaseActive(rolling.Phase) {
+			return errors.New("a rolling upgrade already started and cannot be stopped; it will finish")
+		}
+		conditions = append(conditions, ucxapi.StackStateRevisionCondition{
+			Key:              rollingUpgradeKey,
+			ExpectedRevision: rollingRevision,
+		})
 	}
 
 	state := record.State
@@ -995,10 +1033,7 @@ func AutoStopRun() error {
 		AutoStateKey,
 		value,
 		record.Revision,
-		[]ucxapi.StackStateRevisionCondition{{
-			Key:              rollingUpgradeKey,
-			ExpectedRevision: rollingRevision,
-		}},
+		conditions,
 		nil,
 		util.OptNone[int64](),
 	)
@@ -1027,6 +1062,9 @@ func AutoResume() error {
 		state.ResumedAt = time.Now().UTC()
 		_, err = autoStateWrite(client, state, record.Revision)
 		if !shared.IsConflict(err) {
+			if err == nil {
+				autoMaintenanceWakeSignal()
+			}
 			return err
 		}
 	}

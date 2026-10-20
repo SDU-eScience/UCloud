@@ -61,6 +61,7 @@ const (
 	KindCordon      = "cordon"
 	KindUncordon    = "uncordon"
 	KindUpgrade     = "upgrade"
+	KindOsUpdate    = "os-update"
 	KindRemove      = "remove"
 
 	PhasePending   = "Pending"
@@ -80,10 +81,36 @@ const (
 	uncordonTimeout = 2 * time.Minute
 
 	upgradeSubmitMargin = 25 * time.Minute
+	osSubmitMargin      = 90 * time.Minute
 )
+
+var maintenanceWake = make(chan struct{}, 1)
+var autoMaintenanceWake = make(chan struct{}, 1)
+
+func maintenanceWakeSignal() {
+	select {
+	case maintenanceWake <- struct{}{}:
+	default:
+	}
+}
+
+func autoMaintenanceWakeSignal() {
+	select {
+	case autoMaintenanceWake <- struct{}{}:
+	default:
+	}
+}
 
 func KindIsUpgrade(kind string) bool {
 	return kind == KindUpgrade
+}
+
+func KindIsOsUpdate(kind string) bool {
+	return kind == KindOsUpdate
+}
+
+func KindRequiresRecovery(kind string) bool {
+	return KindIsUpgrade(kind) || KindIsOsUpdate(kind)
 }
 
 func UpgradeCordons(operation Operation) bool {
@@ -104,37 +131,49 @@ type Options struct {
 }
 
 type Operation struct {
-	Uid                        string    `json:"uid"`
-	NodeName                   string    `json:"nodeName"`
-	NodeUid                    string    `json:"nodeUid"`
-	Kind                       string    `json:"kind"`
-	Phase                      string    `json:"phase"`
-	Options                    Options   `json:"options"`
-	StartedAt                  time.Time `json:"startedAt"`
-	UpdatedAt                  time.Time `json:"updatedAt"`
-	HeartbeatAt                time.Time `json:"heartbeatAt"`
-	Deadline                   time.Time `json:"deadline"`
-	Error                      string    `json:"error,omitempty"`
-	CancelRequested            bool      `json:"cancelRequested"`
-	OriginalUnschedulable      bool      `json:"originalUnschedulable"`
-	OriginalSchedulingCaptured bool      `json:"originalSchedulingCaptured"`
-	HostTerminationUnverified  bool      `json:"hostTerminationUnverified"`
-	TargetRelease              string    `json:"targetRelease,omitempty"`
-	ExecutorSubmitted          bool      `json:"executorSubmitted"`
-	RecoveryRequired           bool      `json:"recoveryRequired"`
-	SuspendedJobIds            []string  `json:"suspendedJobIds,omitempty"`
-	LogStage                   string    `json:"logStage,omitempty"`
-	LogStageUpdatedAt          time.Time `json:"logStageUpdatedAt"`
-	NodeDeleted                bool      `json:"nodeDeleted"`
-	ResourcesRemoved           bool      `json:"resourcesRemoved"`
+	Progress                   shared.NodeAgentProgress `json:"progress,omitempty"`
+	ExecutorSeenAt             time.Time                `json:"executorSeenAt,omitempty"`
+	Uid                        string                   `json:"uid"`
+	NodeName                   string                   `json:"nodeName"`
+	NodeUid                    string                   `json:"nodeUid"`
+	Kind                       string                   `json:"kind"`
+	Phase                      string                   `json:"phase"`
+	Options                    Options                  `json:"options"`
+	StartedAt                  time.Time                `json:"startedAt"`
+	UpdatedAt                  time.Time                `json:"updatedAt"`
+	HeartbeatAt                time.Time                `json:"heartbeatAt"`
+	Deadline                   time.Time                `json:"deadline"`
+	Error                      string                   `json:"error,omitempty"`
+	CancelRequested            bool                     `json:"cancelRequested"`
+	OriginalUnschedulable      bool                     `json:"originalUnschedulable"`
+	OriginalSchedulingCaptured bool                     `json:"originalSchedulingCaptured"`
+	HostTerminationUnverified  bool                     `json:"hostTerminationUnverified"`
+	TargetRelease              string                   `json:"targetRelease,omitempty"`
+	ExecutorSubmitted          bool                     `json:"executorSubmitted"`
+	OsPackagesStaged           bool                     `json:"osPackagesStaged,omitempty"`
+	SubmittedAt                time.Time                `json:"submittedAt,omitempty"`
+	AutoRunUid                 string                   `json:"autoRunUid,omitempty"`
+	RecoveryRequired           bool                     `json:"recoveryRequired"`
+	SuspendedJobIds            []string                 `json:"suspendedJobIds,omitempty"`
+	LogStage                   string                   `json:"logStage,omitempty"`
+	LogStageUpdatedAt          time.Time                `json:"logStageUpdatedAt"`
+	NodeDeleted                bool                     `json:"nodeDeleted"`
+	ResourcesRemoved           bool                     `json:"resourcesRemoved"`
 }
 
 func operationStale(operation Operation, now time.Time) bool {
 	return now.Sub(operation.HeartbeatAt) > staleAfter
 }
 
-func upgradeBlockedByRecovery(operation Operation) bool {
-	return KindIsUpgrade(operation.Kind) && operation.ExecutorSubmitted && operation.RecoveryRequired
+func operationBlockedByRecovery(operation Operation) bool {
+	return KindRequiresRecovery(operation.Kind) && operation.ExecutorSubmitted && operation.RecoveryRequired
+}
+
+func submittedCancelMessage(kind string) string {
+	if KindIsOsUpdate(kind) {
+		return "the operating-system update was submitted to the node and cannot be cancelled"
+	}
+	return "the upgrade was submitted to the node and cannot be cancelled"
 }
 
 // Public API
@@ -143,12 +182,12 @@ func upgradeBlockedByRecovery(operation Operation) bool {
 func Start(nodeName string, nodeUid string, options Options) error {
 	options.Cordon = true
 	options.Drain = true
-	return submitStart(nodeName, nodeUid, KindCordonDrain, options, "")
+	return submitStart(nodeName, nodeUid, KindCordonDrain, options, "", "")
 }
 
 func Cordon(nodeName string, nodeUid string, options Options) error {
 	options.Cordon = true
-	return submitStart(nodeName, nodeUid, KindCordon, options, "")
+	return submitStart(nodeName, nodeUid, KindCordon, options, "", "")
 }
 
 func Uncordon(nodeName string, nodeUid string) error {
@@ -158,18 +197,25 @@ func Uncordon(nodeName string, nodeUid string) error {
 		KindUncordon,
 		Options{TimeoutSeconds: defaultTimeoutSeconds},
 		"",
+		"",
 	)
 }
 
 func UpgradeStart(nodeName string, nodeUid string, release string, options Options) error {
-	return submitStart(nodeName, nodeUid, KindUpgrade, options, release)
+	return submitStart(nodeName, nodeUid, KindUpgrade, options, release, "")
 }
 
 func RemoveStart(nodeName string, nodeUid string, options Options) error {
 	if err := removeSubmitGuard(nodeName); err != nil {
 		return err
 	}
-	return submitStart(nodeName, nodeUid, KindRemove, options, "")
+	return submitStart(nodeName, nodeUid, KindRemove, options, "", "")
+}
+
+func OsUpdateStart(nodeName string, nodeUid string, options Options, autoRunUid string) error {
+	options.Cordon = true
+	options.Drain = true
+	return submitStart(nodeName, nodeUid, KindOsUpdate, options, "", autoRunUid)
 }
 
 func CancelActiveOperation(nodeName string) error {
@@ -195,8 +241,8 @@ func CancelActiveOperation(nodeName string) error {
 	if !PhaseActive(operation.Phase) {
 		return fmt.Errorf("the operation on node %s already finished", nodeName)
 	}
-	if KindIsUpgrade(operation.Kind) && operation.ExecutorSubmitted {
-		return errors.New("the upgrade was submitted to the node and cannot be cancelled")
+	if KindRequiresRecovery(operation.Kind) && operation.ExecutorSubmitted {
+		return errors.New(submittedCancelMessage(operation.Kind))
 	}
 	if removePastPointOfNoReturn(operation) {
 		return errors.New("the node removal passed the point of no return and cannot be cancelled")
@@ -235,8 +281,8 @@ func CancelActiveOperation(nodeName string) error {
 		if !PhaseActive(record.Operation.Phase) {
 			return fmt.Errorf("the operation on node %s already finished", nodeName)
 		}
-		if KindIsUpgrade(record.Operation.Kind) && record.Operation.ExecutorSubmitted {
-			return errors.New("the upgrade was submitted to the node and cannot be cancelled")
+		if KindRequiresRecovery(record.Operation.Kind) && record.Operation.ExecutorSubmitted {
+			return errors.New(submittedCancelMessage(record.Operation.Kind))
 		}
 		if removePastPointOfNoReturn(record.Operation) {
 			return errors.New("the node removal passed the point of no return and cannot be cancelled")
@@ -298,11 +344,12 @@ func newOperationUid() string {
 }
 
 type submission struct {
-	nodeName string
-	nodeUid  string
-	kind     string
-	options  Options
-	release  string
+	nodeName   string
+	nodeUid    string
+	kind       string
+	options    Options
+	release    string
+	autoRunUid string
 }
 
 func submitStart(
@@ -311,6 +358,7 @@ func submitStart(
 	kind string,
 	options Options,
 	release string,
+	autoRunUid string,
 ) error {
 	nodeName = strings.TrimSpace(nodeName)
 	if nodeName == "" {
@@ -327,16 +375,20 @@ func submitStart(
 			return errors.New("force delete cannot be used with node upgrades because it is not possible to prove that the workloads stopped")
 		}
 	}
+	if KindIsOsUpdate(kind) && (options.ForceDelete || options.BypassDisruptionBudgets) {
+		return errors.New("the operating-system update cannot delete pods forcefully or bypass the disruption budgets")
+	}
 	if err := clusterReadyGuard(); err != nil {
 		return err
 	}
 
 	return submitWrite(submission{
-		nodeName: nodeName,
-		nodeUid:  nodeUid,
-		kind:     kind,
-		options:  options,
-		release:  release,
+		nodeName:   nodeName,
+		nodeUid:    nodeUid,
+		kind:       kind,
+		options:    options,
+		release:    release,
+		autoRunUid: autoRunUid,
 	})
 }
 
@@ -353,27 +405,45 @@ func submitValid(submit submission, existing Operation, exists bool) error {
 		return fmt.Errorf("an operation is already active for node %s", submit.nodeName)
 	}
 
-	if upgradeBlockedByRecovery(existing) && submit.kind != KindUncordon && submit.kind != KindRemove {
-		if !KindIsUpgrade(submit.kind) {
+	if operationBlockedByRecovery(existing) && submit.kind != KindUncordon && submit.kind != KindRemove {
+		switch {
+		case KindIsUpgrade(submit.kind):
+			if !KindIsUpgrade(existing.Kind) {
+				return fmt.Errorf(
+					"node %s must retry the failed operating-system update first",
+					submit.nodeName,
+				)
+			}
+			if existing.NodeUid != submit.nodeUid {
+				return fmt.Errorf("the node uid does not match the failed upgrade on node %s", submit.nodeName)
+			}
+			if existing.TargetRelease != submit.release {
+				return fmt.Errorf(
+					"the release %s does not match the failed upgrade target %s on node %s",
+					submit.release,
+					existing.TargetRelease,
+					submit.nodeName,
+				)
+			}
+		case KindIsOsUpdate(submit.kind):
+			if !KindIsOsUpdate(existing.Kind) {
+				return fmt.Errorf(
+					"node %s must retry the failed upgrade first",
+					submit.nodeName,
+				)
+			}
+			if existing.NodeUid != submit.nodeUid {
+				return fmt.Errorf("the node uid does not match the failed operating-system update on node %s", submit.nodeName)
+			}
+		default:
 			return fmt.Errorf(
-				"node %s requires upgrade recovery before a new operation can start. Retry the upgrade or uncordon the node",
-				submit.nodeName,
-			)
-		}
-		if existing.NodeUid != submit.nodeUid {
-			return fmt.Errorf("the node uid does not match the failed upgrade on node %s", submit.nodeName)
-		}
-		if existing.TargetRelease != submit.release {
-			return fmt.Errorf(
-				"the release %s does not match the failed upgrade target %s on node %s",
-				submit.release,
-				existing.TargetRelease,
+				"node %s requires recovery from a failed node operation before a new operation can start. Retry the failed operation or uncordon the node",
 				submit.nodeName,
 			)
 		}
 	}
 
-	if existing.HostTerminationUnverified && submit.kind != KindRemove {
+	if existing.HostTerminationUnverified && submit.kind != KindRemove && submit.kind != KindUncordon {
 		return fmt.Errorf(
 			"node %s has unverified host terminations from a previous force delete and cannot be maintained",
 			submit.nodeName,
@@ -398,6 +468,7 @@ func submitRecord(submit submission, existing Operation) Operation {
 		Deadline:                  now.Add(time.Duration(submit.options.TimeoutSeconds) * time.Second),
 		HostTerminationUnverified: existing.HostTerminationUnverified,
 		TargetRelease:             submit.release,
+		AutoRunUid:                submit.autoRunUid,
 	}
 
 	if submit.kind == KindUncordon {
@@ -408,7 +479,11 @@ func submitRecord(submit submission, existing Operation) Operation {
 		operation.Deadline = now.Add(time.Duration(submit.options.TimeoutSeconds)*time.Second + upgradeSubmitMargin)
 	}
 
-	if upgradeBlockedByRecovery(existing) {
+	if KindIsOsUpdate(submit.kind) {
+		operation.Deadline = now.Add(time.Duration(submit.options.TimeoutSeconds)*time.Second + osSubmitMargin)
+	}
+
+	if operationBlockedByRecovery(existing) {
 		operation.SuspendedJobIds = append([]string(nil), existing.SuspendedJobIds...)
 		if submit.options.Cordon || submit.options.Drain {
 			operation.OriginalUnschedulable = existing.OriginalUnschedulable
@@ -459,20 +534,35 @@ func submitWrite(submit submission) error {
 		expectedRevision = record.Revision
 	}
 
+	conditions := []ucxapi.StackStateRevisionCondition{rollingCondition}
+	validUntil := util.OptNone[int64]()
+	if KindIsOsUpdate(submit.kind) && submit.autoRunUid != "" {
+		gate, gateErr := autoOsScheduleGate(client, time.Now().UTC())
+		if gateErr != nil {
+			return gateErr
+		}
+		if !gate.open {
+			return errAutoOsSchedulePaused
+		}
+		conditions = append(conditions, gate.condition)
+		validUntil = util.OptValue(gate.deadline.UnixMilli())
+	}
+
 	_, writeErr := shared.RpcGrantStateWriteChecked(
 		client,
 		stackNodeKey(submit.nodeName),
 		value,
 		expectedRevision,
-		[]ucxapi.StackStateRevisionCondition{rollingCondition},
+		conditions,
 		nil,
-		util.OptNone[int64](),
+		validUntil,
 	)
 	if writeErr != nil {
 		return writeErr
 	}
 
 	resetNodeLog(submit.nodeName, operation.Uid)
+	maintenanceWakeSignal()
 
 	return nil
 }

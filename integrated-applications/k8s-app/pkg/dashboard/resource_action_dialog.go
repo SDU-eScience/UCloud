@@ -2,7 +2,15 @@ package dashboard
 
 import "ucloud.dk/shared/pkg/ucx"
 
-func dashboardResourceActionDialog(id string, title string, message string, icon ucx.IconName, cancel func(), confirm func()) ucx.UiNode {
+func dashboardResourceActionDialog(
+	id string,
+	title string,
+	message string,
+	icon ucx.IconName,
+	color ucx.Color,
+	cancel func(),
+	confirm func(),
+) ucx.UiNode {
 	return ucx.DialogEx(id+"Dialog", title, true).Children(
 		ucx.TextEx("", message).Sx(ucx.SxMinHeight(200)),
 		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).
@@ -21,7 +29,7 @@ func dashboardResourceActionDialog(id string, title string, message string, icon
 					On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 						cancel()
 					}),
-				ucx.ButtonEx(id+"Confirm", title, ucx.ColorErrorMain, icon, "", "").
+				ucx.ButtonEx(id+"Confirm", title, color, icon, "", "").
 					WithShortcutKey("y").
 					On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 						confirm()

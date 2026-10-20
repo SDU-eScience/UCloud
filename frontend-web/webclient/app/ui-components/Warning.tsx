@@ -6,8 +6,10 @@ import {IconButton} from "@/ui-components/IconButton";
 
 interface WarningProps {
     variant?: "warning" | "tip";
+    centered?: boolean;
     clearWarning?: () => void;
     warning?: string;
+    trailing?: React.ReactNode;
     children?: React.ReactNode
     mb?: string;
     style?: React.CSSProperties;
@@ -30,18 +32,27 @@ const WarningClass = injectStyleSimple("warning", `
 `);
 
 const Warning: React.FunctionComponent<WarningProps> = props => {
-    if (!props.warning && !props.children) return null;
+    if (!props.warning && !props.children && !props.trailing) return null;
 
     const color = props.variant === "tip" ? "primaryMain" : "warningMain";
     const icon = props.variant === "tip" ? "heroInformationCircle" : "warning";
 
     return (
-        <Box className={WarningClass} mb={props.mb} style={{borderColor: `var(--${color})`, ...props.style}}>
-            <Icon name={icon} size={20} color={color} />
+        <Box className={WarningClass} mb={props.mb} style={{
+            borderColor: `var(--${color})`,
+            alignItems: props.centered ? "center" : undefined,
+            ...props.style,
+        }}>
+            <Icon name={icon} size={20} color={color} style={props.centered ? {marginTop: 0} : undefined} />
             <div className={WarningContentClass}>
                 {props.warning ? <div>{props.warning}</div> : null}
                 {props.children}
             </div>
+            {!props.trailing ? null : (
+                <Box ml={"auto"} style={{alignSelf: "center", flex: "0 0 auto"}}>
+                    {props.trailing}
+                </Box>
+            )}
             {!props.clearWarning ? null : (
                 <Box ml={"auto"}>
                     <IconButton icon={"heroXMark"} tooltip={"Dismiss"} onClick={props.clearWarning} />

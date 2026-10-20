@@ -5,6 +5,22 @@ install -d -m 0755 /var/lib/ucloud-k8s
 
 source /etc/ucloud-k8s/bundle/common.sh
 
+install_apt_hardening() {
+	install -d -m 0755 /etc/apt/apt.conf.d
+
+	cat > /etc/apt/apt.conf.d/99-ucloud-k8s.conf <<'EOF'
+APT::Periodic::Unattended-Upgrade "0";
+Unattended-Upgrade::Automatic-Reboot "false";
+EOF
+	chmod 0644 /etc/apt/apt.conf.d/99-ucloud-k8s.conf
+
+	if command -v systemctl >/dev/null 2>&1; then
+		systemctl disable --now apt-daily-upgrade.timer >/dev/null 2>&1 || true
+	fi
+}
+
+install_apt_hardening
+
 cat > /usr/local/sbin/ucloud-k8s-bootstrap <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail

@@ -278,23 +278,28 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     const timer = useRef(holdToConfirmTime);
     const [tempStartedKey] = React.useState(new Date().getTime());
     const wasReset = useRef(false);
+    const actionTimeout = useRef(-1);
+    const disabledRef = useRef(props.disabled);
+    disabledRef.current = props.disabled;
 
     React.useEffect(() => {
         startedMap[tempStartedKey] = false;
         return () => {
+            clearTimeout(timeout.current);
+            clearTimeout(actionTimeout.current);
             delete startedMap[tempStartedKey];
         }
     }, []);
 
     const success = useCallback(() => {
         const button = buttonRef.current;
-        if (!button) return;
+        if (!button || disabledRef.current || !startedMap[tempStartedKey]) return;
         timer.current -= tickRate;
         if (timer.current <= 0) {
             button.classList.add("success");
             timeout.current = window.setTimeout(countUp, tickRate);
-            setTimeout(() => {
-                if (props.onAction) props.onAction(props.actionKey);
+            actionTimeout.current = window.setTimeout(() => {
+                if (!disabledRef.current && props.onAction) props.onAction(props.actionKey);
             }, actionDelay);
         } else {
             timeout.current = window.setTimeout(success, tickRate);
@@ -314,7 +319,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
 
     const start = useCallback(() => {
         const button = buttonRef.current;
-        if (!button) return;
+        if (!button || disabledRef.current) return;
         if (button.classList.contains("process")) return;
         if (timeout.current !== -1) {
             clearTimeout(timeout.current);
@@ -326,6 +331,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         }
 
         button.classList.remove("success");
+        timer.current = holdToConfirmTime;
         button.classList.add("process");
         startedMap[tempStartedKey] = true;
         timeout.current = window.setTimeout(success, tickRate);
@@ -380,6 +386,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
 
     return <Button
         {...passedProps}
+        type="button"
         onMouseDown={start}
         onTouchStart={start}
         onMouseLeave={() => {
@@ -387,7 +394,23 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         }}
         onMouseUp={end}
         onTouchEnd={end}
-        onClick={doNothing}
+        onTouchCancel={end}
+        onBlur={() => { if (startedMap[tempStartedKey]) end(); }}
+        onKeyDown={event => {
+            if (event.key === " " || event.key === "Enter") {
+                event.preventDefault();
+                if (!event.repeat) start();
+            } else if (event.key === "Escape" && startedMap[tempStartedKey]) {
+                end();
+            }
+        }}
+        onKeyUp={event => {
+            if (event.key === " " || event.key === "Enter") {
+                event.preventDefault();
+                end();
+            }
+        }}
+        onClick={event => event.preventDefault()}
         btnRef={buttonRef}
         className={ConfirmButtonClass}
         data-tag={"confirm-button"}

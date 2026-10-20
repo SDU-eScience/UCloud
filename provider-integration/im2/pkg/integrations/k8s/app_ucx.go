@@ -42,6 +42,8 @@ import (
 
 const ucxBackendPort int32 = 8080
 
+const ucxUpstreamDialGrace = 4 * time.Second
+
 var ucxNameRegex = regexp.MustCompile(`[^a-z0-9-]+`)
 
 const ucxAuthTokenAnnotation = "ucloud.dk/ucx-auth-token"
@@ -159,6 +161,7 @@ func ucxOnConnect(conn *ws.Conn) {
 	defer cancel()
 
 	proxy := ucx.NewProxy("ws://pending")
+	proxy.SetUpstreamDialGrace(ucxUpstreamDialGrace)
 	info := orcapi.AppUcxConnectProviderRequest{}
 
 	proxy.RegisterUpstreamSelector(func(ctx context.Context, downstreamToken string, downstreamSysHello string) ucx.ProxyUpstreamSelection {
@@ -405,6 +408,7 @@ func ucxOnConnectJob(conn *ws.Conn) {
 	defer cancel()
 
 	proxy := ucx.NewProxy("ws://pending")
+	proxy.SetUpstreamDialGrace(ucxUpstreamDialGrace)
 	info := orcapi.AppUcxConnectJobProviderRequest{}
 
 	proxy.RegisterUpstreamSelector(func(ctx context.Context, downstreamToken string, downstreamSysHello string) ucx.ProxyUpstreamSelection {

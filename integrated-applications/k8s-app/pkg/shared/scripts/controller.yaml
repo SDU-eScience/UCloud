@@ -50,6 +50,10 @@ spec:
     spec:
       serviceAccountName: ucloud-k8s-controller
       automountServiceAccountToken: true
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

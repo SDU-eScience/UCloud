@@ -16,12 +16,13 @@ const (
 
 const AutoSchemaRevision = 1
 
+const AutoWindowDurationHours = 4
+
 const autoClaimLease = 30 * time.Minute
 
 const (
-	autoDefaultStartHour     = 2
-	autoDefaultDurationHours = 4
-	autoDefaultMaxBackupAge  = time.Hour
+	autoDefaultStartHour    = 2
+	autoDefaultMaxBackupAge = time.Hour
 )
 
 const (
@@ -44,8 +45,8 @@ const (
 )
 
 const (
-	AutoRebootWhenRequired = "whenRequired"
-	AutoRebootAlways       = "always"
+	AutoRebootWhenRequired = shared.NodeAgentOsRebootWhenRequired
+	AutoRebootAlways       = shared.NodeAgentOsRebootAlways
 )
 
 type AutoWindow struct {
@@ -55,11 +56,13 @@ type AutoWindow struct {
 }
 
 type AutoPolicy struct {
-	SchemaRevision int           `json:"schemaRevision"`
-	Window         AutoWindow    `json:"window"`
-	DeferUntil     time.Time     `json:"deferUntil,omitempty"`
-	K8s            AutoK8sPolicy `json:"k8s"`
-	Os             AutoOsPolicy  `json:"os"`
+	SchemaRevision  int           `json:"schemaRevision"`
+	Window          AutoWindow    `json:"window"`
+	DeferUntil      time.Time     `json:"deferUntil,omitempty"`
+	TestWindowStart time.Time     `json:"testWindowStart,omitempty"`
+	TestWindowEnd   time.Time     `json:"testWindowEnd,omitempty"`
+	K8s             AutoK8sPolicy `json:"k8s"`
+	Os              AutoOsPolicy  `json:"os"`
 }
 
 type AutoK8sPolicy struct {
@@ -79,17 +82,21 @@ type AutoCheck struct {
 }
 
 type AutoRun struct {
-	Uid           string      `json:"uid,omitempty"`
-	Channel       string      `json:"channel"`
-	Trigger       string      `json:"trigger"`
-	Phase         string      `json:"phase"`
-	TargetRelease string      `json:"targetRelease,omitempty"`
-	WindowStart   time.Time   `json:"windowStart,omitempty"`
-	WindowEnd     time.Time   `json:"windowEnd,omitempty"`
-	Checks        []AutoCheck `json:"checks,omitempty"`
-	Error         string      `json:"error,omitempty"`
-	StartedAt     time.Time   `json:"startedAt,omitempty"`
-	FinishedAt    time.Time   `json:"finishedAt,omitempty"`
+	Uid            string      `json:"uid,omitempty"`
+	Channel        string      `json:"channel"`
+	Trigger        string      `json:"trigger"`
+	Phase          string      `json:"phase"`
+	TargetRelease  string      `json:"targetRelease,omitempty"`
+	WindowStart    time.Time   `json:"windowStart,omitempty"`
+	WindowEnd      time.Time   `json:"windowEnd,omitempty"`
+	Checks         []AutoCheck `json:"checks,omitempty"`
+	Error          string      `json:"error,omitempty"`
+	StartedAt      time.Time   `json:"startedAt,omitempty"`
+	FinishedAt     time.Time   `json:"finishedAt,omitempty"`
+	ManualWindow   bool        `json:"manualWindow,omitempty"`
+	K8sRelease     string      `json:"k8sRelease,omitempty"`
+	K8sRunUid      string      `json:"k8sRunUid,omitempty"`
+	K8sCompletedAt time.Time   `json:"k8sCompletedAt,omitempty"`
 }
 
 type AutoUpdateReport struct {
@@ -146,7 +153,7 @@ func AutoDefaultPolicy() AutoPolicy {
 		Window: AutoWindow{
 			Days:          []string{"sun"},
 			StartHourUtc:  autoDefaultStartHour,
-			DurationHours: autoDefaultDurationHours,
+			DurationHours: AutoWindowDurationHours,
 		},
 		K8s: AutoK8sPolicy{
 			MaxBackupAge: autoDefaultMaxBackupAge,
@@ -159,6 +166,7 @@ func AutoDefaultPolicy() AutoPolicy {
 
 func AutoPolicyNormalize(policy AutoPolicy) AutoPolicy {
 	policy.SchemaRevision = AutoSchemaRevision
+	policy.Window.DurationHours = AutoWindowDurationHours
 
 	if !AutoWindowValid(policy.Window) {
 		policy.Window = AutoDefaultPolicy().Window
@@ -200,6 +208,9 @@ func AutoNextWindow(now time.Time, window AutoWindow) (time.Time, time.Time, boo
 }
 
 func AutoEffectiveWindow(now time.Time, policy AutoPolicy) (time.Time, time.Time, bool) {
+	if AutoTestWindowOpen(now, policy) {
+		return now.UTC(), policy.TestWindowEnd.UTC(), true
+	}
 	floor := now.UTC()
 	if policy.DeferUntil.After(floor) {
 		floor = policy.DeferUntil.UTC()
@@ -309,8 +320,33 @@ func AutoRunActive(run AutoRun) bool {
 	return false
 }
 
+func AutoOsReportsRead() ([]AutoUpdateReport, error) {
+	client, err := stackClientNew()
+	if err != nil {
+		return nil, err
+	}
+
+	record, err := autoStateRead(client)
+	if err != nil {
+		return nil, err
+	}
+	if !record.Found {
+		return nil, nil
+	}
+
+	return record.State.OsReports, nil
+}
+
+func AutoStateResumed(state AutoState) bool {
+	return state.LastRun.Phase == AutoPhaseBlocked && state.ResumedAt.After(state.LastRun.FinishedAt)
+}
+
 func AutoStateBlocked(state AutoState) bool {
-	return state.LastRun.Phase == AutoPhaseBlocked && !state.ResumedAt.After(state.LastRun.FinishedAt)
+	return state.LastRun.Phase == AutoPhaseBlocked && !AutoStateResumed(state)
+}
+
+func AutoWindowChannelPending(state AutoState, policy AutoPolicy, windowStart time.Time) bool {
+	return autoChannelStartAllowed(state.LastRun, policy, windowStart, AutoStateResumed(state))
 }
 
 func autoStateClaim(client stackClient, record autoStateRecord, uid string, now time.Time) (autoStateRecord, error) {

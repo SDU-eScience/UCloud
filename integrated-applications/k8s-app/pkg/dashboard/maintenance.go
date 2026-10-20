@@ -262,8 +262,10 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 	}
 	operationMatchesTarget := hasOperation && operation.NodeUid == targetUid
 	isUpgrade := hasOperation && maintenance.KindIsUpgrade(operation.Kind)
+	isOsUpdate := hasOperation && maintenance.KindIsOsUpdate(operation.Kind)
 	isRemove := hasOperation && operation.Kind == maintenance.KindRemove
-	recoveryBlocked := isUpgrade && operation.ExecutorSubmitted && operation.RecoveryRequired
+	recoveryBlocked := hasOperation && maintenance.KindRequiresRecovery(operation.Kind) &&
+		operation.ExecutorSubmitted && operation.RecoveryRequired
 
 	mutationsBlocked := app.Stack == nil
 
@@ -295,7 +297,8 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 	}
 
 	if hasOperation && maintenance.PhaseActive(operation.Phase) && !mutationsBlocked &&
-		!(isUpgrade && operation.ExecutorSubmitted) && !maintenance.RemovePastPointOfNoReturn(operation) {
+		!(maintenance.KindRequiresRecovery(operation.Kind) && operation.ExecutorSubmitted) &&
+		!maintenance.RemovePastPointOfNoReturn(operation) {
 		cancelLabel := "Cancel drain"
 		if operation.Kind == maintenance.KindUncordon {
 			cancelLabel = "Cancel uncordon"
@@ -303,6 +306,8 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 			cancelLabel = "Cancel cordon"
 		} else if isUpgrade {
 			cancelLabel = "Cancel upgrade"
+		} else if isOsUpdate {
+			cancelLabel = "Cancel update"
 		} else if isRemove {
 			cancelLabel = "Cancel removal"
 		}
@@ -337,18 +342,31 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 	if isUpgrade && operation.ExecutorSubmitted && maintenance.PhaseActive(operation.Phase) {
 		content = append(content, ucx.Text("The upgrade is running on the node and cannot be cancelled."))
 	}
+	if isOsUpdate && operation.ExecutorSubmitted && maintenance.PhaseActive(operation.Phase) {
+		content = append(content, ucx.Text("The operating-system update is running on the node and cannot be cancelled."))
+	}
 	if isRemove && maintenance.PhaseActive(operation.Phase) && maintenance.RemovePastPointOfNoReturn(operation) {
 		content = append(content, ucx.Text(
 			"The removal passed the point of no return and cannot be cancelled. It continues until the node is gone.",
 		))
 	}
 	if recoveryBlocked && !operationMatchesTarget {
-		content = append(content, ucx.Text(
-			"The earlier node requires upgrade recovery. Retry the upgrade or uncordon it in the node table.",
-		))
+		if isOsUpdate {
+			content = append(content, ucx.Text(
+				"The earlier node requires operating-system update recovery. Retry it from the automatic maintenance page, or uncordon the node in the node table.",
+			))
+		} else {
+			content = append(content, ucx.Text(
+				"The earlier node requires upgrade recovery. Retry the upgrade or uncordon it in the node table.",
+			))
+		}
 	}
 	if recoveryBlocked && operationMatchesTarget && !maintenance.PhaseActive(operation.Phase) {
-		if maintenance.UpgradeCordons(operation) {
+		if isOsUpdate {
+			content = append(content, ucx.Text(
+				"The operating-system update failed and the node remains cordoned. Retry it from the automatic maintenance page, or use Uncordon in the node table to return the node to service.",
+			))
+		} else if maintenance.UpgradeCordons(operation) {
 			content = append(content, ucx.Text(
 				"The upgrade failed and the node remains cordoned. Retry the upgrade, or use Uncordon in the node table to return the node to service on its current release.",
 			))
@@ -405,7 +423,11 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 	}
 
 	if !upgradePage && !removePage && !recoveryBlocked && !mutationsBlocked && targetUid != "" && !maintenance.PhaseActive(operation.Phase) {
-		if nodeCordoned {
+		if isOsUpdate {
+			content = append(content, ucx.Text(
+				"Operating-system updates are scheduled from the automatic maintenance page.",
+			))
+		} else if nodeCordoned {
 			content = append(content, ucx.Text(
 				"The node is cordoned. Use Uncordon in the node table to allow scheduling again.",
 			))

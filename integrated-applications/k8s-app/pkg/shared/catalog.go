@@ -115,9 +115,16 @@ func ReleaseSupportLabel(release K3sRelease, now time.Time) string {
 		return release.Release
 	}
 	if !release.EolAt.After(now.UTC()) {
-		return release.Release + " · out of support (" + release.EolAt.UTC().Format("Jan 2, 2006") + ")"
+		return release.Release + " (out of support since " + release.EolAt.UTC().Format("Jan 2, 2006") + ")"
 	}
-	return release.Release + " · supported until " + release.EolAt.UTC().Format("Jan 2, 2006")
+	return release.Release + " (supported until " + release.EolAt.UTC().Format("Jan 2, 2006") + ")"
+}
+
+func ReleaseOptionLabel(release K3sRelease, now time.Time) string {
+	if !release.EolAt.IsZero() && !release.EolAt.After(now.UTC()) {
+		return ReleaseSupportLabel(release, now)
+	}
+	return release.Release
 }
 
 func VersionSupportLabel(target string, now time.Time) string {

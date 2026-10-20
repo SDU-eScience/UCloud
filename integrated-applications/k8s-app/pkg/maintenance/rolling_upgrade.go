@@ -166,7 +166,7 @@ func rollingUpgradeStart(
 			return errors.New("force delete cannot be used with rolling upgrades")
 		}
 		operation := operations[recorded.Hostname]
-		if PhaseActive(operation.Operation.Phase) || upgradeBlockedByRecovery(operation.Operation) || operation.Operation.HostTerminationUnverified {
+		if PhaseActive(operation.Operation.Phase) || operationBlockedByRecovery(operation.Operation) || operation.Operation.HostTerminationUnverified {
 			return fmt.Errorf("node %s has active maintenance or requires recovery", recorded.Hostname)
 		}
 		node := RollingUpgradeNode{

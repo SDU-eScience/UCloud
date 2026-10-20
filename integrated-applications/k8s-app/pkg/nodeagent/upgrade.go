@@ -66,6 +66,7 @@ type StagedRelease struct {
 
 type upgradeState struct {
 	SchemaRevision  int       `json:"schemaRevision"`
+	OperationUid    string    `json:"operationUid,omitempty"`
 	NodeName        string    `json:"nodeName"`
 	IpAddress       string    `json:"ipAddress"`
 	Role            string    `json:"role"`
@@ -158,6 +159,7 @@ func runUpgrade(release string, previousState upgradeState) {
 
 	err := stateStore(&upgradeState{
 		SchemaRevision:  stateSchemaRevision,
+		OperationUid:    stateLoad().OperationUid,
 		NodeName:        identityConfig.NodeName,
 		IpAddress:       identityConfig.IpAddress,
 		Role:            identityConfig.Role,
@@ -329,6 +331,7 @@ func finishFailure(release string, previousState upgradeState, observedRelease s
 
 	state := upgradeState{
 		SchemaRevision:  stateSchemaRevision,
+		OperationUid:    stateLoad().OperationUid,
 		NodeName:        identityConfig.NodeName,
 		IpAddress:       identityConfig.IpAddress,
 		Role:            identityConfig.Role,
@@ -380,6 +383,7 @@ func setPhase(phase string) bool {
 func markVerifying(identityConfig Config, release string, previousRelease string) bool {
 	err := stateStore(&upgradeState{
 		SchemaRevision:  stateSchemaRevision,
+		OperationUid:    stateLoad().OperationUid,
 		NodeName:        identityConfig.NodeName,
 		IpAddress:       identityConfig.IpAddress,
 		Role:            identityConfig.Role,
@@ -398,6 +402,7 @@ func markVerifying(identityConfig Config, release string, previousRelease string
 func storeCompleted(identityConfig Config, release string, previousRelease string) error {
 	return stateStore(&upgradeState{
 		SchemaRevision:  stateSchemaRevision,
+		OperationUid:    stateLoad().OperationUid,
 		NodeName:        identityConfig.NodeName,
 		IpAddress:       identityConfig.IpAddress,
 		Role:            identityConfig.Role,
@@ -446,11 +451,13 @@ func statusFromState(identityConfig Config) (shared.NodeAgentStatus, error) {
 	state := stateLoad()
 	if state.NeedsStateRecovery {
 		return shared.NodeAgentStatus{
-			NodeName:  state.NodeName,
-			Release:   state.Release,
-			Phase:     shared.NodeAgentPhaseFailed,
-			Error:     state.StateError,
-			UpdatedAt: state.UpdatedAt,
+			Progress:     progressLoad(),
+			OperationUid: state.OperationUid,
+			NodeName:     state.NodeName,
+			Release:      state.Release,
+			Phase:        shared.NodeAgentPhaseFailed,
+			Error:        state.StateError,
+			UpdatedAt:    state.UpdatedAt,
 		}, nil
 	}
 	if state.Phase == "" {
@@ -463,11 +470,13 @@ func statusFromState(identityConfig Config) (shared.NodeAgentStatus, error) {
 	}
 
 	return shared.NodeAgentStatus{
-		NodeName:  state.NodeName,
-		Release:   state.Release,
-		Phase:     state.Phase,
-		Error:     state.Error,
-		UpdatedAt: state.UpdatedAt,
+		Progress:     progressLoad(),
+		OperationUid: state.OperationUid,
+		NodeName:     state.NodeName,
+		Release:      state.Release,
+		Phase:        state.Phase,
+		Error:        state.Error,
+		UpdatedAt:    state.UpdatedAt,
 	}, nil
 }
 
@@ -1345,47 +1354,51 @@ func verifyUpgrade(ctx context.Context, release string, role string, service str
 	}
 
 	if role == shared.GroupControlPlane {
-		pollCtx, pollCancel := context.WithTimeout(ctx, startTimeout)
-		defer pollCancel()
-
-		ticker := time.NewTicker(readyzPollInterval)
-		defer ticker.Stop()
-
-		var lastOutput string
-		for {
-			requestCtx, requestCancel := context.WithTimeout(pollCtx, readyzTimeout)
-			readyzOutput, readyzErr := exec.CommandContext(
-				requestCtx,
-				k3sBinary,
-				"kubectl",
-				"--request-timeout=10s",
-				"--server",
-				localServerUrl,
-				"--kubeconfig",
-				kubeconfig,
-				"get",
-				"--raw",
-				"/readyz",
-			).CombinedOutput()
-			requestCancel()
-
-			if readyzErr == nil {
-				return nil
-			}
-			lastOutput = strings.TrimSpace(string(readyzOutput))
-
-			select {
-			case <-pollCtx.Done():
-				return fmt.Errorf(
-					"the control plane did not report ready within %s: %s: %s",
-					startTimeout,
-					readyzErr,
-					lastOutput,
-				)
-			case <-ticker.C:
-			}
-		}
+		return verifyControlPlaneReadyz(ctx)
 	}
 
 	return nil
+}
+
+func verifyControlPlaneReadyz(ctx context.Context) error {
+	pollCtx, pollCancel := context.WithTimeout(ctx, startTimeout)
+	defer pollCancel()
+
+	ticker := time.NewTicker(readyzPollInterval)
+	defer ticker.Stop()
+
+	var lastOutput string
+	for {
+		requestCtx, requestCancel := context.WithTimeout(pollCtx, readyzTimeout)
+		readyzOutput, readyzErr := exec.CommandContext(
+			requestCtx,
+			k3sBinary,
+			"kubectl",
+			"--request-timeout=10s",
+			"--server",
+			localServerUrl,
+			"--kubeconfig",
+			kubeconfig,
+			"get",
+			"--raw",
+			"/readyz",
+		).CombinedOutput()
+		requestCancel()
+
+		if readyzErr == nil {
+			return nil
+		}
+		lastOutput = strings.TrimSpace(string(readyzOutput))
+
+		select {
+		case <-pollCtx.Done():
+			return fmt.Errorf(
+				"the control plane did not report ready within %s: %s: %s",
+				startTimeout,
+				readyzErr,
+				lastOutput,
+			)
+		case <-ticker.C:
+		}
+	}
 }

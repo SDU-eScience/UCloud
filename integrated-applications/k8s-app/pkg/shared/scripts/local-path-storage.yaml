@@ -94,6 +94,9 @@ data:
     spec:
       priorityClassName: system-node-critical
       tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
         - key: node.kubernetes.io/disk-pressure
           operator: Exists
           effect: NoSchedule
@@ -118,6 +121,10 @@ spec:
         app: local-path-provisioner
     spec:
       serviceAccountName: local-path-provisioner-service-account
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
       containers:
         - name: local-path-provisioner
           image: ${LOCAL_PATH_PROVISIONER_IMAGE}

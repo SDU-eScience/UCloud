@@ -59,6 +59,8 @@ disable:
   - local-storage
 node-label:
   - "ucloud.dk/k8s-node-group=$NODE_GROUP"
+node-taint:
+  - "node-role.kubernetes.io/control-plane:NoSchedule"
 EOF
 
 if [ "$FIRST_SERVER" = "True" ]; then

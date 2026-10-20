@@ -99,10 +99,12 @@ type stackUiApp struct {
 	AutoMaintenanceOsEnabled  bool
 	AutoWindowDay             string
 	AutoWindowStartHour       string
-	AutoWindowDuration        string
-	AutoDefer                 string
 	AutoMaintenanceBusy       bool
-	autoMaintenanceLoaded     bool `ucx:"-"`
+	autoMaintenanceLoaded     bool              `ucx:"-"`
+	autoSettingsSaving        bool              `ucx:"-"`
+	autoSettingsPending       *autoSettingsForm `ucx:"-"`
+	autoSettingsSaveError     string            `ucx:"-"`
+	autoRunNowConfirm         bool              `ucx:"-"`
 
 	maintenanceNodeName        string `ucx:"-"`
 	maintenanceNodeUid         string `ucx:"-"`
@@ -603,7 +605,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 	if k8sVersion != "-" {
 		if eolAt, ok := shared.SupportEnds(k8sVersion); ok && !eolAt.After(time.Now().UTC()) {
 			k8sVersionColor = ucx.ColorErrorMain
-			k8sVersion += " · out of support"
+			k8sVersion += " (out of support)"
 		}
 	}
 
@@ -1778,9 +1780,20 @@ func (app *stackUiApp) onMaintenanceRoute() bool {
 	return app.RoutePath == "rolling-upgrade" || app.RoutePath == "backups" || app.RoutePath == "automatic-maintenance" || app.RoutePath == "maintenance" || strings.HasPrefix(app.RoutePath, "maintenance/")
 }
 
+func (app *stackUiApp) maintenanceUiTick() {
+	if !app.onMaintenanceRoute() {
+		return
+	}
+	app.mu.Lock()
+	ucx.AppUpdateUi(app)
+	app.mu.Unlock()
+}
+
 func (app *stackUiApp) provisioningWatcher(session *ucx.Session) {
 	ticker := time.NewTicker(5 * time.Second)
+	uiTicker := time.NewTicker(time.Second)
 	defer ticker.Stop()
+	defer uiTicker.Stop()
 
 	for {
 		app.refreshProvisioningRows(session)
@@ -1796,11 +1809,18 @@ func (app *stackUiApp) provisioningWatcher(session *ucx.Session) {
 			app.mu.Unlock()
 		}
 
-		select {
-		case <-session.Context().Done():
-			return
-		case <-app.provisioningKick:
-		case <-ticker.C:
+		refreshed := false
+		for !refreshed {
+			select {
+			case <-session.Context().Done():
+				return
+			case <-app.provisioningKick:
+				refreshed = true
+			case <-ticker.C:
+				refreshed = true
+			case <-uiTicker.C:
+				app.maintenanceUiTick()
+			}
 		}
 	}
 }
@@ -1956,7 +1976,7 @@ func (app *stackUiApp) provisioningResourceRows(def ResourceTypeDef) []ResourceR
 		rows = append(rows, ResourceRow{
 			Key:   "provisioning:" + entry.Hostname,
 			Group: entry.Group,
-			Cells: []string{entry.Hostname, entry.Status, "Schedulable", "", role, "", "", ""},
+			Cells: []string{entry.Hostname, entry.Status, "Schedulable", "", role, "", "", "", ""},
 		})
 	}
 	return rows
@@ -2322,6 +2342,16 @@ func (app *stackUiApp) handleTableAction(ev ucx.UiEvent) {
 func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 	switch frame.Opcode {
 	case ucx.OpModelInput:
+		switch frame.ModelInput.Path {
+		case "autoMaintenanceK8sEnabled", "autoMaintenanceOsEnabled", "autoWindowDay", "autoWindowStartHour":
+			if strings.HasPrefix(frame.ModelInput.NodeId, "rehydrate:") {
+				app.autoMaintenanceLoaded = false
+			} else {
+				autoSettingsSaveAsync(app)
+			}
+			ucx.AppUpdateUi(app)
+			return
+		}
 		if frame.ModelInput.Path == "resourceDraft" {
 			dashboardResourceCreateDraftKeep(app)
 			return

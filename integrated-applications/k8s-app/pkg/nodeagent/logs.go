@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/log"
@@ -23,6 +24,66 @@ const (
 )
 
 var progressMu sync.Mutex
+
+var progressCurrent shared.NodeAgentProgress
+var progressLoaded bool
+var progressPersistedAt time.Time
+
+func progressLoad() shared.NodeAgentProgress {
+	progressMu.Lock()
+	defer progressMu.Unlock()
+	progressRead()
+	result := progressCurrent
+	result.Events = append([]shared.NodeAgentProgressEvent(nil), progressCurrent.Events...)
+	return result
+}
+
+func progressRead() {
+	if progressLoaded {
+		return
+	}
+	data, err := os.ReadFile(filepath.Join(workingDir(), "progress.json"))
+	if err == nil {
+		_ = json.Unmarshal(data, &progressCurrent)
+	}
+	progressLoaded = true
+}
+
+func progressPersist(force bool) {
+	if !force && time.Since(progressPersistedAt) < 2*time.Second {
+		return
+	}
+	data, err := json.Marshal(progressCurrent)
+	if err == nil {
+		err = writeFileAtomic(filepath.Join(workingDir(), "progress.json"), data, 0600)
+	}
+	if err == nil {
+		progressPersistedAt = time.Now()
+	}
+}
+
+func progressBegin(operationUid string) {
+	progressMu.Lock()
+	defer progressMu.Unlock()
+	progressRead()
+	if progressCurrent.OperationUid == operationUid {
+		return
+	}
+	progressCurrent = shared.NodeAgentProgress{OperationUid: operationUid, UpdatedAt: time.Now().UTC()}
+	progressPersist(true)
+}
+
+func progressStageRecord(text string) {
+	progressRead()
+	if text != progressCurrent.Stage {
+		progressCurrent.Stage = text
+		progressCurrent.Detail = ""
+		progressCurrent.Events = append(progressCurrent.Events, shared.NodeAgentProgressEvent{At: time.Now().UTC(), Text: text})
+		if len(progressCurrent.Events) > 32 {
+			progressCurrent.Events = progressCurrent.Events[len(progressCurrent.Events)-32:]
+		}
+	}
+}
 
 type widgetLocation struct {
 	Window int    `json:"window"`
@@ -49,7 +110,11 @@ func progressStage(text string, percent int) {
 	progressMu.Lock()
 	defer progressMu.Unlock()
 
-	progressAppendLine(fmt.Sprintf("[ucloud-k8s] %s", text))
+	progressStageRecord(text)
+	progressCurrent.Percent = max(progressCurrent.Percent, percent)
+	progressCurrent.UpdatedAt = time.Now().UTC()
+	progressPersist(true)
+	progressAppendLine(text)
 	progressWidget(progressLabelId, 0, widgetLabel{Text: text})
 	progressWidget(
 		progressBarId,
@@ -62,7 +127,10 @@ func progressStageLabel(text string) {
 	progressMu.Lock()
 	defer progressMu.Unlock()
 
-	progressAppendLine(fmt.Sprintf("[ucloud-k8s] %s", text))
+	progressStageRecord(text)
+	progressCurrent.UpdatedAt = time.Now().UTC()
+	progressPersist(true)
+	progressAppendLine(text)
 	progressWidget(progressLabelId, 0, widgetLabel{Text: text})
 }
 
@@ -70,7 +138,11 @@ func progressText(text string) {
 	progressMu.Lock()
 	defer progressMu.Unlock()
 
-	progressAppendLine(fmt.Sprintf("[ucloud-k8s] %s", text))
+	progressRead()
+	progressCurrent.Detail = shared.NodeAgentTruncateLine(text)
+	progressCurrent.UpdatedAt = time.Now().UTC()
+	progressPersist(false)
+	progressAppendLine(text)
 }
 
 func progressCommandOutput(name string, output []byte) {
@@ -93,8 +165,13 @@ func progressLines(lines []string) int {
 			continue
 		}
 		trimmed = shared.NodeAgentTruncateLine(trimmed)
+		progressCurrent.Detail = trimmed
+		progressCurrent.UpdatedAt = time.Now().UTC()
 		progressAppendLine(trimmed)
 		written++
+	}
+	if written > 0 {
+		progressPersist(false)
 	}
 	return written
 }
@@ -118,10 +195,12 @@ func progressWidget(id string, widgetType int, spec any) {
 }
 
 func progressAppendLine(line string) {
-	if !strings.HasSuffix(line, "\n") {
-		line = fmt.Sprintf("%s\n", line)
+	line = strings.TrimPrefix(strings.TrimSpace(line), "[ucloud-k8s] ")
+	if line == "" {
+		return
 	}
-	progressAppendFile(stdoutLogName, []byte(line), 0644)
+	line = time.Now().UTC().Format("15:04:05") + "  " + line
+	progressAppendFile(stdoutLogName, []byte(line+"\n"), 0644)
 }
 
 func progressAppendFile(name string, data []byte, mode os.FileMode) {
@@ -157,9 +236,12 @@ func progressTruncate(name string, mode os.FileMode) {
 	_ = os.Chown(path, serviceUid, serviceGid)
 }
 
-func progressReset() {
+func progressReset(operationUid string) {
 	progressMu.Lock()
 	defer progressMu.Unlock()
+	progressLoaded = true
+	progressCurrent = shared.NodeAgentProgress{OperationUid: operationUid, UpdatedAt: time.Now().UTC()}
+	progressPersist(true)
 
 	progressTruncate(stdoutLogName, 0644)
 	progressTruncate(uiChannelName, 0600)
@@ -249,7 +331,7 @@ func handleLogReset(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	progressReset()
+	progressReset(operationUid)
 	log.Info(
 		"k8s-app node agent: reset the node log for node operation %s",
 		operationUid,

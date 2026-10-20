@@ -170,6 +170,11 @@ func (worker *nodeWorker) checkpoint() (Operation, bool) {
 func Run(ctx context.Context, kubeconfigPath string) {
 	ticker := time.NewTicker(runInterval)
 	defer ticker.Stop()
+	schedulingDone := make(chan struct{})
+	go func() {
+		defer close(schedulingDone)
+		controlPlaneSchedulingRun(ctx, kubeconfigPath)
+	}()
 	rollingDone := make(chan struct{})
 	go func() {
 		defer close(rollingDone)
@@ -185,16 +190,25 @@ func Run(ctx context.Context, kubeconfigPath string) {
 		defer close(autoDone)
 		autoUpgradeRun(ctx, kubeconfigPath)
 	}()
+	osCheckDone := make(chan struct{})
+	go func() {
+		defer close(osCheckDone)
+		autoOsCheckRun(ctx)
+	}()
 
 	for {
 		select {
 		case <-ctx.Done():
+			<-schedulingDone
 			<-rollingDone
 			<-backupDone
 			<-autoDone
+			<-osCheckDone
 			workers.Wait()
 			return
 		case <-ticker.C:
+			sweep(ctx, kubeconfigPath)
+		case <-maintenanceWake:
 			sweep(ctx, kubeconfigPath)
 		}
 	}
@@ -248,6 +262,7 @@ func sweep(ctx context.Context, kubeconfigPath string) {
 
 func claimOperation(client stackClient, operation Operation, revision int64) bool {
 	claimed := operation
+	claimed.Phase = PhaseRunning
 	claimed.UpdatedAt = time.Now().UTC()
 	claimed.HeartbeatAt = claimed.UpdatedAt
 
@@ -316,6 +331,8 @@ func runOperation(
 		}
 	case KindUpgrade:
 		runErr = runUpgrade(workerCtx, clientset, current, worker)
+	case KindOsUpdate:
+		runErr = runOsUpdate(workerCtx, clientset, current, worker)
 	case KindRemove:
 		runErr = runRemove(workerCtx, clientset, current, worker)
 	default:
@@ -335,6 +352,9 @@ func runOperation(
 // because the node may have been replaced between submission and execution.
 
 func cancelMessage(operation Operation) string {
+	if KindIsOsUpdate(operation.Kind) && !operation.OriginalSchedulingCaptured {
+		return "cancelled by request. No operating-system packages were installed"
+	}
 	if operation.Kind == KindUncordon {
 		return "cancelled by request"
 	}
@@ -386,6 +406,18 @@ func runCordonDrain(
 		}
 	}
 
+	if drain {
+		pods, err := listNodePods(ctx, clientset, operation.NodeName)
+		if err != nil {
+			return drainConcluded, err
+		}
+		blockers, _, _ := classifyPods(ctx, clientset, operation, pods, map[string][]metav1.APIResource{})
+		if len(blockers) > 0 {
+			drainBlock(worker, blockers)
+			return drainBlocked, nil
+		}
+	}
+
 	if cordonErr := cordonNode(ctx, clientset, worker, node); cordonErr != nil {
 		return drainConcluded, cordonErr
 	}
@@ -397,7 +429,7 @@ func runCordonDrain(
 	operationLogStage(
 		worker,
 		"draining",
-		fmt.Sprintf("The node %s is cordoned. Its pods are drained", operation.NodeName),
+		fmt.Sprintf("Moving workloads off %s", operation.NodeName),
 	)
 
 	return drainNode(ctx, clientset, operation, worker), nil
@@ -534,19 +566,8 @@ func drainNode(
 
 		drainLog.report(len(deletable), len(terminating), len(blockers))
 
-		if len(blockers) > 0 && len(deletable) == 0 {
-			if len(terminating) > 0 {
-				if !waitInterruptible(worker, drainPollInterval) {
-					return drainConcluded
-				}
-				continue
-			}
-			message := fmt.Sprintf(
-				"the drain is blocked by pods that were not approved for deletion: %s",
-				strings.Join(blockers, ", "),
-			)
-			operationLogLines(worker, fmt.Sprintf("The drain is blocked: %s", message))
-			finish(worker, PhaseBlocked, message)
+		if len(blockers) > 0 {
+			drainBlock(worker, blockers)
 			return drainBlocked
 		}
 
@@ -632,8 +653,18 @@ func classifyPods(
 
 		namespaced := namespacedName(pod.Namespace, pod.Name)
 
-		if (unmanaged || podHasEmptyDir(pod)) && !operation.Options.DeleteVolatilePods {
-			blocker := "pod with local emptyDir storage"
+		emptyDirBlocked := podHasEmptyDir(pod)
+		if emptyDirBlocked && !unmanaged && !operation.Options.DeleteVolatilePods {
+			disposable, err := drainEmptyDirDisposable(ctx, clientset, pod, owner)
+			if err != nil {
+				blockers = append(blockers, fmt.Sprintf("%s: could not verify its temporary storage: %s", namespaced, err))
+				continue
+			}
+			emptyDirBlocked = !disposable
+		}
+
+		if (unmanaged || emptyDirBlocked) && !operation.Options.DeleteVolatilePods {
+			blocker := drainEmptyDirBlocker(pod)
 			if unmanaged {
 				blocker = "unmanaged pod without a live controller"
 			}
@@ -999,7 +1030,7 @@ func finishQuiet(worker *nodeWorker, phase string, message string) error {
 	return worker.mutate(func(op *Operation) bool {
 		op.Phase = phase
 		op.Error = message
-		if KindIsUpgrade(op.Kind) && op.ExecutorSubmitted && phase != PhaseCompleted {
+		if KindRequiresRecovery(op.Kind) && op.ExecutorSubmitted && phase != PhaseCompleted {
 			op.RecoveryRequired = true
 		}
 		op.CancelRequested = false
