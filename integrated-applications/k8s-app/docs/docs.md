@@ -120,7 +120,6 @@ offline artifacts under `bundles/<revision>/<release>/artifacts/` so that nodes 
 The first control plane node additionally runs `server-bootstrap.sh` after joining, which:
 
 - applies the local-path storage provisioner, configured with `sharedFileSystemPath` on the shared storage directory,
-- installs Headlamp,
 - applies the admin service account (`admin-account.yaml`: service account, cluster-admin binding, and a
   `kubernetes.io/service-account-token` secret with no expiry),
 - reads the admin token secret and writes the public kubeconfig (from `kubeconfig.tpl`, pointing at the public API link) and
@@ -140,7 +139,7 @@ All cluster subnets are fixed and known in advance:
 - Pod network: `10.14.0.0/16`
 - Service network: `10.15.0.0/16`
 
-The Kubernetes API is exposed on port 6443 of every control plane node, and Headlamp on port 30500. Both are exposed as public links
+The Kubernetes API is exposed on port 6443 of every control plane node. It is exposed as a public link
 backed by the cluster service, which load-balances over all control plane nodes. The API is reachable from inside the private network
 on any control plane node; cluster availability when nodes fail depends on the etcd quorum.
 
@@ -157,7 +156,7 @@ Ingress hosts, backed by a separate ingress service on port 30080.
   `agent-token`. The cluster does not rotate them. Rotating them requires a coordinated operation (change the k3s configuration on
   every node and republish the tokens); this is not supported by the current code.
 - The admin token is a non-expiring service account token secret. Treat it as an administrator credential: anyone holding it has full
-  cluster access. Headlamp uses the same token.
+  cluster access.
 - The custom UI service runs on every control plane node and shares those nodes' mounts. It runs as UID 11042, and its access to
   sensitive files is limited by file ownership and permissions.
 

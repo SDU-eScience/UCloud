@@ -69,7 +69,6 @@ const (
 
 const (
 	ApiPort         = 6443
-	HeadlampPort    = 30500
 	IngressNodePort = 30080
 	customUiPort    = 43102
 )
@@ -93,7 +92,7 @@ const (
 	ClusterRecordPhaseRecovering = "recovering"
 )
 
-const ScriptBundleRevision = 22
+const ScriptBundleRevision = 23
 
 func BundlePathForRelease(release K3sRelease) string {
 	return filepath.Join("bundles", strconv.Itoa(ScriptBundleRevision), SanitizeForPath(release.Release))
@@ -327,20 +326,6 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 			ApplicationProtocol: util.OptValue("HTTPS"),
 			BackendTls:          util.OptValue(orcapi.ServiceBackendTls{InsecureSkipVerify: true}),
 		},
-		{
-			Name:                "headlamp",
-			Port:                HeadlampPort,
-			Protocol:            orcapi.ServicePortProtocolTcp,
-			ApplicationProtocol: util.OptValue("HTTP"),
-			HealthCheck: util.OptValue(orcapi.ServiceHealthCheck{
-				Type:               orcapi.ServiceHealthCheckTypeHttp,
-				Path:               "/",
-				IntervalSeconds:    5,
-				TimeoutSeconds:     5,
-				HealthyThreshold:   2,
-				UnhealthyThreshold: 2,
-			}),
-		},
 	}
 	clusterService := ucxsvc.ServiceCreate(stack, stackId+"-k8s", servicePorts, util.OptValue(network.Id))
 	if !stack.Ok {
@@ -400,12 +385,6 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		ServiceTarget: util.OptValue(orcapi.PublicLinkServiceTarget{
 			ServiceId: clusterService.Id,
 			Port:      "api",
-		}),
-	})
-	ucxsvc.PublicLinkCreate(stack, fmt.Sprintf("%s-dashboard", stackId), ucxsvc.PublicLinkCreateOptions{
-		ServiceTarget: util.OptValue(orcapi.PublicLinkServiceTarget{
-			ServiceId: clusterService.Id,
-			Port:      "headlamp",
 		}),
 	})
 	if !stack.Ok {

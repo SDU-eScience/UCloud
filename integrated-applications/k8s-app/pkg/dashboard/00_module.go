@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -111,11 +110,7 @@ type stackUiApp struct {
 	maintenanceRetryOptionsFor string `ucx:"-"`
 	maintenanceMode            string `ucx:"-"`
 
-	stackInfo   *ucxapi.StackInfoResponse `ucx:"-"`
-	headlampUrl string                    `ucx:"-"`
-
-	ShowHeadlampDialog bool   `ucx:"-"`
-	headlampToken      string `ucx:"-"`
+	stackInfo *ucxapi.StackInfoResponse `ucx:"-"`
 
 	ShowRolloutRestartDialog bool                          `ucx:"-"`
 	rolloutRestartTarget     rolloutRestartTarget          `ucx:"-"`
@@ -194,34 +189,13 @@ func (app *stackUiApp) refreshStackInfo() {
 		return
 	}
 
-	headlampUrl := app.lookupHeadlampUrl(ctx, session)
-
 	app.mu.Lock()
-	changed := app.stackInfo == nil || *app.stackInfo != info || app.headlampUrl != headlampUrl
+	changed := app.stackInfo == nil || *app.stackInfo != info
 	if changed {
 		app.stackInfo = &info
-		app.headlampUrl = headlampUrl
 		ucx.AppUpdateUi(app)
 	}
 	app.mu.Unlock()
-}
-
-func (app *stackUiApp) lookupHeadlampUrl(ctx context.Context, session *ucx.Session) string {
-	links, err := ucxapi.PublicLinksBrowse.InvokeEx(ctx, session, orcapi.IngressesBrowseRequest{
-		ItemsPerPage: 250,
-	})
-	if err != nil {
-		return ""
-	}
-
-	for _, link := range links.Items {
-		if link.Specification.Target.Present &&
-			link.Specification.Target.Value.Port == "headlamp" {
-			return "https://" + link.Specification.Domain
-		}
-	}
-
-	return ""
 }
 
 func (app *stackUiApp) provisioningSnapshot() []provisioningEntry {
@@ -379,26 +353,6 @@ func (app *stackUiApp) UserInterface() ucx.UiNode {
 		children = append(children, app.pageAddMachine()...)
 	default:
 		children = append(children, app.pageResources()...)
-	}
-
-	if app.ShowHeadlampDialog {
-		children = append(children, ucx.DialogEx("headlampDialog", "Open Headlamp", true).Children(
-			ucx.TextEx("", "Use the following token to sign in to Headlamp.").Sx(
-				ucx.SxColor(ucx.ColorTextSecondary),
-			),
-			ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).
-				Sx(ucx.SxAlignItemsCenter).
-				Children(
-					ucx.InputSecretEx("headlampToken", "", app.headlampToken, "").Sx(ucx.SxFlexGrow(1)),
-					ucx.CopyButtonEx("headlampCopyToken", app.headlampToken).WithTooltip("Copy token"),
-				),
-			ucx.ButtonEx("headlampContinue", "Continue", ucx.ColorPrimaryMain, "", "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-				app.closeHeadlampDialog()
-				ucxsvc.OpenUrl(app, app.headlampUrl)
-			}),
-		).On(ucx.UiEventClose, func(ev ucx.UiEvent) {
-			app.closeHeadlampDialog()
-		}))
 	}
 
 	if app.ShowRolloutRestartDialog {
@@ -691,39 +645,17 @@ func kubectlExample(title string, command string) ucx.UiNode {
 	)
 }
 
-func (app *stackUiApp) openHeadlampDialog() {
-	token, err := os.ReadFile(filepath.Join(managementMountDir, "kube-api-token"))
-	if err != nil {
-		log.Warn("k8s-app: failed to read headlamp token: %s", err)
-		return
-	}
-
-	app.headlampToken = strings.TrimSpace(string(token))
-	app.ShowHeadlampDialog = true
-	ucx.AppUpdateUi(app)
-}
-
-func (app *stackUiApp) closeHeadlampDialog() {
-	app.ShowHeadlampDialog = false
-	ucx.AppUpdateUi(app)
-}
-
 func (app *stackUiApp) pageHomeActions() []ucx.UiNode {
 	connectControls := []ucx.UiNode{
 		ucx.ButtonEx("homeDownloadKubernetesConfig", "Kubeconfig", ucx.ColorPrimaryMain, ucx.IconHeroArrowDownTray, "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 			ucxsvc.StackDownloadFile(app.Stack, shared.KubernetesConfigurationFileName)
 		}),
 	}
-	if app.headlampUrl != "" {
-		connectControls = append(connectControls, ucx.ButtonEx("homeOpenHeadlamp", "Open Headlamp", ucx.ColorPrimaryMain, ucx.IconHeroArrowTopRightOnSquare, "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-			app.openHeadlampDialog()
-		}))
-	}
 
 	actions := []ucx.UiNode{
 		ucx.SettingsAction("homeConnectAction",
 			"Connect to this cluster",
-			"Use the cluster from your terminal with kubectl, or from your browser with the Headlamp dashboard.",
+			"Use the cluster from your terminal with kubectl.",
 		).Children(
 			ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 4}).
 				Sx(ucx.SxAlignItemsCenter).
@@ -762,20 +694,6 @@ func (app *stackUiApp) pageHomeActions() []ucx.UiNode {
 				ucx.SxColor(ucx.ColorTextSecondary),
 			),
 		),
-	}
-
-	if app.headlampUrl != "" {
-		actions = append(actions, ucx.AccordionNode("Use Headlamp in your browser", false).WithNoHeaderBorder().Sx(ucx.SxMt(8), ucx.SxMb(12)).Children(
-			ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 12}).Children(
-				ucx.Markdown("Headlamp is a Kubernetes dashboard that runs in your browser. It shows workloads, nodes and other resources of the cluster. Nothing needs to be installed."),
-				ucx.Markdown(
-					"- Open it with the **Open Headlamp** button. It first lets you copy the login token.\n"+
-						"- The token is the cluster's admin token and must be pasted into Headlamp's login screen."),
-				ucx.ButtonEx("homeOpenHeadlampAccordion", "Open Headlamp", ucx.ColorPrimaryMain, ucx.IconHeroArrowTopRightOnSquare, "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-					app.openHeadlampDialog()
-				}),
-			),
-		))
 	}
 
 	if app.Stack != nil && app.Stack.Ok {

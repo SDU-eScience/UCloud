@@ -13,12 +13,6 @@ sed \
 	> /var/lib/rancher/k3s/server/manifests/ucloud-k8s-local-storage.yaml
 k3s kubectl --request-timeout=60s apply -f /var/lib/rancher/k3s/server/manifests/ucloud-k8s-local-storage.yaml >/dev/null
 
-emit "Applying Headlamp" 86
-sed -e "s|\${HEADLAMP_IMAGE}|$HEADLAMP_IMAGE|g" \
-	"$BUNDLE_DIR/headlamp.yaml" \
-	> /var/lib/rancher/k3s/server/manifests/ucloud-k8s-headlamp.yaml
-k3s kubectl --request-timeout=60s apply -f /var/lib/rancher/k3s/server/manifests/ucloud-k8s-headlamp.yaml >/dev/null
-
 emit "Pinning the traefik web port" 87
 install -m 0644 "$BUNDLE_DIR/traefik-config.yaml" /var/lib/rancher/k3s/server/manifests/ucloud-k8s-traefik-config.yaml
 k3s kubectl --request-timeout=60s apply -f /var/lib/rancher/k3s/server/manifests/ucloud-k8s-traefik-config.yaml >/dev/null
