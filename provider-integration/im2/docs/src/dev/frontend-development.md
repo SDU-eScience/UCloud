@@ -13,7 +13,7 @@ The implementation is in the folder [`/frontend-web/webclient/`](https://github.
 
 ## Technologies
 
-The UCloud UI is written in Typescript, with the front-end library React. Some use of the library Redux exists in the codebase, but it is rarely used when developing new features.
+The UCloud UI is written in Typescript, with the frontend library React. Some use of the library Redux exists in the codebase, but it is rarely used when developing new features.
 
 Where the performance of React has not been adequate, Vanilla TypeScript/ECMAScript has been used instead. An example of this is the ResourceBrowser component, where very little use of React is present.
 
