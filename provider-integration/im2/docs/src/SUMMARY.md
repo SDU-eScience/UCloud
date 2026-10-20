@@ -44,6 +44,14 @@
   - [SSH Servers](./k8s/ssh-servers.md)
   - [Job Audit Log](./k8s/job-audit-log.md)
   - [Virtual machines](./k8s/kubevirt.md)
+- [AI Inference](./k8s/inference/overview.md)
+  - [Architecture](./k8s/inference/architecture.md)
+  - [Chat Middleware](./k8s/inference/middleware.md)
+  - [Chat Playground](./k8s/inference/playground.md)
+  - [Model Discovery and Catalog](./k8s/inference/catalog.md)
+  - [Dynamo Deployments](./k8s/inference/dynamo.md)
+  - [Usage and Accounting](./k8s/inference/usage.md)
+  - [Audit and Metrics](./k8s/inference/observability.md)
 - [Integrated applications](./k8s/integrated-applications.md)
   - [Syncthing](./k8s/syncthing.md)
   - [Integrated terminal](./k8s/integrated-terminal.md)
@@ -58,9 +66,10 @@
     - [CLI](./k8s/cli-reference.md)
 
 
-# Branding for UCloud
+# Style guidelines
 
 - [Branding and identity for UCloud](./branding/branding.md)
+- [Documentation](./branding/documentation.md)
 
 # H: Procedures
 
@@ -71,6 +80,10 @@
 - [H: GitHub actions](./procedures/ci.md)
 - [H: Deployment](./procedures/deployment.md)
 - [H: 3rd party dependencies (risk assesment)](./procedures/third_party_dependencies.md)
+
+# Glossary
+
+- [Glossary](./glossary.md)
 
 <!--
 

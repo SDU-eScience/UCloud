@@ -775,6 +775,9 @@ The password to the VNC server. This password is not used for security purposes.
 Applications can declare that they want access to UCloud inference servers through the `inference` top-level section.
 If the section is omitted, UCloud behaves as if `mode` was `None`.
 
+See [AI Inference](./inference/overview.md) for the feature itself and [Architecture](./inference/architecture.md) for
+the API that the tokens grant access to.
+
 When inference is enabled, then UCloud creates short-lived API tokens for inference-capable providers available
 to the user's project. These tokens are passed to the provider as transient job resources of type `api_server`. 
 

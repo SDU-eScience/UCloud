@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/pkg/ipc"
 	"ucloud.dk/shared/pkg/cli"
 	"ucloud.dk/shared/pkg/termio"
@@ -53,10 +54,9 @@ func inferenceCliHelp() {
 	f.AppendTitle("Inference help")
 	f.AppendField("models ls", "List inference model catalog entries")
 	f.AppendSeparator()
-	f.AppendField("models update <name>", "Update an inference model catalog entry")
+	f.AppendField("models update <name>", "Update an inference model catalog entry, or create it when it does not exist")
 	f.AppendField("  --name <name>", "Rename the model. Only allowed for non-public models.")
 	f.AppendField("  --title <title>", "Set the display title")
-	f.AppendField("  --title-model-name <name>", "Set model used for chat thread title generation")
 	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration")
 	f.AppendField("  --reasoning-efforts <list>", "Comma-separated display name=value pairs. Use an empty value to disable reasoning.")
 	f.AppendField("  --default-reasoning-effort <value>", "Set the default reasoning effort value")
@@ -195,14 +195,18 @@ func inferenceCliModelsUpdate(args []string) {
 		cli.HandleError("validating max-completion-tokens", fmt.Errorf("max-completion-tokens must be positive"))
 	}
 
-	_, err := k8sCliInferenceModelsUpdate.Invoke(req)
+	resp, err := k8sCliInferenceModelsUpdate.Invoke(req)
 	cli.HandleError("updating inference model", err)
 
 	name := strings.TrimSpace(req.Name)
 	if slices.Contains(req.Set, "name") && strings.TrimSpace(req.NewName) != "" {
 		name = strings.TrimSpace(req.NewName)
 	}
-	termio.WriteStyledLine(termio.Bold, termio.Green, 0, "Updated inference model: %s", name)
+	if resp.Created {
+		termio.WriteStyledLine(termio.Bold, termio.Green, 0, "Created inference model: %s", name)
+	} else {
+		termio.WriteStyledLine(termio.Bold, termio.Green, 0, "Updated inference model: %s", name)
+	}
 }
 
 func inferenceCliModelsRemove(args []string) {
@@ -225,14 +229,14 @@ func initCli() {
 		return ipc.Response[[]InferenceModel]{StatusCode: http.StatusOK, Payload: InferenceModelList()}
 	})
 
-	k8sCliInferenceModelsUpdate.Handler(func(r *ipc.Request[k8sCliInferenceModelsUpdateRequest]) ipc.Response[util.Empty] {
+	k8sCliInferenceModelsUpdate.Handler(func(r *ipc.Request[k8sCliInferenceModelsUpdateRequest]) ipc.Response[k8sCliInferenceModelsUpdateResponse] {
 		if r.Uid != 0 {
-			return ipc.Response[util.Empty]{StatusCode: http.StatusForbidden, ErrorMessage: "Must be run as root"}
+			return ipc.Response[k8sCliInferenceModelsUpdateResponse]{StatusCode: http.StatusForbidden, ErrorMessage: "Must be run as root"}
 		}
 
-		model, ok := InferenceCatalogModelByName(r.Payload.Name)
-		if !ok {
-			return ipc.Response[util.Empty]{StatusCode: http.StatusNotFound, ErrorMessage: "model not found"}
+		model, found := InferenceCatalogModelByName(r.Payload.Name)
+		if !found {
+			model = inferenceCliNewModel(r.Payload.Name)
 		}
 
 		set := func(name string) bool { return slices.Contains(r.Payload.Set, name) }
@@ -288,21 +292,30 @@ func initCli() {
 		}
 
 		newName := strings.TrimSpace(r.Payload.NewName)
-		if set("name") && newName != "" && newName != strings.TrimSpace(r.Payload.Name) {
+		if !found && set("name") && newName != "" && newName != strings.TrimSpace(r.Payload.Name) {
+			return ipc.Response[k8sCliInferenceModelsUpdateResponse]{
+				StatusCode:   http.StatusBadRequest,
+				ErrorMessage: "cannot rename a model that the catalog does not hold",
+			}
+		}
+		if found && set("name") && newName != "" && newName != strings.TrimSpace(r.Payload.Name) {
 			model.Name = newName
 			if err := inferenceModelValidate(model); err != nil {
-				return ipc.Response[util.Empty]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
+				return ipc.Response[k8sCliInferenceModelsUpdateResponse]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
 			}
 			if err := InferenceModelRename(r.Payload.Name, newName); err != nil {
-				return ipc.Response[util.Empty]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
+				return ipc.Response[k8sCliInferenceModelsUpdateResponse]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
 			}
 		}
 
 		if err := InferenceModelUpsert(model); err != nil {
-			return ipc.Response[util.Empty]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
+			return ipc.Response[k8sCliInferenceModelsUpdateResponse]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
 		}
 
-		return ipc.Response[util.Empty]{StatusCode: http.StatusOK}
+		return ipc.Response[k8sCliInferenceModelsUpdateResponse]{
+			StatusCode: http.StatusOK,
+			Payload:    k8sCliInferenceModelsUpdateResponse{Created: !found},
+		}
 	})
 
 	k8sCliInferenceModelsRemove.Handler(func(r *ipc.Request[k8sCliInferenceModelsRemoveRequest]) ipc.Response[util.Empty] {
@@ -430,12 +443,37 @@ type k8sCliInferenceModelsUpdateRequest struct {
 	SystemPrompt               string
 }
 
+type k8sCliInferenceModelsUpdateResponse struct {
+	Created bool
+}
+
+func inferenceCliNewModel(name string) InferenceModel {
+	return InferenceModel{
+		Name:         name,
+		Title:        name,
+		Capabilities: []InferenceCapability{InferenceTextGeneration},
+		PricePerMillion: InferencePricing{
+			CachedInput: InferencePriceScale,
+			Input:       InferencePriceScale,
+			Output:      InferencePriceScale,
+		},
+		Availability: InferenceAvailability{
+			Public:      false,
+			AvailableTo: slices.Clone(shared.ServiceConfig.Compute.Inference.Access.Testers),
+		},
+		ChatSettings: InferenceChatSettings{
+			Temperature: 0.8,
+			TopP:        0.1,
+		},
+	}
+}
+
 type k8sCliInferenceModelsRemoveRequest struct {
 	Name string
 }
 
 var (
 	k8sCliInferenceModelsList   = ipc.NewCall[util.Empty, []InferenceModel]("cli.k8s.inference.models.list")
-	k8sCliInferenceModelsUpdate = ipc.NewCall[k8sCliInferenceModelsUpdateRequest, util.Empty]("cli.k8s.inference.models.update")
+	k8sCliInferenceModelsUpdate = ipc.NewCall[k8sCliInferenceModelsUpdateRequest, k8sCliInferenceModelsUpdateResponse]("cli.k8s.inference.models.update")
 	k8sCliInferenceModelsRemove = ipc.NewCall[k8sCliInferenceModelsRemoveRequest, util.Empty]("cli.k8s.inference.models.remove")
 )
