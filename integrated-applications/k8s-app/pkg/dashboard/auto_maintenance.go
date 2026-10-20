@@ -344,7 +344,7 @@ func autoMaintenanceRunNowDialog(app *stackUiApp, policy maintenance.AutoPolicy)
 		"autoMaintenanceRunNow",
 		"Run maintenance now",
 		message,
-		ucx.IconHeroRocketLaunch,
+		"",
 		ucx.ColorPrimaryMain,
 		func() {
 			app.autoRunNowConfirm = false
