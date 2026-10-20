@@ -60,6 +60,8 @@ Figure showing the flow from a user submitting a job, going through UCloud/Core,
 
 ## Glossary and developer quick-start
 
+The shared names of the platform are in the [glossary](../glossary.md).
+
 | Term                  | Description                                                                                                                                               |
 |-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
 | UCloud/Core           | The central component hosting the UCloud platform. This is the primary contact point for UCloud's user-interface. Start in `core2/`.                      |
