@@ -1,6 +1,7 @@
 https://ucloud.localhost.direct {
     reverse_proxy /api/* core2:8080
     reverse_proxy /auth/* core2:8080
+    reverse_proxy /cli/* cli-distribution:8080
 
     reverse_proxy /api/auth-callback-csrf frontend:9000
     reverse_proxy /api/auth-callback frontend:9000

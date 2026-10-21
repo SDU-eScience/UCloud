@@ -1,0 +1,11 @@
+:8080 {
+    handle_path /cli/* {
+        header Cache-Control "no-store"
+        root * /srv
+        file_server
+    }
+
+    handle {
+        respond 404
+    }
+}

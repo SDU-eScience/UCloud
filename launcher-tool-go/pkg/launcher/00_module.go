@@ -27,6 +27,7 @@ const ImDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2026.2.15"
 const SlurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2025.4.165"
 
 var Version string
+var CliVersion string
 var RepoRoot string
 var HasPty bool
 var ComposeDir string
@@ -82,7 +83,16 @@ func Launch() {
 
 	Version = strings.TrimSpace(string(versionBytes))
 
-	featureBytes, err := os.ReadFile(filepath.Join(repoRootPath, ".compose/features.json"))
+	cliVersionBytes, err := os.ReadFile(filepath.Join(repoRootPath, "ucloud-cli", "version.txt"))
+	if err != nil {
+		log.Fatal("Unable to find CLI version file.")
+	}
+	CliVersion = strings.TrimSpace(string(cliVersionBytes))
+	if CliVersion == "" {
+		log.Fatal("CLI version file is empty.")
+	}
+
+	featureBytes, err := os.ReadFile(filepath.Join(repoRootPath, ".compose", "features.json"))
 	if err == nil {
 		_ = json.Unmarshal(featureBytes, &ClusterFeatures)
 	}
@@ -200,6 +210,7 @@ func RegisterServices() {
 
 	ServiceCore()
 	ServiceFrontend()
+	ServiceCliDistribution()
 	ServiceGateway()
 	ProviderK8s()
 	ProviderSlurm()

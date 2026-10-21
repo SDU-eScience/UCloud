@@ -4,6 +4,8 @@ import {backendFeatureEnabled} from "@/Features/backend";
 export enum Feature {
     EXTERNAL_LOGIN_UCLOUD_CLI,
 
+    UCLOUD_CLI_DOWNLOADS,
+
     REORDER_APP_GROUP,
 
     STACKS,
@@ -56,6 +58,11 @@ const featureMap: Record<string, FeatureConfig> = {
         feature: Feature.EXTERNAL_LOGIN_UCLOUD_CLI,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allDevEnvironments,
+    },
+
+    "ucloud-cli-downloads": {
+        feature: Feature.UCLOUD_CLI_DOWNLOADS,
+        showWithoutFlag: allDevEnvironments,
     },
 
     "reorder-app-group": {

@@ -105,6 +105,7 @@ import {deinitNotifications, initTaskAndNotificationStream} from "@/Services/Tas
 import {NotificationPopups} from "./Notifications/Popups";
 import {StacksRouter} from "@/Stacks";
 import ContainerRepositoryBrowse from "@/ContainerRepositories/Browse";
+import CliDownloads from "@/CLI/Downloads";
 
 const NotFound = (): React.ReactNode => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 const JobsOnlyRouter = (): React.ReactNode => <JobsRouter />;
@@ -125,6 +126,8 @@ const Core = (): React.ReactNode => {
                     <Route path={AppRoutes.login.loginExternalWayf()} element={<Wayf external />} />
                     <Route path={AppRoutes.login.loginSuccess()} element={<LoginSuccess />} />
                     <Route path={AppRoutes.login.loginWayf()} element={<Wayf />} />
+                    {hasFeature(Feature.UCLOUD_CLI_DOWNLOADS) ?
+                        <Route path={AppRoutes.cli.downloads()} element={React.createElement(requireAuth(CliDownloads))} /> : null}
                     <Route path={AppRoutes.dashboard.dashboardA()}
                            element={React.createElement(requireAuth(Dashboard))} />
                     <Route path={AppRoutes.dashboard.dashboardB()}
