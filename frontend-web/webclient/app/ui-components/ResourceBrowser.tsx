@@ -3116,7 +3116,6 @@ export class ResourceBrowser<T> {
         const containerSize = 400;
         e.container.style.width = containerSize + "px";
         e.container.style.height = containerSize + "px";
-        e.container.style.left = (containerLeft + (containerWidth / 2) - (containerSize / 2)) + "px";
         e.container.style.top = (containerTop + (containerHeight / 2) - (containerSize / 2)) + "px";
         if (this.opts?.embedded || this.opts?.selector) {
             e.container.style.position = "unset";

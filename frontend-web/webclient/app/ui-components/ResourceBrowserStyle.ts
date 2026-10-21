@@ -348,7 +348,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             background: var(--rowHover);
         }
 
-        ${BrowserClass.dot} .row .title{
+        ${BrowserClass.dot} .row .title {
             display: flex;
             align-items: center;
 
@@ -492,8 +492,10 @@ export function injectResourceBrowserStyle(rowSize: number) {
             display: none;
             position: fixed;
             top: 0;
-            left: 0;
+            left: 50%;
+            transform: translateX(-50%);
             height: 200px;
+            max-width: calc(100vw - 64px);
             flex-direction: column;
             align-items: center;
             justify-content: center;
