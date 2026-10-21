@@ -429,3 +429,81 @@ The part of UCloud/IM that checks the capacity of the backend before it forwards
 the request waits for capacity, cancellation or the admission timeout.
 
 Kind: component. Appears in: [Architecture](./k8s/inference/architecture.md#request-lifecycle).
+
+## Integrated applications
+
+### Integrated application
+
+An application that a provider offers through the platform. UCloud/IM manages some integrated applications itself,
+and it runs them as jobs. Other integrated applications, such as the Kubernetes cluster application, create their own
+resources and their own user interface.
+
+Kind: application. Appears in: [Integrated applications](./k8s/integrated-applications.md).
+
+### Stack
+
+A group of resources of one application: the machines, the network, the storage and the links. UCloud/Core records the
+stack and its access control list, and the application creates the resources of the stack.
+
+Kind: domain object. Appears in: [Kubernetes clusters](./k8s/kubernetes-clusters/overview.md).
+
+### Stack KV-state
+
+The key-value state that the processes of one stack share: one record per purpose, with one revision per record.
+UCloud/IM keeps the records in the `stack_state_records` table of its database. The files of a stack live on the state
+drive.
+
+Kind: data store. Appears in: [Stacks](./k8s/kubernetes-clusters/stacks.md).
+
+### State drive
+
+The drive that holds the files of a stack, for example the node inputs, the script bundle and the backups. The records
+of a stack live in the stack KV-state. The drive belongs to the workspace.
+
+Kind: data store. Appears in: [Networking and storage](./k8s/kubernetes-clusters/networking-and-storage.md#storage).
+
+### Cluster record
+
+The stack KV-state record that describes one Kubernetes cluster: its phase, its nodes and their jobs, its worker pools,
+its network, its service and its script bundle. Every process of the application reads the cluster record before it
+acts.
+
+Kind: data store. Appears in: [Architecture](./k8s/kubernetes-clusters/architecture.md#stack-kv-state).
+
+### Node agent
+
+The process that runs as root on every node of a Kubernetes cluster. It serves the maintenance API on the private
+address of the node, and it runs the Kubernetes upgrades, the operating-system updates and the backups.
+
+Kind: component. Appears in: [Maintenance and
+upgrades](./k8s/kubernetes-clusters/maintenance-and-upgrades.md#node-agent).
+
+### Cluster dashboard
+
+The web interface of one Kubernetes cluster. It runs on every control plane node, and it shows the state of the
+cluster, the Kubernetes resources, the maintenance operations, the backups and the permissions.
+
+Kind: component. Appears in: [Cluster dashboard](./k8s/kubernetes-clusters/cluster-dashboard.md).
+
+### Maintenance operation
+
+A record of one operation on one node of a Kubernetes cluster: a cordon, a drain, an uncordon, a Kubernetes upgrade,
+an operating-system update or a removal. The record holds the kind, the phase and the deadline of the operation.
+
+Kind: domain object. Appears in: [Maintenance and
+upgrades](./k8s/kubernetes-clusters/maintenance-and-upgrades.md#operation-model).
+
+### Cluster backup
+
+An etcd snapshot of a Kubernetes cluster, with the join tokens and the metadata that a recovery needs. A cluster keeps
+48 hourly backups and 14 daily backups.
+
+Kind: data store. Appears in: [Backup and recovery](./k8s/kubernetes-clusters/backup-and-recovery.md).
+
+### Traffic record
+
+The stack KV-state record that lists the control plane jobs with a suspended traffic. The controller removes these jobs
+from the service of the Kubernetes API while the node is maintained.
+
+Kind: domain object. Appears in: [Maintenance and
+upgrades](./k8s/kubernetes-clusters/maintenance-and-upgrades.md#traffic-suspension).

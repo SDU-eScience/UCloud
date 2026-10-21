@@ -1,8 +1,16 @@
 # Integrated applications
 
-Integrated applications are provider-managed jobs that run alongside normal user jobs and provide extra functionality
-(such as file synchronization or an interactive shell). Each integrated application has a per-owner configuration that
-can be retrieved, updated, reset, and in some cases restarted.
+Integrated applications are applications that a provider offers through the platform. This chapter describes two
+kinds:
+
+- The applications that UCloud/IM manages itself: [Syncthing](./syncthing.md) and the [integrated
+  terminal](./integrated-terminal.md). UCloud/IM runs one job per owner, and it stores the configuration of the owner
+  in the module database.
+- The [Kubernetes cluster application](./kubernetes-clusters/overview.md). A user creates a Kubernetes cluster with
+  it on the machines of the provider. The application manages its own resources and its own user interface.
+
+The rest of this page describes the first kind. Each integrated application of this kind has a per-owner configuration
+that can be retrieved, updated, reset, and in some cases restarted.
 
 Internally, each integrated application is represented by:
 
