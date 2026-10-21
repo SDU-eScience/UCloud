@@ -68,7 +68,7 @@ function Wayf({external = false}: {external?: boolean}): React.ReactNode {
         }
     }
 
-    const authStateCookie = getCookie(authCookieName);
+    const authStateCookie = getCookie(authCookieName, authCookieName);
     if (authStateCookie === null) {
         // eslint-disable-next-line no-console
         console.log("Found no auth state!");

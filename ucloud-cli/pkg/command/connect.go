@@ -181,13 +181,25 @@ func performConnection() error {
 	}
 
 	connectionURL := baseURL + UCloudCliPath
+	fmt.Printf("Opening %s in your browser...\n", connectionURL)
 	if err := openBrowser(connectionURL); err != nil {
 		return err
 	}
+	fmt.Println("Waiting for authorization in your browser...")
 
 	select {
 	case err := <-authDone:
-		return err
+		if err != nil {
+			return err
+		}
+		cfg, err := shared.ReadConfig()
+		if err != nil {
+			return err
+		}
+		fmt.Println("✓ Authorized")
+		fmt.Printf("✓ Connected as %s\n", cfg.Username)
+		fmt.Printf("✓ Configuration saved: %s\n", shared.GetConfigPath())
+		return nil
 	case err := <-serverErr:
 		return err
 	case <-time.After(5 * time.Minute):

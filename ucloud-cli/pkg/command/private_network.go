@@ -18,7 +18,6 @@ type PrivateNetworkListCommand struct {
 
 type PrivateNetworkCreateCommand struct {
 	Name      string `positional:"name" usage:"Private network name" required:"true"`
-	SubDomain string `positional:"sub-domain" usage:"Sub domain" required:"true"`
 	Workspace string `flag:"workspace" usage:"eg. --workspace myworkspace"`
 	Provider  string `flag:"provider" usage:"eg. --provider k8s" default:"k8s"`
 }
@@ -61,11 +60,11 @@ func retrievePrivateNetworks() (map[string]orcapi.PrivateNetwork, error) {
 func printPrivateNetworks(networks map[string]orcapi.PrivateNetwork) {
 	t := termio.Table{}
 	t.AppendHeader("Name")
-	t.AppendHeader("SubDomain")
+	t.AppendHeader("Subdomain")
 	t.AppendHeader("CreatedAt")
 	for name, network := range networks {
 		t.Cell("%v", name)
-		t.Cell("%v", network.Specification.Subdomain)
+		t.Cell("%v", network.Status.Subdomain)
 		t.Cell("%v", cli.FormatTime(network.CreatedAt))
 	}
 	t.Print()
@@ -95,8 +94,7 @@ func (c PrivateNetworkCreateCommand) Execute() error {
 	created, httpErr := orcapi.PrivateNetworksCreate.Invoke(fnd.BulkRequest[orcapi.PrivateNetworkSpecification]{
 		Items: []orcapi.PrivateNetworkSpecification{
 			{
-				Name:      c.Name,
-				Subdomain: c.SubDomain,
+				Name: c.Name,
 				ResourceSpecification: orcapi.ResourceSpecification{
 					Product: acc.ProductReference{
 						Id:       "private-network",

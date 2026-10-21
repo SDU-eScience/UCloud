@@ -16,6 +16,7 @@ const style = injectStyle("vm-icon-button", k => `
         align-items: center;
         justify-content: center;
         cursor: pointer;
+        text-decoration: none;
         transition: background-color 120ms ease, opacity 120ms ease;
         --icon-button-hover: var(--rowActive);
     }
@@ -42,7 +43,9 @@ const style = injectStyle("vm-icon-button", k => `
 
 export const IconButton: React.FunctionComponent<{
     tooltip: React.ReactNode;
-    onClick: () => void;
+    onClick?: () => void;
+    href?: string;
+    download?: string | boolean;
     icon: IconName;
     color?: ThemeColor;
     noDefaultFill?: boolean;
@@ -55,15 +58,24 @@ export const IconButton: React.FunctionComponent<{
     const color = props.color ?? "textSecondary";
     const hoverColor = props.hoverColor === undefined ? undefined :
         props.hoverColor.startsWith("#") ? props.hoverColor : `var(--${props.hoverColor})`;
+    const icon = <Icon name={props.icon} color={color} noDefaultFill={props.noDefaultFill} />;
+
     return <TooltipV2 tooltip={props.tooltip}>
-        <button type="button" className={style} onClick={props.onClick}
+        {props.href ? <a href={props.href} download={props.download}
+            className={style}
+            aria-label={typeof props.tooltip === "string" ? props.tooltip : undefined}
+            data-compact={props.compact}
+            data-navigation-field={props.navigationField ? true : undefined}
+            style={hoverColor ? {"--icon-button-hover": hoverColor} as React.CSSProperties : undefined}>
+            {icon}
+        </a> : <button type="button" className={style} onClick={props.onClick}
             disabled={props.disabled}
             aria-label={typeof props.tooltip === "string" ? props.tooltip : undefined}
             aria-expanded={props.ariaExpanded}
             data-compact={props.compact}
             data-navigation-field={props.navigationField ? true : undefined}
             style={hoverColor ? {"--icon-button-hover": hoverColor} as React.CSSProperties : undefined}>
-            <Icon name={props.icon} color={color} noDefaultFill={props.noDefaultFill} />
-        </button>
+            {icon}
+        </button>}
     </TooltipV2>
 }

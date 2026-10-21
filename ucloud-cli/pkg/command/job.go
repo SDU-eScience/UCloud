@@ -187,16 +187,9 @@ func (c JobSearchCommand) Execute() error {
 
 	// Jobs are searched in the context of a workspace (defaults to the
 	// active workspace if none is given).
-	currentWs := c.Workspace
-	if currentWs == "" {
-		currentWs = cfg.CurrentWorkspace.GetOrDefault("")
-	}
-	if currentWs != "" {
-		ws, err := shared.FindWorkspaceByName(currentWs)
-		if err != nil {
-			return err
-		}
-		shared.SetActiveWorkspace(ws.Id)
+	wsName, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
+	if err != nil {
+		return err
 	}
 
 	result, httpErr := orcapi.JobsSearch.Invoke(orcapi.JobsSearchRequest{
@@ -211,7 +204,7 @@ func (c JobSearchCommand) Execute() error {
 		repoName := shared.RepositoryProjectName(job.Specification.Name)
 		jobs[repoName] = append(jobs[repoName], job)
 	}
-	fmt.Printf("Jobs of %v\n", currentWs)
+	fmt.Printf("Jobs of %v\n", wsName)
 	printJobs(jobs)
 	return nil
 }
@@ -303,20 +296,10 @@ func printJobDetails(job orcapi.Job) {
 
 func (c JobListCommand) Execute() error {
 	cfg := shared.InitializeUCloudClient()
-	currentWs := c.Workspace
-	if c.Workspace == "" && cfg.CurrentWorkspace.IsEmpty() {
-		return fmt.Errorf("this command requires a workspace, either by specifying a workspace with --workspace or ucloud workspace use <workspace>")
-	}
-
-	if cfg.CurrentWorkspace.Present {
-		currentWs = cfg.CurrentWorkspace.Value
-	}
-
-	ws, err := shared.FindWorkspaceByName(currentWs)
+	currentWs, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
 	if err != nil {
 		return err
 	}
-	shared.SetActiveWorkspace(ws.Id)
 
 	filter := orcapi.JobFlags{
 		FilterType:        util.OptValue(orcapi.JobTypeFilterJobsOnly),
@@ -651,16 +634,9 @@ func (c JobCreateCommand) Execute() error {
 
 	// Jobs are created in the context of a workspace (defaults to the
 	// personal workspace if none is active).
-	currentWs := c.Workspace
-	if currentWs == "" {
-		currentWs = cfg.CurrentWorkspace.GetOrDefault("")
-	}
-	if currentWs != "" {
-		ws, err := shared.FindWorkspaceByName(currentWs)
-		if err != nil {
-			return err
-		}
-		shared.SetActiveWorkspace(ws.Id)
+	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
+	if err != nil {
+		return err
 	}
 
 	foundApp, appErr := findApp(c.App)

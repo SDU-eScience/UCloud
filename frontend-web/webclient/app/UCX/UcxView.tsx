@@ -18,7 +18,7 @@ import {
 import {SimpleRichSelect} from "@/ui-components/RichSelect";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
-import CodeSnippet from "@/ui-components/CodeSnippet";
+import CodeSnippet, {CodeSnippetCopyOverlay} from "@/ui-components/CodeSnippet";
 import {IconButton} from "@/ui-components/IconButton";
 import {IconName} from "@/ui-components/Icon";
 import {UcxCodeEditor} from "@/UCX/UcxCodeEditor";
@@ -2651,7 +2651,7 @@ const UcxCodeStretched: React.FunctionComponent<React.PropsWithChildren<{lang?: 
             style={theme}
             customStyle={{
                 margin: 0,
-                padding: "16px 56px 16px 16px",
+                padding: "16px 64px 16px 16px",
                 borderRadius: 8,
                 flex: 1,
                 minHeight: 0,
@@ -2663,9 +2663,7 @@ const UcxCodeStretched: React.FunctionComponent<React.PropsWithChildren<{lang?: 
         >
             {String(children ?? "")}
         </SyntaxHighlighter>
-        <div className="code-snippet-copy-button">
-            <CopyButton onClick={doCopy} />
-        </div>
+        <CodeSnippetCopyOverlay onClick={doCopy} />
     </div>;
 };
 
@@ -2767,13 +2765,6 @@ const UcxCodeStretchedClass = injectStyle("ucx-code-stretched", key => `
         flex: 1;
         min-height: 0;
         min-width: 0;
-    }
-
-    ${key} > .code-snippet-copy-button {
-        position: absolute;
-        top: 11px;
-        right: 16px;
-        z-index: 1;
     }
 `);
 

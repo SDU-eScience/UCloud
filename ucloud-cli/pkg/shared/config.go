@@ -1,7 +1,6 @@
 package shared
 
 import (
-	"fmt"
 	"maps"
 	"net/http"
 	"os"
@@ -174,11 +173,11 @@ func InitializeUCloudClient() *Config {
 	return cfg
 }
 
-func GetActiveWorkspace(cfg *Config) (string, error) {
+func GetActiveWorkspace(cfg *Config) string {
 	if cfg.CurrentWorkspace.Present {
-		return cfg.CurrentWorkspace.Value, nil
+		return cfg.CurrentWorkspace.Value
 	}
-	return "", fmt.Errorf("No active workspace")
+	return PersonalWorkspaceName
 }
 
 func PrintConfig(cfg *Config) {

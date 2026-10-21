@@ -6,6 +6,7 @@ require (
 	atomicgo.dev/keyboard v0.2.9
 	charm.land/bubbletea/v2 v2.0.8
 	github.com/anyascii/go v0.3.3
+	github.com/charmbracelet/x/term v0.2.2
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v3 v3.0.1
 	ucloud.dk/gonja/v2 v2.3.0
@@ -24,7 +25,6 @@ require (
 	github.com/charmbracelet/ultraviolet v0.0.0-20260703014108-f5a850f9c2b7 // indirect
 	github.com/charmbracelet/x/ansi v0.11.7 // indirect
 	github.com/charmbracelet/x/cellbuf v0.0.15 // indirect
-	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect

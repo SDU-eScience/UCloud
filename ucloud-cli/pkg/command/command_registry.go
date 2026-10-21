@@ -15,5 +15,8 @@ func CommandRegistry() map[string]map[string]CommandFunc {
 	registry["private-network"] = PrivateNetworkCommands
 	registry["folder"] = FolderCommands
 	registry["completion"] = CompletionCommands
+	registry["update"] = UpdateCommands
+	registry["version"] = VersionCommands
+	registry["help"] = HelpCommands
 	return registry
 }
