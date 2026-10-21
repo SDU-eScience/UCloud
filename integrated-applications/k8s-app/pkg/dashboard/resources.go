@@ -24,6 +24,11 @@ import (
 	"ucloud.dk/shared/pkg/ucx"
 )
 
+// Resource types
+// =====================================================================================================================
+// A resource type describes one kind of Kubernetes object. The dashboard uses the type to list the objects, to build
+// the table columns and to decide which actions a row supports.
+
 type ResourceTypeDef struct {
 	Id         string
 	Label      string
@@ -204,8 +209,6 @@ var resourceTypes = []ResourceTypeDef{
 
 const containersTypeId = "containers"
 
-// containersTypeDef is a synthetic resource type used to drill into the containers of a single pod.
-// It lists pods (filtered to exactly one) and renders one row per container of that pod.
 var containersTypeDef = ResourceTypeDef{
 	Id:         containersTypeId,
 	Label:      "Containers",
@@ -245,6 +248,51 @@ func ResourceType(id string) (ResourceTypeDef, bool) {
 	return ResourceTypeDef{}, false
 }
 
+func (app *stackUiApp) allTypeDefs() []ResourceTypeDef {
+	if app.poller != nil {
+		return app.poller.resourceTypesSnapshot()
+	}
+	return ResourceTypes()
+}
+
+func (app *stackUiApp) resolveType(typeId string) (ResourceTypeDef, bool) {
+	if app.poller != nil {
+		return app.poller.resourceTypeById(typeId)
+	}
+	return ResourceType(typeId)
+}
+
+func (app *stackUiApp) activeTypeLabel(typeDefs []ResourceTypeDef) string {
+	if def, ok := app.resolveType(app.ActiveType); ok && def.Id == app.ActiveType {
+		return def.Label
+	}
+	for _, def := range typeDefs {
+		if def.Id == app.ActiveType {
+			return def.Label
+		}
+	}
+	return ""
+}
+
+func (app *stackUiApp) resourceStreamId() string {
+	def, _ := app.resolveType(app.ActiveType)
+	return resourceDatasetId(resourceSelection{
+		typeId:    app.ActiveType,
+		namespace: app.ActiveNamespace,
+		filter:    app.pollerFilter(),
+		def:       def,
+	})
+}
+
+func (app *stackUiApp) pollerFilter() resourceFilter {
+	return app.ActiveFilter
+}
+
+// Kubernetes client
+// =====================================================================================================================
+// One client serves the whole session. It wraps the dynamic client for arbitrary objects and the typed client for
+// discovery. The schema cache holds the OpenAPI documents between edits.
+
 type K8sClient struct {
 	Dynamic     dynamic.Interface
 	Typed       kubernetes.Interface
@@ -274,6 +322,8 @@ func K8sClientFromKubeconfig(path string) (*K8sClient, error) {
 	return &K8sClient{Dynamic: dyn, Typed: typed}, nil
 }
 
+var listOptions = v1.ListOptions{}
+
 func (c *K8sClient) List(ctx context.Context, def ResourceTypeDef) ([]unstructured.Unstructured, error) {
 	list, err := c.Dynamic.Resource(def.Gvr).List(ctx, listOptions)
 	if err != nil {
@@ -289,8 +339,6 @@ func (c *K8sClient) ListWithLabelSelector(ctx context.Context, def ResourceTypeD
 	}
 	return list.Items, nil
 }
-
-var listOptions = v1.ListOptions{}
 
 func (c *K8sClient) ListNamespaces(ctx context.Context) ([]string, error) {
 	list, err := c.Dynamic.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"}).List(ctx, listOptions)
@@ -522,98 +570,54 @@ func crdPrinterColumns(version map[string]any) []ucx.TableColumn {
 	return result
 }
 
-func ageString(t time.Time) string {
-	if t.IsZero() {
-		return ""
+func (c *K8sClient) RolloutRestart(ctx context.Context, typeId string, namespace string, name string) error {
+	def, ok := ResourceType(typeId)
+	if !ok || !rolloutRestartSupported(typeId) {
+		return fmt.Errorf("rollout restart is not supported for %s", typeId)
 	}
 
-	duration := time.Since(t)
+	ri := dashboardResourceInterface(c, def, namespace)
+	if def.Namespaced && namespace == "" {
+		ri = c.Dynamic.Resource(def.Gvr)
+	}
+
+	if typeId == "deployments" {
+		obj, err := ri.Get(ctx, name, v1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if paused, ok, _ := unstructured.NestedBool(obj.Object, "spec", "paused"); ok && paused {
+			return fmt.Errorf("can't restart paused deployment (run rollout resume first)")
+		}
+	}
+
+	patch := []byte(fmt.Sprintf(
+		`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":%q}}}}}`,
+		time.Now().Format(time.RFC3339),
+	))
+
+	_, err := ri.Patch(ctx, name, types.StrategicMergePatchType, patch, v1.PatchOptions{})
+	return err
+}
+
+// Table rows
+// =====================================================================================================================
+// A table row is a flat list of cell values. Each resource type has its own builder. The builders read only the
+// Kubernetes object, so the same object always gives the same row.
+
+func resourceRowsForType(items []unstructured.Unstructured, def ResourceTypeDef) []ResourceRow {
 	switch {
-	case duration < time.Minute:
-		return fmt.Sprintf("%ds", int(duration.Seconds()))
-	case duration < time.Hour:
-		return fmt.Sprintf("%dm", int(duration.Minutes()))
-	case duration < 24*time.Hour:
-		return fmt.Sprintf("%dh", int(duration.Hours()))
+	case def.Id == "nodes":
+		return rowsFromNodes(items)
+	case def.Id == "pods":
+		return rowsFromPods(items)
+	case def.Id == containersTypeId:
+		return rowsFromContainers(items)
+	case strings.HasPrefix(def.Id, "crd:"):
+		return rowsFromCustom(items, def)
 	default:
-		return fmt.Sprintf("%dd", int(duration.Hours()/24))
+		return rowsFromGeneric(items, def)
 	}
-}
-
-func objectAge(obj *unstructured.Unstructured) string {
-	created := obj.GetCreationTimestamp().Time
-	return ageString(created)
-}
-
-func firstString(obj *unstructured.Unstructured, path ...string) string {
-	value, ok, _ := unstructured.NestedString(obj.Object, path...)
-	if !ok {
-		return ""
-	}
-	return value
-}
-
-func workloadLabelSelector(owner *unstructured.Unstructured) string {
-	selector, ok, _ := unstructured.NestedMap(owner.Object, "spec", "selector")
-	if !ok {
-		return ""
-	}
-
-	return labelSelectorString(selector)
-}
-
-func labelSelectorString(selector map[string]any) string {
-	matchLabels, _ := selector["matchLabels"].(map[string]any)
-	parts := make([]string, 0, len(matchLabels))
-	for key, rawValue := range matchLabels {
-		value, _ := rawValue.(string)
-		parts = append(parts, key+"="+value)
-	}
-	sort.Strings(parts)
-
-	matchExpressions, _ := selector["matchExpressions"].([]any)
-	for _, rawExpression := range matchExpressions {
-		expression, ok := rawExpression.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		key, _ := expression["key"].(string)
-		operator, _ := expression["operator"].(string)
-		if key == "" || operator == "" {
-			continue
-		}
-
-		rawValues, _ := expression["values"].([]any)
-		values := make([]string, 0, len(rawValues))
-		for _, rawValue := range rawValues {
-			value, _ := rawValue.(string)
-			if value != "" {
-				values = append(values, value)
-			}
-		}
-
-		switch operator {
-		case "In":
-			parts = append(parts, key+" in ("+strings.Join(values, ",")+")")
-		case "NotIn":
-			parts = append(parts, key+" notin ("+strings.Join(values, ",")+")")
-		case "Exists":
-			parts = append(parts, key)
-		case "DoesNotExist":
-			parts = append(parts, "!"+key)
-		}
-	}
-
-	return strings.Join(parts, ",")
-}
-
-func firstInt64(obj *unstructured.Unstructured, path ...string) int64 {
-	value, ok, _ := unstructured.NestedInt64(obj.Object, path...)
-	if !ok {
-		return 0
-	}
-	return value
 }
 
 func rowsFromNodes(items []unstructured.Unstructured) []ResourceRow {
@@ -735,6 +739,32 @@ func rowsFromPods(items []unstructured.Unstructured) []ResourceRow {
 	return rows
 }
 
+func containerStatusesOf(obj *unstructured.Unstructured) []map[string]any {
+	value, ok, _ := unstructured.NestedSlice(obj.Object, "status", "containerStatuses")
+	if !ok {
+		return nil
+	}
+
+	result := make([]map[string]any, 0, len(value))
+	for _, item := range value {
+		if m, ok := item.(map[string]any); ok {
+			result = append(result, m)
+		}
+	}
+	return result
+}
+
+func podPhase(obj *unstructured.Unstructured) string {
+	if obj.GetDeletionTimestamp() != nil {
+		return "Terminating"
+	}
+	phase := firstString(obj, "status", "phase")
+	if phase == "" {
+		return "Unknown"
+	}
+	return phase
+}
+
 func rowsFromContainers(items []unstructured.Unstructured) []ResourceRow {
 	rows := make([]ResourceRow, 0, 4)
 	for i := range items {
@@ -794,32 +824,6 @@ func rowsFromContainers(items []unstructured.Unstructured) []ResourceRow {
 		}
 	}
 	return rows
-}
-
-func containerStatusesOf(obj *unstructured.Unstructured) []map[string]any {
-	value, ok, _ := unstructured.NestedSlice(obj.Object, "status", "containerStatuses")
-	if !ok {
-		return nil
-	}
-
-	result := make([]map[string]any, 0, len(value))
-	for _, item := range value {
-		if m, ok := item.(map[string]any); ok {
-			result = append(result, m)
-		}
-	}
-	return result
-}
-
-func podPhase(obj *unstructured.Unstructured) string {
-	if obj.GetDeletionTimestamp() != nil {
-		return "Terminating"
-	}
-	phase := firstString(obj, "status", "phase")
-	if phase == "" {
-		return "Unknown"
-	}
-	return phase
 }
 
 func rowsFromCustom(items []unstructured.Unstructured, def ResourceTypeDef) []ResourceRow {
@@ -895,36 +899,6 @@ func rowsFromGeneric(items []unstructured.Unstructured, def ResourceTypeDef) []R
 		})
 	}
 	return rows
-}
-
-func (c *K8sClient) RolloutRestart(ctx context.Context, typeId string, namespace string, name string) error {
-	def, ok := ResourceType(typeId)
-	if !ok || !rolloutRestartSupported(typeId) {
-		return fmt.Errorf("rollout restart is not supported for %s", typeId)
-	}
-
-	ri := dashboardResourceInterface(c, def, namespace)
-	if def.Namespaced && namespace == "" {
-		ri = c.Dynamic.Resource(def.Gvr)
-	}
-
-	if typeId == "deployments" {
-		obj, err := ri.Get(ctx, name, v1.GetOptions{})
-		if err != nil {
-			return err
-		}
-		if paused, ok, _ := unstructured.NestedBool(obj.Object, "spec", "paused"); ok && paused {
-			return fmt.Errorf("can't restart paused deployment (run rollout resume first)")
-		}
-	}
-
-	patch := []byte(fmt.Sprintf(
-		`{"spec":{"template":{"metadata":{"annotations":{"kubectl.kubernetes.io/restartedAt":%q}}}}}`,
-		time.Now().Format(time.RFC3339),
-	))
-
-	_, err := ri.Patch(ctx, name, types.StrategicMergePatchType, patch, v1.PatchOptions{})
-	return err
 }
 
 func namespaceGroup(def ResourceTypeDef, obj *unstructured.Unstructured) string {
@@ -1116,6 +1090,329 @@ func dataMapOf(obj *unstructured.Unstructured) map[string]any {
 	}
 	return value
 }
+
+// Row actions
+// =====================================================================================================================
+// The row actions state which actions a row offers. An action that cannot run is present but disabled. The reason
+// explains why, so the user does not have to guess.
+
+func resourceRowActions(
+	def ResourceTypeDef,
+	row ResourceRow,
+	obj *unstructured.Unstructured,
+	nodeJobIds map[string]string,
+	maintenanceSnapshot map[string]maintenance.Operation,
+	maintenanceUnavailable bool,
+) []ucx.TableRowAction {
+	if len(row.Cells) == 0 {
+		return nil
+	}
+
+	provisioningRow := strings.HasPrefix(row.Key, provisioningRowKeyPrefix)
+
+	viewYaml := ucx.TableRowAction{Id: dashboardActionViewYaml, Enabled: false}
+	if !provisioningRow {
+		viewYaml.Enabled = true
+	}
+
+	editYaml := ucx.TableRowAction{Id: dashboardActionEditYaml, Enabled: false}
+	if !provisioningRow && (def.CanUpdate || def.Id == containersTypeId) {
+		editYaml.Enabled = true
+	}
+
+	if def.Id == "pods" || def.Id == containersTypeId {
+		if provisioningRow {
+			return []ucx.TableRowAction{viewYaml}
+		}
+		actions := []ucx.TableRowAction{
+			{Id: dashboardActionOpenShell, Enabled: true},
+			viewYaml,
+			editYaml,
+		}
+		if dashboardResourceDeleteSupported(def) {
+			actions = append(actions, ucx.TableRowAction{Id: dashboardActionDeleteResource, Enabled: true})
+		}
+		return actions
+	}
+
+	if rolloutRestartSupported(def.Id) {
+		return []ucx.TableRowAction{
+			{Id: dashboardActionRolloutRestart, Enabled: true},
+			viewYaml,
+			editYaml,
+			{Id: dashboardActionDeleteResource, Enabled: dashboardResourceDeleteSupported(def)},
+		}
+	}
+
+	if def.Id != "nodes" {
+		actions := []ucx.TableRowAction{
+			viewYaml,
+			editYaml,
+			{Id: dashboardActionDeleteResource, Enabled: dashboardResourceDeleteSupported(def)},
+		}
+		if def.Id == "ingresses" && obj != nil {
+			if serviceUrl := dashboardIngressServiceUrl(obj); serviceUrl != "" {
+				actions = append(actions, ucx.TableRowAction{Id: dashboardActionOpenService, Enabled: true, Text: serviceUrl})
+			}
+		}
+		return actions
+	}
+
+	nodeName := row.Cells[0]
+
+	jobId := nodeJobIds[nodeName]
+	goToJob := ucx.TableRowAction{
+		Id:             dashboardActionGoToJob,
+		Enabled:        false,
+		DisabledReason: "No UCloud job is associated with this node",
+	}
+	openShell := ucx.TableRowAction{
+		Id:             dashboardActionOpenShell,
+		Enabled:        false,
+		DisabledReason: "No UCloud job is associated with this node",
+	}
+	if jobId != "" {
+		goToJob.Enabled = true
+		goToJob.DisabledReason = ""
+		openShell.Enabled = true
+		openShell.DisabledReason = ""
+	}
+
+	operation, knownRecorded := maintenanceSnapshot[nodeName]
+	phaseActive := knownRecorded && maintenance.PhaseActive(operation.Phase)
+	nodeCordoned := len(row.Cells) > 2 && row.Cells[2] == "Cordoned"
+
+	actions := []ucx.TableRowAction{
+		{Id: dashboardActionCopyNodeName, Enabled: true, Text: row.Cells[0]},
+		goToJob,
+		openShell,
+		viewYaml,
+		editYaml,
+	}
+
+	if provisioningRow {
+		if !maintenanceUnavailable {
+			actions = append(actions, ucx.TableRowAction{
+				Id:             dashboardActionRemoveNode,
+				Enabled:        true,
+				DisabledReason: "Removes the node from the cluster",
+			})
+		}
+		return actions
+	}
+	isUpgrade := knownRecorded && maintenance.KindIsUpgrade(operation.Kind)
+	recoveryBlocked := knownRecorded && maintenance.KindRequiresRecovery(operation.Kind) &&
+		operation.ExecutorSubmitted && operation.RecoveryRequired
+	upgradeNode := ucx.TableRowAction{Id: dashboardActionUpgradeNode, Enabled: true}
+	if maintenanceUnavailable {
+		upgradeNode.Enabled = false
+		upgradeNode.DisabledReason = "The maintenance state is unavailable"
+	} else if phaseActive && !isUpgrade {
+		upgradeNode.Enabled = false
+		upgradeNode.DisabledReason = "An operation is already active on this node"
+	}
+	actions = append(actions, upgradeNode)
+
+	switch {
+	case maintenanceUnavailable:
+		if nodeCordoned {
+			actions = append(actions, ucx.TableRowAction{
+				Id:             dashboardActionUncordon,
+				Enabled:        false,
+				DisabledReason: "The maintenance state is unavailable",
+			})
+		} else {
+			actions = append(actions, ucx.TableRowAction{
+				Id:             dashboardActionCordonDrain,
+				Enabled:        false,
+				DisabledReason: "The maintenance state is unavailable",
+			})
+		}
+	case phaseActive:
+		if nodeCordoned {
+			actions = append(actions, ucx.TableRowAction{
+				Id:             dashboardActionUncordon,
+				Enabled:        false,
+				DisabledReason: "An operation is already active on this node",
+			})
+		}
+	default:
+		if nodeCordoned {
+			if recoveryBlocked {
+				actions = append(actions, ucx.TableRowAction{
+					Id:             dashboardActionUncordon,
+					Enabled:        true,
+					Text:           "Uncordon (recovery)",
+					DisabledReason: "Releases the traffic suspension and returns the node to service on its current release",
+				})
+			} else {
+				actions = append(actions, uncordonEnabled)
+			}
+		} else {
+			actions = append(actions, cordonDrainEnabled)
+		}
+		actions = append(actions, removeNodeEnabled)
+	}
+
+	return actions
+}
+
+var (
+	cordonDrainEnabled = ucx.TableRowAction{Id: dashboardActionCordonDrain, Enabled: true}
+	uncordonEnabled    = ucx.TableRowAction{Id: dashboardActionUncordon, Enabled: true}
+	removeNodeEnabled  = ucx.TableRowAction{
+		Id:             dashboardActionRemoveNode,
+		Enabled:        true,
+		DisabledReason: "Removes the node from the cluster",
+	}
+)
+
+func maintenanceCellForOperation(operation maintenance.Operation, present bool) string {
+	if !present {
+		return ""
+	}
+	if maintenance.PhaseActive(operation.Phase) {
+		if maintenance.KindIsUpgrade(operation.Kind) {
+			return "Upgrading"
+		}
+		if maintenance.KindIsOsUpdate(operation.Kind) {
+			return "Updating"
+		}
+		if operation.Kind == maintenance.KindCordon {
+			return "Cordoning"
+		}
+		if operation.Kind == maintenance.KindUncordon {
+			return "Uncordoning"
+		}
+		if operation.Kind == maintenance.KindRemove {
+			return "Removing"
+		}
+		return "Draining"
+	}
+	if operation.RecoveryRequired {
+		return "Recovery required"
+	}
+	return operation.Phase
+}
+
+func osUpdateCellForReport(report maintenance.AutoUpdateReport, present bool) string {
+	if !present || report.CheckedAt.IsZero() {
+		return ""
+	}
+	if report.Error != "" {
+		return "check failed"
+	}
+
+	parts := []string{}
+	if report.Pending > 0 {
+		parts = append(parts, fmt.Sprintf("%d pending", report.Pending))
+		if report.Security > 0 {
+			parts = append(parts, fmt.Sprintf("%d security", report.Security))
+		}
+	}
+	if report.RebootRequired {
+		parts = append(parts, "reboot required")
+	}
+	if len(parts) == 0 {
+		return "up to date"
+	}
+	return strings.Join(parts, ", ")
+}
+
+func objectAge(obj *unstructured.Unstructured) string {
+	created := obj.GetCreationTimestamp().Time
+	return ageString(created)
+}
+
+func ageString(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+
+	duration := time.Since(t)
+	switch {
+	case duration < time.Minute:
+		return fmt.Sprintf("%ds", int(duration.Seconds()))
+	case duration < time.Hour:
+		return fmt.Sprintf("%dm", int(duration.Minutes()))
+	case duration < 24*time.Hour:
+		return fmt.Sprintf("%dh", int(duration.Hours()))
+	default:
+		return fmt.Sprintf("%dd", int(duration.Hours()/24))
+	}
+}
+
+func firstString(obj *unstructured.Unstructured, path ...string) string {
+	value, ok, _ := unstructured.NestedString(obj.Object, path...)
+	if !ok {
+		return ""
+	}
+	return value
+}
+
+func firstInt64(obj *unstructured.Unstructured, path ...string) int64 {
+	value, ok, _ := unstructured.NestedInt64(obj.Object, path...)
+	if !ok {
+		return 0
+	}
+	return value
+}
+
+func workloadLabelSelector(owner *unstructured.Unstructured) string {
+	selector, ok, _ := unstructured.NestedMap(owner.Object, "spec", "selector")
+	if !ok {
+		return ""
+	}
+
+	return labelSelectorString(selector)
+}
+
+func labelSelectorString(selector map[string]any) string {
+	matchLabels, _ := selector["matchLabels"].(map[string]any)
+	parts := make([]string, 0, len(matchLabels))
+	for key, rawValue := range matchLabels {
+		value, _ := rawValue.(string)
+		parts = append(parts, key+"="+value)
+	}
+	sort.Strings(parts)
+
+	matchExpressions, _ := selector["matchExpressions"].([]any)
+	for _, rawExpression := range matchExpressions {
+		expression, ok := rawExpression.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		key, _ := expression["key"].(string)
+		operator, _ := expression["operator"].(string)
+		if key == "" || operator == "" {
+			continue
+		}
+
+		rawValues, _ := expression["values"].([]any)
+		values := make([]string, 0, len(rawValues))
+		for _, rawValue := range rawValues {
+			value, _ := rawValue.(string)
+			if value != "" {
+				values = append(values, value)
+			}
+		}
+
+		switch operator {
+		case "In":
+			parts = append(parts, key+" in ("+strings.Join(values, ",")+")")
+		case "NotIn":
+			parts = append(parts, key+" notin ("+strings.Join(values, ",")+")")
+		case "Exists":
+			parts = append(parts, key)
+		case "DoesNotExist":
+			parts = append(parts, "!"+key)
+		}
+	}
+
+	return strings.Join(parts, ",")
+}
+
 func dashboardIngressServiceUrl(obj *unstructured.Unstructured) string {
 	rules, _, _ := unstructured.NestedSlice(obj.Object, "spec", "rules")
 	for _, item := range rules {
@@ -1143,6 +1440,12 @@ func dashboardIngressServiceUrl(obj *unstructured.Unstructured) string {
 	}
 	return ""
 }
+
+// Discovery
+// =====================================================================================================================
+// The cluster reports its own API groups. Discovery merges that list with the types that the dashboard defines, so a
+// new Kubernetes version adds new types without a change here.
+
 func resourceBuiltinTypes(ctx context.Context, client *K8sClient, customTypes []ResourceTypeDef) ([]ResourceTypeDef, error) {
 	discovery := client.Typed.Discovery().RESTClient()
 	var groups v1.APIGroupList
@@ -1304,242 +1607,4 @@ func resourceBuiltinGroup(group string, name string) string {
 	default:
 		return "Cluster"
 	}
-}
-
-func resourceRowsForType(items []unstructured.Unstructured, def ResourceTypeDef) []ResourceRow {
-	switch {
-	case def.Id == "nodes":
-		return rowsFromNodes(items)
-	case def.Id == "pods":
-		return rowsFromPods(items)
-	case def.Id == containersTypeId:
-		return rowsFromContainers(items)
-	case strings.HasPrefix(def.Id, "crd:"):
-		return rowsFromCustom(items, def)
-	default:
-		return rowsFromGeneric(items, def)
-	}
-}
-
-func resourceRowActions(
-	def ResourceTypeDef,
-	row ResourceRow,
-	obj *unstructured.Unstructured,
-	nodeJobIds map[string]string,
-	maintenanceSnapshot map[string]maintenance.Operation,
-	maintenanceUnavailable bool,
-) []ucx.TableRowAction {
-	if len(row.Cells) == 0 {
-		return nil
-	}
-
-	provisioningRow := strings.HasPrefix(row.Key, provisioningRowKeyPrefix)
-
-	viewYaml := ucx.TableRowAction{Id: "viewYaml", Enabled: false}
-	if !provisioningRow {
-		viewYaml.Enabled = true
-	}
-
-	editYaml := ucx.TableRowAction{Id: "editYaml", Enabled: false}
-	if !provisioningRow && (def.CanUpdate || def.Id == containersTypeId) {
-		editYaml.Enabled = true
-	}
-
-	if def.Id == "pods" || def.Id == containersTypeId {
-		if provisioningRow {
-			return []ucx.TableRowAction{viewYaml}
-		}
-		actions := []ucx.TableRowAction{
-			{Id: "openShell", Enabled: true},
-			viewYaml,
-			editYaml,
-		}
-		if dashboardResourceDeleteSupported(def) {
-			actions = append(actions, ucx.TableRowAction{Id: "deleteResource", Enabled: true})
-		}
-		return actions
-	}
-
-	if rolloutRestartSupported(def.Id) {
-		return []ucx.TableRowAction{
-			{Id: "rolloutRestart", Enabled: true},
-			viewYaml,
-			editYaml,
-			{Id: "deleteResource", Enabled: dashboardResourceDeleteSupported(def)},
-		}
-	}
-
-	if def.Id != "nodes" {
-		actions := []ucx.TableRowAction{
-			viewYaml,
-			editYaml,
-			{Id: "deleteResource", Enabled: dashboardResourceDeleteSupported(def)},
-		}
-		if def.Id == "ingresses" && obj != nil {
-			if serviceUrl := dashboardIngressServiceUrl(obj); serviceUrl != "" {
-				actions = append(actions, ucx.TableRowAction{Id: "openService", Enabled: true, Text: serviceUrl})
-			}
-		}
-		return actions
-	}
-
-	nodeName := row.Cells[0]
-
-	jobId := nodeJobIds[nodeName]
-	goToJob := ucx.TableRowAction{
-		Id:             "goToJob",
-		Enabled:        false,
-		DisabledReason: "No UCloud job is associated with this node",
-	}
-	openShell := ucx.TableRowAction{
-		Id:             "openShell",
-		Enabled:        false,
-		DisabledReason: "No UCloud job is associated with this node",
-	}
-	if jobId != "" {
-		goToJob.Enabled = true
-		goToJob.DisabledReason = ""
-		openShell.Enabled = true
-		openShell.DisabledReason = ""
-	}
-
-	operation, knownRecorded := maintenanceSnapshot[nodeName]
-	phaseActive := knownRecorded && maintenance.PhaseActive(operation.Phase)
-	nodeCordoned := len(row.Cells) > 2 && row.Cells[2] == "Cordoned"
-
-	actions := []ucx.TableRowAction{
-		{Id: "copyNodeName", Enabled: true, Text: row.Cells[0]},
-		goToJob,
-		openShell,
-		viewYaml,
-		editYaml,
-	}
-
-	if provisioningRow {
-		if !maintenanceUnavailable {
-			actions = append(actions, ucx.TableRowAction{
-				Id:             "removeNode",
-				Enabled:        true,
-				DisabledReason: "Removes the node from the cluster",
-			})
-		}
-		return actions
-	}
-	isUpgrade := knownRecorded && maintenance.KindIsUpgrade(operation.Kind)
-	recoveryBlocked := knownRecorded && maintenance.KindRequiresRecovery(operation.Kind) &&
-		operation.ExecutorSubmitted && operation.RecoveryRequired
-	upgradeNode := ucx.TableRowAction{Id: "upgradeNode", Enabled: true}
-	if maintenanceUnavailable {
-		upgradeNode.Enabled = false
-		upgradeNode.DisabledReason = "The maintenance state is unavailable"
-	} else if phaseActive && !isUpgrade {
-		upgradeNode.Enabled = false
-		upgradeNode.DisabledReason = "An operation is already active on this node"
-	}
-	actions = append(actions, upgradeNode)
-
-	switch {
-	case maintenanceUnavailable:
-		if nodeCordoned {
-			actions = append(actions, ucx.TableRowAction{
-				Id:             "uncordon",
-				Enabled:        false,
-				DisabledReason: "The maintenance state is unavailable",
-			})
-		} else {
-			actions = append(actions, ucx.TableRowAction{
-				Id:             "cordonDrain",
-				Enabled:        false,
-				DisabledReason: "The maintenance state is unavailable",
-			})
-		}
-	case phaseActive:
-		if nodeCordoned {
-			actions = append(actions, ucx.TableRowAction{
-				Id:             "uncordon",
-				Enabled:        false,
-				DisabledReason: "An operation is already active on this node",
-			})
-		}
-	default:
-		if nodeCordoned {
-			if recoveryBlocked {
-				actions = append(actions, ucx.TableRowAction{
-					Id:             "uncordon",
-					Enabled:        true,
-					Text:           "Uncordon (recovery)",
-					DisabledReason: "Releases the traffic suspension and returns the node to service on its current release",
-				})
-			} else {
-				actions = append(actions, uncordonEnabled)
-			}
-		} else {
-			actions = append(actions, cordonDrainEnabled)
-		}
-		actions = append(actions, removeNodeEnabled)
-	}
-
-	return actions
-}
-
-var (
-	cordonDrainEnabled = ucx.TableRowAction{Id: "cordonDrain", Enabled: true}
-	uncordonEnabled    = ucx.TableRowAction{Id: "uncordon", Enabled: true}
-	removeNodeEnabled  = ucx.TableRowAction{
-		Id:             "removeNode",
-		Enabled:        true,
-		DisabledReason: "Removes the node from the cluster",
-	}
-)
-
-func osUpdateCellForReport(report maintenance.AutoUpdateReport, present bool) string {
-	if !present || report.CheckedAt.IsZero() {
-		return ""
-	}
-	if report.Error != "" {
-		return "check failed"
-	}
-
-	parts := []string{}
-	if report.Pending > 0 {
-		parts = append(parts, fmt.Sprintf("%d pending", report.Pending))
-		if report.Security > 0 {
-			parts = append(parts, fmt.Sprintf("%d security", report.Security))
-		}
-	}
-	if report.RebootRequired {
-		parts = append(parts, "reboot required")
-	}
-	if len(parts) == 0 {
-		return "up to date"
-	}
-	return strings.Join(parts, ", ")
-}
-
-func maintenanceCellForOperation(operation maintenance.Operation, present bool) string {
-	if !present {
-		return ""
-	}
-	if maintenance.PhaseActive(operation.Phase) {
-		if maintenance.KindIsUpgrade(operation.Kind) {
-			return "Upgrading"
-		}
-		if maintenance.KindIsOsUpdate(operation.Kind) {
-			return "Updating"
-		}
-		if operation.Kind == maintenance.KindCordon {
-			return "Cordoning"
-		}
-		if operation.Kind == maintenance.KindUncordon {
-			return "Uncordoning"
-		}
-		if operation.Kind == maintenance.KindRemove {
-			return "Removing"
-		}
-		return "Draining"
-	}
-	if operation.RecoveryRequired {
-		return "Recovery required"
-	}
-	return operation.Phase
 }

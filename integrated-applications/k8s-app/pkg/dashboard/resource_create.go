@@ -155,32 +155,6 @@ func dashboardResourceCreateLoad(app *stackUiApp, namespace string) {
 	}()
 }
 
-func dashboardResourceCreateIngressHost(ctx context.Context, session *ucx.Session, provider string) string {
-	const placeholder = "<choose-name>"
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if provider == "" {
-		info, err := ucxapi.StackInfo.InvokeEx(ctx, session, util.Empty{})
-		if err != nil {
-			return placeholder
-		}
-		provider = info.Provider
-	}
-	if provider == "" {
-		return placeholder
-	}
-	products, err := ucxapi.PublicLinksRetrieveProducts.InvokeEx(ctx, session, util.Empty{})
-	if err != nil {
-		return placeholder
-	}
-	for _, product := range products {
-		if product.Product.Category.Provider == provider {
-			return product.Support.Prefix + placeholder + product.Support.Suffix
-		}
-	}
-	return placeholder
-}
-
 func dashboardResourceCreateTemplate(root map[string]any, def ResourceTypeDef, namespace string, ingressHost string) (string, error) {
 	definitions, _ := root["definitions"].(map[string]any)
 	object, _ := dashboardResourceTemplateValue(root, definitions, map[string]bool{}).(map[string]any)
@@ -336,6 +310,65 @@ func dashboardResourceCreateYamlPath(path []string) []any {
 		result[i] = key
 	}
 	return result
+}
+
+func dashboardResourceCreateIngressHost(ctx context.Context, session *ucx.Session, provider string) string {
+	const placeholder = "<choose-name>"
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if provider == "" {
+		info, err := ucxapi.StackInfo.InvokeEx(ctx, session, util.Empty{})
+		if err != nil {
+			return placeholder
+		}
+		provider = info.Provider
+	}
+	if provider == "" {
+		return placeholder
+	}
+	products, err := ucxapi.PublicLinksRetrieveProducts.InvokeEx(ctx, session, util.Empty{})
+	if err != nil {
+		return placeholder
+	}
+	for _, product := range products {
+		if product.Product.Category.Provider == provider {
+			return product.Support.Prefix + placeholder + product.Support.Suffix
+		}
+	}
+	return placeholder
+}
+
+func dashboardResourceCreateYaml(ctx context.Context, client *K8sClient, def ResourceTypeDef, template *unstructured.Unstructured, source string) (*unstructured.Unstructured, error) {
+	if !def.CanCreate {
+		return nil, fmt.Errorf("this resource type does not support creation")
+	}
+	decoder := k8syaml.NewYAMLOrJSONDecoder(strings.NewReader(source), 4096)
+	var object unstructured.Unstructured
+	if err := decoder.Decode(&object); err != nil {
+		return nil, fmt.Errorf("invalid YAML: %w", err)
+	}
+	var extra json.RawMessage
+	if decoder.Decode(&extra) != io.EOF {
+		return nil, fmt.Errorf("provide exactly one Kubernetes resource")
+	}
+	if object.GetAPIVersion() != template.GetAPIVersion() || object.GetKind() != template.GetKind() {
+		return nil, fmt.Errorf("apiVersion and kind must match the selected resource type")
+	}
+	if object.GetName() == "" {
+		return nil, fmt.Errorf("metadata.name is required")
+	}
+	if def.Namespaced && object.GetNamespace() == "" {
+		return nil, fmt.Errorf("metadata.namespace is required")
+	}
+	if !def.Namespaced && object.GetNamespace() != "" {
+		return nil, fmt.Errorf("metadata.namespace is not allowed for cluster resources")
+	}
+	if _, present := object.Object["status"]; present {
+		return nil, fmt.Errorf("status cannot be set here")
+	}
+	return dashboardResourceInterface(client, def, object.GetNamespace()).Create(ctx, &object, metav1.CreateOptions{
+		FieldValidation: metav1.FieldValidationStrict,
+	})
 }
 
 func dashboardResourceTemplateProperty(node map[string]any, definitions map[string]any, name string) map[string]any {
@@ -497,39 +530,6 @@ func dashboardResourceTemplateFill(node map[string]any, definitions map[string]a
 		}
 	}
 	return result
-}
-
-func dashboardResourceCreateYaml(ctx context.Context, client *K8sClient, def ResourceTypeDef, template *unstructured.Unstructured, source string) (*unstructured.Unstructured, error) {
-	if !def.CanCreate {
-		return nil, fmt.Errorf("this resource type does not support creation")
-	}
-	decoder := k8syaml.NewYAMLOrJSONDecoder(strings.NewReader(source), 4096)
-	var object unstructured.Unstructured
-	if err := decoder.Decode(&object); err != nil {
-		return nil, fmt.Errorf("invalid YAML: %w", err)
-	}
-	var extra json.RawMessage
-	if decoder.Decode(&extra) != io.EOF {
-		return nil, fmt.Errorf("provide exactly one Kubernetes resource")
-	}
-	if object.GetAPIVersion() != template.GetAPIVersion() || object.GetKind() != template.GetKind() {
-		return nil, fmt.Errorf("apiVersion and kind must match the selected resource type")
-	}
-	if object.GetName() == "" {
-		return nil, fmt.Errorf("metadata.name is required")
-	}
-	if def.Namespaced && object.GetNamespace() == "" {
-		return nil, fmt.Errorf("metadata.namespace is required")
-	}
-	if !def.Namespaced && object.GetNamespace() != "" {
-		return nil, fmt.Errorf("metadata.namespace is not allowed for cluster resources")
-	}
-	if _, present := object.Object["status"]; present {
-		return nil, fmt.Errorf("status cannot be set here")
-	}
-	return dashboardResourceInterface(client, def, object.GetNamespace()).Create(ctx, &object, metav1.CreateOptions{
-		FieldValidation: metav1.FieldValidationStrict,
-	})
 }
 
 type dashboardResourceSchemaCache struct {

@@ -1,0 +1,614 @@
+// Introduction
+// =====================================================================================================================
+// This file serves the maintenance API of the node agent. The coordinator is the only client. It polls the status
+// endpoints, submits operations and reads the result. Every endpoint first authenticates the peer with the
+// maintenance token. The upgrade, operating-system and log endpoints also check the operation uid against the fence.
+//
+// The agent accepts a command only when the node is in a state where the command makes sense. It refuses a second
+// upgrade while one runs. It refuses an apply before the packages are staged. The checks also compare the state that
+// the handler read with the state on disk. A difference means that another command won the race. The agent then
+// rejects the command and starts no work.
+//
+// The endpoints are:
+//
+// - GET /status reports the state of the Kubernetes upgrade
+// - POST /upgrade starts an upgrade
+// - POST /retry retries a failed upgrade
+// - GET /os/status reports the state of the operating-system update
+// - POST /os/update checks, stages, applies or retries an operating-system update
+// - POST /backup starts a control-plane backup
+// - POST /log appends log lines
+// - POST /log/reset resets the node log
+//
+// The log endpoints live in logs.go. The backup worker lives in upgrade.go.
+
+package nodeagent
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
+	"ucloud.dk/iapp/k8s/pkg/backup"
+	"ucloud.dk/iapp/k8s/pkg/shared"
+	"ucloud.dk/shared/pkg/log"
+)
+
+// Response helpers
+// =====================================================================================================================
+// Every response is JSON. An error response has one field named error. The status helper encodes the agent state. It
+// logs a warning when the state cannot be read.
+
+func writeStatus(writer http.ResponseWriter, statusCode int) {
+	identityConfig := identitySnapshot()
+
+	status, err := statusFromState(identityConfig)
+	if err != nil {
+		log.Warn("k8s-app node agent: could not read the upgrade state: %s", err)
+		writeError(writer, http.StatusInternalServerError, "could not read the upgrade state")
+		return
+	}
+
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(statusCode)
+	_ = json.NewEncoder(writer).Encode(status)
+}
+
+func writeError(writer http.ResponseWriter, statusCode int, message string) {
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(statusCode)
+	_ = json.NewEncoder(writer).Encode(map[string]string{"error": message})
+}
+
+func writeJson(writer http.ResponseWriter, statusCode int, value any) {
+	writer.Header().Set("Content-Type", "application/json")
+	writer.WriteHeader(statusCode)
+	_ = json.NewEncoder(writer).Encode(value)
+}
+
+// Status endpoints
+// =====================================================================================================================
+// The status endpoints take the command mutex before they read the state. They do not change the state.
+
+func handleStatus(writer http.ResponseWriter, request *http.Request) {
+	if !authorizePeer(writer, request) {
+		return
+	}
+	if request.Method != http.MethodGet {
+		writeError(writer, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	globals.CommandMu.Lock()
+	defer globals.CommandMu.Unlock()
+	writeStatus(writer, http.StatusOK)
+}
+
+// Upgrade commands
+// =====================================================================================================================
+// The upgrade endpoint starts a new upgrade. The retry endpoint accepts the target of a failed upgrade again. Both
+// share one handler. The handler validates the release, the fence and the current phase before it starts the worker.
+// The worker runs in a background goroutine. The handler returns after the new phase is on disk.
+
+func handleUpgrade(writer http.ResponseWriter, request *http.Request) {
+	handleUpgradeOrRetry(writer, request, false)
+}
+
+func handleRetry(writer http.ResponseWriter, request *http.Request) {
+	handleUpgradeOrRetry(writer, request, true)
+}
+
+func handleUpgradeOrRetry(writer http.ResponseWriter, request *http.Request, retry bool) {
+	if !authorizePeer(writer, request) {
+		return
+	}
+	if request.Method != http.MethodPost {
+		writeError(writer, http.StatusMethodNotAllowed, "this endpoint only accepts POST")
+		return
+	}
+
+	release, ok := decodeRelease(writer, request)
+	if !ok {
+		return
+	}
+
+	globals.CommandMu.Lock()
+	defer globals.CommandMu.Unlock()
+
+	operationUid, ok := readCommandAuthorization(writer, request)
+	if !ok {
+		return
+	}
+
+	state := stateLoad()
+	if state.NeedsStateRecovery {
+		writeError(writer, http.StatusInternalServerError, state.Error)
+		return
+	}
+
+	osActive := shared.NodeAgentOsPhaseActive(osStateLoad().Phase)
+
+	fenceErr := validateFence(operationUid, shared.NodeAgentPhaseActive(state.Phase) || osActive)
+	if fenceErr != nil {
+		log.Warn("k8s-app node agent: the command was rejected because its ownership could not be verified: %s", fenceErr)
+		writeError(writer, http.StatusForbidden, fenceErr.Error())
+		return
+	}
+
+	if osActive {
+		writeError(writer, http.StatusConflict, "an operating-system update is running on the node")
+		return
+	}
+
+	if shared.NodeAgentPhaseActive(state.Phase) {
+		if state.Release == release {
+			if err := acceptOperation(operationUid); err != nil {
+				writeError(writer, http.StatusInternalServerError, err.Error())
+				return
+			}
+			writeStatus(writer, http.StatusOK)
+			return
+		}
+		writeError(writer, http.StatusConflict, fmt.Sprintf(
+			"an upgrade to %s is already running. A different target was rejected",
+			state.Release,
+		))
+		return
+	}
+
+	if state.Phase == shared.NodeAgentPhaseFailed {
+		if state.Release == "" {
+			writeError(writer, http.StatusInternalServerError, "the upgrade state is corrupted. Manual recovery is required")
+			return
+		}
+		if !retry {
+			writeError(writer, http.StatusConflict, "the failed upgrade requires an explicit retry")
+			return
+		}
+		if state.Release != release {
+			writeError(writer, http.StatusConflict, fmt.Sprintf(
+				"the failed upgrade targets %s. The retry does not match",
+				state.Release,
+			))
+			return
+		}
+		startUpgrade(writer, release, state, operationUid)
+		return
+	}
+
+	if state.Phase == shared.NodeAgentPhaseCompleted {
+		if state.Release != release {
+			if retry {
+				writeError(writer, http.StatusConflict, "there is no failed upgrade to retry")
+				return
+			}
+			startUpgrade(writer, release, state, operationUid)
+			return
+		}
+		if state.PreviousRelease == "" {
+			writeError(writer, http.StatusInternalServerError, "the completed upgrade has no recorded previous release. Manual verification is required")
+			return
+		}
+		startUpgrade(writer, release, state, operationUid)
+		return
+	}
+
+	if state.Release == "" {
+		if retry {
+			writeError(writer, http.StatusConflict, "there is no failed upgrade to retry")
+			return
+		}
+		startUpgrade(writer, release, state, operationUid)
+		return
+	}
+
+	writeError(writer, http.StatusInternalServerError, fmt.Sprintf(
+		"the upgrade state reports phase %s without a target release. Manual recovery is required",
+		state.Phase,
+	))
+}
+
+func decodeRelease(writer http.ResponseWriter, request *http.Request) (string, bool) {
+	body := request.Body
+	if request.ContentLength > maxRequestBody {
+		writeError(writer, http.StatusRequestEntityTooLarge, "the request body is too large")
+		return "", false
+	}
+	body = http.MaxBytesReader(writer, body, maxRequestBody)
+
+	var parsed struct {
+		Release string `json:"release"`
+	}
+	decoder := json.NewDecoder(body)
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&parsed)
+	if err != nil {
+		writeError(writer, http.StatusBadRequest, fmt.Sprintf("invalid request body: %s", err))
+		return "", false
+	}
+	if decoder.Decode(&struct{}{}) != io.EOF {
+		writeError(writer, http.StatusBadRequest, "the request body must contain a single JSON object")
+		return "", false
+	}
+	if strings.TrimSpace(parsed.Release) == "" {
+		writeError(writer, http.StatusBadRequest, "a release is required")
+		return "", false
+	}
+	if _, known := shared.ReleaseByExactVersion(parsed.Release); !known {
+		writeError(writer, http.StatusBadRequest, fmt.Sprintf("unknown release: %s", parsed.Release))
+		return "", false
+	}
+	return parsed.Release, true
+}
+
+func startUpgrade(writer http.ResponseWriter, release string, state upgradeState, operationUid string) {
+	current := stateLoad()
+	stateChanged := current.Phase != state.Phase || current.Release != state.Release || !current.UpdatedAt.Equal(state.UpdatedAt)
+	if current.NeedsStateRecovery || stateChanged {
+		writeError(writer, http.StatusConflict, "the upgrade state changed. Read its status before submitting again")
+		return
+	}
+
+	fence, fenceErr := fenceLoad()
+	if fenceErr != nil {
+		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not read the fence state: %s", fenceErr))
+		return
+	}
+	if fence.LastOperation != "" && fence.LastOperation != operationUid && shared.NodeAgentPhaseActive(current.Phase) {
+		writeError(writer, http.StatusConflict, "the command comes from obsolete node ownership and was rejected")
+		return
+	}
+
+	fenceErr = fenceStore(operationUid)
+	if fenceErr != nil {
+		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not persist the fence state: %s", fenceErr))
+		return
+	}
+
+	identity := identitySnapshot()
+	progressBegin(operationUid)
+	previousRelease := ""
+	if state.Release == release {
+		previousRelease = state.PreviousRelease
+	}
+	persistErr := stateStore(&upgradeState{
+		SchemaRevision:  stateSchemaRevision,
+		OperationUid:    operationUid,
+		NodeName:        identity.NodeName,
+		IpAddress:       identity.IpAddress,
+		Role:            identity.Role,
+		Release:         release,
+		PreviousRelease: previousRelease,
+		Phase:           shared.NodeAgentPhaseDownloading,
+		UpdatedAt:       time.Now().UTC(),
+	})
+	if persistErr != nil {
+		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not persist the accepted upgrade: %s", persistErr))
+		return
+	}
+
+	go runUpgrade(release, state)
+
+	writeStatus(writer, http.StatusAccepted)
+}
+
+// Operating-system commands
+// =====================================================================================================================
+// The operating-system endpoint accepts five commands. A check reports what an update would install and does not
+// change packages. A stage downloads the packages. A stage-retry downloads them again after a failure. An apply
+// installs the staged packages. A retry starts the update again after a failure.
+//
+// The handler refuses an apply before a stage has completed. It reports the current status when the command repeats
+// an accepted operation. It rejects a command from obsolete ownership.
+
+type osUpdateRequest struct {
+	Command string `json:"command"`
+	Reboot  string `json:"reboot"`
+}
+
+func writeOsStatus(writer http.ResponseWriter, statusCode int) {
+	writeJson(writer, statusCode, osStatusFromState(identitySnapshot()))
+}
+
+func handleOsStatus(writer http.ResponseWriter, request *http.Request) {
+	if !authorizePeer(writer, request) {
+		return
+	}
+	if request.Method != http.MethodGet {
+		writeError(writer, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	globals.CommandMu.Lock()
+	defer globals.CommandMu.Unlock()
+	writeOsStatus(writer, http.StatusOK)
+}
+
+func handleOsUpdate(writer http.ResponseWriter, request *http.Request) {
+	if !authorizePeer(writer, request) {
+		return
+	}
+	if request.Method != http.MethodPost {
+		writeError(writer, http.StatusMethodNotAllowed, "this endpoint only accepts POST")
+		return
+	}
+
+	parsed, ok := decodeOsUpdate(writer, request)
+	if !ok {
+		return
+	}
+
+	globals.CommandMu.Lock()
+	defer globals.CommandMu.Unlock()
+
+	operationUid, ok := readCommandAuthorization(writer, request)
+	if !ok {
+		return
+	}
+
+	state := osStateLoad()
+	if state.NeedsStateRecovery {
+		writeError(writer, http.StatusInternalServerError, state.StateError)
+		return
+	}
+
+	upgradeActive := shared.NodeAgentPhaseActive(stateLoad().Phase)
+	osActive := shared.NodeAgentOsPhaseActive(state.Phase)
+
+	if parsed.Command == shared.NodeAgentOsCommandCheck {
+		if upgradeActive {
+			writeError(writer, http.StatusConflict, "an upgrade is running on the node")
+			return
+		}
+		if osActive {
+			writeError(writer, http.StatusConflict, "an operating-system update is running on the node")
+			return
+		}
+	}
+
+	fenceErr := validateFence(operationUid, upgradeActive || osActive)
+	if fenceErr != nil {
+		log.Warn("k8s-app node agent: the operating-system command was rejected because its ownership could not be verified: %s", fenceErr)
+		writeError(writer, http.StatusForbidden, fenceErr.Error())
+		return
+	}
+
+	if parsed.Command == shared.NodeAgentOsCommandCheck {
+		if err := acceptOperation(operationUid); err != nil {
+			writeError(writer, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		controller := http.NewResponseController(writer)
+		_ = controller.SetWriteDeadline(time.Now().Add(2*osCheckTimeout + osCommandShortTimeout + writeTimeout))
+
+		status := runOsCheck(request.Context())
+		writeJson(writer, http.StatusOK, status)
+		return
+	}
+
+	if upgradeActive {
+		writeError(writer, http.StatusConflict, "an upgrade is running on the node")
+		return
+	}
+
+	if osActive {
+		if err := acceptOperation(operationUid); err != nil {
+			writeError(writer, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeOsStatus(writer, http.StatusAccepted)
+		return
+	}
+
+	staging := parsed.Command == shared.NodeAgentOsCommandStage || parsed.Command == shared.NodeAgentOsCommandStageRetry
+	if state.OperationUid == operationUid && (state.Phase == shared.NodeAgentOsPhaseCompleted ||
+		(staging && state.Phase == shared.NodeAgentOsPhaseStaged)) {
+		writeOsStatus(writer, http.StatusOK)
+		return
+	}
+	if parsed.Command == shared.NodeAgentOsCommandApply && state.Phase == shared.NodeAgentOsPhaseStaged && state.OperationUid == operationUid {
+		if err := acceptOperation(operationUid); err != nil {
+			writeError(writer, http.StatusInternalServerError, err.Error())
+			return
+		}
+		if !osSetPhase(shared.NodeAgentOsPhaseApplying, nil) {
+			writeError(writer, http.StatusInternalServerError, "could not persist the accepted operating-system installation")
+			return
+		}
+		go runOsApply(parsed.Reboot)
+		writeOsStatus(writer, http.StatusAccepted)
+		return
+	}
+
+	if state.Phase == shared.NodeAgentOsPhaseFailed && parsed.Command != shared.NodeAgentOsCommandRetry && parsed.Command != shared.NodeAgentOsCommandStageRetry {
+		writeError(writer, http.StatusConflict, "the failed operating-system update requires an explicit retry")
+		return
+	}
+
+	startOsUpdate(writer, parsed, state, operationUid)
+}
+
+func decodeOsUpdate(writer http.ResponseWriter, request *http.Request) (osUpdateRequest, bool) {
+	body := request.Body
+	if request.ContentLength > maxRequestBody {
+		writeError(writer, http.StatusRequestEntityTooLarge, "the request body is too large")
+		return osUpdateRequest{}, false
+	}
+	body = http.MaxBytesReader(writer, body, maxRequestBody)
+
+	var parsed osUpdateRequest
+	decoder := json.NewDecoder(body)
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&parsed)
+	if err != nil {
+		writeError(writer, http.StatusBadRequest, fmt.Sprintf("invalid request body: %s", err))
+		return osUpdateRequest{}, false
+	}
+	if decoder.Decode(&struct{}{}) != io.EOF {
+		writeError(writer, http.StatusBadRequest, "the request body must contain a single JSON object")
+		return osUpdateRequest{}, false
+	}
+
+	switch parsed.Command {
+	case shared.NodeAgentOsCommandCheck, shared.NodeAgentOsCommandStage, shared.NodeAgentOsCommandStageRetry,
+		shared.NodeAgentOsCommandApply, shared.NodeAgentOsCommandRetry:
+	default:
+		writeError(writer, http.StatusBadRequest, fmt.Sprintf("unknown operating-system command: %s", parsed.Command))
+		return osUpdateRequest{}, false
+	}
+
+	switch parsed.Reboot {
+	case "":
+		parsed.Reboot = shared.NodeAgentOsRebootWhenRequired
+	case shared.NodeAgentOsRebootWhenRequired, shared.NodeAgentOsRebootAlways:
+	default:
+		writeError(writer, http.StatusBadRequest, fmt.Sprintf("unknown reboot policy: %s", parsed.Reboot))
+		return osUpdateRequest{}, false
+	}
+
+	return parsed, true
+}
+
+func startOsUpdate(writer http.ResponseWriter, parsed osUpdateRequest, state osState, operationUid string) {
+	current := osStateLoad()
+	stateChanged := current.Phase != state.Phase || !current.UpdatedAt.Equal(state.UpdatedAt)
+	if current.NeedsStateRecovery || stateChanged {
+		writeError(writer, http.StatusConflict, "the operating-system update state changed. Read its status before submitting again")
+		return
+	}
+
+	fence, fenceErr := fenceLoad()
+	if fenceErr != nil {
+		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not read the fence state: %s", fenceErr))
+		return
+	}
+	if fence.LastOperation != "" && fence.LastOperation != operationUid && shared.NodeAgentOsPhaseActive(current.Phase) {
+		writeError(writer, http.StatusConflict, "the command comes from obsolete node ownership and was rejected")
+		return
+	}
+
+	fenceErr = fenceStore(operationUid)
+	if fenceErr != nil {
+		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not persist the fence state: %s", fenceErr))
+		return
+	}
+
+	identity := identitySnapshot()
+	progressBegin(operationUid)
+	persistErr := osStateStore(&osState{
+		SchemaRevision: osStateSchemaRevision,
+		OperationUid:   operationUid,
+		NodeName:       identity.NodeName,
+		IpAddress:      identity.IpAddress,
+		Role:           identity.Role,
+		Phase:          shared.NodeAgentOsPhaseStaging,
+		UpdatedAt:      time.Now().UTC(),
+		KernelRunning:  current.KernelRunning,
+		KernelPending:  current.KernelPending,
+		Pending:        current.Pending,
+		Security:       current.Security,
+		RebootRequired: current.RebootRequired,
+		CheckedAt:      current.CheckedAt,
+		CheckError:     current.CheckError,
+	})
+	if persistErr != nil {
+		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not persist the accepted operating-system update: %s", persistErr))
+		return
+	}
+
+	if parsed.Command == shared.NodeAgentOsCommandStage || parsed.Command == shared.NodeAgentOsCommandStageRetry {
+		go runOsStage()
+	} else {
+		go runOsUpdate(parsed.Reboot)
+	}
+
+	writeOsStatus(writer, http.StatusAccepted)
+}
+
+// Backup command
+// =====================================================================================================================
+// A backup is only available on a control plane node. The handler holds the backup mutex for the duration, so two
+// backups cannot run at once. The response waits for the backup to finish.
+
+func handleBackup(writer http.ResponseWriter, request *http.Request) {
+	if !authorizePeer(writer, request) {
+		return
+	}
+	if request.Method != http.MethodPost {
+		writeError(writer, http.StatusMethodNotAllowed, "this endpoint only accepts POST")
+		return
+	}
+
+	trigger, ok := decodeBackupTrigger(writer, request)
+	if !ok {
+		return
+	}
+
+	attemptUid, ok := readCommandAuthorization(writer, request)
+	if !ok {
+		return
+	}
+
+	controller := http.NewResponseController(writer)
+	_ = controller.SetWriteDeadline(time.Now().Add(backupWorkDeadline + writeTimeout))
+
+	if !globals.BackupMu.TryLock() {
+		writeError(writer, http.StatusConflict, "a backup is already running")
+		return
+	}
+	defer globals.BackupMu.Unlock()
+
+	state := stateLoad()
+	if state.NeedsStateRecovery {
+		writeError(writer, http.StatusInternalServerError, "the upgrade state of the node is unreadable")
+		return
+	}
+	if shared.NodeAgentPhaseActive(state.Phase) {
+		writeError(writer, http.StatusConflict, "an upgrade is running on the node")
+		return
+	}
+	if shared.NodeAgentOsPhaseActive(osStateLoad().Phase) {
+		writeError(writer, http.StatusConflict, "an operating-system update is running on the node")
+		return
+	}
+
+	result, err := runBackup(request.Context(), trigger, attemptUid)
+	if err != nil {
+		log.Warn("k8s-app node agent: the backup failed: %s", err)
+		writeError(writer, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJson(writer, http.StatusOK, result)
+}
+
+func decodeBackupTrigger(writer http.ResponseWriter, request *http.Request) (string, bool) {
+	body := request.Body
+	if request.ContentLength > maxRequestBody {
+		writeError(writer, http.StatusRequestEntityTooLarge, "the request body is too large")
+		return "", false
+	}
+	body = http.MaxBytesReader(writer, body, maxRequestBody)
+
+	var parsed struct {
+		Trigger string `json:"trigger"`
+	}
+	decoder := json.NewDecoder(body)
+	decoder.DisallowUnknownFields()
+	err := decoder.Decode(&parsed)
+	if err != nil {
+		writeError(writer, http.StatusBadRequest, fmt.Sprintf("invalid request body: %s", err))
+		return "", false
+	}
+	if decoder.Decode(&struct{}{}) != io.EOF {
+		writeError(writer, http.StatusBadRequest, "the request body must contain a single JSON object")
+		return "", false
+	}
+	if parsed.Trigger != backup.TriggerScheduled && parsed.Trigger != backup.TriggerManual {
+		writeError(writer, http.StatusBadRequest, fmt.Sprintf("unknown backup trigger: %s", parsed.Trigger))
+		return "", false
+	}
+	return parsed.Trigger, true
+}

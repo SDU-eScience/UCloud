@@ -30,48 +30,6 @@ func (app *stackUiApp) activeTypeIsHome() bool {
 	return app.ActiveType == navHomeId
 }
 
-func (app *stackUiApp) clusterNodeMessage(record *shared.ClusterRecord) string {
-	starting := 0
-	running := 0
-	for _, node := range record.Nodes {
-		if node.JobId == "" {
-			running++
-			continue
-		}
-
-		job, err := ucxsvc.JobRetrieve(app.Stack, node.JobId)
-		if err != nil {
-			starting++
-			continue
-		}
-
-		if job.Status.State.IsFinal() {
-			running++
-		} else {
-			starting++
-		}
-	}
-
-	if starting > 0 {
-		return fmt.Sprintf(
-			"The cluster is starting. %d of %d nodes are not running yet. See the node logs for details.",
-			starting,
-			len(record.Nodes),
-		)
-	}
-	return ""
-}
-
-func (app *stackUiApp) provisioningKickNow() {
-	if app.provisioningKick == nil {
-		return
-	}
-	select {
-	case app.provisioningKick <- util.Empty{}:
-	default:
-	}
-}
-
 func (app *stackUiApp) provisioningWatcher(session *ucx.Session) {
 	ticker := time.NewTicker(5 * time.Second)
 	uiTicker := time.NewTicker(time.Second)
@@ -205,6 +163,48 @@ func (app *stackUiApp) refreshProvisioningRows(session *ucx.Session) {
 	}
 }
 
+func (app *stackUiApp) provisioningKickNow() {
+	if app.provisioningKick == nil {
+		return
+	}
+	select {
+	case app.provisioningKick <- util.Empty{}:
+	default:
+	}
+}
+
+func (app *stackUiApp) clusterNodeMessage(record *shared.ClusterRecord) string {
+	starting := 0
+	running := 0
+	for _, node := range record.Nodes {
+		if node.JobId == "" {
+			running++
+			continue
+		}
+
+		job, err := ucxsvc.JobRetrieve(app.Stack, node.JobId)
+		if err != nil {
+			starting++
+			continue
+		}
+
+		if job.Status.State.IsFinal() {
+			running++
+		} else {
+			starting++
+		}
+	}
+
+	if starting > 0 {
+		return fmt.Sprintf(
+			"The cluster is starting. %d of %d nodes are not running yet. See the node logs for details.",
+			starting,
+			len(record.Nodes),
+		)
+	}
+	return ""
+}
+
 func provisioningEntriesEqual(a, b []provisioningEntry) bool {
 	if len(a) != len(b) {
 		return false
@@ -254,5 +254,3 @@ func (app *stackUiApp) clusterReadyForNodes() bool {
 	record, ok := app.readClusterRecord()
 	return ok && record.Phase == "created"
 }
-
-// "Add new VM" page for an existing pool

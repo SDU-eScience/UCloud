@@ -14,6 +14,62 @@ type dashboardCustomNavNode struct {
 	resources []ucx.NavItemChild
 }
 
+func (app *stackUiApp) resourceNavItems() []ucx.NavItem {
+	typeDefs := app.allTypeDefs()
+
+	navItems := make([]ucx.NavItem, 0, 8)
+	groups := map[string][]ucx.NavItemChild{}
+	var customTypes []ResourceTypeDef
+	for _, def := range typeDefs {
+		if strings.HasPrefix(def.Id, "crd:") {
+			customTypes = append(customTypes, def)
+			continue
+		}
+		path := dashboardBuiltinNavPath(def)
+		group := path[0]
+		children := groups[group]
+		dashboardBuiltinNavAdd(&children, path[1:], "group:"+group, ucx.NavItemChild{
+			Id:      def.Id,
+			Label:   def.Label,
+			Aliases: def.Aliases,
+		})
+		groups[group] = children
+	}
+	for group, children := range groups {
+		dashboardNavSort(children)
+		navItems = append(navItems, ucx.NavItem{
+			Id:       "group:" + group,
+			Label:    group,
+			Children: children,
+		})
+	}
+	navItems = append(navItems, dashboardCustomNavItems(customTypes)...)
+	sort.Slice(navItems, func(i, j int) bool {
+		leftCluster := navItems[i].Id == "group:Cluster"
+		rightCluster := navItems[j].Id == "group:Cluster"
+		if leftCluster != rightCluster {
+			return leftCluster
+		}
+		leftDirectory := len(navItems[i].Children) > 0
+		rightDirectory := len(navItems[j].Children) > 0
+		if leftDirectory != rightDirectory {
+			return leftDirectory
+		}
+		return navItems[i].Label < navItems[j].Label
+	})
+
+	navItems = append([]ucx.NavItem{{
+		Id:      navHomeId,
+		Label:   "Home",
+		Aliases: []string{"home", "overview"},
+	}}, navItems...)
+	if len(navItems) > 1 {
+		navItems[1].SeparatorBefore = true
+	}
+
+	return navItems
+}
+
 func dashboardBuiltinNavPath(def ResourceTypeDef) []string {
 	group := def.Group
 	if group == "" {
@@ -87,23 +143,6 @@ func dashboardBuiltinNavAdd(children *[]ucx.NavItemChild, path []string, parentI
 	*children = append(*children, child)
 }
 
-func dashboardNavSort(children []ucx.NavItemChild) {
-	sort.Slice(children, func(i, j int) bool {
-		leftDirectory := len(children[i].Children) > 0
-		rightDirectory := len(children[j].Children) > 0
-		if leftDirectory != rightDirectory {
-			return leftDirectory
-		}
-		if children[i].Label == children[j].Label {
-			return children[i].Id < children[j].Id
-		}
-		return children[i].Label < children[j].Label
-	})
-	for _, child := range children {
-		dashboardNavSort(child.Children)
-	}
-}
-
 func dashboardCustomNavItems(typeDefs []ResourceTypeDef) []ucx.NavItem {
 	roots := map[string]*dashboardCustomNavNode{}
 	var items []ucx.NavItem
@@ -168,5 +207,22 @@ func dashboardCustomNavItem(node *dashboardCustomNavNode) ucx.NavItemChild {
 		Id:       "crd-group:" + node.domain,
 		Label:    label,
 		Children: children,
+	}
+}
+
+func dashboardNavSort(children []ucx.NavItemChild) {
+	sort.Slice(children, func(i, j int) bool {
+		leftDirectory := len(children[i].Children) > 0
+		rightDirectory := len(children[j].Children) > 0
+		if leftDirectory != rightDirectory {
+			return leftDirectory
+		}
+		if children[i].Label == children[j].Label {
+			return children[i].Id < children[j].Id
+		}
+		return children[i].Label < children[j].Label
+	})
+	for _, child := range children {
+		dashboardNavSort(child.Children)
 	}
 }

@@ -53,6 +53,11 @@ const (
 	resourceFailurePersistent
 )
 
+// Selection and filters
+// =====================================================================================================================
+// A selection is the type, the namespace and the filter that a table shows. A filter is a pair of Kubernetes
+// selectors. The dashboard keeps the filter in the route, so a link to a filtered table is stable.
+
 type resourceSelection struct {
 	epoch     uint64
 	typeId    string
@@ -93,6 +98,11 @@ func parseResourceFilterKey(key string) resourceFilter {
 func (f resourceFilter) isEmpty() bool {
 	return f.fieldSelector == "" && f.labelSelector == ""
 }
+
+// The poller
+// =====================================================================================================================
+// The poller owns one table at a time. A new selection cancels the old watch and starts a new one. A revision counter
+// stops an old watch from writing into a table that it no longer owns.
 
 type resourcePoller struct {
 	mu              sync.Mutex
@@ -190,6 +200,13 @@ func (p *resourcePoller) SetActiveFilter(filter resourceFilter) {
 	}
 }
 
+func (p *resourcePoller) signalPollNow() {
+	select {
+	case p.pollNow <- util.Empty{}:
+	default:
+	}
+}
+
 func (p *resourcePoller) resetTableLocked() {
 	if p.selectionCancel != nil {
 		p.selectionCancel()
@@ -203,12 +220,11 @@ func (p *resourcePoller) resetTableLocked() {
 	p.cache = nil
 }
 
-func (p *resourcePoller) signalPollNow() {
-	select {
-	case p.pollNow <- util.Empty{}:
-	default:
-	}
-}
+// The watch loop
+// =====================================================================================================================
+// The loop lists the objects once, then follows the watch. An expired watch starts again from the last resource
+// version. A broken watch lists the objects again. A persistent failure backs off, so the dashboard does not hammer
+// the API server.
 
 func (p *resourcePoller) run(ctx context.Context) {
 	p.resourceRefreshTypes(ctx)
@@ -784,32 +800,10 @@ func (p *resourcePoller) resourceTypesSnapshot() []ResourceTypeDef {
 	return append(result, p.customTypes...)
 }
 
-func resourceClassifyWatchFailure(err error) resourceWatchFailure {
-	if err == nil {
-		return resourceFailureTransient
-	}
-	if apierrors.IsResourceExpired(err) || apierrors.IsGone(err) {
-		return resourceFailureExpired
-	}
-	if apierrors.IsForbidden(err) ||
-		apierrors.IsUnauthorized(err) ||
-		apierrors.IsNotFound(err) ||
-		apierrors.IsBadRequest(err) ||
-		apierrors.IsMethodNotSupported(err) ||
-		apierrors.IsNotAcceptable(err) ||
-		apierrors.IsUnsupportedMediaType(err) {
-		return resourceFailurePersistent
-	}
-	return resourceFailureTransient
-}
-
-func resourceCacheKey(obj *unstructured.Unstructured) string {
-	uid := string(obj.GetUID())
-	if uid != "" {
-		return uid
-	}
-	return obj.GetNamespace() + "/" + obj.GetName()
-}
+// Queries
+// =====================================================================================================================
+// The page code reads the last table and the object cache through these queries. They take the lock, so the page code
+// never sees a half-written table.
 
 func (p *resourcePoller) nodeUidForRowName(nodeName string) (string, bool) {
 	p.mu.Lock()
@@ -834,14 +828,13 @@ func (p *resourcePoller) nodeRowByName(nodeName string) (ResourceRow, bool) {
 	return p.rowForKey(rowKey)
 }
 
-func resourceTableUpsert(row ResourceRow) ucx.TableRow {
-	return ucx.TableRow{
-		Key:     row.Key,
-		Group:   row.Group,
-		Cells:   row.Cells,
-		Actions: row.Actions,
-		Busy:    row.Busy,
+func (p *resourcePoller) nodeNameForRowKey(rowKey string) (string, bool) {
+	row, ok := p.rowForKey(rowKey)
+	if !ok || len(row.Cells) == 0 {
+		return "", false
 	}
+
+	return row.Cells[0], true
 }
 
 func (p *resourcePoller) rowForKey(rowKey string) (ResourceRow, bool) {
@@ -860,13 +853,14 @@ func (p *resourcePoller) objectForUid(uid string) (*unstructured.Unstructured, b
 	return obj, ok
 }
 
-func (p *resourcePoller) nodeNameForRowKey(rowKey string) (string, bool) {
-	row, ok := p.rowForKey(rowKey)
-	if !ok || len(row.Cells) == 0 {
-		return "", false
+func resourceTableUpsert(row ResourceRow) ucx.TableRow {
+	return ucx.TableRow{
+		Key:     row.Key,
+		Group:   row.Group,
+		Cells:   row.Cells,
+		Actions: row.Actions,
+		Busy:    row.Busy,
 	}
-
-	return row.Cells[0], true
 }
 
 func rowsEqual(a, b ResourceRow) bool {
@@ -899,4 +893,31 @@ func columnsEqual(a, b []ucx.TableColumn) bool {
 		}
 	}
 	return true
+}
+
+func resourceClassifyWatchFailure(err error) resourceWatchFailure {
+	if err == nil {
+		return resourceFailureTransient
+	}
+	if apierrors.IsResourceExpired(err) || apierrors.IsGone(err) {
+		return resourceFailureExpired
+	}
+	if apierrors.IsForbidden(err) ||
+		apierrors.IsUnauthorized(err) ||
+		apierrors.IsNotFound(err) ||
+		apierrors.IsBadRequest(err) ||
+		apierrors.IsMethodNotSupported(err) ||
+		apierrors.IsNotAcceptable(err) ||
+		apierrors.IsUnsupportedMediaType(err) {
+		return resourceFailurePersistent
+	}
+	return resourceFailureTransient
+}
+
+func resourceCacheKey(obj *unstructured.Unstructured) string {
+	uid := string(obj.GetUID())
+	if uid != "" {
+		return uid
+	}
+	return obj.GetNamespace() + "/" + obj.GetName()
 }

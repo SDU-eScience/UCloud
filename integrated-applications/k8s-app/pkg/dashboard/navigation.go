@@ -99,6 +99,59 @@ func dashboardNavigationRestore(app *stackUiApp) {
 	}
 }
 
+func dashboardNavigationCurrentRoute(app *stackUiApp) string {
+	if len(app.resourceNavigation) == 0 {
+		return app.RoutePath
+	}
+	entry := app.resourceNavigation[len(app.resourceNavigation)-1]
+	if strings.HasPrefix(entry.baseRoute, "browse/") {
+		return app.browseRoute(entry.typeId, entry.filter)
+	}
+	return entry.baseRoute
+}
+
+func dashboardNavigationBack(app *stackUiApp) ucx.UiNode {
+	entries := app.resourceNavigation
+	backTarget := entries[len(entries)-2].route
+	return ucx.ButtonEx("resourceBack", "Back", ucx.ColorSecondaryMain, ucx.IconHeroArrowLeft, "", "").ButtonEscapeHint(true).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+		ucxsvc.RouterPushPage(app, backTarget)
+	})
+}
+
+func dashboardNavigationBreadcrumbs(app *stackUiApp) ucx.UiNode {
+	entries := app.resourceNavigation
+	var children []ucx.UiNode
+	displayedNamespace := ""
+	for i, entry := range entries {
+		if i > 0 {
+			children = append(children, ucx.Text(" / "))
+		}
+		label := entry.label
+		if i > 0 {
+			namespace, name, found := strings.Cut(label, "/")
+			if found {
+				if namespace != displayedNamespace {
+					children = append(children, ucx.Text(namespace).Sx(ucx.SxColor(ucx.ColorTextSecondary)), ucx.Text(" / "))
+					displayedNamespace = namespace
+				}
+				label = name
+			}
+		}
+		if i == len(entries)-1 {
+			children = append(children, ucx.Text(label).Sx(ucx.SxColor(ucx.ColorTextSecondary)))
+			continue
+		}
+		children = append(children, ucx.LinkEx(fmt.Sprintf("resourceBreadcrumb%d", i), entry.route).Children(ucx.Text(label)))
+	}
+	return ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 4}).Sx(
+		ucx.SxAlignItemsCenter,
+		ucx.SxWidthAuto(),
+		ucx.SxMinWidth(0),
+		ucx.SxOverflowX("auto"),
+		ucx.SxWhiteSpace("nowrap"),
+	).Children(children...)
+}
+
 func dashboardNavigationRoute(entries []dashboardNavigationEntry) string {
 	var levels []string
 	query := url.Values{}
@@ -211,55 +264,117 @@ func dashboardNavigationParse(app *stackUiApp, route string) []dashboardNavigati
 	return entries
 }
 
-func dashboardNavigationCurrentRoute(app *stackUiApp) string {
-	if len(app.resourceNavigation) == 0 {
-		return app.RoutePath
-	}
-	entry := app.resourceNavigation[len(app.resourceNavigation)-1]
-	if strings.HasPrefix(entry.baseRoute, "browse/") {
-		return app.browseRoute(entry.typeId, entry.filter)
-	}
-	return entry.baseRoute
+type resourceDetailRef struct {
+	Type         string
+	Namespace    string
+	Name         string
+	Container    string
+	hasContainer bool
 }
 
-func dashboardNavigationBack(app *stackUiApp) ucx.UiNode {
-	entries := app.resourceNavigation
-	backTarget := entries[len(entries)-2].route
-	return ucx.ButtonEx("resourceBack", "Back", ucx.ColorSecondaryMain, ucx.IconHeroArrowLeft, "", "").ButtonEscapeHint(true).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-		ucxsvc.RouterPushPage(app, backTarget)
-	})
+func parseResourceDetail(detail string) (resourceDetailRef, bool) {
+	parts := strings.Split(detail, "/")
+	if len(parts) != 3 && len(parts) != 4 {
+		return resourceDetailRef{}, false
+	}
+
+	result := resourceDetailRef{Type: parts[0], Namespace: parts[1], Name: parts[2], hasContainer: len(parts) == 4}
+	if len(parts) == 4 {
+		result.Container = parts[3]
+	}
+	return result, true
 }
 
-func dashboardNavigationBreadcrumbs(app *stackUiApp) ucx.UiNode {
-	entries := app.resourceNavigation
-	var children []ucx.UiNode
-	displayedNamespace := ""
-	for i, entry := range entries {
-		if i > 0 {
-			children = append(children, ucx.Text(" / "))
-		}
-		label := entry.label
-		if i > 0 {
-			namespace, name, found := strings.Cut(label, "/")
-			if found {
-				if namespace != displayedNamespace {
-					children = append(children, ucx.Text(namespace).Sx(ucx.SxColor(ucx.ColorTextSecondary)), ucx.Text(" / "))
-					displayedNamespace = namespace
-				}
-				label = name
-			}
-		}
-		if i == len(entries)-1 {
-			children = append(children, ucx.Text(label).Sx(ucx.SxColor(ucx.ColorTextSecondary)))
-			continue
-		}
-		children = append(children, ucx.LinkEx(fmt.Sprintf("resourceBreadcrumb%d", i), entry.route).Children(ucx.Text(label)))
+func (ref resourceDetailRef) String() string {
+	if ref.hasContainer || ref.Container != "" {
+		return ref.Type + "/" + ref.Namespace + "/" + ref.Name + "/" + ref.Container
 	}
-	return ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 4}).Sx(
-		ucx.SxAlignItemsCenter,
-		ucx.SxWidthAuto(),
-		ucx.SxMinWidth(0),
-		ucx.SxOverflowX("auto"),
-		ucx.SxWhiteSpace("nowrap"),
-	).Children(children...)
+	return ref.Type + "/" + ref.Namespace + "/" + ref.Name
+}
+
+func (ref resourceDetailRef) creating() bool {
+	return ref.Name == "@create"
+}
+
+func detailFromRoute(routePath string) string {
+	if strings.HasPrefix(routePath, "create/") {
+		return detailFromRoute("detail/" + strings.TrimPrefix(routePath, "create/") + "/@create")
+	}
+	parts := strings.Split(strings.TrimPrefix(routePath, "detail/"), "/")
+	if len(parts) != 3 && len(parts) != 4 {
+		return ""
+	}
+
+	decoded := make([]string, 0, len(parts))
+	for _, part := range parts {
+		value, err := url.PathUnescape(part)
+		if err != nil {
+			return ""
+		}
+		decoded = append(decoded, value)
+	}
+
+	return strings.Join(decoded, "/")
+}
+
+func (app *stackUiApp) browseRoute(typeId string, filter resourceFilter) string {
+	route := "browse/" + typeId
+	if filter.key() != "" {
+		route = route + "?" + url.QueryEscape(filter.key())
+	}
+	return route
+}
+
+func filterFromRoute(routePath string) resourceFilter {
+	if !strings.HasPrefix(routePath, "browse/") {
+		return resourceFilter{}
+	}
+	rest := strings.TrimPrefix(routePath, "browse/")
+	_, filter, found := strings.Cut(rest, "?")
+	if !found {
+		return resourceFilter{}
+	}
+	decoded, err := url.QueryUnescape(filter)
+	if err != nil {
+		return resourceFilter{}
+	}
+	return parseResourceFilterKey(decoded)
+}
+
+func (app *stackUiApp) selectResourceType(typeId string) {
+	if typeId == "" {
+		return
+	}
+	app.resourceNavigation = nil
+	app.ActiveFilter = resourceFilter{}
+	app.filterOrigin = ""
+	if app.poller != nil {
+		app.poller.SetActiveFilter(resourceFilter{})
+	}
+
+	if typeId != app.ActiveType {
+		app.ActiveType = typeId
+		if app.poller != nil {
+			app.poller.SetActiveType(typeId)
+		}
+		if def, ok := app.resolveType(typeId); ok && def.Namespaced {
+			app.loadNamespaces()
+		}
+	}
+
+	if app.ResourceDetail != "" {
+		app.ResourceDetail = ""
+		app.prevDetail = ""
+		app.ResourceYaml = ""
+	}
+
+	targetRoute := ""
+	if typeId != navHomeId {
+		targetRoute = dashboardNavigationSelectType(app)
+	}
+	if app.RoutePath != targetRoute {
+		ucxsvc.RouterPushPage(app, targetRoute)
+	}
+
+	ucx.AppUpdateUi(app)
 }

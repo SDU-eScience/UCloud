@@ -126,7 +126,6 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 	return []ucx.UiNode{app.appShell(shellEscape)}
 }
 
-// "Add worker pool" page, modeled after the creator's pool card
 func (app *stackUiApp) pageAddPool() []ucx.UiNode {
 	record, recordOk := app.readClusterRecord()
 	if recordOk && record.MachineProvider != "" {

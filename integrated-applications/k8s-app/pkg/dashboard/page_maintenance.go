@@ -15,7 +15,9 @@ import (
 const maintenanceDefaultTimeoutSeconds = 600
 
 const maintenanceModeUpgrade = "upgrade"
+
 const maintenanceModeDrain = "drain"
+
 const maintenanceModeRemove = "remove"
 
 func maintenanceNodeFromRoute(routePath string) string {
@@ -32,126 +34,10 @@ func maintenanceNodeFromRoute(routePath string) string {
 	return strings.TrimSpace(name)
 }
 
-func maintenanceShellMessage(app *stackUiApp, bottom []ucx.UiNode, message string) []ucx.UiNode {
-	return []ucx.UiNode{app.appShell(appShellProps{
-		Content:    []ucx.UiNode{shellContentBox(800, ucx.Text(message))},
-		Bottom:     bottom,
-		EscapePath: "browse/nodes",
-	})}
-}
-
-func maintenanceOpen(app *stackUiApp, nodeName string, nodeUid string) {
-	maintenanceOpenWithMode(app, nodeName, nodeUid, maintenanceModeDrain)
-}
-
-func maintenanceOpenWithMode(app *stackUiApp, nodeName string, nodeUid string, mode string) {
-	nodeName = strings.TrimSpace(nodeName)
-	nodeUid = strings.TrimSpace(nodeUid)
-	if nodeName == "" || (nodeUid == "" && mode != maintenanceModeRemove) {
-		return
-	}
-
-	app.maintenanceNodeName = nodeName
-	app.maintenanceNodeUid = nodeUid
-	app.maintenanceRetryOptionsFor = ""
-	app.MaintenanceTimeoutSeconds = maintenanceDefaultTimeoutSeconds
-	app.MaintenanceDrain = mode == maintenanceModeRemove
-	app.MaintenanceCordon = mode == maintenanceModeRemove
-	app.MaintenanceDeleteVolatilePods = false
-	app.MaintenanceBypassDisruptionBudgets = false
-	app.MaintenanceForceDelete = false
-	app.MaintenanceTargetRelease = ""
-	app.maintenanceMode = mode
-
-	ucxsvc.RouterPushPage(app, fmt.Sprintf("maintenance/%s", url.PathEscape(nodeName)))
-}
-
-func maintenanceOptionsFromApp(app *stackUiApp) maintenance.Options {
-	return maintenance.Options{
-		TimeoutSeconds:          app.MaintenanceTimeoutSeconds,
-		Cordon:                  app.MaintenanceCordon,
-		Drain:                   app.MaintenanceDrain,
-		DeleteVolatilePods:      app.MaintenanceDeleteVolatilePods,
-		BypassDisruptionBudgets: app.MaintenanceBypassDisruptionBudgets,
-		ForceDelete:             app.MaintenanceForceDelete,
-	}
-}
-
-func maintenanceSubmitAsync(
-	app *stackUiApp,
-	action string,
-	nodeName string,
-	nodeUid string,
-	options maintenance.Options,
-) {
-	if app.MaintenanceBusy {
-		return
-	}
-
-	targetRelease := app.MaintenanceTargetRelease
-
-	app.runAsyncAction("maintenanceBusy", &app.MaintenanceBusy, func() error {
-		switch action {
-		case "cordon":
-			return maintenance.Cordon(nodeName, nodeUid, options)
-		case "start":
-			return maintenance.Start(nodeName, nodeUid, options)
-		case "retry":
-			return maintenance.Start(nodeName, nodeUid, options)
-		case "upgrade-start":
-			return maintenance.UpgradeStart(nodeName, nodeUid, targetRelease, options)
-		case "upgrade-retry":
-			return maintenance.UpgradeStart(nodeName, nodeUid, targetRelease, options)
-		case "remove-start":
-			return maintenance.RemoveStart(nodeName, nodeUid, options)
-		case "remove-retry":
-			return maintenance.RemoveStart(nodeName, nodeUid, options)
-		case "uncordon":
-			return maintenance.Uncordon(nodeName, nodeUid)
-		case "cancel":
-			return maintenance.CancelActiveOperation(nodeName)
-		}
-		return nil
-	}, func(err error) {
-		switch {
-		case err != nil:
-			dashboardSendUiMessage(*app.Session(), err.Error(), false)
-		case !maintenanceSubmitStartsOperation(action):
-			dashboardSendUiMessage(*app.Session(), maintenanceSubmitMessage(action, nodeName), true)
-		}
-	})
-}
-
-func maintenanceSubmitStartsOperation(action string) bool {
-	switch action {
-	case "cordon":
-		return true
-	case "start":
-		return true
-	case "retry":
-		return true
-	case "upgrade-start":
-		return true
-	case "upgrade-retry":
-		return true
-	case "remove-start":
-		return true
-	case "remove-retry":
-		return true
-	default:
-		return false
-	}
-}
-
-func maintenanceSubmitMessage(action string, nodeName string) string {
-	switch action {
-	case "uncordon":
-		return fmt.Sprintf("Uncordon of %s started", nodeName)
-	case "cancel":
-		return fmt.Sprintf("The operation on %s was asked to stop", nodeName)
-	}
-	return ""
-}
+// The page
+// =====================================================================================================================
+// The page reads the cluster record and the maintenance snapshot. It then shows the operation that is active on the
+// node, or the form that starts a new one. The page never writes. A submit calls the maintenance package.
 
 func maintenancePage(app *stackUiApp) []ucx.UiNode {
 	nodeName := maintenanceNodeFromRoute(app.RoutePath)
@@ -412,13 +298,44 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 	})}
 }
 
-func (app *stackUiApp) nodeIsCordoned(nodeName string) bool {
-	if app.poller == nil {
-		return false
-	}
-	row, ok := app.poller.nodeRowByName(nodeName)
-	return ok && len(row.Cells) > 2 && row.Cells[2] == "Cordoned"
+func maintenanceShellMessage(app *stackUiApp, bottom []ucx.UiNode, message string) []ucx.UiNode {
+	return []ucx.UiNode{app.appShell(appShellProps{
+		Content:    []ucx.UiNode{shellContentBox(800, ucx.Text(message))},
+		Bottom:     bottom,
+		EscapePath: "browse/nodes",
+	})}
 }
+
+func maintenanceOpen(app *stackUiApp, nodeName string, nodeUid string) {
+	maintenanceOpenWithMode(app, nodeName, nodeUid, maintenanceModeDrain)
+}
+
+func maintenanceOpenWithMode(app *stackUiApp, nodeName string, nodeUid string, mode string) {
+	nodeName = strings.TrimSpace(nodeName)
+	nodeUid = strings.TrimSpace(nodeUid)
+	if nodeName == "" || (nodeUid == "" && mode != maintenanceModeRemove) {
+		return
+	}
+
+	app.maintenanceNodeName = nodeName
+	app.maintenanceNodeUid = nodeUid
+	app.maintenanceRetryOptionsFor = ""
+	app.MaintenanceTimeoutSeconds = maintenanceDefaultTimeoutSeconds
+	app.MaintenanceDrain = mode == maintenanceModeRemove
+	app.MaintenanceCordon = mode == maintenanceModeRemove
+	app.MaintenanceDeleteVolatilePods = false
+	app.MaintenanceBypassDisruptionBudgets = false
+	app.MaintenanceForceDelete = false
+	app.MaintenanceTargetRelease = ""
+	app.maintenanceMode = mode
+
+	ucxsvc.RouterPushPage(app, fmt.Sprintf("maintenance/%s", url.PathEscape(nodeName)))
+}
+
+// The forms
+// =====================================================================================================================
+// Each operation has one form. A form is a plain UI node. The form validates the unsafe options, then it hands the
+// options to the maintenance package. A retry form starts with the options of the failed operation.
 
 func maintenanceDrainForm(app *stackUiApp, mode string, nodeName string, nodeUid string) ucx.UiNode {
 	drainEnabled := app.MaintenanceDrain || mode == "retry"
@@ -503,33 +420,6 @@ func maintenanceDrainForm(app *stackUiApp, mode string, nodeName string, nodeUid
 
 		maintenanceSubmitAsync(app, action, nodeName, nodeUid, options)
 	}).Children(children...)
-}
-
-func (app *stackUiApp) maintenanceNodeVersion(nodeName string, record shared.ClusterRecord) string {
-	if app.poller != nil {
-		row, ok := app.poller.nodeRowByName(nodeName)
-		if ok && len(row.Cells) > 5 && row.Cells[5] != "" {
-			return row.Cells[5]
-		}
-	}
-	for _, node := range record.Nodes {
-		if node.Hostname == nodeName {
-			return node.DesiredVersion
-		}
-	}
-	return ""
-}
-
-func maintenanceUpgradeReleaseOptions(currentVersion string) []ucx.Option {
-	now := time.Now().UTC()
-	options := []ucx.Option{}
-	for _, release := range shared.StableReleases(now) {
-		if !shared.NodeAgentUpgradeAllowed(currentVersion, release.Release) {
-			continue
-		}
-		options = append(options, ucx.Option{Key: release.Release, Value: shared.ReleaseSupportLabel(release, now)})
-	}
-	return options
 }
 
 func maintenanceRemoveForm(
@@ -780,4 +670,130 @@ func maintenanceUpgradeForm(
 		}
 		maintenanceSubmitAsync(app, mode, nodeName, nodeUid, upgradeOptions)
 	}).Children(children...)
+}
+
+func (app *stackUiApp) nodeIsCordoned(nodeName string) bool {
+	if app.poller == nil {
+		return false
+	}
+	row, ok := app.poller.nodeRowByName(nodeName)
+	return ok && len(row.Cells) > 2 && row.Cells[2] == "Cordoned"
+}
+
+func (app *stackUiApp) maintenanceNodeVersion(nodeName string, record shared.ClusterRecord) string {
+	if app.poller != nil {
+		row, ok := app.poller.nodeRowByName(nodeName)
+		if ok && len(row.Cells) > 5 && row.Cells[5] != "" {
+			return row.Cells[5]
+		}
+	}
+	for _, node := range record.Nodes {
+		if node.Hostname == nodeName {
+			return node.DesiredVersion
+		}
+	}
+	return ""
+}
+
+func maintenanceUpgradeReleaseOptions(currentVersion string) []ucx.Option {
+	now := time.Now().UTC()
+	options := []ucx.Option{}
+	for _, release := range shared.StableReleases(now) {
+		if !shared.NodeAgentUpgradeAllowed(currentVersion, release.Release) {
+			continue
+		}
+		options = append(options, ucx.Option{Key: release.Release, Value: shared.ReleaseSupportLabel(release, now)})
+	}
+	return options
+}
+
+// Submission
+// =====================================================================================================================
+// A submit runs away from the render path. The busy flag stops a second click. The result becomes a UI message.
+
+func maintenanceOptionsFromApp(app *stackUiApp) maintenance.Options {
+	return maintenance.Options{
+		TimeoutSeconds:          app.MaintenanceTimeoutSeconds,
+		Cordon:                  app.MaintenanceCordon,
+		Drain:                   app.MaintenanceDrain,
+		DeleteVolatilePods:      app.MaintenanceDeleteVolatilePods,
+		BypassDisruptionBudgets: app.MaintenanceBypassDisruptionBudgets,
+		ForceDelete:             app.MaintenanceForceDelete,
+	}
+}
+
+func maintenanceSubmitAsync(
+	app *stackUiApp,
+	action string,
+	nodeName string,
+	nodeUid string,
+	options maintenance.Options,
+) {
+	if app.MaintenanceBusy {
+		return
+	}
+
+	targetRelease := app.MaintenanceTargetRelease
+
+	app.runAsyncAction("maintenanceBusy", &app.MaintenanceBusy, func() error {
+		switch action {
+		case "cordon":
+			return maintenance.Cordon(nodeName, nodeUid, options)
+		case "start":
+			return maintenance.Start(nodeName, nodeUid, options)
+		case "retry":
+			return maintenance.Start(nodeName, nodeUid, options)
+		case "upgrade-start":
+			return maintenance.UpgradeStart(nodeName, nodeUid, targetRelease, options)
+		case "upgrade-retry":
+			return maintenance.UpgradeStart(nodeName, nodeUid, targetRelease, options)
+		case "remove-start":
+			return maintenance.RemoveStart(nodeName, nodeUid, options)
+		case "remove-retry":
+			return maintenance.RemoveStart(nodeName, nodeUid, options)
+		case "uncordon":
+			return maintenance.Uncordon(nodeName, nodeUid)
+		case "cancel":
+			return maintenance.CancelActiveOperation(nodeName)
+		}
+		return nil
+	}, func(err error) {
+		switch {
+		case err != nil:
+			dashboardSendUiMessage(*app.Session(), err.Error(), false)
+		case !maintenanceSubmitStartsOperation(action):
+			dashboardSendUiMessage(*app.Session(), maintenanceSubmitMessage(action, nodeName), true)
+		}
+	})
+}
+
+func maintenanceSubmitStartsOperation(action string) bool {
+	switch action {
+	case "cordon":
+		return true
+	case "start":
+		return true
+	case "retry":
+		return true
+	case "upgrade-start":
+		return true
+	case "upgrade-retry":
+		return true
+	case "remove-start":
+		return true
+	case "remove-retry":
+		return true
+	default:
+		return false
+	}
+}
+
+func maintenanceSubmitMessage(action string, nodeName string) string {
+	switch action {
+	case "uncordon":
+		return fmt.Sprintf("Uncordon of %s started", nodeName)
+	case "cancel":
+		return fmt.Sprintf("The operation on %s was asked to stop", nodeName)
+	}
+	return ""
 }

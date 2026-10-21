@@ -18,8 +18,6 @@ const (
 
 var containerLogTailCount int64 = 1000
 
-// syncContainerLogStream ensures that a log stream is running iff the current detail is a container
-// logs view. It must be called with app.mu held.
 func (app *stackUiApp) syncContainerLogStream() {
 	ref, ok := parseResourceDetail(app.ResourceDetail)
 	if !ok || ref.Type != containersTypeId || !ref.hasContainer {

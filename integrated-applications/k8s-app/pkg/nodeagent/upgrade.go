@@ -1,3 +1,25 @@
+// Introduction
+// =====================================================================================================================
+// This file upgrades the Kubernetes binary on one node. It also writes control-plane backups.
+//
+// An upgrade runs in stages. The agent stages the target release and checks its pinned checksum. On a control plane
+// node it saves an etcd snapshot before it stops the service. It keeps a copy of the running binary. It then replaces
+// the binary and starts the service again. Finally it checks the version, the service and the readiness of the
+// control plane. The agent writes the phase before each stage. An interrupted upgrade resumes from its recorded
+// state.
+//
+// The upgrade state is the source of truth for the coordinator. The state file records the target release, the
+// previous release, the phase and the error. A failed upgrade needs an explicit retry. The agent never installs a
+// release that is not the next allowed step.
+//
+// A backup runs only on a control plane node. It copies an etcd snapshot, the cluster tokens and metadata into the
+// backups mount. The agent builds the backup under a partial name and renames it when it is complete. Retention then
+// removes old backups. A partial backup from a crashed attempt is removed when it is old enough.
+//
+// The sections below follow the life of an upgrade. The worker runs first. The state helpers keep the record. The
+// release helpers download and check the binary. The service and verification helpers act on the node. The backup
+// section describes the other job of this file.
+
 package nodeagent
 
 import (
@@ -20,6 +42,11 @@ import (
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/log"
 )
+
+// Constants and types
+// =====================================================================================================================
+// The constants name the staging directory, the binary paths and the service names. The timing constants bound each
+// step. StagedRelease describes a downloaded binary. upgradeState is the record on disk.
 
 const (
 	stagingDir      = "/var/lib/ucloud-k8s/maintenance"
@@ -80,6 +107,68 @@ type upgradeState struct {
 	StateError         string `json:"stateError,omitempty"`
 	NeedsStateRecovery bool   `json:"needsStateRecovery,omitempty"`
 }
+
+// Durable writes
+// =====================================================================================================================
+// A state file is replaced in one step. The new content goes to a temporary file. The agent syncs the file and renames
+// it over the old path. The parent directory is synced last. A crash therefore leaves either the old file or the new
+// file, never a partial file.
+
+func writeFileAtomic(path string, data []byte, mode os.FileMode) error {
+	parent := filepath.Dir(path)
+	err := os.MkdirAll(parent, 0700)
+	if err != nil {
+		return err
+	}
+
+	file, err := os.CreateTemp(parent, ".tmp-")
+	if err != nil {
+		return err
+	}
+	tempPath := file.Name()
+
+	_, err = file.Write(data)
+	if err == nil {
+		err = file.Chmod(mode)
+	}
+	if err == nil {
+		err = file.Sync()
+	}
+	if closeErr := file.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		_ = os.Remove(tempPath)
+		return err
+	}
+
+	err = os.Rename(tempPath, path)
+	if err != nil {
+		_ = os.Remove(tempPath)
+		return err
+	}
+
+	return syncDir(parent)
+}
+
+func syncDir(dir string) error {
+	dirFile, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+
+	err = dirFile.Sync()
+	if closeErr := dirFile.Close(); err == nil {
+		err = closeErr
+	}
+	return err
+}
+
+// The upgrade worker
+// =====================================================================================================================
+// runUpgrade performs one upgrade. It checks the installed version and the node role. It uses the previous state to
+// detect a retry. A binary that already matches the target is only verified. Otherwise the worker stages, snapshots,
+// installs, restarts and verifies. Every failure is written to the state before the worker returns.
 
 func runUpgrade(release string, previousState upgradeState) {
 	workerCtx, cancel := context.WithTimeout(context.Background(), workDeadline)
@@ -292,193 +381,11 @@ func runUpgrade(release string, previousState upgradeState) {
 	log.Info("k8s-app node agent: the upgrade to %s completed", release)
 }
 
-func serviceForRole(role string) string {
-	if role == shared.GroupControlPlane {
-		return serviceControlPlane
-	}
-	if roleValid(role) {
-		return serviceWorker
-	}
-	return ""
-}
-
-func startTokenPublisher() {
-	commandCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	output, err := exec.CommandContext(commandCtx, "systemctl", "start", "ucloud-k8s-token-publisher").CombinedOutput()
-	if err != nil {
-		log.Warn("k8s-app node agent: could not start the token publisher: %s", strings.TrimSpace(string(output)))
-	}
-}
-
-func roleValid(role string) bool {
-	if len(role) > roleMaxLen {
-		return false
-	}
-	if !roleRe.MatchString(role) {
-		return false
-	}
-	return role != shared.GroupControlPlane
-}
-
-func finishFailure(release string, previousState upgradeState, observedRelease string, message string) {
-	log.Warn("k8s-app node agent: the upgrade to %s failed: %s", release, message)
-	progressStageLabel(fmt.Sprintf("The upgrade to %s failed", release))
-	progressText(fmt.Sprintf("The upgrade to %s failed: %s", release, message))
-
-	identityConfig := identitySnapshot()
-
-	state := upgradeState{
-		SchemaRevision:  stateSchemaRevision,
-		OperationUid:    stateLoad().OperationUid,
-		NodeName:        identityConfig.NodeName,
-		IpAddress:       identityConfig.IpAddress,
-		Role:            identityConfig.Role,
-		Release:         release,
-		PreviousRelease: observedRelease,
-		Phase:           shared.NodeAgentPhaseFailed,
-		Error:           message,
-		NeedsRecovery:   true,
-		UpdatedAt:       time.Now().UTC(),
-	}
-
-	if state.NodeName == "" {
-		state.NodeName = previousState.NodeName
-		state.IpAddress = previousState.IpAddress
-		state.Role = previousState.Role
-	}
-
-	if state.PreviousRelease == "" {
-		state.PreviousRelease = previousState.PreviousRelease
-	}
-
-	err := stateStore(&state)
-	if err != nil {
-		log.Warn("k8s-app node agent: could not persist the failed state: %s", err)
-	}
-}
-
-func setPhase(phase string) bool {
-	globals.Mu.Lock()
-	defer globals.Mu.Unlock()
-
-	state := stateRead()
-	if state.Release == "" {
-		return false
-	}
-
-	state.Phase = phase
-	state.Error = ""
-	state.UpdatedAt = time.Now().UTC()
-
-	err := stateStore(&state)
-	if err != nil {
-		log.Warn("k8s-app node agent: could not persist the phase %s: %s", phase, err)
-		return false
-	}
-	return true
-}
-
-func markVerifying(identityConfig Config, release string, previousRelease string) bool {
-	err := stateStore(&upgradeState{
-		SchemaRevision:  stateSchemaRevision,
-		OperationUid:    stateLoad().OperationUid,
-		NodeName:        identityConfig.NodeName,
-		IpAddress:       identityConfig.IpAddress,
-		Role:            identityConfig.Role,
-		Release:         release,
-		PreviousRelease: previousRelease,
-		Phase:           shared.NodeAgentPhaseVerifying,
-		UpdatedAt:       time.Now().UTC(),
-	})
-	if err != nil {
-		log.Warn("k8s-app node agent: could not persist the phase verifying: %s", err)
-		return false
-	}
-	return true
-}
-
-func storeCompleted(identityConfig Config, release string, previousRelease string) error {
-	return stateStore(&upgradeState{
-		SchemaRevision:  stateSchemaRevision,
-		OperationUid:    stateLoad().OperationUid,
-		NodeName:        identityConfig.NodeName,
-		IpAddress:       identityConfig.IpAddress,
-		Role:            identityConfig.Role,
-		Release:         release,
-		PreviousRelease: previousRelease,
-		Phase:           shared.NodeAgentPhaseCompleted,
-		UpdatedAt:       time.Now().UTC(),
-	})
-}
-
-func recoverInterrupted() {
-	state := stateLoad()
-	if state.Release == "" || !shared.NodeAgentPhaseActive(state.Phase) {
-		return
-	}
-
-	interruptedPhase := state.Phase
-	state.Phase = shared.NodeAgentPhaseFailed
-	state.Error = fmt.Sprintf(
-		"the upgrade to %s was interrupted at phase %s. Recovery is required",
-		state.Release,
-		interruptedPhase,
-	)
-	state.NeedsRecovery = true
-	state.UpdatedAt = time.Now().UTC()
-
-	err := stateStore(&state)
-	if err != nil {
-		log.Warn("k8s-app node agent: could not persist the interrupted upgrade state: %s", err)
-		return
-	}
-
-	progressStageLabel(fmt.Sprintf("The upgrade to %s was interrupted", state.Release))
-	progressText(fmt.Sprintf(
-		"The upgrade to %s was interrupted at phase %s. An explicit retry is required",
-		state.Release,
-		interruptedPhase,
-	))
-	log.Warn(
-		"k8s-app node agent: an interrupted upgrade to %s was marked as failed and needs recovery",
-		state.Release,
-	)
-}
-
-func statusFromState(identityConfig Config) (shared.NodeAgentStatus, error) {
-	state := stateLoad()
-	if state.NeedsStateRecovery {
-		return shared.NodeAgentStatus{
-			Progress:     progressLoad(),
-			OperationUid: state.OperationUid,
-			NodeName:     state.NodeName,
-			Release:      state.Release,
-			Phase:        shared.NodeAgentPhaseFailed,
-			Error:        state.StateError,
-			UpdatedAt:    state.UpdatedAt,
-		}, nil
-	}
-	if state.Phase == "" {
-		state.Phase = shared.NodeAgentPhaseIdle
-	}
-	if state.NodeName == "" && identityConfig.NodeName != "" {
-		state.NodeName = identityConfig.NodeName
-		state.IpAddress = identityConfig.IpAddress
-		state.Role = identityConfig.Role
-	}
-
-	return shared.NodeAgentStatus{
-		Progress:     progressLoad(),
-		OperationUid: state.OperationUid,
-		NodeName:     state.NodeName,
-		Release:      state.Release,
-		Phase:        state.Phase,
-		Error:        state.Error,
-		UpdatedAt:    state.UpdatedAt,
-	}, nil
-}
+// The upgrade state
+// =====================================================================================================================
+// The state helpers read and write upgrade-state.json. The lock in globals protects each transition. A state from an
+// incompatible version is marked as a recovery case. finishFailure writes the failed phase and keeps the release
+// information. statusFromState converts the file to the API status without changing the file.
 
 func stateLoad() upgradeState {
 	globals.Mu.Lock()
@@ -535,43 +442,6 @@ func stateStore(state *upgradeState) error {
 	return writeFileAtomic(statePath(), data, 0600)
 }
 
-func writeFileAtomic(path string, data []byte, mode os.FileMode) error {
-	parent := filepath.Dir(path)
-	err := os.MkdirAll(parent, 0700)
-	if err != nil {
-		return err
-	}
-
-	file, err := os.CreateTemp(parent, ".tmp-")
-	if err != nil {
-		return err
-	}
-	tempPath := file.Name()
-
-	_, err = file.Write(data)
-	if err == nil {
-		err = file.Chmod(mode)
-	}
-	if err == nil {
-		err = file.Sync()
-	}
-	if closeErr := file.Close(); err == nil {
-		err = closeErr
-	}
-	if err != nil {
-		_ = os.Remove(tempPath)
-		return err
-	}
-
-	err = os.Rename(tempPath, path)
-	if err != nil {
-		_ = os.Remove(tempPath)
-		return err
-	}
-
-	return syncDir(parent)
-}
-
 func statePath() string {
 	return filepath.Join(workingDir(), stateName)
 }
@@ -579,6 +449,170 @@ func statePath() string {
 func workingDir() string {
 	return stagingDir
 }
+
+func setPhase(phase string) bool {
+	globals.Mu.Lock()
+	defer globals.Mu.Unlock()
+
+	state := stateRead()
+	if state.Release == "" {
+		return false
+	}
+
+	state.Phase = phase
+	state.Error = ""
+	state.UpdatedAt = time.Now().UTC()
+
+	err := stateStore(&state)
+	if err != nil {
+		log.Warn("k8s-app node agent: could not persist the phase %s: %s", phase, err)
+		return false
+	}
+	return true
+}
+
+func markVerifying(identityConfig Config, release string, previousRelease string) bool {
+	err := stateStore(&upgradeState{
+		SchemaRevision:  stateSchemaRevision,
+		OperationUid:    stateLoad().OperationUid,
+		NodeName:        identityConfig.NodeName,
+		IpAddress:       identityConfig.IpAddress,
+		Role:            identityConfig.Role,
+		Release:         release,
+		PreviousRelease: previousRelease,
+		Phase:           shared.NodeAgentPhaseVerifying,
+		UpdatedAt:       time.Now().UTC(),
+	})
+	if err != nil {
+		log.Warn("k8s-app node agent: could not persist the phase verifying: %s", err)
+		return false
+	}
+	return true
+}
+
+func storeCompleted(identityConfig Config, release string, previousRelease string) error {
+	return stateStore(&upgradeState{
+		SchemaRevision:  stateSchemaRevision,
+		OperationUid:    stateLoad().OperationUid,
+		NodeName:        identityConfig.NodeName,
+		IpAddress:       identityConfig.IpAddress,
+		Role:            identityConfig.Role,
+		Release:         release,
+		PreviousRelease: previousRelease,
+		Phase:           shared.NodeAgentPhaseCompleted,
+		UpdatedAt:       time.Now().UTC(),
+	})
+}
+
+func finishFailure(release string, previousState upgradeState, observedRelease string, message string) {
+	log.Warn("k8s-app node agent: the upgrade to %s failed: %s", release, message)
+	progressStageLabel(fmt.Sprintf("The upgrade to %s failed", release))
+	progressText(fmt.Sprintf("The upgrade to %s failed: %s", release, message))
+
+	identityConfig := identitySnapshot()
+
+	state := upgradeState{
+		SchemaRevision:  stateSchemaRevision,
+		OperationUid:    stateLoad().OperationUid,
+		NodeName:        identityConfig.NodeName,
+		IpAddress:       identityConfig.IpAddress,
+		Role:            identityConfig.Role,
+		Release:         release,
+		PreviousRelease: observedRelease,
+		Phase:           shared.NodeAgentPhaseFailed,
+		Error:           message,
+		NeedsRecovery:   true,
+		UpdatedAt:       time.Now().UTC(),
+	}
+
+	if state.NodeName == "" {
+		state.NodeName = previousState.NodeName
+		state.IpAddress = previousState.IpAddress
+		state.Role = previousState.Role
+	}
+
+	if state.PreviousRelease == "" {
+		state.PreviousRelease = previousState.PreviousRelease
+	}
+
+	err := stateStore(&state)
+	if err != nil {
+		log.Warn("k8s-app node agent: could not persist the failed state: %s", err)
+	}
+}
+
+func statusFromState(identityConfig Config) (shared.NodeAgentStatus, error) {
+	state := stateLoad()
+	if state.NeedsStateRecovery {
+		return shared.NodeAgentStatus{
+			Progress:     progressLoad(),
+			OperationUid: state.OperationUid,
+			NodeName:     state.NodeName,
+			Release:      state.Release,
+			Phase:        shared.NodeAgentPhaseFailed,
+			Error:        state.StateError,
+			UpdatedAt:    state.UpdatedAt,
+		}, nil
+	}
+	if state.Phase == "" {
+		state.Phase = shared.NodeAgentPhaseIdle
+	}
+	if state.NodeName == "" && identityConfig.NodeName != "" {
+		state.NodeName = identityConfig.NodeName
+		state.IpAddress = identityConfig.IpAddress
+		state.Role = identityConfig.Role
+	}
+
+	return shared.NodeAgentStatus{
+		Progress:     progressLoad(),
+		OperationUid: state.OperationUid,
+		NodeName:     state.NodeName,
+		Release:      state.Release,
+		Phase:        state.Phase,
+		Error:        state.Error,
+		UpdatedAt:    state.UpdatedAt,
+	}, nil
+}
+
+func recoverInterrupted() {
+	state := stateLoad()
+	if state.Release == "" || !shared.NodeAgentPhaseActive(state.Phase) {
+		return
+	}
+
+	interruptedPhase := state.Phase
+	state.Phase = shared.NodeAgentPhaseFailed
+	state.Error = fmt.Sprintf(
+		"the upgrade to %s was interrupted at phase %s. Recovery is required",
+		state.Release,
+		interruptedPhase,
+	)
+	state.NeedsRecovery = true
+	state.UpdatedAt = time.Now().UTC()
+
+	err := stateStore(&state)
+	if err != nil {
+		log.Warn("k8s-app node agent: could not persist the interrupted upgrade state: %s", err)
+		return
+	}
+
+	progressStageLabel(fmt.Sprintf("The upgrade to %s was interrupted", state.Release))
+	progressText(fmt.Sprintf(
+		"The upgrade to %s was interrupted at phase %s. An explicit retry is required",
+		state.Release,
+		interruptedPhase,
+	))
+	log.Warn(
+		"k8s-app node agent: an interrupted upgrade to %s was marked as failed and needs recovery",
+		state.Release,
+	)
+}
+
+// Release staging
+// =====================================================================================================================
+// A release is downloaded from GitHub. The agent checks the checksum that the shared catalog pins for the
+// architecture. A file with the right checksum is reused. Every other file is removed and downloaded again. A
+// download must stay on HTTPS.
 
 func StageRelease(ctx context.Context, release string) (StagedRelease, error) {
 	record, ok := shared.ReleaseByExactVersion(release)
@@ -641,22 +675,6 @@ func downloadUrl(release string, arch string) string {
 	return fmt.Sprintf("https://github.com/k3s-io/k3s/releases/download/%s/k3s", release)
 }
 
-func fileMatchesSha256(path string, expectedSha string) bool {
-	file, err := os.Open(path)
-	if err != nil {
-		return false
-	}
-	defer file.Close()
-
-	hasher := sha256.New()
-	_, err = io.Copy(hasher, file)
-	if err != nil {
-		return false
-	}
-
-	return hex.EncodeToString(hasher.Sum(nil)) == expectedSha
-}
-
 func download(ctx context.Context, url string, stagedPath string, expectedSha string) error {
 	downloadCtx, cancel := context.WithTimeout(ctx, downloadTimeout)
 	defer cancel()
@@ -716,6 +734,22 @@ func download(ctx context.Context, url string, stagedPath string, expectedSha st
 	return nil
 }
 
+func fileMatchesSha256(path string, expectedSha string) bool {
+	file, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	hasher := sha256.New()
+	_, err = io.Copy(hasher, file)
+	if err != nil {
+		return false
+	}
+
+	return hex.EncodeToString(hasher.Sum(nil)) == expectedSha
+}
+
 func writeVerified(file *os.File, body io.Reader, expectedSha string) error {
 	hasher := sha256.New()
 	written, err := io.Copy(io.MultiWriter(file, hasher), body)
@@ -733,6 +767,11 @@ func writeVerified(file *os.File, body io.Reader, expectedSha string) error {
 	return file.Sync()
 }
 
+// Installed version
+// =====================================================================================================================
+// The installed version comes from the version output of the running binary. A failed read returns an empty string.
+// The caller then fails the upgrade before it changes anything.
+
 func installedVersion(ctx context.Context) string {
 	commandCtx, cancel := context.WithTimeout(ctx, stopTimeout)
 	defer cancel()
@@ -749,6 +788,12 @@ func installedVersion(ctx context.Context) string {
 	}
 	return fields[2]
 }
+
+// Snapshots
+// =====================================================================================================================
+// A control plane node saves an etcd snapshot before it replaces the binary. The snapshot is written by the installed
+// k3s binary. The agent reports the newest snapshot file that the command produced. The name carries a timestamp, so
+// the newest file is the one for this attempt.
 
 func snapshotEtcd(ctx context.Context) (string, error) {
 	return snapshotEtcdNamed(ctx, etcdSnapshotName)
@@ -827,6 +872,266 @@ func latestSnapshot(dir string, name string) (string, error) {
 
 	return latestPath, nil
 }
+
+// Service control
+// =====================================================================================================================
+// The service name follows from the node role. A control plane node runs k3s.service. A worker runs k3s-agent.service.
+// A stop waits for a terminal state. A start returns when systemd accepts the command. Verification waits for the
+// service to become healthy.
+
+func serviceForRole(role string) string {
+	if role == shared.GroupControlPlane {
+		return serviceControlPlane
+	}
+	if roleValid(role) {
+		return serviceWorker
+	}
+	return ""
+}
+
+func roleValid(role string) bool {
+	if len(role) > roleMaxLen {
+		return false
+	}
+	if !roleRe.MatchString(role) {
+		return false
+	}
+	return role != shared.GroupControlPlane
+}
+
+func startTokenPublisher() {
+	commandCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	output, err := exec.CommandContext(commandCtx, "systemctl", "start", "ucloud-k8s-token-publisher").CombinedOutput()
+	if err != nil {
+		log.Warn("k8s-app node agent: could not start the token publisher: %s", strings.TrimSpace(string(output)))
+	}
+}
+
+func stopService(ctx context.Context, service string) error {
+	commandCtx, cancel := context.WithTimeout(ctx, stopTimeout)
+	defer cancel()
+
+	output, err := exec.CommandContext(commandCtx, "systemctl", "stop", "--no-block", service).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s: %s", err, strings.TrimSpace(string(output)))
+	}
+
+	pollCtx, pollCancel := context.WithTimeout(ctx, stopTimeout)
+	defer pollCancel()
+
+	ticker := time.NewTicker(stopPollInterval)
+	defer ticker.Stop()
+
+	for {
+		stateOutput, stateErr := exec.CommandContext(pollCtx, "systemctl", "show", service, "--property=ActiveState", "--value").CombinedOutput()
+		if stateErr != nil {
+			return fmt.Errorf("could not read the state of %s: %s: %s", service, stateErr, strings.TrimSpace(string(stateOutput)))
+		}
+
+		activeState := strings.TrimSpace(string(stateOutput))
+		if activeState == "inactive" || activeState == "failed" {
+			return nil
+		}
+
+		select {
+		case <-pollCtx.Done():
+			return fmt.Errorf(
+				"the stop of %s did not reach a terminal state within %s. The last state was %s",
+				service,
+				stopTimeout,
+				activeState,
+			)
+		case <-ticker.C:
+		}
+	}
+}
+
+func startService(ctx context.Context, service string) error {
+	commandCtx, cancel := context.WithTimeout(ctx, startTimeout)
+	defer cancel()
+
+	output, err := exec.CommandContext(commandCtx, "systemctl", "start", service).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s: %s", err, strings.TrimSpace(string(output)))
+	}
+	return nil
+}
+
+// Binary installation
+// =====================================================================================================================
+// The running binary is copied to the staging directory before it is replaced. The new binary is copied next to its
+// final path, then renamed over it. A rename is atomic on the same file system. A failed replacement starts the old
+// service again.
+
+func backupBinary(binaryPath string, release string) (string, error) {
+	source, err := os.Open(binaryPath)
+	if err != nil {
+		return "", err
+	}
+	defer source.Close()
+
+	backupName := fmt.Sprintf("k3s-previous-%s", shared.SanitizeForPath(release))
+	backupPath := filepath.Join(workingDir(), backupName)
+	tempPath := fmt.Sprintf("%s.tmp", backupPath)
+
+	destination, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+	if err != nil {
+		return "", err
+	}
+
+	_, err = destination.ReadFrom(source)
+	if err == nil {
+		err = destination.Sync()
+	}
+	if closeErr := destination.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		_ = os.Remove(tempPath)
+		return "", err
+	}
+
+	err = os.Rename(tempPath, backupPath)
+	if err != nil {
+		_ = os.Remove(tempPath)
+		return "", err
+	}
+
+	err = syncDir(workingDir())
+	if err != nil {
+		return "", err
+	}
+
+	return backupPath, nil
+}
+
+func prepareReplacement(stagedPath string, replacementPath string) error {
+	source, err := os.Open(stagedPath)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	destination, err := os.OpenFile(replacementPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+	if err != nil {
+		return err
+	}
+
+	_, err = destination.ReadFrom(source)
+	if err == nil {
+		err = destination.Sync()
+	}
+	if closeErr := destination.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		_ = os.Remove(replacementPath)
+		return err
+	}
+
+	err = os.Chmod(replacementPath, 0755)
+	if err != nil {
+		_ = os.Remove(replacementPath)
+		return err
+	}
+
+	return nil
+}
+
+func swapReplacement(replacementPath string, targetPath string) error {
+	err := os.Rename(replacementPath, targetPath)
+	if err != nil {
+		return err
+	}
+
+	return syncDir(filepath.Dir(targetPath))
+}
+
+// Verification
+// =====================================================================================================================
+// The agent checks that the service is active and that the binary reports the target version. A control plane node
+// must also answer /readyz. The check polls until it succeeds or the timeout ends.
+
+func verifyUpgrade(ctx context.Context, release string, role string, service string) error {
+	verifyCtx, cancel := context.WithTimeout(ctx, startTimeout)
+	defer cancel()
+
+	activeOutput, err := exec.CommandContext(verifyCtx, "systemctl", "is-active", service).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s is not active: %s", service, strings.TrimSpace(string(activeOutput)))
+	}
+
+	versionOutput, err := exec.CommandContext(verifyCtx, k3sBinary, "--version").CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("could not read the installed Kubernetes version: %s", err)
+	}
+
+	fields := strings.Fields(strings.TrimSpace(string(versionOutput)))
+	versionMatches := len(fields) >= 3 && fields[0] == "k3s" && fields[1] == "version" && fields[2] == release
+	if !versionMatches {
+		return fmt.Errorf(
+			"the installed Kubernetes version does not match the target release: %s",
+			strings.TrimSpace(string(versionOutput)),
+		)
+	}
+
+	if role == shared.GroupControlPlane {
+		return verifyControlPlaneReadyz(ctx)
+	}
+
+	return nil
+}
+
+func verifyControlPlaneReadyz(ctx context.Context) error {
+	pollCtx, pollCancel := context.WithTimeout(ctx, startTimeout)
+	defer pollCancel()
+
+	ticker := time.NewTicker(readyzPollInterval)
+	defer ticker.Stop()
+
+	var lastOutput string
+	for {
+		requestCtx, requestCancel := context.WithTimeout(pollCtx, readyzTimeout)
+		readyzOutput, readyzErr := exec.CommandContext(
+			requestCtx,
+			k3sBinary,
+			"kubectl",
+			"--request-timeout=10s",
+			"--server",
+			localServerUrl,
+			"--kubeconfig",
+			kubeconfig,
+			"get",
+			"--raw",
+			"/readyz",
+		).CombinedOutput()
+		requestCancel()
+
+		if readyzErr == nil {
+			return nil
+		}
+		lastOutput = strings.TrimSpace(string(readyzOutput))
+
+		select {
+		case <-pollCtx.Done():
+			return fmt.Errorf(
+				"the control plane did not report ready within %s: %s: %s",
+				startTimeout,
+				readyzErr,
+				lastOutput,
+			)
+		case <-ticker.C:
+		}
+	}
+}
+
+// Backups
+// =====================================================================================================================
+// A backup copies the etcd snapshot, the server token, the agent token and the maintenance tokens. The agent writes
+// metadata that names the checksums and the release. The directory is committed by a rename. Retention keeps the
+// newest hourly backups and one backup per day.
 
 type backupCopyInfo struct {
 	SizeBytes int64
@@ -1181,224 +1486,4 @@ func readBackupMetadata(dir string) (backup.Metadata, error) {
 		return backup.Metadata{}, errors.New("the backup metadata was written by an incompatible version of the application")
 	}
 	return metadata, nil
-}
-
-func backupBinary(binaryPath string, release string) (string, error) {
-	source, err := os.Open(binaryPath)
-	if err != nil {
-		return "", err
-	}
-	defer source.Close()
-
-	backupName := fmt.Sprintf("k3s-previous-%s", shared.SanitizeForPath(release))
-	backupPath := filepath.Join(workingDir(), backupName)
-	tempPath := fmt.Sprintf("%s.tmp", backupPath)
-
-	destination, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
-	if err != nil {
-		return "", err
-	}
-
-	_, err = destination.ReadFrom(source)
-	if err == nil {
-		err = destination.Sync()
-	}
-	if closeErr := destination.Close(); err == nil {
-		err = closeErr
-	}
-	if err != nil {
-		_ = os.Remove(tempPath)
-		return "", err
-	}
-
-	err = os.Rename(tempPath, backupPath)
-	if err != nil {
-		_ = os.Remove(tempPath)
-		return "", err
-	}
-
-	err = syncDir(workingDir())
-	if err != nil {
-		return "", err
-	}
-
-	return backupPath, nil
-}
-
-func prepareReplacement(stagedPath string, replacementPath string) error {
-	source, err := os.Open(stagedPath)
-	if err != nil {
-		return err
-	}
-	defer source.Close()
-
-	destination, err := os.OpenFile(replacementPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
-	if err != nil {
-		return err
-	}
-
-	_, err = destination.ReadFrom(source)
-	if err == nil {
-		err = destination.Sync()
-	}
-	if closeErr := destination.Close(); err == nil {
-		err = closeErr
-	}
-	if err != nil {
-		_ = os.Remove(replacementPath)
-		return err
-	}
-
-	err = os.Chmod(replacementPath, 0755)
-	if err != nil {
-		_ = os.Remove(replacementPath)
-		return err
-	}
-
-	return nil
-}
-
-func swapReplacement(replacementPath string, targetPath string) error {
-	err := os.Rename(replacementPath, targetPath)
-	if err != nil {
-		return err
-	}
-
-	return syncDir(filepath.Dir(targetPath))
-}
-
-func syncDir(dir string) error {
-	dirFile, err := os.Open(dir)
-	if err != nil {
-		return err
-	}
-
-	err = dirFile.Sync()
-	if closeErr := dirFile.Close(); err == nil {
-		err = closeErr
-	}
-	return err
-}
-
-func stopService(ctx context.Context, service string) error {
-	commandCtx, cancel := context.WithTimeout(ctx, stopTimeout)
-	defer cancel()
-
-	output, err := exec.CommandContext(commandCtx, "systemctl", "stop", "--no-block", service).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%s: %s", err, strings.TrimSpace(string(output)))
-	}
-
-	pollCtx, pollCancel := context.WithTimeout(ctx, stopTimeout)
-	defer pollCancel()
-
-	ticker := time.NewTicker(stopPollInterval)
-	defer ticker.Stop()
-
-	for {
-		stateOutput, stateErr := exec.CommandContext(pollCtx, "systemctl", "show", service, "--property=ActiveState", "--value").CombinedOutput()
-		if stateErr != nil {
-			return fmt.Errorf("could not read the state of %s: %s: %s", service, stateErr, strings.TrimSpace(string(stateOutput)))
-		}
-
-		activeState := strings.TrimSpace(string(stateOutput))
-		if activeState == "inactive" || activeState == "failed" {
-			return nil
-		}
-
-		select {
-		case <-pollCtx.Done():
-			return fmt.Errorf(
-				"the stop of %s did not reach a terminal state within %s. The last state was %s",
-				service,
-				stopTimeout,
-				activeState,
-			)
-		case <-ticker.C:
-		}
-	}
-}
-
-func startService(ctx context.Context, service string) error {
-	commandCtx, cancel := context.WithTimeout(ctx, startTimeout)
-	defer cancel()
-
-	output, err := exec.CommandContext(commandCtx, "systemctl", "start", service).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%s: %s", err, strings.TrimSpace(string(output)))
-	}
-	return nil
-}
-
-func verifyUpgrade(ctx context.Context, release string, role string, service string) error {
-	verifyCtx, cancel := context.WithTimeout(ctx, startTimeout)
-	defer cancel()
-
-	activeOutput, err := exec.CommandContext(verifyCtx, "systemctl", "is-active", service).CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("%s is not active: %s", service, strings.TrimSpace(string(activeOutput)))
-	}
-
-	versionOutput, err := exec.CommandContext(verifyCtx, k3sBinary, "--version").CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("could not read the installed Kubernetes version: %s", err)
-	}
-
-	fields := strings.Fields(strings.TrimSpace(string(versionOutput)))
-	versionMatches := len(fields) >= 3 && fields[0] == "k3s" && fields[1] == "version" && fields[2] == release
-	if !versionMatches {
-		return fmt.Errorf(
-			"the installed Kubernetes version does not match the target release: %s",
-			strings.TrimSpace(string(versionOutput)),
-		)
-	}
-
-	if role == shared.GroupControlPlane {
-		return verifyControlPlaneReadyz(ctx)
-	}
-
-	return nil
-}
-
-func verifyControlPlaneReadyz(ctx context.Context) error {
-	pollCtx, pollCancel := context.WithTimeout(ctx, startTimeout)
-	defer pollCancel()
-
-	ticker := time.NewTicker(readyzPollInterval)
-	defer ticker.Stop()
-
-	var lastOutput string
-	for {
-		requestCtx, requestCancel := context.WithTimeout(pollCtx, readyzTimeout)
-		readyzOutput, readyzErr := exec.CommandContext(
-			requestCtx,
-			k3sBinary,
-			"kubectl",
-			"--request-timeout=10s",
-			"--server",
-			localServerUrl,
-			"--kubeconfig",
-			kubeconfig,
-			"get",
-			"--raw",
-			"/readyz",
-		).CombinedOutput()
-		requestCancel()
-
-		if readyzErr == nil {
-			return nil
-		}
-		lastOutput = strings.TrimSpace(string(readyzOutput))
-
-		select {
-		case <-pollCtx.Done():
-			return fmt.Errorf(
-				"the control plane did not report ready within %s: %s: %s",
-				startTimeout,
-				readyzErr,
-				lastOutput,
-			)
-		case <-ticker.C:
-		}
-	}
 }

@@ -181,23 +181,6 @@ func dashboardResourceEditorLoad(app *stackUiApp, detail string, editing bool) {
 	}()
 }
 
-func dashboardResourceEditorCancel(app *stackUiApp) {
-	state := &app.resourceEditor
-	if !state.Editing || state.Saving || state.Detail != app.ResourceDetail {
-		return
-	}
-	if state.Creating {
-		dashboardResourceCreateBack(app)
-		return
-	}
-	state.Editing = false
-	state.Error = ""
-	state.Revision++
-	dashboardResourceEditorSchemasStart(app)
-	app.ResourceDraft = ""
-	ucx.AppUpdateUi(app)
-}
-
 func dashboardResourceEditorSave(app *stackUiApp, source string) {
 	state := &app.resourceEditor
 	if !state.Editing || state.Loading || state.Saving || state.Snapshot == nil || state.Detail != app.ResourceDetail {
@@ -285,15 +268,21 @@ func dashboardResourceEditorSave(app *stackUiApp, source string) {
 	}()
 }
 
-var dashboardResourceManagedMetadata = []string{
-	"creationTimestamp",
-	"deletionTimestamp",
-	"deletionGracePeriodSeconds",
-	"generation",
-	"managedFields",
-	"resourceVersion",
-	"selfLink",
-	"uid",
+func dashboardResourceEditorCancel(app *stackUiApp) {
+	state := &app.resourceEditor
+	if !state.Editing || state.Saving || state.Detail != app.ResourceDetail {
+		return
+	}
+	if state.Creating {
+		dashboardResourceCreateBack(app)
+		return
+	}
+	state.Editing = false
+	state.Error = ""
+	state.Revision++
+	dashboardResourceEditorSchemasStart(app)
+	app.ResourceDraft = ""
+	ucx.AppUpdateUi(app)
 }
 
 func dashboardResourceInterface(client *K8sClient, def ResourceTypeDef, namespace string) dynamic.ResourceInterface {
@@ -392,4 +381,15 @@ func dashboardResourceUpdateYaml(ctx context.Context, client *K8sClient, def Res
 	return resource.Update(ctx, &object, metav1.UpdateOptions{
 		FieldValidation: metav1.FieldValidationStrict,
 	})
+}
+
+var dashboardResourceManagedMetadata = []string{
+	"creationTimestamp",
+	"deletionTimestamp",
+	"deletionGracePeriodSeconds",
+	"generation",
+	"managedFields",
+	"resourceVersion",
+	"selfLink",
+	"uid",
 }

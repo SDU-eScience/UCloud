@@ -18,6 +18,29 @@ import (
 	"ucloud.dk/iapp/k8s/pkg/maintenance"
 )
 
+const (
+	dashboardActionViewYaml       = "viewYaml"
+	dashboardActionEditYaml       = "editYaml"
+	dashboardActionOpenShell      = "openShell"
+	dashboardActionRolloutRestart = "rolloutRestart"
+	dashboardActionDeleteResource = "deleteResource"
+	dashboardActionOpenService    = "openService"
+	dashboardActionGoToJob        = "goToJob"
+	dashboardActionCopyNodeName   = "copyNodeName"
+	dashboardActionCordonDrain    = "cordonDrain"
+	dashboardActionUncordon       = "uncordon"
+	dashboardActionUpgradeNode    = "upgradeNode"
+	dashboardActionRemoveNode     = "removeNode"
+	dashboardActionCreateResource = "createResource"
+	dashboardActionAddMachine     = "addMachine"
+	dashboardActionAddWorkerPool  = "addWorkerPool"
+)
+
+// The resource page
+// =====================================================================================================================
+// One page shows all three views. The home page is the default. The resource table is the browse view. The YAML
+// editor or the log stream is the detail view. The route picks the view, so a reload returns to the same place.
+
 func (app *stackUiApp) pageResources() []ucx.UiNode {
 	if app.k8sClient == nil {
 		return []ucx.UiNode{app.appShell(appShellProps{
@@ -46,7 +69,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 	} else {
 		var tableActions []ucx.ResourceTableAction
 		tableActions = append(tableActions, ucx.ResourceTableAction{
-			Id:       "viewYaml",
+			Id:       dashboardActionViewYaml,
 			Label:    "View YAML",
 			Icon:     ucx.IconHeroCodeBracket,
 			Shortcut: "y",
@@ -54,7 +77,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 
 		if activeDef.CanUpdate || app.ActiveType == containersTypeId {
 			tableActions = append(tableActions, ucx.ResourceTableAction{
-				Id:       "editYaml",
+				Id:       dashboardActionEditYaml,
 				Label:    "Edit",
 				Icon:     ucx.IconHeroPencilSquare,
 				Shortcut: "e",
@@ -63,7 +86,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 
 		if app.ActiveType == "pods" || app.ActiveType == containersTypeId {
 			tableActions = append(tableActions, ucx.ResourceTableAction{
-				Id:       "openShell",
+				Id:       dashboardActionOpenShell,
 				Label:    "Open shell",
 				Icon:     ucx.IconHeroCommandLine,
 				Shortcut: "s",
@@ -72,7 +95,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 
 		if app.ActiveType == "ingresses" {
 			tableActions = append(tableActions, ucx.ResourceTableAction{
-				Id:    "openService",
+				Id:    dashboardActionOpenService,
 				Label: "Open service",
 				Icon:  ucx.IconHeroArrowTopRightOnSquare,
 				Kind:  ucx.ResourceTableActionOpenUrl,
@@ -81,7 +104,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 
 		if rolloutRestartSupported(app.ActiveType) {
 			tableActions = append(tableActions, ucx.ResourceTableAction{
-				Id:       "rolloutRestart",
+				Id:       dashboardActionRolloutRestart,
 				Label:    "Restart",
 				Icon:     ucx.IconHeroArrowPath,
 				Shortcut: "r",
@@ -90,7 +113,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 
 		if dashboardResourceDeleteSupported(activeDef) {
 			tableActions = append(tableActions, ucx.ResourceTableAction{
-				Id:               "deleteResource",
+				Id:               dashboardActionDeleteResource,
 				Label:            "Delete",
 				Icon:             ucx.IconHeroTrash,
 				Shortcut:         "Delete",
@@ -103,7 +126,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 		var trailingAction *ucx.ResourceTableAction
 		if activeDef.CanCreate {
 			trailingAction = &ucx.ResourceTableAction{
-				Id:       "createResource",
+				Id:       dashboardActionCreateResource,
 				Label:    "Create",
 				Icon:     ucx.IconHeroPlusSmall,
 				Color:    ucx.ColorPrimaryMain,
@@ -113,49 +136,49 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 		if app.ActiveType == "nodes" && app.clusterReadyForNodes() {
 			tableActions = append(tableActions,
 				ucx.ResourceTableAction{
-					Id:       "copyNodeName",
+					Id:       dashboardActionCopyNodeName,
 					Label:    "Copy node name",
 					Icon:     ucx.IconCopy,
 					Kind:     ucx.ResourceTableActionCopyText,
 					Shortcut: "c",
 				},
 				ucx.ResourceTableAction{
-					Id:       "goToJob",
+					Id:       dashboardActionGoToJob,
 					Label:    "Go to job",
 					Icon:     ucx.IconHeroArrowTopRightOnSquare,
 					Shortcut: "o",
 				},
 				ucx.ResourceTableAction{
-					Id:       "openShell",
+					Id:       dashboardActionOpenShell,
 					Label:    "Open shell",
 					Icon:     ucx.IconHeroCommandLine,
 					Shortcut: "s",
 				},
 			)
 			groupAction = &ucx.ResourceTableAction{
-				Id:       "addMachine",
+				Id:       dashboardActionAddMachine,
 				Label:    "Add machine",
 				Icon:     ucx.IconHeroPlusSmall,
 				Shortcut: "a",
 			}
 			tableActions = append(tableActions,
 				ucx.ResourceTableAction{
-					Id:    "cordonDrain",
+					Id:    dashboardActionCordonDrain,
 					Label: "Cordon and drain",
 					Icon:  ucx.IconBroom,
 				},
 				ucx.ResourceTableAction{
-					Id:    "uncordon",
+					Id:    dashboardActionUncordon,
 					Label: "Uncordon",
 					Icon:  ucx.IconRefresh,
 				},
 				ucx.ResourceTableAction{
-					Id:    "upgradeNode",
+					Id:    dashboardActionUpgradeNode,
 					Label: "Upgrade Kubernetes",
 					Icon:  ucx.IconHeroArrowUp,
 				},
 				ucx.ResourceTableAction{
-					Id:               "removeNode",
+					Id:               dashboardActionRemoveNode,
 					Label:            "Remove node",
 					Icon:             ucx.IconTrash,
 					Shortcut:         "Delete",
@@ -164,7 +187,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 				},
 			)
 			trailingAction = &ucx.ResourceTableAction{
-				Id:       "addWorkerPool",
+				Id:       dashboardActionAddWorkerPool,
 				Label:    "Add worker pool",
 				Icon:     ucx.IconHeroPlusSmall,
 				Color:    ucx.ColorPrimaryMain,
@@ -307,6 +330,62 @@ func (app *stackUiApp) resourceDetailBottomNode(detail string) ucx.UiNode {
 	)
 }
 
+func (app *stackUiApp) namespaceSelectorNode() ucx.UiNode {
+	options := make([]ucx.Option, 0, len(app.Namespaces)+1)
+	options = append(options, ucx.Option{Key: "", Value: "All namespaces"})
+	for _, namespace := range app.Namespaces {
+		options = append(options, ucx.Option{Key: namespace, Value: namespace})
+	}
+
+	return ucx.Select("namespaceSelect", "", "activeNamespace", options).Sx(ucx.SxWidth(280)).WithShortcutKey("s")
+}
+
+// Table events
+// =====================================================================================================================
+// A table event names an action and a row. An action without a row is a group action or a toolbar action. The code
+// below sends each event to the function that owns the action.
+
+func (app *stackUiApp) handleTableAction(ev ucx.UiEvent) {
+	if ev.Event != string(ucx.UiEventAction) || ev.Value.Kind != ucx.ValueObject {
+		return
+	}
+
+	actionId := ucx.ValueAsString(ev.Value.Object["actionId"])
+	rowKey := ucx.ValueAsString(ev.Value.Object["rowKey"])
+	group := ucx.ValueAsString(ev.Value.Object["group"])
+	if actionId == dashboardActionCreateResource {
+		dashboardResourceCreateOpen(app)
+		return
+	}
+
+	if rowKey != "" {
+		app.handleRowAction(ev)
+		return
+	}
+
+	switch actionId {
+	case dashboardActionCordonDrain, dashboardActionUncordon, dashboardActionUpgradeNode, dashboardActionRemoveNode:
+		ucxsvc.UiSendFailure(app, "Select a single node before using this action")
+	case dashboardActionRolloutRestart, dashboardActionDeleteResource:
+		ucxsvc.UiSendFailure(app, "Select a single resource before using this action")
+	case dashboardActionAddMachine:
+		if group == "" {
+			return
+		}
+		app.TargetDiskGb = 0
+		app.TargetCount = 0
+		ucxsvc.RouterPushPage(app, "control/"+group)
+		ucx.AppUpdateUi(app)
+	case dashboardActionAddWorkerPool:
+		app.NewPoolName = ""
+		app.Machine = accapi.ProductReference{}
+		app.TargetDiskGb = 0
+		app.TargetCount = 0
+		ucxsvc.RouterPushPage(app, "control/new-pool")
+		ucx.AppUpdateUi(app)
+	}
+}
+
 func (app *stackUiApp) handleRowActivated(tableId string, namespace string, name string, rowKey string) {
 	if tableId == "" || name == "" {
 		return
@@ -350,13 +429,186 @@ func (app *stackUiApp) handleRowActivated(tableId string, namespace string, name
 	app.openResourceDetail(tableId, namespace, name, false)
 }
 
-func isWorkloadOwnerType(typeId string) bool {
-	switch typeId {
-	case "deployments", "statefulsets", "daemonsets", "jobs":
-		return true
-	default:
-		return false
+func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
+	if ev.Event != string(ucx.UiEventAction) || ev.Value.Kind != ucx.ValueObject {
+		return
 	}
+
+	actionId := ucx.ValueAsString(ev.Value.Object["actionId"])
+	rowKey := ucx.ValueAsString(ev.Value.Object["rowKey"])
+	if rowKey == "" {
+		return
+	}
+
+	if actionId == dashboardActionViewYaml {
+		app.openYamlForRowKey(rowKey, false)
+		return
+	}
+
+	if actionId == dashboardActionEditYaml {
+		app.openYamlForRowKey(rowKey, true)
+		return
+	}
+
+	if actionId == dashboardActionOpenShell && (app.ActiveType == "pods" || app.ActiveType == containersTypeId) {
+		app.openShellToPod(rowKey)
+		return
+	}
+
+	if actionId == dashboardActionRolloutRestart {
+		app.openRolloutRestartDialog(rowKey)
+		return
+	}
+	if actionId == dashboardActionDeleteResource {
+		dashboardResourceDeleteOpen(app, rowKey)
+		return
+	}
+
+	if actionId != dashboardActionGoToJob &&
+		actionId != dashboardActionOpenShell &&
+		actionId != dashboardActionCordonDrain &&
+		actionId != dashboardActionUncordon &&
+		actionId != dashboardActionUpgradeNode &&
+		actionId != dashboardActionRemoveNode {
+		return
+	}
+
+	if app.ActiveType != "nodes" || app.poller == nil {
+		return
+	}
+
+	nodeName, ok := app.poller.nodeNameForRowKey(rowKey)
+	if !ok || nodeName == "" {
+		return
+	}
+
+	switch actionId {
+	case dashboardActionCordonDrain, dashboardActionUpgradeNode, dashboardActionRemoveNode:
+		if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
+			if actionId == dashboardActionRemoveNode {
+				maintenanceOpenWithMode(app, nodeName, "", maintenanceModeRemove)
+			}
+			return
+		}
+		nodeUid, known := app.nodeUidForName(nodeName)
+		if !known {
+			return
+		}
+		if actionId == dashboardActionUpgradeNode {
+			maintenanceOpenWithMode(app, nodeName, nodeUid, maintenanceModeUpgrade)
+		} else if actionId == dashboardActionRemoveNode {
+			maintenanceOpenWithMode(app, nodeName, nodeUid, maintenanceModeRemove)
+		} else {
+			maintenanceOpen(app, nodeName, nodeUid)
+		}
+	case dashboardActionUncordon:
+		if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
+			return
+		}
+		nodeUid, known := app.nodeUidForName(nodeName)
+		if !known {
+			return
+		}
+		if app.MaintenanceBusy {
+			return
+		}
+		maintenanceSubmitAsync(app, "uncordon", nodeName, nodeUid, maintenance.Options{})
+	case dashboardActionGoToJob:
+		jobId := app.nodeJobIds()[nodeName]
+		if jobId == "" {
+			return
+		}
+		ucxsvc.OpenUrl(app, fmt.Sprintf("/jobs/properties/%s", jobId))
+	case dashboardActionOpenShell:
+		jobId := app.nodeJobIds()[nodeName]
+		if jobId == "" {
+			return
+		}
+		ucxsvc.TerminalOpenShellToJob(app, jobId, 0, "", false)
+	}
+}
+
+// Opening a resource
+// =====================================================================================================================
+// The dashboard has no separate URL for a subview. A detail opens by pushing a route onto the navigation stack. The
+// same code builds the route, so a shared link always works.
+
+func (app *stackUiApp) openResourceTable(typeId string, filter resourceFilter, origin string, label string) {
+	dashboardNavigationStart(app)
+	app.ActiveType = typeId
+	app.ActiveFilter = filter
+	app.filterOrigin = origin
+	app.ResourceDetail = ""
+	app.prevDetail = ""
+	app.ResourceYaml = ""
+	if app.poller != nil {
+		app.poller.SetActiveFilter(filter)
+		app.poller.SetActiveType(typeId)
+	}
+	dashboardNavigationPush(app, app.browseRoute(typeId, filter), label)
+	ucx.AppUpdateUi(app)
+}
+
+func (app *stackUiApp) openResourceDetail(tableId string, namespace string, name string, editing bool) {
+	if editing && app.resourceEditor.Saving {
+		return
+	}
+	dashboardNavigationStart(app)
+	app.ResourceDetail = resourceDetailRef{Type: tableId, Namespace: namespace, Name: name}.String()
+	app.prevDetail = app.ResourceDetail
+	dashboardResourceEditorLoad(app, app.ResourceDetail, editing)
+	dashboardNavigationPush(app, "detail/"+url.PathEscape(tableId)+"/"+url.PathEscape(namespace)+"/"+url.PathEscape(name), strings.TrimPrefix(namespace+"/"+name, "/"))
+	ucx.AppUpdateUi(app)
+}
+
+func (app *stackUiApp) openYamlForRowKey(rowKey string, editing bool) {
+	if app.poller == nil {
+		return
+	}
+	if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
+		return
+	}
+
+	row, ok := app.poller.rowForKey(rowKey)
+	if !ok || len(row.Cells) == 0 {
+		return
+	}
+
+	typeId := app.ActiveType
+	namespace := row.Group
+	name := row.Cells[0]
+
+	if typeId == containersTypeId {
+		podUid, _ := containerRowKeyParts(rowKey)
+
+		pod, ok := app.poller.objectForUid(podUid)
+		if !ok {
+			return
+		}
+
+		typeId = "pods"
+		namespace = pod.GetNamespace()
+		name = pod.GetName()
+	}
+
+	app.openResourceDetail(typeId, namespace, name, editing)
+}
+
+func (app *stackUiApp) openPodContainers(namespace string, podName string) {
+	fieldSelector := ""
+	originPath := podName
+	if namespace != "" {
+		fieldSelector = "metadata.namespace=" + namespace + ",metadata.name=" + podName
+		originPath = namespace + "/" + podName
+	} else {
+		fieldSelector = "metadata.name=" + podName
+	}
+
+	filter := resourceFilter{
+		fieldSelector: fieldSelector,
+		title:         "Containers of pods/" + originPath,
+	}
+	app.openResourceTable(containersTypeId, filter, "pods", originPath)
 }
 
 func (app *stackUiApp) openContainerLogs(namespace string, containerName string, rowKey string) {
@@ -390,27 +642,6 @@ func (app *stackUiApp) openContainerLogs(namespace string, containerName string,
 		url.PathEscape(podName)+"/"+
 		url.PathEscape(containerName), containerName)
 	ucx.AppUpdateUi(app)
-}
-
-func (app *stackUiApp) openResourceTable(typeId string, filter resourceFilter, origin string, label string) {
-	dashboardNavigationStart(app)
-	app.ActiveType = typeId
-	app.ActiveFilter = filter
-	app.filterOrigin = origin
-	app.ResourceDetail = ""
-	app.prevDetail = ""
-	app.ResourceYaml = ""
-	if app.poller != nil {
-		app.poller.SetActiveFilter(filter)
-		app.poller.SetActiveType(typeId)
-	}
-	dashboardNavigationPush(app, app.browseRoute(typeId, filter), label)
-	ucx.AppUpdateUi(app)
-}
-
-func containerRowKeyParts(rowKey string) (string, string) {
-	podUid, containerName, _ := strings.Cut(rowKey, "/")
-	return podUid, containerName
 }
 
 func (app *stackUiApp) openOwnedPods(tableId string, namespace string, name string, rowKey string) {
@@ -483,161 +714,24 @@ func (app *stackUiApp) containersBackTarget() string {
 	return app.browseRoute(containersTypeId, resourceFilter{})
 }
 
-func (app *stackUiApp) openPodContainers(namespace string, podName string) {
-	fieldSelector := ""
-	originPath := podName
-	if namespace != "" {
-		fieldSelector = "metadata.namespace=" + namespace + ",metadata.name=" + podName
-		originPath = namespace + "/" + podName
-	} else {
-		fieldSelector = "metadata.name=" + podName
-	}
-
-	filter := resourceFilter{
-		fieldSelector: fieldSelector,
-		title:         "Containers of pods/" + originPath,
-	}
-	app.openResourceTable(containersTypeId, filter, "pods", originPath)
-}
-
-func (app *stackUiApp) openYamlForRowKey(rowKey string, editing bool) {
-	if app.poller == nil {
-		return
-	}
-	if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
-		return
-	}
-
-	row, ok := app.poller.rowForKey(rowKey)
-	if !ok || len(row.Cells) == 0 {
-		return
-	}
-
-	typeId := app.ActiveType
-	namespace := row.Group
-	name := row.Cells[0]
-
-	if typeId == containersTypeId {
-		podUid, _ := containerRowKeyParts(rowKey)
-
-		pod, ok := app.poller.objectForUid(podUid)
-		if !ok {
-			return
-		}
-
-		typeId = "pods"
-		namespace = pod.GetNamespace()
-		name = pod.GetName()
-	}
-
-	app.openResourceDetail(typeId, namespace, name, editing)
-}
-
-func (app *stackUiApp) openResourceDetail(tableId string, namespace string, name string, editing bool) {
-	if editing && app.resourceEditor.Saving {
-		return
-	}
-	dashboardNavigationStart(app)
-	app.ResourceDetail = resourceDetailRef{Type: tableId, Namespace: namespace, Name: name}.String()
-	app.prevDetail = app.ResourceDetail
-	dashboardResourceEditorLoad(app, app.ResourceDetail, editing)
-	dashboardNavigationPush(app, "detail/"+url.PathEscape(tableId)+"/"+url.PathEscape(namespace)+"/"+url.PathEscape(name), strings.TrimPrefix(namespace+"/"+name, "/"))
-	ucx.AppUpdateUi(app)
-}
-
-func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
-	if ev.Event != string(ucx.UiEventAction) || ev.Value.Kind != ucx.ValueObject {
-		return
-	}
-
-	actionId := ucx.ValueAsString(ev.Value.Object["actionId"])
-	rowKey := ucx.ValueAsString(ev.Value.Object["rowKey"])
-	if rowKey == "" {
-		return
-	}
-
-	if actionId == "viewYaml" {
-		app.openYamlForRowKey(rowKey, false)
-		return
-	}
-
-	if actionId == "editYaml" {
-		app.openYamlForRowKey(rowKey, true)
-		return
-	}
-
-	if actionId == "openShell" && (app.ActiveType == "pods" || app.ActiveType == containersTypeId) {
-		app.openShellToPod(rowKey)
-		return
-	}
-
-	if actionId == "rolloutRestart" {
-		app.openRolloutRestartDialog(rowKey)
-		return
-	}
-	if actionId == "deleteResource" {
-		dashboardResourceDeleteOpen(app, rowKey)
-		return
-	}
-
-	if actionId != "goToJob" && actionId != "openShell" && actionId != "cordonDrain" && actionId != "uncordon" && actionId != "upgradeNode" && actionId != "removeNode" {
-		return
-	}
-
-	if app.ActiveType != "nodes" || app.poller == nil {
-		return
-	}
-
-	nodeName, ok := app.poller.nodeNameForRowKey(rowKey)
-	if !ok || nodeName == "" {
-		return
-	}
-
-	switch actionId {
-	case "cordonDrain", "upgradeNode", "removeNode":
-		if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
-			if actionId == "removeNode" {
-				maintenanceOpenWithMode(app, nodeName, "", maintenanceModeRemove)
-			}
-			return
-		}
-		nodeUid, known := app.nodeUidForName(nodeName)
-		if !known {
-			return
-		}
-		if actionId == "upgradeNode" {
-			maintenanceOpenWithMode(app, nodeName, nodeUid, maintenanceModeUpgrade)
-		} else if actionId == "removeNode" {
-			maintenanceOpenWithMode(app, nodeName, nodeUid, maintenanceModeRemove)
-		} else {
-			maintenanceOpen(app, nodeName, nodeUid)
-		}
-	case "uncordon":
-		if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
-			return
-		}
-		nodeUid, known := app.nodeUidForName(nodeName)
-		if !known {
-			return
-		}
-		if app.MaintenanceBusy {
-			return
-		}
-		maintenanceSubmitAsync(app, "uncordon", nodeName, nodeUid, maintenance.Options{})
-	case "goToJob":
-		jobId := app.nodeJobIds()[nodeName]
-		if jobId == "" {
-			return
-		}
-		ucxsvc.OpenUrl(app, fmt.Sprintf("/jobs/properties/%s", jobId))
-	case "openShell":
-		jobId := app.nodeJobIds()[nodeName]
-		if jobId == "" {
-			return
-		}
-		ucxsvc.TerminalOpenShellToJob(app, jobId, 0, "", false)
+func isWorkloadOwnerType(typeId string) bool {
+	switch typeId {
+	case "deployments", "statefulsets", "daemonsets", "jobs":
+		return true
+	default:
+		return false
 	}
 }
+
+func containerRowKeyParts(rowKey string) (string, string) {
+	podUid, containerName, _ := strings.Cut(rowKey, "/")
+	return podUid, containerName
+}
+
+// Shell access
+// =====================================================================================================================
+// The shell runs from a control plane node with a UCloud job. The command escapes every name, so a pod name cannot
+// break out of the shell command.
 
 func (app *stackUiApp) openShellToPod(rowKey string) {
 	if app.poller == nil {
@@ -772,47 +866,6 @@ func (app *stackUiApp) nodeUidForName(nodeName string) (string, bool) {
 		return "", false
 	}
 	return app.poller.nodeUidForRowName(nodeName)
-}
-
-func (app *stackUiApp) handleTableAction(ev ucx.UiEvent) {
-	if ev.Event != string(ucx.UiEventAction) || ev.Value.Kind != ucx.ValueObject {
-		return
-	}
-
-	actionId := ucx.ValueAsString(ev.Value.Object["actionId"])
-	rowKey := ucx.ValueAsString(ev.Value.Object["rowKey"])
-	group := ucx.ValueAsString(ev.Value.Object["group"])
-	if actionId == "createResource" {
-		dashboardResourceCreateOpen(app)
-		return
-	}
-
-	if rowKey != "" {
-		app.handleRowAction(ev)
-		return
-	}
-
-	switch actionId {
-	case "cordonDrain", "uncordon", "upgradeNode", "removeNode":
-		ucxsvc.UiSendFailure(app, "Select a single node before using this action")
-	case "rolloutRestart", "deleteResource":
-		ucxsvc.UiSendFailure(app, "Select a single resource before using this action")
-	case "addMachine":
-		if group == "" {
-			return
-		}
-		app.TargetDiskGb = 0
-		app.TargetCount = 0
-		ucxsvc.RouterPushPage(app, "control/"+group)
-		ucx.AppUpdateUi(app)
-	case "addWorkerPool":
-		app.NewPoolName = ""
-		app.Machine = accapi.ProductReference{}
-		app.TargetDiskGb = 0
-		app.TargetCount = 0
-		ucxsvc.RouterPushPage(app, "control/new-pool")
-		ucx.AppUpdateUi(app)
-	}
 }
 
 func rowActivationValue(value ucx.Value) (string, string, string, string) {

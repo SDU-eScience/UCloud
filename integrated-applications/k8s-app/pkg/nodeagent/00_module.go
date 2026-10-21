@@ -1,51 +1,66 @@
 // Introduction
 // =====================================================================================================================
-// This file implements the node agent of the UCloud Kubernetes stack. The node agent is a daemon that runs as root
-// on every node of a cluster. The main responsibilities of this system are:
+// This package implements the node agent of the UCloud Kubernetes stack. The agent is a daemon. It runs as root on
+// every node of a cluster. The maintenance coordinator on a control plane node drives the agent over the private
+// network. The agent performs the work that needs root access on the node itself. The main responsibilities are:
 //
 // - Establishing the identity of the node from its input mount
 // - Serving the maintenance API on the private address of the node
-// - Authenticating commands from the coordinator through a shared maintenance token
+// - Authenticating commands from the coordinator with a shared maintenance token
 // - Rejecting commands from coordinator operations that the node has superseded
+// - Upgrading the Kubernetes binary and restarting the service
+// - Updating the operating system and rebooting when the kernel changes
+// - Writing control-plane backups to the backups mount
+// - Reporting progress to the dashboard through the work mount
 //
-// The node agent exists because node upgrades require root access on the node itself. The coordinator runs on a
-// control plane node and cannot perform these actions itself. It drives the node agent over the maintenance API
-// instead. The agent only accepts commands that arrive on the cluster network and that carry a valid maintenance
-// token.
+// The package is split into the files below. Read this file first. It explains the process and the trust model.
+//
+// - 00_module.go: 	starts the agent, establishes identity and serves the API.
+// - api.go: 		contains the HTTP endpoints and the command checks.
+// - upgrade.go: 	runs the Kubernetes upgrade and writes control-plane backups.
+// - osupdate.go: 	runs the operating-system update from check to verification.
+// - logs.go: 		reports progress and serves the node log endpoints.
 //
 // Lifecycle
 // ---------------------------------------------------------------------------------------------------------------------
-// The agent starts when systemd launches it with the agent subcommand. It reads its identity, recovers the state of
-// an interrupted upgrade, and then serves until the process stops. The agent never exits on its own during normal
-// operation. A failed upgrade leaves its state on disk so that an operator can retry it.
+// systemd starts the agent with the agent subcommand. The agent reads its identity. It recovers the state of an
+// interrupted upgrade or operating-system update. It then serves until the process stops. The agent does not exit on
+// its own during normal operation. A failed operation leaves its state on disk. An operator can then retry it.
 //
 // Identity and trust
 // ---------------------------------------------------------------------------------------------------------------------
-// The identity of a node comes from the input mount, which the provisioner fills before the node boots. The identity
-// fixes the name, the address, and the role of the node. The agent refuses to start if the recorded address is not
-// assigned to the node. A wrong address would make the agent unreachable on the network it is expected to serve on.
+// The identity of the node comes from the input mount. The provisioner fills the mount before the node boots. The
+// identity fixes the name, the address and the role of the node. The agent refuses to start if the recorded address
+// is not assigned to the node. A wrong address would make the agent unreachable on the network it must serve.
 //
-// Trust is one-directional. The coordinator proves itself to the node with the maintenance token. Commands carry
-// the uid of the maintenance operation that owns them. The node learns nothing about the coordinator beyond these
-// two facts.
+// Trust is one-directional. The coordinator proves itself to the node with the maintenance token. Each command also
+// carries the uid of the maintenance operation that owns it. The node learns nothing about the coordinator beyond
+// these two facts.
 //
 // Command ownership
 // ---------------------------------------------------------------------------------------------------------------------
-// The coordinator may crash and restart while an upgrade runs. A restarted coordinator creates a new maintenance
-// operation with a new uid. The fence records the uid of the newest operation that the node has obeyed. A command
-// from an older operation is rejected while an upgrade is in flight. This stops a coordinator that was paused and
-// resumed from issuing commands that no longer match the state of the node.
+// The coordinator may crash and restart while an operation runs. A restarted coordinator creates a new operation with
+// a new uid. The fence records the uid of the newest operation that the node has obeyed. The agent rejects a command
+// from an older operation while an upgrade or an operating-system update is in flight. This stops a paused
+// coordinator from issuing stale commands when it resumes.
 //
-// The fence and the upgrade state are separate files on purpose. The fence answers who may command the node. The
-// state answers what the node is doing. The fence survives every operation, while the state is rewritten as the
-// upgrade moves through its phases.
+// The fence and the operation state are separate files on purpose. The fence answers who may command the node. The
+// state answers what the node is doing. The fence survives every operation. The state is rewritten as the operation
+// moves through its phases.
+//
+// State files
+// ---------------------------------------------------------------------------------------------------------------------
+// The agent keeps its state under /var/lib/ucloud-k8s/maintenance. The upgrade state records the Kubernetes release
+// and its phase. The operating-system state records the package counts, the kernel and its phase. The fence records
+// the last accepted operation. A write replaces the old file in one step, so a reader never sees a partial file. A
+// state file that another version of the application wrote is reported as a recovery case and is not used.
 //
 // Concurrency
 // ---------------------------------------------------------------------------------------------------------------------
-// The handlers serialize command processing with a single command mutex. The status endpoint takes the same mutex so
-// that a status read never observes a half-written command decision. The upgrade itself runs in a background
-// goroutine and reports progress through its own state file. The goroutine takes the state mutex for each read and
-// write of the state file, which keeps every state transition atomic with respect to readers.
+// The handlers serialize command processing with one command mutex. The status endpoints take the same mutex. A status
+// read therefore never observes a half-written command decision. The work itself runs in a background goroutine. The
+// goroutine reports through the state file and the progress file. It takes the state mutex for each read and write,
+// which keeps every state transition atomic for readers.
 
 package nodeagent
 
@@ -55,7 +70,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/netip"
@@ -66,13 +80,13 @@ import (
 	"sync"
 	"time"
 
-	"ucloud.dk/iapp/k8s/pkg/backup"
 	"ucloud.dk/iapp/k8s/pkg/shared"
-	"ucloud.dk/shared/pkg/log"
 )
 
 // Constants and package state
 // =====================================================================================================================
+// These constants name the state files and the input mount. The timeouts bound the HTTP server. The package state
+// holds the node identity and the locks that serialize commands and state writes.
 
 const (
 	stateSchemaRevision = 1
@@ -109,6 +123,11 @@ var globals struct {
 	BackupMu  sync.Mutex
 }
 
+// Configuration
+// =====================================================================================================================
+// Config holds the identity of the node after startup. nodeFile matches the JSON file that the provisioner writes
+// into the input mount.
+
 type Config struct {
 	NodeName   string
 	IpAddress  string
@@ -132,8 +151,11 @@ func identitySnapshot() Config {
 
 // Serving
 // =====================================================================================================================
-// The agent serves four endpoints. The coordinator polls /status, submits /upgrade and /retry, and appends progress
-// lines through /log. Only /status responds to GET.
+// The agent serves the status endpoints, the command endpoints and the log endpoints. The coordinator is the only
+// client. Only the status endpoints accept GET. Every other endpoint accepts POST.
+//
+// The server listens on the private address of the node. It stops when the context is cancelled. The agent starts
+// the token publisher on a control plane node before it serves.
 
 func Serve(ctx context.Context) error {
 	identityConfig, err := Identity(ctx)
@@ -193,6 +215,9 @@ func Serve(ctx context.Context) error {
 
 // Node identity
 // =====================================================================================================================
+// The agent reads node.json from the input mount. It checks the address and the role. It then waits until the address
+// is assigned to one of the local interfaces. The wait matters at boot, because the private address can appear after
+// the process starts.
 
 func Identity(ctx context.Context) (Config, error) {
 	nodeJson, err := readNodeConfig(nodeJsonPath())
@@ -308,533 +333,10 @@ func maintenanceTokenPath() string {
 	return filepath.Join(inputDir, maintenanceTokenName)
 }
 
-// Command handlers
-// =====================================================================================================================
-// Every handler first authenticates the peer. The upgrade and retry handlers then validate the command against the
-// fence before they touch the state file.
-
-func handleStatus(writer http.ResponseWriter, request *http.Request) {
-	if !authorizePeer(writer, request) {
-		return
-	}
-	if request.Method != http.MethodGet {
-		writeError(writer, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-	globals.CommandMu.Lock()
-	defer globals.CommandMu.Unlock()
-	writeStatus(writer, http.StatusOK)
-}
-
-func handleUpgrade(writer http.ResponseWriter, request *http.Request) {
-	handleUpgradeOrRetry(writer, request, false)
-}
-
-func handleRetry(writer http.ResponseWriter, request *http.Request) {
-	handleUpgradeOrRetry(writer, request, true)
-}
-
-func handleUpgradeOrRetry(writer http.ResponseWriter, request *http.Request, retry bool) {
-	if !authorizePeer(writer, request) {
-		return
-	}
-	if request.Method != http.MethodPost {
-		writeError(writer, http.StatusMethodNotAllowed, "this endpoint only accepts POST")
-		return
-	}
-
-	release, ok := decodeRelease(writer, request)
-	if !ok {
-		return
-	}
-
-	globals.CommandMu.Lock()
-	defer globals.CommandMu.Unlock()
-
-	operationUid, ok := readCommandAuthorization(writer, request)
-	if !ok {
-		return
-	}
-
-	state := stateLoad()
-	if state.NeedsStateRecovery {
-		writeError(writer, http.StatusInternalServerError, state.Error)
-		return
-	}
-
-	osActive := shared.NodeAgentOsPhaseActive(osStateLoad().Phase)
-
-	fenceErr := validateFence(operationUid, shared.NodeAgentPhaseActive(state.Phase) || osActive)
-	if fenceErr != nil {
-		log.Warn("k8s-app node agent: the command was rejected because its ownership could not be verified: %s", fenceErr)
-		writeError(writer, http.StatusForbidden, fenceErr.Error())
-		return
-	}
-
-	if osActive {
-		writeError(writer, http.StatusConflict, "an operating-system update is running on the node")
-		return
-	}
-
-	if shared.NodeAgentPhaseActive(state.Phase) {
-		if state.Release == release {
-			if err := acceptOperation(operationUid); err != nil {
-				writeError(writer, http.StatusInternalServerError, err.Error())
-				return
-			}
-			writeStatus(writer, http.StatusOK)
-			return
-		}
-		writeError(writer, http.StatusConflict, fmt.Sprintf(
-			"an upgrade to %s is already running. A different target was rejected",
-			state.Release,
-		))
-		return
-	}
-
-	if state.Phase == shared.NodeAgentPhaseFailed {
-		if state.Release == "" {
-			writeError(writer, http.StatusInternalServerError, "the upgrade state is corrupted. Manual recovery is required")
-			return
-		}
-		if !retry {
-			writeError(writer, http.StatusConflict, "the failed upgrade requires an explicit retry")
-			return
-		}
-		if state.Release != release {
-			writeError(writer, http.StatusConflict, fmt.Sprintf(
-				"the failed upgrade targets %s. The retry does not match",
-				state.Release,
-			))
-			return
-		}
-		startUpgrade(writer, release, state, operationUid)
-		return
-	}
-
-	if state.Phase == shared.NodeAgentPhaseCompleted {
-		if state.Release != release {
-			if retry {
-				writeError(writer, http.StatusConflict, "there is no failed upgrade to retry")
-				return
-			}
-			startUpgrade(writer, release, state, operationUid)
-			return
-		}
-		if state.PreviousRelease == "" {
-			writeError(writer, http.StatusInternalServerError, "the completed upgrade has no recorded previous release. Manual verification is required")
-			return
-		}
-		startUpgrade(writer, release, state, operationUid)
-		return
-	}
-
-	if state.Release == "" {
-		if retry {
-			writeError(writer, http.StatusConflict, "there is no failed upgrade to retry")
-			return
-		}
-		startUpgrade(writer, release, state, operationUid)
-		return
-	}
-
-	writeError(writer, http.StatusInternalServerError, fmt.Sprintf(
-		"the upgrade state reports phase %s without a target release. Manual recovery is required",
-		state.Phase,
-	))
-}
-
-func decodeRelease(writer http.ResponseWriter, request *http.Request) (string, bool) {
-	body := request.Body
-	if request.ContentLength > maxRequestBody {
-		writeError(writer, http.StatusRequestEntityTooLarge, "the request body is too large")
-		return "", false
-	}
-	body = http.MaxBytesReader(writer, body, maxRequestBody)
-
-	var parsed struct {
-		Release string `json:"release"`
-	}
-	decoder := json.NewDecoder(body)
-	decoder.DisallowUnknownFields()
-	err := decoder.Decode(&parsed)
-	if err != nil {
-		writeError(writer, http.StatusBadRequest, fmt.Sprintf("invalid request body: %s", err))
-		return "", false
-	}
-	if decoder.Decode(&struct{}{}) != io.EOF {
-		writeError(writer, http.StatusBadRequest, "the request body must contain a single JSON object")
-		return "", false
-	}
-	if strings.TrimSpace(parsed.Release) == "" {
-		writeError(writer, http.StatusBadRequest, "a release is required")
-		return "", false
-	}
-	if _, known := shared.ReleaseByExactVersion(parsed.Release); !known {
-		writeError(writer, http.StatusBadRequest, fmt.Sprintf("unknown release: %s", parsed.Release))
-		return "", false
-	}
-	return parsed.Release, true
-}
-
-func handleBackup(writer http.ResponseWriter, request *http.Request) {
-	if !authorizePeer(writer, request) {
-		return
-	}
-	if request.Method != http.MethodPost {
-		writeError(writer, http.StatusMethodNotAllowed, "this endpoint only accepts POST")
-		return
-	}
-
-	trigger, ok := decodeBackupTrigger(writer, request)
-	if !ok {
-		return
-	}
-
-	attemptUid, ok := readCommandAuthorization(writer, request)
-	if !ok {
-		return
-	}
-
-	controller := http.NewResponseController(writer)
-	_ = controller.SetWriteDeadline(time.Now().Add(backupWorkDeadline + writeTimeout))
-
-	if !globals.BackupMu.TryLock() {
-		writeError(writer, http.StatusConflict, "a backup is already running")
-		return
-	}
-	defer globals.BackupMu.Unlock()
-
-	state := stateLoad()
-	if state.NeedsStateRecovery {
-		writeError(writer, http.StatusInternalServerError, "the upgrade state of the node is unreadable")
-		return
-	}
-	if shared.NodeAgentPhaseActive(state.Phase) {
-		writeError(writer, http.StatusConflict, "an upgrade is running on the node")
-		return
-	}
-	if shared.NodeAgentOsPhaseActive(osStateLoad().Phase) {
-		writeError(writer, http.StatusConflict, "an operating-system update is running on the node")
-		return
-	}
-
-	result, err := runBackup(request.Context(), trigger, attemptUid)
-	if err != nil {
-		log.Warn("k8s-app node agent: the backup failed: %s", err)
-		writeError(writer, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	writeJson(writer, http.StatusOK, result)
-}
-
-func decodeBackupTrigger(writer http.ResponseWriter, request *http.Request) (string, bool) {
-	body := request.Body
-	if request.ContentLength > maxRequestBody {
-		writeError(writer, http.StatusRequestEntityTooLarge, "the request body is too large")
-		return "", false
-	}
-	body = http.MaxBytesReader(writer, body, maxRequestBody)
-
-	var parsed struct {
-		Trigger string `json:"trigger"`
-	}
-	decoder := json.NewDecoder(body)
-	decoder.DisallowUnknownFields()
-	err := decoder.Decode(&parsed)
-	if err != nil {
-		writeError(writer, http.StatusBadRequest, fmt.Sprintf("invalid request body: %s", err))
-		return "", false
-	}
-	if decoder.Decode(&struct{}{}) != io.EOF {
-		writeError(writer, http.StatusBadRequest, "the request body must contain a single JSON object")
-		return "", false
-	}
-	if parsed.Trigger != backup.TriggerScheduled && parsed.Trigger != backup.TriggerManual {
-		writeError(writer, http.StatusBadRequest, fmt.Sprintf("unknown backup trigger: %s", parsed.Trigger))
-		return "", false
-	}
-	return parsed.Trigger, true
-}
-
-func writeOsStatus(writer http.ResponseWriter, statusCode int) {
-	writeJson(writer, statusCode, osStatusFromState(identitySnapshot()))
-}
-
-type osUpdateRequest struct {
-	Command string `json:"command"`
-	Reboot  string `json:"reboot"`
-}
-
-func handleOsStatus(writer http.ResponseWriter, request *http.Request) {
-	if !authorizePeer(writer, request) {
-		return
-	}
-	if request.Method != http.MethodGet {
-		writeError(writer, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-	globals.CommandMu.Lock()
-	defer globals.CommandMu.Unlock()
-	writeOsStatus(writer, http.StatusOK)
-}
-
-func handleOsUpdate(writer http.ResponseWriter, request *http.Request) {
-	if !authorizePeer(writer, request) {
-		return
-	}
-	if request.Method != http.MethodPost {
-		writeError(writer, http.StatusMethodNotAllowed, "this endpoint only accepts POST")
-		return
-	}
-
-	parsed, ok := decodeOsUpdate(writer, request)
-	if !ok {
-		return
-	}
-
-	globals.CommandMu.Lock()
-	defer globals.CommandMu.Unlock()
-
-	operationUid, ok := readCommandAuthorization(writer, request)
-	if !ok {
-		return
-	}
-
-	state := osStateLoad()
-	if state.NeedsStateRecovery {
-		writeError(writer, http.StatusInternalServerError, state.StateError)
-		return
-	}
-
-	upgradeActive := shared.NodeAgentPhaseActive(stateLoad().Phase)
-	osActive := shared.NodeAgentOsPhaseActive(state.Phase)
-
-	if parsed.Command == shared.NodeAgentOsCommandCheck {
-		if upgradeActive {
-			writeError(writer, http.StatusConflict, "an upgrade is running on the node")
-			return
-		}
-		if osActive {
-			writeError(writer, http.StatusConflict, "an operating-system update is running on the node")
-			return
-		}
-	}
-
-	fenceErr := validateFence(operationUid, upgradeActive || osActive)
-	if fenceErr != nil {
-		log.Warn("k8s-app node agent: the operating-system command was rejected because its ownership could not be verified: %s", fenceErr)
-		writeError(writer, http.StatusForbidden, fenceErr.Error())
-		return
-	}
-
-	if parsed.Command == shared.NodeAgentOsCommandCheck {
-		if err := acceptOperation(operationUid); err != nil {
-			writeError(writer, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		controller := http.NewResponseController(writer)
-		_ = controller.SetWriteDeadline(time.Now().Add(2*osCheckTimeout + osCommandShortTimeout + writeTimeout))
-
-		status := runOsCheck(request.Context())
-		writeJson(writer, http.StatusOK, status)
-		return
-	}
-
-	if upgradeActive {
-		writeError(writer, http.StatusConflict, "an upgrade is running on the node")
-		return
-	}
-
-	if osActive {
-		if err := acceptOperation(operationUid); err != nil {
-			writeError(writer, http.StatusInternalServerError, err.Error())
-			return
-		}
-		writeOsStatus(writer, http.StatusAccepted)
-		return
-	}
-
-	staging := parsed.Command == shared.NodeAgentOsCommandStage || parsed.Command == shared.NodeAgentOsCommandStageRetry
-	if state.OperationUid == operationUid && (state.Phase == shared.NodeAgentOsPhaseCompleted ||
-		(staging && state.Phase == shared.NodeAgentOsPhaseStaged)) {
-		writeOsStatus(writer, http.StatusOK)
-		return
-	}
-	if parsed.Command == shared.NodeAgentOsCommandApply && state.Phase == shared.NodeAgentOsPhaseStaged && state.OperationUid == operationUid {
-		if err := acceptOperation(operationUid); err != nil {
-			writeError(writer, http.StatusInternalServerError, err.Error())
-			return
-		}
-		if !osSetPhase(shared.NodeAgentOsPhaseApplying, nil) {
-			writeError(writer, http.StatusInternalServerError, "could not persist the accepted operating-system installation")
-			return
-		}
-		go runOsApply(parsed.Reboot)
-		writeOsStatus(writer, http.StatusAccepted)
-		return
-	}
-
-	if state.Phase == shared.NodeAgentOsPhaseFailed && parsed.Command != shared.NodeAgentOsCommandRetry && parsed.Command != shared.NodeAgentOsCommandStageRetry {
-		writeError(writer, http.StatusConflict, "the failed operating-system update requires an explicit retry")
-		return
-	}
-
-	startOsUpdate(writer, parsed, state, operationUid)
-}
-
-func decodeOsUpdate(writer http.ResponseWriter, request *http.Request) (osUpdateRequest, bool) {
-	body := request.Body
-	if request.ContentLength > maxRequestBody {
-		writeError(writer, http.StatusRequestEntityTooLarge, "the request body is too large")
-		return osUpdateRequest{}, false
-	}
-	body = http.MaxBytesReader(writer, body, maxRequestBody)
-
-	var parsed osUpdateRequest
-	decoder := json.NewDecoder(body)
-	decoder.DisallowUnknownFields()
-	err := decoder.Decode(&parsed)
-	if err != nil {
-		writeError(writer, http.StatusBadRequest, fmt.Sprintf("invalid request body: %s", err))
-		return osUpdateRequest{}, false
-	}
-	if decoder.Decode(&struct{}{}) != io.EOF {
-		writeError(writer, http.StatusBadRequest, "the request body must contain a single JSON object")
-		return osUpdateRequest{}, false
-	}
-
-	switch parsed.Command {
-	case shared.NodeAgentOsCommandCheck, shared.NodeAgentOsCommandStage, shared.NodeAgentOsCommandStageRetry,
-		shared.NodeAgentOsCommandApply, shared.NodeAgentOsCommandRetry:
-	default:
-		writeError(writer, http.StatusBadRequest, fmt.Sprintf("unknown operating-system command: %s", parsed.Command))
-		return osUpdateRequest{}, false
-	}
-
-	switch parsed.Reboot {
-	case "":
-		parsed.Reboot = shared.NodeAgentOsRebootWhenRequired
-	case shared.NodeAgentOsRebootWhenRequired, shared.NodeAgentOsRebootAlways:
-	default:
-		writeError(writer, http.StatusBadRequest, fmt.Sprintf("unknown reboot policy: %s", parsed.Reboot))
-		return osUpdateRequest{}, false
-	}
-
-	return parsed, true
-}
-
-func startOsUpdate(writer http.ResponseWriter, parsed osUpdateRequest, state osState, operationUid string) {
-	current := osStateLoad()
-	stateChanged := current.Phase != state.Phase || !current.UpdatedAt.Equal(state.UpdatedAt)
-	if current.NeedsStateRecovery || stateChanged {
-		writeError(writer, http.StatusConflict, "the operating-system update state changed. Read its status before submitting again")
-		return
-	}
-
-	fence, fenceErr := fenceLoad()
-	if fenceErr != nil {
-		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not read the fence state: %s", fenceErr))
-		return
-	}
-	if fence.LastOperation != "" && fence.LastOperation != operationUid && shared.NodeAgentOsPhaseActive(current.Phase) {
-		writeError(writer, http.StatusConflict, "the command comes from obsolete node ownership and was rejected")
-		return
-	}
-
-	fenceErr = fenceStore(operationUid)
-	if fenceErr != nil {
-		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not persist the fence state: %s", fenceErr))
-		return
-	}
-
-	identity := identitySnapshot()
-	progressBegin(operationUid)
-	persistErr := osStateStore(&osState{
-		SchemaRevision: osStateSchemaRevision,
-		OperationUid:   operationUid,
-		NodeName:       identity.NodeName,
-		IpAddress:      identity.IpAddress,
-		Role:           identity.Role,
-		Phase:          shared.NodeAgentOsPhaseStaging,
-		UpdatedAt:      time.Now().UTC(),
-		KernelRunning:  current.KernelRunning,
-		KernelPending:  current.KernelPending,
-		Pending:        current.Pending,
-		Security:       current.Security,
-		RebootRequired: current.RebootRequired,
-		CheckedAt:      current.CheckedAt,
-		CheckError:     current.CheckError,
-	})
-	if persistErr != nil {
-		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not persist the accepted operating-system update: %s", persistErr))
-		return
-	}
-
-	if parsed.Command == shared.NodeAgentOsCommandStage || parsed.Command == shared.NodeAgentOsCommandStageRetry {
-		go runOsStage()
-	} else {
-		go runOsUpdate(parsed.Reboot)
-	}
-
-	writeOsStatus(writer, http.StatusAccepted)
-}
-
-func startUpgrade(writer http.ResponseWriter, release string, state upgradeState, operationUid string) {
-	current := stateLoad()
-	stateChanged := current.Phase != state.Phase || current.Release != state.Release || !current.UpdatedAt.Equal(state.UpdatedAt)
-	if current.NeedsStateRecovery || stateChanged {
-		writeError(writer, http.StatusConflict, "the upgrade state changed. Read its status before submitting again")
-		return
-	}
-
-	fence, fenceErr := fenceLoad()
-	if fenceErr != nil {
-		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not read the fence state: %s", fenceErr))
-		return
-	}
-	if fence.LastOperation != "" && fence.LastOperation != operationUid && shared.NodeAgentPhaseActive(current.Phase) {
-		writeError(writer, http.StatusConflict, "the command comes from obsolete node ownership and was rejected")
-		return
-	}
-
-	fenceErr = fenceStore(operationUid)
-	if fenceErr != nil {
-		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not persist the fence state: %s", fenceErr))
-		return
-	}
-
-	identity := identitySnapshot()
-	progressBegin(operationUid)
-	previousRelease := ""
-	if state.Release == release {
-		previousRelease = state.PreviousRelease
-	}
-	persistErr := stateStore(&upgradeState{
-		SchemaRevision:  stateSchemaRevision,
-		OperationUid:    operationUid,
-		NodeName:        identity.NodeName,
-		IpAddress:       identity.IpAddress,
-		Role:            identity.Role,
-		Release:         release,
-		PreviousRelease: previousRelease,
-		Phase:           shared.NodeAgentPhaseDownloading,
-		UpdatedAt:       time.Now().UTC(),
-	})
-	if persistErr != nil {
-		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not persist the accepted upgrade: %s", persistErr))
-		return
-	}
-
-	go runUpgrade(release, state)
-
-	writeStatus(writer, http.StatusAccepted)
-}
-
 // Peer authentication
 // =====================================================================================================================
+// Every request must carry the maintenance token in its header. The agent compares the token in constant time. A
+// missing token and a wrong token have different status codes. Both stop the request.
 
 func authorizePeer(writer http.ResponseWriter, request *http.Request) bool {
 	token := strings.TrimSpace(request.Header.Get(shared.NodeAgentTokenHeader))
@@ -871,74 +373,21 @@ func maintenanceToken() (string, error) {
 	return token, nil
 }
 
-// Response helpers
-// =====================================================================================================================
-
-func writeStatus(writer http.ResponseWriter, statusCode int) {
-	identityConfig := identitySnapshot()
-
-	status, err := statusFromState(identityConfig)
-	if err != nil {
-		log.Warn("k8s-app node agent: could not read the upgrade state: %s", err)
-		writeError(writer, http.StatusInternalServerError, "could not read the upgrade state")
-		return
-	}
-
-	writer.Header().Set("Content-Type", "application/json")
-	writer.WriteHeader(statusCode)
-	_ = json.NewEncoder(writer).Encode(status)
-}
-
-func writeError(writer http.ResponseWriter, statusCode int, message string) {
-	writer.Header().Set("Content-Type", "application/json")
-	writer.WriteHeader(statusCode)
-	_ = json.NewEncoder(writer).Encode(map[string]string{"error": message})
-}
-
-func writeJson(writer http.ResponseWriter, statusCode int, value any) {
-	writer.Header().Set("Content-Type", "application/json")
-	writer.WriteHeader(statusCode)
-	_ = json.NewEncoder(writer).Encode(value)
-}
-
 // Command ownership
 // =====================================================================================================================
-// The fence is consulted on every command and stored before any state transition is accepted. A command is only
-// rejected when an upgrade is in flight. A new operation supersedes the recorded one as soon as the node is idle.
+// The fence is a small file next to the operation state. It holds the uid of the last operation that the node obeyed.
+// The agent reads the operation uid from the request header. A command from another uid is rejected while an
+// operation is active. When the node is idle, the next operation replaces the recorded uid.
+//
+// The handlers validate the fence before they write any state. They store the accepted uid before the work starts.
 
-func readCommandAuthorization(writer http.ResponseWriter, request *http.Request) (string, bool) {
-	operationUid := strings.TrimSpace(request.Header.Get(shared.NodeAgentOperationHeader))
-	if operationUid == "" {
-		writeError(writer, http.StatusUnauthorized, "the command requires an operation credential")
-		return "", false
-	}
-
-	return operationUid, true
+type fenceState struct {
+	SchemaRevision int    `json:"schemaRevision"`
+	LastOperation  string `json:"lastOperation"`
 }
 
-func validateCommandOwnership(operationUid string) error {
-	return validateFence(operationUid, shared.NodeAgentPhaseActive(stateLoad().Phase))
-}
-
-func validateFence(operationUid string, busy bool) error {
-	fence, err := fenceLoad()
-	if err != nil {
-		return err
-	}
-
-	if fence.LastOperation != "" && fence.LastOperation != operationUid && busy {
-		return fmt.Errorf(
-			"the command comes from operation %s, but this node last obeyed operation %s",
-			operationUid,
-			fence.LastOperation,
-		)
-	}
-
-	return nil
-}
-
-func acceptOperation(operationUid string) error {
-	return fenceStore(operationUid)
+func fenceStatePath() string {
+	return filepath.Join(workingDir(), fenceStateName)
 }
 
 func fenceLoad() (fenceState, error) {
@@ -977,11 +426,37 @@ func fenceStore(operationUid string) error {
 	return writeFileAtomic(fenceStatePath(), data, 0600)
 }
 
-func fenceStatePath() string {
-	return filepath.Join(workingDir(), fenceStateName)
+func readCommandAuthorization(writer http.ResponseWriter, request *http.Request) (string, bool) {
+	operationUid := strings.TrimSpace(request.Header.Get(shared.NodeAgentOperationHeader))
+	if operationUid == "" {
+		writeError(writer, http.StatusUnauthorized, "the command requires an operation credential")
+		return "", false
+	}
+
+	return operationUid, true
 }
 
-type fenceState struct {
-	SchemaRevision int    `json:"schemaRevision"`
-	LastOperation  string `json:"lastOperation"`
+func validateCommandOwnership(operationUid string) error {
+	return validateFence(operationUid, shared.NodeAgentPhaseActive(stateLoad().Phase))
+}
+
+func validateFence(operationUid string, busy bool) error {
+	fence, err := fenceLoad()
+	if err != nil {
+		return err
+	}
+
+	if fence.LastOperation != "" && fence.LastOperation != operationUid && busy {
+		return fmt.Errorf(
+			"the command comes from operation %s, but this node last obeyed operation %s",
+			operationUid,
+			fence.LastOperation,
+		)
+	}
+
+	return nil
+}
+
+func acceptOperation(operationUid string) error {
+	return fenceStore(operationUid)
 }

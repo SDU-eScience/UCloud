@@ -15,6 +15,11 @@ import (
 	"ucloud.dk/shared/pkg/log"
 )
 
+// Constants and state
+// =====================================================================================================================
+// The constants name the work mount and the two output files. The progress state is protected by its own mutex. The
+// record is loaded once. It is written back with a rate limit unless a caller forces a write.
+
 const (
 	workMount       = "/work"
 	uiChannelName   = ".ucviz-ui"
@@ -24,10 +29,14 @@ const (
 )
 
 var progressMu sync.Mutex
-
 var progressCurrent shared.NodeAgentProgress
 var progressLoaded bool
 var progressPersistedAt time.Time
+
+// Progress state
+// =====================================================================================================================
+// progressLoad returns a copy of the record. progressBegin starts a record for a new operation. progressStageRecord
+// appends a stage event and caps the event list. progressPersist writes the record to disk.
 
 func progressLoad() shared.NodeAgentProgress {
 	progressMu.Lock()
@@ -85,26 +94,11 @@ func progressStageRecord(text string) {
 	}
 }
 
-type widgetLocation struct {
-	Window int    `json:"window"`
-	Tab    string `json:"tab"`
-	Icon   int    `json:"icon"`
-}
-
-type widgetRef struct {
-	Id       string         `json:"id"`
-	Type     int            `json:"type"`
-	Location widgetLocation `json:"location"`
-}
-
-type widgetLabel struct {
-	Align int    `json:"align"`
-	Text  string `json:"text"`
-}
-
-type widgetProgress struct {
-	Progress float64 `json:"progress"`
-}
+// Stage updates
+// =====================================================================================================================
+// A stage update names the current step. It also sets the percent and writes the dashboard widgets. progressText
+// records a detail without a stage change. progressLines appends a batch from the coordinator. progressCommandOutput
+// records the output of a system command.
 
 func progressStage(text string, percent int) {
 	progressMu.Lock()
@@ -176,6 +170,32 @@ func progressLines(lines []string) int {
 	return written
 }
 
+// Widgets
+// =====================================================================================================================
+// A widget update has two JSON documents. The first names the widget and its location. The second carries the value.
+// The agent appends both to the widget channel. The dashboard reads that channel.
+
+type widgetLocation struct {
+	Window int    `json:"window"`
+	Tab    string `json:"tab"`
+	Icon   int    `json:"icon"`
+}
+
+type widgetRef struct {
+	Id       string         `json:"id"`
+	Type     int            `json:"type"`
+	Location widgetLocation `json:"location"`
+}
+
+type widgetLabel struct {
+	Align int    `json:"align"`
+	Text  string `json:"text"`
+}
+
+type widgetProgress struct {
+	Progress float64 `json:"progress"`
+}
+
 func progressWidget(id string, widgetType int, spec any) {
 	ref, err := json.Marshal(widgetRef{
 		Id:       id,
@@ -193,6 +213,11 @@ func progressWidget(id string, widgetType int, spec any) {
 	widgets := fmt.Sprintf("{\"action\":0}\n%s\n%s\n", ref, specJson)
 	progressAppendFile(uiChannelName, []byte(widgets), 0600)
 }
+
+// Output files
+// =====================================================================================================================
+// The text log gets a timestamp in front of each line. The files are created with the owner of the cluster service. A
+// write failure is ignored. progressReset starts a new log and resets the widgets for a new operation.
 
 func progressAppendLine(line string) {
 	line = strings.TrimPrefix(strings.TrimSpace(line), "[ucloud-k8s] ")
@@ -248,6 +273,11 @@ func progressReset(operationUid string) {
 	progressWidget(progressLabelId, 0, widgetLabel{Text: "Maintenance in progress"})
 	progressWidget(progressBarId, 1, widgetProgress{Progress: 0})
 }
+
+// Log endpoints
+// =====================================================================================================================
+// Both endpoints authenticate the peer and check the command ownership. The append endpoint limits the request size
+// and the number of lines. It returns the number of lines that it wrote.
 
 func handleLog(writer http.ResponseWriter, request *http.Request) {
 	if !authorizePeer(writer, request) {

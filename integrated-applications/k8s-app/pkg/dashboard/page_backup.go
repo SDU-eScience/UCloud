@@ -23,177 +23,6 @@ type dashboardBackupStatus struct {
 	Request         backup.Request
 }
 
-func (app *stackUiApp) clusterStateValueClient() (shared.ClusterStateClient, error) {
-	session := app.session
-	stack := app.Stack
-	if session != nil && stack != nil && stack.Ok {
-		client, err := shared.ClusterStateClientNewSession(session, stack.InstanceId)
-		if err == nil {
-			return client, nil
-		}
-	}
-	return shared.ClusterStateClientNewHost()
-}
-
-func (app *stackUiApp) backupStatusRead() (dashboardBackupStatus, error) {
-	client, err := app.clusterStateValueClient()
-	if err != nil {
-		return dashboardBackupStatus{}, err
-	}
-
-	stateValue, err := shared.ClusterStateValueRead(client, backup.StateKey)
-	if err != nil {
-		return dashboardBackupStatus{}, fmt.Errorf("could not read the backup state: %s", err)
-	}
-
-	result := dashboardBackupStatus{
-		StateFound: stateValue.Found && !stateValue.Empty,
-	}
-
-	if result.StateFound {
-		err = json.Unmarshal(stateValue.Value, &result.State)
-		if err != nil {
-			return dashboardBackupStatus{}, fmt.Errorf("could not parse the backup state: %s", err)
-		}
-	}
-
-	requestValue, err := shared.ClusterStateValueRead(client, backup.RequestKey)
-	if err != nil {
-		return dashboardBackupStatus{}, fmt.Errorf("could not read the backup request: %s", err)
-	}
-
-	result.RequestFound = requestValue.Found && !requestValue.Empty
-	result.RequestRevision = requestValue.Revision
-
-	if result.RequestFound {
-		err = json.Unmarshal(requestValue.Value, &result.Request)
-		if err != nil {
-			return dashboardBackupStatus{}, fmt.Errorf("could not parse the backup request: %s", err)
-		}
-	}
-
-	return result, nil
-}
-
-func backupRequestActive(request backup.Request) bool {
-	return request.Phase == backup.RequestPending || request.Phase == backup.RequestRunning
-}
-
-func backupActive(status dashboardBackupStatus) bool {
-	if status.StateFound && status.State.ClaimUid != "" {
-		return true
-	}
-	return backupRequestActive(status.Request)
-}
-
-func backupRequestSubmit(app *stackUiApp) error {
-	status, err := app.backupStatusRead()
-	if err != nil {
-		return err
-	}
-
-	if backupActive(status) {
-		return errors.New("a backup is already pending or running")
-	}
-
-	client, err := app.clusterStateValueClient()
-	if err != nil {
-		return err
-	}
-
-	request := backup.Request{
-		SchemaRevision: backup.SchemaRevision,
-		Uid:            backupRequestUid(),
-		Requester:      app.backupsRequester,
-		RequestedAt:    time.Now().UTC(),
-		Phase:          backup.RequestPending,
-	}
-
-	value, err := json.Marshal(request)
-	if err != nil {
-		return err
-	}
-
-	_, err = shared.ClusterStateValueWrite(client, backup.RequestKey, value, status.RequestRevision)
-	if err == nil {
-		return nil
-	}
-
-	latest, latestErr := shared.ClusterStateValueRead(client, backup.RequestKey)
-	if latestErr == nil && latest.Found && !latest.Empty {
-		var current backup.Request
-		if json.Unmarshal(latest.Value, &current) == nil && backupRequestActive(current) {
-			return errors.New("a backup is already pending or running")
-		}
-	}
-
-	if shared.IsConflict(err) {
-		return errors.New("the backup request changed while submitting; please try again")
-	}
-
-	return fmt.Errorf("could not submit the backup request: %s", err)
-}
-
-func backupRequestUid() string {
-	holder := ""
-	if hostname, err := os.Hostname(); err == nil {
-		holder = strings.TrimSpace(hostname)
-	}
-	return fmt.Sprintf("%s-%d-%s", shared.SanitizeForPath(holder), time.Now().UnixNano(), util.SecureToken())
-}
-
-func backupSubmitAsync(app *stackUiApp) {
-	if app.BackupsBusy || app.BackupsBlocked {
-		return
-	}
-
-	app.runAsyncAction("backupsBusy", &app.BackupsBusy, func() error {
-		return backupRequestSubmit(app)
-	}, func(err error) {
-		if err != nil {
-			dashboardSendUiMessage(*app.Session(), err.Error(), false)
-		} else {
-			dashboardSendUiMessage(*app.Session(), "A backup was requested. It starts within a few seconds.", true)
-		}
-	})
-}
-
-func (app *stackUiApp) homeBackupsMetric() []ucx.UiNode {
-	status, err := app.backupStatusRead()
-
-	link := ucx.LinkButton("homeBackups", "(View)", ucx.ColorLinkColor).Sx(
-		ucx.SxFontSize(12),
-		ucx.SxFontWeight("400"),
-	).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-		ucxsvc.RouterPushPage(app, "backups")
-	})
-
-	valueLabel := "Unknown"
-	valueColor := ucx.ColorTextSecondary
-
-	if err == nil && status.StateFound {
-		now := time.Now().UTC()
-		hasSuccess := status.State.LastSuccess.Phase == backup.AttemptSuccess &&
-			!status.State.LastSuccess.FinishedAt.IsZero()
-		failed := status.State.LastAttempt.Phase == backup.AttemptFailed
-
-		if hasSuccess {
-			valueLabel = backupAgeLabel(status.State.LastSuccess.FinishedAt, now)
-			valueColor = ucx.ColorTextPrimary
-		} else {
-			valueLabel = "Never"
-		}
-		if failed {
-			valueLabel = "Failed"
-			valueColor = ucx.ColorErrorMain
-		}
-	} else if err == nil {
-		valueLabel = "Not yet"
-	}
-
-	return app.homeMetricEx("Backups", []ucx.UiNode{link}, homeMetricText(valueLabel, valueColor))
-}
-
 func backupPage(app *stackUiApp) []ucx.UiNode {
 	content := []ucx.UiNode{
 		ucx.Text("Control-plane backups").Sx(ucx.SxFontSize(20), ucx.SxFontWeight("600")),
@@ -350,6 +179,165 @@ func backupProgressLine(text string) ucx.UiNode {
 			ucx.Spinner(16),
 			ucx.Text(text).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
 		)
+}
+
+func backupSubmitAsync(app *stackUiApp) {
+	if app.BackupsBusy || app.BackupsBlocked {
+		return
+	}
+
+	app.runAsyncAction("backupsBusy", &app.BackupsBusy, func() error {
+		return backupRequestSubmit(app)
+	}, func(err error) {
+		if err != nil {
+			dashboardSendUiMessage(*app.Session(), err.Error(), false)
+		} else {
+			dashboardSendUiMessage(*app.Session(), "A backup was requested. It starts within a few seconds.", true)
+		}
+	})
+}
+
+func backupRequestSubmit(app *stackUiApp) error {
+	status, err := app.backupStatusRead()
+	if err != nil {
+		return err
+	}
+
+	if backupActive(status) {
+		return errors.New("a backup is already pending or running")
+	}
+
+	client, err := app.clusterStateValueClient()
+	if err != nil {
+		return err
+	}
+
+	request := backup.Request{
+		SchemaRevision: backup.SchemaRevision,
+		Uid:            backupRequestUid(),
+		Requester:      app.backupsRequester,
+		RequestedAt:    time.Now().UTC(),
+		Phase:          backup.RequestPending,
+	}
+
+	value, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+
+	_, err = shared.ClusterStateValueWrite(client, backup.RequestKey, value, status.RequestRevision)
+	if err == nil {
+		return nil
+	}
+
+	latest, latestErr := shared.ClusterStateValueRead(client, backup.RequestKey)
+	if latestErr == nil && latest.Found && !latest.Empty {
+		var current backup.Request
+		if json.Unmarshal(latest.Value, &current) == nil && backupRequestActive(current) {
+			return errors.New("a backup is already pending or running")
+		}
+	}
+
+	if shared.IsConflict(err) {
+		return errors.New("the backup request changed while submitting; please try again")
+	}
+
+	return fmt.Errorf("could not submit the backup request: %s", err)
+}
+
+func (app *stackUiApp) backupStatusRead() (dashboardBackupStatus, error) {
+	client, err := app.clusterStateValueClient()
+	if err != nil {
+		return dashboardBackupStatus{}, err
+	}
+
+	stateValue, err := shared.ClusterStateValueRead(client, backup.StateKey)
+	if err != nil {
+		return dashboardBackupStatus{}, fmt.Errorf("could not read the backup state: %s", err)
+	}
+
+	result := dashboardBackupStatus{
+		StateFound: stateValue.Found && !stateValue.Empty,
+	}
+
+	if result.StateFound {
+		err = json.Unmarshal(stateValue.Value, &result.State)
+		if err != nil {
+			return dashboardBackupStatus{}, fmt.Errorf("could not parse the backup state: %s", err)
+		}
+	}
+
+	requestValue, err := shared.ClusterStateValueRead(client, backup.RequestKey)
+	if err != nil {
+		return dashboardBackupStatus{}, fmt.Errorf("could not read the backup request: %s", err)
+	}
+
+	result.RequestFound = requestValue.Found && !requestValue.Empty
+	result.RequestRevision = requestValue.Revision
+
+	if result.RequestFound {
+		err = json.Unmarshal(requestValue.Value, &result.Request)
+		if err != nil {
+			return dashboardBackupStatus{}, fmt.Errorf("could not parse the backup request: %s", err)
+		}
+	}
+
+	return result, nil
+}
+
+func backupActive(status dashboardBackupStatus) bool {
+	if status.StateFound && status.State.ClaimUid != "" {
+		return true
+	}
+	return backupRequestActive(status.Request)
+}
+
+func backupRequestActive(request backup.Request) bool {
+	return request.Phase == backup.RequestPending || request.Phase == backup.RequestRunning
+}
+
+func backupRequestUid() string {
+	holder := ""
+	if hostname, err := os.Hostname(); err == nil {
+		holder = strings.TrimSpace(hostname)
+	}
+	return fmt.Sprintf("%s-%d-%s", shared.SanitizeForPath(holder), time.Now().UnixNano(), util.SecureToken())
+}
+
+func (app *stackUiApp) homeBackupsMetric() []ucx.UiNode {
+	status, err := app.backupStatusRead()
+
+	link := ucx.LinkButton("homeBackups", "(View)", ucx.ColorLinkColor).Sx(
+		ucx.SxFontSize(12),
+		ucx.SxFontWeight("400"),
+	).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+		ucxsvc.RouterPushPage(app, "backups")
+	})
+
+	valueLabel := "Unknown"
+	valueColor := ucx.ColorTextSecondary
+
+	if err == nil && status.StateFound {
+		now := time.Now().UTC()
+		hasSuccess := status.State.LastSuccess.Phase == backup.AttemptSuccess &&
+			!status.State.LastSuccess.FinishedAt.IsZero()
+		failed := status.State.LastAttempt.Phase == backup.AttemptFailed
+
+		if hasSuccess {
+			valueLabel = backupAgeLabel(status.State.LastSuccess.FinishedAt, now)
+			valueColor = ucx.ColorTextPrimary
+		} else {
+			valueLabel = "Never"
+		}
+		if failed {
+			valueLabel = "Failed"
+			valueColor = ucx.ColorErrorMain
+		}
+	} else if err == nil {
+		valueLabel = "Not yet"
+	}
+
+	return app.homeMetricEx("Backups", []ucx.UiNode{link}, homeMetricText(valueLabel, valueColor))
 }
 
 func backupTimestampLabel(t time.Time) string {

@@ -1,10 +1,31 @@
+// Introduction
+// =====================================================================================================================
+// This file updates the operating system of one node. The update uses apt and runs in three stages. A check reports
+// the pending packages and the kernel state. A stage downloads the packages. An apply installs them and verifies the
+// node.
+//
+// A kernel update needs a reboot. The agent writes the current boot id to the state before it reboots. After the boot
+// a new boot id continues at the verification stage. The same boot id means that the reboot did not happen. The
+// update then needs an explicit retry.
+//
+// The state file records the phase, the error, the package counts and the kernel state. The coordinator polls the
+// state to follow the update. The worker sends the package output to the progress log.
+//
+// The agent removes old kernels after a successful apply. It keeps the running kernel and the newest other kernel.
+//
+// The sections below follow the update. The state helpers keep the record. Startup recovery handles a reboot. The
+// check reports. The worker stages, applies, reboots and verifies. The last sections hold the package commands and
+// the kernel helpers.
+
 package nodeagent
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,6 +37,11 @@ import (
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/log"
 )
+
+// Constants and types
+// =====================================================================================================================
+// The constants set the work deadline and the timeout of each command. They also set the minimum free space on the
+// root and boot file systems. osState is the record on disk.
 
 const (
 	osStateSchemaRevision = 1
@@ -69,6 +95,12 @@ type osState struct {
 	StateError         string `json:"stateError,omitempty"`
 	NeedsStateRecovery bool   `json:"needsStateRecovery,omitempty"`
 }
+
+// The operating-system state
+// =====================================================================================================================
+// The state helpers read and write os-state.json. The lock in globals protects each transition. A state from an
+// incompatible version is marked as a recovery case. statusFromState converts the file to the API status. The
+// conversion adds the progress record and the identity of the node.
 
 func osStatePath() string {
 	return filepath.Join(workingDir(), osStateName)
@@ -201,9 +233,9 @@ func osStatusFromState(identityConfig Config) shared.NodeAgentOsStatus {
 
 // Startup recovery
 // =====================================================================================================================
-// A reboot is an expected part of an operating-system update. When the agent starts and the state says rebooting, the
-// boot id decides: a new boot id continues at the verification, while the same boot id means that the reboot never
-// happened and the update needs recovery. Every other interrupted phase needs recovery.
+// A reboot is an expected part of an update. When the agent starts and the state says rebooting, the boot id decides.
+// A new boot id continues at the verification. The same boot id means that the reboot never happened, and the update
+// needs recovery. Every other interrupted phase needs recovery too.
 
 func recoverInterruptedOs() {
 	state := osStateLoad()
@@ -268,8 +300,9 @@ func osPhaseUserLabel(phase string) string {
 
 // The update check
 // =====================================================================================================================
-// The check refreshes the package lists and reports what a full upgrade would install. It does not change packages. A
-// failed check is recorded in the report and does not mark the node as requiring recovery.
+// The check refreshes the package lists and simulates a full upgrade. It does not change packages. It counts the
+// packages that would be installed and the security packages among them. It also records the running kernel, the
+// pending kernel and the reboot flag. A failed check is recorded in the report and needs no recovery.
 
 func runOsCheck(ctx context.Context) shared.NodeAgentOsStatus {
 	identityConfig := identitySnapshot()
@@ -336,9 +369,9 @@ func runOsCheck(ctx context.Context) shared.NodeAgentOsStatus {
 
 // The update worker
 // =====================================================================================================================
-// The worker stages the packages, applies them, decides whether the update needs a reboot and verifies the node. The
-// phases are persisted so that the coordinator and the dashboard follow the update. A reboot is a normal transition:
-// the phase rebooting is written with the boot id before the reboot command runs.
+// The worker runs in a background goroutine. A full update stages the packages first and applies them next. A stage
+// command only downloads. An apply command installs packages that are already staged. Each stage writes its phase
+// before it does the work. A failure writes the failed phase and the message for the operator.
 
 func runOsUpdate(rebootPolicy string) {
 	workerCtx, cancel := context.WithTimeout(context.Background(), osWorkDeadline)
@@ -616,6 +649,12 @@ func osFinishFailure(message string) {
 	}
 }
 
+// Reboot
+// =====================================================================================================================
+// The agent writes the boot id and the rebooting phase before it asks systemd to reboot. It then waits for the system
+// to leave the running state. A command error during shutdown is not a failure. The boot id after the next boot is
+// the proof that the reboot happened.
+
 func osRebootForUpdate(ctx context.Context) error {
 	bootId := osBootId()
 	if bootId == "" {
@@ -691,8 +730,10 @@ func osSystemState(ctx context.Context) (string, bool) {
 	return state, true
 }
 
-// Command and package helpers
+// User messages
 // =====================================================================================================================
+// A user message has two parts. The first part states what happened. The second part tells the operator what to do.
+// The helper adds a final period to both parts. The dashboard shows the result.
 
 func userMessage(action string, format string, args ...any) string {
 	details := fmt.Sprintf(format, args...)
@@ -701,6 +742,12 @@ func userMessage(action string, format string, args ...any) string {
 	}
 	return fmt.Sprintf("%s %s.", strings.TrimSpace(details), action)
 }
+
+// Commands
+// =====================================================================================================================
+// The command helpers run apt and other system tools with a timeout. They return the combined output as a string.
+// osRunPackageCommand streams the output of apt to the progress log and returns the last line as the error. A reader
+// thread prevents the pipe from blocking.
 
 func osRunCommand(ctx context.Context, timeout time.Duration, env []string, name string, args ...string) (string, error) {
 	commandCtx, cancel := context.WithTimeout(ctx, timeout)
@@ -721,6 +768,56 @@ func osRunCommand(ctx context.Context, timeout time.Duration, env []string, name
 	}
 	return trimmed, nil
 }
+
+func osRunPackageCommand(ctx context.Context, timeout time.Duration, env []string, args ...string) error {
+	commandCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	reader, writer := io.Pipe()
+	command := exec.CommandContext(commandCtx, "apt-get", args...)
+	command.Env = append(os.Environ(), env...)
+	command.Env = append(command.Env, "LC_ALL=C")
+	command.Stdout = writer
+	command.Stderr = writer
+	command.WaitDelay = 5 * time.Second
+	lastLine := ""
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		scanner := bufio.NewScanner(reader)
+		scanner.Buffer(make([]byte, 4096), 256*1024)
+		for scanner.Scan() {
+			for _, part := range strings.Split(scanner.Text(), "\r") {
+				line := strings.TrimSpace(part)
+				if line == "" {
+					continue
+				}
+				line = shared.NodeAgentTruncateLine(line)
+				progressText(line)
+				lastLine = line
+			}
+		}
+		if scanner.Err() != nil {
+			progressText("Some package output could not be displayed")
+			_, _ = io.Copy(io.Discard, reader)
+		}
+	}()
+	err := command.Run()
+	_ = writer.Close()
+	<-done
+	_ = reader.Close()
+	if err != nil {
+		if lastLine == "" {
+			lastLine = "the package manager did not report a reason"
+		}
+		return errors.New(lastLine)
+	}
+	return nil
+}
+
+// System facts
+// =====================================================================================================================
+// These helpers read the boot id, the running kernel and the free space. The disk check requires free space on the
+// root file system and on /boot. A failed read is an error. A missing reboot flag file is not.
 
 func osBootId() string {
 	data, err := os.ReadFile(osBootIdPath)
@@ -779,6 +876,12 @@ func osFreeBytes(path string) (uint64, error) {
 	}
 	return stat.Bavail * uint64(stat.Bsize), nil
 }
+
+// Kernels
+// =====================================================================================================================
+// The kernel helpers read the installed kernel packages. A kernel is newer when its numeric parts compare higher.
+// The pending kernel is the newest installed kernel when it is newer than the running kernel. Cleanup keeps the
+// running kernel and the newest other kernel.
 
 func osInstalledKernels(ctx context.Context) []string {
 	output, err := osRunCommand(ctx, osCommandShortTimeout, nil, "dpkg-query", "-W", "-f=${Package} ${db:Status-Abbrev}\\n", "linux-image-*")

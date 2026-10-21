@@ -62,121 +62,10 @@ func (app *stackUiApp) autoStatusRead() (dashboardAutoStatus, error) {
 	return result, nil
 }
 
-type autoSettingsForm struct {
-	K8sEnabled bool
-	OsEnabled  bool
-	WindowDay  string
-	StartHour  string
-}
-
-func autoSettingsFromModel(app *stackUiApp) autoSettingsForm {
-	return autoSettingsForm{
-		K8sEnabled: app.AutoMaintenanceK8sEnabled,
-		OsEnabled:  app.AutoMaintenanceOsEnabled,
-		WindowDay:  app.AutoWindowDay,
-		StartHour:  app.AutoWindowStartHour,
-	}
-}
-
-func autoPolicySave(client shared.ClusterStateClient, form autoSettingsForm) error {
-	for attempt := 0; attempt < 3; attempt++ {
-		value, err := shared.ClusterStateValueRead(client, maintenance.AutoPolicyKey)
-		if err != nil {
-			return fmt.Errorf("could not read the automatic maintenance policy: %s", err)
-		}
-
-		policy := maintenance.AutoDefaultPolicy()
-		if value.Found && !value.Empty {
-			err = json.Unmarshal(value.Value, &policy)
-			if err != nil {
-				return fmt.Errorf("could not parse the automatic maintenance policy: %s", err)
-			}
-		}
-
-		policy = autoPolicyFromForm(form, policy)
-
-		encoded, err := json.Marshal(policy)
-		if err != nil {
-			return err
-		}
-
-		_, writeErr := shared.ClusterStateValueWrite(client, maintenance.AutoPolicyKey, encoded, value.Revision)
-		if writeErr == nil {
-			return nil
-		}
-		if !shared.IsConflict(writeErr) {
-			latest, latestErr := shared.ClusterStateValueRead(client, maintenance.AutoPolicyKey)
-			if latestErr != nil || latest.Revision == value.Revision {
-				return fmt.Errorf("could not save the automatic maintenance policy: %s", writeErr)
-			}
-		}
-	}
-
-	return errors.New("the automatic maintenance policy changed while saving; please try again")
-}
-
-func autoPolicyFromForm(form autoSettingsForm, policy maintenance.AutoPolicy) maintenance.AutoPolicy {
-	policy.SchemaRevision = maintenance.AutoSchemaRevision
-	policy.K8s.Enabled = form.K8sEnabled
-	policy.Os.Enabled = form.OsEnabled
-
-	day := strings.ToLower(strings.TrimSpace(form.WindowDay))
-	if maintenance.AutoDayValid(day) {
-		policy.Window.Days = []string{day}
-	}
-
-	startHour, hourErr := strconv.Atoi(strings.TrimSpace(form.StartHour))
-	if hourErr == nil && startHour >= 0 && startHour <= 23 {
-		policy.Window.StartHourUtc = startHour
-	}
-
-	return maintenance.AutoPolicyNormalize(policy)
-}
-
-func autoSettingsSaveAsync(app *stackUiApp) {
-	session := *app.Session()
-	if session == nil {
-		return
-	}
-	form := autoSettingsFromModel(app)
-	app.autoSettingsPending = &form
-	app.autoSettingsSaveError = ""
-	if app.autoSettingsSaving {
-		return
-	}
-	client, err := app.clusterStateValueClient()
-	if err != nil {
-		app.autoSettingsSaveError = err.Error()
-		return
-	}
-	app.autoSettingsSaving = true
-	go func() {
-		for {
-			app.mu.Lock()
-			pending := *app.autoSettingsPending
-			app.autoSettingsPending = nil
-			app.mu.Unlock()
-
-			err := autoPolicySave(client, pending)
-
-			app.mu.Lock()
-			done := app.autoSettingsPending == nil
-			if done {
-				app.autoSettingsSaving = false
-				if err != nil {
-					app.autoSettingsSaveError = err.Error()
-				}
-			}
-			if session.Context().Err() == nil {
-				ucx.AppUpdateUi(app)
-			}
-			app.mu.Unlock()
-			if done {
-				return
-			}
-		}
-	}()
-}
+// The page
+// =====================================================================================================================
+// The page is one screen with four parts. The first part states the window. The second part holds the two update
+// switches. The third part holds the schedule. The fourth part shows the run that is active or the last run.
 
 func autoMaintenancePage(app *stackUiApp) []ucx.UiNode {
 	now := time.Now().UTC()
@@ -212,33 +101,31 @@ func autoMaintenancePage(app *stackUiApp) []ucx.UiNode {
 	return pageShell(app, 900, 32, content)
 }
 
-func autoMaintenanceRunVisible(status dashboardAutoStatus) bool {
-	run := status.State.LastRun
-	if maintenance.AutoRunActive(run) || maintenance.AutoStateBlocked(status.State) {
-		return true
-	}
-
-	nodes, err := maintenance.AutoOsRecoveryNodes()
-	if err == nil && len(nodes) > 0 {
-		return true
-	}
-
-	if run.Uid == "" {
-		return false
-	}
-
-	snapshot, err := maintenance.Snapshot()
-	if err != nil {
-		return false
-	}
-	for _, operation := range snapshot {
-		if operation.AutoRunUid == run.Uid && operation.Phase != maintenance.PhaseCompleted {
-			return true
-		}
-	}
-
-	return false
+func autoMaintenanceSection(title string, children ...ucx.UiNode) ucx.UiNode {
+	content := []ucx.UiNode{ucx.Text(title).Sx(ucx.SxFontSize(18), ucx.SxFontWeight("600"))}
+	content = append(content, children...)
+	return ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 16}).
+		Sx(ucx.SxMinWidth(0)).Children(content...)
 }
+
+func autoMaintenanceToggle(toggle ucx.UiNode, description []ucx.UiNode) ucx.UiNode {
+	children := []ucx.UiNode{toggle}
+	if len(description) > 0 {
+		children = append(children, ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 6}).
+			Sx(ucx.SxPl(28), ucx.SxMinWidth(0)).Children(description...))
+	}
+	return ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 0}).
+		Sx(ucx.SxMinWidth(0)).Children(children...)
+}
+
+func autoMaintenanceNote(text string) ucx.UiNode {
+	return ucx.Text(text).Sx(ucx.SxColor(ucx.ColorTextSecondary))
+}
+
+// Window state
+// =====================================================================================================================
+// The window can be open, planned or used. A used window does not start a second run. The next run is always the
+// first window after the current time and after any deferral.
 
 func autoMaintenanceInfoRow(
 	app *stackUiApp,
@@ -329,59 +216,10 @@ func autoMaintenanceCanRunNow(status dashboardAutoStatus, policy maintenance.Aut
 	return !maintenance.AutoRunActive(status.State.LastRun) && !maintenance.AutoStateBlocked(status.State)
 }
 
-func autoMaintenanceRunNowDialog(app *stackUiApp, policy maintenance.AutoPolicy) ucx.UiNode {
-	message := "Starts the enabled updates. Nodes update one at a time."
-	switch {
-	case policy.K8s.Enabled && policy.Os.Enabled:
-		message = "Kubernetes updates first, then the operating system. Nodes update one at a time."
-	case policy.K8s.Enabled:
-		message = "The Kubernetes upgrade starts now. Nodes update one at a time."
-	case policy.Os.Enabled:
-		message = "The operating-system update starts now. Nodes update one at a time."
-	}
-
-	return dashboardResourceActionDialog(
-		"autoMaintenanceRunNow",
-		"Run maintenance now",
-		message,
-		"",
-		ucx.ColorPrimaryMain,
-		func() {
-			app.autoRunNowConfirm = false
-			ucx.AppUpdateUi(app)
-		},
-		func() {
-			app.autoRunNowConfirm = false
-			ucx.AppUpdateUi(app)
-			kubeconfig := LocalKubeconfigPath()
-			autoMaintenanceActionAsync(app, "Maintenance started.", func() error {
-				return maintenance.AutoOpenWindowNow(context.Background(), kubeconfig)
-			})
-		},
-	)
-}
-
-func autoMaintenanceSection(title string, children ...ucx.UiNode) ucx.UiNode {
-	content := []ucx.UiNode{ucx.Text(title).Sx(ucx.SxFontSize(18), ucx.SxFontWeight("600"))}
-	content = append(content, children...)
-	return ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 16}).
-		Sx(ucx.SxMinWidth(0)).Children(content...)
-}
-
-type autoNodeVersion struct {
-	Name    string
-	Version string
-}
-
-func autoMaintenanceToggle(toggle ucx.UiNode, description []ucx.UiNode) ucx.UiNode {
-	children := []ucx.UiNode{toggle}
-	if len(description) > 0 {
-		children = append(children, ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 6}).
-			Sx(ucx.SxPl(28), ucx.SxMinWidth(0)).Children(description...))
-	}
-	return ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 0}).
-		Sx(ucx.SxMinWidth(0)).Children(children...)
-}
+// Updates
+// =====================================================================================================================
+// The two switches turn the automatic Kubernetes upgrade and the automatic operating-system update on and off. Under
+// each switch the page states what the next run will do.
 
 func autoMaintenanceUpdatesNodes(
 	app *stackUiApp,
@@ -403,10 +241,6 @@ func autoMaintenanceUpdatesNodes(
 	))
 
 	return nodes
-}
-
-func autoMaintenanceNote(text string) ucx.UiNode {
-	return ucx.Text(text).Sx(ucx.SxColor(ucx.ColorTextSecondary))
 }
 
 func autoMaintenanceKubernetesSummary(app *stackUiApp, now time.Time) []ucx.UiNode {
@@ -457,6 +291,61 @@ func autoMaintenanceKubernetesSummary(app *stackUiApp, now time.Time) []ucx.UiNo
 
 	warnings := autoUnreachableReleaseWarnings(entries, now)
 	warnings = append(warnings, autoOutOfSupportWarnings(versions, now)...)
+	if len(warnings) > 0 {
+		nodes = append(nodes, ucx.Warning(strings.Join(warnings, " ")))
+	}
+
+	return nodes
+}
+
+func autoMaintenanceOsSummary(status dashboardAutoStatus, policy maintenance.AutoPolicy) []ucx.UiNode {
+	nodes := []ucx.UiNode{}
+
+	reports := []maintenance.AutoUpdateReport{}
+	if status.StateFound {
+		reports = status.State.OsReports
+	}
+
+	if len(reports) == 0 {
+		return append(nodes, autoMaintenanceNote("No update check has run yet."))
+	}
+
+	mostPending := 0
+	mostSecurity := 0
+	rebootNodes := 0
+	failedNodes := 0
+	for _, report := range reports {
+		if report.Error != "" {
+			failedNodes++
+		}
+		if report.RebootRequired {
+			rebootNodes++
+		}
+		if report.Pending > mostPending {
+			mostPending = report.Pending
+			mostSecurity = report.Security
+		}
+	}
+
+	line := fmt.Sprintf("All %s are up to date.", autoNodeCount(len(reports)))
+	if mostPending > 0 {
+		line = fmt.Sprintf("%d packages pending, %d security.", mostPending, mostSecurity)
+	}
+	if rebootNodes > 0 {
+		if mostPending == 0 {
+			line = "No packages are pending."
+		}
+		line += fmt.Sprintf(" %s need a restart.", autoNodeCount(rebootNodes))
+	}
+	nodes = append(nodes, autoMaintenanceNote(line))
+
+	warnings := []string{}
+	if failedNodes > 0 {
+		warnings = append(warnings, fmt.Sprintf("The update check failed on %s.", autoNodeCount(failedNodes)))
+	}
+	if policy.Os.RebootPolicy == maintenance.AutoRebootAlways {
+		warnings = append(warnings, "Every node reboots during its update.")
+	}
 	if len(warnings) > 0 {
 		nodes = append(nodes, ucx.Warning(strings.Join(warnings, " ")))
 	}
@@ -517,6 +406,35 @@ func autoUnreachableReleaseWarnings(entries []autoNodeVersion, now time.Time) []
 	return result
 }
 
+func autoOutOfSupportWarnings(versions []string, now time.Time) []string {
+	seen := map[string]bool{}
+	result := []string{}
+
+	for _, nodeVersion := range versions {
+		if seen[nodeVersion] {
+			continue
+		}
+		seen[nodeVersion] = true
+
+		eolAt, ok := shared.SupportEnds(nodeVersion)
+		if ok && !eolAt.After(now) {
+			result = append(result, fmt.Sprintf("%s is past its end of support.", nodeVersion))
+		}
+	}
+
+	return result
+}
+
+func autoNodesNeedingUpgrade(versions []string, target string) int {
+	count := 0
+	for _, nodeVersion := range versions {
+		if !shared.SameRelease(nodeVersion, target) {
+			count++
+		}
+	}
+	return count
+}
+
 func autoNodeCount(count int) string {
 	if count == 1 {
 		return "1 node"
@@ -524,99 +442,15 @@ func autoNodeCount(count int) string {
 	return fmt.Sprintf("%d nodes", count)
 }
 
-func autoMaintenanceOsSummary(status dashboardAutoStatus, policy maintenance.AutoPolicy) []ucx.UiNode {
-	nodes := []ucx.UiNode{}
-
-	reports := []maintenance.AutoUpdateReport{}
-	if status.StateFound {
-		reports = status.State.OsReports
-	}
-
-	if len(reports) == 0 {
-		return append(nodes, autoMaintenanceNote("No update check has run yet."))
-	}
-
-	mostPending := 0
-	mostSecurity := 0
-	rebootNodes := 0
-	failedNodes := 0
-	for _, report := range reports {
-		if report.Error != "" {
-			failedNodes++
-		}
-		if report.RebootRequired {
-			rebootNodes++
-		}
-		if report.Pending > mostPending {
-			mostPending = report.Pending
-			mostSecurity = report.Security
-		}
-	}
-
-	line := fmt.Sprintf("All %s are up to date.", autoNodeCount(len(reports)))
-	if mostPending > 0 {
-		line = fmt.Sprintf("%d packages pending, %d security.", mostPending, mostSecurity)
-	}
-	if rebootNodes > 0 {
-		if mostPending == 0 {
-			line = "No packages are pending."
-		}
-		line += fmt.Sprintf(" %s need a restart.", autoNodeCount(rebootNodes))
-	}
-	nodes = append(nodes, autoMaintenanceNote(line))
-
-	warnings := []string{}
-	if failedNodes > 0 {
-		warnings = append(warnings, fmt.Sprintf("The update check failed on %s.", autoNodeCount(failedNodes)))
-	}
-	if policy.Os.RebootPolicy == maintenance.AutoRebootAlways {
-		warnings = append(warnings, "Every node reboots during its update.")
-	}
-	if len(warnings) > 0 {
-		nodes = append(nodes, ucx.Warning(strings.Join(warnings, " ")))
-	}
-
-	return nodes
+type autoNodeVersion struct {
+	Name    string
+	Version string
 }
 
-func autoMaintenanceNextRunLabel(policy maintenance.AutoPolicy, now time.Time) (string, bool) {
-	return autoMaintenanceNextRunLabelFrom(policy, now, now)
-}
-
-func autoMaintenanceNextRunLabelFrom(policy maintenance.AutoPolicy, floor time.Time, now time.Time) (string, bool) {
-	start, end, ok := autoMaintenanceNextWindow(policy, floor, now)
-	if !ok {
-		return "", false
-	}
-
-	endLabel := end.UTC().Format("15:04")
-	if end.UTC().Format("2006-01-02") != start.UTC().Format("2006-01-02") {
-		endLabel = end.UTC().Format("Monday 15:04")
-	}
-
-	return fmt.Sprintf(
-		"Next run: %s - %s UTC (in %s).",
-		start.UTC().Format("Monday 15:04"),
-		endLabel,
-		autoUntilLabel(start, now),
-	), true
-}
-
-func autoMaintenanceNextWindow(policy maintenance.AutoPolicy, floor time.Time, now time.Time) (time.Time, time.Time, bool) {
-	floor = floor.UTC()
-	if now.After(floor) {
-		floor = now.UTC()
-	}
-	if policy.DeferUntil.After(floor) {
-		floor = policy.DeferUntil.UTC()
-	}
-
-	start, end, ok := maintenance.AutoNextWindow(floor, policy.Window)
-	if !ok || !start.After(now) {
-		return time.Time{}, time.Time{}, false
-	}
-	return start.UTC(), end.UTC(), true
-}
+// Schedule
+// =====================================================================================================================
+// The schedule is one day and one start hour. The window is four hours long. A pause moves the next run forward
+// without a change to the stored policy.
 
 func autoMaintenanceWindowNodes(
 	app *stackUiApp,
@@ -662,6 +496,133 @@ func autoMaintenanceWindowNodes(
 	nodes = append(nodes, autoMaintenancePauseActions(app, policy, now)...)
 	return nodes
 }
+
+func autoMaintenanceNextRunLabel(policy maintenance.AutoPolicy, now time.Time) (string, bool) {
+	return autoMaintenanceNextRunLabelFrom(policy, now, now)
+}
+
+func autoMaintenanceNextRunLabelFrom(policy maintenance.AutoPolicy, floor time.Time, now time.Time) (string, bool) {
+	start, end, ok := autoMaintenanceNextWindow(policy, floor, now)
+	if !ok {
+		return "", false
+	}
+
+	endLabel := end.UTC().Format("15:04")
+	if end.UTC().Format("2006-01-02") != start.UTC().Format("2006-01-02") {
+		endLabel = end.UTC().Format("Monday 15:04")
+	}
+
+	return fmt.Sprintf(
+		"Next run: %s - %s UTC (in %s).",
+		start.UTC().Format("Monday 15:04"),
+		endLabel,
+		autoUntilLabel(start, now),
+	), true
+}
+
+func autoMaintenanceNextWindow(policy maintenance.AutoPolicy, floor time.Time, now time.Time) (time.Time, time.Time, bool) {
+	floor = floor.UTC()
+	if now.After(floor) {
+		floor = now.UTC()
+	}
+	if policy.DeferUntil.After(floor) {
+		floor = policy.DeferUntil.UTC()
+	}
+
+	start, end, ok := maintenance.AutoNextWindow(floor, policy.Window)
+	if !ok || !start.After(now) {
+		return time.Time{}, time.Time{}, false
+	}
+	return start.UTC(), end.UTC(), true
+}
+
+func autoMaintenancePauseActions(app *stackUiApp, policy maintenance.AutoPolicy, now time.Time) []ucx.UiNode {
+	nodes := []ucx.UiNode{}
+
+	pause := []ucx.UiNode{}
+	if policy.DeferUntil.After(now) {
+		pause = append(pause,
+			ucx.Text("The weekly schedule is paused until "+autoTimestampLabel(policy.DeferUntil)+".").
+				Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+			ucx.Button("autoMaintenanceClearPause", "Resume weekly schedule", ucx.ColorSecondaryMain).
+				ButtonBusy("autoMaintenanceBusy").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+				autoMaintenanceActionAsync(app, "The weekly schedule resumed.", func() error {
+					return maintenance.AutoDeferUntil(time.Time{})
+				})
+			}),
+		)
+	} else {
+		for _, days := range []int{1, 3, 7} {
+			label := fmt.Sprintf("Pause for %d days", days)
+			if days == 1 {
+				label = "Pause for 1 day"
+			}
+			delay := time.Duration(days) * 24 * time.Hour
+			pause = append(pause, ucx.Button(fmt.Sprintf("autoMaintenancePause%d", days), label, ucx.ColorSecondaryMain).
+				ButtonBusy("autoMaintenanceBusy").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+				autoMaintenanceActionAsync(app, "The weekly schedule was paused.", func() error {
+					return maintenance.AutoDeferUntil(time.Now().UTC().Add(delay))
+				})
+			}))
+		}
+	}
+	nodes = append(nodes, ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 12}).
+		Sx(ucx.SxFlexWrapWrap, ucx.SxAlignItemsCenter).Children(pause...))
+
+	return nodes
+}
+
+var autoDayLabels = []struct {
+	Key   string
+	Value string
+}{
+	{Key: "mon", Value: "Monday"},
+	{Key: "tue", Value: "Tuesday"},
+	{Key: "wed", Value: "Wednesday"},
+	{Key: "thu", Value: "Thursday"},
+	{Key: "fri", Value: "Friday"},
+	{Key: "sat", Value: "Saturday"},
+	{Key: "sun", Value: "Sunday"},
+}
+
+func autoDayLabel(day string) string {
+	day = strings.ToLower(strings.TrimSpace(day))
+	for _, candidate := range autoDayLabels {
+		if candidate.Key == day {
+			return candidate.Value
+		}
+	}
+	return day
+}
+
+func autoDayOptions() []ucx.Option {
+	options := make([]ucx.Option, 0, len(autoDayLabels))
+	for _, day := range autoDayLabels {
+		options = append(options, ucx.Option{Key: day.Key, Value: day.Value})
+	}
+	return options
+}
+
+func autoHourOptions() []ucx.Option {
+	options := make([]ucx.Option, 0, 24)
+	for hour := 0; hour < 24; hour++ {
+		endHour := (hour + maintenance.AutoWindowDurationHours) % 24
+		label := fmt.Sprintf("%02d:00 - %02d:00 UTC", hour, endHour)
+		if endHour <= hour {
+			label += " (next day)"
+		}
+		options = append(options, ucx.Option{
+			Key:   strconv.Itoa(hour),
+			Value: label,
+		})
+	}
+	return options
+}
+
+// The current run
+// =====================================================================================================================
+// A run has two channels. The Kubernetes channel upgrades the nodes. The operating-system channel updates them. The
+// run shows the phase of each channel and the reason when the schedule is stopped.
 
 func autoMaintenanceRunNodes(app *stackUiApp, status dashboardAutoStatus, policy maintenance.AutoPolicy) []ucx.UiNode {
 	now := time.Now().UTC()
@@ -785,6 +746,34 @@ func autoMaintenanceRunNodes(app *stackUiApp, status dashboardAutoStatus, policy
 	return nodes
 }
 
+func autoMaintenanceRunVisible(status dashboardAutoStatus) bool {
+	run := status.State.LastRun
+	if maintenance.AutoRunActive(run) || maintenance.AutoStateBlocked(status.State) {
+		return true
+	}
+
+	nodes, err := maintenance.AutoOsRecoveryNodes()
+	if err == nil && len(nodes) > 0 {
+		return true
+	}
+
+	if run.Uid == "" {
+		return false
+	}
+
+	snapshot, err := maintenance.Snapshot()
+	if err != nil {
+		return false
+	}
+	for _, operation := range snapshot {
+		if operation.AutoRunUid == run.Uid && operation.Phase != maintenance.PhaseCompleted {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (app *stackUiApp) autoOsRecoveryButtons(blocked bool) []ucx.UiNode {
 	nodes, err := maintenance.AutoOsRecoveryNodes()
 	if err != nil {
@@ -873,267 +862,10 @@ func autoCheckLabel(name string) string {
 	return name
 }
 
-func autoMaintenanceActionAsync(app *stackUiApp, success string, action func() error) {
-	if app.AutoMaintenanceBusy {
-		return
-	}
-
-	app.runAsyncAction("autoMaintenanceBusy", &app.AutoMaintenanceBusy, action, func(err error) {
-		if err != nil {
-			dashboardSendUiMessage(*app.Session(), err.Error(), false)
-		} else {
-			dashboardSendUiMessage(*app.Session(), success, true)
-		}
-	})
-}
-
-func autoMaintenanceInitForm(app *stackUiApp, policy maintenance.AutoPolicy) {
-	if app.autoMaintenanceLoaded || app.autoSettingsSaving || app.autoSettingsSaveError != "" {
-		return
-	}
-
-	days := policy.Window.Days
-	if len(days) == 0 {
-		days = []string{"sun"}
-	}
-
-	app.AutoMaintenanceK8sEnabled = policy.K8s.Enabled
-	app.AutoMaintenanceOsEnabled = policy.Os.Enabled
-	app.AutoWindowDay = strings.ToLower(strings.TrimSpace(days[0]))
-	app.AutoWindowStartHour = strconv.Itoa(policy.Window.StartHourUtc)
-	app.autoMaintenanceLoaded = true
-}
-
-func (app *stackUiApp) homeAutoMaintenanceMetric() []ucx.UiNode {
-	value := "Unknown"
-	color := ucx.ColorTextSecondary
-
-	status, err := app.autoStatusRead()
-	if err == nil {
-		policy := maintenance.AutoDefaultPolicy()
-		if status.PolicyFound {
-			policy = maintenance.AutoPolicyNormalize(status.Policy)
-		}
-
-		now := time.Now().UTC()
-		switch {
-		case status.StateFound && maintenance.AutoRunActive(status.State.LastRun):
-			value = "Maintenance in progress"
-			color = ucx.ColorTextPrimary
-		case !policy.K8s.Enabled && !policy.Os.Enabled:
-			value = "Off"
-		case status.StateFound && maintenance.AutoStateBlocked(status.State):
-			value = "Blocked"
-			color = ucx.ColorErrorMain
-		case policy.DeferUntil.After(now) && !maintenance.AutoTestWindowOpen(now, policy):
-			value = "Deferred until " + autoDateLabel(policy.DeferUntil)
-			color = ucx.ColorWarningMain
-		default:
-			windowStart, windowEnd, windowOpen := autoMaintenanceOpenWindow(policy, now)
-			floor := now
-			if windowOpen {
-				floor = windowEnd
-				if !autoMaintenanceWindowUsed(status, policy, windowStart) {
-					value = "Open until " + windowEnd.UTC().Format("Mon 15:04")
-					color = ucx.ColorTextPrimary
-					break
-				}
-			}
-			if start, _, ok := autoMaintenanceNextWindow(policy, floor, now); ok {
-				value = start.UTC().Format("Mon 15:04")
-				color = ucx.ColorTextPrimary
-			}
-		}
-	}
-
-	link := ucx.LinkButton("homeAutomaticMaintenance", "(View)", ucx.ColorLinkColor).Sx(
-		ucx.SxFontSize(12),
-		ucx.SxFontWeight("400"),
-	).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-		ucxsvc.RouterPushPage(app, "automatic-maintenance")
-	})
-
-	return app.homeMetricEx("Automatic maintenance", []ucx.UiNode{link}, homeMetricText(value, color))
-}
-
-var autoDayLabels = []struct {
-	Key   string
-	Value string
-}{
-	{Key: "mon", Value: "Monday"},
-	{Key: "tue", Value: "Tuesday"},
-	{Key: "wed", Value: "Wednesday"},
-	{Key: "thu", Value: "Thursday"},
-	{Key: "fri", Value: "Friday"},
-	{Key: "sat", Value: "Saturday"},
-	{Key: "sun", Value: "Sunday"},
-}
-
-func autoDayLabel(day string) string {
-	day = strings.ToLower(strings.TrimSpace(day))
-	for _, candidate := range autoDayLabels {
-		if candidate.Key == day {
-			return candidate.Value
-		}
-	}
-	return day
-}
-
-func autoDayOptions() []ucx.Option {
-	options := make([]ucx.Option, 0, len(autoDayLabels))
-	for _, day := range autoDayLabels {
-		options = append(options, ucx.Option{Key: day.Key, Value: day.Value})
-	}
-	return options
-}
-
-func autoHourOptions() []ucx.Option {
-	options := make([]ucx.Option, 0, 24)
-	for hour := 0; hour < 24; hour++ {
-		endHour := (hour + maintenance.AutoWindowDurationHours) % 24
-		label := fmt.Sprintf("%02d:00 - %02d:00 UTC", hour, endHour)
-		if endHour <= hour {
-			label += " (next day)"
-		}
-		options = append(options, ucx.Option{
-			Key:   strconv.Itoa(hour),
-			Value: label,
-		})
-	}
-	return options
-}
-
-func autoNodesNeedingUpgrade(versions []string, target string) int {
-	count := 0
-	for _, nodeVersion := range versions {
-		if !shared.SameRelease(nodeVersion, target) {
-			count++
-		}
-	}
-	return count
-}
-
-func autoOutOfSupportWarnings(versions []string, now time.Time) []string {
-	seen := map[string]bool{}
-	result := []string{}
-
-	for _, nodeVersion := range versions {
-		if seen[nodeVersion] {
-			continue
-		}
-		seen[nodeVersion] = true
-
-		eolAt, ok := shared.SupportEnds(nodeVersion)
-		if ok && !eolAt.After(now) {
-			result = append(result, fmt.Sprintf("%s is past its end of support.", nodeVersion))
-		}
-	}
-
-	return result
-}
-
-func autoTimestampLabel(t time.Time) string {
-	return t.UTC().Format("Mon Jan 2, 15:04 UTC")
-}
-
-func autoDateLabel(t time.Time) string {
-	return t.UTC().Format("Jan 2, 2006")
-}
-
-func autoUntilLabel(t time.Time, now time.Time) string {
-	delta := t.Sub(now)
-	if delta <= 0 {
-		return "now"
-	}
-
-	days := int(delta / (24 * time.Hour))
-	hours := int((delta % (24 * time.Hour)) / time.Hour)
-	minutes := int((delta % time.Hour) / time.Minute)
-
-	switch {
-	case days > 0 && hours > 0:
-		return fmt.Sprintf("%d d %d h", days, hours)
-	case days > 0:
-		return fmt.Sprintf("%d d", days)
-	case hours > 0 && minutes > 0:
-		return fmt.Sprintf("%d h %d min", hours, minutes)
-	case hours > 0:
-		return fmt.Sprintf("%d h", hours)
-	default:
-		return fmt.Sprintf("%d min", minutes)
-	}
-}
-func autoMaintenancePauseActions(app *stackUiApp, policy maintenance.AutoPolicy, now time.Time) []ucx.UiNode {
-	nodes := []ucx.UiNode{}
-
-	pause := []ucx.UiNode{}
-	if policy.DeferUntil.After(now) {
-		pause = append(pause,
-			ucx.Text("The weekly schedule is paused until "+autoTimestampLabel(policy.DeferUntil)+".").
-				Sx(ucx.SxColor(ucx.ColorTextSecondary)),
-			ucx.Button("autoMaintenanceClearPause", "Resume weekly schedule", ucx.ColorSecondaryMain).
-				ButtonBusy("autoMaintenanceBusy").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-				autoMaintenanceActionAsync(app, "The weekly schedule resumed.", func() error {
-					return maintenance.AutoDeferUntil(time.Time{})
-				})
-			}),
-		)
-	} else {
-		for _, days := range []int{1, 3, 7} {
-			label := fmt.Sprintf("Pause for %d days", days)
-			if days == 1 {
-				label = "Pause for 1 day"
-			}
-			delay := time.Duration(days) * 24 * time.Hour
-			pause = append(pause, ucx.Button(fmt.Sprintf("autoMaintenancePause%d", days), label, ucx.ColorSecondaryMain).
-				ButtonBusy("autoMaintenanceBusy").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-				autoMaintenanceActionAsync(app, "The weekly schedule was paused.", func() error {
-					return maintenance.AutoDeferUntil(time.Now().UTC().Add(delay))
-				})
-			}))
-		}
-	}
-	nodes = append(nodes, ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 12}).
-		Sx(ucx.SxFlexWrapWrap, ucx.SxAlignItemsCenter).Children(pause...))
-
-	return nodes
-}
-
-func maintenanceActivityLabel(startedAt time.Time, now time.Time) (string, bool) {
-	if startedAt.IsZero() {
-		return "", false
-	}
-	return "Elapsed " + autoDurationShort(now.Sub(startedAt)), true
-}
-
-func maintenanceSortGroups(groupNames []string) {
-	sort.Slice(groupNames, func(i, j int) bool {
-		if groupNames[i] == shared.GroupControlPlane || groupNames[j] == shared.GroupControlPlane {
-			return groupNames[i] == shared.GroupControlPlane
-		}
-		return groupNames[i] < groupNames[j]
-	})
-}
-
-func maintenancePhaseLabel(phase string) string {
-	switch strings.ToLower(phase) {
-	case maintenance.AutoPhasePending:
-		return "Waiting to start"
-	case maintenance.AutoPhasePreflight:
-		return "Checking the cluster"
-	case maintenance.AutoPhaseBackup:
-		return "Waiting for a backup"
-	case maintenance.AutoPhaseRunning:
-		return "In progress"
-	case maintenance.AutoPhaseCompleted:
-		return "Completed"
-	case maintenance.AutoPhaseBlocked, "failed":
-		return "Stopped"
-	case "cancelled":
-		return "Cancelled"
-	}
-	return phase
-}
+// Node progress
+// =====================================================================================================================
+// Progress comes from the planned upgrade and from the recorded operations. A node is complete when every channel
+// that owns it is complete. The page groups the nodes by pool, with the control plane first.
 
 func autoMaintenanceNodeProgress(app *stackUiApp, status dashboardAutoStatus) []ucx.UiNode {
 	record, found := app.readClusterRecord()
@@ -1420,6 +1152,315 @@ func autoMaintenanceActionLabel(operation maintenance.Operation, phase string) s
 		return "Waiting for the node"
 	}
 	return maintenancePhaseLabel(phase)
+}
+
+func maintenanceActivityLabel(startedAt time.Time, now time.Time) (string, bool) {
+	if startedAt.IsZero() {
+		return "", false
+	}
+	return "Elapsed " + autoDurationShort(now.Sub(startedAt)), true
+}
+
+func maintenanceSortGroups(groupNames []string) {
+	sort.Slice(groupNames, func(i, j int) bool {
+		if groupNames[i] == shared.GroupControlPlane || groupNames[j] == shared.GroupControlPlane {
+			return groupNames[i] == shared.GroupControlPlane
+		}
+		return groupNames[i] < groupNames[j]
+	})
+}
+
+func maintenancePhaseLabel(phase string) string {
+	switch strings.ToLower(phase) {
+	case maintenance.AutoPhasePending:
+		return "Waiting to start"
+	case maintenance.AutoPhasePreflight:
+		return "Checking the cluster"
+	case maintenance.AutoPhaseBackup:
+		return "Waiting for a backup"
+	case maintenance.AutoPhaseRunning:
+		return "In progress"
+	case maintenance.AutoPhaseCompleted:
+		return "Completed"
+	case maintenance.AutoPhaseBlocked, "failed":
+		return "Stopped"
+	case "cancelled":
+		return "Cancelled"
+	}
+	return phase
+}
+
+// Actions
+// =====================================================================================================================
+// Every button starts one action in the maintenance package. The action runs in the background and the result becomes
+// a UI message. The busy flag is shared, so two actions cannot run at once.
+
+func autoMaintenanceRunNowDialog(app *stackUiApp, policy maintenance.AutoPolicy) ucx.UiNode {
+	message := "Starts the enabled updates. Nodes update one at a time."
+	switch {
+	case policy.K8s.Enabled && policy.Os.Enabled:
+		message = "Kubernetes updates first, then the operating system. Nodes update one at a time."
+	case policy.K8s.Enabled:
+		message = "The Kubernetes upgrade starts now. Nodes update one at a time."
+	case policy.Os.Enabled:
+		message = "The operating-system update starts now. Nodes update one at a time."
+	}
+
+	return dashboardResourceActionDialog(
+		"autoMaintenanceRunNow",
+		"Run maintenance now",
+		message,
+		"",
+		ucx.ColorPrimaryMain,
+		func() {
+			app.autoRunNowConfirm = false
+			ucx.AppUpdateUi(app)
+		},
+		func() {
+			app.autoRunNowConfirm = false
+			ucx.AppUpdateUi(app)
+			kubeconfig := LocalKubeconfigPath()
+			autoMaintenanceActionAsync(app, "Maintenance started.", func() error {
+				return maintenance.AutoOpenWindowNow(context.Background(), kubeconfig)
+			})
+		},
+	)
+}
+
+func autoMaintenanceActionAsync(app *stackUiApp, success string, action func() error) {
+	if app.AutoMaintenanceBusy {
+		return
+	}
+
+	app.runAsyncAction("autoMaintenanceBusy", &app.AutoMaintenanceBusy, action, func(err error) {
+		if err != nil {
+			dashboardSendUiMessage(*app.Session(), err.Error(), false)
+		} else {
+			dashboardSendUiMessage(*app.Session(), success, true)
+		}
+	})
+}
+
+// Settings
+// =====================================================================================================================
+// The form starts from the stored policy. A change to a switch or a dropdown saves the whole policy. Only one save
+// runs at a time. A change during a save replaces the pending form, so the last change always wins.
+
+func autoMaintenanceInitForm(app *stackUiApp, policy maintenance.AutoPolicy) {
+	if app.autoMaintenanceLoaded || app.autoSettingsSaving || app.autoSettingsSaveError != "" {
+		return
+	}
+
+	days := policy.Window.Days
+	if len(days) == 0 {
+		days = []string{"sun"}
+	}
+
+	app.AutoMaintenanceK8sEnabled = policy.K8s.Enabled
+	app.AutoMaintenanceOsEnabled = policy.Os.Enabled
+	app.AutoWindowDay = strings.ToLower(strings.TrimSpace(days[0]))
+	app.AutoWindowStartHour = strconv.Itoa(policy.Window.StartHourUtc)
+	app.autoMaintenanceLoaded = true
+}
+
+type autoSettingsForm struct {
+	K8sEnabled bool
+	OsEnabled  bool
+	WindowDay  string
+	StartHour  string
+}
+
+func autoSettingsFromModel(app *stackUiApp) autoSettingsForm {
+	return autoSettingsForm{
+		K8sEnabled: app.AutoMaintenanceK8sEnabled,
+		OsEnabled:  app.AutoMaintenanceOsEnabled,
+		WindowDay:  app.AutoWindowDay,
+		StartHour:  app.AutoWindowStartHour,
+	}
+}
+
+func autoSettingsSaveAsync(app *stackUiApp) {
+	session := *app.Session()
+	if session == nil {
+		return
+	}
+	form := autoSettingsFromModel(app)
+	app.autoSettingsPending = &form
+	app.autoSettingsSaveError = ""
+	if app.autoSettingsSaving {
+		return
+	}
+	client, err := app.clusterStateValueClient()
+	if err != nil {
+		app.autoSettingsSaveError = err.Error()
+		return
+	}
+	app.autoSettingsSaving = true
+	go func() {
+		for {
+			app.mu.Lock()
+			pending := *app.autoSettingsPending
+			app.autoSettingsPending = nil
+			app.mu.Unlock()
+
+			err := autoPolicySave(client, pending)
+
+			app.mu.Lock()
+			done := app.autoSettingsPending == nil
+			if done {
+				app.autoSettingsSaving = false
+				if err != nil {
+					app.autoSettingsSaveError = err.Error()
+				}
+			}
+			if session.Context().Err() == nil {
+				ucx.AppUpdateUi(app)
+			}
+			app.mu.Unlock()
+			if done {
+				return
+			}
+		}
+	}()
+}
+
+func autoPolicySave(client shared.ClusterStateClient, form autoSettingsForm) error {
+	for attempt := 0; attempt < 3; attempt++ {
+		value, err := shared.ClusterStateValueRead(client, maintenance.AutoPolicyKey)
+		if err != nil {
+			return fmt.Errorf("could not read the automatic maintenance policy: %s", err)
+		}
+
+		policy := maintenance.AutoDefaultPolicy()
+		if value.Found && !value.Empty {
+			err = json.Unmarshal(value.Value, &policy)
+			if err != nil {
+				return fmt.Errorf("could not parse the automatic maintenance policy: %s", err)
+			}
+		}
+
+		policy = autoPolicyFromForm(form, policy)
+
+		encoded, err := json.Marshal(policy)
+		if err != nil {
+			return err
+		}
+
+		_, writeErr := shared.ClusterStateValueWrite(client, maintenance.AutoPolicyKey, encoded, value.Revision)
+		if writeErr == nil {
+			return nil
+		}
+		if !shared.IsConflict(writeErr) {
+			latest, latestErr := shared.ClusterStateValueRead(client, maintenance.AutoPolicyKey)
+			if latestErr != nil || latest.Revision == value.Revision {
+				return fmt.Errorf("could not save the automatic maintenance policy: %s", writeErr)
+			}
+		}
+	}
+
+	return errors.New("the automatic maintenance policy changed while saving; please try again")
+}
+
+func autoPolicyFromForm(form autoSettingsForm, policy maintenance.AutoPolicy) maintenance.AutoPolicy {
+	policy.SchemaRevision = maintenance.AutoSchemaRevision
+	policy.K8s.Enabled = form.K8sEnabled
+	policy.Os.Enabled = form.OsEnabled
+
+	day := strings.ToLower(strings.TrimSpace(form.WindowDay))
+	if maintenance.AutoDayValid(day) {
+		policy.Window.Days = []string{day}
+	}
+
+	startHour, hourErr := strconv.Atoi(strings.TrimSpace(form.StartHour))
+	if hourErr == nil && startHour >= 0 && startHour <= 23 {
+		policy.Window.StartHourUtc = startHour
+	}
+
+	return maintenance.AutoPolicyNormalize(policy)
+}
+
+func (app *stackUiApp) homeAutoMaintenanceMetric() []ucx.UiNode {
+	value := "Unknown"
+	color := ucx.ColorTextSecondary
+
+	status, err := app.autoStatusRead()
+	if err == nil {
+		policy := maintenance.AutoDefaultPolicy()
+		if status.PolicyFound {
+			policy = maintenance.AutoPolicyNormalize(status.Policy)
+		}
+
+		now := time.Now().UTC()
+		switch {
+		case status.StateFound && maintenance.AutoRunActive(status.State.LastRun):
+			value = "Maintenance in progress"
+			color = ucx.ColorTextPrimary
+		case !policy.K8s.Enabled && !policy.Os.Enabled:
+			value = "Off"
+		case status.StateFound && maintenance.AutoStateBlocked(status.State):
+			value = "Blocked"
+			color = ucx.ColorErrorMain
+		case policy.DeferUntil.After(now) && !maintenance.AutoTestWindowOpen(now, policy):
+			value = "Deferred until " + autoDateLabel(policy.DeferUntil)
+			color = ucx.ColorWarningMain
+		default:
+			windowStart, windowEnd, windowOpen := autoMaintenanceOpenWindow(policy, now)
+			floor := now
+			if windowOpen {
+				floor = windowEnd
+				if !autoMaintenanceWindowUsed(status, policy, windowStart) {
+					value = "Open until " + windowEnd.UTC().Format("Mon 15:04")
+					color = ucx.ColorTextPrimary
+					break
+				}
+			}
+			if start, _, ok := autoMaintenanceNextWindow(policy, floor, now); ok {
+				value = start.UTC().Format("Mon 15:04")
+				color = ucx.ColorTextPrimary
+			}
+		}
+	}
+
+	link := ucx.LinkButton("homeAutomaticMaintenance", "(View)", ucx.ColorLinkColor).Sx(
+		ucx.SxFontSize(12),
+		ucx.SxFontWeight("400"),
+	).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+		ucxsvc.RouterPushPage(app, "automatic-maintenance")
+	})
+
+	return app.homeMetricEx("Automatic maintenance", []ucx.UiNode{link}, homeMetricText(value, color))
+}
+
+func autoTimestampLabel(t time.Time) string {
+	return t.UTC().Format("Mon Jan 2, 15:04 UTC")
+}
+
+func autoDateLabel(t time.Time) string {
+	return t.UTC().Format("Jan 2, 2006")
+}
+
+func autoUntilLabel(t time.Time, now time.Time) string {
+	delta := t.Sub(now)
+	if delta <= 0 {
+		return "now"
+	}
+
+	days := int(delta / (24 * time.Hour))
+	hours := int((delta % (24 * time.Hour)) / time.Hour)
+	minutes := int((delta % time.Hour) / time.Minute)
+
+	switch {
+	case days > 0 && hours > 0:
+		return fmt.Sprintf("%d d %d h", days, hours)
+	case days > 0:
+		return fmt.Sprintf("%d d", days)
+	case hours > 0 && minutes > 0:
+		return fmt.Sprintf("%d h %d min", hours, minutes)
+	case hours > 0:
+		return fmt.Sprintf("%d h", hours)
+	default:
+		return fmt.Sprintf("%d min", minutes)
+	}
 }
 
 func autoDurationShort(delta time.Duration) string {
