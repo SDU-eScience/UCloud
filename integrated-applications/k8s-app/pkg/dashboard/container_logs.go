@@ -21,16 +21,13 @@ var containerLogTailCount int64 = 1000
 // syncContainerLogStream ensures that a log stream is running iff the current detail is a container
 // logs view. It must be called with app.mu held.
 func (app *stackUiApp) syncContainerLogStream() {
-	parts := strings.Split(app.ResourceDetail, "/")
-	if len(parts) != 4 || parts[0] != containersTypeId {
+	ref, ok := parseResourceDetail(app.ResourceDetail)
+	if !ok || ref.Type != containersTypeId || !ref.hasContainer {
 		app.stopContainerLogsLocked()
 		return
 	}
 
-	namespace := parts[1]
-	pod := parts[2]
-	container := parts[3]
-	app.startContainerLogsLocked(namespace, pod, container)
+	app.startContainerLogsLocked(ref.Namespace, ref.Name, ref.Container)
 }
 
 func (app *stackUiApp) startContainerLogsLocked(namespace string, pod string, container string) {

@@ -172,16 +172,16 @@ func dashboardNavigationParse(app *stackUiApp, route string) []dashboardNavigati
 			}
 		case "detail", "create":
 			detail := detailFromRoute(level)
-			if detail == "" {
+			ref, parsed := parseResourceDetail(detail)
+			if !parsed {
 				return nil
 			}
-			detailParts := strings.Split(detail, "/")
-			label = strings.TrimPrefix(detailParts[1]+"/"+detailParts[2], "/")
+			label = strings.TrimPrefix(ref.Namespace+"/"+ref.Name, "/")
 			if parts[0] == "create" {
 				label = "Create"
 			}
-			if len(detailParts) == 4 {
-				label = detailParts[3]
+			if ref.hasContainer {
+				label = ref.Container
 			}
 			typeId = query.Get(fmt.Sprintf("type%d", i))
 			if _, ok := app.resolveType(typeId); !ok {

@@ -3,7 +3,6 @@ package dashboard
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/url"
 	"path/filepath"
 	"sort"
@@ -19,10 +18,7 @@ import (
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 	"ucloud.dk/shared/pkg/util"
 
-	"ucloud.dk/iapp/k8s/pkg/maintenance"
 	"ucloud.dk/iapp/k8s/pkg/shared"
-
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const managementMountDir = "/etc/ucloud-k8s/management"
@@ -30,6 +26,57 @@ const managementMountDir = "/etc/ucloud-k8s/management"
 const navHomeId = "home"
 
 const provisioningRowKeyPrefix = "provisioning:"
+
+const dashboardUiMessageSendTimeout = 10 * time.Second
+
+func dashboardSendUiMessage(session *ucx.Session, message string, success bool) {
+	if session == nil || session.Context().Err() != nil {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(session.Context(), dashboardUiMessageSendTimeout)
+	defer cancel()
+
+	_, _ = ucxapi.UiSendMessage.InvokeEx(ctx, session, ucxapi.UiSendMessageRequest{
+		Message: message,
+		Success: success,
+	})
+}
+
+func (app *stackUiApp) runAsyncAction(busyBinding string, busy *bool, action func() error, onDone func(error)) {
+	session := *app.Session()
+	if session == nil {
+		return
+	}
+
+	if busy != nil {
+		*busy = true
+		ucx.AppUpdateModelPatch(session, map[string]ucx.Value{
+			busyBinding: ucx.VBool(true),
+		})
+	}
+
+	go func() {
+		err := action()
+
+		if busy != nil {
+			app.mu.Lock()
+			*busy = false
+			updatedUi := app.UserInterface()
+			updatedModel := ucx.AppSnapshot(app)
+			app.mu.Unlock()
+
+			if session.Context().Err() != nil {
+				return
+			}
+			ucx.AppUpdateUiLocked(session, updatedUi, updatedModel)
+		}
+
+		if onDone != nil && session.Context().Err() == nil {
+			onDone(err)
+		}
+	}()
+}
 
 func LocalKubeconfigPath() string {
 	return filepath.Join(managementMountDir, "kubeconfig-internal")
@@ -132,13 +179,6 @@ type stackUiApp struct {
 	containerLogTruncated  bool               `ucx:"-"`
 }
 
-type provisioningEntry struct {
-	Hostname string
-	Group    string
-	Status   string
-	JobId    string
-}
-
 func (app *stackUiApp) Mutex() *sync.Mutex     { return &app.mu }
 func (app *stackUiApp) Session() **ucx.Session { return &app.session }
 
@@ -196,16 +236,6 @@ func (app *stackUiApp) refreshStackInfo() {
 		ucx.AppUpdateUi(app)
 	}
 	app.mu.Unlock()
-}
-
-func (app *stackUiApp) provisioningSnapshot() []provisioningEntry {
-	return app.provisioningCache
-}
-
-func (app *stackUiApp) activeTypeIsHome() bool {
-	app.mu.Lock()
-	defer app.mu.Unlock()
-	return app.ActiveType == navHomeId
 }
 
 func (app *stackUiApp) startK8sClientWhenReady(session *ucx.Session, activeType string) {
@@ -266,38 +296,6 @@ func (app *stackUiApp) startK8sClientWhenReady(session *ucx.Session, activeType 
 			}
 		}
 	}()
-}
-
-func (app *stackUiApp) clusterNodeMessage(record *shared.ClusterRecord) string {
-	starting := 0
-	running := 0
-	for _, node := range record.Nodes {
-		if node.JobId == "" {
-			running++
-			continue
-		}
-
-		job, err := ucxsvc.JobRetrieve(app.Stack, node.JobId)
-		if err != nil {
-			starting++
-			continue
-		}
-
-		if job.Status.State.IsFinal() {
-			running++
-		} else {
-			starting++
-		}
-	}
-
-	if starting > 0 {
-		return fmt.Sprintf(
-			"The cluster is starting. %d of %d nodes are not running yet. See the node logs for details.",
-			starting,
-			len(record.Nodes),
-		)
-	}
-	return ""
 }
 
 func (app *stackUiApp) loadNamespaces() {
@@ -369,12 +367,6 @@ func (app *stackUiApp) UserInterface() ucx.UiNode {
 			ucx.SxBoxSizing("border-box"),
 		).
 		Children(children...)
-}
-
-func groupFromRoute(routePath string) string {
-	rest := strings.TrimPrefix(routePath, "control")
-	rest = strings.TrimPrefix(rest, "/")
-	return strings.TrimSpace(rest)
 }
 
 func (app *stackUiApp) allTypeDefs() []ResourceTypeDef {
@@ -464,579 +456,6 @@ func (app *stackUiApp) resourceNavItems() []ucx.NavItem {
 	return navItems
 }
 
-func (app *stackUiApp) homeMetric(title string, valueNodes ...ucx.UiNode) []ucx.UiNode {
-	return app.homeMetricEx(title, nil, valueNodes...)
-}
-
-func (app *stackUiApp) homeMetricEx(title string, titleNodes []ucx.UiNode, valueNodes ...ucx.UiNode) []ucx.UiNode {
-	headerChildren := []ucx.UiNode{
-		ucx.TextEx("", title).Sx(
-			ucx.SxColor(ucx.ColorTextSecondary),
-			ucx.SxFontSize(12),
-		),
-	}
-	headerChildren = append(headerChildren, titleNodes...)
-
-	return []ucx.UiNode{
-		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 6}).
-			Sx(ucx.SxAlignItemsCenter).
-			Children(headerChildren...),
-		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 4}).
-			Sx(ucx.SxAlignItemsCenter).
-			Children(valueNodes...),
-	}
-}
-
-func homeMetricText(value string, color ucx.Color) ucx.UiNode {
-	return ucx.TextEx("", value).Sx(
-		ucx.SxFontWeight("600"),
-		ucx.SxColor(color),
-		ucx.SxFontSize(16),
-	)
-}
-
-func (app *stackUiApp) homeMetricsRow(metrics ...[]ucx.UiNode) ucx.UiNode {
-	cells := make([]ucx.UiNode, 0, len(metrics))
-	for _, metric := range metrics {
-		cells = append(cells, ucx.Box().Sx(
-			ucx.SxFlexBasis("200px"),
-			ucx.SxFlexGrow(1),
-		).Children(metric...))
-	}
-
-	return ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 24}).
-		Sx(ucx.SxFlexWrapWrap).
-		Children(cells...)
-}
-
-func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
-	record, recordOk := app.readClusterRecord()
-
-	clusterState := "Unknown"
-	clusterStateColor := ucx.ColorTextSecondary
-	if recordOk {
-		clusterState = record.Phase
-		clusterStateColor = ucx.ColorSuccessMain
-		if record.Phase != "created" {
-			clusterStateColor = ucx.ColorWarningMain
-		}
-		if record.FailureReason != "" {
-			clusterState = record.Phase + ": " + record.FailureReason
-			clusterStateColor = ucx.ColorErrorMain
-		}
-	}
-
-	if health := app.clusterHealth; health != nil && recordOk && record.Phase == "created" {
-		if health.NotReady == 0 && health.Unknown == 0 && health.Total > 0 {
-			clusterState = "Healthy"
-		} else {
-			clusterState = "Unhealthy"
-		}
-		clusterStateColor = ucx.ColorSuccessMain
-		if clusterState == "Unhealthy" {
-			clusterStateColor = ucx.ColorErrorMain
-		}
-	}
-
-	nodesTotal := len(record.Nodes)
-	nodesReady := nodesTotal - len(app.provisioningSnapshot())
-	if nodesReady < 0 {
-		nodesReady = 0
-	}
-	if health := app.clusterHealth; health != nil {
-		nodesTotal = health.Total
-		nodesReady = health.Ready
-	}
-	nodesLabel := fmt.Sprintf("%d / %d", nodesReady, nodesTotal)
-
-	k8sVersion := "-"
-	k8sVersionColor := ucx.ColorTextPrimary
-	if health := app.clusterHealth; health != nil && health.ControlPlaneVersion != "" {
-		k8sVersion = health.ControlPlaneVersion
-	} else if recordOk && record.K8sVersion != "" {
-		k8sVersion = record.K8sVersion
-	}
-	if k8sVersion != "-" {
-		if eolAt, ok := shared.SupportEnds(k8sVersion); ok && !eolAt.After(time.Now().UTC()) {
-			k8sVersionColor = ucx.ColorErrorMain
-			k8sVersion += " (out of support)"
-		}
-	}
-
-	manageNodes := ucx.LinkButton("homeManageNodes", "(Manage)", ucx.ColorLinkColor).Sx(
-		ucx.SxFontSize(12),
-		ucx.SxFontWeight("400"),
-	).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-		app.selectResourceType("nodes")
-	})
-
-	children := []ucx.UiNode{}
-
-	stackInfo := app.stackInfo
-	if stackInfo != nil {
-		createdAtLabel := "-"
-		if stackInfo.CreatedAt > 0 {
-			createdAtLabel = time.UnixMilli(stackInfo.CreatedAt).UTC().Format("Jan 2, 2006 15:04 UTC")
-		}
-
-		stackIdMetric := app.homeMetric("Cluster ID",
-			homeMetricText(stackInfo.Id, ucx.ColorTextPrimary),
-			ucx.Box().Sx(ucx.SxMl(-4)).Children(
-				ucx.CopyButtonEx("homeCopyStackId", stackInfo.Id).WithTooltip("Copy cluster ID"),
-			),
-		)
-
-		providerMetric := app.homeMetric("Provider", homeMetricText("-", ucx.ColorTextPrimary))
-		if stackInfo.Provider != "" {
-			providerMetric = app.homeMetric("Provider",
-				ucx.ProviderTitleEx("homeProviderTitle", stackInfo.Provider, true).Sx(
-					ucx.SxFontWeight("600"),
-					ucx.SxFontSize(16),
-				),
-			)
-		}
-
-		children = append(children,
-			app.homeMetricsRow(
-				stackIdMetric,
-				providerMetric,
-				app.homeMetric("Created", homeMetricText(createdAtLabel, ucx.ColorTextPrimary)),
-			),
-		)
-	}
-
-	children = append(children,
-		app.homeMetricsRow(
-			app.homeMetric("Cluster state", homeMetricText(clusterState, clusterStateColor)),
-			app.homeMetricEx("Nodes ready", []ucx.UiNode{manageNodes}, homeMetricText(nodesLabel, ucx.ColorTextPrimary)),
-			app.homeMetricEx("Kubernetes version", []ucx.UiNode{
-				ucx.LinkButton("homeRollingUpgrade", "(Rolling upgrade)", ucx.ColorLinkColor).
-					Sx(ucx.SxFontSize(12), ucx.SxFontWeight("400")).
-					On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-						ucxsvc.RouterPushPage(app, "rolling-upgrade")
-					}),
-			}, homeMetricText(k8sVersion, k8sVersionColor)),
-		),
-	)
-
-	resourcesMetric := []ucx.UiNode{}
-	if stackInfo != nil {
-		resourcesMetric = app.homeMetric("Resources",
-			ucx.LinkButton("homeShowResources", fmt.Sprintf("%d", stackInfo.ResourceCount), ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-				ucxsvc.StackShowResources(app)
-			}),
-		)
-	}
-	children = append(children, app.homeMetricsRow(
-		resourcesMetric,
-		app.homeBackupsMetric(),
-		app.homeAutoMaintenanceMetric(),
-	))
-
-	return children
-}
-
-func kubectlExample(title string, command string) ucx.UiNode {
-	return ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 4}).Children(
-		ucx.TextEx("", title).Sx(
-			ucx.SxColor(ucx.ColorTextSecondary),
-		),
-		ucx.Code(command),
-	)
-}
-
-func (app *stackUiApp) pageHomeActions() []ucx.UiNode {
-	connectControls := []ucx.UiNode{
-		ucx.ButtonEx("homeDownloadKubernetesConfig", "Kubeconfig", ucx.ColorPrimaryMain, ucx.IconHeroArrowDownTray, "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-			ucxsvc.StackDownloadFile(app.Stack, shared.KubernetesConfigurationFileName)
-		}),
-	}
-
-	actions := []ucx.UiNode{
-		ucx.SettingsAction("homeConnectAction",
-			"Connect to this cluster",
-			"Use the cluster from your terminal with kubectl.",
-		).Children(
-			ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 4}).
-				Sx(ucx.SxAlignItemsCenter).
-				Children(connectControls...),
-		),
-		ucx.AccordionNode("Use kubectl from your terminal", false).WithNoHeaderBorder().Sx(ucx.SxMt(8), ucx.SxMb(12)).Children(
-			ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).Children(
-				ucx.Markdown("kubectl is the standard Kubernetes command line tool. If you do not have it, see [how to install kubectl](https://kubernetes.io/docs/tasks/tools/)."),
-				ucx.TextEx("", "1. Download the configuration file with the Kubeconfig button above.").Sx(
-					ucx.SxColor(ucx.ColorTextSecondary),
-				),
-				ucx.TextEx("", "2. Move the file to where kubectl looks for it by default (adjust the source path to where your browser saved it):").Sx(
-					ucx.SxColor(ucx.ColorTextSecondary),
-				),
-				ucx.Code("mkdir -p ~/.kube && mv ~/Downloads/kubeconfig ~/.kube/config"),
-				ucx.TextEx("", "3. Check that it works by listing the nodes of the cluster:").Sx(
-					ucx.SxColor(ucx.ColorTextSecondary),
-				),
-				ucx.Code("kubectl get nodes"),
-			),
-			ucx.Box().Sx(ucx.SxMt(16)).Children(
-				ucx.TextEx("", "Some commands you will likely need:").Sx(
-					ucx.SxColor(ucx.ColorTextSecondary),
-					ucx.SxFontWeight("600"),
-					ucx.SxMb(8),
-				),
-				ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 12}).Children(
-					kubectlExample("List all pods across every namespace", "kubectl get pods -A"),
-					kubectlExample("List all services across every namespace", "kubectl get services -A"),
-					kubectlExample("Show the details of a pod, for example when it will not start", "kubectl describe pod <name>"),
-					kubectlExample("Read the logs of a pod", "kubectl logs <pod>"),
-					kubectlExample("Create or update resources from a YAML file", "kubectl apply -f <file>"),
-				),
-			),
-			ucx.TextEx("", "If kubectl reports connection errors, verify that the file lives at ~/.kube/config.").Sx(
-				ucx.SxColor(ucx.ColorTextSecondary),
-			),
-		),
-	}
-
-	if app.Stack != nil && app.Stack.Ok {
-		actions = append(actions, ucx.SettingsAction("homePermissionsAction",
-			"Permissions",
-			"Share cluster admin rights for this Kubernetes cluster with others in your project.",
-		).Children(ucx.StackPermissionsEx("homePermissions", app.Stack.InstanceId, ucx.StackPermissionsProps{
-			AccessDescription: "Cluster admin grants full Kubernetes cluster-admin access, including cluster resources, credentials, VM shells, and logs. The cluster creator and project administrators keep access.",
-			PermissionLabel:   "Cluster admin",
-			PermissionIcon:    ucx.IconHeroShieldCheck,
-			ButtonIcon:        ucx.IconHeroShare,
-		})))
-		actions = append(actions, ucx.SettingsAction("homeDeleteAction",
-			"Delete cluster",
-			"Permanently deletes the cluster and its VMs.",
-		).Children(
-			ucx.ButtonEx("homeDeleteCluster", "Delete cluster", ucx.ColorErrorMain, ucx.IconTrash, "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-				ucxsvc.StackDelete(app)
-			}),
-		))
-	}
-
-	return actions
-}
-
-func (app *stackUiApp) pageResources() []ucx.UiNode {
-	if app.k8sClient == nil {
-		return []ucx.UiNode{app.appShell(appShellProps{
-			Content:        []ucx.UiNode{shellContentBox(1100, app.pageProvisioning()...)},
-			EscapeDisabled: true,
-		})}
-	}
-
-	detail := app.ResourceDetail
-	inDetail := detail != ""
-
-	activeDef, _ := app.resolveType(app.ActiveType)
-	namespaced := activeDef.Namespaced
-
-	var main []ucx.UiNode
-	var bottom []ucx.UiNode
-	isHome := app.ActiveType == navHomeId
-	if isHome && !inDetail {
-		homeChildren := append([]ucx.UiNode{}, app.pageHomeContent()...)
-		homeChildren = append(homeChildren, ucx.Box().Sx(ucx.SxMt(8)).Children(app.pageHomeActions()...))
-
-		main = []ucx.UiNode{shellContentBox(1100, homeChildren...)}
-	} else if inDetail {
-		main = []ucx.UiNode{app.resourceDetailNode(detail)}
-		bottom = append(bottom, app.resourceDetailBottomNode(detail))
-	} else {
-		var tableActions []ucx.ResourceTableAction
-		tableActions = append(tableActions, ucx.ResourceTableAction{
-			Id:       "viewYaml",
-			Label:    "View YAML",
-			Icon:     ucx.IconHeroCodeBracket,
-			Shortcut: "y",
-		})
-
-		if activeDef.CanUpdate || app.ActiveType == containersTypeId {
-			tableActions = append(tableActions, ucx.ResourceTableAction{
-				Id:       "editYaml",
-				Label:    "Edit",
-				Icon:     ucx.IconHeroPencilSquare,
-				Shortcut: "e",
-			})
-		}
-
-		if app.ActiveType == "pods" || app.ActiveType == containersTypeId {
-			tableActions = append(tableActions, ucx.ResourceTableAction{
-				Id:       "openShell",
-				Label:    "Open shell",
-				Icon:     ucx.IconHeroCommandLine,
-				Shortcut: "s",
-			})
-		}
-
-		if app.ActiveType == "ingresses" {
-			tableActions = append(tableActions, ucx.ResourceTableAction{
-				Id:    "openService",
-				Label: "Open service",
-				Icon:  ucx.IconHeroArrowTopRightOnSquare,
-				Kind:  ucx.ResourceTableActionOpenUrl,
-			})
-		}
-
-		if rolloutRestartSupported(app.ActiveType) {
-			tableActions = append(tableActions, ucx.ResourceTableAction{
-				Id:       "rolloutRestart",
-				Label:    "Restart",
-				Icon:     ucx.IconHeroArrowPath,
-				Shortcut: "r",
-			})
-		}
-
-		if dashboardResourceDeleteSupported(activeDef) {
-			tableActions = append(tableActions, ucx.ResourceTableAction{
-				Id:               "deleteResource",
-				Label:            "Delete",
-				Icon:             ucx.IconHeroTrash,
-				Shortcut:         "Delete",
-				Destructive:      true,
-				SkipConfirmation: true,
-			})
-		}
-
-		var groupAction *ucx.ResourceTableAction
-		var trailingAction *ucx.ResourceTableAction
-		if activeDef.CanCreate {
-			trailingAction = &ucx.ResourceTableAction{
-				Id:       "createResource",
-				Label:    "Create",
-				Icon:     ucx.IconHeroPlusSmall,
-				Color:    ucx.ColorPrimaryMain,
-				Shortcut: "n",
-			}
-		}
-		if app.ActiveType == "nodes" && app.clusterReadyForNodes() {
-			tableActions = append(tableActions,
-				ucx.ResourceTableAction{
-					Id:       "copyNodeName",
-					Label:    "Copy node name",
-					Icon:     ucx.IconCopy,
-					Kind:     ucx.ResourceTableActionCopyText,
-					Shortcut: "c",
-				},
-				ucx.ResourceTableAction{
-					Id:       "goToJob",
-					Label:    "Go to job",
-					Icon:     ucx.IconHeroArrowTopRightOnSquare,
-					Shortcut: "o",
-				},
-				ucx.ResourceTableAction{
-					Id:       "openShell",
-					Label:    "Open shell",
-					Icon:     ucx.IconHeroCommandLine,
-					Shortcut: "s",
-				},
-			)
-			groupAction = &ucx.ResourceTableAction{
-				Id:       "addMachine",
-				Label:    "Add machine",
-				Icon:     ucx.IconHeroPlusSmall,
-				Shortcut: "a",
-			}
-			tableActions = append(tableActions,
-				ucx.ResourceTableAction{
-					Id:    "cordonDrain",
-					Label: "Cordon and drain",
-					Icon:  ucx.IconBroom,
-				},
-				ucx.ResourceTableAction{
-					Id:    "uncordon",
-					Label: "Uncordon",
-					Icon:  ucx.IconRefresh,
-				},
-				ucx.ResourceTableAction{
-					Id:    "upgradeNode",
-					Label: "Upgrade Kubernetes",
-					Icon:  ucx.IconHeroArrowUp,
-				},
-				ucx.ResourceTableAction{
-					Id:               "removeNode",
-					Label:            "Remove node",
-					Icon:             ucx.IconTrash,
-					Shortcut:         "Delete",
-					Destructive:      true,
-					SkipConfirmation: true,
-				},
-			)
-			trailingAction = &ucx.ResourceTableAction{
-				Id:       "addWorkerPool",
-				Label:    "Add worker pool",
-				Icon:     ucx.IconHeroPlusSmall,
-				Color:    ucx.ColorPrimaryMain,
-				Shortcut: "n",
-			}
-		}
-
-		main = []ucx.UiNode{ucx.ResourceTable(ucx.ResourceTableProps{
-			Id:               "resourceTable",
-			TableId:          app.resourceStreamId(),
-			StateKey:         app.ActiveType,
-			ViewId:           "k8sResources",
-			EmptyMessage:     "No resources found.",
-			HideGroupHeaders: namespaced,
-			Actions:          tableActions,
-			GroupAction:      groupAction,
-			TrailingAction:   trailingAction,
-		}).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-			typeId, namespace, name, rowKey := rowActivationValue(ev.Value)
-			app.handleRowActivated(typeId, namespace, name, rowKey)
-		}).On(ucx.UiEventAction, func(ev ucx.UiEvent) {
-			app.handleTableAction(ev)
-		})}
-
-		if len(app.resourceNavigation) > 1 {
-			bottom = append(bottom, dashboardNavigationBack(app))
-		}
-		bottom = append(bottom, ucx.TableFilter("resourceFilter", app.ActiveType))
-		if namespaced && app.ActiveFilter.isEmpty() {
-			bottom = append(bottom, app.namespaceSelectorNode())
-		}
-		bottom = append(bottom, ucx.Box().Sx(ucx.SxFlexGrow(1)))
-		if len(app.resourceNavigation) > 1 {
-			bottom = append(bottom, dashboardNavigationBreadcrumbs(app))
-		} else {
-			bottom = append(bottom, ucx.TableCount("resourceCount", app.ActiveType).WithTitle(app.activeTypeLabel(app.allTypeDefs())))
-		}
-	}
-	if inDetail && len(app.resourceNavigation) > 1 {
-		bottom = []ucx.UiNode{
-			dashboardNavigationBack(app),
-			ucx.Box().Sx(ucx.SxFlexGrow(1)),
-			dashboardNavigationBreadcrumbs(app),
-		}
-	}
-
-	escapePath := ""
-	if inDetail {
-		escapeType := detailType(app.ResourceDetail)
-		if escapeType == "provisioning" {
-			escapeType = app.ActiveType
-			if escapeType == navHomeId {
-				escapeType = "nodes"
-			}
-			escapePath = app.browseRoute(escapeType, resourceFilter{})
-		} else if escapeType == containersTypeId {
-			escapePath = app.containersBackTarget()
-		} else {
-			escapePath = app.browseRoute(escapeType, app.ActiveFilter)
-		}
-	} else if app.ActiveType == containersTypeId && !app.ActiveFilter.isEmpty() {
-		escapePath = app.browseRoute("pods", resourceFilter{})
-	} else if app.filterOrigin != "" && !app.ActiveFilter.isEmpty() {
-		escapePath = app.browseRoute(app.filterOrigin, resourceFilter{})
-	}
-	if len(app.resourceNavigation) > 1 {
-		escapePath = app.resourceNavigation[len(app.resourceNavigation)-2].route
-	}
-
-	return []ucx.UiNode{app.appShell(appShellProps{
-		Content:        main,
-		Bottom:         bottom,
-		EscapePath:     escapePath,
-		EscapeDisabled: escapePath == "",
-	})}
-}
-
-func (app *stackUiApp) pageProvisioning() []ucx.UiNode {
-	messages := []ucx.UiNode{}
-
-	if record, ok := app.readClusterRecord(); ok && record.FailureReason != "" {
-		messages = append(messages, ucx.Text("The cluster reported a problem: "+record.FailureReason))
-		for _, pending := range record.PendingCleanup {
-			parts := []string{pending.Hostname}
-			if pending.JobId != "" {
-				parts = append(parts, "job "+pending.JobId)
-			}
-			if pending.ReservationId != "" {
-				parts = append(parts, "reservation "+pending.ReservationId)
-			}
-			messages = append(messages, ucx.Text(
-				"These resources need manual cleanup: "+strings.Join(parts, ", "),
-			))
-		}
-	}
-
-	message := ""
-	if record, ok := app.readClusterRecord(); ok {
-		message = app.clusterNodeMessage(&record)
-	}
-
-	if message == "" {
-		message = "The cluster control plane is starting. The dashboard loads when the Kubernetes API is ready."
-	}
-
-	messages = append(messages, ucx.Text(message))
-
-	maintenanceLinks := app.pageProvisioningMaintenanceLinks()
-	if len(maintenanceLinks) > 0 {
-		messages = append(messages, ucx.Text("Node maintenance (including recovery of finished operations):"))
-		messages = append(messages, maintenanceLinks...)
-	}
-
-	children := []ucx.UiNode{ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).Children(messages...)}
-
-	if record, ok := app.readClusterRecord(); ok {
-		for _, node := range record.Nodes {
-			if node.JobId == "" {
-				continue
-			}
-
-			children = append(children,
-				ucx.H3Ex("initLogsHeading-"+node.JobId, node.Hostname),
-				ucx.JobLogs("initLogs-"+node.JobId, node.JobId),
-			)
-		}
-	}
-
-	return children
-}
-
-func (app *stackUiApp) pageProvisioningMaintenanceLinks() []ucx.UiNode {
-	record, recordOk := app.readClusterRecord()
-	if !recordOk {
-		return nil
-	}
-
-	known := maintenanceKnownNodeNames(record)
-
-	snapshot, err := maintenance.Snapshot()
-	if err != nil {
-		return nil
-	}
-
-	names := make([]string, 0, len(snapshot))
-	for nodeName := range snapshot {
-		if known[nodeName] {
-			names = append(names, nodeName)
-		}
-	}
-	sort.Strings(names)
-
-	links := make([]ucx.UiNode, 0, len(names))
-	for _, nodeName := range names {
-		links = append(links, ucx.Link(fmt.Sprintf("maintenance/%s", url.PathEscape(nodeName))).Children(ucx.Text(
-			fmt.Sprintf("%s (%s)", nodeName, snapshot[nodeName].Phase),
-		)))
-	}
-	return links
-}
-
-func maintenanceKnownNodeNames(record shared.ClusterRecord) map[string]bool {
-	known := make(map[string]bool, len(record.Nodes))
-	for _, node := range record.Nodes {
-		if node.Hostname != "" {
-			known[node.Hostname] = true
-		}
-	}
-	return known
-}
-
 func (app *stackUiApp) resourceStreamId() string {
 	def, _ := app.resolveType(app.ActiveType)
 	return resourceDatasetId(resourceSelection{
@@ -1111,562 +530,6 @@ func (app *stackUiApp) namespaceSelectorNode() ucx.UiNode {
 	return ucx.Select("namespaceSelect", "", "activeNamespace", options).Sx(ucx.SxWidth(280)).WithShortcutKey("s")
 }
 
-func (app *stackUiApp) resourceDetailNode(detail string) ucx.UiNode {
-	if strings.HasPrefix(detail, "provisioning/") {
-		return ucx.JobLogsBound("detailInitLogs", "logJobId").
-			Sx(ucx.SxP(16), ucx.SxBoxSizing("border-box"))
-	}
-	if strings.HasPrefix(detail, containersTypeId+"/") {
-		return ucx.ContainerLogsBoundEx(fmt.Sprintf("detailContainerLogs-%d", app.containerLogGeneration), "containerLogs").
-			Sx(ucx.SxP(16), ucx.SxBoxSizing("border-box"))
-	}
-	return dashboardResourceEditorNode(app, detail)
-}
-
-func (app *stackUiApp) resourceDetailBottomNode(detail string) ucx.UiNode {
-	parts := strings.Split(detail, "/")
-	typeId := parts[0]
-	namespace := ""
-	name := ""
-	if len(parts) > 1 {
-		namespace = parts[1]
-	}
-	if len(parts) > 2 {
-		name = parts[2]
-	}
-	if name == "@create" {
-		name = "Create"
-	}
-	container := ""
-	if typeId == containersTypeId && len(parts) > 3 {
-		container = parts[3]
-	}
-	label := typeId
-	if typeId == "provisioning" {
-		label = "Provisioning"
-	} else if typeId == containersTypeId {
-		label = "Container logs"
-	} else if def, ok := app.resolveType(typeId); ok {
-		label = def.Label
-	}
-
-	backTarget := "browse/" + typeId
-	if typeId == "provisioning" {
-		backTarget = "browse/" + app.ActiveType
-		if backTarget == "browse/"+navHomeId {
-			backTarget = "browse/nodes"
-		}
-	} else if typeId == containersTypeId {
-		backTarget = app.containersBackTarget()
-	}
-
-	segments := []string{label}
-	if namespace != "" {
-		segments = append(segments, namespace)
-	}
-	if name != "" {
-		segments = append(segments, name)
-	}
-	if container != "" {
-		segments = append(segments, container)
-	}
-
-	return ucx.Toolbar().Children(
-		ucx.ButtonEx("backToTable", "Back to table", ucx.ColorSecondaryMain, ucx.IconHeroArrowLeft, "", "").ButtonEscapeHint(true).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-			ucxsvc.RouterPushPage(app, backTarget)
-		}),
-		ucx.Box(),
-		ucx.Text(strings.Join(segments, " / ")).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
-	)
-}
-
-func (app *stackUiApp) handleRowActivated(tableId string, namespace string, name string, rowKey string) {
-	if tableId == "" || name == "" {
-		return
-	}
-
-	if _, ok := app.resolveType(tableId); !ok {
-		return
-	}
-
-	if jobId := app.provisioningJobId(name); jobId != "" {
-		dashboardNavigationStart(app)
-		app.ResourceDetail = "provisioning/" + namespace + "/" + name
-		app.prevDetail = app.ResourceDetail
-		app.LogJobId = jobId
-		app.ResourceYaml = ""
-		dashboardNavigationPush(app, "detail/"+url.PathEscape("provisioning")+"/"+url.PathEscape(namespace)+"/"+url.PathEscape(name), strings.TrimPrefix(namespace+"/"+name, "/"))
-		ucx.AppUpdateUi(app)
-		return
-	}
-
-	if tableId == "pods" {
-		app.openPodContainers(namespace, name)
-		return
-	}
-
-	if tableId == containersTypeId {
-		app.openContainerLogs(namespace, name, rowKey)
-		return
-	}
-
-	if isWorkloadOwnerType(tableId) {
-		app.openOwnedPods(tableId, namespace, name, rowKey)
-		return
-	}
-
-	if tableId == "nodes" {
-		app.openNodePods(name)
-		return
-	}
-
-	app.openResourceDetail(tableId, namespace, name, false)
-}
-
-func isWorkloadOwnerType(typeId string) bool {
-	switch typeId {
-	case "deployments", "statefulsets", "daemonsets", "jobs":
-		return true
-	default:
-		return false
-	}
-}
-
-func (app *stackUiApp) openContainerLogs(namespace string, containerName string, rowKey string) {
-	if app.poller == nil || rowKey == "" {
-		return
-	}
-
-	podUid := rowKey
-	if idx := strings.Index(rowKey, "/"); idx >= 0 {
-		podUid = rowKey[:idx]
-	}
-
-	pod, ok := app.poller.objectForUid(podUid)
-	if !ok {
-		return
-	}
-
-	podNamespace := pod.GetNamespace()
-	if podNamespace == "" {
-		podNamespace = namespace
-	}
-	podName := pod.GetName()
-
-	dashboardNavigationStart(app)
-	app.ResourceDetail = containersTypeId + "/" + podNamespace + "/" + podName + "/" + containerName
-	app.prevDetail = app.ResourceDetail
-	app.ResourceYaml = ""
-	app.stopContainerLogsLocked()
-	app.startContainerLogsLocked(podNamespace, podName, containerName)
-
-	dashboardNavigationPush(app, "detail/"+
-		url.PathEscape(containersTypeId)+"/"+
-		url.PathEscape(podNamespace)+"/"+
-		url.PathEscape(podName)+"/"+
-		url.PathEscape(containerName), containerName)
-	ucx.AppUpdateUi(app)
-}
-
-func (app *stackUiApp) openOwnedPods(tableId string, namespace string, name string, rowKey string) {
-	if app.poller == nil {
-		return
-	}
-
-	var owner *unstructured.Unstructured
-	if rowKey != "" {
-		owner, _ = app.poller.objectForUid(rowKey)
-	}
-	if owner == nil {
-		return
-	}
-
-	labelSelector := workloadLabelSelector(owner)
-	if labelSelector == "" {
-		ucxsvc.UiSendFailure(app, "This workload has no pod selector")
-		return
-	}
-
-	originPath := name
-	if namespace != "" {
-		originPath = namespace + "/" + name
-	}
-
-	originLabel := tableId
-	if def, ok := app.resolveType(tableId); ok && def.Label != "" {
-		originLabel = def.Label
-	}
-
-	filter := resourceFilter{
-		labelSelector: labelSelector,
-		title:         "Pods of " + originLabel + "/" + originPath,
-	}
-	if namespace != "" {
-		filter.fieldSelector = "metadata.namespace=" + namespace
-	}
-
-	dashboardNavigationStart(app)
-	app.ActiveType = "pods"
-	app.ActiveFilter = filter
-	app.filterOrigin = tableId
-	app.ResourceDetail = ""
-	app.prevDetail = ""
-	app.ResourceYaml = ""
-	app.poller.SetActiveFilter(filter)
-	app.poller.SetActiveType("pods")
-	dashboardNavigationPush(app, app.browseRoute("pods", filter), originPath)
-	ucx.AppUpdateUi(app)
-}
-
-func (app *stackUiApp) openNodePods(nodeName string) {
-	if app.poller == nil {
-		return
-	}
-
-	filter := resourceFilter{
-		fieldSelector: "spec.nodeName=" + nodeName,
-		title:         "Pods on nodes/" + nodeName,
-	}
-
-	dashboardNavigationStart(app)
-	app.ActiveType = "pods"
-	app.ActiveFilter = filter
-	app.filterOrigin = "nodes"
-	app.ResourceDetail = ""
-	app.prevDetail = ""
-	app.ResourceYaml = ""
-	app.poller.SetActiveFilter(filter)
-	app.poller.SetActiveType("pods")
-	dashboardNavigationPush(app, app.browseRoute("pods", filter), nodeName)
-	ucx.AppUpdateUi(app)
-}
-
-func (app *stackUiApp) containersBackTarget() string {
-	if !app.ActiveFilter.isEmpty() {
-		return app.browseRoute(containersTypeId, app.ActiveFilter)
-	}
-
-	parts := strings.Split(app.ResourceDetail, "/")
-	if len(parts) == 4 && parts[0] == containersTypeId {
-		fieldSelector := "metadata.name=" + parts[2]
-		if parts[1] != "" {
-			fieldSelector = "metadata.namespace=" + parts[1] + ",metadata.name=" + parts[2]
-		}
-		return app.browseRoute(containersTypeId, resourceFilter{fieldSelector: fieldSelector})
-	}
-
-	return app.browseRoute(containersTypeId, resourceFilter{})
-}
-
-func (app *stackUiApp) openPodContainers(namespace string, podName string) {
-	fieldSelector := ""
-	originPath := podName
-	if namespace != "" {
-		fieldSelector = "metadata.namespace=" + namespace + ",metadata.name=" + podName
-		originPath = namespace + "/" + podName
-	} else {
-		fieldSelector = "metadata.name=" + podName
-	}
-
-	filter := resourceFilter{
-		fieldSelector: fieldSelector,
-		title:         "Containers of pods/" + originPath,
-	}
-	dashboardNavigationStart(app)
-	app.ActiveType = containersTypeId
-	app.ActiveFilter = filter
-	app.filterOrigin = "pods"
-	app.ResourceDetail = ""
-	app.prevDetail = ""
-	app.ResourceYaml = ""
-	if app.poller != nil {
-		app.poller.SetActiveFilter(filter)
-		app.poller.SetActiveType(containersTypeId)
-	}
-	dashboardNavigationPush(app, app.browseRoute(containersTypeId, filter), originPath)
-	ucx.AppUpdateUi(app)
-}
-
-func (app *stackUiApp) openYamlForRowKey(rowKey string, editing bool) {
-	if app.poller == nil {
-		return
-	}
-	if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
-		return
-	}
-
-	row, ok := app.poller.rowForKey(rowKey)
-	if !ok || len(row.Cells) == 0 {
-		return
-	}
-
-	typeId := app.ActiveType
-	namespace := row.Group
-	name := row.Cells[0]
-
-	if typeId == containersTypeId {
-		podUid := rowKey
-		if idx := strings.Index(rowKey, "/"); idx >= 0 {
-			podUid = rowKey[:idx]
-		}
-
-		pod, ok := app.poller.objectForUid(podUid)
-		if !ok {
-			return
-		}
-
-		typeId = "pods"
-		namespace = pod.GetNamespace()
-		name = pod.GetName()
-	}
-
-	app.openResourceDetail(typeId, namespace, name, editing)
-}
-
-func (app *stackUiApp) openResourceDetail(tableId string, namespace string, name string, editing bool) {
-	if editing && app.resourceEditor.Saving {
-		return
-	}
-	dashboardNavigationStart(app)
-	app.ResourceDetail = tableId + "/" + namespace + "/" + name
-	app.prevDetail = app.ResourceDetail
-	dashboardResourceEditorLoad(app, app.ResourceDetail, editing)
-	dashboardNavigationPush(app, "detail/"+url.PathEscape(tableId)+"/"+url.PathEscape(namespace)+"/"+url.PathEscape(name), strings.TrimPrefix(namespace+"/"+name, "/"))
-	ucx.AppUpdateUi(app)
-}
-
-func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
-	if ev.Event != string(ucx.UiEventAction) || ev.Value.Kind != ucx.ValueObject {
-		return
-	}
-
-	actionId := ucx.ValueAsString(ev.Value.Object["actionId"])
-	rowKey := ucx.ValueAsString(ev.Value.Object["rowKey"])
-	if rowKey == "" {
-		return
-	}
-
-	if actionId == "viewYaml" {
-		app.openYamlForRowKey(rowKey, false)
-		return
-	}
-
-	if actionId == "editYaml" {
-		app.openYamlForRowKey(rowKey, true)
-		return
-	}
-
-	if actionId == "openShell" && (app.ActiveType == "pods" || app.ActiveType == containersTypeId) {
-		app.openShellToPod(rowKey)
-		return
-	}
-
-	if actionId == "rolloutRestart" {
-		app.openRolloutRestartDialog(rowKey)
-		return
-	}
-	if actionId == "deleteResource" {
-		dashboardResourceDeleteOpen(app, rowKey)
-		return
-	}
-
-	if actionId != "goToJob" && actionId != "openShell" && actionId != "cordonDrain" && actionId != "uncordon" && actionId != "upgradeNode" && actionId != "removeNode" {
-		return
-	}
-
-	if app.ActiveType != "nodes" || app.poller == nil {
-		return
-	}
-
-	nodeName, ok := app.poller.nodeNameForRowKey(rowKey)
-	if !ok || nodeName == "" {
-		return
-	}
-
-	switch actionId {
-	case "cordonDrain", "upgradeNode", "removeNode":
-		if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
-			if actionId == "removeNode" {
-				maintenanceOpenWithMode(app, nodeName, "", maintenanceModeRemove)
-			}
-			return
-		}
-		nodeUid, known := app.nodeUidForName(nodeName)
-		if !known {
-			return
-		}
-		if actionId == "upgradeNode" {
-			maintenanceOpenWithMode(app, nodeName, nodeUid, maintenanceModeUpgrade)
-		} else if actionId == "removeNode" {
-			maintenanceOpenWithMode(app, nodeName, nodeUid, maintenanceModeRemove)
-		} else {
-			maintenanceOpen(app, nodeName, nodeUid)
-		}
-	case "uncordon":
-		if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
-			return
-		}
-		nodeUid, known := app.nodeUidForName(nodeName)
-		if !known {
-			return
-		}
-		if app.MaintenanceBusy {
-			return
-		}
-		maintenanceSubmitAsync(app, "uncordon", nodeName, nodeUid, maintenance.Options{})
-	case "goToJob":
-		jobId := app.nodeJobIds()[nodeName]
-		if jobId == "" {
-			return
-		}
-		ucxsvc.OpenUrl(app, fmt.Sprintf("/jobs/properties/%s", jobId))
-	case "openShell":
-		jobId := app.nodeJobIds()[nodeName]
-		if jobId == "" {
-			return
-		}
-		ucxsvc.TerminalOpenShellToJob(app, jobId, 0, "", false)
-	}
-}
-
-func (app *stackUiApp) openShellToPod(rowKey string) {
-	if app.poller == nil {
-		return
-	}
-	if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
-		return
-	}
-
-	namespace := ""
-	podName := ""
-	containerName := ""
-
-	if app.ActiveType == containersTypeId {
-		podUid := rowKey
-		if idx := strings.Index(rowKey, "/"); idx >= 0 {
-			podUid = rowKey[:idx]
-			containerName = rowKey[idx+1:]
-		}
-
-		pod, ok := app.poller.objectForUid(podUid)
-		if !ok {
-			return
-		}
-
-		namespace = pod.GetNamespace()
-		podName = pod.GetName()
-	} else {
-		row, ok := app.poller.rowForKey(rowKey)
-		if !ok || len(row.Cells) == 0 {
-			return
-		}
-
-		namespace = row.Group
-		podName = row.Cells[0]
-	}
-
-	if namespace == "" || podName == "" {
-		return
-	}
-
-	shellCommand := "sh -c 'if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi'"
-	title := podName
-	if containerName != "" {
-		title = podName + "/" + containerName
-	}
-	command := fmt.Sprintf(
-		"printf '\\033]777;ucloud-shell-ready\\007\\033]0;%%s\\007' %s && kubectl exec -it -n %s %s -- %s",
-		orcapi.EscapeBash(title),
-		orcapi.EscapeBash(namespace),
-		orcapi.EscapeBash(podName),
-		shellCommand,
-	)
-	if containerName != "" {
-		command = fmt.Sprintf(
-			"printf '\\033]777;ucloud-shell-ready\\007\\033]0;%%s\\007' %s && kubectl exec -it -n %s %s -c %s -- %s",
-			orcapi.EscapeBash(title),
-			orcapi.EscapeBash(namespace),
-			orcapi.EscapeBash(podName),
-			orcapi.EscapeBash(containerName),
-			shellCommand,
-		)
-	}
-	command += "; printf '\\033]777;ucloud-shell-exit;%s\\007' \"$?\""
-
-	jobId, ok := app.firstControlPlaneNodeWithShell()
-	if !ok {
-		ucxsvc.UiSendFailure(app, "No control-plane node with a UCloud job is available to run the shell from.")
-		return
-	}
-
-	ucxsvc.TerminalOpenShellToJobEx(app, ucxapi.TerminalOpenShellToJobRequest{
-		JobId:         jobId,
-		Command:       command,
-		SuppressUntil: "\x1b]777;ucloud-shell-ready\x07",
-	})
-}
-
-func (app *stackUiApp) firstControlPlaneNodeWithShell() (string, bool) {
-	client := app.k8sClient
-	session := app.session
-	if client == nil || session == nil {
-		return "", false
-	}
-
-	ctx, cancel := context.WithTimeout(session.Context(), 10*time.Second)
-	defer cancel()
-
-	nodesDef, ok := ResourceType("nodes")
-	if !ok {
-		return "", false
-	}
-
-	nodeJobIds := app.nodeJobIds()
-
-	firstCordoned := ""
-	for _, labelSelector := range []string{
-		"node-role.kubernetes.io/control-plane",
-		"node-role.kubernetes.io/master",
-	} {
-		items, err := client.ListWithLabelSelector(ctx, nodesDef, labelSelector)
-		if err != nil {
-			return "", false
-		}
-
-		for i := range items {
-			node := &items[i]
-
-			jobId, hasJob := nodeJobIds[node.GetName()]
-			if !hasJob || jobId == "" {
-				continue
-			}
-
-			unschedulable, ok, _ := unstructured.NestedBool(node.Object, "spec", "unschedulable")
-			cordoned := ok && unschedulable
-			if !cordoned {
-				return jobId, true
-			}
-
-			if firstCordoned == "" {
-				firstCordoned = jobId
-			}
-		}
-
-		if firstCordoned != "" {
-			return firstCordoned, true
-		}
-	}
-
-	return "", false
-}
-
-func (app *stackUiApp) nodeUidForName(nodeName string) (string, bool) {
-	if app.poller == nil {
-		return "", false
-	}
-	return app.poller.nodeUidForRowName(nodeName)
-}
-
 func (app *stackUiApp) nodeJobIds() map[string]string {
 	record, ok := app.readClusterRecord()
 	if !ok {
@@ -1682,16 +545,6 @@ func (app *stackUiApp) nodeJobIds() map[string]string {
 	return result
 }
 
-func (app *stackUiApp) provisioningKickNow() {
-	if app.provisioningKick == nil {
-		return
-	}
-	select {
-	case app.provisioningKick <- util.Empty{}:
-	default:
-	}
-}
-
 func (app *stackUiApp) onMaintenanceRoute() bool {
 	app.mu.Lock()
 	defer app.mu.Unlock()
@@ -1705,42 +558,6 @@ func (app *stackUiApp) maintenanceUiTick() {
 	app.mu.Lock()
 	ucx.AppUpdateUi(app)
 	app.mu.Unlock()
-}
-
-func (app *stackUiApp) provisioningWatcher(session *ucx.Session) {
-	ticker := time.NewTicker(5 * time.Second)
-	uiTicker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-	defer uiTicker.Stop()
-
-	for {
-		app.refreshProvisioningRows(session)
-		if app.activeTypeIsHome() {
-			go app.refreshStackInfo()
-		}
-		if app.activeTypeIsHome() || app.onMaintenanceRoute() {
-			go app.refreshClusterHealth()
-		}
-		if app.onMaintenanceRoute() {
-			app.mu.Lock()
-			ucx.AppUpdateUi(app)
-			app.mu.Unlock()
-		}
-
-		refreshed := false
-		for !refreshed {
-			select {
-			case <-session.Context().Done():
-				return
-			case <-app.provisioningKick:
-				refreshed = true
-			case <-ticker.C:
-				refreshed = true
-			case <-uiTicker.C:
-				app.maintenanceUiTick()
-			}
-		}
-	}
 }
 
 func (app *stackUiApp) refreshClusterHealth() {
@@ -1767,148 +584,6 @@ func (app *stackUiApp) refreshClusterHealth() {
 	app.mu.Unlock()
 }
 
-func (app *stackUiApp) refreshProvisioningRows(session *ucx.Session) {
-	record, recordOk := app.readClusterRecord()
-	if !recordOk {
-		return
-	}
-
-	app.mu.Lock()
-	known := make(map[string]string, len(app.provisioningCache))
-	for _, entry := range app.provisioningCache {
-		known[entry.Hostname] = entry.Status
-	}
-	app.mu.Unlock()
-
-	entries := make([]provisioningEntry, 0, len(record.Nodes))
-	for _, node := range record.Nodes {
-		if node.JobId == "" || node.Hostname == "" {
-			continue
-		}
-
-		status := known[node.Hostname]
-		if status == "" {
-			status = "Provisioning"
-		}
-		entries = append(entries, provisioningEntry{
-			Hostname: node.Hostname,
-			Group:    node.Group,
-			Status:   status,
-			JobId:    node.JobId,
-		})
-	}
-
-	app.mu.Lock()
-	changed := !provisioningEntriesEqual(app.provisioningCache, entries)
-	app.provisioningCache = entries
-	if changed && app.ActiveType == navHomeId {
-		ucx.AppUpdateUi(app)
-	}
-	app.mu.Unlock()
-
-	if changed && app.poller != nil {
-		app.poller.signalPollNow()
-	}
-
-	client := app.k8sClient
-	if client == nil {
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(session.Context(), 10*time.Second)
-	defer cancel()
-
-	existing, err := client.NodeNames(ctx)
-	if err != nil {
-		return
-	}
-
-	changed = false
-	for i := range entries {
-		if existing[entries[i].Hostname] {
-			entries[i].Status = "ready"
-			continue
-		}
-		if job, err := ucxsvc.JobRetrieve(app.Stack, entries[i].JobId); err == nil {
-			switch {
-			case job.Status.State == orcapi.JobStateInQueue:
-				entries[i].Status = "Waiting for resources"
-			case job.Status.State == orcapi.JobStateRunning:
-				entries[i].Status = "Initializing"
-			case job.Status.State == orcapi.JobStateSuspended:
-				entries[i].Status = "Powered off"
-			case job.Status.State.IsFinal():
-				entries[i].Status = "Failed"
-			}
-		}
-	}
-
-	survivors := make([]provisioningEntry, 0, len(entries))
-	for _, entry := range entries {
-		if entry.Status == "ready" {
-			continue
-		}
-		survivors = append(survivors, entry)
-	}
-
-	app.mu.Lock()
-	changed = !provisioningEntriesEqual(app.provisioningCache, survivors)
-	app.provisioningCache = survivors
-	if changed && app.ActiveType == navHomeId {
-		ucx.AppUpdateUi(app)
-	}
-	app.mu.Unlock()
-
-	if changed && app.poller != nil {
-		app.poller.signalPollNow()
-	}
-}
-
-func provisioningEntriesEqual(a, b []provisioningEntry) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func (app *stackUiApp) provisioningResourceRows(def ResourceTypeDef) []ResourceRow {
-	if def.Id != "nodes" {
-		return nil
-	}
-
-	app.mu.Lock()
-	entries := app.provisioningCache
-	app.mu.Unlock()
-
-	rows := make([]ResourceRow, 0, len(entries))
-	for _, entry := range entries {
-		role := ""
-		if entry.Group == shared.GroupControlPlane {
-			role = "control-plane"
-		}
-		rows = append(rows, ResourceRow{
-			Key:   "provisioning:" + entry.Hostname,
-			Group: entry.Group,
-			Cells: []string{entry.Hostname, entry.Status, "Schedulable", "", role, "", "", "", ""},
-		})
-	}
-	return rows
-}
-
-func (app *stackUiApp) provisioningJobId(hostname string) string {
-	for _, entry := range app.provisioningCache {
-		if entry.Hostname == hostname {
-			return entry.JobId
-		}
-	}
-	return ""
-}
-
 func (app *stackUiApp) readClusterRecord() (shared.ClusterRecord, bool) {
 	session := app.session
 	stack := app.Stack
@@ -1930,331 +605,6 @@ func (app *stackUiApp) readClusterRecord() (shared.ClusterRecord, bool) {
 	}
 
 	return record, true
-}
-
-func (app *stackUiApp) nodeGroupsFromRecord() []string {
-	record, ok := app.readClusterRecord()
-	if !ok {
-		return nil
-	}
-
-	groups := make([]string, 0, len(record.Pools))
-	for _, pool := range record.Pools {
-		name := strings.TrimSpace(pool.Name)
-		if name != "" {
-			groups = append(groups, name)
-		}
-	}
-
-	sort.Strings(groups)
-	return groups
-}
-
-func (app *stackUiApp) clusterReadyForNodes() bool {
-	record, ok := app.readClusterRecord()
-	return ok && record.Phase == "created"
-}
-
-// "Add new VM" page for an existing pool
-func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
-	record, recordOk := app.readClusterRecord()
-	if recordOk && record.MachineProvider != "" {
-		app.ClusterProvider = record.MachineProvider
-	}
-
-	group := strings.TrimSpace(app.TargetGroup)
-
-	shellEscape := appShellProps{EscapePath: "browse/nodes"}
-
-	if group == "" {
-		shellEscape.Content = []ucx.UiNode{shellContentBox(800, ucx.Text("No node pool was selected."))}
-		return []ucx.UiNode{app.appShell(shellEscape)}
-	}
-
-	shellEscape.Bottom = []ucx.UiNode{shellBottomNode(app, "nodes", "Add machine", "nodes/"+group)}
-
-	if !recordOk {
-		shellEscape.Content = []ucx.UiNode{shellContentBox(800, ucx.Text("Could not read the cluster record."))}
-		return []ucx.UiNode{app.appShell(shellEscape)}
-	}
-
-	if record.Phase != "created" {
-		content := []ucx.UiNode{ucx.Text(
-			"New nodes cannot be added while the cluster is in state " + record.Phase +
-				". The cluster must be in the created state.",
-		)}
-		if record.FailureReason != "" {
-			content = append(content, ucx.Text("The cluster reported a problem: "+record.FailureReason))
-		}
-		shellEscape.Content = []ucx.UiNode{shellContentBox(800, content...)}
-		return []ucx.UiNode{app.appShell(shellEscape)}
-	}
-
-	var pool *shared.ClusterPoolRecord
-	for i := range record.Pools {
-		if record.Pools[i].Name == group {
-			pool = &record.Pools[i]
-			break
-		}
-	}
-
-	if pool == nil {
-		shellEscape.Content = []ucx.UiNode{shellContentBox(800, ucx.Text("Unknown node pool: "+group))}
-		return []ucx.UiNode{app.appShell(shellEscape)}
-	}
-
-	if app.TargetDiskGb <= 0 {
-		app.TargetDiskGb = pool.DiskGb
-	}
-	if app.TargetCount <= 0 {
-		app.TargetCount = 1
-	}
-
-	children := []ucx.UiNode{
-		ucx.Form("addNodeForm").On(ucx.UiEventSubmit, func(ev ucx.UiEvent) {
-			if app.AddBusy {
-				return
-			}
-
-			groupValue := group
-			machine := pool.Machine
-			diskGb := app.TargetDiskGb
-			count := app.TargetCount
-
-			app.AddBusy = true
-			ucx.AppUpdateModelPatch(*app.Session(), map[string]ucx.Value{
-				"addBusy": ucx.VBool(true),
-			})
-
-			go func() {
-				app.mu.Lock()
-				defer app.mu.Unlock()
-
-				app.addMachinesToGroup(groupValue, machine, diskGb, count)
-				app.AddBusy = false
-				app.provisioningKickNow()
-				ucx.AppUpdateUi(app)
-			}()
-		}).Children(
-			ucx.FieldGroupNode().Children(
-				ucx.FieldRowNodeEx("poolNameRow", "Pool name", "").
-					Children(ucx.Text(group)),
-				ucx.FieldRowNodeEx("machineRow", "Machine type", "").
-					FieldRowDescription("All machines in a pool use the same machine type.").
-					Children(ucx.Text(pool.Machine.Id)),
-				ucx.FieldRowNodeEx("diskRow", "Disk size (GB)", "targetDiskGb").
-					FieldRowDescription(fmt.Sprintf("The disk size for each new node. This pool uses %d GB by default.", pool.DiskGb)).
-					FieldRowRequired(true).
-					Children(
-						ucx.InputNumber("targetDisk", "", "targetDiskGb", 10, 1024).WithAutoFocus(),
-					),
-				ucx.FieldRowNodeEx("countRow", "Node count", "targetCount").
-					FieldRowDescription("The number of nodes to add to this pool.").
-					FieldRowRequired(true).
-					Children(
-						ucx.InputNumber("targetCount", "", "targetCount", 1, 250),
-					),
-			),
-			ucx.SubmitButton("addToPool", "Add machine to pool", ucx.ColorSuccessMain).
-				ButtonBusy("addBusy").
-				ButtonSubmitShortcut(true).
-				Sx(ucx.SxJustifyEnd),
-		),
-	}
-
-	shellEscape.Content = []ucx.UiNode{shellContentBox(800,
-		ucx.KeyboardNavigationNode("keyboardNavigation").
-			HorizontalSelector("[data-job-info-field]").
-			SubmitForm("addNodeForm").
-			SubmitDisabled(app.AddBusy).
-			Children(children...),
-	)}
-
-	return []ucx.UiNode{app.appShell(shellEscape)}
-}
-
-// "Add worker pool" page, modeled after the creator's pool card
-func (app *stackUiApp) pageAddPool() []ucx.UiNode {
-	record, recordOk := app.readClusterRecord()
-	if recordOk && record.MachineProvider != "" {
-		app.ClusterProvider = record.MachineProvider
-	}
-
-	shellEscape := appShellProps{EscapePath: "browse/nodes"}
-
-	shellEscape.Bottom = []ucx.UiNode{shellBottomNode(app, "nodes", "Add worker pool")}
-
-	if !recordOk {
-		shellEscape.Content = []ucx.UiNode{shellContentBox(800, ucx.Text("Could not read the cluster record."))}
-		return []ucx.UiNode{app.appShell(shellEscape)}
-	}
-
-	if record.Phase != "created" {
-		content := []ucx.UiNode{ucx.Text(
-			"New pools cannot be added while the cluster is in state " + record.Phase +
-				". The cluster must be in the created state.",
-		)}
-		if record.FailureReason != "" {
-			content = append(content, ucx.Text("The cluster reported a problem: "+record.FailureReason))
-		}
-		shellEscape.Content = []ucx.UiNode{shellContentBox(800, content...)}
-		return []ucx.UiNode{app.appShell(shellEscape)}
-	}
-
-	if app.TargetDiskGb <= 0 {
-		app.TargetDiskGb = 50
-	}
-	if app.TargetCount <= 0 {
-		app.TargetCount = 1
-	}
-
-	form := ucx.Form("addPoolForm").On(ucx.UiEventSubmit, func(ev ucx.UiEvent) {
-		if app.AddBusy {
-			return
-		}
-
-		name := app.NewPoolName
-		machine := app.Machine
-		diskGb := app.TargetDiskGb
-		count := app.TargetCount
-
-		app.AddBusy = true
-		ucx.AppUpdateModelPatch(*app.Session(), map[string]ucx.Value{
-			"addBusy": ucx.VBool(true),
-		})
-
-		go func() {
-			app.mu.Lock()
-			defer app.mu.Unlock()
-
-			app.addPool(name, machine, diskGb, count)
-			app.AddBusy = false
-			app.provisioningKickNow()
-			ucx.AppUpdateUi(app)
-		}()
-	}).Children(
-		ucx.FieldGroupNode().Children(
-			ucx.FieldRowNodeEx("poolNameRow", "Pool name", "newPoolName").
-				FieldRowDescription("The Kubernetes node group name for this pool. Must contain only a-z, 0-9 and dashes.").
-				FieldRowRequired(true).
-				Children(
-					ucx.InputText("poolName", "", "workers", "newPoolName").WithAutoFocus(),
-				),
-			ucx.FieldRowNodeEx("machineRow", "Machine type", "").
-				FieldRowDescription("The machine type used for the nodes in this pool.").
-				Children(
-					ucx.MachineTypeSelector("poolMachine", "", "machine", ucx.MachineCapabilityVm).
-						MachineSelectorProviderBindPath("clusterProvider").MachineSelectorProviderOnly(true),
-				),
-			ucx.FieldRowNodeEx("diskRow", "Disk size (GB)", "targetDiskGb").
-				FieldRowDescription("The disk size for each node in this pool.").
-				FieldRowRequired(true).
-				Children(
-					ucx.InputNumber("poolDisk", "", "targetDiskGb", 10, 1024),
-				),
-			ucx.FieldRowNodeEx("countRow", "Node count", "targetCount").
-				FieldRowDescription("The number of worker nodes in this pool.").
-				FieldRowRequired(true).
-				Children(
-					ucx.InputNumber("poolCount", "", "targetCount", 1, 250),
-				),
-		),
-		ucx.SubmitButton("addPool", "Add worker pool", ucx.ColorSuccessMain).
-			ButtonBusy("addBusy").
-			ButtonSubmitShortcut(true).
-			Sx(ucx.SxJustifyEnd),
-	)
-
-	shellEscape.Content = []ucx.UiNode{shellContentBox(800,
-		ucx.KeyboardNavigationNode("keyboardNavigation").
-			HorizontalSelector("[data-job-info-field]").
-			SubmitForm("addPoolForm").
-			SubmitDisabled(app.AddBusy).
-			Children(form),
-	)}
-
-	return []ucx.UiNode{app.appShell(shellEscape)}
-}
-
-func (app *stackUiApp) addMachinesToGroup(group string, machine accapi.ProductReference, diskGb int, count int) {
-	if count < 1 {
-		count = 1
-	}
-
-	_, ok := shared.ClusterAddNodesBatch(app, app.Stack, group, machine, diskGb, count)
-	if !ok {
-		return
-	}
-
-	ucxsvc.UiSendSuccess(app, fmt.Sprintf("Created %d new %s VM(s).", count, group))
-	ucxsvc.RouterPushPage(app, "browse/nodes")
-}
-
-func (app *stackUiApp) addPool(name string, machine accapi.ProductReference, diskGb int, count int) {
-	trimmedName := strings.TrimSpace(name)
-	if trimmedName == "" {
-		ucxsvc.UiSendFailure(app, "Please provide a pool name")
-		return
-	}
-
-	if app.ClusterProvider != "" && machine.Provider != app.ClusterProvider {
-		ucxsvc.UiSendFailure(app, "The machine must come from the provider that runs the cluster: "+app.ClusterProvider)
-		return
-	}
-
-	ok := shared.ClusterAddPool(app, app.Stack, shared.ClusterPoolSpec{
-		Name:    trimmedName,
-		Machine: machine,
-		Nodes:   count,
-		DiskGb:  diskGb,
-	})
-	if !ok {
-		return
-	}
-
-	ucxsvc.UiSendSuccess(app, fmt.Sprintf("Created pool %s with %d node(s)!", trimmedName, count))
-	ucxsvc.RouterPushPage(app, "browse/nodes")
-}
-
-func (app *stackUiApp) handleTableAction(ev ucx.UiEvent) {
-	if ev.Event != string(ucx.UiEventAction) || ev.Value.Kind != ucx.ValueObject {
-		return
-	}
-
-	actionId := ucx.ValueAsString(ev.Value.Object["actionId"])
-	rowKey := ucx.ValueAsString(ev.Value.Object["rowKey"])
-	group := ucx.ValueAsString(ev.Value.Object["group"])
-	if actionId == "createResource" {
-		dashboardResourceCreateOpen(app)
-		return
-	}
-
-	if rowKey != "" {
-		app.handleRowAction(ev)
-		return
-	}
-
-	switch actionId {
-	case "cordonDrain", "uncordon", "upgradeNode", "removeNode":
-		ucxsvc.UiSendFailure(app, "Select a single node before using this action")
-	case "rolloutRestart", "deleteResource":
-		ucxsvc.UiSendFailure(app, "Select a single resource before using this action")
-	case "addMachine":
-		if group == "" {
-			return
-		}
-		app.TargetDiskGb = 0
-		app.TargetCount = 0
-		ucxsvc.RouterPushPage(app, "control/"+group)
-		ucx.AppUpdateUi(app)
-	case "addWorkerPool":
-		app.NewPoolName = ""
-		app.Machine = accapi.ProductReference{}
-		app.TargetDiskGb = 0
-		app.TargetCount = 0
-		ucxsvc.RouterPushPage(app, "control/new-pool")
-		ucx.AppUpdateUi(app)
-	}
 }
 
 func (app *stackUiApp) OnMessage(frame ucx.Frame) {
@@ -2338,11 +688,12 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 		app.ResourceDetail = routeDetail
 		if app.ResourceDetail != app.prevDetail {
 			app.prevDetail = app.ResourceDetail
-			if jobId := app.provisioningJobId(detailHostname(app.ResourceDetail)); jobId != "" {
+			ref, _ := parseResourceDetail(app.ResourceDetail)
+			if jobId := app.provisioningJobId(ref.Name); jobId != "" {
 				app.LogJobId = jobId
 			}
-			if detailType(app.ResourceDetail) != containersTypeId {
-				app.loadResourceYaml(app.ResourceDetail)
+			if ref.Type != containersTypeId {
+				dashboardResourceEditorLoad(app, app.ResourceDetail, false)
 			}
 			app.syncContainerLogStream()
 			changed = true
@@ -2360,6 +711,38 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 			ucx.AppUpdateUi(app)
 		}
 	}
+}
+
+type resourceDetailRef struct {
+	Type         string
+	Namespace    string
+	Name         string
+	Container    string
+	hasContainer bool
+}
+
+func parseResourceDetail(detail string) (resourceDetailRef, bool) {
+	parts := strings.Split(detail, "/")
+	if len(parts) != 3 && len(parts) != 4 {
+		return resourceDetailRef{}, false
+	}
+
+	result := resourceDetailRef{Type: parts[0], Namespace: parts[1], Name: parts[2], hasContainer: len(parts) == 4}
+	if len(parts) == 4 {
+		result.Container = parts[3]
+	}
+	return result, true
+}
+
+func (ref resourceDetailRef) String() string {
+	if ref.hasContainer || ref.Container != "" {
+		return ref.Type + "/" + ref.Namespace + "/" + ref.Name + "/" + ref.Container
+	}
+	return ref.Type + "/" + ref.Namespace + "/" + ref.Name
+}
+
+func (ref resourceDetailRef) creating() bool {
+	return ref.Name == "@create"
 }
 
 func detailFromRoute(routePath string) string {
@@ -2381,54 +764,6 @@ func detailFromRoute(routePath string) string {
 	}
 
 	return strings.Join(decoded, "/")
-}
-
-func detailHostname(detail string) string {
-	parts := strings.Split(detail, "/")
-	if len(parts) != 3 && len(parts) != 4 {
-		return ""
-	}
-	hostname, err := url.PathUnescape(parts[2])
-	if err != nil {
-		return ""
-	}
-	return hostname
-}
-
-func detailType(detail string) string {
-	parts := strings.Split(detail, "/")
-	if len(parts) < 3 {
-		return ""
-	}
-	typeId, err := url.PathUnescape(parts[0])
-	if err != nil {
-		return ""
-	}
-	return typeId
-}
-
-func rowActivationValue(value ucx.Value) (string, string, string, string) {
-	if value.Kind != ucx.ValueObject {
-		return "", "", "", ""
-	}
-
-	tableId := ucx.ValueAsString(value.Object["stateKey"])
-	if tableId == "" {
-		tableId = ucx.ValueAsString(value.Object["tableId"])
-	}
-	group := ucx.ValueAsString(value.Object["group"])
-	rowKey := ucx.ValueAsString(value.Object["rowKey"])
-
-	cells := ""
-	if rawCells, ok := value.Object["cells"]; ok && rawCells.Kind == ucx.ValueList && len(rawCells.List) > 0 {
-		cells = ucx.ValueAsString(rawCells.List[0])
-	}
-
-	return tableId, group, cells, rowKey
-}
-
-func (app *stackUiApp) loadResourceYaml(detail string) {
-	dashboardResourceEditorLoad(app, detail, false)
 }
 
 func (app *stackUiApp) resolveType(typeId string) (ResourceTypeDef, bool) {

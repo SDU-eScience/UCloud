@@ -5,12 +5,89 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/ucx"
-	"ucloud.dk/shared/pkg/ucx/ucxapi"
 )
+
+type dashboardResourceDeleteTarget struct {
+	Def       ResourceTypeDef
+	Namespace string
+	Name      string
+}
+
+func dashboardResourceDeleteSupported(def ResourceTypeDef) bool {
+	return def.Id != "nodes" && def.Id != containersTypeId && def.Gvr.Resource != ""
+}
+
+func dashboardResourceDeleteOpen(app *stackUiApp, rowKey string) {
+	def, ok := app.resolveType(app.ActiveType)
+	if !ok || !dashboardResourceDeleteSupported(def) || app.poller == nil {
+		return
+	}
+	row, ok := app.poller.rowForKey(rowKey)
+	if !ok || len(row.Cells) == 0 {
+		return
+	}
+
+	app.resourceDeleteTarget = dashboardResourceDeleteTarget{
+		Def:       def,
+		Namespace: row.Group,
+		Name:      row.Cells[0],
+	}
+	app.ShowResourceDeleteDialog = true
+	ucx.AppUpdateUi(app)
+}
+
+func dashboardResourceDeleteClose(app *stackUiApp) {
+	app.ShowResourceDeleteDialog = false
+	ucx.AppUpdateUi(app)
+}
+
+func dashboardResourceDeletePath(target dashboardResourceDeleteTarget) string {
+	path := target.Name
+	if target.Namespace != "" {
+		path = target.Namespace + "/" + path
+	}
+	return target.Def.Gvr.Resource + "/" + path
+}
+
+func dashboardResourceDeletePerform(app *stackUiApp) {
+	target := app.resourceDeleteTarget
+	targetPath := dashboardResourceDeletePath(target)
+	dashboardResourceDeleteClose(app)
+
+	client := app.k8sClient
+	session := app.session
+	if client == nil || session == nil || !dashboardResourceDeleteSupported(target.Def) {
+		return
+	}
+
+	app.runAsyncAction("", nil, func() error {
+		ctx, cancel := context.WithTimeout(session.Context(), 15*time.Second)
+		defer cancel()
+		return dashboardResourceInterface(client, target.Def, target.Namespace).Delete(ctx, target.Name, v1.DeleteOptions{})
+	}, func(err error) {
+		message := fmt.Sprintf("Deletion of %s started", targetPath)
+		if err != nil {
+			log.Warn("k8s-app: deletion of %s failed: %s", targetPath, err)
+			message = fmt.Sprintf("Could not delete %s: %s", targetPath, err)
+		}
+		dashboardSendUiMessage(session, message, err == nil)
+	})
+}
+
+func dashboardResourceDeleteDialog(app *stackUiApp) ucx.UiNode {
+	return dashboardResourceActionDialog(
+		"resourceDelete", "Delete",
+		fmt.Sprintf("Delete %s?", dashboardResourceDeletePath(app.resourceDeleteTarget)),
+		ucx.IconHeroTrash, ucx.ColorErrorMain,
+		func() { dashboardResourceDeleteClose(app) },
+		func() { dashboardResourceDeletePerform(app) },
+	)
+}
 
 type rolloutRestartTarget struct {
 	TypeId    string
@@ -133,27 +210,17 @@ func (app *stackUiApp) performRolloutRestart() {
 		return
 	}
 
-	go func() {
+	app.runAsyncAction("", nil, func() error {
 		ctx, cancel := context.WithTimeout(session.Context(), 15*time.Second)
 		defer cancel()
-
 		err := client.RolloutRestart(ctx, target.TypeId, target.Namespace, target.Name)
 		if err != nil {
 			log.Warn("k8s-app: rollout restart of %s failed: %s", targetPath, err)
 		}
-
-		if session.Context().Err() != nil {
-			return
-		}
-
-		messageCtx, messageCancel := context.WithTimeout(session.Context(), 10*time.Second)
-		defer messageCancel()
-
-		_, _ = ucxapi.UiSendMessage.InvokeEx(messageCtx, session, ucxapi.UiSendMessageRequest{
-			Message: rolloutRestartResultMessage(typeLabel, targetPath, err),
-			Success: err == nil,
-		})
-	}()
+		return err
+	}, func(err error) {
+		dashboardSendUiMessage(session, rolloutRestartResultMessage(typeLabel, targetPath, err), err == nil)
+	})
 }
 
 func rolloutRestartResultMessage(typeLabel string, targetPath string, err error) string {

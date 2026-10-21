@@ -1,7 +1,6 @@
 package dashboard
 
 import (
-	"context"
 	"fmt"
 	"net/url"
 	"strings"
@@ -10,13 +9,10 @@ import (
 	"ucloud.dk/iapp/k8s/pkg/maintenance"
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/ucx"
-	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 )
 
 const maintenanceDefaultTimeoutSeconds = 600
-
-const maintenanceUiMessageSendTimeout = 10 * time.Second
 
 const maintenanceModeUpgrade = "upgrade"
 const maintenanceModeDrain = "drain"
@@ -34,6 +30,14 @@ func maintenanceNodeFromRoute(routePath string) string {
 		return ""
 	}
 	return strings.TrimSpace(name)
+}
+
+func maintenanceShellMessage(app *stackUiApp, bottom []ucx.UiNode, message string) []ucx.UiNode {
+	return []ucx.UiNode{app.appShell(appShellProps{
+		Content:    []ucx.UiNode{shellContentBox(800, ucx.Text(message))},
+		Bottom:     bottom,
+		EscapePath: "browse/nodes",
+	})}
 }
 
 func maintenanceOpen(app *stackUiApp, nodeName string, nodeUid string) {
@@ -84,57 +88,38 @@ func maintenanceSubmitAsync(
 		return
 	}
 
-	app.MaintenanceBusy = true
 	targetRelease := app.MaintenanceTargetRelease
 
-	session := *app.Session()
-	if session == nil {
-		app.MaintenanceBusy = false
-		return
-	}
-
-	ucx.AppUpdateModelPatch(session, map[string]ucx.Value{
-		"maintenanceBusy": ucx.VBool(true),
-	})
-
-	go func() {
-		var err error
+	app.runAsyncAction("maintenanceBusy", &app.MaintenanceBusy, func() error {
 		switch action {
 		case "cordon":
-			err = maintenance.Cordon(nodeName, nodeUid, options)
+			return maintenance.Cordon(nodeName, nodeUid, options)
 		case "start":
-			err = maintenance.Start(nodeName, nodeUid, options)
+			return maintenance.Start(nodeName, nodeUid, options)
 		case "retry":
-			err = maintenance.Start(nodeName, nodeUid, options)
+			return maintenance.Start(nodeName, nodeUid, options)
 		case "upgrade-start":
-			err = maintenance.UpgradeStart(nodeName, nodeUid, targetRelease, options)
+			return maintenance.UpgradeStart(nodeName, nodeUid, targetRelease, options)
 		case "upgrade-retry":
-			err = maintenance.UpgradeStart(nodeName, nodeUid, targetRelease, options)
+			return maintenance.UpgradeStart(nodeName, nodeUid, targetRelease, options)
 		case "remove-start":
-			err = maintenance.RemoveStart(nodeName, nodeUid, options)
+			return maintenance.RemoveStart(nodeName, nodeUid, options)
 		case "remove-retry":
-			err = maintenance.RemoveStart(nodeName, nodeUid, options)
+			return maintenance.RemoveStart(nodeName, nodeUid, options)
 		case "uncordon":
-			err = maintenance.Uncordon(nodeName, nodeUid)
+			return maintenance.Uncordon(nodeName, nodeUid)
 		case "cancel":
-			err = maintenance.CancelActiveOperation(nodeName)
+			return maintenance.CancelActiveOperation(nodeName)
 		}
-
-		app.mu.Lock()
-		app.MaintenanceBusy = false
-		updatedUi := app.UserInterface()
-		updatedModel := ucx.AppSnapshot(app)
-		app.mu.Unlock()
-
-		if session.Context().Err() == nil {
-			ucx.AppUpdateUiLocked(session, updatedUi, updatedModel)
-			if err != nil {
-				maintenanceSendUiMessage(session, err.Error(), false)
-			} else if !maintenanceSubmitStartsOperation(action) {
-				maintenanceSendUiMessage(session, maintenanceSubmitMessage(action, nodeName), true)
-			}
+		return nil
+	}, func(err error) {
+		switch {
+		case err != nil:
+			dashboardSendUiMessage(*app.Session(), err.Error(), false)
+		case !maintenanceSubmitStartsOperation(action):
+			dashboardSendUiMessage(*app.Session(), maintenanceSubmitMessage(action, nodeName), true)
 		}
-	}()
+	})
 }
 
 func maintenanceSubmitStartsOperation(action string) bool {
@@ -158,20 +143,6 @@ func maintenanceSubmitStartsOperation(action string) bool {
 	}
 }
 
-func maintenanceSendUiMessage(session *ucx.Session, message string, success bool) {
-	if session == nil || session.Context().Err() != nil {
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(session.Context(), maintenanceUiMessageSendTimeout)
-	defer cancel()
-
-	_, _ = ucxapi.UiSendMessage.InvokeEx(ctx, session, ucxapi.UiSendMessageRequest{
-		Message: message,
-		Success: success,
-	})
-}
-
 func maintenanceSubmitMessage(action string, nodeName string) string {
 	switch action {
 	case "uncordon":
@@ -186,12 +157,7 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 	nodeName := maintenanceNodeFromRoute(app.RoutePath)
 
 	if nodeName == "" {
-		return []ucx.UiNode{app.appShell(appShellProps{
-			Content: []ucx.UiNode{shellContentBox(800,
-				ucx.Text("Select a node in the node table to start maintenance."),
-			)},
-			EscapePath: "browse/nodes",
-		})}
+		return maintenanceShellMessage(app, nil, "Select a node in the node table to start maintenance.")
 	}
 
 	if app.maintenanceNodeName != nodeName {
@@ -212,11 +178,7 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 
 	record, recordOk := app.readClusterRecord()
 	if !recordOk {
-		return []ucx.UiNode{app.appShell(appShellProps{
-			Content:    []ucx.UiNode{shellContentBox(800, ucx.Text("Could not read the cluster record."))},
-			Bottom:     bottom,
-			EscapePath: "browse/nodes",
-		})}
+		return maintenanceShellMessage(app, bottom, "Could not read the cluster record.")
 	}
 
 	known := false
@@ -231,11 +193,7 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 
 	snapshot, err := maintenance.Snapshot()
 	if err != nil {
-		return []ucx.UiNode{app.appShell(appShellProps{
-			Content:    []ucx.UiNode{shellContentBox(800, ucx.Text(fmt.Sprintf("Could not read the maintenance state: %s", err)))},
-			Bottom:     bottom,
-			EscapePath: "browse/nodes",
-		})}
+		return maintenanceShellMessage(app, bottom, fmt.Sprintf("Could not read the maintenance state: %s", err))
 	}
 
 	isRemoveRetryOp := false
@@ -245,11 +203,7 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 
 	if !known && !isRemoveRetryOp {
 		ucxsvc.RouterPushPage(app, "browse/nodes")
-		return []ucx.UiNode{app.appShell(appShellProps{
-			Content:    []ucx.UiNode{shellContentBox(800, ucx.Text(fmt.Sprintf("The node %s is no longer part of the cluster", nodeName)))},
-			Bottom:     bottom,
-			EscapePath: "browse/nodes",
-		})}
+		return maintenanceShellMessage(app, bottom, fmt.Sprintf("The node %s is no longer part of the cluster", nodeName))
 	}
 
 	operation, hasOperation := snapshot[nodeName]
@@ -462,11 +416,7 @@ func (app *stackUiApp) nodeIsCordoned(nodeName string) bool {
 	if app.poller == nil {
 		return false
 	}
-	rowKey, ok := app.poller.nodeUidForRowName(nodeName)
-	if !ok {
-		return false
-	}
-	row, ok := app.poller.nodeRowForKey(rowKey)
+	row, ok := app.poller.nodeRowByName(nodeName)
 	return ok && len(row.Cells) > 2 && row.Cells[2] == "Cordoned"
 }
 

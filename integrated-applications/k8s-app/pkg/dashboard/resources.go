@@ -3,6 +3,7 @@ package dashboard
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -15,8 +16,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"ucloud.dk/iapp/k8s/pkg/maintenance"
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/ucx"
 )
@@ -900,9 +903,9 @@ func (c *K8sClient) RolloutRestart(ctx context.Context, typeId string, namespace
 		return fmt.Errorf("rollout restart is not supported for %s", typeId)
 	}
 
-	var ri dynamic.ResourceInterface = c.Dynamic.Resource(def.Gvr)
-	if def.Namespaced && namespace != "" {
-		ri = c.Dynamic.Resource(def.Gvr).Namespace(namespace)
+	ri := dashboardResourceInterface(c, def, namespace)
+	if def.Namespaced && namespace == "" {
+		ri = c.Dynamic.Resource(def.Gvr)
 	}
 
 	if typeId == "deployments" {
@@ -1004,7 +1007,7 @@ func genericCells(def ResourceTypeDef, obj *unstructured.Unstructured) []string 
 	case "persistentvolumes":
 		return []string{
 			obj.GetName(),
-			quantityString(obj, "spec", "capacity", "storage"),
+			firstString(obj, "spec", "capacity", "storage"),
 			firstString(obj, "status", "phase"),
 			objectAge(obj),
 		}
@@ -1013,7 +1016,7 @@ func genericCells(def ResourceTypeDef, obj *unstructured.Unstructured) []string 
 			obj.GetName(),
 			firstString(obj, "status", "phase"),
 			firstString(obj, "spec", "volumeName"),
-			quantityString(obj, "status", "capacity", "storage"),
+			firstString(obj, "status", "capacity", "storage"),
 			objectAge(obj),
 		}
 	case "events":
@@ -1113,11 +1116,430 @@ func dataMapOf(obj *unstructured.Unstructured) map[string]any {
 	}
 	return value
 }
+func dashboardIngressServiceUrl(obj *unstructured.Unstructured) string {
+	rules, _, _ := unstructured.NestedSlice(obj.Object, "spec", "rules")
+	for _, item := range rules {
+		rule, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		host, _, _ := unstructured.NestedString(rule, "host")
+		if host == "" || strings.Contains(host, "*") {
+			continue
+		}
+		paths, _, _ := unstructured.NestedSlice(rule, "http", "paths")
+		for _, item := range paths {
+			path, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			prefix, _, _ := unstructured.NestedString(path, "path")
+			if prefix == "" {
+				prefix = "/"
+			}
+			target := url.URL{Scheme: "https", Host: host, Path: prefix}
+			return target.String()
+		}
+	}
+	return ""
+}
+func resourceBuiltinTypes(ctx context.Context, client *K8sClient, customTypes []ResourceTypeDef) ([]ResourceTypeDef, error) {
+	discovery := client.Typed.Discovery().RESTClient()
+	var groups v1.APIGroupList
+	err := discovery.Get().AbsPath("/apis").Do(ctx).Into(&groups)
+	if err != nil {
+		return nil, err
+	}
+	versions := []schema.GroupVersion{{Version: "v1"}}
+	for _, group := range groups.Groups {
+		isBuiltin := scheme.Scheme.IsGroupRegistered(group.Name) ||
+			group.Name == "apiextensions.k8s.io" ||
+			group.Name == "apiregistration.k8s.io"
+		if !isBuiltin {
+			continue
+		}
+		preferred := schema.GroupVersion{
+			Group:   group.Name,
+			Version: group.PreferredVersion.Version,
+		}
+		versions = append(versions, preferred)
+		for _, version := range group.Versions {
+			if version.Version != preferred.Version {
+				versions = append(versions, schema.GroupVersion{
+					Group:   group.Name,
+					Version: version.Version,
+				})
+			}
+		}
+	}
 
-func quantityString(obj *unstructured.Unstructured, path ...string) string {
-	value, ok, _ := unstructured.NestedString(obj.Object, path...)
-	if !ok {
+	result := make([]ResourceTypeDef, 0)
+	seen := map[schema.GroupResource]bool{}
+	for _, def := range customTypes {
+		seen[def.Gvr.GroupResource()] = true
+	}
+	for _, version := range versions {
+		path := "/apis/" + version.String()
+		if version.Group == "" {
+			path = "/api/" + version.Version
+		}
+		var resources v1.APIResourceList
+		err = discovery.Get().AbsPath(path).Do(ctx).Into(&resources)
+		if err != nil {
+			return nil, err
+		}
+		for _, resource := range resources.APIResources {
+			if strings.Contains(resource.Name, "/") {
+				continue
+			}
+			if version.Group == "events.k8s.io" && resource.Name == "events" {
+				continue
+			}
+			canList := false
+			canWatch := false
+			canUpdate := false
+			canCreate := false
+			for _, verb := range resource.Verbs {
+				canList = canList || verb == "list"
+				canWatch = canWatch || verb == "watch"
+				canUpdate = canUpdate || verb == "update"
+				canCreate = canCreate || verb == "create"
+			}
+			key := schema.GroupResource{Group: version.Group, Resource: resource.Name}
+			if !canList || !canWatch || seen[key] {
+				continue
+			}
+			seen[key] = true
+			def, known := ResourceType(resource.Name)
+			if !known || def.Gvr.Group != version.Group {
+				def = ResourceTypeDef{
+					Id:    "builtin:" + key.String(),
+					Label: resourceBuiltinLabel(resource),
+					Group: resourceBuiltinGroup(version.Group, resource.Name),
+					Columns: []ucx.TableColumn{
+						{Key: "name", Label: "Name", Copy: true},
+						{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
+					},
+					HasYaml: true,
+				}
+			}
+			def.Gvr = version.WithResource(resource.Name)
+			def.Namespaced = resource.Namespaced
+			def.CanUpdate = canUpdate
+			def.CanCreate = canCreate && resource.Name != "nodes"
+			def.Aliases = resourceBuiltinAliases(resource, version.Group)
+			result = append(result, def)
+		}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		leftDiscovered := strings.HasPrefix(result[i].Id, "builtin:")
+		rightDiscovered := strings.HasPrefix(result[j].Id, "builtin:")
+		if leftDiscovered != rightDiscovered {
+			return !leftDiscovered
+		}
+		return result[i].Id < result[j].Id
+	})
+	return result, nil
+}
+
+func resourceBuiltinLabel(resource v1.APIResource) string {
+	kind := resource.Kind
+	if strings.ToLower(kind) == resource.Name {
+		return kind
+	}
+	if strings.HasSuffix(kind, "y") {
+		return strings.TrimSuffix(kind, "y") + "ies"
+	}
+	if strings.HasSuffix(kind, "s") {
+		return kind + "es"
+	}
+	return kind + "s"
+}
+
+func resourceBuiltinAliases(resource v1.APIResource, group string) []string {
+	aliases := []string{resource.Name, resource.SingularName, strings.ToLower(resource.Kind)}
+	aliases = append(aliases, resource.ShortNames...)
+	if group != "" {
+		aliases = append(aliases, resource.Name+"."+group)
+		if resource.SingularName != "" {
+			aliases = append(aliases, resource.SingularName+"."+group)
+		}
+	}
+	result := make([]string, 0, len(aliases))
+	seen := map[string]bool{}
+	for _, alias := range aliases {
+		if alias != "" && !seen[alias] {
+			seen[alias] = true
+			result = append(result, alias)
+		}
+	}
+	return result
+}
+
+func resourceBuiltinGroup(group string, name string) string {
+	switch group {
+	case "":
+		switch name {
+		case "replicationcontrollers", "podtemplates":
+			return "Workloads"
+		case "endpoints":
+			return "Networking"
+		case "serviceaccounts":
+			return "RBAC"
+		case "resourcequotas", "limitranges":
+			return "Config"
+		default:
+			return "Cluster"
+		}
+	case "apps", "batch", "autoscaling", "policy":
+		return "Workloads"
+	case "networking.k8s.io", "discovery.k8s.io":
+		return "Networking"
+	case "storage.k8s.io", "storagemigration.k8s.io":
+		return "Storage"
+	case "rbac.authorization.k8s.io":
+		return "RBAC"
+	case "admissionregistration.k8s.io":
+		return "Cluster"
+	default:
+		return "Cluster"
+	}
+}
+
+func resourceRowsForType(items []unstructured.Unstructured, def ResourceTypeDef) []ResourceRow {
+	switch {
+	case def.Id == "nodes":
+		return rowsFromNodes(items)
+	case def.Id == "pods":
+		return rowsFromPods(items)
+	case def.Id == containersTypeId:
+		return rowsFromContainers(items)
+	case strings.HasPrefix(def.Id, "crd:"):
+		return rowsFromCustom(items, def)
+	default:
+		return rowsFromGeneric(items, def)
+	}
+}
+
+func resourceRowActions(
+	def ResourceTypeDef,
+	row ResourceRow,
+	obj *unstructured.Unstructured,
+	nodeJobIds map[string]string,
+	maintenanceSnapshot map[string]maintenance.Operation,
+	maintenanceUnavailable bool,
+) []ucx.TableRowAction {
+	if len(row.Cells) == 0 {
+		return nil
+	}
+
+	provisioningRow := strings.HasPrefix(row.Key, provisioningRowKeyPrefix)
+
+	viewYaml := ucx.TableRowAction{Id: "viewYaml", Enabled: false}
+	if !provisioningRow {
+		viewYaml.Enabled = true
+	}
+
+	editYaml := ucx.TableRowAction{Id: "editYaml", Enabled: false}
+	if !provisioningRow && (def.CanUpdate || def.Id == containersTypeId) {
+		editYaml.Enabled = true
+	}
+
+	if def.Id == "pods" || def.Id == containersTypeId {
+		if provisioningRow {
+			return []ucx.TableRowAction{viewYaml}
+		}
+		actions := []ucx.TableRowAction{
+			{Id: "openShell", Enabled: true},
+			viewYaml,
+			editYaml,
+		}
+		if dashboardResourceDeleteSupported(def) {
+			actions = append(actions, ucx.TableRowAction{Id: "deleteResource", Enabled: true})
+		}
+		return actions
+	}
+
+	if rolloutRestartSupported(def.Id) {
+		return []ucx.TableRowAction{
+			{Id: "rolloutRestart", Enabled: true},
+			viewYaml,
+			editYaml,
+			{Id: "deleteResource", Enabled: dashboardResourceDeleteSupported(def)},
+		}
+	}
+
+	if def.Id != "nodes" {
+		actions := []ucx.TableRowAction{
+			viewYaml,
+			editYaml,
+			{Id: "deleteResource", Enabled: dashboardResourceDeleteSupported(def)},
+		}
+		if def.Id == "ingresses" && obj != nil {
+			if serviceUrl := dashboardIngressServiceUrl(obj); serviceUrl != "" {
+				actions = append(actions, ucx.TableRowAction{Id: "openService", Enabled: true, Text: serviceUrl})
+			}
+		}
+		return actions
+	}
+
+	nodeName := row.Cells[0]
+
+	jobId := nodeJobIds[nodeName]
+	goToJob := ucx.TableRowAction{
+		Id:             "goToJob",
+		Enabled:        false,
+		DisabledReason: "No UCloud job is associated with this node",
+	}
+	openShell := ucx.TableRowAction{
+		Id:             "openShell",
+		Enabled:        false,
+		DisabledReason: "No UCloud job is associated with this node",
+	}
+	if jobId != "" {
+		goToJob.Enabled = true
+		goToJob.DisabledReason = ""
+		openShell.Enabled = true
+		openShell.DisabledReason = ""
+	}
+
+	operation, knownRecorded := maintenanceSnapshot[nodeName]
+	phaseActive := knownRecorded && maintenance.PhaseActive(operation.Phase)
+	nodeCordoned := len(row.Cells) > 2 && row.Cells[2] == "Cordoned"
+
+	actions := []ucx.TableRowAction{
+		{Id: "copyNodeName", Enabled: true, Text: row.Cells[0]},
+		goToJob,
+		openShell,
+		viewYaml,
+		editYaml,
+	}
+
+	if provisioningRow {
+		if !maintenanceUnavailable {
+			actions = append(actions, ucx.TableRowAction{
+				Id:             "removeNode",
+				Enabled:        true,
+				DisabledReason: "Removes the node from the cluster",
+			})
+		}
+		return actions
+	}
+	isUpgrade := knownRecorded && maintenance.KindIsUpgrade(operation.Kind)
+	recoveryBlocked := knownRecorded && maintenance.KindRequiresRecovery(operation.Kind) &&
+		operation.ExecutorSubmitted && operation.RecoveryRequired
+	upgradeNode := ucx.TableRowAction{Id: "upgradeNode", Enabled: true}
+	if maintenanceUnavailable {
+		upgradeNode.Enabled = false
+		upgradeNode.DisabledReason = "The maintenance state is unavailable"
+	} else if phaseActive && !isUpgrade {
+		upgradeNode.Enabled = false
+		upgradeNode.DisabledReason = "An operation is already active on this node"
+	}
+	actions = append(actions, upgradeNode)
+
+	switch {
+	case maintenanceUnavailable:
+		if nodeCordoned {
+			actions = append(actions, ucx.TableRowAction{
+				Id:             "uncordon",
+				Enabled:        false,
+				DisabledReason: "The maintenance state is unavailable",
+			})
+		} else {
+			actions = append(actions, ucx.TableRowAction{
+				Id:             "cordonDrain",
+				Enabled:        false,
+				DisabledReason: "The maintenance state is unavailable",
+			})
+		}
+	case phaseActive:
+		if nodeCordoned {
+			actions = append(actions, ucx.TableRowAction{
+				Id:             "uncordon",
+				Enabled:        false,
+				DisabledReason: "An operation is already active on this node",
+			})
+		}
+	default:
+		if nodeCordoned {
+			if recoveryBlocked {
+				actions = append(actions, ucx.TableRowAction{
+					Id:             "uncordon",
+					Enabled:        true,
+					Text:           "Uncordon (recovery)",
+					DisabledReason: "Releases the traffic suspension and returns the node to service on its current release",
+				})
+			} else {
+				actions = append(actions, uncordonEnabled)
+			}
+		} else {
+			actions = append(actions, cordonDrainEnabled)
+		}
+		actions = append(actions, removeNodeEnabled)
+	}
+
+	return actions
+}
+
+var (
+	cordonDrainEnabled = ucx.TableRowAction{Id: "cordonDrain", Enabled: true}
+	uncordonEnabled    = ucx.TableRowAction{Id: "uncordon", Enabled: true}
+	removeNodeEnabled  = ucx.TableRowAction{
+		Id:             "removeNode",
+		Enabled:        true,
+		DisabledReason: "Removes the node from the cluster",
+	}
+)
+
+func osUpdateCellForReport(report maintenance.AutoUpdateReport, present bool) string {
+	if !present || report.CheckedAt.IsZero() {
 		return ""
 	}
-	return value
+	if report.Error != "" {
+		return "check failed"
+	}
+
+	parts := []string{}
+	if report.Pending > 0 {
+		parts = append(parts, fmt.Sprintf("%d pending", report.Pending))
+		if report.Security > 0 {
+			parts = append(parts, fmt.Sprintf("%d security", report.Security))
+		}
+	}
+	if report.RebootRequired {
+		parts = append(parts, "reboot required")
+	}
+	if len(parts) == 0 {
+		return "up to date"
+	}
+	return strings.Join(parts, ", ")
+}
+
+func maintenanceCellForOperation(operation maintenance.Operation, present bool) string {
+	if !present {
+		return ""
+	}
+	if maintenance.PhaseActive(operation.Phase) {
+		if maintenance.KindIsUpgrade(operation.Kind) {
+			return "Upgrading"
+		}
+		if maintenance.KindIsOsUpdate(operation.Kind) {
+			return "Updating"
+		}
+		if operation.Kind == maintenance.KindCordon {
+			return "Cordoning"
+		}
+		if operation.Kind == maintenance.KindUncordon {
+			return "Uncordoning"
+		}
+		if operation.Kind == maintenance.KindRemove {
+			return "Removing"
+		}
+		return "Draining"
+	}
+	if operation.RecoveryRequired {
+		return "Recovery required"
+	}
+	return operation.Phase
 }

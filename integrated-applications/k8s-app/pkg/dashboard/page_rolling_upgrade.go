@@ -34,7 +34,7 @@ func rollingUpgradePage(app *stackUiApp) []ucx.UiNode {
 	upgrade, err := maintenance.RollingUpgradeSnapshot()
 	if err != nil {
 		content = append(content, ucx.Warning(fmt.Sprintf("Could not read the rolling upgrade: %s", err)))
-		return rollingUpgradePageShell(app, content)
+		return pageShell(app, 800, 16, content)
 	}
 	if upgrade.Uid != "" {
 		status := fmt.Sprintf("%s: %s", upgrade.TargetRelease, upgrade.Phase)
@@ -56,23 +56,23 @@ func rollingUpgradePage(app *stackUiApp) []ucx.UiNode {
 		snapshot, snapshotErr := maintenance.Snapshot()
 		if snapshotErr != nil {
 			content = append(content, ucx.Warning(fmt.Sprintf("Could not read node progress: %s", snapshotErr)))
-			return rollingUpgradePageShell(app, content)
+			return pageShell(app, 800, 16, content)
 		}
 		content = append(content, rollingUpgradeProgress(app, upgrade, snapshot))
 		if maintenance.PhaseActive(upgrade.Phase) {
 			content = append(content, ucx.Text("You can leave this page. The upgrade will continue.").Sx(ucx.SxColor(ucx.ColorTextSecondary)))
-			return rollingUpgradePageShell(app, content)
+			return pageShell(app, 800, 16, content)
 		}
 	}
 	record, found := app.readClusterRecord()
 	if !found || record.Phase != "created" || len(record.Nodes) == 0 {
 		content = append(content, ucx.Warning("The cluster is not ready to upgrade."))
-		return rollingUpgradePageShell(app, content)
+		return pageShell(app, 800, 16, content)
 	}
 	options := rollingUpgradeReleaseOptions(app, record)
 	if len(options) == 0 {
 		content = append(content, ucx.Text("No supported upgrade is available for all nodes."))
-		return rollingUpgradePageShell(app, content)
+		return pageShell(app, 800, 16, content)
 	}
 	selected := false
 	for _, option := range options {
@@ -124,16 +124,7 @@ func rollingUpgradePage(app *stackUiApp) []ucx.UiNode {
 	content = append(content, ucx.Form("rollingUpgradeForm").On(ucx.UiEventSubmit, func(ev ucx.UiEvent) {
 		rollingUpgradeSubmit(app, options)
 	}).Children(form...))
-	return rollingUpgradePageShell(app, content)
-}
-
-func rollingUpgradePageShell(app *stackUiApp, content []ucx.UiNode) []ucx.UiNode {
-	return []ucx.UiNode{app.appShell(appShellProps{
-		Content: []ucx.UiNode{shellContentBox(800,
-			ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 16}).Children(content...),
-		)},
-		EscapePath: "browse/home",
-	})}
+	return pageShell(app, 800, 16, content)
 }
 
 func rollingUpgradeProgress(app *stackUiApp, upgrade maintenance.RollingUpgrade, snapshot map[string]maintenance.Operation) ucx.UiNode {
@@ -315,22 +306,13 @@ func rollingUpgradeSubmit(app *stackUiApp, releases []ucx.Option) {
 		}
 	}
 	release := app.RollingUpgradeTargetRelease
-	app.RollingUpgradeBusy = true
-	ucx.AppUpdateModelPatch(session, map[string]ucx.Value{"rollingUpgradeBusy": ucx.VBool(true)})
-	go func() {
-		ctx, cancel := context.WithTimeout(session.Context(), 30*time.Second)
+	app.runAsyncAction("rollingUpgradeBusy", &app.RollingUpgradeBusy, func() error {
+		ctx, cancel := context.WithTimeout((*app.Session()).Context(), 30*time.Second)
 		defer cancel()
-		err := maintenance.RollingUpgradeStart(ctx, LocalKubeconfigPath(), release, groups)
-		app.mu.Lock()
-		app.RollingUpgradeBusy = false
-		updatedUi := app.UserInterface()
-		updatedModel := ucx.AppSnapshot(app)
-		app.mu.Unlock()
-		if session.Context().Err() == nil {
-			ucx.AppUpdateUiLocked(session, updatedUi, updatedModel)
-			if err != nil {
-				maintenanceSendUiMessage(session, err.Error(), false)
-			}
+		return maintenance.RollingUpgradeStart(ctx, LocalKubeconfigPath(), release, groups)
+	}, func(err error) {
+		if err != nil {
+			dashboardSendUiMessage(*app.Session(), err.Error(), false)
 		}
-	}()
+	})
 }

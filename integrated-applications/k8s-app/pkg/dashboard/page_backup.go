@@ -147,34 +147,15 @@ func backupSubmitAsync(app *stackUiApp) {
 		return
 	}
 
-	session := *app.Session()
-	if session == nil {
-		return
-	}
-
-	app.BackupsBusy = true
-	ucx.AppUpdateModelPatch(session, map[string]ucx.Value{
-		"backupsBusy": ucx.VBool(true),
-	})
-
-	go func() {
-		err := backupRequestSubmit(app)
-
-		app.mu.Lock()
-		app.BackupsBusy = false
-		updatedUi := app.UserInterface()
-		updatedModel := ucx.AppSnapshot(app)
-		app.mu.Unlock()
-
-		if session.Context().Err() == nil {
-			ucx.AppUpdateUiLocked(session, updatedUi, updatedModel)
-			if err != nil {
-				maintenanceSendUiMessage(session, err.Error(), false)
-			} else {
-				maintenanceSendUiMessage(session, "A backup was requested. It starts within a few seconds.", true)
-			}
+	app.runAsyncAction("backupsBusy", &app.BackupsBusy, func() error {
+		return backupRequestSubmit(app)
+	}, func(err error) {
+		if err != nil {
+			dashboardSendUiMessage(*app.Session(), err.Error(), false)
+		} else {
+			dashboardSendUiMessage(*app.Session(), "A backup was requested. It starts within a few seconds.", true)
 		}
-	}()
+	})
 }
 
 func (app *stackUiApp) homeBackupsMetric() []ucx.UiNode {
@@ -227,7 +208,7 @@ func backupPage(app *stackUiApp) []ucx.UiNode {
 	status, err := app.backupStatusRead()
 	if err != nil {
 		content = append(content, ucx.Warning(fmt.Sprintf("Could not read the backup state: %s", err)))
-		return backupPageShell(app, content)
+		return pageShell(app, 1100, 16, content)
 	}
 
 	now := time.Now().UTC()
@@ -243,16 +224,7 @@ func backupPage(app *stackUiApp) []ucx.UiNode {
 	content = append(content, backupRequestNodes(app, status, now)...)
 	content = append(content, backupRetainedNodes(status)...)
 
-	return backupPageShell(app, content)
-}
-
-func backupPageShell(app *stackUiApp, content []ucx.UiNode) []ucx.UiNode {
-	return []ucx.UiNode{app.appShell(appShellProps{
-		Content: []ucx.UiNode{shellContentBox(1100,
-			ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 16}).Children(content...),
-		)},
-		EscapePath: "browse/home",
-	})}
+	return pageShell(app, 1100, 16, content)
 }
 
 func backupStatusNodes(app *stackUiApp, status dashboardBackupStatus, now time.Time) []ucx.UiNode {
