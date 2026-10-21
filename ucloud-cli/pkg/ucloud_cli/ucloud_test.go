@@ -721,14 +721,9 @@ func TestPrivateNetworkList(t *testing.T) {
 }
 
 func TestPrivateNetworkGet(t *testing.T) {
-<<<<<<< HEAD
 	name := "my-private-network"
 	createPrivateNetwork(t, name, "my-subdomain")
 	input := []string{"private-network", "get", name}
-=======
-	createPrivateNetwork(t, "get-this", "my-subdomain")
-	input := []string{"private-network", "get", "get-this"}
->>>>>>> 7f97d16156 (Made test re-runnable.)
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -767,17 +762,13 @@ func TestPrivateNetworkDelete(t *testing.T) {
 }
 
 func TestPrivateNetworkMembers(t *testing.T) {
-<<<<<<< HEAD
-	createPrivateNetwork(t, "dannetwork", "mysubdomain")
-	input := []string{"private-network", "members", "dannetwork", "--workspace", Workspace}
-=======
-	createPrivateNetwork(t, "my-private-network", "my-private-network-subdomain")
-	input := []string{"private-network", "members", "my-private-network", "--workspace", "test-workspace"}
->>>>>>> 7f97d16156 (Made test re-runnable.)
+	name := "my-private-network"
+	createPrivateNetwork(t, name, "my-subdomain")
+	input := []string{"private-network", "members", name, "--workspace", Workspace}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
 	assert.NoError(t, err)
-	deletePrivateNetwork(t, "my-private-network")
+	deletePrivateNetwork(t, name)
 }
