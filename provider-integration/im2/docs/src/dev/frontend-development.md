@@ -13,9 +13,15 @@ The implementation is in the folder [`/frontend-web/webclient/`](https://github.
 
 ## Technologies
 
-The UCloud UI is written in Typescript, with the frontend library React. Some use of the library Redux exists in the codebase, but it is rarely used when developing new features.
+The UCloud UI is written in Typescript, with the frontend library React. Some use of the library Redux exists in the codebase, but it is rarely used when developing new features. TypeScript was chosen to reduce the friction that comes from Vanilla JavaScripts dynamic nature, and TypeScript letting developers use upcoming TC-39 features, compiling to an older target, making UCloud available for people running older versions of JavaScript.
+
+React was chosen because of its ubiquity and being battle-tested and and the framework authors do "dogfooding".
 
 Where the performance of React has not been adequate, Vanilla TypeScript/ECMAScript has been used instead. An example of this is the ResourceBrowser component, where very little use of React is present.
+
+## Project structure
+
+The UCloud frontend is found in the folder TODO(Jonas)[FOLDER!]. Configuration files, tests and node modules reside at the base, along with the `app` folder containing the code for the web interface. The contents of the `app` folder is subdivided into folders containing different contexts (TODO(Jonas)[Different word!])
 
 ## Installation
 
@@ -44,19 +50,22 @@ Some editors will only run type checking on open files and not the entire projec
 
 ## On adding NPM packages
 
-Preferably keep new NPM packages to a minimum as they are something that might need to be updated, increasingly through issues with security.
-Whether or not to add a package will be up to the programmer, depending on saving time through offloading the complexity to the package or similar.
-If a package is added to `package.json` file, the version must only consist of the version number, fixing it to that version.
+Every added NPM-package is a potential security or licensing risk. With this in mind, keep new NPM packages to a minimum as they are something that might need to be updated, increasingly through issues with security. Whether or not to add a package will be up to the programmer, depending on saving time through offloading the complexity to the package or similar. If a package is added to `package.json` file, the version must only consist of the version number, fixing it to that version.
 
 This means no `~`, `^`, `>=`, `>`, `<=`, `<`, `x`, `*` or `latest`, as this provides less control over which version of the package will be installed.
 
 ## Styling
 
-Styling for the frontend is mostly done with the function `injectStyle`. This function dynamically injects CSS rules to a stylesheet at run-time.
+Styling for the frontend is primarily done with the function `injectStyle` found in the [/Unstyled/index.ts](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Unstyled/index.ts)-file. This function dynamically injects CSS rules to a stylesheet at run-time.
 
-The injected CSS is mostly injected as is, with the exception of the interpolation of the classnames.
+### Motivation
 
-### Creating a class with rules:
+The motivation for this approach, was to make a largely drop-in replacement for `styled-components`, a popular JavaScript library for CSS styling.
+Investigating websites with larger userbases, that use the library, revealed that the performance issues we were facing on UCloud using the library were not a result of us not using it correctly. The UCloud solution `Unstyled`, gave performance improvements, and provides what is needed for the styling, without dependening on an external package. As a `devDependency`, `Unstyled` does depend on `styled-systems` which provides TypeScript definitions for styling.
+
+### Using `injectStyle`
+
+Creating a named CSS-class with rules is done as follows:
 
 ```typescript
 const NameOfClass = injectStyle("class-name", cl => `
@@ -70,10 +79,7 @@ const NameOfClass = injectStyle("class-name", cl => `
 `);
 ```
 
-
-
-### Using the class:
-
+Using the result of the function call is done as such:
 
 ```typescript
 function Component(): React.ReactNode {
@@ -91,11 +97,15 @@ const NameOfClass = injectStyleSimple("class-name", `
 
 Using the class is the same as previously described above.
 
-The function appends a number, to ensure uniqueness. The above could for instance return the string `class-name90`.
+To ensure uniqueness, the function appends a number. The above could for instance return the string `class-name90`.
 
 If just a classname is needed without any rules, see `makeClassName` function.
 
-Relevant code can be found in [/Unstyled/index.ts](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Unstyled/index.ts)
+### Drawbacks
+
+One of the drawbacks of `Unstyled` is the same as you'd experience writing CSS in general: whether or not a child-selector is matched somewhere. 
+While separate tools exist to help with finding these cases, the aforementionened `makeClassName` can be used to leverage the TypeScript compiler to warn when it's the case.
+If the result of the `makeClassName` is no longer applied to any component, the rule can safely be deleted. This requires selectors to be written where references to classes in selectors has the classname interpolated.
 
 ## Network calls
 
@@ -116,23 +126,26 @@ function Component(): React.ReactNode {
     /* Code */
     
     React.useEffect(() => {
-        const result = await callAPI(usageReportRetrieve({start: 0, end: new Date().getTime()}));
-        /* Do stuff with result */
+        callAPI(usageReportRetrieve({start: 0, end: new Date().getTime()})).then(result => {
+            /* Do stuff with result */
+        });
     });
 
     /* Code */
 }
 ```
 
-`callAPI` takes authentication into account. If authentication is not needed for the request, [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) can be used instead.
-
+`callAPI` takes authentication into account. This also includes refreshing tokens when expired, and automically logging the user out, if the the tokens have been invalidated.
 Relevant code can be found in [Authentication/DataHook.ts](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Authentication/DataHook.ts)
+
+If authentication is not needed for the request, [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) can be used instead.
+
 
 ## HttpClient - lib.ts
 
 A singleton named `Client` is the instantiation of the `HttpClient` that is used to make authenticated calls to the backend. It exposes some additional functionality, like `activeUsername()`, `isLoggedIn()` and `projectId()`, with the latter only to be used when the `useProjectId`-hook can't be used.
 
-Making backend calls should go through `callAPI` or similar, and not be done by using the `call` function directly.
+Making backend calls should go through `callAPI` or `fetch`, and not be done by using the `call` function directly.
 
 Relevant code can be found in [`/app/Authentication/lib.ts`](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Authentication/lib.ts)
 
@@ -215,6 +228,20 @@ When writing a test for a feature, most of it should consist of calls to this li
 Tests can be added to the existing test suite, but tests must not be removed, as most are part of a compliance requirement. <!--(link to PDF?)-->
 
 Relevant code can be found in `/testing`, with the output of a test-suite run in `/test-results`.
+
+## ResourceBrowser
+
+The ResourceBrowser is component intended to bring a user interface for resource, with features a user would expect for a native file explorer. The component is written in Vanilla TypeScript, but is mounted within the React-mounted root.
+
+### Motivation
+
+The component was written to accomodate rendering directories containing thousands of files, without any significant slowdowns. In addition, the component supports keyboard inputs, like navigation and shortcuts. The component replaced the previous custom List-component, that was written in React which had major slowdowns for larger directories.
+
+### Use 
+
+TODO(Jonas): How to write a component that uses the ResourceBrowser component 
+
+### Implementation
 
 ### Coding-style preferences
 

@@ -128,21 +128,6 @@ export interface APICallState<T> {
     data: T;
 }
 
-export interface APICallStateWithParams<T, Params = any> {
-    call: APICallState<T>;
-    parameters: APICallParameters<Params>;
-}
-
-// Unused
-export function mapCallState<InputType, OutputType>(
-    state: APICallState<InputType>, mapper: (t: InputType) => OutputType
-): APICallState<OutputType> {
-    return {
-        ...state,
-        data: mapper(state.data)
-    };
-}
-
 export async function callAPI<T>(
     parameters: (APICallParameters<unknown, T> | APICallParametersBinary<T>)
 ): Promise<T> {
@@ -242,44 +227,6 @@ export function useCloudCommand(): [boolean, InvokeCommand, React.RefObject<bool
     }, []);
 
     return [isLoading, sendCommand, loadingRef];
-}
-
-export type AsyncWorker = [boolean, string | undefined, (fn: () => Promise<void>) => void];
-
-// unused
-export function useAsyncWork(): AsyncWorker {
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | undefined>(undefined);
-    let didCancel = false;
-    useEffect(() => {
-        return () => {
-            didCancel = true;
-        };
-    }, []);
-
-    const startWork = async (fn: () => Promise<void>): Promise<void> => {
-        if (didCancel) return;
-        setError(undefined);
-        setIsLoading(true);
-        try {
-            await fn();
-        } catch (e: any) {
-            if (didCancel) return;
-            if (e.request) {
-                const why = e.response?.why ?? e.request.statusText;
-                setError(why);
-            } else if (typeof e === "string") {
-                setError(e);
-            } else if ("message" in e && typeof e.message === "string") {
-                setError(e.message);
-            } else {
-                setError("Internal error");
-            }
-        }
-        if (!didCancel) setIsLoading(false);
-    };
-
-    return [isLoading, error, startWork];
 }
 
 export interface CloudCacheHook {
