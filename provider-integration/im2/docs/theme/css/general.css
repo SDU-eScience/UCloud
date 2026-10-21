@@ -4,6 +4,24 @@
     /* Browser default font-size is 16px, this way 1 rem = 10px */
     font-size: 62.5%;
     color-scheme: var(--color-scheme);
+    --diagram-icon-calculator: url("../diagram-icons/heroicons/hero-calculator.svg");
+    --diagram-icon-chat-bubble-left-right: url("../diagram-icons/heroicons/hero-chat-bubble-left-right.svg");
+    --diagram-icon-circle-stack: url("../diagram-icons/heroicons/hero-circle-stack.svg");
+    --diagram-icon-code-bracket: url("../diagram-icons/heroicons/hero-code-bracket.svg");
+    --diagram-icon-cog-6-tooth: url("../diagram-icons/heroicons/hero-cog-6-tooth.svg");
+    --diagram-icon-cpu-chip: url("../diagram-icons/heroicons/hero-cpu-chip.svg");
+    --diagram-icon-cube: url("../diagram-icons/heroicons/hero-cube.svg");
+    --diagram-icon-document-text: url("../diagram-icons/heroicons/hero-document-text.svg");
+    --diagram-icon-folder: url("../diagram-icons/heroicons/hero-folder.svg");
+    --diagram-icon-globe-alt: url("../diagram-icons/heroicons/hero-globe-alt.svg");
+    --diagram-icon-magnifying-glass: url("../diagram-icons/heroicons/hero-magnifying-glass.svg");
+    --diagram-icon-puzzle-piece: url("../diagram-icons/heroicons/hero-puzzle-piece.svg");
+    --diagram-icon-server: url("../diagram-icons/heroicons/hero-server.svg");
+    --diagram-icon-user: url("../diagram-icons/heroicons/hero-user.svg");
+    --diagram-icon-user-group: url("../diagram-icons/heroicons/hero-user-group.svg");
+    --diagram-icon-window: url("../diagram-icons/heroicons/hero-window.svg");
+    --diagram-icon-kubernetes: url("../diagram-icons/marks/kubernetes.svg");
+    --diagram-icon-ucloud: url("../diagram-icons/marks/ucloud.svg");
 }
 
 html {
@@ -387,4 +405,184 @@ h4, h5 { margin-block-start: 2em; }
 code.no-code-wrap,
 .no-code-wrap code {
     white-space: nowrap;
+}
+
+/* MERMAID */
+
+.content .mermaid {
+    margin: 32px 0;
+    width: 100%;
+    max-width: 840px;
+    display: flex;
+    justify-content: center;
+}
+
+.content .mermaid svg {
+    max-width: 100%;
+}
+
+.content .mermaid .node rect.basic.label-container {
+    stroke-width: 1px;
+    filter: drop-shadow(0 1px 2px rgb(0 0 0 / 10%));
+}
+
+.content .mermaid .cluster > rect {
+    stroke-width: 1px;
+}
+
+.content .mermaid .flowchart-link {
+    stroke-width: 1.5px !important;
+}
+
+.content .mermaid marker.flowchart-v2 path.arrowMarkerPath {
+    fill: none;
+    stroke: #cdcdcd;
+    stroke-width: 1.5px !important;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+html.dark .content .mermaid marker.flowchart-v2 path.arrowMarkerPath {
+    stroke: #ababab;
+}
+
+.diagram-card {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    text-align: left;
+    line-height: 1.3;
+}
+
+.diagram-group-header {
+    padding: 12px 0;
+}
+
+.diagram-copy {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
+    max-width: 300px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.diagram-type,
+.diagram-value {
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.diagram-name {
+    font-weight: 600;
+}
+
+.diagram-attributes {
+    font-weight: 400;
+    white-space: nowrap;
+}
+
+.diagram-external {
+    --diagram-icon-ink: #03499d;
+    --diagram-icon-background: #95c0f3;
+}
+
+.diagram-provider {
+    --diagram-icon-ink: #a74ea7;
+    --diagram-icon-background: #d8b0d8;
+}
+
+.diagram-icon {
+    color: var(--diagram-icon-ink) !important;
+    display: inline-block;
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    background: var(--diagram-icon-background);
+}
+
+.diagram-icon::before {
+    content: "";
+    display: block;
+    width: 28px;
+    height: 28px;
+    margin: 6px;
+    background: var(--diagram-icon-ink);
+    mask: var(--diagram-icon) center / contain no-repeat;
+    -webkit-mask: var(--diagram-icon) center / contain no-repeat;
+}
+
+.diagram-icon-calculator {
+    --diagram-icon: var(--diagram-icon-calculator);
+}
+
+.diagram-icon-chat-bubble-left-right {
+    --diagram-icon: var(--diagram-icon-chat-bubble-left-right);
+}
+
+.diagram-icon-circle-stack {
+    --diagram-icon: var(--diagram-icon-circle-stack);
+}
+
+.diagram-icon-code-bracket {
+    --diagram-icon: var(--diagram-icon-code-bracket);
+}
+
+.diagram-icon-cog-6-tooth {
+    --diagram-icon: var(--diagram-icon-cog-6-tooth);
+}
+
+.diagram-icon-cpu-chip {
+    --diagram-icon: var(--diagram-icon-cpu-chip);
+}
+
+.diagram-icon-cube {
+    --diagram-icon: var(--diagram-icon-cube);
+}
+
+.diagram-icon-document-text {
+    --diagram-icon: var(--diagram-icon-document-text);
+}
+
+.diagram-icon-folder {
+    --diagram-icon: var(--diagram-icon-folder);
+}
+
+.diagram-icon-globe-alt {
+    --diagram-icon: var(--diagram-icon-globe-alt);
+}
+
+.diagram-icon-kubernetes {
+    --diagram-icon: var(--diagram-icon-kubernetes);
+}
+
+.diagram-icon-magnifying-glass {
+    --diagram-icon: var(--diagram-icon-magnifying-glass);
+}
+
+.diagram-icon-puzzle-piece {
+    --diagram-icon: var(--diagram-icon-puzzle-piece);
+}
+
+.diagram-icon-server {
+    --diagram-icon: var(--diagram-icon-server);
+}
+
+.diagram-icon-ucloud {
+    --diagram-icon: var(--diagram-icon-ucloud);
+}
+
+.diagram-icon-user {
+    --diagram-icon: var(--diagram-icon-user);
+}
+
+.diagram-icon-user-group {
+    --diagram-icon: var(--diagram-icon-user-group);
+}
+
+.diagram-icon-window {
+    --diagram-icon: var(--diagram-icon-window);
 }
