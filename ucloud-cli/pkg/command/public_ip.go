@@ -37,6 +37,8 @@ type PublicIPCreateCommand struct {
 	Rule      []string `flag:"rule" usage:"eg. 1234-2345/tcp" required:"true"`
 	Workspace string   `flag:"workspace" usage:"Workspace to create the public-ip in"`
 	Provider  string   `flag:"provider" usage:"Provider name" default:"k8s"`
+	//Internal use
+	Id string
 }
 
 type PublicIPFirewallCommand struct {
@@ -303,7 +305,7 @@ func createPortRangeAndProto(rules []string) ([]orcapi.PortRangeAndProto, error)
 	return portRanges, nil
 }
 
-func (c PublicIPCreateCommand) Execute() error {
+func (c *PublicIPCreateCommand) Execute() error {
 	cfg := shared.InitializeUCloudClient()
 	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
 	if err != nil {
@@ -334,6 +336,7 @@ func (c PublicIPCreateCommand) Execute() error {
 		return fmt.Errorf("failed to create public ip: %s", httpErr.Why)
 	}
 	fmt.Printf("Successfully create public ip %v\n", res.Responses[0].Id)
+	c.Id = res.Responses[0].Id
 	return nil
 }
 
