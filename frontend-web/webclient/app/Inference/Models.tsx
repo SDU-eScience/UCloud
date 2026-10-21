@@ -68,7 +68,8 @@ const pageStyle = injectStyle("inference-models-page", k => `
     @media screen and (max-width: 960px) {
         ${k} .panel-solid,
         ${k} .panel-accent {
-            padding: 20px 16px;
+            padding: 30px 16px;
+            padding-bottom: 90px;
         }
     }
 
