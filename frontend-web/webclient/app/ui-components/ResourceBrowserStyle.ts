@@ -234,6 +234,10 @@ export function injectResourceBrowserStyle(rowSize: number) {
             overflow: hidden;
         }
 
+        ${BrowserClass.dot} header[data-has-filters], ${BrowserClass.dot} header[data-has-allocations] {
+            height: 136px;
+        }
+
         ${BrowserClass.dot} header[data-has-filters] {
             height: 136px;
         }
@@ -584,38 +588,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
             font-style: italic;
         }
 
-        ${BrowserClass.dot} .context-menu {
-            position: fixed;
-            z-index: 10000;
-            top: 0;
-            left: 0;
-            border-radius: 8px;
-            border: 1px solid #E2DDDD;
-            cursor: pointer;
-            background: var(--backgroundDefault);
-            box-shadow: var(--defaultShadow);
-            width: 400px;
-            display: none;
-            overflow-y: auto;
-            transition: opacity 120ms, transform 60ms;
-        }
-
-        ${BrowserClass.dot} .context-menu ul {
-            padding: 0;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-        }
-
-        ${BrowserClass.dot} .context-menu li {
-            margin: 0;
-            padding: 8px 8px;
-            list-style: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
         ${BrowserClass.dot} .${ShortcutClass} {
             font-family: var(--sansSerif);
         }
@@ -624,23 +596,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
             ${BrowserClass.dot} .${ShortcutClass}, ${BrowserClass.dot} .ShortCutPlusSymbol {
                 display: none;
             }
-        }
-
-        ${BrowserClass.dot} .context-menu li[data-selected=true] {
-            background: var(--rowHover);
-        }
-
-        ${BrowserClass.dot} .context-menu > ul > *:first-child,
-        ${BrowserClass.dot} .context-menu > ul > li:first-child > button {
-            border-top-left-radius: 8px;
-            border-top-right-radius: 8px;
-        }
-
-        ${BrowserClass.dot} .context-menu > ul > *:last-child,
-         ${BrowserClass.dot} .context-menu > ul > li:last-child,
-         ${BrowserClass.dot} .context-menu > ul > li:last-child > button {
-            border-bottom-left-radius: 8px;
-            border-bottom-right-radius: 8px;
         }
 
         ${BrowserClass.dot} .rename-field {

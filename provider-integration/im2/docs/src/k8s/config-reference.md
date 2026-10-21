@@ -534,6 +534,8 @@ Optional path to Integration Module source code (used for development/diagnostic
 
 Inference feature configuration. When enabled, IM stores inference model metadata in its internal model catalog and exposes model catalog management through the CLI.
 
+The [AI inference](./inference/overview.md) article explains the feature, [Model discovery and catalog](./inference/catalog.md) explains the catalog, and [Dynamo deployments](./inference/dynamo.md) explains the Dynamo backend.
+
 <dl>
 <dt>
 
@@ -541,6 +543,20 @@ Inference feature configuration. When enabled, IM stores inference model metadat
 
 </dt>
 <dd>Enable/disable inference features.</dd>
+
+<dt>
+
+`authority` *optional*
+
+</dt>
+<dd>
+
+Public hostname of the inference API. Defaults to `chat` followed by `services.compute.web.suffix`.
+
+The hostname must resolve to the gateway of the IM, next to the `web` hostname.
+IM serves the OpenAI-compatible API on this hostname. Its root path redirects to the playground in the UCloud web interface.
+
+</dd>
 
 <dt>
 
@@ -588,10 +604,14 @@ Development backend provider. Set to `localai` to enable LocalAI startup/bootstr
 
 Base URL of the OpenAI-compatible inference backend, for example `http://localai:8080/v1`.
 
+Every model call must match this URL exactly, including the scheme, the host and the path. A value that no longer matches the backend fails at request time, not at startup.
+
+Add the models of this backend with `ucloud inference models update`. See [Creating an entry](./inference/catalog.md#creating-an-entry).
+
 </dd>
 </dl>
 
-For compatibility with older configuration files, `backendServer` and `developmentProvider` can still be set directly under `inference` when `development` is omitted.
+For compatibility with older configuration files, `backendServer` and `developmentProvider` can still be set directly under `inference` when `development` is omitted. Both keys are deprecated. Use the nested `development` object in new configuration files.
 
 </dd>
 
@@ -612,7 +632,7 @@ Dynamo inference discovery configuration.
 </dt>
 <dd>
 
-Kubernetes namespace where Dynamo frontend services are discovered. IM discovers services in this namespace with the `-frontend` suffix and registers models exposed by their OpenAI-compatible `/v1/models` endpoint.
+Kubernetes namespace where Dynamo frontend services are discovered. IM discovers services in this namespace with the `-frontend` suffix and registers models exposed by their OpenAI-compatible `/v1/models` endpoint. See [Dynamo deployments](./inference/dynamo.md) for a worked example.
 
 </dd>
 </dl>
