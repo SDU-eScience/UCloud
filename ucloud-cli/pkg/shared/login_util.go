@@ -20,5 +20,4 @@ func LoginDirectlyIntoDev() {
 		panic(err)
 	}
 
-	//fndapi.PasswordLoginRequest{}
 }
