@@ -6,32 +6,22 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/ucloud_cli/pkg/command"
 	"ucloud.dk/ucloud_cli/pkg/shared"
 )
 
+var Workspace = "test-workspace"
+
 func TestMain(m *testing.M) {
-	_, err := shared.FindWorkspaceByName("test-workspace")
+	login()
+	_, err := shared.FindWorkspaceByName(Workspace)
 	if err == nil {
 		fmt.Println("Test workspace already exists, skipping test setup")
-		login()
-		return
-	}
-	login()
-	err = CreateTestWorkspace()
-	if err != nil {
+	} else if err := CreateTestWorkspace(); err != nil {
 		panic(err)
 	}
 
-	if TestEnvCreated {
-		fmt.Println("Test environment already created, skipping test setup")
-		return
-	}
-	err = CreateTestWorkspace()
-	if err != nil {
-		panic(err)
-	}
-	m.Run()
 	code := m.Run()
 	os.Exit(code)
 }
@@ -115,7 +105,7 @@ func TestWorkspaceList(t *testing.T) {
 }
 
 func TestWorkspaceGet(t *testing.T) {
-	input := []string{"workspace", "get", "test-workspace"}
+	input := []string{"workspace", "get", Workspace}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -153,6 +143,13 @@ func TestEnvironmentUseDev(t *testing.T) {
 func TestEnvironmentUse(t *testing.T) {
 	input := []string{"environment", "use", "ucloud"}
 	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+
+	// restore dev so the rest of the suite stays on the dev server
+	input = []string{"environment", "use", "dev"}
+	cmd, err = Parse(input)
 	assert.NoError(t, err)
 	err = cmd.Execute()
 	assert.NoError(t, err)
@@ -236,9 +233,9 @@ func TestJobCreateWithProviderProduct(t *testing.T) {
 		"job", "create",
 		"--app", "terminal-almalinux",
 		"--product", "k8s/u1-standard-1",
-		"--folder", "/19/mysubdrive",
+		"--folder", "/5/",
 		"--workspace", "test-workspace",
-		"--name", "test-currently-job",
+		"--name", "test-job",
 	}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -250,15 +247,26 @@ func TestJobCreateWithProviderProduct(t *testing.T) {
 }
 
 func TestJobCreateWithPublicLink(t *testing.T) {
-	input := []string{
+	// creating the public link
+	uuid := util.UUid()
+	link := fmt.Sprintf("test-link-%s", uuid)
+	input := []string{"public-link", "create", link, "--provider", "k8s"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+
+	fullLink := fmt.Sprintf("k8s-%s.%s", link, "localhost.direct")
+	input = []string{
 		"job", "create",
 		"--app", "terminal-almalinux",
 		"--product", "k8s/u1-standard-1",
 		"--workspace", "test-workspace",
-		"--public-link", "k8s-workspace-cli.localhost.direct",
-		"--name", "test-public-link-job",
+		"--public-link", fullLink,
+		"--name", "test-job",
 	}
-	cmd, err := Parse(input)
+	cmd, err = Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
@@ -362,7 +370,7 @@ func TestJobGet(t *testing.T) {
 
 func TestJobGetJSON(t *testing.T) {
 	// Supply the ID of a job to retrieve before running this test.
-	jobID := "1"
+	jobID := "6"
 	input := []string{"job", "get", jobID, "--output", "json"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -376,16 +384,13 @@ func TestJobGetJSON(t *testing.T) {
 
 func TestJobGetMissingID(t *testing.T) {
 	input := []string{"job", "get"}
-	cmd, err := Parse(input)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	err = cmd.Execute()
+	_, err := Parse(input)
 	assert.Error(t, err)
 }
 
 func TestJobGetInvalidOutput(t *testing.T) {
 	// Supply the ID of an existing job before running this test.
-	jobID := "1"
+	jobID := "6"
 	input := []string{"job", "get", jobID, "--output", "xml"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -396,7 +401,7 @@ func TestJobGetInvalidOutput(t *testing.T) {
 
 func TestJobRename(t *testing.T) {
 	// Supply the ID of a job to rename before running this test.
-	jobID := "13"
+	jobID := "6"
 	newName := "renamed-job"
 	input := []string{"job", "rename", jobID, newName}
 	cmd, err := Parse(input)
@@ -411,19 +416,13 @@ func TestJobRename(t *testing.T) {
 
 func TestJobRenameMissingID(t *testing.T) {
 	input := []string{"job", "rename", "new-name"}
-	cmd, err := Parse(input)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	err = cmd.Execute()
+	_, err := Parse(input)
 	assert.Error(t, err)
 }
 
 func TestJobRenameMissingName(t *testing.T) {
-	input := []string{"job", "rename", "13"}
-	cmd, err := Parse(input)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	err = cmd.Execute()
+	input := []string{"job", "rename", "6"}
+	_, err := Parse(input)
 	assert.Error(t, err)
 }
 
@@ -440,42 +439,33 @@ func TestJobSearch(t *testing.T) {
 
 func TestJobSearchMissingName(t *testing.T) {
 	input := []string{"job", "search"}
-	cmd, err := Parse(input)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	err = cmd.Execute()
+	_, err := Parse(input)
 	assert.Error(t, err)
 }
 
 func TestJobExtend(t *testing.T) {
 	// Supply the ID of a running job to extend before running this test.
-	jobID := "14"
-	input := []string{"job", "extend", jobID, "--time", "60"}
+	jobID := "6"
+	input := []string{"job", "extend", jobID, "1h"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	concrete := cmd.(*command.JobExtendCommand)
 	assert.Equal(t, jobID, concrete.JobID)
-	assert.Equal(t, 60, concrete.Duration)
+	assert.Equal(t, "1h", concrete.Duration)
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }
 
 func TestJobExtendMissingID(t *testing.T) {
-	input := []string{"job", "extend", "--time", "60"}
-	cmd, err := Parse(input)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	err = cmd.Execute()
+	input := []string{"job", "extend", "2h"}
+	_, err := Parse(input)
 	assert.Error(t, err)
 }
 
 func TestJobExtendMissingTime(t *testing.T) {
-	input := []string{"job", "extend", "10"}
-	cmd, err := Parse(input)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	err = cmd.Execute()
+	input := []string{"job", "extend", "10m"}
+	_, err := Parse(input)
 	assert.Error(t, err)
 }
 
@@ -485,7 +475,7 @@ func TestCompletion(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
-	assert.Error(t, err)
+	assert.NoError(t, err)
 }
 
 func TestAppList(t *testing.T) {
@@ -578,17 +568,23 @@ func TestPublicIPList(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPublicIPListByIP(t *testing.T) {
-	input := []string{"public-ip", "list", "--ip", "10.99.0.2-10.99.0.4", "--workspace", "testmain"}
+func createPublicIP(t *testing.T) string {
+	input := []string{"public-ip", "create", "--rule", "1234-2345/tcp", "--rule", "12344/udp", "--workspace", Workspace}
 	cmd, err := Parse(input)
+	concrete := cmd.(*command.PublicIPCreateCommand)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
 	assert.NoError(t, err)
+	return concrete.Id
 }
 
 func TestPublicIPCreate(t *testing.T) {
-	input := []string{"public-ip", "create", "--rule", "1234-2345/tcp", "--rule", "12344/udp", "--workspace", "testmain"}
+	createPublicIP(t)
+}
+
+func TestPublicIPListByIP(t *testing.T) {
+	input := []string{"public-ip", "list", "--ip", "10.99.0.2-10.99.0.4", "--workspace", Workspace}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -597,6 +593,7 @@ func TestPublicIPCreate(t *testing.T) {
 }
 
 func TestPublicIPDelete(t *testing.T) {
+	createPublicIP(t)
 	input := []string{"public-ip", "delete", "--ip", "10.99.0.4-10.99.0.20", "--ip", "10.99.0.2"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -604,7 +601,9 @@ func TestPublicIPDelete(t *testing.T) {
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }
+
 func TestPublicIPDeleteCidr(t *testing.T) {
+	createPublicIP(t)
 	input := []string{"public-ip", "delete", "--ip", "10.99.0.2"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -614,7 +613,8 @@ func TestPublicIPDeleteCidr(t *testing.T) {
 }
 
 func TestPublicIPDeleteById(t *testing.T) {
-	input := []string{"public-ip", "delete", "--id", "64", "--id", "66", "--id", "67"}
+	id := createPublicIP(t)
+	input := []string{"public-ip", "delete", "--id", id}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -623,7 +623,8 @@ func TestPublicIPDeleteById(t *testing.T) {
 }
 
 func TestPublicIPGet(t *testing.T) {
-	input := []string{"public-ip", "get", "--id", "64"}
+	id := createPublicIP(t)
+	input := []string{"public-ip", "get", "--id", id}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -632,7 +633,8 @@ func TestPublicIPGet(t *testing.T) {
 }
 
 func TestPublicIPFirewall(t *testing.T) {
-	input := []string{"public-ip", "firewall", "8", "--rule", "1337/tcp", "--rule", "8821-8825/udp", "--workspace", "testmain"}
+	id := createPublicIP(t)
+	input := []string{"public-ip", "firewall", id, "--rule", "1337/tcp", "--rule", "8821-8825/udp", "--workspace", Workspace}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -641,7 +643,7 @@ func TestPublicIPFirewall(t *testing.T) {
 }
 
 func TestPublicIPFirewallByIp(t *testing.T) {
-	input := []string{"public-ip", "firewall", "--ip", "10.99.0.3", "--rule", "1337/tcp", "--rule", "1234-1235/udp", "--workspace", "testmain"}
+	input := []string{"public-ip", "firewall", "--ip", "10.99.0.3", "--rule", "1337/tcp", "--rule", "1234-1235/udp", "--workspace", Workspace}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -650,7 +652,8 @@ func TestPublicIPFirewallByIp(t *testing.T) {
 }
 
 func TestPublicIPFirewallByIdAndIp(t *testing.T) {
-	input := []string{"public-ip", "firewall", "8", "--ip", "10.99.0.3", "--rule", "1337/tcp", "--rule", "1234-1235/udp", "--workspace", "testmain"}
+	id := createPublicIP(t)
+	input := []string{"public-ip", "firewall", id, "--ip", "10.99.0.3", "--rule", "1337/tcp", "--rule", "1234-1235/udp", "--workspace", Workspace}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -667,17 +670,36 @@ func TestPublicLinkList(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func createPublicLink(t *testing.T, name string) string {
+	input := []string{"public-link", "create", name, "--provider", "k8s"}
+	cmd, err := Parse(input)
+	concrete := cmd.(*command.PublicLinkCreateCommand)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+	return concrete.Id
+}
+
+func TestPublicLinkCreate(t *testing.T) {
+	createPublicLink(t, "foobarlink")
+}
+
 func TestPublicLinkGet(t *testing.T) {
-	input := []string{"public-link", "get", "test-workspace-cli"}
+	createPublicLink(t, "get-test-link")
+	input := []string{"public-link", "get", "get-test-link"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
 	assert.NoError(t, err)
+
+	// deleting the link to be able to rerun the test
+	deletePublicLink(t, "get-test-link")
 }
 
-func TestPublicLinkCreate(t *testing.T) {
-	input := []string{"public-link", "create", "barlinkagain", "--provider", "k8s"}
+func deletePublicLink(t *testing.T, name string) {
+	input := []string{"public-link", "delete", name, "--workspace", Workspace}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -686,12 +708,7 @@ func TestPublicLinkCreate(t *testing.T) {
 }
 
 func TestPublicLinkDelete(t *testing.T) {
-	input := []string{"public-link", "delete", "barlinkagain", "barlink", "--workspace", "test-workspace"}
-	cmd, err := Parse(input)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	err = cmd.Execute()
-	assert.NoError(t, err)
+	deletePublicLink(t, "foobarlink")
 }
 
 func TestPrivateNetworkList(t *testing.T) {
@@ -704,16 +721,35 @@ func TestPrivateNetworkList(t *testing.T) {
 }
 
 func TestPrivateNetworkGet(t *testing.T) {
-	input := []string{"private-network", "get", "lolex"}
+	name := "my-private-network"
+	createPrivateNetwork(t, name, "my-subdomain")
+	input := []string{"private-network", "get", name}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
 	assert.NoError(t, err)
+	deletePrivateNetwork(t, name)
+}
+
+func createPrivateNetwork(t *testing.T, name string, subdomain string) string {
+	input := []string{"private-network", "create", name, subdomain}
+	cmd, err := Parse(input)
+	concrete := cmd.(*command.PrivateNetworkCreateCommand)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+	return concrete.Id
 }
 
 func TestPrivateNetworkCreate(t *testing.T) {
-	input := []string{"private-network", "create", "mynetwork", "mysubdomain"}
+	createPrivateNetwork(t, "mynetwork", "lolex")
+}
+
+func deletePrivateNetwork(t *testing.T, name ...string) {
+	input := []string{"private-network", "delete"}
+	input = append(input, name...)
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
@@ -722,19 +758,16 @@ func TestPrivateNetworkCreate(t *testing.T) {
 }
 
 func TestPrivateNetworkDelete(t *testing.T) {
-	input := []string{"private-network", "delete", "mynetwork", "lolex"}
-	cmd, err := Parse(input)
-	assert.NoError(t, err)
-	assert.NotNil(t, cmd)
-	err = cmd.Execute()
-	assert.NoError(t, err)
+	deletePrivateNetwork(t, "mynetwork", "lolex")
 }
 
-func TestPrivateNetworMembers(t *testing.T) {
-	input := []string{"private-network", "members", "dannetwork", "--workspace", "testmain"}
+func TestPrivateNetworkMembers(t *testing.T) {
+	createPrivateNetwork(t, "dannetwork", "mysubdomain")
+	input := []string{"private-network", "members", "dannetwork", "--workspace", Workspace}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
 	assert.NoError(t, err)
+	deletePrivateNetwork(t, "dannetwork")
 }

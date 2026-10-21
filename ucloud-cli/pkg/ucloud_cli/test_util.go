@@ -28,20 +28,6 @@ func SetTestEnv() {
 	}
 }
 
-func alreadyRootAllocated() bool {
-	start := time.Now().Add(-1 * time.Hour)
-	end := time.Now().Add(time.Hour)
-	usage, httpErr := accapi.UsageRetrieve.Invoke(accapi.UsageRetrieveRequest{
-		Start: uint64(start.UnixMilli()),
-		End:   uint64(end.UnixMilli()),
-	})
-	if httpErr.AsError() != nil {
-		return false
-	}
-	quota := usage.Reports[0].Kpis.QuotaAtEnd
-	return quota > 0
-}
-
 func allocateRoot(grantId string) error {
 
 	provider := "k8s"
@@ -56,14 +42,14 @@ func allocateRoot(grantId string) error {
 				},
 				Start: start,
 				End:   end,
-				Quota: 10,
+				Quota: 1000,
 			},
 			{
 				Category: accapi.ProductCategoryIdV2{
 					Provider: provider,
 					Name:     "storage",
 				},
-				Quota: 10,
+				Quota: 1000,
 				Start: start,
 				End:   end,
 			},
@@ -72,7 +58,7 @@ func allocateRoot(grantId string) error {
 					Provider: "k8s",
 					Name:     "test-license",
 				},
-				Quota: 10,
+				Quota: 1000,
 				Start: start,
 				End:   end,
 			},
@@ -81,7 +67,7 @@ func allocateRoot(grantId string) error {
 					Provider: provider,
 					Name:     "u1-standard",
 				},
-				Quota: 600,
+				Quota: 2400,
 				Start: start,
 				End:   end,
 			},
@@ -103,7 +89,7 @@ func createTestGrant(grantGiverId string) accapi.GrantDocument {
 		AllocationRequests: []accapi.AllocationRequest{
 			{
 				Category:         "public-ip",
-				BalanceRequested: util.OptValue(int64(5)),
+				BalanceRequested: util.OptValue(int64(100)),
 				Period: accapi.Period{
 					Start: util.OptValue(fndapi.Timestamp(time.Now())),
 					End:   util.OptValue(fndapi.Timestamp(time.Now().Add(time.Hour * 24 * 365 * 10))),
@@ -113,7 +99,7 @@ func createTestGrant(grantGiverId string) accapi.GrantDocument {
 			},
 			{
 				Category:         "storage",
-				BalanceRequested: util.OptValue(int64(5)),
+				BalanceRequested: util.OptValue(int64(100)),
 				Period: accapi.Period{
 					Start: util.OptValue(fndapi.Timestamp(time.Now())),
 					End:   util.OptValue(fndapi.Timestamp(time.Now().Add(time.Hour * 24 * 365 * 10))),
@@ -123,7 +109,7 @@ func createTestGrant(grantGiverId string) accapi.GrantDocument {
 			},
 			{
 				Category:         "u1-standard",
-				BalanceRequested: util.OptValue(int64(60)),
+				BalanceRequested: util.OptValue(int64(240)),
 				Period: accapi.Period{
 					Start: util.OptValue(fndapi.Timestamp(time.Now())),
 					End:   util.OptValue(fndapi.Timestamp(time.Now().Add(time.Hour * 24 * 365 * 10))),
@@ -163,7 +149,6 @@ func createTestGrant(grantGiverId string) accapi.GrantDocument {
 }
 
 func createGrant(grantId string) error {
-	// TODO: We need to mimic the frontend and create a grant
 	grant, httpErr := accapi.GrantsSubmitRevision.Invoke(accapi.GrantsSubmitRevisionRequest{
 		Comment:  "Submitted the application",
 		Revision: createTestGrant(grantId),
@@ -241,9 +226,6 @@ func isAlreadyConnected() bool {
 }
 
 func login() {
-	//if isAlreadyConnected() {
-	//	return
-	//}
 	shared.TestMode = true
 	SetTestEnv()
 	shared.LoginDirectlyIntoDev()
