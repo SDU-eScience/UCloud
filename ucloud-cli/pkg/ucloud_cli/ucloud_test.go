@@ -721,8 +721,8 @@ func TestPrivateNetworkList(t *testing.T) {
 }
 
 func TestPrivateNetworkGet(t *testing.T) {
-	name := "my-private-network"
-	createPrivateNetwork(t, name, "my-subdomain")
+	name := "fooprivate"
+	createPrivateNetwork(t, name)
 	input := []string{"private-network", "get", name}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -732,8 +732,8 @@ func TestPrivateNetworkGet(t *testing.T) {
 	deletePrivateNetwork(t, name)
 }
 
-func createPrivateNetwork(t *testing.T, name string, subdomain string) string {
-	input := []string{"private-network", "create", name, subdomain}
+func createPrivateNetwork(t *testing.T, name string) string {
+	input := []string{"private-network", "create", name}
 	cmd, err := Parse(input)
 	concrete := cmd.(*command.PrivateNetworkCreateCommand)
 	assert.NoError(t, err)
@@ -744,7 +744,7 @@ func createPrivateNetwork(t *testing.T, name string, subdomain string) string {
 }
 
 func TestPrivateNetworkCreate(t *testing.T) {
-	createPrivateNetwork(t, "mynetwork", "lolex")
+	createPrivateNetwork(t, "mynetwork")
 }
 
 func deletePrivateNetwork(t *testing.T, name ...string) {
@@ -763,7 +763,7 @@ func TestPrivateNetworkDelete(t *testing.T) {
 
 func TestPrivateNetworkMembers(t *testing.T) {
 	name := "my-private-network"
-	createPrivateNetwork(t, name, "my-subdomain")
+	createPrivateNetwork(t, name)
 	input := []string{"private-network", "members", name, "--workspace", Workspace}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
