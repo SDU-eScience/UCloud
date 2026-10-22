@@ -84,6 +84,7 @@ import {TutorialWizard} from "@/ui-components/TutorialWizard";
 import Warning from "@/ui-components/Warning";
 import {useDispatch} from "react-redux";
 import {openJobShellTab} from "@/Terminal/State";
+import {confirmUcxCommand} from "@/UCX/CommandPermissions";
 import {PermissionsTable} from "@/Resource/PermissionEditor";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {useProjectId} from "@/Project/Api";
@@ -139,6 +140,7 @@ export interface UcxFrameRenderArgs {
 
 export interface UcxViewProps {
     url: string;
+    stackId?: string;
     authToken: ValueProvider;
     sysHello: ValueProvider;
     renderFrame?: (args: UcxFrameRenderArgs) => React.ReactNode;
@@ -159,6 +161,7 @@ const SILENCE_THRESHOLD_MS = 90 * 1000;
 
 const UcxView: React.FunctionComponent<UcxViewProps> = ({
     url,
+    stackId,
     authToken,
     sysHello,
     renderFrame,
@@ -197,6 +200,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const queryParamUrlValuesRef = useRef<Record<string, string>>({});
     const currentRoutePath = useMemo(() => routePathFromSearch(location.search), [location.search]);
     const latestRef = useRef({
+        stackId,
         authToken,
         sysHello,
         rpcHandlers,
@@ -207,6 +211,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         onModelChange,
     });
     latestRef.current = {
+        stackId,
         authToken,
         sysHello,
         rpcHandlers,
@@ -688,15 +693,25 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                     return {};
                 });
 
-                sessionRef.current?.registerRpcHandler("terminalOpenShellToJob", payload => {
-                    const plainPayload = valueMapToPlainPayload(payload) as {jobId?: unknown; rank?: unknown; command?: unknown; clearAfter?: unknown; suppressUntil?: unknown};
+                sessionRef.current?.registerRpcHandler("terminalOpenShellToJob", async payload => {
+                    const plainPayload = valueMapToPlainPayload(payload) as {jobId?: unknown; rank?: unknown; command?: unknown};
                     const jobId = typeof plainPayload.jobId === "string" ? plainPayload.jobId : "";
                     if (jobId === "") return {};
                     const rank = typeof plainPayload.rank === "number" ? plainPayload.rank : 0;
                     const command = typeof plainPayload.command === "string" ? plainPayload.command : undefined;
-                    const clearAfter = plainPayload.clearAfter === true;
-                    const suppressUntil = typeof plainPayload.suppressUntil === "string" ? plainPayload.suppressUntil : undefined;
-                    openJobShellTab(dispatch, jobId, rank, command, clearAfter, suppressUntil);
+
+                    if (command !== undefined && command !== "") {
+                        const stackId = latestRef.current.stackId?.trim() ?? "";
+                        const decision = await confirmUcxCommand({
+                            scopeId: stackId !== "" ? stackId : `ucx:${jobId}`,
+                            command,
+                            jobId,
+                            rank,
+                        });
+                        if (decision === "deny") return {};
+                    }
+
+                    openJobShellTab(dispatch, jobId, rank, command, false);
                     return {};
                 });
 

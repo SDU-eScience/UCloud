@@ -427,6 +427,7 @@ export default function StackView(): React.ReactNode {
                         <UcxView
                             key={ucxConnectJobId ?? "ucx"}
                             url={ucxConnectJobUrl}
+                            stackId={id}
                             authToken={async () => {
                                 const accessToken = await Client.receiveAccessTokenOrRefreshIt();
                                 const project = getStoredProject() ?? "";
