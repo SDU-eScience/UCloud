@@ -28,15 +28,13 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 	shellEscape := appShellProps{EscapePath: "browse/nodes"}
 
 	if group == "" {
-		shellEscape.Content = []ucx.UiNode{shellContentBox(800, ucx.Text("No node pool was selected."))}
-		return []ucx.UiNode{app.appShell(shellEscape)}
+		return app.messagePage(nil, "browse/nodes", ucx.Text("No node pool was selected."))
 	}
 
 	shellEscape.Bottom = []ucx.UiNode{shellBottomNode(app, "nodes", "Add machine", "nodes/"+group)}
 
 	if !recordOk {
-		shellEscape.Content = []ucx.UiNode{shellContentBox(800, ucx.Text("Could not read the cluster record."))}
-		return []ucx.UiNode{app.appShell(shellEscape)}
+		return app.messagePage(shellEscape.Bottom, "browse/nodes", ucx.Text("Could not read the cluster record."))
 	}
 
 	if record.Phase != "created" {
@@ -47,8 +45,7 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 		if record.FailureReason != "" {
 			content = append(content, ucx.Text("The cluster reported a problem: "+record.FailureReason))
 		}
-		shellEscape.Content = []ucx.UiNode{shellContentBox(800, content...)}
-		return []ucx.UiNode{app.appShell(shellEscape)}
+		return app.messagePage(shellEscape.Bottom, "browse/nodes", content...)
 	}
 
 	var pool *shared.ClusterPoolRecord
@@ -60,8 +57,7 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 	}
 
 	if pool == nil {
-		shellEscape.Content = []ucx.UiNode{shellContentBox(800, ucx.Text("Unknown node pool: "+group))}
-		return []ucx.UiNode{app.appShell(shellEscape)}
+		return app.messagePage(shellEscape.Bottom, "browse/nodes", ucx.Text("Unknown node pool: "+group))
 	}
 
 	if app.TargetDiskGb <= 0 {
@@ -137,8 +133,7 @@ func (app *stackUiApp) pageAddPool() []ucx.UiNode {
 	shellEscape.Bottom = []ucx.UiNode{shellBottomNode(app, "nodes", "Add worker pool")}
 
 	if !recordOk {
-		shellEscape.Content = []ucx.UiNode{shellContentBox(800, ucx.Text("Could not read the cluster record."))}
-		return []ucx.UiNode{app.appShell(shellEscape)}
+		return app.messagePage(shellEscape.Bottom, "browse/nodes", ucx.Text("Could not read the cluster record."))
 	}
 
 	if record.Phase != "created" {
@@ -149,8 +144,7 @@ func (app *stackUiApp) pageAddPool() []ucx.UiNode {
 		if record.FailureReason != "" {
 			content = append(content, ucx.Text("The cluster reported a problem: "+record.FailureReason))
 		}
-		shellEscape.Content = []ucx.UiNode{shellContentBox(800, content...)}
-		return []ucx.UiNode{app.appShell(shellEscape)}
+		return app.messagePage(shellEscape.Bottom, "browse/nodes", content...)
 	}
 
 	if app.TargetDiskGb <= 0 {

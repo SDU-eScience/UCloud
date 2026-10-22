@@ -1,10 +1,7 @@
 package dashboard
 
 import (
-	"strings"
-
 	"ucloud.dk/shared/pkg/ucx"
-	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 )
 
 type appShellProps struct {
@@ -71,20 +68,7 @@ func shellContentBox(maxWidth int64, children ...ucx.UiNode) ucx.UiNode {
 }
 
 func shellBottomNode(app *stackUiApp, backTarget string, labels ...string) ucx.UiNode {
-	bottom := ucx.Toolbar().Children(
-		ucx.ButtonEx("backToTable", "Back to table", ucx.ColorSecondaryMain, ucx.IconHeroArrowLeft, "", "").ButtonEscapeHint(true).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-			ucxsvc.RouterPushPage(app, "browse/"+backTarget)
-		}),
-		ucx.Box(),
-	)
-
-	if len(labels) > 0 {
-		bottom = bottom.Children(
-			ucx.Text(strings.Join(labels, " / ")).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
-		)
-	}
-
-	return bottom
+	return backToolbar(app, "browse/"+backTarget, labels...)
 }
 
 func pageShell(app *stackUiApp, maxWidth int64, gap int, content []ucx.UiNode) []ucx.UiNode {

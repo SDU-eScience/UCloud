@@ -43,7 +43,7 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 	nodeName := maintenanceNodeFromRoute(app.RoutePath)
 
 	if nodeName == "" {
-		return maintenanceShellMessage(app, nil, "Select a node in the node table to start maintenance.")
+		return app.messagePage(nil, "browse/nodes", ucx.Text("Select a node in the node table to start maintenance."))
 	}
 
 	if app.maintenanceNodeName != nodeName {
@@ -64,7 +64,7 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 
 	record, recordOk := app.readClusterRecord()
 	if !recordOk {
-		return maintenanceShellMessage(app, bottom, "Could not read the cluster record.")
+		return app.messagePage(bottom, "browse/nodes", ucx.Text("Could not read the cluster record."))
 	}
 
 	known := false
@@ -79,7 +79,7 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 
 	snapshot, err := maintenance.Snapshot()
 	if err != nil {
-		return maintenanceShellMessage(app, bottom, fmt.Sprintf("Could not read the maintenance state: %s", err))
+		return app.messagePage(bottom, "browse/nodes", ucx.Text(fmt.Sprintf("Could not read the maintenance state: %s", err)))
 	}
 
 	isRemoveRetryOp := false
@@ -89,7 +89,7 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 
 	if !known && !isRemoveRetryOp {
 		ucxsvc.RouterPushPage(app, "browse/nodes")
-		return maintenanceShellMessage(app, bottom, fmt.Sprintf("The node %s is no longer part of the cluster", nodeName))
+		return app.messagePage(bottom, "browse/nodes", ucx.Text(fmt.Sprintf("The node %s is no longer part of the cluster", nodeName)))
 	}
 
 	operation, hasOperation := snapshot[nodeName]
@@ -307,14 +307,6 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 
 	return []ucx.UiNode{app.appShell(appShellProps{
 		Content:    []ucx.UiNode{shellContentBox(800, content...)},
-		Bottom:     bottom,
-		EscapePath: "browse/nodes",
-	})}
-}
-
-func maintenanceShellMessage(app *stackUiApp, bottom []ucx.UiNode, message string) []ucx.UiNode {
-	return []ucx.UiNode{app.appShell(appShellProps{
-		Content:    []ucx.UiNode{shellContentBox(800, ucx.Text(message))},
 		Bottom:     bottom,
 		EscapePath: "browse/nodes",
 	})}

@@ -59,7 +59,7 @@ func autoMaintenancePage(app *stackUiApp) []ucx.UiNode {
 	now := time.Now().UTC()
 
 	content := []ucx.UiNode{
-		ucx.Text("Automatic maintenance").Sx(ucx.SxFontSize(20), ucx.SxFontWeight("600")),
+		pageTitle("Automatic maintenance"),
 	}
 
 	status, err := app.autoStatusRead()
@@ -90,7 +90,7 @@ func autoMaintenancePage(app *stackUiApp) []ucx.UiNode {
 }
 
 func autoMaintenanceSection(title string, children ...ucx.UiNode) ucx.UiNode {
-	content := []ucx.UiNode{ucx.Text(title).Sx(ucx.SxFontSize(18), ucx.SxFontWeight("600"))}
+	content := []ucx.UiNode{sectionHeader(title, 18)}
 	content = append(content, children...)
 	return ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 16}).
 		Sx(ucx.SxMinWidth(0)).Children(content...)
@@ -928,8 +928,7 @@ func autoMaintenanceNodeProgress(app *stackUiApp, status dashboardAutoStatus) []
 		}
 
 		heading := []ucx.UiNode{
-			ucx.Box().Sx(ucx.SxFlexGrow(1), ucx.SxMinWidth(0), ucx.SxTextOverflow("ellipsis"), ucx.SxOverflow("hidden"), ucx.SxWhiteSpace("nowrap")).
-				Children(ucx.Text(node.Hostname).Sx(ucx.SxFontWeight("600"))),
+			app.progressName("", node.Hostname, ""),
 		}
 
 		failed := false
@@ -937,12 +936,12 @@ func autoMaintenanceNodeProgress(app *stackUiApp, status dashboardAutoStatus) []
 			if channel.Percent >= 100 || channel.Active {
 				continue
 			}
-			style := []ucx.SxOption{ucx.SxColor(ucx.ColorTextSecondary), ucx.SxFontSize(12), ucx.SxWhiteSpace("nowrap")}
+			color := ucx.ColorTextSecondary
 			if channel.Failed {
 				failed = true
-				style = append(style, ucx.SxColor(ucx.ColorErrorMain))
+				color = ucx.ColorErrorMain
 			}
-			heading = append(heading, ucx.Text(names[i]+": "+channel.Action).Sx(style...))
+			heading = append(heading, progressTagLabel(names[i]+": "+channel.Action, color))
 		}
 
 		switch {

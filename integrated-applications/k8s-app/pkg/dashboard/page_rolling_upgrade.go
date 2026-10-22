@@ -22,7 +22,7 @@ type rollingUpgradeGroup struct {
 
 func rollingUpgradePage(app *stackUiApp) []ucx.UiNode {
 	content := []ucx.UiNode{
-		ucx.Text("Rolling upgrade").Sx(ucx.SxFontSize(20), ucx.SxFontWeight("600")),
+		pageTitle("Rolling upgrade"),
 		ucx.Text("The cluster will upgrade in a rolling fashion. Control plane nodes first, then worker groups in parallel. One node at a time per group.").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
 		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).Sx(ucx.SxAlignItemsCenter).Children(
 			ucx.Text("Upgrades can also run automatically in the maintenance window.").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
@@ -174,18 +174,12 @@ func rollingUpgradeProgress(app *stackUiApp, upgrade maintenance.RollingUpgrade,
 		}
 
 		heading := []ucx.UiNode{
-			ucx.Box().Sx(ucx.SxFlexGrow(1), ucx.SxMinWidth(0), ucx.SxTextOverflow("ellipsis"), ucx.SxOverflow("hidden"), ucx.SxWhiteSpace("nowrap")).Children(
-				ucx.LinkButton(fmt.Sprintf("rollingUpgradeNode%d", i), node.Name, ucx.ColorLinkColor).
-					Sx(ucx.SxFontSize(14), ucx.SxFontWeight("400")).
-					On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-						ucxsvc.RouterPushPage(app, "maintenance/"+url.PathEscape(node.Name))
-					}),
-			),
+			app.progressName(fmt.Sprintf("rollingUpgradeNode%d", i), node.Name, "maintenance/"+url.PathEscape(node.Name)),
 		}
 		if active {
 			heading = append(heading, ucx.Spinner(16))
 		} else if label != "" {
-			heading = append(heading, ucx.Text(label).Sx(ucx.SxFontSize(12), ucx.SxColor(color), ucx.SxWhiteSpace("nowrap")))
+			heading = append(heading, progressTagLabel(label, color))
 		}
 		children := []ucx.UiNode{ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).
 			Sx(ucx.SxAlignItemsCenter, ucx.SxMinWidth(0)).
@@ -212,8 +206,7 @@ func rollingUpgradeProgress(app *stackUiApp, upgrade maintenance.RollingUpgrade,
 	}
 	for _, name := range groupNames {
 		children := []ucx.UiNode{
-			ucx.Text(fmt.Sprintf("%s: %d of %d completed", name, completed[name], len(rows[name]))).
-				Sx(ucx.SxFontSize(14), ucx.SxFontWeight("600")),
+			sectionHeader(fmt.Sprintf("%s: %d of %d completed", name, completed[name], len(rows[name])), 14),
 		}
 		children = append(children, rows[name]...)
 		groups = append(groups, ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).Children(children...))

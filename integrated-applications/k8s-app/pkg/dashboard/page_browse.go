@@ -320,13 +320,7 @@ func (app *stackUiApp) resourceDetailBottomNode(detail string) ucx.UiNode {
 		segments = append(segments, container)
 	}
 
-	return ucx.Toolbar().Children(
-		ucx.ButtonEx("backToTable", "Back to table", ucx.ColorSecondaryMain, ucx.IconHeroArrowLeft, "", "").ButtonEscapeHint(true).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-			ucxsvc.RouterPushPage(app, backTarget)
-		}),
-		ucx.Box(),
-		ucx.Text(strings.Join(segments, " / ")).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
-	)
+	return backToolbar(app, backTarget, segments...)
 }
 
 func (app *stackUiApp) namespaceSelectorNode() ucx.UiNode {

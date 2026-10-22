@@ -22,7 +22,7 @@ type dashboardBackupStatus struct {
 
 func backupPage(app *stackUiApp) []ucx.UiNode {
 	content := []ucx.UiNode{
-		ucx.Text("Control-plane backups").Sx(ucx.SxFontSize(20), ucx.SxFontWeight("600")),
+		pageTitle("Control-plane backups"),
 		ucx.Text("An hourly etcd backup is written to the cluster state drive. The backups survive the loss of all control-plane VMs.").Sx(
 			ucx.SxColor(ucx.ColorTextSecondary),
 		),
@@ -143,7 +143,7 @@ func backupRequestNodes(app *stackUiApp, status dashboardBackupStatus, now time.
 
 func backupRetainedNodes(status dashboardBackupStatus) []ucx.UiNode {
 	nodes := []ucx.UiNode{
-		ucx.Text("Retained backups").Sx(ucx.SxFontSize(16), ucx.SxFontWeight("600")),
+		sectionHeader("Retained backups", 16),
 	}
 
 	if !status.StateFound || len(status.State.Retained) == 0 {
