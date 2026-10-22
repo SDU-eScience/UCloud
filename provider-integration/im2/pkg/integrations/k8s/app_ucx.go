@@ -382,7 +382,7 @@ func ucxOnConnect(conn *ws.Conn) {
 			return ucxapi.StackControlTokenResponse{}, fmt.Errorf("invalid stack instance")
 		}
 
-		token, err := stackControlTokenIssue(jobId, stackInstance, info.Owner)
+		token, err := stackControlTokenIssue(jobId, stackInstance, info.Owner, "ui")
 		if err != nil {
 			return ucxapi.StackControlTokenResponse{}, err
 		}
@@ -495,7 +495,7 @@ func ucxOnConnectJob(conn *ws.Conn) {
 		}
 
 		callerStack := strings.TrimSpace(callerJob.Specification.Labels[orcapi.ResourceLabelStackInstance])
-		token, err := stackControlTokenIssue(request.JobId, callerStack, callerJob.Owner)
+		token, err := stackControlTokenIssue(request.JobId, callerStack, callerJob.Owner, "control")
 		if err != nil {
 			return ucxapi.StackControlTokenResponse{}, err
 		}

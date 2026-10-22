@@ -4,9 +4,11 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	cfg "ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/controller"
@@ -115,7 +117,62 @@ func stackControlOwnerScopeMatches(left orc.ResourceOwner, right orc.ResourceOwn
 	return leftUsername == rightUsername
 }
 
-func stackControlTokenIssue(jobId string, stackInstance string, owner orc.ResourceOwner) (string, error) {
+func stackControlOwnerCanEditStack(owner orc.ResourceOwner, stackInstance string, stackEntityId string) bool {
+	_, err := orc.StacksControlCheckEdit.Invoke(orc.StacksControlCheckEditRequest{
+		Id:            stackInstance,
+		Owner:         owner,
+		StackEntityId: stackEntityId,
+	})
+	return err == nil
+}
+
+func stackControlAuditIssued(owner orc.ResourceOwner, job *orc.Job, stackInstance string, source string) {
+	if rpc.AuditConsumer == nil {
+		return
+	}
+
+	var project *string
+	if owner.Project.Present {
+		project = &owner.Project.Value
+	}
+
+	body, err := json.Marshal(struct {
+		StackId         string  `json:"stackId"`
+		JobId           string  `json:"jobId"`
+		Source          string  `json:"source"`
+		IssuedBy        string  `json:"issuedBy"`
+		IssuedByProject *string `json:"issuedByProject,omitempty"`
+		TargetOwner     string  `json:"targetOwner"`
+	}{
+		StackId:         stackInstance,
+		JobId:           job.Id,
+		Source:          source,
+		IssuedBy:        owner.CreatedBy,
+		IssuedByProject: project,
+		TargetOwner:     job.Owner.CreatedBy,
+	})
+	if err != nil {
+		return
+	}
+
+	rpc.AuditConsumer(rpc.HttpCallLogEntry{
+		JobId:        job.Id,
+		RequestName:  "internal/stack-control/tokenIssue",
+		ReceivedAt:   time.Now(),
+		ResponseCode: http.StatusOK,
+		RequestSize:  uint64(len(body)),
+		RequestJson:  util.OptValue(json.RawMessage(body)),
+		Project:      owner.Project,
+		Token: util.OptValue(rpc.SecurityPrincipalToken{
+			Principal: rpc.SecurityPrincipal{
+				Username: owner.CreatedBy,
+				Role:     rpc.RoleUser.String(),
+			},
+		}),
+	})
+}
+
+func stackControlTokenIssue(jobId string, stackInstance string, owner orc.ResourceOwner, source string) (string, error) {
 	jobId = strings.TrimSpace(jobId)
 	stackInstance = strings.TrimSpace(stackInstance)
 	if jobId == "" || stackInstance == "" {
@@ -129,14 +186,16 @@ func stackControlTokenIssue(jobId string, stackInstance string, owner orc.Resour
 	if strings.TrimSpace(job.Specification.Labels[orc.ResourceLabelStackInstance]) != stackInstance {
 		return "", fmt.Errorf("control plane job belongs to a different stack")
 	}
-	if !stackControlOwnerScopeMatches(owner, job.Owner) {
-		return "", fmt.Errorf("control plane job belongs to a different stack owner")
+	stackEntityId := strings.TrimSpace(job.Specification.Labels[orc.ResourceLabelStackEntity])
+	if !stackControlOwnerCanEditStack(owner, stackInstance, stackEntityId) {
+		return "", fmt.Errorf("control plane stack is not editable")
 	}
 
 	token, created := stackControlTokenCreate(job)
 	if !created {
 		return "", fmt.Errorf("a controller credential has already been issued for this job")
 	}
+	stackControlAuditIssued(owner, job, stackInstance, source)
 	return token, nil
 }
 

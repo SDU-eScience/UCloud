@@ -60,6 +60,25 @@ func stacksFindEntity(actor rpc.Actor, id string) (orcapi.Resource, bool) {
 	return orcapi.Resource{}, false
 }
 
+func stacksControlOwnerActor(owner orcapi.ResourceOwner) (rpc.Actor, *util.HttpError) {
+	actor, ok := rpc.LookupActor(owner.CreatedBy)
+	if !ok {
+		return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "forbidden")
+	}
+
+	if owner.Project.Present {
+		projectId := rpc.ProjectId(owner.Project.Value)
+		if _, isMember := actor.Membership[projectId]; !isMember {
+			return rpc.Actor{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+		actor.Project.Set(projectId)
+	} else {
+		actor.Project = util.OptNone[rpc.ProjectId]()
+	}
+
+	return actor, nil
+}
+
 func StacksCreate(actor rpc.Actor, id string, name string, stateFolder string, provider string, application orcapi.NameAndVersion) *util.HttpError {
 	if strings.TrimSpace(id) == "" || strings.TrimSpace(name) == "" {
 		return util.HttpErr(http.StatusBadRequest, "stack id and type are required")
@@ -299,6 +318,33 @@ func initStacks() {
 		})
 
 		return fndapi.FindByIntId{Id: id}, nil
+	})
+
+	orcapi.StacksControlCheckEdit.Handler(func(info rpc.RequestInfo, request orcapi.StacksControlCheckEditRequest) (util.Empty, *util.HttpError) {
+		if _, isProvider := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix); !isProvider {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+
+		actor, actorErr := stacksControlOwnerActor(request.Owner)
+		if actorErr != nil {
+			return util.Empty{}, actorErr
+		}
+
+		_, _, specification, editErr := ResourceRetrieveEx[orcapi.Stack](
+			actor,
+			stackType,
+			ResourceParseId(request.StackEntityId),
+			orcapi.PermissionEdit,
+			orcapi.ResourceFlags{IncludeOthers: true},
+		)
+		if editErr != nil {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+		if specification.Labels[orcapi.ResourceLabelStackInstance] != request.Id {
+			return util.Empty{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+
+		return util.Empty{}, nil
 	})
 
 	orcapi.StacksControlRenewDeletion.Handler(func(info rpc.RequestInfo, request orcapi.StacksControlRenewDeletionRequest) (util.Empty, *util.HttpError) {

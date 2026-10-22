@@ -139,3 +139,16 @@ var StacksControlRenewDeletion = rpc.Call[StacksControlRenewDeletionRequest, uti
 	Operation:   "renewDeletion",
 	Roles:       rpc.RolesProvider,
 }
+
+type StacksControlCheckEditRequest struct {
+	Id            string        `json:"id"`
+	Owner         ResourceOwner `json:"owner"`
+	StackEntityId string        `json:"stackEntityId"`
+}
+
+var StacksControlCheckEdit = rpc.Call[StacksControlCheckEditRequest, util.Empty]{
+	BaseContext: stacksContext + "/control",
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "checkEdit",
+	Roles:       rpc.RolesProvider,
+}

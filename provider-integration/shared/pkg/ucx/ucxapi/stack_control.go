@@ -2,6 +2,7 @@ package ucxapi
 
 import (
 	"encoding/json"
+	"strings"
 
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -10,10 +11,38 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-func stackControlRedactMap(decoded map[string]json.RawMessage) {
-	if _, exists := decoded["token"]; exists {
-		decoded["token"] = json.RawMessage(`"<redacted>"`)
+const stackControlTokenPrefix = "sgr-"
+
+func stackControlTokenJobId(raw string) string {
+	payload, hasPrefix := strings.CutPrefix(strings.TrimSpace(raw), stackControlTokenPrefix)
+	if !hasPrefix {
+		return ""
 	}
+
+	jobId, _, hasSeparator := strings.Cut(payload, "-")
+	if !hasSeparator {
+		return ""
+	}
+	return jobId
+}
+
+func stackControlRedactMap(decoded map[string]json.RawMessage) {
+	tokenRaw, exists := decoded["token"]
+	if !exists {
+		return
+	}
+
+	var token string
+	if err := json.Unmarshal(tokenRaw, &token); err == nil {
+		if jobId := stackControlTokenJobId(token); jobId != "" {
+			encodedJobId, err := json.Marshal(jobId)
+			if err == nil {
+				decoded["controllerJobId"] = encodedJobId
+			}
+		}
+	}
+
+	decoded["token"] = json.RawMessage(`"<redacted>"`)
 }
 
 type StackControlTokenRequest struct {
