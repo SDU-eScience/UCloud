@@ -162,6 +162,14 @@ func initJobUcx() {
 				state.Mu.RUnlock()
 				return result
 			}
+			state.appUcxBaseState.SessionJob = func() (orcapi.Job, bool) {
+				state.Mu.RLock()
+				defer state.Mu.RUnlock()
+				if state.job.Id == "" {
+					return orcapi.Job{}, false
+				}
+				return state.job, true
+			}
 			state.Mu.Unlock()
 
 			return ucx.ProxyUpstreamSelection{

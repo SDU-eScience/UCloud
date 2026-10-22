@@ -1,7 +1,6 @@
 package orchestrator
 
 import (
-	"fmt"
 	"net/http"
 	"regexp"
 	"slices"
@@ -113,59 +112,33 @@ func initContainerRepositories() {
 		), nil
 	})
 
-	orcapi.ContainerRepositoriesControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.ContainerRepositorySpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
-		responses := make([]fndapi.FindByStringId, 0, len(request.Items))
+	orcapi.ContainerRepositoriesControlRegister.Handler(resourceControlRegisterServe[orcapi.ContainerRepositorySpecification, orcapi.ContainerRepository](
+		containerRepositoryType,
+		func(spec *orcapi.ContainerRepositorySpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
+		},
+		func(item *orcapi.ProviderRegisteredResource[orcapi.ContainerRepositorySpecification]) (any, func(), *util.HttpError) {
+			item.Spec.Name = strings.TrimSpace(item.Spec.Name)
 
-		for _, reqItem := range request.Items {
-			if reqItem.Spec.Product.Provider != providerId {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			if err := containerRepositoryValidateSpecification(item.Spec); err != nil {
+				return nil, nil, err
 			}
 
-			reqItem.Spec.Name = strings.TrimSpace(reqItem.Spec.Name)
-			if err := containerRepositoryValidateSpecification(reqItem.Spec); err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			if !containerRepositoryReserve(item.Spec.Product.Provider, item.Spec.Name) {
+				return nil, nil, util.HttpErr(http.StatusConflict, "container repository name already exists")
 			}
 
-			if !containerRepositoryReserve(reqItem.Spec.Product.Provider, reqItem.Spec.Name) {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusConflict, "container repository name already exists")
+			rollback := func() {
+				containerRepositoryReleaseReservation(item.Spec.Product.Provider, item.Spec.Name)
 			}
 
-			var flags resourceCreateFlags
-			if reqItem.ProjectAllRead {
-				flags |= resourceCreateAllRead
-			}
-			if reqItem.ProjectAllWrite {
-				flags |= resourceCreateAllWrite
-			}
-
-			id, _, err := ResourceCreateEx[orcapi.ContainerRepository](
-				containerRepositoryType,
-				orcapi.ResourceOwner{
-					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
-				},
-				nil,
-				reqItem.Spec.ResourceSpecification,
-				reqItem.ProviderGeneratedId,
-				&internalContainerRepository{Name: reqItem.Spec.Name},
-				flags,
-			)
-			if err != nil {
-				containerRepositoryReleaseReservation(reqItem.Spec.Product.Provider, reqItem.Spec.Name)
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-			}
-
-			ResourceConfirm(containerRepositoryType, id)
-			responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
-		}
-
-		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
-	})
+			return &internalContainerRepository{Name: item.Spec.Name}, rollback, nil
+		},
+	))
 
 	orcapi.ContainerRepositoriesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ContainerRepositoriesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
 		for _, reqItem := range request.Items {
-			if err := ResourceUpdateLabels(info.Actor, containerRepositoryType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider); err != nil {
+			if err := resourceUpdateLabelsFillReserved(info.Actor, containerRepositoryType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider); err != nil {
 				return util.Empty{}, err
 			}
 		}

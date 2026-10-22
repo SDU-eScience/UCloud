@@ -2,7 +2,6 @@ package orchestrator
 
 import (
 	"database/sql"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -147,62 +146,30 @@ func initPrivateNetworkIps() {
 		},
 	))
 
-	orcapi.PrivateNetworkIpsControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.PrivateNetworkIpSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		var responses []fndapi.FindByStringId
-
-		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
-		for _, reqItem := range request.Items {
-			if reqItem.Spec.Product.Provider != providerId {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
-			}
-		}
-
-		for _, reqItem := range request.Items {
-			owner := orcapi.ResourceOwner{
-				CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-				Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
-			}
-
-			spec := reqItem.Spec
+	orcapi.PrivateNetworkIpsControlRegister.Handler(resourceControlRegisterServe[orcapi.PrivateNetworkIpSpecification, orcapi.PrivateNetworkIp](
+		privateNetworkIpType,
+		func(spec *orcapi.PrivateNetworkIpSpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
+		},
+		func(item *orcapi.ProviderRegisteredResource[orcapi.PrivateNetworkIpSpecification]) (any, func(), *util.HttpError) {
+			spec := item.Spec
 			spec.IpAddress = privateNetworkIpNormalizePin(spec.IpAddress)
 
-			_, networkErr := privateNetworkIpValidateParent(providerId, owner, spec)
-			if networkErr != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, networkErr
-			}
-
-			var flags resourceCreateFlags
-			if reqItem.ProjectAllRead {
-				flags |= resourceCreateAllRead
-			}
-
-			if reqItem.ProjectAllWrite {
-				flags |= resourceCreateAllWrite
-			}
-
-			id, _, err := ResourceCreateEx[orcapi.PrivateNetworkIp](
-				privateNetworkIpType,
-				owner,
-				nil,
-				reqItem.Spec.ResourceSpecification,
-				reqItem.ProviderGeneratedId,
-				&internalPrivateNetworkIp{
-					Network:     spec.Network,
-					RequestedIp: spec.IpAddress,
-				},
-				flags,
+			_, networkErr := privateNetworkIpValidateParent(
+				item.Spec.Product.Provider,
+				resourceControlRegisterOwner(item),
+				spec,
 			)
-
-			if err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			if networkErr != nil {
+				return nil, nil, networkErr
 			}
 
-			ResourceConfirm(privateNetworkIpType, id)
-			responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
-		}
-
-		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
-	})
+			return &internalPrivateNetworkIp{
+				Network:     spec.Network,
+				RequestedIp: spec.IpAddress,
+			}, nil, nil
+		},
+	))
 
 	orcapi.PrivateNetworkIpsControlAddUpdate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.PrivateNetworkIpUpdate]]) (util.Empty, *util.HttpError) {
 		ids := make([]string, 0, len(request.Items))
@@ -268,6 +235,9 @@ func initPrivateNetworkIps() {
 		privateNetworkIpType,
 		func(item orcapi.PrivateNetworkIpsUpdateLabelsRequest) string { return item.Id },
 		func(item orcapi.PrivateNetworkIpsUpdateLabelsRequest) map[string]string { return item.Labels },
+		func(item *orcapi.PrivateNetworkIpsUpdateLabelsRequest, labels map[string]string) {
+			item.Labels = labels
+		},
 		PrivateNetworkIpUpdateLabels,
 	))
 

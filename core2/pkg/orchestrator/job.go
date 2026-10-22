@@ -348,27 +348,13 @@ func initJobs() {
 		},
 	))
 
-	orcapi.JobsControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.JobSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		var responses []fndapi.FindByStringId
-
-		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
-		for _, reqItem := range request.Items {
-			if reqItem.Spec.Product.Provider != providerId {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
-			}
-		}
-
-		for _, reqItem := range request.Items {
-			var flags resourceCreateFlags
-			if reqItem.ProjectAllRead {
-				flags |= resourceCreateAllRead
-			}
-
-			if reqItem.ProjectAllWrite {
-				flags |= resourceCreateAllWrite
-			}
-
-			spec := reqItem.Spec
+	orcapi.JobsControlRegister.Handler(resourceControlRegisterServe[orcapi.JobSpecification, orcapi.Job](
+		jobType,
+		func(spec *orcapi.JobSpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
+		},
+		func(item *orcapi.ProviderRegisteredResource[orcapi.JobSpecification]) (any, func(), *util.HttpError) {
+			spec := item.Spec
 			persistedResources := jobPersistableResources(spec.Resources)
 
 			support, _ := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
@@ -382,61 +368,41 @@ func initJobs() {
 				"memoryInGigs": support.Product.MemoryInGigs,
 			})
 
-			id, _, err := ResourceCreateEx[orcapi.Job](
-				jobType,
-				orcapi.ResourceOwner{
-					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
-				},
-				nil,
-				reqItem.Spec.ResourceSpecification,
-				reqItem.ProviderGeneratedId,
-				&internalJob{
-					Application:    spec.Application,
-					Name:           spec.Name,
-					Replicas:       spec.Replicas,
-					Parameters:     spec.Parameters,
-					Resources:      persistedResources,
-					TimeAllocation: spec.TimeAllocation,
-					OpenedFile:     spec.OpenedFile,
-					SshEnabled:     spec.SshEnabled,
-					State:          orcapi.JobStateInQueue,
-					JobParametersJson: orcapi.ExportedParameters{
-						SiteVersion: 3,
-						Request: orcapi.ExportedParametersRequest{
-							Application:       spec.Application,
-							Product:           spec.Product,
-							Name:              spec.Name,
-							Replicas:          spec.Replicas,
-							Parameters:        encodedParams,
-							Resources:         encodedResources,
-							TimeAllocation:    spec.TimeAllocation.GetOrDefault(orcapi.SimpleDuration{}),
-							ResolvedProduct:   encodedProduct,
-							ResolvedSupport:   encodedSupport,
-							AllowDuplicateJob: false,
-							SshEnabled:        spec.SshEnabled,
-						},
-						ResolvedResources: orcapi.ExportedParametersResources{
-							// TODO
-						},
-						MachineType: encodedMachineType,
+			return &internalJob{
+				Application:    spec.Application,
+				Name:           spec.Name,
+				Replicas:       spec.Replicas,
+				Parameters:     spec.Parameters,
+				Resources:      persistedResources,
+				TimeAllocation: spec.TimeAllocation,
+				OpenedFile:     spec.OpenedFile,
+				SshEnabled:     spec.SshEnabled,
+				State:          orcapi.JobStateInQueue,
+				JobParametersJson: orcapi.ExportedParameters{
+					SiteVersion: 3,
+					Request: orcapi.ExportedParametersRequest{
+						Application:       spec.Application,
+						Product:           spec.Product,
+						Name:              spec.Name,
+						Replicas:          spec.Replicas,
+						Parameters:        encodedParams,
+						Resources:         encodedResources,
+						TimeAllocation:    spec.TimeAllocation.GetOrDefault(orcapi.SimpleDuration{}),
+						ResolvedProduct:   encodedProduct,
+						ResolvedSupport:   encodedSupport,
+						AllowDuplicateJob: false,
+						SshEnabled:        spec.SshEnabled,
 					},
-					StartedAt: util.OptNone[fndapi.Timestamp](),
-					Updates:   nil,
+					ResolvedResources: orcapi.ExportedParametersResources{
+						// TODO
+					},
+					MachineType: encodedMachineType,
 				},
-				flags,
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-			} else {
-				ResourceConfirm(jobType, id)
-				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
-			}
-		}
-
-		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
-	})
+				StartedAt: util.OptNone[fndapi.Timestamp](),
+				Updates:   nil,
+			}, nil, nil
+		},
+	))
 
 	orcapi.JobsUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 		var responses []util.Empty
@@ -912,6 +878,7 @@ func initJobs() {
 		jobType,
 		func(item orcapi.JobsUpdateLabelsRequest) string { return item.Id },
 		func(item orcapi.JobsUpdateLabelsRequest) map[string]string { return item.Labels },
+		func(item *orcapi.JobsUpdateLabelsRequest, labels map[string]string) { item.Labels = labels },
 		JobsUpdateLabelsBulk,
 	))
 
@@ -982,6 +949,10 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 	for _, item := range request.Items {
 		if item.Application.Name == reservedSyncthingApplication {
 			return nil, util.HttpErr(http.StatusBadRequest, "this application cannot be started through this endpoint")
+		}
+
+		if _, err := resourceValidateUserLabels(item.Labels); err != nil {
+			return nil, err
 		}
 	}
 

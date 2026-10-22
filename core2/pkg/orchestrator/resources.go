@@ -47,8 +47,8 @@ import (
 //    Resource* functions on that type.
 //
 // 2. Creating resources:
-//    Use ResourceCreate or ResourceCreateThroughProvider for user-initiated creation. Use ResourceCreateEx for
-//    system/provider-initiated creation.
+//    Use ResourceCreate or ResourceCreateThroughProvider for user-initiated creation. Provider registration must use
+//    resourceCreateFromProvider.
 //
 //    These will both allocate a new ID and run all relevant side effects. If you are not using creation through a
 //    provider, then you must also call ResourceConfirm after invoking the create function.
@@ -1218,21 +1218,200 @@ func ResourceUpdateLabels(
 	labels map[string]string,
 	permissionRequired orcapi.Permission,
 ) *util.HttpError {
+	return resourceUpdateLabelsEx(actor, typeName, id, labels, permissionRequired, false, false)
+}
+
+func resourceUpdateLabelsFillReserved(
+	actor rpc.Actor,
+	typeName string,
+	id string,
+	labels map[string]string,
+	permissionRequired orcapi.Permission,
+) *util.HttpError {
+	return resourceUpdateLabelsEx(actor, typeName, id, labels, permissionRequired, false, true)
+}
+
+func resourceUpdateLabelsEx(
+	actor rpc.Actor,
+	typeName string,
+	id string,
+	labels map[string]string,
+	permissionRequired orcapi.Permission,
+	allowReserved bool,
+	fillReserved bool,
+) *util.HttpError {
 	normalized, err := ResourceValidateLabels(labels)
 	if err != nil {
 		return err
 	}
 
+	var labelErr *util.HttpError
 	ok := ResourceUpdate[any](actor, typeName, ResourceParseId(id), permissionRequired, func(r *resource, mapped any) {
+		merged, mergeErr := resourceMergeReservedLabels(r.BaseSpec.Labels, normalized, allowReserved, fillReserved)
+		if mergeErr != nil {
+			labelErr = mergeErr
+			return
+		}
+
 		r.ModifiedAt = time.Now()
-		r.BaseSpec.Labels = normalized
+		r.BaseSpec.Labels = merged
 	})
 
 	if !ok {
 		return util.HttpErr(http.StatusForbidden, "failed to update labels - permission denied")
+	} else if labelErr != nil {
+		return labelErr
 	} else {
 		return nil
 	}
+}
+
+func resourceMergeReservedLabels(
+	existing map[string]string,
+	desired map[string]string,
+	allowReserved bool,
+	fillReserved bool,
+) (map[string]string, *util.HttpError) {
+	existing = resourceNormalizeLabelKeys(existing)
+
+	merged := map[string]string{}
+	for key, value := range desired {
+		merged[key] = value
+	}
+
+	if allowReserved {
+		return merged, nil
+	}
+
+	if fillReserved {
+		if err := resourceFillReservedLabels(existing, merged); err != nil {
+			return nil, err
+		}
+		return merged, nil
+	}
+
+	for key, value := range merged {
+		if !orcapi.ResourceLabelIsReserved(key) {
+			continue
+		}
+
+		existingValue, exists := existing[key]
+		if exists && existingValue == value {
+			continue
+		}
+
+		return nil, util.HttpErr(http.StatusBadRequest, "the label %s is managed by the system", key)
+	}
+
+	for key := range existing {
+		if !orcapi.ResourceLabelIsReserved(key) {
+			continue
+		}
+
+		if _, exists := merged[key]; !exists {
+			return nil, util.HttpErr(http.StatusBadRequest, "the label %s is managed by the system", key)
+		}
+	}
+
+	return merged, nil
+}
+
+func resourceFillReservedLabels(existing map[string]string, desired map[string]string) *util.HttpError {
+	existing = resourceNormalizeLabelKeys(existing)
+
+	for key, value := range desired {
+		if !orcapi.ResourceLabelIsReserved(key) {
+			continue
+		}
+
+		existingValue, exists := existing[key]
+		if exists && existingValue == value {
+			continue
+		}
+
+		return util.HttpErr(http.StatusBadRequest, "the label %s is managed by the system", key)
+	}
+
+	for key, value := range existing {
+		if !orcapi.ResourceLabelIsReserved(key) {
+			continue
+		}
+
+		if _, exists := desired[key]; !exists {
+			desired[key] = value
+		}
+	}
+
+	return nil
+}
+
+func resourceValidateUserLabels(labels map[string]string) (map[string]string, *util.HttpError) {
+	normalized, err := ResourceValidateLabels(labels)
+	if err != nil {
+		return nil, err
+	}
+
+	for key := range normalized {
+		if orcapi.ResourceLabelIsReserved(key) {
+			return nil, util.HttpErr(http.StatusBadRequest, "the label %s is managed by the system", key)
+		}
+	}
+
+	return normalized, nil
+}
+
+func resourceStripReservedLabels(labels map[string]string) {
+	for key := range labels {
+		if orcapi.ResourceLabelIsReserved(key) {
+			delete(labels, key)
+		}
+	}
+}
+
+var resourceStackIdentityLabels = []string{
+	orcapi.ResourceLabelStack,
+	orcapi.ResourceLabelStackName,
+	orcapi.ResourceLabelStackInstance,
+	orcapi.ResourceLabelStackStateFolder,
+	orcapi.ResourceLabelStackProvider,
+	orcapi.ResourceLabelUcxAppName,
+	orcapi.ResourceLabelUcxAppVersion,
+}
+
+var resourceStackControllerLabels = []string{
+	orcapi.ResourceLabelStackController,
+	orcapi.ResourceLabelStackUi,
+	orcapi.ResourceLabelDisasterRecovery,
+}
+
+func resourceLabelLookup(labels map[string]string, key string) (string, bool) {
+	normalizedKey := strings.ToLower(key)
+	for label, value := range labels {
+		if strings.ToLower(label) == normalizedKey {
+			return value, true
+		}
+	}
+	return "", false
+}
+
+func resourceNormalizeLabelKeys(labels map[string]string) map[string]string {
+	normalized := make(map[string]string, len(labels))
+	for key, value := range labels {
+		normalized[strings.ToLower(key)] = value
+	}
+	return normalized
+}
+
+func resourceSpecificationMarkLabelsServerOwned(specification *orcapi.ResourceSpecification) {
+	specification.ServerLabels = util.MapMerge(specification.ServerLabels, specification.Labels)
+	specification.Labels = nil
+}
+
+func resourceSpecificationLabels(specification orcapi.ResourceSpecification) map[string]string {
+	if len(specification.ServerLabels) == 0 {
+		return specification.Labels
+	}
+	return util.MapMerge(specification.Labels, specification.ServerLabels)
 }
 
 func ResourceValidateLabels(labels map[string]string) (map[string]string, *util.HttpError) {
@@ -1265,7 +1444,20 @@ const (
 	resourceCreateAllWrite
 )
 
-func ResourceCreateEx[T any](
+func resourceCreateFromProvider[T any](
+	typeName string,
+	owner orcapi.ResourceOwner,
+	acl []orcapi.ResourceAclEntry,
+	specification orcapi.ResourceSpecification,
+	providerId util.Option[string],
+	extra any,
+	flags resourceCreateFlags,
+) (ResourceId, T, *util.HttpError) {
+	resourceSpecificationMarkLabelsServerOwned(&specification)
+	return resourceCreateEx[T](typeName, owner, acl, specification, providerId, extra, flags)
+}
+
+func resourceCreateEx[T any](
 	typeName string,
 	owner orcapi.ResourceOwner,
 	acl []orcapi.ResourceAclEntry,
@@ -1275,6 +1467,22 @@ func ResourceCreateEx[T any](
 	flags resourceCreateFlags,
 ) (ResourceId, T, *util.HttpError) {
 	g := resourceGetGlobals(typeName)
+
+	userLabels, err := resourceValidateUserLabels(baseSpec.Labels)
+	if err != nil {
+		var empty T
+		return 0, empty, err
+	}
+
+	serverLabels, err := ResourceValidateLabels(baseSpec.ServerLabels)
+	if err != nil {
+		var empty T
+		return 0, empty, err
+	}
+
+	baseSpec.Labels = util.MapMerge(userLabels, serverLabels)
+	baseSpec.ServerLabels = nil
+
 	id := ResourceId(resourceGlobals.IdAcc.Add(1))
 	b := resourceGetBucket(typeName, id)
 
@@ -1303,13 +1511,6 @@ func ResourceCreateEx[T any](
 			var t T
 			return 0, t, util.HttpErr(http.StatusConflict, "already exists")
 		}
-	}
-
-	var err *util.HttpError
-	baseSpec.Labels, err = ResourceValidateLabels(baseSpec.Labels)
-	if err != nil {
-		var empty T
-		return 0, empty, err
 	}
 
 	now := time.Now()
@@ -1416,7 +1617,7 @@ func ResourceCreate[T any](
 		}
 	}
 
-	stackDrive := typeName == driveType && strings.TrimSpace(specification.Labels[orcapi.ResourceLabelStackInstance]) != ""
+	stackDrive := typeName == driveType && strings.TrimSpace(resourceSpecificationLabels(specification)[orcapi.ResourceLabelStackInstance]) != ""
 	if stackDrive && actor.Project.Present {
 		if _, isMember := actor.Membership[actor.Project.Value]; !isMember {
 			var t T
@@ -1449,7 +1650,7 @@ func ResourceCreate[T any](
 		owner = stack.Owner
 		acl = stacksCloneAcl(stack.Permissions.Value.Others)
 	}
-	return ResourceCreateEx[T](typeName, owner, acl, specification, util.OptNone[string](), extra, 0)
+	return resourceCreateEx[T](typeName, owner, acl, specification, util.OptNone[string](), extra, 0)
 }
 
 func resourceSpecificationHasProduct(specification orcapi.ResourceSpecification) bool {
@@ -1721,6 +1922,82 @@ func resourceRetrieveAllUserGroup(projectId string) (string, bool) {
 			return result.Responses[0].Id, nil
 		}
 	})
+}
+
+type resourceControlRegisterPrepare[Spec any] func(
+	item *orcapi.ProviderRegisteredResource[Spec],
+) (any, func(), *util.HttpError)
+
+func resourceControlRegisterServe[Spec any, T any](
+	typeName string,
+	specOf func(*Spec) *orcapi.ResourceSpecification,
+	prepare resourceControlRegisterPrepare[Spec],
+) rpc.ServerHandler[
+	fndapi.BulkRequest[orcapi.ProviderRegisteredResource[Spec]],
+	fndapi.BulkResponse[fndapi.FindByStringId],
+] {
+	return func(
+		info rpc.RequestInfo,
+		request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[Spec]],
+	) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		providerId, isProvider := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+		if !isProvider {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+
+		for i := range request.Items {
+			item := &request.Items[i]
+			if specOf(&item.Spec).Product.Provider != providerId {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			}
+		}
+
+		responses := make([]fndapi.FindByStringId, 0, len(request.Items))
+		for i := range request.Items {
+			item := &request.Items[i]
+
+			extra, rollback, err := prepare(item)
+			if err != nil {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			}
+
+			var flags resourceCreateFlags
+			if item.ProjectAllRead {
+				flags |= resourceCreateAllRead
+			}
+			if item.ProjectAllWrite {
+				flags |= resourceCreateAllWrite
+			}
+
+			id, _, err := resourceCreateFromProvider[T](
+				typeName,
+				resourceControlRegisterOwner(item),
+				nil,
+				*specOf(&item.Spec),
+				item.ProviderGeneratedId,
+				extra,
+				flags,
+			)
+			if err != nil {
+				if rollback != nil {
+					rollback()
+				}
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			}
+
+			ResourceConfirm(typeName, id)
+			responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
+		}
+
+		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
+	}
+}
+
+func resourceControlRegisterOwner[Spec any](item *orcapi.ProviderRegisteredResource[Spec]) orcapi.ResourceOwner {
+	return orcapi.ResourceOwner{
+		CreatedBy: item.CreatedBy.GetOrDefault("_ucloud"),
+		Project:   util.OptStringIfNotEmpty(item.Project.Value),
+	}
 }
 
 // Metrics

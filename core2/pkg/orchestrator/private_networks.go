@@ -107,22 +107,17 @@ func initPrivateNetworks() {
 		},
 	))
 
-	orcapi.PrivateNetworksControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.PrivateNetworkSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		var responses []fndapi.FindByStringId
-
-		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
-		for _, reqItem := range request.Items {
-			if reqItem.Spec.Product.Provider != providerId {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
-			}
-		}
-
-		for _, reqItem := range request.Items {
-			spec := reqItem.Spec
+	orcapi.PrivateNetworksControlRegister.Handler(resourceControlRegisterServe[orcapi.PrivateNetworkSpecification, orcapi.PrivateNetwork](
+		privateNetworkType,
+		func(spec *orcapi.PrivateNetworkSpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
+		},
+		func(item *orcapi.ProviderRegisteredResource[orcapi.PrivateNetworkSpecification]) (any, func(), *util.HttpError) {
+			spec := item.Spec
 			spec.Name = strings.TrimSpace(spec.Name)
-			err := privateNetworkValidateSpecification(spec)
-			if err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+
+			if err := privateNetworkValidateSpecification(spec); err != nil {
+				return nil, nil, err
 			}
 
 			subdomain := orcapi.PrivateNetworkSubdomainFromName(spec.Name)
@@ -130,51 +125,23 @@ func initPrivateNetworks() {
 				var suffixErr error
 				subdomain, suffixErr = orcapi.PrivateNetworkSubdomainAddRandomSuffix(subdomain)
 				if suffixErr != nil {
-					return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.ServerHttpError("failed to generate a private network subdomain")
+					return nil, nil, util.ServerHttpError("failed to generate a private network subdomain")
 				}
 			}
 
-			var flags resourceCreateFlags
-			if reqItem.ProjectAllRead {
-				flags |= resourceCreateAllRead
-			}
-
-			if reqItem.ProjectAllWrite {
-				flags |= resourceCreateAllWrite
-			}
-
-			id, _, err := ResourceCreateEx[orcapi.PrivateNetwork](
-				privateNetworkType,
-				orcapi.ResourceOwner{
-					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
-				},
-				nil,
-				reqItem.Spec.ResourceSpecification,
-				reqItem.ProviderGeneratedId,
-				&internalPrivateNetwork{
-					Name:      spec.Name,
-					Subdomain: subdomain,
-					Cidr:      spec.Cidr,
-				},
-				flags,
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-			}
-
-			ResourceConfirm(privateNetworkType, id)
-			responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
-		}
-
-		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
-	})
+			return &internalPrivateNetwork{
+				Name:      spec.Name,
+				Subdomain: subdomain,
+				Cidr:      spec.Cidr,
+			}, nil, nil
+		},
+	))
 
 	orcapi.PrivateNetworksControlUpdateLabels.Handler(controlUpdateLabelsServe(
 		privateNetworkType,
 		func(item orcapi.PrivateNetworksUpdateLabelsRequest) string { return item.Id },
 		func(item orcapi.PrivateNetworksUpdateLabelsRequest) map[string]string { return item.Labels },
+		func(item *orcapi.PrivateNetworksUpdateLabelsRequest, labels map[string]string) { item.Labels = labels },
 		PrivateNetworkUpdateLabels,
 	))
 

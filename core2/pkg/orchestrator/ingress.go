@@ -149,51 +149,15 @@ func initIngresses() {
 		},
 	))
 
-	orcapi.IngressesControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.IngressSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		var responses []fndapi.FindByStringId
-
-		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
-		for _, reqItem := range request.Items {
-			if reqItem.Spec.Product.Provider != providerId {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
-			}
-		}
-
-		for _, reqItem := range request.Items {
-			var flags resourceCreateFlags
-			if reqItem.ProjectAllRead {
-				flags |= resourceCreateAllRead
-			}
-
-			if reqItem.ProjectAllWrite {
-				flags |= resourceCreateAllWrite
-			}
-
-			id, _, err := ResourceCreateEx[orcapi.Ingress](
-				ingressType,
-				orcapi.ResourceOwner{
-					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
-				},
-				nil,
-				reqItem.Spec.ResourceSpecification,
-				reqItem.ProviderGeneratedId,
-				&internalIngress{
-					Domain: reqItem.Spec.Domain,
-				},
-				flags,
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-			} else {
-				ResourceConfirm(ingressType, id)
-				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
-			}
-		}
-
-		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
-	})
+	orcapi.IngressesControlRegister.Handler(resourceControlRegisterServe[orcapi.IngressSpecification, orcapi.Ingress](
+		ingressType,
+		func(spec *orcapi.IngressSpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
+		},
+		func(item *orcapi.ProviderRegisteredResource[orcapi.IngressSpecification]) (any, func(), *util.HttpError) {
+			return &internalIngress{Domain: item.Spec.Domain}, nil, nil
+		},
+	))
 
 	orcapi.IngressesControlAddUpdate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.IngressUpdate]]) (util.Empty, *util.HttpError) {
 		ids := make([]string, 0, len(request.Items))
@@ -227,6 +191,7 @@ func initIngresses() {
 		ingressType,
 		func(item orcapi.IngressesUpdateLabelsRequest) string { return item.Id },
 		func(item orcapi.IngressesUpdateLabelsRequest) map[string]string { return item.Labels },
+		func(item *orcapi.IngressesUpdateLabelsRequest, labels map[string]string) { item.Labels = labels },
 		IngressUpdateLabels,
 	))
 

@@ -181,6 +181,7 @@ func initServices() {
 		serviceType,
 		func(item orcapi.ServicesUpdateLabelsRequest) string { return item.Id },
 		func(item orcapi.ServicesUpdateLabelsRequest) map[string]string { return item.Labels },
+		func(item *orcapi.ServicesUpdateLabelsRequest, labels map[string]string) { item.Labels = labels },
 		ServiceUpdateLabels,
 	))
 

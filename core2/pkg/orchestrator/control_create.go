@@ -31,12 +31,13 @@ func controlCreateServe[Spec any, Resc any, Resp any](
 		stackLabels := map[string]string{
 			orcapi.ResourceLabelStackInstance: stackInstance,
 		}
-		if value := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStack]); value != "" {
-			stackLabels[orcapi.ResourceLabelStack] = value
+		for _, key := range resourceStackIdentityLabels {
+			if value, exists := job.Specification.Labels[key]; exists {
+				stackLabels[key] = value
+			}
 		}
-		if value := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackName]); value != "" {
-			stackLabels[orcapi.ResourceLabelStackName] = value
-		}
+
+		isStackController := strings.EqualFold(strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackController]), "true")
 
 		for i := range request.Items {
 			spec := specificationOf(&request.Items[i])
@@ -48,7 +49,17 @@ func controlCreateServe[Spec any, Resc any, Resp any](
 				return empty, util.HttpErr(http.StatusForbidden, "forbidden")
 			}
 
-			spec.Labels = util.MapMerge(spec.Labels, stackLabels)
+			serverLabels := util.MapMerge(stackLabels)
+			if isStackController {
+				for _, key := range resourceStackControllerLabels {
+					if value, exists := resourceLabelLookup(spec.Labels, key); exists {
+						serverLabels[key] = value
+					}
+				}
+			}
+
+			resourceStripReservedLabels(spec.Labels)
+			spec.ServerLabels = util.MapMerge(spec.ServerLabels, serverLabels)
 			if err := stacksPrepareResource(actor, spec); err != nil {
 				return empty, err
 			}
@@ -163,23 +174,18 @@ func controlVerifyStackMembership(actor rpc.Actor, typeName string, id string, s
 	return spec, nil
 }
 
-var controlStackLabelKeys = []string{
-	orcapi.ResourceLabelStack,
-	orcapi.ResourceLabelStackController,
-	orcapi.ResourceLabelStackName,
-	orcapi.ResourceLabelStackInstance,
-}
-
 func controlUpdateLabelsServe[Item any](
 	typeName string,
 	idOf func(Item) string,
 	labelsOf func(Item) map[string]string,
+	setLabels func(*Item, map[string]string),
 	update func(rpc.Actor, fndapi.BulkRequest[Item]) *util.HttpError,
 ) rpc.ServerHandler[orcapi.ControlMutateRequest[Item], util.Empty] {
 	return func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[Item]) (util.Empty, *util.HttpError) {
 		if strings.TrimSpace(request.JobId) == "" {
-			for _, item := range request.Items {
-				err := ResourceUpdateLabels(info.Actor, typeName, idOf(item), labelsOf(item), orcapi.PermissionProvider)
+			for i := range request.Items {
+				item := &request.Items[i]
+				err := resourceUpdateLabelsFillReserved(info.Actor, typeName, idOf(*item), labelsOf(*item), orcapi.PermissionProvider)
 				if err != nil {
 					return util.Empty{}, err
 				}
@@ -193,22 +199,24 @@ func controlUpdateLabelsServe[Item any](
 			return util.Empty{}, err
 		}
 
-		for _, item := range request.Items {
-			spec, err := controlVerifyStackMembership(actor, typeName, idOf(item), stackInstance)
+		for i := range request.Items {
+			item := &request.Items[i]
+			spec, err := controlVerifyStackMembership(actor, typeName, idOf(*item), stackInstance)
 			if err != nil {
 				return util.Empty{}, err
 			}
 
-			normalized, err := ResourceValidateLabels(labelsOf(item))
+			normalized, err := ResourceValidateLabels(labelsOf(*item))
 			if err != nil {
 				return util.Empty{}, err
 			}
 
-			for _, key := range controlStackLabelKeys {
-				if spec.Labels[key] != normalized[key] {
-					return util.Empty{}, util.HttpErr(http.StatusBadRequest, "the stack labels of a resource cannot be changed")
-				}
+			err = resourceFillReservedLabels(spec.Labels, normalized)
+			if err != nil {
+				return util.Empty{}, err
 			}
+
+			setLabels(item, normalized)
 		}
 
 		return util.Empty{}, update(actor, fndapi.BulkRequestOf(request.Items...))

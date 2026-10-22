@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"slices"
 	"strings"
@@ -26,6 +25,7 @@ type appUcxBaseState struct {
 	Actor       func() rpc.Actor
 	Provider    func() string
 	Application func() orcapi.NameAndVersion
+	SessionJob  func() (orcapi.Job, bool)
 }
 
 func (s *appUcxBaseState) StackInstances() []string {
@@ -1024,6 +1024,117 @@ func appUcxResourceHandlers(state *appUcxBaseState, proxy *ucx.Proxy) {
 	)
 }
 
+func appUcxMoveServerLabels(specification *orcapi.ResourceSpecification) {
+	for label, value := range specification.Labels {
+		if !orcapi.ResourceLabelIsReserved(label) {
+			continue
+		}
+
+		normalized := strings.ToLower(label)
+		if normalized == orcapi.ResourceLabelStackEntity {
+			delete(specification.Labels, label)
+			continue
+		}
+
+		specification.ServerLabels = util.MapMerge(specification.ServerLabels, map[string]string{
+			normalized: value,
+		})
+		delete(specification.Labels, label)
+	}
+}
+
+func appUcxApplyJobStackLabels(s *appUcxBaseState, specification *orcapi.ResourceSpecification) *util.HttpError {
+	if s.SessionJob == nil {
+		return util.HttpErr(http.StatusForbidden, "the UCX job session is not available")
+	}
+
+	job, ok := s.SessionJob()
+	if !ok {
+		return util.HttpErr(http.StatusForbidden, "the UCX job session is not available")
+	}
+
+	sessionStack := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackInstance])
+	if sessionStack == "" {
+		return util.HttpErr(http.StatusForbidden, "this job is not associated with a stack")
+	}
+
+	if requestedStack, exists := resourceLabelLookup(specification.Labels, orcapi.ResourceLabelStackInstance); exists {
+		if strings.TrimSpace(requestedStack) != sessionStack {
+			return util.HttpErr(http.StatusForbidden, "the resource must belong to the stack of the job")
+		}
+	}
+
+	isStackController := strings.EqualFold(strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackController]), "true")
+
+	serverLabels := map[string]string{}
+	for _, key := range resourceStackIdentityLabels {
+		if value, exists := job.Specification.Labels[key]; exists {
+			serverLabels[key] = value
+		}
+	}
+
+	for _, key := range resourceStackControllerLabels {
+		value, exists := resourceLabelLookup(specification.Labels, key)
+		if !exists {
+			continue
+		}
+
+		if !isStackController {
+			return util.HttpErr(http.StatusForbidden, "this job is not allowed to set the label %s", key)
+		}
+
+		serverLabels[key] = value
+	}
+
+	for label := range specification.Labels {
+		if orcapi.ResourceLabelIsReserved(label) {
+			delete(specification.Labels, label)
+		}
+	}
+
+	specification.ServerLabels = util.MapMerge(specification.ServerLabels, serverLabels)
+	return nil
+}
+
+func appUcxValidateStackApplication(s *appUcxBaseState, actor rpc.Actor, specification *orcapi.ResourceSpecification) *util.HttpError {
+	if s.Application == nil {
+		return util.HttpErr(http.StatusForbidden, "the application is not available")
+	}
+
+	stackInstance := strings.TrimSpace(specification.ServerLabels[orcapi.ResourceLabelStackInstance])
+	if stackInstance == "" {
+		return nil
+	}
+
+	entity, exists := stacksFindEntity(actor, stackInstance)
+	if !exists {
+		return nil
+	}
+
+	_, _, stackSpec, err := ResourceRetrieveEx[orcapi.Stack](actor, stackType, ResourceParseId(entity.Id), orcapi.PermissionEdit, orcapi.ResourceFlags{})
+	if err != nil {
+		return err
+	}
+
+	app := s.Application()
+	stackProvider := strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelStackProvider])
+	if stackProvider != "" && s.Provider != nil && stackProvider != s.Provider() {
+		return util.HttpErr(http.StatusForbidden, "the stack belongs to a different provider")
+	}
+
+	stackAppName := strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelUcxAppName])
+	stackAppVersion := strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelUcxAppVersion])
+	if stackAppName == "" || stackAppVersion == "" {
+		return nil
+	}
+
+	if stackAppName != app.Name || stackAppVersion != app.Version {
+		return util.HttpErr(http.StatusForbidden, "the stack belongs to a different application")
+	}
+
+	return nil
+}
+
 func appUcxCreateResource[Spec any, Resc any](
 	s *appUcxBaseState,
 	p *ucx.Proxy,
@@ -1035,26 +1146,20 @@ func appUcxCreateResource[Spec any, Resc any](
 	call.HandlerProxy(p, func(ctx context.Context, request []Spec) ([]Resc, error) {
 		actor := s.Actor()
 
-		if !s.AllowStackCreation {
-			for i := range request {
-				baseSpec := baseSpecGetterFromRescSpec(&request[i])
-				if baseSpec.Labels == nil {
-					continue
+		for i := range request {
+			specification := baseSpecGetterFromRescSpec(&request[i])
+			if s.AllowStackCreation {
+				appUcxMoveServerLabels(specification)
+				if err := appUcxValidateStackApplication(s, actor, specification); err != nil {
+					return nil, err.AsError()
 				}
-
-				stack := strings.TrimSpace(baseSpec.Labels[orcapi.ResourceLabelStackInstance])
-				s.Mu.RLock()
-				_, exists := s.Stacks[stack]
-				s.Mu.RUnlock()
-
-				if !exists {
-					return nil, fmt.Errorf("stack creation is not allowed")
+			} else {
+				if err := appUcxApplyJobStackLabels(s, specification); err != nil {
+					return nil, err.AsError()
 				}
 			}
-		}
 
-		for i := range request {
-			if err := stacksPrepareResource(actor, baseSpecGetterFromRescSpec(&request[i])); err != nil {
+			if err := stacksPrepareResource(actor, specification); err != nil {
 				return nil, err.AsError()
 			}
 		}

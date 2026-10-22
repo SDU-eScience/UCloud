@@ -1,7 +1,6 @@
 package orchestrator
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -112,55 +111,19 @@ func initDrives() {
 		return ResourceRetrieve[orcapi.Drive](info.Actor, driveType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
-	orcapi.DrivesControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.DriveSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		var responses []fndapi.FindByStringId
-
-		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
-		for _, reqItem := range request.Items {
-			if reqItem.Spec.Product.Provider != providerId {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
-			}
-		}
-
-		for _, reqItem := range request.Items {
-			var flags resourceCreateFlags
-			if reqItem.ProjectAllRead {
-				flags |= resourceCreateAllRead
-			}
-
-			if reqItem.ProjectAllWrite {
-				flags |= resourceCreateAllWrite
-			}
-
-			id, _, err := ResourceCreateEx[orcapi.Drive](
-				driveType,
-				orcapi.ResourceOwner{
-					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
-				},
-				nil,
-				reqItem.Spec.ResourceSpecification,
-				reqItem.ProviderGeneratedId,
-				&driveInfo{
-					Title: reqItem.Spec.Title,
-				},
-				flags,
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-			} else {
-				ResourceConfirm(driveType, id)
-				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
-			}
-		}
-
-		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
-	})
+	orcapi.DrivesControlRegister.Handler(resourceControlRegisterServe[orcapi.DriveSpecification, orcapi.Drive](
+		driveType,
+		func(spec *orcapi.DriveSpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
+		},
+		func(item *orcapi.ProviderRegisteredResource[orcapi.DriveSpecification]) (any, func(), *util.HttpError) {
+			return &driveInfo{Title: item.Spec.Title}, nil, nil
+		},
+	))
 
 	orcapi.DrivesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.DrivesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
 		for _, reqItem := range request.Items {
-			err := ResourceUpdateLabels(info.Actor, driveType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+			err := resourceUpdateLabelsFillReserved(info.Actor, driveType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
 			if err != nil {
 				return util.Empty{}, err
 			}

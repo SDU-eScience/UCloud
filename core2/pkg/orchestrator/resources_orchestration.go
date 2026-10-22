@@ -189,6 +189,11 @@ func ResourceUpdateLabelsThroughProvider[T any](
 		return err
 	}
 
+	normalized, err = resourceMergeReservedLabels(specification.Labels, normalized, false, false)
+	if err != nil {
+		return err
+	}
+
 	mutatorFn(&resc, normalized)
 
 	_, err = InvokeProvider(specification.Product.Provider, call, fndapi.BulkRequestOf(resc), ProviderCallOpts{

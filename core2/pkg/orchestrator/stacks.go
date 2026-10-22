@@ -90,7 +90,7 @@ func StacksCreate(actor rpc.Actor, id string, name string, stateFolder string, p
 		stateDrive.Set(drive)
 	}
 	resourceId, _, err := ResourceCreate[orcapi.Stack](actor, stackType, orcapi.ResourceSpecification{
-		Labels: map[string]string{
+		ServerLabels: map[string]string{
 			orcapi.ResourceLabelStackInstance:    id,
 			orcapi.ResourceLabelStackName:        name,
 			orcapi.ResourceLabelStackStateFolder: stateFolder,
@@ -107,13 +107,13 @@ func StacksCreate(actor rpc.Actor, id string, name string, stateFolder string, p
 		labels := util.MapMerge(stateDrive.Value.Specification.Labels, map[string]string{
 			orcapi.ResourceLabelStackEntity: strconv.FormatUint(uint64(resourceId), 10),
 		})
-		return ResourceUpdateLabels(actor, driveType, stateDrive.Value.Id, labels, orcapi.PermissionAdmin)
+		return resourceUpdateLabelsEx(actor, driveType, stateDrive.Value.Id, labels, orcapi.PermissionAdmin, true, false)
 	}
 	return nil
 }
 
 func stacksPrepareResource(actor rpc.Actor, specification *orcapi.ResourceSpecification) *util.HttpError {
-	id := strings.TrimSpace(specification.Labels[orcapi.ResourceLabelStackInstance])
+	id := strings.TrimSpace(specification.ServerLabels[orcapi.ResourceLabelStackInstance])
 	if id == "" {
 		return nil
 	}
@@ -121,15 +121,21 @@ func stacksPrepareResource(actor rpc.Actor, specification *orcapi.ResourceSpecif
 	if !exists {
 		return nil
 	}
-	_, stack, _, err := ResourceRetrieveEx[orcapi.Stack](actor, stackType, ResourceParseId(entity.Id), orcapi.PermissionEdit, orcapi.ResourceFlags{IncludeOthers: true})
+	_, stack, stackSpec, err := ResourceRetrieveEx[orcapi.Stack](actor, stackType, ResourceParseId(entity.Id), orcapi.PermissionEdit, orcapi.ResourceFlags{IncludeOthers: true})
 	if err != nil {
 		return err
 	}
 	stack.Permissions.Value.Others = stacksCloneAcl(stack.Permissions.Value.Others)
 	specification.StackResource = &stack
-	specification.Labels = util.MapMerge(specification.Labels, map[string]string{
-		orcapi.ResourceLabelStackEntity: entity.Id,
-	})
+	if specification.ServerLabels == nil {
+		specification.ServerLabels = map[string]string{}
+	}
+	for _, key := range resourceStackIdentityLabels {
+		if value, exists := stackSpec.Labels[key]; exists {
+			specification.ServerLabels[key] = value
+		}
+	}
+	specification.ServerLabels[orcapi.ResourceLabelStackEntity] = entity.Id
 	return nil
 }
 
