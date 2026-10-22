@@ -802,8 +802,16 @@ func ensureUcxDeployment(
 			Template: k8score.PodTemplateSpec{
 				ObjectMeta: meta.ObjectMeta{Labels: selector},
 				Spec: k8score.PodSpec{
-					Volumes:      volumes,
-					NodeSelector: shared.ServiceConfig.Compute.TaskNodeSelector,
+					Volumes:                      volumes,
+					NodeSelector:                 shared.ServiceConfig.Compute.TaskNodeSelector,
+					AutomountServiceAccountToken: util.BoolPointer(false),
+					EnableServiceLinks:           util.BoolPointer(false),
+					SecurityContext: &k8score.PodSecurityContext{
+						RunAsNonRoot: util.BoolPointer(true),
+						SeccompProfile: &k8score.SeccompProfile{
+							Type: k8score.SeccompProfileTypeRuntimeDefault,
+						},
+					},
 					Containers: []k8score.Container{
 						{
 							Name:            "ucx-app",
@@ -819,6 +827,12 @@ func ensureUcxDeployment(
 							VolumeMounts: volumeMounts,
 							Ports: []k8score.ContainerPort{
 								{ContainerPort: ucxBackendPort},
+							},
+							SecurityContext: &k8score.SecurityContext{
+								AllowPrivilegeEscalation: util.BoolPointer(false),
+								Capabilities: &k8score.Capabilities{
+									Drop: []k8score.Capability{"ALL"},
+								},
 							},
 						},
 					},
