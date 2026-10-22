@@ -65,6 +65,15 @@ func ValueEncode(buf *util.UBuffer, v Value) {
 }
 
 func ValueDecode(buf *util.UBuffer) Value {
+	return valueDecode(buf, 0)
+}
+
+func valueDecode(buf *util.UBuffer, depth int) Value {
+	if depth > maxValueDepth {
+		buf.Error = fmt.Errorf("ucx: value exceeds maximum depth of %d", maxValueDepth)
+		return Value{}
+	}
+
 	k := ValueKind(buf.ReadU8())
 	result := Value{Kind: k}
 
@@ -77,17 +86,24 @@ func ValueDecode(buf *util.UBuffer) Value {
 	case ValueF64:
 		result.F64 = math.Float64frombits(buf.ReadU64())
 	case ValueString:
-		result.String = buf.ReadStringVarint()
+		result.String = readStringVarintLimited(buf)
 	case ValueBinary:
-		result.Binary = buf.ReadNext(int(buf.ReadU32()))
+		result.Binary = readBytesLimited(buf)
 	case ValueList:
 		count := buf.ReadU32()
+		if count > maxCollectionEntries {
+			buf.Error = fmt.Errorf("ucx: value list exceeds maximum entry count of %d", maxCollectionEntries)
+			return result
+		}
 		result.List = make([]Value, count)
 		for i := uint32(0); i < count; i++ {
-			result.List[i] = ValueDecode(buf)
+			result.List[i] = valueDecode(buf, depth+1)
+			if buf.Error != nil {
+				return result
+			}
 		}
 	case ValueObject:
-		result.Object = ValueMapDecode(buf)
+		result.Object = valueMapDecode(buf, depth+1)
 	default:
 		buf.Error = fmt.Errorf("unknown value kind: %d", k)
 	}
@@ -118,8 +134,8 @@ func StringMapDecode(buf *util.UBuffer) map[string]string {
 	count := buf.ReadU32()
 	result := make(map[string]string, count)
 	for i := uint32(0); i < count; i++ {
-		k := buf.ReadStringVarint()
-		v := buf.ReadStringVarint()
+		k := readStringVarintLimited(buf)
+		v := readStringVarintLimited(buf)
 		result[k] = v
 	}
 	return result
@@ -145,11 +161,28 @@ func ValueMapEncode(buf *util.UBuffer, input map[string]Value) {
 }
 
 func ValueMapDecode(buf *util.UBuffer) map[string]Value {
+	return valueMapDecode(buf, 0)
+}
+
+func valueMapDecode(buf *util.UBuffer, depth int) map[string]Value {
+	if depth > maxValueDepth {
+		buf.Error = fmt.Errorf("ucx: value exceeds maximum depth of %d", maxValueDepth)
+		return nil
+	}
+
 	count := buf.ReadU32()
+	if count > maxCollectionEntries {
+		buf.Error = fmt.Errorf("ucx: value map exceeds maximum entry count of %d", maxCollectionEntries)
+		return nil
+	}
+
 	result := make(map[string]Value, count)
 	for i := uint32(0); i < count; i++ {
-		k := buf.ReadStringVarint()
-		v := ValueDecode(buf)
+		k := readStringVarintLimited(buf)
+		v := valueDecode(buf, depth+1)
+		if buf.Error != nil {
+			return result
+		}
 		result[k] = v
 	}
 	return result

@@ -85,19 +85,28 @@ func (p *Proxy) upstreamDialGrace() time.Duration {
 }
 
 func (p *Proxy) dialUpstream(url string, header http.Header, timeout time.Duration) (*ws.Conn, *http.Response, error) {
-	if timeout <= 0 {
-		return ws.DefaultDialer.Dial(url, header)
-	}
+	var conn *ws.Conn
+	var response *http.Response
+	var err error
 
-	dialer := ws.Dialer{
-		Proxy:            http.ProxyFromEnvironment,
-		HandshakeTimeout: timeout,
-		NetDialContext:   (&net.Dialer{Timeout: timeout}).DialContext,
+	if timeout <= 0 {
+		conn, response, err = ws.DefaultDialer.Dial(url, header)
+	} else {
+		dialer := ws.Dialer{
+			Proxy:            http.ProxyFromEnvironment,
+			HandshakeTimeout: timeout,
+			NetDialContext:   (&net.Dialer{Timeout: timeout}).DialContext,
+		}
+		conn, response, err = dialer.Dial(url, header)
 	}
-	return dialer.Dial(url, header)
+	if err == nil && conn != nil {
+		conn.SetReadLimit(maxFrameBytes)
+	}
+	return conn, response, err
 }
 
 func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
+	downstream.SetReadLimit(maxFrameBytes)
 	downstreamToken, ok := p.authenticateDownstream(downstream)
 	if !ok {
 		log.Warn("UCX proxy: downstream authentication failed")
@@ -137,7 +146,9 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 
 			decoded, err := FrameDecode(rawMessage)
 			if err != nil {
-				continue
+				log.Warn("UCX proxy: failed to decode downstream frame: %v", err)
+				cancel()
+				return
 			}
 
 			select {
@@ -442,7 +453,8 @@ func startUpstreamPumps(ctx context.Context, conn *ws.Conn) (<-chan Frame, chan 
 			decoded, err := FrameDecode(rawMessage)
 			if err != nil {
 				log.Warn("UCX proxy: failed to decode upstream frame: %v", err)
-				continue
+				signalClosed()
+				return
 			}
 
 			select {
@@ -685,7 +697,7 @@ func readInitialDownstreamSysHello(downstream *ws.Conn) (Frame, bool) {
 		decoded, err := FrameDecode(rawMessage)
 		if err != nil {
 			log.Warn("UCX proxy: failed to decode downstream frame while waiting for SysHello: %v", err)
-			continue
+			return Frame{}, false
 		}
 
 		if decoded.Opcode != OpSysHello {
@@ -751,7 +763,9 @@ func proxyReadFrames(ctx context.Context, cancel context.CancelFunc, conn *ws.Co
 
 		decoded, err := FrameDecode(rawMessage)
 		if err != nil {
-			continue
+			log.Warn("UCX proxy: failed to decode frame: %v", err)
+			cancel()
+			return
 		}
 
 		select {

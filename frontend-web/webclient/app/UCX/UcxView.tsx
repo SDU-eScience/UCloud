@@ -839,6 +839,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                     }
                 } catch (err) {
                     setError(err instanceof Error ? err.message : "Failed to decode frame");
+                    socket.close();
                 }
             };
 

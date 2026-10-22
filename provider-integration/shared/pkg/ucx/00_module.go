@@ -10,6 +10,41 @@ import (
 
 const maxSysHelloPayloadBytes = 1024 * 1024 * 8
 
+const (
+	maxFrameBytes         = 32 * 1024 * 1024
+	maxUiNodes            = 100_000
+	maxUiDepth            = 256
+	maxValueDepth         = 256
+	maxCollectionEntries  = 100_000
+	maxTableColumns       = 1_000
+	maxTableRows          = 100_000
+	maxTableCellsPerRow   = 10_000
+	maxTableCellsTotal    = 1_000_000
+	maxTableRemovedRows   = 100_000
+	maxTableActionsPerRow = 100
+)
+
+func readStringVarintLimited(buf *util.UBuffer) string {
+	size := buf.ReadUvarint()
+	if buf.Error != nil || size == 0 {
+		return ""
+	}
+	if size > maxFrameBytes {
+		buf.Error = fmt.Errorf("ucx: string exceeds maximum size of %d bytes", maxFrameBytes)
+		return ""
+	}
+	return string(buf.ReadNext(int(size)))
+}
+
+func readBytesLimited(buf *util.UBuffer) []byte {
+	size := buf.ReadU32()
+	if size > maxFrameBytes {
+		buf.Error = fmt.Errorf("ucx: binary value exceeds maximum size of %d bytes", maxFrameBytes)
+		return nil
+	}
+	return buf.ReadNext(int(size))
+}
+
 type Opcode uint8
 
 const (
@@ -177,6 +212,10 @@ func FrameEncode(f Frame) ([]byte, error) {
 }
 
 func FrameDecode(data []byte) (Frame, error) {
+	if len(data) > maxFrameBytes {
+		return Frame{}, fmt.Errorf("ucx: frame exceeds maximum size of %d bytes", maxFrameBytes)
+	}
+
 	buf := util.NewBufferBytes(data)
 	op := Opcode(buf.ReadU8())
 	seq := buf.ReadS64()
@@ -201,7 +240,7 @@ func FrameDecode(data []byte) (Frame, error) {
 	case OpStringAppend:
 		result.StringAppend = StringAppendDecode(buf)
 	case OpRpcRequest:
-		result.RpcRequestName = buf.ReadStringVarint()
+		result.RpcRequestName = readStringVarintLimited(buf)
 		result.RpcPayload = RpcPayloadDecode(buf)
 	case OpRpcResponse:
 		result.RpcStatus = int(buf.ReadU8())
@@ -231,7 +270,7 @@ func SysHelloEncode(buf *util.UBuffer, msg SysHello) {
 }
 
 func SysHelloDecode(buf *util.UBuffer) SysHello {
-	result := SysHello{Payload: buf.ReadStringVarint()}
+	result := SysHello{Payload: readStringVarintLimited(buf)}
 	if len([]byte(result.Payload)) >= maxSysHelloPayloadBytes {
 		buf.Error = fmt.Errorf("ucx syshello payload too large: %d bytes", len([]byte(result.Payload)))
 	}
@@ -246,8 +285,9 @@ func UiMountEncode(buf *util.UBuffer, msg UiMount) {
 
 func UiMountDecode(buf *util.UBuffer) UiMount {
 	result := UiMount{}
-	result.InterfaceId = buf.ReadStringVarint()
-	result.Root = UiNodeDecode(buf)
+	result.InterfaceId = readStringVarintLimited(buf)
+	nodeCount := 0
+	result.Root = uiNodeDecodeLimited(buf, 0, &nodeCount)
 	result.Model = ValueMapDecode(buf)
 	return result
 }
@@ -269,16 +309,40 @@ func UiNodeEncode(buf *util.UBuffer, node UiNode) {
 }
 
 func UiNodeDecode(buf *util.UBuffer) UiNode {
+	nodeCount := 0
+	return uiNodeDecodeLimited(buf, 0, &nodeCount)
+}
+
+func uiNodeDecodeLimited(buf *util.UBuffer, depth int, nodeCount *int) UiNode {
+	if depth > maxUiDepth {
+		buf.Error = fmt.Errorf("ucx: UI tree exceeds maximum depth of %d", maxUiDepth)
+		return UiNode{}
+	}
+	if *nodeCount >= maxUiNodes {
+		buf.Error = fmt.Errorf("ucx: UI tree exceeds maximum node count of %d", maxUiNodes)
+		return UiNode{}
+	}
+	*nodeCount = *nodeCount + 1
+
 	result := UiNode{}
-	result.Id = buf.ReadStringVarint()
-	result.Component = buf.ReadStringVarint()
+	result.Id = readStringVarintLimited(buf)
+	result.Component = readStringVarintLimited(buf)
 	result.Props = ValueMapDecode(buf)
-	result.BindPath = buf.ReadStringVarint()
+	result.BindPath = readStringVarintLimited(buf)
 	result.Optimistic = buf.ReadU8() != 0
 	childrenCount := buf.ReadU32()
+	remainingNodes := maxUiNodes - *nodeCount
+	if childrenCount > uint32(remainingNodes) {
+		buf.Error = fmt.Errorf("ucx: UI tree exceeds maximum node count of %d", maxUiNodes)
+		return UiNode{}
+	}
+
 	result.ChildNodes = make([]UiNode, childrenCount)
 	for i := uint32(0); i < childrenCount; i++ {
-		result.ChildNodes[i] = UiNodeDecode(buf)
+		result.ChildNodes[i] = uiNodeDecodeLimited(buf, depth+1, nodeCount)
+		if buf.Error != nil {
+			return UiNode{}
+		}
 	}
 	return result
 }
@@ -300,8 +364,8 @@ func StringAppendEncode(buf *util.UBuffer, msg StringAppend) {
 
 func StringAppendDecode(buf *util.UBuffer) StringAppend {
 	return StringAppend{
-		Path:  buf.ReadStringVarint(),
-		Chunk: buf.ReadStringVarint(),
+		Path:  readStringVarintLimited(buf),
+		Chunk: readStringVarintLimited(buf),
 	}
 }
 
@@ -315,8 +379,8 @@ func ModelInputEncode(buf *util.UBuffer, msg ModelInput) {
 func ModelInputDecode(buf *util.UBuffer) ModelInput {
 	return ModelInput{
 		EventId: buf.ReadS64(),
-		NodeId:  buf.ReadStringVarint(),
-		Path:    buf.ReadStringVarint(),
+		NodeId:  readStringVarintLimited(buf),
+		Path:    readStringVarintLimited(buf),
 		Value:   ValueDecode(buf),
 	}
 }
@@ -409,17 +473,21 @@ func TableUpdateEncode(buf *util.UBuffer, msg TableUpdate) {
 
 func TableUpdateDecode(buf *util.UBuffer) TableUpdate {
 	result := TableUpdate{
-		TableId:  buf.ReadStringVarint(),
+		TableId:  readStringVarintLimited(buf),
 		Revision: buf.ReadS64(),
 		Snapshot: buf.ReadU8() != 0,
 	}
 
 	columnCount := buf.ReadU32()
+	if columnCount > maxTableColumns {
+		buf.Error = fmt.Errorf("ucx: table update exceeds maximum column count of %d", maxTableColumns)
+		return result
+	}
 	result.Columns = make([]TableColumn, columnCount)
 	for i := uint32(0); i < columnCount; i++ {
-		key := buf.ReadStringVarint()
-		label := buf.ReadStringVarint()
-		jsonPath := buf.ReadStringVarint()
+		key := readStringVarintLimited(buf)
+		label := readStringVarintLimited(buf)
+		jsonPath := readStringVarintLimited(buf)
 		sortType := buf.ReadU8()
 		flags := buf.ReadU8()
 		result.Columns[i] = TableColumn{
@@ -432,34 +500,60 @@ func TableUpdateDecode(buf *util.UBuffer) TableUpdate {
 	}
 
 	rowCount := buf.ReadU32()
+	if rowCount > maxTableRows {
+		buf.Error = fmt.Errorf("ucx: table update exceeds maximum row count of %d", maxTableRows)
+		return result
+	}
 	result.Upserts = make([]TableRow, rowCount)
+	totalCells := uint64(0)
 	for i := uint32(0); i < rowCount; i++ {
-		row := TableRow{Key: buf.ReadStringVarint(), Group: buf.ReadStringVarint()}
+		row := TableRow{Key: readStringVarintLimited(buf), Group: readStringVarintLimited(buf)}
 		cellCount := buf.ReadU32()
+		if cellCount > maxTableCellsPerRow {
+			buf.Error = fmt.Errorf("ucx: table row exceeds maximum cell count of %d", maxTableCellsPerRow)
+			return result
+		}
+		totalCells += uint64(cellCount)
+		if totalCells > maxTableCellsTotal {
+			buf.Error = fmt.Errorf("ucx: table update exceeds maximum total cell count of %d", maxTableCellsTotal)
+			return result
+		}
 		row.Cells = make([]string, cellCount)
 		for j := uint32(0); j < cellCount; j++ {
-			row.Cells[j] = buf.ReadStringVarint()
+			row.Cells[j] = readStringVarintLimited(buf)
 		}
 		result.Upserts[i] = row
 	}
 
 	removedCount := buf.ReadU32()
+	if removedCount > maxTableRemovedRows {
+		buf.Error = fmt.Errorf("ucx: table update exceeds maximum removed row count of %d", maxTableRemovedRows)
+		return result
+	}
 	result.Removed = make([]string, removedCount)
 	for i := uint32(0); i < removedCount; i++ {
-		result.Removed[i] = buf.ReadStringVarint()
+		result.Removed[i] = readStringVarintLimited(buf)
 	}
 
 	if !buf.IsEmpty() && buf.ReadU8() != 0 {
 		actionRowCount := buf.ReadU32()
+		if actionRowCount > maxTableRows {
+			buf.Error = fmt.Errorf("ucx: table update exceeds maximum action row count of %d", maxTableRows)
+			return result
+		}
 		for i := uint32(0); i < actionRowCount && int(i) < len(result.Upserts); i++ {
 			actionCount := buf.ReadU32()
+			if actionCount > maxTableActionsPerRow {
+				buf.Error = fmt.Errorf("ucx: table row exceeds maximum action count of %d", maxTableActionsPerRow)
+				return result
+			}
 			actions := make([]TableRowAction, actionCount)
 			for j := uint32(0); j < actionCount; j++ {
 				actions[j] = TableRowAction{
-					Id:             buf.ReadStringVarint(),
+					Id:             readStringVarintLimited(buf),
 					Enabled:        buf.ReadU8() != 0,
-					DisabledReason: buf.ReadStringVarint(),
-					Text:           buf.ReadStringVarint(),
+					DisabledReason: readStringVarintLimited(buf),
+					Text:           readStringVarintLimited(buf),
 				}
 			}
 			result.Upserts[i].Actions = actions
@@ -468,6 +562,10 @@ func TableUpdateDecode(buf *util.UBuffer) TableUpdate {
 
 	if !buf.IsEmpty() && buf.ReadU8() != 0 {
 		busyRowCount := buf.ReadU32()
+		if busyRowCount > maxTableRows {
+			buf.Error = fmt.Errorf("ucx: table update exceeds maximum busy row count of %d", maxTableRows)
+			return result
+		}
 		for i := uint32(0); i < busyRowCount && int(i) < len(result.Upserts); i++ {
 			result.Upserts[i].Busy = buf.ReadU8() != 0
 		}
@@ -484,8 +582,8 @@ func UiEventEncode(buf *util.UBuffer, msg UiEvent) {
 
 func UiEventDecode(buf *util.UBuffer) UiEvent {
 	return UiEvent{
-		NodeId: buf.ReadStringVarint(),
-		Event:  buf.ReadStringVarint(),
+		NodeId: readStringVarintLimited(buf),
+		Event:  readStringVarintLimited(buf),
 		Value:  ValueDecode(buf),
 	}
 }

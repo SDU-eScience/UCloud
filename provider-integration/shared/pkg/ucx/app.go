@@ -268,8 +268,8 @@ func (s *Session) SendStringAppend(path string, chunk string) bool {
 	s.sentModel[path] = VString(current.String + chunk)
 
 	s.Send(Frame{
-		ReplyToSeq:  0,
-		Opcode:      OpStringAppend,
+		ReplyToSeq: 0,
+		Opcode:     OpStringAppend,
 		StringAppend: StringAppend{
 			Path:  path,
 			Chunk: chunk,
@@ -358,6 +358,7 @@ func RunAppRaw(ctx context.Context, handler AppHandler) {
 func RunAppWebSocket(conn *ws.Conn, ctx context.Context, authHandler SessionAuthHandler, handler AppHandler) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	conn.SetReadLimit(maxFrameBytes)
 
 	if !performServerAuthHandshake(ctx, conn, authHandler) {
 		_ = conn.Close()
@@ -404,6 +405,7 @@ func RunAppWebSocket(conn *ws.Conn, ctx context.Context, authHandler SessionAuth
 func RunAppWebSocketApplication(conn *ws.Conn, ctx context.Context, app Application) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	conn.SetReadLimit(maxFrameBytes)
 
 	if err := conn.WriteMessage(ws.TextMessage, []byte("OK")); err != nil {
 		return
@@ -547,7 +549,8 @@ func pumpFramesFromWebsocket(ctx context.Context, conn *ws.Conn, outgoing chan<-
 
 		decoded, err := FrameDecode(rawMessage)
 		if err != nil {
-			continue
+			log.Warn("ucx: failed to decode frame: %v", err)
+			return
 		}
 
 		select {

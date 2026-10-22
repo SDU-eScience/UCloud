@@ -46,6 +46,18 @@ export type PlainValue = null | boolean | number | string | Uint8Array | PlainVa
 
 const valueRootKey = "";
 
+const maxFrameBytes = 32 * 1024 * 1024;
+const maxUiNodes = 100000;
+const maxUiDepth = 256;
+const maxValueDepth = 256;
+const maxCollectionEntries = 100000;
+const maxTableColumns = 1000;
+const maxTableRows = 100000;
+const maxTableCellsPerRow = 10000;
+const maxTableCellsTotal = 1000000;
+const maxTableRemovedRows = 100000;
+const maxTableActionsPerRow = 100;
+
 export interface UiNode {
     id: string;
     component: string;
@@ -326,6 +338,10 @@ export function encodeFrame(frame: Frame): Uint8Array {
 }
 
 export function decodeFrame(input: Uint8Array): Frame {
+    if (input.byteLength > maxFrameBytes) {
+        throw new Error(`frame exceeds maximum size of ${maxFrameBytes} bytes`);
+    }
+
     const r = new BinaryReader(input);
     const opcode = r.readU8() as Opcode;
     const seq = r.readS64();
@@ -384,9 +400,10 @@ function encodeUiMount(w: BinaryWriter, mount: UiMount) {
 }
 
 function decodeUiMount(r: BinaryReader): UiMount {
+    const nodeCount = {value: 0};
     return {
         interfaceId: r.readString(),
-        root: decodeUiNode(r),
+        root: decodeUiNode(r, 0, nodeCount),
         model: readValueMap(r),
     };
 }
@@ -401,15 +418,27 @@ function encodeUiNode(w: BinaryWriter, node: UiNode) {
     for (const child of node.children) encodeUiNode(w, child);
 }
 
-function decodeUiNode(r: BinaryReader): UiNode {
+function decodeUiNode(r: BinaryReader, depth: number, nodeCount: {value: number}): UiNode {
+    if (depth > maxUiDepth) {
+        throw new Error(`UI tree exceeds maximum depth of ${maxUiDepth}`);
+    }
+    if (nodeCount.value >= maxUiNodes) {
+        throw new Error(`UI tree exceeds maximum node count of ${maxUiNodes}`);
+    }
+    nodeCount.value++;
+
     const id = r.readString();
     const component = r.readString();
     const props = readValueMap(r);
     const bindPath = r.readString();
     const optimistic = r.readU8() !== 0;
     const childCount = r.readU32();
+    if (childCount > maxUiNodes - nodeCount.value) {
+        throw new Error(`UI tree exceeds maximum node count of ${maxUiNodes}`);
+    }
+
     const children: UiNode[] = [];
-    for (let i = 0; i < childCount; i++) children.push(decodeUiNode(r));
+    for (let i = 0; i < childCount; i++) children.push(decodeUiNode(r, depth + 1, nodeCount));
     return {id, component, props, bindPath, optimistic, children};
 }
 
@@ -502,6 +531,9 @@ function decodeTableUpdate(r: BinaryReader): TableUpdate {
     const snapshot = r.readU8() !== 0;
 
     const columnCount = r.readU32();
+    if (columnCount > maxTableColumns) {
+        throw new Error(`table update exceeds maximum column count of ${maxTableColumns}`);
+    }
     const columns: TableColumn[] = [];
     for (let i = 0; i < columnCount; i++) {
         const key = r.readString();
@@ -519,24 +551,44 @@ function decodeTableUpdate(r: BinaryReader): TableUpdate {
     }
 
     const rowCount = r.readU32();
+    if (rowCount > maxTableRows) {
+        throw new Error(`table update exceeds maximum row count of ${maxTableRows}`);
+    }
     const upserts: TableRow[] = [];
+    let totalCells = 0;
     for (let i = 0; i < rowCount; i++) {
         const key = r.readString();
         const group = r.readString();
         const cellCount = r.readU32();
+        if (cellCount > maxTableCellsPerRow) {
+            throw new Error(`table row exceeds maximum cell count of ${maxTableCellsPerRow}`);
+        }
+        totalCells += cellCount;
+        if (totalCells > maxTableCellsTotal) {
+            throw new Error(`table update exceeds maximum total cell count of ${maxTableCellsTotal}`);
+        }
         const cells: string[] = [];
         for (let j = 0; j < cellCount; j++) cells.push(r.readString());
         upserts.push({key, group, cells});
     }
 
     const removedCount = r.readU32();
+    if (removedCount > maxTableRemovedRows) {
+        throw new Error(`table update exceeds maximum removed row count of ${maxTableRemovedRows}`);
+    }
     const removed: string[] = [];
     for (let i = 0; i < removedCount; i++) removed.push(r.readString());
 
     if (!r.isAtEnd() && r.readU8() !== 0) {
         const actionRowCount = r.readU32();
+        if (actionRowCount > maxTableRows) {
+            throw new Error(`table update exceeds maximum action row count of ${maxTableRows}`);
+        }
         for (let i = 0; i < actionRowCount && i < upserts.length; i++) {
             const actionCount = r.readU32();
+            if (actionCount > maxTableActionsPerRow) {
+                throw new Error(`table row exceeds maximum action count of ${maxTableActionsPerRow}`);
+            }
             const actions: TableRowAction[] = [];
             for (let j = 0; j < actionCount; j++) {
                 const id = r.readString();
@@ -556,6 +608,9 @@ function decodeTableUpdate(r: BinaryReader): TableUpdate {
 
     if (!r.isAtEnd() && r.readU8() !== 0) {
         const busyRowCount = r.readU32();
+        if (busyRowCount > maxTableRows) {
+            throw new Error(`table update exceeds maximum busy row count of ${maxTableRows}`);
+        }
         for (let i = 0; i < busyRowCount && i < upserts.length; i++) {
             upserts[i].busy = r.readU8() !== 0;
         }
@@ -605,7 +660,11 @@ function encodeValue(w: BinaryWriter, value: Value) {
     }
 }
 
-function decodeValue(r: BinaryReader): Value {
+function decodeValue(r: BinaryReader, depth = 0): Value {
+    if (depth > maxValueDepth) {
+        throw new Error(`value exceeds maximum depth of ${maxValueDepth}`);
+    }
+
     const kind = r.readU8() as ValueKind;
     switch (kind) {
         case ValueKind.Null:
@@ -620,16 +679,22 @@ function decodeValue(r: BinaryReader): Value {
             return {kind, string: r.readString()};
         case ValueKind.Binary: {
             const length = r.readU32();
+            if (length > maxFrameBytes) {
+                throw new Error(`binary value exceeds maximum size of ${maxFrameBytes} bytes`);
+            }
             return {kind, binary: r.readBytes(length)};
         }
         case ValueKind.List: {
             const count = r.readU32();
+            if (count > maxCollectionEntries) {
+                throw new Error(`value list exceeds maximum entry count of ${maxCollectionEntries}`);
+            }
             const list: Value[] = [];
-            for (let i = 0; i < count; i++) list.push(decodeValue(r));
+            for (let i = 0; i < count; i++) list.push(decodeValue(r, depth + 1));
             return {kind, list};
         }
         case ValueKind.Object:
-            return {kind, object: readValueMap(r)};
+            return {kind, object: readValueMap(r, depth + 1)};
         default:
             return {kind: ValueKind.Null};
     }
@@ -644,10 +709,18 @@ function writeValueMap(w: BinaryWriter, map: Record<string, Value>) {
     }
 }
 
-function readValueMap(r: BinaryReader): Record<string, Value> {
+function readValueMap(r: BinaryReader, depth = 0): Record<string, Value> {
+    if (depth > maxValueDepth) {
+        throw new Error(`value exceeds maximum depth of ${maxValueDepth}`);
+    }
+
     const count = r.readU32();
+    if (count > maxCollectionEntries) {
+        throw new Error(`value map exceeds maximum entry count of ${maxCollectionEntries}`);
+    }
+
     const result: Record<string, Value> = {};
-    for (let i = 0; i < count; i++) result[r.readString()] = decodeValue(r);
+    for (let i = 0; i < count; i++) result[r.readString()] = decodeValue(r, depth + 1);
     return result;
 }
 
