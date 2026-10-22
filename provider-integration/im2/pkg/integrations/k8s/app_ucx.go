@@ -403,6 +403,13 @@ func ucxOnConnect(conn *ws.Conn) {
 	}
 }
 
+func ucxJobStackStateFolder(info orcapi.AppUcxConnectJobProviderRequest) (string, bool) {
+	if !info.StackStateFolder.Present {
+		return "", false
+	}
+	return strings.TrimSpace(info.StackStateFolder.Value), true
+}
+
 func ucxOnConnectJob(conn *ws.Conn) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -451,7 +458,11 @@ func ucxOnConnectJob(conn *ws.Conn) {
 			return util.Empty{}, fmt.Errorf("invalid stack instance")
 		}
 
-		return ucxStackDataWrite(info.Job.Owner, request, info.Job.Specification.Labels[orcapi.ResourceLabelStackStateFolder])
+		stateFolder, ok := ucxJobStackStateFolder(info)
+		if !ok {
+			return util.Empty{}, fmt.Errorf("stack state folder is not available")
+		}
+		return ucxStackDataWrite(info.Job.Owner, request, stateFolder)
 	})
 
 	ucxapi.StackDataAppend.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackDataAppendRequest) (util.Empty, error) {
@@ -464,7 +475,11 @@ func ucxOnConnectJob(conn *ws.Conn) {
 			return util.Empty{}, fmt.Errorf("invalid stack instance")
 		}
 
-		return ucxStackDataAppend(info.Job.Owner, request, info.Job.Specification.Labels[orcapi.ResourceLabelStackStateFolder])
+		stateFolder, ok := ucxJobStackStateFolder(info)
+		if !ok {
+			return util.Empty{}, fmt.Errorf("stack state folder is not available")
+		}
+		return ucxStackDataAppend(info.Job.Owner, request, stateFolder)
 	})
 
 	ucxapi.IM.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.Message) (ucxapi.Message, error) {

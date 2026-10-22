@@ -91,6 +91,7 @@ func StacksCreate(actor rpc.Actor, id string, name string, stateFolder string, p
 	}
 	resourceId, _, err := ResourceCreate[orcapi.Stack](actor, stackType, orcapi.ResourceSpecification{
 		ServerLabels: map[string]string{
+			orcapi.ResourceLabelStack:            "true",
 			orcapi.ResourceLabelStackInstance:    id,
 			orcapi.ResourceLabelStackName:        name,
 			orcapi.ResourceLabelStackStateFolder: stateFolder,
@@ -105,6 +106,7 @@ func StacksCreate(actor rpc.Actor, id string, name string, stateFolder string, p
 	ResourceConfirm(stackType, resourceId)
 	if stateDrive.Present {
 		labels := util.MapMerge(stateDrive.Value.Specification.Labels, map[string]string{
+			orcapi.ResourceLabelStack:       "true",
 			orcapi.ResourceLabelStackEntity: strconv.FormatUint(uint64(resourceId), 10),
 		})
 		return resourceUpdateLabelsEx(actor, driveType, stateDrive.Value.Id, labels, orcapi.PermissionAdmin, true, false)
@@ -112,29 +114,58 @@ func StacksCreate(actor rpc.Actor, id string, name string, stateFolder string, p
 	return nil
 }
 
-func stacksPrepareResource(actor rpc.Actor, specification *orcapi.ResourceSpecification) *util.HttpError {
+func resourceValidateSameStack(specification orcapi.ResourceSpecification, referencedLabels map[string]string) *util.HttpError {
+	currentInstance := strings.TrimSpace(specification.ServerLabels[orcapi.ResourceLabelStackInstance])
+	referencedInstance := strings.TrimSpace(referencedLabels[orcapi.ResourceLabelStackInstance])
+	if currentInstance == "" || referencedInstance != currentInstance {
+		return util.HttpErr(http.StatusBadRequest, "the referenced resource must belong to the same stack")
+	}
+
+	currentEntity := strings.TrimSpace(specification.ServerLabels[orcapi.ResourceLabelStackEntity])
+	referencedEntity := strings.TrimSpace(referencedLabels[orcapi.ResourceLabelStackEntity])
+	if currentEntity != "" && referencedEntity != "" && currentEntity != referencedEntity {
+		return util.HttpErr(http.StatusBadRequest, "the referenced resource must belong to the same stack")
+	}
+
+	return nil
+}
+
+func stacksPrepareResource(actor rpc.Actor, specification *orcapi.ResourceSpecification, requireStack bool) *util.HttpError {
 	id := strings.TrimSpace(specification.ServerLabels[orcapi.ResourceLabelStackInstance])
 	if id == "" {
+		if requireStack {
+			return util.HttpErr(http.StatusForbidden, "the stack of this request is required")
+		}
 		return nil
 	}
 	entity, exists := stacksFindEntity(actor, id)
 	if !exists {
+		if requireStack {
+			return util.HttpErr(http.StatusForbidden, "the stack of this request is not available")
+		}
 		return nil
 	}
-	_, stack, stackSpec, err := ResourceRetrieveEx[orcapi.Stack](actor, stackType, ResourceParseId(entity.Id), orcapi.PermissionEdit, orcapi.ResourceFlags{IncludeOthers: true})
+	_, stack, stackSpec, err := ResourceRetrieveEx[orcapi.Stack](rpc.ActorSystem, stackType, ResourceParseId(entity.Id), orcapi.PermissionRead, orcapi.ResourceFlags{IncludeOthers: true})
 	if err != nil {
 		return err
 	}
+	stackInstance := stackSpec.Labels[orcapi.ResourceLabelStackInstance]
+	if strings.TrimSpace(stackInstance) != id {
+		return util.HttpErr(http.StatusForbidden, "the stack is not available")
+	}
+
 	stack.Permissions.Value.Others = stacksCloneAcl(stack.Permissions.Value.Others)
 	specification.StackResource = &stack
 	if specification.ServerLabels == nil {
 		specification.ServerLabels = map[string]string{}
 	}
 	for _, key := range resourceStackIdentityLabels {
+		delete(specification.ServerLabels, key)
 		if value, exists := stackSpec.Labels[key]; exists {
 			specification.ServerLabels[key] = value
 		}
 	}
+	specification.ServerLabels[orcapi.ResourceLabelStack] = "true"
 	specification.ServerLabels[orcapi.ResourceLabelStackEntity] = entity.Id
 	return nil
 }

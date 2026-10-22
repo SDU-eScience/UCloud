@@ -49,8 +49,9 @@ var AppUcxConnectProvider = rpc.Call[util.Empty, util.Empty]{
 }
 
 type AppUcxConnectJobProviderRequest struct {
-	Job  Job `json:"job"`
-	Port int `json:"port"`
+	Job              Job                 `json:"job"`
+	Port             int                 `json:"port"`
+	StackStateFolder util.Option[string] `json:"stackStateFolder,omitempty"`
 }
 
 var AppUcxConnectJobProvider = rpc.Call[util.Empty, util.Empty]{

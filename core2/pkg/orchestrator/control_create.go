@@ -59,8 +59,8 @@ func controlCreateServe[Spec any, Resc any, Resp any](
 			}
 
 			resourceStripReservedLabels(spec.Labels)
-			spec.ServerLabels = util.MapMerge(spec.ServerLabels, serverLabels)
-			if err := stacksPrepareResource(actor, spec); err != nil {
+			spec.ServerLabels = serverLabels
+			if err := stacksPrepareResource(actor, spec, true); err != nil {
 				return empty, err
 			}
 
@@ -76,7 +76,8 @@ func controlCreateServe[Spec any, Resc any, Resp any](
 					return empty, util.HttpErr(http.StatusBadRequest, "unknown network requested")
 				}
 
-				if network.Specification.Labels[orcapi.ResourceLabelStackInstance] != stackInstance {
+				sameStackErr := resourceValidateSameStack(*spec, network.Specification.Labels)
+				if sameStackErr != nil {
 					return empty, util.HttpErr(http.StatusBadRequest, "the parent network must belong to the same stack as the job")
 				}
 			}
@@ -94,8 +95,29 @@ func controlCreateServe[Spec any, Resc any, Resp any](
 						return empty, util.HttpErr(http.StatusBadRequest, "unknown network requested")
 					}
 
-					if network.Specification.Labels[orcapi.ResourceLabelStackInstance] != stackInstance {
+					sameStackErr := resourceValidateSameStack(*spec, network.Specification.Labels)
+					if sameStackErr != nil {
 						return empty, util.HttpErr(http.StatusBadRequest, "the internal endpoint must belong to the same stack as the job")
+					}
+				}
+			}
+
+			if ingressSpec, ok := any(request.Items[i]).(orcapi.IngressSpecification); ok {
+				if target := ingressSpec.Target; target.Present {
+					_, _, serviceSpec, err := ResourceRetrieveEx[orcapi.Service](
+						rpc.ActorSystem,
+						serviceType,
+						ResourceParseId(target.Value.ServiceId),
+						orcapi.PermissionRead,
+						orcapi.ResourceFlags{},
+					)
+					if err != nil {
+						return empty, util.HttpErr(http.StatusBadRequest, "unknown service requested")
+					}
+
+					sameStackErr := resourceValidateSameStack(*spec, serviceSpec.Labels)
+					if sameStackErr != nil {
+						return empty, util.HttpErr(http.StatusBadRequest, "the ingress target must belong to the same stack as the job")
 					}
 				}
 			}
