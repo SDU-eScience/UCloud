@@ -31,6 +31,7 @@ var resourceLabelsReserved = map[string]struct{}{
 	ResourceLabelStackUi:          {},
 	ResourceLabelUcxAppName:       {},
 	ResourceLabelUcxAppVersion:    {},
+	ResourceLabelUcxPort:          {},
 	"ucloud.dk/ucx-app-name":      {},
 	"ucloud.dk/ucx-app-version":   {},
 	ResourceLabelDisasterRecovery: {},
