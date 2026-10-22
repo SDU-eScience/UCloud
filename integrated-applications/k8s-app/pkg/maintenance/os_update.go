@@ -374,7 +374,7 @@ func osUpdateSubmit(
 
 	reboot := shared.NodeAgentOsRebootWhenRequired
 	policyRecord, policyErr := autoPolicyRead(worker.client)
-	if policyErr == nil && policyRecord.Found && policyRecord.Policy.Os.RebootPolicy == AutoRebootAlways {
+	if policyErr == nil && policyRecord.Found && policyRecord.Value.Os.RebootPolicy == AutoRebootAlways {
 		reboot = shared.NodeAgentOsRebootAlways
 	}
 

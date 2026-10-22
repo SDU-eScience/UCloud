@@ -162,7 +162,7 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 			if app.MaintenanceBusy || app.Stack == nil {
 				return
 			}
-			maintenanceSubmitAsync(app, "cancel", nodeName, "", maintenance.Options{})
+			maintenanceSubmitAsync(app, maintenanceSubmit{kind: "cancel"}, nodeName, "", maintenance.Options{})
 		}))
 	}
 
@@ -227,38 +227,51 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 	removePage := app.maintenanceMode == maintenanceModeRemove || (app.maintenanceMode == "" && isRemove)
 	if upgradePage && !mutationsBlocked && targetUid != "" && !maintenance.PhaseActive(operation.Phase) {
 		if retryable && isUpgrade {
-			if app.maintenanceRetryOptionsFor != nodeName {
-				app.maintenanceRetryOptionsFor = nodeName
-				app.MaintenanceTimeoutSeconds = operation.Options.TimeoutSeconds
-				app.MaintenanceCordon = operation.Options.Cordon
-				app.MaintenanceDrain = operation.Options.Drain
-				app.MaintenanceDeleteVolatilePods = operation.Options.DeleteVolatilePods
-				app.MaintenanceBypassDisruptionBudgets = operation.Options.BypassDisruptionBudgets
+			if maintenanceOptionsRestore(app, nodeName, operation) {
 				app.MaintenanceTargetRelease = operation.TargetRelease
 			}
-			content = append(content, maintenanceUpgradeForm(app, "upgrade-retry", nodeName, targetUid, operation, record))
+			content = append(content, maintenanceUpgradeForm(
+				app,
+				maintenanceSubmit{kind: "upgrade", retry: true},
+				nodeName,
+				targetUid,
+				operation,
+				record,
+			))
 		} else if !recoveryBlocked {
-			content = append(content, maintenanceUpgradeForm(app, "upgrade-start", nodeName, targetUid, operation, record))
+			content = append(content, maintenanceUpgradeForm(
+				app,
+				maintenanceSubmit{kind: "upgrade"},
+				nodeName,
+				targetUid,
+				operation,
+				record,
+			))
 		}
 	}
 
 	if removePage && !mutationsBlocked && !maintenance.PhaseActive(operation.Phase) {
 		if retryable && isRemove {
-			if app.maintenanceRetryOptionsFor != nodeName {
-				app.maintenanceRetryOptionsFor = nodeName
-				app.MaintenanceTimeoutSeconds = operation.Options.TimeoutSeconds
-				if app.MaintenanceTimeoutSeconds <= 0 {
-					app.MaintenanceTimeoutSeconds = maintenanceDefaultTimeoutSeconds
-				}
-				app.MaintenanceDrain = operation.Options.Drain
-				app.MaintenanceCordon = operation.Options.Cordon
-				app.MaintenanceDeleteVolatilePods = operation.Options.DeleteVolatilePods
-				app.MaintenanceBypassDisruptionBudgets = operation.Options.BypassDisruptionBudgets
-				app.MaintenanceForceDelete = operation.Options.ForceDelete
-			}
-			content = append(content, maintenanceRemoveForm(app, "remove-retry", nodeName, targetUid, operation, nodeRecord, record))
+			maintenanceOptionsRestore(app, nodeName, operation)
+			content = append(content, maintenanceRemoveForm(
+				app,
+				maintenanceSubmit{kind: "remove", retry: true},
+				nodeName,
+				targetUid,
+				operation,
+				nodeRecord,
+				record,
+			))
 		} else if !recoveryBlocked || isRemove {
-			content = append(content, maintenanceRemoveForm(app, "remove-start", nodeName, targetUid, maintenance.Operation{}, nodeRecord, record))
+			content = append(content, maintenanceRemoveForm(
+				app,
+				maintenanceSubmit{kind: "remove"},
+				nodeName,
+				targetUid,
+				maintenance.Operation{},
+				nodeRecord,
+				record,
+			))
 		}
 	}
 
@@ -272,22 +285,23 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 				"The node is cordoned. Use Uncordon in the node table to allow scheduling again.",
 			))
 		} else if retryable && !isUpgrade {
-			if app.maintenanceRetryOptionsFor != nodeName {
-				app.maintenanceRetryOptionsFor = nodeName
-				app.MaintenanceTimeoutSeconds = operation.Options.TimeoutSeconds
-				if app.MaintenanceTimeoutSeconds <= 0 {
-					app.MaintenanceTimeoutSeconds = maintenanceDefaultTimeoutSeconds
-				}
-				app.MaintenanceDeleteVolatilePods = operation.Options.DeleteVolatilePods
-				app.MaintenanceBypassDisruptionBudgets = operation.Options.BypassDisruptionBudgets
-				app.MaintenanceForceDelete = operation.Options.ForceDelete
-			}
-			content = append(content, maintenanceDrainForm(app, "retry", nodeName, targetUid))
+			maintenanceOptionsRestore(app, nodeName, operation)
+			content = append(content, maintenanceDrainForm(
+				app,
+				maintenanceSubmit{kind: "start", retry: true},
+				nodeName,
+				targetUid,
+			))
 		} else {
 			if app.MaintenanceTimeoutSeconds <= 0 {
 				app.MaintenanceTimeoutSeconds = maintenanceDefaultTimeoutSeconds
 			}
-			content = append(content, maintenanceDrainForm(app, "start", nodeName, targetUid))
+			content = append(content, maintenanceDrainForm(
+				app,
+				maintenanceSubmit{kind: "start"},
+				nodeName,
+				targetUid,
+			))
 		}
 	}
 
@@ -337,21 +351,62 @@ func maintenanceOpenWithMode(app *stackUiApp, nodeName string, nodeUid string, m
 // Each operation has one form. A form is a plain UI node. The form validates the unsafe options, then it hands the
 // options to the maintenance package. A retry form starts with the options of the failed operation.
 
-func maintenanceDrainForm(app *stackUiApp, mode string, nodeName string, nodeUid string) ucx.UiNode {
-	drainEnabled := app.MaintenanceDrain || mode == "retry"
+func maintenanceDrainOptionsNode(
+	idPrefix string,
+	timeoutLabel string,
+	description string,
+	includeForceDelete bool,
+) ucx.UiNode {
+	children := []ucx.UiNode{
+		ucx.FieldRowNodeEx(idPrefix+"TimeoutRow", timeoutLabel, "maintenanceTimeoutSeconds").
+			FieldRowDescription(description).
+			FieldRowRequired(true).
+			Children(ucx.InputNumber(
+				idPrefix+"Timeout",
+				"",
+				"maintenanceTimeoutSeconds",
+				30,
+				3600,
+			)),
+		ucx.Checkbox(
+			"maintenanceDeleteVolatilePods",
+			"**Delete volatile pods:** also evict pods with emptyDir data and pods without a controller. Their data is lost.",
+			"maintenanceDeleteVolatilePods",
+			false,
+		),
+		ucx.Checkbox(
+			"maintenanceBypassDisruptionBudgets",
+			"**Bypass budgets:** evict pods even when a `PodDisruptionBudget` forbids it.",
+			"maintenanceBypassDisruptionBudgets",
+			false,
+		),
+	}
+	if includeForceDelete {
+		children = append(children, ucx.Checkbox(
+			"maintenanceForceDelete",
+			"**Force delete:** skip graceful shutdown with a zero grace period. Requires bypassing budgets.",
+			"maintenanceForceDelete",
+			false,
+		))
+	}
+	return ucx.FieldGroupNode().Children(children...)
+}
+
+func maintenanceDrainForm(app *stackUiApp, submit maintenanceSubmit, nodeName string, nodeUid string) ucx.UiNode {
+	drainEnabled := app.MaintenanceDrain || submit.retry
 
 	submitId := "maintenanceDrainSubmit"
 	submitLabel := "Cordon and drain"
 	submitColor := ucx.ColorErrorMain
 	holdToConfirm := true
-	if mode == "start" && !drainEnabled {
+	if !submit.retry && !drainEnabled {
 		submitLabel = "Cordon node"
 		submitColor = ucx.ColorWarningMain
 		holdToConfirm = false
 	}
 
 	children := []ucx.UiNode{}
-	if mode == "start" {
+	if !submit.retry {
 		children = append(children, ucx.Checkbox(
 			"maintenanceDrain",
 			"**Drain:** evict all pods from the node after it is cordoned. Replacements may be unavailable immediately.",
@@ -360,47 +415,21 @@ func maintenanceDrainForm(app *stackUiApp, mode string, nodeName string, nodeUid
 		))
 	}
 	if drainEnabled {
-		children = append(children,
-			ucx.FieldGroupNode().Children(
-				ucx.FieldRowNodeEx("maintenanceTimeoutRow", "Timeout (seconds)", "maintenanceTimeoutSeconds").
-					FieldRowDescription("The drain gives up after this many seconds.").
-					FieldRowRequired(true).
-					Children(ucx.InputNumber(
-						"maintenanceTimeout",
-						"",
-						"maintenanceTimeoutSeconds",
-						30,
-						3600,
-					)),
-				ucx.Checkbox(
-					"maintenanceDeleteVolatilePods",
-					"**Delete volatile pods:** also evict pods with emptyDir data and pods without a controller. Their data is lost.",
-					"maintenanceDeleteVolatilePods",
-					false,
-				),
-				ucx.Checkbox(
-					"maintenanceBypassDisruptionBudgets",
-					"**Bypass budgets:** evict pods even when a `PodDisruptionBudget` forbids it.",
-					"maintenanceBypassDisruptionBudgets",
-					false,
-				),
-				ucx.Checkbox(
-					"maintenanceForceDelete",
-					"**Force delete:** skip graceful shutdown with a zero grace period. Requires bypassing budgets.",
-					"maintenanceForceDelete",
-					false,
-				),
-			),
-		)
+		children = append(children, maintenanceDrainOptionsNode(
+			"maintenance",
+			"Timeout (seconds)",
+			"The drain gives up after this many seconds.",
+			true,
+		))
 	}
 
-	submit := ucx.SubmitButton(submitId, submitLabel, submitColor).
+	submitButton := ucx.SubmitButton(submitId, submitLabel, submitColor).
 		ButtonBusy("maintenanceBusy").
 		Sx(ucx.SxJustifyEnd)
 	if holdToConfirm {
-		submit = submit.ButtonHoldToConfirm(true)
+		submitButton = submitButton.ButtonHoldToConfirm(true)
 	}
-	children = append(children, submit)
+	children = append(children, submitButton)
 
 	return ucx.Form("maintenanceDrainForm").On(ucx.UiEventSubmit, func(ev ucx.UiEvent) {
 		if app.MaintenanceBusy || app.Stack == nil {
@@ -413,9 +442,9 @@ func maintenanceDrainForm(app *stackUiApp, mode string, nodeName string, nodeUid
 			return
 		}
 
-		action := mode
-		if mode == "start" && !app.MaintenanceDrain {
-			action = "cordon"
+		action := submit
+		if !submit.retry && !app.MaintenanceDrain {
+			action.kind = "cordon"
 		}
 
 		maintenanceSubmitAsync(app, action, nodeName, nodeUid, options)
@@ -424,23 +453,18 @@ func maintenanceDrainForm(app *stackUiApp, mode string, nodeName string, nodeUid
 
 func maintenanceRemoveForm(
 	app *stackUiApp,
-	mode string,
+	submit maintenanceSubmit,
 	nodeName string,
 	nodeUid string,
 	operation maintenance.Operation,
 	nodeRecord shared.ClusterNodeRecord,
 	record shared.ClusterRecord,
 ) ucx.UiNode {
-	isRetry := mode == "remove-retry"
+	isRetry := submit.retry
 
 	children := []ucx.UiNode{}
 
-	controlPlanes := 0
-	for _, node := range record.Nodes {
-		if node.Group == shared.GroupControlPlane {
-			controlPlanes++
-		}
-	}
+	controlPlanes := len(shared.NodesInGroup(record, shared.GroupControlPlane))
 
 	if nodeRecord.Group == shared.GroupControlPlane {
 		if controlPlanes <= 2 {
@@ -458,12 +482,7 @@ func maintenanceRemoveForm(
 			))
 		}
 	} else {
-		workers := 0
-		for _, node := range record.Nodes {
-			if node.Group != shared.GroupControlPlane {
-				workers++
-			}
-		}
+		workers := len(record.Nodes) - controlPlanes
 		if workers == 1 {
 			children = append(children, ucx.Warning(
 				"This is the last worker node. The cluster keeps its control plane, but no workloads can run until a worker is added again.",
@@ -494,35 +513,11 @@ func maintenanceRemoveForm(
 	)
 
 	if app.MaintenanceDrain {
-		children = append(children, ucx.FieldGroupNode().Children(
-			ucx.FieldRowNodeEx("maintenanceRemoveTimeoutRow", "Drain timeout (seconds)", "maintenanceTimeoutSeconds").
-				FieldRowDescription("The drain gives up after this many seconds.").
-				FieldRowRequired(true).
-				Children(ucx.InputNumber(
-					"maintenanceRemoveTimeout",
-					"",
-					"maintenanceTimeoutSeconds",
-					30,
-					3600,
-				)),
-			ucx.Checkbox(
-				"maintenanceDeleteVolatilePods",
-				"**Delete volatile pods:** also evict pods with emptyDir data and pods without a controller. Their data is lost.",
-				"maintenanceDeleteVolatilePods",
-				false,
-			),
-			ucx.Checkbox(
-				"maintenanceBypassDisruptionBudgets",
-				"**Bypass budgets:** evict pods even when a `PodDisruptionBudget` forbids it.",
-				"maintenanceBypassDisruptionBudgets",
-				false,
-			),
-			ucx.Checkbox(
-				"maintenanceForceDelete",
-				"**Force delete:** skip graceful shutdown with a zero grace period. Requires bypassing budgets.",
-				"maintenanceForceDelete",
-				false,
-			),
+		children = append(children, maintenanceDrainOptionsNode(
+			"maintenanceRemove",
+			"Drain timeout (seconds)",
+			"The drain gives up after this many seconds.",
+			true,
 		))
 	}
 
@@ -550,19 +545,19 @@ func maintenanceRemoveForm(
 		}
 		options.Cordon = options.Drain
 
-		maintenanceSubmitAsync(app, mode, nodeName, nodeUid, options)
+		maintenanceSubmitAsync(app, submit, nodeName, nodeUid, options)
 	}).Children(children...)
 }
 
 func maintenanceUpgradeForm(
 	app *stackUiApp,
-	mode string,
+	submit maintenanceSubmit,
 	nodeName string,
 	nodeUid string,
 	operation maintenance.Operation,
 	record shared.ClusterRecord,
 ) ucx.UiNode {
-	isRetry := mode == "upgrade-retry"
+	isRetry := submit.retry
 	currentVersion := app.maintenanceNodeVersion(nodeName, record)
 	options := maintenanceUpgradeReleaseOptions(currentVersion)
 	submitLabel := "Upgrade Kubernetes"
@@ -591,14 +586,13 @@ func maintenanceUpgradeForm(
 		app.MaintenanceTimeoutSeconds = maintenanceDefaultTimeoutSeconds
 	}
 	children := []ucx.UiNode{}
-	controlPlanes := 0
+	controlPlaneNodes := shared.NodesInGroup(record, shared.GroupControlPlane)
+	controlPlanes := len(controlPlaneNodes)
 	targetIsControlPlane := false
-	for _, node := range record.Nodes {
-		if node.Group == shared.GroupControlPlane {
-			controlPlanes++
-			if node.Hostname == nodeName {
-				targetIsControlPlane = true
-			}
+	for _, node := range controlPlaneNodes {
+		if node.Hostname == nodeName {
+			targetIsControlPlane = true
+			break
 		}
 	}
 	if targetIsControlPlane && controlPlanes == 1 {
@@ -628,13 +622,11 @@ func maintenanceUpgradeForm(
 		),
 	)
 	if app.MaintenanceDrain {
-		children = append(children, ucx.FieldGroupNode().Children(
-			ucx.FieldRowNodeEx("maintenanceUpgradeTimeoutRow", "Drain timeout (seconds)", "maintenanceTimeoutSeconds").
-				FieldRowDescription("The drain gives up after this many seconds. Upgrading and verifying the node have a separate time limit.").
-				FieldRowRequired(true).
-				Children(ucx.InputNumber("maintenanceUpgradeTimeout", "", "maintenanceTimeoutSeconds", 30, 3600)),
-			ucx.Checkbox("maintenanceDeleteVolatilePods", "**Delete volatile pods:** also evict pods with emptyDir data and pods without a controller. Their data is lost.", "maintenanceDeleteVolatilePods", false),
-			ucx.Checkbox("maintenanceBypassDisruptionBudgets", "**Bypass budgets:** evict pods even when a `PodDisruptionBudget` forbids it.", "maintenanceBypassDisruptionBudgets", false),
+		children = append(children, maintenanceDrainOptionsNode(
+			"maintenanceUpgrade",
+			"Drain timeout (seconds)",
+			"The drain gives up after this many seconds. Upgrading and verifying the node have a separate time limit.",
+			false,
 		))
 	}
 	children = append(children,
@@ -668,7 +660,7 @@ func maintenanceUpgradeForm(
 		if upgradeOptions.Drain {
 			upgradeOptions.Cordon = true
 		}
-		maintenanceSubmitAsync(app, mode, nodeName, nodeUid, upgradeOptions)
+		maintenanceSubmitAsync(app, submit, nodeName, nodeUid, upgradeOptions)
 	}).Children(children...)
 }
 
@@ -722,9 +714,63 @@ func maintenanceOptionsFromApp(app *stackUiApp) maintenance.Options {
 	}
 }
 
+func maintenanceOptionsRestore(app *stackUiApp, nodeName string, operation maintenance.Operation) bool {
+	if app.maintenanceRetryOptionsFor == nodeName {
+		return false
+	}
+	app.maintenanceRetryOptionsFor = nodeName
+	app.MaintenanceTimeoutSeconds = operation.Options.TimeoutSeconds
+	if app.MaintenanceTimeoutSeconds <= 0 {
+		app.MaintenanceTimeoutSeconds = maintenanceDefaultTimeoutSeconds
+	}
+	app.MaintenanceCordon = operation.Options.Cordon
+	app.MaintenanceDrain = operation.Options.Drain
+	app.MaintenanceDeleteVolatilePods = operation.Options.DeleteVolatilePods
+	app.MaintenanceBypassDisruptionBudgets = operation.Options.BypassDisruptionBudgets
+	app.MaintenanceForceDelete = operation.Options.ForceDelete
+	return true
+}
+
+type maintenanceSubmit struct {
+	kind  string
+	retry bool
+}
+
+func (submit maintenanceSubmit) run(
+	nodeName string,
+	nodeUid string,
+	targetRelease string,
+	options maintenance.Options,
+) error {
+	switch submit.kind {
+	case "cordon":
+		return maintenance.Cordon(nodeName, nodeUid, options)
+	case "start":
+		return maintenance.Start(nodeName, nodeUid, options)
+	case "upgrade":
+		return maintenance.UpgradeStart(nodeName, nodeUid, targetRelease, options)
+	case "remove":
+		return maintenance.RemoveStart(nodeName, nodeUid, options)
+	case "uncordon":
+		return maintenance.Uncordon(nodeName, nodeUid)
+	case "cancel":
+		return maintenance.CancelActiveOperation(nodeName)
+	}
+	return nil
+}
+
+func (submit maintenanceSubmit) startsOperation() bool {
+	switch submit.kind {
+	case "cordon", "start", "upgrade", "remove":
+		return true
+	default:
+		return false
+	}
+}
+
 func maintenanceSubmitAsync(
 	app *stackUiApp,
-	action string,
+	submit maintenanceSubmit,
 	nodeName string,
 	nodeUid string,
 	options maintenance.Options,
@@ -736,60 +782,19 @@ func maintenanceSubmitAsync(
 	targetRelease := app.MaintenanceTargetRelease
 
 	app.runAsyncAction("maintenanceBusy", &app.MaintenanceBusy, func() error {
-		switch action {
-		case "cordon":
-			return maintenance.Cordon(nodeName, nodeUid, options)
-		case "start":
-			return maintenance.Start(nodeName, nodeUid, options)
-		case "retry":
-			return maintenance.Start(nodeName, nodeUid, options)
-		case "upgrade-start":
-			return maintenance.UpgradeStart(nodeName, nodeUid, targetRelease, options)
-		case "upgrade-retry":
-			return maintenance.UpgradeStart(nodeName, nodeUid, targetRelease, options)
-		case "remove-start":
-			return maintenance.RemoveStart(nodeName, nodeUid, options)
-		case "remove-retry":
-			return maintenance.RemoveStart(nodeName, nodeUid, options)
-		case "uncordon":
-			return maintenance.Uncordon(nodeName, nodeUid)
-		case "cancel":
-			return maintenance.CancelActiveOperation(nodeName)
-		}
-		return nil
+		return submit.run(nodeName, nodeUid, targetRelease, options)
 	}, func(err error) {
 		switch {
 		case err != nil:
 			dashboardSendUiMessage(*app.Session(), err.Error(), false)
-		case !maintenanceSubmitStartsOperation(action):
-			dashboardSendUiMessage(*app.Session(), maintenanceSubmitMessage(action, nodeName), true)
+		case !submit.startsOperation():
+			dashboardSendUiMessage(*app.Session(), maintenanceSubmitMessage(submit.kind, nodeName), true)
 		}
 	})
 }
 
-func maintenanceSubmitStartsOperation(action string) bool {
-	switch action {
-	case "cordon":
-		return true
-	case "start":
-		return true
-	case "retry":
-		return true
-	case "upgrade-start":
-		return true
-	case "upgrade-retry":
-		return true
-	case "remove-start":
-		return true
-	case "remove-retry":
-		return true
-	default:
-		return false
-	}
-}
-
-func maintenanceSubmitMessage(action string, nodeName string) string {
-	switch action {
+func maintenanceSubmitMessage(kind string, nodeName string) string {
+	switch kind {
 	case "uncordon":
 		return fmt.Sprintf("Uncordon of %s started", nodeName)
 	case "cancel":

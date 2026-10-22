@@ -3,7 +3,6 @@ package dashboard
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -397,11 +396,12 @@ func (app *stackUiApp) handleRowActivated(tableId string, namespace string, name
 
 	if jobId := app.provisioningJobId(name); jobId != "" {
 		dashboardNavigationStart(app)
-		app.ResourceDetail = resourceDetailRef{Type: "provisioning", Namespace: namespace, Name: name}.String()
+		ref := resourceDetailRef{Type: "provisioning", Namespace: namespace, Name: name}
+		app.ResourceDetail = ref.String()
 		app.prevDetail = app.ResourceDetail
 		app.LogJobId = jobId
 		app.ResourceYaml = ""
-		dashboardNavigationPush(app, "detail/"+url.PathEscape("provisioning")+"/"+url.PathEscape(namespace)+"/"+url.PathEscape(name), strings.TrimPrefix(namespace+"/"+name, "/"))
+		dashboardNavigationPush(app, dashboardResourceDetailEncode(ref), strings.TrimPrefix(namespace+"/"+name, "/"))
 		ucx.AppUpdateUi(app)
 		return
 	}
@@ -512,7 +512,7 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 		if app.MaintenanceBusy {
 			return
 		}
-		maintenanceSubmitAsync(app, "uncordon", nodeName, nodeUid, maintenance.Options{})
+		maintenanceSubmitAsync(app, maintenanceSubmit{kind: "uncordon"}, nodeName, nodeUid, maintenance.Options{})
 	case dashboardActionGoToJob:
 		jobId := app.nodeJobIds()[nodeName]
 		if jobId == "" {
@@ -554,10 +554,11 @@ func (app *stackUiApp) openResourceDetail(tableId string, namespace string, name
 		return
 	}
 	dashboardNavigationStart(app)
-	app.ResourceDetail = resourceDetailRef{Type: tableId, Namespace: namespace, Name: name}.String()
+	ref := resourceDetailRef{Type: tableId, Namespace: namespace, Name: name}
+	app.ResourceDetail = ref.String()
 	app.prevDetail = app.ResourceDetail
 	dashboardResourceEditorLoad(app, app.ResourceDetail, editing)
-	dashboardNavigationPush(app, "detail/"+url.PathEscape(tableId)+"/"+url.PathEscape(namespace)+"/"+url.PathEscape(name), strings.TrimPrefix(namespace+"/"+name, "/"))
+	dashboardNavigationPush(app, dashboardResourceDetailEncode(ref), strings.TrimPrefix(namespace+"/"+name, "/"))
 	ucx.AppUpdateUi(app)
 }
 
@@ -630,17 +631,20 @@ func (app *stackUiApp) openContainerLogs(namespace string, containerName string,
 	podName := pod.GetName()
 
 	dashboardNavigationStart(app)
-	app.ResourceDetail = resourceDetailRef{Type: containersTypeId, Namespace: podNamespace, Name: podName, Container: containerName, hasContainer: true}.String()
+	ref := resourceDetailRef{
+		Type:         containersTypeId,
+		Namespace:    podNamespace,
+		Name:         podName,
+		Container:    containerName,
+		hasContainer: true,
+	}
+	app.ResourceDetail = ref.String()
 	app.prevDetail = app.ResourceDetail
 	app.ResourceYaml = ""
 	app.stopContainerLogsLocked()
 	app.startContainerLogsLocked(podNamespace, podName, containerName)
 
-	dashboardNavigationPush(app, "detail/"+
-		url.PathEscape(containersTypeId)+"/"+
-		url.PathEscape(podNamespace)+"/"+
-		url.PathEscape(podName)+"/"+
-		url.PathEscape(containerName), containerName)
+	dashboardNavigationPush(app, dashboardResourceDetailEncode(ref), containerName)
 	ucx.AppUpdateUi(app)
 }
 

@@ -45,15 +45,11 @@ type RollingUpgrade struct {
 }
 
 func rollingUpgradeRead(client stackClient) (RollingUpgrade, int64, error) {
-	record, found, err := shared.RpcGrantStateRead(client, rollingUpgradeKey)
-	if err != nil || !found {
+	record, err := stackValueRead[RollingUpgrade](client, rollingUpgradeKey, "rolling upgrade")
+	if err != nil {
 		return RollingUpgrade{}, 0, err
 	}
-	var upgrade RollingUpgrade
-	if !record.IsEmpty() {
-		err = json.Unmarshal(record.Value, &upgrade)
-	}
-	return upgrade, record.Revision, err
+	return record.Value, record.Revision, nil
 }
 
 func RollingUpgradeSnapshot() (RollingUpgrade, error) {
@@ -145,7 +141,7 @@ func rollingUpgradeStart(
 		return err
 	}
 	upgrade := RollingUpgrade{
-		Uid:           newOperationUid(),
+		Uid:           shared.NewUid(),
 		TargetRelease: release,
 		Trigger:       start.trigger,
 		AutoRunUid:    start.autoRunUid,
@@ -166,13 +162,13 @@ func rollingUpgradeStart(
 			return errors.New("force delete cannot be used with rolling upgrades")
 		}
 		operation := operations[recorded.Hostname]
-		if PhaseActive(operation.Operation.Phase) || operationBlockedByRecovery(operation.Operation) || operation.Operation.HostTerminationUnverified {
+		if PhaseActive(operation.Value.Phase) || operationBlockedByRecovery(operation.Value) || operation.Value.HostTerminationUnverified {
 			return fmt.Errorf("node %s has active maintenance or requires recovery", recorded.Hostname)
 		}
 		node := RollingUpgradeNode{
 			Name:         recorded.Hostname,
 			Group:        recorded.Group,
-			OperationUid: newOperationUid(),
+			OperationUid: shared.NewUid(),
 			Revision:     operation.Revision,
 			Phase:        PhasePending,
 		}
@@ -221,12 +217,13 @@ func rollingUpgradeStart(
 
 func rollingUpgradeNodeGuard(client stackClient, nodeName string) (ucxapi.StackStateRevisionCondition, error) {
 	upgrade, revision, err := rollingUpgradeRead(client)
+	if err != nil {
+		return ucxapi.StackStateRevisionCondition{}, err
+	}
+
 	condition := ucxapi.StackStateRevisionCondition{
 		Key:              rollingUpgradeKey,
 		ExpectedRevision: revision,
-	}
-	if err != nil {
-		return condition, err
 	}
 	if !PhaseActive(upgrade.Phase) {
 		return condition, nil
@@ -251,15 +248,9 @@ func rollingUpgradeNodeRecords(ctx context.Context, client stackClient) (map[str
 			return nil, err
 		}
 		for _, record := range page.Items {
-			state := stackRecord{
-				Found:    true,
-				Revision: record.Revision,
-			}
-			if !record.IsEmpty() {
-				err = json.Unmarshal(record.Value, &state.Operation)
-				if err != nil {
-					return nil, fmt.Errorf("could not parse maintenance record %s: %s", record.Key, err)
-				}
+			state, decodeErr := stackValueDecode[Operation](record, "maintenance record "+record.Key)
+			if decodeErr != nil {
+				return nil, decodeErr
 			}
 			result[strings.TrimPrefix(record.Key, stackKeyPrefix)] = state
 		}
@@ -297,7 +288,7 @@ func rollingUpgradeSubmissionConditions(
 			continue
 		}
 		record := records[node.Name]
-		operation := record.Operation
+		operation := record.Value
 		submitted := operation.Uid == node.OperationUid && KindIsUpgrade(operation.Kind) &&
 			(PhaseActive(operation.Phase) || operation.Phase == PhaseCompleted)
 		if !submitted {
@@ -352,7 +343,7 @@ func rollingUpgradeSweep(ctx context.Context, client stackClient) error {
 	if err != nil {
 		return err
 	}
-	upgrade.CoordinatorUid = newOperationUid()
+	upgrade.CoordinatorUid = shared.NewUid()
 	upgrade.CoordinatorDeadline = time.Now().Add(staleAfter)
 	revision, err = rollingUpgradeWriteChecked(client, upgrade, revision, nil, util.OptNone[int64]())
 	if err != nil {
@@ -370,7 +361,7 @@ func rollingUpgradeSweep(ctx context.Context, client stackClient) error {
 			continue
 		}
 		record := records[node.Name]
-		operation := record.Operation
+		operation := record.Value
 		if operation.Uid == node.OperationUid {
 			if node.Phase != operation.Phase {
 				node.Phase = operation.Phase
@@ -427,7 +418,7 @@ func rollingUpgradeSweep(ctx context.Context, client stackClient) error {
 		}
 		busyGroups[node.Group] = true
 		record := records[node.Name]
-		if record.Operation.Uid == node.OperationUid {
+		if record.Value.Uid == node.OperationUid {
 			continue
 		}
 		if record.Revision != node.Revision {
@@ -439,7 +430,7 @@ func rollingUpgradeSweep(ctx context.Context, client stackClient) error {
 			kind:     KindUpgrade,
 			options:  upgrade.Groups[node.Group],
 			release:  upgrade.TargetRelease,
-		}, record.Operation)
+		}, record.Value)
 		operation.Uid = node.OperationUid
 		value, marshalErr := json.Marshal(operation)
 		if marshalErr != nil {
@@ -475,9 +466,9 @@ func rollingUpgradeSweep(ctx context.Context, client stackClient) error {
 			return writeErr
 		}
 		records[node.Name] = stackRecord{
-			Found:     true,
-			Operation: operation,
-			Revision:  operationRevision,
+			Found:    true,
+			Value:    operation,
+			Revision: operationRevision,
 		}
 		resetNodeLog(node.Name, operation.Uid)
 	}
@@ -494,24 +485,5 @@ func rollingUpgradeReleaseCoordinator(client stackClient, coordinatorUid string)
 	err = rollingUpgradeWrite(client, upgrade, revision)
 	if err != nil && !shared.IsConflict(err) {
 		log.Warn("k8s-app rolling upgrade: could not release coordinator: %s", err)
-	}
-}
-
-func rollingUpgradeRun(ctx context.Context) {
-	ticker := time.NewTicker(runInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			client, err := stackClientNew()
-			if err == nil {
-				err = rollingUpgradeSweep(ctx, client)
-			}
-			if err != nil && !shared.IsConflict(err) && ctx.Err() == nil {
-				log.Warn("k8s-app rolling upgrade: %s", err)
-			}
-		}
 	}
 }

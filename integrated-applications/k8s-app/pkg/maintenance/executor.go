@@ -102,11 +102,11 @@ func (worker *nodeWorker) mutate(mutate func(*Operation) bool) error {
 		return err
 	}
 
-	if !record.Found || record.Operation.NodeName == "" || record.Operation.Uid != worker.uid {
+	if !record.Found || record.Value.NodeName == "" || record.Value.Uid != worker.uid {
 		return errConcluded
 	}
 
-	operation := record.Operation
+	operation := record.Value
 	operation.UpdatedAt = time.Now().UTC()
 	operation.HeartbeatAt = operation.UpdatedAt
 	changed := mutate(&operation)
@@ -138,11 +138,11 @@ func (worker *nodeWorker) checkpoint() (Operation, bool) {
 		log.Warn("k8s-app maintenance %s: could not reload the operation: %s", worker.nodeName, err)
 		return Operation{}, false
 	}
-	if !record.Found || record.Operation.NodeName == "" || record.Operation.Uid != worker.uid {
+	if !record.Found || record.Value.NodeName == "" || record.Value.Uid != worker.uid {
 		return Operation{}, false
 	}
 
-	operation := record.Operation
+	operation := record.Value
 	if !PhaseActive(operation.Phase) {
 		return Operation{}, false
 	}
@@ -167,43 +167,69 @@ func (worker *nodeWorker) checkpoint() (Operation, bool) {
 // heartbeat and starts a new worker for it. The claim is a compare-and-swap write that stamps the heartbeat, so only
 // one coordinator instance adopts a given operation. The worker revalidates the recorded uid before every mutation.
 
+func runLoop(ctx context.Context, logPrefix string, sweep func(context.Context, stackClient) error, wake <-chan struct{}) {
+	ticker := time.NewTicker(runInterval)
+	defer ticker.Stop()
+
+	run := func() {
+		client, err := stackClientNew()
+		if err == nil {
+			err = sweep(ctx, client)
+		}
+		if err != nil && !shared.IsConflict(err) && !errors.Is(err, errAutoRunSuperseded) && ctx.Err() == nil {
+			log.Warn("%s: %s", logPrefix, err)
+		}
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			run()
+		case <-wake:
+			run()
+		}
+	}
+}
+
 func Run(ctx context.Context, kubeconfigPath string) {
 	ticker := time.NewTicker(runInterval)
 	defer ticker.Stop()
-	schedulingDone := make(chan struct{})
+	var loops sync.WaitGroup
+	loops.Add(5)
 	go func() {
-		defer close(schedulingDone)
+		defer loops.Done()
 		controlPlaneSchedulingRun(ctx, kubeconfigPath)
 	}()
-	rollingDone := make(chan struct{})
 	go func() {
-		defer close(rollingDone)
-		rollingUpgradeRun(ctx)
+		defer loops.Done()
+		runLoop(ctx, "k8s-app rolling upgrade", rollingUpgradeSweep, nil)
 	}()
-	backupDone := make(chan struct{})
 	go func() {
-		defer close(backupDone)
-		backupRun(ctx)
+		defer loops.Done()
+		runLoop(ctx, "k8s-app backup", backupSweep, nil)
 	}()
-	autoDone := make(chan struct{})
 	go func() {
-		defer close(autoDone)
-		autoUpgradeRun(ctx, kubeconfigPath)
+		defer loops.Done()
+		runLoop(ctx, "k8s-app automatic maintenance", func(ctx context.Context, client stackClient) error {
+			return autoUpgradeSweep(ctx, kubeconfigPath, client)
+		}, autoMaintenanceWake)
 	}()
-	osCheckDone := make(chan struct{})
 	go func() {
-		defer close(osCheckDone)
-		autoOsCheckRun(ctx)
+		defer loops.Done()
+		runLoop(
+			ctx,
+			"k8s-app automatic maintenance: the operating-system update check failed",
+			autoOsCheckSweep,
+			nil,
+		)
 	}()
 
 	for {
 		select {
 		case <-ctx.Done():
-			<-schedulingDone
-			<-rollingDone
-			<-backupDone
-			<-autoDone
-			<-osCheckDone
+			loops.Wait()
 			workers.Wait()
 			return
 		case <-ticker.C:

@@ -16,64 +16,16 @@ const backupClaimLease = 30 * time.Minute
 
 const backupClaimRenewInterval = 5 * time.Minute
 
-type backupStateRecord struct {
-	Found    bool
-	State    backup.State
-	Revision int64
-}
+type backupStateRecord = stackValue[backup.State]
 
-type backupRequestRecord struct {
-	Found    bool
-	Request  backup.Request
-	Revision int64
-}
+type backupRequestRecord = stackValue[backup.Request]
 
 func backupStateRead(client stackClient) (backupStateRecord, error) {
-	record, found, err := shared.RpcGrantStateRead(client, backup.StateKey)
-	if err != nil {
-		return backupStateRecord{}, err
-	}
-	if !found {
-		return backupStateRecord{}, nil
-	}
-
-	result := backupStateRecord{
-		Found:    true,
-		Revision: record.Revision,
-	}
-
-	if !record.IsEmpty() {
-		err = json.Unmarshal(record.Value, &result.State)
-		if err != nil {
-			return backupStateRecord{}, fmt.Errorf("could not parse the backup state: %s", err)
-		}
-	}
-
-	return result, nil
+	return stackValueRead[backup.State](client, backup.StateKey, "backup state")
 }
 
 func backupRequestRead(client stackClient) (backupRequestRecord, error) {
-	record, found, err := shared.RpcGrantStateRead(client, backup.RequestKey)
-	if err != nil {
-		return backupRequestRecord{}, err
-	}
-	if !found {
-		return backupRequestRecord{}, nil
-	}
-
-	result := backupRequestRecord{
-		Found:    true,
-		Revision: record.Revision,
-	}
-
-	if !record.IsEmpty() {
-		err = json.Unmarshal(record.Value, &result.Request)
-		if err != nil {
-			return backupRequestRecord{}, fmt.Errorf("could not parse the backup request: %s", err)
-		}
-	}
-
-	return result, nil
+	return stackValueRead[backup.Request](client, backup.RequestKey, "backup request")
 }
 
 func backupStateWrite(client stackClient, state backup.State, expectedRevision int64) (int64, error) {
@@ -92,26 +44,6 @@ func backupRequestWrite(client stackClient, request backup.Request, expectedRevi
 	}
 
 	return shared.RpcGrantStateWrite(client, backup.RequestKey, value, expectedRevision)
-}
-
-func backupRun(ctx context.Context) {
-	ticker := time.NewTicker(runInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			client, err := stackClientNew()
-			if err == nil {
-				err = backupSweep(ctx, client)
-			}
-			if err != nil && !shared.IsConflict(err) && ctx.Err() == nil {
-				log.Warn("k8s-app backup: %s", err)
-			}
-		}
-	}
 }
 
 func backupSweep(ctx context.Context, client stackClient) error {
@@ -141,7 +73,7 @@ func backupSweep(ctx context.Context, client stackClient) error {
 		return writeErr
 	}
 
-	state := stateRecord.State
+	state := stateRecord.Value
 	state.SchemaRevision = backup.SchemaRevision
 
 	if state.ClaimUid != "" && now.Before(state.ClaimDeadline) {
@@ -168,7 +100,7 @@ func backupSweep(ctx context.Context, client stackClient) error {
 		stateRecord.Revision = revision
 	}
 
-	request := requestRecord.Request
+	request := requestRecord.Value
 	manual := requestRecord.Found && request.Uid != "" &&
 		request.Phase != backup.RequestCompleted && request.Phase != backup.RequestFailed
 
@@ -182,7 +114,7 @@ func backupSweep(ctx context.Context, client stackClient) error {
 		trigger = backup.TriggerManual
 	}
 
-	attemptUid := newOperationUid()
+	attemptUid := shared.NewUid()
 
 	state.ClaimUid = attemptUid
 	state.ClaimTrigger = trigger
@@ -274,11 +206,11 @@ func backupComplete(
 	if err != nil {
 		return err
 	}
-	if !record.Found || record.State.ClaimUid != attemptUid {
+	if !record.Found || record.Value.ClaimUid != attemptUid {
 		return errors.New("the backup claim was lost before the attempt finished")
 	}
 
-	state := record.State
+	state := record.Value
 	state.SchemaRevision = backup.SchemaRevision
 	state.LastAttempt = attempt
 	state.ClaimUid = ""
@@ -332,12 +264,12 @@ func backupClaimRenew(client stackClient, claimUid string) func() {
 				return
 			case <-ticker.C:
 				record, err := backupStateRead(client)
-				if err != nil || !record.Found || record.State.ClaimUid != claimUid {
+				if err != nil || !record.Found || record.Value.ClaimUid != claimUid {
 					continue
 				}
 
-				record.State.ClaimDeadline = time.Now().UTC().Add(backupClaimLease)
-				_, writeErr := backupStateWrite(client, record.State, record.Revision)
+				record.Value.ClaimDeadline = time.Now().UTC().Add(backupClaimLease)
+				_, writeErr := backupStateWrite(client, record.Value, record.Revision)
 				if writeErr != nil && !shared.IsConflict(writeErr) {
 					log.Warn("k8s-app backup: could not extend the backup claim: %s", writeErr)
 				}

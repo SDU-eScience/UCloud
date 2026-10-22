@@ -92,7 +92,7 @@ const (
 	ClusterRecordPhaseRecovering = "recovering"
 )
 
-const ScriptBundleRevision = 23
+const ScriptBundleRevision = 24
 
 func BundlePathForRelease(release K3sRelease) string {
 	return filepath.Join("bundles", strconv.Itoa(ScriptBundleRevision), SanitizeForPath(release.Release))
@@ -514,6 +514,42 @@ func clusterControlPlaneWiring(
 	return attachments, labels
 }
 
+func clusterNodeJobSpec(
+	stack *ucxsvc.Stack,
+	hostname string,
+	group string,
+	allocationId int,
+	machine accapi.ProductReference,
+	diskGb int,
+	release K3sRelease,
+	customUi ucxsvc.UcxCustomUiServiceInit,
+	extraLabels map[string]string,
+	resources []orcapi.AppParameterValue,
+) orcapi.JobSpecification {
+	labels := map[string]string{
+		StackGroupingLabel:                    group,
+		NodeAllocationLabel:                   strconv.Itoa(allocationId),
+		K8sVersionLabel:                       release.Release,
+		orcapi.ResourceLabelAntiAffinityGroup: clusterAntiAffinityGroup(stack, group),
+	}
+	labels = util.MapMerge(labels, extraLabels)
+
+	resources, labels = clusterControlPlaneWiring(stack, group, allocationId, customUi, resources, labels)
+
+	return orcapi.JobSpecification{
+		ResourceSpecification: orcapi.ResourceSpecification{
+			Product: machine,
+			Labels:  labels,
+		},
+		Application: ucxsvc.VmImageUbuntu26_04,
+		Name:        hostname,
+		Hostname:    util.OptValue[string](hostname),
+		Parameters:  clusterNodeParameters(stack, hostname, diskGb),
+		Replicas:    1,
+		Resources:   resources,
+	}
+}
+
 func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, string) {
 	ipAddress := NodeIpForAllocation(opts.allocationId)
 	hostname := ClusterNodeHostname(opts.group, opts.allocationId)
@@ -573,27 +609,18 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 		ucxsvc.StackSubtreeMount(stack, storageDir, storageMountPath, false),
 	}
 
-	labels := map[string]string{
-		StackGroupingLabel:                    opts.group,
-		NodeAllocationLabel:                   strconv.Itoa(opts.allocationId),
-		K8sVersionLabel:                       opts.release.Release,
-		orcapi.ResourceLabelAntiAffinityGroup: clusterAntiAffinityGroup(stack, opts.group),
-	}
-
-	attachments, labels = clusterControlPlaneWiring(stack, opts.group, opts.allocationId, opts.customUi, attachments, labels)
-
-	job, err := clusterCreateNodeJob(stack, orcapi.JobSpecification{
-		ResourceSpecification: orcapi.ResourceSpecification{
-			Product: opts.machine,
-			Labels:  labels,
-		},
-		Application: ucxsvc.VmImageUbuntu26_04,
-		Name:        hostname,
-		Hostname:    util.OptValue[string](hostname),
-		Parameters:  clusterNodeParameters(stack, hostname, opts.diskGb),
-		Replicas:    1,
-		Resources:   attachments,
-	})
+	job, err := clusterCreateNodeJob(stack, clusterNodeJobSpec(
+		stack,
+		hostname,
+		opts.group,
+		opts.allocationId,
+		opts.machine,
+		opts.diskGb,
+		opts.release,
+		opts.customUi,
+		nil,
+		attachments,
+	))
 	if err != nil {
 		clusterReleaseReservation(opts, stack, record, reservation.Id, hostname)
 		return false, ""
@@ -778,26 +805,18 @@ func ClusterRecoveryCreateNode(
 		))
 	}
 
-	labels := map[string]string{
-		StackGroupingLabel:                    GroupControlPlane,
-		NodeAllocationLabel:                   strconv.Itoa(spec.AllocationId),
-		K8sVersionLabel:                       spec.Release.Release,
-		orcapi.ResourceLabelAntiAffinityGroup: clusterAntiAffinityGroup(stack, GroupControlPlane),
-	}
-	attachments, labels = clusterControlPlaneWiring(stack, GroupControlPlane, spec.AllocationId, spec.CustomUi, attachments, labels)
-
-	jobSpec := orcapi.JobSpecification{
-		ResourceSpecification: orcapi.ResourceSpecification{
-			Product: node.Machine,
-			Labels:  labels,
-		},
-		Application: ucxsvc.VmImageUbuntu26_04,
-		Name:        node.Hostname,
-		Hostname:    util.OptValue[string](node.Hostname),
-		Parameters:  clusterNodeParameters(stack, node.Hostname, node.DiskGb),
-		Replicas:    1,
-		Resources:   attachments,
-	}
+	jobSpec := clusterNodeJobSpec(
+		stack,
+		node.Hostname,
+		GroupControlPlane,
+		spec.AllocationId,
+		node.Machine,
+		node.DiskGb,
+		spec.Release,
+		spec.CustomUi,
+		nil,
+		attachments,
+	)
 	job, err := clusterCreateNodeJobWithAddressWait(stack, jobSpec, func() {
 		if spec.Progress != nil {
 			spec.Progress("Waiting for IP address " + node.IpAddress + " to be released")
@@ -1040,6 +1059,20 @@ func NodeDirForAllocation(allocationId int) string {
 
 func ClusterNodeHostname(group string, allocationId int) string {
 	return fmt.Sprintf("%s-%v", group, allocationId)
+}
+
+func NodesInGroup(record ClusterRecord, group string) []ClusterNodeRecord {
+	result := []ClusterNodeRecord{}
+	for _, node := range record.Nodes {
+		if node.Group == group {
+			result = append(result, node)
+		}
+	}
+	return result
+}
+
+func NewUid() string {
+	return fmt.Sprintf("%s-%d-%s", SanitizeForPath(clusterStateHolderLabel()), time.Now().UnixNano(), util.SecureToken())
 }
 
 func clusterAntiAffinityGroup(stack *ucxsvc.Stack, group string) string {

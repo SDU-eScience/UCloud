@@ -44,7 +44,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -234,10 +233,10 @@ func CancelActiveOperation(nodeName string) error {
 		return err
 	}
 
-	if !record.Found || record.Operation.NodeName == "" {
+	if !record.Found || record.Value.NodeName == "" {
 		return fmt.Errorf("no operation exists for node %s", nodeName)
 	}
-	operation := record.Operation
+	operation := record.Value
 	if !PhaseActive(operation.Phase) {
 		return fmt.Errorf("the operation on node %s already finished", nodeName)
 	}
@@ -275,20 +274,20 @@ func CancelActiveOperation(nodeName string) error {
 		if err != nil {
 			return err
 		}
-		if !record.Found || record.Operation.NodeName == "" {
+		if !record.Found || record.Value.NodeName == "" {
 			return fmt.Errorf("no operation exists for node %s", nodeName)
 		}
-		if !PhaseActive(record.Operation.Phase) {
+		if !PhaseActive(record.Value.Phase) {
 			return fmt.Errorf("the operation on node %s already finished", nodeName)
 		}
-		if KindRequiresRecovery(record.Operation.Kind) && record.Operation.ExecutorSubmitted {
-			return errors.New(submittedCancelMessage(record.Operation.Kind))
+		if KindRequiresRecovery(record.Value.Kind) && record.Value.ExecutorSubmitted {
+			return errors.New(submittedCancelMessage(record.Value.Kind))
 		}
-		if removePastPointOfNoReturn(record.Operation) {
+		if removePastPointOfNoReturn(record.Value) {
 			return errors.New("the node removal passed the point of no return and cannot be cancelled")
 		}
 
-		operation = record.Operation
+		operation = record.Value
 		operation.CancelRequested = true
 		operation.UpdatedAt = time.Now().UTC()
 		operation.HeartbeatAt = time.Time{}
@@ -334,14 +333,6 @@ func Snapshot() (map[string]Operation, error) {
 
 // Submission
 // =====================================================================================================================
-
-func newOperationUid() string {
-	holder := ""
-	if hostname, err := os.Hostname(); err == nil {
-		holder = strings.TrimSpace(hostname)
-	}
-	return fmt.Sprintf("%s-%d-%s", shared.SanitizeForPath(holder), time.Now().UnixNano(), util.SecureToken())
-}
 
 type submission struct {
 	nodeName   string
@@ -457,7 +448,7 @@ func submitRecord(submit submission, existing Operation) Operation {
 	now := time.Now().UTC()
 
 	operation := Operation{
-		Uid:                       newOperationUid(),
+		Uid:                       shared.NewUid(),
 		NodeName:                  submit.nodeName,
 		NodeUid:                   submit.nodeUid,
 		Kind:                      submit.kind,
@@ -517,7 +508,7 @@ func submitWrite(submit submission) error {
 	}
 	found := record.Found
 
-	existing := record.Operation
+	existing := record.Value
 	exists := found && existing.NodeName != ""
 	if validErr := submitValid(submit, existing, exists); validErr != nil {
 		return validErr
@@ -648,8 +639,8 @@ func removeSubmitGuard(nodeName string) error {
 		return fmt.Errorf("could not read the maintenance state: %s", readErr)
 	}
 
-	removeRetry := existingRecord.Found && existingRecord.Operation.NodeName != "" &&
-		existingRecord.Operation.Kind == KindRemove && !PhaseActive(existingRecord.Operation.Phase)
+	removeRetry := existingRecord.Found && existingRecord.Value.NodeName != "" &&
+		existingRecord.Value.Kind == KindRemove && !PhaseActive(existingRecord.Value.Phase)
 
 	node, known := removeNodeRecord(record, nodeName)
 	if !known && !removeRetry {
@@ -722,27 +713,16 @@ func stackClientNew() (stackClient, error) {
 	return shared.RpcGrantClientNew()
 }
 
-type stackRecord struct {
-	Found     bool
-	Operation Operation
-	Revision  int64
+type stackValue[T any] struct {
+	Found    bool
+	Value    T
+	Revision int64
 }
 
-func stackNodeKey(nodeName string) string {
-	return fmt.Sprintf("%s%s", stackKeyPrefix, nodeName)
-}
+type stackRecord = stackValue[Operation]
 
-func stackRead(client stackClient, key string) (stackRecord, error) {
-	record, found, err := shared.RpcGrantStateRead(client, key)
-	if err != nil {
-		return stackRecord{}, err
-	}
-
-	if !found {
-		return stackRecord{}, nil
-	}
-
-	result := stackRecord{
+func stackValueDecode[T any](record ucxapi.StackStateRecord, noun string) (stackValue[T], error) {
+	result := stackValue[T]{
 		Found:    true,
 		Revision: record.Revision,
 	}
@@ -751,13 +731,32 @@ func stackRead(client stackClient, key string) (stackRecord, error) {
 		return result, nil
 	}
 
-	var operation Operation
-	if err := json.Unmarshal(record.Value, &operation); err != nil {
-		return stackRecord{}, fmt.Errorf("could not parse the maintenance record %s: %s", key, err)
+	if err := json.Unmarshal(record.Value, &result.Value); err != nil {
+		return stackValue[T]{}, fmt.Errorf("could not parse the %s: %s", noun, err)
 	}
 
-	result.Operation = operation
 	return result, nil
+}
+
+func stackValueRead[T any](client stackClient, key string, noun string) (stackValue[T], error) {
+	record, found, err := shared.RpcGrantStateRead(client, key)
+	if err != nil {
+		return stackValue[T]{}, err
+	}
+
+	if !found {
+		return stackValue[T]{}, nil
+	}
+
+	return stackValueDecode[T](record, noun)
+}
+
+func stackNodeKey(nodeName string) string {
+	return fmt.Sprintf("%s%s", stackKeyPrefix, nodeName)
+}
+
+func stackRead(client stackClient, key string) (stackRecord, error) {
+	return stackValueRead[Operation](client, key, "maintenance record "+key)
 }
 
 func stackList(client stackClient, prefix string) ([]ucxapi.StackStateRecord, error) {

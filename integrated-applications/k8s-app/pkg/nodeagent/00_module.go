@@ -175,14 +175,14 @@ func Serve(ctx context.Context) error {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/status", handleStatus)
-	mux.HandleFunc("/upgrade", handleUpgrade)
-	mux.HandleFunc("/retry", handleRetry)
-	mux.HandleFunc("/backup", handleBackup)
-	mux.HandleFunc("/os/status", handleOsStatus)
-	mux.HandleFunc("/os/update", handleOsUpdate)
-	mux.HandleFunc("/log", handleLog)
-	mux.HandleFunc("/log/reset", handleLogReset)
+	mux.HandleFunc("/status", requirePeer(http.MethodGet, handleStatus))
+	mux.HandleFunc("/upgrade", requirePeer(http.MethodPost, handleUpgrade))
+	mux.HandleFunc("/retry", requirePeer(http.MethodPost, handleRetry))
+	mux.HandleFunc("/backup", requirePeer(http.MethodPost, handleBackup))
+	mux.HandleFunc("/os/status", requirePeer(http.MethodGet, handleOsStatus))
+	mux.HandleFunc("/os/update", requirePeer(http.MethodPost, handleOsUpdate))
+	mux.HandleFunc("/log", requirePeer(http.MethodPost, handleLog))
+	mux.HandleFunc("/log/reset", requirePeer(http.MethodPost, handleLogReset))
 
 	server := &http.Server{
 		Addr:              net.JoinHostPort(identityConfig.IpAddress, fmt.Sprintf("%d", shared.NodeAgentPort)),
@@ -337,6 +337,23 @@ func maintenanceTokenPath() string {
 // =====================================================================================================================
 // Every request must carry the maintenance token in its header. The agent compares the token in constant time. A
 // missing token and a wrong token have different status codes. Both stop the request.
+
+func requirePeer(method string, next func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		if !authorizePeer(writer, request) {
+			return
+		}
+		if request.Method != method {
+			message := "this endpoint only accepts POST"
+			if method == http.MethodGet {
+				message = "method not allowed"
+			}
+			writeError(writer, http.StatusMethodNotAllowed, message)
+			return
+		}
+		next(writer, request)
+	}
+}
 
 func authorizePeer(writer http.ResponseWriter, request *http.Request) bool {
 	token := strings.TrimSpace(request.Header.Get(shared.NodeAgentTokenHeader))

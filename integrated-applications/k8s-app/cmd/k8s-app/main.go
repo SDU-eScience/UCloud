@@ -20,6 +20,15 @@ import (
 
 var dashboardMarker = filepath.Join(shared.ManagementMountPath, filepath.Base(shared.KubeconfigTemplatePath))
 
+func dashboardAvailable() bool {
+	if os.Getenv("UCX_PORT") == "" {
+		return false
+	}
+
+	_, err := os.Stat(dashboardMarker)
+	return err == nil
+}
+
 func main() {
 	if len(os.Args) >= 2 && os.Args[1] == "agent" {
 		if os.Geteuid() != 0 {
@@ -60,22 +69,18 @@ func main() {
 		return
 	}
 
-	if os.Getenv("UCX_PORT") != "" {
-		if _, err := os.Stat(dashboardMarker); err == nil {
-			go maintenance.Run(context.Background(), dashboard.LocalKubeconfigPath())
-			ucx.AppServe(launch, port)
-			return
-		}
+	if dashboardAvailable() {
+		go maintenance.Run(context.Background(), dashboard.LocalKubeconfigPath())
+		ucx.AppServe(launch, port)
+		return
 	}
 
 	ucx.AppServe(launch, port)
 }
 
 func launch() ucx.Application {
-	if os.Getenv("UCX_PORT") != "" {
-		if _, err := os.Stat(dashboardMarker); err == nil {
-			return dashboard.App()
-		}
+	if dashboardAvailable() {
+		return dashboard.App()
 	}
 
 	return creator.App()

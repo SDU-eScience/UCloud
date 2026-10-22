@@ -92,20 +92,13 @@ type StagedRelease struct {
 }
 
 type upgradeState struct {
-	SchemaRevision  int       `json:"schemaRevision"`
-	OperationUid    string    `json:"operationUid,omitempty"`
-	NodeName        string    `json:"nodeName"`
-	IpAddress       string    `json:"ipAddress"`
-	Role            string    `json:"role"`
-	Release         string    `json:"release"`
-	PreviousRelease string    `json:"previousRelease"`
-	Phase           string    `json:"phase"`
-	Error           string    `json:"error"`
-	NeedsRecovery   bool      `json:"needsRecovery"`
-	UpdatedAt       time.Time `json:"updatedAt"`
-
-	StateError         string `json:"stateError,omitempty"`
-	NeedsStateRecovery bool   `json:"needsStateRecovery,omitempty"`
+	nodeState
+	OperationUid    string `json:"operationUid,omitempty"`
+	NodeName        string `json:"nodeName"`
+	IpAddress       string `json:"ipAddress"`
+	Role            string `json:"role"`
+	Release         string `json:"release"`
+	PreviousRelease string `json:"previousRelease"`
 }
 
 // Durable writes
@@ -247,15 +240,17 @@ func runUpgrade(release string, previousState upgradeState) {
 	}
 
 	err := stateStore(&upgradeState{
-		SchemaRevision:  stateSchemaRevision,
+		nodeState: nodeState{
+			SchemaRevision: stateSchemaRevision,
+			Phase:          shared.NodeAgentPhaseDownloading,
+			UpdatedAt:      time.Now().UTC(),
+		},
 		OperationUid:    stateLoad().OperationUid,
 		NodeName:        identityConfig.NodeName,
 		IpAddress:       identityConfig.IpAddress,
 		Role:            identityConfig.Role,
 		Release:         release,
 		PreviousRelease: previousRelease,
-		Phase:           shared.NodeAgentPhaseDownloading,
-		UpdatedAt:       time.Now().UTC(),
 	})
 	if err != nil {
 		finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not persist the upgrade state: %s", err))
@@ -394,52 +389,13 @@ func stateLoad() upgradeState {
 }
 
 func stateRead() upgradeState {
-	data, err := os.ReadFile(statePath())
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return upgradeState{}
-		}
-		return upgradeState{
-			SchemaRevision:     stateSchemaRevision,
-			Phase:              shared.NodeAgentPhaseFailed,
-			Error:              fmt.Sprintf("could not read the upgrade state: %s", err),
-			NeedsRecovery:      true,
-			StateError:         fmt.Sprintf("could not read the upgrade state: %s", err),
-			NeedsStateRecovery: true,
-		}
-	}
-
-	var state upgradeState
-	err = json.Unmarshal(data, &state)
-	if err != nil {
-		return upgradeState{
-			SchemaRevision:     stateSchemaRevision,
-			Phase:              shared.NodeAgentPhaseFailed,
-			Error:              fmt.Sprintf("could not parse the upgrade state: %s", err),
-			NeedsRecovery:      true,
-			StateError:         fmt.Sprintf("could not parse the upgrade state: %s", err),
-			NeedsStateRecovery: true,
-		}
-	}
-
-	if state.SchemaRevision != stateSchemaRevision {
-		state.StateError = "the upgrade state was written by an incompatible version of the application"
-		state.Phase = shared.NodeAgentPhaseFailed
-		state.Error = state.StateError
-		state.NeedsRecovery = true
-		state.NeedsStateRecovery = true
-	}
-
-	return state
+	return nodeStateRead(statePath(), "upgrade", stateSchemaRevision, shared.NodeAgentPhaseFailed, func(state *upgradeState) *nodeState {
+		return &state.nodeState
+	})
 }
 
 func stateStore(state *upgradeState) error {
-	data, err := json.MarshalIndent(state, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return writeFileAtomic(statePath(), data, 0600)
+	return nodeStateStore(statePath(), state)
 }
 
 func statePath() string {
@@ -459,11 +415,7 @@ func setPhase(phase string) bool {
 		return false
 	}
 
-	state.Phase = phase
-	state.Error = ""
-	state.UpdatedAt = time.Now().UTC()
-
-	err := stateStore(&state)
+	err := nodeStateSetPhase(statePath(), &state, &state.nodeState, phase, nil)
 	if err != nil {
 		log.Warn("k8s-app node agent: could not persist the phase %s: %s", phase, err)
 		return false
@@ -473,15 +425,17 @@ func setPhase(phase string) bool {
 
 func markVerifying(identityConfig Config, release string, previousRelease string) bool {
 	err := stateStore(&upgradeState{
-		SchemaRevision:  stateSchemaRevision,
+		nodeState: nodeState{
+			SchemaRevision: stateSchemaRevision,
+			Phase:          shared.NodeAgentPhaseVerifying,
+			UpdatedAt:      time.Now().UTC(),
+		},
 		OperationUid:    stateLoad().OperationUid,
 		NodeName:        identityConfig.NodeName,
 		IpAddress:       identityConfig.IpAddress,
 		Role:            identityConfig.Role,
 		Release:         release,
 		PreviousRelease: previousRelease,
-		Phase:           shared.NodeAgentPhaseVerifying,
-		UpdatedAt:       time.Now().UTC(),
 	})
 	if err != nil {
 		log.Warn("k8s-app node agent: could not persist the phase verifying: %s", err)
@@ -492,15 +446,17 @@ func markVerifying(identityConfig Config, release string, previousRelease string
 
 func storeCompleted(identityConfig Config, release string, previousRelease string) error {
 	return stateStore(&upgradeState{
-		SchemaRevision:  stateSchemaRevision,
+		nodeState: nodeState{
+			SchemaRevision: stateSchemaRevision,
+			Phase:          shared.NodeAgentPhaseCompleted,
+			UpdatedAt:      time.Now().UTC(),
+		},
 		OperationUid:    stateLoad().OperationUid,
 		NodeName:        identityConfig.NodeName,
 		IpAddress:       identityConfig.IpAddress,
 		Role:            identityConfig.Role,
 		Release:         release,
 		PreviousRelease: previousRelease,
-		Phase:           shared.NodeAgentPhaseCompleted,
-		UpdatedAt:       time.Now().UTC(),
 	})
 }
 
@@ -512,17 +468,19 @@ func finishFailure(release string, previousState upgradeState, observedRelease s
 	identityConfig := identitySnapshot()
 
 	state := upgradeState{
-		SchemaRevision:  stateSchemaRevision,
+		nodeState: nodeState{
+			SchemaRevision: stateSchemaRevision,
+			Phase:          shared.NodeAgentPhaseFailed,
+			Error:          message,
+			NeedsRecovery:  true,
+			UpdatedAt:      time.Now().UTC(),
+		},
 		OperationUid:    stateLoad().OperationUid,
 		NodeName:        identityConfig.NodeName,
 		IpAddress:       identityConfig.IpAddress,
 		Role:            identityConfig.Role,
 		Release:         release,
 		PreviousRelease: observedRelease,
-		Phase:           shared.NodeAgentPhaseFailed,
-		Error:           message,
-		NeedsRecovery:   true,
-		UpdatedAt:       time.Now().UTC(),
 	}
 
 	if state.NodeName == "" {
@@ -554,21 +512,13 @@ func statusFromState(identityConfig Config) (shared.NodeAgentStatus, error) {
 			UpdatedAt:    state.UpdatedAt,
 		}, nil
 	}
-	if state.Phase == "" {
-		state.Phase = shared.NodeAgentPhaseIdle
-	}
-	if state.NodeName == "" && identityConfig.NodeName != "" {
-		state.NodeName = identityConfig.NodeName
-		state.IpAddress = identityConfig.IpAddress
-		state.Role = identityConfig.Role
-	}
 
 	return shared.NodeAgentStatus{
 		Progress:     progressLoad(),
 		OperationUid: state.OperationUid,
-		NodeName:     state.NodeName,
+		NodeName:     nodeStateDefaultNodeName(state.NodeName, identityConfig),
 		Release:      state.Release,
-		Phase:        state.Phase,
+		Phase:        nodeStateDefaultPhase(state.Phase, shared.NodeAgentPhaseIdle),
 		Error:        state.Error,
 		UpdatedAt:    state.UpdatedAt,
 	}, nil
@@ -581,16 +531,13 @@ func recoverInterrupted() {
 	}
 
 	interruptedPhase := state.Phase
-	state.Phase = shared.NodeAgentPhaseFailed
-	state.Error = fmt.Sprintf(
+	message := fmt.Sprintf(
 		"the upgrade to %s was interrupted at phase %s. Recovery is required",
 		state.Release,
 		interruptedPhase,
 	)
-	state.NeedsRecovery = true
-	state.UpdatedAt = time.Now().UTC()
 
-	err := stateStore(&state)
+	err := nodeStateFail(statePath(), &state, &state.nodeState, shared.NodeAgentPhaseFailed, message)
 	if err != nil {
 		log.Warn("k8s-app node agent: could not persist the interrupted upgrade state: %s", err)
 		return

@@ -114,7 +114,7 @@ func autoUpgradeScheduleGate(client stackClient, now time.Time) (autoScheduleGat
 	if err != nil {
 		return autoScheduleGate{}, err
 	}
-	policy := AutoPolicyNormalize(policyRecord.Policy)
+	policy := AutoPolicyNormalize(policyRecord.Value)
 	if !policyRecord.Found || !policy.K8s.Enabled || !AutoScheduleOpen(now, policy) {
 		return autoScheduleGate{}, nil
 	}
@@ -469,18 +469,18 @@ func autoUpgradeBackupGate(
 	}
 
 	fresh := stateRecord.Found &&
-		stateRecord.State.LastSuccess.Phase == backup.AttemptSuccess &&
-		!stateRecord.State.LastSuccess.FinishedAt.IsZero() &&
-		now.Sub(stateRecord.State.LastSuccess.FinishedAt) <= maxAge
+		stateRecord.Value.LastSuccess.Phase == backup.AttemptSuccess &&
+		!stateRecord.Value.LastSuccess.FinishedAt.IsZero() &&
+		now.Sub(stateRecord.Value.LastSuccess.FinishedAt) <= maxAge
 	if fresh {
 		check.Detail = fmt.Sprintf(
 			"The last successful backup is %s old.",
-			autoDurationLabel(now.Sub(stateRecord.State.LastSuccess.FinishedAt)),
+			autoDurationLabel(now.Sub(stateRecord.Value.LastSuccess.FinishedAt)),
 		)
 		return check, autoOutcomeProceed, nil
 	}
 
-	if stateRecord.Found && stateRecord.State.ClaimUid != "" && now.Before(stateRecord.State.ClaimDeadline) {
+	if stateRecord.Found && stateRecord.Value.ClaimUid != "" && now.Before(stateRecord.Value.ClaimDeadline) {
 		check.Ok = false
 		check.Detail = "Waiting for a running backup to finish."
 		return check, autoOutcomeWait, nil
@@ -491,7 +491,7 @@ func autoUpgradeBackupGate(
 		return check, autoOutcomeProceed, err
 	}
 
-	request := requestRecord.Request
+	request := requestRecord.Value
 	if requestRecord.Found && request.Uid != "" {
 		if request.Phase == backup.RequestPending || request.Phase == backup.RequestRunning {
 			check.Ok = false
@@ -511,7 +511,7 @@ func autoUpgradeBackupGate(
 
 	newRequest := backup.Request{
 		SchemaRevision: backup.SchemaRevision,
-		Uid:            newOperationUid(),
+		Uid:            shared.NewUid(),
 		Requester:      autoBackupRequester,
 		RequestedAt:    now.UTC(),
 		Phase:          backup.RequestPending,
@@ -538,7 +538,7 @@ type autoRunWrite struct {
 }
 
 func autoRunPersist(write *autoRunWrite, mutate func(state *AutoState)) (autoStateRecord, error) {
-	state := write.state.State
+	state := write.state.Value
 	if write.claimUid != "" && state.ClaimUid != write.claimUid {
 		return write.state, errAutoRunSuperseded
 	}
@@ -558,12 +558,12 @@ func autoRunPersist(write *autoRunWrite, mutate func(state *AutoState)) (autoSta
 	if err != nil {
 		return write.state, err
 	}
-	write.state = autoStateRecord{Found: true, State: state, Revision: revision}
+	write.state = autoStateRecord{Found: true, Value: state, Revision: revision}
 	return write.state, nil
 }
 
 func autoRunWaiting(write *autoRunWrite, phase string, checks []AutoCheck, target string) (autoStateRecord, error) {
-	run := write.state.State.LastRun
+	run := write.state.Value.LastRun
 	if run.Phase == phase && autoChecksEqual(run.Checks, checks) && (target == "" || run.TargetRelease == target) {
 		return write.state, nil
 	}
@@ -588,7 +588,7 @@ func autoRunWaitingOrBlocked(
 	target string,
 	detail string,
 ) (autoStateRecord, error) {
-	if autoUpgradeRunWaitedTooLong(write.state.State.LastRun, write.now) {
+	if autoUpgradeRunWaitedTooLong(write.state.Value.LastRun, write.now) {
 		message := detail
 		if message == "" {
 			message = "The run could not proceed."
@@ -639,7 +639,7 @@ func autoRunTerminal(
 }
 
 func autoRunAdvance(write *autoRunWrite, ctx context.Context, kubeconfigPath string, record shared.ClusterRecord) error {
-	run := write.state.State.LastRun
+	run := write.state.Value.LastRun
 	if run.Channel == AutoChannelOs {
 		return autoOsAdvance(write, ctx, kubeconfigPath, record)
 	}
@@ -662,7 +662,7 @@ func autoRunAdvance(write *autoRunWrite, ctx context.Context, kubeconfigPath str
 	}
 	if run.Uid == "" {
 		if _, err = autoRunPersist(write, func(state *AutoState) {
-			state.LastRun.Uid = newOperationUid()
+			state.LastRun.Uid = shared.NewUid()
 		}); err != nil {
 			return err
 		}
@@ -681,7 +681,7 @@ func autoRunStart(
 ) error {
 	_, err := autoRunPersist(write, func(state *AutoState) {
 		state.LastRun = AutoRun{
-			Uid:          newOperationUid(),
+			Uid:          shared.NewUid(),
 			Channel:      AutoChannelK8s,
 			Trigger:      trigger,
 			Phase:        AutoPhasePending,
@@ -738,7 +738,7 @@ func autoRunPrepare(write *autoRunWrite, ctx context.Context, kubeconfigPath str
 	backupCheck, backupOutcome, err := autoUpgradeBackupGate(
 		write.client,
 		write.policy.K8s.MaxBackupAge,
-		write.state.State.LastRun.StartedAt,
+		write.state.Value.LastRun.StartedAt,
 		write.now,
 	)
 	if err != nil {
@@ -762,13 +762,13 @@ func autoRunPrepare(write *autoRunWrite, ctx context.Context, kubeconfigPath str
 		target,
 		autoUpgradeGroups(record),
 		rollingUpgradeStartOptions{
-			trigger:    write.state.State.LastRun.Trigger,
-			autoRunUid: write.state.State.LastRun.Uid,
+			trigger:    write.state.Value.LastRun.Trigger,
+			autoRunUid: write.state.Value.LastRun.Uid,
 			conditions: []ucxapi.StackStateRevisionCondition{{
 				Key:              AutoStateKey,
 				ExpectedRevision: write.state.Revision,
 			}},
-			validUntil: util.OptValue(write.state.State.ClaimDeadline.UnixMilli()),
+			validUntil: util.OptValue(write.state.Value.ClaimDeadline.UnixMilli()),
 		},
 	)
 	if errors.Is(startErr, errAutoSchedulePaused) {
@@ -776,7 +776,7 @@ func autoRunPrepare(write *autoRunWrite, ctx context.Context, kubeconfigPath str
 	}
 	if startErr != nil {
 		rolling, _, readErr := rollingUpgradeRead(write.client)
-		if readErr == nil && rolling.AutoRunUid == write.state.State.LastRun.Uid {
+		if readErr == nil && rolling.AutoRunUid == write.state.Value.LastRun.Uid {
 			_, err = autoRunWaiting(write, AutoPhaseRunning, checks, target)
 			return err
 		}
@@ -796,7 +796,7 @@ func autoRunWatch(write *autoRunWrite) error {
 		return err
 	}
 
-	run := write.state.State.LastRun
+	run := write.state.Value.LastRun
 
 	if upgrade.Uid == "" {
 		_, err = autoRunTerminal(
@@ -877,7 +877,7 @@ func autoUpgradeSweep(ctx context.Context, kubeconfigPath string, client stackCl
 	if !policyRecord.Found {
 		return nil
 	}
-	policy := AutoPolicyNormalize(policyRecord.Policy)
+	policy := AutoPolicyNormalize(policyRecord.Value)
 
 	stateRecord, err := autoStateRead(client)
 	if err != nil {
@@ -885,17 +885,17 @@ func autoUpgradeSweep(ctx context.Context, kubeconfigPath string, client stackCl
 	}
 
 	now := time.Now().UTC()
-	if autoStateClaimActive(stateRecord.State, now) {
+	if autoStateClaimActive(stateRecord.Value, now) {
 		return nil
 	}
 
-	run := stateRecord.State.LastRun
+	run := stateRecord.Value.LastRun
 	active := AutoRunActive(run)
-	resumed := AutoStateResumed(stateRecord.State)
+	resumed := AutoStateResumed(stateRecord.Value)
 	windowStart, windowEnd, _ := autoPolicyWindowOpenNow(now, policy)
 
 	if !active {
-		if AutoStateBlocked(stateRecord.State) || !AutoScheduleOpen(now, policy) {
+		if AutoStateBlocked(stateRecord.Value) || !AutoScheduleOpen(now, policy) {
 			return nil
 		}
 		if !autoChannelStartAllowed(run, policy, windowStart, resumed) {
@@ -930,7 +930,7 @@ func autoUpgradeSweep(ctx context.Context, kubeconfigPath string, client stackCl
 		}
 	}
 
-	claimUid := newOperationUid()
+	claimUid := shared.NewUid()
 	stateRecord, err = autoStateClaim(client, stateRecord, claimUid, now)
 	if err != nil {
 		if shared.IsConflict(err) {
@@ -970,32 +970,6 @@ func autoUpgradeReleaseClaim(client stackClient, claimUid string) {
 	}
 }
 
-func autoUpgradeRun(ctx context.Context, kubeconfigPath string) {
-	ticker := time.NewTicker(runInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			autoUpgradeSweepOnce(ctx, kubeconfigPath)
-		case <-autoMaintenanceWake:
-			autoUpgradeSweepOnce(ctx, kubeconfigPath)
-		}
-	}
-}
-
-func autoUpgradeSweepOnce(ctx context.Context, kubeconfigPath string) {
-	client, err := stackClientNew()
-	if err == nil {
-		err = autoUpgradeSweep(ctx, kubeconfigPath, client)
-	}
-	if err != nil && !shared.IsConflict(err) && !errors.Is(err, errAutoRunSuperseded) && ctx.Err() == nil {
-		log.Warn("k8s-app automatic maintenance: %s", err)
-	}
-}
-
 func AutoStopRun() error {
 	client, err := stackClientNew()
 	if err != nil {
@@ -1007,7 +981,7 @@ func AutoStopRun() error {
 		return err
 	}
 
-	run := record.State.LastRun
+	run := record.Value.LastRun
 	if !AutoRunActive(run) || run.Phase == AutoPhaseRunning {
 		return errors.New("no waiting automatic run can be stopped")
 	}
@@ -1027,7 +1001,7 @@ func AutoStopRun() error {
 		})
 	}
 
-	state := record.State
+	state := record.Value
 	state.SchemaRevision = AutoSchemaRevision
 	state.LastRun.Phase = AutoPhaseBlocked
 	state.LastRun.Error = "Stopped by the cluster owner. Press Resume automatic maintenance to let the schedule start a new run."
@@ -1062,10 +1036,10 @@ func AutoResume() error {
 		if err != nil {
 			return err
 		}
-		if !AutoStateBlocked(record.State) {
+		if !AutoStateBlocked(record.Value) {
 			return nil
 		}
-		state := record.State
+		state := record.Value
 		state.SchemaRevision = AutoSchemaRevision
 		state.ResumedAt = time.Now().UTC()
 		_, err = autoStateWrite(client, state, record.Revision)

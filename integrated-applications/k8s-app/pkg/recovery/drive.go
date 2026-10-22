@@ -20,19 +20,9 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"ucloud.dk/shared/pkg/ucx"
-
 	"ucloud.dk/iapp/k8s/pkg/backup"
 	"ucloud.dk/iapp/k8s/pkg/shared"
 )
-
-func recoveryClient(session *ucx.Session, stackId string) (shared.ClusterStateClient, error) {
-	client, err := shared.ClusterStateClientNewSession(session, stackId)
-	if err != nil {
-		return shared.ClusterStateClient{}, err
-	}
-	return client, nil
-}
 
 func recoveryReadCluster(client shared.ClusterStateClient) (shared.ClusterRecord, error) {
 	snapshot, err := shared.ClusterStateRead(client)

@@ -1,10 +1,12 @@
 package recovery
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -36,17 +38,11 @@ type app struct {
 	Message      string `ucx:"-"`
 	MessageError bool   `ucx:"-"`
 
-	ClusterFound bool                 `ucx:"-"`
-	Cluster      shared.ClusterRecord `ucx:"-"`
+	recoveryLoadResult `ucx:"-"`
 
-	RecoveryFound    bool                         `ucx:"-"`
-	RecoveryRevision int64                        `ucx:"-"`
-	Recovery         shared.ClusterRecoveryRecord `ucx:"-"`
-
-	Backups          []backupEntry `ucx:"-"`
-	SelectedBackupId string        `ucx:"-"`
-	BackToSelect     bool          `ucx:"-"`
-	ReviewBackup     bool          `ucx:"-"`
+	SelectedBackupId string `ucx:"-"`
+	BackToSelect     bool   `ucx:"-"`
+	ReviewBackup     bool   `ucx:"-"`
 
 	CredentialsChecked bool `ucx:"-"`
 	CredentialsOk      bool `ucx:"-"`
@@ -205,23 +201,14 @@ func recoveryLoad(session *ucx.Session, stackId string, mountPath string) recove
 }
 
 func (app *app) applyLoad(load recoveryLoadResult) {
-	if load.Backups != nil {
-		app.Backups = load.Backups
+	if load.Backups == nil {
+		load.Backups = app.Backups
+	}
+	if !load.ClusterFound {
+		load.Cluster = app.Cluster
 	}
 
-	app.ClusterFound = load.ClusterFound
-	if load.ClusterFound {
-		app.Cluster = load.Cluster
-	}
-
-	app.RecoveryFound = load.RecoveryFound
-	if load.RecoveryFound {
-		app.Recovery = load.Recovery
-		app.RecoveryRevision = load.RecoveryRevision
-	} else {
-		app.Recovery = shared.ClusterRecoveryRecord{}
-		app.RecoveryRevision = 0
-	}
+	app.recoveryLoadResult = load
 
 	app.recomputeSelection()
 	if app.RecoveryFound && app.Recovery.Phase == shared.ClusterRecoveryPhaseActive {
@@ -287,7 +274,19 @@ func (app *app) currentStage() string {
 
 const recoveryWizardId = "recoveryWizard"
 
-const recoveryStageCount = 4
+var recoveryStages = []struct {
+	Key   string
+	Label string
+}{
+	{shared.ClusterRecoveryStageStop, "Select backup"},
+	{shared.ClusterRecoveryStageRecreate, "Review recovery"},
+	{shared.ClusterRecoveryStageRestore, "Restore cluster"},
+	{shared.ClusterRecoveryStageVerify, "Verification"},
+}
+
+func recoveryStageCount() int64 {
+	return int64(len(recoveryStages))
+}
 
 func (app *app) UserInterface() ucx.UiNode {
 	top := []ucx.UiNode{}
@@ -358,36 +357,22 @@ func (app *app) displayedStage() string {
 }
 
 func recoveryStageIndex(stage string) int64 {
-	switch stage {
-	case shared.ClusterRecoveryStageRecreate:
-		return 1
-	case shared.ClusterRecoveryStageRestore:
-		return 2
-	case shared.ClusterRecoveryStageVerify:
-		return 3
-	default:
-		return 0
+	for index, entry := range recoveryStages {
+		if entry.Key == stage {
+			return int64(index)
+		}
 	}
+	return 0
 }
 
 func (app *app) stageHeader() ucx.UiNode {
-	steps := []struct {
-		key   string
-		label string
-	}{
-		{shared.ClusterRecoveryStageStop, "Select backup"},
-		{shared.ClusterRecoveryStageRecreate, "Review recovery"},
-		{shared.ClusterRecoveryStageRestore, "Restore cluster"},
-		{shared.ClusterRecoveryStageVerify, "Verification"},
-	}
-
 	current := app.displayedStage()
 
 	nodes := []ucx.UiNode{}
-	for index, step := range steps {
-		label := fmt.Sprintf("%d. %s", index+1, step.label)
+	for index, stage := range recoveryStages {
+		label := fmt.Sprintf("%d. %s", index+1, stage.Label)
 		text := ucx.Text(label)
-		if step.key == current {
+		if stage.Key == current {
 			text = text.Sx(ucx.SxColor(ucx.ColorPrimaryMain), ucx.SxFontWeight("600"))
 		} else {
 			text = text.Sx(ucx.SxColor(ucx.ColorTextSecondary))
@@ -462,7 +447,7 @@ func (app *app) stageStopSelect() []ucx.UiNode {
 		}
 	}
 
-	wizard := ucx.TutorialWizard(recoveryWizardId, recoveryStageIndex(shared.ClusterRecoveryStageStop), recoveryStageCount).
+	wizard := ucx.TutorialWizard(recoveryWizardId, recoveryStageIndex(shared.ClusterRecoveryStageStop), recoveryStageCount()).
 		NextLabel("Review recovery").
 		NextBusy("busy").
 		NextDisabledWhen("busy").
@@ -523,7 +508,7 @@ func (app *app) stageRecreate() []ucx.UiNode {
 		content = append(content, progressLine(app.Progress))
 	}
 
-	wizard := ucx.TutorialWizard(recoveryWizardId, recoveryStageIndex(shared.ClusterRecoveryStageRecreate), recoveryStageCount).
+	wizard := ucx.TutorialWizard(recoveryWizardId, recoveryStageIndex(shared.ClusterRecoveryStageRecreate), recoveryStageCount()).
 		ShowPrevious(canChange).
 		PreviousLabel("Change backup").
 		OnPrevious(func(ev ucx.UiEvent) {
@@ -682,7 +667,7 @@ func (app *app) stageRestore() []ucx.UiNode {
 		)
 	}
 
-	wizard := ucx.TutorialWizard(recoveryWizardId, recoveryStageIndex(shared.ClusterRecoveryStageRestore), recoveryStageCount).
+	wizard := ucx.TutorialWizard(recoveryWizardId, recoveryStageIndex(shared.ClusterRecoveryStageRestore), recoveryStageCount()).
 		ShowNext(false)
 
 	return []ucx.UiNode{wizard.Children(content...)}
@@ -731,7 +716,7 @@ func (app *app) stageVerify() []ucx.UiNode {
 			}),
 	))
 
-	wizard := ucx.TutorialWizard(recoveryWizardId, recoveryStageIndex(shared.ClusterRecoveryStageVerify), recoveryStageCount).
+	wizard := ucx.TutorialWizard(recoveryWizardId, recoveryStageIndex(shared.ClusterRecoveryStageVerify), recoveryStageCount()).
 		NextLabel("Close recovery").
 		NextBusy("busy").
 		NextDisabledWhen("busy").
@@ -776,19 +761,10 @@ func progressLine(text string) ucx.UiNode {
 }
 
 func controlPlaneNodes(record shared.ClusterRecord) []shared.ClusterNodeRecord {
-	result := []shared.ClusterNodeRecord{}
-	for _, node := range record.Nodes {
-		if node.Group == shared.GroupControlPlane {
-			result = append(result, node)
-		}
-	}
-	for i := 0; i < len(result); i++ {
-		for j := i + 1; j < len(result); j++ {
-			if result[j].AllocationId < result[i].AllocationId {
-				result[i], result[j] = result[j], result[i]
-			}
-		}
-	}
+	result := shared.NodesInGroup(record, shared.GroupControlPlane)
+	slices.SortFunc(result, func(a, b shared.ClusterNodeRecord) int {
+		return cmp.Compare(a.AllocationId, b.AllocationId)
+	})
 	return result
 }
 

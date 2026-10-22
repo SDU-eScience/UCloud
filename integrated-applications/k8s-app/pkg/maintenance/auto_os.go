@@ -15,7 +15,6 @@ import (
 
 	"ucloud.dk/iapp/k8s/pkg/backup"
 	"ucloud.dk/iapp/k8s/pkg/shared"
-	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
 )
 
@@ -36,7 +35,7 @@ func autoOsScheduleGate(client stackClient, now time.Time) (autoScheduleGate, er
 	if err != nil {
 		return autoScheduleGate{}, err
 	}
-	policy := AutoPolicyNormalize(policyRecord.Policy)
+	policy := AutoPolicyNormalize(policyRecord.Value)
 	if !policyRecord.Found || !policy.Os.Enabled || !AutoScheduleOpen(now, policy) {
 		return autoScheduleGate{}, nil
 	}
@@ -91,7 +90,7 @@ func autoOsCheckNodes(ctx context.Context, nodes []shared.ClusterNodeRecord) []a
 				node.Hostname,
 				node.IpAddress,
 				shared.NodeAgentOsRequest{Command: shared.NodeAgentOsCommandCheck},
-				newOperationUid(),
+				shared.NewUid(),
 			)
 			results[index] = autoOsCheckResult{node: node, status: status, err: err}
 		}(i)
@@ -226,7 +225,7 @@ func autoOsCheckSweep(ctx context.Context, client stackClient) error {
 	if !policyRecord.Found {
 		return nil
 	}
-	policy := policyRecord.Policy
+	policy := policyRecord.Value
 
 	stateRecord, err := autoStateRead(client)
 	if err != nil {
@@ -237,20 +236,20 @@ func autoOsCheckSweep(ctx context.Context, client stackClient) error {
 	}
 
 	now := time.Now().UTC()
-	if autoStateClaimActive(stateRecord.State, now) {
+	if autoStateClaimActive(stateRecord.Value, now) {
 		return nil
 	}
-	if AutoRunActive(stateRecord.State.LastRun) {
+	if AutoRunActive(stateRecord.Value.LastRun) {
 		// The run refreshes the reports it needs. The periodic check does not compete with it.
 		return nil
 	}
 
-	due := autoOsCheckDueNodes(record, stateRecord.State, policy, now)
+	due := autoOsCheckDueNodes(record, stateRecord.Value, policy, now)
 	if len(due) == 0 {
 		return nil
 	}
 
-	claimUid := newOperationUid()
+	claimUid := shared.NewUid()
 	stateRecord, err = autoStateClaim(client, stateRecord, claimUid, now)
 	if err != nil {
 		if shared.IsConflict(err) {
@@ -274,26 +273,6 @@ func autoOsCheckSweep(ctx context.Context, client stackClient) error {
 		state.OsReports = autoOsReportsMerge(state.OsReports, autoOsNodeNames(record), results, time.Now().UTC())
 	})
 	return err
-}
-
-func autoOsCheckRun(ctx context.Context) {
-	ticker := time.NewTicker(runInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			client, err := stackClientNew()
-			if err == nil {
-				err = autoOsCheckSweep(ctx, client)
-			}
-			if err != nil && !shared.IsConflict(err) && !errors.Is(err, errAutoRunSuperseded) && ctx.Err() == nil {
-				log.Warn("k8s-app automatic maintenance: the operating-system update check failed: %s", err)
-			}
-		}
-	}
 }
 
 func AutoOsRecoveryNodes() ([]string, error) {
@@ -335,8 +314,8 @@ func AutoRetryOsUpdate(ctx context.Context, kubeconfigPath string, nodeName stri
 	if err != nil {
 		return err
 	}
-	if !operationRecord.Found || !KindIsOsUpdate(operationRecord.Operation.Kind) ||
-		!operationBlockedByRecovery(operationRecord.Operation) {
+	if !operationRecord.Found || !KindIsOsUpdate(operationRecord.Value.Kind) ||
+		!operationBlockedByRecovery(operationRecord.Value) {
 		return errors.New("no failed operating-system update is waiting on " + nodeName)
 	}
 
@@ -352,8 +331,8 @@ func AutoRetryOsUpdate(ctx context.Context, kubeconfigPath string, nodeName stri
 
 	runUid := ""
 	stateRecord, stateErr := autoStateRead(client)
-	if stateErr == nil && AutoStateBlocked(stateRecord.State) {
-		runUid = stateRecord.State.LastRun.Uid
+	if stateErr == nil && AutoStateBlocked(stateRecord.Value) {
+		runUid = stateRecord.Value.LastRun.Uid
 	}
 
 	return OsUpdateStart(nodeName, string(nodeObject.UID), Options{TimeoutSeconds: autoOsOperationTimeoutSecs}, runUid)
@@ -366,7 +345,7 @@ func AutoRetryOsUpdate(ctx context.Context, kubeconfigPath string, nodeName stri
 // control planes first, and the next node starts only after the previous node is verified healthy.
 
 func autoOsStart(write *autoRunWrite, ctx context.Context, kubeconfigPath string, record shared.ClusterRecord, windowStart time.Time, windowEnd time.Time) error {
-	previous := write.state.State.LastRun
+	previous := write.state.Value.LastRun
 	inherited := AutoRun{}
 	if previous.Channel != AutoChannelOs && previous.Phase == AutoPhaseCompleted &&
 		!previous.WindowStart.IsZero() && previous.WindowStart.Equal(windowStart.UTC()) {
@@ -383,7 +362,7 @@ func autoOsStart(write *autoRunWrite, ctx context.Context, kubeconfigPath string
 
 	_, err := autoRunPersist(write, func(state *AutoState) {
 		state.LastRun = AutoRun{
-			Uid:            newOperationUid(),
+			Uid:            shared.NewUid(),
 			Channel:        AutoChannelOs,
 			Trigger:        AutoTriggerWindow,
 			Phase:          AutoPhasePending,
@@ -404,7 +383,7 @@ func autoOsStart(write *autoRunWrite, ctx context.Context, kubeconfigPath string
 }
 
 func autoOsAdvance(write *autoRunWrite, ctx context.Context, kubeconfigPath string, record shared.ClusterRecord) error {
-	run := write.state.State.LastRun
+	run := write.state.Value.LastRun
 
 	snapshot, err := Snapshot()
 	if err != nil {
@@ -447,7 +426,7 @@ func autoOsConcludeNode(
 	record shared.ClusterRecord,
 	operation Operation,
 ) error {
-	run := write.state.State.LastRun
+	run := write.state.Value.LastRun
 
 	if operation.Phase == PhaseCompleted {
 		node, known := upgradeNodeRecord(record, operation.NodeName)
@@ -483,7 +462,7 @@ func autoOsConcludeNode(
 }
 
 func autoOsPrepare(write *autoRunWrite, ctx context.Context, kubeconfigPath string, record shared.ClusterRecord) error {
-	run := write.state.State.LastRun
+	run := write.state.Value.LastRun
 
 	if run.Trigger == AutoTriggerWindow && (!write.policy.Os.Enabled || !AutoScheduleOpen(time.Now().UTC(), write.policy)) {
 		return nil
@@ -649,8 +628,8 @@ func autoOsBackupWait(client stackClient, list *autoCheckList) (bool, error) {
 
 	now := time.Now().UTC()
 	running := stateRecord.Found &&
-		((stateRecord.State.ClaimUid != "" && now.Before(stateRecord.State.ClaimDeadline)) ||
-			stateRecord.State.LastAttempt.Phase == backup.AttemptRunning)
+		((stateRecord.Value.ClaimUid != "" && now.Before(stateRecord.Value.ClaimDeadline)) ||
+			stateRecord.Value.LastAttempt.Phase == backup.AttemptRunning)
 	if running {
 		autoCheckRecord(list, AutoCheckBackup, autoOutcomeWait, "A backup is running. The operating-system run waits for it to finish.")
 		return false, nil
@@ -661,8 +640,8 @@ func autoOsBackupWait(client stackClient, list *autoCheckList) (bool, error) {
 }
 
 func autoOsRefreshReports(ctx context.Context, write *autoRunWrite, record shared.ClusterRecord) ([]AutoUpdateReport, error) {
-	reports := write.state.State.OsReports
-	run := write.state.State.LastRun
+	reports := write.state.Value.OsReports
+	run := write.state.Value.LastRun
 
 	due := []shared.ClusterNodeRecord{}
 	for _, node := range record.Nodes {

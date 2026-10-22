@@ -74,13 +74,6 @@ func writeJson(writer http.ResponseWriter, statusCode int, value any) {
 // The status endpoints take the command mutex before they read the state. They do not change the state.
 
 func handleStatus(writer http.ResponseWriter, request *http.Request) {
-	if !authorizePeer(writer, request) {
-		return
-	}
-	if request.Method != http.MethodGet {
-		writeError(writer, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	globals.CommandMu.Lock()
 	defer globals.CommandMu.Unlock()
 	writeStatus(writer, http.StatusOK)
@@ -101,14 +94,6 @@ func handleRetry(writer http.ResponseWriter, request *http.Request) {
 }
 
 func handleUpgradeOrRetry(writer http.ResponseWriter, request *http.Request, retry bool) {
-	if !authorizePeer(writer, request) {
-		return
-	}
-	if request.Method != http.MethodPost {
-		writeError(writer, http.StatusMethodNotAllowed, "this endpoint only accepts POST")
-		return
-	}
-
 	release, ok := decodeRelease(writer, request)
 	if !ok {
 		return
@@ -210,26 +195,37 @@ func handleUpgradeOrRetry(writer http.ResponseWriter, request *http.Request, ret
 	))
 }
 
-func decodeRelease(writer http.ResponseWriter, request *http.Request) (string, bool) {
+func decodeJsonBody[T any](writer http.ResponseWriter, request *http.Request) (T, bool) {
+	var parsed T
+
 	body := request.Body
 	if request.ContentLength > maxRequestBody {
 		writeError(writer, http.StatusRequestEntityTooLarge, "the request body is too large")
-		return "", false
+		return parsed, false
 	}
 	body = http.MaxBytesReader(writer, body, maxRequestBody)
 
-	var parsed struct {
-		Release string `json:"release"`
-	}
 	decoder := json.NewDecoder(body)
 	decoder.DisallowUnknownFields()
 	err := decoder.Decode(&parsed)
 	if err != nil {
 		writeError(writer, http.StatusBadRequest, fmt.Sprintf("invalid request body: %s", err))
-		return "", false
+		return parsed, false
 	}
 	if decoder.Decode(&struct{}{}) != io.EOF {
 		writeError(writer, http.StatusBadRequest, "the request body must contain a single JSON object")
+		return parsed, false
+	}
+	return parsed, true
+}
+
+type releaseRequest struct {
+	Release string `json:"release"`
+}
+
+func decodeRelease(writer http.ResponseWriter, request *http.Request) (string, bool) {
+	parsed, ok := decodeJsonBody[releaseRequest](writer, request)
+	if !ok {
 		return "", false
 	}
 	if strings.TrimSpace(parsed.Release) == "" {
@@ -243,27 +239,49 @@ func decodeRelease(writer http.ResponseWriter, request *http.Request) (string, b
 	return parsed.Release, true
 }
 
-func startUpgrade(writer http.ResponseWriter, release string, state upgradeState, operationUid string) {
-	current := stateLoad()
-	stateChanged := current.Phase != state.Phase || current.Release != state.Release || !current.UpdatedAt.Equal(state.UpdatedAt)
-	if current.NeedsStateRecovery || stateChanged {
-		writeError(writer, http.StatusConflict, "the upgrade state changed. Read its status before submitting again")
-		return
+func beginFencedOperation(
+	writer http.ResponseWriter,
+	operationUid string,
+	needsStateRecovery bool,
+	stateChanged bool,
+	busy bool,
+	conflictMessage string,
+) bool {
+	if needsStateRecovery || stateChanged {
+		writeError(writer, http.StatusConflict, conflictMessage)
+		return false
 	}
 
 	fence, fenceErr := fenceLoad()
 	if fenceErr != nil {
 		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not read the fence state: %s", fenceErr))
-		return
+		return false
 	}
-	if fence.LastOperation != "" && fence.LastOperation != operationUid && shared.NodeAgentPhaseActive(current.Phase) {
+	if fence.LastOperation != "" && fence.LastOperation != operationUid && busy {
 		writeError(writer, http.StatusConflict, "the command comes from obsolete node ownership and was rejected")
-		return
+		return false
 	}
 
 	fenceErr = fenceStore(operationUid)
 	if fenceErr != nil {
 		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not persist the fence state: %s", fenceErr))
+		return false
+	}
+
+	return true
+}
+
+func startUpgrade(writer http.ResponseWriter, release string, state upgradeState, operationUid string) {
+	current := stateLoad()
+	stateChanged := current.Phase != state.Phase || current.Release != state.Release || !current.UpdatedAt.Equal(state.UpdatedAt)
+	if !beginFencedOperation(
+		writer,
+		operationUid,
+		current.NeedsStateRecovery,
+		stateChanged,
+		shared.NodeAgentPhaseActive(current.Phase),
+		"the upgrade state changed. Read its status before submitting again",
+	) {
 		return
 	}
 
@@ -274,15 +292,17 @@ func startUpgrade(writer http.ResponseWriter, release string, state upgradeState
 		previousRelease = state.PreviousRelease
 	}
 	persistErr := stateStore(&upgradeState{
-		SchemaRevision:  stateSchemaRevision,
+		nodeState: nodeState{
+			SchemaRevision: stateSchemaRevision,
+			Phase:          shared.NodeAgentPhaseDownloading,
+			UpdatedAt:      time.Now().UTC(),
+		},
 		OperationUid:    operationUid,
 		NodeName:        identity.NodeName,
 		IpAddress:       identity.IpAddress,
 		Role:            identity.Role,
 		Release:         release,
 		PreviousRelease: previousRelease,
-		Phase:           shared.NodeAgentPhaseDownloading,
-		UpdatedAt:       time.Now().UTC(),
 	})
 	if persistErr != nil {
 		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not persist the accepted upgrade: %s", persistErr))
@@ -313,27 +333,12 @@ func writeOsStatus(writer http.ResponseWriter, statusCode int) {
 }
 
 func handleOsStatus(writer http.ResponseWriter, request *http.Request) {
-	if !authorizePeer(writer, request) {
-		return
-	}
-	if request.Method != http.MethodGet {
-		writeError(writer, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	globals.CommandMu.Lock()
 	defer globals.CommandMu.Unlock()
 	writeOsStatus(writer, http.StatusOK)
 }
 
 func handleOsUpdate(writer http.ResponseWriter, request *http.Request) {
-	if !authorizePeer(writer, request) {
-		return
-	}
-	if request.Method != http.MethodPost {
-		writeError(writer, http.StatusMethodNotAllowed, "this endpoint only accepts POST")
-		return
-	}
-
 	parsed, ok := decodeOsUpdate(writer, request)
 	if !ok {
 		return
@@ -431,23 +436,8 @@ func handleOsUpdate(writer http.ResponseWriter, request *http.Request) {
 }
 
 func decodeOsUpdate(writer http.ResponseWriter, request *http.Request) (osUpdateRequest, bool) {
-	body := request.Body
-	if request.ContentLength > maxRequestBody {
-		writeError(writer, http.StatusRequestEntityTooLarge, "the request body is too large")
-		return osUpdateRequest{}, false
-	}
-	body = http.MaxBytesReader(writer, body, maxRequestBody)
-
-	var parsed osUpdateRequest
-	decoder := json.NewDecoder(body)
-	decoder.DisallowUnknownFields()
-	err := decoder.Decode(&parsed)
-	if err != nil {
-		writeError(writer, http.StatusBadRequest, fmt.Sprintf("invalid request body: %s", err))
-		return osUpdateRequest{}, false
-	}
-	if decoder.Decode(&struct{}{}) != io.EOF {
-		writeError(writer, http.StatusBadRequest, "the request body must contain a single JSON object")
+	parsed, ok := decodeJsonBody[osUpdateRequest](writer, request)
+	if !ok {
 		return osUpdateRequest{}, false
 	}
 
@@ -474,37 +464,29 @@ func decodeOsUpdate(writer http.ResponseWriter, request *http.Request) (osUpdate
 func startOsUpdate(writer http.ResponseWriter, parsed osUpdateRequest, state osState, operationUid string) {
 	current := osStateLoad()
 	stateChanged := current.Phase != state.Phase || !current.UpdatedAt.Equal(state.UpdatedAt)
-	if current.NeedsStateRecovery || stateChanged {
-		writeError(writer, http.StatusConflict, "the operating-system update state changed. Read its status before submitting again")
-		return
-	}
-
-	fence, fenceErr := fenceLoad()
-	if fenceErr != nil {
-		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not read the fence state: %s", fenceErr))
-		return
-	}
-	if fence.LastOperation != "" && fence.LastOperation != operationUid && shared.NodeAgentOsPhaseActive(current.Phase) {
-		writeError(writer, http.StatusConflict, "the command comes from obsolete node ownership and was rejected")
-		return
-	}
-
-	fenceErr = fenceStore(operationUid)
-	if fenceErr != nil {
-		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not persist the fence state: %s", fenceErr))
+	if !beginFencedOperation(
+		writer,
+		operationUid,
+		current.NeedsStateRecovery,
+		stateChanged,
+		shared.NodeAgentOsPhaseActive(current.Phase),
+		"the operating-system update state changed. Read its status before submitting again",
+	) {
 		return
 	}
 
 	identity := identitySnapshot()
 	progressBegin(operationUid)
 	persistErr := osStateStore(&osState{
-		SchemaRevision: osStateSchemaRevision,
+		nodeState: nodeState{
+			SchemaRevision: osStateSchemaRevision,
+			Phase:          shared.NodeAgentOsPhaseStaging,
+			UpdatedAt:      time.Now().UTC(),
+		},
 		OperationUid:   operationUid,
 		NodeName:       identity.NodeName,
 		IpAddress:      identity.IpAddress,
 		Role:           identity.Role,
-		Phase:          shared.NodeAgentOsPhaseStaging,
-		UpdatedAt:      time.Now().UTC(),
 		KernelRunning:  current.KernelRunning,
 		KernelPending:  current.KernelPending,
 		Pending:        current.Pending,
@@ -533,14 +515,6 @@ func startOsUpdate(writer http.ResponseWriter, parsed osUpdateRequest, state osS
 // backups cannot run at once. The response waits for the backup to finish.
 
 func handleBackup(writer http.ResponseWriter, request *http.Request) {
-	if !authorizePeer(writer, request) {
-		return
-	}
-	if request.Method != http.MethodPost {
-		writeError(writer, http.StatusMethodNotAllowed, "this endpoint only accepts POST")
-		return
-	}
-
 	trigger, ok := decodeBackupTrigger(writer, request)
 	if !ok {
 		return
@@ -584,26 +558,13 @@ func handleBackup(writer http.ResponseWriter, request *http.Request) {
 	writeJson(writer, http.StatusOK, result)
 }
 
-func decodeBackupTrigger(writer http.ResponseWriter, request *http.Request) (string, bool) {
-	body := request.Body
-	if request.ContentLength > maxRequestBody {
-		writeError(writer, http.StatusRequestEntityTooLarge, "the request body is too large")
-		return "", false
-	}
-	body = http.MaxBytesReader(writer, body, maxRequestBody)
+type backupTriggerRequest struct {
+	Trigger string `json:"trigger"`
+}
 
-	var parsed struct {
-		Trigger string `json:"trigger"`
-	}
-	decoder := json.NewDecoder(body)
-	decoder.DisallowUnknownFields()
-	err := decoder.Decode(&parsed)
-	if err != nil {
-		writeError(writer, http.StatusBadRequest, fmt.Sprintf("invalid request body: %s", err))
-		return "", false
-	}
-	if decoder.Decode(&struct{}{}) != io.EOF {
-		writeError(writer, http.StatusBadRequest, "the request body must contain a single JSON object")
+func decodeBackupTrigger(writer http.ResponseWriter, request *http.Request) (string, bool) {
+	parsed, ok := decodeJsonBody[backupTriggerRequest](writer, request)
+	if !ok {
 		return "", false
 	}
 	if parsed.Trigger != backup.TriggerScheduled && parsed.Trigger != backup.TriggerManual {

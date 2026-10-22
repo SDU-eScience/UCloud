@@ -29,7 +29,7 @@ func (app *app) startRecoveryAsync(entry backupEntry) {
 }
 
 func (app *app) beginRecoveryWork(session *ucx.Session, entry backupEntry, progress func(string)) (string, error) {
-	client, err := recoveryClient(session, app.stackId())
+	client, err := shared.ClusterStateClientNewSession(session, app.stackId())
 	if err != nil {
 		return "", err
 	}
@@ -93,7 +93,7 @@ func (app *app) beginRecoveryWork(session *ucx.Session, entry backupEntry, progr
 }
 
 func (app *app) stopWork(session *ucx.Session, progress func(string)) (string, error) {
-	client, err := recoveryClient(session, app.stackId())
+	client, err := shared.ClusterStateClientNewSession(session, app.stackId())
 	if err != nil {
 		return "", err
 	}
@@ -180,7 +180,7 @@ func (app *app) recreateAsync() {
 
 func (app *app) restartRecoveryAsync() {
 	app.runAsync(func(session *ucx.Session, progress func(string)) (string, error) {
-		client, err := recoveryClient(session, app.stackId())
+		client, err := shared.ClusterStateClientNewSession(session, app.stackId())
 		if err != nil {
 			return "", err
 		}
@@ -202,7 +202,7 @@ func (app *app) restartRecoveryAsync() {
 }
 
 func (app *app) recreateWork(session *ucx.Session, progress func(string)) (string, error) {
-	client, err := recoveryClient(session, app.stackId())
+	client, err := shared.ClusterStateClientNewSession(session, app.stackId())
 	if err != nil {
 		return "", err
 	}
@@ -289,7 +289,7 @@ const recoveryRestoreManualAfter = 15 * time.Minute
 
 func (app *app) restoreSkipAsync() {
 	app.runAsync(func(session *ucx.Session, progress func(string)) (string, error) {
-		client, err := recoveryClient(session, app.stackId())
+		client, err := shared.ClusterStateClientNewSession(session, app.stackId())
 		if err != nil {
 			return "", err
 		}
@@ -337,7 +337,7 @@ func (app *app) pollRestore() {
 		return
 	}
 
-	client, err := recoveryClient(session, stackId)
+	client, err := shared.ClusterStateClientNewSession(session, stackId)
 	if err != nil {
 		log.Warn("k8s-app: recovery could not connect to cluster state: %s", err)
 		return
@@ -424,7 +424,7 @@ func (app *app) verifyIfNeeded() {
 }
 
 func (app *app) verifyWork(session *ucx.Session, progress func(string)) (string, error) {
-	client, err := recoveryClient(session, app.stackId())
+	client, err := shared.ClusterStateClientNewSession(session, app.stackId())
 	if err != nil {
 		return "", err
 	}
@@ -491,7 +491,7 @@ func (app *app) closeAsync() {
 }
 
 func (app *app) closeWork(session *ucx.Session, progress func(string)) (string, error) {
-	client, err := recoveryClient(session, app.stackId())
+	client, err := shared.ClusterStateClientNewSession(session, app.stackId())
 	if err != nil {
 		return "", err
 	}

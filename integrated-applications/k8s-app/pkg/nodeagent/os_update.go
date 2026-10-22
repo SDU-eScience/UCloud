@@ -22,7 +22,6 @@ package nodeagent
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -73,16 +72,11 @@ const (
 )
 
 type osState struct {
-	SchemaRevision int       `json:"schemaRevision"`
+	nodeState
 	OperationUid   string    `json:"operationUid,omitempty"`
 	NodeName       string    `json:"nodeName"`
 	IpAddress      string    `json:"ipAddress"`
 	Role           string    `json:"role"`
-	Phase          string    `json:"phase"`
-	Error          string    `json:"error"`
-	NeedsRecovery  bool      `json:"needsRecovery"`
-	UpdatedAt      time.Time `json:"updatedAt"`
-
 	Pending        int       `json:"pending,omitempty"`
 	Security       int       `json:"security,omitempty"`
 	RebootRequired bool      `json:"rebootRequired,omitempty"`
@@ -91,9 +85,6 @@ type osState struct {
 	CheckedAt      time.Time `json:"checkedAt,omitempty"`
 	CheckError     string    `json:"checkError,omitempty"`
 	BootId         string    `json:"bootId,omitempty"`
-
-	StateError         string `json:"stateError,omitempty"`
-	NeedsStateRecovery bool   `json:"needsStateRecovery,omitempty"`
 }
 
 // The operating-system state
@@ -113,52 +104,13 @@ func osStateLoad() osState {
 }
 
 func osStateRead() osState {
-	data, err := os.ReadFile(osStatePath())
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return osState{}
-		}
-		return osState{
-			SchemaRevision:     osStateSchemaRevision,
-			Phase:              shared.NodeAgentOsPhaseFailed,
-			Error:              fmt.Sprintf("could not read the operating-system update state: %s", err),
-			NeedsRecovery:      true,
-			StateError:         fmt.Sprintf("could not read the operating-system update state: %s", err),
-			NeedsStateRecovery: true,
-		}
-	}
-
-	var state osState
-	err = json.Unmarshal(data, &state)
-	if err != nil {
-		return osState{
-			SchemaRevision:     osStateSchemaRevision,
-			Phase:              shared.NodeAgentOsPhaseFailed,
-			Error:              fmt.Sprintf("could not parse the operating-system update state: %s", err),
-			NeedsRecovery:      true,
-			StateError:         fmt.Sprintf("could not parse the operating-system update state: %s", err),
-			NeedsStateRecovery: true,
-		}
-	}
-
-	if state.SchemaRevision != osStateSchemaRevision {
-		state.StateError = "the operating-system update state was written by an incompatible version of the application"
-		state.Phase = shared.NodeAgentOsPhaseFailed
-		state.Error = state.StateError
-		state.NeedsRecovery = true
-		state.NeedsStateRecovery = true
-	}
-
-	return state
+	return nodeStateRead(osStatePath(), "operating-system update", osStateSchemaRevision, shared.NodeAgentOsPhaseFailed, func(state *osState) *nodeState {
+		return &state.nodeState
+	})
 }
 
 func osStateStore(state *osState) error {
-	data, err := json.MarshalIndent(state, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return writeFileAtomic(osStatePath(), data, 0600)
+	return nodeStateStore(osStatePath(), state)
 }
 
 func osSetPhase(phase string, mutate func(state *osState)) bool {
@@ -170,14 +122,11 @@ func osSetPhase(phase string, mutate func(state *osState)) bool {
 		return false
 	}
 
-	state.Phase = phase
-	state.Error = ""
-	state.UpdatedAt = time.Now().UTC()
-	if mutate != nil {
-		mutate(&state)
-	}
-
-	err := osStateStore(&state)
+	err := nodeStateSetPhase(osStatePath(), &state, &state.nodeState, phase, func() {
+		if mutate != nil {
+			mutate(&state)
+		}
+	})
 	if err != nil {
 		log.Warn("k8s-app node agent: could not persist the operating-system update phase %s: %s", phase, err)
 		return false
@@ -202,14 +151,8 @@ func osStatusFromState(identityConfig Config) shared.NodeAgentOsStatus {
 		}
 	}
 
-	phase := state.Phase
-	if phase == "" {
-		phase = shared.NodeAgentOsPhaseIdle
-	}
-	nodeName := state.NodeName
-	if nodeName == "" && identityConfig.NodeName != "" {
-		nodeName = identityConfig.NodeName
-	}
+	phase := nodeStateDefaultPhase(state.Phase, shared.NodeAgentOsPhaseIdle)
+	nodeName := nodeStateDefaultNodeName(state.NodeName, identityConfig)
 
 	return shared.NodeAgentOsStatus{
 		Progress:         progressLoad(),
@@ -266,12 +209,7 @@ func recoverInterruptedOs() {
 }
 
 func osFailInterrupted(state osState, message string) {
-	state.Phase = shared.NodeAgentOsPhaseFailed
-	state.Error = message
-	state.NeedsRecovery = true
-	state.UpdatedAt = time.Now().UTC()
-
-	err := osStateStore(&state)
+	err := nodeStateFail(osStatePath(), &state, &state.nodeState, shared.NodeAgentOsPhaseFailed, message)
 	if err != nil {
 		log.Warn("k8s-app node agent: could not persist the failed operating-system update state: %s", err)
 		return
@@ -638,12 +576,8 @@ func osFinishFailure(message string) {
 		state.IpAddress = identityConfig.IpAddress
 		state.Role = identityConfig.Role
 	}
-	state.Phase = shared.NodeAgentOsPhaseFailed
-	state.Error = message
-	state.NeedsRecovery = true
-	state.UpdatedAt = time.Now().UTC()
 
-	err := osStateStore(&state)
+	err := nodeStateFail(osStatePath(), &state, &state.nodeState, shared.NodeAgentOsPhaseFailed, message)
 	if err != nil {
 		log.Warn("k8s-app node agent: could not persist the failed operating-system update state: %s", err)
 	}

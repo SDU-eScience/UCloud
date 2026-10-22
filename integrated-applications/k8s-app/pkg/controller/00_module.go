@@ -2,9 +2,6 @@ package controller
 
 import (
 	"context"
-	"fmt"
-	"net/http"
-	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -26,39 +23,18 @@ import (
 )
 
 const (
-	controllerTokenPath  = "/etc/ucloud-k8s/controller/token"
-	providerHostnamePath = "/opt/ucloud/provider-hostname.txt"
-	reconcileInterval    = 5 * time.Minute
-	productCacheInterval = 1 * time.Hour
-	domainFailureBackoff = 5 * time.Minute
+	reconcileInterval     = 5 * time.Minute
+	productCacheInterval  = 1 * time.Hour
+	domainFailureBackoff  = 5 * time.Minute
+	controllerHttpTimeout = 30 * time.Second
 )
 
 var linkRegex = regexp.MustCompile(`^[a-z][a-z0-9-]{3,61}[a-z0-9]$`)
 
 func Launch() {
-	tokenBytes, err := os.ReadFile(controllerTokenPath)
+	client, token, err := shared.RpcClientNew(shared.RpcGrantPodTokenPath, controllerHttpTimeout)
 	if err != nil {
-		log.Fatal("k8s controller: could not read the registration token: %s", err)
-	}
-
-	token := strings.TrimSpace(string(tokenBytes))
-	if token == "" {
-		log.Fatal("k8s controller: the registration token is empty")
-	}
-
-	hostBytes, err := os.ReadFile(providerHostnamePath)
-	if err != nil {
-		log.Fatal("k8s controller: could not read the provider hostname: %s", err)
-	}
-
-	host := strings.TrimSpace(string(hostBytes))
-	if host == "" {
-		log.Fatal("k8s controller: the provider hostname is empty")
-	}
-
-	client := &rpc.Client{
-		BasePath: fmt.Sprintf("http://%s:42000", host),
-		Client:   &http.Client{Timeout: 30 * time.Second},
+		log.Fatal("k8s controller: %s", err)
 	}
 
 	config, err := rest.InClusterConfig()

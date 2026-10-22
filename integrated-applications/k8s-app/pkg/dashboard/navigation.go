@@ -54,8 +54,9 @@ func dashboardNavigationPush(app *stackUiApp, route string, label string) {
 }
 
 func dashboardNavigationUpdateRoutes(app *stackUiApp) string {
+	routes := dashboardNavigationRoutes(app.resourceNavigation)
 	for i := range app.resourceNavigation {
-		app.resourceNavigation[i].route = dashboardNavigationRoute(app.resourceNavigation[:i+1])
+		app.resourceNavigation[i].route = routes[i]
 	}
 	return app.resourceNavigation[len(app.resourceNavigation)-1].route
 }
@@ -152,8 +153,9 @@ func dashboardNavigationBreadcrumbs(app *stackUiApp) ucx.UiNode {
 	).Children(children...)
 }
 
-func dashboardNavigationRoute(entries []dashboardNavigationEntry) string {
-	var levels []string
+func dashboardNavigationRoutes(entries []dashboardNavigationEntry) []string {
+	routes := make([]string, len(entries))
+	levels := make([]string, 0, len(entries))
 	query := url.Values{}
 	for i, entry := range entries {
 		level := entry.baseRoute
@@ -163,6 +165,7 @@ func dashboardNavigationRoute(entries []dashboardNavigationEntry) string {
 			}
 		}
 		levels = append(levels, level)
+
 		if !entry.filter.isEmpty() {
 			query.Set(fmt.Sprintf("filter%d", i), entry.filter.key())
 		}
@@ -172,12 +175,13 @@ func dashboardNavigationRoute(entries []dashboardNavigationEntry) string {
 		if strings.HasPrefix(level, "detail/") || strings.HasPrefix(level, "create/") {
 			query.Set(fmt.Sprintf("type%d", i), entry.typeId)
 		}
+
+		routes[i] = strings.Join(levels, "/linked/")
+		if len(query) > 0 {
+			routes[i] += "?" + query.Encode()
+		}
 	}
-	route := strings.Join(levels, "/linked/")
-	if len(query) > 0 {
-		route += "?" + query.Encode()
-	}
-	return route
+	return routes
 }
 
 func dashboardNavigationParse(app *stackUiApp, route string) []dashboardNavigationEntry {
@@ -224,8 +228,7 @@ func dashboardNavigationParse(app *stackUiApp, route string) []dashboardNavigati
 				label = strings.Join(names, "/")
 			}
 		case "detail", "create":
-			detail := detailFromRoute(level)
-			ref, parsed := parseResourceDetail(detail)
+			ref, parsed := dashboardResourceDetailDecode(level)
 			if !parsed {
 				return nil
 			}
@@ -259,7 +262,10 @@ func dashboardNavigationParse(app *stackUiApp, route string) []dashboardNavigati
 			filter:       filter,
 			filterOrigin: origin,
 		})
-		entries[i].route = dashboardNavigationRoute(entries)
+	}
+	routes := dashboardNavigationRoutes(entries)
+	for i := range entries {
+		entries[i].route = routes[i]
 	}
 	return entries
 }
@@ -296,25 +302,59 @@ func (ref resourceDetailRef) creating() bool {
 	return ref.Name == "@create"
 }
 
-func detailFromRoute(routePath string) string {
-	if strings.HasPrefix(routePath, "create/") {
-		return detailFromRoute("detail/" + strings.TrimPrefix(routePath, "create/") + "/@create")
+func dashboardResourceDetailEncode(ref resourceDetailRef) string {
+	parts := []string{"detail", url.PathEscape(ref.Type), url.PathEscape(ref.Namespace)}
+	if ref.creating() {
+		parts = append(parts, url.PathEscape(ref.Name))
+		return strings.Join(parts, "/")
 	}
-	parts := strings.Split(strings.TrimPrefix(routePath, "detail/"), "/")
+	parts = append(parts, url.PathEscape(ref.Name))
+	if ref.hasContainer || ref.Container != "" {
+		parts = append(parts, url.PathEscape(ref.Container))
+	}
+	return strings.Join(parts, "/")
+}
+
+func dashboardResourceDetailDecode(path string) (resourceDetailRef, bool) {
+	if strings.HasPrefix(path, "create/") {
+		path = "detail/" + strings.TrimPrefix(path, "create/") + "/@create"
+	}
+	if !strings.HasPrefix(path, "detail/") {
+		return resourceDetailRef{}, false
+	}
+
+	parts := strings.Split(strings.TrimPrefix(path, "detail/"), "/")
 	if len(parts) != 3 && len(parts) != 4 {
-		return ""
+		return resourceDetailRef{}, false
 	}
 
 	decoded := make([]string, 0, len(parts))
 	for _, part := range parts {
 		value, err := url.PathUnescape(part)
 		if err != nil {
-			return ""
+			return resourceDetailRef{}, false
 		}
 		decoded = append(decoded, value)
 	}
 
-	return strings.Join(decoded, "/")
+	result := resourceDetailRef{
+		Type:         decoded[0],
+		Namespace:    decoded[1],
+		Name:         decoded[2],
+		hasContainer: len(decoded) == 4,
+	}
+	if len(decoded) == 4 {
+		result.Container = decoded[3]
+	}
+	return result, true
+}
+
+func detailFromRoute(routePath string) string {
+	ref, ok := dashboardResourceDetailDecode(routePath)
+	if !ok {
+		return ""
+	}
+	return ref.String()
 }
 
 func (app *stackUiApp) browseRoute(typeId string, filter resourceFilter) string {

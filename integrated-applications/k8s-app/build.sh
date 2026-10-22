@@ -11,8 +11,13 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 APP_NAME=kubernetes
-APP_VERSION=0.1.5
+APP_VERSION="$(awk -F'"' '/^version:/ { print $2; exit }' app.yaml)"
 PROVIDER_DOMAIN=k8s.localhost.direct
+
+if [ -z "$APP_VERSION" ]; then
+	echo "could not read version from app.yaml" >&2
+	exit 1
+fi
 
 export PATH=$PATH:/usr/local/go/bin
 CGO_ENABLED=0 go build -o bin/k8s-app -trimpath ./cmd/k8s-app

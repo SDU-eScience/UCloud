@@ -371,6 +371,12 @@ func dashboardResourceCreateYaml(ctx context.Context, client *K8sClient, def Res
 	})
 }
 
+func dashboardResourceDefinitionName(reference string) string {
+	name := strings.TrimPrefix(reference, "#/definitions/")
+	name = strings.TrimPrefix(name, "#/components/schemas/")
+	return strings.ReplaceAll(strings.ReplaceAll(name, "~1", "/"), "~0", "~")
+}
+
 func dashboardResourceTemplateProperty(node map[string]any, definitions map[string]any, name string) map[string]any {
 	return dashboardResourceTemplatePropertyFind(node, definitions, name, map[string]bool{})
 }
@@ -384,8 +390,7 @@ func dashboardResourceTemplatePropertyFind(node map[string]any, definitions map[
 	if reference, ok := node["$ref"].(string); ok {
 		if !active[reference] {
 			active[reference] = true
-			key := strings.TrimPrefix(reference, "#/definitions/")
-			key = strings.ReplaceAll(strings.ReplaceAll(key, "~1", "/"), "~0", "~")
+			key := dashboardResourceDefinitionName(reference)
 			definition, _ := definitions[key].(map[string]any)
 			if property := dashboardResourceTemplatePropertyFind(definition, definitions, name, active); property != nil {
 				matches = append(matches, property)
@@ -453,8 +458,7 @@ func dashboardResourceTemplateFill(node map[string]any, definitions map[string]a
 		}
 		active[reference] = true
 		defer delete(active, reference)
-		name := strings.TrimPrefix(reference, "#/definitions/")
-		name = strings.ReplaceAll(strings.ReplaceAll(name, "~1", "/"), "~0", "~")
+		name := dashboardResourceDefinitionName(reference)
 		definition, _ := definitions[name].(map[string]any)
 		value = dashboardResourceTemplateFill(definition, definitions, active, value, present)
 		present = true
@@ -687,8 +691,7 @@ func dashboardResourceEditorSchemaFetch(ctx context.Context, client *K8sClient, 
 	definitions, _ := registration.Schema["definitions"].(map[string]any)
 	metadata := dashboardResourceTemplateProperty(registration.Schema, definitions, "metadata")
 	if reference, ok := metadata["$ref"].(string); ok {
-		key := strings.TrimPrefix(reference, "#/definitions/")
-		key = strings.ReplaceAll(strings.ReplaceAll(key, "~1", "/"), "~0", "~")
+		key := dashboardResourceDefinitionName(reference)
 		metadata, _ = definitions[key].(map[string]any)
 	}
 	if metadata == nil {
@@ -729,7 +732,7 @@ func dashboardResourceSchemaNormalize(source map[string]any, schemas map[string]
 				return nil, fmt.Errorf("unsupported OpenAPI reference: %v", value)
 			}
 			pointer := strings.TrimPrefix(reference, "#/components/schemas/")
-			name := strings.ReplaceAll(strings.ReplaceAll(pointer, "~1", "/"), "~0", "~")
+			name := dashboardResourceDefinitionName(reference)
 			result[key] = "#/definitions/" + pointer
 			if _, present := definitions[name]; !present {
 				definition, ok := schemas[name].(map[string]any)

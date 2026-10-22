@@ -31,33 +31,21 @@ func (app *stackUiApp) autoStatusRead() (dashboardAutoStatus, error) {
 
 	result := dashboardAutoStatus{}
 
-	policyValue, err := shared.ClusterStateValueRead(client, maintenance.AutoPolicyKey)
+	policy, policyFound, _, err := dashboardStateValueRead[maintenance.AutoPolicy](client, maintenance.AutoPolicyKey, "automatic maintenance policy")
 	if err != nil {
-		return dashboardAutoStatus{}, fmt.Errorf("could not read the automatic maintenance policy: %s", err)
+		return dashboardAutoStatus{}, err
 	}
 
-	result.PolicyFound = policyValue.Found && !policyValue.Empty
+	result.PolicyFound = policyFound
+	result.Policy = policy
 
-	if result.PolicyFound {
-		err = json.Unmarshal(policyValue.Value, &result.Policy)
-		if err != nil {
-			return dashboardAutoStatus{}, fmt.Errorf("could not parse the automatic maintenance policy: %s", err)
-		}
-	}
-
-	stateValue, err := shared.ClusterStateValueRead(client, maintenance.AutoStateKey)
+	state, stateFound, _, err := dashboardStateValueRead[maintenance.AutoState](client, maintenance.AutoStateKey, "automatic maintenance state")
 	if err != nil {
-		return dashboardAutoStatus{}, fmt.Errorf("could not read the automatic maintenance state: %s", err)
+		return dashboardAutoStatus{}, err
 	}
 
-	result.StateFound = stateValue.Found && !stateValue.Empty
-
-	if result.StateFound {
-		err = json.Unmarshal(stateValue.Value, &result.State)
-		if err != nil {
-			return dashboardAutoStatus{}, fmt.Errorf("could not parse the automatic maintenance state: %s", err)
-		}
-	}
+	result.StateFound = stateFound
+	result.State = state
 
 	return result, nil
 }

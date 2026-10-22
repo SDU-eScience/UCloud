@@ -4,15 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/backup"
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
-	"ucloud.dk/shared/pkg/util"
 )
 
 type dashboardBackupStatus struct {
@@ -214,7 +211,7 @@ func backupRequestSubmit(app *stackUiApp) error {
 
 	request := backup.Request{
 		SchemaRevision: backup.SchemaRevision,
-		Uid:            backupRequestUid(),
+		Uid:            shared.NewUid(),
 		Requester:      app.backupsRequester,
 		RequestedAt:    time.Now().UTC(),
 		Phase:          backup.RequestPending,
@@ -251,36 +248,24 @@ func (app *stackUiApp) backupStatusRead() (dashboardBackupStatus, error) {
 		return dashboardBackupStatus{}, err
 	}
 
-	stateValue, err := shared.ClusterStateValueRead(client, backup.StateKey)
+	state, stateFound, _, err := dashboardStateValueRead[backup.State](client, backup.StateKey, "backup state")
 	if err != nil {
-		return dashboardBackupStatus{}, fmt.Errorf("could not read the backup state: %s", err)
+		return dashboardBackupStatus{}, err
 	}
 
 	result := dashboardBackupStatus{
-		StateFound: stateValue.Found && !stateValue.Empty,
+		StateFound: stateFound,
+		State:      state,
 	}
 
-	if result.StateFound {
-		err = json.Unmarshal(stateValue.Value, &result.State)
-		if err != nil {
-			return dashboardBackupStatus{}, fmt.Errorf("could not parse the backup state: %s", err)
-		}
-	}
-
-	requestValue, err := shared.ClusterStateValueRead(client, backup.RequestKey)
+	request, requestFound, requestRevision, err := dashboardStateValueRead[backup.Request](client, backup.RequestKey, "backup request")
 	if err != nil {
-		return dashboardBackupStatus{}, fmt.Errorf("could not read the backup request: %s", err)
+		return dashboardBackupStatus{}, err
 	}
 
-	result.RequestFound = requestValue.Found && !requestValue.Empty
-	result.RequestRevision = requestValue.Revision
-
-	if result.RequestFound {
-		err = json.Unmarshal(requestValue.Value, &result.Request)
-		if err != nil {
-			return dashboardBackupStatus{}, fmt.Errorf("could not parse the backup request: %s", err)
-		}
-	}
+	result.RequestFound = requestFound
+	result.RequestRevision = requestRevision
+	result.Request = request
 
 	return result, nil
 }
@@ -294,14 +279,6 @@ func backupActive(status dashboardBackupStatus) bool {
 
 func backupRequestActive(request backup.Request) bool {
 	return request.Phase == backup.RequestPending || request.Phase == backup.RequestRunning
-}
-
-func backupRequestUid() string {
-	holder := ""
-	if hostname, err := os.Hostname(); err == nil {
-		holder = strings.TrimSpace(hostname)
-	}
-	return fmt.Sprintf("%s-%d-%s", shared.SanitizeForPath(holder), time.Now().UnixNano(), util.SecureToken())
 }
 
 func (app *stackUiApp) homeBackupsMetric() []ucx.UiNode {

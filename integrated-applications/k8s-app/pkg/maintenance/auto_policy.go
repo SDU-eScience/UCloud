@@ -238,65 +238,26 @@ func autoWindowHasDay(window AutoWindow, day time.Time) bool {
 	return false
 }
 
-type autoPolicyRecord struct {
-	Found    bool
-	Policy   AutoPolicy
-	Revision int64
-}
+type autoPolicyRecord = stackValue[AutoPolicy]
 
-type autoStateRecord struct {
-	Found    bool
-	State    AutoState
-	Revision int64
-}
+type autoStateRecord = stackValue[AutoState]
 
 func autoPolicyRead(client stackClient) (autoPolicyRecord, error) {
-	record, found, err := shared.RpcGrantStateRead(client, AutoPolicyKey)
+	record, err := stackValueRead[AutoPolicy](client, AutoPolicyKey, "automatic maintenance policy")
 	if err != nil {
 		return autoPolicyRecord{}, err
 	}
-	if !found {
-		return autoPolicyRecord{}, nil
+
+	if !record.Found {
+		return record, nil
 	}
 
-	result := autoPolicyRecord{
-		Found:    true,
-		Revision: record.Revision,
-	}
-
-	if !record.IsEmpty() {
-		err = json.Unmarshal(record.Value, &result.Policy)
-		if err != nil {
-			return autoPolicyRecord{}, fmt.Errorf("could not parse the automatic maintenance policy: %s", err)
-		}
-	}
-
-	result.Policy = AutoPolicyNormalize(result.Policy)
-	return result, nil
+	record.Value = AutoPolicyNormalize(record.Value)
+	return record, nil
 }
 
 func autoStateRead(client stackClient) (autoStateRecord, error) {
-	record, found, err := shared.RpcGrantStateRead(client, AutoStateKey)
-	if err != nil {
-		return autoStateRecord{}, err
-	}
-	if !found {
-		return autoStateRecord{}, nil
-	}
-
-	result := autoStateRecord{
-		Found:    true,
-		Revision: record.Revision,
-	}
-
-	if !record.IsEmpty() {
-		err = json.Unmarshal(record.Value, &result.State)
-		if err != nil {
-			return autoStateRecord{}, fmt.Errorf("could not parse the automatic maintenance state: %s", err)
-		}
-	}
-
-	return result, nil
+	return stackValueRead[AutoState](client, AutoStateKey, "automatic maintenance state")
 }
 
 func autoStateWrite(client stackClient, state AutoState, expectedRevision int64) (int64, error) {
@@ -334,7 +295,7 @@ func AutoOsReportsRead() ([]AutoUpdateReport, error) {
 		return nil, nil
 	}
 
-	return record.State.OsReports, nil
+	return record.Value.OsReports, nil
 }
 
 func AutoStateResumed(state AutoState) bool {
@@ -350,14 +311,14 @@ func AutoWindowChannelPending(state AutoState, policy AutoPolicy, windowStart ti
 }
 
 func autoStateClaim(client stackClient, record autoStateRecord, uid string, now time.Time) (autoStateRecord, error) {
-	if autoStateClaimActive(record.State, now) {
+	if autoStateClaimActive(record.Value, now) {
 		return record, fmt.Errorf(
 			"another coordinator holds the automatic maintenance claim until %s",
-			record.State.ClaimDeadline.UTC().Format(time.RFC3339),
+			record.Value.ClaimDeadline.UTC().Format(time.RFC3339),
 		)
 	}
 
-	state := record.State
+	state := record.Value
 	state.SchemaRevision = AutoSchemaRevision
 	state.ClaimUid = uid
 	state.ClaimDeadline = now.UTC().Add(autoClaimLease)
@@ -367,15 +328,15 @@ func autoStateClaim(client stackClient, record autoStateRecord, uid string, now 
 		return record, err
 	}
 
-	return autoStateRecord{Found: true, State: state, Revision: revision}, nil
+	return autoStateRecord{Found: true, Value: state, Revision: revision}, nil
 }
 
 func autoStateRelease(client stackClient, record autoStateRecord, claimUid string) (autoStateRecord, error) {
-	if record.State.ClaimUid != claimUid {
+	if record.Value.ClaimUid != claimUid {
 		return record, nil
 	}
 
-	state := record.State
+	state := record.Value
 	state.SchemaRevision = AutoSchemaRevision
 	state.ClaimUid = ""
 	state.ClaimDeadline = time.Time{}
@@ -385,5 +346,5 @@ func autoStateRelease(client stackClient, record autoStateRecord, claimUid strin
 		return record, err
 	}
 
-	return autoStateRecord{Found: true, State: state, Revision: revision}, nil
+	return autoStateRecord{Found: true, Value: state, Revision: revision}, nil
 }

@@ -383,7 +383,7 @@ func removeTombstoneOperation(worker *nodeWorker) {
 		log.Warn("k8s-app maintenance %s: could not clear the maintenance record: %s", worker.nodeName, readErr)
 		return
 	}
-	if !record.Found || record.Operation.NodeName == "" || record.Operation.Phase != PhaseCompleted {
+	if !record.Found || record.Value.NodeName == "" || record.Value.Phase != PhaseCompleted {
 		return
 	}
 

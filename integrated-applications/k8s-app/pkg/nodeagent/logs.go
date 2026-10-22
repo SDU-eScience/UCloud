@@ -280,14 +280,6 @@ func progressReset(operationUid string) {
 // and the number of lines. It returns the number of lines that it wrote.
 
 func handleLog(writer http.ResponseWriter, request *http.Request) {
-	if !authorizePeer(writer, request) {
-		return
-	}
-	if request.Method != http.MethodPost {
-		writeError(writer, http.StatusMethodNotAllowed, "this endpoint only accepts POST")
-		return
-	}
-
 	body := request.Body
 	if request.ContentLength > shared.NodeAgentMaxLogBody {
 		writeError(writer, http.StatusRequestEntityTooLarge, "the request body is too large")
@@ -343,14 +335,6 @@ func handleLog(writer http.ResponseWriter, request *http.Request) {
 }
 
 func handleLogReset(writer http.ResponseWriter, request *http.Request) {
-	if !authorizePeer(writer, request) {
-		return
-	}
-	if request.Method != http.MethodPost {
-		writeError(writer, http.StatusMethodNotAllowed, "this endpoint only accepts POST")
-		return
-	}
-
 	operationUid, ok := readCommandAuthorization(writer, request)
 	if !ok {
 		return

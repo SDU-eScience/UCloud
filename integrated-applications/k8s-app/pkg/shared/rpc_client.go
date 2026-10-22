@@ -33,39 +33,50 @@ type RpcGrantClient struct {
 	Token string
 }
 
-func RpcGrantClientNew() (RpcGrantClient, error) {
-	tokenBytes, hostErr := os.ReadFile(RpcGrantHostTokenPath)
-	if hostErr != nil {
-		if !os.IsNotExist(hostErr) {
-			return RpcGrantClient{}, fmt.Errorf("could not read the controller token: %s", hostErr)
-		}
-		podBytes, podReadErr := os.ReadFile(RpcGrantPodTokenPath)
-		if podReadErr != nil {
-			return RpcGrantClient{}, fmt.Errorf("could not read the controller token: %s", podReadErr)
-		}
-		tokenBytes = podBytes
+func RpcClientNew(tokenPath string, timeout time.Duration) (*rpc.Client, string, error) {
+	tokenBytes, err := os.ReadFile(tokenPath)
+	if err != nil {
+		return nil, "", fmt.Errorf("could not read the controller token: %s", err)
 	}
 
 	token := strings.TrimSpace(string(tokenBytes))
 	if token == "" {
-		return RpcGrantClient{}, errors.New("the controller token is empty")
+		return nil, "", errors.New("the controller token is empty")
 	}
 
 	hostBytes, err := os.ReadFile(RpcGrantProviderHostnamePath)
 	if err != nil {
-		return RpcGrantClient{}, fmt.Errorf("could not read the provider hostname: %s", err)
+		return nil, "", fmt.Errorf("could not read the provider hostname: %s", err)
 	}
 
 	host := strings.TrimSpace(string(hostBytes))
 	if host == "" {
-		return RpcGrantClient{}, fmt.Errorf("the provider hostname at %s is empty", RpcGrantProviderHostnamePath)
+		return nil, "", fmt.Errorf("the provider hostname at %s is empty", RpcGrantProviderHostnamePath)
+	}
+
+	client := &rpc.Client{
+		BasePath: fmt.Sprintf("http://%s:%d", host, RpcGrantProviderPort),
+		Client:   &http.Client{Timeout: timeout},
+	}
+
+	return client, token, nil
+}
+
+func RpcGrantClientNew() (RpcGrantClient, error) {
+	tokenPath := RpcGrantHostTokenPath
+	_, statErr := os.Stat(tokenPath)
+	hostTokenMissing := statErr != nil && os.IsNotExist(statErr)
+	if hostTokenMissing {
+		tokenPath = RpcGrantPodTokenPath
+	}
+
+	client, token, err := RpcClientNew(tokenPath, RpcGrantHttpTimeout)
+	if err != nil {
+		return RpcGrantClient{}, err
 	}
 
 	return RpcGrantClient{
-		Rpc: &rpc.Client{
-			BasePath: fmt.Sprintf("http://%s:%d", host, RpcGrantProviderPort),
-			Client:   &http.Client{Timeout: RpcGrantHttpTimeout},
-		},
+		Rpc:   client,
 		Token: token,
 	}, nil
 }

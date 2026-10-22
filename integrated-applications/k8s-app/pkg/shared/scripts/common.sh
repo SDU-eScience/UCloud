@@ -72,6 +72,23 @@ fail() {
 	exit 1
 }
 
+retry_until() {
+	local tries="$1"
+	local interval="$2"
+	shift 2
+	local attempt=1
+	while [ "$attempt" -le "$tries" ]; do
+		if "$@"; then
+			return 0
+		fi
+		if [ "$attempt" -lt "$tries" ]; then
+			sleep "$interval"
+		fi
+		attempt=$((attempt + 1))
+	done
+	return 1
+}
+
 require_mount() {
 	local path="$1"
 	local label="$2"
@@ -152,59 +169,52 @@ node_iface() {
 	}'
 }
 
+node_ip_present() {
+	[ -n "$(node_iface "$1")" ]
+}
+
 wait_for_node_ip() {
 	local ip="$1"
-	local tries=0
-	while [ $tries -lt 60 ]; do
-		if [ -n "$(node_iface "$ip")" ]; then
-			return 0
-		fi
-		sleep 2
-		tries=$((tries + 1))
-	done
-	fail "network" "the private address $ip never appeared on an interface"
+	retry_until 60 2 node_ip_present "$ip" || fail "network" "the private address $ip never appeared on an interface"
 }
 
 wait_k3s_ready() {
-	local tries=0
-	while [ $tries -lt $SERVICE_WAIT_TRIES ]; do
-		if timeout 15 k3s kubectl --request-timeout=10s get --raw /readyz >/dev/null 2>&1; then
-			return 0
-		fi
-		sleep "$SERVICE_WAIT_INTERVAL"
-		tries=$((tries + 1))
-	done
-	fail "start" "Kubernetes did not become ready"
+	retry_until "$SERVICE_WAIT_TRIES" "$SERVICE_WAIT_INTERVAL" \
+		timeout 15 k3s kubectl --request-timeout=10s get --raw /readyz >/dev/null 2>&1 ||
+		fail "start" "Kubernetes did not become ready"
+}
+
+node_is_ready() {
+	local nodename="$1"
+	local kubeconfig="$2"
+	timeout 30 k3s kubectl --request-timeout=20s --kubeconfig "$kubeconfig" get node "$nodename" -o jsonpath='{range .status.conditions[*]}{.type}={.status}{"\n"}{end}' 2>/dev/null | grep -q '^Ready=True$'
 }
 
 wait_node_ready() {
 	local nodename="$1"
 	local kubeconfig="${2:-/etc/rancher/k3s/k3s.yaml}"
-	local tries=0
-	while [ $tries -lt 60 ]; do
-		if timeout 30 k3s kubectl --request-timeout=20s --kubeconfig "$kubeconfig" get node "$nodename" -o jsonpath='{range .status.conditions[*]}{.type}={.status}{"\n"}{end}' 2>/dev/null | grep -q '^Ready=True$'; then
-			return 0
-		fi
-		sleep 10
-		tries=$((tries + 1))
-	done
-	fail "join" "the node never reached the Ready state"
+	retry_until 60 10 node_is_ready "$nodename" "$kubeconfig" || fail "join" "the node never reached the Ready state"
+}
+
+observed_node_version() {
+	local kubeconfig="$1"
+	local nodename="$2"
+	local version
+	version="$(timeout 20 k3s kubectl --request-timeout=15s --kubeconfig "$kubeconfig" get node "$nodename" -o jsonpath='{.status.nodeInfo.kubeletVersion}' 2>/dev/null || true)"
+	if [ -z "$version" ]; then
+		return 1
+	fi
+	printf '%s' "$version"
 }
 
 observed_k3s_version() {
 	local kubeconfig="$1"
 	local nodename="$2"
-	local version=""
-	local tries=0
-	while [ $tries -lt 12 ]; do
-		version="$(timeout 20 k3s kubectl --request-timeout=15s --kubeconfig "$kubeconfig" get node "$nodename" -o jsonpath='{.status.nodeInfo.kubeletVersion}' 2>/dev/null || true)"
-		if [ -n "$version" ]; then
-			printf '%s' "$version"
-			return 0
-		fi
-		sleep 5
-		tries=$((tries + 1))
-	done
+	local version
+	if version="$(retry_until 12 5 observed_node_version "$kubeconfig" "$nodename")"; then
+		printf '%s' "$version"
+		return 0
+	fi
 	version="$(k3s --version 2>/dev/null | awk '{print $3}')"
 	printf '%s' "$version"
 }
@@ -302,37 +312,25 @@ EOF
 	systemctl daemon-reload
 }
 
+token_files_present() {
+	local role="$1"
+	local agentToken="$INPUT_DIR/agent-token.ca"
+	local serverToken="$INPUT_DIR/server-token.ca"
+	if [ "$role" = "control-plane" ] && [ ! -s "$serverToken" ]; then
+		return 1
+	fi
+	[ -s "$agentToken" ]
+}
+
 start_k3s_unit() {
 	local unitName="$1"
-	local tries=0
 	local maxTries=3
-	while [ $tries -lt $maxTries ]; do
-		if timeout 660 systemctl restart "$unitName"; then
-			return 0
-		fi
-		tries=$((tries + 1))
-		sleep 10
-	done
-	fail "join" "could not start ${unitName} after $maxTries attempts"
+	retry_until "$maxTries" 10 timeout 660 systemctl restart "$unitName" ||
+		fail "join" "could not start ${unitName} after $maxTries attempts"
 }
 
 wait_for_token_files() {
 	local role="$1"
-	local tries=0
-
-	while [ $tries -lt $TOKEN_WAIT_TRIES ]; do
-		if [ "$role" = "control-plane" ]; then
-			if [ -s "$INPUT_DIR/server-token.ca" ] && [ -s "$INPUT_DIR/agent-token.ca" ]; then
-				return 0
-			fi
-		else
-			if [ -s "$INPUT_DIR/agent-token.ca" ]; then
-				return 0
-			fi
-		fi
-		sleep "$TOKEN_WAIT_INTERVAL"
-		tries=$((tries + 1))
-	done
-
-	fail "tokens" "secure tokens were never published to this node"
+	retry_until "$TOKEN_WAIT_TRIES" "$TOKEN_WAIT_INTERVAL" token_files_present "$role" ||
+		fail "tokens" "secure tokens were never published to this node"
 }

@@ -45,16 +45,16 @@ func AutoOpenWindowNow(ctx context.Context, kubeconfigPath string) error {
 	}
 
 	now := time.Now().UTC()
-	if autoStateClaimActive(stateRecord.State, now) || AutoRunActive(stateRecord.State.LastRun) {
+	if autoStateClaimActive(stateRecord.Value, now) || AutoRunActive(stateRecord.Value.LastRun) {
 		return errors.New("another automatic maintenance action is in progress")
 	}
-	if AutoStateBlocked(stateRecord.State) {
+	if AutoStateBlocked(stateRecord.Value) {
 		return errors.New("automatic maintenance is stopped; resolve the problem and resume automatic maintenance")
 	}
 
 	policy := AutoDefaultPolicy()
 	if policyRecord.Found {
-		policy = AutoPolicyNormalize(policyRecord.Policy)
+		policy = AutoPolicyNormalize(policyRecord.Value)
 	}
 	if !policy.K8s.Enabled && !policy.Os.Enabled {
 		return errors.New("enable Kubernetes or operating-system updates before starting maintenance")
@@ -96,7 +96,7 @@ func AutoDeferUntil(until time.Time) error {
 	if err != nil {
 		return err
 	}
-	policy := record.Policy
+	policy := record.Value
 	if !record.Found {
 		policy = AutoDefaultPolicy()
 	}

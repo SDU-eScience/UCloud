@@ -52,6 +52,7 @@ package dashboard
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -74,7 +75,6 @@ import (
 // The mutex guards the struct because the watchers and the message handlers run on different goroutines.
 
 const (
-	managementMountDir            = "/etc/ucloud-k8s/management"
 	navHomeId                     = "home"
 	provisioningRowKeyPrefix      = "provisioning:"
 	dashboardUiMessageSendTimeout = 10 * time.Second
@@ -528,10 +528,9 @@ func (app *stackUiApp) readClusterRecord() (shared.ClusterRecord, bool) {
 	if session != nil && stack != nil && stack.Ok {
 		client, clientErr := shared.ClusterStateClientNewSession(session, stack.InstanceId)
 		if clientErr == nil {
-			snapshot, readErr := shared.ClusterStateRead(client)
-			if readErr == nil && snapshot.Found {
-				record := snapshot.Record
-				shared.ClusterStateRecordRevisionSet(&record, snapshot.Revision)
+			record, found, revision, readErr := dashboardStateValueRead[shared.ClusterRecord](client, shared.ClusterStateRecordKey, "cluster record")
+			if readErr == nil && found {
+				shared.ClusterStateRecordRevisionSet(&record, revision)
 				return record, true
 			}
 		}
@@ -612,6 +611,27 @@ func (app *stackUiApp) runAsyncAction(busyBinding string, busy *bool, action fun
 	}()
 }
 
+func dashboardStateValueRead[T any](client shared.ClusterStateClient, key string, noun string) (T, bool, int64, error) {
+	var zero T
+
+	value, err := shared.ClusterStateValueRead(client, key)
+	if err != nil {
+		return zero, false, 0, fmt.Errorf("could not read the %s: %s", noun, err)
+	}
+
+	if !value.Found || value.Empty {
+		return zero, false, value.Revision, nil
+	}
+
+	var result T
+	err = json.Unmarshal(value.Value, &result)
+	if err != nil {
+		return zero, false, value.Revision, fmt.Errorf("could not parse the %s: %s", noun, err)
+	}
+
+	return result, true, value.Revision, nil
+}
+
 func dashboardSendUiMessage(session *ucx.Session, message string, success bool) {
 	if session == nil || session.Context().Err() != nil {
 		return
@@ -627,5 +647,5 @@ func dashboardSendUiMessage(session *ucx.Session, message string, success bool) 
 }
 
 func LocalKubeconfigPath() string {
-	return filepath.Join(managementMountDir, "kubeconfig-internal")
+	return filepath.Join(shared.ManagementMountPath, "kubeconfig-internal")
 }
