@@ -11,6 +11,7 @@ import {injectStyle} from "@/Unstyled";
 import {copyToClipboard, isLikelyMac} from "@/UtilityFunctions";
 import {TableColumn, TableColumnSortType, TableRow, TableRowAction, TableUpdate} from "@/UCX/protocol";
 import {UcxSpinner} from "@/UCX/UcxSpinner";
+import {openUcxUrl} from "@/UCX/ExternalLinks";
 import {UcxTableItem, useUcxTableVirtualization} from "@/UCX/UcxTableVirtualization";
 import {
     UCX_MIN_COLUMN_WIDTH,
@@ -887,8 +888,7 @@ export interface UcxTableActionDef {
 }
 
 function ucxOpenTableActionUrl(url: string): void {
-    if (!/^https?:\/\//i.test(url)) return;
-    window.open(url, "_blank", "noopener,noreferrer");
+    openUcxUrl(url);
 }
 
 export interface UcxTableActionEvent {

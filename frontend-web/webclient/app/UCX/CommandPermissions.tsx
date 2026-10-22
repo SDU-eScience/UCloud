@@ -131,7 +131,7 @@ function UcxCommandPermissionDialog(props: {
     const runOnceShortcut = createKeyboardShortcut("Enter");
     const runAlwaysShortcut = createKeyboardShortcut("Enter", ["ctrl"]);
 
-    return <Box p="20px" width="min(640px, calc(100vw - 32px))">
+    return <Box p="20px">
         <Heading.h3>Run command?</Heading.h3>
         <Text mt="8px" color="textSecondary">
             An application is requesting permission to run this command.

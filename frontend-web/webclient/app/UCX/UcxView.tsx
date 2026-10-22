@@ -85,6 +85,7 @@ import Warning from "@/ui-components/Warning";
 import {useDispatch} from "react-redux";
 import {openJobShellTab} from "@/Terminal/State";
 import {confirmUcxCommand} from "@/UCX/CommandPermissions";
+import {openUcxUrl} from "@/UCX/ExternalLinks";
 import {PermissionsTable} from "@/Resource/PermissionEditor";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {useProjectId} from "@/Project/Api";
@@ -686,9 +687,9 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                         if (origin === "" || (allowed === undefined || !allowed.includes(origin))) {
                             return {};
                         }
-                        window.open(path, "_blank", "noopener,noreferrer");
+                        openUcxUrl(path);
                     } else if (path.startsWith("/") && !path.startsWith("//")) {
-                        window.open("/app" + path, "_blank", "noopener,noreferrer");
+                        openUcxUrl(path, "/app");
                     }
                     return {};
                 });
@@ -1301,6 +1302,10 @@ const baseComponents: UcxComponentRegistry = {
                 href={href}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={event => {
+                    event.preventDefault();
+                    openUcxUrl(href);
+                }}
                 style={{
                     "--bgColor": `var(--${color})`,
                     "--hoverColor": `var(--${selectHoverColor(color as ThemeColor)})`,
@@ -3525,7 +3530,13 @@ const UcxCostEstimateClass = injectStyle("ucx-cost-estimate", key => `
 `);
 
 function MarkdownLink(props: {href?: string; children: React.ReactNode}) {
-    return <ExternalLink href={props.href}>{props.children}</ExternalLink>;
+    return <ExternalLink
+        href={props.href}
+        onClick={event => {
+            event.preventDefault();
+            openUcxUrl(props.href ?? "");
+        }}
+    >{props.children}</ExternalLink>;
 }
 
 const UcxInlineMarkdownClass = injectStyle("ucx-inline-markdown", k => `
