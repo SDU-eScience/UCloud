@@ -18,7 +18,7 @@
 // - 00_module.go: 	starts the agent, establishes identity and serves the API.
 // - api.go: 		contains the HTTP endpoints and the command checks.
 // - upgrade.go: 	runs the Kubernetes upgrade and writes control-plane backups.
-// - osupdate.go: 	runs the operating-system update from check to verification.
+// - os_update.go: 	runs the operating-system update from check to verification.
 // - logs.go: 		reports progress and serves the node log endpoints.
 //
 // Lifecycle

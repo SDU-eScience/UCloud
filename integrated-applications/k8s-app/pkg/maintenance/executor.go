@@ -240,7 +240,7 @@ func sweep(ctx context.Context, kubeconfigPath string) {
 			continue
 		}
 
-		if !operationStale(operation, time.Now()) {
+		if operation.Phase == PhaseRunning && !operationStale(operation, time.Now()) {
 			continue
 		}
 
@@ -275,7 +275,7 @@ func claimOperation(client stackClient, operation Operation, revision int64) boo
 	if writeErr != nil {
 		if !shared.IsConflict(writeErr) {
 			log.Warn(
-				"k8s-app maintenance %s: could not claim the stale operation: %s",
+				"k8s-app maintenance %s: could not claim the operation: %s",
 				operation.NodeName,
 				writeErr,
 			)
@@ -309,6 +309,7 @@ func runOperation(
 	clientset, err := newClient(kubeconfigPath)
 	if err != nil {
 		log.Warn("k8s-app maintenance %s: could not build the Kubernetes client: %s", nodeName, err)
+		failOperation(worker, fmt.Sprintf("could not build the Kubernetes client: %s", err))
 		return
 	}
 
@@ -340,6 +341,9 @@ func runOperation(
 	}
 
 	if runErr != nil {
+		if errors.Is(runErr, errConcluded) {
+			return
+		}
 		failOperation(worker, runErr.Error())
 	} else if errors.Is(workerCtx.Err(), context.DeadlineExceeded) {
 		worker.checkpoint()
@@ -583,6 +587,9 @@ func drainNode(
 				return drainConcluded
 			}
 			removePod(ctx, clientset, operation, worker, pod)
+			if !worker.heartbeat() {
+				return drainConcluded
+			}
 		}
 
 		if !waitInterruptible(worker, drainPollInterval) {
@@ -957,6 +964,14 @@ func newClient(kubeconfigPath string) (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(config)
 }
 
+func (worker *nodeWorker) heartbeat() bool {
+	if time.Since(worker.lastTouch) < heartbeatInterval {
+		return true
+	}
+
+	return !errors.Is(worker.mutate(func(op *Operation) bool { return false }), errConcluded)
+}
+
 func waitInterruptible(worker *nodeWorker, delay time.Duration) bool {
 	deadline := time.Now().Add(delay)
 	for {
@@ -964,11 +979,8 @@ func waitInterruptible(worker *nodeWorker, delay time.Duration) bool {
 			return false
 		}
 
-		if time.Since(worker.lastTouch) > heartbeatInterval {
-			heartbeatErr := worker.mutate(func(op *Operation) bool { return false })
-			if heartbeatErr != nil && errors.Is(heartbeatErr, errConcluded) {
-				return false
-			}
+		if !worker.heartbeat() {
+			return false
 		}
 
 		remaining := time.Until(deadline)
@@ -1013,6 +1025,9 @@ func pendingCordons(exclude string) (map[string]bool, error) {
 
 func finish(worker *nodeWorker, phase string, message string) {
 	err := finishQuiet(worker, phase, message)
+	if errors.Is(err, errConcluded) {
+		return
+	}
 	if err != nil {
 		logMutateFailure(worker.nodeName, err)
 	}
@@ -1027,7 +1042,12 @@ func finish(worker *nodeWorker, phase string, message string) {
 }
 
 func finishQuiet(worker *nodeWorker, phase string, message string) error {
-	return worker.mutate(func(op *Operation) bool {
+	concluded := false
+	err := worker.mutate(func(op *Operation) bool {
+		if !PhaseActive(op.Phase) {
+			concluded = true
+			return false
+		}
 		op.Phase = phase
 		op.Error = message
 		if KindRequiresRecovery(op.Kind) && op.ExecutorSubmitted && phase != PhaseCompleted {
@@ -1036,6 +1056,14 @@ func finishQuiet(worker *nodeWorker, phase string, message string) error {
 		op.CancelRequested = false
 		return true
 	})
+	if err != nil {
+		return err
+	}
+	if concluded {
+		return errConcluded
+	}
+
+	return nil
 }
 
 func failOperation(worker *nodeWorker, message string) {

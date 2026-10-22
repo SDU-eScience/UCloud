@@ -25,6 +25,8 @@ const (
 	autoOsCheckLeadTime        = 30 * time.Minute
 	autoOsReportFreshLimit     = 90 * time.Minute
 	autoOsOperationTimeoutSecs = 1800
+
+	autoProbeBudget = autoClaimLease / 2
 )
 
 var errAutoOsSchedulePaused = errors.New("automatic operating-system updates are disabled or outside the maintenance window")
@@ -39,7 +41,7 @@ func autoOsScheduleGate(client stackClient, now time.Time) (autoScheduleGate, er
 		return autoScheduleGate{}, nil
 	}
 
-	_, end, open := autoPolicyWindowOpenNow(now, policyRecord.Policy)
+	_, end, open := autoPolicyWindowOpenNow(now, policy)
 	return autoScheduleGate{
 		open: open,
 		condition: ucxapi.StackStateRevisionCondition{
@@ -63,6 +65,9 @@ type autoOsCheckResult struct {
 }
 
 func autoOsCheckNodes(ctx context.Context, nodes []shared.ClusterNodeRecord) []autoOsCheckResult {
+	probeCtx, cancel := context.WithTimeout(ctx, autoProbeBudget)
+	defer cancel()
+
 	results := make([]autoOsCheckResult, len(nodes))
 	semaphore := make(chan struct{}, autoAgentProbeConcurrency)
 	var waitGroup sync.WaitGroup
@@ -73,11 +78,16 @@ func autoOsCheckNodes(ctx context.Context, nodes []shared.ClusterNodeRecord) []a
 			defer waitGroup.Done()
 
 			node := nodes[index]
-			semaphore <- struct{}{}
+			select {
+			case semaphore <- struct{}{}:
+			case <-probeCtx.Done():
+				results[index] = autoOsCheckResult{node: node, err: probeCtx.Err()}
+				return
+			}
 			defer func() { <-semaphore }()
 
 			status, err := shared.NodeAgentClientOsCommand(
-				ctx,
+				probeCtx,
 				node.Hostname,
 				node.IpAddress,
 				shared.NodeAgentOsRequest{Command: shared.NodeAgentOsCommandCheck},
@@ -240,18 +250,8 @@ func autoOsCheckSweep(ctx context.Context, client stackClient) error {
 		return nil
 	}
 
-	results := autoOsCheckNodes(ctx, due)
-
-	stateRecord, err = autoStateRead(client)
-	if err != nil {
-		return err
-	}
-	if autoStateClaimActive(stateRecord.State, time.Now().UTC()) || AutoRunActive(stateRecord.State.LastRun) {
-		return nil
-	}
-
 	claimUid := newOperationUid()
-	stateRecord, err = autoStateClaim(client, stateRecord, claimUid, time.Now().UTC())
+	stateRecord, err = autoStateClaim(client, stateRecord, claimUid, now)
 	if err != nil {
 		if shared.IsConflict(err) {
 			return nil
@@ -259,6 +259,8 @@ func autoOsCheckSweep(ctx context.Context, client stackClient) error {
 		return err
 	}
 	defer autoUpgradeReleaseClaim(client, claimUid)
+
+	results := autoOsCheckNodes(ctx, due)
 
 	write := &autoRunWrite{
 		client:   client,

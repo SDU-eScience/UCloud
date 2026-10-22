@@ -79,12 +79,18 @@ func runRemove(
 
 			current, ok := worker.checkpoint()
 			if !ok {
-				return nil
+				return errConcluded
 			}
 			operation = current
 		}
 
 		if exists {
+			if !operation.Options.Drain {
+				if guardErr := controlPlaneGuard(ctx, clientset, operation, live); guardErr != nil {
+					return guardErr
+				}
+			}
+
 			if deleteErr := removeDeleteNode(ctx, clientset, operation, worker, live); deleteErr != nil {
 				return deleteErr
 			}
@@ -199,10 +205,10 @@ func removeVerifyControlPlane(
 ) error {
 	for {
 		if worker.ctx.Err() != nil {
-			return nil
+			return errConcluded
 		}
 		if _, ok := worker.checkpoint(); !ok {
-			return nil
+			return errConcluded
 		}
 
 		checkCtx, cancel := context.WithTimeout(ctx, apiRequestTimeout)
@@ -223,7 +229,7 @@ func removeVerifyControlPlane(
 			"Waiting for the control plane to confirm that the etcd quorum is intact",
 		)
 		if !waitInterruptible(worker, removeVerifyInterval) {
-			return nil
+			return errConcluded
 		}
 	}
 }
@@ -263,10 +269,10 @@ func removeInfrastructure(worker *nodeWorker, node shared.ClusterNodeRecord) err
 func removeWaitJobFinal(worker *nodeWorker, client shared.RpcGrantClient, jobId string) error {
 	for {
 		if worker.ctx.Err() != nil {
-			return nil
+			return errConcluded
 		}
 		if _, ok := worker.checkpoint(); !ok {
-			return nil
+			return errConcluded
 		}
 
 		job, found, herr := shared.RpcGrantRetrieveJob(client, jobId)
@@ -285,7 +291,7 @@ func removeWaitJobFinal(worker *nodeWorker, client shared.RpcGrantClient, jobId 
 				fmt.Sprintf("Waiting for the job %s of the node to stop", jobId),
 			)
 			if !waitInterruptible(worker, removeVerifyInterval) {
-				return nil
+				return errConcluded
 			}
 			continue
 		}
@@ -297,10 +303,10 @@ func removeWaitJobFinal(worker *nodeWorker, client shared.RpcGrantClient, jobId 
 func removeWaitReservationFree(worker *nodeWorker, client shared.RpcGrantClient, reservationId string) error {
 	for attempt := 0; ; attempt++ {
 		if worker.ctx.Err() != nil {
-			return nil
+			return errConcluded
 		}
 		if _, ok := worker.checkpoint(); !ok {
-			return nil
+			return errConcluded
 		}
 
 		deleteErr := shared.RpcGrantDeletePrivateNetworkIp(client, reservationId)
@@ -319,7 +325,7 @@ func removeWaitReservationFree(worker *nodeWorker, client shared.RpcGrantClient,
 			)
 		}
 		if !waitInterruptible(worker, removeVerifyInterval) {
-			return nil
+			return errConcluded
 		}
 	}
 }

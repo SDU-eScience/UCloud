@@ -158,6 +158,9 @@ type autoAgentProbe struct {
 }
 
 func autoUpgradeAgentProbes(ctx context.Context, nodes []shared.ClusterNodeRecord) []autoAgentProbe {
+	probeCtx, cancel := context.WithTimeout(ctx, autoProbeBudget)
+	defer cancel()
+
 	probes := make([]autoAgentProbe, len(nodes))
 	semaphore := make(chan struct{}, autoAgentProbeConcurrency)
 	var waitGroup sync.WaitGroup
@@ -168,10 +171,15 @@ func autoUpgradeAgentProbes(ctx context.Context, nodes []shared.ClusterNodeRecor
 			defer waitGroup.Done()
 
 			node := nodes[index]
-			semaphore <- struct{}{}
+			select {
+			case semaphore <- struct{}{}:
+			case <-probeCtx.Done():
+				probes[index] = autoAgentProbe{node: node, err: probeCtx.Err()}
+				return
+			}
 			defer func() { <-semaphore }()
 
-			status, err := shared.NodeAgentClientStatus(ctx, node.Hostname, node.IpAddress)
+			status, err := shared.NodeAgentClientStatus(probeCtx, node.Hostname, node.IpAddress)
 			probes[index] = autoAgentProbe{node: node, status: status, err: err}
 		}(i)
 	}

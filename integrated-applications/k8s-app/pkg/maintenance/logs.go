@@ -31,17 +31,16 @@ const (
 )
 
 type logBatch struct {
-	nodeName     string
-	nodeIp       string
-	operationUid string
-	lines        []string
-	enqueuedAt   time.Time
+	lines      []string
+	enqueuedAt time.Time
 }
 
 type logRelay struct {
-	worker *nodeWorker
-	queue  chan logBatch
-	done   chan struct{}
+	worker   *nodeWorker
+	queue    chan logBatch
+	done     chan struct{}
+	nodeIp   string
+	lastText string
 }
 
 func logRelayStart(worker *nodeWorker) *logRelay {
@@ -80,27 +79,11 @@ func (relay *logRelay) submit(lines []string) {
 		return
 	}
 
-	state, err := relay.worker.load()
-	if err != nil || !state.Found {
+	text := strings.Join(batch.lines, "\n")
+	if text == relay.lastText {
 		return
 	}
-	operation := state.Operation
-	if operation.NodeName == "" {
-		return
-	}
-
-	var nodeIpErr error
-	batch.nodeIp, nodeIpErr = upgradeNodeIp(relay.worker, state.Operation)
-	if nodeIpErr != nil {
-		log.Info(
-			"k8s-app maintenance %s: the progress log could not be queued because the node address is unknown: %s",
-			relay.worker.nodeName,
-			nodeIpErr,
-		)
-		return
-	}
-	batch.nodeName = state.Operation.NodeName
-	batch.operationUid = state.Operation.Uid
+	relay.lastText = text
 
 	select {
 	case relay.queue <- batch:
@@ -164,12 +147,21 @@ func (relay *logRelay) deliver(batch logBatch) {
 		return
 	}
 
+	nodeIp, addressOk := relay.nodeAddress()
+	if !addressOk {
+		log.Info(
+			"k8s-app maintenance %s: a progress log batch was discarded because the node address is unknown",
+			relay.worker.nodeName,
+		)
+		return
+	}
+
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
 
 	var lastErr error
 	for attempt := 0; attempt < logSendAttempts; attempt++ {
-		lastErr = shared.NodeAgentClientAppendLog(ctx, batch.nodeName, batch.nodeIp, batch.lines, batch.operationUid)
+		lastErr = shared.NodeAgentClientAppendLog(ctx, relay.worker.nodeName, nodeIp, batch.lines, relay.worker.uid)
 		if lastErr == nil {
 			return
 		}
@@ -199,6 +191,25 @@ func (relay *logRelay) deliver(batch logBatch) {
 		logSendAttempts,
 		lastErr,
 	)
+}
+
+func (relay *logRelay) nodeAddress() (string, bool) {
+	if relay.nodeIp != "" {
+		return relay.nodeIp, true
+	}
+
+	record, err := readClusterRecord()
+	if err != nil {
+		return "", false
+	}
+
+	node, known := upgradeNodeRecord(record, relay.worker.nodeName)
+	if !known || node.IpAddress == "" {
+		return "", false
+	}
+
+	relay.nodeIp = node.IpAddress
+	return relay.nodeIp, true
 }
 
 func resetNodeLog(nodeName string, operationUid string) {
@@ -252,22 +263,16 @@ func operationLogStage(worker *nodeWorker, stage string, lines ...string) {
 		return
 	}
 
-	changed := false
 	err := worker.mutate(func(op *Operation) bool {
 		if op.LogStage == stage {
 			return false
 		}
-		changed = true
 		op.LogStage = stage
 		op.LogStageUpdatedAt = time.Now().UTC()
 		return true
 	})
 	if err != nil {
 		logMutateFailure(worker.nodeName, err)
-		return
-	}
-	if !changed {
-		return
 	}
 
 	if worker.logs != nil && len(lines) > 0 {

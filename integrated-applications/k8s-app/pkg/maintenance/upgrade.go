@@ -784,6 +784,9 @@ func upgradeFail(operation Operation, worker *nodeWorker, message string) {
 
 func upgradeFinish(operation Operation, worker *nodeWorker) {
 	finishErr := finishQuiet(worker, PhaseCompleted, "")
+	if errors.Is(finishErr, errConcluded) {
+		return
+	}
 	if finishErr != nil {
 		upgradeFail(operation, worker, fmt.Sprintf(
 			"the upgrade to %s completed on the node, but the result could not be recorded: %s. An explicit retry recovers it without draining the node again",

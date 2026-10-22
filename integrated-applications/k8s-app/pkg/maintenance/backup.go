@@ -14,6 +14,8 @@ import (
 
 const backupClaimLease = 30 * time.Minute
 
+const backupClaimRenewInterval = 5 * time.Minute
+
 type backupStateRecord struct {
 	Found    bool
 	State    backup.State
@@ -228,10 +230,12 @@ func backupSweep(ctx context.Context, client stackClient) error {
 			FinishedAt: time.Now().UTC(),
 			Error:      nodeErr.Error(),
 		}
-		return backupComplete(client, state, revision, request, requestRevision, manual, attemptUid, attempt, nil, nil)
+		return backupComplete(client, attemptUid, attempt, nil, nil, request, requestRevision, manual)
 	}
 
+	stopRenew := backupClaimRenew(client, attemptUid)
 	result, backupErr := shared.NodeAgentClientBackup(ctx, node.Hostname, node.IpAddress, trigger, attemptUid)
+	stopRenew()
 
 	attempt := backup.Attempt{
 		Trigger:    trigger,
@@ -253,21 +257,29 @@ func backupSweep(ctx context.Context, client stackClient) error {
 		pruneWarnings = result.PruneWarnings
 	}
 
-	return backupComplete(client, state, revision, request, requestRevision, manual, attemptUid, attempt, retained, pruneWarnings)
+	return backupComplete(client, attemptUid, attempt, retained, pruneWarnings, request, requestRevision, manual)
 }
 
 func backupComplete(
 	client stackClient,
-	state backup.State,
-	stateRevision int64,
-	request backup.Request,
-	requestRevision int64,
-	manual bool,
 	attemptUid string,
 	attempt backup.Attempt,
 	retained []backup.BackupInfo,
 	pruneWarnings []string,
+	request backup.Request,
+	requestRevision int64,
+	manual bool,
 ) error {
+	record, err := backupStateRead(client)
+	if err != nil {
+		return err
+	}
+	if !record.Found || record.State.ClaimUid != attemptUid {
+		return errors.New("the backup claim was lost before the attempt finished")
+	}
+
+	state := record.State
+	state.SchemaRevision = backup.SchemaRevision
 	state.LastAttempt = attempt
 	state.ClaimUid = ""
 	state.ClaimTrigger = ""
@@ -279,9 +291,8 @@ func backupComplete(
 		state.PruneWarnings = pruneWarnings
 	}
 
-	_, err := backupStateWrite(client, state, stateRevision)
-	if err != nil {
-		return err
+	if _, writeErr := backupStateWrite(client, state, record.Revision); writeErr != nil {
+		return writeErr
 	}
 
 	if !manual {
@@ -304,6 +315,40 @@ func backupComplete(
 	}
 
 	return nil
+}
+
+func backupClaimRenew(client stackClient, claimUid string) func() {
+	stop := make(chan struct{})
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(backupClaimRenewInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ticker.C:
+				record, err := backupStateRead(client)
+				if err != nil || !record.Found || record.State.ClaimUid != claimUid {
+					continue
+				}
+
+				record.State.ClaimDeadline = time.Now().UTC().Add(backupClaimLease)
+				_, writeErr := backupStateWrite(client, record.State, record.Revision)
+				if writeErr != nil && !shared.IsConflict(writeErr) {
+					log.Warn("k8s-app backup: could not extend the backup claim: %s", writeErr)
+				}
+			}
+		}
+	}()
+
+	return func() {
+		close(stop)
+		<-done
+	}
 }
 
 func backupSelectNode(ctx context.Context, record shared.ClusterRecord) (shared.ClusterNodeRecord, error) {

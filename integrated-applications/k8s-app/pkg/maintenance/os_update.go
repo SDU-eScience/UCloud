@@ -506,6 +506,9 @@ func osUpdateFail(operation Operation, worker *nodeWorker, message string) {
 
 func osUpdateFinish(operation Operation, worker *nodeWorker) {
 	finishErr := finishQuiet(worker, PhaseCompleted, "")
+	if errors.Is(finishErr, errConcluded) {
+		return
+	}
 	if finishErr != nil {
 		osUpdateFail(operation, worker, fmt.Sprintf(
 			"the OS update finished on the node, but the result could not be saved: %s. Retry the update to record the result without draining the node again",

@@ -465,6 +465,7 @@ func submitRecord(submit submission, existing Operation) Operation {
 		Options:                   submit.options,
 		StartedAt:                 now,
 		UpdatedAt:                 now,
+		HeartbeatAt:               now,
 		Deadline:                  now.Add(time.Duration(submit.options.TimeoutSeconds) * time.Second),
 		HostTerminationUnverified: existing.HostTerminationUnverified,
 		TargetRelease:             submit.release,
