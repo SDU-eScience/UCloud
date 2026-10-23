@@ -12,5 +12,6 @@ func ServiceCliDistribution() {
 		Image:    "dreg.cloud.sdu.dk/ucloud/ucloud-cli:" + CliVersion,
 		Hostname: "cli-distribution",
 		Restart:  "always",
+		Networks: pinnedNetwork("172.18.0.20"),
 	})
 }

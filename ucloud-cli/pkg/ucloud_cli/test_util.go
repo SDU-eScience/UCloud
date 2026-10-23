@@ -28,9 +28,28 @@ func SetTestEnv() {
 	}
 }
 
+func FindCompute() accapi.ProductV2 {
+	products, httpErr := accapi.ProductsBrowse.Invoke(accapi.ProductsBrowseRequest{})
+	if httpErr != nil {
+		panic(httpErr)
+	}
+	if len(products.Items) == 0 {
+		panic("no products found")
+	}
+	for _, product := range products.Items {
+		if product.Category.Provider == "k8s" && product.ProductType == "COMPUTE" {
+			return product
+		}
+	}
+	panic("no compute product found")
+
+}
+
 func allocateRoot(grantId string) error {
 
+	computeProduct := FindCompute()
 	provider := "k8s"
+	Quota := int64(100000)
 	start := fndapi.Timestamp(time.Now())
 	end := fndapi.Timestamp(time.Now().Add(time.Hour * 24 * 365 * 10))
 	_, httpErr := accapi.RootAllocate.Invoke(fndapi.BulkRequest[accapi.RootAllocateRequest]{
@@ -42,14 +61,14 @@ func allocateRoot(grantId string) error {
 				},
 				Start: start,
 				End:   end,
-				Quota: 1000,
+				Quota: Quota,
 			},
 			{
 				Category: accapi.ProductCategoryIdV2{
 					Provider: provider,
 					Name:     "storage",
 				},
-				Quota: 1000,
+				Quota: Quota,
 				Start: start,
 				End:   end,
 			},
@@ -58,16 +77,16 @@ func allocateRoot(grantId string) error {
 					Provider: "k8s",
 					Name:     "test-license",
 				},
-				Quota: 1000,
+				Quota: Quota,
 				Start: start,
 				End:   end,
 			},
 			{
 				Category: accapi.ProductCategoryIdV2{
 					Provider: provider,
-					Name:     "u1-standard",
+					Name:     computeProduct.Category.Name,
 				},
-				Quota: 2400,
+				Quota: Quota,
 				Start: start,
 				End:   end,
 			},
@@ -76,14 +95,14 @@ func allocateRoot(grantId string) error {
 	if httpErr.AsError() != nil {
 		return fmt.Errorf("failed to allocate test workspace: %s", httpErr.Why)
 	}
-	err := createGrant(grantId)
+	err := createGrant(grantId, computeProduct.Category.Name)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func createTestGrant(grantGiverId string) accapi.GrantDocument {
+func createTestGrant(grantGiverId string, computeName string) accapi.GrantDocument {
 	provider := "k8s"
 	grant := accapi.GrantDocument{
 		AllocationRequests: []accapi.AllocationRequest{
@@ -108,7 +127,7 @@ func createTestGrant(grantGiverId string) accapi.GrantDocument {
 				Provider:   provider,
 			},
 			{
-				Category:         "u1-standard",
+				Category:         computeName,
 				BalanceRequested: util.OptValue(int64(240)),
 				Period: accapi.Period{
 					Start: util.OptValue(fndapi.Timestamp(time.Now())),
@@ -148,10 +167,10 @@ func createTestGrant(grantGiverId string) accapi.GrantDocument {
 	return grant
 }
 
-func createGrant(grantId string) error {
+func createGrant(grantId string, computeName string) error {
 	grant, httpErr := accapi.GrantsSubmitRevision.Invoke(accapi.GrantsSubmitRevisionRequest{
 		Comment:  "Submitted the application",
-		Revision: createTestGrant(grantId),
+		Revision: createTestGrant(grantId, computeName),
 	})
 	if httpErr.AsError() != nil {
 		return fmt.Errorf("failed to create grants: %s", httpErr.Why)
