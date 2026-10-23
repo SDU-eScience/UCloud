@@ -31,12 +31,8 @@ import (
 
 const removeVerifyInterval = 5 * time.Second
 
-func removePastPointOfNoReturn(operation Operation) bool {
-	return operation.Kind == KindRemove && (operation.NodeDeleted || operation.ResourcesRemoved)
-}
-
 func RemovePastPointOfNoReturn(operation Operation) bool {
-	return removePastPointOfNoReturn(operation)
+	return operation.Kind == KindRemove && (operation.NodeDeleted || operation.ResourcesRemoved)
 }
 
 func runRemove(

@@ -319,7 +319,7 @@ func osUpdateDriveRemote(
 }
 
 func operationSawStatus(operation Operation, operationUid string) bool {
-	return operation.Uid != "" && operation.Uid == operationUid
+	return operation.Uid == operationUid
 }
 
 func osUpdateSubmit(

@@ -460,14 +460,13 @@ func nodeAgentClientUrl(nodeIp string, endpoint string) string {
 }
 
 func nodeAgentClientValidateIp(nodeIp string) error {
-	trimmed := strings.TrimSpace(nodeIp)
-	if trimmed == "" {
+	if nodeIp == "" {
 		return fmt.Errorf("no node IP address was provided")
 	}
 
-	address, err := netip.ParseAddr(trimmed)
+	address, err := netip.ParseAddr(nodeIp)
 	if err != nil {
-		return fmt.Errorf("the node IP address is invalid: %s", trimmed)
+		return fmt.Errorf("the node IP address is invalid: %s", nodeIp)
 	}
 
 	clusterPrefix, err := netip.ParsePrefix(ClusterVmCidr)
@@ -476,7 +475,7 @@ func nodeAgentClientValidateIp(nodeIp string) error {
 	}
 
 	if !clusterPrefix.Contains(address) {
-		return fmt.Errorf("the node IP address is outside the cluster subnet: %s", trimmed)
+		return fmt.Errorf("the node IP address is outside the cluster subnet: %s", nodeIp)
 	}
 
 	return nil

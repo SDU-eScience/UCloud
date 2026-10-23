@@ -527,7 +527,7 @@ func (app *app) closeWork(session *ucx.Session, progress func(string)) (string, 
 
 	progress("Stopping the recovery job")
 	stack := app.Stack
-	jobId := strings.TrimSpace(app.JobId)
+	jobId := app.JobId
 	if stack != nil && stack.Ok && jobId != "" {
 		_ = ucxsvc.JobTerminate(stack, jobId)
 	}

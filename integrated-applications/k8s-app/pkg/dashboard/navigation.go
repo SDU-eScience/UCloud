@@ -298,13 +298,9 @@ func (ref resourceDetailRef) String() string {
 	return ref.Type + "/" + ref.Namespace + "/" + ref.Name
 }
 
-func (ref resourceDetailRef) creating() bool {
-	return ref.Name == "@create"
-}
-
 func dashboardResourceDetailEncode(ref resourceDetailRef) string {
 	parts := []string{"detail", url.PathEscape(ref.Type), url.PathEscape(ref.Namespace)}
-	if ref.creating() {
+	if ref.Name == "@create" {
 		parts = append(parts, url.PathEscape(ref.Name))
 		return strings.Join(parts, "/")
 	}

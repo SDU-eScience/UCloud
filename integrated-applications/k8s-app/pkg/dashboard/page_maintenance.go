@@ -101,8 +101,8 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 		targetUid = operation.NodeUid
 	}
 	operationMatchesTarget := hasOperation && operation.NodeUid == targetUid
-	isUpgrade := hasOperation && maintenance.KindIsUpgrade(operation.Kind)
-	isOsUpdate := hasOperation && maintenance.KindIsOsUpdate(operation.Kind)
+	isUpgrade := hasOperation && operation.Kind == maintenance.KindUpgrade
+	isOsUpdate := hasOperation && operation.Kind == maintenance.KindOsUpdate
 	isRemove := hasOperation && operation.Kind == maintenance.KindRemove
 	recoveryBlocked := hasOperation && maintenance.KindRequiresRecovery(operation.Kind) &&
 		operation.ExecutorSubmitted && operation.RecoveryRequired
@@ -736,15 +736,15 @@ func (submit maintenanceSubmit) run(
 ) error {
 	switch submit.kind {
 	case "cordon":
-		return maintenance.Cordon(nodeName, nodeUid, options)
+		return maintenance.SubmitCordon(nodeName, nodeUid, options)
 	case "start":
-		return maintenance.Start(nodeName, nodeUid, options)
+		return maintenance.SubmitCordonDrain(nodeName, nodeUid, options)
 	case "upgrade":
-		return maintenance.UpgradeStart(nodeName, nodeUid, targetRelease, options)
+		return maintenance.SubmitUpgrade(nodeName, nodeUid, targetRelease, options)
 	case "remove":
-		return maintenance.RemoveStart(nodeName, nodeUid, options)
+		return maintenance.SubmitRemove(nodeName, nodeUid, options)
 	case "uncordon":
-		return maintenance.Uncordon(nodeName, nodeUid)
+		return maintenance.SubmitUncordon(nodeName, nodeUid)
 	case "cancel":
 		return maintenance.CancelActiveOperation(nodeName)
 	}

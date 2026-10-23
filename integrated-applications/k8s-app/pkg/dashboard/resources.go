@@ -1200,7 +1200,7 @@ func resourceRowActions(
 		}
 		return actions
 	}
-	isUpgrade := knownRecorded && maintenance.KindIsUpgrade(operation.Kind)
+	isUpgrade := knownRecorded && operation.Kind == maintenance.KindUpgrade
 	recoveryBlocked := knownRecorded && maintenance.KindRequiresRecovery(operation.Kind) &&
 		operation.ExecutorSubmitted && operation.RecoveryRequired
 	upgradeNode := ucx.TableRowAction{Id: dashboardActionUpgradeNode, Enabled: true}
@@ -1272,10 +1272,10 @@ func maintenanceCellForOperation(operation maintenance.Operation, present bool) 
 		return ""
 	}
 	if maintenance.PhaseActive(operation.Phase) {
-		if maintenance.KindIsUpgrade(operation.Kind) {
+		if operation.Kind == maintenance.KindUpgrade {
 			return "Upgrading"
 		}
-		if maintenance.KindIsOsUpdate(operation.Kind) {
+		if operation.Kind == maintenance.KindOsUpdate {
 			return "Updating"
 		}
 		if operation.Kind == maintenance.KindCordon {

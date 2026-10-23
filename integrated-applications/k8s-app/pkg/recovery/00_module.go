@@ -115,9 +115,9 @@ func (app *app) OnSysHello(payload string) {
 	}
 
 	app.Stack = stack
-	app.JobId = strings.TrimSpace(request.Job.Id)
-	if trimmed := strings.TrimSpace(stack.MountPath); trimmed != "" {
-		app.MountPath = trimmed
+	app.JobId = request.Job.Id
+	if stack.MountPath != "" {
+		app.MountPath = stack.MountPath
 	}
 
 	go app.refresh()
@@ -126,8 +126,8 @@ func (app *app) OnSysHello(payload string) {
 
 func (app *app) stackId() string {
 	if app.Stack != nil {
-		if trimmed := strings.TrimSpace(app.Stack.InstanceId); trimmed != "" {
-			return trimmed
+		if app.Stack.InstanceId != "" {
+			return app.Stack.InstanceId
 		}
 	}
 	return app.EnvStackId

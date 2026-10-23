@@ -401,7 +401,7 @@ func autoOperationsCheck(
 }
 
 func autoRecoveryRequiredDetail(nodeName string, operation Operation) string {
-	if KindIsOsUpdate(operation.Kind) {
+	if operation.Kind == KindOsUpdate {
 		return fmt.Sprintf(
 			"Node %s requires operating-system update recovery. Retry the update or uncordon the node.",
 			nodeName,

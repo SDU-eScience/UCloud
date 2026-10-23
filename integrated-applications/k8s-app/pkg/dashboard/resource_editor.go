@@ -137,7 +137,7 @@ func dashboardResourceEditorLoad(app *stackUiApp, detail string, editing bool) {
 		app.resourceEditor.Error = fmt.Sprintf("Unknown resource type: %s", ref.Type)
 		return
 	}
-	if editing && !ref.creating() && !def.CanUpdate {
+	if editing && ref.Name != "@create" && !def.CanUpdate {
 		app.resourceEditor.Error = "This resource type does not support updates"
 		return
 	}
@@ -149,7 +149,7 @@ func dashboardResourceEditorLoad(app *stackUiApp, detail string, editing bool) {
 	}
 	app.resourceEditor.Def = def
 	app.resourceEditor.Loading = true
-	if ref.creating() {
+	if ref.Name == "@create" {
 		dashboardResourceCreateLoad(app, ref.Namespace)
 		return
 	}

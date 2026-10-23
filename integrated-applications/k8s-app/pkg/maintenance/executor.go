@@ -146,7 +146,7 @@ func (worker *nodeWorker) checkpoint() (Operation, bool) {
 	if !PhaseActive(operation.Phase) {
 		return Operation{}, false
 	}
-	if operation.CancelRequested && !removePastPointOfNoReturn(operation) {
+	if operation.CancelRequested && !RemovePastPointOfNoReturn(operation) {
 		finish(worker, PhaseCancelled, cancelMessage(operation))
 		return Operation{}, false
 	}
@@ -382,7 +382,7 @@ func runOperation(
 // because the node may have been replaced between submission and execution.
 
 func cancelMessage(operation Operation) string {
-	if KindIsOsUpdate(operation.Kind) && !operation.OriginalSchedulingCaptured {
+	if operation.Kind == KindOsUpdate && !operation.OriginalSchedulingCaptured {
 		return "cancelled by request. No operating-system packages were installed"
 	}
 	if operation.Kind == KindUncordon {
@@ -394,7 +394,7 @@ func cancelMessage(operation Operation) string {
 		}
 		return "cancelled by request. The node remains part of the cluster"
 	}
-	if KindIsUpgrade(operation.Kind) && !UpgradeCordons(operation) {
+	if operation.Kind == KindUpgrade && !UpgradeCordons(operation) {
 		return "cancelled by request"
 	}
 	return "cancelled by request. The node remains cordoned"

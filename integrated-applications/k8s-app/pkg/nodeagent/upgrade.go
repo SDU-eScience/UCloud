@@ -399,11 +399,7 @@ func stateStore(state *upgradeState) error {
 }
 
 func statePath() string {
-	return filepath.Join(workingDir(), stateName)
-}
-
-func workingDir() string {
-	return stagingDir
+	return filepath.Join(stagingDir, stateName)
 }
 
 func setPhase(phase string) bool {
@@ -920,7 +916,7 @@ func backupBinary(binaryPath string, release string) (string, error) {
 	defer source.Close()
 
 	backupName := fmt.Sprintf("k3s-previous-%s", shared.SanitizeForPath(release))
-	backupPath := filepath.Join(workingDir(), backupName)
+	backupPath := filepath.Join(stagingDir, backupName)
 	tempPath := fmt.Sprintf("%s.tmp", backupPath)
 
 	destination, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
@@ -946,7 +942,7 @@ func backupBinary(binaryPath string, release string) (string, error) {
 		return "", err
 	}
 
-	err = syncDir(workingDir())
+	err = syncDir(stagingDir)
 	if err != nil {
 		return "", err
 	}
@@ -1253,7 +1249,7 @@ func readBackupStackIdentity() (string, error) {
 		return "", fmt.Errorf("the stack identity is invalid: %s", err)
 	}
 
-	stackId := strings.TrimSpace(identity.StackId)
+	stackId := identity.StackId
 	if stackId == "" {
 		return "", errors.New("the stack identity has no stack id")
 	}

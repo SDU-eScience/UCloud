@@ -116,13 +116,13 @@ func recoveryReadGeneration(mountPath string, allocationId int) string {
 	if err := json.Unmarshal(data, &parsed); err != nil {
 		return ""
 	}
-	return strings.TrimSpace(parsed.Generation)
+	return parsed.Generation
 }
 
 const recoveryDecommissionedMarker = "decommissioned"
 
 func recoveryWriteMarker(mountPath string, allocationId int, generation string) error {
-	if strings.TrimSpace(generation) == "" {
+	if generation == "" {
 		generation = "decommissioned"
 	}
 
@@ -189,8 +189,8 @@ func recoveryApiConfig(mountPath string, cluster shared.ClusterRecord) (*rest.Co
 		return nil, fmt.Errorf("the kubeconfig is invalid (%s)", err)
 	}
 
-	if serviceDns := strings.TrimSpace(cluster.ServiceDnsName); serviceDns != "" {
-		config.Host = fmt.Sprintf("https://%s:%d", serviceDns, shared.ApiPort)
+	if cluster.ServiceDnsName != "" {
+		config.Host = fmt.Sprintf("https://%s:%d", cluster.ServiceDnsName, shared.ApiPort)
 	}
 	config.Timeout = 15 * time.Second
 	return config, nil

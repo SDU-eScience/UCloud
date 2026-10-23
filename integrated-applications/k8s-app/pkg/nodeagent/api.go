@@ -29,7 +29,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/backup"
@@ -228,7 +227,7 @@ func decodeRelease(writer http.ResponseWriter, request *http.Request) (string, b
 	if !ok {
 		return "", false
 	}
-	if strings.TrimSpace(parsed.Release) == "" {
+	if parsed.Release == "" {
 		writeError(writer, http.StatusBadRequest, "a release is required")
 		return "", false
 	}

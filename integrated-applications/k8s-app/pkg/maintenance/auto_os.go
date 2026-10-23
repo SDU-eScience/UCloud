@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -138,7 +137,7 @@ func autoOsReportsMerge(
 			report.Pending = result.status.Pending
 			report.Security = result.status.Security
 			report.RebootRequired = result.status.RebootRequired
-			report.Error = strings.TrimSpace(result.status.CheckError)
+			report.Error = result.status.CheckError
 		}
 		merged[result.node.Hostname] = report
 	}
@@ -283,7 +282,7 @@ func AutoOsRecoveryNodes() ([]string, error) {
 
 	nodes := []string{}
 	for _, operation := range snapshot {
-		if KindIsOsUpdate(operation.Kind) && operationBlockedByRecovery(operation) {
+		if operation.Kind == KindOsUpdate && operationBlockedByRecovery(operation) {
 			nodes = append(nodes, operation.NodeName)
 		}
 	}
@@ -292,7 +291,6 @@ func AutoOsRecoveryNodes() ([]string, error) {
 }
 
 func AutoRetryOsUpdate(ctx context.Context, kubeconfigPath string, nodeName string) error {
-	nodeName = strings.TrimSpace(nodeName)
 	if nodeName == "" {
 		return errors.New("no node was selected for the retry")
 	}
@@ -314,7 +312,7 @@ func AutoRetryOsUpdate(ctx context.Context, kubeconfigPath string, nodeName stri
 	if err != nil {
 		return err
 	}
-	if !operationRecord.Found || !KindIsOsUpdate(operationRecord.Value.Kind) ||
+	if !operationRecord.Found || operationRecord.Value.Kind != KindOsUpdate ||
 		!operationBlockedByRecovery(operationRecord.Value) {
 		return errors.New("no failed operating-system update is waiting on " + nodeName)
 	}
@@ -335,7 +333,7 @@ func AutoRetryOsUpdate(ctx context.Context, kubeconfigPath string, nodeName stri
 		runUid = stateRecord.Value.LastRun.Uid
 	}
 
-	return OsUpdateStart(nodeName, string(nodeObject.UID), Options{TimeoutSeconds: autoOsOperationTimeoutSecs}, runUid)
+	return SubmitOsUpdate(nodeName, string(nodeObject.UID), Options{TimeoutSeconds: autoOsOperationTimeoutSecs}, runUid)
 }
 
 // The scheduled operating-system run
@@ -406,7 +404,7 @@ func autoOsAdvance(write *autoRunWrite, ctx context.Context, kubeconfigPath stri
 func autoOsRunOperation(snapshot map[string]Operation, run AutoRun) (Operation, bool) {
 	var found Operation
 	for _, operation := range snapshot {
-		if !KindIsOsUpdate(operation.Kind) {
+		if operation.Kind != KindOsUpdate {
 			continue
 		}
 		if operation.AutoRunUid != run.Uid {
@@ -752,7 +750,7 @@ func autoOsNodeCount(count int) string {
 
 func autoOsNodeProcessed(snapshot map[string]Operation, nodeName string, run AutoRun) bool {
 	for _, operation := range snapshot {
-		if operation.NodeName != nodeName || !KindIsOsUpdate(operation.Kind) {
+		if operation.NodeName != nodeName || operation.Kind != KindOsUpdate {
 			continue
 		}
 		if operation.AutoRunUid != run.Uid {
@@ -776,7 +774,7 @@ func autoOsSubmitNode(
 		return fmt.Errorf("could not read the node %s: %s", node.Hostname, err)
 	}
 
-	return OsUpdateStart(
+	return SubmitOsUpdate(
 		node.Hostname,
 		string(nodeObject.UID),
 		Options{TimeoutSeconds: autoOsOperationTimeoutSecs},

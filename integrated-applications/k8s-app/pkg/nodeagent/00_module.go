@@ -250,11 +250,11 @@ func readNodeConfig(path string) (nodeFile, error) {
 		return nodeFile{}, fmt.Errorf("the node configuration at %s is invalid: %s", path, err)
 	}
 
-	if strings.TrimSpace(nodeJson.Hostname) == "" {
+	if nodeJson.Hostname == "" {
 		return nodeFile{}, fmt.Errorf("the node configuration at %s has no hostname", path)
 	}
 
-	address, err := netip.ParseAddr(strings.TrimSpace(nodeJson.IpAddress))
+	address, err := netip.ParseAddr(nodeJson.IpAddress)
 	if err != nil {
 		return nodeFile{}, fmt.Errorf(
 			"the node configuration at %s has an invalid IP address: %s", path, nodeJson.IpAddress)
@@ -279,7 +279,7 @@ func readNodeConfig(path string) (nodeFile, error) {
 }
 
 func waitForLocalAddress(ctx context.Context, ipAddress string) error {
-	address, err := netip.ParseAddr(strings.TrimSpace(ipAddress))
+	address, err := netip.ParseAddr(ipAddress)
 	if err != nil {
 		return fmt.Errorf("the node IP address is invalid: %s", ipAddress)
 	}
@@ -356,7 +356,7 @@ func requirePeer(method string, next func(http.ResponseWriter, *http.Request)) h
 }
 
 func authorizePeer(writer http.ResponseWriter, request *http.Request) bool {
-	token := strings.TrimSpace(request.Header.Get(shared.NodeAgentTokenHeader))
+	token := request.Header.Get(shared.NodeAgentTokenHeader)
 	if token == "" {
 		writeError(writer, http.StatusUnauthorized, "a maintenance token is required")
 		return false
@@ -404,7 +404,7 @@ type fenceState struct {
 }
 
 func fenceStatePath() string {
-	return filepath.Join(workingDir(), fenceStateName)
+	return filepath.Join(stagingDir, fenceStateName)
 }
 
 func fenceLoad() (fenceState, error) {
@@ -444,7 +444,7 @@ func fenceStore(operationUid string) error {
 }
 
 func readCommandAuthorization(writer http.ResponseWriter, request *http.Request) (string, bool) {
-	operationUid := strings.TrimSpace(request.Header.Get(shared.NodeAgentOperationHeader))
+	operationUid := request.Header.Get(shared.NodeAgentOperationHeader)
 	if operationUid == "" {
 		writeError(writer, http.StatusUnauthorized, "the command requires an operation credential")
 		return "", false

@@ -44,7 +44,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
@@ -100,16 +99,8 @@ func autoMaintenanceWakeSignal() {
 	}
 }
 
-func KindIsUpgrade(kind string) bool {
-	return kind == KindUpgrade
-}
-
-func KindIsOsUpdate(kind string) bool {
-	return kind == KindOsUpdate
-}
-
 func KindRequiresRecovery(kind string) bool {
-	return KindIsUpgrade(kind) || KindIsOsUpdate(kind)
+	return kind == KindUpgrade || kind == KindOsUpdate
 }
 
 func UpgradeCordons(operation Operation) bool {
@@ -169,7 +160,7 @@ func operationBlockedByRecovery(operation Operation) bool {
 }
 
 func submittedCancelMessage(kind string) string {
-	if KindIsOsUpdate(kind) {
+	if kind == KindOsUpdate {
 		return "the operating-system update was submitted to the node and cannot be cancelled"
 	}
 	return "the upgrade was submitted to the node and cannot be cancelled"
@@ -178,19 +169,19 @@ func submittedCancelMessage(kind string) string {
 // Public API
 // =====================================================================================================================
 
-func Start(nodeName string, nodeUid string, options Options) error {
+func SubmitCordonDrain(nodeName string, nodeUid string, options Options) error {
 	options.Cordon = true
 	options.Drain = true
-	return submitStart(nodeName, nodeUid, KindCordonDrain, options, "", "")
+	return submitOperation(nodeName, nodeUid, KindCordonDrain, options, "", "")
 }
 
-func Cordon(nodeName string, nodeUid string, options Options) error {
+func SubmitCordon(nodeName string, nodeUid string, options Options) error {
 	options.Cordon = true
-	return submitStart(nodeName, nodeUid, KindCordon, options, "", "")
+	return submitOperation(nodeName, nodeUid, KindCordon, options, "", "")
 }
 
-func Uncordon(nodeName string, nodeUid string) error {
-	return submitStart(
+func SubmitUncordon(nodeName string, nodeUid string) error {
+	return submitOperation(
 		nodeName,
 		nodeUid,
 		KindUncordon,
@@ -200,25 +191,24 @@ func Uncordon(nodeName string, nodeUid string) error {
 	)
 }
 
-func UpgradeStart(nodeName string, nodeUid string, release string, options Options) error {
-	return submitStart(nodeName, nodeUid, KindUpgrade, options, release, "")
+func SubmitUpgrade(nodeName string, nodeUid string, release string, options Options) error {
+	return submitOperation(nodeName, nodeUid, KindUpgrade, options, release, "")
 }
 
-func RemoveStart(nodeName string, nodeUid string, options Options) error {
+func SubmitRemove(nodeName string, nodeUid string, options Options) error {
 	if err := removeSubmitGuard(nodeName); err != nil {
 		return err
 	}
-	return submitStart(nodeName, nodeUid, KindRemove, options, "", "")
+	return submitOperation(nodeName, nodeUid, KindRemove, options, "", "")
 }
 
-func OsUpdateStart(nodeName string, nodeUid string, options Options, autoRunUid string) error {
+func SubmitOsUpdate(nodeName string, nodeUid string, options Options, autoRunUid string) error {
 	options.Cordon = true
 	options.Drain = true
-	return submitStart(nodeName, nodeUid, KindOsUpdate, options, "", autoRunUid)
+	return submitOperation(nodeName, nodeUid, KindOsUpdate, options, "", autoRunUid)
 }
 
 func CancelActiveOperation(nodeName string) error {
-	nodeName = strings.TrimSpace(nodeName)
 	if nodeName == "" {
 		return errors.New("no node name was provided")
 	}
@@ -243,7 +233,7 @@ func CancelActiveOperation(nodeName string) error {
 	if KindRequiresRecovery(operation.Kind) && operation.ExecutorSubmitted {
 		return errors.New(submittedCancelMessage(operation.Kind))
 	}
-	if removePastPointOfNoReturn(operation) {
+	if RemovePastPointOfNoReturn(operation) {
 		return errors.New("the node removal passed the point of no return and cannot be cancelled")
 	}
 	if operation.CancelRequested {
@@ -283,7 +273,7 @@ func CancelActiveOperation(nodeName string) error {
 		if KindRequiresRecovery(record.Value.Kind) && record.Value.ExecutorSubmitted {
 			return errors.New(submittedCancelMessage(record.Value.Kind))
 		}
-		if removePastPointOfNoReturn(record.Value) {
+		if RemovePastPointOfNoReturn(record.Value) {
 			return errors.New("the node removal passed the point of no return and cannot be cancelled")
 		}
 
@@ -343,7 +333,7 @@ type submission struct {
 	autoRunUid string
 }
 
-func submitStart(
+func submitOperation(
 	nodeName string,
 	nodeUid string,
 	kind string,
@@ -351,14 +341,13 @@ func submitStart(
 	release string,
 	autoRunUid string,
 ) error {
-	nodeName = strings.TrimSpace(nodeName)
 	if nodeName == "" {
 		return errors.New("no node name was provided")
 	}
 	if nodeUid == "" && kind != KindRemove {
 		return errors.New("no node uid was provided")
 	}
-	if KindIsUpgrade(kind) {
+	if kind == KindUpgrade {
 		if _, ok := shared.ReleaseByExactVersion(release); !ok {
 			return fmt.Errorf("the release %s is not a known Kubernetes release", release)
 		}
@@ -366,7 +355,7 @@ func submitStart(
 			return errors.New("force delete cannot be used with node upgrades because it is not possible to prove that the workloads stopped")
 		}
 	}
-	if KindIsOsUpdate(kind) && (options.ForceDelete || options.BypassDisruptionBudgets) {
+	if kind == KindOsUpdate && (options.ForceDelete || options.BypassDisruptionBudgets) {
 		return errors.New("the operating-system update cannot delete pods forcefully or bypass the disruption budgets")
 	}
 	if err := clusterReadyGuard(); err != nil {
@@ -398,8 +387,8 @@ func submitValid(submit submission, existing Operation, exists bool) error {
 
 	if operationBlockedByRecovery(existing) && submit.kind != KindUncordon && submit.kind != KindRemove {
 		switch {
-		case KindIsUpgrade(submit.kind):
-			if !KindIsUpgrade(existing.Kind) {
+		case submit.kind == KindUpgrade:
+			if existing.Kind != KindUpgrade {
 				return fmt.Errorf(
 					"node %s must retry the failed operating-system update first",
 					submit.nodeName,
@@ -416,8 +405,8 @@ func submitValid(submit submission, existing Operation, exists bool) error {
 					submit.nodeName,
 				)
 			}
-		case KindIsOsUpdate(submit.kind):
-			if !KindIsOsUpdate(existing.Kind) {
+		case submit.kind == KindOsUpdate:
+			if existing.Kind != KindOsUpdate {
 				return fmt.Errorf(
 					"node %s must retry the failed upgrade first",
 					submit.nodeName,
@@ -467,11 +456,11 @@ func submitRecord(submit submission, existing Operation) Operation {
 		operation.Deadline = now.Add(uncordonTimeout)
 	}
 
-	if KindIsUpgrade(submit.kind) {
+	if submit.kind == KindUpgrade {
 		operation.Deadline = now.Add(time.Duration(submit.options.TimeoutSeconds)*time.Second + upgradeSubmitMargin)
 	}
 
-	if KindIsOsUpdate(submit.kind) {
+	if submit.kind == KindOsUpdate {
 		operation.Deadline = now.Add(time.Duration(submit.options.TimeoutSeconds)*time.Second + osSubmitMargin)
 	}
 
@@ -528,7 +517,7 @@ func submitWrite(submit submission) error {
 
 	conditions := []ucxapi.StackStateRevisionCondition{rollingCondition}
 	validUntil := util.OptNone[int64]()
-	if KindIsOsUpdate(submit.kind) && submit.autoRunUid != "" {
+	if submit.kind == KindOsUpdate && submit.autoRunUid != "" {
 		gate, gateErr := autoOsScheduleGate(client, time.Now().UTC())
 		if gateErr != nil {
 			return gateErr

@@ -1057,8 +1057,8 @@ func autoNodeOsProgress(
 	result := autoNodeChannel{InRun: run.Channel == maintenance.AutoChannelOs}
 
 	operation, exists := snapshot[nodeName]
-	owned := exists && run.Uid != "" && operation.AutoRunUid == run.Uid && maintenance.KindIsOsUpdate(operation.Kind)
-	if !owned && exists && maintenance.KindIsOsUpdate(operation.Kind) && maintenance.PhaseActive(operation.Phase) {
+	owned := exists && run.Uid != "" && operation.AutoRunUid == run.Uid && operation.Kind == maintenance.KindOsUpdate
+	if !owned && exists && operation.Kind == maintenance.KindOsUpdate && maintenance.PhaseActive(operation.Phase) {
 		owned = true
 	}
 	if owned {
@@ -1116,10 +1116,10 @@ func maintenanceOperationPercent(operation maintenance.Operation, phase string) 
 }
 
 func autoMaintenanceActionLabel(operation maintenance.Operation, phase string) string {
-	if stage := strings.TrimSpace(operation.Progress.Stage); stage != "" && maintenance.PhaseActive(phase) {
-		return stage
+	if operation.Progress.Stage != "" && maintenance.PhaseActive(phase) {
+		return operation.Progress.Stage
 	}
-	if detail := strings.TrimSpace(operation.Progress.Detail); detail != "" && phase == maintenance.PhaseRunning {
+	if operation.Progress.Detail != "" && phase == maintenance.PhaseRunning {
 		return "Working"
 	}
 	switch operation.LogStage {
@@ -1245,7 +1245,7 @@ func autoMaintenanceInitForm(app *stackUiApp, policy maintenance.AutoPolicy) {
 
 	app.AutoMaintenanceK8sEnabled = policy.K8s.Enabled
 	app.AutoMaintenanceOsEnabled = policy.Os.Enabled
-	app.AutoWindowDay = strings.ToLower(strings.TrimSpace(days[0]))
+	app.AutoWindowDay = strings.ToLower(days[0])
 	app.AutoWindowStartHour = strconv.Itoa(policy.Window.StartHourUtc)
 	app.autoMaintenanceLoaded = true
 }

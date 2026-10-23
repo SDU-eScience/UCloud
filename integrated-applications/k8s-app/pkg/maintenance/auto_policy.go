@@ -231,7 +231,7 @@ func AutoEffectiveWindow(now time.Time, policy AutoPolicy) (time.Time, time.Time
 
 func autoWindowHasDay(window AutoWindow, day time.Time) bool {
 	for _, candidate := range window.Days {
-		if autoWindowDays[strings.ToLower(strings.TrimSpace(candidate))] == day.Weekday() {
+		if autoWindowDays[strings.ToLower(candidate)] == day.Weekday() {
 			return true
 		}
 	}

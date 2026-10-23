@@ -871,13 +871,13 @@ func clusterWriteControllerToken(stack *ucxsvc.Stack, session *ucx.Session, jobI
 func clusterWriteStackIdentity(stack *ucxsvc.Stack, allocationId int, job orcapi.Job) bool {
 	ownerProject := ""
 	if job.Owner.Project.Present {
-		ownerProject = strings.TrimSpace(job.Owner.Project.Value)
+		ownerProject = job.Owner.Project.Value
 	}
 
 	identity := map[string]string{
-		"stackId":        strings.TrimSpace(stack.InstanceId),
-		"provider":       strings.TrimSpace(job.Specification.Product.Provider),
-		"ownerCreatedBy": strings.TrimSpace(job.Owner.CreatedBy),
+		"stackId":        stack.InstanceId,
+		"provider":       job.Specification.Product.Provider,
+		"ownerCreatedBy": job.Owner.CreatedBy,
 		"ownerProject":   ownerProject,
 	}
 

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
@@ -43,7 +42,6 @@ func ClusterStateClientNewSession(session *ucx.Session, stackId string) (Cluster
 		return ClusterStateClient{}, errors.New("the cluster state session is nil")
 	}
 
-	stackId = strings.TrimSpace(stackId)
 	if stackId == "" {
 		return ClusterStateClient{}, errors.New("the cluster state stack id is empty")
 	}

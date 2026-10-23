@@ -94,7 +94,7 @@ type osState struct {
 // conversion adds the progress record and the identity of the node.
 
 func osStatePath() string {
-	return filepath.Join(workingDir(), osStateName)
+	return filepath.Join(stagingDir, osStateName)
 }
 
 func osStateLoad() osState {
@@ -674,7 +674,7 @@ func userMessage(action string, format string, args ...any) string {
 	if !strings.HasSuffix(details, ".") {
 		details += "."
 	}
-	return fmt.Sprintf("%s %s.", strings.TrimSpace(details), action)
+	return fmt.Sprintf("%s %s.", details, action)
 }
 
 // Commands
@@ -831,7 +831,7 @@ func osInstalledKernels(ctx context.Context) []string {
 		}
 
 		pkg := fields[0]
-		if !strings.HasPrefix(strings.TrimSpace(fields[1]), "ii") {
+		if !strings.HasPrefix(fields[1], "ii") {
 			continue
 		}
 		if !strings.HasPrefix(pkg, "linux-image-") {

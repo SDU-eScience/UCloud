@@ -635,7 +635,7 @@ func clusterStateHolderLabel() string {
 	hostname, err := os.Hostname()
 	holder := ""
 	if err == nil {
-		holder = strings.TrimSpace(hostname)
+		holder = hostname
 	}
 
 	label := "k8s-app"

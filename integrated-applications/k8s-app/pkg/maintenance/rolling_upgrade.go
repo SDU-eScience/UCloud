@@ -289,7 +289,7 @@ func rollingUpgradeSubmissionConditions(
 		}
 		record := records[node.Name]
 		operation := record.Value
-		submitted := operation.Uid == node.OperationUid && KindIsUpgrade(operation.Kind) &&
+		submitted := operation.Uid == node.OperationUid && operation.Kind == KindUpgrade &&
 			(PhaseActive(operation.Phase) || operation.Phase == PhaseCompleted)
 		if !submitted {
 			revisions = append(revisions, ucxapi.StackStateRevisionCondition{

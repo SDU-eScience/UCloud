@@ -227,7 +227,7 @@ func upgradePreflight(
 
 		other, otherKnown := snapshot[recorded.Hostname]
 		otherUpgrading := otherKnown && recorded.Hostname != nodeName &&
-			KindIsUpgrade(other.Kind) &&
+			other.Kind == KindUpgrade &&
 			PhaseActive(other.Phase) &&
 			other.TargetRelease != ""
 		if otherUpgrading {

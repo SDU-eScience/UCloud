@@ -51,7 +51,7 @@ func progressRead() {
 	if progressLoaded {
 		return
 	}
-	data, err := os.ReadFile(filepath.Join(workingDir(), "progress.json"))
+	data, err := os.ReadFile(filepath.Join(stagingDir, "progress.json"))
 	if err == nil {
 		_ = json.Unmarshal(data, &progressCurrent)
 	}
@@ -64,7 +64,7 @@ func progressPersist(force bool) {
 	}
 	data, err := json.Marshal(progressCurrent)
 	if err == nil {
-		err = writeFileAtomic(filepath.Join(workingDir(), "progress.json"), data, 0600)
+		err = writeFileAtomic(filepath.Join(stagingDir, "progress.json"), data, 0600)
 	}
 	if err == nil {
 		progressPersistedAt = time.Now()
