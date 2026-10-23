@@ -229,10 +229,12 @@ func TestJobCreateWithVersion(t *testing.T) {
 }
 
 func TestJobCreateWithProviderProduct(t *testing.T) {
+	computeProduct := FindCompute()
+	productStr := fmt.Sprintf("k8s/%s", computeProduct.Name)
 	input := []string{
 		"job", "create",
 		"--app", "terminal-almalinux",
-		"--product", "k8s/u1-standard-1",
+		"--product", productStr,
 		"--folder", "/5/",
 		"--workspace", "test-workspace",
 		"--name", "test-job",
@@ -241,13 +243,15 @@ func TestJobCreateWithProviderProduct(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	concrete := cmd.(*command.JobCreateCommand)
-	assert.Equal(t, "k8s/u1-standard-1", concrete.Product)
+	assert.Equal(t, productStr, concrete.Product)
 	err = cmd.Execute()
 	assert.NoError(t, err)
 }
 
 func TestJobCreateWithPublicLink(t *testing.T) {
 	// creating the public link
+	computeProduct := FindCompute()
+	productStr := fmt.Sprintf("k8s/%s", computeProduct.Name)
 	uuid := util.UUid()
 	link := fmt.Sprintf("test-link-%s", uuid)
 	input := []string{"public-link", "create", link, "--provider", "k8s"}
@@ -261,7 +265,7 @@ func TestJobCreateWithPublicLink(t *testing.T) {
 	input = []string{
 		"job", "create",
 		"--app", "terminal-almalinux",
-		"--product", "k8s/u1-standard-1",
+		"--product", productStr,
 		"--workspace", "test-workspace",
 		"--public-link", fullLink,
 		"--name", "test-job",
