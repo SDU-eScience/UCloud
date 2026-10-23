@@ -1504,6 +1504,7 @@ const baseComponents: UcxComponentRegistry = {
             nodes={items}
             selectedId={selectedId === "" ? undefined : selectedId}
             initialExpandedIds={node.props.initialExpandedIds === undefined ? undefined : stringListProp(node, "initialExpandedIds")}
+            activateOnSingleClick={boolProp(node, "activateOnSingleClick", false)}
             onActivate={id => {
                 fn.sendUiEvent(node.id, "activate", {kind: ValueKind.String, string: id});
             }}

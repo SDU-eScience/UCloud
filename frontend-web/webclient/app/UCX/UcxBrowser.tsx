@@ -629,6 +629,7 @@ interface UcxNavTreeProps {
     placeholder?: string;
     searchable?: boolean;
     initialExpandedIds?: string[];
+    activateOnSingleClick?: boolean;
 }
 
 export const UcxNavTree: React.FunctionComponent<UcxNavTreeProps> = props => {
@@ -790,6 +791,8 @@ export const UcxNavTree: React.FunctionComponent<UcxNavTreeProps> = props => {
                 }}
                 ariaLabel={node => node.label}
                 initialExpandedIds={props.initialExpandedIds ?? allNodes.map(node => node.id)}
+                activateOnSingleClick={props.activateOnSingleClick === true}
+                isDisabled={navTreeNodeIsDisabled}
                 rowHeight={26}
                 rowHeightOf={node => node.separatorBefore === true ? 38 : 26}
                 indent={12}
@@ -827,6 +830,10 @@ function toNavTreeNode(node: UcxNavItem): UcxNavTreeNode {
         separatorBefore: node.separatorBefore === true,
         disabled: node.disabled === true,
     };
+}
+
+function navTreeNodeIsDisabled(node: UcxNavTreeNode): boolean {
+    return node.disabled;
 }
 
 function filteredNavTree(all: UcxNavTreeNode[], candidates: UcxNavTreeNode[]): UcxNavTreeNode[] {

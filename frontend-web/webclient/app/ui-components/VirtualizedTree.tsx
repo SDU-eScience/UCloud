@@ -41,6 +41,8 @@ interface VirtualizedTreeProps<T> {
     rowHeightOf?(node: T): number;
     indent?: number;
     overscanCount?: number;
+    activateOnSingleClick?: boolean;
+    isDisabled?(node: T): boolean;
     onActivate?(node: T): void;
     onKeyboardActivate?(node: T): void;
     onPrefetch?(node: T): void;
@@ -58,7 +60,9 @@ interface RowData<T> {
     ariaLabel(node: T): string;
     focusedId?: string;
     selectedIds: ReadonlySet<string>;
-    select(row: VirtualizedTreeRow<T>): void;
+    activateOnSingleClick: boolean;
+    isDisabled?(node: T): boolean;
+    select(row: VirtualizedTreeRow<T>, focus?: boolean): void;
     toggle(row: VirtualizedTreeRow<T>): void;
     activate(row: VirtualizedTreeRow<T>): void;
     hover(row: VirtualizedTreeRow<T>): void;
@@ -190,15 +194,15 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
         listRef.current?.scrollToItem(focusedIndex, "smart");
     }, [controlledSelection, focusedIndex]);
 
-    const focusRow = React.useCallback((row: VirtualizedTreeRow<T>, select = selectionFollowsFocus) => {
+    const focusRow = React.useCallback((row: VirtualizedTreeRow<T>, select = selectionFollowsFocus, focus = true) => {
         setFocusedId(row.id);
         if (select && selectionMode !== "none") updateSelection(new Set([row.id]));
         prefetch(row);
-        rootRef.current?.focus({preventScroll: true});
+        if (focus) rootRef.current?.focus({preventScroll: true});
     }, [prefetch, selectionFollowsFocus, selectionMode, updateSelection]);
 
-    const pointerSelect = React.useCallback((row: VirtualizedTreeRow<T>) => {
-        focusRow(row, true);
+    const pointerSelect = React.useCallback((row: VirtualizedTreeRow<T>, focus = true) => {
+        focusRow(row, true, focus);
     }, [focusRow]);
 
     const toggleSelection = React.useCallback((row: VirtualizedTreeRow<T>) => {
@@ -379,12 +383,14 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
         isBranch: props.isBranch,
         renderNode: props.renderNode,
         ariaLabel: props.ariaLabel,
+        activateOnSingleClick: props.activateOnSingleClick === true,
+        isDisabled: props.isDisabled,
         select: pointerSelect,
         toggle,
         activate,
         hover,
         contextMenu,
-    }), [rows, expanded, focusedId, selectedIds, props.indent, props.getChildren, props.isBranch, props.renderNode, props.ariaLabel, pointerSelect, toggleSelection, toggle, activate, hover, contextMenu]);
+    }), [rows, expanded, focusedId, selectedIds, props.indent, props.getChildren, props.isBranch, props.renderNode, props.ariaLabel, props.activateOnSingleClick, props.isDisabled, pointerSelect, toggleSelection, toggle, activate, hover, contextMenu]);
 
     const rowHeight = props.rowHeight ?? 28;
     const rowHeightOf = React.useCallback((index: number): number => {
@@ -435,6 +441,8 @@ function VirtualizedTreeItem<T>({index, style, data}: ListChildComponentProps<Ro
     const selected = data.selectedIds.has(row.id);
     const branch = data.isBranch(row.node);
     const expanded = branch && data.expanded.has(row.id);
+    const disabled = data.isDisabled?.(row.node) === true;
+    const singleClickActivate = data.activateOnSingleClick && !branch && !disabled;
 
     return <div style={style}>
         <div
@@ -449,11 +457,17 @@ function VirtualizedTreeItem<T>({index, style, data}: ListChildComponentProps<Ro
             aria-expanded={branch ? expanded : undefined}
             data-selected={selected ? "true" : undefined}
             data-focused={focused ? "true" : undefined}
+            data-activate-on-single-click={singleClickActivate ? "true" : undefined}
             style={{paddingLeft: `${(row.depth - 1) * data.indent + 6}px`}}
             onPointerDown={event => {
-                if (event.button === 0) data.select(row);
+                if (event.button !== 0) return;
+                if (singleClickActivate && event.pointerType === "mouse") event.preventDefault();
+                data.select(row, !singleClickActivate);
             }}
-            onDoubleClick={() => data.activate(row)}
+            onClick={event => {
+                if (singleClickActivate && event.detail === 1) data.activate(row);
+            }}
+            onDoubleClick={singleClickActivate ? undefined : () => data.activate(row)}
             onMouseEnter={() => data.hover(row)}
             onContextMenu={event => data.contextMenu(event, row)}
         >
@@ -489,6 +503,10 @@ const VirtualizedTreeClass = injectStyle("virtualized-tree", k => `
 
     ${k} .virtualized-tree-row:hover {
         background: var(--rowHover);
+    }
+
+    ${k} .virtualized-tree-row[data-activate-on-single-click="true"] {
+        cursor: pointer;
     }
 
     ${k} .virtualized-tree-row[data-selected="true"],
