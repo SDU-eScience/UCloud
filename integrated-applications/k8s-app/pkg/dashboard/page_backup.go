@@ -228,7 +228,7 @@ func backupRequestSubmit(app *stackUiApp) error {
 	}
 
 	latest, latestErr := shared.ClusterStateValueRead(client, backup.RequestKey)
-	if latestErr == nil && latest.Found && !latest.Empty {
+	if latestErr == nil && latest.Found {
 		var current backup.Request
 		if json.Unmarshal(latest.Value, &current) == nil && backupRequestActive(current) {
 			return errors.New("a backup is already pending or running")

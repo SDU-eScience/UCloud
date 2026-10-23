@@ -101,7 +101,6 @@ type ClusterStateValue struct {
 	Value    json.RawMessage
 	Revision int64
 	Found    bool
-	Empty    bool
 }
 
 func ClusterStateValueRead(client ClusterStateClient, key string) (ClusterStateValue, error) {
@@ -116,8 +115,7 @@ func ClusterStateValueRead(client ClusterStateClient, key string) (ClusterStateV
 	return ClusterStateValue{
 		Value:    record.Value,
 		Revision: record.Revision,
-		Found:    true,
-		Empty:    record.IsEmpty(),
+		Found:    !record.IsEmpty(),
 	}, nil
 }
 

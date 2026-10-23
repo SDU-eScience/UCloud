@@ -619,7 +619,7 @@ func dashboardStateValueRead[T any](client shared.ClusterStateClient, key string
 		return zero, false, 0, fmt.Errorf("could not read the %s: %s", noun, err)
 	}
 
-	if !value.Found || value.Empty {
+	if !value.Found {
 		return zero, false, value.Revision, nil
 	}
 

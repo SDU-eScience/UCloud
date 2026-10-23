@@ -1319,7 +1319,7 @@ func autoPolicySave(client shared.ClusterStateClient, form autoSettingsForm) err
 		}
 
 		policy := maintenance.AutoDefaultPolicy()
-		if value.Found && !value.Empty {
+		if value.Found {
 			err = json.Unmarshal(value.Value, &policy)
 			if err != nil {
 				return fmt.Errorf("could not parse the automatic maintenance policy: %s", err)

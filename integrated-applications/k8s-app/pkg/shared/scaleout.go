@@ -319,6 +319,12 @@ func ClusterAddNodeLocked(
 		return "", false
 	}
 
+	tokens, ok := clusterReadManagementTokens(trimmedGroup)
+	if !ok {
+		ucxsvc.UiSendFailure(app, "Could not read the join tokens of the cluster")
+		return "", false
+	}
+
 	bundleTarget := BundlePathForRelease(release)
 	if clusterVersion != record.K8sVersion || record.BundlePath != bundleTarget {
 		writeBundle(stack, bundleTarget)
@@ -333,12 +339,6 @@ func ClusterAddNodeLocked(
 			ucxsvc.UiSendFailure(app, "Could not update the cluster record")
 			return "", false
 		}
-	}
-
-	tokens, ok := clusterReadManagementTokens(trimmedGroup)
-	if !ok {
-		ucxsvc.UiSendFailure(app, "Could not read the join tokens of the cluster")
-		return "", false
 	}
 
 	allocationId := record.NextAllocationId

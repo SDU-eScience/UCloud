@@ -247,6 +247,17 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		return &ucxsvc.Stack{}, false
 	}
 
+	for _, pool := range planPools(spec) {
+		if pool.machine.Id == "" {
+			ucxsvc.UiSendFailure(app, "Select a machine type for pool "+pool.name)
+			return &ucxsvc.Stack{}, false
+		}
+		if pool.diskGb < 10 {
+			ucxsvc.UiSendFailure(app, "The pool "+pool.name+" needs at least 10 GB of disk")
+			return &ucxsvc.Stack{}, false
+		}
+	}
+
 	totalNodes := 0
 	for _, pool := range planPools(spec) {
 		totalNodes += pool.nodes
@@ -372,25 +383,13 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 	}
 
 	writeBundle(stack, record.BundlePath)
-	if !stack.Ok {
-		return stack, false
-	}
-
 	ucxsvc.StackWriteFile(stack, KubeconfigTemplatePath, fmt.Sprintf(Script("kubeconfig.tpl"), apiLinkDomain))
-	if !stack.Ok {
-		return stack, false
-	}
-
 	ucxsvc.PublicLinkCreate(stack, fmt.Sprintf("%s-api", stackId), ucxsvc.PublicLinkCreateOptions{
 		ServiceTarget: util.OptValue(orcapi.PublicLinkServiceTarget{
 			ServiceId: clusterService.Id,
 			Port:      "api",
 		}),
 	})
-	if !stack.Ok {
-		return stack, false
-	}
-
 	customUi := ClusterNodeCustomUi(stack)
 	if !stack.Ok {
 		return stack, false
@@ -723,6 +722,10 @@ func ClusterRecoveryCreateNode(
 		if spec.BackupId == "" || spec.SnapshotSha256 == "" || spec.ServerToken == "" || spec.AgentToken == "" {
 			return errors.New("the recovery first server needs a backup, its checksum and the backup credentials")
 		}
+	}
+
+	if spec.Session == nil {
+		return errors.New("the recovery session is nil")
 	}
 
 	active, err := ClusterRecoveryActive(client)
