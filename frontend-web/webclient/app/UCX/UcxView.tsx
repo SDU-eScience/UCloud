@@ -84,7 +84,7 @@ import {TutorialWizard} from "@/ui-components/TutorialWizard";
 import Warning from "@/ui-components/Warning";
 import {useDispatch} from "react-redux";
 import {openJobShellTab} from "@/Terminal/State";
-import {confirmUcxCommand} from "@/UCX/CommandPermissions";
+import {confirmUcxCommand, isTrustedPodShellCommand} from "@/UCX/CommandPermissions";
 import {openUcxUrl} from "@/UCX/ExternalLinks";
 import {PermissionsTable} from "@/Resource/PermissionEditor";
 import {dialogStore} from "@/Dialog/DialogStore";
@@ -695,13 +695,17 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 });
 
                 sessionRef.current?.registerRpcHandler("terminalOpenShellToJob", async payload => {
-                    const plainPayload = valueMapToPlainPayload(payload) as {jobId?: unknown; rank?: unknown; command?: unknown};
+                    const plainPayload = valueMapToPlainPayload(payload) as {jobId?: unknown; rank?: unknown; command?: unknown; clearAfter?: unknown; suppressUntil?: unknown};
                     const jobId = typeof plainPayload.jobId === "string" ? plainPayload.jobId : "";
                     if (jobId === "") return {};
                     const rank = typeof plainPayload.rank === "number" ? plainPayload.rank : 0;
                     const command = typeof plainPayload.command === "string" ? plainPayload.command : undefined;
+                    const clearAfter = plainPayload.clearAfter === true;
+                    const suppressUntil = typeof plainPayload.suppressUntil === "string" ? plainPayload.suppressUntil : undefined;
+                    const trustedPodShellCommand = isTrustedPodShellCommand({command, rank, suppressUntil});
+                    const commandRequiresConfirmation = command !== undefined && command !== "" && !trustedPodShellCommand;
 
-                    if (command !== undefined && command !== "") {
+                    if (commandRequiresConfirmation) {
                         const stackId = latestRef.current.stackId?.trim() ?? "";
                         const decision = await confirmUcxCommand({
                             scopeId: stackId !== "" ? stackId : `ucx:${jobId}`,
@@ -712,7 +716,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                         if (decision === "deny") return {};
                     }
 
-                    openJobShellTab(dispatch, jobId, rank, command, false);
+                    openJobShellTab(dispatch, jobId, rank, command, clearAfter, suppressUntil);
                     return {};
                 });
 
@@ -1332,7 +1336,7 @@ const baseComponents: UcxComponentRegistry = {
                 fn.sendUiEvent(node.id, "click", undefined);
             }}
         >
-            <span style={{fontWeight: 600, fontSize: 16, ...fn.sxStyle(node)}}>
+            <span style={{fontWeight: 600, ...fn.sxStyle(node)}}>
                 {label}
             </span>
         </BaseLink>;

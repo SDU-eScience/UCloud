@@ -1,11 +1,10 @@
 import * as React from "react";
-import {Box, Button, Flex, Text} from "@/ui-components";
+import {Box, Button, Divider, Flex, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 import {createKeyboardShortcut} from "@/UtilityFunctions";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {slimModalStyle} from "@/Utilities/ModalUtilities";
 
 export type UcxCommandDecision = "once" | "always" | "deny";
 
@@ -17,8 +16,29 @@ export interface UcxCommandConfirmation {
 }
 
 const commandPermissionStorageKey = "ucx.commandPermissions";
+const podShellReadyMarker = "\x1b]777;ucloud-shell-ready\x07";
+const bashQuoted = String.raw`'(?:[^']|'"'"')*'`;
+const podShellCommandPattern = new RegExp(
+    String.raw`^printf '\\033\]777;ucloud-shell-ready\\007\\033\]0;%s\\007' ` +
+    bashQuoted +
+    String.raw` && kubectl exec -it -n ` +
+    bashQuoted + " " + bashQuoted +
+    String.raw`(?: -c ` + bashQuoted + `)?` +
+    String.raw` -- sh -c 'if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi'; printf '\\033\]777;ucloud-shell-exit;%s\\007' "\$\?"$`
+);
 
 type CommandPermissionStore = Record<string, true>;
+
+export function isTrustedPodShellCommand(request: {
+    command: string | undefined;
+    rank: number;
+    suppressUntil: string | undefined;
+}): boolean {
+    return request.command !== undefined &&
+        request.rank === 0 &&
+        request.suppressUntil === podShellReadyMarker &&
+        podShellCommandPattern.test(request.command);
+}
 
 function readCommandPermissions(): CommandPermissionStore {
     try {
@@ -87,7 +107,6 @@ export async function confirmUcxCommand(request: UcxCommandConfirmation): Promis
                 resolve("deny");
             },
             true,
-            slimModalStyle,
         );
     });
 }
@@ -131,20 +150,33 @@ function UcxCommandPermissionDialog(props: {
     const runOnceShortcut = createKeyboardShortcut("Enter");
     const runAlwaysShortcut = createKeyboardShortcut("Enter", ["ctrl"]);
 
-    return <Box p="20px">
+    return <div onKeyDown={event => event.stopPropagation()}>
         <Heading.h3>Run command?</Heading.h3>
-        <Text mt="8px" color="textSecondary">
-            An application is requesting permission to run this command.
-        </Text>
-        <Text mt="8px">
-            Job <span style={{fontFamily: "var(--monospace)"}}>{props.request.jobId}</span>
-            {props.request.rank > 0 ? ` (rank ${props.request.rank})` : ""}
-        </Text>
-        <Box mt="8px">
-            <Text bold mb="4px">Command</Text>
-            <CodeSnippet maxHeight="240px">{props.request.command}</CodeSnippet>
-        </Box>
-        <Flex mt="20px" gap="8px" justifyContent="flex-end" flexWrap="wrap">
+        <Divider />
+        <Flex flexDirection="column" gap="16px" mt="16px" minHeight="200px">
+            <Text color="textSecondary">
+                An application is requesting permission to run this command.
+            </Text>
+            <Text>
+                Job <span style={{fontFamily: "var(--monospace)"}}>{props.request.jobId}</span>
+                {props.request.rank > 0 ? ` (rank ${props.request.rank})` : ""}
+            </Text>
+            <Box>
+                <Text bold mb="4px">Command</Text>
+                <CodeSnippet maxHeight="240px">{props.request.command}</CodeSnippet>
+            </Box>
+        </Flex>
+        <Flex
+            mt="16px"
+            mx="-20px"
+            mb="-20px"
+            px="20px"
+            py="12px"
+            gap="8px"
+            justifyContent="flex-end"
+            flexWrap="wrap"
+            background="var(--dialogToolbar)"
+        >
             <Button color="errorMain" onClick={() => props.onDecision("deny")}>
                 Deny
                 <ShortcutHint>Esc</ShortcutHint>
@@ -158,7 +190,7 @@ function UcxCommandPermissionDialog(props: {
                 <ShortcutHint>{runOnceShortcut}</ShortcutHint>
             </Button>
         </Flex>
-    </Box>;
+    </div>;
 }
 
 function ShortcutHint(props: {children: React.ReactNode}): React.ReactNode {

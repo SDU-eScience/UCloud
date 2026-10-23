@@ -1,8 +1,7 @@
 import * as React from "react";
-import {Box, Button, Flex, Text} from "@/ui-components";
+import {Box, Button, Divider, Flex, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {slimModalStyle} from "@/Utilities/ModalUtilities";
 
 export function openUcxUrl(url: string, appRelativePrefix = ""): void {
     const trimmed = url.trim();
@@ -44,7 +43,6 @@ function confirmExternalLink(url: string, origin: string): Promise<boolean> {
                 resolve(false);
             },
             true,
-            slimModalStyle,
         );
     });
 }
@@ -54,17 +52,31 @@ function ExternalLinkDialog(props: {
     origin: string;
     onDecision: (confirmed: boolean) => void;
 }): React.ReactNode {
-    return <Box p="20px">
+    return <div>
         <Heading.h3>Opening external link</Heading.h3>
-        <Text mt="8px" color="textSecondary">
-            This link will open in a new tab.
-        </Text>
-        <Text bold mt="12px">Destination</Text>
-        <Text mt="4px" style={{wordBreak: "break-all"}}>{props.url}</Text>
-        <Text mt="8px" color="textSecondary">Origin: {props.origin}</Text>
-        <Flex mt="20px" gap="8px" justifyContent="flex-end">
+        <Divider />
+        <Flex flexDirection="column" gap="16px" mt="16px" minHeight="200px">
+            <Text color="textSecondary">
+                This link will open in a new tab.
+            </Text>
+            <Box>
+                <Text bold mb="4px">Destination</Text>
+                <Text style={{wordBreak: "break-all"}}>{props.url}</Text>
+            </Box>
+            <Text color="textSecondary">Origin: {props.origin}</Text>
+        </Flex>
+        <Flex
+            mt="16px"
+            mx="-20px"
+            mb="-20px"
+            px="20px"
+            py="12px"
+            gap="8px"
+            justifyContent="flex-end"
+            background="var(--dialogToolbar)"
+        >
             <Button color="errorMain" onClick={() => props.onDecision(false)}>Cancel</Button>
             <Button color="primaryMain" onClick={() => props.onDecision(true)}>Open</Button>
         </Flex>
-    </Box>;
+    </div>;
 }
