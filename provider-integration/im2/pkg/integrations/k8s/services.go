@@ -16,6 +16,7 @@ import (
 	discovery "k8s.io/api/discovery/v1"
 	networking "k8s.io/api/networking/v1"
 	k8sequality "k8s.io/apimachinery/pkg/api/equality"
+	apiserrors "k8s.io/apimachinery/pkg/api/errors"
 	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"ucloud.dk/pkg/controller"
@@ -38,6 +39,19 @@ var servicesProbeState = map[string]*serviceProbeRecord{}
 var servicesDrains = map[string]map[string]time.Time{}
 var servicesLastReport = map[string]string{}
 var servicesLastClusters = map[string][]string{}
+
+const servicesReconcileLockCount = 64
+
+var servicesReconcileLocks [servicesReconcileLockCount]sync.Mutex
+
+func servicesReconcileLock(serviceId string) *sync.Mutex {
+	var hash uint32 = 2166136261
+	for i := 0; i < len(serviceId); i++ {
+		hash ^= uint32(serviceId[i])
+		hash *= 16777619
+	}
+	return &servicesReconcileLocks[hash%servicesReconcileLockCount]
+}
 
 type serviceProbeRecord struct {
 	Successes map[string]int
@@ -80,7 +94,17 @@ func serviceCreate(service *orc.Service) *util.HttpError {
 }
 
 func serviceDelete(service *orc.Service) *util.HttpError {
-	ctx := context.Background()
+	lockCtx, lockCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer lockCancel()
+
+	if !servicesAcquireReconcileLock(lockCtx, service.Id) {
+		return util.HttpErr(http.StatusConflict, "service is currently being reconciled, retry the deletion")
+	}
+	defer servicesReconcileLock(service.Id).Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	name := ServiceK8sName(service.Id)
 	namespace := sharedNamespace()
 
@@ -92,9 +116,14 @@ func serviceDelete(service *orc.Service) *util.HttpError {
 	)
 
 	servicesStateMutex.Lock()
-	servicesForgetService(service.Id)
+	messages := servicesForgetService(service.Id)
 	servicesStateMutex.Unlock()
+
 	controller.ServiceDeleteTracked(*service)
+
+	for _, message := range messages {
+		gw.SendMessage(message)
+	}
 	serviceReconcileLinkTargets()
 	return nil
 }
@@ -110,7 +139,7 @@ func serviceClusterName(serviceId string, portName string) string {
 func serviceUpdateMembers(request orc.ServicesProviderUpdateMembersRequest) *util.HttpError {
 	tracked, ok := controller.ServiceRetrieveTracked(request.Service.Id)
 	if !ok {
-		tracked = request.Service
+		return util.HttpErr(http.StatusNotFound, "service not found")
 	}
 
 	var drainDeadline time.Time
@@ -126,50 +155,86 @@ func serviceUpdateMembers(request orc.ServicesProviderUpdateMembersRequest) *uti
 
 	servicesStateMutex.Lock()
 	for _, jobId := range request.AddedJobIds {
-		if !slices.Contains(tracked.Status.Members, jobId) {
-			tracked.Status.Members = append(tracked.Status.Members, jobId)
-		}
 		if drains, ok := servicesDrains[tracked.Id]; ok {
 			delete(drains, jobId)
 		}
 	}
 
 	for _, jobId := range request.RemovedJobIds {
-		tracked.Status.Members = util.RemoveFirst(tracked.Status.Members, jobId)
 		drains, ok := servicesDrains[tracked.Id]
 		if !ok {
 			drains = map[string]time.Time{}
 			servicesDrains[tracked.Id] = drains
 		}
-		drains[jobId] = drainDeadline
+		if _, alreadyDraining := drains[jobId]; !alreadyDraining {
+			drains[jobId] = drainDeadline
+		}
 	}
 	servicesStateMutex.Unlock()
 
-	controller.ServiceTrack(tracked)
+	_, ok = controller.ServiceMutateTracked(tracked.Id, func(service *orc.Service) bool {
+		for _, jobId := range request.AddedJobIds {
+			service.Status.Members = util.AppendUnique(service.Status.Members, jobId)
+		}
+		for _, jobId := range request.RemovedJobIds {
+			service.Status.Members = slices.DeleteFunc(service.Status.Members, func(id string) bool {
+				return id == jobId
+			})
+		}
+		return true
+	})
+	if !ok {
+		servicesStateMutex.Lock()
+		delete(servicesDrains, tracked.Id)
+		servicesStateMutex.Unlock()
+		return util.HttpErr(http.StatusNotFound, "service not found")
+	}
+
 	servicesReconcileSoon()
 	return nil
 }
 
 func serviceOnUpdatedLabels(service *orc.Service) *util.HttpError {
-	controller.ServiceTrack(*service)
+	_, ok := controller.ServiceMutateTracked(service.Id, func(current *orc.Service) bool {
+		current.Specification.Labels = service.Specification.Labels
+		return true
+	})
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "service not found")
+	}
 	return nil
 }
 
 func serviceUpdateAcl(service *orc.Service) *util.HttpError {
-	controller.ServiceTrack(*service)
+	_, ok := controller.ServiceMutateTracked(service.Id, func(current *orc.Service) bool {
+		current.Resource.Permissions = service.Resource.Permissions
+		return true
+	})
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "service not found")
+	}
 	return nil
 }
 
 func serviceUpdateSpec(request orc.ServicesProviderUpdateRequest) *util.HttpError {
-	service := request.Service
-	service.Specification.Name = request.Name
-	service.Specification.Ports = request.Ports
-	controller.ServiceTrack(service)
+	_, ok := controller.ServiceMutateTracked(request.Service.Id, func(service *orc.Service) bool {
+		service.Specification.Name = request.Name
+		service.Specification.Ports = slices.Clone(request.Ports)
+		return true
+	})
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "service not found")
+	}
+
 	servicesReconcileSoon()
 	return nil
 }
 
 func serviceIngressSetTarget(request orc.IngressesProviderSetTargetRequest) *util.HttpError {
+	if tracked := controller.LinkRetrieve(request.Ingress.Id); tracked.Id == "" {
+		return util.HttpErr(http.StatusNotFound, "link not found")
+	}
+
 	ingress := request.Ingress
 	ingress.Specification.Target = request.Target
 	controller.LinkTrack(ingress)
@@ -178,15 +243,23 @@ func serviceIngressSetTarget(request orc.IngressesProviderSetTargetRequest) *uti
 }
 
 func servicesReconcileCreated(serviceId string) {
-	servicesReconcileMutex.Lock()
-	defer servicesReconcileMutex.Unlock()
-
 	service, ok := controller.ServiceRetrieveTracked(serviceId)
 	if !ok {
 		return
 	}
 
-	servicesReconcileOne(context.Background(), service)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if !servicesAcquireReconcileLock(ctx, serviceId) {
+		servicesReconcileSoon()
+		return
+	}
+
+	func() {
+		defer servicesReconcileLock(serviceId).Unlock()
+		servicesReconcileOneLocked(ctx, service)
+	}()
 	servicesReconcileLinksForService(serviceId)
 }
 
@@ -245,18 +318,54 @@ func servicesReconcile() {
 	all := controller.ServicesRetrieveAllTracked()
 	ctx := context.Background()
 
-	ids := map[string]util.Empty{}
 	for _, svc := range all {
-		ids[svc.Id] = util.Empty{}
 		servicesReconcileOne(ctx, svc)
 	}
 
-	servicesRewriteMemberFirewalls(ctx, all)
-	servicesPruneOrphans(ctx, ids)
+	firewallCtx, firewallCancel := context.WithTimeout(ctx, 30*time.Second)
+	servicesRewriteMemberFirewalls(firewallCtx, controller.ServicesRetrieveAllTracked())
+	firewallCancel()
+
+	pruneCtx, pruneCancel := context.WithTimeout(ctx, 30*time.Second)
+	servicesPruneOrphans(pruneCtx)
+	pruneCancel()
+
 	serviceReconcileLinkTargets()
 }
 
+func servicesAcquireReconcileLock(ctx context.Context, serviceId string) bool {
+	lock := servicesReconcileLock(serviceId)
+	for {
+		if lock.TryLock() {
+			return true
+		}
+
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+}
+
 func servicesReconcileOne(ctx context.Context, service orc.Service) {
+	reconcileLock := servicesReconcileLock(service.Id)
+	reconcileLock.Lock()
+	defer reconcileLock.Unlock()
+
+	servicesReconcileOneLocked(ctx, service)
+}
+
+func servicesReconcileOneLocked(ctx context.Context, service orc.Service) {
+	tracked, ok := controller.ServiceRetrieveTracked(service.Id)
+	if !ok {
+		return
+	}
+	service = tracked
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
 	if len(service.Specification.Ports) == 0 {
 		return
 	}
@@ -274,8 +383,10 @@ func servicesReconcileOne(ctx context.Context, service orc.Service) {
 	}
 
 	clusterNames := []string{}
+	desiredSlices := map[string]util.Empty{}
 	if unavailable == "" {
 		for _, port := range service.Specification.Ports {
+			desiredSlices[ServiceK8sName(service.Id)+"-"+port.Name] = util.Empty{}
 			if port.Protocol == orc.ServicePortProtocolUdp {
 				backends = servicesReconcileUdpPort(ctx, service, port, members, backends)
 				continue
@@ -285,16 +396,25 @@ func servicesReconcileOne(ctx context.Context, service orc.Service) {
 		}
 	}
 
+	if unavailable == "" {
+		servicesPruneEndpointSlices(ctx, service.Id, desiredSlices)
+	}
+
 	servicesStateMutex.Lock()
+	var messages []gw.ConfigurationMessage
 	for _, previous := range servicesLastClusters[service.Id] {
 		if !slices.Contains(clusterNames, previous) {
-			gw.SendMessage(gw.ConfigurationMessage{
+			messages = append(messages, gw.ConfigurationMessage{
 				ClusterDown: &gw.EnvoyCluster{Name: previous},
 			})
 		}
 	}
 	servicesLastClusters[service.Id] = clusterNames
 	servicesStateMutex.Unlock()
+
+	for _, message := range messages {
+		gw.SendMessage(message)
+	}
 
 	reported := service
 	if dnsName != "" && unavailable == "" {
@@ -309,12 +429,12 @@ func servicesReconcileOne(ctx context.Context, service orc.Service) {
 		reported.Status.Message = util.OptValue(unavailable)
 	} else {
 		reported.Status.ProvisioningState = string(orc.ServiceStateReady)
+		reported.Status.Message = util.OptNone[string]()
 	}
 
-	summary := fmt.Sprintf("%v|%v|%v", reported.Status.ProvisioningState, dnsName, backendsSummary(backends))
+	summary := fmt.Sprintf("%v|%v|%v|%v", reported.Status.ProvisioningState, dnsName, backendsSummary(backends), reported.Status.Message.GetOrDefault(""))
 	servicesStateMutex.Lock()
 	changed := servicesLastReport[service.Id] != summary
-	servicesLastReport[service.Id] = summary
 	servicesStateMutex.Unlock()
 
 	if changed {
@@ -327,7 +447,12 @@ func servicesReconcileOne(ctx context.Context, service orc.Service) {
 		if unavailable != "" {
 			update.Message = util.OptValue(unavailable)
 		}
-		controller.ServiceReportUpdate(reported, update)
+
+		if controller.ServiceReportUpdate(reported, update) {
+			servicesStateMutex.Lock()
+			servicesLastReport[service.Id] = summary
+			servicesStateMutex.Unlock()
+		}
 	}
 }
 
@@ -384,7 +509,7 @@ func servicesReconcilePort(
 		if member.Draining {
 			state = orc.ServiceBackendPortStateDraining
 		} else if !udp {
-			if servicesProbeMember(service, port, member) {
+			if servicesProbeMember(ctx, service, port, member) {
 				state = orc.ServiceBackendPortStateHealthy
 			} else {
 				state = orc.ServiceBackendPortStateUnhealthy
@@ -456,8 +581,18 @@ func servicesResolveMembers(service orc.Service) []serviceBackend {
 	}
 	servicesStateMutex.Unlock()
 
+	membersOfService := map[string]util.Empty{}
+	for _, jobId := range service.Status.Members {
+		membersOfService[jobId] = util.Empty{}
+	}
+
 	for _, jobId := range candidates {
 		_, draining := drains[jobId]
+		if !draining && slices.Contains(expired, jobId) {
+			if _, isMember := membersOfService[jobId]; !isMember {
+				continue
+			}
+		}
 
 		job, ok := controller.JobRetrieve(jobId)
 		if !ok {
@@ -517,8 +652,8 @@ func servicesDefaultHealthCheck() orc.ServiceHealthCheck {
 	}
 }
 
-func servicesProbeMember(service orc.Service, port orc.ServicePort, member serviceBackend) bool {
-	if member.Ip == "" {
+func servicesProbeMember(ctx context.Context, service orc.Service, port orc.ServicePort, member serviceBackend) bool {
+	if member.Ip == "" || ctx.Err() != nil {
 		return false
 	}
 
@@ -564,7 +699,7 @@ func servicesProbeMember(service orc.Service, port orc.ServicePort, member servi
 		serverName = port.BackendTls.Value.ServerName
 	}
 
-	healthy := servicesProbeOnce(check, address, probePort, serverName)
+	healthy := servicesProbeOnce(ctx, check, address, probePort, serverName)
 
 	servicesStateMutex.Lock()
 	defer servicesStateMutex.Unlock()
@@ -598,10 +733,14 @@ var servicesProbeClient = &http.Client{
 	},
 }
 
-func servicesProbeOnce(check orc.ServiceHealthCheck, address string, port int, serverName string) bool {
+func servicesProbeOnce(ctx context.Context, check orc.ServiceHealthCheck, address string, port int, serverName string) bool {
 	timeout := time.Duration(check.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
 		timeout = 2 * time.Second
+	}
+
+	if ctx.Err() != nil {
+		return false
 	}
 
 	probePort := port
@@ -629,7 +768,12 @@ func servicesProbeOnce(check orc.ServiceHealthCheck, address string, port int, s
 			host = address
 		}
 
-		request, err := http.NewRequest(http.MethodGet, scheme+"://"+net.JoinHostPort(address, strconv.Itoa(probePort))+check.Path, nil)
+		request, err := http.NewRequestWithContext(
+			ctx,
+			http.MethodGet,
+			scheme+"://"+net.JoinHostPort(address, strconv.Itoa(probePort))+check.Path,
+			nil,
+		)
 		if err != nil {
 			return false
 		}
@@ -643,7 +787,8 @@ func servicesProbeOnce(check orc.ServiceHealthCheck, address string, port int, s
 		return resp.StatusCode >= 200 && resp.StatusCode < 400
 
 	default:
-		conn, err := net.DialTimeout("tcp", net.JoinHostPort(address, strconv.Itoa(probePort)), timeout)
+		dialer := net.Dialer{Timeout: timeout}
+		conn, err := dialer.DialContext(ctx, "tcp", net.JoinHostPort(address, strconv.Itoa(probePort)))
 		if err != nil {
 			return false
 		}
@@ -685,6 +830,9 @@ func servicesEnsureClusterIpService(ctx context.Context, service orc.Service) bo
 			},
 		}
 		if _, createErr := servicesClient.Create(ctx, created, k8smeta.CreateOptions{}); createErr != nil {
+			if apiserrors.IsAlreadyExists(createErr) {
+				return true
+			}
 			log.Warn("services: failed to create service %s: %s", service.Id, createErr)
 			return false
 		}
@@ -869,7 +1017,9 @@ func servicesEnsureEndpointSlice(
 			Endpoints:   endpoints,
 		}
 		if _, createErr := client.Create(ctx, created, k8smeta.CreateOptions{}); createErr != nil {
-			log.Warn("services: failed to create endpoint slice %s: %s", name, createErr)
+			if !apiserrors.IsAlreadyExists(createErr) {
+				log.Warn("services: failed to create endpoint slice %s: %s", name, createErr)
+			}
 		}
 		return
 	}
@@ -884,6 +1034,14 @@ func servicesEnsureEndpointSlice(
 	if len(endpoints) == 0 {
 		updated.Endpoints = []discovery.Endpoint{}
 	}
+
+	if k8sequality.Semantic.DeepEqual(updated.Labels, existing.Labels) &&
+		updated.AddressType == existing.AddressType &&
+		k8sequality.Semantic.DeepEqual(updated.Ports, existing.Ports) &&
+		k8sequality.Semantic.DeepEqual(updated.Endpoints, existing.Endpoints) {
+		return
+	}
+
 	if _, updateErr := client.Update(ctx, updated, k8smeta.UpdateOptions{}); updateErr != nil {
 		log.Warn("services: failed to update endpoint slice %s: %s", name, updateErr)
 	}
@@ -970,7 +1128,26 @@ func servicesPushCluster(
 	gw.SendMessage(gw.ConfigurationMessage{ClusterUp: cluster})
 }
 
-func servicesPruneOrphans(ctx context.Context, ids map[string]util.Empty) {
+func servicesPruneEndpointSlices(ctx context.Context, serviceId string, desired map[string]util.Empty) {
+	namespace := sharedNamespace()
+	for _, item := range shared.ComputeEndpointSlices.List() {
+		if item.Labels[servicesManagedByLabel] != servicesManagedBy {
+			continue
+		}
+
+		if item.Labels[servicesIdLabel] != serviceId {
+			continue
+		}
+
+		if _, keep := desired[item.Name]; keep {
+			continue
+		}
+
+		_ = shared.K8sClient.DiscoveryV1().EndpointSlices(namespace).Delete(ctx, item.Name, k8smeta.DeleteOptions{})
+	}
+}
+
+func servicesPruneOrphans(ctx context.Context) {
 	namespace := sharedNamespace()
 
 	for _, item := range shared.ComputeServices.List() {
@@ -983,7 +1160,7 @@ func servicesPruneOrphans(ctx context.Context, ids map[string]util.Empty) {
 			continue
 		}
 
-		if _, keep := ids[serviceId]; !keep {
+		if _, keep := controller.ServiceRetrieveTracked(serviceId); !keep {
 			_ = shared.K8sClient.CoreV1().Services(namespace).Delete(ctx, item.Name, k8smeta.DeleteOptions{})
 		}
 	}
@@ -998,23 +1175,29 @@ func servicesPruneOrphans(ctx context.Context, ids map[string]util.Empty) {
 			continue
 		}
 
-		if _, keep := ids[serviceId]; !keep {
+		if _, keep := controller.ServiceRetrieveTracked(serviceId); !keep {
 			_ = shared.K8sClient.DiscoveryV1().EndpointSlices(namespace).Delete(ctx, item.Name, k8smeta.DeleteOptions{})
 		}
 	}
 
 	servicesStateMutex.Lock()
+	var messages []gw.ConfigurationMessage
 	for serviceId := range servicesLastClusters {
-		if _, keep := ids[serviceId]; !keep {
-			servicesForgetService(serviceId)
+		if _, keep := controller.ServiceRetrieveTracked(serviceId); !keep {
+			messages = append(messages, servicesForgetService(serviceId)...)
 		}
 	}
 	servicesStateMutex.Unlock()
+
+	for _, message := range messages {
+		gw.SendMessage(message)
+	}
 }
 
-func servicesForgetService(serviceId string) {
+func servicesForgetService(serviceId string) []gw.ConfigurationMessage {
+	var messages []gw.ConfigurationMessage
 	for _, clusterName := range servicesLastClusters[serviceId] {
-		gw.SendMessage(gw.ConfigurationMessage{
+		messages = append(messages, gw.ConfigurationMessage{
 			ClusterDown: &gw.EnvoyCluster{Name: clusterName},
 		})
 	}
@@ -1022,13 +1205,15 @@ func servicesForgetService(serviceId string) {
 	delete(servicesDrains, serviceId)
 	delete(servicesLastReport, serviceId)
 	delete(servicesProbeState, serviceId)
+	return messages
 }
 
 var servicesLastRoutes = map[string]*gw.EnvoyRoute{}
+var servicesRoutesMutex sync.Mutex
 
 func serviceReconcileLinkTargets() {
-	servicesStateMutex.Lock()
-	defer servicesStateMutex.Unlock()
+	servicesRoutesMutex.Lock()
+	defer servicesRoutesMutex.Unlock()
 
 	desired := map[string]*gw.EnvoyRoute{}
 
@@ -1057,14 +1242,19 @@ func serviceReconcileLinkTargets() {
 		}
 	}
 
+	var down []*gw.EnvoyRoute
 	for key, route := range servicesLastRoutes {
 		if _, keep := desired[key]; !keep {
-			gw.SendMessage(gw.ConfigurationMessage{
-				RouteDown: route,
-			})
+			down = append(down, route)
 		}
 	}
 	servicesLastRoutes = desired
+
+	for _, route := range down {
+		gw.SendMessage(gw.ConfigurationMessage{
+			RouteDown: route,
+		})
+	}
 
 	for _, route := range desired {
 		gw.SendMessage(gw.ConfigurationMessage{RouteUp: route})

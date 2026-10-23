@@ -25,6 +25,31 @@ var servicePortNameRegex = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9]
 
 const serviceDefaultDrainTimeoutSeconds = 30
 
+const serviceMutationLockCount = 64
+const networkMutationLockCount = 32
+
+var serviceMutationLocks [serviceMutationLockCount]sync.Mutex
+var networkMutationLocks [networkMutationLockCount]sync.Mutex
+
+func orchestratorLockIndex(id string, count uint32) uint32 {
+	var hash uint32 = 2166136261
+	for i := 0; i < len(id); i++ {
+		hash ^= uint32(id[i])
+		hash *= 16777619
+	}
+	return hash % count
+}
+
+func serviceMutationLock(id string) *sync.Mutex {
+	canonical := strconv.FormatInt(int64(ResourceParseId(id)), 10)
+	return &serviceMutationLocks[orchestratorLockIndex(canonical, serviceMutationLockCount)]
+}
+
+func networkMutationLock(id string) *sync.Mutex {
+	canonical := strconv.FormatInt(int64(ResourceParseId(id)), 10)
+	return &networkMutationLocks[orchestratorLockIndex(canonical, networkMutationLockCount)]
+}
+
 func initServices() {
 	InitResourceType(
 		serviceType,
@@ -118,6 +143,9 @@ func initServices() {
 
 	orcapi.ServicesUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 		err := serviceEach(info.Actor, request.Items, func(actor rpc.Actor, item orcapi.UpdatedAcl) *util.HttpError {
+			mutationLock := serviceMutationLock(item.Id)
+			mutationLock.Lock()
+			defer mutationLock.Unlock()
 			return ResourceUpdateAcl(actor, serviceType, item)
 		})
 		if err != nil {
@@ -156,6 +184,9 @@ func initServices() {
 
 					if update.ProvisioningState.Present {
 						svc.ProvisioningState = update.ProvisioningState.Value
+						if update.ProvisioningState.Value == string(orcapi.ServiceStateReady) {
+							svc.StatusMessage = util.OptNone[string]()
+						}
 					}
 					if update.Message.Present {
 						svc.StatusMessage = update.Message
@@ -247,26 +278,15 @@ func ServiceCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ServiceSpe
 	var responses []orcapi.Service
 
 	for _, item := range request.Items {
-		_, ok := SupportByProduct[orcapi.ServiceSupport](serviceType, item.Product)
-		if !ok {
-			return nil, util.HttpErr(http.StatusBadRequest, "unsupported operation")
-		}
+		svc, err := func() (orcapi.Service, *util.HttpError) {
+			if item.InternalEndpoint.Present {
+				networkLock := networkMutationLock(item.InternalEndpoint.Value.PrivateNetworkId)
+				networkLock.Lock()
+				defer networkLock.Unlock()
+			}
 
-		item.Name = strings.TrimSpace(item.Name)
-		item.Ports = serviceNormalizePorts(item.Ports)
-		err := serviceValidateSpecification(actor, item)
-		if err != nil {
-			return nil, err
-		}
-
-		svc, err := ResourceCreateThroughProviderEx(
-			actor,
-			serviceType,
-			item.ResourceSpecification,
-			serviceToInternal(&item),
-			orcapi.ServicesProviderCreate,
-			ProviderCallOpts{Timeout: util.OptValue(30 * time.Second)},
-		)
+			return serviceCreateOne(actor, item)
+		}()
 
 		if err != nil {
 			return nil, err
@@ -275,6 +295,29 @@ func ServiceCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ServiceSpe
 		responses = append(responses, svc)
 	}
 	return responses, nil
+}
+
+func serviceCreateOne(actor rpc.Actor, item orcapi.ServiceSpecification) (orcapi.Service, *util.HttpError) {
+	_, ok := SupportByProduct[orcapi.ServiceSupport](serviceType, item.Product)
+	if !ok {
+		return orcapi.Service{}, util.HttpErr(http.StatusBadRequest, "unsupported operation")
+	}
+
+	item.Name = strings.TrimSpace(item.Name)
+	item.Ports = serviceNormalizePorts(item.Ports)
+	err := serviceValidateSpecification(actor, item)
+	if err != nil {
+		return orcapi.Service{}, err
+	}
+
+	return ResourceCreateThroughProviderEx(
+		actor,
+		serviceType,
+		item.ResourceSpecification,
+		serviceToInternal(&item),
+		orcapi.ServicesProviderCreate,
+		ProviderCallOpts{Timeout: util.OptValue(30 * time.Second)},
+	)
 }
 
 func ServiceBrowse(actor rpc.Actor, request orcapi.ServicesBrowseRequest) fndapi.PageV2[orcapi.Service] {
@@ -301,32 +344,13 @@ func ServiceRetrieve(actor rpc.Actor, request orcapi.ServicesRetrieveRequest) (o
 
 func ServiceDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 	for _, item := range request.Items {
-		_, _, _, err := ResourceRetrieveEx[orcapi.Service](
-			actor,
-			serviceType,
-			ResourceParseId(item.Id),
-			orcapi.PermissionEdit,
-			orcapi.ResourceFlags{},
-		)
-		if err != nil {
-			return fndapi.BulkResponse[util.Empty]{}, err
-		}
+		err := func() *util.HttpError {
+			mutationLock := serviceMutationLock(item.Id)
+			mutationLock.Lock()
+			defer mutationLock.Unlock()
+			return serviceDeleteOne(actor, item)
+		}()
 
-		referencingLinks := serviceReferencingLinks(ResourceParseId(item.Id))
-		if len(referencingLinks) > 0 {
-			ids := make([]string, 0, len(referencingLinks))
-			for _, link := range referencingLinks {
-				ids = append(ids, fmt.Sprint(link.ingress))
-			}
-
-			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(
-				http.StatusConflict,
-				"This service is currently the target of public link: %v",
-				strings.Join(ids, ", "),
-			)
-		}
-
-		err = ResourceDeleteThroughProvider(actor, serviceType, item.Id, orcapi.ServicesProviderDelete)
 		if err != nil {
 			return fndapi.BulkResponse[util.Empty]{}, err
 		}
@@ -335,7 +359,40 @@ func ServiceDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStri
 	return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
 }
 
+func serviceDeleteOne(actor rpc.Actor, item fndapi.FindByStringId) *util.HttpError {
+	_, _, _, err := ResourceRetrieveEx[orcapi.Service](
+		actor,
+		serviceType,
+		ResourceParseId(item.Id),
+		orcapi.PermissionEdit,
+		orcapi.ResourceFlags{},
+	)
+	if err != nil {
+		return err
+	}
+
+	referencingLinks := serviceReferencingLinks(ResourceParseId(item.Id))
+	if len(referencingLinks) > 0 {
+		ids := make([]string, 0, len(referencingLinks))
+		for _, link := range referencingLinks {
+			ids = append(ids, fmt.Sprint(link.ingress))
+		}
+
+		return util.HttpErr(
+			http.StatusConflict,
+			"This service is currently the target of public link: %v",
+			strings.Join(ids, ", "),
+		)
+	}
+
+	return ResourceDeleteThroughProvider(actor, serviceType, item.Id, orcapi.ServicesProviderDelete)
+}
+
 func ServiceUpdate(actor rpc.Actor, id string, update orcapi.ServicesUpdateRequest) *util.HttpError {
+	mutationLock := serviceMutationLock(id)
+	mutationLock.Lock()
+	defer mutationLock.Unlock()
+
 	svc, _, _, err := ResourceRetrieveEx[orcapi.Service](
 		actor,
 		serviceType,
@@ -387,6 +444,7 @@ func ServiceUpdate(actor rpc.Actor, id string, update orcapi.ServicesUpdateReque
 	}), ProviderCallOpts{
 		Username: util.OptValue(actor.Username),
 		Reason:   util.OptValue("Updating service"),
+		Timeout:  util.OptValue(30 * time.Second),
 	})
 
 	if err != nil {
@@ -455,6 +513,10 @@ func serviceMutateMembers(
 	validateService func(svc orcapi.Service) *util.HttpError,
 	validateMember func(svc orcapi.Service, job orcapi.Job) *util.HttpError,
 ) *util.HttpError {
+	mutationLock := serviceMutationLock(id)
+	mutationLock.Lock()
+	defer mutationLock.Unlock()
+
 	svc, _, _, err := ResourceRetrieveEx[orcapi.Service](
 		actor,
 		serviceType,
@@ -474,6 +536,8 @@ func serviceMutateMembers(
 
 	var added []string
 	var removed []string
+	seenAdded := map[string]util.Empty{}
+	seenRemoved := map[string]util.Empty{}
 	provider := svc.Specification.Product.Provider
 
 	for _, jobId := range addedJobIds {
@@ -481,6 +545,7 @@ func serviceMutateMembers(
 		if err != nil {
 			return err
 		}
+		jobId = fmt.Sprint(ResourceParseId(jobId))
 
 		if validateMember != nil {
 			if err := validateMember(svc, job); err != nil {
@@ -492,19 +557,34 @@ func serviceMutateMembers(
 			return err
 		}
 
-		if !slices.Contains(svc.Status.Members, jobId) {
-			added = append(added, jobId)
+		if slices.Contains(svc.Status.Members, jobId) {
+			continue
 		}
+
+		if _, exists := seenAdded[jobId]; exists {
+			continue
+		}
+
+		seenAdded[jobId] = util.Empty{}
+		added = append(added, jobId)
 	}
 
 	for _, jobId := range removedJobIds {
 		if _, err := serviceRetrieveMember(actor, jobId, provider); err != nil {
 			return err
 		}
+		jobId = fmt.Sprint(ResourceParseId(jobId))
 
-		if slices.Contains(svc.Status.Members, jobId) {
-			removed = append(removed, jobId)
+		if !slices.Contains(svc.Status.Members, jobId) {
+			continue
 		}
+
+		if _, exists := seenRemoved[jobId]; exists {
+			continue
+		}
+
+		seenRemoved[jobId] = util.Empty{}
+		removed = append(removed, jobId)
 	}
 
 	if len(added) == 0 && len(removed) == 0 {
@@ -518,6 +598,7 @@ func serviceMutateMembers(
 	}), ProviderCallOpts{
 		Username: util.OptValue(actor.Username),
 		Reason:   util.OptValue("Updating service members"),
+		Timeout:  util.OptValue(30 * time.Second),
 	})
 
 	if err != nil {
@@ -531,9 +612,11 @@ func serviceMutateMembers(
 		orcapi.PermissionEdit,
 		func(r *resource, mapped orcapi.Service) {
 			svcInternal := r.Extra.(*internalService)
-			svcInternal.Members = append(svcInternal.Members, added...)
+			for _, jobId := range added {
+				svcInternal.Members = util.AppendUnique(svcInternal.Members, jobId)
+			}
 			for _, jobId := range removed {
-				svcInternal.Members = util.RemoveFirst(svcInternal.Members, jobId)
+				svcInternal.Members = serviceRemoveAll(svcInternal.Members, jobId)
 			}
 		},
 	)
@@ -585,16 +668,21 @@ func serviceValidateMemberNetworkAttachment(svc orcapi.Service, jobResources []o
 
 func ServiceUpdateLabels(actor rpc.Actor, request fndapi.BulkRequest[orcapi.ServicesUpdateLabelsRequest]) *util.HttpError {
 	for _, reqItem := range request.Items {
-		err := ResourceUpdateLabelsThroughProvider[orcapi.Service](
-			actor,
-			serviceType,
-			reqItem.Id,
-			reqItem.Labels,
-			func(t *orcapi.Service, labels map[string]string) {
-				t.Specification.Labels = labels
-			},
-			orcapi.ServicesProviderOnUpdatedLabels,
-		)
+		err := func() *util.HttpError {
+			mutationLock := serviceMutationLock(reqItem.Id)
+			mutationLock.Lock()
+			defer mutationLock.Unlock()
+			return ResourceUpdateLabelsThroughProvider[orcapi.Service](
+				actor,
+				serviceType,
+				reqItem.Id,
+				reqItem.Labels,
+				func(t *orcapi.Service, labels map[string]string) {
+					t.Specification.Labels = labels
+				},
+				orcapi.ServicesProviderOnUpdatedLabels,
+			)
+		}()
 
 		if err != nil {
 			return err
@@ -892,6 +980,14 @@ func servicePersist(b *db.Batch, resource *resource) {
 	}
 }
 
+func serviceCloneBackends(backends []orcapi.ServiceBackendStatus) []orcapi.ServiceBackendStatus {
+	result := slices.Clone(backends)
+	for i := range result {
+		result[i].Ports = slices.Clone(result[i].Ports)
+	}
+	return util.NonNilSlice(result)
+}
+
 func serviceTransform(
 	r orcapi.Resource,
 	specification orcapi.ResourceSpecification,
@@ -905,14 +1001,14 @@ func serviceTransform(
 		Resource: r,
 		Specification: orcapi.ServiceSpecification{
 			Name:                  svc.Name,
-			Ports:                 util.NonNilSlice(svc.Ports),
+			Ports:                 util.NonNilSlice(slices.Clone(svc.Ports)),
 			ResourceSpecification: specification,
 		},
 		Status: orcapi.ServiceStatus{
 			ProvisioningState: svc.ProvisioningState,
 			Message:           svc.StatusMessage,
-			Members:           util.NonNilSlice(svc.Members),
-			Backends:          util.NonNilSlice(svc.Backends),
+			Members:           util.NonNilSlice(slices.Clone(svc.Members)),
+			Backends:          serviceCloneBackends(svc.Backends),
 		},
 	}
 
@@ -943,17 +1039,28 @@ func serviceTransform(
 
 func serviceRemoveMembershipsOfJob(jobId string) {
 	for _, serviceId := range serviceIdsOfJob(jobId) {
-		ResourceUpdate[orcapi.Service](
-			rpc.ActorSystem,
-			serviceType,
-			ResourceParseId(serviceId),
-			orcapi.PermissionRead,
-			func(r *resource, mapped orcapi.Service) {
-				svc := r.Extra.(*internalService)
-				svc.Members = util.RemoveFirst(svc.Members, jobId)
-			},
-		)
+		func() {
+			mutationLock := serviceMutationLock(serviceId)
+			mutationLock.Lock()
+			defer mutationLock.Unlock()
+			ResourceUpdate[orcapi.Service](
+				rpc.ActorSystem,
+				serviceType,
+				ResourceParseId(serviceId),
+				orcapi.PermissionRead,
+				func(r *resource, mapped orcapi.Service) {
+					svc := r.Extra.(*internalService)
+					svc.Members = serviceRemoveAll(svc.Members, jobId)
+				},
+			)
+		}()
 	}
+}
+
+func serviceRemoveAll(list []string, value string) []string {
+	return slices.DeleteFunc(list, func(item string) bool {
+		return item == value
+	})
 }
 
 type serviceLinkReference struct {
@@ -1008,15 +1115,23 @@ func serviceReferencingLinks(serviceId ResourceId) []serviceLinkReference {
 
 	for _, id := range targets {
 		b := resourceGetBucket(ingressType, id)
-		r, ok, _ := resourcesReadEx(rpc.ActorSystem, ingressType, orcapi.PermissionRead, b, id, nil)
-		if !ok || r == nil || r.MarkedForDeletion {
-			continue
+
+		b.Mu.RLock()
+		r, ok := b.Resources[id]
+		if !ok {
+			b.Mu.RUnlock()
+			resourceLoad(ingressType, id, nil)
+			b.Mu.RLock()
+			r, ok = b.Resources[id]
 		}
 
-		ing := r.Extra.(*internalIngress)
-		if ing.TargetService.Present && ing.TargetService.Value == serviceId && ing.TargetPort.Present {
-			result = append(result, serviceLinkReference{ingress: id, port: ing.TargetPort.Value})
+		if ok && r != nil && !r.MarkedForDeletion {
+			ing := r.Extra.(*internalIngress)
+			if ing.TargetService.Present && ing.TargetService.Value == serviceId && ing.TargetPort.Present {
+				result = append(result, serviceLinkReference{ingress: id, port: ing.TargetPort.Value})
+			}
 		}
+		b.Mu.RUnlock()
 	}
 
 	return result

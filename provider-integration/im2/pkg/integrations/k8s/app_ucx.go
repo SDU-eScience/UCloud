@@ -808,6 +808,8 @@ func ensureUcxDeployment(
 					EnableServiceLinks:           util.BoolPointer(false),
 					SecurityContext: &k8score.PodSecurityContext{
 						RunAsNonRoot: util.BoolPointer(true),
+						RunAsUser:    util.Pointer[int64](filesystem.DefaultUid),
+						RunAsGroup:   util.Pointer[int64](filesystem.DefaultUid),
 						SeccompProfile: &k8score.SeccompProfile{
 							Type: k8score.SeccompProfileTypeRuntimeDefault,
 						},

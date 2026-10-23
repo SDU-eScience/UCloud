@@ -58,4 +58,5 @@ func Init() {
 	db.AddMigration(privateNetworksV3())
 	db.AddMigration(servicesV1())
 	db.AddMigration(stacksDeletionV1())
+	db.AddMigration(servicesV2())
 }

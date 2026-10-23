@@ -286,6 +286,10 @@ func Resume() {
 }
 
 func SendMessage(message ConfigurationMessage) {
+	if configChannel == nil {
+		return
+	}
+
 	var buf bytes.Buffer
 	err := gob.NewEncoder(&buf).Encode(message)
 	if err != nil {

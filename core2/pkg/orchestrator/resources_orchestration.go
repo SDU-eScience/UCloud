@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"net/http"
+	"time"
 
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/log"
@@ -145,6 +146,7 @@ func ResourceDeleteThroughProvider[T any](
 	_, err = InvokeProvider(specification.Product.Provider, call, fndapi.BulkRequestOf(resc), ProviderCallOpts{
 		Username: util.OptValue(actor.Username),
 		Reason:   util.OptValue("Deleting resource: " + typeName),
+		Timeout:  util.OptValue(30 * time.Second),
 	})
 
 	if err == nil {

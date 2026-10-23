@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -690,6 +691,12 @@ func IngressSetTarget(actor rpc.Actor, id string, target util.Option[orcapi.Publ
 
 	provider := ing.Specification.Product.Provider
 
+	if target.Present {
+		mutationLock := serviceMutationLock(target.Value.ServiceId)
+		mutationLock.Lock()
+		defer mutationLock.Unlock()
+	}
+
 	var newServiceId util.Option[ResourceId]
 	var newPort util.Option[string]
 
@@ -712,6 +719,7 @@ func IngressSetTarget(actor rpc.Actor, id string, target util.Option[orcapi.Publ
 	}), ProviderCallOpts{
 		Username: util.OptValue(actor.Username),
 		Reason:   util.OptValue("Setting public link target"),
+		Timeout:  util.OptValue(30 * time.Second),
 	})
 
 	if err != nil {

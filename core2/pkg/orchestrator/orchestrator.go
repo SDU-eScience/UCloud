@@ -52,39 +52,37 @@ func providerAppendLog(provider string, entry ProviderCallLog) {
 		providerLogFiles.Mu.Lock()
 		logFile, ok = providerLogFiles.Logs[provider]
 		if !ok {
-			logFile = &providerLogFile{Chan: make(chan ProviderCallLog)}
+			logFile = &providerLogFile{Chan: make(chan ProviderCallLog, 1024)}
 			providerLogFiles.Logs[provider] = logFile
-			go func() {
+			go func(lf *providerLogFile) {
 				logDir := cfg.Configuration.Logs.Directory
 				logPath := filepath.Join(logDir, fmt.Sprintf("provider-%s.log", provider))
 				f, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0660)
 
-				// Starting the file with a new line allows us to always seek to "\n{" to find the next valid entry
-				// from any location in the file.
-				_, _ = f.WriteString("\n")
-
 				if err == nil {
-					for {
-						logEntry, ok := <-logFile.Chan
-						if !ok {
+					// Starting the file with a new line allows us to always seek to "\n{" to find the next valid entry
+					// from any location in the file.
+					_, _ = f.WriteString("\n")
+					for logEntry := range lf.Chan {
+						data, _ := json.Marshal(logEntry)
+						_, err1 := f.Write(data)
+						_, err2 := f.WriteString("\n")
+						if err1 != nil || err2 != nil {
 							break
-						} else {
-							data, _ := json.Marshal(logEntry)
-							_, err1 := f.Write(data)
-							_, err2 := f.WriteString("\n")
-							if err1 != nil || err2 != nil {
-								break
-							}
 						}
 					}
+					util.SilentClose(f)
 				} else {
 					log.Warn("Could not create provider log file: %s %s", provider, err)
 				}
-			}()
+			}(logFile)
 		}
 		providerLogFiles.Mu.Unlock()
-	} else {
-		logFile.Chan <- entry
+	}
+
+	select {
+	case logFile.Chan <- entry:
+	default:
 	}
 }
 

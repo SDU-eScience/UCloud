@@ -1051,6 +1051,7 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 		for _, ref := range spec.Services {
 			err := ServiceAddMembers(actor, ref.ServiceId, []string{job.Id})
 			if err != nil {
+				_, _ = JobsTerminateBulk(actor, fndapi.BulkRequestOf(fndapi.FindByStringId{Id: job.Id}))
 				return nil, err
 			}
 		}

@@ -768,9 +768,24 @@ func snapshotEtcdNamed(ctx context.Context, snapshotName string) (string, error)
 		progressCommandOutput("the etcd snapshot command failed with", output)
 		return "", fmt.Errorf("the etcd snapshot command failed: %s: %s", err, strings.TrimSpace(string(output)))
 	}
-	progressCommandOutput("The etcd snapshot command reported", output)
+	progressCommandOutput("The etcd snapshot command reported", filterEtcdSnapshotOutput(output))
 
 	return latestSnapshot(dir, name)
+}
+
+func filterEtcdSnapshotOutput(output []byte) []byte {
+	// k3s re-parses config.yaml for etcd-snapshot and warns about server-only flags it skips.
+	lines := strings.Split(string(output), "\n")
+	filtered := make([]string, 0, len(lines))
+	for _, line := range lines {
+		knownConfigWarning := strings.Contains(line, "Unknown flag ") &&
+			strings.Contains(line, "found in config.yaml, skipping")
+		if knownConfigWarning {
+			continue
+		}
+		filtered = append(filtered, line)
+	}
+	return []byte(strings.Join(filtered, "\n"))
 }
 
 func etcdSnapshotDir() string {

@@ -297,44 +297,54 @@ func PrivateNetworkBrowse(actor rpc.Actor, request orcapi.PrivateNetworksBrowseR
 
 func PrivateNetworkDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStringId]) *util.HttpError {
 	for _, item := range request.Items {
-		network, _, _, err := ResourceRetrieveEx[orcapi.PrivateNetwork](
-			actor,
-			privateNetworkType,
-			ResourceParseId(item.Id),
-			orcapi.PermissionEdit,
-			orcapi.ResourceFlags{},
-		)
-		if err != nil {
-			return err
-		}
+		err := func() *util.HttpError {
+			mutationLock := networkMutationLock(item.Id)
+			mutationLock.Lock()
+			defer mutationLock.Unlock()
+			return privateNetworkDeleteOne(actor, item)
+		}()
 
-		if len(network.Status.Members) > 0 {
-			return util.HttpErr(
-				http.StatusConflict,
-				"This private network is currently in use by job: %v",
-				strings.Join(network.Status.Members, ", "),
-			)
-		}
-
-		if serviceReferencedByNetwork(ResourceParseId(item.Id)) {
-			return util.HttpErr(
-				http.StatusConflict,
-				"This private network is currently in use as the internal endpoint of a service",
-			)
-		}
-
-		err = privateNetworkDeleteReservedIps(item.Id)
-		if err != nil {
-			return err
-		}
-
-		err = ResourceDeleteThroughProvider(actor, privateNetworkType, item.Id, orcapi.PrivateNetworksProviderDelete)
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func privateNetworkDeleteOne(actor rpc.Actor, item fndapi.FindByStringId) *util.HttpError {
+	network, _, _, err := ResourceRetrieveEx[orcapi.PrivateNetwork](
+		actor,
+		privateNetworkType,
+		ResourceParseId(item.Id),
+		orcapi.PermissionEdit,
+		orcapi.ResourceFlags{},
+	)
+	if err != nil {
+		return err
+	}
+
+	if len(network.Status.Members) > 0 {
+		return util.HttpErr(
+			http.StatusConflict,
+			"This private network is currently in use by job: %v",
+			strings.Join(network.Status.Members, ", "),
+		)
+	}
+
+	if serviceReferencedByNetwork(ResourceParseId(item.Id)) {
+		return util.HttpErr(
+			http.StatusConflict,
+			"This private network is currently in use as the internal endpoint of a service",
+		)
+	}
+
+	err = privateNetworkDeleteReservedIps(item.Id)
+	if err != nil {
+		return err
+	}
+
+	return ResourceDeleteThroughProvider(actor, privateNetworkType, item.Id, orcapi.PrivateNetworksProviderDelete)
 }
 
 func privateNetworkDeleteReservedIps(networkId string) *util.HttpError {
