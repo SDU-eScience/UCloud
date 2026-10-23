@@ -3,7 +3,6 @@ package recovery
 import (
 	"cmp"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -35,8 +34,9 @@ type app struct {
 
 	watchStarted bool `ucx:"-"`
 
-	Message      string `ucx:"-"`
-	MessageError bool   `ucx:"-"`
+	Message         string `ucx:"-"`
+	MessageError    bool   `ucx:"-"`
+	MessageFromLoad bool   `ucx:"-"`
 
 	recoveryLoadResult `ucx:"-"`
 
@@ -44,8 +44,7 @@ type app struct {
 	BackToSelect     bool   `ucx:"-"`
 	ReviewBackup     bool   `ucx:"-"`
 
-	CredentialsChecked bool `ucx:"-"`
-	CredentialsOk      bool `ucx:"-"`
+	CredentialsStatus recoveryCredentialsStatus `ucx:"-"`
 
 	Progress            string                `ucx:"-"`
 	VerifyResults       []recoveryCheckResult `ucx:"-"`
@@ -74,6 +73,14 @@ type recoveryCheckResult struct {
 	Ok     bool
 }
 
+type recoveryCredentialsStatus string
+
+const (
+	recoveryCredentialsUnchecked recoveryCredentialsStatus = ""
+	recoveryCredentialsOk        recoveryCredentialsStatus = "ok"
+	recoveryCredentialsMismatch  recoveryCredentialsStatus = "mismatch"
+)
+
 type recoveryLoadResult struct {
 	ClusterFound bool
 	Cluster      shared.ClusterRecord
@@ -84,7 +91,7 @@ type recoveryLoadResult struct {
 
 	Backups []backupEntry
 
-	Err error
+	Messages []string
 }
 
 func App() ucx.Application {
@@ -147,10 +154,10 @@ func (app *app) refresh() {
 	load := recoveryLoad(session, stackId, mountPath)
 
 	app.mu.Lock()
-	if load.Err == nil {
-		app.applyLoad(load)
-		app.verifyIfNeeded()
-	}
+	app.applyLoad(load)
+	app.verifyIfNeeded()
+	app.clearLoadMessage()
+	app.applyLoadMessages(load)
 	app.pushUi()
 	app.mu.Unlock()
 }
@@ -159,24 +166,26 @@ func recoveryLoad(session *ucx.Session, stackId string, mountPath string) recove
 	result := recoveryLoadResult{}
 
 	entries, backupsErr := recoveryListBackups(mountPath)
-	if backupsErr == nil {
+	if backupsErr != nil {
+		result.Messages = append(result.Messages, fmt.Sprintf("Could not list the backups: %s", backupsErr))
+	} else {
 		result.Backups = entries
 	}
 
 	if stackId == "" {
-		result.Err = errors.New("the stack id is not available")
+		result.Messages = append(result.Messages, "The stack id is not available")
 		return result
 	}
 
 	client, err := shared.ClusterStateClientNewSession(session, stackId)
 	if err != nil {
-		result.Err = err
+		result.Messages = append(result.Messages, fmt.Sprintf("Could not connect to the cluster state: %s", err))
 		return result
 	}
 
 	snapshot, err := shared.ClusterStateRead(client)
 	if err != nil {
-		result.Err = fmt.Errorf("could not read the cluster record: %s", err)
+		result.Messages = append(result.Messages, fmt.Sprintf("Could not read the cluster record: %s", err))
 		return result
 	}
 	if snapshot.Found {
@@ -188,7 +197,7 @@ func recoveryLoad(session *ucx.Session, stackId string, mountPath string) recove
 
 	recoverySnapshot, err := shared.ClusterRecoveryRead(client)
 	if err != nil {
-		result.Err = fmt.Errorf("could not read the recovery state: %s", err)
+		result.Messages = append(result.Messages, fmt.Sprintf("Could not read the recovery state: %s", err))
 		return result
 	}
 	if recoverySnapshot.Found {
@@ -206,6 +215,11 @@ func (app *app) applyLoad(load recoveryLoadResult) {
 	}
 	if !load.ClusterFound {
 		load.Cluster = app.Cluster
+	}
+	if !load.RecoveryFound {
+		load.RecoveryFound = app.RecoveryFound
+		load.RecoveryRevision = app.RecoveryRevision
+		load.Recovery = app.Recovery
 	}
 
 	app.recoveryLoadResult = load
@@ -229,9 +243,27 @@ func (app *app) applyLoad(load recoveryLoadResult) {
 	}
 }
 
+func (app *app) applyLoadMessages(load recoveryLoadResult) {
+	if len(load.Messages) == 0 {
+		return
+	}
+
+	app.Message = strings.Join(load.Messages, " ")
+	app.MessageError = true
+	app.MessageFromLoad = true
+}
+
+func (app *app) clearLoadMessage() {
+	if !app.MessageFromLoad {
+		return
+	}
+	app.Message = ""
+	app.MessageError = false
+	app.MessageFromLoad = false
+}
+
 func (app *app) recomputeSelection() {
-	app.CredentialsChecked = false
-	app.CredentialsOk = false
+	app.CredentialsStatus = recoveryCredentialsUnchecked
 
 	entry, found := app.selectedBackup()
 	if !found {
@@ -244,8 +276,11 @@ func (app *app) recomputeSelection() {
 		return
 	}
 
-	app.CredentialsChecked = true
-	app.CredentialsOk = serverHash == entry.ServerTokenHash && agentHash == entry.AgentTokenHash
+	if serverHash == entry.ServerTokenHash && agentHash == entry.AgentTokenHash {
+		app.CredentialsStatus = recoveryCredentialsOk
+	} else {
+		app.CredentialsStatus = recoveryCredentialsMismatch
+	}
 }
 
 func (app *app) selectedBackup() (backupEntry, bool) {
@@ -437,9 +472,9 @@ func (app *app) stageStopSelect() []ucx.UiNode {
 			content = append(content, ucx.Warning("This backup uses an unavailable Kubernetes version. Select another backup.").Sx(ucx.SxMb(16)))
 		}
 
-		if !app.CredentialsChecked {
+		if app.CredentialsStatus == recoveryCredentialsUnchecked {
 			content = append(content, ucx.Warning("Cluster credentials could not be checked. Recovery cannot continue. Try again later.").Sx(ucx.SxMb(16)))
-		} else if !app.CredentialsOk {
+		} else if app.CredentialsStatus == recoveryCredentialsMismatch {
 			content = append(content, ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 12}).Sx(ucx.SxMb(16)).Children(
 				ucx.Warning("The backup credentials differ from the current cluster credentials. Existing nodes may not reconnect after recovery."),
 				ucx.Checkbox("recoveryAcknowledge", "I accept that existing nodes may not reconnect", "acknowledgeRisk", true),
@@ -475,6 +510,7 @@ func (app *app) stageStopSelect() []ucx.UiNode {
 			app.ReviewBackup = true
 			app.Message = ""
 			app.MessageError = false
+			app.MessageFromLoad = false
 			app.pushUi()
 		})
 
@@ -519,6 +555,7 @@ func (app *app) stageRecreate() []ucx.UiNode {
 			app.BackToSelect = active
 			app.Message = ""
 			app.MessageError = false
+			app.MessageFromLoad = false
 			app.pushUi()
 		}).
 		NextLabel("Start recovery").
@@ -789,10 +826,10 @@ func (app *app) beginRecoveryValidation(entry backupEntry, releaseKnown bool) (s
 	if !releaseKnown {
 		return "The selected backup release is not in the catalog", false
 	}
-	if !app.CredentialsChecked {
+	if app.CredentialsStatus == recoveryCredentialsUnchecked {
 		return "The live cluster tokens could not be read, so the credentials cannot be verified", false
 	}
-	if !app.CredentialsOk && !app.AcknowledgeRisk {
+	if app.CredentialsStatus == recoveryCredentialsMismatch && !app.AcknowledgeRisk {
 		return "The backup credentials differ from the live tokens. Acknowledge the mismatch to continue", false
 	}
 	if app.SelectedBackupId != entry.Id {
@@ -810,6 +847,7 @@ func (app *app) runAsync(work func(session *ucx.Session, progress func(string)) 
 	app.Busy = true
 	app.Message = ""
 	app.MessageError = false
+	app.MessageFromLoad = false
 	app.Progress = "Starting"
 	if app.Verifying {
 		app.Progress = "Checking the cluster"
@@ -834,15 +872,16 @@ func (app *app) runAsync(work func(session *ucx.Session, progress func(string)) 
 		app.Busy = false
 		app.Verifying = false
 		app.Progress = ""
-		if load.Err == nil {
-			app.applyLoad(load)
-		}
+		app.clearLoadMessage()
+		app.applyLoad(load)
 		if err != nil {
 			app.Message = err.Error()
 			app.MessageError = true
-		} else {
+		} else if message != "" {
 			app.Message = message
 			app.MessageError = false
+		} else {
+			app.applyLoadMessages(load)
 		}
 		app.verifyIfNeeded()
 		app.pushUi()

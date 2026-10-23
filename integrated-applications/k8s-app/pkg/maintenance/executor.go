@@ -77,8 +77,9 @@ const (
 	drainBlocked
 )
 
-func (worker *nodeWorker) load() (stackRecord, error) {
-	return stackRead(worker.client, stackNodeKey(worker.nodeName))
+type cordonDrainResult struct {
+	outcome drainOutcome
+	err     error
 }
 
 func (worker *nodeWorker) clusterRecord() (shared.ClusterRecord, error) {
@@ -86,9 +87,12 @@ func (worker *nodeWorker) clusterRecord() (shared.ClusterRecord, error) {
 		return worker.record, nil
 	}
 
-	record, err := readClusterRecord()
+	record, found, err := readClusterRecord()
 	if err != nil {
 		return shared.ClusterRecord{}, err
+	}
+	if !found {
+		return shared.ClusterRecord{}, errors.New("the cluster record does not exist")
 	}
 
 	worker.record = record
@@ -97,12 +101,16 @@ func (worker *nodeWorker) clusterRecord() (shared.ClusterRecord, error) {
 }
 
 func (worker *nodeWorker) mutate(mutate func(*Operation) bool) error {
-	record, err := worker.load()
+	record, err := stackValueRead[Operation](
+		worker.client,
+		stackNodeKey(worker.nodeName),
+		"maintenance record "+stackNodeKey(worker.nodeName),
+	)
 	if err != nil {
 		return err
 	}
 
-	if !record.Found || record.Value.NodeName == "" || record.Value.Uid != worker.uid {
+	if !record.Found || record.Value.Uid != worker.uid {
 		return errConcluded
 	}
 
@@ -120,7 +128,7 @@ func (worker *nodeWorker) mutate(mutate func(*Operation) bool) error {
 		return marshalErr
 	}
 
-	_, writeErr := stackWrite(worker.client, stackNodeKey(worker.nodeName), value, record.Revision)
+	_, writeErr := shared.RpcGrantStateWrite(worker.client, stackNodeKey(worker.nodeName), value, record.Revision)
 	if writeErr != nil {
 		if shared.IsConflict(writeErr) {
 			return errConcluded
@@ -133,12 +141,16 @@ func (worker *nodeWorker) mutate(mutate func(*Operation) bool) error {
 }
 
 func (worker *nodeWorker) checkpoint() (Operation, bool) {
-	record, err := worker.load()
+	record, err := stackValueRead[Operation](
+		worker.client,
+		stackNodeKey(worker.nodeName),
+		"maintenance record "+stackNodeKey(worker.nodeName),
+	)
 	if err != nil {
 		log.Warn("k8s-app maintenance %s: could not reload the operation: %s", worker.nodeName, err)
 		return Operation{}, false
 	}
-	if !record.Found || record.Value.NodeName == "" || record.Value.Uid != worker.uid {
+	if !record.Found || record.Value.Uid != worker.uid {
 		return Operation{}, false
 	}
 
@@ -243,11 +255,13 @@ func Run(ctx context.Context, kubeconfigPath string) {
 func sweep(ctx context.Context, kubeconfigPath string) {
 	client, err := stackClientNew()
 	if err != nil {
+		log.Warn("k8s-app maintenance: could not open the stack client for the maintenance sweep: %s", err)
 		return
 	}
 
 	records, err := stackList(client, stackKeyPrefix)
 	if err != nil {
+		log.Warn("k8s-app maintenance: could not list the maintenance records during the sweep: %s", err)
 		return
 	}
 
@@ -297,7 +311,7 @@ func claimOperation(client stackClient, operation Operation, revision int64) boo
 		return false
 	}
 
-	_, writeErr := stackWrite(client, stackNodeKey(operation.NodeName), value, revision)
+	_, writeErr := shared.RpcGrantStateWrite(client, stackNodeKey(operation.NodeName), value, revision)
 	if writeErr != nil {
 		if !shared.IsConflict(writeErr) {
 			log.Warn(
@@ -351,9 +365,9 @@ func runOperation(
 	case KindCordon:
 		runErr = runCordon(workerCtx, clientset, current, worker)
 	case KindCordonDrain:
-		outcome, cordonErr := runCordonDrain(workerCtx, clientset, current, worker, false, true)
-		runErr = cordonErr
-		if runErr == nil && outcome == drainDone {
+		result := runCordonDrain(workerCtx, clientset, current, worker, false, true)
+		runErr = result.err
+		if runErr == nil && result.outcome == drainDone {
 			finish(worker, PhaseCompleted, "")
 		}
 	case KindUpgrade:
@@ -407,53 +421,53 @@ func runCordonDrain(
 	worker *nodeWorker,
 	verified bool,
 	drain bool,
-) (drainOutcome, error) {
+) cordonDrainResult {
 	record, err := worker.clusterRecord()
 	if err != nil {
-		return drainConcluded, fmt.Errorf("could not read the cluster record: %s", err)
+		return cordonDrainResult{drainConcluded, fmt.Errorf("could not read the cluster record: %s", err)}
 	}
 
 	if record.Phase != "created" {
-		return drainConcluded, fmt.Errorf("the cluster is not ready (state: %s)", record.Phase)
+		return cordonDrainResult{drainConcluded, fmt.Errorf("the cluster is not ready (state: %s)", record.Phase)}
 	}
 
 	if !verified && !knownHostnames(record)[operation.NodeName] {
-		return drainConcluded, errors.New("the node is not part of this cluster")
+		return cordonDrainResult{drainConcluded, errors.New("the node is not part of this cluster")}
 	}
 
 	node, err := getNode(ctx, clientset, operation.NodeName)
 	if err != nil {
-		return drainConcluded, err
+		return cordonDrainResult{drainConcluded, err}
 	}
 
 	if string(node.UID) != operation.NodeUid {
-		return drainConcluded, errors.New("the node uid does not match the requested node")
+		return cordonDrainResult{drainConcluded, errors.New("the node uid does not match the requested node")}
 	}
 
 	if !verified {
 		if guardErr := controlPlaneGuard(ctx, clientset, operation, node); guardErr != nil {
-			return drainConcluded, guardErr
+			return cordonDrainResult{drainConcluded, guardErr}
 		}
 	}
 
 	if drain {
 		pods, err := listNodePods(ctx, clientset, operation.NodeName)
 		if err != nil {
-			return drainConcluded, err
+			return cordonDrainResult{drainConcluded, err}
 		}
 		blockers, _, _ := classifyPods(ctx, clientset, operation, pods, map[string][]metav1.APIResource{})
 		if len(blockers) > 0 {
 			drainBlock(worker, blockers)
-			return drainBlocked, nil
+			return cordonDrainResult{drainBlocked, nil}
 		}
 	}
 
 	if cordonErr := cordonNode(ctx, clientset, worker, node); cordonErr != nil {
-		return drainConcluded, cordonErr
+		return cordonDrainResult{drainConcluded, cordonErr}
 	}
 
 	if !drain {
-		return drainDone, nil
+		return cordonDrainResult{drainDone, nil}
 	}
 
 	operationLogStage(
@@ -462,7 +476,7 @@ func runCordonDrain(
 		fmt.Sprintf("Moving workloads off %s", operation.NodeName),
 	)
 
-	return drainNode(ctx, clientset, operation, worker), nil
+	return cordonDrainResult{drainNode(ctx, clientset, operation, worker), nil}
 }
 
 func runCordon(
@@ -865,9 +879,12 @@ func controlPlaneGuard(
 	operation Operation,
 	node *corev1.Node,
 ) error {
-	record, err := readClusterRecord()
+	record, found, err := readClusterRecord()
 	if err != nil {
 		return err
+	}
+	if !found {
+		return errors.New("the cluster record does not exist")
 	}
 
 	controlPlanes := controlPlaneNames(record)

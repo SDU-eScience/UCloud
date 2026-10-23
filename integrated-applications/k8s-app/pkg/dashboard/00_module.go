@@ -162,7 +162,7 @@ type stackUiApp struct {
 	ShowResourceDeleteDialog bool                          `ucx:"-"`
 	resourceDeleteTarget     dashboardResourceDeleteTarget `ucx:"-"`
 
-	clusterHealth *NodeHealth `ucx:"-"`
+	clusterHealth NodeHealth `ucx:"-"`
 
 	provisioningCache []provisioningEntry `ucx:"-"`
 	provisioningKick  chan util.Empty     `ucx:"-"`
@@ -499,9 +499,9 @@ func (app *stackUiApp) refreshClusterHealth() {
 	}
 
 	app.mu.Lock()
-	changed := app.clusterHealth == nil || !nodeHealthEqual(*app.clusterHealth, health)
+	changed := !nodeHealthEqual(app.clusterHealth, health)
 	if changed {
-		app.clusterHealth = &health
+		app.clusterHealth = health
 		ucx.AppUpdateUi(app)
 	}
 	app.mu.Unlock()

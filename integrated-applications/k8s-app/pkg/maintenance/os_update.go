@@ -53,11 +53,11 @@ func runOsUpdate(
 			return err
 		}
 
-		outcome, cordonErr := runCordonDrain(ctx, clientset, operation, worker, false, true)
-		if cordonErr != nil {
-			return cordonErr
+		result := runCordonDrain(ctx, clientset, operation, worker, false, true)
+		if result.err != nil {
+			return result.err
 		}
-		if outcome != drainDone {
+		if result.outcome != drainDone {
 			return nil
 		}
 
@@ -103,9 +103,12 @@ func osUpdatePreflight(ctx context.Context, clientset *kubernetes.Clientset, ope
 		return errors.New("the node has unverified host terminations from a previous force delete and cannot be updated")
 	}
 
-	record, err := readClusterRecord()
+	record, found, err := readClusterRecord()
 	if err != nil {
 		return fmt.Errorf("could not read the cluster record: %s", err)
+	}
+	if !found {
+		return errors.New("the cluster record does not exist")
 	}
 
 	if record.Phase != "created" {
@@ -374,7 +377,16 @@ func osUpdateSubmit(
 
 	reboot := shared.NodeAgentOsRebootWhenRequired
 	policyRecord, policyErr := autoPolicyRead(worker.client)
-	if policyErr == nil && policyRecord.Found && policyRecord.Value.Os.RebootPolicy == AutoRebootAlways {
+	if policyErr != nil {
+		log.Warn("k8s-app maintenance %s: could not read the reboot policy: %s", nodeName, policyErr)
+		operationLogStage(
+			worker,
+			"submit-retry-policy",
+			fmt.Sprintf("Waiting to read the reboot policy: %s", policyErr),
+		)
+		return false
+	}
+	if policyRecord.Found && policyRecord.Value.Os.RebootPolicy == AutoRebootAlways {
 		reboot = shared.NodeAgentOsRebootAlways
 	}
 

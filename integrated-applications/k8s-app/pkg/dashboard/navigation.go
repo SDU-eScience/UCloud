@@ -236,7 +236,7 @@ func dashboardNavigationParse(app *stackUiApp, route string) []dashboardNavigati
 			if parts[0] == "create" {
 				label = "Create"
 			}
-			if ref.hasContainer {
+			if ref.Container != "" {
 				label = ref.Container
 			}
 			typeId = query.Get(fmt.Sprintf("type%d", i))
@@ -271,11 +271,10 @@ func dashboardNavigationParse(app *stackUiApp, route string) []dashboardNavigati
 }
 
 type resourceDetailRef struct {
-	Type         string
-	Namespace    string
-	Name         string
-	Container    string
-	hasContainer bool
+	Type      string
+	Namespace string
+	Name      string
+	Container string
 }
 
 func parseResourceDetail(detail string) (resourceDetailRef, bool) {
@@ -284,7 +283,7 @@ func parseResourceDetail(detail string) (resourceDetailRef, bool) {
 		return resourceDetailRef{}, false
 	}
 
-	result := resourceDetailRef{Type: parts[0], Namespace: parts[1], Name: parts[2], hasContainer: len(parts) == 4}
+	result := resourceDetailRef{Type: parts[0], Namespace: parts[1], Name: parts[2]}
 	if len(parts) == 4 {
 		result.Container = parts[3]
 	}
@@ -292,7 +291,7 @@ func parseResourceDetail(detail string) (resourceDetailRef, bool) {
 }
 
 func (ref resourceDetailRef) String() string {
-	if ref.hasContainer || ref.Container != "" {
+	if ref.Container != "" {
 		return ref.Type + "/" + ref.Namespace + "/" + ref.Name + "/" + ref.Container
 	}
 	return ref.Type + "/" + ref.Namespace + "/" + ref.Name
@@ -305,7 +304,7 @@ func dashboardResourceDetailEncode(ref resourceDetailRef) string {
 		return strings.Join(parts, "/")
 	}
 	parts = append(parts, url.PathEscape(ref.Name))
-	if ref.hasContainer || ref.Container != "" {
+	if ref.Container != "" {
 		parts = append(parts, url.PathEscape(ref.Container))
 	}
 	return strings.Join(parts, "/")
@@ -334,10 +333,9 @@ func dashboardResourceDetailDecode(path string) (resourceDetailRef, bool) {
 	}
 
 	result := resourceDetailRef{
-		Type:         decoded[0],
-		Namespace:    decoded[1],
-		Name:         decoded[2],
-		hasContainer: len(decoded) == 4,
+		Type:      decoded[0],
+		Namespace: decoded[1],
+		Name:      decoded[2],
 	}
 	if len(decoded) == 4 {
 		result.Container = decoded[3]

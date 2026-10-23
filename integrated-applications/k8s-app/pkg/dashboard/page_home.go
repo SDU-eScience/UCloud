@@ -26,8 +26,8 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 		}
 	}
 
-	if health := app.clusterHealth; health != nil && recordOk && record.Phase == "created" {
-		if health.NotReady == 0 && health.Unknown == 0 && health.Total > 0 {
+	if health := app.clusterHealth; recordOk && record.Phase == "created" && health.Total > 0 {
+		if health.NotReady == 0 && health.Unknown == 0 {
 			clusterState = "Healthy"
 		} else {
 			clusterState = "Unhealthy"
@@ -43,7 +43,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 	if nodesReady < 0 {
 		nodesReady = 0
 	}
-	if health := app.clusterHealth; health != nil {
+	if health := app.clusterHealth; health.Total > 0 {
 		nodesTotal = health.Total
 		nodesReady = health.Ready
 	}
@@ -51,8 +51,8 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 
 	k8sVersion := "-"
 	k8sVersionColor := ucx.ColorTextPrimary
-	if health := app.clusterHealth; health != nil && health.ControlPlaneVersion != "" {
-		k8sVersion = health.ControlPlaneVersion
+	if app.clusterHealth.ControlPlaneVersion != "" {
+		k8sVersion = app.clusterHealth.ControlPlaneVersion
 	} else if recordOk && record.K8sVersion != "" {
 		k8sVersion = record.K8sVersion
 	}

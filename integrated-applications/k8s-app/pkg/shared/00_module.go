@@ -267,12 +267,41 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		return &ucxsvc.Stack{}, false
 	}
 
+	session := *app.Session()
+
+	linkProducts, err := ucxapi.PublicLinksRetrieveProducts.Invoke(session, util.Empty{})
+	if err != nil || len(linkProducts) == 0 {
+		ucxsvc.UiSendFailure(app, "Could not find a suitable public link product, but this cluster requires it.")
+		return &ucxsvc.Stack{}, false
+	}
+	linkDomain := orcapi.IngressSupport{
+		Prefix:  linkProducts[0].Support.Prefix,
+		Suffix:  linkProducts[0].Support.Suffix,
+		Product: linkProducts[0].Product.ToReference(),
+	}
+
+	stackIdLower := strings.ToLower(stackId)
+	apiLinkDomain := fmt.Sprintf("%s%s-api%s", linkDomain.Prefix, stackIdLower, linkDomain.Suffix)
+
+	computeProducts, err := ucxapi.JobsRetrieveProducts.Invoke(session, util.Empty{})
+	if err != nil || len(computeProducts) == 0 {
+		ucxsvc.UiSendFailure(app, "Could not find a suitable compute product, but this cluster requires it.")
+		return &ucxsvc.Stack{}, false
+	}
+	computeProvider := computeProducts[0].Product.ToReference().Provider
+	if spec.ControlPlaneMachine.Provider != "" && spec.ControlPlaneMachine.Provider != computeProvider {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf(
+			"The machine must come from the provider that runs the cluster (%s), but %s was selected",
+			computeProvider,
+			spec.ControlPlaneMachine.Provider,
+		))
+		return &ucxsvc.Stack{}, false
+	}
+
 	stack, ok := ucxsvc.StackCreateWithDrive(app, stackId, StackType)
 	if !ok {
 		return stack, false
 	}
-
-	session := *app.Session()
 
 	stateClient, clientErr := ClusterStateClientNewSession(session, stack.InstanceId)
 	if clientErr != nil {
@@ -294,35 +323,6 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 	defer func() {
 		_ = stopHeartbeat()
 	}()
-
-	linkProducts, err := ucxapi.PublicLinksRetrieveProducts.Invoke(session, util.Empty{})
-	if err != nil || len(linkProducts) == 0 {
-		ucxsvc.UiSendFailure(app, "Could not find a suitable public link product, but this cluster requires it.")
-		return stack, false
-	}
-	linkDomain := orcapi.IngressSupport{
-		Prefix:  linkProducts[0].Support.Prefix,
-		Suffix:  linkProducts[0].Support.Suffix,
-		Product: linkProducts[0].Product.ToReference(),
-	}
-
-	stackIdLower := strings.ToLower(stackId)
-	apiLinkDomain := fmt.Sprintf("%s%s-api%s", linkDomain.Prefix, stackIdLower, linkDomain.Suffix)
-
-	computeProducts, err := ucxapi.JobsRetrieveProducts.Invoke(session, util.Empty{})
-	if err != nil || len(computeProducts) == 0 {
-		ucxsvc.UiSendFailure(app, "Could not find a suitable compute product, but this cluster requires it.")
-		return stack, false
-	}
-	computeProvider := computeProducts[0].Product.ToReference().Provider
-	if spec.ControlPlaneMachine.Provider != "" && spec.ControlPlaneMachine.Provider != computeProvider {
-		ucxsvc.UiSendFailure(app, fmt.Sprintf(
-			"The machine must come from the provider that runs the cluster (%s), but %s was selected",
-			computeProvider,
-			spec.ControlPlaneMachine.Provider,
-		))
-		return stack, false
-	}
 
 	network, networkOk := ucxsvc.PrivateNetworkCreateWithCidr(stack, stackId, util.OptValue(ClusterVmCidr))
 	if !networkOk {
@@ -419,7 +419,16 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 				heartbeatFailed: heartbeatFailed,
 			})
 			if !created {
-				clusterCreateCleanupFailed(stateClient, stack, record, failReason)
+				cleanupErr := clusterCreateCleanupFailed(stateClient, stack, record, failReason)
+				if cleanupErr != nil {
+					ucxsvc.UiSendFailure(app, fmt.Sprintf(
+						"Could not create node %s. The cluster record with the cleanup state could not be saved, so the failed resources need manual cleanup: %s",
+						hostname,
+						cleanupErr,
+					))
+					return stack, false
+				}
+
 				ucxsvc.UiSendFailure(app, "Could not create node "+hostname+". The failed resources are cleaned up automatically.")
 				return stack, false
 			}
@@ -452,12 +461,12 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 	return stack, true
 }
 
-func clusterCreateCleanupFailed(client ClusterStateClient, stack *ucxsvc.Stack, record *ClusterRecord, reason string) {
+func clusterCreateCleanupFailed(client ClusterStateClient, stack *ucxsvc.Stack, record *ClusterRecord, reason string) error {
 	if reason != "" {
 		record.FailureReason = reason
 	}
 	record.Phase = clusterRecordPhaseError
-	_ = ClusterRecordWrite(client, record)
+	return ClusterRecordWrite(client, record)
 }
 
 type clusterNodeOptions struct {
@@ -580,7 +589,9 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 	reservation, err := ucxsvc.PrivateNetworkIpReserveRetry(stack, record.NetworkId, ipAddress, 30*time.Second)
 	if err != nil {
 		if reservation.Id != "" {
-			clusterReleaseReservation(opts, stack, record, reservation.Id, hostname)
+			if releaseErr := clusterReleaseReservation(opts, stack, record, reservation.Id, hostname); releaseErr != nil {
+				return false, "could not reserve the node address and could not save the cleanup state: " + releaseErr.Error()
+			}
 		}
 		return false, ""
 	}
@@ -597,7 +608,9 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 		DesiredVersion: opts.release.Release,
 	})
 	if err := ClusterRecordWrite(opts.stateClient, record); err != nil {
-		clusterReleaseReservation(opts, stack, record, reservation.Id, hostname)
+		if releaseErr := clusterReleaseReservation(opts, stack, record, reservation.Id, hostname); releaseErr != nil {
+			return false, "could not persist the node record and could not save the cleanup state: " + releaseErr.Error()
+		}
 		return false, ""
 	}
 
@@ -621,7 +634,9 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 		attachments,
 	))
 	if err != nil {
-		clusterReleaseReservation(opts, stack, record, reservation.Id, hostname)
+		if releaseErr := clusterReleaseReservation(opts, stack, record, reservation.Id, hostname); releaseErr != nil {
+			return false, "could not create the node job and could not save the cleanup state: " + releaseErr.Error()
+		}
 		return false, ""
 	}
 
@@ -635,7 +650,10 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 	if !clusterWriteStackIdentity(stack, opts.allocationId, job) {
 		if clusterCreateAuthorityHeld(opts) {
 			_ = ucxsvc.JobTerminate(stack, job.Id)
-			clusterReleaseReservation(opts, stack, record, reservation.Id, hostname)
+			if releaseErr := clusterReleaseReservation(opts, stack, record, reservation.Id, hostname); releaseErr != nil {
+				return false, "could not write the stack identity of node " + hostname +
+					" and could not save the cleanup state: " + releaseErr.Error()
+			}
 		}
 		return false, "could not write the stack identity of node " + hostname
 	}
@@ -644,7 +662,10 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 		if !ucxsvc.ServiceAddMembers(stack, opts.record.ServiceId, []string{job.Id}) {
 			if clusterCreateAuthorityHeld(opts) {
 				_ = ucxsvc.JobTerminate(stack, job.Id)
-				clusterReleaseReservation(opts, stack, record, reservation.Id, hostname)
+				if releaseErr := clusterReleaseReservation(opts, stack, record, reservation.Id, hostname); releaseErr != nil {
+					return false, "could not add the node " + hostname + " to the cluster service" +
+						" and could not save the cleanup state: " + releaseErr.Error()
+				}
 			}
 			return false, "could not add the node to the cluster service"
 		}
@@ -944,9 +965,9 @@ func clusterNodeParameters(stack *ucxsvc.Stack, hostname string, diskGb int) map
 	return parameters
 }
 
-func clusterReleaseReservation(opts clusterNodeOptions, stack *ucxsvc.Stack, record *ClusterRecord, reservationId string, hostname string) {
+func clusterReleaseReservation(opts clusterNodeOptions, stack *ucxsvc.Stack, record *ClusterRecord, reservationId string, hostname string) error {
 	if !clusterCreateAuthorityHeld(opts) {
-		return
+		return nil
 	}
 
 	err := ucxsvc.PrivateNetworkIpDelete(stack, reservationId)
@@ -955,11 +976,11 @@ func clusterReleaseReservation(opts clusterNodeOptions, stack *ucxsvc.Stack, rec
 			ReservationId: reservationId,
 			Hostname:      hostname,
 		})
-		_ = ClusterRecordMarkFailed(opts.stateClient, record, "could not release the reservation of node "+hostname+
+		return ClusterRecordMarkFailed(opts.stateClient, record, "could not release the reservation of node "+hostname+
 			". Reservation id "+reservationId+" needs manual cleanup")
-	} else {
-		_ = ClusterRecordWrite(opts.stateClient, record)
 	}
+
+	return ClusterRecordWrite(opts.stateClient, record)
 }
 
 func clusterCreateAuthorityHeld(opts clusterNodeOptions) bool {

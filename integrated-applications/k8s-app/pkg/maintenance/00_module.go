@@ -218,12 +218,12 @@ func CancelActiveOperation(nodeName string) error {
 		return err
 	}
 
-	record, err := stackRead(client, stackNodeKey(nodeName))
+	record, err := stackValueRead[Operation](client, stackNodeKey(nodeName), "maintenance record "+stackNodeKey(nodeName))
 	if err != nil {
 		return err
 	}
 
-	if !record.Found || record.Value.NodeName == "" {
+	if !record.Found {
 		return fmt.Errorf("no operation exists for node %s", nodeName)
 	}
 	operation := record.Value
@@ -250,7 +250,7 @@ func CancelActiveOperation(nodeName string) error {
 	}
 
 	for attempt := 0; ; attempt++ {
-		_, writeErr := stackWrite(client, stackNodeKey(nodeName), value, record.Revision)
+		_, writeErr := shared.RpcGrantStateWrite(client, stackNodeKey(nodeName), value, record.Revision)
 		if writeErr == nil {
 			return nil
 		}
@@ -260,11 +260,11 @@ func CancelActiveOperation(nodeName string) error {
 
 		time.Sleep(2 * time.Second)
 
-		record, err = stackRead(client, stackNodeKey(nodeName))
+		record, err = stackValueRead[Operation](client, stackNodeKey(nodeName), "maintenance record "+stackNodeKey(nodeName))
 		if err != nil {
 			return err
 		}
-		if !record.Found || record.Value.NodeName == "" {
+		if !record.Found {
 			return fmt.Errorf("no operation exists for node %s", nodeName)
 		}
 		if !PhaseActive(record.Value.Phase) {
@@ -358,6 +358,9 @@ func submitOperation(
 	if kind == KindOsUpdate && (options.ForceDelete || options.BypassDisruptionBudgets) {
 		return errors.New("the operating-system update cannot delete pods forcefully or bypass the disruption budgets")
 	}
+	if err := validateOptions(options); err != nil {
+		return err
+	}
 	if err := clusterReadyGuard(); err != nil {
 		return err
 	}
@@ -373,10 +376,6 @@ func submitOperation(
 }
 
 func submitValid(submit submission, existing Operation, exists bool) error {
-	if err := validateOptions(submit.options); err != nil {
-		return err
-	}
-
 	if !exists {
 		return nil
 	}
@@ -491,14 +490,14 @@ func submitWrite(submit submission) error {
 		return rollingErr
 	}
 
-	record, readErr := stackRead(client, stackNodeKey(submit.nodeName))
+	record, readErr := stackValueRead[Operation](client, stackNodeKey(submit.nodeName), "maintenance record "+stackNodeKey(submit.nodeName))
 	if readErr != nil {
 		return readErr
 	}
 	found := record.Found
 
 	existing := record.Value
-	exists := found && existing.NodeName != ""
+	exists := found
 	if validErr := submitValid(submit, existing, exists); validErr != nil {
 		return validErr
 	}
@@ -510,10 +509,7 @@ func submitWrite(submit submission) error {
 		return marshalErr
 	}
 
-	expectedRevision := int64(0)
-	if found {
-		expectedRevision = record.Revision
-	}
+	expectedRevision := record.Revision
 
 	conditions := []ucxapi.StackStateRevisionCondition{rollingCondition}
 	validUntil := util.OptNone[int64]()
@@ -570,9 +566,12 @@ func validateOptions(options Options) error {
 }
 
 func clusterReadyGuard() error {
-	record, err := readClusterRecord()
+	record, found, err := readClusterRecord()
 	if err != nil {
 		return fmt.Errorf("could not read the cluster record: %s", err)
+	}
+	if !found {
+		return errors.New("the cluster record does not exist")
 	}
 	if record.Phase != "created" {
 		return fmt.Errorf("the cluster is not ready for maintenance (state: %s)", record.Phase)
@@ -607,9 +606,12 @@ func recoveryIntentActive() (bool, error) {
 }
 
 func removeSubmitGuard(nodeName string) error {
-	record, err := readClusterRecord()
+	record, found, err := readClusterRecord()
 	if err != nil {
 		return fmt.Errorf("could not read the cluster record: %s", err)
+	}
+	if !found {
+		return errors.New("the cluster record does not exist")
 	}
 	if record.Phase != "created" {
 		return fmt.Errorf("the cluster is not ready for maintenance (state: %s)", record.Phase)
@@ -623,12 +625,12 @@ func removeSubmitGuard(nodeName string) error {
 		return fmt.Errorf("could not read the maintenance state: %s", clientErr)
 	}
 
-	existingRecord, readErr := stackRead(client, stackNodeKey(nodeName))
+	existingRecord, readErr := stackValueRead[Operation](client, stackNodeKey(nodeName), "maintenance record "+stackNodeKey(nodeName))
 	if readErr != nil {
 		return fmt.Errorf("could not read the maintenance state: %s", readErr)
 	}
 
-	removeRetry := existingRecord.Found && existingRecord.Value.NodeName != "" &&
+	removeRetry := existingRecord.Found &&
 		existingRecord.Value.Kind == KindRemove && !PhaseActive(existingRecord.Value.Phase)
 
 	node, known := removeNodeRecord(record, nodeName)
@@ -672,16 +674,8 @@ func removeNodeRecord(record shared.ClusterRecord, nodeName string) (shared.Clus
 	return shared.ClusterNodeRecord{}, false
 }
 
-func readClusterRecord() (shared.ClusterRecord, error) {
-	record, found, err := shared.ClusterStateRecordRead()
-	if err != nil {
-		return shared.ClusterRecord{}, err
-	}
-	if !found {
-		return shared.ClusterRecord{}, errors.New("the cluster record does not exist")
-	}
-
-	return record, nil
+func readClusterRecord() (shared.ClusterRecord, bool, error) {
+	return shared.ClusterStateRecordRead()
 }
 
 // Stack state
@@ -711,12 +705,9 @@ type stackValue[T any] struct {
 type stackRecord = stackValue[Operation]
 
 func stackValueDecode[T any](record ucxapi.StackStateRecord, noun string) (stackValue[T], error) {
-	result := stackValue[T]{
-		Found:    true,
-		Revision: record.Revision,
-	}
+	result := stackValue[T]{Revision: record.Revision}
 
-	if record.IsEmpty() {
+	if record.IsEmpty() || string(record.Value) == "null" {
 		return result, nil
 	}
 
@@ -724,6 +715,7 @@ func stackValueDecode[T any](record ucxapi.StackStateRecord, noun string) (stack
 		return stackValue[T]{}, fmt.Errorf("could not parse the %s: %s", noun, err)
 	}
 
+	result.Found = true
 	return result, nil
 }
 
@@ -744,10 +736,6 @@ func stackNodeKey(nodeName string) string {
 	return fmt.Sprintf("%s%s", stackKeyPrefix, nodeName)
 }
 
-func stackRead(client stackClient, key string) (stackRecord, error) {
-	return stackValueRead[Operation](client, key, "maintenance record "+key)
-}
-
 func stackList(client stackClient, prefix string) ([]ucxapi.StackStateRecord, error) {
 	records := []ucxapi.StackStateRecord{}
 	next := util.OptNone[string]()
@@ -764,8 +752,4 @@ func stackList(client stackClient, prefix string) ([]ucxapi.StackStateRecord, er
 		}
 		next = page.Next
 	}
-}
-
-func stackWrite(client stackClient, key string, value json.RawMessage, expectedRevision int64) (int64, error) {
-	return shared.RpcGrantStateWrite(client, key, value, expectedRevision)
 }

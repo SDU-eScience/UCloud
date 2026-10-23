@@ -55,7 +55,7 @@ func runRemove(
 		if node.Group == shared.GroupControlPlane && node.JobId != "" {
 			trafficErr := upgradeSuspendTraffic(operation, worker)
 			if trafficErr != nil {
-				return fmt.Errorf("could not suspend the traffic of the node: %s", trafficErr)
+				return fmt.Errorf("could not suspend the traffic of the node: %w", trafficErr)
 			}
 		}
 
@@ -65,11 +65,11 @@ func runRemove(
 		}
 
 		if exists && operation.Options.Drain {
-			outcome, cordonErr := runCordonDrain(ctx, clientset, operation, worker, false, true)
-			if cordonErr != nil {
-				return cordonErr
+			result := runCordonDrain(ctx, clientset, operation, worker, false, true)
+			if result.err != nil {
+				return result.err
 			}
-			if outcome != drainDone {
+			if result.outcome != drainDone {
 				return nil
 			}
 
@@ -97,7 +97,7 @@ func runRemove(
 			return true
 		})
 		if persistErr != nil {
-			return fmt.Errorf("could not record the node deletion: %s", persistErr)
+			return fmt.Errorf("could not record the node deletion: %w", persistErr)
 		}
 		operation.NodeDeleted = true
 	}
@@ -118,7 +118,7 @@ func runRemove(
 			return true
 		})
 		if persistErr != nil {
-			return fmt.Errorf("could not record the infrastructure removal: %s", persistErr)
+			return fmt.Errorf("could not record the infrastructure removal: %w", persistErr)
 		}
 	}
 
@@ -257,8 +257,13 @@ func removeInfrastructure(worker *nodeWorker, node shared.ClusterNodeRecord) err
 		return recordErr
 	}
 
-	os.RemoveAll(shared.NodeDirForAllocation(node.AllocationId))
-	os.Remove(filepath.Join(shared.NodeAgentCoordinatorTokensDir, shared.SanitizeForPath(node.Hostname)))
+	if removeErr := os.RemoveAll(shared.NodeDirForAllocation(node.AllocationId)); removeErr != nil {
+		return fmt.Errorf("could not remove the data directory of the node: %s", removeErr)
+	}
+	tokenPath := filepath.Join(shared.NodeAgentCoordinatorTokensDir, shared.SanitizeForPath(node.Hostname))
+	if removeErr := os.Remove(tokenPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+		return fmt.Errorf("could not remove the coordinator token of the node: %s", removeErr)
+	}
 	return nil
 }
 
@@ -272,15 +277,13 @@ func removeWaitJobFinal(worker *nodeWorker, client shared.RpcGrantClient, jobId 
 		}
 
 		job, found, herr := shared.RpcGrantRetrieveJob(client, jobId)
-		if herr != nil && herr.StatusCode != 404 {
-			log.Info(
-				"k8s-app maintenance %s: could not read the job %s during the removal: %s",
-				worker.nodeName,
-				jobId,
-				herr,
-			)
+		if herr != nil {
+			if herr.StatusCode != 404 {
+				return fmt.Errorf("could not read the job %s during the removal: %s", jobId, herr)
+			}
+			return nil
 		}
-		if herr == nil && found && !job.Status.State.IsFinal() {
+		if found && !job.Status.State.IsFinal() {
 			operationLogStage(
 				worker,
 				"waiting-job",
@@ -374,16 +377,16 @@ func removeTombstoneOperation(worker *nodeWorker) {
 		return
 	}
 
-	record, readErr := stackRead(client, stackNodeKey(worker.nodeName))
+	record, readErr := stackValueRead[Operation](client, stackNodeKey(worker.nodeName), "maintenance record "+stackNodeKey(worker.nodeName))
 	if readErr != nil {
 		log.Warn("k8s-app maintenance %s: could not clear the maintenance record: %s", worker.nodeName, readErr)
 		return
 	}
-	if !record.Found || record.Value.NodeName == "" || record.Value.Phase != PhaseCompleted {
+	if !record.Found || record.Value.Phase != PhaseCompleted {
 		return
 	}
 
-	_, writeErr := stackWrite(client, stackNodeKey(worker.nodeName), json.RawMessage("null"), record.Revision)
+	_, writeErr := shared.RpcGrantStateWrite(client, stackNodeKey(worker.nodeName), json.RawMessage("null"), record.Revision)
 	if writeErr != nil {
 		log.Warn("k8s-app maintenance %s: could not clear the maintenance record: %s", worker.nodeName, writeErr)
 	}

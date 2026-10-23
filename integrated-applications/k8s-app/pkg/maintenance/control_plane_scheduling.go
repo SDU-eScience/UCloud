@@ -37,11 +37,11 @@ func controlPlaneSchedulingRun(ctx context.Context, kubeconfigPath string) {
 }
 
 func controlPlaneSchedulingSweep(ctx context.Context, kubeconfigPath string) error {
-	record, err := readClusterRecord()
+	record, found, err := readClusterRecord()
 	if err != nil {
 		return err
 	}
-	if record.Phase != shared.ClusterRecordPhaseCreated {
+	if !found || record.Phase != shared.ClusterRecordPhaseCreated {
 		return nil
 	}
 	recovery, err := recoveryIntentActive()

@@ -86,11 +86,11 @@ func runUpgrade(
 		}
 
 		if UpgradeCordons(operation) {
-			outcome, cordonErr := runCordonDrain(ctx, clientset, operation, worker, true, operation.Options.Drain)
-			if cordonErr != nil {
-				return cordonErr
+			result := runCordonDrain(ctx, clientset, operation, worker, true, operation.Options.Drain)
+			if result.err != nil {
+				return result.err
 			}
-			if outcome != drainDone {
+			if result.outcome != drainDone {
 				return nil
 			}
 		}
@@ -146,9 +146,12 @@ func upgradePreflight(
 		return fmt.Errorf("the release %s is not a known Kubernetes release", operation.TargetRelease)
 	}
 
-	record, err := readClusterRecord()
+	record, found, err := readClusterRecord()
 	if err != nil {
 		return fmt.Errorf("could not read the cluster record: %s", err)
+	}
+	if !found {
+		return errors.New("the cluster record does not exist")
 	}
 
 	if record.Phase != "created" {
@@ -297,9 +300,12 @@ func upgradePreflight(
 }
 
 func upgradeControlPlaneGuard(ctx context.Context, clientset *kubernetes.Clientset, operation Operation) error {
-	record, err := readClusterRecord()
+	record, found, err := readClusterRecord()
 	if err != nil {
 		return fmt.Errorf("could not read the cluster record: %s", err)
+	}
+	if !found {
+		return errors.New("the cluster record does not exist")
 	}
 
 	controlPlanes := controlPlaneNames(record)
@@ -1075,8 +1081,11 @@ func upgradeSuspendTraffic(operation Operation, worker *nodeWorker) error {
 		op.SuspendedJobIds = append(op.SuspendedJobIds, jobId)
 		return true
 	})
-	if persistErr != nil && shared.IsConflict(persistErr) {
-		return persistErr
+	if persistErr != nil {
+		if errors.Is(persistErr, errConcluded) {
+			return persistErr
+		}
+		return fmt.Errorf("could not record the traffic suspension: %s", persistErr)
 	}
 
 	if removeErr := trafficMoveMember(worker, jobId, true); removeErr != nil {

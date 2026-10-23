@@ -237,16 +237,14 @@ func autoMaintenanceKubernetesSummary(app *stackUiApp, now time.Time) []ucx.UiNo
 	record, recordOk := app.readClusterRecord()
 
 	entries := []autoNodeVersion{}
-	if app.clusterHealth != nil {
-		for name, nodeVersion := range app.clusterHealth.Versions {
-			if nodeVersion != "" {
-				entries = append(entries, autoNodeVersion{Name: name, Version: nodeVersion})
-			}
+	for name, nodeVersion := range app.clusterHealth.Versions {
+		if nodeVersion != "" {
+			entries = append(entries, autoNodeVersion{Name: name, Version: nodeVersion})
 		}
-		sort.Slice(entries, func(i, j int) bool {
-			return entries[i].Name < entries[j].Name
-		})
 	}
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name < entries[j].Name
+	})
 	if len(entries) == 0 && recordOk && record.K8sVersion != "" {
 		entries = append(entries, autoNodeVersion{Version: record.K8sVersion})
 	}
@@ -866,11 +864,11 @@ func autoMaintenanceNodeProgress(app *stackUiApp, status dashboardAutoStatus) []
 	}
 	run := status.State.LastRun
 	planned := map[string]maintenance.RollingUpgradeNode{}
-	upgrade, err := maintenance.RollingUpgradeSnapshot()
+	upgrade, _, found, err := maintenance.RollingUpgradeSnapshot()
 	if err != nil {
 		return []ucx.UiNode{ucx.Warning("Could not read Kubernetes upgrade progress: " + err.Error())}
 	}
-	if (run.K8sRunUid != "" && upgrade.AutoRunUid == run.K8sRunUid) || (run.Channel == maintenance.AutoChannelK8s && upgrade.AutoRunUid == run.Uid) {
+	if found && ((run.K8sRunUid != "" && upgrade.AutoRunUid == run.K8sRunUid) || (run.Channel == maintenance.AutoChannelK8s && upgrade.AutoRunUid == run.Uid)) {
 		for _, node := range upgrade.Nodes {
 			planned[node.Name] = node
 		}
@@ -1004,10 +1002,7 @@ func autoNodeK8sProgress(
 	nodeName string,
 ) autoNodeChannel {
 	result := autoNodeChannel{}
-	version := ""
-	if app.clusterHealth != nil {
-		version = app.clusterHealth.Versions[nodeName]
-	}
+	version := app.clusterHealth.Versions[nodeName]
 	if run.K8sRelease != "" {
 		result.InRun = true
 		if version != "" && shared.SameRelease(version, run.K8sRelease) {

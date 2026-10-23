@@ -209,11 +209,11 @@ func autoOsCheckDueNodes(
 }
 
 func autoOsCheckSweep(ctx context.Context, client stackClient) error {
-	record, err := readClusterRecord()
+	record, found, err := readClusterRecord()
 	if err != nil {
 		return err
 	}
-	if record.Phase != "created" {
+	if !found || record.Phase != "created" {
 		return nil
 	}
 
@@ -295,9 +295,12 @@ func AutoRetryOsUpdate(ctx context.Context, kubeconfigPath string, nodeName stri
 		return errors.New("no node was selected for the retry")
 	}
 
-	record, err := readClusterRecord()
+	record, found, err := readClusterRecord()
 	if err != nil {
 		return err
+	}
+	if !found {
+		return errors.New("the cluster record does not exist")
 	}
 	if record.Phase != "created" {
 		return errors.New("the cluster is not ready for maintenance")
@@ -308,7 +311,7 @@ func AutoRetryOsUpdate(ctx context.Context, kubeconfigPath string, nodeName stri
 		return err
 	}
 
-	operationRecord, err := stackRead(client, stackNodeKey(nodeName))
+	operationRecord, err := stackValueRead[Operation](client, stackNodeKey(nodeName), "maintenance record "+stackNodeKey(nodeName))
 	if err != nil {
 		return err
 	}
@@ -329,7 +332,10 @@ func AutoRetryOsUpdate(ctx context.Context, kubeconfigPath string, nodeName stri
 
 	runUid := ""
 	stateRecord, stateErr := autoStateRead(client)
-	if stateErr == nil && AutoStateBlocked(stateRecord.Value) {
+	if stateErr != nil {
+		return fmt.Errorf("could not read the automatic maintenance state: %s", stateErr)
+	}
+	if AutoStateBlocked(stateRecord.Value) {
 		runUid = stateRecord.Value.LastRun.Uid
 	}
 
@@ -602,7 +608,7 @@ func autoOsClusterChecks(
 		return false, err
 	}
 
-	rolling, _, err := rollingUpgradeRead(client)
+	rolling, _, _, err := rollingUpgradeRead(client)
 	if err != nil {
 		return false, err
 	}

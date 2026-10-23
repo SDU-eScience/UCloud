@@ -176,6 +176,7 @@ func (app *stackUiApp) provisioningKickNow() {
 func (app *stackUiApp) clusterNodeMessage(record *shared.ClusterRecord) string {
 	starting := 0
 	running := 0
+	failedLookup := 0
 	for _, node := range record.Nodes {
 		if node.JobId == "" {
 			running++
@@ -184,7 +185,7 @@ func (app *stackUiApp) clusterNodeMessage(record *shared.ClusterRecord) string {
 
 		job, err := ucxsvc.JobRetrieve(app.Stack, node.JobId)
 		if err != nil {
-			starting++
+			failedLookup++
 			continue
 		}
 
@@ -195,6 +196,21 @@ func (app *stackUiApp) clusterNodeMessage(record *shared.ClusterRecord) string {
 		}
 	}
 
+	if failedLookup > 0 {
+		message := fmt.Sprintf(
+			"Could not check %d of %d nodes. See the node logs for details.",
+			failedLookup,
+			len(record.Nodes),
+		)
+		if starting > 0 {
+			message += fmt.Sprintf(
+				" The cluster is starting. %d of %d nodes are not running yet.",
+				starting,
+				len(record.Nodes),
+			)
+		}
+		return message
+	}
 	if starting > 0 {
 		return fmt.Sprintf(
 			"The cluster is starting. %d of %d nodes are not running yet. See the node logs for details.",

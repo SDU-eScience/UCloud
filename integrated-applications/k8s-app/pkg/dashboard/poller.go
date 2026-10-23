@@ -747,7 +747,7 @@ func (p *resourcePoller) resourceRefreshTypes(ctx context.Context) {
 	discoveryCtx, cancel := context.WithTimeout(ctx, pollInterval)
 	defer cancel()
 
-	types := p.client.CustomResourceTypes(discoveryCtx)
+	types, customOk := p.client.CustomResourceTypes(discoveryCtx)
 	builtinCtx, builtinCancel := context.WithTimeout(ctx, pollInterval)
 	defer builtinCancel()
 	builtinTypes, err := resourceBuiltinTypes(builtinCtx, p.client, types)
@@ -756,15 +756,22 @@ func (p *resourcePoller) resourceRefreshTypes(ctx context.Context) {
 	}
 
 	p.mu.Lock()
-	typesChanged := !reflect.DeepEqual(p.customTypes, types)
-	p.customTypes = types
+	typesChanged := false
+	if customOk {
+		typesChanged = !reflect.DeepEqual(p.customTypes, types)
+		p.customTypes = types
+	}
 	if err == nil {
 		typesChanged = typesChanged || !reflect.DeepEqual(p.builtinTypes, builtinTypes)
 		p.builtinTypes = builtinTypes
 	}
 	p.mu.Unlock()
 	p.resourceTypesAt.Store(time.Now().UnixNano())
-	log.Info("k8s-app: discovered %d built-in and %d custom resource types", len(builtinTypes), len(types))
+	if customOk {
+		log.Info("k8s-app: discovered %d built-in and %d custom resource types", len(builtinTypes), len(types))
+	} else {
+		log.Warn("k8s-app: failed to discover custom resource types, keeping the previous types")
+	}
 
 	if typesChanged {
 		if onTypesChanged := p.onTypesChanged; onTypesChanged != nil {

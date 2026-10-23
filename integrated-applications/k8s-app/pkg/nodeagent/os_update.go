@@ -113,13 +113,13 @@ func osStateStore(state *osState) error {
 	return nodeStateStore(osStatePath(), state)
 }
 
-func osSetPhase(phase string, mutate func(state *osState)) bool {
+func osSetPhase(phase string, mutate func(state *osState)) error {
 	globals.Mu.Lock()
 	defer globals.Mu.Unlock()
 
 	state := osStateRead()
 	if state.NeedsStateRecovery {
-		return false
+		return errors.New("the operating-system update state requires recovery")
 	}
 
 	err := nodeStateSetPhase(osStatePath(), &state, &state.nodeState, phase, func() {
@@ -128,10 +128,9 @@ func osSetPhase(phase string, mutate func(state *osState)) bool {
 		}
 	})
 	if err != nil {
-		log.Warn("k8s-app node agent: could not persist the operating-system update phase %s: %s", phase, err)
-		return false
+		return err
 	}
-	return true
+	return nil
 }
 
 func osStatusFromState(identityConfig Config) shared.NodeAgentOsStatus {
@@ -144,7 +143,7 @@ func osStatusFromState(identityConfig Config) shared.NodeAgentOsStatus {
 			OperationUid:       state.OperationUid,
 			NodeName:           state.NodeName,
 			Phase:              shared.NodeAgentOsPhaseFailed,
-			Error:              state.StateError,
+			Error:              state.Error,
 			NeedsRecovery:      true,
 			NeedsStateRecovery: true,
 			UpdatedAt:          state.UpdatedAt,
@@ -191,8 +190,8 @@ func recoverInterruptedOs() {
 		bootId := osBootId()
 		if bootId != "" && state.BootId != "" && bootId != state.BootId {
 			progressStageLabel("The node rebooted. The operating-system update continues with the verification")
-			if !osSetPhase(shared.NodeAgentOsPhaseVerifying, nil) {
-				osFinishFailure("could not persist the phase verifying after the reboot")
+			if err := osSetPhase(shared.NodeAgentOsPhaseVerifying, nil); err != nil {
+				osFinishFailure(fmt.Sprintf("could not persist the phase verifying after the reboot: %s", err))
 				return
 			}
 			go osResumeVerify()
@@ -325,8 +324,8 @@ func runOsStage() {
 	if !osStagePackages(workerCtx) {
 		return
 	}
-	if !osSetPhase(shared.NodeAgentOsPhaseStaged, nil) {
-		osFinishFailure("could not persist the downloaded operating-system update")
+	if err := osSetPhase(shared.NodeAgentOsPhaseStaged, nil); err != nil {
+		osFinishFailure(fmt.Sprintf("could not persist the downloaded operating-system update: %s", err))
 		return
 	}
 	progressStage("Packages downloaded. Preparing to move workloads", osProgressStaged)
@@ -353,12 +352,12 @@ func osStagePackages(workerCtx context.Context) bool {
 
 	state := osStateLoad()
 	if state.NeedsStateRecovery {
-		osFinishFailure(state.StateError)
+		osFinishFailure(state.Error)
 		return false
 	}
 
-	if !osSetPhase(shared.NodeAgentOsPhaseStaging, nil) {
-		osFinishFailure("could not persist the phase staging")
+	if err := osSetPhase(shared.NodeAgentOsPhaseStaging, nil); err != nil {
+		osFinishFailure(fmt.Sprintf("could not persist the phase staging: %s", err))
 		return false
 	}
 
@@ -406,8 +405,8 @@ func osApplyPackages(workerCtx context.Context, rebootPolicy string) {
 		osFinishFailure("the node identity is unknown")
 		return
 	}
-	if !osSetPhase(shared.NodeAgentOsPhaseApplying, nil) {
-		osFinishFailure("could not persist the phase applying")
+	if err := osSetPhase(shared.NodeAgentOsPhaseApplying, nil); err != nil {
+		osFinishFailure(fmt.Sprintf("could not persist the phase applying: %s", err))
 		return
 	}
 
@@ -444,12 +443,12 @@ func osApplyPackages(workerCtx context.Context, rebootPolicy string) {
 		osFileExists(osRebootRequiredPath) ||
 		rebootPolicy == shared.NodeAgentOsRebootAlways
 
-	if !osSetPhase(shared.NodeAgentOsPhaseApplying, func(state *osState) {
+	if err := osSetPhase(shared.NodeAgentOsPhaseApplying, func(state *osState) {
 		state.KernelRunning = kernelRunning
 		state.KernelPending = kernelPending
 		state.RebootRequired = rebootRequired
-	}) {
-		osFinishFailure("could not persist the kernel state")
+	}); err != nil {
+		osFinishFailure(fmt.Sprintf("could not persist the kernel state: %s", err))
 		return
 	}
 
@@ -491,8 +490,8 @@ func osRunVerification(serviceName string, kernelPending string) {
 }
 
 func osRunVerificationEx(ctx context.Context, serviceName string, kernelPending string) {
-	if !osSetPhase(shared.NodeAgentOsPhaseVerifying, nil) {
-		osFinishFailure("could not persist the phase verifying")
+	if err := osSetPhase(shared.NodeAgentOsPhaseVerifying, nil); err != nil {
+		osFinishFailure(fmt.Sprintf("could not persist the phase verifying: %s", err))
 		return
 	}
 
@@ -595,10 +594,10 @@ func osRebootForUpdate(ctx context.Context) error {
 		return errors.New("the boot id of the node could not be read")
 	}
 
-	if !osSetPhase(shared.NodeAgentOsPhaseRebooting, func(state *osState) {
+	if err := osSetPhase(shared.NodeAgentOsPhaseRebooting, func(state *osState) {
 		state.BootId = bootId
-	}) {
-		return errors.New("could not persist the phase rebooting")
+	}); err != nil {
+		return fmt.Errorf("could not persist the phase rebooting: %s", err)
 	}
 
 	progressStage("Rebooting the node to finish the update", osProgressReboot)

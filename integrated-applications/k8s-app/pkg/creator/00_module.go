@@ -32,11 +32,22 @@ func App() ucx.Application {
 		K8sVersion:         defaultRelease.Release,
 		ControlPlaneNodes:  1,
 		ControlPlaneDiskGb: 50,
-		PoolCount:          1,
-		PoolNames:          []string{"workers-1"},
-		PoolNodes:          []int{1},
-		PoolDisksGb:        []int{50},
+		Pools: []creatorWorkerPool{
+			{
+				Name:    "workers-1",
+				Machine: accapi.ProductReference{},
+				Nodes:   1,
+				DiskGb:  50,
+			},
+		},
 	}
+}
+
+type creatorWorkerPool struct {
+	Name    string
+	Machine accapi.ProductReference
+	Nodes   int
+	DiskGb  int
 }
 
 type k8sApp struct {
@@ -52,17 +63,13 @@ type k8sApp struct {
 	ControlPlaneNodes   int
 	ControlPlaneDiskGb  int
 
-	PoolCount int `ucx:"-"`
-
-	PoolNames    []string
-	PoolMachines []accapi.ProductReference
-	PoolNodes    []int
-	PoolDisksGb  []int
+	Pools []creatorWorkerPool
 
 	DeployBusy bool
 
 	RecoverStacks  []recoverStackEntry `ucx:"-"`
 	RecoverLoaded  bool                `ucx:"-"`
+	RecoverError   string
 	RecoverStackId string
 	RecoverBusy    bool
 }
@@ -89,12 +96,12 @@ func (app *k8sApp) UserInterface() ucx.UiNode {
 		{Title: "Control plane", MachineBindPath: "controlPlaneMachine", CountBindPath: "controlPlaneNodes"},
 	}
 
-	for i := 0; i < app.PoolCount; i++ {
+	for i := range app.Pools {
 		costEntries = append(costEntries, ucx.CostEstimateEntry{
 			Title:           app.poolName(i),
-			TitleBindPath:   "poolNames." + strconv.Itoa(i),
-			MachineBindPath: "poolMachines." + strconv.Itoa(i),
-			CountBindPath:   "poolNodes." + strconv.Itoa(i),
+			TitleBindPath:   "pools." + strconv.Itoa(i) + ".name",
+			MachineBindPath: "pools." + strconv.Itoa(i) + ".machine",
+			CountBindPath:   "pools." + strconv.Itoa(i) + ".nodes",
 		})
 	}
 
@@ -176,17 +183,17 @@ func (app *k8sApp) cardControlPlane() ucx.UiNode {
 func (app *k8sApp) cardWorkerPools() ucx.UiNode {
 	children := []ucx.UiNode{}
 
-	for i := 0; i < app.PoolCount; i++ {
+	for i := range app.Pools {
 		children = append(children, app.poolCard(i))
 	}
 
 	children = append(children,
 		ucx.Button("addPool", "Add worker pool", ucx.ColorSecondaryMain).ButtonDisabledWhen("deployBusy").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-			app.PoolCount++
-			app.PoolNames = append(app.PoolNames, fmt.Sprintf("workers-%v", app.PoolCount))
-			app.PoolMachines = append(app.PoolMachines, accapi.ProductReference{})
-			app.PoolNodes = append(app.PoolNodes, 1)
-			app.PoolDisksGb = append(app.PoolDisksGb, 50)
+			app.Pools = append(app.Pools, creatorWorkerPool{
+				Name:   fmt.Sprintf("workers-%v", len(app.Pools)+1),
+				Nodes:  1,
+				DiskGb: 50,
+			})
 			ucx.AppUpdateUi(app)
 		}),
 	)
@@ -197,7 +204,7 @@ func (app *k8sApp) poolCard(index int) ucx.UiNode {
 	indexPath := strconv.Itoa(index)
 
 	removeButton := ucx.UiNode{}
-	if app.PoolCount > 1 {
+	if len(app.Pools) > 1 {
 		poolIndex := index
 		removeButton = ucx.Button("removePool"+indexPath, "Remove pool", ucx.ColorErrorMain).ButtonDisabledWhen("deployBusy").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 			app.removePool(poolIndex)
@@ -211,37 +218,37 @@ func (app *k8sApp) poolCard(index int) ucx.UiNode {
 			removeButton,
 		),
 		ucx.FieldGroupNode().Children(
-			ucx.FieldRowNodeEx("poolNameRow"+indexPath, "Pool name", "poolNames."+indexPath).
+			ucx.FieldRowNodeEx("poolNameRow"+indexPath, "Pool name", "pools."+indexPath+".name").
 				FieldRowDescription("The Kubernetes node group name for this pool. Must contain only a-z, 0-9 and dashes.").
 				FieldRowRequired(true).
 				Children(
-					ucx.InputText("poolName"+indexPath, "", "workers", "poolNames."+indexPath),
+					ucx.InputText("poolName"+indexPath, "", "workers", "pools."+indexPath+".name"),
 				),
 			ucx.FieldRowNodeEx("poolMachineRow"+indexPath, "Machine type", "").
 				FieldRowDescription("The machine type used for the nodes in this pool.").
 				Children(
-					ucx.MachineTypeSelector("poolMachine"+indexPath, "", "poolMachines."+indexPath, ucx.MachineCapabilityVm).
+					ucx.MachineTypeSelector("poolMachine"+indexPath, "", "pools."+indexPath+".machine", ucx.MachineCapabilityVm).
 						MachineSelectorProviderBindPath("serviceProvider").MachineSelectorProviderOnly(true),
 				),
-			ucx.FieldRowNodeEx("poolNodesRow"+indexPath, "Node count", "poolNodes."+indexPath).
+			ucx.FieldRowNodeEx("poolNodesRow"+indexPath, "Node count", "pools."+indexPath+".nodes").
 				FieldRowDescription("The number of worker nodes in this pool.").
 				FieldRowRequired(true).
 				Children(
-					ucx.InputNumber("poolNodes"+indexPath, "", "poolNodes."+indexPath, 1, 250),
+					ucx.InputNumber("poolNodes"+indexPath, "", "pools."+indexPath+".nodes", 1, 250),
 				),
-			ucx.FieldRowNodeEx("poolDiskRow"+indexPath, "Disk size (GB)", "poolDisksGb."+indexPath).
+			ucx.FieldRowNodeEx("poolDiskRow"+indexPath, "Disk size (GB)", "pools."+indexPath+".diskGb").
 				FieldRowDescription("The disk size for each node in this pool.").
 				FieldRowRequired(true).
 				Children(
-					ucx.InputNumber("poolDisk"+indexPath, "", "poolDisksGb."+indexPath, 10, 1024),
+					ucx.InputNumber("poolDisk"+indexPath, "", "pools."+indexPath+".diskGb", 10, 1024),
 				),
 		),
 	)
 }
 
 func (app *k8sApp) poolName(index int) string {
-	if index < len(app.PoolNames) {
-		trimmed := strings.TrimSpace(app.PoolNames[index])
+	if index < len(app.Pools) {
+		trimmed := strings.TrimSpace(app.Pools[index].Name)
 		if trimmed != "" {
 			return trimmed
 		}
@@ -250,15 +257,11 @@ func (app *k8sApp) poolName(index int) string {
 }
 
 func (app *k8sApp) removePool(index int) {
-	if app.PoolCount <= 1 || index < 0 || index >= app.PoolCount {
+	if len(app.Pools) <= 1 || index < 0 || index >= len(app.Pools) {
 		return
 	}
 
-	app.PoolNames = append(app.PoolNames[:index], app.PoolNames[index+1:]...)
-	app.PoolMachines = append(app.PoolMachines[:index], app.PoolMachines[index+1:]...)
-	app.PoolNodes = append(app.PoolNodes[:index], app.PoolNodes[index+1:]...)
-	app.PoolDisksGb = append(app.PoolDisksGb[:index], app.PoolDisksGb[index+1:]...)
-	app.PoolCount--
+	app.Pools = append(app.Pools[:index], app.Pools[index+1:]...)
 }
 
 func (app *k8sApp) cardRecover() ucx.UiNode {
@@ -268,6 +271,10 @@ func (app *k8sApp) cardRecover() ucx.UiNode {
 
 	if !app.RecoverLoaded {
 		return card.Children(ucx.TextEx("recoverLoading", "Looking for clusters..."))
+	}
+
+	if app.RecoverError != "" {
+		return card.Children(ucx.TextEx("recoverError", app.RecoverError))
 	}
 
 	if len(app.RecoverStacks) == 0 {
@@ -327,6 +334,11 @@ func (app *k8sApp) loadRecoverStacks() {
 		})
 		if err != nil {
 			log.Warn("k8s-app: could not list clusters for recovery: %v", err)
+			app.mu.Lock()
+			app.RecoverLoaded = true
+			app.RecoverError = "Could not load the list of clusters. Reload the page to try again."
+			ucx.AppUpdateUi(app)
+			app.mu.Unlock()
 			return
 		}
 
@@ -353,6 +365,7 @@ func (app *k8sApp) loadRecoverStacks() {
 
 	app.mu.Lock()
 	app.RecoverLoaded = true
+	app.RecoverError = ""
 	app.RecoverStacks = entries
 	if !slices.ContainsFunc(entries, func(entry recoverStackEntry) bool { return entry.Id == app.RecoverStackId }) {
 		app.RecoverStackId = ""
@@ -452,25 +465,13 @@ func (app *k8sApp) deploy(ev ucx.UiEvent) {
 	}
 
 	seenPools := map[string]util.Empty{}
-	pools := make([]shared.ClusterPoolSpec, 0, app.PoolCount)
+	pools := make([]shared.ClusterPoolSpec, 0, len(app.Pools))
 	totalNodes := app.ControlPlaneNodes
-	for i := 0; i < app.PoolCount; i++ {
-		var machine accapi.ProductReference
-		if i < len(app.PoolMachines) {
-			machine = app.PoolMachines[i]
-		}
-		var nodes int
-		if i < len(app.PoolNodes) {
-			nodes = app.PoolNodes[i]
-		}
-		var diskGb int
-		if i < len(app.PoolDisksGb) {
-			diskGb = app.PoolDisksGb[i]
-		}
-		var name string
-		if i < len(app.PoolNames) {
-			name = strings.TrimSpace(app.PoolNames[i])
-		}
+	for i, pool := range app.Pools {
+		name := strings.TrimSpace(pool.Name)
+		machine := pool.Machine
+		nodes := pool.Nodes
+		diskGb := pool.DiskGb
 
 		if name == "" {
 			ucxsvc.UiSendFailure(app, "Worker pool "+strconv.Itoa(i+1)+" must have a name")

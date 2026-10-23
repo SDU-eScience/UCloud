@@ -23,9 +23,12 @@ func autoPolicyWindowOpenNow(now time.Time, policy AutoPolicy) (time.Time, time.
 }
 
 func AutoOpenWindowNow(ctx context.Context, kubeconfigPath string) error {
-	record, err := readClusterRecord()
+	record, found, err := readClusterRecord()
 	if err != nil {
 		return err
+	}
+	if !found {
+		return errors.New("the cluster record does not exist")
 	}
 	if record.Phase != "created" {
 		return errors.New("the cluster is not ready for maintenance")

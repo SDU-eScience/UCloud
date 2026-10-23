@@ -31,12 +31,12 @@ func rollingUpgradePage(app *stackUiApp) []ucx.UiNode {
 			}),
 		),
 	}
-	upgrade, err := maintenance.RollingUpgradeSnapshot()
+	upgrade, _, found, err := maintenance.RollingUpgradeSnapshot()
 	if err != nil {
 		content = append(content, ucx.Warning(fmt.Sprintf("Could not read the rolling upgrade: %s", err)))
 		return pageShell(app, 800, 16, content)
 	}
-	if upgrade.Uid != "" {
+	if found {
 		status := fmt.Sprintf("%s: %s", upgrade.TargetRelease, upgrade.Phase)
 		if maintenance.PhaseActive(upgrade.Phase) {
 			status = "Upgrading to " + upgrade.TargetRelease

@@ -453,10 +453,10 @@ func nodeIsControlPlane(obj *unstructured.Unstructured) bool {
 
 var crdGvr = schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
 
-func (c *K8sClient) CustomResourceTypes(ctx context.Context) []ResourceTypeDef {
+func (c *K8sClient) CustomResourceTypes(ctx context.Context) ([]ResourceTypeDef, bool) {
 	crds, err := c.Dynamic.Resource(crdGvr).List(ctx, listOptions)
 	if err != nil {
-		return nil
+		return nil, false
 	}
 
 	result := make([]ResourceTypeDef, 0, len(crds.Items))
@@ -524,7 +524,7 @@ func (c *K8sClient) CustomResourceTypes(ctx context.Context) []ResourceTypeDef {
 		}
 	}
 
-	return result
+	return result, true
 }
 
 func crdColumnSortType(printerType any) ucx.TableColumnSortType {

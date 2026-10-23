@@ -20,7 +20,7 @@ var containerLogTailCount int64 = 1000
 
 func (app *stackUiApp) syncContainerLogStream() {
 	ref, ok := parseResourceDetail(app.ResourceDetail)
-	if !ok || ref.Type != containersTypeId || !ref.hasContainer {
+	if !ok || ref.Type != containersTypeId || ref.Container == "" {
 		app.stopContainerLogsLocked()
 		return
 	}

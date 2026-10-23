@@ -57,14 +57,23 @@ func dashboardResourceDeletePath(target dashboardResourceDeleteTarget) string {
 func dashboardResourceDeletePerform(app *stackUiApp) {
 	target := app.resourceDeleteTarget
 	targetPath := dashboardResourceDeletePath(target)
-	dashboardResourceDeleteClose(app)
 
 	client := app.k8sClient
 	session := app.session
-	if client == nil || session == nil || !dashboardResourceDeleteSupported(target.Def) {
+	if !dashboardResourceDeleteSupported(target.Def) {
+		if session != nil {
+			dashboardSendUiMessage(session, fmt.Sprintf("Could not delete %s: this resource type does not support deletion", targetPath), false)
+		}
+		return
+	}
+	if client == nil || session == nil {
+		if session != nil {
+			dashboardSendUiMessage(session, fmt.Sprintf("Could not delete %s: the Kubernetes client is not available", targetPath), false)
+		}
 		return
 	}
 
+	dashboardResourceDeleteClose(app)
 	app.runAsyncAction("", nil, func() error {
 		ctx, cancel := context.WithTimeout(session.Context(), 15*time.Second)
 		defer cancel()
@@ -213,11 +222,7 @@ func (app *stackUiApp) performRolloutRestart() {
 	app.runAsyncAction("", nil, func() error {
 		ctx, cancel := context.WithTimeout(session.Context(), 15*time.Second)
 		defer cancel()
-		err := client.RolloutRestart(ctx, target.TypeId, target.Namespace, target.Name)
-		if err != nil {
-			log.Warn("k8s-app: rollout restart of %s failed: %s", targetPath, err)
-		}
-		return err
+		return client.RolloutRestart(ctx, target.TypeId, target.Namespace, target.Name)
 	}, func(err error) {
 		dashboardSendUiMessage(session, rolloutRestartResultMessage(typeLabel, targetPath, err), err == nil)
 	})

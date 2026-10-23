@@ -647,7 +647,7 @@ func autoRunAdvance(write *autoRunWrite, ctx context.Context, kubeconfigPath str
 		return autoRunWatch(write)
 	}
 
-	rolling, _, err := rollingUpgradeRead(write.client)
+	rolling, _, _, err := rollingUpgradeRead(write.client)
 	if err != nil {
 		return err
 	}
@@ -700,7 +700,7 @@ func autoRunStart(
 }
 
 func autoRunPrepare(write *autoRunWrite, ctx context.Context, kubeconfigPath string, record shared.ClusterRecord) error {
-	rolling, _, err := rollingUpgradeRead(write.client)
+	rolling, _, _, err := rollingUpgradeRead(write.client)
 	if err != nil {
 		return err
 	}
@@ -775,7 +775,7 @@ func autoRunPrepare(write *autoRunWrite, ctx context.Context, kubeconfigPath str
 		return nil
 	}
 	if startErr != nil {
-		rolling, _, readErr := rollingUpgradeRead(write.client)
+		rolling, _, _, readErr := rollingUpgradeRead(write.client)
 		if readErr == nil && rolling.AutoRunUid == write.state.Value.LastRun.Uid {
 			_, err = autoRunWaiting(write, AutoPhaseRunning, checks, target)
 			return err
@@ -791,14 +791,14 @@ func autoRunPrepare(write *autoRunWrite, ctx context.Context, kubeconfigPath str
 }
 
 func autoRunWatch(write *autoRunWrite) error {
-	upgrade, _, err := rollingUpgradeRead(write.client)
+	upgrade, _, found, err := rollingUpgradeRead(write.client)
 	if err != nil {
 		return err
 	}
 
 	run := write.state.Value.LastRun
 
-	if upgrade.Uid == "" {
+	if !found {
 		_, err = autoRunTerminal(
 			write,
 			AutoPhaseBlocked,
@@ -862,11 +862,11 @@ func autoUpgradeGroups(record shared.ClusterRecord) map[string]Options {
 }
 
 func autoUpgradeSweep(ctx context.Context, kubeconfigPath string, client stackClient) error {
-	record, err := readClusterRecord()
+	record, found, err := readClusterRecord()
 	if err != nil {
 		return err
 	}
-	if record.Phase != "created" {
+	if !found || record.Phase != "created" {
 		return nil
 	}
 
@@ -915,7 +915,7 @@ func autoUpgradeSweep(ctx context.Context, kubeconfigPath string, client stackCl
 				return nil
 			}
 		} else {
-			rolling, _, readErr := rollingUpgradeRead(client)
+			rolling, _, _, readErr := rollingUpgradeRead(client)
 			if readErr != nil {
 				return readErr
 			}
@@ -988,7 +988,7 @@ func AutoStopRun() error {
 
 	conditions := []ucxapi.StackStateRevisionCondition{}
 	if run.Channel != AutoChannelOs {
-		rolling, rollingRevision, err := rollingUpgradeRead(client)
+		rolling, rollingRevision, _, err := rollingUpgradeRead(client)
 		if err != nil {
 			return err
 		}

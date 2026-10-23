@@ -44,21 +44,20 @@ type RollingUpgrade struct {
 	Nodes               []RollingUpgradeNode
 }
 
-func rollingUpgradeRead(client stackClient) (RollingUpgrade, int64, error) {
+func rollingUpgradeRead(client stackClient) (RollingUpgrade, int64, bool, error) {
 	record, err := stackValueRead[RollingUpgrade](client, rollingUpgradeKey, "rolling upgrade")
 	if err != nil {
-		return RollingUpgrade{}, 0, err
+		return RollingUpgrade{}, 0, false, err
 	}
-	return record.Value, record.Revision, nil
+	return record.Value, record.Revision, record.Found, nil
 }
 
-func RollingUpgradeSnapshot() (RollingUpgrade, error) {
+func RollingUpgradeSnapshot() (RollingUpgrade, int64, bool, error) {
 	client, err := stackClientNew()
 	if err != nil {
-		return RollingUpgrade{}, err
+		return RollingUpgrade{}, 0, false, err
 	}
-	upgrade, _, err := rollingUpgradeRead(client)
-	return upgrade, err
+	return rollingUpgradeRead(client)
 }
 
 func rollingUpgradeWrite(client stackClient, upgrade RollingUpgrade, revision int64) error {
@@ -103,9 +102,12 @@ func rollingUpgradeStart(
 	if !known {
 		return errors.New("select a supported target release")
 	}
-	record, err := readClusterRecord()
+	record, found, err := readClusterRecord()
 	if err != nil {
 		return err
+	}
+	if !found {
+		return errors.New("the cluster record does not exist")
 	}
 	if record.Phase != "created" || len(record.Nodes) == 0 {
 		return errors.New("the cluster is not ready for a rolling upgrade")
@@ -117,7 +119,7 @@ func rollingUpgradeStart(
 	if err != nil {
 		return err
 	}
-	existing, revision, err := rollingUpgradeRead(client)
+	existing, revision, _, err := rollingUpgradeRead(client)
 	if err != nil {
 		return err
 	}
@@ -216,7 +218,7 @@ func rollingUpgradeStart(
 }
 
 func rollingUpgradeNodeGuard(client stackClient, nodeName string) (ucxapi.StackStateRevisionCondition, error) {
-	upgrade, revision, err := rollingUpgradeRead(client)
+	upgrade, revision, _, err := rollingUpgradeRead(client)
 	if err != nil {
 		return ucxapi.StackStateRevisionCondition{}, err
 	}
@@ -325,7 +327,7 @@ func rollingUpgradeSubmissionConditions(
 }
 
 func rollingUpgradeSweep(ctx context.Context, client stackClient) error {
-	upgrade, revision, err := rollingUpgradeRead(client)
+	upgrade, revision, _, err := rollingUpgradeRead(client)
 	if err != nil || !PhaseActive(upgrade.Phase) {
 		return err
 	}
@@ -476,7 +478,7 @@ func rollingUpgradeSweep(ctx context.Context, client stackClient) error {
 }
 
 func rollingUpgradeReleaseCoordinator(client stackClient, coordinatorUid string) {
-	upgrade, revision, err := rollingUpgradeRead(client)
+	upgrade, revision, _, err := rollingUpgradeRead(client)
 	if err != nil || upgrade.CoordinatorUid != coordinatorUid {
 		return
 	}

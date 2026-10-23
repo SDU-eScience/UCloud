@@ -266,8 +266,8 @@ func runUpgrade(release string, previousState upgradeState) {
 	targetInstalled := fileMatchesSha256(k3sBinary, staged.Sha256)
 
 	if identityConfig.Role == shared.GroupControlPlane && !targetInstalled {
-		if !setPhase(shared.NodeAgentPhaseSnapshotting) {
-			finishFailure(release, previousState, previousRelease, "could not persist the phase snapshotting")
+		if err := setPhase(shared.NodeAgentPhaseSnapshotting); err != nil {
+			finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not persist the phase snapshotting: %s", err))
 			return
 		}
 		progressStage(
@@ -283,8 +283,8 @@ func runUpgrade(release string, previousState upgradeState) {
 		log.Info("k8s-app node agent: the etcd snapshot was saved to %s", snapshotPath)
 	}
 
-	if !setPhase(shared.NodeAgentPhaseInstalling) {
-		finishFailure(release, previousState, previousRelease, "could not persist the phase installing")
+	if err := setPhase(shared.NodeAgentPhaseInstalling); err != nil {
+		finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not persist the phase installing: %s", err))
 		return
 	}
 
@@ -329,8 +329,8 @@ func runUpgrade(release string, previousState upgradeState) {
 		}
 	}
 
-	if !setPhase(shared.NodeAgentPhaseRestarting) {
-		finishFailure(release, previousState, previousRelease, "could not persist the phase restarting")
+	if err := setPhase(shared.NodeAgentPhaseRestarting); err != nil {
+		finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not persist the phase restarting: %s", err))
 		return
 	}
 
@@ -348,8 +348,8 @@ func runUpgrade(release string, previousState upgradeState) {
 		startTokenPublisher()
 	}
 
-	if !setPhase(shared.NodeAgentPhaseVerifying) {
-		finishFailure(release, previousState, previousRelease, "could not persist the phase verifying")
+	if err := setPhase(shared.NodeAgentPhaseVerifying); err != nil {
+		finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not persist the phase verifying: %s", err))
 		return
 	}
 
@@ -402,21 +402,20 @@ func statePath() string {
 	return filepath.Join(stagingDir, stateName)
 }
 
-func setPhase(phase string) bool {
+func setPhase(phase string) error {
 	globals.Mu.Lock()
 	defer globals.Mu.Unlock()
 
 	state := stateRead()
 	if state.Release == "" {
-		return false
+		return errors.New("the upgrade state has no release")
 	}
 
 	err := nodeStateSetPhase(statePath(), &state, &state.nodeState, phase, nil)
 	if err != nil {
-		log.Warn("k8s-app node agent: could not persist the phase %s: %s", phase, err)
-		return false
+		return err
 	}
-	return true
+	return nil
 }
 
 func markVerifying(identityConfig Config, release string, previousRelease string) bool {
@@ -495,7 +494,7 @@ func finishFailure(release string, previousState upgradeState, observedRelease s
 	}
 }
 
-func statusFromState(identityConfig Config) (shared.NodeAgentStatus, error) {
+func statusFromState(identityConfig Config) shared.NodeAgentStatus {
 	state := stateLoad()
 	if state.NeedsStateRecovery {
 		return shared.NodeAgentStatus{
@@ -504,9 +503,9 @@ func statusFromState(identityConfig Config) (shared.NodeAgentStatus, error) {
 			NodeName:     state.NodeName,
 			Release:      state.Release,
 			Phase:        shared.NodeAgentPhaseFailed,
-			Error:        state.StateError,
+			Error:        state.Error,
 			UpdatedAt:    state.UpdatedAt,
-		}, nil
+		}
 	}
 
 	return shared.NodeAgentStatus{
@@ -517,7 +516,7 @@ func statusFromState(identityConfig Config) (shared.NodeAgentStatus, error) {
 		Phase:        nodeStateDefaultPhase(state.Phase, shared.NodeAgentPhaseIdle),
 		Error:        state.Error,
 		UpdatedAt:    state.UpdatedAt,
-	}, nil
+	}
 }
 
 func recoverInterrupted() {

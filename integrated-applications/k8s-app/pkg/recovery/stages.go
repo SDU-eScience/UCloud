@@ -44,6 +44,10 @@ func (app *app) beginRecoveryWork(session *ucx.Session, entry backupEntry, progr
 		return "", err
 	}
 
+	if cluster.Phase != shared.ClusterRecordPhaseCreated && cluster.Phase != shared.ClusterRecordPhaseRecovering {
+		return "", fmt.Errorf("the cluster is not ready for recovery (state: %s)", cluster.Phase)
+	}
+
 	if existingFound && existing.Phase == shared.ClusterRecoveryPhaseActive {
 		if existing.Stage == shared.ClusterRecoveryStageRecreate && !recoveryCanChangeBackup(app.MountPath, cluster) {
 			return "", errors.New("the replacement nodes already exist, so the recovery continues from the recreate step")
@@ -59,10 +63,6 @@ func (app *app) beginRecoveryWork(session *ucx.Session, entry backupEntry, progr
 				return "", fmt.Errorf("could not update the selected backup: %s", err)
 			}
 		}
-	}
-
-	if cluster.Phase != shared.ClusterRecordPhaseCreated && cluster.Phase != shared.ClusterRecordPhaseRecovering {
-		return "", fmt.Errorf("the cluster is not ready for recovery (state: %s)", cluster.Phase)
 	}
 
 	if !(existingFound && existing.Phase == shared.ClusterRecoveryPhaseActive) {

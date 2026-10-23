@@ -47,9 +47,12 @@ func backupRequestWrite(client stackClient, request backup.Request, expectedRevi
 }
 
 func backupSweep(ctx context.Context, client stackClient) error {
-	record, err := readClusterRecord()
-	if err != nil || record.Phase != "created" {
+	record, found, err := readClusterRecord()
+	if err != nil {
 		return err
+	}
+	if !found || record.Phase != "created" {
+		return nil
 	}
 
 	stateRecord, err := backupStateRead(client)

@@ -69,7 +69,7 @@ func dashboardResourceCreateBack(app *stackUiApp) {
 
 func dashboardResourceCreateDraftKeep(app *stackUiApp) {
 	state := app.resourceEditor
-	if !state.Creating || state.Loading || state.Snapshot == nil {
+	if !dashboardResourceEditorIsCreate(state.Detail) || state.Loading || state.Snapshot == nil {
 		return
 	}
 	if app.resourceCreateDrafts == nil {
@@ -80,7 +80,6 @@ func dashboardResourceCreateDraftKeep(app *stackUiApp) {
 
 func dashboardResourceCreateLoad(app *stackUiApp, namespace string) {
 	state := &app.resourceEditor
-	state.Creating = true
 	state.Editing = true
 	if !state.Def.CanCreate {
 		state.Loading = false
@@ -864,7 +863,7 @@ func dashboardResourceEditorSchemasStart(app *stackUiApp) {
 	if state.SchemaCancel != nil {
 		state.SchemaCancel()
 	}
-	if state.Snapshot == nil || app.session == nil || app.k8sClient == nil {
+	if state.Snapshot == nil || app.session == nil {
 		return
 	}
 	gvk := state.Snapshot.GroupVersionKind()

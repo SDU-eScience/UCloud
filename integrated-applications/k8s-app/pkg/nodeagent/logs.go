@@ -152,6 +152,7 @@ func progressLines(lines []string) int {
 	progressMu.Lock()
 	defer progressMu.Unlock()
 
+	progressRead()
 	written := 0
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)

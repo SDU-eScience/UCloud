@@ -14,7 +14,6 @@ type nodeState struct {
 	Error              string    `json:"error"`
 	NeedsRecovery      bool      `json:"needsRecovery"`
 	UpdatedAt          time.Time `json:"updatedAt"`
-	StateError         string    `json:"stateError,omitempty"`
 	NeedsStateRecovery bool      `json:"needsStateRecovery,omitempty"`
 }
 
@@ -47,9 +46,8 @@ func nodeStateRead[T any](
 
 	baseState := base(&state)
 	if baseState.SchemaRevision != schemaRevision {
-		baseState.StateError = fmt.Sprintf("the %s state was written by an incompatible version of the application", noun)
 		baseState.Phase = failedPhase
-		baseState.Error = baseState.StateError
+		baseState.Error = fmt.Sprintf("the %s state was written by an incompatible version of the application", noun)
 		baseState.NeedsRecovery = true
 		baseState.NeedsStateRecovery = true
 	}
@@ -63,7 +61,6 @@ func nodeStateSetFailure(state *nodeState, schemaRevision int, failedPhase strin
 		Phase:              failedPhase,
 		Error:              message,
 		NeedsRecovery:      true,
-		StateError:         message,
 		NeedsStateRecovery: true,
 	}
 }

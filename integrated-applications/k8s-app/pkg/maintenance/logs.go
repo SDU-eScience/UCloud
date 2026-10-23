@@ -198,8 +198,11 @@ func (relay *logRelay) nodeAddress() (string, bool) {
 		return relay.nodeIp, true
 	}
 
-	record, err := readClusterRecord()
+	record, found, err := readClusterRecord()
 	if err != nil {
+		return "", false
+	}
+	if !found {
 		return "", false
 	}
 
@@ -213,12 +216,19 @@ func (relay *logRelay) nodeAddress() (string, bool) {
 }
 
 func resetNodeLog(nodeName string, operationUid string) {
-	record, err := readClusterRecord()
+	record, found, err := readClusterRecord()
 	if err != nil {
 		log.Warn(
 			"k8s-app maintenance %s: the node log could not be reset: could not read the cluster record: %s",
 			nodeName,
 			err,
+		)
+		return
+	}
+	if !found {
+		log.Warn(
+			"k8s-app maintenance %s: the node log could not be reset: the cluster record does not exist",
+			nodeName,
 		)
 		return
 	}

@@ -287,7 +287,7 @@ func (app *stackUiApp) resourceDetailBottomNode(detail string) ucx.UiNode {
 		name = "Create"
 	}
 	container := ""
-	if typeId == containersTypeId && ref.hasContainer {
+	if typeId == containersTypeId && ref.Container != "" {
 		container = ref.Container
 	}
 	label := typeId
@@ -626,11 +626,10 @@ func (app *stackUiApp) openContainerLogs(namespace string, containerName string,
 
 	dashboardNavigationStart(app)
 	ref := resourceDetailRef{
-		Type:         containersTypeId,
-		Namespace:    podNamespace,
-		Name:         podName,
-		Container:    containerName,
-		hasContainer: true,
+		Type:      containersTypeId,
+		Namespace: podNamespace,
+		Name:      podName,
+		Container: containerName,
 	}
 	app.ResourceDetail = ref.String()
 	app.prevDetail = app.ResourceDetail
@@ -701,7 +700,7 @@ func (app *stackUiApp) containersBackTarget() string {
 	}
 
 	ref, ok := parseResourceDetail(app.ResourceDetail)
-	if ok && ref.Type == containersTypeId && ref.hasContainer {
+	if ok && ref.Type == containersTypeId && ref.Container != "" {
 		fieldSelector := "metadata.name=" + ref.Name
 		if ref.Namespace != "" {
 			fieldSelector = "metadata.namespace=" + ref.Namespace + ",metadata.name=" + ref.Name

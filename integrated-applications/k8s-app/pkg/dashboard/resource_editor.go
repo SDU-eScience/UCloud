@@ -26,7 +26,6 @@ type dashboardResourceEditorState struct {
 	Snapshot     *unstructured.Unstructured
 	Loading      bool
 	Editing      bool
-	Creating     bool
 	Saving       bool
 	Error        string
 	SchemaId     string
@@ -34,14 +33,26 @@ type dashboardResourceEditorState struct {
 	SchemaCancel context.CancelFunc
 }
 
+func dashboardResourceEditorIsCreate(detail string) bool {
+	ref, ok := parseResourceDetail(detail)
+	return ok && ref.Name == "@create"
+}
+
 func dashboardResourceEditorNode(app *stackUiApp, detail string) ucx.UiNode {
 	state := app.resourceEditor
+	if state.Detail != detail {
+		if state.Error != "" {
+			return ucx.Warning(state.Error).Sx(ucx.SxM(8), ucx.SxMt(16))
+		}
+		return ucx.Flex(ucx.FlexProps{Direction: "column"}).
+			Sx(ucx.SxFlex("1 1 0"), ucx.SxMinHeight(0), ucx.SxHeightPercent(100))
+	}
 	bindPath := "resourceYaml"
 	if state.Editing {
 		bindPath = "resourceDraft"
 	}
 	tabLabel := detail
-	if ref, ok := parseResourceDetail(detail); ok && !ref.hasContainer {
+	if ref, ok := parseResourceDetail(detail); ok && ref.Container == "" {
 		tabLabel = ref.Name
 		if ref.Namespace != "" {
 			tabLabel = ref.Namespace + "-" + ref.Name
@@ -49,11 +60,12 @@ func dashboardResourceEditorNode(app *stackUiApp, detail string) ucx.UiNode {
 		tabLabel += ".yaml"
 	}
 	id := fmt.Sprintf("resourceYamlEditor:%d", state.Revision)
-	if state.Creating {
+	creating := dashboardResourceEditorIsCreate(detail)
+	if creating {
 		tabLabel = "Create " + state.Def.Label + ".yaml"
 	}
 	var yamlFieldLinks []ucx.CodeEditorYamlFieldLink
-	if state.Creating {
+	if creating {
 		yamlFieldLinks = dashboardResourceCreateFieldLinks(state.Def)
 	}
 	editor := ucx.CodeEditor(id, bindPath, ucx.CodeEditorProps{
@@ -115,21 +127,9 @@ func dashboardResourceEditorLoad(app *stackUiApp, detail string, editing bool) {
 	if editing && sameResource && (app.resourceEditor.Editing || app.resourceEditor.Loading) {
 		return
 	}
-	revision := app.resourceEditor.Revision + 1
-	if app.resourceEditor.SchemaCancel != nil {
-		app.resourceEditor.SchemaCancel()
-	}
-	app.resourceEditor = dashboardResourceEditorState{
-		Detail:   detail,
-		Revision: revision,
-	}
 	defer ucx.AppUpdateUi(app)
-	app.ResourceDraft = ""
-	if !editing || !sameResource {
-		app.ResourceYaml = ""
-	}
 	ref, parsed := parseResourceDetail(detail)
-	if !parsed || ref.hasContainer || ref.Type == "provisioning" {
+	if !parsed || ref.Container != "" || ref.Type == "provisioning" {
 		return
 	}
 	def, ok := app.resolveType(ref.Type)
@@ -140,6 +140,18 @@ func dashboardResourceEditorLoad(app *stackUiApp, detail string, editing bool) {
 	if editing && ref.Name != "@create" && !def.CanUpdate {
 		app.resourceEditor.Error = "This resource type does not support updates"
 		return
+	}
+	revision := app.resourceEditor.Revision + 1
+	if app.resourceEditor.SchemaCancel != nil {
+		app.resourceEditor.SchemaCancel()
+	}
+	app.resourceEditor = dashboardResourceEditorState{
+		Detail:   detail,
+		Revision: revision,
+	}
+	app.ResourceDraft = ""
+	if !editing || !sameResource {
+		app.ResourceYaml = ""
 	}
 	client := app.k8sClient
 	session := app.session
@@ -188,8 +200,8 @@ func dashboardResourceEditorSave(app *stackUiApp, source string) {
 	}
 	client := app.k8sClient
 	session := app.session
-	if client == nil || session == nil {
-		state.Error = "Kubernetes client is not available"
+	if session == nil {
+		state.Error = "The session is not available"
 		ucx.AppUpdateUi(app)
 		return
 	}
@@ -201,7 +213,7 @@ func dashboardResourceEditorSave(app *stackUiApp, source string) {
 	revision := state.Revision
 	def := state.Def
 	original := state.Snapshot.DeepCopy()
-	creating := state.Creating
+	creating := dashboardResourceEditorIsCreate(state.Detail)
 	ucx.AppUpdateUi(app)
 	go func() {
 		ctx, cancel := context.WithTimeout(session.Context(), 15*time.Second)
@@ -273,7 +285,7 @@ func dashboardResourceEditorCancel(app *stackUiApp) {
 	if !state.Editing || state.Saving || state.Detail != app.ResourceDetail {
 		return
 	}
-	if state.Creating {
+	if dashboardResourceEditorIsCreate(state.Detail) {
 		dashboardResourceCreateBack(app)
 		return
 	}

@@ -38,18 +38,12 @@ import (
 
 // Response helpers
 // =====================================================================================================================
-// Every response is JSON. An error response has one field named error. The status helper encodes the agent state. It
-// logs a warning when the state cannot be read.
+// Every response is JSON. An error response has one field named error. The status helper encodes the agent state.
 
 func writeStatus(writer http.ResponseWriter, statusCode int) {
 	identityConfig := identitySnapshot()
 
-	status, err := statusFromState(identityConfig)
-	if err != nil {
-		log.Warn("k8s-app node agent: could not read the upgrade state: %s", err)
-		writeError(writer, http.StatusInternalServerError, "could not read the upgrade state")
-		return
-	}
+	status := statusFromState(identityConfig)
 
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(statusCode)
@@ -353,7 +347,7 @@ func handleOsUpdate(writer http.ResponseWriter, request *http.Request) {
 
 	state := osStateLoad()
 	if state.NeedsStateRecovery {
-		writeError(writer, http.StatusInternalServerError, state.StateError)
+		writeError(writer, http.StatusInternalServerError, state.Error)
 		return
 	}
 
@@ -417,8 +411,8 @@ func handleOsUpdate(writer http.ResponseWriter, request *http.Request) {
 			writeError(writer, http.StatusInternalServerError, err.Error())
 			return
 		}
-		if !osSetPhase(shared.NodeAgentOsPhaseApplying, nil) {
-			writeError(writer, http.StatusInternalServerError, "could not persist the accepted operating-system installation")
+		if err := osSetPhase(shared.NodeAgentOsPhaseApplying, nil); err != nil {
+			writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not persist the accepted operating-system installation: %s", err))
 			return
 		}
 		go runOsApply(parsed.Reboot)
