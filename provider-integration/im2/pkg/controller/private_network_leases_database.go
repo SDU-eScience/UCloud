@@ -329,6 +329,33 @@ func privateNetworkSelectReservation(
 	return row, true
 }
 
+func privateNetworkSelectReservationForUpdate(
+	tx *db.Transaction,
+	reservationId string,
+) (privateNetworkReservationFullRow, bool) {
+	row, found := db.Get[privateNetworkReservationFullRow](
+		tx,
+		`
+			select
+				network_id,
+				host(ip) as ip,
+				reservation_id,
+				workspace_id,
+				resource
+			from
+				private_network_ip_reservations
+			where
+				reservation_id = :reservation_id
+			for update
+		`,
+		db.Params{"reservation_id": reservationId},
+	)
+	if !found {
+		return privateNetworkReservationFullRow{}, false
+	}
+	return row, true
+}
+
 func PrivateNetworkReservationDelete(reservation *orc.PrivateNetworkIp) *util.HttpError {
 	if !privateNetworkCurrentSettings().Enabled {
 		return util.UserHttpError("Private networks are not enabled on this provider")
@@ -342,6 +369,13 @@ func PrivateNetworkReservationDelete(reservation *orc.PrivateNetworkIp) *util.Ht
 			return nil
 		}
 
+		_, networkOk := privateNetworkSelectNetwork(tx, row.NetworkId)
+
+		row, found = privateNetworkSelectReservationForUpdate(tx, reservation.Id)
+		if !found {
+			return nil
+		}
+
 		if row.WorkspaceId != ownerWorkspace.String() {
 			db.RequestRollback(tx)
 			return util.ServerHttpError(
@@ -350,25 +384,29 @@ func PrivateNetworkReservationDelete(reservation *orc.PrivateNetworkIp) *util.Ht
 			)
 		}
 
-		_, networkOk := privateNetworkSelectNetwork(tx, row.NetworkId)
-		if networkOk {
-			leaseCount, _ := db.Get[struct{ Count int }](
+		if !networkOk {
+			return privateNetworkBusinessRollback(
 				tx,
-				`
-					select count(*) as count
-					from
-						private_network_ip_leases
-					where
-						reservation_id = :reservation_id
-				`,
-				db.Params{"reservation_id": reservation.Id},
+				util.UserHttpError("The private network of this reservation no longer exists"),
 			)
-			if leaseCount.Count > 0 {
-				return privateNetworkBusinessRollback(
-					tx,
-					util.UserHttpError("The reserved address is currently in use by a job. Detach it first."),
-				)
-			}
+		}
+
+		leaseCount, _ := db.Get[struct{ Count int }](
+			tx,
+			`
+				select count(*) as count
+				from
+					private_network_ip_leases
+				where
+					reservation_id = :reservation_id
+			`,
+			db.Params{"reservation_id": reservation.Id},
+		)
+		if leaseCount.Count > 0 {
+			return privateNetworkBusinessRollback(
+				tx,
+				util.UserHttpError("The reserved address is currently in use by a job. Detach it first."),
+			)
 		}
 
 		db.Exec(
@@ -1071,6 +1109,16 @@ func privateNetworkReuseJobLeases(
 
 	byRank := make([]PrivateNetworkLeaseRow, replicas)
 	for _, lease := range existing {
+		if lease.Rank < 0 || lease.Rank >= replicas {
+			return nil, privateNetworkBusinessRollback(
+				tx,
+				util.UserHttpError(
+					"The leases of the previous submission of this job in the private network %s are inconsistent. The old leases must be released before retrying.",
+					networkId,
+				),
+			)
+		}
+
 		byRank[lease.Rank] = lease
 	}
 
@@ -1078,7 +1126,7 @@ func privateNetworkReuseJobLeases(
 
 	for rank, lease := range byRank {
 		expected := expectedPins[rank]
-		pinsDiffer := (expected == "") != (!lease.Pinned) || (expected != "" && lease.Ip != expected)
+		pinsDiffer := (expected == "" && lease.Pinned) || (expected != "" && lease.Ip != expected)
 		if pinsDiffer {
 			return nil, privateNetworkBusinessRollback(
 				tx,
@@ -1087,6 +1135,22 @@ func privateNetworkReuseJobLeases(
 					networkId,
 				),
 			)
+		}
+
+		if lease.ReservationId.Present {
+			reservation, found := privateNetworkSelectReservationByIp(tx, networkId, lease.Ip)
+			if !found || reservation.ReservationId != lease.ReservationId.Value {
+				return nil, privateNetworkBusinessRollback(
+					tx,
+					util.UserHttpError("The reservation of the pinned address %s no longer exists", lease.Ip),
+				)
+			}
+
+			workspace := PrivateNetworkWorkspaceFromOwner(jobOwner)
+			authErr := privateNetworkReservationAuthorized(jobOwner, reservation, workspace.String())
+			if authErr != nil {
+				return nil, privateNetworkBusinessRollback(tx, authErr)
+			}
 		}
 	}
 

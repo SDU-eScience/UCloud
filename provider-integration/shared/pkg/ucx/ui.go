@@ -866,6 +866,10 @@ func NavTreeEx(id string, selectedBindPath string, items []NavItem) UiNode {
 	}
 }
 
+func (n UiNode) NavTreeActivateOnSingleClick(enabled bool) UiNode {
+	return n.propMutate("activateOnSingleClick", VBool(enabled))
+}
+
 func navItemsToValue(items []NavItem) Value {
 	list := make([]Value, 0, len(items))
 	for _, item := range items {

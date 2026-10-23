@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"encoding/json"
+	"hash/fnv"
 	"net/netip"
 	"slices"
 	"strconv"
@@ -77,7 +78,15 @@ func (w PrivateNetworkWorkspace) String() string {
 }
 
 var privateNetworks = map[string]*orc.PrivateNetwork{}
+var privateNetworkDeleted = map[string]util.Empty{}
 var privateNetworkMutex = sync.Mutex{}
+var privateNetworkCacheMutationLocks [64]sync.Mutex
+
+func privateNetworkCacheMutationLock(networkId string) *sync.Mutex {
+	hash := fnv.New32a()
+	_, _ = hash.Write([]byte(networkId))
+	return &privateNetworkCacheMutationLocks[hash.Sum32()%uint32(len(privateNetworkCacheMutationLocks))]
+}
 
 var privateNetworkSettingsMu = sync.RWMutex{}
 var privateNetworkSettings = privateNetworkParsedSettings{}
@@ -256,6 +265,10 @@ func privateNetworkFetchAll() []orc.PrivateNetwork {
 }
 
 func PrivateNetworkTrackNew(network orc.PrivateNetwork) {
+	mutationLock := privateNetworkCacheMutationLock(network.Id)
+	mutationLock.Lock()
+	defer mutationLock.Unlock()
+
 	cacheLive := false
 	db.NewTx0(func(tx *db.Transaction) {
 		cacheLive = false
@@ -272,6 +285,7 @@ func PrivateNetworkTrackNew(network orc.PrivateNetwork) {
 	if cacheLive {
 		copied := network
 		privateNetworks[network.Id] = &copied
+		delete(privateNetworkDeleted, network.Id)
 	} else {
 		delete(privateNetworks, network.Id)
 	}
@@ -279,6 +293,17 @@ func PrivateNetworkTrackNew(network orc.PrivateNetwork) {
 }
 
 func privateNetworkImportLegacy(network orc.PrivateNetwork) {
+	mutationLock := privateNetworkCacheMutationLock(network.Id)
+	mutationLock.Lock()
+	defer mutationLock.Unlock()
+
+	privateNetworkMutex.Lock()
+	_, deleted := privateNetworkDeleted[network.Id]
+	privateNetworkMutex.Unlock()
+	if deleted {
+		return
+	}
+
 	jsonified, _ := json.Marshal(network)
 	workspace := PrivateNetworkWorkspaceFromOwner(network.Owner)
 
@@ -340,6 +365,7 @@ func privateNetworkImportLegacy(network orc.PrivateNetwork) {
 	if cacheLive {
 		copied := network
 		privateNetworks[network.Id] = &copied
+		delete(privateNetworkDeleted, network.Id)
 	} else {
 		delete(privateNetworks, network.Id)
 	}
@@ -400,6 +426,10 @@ func PrivateNetworkRetrieve(id string) (orc.PrivateNetwork, bool) {
 		return *res, true
 	}
 
+	mutationLock := privateNetworkCacheMutationLock(id)
+	mutationLock.Lock()
+	defer mutationLock.Unlock()
+
 	row, found := db.NewTx2(func(tx *db.Transaction) (privateNetworkTrackedRow, bool) {
 		return privateNetworkSelectNetwork(tx, id)
 	})
@@ -419,8 +449,14 @@ func PrivateNetworkRetrieve(id string) (orc.PrivateNetwork, bool) {
 	network.Status.CidrBlock = util.SqlNullToOpt(row.CidrBlock)
 
 	privateNetworkMutex.Lock()
+	if existing, ok := privateNetworks[id]; ok {
+		privateNetworkMutex.Unlock()
+		return *existing, true
+	}
+
 	copied := network
 	privateNetworks[id] = &copied
+	delete(privateNetworkDeleted, id)
 	privateNetworkMutex.Unlock()
 
 	return network, true

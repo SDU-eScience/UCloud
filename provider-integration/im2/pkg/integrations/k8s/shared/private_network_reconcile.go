@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/netip"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -64,8 +65,14 @@ const privateNetworkRepairInterval = 1 * time.Minute
 
 var privateNetworkLastRepairAttempt = map[string]time.Time{}
 
-var privateNetworkReconcileMutex sync.Mutex
-var privateNetworkLastReconcile time.Time
+var privateNetworkReconcileScheduler = struct {
+	sync.Mutex
+	running           bool
+	pending           bool
+	pendingForced     bool
+	followUpScheduled bool
+	last              time.Time
+}{}
 
 type privateNetworkIpRecord struct {
 	name      string
@@ -201,18 +208,7 @@ func PrivateNetworkReconcile() {
 		return
 	}
 
-	go func() {
-		privateNetworkReconcileMutex.Lock()
-		defer privateNetworkReconcileMutex.Unlock()
-
-		now := time.Now()
-		if !privateNetworkLastReconcile.IsZero() && now.Sub(privateNetworkLastReconcile) < privateNetworkReconcileInterval {
-			return
-		}
-		privateNetworkLastReconcile = now
-
-		privateNetworkRunReconcilePass()
-	}()
+	privateNetworkScheduleReconcile(false)
 }
 
 func PrivateNetworkReconcileSoon() {
@@ -220,16 +216,85 @@ func PrivateNetworkReconcileSoon() {
 		return
 	}
 
-	PrivateNetworkReconcile()
+	privateNetworkScheduleReconcile(true)
+}
+
+func privateNetworkScheduleReconcile(force bool) {
+	state := &privateNetworkReconcileScheduler
+	state.Lock()
+
+	if state.running {
+		state.pending = true
+		if force {
+			state.pendingForced = true
+		}
+		state.Unlock()
+		return
+	}
+
+	now := time.Now()
+	throttled := !state.last.IsZero() && now.Sub(state.last) < privateNetworkReconcileInterval
+	if throttled && !force {
+		state.Unlock()
+		return
+	}
+
+	state.running = true
+	state.last = now
+	state.Unlock()
+
+	go func() {
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				state.Lock()
+				state.running = false
+				state.pending = false
+				state.pendingForced = false
+				state.Unlock()
+				log.Error("Private network reconcile panicked: %v\n%s", recovered, debug.Stack())
+			}
+		}()
+
+		privateNetworkRunScheduledReconcile()
+	}()
+}
+
+func privateNetworkRunScheduledReconcile() {
+	state := &privateNetworkReconcileScheduler
+	for {
+		privateNetworkRunReconcilePass()
+
+		state.Lock()
+		state.running = false
+		pending := state.pending
+		pendingForced := state.pendingForced
+		state.pending = false
+		state.pendingForced = false
+
+		now := time.Now()
+		throttled := !state.last.IsZero() && now.Sub(state.last) < privateNetworkReconcileInterval
+		if !pending || (throttled && !pendingForced) {
+			state.Unlock()
+			return
+		}
+
+		state.running = true
+		state.last = now
+		state.Unlock()
+	}
 }
 
 func privateNetworkRunReconcilePass() {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
 	started := time.Now()
 
 	networks := controller.PrivateNetworkSnapshotNetworks()
 
-	privateNetworkReconcileNetworks(ctx, networks)
+	busy := privateNetworkReconcileNetworks(ctx, networks)
+	if busy {
+		privateNetworkScheduleFollowUp()
+	}
 
 	leases := controller.PrivateNetworkLeasesSnapshot()
 	workloads := privateNetworkListWorkloads(ctx)
@@ -251,6 +316,25 @@ func privateNetworkRunReconcilePass() {
 	privateNetworkMetricsRefresh(networks, leases, orphans)
 
 	metricPrivateNetworkReconcileDuration.Observe(time.Since(started).Seconds())
+}
+
+func privateNetworkScheduleFollowUp() {
+	state := &privateNetworkReconcileScheduler
+	state.Lock()
+	alreadyScheduled := state.followUpScheduled
+	state.followUpScheduled = true
+	state.Unlock()
+
+	if alreadyScheduled {
+		return
+	}
+
+	time.AfterFunc(2*time.Second, func() {
+		state.Lock()
+		state.followUpScheduled = false
+		state.Unlock()
+		PrivateNetworkReconcile()
+	})
 }
 
 // privateNetworkReconcileNetworks drives every network one step forward. It
@@ -289,8 +373,8 @@ func privateNetworkReconcileNetworks(
 }
 
 // privateNetworkRepairDue reports whether the periodic repair of a ready
-// network is due. The reconcile pass runs under privateNetworkReconcileMutex,
-// so the plain map needs no further locking.
+// network is due. The reconcile pass is single-flight, so the plain map needs
+// no further locking.
 func privateNetworkRepairDue(networkId string) bool {
 	last, attempted := privateNetworkLastRepairAttempt[networkId]
 	if attempted && time.Since(last) < privateNetworkRepairInterval {
@@ -301,84 +385,91 @@ func privateNetworkRepairDue(networkId string) bool {
 }
 
 func privateNetworkProvisionAttempt(ctx context.Context, networkId string) bool {
-	working := true
-	controller.PrivateNetworkReconcileSerialized(networkId, func() {
-		current, ok := controller.PrivateNetworkSnapshotRetrieve(networkId)
-		if !ok || current.State != controller.PrivateNetworkStateProvisioning {
-			working = false
-			return
-		}
+	current, ok := controller.PrivateNetworkSnapshotRetrieve(networkId)
+	if !ok || current.State != controller.PrivateNetworkStateProvisioning {
+		return false
+	}
 
-		desired, desiredOk := privateNetworkComputeDesired(current)
-		if !desiredOk {
-			log.Warn("Private network %s has an invalid CIDR block %s", current.ResourceId, current.CidrBlock.Value)
-			working = false
-			return
-		}
+	desired, desiredOk := privateNetworkComputeDesired(current)
+	if !desiredOk {
+		log.Warn("Private network %s has an invalid CIDR block %s", current.ResourceId, current.CidrBlock.Value)
+		return false
+	}
 
-		if err := controller.PrivateNetworkUpdateCoreCidrBlock(current.ResourceId, desired.cidr); err != nil {
-			log.Warn("Failed to report the CIDR of private network %s to Core: %s", current.ResourceId, err)
-			working = false
-			return
-		}
+	if err := controller.PrivateNetworkUpdateCoreCidrBlock(current.ResourceId, desired.cidr); err != nil {
+		log.Warn("Failed to report the CIDR of private network %s to Core: %s", current.ResourceId, err)
+		return false
+	}
 
-		vpc, subnet, ensureErr := privateNetworkEnsureNetworkObjects(ctx, desired)
-		if ensureErr != nil {
-			log.Warn("Could not create the objects of private network %s: %s", current.ResourceId, ensureErr)
-			working = false
-			return
-		}
+	current, ok = controller.PrivateNetworkSnapshotRetrieve(networkId)
+	if !ok || current.State != controller.PrivateNetworkStateProvisioning {
+		return false
+	}
 
-		if vpc == nil || subnet == nil || !privateNetworkVpcReady(vpc) || !privateNetworkSubnetReady(subnet) {
-			return
-		}
+	vpc, subnet, ensureErr := privateNetworkEnsureNetworkObjects(ctx, desired)
+	if ensureErr != nil {
+		log.Warn("Could not create the objects of private network %s: %s", current.ResourceId, ensureErr)
+		return false
+	}
 
-		if err := controller.PrivateNetworkMarkReady(current.ResourceId); err != nil {
-			log.Warn("Failed to mark private network %s as ready: %s", current.ResourceId, err)
-			return
-		}
+	if vpc == nil || subnet == nil || !privateNetworkVpcReady(vpc) || !privateNetworkSubnetReady(subnet) {
+		return true
+	}
 
-		working = false
-		log.Info("Private network %s (%s) is ready with CIDR %s", current.ResourceId, desired.subdomain, desired.cidr)
-	})
-	return working
+	if err := controller.PrivateNetworkMarkReady(current.ResourceId); err != nil {
+		log.Warn("Failed to mark private network %s as ready: %s", current.ResourceId, err)
+		return false
+	}
+
+	log.Info("Private network %s (%s) is ready with CIDR %s", current.ResourceId, desired.subdomain, desired.cidr)
+	return false
 }
 
 func privateNetworkRepairAttempt(ctx context.Context, networkId string) {
-	controller.PrivateNetworkReconcileSerialized(networkId, func() {
-		current, ok := controller.PrivateNetworkSnapshotRetrieve(networkId)
-		if !ok || current.State != controller.PrivateNetworkStateReady {
-			return
-		}
+	current, ok := controller.PrivateNetworkSnapshotRetrieve(networkId)
+	if !ok || current.State != controller.PrivateNetworkStateReady {
+		return
+	}
 
-		desired, desiredOk := privateNetworkComputeDesired(current)
-		if !desiredOk {
-			return
-		}
+	desired, desiredOk := privateNetworkComputeDesired(current)
+	if !desiredOk {
+		return
+	}
 
-		if _, _, err := privateNetworkEnsureNetworkObjects(ctx, desired); err != nil {
-			log.Warn("Could not repair the objects of private network %s: %s", current.ResourceId, err)
-		}
-	})
+	current, ok = controller.PrivateNetworkSnapshotRetrieve(networkId)
+	if !ok || current.State != controller.PrivateNetworkStateReady {
+		return
+	}
+
+	if _, _, err := privateNetworkEnsureNetworkObjects(ctx, desired); err != nil {
+		log.Warn("Could not repair the objects of private network %s: %s", current.ResourceId, err)
+	}
 }
 
 // privateNetworkAdvanceNetworkDeletion moves the deletion of the network one
 // step forward. It returns true when the network and all its objects are gone.
 // Objects which belong to someone else are logged and skipped.
 func privateNetworkAdvanceNetworkDeletion(ctx context.Context, desired privateNetworkDesiredObjects) bool {
-	ips, ok := privateNetworkListSubnetIps(ctx, desired)
-	if !ok {
+	subnet, subnetErr := privateNetworkGetSubnetObject(ctx, desired.subnetName)
+	if subnetErr != nil {
 		return false
 	}
 
-	if len(ips) > 0 {
-		return false
+	if subnet == nil || privateNetworkObjectOwnedBy(subnet, desired.networkId) {
+		ips, ok := privateNetworkListSubnetIps(ctx, desired)
+		if !ok || len(ips) > 0 {
+			return false
+		}
 	}
 
 	nad, nadErr := privateNetworkGetNadObject(ctx, desired.subdomain)
-	if nadErr == nil && nad != nil {
+	if nadErr != nil {
+		return false
+	}
+	if nad != nil {
 		if privateNetworkObjectOwnedBy(nad, desired.networkId) {
 			privateNetworkDeleteNadWithUid(ctx, desired.subdomain, nad.UID)
+			return false
 		} else {
 			log.Warn(
 				"The network attachment %s collides with private network %s and will not be deleted",
@@ -386,11 +477,9 @@ func privateNetworkAdvanceNetworkDeletion(ctx context.Context, desired privateNe
 				desired.networkId,
 			)
 		}
-		return false
 	}
 
-	subnet, subnetErr := privateNetworkGetSubnetObject(ctx, desired.subnetName)
-	if subnetErr == nil && subnet != nil {
+	if subnet != nil {
 		if privateNetworkObjectOwnedBy(subnet, desired.networkId) {
 			privateNetworkDeleteWithUid(
 				ctx,
@@ -398,6 +487,7 @@ func privateNetworkAdvanceNetworkDeletion(ctx context.Context, desired privateNe
 				desired.subnetName,
 				subnet.GetUID(),
 			)
+			return false
 		} else {
 			log.Warn(
 				"The subnet %s collides with private network %s and will not be deleted",
@@ -405,11 +495,13 @@ func privateNetworkAdvanceNetworkDeletion(ctx context.Context, desired privateNe
 				desired.networkId,
 			)
 		}
-		return false
 	}
 
 	vpc, vpcErr := privateNetworkGetVpcObject(ctx, desired.subdomain)
-	if vpcErr == nil && vpc != nil {
+	if vpcErr != nil {
+		return false
+	}
+	if vpc != nil {
 		if privateNetworkObjectOwnedBy(vpc, desired.networkId) {
 			privateNetworkDeleteWithUid(
 				ctx,
@@ -417,6 +509,7 @@ func privateNetworkAdvanceNetworkDeletion(ctx context.Context, desired privateNe
 				desired.subdomain,
 				vpc.GetUID(),
 			)
+			return false
 		} else {
 			log.Warn(
 				"The Vpc %s collides with private network %s and will not be deleted",
@@ -424,7 +517,6 @@ func privateNetworkAdvanceNetworkDeletion(ctx context.Context, desired privateNe
 				desired.networkId,
 			)
 		}
-		return false
 	}
 
 	if !privateNetworkDeleteServiceObject(ctx, desired.subdomain, desired.networkId, false) {
@@ -435,48 +527,55 @@ func privateNetworkAdvanceNetworkDeletion(ctx context.Context, desired privateNe
 		return false
 	}
 
+	if svc, exists := ComputeServices.Retrieve(desired.subdomain); exists &&
+		privateNetworkObjectManagedBy(svc, desired.networkId) {
+		return false
+	}
+
+	if policy, exists := ComputeNetworkPolicies.Retrieve(desired.subdomain); exists &&
+		privateNetworkObjectManagedBy(policy, desired.networkId) {
+		return false
+	}
+
 	return true
 }
 
 func privateNetworkDeleteAttempt(networkId string) bool {
-	busy := false
-	controller.PrivateNetworkReconcileSerialized(networkId, func() {
-		current, ok := controller.PrivateNetworkSnapshotRetrieve(networkId)
-		if !ok || current.State != controller.PrivateNetworkStateDeleting {
-			return
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	current, ok := controller.PrivateNetworkSnapshotRetrieve(networkId)
+	if !ok || current.State != controller.PrivateNetworkStateDeleting {
+		return false
+	}
+
+	desired, desiredOk := privateNetworkComputeDesired(current)
+	if !desiredOk {
+		if current.CidrBlock.Present && current.CidrBlock.Value != "" {
+			log.Warn("Private network %s has an invalid CIDR block %s", current.ResourceId, current.CidrBlock.Value)
+			return false
 		}
+		privateNetworkDeleteLegacyNetwork(ctx, current)
+		return false
+	}
 
-		desired, desiredOk := privateNetworkComputeDesired(current)
-		if !desiredOk {
-			if current.CidrBlock.Present && current.CidrBlock.Value != "" {
-				log.Warn("Private network %s has an invalid CIDR block %s", current.ResourceId, current.CidrBlock.Value)
-				return
-			}
-			privateNetworkDeleteLegacyNetwork(context.Background(), current)
-			return
-		}
+	if !privateNetworkAdvanceNetworkDeletion(ctx, desired) {
+		return true
+	}
 
-		ctx := context.Background()
+	workspace, ok := controller.PrivateNetworkWorkspaceParse(current.WorkspaceId)
+	if !ok {
+		log.Warn("Private network %s has an invalid workspace reference %s", current.ResourceId, current.WorkspaceId)
+		return false
+	}
 
-		if !privateNetworkAdvanceNetworkDeletion(ctx, desired) {
-			busy = true
-			return
-		}
+	if err := controller.PrivateNetworkFinishDelete(current.ResourceId, workspace); err != nil {
+		log.Warn("Failed to finish the deletion of private network %s: %s", current.ResourceId, err)
+		return false
+	}
 
-		workspace, ok := controller.PrivateNetworkWorkspaceParse(current.WorkspaceId)
-		if !ok {
-			log.Warn("Private network %s has an invalid workspace reference %s", current.ResourceId, current.WorkspaceId)
-			return
-		}
-
-		if err := controller.PrivateNetworkFinishDelete(current.ResourceId, workspace); err != nil {
-			log.Warn("Failed to finish the deletion of private network %s: %s", current.ResourceId, err)
-			return
-		}
-
-		log.Info("Private network %s (%s) has been deleted", current.ResourceId, desired.subdomain)
-	})
-	return busy
+	log.Info("Private network %s (%s) has been deleted", current.ResourceId, desired.subdomain)
+	return false
 }
 
 func privateNetworkComputeDesired(network controller.PrivateNetworkSnapshotNetwork) (privateNetworkDesiredObjects, bool) {
@@ -491,14 +590,13 @@ func privateNetworkComputeDesired(network controller.PrivateNetworkSnapshotNetwo
 	}
 
 	masked := prefix.Masked()
+	if masked.Bits() > 30 {
+		return result, false
+	}
+
 	addrBytes := masked.Addr().As4()
 	base := binary.BigEndian.Uint32(addrBytes[:])
-	var hostMask uint32
-	if masked.Bits() == 0 {
-		hostMask = 0xFFFFFFFF
-	} else {
-		hostMask = ^(uint32(0) << uint32(32-masked.Bits()))
-	}
+	hostMask := uint32(0xFFFFFFFF) >> uint32(masked.Bits())
 
 	gateway := base + 1
 	lastUsable := (base | hostMask) - 1
@@ -901,6 +999,9 @@ func privateNetworkEnsureServiceAndPolicy(
 
 		createdService, err := services.Create(ctx, created, k8smeta.CreateOptions{})
 		if err != nil {
+			if k8serrors.IsAlreadyExists(err) {
+				return nil
+			}
 			return util.HttpErrorFromErr(err)
 		}
 		svc = createdService
@@ -955,7 +1056,7 @@ func privateNetworkEnsureServiceAndPolicy(
 	}
 
 	if _, err := K8sClient.NetworkingV1().NetworkPolicies(desired.namespace).
-		Create(ctx, policy, k8smeta.CreateOptions{}); err != nil {
+		Create(ctx, policy, k8smeta.CreateOptions{}); err != nil && !k8serrors.IsAlreadyExists(err) {
 		return util.HttpErrorFromErr(err)
 	}
 	return nil
@@ -1199,6 +1300,34 @@ func privateNetworkDeleteNadWithUid(ctx context.Context, name string, uid types.
 	return true
 }
 
+func privateNetworkDeleteServiceWithUid(ctx context.Context, name string, uid types.UID) bool {
+	options := k8smeta.DeleteOptions{}
+	if uid != "" {
+		options.Preconditions = &k8smeta.Preconditions{UID: &uid}
+	}
+
+	err := K8sClient.CoreV1().Services(ServiceConfig.Compute.Namespace).Delete(ctx, name, options)
+	if err != nil && !k8serrors.IsNotFound(err) && !k8serrors.IsConflict(err) {
+		log.Warn("Failed to delete the object %s of a private network: %s", name, err)
+		return false
+	}
+	return true
+}
+
+func privateNetworkDeletePolicyWithUid(ctx context.Context, name string, uid types.UID) bool {
+	options := k8smeta.DeleteOptions{}
+	if uid != "" {
+		options.Preconditions = &k8smeta.Preconditions{UID: &uid}
+	}
+
+	err := K8sClient.NetworkingV1().NetworkPolicies(ServiceConfig.Compute.Namespace).Delete(ctx, name, options)
+	if err != nil && !k8serrors.IsNotFound(err) && !k8serrors.IsConflict(err) {
+		log.Warn("Failed to delete the object %s of a private network: %s", name, err)
+		return false
+	}
+	return true
+}
+
 func privateNetworkReconcileOrphans(ctx context.Context) int {
 	deleted := 0
 
@@ -1212,16 +1341,10 @@ func privateNetworkReconcileOrphans(ctx context.Context) int {
 			return
 		}
 
-		controller.PrivateNetworkReconcileSerialized(id, func() {
-			if _, tracked := controller.PrivateNetworkSnapshotRetrieve(id); tracked {
-				return
-			}
-
-			if deleteObject() {
-				deleted++
-				log.Warn("Deleted the orphaned private network object %s (network %s is not tracked)", name, id)
-			}
-		})
+		if deleteObject() {
+			deleted++
+			log.Warn("Deleted the orphaned private network object %s (network %s is not tracked)", name, id)
+		}
 	}
 
 	trackedNetworks := map[string]util.Empty{}
@@ -1289,6 +1412,46 @@ func privateNetworkReconcileOrphans(ctx context.Context) int {
 
 		deleteOrphan(name, id, func() bool {
 			return privateNetworkDeleteNadWithUid(ctx, name, uid)
+		})
+	}
+
+	for _, item := range ComputeServices.List() {
+		if !privateNetworkIsManagedByIm(item.Labels) {
+			continue
+		}
+
+		name := item.Name
+		id := item.Labels[PrivateNetworkIdLabel]
+		uid := item.UID
+		if id == "" {
+			continue
+		}
+		if _, tracked := trackedNetworks[id]; tracked {
+			continue
+		}
+
+		deleteOrphan(name, id, func() bool {
+			return privateNetworkDeleteServiceWithUid(ctx, name, uid)
+		})
+	}
+
+	for _, item := range ComputeNetworkPolicies.List() {
+		if !privateNetworkIsManagedByIm(item.Labels) {
+			continue
+		}
+
+		name := item.Name
+		id := item.Labels[PrivateNetworkIdLabel]
+		uid := item.UID
+		if id == "" {
+			continue
+		}
+		if _, tracked := trackedNetworks[id]; tracked {
+			continue
+		}
+
+		deleteOrphan(name, id, func() bool {
+			return privateNetworkDeletePolicyWithUid(ctx, name, uid)
 		})
 	}
 
@@ -1429,15 +1592,29 @@ func privateNetworkVmNameToJobAndRank(name string) (string, int, bool) {
 	return tokens[1], rank, true
 }
 
+func privateNetworkIpRecordBelongsToLease(
+	record privateNetworkIpRecord,
+	lease controller.PrivateNetworkLeaseRow,
+	desired privateNetworkDesiredObjects,
+) bool {
+	if record.subnet != desired.subnetName || record.namespace != desired.namespace {
+		return false
+	}
+
+	if lease.MacAddress.Present {
+		vmName := "vm-" + lease.JobId + "-" + strconv.Itoa(lease.Rank)
+		return record.podName == vmName || strings.HasPrefix(record.podName, "virt-launcher-"+vmName+"-")
+	}
+
+	return record.podName == privateNetworkExpectedPodName(lease)
+}
+
 func privateNetworkIpMatchesLease(
 	record privateNetworkIpRecord,
 	lease controller.PrivateNetworkLeaseRow,
 	desired privateNetworkDesiredObjects,
 ) bool {
-	if record.ip != lease.Ip {
-		return false
-	}
-	if record.subnet != desired.subnetName {
+	if !privateNetworkIpRecordBelongsToLease(record, lease, desired) {
 		return false
 	}
 
@@ -1445,20 +1622,7 @@ func privateNetworkIpMatchesLease(
 		return false
 	}
 
-	podName := privateNetworkExpectedPodName(lease)
-	if record.podName != podName {
-		return false
-	}
-	if record.namespace != desired.namespace {
-		return false
-	}
-
-	expectedIpName := privateNetworkExpectedIpName(podName, desired)
-	if record.name != expectedIpName {
-		return false
-	}
-
-	return true
+	return record.name == record.podName+"."+desired.namespace+"."+desired.provider
 }
 
 func privateNetworkExpectedPodName(lease controller.PrivateNetworkLeaseRow) string {
@@ -1466,13 +1630,6 @@ func privateNetworkExpectedPodName(lease controller.PrivateNetworkLeaseRow) stri
 		return "vm-" + lease.JobId + "-" + strconv.Itoa(lease.Rank)
 	}
 	return fmt.Sprintf("j-%s-job-%d", lease.JobId, lease.Rank)
-}
-
-func privateNetworkExpectedIpName(podName string, desired privateNetworkDesiredObjects) string {
-	if podName == "" {
-		return ""
-	}
-	return podName + "." + desired.namespace + "." + desired.provider
 }
 
 func privateNetworkReconcileLeases(
@@ -1582,9 +1739,7 @@ func privateNetworkFinishReleaseIfGone(
 		return
 	}
 
-	privateNetworkDeleteLeaseIpRecords(ctx, desired, lease)
-
-	if privateNetworkLeaseIpRecordsRemaining(ctx, desired, lease) {
+	if !privateNetworkDeleteLeaseIpRecords(ctx, desired, lease) {
 		return
 	}
 
@@ -1597,13 +1752,14 @@ func privateNetworkDeleteLeaseIpRecords(
 	ctx context.Context,
 	desired privateNetworkDesiredObjects,
 	lease controller.PrivateNetworkLeaseRow,
-) {
+) bool {
 	records, ok := privateNetworkLeaseIpRecords(ctx, desired, lease)
 	if !ok {
-		return
+		return false
 	}
 
 	var blocking []string
+	deletedAny := false
 	for _, record := range records {
 		if privateNetworkIpMatchesLease(record, lease, desired) {
 			options := k8smeta.DeleteOptions{}
@@ -1619,12 +1775,21 @@ func privateNetworkDeleteLeaseIpRecords(
 					desired.networkId,
 					err,
 				)
-				return
+				return false
 			}
+			deletedAny = true
 			continue
 		}
 
 		blocking = append(blocking, record.name)
+	}
+
+	if deletedAny {
+		privateNetworkSubnetIpCacheInvalidate(desired.subnetName)
+		remaining, remainingOk := privateNetworkLeaseIpRecords(ctx, desired, lease)
+		if !remainingOk || len(remaining) > 0 {
+			return false
+		}
 	}
 
 	if len(blocking) > 0 {
@@ -1634,16 +1799,10 @@ func privateNetworkDeleteLeaseIpRecords(
 			lease.Ip,
 			blocking,
 		)
+		return false
 	}
-}
 
-func privateNetworkLeaseIpRecordsRemaining(
-	ctx context.Context,
-	desired privateNetworkDesiredObjects,
-	lease controller.PrivateNetworkLeaseRow,
-) bool {
-	records, ok := privateNetworkLeaseIpRecords(ctx, desired, lease)
-	return !ok || len(records) > 0
+	return true
 }
 
 func privateNetworkLeaseIpRecords(
@@ -1716,6 +1875,12 @@ func privateNetworkSubnetIpCacheBeginPass() {
 	privateNetworkSubnetIpCache.Unlock()
 }
 
+func privateNetworkSubnetIpCacheInvalidate(subnetName string) {
+	privateNetworkSubnetIpCache.Lock()
+	delete(privateNetworkSubnetIpCache.subnets, subnetName)
+	privateNetworkSubnetIpCache.Unlock()
+}
+
 func privateNetworkIpRecordFromKubeOvn(item *privateNetworkKubeOvnIp) privateNetworkIpRecord {
 	return privateNetworkIpRecord{
 		name:      item.Name,
@@ -1737,8 +1902,7 @@ func privateNetworkIpRecordBlocksLease(
 		return true
 	}
 
-	expectedName := privateNetworkExpectedIpName(privateNetworkExpectedPodName(lease), desired)
-	return record.name == expectedName
+	return privateNetworkIpRecordBelongsToLease(record, lease, desired)
 }
 
 func privateNetworkLeaseWorkloadGone(
@@ -1918,7 +2082,8 @@ func PrivateNetworkCleanupDetachedJob(job *orc.Job) *util.HttpError {
 		return nil
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
 	privateNetworkSubnetIpCacheBeginPass()
 
 	workloads := privateNetworkListWorkloads(ctx)
@@ -1935,9 +2100,7 @@ func PrivateNetworkCleanupDetachedJob(job *orc.Job) *util.HttpError {
 		controller.PrivateNetworkLeasesMarkReleasingForJobNetwork(job.Id, lease.NetworkId)
 
 		jobKey := job.Id + "/" + strconv.Itoa(lease.Rank)
-		if privateNetworkLeaseWorkloadGone(ctx, desired, workloads, lease, jobKey) {
-			privateNetworkDeleteLeaseIpRecords(ctx, desired, lease)
-		}
+		privateNetworkFinishReleaseIfGone(ctx, desired, workloads, lease, jobKey)
 	}
 
 	return nil

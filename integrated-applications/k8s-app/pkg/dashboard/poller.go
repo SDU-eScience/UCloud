@@ -546,6 +546,8 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 		return
 	}
 
+	columns := resourceColumnsForSelection(selection)
+
 	isNodes := selection.def.Id == "nodes"
 	maintenanceSnapshot := map[string]maintenance.Operation{}
 	maintenanceUnavailable := false
@@ -607,6 +609,12 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 		}
 	}
 
+	if resourceShowNamespaceColumn(selection) {
+		for i := range rows {
+			rows[i].Cells = resourceInsertAfterFirst(rows[i].Cells, rows[i].Group)
+		}
+	}
+
 	p.mu.Lock()
 
 	if p.selectionEpoch != selection.epoch {
@@ -631,7 +639,7 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 		rowByKey[row.Key] = row
 	}
 
-	forceSnapshot := snapshot || !columnsEqual(p.lastColumns, selection.def.Columns) || p.lastRev == 0
+	forceSnapshot := snapshot || !columnsEqual(p.lastColumns, columns) || p.lastRev == 0
 
 	var upserts []ucx.TableRow
 	var removed []string
@@ -658,7 +666,7 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 	}
 
 	p.lastRows = rowByKey
-	p.lastColumns = selection.def.Columns
+	p.lastColumns = columns
 	p.lastRev++
 	rev := p.lastRev
 	p.mu.Unlock()
@@ -677,7 +685,7 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 		TableId:  resourceDatasetId(selection),
 		Revision: rev,
 		Snapshot: forceSnapshot,
-		Columns:  selection.def.Columns,
+		Columns:  columns,
 		Upserts:  upserts,
 		Removed:  removed,
 	})
@@ -692,6 +700,29 @@ func resourceDatasetId(selection resourceSelection) string {
 		id = id + "?" + selection.filter.fieldSelector + "&" + selection.filter.labelSelector
 	}
 	return id
+}
+
+func resourceShowNamespaceColumn(selection resourceSelection) bool {
+	return selection.def.Namespaced && selection.namespace == ""
+}
+
+func resourceColumnsForSelection(selection resourceSelection) []ucx.TableColumn {
+	if !resourceShowNamespaceColumn(selection) {
+		return selection.def.Columns
+	}
+	return resourceInsertAfterFirst(selection.def.Columns, ucx.TableColumn{Key: "namespace", Label: "Namespace"})
+}
+
+func resourceInsertAfterFirst[T any](values []T, value T) []T {
+	result := make([]T, 0, len(values)+1)
+	if len(values) > 0 {
+		result = append(result, values[0])
+	}
+	result = append(result, value)
+	if len(values) > 1 {
+		result = append(result, values[1:]...)
+	}
+	return result
 }
 
 func (p *resourcePoller) resourceSelectionChanged(selection resourceSelection) bool {

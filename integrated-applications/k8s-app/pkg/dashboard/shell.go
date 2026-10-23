@@ -26,9 +26,11 @@ func (app *stackUiApp) appShell(props appShellProps) ucx.UiNode {
 		}
 	}
 
-	navTree := ucx.NavTreeEx("resourceNav", "activeType", navItems).On(ucx.UiEventActivate, func(ev ucx.UiEvent) {
-		app.selectResourceType(ucx.ValueAsString(ev.Value))
-	})
+	navTree := ucx.NavTreeEx("resourceNav", "activeType", navItems).
+		NavTreeActivateOnSingleClick(true).
+		On(ucx.UiEventActivate, func(ev ucx.UiEvent) {
+			app.selectResourceType(ucx.ValueAsString(ev.Value))
+		})
 	navTree.Props["initialExpandedIds"] = ucx.VList([]ucx.Value{
 		ucx.VString("group:Cluster"),
 		ucx.VString("group:Workloads"),

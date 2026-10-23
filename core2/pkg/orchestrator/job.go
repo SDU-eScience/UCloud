@@ -139,166 +139,9 @@ func initJobs() {
 		}
 
 		for jobId, updates := range updatesById {
-			validatedResources := util.OptNone[[]orcapi.AppParameterValue]()
-			{
-				resourceList := util.OptNone[[]orcapi.AppParameterValue]()
-				for _, update := range updates {
-					if update.ResourceList.Present {
-						resourceList.Set(update.ResourceList.Value)
-					}
-				}
-
-				if resourceList.Present {
-					job, err := JobsRetrieve(info.Actor, jobId, orcapi.JobFlags{
-						ResourceFlags:      orcapi.ResourceFlagsIncludeAll(),
-						IncludeApplication: true,
-					})
-
-					if err == nil {
-						support, ok := SupportByProduct[orcapi.JobSupport](jobType, job.Specification.Product)
-						if ok {
-							toolBackend := job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
-							jobOwner, ok := rpc.LookupActor(job.Owner.CreatedBy)
-							if ok {
-								validatedResources.Present = true
-								validation := &jobValueValidation{
-									JobId:                 util.OptValue(job.Id),
-									Owner:                 util.OptValue(job.Owner),
-									Replicas:              util.OptValue(job.Specification.Replicas),
-									NetworkChangesAllowed: jobNetworkAttachAllowed(job.Status.State),
-									ExistingResources:     job.Specification.Resources,
-								}
-
-								if !validation.NetworkChangesAllowed {
-									herr := jobNetworkChangesBlocked(job, resourceList.Value)
-									if herr != nil {
-										return util.Empty{}, herr
-									}
-								}
-
-								for _, value := range resourceList.Value {
-									err = jobValidateValue(
-										jobOwner,
-										&value,
-										toolBackend,
-										support,
-										validation,
-									)
-									if err != nil {
-										return util.Empty{}, err
-									}
-									validatedResources.Value = append(validatedResources.Value, value)
-								}
-							}
-						}
-					}
-				}
-			}
-
-			jobBecameFinal := false
-			ok := ResourceUpdate(info.Actor, jobType, ResourceParseId(jobId), orcapi.PermissionProvider, func(r *resource, mapped orcapi.Job) {
-				job := r.Extra.(*internalJob)
-				job.ChangeFlags |= internalJobPartialChange
-
-				for _, update := range updates {
-					update.Timestamp = fndapi.Timestamp(now)
-
-					shouldApply := true
-					if s := update.ExpectedState; s.Present {
-						shouldApply = job.State == s.Value
-					} else if s := update.ExpectedDifferentState; s.Present && s.Value && update.State.Present {
-						shouldApply = job.State != update.State.Value
-					}
-
-					if job.State.IsFinal() && update.State.Present && !update.State.Value.IsFinal() {
-						shouldApply = false
-					}
-
-					if shouldApply {
-						if jobUpdateIsDuplicate(job.Updates, update) {
-							continue
-						}
-						job.ChangeFlags |= internalJobChangeUpdates | internalJobChangeMetadata
-						if validatedResources.Present {
-							job.ChangeFlags |= internalJobChangeResources
-						}
-
-						if s := update.State; s.Present && job.State != s.Value {
-							job.State = s.Value
-
-							if job.State == orcapi.JobStateRunning {
-								job.StartedAt.Set(fndapi.Timestamp(time.Now()))
-							}
-
-							mapped.Status.State = job.State
-							jobNotifyStateChange(mapped)
-
-							if job.State.IsFinal() {
-								for _, param := range job.Parameters {
-									jobUnbindResource(jobId, param)
-								}
-
-								for _, resc := range job.Resources {
-									jobUnbindResource(jobId, resc)
-								}
-
-								jobBecameFinal = true
-							}
-						}
-
-						if f := update.OutputFolder; f.Present {
-							job.OutputFolder.Set(f.Value)
-						}
-
-						if a := update.NewTimeAllocation; a.Present {
-							job.TimeAllocation.Set(orcapi.SimpleDurationFromMillis(update.NewTimeAllocation.Value))
-						}
-
-						if validatedResources.Present {
-							oldResources := job.Resources
-							job.Resources = jobPersistableResources(validatedResources.Value)
-
-							for _, old := range oldResources {
-								found := false
-								for _, newResource := range job.Resources {
-									if old.Equal(newResource) {
-										found = true
-										break
-									}
-								}
-
-								if !found {
-									jobUnbindResource(jobId, old)
-								}
-							}
-
-							for _, newResource := range job.Resources {
-								found := false
-								for _, old := range oldResources {
-									if old.Equal(newResource) {
-										found = true
-										break
-									}
-								}
-
-								if !found {
-									jobBindResource(jobId, newResource)
-								}
-							}
-						}
-
-						job.Updates = append(job.Updates, update)
-					}
-				}
-			})
-
-			if !ok {
-				log.Info("unknown job or permission denied (%v, %v)", jobId, info.Actor.Username)
-				return util.Empty{}, util.HttpErr(http.StatusNotFound, "unknown job or permission denied (%v)", jobId)
-			}
-
-			if jobBecameFinal {
-				serviceRemoveMembershipsOfJob(jobId)
+			err := jobControlAddUpdates(info.Actor, jobId, updates, now)
+			if err != nil {
+				return util.Empty{}, err
 			}
 		}
 
@@ -482,6 +325,7 @@ func initJobs() {
 			ProviderCallOpts{
 				Username: util.OptValue(info.Actor.Username),
 				Reason:   util.OptValue("user initiated request"),
+				Timeout:  util.OptValue(30 * time.Second),
 			},
 		)
 
@@ -540,6 +384,7 @@ func initJobs() {
 			ProviderCallOpts{
 				Username: util.OptValue(info.Actor.Username),
 				Reason:   util.OptValue("user initiated request"),
+				Timeout:  util.OptValue(30 * time.Second),
 			},
 		)
 
@@ -1040,14 +885,6 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 			return nil, err
 		}
 
-		for _, param := range spec.Parameters {
-			jobBindResource(job.Id, param)
-		}
-
-		for _, resc := range persistedResources {
-			jobBindResource(job.Id, resc)
-		}
-
 		for _, ref := range spec.Services {
 			err := ServiceAddMembers(actor, ref.ServiceId, []string{job.Id})
 			if err != nil {
@@ -1078,16 +915,23 @@ func jobCreateThroughProvider(actor rpc.Actor, spec orcapi.JobSpecification, ext
 		return empty, err
 	}
 
+	err = jobBindCreatedResources(job.Id)
+	if err != nil {
+		jobDiscardFailedCreate(job.Id)
+		return empty, err
+	}
+
 	providerJob := job
 	providerJob.Specification.Resources = spec.Resources // NOTE(Dan): Pass unfiltered resources to provider
 	providerJob.Specification.Services = spec.Services
 	resp, err := InvokeProvider(spec.ResourceSpecification.Product.Provider, orcapi.JobsProviderCreate, fndapi.BulkRequestOf(providerJob), ProviderCallOpts{
 		Username: util.OptValue(actor.Username),
 		Reason:   util.OptValue("Creating resource: " + jobType),
+		Timeout:  util.OptValue(30 * time.Second),
 	})
 
 	if err != nil {
-		ResourceDelete(actor, jobType, id)
+		jobDiscardFailedCreate(job.Id)
 		return empty, err
 	}
 
@@ -1349,7 +1193,7 @@ func JobsUnsuspendBulk(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindBy
 	return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
 }
 
-func jobBindResource(jobId string, resc orcapi.AppParameterValue) {
+func jobBindResource(jobId string, resc orcapi.AppParameterValue) bool {
 	switch resc.Type {
 	case orcapi.AppParameterValueTypeNetwork:
 		PublicIpBind(resc.Id, jobId)
@@ -1358,11 +1202,13 @@ func jobBindResource(jobId string, resc orcapi.AppParameterValue) {
 	case orcapi.AppParameterValueTypeLicense:
 		LicenseBind(resc.Id, jobId)
 	case orcapi.AppParameterValueTypePrivateNetwork:
-		PrivateNetworkBind(resc.Id, jobId)
+		return PrivateNetworkBind(resc.Id, jobId)
 	}
+
+	return true
 }
 
-func jobUnbindResource(jobId string, resc orcapi.AppParameterValue) {
+func jobUnbindResource(jobId string, resc orcapi.AppParameterValue) bool {
 	switch resc.Type {
 	case orcapi.AppParameterValueTypeNetwork:
 		PublicIpUnbind(resc.Id, jobId)
@@ -1371,8 +1217,10 @@ func jobUnbindResource(jobId string, resc orcapi.AppParameterValue) {
 	case orcapi.AppParameterValueTypeLicense:
 		LicenseUnbind(resc.Id, jobId)
 	case orcapi.AppParameterValueTypePrivateNetwork:
-		PrivateNetworkUnbind(resc.Id, jobId)
+		return PrivateNetworkUnbind(resc.Id, jobId)
 	}
+
+	return true
 }
 
 func jobsFollow(conn *ws.Conn) {
@@ -1889,10 +1737,15 @@ type jobValueValidation struct {
 	Owner    util.Option[orcapi.ResourceOwner]
 	Replicas util.Option[int]
 
-	NetworkChangesAllowed bool
-	ValueIsRemoval        bool
+	NetworkChangesAllowed   bool
+	NetworkIpChangesAllowed bool
+	ValueIsRemoval          bool
 
 	ExistingResources []orcapi.AppParameterValue
+}
+
+func jobResourceSameIdentity(a orcapi.AppParameterValue, b orcapi.AppParameterValue) bool {
+	return a.Type == b.Type && a.Id == b.Id
 }
 
 func jobNetworkAttachment(existing []orcapi.AppParameterValue, value orcapi.AppParameterValue) (attached, ipsChanged bool) {
@@ -1911,18 +1764,11 @@ func jobNetworkChangesBlocked(job orcapi.Job, newResources []orcapi.AppParameter
 			continue
 		}
 
-		attached, ipsChanged := jobNetworkAttachment(job.Specification.Resources, value)
+		attached, _ := jobNetworkAttachment(job.Specification.Resources, value)
 		if !attached {
 			return util.HttpErr(
 				http.StatusBadRequest,
 				"the networks of a running job cannot change, suspend it first",
-			)
-		}
-
-		if ipsChanged {
-			return util.HttpErr(
-				http.StatusBadRequest,
-				"the pinned ip addresses of a running job cannot change, suspend it first",
 			)
 		}
 	}
@@ -2044,7 +1890,8 @@ func jobValidateValue(
 		}
 
 		attached, ipsChanged := jobNetworkAttachment(validation.ExistingResources, *value)
-		unchanged := attached && !ipsChanged
+		ipChangeAllowed := attached && validation.NetworkIpChangesAllowed
+		unchanged := attached && (!ipsChanged || ipChangeAllowed)
 		changing := !unchanged || validation.ValueIsRemoval
 
 		if !validation.NetworkChangesAllowed && changing {
@@ -2063,7 +1910,7 @@ func jobValidateValue(
 			return nil
 		}
 
-		if len(value.Ips) > 0 && !unchanged {
+		if len(value.Ips) > 0 && (!unchanged || validation.NetworkIpChangesAllowed) {
 			if validation.Replicas.Present {
 				switch len(value.Ips) {
 				case 0, 1:
@@ -2099,8 +1946,10 @@ func jobValidateValue(
 					)
 				}
 
-				if err := privateNetworkIpCheckReservation(actor, network, normalized); err != nil {
-					return err
+				if !validation.NetworkIpChangesAllowed {
+					if err := privateNetworkIpCheckReservation(actor, network, normalized); err != nil {
+						return err
+					}
 				}
 			}
 		}

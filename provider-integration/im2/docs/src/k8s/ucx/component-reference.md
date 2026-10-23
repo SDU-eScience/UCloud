@@ -257,6 +257,8 @@ items := []ucx.NavItem{
 ucx.NavTreeEx("nav", "activeType", items)
 ```
 
+Call `NavTreeActivateOnSingleClick(true)` on the returned node to open leaf items with a single click. By default, leaf items require a double click.
+
 ## Styling (`Sx`)
 
 Attach style tokens with `.Sx(...)`.

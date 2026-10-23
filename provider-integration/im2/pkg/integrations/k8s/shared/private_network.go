@@ -168,7 +168,10 @@ func PrivateNetworkCreate(network *orc.PrivateNetwork) *util.HttpError {
 		return err
 	}
 
-	if _, _, ensureErr := privateNetworkEnsureNetworkObjects(context.Background(), desired); ensureErr != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	if _, _, ensureErr := privateNetworkEnsureNetworkObjects(ctx, desired); ensureErr != nil {
 		controller.PrivateNetworkDiscardAfterFailedCreate(network.Id)
 		return ensureErr
 	}
@@ -208,7 +211,8 @@ func PrivateNetworkDelete(network *orc.PrivateNetwork) *util.HttpError {
 	}
 
 	if legacy && !featureEnabled {
-		ctx := context.Background()
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
 		if !privateNetworkDeleteServiceObject(ctx, network.Status.Subdomain, network.Id, true) {
 			return util.ServerHttpError("unable to delete the service of the private network")
 		}
@@ -225,7 +229,8 @@ func PrivateNetworkDelete(network *orc.PrivateNetwork) *util.HttpError {
 		return nil
 	}
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
 	snapshot, snapshotTracked := controller.PrivateNetworkSnapshotRetrieve(network.Id)
 	if snapshotTracked {
 		if desired, ok := privateNetworkComputeDesired(snapshot); ok {

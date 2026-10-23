@@ -21,6 +21,10 @@ func privateNetworkBusinessRollback(tx *db.Transaction, httpError *util.HttpErro
 }
 
 func PrivateNetworkCreateAllocate(network *orc.PrivateNetwork) (bool, *util.HttpError) {
+	mutationLock := privateNetworkCacheMutationLock(network.Id)
+	mutationLock.Lock()
+	defer mutationLock.Unlock()
+
 	settings := privateNetworkCurrentSettings()
 	if !settings.Enabled {
 		return false, util.UserHttpError("Private networks are not enabled on this provider")
@@ -198,17 +202,49 @@ func privateNetworkAllocateCustomCidr(
 		}
 	}
 
+	inPool := false
 	for i := range settings.Pools {
 		if orc.PrivateNetworkCidrsOverlap(parsed, settings.Pools[i]) &&
 			parsed.Bits() >= settings.Pools[i].Bits() {
-			return parsed.String(), nil
+			inPool = true
+			break
 		}
 	}
 
-	return "", privateNetworkBusinessRollback(
+	if !inPool {
+		return "", privateNetworkBusinessRollback(
+			tx,
+			util.UserHttpError("%s is not inside any configured address pool", cidr),
+		)
+	}
+
+	rows := db.Select[struct{ CidrBlock string }](
 		tx,
-		util.UserHttpError("%s is not inside any configured address pool", cidr),
+		`
+			select
+				cidr_block::text as cidr_block
+			from
+				tracked_private_networks
+			where
+				cidr_block is not null
+		`,
+		db.Params{},
 	)
+	var used []netip.Prefix
+	for _, row := range rows {
+		if existing, ok := orc.PrivateNetworkParseCidr(row.CidrBlock); ok {
+			used = append(used, existing)
+		}
+	}
+
+	if privateNetworkPrefixOverlapsAny(parsed, used) {
+		return "", privateNetworkBusinessRollback(
+			tx,
+			util.UserHttpError("%s overlaps an existing private network", cidr),
+		)
+	}
+
+	return parsed.String(), nil
 }
 
 func privateNetworkAllocateAutoCidr(
@@ -305,17 +341,6 @@ func privateNetworkLockReconcile(tx *db.Transaction, networkId string) {
 	)
 }
 
-func PrivateNetworkReconcileSerialized(networkId string, operation func()) {
-	db.NewTx0(func(tx *db.Transaction) {
-		tx.NoDevResetThisIsNotAHackIPromise = true
-		privateNetworkLockReconcile(tx, networkId)
-		if !tx.Ok {
-			return
-		}
-		operation()
-	})
-}
-
 func PrivateNetworkDeleteRequest(target *orc.PrivateNetwork) *util.HttpError {
 	if len(target.Status.Members) > 0 {
 		return util.UserHttpError(
@@ -399,6 +424,10 @@ func PrivateNetworkDeleteRequest(target *orc.PrivateNetwork) *util.HttpError {
 }
 
 func PrivateNetworkFinishDelete(networkId string, ownerWorkspace PrivateNetworkWorkspace) *util.HttpError {
+	mutationLock := privateNetworkCacheMutationLock(networkId)
+	mutationLock.Lock()
+	defer mutationLock.Unlock()
+
 	finished := false
 	err := db.NewTx(func(tx *db.Transaction) *util.HttpError {
 		finished = false
@@ -463,26 +492,57 @@ func PrivateNetworkFinishDelete(networkId string, ownerWorkspace PrivateNetworkW
 func privateNetworkCacheRemoveAfterDelete(networkId string) {
 	privateNetworkMutex.Lock()
 	delete(privateNetworks, networkId)
+	privateNetworkDeleted[networkId] = util.Empty{}
 	privateNetworkMutex.Unlock()
 }
 
 func PrivateNetworkDiscardAfterFailedCreate(networkId string) {
+	mutationLock := privateNetworkCacheMutationLock(networkId)
+	mutationLock.Lock()
+	defer mutationLock.Unlock()
+
+	removed := false
 	db.NewTx0(func(tx *db.Transaction) {
 		privateNetworkLockReconcile(tx, networkId)
+		row, found := privateNetworkSelectNetwork(tx, networkId)
+		if !found || row.State != PrivateNetworkStateProvisioning {
+			removed = false
+			return
+		}
 
-		db.Exec(
+		remaining, _ := db.Get[struct{ Count int }](
+			tx,
+			`
+				select (
+					(select count(*) from private_network_ip_leases where network_id = :network_id)
+					+ (select count(*) from private_network_ip_reservations where network_id = :network_id)
+				) as count
+			`,
+			db.Params{
+				"network_id": networkId,
+			},
+		)
+		if remaining.Count > 0 {
+			removed = false
+			return
+		}
+
+		_, removed = db.Get[struct{ ResourceId string }](
 			tx,
 			`
 				delete from tracked_private_networks
 				where
 					resource_id = :resource_id
 					and state = 'provisioning'
+				returning resource_id
 			`,
 			db.Params{"resource_id": networkId},
 		)
 	})
 
-	privateNetworkCacheRemoveAfterDelete(networkId)
+	if removed {
+		privateNetworkCacheRemoveAfterDelete(networkId)
+	}
 }
 
 func PrivateNetworkUpdateCoreCidrBlock(networkId string, cidrBlock string) *util.HttpError {

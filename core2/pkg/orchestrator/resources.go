@@ -1014,14 +1014,18 @@ func ResourceUpdate[T any](
 
 		modification(resc, mapped)
 
-		isDeleting := resc.Confirmed && resc.MarkedForDeletion
 		rescOwnerRef := resc.Owner.CreatedBy
 		if resc.Owner.Project.Present {
 			rescOwnerRef = resc.Owner.Project.Value
 		}
 
+		persisted := true
 		if resc.Confirmed {
-			lResourcePersist(g, resc)
+			persisted = lResourcePersist(g, resc)
+			if !persisted {
+				resc.MarkedForDeletion = true
+				lResourcePersist(g, resc)
+			}
 
 			if resc.MarkedForDeletion {
 				delete(b.Resources, id)
@@ -1033,6 +1037,7 @@ func ResourceUpdate[T any](
 				}
 			}
 		}
+		isDeleting := resc.Confirmed && resc.MarkedForDeletion
 
 		// Indexing after modification
 		if !resc.MarkedForDeletion {
@@ -1071,7 +1076,7 @@ func ResourceUpdate[T any](
 			}
 		}
 
-		return true
+		return persisted
 	} else {
 		return false
 	}
@@ -1657,10 +1662,10 @@ func resourceSpecificationHasProduct(specification orcapi.ResourceSpecification)
 	return specification.Product != (accapi.ProductReference{})
 }
 
-func ResourceConfirm(typeName string, id ResourceId) {
+func ResourceConfirm(typeName string, id ResourceId) bool {
 	var stackResource any
 	var provider string
-	ResourceUpdate[any](
+	ok := ResourceUpdate[any](
 		rpc.ActorSystem,
 		typeName,
 		id,
@@ -1676,9 +1681,13 @@ func ResourceConfirm(typeName string, id ResourceId) {
 			r.BaseSpec.StackResource = nil
 		},
 	)
+	if !ok {
+		return false
+	}
 	if stackResource != nil {
 		resourcePushAcl(provider, stackResource, orcapi.UpdatedAcl{Id: strconv.FormatUint(uint64(id), 10)})
 	}
+	return true
 }
 
 func ResourceDelete(actor rpc.Actor, typeName string, id ResourceId) bool {
@@ -1985,7 +1994,13 @@ func resourceControlRegisterServe[Spec any, T any](
 				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
 			}
 
-			ResourceConfirm(typeName, id)
+			confirmed := ResourceConfirm(typeName, id)
+			if !confirmed {
+				if rollback != nil {
+					rollback()
+				}
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusConflict, "the parent resource is no longer available")
+			}
 			responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
 		}
 

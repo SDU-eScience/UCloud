@@ -22,7 +22,7 @@ KUBECTL_TMP="/tmp/kubectl.$$"
 if curl -sfL --connect-timeout 15 --max-time 300 "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/$(node_arch)/kubectl" -o "$KUBECTL_TMP" &&
 	curl -sfL --connect-timeout 15 --max-time 60 "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/$(node_arch)/kubectl.sha256" -o "${KUBECTL_TMP}.sha256" &&
 	[ "$(sha256sum "$KUBECTL_TMP" | awk '{print $1}')" = "$(cat "${KUBECTL_TMP}.sha256")" ]; then
-	install -m 0755 -o ucloud -g ucloud "$KUBECTL_TMP" /home/ucloud/.local/bin/kubectl
+	install -m 0755 "$KUBECTL_TMP" /usr/local/sbin/kubectl
 else
 	log "could not install the standalone kubectl, falling back to the k3s kubectl wrapper"
 fi

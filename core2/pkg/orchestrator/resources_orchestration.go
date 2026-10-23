@@ -107,7 +107,22 @@ func ResourceCreateThroughProviderEx[T any](
 			})
 		}
 
-		ResourceConfirm(typeName, id)
+		confirmed := ResourceConfirm(typeName, id)
+		if !confirmed {
+			if ip, ok := any(resc).(orcapi.PrivateNetworkIp); ok {
+				_, cleanupErr := InvokeProvider(
+					specification.Product.Provider,
+					orcapi.PrivateNetworkIpsProviderDelete,
+					fndapi.BulkRequestOf(ip),
+					opts,
+				)
+				if cleanupErr != nil {
+					log.Warn("Failed to clean up private network IP %s after confirmation failed: %v", ip.Id, cleanupErr)
+					return t, util.HttpErr(http.StatusConflict, "the parent network is no longer available; provider cleanup of reservation %s failed", ip.Id)
+				}
+			}
+			return t, util.HttpErr(http.StatusConflict, "the parent resource is no longer available")
+		}
 		return resc, nil
 	} else {
 		log.Info("Provider has refused to create resource: %s. Resource is: %v %#v", err, id, extra)
@@ -150,7 +165,10 @@ func ResourceDeleteThroughProvider[T any](
 	})
 
 	if err == nil {
-		ResourceDelete(actor, typeName, ResourceParseId(id))
+		deleted := ResourceDelete(actor, typeName, ResourceParseId(id))
+		if !deleted {
+			return util.HttpErr(http.StatusConflict, "the resource could not be deleted locally")
+		}
 	}
 	return err
 }

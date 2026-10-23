@@ -217,12 +217,34 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 	}
 }
 
-func lResourcePersist(g *resourceTypeGlobal, r *resource) {
+func lResourcePersist(g *resourceTypeGlobal, r *resource) bool {
 	if resourceGlobals.Testing.Enabled {
-		return
+		return true
 	}
 
-	db.NewTx0(func(tx *db.Transaction) {
+	persisted := db.NewTx(func(tx *db.Transaction) bool {
+		if r.Type == privateNetworkIpType && !r.MarkedForDeletion {
+			ip := r.Extra.(*internalPrivateNetworkIp)
+			_, found := db.Get[struct{ Resource int64 }](
+				tx,
+				`
+					select resource
+					from app_orchestrator.private_networks
+					where resource = :network
+					for key share
+				`,
+				db.Params{
+					"network": ResourceParseId(ip.Network),
+				},
+			)
+			if !found {
+				if tx.Ok {
+					db.RequestRollback(tx)
+				}
+				return false
+			}
+		}
+
 		b := db.BatchNew(tx)
 
 		if r.MarkedForDeletion {
@@ -380,11 +402,15 @@ func lResourcePersist(g *resourceTypeGlobal, r *resource) {
 		}
 
 		db.BatchSend(b)
+		return true
 	})
 
-	if fn := g.OnPersistCommitted; fn != nil {
-		fn(r)
+	if persisted {
+		if fn := g.OnPersistCommitted; fn != nil {
+			fn(r)
+		}
 	}
+	return persisted
 }
 
 func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string) {

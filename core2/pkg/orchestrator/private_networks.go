@@ -297,6 +297,19 @@ func PrivateNetworkBrowse(actor rpc.Actor, request orcapi.PrivateNetworksBrowseR
 
 func PrivateNetworkDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindByStringId]) *util.HttpError {
 	for _, item := range request.Items {
+		_, _, _, authErr := ResourceRetrieveEx[orcapi.PrivateNetwork](
+			actor,
+			privateNetworkType,
+			ResourceParseId(item.Id),
+			orcapi.PermissionEdit,
+			orcapi.ResourceFlags{},
+		)
+		if authErr != nil {
+			return authErr
+		}
+
+		privateNetworkPruneStaleMembers(item.Id)
+
 		err := func() *util.HttpError {
 			mutationLock := networkMutationLock(item.Id)
 			mutationLock.Lock()
@@ -310,6 +323,33 @@ func PrivateNetworkDelete(actor rpc.Actor, request fndapi.BulkRequest[fndapi.Fin
 	}
 
 	return nil
+}
+
+func privateNetworkPruneStaleMembers(networkId string) {
+	network, _, _, err := ResourceRetrieveEx[orcapi.PrivateNetwork](
+		rpc.ActorSystem,
+		privateNetworkType,
+		ResourceParseId(networkId),
+		orcapi.PermissionRead,
+		orcapi.ResourceFlags{},
+	)
+	if err != nil {
+		return
+	}
+
+	for _, jobId := range network.Status.Members {
+		job, _, _, jobErr := ResourceRetrieveEx[orcapi.Job](
+			rpc.ActorSystem,
+			jobType,
+			ResourceParseId(jobId),
+			orcapi.PermissionRead,
+			orcapi.ResourceFlags{},
+		)
+
+		if jobErr != nil || job.Status.State.IsFinal() {
+			PrivateNetworkUnbind(networkId, jobId)
+		}
+	}
 }
 
 func privateNetworkDeleteOne(actor rpc.Actor, item fndapi.FindByStringId) *util.HttpError {
@@ -368,6 +408,7 @@ func privateNetworkDeleteReservedIps(networkId string) *util.HttpError {
 		return ids
 	})
 
+	var firstErr *util.HttpError
 	for _, id := range reservedIpIds {
 		err := ResourceDeleteThroughProvider(
 			rpc.ActorSystem,
@@ -375,11 +416,32 @@ func privateNetworkDeleteReservedIps(networkId string) *util.HttpError {
 			id,
 			orcapi.PrivateNetworkIpsProviderDelete,
 		)
-		if err != nil {
-			return err
+		if err != nil && firstErr == nil {
+			firstErr = err
 		}
 	}
 
+	if firstErr != nil {
+		return firstErr
+	}
+
+	remaining := db.NewTx(func(tx *db.Transaction) int {
+		row, _ := db.Get[struct{ Count int }](
+			tx,
+			`
+				select count(*) as count
+				from app_orchestrator.private_network_ips
+				where network = :network
+			`,
+			db.Params{
+				"network": ResourceParseId(networkId),
+			},
+		)
+		return row.Count
+	})
+	if remaining > 0 {
+		return util.HttpErr(http.StatusConflict, "the private network still has reserved IP addresses")
+	}
 	return nil
 }
 
@@ -538,7 +600,7 @@ func privateNetworkTransform(
 		},
 		Status: orcapi.PrivateNetworkStatus{
 			Subdomain: network.Subdomain,
-			Members:   network.Members,
+			Members:   slices.Clone(network.Members),
 			CidrBlock: network.CidrBlock,
 		},
 	}
@@ -553,8 +615,12 @@ func privateNetworkTransform(
 	return result
 }
 
-func PrivateNetworkBind(id string, jobId string) {
-	ResourceUpdate[orcapi.PrivateNetwork](
+func PrivateNetworkBind(id string, jobId string) bool {
+	mutationLock := networkMutationLock(id)
+	mutationLock.Lock()
+	defer mutationLock.Unlock()
+
+	return ResourceUpdate[orcapi.PrivateNetwork](
 		rpc.ActorSystem,
 		privateNetworkType,
 		ResourceParseId(id),
@@ -568,8 +634,12 @@ func PrivateNetworkBind(id string, jobId string) {
 	)
 }
 
-func PrivateNetworkUnbind(id string, jobId string) {
-	ResourceUpdate[orcapi.PrivateNetwork](
+func PrivateNetworkUnbind(id string, jobId string) bool {
+	mutationLock := networkMutationLock(id)
+	mutationLock.Lock()
+	defer mutationLock.Unlock()
+
+	return ResourceUpdate[orcapi.PrivateNetwork](
 		rpc.ActorSystem,
 		privateNetworkType,
 		ResourceParseId(id),
@@ -596,12 +666,20 @@ func privateNetworkSubdomainTaken(provider string, subdomain string, except Reso
 
 		b := resourceGetBucket(privateNetworkType, id)
 		r, ok, _ := resourcesReadEx(rpc.ActorSystem, privateNetworkType, orcapi.PermissionRead, b, id, nil)
-		if !ok || r == nil || r.MarkedForDeletion {
+		if !ok || r == nil {
 			continue
 		}
 
+		b.Mu.RLock()
+		deleted := r.MarkedForDeletion
 		network, valid := r.Extra.(*internalPrivateNetwork)
-		if valid && strings.EqualFold(network.Subdomain, subdomain) {
+		var existingSubdomain string
+		if valid {
+			existingSubdomain = network.Subdomain
+		}
+		b.Mu.RUnlock()
+
+		if !deleted && valid && strings.EqualFold(existingSubdomain, subdomain) {
 			return true
 		}
 	}

@@ -146,7 +146,7 @@ func initPrivateNetworkIps() {
 		},
 	))
 
-	orcapi.PrivateNetworkIpsControlRegister.Handler(resourceControlRegisterServe[orcapi.PrivateNetworkIpSpecification, orcapi.PrivateNetworkIp](
+	register := resourceControlRegisterServe[orcapi.PrivateNetworkIpSpecification, orcapi.PrivateNetworkIp](
 		privateNetworkIpType,
 		func(spec *orcapi.PrivateNetworkIpSpecification) *orcapi.ResourceSpecification {
 			return &spec.ResourceSpecification
@@ -169,7 +169,33 @@ func initPrivateNetworkIps() {
 				RequestedIp: spec.IpAddress,
 			}, nil, nil
 		},
-	))
+	)
+	orcapi.PrivateNetworkIpsControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.PrivateNetworkIpSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		providerId, isProvider := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+		if !isProvider {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+		for _, item := range request.Items {
+			if item.Spec.Product.Provider != providerId {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			}
+		}
+
+		var responses []fndapi.FindByStringId
+		for _, item := range request.Items {
+			response, err := func() (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+				mutationLock := networkMutationLock(item.Spec.Network)
+				mutationLock.Lock()
+				defer mutationLock.Unlock()
+				return register(info, fndapi.BulkRequestOf(item))
+			}()
+			if err != nil {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			}
+			responses = append(responses, response.Responses...)
+		}
+		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
+	})
 
 	orcapi.PrivateNetworkIpsControlAddUpdate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.PrivateNetworkIpUpdate]]) (util.Empty, *util.HttpError) {
 		ids := make([]string, 0, len(request.Items))
@@ -261,58 +287,13 @@ func PrivateNetworkIpCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.P
 	var created []orcapi.PrivateNetworkIp
 
 	for _, item := range request.Items {
-		_, ok := SupportByProduct[orcapi.PrivateNetworkIpSupport](privateNetworkIpType, item.Product)
-		if !ok {
-			return nil, util.HttpErr(http.StatusNotFound, "unknown product requested")
-		}
+		resc, err := func() (orcapi.PrivateNetworkIp, *util.HttpError) {
+			mutationLock := networkMutationLock(item.Network)
+			mutationLock.Lock()
+			defer mutationLock.Unlock()
 
-		networkId := item.Network
-		item.IpAddress = privateNetworkIpNormalizePin(item.IpAddress)
-
-		if item.IpAddress.Present {
-			if _, ok := orcapi.PrivateNetworkParseIpv4(item.IpAddress.Value); !ok {
-				return nil, util.HttpErr(http.StatusBadRequest, "invalid IP address requested")
-			}
-		}
-
-		reservationOwner := orcapi.ResourceOwner{
-			CreatedBy: actor.Username,
-			Project:   util.OptMap(actor.Project, func(value rpc.ProjectId) string { return string(value) }),
-		}
-
-		network, networkErr := privateNetworkIpValidateParent(item.Product.Provider, reservationOwner, item)
-		if networkErr != nil {
-			return nil, networkErr
-		}
-
-		_, _, _, err := ResourceRetrieveEx[orcapi.PrivateNetwork](
-			actor,
-			privateNetworkType,
-			ResourceParseId(networkId),
-			orcapi.PermissionEdit,
-			orcapi.ResourceFlags{},
-		)
-		if err != nil {
-			return nil, util.HttpErr(http.StatusForbidden, "you cannot use this network")
-		}
-
-		if !network.Status.CidrBlock.Present {
-			return nil, util.HttpErr(
-				http.StatusBadRequest,
-				"the network is not ready for ip reservations yet",
-			)
-		}
-
-		resc, err := ResourceCreateThroughProvider(
-			actor,
-			privateNetworkIpType,
-			item.ResourceSpecification,
-			&internalPrivateNetworkIp{
-				Network:     networkId,
-				RequestedIp: item.IpAddress,
-			},
-			orcapi.PrivateNetworkIpsProviderCreate,
-		)
+			return privateNetworkIpCreateOne(actor, item)
+		}()
 
 		if err != nil {
 			return nil, err
@@ -322,6 +303,67 @@ func PrivateNetworkIpCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.P
 	}
 
 	return created, nil
+}
+
+func privateNetworkIpCreateOne(actor rpc.Actor, item orcapi.PrivateNetworkIpSpecification) (orcapi.PrivateNetworkIp, *util.HttpError) {
+	_, ok := SupportByProduct[orcapi.PrivateNetworkIpSupport](privateNetworkIpType, item.Product)
+	if !ok {
+		return orcapi.PrivateNetworkIp{}, util.HttpErr(http.StatusNotFound, "unknown product requested")
+	}
+
+	networkId := item.Network
+	item.IpAddress = privateNetworkIpNormalizePin(item.IpAddress)
+
+	if item.IpAddress.Present {
+		if _, ok := orcapi.PrivateNetworkParseIpv4(item.IpAddress.Value); !ok {
+			return orcapi.PrivateNetworkIp{}, util.HttpErr(http.StatusBadRequest, "invalid IP address requested")
+		}
+	}
+
+	reservationOwner := orcapi.ResourceOwner{
+		CreatedBy: actor.Username,
+		Project:   util.OptMap(actor.Project, func(value rpc.ProjectId) string { return string(value) }),
+	}
+
+	network, networkErr := privateNetworkIpValidateParent(item.Product.Provider, reservationOwner, item)
+	if networkErr != nil {
+		return orcapi.PrivateNetworkIp{}, networkErr
+	}
+
+	_, _, _, err := ResourceRetrieveEx[orcapi.PrivateNetwork](
+		actor,
+		privateNetworkType,
+		ResourceParseId(networkId),
+		orcapi.PermissionEdit,
+		orcapi.ResourceFlags{},
+	)
+	if err != nil {
+		return orcapi.PrivateNetworkIp{}, util.HttpErr(http.StatusForbidden, "you cannot use this network")
+	}
+
+	if !network.Status.CidrBlock.Present {
+		return orcapi.PrivateNetworkIp{}, util.HttpErr(
+			http.StatusBadRequest,
+			"the network is not ready for ip reservations yet",
+		)
+	}
+
+	resc, err := ResourceCreateThroughProvider(
+		actor,
+		privateNetworkIpType,
+		item.ResourceSpecification,
+		&internalPrivateNetworkIp{
+			Network:     networkId,
+			RequestedIp: item.IpAddress,
+		},
+		orcapi.PrivateNetworkIpsProviderCreate,
+	)
+
+	if err != nil {
+		return orcapi.PrivateNetworkIp{}, err
+	}
+
+	return resc, nil
 }
 
 func privateNetworkIpNormalizePin(pin util.Option[string]) util.Option[string] {
@@ -505,7 +547,7 @@ func privateNetworkIpPersist(b *db.Batch, r *resource) {
 			b,
 			`
 				insert into app_orchestrator.private_network_ips(resource, network, requested_ip, ip_address)
-				values (:resource, cast(:network as bigint), :requested_ip, :ip_address)
+				values (:resource, :network, :requested_ip, :ip_address)
 				on conflict (resource) do update set
 					network = excluded.network,
 					requested_ip = excluded.requested_ip,
@@ -582,16 +624,28 @@ func privateNetworkIpReservationsByAddress(network orcapi.PrivateNetwork, normal
 	for _, id := range ids {
 		b := resourceGetBucket(privateNetworkIpType, id)
 		r, ok, _ := resourcesReadEx(rpc.ActorSystem, privateNetworkIpType, orcapi.PermissionRead, b, id, nil)
-		if !ok || r == nil || r.MarkedForDeletion {
+		if !ok || r == nil {
 			continue
 		}
 
+		b.Mu.RLock()
+		deleted := r.MarkedForDeletion
 		ip, valid := r.Extra.(*internalPrivateNetworkIp)
-		if !valid || ip.Network != network.Id {
+		var reservedNetwork string
+		var effectiveIp string
+		var requestedIp string
+		if valid {
+			reservedNetwork = ip.Network
+			effectiveIp = ip.IpAddress.GetOrDefault("")
+			requestedIp = ip.RequestedIp.GetOrDefault("")
+		}
+		b.Mu.RUnlock()
+
+		if deleted || !valid || reservedNetwork != network.Id {
 			continue
 		}
 
-		if ip.IpAddress.GetOrDefault("") != normalizedIp && ip.RequestedIp.GetOrDefault("") != normalizedIp {
+		if effectiveIp != normalizedIp && requestedIp != normalizedIp {
 			continue
 		}
 
