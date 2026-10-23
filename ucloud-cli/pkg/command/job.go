@@ -37,6 +37,9 @@ type JobCreateCommand struct {
 	PublicLink string            `flag:"public-link" usage:"Public link"`
 	Workspace  string            `flag:"workspace" usage:"Workspace to create the job in"`
 	Parameters map[string]string `flag:"param" usage:"eg. image=ubuntu"`
+
+	// Internal use
+	Id string
 }
 
 type JobRenameCommand struct {
