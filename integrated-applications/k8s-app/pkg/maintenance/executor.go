@@ -509,7 +509,7 @@ func cordonNode(
 	node *corev1.Node,
 ) error {
 	originalUnschedulable := node.Spec.Unschedulable
-	worker.mutate(func(op *Operation) bool {
+	captureErr := worker.mutate(func(op *Operation) bool {
 		if op.OriginalSchedulingCaptured {
 			return false
 		}
@@ -517,6 +517,9 @@ func cordonNode(
 		op.OriginalSchedulingCaptured = true
 		return true
 	})
+	if captureErr != nil {
+		return captureErr
+	}
 
 	if !node.Spec.Unschedulable {
 		if _, patchErr := patchUnschedulable(ctx, clientset, node, true); patchErr != nil {
@@ -907,6 +910,51 @@ func controlPlaneGuard(
 	}
 	if !remaining {
 		return errors.New("at least one other healthy, schedulable control plane node must remain")
+	}
+
+	return nil
+}
+
+func controlPlaneRemovalGuard(
+	ctx context.Context,
+	clientset *kubernetes.Clientset,
+	operation Operation,
+) error {
+	record, found, err := readClusterRecord()
+	if err != nil {
+		return fmt.Errorf("could not read the cluster record: %s", err)
+	}
+	if !found {
+		return errors.New("the cluster record does not exist")
+	}
+
+	controlPlanes := controlPlaneNames(record)
+	if !controlPlanes[operation.NodeName] {
+		return nil
+	}
+
+	total := len(controlPlanes)
+	if total == 1 {
+		return nil
+	}
+
+	required := (total-1)/2 + 1
+
+	pending, pendingErr := pendingCordons(operation.NodeName)
+	if pendingErr != nil {
+		return pendingErr
+	}
+
+	remaining, remainingErr := controlPlaneRemainingCount(ctx, clientset, controlPlanes, operation.NodeName, pending)
+	if remainingErr != nil {
+		return fmt.Errorf("could not list the control plane nodes: %s", remainingErr)
+	}
+	if remaining < required {
+		return fmt.Errorf(
+			"at least %d healthy, schedulable control plane nodes must remain after the removal, but only %d were found",
+			required,
+			remaining,
+		)
 	}
 
 	return nil

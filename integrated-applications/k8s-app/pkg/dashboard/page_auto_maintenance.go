@@ -31,7 +31,10 @@ func (app *stackUiApp) autoStatusRead() (dashboardAutoStatus, error) {
 
 	result := dashboardAutoStatus{}
 
-	policy, policyFound, _, err := dashboardStateValueRead[maintenance.AutoPolicy](client, maintenance.AutoPolicyKey, "automatic maintenance policy")
+	ctx, cancel := app.dashboardContext()
+	defer cancel()
+
+	policy, policyFound, _, err := dashboardStateValueRead[maintenance.AutoPolicy](ctx, client, maintenance.AutoPolicyKey, "automatic maintenance policy")
 	if err != nil {
 		return dashboardAutoStatus{}, err
 	}
@@ -39,7 +42,7 @@ func (app *stackUiApp) autoStatusRead() (dashboardAutoStatus, error) {
 	result.PolicyFound = policyFound
 	result.Policy = policy
 
-	state, stateFound, _, err := dashboardStateValueRead[maintenance.AutoState](client, maintenance.AutoStateKey, "automatic maintenance state")
+	state, stateFound, _, err := dashboardStateValueRead[maintenance.AutoState](ctx, client, maintenance.AutoStateKey, "automatic maintenance state")
 	if err != nil {
 		return dashboardAutoStatus{}, err
 	}
@@ -1285,7 +1288,9 @@ func autoSettingsSaveAsync(app *stackUiApp) {
 			app.autoSettingsPending = nil
 			app.mu.Unlock()
 
-			err := autoPolicySave(client, pending)
+			saveCtx, saveCancel := dashboardSessionContext(session)
+			err := autoPolicySave(saveCtx, client, pending)
+			saveCancel()
 
 			app.mu.Lock()
 			done := app.autoSettingsPending == nil
@@ -1306,9 +1311,9 @@ func autoSettingsSaveAsync(app *stackUiApp) {
 	}()
 }
 
-func autoPolicySave(client shared.ClusterStateClient, form autoSettingsForm) error {
+func autoPolicySave(ctx context.Context, client shared.ClusterStateClient, form autoSettingsForm) error {
 	for attempt := 0; attempt < 3; attempt++ {
-		value, err := shared.ClusterStateValueRead(client, maintenance.AutoPolicyKey)
+		value, err := shared.ClusterStateValueReadEx(ctx, client, maintenance.AutoPolicyKey)
 		if err != nil {
 			return fmt.Errorf("could not read the automatic maintenance policy: %s", err)
 		}
@@ -1333,7 +1338,7 @@ func autoPolicySave(client shared.ClusterStateClient, form autoSettingsForm) err
 			return nil
 		}
 		if !shared.IsConflict(writeErr) {
-			latest, latestErr := shared.ClusterStateValueRead(client, maintenance.AutoPolicyKey)
+			latest, latestErr := shared.ClusterStateValueReadEx(ctx, client, maintenance.AutoPolicyKey)
 			if latestErr != nil || latest.Revision == value.Revision {
 				return fmt.Errorf("could not save the automatic maintenance policy: %s", writeErr)
 			}

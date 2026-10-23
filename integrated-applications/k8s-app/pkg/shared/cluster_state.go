@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -104,7 +105,11 @@ type ClusterStateValue struct {
 }
 
 func ClusterStateValueRead(client ClusterStateClient, key string) (ClusterStateValue, error) {
-	record, found, err := clusterStateReadRaw(client, key)
+	return ClusterStateValueReadEx(context.Background(), client, key)
+}
+
+func ClusterStateValueReadEx(ctx context.Context, client ClusterStateClient, key string) (ClusterStateValue, error) {
+	record, found, err := clusterStateReadRawEx(ctx, client, key)
 	if err != nil {
 		return ClusterStateValue{}, err
 	}
@@ -127,8 +132,12 @@ func ClusterStateValueWrite(client ClusterStateClient, key string, value json.Ra
 }
 
 func clusterStateReadRaw(client ClusterStateClient, key string) (ucxapi.StackStateRecord, bool, error) {
+	return clusterStateReadRawEx(context.Background(), client, key)
+}
+
+func clusterStateReadRawEx(ctx context.Context, client ClusterStateClient, key string) (ucxapi.StackStateRecord, bool, error) {
 	if client.session != nil {
-		response, err := ucxapi.StackStateRead.Invoke(client.session, ucxapi.StackStateReadRequest{
+		response, err := ucxapi.StackStateRead.InvokeEx(ctx, client.session, ucxapi.StackStateReadRequest{
 			StackId: client.stackId,
 			Key:     key,
 		})

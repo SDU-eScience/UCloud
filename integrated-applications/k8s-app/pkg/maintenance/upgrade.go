@@ -705,6 +705,19 @@ func upgradeComplete(
 			return
 		}
 
+		if !operation.OriginalSchedulingCaptured {
+			log.Warn(
+				"k8s-app maintenance %s: the node remains cordoned because the original scheduling state was not recorded",
+				nodeName,
+			)
+			operationLogLines(worker, fmt.Sprintf(
+				"The node %s remains cordoned because its original scheduling state was not recorded",
+				nodeName,
+			))
+			upgradeFinish(operation, worker)
+			return
+		}
+
 		node, err := upgradeGetNode(worker.ctx, worker, operation, clientset)
 		if err != nil {
 			log.Warn("k8s-app maintenance %s: could not read the node after the upgrade: %s", nodeName, err)
@@ -1065,7 +1078,29 @@ func trafficMemberActive(worker *nodeWorker, jobId string) (bool, error) {
 	return false, nil
 }
 
+func upgradeTrafficControlPlane(operation Operation, worker *nodeWorker) (bool, error) {
+	record, err := worker.clusterRecord()
+	if err != nil {
+		return false, fmt.Errorf("could not read the cluster record: %s", err)
+	}
+
+	nodeRecord, known := upgradeNodeRecord(record, operation.NodeName)
+	if !known {
+		return false, fmt.Errorf("the node %s is not part of this cluster", operation.NodeName)
+	}
+
+	return nodeRecord.Group == shared.GroupControlPlane, nil
+}
+
 func upgradeSuspendTraffic(operation Operation, worker *nodeWorker) error {
+	controlPlane, gateErr := upgradeTrafficControlPlane(operation, worker)
+	if gateErr != nil {
+		return gateErr
+	}
+	if !controlPlane {
+		return nil
+	}
+
 	jobId, err := trafficSuspendRecords(worker, operation)
 	if err != nil {
 		return fmt.Errorf("could not record the traffic suspension: %s", err)
@@ -1113,6 +1148,14 @@ func upgradeSuspendTraffic(operation Operation, worker *nodeWorker) error {
 }
 
 func upgradeRestoreTraffic(operation Operation, worker *nodeWorker) error {
+	controlPlane, gateErr := upgradeTrafficControlPlane(operation, worker)
+	if gateErr != nil {
+		return gateErr
+	}
+	if !controlPlane {
+		return nil
+	}
+
 	restored, err := trafficRestoreRecords(worker, operation)
 	if err != nil {
 		return err

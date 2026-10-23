@@ -127,8 +127,8 @@ spec:
             - name: ucloud-exe
               mountPath: /opt/ucloud
               readOnly: true
-            - name: management
-              mountPath: /etc/ucloud-k8s/management
+            - name: cluster-ca
+              mountPath: /etc/ucloud-k8s/ca
               readOnly: true
       volumes:
         - name: ucx-cache
@@ -143,7 +143,7 @@ spec:
           hostPath:
             path: /opt/ucloud
             type: Directory
-        - name: management
+        - name: cluster-ca
           hostPath:
-            path: /etc/ucloud-k8s/management
+            path: /etc/ucloud-k8s/management/ca
             type: Directory

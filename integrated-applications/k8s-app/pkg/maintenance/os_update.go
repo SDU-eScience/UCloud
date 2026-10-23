@@ -481,6 +481,19 @@ func osUpdateComplete(
 			return
 		}
 
+		if !operation.OriginalSchedulingCaptured {
+			log.Warn(
+				"k8s-app maintenance %s: the node remains cordoned because the original scheduling state was not recorded",
+				nodeName,
+			)
+			operationLogLines(worker, fmt.Sprintf(
+				"The node %s remains cordoned because its original scheduling state was not recorded",
+				nodeName,
+			))
+			osUpdateFinish(operation, worker)
+			return
+		}
+
 		node, err := upgradeGetNode(worker.ctx, worker, operation, clientset)
 		if err != nil {
 			log.Warn("k8s-app maintenance %s: could not read the node after the operating-system update: %s", nodeName, err)

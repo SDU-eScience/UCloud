@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"os"
 	"regexp"
 	"slices"
 	"strings"
@@ -114,6 +115,8 @@ func cachedProducts[Support any](
 
 const ingressServiceName = "k8s-ingress"
 
+const controllerCaPath = "/etc/ucloud-k8s/ca/server-ca.crt"
+
 func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Client, token string) {
 	auth := ucxapi.StackCredentialAuth{Token: token}
 
@@ -155,6 +158,7 @@ func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Clien
 	}
 
 	syncServiceMembers(client, token, service)
+	ensureApiServiceTls(client, token)
 
 	now := time.Now()
 	nextFailures := map[string]time.Time{}
@@ -243,13 +247,19 @@ func ensureIngressService(client *rpc.Client, token string) (orcapi.Service, boo
 		return orcapi.Service{}, false
 	}
 
-	networkId := ""
-	for _, service := range services {
-		if endpoint := service.Specification.InternalEndpoint; endpoint.Present {
-			networkId = endpoint.Value.PrivateNetworkId
-			break
-		}
+	state, stateErr := shared.ClusterStateClientNewHost()
+	if stateErr != nil {
+		log.Warn("k8s controller: could not open the cluster state: %s", stateErr)
+		return orcapi.Service{}, false
 	}
+
+	snapshot, readErr := shared.ClusterStateRead(state)
+	if readErr != nil {
+		log.Warn("k8s controller: could not read the cluster record: %s", readErr)
+		return orcapi.Service{}, false
+	}
+
+	networkId := snapshot.Record.NetworkId
 
 	if networkId == "" {
 		log.Warn("k8s controller: could not determine the private network of the stack")
@@ -296,6 +306,92 @@ func ensureIngressService(client *rpc.Client, token string) (orcapi.Service, boo
 	}
 
 	return orcapi.Service{Resource: orcapi.Resource{Id: response.Responses[0].Id}}, true
+}
+
+func ensureApiServiceTls(client *rpc.Client, token string) {
+	state, stateErr := shared.ClusterStateClientNewHost()
+	if stateErr != nil {
+		log.Warn("k8s controller: could not open the cluster state: %s", stateErr)
+		return
+	}
+
+	snapshot, readErr := shared.ClusterStateRead(state)
+	if readErr != nil {
+		log.Warn("k8s controller: could not read the cluster record: %s", readErr)
+		return
+	}
+	if !snapshot.Found {
+		return
+	}
+
+	record := snapshot.Record
+	if record.ServiceId == "" || record.ServiceDnsName == "" {
+		return
+	}
+
+	caPem, caErr := os.ReadFile(controllerCaPath)
+	if caErr != nil || len(caPem) == 0 {
+		log.Warn("k8s controller: the cluster certificate authority is not available at %s", controllerCaPath)
+		return
+	}
+
+	services, herr := shared.RpcGrantBrowseServices(client, token)
+	if herr != nil {
+		log.Warn("k8s controller: could not browse the stack services: %s", herr)
+		return
+	}
+
+	service := orcapi.Service{}
+	found := false
+	for _, candidate := range services {
+		if candidate.Id == record.ServiceId {
+			service = candidate
+			found = true
+			break
+		}
+	}
+	if !found {
+		return
+	}
+
+	desired := util.OptValue(orcapi.ServiceBackendTls{
+		ServerName:     record.ServiceDnsName,
+		TrustBundlePem: util.OptValue(string(caPem)),
+	})
+
+	ports := slices.Clone(service.Specification.Ports)
+	changed := false
+	for i := range ports {
+		if !ports[i].BackendTls.Present {
+			continue
+		}
+		if ports[i].BackendTls == desired {
+			continue
+		}
+		ports[i].BackendTls = desired
+		changed = true
+	}
+	if !changed {
+		return
+	}
+
+	_, herr = ucxapi.StackControlUpdateServiceSpec.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.ControlMutateRequest[orcapi.ResourceUpdateAndId[orcapi.ServicesUpdateRequest]]]{
+		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
+		Request: orcapi.ControlMutateRequest[orcapi.ResourceUpdateAndId[orcapi.ServicesUpdateRequest]]{
+			Items: []orcapi.ResourceUpdateAndId[orcapi.ServicesUpdateRequest]{{
+				Id: service.Id,
+				Update: orcapi.ServicesUpdateRequest{
+					Ports: util.OptValue(ports),
+				},
+			}},
+		},
+	}, rpc.InvokeOpts{})
+	if herr != nil {
+		log.Warn("k8s controller: could not update the API service TLS settings: %s", herr)
+		return
+	}
+
+	log.Info("k8s controller: updated the API service TLS settings for %s", record.ServiceDnsName)
 }
 
 // syncServiceMembers converges the ingress service membership towards the

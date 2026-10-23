@@ -718,8 +718,8 @@ func rowsFromPods(items []unstructured.Unstructured) []ResourceRow {
 			if status["ready"] == true {
 				readyCount++
 			}
-			if v, ok := status["restartCount"].(float64); ok {
-				restarts += int64(v)
+			if v, ok := status["restartCount"].(int64); ok {
+				restarts += v
 			}
 		}
 
@@ -799,8 +799,8 @@ func rowsFromContainers(items []unstructured.Unstructured) []ResourceRow {
 				} else {
 					ready = "No"
 				}
-				if v, ok := status["restartCount"].(float64); ok {
-					restarts = fmt.Sprintf("%d", int64(v))
+				if v, ok := status["restartCount"].(int64); ok {
+					restarts = fmt.Sprintf("%d", v)
 				}
 				if rawState, ok := status["state"].(map[string]any); ok && len(rawState) > 0 {
 					for stateKind := range rawState {
@@ -1008,11 +1008,14 @@ func genericCells(def ResourceTypeDef, obj *unstructured.Unstructured) []string 
 
 func jobDuration(obj *unstructured.Unstructured) string {
 	start := obj.GetCreationTimestamp().Time
-	end, ok, _ := unstructured.NestedInt64(obj.Object, "status", "completionTime")
+	completedRaw, ok, _ := unstructured.NestedString(obj.Object, "status", "completionTime")
 	if !ok {
 		return ageString(start)
 	}
-	completed := time.UnixMilli(end)
+	completed, err := time.Parse(time.RFC3339, completedRaw)
+	if err != nil {
+		return ageString(start)
+	}
 	return durationString(completed.Sub(start))
 }
 

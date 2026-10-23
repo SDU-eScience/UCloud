@@ -227,7 +227,9 @@ func backupRequestSubmit(app *stackUiApp) error {
 		return nil
 	}
 
-	latest, latestErr := shared.ClusterStateValueRead(client, backup.RequestKey)
+	recheckCtx, recheckCancel := dashboardSessionContext(*app.Session())
+	latest, latestErr := shared.ClusterStateValueReadEx(recheckCtx, client, backup.RequestKey)
+	recheckCancel()
 	if latestErr == nil && latest.Found {
 		var current backup.Request
 		if json.Unmarshal(latest.Value, &current) == nil && backupRequestActive(current) {
@@ -248,7 +250,10 @@ func (app *stackUiApp) backupStatusRead() (dashboardBackupStatus, error) {
 		return dashboardBackupStatus{}, err
 	}
 
-	state, stateFound, _, err := dashboardStateValueRead[backup.State](client, backup.StateKey, "backup state")
+	ctx, cancel := app.dashboardContext()
+	defer cancel()
+
+	state, stateFound, _, err := dashboardStateValueRead[backup.State](ctx, client, backup.StateKey, "backup state")
 	if err != nil {
 		return dashboardBackupStatus{}, err
 	}
@@ -258,7 +263,7 @@ func (app *stackUiApp) backupStatusRead() (dashboardBackupStatus, error) {
 		State:      state,
 	}
 
-	request, requestFound, requestRevision, err := dashboardStateValueRead[backup.Request](client, backup.RequestKey, "backup request")
+	request, requestFound, requestRevision, err := dashboardStateValueRead[backup.Request](ctx, client, backup.RequestKey, "backup request")
 	if err != nil {
 		return dashboardBackupStatus{}, err
 	}

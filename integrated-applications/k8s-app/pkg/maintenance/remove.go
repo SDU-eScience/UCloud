@@ -41,6 +41,10 @@ func runRemove(
 	operation Operation,
 	worker *nodeWorker,
 ) error {
+	if guardErr := removeResumeGuard(); guardErr != nil {
+		return guardErr
+	}
+
 	record, err := worker.clusterRecord()
 	if err != nil {
 		return fmt.Errorf("could not read the cluster record: %s", err)
@@ -52,6 +56,10 @@ func runRemove(
 	}
 
 	if !operation.NodeDeleted {
+		if guardErr := controlPlaneRemovalGuard(ctx, clientset, operation); guardErr != nil {
+			return guardErr
+		}
+
 		if node.Group == shared.GroupControlPlane && node.JobId != "" {
 			trafficErr := upgradeSuspendTraffic(operation, worker)
 			if trafficErr != nil {
@@ -65,7 +73,7 @@ func runRemove(
 		}
 
 		if exists && operation.Options.Drain {
-			result := runCordonDrain(ctx, clientset, operation, worker, false, true)
+			result := runCordonDrain(ctx, clientset, operation, worker, true, true)
 			if result.err != nil {
 				return result.err
 			}
@@ -81,10 +89,11 @@ func runRemove(
 		}
 
 		if exists {
-			if !operation.Options.Drain {
-				if guardErr := controlPlaneGuard(ctx, clientset, operation, live); guardErr != nil {
-					return guardErr
-				}
+			if guardErr := removeClusterPhaseGuard(); guardErr != nil {
+				return guardErr
+			}
+			if guardErr := controlPlaneRemovalGuard(ctx, clientset, operation); guardErr != nil {
+				return guardErr
 			}
 
 			if deleteErr := removeDeleteNode(ctx, clientset, operation, worker, live); deleteErr != nil {
@@ -109,6 +118,10 @@ func runRemove(
 	}
 
 	if !operation.ResourcesRemoved {
+		if guardErr := removeResumeGuard(); guardErr != nil {
+			return guardErr
+		}
+
 		if resourcesErr := removeInfrastructure(worker, node); resourcesErr != nil {
 			return resourcesErr
 		}
@@ -124,6 +137,37 @@ func runRemove(
 
 	finish(worker, PhaseCompleted, "")
 	removeTombstoneOperation(worker)
+	return nil
+}
+
+func removeClusterPhaseGuard() error {
+	record, found, err := readClusterRecord()
+	if err != nil {
+		return fmt.Errorf("could not read the cluster record: %s", err)
+	}
+	if !found {
+		return errors.New("the cluster record does not exist")
+	}
+	if record.Phase != "created" {
+		return fmt.Errorf("the cluster is not ready (state: %s)", record.Phase)
+	}
+
+	return nil
+}
+
+func removeResumeGuard() error {
+	if phaseErr := removeClusterPhaseGuard(); phaseErr != nil {
+		return phaseErr
+	}
+
+	active, activeErr := recoveryIntentActive()
+	if activeErr != nil {
+		return activeErr
+	}
+	if active {
+		return errors.New("a recovery operation is in progress for this cluster")
+	}
+
 	return nil
 }
 

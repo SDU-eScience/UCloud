@@ -300,24 +300,17 @@ func backupSelectNode(ctx context.Context, record shared.ClusterRecord) (shared.
 	}
 
 	var preferred []shared.ClusterNodeRecord
-	var fallback []shared.ClusterNodeRecord
 	for _, node := range record.Nodes {
 		if node.Group != shared.GroupControlPlane {
 			continue
 		}
 		if busy[node.Hostname] {
-			fallback = append(fallback, node)
-		} else {
-			preferred = append(preferred, node)
+			continue
 		}
+		preferred = append(preferred, node)
 	}
 
 	node, ok := backupProbeNodes(ctx, preferred)
-	if ok {
-		return node, nil
-	}
-
-	node, ok = backupProbeNodes(ctx, fallback)
 	if ok {
 		return node, nil
 	}

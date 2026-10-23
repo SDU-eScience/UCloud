@@ -64,11 +64,9 @@ func writeJson(writer http.ResponseWriter, statusCode int, value any) {
 
 // Status endpoints
 // =====================================================================================================================
-// The status endpoints take the command mutex before they read the state. They do not change the state.
+// The status endpoints read the state without the command mutex. They do not change the state.
 
 func handleStatus(writer http.ResponseWriter, request *http.Request) {
-	globals.CommandMu.Lock()
-	defer globals.CommandMu.Unlock()
 	writeStatus(writer, http.StatusOK)
 }
 
@@ -117,6 +115,16 @@ func handleUpgradeOrRetry(writer http.ResponseWriter, request *http.Request, ret
 
 	if osActive {
 		writeError(writer, http.StatusConflict, "an operating-system update is running on the node")
+		return
+	}
+
+	if globals.BackupActive {
+		writeError(writer, http.StatusConflict, "a backup is running on the node")
+		return
+	}
+
+	if globals.OsCheckActive {
+		writeError(writer, http.StatusConflict, "an operating-system update check is running")
 		return
 	}
 
@@ -250,6 +258,10 @@ func beginFencedOperation(
 		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not read the fence state: %s", fenceErr))
 		return false
 	}
+	if busy && fence.LastOperation == "" {
+		writeError(writer, http.StatusConflict, "the node has no recorded operation owner, so the command cannot be verified")
+		return false
+	}
 	if fence.LastOperation != "" && fence.LastOperation != operationUid && busy {
 		writeError(writer, http.StatusConflict, "the command comes from obsolete node ownership and was rejected")
 		return false
@@ -326,8 +338,6 @@ func writeOsStatus(writer http.ResponseWriter, statusCode int) {
 }
 
 func handleOsStatus(writer http.ResponseWriter, request *http.Request) {
-	globals.CommandMu.Lock()
-	defer globals.CommandMu.Unlock()
 	writeOsStatus(writer, http.StatusOK)
 }
 
@@ -338,7 +348,12 @@ func handleOsUpdate(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	globals.CommandMu.Lock()
-	defer globals.CommandMu.Unlock()
+	commandLocked := true
+	defer func() {
+		if commandLocked {
+			globals.CommandMu.Unlock()
+		}
+	}()
 
 	operationUid, ok := readCommandAuthorization(writer, request)
 	if !ok {
@@ -363,6 +378,14 @@ func handleOsUpdate(writer http.ResponseWriter, request *http.Request) {
 			writeError(writer, http.StatusConflict, "an operating-system update is running on the node")
 			return
 		}
+		if globals.OsCheckActive {
+			writeError(writer, http.StatusConflict, "an operating-system update check is running")
+			return
+		}
+		if globals.BackupActive {
+			writeError(writer, http.StatusConflict, "a backup is running on the node")
+			return
+		}
 	}
 
 	fenceErr := validateFence(operationUid, upgradeActive || osActive)
@@ -378,11 +401,35 @@ func handleOsUpdate(writer http.ResponseWriter, request *http.Request) {
 			return
 		}
 
+		globals.OsCheckActive = true
+		globals.CommandMu.Unlock()
+		commandLocked = false
+		defer func() {
+			globals.CommandMu.Lock()
+			globals.OsCheckActive = false
+			globals.CommandMu.Unlock()
+		}()
+
 		controller := http.NewResponseController(writer)
 		_ = controller.SetWriteDeadline(time.Now().Add(2*osCheckTimeout + osCommandShortTimeout + writeTimeout))
 
 		status := runOsCheck(request.Context())
+
+		globals.CommandMu.Lock()
+		globals.OsCheckActive = false
+		globals.CommandMu.Unlock()
+
 		writeJson(writer, http.StatusOK, status)
+		return
+	}
+
+	if globals.BackupActive {
+		writeError(writer, http.StatusConflict, "a backup is running on the node")
+		return
+	}
+
+	if globals.OsCheckActive {
+		writeError(writer, http.StatusConflict, "an operating-system update check is running")
 		return
 	}
 
@@ -521,25 +568,49 @@ func handleBackup(writer http.ResponseWriter, request *http.Request) {
 	controller := http.NewResponseController(writer)
 	_ = controller.SetWriteDeadline(time.Now().Add(backupWorkDeadline + writeTimeout))
 
-	if !globals.BackupMu.TryLock() {
+	globals.CommandMu.Lock()
+	if globals.BackupActive {
+		globals.CommandMu.Unlock()
 		writeError(writer, http.StatusConflict, "a backup is already running")
 		return
 	}
-	defer globals.BackupMu.Unlock()
+	if globals.OsCheckActive {
+		globals.CommandMu.Unlock()
+		writeError(writer, http.StatusConflict, "an operating-system update check is running")
+		return
+	}
 
 	state := stateLoad()
 	if state.NeedsStateRecovery {
+		globals.CommandMu.Unlock()
 		writeError(writer, http.StatusInternalServerError, "the upgrade state of the node is unreadable")
 		return
 	}
 	if shared.NodeAgentPhaseActive(state.Phase) {
+		globals.CommandMu.Unlock()
 		writeError(writer, http.StatusConflict, "an upgrade is running on the node")
 		return
 	}
 	if shared.NodeAgentOsPhaseActive(osStateLoad().Phase) {
+		globals.CommandMu.Unlock()
 		writeError(writer, http.StatusConflict, "an operating-system update is running on the node")
 		return
 	}
+
+	if !globals.BackupMu.TryLock() {
+		globals.CommandMu.Unlock()
+		writeError(writer, http.StatusConflict, "a backup is already running")
+		return
+	}
+
+	globals.BackupActive = true
+	globals.CommandMu.Unlock()
+	defer func() {
+		globals.CommandMu.Lock()
+		globals.BackupActive = false
+		globals.CommandMu.Unlock()
+		globals.BackupMu.Unlock()
+	}()
 
 	result, err := runBackup(request.Context(), trigger, attemptUid)
 	if err != nil {

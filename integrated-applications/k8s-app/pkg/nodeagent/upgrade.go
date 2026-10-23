@@ -36,6 +36,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/backup"
@@ -66,6 +67,9 @@ const (
 
 	backupWorkDeadline = 20 * time.Minute
 	backupPartStaleAge = 30 * time.Minute
+
+	recoveryPinFileName = ".recovery-pin"
+	recoveryPinMaxAge   = 7 * 24 * time.Hour
 
 	workDeadline       = 20 * time.Minute
 	stopTimeout        = 60 * time.Second
@@ -1262,7 +1266,7 @@ func copyBackupFile(source string, destination string) (backupCopyInfo, error) {
 	}
 	defer sourceFile.Close()
 
-	destinationFile, err := os.OpenFile(destination, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
+	destinationFile, err := os.OpenFile(destination, os.O_CREATE|os.O_WRONLY|os.O_TRUNC|syscall.O_NOFOLLOW, 0600)
 	if err != nil {
 		return backupCopyInfo{}, err
 	}
@@ -1275,17 +1279,15 @@ func copyBackupFile(source string, destination string) (backupCopyInfo, error) {
 	if err == nil {
 		err = destinationFile.Sync()
 	}
+	if err == nil {
+		err = destinationFile.Chown(serviceUid, serviceGid)
+	}
 	if closeErr := destinationFile.Close(); err == nil {
 		err = closeErr
 	}
 	if err != nil {
 		_ = os.Remove(destination)
 		return backupCopyInfo{}, err
-	}
-
-	chownErr := backupChown(destination)
-	if chownErr != nil {
-		return backupCopyInfo{}, chownErr
 	}
 
 	return backupCopyInfo{
@@ -1333,6 +1335,21 @@ func backupChown(path string) error {
 	return nil
 }
 
+func recoveryPinnedBackup() string {
+	path := filepath.Join(shared.BackupsMountPath, recoveryPinFileName)
+	info, err := os.Stat(path)
+	if err != nil || time.Since(info.ModTime()) > recoveryPinMaxAge {
+		return ""
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(string(data))
+}
+
 func pruneBackups(now time.Time) ([]backup.BackupInfo, []string) {
 	var warnings []string
 
@@ -1372,8 +1389,12 @@ func pruneBackups(now time.Time) ([]backup.BackupInfo, []string) {
 		return retainedBackups(ids), append(warnings, fmt.Sprintf("could not compute the retention: %s", retentionErr))
 	}
 
+	pinned := recoveryPinnedBackup()
 	deleted := map[string]bool{}
 	for _, id := range deletes {
+		if id == pinned {
+			continue
+		}
 		removeErr := os.RemoveAll(filepath.Join(shared.BackupsMountPath, id))
 		if removeErr != nil {
 			warnings = append(warnings, fmt.Sprintf("could not delete the backup %s: %s", id, removeErr))

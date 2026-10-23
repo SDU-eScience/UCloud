@@ -78,6 +78,7 @@ const (
 	navHomeId                     = "home"
 	provisioningRowKeyPrefix      = "provisioning:"
 	dashboardUiMessageSendTimeout = 10 * time.Second
+	dashboardClusterStateTimeout  = 5 * time.Second
 )
 
 func App() ucx.Application {
@@ -416,7 +417,7 @@ func (app *stackUiApp) startK8sClientWhenReady(session *ucx.Session, activeType 
 						app.Namespaces = namespaces
 						log.Info("k8s-app: k8s client ready from %s", LocalKubeconfigPath())
 
-						app.poller = newResourcePoller(client, session, activeType, app.nodeJobIds, app.provisioningResourceRows, func() {
+						app.poller = newResourcePoller(client, session, activeType, app.nodeJobIdsPolled, app.provisioningResourceRows, func() {
 							app.mu.Lock()
 							app.OnMessage(ucx.Frame{
 								Opcode: ucx.OpModelInput,
@@ -484,8 +485,11 @@ func (app *stackUiApp) loadNamespaces() {
 }
 
 func (app *stackUiApp) refreshClusterHealth() {
+	app.mu.Lock()
 	client := app.k8sClient
 	session := app.session
+	app.mu.Unlock()
+
 	if client == nil || session == nil {
 		return
 	}
@@ -508,7 +512,20 @@ func (app *stackUiApp) refreshClusterHealth() {
 }
 
 func (app *stackUiApp) nodeJobIds() map[string]string {
-	record, ok := app.readClusterRecord()
+	return app.nodeJobIdsWith(app.session, app.Stack)
+}
+
+func (app *stackUiApp) nodeJobIdsPolled() map[string]string {
+	app.mu.Lock()
+	session := app.session
+	stack := app.Stack
+	app.mu.Unlock()
+
+	return app.nodeJobIdsWith(session, stack)
+}
+
+func (app *stackUiApp) nodeJobIdsWith(session *ucx.Session, stack *ucxsvc.Stack) map[string]string {
+	record, ok := app.readClusterRecordWith(session, stack)
 	if !ok {
 		return map[string]string{}
 	}
@@ -523,12 +540,16 @@ func (app *stackUiApp) nodeJobIds() map[string]string {
 }
 
 func (app *stackUiApp) readClusterRecord() (shared.ClusterRecord, bool) {
-	session := app.session
-	stack := app.Stack
+	return app.readClusterRecordWith(app.session, app.Stack)
+}
+
+func (app *stackUiApp) readClusterRecordWith(session *ucx.Session, stack *ucxsvc.Stack) (shared.ClusterRecord, bool) {
 	if session != nil && stack != nil && stack.Ok {
 		client, clientErr := shared.ClusterStateClientNewSession(session, stack.InstanceId)
 		if clientErr == nil {
-			record, found, revision, readErr := dashboardStateValueRead[shared.ClusterRecord](client, shared.ClusterStateRecordKey, "cluster record")
+			ctx, cancel := dashboardSessionContext(session)
+			record, found, revision, readErr := dashboardStateValueRead[shared.ClusterRecord](ctx, client, shared.ClusterStateRecordKey, "cluster record")
+			cancel()
 			if readErr == nil && found {
 				shared.ClusterStateRecordRevisionSet(&record, revision)
 				return record, true
@@ -542,6 +563,18 @@ func (app *stackUiApp) readClusterRecord() (shared.ClusterRecord, bool) {
 	}
 
 	return record, true
+}
+
+func dashboardSessionContext(session *ucx.Session) (context.Context, context.CancelFunc) {
+	base := context.Background()
+	if session != nil && session.Context() != nil {
+		base = session.Context()
+	}
+	return context.WithTimeout(base, dashboardClusterStateTimeout)
+}
+
+func (app *stackUiApp) dashboardContext() (context.Context, context.CancelFunc) {
+	return dashboardSessionContext(app.session)
 }
 
 func (app *stackUiApp) clusterStateValueClient() (shared.ClusterStateClient, error) {
@@ -611,10 +644,10 @@ func (app *stackUiApp) runAsyncAction(busyBinding string, busy *bool, action fun
 	}()
 }
 
-func dashboardStateValueRead[T any](client shared.ClusterStateClient, key string, noun string) (T, bool, int64, error) {
+func dashboardStateValueRead[T any](ctx context.Context, client shared.ClusterStateClient, key string, noun string) (T, bool, int64, error) {
 	var zero T
 
-	value, err := shared.ClusterStateValueRead(client, key)
+	value, err := shared.ClusterStateValueReadEx(ctx, client, key)
 	if err != nil {
 		return zero, false, 0, fmt.Errorf("could not read the %s: %s", noun, err)
 	}

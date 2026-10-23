@@ -68,3 +68,6 @@ os.chown(sys.argv[3] + ".tmp", int(os.environ["K8S_UID"]), int(os.environ["K8S_G
 os.replace(sys.argv[3] + ".tmp", sys.argv[3])
 PYEOF
 umask 022
+
+install -d -m 0755 "$MANAGEMENT_DIR/ca"
+install -o "$UCX_SERVICE_UID" -g "$UCX_SERVICE_GID" -m 0644 "$K3S_DATA_DIR/server/tls/server-ca.crt" "$MANAGEMENT_DIR/ca/server-ca.crt"

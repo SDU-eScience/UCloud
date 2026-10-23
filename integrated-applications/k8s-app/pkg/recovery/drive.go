@@ -103,6 +103,83 @@ func recoveryReadMetadata(dir string) (backup.Metadata, error) {
 	return metadata, nil
 }
 
+func recoveryValidateBackup(mountPath string, id string) error {
+	dir := filepath.Join(mountPath, "backups", id)
+	metadata, err := recoveryReadMetadata(dir)
+	if err != nil {
+		return fmt.Errorf("could not read the metadata of the backup %s: %s", id, err)
+	}
+
+	if metadata.BackupId != id {
+		return fmt.Errorf("the metadata of the backup %s names the backup %s", id, metadata.BackupId)
+	}
+	if metadata.Release == "" {
+		return fmt.Errorf("the backup %s has no Kubernetes release", id)
+	}
+	if metadata.Snapshot.Sha256 == "" {
+		return fmt.Errorf("the backup %s has no snapshot checksum", id)
+	}
+	if metadata.Snapshot.SizeBytes <= 0 {
+		return fmt.Errorf("the backup %s has an invalid snapshot size", id)
+	}
+
+	snapshotPath := filepath.Join(dir, metadata.Snapshot.File)
+	info, err := os.Stat(snapshotPath)
+	if err != nil {
+		return fmt.Errorf("could not read the snapshot of the backup %s: %s", id, err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("the snapshot of the backup %s is not a regular file: %s", id, snapshotPath)
+	}
+	if info.Size() != metadata.Snapshot.SizeBytes {
+		return fmt.Errorf("the snapshot of the backup %s has %d bytes, but the metadata says %d bytes", id, info.Size(), metadata.Snapshot.SizeBytes)
+	}
+
+	if err := recoveryValidateBackupToken(dir, "server-token", metadata.Credentials.ServerTokenSha256); err != nil {
+		return err
+	}
+	if err := recoveryValidateBackupToken(dir, "agent-token", metadata.Credentials.AgentTokenSha256); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func recoveryValidateBackupToken(dir string, name string, expected string) error {
+	path := filepath.Join(dir, "credentials", name)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("could not read the backup file %s: %s", path, err)
+	}
+	if len(data) == 0 {
+		return fmt.Errorf("the backup file %s is empty", path)
+	}
+
+	sum := sha256.Sum256(data)
+	actual := hex.EncodeToString(sum[:])
+	if actual != expected {
+		return fmt.Errorf("the backup file %s does not match the checksum in the metadata", path)
+	}
+	return nil
+}
+
+func recoveryPinBackup(mountPath string, id string) error {
+	path := filepath.Join(mountPath, "backups", ".recovery-pin")
+	if err := os.WriteFile(path, []byte(id), 0660); err != nil {
+		return fmt.Errorf("could not pin the backup %s: %s", id, err)
+	}
+	return nil
+}
+
+func recoveryClearPin(mountPath string, id string) {
+	path := filepath.Join(mountPath, "backups", ".recovery-pin")
+	data, err := os.ReadFile(path)
+	if err != nil || strings.TrimSpace(string(data)) != id {
+		return
+	}
+	_ = os.Remove(path)
+}
+
 func recoveryReadGeneration(mountPath string, allocationId int) string {
 	path := filepath.Join(mountPath, "nodes", strconv.Itoa(allocationId), "input", "node.json")
 	data, err := os.ReadFile(path)

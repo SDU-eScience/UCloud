@@ -33,7 +33,9 @@ func (app *stackUiApp) pageProvisioning() []ucx.UiNode {
 
 	message := ""
 	if record, ok := app.readClusterRecord(); ok {
-		message = app.clusterNodeMessage(&record)
+		ctx, cancel := app.dashboardContext()
+		message = app.clusterNodeMessage(ctx, &record)
+		cancel()
 	}
 
 	if message == "" {

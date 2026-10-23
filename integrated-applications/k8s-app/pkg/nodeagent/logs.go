@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
@@ -231,35 +232,29 @@ func progressAppendLine(line string) {
 
 func progressAppendFile(name string, data []byte, mode os.FileMode) {
 	path := filepath.Join(workMount, name)
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, mode)
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE|syscall.O_NOFOLLOW, mode)
 	if err != nil {
 		return
 	}
 
 	_, err = file.Write(data)
+	_ = file.Chown(serviceUid, serviceGid)
 	if closeErr := file.Close(); err == nil {
 		err = closeErr
 	}
-	if err != nil {
-		return
-	}
-
-	_ = os.Chown(path, serviceUid, serviceGid)
-	return
 }
 
 func progressTruncate(name string, mode os.FileMode) {
 	path := filepath.Join(workMount, name)
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, mode)
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC|os.O_CREATE|syscall.O_NOFOLLOW, mode)
 	if err != nil {
 		return
 	}
 
+	_ = file.Chown(serviceUid, serviceGid)
 	if closeErr := file.Close(); closeErr != nil {
 		return
 	}
-
-	_ = os.Chown(path, serviceUid, serviceGid)
 }
 
 func progressReset(operationUid string) {

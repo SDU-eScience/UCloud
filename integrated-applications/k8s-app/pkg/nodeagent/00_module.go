@@ -57,10 +57,11 @@
 //
 // Concurrency
 // ---------------------------------------------------------------------------------------------------------------------
-// The handlers serialize command processing with one command mutex. The status endpoints take the same mutex. A status
-// read therefore never observes a half-written command decision. The work itself runs in a background goroutine. The
-// goroutine reports through the state file and the progress file. It takes the state mutex for each read and write,
-// which keeps every state transition atomic for readers.
+// The handlers serialize command processing with one command mutex. The status endpoints read the state files without
+// the mutex, because every write replaces its file in one step. A status read therefore never observes a half-written
+// command decision. The work itself runs in a background goroutine. The goroutine reports through the state file and
+// the progress file. It takes the state mutex for each read and write, which keeps every state transition atomic for
+// readers.
 
 package nodeagent
 
@@ -119,8 +120,11 @@ var globals struct {
 	Mu       sync.Mutex
 	Identity Config
 
-	CommandMu sync.Mutex
-	BackupMu  sync.Mutex
+	CommandMu     sync.Mutex
+	BackupActive  bool
+	OsCheckActive bool
+
+	BackupMu sync.Mutex
 }
 
 // Configuration
@@ -454,13 +458,18 @@ func readCommandAuthorization(writer http.ResponseWriter, request *http.Request)
 }
 
 func validateCommandOwnership(operationUid string) error {
-	return validateFence(operationUid, shared.NodeAgentPhaseActive(stateLoad().Phase))
+	busy := shared.NodeAgentPhaseActive(stateLoad().Phase) || shared.NodeAgentOsPhaseActive(osStateLoad().Phase)
+	return validateFence(operationUid, busy)
 }
 
 func validateFence(operationUid string, busy bool) error {
 	fence, err := fenceLoad()
 	if err != nil {
 		return err
+	}
+
+	if busy && fence.LastOperation == "" {
+		return errors.New("the node has no recorded operation owner, so the command cannot be verified")
 	}
 
 	if fence.LastOperation != "" && fence.LastOperation != operationUid && busy {

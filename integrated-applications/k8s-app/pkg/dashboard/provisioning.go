@@ -7,7 +7,7 @@ import (
 
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
-	"ucloud.dk/shared/pkg/ucx/ucxsvc"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
@@ -67,17 +67,20 @@ func (app *stackUiApp) provisioningWatcher(session *ucx.Session) {
 }
 
 func (app *stackUiApp) refreshProvisioningRows(session *ucx.Session) {
-	record, recordOk := app.readClusterRecord()
-	if !recordOk {
-		return
-	}
-
 	app.mu.Lock()
+	stack := app.Stack
+	client := app.k8sClient
+	poller := app.poller
 	known := make(map[string]string, len(app.provisioningCache))
 	for _, entry := range app.provisioningCache {
 		known[entry.Hostname] = entry.Status
 	}
 	app.mu.Unlock()
+
+	record, recordOk := app.readClusterRecordWith(session, stack)
+	if !recordOk {
+		return
+	}
 
 	entries := make([]provisioningEntry, 0, len(record.Nodes))
 	for _, node := range record.Nodes {
@@ -97,19 +100,20 @@ func (app *stackUiApp) refreshProvisioningRows(session *ucx.Session) {
 		})
 	}
 
+	published := append([]provisioningEntry(nil), entries...)
+
 	app.mu.Lock()
-	changed := !provisioningEntriesEqual(app.provisioningCache, entries)
-	app.provisioningCache = entries
+	changed := !provisioningEntriesEqual(app.provisioningCache, published)
+	app.provisioningCache = published
 	if changed && app.ActiveType == navHomeId {
 		ucx.AppUpdateUi(app)
 	}
 	app.mu.Unlock()
 
-	if changed && app.poller != nil {
-		app.poller.signalPollNow()
+	if changed && poller != nil {
+		poller.signalPollNow()
 	}
 
-	client := app.k8sClient
 	if client == nil {
 		return
 	}
@@ -128,7 +132,10 @@ func (app *stackUiApp) refreshProvisioningRows(session *ucx.Session) {
 			entries[i].Status = "ready"
 			continue
 		}
-		if job, err := ucxsvc.JobRetrieve(app.Stack, entries[i].JobId); err == nil {
+		jobCtx, jobCancel := dashboardSessionContext(session)
+		job, jobErr := provisioningJobRetrieve(jobCtx, session, entries[i].JobId)
+		jobCancel()
+		if jobErr == nil {
 			switch {
 			case job.Status.State == orcapi.JobStateInQueue:
 				entries[i].Status = "Waiting for resources"
@@ -158,8 +165,8 @@ func (app *stackUiApp) refreshProvisioningRows(session *ucx.Session) {
 	}
 	app.mu.Unlock()
 
-	if changed && app.poller != nil {
-		app.poller.signalPollNow()
+	if changed && poller != nil {
+		poller.signalPollNow()
 	}
 }
 
@@ -173,7 +180,16 @@ func (app *stackUiApp) provisioningKickNow() {
 	}
 }
 
-func (app *stackUiApp) clusterNodeMessage(record *shared.ClusterRecord) string {
+func provisioningJobRetrieve(ctx context.Context, session *ucx.Session, jobId string) (orcapi.Job, error) {
+	if session == nil {
+		return orcapi.Job{}, fmt.Errorf("the session is not available")
+	}
+	return ucxapi.JobsRetrieve.InvokeEx(ctx, session, orcapi.JobsRetrieveRequest{Id: jobId})
+}
+
+func (app *stackUiApp) clusterNodeMessage(ctx context.Context, record *shared.ClusterRecord) string {
+	session := app.session
+
 	starting := 0
 	running := 0
 	failedLookup := 0
@@ -183,7 +199,7 @@ func (app *stackUiApp) clusterNodeMessage(record *shared.ClusterRecord) string {
 			continue
 		}
 
-		job, err := ucxsvc.JobRetrieve(app.Stack, node.JobId)
+		job, err := provisioningJobRetrieve(ctx, session, node.JobId)
 		if err != nil {
 			failedLookup++
 			continue
@@ -239,7 +255,7 @@ func (app *stackUiApp) provisioningResourceRows(def ResourceTypeDef) []ResourceR
 	}
 
 	app.mu.Lock()
-	entries := app.provisioningCache
+	entries := append([]provisioningEntry(nil), app.provisioningCache...)
 	app.mu.Unlock()
 
 	rows := make([]ResourceRow, 0, len(entries))

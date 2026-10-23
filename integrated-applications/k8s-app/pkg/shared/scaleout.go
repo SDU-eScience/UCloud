@@ -129,6 +129,16 @@ func clusterValidateNodeAddition(
 		return false
 	}
 
+	activeNodes, activeOk := clusterActiveNodeCount(stack, record)
+	if !activeOk {
+		ucxsvc.UiSendFailure(app, "Could not determine the active nodes of the cluster, try again later")
+		return false
+	}
+	if activeNodes+nodeCount > ClusterMaxNodes {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster supports at most %d nodes", ClusterMaxNodes))
+		return false
+	}
+
 	for i := 0; i < nodeCount; i++ {
 		allocationId := record.NextAllocationId + i
 		if !AllocationIdIsValid(allocationId) {
@@ -203,16 +213,6 @@ func ClusterAddPool(app ucx.Application, stack *ucxsvc.Stack, pool ClusterPoolSp
 			ucxsvc.UiSendFailure(app, "A pool with this name already exists: "+name)
 			return false
 		}
-	}
-
-	activeNodes, activeOk := clusterActiveNodeCount(stack, record)
-	if !activeOk {
-		ucxsvc.UiSendFailure(app, "Could not determine the active nodes of the cluster, try again later")
-		return false
-	}
-	if activeNodes+pool.Nodes > ClusterMaxNodes {
-		ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster supports at most %d nodes", ClusterMaxNodes))
-		return false
 	}
 
 	record.Pools = append(record.Pools, ClusterPoolRecord{

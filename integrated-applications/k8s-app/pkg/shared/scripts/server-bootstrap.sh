@@ -23,6 +23,8 @@ k3s kubectl --request-timeout=60s -n local-path-storage rollout status deploy/lo
 log "applying the admin service account"
 k3s kubectl --request-timeout=60s apply -f "$BUNDLE_DIR/admin-account.yaml" >/dev/null
 
+install -d -m 0755 /etc/ucloud-k8s/management/ca
+
 log "applying the ucloud controller"
 emit "Applying the UCloud controller" 88
 sed -e "s|\${CONTROLLER_IMAGE}|$CONTROLLER_IMAGE|g" \

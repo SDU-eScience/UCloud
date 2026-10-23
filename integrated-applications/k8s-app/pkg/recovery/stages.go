@@ -48,6 +48,14 @@ func (app *app) beginRecoveryWork(session *ucx.Session, entry backupEntry, progr
 		return "", fmt.Errorf("the cluster is not ready for recovery (state: %s)", cluster.Phase)
 	}
 
+	progress("Checking the backup")
+	if err := recoveryValidateBackup(app.MountPath, entry.Id); err != nil {
+		return "", err
+	}
+	if err := recoveryPinBackup(app.MountPath, entry.Id); err != nil {
+		return "", err
+	}
+
 	if existingFound && existing.Phase == shared.ClusterRecoveryPhaseActive {
 		if existing.Stage == shared.ClusterRecoveryStageRecreate && !recoveryCanChangeBackup(app.MountPath, cluster) {
 			return "", errors.New("the replacement nodes already exist, so the recovery continues from the recreate step")
@@ -190,6 +198,13 @@ func (app *app) restartRecoveryAsync() {
 		}
 		if !found || record.Phase != shared.ClusterRecoveryPhaseActive || record.Stage != shared.ClusterRecoveryStageRestore {
 			return "", errors.New("the recovery state changed. Review the current step before continuing")
+		}
+		progress("Checking the backup")
+		if err := recoveryValidateBackup(app.MountPath, record.BackupId); err != nil {
+			return "", err
+		}
+		if err := recoveryPinBackup(app.MountPath, record.BackupId); err != nil {
+			return "", err
 		}
 		if err := recoverySetStage(client, shared.ClusterRecoveryStageStop); err != nil {
 			return "", err
@@ -510,6 +525,9 @@ func (app *app) closeWork(session *ucx.Session, progress func(string)) (string, 
 		}
 		if _, err := shared.ClusterRecoveryRecordWrite(client, &record, snapshot.Revision); err != nil {
 			return "", fmt.Errorf("could not close the recovery intent: %s", err)
+		}
+		if record.BackupId != "" {
+			recoveryClearPin(app.MountPath, record.BackupId)
 		}
 	}
 
