@@ -514,15 +514,15 @@ func submitWrite(submit submission) error {
 	conditions := []ucxapi.StackStateRevisionCondition{rollingCondition}
 	validUntil := util.OptNone[int64]()
 	if submit.kind == KindOsUpdate && submit.autoRunUid != "" {
-		gate, gateErr := autoOsScheduleGate(client, time.Now().UTC())
-		if gateErr != nil {
-			return gateErr
+		check, checkErr := autoOsScheduleCheck(client, time.Now().UTC())
+		if checkErr != nil {
+			return checkErr
 		}
-		if !gate.open {
+		if !check.open {
 			return errAutoOsSchedulePaused
 		}
-		conditions = append(conditions, gate.condition)
-		validUntil = util.OptValue(gate.deadline.UnixMilli())
+		conditions = append(conditions, check.condition)
+		validUntil = util.OptValue(check.deadline.UnixMilli())
 	}
 
 	_, writeErr := shared.RpcGrantStateWriteChecked(

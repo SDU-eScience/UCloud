@@ -202,15 +202,15 @@ func rollingUpgradeStart(
 	conditions := rollingUpgradeNodeConditions(upgrade, operations, "")
 	conditions = append(conditions, start.conditions...)
 	if start.trigger == AutoTriggerWindow {
-		gate, gateErr := autoUpgradeScheduleGate(client, time.Now().UTC())
-		if gateErr != nil {
-			return gateErr
+		check, checkErr := autoUpgradeScheduleCheck(client, time.Now().UTC())
+		if checkErr != nil {
+			return checkErr
 		}
-		if !gate.open {
+		if !check.open {
 			return errAutoSchedulePaused
 		}
-		conditions = append(conditions, gate.condition)
-		deadline := gate.deadline.UnixMilli()
+		conditions = append(conditions, check.condition)
+		deadline := check.deadline.UnixMilli()
 		start.validUntil = util.OptValue(min(start.validUntil.GetOrDefault(deadline), deadline))
 	}
 	_, err = rollingUpgradeWriteChecked(client, upgrade, revision, conditions, start.validUntil)
@@ -445,15 +445,15 @@ func rollingUpgradeSweep(ctx context.Context, client stackClient) error {
 		})
 		submissionDeadline := validUntil
 		if upgrade.Trigger == AutoTriggerWindow {
-			gate, gateErr := autoUpgradeScheduleGate(client, time.Now().UTC())
-			if gateErr != nil {
-				return gateErr
+			check, checkErr := autoUpgradeScheduleCheck(client, time.Now().UTC())
+			if checkErr != nil {
+				return checkErr
 			}
-			if !gate.open {
+			if !check.open {
 				return nil
 			}
-			conditions = append(conditions, gate.condition)
-			submissionDeadline = util.OptValue(min(validUntil.Value, gate.deadline.UnixMilli()))
+			conditions = append(conditions, check.condition)
+			submissionDeadline = util.OptValue(min(validUntil.Value, check.deadline.UnixMilli()))
 		}
 		operationRevision, writeErr := shared.RpcGrantStateWriteChecked(
 			client,

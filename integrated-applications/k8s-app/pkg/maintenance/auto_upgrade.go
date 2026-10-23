@@ -103,24 +103,24 @@ func AutoScheduleOpen(now time.Time, policy AutoPolicy) bool {
 
 var errAutoSchedulePaused = errors.New("automatic Kubernetes upgrades are disabled or outside the maintenance window")
 
-type autoScheduleGate struct {
+type autoScheduleCheck struct {
 	open      bool
 	condition ucxapi.StackStateRevisionCondition
 	deadline  time.Time
 }
 
-func autoUpgradeScheduleGate(client stackClient, now time.Time) (autoScheduleGate, error) {
+func autoUpgradeScheduleCheck(client stackClient, now time.Time) (autoScheduleCheck, error) {
 	policyRecord, err := autoPolicyRead(client)
 	if err != nil {
-		return autoScheduleGate{}, err
+		return autoScheduleCheck{}, err
 	}
 	policy := AutoPolicyNormalize(policyRecord.Value)
 	if !policyRecord.Found || !policy.K8s.Enabled || !AutoScheduleOpen(now, policy) {
-		return autoScheduleGate{}, nil
+		return autoScheduleCheck{}, nil
 	}
 
 	_, end, open := autoPolicyWindowOpenNow(now, policy)
-	return autoScheduleGate{
+	return autoScheduleCheck{
 		open: open,
 		condition: ucxapi.StackStateRevisionCondition{
 			Key:              AutoPolicyKey,
@@ -451,7 +451,7 @@ func autoQuorumCheck(
 	return true, nil
 }
 
-func autoUpgradeBackupGate(
+func autoUpgradeBackupCheck(
 	client stackClient,
 	maxAge time.Duration,
 	runStartedAt time.Time,
@@ -735,7 +735,7 @@ func autoRunPrepare(write *autoRunWrite, ctx context.Context, kubeconfigPath str
 		return err
 	}
 
-	backupCheck, backupOutcome, err := autoUpgradeBackupGate(
+	backupCheck, backupOutcome, err := autoUpgradeBackupCheck(
 		write.client,
 		write.policy.K8s.MaxBackupAge,
 		write.state.Value.LastRun.StartedAt,

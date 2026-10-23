@@ -29,18 +29,18 @@ const (
 
 var errAutoOsSchedulePaused = errors.New("automatic operating-system updates are disabled or outside the maintenance window")
 
-func autoOsScheduleGate(client stackClient, now time.Time) (autoScheduleGate, error) {
+func autoOsScheduleCheck(client stackClient, now time.Time) (autoScheduleCheck, error) {
 	policyRecord, err := autoPolicyRead(client)
 	if err != nil {
-		return autoScheduleGate{}, err
+		return autoScheduleCheck{}, err
 	}
 	policy := AutoPolicyNormalize(policyRecord.Value)
 	if !policyRecord.Found || !policy.Os.Enabled || !AutoScheduleOpen(now, policy) {
-		return autoScheduleGate{}, nil
+		return autoScheduleCheck{}, nil
 	}
 
 	_, end, open := autoPolicyWindowOpenNow(now, policy)
-	return autoScheduleGate{
+	return autoScheduleCheck{
 		open: open,
 		condition: ucxapi.StackStateRevisionCondition{
 			Key:              AutoPolicyKey,
