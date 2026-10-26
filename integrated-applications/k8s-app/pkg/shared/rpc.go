@@ -9,18 +9,15 @@ import (
 )
 
 const (
-	ModeCreator   = "creator"
-	ModeDashboard = "dashboard"
-	ModeRecovery  = "recovery"
+	ModeCreator   = k8sapi.AppModeCreator
+	ModeDashboard = k8sapi.AppModeDashboard
+	ModeRecovery  = k8sapi.AppModeRecovery
 )
 
 func RegisterRpcHandlers(app ucx.Application, mode string) {
 	session := *app.Session()
-	if session == nil {
-		return
-	}
 
-	k8sapi.Ping.Handler(session, func(ctx context.Context, request k8sapi.PingRequest) (k8sapi.PingResponse, error) {
+	k8sapi.Ping.Handler(session, func(_ context.Context, request k8sapi.PingRequest) (k8sapi.PingResponse, error) {
 		return k8sapi.PingResponse{
 			AppName:    os.Getenv("UCLOUD_UCX_APP_NAME"),
 			AppVersion: os.Getenv("UCLOUD_UCX_APP_VERSION"),

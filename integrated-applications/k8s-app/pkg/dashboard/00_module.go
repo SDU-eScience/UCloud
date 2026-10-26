@@ -184,6 +184,7 @@ func (app *stackUiApp) Session() **ucx.Session { return &app.session }
 
 func (app *stackUiApp) OnInit() {
 	shared.RegisterRpcHandlers(app, shared.ModeDashboard)
+	app.registerRpcHandlers()
 }
 
 func (app *stackUiApp) OnSysHello(payload string) {

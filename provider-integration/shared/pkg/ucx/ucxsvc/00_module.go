@@ -170,29 +170,38 @@ func stackFindMountPath(job orcapi.Job) string {
 }
 
 func StackCreate(app ucx.Application, id string, stackType string) (*Stack, bool) {
-	return stackCreate(app, id, stackType, false)
+	stack, failure := stackCreate(app, id, stackType, false)
+	if failure != "" {
+		UiSendFailure(app, failure)
+	}
+	return stack, failure == ""
 }
 
 func StackCreateWithDrive(app ucx.Application, id string, stackType string) (*Stack, bool) {
+	stack, failure := stackCreate(app, id, stackType, true)
+	if failure != "" {
+		UiSendFailure(app, failure)
+	}
+	return stack, failure == ""
+}
+
+func StackCreateWithDriveEx(app ucx.Application, id string, stackType string) (*Stack, string) {
 	return stackCreate(app, id, stackType, true)
 }
 
-func stackCreate(app ucx.Application, id string, stackType string, createDrive bool) (*Stack, bool) {
+func stackCreate(app ucx.Application, id string, stackType string, createDrive bool) (*Stack, string) {
 	session := *app.Session()
 	ok, err := ucxapi.StackAvailable.Invoke(session, fndapi.FindByStringId{Id: id})
 	if err != nil {
-		UiSendFailure(app, "Unable to start application stack, try again later.")
-		return &Stack{}, false
+		return &Stack{}, "Unable to start application stack, try again later."
 	} else if !ok {
-		UiSendFailure(app, "An application stack with this name already exists, try another.")
-		return &Stack{}, false
+		return &Stack{}, "An application stack with this name already exists, try another."
 	} else {
 		request := ucxapi.StackCreateRequest{StackId: id, StackType: stackType}
 		if createDrive {
 			products, productErr := ucxapi.DrivesRetrieveProducts.Invoke(session, util.Empty{})
 			if productErr != nil {
-				UiSendFailure(app, "Unable to retrieve storage products for the application stack.")
-				return &Stack{}, false
+				return &Stack{}, "Unable to retrieve storage products for the application stack."
 			}
 			product := accapi.ProductReference{}
 			for _, candidate := range products {
@@ -202,8 +211,7 @@ func stackCreate(app ucx.Application, id string, stackType string, createDrive b
 				}
 			}
 			if product == (accapi.ProductReference{}) {
-				UiSendFailure(app, "No storage product supports application stack drives.")
-				return &Stack{}, false
+				return &Stack{}, "No storage product supports application stack drives."
 			}
 			drives, driveErr := ucxapi.DrivesCreate.Invoke(session, []orcapi.DriveSpecification{{
 				Title: id,
@@ -217,20 +225,17 @@ func stackCreate(app ucx.Application, id string, stackType string, createDrive b
 				},
 			}})
 			if driveErr != nil || len(drives) != 1 {
-				UiSendFailure(app, "Unable to create the application stack drive.")
-				return &Stack{}, false
+				return &Stack{}, "Unable to create the application stack drive."
 			}
 			request.StateFolder = "/" + drives[0].Id
 		}
 		stack, err := ucxapi.StackCreate.Invoke(session, request)
 		if err != nil {
-			UiSendFailure(app, "Unable to start application stack, try again later.")
-			return &Stack{}, false
+			return &Stack{}, "Unable to start application stack, try again later."
 		} else {
 			request.StateFolder = stack.Labels[orcapi.ResourceLabelStackStateFolder]
 			if _, registerErr := ucxapi.StackRegister.Invoke(session, request); registerErr != nil {
-				UiSendFailure(app, "Unable to register the application stack, try again later.")
-				return &Stack{}, false
+				return &Stack{}, "Unable to register the application stack, try again later."
 			}
 			return &Stack{
 				InstanceId: id,
@@ -239,7 +244,7 @@ func stackCreate(app ucx.Application, id string, stackType string, createDrive b
 				baseLabels: stack.Labels,
 				app:        app,
 				Ok:         true,
-			}, true
+			}, ""
 		}
 	}
 }
@@ -1113,6 +1118,15 @@ func UiSendFailure(app ucx.Application, message string) {
 }
 
 func UiSendSuccess(app ucx.Application, message string) {
+	session := *app.Session()
+	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{Message: message, Success: true})
+}
+
+func UiSendProgress(app ucx.Application, message string) {
+	if !ucx.AppHeadless(app) {
+		return
+	}
+
 	session := *app.Session()
 	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{Message: message, Success: true})
 }

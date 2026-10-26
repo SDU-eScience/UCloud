@@ -4,23 +4,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/version"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 )
-
-const maxControlPlaneNodes = 7
-
-const poolNameMaxLen = 30
-
-var poolNameRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
 
 func clusterMinimumControlPlaneVersion(record *ClusterRecord) (string, error) {
 	result := ""
@@ -116,7 +110,7 @@ func clusterValidateNodeAddition(
 		return false
 	}
 
-	if diskGb < 10 {
+	if diskGb < k8sapi.MinDiskGb {
 		ucxsvc.UiSendFailure(app, diskFailure)
 		return false
 	}
@@ -134,8 +128,8 @@ func clusterValidateNodeAddition(
 		ucxsvc.UiSendFailure(app, "Could not determine the active nodes of the cluster, try again later")
 		return false
 	}
-	if activeNodes+nodeCount > ClusterMaxNodes {
-		ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster supports at most %d nodes", ClusterMaxNodes))
+	if activeNodes+nodeCount > k8sapi.ClusterMaxNodes {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster supports at most %d nodes", k8sapi.ClusterMaxNodes))
 		return false
 	}
 
@@ -165,11 +159,11 @@ func ClusterAddPool(app ucx.Application, stack *ucxsvc.Stack, pool ClusterPoolSp
 		ucxsvc.UiSendFailure(app, "Please provide a pool name")
 		return false
 	}
-	if len(name) > poolNameMaxLen {
-		ucxsvc.UiSendFailure(app, fmt.Sprintf("Pool names must be at most %d characters: %s", poolNameMaxLen, name))
+	if len(name) > k8sapi.PoolNameMaxLen {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf("Pool names must be at most %d characters: %s", k8sapi.PoolNameMaxLen, name))
 		return false
 	}
-	if !poolNameRe.MatchString(name) {
+	if !k8sapi.ValidGroupName(name) {
 		ucxsvc.UiSendFailure(app, "Pool names may only contain a-z, 0-9 and dashes: "+name)
 		return false
 	}
@@ -264,7 +258,7 @@ func ClusterAddNodeLocked(
 		return "", false
 	}
 
-	if diskGb < 10 {
+	if diskGb < k8sapi.MinDiskGb {
 		ucxsvc.UiSendFailure(app, "The node needs at least 10 GB of disk")
 		return "", false
 	}
@@ -292,8 +286,8 @@ func ClusterAddNodeLocked(
 				controlPlane++
 			}
 		}
-		if controlPlane >= maxControlPlaneNodes {
-			ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster control plane supports at most %d nodes", maxControlPlaneNodes))
+		if controlPlane >= k8sapi.ControlPlaneMaxNodes {
+			ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster control plane supports at most %d nodes", k8sapi.ControlPlaneMaxNodes))
 			return "", false
 		}
 	}

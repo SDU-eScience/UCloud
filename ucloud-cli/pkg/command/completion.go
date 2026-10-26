@@ -31,6 +31,7 @@ type CommandSpec struct {
 type SubCommand struct {
 	Name  string
 	Flags []FlagSpec
+	Notes []string
 }
 
 type zshCompletionTemplate struct {
@@ -114,11 +115,13 @@ func commandsToCommandSpec() ([]CommandSpec, error) {
 			for i := 0; i < t.NumField(); i++ {
 				field := t.Field(i)
 				flagType := "flag"
-				//fieldValue := v.Field(i)
 
 				flagName := field.Tag.Get("flag")
-				// Handling positional arguments
 				positional := field.Tag.Get("positional")
+				if flagName == "" && positional == "" {
+					continue
+				}
+
 				name := "--" + flagName
 				if positional != "" {
 					flagType = "positional"
@@ -132,10 +135,29 @@ func commandsToCommandSpec() ([]CommandSpec, error) {
 					FlagType:  flagType,
 				}
 				flags = append(flags, flag)
+
+				if flagType == "flag" {
+					if short := field.Tag.Get("short"); short != "" {
+						flags = append(flags, FlagSpec{
+							Name:      "-" + short,
+							Usage:     field.Tag.Get("usage"),
+							InputType: field.Type.Kind().String(),
+							Required:  field.Tag.Get("required") == "true",
+							FlagType:  flagType,
+						})
+					}
+				}
 			}
+
+			var notes []string
+			if noted, ok := subCmd.(HelpNotes); ok {
+				notes = noted.HelpNotes()
+			}
+
 			subCommands = append(subCommands, SubCommand{
 				Name:  subCmdName,
 				Flags: flags,
+				Notes: notes,
 			})
 		}
 		specs = append(specs, CommandSpec{

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -112,6 +111,7 @@ func (app *k8sApp) Session() **ucx.Session {
 
 func (app *k8sApp) OnInit() {
 	shared.RegisterRpcHandlers(app, shared.ModeCreator)
+	app.registerRpcHandlers()
 }
 
 func (app *k8sApp) OnSysHello(payload string) {
@@ -156,13 +156,8 @@ func (app *k8sApp) applyProviderHandoff(handoff creatorHandoff) {
 	}
 
 	if len(handoff.Pools) > 0 {
-		limit := len(handoff.Pools)
-		if limit > shared.ClusterMaxNodes {
-			limit = shared.ClusterMaxNodes
-		}
-
-		pools := make([]creatorWorkerPool, 0, limit)
-		for i := 0; i < limit; i++ {
+		pools := make([]creatorWorkerPool, 0, len(handoff.Pools))
+		for i := range handoff.Pools {
 			pool := handoff.Pools[i]
 			nodes := pool.Nodes
 			if nodes < 1 {
@@ -533,7 +528,7 @@ func (app *k8sApp) loadRecoverStacks() {
 }
 
 func (app *k8sApp) recover(ev ucx.UiEvent) {
-	if app.RecoverBusy || app.SwitchBusy {
+	if app.RecoverBusy || app.SwitchBusy || app.DeployBusy {
 		return
 	}
 
@@ -573,143 +568,25 @@ func (app *k8sApp) deploy(ev ucx.UiEvent) {
 		return
 	}
 
-	release, ok := shared.ReleaseByExactVersion(app.K8sVersion)
-	if !ok {
-		ucxsvc.UiSendFailure(app, "Unknown Kubernetes version: "+app.K8sVersion)
-		return
-	}
-
-	clusterId := strings.TrimSpace(app.ClusterId)
-	if clusterId == "" {
-		ucxsvc.UiSendFailure(app, "Cluster ID must not be empty")
-		return
-	}
-	if len(clusterId) > clusterIdMaxLen {
-		ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster id must be at most %d characters", clusterIdMaxLen))
-		return
-	}
-	if !dnsSafeRe.MatchString(clusterId) {
-		ucxsvc.UiSendFailure(app, "Cluster ID may only contain a-z, 0-9 and dashes: "+clusterId)
-		return
-	}
-
-	if app.ControlPlaneMachine.Id == "" {
-		ucxsvc.UiSendFailure(app, "Select a machine type for the control plane!")
-		return
-	}
-	switch app.ControlPlaneNodes {
-	case 1, 3, 5, 7:
-	default:
-		ucxsvc.UiSendFailure(app, "The control plane node count must be an odd number from 1 to 7")
-		return
-	}
-	if app.ControlPlaneDiskGb < 10 {
-		ucxsvc.UiSendFailure(app, "The control plane needs at least 10 GB of disk")
-		return
-	}
-
-	if app.ServiceProvider == "" {
-		ucxsvc.UiSendFailure(app, "Select a service provider!")
-		return
-	}
-	if app.ControlPlaneMachine.Provider != app.ServiceProvider {
-		ucxsvc.UiSendFailure(app, "The control plane machine must come from the selected service provider")
-		return
-	}
-
-	if strings.HasPrefix(clusterId, shared.GroupControlPlane) {
-		ucxsvc.UiSendFailure(app, "The cluster id must not start with the reserved name: "+shared.GroupControlPlane)
-		return
-	}
-
-	seenPools := map[string]util.Empty{}
-	pools := make([]shared.ClusterPoolSpec, 0, len(app.Pools))
-	totalNodes := app.ControlPlaneNodes
-	for i, pool := range app.Pools {
-		name := strings.TrimSpace(pool.Name)
-		machine := pool.Machine
-		nodes := pool.Nodes
-		diskGb := pool.DiskGb
-
-		if name == "" {
-			ucxsvc.UiSendFailure(app, "Worker pool "+strconv.Itoa(i+1)+" must have a name")
-			return
-		}
-		if len(name) > poolNameMaxLen {
-			ucxsvc.UiSendFailure(app, fmt.Sprintf("Worker pool names must be at most %d characters: %s", poolNameMaxLen, name))
-			return
-		}
-		if !dnsSafeRe.MatchString(name) {
-			ucxsvc.UiSendFailure(app, "Worker pool names may only contain a-z, 0-9 and dashes: "+name)
-			return
-		}
-		if _, exists := seenPools[name]; exists {
-			ucxsvc.UiSendFailure(app, "Worker pool names must be unique: "+name)
-			return
-		}
-		if name == shared.GroupControlPlane {
-			ucxsvc.UiSendFailure(app, "The name is reserved for the control plane: "+name)
-			return
-		}
-		seenPools[name] = util.Empty{}
-
-		if machine.Id == "" {
-			ucxsvc.UiSendFailure(app, "Select a machine type for worker pool "+name+"!")
-			return
-		}
-		if machine.Provider != app.ServiceProvider {
-			ucxsvc.UiSendFailure(app, "The machine for worker pool "+name+" must come from the selected service provider")
-			return
-		}
-		if nodes < 1 {
-			ucxsvc.UiSendFailure(app, "Worker pool "+name+" needs at least one node")
-			return
-		}
-		if diskGb < 10 {
-			ucxsvc.UiSendFailure(app, "Worker pool "+name+" needs at least 10 GB of disk")
-			return
-		}
-
-		totalNodes += nodes
-		pools = append(pools, shared.ClusterPoolSpec{
-			Name:    name,
-			Machine: machine,
-			Nodes:   nodes,
-			DiskGb:  diskGb,
-		})
-	}
-
-	if totalNodes > shared.ClusterMaxNodes {
-		ucxsvc.UiSendFailure(app, fmt.Sprintf(
-			"The cluster supports at most %d nodes, but %d were requested",
-			shared.ClusterMaxNodes,
-			totalNodes,
-		))
-		return
-	}
-
-	stackId := clusterId
-
-	spec := shared.ClusterSpec{
-		ControlPlaneMachine: app.ControlPlaneMachine,
-		ControlPlaneNodes:   app.ControlPlaneNodes,
-		ControlPlaneDiskGb:  app.ControlPlaneDiskGb,
-		WorkerPools:         pools,
-		K8sVersion:          release.Release,
-	}
-
+	request := creatorDeployRequest(app)
+	provider := app.ServiceProvider
 	app.DeployBusy = true
+
 	ucx.AppUpdateModelPatch(*app.Session(), map[string]ucx.Value{
 		"deployBusy": ucx.VBool(true),
 	})
 
 	go func() {
-		app.mu.Lock()
-		defer app.mu.Unlock()
+		_, ok, failure := creatorDeploy(app, request, provider)
 
-		_, _ = shared.ClusterCreate(app, stackId, spec)
+		if !ok && failure != "" {
+			ucxsvc.UiSendFailure(app, failure)
+		}
+
+		app.mu.Lock()
 		app.DeployBusy = false
 		ucx.AppUpdateUi(app)
+		app.mu.Unlock()
 	}()
 }
 
@@ -777,8 +654,3 @@ func k8sVersionOptions() []ucx.Option {
 	}
 	return options
 }
-
-const clusterIdMaxLen = 30
-const poolNameMaxLen = 30
-
-var dnsSafeRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)

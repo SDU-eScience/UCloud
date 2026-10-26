@@ -8,6 +8,8 @@ func CommandRegistry() map[string]map[string]CommandFunc {
 	registry["environment"] = EnvironmentCommands
 	registry["ssh-key"] = SSHKeyCommands
 	registry["job"] = JobCommands
+	registry["k8s"] = K8sClusterCommands
+	registry["k8s-clusters"] = K8sClusterCommands
 	registry["vm"] = VMCommands
 	registry["connect"] = ConnectCommands
 	registry["public-ip"] = PublicIPCommands

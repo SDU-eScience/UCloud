@@ -10,6 +10,10 @@ import (
 )
 
 func bindCommand(args []string, cmd any) error {
+	if parser, ok := cmd.(com.ArgumentParser); ok {
+		return parser.ParseArguments(args)
+	}
+
 	if len(args) == 0 {
 		return nil
 	}

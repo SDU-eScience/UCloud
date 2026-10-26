@@ -18,6 +18,8 @@ var commandDescriptions = map[string]string{
 	"folder":          "Open folders",
 	"help":            "Show help",
 	"job":             "Manage jobs",
+	"k8s":             "Manage Kubernetes clusters (alias for k8s-clusters)",
+	"k8s-clusters":    "Manage Kubernetes clusters",
 	"private-network": "Manage private networks",
 	"public-ip":       "Manage public IPs",
 	"public-link":     "Manage public links",
@@ -26,6 +28,17 @@ var commandDescriptions = map[string]string{
 	"version":         "Print the CLI version",
 	"vm":              "Manage virtual machines",
 	"workspace":       "Manage workspaces",
+
+	"k8s create":              "Create a Kubernetes cluster",
+	"k8s kubeconfig":          "Print the kubeconfig of a Kubernetes cluster",
+	"k8s list":                "List Kubernetes clusters",
+	"k8s releases":            "List supported Kubernetes releases",
+	"k8s status":              "Show the status of a Kubernetes cluster",
+	"k8s-clusters create":     "Create a Kubernetes cluster",
+	"k8s-clusters kubeconfig": "Print the kubeconfig of a Kubernetes cluster",
+	"k8s-clusters list":       "List Kubernetes clusters",
+	"k8s-clusters releases":   "List supported Kubernetes releases",
+	"k8s-clusters status":     "Show the status of a Kubernetes cluster",
 }
 
 type HelpCommand struct {
@@ -216,6 +229,14 @@ func renderCommandHelp(w io.Writer, topName string, sub SubCommand) {
 	}
 	if description != "" {
 		fmt.Fprintln(w, description)
+		fmt.Fprintln(w)
+	}
+
+	if len(sub.Notes) > 0 {
+		fmt.Fprintln(w, "Notes:")
+		for _, note := range sub.Notes {
+			fmt.Fprintln(w, "  "+note)
+		}
 		fmt.Fprintln(w)
 	}
 

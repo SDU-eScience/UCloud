@@ -21,6 +21,7 @@ import (
 
 	"ucloud.dk/iapp/k8s/pkg/maintenance"
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/ucx"
 )
 
@@ -374,6 +375,7 @@ type NodeHealth struct {
 	Unknown             int
 	ControlPlaneVersion string
 	Versions            map[string]string
+	States              map[string]string
 }
 
 func nodeHealthEqual(left NodeHealth, right NodeHealth) bool {
@@ -388,6 +390,14 @@ func nodeHealthEqual(left NodeHealth, right NodeHealth) bool {
 			return false
 		}
 	}
+	if len(left.States) != len(right.States) {
+		return false
+	}
+	for name, state := range left.States {
+		if right.States[name] != state {
+			return false
+		}
+	}
 	return true
 }
 
@@ -397,12 +407,17 @@ func (c *K8sClient) NodeHealth(ctx context.Context) (NodeHealth, error) {
 		return NodeHealth{}, err
 	}
 
-	health := NodeHealth{Total: len(list.Items), Versions: map[string]string{}}
+	health := NodeHealth{
+		Total:    len(list.Items),
+		Versions: map[string]string{},
+		States:   map[string]string{},
+	}
 	minControlPlaneString := ""
 	var minControlPlane *version.Version
 	for i := range list.Items {
 		obj := &list.Items[i]
-		switch nodeReadyState(obj) {
+		state := nodeReadyState(obj)
+		switch state {
 		case "Ready":
 			health.Ready++
 		case "NotReady":
@@ -410,6 +425,7 @@ func (c *K8sClient) NodeHealth(ctx context.Context) (NodeHealth, error) {
 		default:
 			health.Unknown++
 		}
+		health.States[obj.GetName()] = state
 
 		kubelet := firstString(obj, "status", "nodeInfo", "kubeletVersion")
 		if kubelet != "" {
@@ -678,12 +694,12 @@ func nodeReadyState(obj *unstructured.Unstructured) string {
 	for _, cond := range conditionsOf(obj) {
 		if cond["type"] == "Ready" {
 			if cond["status"] == "True" {
-				return "Ready"
+				return k8sapi.NodeStateReady
 			}
-			return "NotReady"
+			return k8sapi.NodeStateNotReady
 		}
 	}
-	return "Unknown"
+	return k8sapi.NodeStateUnknown
 }
 
 func nodeInternalIp(obj *unstructured.Unstructured) string {

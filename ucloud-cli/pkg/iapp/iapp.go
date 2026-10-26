@@ -5,16 +5,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/ucx"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
 )
 
 type Client struct {
 	Session *ucx.Session
+
+	mu                 sync.Mutex
+	lastMessage        string
+	lastMessageSuccess bool
+	messageHandler     func(message string, success bool)
 }
 
 func (c *Client) Close() {
@@ -23,7 +30,28 @@ func (c *Client) Close() {
 	}
 }
 
-func ConnectApp(ctx context.Context, name string, version util.Option[string]) (*Client, error) {
+func (c *Client) SetMessageHandler(handler func(message string, success bool)) {
+	c.mu.Lock()
+	c.messageHandler = handler
+	c.mu.Unlock()
+}
+
+func (c *Client) LastFailure() (string, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.lastMessage == "" || c.lastMessageSuccess {
+		return "", false
+	}
+	return c.lastMessage, true
+}
+
+func ConnectAppWithProvider(
+	ctx context.Context,
+	name string,
+	version util.Option[string],
+	provider util.Option[string],
+) (*Client, error) {
 	app, httpErr := orcapi.AppsFindByNameAndVersion.Invoke(orcapi.AppCatalogFindByNameAndVersionRequest{
 		AppName:    name,
 		AppVersion: version,
@@ -35,6 +63,7 @@ func ConnectApp(ctx context.Context, name string, version util.Option[string]) (
 	payload, err := json.Marshal(orcapi.AppUcxConnectRequest{
 		Name:       app.Metadata.Name,
 		Version:    app.Metadata.Version,
+		Provider:   provider,
 		ClientKind: orcapi.UcxClientHeadless,
 		Updates:    orcapi.UcxUpdatesMessages,
 	})
@@ -45,16 +74,19 @@ func ConnectApp(ctx context.Context, name string, version util.Option[string]) (
 	return connect(ctx, "/api/hpc/apps/ucx/connect", string(payload))
 }
 
-func ConnectCluster(ctx context.Context, name string) (*Client, error) {
+func RetrieveCluster(name string) (orcapi.Stack, error) {
 	stack, httpErr := orcapi.StacksRetrieve.Invoke(fnd.FindByStringId{Id: name})
 	if httpErr != nil {
-		return nil, fmt.Errorf("could not find cluster %s: %s", name, httpErr.Why)
+		return orcapi.Stack{}, fmt.Errorf("could not find cluster %s: %s", name, httpErr.Why)
 	}
+	return stack, nil
+}
 
+func ConnectStack(ctx context.Context, stack orcapi.Stack) (*Client, error) {
 	status := stack.Status.GetOrDefault(orcapi.StackStatus{})
 	jobId := status.UcxConnectJobId.GetOrDefault("")
 	if jobId == "" {
-		return nil, fmt.Errorf("cluster %s is not available for management right now", name)
+		return nil, fmt.Errorf("cluster %s is not available for management right now", stack.Id)
 	}
 
 	payload, err := json.Marshal(orcapi.AppUcxConnectJobRequest{
@@ -63,10 +95,14 @@ func ConnectCluster(ctx context.Context, name string) (*Client, error) {
 		Updates:    orcapi.UcxUpdatesMessages,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("could not prepare the connection to %s: %w", name, err)
+		return nil, fmt.Errorf("could not prepare the connection to %s: %w", stack.Id, err)
 	}
 
 	return connect(ctx, "/api/hpc/apps/ucx/connectJob", string(payload))
+}
+
+func Call[Req any, Resp any](ctx context.Context, c *Client, call ucx.Rpc[Req, Resp], request Req) (Resp, error) {
+	return call.InvokeEx(ctx, c.Session, request)
 }
 
 func connect(ctx context.Context, path string, sysHello string) (*Client, error) {
@@ -90,12 +126,64 @@ func connect(ctx context.Context, path string, sysHello string) (*Client, error)
 		return nil, err
 	}
 
+	client := &Client{Session: session}
+	client.registerClientHandlers()
+
 	if _, err := ucx.WaitForMount(ctx, session); err != nil {
 		session.Cancel()
 		return nil, fmt.Errorf("the application did not become ready: %w", err)
 	}
 
-	return &Client{Session: session}, nil
+	go client.drainIncoming()
+
+	return client, nil
+}
+
+func (c *Client) registerClientHandlers() {
+	ucxapi.UiSendMessage.Handler(c.Session, func(ctx context.Context, request ucxapi.UiSendMessageRequest) (util.Empty, error) {
+		c.mu.Lock()
+		c.lastMessage = request.Message
+		c.lastMessageSuccess = request.Success
+		handler := c.messageHandler
+		c.mu.Unlock()
+
+		if handler != nil && request.Message != "" {
+			handler(request.Message, request.Success)
+		}
+		return util.Empty{}, nil
+	})
+
+	registerNoopRpc(c.Session, ucxapi.StackOpen)
+	registerNoopRpc(c.Session, ucxapi.StackInfo)
+	registerNoopRpc(c.Session, ucxapi.StackRefresh)
+	registerNoopRpc(c.Session, ucxapi.StackShowResources)
+	registerNoopRpc(c.Session, ucxapi.StackDelete)
+	registerNoopRpc(c.Session, ucxapi.StackDownloadFile)
+	registerNoopRpc(c.Session, ucxapi.StackCopyFile)
+	registerNoopRpc(c.Session, ucxapi.RouterPushPage)
+	registerNoopRpc(c.Session, ucxapi.OpenUrl)
+	registerNoopRpc(c.Session, ucxapi.TerminalOpenShellToJob)
+	registerNoopRpc(c.Session, ucxapi.SwitchProvider)
+}
+
+func registerNoopRpc[Req any, Resp any](session *ucx.Session, call ucx.Rpc[Req, Resp]) {
+	call.Handler(session, func(ctx context.Context, request Req) (Resp, error) {
+		var zero Resp
+		return zero, nil
+	})
+}
+
+func (c *Client) drainIncoming() {
+	for {
+		select {
+		case <-c.Session.Context().Done():
+			return
+		case _, ok := <-c.Session.Incoming():
+			if !ok {
+				return
+			}
+		}
+	}
 }
 
 func websocketURL(basePath string, path string) (string, error) {

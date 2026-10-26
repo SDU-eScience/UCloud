@@ -14,6 +14,7 @@ import (
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
@@ -24,9 +25,9 @@ import (
 //go:embed scripts
 var scriptFiles embed.FS
 
-const GroupControlPlane = "control-plane"
+const GroupControlPlane = k8sapi.GroupControlPlane
 
-const StackType = "Kubernetes"
+const StackType = k8sapi.StackType
 
 const (
 	StackGroupingLabel  = "ucloud.dk/k8s-node-group"
@@ -84,12 +85,12 @@ func Script(name string) string {
 }
 
 const (
-	clusterRecordPhaseProvisioning = "provisioning"
-	clusterRecordPhaseCleanup      = "cleanup-pending"
-	clusterRecordPhaseError        = "error"
+	clusterRecordPhaseProvisioning = k8sapi.ClusterPhaseProvisioning
+	clusterRecordPhaseCleanup      = k8sapi.ClusterPhaseCleanup
+	clusterRecordPhaseError        = k8sapi.ClusterPhaseError
 
-	ClusterRecordPhaseCreated    = "created"
-	ClusterRecordPhaseRecovering = "recovering"
+	ClusterRecordPhaseCreated    = k8sapi.ClusterPhaseCreated
+	ClusterRecordPhaseRecovering = k8sapi.ClusterPhaseRecovering
 )
 
 const ScriptBundleRevision = 24
@@ -103,14 +104,6 @@ type ClusterPoolSpec struct {
 	Machine accapi.ProductReference
 	Nodes   int
 	DiskGb  int
-}
-
-type ClusterSpec struct {
-	ControlPlaneMachine accapi.ProductReference
-	ControlPlaneNodes   int
-	ControlPlaneDiskGb  int
-	WorkerPools         []ClusterPoolSpec
-	K8sVersion          string
 }
 
 type ClusterNodeRecord struct {
@@ -184,31 +177,6 @@ type ClusterTokens struct {
 	AgentToken  string
 }
 
-type poolPlan struct {
-	name    string
-	machine accapi.ProductReference
-	nodes   int
-	diskGb  int
-}
-
-func planPools(spec ClusterSpec) []poolPlan {
-	plans := []poolPlan{{
-		name:    GroupControlPlane,
-		machine: spec.ControlPlaneMachine,
-		nodes:   spec.ControlPlaneNodes,
-		diskGb:  spec.ControlPlaneDiskGb,
-	}}
-	for _, pool := range spec.WorkerPools {
-		plans = append(plans, poolPlan{
-			name:    pool.Name,
-			machine: pool.Machine,
-			nodes:   pool.Nodes,
-			diskGb:  pool.DiskGb,
-		})
-	}
-	return plans
-}
-
 func clusterActiveNodeCount(stack *ucxsvc.Stack, record *ClusterRecord) (int, bool) {
 	active := 0
 	for _, node := range record.Nodes {
@@ -231,48 +199,33 @@ func clusterActiveNodeCount(stack *ucxsvc.Stack, record *ClusterRecord) (int, bo
 	return active, true
 }
 
-func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxsvc.Stack, bool) {
-	release, ok := ReleaseByExactVersion(spec.K8sVersion)
+func ClusterCreate(app ucx.Application, request k8sapi.DeployRequest) (*ucxsvc.Stack, bool, string) {
+	release, ok := ReleaseByExactVersion(request.K8sVersion)
 	if !ok {
-		ucxsvc.UiSendFailure(app, "Unknown Kubernetes version: "+spec.K8sVersion)
-		return &ucxsvc.Stack{}, false
-	}
-
-	if spec.ControlPlaneNodes < 1 || spec.ControlPlaneNodes > 7 || spec.ControlPlaneNodes%2 != 1 {
-		ucxsvc.UiSendFailure(app, "The cluster control plane needs an odd number of nodes, between 1 and 7")
-		return &ucxsvc.Stack{}, false
+		return &ucxsvc.Stack{}, false, "unknown Kubernetes version: " + request.K8sVersion
 	}
 
 	if !clusterNodesRequireUcxLabels(app) {
-		return &ucxsvc.Stack{}, false
+		return &ucxsvc.Stack{}, false, ""
 	}
 
-	for _, pool := range planPools(spec) {
-		if pool.machine.Id == "" {
-			ucxsvc.UiSendFailure(app, "Select a machine type for pool "+pool.name)
-			return &ucxsvc.Stack{}, false
-		}
-		if pool.diskGb < 10 {
-			ucxsvc.UiSendFailure(app, "The pool "+pool.name+" needs at least 10 GB of disk")
-			return &ucxsvc.Stack{}, false
-		}
-	}
+	plans := make([]k8sapi.PoolSpec, 0, len(request.WorkerPools)+1)
+	plans = append(plans, k8sapi.PoolSpec{
+		Name:    GroupControlPlane,
+		Machine: request.ControlPlane.Machine,
+		Nodes:   request.ControlPlane.Nodes,
+		Disk:    request.ControlPlane.Disk,
+	})
+	plans = append(plans, request.WorkerPools...)
 
-	totalNodes := 0
-	for _, pool := range planPools(spec) {
-		totalNodes += pool.nodes
-	}
-	if totalNodes > ClusterMaxNodes {
-		ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster supports at most %d nodes, but %d were requested", ClusterMaxNodes, totalNodes))
-		return &ucxsvc.Stack{}, false
-	}
+	ucxsvc.UiSendProgress(app, "Creating cluster "+request.Name)
+	ucxsvc.UiSendProgress(app, "Creating cluster network and service")
 
 	session := *app.Session()
 
 	linkProducts, err := ucxapi.PublicLinksRetrieveProducts.Invoke(session, util.Empty{})
 	if err != nil || len(linkProducts) == 0 {
-		ucxsvc.UiSendFailure(app, "Could not find a suitable public link product, but this cluster requires it.")
-		return &ucxsvc.Stack{}, false
+		return &ucxsvc.Stack{}, false, "could not find a suitable public link product, but this cluster requires it"
 	}
 	linkDomain := orcapi.IngressSupport{
 		Prefix:  linkProducts[0].Support.Prefix,
@@ -280,43 +233,25 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		Product: linkProducts[0].Product.ToReference(),
 	}
 
-	stackIdLower := strings.ToLower(stackId)
+	stackIdLower := strings.ToLower(request.Name)
 	apiLinkDomain := fmt.Sprintf("%s%s-api%s", linkDomain.Prefix, stackIdLower, linkDomain.Suffix)
 
-	computeProducts, err := ucxapi.JobsRetrieveProducts.Invoke(session, util.Empty{})
-	if err != nil || len(computeProducts) == 0 {
-		ucxsvc.UiSendFailure(app, "Could not find a suitable compute product, but this cluster requires it.")
-		return &ucxsvc.Stack{}, false
-	}
-	computeProvider := computeProducts[0].Product.ToReference().Provider
-	if spec.ControlPlaneMachine.Provider != "" && spec.ControlPlaneMachine.Provider != computeProvider {
-		ucxsvc.UiSendFailure(app, fmt.Sprintf(
-			"The machine must come from the provider that runs the cluster (%s), but %s was selected",
-			computeProvider,
-			spec.ControlPlaneMachine.Provider,
-		))
-		return &ucxsvc.Stack{}, false
-	}
-
-	stack, ok := ucxsvc.StackCreateWithDrive(app, stackId, StackType)
-	if !ok {
-		return stack, false
+	stack, failure := ucxsvc.StackCreateWithDriveEx(app, request.Name, StackType)
+	if failure != "" {
+		return stack, false, failure
 	}
 
 	stateClient, clientErr := ClusterStateClientNewSession(session, stack.InstanceId)
 	if clientErr != nil {
-		ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not open the cluster state client: %s", clientErr))
-		return stack, false
+		return stack, false, fmt.Sprintf("could not open the cluster state client: %s", clientErr)
 	}
 
 	existingState, readErr := ClusterStateRead(stateClient)
 	if readErr != nil {
-		ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not check the existing cluster state: %s", readErr))
-		return stack, false
+		return stack, false, fmt.Sprintf("could not check the existing cluster state: %s", readErr)
 	}
 	if existingState.Found {
-		ucxsvc.UiSendFailure(app, "A cluster record already exists for this stack. Resource creation was not restarted")
-		return stack, false
+		return stack, false, "a cluster record already exists for this cluster; resource creation was not restarted"
 	}
 
 	stopHeartbeat, heartbeatFailed := ucxsvc.StackStartHeartbeat(stack)
@@ -324,9 +259,9 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 		_ = stopHeartbeat()
 	}()
 
-	network, networkOk := ucxsvc.PrivateNetworkCreateWithCidr(stack, stackId, util.OptValue(ClusterVmCidr))
+	network, networkOk := ucxsvc.PrivateNetworkCreateWithCidr(stack, request.Name, util.OptValue(ClusterVmCidr))
 	if !networkOk {
-		return stack, false
+		return stack, false, ""
 	}
 
 	servicePorts := []orcapi.ServicePort{
@@ -338,43 +273,43 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 			BackendTls:          util.OptValue(orcapi.ServiceBackendTls{InsecureSkipVerify: true}),
 		},
 	}
-	clusterService := ucxsvc.ServiceCreate(stack, stackId+"-k8s", servicePorts, util.OptValue(network.Id))
+	clusterService := ucxsvc.ServiceCreate(stack, request.Name+"-k8s", servicePorts, util.OptValue(network.Id))
 	if !stack.Ok {
-		return stack, false
+		return stack, false, ""
 	}
+
+	ucxsvc.UiSendProgress(app, "Waiting for the cluster service")
 
 	serviceReady, serviceDnsName := ucxsvc.ServiceWaitReady(stack, clusterService.Id, 2*time.Minute)
 	if !serviceReady || serviceDnsName == "" {
 		stack.Ok = false
-		ucxsvc.UiSendFailure(app, "The cluster service never became ready with an internal address")
-		return stack, false
+		return stack, false, "the cluster service never became ready with an internal address"
 	}
 
 	record := &ClusterRecord{
 		SchemaRevision:   clusterRecordSchemaRevision,
-		StackId:          stackId,
+		StackId:          request.Name,
 		K8sVersion:       release.Release,
 		NetworkId:        network.Id,
 		ServiceId:        clusterService.Id,
 		ServiceDnsName:   serviceDnsName,
-		MachineProvider:  spec.ControlPlaneMachine.Provider,
+		MachineProvider:  request.Provider,
 		Subnets:          []string{ClusterVmCidr, ClusterPodCidr, ClusterServiceCidr},
 		BundlePath:       BundlePathForRelease(release),
 		NextAllocationId: 1,
 		Phase:            clusterRecordPhaseProvisioning,
 	}
 
-	for _, pool := range planPools(spec) {
+	for _, pool := range plans {
 		record.Pools = append(record.Pools, ClusterPoolRecord{
-			Name:    pool.name,
-			Machine: pool.machine,
-			DiskGb:  pool.diskGb,
+			Name:    pool.Name,
+			Machine: pool.Machine,
+			DiskGb:  pool.Disk,
 		})
 	}
 
 	if err := ClusterRecordWrite(stateClient, record); err != nil {
-		ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not create the cluster record: %s", err))
-		return stack, false
+		return stack, false, fmt.Sprintf("could not create the cluster record: %s", err)
 	}
 
 	tokens := ClusterTokens{
@@ -384,7 +319,7 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 
 	writeBundle(stack, record.BundlePath)
 	ucxsvc.StackWriteFile(stack, KubeconfigTemplatePath, fmt.Sprintf(Script("kubeconfig.tpl"), apiLinkDomain))
-	ucxsvc.PublicLinkCreate(stack, fmt.Sprintf("%s-api", stackId), ucxsvc.PublicLinkCreateOptions{
+	ucxsvc.PublicLinkCreate(stack, fmt.Sprintf("%s-api", request.Name), ucxsvc.PublicLinkCreateOptions{
 		ServiceTarget: util.OptValue(orcapi.PublicLinkServiceTarget{
 			ServiceId: clusterService.Id,
 			Port:      "api",
@@ -392,26 +327,31 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 	})
 	customUi := ClusterNodeCustomUi(stack)
 	if !stack.Ok {
-		return stack, false
+		return stack, false, ""
 	}
 
-	for _, pool := range planPools(spec) {
-		for i := 1; i <= pool.nodes; i++ {
+	for _, pool := range plans {
+		for i := 1; i <= pool.Nodes; i++ {
 			if heartbeatFailed() {
-				ucxsvc.UiSendFailure(app, "The stack lease was lost during creation, the failed resources are cleaned up automatically.")
-				return stack, false
+				return stack, false, "the cluster creation lease was lost; the failed resources are cleaned up automatically"
 			}
 
 			allocationId := record.NextAllocationId
-			hostname := ClusterNodeHostname(pool.name, allocationId)
+			hostname := ClusterNodeHostname(pool.Name, allocationId)
+
+			if pool.Name == GroupControlPlane {
+				ucxsvc.UiSendProgress(app, fmt.Sprintf("Creating control plane node %d/%d", i, pool.Nodes))
+			} else {
+				ucxsvc.UiSendProgress(app, fmt.Sprintf("Creating worker pool %s node %d/%d", pool.Name, i, pool.Nodes))
+			}
 
 			created, failReason := clusterCreateNode(stack, clusterNodeOptions{
 				record:          record,
 				release:         release,
 				tokens:          tokens,
-				group:           pool.name,
-				machine:         pool.machine,
-				diskGb:          pool.diskGb,
+				group:           pool.Name,
+				machine:         pool.Machine,
+				diskGb:          pool.Disk,
 				allocationId:    allocationId,
 				customUi:        customUi,
 				session:         session,
@@ -421,44 +361,41 @@ func ClusterCreate(app ucx.Application, stackId string, spec ClusterSpec) (*ucxs
 			if !created {
 				cleanupErr := clusterCreateCleanupFailed(stateClient, stack, record, failReason)
 				if cleanupErr != nil {
-					ucxsvc.UiSendFailure(app, fmt.Sprintf(
-						"Could not create node %s. The cluster record with the cleanup state could not be saved, so the failed resources need manual cleanup: %s",
+					return stack, false, fmt.Sprintf(
+						"could not create node %s; the cluster record with the cleanup state could not be saved, so the failed resources need manual cleanup: %s",
 						hostname,
 						cleanupErr,
-					))
-					return stack, false
+					)
 				}
 
-				ucxsvc.UiSendFailure(app, "Could not create node "+hostname+". The failed resources are cleaned up automatically.")
-				return stack, false
+				return stack, false, "could not create node " + hostname + "; the failed resources are cleaned up automatically"
 			}
 		}
 	}
 
 	if err := stopHeartbeat(); err != nil {
 		stack.Ok = false
-		ucxsvc.UiSendFailure(app, "The stack lease was lost during creation, the failed resources are cleaned up automatically.")
-		return stack, false
+		return stack, false, "the cluster creation lease was lost; the failed resources are cleaned up automatically"
 	}
 
 	if err := ucxsvc.StackConfirm(stack); err != nil {
 		stack.Ok = false
-		ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster resources were created, but the stack could not be confirmed: %s", err))
-		return stack, false
+		return stack, false, fmt.Sprintf("the cluster resources were created, but the cluster could not be confirmed: %s", err)
 	}
 
 	record.Phase = ClusterRecordPhaseCreated
 	if err := ClusterRecordWrite(stateClient, record); err != nil {
 		stack.Ok = false
-		ucxsvc.UiSendFailure(app, fmt.Sprintf("The cluster resources were created, but the cluster record could not be finalized: %s", err))
-		return stack, false
+		return stack, false, fmt.Sprintf("the cluster resources were created, but the cluster record could not be finalized: %s", err)
 	}
+
+	ucxsvc.UiSendProgress(app, "Cluster "+stack.InstanceId+" created")
 
 	if _, err := ucxapi.StackOpen.Invoke(session, fndapi.FindByStringId{Id: stack.InstanceId}); err != nil {
-		return stack, true
+		return stack, true, ""
 	}
 
-	return stack, true
+	return stack, true, ""
 }
 
 func clusterCreateCleanupFailed(client ClusterStateClient, stack *ucxsvc.Stack, record *ClusterRecord, reason string) error {
