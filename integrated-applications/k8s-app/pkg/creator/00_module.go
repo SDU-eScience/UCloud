@@ -67,11 +67,14 @@ type k8sApp struct {
 
 	DeployBusy bool
 
-	RecoverStacks  []recoverStackEntry `ucx:"-"`
-	RecoverLoaded  bool                `ucx:"-"`
-	RecoverError   string
-	RecoverStackId string
-	RecoverBusy    bool
+	RecoverStacks        []recoverStackEntry `ucx:"-"`
+	RecoverLoaded        bool                `ucx:"-"`
+	RecoverLoading       bool                `ucx:"-"`
+	RecoverError         string
+	RecoverStackId       string
+	RecoverBusy          bool
+	RecoverStartDisabled bool
+	ShowRecoverDialog    bool `ucx:"-"`
 }
 
 type recoverStackEntry struct {
@@ -109,14 +112,18 @@ func (app *k8sApp) UserInterface() ucx.UiNode {
 		ucx.SidebarLayout().Sidebar(
 			ucx.Surface().Children(
 				ucx.CostEstimateNode("costEstimate", costEntries),
-				ucx.Button("stack", "Deploy", ucx.ColorSuccessMain).
-					ButtonBusy("deployBusy").
-					ButtonSubmitShortcut(true).
-					Sx(
-						ucx.SxMt(24),
-						ucx.SxWidthPercent(100),
-					).
-					On(ucx.UiEventClick, app.deploy),
+				ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 16}).Children(
+					ucx.Button("stack", "Deploy", ucx.ColorSuccessMain).
+						ButtonBusy("deployBusy").
+						ButtonSubmitShortcut(true).
+						Sx(
+							ucx.SxMt(24),
+							ucx.SxWidthPercent(100),
+						).
+						On(ucx.UiEventClick, app.deploy),
+					ucx.LinkButton("recoverLink", "Recover an existing cluster", ucx.ColorLinkColor).
+						On(ucx.UiEventClick, app.openRecoverDialog),
+				),
 			),
 		).Sx(
 			ucx.SxDisplayFlex,
@@ -126,8 +133,8 @@ func (app *k8sApp) UserInterface() ucx.UiNode {
 			app.cardMetadata(),
 			app.cardControlPlane(),
 			app.cardWorkerPools(),
-			app.cardRecover(),
 		),
+		app.recoverDialog(),
 	)
 }
 
@@ -264,24 +271,60 @@ func (app *k8sApp) removePool(index int) {
 	app.Pools = append(app.Pools[:index], app.Pools[index+1:]...)
 }
 
-func (app *k8sApp) cardRecover() ucx.UiNode {
-	card := ucx.SurfaceEx("recoverCard").Children(
-		ucx.H3Ex("recoverHeading", "Recover an existing cluster"),
-	)
+func (app *k8sApp) openRecoverDialog(ev ucx.UiEvent) {
+	app.ShowRecoverDialog = true
+	if !app.RecoverLoaded && !app.RecoverLoading {
+		app.RecoverLoading = true
+		app.RecoverStartDisabled = true
+		go app.loadRecoverStacks()
+	}
+	ucx.AppUpdateUi(app)
+}
+
+func (app *k8sApp) closeRecoverDialog(ev ucx.UiEvent) {
+	app.ShowRecoverDialog = false
+	ucx.AppUpdateUi(app)
+}
+
+func (app *k8sApp) recoverDialog() ucx.UiNode {
+	return ucx.DialogEx("recoverDialog", "Recover an existing cluster", app.ShowRecoverDialog).Children(
+		app.recoverDialogBody(),
+		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).
+			Sx(
+				ucx.SxWidthAuto(),
+				ucx.SxJustifyEnd,
+				ucx.SxMx(-20),
+				ucx.SxMb(-20),
+				ucx.SxPx(20),
+				ucx.SxPy(12),
+				ucx.SxBackground("var(--dialogToolbar)"),
+			).
+			Children(
+				ucx.ButtonEx("recoverCancel", "Cancel", ucx.ColorSecondaryMain, "", "", "").
+					WithShortcutKey("n").
+					On(ucx.UiEventClick, app.closeRecoverDialog),
+				ucx.ButtonEx("recover", "Start recovery", ucx.ColorErrorMain, "", "", "").
+					ButtonBusy("recoverBusy").
+					ButtonDisabledWhen("recoverStartDisabled").
+					WithShortcutKey("y").
+					On(ucx.UiEventClick, app.recover),
+			),
+	).On(ucx.UiEventClose, app.closeRecoverDialog)
+}
+
+func (app *k8sApp) recoverDialogBody() ucx.UiNode {
+	body := ucx.Box().Sx(ucx.SxMinHeight(200))
 
 	if !app.RecoverLoaded {
-		return card.Children(ucx.TextEx("recoverLoading", "Looking for clusters..."))
+		return body.Children(ucx.TextEx("recoverLoading", "Looking for clusters..."))
 	}
 
 	if app.RecoverError != "" {
-		return card.Children(ucx.TextEx("recoverError", app.RecoverError))
+		return body.Children(ucx.TextEx("recoverError", app.RecoverError))
 	}
 
 	if len(app.RecoverStacks) == 0 {
-		return card.Children(ucx.TextEx(
-			"recoverEmpty",
-			"No clusters are available for recovery. You must have EDIT access to a cluster to recover it.",
-		))
+		return body.Children(ucx.TextEx("recoverEmpty", "No clusters are available for recovery."))
 	}
 
 	options := make([]ucx.Option, 0, len(app.RecoverStacks))
@@ -292,7 +335,7 @@ func (app *k8sApp) cardRecover() ucx.UiNode {
 		})
 	}
 
-	return card.Children(
+	return body.Children(
 		ucx.FieldGroupNode().Children(
 			ucx.FieldRowNodeEx("recoverClusterRow", "Cluster", "recoverStackId").
 				FieldRowDescription("The cluster to recover. The recovery job runs on the cluster's state drive.").
@@ -300,20 +343,8 @@ func (app *k8sApp) cardRecover() ucx.UiNode {
 				Children(
 					ucx.EnumSelectorNode("recoverClusterSelect", "recoverStackId", options),
 				),
-			ucx.Button("recover", "Start recovery", ucx.ColorErrorMain).
-				ButtonBusy("recoverBusy").
-				ButtonHoldToConfirm(true).
-				Sx(
-					ucx.SxMt(12),
-					ucx.SxWidthPercent(100),
-				).
-				On(ucx.UiEventClick, app.recover),
 		),
 	)
-}
-
-func (app *k8sApp) OnSysHello(payload string) {
-	go app.loadRecoverStacks()
 }
 
 func (app *k8sApp) loadRecoverStacks() {
@@ -335,8 +366,10 @@ func (app *k8sApp) loadRecoverStacks() {
 		if err != nil {
 			log.Warn("k8s-app: could not list clusters for recovery: %v", err)
 			app.mu.Lock()
+			app.RecoverLoading = false
 			app.RecoverLoaded = true
 			app.RecoverError = "Could not load the list of clusters. Reload the page to try again."
+			app.RecoverStartDisabled = true
 			ucx.AppUpdateUi(app)
 			app.mu.Unlock()
 			return
@@ -364,9 +397,11 @@ func (app *k8sApp) loadRecoverStacks() {
 	})
 
 	app.mu.Lock()
+	app.RecoverLoading = false
 	app.RecoverLoaded = true
 	app.RecoverError = ""
 	app.RecoverStacks = entries
+	app.RecoverStartDisabled = len(entries) == 0
 	if !slices.ContainsFunc(entries, func(entry recoverStackEntry) bool { return entry.Id == app.RecoverStackId }) {
 		app.RecoverStackId = ""
 		if len(entries) > 0 {
@@ -397,6 +432,9 @@ func (app *k8sApp) recover(ev ucx.UiEvent) {
 
 		app.mu.Lock()
 		app.RecoverBusy = false
+		if err == nil {
+			app.ShowRecoverDialog = false
+		}
 		ucx.AppUpdateUi(app)
 		app.mu.Unlock()
 
