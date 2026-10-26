@@ -31,6 +31,7 @@ import {FileIconHint} from ".";
 import {ShortcutKey} from "@/ui-components/Operation";
 import {getLastActivePath} from "@/Applications/Jobs/Widgets/GenericFiles";
 import {sendFailureNotification} from "@/Notifications";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const FEATURES: ResourceBrowseFeatures = {
     dragToSelect: true,
@@ -41,10 +42,7 @@ const FEATURES: ResourceBrowseFeatures = {
     breadcrumbsSeparatedBySlashes: false,
 }
 
-type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
-const rowTitles: ColumnTitleList<SortById> = [{name: "Name"}, {name: "", columnWidth: 32}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}];
-
-function FavoriteBrowse({selection, navigateToFolder}: {
+function FavoriteBrowse({ selection, navigateToFolder }: {
     navigateToFolder: (path: string, projectId?: string) => void;
     selection: Selection<FileMetadataAttached | UFile>;
 }): React.ReactNode {
@@ -69,7 +67,9 @@ function FavoriteBrowse({selection, navigateToFolder}: {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<FileMetadataAttached>(mount, "Favorites", {isModal: true}).init(browserRef, FEATURES, "/", browser => {
-                browser.setColumns(rowTitles);
+                browser.setColumns({
+                    [ContainerSize.LARGE]: [{ name: "Name" }, { name: "", columnWidth: 32 }, { name: "", columnWidth: 0 }, { name: "", columnWidth: 0 }]
+                });
 
                 browser.on("fetchFilters", () => []);
 
@@ -142,14 +142,13 @@ function FavoriteBrowse({selection, navigateToFolder}: {
                     return renderFileIconFromProperties(ext4, isDirectory || isLikelyDirectory(filePath), fileInfo?.status.icon);
                 };
 
-                browser.on("renderRow", (fav, row, containerWidth) => {
-                    const fileInfo = sidebarFavoriteCache.fileInfoIfPresent(fav.path);
+                browser.on("renderTitle", (fav, title, row) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
                     renderFileIcon(fav.path).then(setIcon)
-                    row.title.append(icon);
+                    title.append(icon);
 
-                    const title = ResourceBrowser.defaultTitleRenderer(fileName(fav.path), row);
-                    row.title.append(title);
+                    const titleContent = ResourceBrowser.defaultTitleRenderer(fileName(fav.path), row);
+                    title.append(titleContent);
 
                     const favoriteIcon = favoriteRowIcon(row);
 
@@ -162,12 +161,17 @@ function FavoriteBrowse({selection, navigateToFolder}: {
                     }).then(icon => favoriteIcon.src = icon);
 
                     row.star.setAttribute("data-favorite", "true");
+                });
 
+                function appendSelectButton(fav: FileMetadataAttached, stat: HTMLElement) {
+                    const fileInfo = sidebarFavoriteCache.fileInfoIfPresent(fav.path);
                     const button = browser.defaultButtonRenderer(selection, fileInfo ?? fav);
                     if (button) {
-                        row.stat3.append(button);
+                        stat.append(button);
                     }
-                });
+                }
+
+                browser.on("renderStat1", appendSelectButton);
 
                 ResourceBrowser.icons.renderIcon({
                     name: "ftFolder",
