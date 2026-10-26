@@ -195,18 +195,23 @@ func backupSubmitAsync(app *stackUiApp) {
 }
 
 func backupRequestSubmit(app *stackUiApp) error {
+	_, err := backupRequestSubmitUid(app)
+	return err
+}
+
+func backupRequestSubmitUid(app *stackUiApp) (string, error) {
 	status, err := app.backupStatusRead()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if backupActive(status) {
-		return errors.New("a backup is already pending or running")
+		return "", errors.New("a backup is already pending or running")
 	}
 
 	client, err := app.clusterStateValueClient()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	request := backup.Request{
@@ -219,12 +224,12 @@ func backupRequestSubmit(app *stackUiApp) error {
 
 	value, err := json.Marshal(request)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	_, err = shared.ClusterStateValueWrite(client, backup.RequestKey, value, status.RequestRevision)
 	if err == nil {
-		return nil
+		return request.Uid, nil
 	}
 
 	recheckCtx, recheckCancel := dashboardSessionContext(*app.Session())
@@ -233,15 +238,15 @@ func backupRequestSubmit(app *stackUiApp) error {
 	if latestErr == nil && latest.Found {
 		var current backup.Request
 		if json.Unmarshal(latest.Value, &current) == nil && backupRequestActive(current) {
-			return errors.New("a backup is already pending or running")
+			return "", errors.New("a backup is already pending or running")
 		}
 	}
 
 	if shared.IsConflict(err) {
-		return errors.New("the backup request changed while submitting; please try again")
+		return "", errors.New("the backup request changed while submitting; please try again")
 	}
 
-	return fmt.Errorf("could not submit the backup request: %s", err)
+	return "", fmt.Errorf("could not submit the backup request: %s", err)
 }
 
 func (app *stackUiApp) backupStatusRead() (dashboardBackupStatus, error) {

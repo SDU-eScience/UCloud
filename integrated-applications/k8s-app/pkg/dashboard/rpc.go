@@ -120,6 +120,54 @@ func (app *stackUiApp) registerRpcHandlers() {
 			}
 		}
 
+		upgrade, _, upgradeFound, upgradeErr := maintenance.RollingUpgradeSnapshot()
+		if upgradeErr != nil {
+			response.RollingUpgradeError = upgradeErr.Error()
+		} else if upgradeFound {
+			upgradeStatus := &k8sapi.StatusRollingUpgrade{
+				Uid:           upgrade.Uid,
+				TargetRelease: upgrade.TargetRelease,
+				Phase:         upgrade.Phase,
+				Error:         upgrade.Error,
+				Nodes:         []k8sapi.StatusUpgradeNode{},
+			}
+			for _, node := range upgrade.Nodes {
+				upgradeStatus.Nodes = append(upgradeStatus.Nodes, k8sapi.StatusUpgradeNode{
+					Name:         node.Name,
+					Group:        node.Group,
+					Phase:        node.Phase,
+					OperationUid: node.OperationUid,
+				})
+			}
+			response.RollingUpgrade = upgradeStatus
+		}
+
+		backupStatus, backupErr := app.backupStatusRead()
+		if backupErr != nil {
+			response.BackupError = backupErr.Error()
+		} else {
+			backupInfo := &k8sapi.StatusBackup{
+				StateFound:   backupStatus.StateFound,
+				RequestFound: backupStatus.RequestFound,
+			}
+			if backupStatus.StateFound {
+				backupInfo.ClaimUid = backupStatus.State.ClaimUid
+				backupInfo.ClaimRequestUid = backupStatus.State.ClaimRequestUid
+				backupInfo.LastAttemptPhase = backupStatus.State.LastAttempt.Phase
+				backupInfo.LastAttemptError = backupStatus.State.LastAttempt.Error
+				backupInfo.LastAttemptFinishedAt = dashboardUnixSeconds(backupStatus.State.LastAttempt.FinishedAt)
+				backupInfo.LastSuccessFinishedAt = dashboardUnixSeconds(backupStatus.State.LastSuccess.FinishedAt)
+				backupInfo.NextDueAt = dashboardUnixSeconds(backupStatus.State.DueAt)
+				backupInfo.Retained = len(backupStatus.State.Retained)
+			}
+			if backupStatus.RequestFound {
+				backupInfo.RequestUid = backupStatus.Request.Uid
+				backupInfo.RequestPhase = backupStatus.Request.Phase
+				backupInfo.RequestError = backupStatus.Request.Error
+			}
+			response.Backup = backupInfo
+		}
+
 		return response, nil
 	})
 
@@ -317,4 +365,166 @@ func (app *stackUiApp) registerRpcHandlers() {
 		}
 		return response, nil
 	})
+
+	k8sapi.RollingUpgrade.Handler(session, func(_ context.Context, request k8sapi.UpgradeRequest) (k8sapi.UpgradeResponse, error) {
+		app.mu.Lock()
+		stack := app.Stack
+		app.mu.Unlock()
+
+		if stack == nil || !stack.Ok {
+			return k8sapi.UpgradeResponse{}, fmt.Errorf("the cluster stack is not available")
+		}
+
+		version := strings.TrimSpace(request.K8sVersion)
+		if version == "" {
+			return k8sapi.UpgradeResponse{}, fmt.Errorf("a target Kubernetes release is required")
+		}
+
+		timeout := request.TimeoutSeconds
+		if timeout == 0 {
+			timeout = k8sapi.MaintenanceTimeoutDefault
+		}
+		if timeout < k8sapi.MaintenanceTimeoutMin || timeout > k8sapi.MaintenanceTimeoutMax {
+			return k8sapi.UpgradeResponse{}, fmt.Errorf(
+				"the timeout must be from %d to %d seconds",
+				k8sapi.MaintenanceTimeoutMin,
+				k8sapi.MaintenanceTimeoutMax,
+			)
+		}
+
+		record, ok := app.readClusterRecordWith(session, stack)
+		if !ok {
+			return k8sapi.UpgradeResponse{}, fmt.Errorf("could not read the cluster record")
+		}
+
+		selected := map[string]bool{}
+		for _, pool := range request.Pools {
+			name := strings.TrimSpace(pool)
+			if name == "" {
+				continue
+			}
+			if _, found := dashboardPoolRecord(record, name); !found {
+				return k8sapi.UpgradeResponse{}, fmt.Errorf("unknown node pool: %s", name)
+			}
+			selected[name] = true
+		}
+
+		groups := map[string]maintenance.Options{}
+		for _, node := range record.Nodes {
+			options := maintenance.Options{TimeoutSeconds: timeout}
+			if len(selected) == 0 || selected[node.Group] {
+				options.Cordon = request.Cordon || request.Drain
+				options.Drain = request.Drain
+			}
+			groups[node.Group] = options
+		}
+		if len(groups) == 0 {
+			return k8sapi.UpgradeResponse{}, fmt.Errorf("the cluster has no nodes")
+		}
+
+		startCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		err := maintenance.RollingUpgradeStart(startCtx, LocalKubeconfigPath(), version, groups)
+		if err != nil {
+			return k8sapi.UpgradeResponse{}, err
+		}
+
+		response := k8sapi.UpgradeResponse{TargetRelease: version}
+		if upgrade, _, found, snapshotErr := maintenance.RollingUpgradeSnapshot(); snapshotErr == nil && found {
+			response.Uid = upgrade.Uid
+		}
+		return response, nil
+	})
+
+	k8sapi.BackupNow.Handler(session, func(_ context.Context, _ util.Empty) (k8sapi.BackupResponse, error) {
+		uid, err := backupRequestSubmitUid(app)
+		if err != nil {
+			return k8sapi.BackupResponse{}, err
+		}
+		return k8sapi.BackupResponse{Uid: uid, Phase: k8sapi.BackupRequestPending}, nil
+	})
+
+	k8sapi.AutoMaintenance.Handler(session, func(_ context.Context, request k8sapi.AutoRequest) (k8sapi.AutoResponse, error) {
+		action := strings.TrimSpace(request.Action)
+		switch action {
+		case k8sapi.AutoActionShow:
+		case k8sapi.AutoActionSet:
+			saveCtx, cancel := app.dashboardContext()
+			err := app.autoPolicyApply(saveCtx, request)
+			cancel()
+			if err != nil {
+				return k8sapi.AutoResponse{}, err
+			}
+
+		case k8sapi.AutoActionRun:
+			runCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			err := maintenance.AutoOpenWindowNow(runCtx, LocalKubeconfigPath())
+			cancel()
+			if err != nil {
+				return k8sapi.AutoResponse{}, err
+			}
+
+		case k8sapi.AutoActionStop:
+			if err := maintenance.AutoStopRun(); err != nil {
+				return k8sapi.AutoResponse{}, err
+			}
+
+		case k8sapi.AutoActionResume:
+			if err := maintenance.AutoResume(); err != nil {
+				return k8sapi.AutoResponse{}, err
+			}
+
+		case k8sapi.AutoActionPause:
+			days := request.PauseDays
+			if days < 1 {
+				days = 1
+			}
+			if days > 30 {
+				return k8sapi.AutoResponse{}, fmt.Errorf("the pause must be from 1 to 30 days")
+			}
+			until := time.Now().UTC().Add(time.Duration(days) * 24 * time.Hour)
+			if err := maintenance.AutoDeferUntil(until); err != nil {
+				return k8sapi.AutoResponse{}, err
+			}
+
+		case k8sapi.AutoActionUnpause:
+			if err := maintenance.AutoDeferUntil(time.Time{}); err != nil {
+				return k8sapi.AutoResponse{}, err
+			}
+
+		case k8sapi.AutoActionRetryOs:
+			node := strings.TrimSpace(request.Node)
+			if node == "" {
+				return k8sapi.AutoResponse{}, fmt.Errorf("a node name is required")
+			}
+
+			retryCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			err := maintenance.AutoRetryOsUpdate(retryCtx, LocalKubeconfigPath(), node)
+			cancel()
+			if err != nil {
+				return k8sapi.AutoResponse{}, err
+			}
+
+			if status, statusErr := app.autoStatusRead(); statusErr == nil &&
+				status.StateFound &&
+				maintenance.AutoStateBlocked(status.State) {
+				if err := maintenance.AutoResume(); err != nil {
+					return k8sapi.AutoResponse{}, err
+				}
+			}
+
+		default:
+			return k8sapi.AutoResponse{}, fmt.Errorf("unknown automatic maintenance action %q", action)
+		}
+
+		return app.autoResponse()
+	})
+}
+
+func dashboardUnixSeconds(value time.Time) int64 {
+	if value.IsZero() {
+		return 0
+	}
+	return value.Unix()
 }

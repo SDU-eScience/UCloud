@@ -211,7 +211,7 @@ func k8sWaitForNodeOperation(client *iapp.Client, cluster string, result k8sapi.
 					return nil
 				}
 
-				if operation.Phase == k8sMaintenancePhaseCompleted {
+				if operation.Phase == k8sapi.MaintenancePhaseCompleted {
 					if result.Action != k8sapi.NodeActionRemove {
 						fmt.Fprintf(os.Stderr, "Node %s %s completed\n", result.Node, result.Action)
 						return nil
@@ -269,7 +269,7 @@ func k8sNodeExists(nodes []k8sapi.StatusNode, name string) bool {
 }
 
 func k8sMaintenanceActive(phase string) bool {
-	return phase == k8sMaintenancePhasePending || phase == k8sMaintenancePhaseRunning
+	return phase == k8sapi.MaintenancePhasePending || phase == k8sapi.MaintenancePhaseRunning
 }
 
 func k8sNodeWaitTimeoutError(result k8sapi.NodeActionResponse, cluster string) error {
@@ -313,9 +313,3 @@ func k8sPrintNodeActionResult(
 	}
 	return nil
 }
-
-const (
-	k8sMaintenancePhasePending   = "Pending"
-	k8sMaintenancePhaseRunning   = "Running"
-	k8sMaintenancePhaseCompleted = "Completed"
-)

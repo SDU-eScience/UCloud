@@ -39,6 +39,15 @@ var K8sClusterCommands = map[string]CommandFunc{
 	"node": func() Command {
 		return &K8sClusterNodeCommand{Timeout: -1}
 	},
+	"upgrade": func() Command {
+		return &K8sClusterUpgradeCommand{Timeout: -1}
+	},
+	"backup": func() Command {
+		return &K8sClusterBackupCommand{}
+	},
+	"auto": func() Command {
+		return &K8sClusterAutoCommand{StartHour: -1, Days: -1}
+	},
 }
 
 type K8sClusterReleasesCommand struct {
@@ -468,6 +477,44 @@ func k8sPrintStatus(response k8sapi.StatusResponse, output string) error {
 	} else {
 		summary.Cell("%d", len(response.Maintenance))
 	}
+	summary.Cell("Upgrade")
+	switch {
+	case response.RollingUpgradeError != "":
+		summary.Cell("unavailable (%s)", response.RollingUpgradeError)
+	case response.RollingUpgrade != nil:
+		label := fmt.Sprintf(
+			"%s (%s)",
+			k8sValueOrDash(response.RollingUpgrade.TargetRelease),
+			k8sUpgradePhaseLabel(response.RollingUpgrade.Phase),
+		)
+		if response.RollingUpgrade.Error != "" {
+			label += ": " + response.RollingUpgrade.Error
+		}
+		summary.Cell("%s", label)
+	default:
+		summary.Cell("none")
+	}
+	summary.Cell("Backup")
+	switch {
+	case response.BackupError != "":
+		summary.Cell("unavailable (%s)", response.BackupError)
+	case response.Backup != nil && k8sBackupRequestActive(response.Backup.RequestPhase):
+		summary.Cell("%s", response.Backup.RequestPhase)
+	default:
+		summary.Cell("none")
+	}
+	if response.Backup != nil && (response.Backup.StateFound || response.Backup.RequestFound) {
+		summary.Cell("Last backup")
+		summary.Cell("%s", k8sBackupLastLabel(response.Backup))
+	}
+	if response.Backup != nil && response.Backup.NextDueAt > 0 {
+		summary.Cell("Next backup")
+		summary.Cell("%s", k8sAutoTimestamp(response.Backup.NextDueAt))
+	}
+	if response.Backup != nil && response.Backup.StateFound {
+		summary.Cell("Retained backups")
+		summary.Cell("%d", response.Backup.Retained)
+	}
 	if response.ControlPlaneVersion != "" {
 		summary.Cell("Control plane version")
 		summary.Cell("%s", response.ControlPlaneVersion)
@@ -512,6 +559,19 @@ func k8sPrintStatus(response k8sapi.StatusResponse, output string) error {
 			nodes.Cell("%s", k8sValueOrDash(node.Version))
 		}
 		nodes.Print()
+	}
+
+	if response.RollingUpgrade != nil && len(response.RollingUpgrade.Nodes) > 0 {
+		upgrade := termio.Table{}
+		upgrade.AppendHeader("Upgrade node")
+		upgrade.AppendHeader("Group")
+		upgrade.AppendHeader("Phase")
+		for _, node := range response.RollingUpgrade.Nodes {
+			upgrade.Cell("%s", node.Name)
+			upgrade.Cell("%s", node.Group)
+			upgrade.Cell("%s", k8sUpgradePhaseLabel(node.Phase))
+		}
+		upgrade.Print()
 	}
 
 	if len(response.Maintenance) > 0 {
@@ -595,6 +655,30 @@ func k8sPrintCoreStatus(stack orcapi.Stack, reason string, output string) error 
 	}
 	table.Print()
 	return nil
+}
+
+func k8sBackupLastLabel(backup *k8sapi.StatusBackup) string {
+	if backup == nil {
+		return "never"
+	}
+	if backup.LastAttemptPhase == k8sapi.BackupAttemptFailed {
+		label := "failed"
+		if backup.LastAttemptFinishedAt > 0 {
+			label += " " + k8sAutoTimestamp(backup.LastAttemptFinishedAt)
+		}
+		if backup.LastAttemptError != "" {
+			label += ": " + backup.LastAttemptError
+		}
+		return label
+	}
+	if backup.LastSuccessFinishedAt > 0 {
+		return "ok " + k8sAutoTimestamp(backup.LastSuccessFinishedAt)
+	}
+	return "never"
+}
+
+func k8sBackupRequestActive(phase string) bool {
+	return phase == k8sapi.BackupRequestPending || phase == k8sapi.BackupRequestRunning
 }
 
 func k8sPrintJson(value any) error {

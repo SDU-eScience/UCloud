@@ -1312,6 +1312,17 @@ func autoSettingsSaveAsync(app *stackUiApp) {
 }
 
 func autoPolicySave(ctx context.Context, client shared.ClusterStateClient, form autoSettingsForm) error {
+	return autoPolicyUpdate(ctx, client, func(policy *maintenance.AutoPolicy) error {
+		*policy = autoPolicyFromForm(form, *policy)
+		return nil
+	})
+}
+
+func autoPolicyUpdate(
+	ctx context.Context,
+	client shared.ClusterStateClient,
+	mutate func(policy *maintenance.AutoPolicy) error,
+) error {
 	for attempt := 0; attempt < 3; attempt++ {
 		value, err := shared.ClusterStateValueReadEx(ctx, client, maintenance.AutoPolicyKey)
 		if err != nil {
@@ -1326,7 +1337,10 @@ func autoPolicySave(ctx context.Context, client shared.ClusterStateClient, form 
 			}
 		}
 
-		policy = autoPolicyFromForm(form, policy)
+		if err := mutate(&policy); err != nil {
+			return err
+		}
+		policy = maintenance.AutoPolicyNormalize(policy)
 
 		encoded, err := json.Marshal(policy)
 		if err != nil {

@@ -29,6 +29,8 @@ var commandDescriptions = map[string]string{
 	"vm":              "Manage virtual machines",
 	"workspace":       "Manage workspaces",
 
+	"k8s auto":                "Show and change automatic maintenance",
+	"k8s backup":              "Start a control-plane backup",
 	"k8s create":              "Create a Kubernetes cluster",
 	"k8s kubeconfig":          "Print the kubeconfig of a Kubernetes cluster",
 	"k8s list":                "List Kubernetes clusters",
@@ -37,6 +39,9 @@ var commandDescriptions = map[string]string{
 	"k8s releases":            "List supported Kubernetes releases",
 	"k8s scale":               "Change the number of nodes in a pool",
 	"k8s status":              "Show the status of a Kubernetes cluster",
+	"k8s upgrade":             "Start a rolling cluster upgrade",
+	"k8s-clusters auto":       "Show and change automatic maintenance",
+	"k8s-clusters backup":     "Start a control-plane backup",
 	"k8s-clusters create":     "Create a Kubernetes cluster",
 	"k8s-clusters kubeconfig": "Print the kubeconfig of a Kubernetes cluster",
 	"k8s-clusters list":       "List Kubernetes clusters",
@@ -45,6 +50,7 @@ var commandDescriptions = map[string]string{
 	"k8s-clusters releases":   "List supported Kubernetes releases",
 	"k8s-clusters scale":      "Change the number of nodes in a pool",
 	"k8s-clusters status":     "Show the status of a Kubernetes cluster",
+	"k8s-clusters upgrade":    "Start a rolling cluster upgrade",
 }
 
 type HelpCommand struct {
