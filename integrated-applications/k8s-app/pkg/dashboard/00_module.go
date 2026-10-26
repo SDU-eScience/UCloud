@@ -182,7 +182,9 @@ func (app *stackUiApp) Mutex() *sync.Mutex { return &app.mu }
 
 func (app *stackUiApp) Session() **ucx.Session { return &app.session }
 
-func (app *stackUiApp) OnInit() {}
+func (app *stackUiApp) OnInit() {
+	shared.RegisterRpcHandlers(app, shared.ModeDashboard)
+}
 
 func (app *stackUiApp) OnSysHello(payload string) {
 	var request orcapi.AppUcxConnectJobProviderRequest
@@ -202,6 +204,10 @@ func (app *stackUiApp) OnSysHello(payload string) {
 
 	if app.ActiveType == "" {
 		app.ActiveType = navHomeId
+	}
+
+	if ucx.AppHeadless(app) {
+		return
 	}
 
 	if !app.clientWaiterStarted && app.session != nil {

@@ -105,6 +105,7 @@ func (app *app) Mutex() *sync.Mutex     { return &app.mu }
 func (app *app) Session() **ucx.Session { return &app.session }
 
 func (app *app) OnInit() {
+	shared.RegisterRpcHandlers(app, shared.ModeRecovery)
 }
 
 func (app *app) OnMessage(message ucx.Frame) {
@@ -125,6 +126,10 @@ func (app *app) OnSysHello(payload string) {
 	app.JobId = request.Job.Id
 	if stack.MountPath != "" {
 		app.MountPath = stack.MountPath
+	}
+
+	if ucx.AppHeadless(app) {
+		return
 	}
 
 	go app.refresh()

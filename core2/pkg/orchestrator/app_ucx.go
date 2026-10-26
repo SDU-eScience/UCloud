@@ -189,8 +189,10 @@ func initAppUcx() {
 						return string(value)
 					}),
 				},
-				Provider: reqInfo.Provider.GetOrDefault(""),
-				Handoff:  reqInfo.Handoff,
+				Provider:   reqInfo.Provider.GetOrDefault(""),
+				Handoff:    reqInfo.Handoff,
+				ClientKind: reqInfo.ClientKind,
+				Updates:    reqInfo.Updates,
 			})
 			if marshalErr != nil {
 				log.Warn("UCX core: failed to marshal provider syshello: %v", marshalErr)

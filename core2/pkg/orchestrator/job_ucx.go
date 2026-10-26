@@ -175,6 +175,8 @@ func initJobUcx() {
 				Job:              job,
 				Port:             port,
 				StackStateFolder: stackStateFolder,
+				ClientKind:       state.reqInfo.ClientKind,
+				Updates:          state.reqInfo.Updates,
 			})
 			if marshalErr != nil {
 				log.Warn("UCX job: failed to marshal provider syshello: %v", marshalErr)

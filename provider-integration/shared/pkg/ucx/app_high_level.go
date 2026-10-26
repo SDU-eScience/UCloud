@@ -140,19 +140,24 @@ func AppServe(factory func() Application, port util.Option[int]) {
 							sysHelloSeen = true
 
 							stateMu.Lock()
+							session.SetClientHints(parseClientHints(frame.SysHello.Payload))
 							if appWithSysHello, ok := app.(SysHelloAwareApplication); ok {
 								appWithSysHello.OnSysHello(frame.SysHello.Payload)
 							}
-							ui := app.UserInterface()
-							model, err := ValueMarshal(app)
-							if err != nil {
-								log.Warn("Failed to serialize model %#v: %s", app, err)
+							if session.Headless() {
+								session.sendHeadlessMount()
 							} else {
-								session.SendUiMount(UiMount{
-									InterfaceId: "-",
-									Root:        ui,
-									Model:       model,
-								})
+								ui := app.UserInterface()
+								model, err := ValueMarshal(app)
+								if err != nil {
+									log.Warn("Failed to serialize model %#v: %s", app, err)
+								} else {
+									session.SendUiMount(UiMount{
+										InterfaceId: "-",
+										Root:        ui,
+										Model:       model,
+									})
+								}
 							}
 							stateMu.Unlock()
 						} else if frame.Opcode == OpUiEvent {

@@ -111,7 +111,7 @@ func (app *k8sApp) Session() **ucx.Session {
 }
 
 func (app *k8sApp) OnInit() {
-	// Nothing to do
+	shared.RegisterRpcHandlers(app, shared.ModeCreator)
 }
 
 func (app *k8sApp) OnSysHello(payload string) {

@@ -33,6 +33,8 @@ type Session struct {
 	uiHandlerMu    sync.RWMutex
 	uiHandlers     map[string]map[string]UiEventHandler
 	app            Application
+	hints          ClientHints
+	closeFn        func()
 }
 
 func NewSession(outgoing chan<- Frame, incoming <-chan Frame) *Session {
@@ -68,6 +70,23 @@ func (s *Session) Incoming() <-chan Frame {
 
 func (s *Session) Context() context.Context {
 	return s.ctx
+}
+
+func (s *Session) Cancel() {
+	if s == nil {
+		return
+	}
+
+	s.cancel()
+
+	s.mu.Lock()
+	closeFn := s.closeFn
+	s.closeFn = nil
+	s.mu.Unlock()
+
+	if closeFn != nil {
+		closeFn()
+	}
 }
 
 func (s *Session) nextSeq() int64 {
@@ -148,6 +167,13 @@ func (s *Session) pumpIncoming() {
 }
 
 func (s *Session) SendUiMount(uiMount UiMount) {
+	if s.Headless() {
+		return
+	}
+	s.sendUiMount(uiMount)
+}
+
+func (s *Session) sendUiMount(uiMount UiMount) {
 	uiMount.Root = NormalizeUiTree(uiMount.Root)
 	s.rebuildUiHandlers(uiMount.Root)
 
@@ -211,6 +237,10 @@ func collectUiHandlers(node UiNode, target map[string]map[string]UiEventHandler)
 }
 
 func (s *Session) SendModel(newModel map[string]Value) {
+	if s.Headless() {
+		return
+	}
+
 	s.modelMu.Lock()
 	defer s.modelMu.Unlock()
 
@@ -224,6 +254,10 @@ func (s *Session) SendModel(newModel map[string]Value) {
 // current model instead of replacing it. This is used for high-frequency updates (for example chat
 // streaming) where only a small part of the model changes and re-sending the entire model is too costly.
 func (s *Session) SendModelPatch(changes map[string]Value) {
+	if s.Headless() {
+		return
+	}
+
 	s.modelMu.Lock()
 	defer s.modelMu.Unlock()
 
@@ -257,6 +291,10 @@ func (s *Session) SendStringAppend(path string, chunk string) bool {
 		return true
 	}
 
+	if s.Headless() {
+		return true
+	}
+
 	s.modelMu.Lock()
 	defer s.modelMu.Unlock()
 
@@ -280,6 +318,10 @@ func (s *Session) SendStringAppend(path string, chunk string) bool {
 }
 
 func (s *Session) SendTableUpdate(update TableUpdate) {
+	if s.Headless() {
+		return
+	}
+
 	s.Send(Frame{
 		ReplyToSeq:  0,
 		Opcode:      OpTableUpdate,
@@ -460,19 +502,24 @@ func RunAppWebSocketApplication(conn *ws.Conn, ctx context.Context, app Applicat
 					sysHelloSeen = true
 
 					stateMu.Lock()
+					session.SetClientHints(parseClientHints(frame.SysHello.Payload))
 					if appWithSysHello, ok := app.(SysHelloAwareApplication); ok {
 						appWithSysHello.OnSysHello(frame.SysHello.Payload)
 					}
-					ui := app.UserInterface()
-					model, err := ValueMarshal(app)
-					if err != nil {
-						log.Warn("Failed to serialize model %#v: %s", app, err)
+					if session.Headless() {
+						session.sendHeadlessMount()
 					} else {
-						session.SendUiMount(UiMount{
-							InterfaceId: "-",
-							Root:        ui,
-							Model:       model,
-						})
+						ui := app.UserInterface()
+						model, err := ValueMarshal(app)
+						if err != nil {
+							log.Warn("Failed to serialize model %#v: %s", app, err)
+						} else {
+							session.SendUiMount(UiMount{
+								InterfaceId: "-",
+								Root:        ui,
+								Model:       model,
+							})
+						}
 					}
 					stateMu.Unlock()
 				} else if frame.Opcode == OpUiEvent {
