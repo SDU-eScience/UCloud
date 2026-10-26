@@ -597,6 +597,19 @@ func loopMonitoring() {
 					}
 				}
 
+				rdmaResource := shared.PrivateNetworkRdmaResourceName()
+				if rdmaResource != "" && shared.PrivateNetworkInfinibandNodeValid(node) {
+					rdmaCap := k8sCapacity.Name(k8score.ResourceName(rdmaResource), k8sresource.DecimalSI)
+					if rdmaCap != nil {
+						capacity.Resources[rdmaResource] = int(rdmaCap.Value())
+					}
+
+					rdmaLim := k8sAllocatable.Name(k8score.ResourceName(rdmaResource), k8sresource.DecimalSI)
+					if rdmaLim != nil {
+						limits.Resources[rdmaResource] = int(rdmaLim.Value())
+					}
+				}
+
 				groupMap, ok := nodeGroups[catGroup.Category]
 				if !ok {
 					groupMap = map[string]string{}
@@ -1011,6 +1024,17 @@ func loopMonitoring() {
 					gpuUsage := int(usage[gpuResourceType])
 					if gpuUsage > 0 {
 						dims.Resources[gpuResourceType] = gpuUsage
+					}
+				}
+
+				rdmaResource := shared.PrivateNetworkRdmaResourceName()
+				if rdmaResource != "" {
+					node := sched.Nodes[nodeName]
+					if node != nil && node.Capacity.Resources[rdmaResource] > 0 {
+						rdmaUsage := int(usage[rdmaResource])
+						if rdmaUsage > 0 {
+							dims.Resources[rdmaResource] = rdmaUsage
+						}
 					}
 				}
 

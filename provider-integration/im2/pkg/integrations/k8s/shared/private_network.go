@@ -10,6 +10,7 @@ import (
 
 	k8score "k8s.io/api/core/v1"
 	k8snetwork "k8s.io/api/networking/v1"
+	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"ucloud.dk/pkg/controller"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -382,8 +383,88 @@ func PrivateNetworkCreateDnsConfig(job *orc.Job) (PrivateNetworkDnsConfig, *util
 	return result, nil
 }
 
+func PrivateNetworkRdmaResourceName() string {
+	return controller.PrivateNetworkInfinibandRdmaResourceName()
+}
+
+func PrivateNetworkJobRdmaResourceName(job *orc.Job) (string, bool) {
+	if !controller.PrivateNetworkJobHasInfiniband(job) {
+		return "", false
+	}
+
+	name := controller.PrivateNetworkInfinibandRdmaResourceName()
+	if name == "" {
+		return "", false
+	}
+
+	return name, true
+}
+
+func PrivateNetworkInfinibandDeviceForNode(node string) (string, *util.HttpError) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	k8sNode, err := K8sClient.CoreV1().Nodes().Get(ctx, node, k8smeta.GetOptions{})
+	if err != nil {
+		return "", util.ServerHttpError("Failed to retrieve the scheduled Kubernetes node %s: %s", node, err)
+	}
+
+	if !PrivateNetworkInfinibandNodeValid(k8sNode) {
+		return "", util.ServerHttpError(
+			"The scheduled node %s is not a valid InfiniBand node (label %s, resource %s)",
+			node,
+			controller.PrivateNetworkInfinibandDeviceLabel(),
+			controller.PrivateNetworkInfinibandRdmaResourceName(),
+		)
+	}
+
+	device, _ := privateNetworkInfinibandNodeDevice(k8sNode)
+	return device, nil
+}
+
+func PrivateNetworkInfinibandNodeValid(node *k8score.Node) bool {
+	device, ok := privateNetworkInfinibandNodeDevice(node)
+	if !ok {
+		return false
+	}
+
+	expected := controller.PrivateNetworkInfinibandDevice()
+	if expected != "" && device != expected {
+		return false
+	}
+
+	rdmaResource := controller.PrivateNetworkInfinibandRdmaResourceName()
+	quantity, ok := node.Status.Allocatable[k8score.ResourceName(rdmaResource)]
+	return ok && quantity.Value() > 0
+}
+
+func privateNetworkInfinibandNodeDevice(node *k8score.Node) (string, bool) {
+	label := controller.PrivateNetworkInfinibandDeviceLabel()
+	raw, ok := node.Labels[label]
+	if !ok {
+		return "", false
+	}
+
+	return privateNetworkParseInfinibandDeviceLabel(raw)
+}
+
+func privateNetworkParseInfinibandDeviceLabel(raw string) (string, bool) {
+	var devices []string
+	if err := json.Unmarshal([]byte(raw), &devices); err != nil {
+		return "", false
+	}
+
+	if len(devices) == 0 {
+		return "", false
+	}
+
+	device := strings.TrimSpace(devices[0])
+	return device, device != ""
+}
+
 type PrivateNetworkAttachmentInfo struct {
 	NetworkId   string
+	NetworkType orc.NetworkType
 	Subdomain   string
 	CidrBlock   util.Option[string]
 	Ip          string
@@ -396,6 +477,7 @@ type PrivateNetworkAttachmentInfo struct {
 
 func PrivateNetworkAttachmentInfosValidated(all []controller.PrivateNetworkJobLeases, rank int) ([]PrivateNetworkAttachmentInfo, *util.HttpError) {
 	var result []PrivateNetworkAttachmentInfo
+	ethernetIndex := 0
 	for index, entry := range all {
 		var match *controller.PrivateNetworkLeaseRow
 		for i := range entry.Leases {
@@ -412,13 +494,27 @@ func PrivateNetworkAttachmentInfosValidated(all []controller.PrivateNetworkJobLe
 			)
 		}
 
+		networkType := entry.NetworkType
+		if networkType == "" {
+			networkType = orc.NetworkTypeEthernet
+		}
+
+		interfaceName := ""
+		if networkType == orc.NetworkTypeInfiniband {
+			interfaceName = "ib0"
+		} else {
+			ethernetIndex++
+			interfaceName = fmt.Sprintf("net%d", ethernetIndex)
+		}
+
 		result = append(result, PrivateNetworkAttachmentInfo{
 			NetworkId:   entry.NetworkId,
+			NetworkType: networkType,
 			Subdomain:   entry.Subdomain,
 			CidrBlock:   entry.CidrBlock,
 			Ip:          match.Ip,
 			MacAddress:  match.MacAddress,
-			Interface:   fmt.Sprintf("net%d", index+1),
+			Interface:   interfaceName,
 			NadName:     entry.Subdomain,
 			Provider:    PrivateNetworkProviderName(entry.Subdomain),
 			NetworkRank: index,
@@ -433,18 +529,32 @@ func PrivateNetworkAttachmentAnnotations(attachments []PrivateNetworkAttachmentI
 	}
 
 	type multusNetwork struct {
-		Name      string `json:"name"`
-		Namespace string `json:"namespace"`
-		Interface string `json:"interface"`
+		Name      string   `json:"name"`
+		Namespace string   `json:"namespace"`
+		Interface string   `json:"interface"`
+		Ips       []string `json:"ips,omitempty"`
 	}
 
 	entries := make([]multusNetwork, 0, len(attachments))
 	for _, attachment := range attachments {
-		entries = append(entries, multusNetwork{
+		entry := multusNetwork{
 			Name:      attachment.NadName,
 			Namespace: ServiceConfig.Compute.Namespace,
 			Interface: attachment.Interface,
-		})
+		}
+
+		if attachment.NetworkType == orc.NetworkTypeInfiniband {
+			prefix, ok := orc.PrivateNetworkParseCidr(attachment.CidrBlock.GetOrDefault(""))
+			if !ok {
+				return nil, util.ServerHttpError(
+					"The private network %s has an invalid CIDR block",
+					attachment.NetworkId,
+				)
+			}
+			entry.Ips = []string{fmt.Sprintf("%s/%d", attachment.Ip, prefix.Bits())}
+		}
+
+		entries = append(entries, entry)
 	}
 
 	jsonified, err := json.Marshal(entries)
@@ -457,6 +567,10 @@ func PrivateNetworkAttachmentAnnotations(attachments []PrivateNetworkAttachmentI
 	}
 
 	for _, attachment := range attachments {
+		if attachment.NetworkType == orc.NetworkTypeInfiniband {
+			continue
+		}
+
 		annotations[PrivateNetworkIpAnnotation(attachment.Provider)] = attachment.Ip
 		if attachment.MacAddress.Present {
 			annotations[PrivateNetworkMacAnnotation(attachment.Provider)] = attachment.MacAddress.Value
@@ -506,6 +620,7 @@ func PrivateNetworkAttachmentEnvironmentVariables(attachments []PrivateNetworkAt
 	result := map[string]string{}
 	for _, attachment := range attachments {
 		name := strings.ToUpper(strings.ReplaceAll(attachment.Subdomain, "-", "_"))
+		result["UCLOUD_NET_"+name] = attachment.Ip
 		result["UCLOUD_PRIVATE_NET_"+name] = attachment.Ip
 	}
 	return result

@@ -35,10 +35,11 @@ type PrivateNetworkLeaseRow struct {
 }
 
 type PrivateNetworkJobLeases struct {
-	NetworkId string
-	Subdomain string
-	CidrBlock util.Option[string]
-	Leases    []PrivateNetworkLeaseRow
+	NetworkId   string
+	NetworkType orc.NetworkType
+	Subdomain   string
+	CidrBlock   util.Option[string]
+	Leases      []PrivateNetworkLeaseRow
 }
 
 func PrivateNetworkJobValues(job *orc.Job) ([]orc.AppParameterValue, *util.HttpError) {
@@ -656,6 +657,17 @@ func PrivateNetworkJobAllocateLeases(job *orc.Job) ([]PrivateNetworkJobLeases, *
 		}
 	}
 
+	infinibandCount := 0
+	for _, value := range values {
+		network, ok := PrivateNetworkRetrieve(value.Id)
+		if ok && network.Specification.EffectiveType() == orc.NetworkTypeInfiniband {
+			infinibandCount++
+		}
+	}
+	if infinibandCount > 1 {
+		return nil, util.UserHttpError("A job can attach at most one InfiniBand network")
+	}
+
 	workspace := PrivateNetworkWorkspaceFromOwner(job.Resource.Owner)
 	replicas := job.Specification.Replicas
 	if replicas <= 0 {
@@ -796,10 +808,11 @@ func PrivateNetworkJobAllocateLeases(job *orc.Job) ([]PrivateNetworkJobLeases, *
 
 		for _, value := range values {
 			result = append(result, PrivateNetworkJobLeases{
-				NetworkId: value.Id,
-				Subdomain: subdomainByNetwork[value.Id],
-				CidrBlock: privateNetworkOptFromSql(lockedNetworks[value.Id].CidrBlock),
-				Leases:    perNetwork[value.Id],
+				NetworkId:   value.Id,
+				NetworkType: privateNetworkTypeFromRow(lockedNetworks[value.Id].NetworkType),
+				Subdomain:   subdomainByNetwork[value.Id],
+				CidrBlock:   privateNetworkOptFromSql(lockedNetworks[value.Id].CidrBlock),
+				Leases:      perNetwork[value.Id],
 			})
 		}
 
@@ -866,6 +879,16 @@ func PrivateNetworkSendResourceList(job *orc.Job) {
 	})
 }
 
+func privateNetworkJobBackend(job *orc.Job) orc.ToolBackend {
+	if job.Status.ResolvedApplication.Present {
+		tool := job.Status.ResolvedApplication.Value.Invocation.Tool
+		if tool.Tool.Present {
+			return tool.Tool.Value.Description.Backend
+		}
+	}
+	return ""
+}
+
 func privateNetworkValidateAttachment(job *orc.Job, value orc.AppParameterValue) *util.HttpError {
 	accessible, why, _ := JobResourceIsAccessible(job.Resource.Owner, orc.AppParameterValue{
 		Type: value.Type,
@@ -878,6 +901,11 @@ func privateNetworkValidateAttachment(job *orc.Job, value orc.AppParameterValue)
 	network, ok := PrivateNetworkRetrieve(value.Id)
 	if !ok {
 		return util.UserHttpError("The private network %s no longer exists", value.Id)
+	}
+
+	if network.Specification.EffectiveType() == orc.NetworkTypeInfiniband &&
+		privateNetworkJobBackend(job) == orc.ToolBackendVirtualMachine {
+		return util.UserHttpError("InfiniBand networks are not supported for virtual machines")
 	}
 
 	jobWorkspace := PrivateNetworkWorkspaceFromOwner(job.Resource.Owner)
@@ -910,13 +938,7 @@ func privateNetworkAllocateNetworkLeases(
 		sql.Null[string]{V: job.Id, Valid: true},
 		sql.Null[string]{V: value.Id, Valid: true},
 	)
-	isVirtualMachine := false
-	if job.Status.ResolvedApplication.Present {
-		tool := job.Status.ResolvedApplication.Value.Invocation.Tool
-		if tool.Tool.Present && tool.Tool.Value.Description.Backend == orc.ToolBackendVirtualMachine {
-			isVirtualMachine = true
-		}
-	}
+	isVirtualMachine := privateNetworkJobBackend(job) == orc.ToolBackendVirtualMachine
 
 	if len(existing) > 0 {
 		reused, retryErr := privateNetworkReuseJobLeases(

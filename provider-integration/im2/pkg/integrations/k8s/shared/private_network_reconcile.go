@@ -265,14 +265,9 @@ func privateNetworkResolveInfinibandDevice(settings config.KubernetesInfiniband)
 			continue
 		}
 
-		var devices []string
-		if err := json.Unmarshal([]byte(raw), &devices); err != nil {
-			log.Warn("Ignoring node %s with an invalid %s label: %s", node.Name, settings.DeviceLabel, err)
-			continue
-		}
-
-		if len(devices) == 0 || strings.TrimSpace(devices[0]) == "" {
-			log.Warn("Ignoring node %s with an empty %s label", node.Name, settings.DeviceLabel)
+		device, ok := privateNetworkParseInfinibandDeviceLabel(raw)
+		if !ok {
+			log.Warn("Ignoring node %s with an invalid or empty %s label", node.Name, settings.DeviceLabel)
 			continue
 		}
 
@@ -281,7 +276,6 @@ func privateNetworkResolveInfinibandDevice(settings config.KubernetesInfiniband)
 			continue
 		}
 
-		device := strings.TrimSpace(devices[0])
 		if _, found := deviceNodes[device]; found {
 			continue
 		}

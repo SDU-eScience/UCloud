@@ -221,6 +221,51 @@ func PrivateNetworkInfinibandDevice() string {
 	return privateNetworkCurrentSettings().Infiniband.Device
 }
 
+func PrivateNetworkInfinibandDeviceLabel() string {
+	label := privateNetworkCurrentSettings().Infiniband.DeviceLabel
+	if label == "" {
+		return "ucloud.dk/ibdev"
+	}
+	return label
+}
+
+func PrivateNetworkInfinibandRdmaResourceName() string {
+	name := privateNetworkCurrentSettings().Infiniband.RdmaResourceName
+	if name == "" {
+		return "nvidia.com/rdma_shared"
+	}
+	return name
+}
+
+func PrivateNetworkJobHasInfiniband(job *orc.Job) bool {
+	if job == nil {
+		return false
+	}
+
+	for _, value := range job.Specification.Parameters {
+		if privateNetworkValueHasInfiniband(value) {
+			return true
+		}
+	}
+
+	for _, value := range job.Specification.Resources {
+		if privateNetworkValueHasInfiniband(value) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func privateNetworkValueHasInfiniband(value orc.AppParameterValue) bool {
+	if !orc.IsNetworkValue(value) {
+		return false
+	}
+
+	network, ok := PrivateNetworkRetrieve(value.Id)
+	return ok && network.Specification.EffectiveType() == orc.NetworkTypeInfiniband
+}
+
 func PrivateNetworkSetInfinibandDevice(device string) {
 	privateNetworkSettingsMu.Lock()
 	privateNetworkSettings.Infiniband.Device = device
