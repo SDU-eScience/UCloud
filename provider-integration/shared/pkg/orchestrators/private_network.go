@@ -277,13 +277,6 @@ var NetworksRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[PrivateNet
 
 const networksControlNamespace = "networks/control"
 
-const privateNetworksControlNamespace = "private-networks/control"
-
-func withServerAliases[Req any, Resp any](call rpc.Call[Req, Resp], aliases ...string) rpc.Call[Req, Resp] {
-	call.ServerAliases = aliases
-	return call
-}
-
 type PrivateNetworkUpdate struct {
 	CidrBlock util.Option[string] `json:"cidrBlock"`
 	Subdomain util.Option[string] `json:"subdomain"`
@@ -297,10 +290,9 @@ type PrivateNetworksControlRetrieveRequest struct {
 }
 
 var NetworksControlRetrieve = rpc.Call[PrivateNetworksControlRetrieveRequest, PrivateNetwork]{
-	BaseContext:   networksControlNamespace,
-	ServerAliases: []string{privateNetworksControlNamespace},
-	Convention:    rpc.ConventionRetrieve,
-	Roles:         rpc.RolesProvider,
+	BaseContext: networksControlNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesProvider,
 }
 
 type PrivateNetworksControlBrowseRequest struct {
@@ -312,89 +304,72 @@ type PrivateNetworksControlBrowseRequest struct {
 }
 
 var NetworksControlBrowse = rpc.Call[PrivateNetworksControlBrowseRequest, fnd.PageV2[PrivateNetwork]]{
-	BaseContext:   networksControlNamespace,
-	ServerAliases: []string{privateNetworksControlNamespace},
-	Convention:    rpc.ConventionBrowse,
-	Roles:         rpc.RolesProvider,
+	BaseContext: networksControlNamespace,
+	Convention:  rpc.ConventionBrowse,
+	Roles:       rpc.RolesProvider,
 }
 
-var NetworksControlCreate = withServerAliases(
-	ControlCreateCall[PrivateNetworkSpecification, fnd.BulkResponse[fnd.FindByStringId]](networksControlNamespace),
-	privateNetworksControlNamespace,
-)
+var NetworksControlCreate = ControlCreateCall[PrivateNetworkSpecification, fnd.BulkResponse[fnd.FindByStringId]](networksControlNamespace)
 
 var NetworksControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[PrivateNetworkSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{
-	BaseContext:   networksControlNamespace,
-	ServerAliases: []string{privateNetworksControlNamespace},
-	Convention:    rpc.ConventionUpdate,
-	Roles:         rpc.RolesProvider,
-	Operation:     "register",
+	BaseContext: networksControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "register",
 }
 
 var NetworksControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[PrivateNetworkUpdate]], util.Empty]{
-	BaseContext:   networksControlNamespace,
-	ServerAliases: []string{privateNetworksControlNamespace},
-	Convention:    rpc.ConventionUpdate,
-	Roles:         rpc.RolesProvider,
-	Operation:     "update",
+	BaseContext: networksControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "update",
 }
 
 var NetworksControlUpdateLabels = rpc.Call[ControlMutateRequest[PrivateNetworksUpdateLabelsRequest], util.Empty]{
-	BaseContext:   networksControlNamespace,
-	ServerAliases: []string{privateNetworksControlNamespace},
-	Convention:    rpc.ConventionUpdate,
-	Roles:         rpc.RolesProvider,
-	Operation:     "updateLabels",
+	BaseContext: networksControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "updateLabels",
 }
 
-var NetworksControlDelete = withServerAliases(
-	ControlMutateCall[fnd.FindByStringId, fnd.BulkResponse[util.Empty]](networksControlNamespace, "delete"),
-	privateNetworksControlNamespace,
-)
+var NetworksControlDelete = ControlMutateCall[fnd.FindByStringId, fnd.BulkResponse[util.Empty]](networksControlNamespace, "delete")
 
 // Private Network Provider API
 // =====================================================================================================================
 
 const networksProviderNamespace = "ucloud/" + rpc.ProviderPlaceholder + "/networks"
 
-const privateNetworksProviderNamespace = "ucloud/" + rpc.ProviderPlaceholder + "/private-networks"
-
 var NetworksProviderCreate = rpc.Call[fnd.BulkRequest[PrivateNetwork], fnd.BulkResponse[fnd.FindByStringId]]{
-	BaseContext:   networksProviderNamespace,
-	ServerAliases: []string{privateNetworksProviderNamespace},
-	Convention:    rpc.ConventionCreate,
-	Roles:         rpc.RolesPrivileged,
+	BaseContext: networksProviderNamespace,
+	Convention:  rpc.ConventionCreate,
+	Roles:       rpc.RolesPrivileged,
 }
 
 var NetworksProviderDelete = rpc.Call[fnd.BulkRequest[PrivateNetwork], fnd.BulkResponse[util.Empty]]{
-	BaseContext:   networksProviderNamespace,
-	ServerAliases: []string{privateNetworksProviderNamespace},
-	Convention:    rpc.ConventionDelete,
-	Roles:         rpc.RolesPrivileged,
+	BaseContext: networksProviderNamespace,
+	Convention:  rpc.ConventionDelete,
+	Roles:       rpc.RolesPrivileged,
 }
 
 var NetworksProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[PrivateNetworkSupport]]{
-	BaseContext:   networksProviderNamespace,
-	ServerAliases: []string{privateNetworksProviderNamespace},
-	Convention:    rpc.ConventionRetrieve,
-	Roles:         rpc.RolesPrivileged,
-	Operation:     "products",
+	BaseContext: networksProviderNamespace,
+	Convention:  rpc.ConventionRetrieve,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "products",
 }
 
 var NetworksProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAclWithResource[PrivateNetwork]], fnd.BulkResponse[util.Empty]]{
-	BaseContext:   networksProviderNamespace,
-	ServerAliases: []string{privateNetworksProviderNamespace},
-	Convention:    rpc.ConventionUpdate,
-	Roles:         rpc.RolesPrivileged,
-	Operation:     "updateAcl",
+	BaseContext: networksProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "updateAcl",
 }
 
 var NetworksProviderOnUpdatedLabels = rpc.Call[fnd.BulkRequest[PrivateNetwork], util.Empty]{
-	BaseContext:   networksProviderNamespace,
-	ServerAliases: []string{privateNetworksProviderNamespace},
-	Convention:    rpc.ConventionUpdate,
-	Roles:         rpc.RolesPrivileged,
-	Operation:     "onUpdatedLabels",
+	BaseContext: networksProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "onUpdatedLabels",
 }
 
 var (

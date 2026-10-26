@@ -262,7 +262,7 @@ func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.Pri
 				Type: item.EffectiveType(),
 			},
 			orcapi.PrivateNetworksProviderCreate,
-			ProviderCallOpts{Timeout: util.OptValue(30 * time.Second)},
+			ProviderCallOpts{Timeout: util.OptValue(2 * time.Minute)},
 		)
 
 		if err != nil {

@@ -21,6 +21,9 @@ const (
 	PrivateNetworkIdLabel                 = "ucloud.dk/private-network-id"
 	PrivateNetworkManagedBy               = "im-private-network"
 	PrivateNetworkManagedByLegacy         = "im"
+	PrivateNetworkIbManagedBy             = "im-network"
+	PrivateNetworkIbIdLabel               = "ucloud.dk/network-id"
+	PrivateNetworkIbTypeLabel             = "ucloud.dk/network-type"
 	PrivateNetworkMultusAnnotation        = "k8s.v1.cni.cncf.io/networks"
 	PrivateNetworkNetworkStatusAnnotation = "k8s.v1.cni.cncf.io/network-status"
 
@@ -100,10 +103,24 @@ func PrivateNetworkCreate(network *orc.PrivateNetwork) *util.HttpError {
 		return util.UserHttpError("Private networks are not supported by this provider")
 	}
 
+	networkType := network.Specification.EffectiveType()
+	if networkType == orc.NetworkTypeInfiniband && !privateNetworkInfinibandReady {
+		return util.UserHttpError("InfiniBand networks are not supported by this provider")
+	}
+
+	support, supportOk := privateNetworkProductSupport(network.Specification.Product)
+	if !supportOk {
+		return util.HttpErr(http.StatusNotFound, "unknown product requested")
+	}
+	if support.EffectiveType() != networkType {
+		return util.HttpErr(http.StatusBadRequest, "the network type does not match the product")
+	}
+
 	baseSubdomain := orc.PrivateNetworkSubdomainFromName(network.Specification.Name)
 	assignedSubdomain := network.Status.Subdomain != ""
-	if snapshot, found := controller.PrivateNetworkSnapshotRetrieve(network.Id); found && snapshot.Subdomain != "" {
-		network.Status.Subdomain = snapshot.Subdomain
+	existingSnapshot, trackedBefore := controller.PrivateNetworkSnapshotRetrieve(network.Id)
+	if trackedBefore && existingSnapshot.Subdomain != "" {
+		network.Status.Subdomain = existingSnapshot.Subdomain
 		assignedSubdomain = true
 	}
 
@@ -150,34 +167,68 @@ func PrivateNetworkCreate(network *orc.PrivateNetwork) *util.HttpError {
 		}),
 	)
 	if err != nil {
+		if !trackedBefore {
+			privateNetworkDiscardFailedCreate(network.Id)
+		}
 		return err
 	}
 
 	snapshot, found := controller.PrivateNetworkSnapshotRetrieve(network.Id)
 	if !found || !snapshot.CidrBlock.Present || snapshot.CidrBlock.Value == "" {
+		if !trackedBefore {
+			privateNetworkDiscardFailedCreate(network.Id)
+		}
 		return util.ServerHttpError("The private network has no allocated CIDR block")
 	}
 
 	desired, desiredOk := privateNetworkComputeDesired(snapshot)
 	if !desiredOk {
+		if !trackedBefore {
+			privateNetworkDiscardFailedCreate(network.Id)
+		}
 		return util.ServerHttpError("The private network has an invalid CIDR block %s", snapshot.CidrBlock.Value)
 	}
 
-	if err := controller.PrivateNetworkUpdateCoreCidrBlock(network.Id, snapshot.CidrBlock.Value); err != nil {
-		controller.PrivateNetworkDiscardAfterFailedCreate(network.Id)
-		return err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	if _, _, ensureErr := privateNetworkEnsureNetworkObjects(ctx, desired); ensureErr != nil {
-		controller.PrivateNetworkDiscardAfterFailedCreate(network.Id)
+	if networkType == orc.NetworkTypeEthernet {
+		if err := controller.PrivateNetworkUpdateCoreCidrBlock(network.Id, desired.cidr); err != nil {
+			privateNetworkDiscardFailedCreate(network.Id)
+			return err
+		}
+	}
+
+	objects, ensureErr := privateNetworkEnsureNetworkObjects(ctx, desired, privateNetworkEnsureCreate)
+	if ensureErr != nil {
+		if networkType == orc.NetworkTypeInfiniband {
+			privateNetworkDeleteInfinibandObjects(ctx, desired)
+		}
+		privateNetworkDiscardFailedCreate(network.Id)
 		return ensureErr
+	}
+
+	if networkType == orc.NetworkTypeInfiniband {
+		if !objects.ready(desired) && !privateNetworkWaitForNad(ctx, desired.subdomain) {
+			privateNetworkDeleteInfinibandObjects(ctx, desired)
+			privateNetworkDiscardFailedCreate(network.Id)
+			return util.ServerHttpError("The InfiniBand network did not become ready in time")
+		}
+
+		if err := controller.PrivateNetworkUpdateCoreCidrBlock(network.Id, desired.cidr); err != nil {
+			privateNetworkDeleteInfinibandObjects(ctx, desired)
+			privateNetworkDiscardFailedCreate(network.Id)
+			return err
+		}
 	}
 
 	PrivateNetworkReconcileSoon()
 	return nil
+}
+
+func privateNetworkDiscardFailedCreate(networkId string) {
+	controller.PrivateNetworkDiscardAfterFailedCreate(networkId)
+	PrivateNetworkReconcileSoon()
 }
 
 func PrivateNetworkDelete(network *orc.PrivateNetwork) *util.HttpError {
@@ -285,6 +336,9 @@ func PrivateNetworkCreateDnsConfig(job *orc.Job) (PrivateNetworkDnsConfig, *util
 	for _, value := range values {
 		network, ok := controller.PrivateNetworkRetrieve(value.Id)
 		if !ok {
+			continue
+		}
+		if network.Specification.EffectiveType() == orc.NetworkTypeInfiniband {
 			continue
 		}
 		networks = append(networks, attachedNetwork{
