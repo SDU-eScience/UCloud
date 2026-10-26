@@ -411,7 +411,7 @@ function iconForNode(node: FileTreeResourceNode): IconName {
     }
 }
 
-const SelectorSidebarClass = injectStyle("file-selector-sidebar", k => `
+export const SelectorSidebarClass = injectStyle("file-selector-sidebar", k => `
     ${k} {
         width: 250px;
         min-width: 180px;

@@ -90,6 +90,7 @@ import {injectStyle} from "@/Unstyled";
 import {ActionEntry, ResourceBrowserActions} from "@/ui-components/Actions";
 import {VirtualizedTreeApi} from "@/ui-components/VirtualizedTree";
 import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
+import { FileSelectorSidebar, SelectorSidebarClass } from "./FileSelectorSidebar";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -1892,7 +1893,7 @@ export default FileBrowse;
 function selectorActions<T, C>(actions: ResourceBrowserActions<T, C>): ResourceBrowserActions<T, C> {
     // TODO(Dan): Lazy hack to clean up the actions.
 
-    const allowed = new Set(["Use this folder", "Upload files", "New folder", "New file", "Create folder", "Create file"]);
+    const allowed = new Set(["View drives", "Use this folder", "Upload files", "New folder", "New file", "Create folder", "Create file"]);
     const filter = (entries: ActionEntry<T, C>[]): ActionEntry<T, C>[] => entries.filter(entry =>
         entry !== "divider" && typeof entry.text === "string" && allowed.has(entry.text)
     );
@@ -1902,31 +1903,6 @@ function selectorActions<T, C>(actions: ResourceBrowserActions<T, C>): ResourceB
         contextMenu: filter(actions.contextMenu ?? []),
     };
 }
-
-const FileSelectorLayoutClass = injectStyle("file-selector-layout", k => `
-    ${k} {
-        display: flex;
-        flex-direction: column;
-        width: calc(100% + 16px);
-        height: calc(90vh - 16px);
-        min-height: 336px;
-        margin-left: -16px;
-    }
-
-    ${k} > .selector-content {
-        display: flex;
-        flex: 1 1 auto;
-        min-height: 0;
-        gap: 12px;
-    }
-
-    ${k} .selector-browser {
-        flex: 1;
-        min-width: 0;
-        height: 100%;
-        outline: none;
-    }
-`);
 
 function FileSelectorKeyboardGuide(): React.ReactNode {
     return <div className={FileSelectorKeyboardGuideClass}>
@@ -1954,7 +1930,7 @@ function FileSelectorKeyboardGuide(): React.ReactNode {
     </div>;
 }
 
-const FileSelectorKeyboardGuideClass = injectStyle("file-selector-keyboard-guide", key => `
+export const FileSelectorKeyboardGuideClass = injectStyle("file-selector-keyboard-guide", key => `
     ${key} {
         color: var(--textSecondary);
         font-size: 12px;
@@ -1990,6 +1966,51 @@ const FileSelectorKeyboardGuideClass = injectStyle("file-selector-keyboard-guide
 
     @media (max-width: 1000px) {
         ${key} {
+            display: none;
+        }
+    }
+`);
+
+
+export const FileSelectorLayoutClass = injectStyle("file-selector-layout", k => `
+    ${k} {
+        display: flex;
+        flex-direction: column;
+        width: calc(100% + 16px);
+        height: calc(90vh - 16px);
+        min-height: 336px;
+        margin-left: -16px;
+    }
+
+    ${k} > .selector-content {
+        display: flex;
+        flex: 1 1 auto;
+        min-height: 0;
+        gap: 12px;
+    }
+
+    ${k} .selector-browser {
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+        outline: none;
+    }
+
+    @media (max-width: 600px) {
+        ${k} .${SelectorSidebarClass} {
+            display: none;
+        }
+
+        ${k}[data-drive-navigation] .${SelectorSidebarClass} {
+            display: flex;
+            width: 100%;
+        }
+
+        ${k} .selector-browser {
+            margin-left: 8px;
+        }
+
+        ${k}[data-drive-navigation] .selector-content div.selector-browser {
             display: none;
         }
     }
