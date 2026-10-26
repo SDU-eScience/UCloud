@@ -32,12 +32,18 @@ var commandDescriptions = map[string]string{
 	"k8s create":              "Create a Kubernetes cluster",
 	"k8s kubeconfig":          "Print the kubeconfig of a Kubernetes cluster",
 	"k8s list":                "List Kubernetes clusters",
+	"k8s node":                "Maintain a cluster node",
+	"k8s pool":                "Manage worker pools",
 	"k8s releases":            "List supported Kubernetes releases",
+	"k8s scale":               "Change the number of nodes in a pool",
 	"k8s status":              "Show the status of a Kubernetes cluster",
 	"k8s-clusters create":     "Create a Kubernetes cluster",
 	"k8s-clusters kubeconfig": "Print the kubeconfig of a Kubernetes cluster",
 	"k8s-clusters list":       "List Kubernetes clusters",
+	"k8s-clusters node":       "Maintain a cluster node",
+	"k8s-clusters pool":       "Manage worker pools",
 	"k8s-clusters releases":   "List supported Kubernetes releases",
+	"k8s-clusters scale":      "Change the number of nodes in a pool",
 	"k8s-clusters status":     "Show the status of a Kubernetes cluster",
 }
 

@@ -33,6 +33,10 @@ const (
 	DefaultWorkerNodes        = 1
 	DefaultWorkerDiskGb       = 50
 
+	MaintenanceTimeoutDefault = 600
+	MaintenanceTimeoutMin     = 30
+	MaintenanceTimeoutMax     = 3600
+
 	AppModeCreator   = "creator"
 	AppModeDashboard = "dashboard"
 	AppModeRecovery  = "recovery"
@@ -46,6 +50,13 @@ const (
 	ClusterPhaseError        = "error"
 	ClusterPhaseCreated      = "created"
 	ClusterPhaseRecovering   = "recovering"
+
+	NodeActionDrain    = "drain"
+	NodeActionCordon   = "cordon"
+	NodeActionUncordon = "uncordon"
+	NodeActionUpgrade  = "upgrade"
+	NodeActionRemove   = "remove"
+	NodeActionCancel   = "cancel"
 )
 
 type PingRequest struct {
@@ -235,6 +246,7 @@ type StatusPool struct {
 type StatusNode struct {
 	Hostname       string                  `json:"hostname"`
 	Group          string                  `json:"group"`
+	AllocationId   int                     `json:"allocationId,omitempty"`
 	IpAddress      string                  `json:"ipAddress"`
 	JobId          string                  `json:"jobId"`
 	Machine        accapi.ProductReference `json:"machine"`
@@ -245,6 +257,7 @@ type StatusNode struct {
 }
 
 type MaintenanceOperation struct {
+	Uid      string `json:"uid,omitempty"`
 	NodeName string `json:"nodeName"`
 	Kind     string `json:"kind"`
 	Phase    string `json:"phase"`
@@ -272,6 +285,61 @@ type StatusResponse struct {
 
 var Status = ucx.Rpc[util.Empty, StatusResponse]{
 	CallName: "k8s.status",
+}
+
+type ScaleOutRequest struct {
+	Pool  string `json:"pool"`
+	Nodes int    `json:"nodes"`
+	Disk  int    `json:"disk"`
+}
+
+type ScaleOutResponse struct {
+	Pool  string `json:"pool"`
+	Nodes int    `json:"nodes"`
+	Ok    bool   `json:"ok"`
+}
+
+var ScaleOut = ucx.Rpc[ScaleOutRequest, ScaleOutResponse]{
+	CallName: "k8s.scaleOut",
+}
+
+type AddPoolRequest struct {
+	Name    string                  `json:"name"`
+	Machine accapi.ProductReference `json:"machine"`
+	Nodes   int                     `json:"nodes"`
+	Disk    int                     `json:"disk"`
+}
+
+type AddPoolResponse struct {
+	Name  string `json:"name"`
+	Nodes int    `json:"nodes"`
+	Ok    bool   `json:"ok"`
+}
+
+var AddPool = ucx.Rpc[AddPoolRequest, AddPoolResponse]{
+	CallName: "k8s.addPool",
+}
+
+type NodeActionRequest struct {
+	Action                  string `json:"action"`
+	Node                    string `json:"node"`
+	TargetRelease           string `json:"targetRelease,omitempty"`
+	TimeoutSeconds          int    `json:"timeoutSeconds,omitempty"`
+	Cordon                  bool   `json:"cordon,omitempty"`
+	Drain                   bool   `json:"drain,omitempty"`
+	DeleteVolatilePods      bool   `json:"deleteVolatilePods,omitempty"`
+	BypassDisruptionBudgets bool   `json:"bypassDisruptionBudgets,omitempty"`
+	ForceDelete             bool   `json:"forceDelete,omitempty"`
+}
+
+type NodeActionResponse struct {
+	Node         string `json:"node"`
+	Action       string `json:"action"`
+	OperationUid string `json:"operationUid,omitempty"`
+}
+
+var NodeAction = ucx.Rpc[NodeActionRequest, NodeActionResponse]{
+	CallName: "k8s.nodeAction",
 }
 
 type KubeconfigResponse struct {

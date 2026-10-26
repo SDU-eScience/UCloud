@@ -30,6 +30,15 @@ var K8sClusterCommands = map[string]CommandFunc{
 	"list":       func() Command { return &K8sClusterListCommand{} },
 	"status":     func() Command { return &K8sClusterStatusCommand{} },
 	"kubeconfig": func() Command { return &K8sClusterKubeconfigCommand{} },
+	"scale": func() Command {
+		return &K8sClusterScaleCommand{Nodes: -1, Disk: -1}
+	},
+	"pool": func() Command {
+		return &K8sClusterPoolCommand{Nodes: -1, Disk: -1}
+	},
+	"node": func() Command {
+		return &K8sClusterNodeCommand{Timeout: -1}
+	},
 }
 
 type K8sClusterReleasesCommand struct {
@@ -108,6 +117,12 @@ func (c *K8sClusterListCommand) Execute() error {
 	return k8sPrintClusters(stacks, output)
 }
 
+func (c *K8sClusterStatusCommand) HelpNotes() []string {
+	return []string{
+		"When the dashboard is unavailable, prints the cluster name and the core node jobs.",
+	}
+}
+
 func (c *K8sClusterStatusCommand) Execute() error {
 	if strings.TrimSpace(c.Name) == "" {
 		return fmt.Errorf("a cluster name is required")
@@ -127,18 +142,27 @@ func (c *K8sClusterStatusCommand) Execute() error {
 		return err
 	}
 
+	stackStatus := stack.Status.GetOrDefault(orcapi.StackStatus{})
+	if !stackStatus.UcxConnectJobId.Present || strings.TrimSpace(stackStatus.UcxConnectJobId.Value) == "" {
+		return k8sPrintCoreStatus(stack, "the cluster dashboard is not running", output)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), k8sConnectTimeout)
 	defer cancel()
 
 	client, err := k8sConnectCluster(ctx, stack)
 	if err != nil {
-		return err
+		return k8sPrintCoreStatus(stack, err.Error(), output)
 	}
 	defer client.Close()
 
 	response, err := iapp.Call(ctx, client, k8sapi.Status, util.Empty{})
 	if err != nil {
 		return fmt.Errorf("could not read the status of %s: %w", c.Name, err)
+	}
+
+	if response.Name == "" {
+		response.Name = c.Name
 	}
 
 	return k8sPrintStatus(response, output)
@@ -508,6 +532,71 @@ func k8sPrintStatus(response k8sapi.StatusResponse, output string) error {
 	return nil
 }
 
+type k8sCoreStatusJob struct {
+	Name  string `json:"name"`
+	State string `json:"state"`
+}
+
+type k8sCoreStatusOutput struct {
+	Name               string             `json:"name"`
+	CreatedAt          string             `json:"createdAt"`
+	DashboardUrl       string             `json:"dashboardUrl"`
+	DashboardAvailable bool               `json:"dashboardAvailable"`
+	DashboardReason    string             `json:"dashboardReason,omitempty"`
+	Jobs               []k8sCoreStatusJob `json:"jobs"`
+}
+
+func k8sPrintCoreStatus(stack orcapi.Stack, reason string, output string) error {
+	stackStatus := stack.Status.GetOrDefault(orcapi.StackStatus{})
+	jobs := make([]k8sCoreStatusJob, 0, len(stackStatus.Jobs))
+	for _, job := range stackStatus.Jobs {
+		name := strings.TrimSpace(job.Specification.Name)
+		if name == "" {
+			name = job.Id
+		}
+		jobs = append(jobs, k8sCoreStatusJob{
+			Name:  name,
+			State: string(job.Status.State),
+		})
+	}
+
+	sort.Slice(jobs, func(i, j int) bool {
+		return jobs[i].Name < jobs[j].Name
+	})
+
+	if output == "json" {
+		return k8sPrintJson(k8sCoreStatusOutput{
+			Name:               stack.Id,
+			CreatedAt:          stack.CreatedAt.Time().UTC().Format(time.RFC3339),
+			DashboardUrl:       k8sDashboardURL(stack.Id),
+			DashboardAvailable: false,
+			DashboardReason:    reason,
+			Jobs:               jobs,
+		})
+	}
+
+	fmt.Printf("Cluster: %s\n", stack.Id)
+	fmt.Printf("Created: %s\n", cli.FormatTime(stack.CreatedAt))
+	fmt.Printf("Dashboard: %s\n", k8sValueOrDash(k8sDashboardURL(stack.Id)))
+	fmt.Printf("Dashboard available: no\n")
+	fmt.Printf("Reason: %s\n", reason)
+
+	if len(jobs) == 0 {
+		fmt.Println("Jobs: none")
+		return nil
+	}
+
+	table := termio.Table{}
+	table.AppendHeader("Node")
+	table.AppendHeader("State")
+	for _, job := range jobs {
+		table.Cell("%s", k8sValueOrDash(job.Name))
+		table.Cell("%s", k8sValueOrDash(job.State))
+	}
+	table.Print()
+	return nil
+}
+
 func k8sPrintJson(value any) error {
 	data, err := json.MarshalIndent(value, "", "  ")
 	if err != nil {
@@ -520,6 +609,9 @@ func k8sPrintJson(value any) error {
 func k8sErrorMessage(err error) string {
 	var rpcErr ucx.RpcCallError
 	if errors.As(err, &rpcErr) {
+		if rpcErr.Status == ucx.RpcStatusNotFound {
+			return "the Kubernetes application does not support this command; update the application"
+		}
 		if message := ucx.ValueAsString(rpcErr.Payload["error"]); message != "" {
 			return message
 		}

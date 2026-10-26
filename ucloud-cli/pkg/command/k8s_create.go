@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"gopkg.in/yaml.v3"
 	accapi "ucloud.dk/shared/pkg/accounting"
@@ -583,44 +582,9 @@ func k8sResolveCreateRequest(input k8sCreateSpec) (k8sapi.DeployRequest, error) 
 		return request, fmt.Errorf("a service provider is required; use --provider")
 	}
 
-	products, httpErr := orcapi.JobsRetrieveProducts.Invoke(util.Empty{})
-	if httpErr != nil {
-		return request, fmt.Errorf("could not retrieve the compute products: %s", httpErr.Why)
-	}
-
-	byName := map[string]accapi.ProductReference{}
-	for _, product := range products.ProductsByProvider[provider] {
-		if !k8sCreateProductUsable(product, provider) {
-			continue
-		}
-		byName[product.Product.Name] = product.Product.ToReference()
-	}
-	if len(byName) == 0 {
-		return request, fmt.Errorf("no VM-capable compute products are available for provider %s", provider)
-	}
-
-	available := make([]string, 0, len(byName))
-	for name := range byName {
-		available = append(available, name)
-	}
-	sort.Strings(available)
-
-	resolve := func(role string, name string) (accapi.ProductReference, error) {
-		name = strings.TrimSpace(name)
-		if name == "" {
-			return accapi.ProductReference{}, fmt.Errorf("select a machine type for %s", role)
-		}
-
-		machine, ok := byName[name]
-		if !ok {
-			return accapi.ProductReference{}, fmt.Errorf(
-				"unknown machine type %q for provider %s; available machine types: %s",
-				name,
-				provider,
-				strings.Join(available, ", "),
-			)
-		}
-		return machine, nil
+	byName, available, err := k8sProviderProducts(provider)
+	if err != nil {
+		return request, err
 	}
 
 	controlPlane := k8sCreateControlPlaneSpec{}
@@ -628,7 +592,7 @@ func k8sResolveCreateRequest(input k8sCreateSpec) (k8sapi.DeployRequest, error) 
 		controlPlane = *input.ControlPlane
 	}
 
-	controlPlaneMachine, err := resolve("the control plane", controlPlane.Machine)
+	controlPlaneMachine, err := k8sResolveMachine(byName, available, provider, "the control plane", controlPlane.Machine)
 	if err != nil {
 		return request, err
 	}
@@ -651,7 +615,7 @@ func k8sResolveCreateRequest(input k8sCreateSpec) (k8sapi.DeployRequest, error) 
 			role = "worker pool " + strings.TrimSpace(pool.Name)
 		}
 
-		machine, err := resolve(role, pool.Machine)
+		machine, err := k8sResolveMachine(byName, available, provider, role, pool.Machine)
 		if err != nil {
 			return request, err
 		}
@@ -680,6 +644,56 @@ func k8sCreateProductUsable(product orcapi.ResolvedSupport[orcapi.JobSupport], p
 		product.Product.Category.Provider == provider
 }
 
+func k8sProviderProducts(provider string) (map[string]accapi.ProductReference, []string, error) {
+	products, httpErr := orcapi.JobsRetrieveProducts.Invoke(util.Empty{})
+	if httpErr != nil {
+		return nil, nil, fmt.Errorf("could not retrieve the compute products: %s", httpErr.Why)
+	}
+
+	byName := map[string]accapi.ProductReference{}
+	for _, product := range products.ProductsByProvider[provider] {
+		if !k8sCreateProductUsable(product, provider) {
+			continue
+		}
+		byName[product.Product.Name] = product.Product.ToReference()
+	}
+	if len(byName) == 0 {
+		return nil, nil, fmt.Errorf("no VM-capable compute products are available for provider %s", provider)
+	}
+
+	available := make([]string, 0, len(byName))
+	for name := range byName {
+		available = append(available, name)
+	}
+	sort.Strings(available)
+
+	return byName, available, nil
+}
+
+func k8sResolveMachine(
+	byName map[string]accapi.ProductReference,
+	available []string,
+	provider string,
+	role string,
+	name string,
+) (accapi.ProductReference, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return accapi.ProductReference{}, fmt.Errorf("select a machine type for %s", role)
+	}
+
+	machine, ok := byName[name]
+	if !ok {
+		return accapi.ProductReference{}, fmt.Errorf(
+			"unknown machine type %q for provider %s; available machine types: %s",
+			name,
+			provider,
+			strings.Join(available, ", "),
+		)
+	}
+	return machine, nil
+}
+
 func k8sCreateFailureMessage(client *iapp.Client, err error) string {
 	message := k8sErrorMessage(err)
 	if message == "the cluster could not be created" {
@@ -689,11 +703,6 @@ func k8sCreateFailureMessage(client *iapp.Client, err error) string {
 	}
 	return k8sClusterMessage(message)
 }
-
-const (
-	k8sWaitTimeout      = 30 * time.Minute
-	k8sWaitPollInterval = 5 * time.Second
-)
 
 func k8sWaitForCluster(name string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), k8sWaitTimeout)
@@ -747,18 +756,8 @@ func k8sWaitForCluster(name string) error {
 			continue
 		}
 
-		if response.Phase == k8sapi.ClusterPhaseError ||
-			response.Phase == k8sapi.ClusterPhaseCleanup ||
-			response.FailureReason != "" {
-			reason := response.FailureReason
-			if reason == "" {
-				reason = "the cluster entered the error phase"
-			}
-			return fmt.Errorf(
-				"the cluster did not become ready: %s; use the dashboard at %s",
-				reason,
-				k8sValueOrDash(k8sDashboardURL(name)),
-			)
+		if err := k8sClusterFailure(response, name); err != nil {
+			return err
 		}
 
 		for _, node := range response.Nodes {
@@ -794,39 +793,6 @@ func k8sWaitForCluster(name string) error {
 		if !k8sWaitSleep(ctx) {
 			return k8sWaitTimeoutError(name)
 		}
-	}
-}
-
-func k8sWaitSleep(ctx context.Context) bool {
-	timer := time.NewTimer(k8sWaitPollInterval)
-	defer timer.Stop()
-
-	select {
-	case <-ctx.Done():
-		return false
-	case <-timer.C:
-		return true
-	}
-}
-
-func k8sWaitTimeoutError(name string) error {
-	return fmt.Errorf(
-		"the cluster did not become ready within %s; use the dashboard at %s",
-		k8sWaitTimeout,
-		k8sValueOrDash(k8sDashboardURL(name)),
-	)
-}
-
-func k8sNodeStateLabel(state string) string {
-	switch state {
-	case k8sapi.NodeStateReady:
-		return "ready"
-	case k8sapi.NodeStateNotReady:
-		return "not ready"
-	case k8sapi.NodeStateUnknown:
-		return "unknown"
-	default:
-		return "pending"
 	}
 }
 

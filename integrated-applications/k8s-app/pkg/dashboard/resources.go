@@ -355,6 +355,14 @@ func (c *K8sClient) ListNamespaces(ctx context.Context) ([]string, error) {
 	return result, nil
 }
 
+func (c *K8sClient) NodeUid(ctx context.Context, nodeName string) (string, error) {
+	node, err := c.Typed.CoreV1().Nodes().Get(ctx, nodeName, v1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	return string(node.UID), nil
+}
+
 func (c *K8sClient) NodeNames(ctx context.Context) (map[string]bool, error) {
 	list, err := c.Dynamic.Resource(schema.GroupVersionResource{Group: "", Version: "v1", Resource: "nodes"}).List(ctx, listOptions)
 	if err != nil {
