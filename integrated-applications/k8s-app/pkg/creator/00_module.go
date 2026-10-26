@@ -2,6 +2,7 @@ package creator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"slices"
@@ -59,6 +60,9 @@ type k8sApp struct {
 
 	ServiceProvider string
 
+	HostProvider string `ucx:"-"`
+	SwitchBusy   bool   `ucx:"-"`
+
 	ControlPlaneMachine accapi.ProductReference
 	ControlPlaneNodes   int
 	ControlPlaneDiskGb  int
@@ -82,6 +86,22 @@ type recoverStackEntry struct {
 	Name string
 }
 
+type creatorHandoff struct {
+	ClusterId          string               `json:"clusterId" ucx:"clusterId"`
+	K8sVersion         string               `json:"k8sVersion" ucx:"k8sVersion"`
+	ServiceProvider    string               `json:"serviceProvider" ucx:"serviceProvider"`
+	ControlPlaneNodes  int                  `json:"controlPlaneNodes" ucx:"controlPlaneNodes"`
+	ControlPlaneDiskGb int                  `json:"controlPlaneDiskGb" ucx:"controlPlaneDiskGb"`
+	Pools              []creatorPoolHandoff `json:"pools" ucx:"pools"`
+	RecoverStackId     string               `json:"recoverStackId" ucx:"recoverStackId"`
+}
+
+type creatorPoolHandoff struct {
+	Name   string `json:"name" ucx:"name"`
+	Nodes  int    `json:"nodes" ucx:"nodes"`
+	DiskGb int    `json:"diskGb" ucx:"diskGb"`
+}
+
 func (app *k8sApp) Mutex() *sync.Mutex {
 	return &app.mu
 }
@@ -92,6 +112,104 @@ func (app *k8sApp) Session() **ucx.Session {
 
 func (app *k8sApp) OnInit() {
 	// Nothing to do
+}
+
+func (app *k8sApp) OnSysHello(payload string) {
+	var request orcapi.AppUcxConnectProviderRequest
+	if err := json.Unmarshal([]byte(payload), &request); err != nil {
+		return
+	}
+
+	app.HostProvider = strings.TrimSpace(request.Provider)
+	app.SwitchBusy = false
+
+	handoffApplied := false
+	if len(request.Handoff) > 0 {
+		var handoff creatorHandoff
+		if err := json.Unmarshal(request.Handoff, &handoff); err == nil {
+			app.applyProviderHandoff(handoff)
+			handoffApplied = true
+		}
+	}
+
+	if handoffApplied && app.HostProvider != "" && app.ServiceProvider != app.HostProvider {
+		app.ServiceProvider = ""
+	}
+}
+
+func (app *k8sApp) applyProviderHandoff(handoff creatorHandoff) {
+	if handoff.ClusterId != "" {
+		app.ClusterId = handoff.ClusterId
+	}
+	if _, ok := shared.ReleaseByExactVersion(handoff.K8sVersion); ok {
+		app.K8sVersion = handoff.K8sVersion
+	}
+	if handoff.ServiceProvider != "" {
+		app.ServiceProvider = handoff.ServiceProvider
+	}
+	switch handoff.ControlPlaneNodes {
+	case 1, 3, 5, 7:
+		app.ControlPlaneNodes = handoff.ControlPlaneNodes
+	}
+	if handoff.ControlPlaneDiskGb >= 10 && handoff.ControlPlaneDiskGb <= 1024 {
+		app.ControlPlaneDiskGb = handoff.ControlPlaneDiskGb
+	}
+
+	if len(handoff.Pools) > 0 {
+		limit := len(handoff.Pools)
+		if limit > shared.ClusterMaxNodes {
+			limit = shared.ClusterMaxNodes
+		}
+
+		pools := make([]creatorWorkerPool, 0, limit)
+		for i := 0; i < limit; i++ {
+			pool := handoff.Pools[i]
+			nodes := pool.Nodes
+			if nodes < 1 {
+				nodes = 1
+			} else if nodes > 250 {
+				nodes = 250
+			}
+
+			diskGb := pool.DiskGb
+			if diskGb < 10 {
+				diskGb = 10
+			} else if diskGb > 1024 {
+				diskGb = 1024
+			}
+
+			pools = append(pools, creatorWorkerPool{
+				Name:   pool.Name,
+				Nodes:  nodes,
+				DiskGb: diskGb,
+			})
+		}
+		app.Pools = pools
+	}
+
+	app.ControlPlaneMachine = accapi.ProductReference{}
+	app.RecoverStackId = handoff.RecoverStackId
+}
+
+func (app *k8sApp) providerHandoff() creatorHandoff {
+	pools := make([]creatorPoolHandoff, 0, len(app.Pools))
+	for _, pool := range app.Pools {
+		pools = append(pools, creatorPoolHandoff{
+			Name:   pool.Name,
+			Nodes:  pool.Nodes,
+			DiskGb: pool.DiskGb,
+		})
+	}
+
+	return creatorHandoff{
+		ClusterId:          app.ClusterId,
+		K8sVersion:         app.K8sVersion,
+		ServiceProvider:    app.ServiceProvider,
+		ControlPlaneNodes:  app.ControlPlaneNodes,
+		ControlPlaneDiskGb: app.ControlPlaneDiskGb,
+		Pools:              pools,
+		RecoverStackId:     app.RecoverStackId,
+	}
 }
 
 func (app *k8sApp) UserInterface() ucx.UiNode {
@@ -108,7 +226,7 @@ func (app *k8sApp) UserInterface() ucx.UiNode {
 		})
 	}
 
-	return ucx.KeyboardNavigationNode("keyboardNavigation").HorizontalSelector("[data-job-info-field]").Submit("stack").SubmitDisabled(app.DeployBusy).Children(
+	return ucx.KeyboardNavigationNode("keyboardNavigation").HorizontalSelector("[data-job-info-field]").Submit("stack").SubmitDisabled(app.DeployBusy || app.SwitchBusy).Children(
 		ucx.SidebarLayout().Sidebar(
 			ucx.Surface().Children(
 				ucx.CostEstimateNode("costEstimate", costEntries),
@@ -150,7 +268,9 @@ func (app *k8sApp) cardMetadata() ucx.UiNode {
 			ucx.FieldRowNodeEx("serviceProviderRow", "Service provider", "").
 				FieldRowDescription("The provider that runs your cluster. All machines must come from this provider.").
 				Children(
-					ucx.ServiceProviderSelectorNode("serviceProvider", "serviceProvider").ServiceProviderRealProvidersOnly(true),
+					ucx.ServiceProviderSelectorNode("serviceProvider", "serviceProvider").
+						ServiceProviderRealProvidersOnly(true).
+						ServiceProviderPreferred(app.HostProvider),
 				),
 			ucx.FieldRowNodeEx("k8sVersionRow", "K8s version", "k8sVersion").
 				FieldRowDescription("The exact Kubernetes patch release to deploy.").
@@ -413,7 +533,7 @@ func (app *k8sApp) loadRecoverStacks() {
 }
 
 func (app *k8sApp) recover(ev ucx.UiEvent) {
-	if app.RecoverBusy {
+	if app.RecoverBusy || app.SwitchBusy {
 		return
 	}
 
@@ -449,7 +569,7 @@ func (app *k8sApp) recover(ev ucx.UiEvent) {
 }
 
 func (app *k8sApp) deploy(ev ucx.UiEvent) {
-	if app.DeployBusy {
+	if app.DeployBusy || app.SwitchBusy {
 		return
 	}
 
@@ -593,7 +713,56 @@ func (app *k8sApp) deploy(ev ucx.UiEvent) {
 	}()
 }
 
-func (app *k8sApp) OnMessage(msg ucx.Frame) {}
+func (app *k8sApp) OnMessage(msg ucx.Frame) {
+	if msg.Opcode != ucx.OpModelInput || msg.ModelInput.Path != "serviceProvider" {
+		return
+	}
+
+	target := strings.TrimSpace(app.ServiceProvider)
+	host := strings.TrimSpace(app.HostProvider)
+	if target == "" || (host != "" && target == host) {
+		return
+	}
+
+	if app.DeployBusy || app.RecoverBusy || app.SwitchBusy {
+		if host != "" {
+			app.ServiceProvider = host
+		}
+		ucx.AppUpdateUi(app)
+		return
+	}
+
+	handoff := app.providerHandoff()
+	app.SwitchBusy = true
+
+	go func() {
+		err := ucxsvc.RequestProviderSwitch(app, target, handoff)
+
+		app.mu.Lock()
+		if err == nil {
+			app.SwitchBusy = false
+			app.mu.Unlock()
+			return
+		}
+
+		session := *app.Session()
+		if session == nil || session.Context().Err() != nil {
+			app.mu.Unlock()
+			return
+		}
+
+		app.SwitchBusy = false
+		if host != "" {
+			app.ServiceProvider = host
+		}
+		ui := app.UserInterface()
+		model := ucx.AppSnapshot(app)
+		app.mu.Unlock()
+
+		ucx.AppUpdateUiLocked(session, ui, model)
+		ucxsvc.UiSendFailure(app, "Could not switch to the selected service provider: "+err.Error())
+	}()
+}
 
 func k8sVersionOptions() []ucx.Option {
 	now := time.Now().UTC()

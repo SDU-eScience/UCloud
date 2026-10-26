@@ -17,6 +17,8 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+const ucxHandoffMaxBytes = 64 * 1024
+
 type appUcxSessionState struct {
 	appUcxBaseState
 	actor   rpc.Actor
@@ -53,14 +55,6 @@ func initAppUcx() {
 		}
 
 		proxy.RegisterUpstreamSelector(func(ctx context.Context, downstreamToken string, downstreamSysHello string) ucx.ProxyUpstreamSelection {
-			reqInfo := orcapi.AppUcxConnectRequest{}
-			if err := json.Unmarshal([]byte(downstreamSysHello), &reqInfo); err != nil {
-				log.Warn("UCX core: invalid syshello payload: %v", err)
-				return ucx.ProxyUpstreamSelection{
-					Allowed: false,
-				}
-			}
-
 			tok := strings.SplitN(downstreamToken, "\n", 2)
 			if len(tok) != 2 {
 				log.Warn("UCX core: invalid downstream token format")
@@ -79,6 +73,21 @@ func initAppUcx() {
 
 			if bearerActor.Role&rpc.RolesEndUser == 0 {
 				log.Warn("UCX core: downstream actor is not an end user")
+				return ucx.ProxyUpstreamSelection{
+					Allowed: false,
+				}
+			}
+
+			reqInfo := orcapi.AppUcxConnectRequest{}
+			if err := json.Unmarshal([]byte(downstreamSysHello), &reqInfo); err != nil {
+				log.Warn("UCX core: invalid syshello payload: %v", err)
+				return ucx.ProxyUpstreamSelection{
+					Allowed: false,
+				}
+			}
+
+			if len(reqInfo.Handoff) > ucxHandoffMaxBytes {
+				log.Warn("UCX core: handoff payload is too large: %d bytes", len(reqInfo.Handoff))
 				return ucx.ProxyUpstreamSelection{
 					Allowed: false,
 				}
@@ -180,6 +189,8 @@ func initAppUcx() {
 						return string(value)
 					}),
 				},
+				Provider: reqInfo.Provider.GetOrDefault(""),
+				Handoff:  reqInfo.Handoff,
 			})
 			if marshalErr != nil {
 				log.Warn("UCX core: failed to marshal provider syshello: %v", marshalErr)

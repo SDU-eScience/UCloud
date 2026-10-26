@@ -675,6 +675,10 @@ func (n UiNode) ServiceProviderRealProvidersOnly(realProvidersOnly bool) UiNode 
 	return n.propMutate("realProvidersOnly", VBool(realProvidersOnly))
 }
 
+func (n UiNode) ServiceProviderPreferred(provider string) UiNode {
+	return n.propMutate("preferredProvider", VString(provider))
+}
+
 func (n UiNode) MachineSelectorDescription(description string) UiNode {
 	return n.propMutate("description", VString(description))
 }

@@ -1,6 +1,8 @@
 package orchestrators
 
 import (
+	"encoding/json"
+
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -12,6 +14,7 @@ type AppUcxConnectRequest struct {
 	Name     string              `json:"name"`
 	Version  string              `json:"version"`
 	Provider util.Option[string] `json:"provider"`
+	Handoff  json.RawMessage     `json:"handoff,omitempty"`
 }
 
 var AppUcxConnect = rpc.Call[util.Empty, util.Empty]{
@@ -37,8 +40,10 @@ const appUcxContextProvider = "ucloud/" + rpc.ProviderPlaceholder + "/hpc/apps/u
 
 // AppUcxConnectProviderRequest is passed as part of the SysHello message.
 type AppUcxConnectProviderRequest struct {
-	Application Application   `json:"application"`
-	Owner       ResourceOwner `json:"owner"`
+	Application Application     `json:"application"`
+	Owner       ResourceOwner   `json:"owner"`
+	Provider    string          `json:"provider"`
+	Handoff     json.RawMessage `json:"handoff,omitempty"`
 }
 
 var AppUcxConnectProvider = rpc.Call[util.Empty, util.Empty]{

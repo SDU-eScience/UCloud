@@ -2,6 +2,7 @@ package ucxsvc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -1147,6 +1148,32 @@ func StackShowResources(app ucx.Application) {
 func RouterPushPage(app ucx.Application, path string) {
 	session := *app.Session()
 	_, _ = ucxapi.RouterPushPage.Invoke(session, ucxapi.RouterPushPageRequest{Path: path})
+}
+
+func RequestProviderSwitch(app ucx.Application, provider string, handoff any) error {
+	session := *app.Session()
+	if session == nil {
+		return fmt.Errorf("ucx: session is not available")
+	}
+
+	encoded, err := json.Marshal(handoff)
+	if err != nil {
+		return err
+	}
+
+	var handoffMap map[string]any
+	if err := json.Unmarshal(encoded, &handoffMap); err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err = ucxapi.SwitchProvider.InvokeEx(ctx, session, ucxapi.SwitchProviderRequest{
+		Provider: provider,
+		Handoff:  handoffMap,
+	})
+	return err
 }
 
 func OpenUrl(app ucx.Application, target string) {

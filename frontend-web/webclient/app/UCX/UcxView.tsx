@@ -151,6 +151,7 @@ export interface UcxViewProps {
     allowedExternalOrigins?: string[];
     rehydrateModelPaths?: string[];
     onConnected?: () => void;
+    onMounted?: () => void;
     onDisconnected?: (reason: string) => void;
     onTransportError?: (message: string) => void;
     onModelChange?: (model: Record<string, Value>) => void;
@@ -172,6 +173,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     allowedExternalOrigins,
     rehydrateModelPaths,
     onConnected,
+    onMounted,
     onDisconnected,
     onTransportError,
     onModelChange,
@@ -196,6 +198,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
     const everConnectedRef = useRef(false);
     const pendingRehydrateModelRef = useRef<Record<string, Value> | null>(null);
     const authCompleteRef = useRef(false);
+    const mountedOnceRef = useRef(false);
     const modelRef = useRef<Record<string, Value>>({});
     const activeRouterBindPathRef = useRef<string | undefined>(undefined);
     const queryParamUrlValuesRef = useRef<Record<string, string>>({});
@@ -207,6 +210,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         rpcHandlers,
         allowedExternalOrigins,
         onConnected,
+        onMounted,
         onDisconnected,
         onTransportError,
         onModelChange,
@@ -218,6 +222,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         rpcHandlers,
         allowedExternalOrigins,
         onConnected,
+        onMounted,
         onDisconnected,
         onTransportError,
         onModelChange,
@@ -623,6 +628,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 return;
             }
 
+            mountedOnceRef.current = false;
             const socket = new WebSocket(url);
             socket.binaryType = "arraybuffer";
             connRef.current = socket;
@@ -820,6 +826,11 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                             resendModelAfterReconnect(rehydrateSnapshot, {
                                 root: mount.root,
                             });
+                        }
+
+                        if (!mountedOnceRef.current) {
+                            mountedOnceRef.current = true;
+                            latestRef.current.onMounted?.();
                         }
                     } else if (frame.opcode === Opcode.ModelPatch && frame.modelPatch) {
                         scheduleModelFlush(prev => {
@@ -3295,6 +3306,7 @@ const UcxServiceProviderSelector: React.FunctionComponent<{
 }> = ({node, model, scope, fn}) => {
     const label = stringProp(node, "label", "");
     const realProvidersOnly = boolProp(node, "realProvidersOnly", false);
+    const preferredProvider = stringProp(node, "preferredProvider", "");
 
     const {wallets, products, loading: walletsAndProductsLoading} = useMachineWalletsAndProducts();
 
@@ -3317,13 +3329,19 @@ const UcxServiceProviderSelector: React.FunctionComponent<{
     const selectedKey = modelString(model, node.bindPath, scope);
 
     useEffect(() => {
-        if (!realProvidersOnly) return;
         if (selectedKey !== "") return;
         if (walletsAndProductsLoading) return;
+
+        if (preferredProvider !== "" && providers.some(provider => provider.key === preferredProvider)) {
+            fn.sendBoundInput(node, {kind: ValueKind.String, string: preferredProvider}, model, scope);
+            return;
+        }
+
+        if (!realProvidersOnly) return;
         if (providers.length === 1) {
             fn.sendBoundInput(node, {kind: ValueKind.String, string: providers[0].key}, model, scope);
         }
-    }, [fn, model, node, providers, realProvidersOnly, selectedKey, walletsAndProductsLoading]);
+    }, [fn, model, node, preferredProvider, providers, realProvidersOnly, selectedKey, walletsAndProductsLoading]);
 
     return <div style={fn.sxStyle(node)}>
         {label === "" ? null : <FieldLabel>{label}</FieldLabel>}

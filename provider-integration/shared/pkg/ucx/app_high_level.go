@@ -123,6 +123,7 @@ func AppServe(factory func() Application, port util.Option[int]) {
 				app.OnInit()
 				stateMu.Unlock()
 
+				sysHelloSeen := false
 				for {
 					select {
 					case <-ctx.Done():
@@ -133,6 +134,11 @@ func AppServe(factory func() Application, port util.Option[int]) {
 						}
 
 						if frame.Opcode == OpSysHello {
+							if sysHelloSeen {
+								continue
+							}
+							sysHelloSeen = true
+
 							stateMu.Lock()
 							if appWithSysHello, ok := app.(SysHelloAwareApplication); ok {
 								appWithSysHello.OnSysHello(frame.SysHello.Payload)

@@ -189,6 +189,13 @@ type UiSendMessageRequest struct {
 
 var UiSendMessage = ucx.Rpc[UiSendMessageRequest, util.Empty]{CallName: "uiSendMessage"}
 
+type SwitchProviderRequest struct {
+	Provider string
+	Handoff  map[string]any
+}
+
+var SwitchProvider = ucx.Rpc[SwitchProviderRequest, util.Empty]{CallName: "switchProvider"}
+
 type RouterPushPageRequest struct {
 	Path string
 }

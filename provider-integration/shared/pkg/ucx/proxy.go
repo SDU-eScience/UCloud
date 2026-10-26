@@ -321,7 +321,8 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 			if err != nil {
 				log.Warn("UCX proxy: failed to encode upstream SysHello: %v", err)
 				_ = upstream.Close()
-				reconnectTimer = time.After(1 * time.Second)
+				_ = downstream.WriteMessage(ws.TextMessage, []byte("Forbidden"))
+				cancel()
 				continue
 			}
 
