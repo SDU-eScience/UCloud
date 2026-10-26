@@ -302,7 +302,8 @@ func vmDetachLockedResources(job *orc.Job) (int, *util.HttpError) {
 		case orc.AppParameterValueTypeNetwork,
 			orc.AppParameterValueTypeIngress,
 			orc.AppParameterValueTypeLicense,
-			orc.AppParameterValueTypePrivateNetwork:
+			orc.AppParameterValueTypePrivateNetwork,
+			orc.AppParameterValueTypeUCloudNetwork:
 			accessible, _, _ := controller.JobResourceIsAccessible(job.Owner, resource)
 			shouldDetach = !accessible
 

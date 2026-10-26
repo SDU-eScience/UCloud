@@ -46,7 +46,7 @@ func PrivateNetworkJobValues(job *orc.Job) ([]orc.AppParameterValue, *util.HttpE
 	seen := map[string]struct{}{}
 
 	appendValue := func(value orc.AppParameterValue) *util.HttpError {
-		if value.Type != orc.AppParameterValueTypePrivateNetwork {
+		if !orc.IsNetworkValue(value) {
 			return nil
 		}
 
@@ -834,7 +834,7 @@ func PrivateNetworkSyncAssignedIps(job *orc.Job) {
 	resources := slices.Clone(job.Specification.Resources)
 	changed := false
 	for i, value := range resources {
-		if value.Type != orc.AppParameterValueTypePrivateNetwork {
+		if !orc.IsNetworkValue(value) {
 			continue
 		}
 
@@ -868,7 +868,7 @@ func PrivateNetworkSendResourceList(job *orc.Job) {
 
 func privateNetworkValidateAttachment(job *orc.Job, value orc.AppParameterValue) *util.HttpError {
 	accessible, why, _ := JobResourceIsAccessible(job.Resource.Owner, orc.AppParameterValue{
-		Type: orc.AppParameterValueTypePrivateNetwork,
+		Type: value.Type,
 		Id:   value.Id,
 	})
 	if !accessible {

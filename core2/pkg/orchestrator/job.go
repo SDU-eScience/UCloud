@@ -1201,7 +1201,7 @@ func jobBindResource(jobId string, resc orcapi.AppParameterValue) bool {
 		IngressBind(resc.Id, jobId)
 	case orcapi.AppParameterValueTypeLicense:
 		LicenseBind(resc.Id, jobId)
-	case orcapi.AppParameterValueTypePrivateNetwork:
+	case orcapi.AppParameterValueTypePrivateNetwork, orcapi.AppParameterValueTypeUCloudNetwork:
 		return PrivateNetworkBind(resc.Id, jobId)
 	}
 
@@ -1216,7 +1216,7 @@ func jobUnbindResource(jobId string, resc orcapi.AppParameterValue) bool {
 		IngressUnbind(resc.Id, jobId)
 	case orcapi.AppParameterValueTypeLicense:
 		LicenseUnbind(resc.Id, jobId)
-	case orcapi.AppParameterValueTypePrivateNetwork:
+	case orcapi.AppParameterValueTypePrivateNetwork, orcapi.AppParameterValueTypeUCloudNetwork:
 		return PrivateNetworkUnbind(resc.Id, jobId)
 	}
 
@@ -1692,8 +1692,8 @@ func jobsValidateWithApplication(actor rpc.Actor, spec *orcapi.JobSpecification,
 					return util.HttpErr(http.StatusBadRequest, "incorrect parameter type for '%s'", name)
 				}
 
-			case orcapi.ApplicationParameterTypePrivateNetwork:
-				if value.Type != orcapi.AppParameterValueTypePrivateNetwork {
+			case orcapi.ApplicationParameterTypePrivateNetwork, orcapi.ApplicationParameterTypeUCloudNetwork:
+				if !orcapi.IsNetworkValue(value) {
 					return util.HttpErr(http.StatusBadRequest, "incorrect parameter type for '%s'", name)
 				}
 			}
@@ -1745,12 +1745,19 @@ type jobValueValidation struct {
 }
 
 func jobResourceSameIdentity(a orcapi.AppParameterValue, b orcapi.AppParameterValue) bool {
+	if orcapi.IsNetworkValue(a) && orcapi.IsNetworkValue(b) {
+		return a.Id == b.Id
+	}
 	return a.Type == b.Type && a.Id == b.Id
 }
 
 func jobNetworkAttachment(existing []orcapi.AppParameterValue, value orcapi.AppParameterValue) (attached, ipsChanged bool) {
+	if !orcapi.IsNetworkValue(value) {
+		return false, false
+	}
+
 	for _, e := range existing {
-		if e.Type != orcapi.AppParameterValueTypePrivateNetwork || e.Id != value.Id {
+		if !orcapi.IsNetworkValue(e) || e.Id != value.Id {
 			continue
 		}
 		return true, !slices.Equal(e.Ips, value.Ips)
@@ -1760,7 +1767,7 @@ func jobNetworkAttachment(existing []orcapi.AppParameterValue, value orcapi.AppP
 
 func jobNetworkChangesBlocked(job orcapi.Job, newResources []orcapi.AppParameterValue) *util.HttpError {
 	for _, value := range newResources {
-		if value.Type != orcapi.AppParameterValueTypePrivateNetwork {
+		if !orcapi.IsNetworkValue(value) {
 			continue
 		}
 
@@ -1865,7 +1872,7 @@ func jobValidateValue(
 			return util.HttpErr(http.StatusForbidden, "you cannot use this license")
 		}
 
-	case orcapi.AppParameterValueTypePrivateNetwork:
+	case orcapi.AppParameterValueTypePrivateNetwork, orcapi.AppParameterValueTypeUCloudNetwork:
 		network, _, spec, err := ResourceRetrieveEx[orcapi.PrivateNetwork](actor, privateNetworkType, ResourceParseId(value.Id),
 			orcapi.PermissionEdit, orcapi.ResourceFlags{IncludeProduct: true})
 

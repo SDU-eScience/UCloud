@@ -691,7 +691,7 @@ func privateNetworkValidateJobNetworks(actor rpc.Actor, values []orcapi.AppParam
 	var attachedNetworks []orcapi.PrivateNetwork
 
 	for _, value := range values {
-		if value.Type != orcapi.AppParameterValueTypePrivateNetwork {
+		if !orcapi.IsNetworkValue(value) {
 			continue
 		}
 

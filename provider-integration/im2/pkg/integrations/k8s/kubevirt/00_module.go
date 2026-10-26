@@ -2336,14 +2336,14 @@ func JobFolder(job *orc.Job) (string, *util.HttpError) {
 }
 
 func attachResource(job *orc.Job, resource orc.AppParameterValue) *util.HttpError {
-	if resource.Type == orc.AppParameterValueTypePrivateNetwork {
+	if orc.IsNetworkValue(resource) {
 		return vmPrivateNetworkAttach(job, resource)
 	}
 	return nil
 }
 
 func detachResource(job *orc.Job, resource orc.AppParameterValue) *util.HttpError {
-	if resource.Type == orc.AppParameterValueTypePrivateNetwork {
+	if orc.IsNetworkValue(resource) {
 		return vmPrivateNetworkDetach(job, resource)
 	}
 	return nil
@@ -2366,7 +2366,7 @@ func vmPrivateNetworkAttach(job *orc.Job, resource orc.AppParameterValue) *util.
 	}
 
 	for _, existing := range job.Specification.Resources {
-		if existing.Type == orc.AppParameterValueTypePrivateNetwork && existing.Id == resource.Id {
+		if orc.IsNetworkValue(existing) && existing.Id == resource.Id {
 			return util.UserHttpError("The private network is already attached to this job")
 		}
 	}
@@ -2420,7 +2420,7 @@ func vmPrivateNetworkDetach(job *orc.Job, resource orc.AppParameterValue) *util.
 	copied.Specification.Resources = slices.DeleteFunc(
 		slices.Clone(job.Specification.Resources),
 		func(candidate orc.AppParameterValue) bool {
-			return candidate.Type == orc.AppParameterValueTypePrivateNetwork && candidate.Id == resource.Id
+			return orc.IsNetworkValue(candidate) && candidate.Id == resource.Id
 		},
 	)
 
