@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/netip"
 	"strings"
+	"time"
 
 	"github.com/distribution/reference"
 	"gopkg.in/yaml.v3"
@@ -94,6 +95,24 @@ type KubernetesPrivateNetworks struct {
 	DefaultPrefixLen  int
 	ForbiddenCidrs    []string
 	MaxNetworksPerJob int
+	Infiniband        KubernetesInfiniband
+}
+
+type KubernetesInfiniband struct {
+	Enabled          bool
+	CidrPools        []string
+	RdmaResourceName string
+	DeviceLabel      string
+	Reclaim          KubernetesReclaimPolicy
+}
+
+type KubernetesReclaimPolicy struct {
+	Enabled              bool
+	LowWatermarkPercent  int
+	HighWatermarkPercent int
+	GracePeriod          time.Duration
+	MinAge               time.Duration
+	MaxPerRun            int
 }
 
 type KubernetesPublicLinkConfiguration struct {

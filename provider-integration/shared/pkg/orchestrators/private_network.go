@@ -4,12 +4,53 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"strings"
+	"time"
 
 	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
+
+type NetworkType string
+
+const (
+	NetworkTypeEthernet   NetworkType = "ethernet"
+	NetworkTypeInfiniband NetworkType = "infiniband"
+)
+
+var NetworkTypeOptions = []NetworkType{
+	NetworkTypeEthernet,
+	NetworkTypeInfiniband,
+}
+
+type NetworkReclaimState string
+
+const (
+	NetworkReclaimActive  NetworkReclaimState = "active"
+	NetworkReclaimPending NetworkReclaimState = "pending"
+	NetworkReclaiming     NetworkReclaimState = "reclaiming"
+)
+
+var NetworkReclaimStateOptions = []NetworkReclaimState{
+	NetworkReclaimActive,
+	NetworkReclaimPending,
+	NetworkReclaiming,
+}
+
+const PrivateNetworkInfinibandPrefixLength = 24
+
+func NetworkTypeIsValid(networkType NetworkType) bool {
+	_, ok := util.VerifyEnum(networkType, NetworkTypeOptions)
+	return ok
+}
+
+func (s NetworkReclaimState) Effective() NetworkReclaimState {
+	if s == "" {
+		return NetworkReclaimActive
+	}
+	return s
+}
 
 type PrivateNetwork struct {
 	Resource
@@ -22,11 +63,23 @@ type PrivateNetworkSpecification struct {
 	// characters.
 	Name string `json:"name"`
 
-	// Cidr is an optional user-supplied IPv4 CIDR block for the network. It must have a prefix length between 16 and
-	// 24. If it is omitted, the provider allocates a block automatically. The CIDR is immutable after creation.
+	Type NetworkType `json:"type,omitempty"`
+
+	// Cidr is an optional user-supplied IPv4 CIDR block for an Ethernet network. It must have a prefix length between
+	// 16 and 24. If it is omitted, the provider allocates a block automatically. The CIDR is immutable after creation.
+	// InfiniBand networks must not set it.
 	Cidr util.Option[string] `json:"cidr"`
 
+	ReclaimProtection bool `json:"reclaimProtection,omitempty"`
+
 	ResourceSpecification
+}
+
+func (s PrivateNetworkSpecification) EffectiveType() NetworkType {
+	if s.Type == "" {
+		return NetworkTypeEthernet
+	}
+	return s.Type
 }
 
 func PrivateNetworkSubdomainFromName(name string) string {
@@ -90,15 +143,38 @@ type PrivateNetworkStatus struct {
 	// provisioned.
 	CidrBlock util.Option[string] `json:"cidrBlock"`
 
+	LastUsedAt   fnd.Timestamp              `json:"lastUsedAt"`
+	ReclaimState NetworkReclaimState        `json:"reclaimState"`
+	ReclaimAfter util.Option[fnd.Timestamp] `json:"reclaimAfter,omitempty"`
+
 	ResourceStatus[PrivateNetworkSupport]
 }
 
 type PrivateNetworkSupport struct {
-	Product         apm.ProductReference `json:"product"`
-	AddressPools    []string             `json:"addressPools,omitempty"`
-	ExcludedRanges  []string             `json:"excludedRanges,omitempty"`
-	MinPrefixLength int                  `json:"minPrefixLength,omitempty"`
-	MaxPrefixLength int                  `json:"maxPrefixLength,omitempty"`
+	Product          apm.ProductReference `json:"product"`
+	NetworkType      NetworkType          `json:"networkType"`
+	AddressPools     []string             `json:"addressPools,omitempty"`
+	ExcludedRanges   []string             `json:"excludedRanges,omitempty"`
+	MinPrefixLength  int                  `json:"minPrefixLength,omitempty"`
+	MaxPrefixLength  int                  `json:"maxPrefixLength,omitempty"`
+	RdmaResourceName string               `json:"rdmaResourceName,omitempty"`
+	ReclaimPolicy    ReclaimPolicy        `json:"reclaimPolicy,omitempty"`
+}
+
+type ReclaimPolicy struct {
+	Enabled              bool          `json:"enabled"`
+	LowWatermarkPercent  int           `json:"lowWatermarkPercent"`
+	HighWatermarkPercent int           `json:"highWatermarkPercent"`
+	GracePeriod          time.Duration `json:"gracePeriod"`
+	MinAge               time.Duration `json:"minAge"`
+	MaxPerRun            int           `json:"maxPerRun"`
+}
+
+func (s PrivateNetworkSupport) EffectiveType() NetworkType {
+	if s.NetworkType == "" {
+		return NetworkTypeEthernet
+	}
+	return s.NetworkType
 }
 
 type PrivateNetworkFlags struct {
