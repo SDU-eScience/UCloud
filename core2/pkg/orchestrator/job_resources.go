@@ -134,6 +134,12 @@ func jobControlValidateResources(job orcapi.Job, values []orcapi.AppParameterVal
 		}
 		validated = append(validated, value)
 	}
+
+	err := privateNetworkValidateJobNetworks(owner, backend, values)
+	if err != nil {
+		return nil, err
+	}
+
 	return jobPersistableResources(validated), nil
 }
 

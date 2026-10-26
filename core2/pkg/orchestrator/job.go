@@ -1706,7 +1706,7 @@ func jobsValidateWithApplication(actor rpc.Actor, spec *orcapi.JobSpecification,
 	}
 	jobNetworkValues = append(jobNetworkValues, spec.Resources...)
 
-	err = privateNetworkValidateJobNetworks(actor, jobNetworkValues)
+	err = privateNetworkValidateJobNetworks(actor, tool.Backend, jobNetworkValues)
 	if err != nil {
 		return err
 	}
@@ -1878,6 +1878,10 @@ func jobValidateValue(
 
 		if err != nil {
 			return util.HttpErr(http.StatusForbidden, "you cannot use this network")
+		}
+
+		if network.Specification.EffectiveType() == orcapi.NetworkTypeInfiniband && backend == orcapi.ToolBackendVirtualMachine {
+			return util.HttpErr(http.StatusBadRequest, "InfiniBand networks are not supported for virtual machines")
 		}
 
 		workspace := actor

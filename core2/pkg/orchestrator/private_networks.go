@@ -114,9 +114,13 @@ func initPrivateNetworks() {
 		},
 		func(item *orcapi.ProviderRegisteredResource[orcapi.PrivateNetworkSpecification]) (any, func(), *util.HttpError) {
 			spec := item.Spec
-			spec.Name = strings.TrimSpace(spec.Name)
 
-			if err := privateNetworkValidateSpecification(spec); err != nil {
+			support, ok := SupportByProduct[orcapi.PrivateNetworkSupport](privateNetworkType, spec.Product)
+			if !ok {
+				return nil, nil, util.HttpErr(http.StatusNotFound, "unknown product requested")
+			}
+
+			if err := privateNetworkNormalizeAndValidateSpecification(&spec, support.Support); err != nil {
 				return nil, nil, err
 			}
 
@@ -133,6 +137,7 @@ func initPrivateNetworks() {
 				Name:      spec.Name,
 				Subdomain: subdomain,
 				Cidr:      spec.Cidr,
+				Type:      spec.EffectiveType(),
 			}, nil, nil
 		},
 	))
@@ -186,6 +191,16 @@ func initPrivateNetworks() {
 				orcapi.PermissionProvider,
 				func(r *resource, mapped orcapi.PrivateNetwork) {
 					network := r.Extra.(*internalPrivateNetwork)
+					if item.Update.CidrBlock.Present && network.EffectiveType() == orcapi.NetworkTypeInfiniband {
+						prefix, ok := orcapi.PrivateNetworkParseCidr(item.Update.CidrBlock.Value)
+						if !ok || prefix.String() != item.Update.CidrBlock.Value || prefix.Bits() != orcapi.PrivateNetworkInfinibandPrefixLength {
+							conflict = util.HttpErr(
+								http.StatusBadRequest,
+								"InfiniBand networks must use an aligned /24 address block",
+							)
+							return
+						}
+					}
 					cidrCannotChange := item.Update.CidrBlock.Present && network.CidrBlock.Present && network.CidrBlock.Value != item.Update.CidrBlock.Value
 					if cidrCannotChange {
 						conflict = util.HttpErr(
@@ -232,23 +247,9 @@ func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.Pri
 			return nil, util.HttpErr(http.StatusBadRequest, "unsupported operation")
 		}
 
-		item.Name = strings.TrimSpace(item.Name)
-		if item.Cidr.Present {
-			item.Cidr.Set(strings.TrimSpace(item.Cidr.Value))
-			if item.Cidr.Value == "" {
-				item.Cidr.Clear()
-			}
-		}
-
-		err := privateNetworkValidateSpecification(item)
+		err := privateNetworkNormalizeAndValidateSpecification(&item, support.Support)
 		if err != nil {
 			return nil, err
-		}
-		if item.Cidr.Present {
-			err := privateNetworkValidateCidrSupport(item.Cidr.Value, support.Support)
-			if err != nil {
-				return nil, err
-			}
 		}
 
 		network, err := ResourceCreateThroughProviderEx(
@@ -258,6 +259,7 @@ func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.Pri
 			&internalPrivateNetwork{
 				Name: item.Name,
 				Cidr: item.Cidr,
+				Type: item.EffectiveType(),
 			},
 			orcapi.PrivateNetworksProviderCreate,
 			ProviderCallOpts{Timeout: util.OptValue(30 * time.Second)},
@@ -502,20 +504,29 @@ type internalPrivateNetwork struct {
 	Cidr      util.Option[string]
 	CidrBlock util.Option[string]
 	Members   []string
+	Type      orcapi.NetworkType
+}
+
+func (n *internalPrivateNetwork) EffectiveType() orcapi.NetworkType {
+	if n.Type == "" {
+		return orcapi.NetworkTypeEthernet
+	}
+	return n.Type
 }
 
 func privateNetworkLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource) {
 	rows := db.Select[struct {
-		Resource  int64
-		Name      string
-		Subdomain string
-		Cidr      sql.Null[string]
-		CidrBlock sql.Null[string]
-		Members   []int64
+		Resource    int64
+		Name        string
+		Subdomain   string
+		Cidr        sql.Null[string]
+		CidrBlock   sql.Null[string]
+		Members     []int64
+		NetworkType string
 	}](
 		tx,
 		`
-			select resource, name, subdomain, cidr, cidr_block, members
+			select resource, name, subdomain, cidr, cidr_block, members, network_type
 			from app_orchestrator.private_networks
 			where resource = some(:ids::int8[])
 	    `,
@@ -536,6 +547,7 @@ func privateNetworkLoad(tx *db.Transaction, ids []int64, resources map[ResourceI
 			Cidr:      util.SqlNullToOpt(row.Cidr),
 			CidrBlock: util.SqlNullToOpt(row.CidrBlock),
 			Members:   members,
+			Type:      orcapi.NetworkType(row.NetworkType),
 		}
 	}
 }
@@ -561,22 +573,24 @@ func privateNetworkPersist(b *db.Batch, resource *resource) {
 		db.BatchExec(
 			b,
 			`
-				insert into app_orchestrator.private_networks(resource, name, subdomain, cidr, cidr_block, members)
-				values (:resource, :name, :subdomain, :cidr, :cidr_block, :members)
+				insert into app_orchestrator.private_networks(resource, name, subdomain, cidr, cidr_block, members, network_type)
+				values (:resource, :name, :subdomain, :cidr, :cidr_block, :members, :network_type)
 				on conflict (resource) do update set
 					name = excluded.name,
 					subdomain = excluded.subdomain,
 					cidr = excluded.cidr,
 					cidr_block = excluded.cidr_block,
-					members = excluded.members
+					members = excluded.members,
+					network_type = excluded.network_type
 		    `,
 			db.Params{
-				"resource":   resource.Id,
-				"name":       network.Name,
-				"subdomain":  network.Subdomain,
-				"cidr":       network.Cidr.Sql(),
-				"cidr_block": network.CidrBlock.Sql(),
-				"members":    members,
+				"resource":     resource.Id,
+				"name":         network.Name,
+				"subdomain":    network.Subdomain,
+				"cidr":         network.Cidr.Sql(),
+				"cidr_block":   network.CidrBlock.Sql(),
+				"members":      members,
+				"network_type": string(network.EffectiveType()),
 			},
 		)
 	}
@@ -595,6 +609,7 @@ func privateNetworkTransform(
 		Resource: r,
 		Specification: orcapi.PrivateNetworkSpecification{
 			Name:                  network.Name,
+			Type:                  network.EffectiveType(),
 			Cidr:                  network.Cidr,
 			ResourceSpecification: specification,
 		},
@@ -687,8 +702,9 @@ func privateNetworkSubdomainTaken(provider string, subdomain string, except Reso
 	return false
 }
 
-func privateNetworkValidateJobNetworks(actor rpc.Actor, values []orcapi.AppParameterValue) *util.HttpError {
+func privateNetworkValidateJobNetworks(actor rpc.Actor, backend orcapi.ToolBackend, values []orcapi.AppParameterValue) *util.HttpError {
 	var attachedNetworks []orcapi.PrivateNetwork
+	infinibandCount := 0
 
 	for _, value := range values {
 		if !orcapi.IsNetworkValue(value) {
@@ -725,6 +741,17 @@ func privateNetworkValidateJobNetworks(actor rpc.Actor, values []orcapi.AppParam
 			}
 		}
 
+		if network.Specification.EffectiveType() == orcapi.NetworkTypeInfiniband {
+			if backend == orcapi.ToolBackendVirtualMachine {
+				return util.HttpErr(http.StatusBadRequest, "InfiniBand networks are not supported for virtual machines")
+			}
+
+			infinibandCount++
+			if infinibandCount > 1 {
+				return util.HttpErr(http.StatusBadRequest, "A job can attach at most one InfiniBand network")
+			}
+		}
+
 		attachedNetworks = append(attachedNetworks, network)
 	}
 
@@ -733,9 +760,39 @@ func privateNetworkValidateJobNetworks(actor rpc.Actor, values []orcapi.AppParam
 
 var privateNetworkSubdomainRegex = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
 
-func privateNetworkValidateSpecification(spec orcapi.PrivateNetworkSpecification) *util.HttpError {
+func privateNetworkNormalizeAndValidateSpecification(spec *orcapi.PrivateNetworkSpecification, support orcapi.PrivateNetworkSupport) *util.HttpError {
+	spec.Name = strings.TrimSpace(spec.Name)
 	if spec.Name == "" || len(spec.Name) > 256 || strings.Contains(spec.Name, "\n") {
 		return util.HttpErr(http.StatusBadRequest, "invalid private network name")
+	}
+
+	if spec.Cidr.Present {
+		spec.Cidr.Set(strings.TrimSpace(spec.Cidr.Value))
+		if spec.Cidr.Value == "" {
+			spec.Cidr.Clear()
+		}
+	}
+
+	networkType := spec.EffectiveType()
+	if !orcapi.NetworkTypeIsValid(networkType) {
+		return util.HttpErr(http.StatusBadRequest, "unknown network type")
+	}
+
+	supportType := support.EffectiveType()
+	if !orcapi.NetworkTypeIsValid(supportType) {
+		return util.HttpErr(http.StatusInternalServerError, "the provider advertises an unsupported network type")
+	}
+
+	if networkType != supportType {
+		return util.HttpErr(http.StatusBadRequest, "the network type does not match the product")
+	}
+
+	if networkType == orcapi.NetworkTypeInfiniband {
+		if spec.Cidr.Present {
+			return util.HttpErr(http.StatusBadRequest, "InfiniBand networks cannot have a user-supplied CIDR")
+		}
+		spec.Type = orcapi.NetworkTypeInfiniband
+		return nil
 	}
 
 	if spec.Cidr.Present {
@@ -743,8 +800,14 @@ func privateNetworkValidateSpecification(spec orcapi.PrivateNetworkSpecification
 		if err != nil {
 			return err
 		}
+
+		err = privateNetworkValidateCidrSupport(spec.Cidr.Value, support)
+		if err != nil {
+			return err
+		}
 	}
 
+	spec.Type = orcapi.NetworkTypeEthernet
 	return nil
 }
 
