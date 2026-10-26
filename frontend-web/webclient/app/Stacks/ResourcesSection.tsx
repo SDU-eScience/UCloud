@@ -80,12 +80,12 @@ export function StackResourcesDialog({status}: {status: StackStatus}): React.Rea
         },
         {
             id: "networks",
-            title: "Private networks",
+            title: "Networks",
             icon: "heroCloud",
             entries: (status.networks ?? []).map(network => ({
                 kind: "entry" as const,
                 id: network.id,
-                href: AppRoutes.resource.properties("private-networks", network.id),
+                href: AppRoutes.resource.properties("networks", network.id),
                 title: network.specification.name || shortUUID(network.id),
                 subtitle: network.status.subdomain || "",
                 icon: "heroCloud" as IconName,

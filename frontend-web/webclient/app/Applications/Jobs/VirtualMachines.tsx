@@ -74,6 +74,12 @@ type OptimisticPowerState = "POWERING_ON" | "POWERING_OFF" | "RESTARTING";
 
 const EMPTY_RESOURCES: AppParameterValue[] = [];
 
+type VmNetworkValue = compute.AppParameterValueNS.PrivateNetwork | compute.AppParameterValueNS.UCloudNetwork;
+
+function isVmNetworkValue(resource: compute.AppParameterValue): resource is VmNetworkValue {
+    return resource.type === "private_network" || resource.type === "ucloud_network";
+}
+
 function useResourcesById<T>(
     params: AppParameterValue[],
     retrieve: (id: string) => Promise<T>,
@@ -138,18 +144,18 @@ export const VirtualMachineStatus: React.FunctionComponent<{
         return resources.filter(it => it.type === "ingress") as compute.AppParameterValueNS.Ingress[];
     }, [resources]);
     const privateNetworks = useMemo(() => {
-        return resources.filter(it => it.type === "private_network") as compute.AppParameterValueNS.PrivateNetwork[];
+        return resources.filter(isVmNetworkValue);
     }, [resources]);
     const publicIps = useMemo(() => {
         return resources.filter(it => it.type === "network") as compute.AppParameterValueNS.Network[];
     }, [resources]);
     const [accessIngresses, setAccessIngresses] = useState<compute.AppParameterValueNS.Ingress[]>(ingresses);
-    const [accessPrivateNetworks, setAccessPrivateNetworks] = useState<compute.AppParameterValueNS.PrivateNetwork[]>(privateNetworks);
+    const [accessPrivateNetworks, setAccessPrivateNetworks] = useState<VmNetworkValue[]>(privateNetworks);
     const [accessPublicIps, setAccessPublicIps] = useState<compute.AppParameterValueNS.Network[]>(publicIps);
     const [publicLinksById, setPublicLinksById] = useState<Record<string, PublicLink>>({});
     const [privateNetworksById, setPrivateNetworksById] = useState<Record<string, PrivateNetwork>>({});
     const [publicIpsById, setPublicIpsById] = useState<Record<string, NetworkIP>>({});
-    const [accessDialog, setAccessDialog] = useState<"ingress" | "private_network" | "network" | null>(null);
+    const [accessDialog, setAccessDialog] = useState<"ingress" | "networks" | "network" | null>(null);
 
     useEffect(() => {
         setAccessIngresses(ingresses);
@@ -400,7 +406,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
         };
 
         if (resource.type === "ingress") setAccessIngresses(prev => update(prev));
-        if (resource.type === "private_network") setAccessPrivateNetworks(prev => update(prev));
+        if (isVmNetworkValue(resource)) setAccessPrivateNetworks(prev => update(prev));
         if (resource.type === "network") setAccessPublicIps(prev => update(prev));
     }, []);
 
@@ -410,7 +416,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
             if (resource.type === "ingress" && extra) {
                 resource.port = parseInt(extra);
             }
-            if (resource.type === "private_network" && extra) {
+            if (isVmNetworkValue(resource) && extra) {
                 resource.ips = [extra];
             }
 
@@ -487,7 +493,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     selection: {
                         text: "Attach",
                         onClick: network => {
-                            onSelect({type: "private_network", id: network.id}, network.specification.name);
+                            onSelect({type: "ucloud_network", id: network.id}, network.specification.name);
                         },
                         show: res => {
                             if (res.specification.product.provider !== job.specification.product.provider) {
@@ -514,7 +520,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     }, [accessPrivateNetworks]);
 
     const openPrivateNetworksManager = useCallback(() => {
-        setAccessDialog("private_network");
+        setAccessDialog("networks");
     }, []);
 
     const publicIpSelector = useMemo(() => {
@@ -715,17 +721,17 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     inlineCreationLabel={"Port"}
                 />
             }
-            {accessDialog !== "private_network" ? null :
+            {accessDialog !== "networks" ? null :
                 <VmAccessResourceManagerDialog
                     title="Manage connected networks"
-                    selectTitle="Select private network"
+                    selectTitle="Select network"
                     attached={accessPrivateNetworks}
-                    emptyMessage="No private networks are currently attached to this VM."
+                    emptyMessage="No networks are currently attached to this VM."
                     renderSelector={privateNetworkSelector}
                     onAttach={attachAccessResource}
                     onRemove={detachAccessResource}
                     labelForResource={resource => vmAccessResourceLabel(resource, publicLinksById, privateNetworksById, publicIpsById)}
-                    inlineChoices={resource => resource.type === "private_network" ?
+                    inlineChoices={resource => isVmNetworkValue(resource) ?
                         retrieveNetworkReservations(resource.id).then(items => items.flatMap(it =>
                             it.status.ipAddress && it.permissions.myself.some(permission => permission === "EDIT" || permission === "ADMIN") ?
                                 [it.status.ipAddress] : [])) : Promise.resolve([])}
@@ -1177,7 +1183,7 @@ function VmDeleteDialog({job, onConfirm}: {job: Job; onConfirm: () => Promise<vo
 
 function vmAccessResourceKey(resource: compute.AppParameterValue): string {
     if (resource.type === "ingress") return `${resource.type}:${resource.id}`;
-    if (resource.type === "private_network") return `${resource.type}:${resource.id}`;
+    if (isVmNetworkValue(resource)) return `network:${resource.id}`;
     if (resource.type === "network") return `${resource.type}:${resource.id}`;
     return resource.type;
 }
@@ -1194,7 +1200,7 @@ function vmAccessResourceLabel(
         return resource.port ? `${domain} (port ${resource.port})` : domain;
     }
 
-    if (resource.type === "private_network") {
+    if (isVmNetworkValue(resource)) {
         const network = privateNetworksById[resource.id];
         const name = network?.specification.name || network?.status.subdomain || resource.id;
         return resource.ips?.length ? `${name} (${resource.ips.join(", ")})` : name;

@@ -9,7 +9,7 @@ import {
     Permission,
     placeholderProduct,
     ResourceAclEntry,
-    ResourceBrowseCallbacks, retrieveSupportV2, SupportByProviderV2,
+    ResourceBrowseCallbacks, SupportByProviderV2,
 } from "@/UCloud/ResourceApi";
 import {accounting, FindByStringId} from "@/UCloud";
 import {
@@ -41,15 +41,22 @@ import {useProjectId} from "@/Project/Api";
 import {Product, productTypeToIcon, ProductV2, ProductV2PrivateNetwork} from "@/Accounting";
 import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {AsyncCache} from "@/Utilities/AsyncCache";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import ProductReference = accounting.ProductReference;
 import {useEffect} from "react";
 import {sendFailureNotification} from "@/Notifications";
+import {NetworkTypeBadge, networkTypeBadgeElement} from "./NetworkTypeBadge";
+import {
+    PrivateNetworkType,
+    privateNetworkTypeFromNetwork,
+    privateNetworkTypeLongLabel,
+} from "./types";
+import {retrievePrivateNetworkSupport} from "./support";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
     includeOthers: true,
+    includeSupport: true,
 };
 
 const FEATURES: ResourceBrowseFeatures = {
@@ -103,10 +110,6 @@ function parsePrivateNetworkCidr(value: string): ParsedPrivateNetworkCidr | null
     };
 }
 
-const supportByProvider = new AsyncCache<SupportByProviderV2<ProductV2PrivateNetwork, PrivateNetworkSupport>>({
-    globalTtl: 60_000
-});
-
 export function PrivateNetworkBrowse({
     opts,
     headerControls,
@@ -118,7 +121,7 @@ export function PrivateNetworkBrowse({
     const browserRef = React.useRef<ResourceBrowser<PrivateNetwork> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    if (!opts?.isModal) usePage("Private networks", SidebarTabId.RESOURCES);
+    if (!opts?.isModal) usePage("Networks", SidebarTabId.RESOURCES);
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     React.useEffect(() => {
@@ -133,12 +136,12 @@ export function PrivateNetworkBrowse({
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<PrivateNetwork>(mount, "Private networks", opts).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<PrivateNetwork>(mount, "Networks", opts).init(browserRef, FEATURES, "", browser => {
                 browser.setColumns([
                     {name: "Name"},
-                    {name: "Subdomain", columnWidth: 220},
-                    {name: "", columnWidth: 0},
-                    {name: "", columnWidth: 0},
+                    {name: "Type", columnWidth: 120},
+                    {name: "Address range", columnWidth: 220},
+                    {name: opts?.selection ? "" : "Subdomain", columnWidth: 220},
                 ]);
 
                 const dummyEntry: PrivateNetwork = {
@@ -159,7 +162,7 @@ export function PrivateNetworkBrowse({
 
                 browser.on("open", (_oldPath, newPath, resource) => {
                     if (resource) {
-                        navigate(AppRoutes.resource.properties("private-networks", resource.id));
+                        navigate(AppRoutes.resource.properties("networks", resource.id));
                         return;
                     }
 
@@ -199,13 +202,17 @@ export function PrivateNetworkBrowse({
                         row.title.append(ResourceBrowser.defaultTitleRenderer(network.specification.name || network.id, row));
                     }
 
-                    row.stat1.textContent = network.status.subdomain ?? "";
+                    const networkType = privateNetworkTypeFromNetwork(network);
+                    row.stat1.append(networkTypeBadgeElement(networkType));
+                    row.stat2.textContent = network.status.cidrBlock ?? "Pending allocation";
 
                     if (opts?.selection) {
                         const useButton = browser.defaultButtonRenderer(opts.selection, network);
                         if (useButton) {
-                            row.stat2.append(useButton);
+                            row.stat3.append(useButton);
                         }
+                    } else {
+                        row.stat3.textContent = network.status.subdomain ?? "";
                     }
                 });
 
@@ -214,27 +221,27 @@ export function PrivateNetworkBrowse({
                     const e = browser.emptyPageElement;
                     switch (reason.tag) {
                         case EmptyReasonTag.LOADING: {
-                            e.reason.append("We are fetching your private networks...");
+                            e.reason.append("We are fetching your networks...");
                             break;
                         }
 
                         case EmptyReasonTag.EMPTY: {
                             if (Object.values(browser.browseFilters).length !== 0) {
-                                e.reason.append("No private network found with active filters.");
+                                e.reason.append("No networks found with active filters.");
                             } else {
-                                e.reason.append("This workspace has no private networks.");
+                                e.reason.append("This workspace has no networks.");
                             }
                             break;
                         }
 
                         case EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS: {
-                            e.reason.append("We could not find any data related to your private networks.");
+                            e.reason.append("We could not find any data related to your networks.");
                             e.providerReason.append(reason.information ?? "");
                             break;
                         }
 
                         case EmptyReasonTag.UNABLE_TO_FULFILL: {
-                            e.reason.append("We are currently unable to show your private networks. Try again later.");
+                            e.reason.append("We are currently unable to show your networks. Try again later.");
                             e.providerReason.append(reason.information ?? "");
                             break;
                         }
@@ -250,7 +257,7 @@ export function PrivateNetworkBrowse({
                         reload: () => browser.refresh(),
                         cancelCreation: doNothing,
                         viewProperties(res: PrivateNetwork): void {
-                            navigate(AppRoutes.resource.properties("private-networks", res.id));
+                            navigate(AppRoutes.resource.properties("networks", res.id));
                         },
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
@@ -271,7 +278,7 @@ export function PrivateNetworkBrowse({
                     if (create) {
                         create.enabled = () => true;
                         create.onClick = async () => {
-                            const support = await supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(PrivateNetworkApi));
+                            const support = await retrievePrivateNetworkSupport(Client.projectId ?? "");
                             dialogStore.addDialog(
                                 <PrivateNetworkCreate
                                     products={support.newProducts}
@@ -279,11 +286,11 @@ export function PrivateNetworkBrowse({
                                     onCancel={() => {
                                         dialogStore.failure();
                                     }}
-                                    onCreate={async (name, cidr, permissions, product) => {
+                                    onCreate={async (name, cidr, permissions, product, networkType) => {
                                         const network: PrivateNetwork = {
                                             ...dummyEntry,
                                             id: "",
-                                            specification: {name, product, ...(cidr ? {cidr} : {})},
+                                            specification: {name, product, type: networkType, ...(cidr ? {cidr} : {})},
                                             owner: {createdBy: ""},
                                         };
 
@@ -330,7 +337,7 @@ export function PrivateNetworkBrowse({
                                             dialogStore.success();
                                             browser.refresh();
                                         } catch (e: any) {
-                                            sendFailureNotification("Failed to create private network. " + extractErrorMessage(e));
+                                            sendFailureNotification("Failed to create network. " + extractErrorMessage(e));
                                             browser.refresh();
                                         }
                                     }}
@@ -387,7 +394,13 @@ interface PrivateNetworkCreateProps {
     products: ProductV2PrivateNetwork[];
     support: SupportByProviderV2<ProductV2PrivateNetwork, PrivateNetworkSupport>;
 
-    onCreate(name: string, cidr: string, permissions: ResourceAclEntry[], product: ProductReference): void;
+    onCreate(
+        name: string,
+        cidr: string,
+        permissions: ResourceAclEntry[],
+        product: ProductReference,
+        networkType: PrivateNetworkType,
+    ): void;
 
     onCancel: () => void;
 }
@@ -409,11 +422,18 @@ function PrivateNetworkCreate({onCreate, onCancel, products, support}: PrivateNe
     const project = useProject().fetch();
     const projectId = useProjectId();
 
-    const selectedSupport = product
-        ? support.productsByProvider[product.category.provider]?.find(item =>
-            item.product.name === product.name && item.product.category.name === product.category.name
-        )?.support
-        : undefined;
+    const supportForProduct = (candidate: ProductV2): PrivateNetworkSupport | undefined => {
+        return support.productsByProvider[candidate.category.provider]?.find(item =>
+            item.product.name === candidate.name && item.product.category.name === candidate.category.name
+        )?.support;
+    };
+
+    const networkTypeForProduct = (candidate: ProductV2): PrivateNetworkType =>
+        supportForProduct(candidate)?.networkType || "ethernet";
+
+    const selectedSupport = product ? supportForProduct(product) : undefined;
+    const networkType = product ? networkTypeForProduct(product) : "ethernet";
+    const isInfiniband = networkType === "infiniband";
     const addressPools = selectedSupport?.addressPools ?? [];
     const excludedRanges = selectedSupport?.excludedRanges ?? [];
     const minPrefixLength = selectedSupport?.minPrefixLength ?? 16;
@@ -435,7 +455,7 @@ function PrivateNetworkCreate({onCreate, onCancel, products, support}: PrivateNe
     const overlappingExcludedRange = parsedCidr === null ? undefined : parsedExcludedRanges.find(({range}) =>
         parsedCidr.first <= range.last && range.first <= parsedCidr.last
     );
-    const isCidrValid = cidr.trim() === "" || (
+    const isCidrValid = isInfiniband || cidr.trim() === "" || (
         parsedCidr !== null && prefixIsSupported && cidrIsInsidePool && overlappingExcludedRange === undefined
     );
 
@@ -450,13 +470,17 @@ function PrivateNetworkCreate({onCreate, onCancel, products, support}: PrivateNe
         }
     }, [products]);
 
+    useEffect(() => {
+        if (isInfiniband) setCidr("");
+    }, [isInfiniband]);
+
     return (<div>
         <div className={Container}>
             <Box>
-                <Heading.h3>Create a private network</Heading.h3>
+                <Heading.h3>Create a network</Heading.h3>
                 <Box mt={"8px"}>
-                    Private networks connect your jobs within an isolated internal network.
-                    They are only accessible within your workspace.
+                    Networks connect your jobs. Ethernet networks are isolated internal networks. InfiniBand
+                    networks share the provider's fabric and automatically add RDMA to your jobs.
                 </Box>
             </Box>
 
@@ -464,7 +488,7 @@ function PrivateNetworkCreate({onCreate, onCancel, products, support}: PrivateNe
                 <Label>Name<MandatoryField /></Label>
                 <Input
                     autoFocus
-                    placeholder={"My private network"}
+                    placeholder={"My network"}
                     value={name}
                     onChange={e => setName(e.target.value)}
                 />
@@ -475,13 +499,29 @@ function PrivateNetworkCreate({onCreate, onCancel, products, support}: PrivateNe
 
             <Box>
                 <Label>Choose a product<MandatoryField /></Label>
-                <ProductSelector slim onSelect={setSelectedProduct} products={products} selected={product} />
+                <ProductSelector
+                    slim
+                    onSelect={setSelectedProduct}
+                    products={products}
+                    selected={product}
+                    renderProductName={candidate => privateNetworkTypeLongLabel(networkTypeForProduct(candidate))}
+                    renderProductBadge={candidate => <NetworkTypeBadge type={networkTypeForProduct(candidate)} />}
+                />
                 <div style={{color: "var(--textSecondary)"}}>This network can be used with machines
                     from <i>{shortProviderId}</i>.
                 </div>
             </Box>
 
-            <Box>
+            {isInfiniband ? <Box>
+                <Label>Address range</Label>
+                <Box border="1px solid var(--borderColor)" borderRadius="8px" p="12px">
+                    <Text bold>Assigned automatically.</Text>
+                    <Text mt="4px" color="textSecondary">
+                        The provider gives this network one unused /24 from its InfiniBand pool. You cannot
+                        choose the range, because all networks share the physical fabric.
+                    </Text>
+                </Box>
+            </Box> : <Box>
                 <Label>Address range (optional)</Label>
                 <Input placeholder="For example, 10.20.0.0/24" value={cidr} onChange={e => setCidr(e.target.value)} />
                 {addressPools.length > 0 ? <Box mt="8px">
@@ -509,13 +549,13 @@ function PrivateNetworkCreate({onCreate, onCancel, products, support}: PrivateNe
                                 "Choose a range within one of the available ranges above." :
                                 `This range includes an unavailable area: ${overlappingExcludedRange?.cidr}.`}
                 </Text> : null}
-            </Box>
+            </Box>}
 
             {!projectId || !isAdminOrPI(project.status.myRole) ? null : (<Box mb={"20px"}>
                 <Label>Choose access</Label>
                 <Box maxHeight="400px" overflowY="auto">
                     <Text mb="12px">
-                        By default, only you and the project administrators can use this private network in new jobs.
+                        By default, only you and the project administrators can use this network in new jobs.
                         You can modify these permissions later on the <b>Properties</b> page.
                     </Text>
                     <PermissionsTable
@@ -524,7 +564,7 @@ function PrivateNetworkCreate({onCreate, onCancel, products, support}: PrivateNe
                         showMissingPermissionHelp={false}
                         replaceWriteWithUse
                         warning="Warning"
-                        title={"Private network"}
+                        title={"Network"}
                         updateAcl={async (group, permission) => {
                             const aclEntry = acl.find(it => it.entity["group"] === group);
                             if (aclEntry) {
@@ -552,7 +592,9 @@ function PrivateNetworkCreate({onCreate, onCancel, products, support}: PrivateNe
                 disabled={!isNameValid || !isCidrValid}
                 onClick={() => {
                     if (!isNameValid || !isCidrValid) {
-                        sendFailureNotification("Please provide a valid name and address range");
+                        sendFailureNotification(isInfiniband ?
+                            "Please provide a valid name" :
+                            "Please provide a valid name and address range");
                         return;
                     }
                     if (!product) {
@@ -560,9 +602,10 @@ function PrivateNetworkCreate({onCreate, onCancel, products, support}: PrivateNe
                         return;
                     }
                     onCreate(name.trim(),
-                        cidr.trim(),
+                        isInfiniband ? "" : cidr.trim(),
                         acl,
                         {id: product.name, category: product.category.name, provider: product.category.provider},
+                        networkType,
                     );
                 }}
             >

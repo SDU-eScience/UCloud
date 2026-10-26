@@ -38,9 +38,9 @@ export function productAreaTitle(area: ProductArea): string {
         case "NETWORK_IP":
             return "Public IP";
         case "PRIVATE_NETWORK":
-            return "Private network";
+            return "Network";
         case "PRIVATE_NETWORK_IP":
-            return "Private network IP";
+            return "Network IP";
     }
 }
 
@@ -168,9 +168,9 @@ export function productTypeToName(type: ProductType): string {
         case "INGRESS":
             return "Public link";
         case "PRIVATE_NETWORK":
-            return "Private network";
+            return "Network";
         case "PRIVATE_NETWORK_IP":
-            return "Private network IP";
+            return "Network IP";
     }
 }
 

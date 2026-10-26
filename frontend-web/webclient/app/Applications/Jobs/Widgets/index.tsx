@@ -54,6 +54,7 @@ const WidgetBody: React.FunctionComponent<WidgetProps> = props => {
         case "network_ip":
             return <NetworkIPParameter {...props} parameter={props.parameter} />;
         case "private_network":
+        case "ucloud_network":
             return <PrivateNetworkParameter {...props} parameter={props.parameter} />;
         case "workflow":
             return <WorkflowParameter {...props} parameter={props.parameter} />;
@@ -476,7 +477,8 @@ const DefaultParameterTitle: Record<string, string> = {
     "input_directory": "Folder name",
     "ingress": "Public link",
     "network_ip": "Public IP",
-    "private_network": "Private network"
+    "private_network": "Network",
+    "ucloud_network": "Network"
 };
 
 function WidgetLabel(props: {parameter: ApplicationParameter; bold?: boolean; title?: string}): React.ReactNode {
@@ -488,6 +490,7 @@ function WidgetLabel(props: {parameter: ApplicationParameter; bold?: boolean; ti
         case "input_file":
         case "network_ip":
         case "private_network":
+        case "ucloud_network":
             const title = suppliedTitle ?? (props.parameter.title ? props.parameter.title : DefaultParameterTitle[props.parameter.type]);
             return <Label htmlFor={widgetId(props.parameter) + "visual"} style={style}> {title}</Label >
     }
@@ -620,7 +623,8 @@ export function clearWidgetValue(parameter: ApplicationParameter): void {
     if (parameter.type === "peer") {
         ids.push(widgetId(parameter) + "name", widgetId(parameter) + "job");
     } else if (parameter.type === "input_directory" || parameter.type === "input_file" ||
-        parameter.type === "ingress" || parameter.type === "network_ip" || parameter.type === "private_network") {
+        parameter.type === "ingress" || parameter.type === "network_ip" ||
+        parameter.type === "private_network" || parameter.type === "ucloud_network") {
         ids.push(widgetId(parameter) + "visual");
     }
     if (parameter.type === "ingress") ids.push(widgetId(parameter) + "-port");

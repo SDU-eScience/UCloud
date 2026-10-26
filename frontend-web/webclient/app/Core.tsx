@@ -175,6 +175,7 @@ const Core = (): React.ReactNode => {
                     <Route path={"/public-links/*"} element={React.createElement(requireAuth(PublicLinksRouter))} />
                     <Route path="/licenses/*" element={React.createElement(requireAuth(LicenseRouter))} />
                     <Route path="/public-ips/*" element={React.createElement(requireAuth(NetworkIPsRouter))} />
+                    <Route path="/networks/*" element={React.createElement(requireAuth(PrivateNetworksRouter))} />
                     <Route path="/private-networks/*" element={React.createElement(requireAuth(PrivateNetworksRouter))} />
 
                     <Route path={AppRoutes.resources.sshKeys()} element={React.createElement(requireAuth(SSHKeyBrowse))} />

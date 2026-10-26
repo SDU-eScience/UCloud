@@ -619,7 +619,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
     const peers = useResource("resourcePeer", provider,
         (name) => ({type: "peer", description: "", title: "", optional: true, name}));
     const privateNetworks = useResource("resourcePrivateNetwork", provider,
-        (name) => ({type: "private_network", description: "", title: "", optional: true, name}));
+        (name) => ({type: "ucloud_network", description: "", title: "", optional: true, name}));
 
     const [activeOptParams, setActiveOptParams] = useState<string[]>([]);
     const [cacheInitScript, setCacheInitScript] = useState(false);
@@ -827,7 +827,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
             ...Object.values(peersResources.errors).map(it => "Connected jobs: " + it),
             ...Object.values(networkResources.errors).map(it => "IPs: " + it),
             ...Object.values(ingressResources.errors).map(it => "Public link: " + it),
-            ...Object.values(privateNetworkResources.errors).map(it => "Private network: " + it)
+            ...Object.values(privateNetworkResources.errors).map(it => "Network: " + it)
         ]) {
             sendFailureNotification(err);
         }
@@ -936,8 +936,8 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
             const newSpace = createSpaceForLoadedResources(networks, resources, "network", true);
             setTimeout(() => injectResources(newSpace, resources, "network"), 0);
         }
-        const newSpace = createSpaceForLoadedResources(privateNetworks, resources, "private_network", true);
-        setTimeout(() => injectResources(newSpace, resources, "private_network"), 0);
+        const newSpace = createSpaceForLoadedResources(privateNetworks, resources, ["private_network", "ucloud_network"], true);
+        setTimeout(() => injectResources(newSpace, resources, ["private_network", "ucloud_network"]), 0);
 
         folders.setErrors({});
         ingress.setErrors({});
@@ -1408,7 +1408,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
                                                 bold={dnsHostname.length > 0}
                                             />
                                         )}
-                                        <CompactResourceRowsContent singularLabel="Private network" {...privateNetworks}
+                                        <CompactResourceRowsContent singularLabel="Network" {...privateNetworks}
                                             firstRowDescription="Connect this job to a network of other jobs."
                                             application={application} />
                                     </>}
