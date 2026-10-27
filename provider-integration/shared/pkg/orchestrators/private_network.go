@@ -334,6 +334,18 @@ var NetworksControlUpdateLabels = rpc.Call[ControlMutateRequest[PrivateNetworksU
 
 var NetworksControlDelete = ControlMutateCall[fnd.FindByStringId, fnd.BulkResponse[util.Empty]](networksControlNamespace, "delete")
 
+type PrivateNetworksSetReclaimProtectionRequest struct {
+	Id        string `json:"id"`
+	Protected bool   `json:"protected"`
+}
+
+var NetworksControlSetReclaimProtection = rpc.Call[fnd.BulkRequest[PrivateNetworksSetReclaimProtectionRequest], util.Empty]{
+	BaseContext: networksControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "setReclaimProtection",
+}
+
 // Private Network Provider API
 // =====================================================================================================================
 
@@ -382,13 +394,14 @@ var (
 	PrivateNetworksUpdateLabels     = NetworksUpdateLabels
 	PrivateNetworksRetrieveProducts = NetworksRetrieveProducts
 
-	PrivateNetworksControlRetrieve     = NetworksControlRetrieve
-	PrivateNetworksControlBrowse       = NetworksControlBrowse
-	PrivateNetworksControlCreate       = NetworksControlCreate
-	PrivateNetworksControlRegister     = NetworksControlRegister
-	PrivateNetworksControlAddUpdate    = NetworksControlAddUpdate
-	PrivateNetworksControlUpdateLabels = NetworksControlUpdateLabels
-	PrivateNetworksControlDelete       = NetworksControlDelete
+	PrivateNetworksControlRetrieve             = NetworksControlRetrieve
+	PrivateNetworksControlBrowse               = NetworksControlBrowse
+	PrivateNetworksControlCreate               = NetworksControlCreate
+	PrivateNetworksControlRegister             = NetworksControlRegister
+	PrivateNetworksControlAddUpdate            = NetworksControlAddUpdate
+	PrivateNetworksControlUpdateLabels         = NetworksControlUpdateLabels
+	PrivateNetworksControlDelete               = NetworksControlDelete
+	PrivateNetworksControlSetReclaimProtection = NetworksControlSetReclaimProtection
 
 	PrivateNetworksProviderCreate           = NetworksProviderCreate
 	PrivateNetworksProviderDelete           = NetworksProviderDelete

@@ -1,4 +1,5 @@
 export type PrivateNetworkType = "ethernet" | "infiniband";
+export type NetworkReclaimState = "active" | "pending" | "reclaiming";
 
 export interface PrivateNetworkTypeSpecification {
     type?: PrivateNetworkType;
@@ -31,4 +32,15 @@ export function privateNetworkTypeLabel(type: PrivateNetworkType): string {
 
 export function privateNetworkTypeLongLabel(type: PrivateNetworkType): string {
     return type === "infiniband" ? "InfiniBand network" : "Ethernet network";
+}
+
+export function networkReclaimStateLabel(state: NetworkReclaimState): string {
+    switch (state) {
+        case "pending":
+            return "Pending deletion";
+        case "reclaiming":
+            return "Reclaiming";
+        default:
+            return "Active";
+    }
 }

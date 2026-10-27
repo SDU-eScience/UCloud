@@ -45,7 +45,7 @@ import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import ProductReference = accounting.ProductReference;
 import {useEffect} from "react";
 import {sendFailureNotification} from "@/Notifications";
-import {NetworkTypeBadge, networkTypeBadgeElement} from "./NetworkTypeBadge";
+import {NetworkTypeBadge, networkReclaimBadgeElement, networkTypeBadgeElement} from "./NetworkTypeBadge";
 import {
     PrivateNetworkType,
     privateNetworkTypeFromNetwork,
@@ -139,7 +139,7 @@ export function PrivateNetworkBrowse({
             new ResourceBrowser<PrivateNetwork>(mount, "Networks", opts).init(browserRef, FEATURES, "", browser => {
                 browser.setColumns([
                     {name: "Name"},
-                    {name: "Type", columnWidth: 120},
+                    {name: "Type", columnWidth: 220},
                     {name: "Address range", columnWidth: 220},
                     {name: opts?.selection ? "" : "Subdomain", columnWidth: 220},
                 ]);
@@ -204,6 +204,9 @@ export function PrivateNetworkBrowse({
 
                     const networkType = privateNetworkTypeFromNetwork(network);
                     row.stat1.append(networkTypeBadgeElement(networkType));
+                    if (network.status.reclaimState && network.status.reclaimState !== "active") {
+                        row.stat1.append(networkReclaimBadgeElement(network.status.reclaimState));
+                    }
                     row.stat2.textContent = network.status.cidrBlock ?? "Pending allocation";
 
                     if (opts?.selection) {

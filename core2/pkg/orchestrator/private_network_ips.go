@@ -363,6 +363,9 @@ func privateNetworkIpCreateOne(actor rpc.Actor, item orcapi.PrivateNetworkIpSpec
 		return orcapi.PrivateNetworkIp{}, err
 	}
 
+	privateNetworkTouchLocked(networkId)
+	privateNetworkReclaimFailuresReset(networkId)
+
 	return resc, nil
 }
 

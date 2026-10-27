@@ -15,18 +15,24 @@ import {ItemRenderer} from "@/ui-components/Browse";
 import {Product, productTypeToIcon} from "@/Accounting";
 import {Operation} from "@/ui-components/Operation";
 import {PrivateNetworkProperties} from "@/Applications/PrivateNetwork/PrivateNetworkProperties";
-import {PrivateNetworkType} from "@/Applications/PrivateNetwork/types";
+import {NetworkReclaimState, PrivateNetworkType} from "@/Applications/PrivateNetwork/types";
+import {apiUpdate} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/UtilityFunctions";
 
 export interface PrivateNetworkSpecification extends ResourceSpecification {
     name: string;
     type?: PrivateNetworkType;
     cidr?: string;
+    reclaimProtection?: boolean;
 }
 
 export interface PrivateNetworkStatus extends ResourceStatus {
     subdomain?: string;
     members: string[];
     cidrBlock?: string;
+    lastUsedAt?: number;
+    reclaimState?: NetworkReclaimState;
+    reclaimAfter?: number;
 }
 
 export interface PrivateNetworkSupport extends ProductSupport {
@@ -70,6 +76,14 @@ class PrivateNetworkApi extends ResourceApi<
 
     constructor() {
         super("networks");
+    }
+
+    public setReclaimProtection(id: string, protectedValue: boolean) {
+        return apiUpdate(
+            bulkRequestOf({id, protected: protectedValue}),
+            this.baseContext + "control",
+            "setReclaimProtection",
+        );
     }
 
     public retrieveOperations(): Operation<PrivateNetwork, ResourceBrowseCallbacks<PrivateNetwork, Product>>[] {
