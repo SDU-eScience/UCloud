@@ -1773,9 +1773,11 @@ function FileBrowse({opts, headerControls}: {
             b.emptyReasons = {};
             b.canConsumeResources = await checkCanConsumeResources(projectId ?? null, {api: FilesApi});
         }
+
         selectorPathRef.current = path;
         setSelectorActivePath(path);
         b.open(path);
+        document.querySelector("[data-drive-navigation]")?.toggleAttribute("data-drive-navigation");
     }, []);
 
     React.useEffect(() => {
@@ -1974,13 +1976,12 @@ export const FileSelectorKeyboardGuideClass = injectStyle("file-selector-keyboar
         white-space: nowrap;
     }
 
-    @media (max-width: 1000px) {
+    @media (max-width: 800px) {
         ${key} {
             display: none;
         }
     }
 `);
-
 
 export const FileSelectorLayoutClass = injectStyle("file-selector-layout", k => `
     ${k} {
