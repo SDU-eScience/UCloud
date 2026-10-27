@@ -95,9 +95,8 @@ type KubernetesPublicLinkConfiguration struct {
 }
 
 type KubernetesVirtualMachines struct {
-	Enabled           bool
-	PodLevelResources bool
-	Storage           struct {
+	Enabled bool
+	Storage struct {
 		Type     KubernetesVmVolMode
 		HostPath string
 		Csi      KubernetesVmVolCsiConfig
@@ -292,10 +291,9 @@ type KubernetesModuleEntry struct {
 }
 
 type K8sMachineCategory struct {
-	Payment                        PaymentInfo
-	Groups                         map[string]K8sMachineCategoryGroup
-	SystemReservedCpuMillis        util.Option[int]
-	SystemReservedCpuMillisPerCore util.Option[int]
+	Payment                 PaymentInfo
+	Groups                  map[string]K8sMachineCategoryGroup
+	SystemReservedCpuMillis util.Option[int]
 }
 
 type K8sMachineCategoryGroup struct {
@@ -634,15 +632,16 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 			category.SystemReservedCpuMillis.Set(int(systemReservedCpuMillis.Value))
 		}
 
-		systemReservedCpuMillisPerCore := cfgutil.OptionalChildInt(filePath, machineNode, "systemReservedCpuMillisPerCore", &success)
-		if systemReservedCpuMillisPerCore.Present {
-			category.SystemReservedCpuMillisPerCore.Set(int(systemReservedCpuMillisPerCore.Value))
-		}
-		if category.SystemReservedCpuMillis.Present && category.SystemReservedCpuMillisPerCore.Present {
-			cfgutil.ReportError(filePath, machineNode, "systemReservedCpuMillis and systemReservedCpuMillisPerCore are mutually exclusive")
+		if cfgutil.HasChild(machineNode, "systemReservedCpuMillisPerCore") {
+			cfgutil.ReportError(filePath, machineNode, "systemReservedCpuMillisPerCore is no longer supported; use systemReservedCpuMillis for additional per-node headroom")
 			success = false
-		} else if !category.SystemReservedCpuMillis.Present && !category.SystemReservedCpuMillisPerCore.Present {
+		}
+		if !category.SystemReservedCpuMillis.Present {
 			category.SystemReservedCpuMillis.Set(500)
+		}
+		if category.SystemReservedCpuMillis.Value < 0 {
+			cfgutil.ReportError(filePath, machineNode, "systemReservedCpuMillis must not be negative")
+			success = false
 		}
 
 		if !cfgutil.HasChild(machineNode, "groups") {
@@ -660,6 +659,10 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 				groupName := ""
 				_ = groupsNode.Content[j].Decode(&groupName)
 				groupNode := groupsNode.Content[j+1]
+				if cfgutil.HasChild(groupNode, "systemReservedCpuMillis") || cfgutil.HasChild(groupNode, "systemReservedCpuMillisPerCore") {
+					cfgutil.ReportError(filePath, groupNode, "CPU reservations must be configured at the machine category level, not inside groups")
+					success = false
+				}
 				group := parseK8sMachineGroup(filePath, groupNode, &success)
 				group.GroupName = groupName
 				category.Groups[groupName] = group
@@ -864,8 +867,6 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 
 		enabled, ok := cfgutil.OptionalChildBool(filePath, vmNode, "enabled")
 		vms.Enabled = enabled && ok
-		podLevelResources, ok := cfgutil.OptionalChildBool(filePath, vmNode, "podLevelResources")
-		vms.PodLevelResources = podLevelResources && ok
 
 		if vms.Enabled {
 			storageNode := cfgutil.RequireChild(filePath, vmNode, "storage", &success)

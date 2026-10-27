@@ -16,6 +16,7 @@ import * as Accounting from "@/Accounting";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
 import {Application} from "@/Applications/AppStoreApi";
 import {MandatoryField} from "@/UtilityComponents";
+import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";
@@ -179,9 +180,9 @@ export function ReservationParameter({
                             data-job-info-field={fieldNavigation ? "hours" : undefined}
                         />
                     </Label>
-                    <Button width="40px" data-amount={1} onClick={adjustHours}>+1</Button>
-                    <Button width="40px" data-amount={8} onClick={adjustHours}>+8</Button>
-                    <Button width="40px" data-amount={24} onClick={adjustHours}>+24</Button>
+                    <Button className={TinyHideStyle} width="40px" data-amount={1} onClick={adjustHours}>+1</Button>
+                    <Button className={TinyHideStyle} width="40px" data-amount={8} onClick={adjustHours}>+8</Button>
+                    <Button className={TinyHideStyle} width="40px" data-amount={24} onClick={adjustHours}>+24</Button>
                 </Flex>
                 : null}
         </div>
@@ -214,6 +215,14 @@ export function ReservationParameter({
 };
 
 export type ReservationValues = Pick<UCloud.compute.JobSpecification, "name" | "timeAllocation" | "replicas" | "product">;
+
+const TinyHideStyle = injectStyle("tiny-hide", k => `
+    @media (max-width: ${ContainerSize.TINY}px) {
+        ${k} {
+            display: none;
+        }
+    }
+`);
 
 export const JobCreateInput = injectStyle("job-or-hours-input", k => `
     ${k}::placeholder {

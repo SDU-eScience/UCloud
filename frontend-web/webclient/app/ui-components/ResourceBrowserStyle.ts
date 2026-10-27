@@ -1,10 +1,19 @@
 import {injectStyle, makeClassName} from "@/Unstyled";
+import {TriggerClass} from "@/Project/ProjectSwitcher";
 
 let didInject = false;
+
+export enum ContainerSize {
+    LARGE = 1080,
+    MEDIUM = 860,
+    SMALL = 600,
+    TINY = 460,
+}
 
 const BrowserClass = makeClassName("browser");
 export function injectResourceBrowserStyle(rowSize: number) {
     if (!didInject) injectStyle("ignored", () => `
+
         body[data-cursor=not-allowed] * {
             cursor: not-allowed !important;
         }
@@ -122,6 +131,73 @@ export function injectResourceBrowserStyle(rowSize: number) {
             display: none;
         }
 
+        ${BrowserClass.dot} header {
+            container-type: size;
+            container-name: header-first-row;
+        }
+
+        ${BrowserClass.dot} header input.search-field {
+            width: 100%;
+            height: 35px;
+            margin-left: 5px;
+        }
+
+        ${BrowserClass.dot} .search-icon {
+            grid-area: search-icon;
+        }
+
+        @container header-first-row (width < ${ContainerSize.MEDIUM}px) {
+            ${BrowserClass.dot} header input.search-field {
+               width: 100%;
+            }
+
+            ${BrowserClass.dot} header div.header-first-row {
+                display: grid;
+                gap: 8px;
+                grid-template-columns: 36px 32px auto 222px;
+                grid-template-areas:
+                    "refresh  .        .        project-switcher"
+                    "location location        location location        ";
+            }
+
+            ${BrowserClass.dot} header div.header-first-row:has(.search-icon[data-shown]) {
+                grid-template-areas:
+                    "search-icon refresh  .         project-switcher"
+                    "location    location location  location        ";
+            }
+
+            ${BrowserClass.dot} header[has-location-bar] div.header-first-row:has(.search-icon[data-shown]) {
+                grid-template-areas:
+                    "search-icon refresh  .         project-switcher"
+                    "p-icon      location location  location        ";
+            }
+
+            ${BrowserClass.dot} header div.header-first-row .search-field-wrapper {
+                position: absolute;
+                left: -5px;
+                top: 41px;
+                width: calc(100% + 6px);
+            }
+
+            ${BrowserClass.dot} header div.header-first-row img {
+                margin-left: 0;
+            }
+
+            ${BrowserClass.dot} header[has-location-bar] div.header-first-row .location {
+                width: calc(100% + 6px);
+            }
+        }
+
+        @container header-first-row (width < 380px) {
+            ${BrowserClass.dot} header[has-location-bar] div.header-first-row {
+                grid-template-columns: 36px 32px auto 150px;
+            }
+
+            ${BrowserClass.dot} header[has-location-bar] div.project-switcher .${TriggerClass} {
+                width: 150px;
+            }
+        }
+
         .header-first-row .search-icon[data-shown] {
             z-index: 1;
             width: 24px;
@@ -162,8 +238,8 @@ export function injectResourceBrowserStyle(rowSize: number) {
             height: 136px;
         }
 
-        ${BrowserClass.dot} header[data-has-filters][data-has-allocations] {
-            height: 162px;
+        ${BrowserClass.dot} header[data-has-filters] {
+            height: 136px;
         }
 
         ${BrowserClass.dot} header .location-bar,
@@ -202,6 +278,10 @@ export function injectResourceBrowserStyle(rowSize: number) {
             text-decoration: underline;
         }
 
+        ${BrowserClass.dot} header .location {
+            grid-area: location;
+        }
+
         ${BrowserClass.dot} header[has-location-bar] .location {
             flex-grow: 1;
             border: 1px solid var(--borderColor);
@@ -212,6 +292,8 @@ export function injectResourceBrowserStyle(rowSize: number) {
             height: 35px;
             transition: margin-right 0.2s;
         }
+
+
 
         ${BrowserClass.dot} header[has-location-bar] .location input {
             outline: none;
@@ -232,12 +314,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
             display: none;
         }
 
-        ${BrowserClass.dot} header input.search-field {
-            width: 100%;
-            height: 35px;
-            margin-left: 5px;
-        }
-
         ${BrowserClass.dot} header div.search-field-wrapper {
             position: relative;
             right: -46px;
@@ -255,8 +331,10 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
 
         /* If not hidden, make of for the relative position */
-        ${BrowserClass.dot} header .search-field-wrapper:not(:has(> input.search-field[data-hidden])) {
-            margin-left: -46px;
+        @container (min-width: ${ContainerSize.MEDIUM}px) {
+            ${BrowserClass.dot} header .search-field-wrapper:not(:has(> input.search-field[data-hidden])) {
+                margin-left: -46px;
+            }
         }
 
         ${BrowserClass.dot} header .search-field-wrapper > input.search-field[data-hidden] {
@@ -353,75 +431,126 @@ export function injectResourceBrowserStyle(rowSize: number) {
             align-items: center;
 
             white-space: pre;
-                                                                                                                    /* v favoriteIcon-width */
-            width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--stat4Width) - var(--favoriteWidth) - 32px);
             padding-right: 8px; /* So the title doesn't rub up against the second column */
         }
 
-        @media screen and (max-width: 860px) {
-            ${BrowserClass.dot} .row .title {
-                width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - 16px);
-            }
-        }
-
-
         ${BrowserClass.dot} .stat-wrapper {
-            width: calc(var(--stat1Width) + var(--stat2Width) + var(--stat3Width) + var(--stat4Width));
             justify-content: end;
             display: flex;
             gap: 8px;
         }
 
-        @media screen and (max-width: 860px) {
-            ${BrowserClass.dot} .stat-wrapper {
-                width: calc(var(--stat1Width));
-            }
+        ${BrowserClass.dot} .row .stat1 {
+            width: var(--stat1Width);
         }
 
+        ${BrowserClass.dot} .row .stat2 {
+            width: var(--stat2Width);
+        }
+
+        ${BrowserClass.dot} .row .stat3 {
+            width: var(--stat3Width);
+        }
+
+        ${BrowserClass.dot} .row .stat4 {
+            width: var(--stat4Width);
+        }
+
+        ${BrowserClass.dot} .row .stat1,
         ${BrowserClass.dot} .row .stat2,
         ${BrowserClass.dot} .row .stat3,
-        ${BrowserClass.dot} .row .stat4  {
-            display: none;
-            width: 0;
+        ${BrowserClass.dot} .row .stat4 {
+            display: flex;
+            justify-content: center;
+            margin-top: auto;
+            margin-bottom: auto;
+            text-align: center;
         }
 
-        @media screen and (min-width: 860px) {
-            ${BrowserClass.dot} .row .stat1,
-            ${BrowserClass.dot} .row .stat2,
-            ${BrowserClass.dot} .row .stat3 {
-                display: flex;
-                justify-content: center;
-                margin-top: auto;
-                margin-bottom: auto;
-                text-align: center;
+        /* ContainerSize.TINY */
+        @container (width < ${ContainerSize.SMALL}px) {
+            ${BrowserClass.dot} .row .title {
+                width: calc(var(--rowWidth) - var(--stat1Width) - 38px - var(--favoriteWidth) - 16px);
             }
 
-            ${BrowserClass.dot} .row .stat1 {
+            ${BrowserClass.dot} .stat-wrapper {
                 width: var(--stat1Width);
             }
 
+            ${BrowserClass.dot} .row .stat1 {
+                display: flex;
+                justify-content: end;
+                text-align: end;
+            }
+
+            ${BrowserClass.dot} .row .stat2,
+            ${BrowserClass.dot} .row .stat3,
+            ${BrowserClass.dot} .row .stat4  {
+                display: none;
+                width: 0;
+            }
+        }
+
+        /* ContainerSize.SMALL */
+        @container (${ContainerSize.SMALL}px <= width < ${ContainerSize.MEDIUM}px) {
+            ${BrowserClass.dot} .row .title {
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - 38px - var(--favoriteWidth) - 16px);
+            }
+
+            ${BrowserClass.dot} .stat-wrapper {
+                width: calc(var(--stat1Width) + var(--stat2Width));
+            }
+
             ${BrowserClass.dot} .row .stat2 {
-                width: var(--stat2Width);
+                display: flex;
+                justify-content: end;
+                text-align: end;
+            }
+
+            ${BrowserClass.dot} .row .stat3,
+            ${BrowserClass.dot} .row .stat4  {
+                display: none;
+                width: 0;
+            }
+        }
+        /* ContainerSize.MEDIUM */
+        @container (${ContainerSize.MEDIUM}px <= width < ${ContainerSize.LARGE}px) {
+            ${BrowserClass.dot} .row .title {
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - 38px - var(--favoriteWidth) - 16px);
+            }
+
+            ${BrowserClass.dot} .stat-wrapper {
+                width: calc(var(--stat1Width) + var(--stat2Width) + var(--stat3Width));
             }
 
             ${BrowserClass.dot} .row .stat3 {
-                width: var(--stat3Width);
+                display: flex;
+                justify-content: end;
+                text-align: end;
+            }
+
+            ${BrowserClass.dot} .row .stat4  {
+                display: none;
+                width: 0;
+            }
+        }
+
+        /* ContainerSize.LARGE */
+        @container (${ContainerSize.LARGE}px <= width) {
+            ${BrowserClass.dot} .row .title {
+                width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--stat4Width) - 38px - var(--favoriteWidth) - 16px);
+            }
+
+            ${BrowserClass.dot} .stat-wrapper {
+                width: calc(var(--stat1Width) + var(--stat2Width) + var(--stat3Width) + var(--stat4Width));
             }
 
             ${BrowserClass.dot} .row .stat4 {
                 display: flex;
                 justify-content: end;
                 text-align: end;
-                width: var(--stat4Width);
             }
         }
-
-        @media screen and (max-width: 860px) {
-            ${BrowserClass.dot} .row .stat1 {
-                margin-left: auto;
-            }
-        }
-
 
         ${BrowserClass.dot} .sensitivity-badge {
             height: 2em;
@@ -463,7 +592,7 @@ export function injectResourceBrowserStyle(rowSize: number) {
             font-family: var(--sansSerif);
         }
 
-        @media screen and (max-width: 800px) {
+        @container (max-width: 800px) {
             ${BrowserClass.dot} .${ShortcutClass}, ${BrowserClass.dot} .ShortCutPlusSymbol {
                 display: none;
             }
@@ -472,7 +601,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
         ${BrowserClass.dot} .rename-field {
             display: none;
             position: absolute;
-            width: calc(var(--rowWidth) - var(--stat1Width) - var(--stat2Width) - var(--stat3Width) - var(--stat4Width) - var(--favoriteWidth) - 92px);
             background-color: var(--backgroundDefault);
             border-radius: 5px;
             border: 1px solid var(--borderColor);
@@ -480,12 +608,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
             color: var(--textPrimary);
             z-index: 1;
             left: 8px;
-        }
-
-        @media screen and (max-width: 860px) {
-            ${BrowserClass.dot} .rename-field {
-                width: calc(var(--rowWidth) - var(--stat1Width) - var(--favoriteWidth) - 118px);
-            }
         }
 
         ${BrowserClass.dot} .page-empty {
@@ -523,11 +645,23 @@ export function injectResourceBrowserStyle(rowSize: number) {
 
         ${BrowserClass.dot} .refresh-icon {
             transition: transform 0.5s;
+
+            grid-area: refresh;
         }
 
         ${BrowserClass.dot} .refresh-icon:hover {
             transform: rotate(45deg);
         }
+
+        /* Containers can have their height set as far as I can tell, so it's manually done globally */
+        ${BrowserClass.dot} header[data-size=SMALL] {
+            height: 132px;
+        }
+
+        ${BrowserClass.dot} header[data-has-filters][data-size=SMALL] {
+            height: 162px;
+        }
+
     `);
     didInject = true;
     return BrowserClass;
