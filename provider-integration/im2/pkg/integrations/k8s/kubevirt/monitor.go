@@ -28,6 +28,28 @@ var releasedPvCleanupState struct {
 	deletePermissionLogged bool
 }
 
+func SchedulerPlacementExists(jobId string, rank int) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	name := vmName(jobId, rank)
+	_, err := KubevirtClient.VirtualMachine(Namespace).Get(ctx, name, metav1.GetOptions{})
+	if !k8serrors.IsNotFound(err) {
+		return true, err
+	}
+	_, err = KubevirtClient.VirtualMachineInstance(Namespace).Get(ctx, name, metav1.GetOptions{})
+	if !k8serrors.IsNotFound(err) {
+		return true, err
+	}
+	pods, err := shared.K8sClient.CoreV1().Pods(Namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "ucloud.dk/vmName=" + name,
+	})
+	if err != nil {
+		return true, err
+	}
+	return len(pods.Items) > 0, nil
+}
+
 func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 	for jobId := range missingVmSince {
 		if _, active := jobs[jobId]; !active {
@@ -83,16 +105,40 @@ func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 		}
 		seenJobs[jobId] = util.Empty{}
 		delete(missingVmSince, jobId)
+		cpuRequestMillis := util.OptNone[int]()
+		if machine.Spec.Template != nil {
+			quantity, present := machine.Spec.Template.Spec.Domain.Resources.Requests[k8score.ResourceCPU]
+			if present {
+				cpuRequestMillis.Set(int(quantity.MilliValue()))
+			}
+		}
+		machineStarting := machine.Spec.Template != nil && machine.Spec.RunStrategy != nil && *machine.Spec.RunStrategy == kvcore.RunStrategyAlways
+		instanceFinished := hasInstance && (instance.Status.Phase == kvcore.Succeeded || instance.Status.Phase == kvcore.Failed)
+		machineStarting = machineStarting && !instanceFinished
 
 		if hasInstance && machine.Status.Ready {
 			tracker.TrackState(
 				shared.JobReplicaState{
-					Id:    jobId,
-					Rank:  0,
-					State: orc.JobStateRunning,
-					Node:  util.OptValue(instance.Status.NodeName),
+					Id:               jobId,
+					Rank:             0,
+					State:            orc.JobStateRunning,
+					Node:             util.OptValue(instance.Status.NodeName),
+					CpuRequestMillis: cpuRequestMillis,
 				},
 			)
+		} else if machineStarting {
+			node := machine.Spec.Template.Spec.NodeSelector["kubernetes.io/hostname"]
+			if hasInstance && instance.Status.NodeName != "" {
+				node = instance.Status.NodeName
+			}
+			tracker.TrackState(shared.JobReplicaState{
+				Id:               jobId,
+				Rank:             0,
+				State:            orc.JobStateInQueue,
+				Node:             util.OptStringIfNotEmpty(node),
+				Status:           util.OptValue("The virtual machine is starting."),
+				CpuRequestMillis: cpuRequestMillis,
+			})
 		} else {
 			tracker.TrackState(
 				shared.JobReplicaState{

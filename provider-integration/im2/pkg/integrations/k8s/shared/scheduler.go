@@ -13,11 +13,12 @@ import (
 )
 
 type JobReplicaState struct {
-	Id     string
-	Rank   int
-	State  orc.JobState
-	Node   util.Option[string]
-	Status util.Option[string]
+	Id               string
+	Rank             int
+	State            orc.JobState
+	Node             util.Option[string]
+	Status           util.Option[string]
+	CpuRequestMillis util.Option[int]
 }
 
 type JobTracker interface {
@@ -242,7 +243,7 @@ func JobDimensions(job *orc.Job) SchedulerDimensions {
 func JobDimensionsFromProductOnly(prod *apm.ProductV2) SchedulerDimensions {
 	nodeCat, _ := NodeCategoryAndConfiguration(prod)
 	dims := SchedulerDimensions{
-		CpuMillis:     NodeCpuMillisNormalizedWithReserved(prod),
+		CpuMillis:     int(NodeCpuMillisNormalizedWithoutReserved(prod)),
 		MemoryInBytes: prod.MemoryInGigs * (1000 * 1000 * 1000),
 		Resources:     map[string]int{},
 	}

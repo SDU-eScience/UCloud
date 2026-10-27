@@ -334,43 +334,6 @@ func vmiFsMutator() {
 				annotations = make(map[string]string)
 			}
 
-			if annotations["ucloud.dk/podLevelResources"] == "true" {
-				podResources := k8score.ResourceRequirements{
-					Limits:   k8score.ResourceList{},
-					Requests: k8score.ResourceList{},
-				}
-				for _, resourceName := range []k8score.ResourceName{k8score.ResourceCPU, k8score.ResourceMemory} {
-					if quantity, ok := vm.Spec.Template.Spec.Domain.Resources.Limits[resourceName]; ok {
-						podResources.Limits[resourceName] = quantity
-					}
-					if quantity, ok := vm.Spec.Template.Spec.Domain.Resources.Requests[resourceName]; ok {
-						podResources.Requests[resourceName] = quantity
-					}
-				}
-				ops = append(ops, jsonPatchOp{Op: "add", Path: "/spec/resources", Value: podResources})
-
-				removeContainerResources := func(containers []k8score.Container, path string) {
-					for containerIdx, container := range containers {
-						for _, resourceName := range []k8score.ResourceName{k8score.ResourceCPU, k8score.ResourceMemory} {
-							if _, ok := container.Resources.Limits[resourceName]; ok {
-								ops = append(ops, jsonPatchOp{
-									Op:   "remove",
-									Path: fmt.Sprintf("/spec/%s/%d/resources/limits/%s", path, containerIdx, resourceName),
-								})
-							}
-							if _, ok := container.Resources.Requests[resourceName]; ok {
-								ops = append(ops, jsonPatchOp{
-									Op:   "remove",
-									Path: fmt.Sprintf("/spec/%s/%d/resources/requests/%s", path, containerIdx, resourceName),
-								})
-							}
-						}
-					}
-				}
-				removeContainerResources(pod.Spec.Containers, "containers")
-				removeContainerResources(pod.Spec.InitContainers, "initContainers")
-			}
-
 			for cIdx, container := range pod.Spec.Containers {
 				if len(container.Command) == 1 && container.Command[0] == "/usr/libexec/virtiofsd" {
 					ops = append(ops, []jsonPatchOp{
@@ -394,13 +357,11 @@ func vmiFsMutator() {
 						}
 					}
 
-					if annotations["ucloud.dk/podLevelResources"] != "true" {
-						if _, ok := container.Resources.Limits[k8score.ResourceMemory]; ok {
-							ops = append(ops, jsonPatchOp{
-								Op:   "remove",
-								Path: fmt.Sprintf("/spec/containers/%d/resources/limits/%s", cIdx, k8score.ResourceMemory),
-							})
-						}
+					if _, ok := container.Resources.Limits[k8score.ResourceMemory]; ok {
+						ops = append(ops, jsonPatchOp{
+							Op:   "remove",
+							Path: fmt.Sprintf("/spec/containers/%d/resources/limits/%s", cIdx, k8score.ResourceMemory),
+						})
 					}
 				}
 
@@ -1206,7 +1167,7 @@ func handleVnc(job *orc.Job, rank int, conn *ws.Conn) {
 	}
 }
 
-func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
+func StartScheduledJob(job *orc.Job, rank int, node string, cpuMillis int) *util.HttpError {
 	if !Enabled {
 		return util.HttpErr(http.StatusForbidden, "this system is not capable of running VMs at the moment")
 	}
@@ -1363,11 +1324,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	if vm.Annotations == nil {
 		vm.Annotations = make(map[string]string)
 	}
-	if ServiceConfig.Compute.VirtualMachines.PodLevelResources {
-		vm.Annotations["ucloud.dk/podLevelResources"] = "true"
-	} else {
-		delete(vm.Annotations, "ucloud.dk/podLevelResources")
-	}
 
 	strategy := kvcore.RunStrategyAlways
 	vm.Spec.RunStrategy = &strategy
@@ -1410,17 +1366,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	product := job.Status.ResolvedProduct.Value
-	addResource(k8score.ResourceCPU, int64(shared.NodeCpuMillisNormalizedWithReserved(&product)), k8sresource.Milli)
+	addResource(k8score.ResourceCPU, int64(cpuMillis), k8sresource.Milli)
+	cpuLimit := k8sresource.NewScaledQuantity(shared.NodeCpuMillisNormalizedWithoutReserved(&product), k8sresource.Milli)
+	cpuLimit.Format = k8sresource.DecimalSI
+	resources.Limits[k8score.ResourceCPU] = *cpuLimit
 	addResourceEx(k8score.ResourceMemory, int64(product.MemoryInGigs), k8sresource.Giga, false)
-
-	{
-		quantity := k8sresource.NewScaledQuantity(
-			shared.NodeCpuMillisNormalizedWithoutReserved(&product),
-			k8sresource.Milli,
-		)
-		quantity.Format = k8sresource.DecimalSI
-		resources.Limits[k8score.ResourceCPU] = *quantity
-	}
 
 	vm.Spec.Template = &kvcore.VirtualMachineInstanceTemplateSpec{
 		Spec: kvcore.VirtualMachineInstanceSpec{

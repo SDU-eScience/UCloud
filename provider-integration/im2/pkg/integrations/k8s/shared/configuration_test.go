@@ -78,7 +78,7 @@ func TestNodeCpuMillisReservedAppliesFraction(t *testing.T) {
 		Fraction:     apm.Fraction{Numerator: 1, Denominator: 10},
 	}
 
-	if got := NodeCpuMillisNormalizedWithReserved(&product); got != 200 {
+	if got := NodeCpuMillisWithBudget(int(NodeCpuMillisNormalizedWithoutReserved(&product)), 2000, 2000); got != 200 {
 		t.Fatalf("expected 200 millicpu, got %d", got)
 	}
 }
@@ -174,7 +174,7 @@ func TestCpuReservationScenarioValues(t *testing.T) {
 		MemoryInGigs: 2,
 		Fraction:     apm.Fraction{Numerator: 1, Denominator: 1},
 	}
-	if got := NodeCpuMillisNormalizedWithReserved(&full); got != 958 {
+	if got := NodeCpuMillisWithBudget(int(NodeCpuMillisNormalizedWithoutReserved(&full)), 12000, 11500); got != 958 {
 		t.Fatalf("expected full product to reserve 958 millicpu, got %d", got)
 	}
 
@@ -185,7 +185,7 @@ func TestCpuReservationScenarioValues(t *testing.T) {
 		MemoryInGigs: 2,
 		Fraction:     apm.Fraction{Numerator: 1, Denominator: 4},
 	}
-	if got := NodeCpuMillisNormalizedWithReserved(&fractional); got != 479 {
+	if got := NodeCpuMillisWithBudget(int(NodeCpuMillisNormalizedWithoutReserved(&fractional)), 12000, 11500); got != 479 {
 		t.Fatalf("expected fractional product to reserve 479 millicpu, got %d", got)
 	}
 }

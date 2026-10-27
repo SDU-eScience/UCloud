@@ -508,21 +508,21 @@ func TestCpuStandardScenarioScheduling(t *testing.T) {
 		Fraction:     apm.Fraction{Numerator: 1, Denominator: 4},
 	}
 
-	if got := shared.NodeCpuMillisNormalizedWithReserved(fullProduct); got != 958 {
+	if got := shared.NodeCpuMillisWithBudget(int(shared.NodeCpuMillisNormalizedWithoutReserved(fullProduct)), 12000, 11500); got != 958 {
 		t.Fatalf("expected full product CPU millis to be 958, got %d", got)
 	}
-	if got := shared.NodeCpuMillisNormalizedWithReserved(fractionalProduct); got != 479 {
+	if got := shared.NodeCpuMillisWithBudget(int(shared.NodeCpuMillisNormalizedWithoutReserved(fractionalProduct)), 12000, 11500); got != 479 {
 		t.Fatalf("expected fractional product CPU millis to be 479, got %d", got)
 	}
 
 	fullDims := shared.JobDimensionsFromProductOnly(fullProduct)
 	fractionalDims := shared.JobDimensionsFromProductOnly(fractionalProduct)
 
-	if fullDims.CpuMillis != 958 {
-		t.Fatalf("expected full product queue dims CPU to be 958, got %d", fullDims.CpuMillis)
+	if fullDims.CpuMillis != 1000 {
+		t.Fatalf("expected full product queue dims CPU to be 1000, got %d", fullDims.CpuMillis)
 	}
-	if fractionalDims.CpuMillis != 479 {
-		t.Fatalf("expected fractional product queue dims CPU to be 479, got %d", fractionalDims.CpuMillis)
+	if fractionalDims.CpuMillis != 500 {
+		t.Fatalf("expected fractional product queue dims CPU to be 500, got %d", fractionalDims.CpuMillis)
 	}
 
 	node := shared.SchedulerDimensions{CpuMillis: 12000, MemoryInBytes: 200000000000, Resources: map[string]int{}}
@@ -533,6 +533,8 @@ func TestCpuStandardScenarioScheduling(t *testing.T) {
 
 	fullScheduler := NewScheduler("cpu-standard")
 	fullScheduler.RegisterNode("node-0", node, nodeLimits, false)
+	fullScheduler.Nodes["node-0"].ScaleCpuRequests = true
+	fullScheduler.Nodes["node-0"].CpuBudgetMillis = nodeLimits.CpuMillis
 	for i := 0; i < 13; i++ {
 		fullScheduler.RegisterJobInQueue(fmt.Sprintf("full-%d", i), fullDims, 1, nil, now, jobLength)
 	}
@@ -547,6 +549,8 @@ func TestCpuStandardScenarioScheduling(t *testing.T) {
 
 	fractionalScheduler := NewScheduler("cpu-standard")
 	fractionalScheduler.RegisterNode("node-0", node, nodeLimits, false)
+	fractionalScheduler.Nodes["node-0"].ScaleCpuRequests = true
+	fractionalScheduler.Nodes["node-0"].CpuBudgetMillis = nodeLimits.CpuMillis
 	for i := 0; i < 25; i++ {
 		fractionalScheduler.RegisterJobInQueue(fmt.Sprintf("frac-%d", i), fractionalDims, 1, nil, now, jobLength)
 	}

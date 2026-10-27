@@ -42,6 +42,17 @@ var missingPodSince = map[string]time.Time{}
 
 const missingPodGracePeriod = 5 * time.Minute
 
+func SchedulerPlacementExists(jobId string, rank int) (bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	_, err := K8sClient.CoreV1().Pods(Namespace).Get(ctx, idAndRankToPodName(jobId, rank), meta.GetOptions{})
+	if k8serrors.IsNotFound(err) {
+		return false, nil
+	}
+	return true, err
+}
+
 func Monitor(tracker shared.JobTracker, jobs map[string]*orc.Job) {
 	allPods := shared.JobPods.List()
 
