@@ -30,9 +30,9 @@ const GroupControlPlane = k8sapi.GroupControlPlane
 const StackType = k8sapi.StackType
 
 const (
-	StackGroupingLabel  = "ucloud.dk/k8s-node-group"
-	NodeAllocationLabel = "ucloud.dk/k8s-node-id"
-	K8sVersionLabel     = "ucloud.dk/k8s-version"
+	StackGroupingLabel  = k8sapi.LabelNodeGroup
+	NodeAllocationLabel = k8sapi.LabelNodeAllocation
+	K8sVersionLabel     = k8sapi.LabelK8sVersion
 
 	TopologyOperationLabel = "ucloud.dk/k8s-topology-operation"
 )

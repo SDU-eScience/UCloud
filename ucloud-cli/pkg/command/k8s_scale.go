@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
+	"ucloud.dk/shared/pkg/termio"
 	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/ucloud_cli/pkg/iapp"
 )
@@ -333,46 +335,55 @@ func k8sWaitForPoolNodes(
 	ctx, cancel := context.WithTimeout(context.Background(), k8sWaitTimeout)
 	defer cancel()
 
-	fmt.Fprintf(os.Stderr, "Waiting for pool %s to reach %d node%s\n", pool, target, k8sCreatePlural(target))
+	progress := termio.NewProgressList(
+		os.Stderr,
+		fmt.Sprintf("Waiting for pool %s to reach %d node%s", pool, target, k8sCreatePlural(target)),
+	)
+	progress.Start()
+	defer progress.Stop()
 
-	states := map[string]string{}
+	stages := k8sJobStagesNew(ctx)
+	defer stages.Stop()
+
+	include := func(node k8sapi.ProvisioningNodeStatus) bool {
+		return node.Group == pool && !before[node.Hostname]
+	}
+
 	for {
-		response, err := iapp.Call(ctx, client, k8sapi.Status, util.Empty{})
+		response, err := iapp.Call(ctx, client, k8sapi.ProvisioningStatus, util.Empty{})
 		if err != nil {
+			if k8sWaitRpcNotFound(err) {
+				return fmt.Errorf(
+					"the Kubernetes application does not support live provisioning status; update the application",
+				)
+			}
 			if !k8sWaitSleep(ctx) {
 				return k8sPoolWaitTimeoutError(cluster, pool)
 			}
 			continue
 		}
 
-		if err := k8sClusterFailure(response, cluster); err != nil {
+		if err := k8sProvisioningFailure(response, cluster); err != nil {
+			return err
+		}
+		if err := k8sProvisioningNodeFailure(response, cluster, include); err != nil {
 			return err
 		}
 
-		poolCount := 0
-		for _, candidate := range response.Pools {
-			if candidate.Name == pool {
-				poolCount = candidate.Nodes
-				break
-			}
-		}
+		k8sWaitSetProgress(progress, response, stages, include)
 
+		poolCount := 0
 		newTotal := 0
 		newReady := 0
 		for _, node := range response.Nodes {
-			if node.Group != pool || before[node.Hostname] {
+			if node.Group == pool {
+				poolCount++
+			}
+			if !include(node) {
 				continue
 			}
 
 			newTotal++
-			state := node.State
-			if state == "" {
-				state = "pending"
-			}
-			if states[node.Hostname] != state {
-				states[node.Hostname] = state
-				fmt.Fprintf(os.Stderr, "Node %s (%s): %s\n", node.Hostname, node.Group, k8sNodeStateLabel(state))
-			}
 			if node.State == k8sapi.NodeStateReady {
 				newReady++
 			}
@@ -380,8 +391,9 @@ func k8sWaitForPoolNodes(
 
 		if response.NodeHealthKnown &&
 			poolCount == target &&
+			newTotal > 0 &&
 			newReady == newTotal {
-			fmt.Fprintf(os.Stderr, "Pool %s is ready\n", pool)
+			progress.Milestone(fmt.Sprintf("Pool %s is ready", pool))
 			return nil
 		}
 
@@ -404,19 +416,21 @@ func k8sPrintScaleResult(cluster string, pool string, nodes int, ready bool, out
 		})
 	}
 
-	fmt.Printf("Cluster: %s\n", cluster)
-	fmt.Printf("Pool: %s\n", pool)
-	fmt.Printf("Nodes: %d\n", nodes)
-	fmt.Printf("Dashboard: %s\n", k8sValueOrDash(dashboardUrl))
-	if ready {
-		fmt.Println("Ready: yes")
-	}
+	frame := termio.Frame{}
+	frame.Title("Scale")
+	frame.SetNaturalWidth(true)
+	frame.SetDimBorders(true)
+	frame.AppendField("Cluster", cluster)
+	frame.AppendField("Pool", pool)
+	frame.AppendField("Nodes", strconv.Itoa(nodes))
+	frame.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
+	frame.Print()
 	return nil
 }
 
 func k8sPrintProgressMessage(message string, success bool) {
 	if success && message != "" {
-		fmt.Fprintln(os.Stderr, message)
+		fmt.Fprintln(os.Stderr, termio.Subtle("%s", message).Render(termio.IsPtyWriter(os.Stderr)))
 	}
 }
 

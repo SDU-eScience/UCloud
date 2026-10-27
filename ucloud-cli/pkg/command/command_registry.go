@@ -19,6 +19,7 @@ func CommandRegistry() map[string]map[string]CommandFunc {
 	registry["completion"] = CompletionCommands
 	registry["update"] = UpdateCommands
 	registry["version"] = VersionCommands
+	registry["progress-test"] = ProgressTestCommands
 	registry["help"] = HelpCommands
 	return registry
 }

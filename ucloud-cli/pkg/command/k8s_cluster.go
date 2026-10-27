@@ -48,6 +48,12 @@ var K8sClusterCommands = map[string]CommandFunc{
 	"auto": func() Command {
 		return &K8sClusterAutoCommand{StartHour: -1, Days: -1}
 	},
+	"delete": func() Command {
+		return &K8sClusterDeleteCommand{}
+	},
+	"recovery": func() Command {
+		return &K8sClusterRecoveryCommand{}
+	},
 }
 
 type K8sClusterReleasesCommand struct {
@@ -274,6 +280,19 @@ func k8sConnectCluster(ctx context.Context, stack orcapi.Stack) (*iapp.Client, e
 	return client, nil
 }
 
+func k8sConnectRecovery(ctx context.Context, stack orcapi.Stack) (*iapp.Client, error) {
+	client, err := iapp.ConnectStack(ctx, stack)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := k8sVerifyApp(ctx, client, k8sapi.AppModeRecovery, stack.Id); err != nil {
+		client.Close()
+		return nil, err
+	}
+	return client, nil
+}
+
 func k8sVerifyApp(ctx context.Context, client *iapp.Client, expectedMode string, name string) error {
 	response, err := iapp.Call(ctx, client, k8sapi.Ping, k8sapi.PingRequest{})
 	if err != nil {
@@ -288,6 +307,9 @@ func k8sVerifyApp(ctx context.Context, client *iapp.Client, expectedMode string,
 	case "":
 		return nil
 	case k8sapi.AppModeRecovery:
+		if expectedMode == k8sapi.AppModeRecovery {
+			return nil
+		}
 		if name != "" {
 			return fmt.Errorf("the cluster is recovering; use the dashboard at %s", k8sValueOrDash(k8sDashboardURL(name)))
 		}
@@ -424,141 +446,99 @@ func k8sPrintStatus(response k8sapi.StatusResponse, output string) error {
 		}
 	}
 
-	summary := termio.Table{}
-	summary.AppendHeader("Field")
-	summary.AppendHeader("Value")
-	summary.Cell("Cluster")
-	summary.Cell("%s", k8sValueOrDash(response.Name))
-	summary.Cell("Dashboard")
-	summary.Cell("%s", k8sValueOrDash(dashboardUrl))
-	summary.Cell("Phase")
-	summary.Cell("%s", k8sValueOrDash(response.Phase))
-	summary.Cell("Kubernetes")
-	summary.Cell("%s", k8sValueOrDash(response.K8sVersion))
-	summary.Cell("Provider")
-	summary.Cell("%s", k8sValueOrDash(response.MachineProvider))
+	providerLabel := k8sStatusProviderLabel(response.MachineProvider)
+
+	sections := termio.TableSet{}
+	sections.SetDimBorders(true)
+
+	summary := termio.Frame{}
+	summary.Title("Summary")
+	summary.SetNaturalWidth(true)
+	summary.SetDimBorders(true)
+
+	summary.AppendField("Cluster", k8sValueOrDash(response.Name))
+	summary.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
+	summary.AppendFieldStyled("Phase", k8sStatusPhaseCell(response.Phase))
+	if response.FailureReason != "" {
+		summary.AppendFieldStyled("Failure", termio.Danger("%s", response.FailureReason))
+	}
+	summary.AppendField("Provider", providerLabel)
+	summary.AppendField("Kubernetes version", k8sValueOrDash(response.K8sVersion))
 	if controlPlane != nil {
-		summary.Cell("Control plane")
-		summary.Cell(
+		summary.AppendField("Control plane", fmt.Sprintf(
 			"%s (%d node%s, %d GB disk)",
 			k8sValueOrDash(controlPlane.Machine.Id),
 			controlPlane.Nodes,
 			k8sCreatePlural(controlPlane.Nodes),
 			controlPlane.Disk,
-		)
+		))
 	}
-	summary.Cell("Nodes")
+
+	summary.AppendSeparator()
+
+	nodesLabel := fmt.Sprintf("%d", response.NodeTotal)
 	if response.NodeHealthKnown {
-		summary.Cell(
+		nodesLabel = fmt.Sprintf(
 			"%d (%d ready, %d not ready, %d unknown)",
 			response.NodeReady+response.NodeNotReady+response.NodeUnknown,
 			response.NodeReady,
 			response.NodeNotReady,
 			response.NodeUnknown,
 		)
-	} else {
-		summary.Cell("%d", response.NodeTotal)
 	}
-	summary.Cell("Node health")
-	if response.NodeHealthKnown {
-		summary.Cell("available")
-	} else {
-		summary.Cell("unavailable")
+	summary.AppendField("Nodes", nodesLabel)
+	if !response.NodeHealthKnown {
+		summary.AppendFieldStyled("Live node data", termio.Danger("unavailable"))
 	}
-	summary.Cell("Maintenance")
 	if !response.MaintenanceKnown {
 		if response.MaintenanceError != "" {
-			summary.Cell("unavailable (%s)", response.MaintenanceError)
+			summary.AppendFieldStyled("Maintenance data", termio.Danger("unavailable (%s)", response.MaintenanceError))
 		} else {
-			summary.Cell("unavailable")
+			summary.AppendFieldStyled("Maintenance data", termio.Danger("unavailable"))
 		}
-	} else if len(response.Maintenance) == 0 {
-		summary.Cell("none")
-	} else {
-		summary.Cell("%d", len(response.Maintenance))
 	}
-	summary.Cell("Upgrade")
-	switch {
-	case response.RollingUpgradeError != "":
-		summary.Cell("unavailable (%s)", response.RollingUpgradeError)
-	case response.RollingUpgrade != nil:
-		label := fmt.Sprintf(
-			"%s (%s)",
-			k8sValueOrDash(response.RollingUpgrade.TargetRelease),
-			k8sUpgradePhaseLabel(response.RollingUpgrade.Phase),
-		)
-		if response.RollingUpgrade.Error != "" {
-			label += ": " + response.RollingUpgrade.Error
-		}
-		summary.Cell("%s", label)
-	default:
-		summary.Cell("none")
-	}
-	summary.Cell("Backup")
-	switch {
-	case response.BackupError != "":
-		summary.Cell("unavailable (%s)", response.BackupError)
-	case response.Backup != nil && k8sBackupRequestActive(response.Backup.RequestPhase):
-		summary.Cell("%s", response.Backup.RequestPhase)
-	default:
-		summary.Cell("none")
-	}
+	summary.AppendFieldStyled("Rolling upgrade", k8sStatusUpgradeCell(response))
+
+	summary.AppendSeparator()
+
+	summary.AppendFieldStyled("Backup state", k8sStatusBackupStateCell(response))
 	if response.Backup != nil && (response.Backup.StateFound || response.Backup.RequestFound) {
-		summary.Cell("Last backup")
-		summary.Cell("%s", k8sBackupLastLabel(response.Backup))
+		summary.AppendFieldStyled("Last backup", k8sStatusLastBackupCell(response.Backup))
 	}
 	if response.Backup != nil && response.Backup.NextDueAt > 0 {
-		summary.Cell("Next backup")
-		summary.Cell("%s", k8sAutoTimestamp(response.Backup.NextDueAt))
+		summary.AppendField("Next backup", k8sAutoTimestamp(response.Backup.NextDueAt))
 	}
 	if response.Backup != nil && response.Backup.StateFound {
-		summary.Cell("Retained backups")
-		summary.Cell("%d", response.Backup.Retained)
+		summary.AppendField("Retained backups", fmt.Sprintf("%d", response.Backup.Retained))
 	}
-	if response.ControlPlaneVersion != "" {
-		summary.Cell("Control plane version")
-		summary.Cell("%s", response.ControlPlaneVersion)
-	}
-	if response.FailureReason != "" {
-		summary.Cell("Failure")
-		summary.Cell("%s", response.FailureReason)
-	}
+
 	summary.Print()
+	fmt.Println()
 
-	if len(workerPools) > 0 {
-		pools := termio.Table{}
-		pools.AppendHeader("Worker pool")
-		pools.AppendHeader("Machine")
-		pools.AppendHeader("Nodes")
-		pools.AppendHeader("Disk (GB)")
-		for _, pool := range workerPools {
-			pools.Cell("%s", pool.Name)
-			pools.Cell("%s", k8sValueOrDash(pool.Machine.Id))
-			pools.Cell("%d", pool.Nodes)
-			pools.Cell("%d", pool.Disk)
-		}
-		pools.Print()
-	} else {
-		fmt.Println("Worker pools: none")
+	failures := k8sStatusMaintenanceFailures(response.Maintenance)
+	if len(failures) > 0 {
+		errorsTable := k8sStatusMaintenanceErrorTable(failures)
+		sections.Add("Maintenance errors", &errorsTable)
 	}
 
-	if len(response.Nodes) > 0 {
-		nodes := termio.Table{}
-		nodes.AppendHeader("Node")
-		nodes.AppendHeader("Group")
-		nodes.AppendHeader("IP")
-		nodes.AppendHeader("Machine")
-		nodes.AppendHeader("Ready")
-		nodes.AppendHeader("Version")
-		for _, node := range response.Nodes {
-			nodes.Cell("%s", k8sValueOrDash(node.Hostname))
-			nodes.Cell("%s", k8sValueOrDash(node.Group))
-			nodes.Cell("%s", k8sValueOrDash(node.IpAddress))
-			nodes.Cell("%s", k8sValueOrDash(node.Machine.Id))
-			nodes.Cell("%s", k8sReadyLabel(node))
-			nodes.Cell("%s", k8sValueOrDash(node.Version))
-		}
-		nodes.Print()
+	pools := termio.Table{}
+	pools.AppendHeader("Worker pool")
+	pools.AppendHeader("Machine")
+	pools.AppendHeaderEx("Nodes", termio.TableHeaderAlignRight)
+	pools.AppendHeaderEx("Disk (GB)", termio.TableHeaderAlignRight)
+	for _, pool := range workerPools {
+		pools.Cell("%s", pool.Name)
+		pools.Cell("%s", k8sValueOrDash(pool.Machine.Id))
+		pools.Cell("%d", pool.Nodes)
+		pools.Cell("%d", pool.Disk)
+	}
+	sections.Add("Worker pools", &pools)
+
+	nodes, unmatched := k8sStatusNodeTable(response)
+	sections.Add(fmt.Sprintf("Nodes (%d)", len(response.Nodes)), &nodes)
+	if len(unmatched) > 0 {
+		maintenance := k8sStatusMaintenanceTable(unmatched)
+		sections.Add(fmt.Sprintf("Maintenance (%d)", len(unmatched)), &maintenance)
 	}
 
 	if response.RollingUpgrade != nil && len(response.RollingUpgrade.Nodes) > 0 {
@@ -566,30 +546,292 @@ func k8sPrintStatus(response k8sapi.StatusResponse, output string) error {
 		upgrade.AppendHeader("Upgrade node")
 		upgrade.AppendHeader("Group")
 		upgrade.AppendHeader("Phase")
+		upgrade.SetColumnWidthGroup(0, "node")
 		for _, node := range response.RollingUpgrade.Nodes {
 			upgrade.Cell("%s", node.Name)
 			upgrade.Cell("%s", node.Group)
-			upgrade.Cell("%s", k8sUpgradePhaseLabel(node.Phase))
+			upgrade.CellValue(k8sStatusPhaseStyle(node.Phase, k8sUpgradePhaseLabel(node.Phase)))
 		}
-		upgrade.Print()
+		sections.Add("Rolling upgrade", &upgrade)
 	}
 
-	if len(response.Maintenance) > 0 {
-		operations := termio.Table{}
-		operations.AppendHeader("Node")
-		operations.AppendHeader("Operation")
-		operations.AppendHeader("Phase")
-		operations.AppendHeader("Error")
-		for _, operation := range response.Maintenance {
-			operations.Cell("%s", operation.NodeName)
-			operations.Cell("%s", operation.Kind)
-			operations.Cell("%s", operation.Phase)
-			operations.Cell("%s", k8sValueOrDash(operation.Error))
-		}
-		operations.Print()
-	}
-
+	sections.Print()
 	return nil
+}
+
+func k8sStatusProviderLabel(providerId string) string {
+	providerId = strings.TrimSpace(providerId)
+	if providerId == "" {
+		return "-"
+	}
+
+	branding, httpErr := orcapi.ProviderBrandingBrowse.Invoke(util.Empty{})
+	if httpErr != nil {
+		return providerId
+	}
+
+	entry, ok := branding.Providers[providerId]
+	if !ok {
+		return providerId
+	}
+
+	shortTitle := strings.TrimSpace(entry.ShortTitle)
+	if shortTitle == "" {
+		shortTitle = strings.TrimSpace(entry.Title)
+	}
+	if shortTitle == "" {
+		return providerId
+	}
+
+	return fmt.Sprintf("%s (%s)", shortTitle, providerId)
+}
+
+func k8sStatusPhaseCell(phase string) termio.StyledString {
+	switch phase {
+	case k8sapi.ClusterPhaseCreated:
+		return termio.Success("%s", k8sValueOrDash(phase))
+	case k8sapi.ClusterPhaseError:
+		return termio.Danger("%s", k8sValueOrDash(phase))
+	case k8sapi.ClusterPhaseProvisioning, k8sapi.ClusterPhaseCleanup, k8sapi.ClusterPhaseRecovering:
+		return termio.Warning("%s", k8sValueOrDash(phase))
+	default:
+		return termio.Plain("%s", k8sValueOrDash(phase))
+	}
+}
+
+func k8sStatusMaintenanceFailures(operations []k8sapi.MaintenanceOperation) []k8sapi.MaintenanceOperation {
+	failures := make([]k8sapi.MaintenanceOperation, 0)
+	for _, operation := range operations {
+		if operation.Phase == k8sapi.MaintenancePhaseFailed ||
+			operation.Phase == k8sapi.MaintenancePhaseBlocked {
+			failures = append(failures, operation)
+		}
+	}
+	return failures
+}
+
+func k8sStatusMaintenanceErrorTable(operations []k8sapi.MaintenanceOperation) termio.Table {
+	table := termio.Table{}
+	table.AppendHeader("Node")
+	table.AppendHeader("Operation")
+	table.AppendHeader("Phase")
+	table.AppendHeader("Error")
+	table.SetColumnWidthGroup(0, "node")
+	table.SetColumnMaxWidth(3, 60)
+
+	for _, operation := range operations {
+		table.Cell("%s", k8sValueOrDash(operation.NodeName))
+		table.Cell("%s", k8sValueOrDash(operation.Kind))
+		table.CellValue(k8sStatusPhaseStyle(operation.Phase, k8sValueOrDash(operation.Phase)))
+		if operation.Error != "" {
+			table.CellValue(termio.Danger("%s", operation.Error))
+		} else {
+			table.CellValue(termio.Subtle("-"))
+		}
+	}
+
+	return table
+}
+
+func k8sStatusUpgradeCell(response k8sapi.StatusResponse) termio.StyledString {
+	if response.RollingUpgradeError != "" {
+		return termio.Danger("unavailable (%s)", response.RollingUpgradeError)
+	}
+
+	upgrade := response.RollingUpgrade
+	if upgrade == nil {
+		return termio.Subtle("none in progress")
+	}
+
+	label := fmt.Sprintf(
+		"%s (%s)",
+		k8sValueOrDash(upgrade.TargetRelease),
+		k8sUpgradePhaseLabel(upgrade.Phase),
+	)
+	if upgrade.Error != "" {
+		return termio.Danger("%s: %s", label, upgrade.Error)
+	}
+	return k8sStatusPhaseStyle(upgrade.Phase, label)
+}
+
+func k8sStatusPhaseStyle(phase string, label string) termio.StyledString {
+	switch phase {
+	case k8sapi.MaintenancePhaseCompleted:
+		return termio.Success("%s", label)
+	case k8sapi.MaintenancePhaseFailed, k8sapi.MaintenancePhaseBlocked:
+		return termio.Danger("%s", label)
+	case k8sapi.MaintenancePhaseCancelled:
+		return termio.Subtle("%s", label)
+	case k8sapi.MaintenancePhasePending, k8sapi.MaintenancePhaseRunning:
+		return termio.Warning("%s", label)
+	default:
+		return termio.Plain("%s", label)
+	}
+}
+
+func k8sStatusBackupStateCell(response k8sapi.StatusResponse) termio.StyledString {
+	if response.BackupError != "" {
+		return termio.Danger("unavailable (%s)", response.BackupError)
+	}
+
+	backup := response.Backup
+	if backup == nil || (!backup.StateFound && !backup.RequestFound) {
+		return termio.Subtle("not configured")
+	}
+
+	if backup.RequestFound && k8sBackupRequestActive(backup.RequestPhase) {
+		return termio.Warning("%s", backup.RequestPhase)
+	}
+
+	if backup.StateFound {
+		if backup.LastAttemptPhase == k8sapi.BackupAttemptFailed {
+			return termio.Danger("failed")
+		}
+		if backup.LastSuccessFinishedAt > 0 {
+			return termio.Success("ok")
+		}
+		if backup.NextDueAt > 0 {
+			return termio.Plain("scheduled")
+		}
+	}
+
+	if backup.RequestFound && backup.RequestPhase != "" {
+		return termio.Plain("%s", backup.RequestPhase)
+	}
+
+	return termio.Subtle("never")
+}
+
+func k8sStatusLastBackupCell(backup *k8sapi.StatusBackup) termio.StyledString {
+	if backup == nil {
+		return termio.Subtle("never")
+	}
+
+	if backup.LastAttemptPhase == k8sapi.BackupAttemptFailed {
+		if backup.LastAttemptFinishedAt > 0 {
+			return termio.Danger("%s (failed)", k8sAutoTimestamp(backup.LastAttemptFinishedAt))
+		}
+		return termio.Danger("failed")
+	}
+
+	if backup.LastSuccessFinishedAt > 0 {
+		return termio.Plain("%s", k8sAutoTimestamp(backup.LastSuccessFinishedAt))
+	}
+
+	return termio.Subtle("never")
+}
+
+func k8sStatusNodeTable(response k8sapi.StatusResponse) (termio.Table, []k8sapi.MaintenanceOperation) {
+	maintenance := make(map[string]k8sapi.MaintenanceOperation, len(response.Maintenance))
+	for _, operation := range response.Maintenance {
+		maintenance[operation.NodeName] = operation
+	}
+
+	nodeNames := make(map[string]bool, len(response.Nodes))
+	for _, node := range response.Nodes {
+		nodeNames[node.Hostname] = true
+	}
+
+	hasMaintenance := false
+	unmatched := make([]k8sapi.MaintenanceOperation, 0)
+	for _, operation := range response.Maintenance {
+		if !nodeNames[operation.NodeName] {
+			if operation.Phase != k8sapi.MaintenancePhaseFailed &&
+				operation.Phase != k8sapi.MaintenancePhaseBlocked {
+				unmatched = append(unmatched, operation)
+			}
+		} else {
+			hasMaintenance = true
+		}
+	}
+
+	table := termio.Table{}
+	table.AppendHeader("Node")
+	table.AppendHeader("Group")
+	table.AppendHeader("IP")
+	table.AppendHeader("Machine")
+	table.AppendHeader("Ready")
+	table.AppendHeader("Version")
+	if hasMaintenance {
+		table.AppendHeader("Maintenance")
+		table.SetColumnMaxWidth(6, 48)
+	}
+	table.SetColumnWidthGroup(0, "node")
+
+	for _, node := range response.Nodes {
+		table.Cell("%s", k8sValueOrDash(node.Hostname))
+		table.Cell("%s", k8sValueOrDash(node.Group))
+		table.Cell("%s", k8sValueOrDash(node.IpAddress))
+		table.Cell("%s", k8sValueOrDash(node.Machine.Id))
+		table.CellValue(k8sStatusReadyCell(node))
+		table.Cell("%s", k8sValueOrDash(node.Version))
+		if !hasMaintenance {
+			continue
+		}
+		if operation, ok := maintenance[node.Hostname]; ok {
+			table.CellValue(k8sStatusMaintenanceCell(operation))
+		} else {
+			table.CellValue(termio.Subtle("-"))
+		}
+	}
+
+	return table, unmatched
+}
+
+func k8sStatusReadyCell(node k8sapi.StatusNode) termio.StyledString {
+	switch node.State {
+	case k8sapi.NodeStateReady:
+		return termio.Success("yes")
+	case k8sapi.NodeStateNotReady:
+		return termio.Danger("no")
+	case k8sapi.NodeStateUnknown:
+		return termio.Warning("unknown")
+	default:
+		return termio.Subtle("-")
+	}
+}
+
+func k8sStatusMaintenanceCell(operation k8sapi.MaintenanceOperation) termio.StyledString {
+	label := k8sValueOrDash(operation.Kind)
+	if operation.Phase != "" {
+		label += " (" + strings.ToLower(operation.Phase) + ")"
+	}
+
+	switch operation.Phase {
+	case k8sapi.MaintenancePhaseFailed, k8sapi.MaintenancePhaseBlocked:
+		return termio.Danger("%s", label)
+	case k8sapi.MaintenancePhaseCompleted:
+		return termio.Success("%s", label)
+	case k8sapi.MaintenancePhaseCancelled:
+		return termio.Subtle("%s", label)
+	case k8sapi.MaintenancePhasePending, k8sapi.MaintenancePhaseRunning:
+		return termio.Warning("%s", label)
+	default:
+		return termio.Plain("%s", label)
+	}
+}
+
+func k8sStatusMaintenanceTable(operations []k8sapi.MaintenanceOperation) termio.Table {
+	table := termio.Table{}
+	table.AppendHeader("Node")
+	table.AppendHeader("Operation")
+	table.AppendHeader("Phase")
+	table.AppendHeader("Error")
+	table.SetColumnWidthGroup(0, "node")
+	table.SetColumnMaxWidth(3, 48)
+
+	for _, operation := range operations {
+		table.Cell("%s", k8sValueOrDash(operation.NodeName))
+		table.Cell("%s", k8sValueOrDash(operation.Kind))
+		table.CellValue(k8sStatusPhaseStyle(operation.Phase, k8sValueOrDash(operation.Phase)))
+		if operation.Error != "" {
+			table.CellValue(termio.Danger("%s", operation.Error))
+		} else {
+			table.CellValue(termio.Subtle("-"))
+		}
+	}
+
+	return table
 }
 
 type k8sCoreStatusJob struct {
@@ -657,26 +899,6 @@ func k8sPrintCoreStatus(stack orcapi.Stack, reason string, output string) error 
 	return nil
 }
 
-func k8sBackupLastLabel(backup *k8sapi.StatusBackup) string {
-	if backup == nil {
-		return "never"
-	}
-	if backup.LastAttemptPhase == k8sapi.BackupAttemptFailed {
-		label := "failed"
-		if backup.LastAttemptFinishedAt > 0 {
-			label += " " + k8sAutoTimestamp(backup.LastAttemptFinishedAt)
-		}
-		if backup.LastAttemptError != "" {
-			label += ": " + backup.LastAttemptError
-		}
-		return label
-	}
-	if backup.LastSuccessFinishedAt > 0 {
-		return "ok " + k8sAutoTimestamp(backup.LastSuccessFinishedAt)
-	}
-	return "never"
-}
-
 func k8sBackupRequestActive(phase string) bool {
 	return phase == k8sapi.BackupRequestPending || phase == k8sapi.BackupRequestRunning
 }
@@ -715,17 +937,4 @@ func k8sValueOrDash(value string) string {
 		return "-"
 	}
 	return value
-}
-
-func k8sReadyLabel(node k8sapi.StatusNode) string {
-	switch node.State {
-	case k8sapi.NodeStateReady:
-		return "yes"
-	case k8sapi.NodeStateNotReady:
-		return "no"
-	case k8sapi.NodeStateUnknown:
-		return "unknown"
-	default:
-		return "-"
-	}
 }

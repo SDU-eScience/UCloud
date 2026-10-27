@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -14,6 +15,8 @@ import (
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
 )
+
+const iappMountTimeout = 3 * time.Minute
 
 type Client struct {
 	Session *ucx.Session
@@ -129,7 +132,10 @@ func connect(ctx context.Context, path string, sysHello string) (*Client, error)
 	client := &Client{Session: session}
 	client.registerClientHandlers()
 
-	if _, err := ucx.WaitForMount(ctx, session); err != nil {
+	mountCtx, mountCancel := context.WithTimeout(ctx, iappMountTimeout)
+	defer mountCancel()
+
+	if _, err := ucx.WaitForMount(mountCtx, session); err != nil {
 		session.Cancel()
 		return nil, fmt.Errorf("the application did not become ready: %w", err)
 	}

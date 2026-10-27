@@ -708,7 +708,12 @@ func k8sWaitForCluster(name string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), k8sWaitTimeout)
 	defer cancel()
 
-	fmt.Fprintf(os.Stderr, "Waiting for cluster %s to become ready\n", name)
+	progress := termio.NewProgressList(os.Stderr, fmt.Sprintf("Waiting for cluster %s", name))
+	progress.Start()
+	defer progress.Stop()
+
+	stages := k8sJobStagesNew(ctx)
+	defer stages.Stop()
 
 	var client *iapp.Client
 	defer func() {
@@ -717,7 +722,6 @@ func k8sWaitForCluster(name string) error {
 		}
 	}()
 
-	states := map[string]string{}
 	waitingAnnounced := false
 	dashboardAnnounced := false
 
@@ -728,10 +732,12 @@ func k8sWaitForCluster(name string) error {
 				return err
 			}
 
+			k8sWaitSetJobProgress(progress, stack, stages)
+
 			client, err = k8sConnectCluster(ctx, stack)
 			if err != nil {
 				if !waitingAnnounced {
-					fmt.Fprintln(os.Stderr, "Waiting for the cluster dashboard to become available")
+					progress.Milestone("Waiting for the cluster dashboard to become available")
 					waitingAnnounced = true
 				}
 				if !k8sWaitSleep(ctx) {
@@ -741,13 +747,19 @@ func k8sWaitForCluster(name string) error {
 			}
 
 			if !dashboardAnnounced {
-				fmt.Fprintln(os.Stderr, "Cluster dashboard is available")
+				progress.Milestone("The cluster dashboard is available")
 				dashboardAnnounced = true
 			}
 		}
 
-		response, err := iapp.Call(ctx, client, k8sapi.Status, util.Empty{})
+		response, err := iapp.Call(ctx, client, k8sapi.ProvisioningStatus, util.Empty{})
 		if err != nil {
+			if k8sWaitRpcNotFound(err) {
+				return fmt.Errorf(
+					"the Kubernetes application does not support live provisioning status; update the application",
+				)
+			}
+
 			client.Close()
 			client = nil
 			if !k8sWaitSleep(ctx) {
@@ -756,38 +768,18 @@ func k8sWaitForCluster(name string) error {
 			continue
 		}
 
-		if err := k8sClusterFailure(response, name); err != nil {
+		if err := k8sProvisioningFailure(response, name); err != nil {
+			return err
+		}
+		if err := k8sProvisioningNodeFailure(response, name, nil); err != nil {
 			return err
 		}
 
-		for _, node := range response.Nodes {
-			state := node.State
-			if state == "" {
-				if _, ok := states[node.Hostname]; ok {
-					continue
-				}
-				state = "pending"
-			}
-			if states[node.Hostname] == state {
-				continue
-			}
+		k8sWaitSetProgress(progress, response, stages, nil)
 
-			states[node.Hostname] = state
-			fmt.Fprintf(os.Stderr, "Node %s (%s): %s\n", node.Hostname, node.Group, k8sNodeStateLabel(state))
-		}
-
-		if response.NodeHealthKnown && len(response.Nodes) > 0 {
-			allReady := true
-			for _, node := range response.Nodes {
-				if node.State != k8sapi.NodeStateReady {
-					allReady = false
-					break
-				}
-			}
-			if allReady {
-				fmt.Fprintf(os.Stderr, "Cluster %s is ready\n", name)
-				return nil
-			}
+		if response.AllReady {
+			progress.Milestone(fmt.Sprintf("Cluster %s is ready", name))
+			return nil
 		}
 
 		if !k8sWaitSleep(ctx) {
@@ -876,11 +868,13 @@ func k8sCreatePrintResult(name string, ready bool, output string) error {
 		})
 	}
 
-	fmt.Printf("Cluster: %s\n", name)
-	fmt.Printf("Dashboard: %s\n", k8sValueOrDash(dashboardUrl))
-	if ready {
-		fmt.Println("Ready: yes")
-	}
+	frame := termio.Frame{}
+	frame.Title("Cluster")
+	frame.SetNaturalWidth(true)
+	frame.SetDimBorders(true)
+	frame.AppendField("Name", name)
+	frame.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
+	frame.Print()
 	return nil
 }
 

@@ -595,9 +595,9 @@ func ClusterAddNodesBatch(
 	operationUid := NewUid()
 	for i := 0; i < count; i++ {
 		if trimmedGroup == GroupControlPlane {
-			ucxsvc.UiSendProgress(app, fmt.Sprintf("Creating control plane node %d/%d", i+1, count))
+			ucxsvc.UiSendProgress(app, fmt.Sprintf("Adding control plane node %d/%d", i+1, count))
 		} else {
-			ucxsvc.UiSendProgress(app, fmt.Sprintf("Creating worker pool %s node %d/%d", trimmedGroup, i+1, count))
+			ucxsvc.UiSendProgress(app, fmt.Sprintf("Adding node %d/%d to pool %s", i+1, count, trimmedGroup))
 		}
 
 		if _, nodeOk := ClusterAddNodeLocked(app, stack, flow, record, trimmedGroup, machine, diskGb, operationUid); !nodeOk {

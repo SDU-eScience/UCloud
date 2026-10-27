@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -16,6 +17,10 @@ const (
 	StackType = "Kubernetes"
 
 	GroupControlPlane = "control-plane"
+
+	LabelNodeGroup      = "ucloud.dk/k8s-node-group"
+	LabelNodeAllocation = "ucloud.dk/k8s-node-id"
+	LabelK8sVersion     = "ucloud.dk/k8s-version"
 
 	ClusterNameMaxLen = 30
 	PoolNameMaxLen    = 30
@@ -44,6 +49,13 @@ const (
 	NodeStateReady    = "Ready"
 	NodeStateNotReady = "NotReady"
 	NodeStateUnknown  = "Unknown"
+
+	ProvisioningStatusProvisioning        = "Provisioning"
+	ProvisioningStatusWaitingForResources = "Waiting for resources"
+	ProvisioningStatusInitializing        = "Initializing"
+	ProvisioningStatusPoweredOff          = "Powered off"
+	ProvisioningStatusFailed              = "Failed"
+	ProvisioningStatusReady               = "ready"
 
 	ClusterPhaseProvisioning = "provisioning"
 	ClusterPhaseCleanup      = "cleanup-pending"
@@ -97,7 +109,38 @@ const (
 	AutoActionPause   = "pause"
 	AutoActionUnpause = "unpause"
 	AutoActionRetryOs = "retry-os"
+
+	RecoveryPhaseActive = "active"
+	RecoveryPhaseClosed = "closed"
+
+	RecoveryStageStop     = "stop"
+	RecoveryStageRecreate = "recreate"
+	RecoveryStageRestore  = "restore"
+	RecoveryStageVerify   = "verify"
+
+	RecoveryCredentialsOk        = "ok"
+	RecoveryCredentialsMismatch  = "mismatch"
+	RecoveryCredentialsUnchecked = "unchecked"
+
+	RecoveryActionStatus = "status"
+	RecoveryActionStart  = "start"
 )
+
+func ProvisioningStatusFromJobState(state orcapi.JobState) string {
+	switch state {
+	case orcapi.JobStateInQueue:
+		return ProvisioningStatusWaitingForResources
+	case orcapi.JobStateRunning:
+		return ProvisioningStatusInitializing
+	case orcapi.JobStateSuspended:
+		return ProvisioningStatusPoweredOff
+	}
+
+	if state.IsFinal() {
+		return ProvisioningStatusFailed
+	}
+	return ""
+}
 
 type PingRequest struct {
 	Message string
@@ -376,6 +419,26 @@ var Status = ucx.Rpc[util.Empty, StatusResponse]{
 	CallName: "k8s.status",
 }
 
+type ProvisioningNodeStatus struct {
+	Hostname string `json:"hostname"`
+	Group    string `json:"group"`
+	JobId    string `json:"jobId,omitempty"`
+	Status   string `json:"status"`
+	State    string `json:"state,omitempty"`
+}
+
+type ProvisioningStatusResponse struct {
+	Phase           string                   `json:"phase"`
+	FailureReason   string                   `json:"failureReason,omitempty"`
+	NodeHealthKnown bool                     `json:"nodeHealthKnown"`
+	AllReady        bool                     `json:"allReady"`
+	Nodes           []ProvisioningNodeStatus `json:"nodes"`
+}
+
+var ProvisioningStatus = ucx.Rpc[util.Empty, ProvisioningStatusResponse]{
+	CallName: "k8s.provisioningStatus",
+}
+
 type ScaleOutRequest struct {
 	Pool  string `json:"pool"`
 	Nodes int    `json:"nodes"`
@@ -526,6 +589,64 @@ type AutoResponse struct {
 
 var AutoMaintenance = ucx.Rpc[AutoRequest, AutoResponse]{
 	CallName: "k8s.autoMaintenance",
+}
+
+type RecoveryBackupInfo struct {
+	Id            string `json:"id"`
+	Release       string `json:"release,omitempty"`
+	CreatedAt     int64  `json:"createdAt,omitempty"`
+	SizeBytes     int64  `json:"sizeBytes,omitempty"`
+	CreatedByNode string `json:"createdByNode,omitempty"`
+}
+
+type RecoveryCheckInfo struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`
+	Detail string `json:"detail,omitempty"`
+	Ok     bool   `json:"ok"`
+}
+
+type RecoveryStatusResponse struct {
+	Supported         bool                 `json:"supported"`
+	Active            bool                 `json:"active"`
+	RecoveryFound     bool                 `json:"recoveryFound"`
+	Phase             string               `json:"phase,omitempty"`
+	Stage             string               `json:"stage,omitempty"`
+	OperationUid      string               `json:"operationUid,omitempty"`
+	BackupId          string               `json:"backupId,omitempty"`
+	BackupRelease     string               `json:"backupRelease,omitempty"`
+	SelectedBackupId  string               `json:"selectedBackupId,omitempty"`
+	CredentialsStatus string               `json:"credentialsStatus,omitempty"`
+	StartedAt         int64                `json:"startedAt,omitempty"`
+	StartedBy         string               `json:"startedBy,omitempty"`
+	ClosedAt          int64                `json:"closedAt,omitempty"`
+	LastError         string               `json:"lastError,omitempty"`
+	ClusterFound      bool                 `json:"clusterFound"`
+	ClusterPhase      string               `json:"clusterPhase,omitempty"`
+	Backups           []RecoveryBackupInfo `json:"backups"`
+	Checks            []RecoveryCheckInfo  `json:"checks"`
+	Messages          []string             `json:"messages"`
+}
+
+var RecoveryStatus = ucx.Rpc[util.Empty, RecoveryStatusResponse]{
+	CallName: "k8s.recoveryStatus",
+}
+
+type RecoveryStartRequest struct {
+	BackupId        string `json:"backupId,omitempty"`
+	AcknowledgeRisk bool   `json:"acknowledgeRisk,omitempty"`
+}
+
+type RecoveryStartResponse struct {
+	Phase    string              `json:"phase"`
+	Stage    string              `json:"stage"`
+	BackupId string              `json:"backupId,omitempty"`
+	Message  string              `json:"message,omitempty"`
+	Checks   []RecoveryCheckInfo `json:"checks"`
+}
+
+var RecoveryStart = ucx.Rpc[RecoveryStartRequest, RecoveryStartResponse]{
+	CallName: "k8s.startRecovery",
 }
 
 type KubeconfigResponse struct {

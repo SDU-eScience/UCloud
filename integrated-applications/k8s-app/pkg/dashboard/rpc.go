@@ -171,6 +171,63 @@ func (app *stackUiApp) registerRpcHandlers() {
 		return response, nil
 	})
 
+	k8sapi.ProvisioningStatus.Handler(session, func(ctx context.Context, _ util.Empty) (k8sapi.ProvisioningStatusResponse, error) {
+		app.mu.Lock()
+		session := app.session
+		stack := app.Stack
+		app.mu.Unlock()
+
+		record, ok := app.readClusterRecordWith(session, stack)
+		if !ok {
+			return k8sapi.ProvisioningStatusResponse{}, fmt.Errorf("could not read the cluster record")
+		}
+
+		entries := make([]provisioningEntry, 0, len(record.Nodes))
+		for _, node := range record.Nodes {
+			if node.Hostname == "" {
+				continue
+			}
+			entries = append(entries, provisioningEntry{
+				Hostname: node.Hostname,
+				Group:    node.Group,
+				Status:   k8sapi.ProvisioningStatusProvisioning,
+				JobId:    node.JobId,
+			})
+		}
+
+		health := provisioningResolve(ctx, session, app.provisioningClient(), entries)
+
+		response := k8sapi.ProvisioningStatusResponse{
+			Phase:           record.Phase,
+			FailureReason:   record.FailureReason,
+			NodeHealthKnown: health.Known,
+			AllReady:        health.Known && len(entries) > 0,
+			Nodes:           make([]k8sapi.ProvisioningNodeStatus, 0, len(entries)),
+		}
+
+		for _, entry := range entries {
+			state := ""
+			ready := false
+			if health.Known {
+				state = health.States[entry.Hostname]
+				ready = state == k8sapi.NodeStateReady
+			}
+			if !ready {
+				response.AllReady = false
+			}
+
+			response.Nodes = append(response.Nodes, k8sapi.ProvisioningNodeStatus{
+				Hostname: entry.Hostname,
+				Group:    entry.Group,
+				JobId:    entry.JobId,
+				Status:   entry.Status,
+				State:    state,
+			})
+		}
+
+		return response, nil
+	})
+
 	k8sapi.Kubeconfig.Handler(session, func(_ context.Context, _ util.Empty) (k8sapi.KubeconfigResponse, error) {
 		path := filepath.Join(shared.ManagementMountPath, filepath.Base(shared.KubernetesConfigurationFileName))
 		content, err := os.ReadFile(path)

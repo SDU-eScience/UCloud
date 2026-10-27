@@ -24,6 +24,20 @@ curl -fsSL 'https://cloud.sdu.dk/cli/install.sh' | UCLOUD_CLI_BASE_URL='https://
 
 Set `UCLOUD_CLI_BASE_URL` to the UCloud site root. The installer downloads files from its `/cli` path and configures the default CLI environment to that site if no CLI config exists.
 
+## Install a local build
+
+The local installer builds the current working tree and installs the binary to `~/.local/bin`. It uses the local modules from `provider-integration`, so uncommitted source changes are included. The build reports version `dev` and does not auto-update.
+
+```
+./install-local.sh
+```
+
+Pass `--install-dir` to choose another directory. Pass `--url` to change the default environment. On a fresh machine, the installer configures `https://ucloud.localhost.direct` to match the launcher. An existing CLI config is left unchanged.
+
+```
+./install-local.sh --install-dir "$HOME/bin" --url 'https://ucloud.localhost.direct'
+```
+
 ## Updates
 
 Release builds check `<environment>/cli/current/manifest.json` at most once every 15 minutes. The CLI downloads a newer version, verifies its SHA-256 checksum, and replaces the running binary.
