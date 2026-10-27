@@ -52,6 +52,7 @@ import {
     privateNetworkTypeLongLabel,
 } from "./types";
 import {retrievePrivateNetworkSupport} from "./support";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -137,12 +138,12 @@ export function PrivateNetworkBrowse({
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<PrivateNetwork>(mount, "Networks", opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumns([
+                browser.setColumns({[ContainerSize.LARGE]: [
                     {name: "Name"},
                     {name: "Type", columnWidth: 220},
                     {name: "Address range", columnWidth: 220},
                     {name: opts?.selection ? "" : "Subdomain", columnWidth: 220},
-                ]);
+                ]});
 
                 const dummyEntry: PrivateNetwork = {
                     id: DUMMY_ENTRY_ID,
@@ -197,26 +198,26 @@ export function PrivateNetworkBrowse({
 
                 browser.on("fetchFilters", () => [dateRanges]);
 
-                browser.on("renderRow", (network, row) => {
+                browser.on("renderTitle", (network, title, row) => {
                     if (network.id !== DUMMY_ENTRY_ID) {
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(network.specification.name || network.id, row));
+                        title.append(ResourceBrowser.defaultTitleRenderer(network.specification.name || network.id, row));
                     }
+                });
 
+                browser.on("renderStat1", (network, stat) => {
                     const networkType = privateNetworkTypeFromNetwork(network);
-                    row.stat1.append(networkTypeBadgeElement(networkType));
+                    stat.append(networkTypeBadgeElement(networkType));
                     if (network.status.reclaimState && network.status.reclaimState !== "active") {
-                        row.stat1.append(networkReclaimBadgeElement(network.status.reclaimState));
+                        stat.append(networkReclaimBadgeElement(network.status.reclaimState));
                     }
-                    row.stat2.textContent = network.status.cidrBlock ?? "Pending allocation";
+                });
 
-                    if (opts?.selection) {
-                        const useButton = browser.defaultButtonRenderer(opts.selection, network);
-                        if (useButton) {
-                            row.stat3.append(useButton);
-                        }
-                    } else {
-                        row.stat3.textContent = network.status.subdomain ?? "";
-                    }
+                browser.on("renderStat2", (network, stat) => {
+                    stat.textContent = network.status.cidrBlock ?? "Pending allocation";
+                });
+
+                browser.on("renderStat3", (network, stat) => {
+                    stat.textContent = network.status.subdomain ?? "";
                 });
 
                 browser.on("generateBreadcrumbs", () => [{title: browser.resourceName, absolutePath: ""}]);

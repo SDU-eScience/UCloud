@@ -201,6 +201,7 @@ const ActionBarClass = injectStyle("action-bar", k => `
         align-items: center;
         gap: 8px;
         min-width: 0;
+        overflow-x: scroll;
     }
 
     ${k} > div {
@@ -214,6 +215,7 @@ const ActionBarClass = injectStyle("action-bar", k => `
 
     ${k} button[data-keyboard-shortcuts="true"] {
         box-sizing: border-box;
+        min-width: 35px;
         width: 35px;
         padding-left: 0;
         padding-right: 0;

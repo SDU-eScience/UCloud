@@ -11,7 +11,7 @@ import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {ProviderLogo, ProviderLogoWrapper} from "@/Providers/ProviderLogo";
 import {RichSelect, RichSelectProps, SimpleRichSelect} from "@/ui-components/RichSelect";
-import {ProviderTitle} from "@/Providers/ProviderTitle";
+import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {copyToClipboard, displayErrorMessageOrDefault, doNothing} from "@/UtilityFunctions";
 import {ApiToken, ApiTokenStatus} from "./api";
@@ -469,29 +469,33 @@ export function ServiceProviderSelector({
     focusable,
     ...dataAttributes
 }: {
-    onSelect: (el: {key: string}) => void;
+    onSelect: (el: {key: string, title: string}) => void;
     serviceProvider: string;
     serviceProviders: {key: string}[];
-    renderRow?: (props: RichSelectProps<{key: string}>) => React.ReactNode
-    renderSelectedRow?: (props: RichSelectProps<{key: string}>) => React.ReactNode
+    renderRow?: (props: RichSelectProps<{key: string, title: string}>) => React.ReactNode
+    renderSelectedRow?: (props: RichSelectProps<{key: string, title: string}>) => React.ReactNode
     showLabel?: boolean;
     reserveLabelSpace?: boolean;
     focusable?: boolean;
 } & DataAttributes) {
+    const serviceProvidersWithTitles = React.useMemo(() =>
+        serviceProviders.map(({ key }) => ({ key, title: getProviderTitle(key) })),
+        [serviceProviders]);
+
     return <div className={ServiceProviderSelectorStyle} data-has-service-provider={!!serviceProvider}>
         {showLabel ? <>Service provider <MandatoryField /></> : reserveLabelSpace ? <Box width={"300px"} /> : null}
         <RichSelect
             fullWidth
             elementHeight={38}
             RenderSelected={renderSelectedRow}
-            selected={({key: serviceProvider})}
-            items={serviceProviders}
-            keys={["key"]}
+            selected={({key: serviceProvider, title: getProviderTitle(serviceProvider)})}
+            items={serviceProvidersWithTitles}
+            keys={["key", "title"]}
             focusable={focusable}
             {...dataAttributes}
             RenderRow={renderRow}
-            onSelect={onSelect}>
-        </RichSelect>
+            onSelect={onSelect}
+        />
     </div>
 }
 

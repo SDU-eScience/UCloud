@@ -1,3 +1,4 @@
+import Flex from "@/ui-components/Flex";
 import ReactModal from "react-modal";
 
 export const largeModalStyle: ReactModal.Styles = {
@@ -96,4 +97,12 @@ export const defaultModalStyle: ReactModal.Styles = {
             - Scripts editor with pop-ups for unsaved changes and allow editing after specifically disabling editing.
     */
     }
+}
+
+export function ModalBottom({children}: React.PropsWithChildren): React.ReactNode {
+    return (
+        <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"} gap={"8px"}>
+            {children}
+        </Flex>
+    )
 }

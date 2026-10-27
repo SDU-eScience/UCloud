@@ -98,14 +98,17 @@ func NewScheduler(name string) *Scheduler {
 }
 
 type SchedulerNode struct {
-	Name               string
-	Remaining          shared.SchedulerDimensions // Remaining dimensions before hitting the Capacity (not the Limits!)
-	Capacity           shared.SchedulerDimensions // Capacity describes the dimensions of the node when it is not experiencing any faults
-	Limits             shared.SchedulerDimensions // Limits describe the largest usage the node is currently able to tolerate
-	LastSeen           int
-	Unschedulable      bool
-	MaximumReplicas    int // maximum number of replicas running on the node (regardless of reservations)
-	AntiAffinityGroups map[string]util.Empty
+	Name                         string
+	ScaleCpuRequests             bool
+	CpuBudgetMillis              int
+	AdvertisedCpuRemainingMillis int
+	Remaining                    shared.SchedulerDimensions // Remaining dimensions before hitting the Capacity (not the Limits!)
+	Capacity                     shared.SchedulerDimensions // Capacity describes the dimensions of the node when it is not experiencing any faults
+	Limits                       shared.SchedulerDimensions // Limits describe the largest usage the node is currently able to tolerate
+	LastSeen                     int
+	Unschedulable                bool
+	MaximumReplicas              int // maximum number of replicas running on the node (regardless of reservations)
+	AntiAffinityGroups           map[string]util.Empty
 }
 
 type SchedulerQueueEntry struct {
@@ -126,8 +129,11 @@ type SchedulerQueueEntry struct {
 }
 
 type SchedulerReplicaEntry struct {
-	JobId string
-	Rank  int
+	JobId               string
+	Rank                int
+	AdvertisedCpuMillis int
+	Submitted           bool
+	UnobservedSince     time.Time
 	shared.SchedulerDimensions
 	Node      string
 	LastSeen  int
@@ -197,12 +203,13 @@ func (s *Scheduler) RegisterNode(name string, capacity, limits shared.SchedulerD
 	}
 
 	s.Nodes[name] = &SchedulerNode{
-		Name:          name,
-		Remaining:     capacity.Clone(),
-		Capacity:      capacity.Clone(),
-		Limits:        limits.Clone(),
-		LastSeen:      s.Time,
-		Unschedulable: unschedulable,
+		Name:                         name,
+		AdvertisedCpuRemainingMillis: capacity.CpuMillis,
+		Remaining:                    capacity.Clone(),
+		Capacity:                     capacity.Clone(),
+		Limits:                       limits.Clone(),
+		LastSeen:                     s.Time,
+		Unschedulable:                unschedulable,
 	}
 	metricRegisterNodeDuration.WithLabelValues(s.Name).Observe(timer.Mark().Seconds())
 }
@@ -239,6 +246,16 @@ func (s *Scheduler) RegisterRunningReplica(
 		replica := &s.Replicas[i]
 		if replica.JobId == jobId && replica.Rank == rank {
 			replica.LastSeen = now
+			replica.AdvertisedCpuMillis = dimensions.CpuMillis
+			replica.Submitted = true
+			if replica.Node != node {
+				nodePtr, known := s.Nodes[node]
+				if !known {
+					return
+				}
+				replica.Node = node
+				replica.SchedulerDimensions = schedulerDimensionsForNode(nodePtr, dimensions)
+			}
 			return
 		}
 	}
@@ -252,7 +269,9 @@ func (s *Scheduler) RegisterRunningReplica(
 	s.Replicas = append(s.Replicas, SchedulerReplicaEntry{
 		JobId:               jobId,
 		Rank:                rank,
-		SchedulerDimensions: dimensions,
+		AdvertisedCpuMillis: dimensions.CpuMillis,
+		Submitted:           true,
+		SchedulerDimensions: schedulerDimensionsForNode(nodePtr, dimensions),
 		Node:                node,
 		LastSeen:            s.Time,
 		Data:                data,
@@ -270,6 +289,7 @@ func (s *Scheduler) PruneReplicas() []SchedulerReplicaEntry {
 	// Set all nodes to full capacity (state is now being recalculated)
 	for _, n := range s.Nodes {
 		n.Remaining = n.Capacity.Clone()
+		n.AdvertisedCpuRemainingMillis = n.Capacity.CpuMillis
 	}
 
 	for i := 0; i < len(s.Replicas); i++ {
@@ -280,6 +300,7 @@ func (s *Scheduler) PruneReplicas() []SchedulerReplicaEntry {
 			node := s.Nodes[replica.Node]
 			if node != nil {
 				node.Remaining.Subtract(replica.SchedulerDimensions)
+				node.AdvertisedCpuRemainingMillis -= replica.AdvertisedCpuMillis
 			}
 			continue
 		}
@@ -515,7 +536,8 @@ func (s *Scheduler) Schedule() []SchedulerReplicaEntry {
 				replicaEntry := SchedulerReplicaEntry{
 					JobId:               entry.JobId,
 					Rank:                rank,
-					SchedulerDimensions: entry.SchedulerDimensions,
+					AdvertisedCpuMillis: entry.CpuMillis,
+					SchedulerDimensions: schedulerDimensionsForNode(s.Nodes[allocatedNodes[rank]], entry.SchedulerDimensions),
 					Node:                allocatedNodes[rank],
 					LastSeen:            now,
 					Data:                entry.Data,
@@ -646,18 +668,26 @@ outer:
 				continue
 			}
 
-			if !node.Remaining.Satisfies(entry.SchedulerDimensions) {
+			if node.ScaleCpuRequests && node.AdvertisedCpuRemainingMillis < entry.CpuMillis {
+				continue
+			}
+			dimensions := schedulerDimensionsForNode(node, entry.SchedulerDimensions)
+			if entry.CpuMillis > 0 && dimensions.CpuMillis <= 0 {
+				continue
+			}
+			if !node.Remaining.Satisfies(dimensions) {
 				continue
 			}
 
-			node.Remaining.Subtract(entry.SchedulerDimensions)
+			node.Remaining.Subtract(dimensions)
 
 			// Check if the new usage on the node exceeds the limits of the node
 			usage := node.Capacity.SubtractImmutable(node.Remaining)
 			if !node.Limits.Satisfies(usage) {
-				node.Remaining.Add(entry.SchedulerDimensions)
+				node.Remaining.Add(dimensions)
 				continue
 			}
+			node.AdvertisedCpuRemainingMillis -= entry.CpuMillis
 
 			allocatedNodes = append(allocatedNodes, node.Name)
 			placed.Add(node.Name, entry.AntiAffinityGroup)
@@ -672,7 +702,9 @@ outer:
 
 	if dry || len(allocatedNodes) < entry.Replicas {
 		for _, n := range allocatedNodes {
-			s.Nodes[n].Remaining.Add(entry.SchedulerDimensions)
+			node := s.Nodes[n]
+			node.Remaining.Add(schedulerDimensionsForNode(node, entry.SchedulerDimensions))
+			node.AdvertisedCpuRemainingMillis += entry.CpuMillis
 			placed.Remove(n, entry.AntiAffinityGroup)
 		}
 
@@ -697,9 +729,28 @@ func (s *Scheduler) SynchronizeNodeAntiAffinity(name string, groups map[string]u
 func (s *Scheduler) SynchronizeNodeUsage(name string, dims shared.SchedulerDimensions) {
 	node, ok := s.Nodes[name]
 	if ok {
+		dims = dims.Clone()
+		for resource := range dims.Resources {
+			if _, tracked := node.Capacity.Resources[resource]; !tracked {
+				delete(dims.Resources, resource)
+			}
+		}
 		node.Remaining = node.Capacity.Clone()
 		node.Remaining.Subtract(dims)
+		node.AdvertisedCpuRemainingMillis = node.Capacity.CpuMillis
+		for _, replica := range s.Replicas {
+			if replica.Node == name {
+				node.AdvertisedCpuRemainingMillis -= replica.AdvertisedCpuMillis
+			}
+		}
 	}
+}
+
+func schedulerDimensionsForNode(node *SchedulerNode, dimensions shared.SchedulerDimensions) shared.SchedulerDimensions {
+	if node.ScaleCpuRequests {
+		dimensions.CpuMillis = shared.NodeCpuMillisWithBudget(dimensions.CpuMillis, node.Capacity.CpuMillis, node.CpuBudgetMillis)
+	}
+	return dimensions
 }
 
 func totalResourceUnits(dims shared.SchedulerDimensions) int {
