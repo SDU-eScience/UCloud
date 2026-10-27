@@ -46,6 +46,7 @@ import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import ProductReference = accounting.ProductReference;
 import {useEffect} from "react";
 import {sendFailureNotification} from "@/Notifications";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -134,12 +135,12 @@ export function PrivateNetworkBrowse({
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<PrivateNetwork>(mount, "Private networks", opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumns([
+                browser.setColumns({[ContainerSize.LARGE]: [
                     {name: "Name"},
                     {name: "Subdomain", columnWidth: 220},
                     {name: "", columnWidth: 0},
                     {name: "", columnWidth: 0},
-                ]);
+                ]});
 
                 const dummyEntry: PrivateNetwork = {
                     id: DUMMY_ENTRY_ID,
@@ -194,20 +195,15 @@ export function PrivateNetworkBrowse({
 
                 browser.on("fetchFilters", () => [dateRanges]);
 
-                browser.on("renderRow", (network, row) => {
+                browser.on("renderTitle", (network, title, row) => {
                     if (network.id !== DUMMY_ENTRY_ID) {
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(network.specification.name || network.id, row));
-                    }
-
-                    row.stat1.textContent = network.status.subdomain ?? "";
-
-                    if (opts?.selection) {
-                        const useButton = browser.defaultButtonRenderer(opts.selection, network);
-                        if (useButton) {
-                            row.stat2.append(useButton);
-                        }
+                        title.append(ResourceBrowser.defaultTitleRenderer(network.specification.name || network.id, row));
                     }
                 });
+
+                browser.on("renderStat1", (network, stat) => {
+                    stat.textContent = network.status.subdomain ?? "";
+                })
 
                 browser.on("generateBreadcrumbs", () => [{title: browser.resourceName, absolutePath: ""}]);
                 browser.on("renderEmptyPage", reason => {
