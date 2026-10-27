@@ -18,7 +18,6 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {ProjectTitleForNewCore} from "@/Project/InfoCache";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import RenderMermaid from "react-x-mermaid";
 import {dialogStore} from "@/Dialog/DialogStore";
 import Warning from "@/ui-components/Warning";
 import EmailSettings = mail.EmailSettings;
@@ -585,34 +584,23 @@ export function JobSupportContent() {
 
 // ALLOCATION/WALLET
 
-type SupportAssistRetrieveWalletInfoRequest = ({
+type SupportAssistRetrieveWalletInfoRequest = {
     allocationId: string;
-}) & {
-    flags?: SupportAssistWalletInfoFlags;
-}
-
-interface SupportAssistWalletInfoFlags {
-    includeAccountingGraph: boolean;
 }
 
 interface SupportAssistRetrieveWalletInfoResponse {
     wallet: WalletV2;
-    accountingGraph?: string;
 }
 
 export function AllocationSupportContent() {
     usePage("Allocation support", SidebarTabId.ADMIN);
     const location = useLocation();
     const id = getQueryParam(location.search, "id");
-    const flags = {
-        includeAccountingGraph: getQueryParam(location.search, "includeAccountingGraph") === "true"
-    }
     const {Error, setError} = useError();
     const [allocation, setAllocation] = React.useState<SupportAssistRetrieveWalletInfoResponse | null>(null);
 
     React.useEffect(() => {
         if (!id) return;
-        // or wallet id? handle graph thing flag
         callAPI(Api.retrieveWalletInfo(
             {allocationId: id}))
             .then(result =>
@@ -651,16 +639,6 @@ export function AllocationSupportContent() {
             <h3>Wallet Info</h3>
             <hr />
             <WalletTable wallets={new Array(allocation.wallet)} />
-
-
-
-            <h3>Accounting Graph</h3>
-            <hr />
-            <br />
-
-            {allocation.accountingGraph != null ? <div className="mermaid">
-                <RenderMermaid mermaidCode={allocation.accountingGraph} mermaidConfig={{theme: "dark"}} />
-            </div> : null}
         </>}
     />
 }
