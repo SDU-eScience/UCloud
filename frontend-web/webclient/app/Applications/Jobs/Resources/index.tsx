@@ -74,19 +74,23 @@ export function useResource(ns: ResourceTypes, provider: string | undefined,
 export function createSpaceForLoadedResources(
     resources: ResourceHook,
     values: AppParameterValue[],
-    type: string,
+    type: string | string[],
     keepEmptyRow = false,
 ): ApplicationParameter[] {
-    const resourceFolders = values.filter(it => it.type === type);
+    const resourceFolders = values.filter(it => matchesType(it, type));
     return resources.setSize(resourceFolders.length + (keepEmptyRow ? 1 : 0));
 }
 
 export function injectResources(
     params: ApplicationParameter[],
     values: AppParameterValue[],
-    type: string
+    type: string | string[]
 ): void {
-    for (const [i, value] of values.filter(it => it.type === type).entries()) {
+    for (const [i, value] of values.filter(it => matchesType(it, type)).entries()) {
         setWidgetValues([{param: params[i], value}]);
     }
+}
+
+function matchesType(value: AppParameterValue, type: string | string[]): boolean {
+    return Array.isArray(type) ? type.includes(value.type) : value.type === type;
 }

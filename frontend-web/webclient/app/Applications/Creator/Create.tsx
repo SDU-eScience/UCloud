@@ -1927,6 +1927,7 @@ function creatorPreviewRequiresResource(parameter: ApplicationParameter): boolea
         case "license_server":
         case "network_ip":
         case "private_network":
+        case "ucloud_network":
             return true;
         default:
             return false;

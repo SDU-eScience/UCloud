@@ -704,8 +704,12 @@ func (s *Scheduler) SynchronizeNodeUsage(name string, dims shared.SchedulerDimen
 
 func totalResourceUnits(dims shared.SchedulerDimensions) int {
 	result := 0
+	rdmaResource := shared.PrivateNetworkRdmaResourceName()
 	if dims.Resources != nil {
-		for _, amount := range dims.Resources {
+		for key, amount := range dims.Resources {
+			if key == rdmaResource {
+				continue
+			}
 			result += amount
 		}
 	}

@@ -38,8 +38,9 @@ export function ActiveNetworkJobs({members, networkId}: {members: string[], netw
             try {
                 const job = await callAPI(JobsApi.retrieve({id}));
                 const networkBinding = job.specification.resources?.find(resource =>
-                    resource.type === "private_network" && resource.id === networkId
-                ) as compute.AppParameterValueNS.PrivateNetwork | undefined;
+                    (resource.type === "private_network" || resource.type === "ucloud_network") &&
+                    resource.id === networkId
+                ) as compute.AppParameterValueNS.PrivateNetwork | compute.AppParameterValueNS.UCloudNetwork | undefined;
                 return {
                     id,
                     name: job.specification.name || `Job ${id}`,

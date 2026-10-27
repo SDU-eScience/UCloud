@@ -654,7 +654,7 @@ func serviceValidateMemberNetworkAttachment(svc orcapi.Service, jobResources []o
 
 	networkId := endpoint.Value.PrivateNetworkId
 	for _, value := range jobResources {
-		if value.Type == orcapi.AppParameterValueTypePrivateNetwork && value.Id == networkId {
+		if orcapi.IsNetworkValue(value) && value.Id == networkId {
 			return nil
 		}
 	}

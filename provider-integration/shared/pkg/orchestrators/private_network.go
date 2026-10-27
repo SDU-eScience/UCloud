@@ -4,12 +4,53 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"strings"
+	"time"
 
 	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
+
+type NetworkType string
+
+const (
+	NetworkTypeEthernet   NetworkType = "ethernet"
+	NetworkTypeInfiniband NetworkType = "infiniband"
+)
+
+var NetworkTypeOptions = []NetworkType{
+	NetworkTypeEthernet,
+	NetworkTypeInfiniband,
+}
+
+type NetworkReclaimState string
+
+const (
+	NetworkReclaimActive  NetworkReclaimState = "active"
+	NetworkReclaimPending NetworkReclaimState = "pending"
+	NetworkReclaiming     NetworkReclaimState = "reclaiming"
+)
+
+var NetworkReclaimStateOptions = []NetworkReclaimState{
+	NetworkReclaimActive,
+	NetworkReclaimPending,
+	NetworkReclaiming,
+}
+
+const PrivateNetworkInfinibandPrefixLength = 24
+
+func NetworkTypeIsValid(networkType NetworkType) bool {
+	_, ok := util.VerifyEnum(networkType, NetworkTypeOptions)
+	return ok
+}
+
+func (s NetworkReclaimState) Effective() NetworkReclaimState {
+	if s == "" {
+		return NetworkReclaimActive
+	}
+	return s
+}
 
 type PrivateNetwork struct {
 	Resource
@@ -22,11 +63,23 @@ type PrivateNetworkSpecification struct {
 	// characters.
 	Name string `json:"name"`
 
-	// Cidr is an optional user-supplied IPv4 CIDR block for the network. It must have a prefix length between 16 and
-	// 24. If it is omitted, the provider allocates a block automatically. The CIDR is immutable after creation.
+	Type NetworkType `json:"type,omitempty"`
+
+	// Cidr is an optional user-supplied IPv4 CIDR block for an Ethernet network. It must have a prefix length between
+	// 16 and 24. If it is omitted, the provider allocates a block automatically. The CIDR is immutable after creation.
+	// InfiniBand networks must not set it.
 	Cidr util.Option[string] `json:"cidr"`
 
+	ReclaimProtection bool `json:"reclaimProtection,omitempty"`
+
 	ResourceSpecification
+}
+
+func (s PrivateNetworkSpecification) EffectiveType() NetworkType {
+	if s.Type == "" {
+		return NetworkTypeEthernet
+	}
+	return s.Type
 }
 
 func PrivateNetworkSubdomainFromName(name string) string {
@@ -90,36 +143,63 @@ type PrivateNetworkStatus struct {
 	// provisioned.
 	CidrBlock util.Option[string] `json:"cidrBlock"`
 
+	LastUsedAt   fnd.Timestamp              `json:"lastUsedAt"`
+	ReclaimState NetworkReclaimState        `json:"reclaimState"`
+	ReclaimAfter util.Option[fnd.Timestamp] `json:"reclaimAfter,omitempty"`
+
 	ResourceStatus[PrivateNetworkSupport]
 }
 
 type PrivateNetworkSupport struct {
-	Product         apm.ProductReference `json:"product"`
-	AddressPools    []string             `json:"addressPools,omitempty"`
-	ExcludedRanges  []string             `json:"excludedRanges,omitempty"`
-	MinPrefixLength int                  `json:"minPrefixLength,omitempty"`
-	MaxPrefixLength int                  `json:"maxPrefixLength,omitempty"`
+	Product          apm.ProductReference `json:"product"`
+	NetworkType      NetworkType          `json:"networkType"`
+	AddressPools     []string             `json:"addressPools,omitempty"`
+	ExcludedRanges   []string             `json:"excludedRanges,omitempty"`
+	MinPrefixLength  int                  `json:"minPrefixLength,omitempty"`
+	MaxPrefixLength  int                  `json:"maxPrefixLength,omitempty"`
+	RdmaResourceName string               `json:"rdmaResourceName,omitempty"`
+	ReclaimPolicy    ReclaimPolicy        `json:"reclaimPolicy,omitempty"`
+}
+
+type ReclaimPolicy struct {
+	Enabled              bool          `json:"enabled"`
+	LowWatermarkPercent  int           `json:"lowWatermarkPercent"`
+	HighWatermarkPercent int           `json:"highWatermarkPercent"`
+	GracePeriod          time.Duration `json:"gracePeriod"`
+	MinAge               time.Duration `json:"minAge"`
+	MaxPerRun            int           `json:"maxPerRun"`
+}
+
+func (s PrivateNetworkSupport) EffectiveType() NetworkType {
+	if s.NetworkType == "" {
+		return NetworkTypeEthernet
+	}
+	return s.NetworkType
 }
 
 type PrivateNetworkFlags struct {
 	ResourceFlags
 }
 
-const privateNetworkContext = "private-networks"
+const networksContext = "networks"
+
+const privateNetworksContext = "private-networks"
 
 // Private Network API
 // =====================================================================================================================
 
-var PrivateNetworksCreate = rpc.Call[fnd.BulkRequest[PrivateNetworkSpecification], fnd.BulkResponse[PrivateNetwork]]{
-	BaseContext: privateNetworkContext,
-	Convention:  rpc.ConventionCreate,
-	Roles:       rpc.RolesEndUser,
+var NetworksCreate = rpc.Call[fnd.BulkRequest[PrivateNetworkSpecification], fnd.BulkResponse[PrivateNetwork]]{
+	BaseContext:   networksContext,
+	ServerAliases: []string{privateNetworksContext},
+	Convention:    rpc.ConventionCreate,
+	Roles:         rpc.RolesEndUser,
 }
 
-var PrivateNetworksDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], util.Empty]{
-	BaseContext: privateNetworkContext,
-	Convention:  rpc.ConventionDelete,
-	Roles:       rpc.RolesEndUser,
+var NetworksDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], util.Empty]{
+	BaseContext:   networksContext,
+	ServerAliases: []string{privateNetworksContext},
+	Convention:    rpc.ConventionDelete,
+	Roles:         rpc.RolesEndUser,
 }
 
 type PrivateNetworksSearchRequest struct {
@@ -130,10 +210,11 @@ type PrivateNetworksSearchRequest struct {
 	PrivateNetworkFlags
 }
 
-var PrivateNetworksSearch = rpc.Call[PrivateNetworksSearchRequest, fnd.PageV2[PrivateNetwork]]{
-	BaseContext: privateNetworkContext,
-	Convention:  rpc.ConventionSearch,
-	Roles:       rpc.RolesEndUser,
+var NetworksSearch = rpc.Call[PrivateNetworksSearchRequest, fnd.PageV2[PrivateNetwork]]{
+	BaseContext:   networksContext,
+	ServerAliases: []string{privateNetworksContext},
+	Convention:    rpc.ConventionSearch,
+	Roles:         rpc.RolesEndUser,
 }
 
 type PrivateNetworksBrowseRequest struct {
@@ -143,10 +224,11 @@ type PrivateNetworksBrowseRequest struct {
 	PrivateNetworkFlags
 }
 
-var PrivateNetworksBrowse = rpc.Call[PrivateNetworksBrowseRequest, fnd.PageV2[PrivateNetwork]]{
-	BaseContext: privateNetworkContext,
-	Convention:  rpc.ConventionBrowse,
-	Roles:       rpc.RolesEndUser,
+var NetworksBrowse = rpc.Call[PrivateNetworksBrowseRequest, fnd.PageV2[PrivateNetwork]]{
+	BaseContext:   networksContext,
+	ServerAliases: []string{privateNetworksContext},
+	Convention:    rpc.ConventionBrowse,
+	Roles:         rpc.RolesEndUser,
 }
 
 type PrivateNetworksRetrieveRequest struct {
@@ -154,17 +236,19 @@ type PrivateNetworksRetrieveRequest struct {
 	PrivateNetworkFlags
 }
 
-var PrivateNetworksRetrieve = rpc.Call[PrivateNetworksRetrieveRequest, PrivateNetwork]{
-	BaseContext: privateNetworkContext,
-	Convention:  rpc.ConventionRetrieve,
-	Roles:       rpc.RolesEndUser,
+var NetworksRetrieve = rpc.Call[PrivateNetworksRetrieveRequest, PrivateNetwork]{
+	BaseContext:   networksContext,
+	ServerAliases: []string{privateNetworksContext},
+	Convention:    rpc.ConventionRetrieve,
+	Roles:         rpc.RolesEndUser,
 }
 
-var PrivateNetworksUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[util.Empty]]{
-	BaseContext: privateNetworkContext,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
-	Operation:   "updateAcl",
+var NetworksUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], fnd.BulkResponse[util.Empty]]{
+	BaseContext:   networksContext,
+	ServerAliases: []string{privateNetworksContext},
+	Convention:    rpc.ConventionUpdate,
+	Roles:         rpc.RolesEndUser,
+	Operation:     "updateAcl",
 }
 
 type PrivateNetworksUpdateLabelsRequest struct {
@@ -172,24 +256,26 @@ type PrivateNetworksUpdateLabelsRequest struct {
 	Labels map[string]string `json:"labels"`
 }
 
-var PrivateNetworksUpdateLabels = rpc.Call[fnd.BulkRequest[PrivateNetworksUpdateLabelsRequest], util.Empty]{
-	BaseContext: privateNetworkContext,
-	Convention:  rpc.ConventionUpdate,
-	Roles:       rpc.RolesEndUser,
-	Operation:   "updateLabels",
+var NetworksUpdateLabels = rpc.Call[fnd.BulkRequest[PrivateNetworksUpdateLabelsRequest], util.Empty]{
+	BaseContext:   networksContext,
+	ServerAliases: []string{privateNetworksContext},
+	Convention:    rpc.ConventionUpdate,
+	Roles:         rpc.RolesEndUser,
+	Operation:     "updateLabels",
 }
 
-var PrivateNetworksRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[PrivateNetworkSupport]]{
-	BaseContext: privateNetworkContext,
-	Convention:  rpc.ConventionRetrieve,
-	Roles:       rpc.RolesEndUser,
-	Operation:   "products",
+var NetworksRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[PrivateNetworkSupport]]{
+	BaseContext:   networksContext,
+	ServerAliases: []string{privateNetworksContext},
+	Convention:    rpc.ConventionRetrieve,
+	Roles:         rpc.RolesEndUser,
+	Operation:     "products",
 }
 
 // Private Network Control API
 // =====================================================================================================================
 
-const privateNetworkControlNamespace = "private-networks/control"
+const networksControlNamespace = "networks/control"
 
 type PrivateNetworkUpdate struct {
 	CidrBlock util.Option[string] `json:"cidrBlock"`
@@ -203,8 +289,8 @@ type PrivateNetworksControlRetrieveRequest struct {
 	PrivateNetworkFlags
 }
 
-var PrivateNetworksControlRetrieve = rpc.Call[PrivateNetworksControlRetrieveRequest, PrivateNetwork]{
-	BaseContext: privateNetworkControlNamespace,
+var NetworksControlRetrieve = rpc.Call[PrivateNetworksControlRetrieveRequest, PrivateNetwork]{
+	BaseContext: networksControlNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesProvider,
 }
@@ -217,71 +303,109 @@ type PrivateNetworksControlBrowseRequest struct {
 	PrivateNetworkFlags
 }
 
-var PrivateNetworksControlBrowse = rpc.Call[PrivateNetworksControlBrowseRequest, fnd.PageV2[PrivateNetwork]]{
-	BaseContext: privateNetworkControlNamespace,
+var NetworksControlBrowse = rpc.Call[PrivateNetworksControlBrowseRequest, fnd.PageV2[PrivateNetwork]]{
+	BaseContext: networksControlNamespace,
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesProvider,
 }
 
-var PrivateNetworksControlCreate = ControlCreateCall[PrivateNetworkSpecification, fnd.BulkResponse[fnd.FindByStringId]](privateNetworkControlNamespace)
+var NetworksControlCreate = ControlCreateCall[PrivateNetworkSpecification, fnd.BulkResponse[fnd.FindByStringId]](networksControlNamespace)
 
-var PrivateNetworksControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[PrivateNetworkSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{
-	BaseContext: privateNetworkControlNamespace,
+var NetworksControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[PrivateNetworkSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{
+	BaseContext: networksControlNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesProvider,
 	Operation:   "register",
 }
 
-var PrivateNetworksControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[PrivateNetworkUpdate]], util.Empty]{
-	BaseContext: privateNetworkControlNamespace,
+var NetworksControlAddUpdate = rpc.Call[fnd.BulkRequest[ResourceUpdateAndId[PrivateNetworkUpdate]], util.Empty]{
+	BaseContext: networksControlNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesProvider,
 	Operation:   "update",
 }
 
-var PrivateNetworksControlUpdateLabels = rpc.Call[ControlMutateRequest[PrivateNetworksUpdateLabelsRequest], util.Empty]{
-	BaseContext: privateNetworkControlNamespace,
+var NetworksControlUpdateLabels = rpc.Call[ControlMutateRequest[PrivateNetworksUpdateLabelsRequest], util.Empty]{
+	BaseContext: networksControlNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesProvider,
 	Operation:   "updateLabels",
 }
 
-var PrivateNetworksControlDelete = ControlMutateCall[fnd.FindByStringId, fnd.BulkResponse[util.Empty]](privateNetworkControlNamespace, "delete")
+var NetworksControlDelete = ControlMutateCall[fnd.FindByStringId, fnd.BulkResponse[util.Empty]](networksControlNamespace, "delete")
+
+type PrivateNetworksSetReclaimProtectionRequest struct {
+	Id        string `json:"id"`
+	Protected bool   `json:"protected"`
+}
+
+var NetworksControlSetReclaimProtection = rpc.Call[fnd.BulkRequest[PrivateNetworksSetReclaimProtectionRequest], util.Empty]{
+	BaseContext: networksControlNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "setReclaimProtection",
+}
 
 // Private Network Provider API
 // =====================================================================================================================
 
-const privateNetworkProviderNamespace = "ucloud/" + rpc.ProviderPlaceholder + "/private-networks"
+const networksProviderNamespace = "ucloud/" + rpc.ProviderPlaceholder + "/networks"
 
-var PrivateNetworksProviderCreate = rpc.Call[fnd.BulkRequest[PrivateNetwork], fnd.BulkResponse[fnd.FindByStringId]]{
-	BaseContext: privateNetworkProviderNamespace,
+var NetworksProviderCreate = rpc.Call[fnd.BulkRequest[PrivateNetwork], fnd.BulkResponse[fnd.FindByStringId]]{
+	BaseContext: networksProviderNamespace,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesPrivileged,
 }
 
-var PrivateNetworksProviderDelete = rpc.Call[fnd.BulkRequest[PrivateNetwork], fnd.BulkResponse[util.Empty]]{
-	BaseContext: privateNetworkProviderNamespace,
+var NetworksProviderDelete = rpc.Call[fnd.BulkRequest[PrivateNetwork], fnd.BulkResponse[util.Empty]]{
+	BaseContext: networksProviderNamespace,
 	Convention:  rpc.ConventionDelete,
 	Roles:       rpc.RolesPrivileged,
 }
 
-var PrivateNetworksProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[PrivateNetworkSupport]]{
-	BaseContext: privateNetworkProviderNamespace,
+var NetworksProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[PrivateNetworkSupport]]{
+	BaseContext: networksProviderNamespace,
 	Convention:  rpc.ConventionRetrieve,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "products",
 }
 
-var PrivateNetworksProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAclWithResource[PrivateNetwork]], fnd.BulkResponse[util.Empty]]{
-	BaseContext: privateNetworkProviderNamespace,
+var NetworksProviderUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAclWithResource[PrivateNetwork]], fnd.BulkResponse[util.Empty]]{
+	BaseContext: networksProviderNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "updateAcl",
 }
 
-var PrivateNetworksProviderOnUpdatedLabels = rpc.Call[fnd.BulkRequest[PrivateNetwork], util.Empty]{
-	BaseContext: privateNetworkProviderNamespace,
+var NetworksProviderOnUpdatedLabels = rpc.Call[fnd.BulkRequest[PrivateNetwork], util.Empty]{
+	BaseContext: networksProviderNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "onUpdatedLabels",
 }
+
+var (
+	PrivateNetworksCreate           = NetworksCreate
+	PrivateNetworksDelete           = NetworksDelete
+	PrivateNetworksSearch           = NetworksSearch
+	PrivateNetworksBrowse           = NetworksBrowse
+	PrivateNetworksRetrieve         = NetworksRetrieve
+	PrivateNetworksUpdateAcl        = NetworksUpdateAcl
+	PrivateNetworksUpdateLabels     = NetworksUpdateLabels
+	PrivateNetworksRetrieveProducts = NetworksRetrieveProducts
+
+	PrivateNetworksControlRetrieve             = NetworksControlRetrieve
+	PrivateNetworksControlBrowse               = NetworksControlBrowse
+	PrivateNetworksControlCreate               = NetworksControlCreate
+	PrivateNetworksControlRegister             = NetworksControlRegister
+	PrivateNetworksControlAddUpdate            = NetworksControlAddUpdate
+	PrivateNetworksControlUpdateLabels         = NetworksControlUpdateLabels
+	PrivateNetworksControlDelete               = NetworksControlDelete
+	PrivateNetworksControlSetReclaimProtection = NetworksControlSetReclaimProtection
+
+	PrivateNetworksProviderCreate           = NetworksProviderCreate
+	PrivateNetworksProviderDelete           = NetworksProviderDelete
+	PrivateNetworksProviderRetrieveProducts = NetworksProviderRetrieveProducts
+	PrivateNetworksProviderUpdateAcl        = NetworksProviderUpdateAcl
+	PrivateNetworksProviderOnUpdatedLabels  = NetworksProviderOnUpdatedLabels
+)

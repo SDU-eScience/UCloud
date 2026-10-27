@@ -245,6 +245,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	if pnErr != nil {
 		return pnErr
 	}
+	for _, attachment := range attachments {
+		if attachment.NetworkType == orc.NetworkTypeInfiniband {
+			if _, deviceErr := shared.PrivateNetworkInfinibandDeviceForNode(node); deviceErr != nil {
+				return deviceErr
+			}
+			break
+		}
+	}
 	if len(attachments) > 0 {
 		attachmentAnnotations, annErr := shared.PrivateNetworkAttachmentAnnotations(attachments)
 		if annErr != nil {
@@ -315,6 +323,9 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	addResource(core.ResourceMemory, memoryMegabytes, resource.Mega)
 	if gpus > 0 {
 		addResource(core.ResourceName(gpuType), gpus, 0)
+	}
+	if rdmaResource, ok := shared.PrivateNetworkJobRdmaResourceName(job); ok {
+		addResource(core.ResourceName(rdmaResource), 1, 0)
 	}
 
 	pod.Spec.NodeName = node

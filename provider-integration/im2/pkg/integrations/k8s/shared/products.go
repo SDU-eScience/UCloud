@@ -321,47 +321,29 @@ func initProducts() {
 	}
 
 	if ServiceConfig.Compute.PrivateNetworks.Enabled {
+		privateNetworkCategory := apm.ProductCategory{
+			Name:        "private-network",
+			Provider:    config.Provider.Id,
+			ProductType: apm.ProductTypePrivateNetwork,
+			AccountingUnit: apm.AccountingUnit{
+				Name:                   "network",
+				NamePlural:             "networks",
+				FloatingPoint:          false,
+				DisplayFrequencySuffix: false,
+			},
+			AccountingFrequency: apm.AccountingFrequencyOnce,
+			FreeToUse:           true,
+		}
+
 		PrivateNetworkProducts = []apm.ProductV2{
 			{
-				Type: apm.ProductTypeCPrivateNetwork,
-				Category: apm.ProductCategory{
-					Name:        "private-network",
-					Provider:    config.Provider.Id,
-					ProductType: apm.ProductTypePrivateNetwork,
-					AccountingUnit: apm.AccountingUnit{
-						Name:                   "network",
-						NamePlural:             "networks",
-						FloatingPoint:          false,
-						DisplayFrequencySuffix: false,
-					},
-					AccountingFrequency: apm.AccountingFrequencyOnce,
-					FreeToUse:           true,
-				},
+				Type:        apm.ProductTypeCPrivateNetwork,
+				Category:    privateNetworkCategory,
 				Name:        "private-network",
 				Description: "A private network",
 				ProductType: apm.ProductTypePrivateNetwork,
 				Price:       1,
 			},
-		}
-
-		var excludedRanges []string
-		for _, excludedRange := range ServiceConfig.Compute.PrivateNetworks.ForbiddenCidrs {
-			excludedPrefix, ok := orc.PrivateNetworkParseCidr(excludedRange)
-			if !ok {
-				continue
-			}
-
-			overlapsAddressPool := false
-			for _, addressPool := range ServiceConfig.Compute.PrivateNetworks.CidrPools {
-				pool, ok := orc.PrivateNetworkParseCidr(addressPool)
-				if ok && orc.PrivateNetworkCidrsOverlap(excludedPrefix, pool) {
-					overlapsAddressPool = true
-					break
-				}
-			}
-			if overlapsAddressPool {
-				excludedRanges = append(excludedRanges, excludedRange)
-			}
 		}
 
 		PrivateNetworkSupport = []orc.PrivateNetworkSupport{
@@ -371,11 +353,47 @@ func initProducts() {
 					Category: PrivateNetworkProducts[0].Category.Name,
 					Provider: config.Provider.Id,
 				},
+				NetworkType:     orc.NetworkTypeEthernet,
 				AddressPools:    ServiceConfig.Compute.PrivateNetworks.CidrPools,
-				ExcludedRanges:  excludedRanges,
+				ExcludedRanges:  privateNetworkExcludedRanges(ServiceConfig.Compute.PrivateNetworks.CidrPools, ServiceConfig.Compute.PrivateNetworks.ForbiddenCidrs),
 				MinPrefixLength: 16,
 				MaxPrefixLength: 24,
 			},
+		}
+
+		if privateNetworkInfinibandReady {
+			infiniband := ServiceConfig.Compute.PrivateNetworks.Infiniband
+			PrivateNetworkProducts = append(PrivateNetworkProducts, apm.ProductV2{
+				Type:        apm.ProductTypeCPrivateNetwork,
+				Category:    privateNetworkCategory,
+				Name:        "infiniband-network",
+				Description: "An InfiniBand network",
+				ProductType: apm.ProductTypePrivateNetwork,
+				Price:       1,
+			})
+
+			product := PrivateNetworkProducts[len(PrivateNetworkProducts)-1]
+			PrivateNetworkSupport = append(PrivateNetworkSupport, orc.PrivateNetworkSupport{
+				Product: apm.ProductReference{
+					Id:       product.Name,
+					Category: product.Category.Name,
+					Provider: config.Provider.Id,
+				},
+				NetworkType:      orc.NetworkTypeInfiniband,
+				AddressPools:     infiniband.CidrPools,
+				ExcludedRanges:   privateNetworkExcludedRanges(infiniband.CidrPools, ServiceConfig.Compute.PrivateNetworks.ForbiddenCidrs),
+				MinPrefixLength:  orc.PrivateNetworkInfinibandPrefixLength,
+				MaxPrefixLength:  orc.PrivateNetworkInfinibandPrefixLength,
+				RdmaResourceName: infiniband.RdmaResourceName,
+				ReclaimPolicy: orc.ReclaimPolicy{
+					Enabled:              infiniband.Reclaim.Enabled,
+					LowWatermarkPercent:  infiniband.Reclaim.LowWatermarkPercent,
+					HighWatermarkPercent: infiniband.Reclaim.HighWatermarkPercent,
+					GracePeriod:          infiniband.Reclaim.GracePeriod,
+					MinAge:               infiniband.Reclaim.MinAge,
+					MaxPerRun:            infiniband.Reclaim.MaxPerRun,
+				},
+			})
 		}
 
 		PrivateNetworkIpProducts = []apm.ProductV2{
@@ -446,6 +464,36 @@ func initProducts() {
 			},
 		},
 	}
+}
+
+func privateNetworkProductSupport(product apm.ProductReference) (orc.PrivateNetworkSupport, bool) {
+	for _, support := range PrivateNetworkSupport {
+		if support.Product == product {
+			return support, true
+		}
+	}
+
+	return orc.PrivateNetworkSupport{}, false
+}
+
+func privateNetworkExcludedRanges(pools []string, forbidden []string) []string {
+	var result []string
+	for _, excludedRange := range forbidden {
+		excludedPrefix, ok := orc.PrivateNetworkParseCidr(excludedRange)
+		if !ok {
+			continue
+		}
+
+		for _, addressPool := range pools {
+			pool, ok := orc.PrivateNetworkParseCidr(addressPool)
+			if ok && orc.PrivateNetworkCidrsOverlap(excludedPrefix, pool) {
+				result = append(result, excludedRange)
+				break
+			}
+		}
+	}
+
+	return result
 }
 
 func pickResource(resource config.MachineResourceType, machineConfig config.K8sMachineConfiguration) int {

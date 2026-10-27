@@ -46,6 +46,8 @@ export const ProductSelector: React.FunctionComponent<{
     onSelect: (product: ProductV2 | null) => void;
     fieldNavigation?: boolean;
     hideServiceProvider?: boolean;
+    renderProductName?: (product: ProductV2) => React.ReactNode;
+    renderProductBadge?: (product: ProductV2) => React.ReactNode;
 }> = ({selected, ...props}) => {
     const dropdownIdRef = React.useRef(`product-selector-${Math.random().toString(36).slice(2)}`);
     const portal = usePortal();
@@ -379,7 +381,8 @@ export const ProductSelector: React.FunctionComponent<{
                             {isCompute ? <Icon size={24} ml="-4px" name={selectedComputeCategory?.kind === "CPU" ? "heroCpuChip" : "gpu"} /> : <ProviderLogo providerId={selected?.category?.provider ?? "?"} size={24} />}
                             {selectedComputeCategory?.category}
                             {isCompute ? null : <>
-                                {selected.name}
+                                {props.renderProductName?.(selected) ?? selected.name}
+                                {props.renderProductBadge?.(selected)}
                                 <Box>-</Box>
                                 <Box>{priceToString(selected, 1)}</Box>
                             </>}
@@ -549,7 +552,10 @@ export const ProductSelector: React.FunctionComponent<{
                                                         <ProviderLogo providerId={p.category.provider} size={24} />
                                                     }
                                                 </TableCell>
-                                                <TableCell><ProductName product={p} /></TableCell>
+                                                <TableCell><Flex alignItems="center" gap="8px">
+                                                    <ProductName product={p} render={props.renderProductName} />
+                                                    {props.renderProductBadge?.(p)}
+                                                </Flex></TableCell>
                                                 <ProductStats product={p} />
                                                 <TableCell>{priceToString(p, 1)}</TableCell>
                                                 <TableCell><ProviderTitle providerId={p.category.provider} /></TableCell>
@@ -576,8 +582,11 @@ function queueStatusFromCategoryName(support: ResolvedSupport<Product, ProductSu
     return (s as ComputeSupport)?.queueStatus ?? null;
 }
 
-const ProductName: React.FunctionComponent<{product: ProductV2}> = ({product}) => {
-    return <>{product.name}</>;
+const ProductName: React.FunctionComponent<{
+    product: ProductV2;
+    render?: (product: ProductV2) => React.ReactNode;
+}> = ({product, render}) => {
+    return <>{render ? render(product) : product.name}</>;
 }
 
 function ProductDescription({className, serviceProvider, category}: {className?: string; serviceProvider: string; category: string;}): React.ReactNode {

@@ -677,8 +677,8 @@ function ConnectivityCard(props: {
                     <FeatureSection onClick={() => props.onHighlight("feature-jobLinking")}>
                         <div className={FeatureSectionBodyClass}>
                             <CompactResourceDisplay
-                                param={{type: "private_network", description: "Connect this job to a network of other jobs.", title: "", optional: true, name: "resourcePrivateNetwork0"}}
-                                displayTitle="Private network #1"
+                                param={{type: "ucloud_network", description: "Connect this job to a network of other jobs.", title: "", optional: true, name: "resourcePrivateNetwork0"}}
+                                displayTitle="Network #1"
                                 app={app}
                             />
                         </div>

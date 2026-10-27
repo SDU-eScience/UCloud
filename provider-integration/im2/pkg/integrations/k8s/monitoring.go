@@ -302,7 +302,8 @@ func vmDetachLockedResources(job *orc.Job) (int, *util.HttpError) {
 		case orc.AppParameterValueTypeNetwork,
 			orc.AppParameterValueTypeIngress,
 			orc.AppParameterValueTypeLicense,
-			orc.AppParameterValueTypePrivateNetwork:
+			orc.AppParameterValueTypePrivateNetwork,
+			orc.AppParameterValueTypeUCloudNetwork:
 			accessible, _, _ := controller.JobResourceIsAccessible(job.Owner, resource)
 			shouldDetach = !accessible
 
@@ -593,6 +594,19 @@ func loopMonitoring() {
 					gpuLim := k8sAllocatable.Name(k8score.ResourceName(gpuResourceType), k8sresource.DecimalSI)
 					if gpuLim != nil {
 						limits.Resources[gpuResourceType] = int(gpuLim.Value())
+					}
+				}
+
+				rdmaResource := shared.PrivateNetworkRdmaResourceName()
+				if rdmaResource != "" && shared.PrivateNetworkInfinibandNodeValid(node) {
+					rdmaCap := k8sCapacity.Name(k8score.ResourceName(rdmaResource), k8sresource.DecimalSI)
+					if rdmaCap != nil {
+						capacity.Resources[rdmaResource] = int(rdmaCap.Value())
+					}
+
+					rdmaLim := k8sAllocatable.Name(k8score.ResourceName(rdmaResource), k8sresource.DecimalSI)
+					if rdmaLim != nil {
+						limits.Resources[rdmaResource] = int(rdmaLim.Value())
 					}
 				}
 
@@ -1010,6 +1024,17 @@ func loopMonitoring() {
 					gpuUsage := int(usage[gpuResourceType])
 					if gpuUsage > 0 {
 						dims.Resources[gpuResourceType] = gpuUsage
+					}
+				}
+
+				rdmaResource := shared.PrivateNetworkRdmaResourceName()
+				if rdmaResource != "" {
+					node := sched.Nodes[nodeName]
+					if node != nil && node.Capacity.Resources[rdmaResource] > 0 {
+						rdmaUsage := int(usage[rdmaResource])
+						if rdmaUsage > 0 {
+							dims.Resources[rdmaResource] = rdmaUsage
+						}
 					}
 				}
 

@@ -134,6 +134,12 @@ func jobControlValidateResources(job orcapi.Job, values []orcapi.AppParameterVal
 		}
 		validated = append(validated, value)
 	}
+
+	err := privateNetworkValidateJobNetworks(owner, backend, values)
+	if err != nil {
+		return nil, err
+	}
+
 	return jobPersistableResources(validated), nil
 }
 
@@ -155,6 +161,7 @@ func jobControlAddUpdates(actor rpc.Actor, jobId string, updates []orcapi.JobUpd
 		previous = nil
 	}
 	wasFinal := job.Status.State.IsFinal()
+	previousState := job.Status.State
 	job.Updates = slices.Clone(job.Updates)
 	var pending []orcapi.JobUpdate
 	for _, update := range updates {
@@ -231,6 +238,13 @@ func jobControlAddUpdates(actor rpc.Actor, jobId string, updates []orcapi.JobUpd
 			jobUnbindResource(jobId, added)
 		}
 		return util.HttpErr(http.StatusNotFound, "unknown job or permission denied (%v)", jobId)
+	}
+
+	if job.Status.State != previousState {
+		switch job.Status.State {
+		case orcapi.JobStateRunning, orcapi.JobStateSuspended, orcapi.JobStateSuccess, orcapi.JobStateFailure, orcapi.JobStateExpired:
+			privateNetworkTouchJob(job)
+		}
 	}
 
 	for _, value := range previous {

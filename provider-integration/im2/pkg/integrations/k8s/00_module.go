@@ -247,7 +247,7 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 				httpErr = &util.HttpError{StatusCode: http.StatusPaymentRequired, Why: reason, ErrorCode: "NOT_ENOUGH_LICENSE_CREDITS"}
 			}
 
-		case orc.AppParameterValueTypePrivateNetwork:
+		case orc.AppParameterValueTypePrivateNetwork, orc.AppParameterValueTypeUCloudNetwork:
 			if issue == controller.JobResourceAccessibilityIssueLocked {
 				httpErr = &util.HttpError{StatusCode: http.StatusPaymentRequired, Why: reason, ErrorCode: "NOT_ENOUGH_PRIVATE_NETWORK_CREDITS"}
 			}
