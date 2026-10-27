@@ -166,10 +166,16 @@ export function injectResourceBrowserStyle(rowSize: number) {
                     "location    location location  location        ";
             }
 
-            ${BrowserClass.dot} header[has-location-bar] div.header-first-row:has(.search-icon[data-shown]) {
+            ${BrowserClass.dot} header div.header-first-row:has(.search-icon[data-shown]):has(> div.provider-icon) {
                 grid-template-areas:
                     "search-icon refresh  .         project-switcher"
                     "p-icon      location location  location        ";
+                height: 74px;
+            }
+
+            /* FileBrowser in modal-case */
+            ${BrowserClass.dot} header[has-location-bar] div.header-first-row:has(button[class^=hidden-files-toggle]) {
+                display: flex;
             }
 
             ${BrowserClass.dot} header div.header-first-row .search-field-wrapper {
@@ -234,12 +240,12 @@ export function injectResourceBrowserStyle(rowSize: number) {
             overflow: hidden;
         }
 
-        ${BrowserClass.dot} header[data-has-filters], ${BrowserClass.dot} header[data-has-allocations] {
-            height: 136px;
+        ${BrowserClass.dot} header[data-has-filters], ${BrowserClass.dot} header[data-size=SMALL] {
+            height: 132px;
         }
 
-        ${BrowserClass.dot} header[data-has-filters] {
-            height: 136px;
+        .selector-browser${BrowserClass.dot} header[has-location-bar]:has(button[class^=hidden-files-toggle]) {
+            height: 92px;
         }
 
         ${BrowserClass.dot} header .location-bar,
@@ -292,8 +298,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
             height: 35px;
             transition: margin-right 0.2s;
         }
-
-
 
         ${BrowserClass.dot} header[has-location-bar] .location input {
             outline: none;
@@ -643,7 +647,6 @@ export function injectResourceBrowserStyle(rowSize: number) {
 
         ${BrowserClass.dot} .refresh-icon {
             transition: transform 0.5s;
-
             grid-area: refresh;
         }
 
@@ -652,14 +655,9 @@ export function injectResourceBrowserStyle(rowSize: number) {
         }
 
         /* Containers can have their height set as far as I can tell, so it's manually done globally */
-        ${BrowserClass.dot} header[data-size=SMALL] {
-            height: 132px;
-        }
-
         ${BrowserClass.dot} header[data-has-filters][data-size=SMALL] {
             height: 162px;
         }
-
     `);
     didInject = true;
     return BrowserClass;
