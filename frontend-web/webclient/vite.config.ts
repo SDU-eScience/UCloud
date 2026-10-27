@@ -64,7 +64,8 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
             alias: {
                 //@ts-ignore
                 "@": path.resolve(import.meta.dirname, "./app"),
-                "monaco-editor/esm/vs": "monaco-editor"
+                "monaco-editor/esm/vs": "monaco-editor",
+                "./dompurify/dompurify.js": path.resolve(import.meta.dirname, "./node_modules/dompurify/dist/purify.es.mjs")
             }
         },
         server: {
