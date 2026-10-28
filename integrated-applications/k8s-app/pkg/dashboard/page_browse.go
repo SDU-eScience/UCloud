@@ -330,7 +330,7 @@ func (app *stackUiApp) namespaceSelectorNode() ucx.UiNode {
 		options = append(options, ucx.Option{Key: namespace, Value: namespace})
 	}
 
-	return ucx.Select("namespaceSelect", "", "activeNamespace", options).Sx(ucx.SxWidth(280)).WithShortcutKey("s")
+	return ucx.Select("namespaceSelect", "", "activeNamespace", options).Sx(ucx.SxWidth(280)).WithShortcutKey("s").AriaLabel("Namespace")
 }
 
 // Table events

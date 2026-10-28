@@ -12,6 +12,7 @@ type RangeInputProps = {
     thumbColor?: string | undefined;
     markers?: string[];
     dividerAt?: number;
+    ariaLabel?: string;
 } & DataAttributes;
 
 const MarkerWrapperStyle = injectStyle("range-input-markers", cl => `
@@ -190,6 +191,7 @@ export default function RangeInput(props: RangeInputProps): React.ReactNode {
 
     return <div ref={wrapperRef} className={MarkerWrapperStyle} style={style} data-pointer-active={pointerActive}>
         <input ref={props.inputRef} {...unboxDataTags(props)} value={props.value} autoFocus={props.autoFocus}
+            aria-label={props.ariaLabel}
             onPointerDown={event => {
                 const {bounds, thumbInset, usableWidth} = pointerMetrics(event.currentTarget);
                 event.currentTarget.setPointerCapture(event.pointerId);

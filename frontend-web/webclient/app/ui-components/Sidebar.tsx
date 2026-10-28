@@ -334,6 +334,8 @@ function UserMenu({branding, avatar, dialog, setOpenDialog}: {
         paddingControlledByContent
         left="calc(var(--sidebarWidth) + 5px)"
         bottom="0"
+        focusable
+        triggerAriaLabel="User menu"
         open={isOpen}
         onOpeningTriggerClick={() => setOpenDialog("UserMenu")}
         onClose={() => setOpenDialog("")}

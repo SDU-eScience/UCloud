@@ -335,6 +335,8 @@ func k8sWaitForPoolNodes(
 	ctx, cancel := context.WithTimeout(context.Background(), k8sWaitTimeout)
 	defer cancel()
 
+	client.SetMessageHandler(nil)
+
 	progress := termio.NewProgressList(
 		os.Stderr,
 		fmt.Sprintf("Waiting for pool %s to reach %d node%s", pool, target, k8sCreatePlural(target)),
@@ -393,7 +395,7 @@ func k8sWaitForPoolNodes(
 			poolCount == target &&
 			newTotal > 0 &&
 			newReady == newTotal {
-			progress.Milestone(fmt.Sprintf("Pool %s is ready", pool))
+			progress.Summary(fmt.Sprintf("Pool %s is ready", pool))
 			return nil
 		}
 
@@ -416,22 +418,20 @@ func k8sPrintScaleResult(cluster string, pool string, nodes int, ready bool, out
 		})
 	}
 
+	k8sPrintResultSpacer()
+
 	frame := termio.Frame{}
-	frame.Title("Scale")
-	frame.SetNaturalWidth(true)
-	frame.SetDimBorders(true)
-	frame.AppendField("Cluster", cluster)
+	frame.Title("Cluster " + cluster)
+	if ready {
+		frame.AppendFieldStyled("Status", termio.Success("Ready"))
+	} else {
+		frame.AppendFieldStyled("Status", termio.Subtle("Scaling requested"))
+	}
 	frame.AppendField("Pool", pool)
 	frame.AppendField("Nodes", strconv.Itoa(nodes))
 	frame.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
 	frame.Print()
 	return nil
-}
-
-func k8sPrintProgressMessage(message string, success bool) {
-	if success && message != "" {
-		fmt.Fprintln(os.Stderr, termio.Subtle("%s", message).Render(termio.IsPtyWriter(os.Stderr)))
-	}
 }
 
 func k8sIappFailure(client *iapp.Client, err error) string {

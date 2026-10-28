@@ -1439,7 +1439,10 @@ export const UcxStreamedTable: React.FunctionComponent<UcxStreamedTableProps> = 
         className={UcxStreamedTableClass}
         data-ucx-table={tableId}
         data-has-actions={hasActionDefs ? "true" : undefined}
-        style={{"--ucx-table-width": `${totalWidth}px`, "--ucx-table-header-height": `${virtualization.headerHeight}px`} as React.CSSProperties}
+        style={{
+            "--ucx-table-width": dataWidth === 0 ? "100%" : `${totalWidth}px`,
+            "--ucx-table-header-height": `${virtualization.headerHeight}px`,
+        } as React.CSSProperties}
     >
         <div className="streamed-table-frame">
             <div

@@ -1114,12 +1114,20 @@ var (
 
 func UiSendFailure(app ucx.Application, message string) {
 	session := *app.Session()
-	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{Message: message, Success: false})
+	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{
+		Message: message,
+		Success: false,
+		Level:   ucxapi.UiMessageLevelFailure,
+	})
 }
 
 func UiSendSuccess(app ucx.Application, message string) {
 	session := *app.Session()
-	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{Message: message, Success: true})
+	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{
+		Message: message,
+		Success: true,
+		Level:   ucxapi.UiMessageLevelSuccess,
+	})
 }
 
 func UiSendProgress(app ucx.Application, message string) {
@@ -1128,7 +1136,11 @@ func UiSendProgress(app ucx.Application, message string) {
 	}
 
 	session := *app.Session()
-	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{Message: message, Success: true})
+	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{
+		Message: message,
+		Success: true,
+		Level:   ucxapi.UiMessageLevelProgress,
+	})
 }
 
 func StackCopyFile(stack *Stack, fileName string) {

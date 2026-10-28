@@ -218,7 +218,6 @@ func ClusterCreate(app ucx.Application, request k8sapi.DeployRequest) (*ucxsvc.S
 	})
 	plans = append(plans, request.WorkerPools...)
 
-	ucxsvc.UiSendProgress(app, "Creating cluster "+request.Name)
 	ucxsvc.UiSendProgress(app, "Creating cluster network and service")
 
 	session := *app.Session()
@@ -389,7 +388,7 @@ func ClusterCreate(app ucx.Application, request k8sapi.DeployRequest) (*ucxsvc.S
 		return stack, false, fmt.Sprintf("the cluster resources were created, but the cluster record could not be finalized: %s", err)
 	}
 
-	ucxsvc.UiSendProgress(app, "Cluster "+stack.InstanceId+" created")
+	ucxsvc.UiSendSuccess(app, "Cluster resources created")
 
 	if _, err := ucxapi.StackOpen.Invoke(session, fndapi.FindByStringId{Id: stack.InstanceId}); err != nil {
 		return stack, true, ""

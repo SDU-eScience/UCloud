@@ -9,6 +9,7 @@ import (
 	"time"
 
 	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
+	"ucloud.dk/shared/pkg/termio"
 	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/ucloud_cli/pkg/iapp"
 )
@@ -203,7 +204,14 @@ func k8sWaitForUpgrade(client *iapp.Client, cluster string, uid string, target s
 	ctx, cancel := context.WithTimeout(context.Background(), k8sUpgradeWaitTimeout)
 	defer cancel()
 
-	fmt.Fprintf(os.Stderr, "Waiting for the rolling upgrade to %s\n", target)
+	client.SetMessageHandler(nil)
+
+	progress := termio.NewProgressList(
+		os.Stderr,
+		fmt.Sprintf("Upgrading cluster %s to %s", cluster, target),
+	)
+	progress.Start()
+	defer progress.Stop()
 
 	states := map[string]string{}
 	for {
@@ -241,19 +249,18 @@ func k8sWaitForUpgrade(client *iapp.Client, cluster string, uid string, target s
 			}
 			if states[node.Name] != phase {
 				states[node.Name] = phase
-				fmt.Fprintf(
-					os.Stderr,
-					"Node %s (%s): %s\n",
-					node.Name,
-					node.Group,
-					k8sUpgradePhaseLabel(phase),
-				)
+				progress.SetItem(termio.ProgressItem{
+					Key:    node.Name,
+					Label:  fmt.Sprintf("%s (%s)", node.Name, node.Group),
+					Status: k8sUpgradePhaseLabel(phase),
+					State:  k8sMaintenanceState(phase),
+				})
 			}
 		}
 
 		switch upgrade.Phase {
 		case k8sapi.MaintenancePhaseCompleted:
-			fmt.Fprintf(os.Stderr, "Upgrade to %s completed\n", upgrade.TargetRelease)
+			progress.Summary(fmt.Sprintf("Upgrade to %s completed", upgrade.TargetRelease))
 			return nil
 
 		case k8sapi.MaintenancePhaseFailed,
@@ -280,7 +287,20 @@ func k8sWaitForBackup(client *iapp.Client, cluster string, uid string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), k8sBackupWaitTimeout)
 	defer cancel()
 
-	fmt.Fprintln(os.Stderr, "Waiting for the backup to finish")
+	client.SetMessageHandler(nil)
+
+	progress := termio.NewProgressList(
+		os.Stderr,
+		fmt.Sprintf("Waiting for the backup of cluster %s", cluster),
+	)
+	progress.Start()
+	defer progress.Stop()
+
+	progress.SetItem(termio.ProgressItem{
+		Key:    "backup",
+		Status: "pending",
+		State:  termio.ProgressPending,
+	})
 
 	lastPhase := ""
 	for {
@@ -307,12 +327,16 @@ func k8sWaitForBackup(client *iapp.Client, cluster string, uid string) error {
 		if backup.RequestFound && (uid == "" || backup.RequestUid == uid) {
 			if backup.RequestPhase != lastPhase {
 				lastPhase = backup.RequestPhase
-				fmt.Fprintf(os.Stderr, "Backup: %s\n", backup.RequestPhase)
+				progress.SetItem(termio.ProgressItem{
+					Key:    "backup",
+					Status: backup.RequestPhase,
+					State:  k8sBackupState(backup.RequestPhase),
+				})
 			}
 
 			switch backup.RequestPhase {
 			case k8sapi.BackupRequestCompleted:
-				fmt.Fprintln(os.Stderr, "Backup completed")
+				progress.Summary("Backup completed")
 				return nil
 
 			case k8sapi.BackupRequestFailed:
@@ -320,6 +344,11 @@ func k8sWaitForBackup(client *iapp.Client, cluster string, uid string) error {
 				if reason == "" {
 					reason = "the backup failed"
 				}
+				progress.SetItem(termio.ProgressItem{
+					Key:    "backup",
+					Status: reason,
+					State:  termio.ProgressFailure,
+				})
 				return fmt.Errorf(
 					"the backup failed: %s; use the dashboard at %s",
 					reason,
@@ -329,7 +358,11 @@ func k8sWaitForBackup(client *iapp.Client, cluster string, uid string) error {
 		} else if uid != "" && backup.ClaimRequestUid == uid {
 			if lastPhase != k8sapi.BackupRequestRunning {
 				lastPhase = k8sapi.BackupRequestRunning
-				fmt.Fprintf(os.Stderr, "Backup: %s\n", k8sapi.BackupRequestRunning)
+				progress.SetItem(termio.ProgressItem{
+					Key:    "backup",
+					Status: k8sapi.BackupRequestRunning,
+					State:  k8sBackupState(k8sapi.BackupRequestRunning),
+				})
 			}
 		}
 
@@ -390,15 +423,21 @@ func k8sPrintUpgradeResult(
 		})
 	}
 
-	fmt.Printf("Cluster: %s\n", cluster)
-	fmt.Printf("Target: %s\n", response.TargetRelease)
-	if response.Uid != "" {
-		fmt.Printf("Upgrade: %s\n", response.Uid)
-	}
-	fmt.Printf("Dashboard: %s\n", k8sValueOrDash(dashboardUrl))
+	k8sPrintResultSpacer()
+
+	frame := termio.Frame{}
+	frame.Title("Cluster " + cluster)
 	if completed {
-		fmt.Println("Completed: yes")
+		frame.AppendFieldStyled("Status", termio.Success("Completed"))
+	} else {
+		frame.AppendFieldStyled("Status", termio.Subtle("Started"))
 	}
+	frame.AppendField("Target", response.TargetRelease)
+	if response.Uid != "" {
+		frame.AppendField("Upgrade", response.Uid)
+	}
+	frame.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
+	frame.Print()
 	return nil
 }
 
@@ -425,12 +464,18 @@ func k8sPrintBackupResult(
 		})
 	}
 
-	fmt.Printf("Cluster: %s\n", cluster)
-	fmt.Printf("Backup: %s\n", response.Uid)
-	fmt.Printf("Phase: %s\n", phase)
-	fmt.Printf("Dashboard: %s\n", k8sValueOrDash(dashboardUrl))
+	k8sPrintResultSpacer()
+
+	frame := termio.Frame{}
+	frame.Title("Cluster " + cluster)
 	if completed {
-		fmt.Println("Completed: yes")
+		frame.AppendFieldStyled("Status", termio.Success("Completed"))
+	} else {
+		frame.AppendFieldStyled("Status", termio.Subtle("Started"))
 	}
+	frame.AppendField("Backup", response.Uid)
+	frame.AppendField("Phase", phase)
+	frame.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
+	frame.Print()
 	return nil
 }

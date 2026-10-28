@@ -8,11 +8,13 @@ import (
 )
 
 type Table struct {
-	header     []TableHeader
-	rows       [][]StyledString
-	fill       bool
-	dimBorders bool
+	header        []TableHeader
+	rows          [][]StyledString
+	fill          bool
+	brightBorders bool
 }
+
+const tableEmptyMessage = " No data available"
 
 type TableHeaderFlags = uint64
 
@@ -55,7 +57,7 @@ func (t *Table) SetFill(fill bool) {
 }
 
 func (t *Table) SetDimBorders(dim bool) {
-	t.dimBorders = dim
+	t.brightBorders = !dim
 }
 
 func (t *Table) Cell(formatString string, args ...any) {
@@ -80,16 +82,16 @@ func (t *Table) Print() {
 }
 
 func (t *Table) String() string {
-	ptyCols, _, isPty := safeQueryPtySize()
-	return t.stringWithWidth(ptyCols, isPty)
+	ptyCols, _, _ := safeQueryPtySize()
+	return t.stringWithWidth(ptyCols, ColorEnabled(os.Stdout))
 }
 
-func (t *Table) stringWithWidth(ptyCols int, isPty bool) string {
+func (t *Table) stringWithWidth(ptyCols int, styled bool) string {
 	fillColumn := -1
 	if t.fill {
 		fillColumn = t.fillColumn()
 	}
-	return t.stringWithWidths(ptyCols, isPty, t.preferredWidths(), fillColumn, t.dimBorders)
+	return t.stringWithWidths(ptyCols, styled, t.preferredWidths(), fillColumn, t.brightBorders)
 }
 
 func (t *Table) preferredWidths() []int {
@@ -134,16 +136,19 @@ func (t *Table) fillColumn() int {
 
 func (t *Table) stringWithWidths(
 	ptyCols int,
-	isPty bool,
+	styled bool,
 	preferredWidths []int,
 	fillColumn int,
-	dimBorders bool,
+	brightBorders bool,
 ) string {
 	if len(t.header) == 0 {
 		return ""
 	}
 
 	spaceAssignment := assignColumnWidths(ptyCols, preferredWidths, fillColumn)
+	if len(t.rows) == 0 {
+		spaceAssignment = growColumnsForEmptyMessage(spaceAssignment, utf8.RuneCountInString(tableEmptyMessage)+1)
+	}
 	builder := strings.Builder{}
 
 	tableWidth := 1 + 3*len(t.header)
@@ -152,10 +157,10 @@ func (t *Table) stringWithWidths(
 	}
 
 	border := func(value string) string {
-		if !dimBorders {
+		if brightBorders {
 			return value
 		}
-		return WriteStyledStringIfPty(isPty, 0, Muted, DefaultColor, "%s", value)
+		return WriteStyledStringIf(styled, 0, Muted, DefaultColor, "%s", value)
 	}
 
 	builder.WriteString(border(boxNwCorner))
@@ -194,9 +199,9 @@ func (t *Table) stringWithWidths(
 				if paddingRequired > 0 {
 					builder.WriteString(strings.Repeat(" ", paddingRequired))
 				}
-				builder.WriteString(WriteStyledStringIfPty(isPty, Bold, DefaultColor, DefaultColor, "%s", line))
+				builder.WriteString(WriteStyledStringIf(styled, Bold, DefaultColor, DefaultColor, "%s", line))
 			} else {
-				builder.WriteString(WriteStyledStringIfPty(isPty, Bold, DefaultColor, DefaultColor, "%s", line))
+				builder.WriteString(WriteStyledStringIf(styled, Bold, DefaultColor, DefaultColor, "%s", line))
 				if paddingRequired > 0 {
 					builder.WriteString(strings.Repeat(" ", paddingRequired))
 				}
@@ -223,10 +228,10 @@ func (t *Table) stringWithWidths(
 	builder.WriteString("\n")
 
 	if len(t.rows) == 0 {
-		message := " No data available"
+		message := tableEmptyMessage
 		padding := max(0, tableWidth-2-utf8.RuneCountInString(message))
 		builder.WriteString(border(boxVerticalBar))
-		builder.WriteString(WriteStyledStringIfPty(isPty, 0, Muted, DefaultColor, "%s", message))
+		builder.WriteString(WriteStyledStringIf(styled, 0, Muted, DefaultColor, "%s", message))
 		builder.WriteString(strings.Repeat(" ", padding))
 		builder.WriteString(border(boxVerticalBar))
 		builder.WriteString("\n")
@@ -262,12 +267,12 @@ func (t *Table) stringWithWidths(
 						if paddingRequired > 0 {
 							builder.WriteString(strings.Repeat(" ", paddingRequired))
 						}
-						builder.WriteString(value.Render(isPty))
+						builder.WriteString(value.Render(styled))
 						builder.WriteString(" ")
 						builder.WriteString(border(boxVerticalBar))
 					} else {
 						builder.WriteString(" ")
-						builder.WriteString(value.Render(isPty))
+						builder.WriteString(value.Render(styled))
 						if paddingRequired > 0 {
 							builder.WriteString(strings.Repeat(" ", paddingRequired))
 						}
@@ -304,9 +309,9 @@ type tableSetSection struct {
 }
 
 type TableSet struct {
-	sections   []tableSetSection
-	fill       bool
-	dimBorders bool
+	sections      []tableSetSection
+	fill          bool
+	brightBorders bool
 }
 
 func (s *TableSet) Add(title string, table *Table) {
@@ -318,7 +323,7 @@ func (s *TableSet) SetFill(fill bool) {
 }
 
 func (s *TableSet) SetDimBorders(dim bool) {
-	s.dimBorders = dim
+	s.brightBorders = !dim
 }
 
 func (s *TableSet) Print() {
@@ -326,7 +331,8 @@ func (s *TableSet) Print() {
 }
 
 func (s *TableSet) String() string {
-	ptyCols, _, isPty := safeQueryPtySize()
+	ptyCols, _, _ := safeQueryPtySize()
+	styled := ColorEnabled(os.Stdout)
 
 	preferred := make([][]int, len(s.sections))
 	groupWidths := map[string]int{}
@@ -350,7 +356,7 @@ func (s *TableSet) String() string {
 			builder.WriteString("\n")
 		}
 		if section.title != "" {
-			builder.WriteString(WriteStyledStringIfPty(isPty, Bold, DefaultColor, DefaultColor, "%s", section.title))
+			builder.WriteString(WriteStyledStringIf(styled, Bold, DefaultColor, DefaultColor, "%s", section.title))
 			builder.WriteString("\n")
 		}
 
@@ -366,7 +372,7 @@ func (s *TableSet) String() string {
 			fillColumn = section.table.fillColumn()
 		}
 
-		builder.WriteString(section.table.stringWithWidths(ptyCols, isPty, widths, fillColumn, s.dimBorders))
+		builder.WriteString(section.table.stringWithWidths(ptyCols, styled, widths, fillColumn, s.brightBorders))
 	}
 
 	return builder.String()
@@ -413,6 +419,33 @@ func assignColumnWidths(ptyCols int, preferred []int, fillColumn int) []int {
 
 	if fillColumn >= 0 && fillColumn < len(widths) && current < availableContent {
 		widths[fillColumn] += availableContent - current
+	}
+
+	return widths
+}
+
+func growColumnsForEmptyMessage(widths []int, minimumContentWidth int) []int {
+	if len(widths) == 0 {
+		return widths
+	}
+
+	contentWidth := 3*len(widths) - 1
+	for _, width := range widths {
+		contentWidth += width
+	}
+
+	deficit := minimumContentWidth - contentWidth
+	if deficit <= 0 {
+		return widths
+	}
+
+	extraPerColumn := deficit / len(widths)
+	remainder := deficit % len(widths)
+	for idx := range widths {
+		widths[idx] += extraPerColumn
+		if idx < remainder {
+			widths[idx]++
+		}
 	}
 
 	return widths

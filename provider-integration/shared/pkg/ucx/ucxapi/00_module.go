@@ -182,9 +182,17 @@ var StackInfo = ucx.Rpc[util.Empty, StackInfoResponse]{CallName: "stackInfo"}
 var StackDelete = ucx.Rpc[util.Empty, util.Empty]{CallName: "stackDelete"}
 var StackShowResources = ucx.Rpc[util.Empty, util.Empty]{CallName: "stackShowResources"}
 
+const (
+	UiMessageLevelProgress = "progress"
+	UiMessageLevelSuccess  = "success"
+	UiMessageLevelWarning  = "warning"
+	UiMessageLevelFailure  = "failure"
+)
+
 type UiSendMessageRequest struct {
 	Message string
 	Success bool
+	Level   string
 }
 
 var UiSendMessage = ucx.Rpc[UiSendMessageRequest, util.Empty]{CallName: "uiSendMessage"}

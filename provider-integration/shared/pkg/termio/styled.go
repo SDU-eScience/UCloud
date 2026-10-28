@@ -13,8 +13,8 @@ func (s StyledString) String() string {
 	return s.Text
 }
 
-func (s StyledString) Render(pty bool) string {
-	if !pty || (s.Style == 0 && s.Fg == DefaultColor && s.Bg == DefaultColor) {
+func (s StyledString) Render(styled bool) string {
+	if !styled || (s.Style == 0 && s.Fg == DefaultColor && s.Bg == DefaultColor) {
 		return s.Text
 	}
 	return WriteStyledString(s.Style, s.Fg, s.Bg, "%s", s.Text)

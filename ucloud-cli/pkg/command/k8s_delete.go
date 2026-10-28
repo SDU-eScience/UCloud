@@ -6,6 +6,7 @@ import (
 
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/termio"
 )
 
 type K8sClusterDeleteCommand struct {
@@ -63,13 +64,18 @@ func (c *K8sClusterDeleteCommand) Execute() error {
 		})
 	}
 
-	fmt.Printf("Cluster: %s\n", name)
-	fmt.Println("Deletion: requested")
+	k8sPrintResultSpacer()
+
+	frame := termio.Frame{}
+	frame.Title("Cluster " + name)
+	frame.AppendFieldStyled("Status", termio.Success("Deletion requested"))
 	if c.DeleteStateDrive {
-		fmt.Println("State drive: will be deleted")
-		fmt.Println("Warning: this removes all cluster backups.")
+		frame.AppendField("State drive", "Deleted")
+		frame.AppendFieldStyled("Warning", termio.Warning("This removes all cluster backups."))
 	} else {
-		fmt.Println("State drive: kept")
+		frame.AppendField("State drive", "Kept")
 	}
+	frame.AppendField("Dashboard", k8sValueOrDash(k8sDashboardURL(name)))
+	frame.Print()
 	return nil
 }

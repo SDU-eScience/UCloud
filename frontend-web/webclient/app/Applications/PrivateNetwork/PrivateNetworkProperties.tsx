@@ -23,8 +23,8 @@ import AppRoutes from "@/Routes";
 import {injectStyle} from "@/Unstyled";
 import {useProjectId} from "@/Project/Api";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {NetworkTypeBadge, NetworkReclaimBadge} from "./NetworkTypeBadge";
-import {privateNetworkTypeFromNetwork} from "./types";
+import {NetworkReclaimBadge} from "./NetworkReclaimBadge";
+import {privateNetworkTypeFromNetwork, privateNetworkTypeLabel} from "./types";
 
 const Layout = injectStyle("private-network-layout", k => `
     ${k} {
@@ -120,7 +120,7 @@ export function PrivateNetworkProperties(): React.ReactNode {
                 <Box>
                     <Heading.h2>{network.specification.name || network.id}</Heading.h2>
                     <Flex mt="8px" alignItems="center" gap="8px">
-                        <NetworkTypeBadge type={networkType} />
+                        <span>{privateNetworkTypeLabel(networkType)}</span>
                         {network.status.reclaimState &&
                             network.status.reclaimState !== "active" ?
                             <NetworkReclaimBadge state={network.status.reclaimState} /> : null}
@@ -149,7 +149,7 @@ export function PrivateNetworkProperties(): React.ReactNode {
             <TabbedCard>
                 <TabbedCardTab icon="heroInformationCircle" name="Details">
                     <div className={HeroHeaderGrid}>
-                        <HeroMetric title="Type"><NetworkTypeBadge type={networkType} /></HeroMetric>
+                        <HeroMetric title="Type">{privateNetworkTypeLabel(networkType)}</HeroMetric>
                         <HeroMetric title="Subdomain">{network.status.subdomain ?? "Pending allocation"}</HeroMetric>
                         <HeroMetric title="Address range">{network.status.cidrBlock ?? "Pending allocation"}</HeroMetric>
                         <HeroMetric title="Requested range">{networkType === "infiniband" ?

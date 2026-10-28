@@ -206,56 +206,39 @@ func k8sPrintAutoStatus(cluster string, response k8sapi.AutoResponse, output str
 		})
 	}
 
-	table := termio.Table{}
-	table.AppendHeader("Field")
-	table.AppendHeader("Value")
-	table.Cell("Cluster")
-	table.Cell("%s", cluster)
-	table.Cell("Dashboard")
-	table.Cell("%s", k8sValueOrDash(dashboardUrl))
+	summary := termio.Frame{}
+	summary.Title("Cluster " + cluster)
+	summary.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
 	if response.PolicyFound {
-		table.Cell("Policy")
-		table.Cell("stored")
+		summary.AppendField("Policy", "stored")
 	} else {
-		table.Cell("Policy")
-		table.Cell("default (not stored yet)")
+		summary.AppendField("Policy", "default (not stored yet)")
 	}
-	table.Cell("Kubernetes updates")
-	table.Cell("%s", k8sAutoOnOffLabel(response.Policy.K8sEnabled))
-	table.Cell("Operating-system updates")
-	table.Cell("%s", k8sAutoOnOffLabel(response.Policy.OsEnabled))
-	table.Cell("Reboot policy")
-	table.Cell("%s", k8sAutoRebootPolicyLabel(response.Policy.RebootPolicy))
-	table.Cell("Window")
-	table.Cell("%s", k8sAutoWindowLabel(response.Policy))
-	table.Cell("Deferred until")
+	summary.AppendField("Kubernetes updates", k8sAutoOnOffLabel(response.Policy.K8sEnabled))
+	summary.AppendField("Operating-system updates", k8sAutoOnOffLabel(response.Policy.OsEnabled))
+	summary.AppendField("Reboot policy", k8sAutoRebootPolicyLabel(response.Policy.RebootPolicy))
+	summary.AppendField("Window", k8sAutoWindowLabel(response.Policy))
 	if response.Policy.DeferUntil > 0 {
-		table.Cell("%s", k8sAutoTimestamp(response.Policy.DeferUntil))
+		summary.AppendField("Deferred until", k8sAutoTimestamp(response.Policy.DeferUntil))
 	} else {
-		table.Cell("-")
+		summary.AppendField("Deferred until", "-")
 	}
-	table.Cell("Next run")
-	table.Cell("%s", k8sAutoRunWindowLabel(response.Policy))
-	table.Cell("Automatic maintenance")
-	table.Cell("%s", k8sAutoStateLabel(response.Policy, response.State))
-	table.Cell("Last run")
-	table.Cell("%s", k8sAutoLastRunLabel(response.State.LastRun))
+	summary.AppendField("Next run", k8sAutoRunWindowLabel(response.Policy))
+	summary.AppendField("Automatic maintenance", k8sAutoStateLabel(response.Policy, response.State))
+	summary.AppendField("Last run", k8sAutoLastRunLabel(response.State.LastRun))
 	if response.State.LastRun.Error != "" {
-		table.Cell("Last run error")
-		table.Cell("%s", response.State.LastRun.Error)
+		summary.AppendFieldStyled("Last run error", termio.Danger("%s", response.State.LastRun.Error))
 	}
 
 	if response.State.OsRecoveryError != "" {
-		table.Cell("OS recovery")
-		table.Cell("unavailable (%s)", response.State.OsRecoveryError)
+		summary.AppendFieldStyled("OS recovery", termio.Danger("unavailable (%s)", response.State.OsRecoveryError))
 	} else if len(response.State.OsRecoveryNodes) == 0 {
-		table.Cell("OS recovery")
-		table.Cell("none")
+		summary.AppendField("OS recovery", "none")
 	} else {
-		table.Cell("OS recovery")
-		table.Cell("%s", strings.Join(response.State.OsRecoveryNodes, ", "))
+		summary.AppendField("OS recovery", strings.Join(response.State.OsRecoveryNodes, ", "))
 	}
-	table.Print()
+
+	sections := termio.TableSet{}
 
 	if len(response.State.OsReports) > 0 {
 		reports := termio.Table{}
@@ -273,7 +256,7 @@ func k8sPrintAutoStatus(cluster string, response k8sapi.AutoResponse, output str
 			reports.Cell("%s", k8sAutoTimestamp(report.CheckedAt))
 			reports.Cell("%s", k8sValueOrDash(report.Error))
 		}
-		reports.Print()
+		sections.Add("OS reports", &reports)
 	}
 
 	if len(response.State.LastRun.Checks) > 0 {
@@ -286,7 +269,13 @@ func k8sPrintAutoStatus(cluster string, response k8sapi.AutoResponse, output str
 			checks.Cell("%s", k8sAutoBoolLabel(check.Ok))
 			checks.Cell("%s", k8sValueOrDash(check.Detail))
 		}
-		checks.Print()
+		sections.Add("Last run checks", &checks)
+	}
+
+	summary.Print()
+	if len(response.State.OsReports) > 0 || len(response.State.LastRun.Checks) > 0 {
+		fmt.Println()
+		sections.Print()
 	}
 
 	return nil
@@ -313,13 +302,17 @@ func k8sPrintAutoAction(
 		})
 	}
 
-	fmt.Printf("Cluster: %s\n", cluster)
-	fmt.Printf("Action: %s\n", action)
+	k8sPrintResultSpacer()
+
+	frame := termio.Frame{}
+	frame.Title("Cluster " + cluster)
+	frame.AppendFieldStyled("Status", termio.Success("%s", message))
+	frame.AppendField("Action", action)
 	if node != "" {
-		fmt.Printf("Node: %s\n", node)
+		frame.AppendField("Node", node)
 	}
-	fmt.Printf("Result: %s\n", message)
-	fmt.Printf("Dashboard: %s\n", k8sValueOrDash(dashboardUrl))
+	frame.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
+	frame.Print()
 	return nil
 }
 

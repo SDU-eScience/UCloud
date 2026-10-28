@@ -9,6 +9,7 @@ import (
 	"time"
 
 	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
+	"ucloud.dk/shared/pkg/termio"
 	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/ucloud_cli/pkg/iapp"
 )
@@ -175,7 +176,21 @@ func k8sWaitForNodeOperation(client *iapp.Client, cluster string, result k8sapi.
 	ctx, cancel := context.WithTimeout(context.Background(), k8sNodeWaitTimeout)
 	defer cancel()
 
-	fmt.Fprintf(os.Stderr, "Waiting for %s of node %s\n", result.Action, result.Node)
+	client.SetMessageHandler(nil)
+
+	progress := termio.NewProgressList(
+		os.Stderr,
+		fmt.Sprintf("Waiting for %s of node %s", result.Action, result.Node),
+	)
+	progress.Start()
+	defer progress.Stop()
+
+	progress.SetItem(termio.ProgressItem{
+		Key:    "node",
+		Label:  result.Node,
+		Status: "pending",
+		State:  termio.ProgressPending,
+	})
 
 	lastPhase := ""
 
@@ -196,24 +211,23 @@ func k8sWaitForNodeOperation(client *iapp.Client, cluster string, result k8sapi.
 		if found {
 			if operation.Phase != lastPhase {
 				lastPhase = operation.Phase
-				fmt.Fprintf(
-					os.Stderr,
-					"Node %s (%s): %s\n",
-					result.Node,
-					operation.Kind,
-					strings.ToLower(operation.Phase),
-				)
+				progress.SetItem(termio.ProgressItem{
+					Key:    "node",
+					Label:  result.Node,
+					Status: k8sNodeOperationLabel(operation),
+					State:  k8sMaintenanceState(operation.Phase),
+				})
 			}
 
 			if !k8sMaintenanceActive(operation.Phase) {
 				if result.Action == k8sapi.NodeActionCancel {
-					fmt.Fprintf(os.Stderr, "Node %s has no active operation\n", result.Node)
+					progress.Summary(fmt.Sprintf("Node %s has no active operation", result.Node))
 					return nil
 				}
 
 				if operation.Phase == k8sapi.MaintenancePhaseCompleted {
 					if result.Action != k8sapi.NodeActionRemove {
-						fmt.Fprintf(os.Stderr, "Node %s %s completed\n", result.Node, result.Action)
+						progress.Summary(fmt.Sprintf("Node %s %s completed", result.Node, result.Action))
 						return nil
 					}
 				} else {
@@ -221,18 +235,24 @@ func k8sWaitForNodeOperation(client *iapp.Client, cluster string, result k8sapi.
 					if message == "" {
 						message = "the operation ended in phase " + operation.Phase
 					}
+					progress.SetItem(termio.ProgressItem{
+						Key:    "node",
+						Label:  result.Node,
+						Status: message,
+						State:  termio.ProgressFailure,
+					})
 					return fmt.Errorf("the %s of node %s failed: %s", result.Action, result.Node, message)
 				}
 			}
 		}
 
 		if result.Action == k8sapi.NodeActionRemove && !k8sNodeExists(response.Nodes, result.Node) {
-			fmt.Fprintf(os.Stderr, "Node %s has been removed\n", result.Node)
+			progress.Summary(fmt.Sprintf("Node %s has been removed", result.Node))
 			return nil
 		}
 
 		if result.Action == k8sapi.NodeActionCancel && !found {
-			fmt.Fprintf(os.Stderr, "Node %s has no active operation\n", result.Node)
+			progress.Summary(fmt.Sprintf("Node %s has no active operation", result.Node))
 			return nil
 		}
 
@@ -240,6 +260,14 @@ func k8sWaitForNodeOperation(client *iapp.Client, cluster string, result k8sapi.
 			return k8sNodeWaitTimeoutError(result, cluster)
 		}
 	}
+}
+
+func k8sNodeOperationLabel(operation k8sapi.MaintenanceOperation) string {
+	label := k8sUpgradePhaseLabel(operation.Phase)
+	if operation.Kind == "" {
+		return label
+	}
+	return operation.Kind + " " + label
 }
 
 func k8sFindMaintenanceOperation(
@@ -301,15 +329,21 @@ func k8sPrintNodeActionResult(
 		})
 	}
 
-	fmt.Printf("Cluster: %s\n", cluster)
-	fmt.Printf("Node: %s\n", result.Node)
-	fmt.Printf("Action: %s\n", result.Action)
-	if result.OperationUid != "" {
-		fmt.Printf("Operation: %s\n", result.OperationUid)
-	}
-	fmt.Printf("Dashboard: %s\n", k8sValueOrDash(dashboardUrl))
+	k8sPrintResultSpacer()
+
+	frame := termio.Frame{}
+	frame.Title("Cluster " + cluster)
 	if completed {
-		fmt.Println("Completed: yes")
+		frame.AppendFieldStyled("Status", termio.Success("Completed"))
+	} else {
+		frame.AppendFieldStyled("Status", termio.Subtle("Requested"))
 	}
+	frame.AppendField("Node", result.Node)
+	frame.AppendField("Action", result.Action)
+	if result.OperationUid != "" {
+		frame.AppendField("Operation", result.OperationUid)
+	}
+	frame.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
+	frame.Print()
 	return nil
 }

@@ -46,6 +46,7 @@ export const ProductSelector: React.FunctionComponent<{
     onSelect: (product: ProductV2 | null) => void;
     fieldNavigation?: boolean;
     hideServiceProvider?: boolean;
+    ariaLabel?: string;
     renderProductName?: (product: ProductV2) => React.ReactNode;
     renderProductBadge?: (product: ProductV2) => React.ReactNode;
 }> = ({selected, ...props}) => {
@@ -371,6 +372,7 @@ export const ProductSelector: React.FunctionComponent<{
                     }}
                     tabIndex={props.fieldNavigation ? 0 : undefined}
                     role={props.fieldNavigation ? "button" : undefined}
+                    aria-label={props.ariaLabel}
                     data-job-info-field={props.fieldNavigation ? "machine" : undefined}
                     className={InputClass}
                     style={{display: "flex", height: "33.5px", cursor: "pointer"}}
@@ -434,6 +436,7 @@ export const ProductSelector: React.FunctionComponent<{
                     idx={selectedComputeCategory?.products.findIndex(prod => prod === selected) ?? -1}
                     support={props.support}
                     fieldNavigation={props.fieldNavigation}
+                    ariaLabel={props.ariaLabel}
                     inputRef={machineTypeSliderRef}
                     onSelect={idx => {
                         if (!selectedComputeCategory) return;
@@ -796,6 +799,7 @@ function MachineTypeSelectionSlider(props: {
     idx: number;
     support: ResolvedSupport[] | undefined;
     fieldNavigation?: boolean;
+    ariaLabel?: string;
     inputRef: React.RefObject<HTMLInputElement | null>;
 }): React.ReactNode {
 
@@ -825,6 +829,7 @@ function MachineTypeSelectionSlider(props: {
         <RangeInput value={props.idx} autoFocus={!props.fieldNavigation}
             data-navigation-field={props.fieldNavigation || undefined}
             dividerAt={dividerAt}
+            ariaLabel={props.ariaLabel}
             inputRef={props.inputRef}
             onChange={props.onSelect} min={0} max={props.selectedCategory.products.length - 1} markers={
             props.selectedCategory.products.map(p => computeV2ComponentCount(p))}

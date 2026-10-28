@@ -171,6 +171,7 @@ export function RichSelect<T, K extends keyof T>(props: {
     renderGroup?: (group: string) => React.ReactNode;
     focusable?: boolean;
     autoFocus?: boolean;
+    triggerAriaLabel?: string;
 } & DataAttributes): React.ReactNode {
     const [query, setQuery] = useState("");
     const closeFn = useRef<() => void>(doNothing);
@@ -277,6 +278,7 @@ export function RichSelect<T, K extends keyof T>(props: {
         colorOnHover={false}
         fullWidth={props.fullWidth ?? false}
         width={props.fullWidth ? undefined : dropdownSize}
+        triggerAriaLabel={props.triggerAriaLabel}
         onSelect={el => {
             const idxS = el?.getAttribute("data-idx") ?? "";
             const idx = parseInt(idxS);

@@ -259,32 +259,6 @@ func privateNetworkAllocateCustomCidr(
 		)
 	}
 
-	rows := db.Select[struct{ CidrBlock string }](
-		tx,
-		`
-			select
-				cidr_block::text as cidr_block
-			from
-				tracked_private_networks
-			where
-				cidr_block is not null
-		`,
-		db.Params{},
-	)
-	var used []netip.Prefix
-	for _, row := range rows {
-		if existing, ok := orc.PrivateNetworkParseCidr(row.CidrBlock); ok {
-			used = append(used, existing)
-		}
-	}
-
-	if privateNetworkPrefixOverlapsAny(parsed, used) {
-		return "", privateNetworkBusinessRollback(
-			tx,
-			util.UserHttpError("%s overlaps an existing private network", cidr),
-		)
-	}
-
 	return parsed.String(), nil
 }
 

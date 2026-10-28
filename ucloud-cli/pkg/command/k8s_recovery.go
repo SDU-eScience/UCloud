@@ -13,6 +13,7 @@ import (
 	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/ucloud_cli/pkg/iapp"
 )
@@ -191,7 +192,7 @@ func k8sSpawnRecoveryJob(name string, stack orcapi.Stack) error {
 		return nil
 	}
 
-	fmt.Fprintln(os.Stderr, "Starting the recovery job")
+	k8sPrintStatusLine(ucxapi.UiMessageLevelProgress, "Starting the recovery job")
 
 	_, httpErr := orcapi.StacksSpawnDeclaredJob.Invoke(fnd.FindByStringId{Id: name})
 	if httpErr.AsError() != nil && httpErr.StatusCode != http.StatusConflict {
@@ -203,6 +204,8 @@ func k8sSpawnRecoveryJob(name string, stack orcapi.Stack) error {
 func k8sWaitForRecoveryClient(name string) (*iapp.Client, context.CancelFunc, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), k8sRecoveryJobWaitTimeout)
 	defer cancel()
+
+	k8sPrintStatusLine(ucxapi.UiMessageLevelProgress, "Waiting for the cluster dashboard to become available")
 
 	var lastErr error
 	for {
@@ -245,14 +248,34 @@ func k8sWaitForRecovery(
 	ctx, cancel := context.WithTimeout(context.Background(), k8sRecoveryWaitTimeout)
 	defer cancel()
 
+	client.SetMessageHandler(nil)
+
+	progress := termio.NewProgressList(
+		os.Stderr,
+		fmt.Sprintf("Waiting for recovery of cluster %s", name),
+	)
+	progress.Start()
+	defer progress.Stop()
+
+	progress.SetItem(termio.ProgressItem{
+		Key:    "recovery",
+		Status: k8sRecoveryStageStatus(response.Stage),
+		State:  termio.ProgressRunning,
+	})
+
 	lastStage := ""
 	for {
 		if response.Stage == k8sapi.RecoveryStageVerify {
-			fmt.Fprintln(os.Stderr, "Recovery verification reached")
+			progress.Summary("Recovery verification reached")
 			return response, nil
 		}
 
 		if response.Phase != k8sapi.RecoveryPhaseActive {
+			progress.SetItem(termio.ProgressItem{
+				Key:    "recovery",
+				Status: k8sRecoveryPhaseLabel(response.Phase),
+				State:  termio.ProgressFailure,
+			})
 			return response, fmt.Errorf(
 				"the recovery ended in phase %q; use the dashboard at %s",
 				k8sRecoveryPhaseLabel(response.Phase),
@@ -262,11 +285,11 @@ func k8sWaitForRecovery(
 
 		if response.Stage != lastStage {
 			lastStage = response.Stage
-			if lastStage == k8sapi.RecoveryStageRestore {
-				fmt.Fprintln(os.Stderr, "Waiting for the cluster to respond")
-			} else {
-				fmt.Fprintf(os.Stderr, "Recovery stage: %s\n", k8sRecoveryStageLabel(lastStage))
-			}
+			progress.SetItem(termio.ProgressItem{
+				Key:    "recovery",
+				Status: k8sRecoveryStageStatus(lastStage),
+				State:  termio.ProgressRunning,
+			})
 		}
 
 		if !k8sRecoverySleep(ctx) {
@@ -280,10 +303,22 @@ func k8sWaitForRecovery(
 		})
 		callCancel()
 		if err != nil {
+			progress.SetItem(termio.ProgressItem{
+				Key:    "recovery",
+				Status: k8sErrorMessage(err),
+				State:  termio.ProgressFailure,
+			})
 			return response, errors.New(k8sClusterMessage(k8sErrorMessage(err)))
 		}
 		response = next
 	}
+}
+
+func k8sRecoveryStageStatus(stage string) string {
+	if stage == k8sapi.RecoveryStageRestore {
+		return "waiting for the cluster to respond"
+	}
+	return k8sRecoveryStageLabel(stage)
 }
 
 func k8sRecoverySleep(ctx context.Context) bool {
@@ -327,11 +362,17 @@ func k8sPrintRecoveryInactive(name string, supported bool, output string) error 
 		supportedLabel = "yes"
 	}
 
-	fmt.Printf("Cluster: %s\n", name)
-	fmt.Println("Recovery: not active")
-	fmt.Printf("Supported: %s\n", supportedLabel)
-	fmt.Printf("Message: %s\n", message)
-	fmt.Printf("Dashboard: %s\n", k8sValueOrDash(k8sDashboardURL(name)))
+	frame := termio.Frame{}
+	frame.Title("Cluster " + name)
+	if supported {
+		frame.AppendFieldStyled("Status", termio.Subtle("Recovery not active"))
+	} else {
+		frame.AppendFieldStyled("Status", termio.Warning("Not supported"))
+	}
+	frame.AppendField("Supported", supportedLabel)
+	frame.AppendField("Message", message)
+	frame.AppendField("Dashboard", k8sValueOrDash(k8sDashboardURL(name)))
+	frame.Print()
 	return nil
 }
 
@@ -344,57 +385,36 @@ func k8sPrintRecoveryStatus(name string, response k8sapi.RecoveryStatusResponse,
 		})
 	}
 
-	table := termio.Table{}
-	table.AppendHeader("Field")
-	table.AppendHeader("Value")
-	table.Cell("Cluster")
-	table.Cell("%s", name)
-	table.Cell("Dashboard")
-	table.Cell("%s", k8sValueOrDash(k8sDashboardURL(name)))
-	table.Cell("Recovery")
-	if response.Active {
-		table.Cell("active")
-	} else if response.RecoveryFound {
-		table.Cell("%s", k8sRecoveryPhaseLabel(response.Phase))
-	} else {
-		table.Cell("not started")
-	}
+	summary := termio.Frame{}
+	summary.Title("Cluster " + name)
+	summary.AppendField("Dashboard", k8sValueOrDash(k8sDashboardURL(name)))
+	summary.AppendFieldStyled("Recovery", k8sRecoveryStatusValue(response))
 	if response.RecoveryFound {
-		table.Cell("Stage")
-		table.Cell("%s", k8sRecoveryStageLabel(response.Stage))
-		table.Cell("Backup")
-		table.Cell("%s", k8sValueOrDash(response.BackupId))
-		table.Cell("Backup release")
-		table.Cell("%s", k8sValueOrDash(response.BackupRelease))
-		table.Cell("Credentials")
-		table.Cell("%s", k8sRecoveryCredentialsLabel(response.CredentialsStatus))
-		table.Cell("Started")
-		table.Cell("%s", k8sAutoTimestamp(response.StartedAt))
+		summary.AppendField("Stage", k8sRecoveryStageLabel(response.Stage))
+		summary.AppendField("Backup", k8sValueOrDash(response.BackupId))
+		summary.AppendField("Backup release", k8sValueOrDash(response.BackupRelease))
+		summary.AppendField("Credentials", k8sRecoveryCredentialsLabel(response.CredentialsStatus))
+		summary.AppendField("Started", k8sAutoTimestamp(response.StartedAt))
 		if response.StartedBy != "" {
-			table.Cell("Started by")
-			table.Cell("%s", response.StartedBy)
+			summary.AppendField("Started by", response.StartedBy)
 		}
 		if response.ClosedAt > 0 {
-			table.Cell("Closed")
-			table.Cell("%s", k8sAutoTimestamp(response.ClosedAt))
+			summary.AppendField("Closed", k8sAutoTimestamp(response.ClosedAt))
 		}
 		if response.LastError != "" {
-			table.Cell("Last error")
-			table.Cell("%s", response.LastError)
+			summary.AppendFieldStyled("Last error", termio.Danger("%s", response.LastError))
 		}
 	} else if response.SelectedBackupId != "" {
-		table.Cell("Selected backup")
-		table.Cell("%s", response.SelectedBackupId)
-		table.Cell("Credentials")
-		table.Cell("%s", k8sRecoveryCredentialsLabel(response.CredentialsStatus))
+		summary.AppendField("Selected backup", response.SelectedBackupId)
+		summary.AppendField("Credentials", k8sRecoveryCredentialsLabel(response.CredentialsStatus))
 	}
-	table.Cell("Cluster phase")
-	table.Cell("%s", k8sValueOrDash(response.ClusterPhase))
+	summary.AppendField("Cluster phase", k8sValueOrDash(response.ClusterPhase))
 	if len(response.Messages) > 0 {
-		table.Cell("Messages")
-		table.Cell("%s", strings.Join(response.Messages, " "))
+		summary.AppendField("Messages", strings.Join(response.Messages, " "))
 	}
-	table.Print()
+	summary.Print()
+
+	sections := termio.TableSet{}
 
 	if len(response.Backups) > 0 {
 		backups := termio.Table{}
@@ -416,11 +436,29 @@ func k8sPrintRecoveryStatus(name string, response k8sapi.RecoveryStatusResponse,
 			backups.Cell("%s", k8sValueOrDash(backup.CreatedByNode))
 			backups.Cell("%s", selected)
 		}
-		backups.Print()
+		sections.Add("Backups", &backups)
 	}
 
-	k8sPrintRecoveryChecks(response.Checks)
+	if checks := k8sRecoveryChecksTable(response.Checks); checks != nil {
+		sections.Add("Checks", checks)
+	}
+
+	if len(response.Backups) > 0 || len(response.Checks) > 0 {
+		fmt.Println()
+		sections.Print()
+	}
+
 	return nil
+}
+
+func k8sRecoveryStatusValue(response k8sapi.RecoveryStatusResponse) termio.StyledString {
+	if response.Active {
+		return termio.Success("active")
+	}
+	if response.RecoveryFound {
+		return termio.Subtle("%s", k8sRecoveryPhaseLabel(response.Phase))
+	}
+	return termio.Subtle("not started")
 }
 
 func k8sPrintRecoveryStart(
@@ -442,29 +480,46 @@ func k8sPrintRecoveryStart(
 		})
 	}
 
-	fmt.Printf("Cluster: %s\n", name)
-	fmt.Printf("Dashboard: %s\n", k8sValueOrDash(k8sDashboardURL(name)))
-	fmt.Printf("Backup: %s\n", k8sValueOrDash(response.BackupId))
-	fmt.Printf("Phase: %s\n", k8sRecoveryPhaseLabel(response.Phase))
-	fmt.Printf("Stage: %s\n", k8sRecoveryStageLabel(response.Stage))
+	k8sPrintResultSpacer()
+
+	frame := termio.Frame{}
+	frame.Title("Cluster " + name)
+	if completed {
+		frame.AppendFieldStyled("Status", termio.Success("Verification reached"))
+	} else {
+		frame.AppendFieldStyled("Status", termio.Subtle("Recovery started"))
+	}
+	frame.AppendField("Dashboard", k8sValueOrDash(k8sDashboardURL(name)))
+	frame.AppendField("Backup", k8sValueOrDash(response.BackupId))
+	frame.AppendField("Phase", k8sRecoveryPhaseLabel(response.Phase))
+	frame.AppendField("Stage", k8sRecoveryStageLabel(response.Stage))
 	if response.Message != "" {
-		fmt.Printf("Message: %s\n", response.Message)
+		frame.AppendField("Message", response.Message)
 	}
 	if completed {
-		fmt.Println("Completed: yes")
-		fmt.Println("Close recovery in the dashboard to return the cluster to normal operation.")
+		frame.AppendFieldStyled(
+			"Note",
+			termio.Warning("Close recovery in the dashboard to return the cluster to normal operation."),
+		)
+	}
+	frame.Print()
+
+	if checks := k8sRecoveryChecksTable(response.Checks); checks != nil {
+		fmt.Println()
+		sections := termio.TableSet{}
+		sections.Add("Checks", checks)
+		sections.Print()
 	}
 
-	k8sPrintRecoveryChecks(response.Checks)
 	return nil
 }
 
-func k8sPrintRecoveryChecks(checks []k8sapi.RecoveryCheckInfo) {
+func k8sRecoveryChecksTable(checks []k8sapi.RecoveryCheckInfo) *termio.Table {
 	if len(checks) == 0 {
-		return
+		return nil
 	}
 
-	table := termio.Table{}
+	table := &termio.Table{}
 	table.AppendHeader("Check")
 	table.AppendHeader("Status")
 	table.AppendHeader("Detail")
@@ -473,7 +528,7 @@ func k8sPrintRecoveryChecks(checks []k8sapi.RecoveryCheckInfo) {
 		table.Cell("%s", check.Status)
 		table.Cell("%s", k8sValueOrDash(check.Detail))
 	}
-	table.Print()
+	return table
 }
 
 func k8sRecoveryPhaseLabel(phase string) string {

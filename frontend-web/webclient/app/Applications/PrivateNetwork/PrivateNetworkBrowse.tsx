@@ -45,10 +45,11 @@ import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import ProductReference = accounting.ProductReference;
 import {useEffect} from "react";
 import {sendFailureNotification} from "@/Notifications";
-import {NetworkTypeBadge, networkReclaimBadgeElement, networkTypeBadgeElement} from "./NetworkTypeBadge";
+import {networkReclaimBadgeElement} from "./NetworkReclaimBadge";
 import {
     PrivateNetworkType,
     privateNetworkTypeFromNetwork,
+    privateNetworkTypeLabel,
     privateNetworkTypeLongLabel,
 } from "./types";
 import {retrievePrivateNetworkSupport} from "./support";
@@ -206,7 +207,7 @@ export function PrivateNetworkBrowse({
 
                 browser.on("renderStat1", (network, stat) => {
                     const networkType = privateNetworkTypeFromNetwork(network);
-                    stat.append(networkTypeBadgeElement(networkType));
+                    stat.textContent = privateNetworkTypeLabel(networkType);
                     if (network.status.reclaimState && network.status.reclaimState !== "active") {
                         stat.append(networkReclaimBadgeElement(network.status.reclaimState));
                     }
@@ -484,7 +485,7 @@ function PrivateNetworkCreate({onCreate, onCancel, products, support}: PrivateNe
                 <Heading.h3>Create a network</Heading.h3>
                 <Box mt={"8px"}>
                     Networks connect your jobs. Ethernet networks are isolated internal networks. InfiniBand
-                    networks share the provider's fabric and automatically add RDMA to your jobs.
+                    networks share the provider's fabrid and is automatically added to your jobs.
                 </Box>
             </Box>
 
@@ -496,9 +497,6 @@ function PrivateNetworkCreate({onCreate, onCancel, products, support}: PrivateNe
                     value={name}
                     onChange={e => setName(e.target.value)}
                 />
-                <Text mt="8px" color={"textSecondary"}>
-                    The subdomain is based on this name and gets a random suffix if needed.
-                </Text>
             </Box>
 
             <Box>
@@ -509,7 +507,6 @@ function PrivateNetworkCreate({onCreate, onCancel, products, support}: PrivateNe
                     products={products}
                     selected={product}
                     renderProductName={candidate => privateNetworkTypeLongLabel(networkTypeForProduct(candidate))}
-                    renderProductBadge={candidate => <NetworkTypeBadge type={networkTypeForProduct(candidate)} />}
                 />
                 <div style={{color: "var(--textSecondary)"}}>This network can be used with machines
                     from <i>{shortProviderId}</i>.

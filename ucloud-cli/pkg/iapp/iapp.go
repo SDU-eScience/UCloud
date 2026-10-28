@@ -24,7 +24,7 @@ type Client struct {
 	mu                 sync.Mutex
 	lastMessage        string
 	lastMessageSuccess bool
-	messageHandler     func(message string, success bool)
+	messageHandler     func(message string, success bool, level string)
 }
 
 func (c *Client) Close() {
@@ -33,7 +33,7 @@ func (c *Client) Close() {
 	}
 }
 
-func (c *Client) SetMessageHandler(handler func(message string, success bool)) {
+func (c *Client) SetMessageHandler(handler func(message string, success bool, level string)) {
 	c.mu.Lock()
 	c.messageHandler = handler
 	c.mu.Unlock()
@@ -154,7 +154,7 @@ func (c *Client) registerClientHandlers() {
 		c.mu.Unlock()
 
 		if handler != nil && request.Message != "" {
-			handler(request.Message, request.Success)
+			handler(request.Message, request.Success, request.Level)
 		}
 		return util.Empty{}, nil
 	})

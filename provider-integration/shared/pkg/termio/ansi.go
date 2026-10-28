@@ -2,9 +2,55 @@ package termio
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
+
+type ColorMode int
+
+const (
+	ColorAuto ColorMode = iota
+	ColorAlways
+	ColorNever
+)
+
+var colorMode = ColorAuto
+
+func SetColorMode(mode ColorMode) {
+	colorMode = mode
+}
+
+func ColorModeFromString(value string) (ColorMode, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "auto":
+		return ColorAuto, nil
+	case "always":
+		return ColorAlways, nil
+	case "never":
+		return ColorNever, nil
+	default:
+		return ColorAuto, fmt.Errorf("unknown color mode %q; use auto, always or never", value)
+	}
+}
+
+func ColorEnabled(w io.Writer) bool {
+	switch colorMode {
+	case ColorAlways:
+		return true
+	case ColorNever:
+		return false
+	}
+
+	if os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+	if os.Getenv("CLICOLOR_FORCE") != "" && os.Getenv("CLICOLOR_FORCE") != "0" {
+		return true
+	}
+
+	return isPtyWriter(w)
+}
 
 func Sgr(n int) string {
 	// Select graphic rendition
@@ -39,12 +85,15 @@ const (
 	Muted        Color = 1244
 )
 
-func WriteStyledStringIfPty(pty bool, style IoStyle, fg, bg Color, formatString string, args ...any) string {
-	if pty {
+func WriteStyledStringIf(color bool, style IoStyle, fg, bg Color, formatString string, args ...any) string {
+	if color {
 		return WriteStyledString(style, fg, bg, formatString, args...)
-	} else {
-		return fmt.Sprintf(formatString, args...)
 	}
+	return fmt.Sprintf(formatString, args...)
+}
+
+func WriteStyledStringIfPty(pty bool, style IoStyle, fg, bg Color, formatString string, args ...any) string {
+	return WriteStyledStringIf(pty, style, fg, bg, formatString, args...)
 }
 
 func WriteStyledString(style IoStyle, fg, bg Color, formatString string, args ...any) string {

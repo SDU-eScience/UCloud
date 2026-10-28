@@ -395,7 +395,9 @@ func k8sPrintReleases(response k8sapi.ReleasesResponse, output string) error {
 		table.Cell("%s", supportedUntil)
 		table.Cell("%s", defaultRelease)
 	}
-	table.Print()
+	sections := termio.TableSet{}
+	sections.Add("Kubernetes releases", &table)
+	sections.Print()
 	return nil
 }
 
@@ -422,7 +424,9 @@ func k8sPrintClusters(stacks []orcapi.Stack, output string) error {
 		table.Cell("%s", stack.Id)
 		table.Cell("%s", cli.FormatTime(stack.CreatedAt))
 	}
-	table.Print()
+	sections := termio.TableSet{}
+	sections.Add("Clusters", &table)
+	sections.Print()
 	return nil
 }
 
@@ -449,14 +453,10 @@ func k8sPrintStatus(response k8sapi.StatusResponse, output string) error {
 	providerLabel := k8sStatusProviderLabel(response.MachineProvider)
 
 	sections := termio.TableSet{}
-	sections.SetDimBorders(true)
 
 	summary := termio.Frame{}
-	summary.Title("Summary")
-	summary.SetNaturalWidth(true)
-	summary.SetDimBorders(true)
+	summary.Title("Cluster " + response.Name)
 
-	summary.AppendField("Cluster", k8sValueOrDash(response.Name))
 	summary.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
 	summary.AppendFieldStyled("Phase", k8sStatusPhaseCell(response.Phase))
 	if response.FailureReason != "" {
@@ -877,14 +877,18 @@ func k8sPrintCoreStatus(stack orcapi.Stack, reason string, output string) error 
 		})
 	}
 
-	fmt.Printf("Cluster: %s\n", stack.Id)
-	fmt.Printf("Created: %s\n", cli.FormatTime(stack.CreatedAt))
-	fmt.Printf("Dashboard: %s\n", k8sValueOrDash(k8sDashboardURL(stack.Id)))
-	fmt.Printf("Dashboard available: no\n")
-	fmt.Printf("Reason: %s\n", reason)
+	frame := termio.Frame{}
+	frame.Title("Cluster " + stack.Id)
+	frame.AppendFieldStyled("Status", termio.Warning("Dashboard unavailable"))
+	frame.AppendField("Created", cli.FormatTime(stack.CreatedAt))
+	frame.AppendField("Dashboard", k8sValueOrDash(k8sDashboardURL(stack.Id)))
+	frame.AppendField("Reason", reason)
+	if len(jobs) == 0 {
+		frame.AppendField("Jobs", "none")
+	}
+	frame.Print()
 
 	if len(jobs) == 0 {
-		fmt.Println("Jobs: none")
 		return nil
 	}
 
@@ -895,7 +899,11 @@ func k8sPrintCoreStatus(stack orcapi.Stack, reason string, output string) error 
 		table.Cell("%s", k8sValueOrDash(job.Name))
 		table.Cell("%s", k8sValueOrDash(job.State))
 	}
-	table.Print()
+
+	fmt.Println()
+	sections := termio.TableSet{}
+	sections.Add("Jobs", &table)
+	sections.Print()
 	return nil
 }
 
