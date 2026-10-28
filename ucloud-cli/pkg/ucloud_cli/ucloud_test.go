@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/ucloud_cli/pkg/command"
 	"ucloud.dk/ucloud_cli/pkg/shared"
@@ -293,12 +295,12 @@ func TestJobCreateWithInvalidPublicLink(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestJobCreate(t *testing.T) {
+func createTestJob(t *testing.T, name string) string {
 	input := []string{
 		"job", "create",
 		"--app", "terminal-ubuntu",
 		"--workspace", "test-workspace",
-		"--name", "test-job",
+		"--name", name,
 		"--duration", "1h30m",
 		"--ssh",
 	}
@@ -308,11 +310,15 @@ func TestJobCreate(t *testing.T) {
 	concrete := cmd.(*command.JobCreateCommand)
 	assert.Equal(t, "terminal-ubuntu", concrete.App)
 	assert.Equal(t, "test-workspace", concrete.Workspace)
-	assert.Equal(t, "test-job", concrete.Name)
+	assert.Equal(t, name, concrete.Name)
 	assert.Equal(t, "1h30m", concrete.Duration)
 	assert.True(t, concrete.SSH)
 	err = cmd.Execute()
-	assert.NoError(t, err)
+	return concrete.Id
+}
+
+func TestJobCreate(t *testing.T) {
+	createTestJob(t, "test-job")
 }
 
 func TestJobTerminate(t *testing.T) {
@@ -775,4 +781,69 @@ func TestPrivateNetworkMembers(t *testing.T) {
 	err = cmd.Execute()
 	assert.NoError(t, err)
 	deletePrivateNetwork(t, name)
+}
+
+func waitForJobState(t *testing.T, jobId string, state orcapi.JobState, timeout time.Duration) orcapi.Job {
+	t.Helper()
+
+	deadline := time.Now().Add(timeout)
+	for {
+		job, httpErr := orcapi.JobsRetrieve.Invoke(orcapi.JobsRetrieveRequest{
+			Id: jobId,
+		})
+		if httpErr != nil {
+			t.Fatalf("failed to retrieve job %s: %s", jobId, httpErr.Why)
+		}
+
+		if job.Status.State == state {
+			return job
+		}
+		if job.Status.State.IsFinal() {
+			t.Fatalf("job %s reached final state %s while waiting for %s", jobId, job.Status.State, state)
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("timed out waiting for job %s to reach %s (last state: %s)", jobId, state, job.Status.State)
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+}
+
+func TestJobShell(t *testing.T) {
+	t.Skip("Standalone test as it requires user interaction.")
+	jobId := createTestJob(t, "test-job-shell")
+	waitForJobState(t, jobId, orcapi.JobStateRunning, 5*time.Minute)
+
+	// The shell reads stdin until EOF; keep it open long enough for the session to start and
+	// for a command to round-trip before closing.
+	r, w, err := os.Pipe()
+	assert.NoError(t, err)
+	originalStdin := os.Stdin
+	os.Stdin = r
+	defer func() { os.Stdin = originalStdin }()
+
+	go func() {
+		time.Sleep(10 * time.Second)
+		_ = w.Close()
+	}()
+
+	input := []string{"job", "shell", jobId, "--provider", "k8s"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+
+	terminateTestJob(t, jobId)
+}
+
+func terminateTestJob(t *testing.T, jobId string) {
+	t.Helper()
+
+	input := []string{"job", "terminate", jobId}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
 }
