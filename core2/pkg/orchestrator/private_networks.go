@@ -778,7 +778,7 @@ func privateNetworkSubdomainTaken(provider string, subdomain string, except Reso
 		}
 
 		b := resourceGetBucket(privateNetworkType, id)
-		r, ok, _ := resourcesReadEx(rpc.ActorSystem, privateNetworkType, orcapi.PermissionRead, b, id, nil)
+		r, ok, _, _ := resourcesReadEx(rpc.ActorSystem, privateNetworkType, orcapi.PermissionRead, b, id, nil, false)
 		if !ok || r == nil {
 			continue
 		}

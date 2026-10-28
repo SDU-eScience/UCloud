@@ -12,6 +12,7 @@ import (
 )
 
 var featureGrantCache = util.NewCache[string, []string](time.Minute)
+var featureProjectGrantCache = util.NewCache[string, bool](time.Minute)
 
 var FeatureNotEnabledError = &util.HttpError{
 	StatusCode: http.StatusForbidden,
@@ -69,6 +70,47 @@ func FeatureIsEnabled(actor rpc.Actor, feature string) *util.HttpError {
 	return FeatureNotEnabledError
 }
 
+func FeatureIsEnabledForOwner(createdBy string, projectId string, feature string) *util.HttpError {
+	if slices.Contains(cfg.Configuration.Features, feature) {
+		return nil
+	}
+
+	if projectId != "" {
+		granted, _ := featureProjectGrantCache.Get(
+			projectId+"\x1f"+feature,
+			func() (bool, error) {
+				return db.NewTx(func(tx *db.Transaction) bool {
+					_, ok := db.Get[struct{ ProjectId string }](
+						tx,
+						`
+							select project_id
+							from features.project_grants
+							where
+								project_id = :project_id
+								and feature = :feature
+						`,
+						db.Params{
+							"project_id": projectId,
+							"feature":    feature,
+						},
+					)
+					return ok
+				}), nil
+			},
+		)
+		if granted {
+			return nil
+		}
+		return FeatureNotEnabledError
+	}
+
+	if createdBy != "" && slices.Contains(FeatureGrantsOfActor(rpc.Actor{Username: createdBy}), feature) {
+		return nil
+	}
+	return FeatureNotEnabledError
+}
+
 func FeatureInvalidateGrantCache() {
 	featureGrantCache.InvalidateAll()
+	featureProjectGrantCache.InvalidateAll()
 }

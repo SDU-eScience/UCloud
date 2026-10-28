@@ -78,6 +78,10 @@ func resourceProviderRef(providerId string) string {
 	return fndapi.ProviderSubjectPrefix + providerId
 }
 
+type resourcePublicReadInitializer interface {
+	ResourcePublicRead() bool
+}
+
 type resource struct {
 	Id         ResourceId
 	ProviderId util.Option[string]
@@ -93,6 +97,7 @@ type resource struct {
 
 	MarkedForDeletion bool
 	Confirmed         bool
+	PublicRead        bool
 
 	BaseSpec orcapi.ResourceSpecification
 
@@ -428,10 +433,12 @@ func resourcesReadEx(
 	b *resourceBucket,
 	id ResourceId,
 	prefetchHint []ResourceId,
-) (*resource, bool, []orcapi.Permission) {
+	allowPublicRead bool,
+) (*resource, bool, []orcapi.Permission, bool) {
 	t := util.NewTimer()
 
 	var permissions []orcapi.Permission
+	var publicOnly bool
 	b.Mu.RLock()
 
 	r, ok := b.Resources[id]
@@ -514,6 +521,18 @@ func resourcesReadEx(
 		}
 	}
 
+	if ok && allowPublicRead && r.PublicRead && typeName == containerRepositoryType {
+		publicErr := coreutil.FeatureIsEnabledForOwner(
+			r.Owner.CreatedBy,
+			r.Owner.Project.GetOrDefault(""),
+			fndapi.FeatureContainerRepositories,
+		)
+		if publicErr == nil {
+			publicOnly = len(permissions) == 0
+			permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionRead)
+		}
+	}
+
 	if ok && !slices.Contains(permissions, requiredPermission) {
 		r, ok, permissions = nil, false, nil
 	}
@@ -522,7 +541,7 @@ func resourcesReadEx(
 
 	b.Mu.RUnlock()
 
-	return r, ok, permissions
+	return r, ok, permissions, publicOnly
 }
 
 func lResourceApplyFlags(r *resource, myPerms []orcapi.Permission, flags orcapi.ResourceFlags) (orcapi.Resource, bool) {
@@ -660,17 +679,24 @@ func ResourceRetrieveEx[T any](
 	g := resourceGetGlobals(typeName)
 	b := resourceGetBucket(typeName, pId)
 
-	r, ok, perms := resourcesReadEx(actor, typeName, requiredPermission, b, pId, nil)
+	r, ok, perms, publicOnly := resourcesReadEx(actor, typeName, requiredPermission, b, pId, nil, true)
 	if ok {
 		b.Mu.RLock()
 		mapped, ok := lResourceApplyFlags(r, perms, flags)
 		if ok {
+			if publicOnly && mapped.Permissions.Present {
+				mapped.Permissions.Value.Others = []orcapi.ResourceAclEntry{}
+			}
 			rawResult := g.Transformer(mapped, r.BaseSpec, r.Extra, flags, actor)
 			result = rawResult.(T)
 		}
 		b.Mu.RUnlock()
 		if ok {
-			return result, r.ToApi(perms), r.BaseSpec, nil
+			apiResource := r.ToApi(perms)
+			if publicOnly && apiResource.Permissions.Present {
+				apiResource.Permissions.Value.Others = []orcapi.ResourceAclEntry{}
+			}
+			return result, apiResource, r.BaseSpec, nil
 		}
 	}
 
@@ -876,7 +902,7 @@ func resourceBrowse[T any](
 
 			t.Mark()
 			b := resourceGetBucket(typeName, id)
-			resc, ok, perms := resourcesReadEx(actor, typeName, orcapi.PermissionRead, b, id, idx)
+			resc, ok, perms, _ := resourcesReadEx(actor, typeName, orcapi.PermissionRead, b, id, idx, false)
 			readAccSeconds += t.Mark().Seconds()
 
 			// NOTE(Dan): In personal workspaces, the user might be added directly to an index even if they are not
@@ -986,7 +1012,7 @@ func ResourceUpdate[T any](
 	g := resourceGetGlobals(typeName)
 
 	b := resourceGetBucket(typeName, id)
-	resc, ok, perms := resourcesReadEx(actor, typeName, requiredPermission, b, id, nil)
+	resc, ok, perms, _ := resourcesReadEx(actor, typeName, requiredPermission, b, id, nil, false)
 	if ok {
 		var indexers []ResourceIndexer
 		{
@@ -1530,6 +1556,10 @@ func resourceCreateEx[T any](
 		Extra:      extra,
 		Confirmed:  false,
 		BaseSpec:   baseSpec,
+	}
+
+	if initializer, ok := extra.(resourcePublicReadInitializer); ok {
+		r.PublicRead = initializer.ResourcePublicRead()
 	}
 
 	{

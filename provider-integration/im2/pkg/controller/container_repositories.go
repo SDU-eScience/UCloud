@@ -15,7 +15,7 @@ type ContainerRepositoryService struct {
 	Create          func(repository *orc.ContainerRepository) *util.HttpError
 	Delete          func(repository *orc.ContainerRepository) *util.HttpError
 	BrowseImages    func(request orc.ContainerRepositoriesProviderBrowseImagesRequest) (fnd.PageV2[orc.ContainerRepositoryImage], *util.HttpError)
-	DeleteImage     func(request orc.ContainerRepositoriesProviderDeleteImageRequest) *util.HttpError
+	DeleteImage     func(request orc.ContainerRepositoriesProviderDeleteImageRequest, username string) *util.HttpError
 	OnDeleted       func(repository *orc.ContainerRepository)
 	OnUpdatedLabels func(repository *orc.ContainerRepository) *util.HttpError
 	UpdateAcl       func(repository *orc.ContainerRepository) *util.HttpError
@@ -95,6 +95,7 @@ func initContainerRepositories() {
 
 	orc.ContainerRepositoriesProviderDeleteImage.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orc.ContainerRepositoriesProviderDeleteImageRequest]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
 		response := fnd.BulkResponse[util.Empty]{Responses: make([]util.Empty, 0, len(request.Items))}
+		username := GetUCloudUsername(info.HttpRequest)
 		for _, item := range request.Items {
 			if ContainerRepositories.DeleteImage == nil {
 				return fnd.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusBadRequest, "Container repository image deletion is not supported")
@@ -102,7 +103,7 @@ func initContainerRepositories() {
 			if item.Image == "" {
 				ContainerRepositoryTrack(item.ResolvedRepository)
 			}
-			if err := ContainerRepositories.DeleteImage(item); err != nil {
+			if err := ContainerRepositories.DeleteImage(item, username); err != nil {
 				return fnd.BulkResponse[util.Empty]{}, err
 			}
 			response.Responses = append(response.Responses, util.Empty{})

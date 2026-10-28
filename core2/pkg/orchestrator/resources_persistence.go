@@ -23,6 +23,7 @@ type resourceLoadRow struct {
 	ProductCategory     sql.NullString
 	Provider            sql.NullString
 	ProviderGeneratedId sql.NullString
+	PublicRead          bool
 	Labels              sql.NullString
 }
 
@@ -41,6 +42,7 @@ func resourceLoadInternal(tx *db.Transaction, typeName string, rows []resourceLo
 			CreatedAt:  row.CreatedAt,
 			ModifiedAt: row.CreatedAt, // NOTE(Dan): We don't store this! That seems silly.
 			Type:       typeName,
+			PublicRead: row.PublicRead,
 			Confirmed:  true,
 		}
 
@@ -188,6 +190,7 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 					pc.category as product_category, 
 					coalesce(r.provider, pc.provider) as provider, 
 					provider_generated_id,
+					r.public_read,
 					r.labels
 				from
 					provider.resource r
@@ -317,9 +320,9 @@ func lResourcePersist(g *resourceTypeGlobal, r *resource) bool {
 						) as product_id
 					)
 					insert into provider.resource(type, provider, created_at, created_by, project, id, product, 
-						provider_generated_id, confirmed_by_provider, public_read, labels)
+						provider_generated_id, confirmed_by_provider, labels)
 					select :type, case when :provider = '_ucloud' then null else :provider end, now(), :created_by, 
-						:project, :id, product_id, :provider_id, true, false, :labels
+						:project, :id, product_id, :provider_id, true, :labels
 					from products
 					on conflict (id) do update set
 						provider_generated_id = excluded.provider_generated_id,
@@ -443,6 +446,7 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 					pc.category as product_category,
 					coalesce(r.provider, pc.provider) as provider,
 					provider_generated_id,
+					r.public_read,
 					r.labels
 				from
 					provider.resource r

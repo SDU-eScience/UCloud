@@ -74,19 +74,28 @@ func auditRegistryRequest(
 	}
 
 	requestData, _ := json.Marshal(struct {
-		Method        string        `json:"method"`
-		Path          string        `json:"path"`
-		Access        []auditAccess `json:"access"`
-		ResponseBytes int64         `json:"responseBytes"`
+		Method              string        `json:"method"`
+		Path                string        `json:"path"`
+		Access              []auditAccess `json:"access"`
+		ResponseBytes       int64         `json:"responseBytes"`
+		Anonymous           bool          `json:"anonymous"`
+		CredentialsRejected bool          `json:"credentialsRejected"`
 	}{
-		Method:        r.Method,
-		Path:          r.URL.Path,
-		Access:        access,
-		ResponseBytes: responseBytes,
+		Method:              r.Method,
+		Path:                r.URL.Path,
+		Access:              access,
+		ResponseBytes:       responseBytes,
+		Anonymous:           state.anonymous,
+		CredentialsRejected: state.credentialsRejected,
 	})
 
+	jobId := util.OptStringIfNotEmpty(r.Header.Get("Job-Id")).GetOrDefault(util.RandomTokenNoTs(8))
+	if state.grant == nil || state.anonymous {
+		jobId = util.RandomTokenNoTs(8)
+	}
+
 	event := rpc.HttpCallLogEntry{
-		JobId: util.OptStringIfNotEmpty(r.Header.Get("Job-Id")).GetOrDefault(util.RandomTokenNoTs(8)),
+		JobId: jobId,
 		HandledBy: rpc.ServiceInstance{
 			Definition: rpc.ServiceDefinition{Name: "ucloud", Version: "ucloud"},
 			Hostname:   "hostname",
@@ -109,7 +118,7 @@ func auditRegistryRequest(
 	if state.owner.ProjectId != "" {
 		event.Project.Set(state.owner.ProjectId)
 	}
-	if state.grant != nil {
+	if state.grant != nil && !state.anonymous {
 		token := rpc.SecurityPrincipalToken{
 			Principal: rpc.SecurityPrincipal{
 				Username: state.grant.User.Name,

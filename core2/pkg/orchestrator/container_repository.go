@@ -84,6 +84,21 @@ func initContainerRepositories() {
 		return util.Empty{}, ContainerRepositoryUpdateLabels(info.Actor, request)
 	})
 
+	orcapi.ContainerRepositoriesUpdatePublic.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ContainerRepositoriesUpdatePublicRequest]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureContainerRepositories); err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+
+		responses := make([]util.Empty, 0, len(request.Items))
+		for _, item := range request.Items {
+			if err := ContainerRepositoryUpdatePublic(info.Actor, item.Id, item.Public); err != nil {
+				return fndapi.BulkResponse[util.Empty]{}, err
+			}
+			responses = append(responses, util.Empty{})
+		}
+		return fndapi.BulkResponse[util.Empty]{Responses: responses}, nil
+	})
+
 	orcapi.ContainerRepositoriesRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.SupportByProvider[orcapi.FSSupport], *util.HttpError) {
 		return ContainerRepositoryRetrieveProducts(), nil
 	})
@@ -174,7 +189,7 @@ func ContainerRepositoryCreate(actor rpc.Actor, request fndapi.BulkRequest[orcap
 			actor,
 			containerRepositoryType,
 			item.ResourceSpecification,
-			&internalContainerRepository{Name: item.Name},
+			&internalContainerRepository{Name: item.Name, Public: item.Public},
 			orcapi.ContainerRepositoriesProviderCreate,
 		)
 		if err != nil {
@@ -247,6 +262,35 @@ func ContainerRepositoryUpdateLabels(actor rpc.Actor, request fndapi.BulkRequest
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func ContainerRepositoryUpdatePublic(actor rpc.Actor, id string, public bool) *util.HttpError {
+	var featureErr *util.HttpError
+	ok := ResourceUpdate[orcapi.ContainerRepository](
+		actor,
+		containerRepositoryType,
+		ResourceParseId(id),
+		orcapi.PermissionAdmin,
+		func(r *resource, mapped orcapi.ContainerRepository) {
+			featureErr = coreutil.FeatureIsEnabledForOwner(
+				r.Owner.CreatedBy,
+				r.Owner.Project.GetOrDefault(""),
+				fndapi.FeatureContainerRepositories,
+			)
+			if featureErr != nil {
+				return
+			}
+			r.PublicRead = public
+			r.Extra.(*internalContainerRepository).Public = public
+		},
+	)
+	if featureErr != nil {
+		return featureErr
+	}
+	if !ok {
+		return util.HttpErr(http.StatusForbidden, "failed to update public access - permission denied")
 	}
 	return nil
 }
@@ -415,7 +459,12 @@ func (i *containerRepositoryNameIndexer) Commit() {
 }
 
 type internalContainerRepository struct {
-	Name string
+	Name   string
+	Public bool
+}
+
+func (i *internalContainerRepository) ResourcePublicRead() bool {
+	return i.Public
 }
 
 func containerRepositoryLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource) {
@@ -433,7 +482,11 @@ func containerRepositoryLoad(tx *db.Transaction, ids []int64, resources map[Reso
 	)
 
 	for _, row := range rows {
-		resources[ResourceId(row.Resource)].Extra = &internalContainerRepository{Name: row.Name}
+		r := resources[ResourceId(row.Resource)]
+		r.Extra = &internalContainerRepository{
+			Name:   row.Name,
+			Public: r.PublicRead,
+		}
 	}
 }
 
@@ -448,6 +501,18 @@ func containerRepositoryPersist(b *db.Batch, r *resource) {
 	}
 
 	repository := r.Extra.(*internalContainerRepository)
+	db.BatchExec(
+		b,
+		`
+			update provider.resource
+			set public_read = :public_read
+			where id = :resource
+		`,
+		db.Params{
+			"public_read": r.PublicRead,
+			"resource":    r.Id,
+		},
+	)
 	db.BatchExec(
 		b,
 		`
@@ -476,7 +541,13 @@ func containerRepositoryTransform(
 	result := orcapi.ContainerRepository{
 		Resource: r,
 		Specification: orcapi.ContainerRepositorySpecification{
-			Name:                  repository.Name,
+			Name:   repository.Name,
+			Public: repository.Public,
+			PublicAccessEnabled: coreutil.FeatureIsEnabledForOwner(
+				r.Owner.CreatedBy,
+				r.Owner.Project.GetOrDefault(""),
+				fndapi.FeatureContainerRepositories,
+			) == nil,
 			ResourceSpecification: specification,
 		},
 		Status: orcapi.ContainerRepositoryStatus{},

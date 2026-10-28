@@ -626,7 +626,7 @@ func privateNetworkIpReservationsByAddress(network orcapi.PrivateNetwork, normal
 	var result []*resource
 	for _, id := range ids {
 		b := resourceGetBucket(privateNetworkIpType, id)
-		r, ok, _ := resourcesReadEx(rpc.ActorSystem, privateNetworkIpType, orcapi.PermissionRead, b, id, nil)
+		r, ok, _, _ := resourcesReadEx(rpc.ActorSystem, privateNetworkIpType, orcapi.PermissionRead, b, id, nil, false)
 		if !ok || r == nil {
 			continue
 		}
