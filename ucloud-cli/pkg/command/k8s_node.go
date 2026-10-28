@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -50,7 +49,7 @@ func (c *K8sClusterNodeCommand) HelpNotes() []string {
 	}
 }
 
-func (c *K8sClusterNodeCommand) Execute() error {
+func (c *K8sClusterNodeCommand) Execute() (resultErr error) {
 	action := strings.ToLower(strings.TrimSpace(c.Action))
 	switch action {
 	case k8sapi.NodeActionDrain,
@@ -105,11 +104,7 @@ func (c *K8sClusterNodeCommand) Execute() error {
 		return fmt.Errorf("--force requires --drain")
 	}
 
-	cfg, err := k8sInitialize(c.Workspace)
-	if err != nil {
-		return err
-	}
-	output, err := k8sOutputFormat(c.Output, cfg)
+	_, output, err := k8sInitializeOutput(c.Workspace, c.Output)
 	if err != nil {
 		return err
 	}
@@ -117,18 +112,16 @@ func (c *K8sClusterNodeCommand) Execute() error {
 	ctx, cancel := context.WithTimeout(context.Background(), k8sConnectTimeout)
 	defer cancel()
 
-	stack, err := k8sRetrieveCluster(name)
-	if err != nil {
-		return err
-	}
-
-	client, err := k8sConnectCluster(ctx, stack)
+	client, err := k8sConnectNamedCluster(ctx, name)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 
-	client.SetMessageHandler(k8sPrintProgressMessage)
+	messages := k8sStartMessages(client, output)
+	defer func() {
+		resultErr = k8sStopMessages(client, messages, resultErr)
+	}()
 
 	request := k8sapi.NodeActionRequest{
 		Action:                  action,
@@ -163,7 +156,8 @@ func (c *K8sClusterNodeCommand) Execute() error {
 
 	completed := false
 	if c.Wait {
-		if err := k8sWaitForNodeOperation(client, name, response); err != nil {
+		err := k8sWaitForNodeOperation(client, name, response, messages)
+		if err != nil {
 			return err
 		}
 		completed = true
@@ -172,22 +166,24 @@ func (c *K8sClusterNodeCommand) Execute() error {
 	return k8sPrintNodeActionResult(name, response, completed, output)
 }
 
-func k8sWaitForNodeOperation(client *iapp.Client, cluster string, result k8sapi.NodeActionResponse) error {
+func k8sWaitForNodeOperation(client *iapp.Client, cluster string, result k8sapi.NodeActionResponse, messages *k8sMessageState) error {
 	ctx, cancel := context.WithTimeout(context.Background(), k8sNodeWaitTimeout)
 	defer cancel()
 
 	client.SetMessageHandler(nil)
 
-	progress := termio.NewProgressList(
-		os.Stderr,
-		fmt.Sprintf("Waiting for %s of node %s", result.Action, result.Node),
+	progressOutput := outputProgressWriter(messages.output == "json")
+	progress := k8sStartWaitProgress(
+		client,
+		messages,
+		progressOutput,
+		fmt.Sprintf("Waiting for %s of node %s", result.Action, termio.QuoteName(result.Node)),
 	)
-	progress.Start()
-	defer progress.Stop()
+	defer k8sStopWaitProgress(client, progress)
 
 	progress.SetItem(termio.ProgressItem{
 		Key:    "node",
-		Label:  result.Node,
+		Label:  termio.EscapeName(result.Node),
 		Status: "pending",
 		State:  termio.ProgressPending,
 	})
@@ -213,7 +209,7 @@ func k8sWaitForNodeOperation(client *iapp.Client, cluster string, result k8sapi.
 				lastPhase = operation.Phase
 				progress.SetItem(termio.ProgressItem{
 					Key:    "node",
-					Label:  result.Node,
+					Label:  termio.EscapeName(result.Node),
 					Status: k8sNodeOperationLabel(operation),
 					State:  k8sMaintenanceState(operation.Phase),
 				})
@@ -221,13 +217,13 @@ func k8sWaitForNodeOperation(client *iapp.Client, cluster string, result k8sapi.
 
 			if !k8sMaintenanceActive(operation.Phase) {
 				if result.Action == k8sapi.NodeActionCancel {
-					progress.Summary(fmt.Sprintf("Node %s has no active operation", result.Node))
+					progress.Summary(outputSuccessText(progressOutput, fmt.Sprintf("Node %s has no active operation", termio.QuoteName(result.Node))))
 					return nil
 				}
 
 				if operation.Phase == k8sapi.MaintenancePhaseCompleted {
 					if result.Action != k8sapi.NodeActionRemove {
-						progress.Summary(fmt.Sprintf("Node %s %s completed", result.Node, result.Action))
+						progress.Summary(outputSuccessText(progressOutput, fmt.Sprintf("Node %s %s completed", termio.QuoteName(result.Node), result.Action)))
 						return nil
 					}
 				} else {
@@ -235,24 +231,18 @@ func k8sWaitForNodeOperation(client *iapp.Client, cluster string, result k8sapi.
 					if message == "" {
 						message = "the operation ended in phase " + operation.Phase
 					}
-					progress.SetItem(termio.ProgressItem{
-						Key:    "node",
-						Label:  result.Node,
-						Status: message,
-						State:  termio.ProgressFailure,
-					})
-					return fmt.Errorf("the %s of node %s failed: %s", result.Action, result.Node, message)
+					return fmt.Errorf("the %s of node %s failed: %s", result.Action, termio.QuoteName(result.Node), message)
 				}
 			}
 		}
 
 		if result.Action == k8sapi.NodeActionRemove && !k8sNodeExists(response.Nodes, result.Node) {
-			progress.Summary(fmt.Sprintf("Node %s has been removed", result.Node))
+			progress.Summary(outputSuccessText(progressOutput, fmt.Sprintf("Node %s has been removed", termio.QuoteName(result.Node))))
 			return nil
 		}
 
 		if result.Action == k8sapi.NodeActionCancel && !found {
-			progress.Summary(fmt.Sprintf("Node %s has no active operation", result.Node))
+			progress.Summary(outputSuccessText(progressOutput, fmt.Sprintf("Node %s has no active operation", termio.QuoteName(result.Node))))
 			return nil
 		}
 
@@ -304,7 +294,7 @@ func k8sNodeWaitTimeoutError(result k8sapi.NodeActionResponse, cluster string) e
 	return fmt.Errorf(
 		"the %s of node %s did not finish within %s; use the dashboard at %s",
 		result.Action,
-		result.Node,
+		termio.QuoteName(result.Node),
 		k8sNodeWaitTimeout,
 		k8sValueOrDash(k8sDashboardURL(cluster)),
 	)
@@ -329,21 +319,14 @@ func k8sPrintNodeActionResult(
 		})
 	}
 
-	k8sPrintResultSpacer()
-
-	frame := termio.Frame{}
-	frame.Title("Cluster " + cluster)
-	if completed {
-		frame.AppendFieldStyled("Status", termio.Success("Completed"))
-	} else {
-		frame.AppendFieldStyled("Status", termio.Subtle("Requested"))
-	}
-	frame.AppendField("Node", result.Node)
+	message := fmt.Sprintf("Node %s %s requested", termio.QuoteName(result.Node), result.Action)
+	frame := k8sActionResultFrame(cluster, completed, message)
+	frame.AppendField("Node", termio.EscapeName(result.Node))
 	frame.AppendField("Action", result.Action)
 	if result.OperationUid != "" {
 		frame.AppendField("Operation", result.OperationUid)
 	}
-	frame.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
+	frame.AppendField("Dashboard", outputLink(dashboardUrl))
 	frame.Print()
 	return nil
 }

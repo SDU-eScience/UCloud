@@ -40,7 +40,7 @@ func k8sProvisioningNodeFailure(
 		}
 		return fmt.Errorf(
 			"the node %s failed to provision; use the dashboard at %s",
-			node.Hostname,
+			termio.QuoteName(node.Hostname),
 			k8sValueOrDash(k8sDashboardURL(name)),
 		)
 	}
@@ -79,7 +79,7 @@ func k8sWaitSleep(ctx context.Context) bool {
 
 func k8sWaitTimeoutError(name string) error {
 	return fmt.Errorf(
-		"the cluster did not become ready within %s; use the dashboard at %s",
+		"the cluster did not finish bootstrapping and become ready within %s; use the dashboard at %s",
 		k8sWaitTimeout,
 		k8sValueOrDash(k8sDashboardURL(name)),
 	)
@@ -87,8 +87,8 @@ func k8sWaitTimeoutError(name string) error {
 
 func k8sPoolWaitTimeoutError(name string, pool string) error {
 	return fmt.Errorf(
-		"the pool %s did not reach the target within %s; use the dashboard at %s",
-		pool,
+		"the pool %s did not finish bootstrapping and reach the target within %s; use the dashboard at %s",
+		termio.QuoteName(pool),
 		k8sWaitTimeout,
 		k8sValueOrDash(k8sDashboardURL(name)),
 	)
@@ -118,23 +118,14 @@ func k8sWaitSetProgress(
 	stages *k8sJobStages,
 	include func(k8sapi.ProvisioningNodeStatus) bool,
 ) {
-	nodes := make(map[string]k8sapi.ProvisioningNodeStatus, len(response.Nodes))
+	nodes := make([]k8sapi.ProvisioningNodeStatus, 0, len(response.Nodes))
 	for _, node := range response.Nodes {
 		if include != nil && !include(node) {
 			continue
 		}
-		nodes[node.Hostname] = node
+		nodes = append(nodes, node)
 	}
-
-	stages.SetListener(func(hostname string, stage k8sJobStage) {
-		node, ok := nodes[hostname]
-		if !ok {
-			return
-		}
-		progress.SetItem(k8sWaitItemWithStage(node.Hostname, node.Status, node.State, stage, true))
-	})
-
-	progress.SetItems(k8sWaitProgressItems(response, stages, include))
+	k8sWaitSetNodes(progress, nodes, stages)
 }
 
 func k8sWaitSetJobProgress(
@@ -143,42 +134,60 @@ func k8sWaitSetJobProgress(
 	stages *k8sJobStages,
 ) {
 	jobs := k8sWaitStackJobs(stack)
-	byHostname := make(map[string]orcapi.Job, len(jobs))
+	nodes := make([]k8sapi.ProvisioningNodeStatus, 0, len(jobs))
 	for _, job := range jobs {
-		byHostname[k8sWaitJobName(job)] = job
-	}
-
-	stages.SetListener(func(hostname string, stage k8sJobStage) {
-		job, ok := byHostname[hostname]
-		if !ok {
-			return
-		}
-
 		status := k8sapi.ProvisioningStatusFromJobState(job.Status.State)
 		if status == "" {
 			status = k8sapi.ProvisioningStatusProvisioning
 		}
-		progress.SetItem(k8sWaitItemWithStage(hostname, status, "", stage, true))
-	})
-
-	progress.SetItems(k8sWaitJobItems(jobs, stages))
+		nodes = append(nodes, k8sapi.ProvisioningNodeStatus{
+			Hostname: k8sWaitJobName(job),
+			JobId:    job.Id,
+			Status:   status,
+		})
+	}
+	k8sWaitSetNodes(progress, nodes, stages)
 }
 
-func k8sWaitProgressItems(
+func k8sWaitSetNodes(progress *termio.ProgressList, nodes []k8sapi.ProvisioningNodeStatus, stages *k8sJobStages) {
+	byHostname := make(map[string]k8sapi.ProvisioningNodeStatus, len(nodes))
+	for _, node := range nodes {
+		byHostname[node.Hostname] = node
+	}
+
+	items := make([]termio.ProgressItem, 0, len(nodes))
+	for _, node := range nodes {
+		stages.Track(node.Hostname, node.JobId)
+		items = append(items, k8sWaitItem(node.Hostname, node.Status, node.State, stages))
+	}
+	progress.SetItems(items)
+	stages.SetListener(func(hostname string, stage k8sJobStage) {
+		node, ok := byHostname[hostname]
+		if !ok {
+			return
+		}
+		progress.SetItem(k8sWaitItemWithStage(hostname, node.Status, node.State, stage, true))
+	})
+}
+
+func k8sWaitBootstrapComplete(
 	response k8sapi.ProvisioningStatusResponse,
 	stages *k8sJobStages,
 	include func(k8sapi.ProvisioningNodeStatus) bool,
-) []termio.ProgressItem {
-	items := make([]termio.ProgressItem, 0, len(response.Nodes))
+) bool {
+	count := 0
 	for _, node := range response.Nodes {
 		if include != nil && !include(node) {
 			continue
 		}
 
-		stages.Track(node.Hostname, node.JobId)
-		items = append(items, k8sWaitItem(node.Hostname, node.Status, node.State, stages))
+		count++
+		stage, ok := stages.Stage(node.Hostname)
+		if !ok || stage.Text == "" || !stage.Known || stage.Progress < 1 {
+			return false
+		}
 	}
-	return items
+	return count > 0
 }
 
 func k8sWaitStackJobs(stack orcapi.Stack) []orcapi.Job {
@@ -216,22 +225,6 @@ func k8sWaitStackJobs(stack orcapi.Stack) []orcapi.Job {
 	return jobs
 }
 
-func k8sWaitJobItems(jobs []orcapi.Job, stages *k8sJobStages) []termio.ProgressItem {
-	items := make([]termio.ProgressItem, 0, len(jobs))
-	for _, job := range jobs {
-		hostname := k8sWaitJobName(job)
-		stages.Track(hostname, job.Id)
-
-		status := k8sapi.ProvisioningStatusFromJobState(job.Status.State)
-		if status == "" {
-			status = k8sapi.ProvisioningStatusProvisioning
-		}
-
-		items = append(items, k8sWaitItem(hostname, status, "", stages))
-	}
-	return items
-}
-
 func k8sWaitItem(
 	hostname string,
 	status string,
@@ -256,7 +249,7 @@ func k8sWaitItemWithStage(
 		progress := stage.Progress
 		known := stage.Known
 
-		if state == k8sapi.NodeStateReady || (status == k8sapi.ProvisioningStatusReady && state == "") {
+		if stage.Known && stage.Progress >= 1 {
 			progressState = termio.ProgressSuccess
 			progress = 1
 			known = true
@@ -264,7 +257,7 @@ func k8sWaitItemWithStage(
 
 		return termio.ProgressItem{
 			Key:      hostname,
-			Label:    hostname,
+			Label:    termio.EscapeName(hostname),
 			Status:   stage.Text,
 			Progress: progress,
 			Known:    known,
@@ -272,10 +265,20 @@ func k8sWaitItemWithStage(
 		}
 	}
 
+	waitingForStage := !hasStage || stage.Text == ""
+	if status == k8sapi.ProvisioningStatusReady && state == k8sapi.NodeStateReady && waitingForStage {
+		return termio.ProgressItem{
+			Key:    hostname,
+			Label:  termio.EscapeName(hostname),
+			Status: k8sapi.ProvisioningStatusInitializing,
+			State:  termio.ProgressRunning,
+		}
+	}
+
 	label, progressState, progress, known := k8sProvisioningPresentation(status, state)
 	return termio.ProgressItem{
 		Key:      hostname,
-		Label:    hostname,
+		Label:    termio.EscapeName(hostname),
 		Status:   label,
 		Progress: progress,
 		Known:    known,

@@ -12,18 +12,11 @@ type appShellProps struct {
 }
 
 func (app *stackUiApp) appShell(props appShellProps) ucx.UiNode {
-	navItems := app.resourceNavItems()
-
-	if app.k8sClient == nil {
-		for i := range navItems {
-			if navItems[i].Id == navHomeId {
-				continue
-			}
-			navItems[i].Disabled = true
-			for j := range navItems[i].Children {
-				navItems[i].Children[j].Disabled = true
-			}
-		}
+	var navItems []ucx.NavItem
+	if app.k8sClient != nil {
+		navItems = app.resourceNavItems()
+	} else {
+		navItems = []ucx.NavItem{dashboardHomeNavItem()}
 	}
 
 	navTree := ucx.NavTreeEx("resourceNav", "activeType", navItems).

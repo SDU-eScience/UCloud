@@ -218,7 +218,7 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 	}
 	upgradePage := app.maintenanceMode == maintenanceModeUpgrade || (app.maintenanceMode == "" && isUpgrade)
 	if upgradePage {
-		content = append(content, ucx.LinkButton("maintenanceRollingUpgrade", "Want to upgrade the entire cluster in a rolling fashion?", ucx.ColorPrimaryMain).
+		content = append(content, ucx.LinkButton("maintenanceRollingUpgrade", "Want to upgrade the entire cluster in a rolling fashion?", ucx.ColorLinkColor).
 			Sx(ucx.SxFontSize(14), ucx.SxFontWeight("400")).
 			On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 				ucxsvc.RouterPushPage(app, "rolling-upgrade")

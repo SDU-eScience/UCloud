@@ -1341,11 +1341,10 @@ const baseComponents: UcxComponentRegistry = {
             ? modelString(model, node.bindPath, scope)
             : stringProp(node, "label", stringProp(node, "text", ""));
         if (!label) return null;
-        const color = stringProp(node, "color", "linkColor");
 
         return <BaseLink
-            color={color as any}
-            hoverColor={color as any}
+            color="linkColor"
+            hoverColor="linkColor"
             onClick={ev => {
                 ev.preventDefault();
                 fn.sendUiEvent(node.id, "click", undefined);

@@ -10,6 +10,7 @@ import (
 type Table struct {
 	header        []TableHeader
 	rows          [][]StyledString
+	emptyMessage  string
 	fill          bool
 	brightBorders bool
 }
@@ -58,6 +59,10 @@ func (t *Table) SetFill(fill bool) {
 
 func (t *Table) SetDimBorders(dim bool) {
 	t.brightBorders = !dim
+}
+
+func (t *Table) SetEmptyMessage(message string) {
+	t.emptyMessage = message
 }
 
 func (t *Table) Cell(formatString string, args ...any) {
@@ -146,8 +151,12 @@ func (t *Table) stringWithWidths(
 	}
 
 	spaceAssignment := assignColumnWidths(ptyCols, preferredWidths, fillColumn)
+	emptyMessage := tableEmptyMessage
+	if t.emptyMessage != "" {
+		emptyMessage = " " + t.emptyMessage
+	}
 	if len(t.rows) == 0 {
-		spaceAssignment = growColumnsForEmptyMessage(spaceAssignment, utf8.RuneCountInString(tableEmptyMessage)+1)
+		spaceAssignment = growColumnsForEmptyMessage(spaceAssignment, utf8.RuneCountInString(emptyMessage)+1)
 	}
 	builder := strings.Builder{}
 
@@ -228,7 +237,7 @@ func (t *Table) stringWithWidths(
 	builder.WriteString("\n")
 
 	if len(t.rows) == 0 {
-		message := tableEmptyMessage
+		message := emptyMessage
 		padding := max(0, tableWidth-2-utf8.RuneCountInString(message))
 		builder.WriteString(border(boxVerticalBar))
 		builder.WriteString(WriteStyledStringIf(styled, 0, Muted, DefaultColor, "%s", message))

@@ -2489,7 +2489,7 @@ const InferenceCreditsStyle = injectStyle("inference-credits", k => `
     }
 
     ${k} .expand {
-        color: var(--primaryMain);
+        color: var(--linkColor);
         display: flex;
         align-items: center;
         gap: 4px;

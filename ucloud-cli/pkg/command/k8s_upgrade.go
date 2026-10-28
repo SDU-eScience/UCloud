@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -62,7 +61,7 @@ func (c *K8sClusterUpgradeCommand) HelpNotes() []string {
 	}
 }
 
-func (c *K8sClusterUpgradeCommand) Execute() error {
+func (c *K8sClusterUpgradeCommand) Execute() (resultErr error) {
 	name := strings.TrimSpace(c.Name)
 	if name == "" {
 		return fmt.Errorf("a cluster name is required")
@@ -93,11 +92,7 @@ func (c *K8sClusterUpgradeCommand) Execute() error {
 		}
 	}
 
-	cfg, err := k8sInitialize(c.Workspace)
-	if err != nil {
-		return err
-	}
-	output, err := k8sOutputFormat(c.Output, cfg)
+	_, output, err := k8sInitializeOutput(c.Workspace, c.Output)
 	if err != nil {
 		return err
 	}
@@ -105,18 +100,16 @@ func (c *K8sClusterUpgradeCommand) Execute() error {
 	connectCtx, connectCancel := context.WithTimeout(context.Background(), k8sConnectTimeout)
 	defer connectCancel()
 
-	stack, err := k8sRetrieveCluster(name)
-	if err != nil {
-		return err
-	}
-
-	client, err := k8sConnectCluster(connectCtx, stack)
+	client, err := k8sConnectNamedCluster(connectCtx, name)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 
-	client.SetMessageHandler(k8sPrintProgressMessage)
+	messages := k8sStartMessages(client, output)
+	defer func() {
+		resultErr = k8sStopMessages(client, messages, resultErr)
+	}()
 
 	callCtx, callCancel := context.WithTimeout(context.Background(), k8sConnectTimeout)
 	defer callCancel()
@@ -134,7 +127,8 @@ func (c *K8sClusterUpgradeCommand) Execute() error {
 
 	completed := false
 	if c.Wait {
-		if err := k8sWaitForUpgrade(client, name, response.Uid, response.TargetRelease); err != nil {
+		err := k8sWaitForUpgrade(client, name, response.Uid, response.TargetRelease, messages)
+		if err != nil {
 			return err
 		}
 		completed = true
@@ -150,17 +144,13 @@ func (c *K8sClusterBackupCommand) HelpNotes() []string {
 	}
 }
 
-func (c *K8sClusterBackupCommand) Execute() error {
+func (c *K8sClusterBackupCommand) Execute() (resultErr error) {
 	name := strings.TrimSpace(c.Name)
 	if name == "" {
 		return fmt.Errorf("a cluster name is required")
 	}
 
-	cfg, err := k8sInitialize(c.Workspace)
-	if err != nil {
-		return err
-	}
-	output, err := k8sOutputFormat(c.Output, cfg)
+	_, output, err := k8sInitializeOutput(c.Workspace, c.Output)
 	if err != nil {
 		return err
 	}
@@ -168,18 +158,16 @@ func (c *K8sClusterBackupCommand) Execute() error {
 	connectCtx, connectCancel := context.WithTimeout(context.Background(), k8sConnectTimeout)
 	defer connectCancel()
 
-	stack, err := k8sRetrieveCluster(name)
-	if err != nil {
-		return err
-	}
-
-	client, err := k8sConnectCluster(connectCtx, stack)
+	client, err := k8sConnectNamedCluster(connectCtx, name)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 
-	client.SetMessageHandler(k8sPrintProgressMessage)
+	messages := k8sStartMessages(client, output)
+	defer func() {
+		resultErr = k8sStopMessages(client, messages, resultErr)
+	}()
 
 	callCtx, callCancel := context.WithTimeout(context.Background(), k8sConnectTimeout)
 	defer callCancel()
@@ -191,7 +179,8 @@ func (c *K8sClusterBackupCommand) Execute() error {
 
 	completed := false
 	if c.Wait {
-		if err := k8sWaitForBackup(client, name, response.Uid); err != nil {
+		err := k8sWaitForBackup(client, name, response.Uid, messages)
+		if err != nil {
 			return err
 		}
 		completed = true
@@ -200,18 +189,20 @@ func (c *K8sClusterBackupCommand) Execute() error {
 	return k8sPrintBackupResult(name, response, completed, output)
 }
 
-func k8sWaitForUpgrade(client *iapp.Client, cluster string, uid string, target string) error {
+func k8sWaitForUpgrade(client *iapp.Client, cluster string, uid string, target string, messages *k8sMessageState) error {
 	ctx, cancel := context.WithTimeout(context.Background(), k8sUpgradeWaitTimeout)
 	defer cancel()
 
 	client.SetMessageHandler(nil)
 
-	progress := termio.NewProgressList(
-		os.Stderr,
-		fmt.Sprintf("Upgrading cluster %s to %s", cluster, target),
+	progressOutput := outputProgressWriter(messages.output == "json")
+	progress := k8sStartWaitProgress(
+		client,
+		messages,
+		progressOutput,
+		fmt.Sprintf("Upgrading cluster %s to %s", termio.QuoteName(cluster), target),
 	)
-	progress.Start()
-	defer progress.Stop()
+	defer k8sStopWaitProgress(client, progress)
 
 	states := map[string]string{}
 	for {
@@ -251,7 +242,7 @@ func k8sWaitForUpgrade(client *iapp.Client, cluster string, uid string, target s
 				states[node.Name] = phase
 				progress.SetItem(termio.ProgressItem{
 					Key:    node.Name,
-					Label:  fmt.Sprintf("%s (%s)", node.Name, node.Group),
+					Label:  fmt.Sprintf("%s (%s)", termio.EscapeName(node.Name), termio.EscapeName(node.Group)),
 					Status: k8sUpgradePhaseLabel(phase),
 					State:  k8sMaintenanceState(phase),
 				})
@@ -260,7 +251,7 @@ func k8sWaitForUpgrade(client *iapp.Client, cluster string, uid string, target s
 
 		switch upgrade.Phase {
 		case k8sapi.MaintenancePhaseCompleted:
-			progress.Summary(fmt.Sprintf("Upgrade to %s completed", upgrade.TargetRelease))
+			progress.Summary(outputSuccessText(progressOutput, fmt.Sprintf("Upgrade to %s completed", upgrade.TargetRelease)))
 			return nil
 
 		case k8sapi.MaintenancePhaseFailed,
@@ -283,18 +274,20 @@ func k8sWaitForUpgrade(client *iapp.Client, cluster string, uid string, target s
 	}
 }
 
-func k8sWaitForBackup(client *iapp.Client, cluster string, uid string) error {
+func k8sWaitForBackup(client *iapp.Client, cluster string, uid string, messages *k8sMessageState) error {
 	ctx, cancel := context.WithTimeout(context.Background(), k8sBackupWaitTimeout)
 	defer cancel()
 
 	client.SetMessageHandler(nil)
 
-	progress := termio.NewProgressList(
-		os.Stderr,
-		fmt.Sprintf("Waiting for the backup of cluster %s", cluster),
+	progressOutput := outputProgressWriter(messages.output == "json")
+	progress := k8sStartWaitProgress(
+		client,
+		messages,
+		progressOutput,
+		fmt.Sprintf("Waiting for the backup of cluster %s", termio.QuoteName(cluster)),
 	)
-	progress.Start()
-	defer progress.Stop()
+	defer k8sStopWaitProgress(client, progress)
 
 	progress.SetItem(termio.ProgressItem{
 		Key:    "backup",
@@ -336,7 +329,7 @@ func k8sWaitForBackup(client *iapp.Client, cluster string, uid string) error {
 
 			switch backup.RequestPhase {
 			case k8sapi.BackupRequestCompleted:
-				progress.Summary("Backup completed")
+				progress.Summary(outputSuccessText(progressOutput, "Backup completed"))
 				return nil
 
 			case k8sapi.BackupRequestFailed:
@@ -344,11 +337,6 @@ func k8sWaitForBackup(client *iapp.Client, cluster string, uid string) error {
 				if reason == "" {
 					reason = "the backup failed"
 				}
-				progress.SetItem(termio.ProgressItem{
-					Key:    "backup",
-					Status: reason,
-					State:  termio.ProgressFailure,
-				})
 				return fmt.Errorf(
 					"the backup failed: %s; use the dashboard at %s",
 					reason,
@@ -423,20 +411,13 @@ func k8sPrintUpgradeResult(
 		})
 	}
 
-	k8sPrintResultSpacer()
-
-	frame := termio.Frame{}
-	frame.Title("Cluster " + cluster)
-	if completed {
-		frame.AppendFieldStyled("Status", termio.Success("Completed"))
-	} else {
-		frame.AppendFieldStyled("Status", termio.Subtle("Started"))
-	}
+	message := fmt.Sprintf("Upgrade started for cluster %s", termio.QuoteName(cluster))
+	frame := k8sActionResultFrame(cluster, completed, message)
 	frame.AppendField("Target", response.TargetRelease)
 	if response.Uid != "" {
 		frame.AppendField("Upgrade", response.Uid)
 	}
-	frame.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
+	frame.AppendField("Dashboard", outputLink(dashboardUrl))
 	frame.Print()
 	return nil
 }
@@ -464,18 +445,11 @@ func k8sPrintBackupResult(
 		})
 	}
 
-	k8sPrintResultSpacer()
-
-	frame := termio.Frame{}
-	frame.Title("Cluster " + cluster)
-	if completed {
-		frame.AppendFieldStyled("Status", termio.Success("Completed"))
-	} else {
-		frame.AppendFieldStyled("Status", termio.Subtle("Started"))
-	}
+	message := fmt.Sprintf("Backup started for cluster %s", termio.QuoteName(cluster))
+	frame := k8sActionResultFrame(cluster, completed, message)
 	frame.AppendField("Backup", response.Uid)
 	frame.AppendField("Phase", phase)
-	frame.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
+	frame.AppendField("Dashboard", outputLink(dashboardUrl))
 	frame.Print()
 	return nil
 }

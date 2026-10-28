@@ -31,28 +31,45 @@ type ProgressItem struct {
 }
 
 type progressSnapshot struct {
+	Label  string
 	Status string
 	State  ProgressState
-	Known  bool
-	Bucket int
+}
+
+type progressMilestone struct {
+	message string
+	success bool
+	warning bool
+	first   bool
+}
+
+type progressAlert struct {
+	Key    string
+	Label  string
+	Status string
+	State  ProgressState
 }
 
 type ProgressList struct {
-	out        io.Writer
-	pty        bool
-	color      bool
-	mu         sync.Mutex
-	title      string
-	items      []ProgressItem
-	milestones []string
-	summary    string
-	previous   map[string]progressSnapshot
-	started    bool
-	stopped    bool
-	frame      int
-	lastLines  int
-	done       chan struct{}
-	wg         sync.WaitGroup
+	out                  io.Writer
+	pty                  bool
+	color                bool
+	mu                   sync.Mutex
+	title                string
+	items                []ProgressItem
+	milestones           []progressMilestone
+	summary              string
+	previous             map[string]progressSnapshot
+	hiddenAlerts         []ProgressItem
+	seenHiddenAlerts     map[progressAlert]bool
+	separateItems        bool
+	itemSeparatorPrinted bool
+	started              bool
+	stopped              bool
+	frame                int
+	lastLines            int
+	done                 chan struct{}
+	wg                   sync.WaitGroup
 }
 
 const (
@@ -71,12 +88,13 @@ func NewProgressList(out io.Writer, title string) *ProgressList {
 		out = os.Stderr
 	}
 	return &ProgressList{
-		out:      out,
-		pty:      isPtyWriter(out),
-		color:    ColorEnabled(out),
-		title:    title,
-		previous: map[string]progressSnapshot{},
-		done:     make(chan struct{}),
+		out:              out,
+		pty:              isPtyWriter(out),
+		color:            ColorEnabled(out),
+		title:            title,
+		previous:         map[string]progressSnapshot{},
+		seenHiddenAlerts: map[progressAlert]bool{},
+		done:             make(chan struct{}),
 	}
 }
 
@@ -119,6 +137,24 @@ func (p *ProgressList) Stop() {
 
 	if started && p.pty {
 		p.renderPtyLocked()
+		if len(p.hiddenAlerts) > 0 {
+			summary := p.summary
+			if summary != "" {
+				p.summary = ""
+				p.renderPtyLocked()
+				p.summary = summary
+			}
+
+			fmt.Fprintln(p.out)
+			maxLabelWidth := progressMaxLabelWidth(p.hiddenAlerts)
+			for _, alert := range p.hiddenAlerts {
+				fmt.Fprintln(p.out, p.compactItemLineLocked(alert, maxLabelWidth))
+			}
+			if summary != "" {
+				fmt.Fprintln(p.out)
+				fmt.Fprintln(p.out, WriteStyledStringIf(p.color, Bold, DefaultColor, DefaultColor, "%s", summary))
+			}
+		}
 		_, _ = io.WriteString(p.out, "\033[?25h")
 	}
 	p.mu.Unlock()
@@ -130,7 +166,33 @@ func (p *ProgressList) Stop() {
 }
 
 func (p *ProgressList) Milestone(message string) {
-	if message == "" {
+	p.addMilestone(progressMilestone{message: message})
+}
+
+func (p *ProgressList) MilestoneSuccess(message string) {
+	p.addMilestone(progressMilestone{
+		message: message,
+		success: true,
+	})
+}
+
+func (p *ProgressList) MilestoneWarning(message string) {
+	p.addMilestone(progressMilestone{
+		message: message,
+		warning: true,
+	})
+}
+
+func (p *ProgressList) MilestoneSuccessFirst(message string) {
+	p.addMilestone(progressMilestone{
+		message: message,
+		success: true,
+		first:   true,
+	})
+}
+
+func (p *ProgressList) addMilestone(milestone progressMilestone) {
+	if milestone.message == "" {
 		return
 	}
 
@@ -141,7 +203,11 @@ func (p *ProgressList) Milestone(message string) {
 		return
 	}
 
-	p.milestones = append(p.milestones, message)
+	if milestone.first && p.pty {
+		p.milestones = append([]progressMilestone{milestone}, p.milestones...)
+	} else {
+		p.milestones = append(p.milestones, milestone)
+	}
 	if !p.started {
 		return
 	}
@@ -149,7 +215,7 @@ func (p *ProgressList) Milestone(message string) {
 	if p.pty {
 		p.renderLocked()
 	} else {
-		fmt.Fprintln(p.out, p.milestoneLineLocked(message))
+		fmt.Fprintln(p.out, p.milestoneLineLocked(milestone))
 	}
 }
 
@@ -175,6 +241,16 @@ func (p *ProgressList) Summary(message string) {
 	} else {
 		fmt.Fprintln(p.out)
 		fmt.Fprintln(p.out, WriteStyledStringIf(p.color, Bold, DefaultColor, DefaultColor, "%s", message))
+	}
+}
+
+func (p *ProgressList) SetSeparateItems(separate bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.separateItems = separate
+	if p.started && !p.stopped {
+		p.renderLocked()
 	}
 }
 
@@ -283,20 +359,53 @@ func (p *ProgressList) linesLocked() []string {
 	for _, milestone := range p.milestones {
 		lines = append(lines, p.milestoneLineLocked(milestone))
 	}
-	if (p.title != "" || len(p.milestones) > 0) && len(p.items) > 0 {
+	if (p.separateItems || p.title != "" || len(p.milestones) > 0) && len(p.items) > 0 {
 		lines = append(lines, "")
 	}
 
 	items := p.items
 	hidden := 0
+	hiddenWarnings := 0
+	hiddenFailures := 0
 	if p.pty {
 		maxItems := writerHeight(p.out) - len(p.milestones) - 4
 		if maxItems < 1 {
 			maxItems = 1
 		}
 		if len(items) > maxItems {
-			hidden = len(items) - maxItems
-			items = items[:maxItems]
+			ordered := make([]ProgressItem, 0, len(items))
+			for _, item := range items {
+				if item.State == ProgressWarning || item.State == ProgressFailure {
+					ordered = append(ordered, item)
+				}
+			}
+			for _, item := range items {
+				if item.State != ProgressWarning && item.State != ProgressFailure {
+					ordered = append(ordered, item)
+				}
+			}
+			hidden = len(ordered) - maxItems
+			for _, item := range ordered[maxItems:] {
+				if item.State == ProgressWarning {
+					hiddenWarnings++
+				} else if item.State == ProgressFailure {
+					hiddenFailures++
+				} else {
+					continue
+				}
+
+				alert := progressAlert{
+					Key:    item.Key,
+					Label:  item.Label,
+					Status: item.Status,
+					State:  item.State,
+				}
+				if !p.seenHiddenAlerts[alert] {
+					p.hiddenAlerts = append(p.hiddenAlerts, item)
+					p.seenHiddenAlerts[alert] = true
+				}
+			}
+			items = ordered[:maxItems]
 		}
 	}
 
@@ -305,7 +414,11 @@ func (p *ProgressList) linesLocked() []string {
 		lines = append(lines, p.itemLineLocked(item, maxLabelWidth))
 	}
 	if hidden > 0 {
-		lines = append(lines, Subtle("  … and %d more", hidden).Render(p.color))
+		if hiddenWarnings > 0 || hiddenFailures > 0 {
+			lines = append(lines, Warning("  ! … and %d more (%d warnings, %d failures)", hidden, hiddenWarnings, hiddenFailures).Render(p.color))
+		} else {
+			lines = append(lines, Subtle("  … and %d more", hidden).Render(p.color))
+		}
 	}
 
 	if p.summary != "" {
@@ -316,8 +429,14 @@ func (p *ProgressList) linesLocked() []string {
 	return lines
 }
 
-func (p *ProgressList) milestoneLineLocked(message string) string {
-	return WriteStyledStringIf(p.color, 0, Muted, DefaultColor, "  • %s", message)
+func (p *ProgressList) milestoneLineLocked(milestone progressMilestone) string {
+	if milestone.success {
+		return fmt.Sprintf("  %s %s", Success("✓").Render(p.color), milestone.message)
+	}
+	if milestone.warning {
+		return fmt.Sprintf("  %s %s", Warning("!").Render(p.color), milestone.message)
+	}
+	return WriteStyledStringIf(p.color, 0, Muted, DefaultColor, "  • %s", milestone.message)
 }
 
 func progressMaxLabelWidth(items []ProgressItem) int {
@@ -573,12 +692,16 @@ func (p *ProgressList) printChangesLocked() {
 	seen := make(map[string]bool, len(p.items))
 	maxLabelWidth := progressMaxLabelWidth(p.items)
 
+	if p.separateItems && !p.itemSeparatorPrinted && len(p.items) > 0 {
+		fmt.Fprintln(p.out)
+		p.itemSeparatorPrinted = true
+	}
+
 	for _, item := range p.items {
 		snapshot := progressSnapshot{
+			Label:  item.Label,
 			Status: item.Status,
 			State:  item.State,
-			Known:  item.Known,
-			Bucket: progressBucket(item),
 		}
 
 		previous, ok := p.previous[item.Key]
@@ -614,26 +737,6 @@ func (p *ProgressList) compactItemLineLocked(item ProgressItem, maxLabelWidth in
 	}
 
 	return line
-}
-
-func progressBucket(item ProgressItem) int {
-	if !item.Known {
-		return -1
-	}
-
-	fraction := item.Progress
-	if fraction < 0 {
-		fraction = 0
-	}
-	if fraction > 1 {
-		fraction = 1
-	}
-
-	bucket := int(fraction * 4)
-	if bucket > 3 {
-		bucket = 3
-	}
-	return bucket
 }
 
 func truncateRunes(value string, width int) string {

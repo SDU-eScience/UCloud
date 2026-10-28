@@ -11,6 +11,7 @@ import (
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
+	"ucloud.dk/shared/pkg/termio"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
@@ -60,7 +61,7 @@ func ConnectAppWithProvider(
 		AppVersion: version,
 	})
 	if httpErr != nil {
-		return nil, fmt.Errorf("could not find application %s: %s", name, httpErr.Why)
+		return nil, fmt.Errorf("could not find application %s: %s", termio.QuoteName(name), httpErr.Why)
 	}
 
 	payload, err := json.Marshal(orcapi.AppUcxConnectRequest{
@@ -71,7 +72,7 @@ func ConnectAppWithProvider(
 		Updates:    orcapi.UcxUpdatesMessages,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("could not prepare the connection to %s: %w", name, err)
+		return nil, fmt.Errorf("could not prepare the connection to %s: %w", termio.QuoteName(name), err)
 	}
 
 	return connect(ctx, "/api/hpc/apps/ucx/connect", string(payload))
@@ -80,7 +81,7 @@ func ConnectAppWithProvider(
 func RetrieveCluster(name string) (orcapi.Stack, error) {
 	stack, httpErr := orcapi.StacksRetrieve.Invoke(fnd.FindByStringId{Id: name})
 	if httpErr != nil {
-		return orcapi.Stack{}, fmt.Errorf("could not find cluster %s: %s", name, httpErr.Why)
+		return orcapi.Stack{}, fmt.Errorf("could not find cluster %s: %s", termio.QuoteName(name), httpErr.Why)
 	}
 	return stack, nil
 }
@@ -89,7 +90,7 @@ func ConnectStack(ctx context.Context, stack orcapi.Stack) (*Client, error) {
 	status := stack.Status.GetOrDefault(orcapi.StackStatus{})
 	jobId := status.UcxConnectJobId.GetOrDefault("")
 	if jobId == "" {
-		return nil, fmt.Errorf("cluster %s is not available for management right now", stack.Id)
+		return nil, fmt.Errorf("cluster %s is not available for management right now", termio.QuoteName(stack.Id))
 	}
 
 	payload, err := json.Marshal(orcapi.AppUcxConnectJobRequest{
@@ -98,7 +99,7 @@ func ConnectStack(ctx context.Context, stack orcapi.Stack) (*Client, error) {
 		Updates:    orcapi.UcxUpdatesMessages,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("could not prepare the connection to %s: %w", stack.Id, err)
+		return nil, fmt.Errorf("could not prepare the connection to %s: %w", termio.QuoteName(stack.Id), err)
 	}
 
 	return connect(ctx, "/api/hpc/apps/ucx/connectJob", string(payload))

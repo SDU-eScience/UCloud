@@ -7,6 +7,7 @@ import (
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/termio"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -220,8 +221,8 @@ func NormalizeDeployRequest(request DeployRequest) DeployRequest {
 	return request
 }
 
-func ValidateDeployRequest(request DeployRequest) error {
-	name := strings.TrimSpace(request.Name)
+func ValidateClusterName(name string) error {
+	name = strings.TrimSpace(name)
 	if name == "" {
 		return fmt.Errorf("the cluster name must not be empty")
 	}
@@ -229,10 +230,18 @@ func ValidateDeployRequest(request DeployRequest) error {
 		return fmt.Errorf("the cluster name must be at most %d characters", ClusterNameMaxLen)
 	}
 	if !ValidGroupName(name) {
-		return fmt.Errorf("the cluster name may only contain a-z, 0-9 and dashes: %s", name)
+		return fmt.Errorf("the cluster name may only contain a-z, 0-9 and dashes: %s", termio.QuoteName(name))
 	}
 	if strings.HasPrefix(name, GroupControlPlane) {
-		return fmt.Errorf("the cluster name must not start with the reserved name: %s", GroupControlPlane)
+		return fmt.Errorf("the cluster name must not start with the reserved name: %s", termio.QuoteName(GroupControlPlane))
+	}
+	return nil
+}
+
+func ValidateDeployRequest(request DeployRequest) error {
+	err := ValidateClusterName(request.Name)
+	if err != nil {
+		return err
 	}
 
 	provider := strings.TrimSpace(request.Provider)
@@ -245,7 +254,7 @@ func ValidateDeployRequest(request DeployRequest) error {
 		return fmt.Errorf("select a machine type for the control plane")
 	}
 	if controlPlane.Machine.Provider != provider {
-		return fmt.Errorf("the control plane machine must come from the selected service provider (%s)", provider)
+		return fmt.Errorf("the control plane machine must come from the selected service provider (%s)", termio.QuoteName(provider))
 	}
 	switch controlPlane.Nodes {
 	case ControlPlaneMinNodes, 3, 5, ControlPlaneMaxNodes:
@@ -272,40 +281,40 @@ func ValidateDeployRequest(request DeployRequest) error {
 			return fmt.Errorf("worker pool %d must have a name", i+1)
 		}
 		if len(poolName) > PoolNameMaxLen {
-			return fmt.Errorf("worker pool names must be at most %d characters: %s", PoolNameMaxLen, poolName)
+			return fmt.Errorf("worker pool names must be at most %d characters: %s", PoolNameMaxLen, termio.QuoteName(poolName))
 		}
 		if !ValidGroupName(poolName) {
-			return fmt.Errorf("worker pool names may only contain a-z, 0-9 and dashes: %s", poolName)
+			return fmt.Errorf("worker pool names may only contain a-z, 0-9 and dashes: %s", termio.QuoteName(poolName))
 		}
 		if poolName == GroupControlPlane {
-			return fmt.Errorf("the name is reserved for the control plane: %s", poolName)
+			return fmt.Errorf("the name is reserved for the control plane: %s", termio.QuoteName(poolName))
 		}
 		if seen[poolName] {
-			return fmt.Errorf("worker pool names must be unique: %s", poolName)
+			return fmt.Errorf("worker pool names must be unique: %s", termio.QuoteName(poolName))
 		}
 		seen[poolName] = true
 
 		if pool.Machine.Id == "" {
-			return fmt.Errorf("select a machine type for worker pool %s", poolName)
+			return fmt.Errorf("select a machine type for worker pool %s", termio.QuoteName(poolName))
 		}
 		if pool.Machine.Provider != provider {
 			return fmt.Errorf(
 				"the machine for worker pool %s must come from the selected service provider (%s)",
-				poolName,
-				provider,
+				termio.QuoteName(poolName),
+				termio.QuoteName(provider),
 			)
 		}
 		if pool.Nodes < 1 {
-			return fmt.Errorf("worker pool %s needs at least one node", poolName)
+			return fmt.Errorf("worker pool %s needs at least one node", termio.QuoteName(poolName))
 		}
 		if pool.Nodes > MaxPoolNodes {
-			return fmt.Errorf("worker pool %s supports at most %d nodes", poolName, MaxPoolNodes)
+			return fmt.Errorf("worker pool %s supports at most %d nodes", termio.QuoteName(poolName), MaxPoolNodes)
 		}
 		if pool.Disk < MinDiskGb {
-			return fmt.Errorf("worker pool %s needs at least %d GB of disk", poolName, MinDiskGb)
+			return fmt.Errorf("worker pool %s needs at least %d GB of disk", termio.QuoteName(poolName), MinDiskGb)
 		}
 		if pool.Disk > MaxDiskGb {
-			return fmt.Errorf("worker pool %s supports at most %d GB of disk", poolName, MaxDiskGb)
+			return fmt.Errorf("worker pool %s supports at most %d GB of disk", termio.QuoteName(poolName), MaxDiskGb)
 		}
 
 		totalNodes += pool.Nodes

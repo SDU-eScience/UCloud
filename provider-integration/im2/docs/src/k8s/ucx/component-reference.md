@@ -220,7 +220,7 @@ ucx.ExternalLinkButton("openDocs", "Open documentation", "https://example.com", 
 A link-styled clickable label. Fires a normal `UiEventClick` like `Button`, but renders inline as a link.
 
 ```go
-ucx.LinkButton("showResources", "12", ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+ucx.LinkButton("showResources", "12", ucx.ColorLinkColor).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
     // handle click
 })
 ```

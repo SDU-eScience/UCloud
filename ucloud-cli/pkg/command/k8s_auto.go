@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -53,7 +54,7 @@ func (c *K8sClusterAutoCommand) HelpNotes() []string {
 	}
 }
 
-func (c *K8sClusterAutoCommand) Execute() error {
+func (c *K8sClusterAutoCommand) Execute() (resultErr error) {
 	action := strings.ToLower(strings.TrimSpace(c.Action))
 	switch action {
 	case k8sapi.AutoActionShow,
@@ -139,11 +140,7 @@ func (c *K8sClusterAutoCommand) Execute() error {
 		}
 	}
 
-	cfg, err := k8sInitialize(c.Workspace)
-	if err != nil {
-		return err
-	}
-	output, err := k8sOutputFormat(c.Output, cfg)
+	_, output, err := k8sInitializeOutput(c.Workspace, c.Output)
 	if err != nil {
 		return err
 	}
@@ -151,18 +148,16 @@ func (c *K8sClusterAutoCommand) Execute() error {
 	connectCtx, connectCancel := context.WithTimeout(context.Background(), k8sConnectTimeout)
 	defer connectCancel()
 
-	stack, err := k8sRetrieveCluster(name)
-	if err != nil {
-		return err
-	}
-
-	client, err := k8sConnectCluster(connectCtx, stack)
+	client, err := k8sConnectNamedCluster(connectCtx, name)
 	if err != nil {
 		return err
 	}
 	defer client.Close()
 
-	client.SetMessageHandler(k8sPrintProgressMessage)
+	messages := k8sStartMessages(client, output)
+	defer func() {
+		resultErr = k8sStopMessages(client, messages, resultErr)
+	}()
 
 	callCtx, callCancel := context.WithTimeout(context.Background(), k8sConnectTimeout)
 	defer callCancel()
@@ -173,6 +168,9 @@ func (c *K8sClusterAutoCommand) Execute() error {
 	}
 
 	if action == k8sapi.AutoActionShow || action == k8sapi.AutoActionSet {
+		if action == k8sapi.AutoActionSet && output != "json" {
+			fmt.Fprintln(os.Stdout, outputSuccessText(os.Stdout, "Automatic maintenance policy updated"))
+		}
 		return k8sPrintAutoStatus(name, response, output)
 	}
 
@@ -206,9 +204,8 @@ func k8sPrintAutoStatus(cluster string, response k8sapi.AutoResponse, output str
 		})
 	}
 
-	summary := termio.Frame{}
-	summary.Title("Cluster " + cluster)
-	summary.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
+	summary := k8sClusterFrame(cluster)
+	summary.AppendField("Dashboard", outputLink(dashboardUrl))
 	if response.PolicyFound {
 		summary.AppendField("Policy", "stored")
 	} else {
@@ -235,21 +232,19 @@ func k8sPrintAutoStatus(cluster string, response k8sapi.AutoResponse, output str
 	} else if len(response.State.OsRecoveryNodes) == 0 {
 		summary.AppendField("OS recovery", "none")
 	} else {
-		summary.AppendField("OS recovery", strings.Join(response.State.OsRecoveryNodes, ", "))
+		nodes := make([]string, 0, len(response.State.OsRecoveryNodes))
+		for _, node := range response.State.OsRecoveryNodes {
+			nodes = append(nodes, termio.EscapeName(node))
+		}
+		summary.AppendField("OS recovery", strings.Join(nodes, ", "))
 	}
 
 	sections := termio.TableSet{}
 
 	if len(response.State.OsReports) > 0 {
-		reports := termio.Table{}
-		reports.AppendHeader("Node")
-		reports.AppendHeader("Pending")
-		reports.AppendHeader("Security")
-		reports.AppendHeader("Reboot required")
-		reports.AppendHeader("Checked")
-		reports.AppendHeader("Error")
+		reports := outputTable("Node", "Pending", "Security", "Reboot required", "Checked", "Error")
 		for _, report := range response.State.OsReports {
-			reports.Cell("%s", k8sValueOrDash(report.NodeName))
+			reports.Cell("%s", termio.EscapeName(k8sValueOrDash(report.NodeName)))
 			reports.Cell("%d", report.Pending)
 			reports.Cell("%d", report.Security)
 			reports.Cell("%s", k8sAutoBoolLabel(report.RebootRequired))
@@ -260,12 +255,9 @@ func k8sPrintAutoStatus(cluster string, response k8sapi.AutoResponse, output str
 	}
 
 	if len(response.State.LastRun.Checks) > 0 {
-		checks := termio.Table{}
-		checks.AppendHeader("Run check")
-		checks.AppendHeader("OK")
-		checks.AppendHeader("Detail")
+		checks := outputTable("Run check", "OK", "Detail")
 		for _, check := range response.State.LastRun.Checks {
-			checks.Cell("%s", check.Name)
+			checks.Cell("%s", termio.EscapeName(check.Name))
 			checks.Cell("%s", k8sAutoBoolLabel(check.Ok))
 			checks.Cell("%s", k8sValueOrDash(check.Detail))
 		}
@@ -302,16 +294,17 @@ func k8sPrintAutoAction(
 		})
 	}
 
-	k8sPrintResultSpacer()
-
-	frame := termio.Frame{}
-	frame.Title("Cluster " + cluster)
-	frame.AppendFieldStyled("Status", termio.Success("%s", message))
+	displayNode := node
+	if node != "" {
+		displayNode = termio.QuoteName(node)
+	}
+	displayMessage := k8sAutoActionMessage(action, displayNode, response)
+	frame := k8sActionResultFrame(cluster, false, displayMessage)
 	frame.AppendField("Action", action)
 	if node != "" {
-		frame.AppendField("Node", node)
+		frame.AppendField("Node", termio.EscapeName(node))
 	}
-	frame.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
+	frame.AppendField("Dashboard", outputLink(dashboardUrl))
 	frame.Print()
 	return nil
 }

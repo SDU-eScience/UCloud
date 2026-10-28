@@ -122,7 +122,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 	resourcesMetric := []ucx.UiNode{}
 	if stackInfo != nil {
 		resourcesMetric = app.homeMetric("Resources",
-			ucx.LinkButton("homeShowResources", fmt.Sprintf("%d", stackInfo.ResourceCount), ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+			ucx.LinkButton("homeShowResources", fmt.Sprintf("%d", stackInfo.ResourceCount), ucx.ColorLinkColor).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 				ucxsvc.StackShowResources(app)
 			}),
 		)
