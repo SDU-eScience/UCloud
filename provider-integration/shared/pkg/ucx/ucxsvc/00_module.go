@@ -867,18 +867,28 @@ func PrivateNetworkCreateWithCidr(stack *Stack, name string, cidr util.Option[st
 
 	session := *stack.app.Session()
 	products, _ := ucxapi.PrivateNetworksRetrieveProducts.Invoke(session, util.Empty{})
-	if len(products) == 0 {
+	var networkProduct accapi.ProductReference
+	foundEthernetProduct := false
+	for _, product := range products {
+		if product.Support.EffectiveType() == orcapi.NetworkTypeEthernet {
+			networkProduct = product.Product.ToReference()
+			foundEthernetProduct = true
+			break
+		}
+	}
+	if !foundEthernetProduct {
 		stack.Ok = false
-		UiSendFailure(stack.app, "Could not find a suitable private network product, but this stack requires it.")
+		UiSendFailure(stack.app, "Could not find an Ethernet private network product, but this stack requires it.")
 		return PrivateNetworkReference{}, false
 	}
 
 	networks, err := ucxapi.PrivateNetworksCreate.Invoke(session, []orcapi.PrivateNetworkSpecification{
 		{
 			Name: name,
+			Type: orcapi.NetworkTypeEthernet,
 			Cidr: cidr,
 			ResourceSpecification: orcapi.ResourceSpecification{
-				Product: products[0].Product.ToReference(),
+				Product: networkProduct,
 				Labels:  stack.Labels(),
 			},
 		},
