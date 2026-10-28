@@ -202,7 +202,6 @@ func privateNetworkReclaimCandidates(
 					and pc.category = :product_category
 					and pn.network_type = 'infiniband'
 					and pn.cidr_block is not null
-					and not pn.reclaim_protection
 					and pn.last_used_at < :last_used_threshold
 					and (
 						(cast(:due_only as bool) = false and pn.reclaim_state = 'active')
@@ -435,9 +434,6 @@ func privateNetworkReclaimCandidateCheck(
 	if support.EffectiveType() != orcapi.NetworkTypeInfiniband {
 		return false
 	}
-	if network.Specification.ReclaimProtection {
-		return false
-	}
 	if !network.Status.CidrBlock.Present {
 		return false
 	}
@@ -629,7 +625,7 @@ func privateNetworkNotifyReclaimPending(network orcapi.PrivateNetwork, reclaimAf
 	})
 
 	message := fmt.Sprintf(
-		"Network %q is scheduled for deletion at %s unless it is used or protected.",
+		"Network %q is scheduled for deletion at %s unless it is used.",
 		network.Specification.Name,
 		reclaimAfter.Time().UTC().Format(time.RFC3339),
 	)

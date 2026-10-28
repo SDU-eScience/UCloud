@@ -62,4 +62,5 @@ func Init() {
 	db.AddMigration(privateNetworkIpsV3())
 	db.AddMigration(privateNetworksV4())
 	db.AddMigration(privateNetworksV5())
+	db.AddMigration(privateNetworksV6())
 }

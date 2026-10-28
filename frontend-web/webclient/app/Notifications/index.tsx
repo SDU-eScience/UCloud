@@ -63,6 +63,7 @@ function resolveNotification(event: Notification): {
                 color: "warningMain",
                 color2: "warningMain",
                 modifiedTitle: networkName ? `${networkName} is scheduled for deletion` : "Network scheduled for deletion",
+                modifiedMessage: event.message.replace(" unless it is used or protected.", " unless it is used."),
             };
         }
 

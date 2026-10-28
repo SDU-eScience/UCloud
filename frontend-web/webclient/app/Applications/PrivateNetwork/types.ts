@@ -39,7 +39,7 @@ export function networkReclaimStateLabel(state: NetworkReclaimState): string {
         case "pending":
             return "Pending deletion";
         case "reclaiming":
-            return "Reclaiming";
+            return "Deleting";
         default:
             return "Active";
     }

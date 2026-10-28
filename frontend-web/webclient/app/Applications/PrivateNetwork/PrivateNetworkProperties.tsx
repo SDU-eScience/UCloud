@@ -7,14 +7,13 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import MainContainer from "@/ui-components/MainContainer";
 import {Box, Button, Card, Flex, Icon} from "@/ui-components";
-import {Toggle} from "@/ui-components/Toggle";
 import * as Heading from "@/ui-components/Heading";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import {HeroHeaderCard, HeroHeaderGrid, HeroMetric} from "@/Applications/Jobs/HeroHeader";
 import {PrivateNetworkReservations} from "./Reservations";
 import {ActiveNetworkJobs} from "./ActiveNetworkJobs";
 import {PredicatedPermissionsTable} from "@/Resource/Properties";
-import PrivateNetworkApi, {PrivateNetwork, PrivateNetworkSupport} from "@/UCloud/PrivateNetworkApi";
+import PrivateNetworkApi, {PrivateNetwork} from "@/UCloud/PrivateNetworkApi";
 import {placeholderProduct} from "@/UCloud/ResourceApi";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {bulkRequestOf, displayErrorMessageOrDefault} from "@/UtilityFunctions";
@@ -67,7 +66,6 @@ export function PrivateNetworkProperties(): React.ReactNode {
     const projectId = useProjectId();
     const [networkState, fetchNetwork] = useCloudAPI<PrivateNetwork | null>({noop: true}, null);
     const [reservationCount, setReservationCount] = useState<number | null>(null);
-    const [protectionBusy, setProtectionBusy] = useState(false);
 
     usePage("Network", SidebarTabId.RESOURCES);
     useLoading(networkState.loading);
@@ -88,7 +86,6 @@ export function PrivateNetworkProperties(): React.ReactNode {
     };
     const members = network?.status.members ?? [];
     const networkType = network ? privateNetworkTypeFromNetwork(network) : "ethernet";
-    const support = network?.status.resolvedSupport?.support as PrivateNetworkSupport | undefined;
     const deleteNetwork = async () => {
         if (!network) return;
         try {
@@ -96,18 +93,6 @@ export function PrivateNetworkProperties(): React.ReactNode {
             navigate(AppRoutes.resources.networks());
         } catch (e) {
             displayErrorMessageOrDefault(e, "Failed to delete network");
-        }
-    };
-    const setReclaimProtection = async (protectedValue: boolean) => {
-        if (!network) return;
-        setProtectionBusy(true);
-        try {
-            await callAPI(PrivateNetworkApi.setReclaimProtection(network.id, protectedValue));
-            refresh();
-        } catch (e) {
-            displayErrorMessageOrDefault(e, "Failed to update reclaim protection");
-        } finally {
-            setProtectionBusy(false);
         }
     };
 
@@ -150,50 +135,26 @@ export function PrivateNetworkProperties(): React.ReactNode {
                 <TabbedCardTab icon="heroInformationCircle" name="Details">
                     <div className={HeroHeaderGrid}>
                         <HeroMetric title="Type">{privateNetworkTypeLabel(networkType)}</HeroMetric>
-                        <HeroMetric title="Subdomain">{network.status.subdomain ?? "Pending allocation"}</HeroMetric>
+                        {networkType === "ethernet" ?
+                            <HeroMetric title="Subdomain">{network.status.subdomain ?? "Pending allocation"}</HeroMetric> : null}
                         <HeroMetric title="Address range">{network.status.cidrBlock ?? "Pending allocation"}</HeroMetric>
-                        <HeroMetric title="Requested range">{networkType === "infiniband" ?
-                            "Assigned automatically" : network.specification.cidr ?? "Automatic"}</HeroMetric>
-                        {networkType === "infiniband" ?
-                            <HeroMetric title="RDMA resource">{support?.rdmaResourceName ?? "—"}</HeroMetric> : null}
                         {networkType === "infiniband" ?
                             <HeroMetric title="Last used">
                                 {network.status.lastUsedAt ? dateToString(network.status.lastUsedAt) : "Never"}
-                            </HeroMetric> : null}
-                        {networkType === "infiniband" ?
-                            <HeroMetric title="Reclaim">
-                                {network.specification.reclaimProtection ? "Protected" :
-                                    network.status.reclaimState === "pending" ? "Pending deletion" :
-                                        network.status.reclaimState === "reclaiming" ? "Reclaiming" : "Automatic"}
                             </HeroMetric> : null}
                         <HeroMetric title="Created by">{network.owner.createdBy}</HeroMetric>
                         <HeroMetric title="Created at">{dateToString(network.createdAt)}</HeroMetric>
                         <HeroMetric title="Network ID">{network.id}</HeroMetric>
                     </div>
-                    {networkType === "infiniband" ? <>
-                        {network.status.reclaimState === "pending" ?
-                            <Box mt="16px" p="12px" border="1px solid var(--warningMain)" borderRadius="8px">
-                                <Box><b>This network is scheduled for deletion.</b></Box>
-                                <Box color="textSecondary" mt="4px">
-                                    {network.status.reclaimAfter ?
-                                        `The provider will delete it at ${dateToString(network.status.reclaimAfter)} unless it is used or kept.` :
-                                        "The provider will delete it unless it is used or kept."}
-                                </Box>
-                            </Box> : null}
-                        <Flex mt="16px" alignItems="center" gap="12px">
-                            <Toggle
-                                checked={network.specification.reclaimProtection ?? false}
-                                disabled={protectionBusy || !network.permissions.myself.includes("ADMIN")}
-                                onChange={protectedValue => setReclaimProtection(!protectedValue)}
-                            />
-                            <Box>
-                                <Box><b>Keep this network</b></Box>
-                                <Box color="textSecondary">
-                                    Prevent automatic deletion when the provider is low on InfiniBand addresses.
-                                </Box>
+                    {networkType === "infiniband" && network.status.reclaimState === "pending" ?
+                        <Box mt="16px" p="12px" border="1px solid var(--warningMain)" borderRadius="8px">
+                            <Box><b>This network is scheduled for deletion.</b></Box>
+                            <Box color="textSecondary" mt="4px">
+                                {network.status.reclaimAfter ?
+                                    `The provider will delete it at ${dateToString(network.status.reclaimAfter)} unless it is used.` :
+                                    "The provider will delete it unless it is used."}
                             </Box>
-                        </Flex>
-                    </> : null}
+                        </Box> : null}
                 </TabbedCardTab>
             </TabbedCard>
             {projectId ? <PredicatedPermissionsTable show api={PrivateNetworkApi} res={network} /> :

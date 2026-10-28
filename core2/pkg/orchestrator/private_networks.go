@@ -134,13 +134,12 @@ func initPrivateNetworks() {
 			}
 
 			return &internalPrivateNetwork{
-				Name:              spec.Name,
-				Subdomain:         subdomain,
-				Cidr:              spec.Cidr,
-				Type:              spec.EffectiveType(),
-				LastUsedAt:        fndapi.Timestamp(time.Now()),
-				ReclaimState:      orcapi.NetworkReclaimActive,
-				ReclaimProtection: spec.ReclaimProtection,
+				Name:         spec.Name,
+				Subdomain:    subdomain,
+				Cidr:         spec.Cidr,
+				Type:         spec.EffectiveType(),
+				LastUsedAt:   fndapi.Timestamp(time.Now()),
+				ReclaimState: orcapi.NetworkReclaimActive,
 			}, nil, nil
 		},
 	))
@@ -164,16 +163,6 @@ func initPrivateNetworks() {
 			return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(items))}, nil
 		},
 	))
-
-	orcapi.PrivateNetworksControlSetReclaimProtection.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PrivateNetworksSetReclaimProtectionRequest]) (util.Empty, *util.HttpError) {
-		for _, item := range request.Items {
-			err := PrivateNetworkSetReclaimProtection(info.Actor, item.Id, item.Protected)
-			if err != nil {
-				return util.Empty{}, err
-			}
-		}
-		return util.Empty{}, nil
-	})
 
 	orcapi.PrivateNetworksControlAddUpdate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.PrivateNetworkUpdate]]) (util.Empty, *util.HttpError) {
 		ids := make([]string, 0, len(request.Items))
@@ -272,12 +261,11 @@ func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.Pri
 			privateNetworkType,
 			item.ResourceSpecification,
 			&internalPrivateNetwork{
-				Name:              item.Name,
-				Cidr:              item.Cidr,
-				Type:              item.EffectiveType(),
-				LastUsedAt:        fndapi.Timestamp(time.Now()),
-				ReclaimState:      orcapi.NetworkReclaimActive,
-				ReclaimProtection: item.ReclaimProtection,
+				Name:         item.Name,
+				Cidr:         item.Cidr,
+				Type:         item.EffectiveType(),
+				LastUsedAt:   fndapi.Timestamp(time.Now()),
+				ReclaimState: orcapi.NetworkReclaimActive,
 			},
 			orcapi.PrivateNetworksProviderCreate,
 			ProviderCallOpts{Timeout: util.OptValue(2 * time.Minute)},
@@ -517,16 +505,15 @@ func PrivateNetworkRetrieveProducts(actor rpc.Actor) orcapi.SupportByProvider[or
 }
 
 type internalPrivateNetwork struct {
-	Name              string
-	Subdomain         string
-	Cidr              util.Option[string]
-	CidrBlock         util.Option[string]
-	Members           []string
-	Type              orcapi.NetworkType
-	LastUsedAt        fndapi.Timestamp
-	ReclaimState      orcapi.NetworkReclaimState
-	ReclaimAfter      util.Option[fndapi.Timestamp]
-	ReclaimProtection bool
+	Name         string
+	Subdomain    string
+	Cidr         util.Option[string]
+	CidrBlock    util.Option[string]
+	Members      []string
+	Type         orcapi.NetworkType
+	LastUsedAt   fndapi.Timestamp
+	ReclaimState orcapi.NetworkReclaimState
+	ReclaimAfter util.Option[fndapi.Timestamp]
 }
 
 func (n *internalPrivateNetwork) EffectiveType() orcapi.NetworkType {
@@ -545,17 +532,16 @@ func (n *internalPrivateNetwork) EffectiveReclaimState() orcapi.NetworkReclaimSt
 
 func privateNetworkLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource) {
 	rows := db.Select[struct {
-		Resource          int64
-		Name              string
-		Subdomain         string
-		Cidr              sql.Null[string]
-		CidrBlock         sql.Null[string]
-		Members           []int64
-		NetworkType       string
-		LastUsedAt        time.Time
-		ReclaimState      string
-		ReclaimAfter      sql.Null[time.Time]
-		ReclaimProtection bool
+		Resource     int64
+		Name         string
+		Subdomain    string
+		Cidr         sql.Null[string]
+		CidrBlock    sql.Null[string]
+		Members      []int64
+		NetworkType  string
+		LastUsedAt   time.Time
+		ReclaimState string
+		ReclaimAfter sql.Null[time.Time]
 	}](
 		tx,
 		`
@@ -569,8 +555,7 @@ func privateNetworkLoad(tx *db.Transaction, ids []int64, resources map[ResourceI
 				network_type,
 				last_used_at,
 				reclaim_state,
-				reclaim_after,
-				reclaim_protection
+				reclaim_after
 			from app_orchestrator.private_networks
 			where resource = some(:ids::int8[])
 	    `,
@@ -597,7 +582,6 @@ func privateNetworkLoad(tx *db.Transaction, ids []int64, resources map[ResourceI
 			ReclaimAfter: util.OptMap(util.SqlNullToOpt(row.ReclaimAfter), func(value time.Time) fndapi.Timestamp {
 				return fndapi.Timestamp(value)
 			}),
-			ReclaimProtection: row.ReclaimProtection,
 		}
 	}
 }
@@ -629,11 +613,11 @@ func privateNetworkPersist(b *db.Batch, resource *resource) {
 			`
 				insert into app_orchestrator.private_networks(
 					resource, name, subdomain, cidr, cidr_block, members, network_type,
-					last_used_at, reclaim_state, reclaim_after, reclaim_protection
+					last_used_at, reclaim_state, reclaim_after
 				)
 				values (
 					:resource, :name, :subdomain, :cidr, :cidr_block, :members, :network_type,
-					:last_used_at, :reclaim_state, :reclaim_after, :reclaim_protection
+					:last_used_at, :reclaim_state, :reclaim_after
 				)
 				on conflict (resource) do update set
 					name = excluded.name,
@@ -644,21 +628,19 @@ func privateNetworkPersist(b *db.Batch, resource *resource) {
 					network_type = excluded.network_type,
 					last_used_at = excluded.last_used_at,
 					reclaim_state = excluded.reclaim_state,
-					reclaim_after = excluded.reclaim_after,
-					reclaim_protection = excluded.reclaim_protection
+					reclaim_after = excluded.reclaim_after
 		    `,
 			db.Params{
-				"resource":           resource.Id,
-				"name":               network.Name,
-				"subdomain":          network.Subdomain,
-				"cidr":               network.Cidr.Sql(),
-				"cidr_block":         network.CidrBlock.Sql(),
-				"members":            members,
-				"network_type":       string(network.EffectiveType()),
-				"last_used_at":       network.LastUsedAt.Time(),
-				"reclaim_state":      string(network.EffectiveReclaimState()),
-				"reclaim_after":      reclaimAfter.Sql(),
-				"reclaim_protection": network.ReclaimProtection,
+				"resource":      resource.Id,
+				"name":          network.Name,
+				"subdomain":     network.Subdomain,
+				"cidr":          network.Cidr.Sql(),
+				"cidr_block":    network.CidrBlock.Sql(),
+				"members":       members,
+				"network_type":  string(network.EffectiveType()),
+				"last_used_at":  network.LastUsedAt.Time(),
+				"reclaim_state": string(network.EffectiveReclaimState()),
+				"reclaim_after": reclaimAfter.Sql(),
 			},
 		)
 	}
@@ -679,7 +661,6 @@ func privateNetworkTransform(
 			Name:                  network.Name,
 			Type:                  network.EffectiveType(),
 			Cidr:                  network.Cidr,
-			ReclaimProtection:     network.ReclaimProtection,
 			ResourceSpecification: specification,
 		},
 		Status: orcapi.PrivateNetworkStatus{
@@ -781,34 +762,6 @@ func privateNetworkTouchLocked(id string) bool {
 		privateNetworkReclaimFailuresReset(id)
 	}
 	return ok
-}
-
-func PrivateNetworkSetReclaimProtection(actor rpc.Actor, id string, protected bool) *util.HttpError {
-	mutationLock := networkMutationLock(id)
-	mutationLock.Lock()
-	defer mutationLock.Unlock()
-
-	ok := ResourceUpdate[orcapi.PrivateNetwork](
-		actor,
-		privateNetworkType,
-		ResourceParseId(id),
-		orcapi.PermissionEdit,
-		func(r *resource, mapped orcapi.PrivateNetwork) {
-			network := r.Extra.(*internalPrivateNetwork)
-			network.ReclaimProtection = protected
-			if protected {
-				network.ReclaimState = orcapi.NetworkReclaimActive
-				network.ReclaimAfter = util.OptNone[fndapi.Timestamp]()
-			}
-		},
-	)
-
-	if !ok {
-		return util.HttpErr(http.StatusNotFound, "permission denied or network not found")
-	}
-
-	privateNetworkReclaimFailuresReset(id)
-	return nil
 }
 
 func privateNetworkSubdomainTaken(provider string, subdomain string, except ResourceId) bool {
