@@ -10,13 +10,13 @@ import (
 )
 
 func bindCommand(args []string, cmd any) error {
-	if parser, ok := cmd.(com.ArgumentParser); ok {
-		return parser.ParseArguments(args)
-	}
+	//if parser, ok := cmd.(com.ArgumentParser); ok {
+	//	return parser.ParseArguments(args)
+	//}
 
-	if len(args) == 0 {
-		return nil
-	}
+	//if len(args) == 0 {
+	//	return nil
+	//}
 	v := reflect.ValueOf(cmd)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
 		return fmt.Errorf("bind expects pointer to struct")
