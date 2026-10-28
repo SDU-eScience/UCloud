@@ -205,15 +205,16 @@ func DatasetCreate(actor rpc.Actor, spec orcapi.DatasetSpecification) (orcapi.Da
 		return orcapi.Dataset{}, util.HttpErr(http.StatusInternalServerError, "unable to initialize the dataset")
 	}
 
-	// Copy every selected file and folder into the dataset folder using the regular copy functionality of the file
-	// system. The provider performs the actual copy asynchronously and tracks the progress with the task system.
-	err = datasetCopyEntries(actor, datasetFolder, entries)
+	// Copy every selected file and folder into the dataset folder. Instead of starting a copy task per file and
+	// folder, every copy is bulked into a single archival task which is started in the IM. The IM performs the
+	// actual copy asynchronously and tracks the progress with the task system.
+	err = datasetCopyEntries(actor, id, providerId, datasetFolder, entries)
 	if err != nil {
 		datasetPostState(id, orcapi.DatasetStateFailure, err.Why)
 		return orcapi.Dataset{}, err
 	}
 
-	// Follow the copy tasks and transition the dataset to READY once every copy has finished.
+	// Follow the archival task and transition the dataset to READY once the copy has finished.
 	go datasetTrackCopies(id, actor.Username, providerId)
 
 	return ResourceRetrieve[orcapi.Dataset](actor, datasetType, id, orcapi.ResourceFlags{
@@ -311,7 +312,11 @@ func datasetEntryDestinationPath(datasetFolder string, entryPath string) string 
 // datasetCopyEntries copies the selected files and folders into the folder backing the dataset. The destination
 // mirrors the structure of the selection relative to its source drive (prefixed with the drive id when the selection
 // spans several drives) such that files with the same name do not collide.
-func datasetCopyEntries(actor rpc.Actor, datasetFolder string, entries []orcapi.DatasetEntry) *util.HttpError {
+//
+// Instead of starting one copy task per file and folder, every copy is bulked into a single archival task which is
+// started in the IM. The IM tags the task with the id of the dataset (through the meta field) such that the progress
+// of the copy can be tracked.
+func datasetCopyEntries(actor rpc.Actor, datasetId ResourceId, providerId string, datasetFolder string, entries []orcapi.DatasetEntry) *util.HttpError {
 	var folders []string
 	var copies []orcapi.FilesSourceAndDestination
 
@@ -366,8 +371,29 @@ func datasetCopyEntries(actor rpc.Actor, datasetFolder string, entries []orcapi.
 		return err
 	}
 
-	// The provider creates a task for the copy which the end-user can follow in the task system.
-	_, err = FilesCopy(actor, fndapi.BulkRequestOf(copies...))
+	// The drive which backs the dataset is the destination of every copy.
+	driveId, _ := orcapi.DriveIdFromUCloudPath(datasetFolder)
+	archiveDrive, _, _, err := ResourceRetrieveEx[orcapi.Drive](
+		actor,
+		driveType,
+		ResourceParseId(driveId),
+		orcapi.PermissionEdit,
+		orcapi.ResourceFlagsIncludeAll(),
+	)
+	if err != nil {
+		return err
+	}
+
+	// Start a single archival task in the IM which performs every copy. The IM tags the task with the id of the
+	// dataset which makes it possible to track the progress of the entire archival with one task.
+	_, err = InvokeProvider(providerId, orcapi.FilesProviderArchival, orcapi.FilesProviderArchivalRequest{
+		TargetCollection: archiveDrive,
+		DatasetId:        fmt.Sprint(datasetId),
+		Data:             copies,
+	}, ProviderCallOpts{
+		Username: util.OptValue(actor.Username),
+		Reason:   util.OptValue("data archival"),
+	})
 	return err
 }
 
@@ -494,11 +520,12 @@ func DatasetUpdateEntries(actor rpc.Actor, request orcapi.DatasetsUpdateEntriesR
 		return util.HttpErr(http.StatusBadRequest, "a folder and its content are both selected")
 	}
 
-	// Copy the additions into the dataset before they become part of the selection. The provider performs the
-	// copies asynchronously and tracks the progress with the task system.
+	// Copy the additions into the dataset before they become part of the selection. Every copy is bulked into a
+	// single archival task which is started in the IM. The IM performs the copies asynchronously and tracks the
+	// progress with the task system.
 	copyStartedAt := time.Now()
 	if len(additions) > 0 {
-		if err := datasetCopyEntries(actor, datasetFolder, additions); err != nil {
+		if err := datasetCopyEntries(actor, datasetId, providerId, datasetFolder, additions); err != nil {
 			// The copies were refused: apply the deletions, keep the additions out of the selection and surface the
 			// error. The state of the dataset is deliberately left untouched.
 			ResourceUpdate(actor, datasetType, datasetId, orcapi.PermissionEdit, func(r *resource, mapped orcapi.Dataset) {
@@ -586,9 +613,9 @@ func DatasetDelete(actor rpc.Actor, id string) *util.HttpError {
 		return util.HttpErr(http.StatusConflict, "this dataset has been published and can no longer be deleted")
 	case orcapi.DatasetStateDraft, orcapi.DatasetStateFailure:
 		// Deny deletion while files are still being copied into the dataset. Removing the folder mid-copy would
-		// leave the copy tasks writing into a partially removed folder. The dataset becomes deletable again once
-		// it reaches the READY state (or once the copies have failed).
-		pending, _ := datasetCopyTasksPending(dataset.Owner.CreatedBy, baseSpec.Product.Provider, datasetCopyStartedAt(dataset))
+		// leave the archival task writing into a partially removed folder. The dataset becomes deletable again once
+		// it reaches the READY state (or once the copy has failed).
+		pending, _ := datasetCopyTasksPending(dataset.Owner.CreatedBy, baseSpec.Product.Provider, datasetId, datasetCopyStartedAt(dataset))
 		if pending > 0 {
 			return util.HttpErr(http.StatusConflict, "files are currently being copied into this dataset, try again once it is ready")
 		}
@@ -680,8 +707,9 @@ func datasetDeleteEntryCopies(actor rpc.Actor, datasetFolder string, entries []o
 	}
 }
 
-// datasetTrackCopies follows the copy tasks created by the provider and transitions the dataset to the READY state
-// once every copy has finished. The dataset ends up in the FAILURE state if one of the copies could not complete.
+// datasetTrackCopies follows the archival task which the IM started for the dataset and transitions the dataset to
+// the READY state once the copy has finished. The dataset ends up in the FAILURE state if the copy could not
+// complete.
 func datasetTrackCopies(datasetId ResourceId, ownerUsername string, providerId string) {
 	const pollInterval = 10 * time.Second
 	const maxDuration = 24 * time.Hour
@@ -698,7 +726,7 @@ func datasetTrackCopies(datasetId ResourceId, ownerUsername string, providerId s
 			return
 		}
 
-		pending, failed := datasetCopyTasksPending(ownerUsername, providerId, datasetCopyStartedAt(dataset))
+		pending, failed := datasetCopyTasksPending(ownerUsername, providerId, datasetId, datasetCopyStartedAt(dataset))
 		if pending == 0 {
 			if failed {
 				datasetPostState(datasetId, orcapi.DatasetStateFailure, "one or more of the selected files and folders could not be copied")
@@ -713,8 +741,8 @@ func datasetTrackCopies(datasetId ResourceId, ownerUsername string, providerId s
 }
 
 // datasetCopyStartedAt returns the point in time at which the dataset last started (re-)populating its selection.
-// Copy tasks created after this point in time belong to the dataset: for a new dataset this is its creation time,
-// every later entry addition records a new DRAFT state update at the time its copies were issued.
+// Archival tasks created after this point in time belong to the dataset: for a new dataset this is its creation
+// time, every later entry addition records a new DRAFT state update at the time its archival task was started.
 func datasetCopyStartedAt(dataset orcapi.Dataset) time.Time {
 	startedAt := dataset.CreatedAt.Time()
 	for _, update := range dataset.Updates {
@@ -725,14 +753,14 @@ func datasetCopyStartedAt(dataset orcapi.Dataset) time.Time {
 	return startedAt
 }
 
-// datasetCopyTasksPending counts the copy tasks which belong to this dataset and are still running. Tasks are matched
-// on their owner, provider and the point in time at which the copies were started.
+// datasetCopyTasksPending counts the archival tasks which belong to this dataset and are still running.
 //
-// NOTE(Henrik): The copy operations of the file system do not return the ids of the tasks which they create, tasks are
-// matched by owner, provider and creation time instead. Tasks unrelated to this dataset (e.g. a manual copy started
-// by the same user at the same provider) will delay the transition to READY. Providers can tag their tasks with the
-// dataset id (through the meta field) to make this matching exact.
-func datasetCopyTasksPending(ownerUsername string, providerId string, startedAt time.Time) (pending int, failed bool) {
+// The IM starts a single archival task per dataset population and tags it with the id of the dataset in its meta
+// field ({"datasetId": "..."}). Tasks are matched on this tag which makes the matching exact. Tasks which are not
+// tagged are matched on the point in time at which the copies were started instead; with that fallback, tasks
+// unrelated to this dataset (e.g. a manual copy started by the same user at the same provider) will delay the
+// transition to READY.
+func datasetCopyTasksPending(ownerUsername string, providerId string, datasetId ResourceId, startedAt time.Time) (pending int, failed bool) {
 	next := util.OptNone[string]()
 	for {
 		page, err := TasksBrowseForUser(ownerUsername, 1000, next)
@@ -748,7 +776,7 @@ func datasetCopyTasksPending(ownerUsername string, providerId string, startedAt 
 			if task.Provider != providerId {
 				continue
 			}
-			if task.CreatedAt.Time().Before(startedAt) {
+			if !datasetTaskBelongsTo(task, datasetId, startedAt) {
 				continue
 			}
 
@@ -766,6 +794,21 @@ func datasetCopyTasksPending(ownerUsername string, providerId string, startedAt 
 		}
 		next = page.Next
 	}
+}
+
+// datasetTaskBelongsTo reports whether a task is part of the archival of a dataset. The IM tags archival tasks with
+// the id of the dataset in their meta field ({"datasetId": "..."}), which makes the matching exact. Tasks without
+// such a tag are matched on the point in time at which the dataset last started (re-)populating its selection.
+func datasetTaskBelongsTo(task fndapi.Task, datasetId ResourceId, startedAt time.Time) bool {
+	if task.Meta.Present {
+		var meta struct {
+			DatasetId string `json:"datasetId"`
+		}
+		if err := json.Unmarshal(task.Meta.Value, &meta); err == nil && meta.DatasetId != "" {
+			return ResourceParseId(meta.DatasetId) == datasetId
+		}
+	}
+	return !task.CreatedAt.Time().Before(startedAt)
 }
 
 // datasetPostState appends an update to the dataset and moves it to a new state. Datasets which have started

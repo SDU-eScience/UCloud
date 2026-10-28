@@ -70,6 +70,7 @@ func InitFiles() controller.FileService {
 		CreateFolder:                createFolder,
 		Move:                        move,
 		Copy:                        copyFiles,
+		Archival:                    archivalCopy,
 		MoveToTrash:                 moveToTrash,
 		EmptyTrash:                  emptyTrash,
 		CreateDownloadSession:       createDownload,

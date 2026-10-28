@@ -30,6 +30,7 @@ type TaskType string
 const (
 	FileTaskTypeEmptyTrash      TaskType = "empty_trash"
 	FileTaskTypeCopy            TaskType = "copy"
+	FileTaskTypeArchival         TaskType = "archival"
 	FileTaskTransfer            TaskType = "file_transfer"
 	FileTaskTransferDestination TaskType = "file_transfer_destination"
 )
@@ -53,6 +54,9 @@ type TaskInfoSpecification struct {
 	UCloudDestination util.Option[string]
 	ConflictPolicy    orc.WriteConflictPolicy
 	MoreInfo          util.Option[string]
+
+	Meta          util.Option[json.RawMessage]
+
 	HasUCloudTask     bool
 	Icon              string
 }
@@ -69,6 +73,9 @@ func (spec *TaskInfoSpecification) DefaultStatus() fnd.TaskStatus {
 
 	case FileTaskTypeCopy:
 		operation = fmt.Sprintf("Copying %s to %s", sourceSimple, destSimple)
+
+	case FileTaskTypeArchival:
+		operation = "Copying data into dataset"
 
 	case FileTaskTypeEmptyTrash:
 		operation = "Emptying trash"
@@ -118,6 +125,8 @@ func InitTaskSystem() {
 				case FileTaskTransfer:
 					flags |= fnd.TaskFlagCanCancel | fnd.TaskFlagCanPause
 
+				case FileTaskTypeArchival:
+					flags |= fnd.TaskFlagCanCancel
 				default:
 				}
 
@@ -131,6 +140,7 @@ func InitTaskSystem() {
 						CanPause:  flags&fnd.TaskFlagCanPause != 0,
 						CanCancel: flags&fnd.TaskFlagCanCancel != 0,
 						Icon:      util.OptStringIfNotEmpty(spec.Icon),
+						Meta: 		spec.Meta,
 					},
 				)
 
@@ -443,6 +453,9 @@ func InitTaskSystem() {
 
 					case FileTaskTypeCopy:
 						result = processCopyTask(task)
+
+					case FileTaskTypeArchival:
+						result = processArchivalTask(task)
 
 					case FileTaskTransfer:
 						result = processTransferTask(task)

@@ -386,6 +386,23 @@ var FilesProviderCopy = rpc.Call[fnd.BulkRequest[FilesProviderMoveOrCopyRequest]
 	Operation:   "copy",
 }
 
+type FilesProviderArchivalRequest struct {
+	TargetCollection Drive `json:"targetCollection"`
+
+	// The id of the dataset being populated. The IM must tag the archival task it creates with this id in the
+	// task's meta field: {"datasetId": "<datasetId>"}.
+	DatasetId string `json:"datasetId"`
+
+	Data []FilesSourceAndDestination `json:"data"`
+}
+
+var FilesProviderArchival = rpc.Call[FilesProviderArchivalRequest, fnd.BulkResponse[util.Empty]]{
+	BaseContext: fileProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesService,
+	Operation:   "archival",
+}
+
 type FilesProviderCreateUploadRequest struct {
 	Id                 string              `json:"id"`
 	Type               UploadType          `json:"type"`

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -66,19 +67,28 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 		}
 	}
 
+	err := copyIntoDestination(sourcePath, destPath, func(status fnd.TaskStatus) {
+		task.Status.Store(&status)
+	})
+	if err != nil {
+		return TaskProcessingResult{Error: err}
+	}
+
+	return TaskProcessingResult{}
+}
+
+// copyIntoDestination performs a single source -> destination copy using the existing copy pipeline
+// (normalFileWalk + copyWorker). Progress is reported through statusCb.
+func copyIntoDestination(sourcePath, destPath string, statusCb func(fnd.TaskStatus)) error {
 	sourceFile, err := os.Open(sourcePath)
 	if err != nil {
-		return TaskProcessingResult{
-			Error: fmt.Errorf("Invalid source file supplied. It no longer exists."),
-		}
+		return fmt.Errorf("Invalid source file supplied. It no longer exists.")
 	}
 	defer util.SilentClose(sourceFile)
 
 	sourceStat, err := sourceFile.Stat()
 	if err != nil {
-		return TaskProcessingResult{
-			Error: fmt.Errorf("Invalid source file supplied. It no longer exists."),
-		}
+		return fmt.Errorf("Invalid source file supplied. It no longer exists.")
 	}
 
 	destFlags := os.O_RDONLY
@@ -92,32 +102,24 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 	if err != nil && os.IsNotExist(err) && sourceStat.IsDir() {
 		err = os.Mkdir(destPath, 0770)
 		if err != nil {
-			return TaskProcessingResult{
-				Error: fmt.Errorf("Unable to open destination file"),
-			}
+			return fmt.Errorf("Unable to open destination file")
 		}
 
 		destFile, err = os.OpenFile(destPath, destFlags, destMode)
 		if err != nil {
-			return TaskProcessingResult{
-				Error: fmt.Errorf("Unable to open destination file"),
-			}
+			return fmt.Errorf("Unable to open destination file")
 		}
 
 		defer util.SilentClose(destFile)
 	} else if err != nil {
-		return TaskProcessingResult{
-			Error: fmt.Errorf("Unable to open destination file"),
-		}
+		return fmt.Errorf("Unable to open destination file")
 	}
 
 	destFileFd := int(destFile.Fd())
 	destStat, err := destFile.Stat()
 	if destStat != nil && err == nil {
 		if sourceStat.IsDir() != destStat.IsDir() {
-			return TaskProcessingResult{
-				Error: fmt.Errorf("destination already exists and has the wrong type"),
-			}
+			return fmt.Errorf("destination already exists and has the wrong type")
 		}
 	}
 
@@ -127,7 +129,7 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 		util.FileName(filepath.Dir(destPath)),
 	))
 
-	task.Status.Store(&fnd.TaskStatus{
+	statusCb(fnd.TaskStatus{
 		State:              fnd.TaskStateRunning,
 		Title:              title,
 		Body:               util.OptValue(""),
@@ -136,9 +138,13 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
-	filesDiscovered := int64(0)
-	bytesDiscovered := int64(0)
-	filesDiscoveredDone := false
+	var filesDiscovered atomic.Int64
+	var bytesDiscovered atomic.Int64
+	var filesDiscoveredDone atomic.Bool
+	var workersDone atomic.Bool
+
+	var workersWg sync.WaitGroup
+	var producerWg sync.WaitGroup
 
 	lastStatMeasurement := time.Now()
 	filesPerSecond := float64(0)
@@ -146,12 +152,13 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 	lastFilesCompleted := int64(0)
 	lastBytesTransferred := int64(0)
 
-	// wasCancelledByUser := false
-
 	frontendQueue := make(chan discoveredFile, 256)
 	backendQueue := make(chan discoveredFile, 256)
 
+	producerWg.Add(1)
 	go func() {
+		defer producerWg.Done()
+
 	outer:
 		for util.IsAlive {
 			select {
@@ -159,11 +166,9 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 				break outer
 
 			case df := <-frontendQueue:
-				filesDiscovered++
-				if df.LinkTo == "" {
-					if !df.FileInfo.IsDir() {
-						bytesDiscovered += df.FileInfo.Size()
-					}
+				filesDiscovered.Add(1)
+				if df.LinkTo == "" && !df.FileInfo.IsDir() {
+					bytesDiscovered.Add(df.FileInfo.Size())
 				}
 
 				select {
@@ -176,9 +181,11 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 		}
 	}()
 
+	producerWg.Add(1)
 	go func() {
+		defer producerWg.Done()
 		normalFileWalk(ctx, frontendQueue, sourceFile, sourceStat)
-		filesDiscoveredDone = true
+		filesDiscoveredDone.Store(true)
 	}()
 
 	var workers []*copyWorker
@@ -188,8 +195,17 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 		}
 		workers = append(workers, w)
 
-		go w.Process(ctx, backendQueue)
+		workersWg.Add(1)
+		go func(worker *copyWorker) {
+			defer workersWg.Done()
+			worker.Process(ctx, backendQueue)
+		}(w)
 	}
+
+	go func() {
+		workersWg.Wait()
+		workersDone.Store(true)
+	}()
 
 	flushStats := func() {
 		now := time.Now()
@@ -214,8 +230,8 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 
 		readableSpeed := util.SizeToHumanReadableWithUnit(bytesPerSecond)
 
-		percentage := (float64(bytesTransferred) / float64(bytesDiscovered)) * 100
-		if !filesDiscoveredDone {
+		percentage := (float64(bytesTransferred) / float64(bytesDiscovered.Load())) * 100
+		if !filesDiscoveredDone.Load() {
 			percentage = -1
 		}
 
@@ -242,7 +258,7 @@ func processCopyTask(task *TaskInfo) TaskProcessingResult {
 			)),
 			ProgressPercentage: util.OptValue(percentage),
 		}
-		task.Status.Store(newStatus)
+		statusCb(*newStatus)
 	}
 
 	ticker := time.NewTicker(100 * time.Millisecond)
@@ -256,23 +272,32 @@ outer:
 		case <-ticker.C:
 			flushStats()
 
-			if filesDiscoveredDone && lastFilesCompleted == filesDiscovered {
+			if filesDiscoveredDone.Load() && lastFilesCompleted == filesDiscovered.Load() {
 				cancel()
 			}
 		}
 	}
 
 	cancel()
+	producerWg.Wait()
+	workersWg.Wait()
 
-	util.SilentClose(sourceFile)
-	util.SilentClose(destFile)
+	filesFailed := int64(0)
+	for _, w := range workers {
+		filesFailed += w.FilesFailed.Load()
+	}
 
-	return TaskProcessingResult{}
+	if filesFailed > 0 {
+		return fmt.Errorf("%d entries could not be copied", filesFailed)
+	}
+
+	return nil
 }
 
 type copyWorker struct {
 	DestFileFd     int
 	FilesCompleted atomic.Int64
+	FilesFailed    atomic.Int64
 	BytesProcessed atomic.Int64
 }
 
@@ -283,7 +308,9 @@ outer:
 		case <-ctx.Done():
 			break outer
 		case entry := <-backendQueue:
-			w.copyFile(entry)
+			if !w.copyFile(entry) {
+				w.FilesFailed.Add(1)
+			}
 			w.FilesCompleted.Add(1)
 			if entry.LinkTo == "" && !entry.FileInfo.IsDir() {
 				w.BytesProcessed.Add(entry.FileInfo.Size())

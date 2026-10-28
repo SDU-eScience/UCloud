@@ -43,6 +43,7 @@ func InitializeFiles() ctrl.FileService {
 		CreateFolder:                createFolder,
 		Move:                        moveFiles,
 		Copy:                        copyFiles,
+		Archival:                    archival,
 		MoveToTrash:                 moveToTrash,
 		EmptyTrash:                  emptyTrash,
 		CreateDownloadSession:       createDownload,

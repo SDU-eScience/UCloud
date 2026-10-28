@@ -2,6 +2,7 @@ package filesystem
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -12,7 +13,6 @@ import (
 
 	k8sbatch "k8s.io/api/batch/v1"
 	k8score "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/shared"
@@ -27,6 +27,7 @@ type TaskType string
 
 const (
 	TaskTypeCopy       TaskType = "copy"
+	TaskTypeArchival   TaskType = "archival"
 	TaskTypeTransfer   TaskType = "file_transfer"
 	TaskTypeMarkItDown TaskType = "markitdown"
 )
@@ -47,9 +48,15 @@ type TaskSpec struct {
 	TransferEndpoint string
 	ConflictPolicy   string
 
+	DatasetId string
+	Copies    []ArchivalCopy
+
+	Meta util.Option[json.RawMessage]
+
 	CreationState struct {
 		Username string
 		Icon     string
+		Title    string
 	}
 }
 
@@ -338,14 +345,21 @@ func TaskSubmitWithInfo(spec TaskSpec) (TaskSubmission, *util.HttpError) {
 	spec.Id = fmt.Sprintf("task-%s", util.RandomToken(8))
 	spec.TaskToken = util.SecureToken()
 
+	title := util.OptValue("Task is starting")
+	body := util.OptValue("One of your operations is being scheduled...")
+	if spec.CreationState.Title != "" {
+		title = util.OptValue(spec.CreationState.Title)
+		body = util.OptValue("")
+	}
+
 	resp, err := fndapi.TasksCreate.Invoke(fndapi.TasksCreateRequest{
 		User:      spec.CreationState.Username,
-		Title:     util.OptValue("Task is starting"),
-		Body:      util.OptValue("One of your operations is being scheduled..."),
+		Title:     title,
+		Body:      body,
 		CanCancel: true,
 		Icon:      util.OptValue(spec.CreationState.Icon),
+		Meta:      spec.Meta,
 	})
-
 	if err != nil {
 		log.Warn("Failed to create background task: %s", err)
 		return TaskSubmission{}, util.HttpErr(http.StatusInternalServerError, "failed to create background task")
@@ -373,6 +387,36 @@ func TaskSubmitWithInfo(spec TaskSpec) (TaskSubmission, *util.HttpError) {
 	storageVolumeMounts, internalToPod := resolveTaskMounts(spec)
 	sourcePath := mapUCloudPathToTaskPath(spec.Source, internalToPod)
 	destinationPath := mapUCloudPathToTaskPath(spec.Destination, internalToPod)
+
+	envVars := []k8score.EnvVar{
+		{Name: taskEnvType, Value: string(spec.Type)},
+		{Name: taskEnvId, Value: spec.Id},
+		{Name: taskEnvSource, Value: sourcePath},
+		{Name: taskEnvDestination, Value: destinationPath},
+		{Name: taskEnvTransferEndpoint, Value: spec.TransferEndpoint},
+		{Name: taskEnvTaskToken, Value: spec.TaskToken},
+		{Name: taskEnvConflictPolicy, Value: spec.ConflictPolicy},
+	}
+
+	if len(spec.Copies) > 0 {
+		mappedCopies := make([]ArchivalCopy, 0, len(spec.Copies))
+		for _, archivalPair := range spec.Copies {
+			mappedCopies = append(mappedCopies, ArchivalCopy{
+				Source:      mapUCloudPathToTaskPath(archivalPair.Source, internalToPod),
+				Destination: mapUCloudPathToTaskPath(archivalPair.Destination, internalToPod),
+			})
+		}
+
+		payload, payloadErr := json.Marshal(archivalTaskPayload{
+			DatasetId: spec.DatasetId,
+			Copies:    mappedCopies,
+		})
+		if payloadErr != nil {
+			return TaskSubmission{}, util.HttpErr(http.StatusInternalServerError, "failed to encode archival payload")
+		}
+
+		envVars = append(envVars, k8score.EnvVar{Name: taskEnvPayload, Value: string(payload)})
+	}
 
 	job := k8sbatch.Job{
 		ObjectMeta: k8smeta.ObjectMeta{
@@ -434,30 +478,8 @@ func TaskSubmitWithInfo(spec TaskSpec) (TaskSubmission, *util.HttpError) {
 							Command:         []string{"/opt/ucloud/ucloud", "task-processor"},
 							WorkingDir:      "/",
 							ImagePullPolicy: k8score.PullIfNotPresent,
-							Env: []k8score.EnvVar{
-								{Name: taskEnvType, Value: string(spec.Type)},
-								{Name: taskEnvId, Value: spec.Id},
-								{Name: taskEnvSource, Value: sourcePath},
-								{Name: taskEnvDestination, Value: destinationPath},
-								{Name: taskEnvTransferEndpoint, Value: spec.TransferEndpoint},
-								{Name: taskEnvTaskToken, Value: spec.TaskToken},
-								{Name: taskEnvConflictPolicy, Value: spec.ConflictPolicy},
-							},
-							Resources: k8score.ResourceRequirements{
-								Limits: map[k8score.ResourceName]resource.Quantity{
-									k8score.ResourceCPU:    *resource.NewMilliQuantity(8000, resource.DecimalExponent),
-									k8score.ResourceMemory: *resource.NewScaledQuantity(1024*16, resource.Mega),
-								},
-								Requests: map[k8score.ResourceName]resource.Quantity{
-									k8score.ResourceCPU:    *resource.NewMilliQuantity(500, resource.DecimalExponent),
-									k8score.ResourceMemory: *resource.NewScaledQuantity(2048, resource.Mega),
-								},
-							},
-							VolumeMounts: append(storageVolumeMounts, k8score.VolumeMount{
-								Name:      "ucloud-opt",
-								MountPath: "/opt/ucloud",
-								ReadOnly:  true,
-							}),
+							Env:             envVars,
+							VolumeMounts:    storageVolumeMounts,
 						},
 					},
 					RestartPolicy: k8score.RestartPolicyNever,

@@ -38,6 +38,7 @@ type FileService struct {
 	CreateFolder                func(actor rpc.Actor, request orcapi.FilesProviderCreateFolderRequest) *util.HttpError
 	Move                        func(actor rpc.Actor, request orcapi.FilesProviderMoveOrCopyRequest) *util.HttpError
 	Copy                        func(actor rpc.Actor, request orcapi.FilesProviderMoveOrCopyRequest) *util.HttpError
+	Archival					func(actor rpc.Actor, request orcapi.FilesProviderArchivalRequest) *util.HttpError
 	MoveToTrash                 func(actor rpc.Actor, request orcapi.FilesProviderTrashRequest) *util.HttpError
 	EmptyTrash                  func(actor rpc.Actor, request orcapi.FilesProviderTrashRequest) *util.HttpError
 	CreateDownloadSession       func(actor rpc.Actor, request FileDownloadSession) *util.HttpError
@@ -289,6 +290,11 @@ func initFiles() {
 			} else {
 				return fnd.BulkResponse[util.Empty]{}, nil
 			}
+		})
+
+		orcapi.FilesProviderArchival.Handler(func(info rpc.RequestInfo, request orcapi.FilesProviderArchivalRequest) (fnd.BulkResponse[util.Empty], *util.HttpError) {
+			DriveTrack(&request.TargetCollection)
+			return fnd.BulkResponse[util.Empty]{}, Files.Archival(info.Actor, request)
 		})
 
 		orcapi.FilesProviderTrash.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.FilesProviderTrashRequest]) (fnd.BulkResponse[util.Empty], *util.HttpError) {

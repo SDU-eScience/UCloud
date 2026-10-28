@@ -146,6 +146,7 @@ func task2ProcessCopy(spec TaskSpec) *util.HttpError {
 		defer producerWg.Done()
 		defer close(frontendQueue)
 		normalFileWalk(ctx, frontendQueue, sourceFile, sourceStat)
+		filesDiscoveredDone.Store(true)
 	}()
 
 	var workers []*copyWorker

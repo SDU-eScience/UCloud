@@ -77,6 +77,8 @@ func TaskProcessor() {
 	switch spec.Type {
 	case TaskTypeCopy:
 		err = task2ProcessCopy(spec)
+	case TaskTypeArchival:
+		err = task2ProcessArchival(spec)
 	case TaskTypeTransfer:
 		err = task2ProcessTransfer(spec)
 	case TaskTypeMarkItDown:
