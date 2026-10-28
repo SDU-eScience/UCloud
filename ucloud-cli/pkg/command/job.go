@@ -66,12 +66,14 @@ type JobTerminateCommand struct {
 }
 
 type JobLogsCommand struct {
-	JobID string `positional:"job-id" usage:"Job ID"`
+	JobID  string `positional:"job-id" usage:"Job ID"`
+	Follow bool   `flag:"follow" usage:"Follow logs"`
 }
 
 type JobShellCommand struct {
-	JobID string `positional:"job-id" usage:"Job ID"`
-	Rank  int    `flag:"rank" usage:"Rank"`
+	JobID    string `positional:"job-id" usage:"Job ID"`
+	Rank     int    `flag:"rank" usage:"Rank"`
+	Provider string `flag:"provider" usage:"Provider"`
 }
 
 type JobWebCommand struct {
@@ -563,7 +565,7 @@ func parseParameterValue(param orcapi.ApplicationParameter, rawValue string) (or
 	}
 }
 
-func createApp(job JobCreateCommand, app *orcapi.Application) error {
+func createApp(job *JobCreateCommand, app *orcapi.Application) error {
 	product, err := findProductForApp(app, job.Product)
 	if err != nil {
 		return err
@@ -625,10 +627,12 @@ func createApp(job JobCreateCommand, app *orcapi.Application) error {
 	for _, created := range response.Responses {
 		fmt.Printf("Job created: %s\n", created.Id)
 	}
+	job.Id = response.Responses[0].Id
+
 	return nil
 }
 
-func (c JobCreateCommand) Execute() error {
+func (c *JobCreateCommand) Execute() error {
 	cfg := shared.InitializeUCloudClient()
 
 	if c.App == "" {
@@ -707,9 +711,12 @@ func (c JobWebCommand) Execute() error {
 }
 
 func (c JobShellCommand) Execute() error {
-	return fmt.Errorf("job shell not implemented")
+	if c.Provider == "" {
+		return fmt.Errorf("this command requires a provider, use: ucloud job shell <provider>")
+	}
+	return shared.OpenJobShell(c.JobID, c.Provider)
 }
 
 func (c JobLogsCommand) Execute() error {
-	return fmt.Errorf("job logs not implemented")
+	return nil
 }
