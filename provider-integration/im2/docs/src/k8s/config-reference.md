@@ -805,6 +805,38 @@ Defaults to `public-ip` if omitted.
 
 <dt>
 
+`privateNetworks` *optional*
+
+</dt>
+<dd>
+
+Controls private networks. To enable InfiniBand networks, enable private networks and configure IPv4 address pools for both Ethernet and InfiniBand:
+
+```yaml
+privateNetworks:
+  enabled: true
+  cidrPools: [10.200.0.0/16]
+  infiniband:
+    enabled: true
+    cidrPools: [10.201.0.0/16]
+    rdmaResourceName: nvidia.com/rdma_shared
+    deviceLabel: ucloud.dk/ibdev
+```
+
+Replace the example address pools with ranges suitable for your cluster. InfiniBand networks receive a /24 from the InfiniBand pool. Automatic reclaim is enabled by default. The `rdmaResourceName` and `deviceLabel` values shown are the defaults.
+
+Each InfiniBand-capable node must advertise the RDMA resource and have a device label. The label value is a dash-separated list of device names. Device names cannot contain dashes because dashes are used as separators. IM uses the first device, which must be the same across all eligible nodes. Kubernetes limits label values to 63 characters.
+
+For example:
+
+```shell
+kubectl label node NODE ucloud.dk/ibdev=ib0-ib1-ib2
+```
+
+</dd>
+
+<dt>
+
 `publicLinks` *optional*
 
 </dt>

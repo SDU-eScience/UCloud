@@ -449,16 +449,8 @@ func privateNetworkInfinibandNodeDevice(node *k8score.Node) (string, bool) {
 }
 
 func privateNetworkParseInfinibandDeviceLabel(raw string) (string, bool) {
-	var devices []string
-	if err := json.Unmarshal([]byte(raw), &devices); err != nil {
-		return "", false
-	}
-
-	if len(devices) == 0 {
-		return "", false
-	}
-
-	device := strings.TrimSpace(devices[0])
+	device, _, _ := strings.Cut(raw, "-")
+	device = strings.TrimSpace(device)
 	return device, device != ""
 }
 
