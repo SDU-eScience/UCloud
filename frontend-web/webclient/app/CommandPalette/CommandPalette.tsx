@@ -13,20 +13,21 @@ const wrapper = injectStyle("command-palette", k => `
     ${k} {
         --own-width: 600px;
         --own-base-height: 48px;
-        
+
         width: var(--own-width);
         min-height: var(--own-base-height);
+        max-width: calc(100vw - 16px);
         height: auto;
-        
-        
-        position: fixed;
+
+        position: absolute;
         top: 25%;
-        left: calc(50vw - (var(--own-width) / 2));
-        
+        left: 50%;
+        transform: translateX(-50%);
+
         border-radius: 16px;
         color: var(--textPrimary);
         z-index: 99999999;
-        
+
         box-shadow: var(--defaultShadow);
         background: var(--backgroundCardHover);
 

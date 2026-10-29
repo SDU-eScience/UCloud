@@ -2,7 +2,7 @@ import {defineConfig, UserConfigExport} from "vite";
 import react from "@vitejs/plugin-react";
 //@ts-ignore
 import path from "path";
-import {PRODUCTION_SITE, DEV_SITE, SANDBOX_SITE} from "./site.config.json";
+import conf from "./site.config.json" with {type: "json"};
 
 // https://vitejs.dev/config/
 
@@ -15,11 +15,11 @@ function targetFromConfig(mode: Mode): string {
 
     switch (mode) {
         case "development":
-            return `https://${DEV_SITE}`;
+            return `https://${conf.DEV_SITE}`;
         case "sandbox":
-            return `https://${SANDBOX_SITE}`;
+            return `https://${conf.SANDBOX_SITE}`;
         case "prod": // development mode against production backend
-            return `https://${PRODUCTION_SITE}`;
+            return `https://${conf.PRODUCTION_SITE}`;
         case "compose":
             return "http://backend:8080";
         case "local-dev":
@@ -63,8 +63,9 @@ export default ({mode, port, ...rest}: {mode: Mode; port?: number;}): UserConfig
         resolve: {
             alias: {
                 //@ts-ignore
-                "@": path.resolve(__dirname, "./app"),
-                "monaco-editor/esm/vs": "monaco-editor"
+                "@": path.resolve(import.meta.dirname, "./app"),
+                "monaco-editor/esm/vs": "monaco-editor",
+                "./dompurify/dompurify.js": path.resolve(import.meta.dirname, "./node_modules/dompurify/dist/purify.es.mjs")
             }
         },
         server: {
