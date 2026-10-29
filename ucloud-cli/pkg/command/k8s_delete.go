@@ -72,9 +72,11 @@ func (c *K8sClusterDeleteCommand) Execute() error {
 	deleteStateDrive := !c.KeepStateDrive
 	if !c.Yes && isTerminal(os.Stdin) {
 		if deleteStateDrive {
-			fmt.Fprintf(os.Stderr, "Delete cluster %s and its state drive, including backups and persistent data? [y/N] ", termio.QuoteName(name))
+			message := fmt.Sprintf("Delete cluster %s and its state drive, including backups and persistent data? [y/N] ", termio.QuoteName(name))
+			fmt.Fprint(os.Stderr, outputQuestionText(os.Stderr, message))
 		} else {
-			fmt.Fprintf(os.Stderr, "Delete cluster %s and keep its state drive? [y/N] ", termio.QuoteName(name))
+			message := fmt.Sprintf("Delete cluster %s and keep its state drive? [y/N] ", termio.QuoteName(name))
+			fmt.Fprint(os.Stderr, outputQuestionText(os.Stderr, message))
 		}
 
 		input, err := bufio.NewReader(os.Stdin).ReadString('\n')

@@ -109,13 +109,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 		app.homeMetricsRow(
 			app.homeMetric("Cluster state", homeMetricText(clusterState, clusterStateColor)),
 			app.homeMetricEx("Nodes ready", []ucx.UiNode{manageNodes}, homeMetricText(nodesLabel, ucx.ColorTextPrimary)),
-			app.homeMetricEx("Kubernetes version", []ucx.UiNode{
-				ucx.LinkButton("homeRollingUpgrade", "(Rolling upgrade)", ucx.ColorLinkColor).
-					Sx(ucx.SxFontSize(12), ucx.SxFontWeight("400")).
-					On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-						ucxsvc.RouterPushPage(app, "rolling-upgrade")
-					}),
-			}, homeMetricText(k8sVersion, k8sVersionColor)),
+			app.homeMetric("Kubernetes version", homeMetricText(k8sVersion, k8sVersionColor)),
 		),
 	)
 
@@ -130,7 +124,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 	children = append(children, app.homeMetricsRow(
 		resourcesMetric,
 		app.homeBackupsMetric(),
-		app.homeAutoMaintenanceMetric(),
+		app.homeMaintenanceMetric(),
 	))
 
 	return children

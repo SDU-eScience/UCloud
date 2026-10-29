@@ -304,7 +304,7 @@ func (app *stackUiApp) provisioningResourceRows(def ResourceTypeDef) []ResourceR
 		rows = append(rows, ResourceRow{
 			Key:   "provisioning:" + entry.Hostname,
 			Group: entry.Group,
-			Cells: []string{entry.Hostname, entry.Status, "Schedulable", "", role, "", "", "", ""},
+			Cells: []string{entry.Hostname, entry.Status, "Schedulable", "", role, "", "", ""},
 		})
 	}
 	return rows

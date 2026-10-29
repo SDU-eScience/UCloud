@@ -12,6 +12,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	netutil "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
@@ -31,37 +32,15 @@ const (
 
 // Upgrades
 // =====================================================================================================================
-// An upgrade runs in two stages. The first stage is local only: preflight checks, followed by an optional cordon and
-// drain. The second stage drives the node agent remotely and polls its status until the upgrade completes or fails.
-// The two stages are split by the ExecutorSubmitted flag, which makes an interrupted upgrade resume at the remote
-// stage.
+// An upgrade runs in two stages. The first stage is local only: preflight checks. The second stage drives the node
+// agent remotely and polls its status until the upgrade completes or fails. The two stages are split by the
+// ExecutorSubmitted flag, which makes an interrupted upgrade resume at the remote stage.
 
 func upgradeSubmitMessage(operation Operation) string {
-	if operation.Options.Drain {
-		return fmt.Sprintf(
-			"The drain of %s completed. Starting the upgrade to %s on the node",
-			operation.NodeName,
-			operation.TargetRelease,
-		)
-	}
-	if operation.Options.Cordon {
-		return fmt.Sprintf(
-			"The node %s is cordoned. Starting the upgrade to %s on the node",
-			operation.NodeName,
-			operation.TargetRelease,
-		)
-	}
 	return fmt.Sprintf(
 		"Starting the upgrade to %s on the node",
 		operation.TargetRelease,
 	)
-}
-
-func upgradeFailureRecoveryMessage(operation Operation) string {
-	if UpgradeCordons(operation) {
-		return "An explicit retry is required and the node remains cordoned"
-	}
-	return "An explicit retry is required"
 }
 
 func upgradeNodeRecord(record shared.ClusterRecord, nodeName string) (shared.ClusterNodeRecord, bool) {
@@ -80,19 +59,39 @@ func runUpgrade(
 	worker *nodeWorker,
 ) error {
 	if !operation.ExecutorSubmitted {
-		preflightErr := upgradePreflight(ctx, clientset, operation)
-		if preflightErr != nil {
-			return preflightErr
-		}
-
-		if UpgradeCordons(operation) {
-			result := runCordonDrain(ctx, clientset, operation, worker, true, operation.Options.Drain)
-			if result.err != nil {
-				return result.err
+		for {
+			preflightErr := upgradePreflight(ctx, clientset, operation)
+			if preflightErr == nil {
+				break
 			}
-			if result.outcome != drainDone {
+
+			retryable := netutil.IsConnectionRefused(preflightErr) ||
+				netutil.IsConnectionReset(preflightErr) ||
+				netutil.IsTimeout(preflightErr) ||
+				netutil.IsProbableEOF(preflightErr) ||
+				netutil.IsHTTP2ConnectionLost(preflightErr) ||
+				apierrors.IsServiceUnavailable(preflightErr) ||
+				apierrors.IsTimeout(preflightErr) ||
+				apierrors.IsServerTimeout(preflightErr) ||
+				apierrors.IsTooManyRequests(preflightErr)
+			if !retryable {
+				return preflightErr
+			}
+
+			operationLogStage(
+				worker,
+				"preflight-waiting-api",
+				fmt.Sprintf("Waiting for the Kubernetes API before upgrading %s: %s", operation.NodeName, preflightErr),
+			)
+			if !waitInterruptible(worker, apiRetryDelay) {
 				return nil
 			}
+
+			current, ok := worker.checkpoint()
+			if !ok {
+				return nil
+			}
+			operation = current
 		}
 
 		operationLogStage(
@@ -165,7 +164,7 @@ func upgradePreflight(
 
 	node, err := clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if err != nil {
-		return fmt.Errorf("could not read the node: %s", err)
+		return fmt.Errorf("could not read the node: %w", err)
 	}
 
 	if string(node.UID) != operation.NodeUid {
@@ -178,7 +177,7 @@ func upgradePreflight(
 
 	listed, err := clientset.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return fmt.Errorf("could not list the nodes of the cluster: %s", err)
+		return fmt.Errorf("could not list the nodes of the cluster: %w", err)
 	}
 
 	liveNodes := make(map[string]*corev1.Node, len(listed.Items))
@@ -220,7 +219,10 @@ func upgradePreflight(
 
 		live, liveKnown := liveNodes[recorded.Hostname]
 		if !liveKnown {
-			return fmt.Errorf("the node %s of the cluster is missing from Kubernetes", recorded.Hostname)
+			if recorded.Hostname == nodeName {
+				return fmt.Errorf("the node %s of the cluster is missing from Kubernetes", recorded.Hostname)
+			}
+			continue
 		}
 
 		resulting := live.Status.NodeInfo.KubeletVersion
@@ -342,7 +344,7 @@ func upgradeControlPlaneGuard(ctx context.Context, clientset *kubernetes.Clients
 	required := total/2 + 1
 	remaining, remainingErr := controlPlaneRemainingCount(ctx, clientset, controlPlanes, operation.NodeName, upgrading)
 	if remainingErr != nil {
-		return fmt.Errorf("could not list the control-plane nodes: %s", remainingErr)
+		return fmt.Errorf("could not list the control-plane nodes: %w", remainingErr)
 	}
 	if remaining < required {
 		return fmt.Errorf(
@@ -494,7 +496,7 @@ func upgradeDriveRemote(
 			))
 			return true
 		}
-		upgradeComplete(ctx, clientset, operation, worker)
+		upgradeComplete(clientset, operation, worker)
 		return true
 
 	case shared.NodeAgentPhaseFailed:
@@ -516,37 +518,13 @@ func upgradeDriveRemote(
 			executorMessage = "the node did not report a reason"
 		}
 		upgradeFail(operation, worker, fmt.Sprintf(
-			"the upgrade to %s failed on the node: %s. %s",
+			"the upgrade to %s failed on the node: %s. An explicit retry is required",
 			operation.TargetRelease,
 			executorMessage,
-			upgradeFailureRecoveryMessage(operation),
 		))
 		return true
 
 	case shared.NodeAgentPhaseIdle:
-		if !operation.ExecutorSubmitted && UpgradeCordons(operation) {
-			node, nodeErr := getNode(ctx, clientset, nodeName)
-			if nodeErr != nil {
-				log.Warn("k8s-app maintenance %s: could not read the node before the submission: %s", nodeName, nodeErr)
-				operationLogStage(
-					worker,
-					"submit-retry-node",
-					fmt.Sprintf("Waiting to read the node before the submission: %s", nodeErr),
-				)
-				return false
-			}
-
-			if string(node.UID) != operation.NodeUid {
-				upgradeFail(operation, worker, "the node was replaced during the upgrade")
-				return true
-			}
-
-			if !node.Spec.Unschedulable {
-				upgradeFail(operation, worker, "the node was uncordoned before the upgrade was submitted")
-				return true
-			}
-		}
-
 		return upgradeSubmit(ctx, operation, worker, nodeIp, status)
 
 	default:
@@ -567,19 +545,6 @@ func upgradeSubmit(
 	status shared.NodeAgentStatus,
 ) bool {
 	nodeName := operation.NodeName
-
-	if operation.Options.Drain {
-		trafficErr := upgradeSuspendTraffic(operation, worker)
-		if trafficErr != nil {
-			log.Warn("k8s-app maintenance %s: could not suspend traffic before the upgrade: %s", nodeName, trafficErr)
-			operationLogStage(
-				worker,
-				"submit-retry-traffic",
-				fmt.Sprintf("Waiting to suspend the traffic of the node before the upgrade: %s", trafficErr),
-			)
-			return false
-		}
-	}
 
 	persistErr := worker.mutate(func(op *Operation) bool {
 		if op.ExecutorSubmitted && !op.SubmittedAt.IsZero() {
@@ -622,7 +587,6 @@ func upgradeSubmit(
 }
 
 func upgradeComplete(
-	ctx context.Context,
 	clientset *kubernetes.Clientset,
 	operation Operation,
 	worker *nodeWorker,
@@ -680,63 +644,6 @@ func upgradeComplete(
 				return
 			}
 			continue
-		}
-
-		trafficErr := upgradeRestoreTraffic(operation, worker)
-		if trafficErr != nil {
-			log.Warn("k8s-app maintenance %s: could not restore traffic after the upgrade: %s", nodeName, trafficErr)
-			if !waitInterruptible(worker, apiRetryDelay) {
-				return
-			}
-			continue
-		}
-
-		if operation.OriginalUnschedulable {
-			log.Info(
-				"k8s-app maintenance %s: the node remains cordoned because it was cordoned before the upgrade",
-				nodeName,
-			)
-			upgradeFinish(operation, worker)
-			return
-		}
-
-		if !UpgradeCordons(operation) {
-			upgradeFinish(operation, worker)
-			return
-		}
-
-		if !operation.OriginalSchedulingCaptured {
-			log.Warn(
-				"k8s-app maintenance %s: the node remains cordoned because the original scheduling state was not recorded",
-				nodeName,
-			)
-			operationLogLines(worker, fmt.Sprintf(
-				"The node %s remains cordoned because its original scheduling state was not recorded",
-				nodeName,
-			))
-			upgradeFinish(operation, worker)
-			return
-		}
-
-		node, err := upgradeGetNode(worker.ctx, worker, operation, clientset)
-		if err != nil {
-			log.Warn("k8s-app maintenance %s: could not read the node after the upgrade: %s", nodeName, err)
-			if !waitInterruptible(worker, apiRetryDelay) {
-				return
-			}
-			continue
-		}
-
-		if node.Spec.Unschedulable {
-			_, patchErr := patchUnschedulable(worker.ctx, clientset, node, false)
-			if patchErr != nil {
-				log.Warn("k8s-app maintenance %s: could not uncordon the node: %s", nodeName, patchErr)
-				if !waitInterruptible(worker, apiRetryDelay) {
-					return
-				}
-				continue
-			}
-			operationLogLines(worker, fmt.Sprintf("The node %s was uncordoned. It accepts workloads again", nodeName))
 		}
 
 		upgradeFinish(operation, worker)
@@ -808,7 +715,7 @@ func upgradeFinish(operation Operation, worker *nodeWorker) {
 	}
 	if finishErr != nil {
 		upgradeFail(operation, worker, fmt.Sprintf(
-			"the upgrade to %s completed on the node, but the result could not be recorded: %s. An explicit retry recovers it without draining the node again",
+			"the upgrade to %s completed on the node, but the result could not be recorded: %s. An explicit retry recovers the result",
 			operation.TargetRelease,
 			finishErr,
 		))
@@ -892,8 +799,8 @@ func upgradeRecordDesiredVersion(operation Operation, worker *nodeWorker) error 
 
 // Traffic suspension
 // =====================================================================================================================
-// An upgrade suspends the traffic to the node before it stops workloads. The suspension edits service membership in
-// the IM integration so that the node stops receiving new jobs. Membership updates are synchronous, so a single
+// An operation that stops workloads suspends the traffic to the node first. The suspension edits service membership
+// in the IM integration so that the node stops receiving new jobs. Membership updates are synchronous, so a single
 // verification pass is enough. The suspended records are kept on the operation and restored on completion.
 
 func trafficNodeJobId(worker *nodeWorker, operation Operation) (string, error) {

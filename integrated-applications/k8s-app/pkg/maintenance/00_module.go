@@ -55,12 +55,11 @@ import (
 // =====================================================================================================================
 
 const (
-	KindCordonDrain = "cordon-drain"
-	KindCordon      = "cordon"
-	KindUncordon    = "uncordon"
-	KindUpgrade     = "upgrade"
-	KindOsUpdate    = "os-update"
-	KindRemove      = "remove"
+	KindCordon   = "cordon"
+	KindUncordon = "uncordon"
+	KindUpgrade  = "upgrade"
+	KindOsUpdate = "os-update"
+	KindRemove   = "remove"
 
 	PhasePending   = "Pending"
 	PhaseRunning   = "Running"
@@ -83,7 +82,6 @@ const (
 )
 
 var maintenanceWake = make(chan struct{}, 1)
-var autoMaintenanceWake = make(chan struct{}, 1)
 
 func maintenanceWakeSignal() {
 	select {
@@ -92,19 +90,8 @@ func maintenanceWakeSignal() {
 	}
 }
 
-func autoMaintenanceWakeSignal() {
-	select {
-	case autoMaintenanceWake <- struct{}{}:
-	default:
-	}
-}
-
 func KindRequiresRecovery(kind string) bool {
 	return kind == KindUpgrade || kind == KindOsUpdate
-}
-
-func UpgradeCordons(operation Operation) bool {
-	return operation.Options.Cordon || operation.Options.Drain
 }
 
 func PhaseActive(phase string) bool {
@@ -124,6 +111,7 @@ type Operation struct {
 	Progress                   shared.NodeAgentProgress `json:"progress,omitempty"`
 	ExecutorSeenAt             time.Time                `json:"executorSeenAt,omitempty"`
 	Uid                        string                   `json:"uid"`
+	RunUid                     string                   `json:"runUid,omitempty"`
 	NodeName                   string                   `json:"nodeName"`
 	NodeUid                    string                   `json:"nodeUid"`
 	Kind                       string                   `json:"kind"`
@@ -142,7 +130,6 @@ type Operation struct {
 	ExecutorSubmitted          bool                     `json:"executorSubmitted"`
 	OsPackagesStaged           bool                     `json:"osPackagesStaged,omitempty"`
 	SubmittedAt                time.Time                `json:"submittedAt,omitempty"`
-	AutoRunUid                 string                   `json:"autoRunUid,omitempty"`
 	RecoveryRequired           bool                     `json:"recoveryRequired"`
 	SuspendedJobIds            []string                 `json:"suspendedJobIds,omitempty"`
 	LogStage                   string                   `json:"logStage,omitempty"`
@@ -166,49 +153,10 @@ func submittedCancelMessage(kind string) string {
 	return "the upgrade was submitted to the node and cannot be cancelled"
 }
 
-// Public API
+// Internal API
 // =====================================================================================================================
 
-func SubmitCordonDrain(nodeName string, nodeUid string, options Options) error {
-	options.Cordon = true
-	options.Drain = true
-	return submitOperation(nodeName, nodeUid, KindCordonDrain, options, "", "")
-}
-
-func SubmitCordon(nodeName string, nodeUid string, options Options) error {
-	options.Cordon = true
-	return submitOperation(nodeName, nodeUid, KindCordon, options, "", "")
-}
-
-func SubmitUncordon(nodeName string, nodeUid string) error {
-	return submitOperation(
-		nodeName,
-		nodeUid,
-		KindUncordon,
-		Options{TimeoutSeconds: defaultTimeoutSeconds},
-		"",
-		"",
-	)
-}
-
-func SubmitUpgrade(nodeName string, nodeUid string, release string, options Options) error {
-	return submitOperation(nodeName, nodeUid, KindUpgrade, options, release, "")
-}
-
-func SubmitRemove(nodeName string, nodeUid string, options Options) error {
-	if err := removeSubmitGuard(nodeName); err != nil {
-		return err
-	}
-	return submitOperation(nodeName, nodeUid, KindRemove, options, "", "")
-}
-
-func SubmitOsUpdate(nodeName string, nodeUid string, options Options, autoRunUid string) error {
-	options.Cordon = true
-	options.Drain = true
-	return submitOperation(nodeName, nodeUid, KindOsUpdate, options, "", autoRunUid)
-}
-
-func CancelActiveOperation(nodeName string) error {
+func cancelActiveOperation(nodeName string) error {
 	if nodeName == "" {
 		return errors.New("no node name was provided")
 	}
@@ -325,12 +273,12 @@ func Snapshot() (map[string]Operation, error) {
 // =====================================================================================================================
 
 type submission struct {
-	nodeName   string
-	nodeUid    string
-	kind       string
-	options    Options
-	release    string
-	autoRunUid string
+	nodeName string
+	nodeUid  string
+	kind     string
+	options  Options
+	release  string
+	runUid   string
 }
 
 func submitOperation(
@@ -339,39 +287,49 @@ func submitOperation(
 	kind string,
 	options Options,
 	release string,
-	autoRunUid string,
-) error {
+	runUid string,
+) (string, error) {
 	if nodeName == "" {
-		return errors.New("no node name was provided")
+		return "", errors.New("no node name was provided")
 	}
 	if nodeUid == "" && kind != KindRemove {
-		return errors.New("no node uid was provided")
+		return "", errors.New("no node uid was provided")
 	}
 	if kind == KindUpgrade {
 		if _, ok := shared.ReleaseByExactVersion(release); !ok {
-			return fmt.Errorf("the Kubernetes version %s is not known", release)
+			return "", fmt.Errorf("the Kubernetes version %s is not known", release)
 		}
 		if options.ForceDelete {
-			return errors.New("force delete cannot be used with node upgrades because it is not possible to prove that the workloads stopped")
+			return "", errors.New("force delete cannot be used with node upgrades because it is not possible to prove that the workloads stopped")
 		}
 	}
 	if kind == KindOsUpdate && (options.ForceDelete || options.BypassDisruptionBudgets) {
-		return errors.New("the operating-system update cannot delete pods forcefully or bypass the disruption budgets")
+		return "", errors.New("the operating-system update cannot delete pods forcefully or bypass the disruption budgets")
+	}
+	if kind == KindCordon {
+		options.Cordon = true
+	}
+	if kind == KindRemove {
+		options.Cordon = true
+		options.Drain = true
+	}
+	if kind == KindUncordon {
+		options.TimeoutSeconds = defaultTimeoutSeconds
 	}
 	if err := validateOptions(options); err != nil {
-		return err
+		return "", err
 	}
 	if err := clusterReadyGuard(); err != nil {
-		return err
+		return "", err
 	}
 
 	return submitWrite(submission{
-		nodeName:   nodeName,
-		nodeUid:    nodeUid,
-		kind:       kind,
-		options:    options,
-		release:    release,
-		autoRunUid: autoRunUid,
+		nodeName: nodeName,
+		nodeUid:  nodeUid,
+		kind:     kind,
+		options:  options,
+		release:  release,
+		runUid:   runUid,
 	})
 }
 
@@ -437,6 +395,7 @@ func submitRecord(submit submission, existing Operation) Operation {
 
 	operation := Operation{
 		Uid:                       shared.NewUid(),
+		RunUid:                    submit.runUid,
 		NodeName:                  submit.nodeName,
 		NodeUid:                   submit.nodeUid,
 		Kind:                      submit.kind,
@@ -448,7 +407,6 @@ func submitRecord(submit submission, existing Operation) Operation {
 		Deadline:                  now.Add(time.Duration(submit.options.TimeoutSeconds) * time.Second),
 		HostTerminationUnverified: existing.HostTerminationUnverified,
 		TargetRelease:             submit.release,
-		AutoRunUid:                submit.autoRunUid,
 	}
 
 	if submit.kind == KindUncordon {
@@ -465,7 +423,10 @@ func submitRecord(submit submission, existing Operation) Operation {
 
 	if operationBlockedByRecovery(existing) {
 		operation.SuspendedJobIds = append([]string(nil), existing.SuspendedJobIds...)
-		if submit.options.Cordon || submit.options.Drain {
+	}
+	if submit.options.Cordon || submit.options.Drain {
+		sameRunRetry := existing.RunUid != "" && existing.RunUid == submit.runUid
+		if operationBlockedByRecovery(existing) || sameRunRetry {
 			operation.OriginalUnschedulable = existing.OriginalUnschedulable
 			operation.OriginalSchedulingCaptured = existing.OriginalSchedulingCaptured
 		}
@@ -480,68 +441,37 @@ func submitRecord(submit submission, existing Operation) Operation {
 	return operation
 }
 
-func submitWrite(submit submission) error {
+func submitWrite(submit submission) (string, error) {
 	client, err := stackClientNew()
 	if err != nil {
-		return err
-	}
-	rollingCondition, rollingErr := rollingUpgradeNodeGuard(client, submit.nodeName)
-	if rollingErr != nil {
-		return rollingErr
+		return "", err
 	}
 
 	record, readErr := stackValueRead[Operation](client, stackNodeKey(submit.nodeName), "maintenance record "+stackNodeKey(submit.nodeName))
 	if readErr != nil {
-		return readErr
-	}
-	found := record.Found
-
-	existing := record.Value
-	exists := found
-	if validErr := submitValid(submit, existing, exists); validErr != nil {
-		return validErr
+		return "", readErr
 	}
 
-	operation := submitRecord(submit, existing)
+	if validErr := submitValid(submit, record.Value, record.Found); validErr != nil {
+		return "", validErr
+	}
+
+	operation := submitRecord(submit, record.Value)
 
 	value, marshalErr := json.Marshal(operation)
 	if marshalErr != nil {
-		return marshalErr
+		return "", marshalErr
 	}
 
-	expectedRevision := record.Revision
-
-	conditions := []ucxapi.StackStateRevisionCondition{rollingCondition}
-	validUntil := util.OptNone[int64]()
-	if submit.kind == KindOsUpdate && submit.autoRunUid != "" {
-		check, checkErr := autoOsScheduleCheck(client, time.Now().UTC())
-		if checkErr != nil {
-			return checkErr
-		}
-		if !check.open {
-			return errAutoOsSchedulePaused
-		}
-		conditions = append(conditions, check.condition)
-		validUntil = util.OptValue(check.deadline.UnixMilli())
-	}
-
-	_, writeErr := shared.RpcGrantStateWriteChecked(
-		client,
-		stackNodeKey(submit.nodeName),
-		value,
-		expectedRevision,
-		conditions,
-		nil,
-		validUntil,
-	)
+	_, writeErr := shared.RpcGrantStateWrite(client, stackNodeKey(submit.nodeName), value, record.Revision)
 	if writeErr != nil {
-		return writeErr
+		return "", writeErr
 	}
 
 	resetNodeLog(submit.nodeName, operation.Uid)
 	maintenanceWakeSignal()
 
-	return nil
+	return operation.Uid, nil
 }
 
 // Guards

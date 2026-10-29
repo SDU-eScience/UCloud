@@ -23,3 +23,31 @@ func CommandRegistry() map[string]map[string]CommandFunc {
 	registry["help"] = HelpCommands
 	return registry
 }
+
+func CommandTree() map[string]*CommandNode {
+	registry := CommandRegistry()
+	tree := make(map[string]*CommandNode, len(registry))
+	for name, route := range registry {
+		node := commandGroup(map[string]*CommandNode{})
+		if factory, ok := route[name]; ok {
+			node.Factory = factory
+		}
+		for subName, factory := range route {
+			if subName == name {
+				continue
+			}
+			node.Children[subName] = commandLeaf(factory)
+		}
+		tree[name] = node
+	}
+
+	maintenance := k8sMaintenanceCommandGroup()
+	for _, name := range []string{"k8s", "k8s-clusters"} {
+		node, ok := tree[name]
+		if !ok {
+			continue
+		}
+		node.Children["maintenance"] = maintenance
+	}
+	return tree
+}

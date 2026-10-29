@@ -13,8 +13,6 @@ import (
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
-
-	"ucloud.dk/iapp/k8s/pkg/maintenance"
 )
 
 const (
@@ -499,14 +497,13 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 		if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {
 			return
 		}
-		nodeUid, known := app.nodeUidForName(nodeName)
-		if !known {
+		if _, known := app.nodeUidForName(nodeName); !known {
 			return
 		}
 		if app.MaintenanceBusy {
 			return
 		}
-		maintenanceSubmitAsync(app, maintenanceSubmit{kind: "uncordon"}, nodeName, nodeUid, maintenance.Options{})
+		maintenanceUncordonAsync(app, nodeName)
 	case dashboardActionGoToJob:
 		jobId := app.nodeJobIds()[nodeName]
 		if jobId == "" {

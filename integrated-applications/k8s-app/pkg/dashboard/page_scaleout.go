@@ -229,9 +229,9 @@ func (app *stackUiApp) addMachinesToGroup(stack *ucxsvc.Stack, group string, mac
 		return
 	}
 
-	message := fmt.Sprintf("Added %s to worker pool %s.", autoNodeCount(count), group)
+	message := fmt.Sprintf("Added %s to worker pool %s.", dashboardNodeCount(count), group)
 	if group == shared.GroupControlPlane {
-		message = fmt.Sprintf("Added %s to the control plane.", autoNodeCount(count))
+		message = fmt.Sprintf("Added %s to the control plane.", dashboardNodeCount(count))
 	}
 	ucxsvc.UiSendSuccess(app, message)
 	ucxsvc.RouterPushPage(app, "browse/nodes")
@@ -259,6 +259,13 @@ func (app *stackUiApp) addPool(provider string, stack *ucxsvc.Stack, name string
 		return
 	}
 
-	ucxsvc.UiSendSuccess(app, fmt.Sprintf("Created worker pool %s with %s.", trimmedName, autoNodeCount(count)))
+	ucxsvc.UiSendSuccess(app, fmt.Sprintf("Created worker pool %s with %s.", trimmedName, dashboardNodeCount(count)))
 	ucxsvc.RouterPushPage(app, "browse/nodes")
+}
+
+func dashboardNodeCount(count int) string {
+	if count == 1 {
+		return "1 node"
+	}
+	return fmt.Sprintf("%d nodes", count)
 }

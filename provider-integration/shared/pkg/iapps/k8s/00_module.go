@@ -64,19 +64,34 @@ const (
 	ClusterPhaseCreated      = "created"
 	ClusterPhaseRecovering   = "recovering"
 
-	NodeActionDrain    = "drain"
-	NodeActionCordon   = "cordon"
-	NodeActionUncordon = "uncordon"
-	NodeActionUpgrade  = "upgrade"
-	NodeActionRemove   = "remove"
-	NodeActionCancel   = "cancel"
-
 	MaintenancePhasePending   = "Pending"
 	MaintenancePhaseRunning   = "Running"
 	MaintenancePhaseCompleted = "Completed"
 	MaintenancePhaseFailed    = "Failed"
 	MaintenancePhaseBlocked   = "Blocked"
 	MaintenancePhaseCancelled = "Cancelled"
+
+	MaintenanceTaskK8sUpgrade = "k8s-upgrade"
+	MaintenanceTaskOsUpdate   = "os-update"
+	MaintenanceTaskCordon     = "cordon"
+	MaintenanceTaskUncordon   = "uncordon"
+	MaintenanceTaskRemove     = "remove"
+
+	MaintenanceTriggerWindow = "window"
+	MaintenanceTriggerManual = "manual"
+
+	MaintenanceRunPending   = "Pending"
+	MaintenanceRunPreflight = "Preflight"
+	MaintenanceRunBackup    = "Backup"
+	MaintenanceRunRunning   = "Running"
+	MaintenanceRunBlocked   = "Blocked"
+	MaintenanceRunCompleted = "Completed"
+	MaintenanceRunFailed    = "Failed"
+	MaintenanceRunCancelled = "Cancelled"
+
+	MaintenancePreparationNone   = "none"
+	MaintenancePreparationCordon = "cordon"
+	MaintenancePreparationDrain  = "drain"
 
 	BackupRequestPending   = "pending"
 	BackupRequestRunning   = "running"
@@ -85,31 +100,6 @@ const (
 
 	BackupAttemptSuccess = "success"
 	BackupAttemptFailed  = "failed"
-
-	AutoChannelK8s = "k8s"
-	AutoChannelOs  = "os"
-
-	AutoTriggerWindow = "window"
-	AutoTriggerManual = "manual"
-
-	AutoPhasePending   = "pending"
-	AutoPhasePreflight = "preflight"
-	AutoPhaseBackup    = "backup"
-	AutoPhaseRunning   = "running"
-	AutoPhaseCompleted = "completed"
-	AutoPhaseBlocked   = "blocked"
-
-	AutoRebootWhenRequired = "whenRequired"
-	AutoRebootAlways       = "always"
-
-	AutoActionShow    = "show"
-	AutoActionSet     = "set"
-	AutoActionRun     = "run"
-	AutoActionStop    = "stop"
-	AutoActionResume  = "resume"
-	AutoActionPause   = "pause"
-	AutoActionUnpause = "unpause"
-	AutoActionRetryOs = "retry-os"
 
 	RecoveryPhaseActive = "active"
 	RecoveryPhaseClosed = "closed"
@@ -193,20 +183,6 @@ var groupNameRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
 
 func ValidGroupName(name string) bool {
 	return groupNameRe.MatchString(name)
-}
-
-var autoDayNames = map[string]bool{
-	"mon": true,
-	"tue": true,
-	"wed": true,
-	"thu": true,
-	"fri": true,
-	"sat": true,
-	"sun": true,
-}
-
-func ValidAutoDay(day string) bool {
-	return autoDayNames[strings.ToLower(strings.TrimSpace(day))]
 }
 
 func NormalizeDeployRequest(request DeployRequest) DeployRequest {
@@ -370,21 +346,6 @@ type MaintenanceOperation struct {
 	Error    string `json:"error,omitempty"`
 }
 
-type StatusUpgradeNode struct {
-	Name         string `json:"name"`
-	Group        string `json:"group"`
-	Phase        string `json:"phase"`
-	OperationUid string `json:"operationUid,omitempty"`
-}
-
-type StatusRollingUpgrade struct {
-	Uid           string              `json:"uid"`
-	TargetRelease string              `json:"targetRelease"`
-	Phase         string              `json:"phase"`
-	Error         string              `json:"error,omitempty"`
-	Nodes         []StatusUpgradeNode `json:"nodes"`
-}
-
 type StatusBackup struct {
 	StateFound            bool   `json:"stateFound"`
 	RequestFound          bool   `json:"requestFound"`
@@ -402,26 +363,25 @@ type StatusBackup struct {
 }
 
 type StatusResponse struct {
-	Name                string                 `json:"name"`
-	Phase               string                 `json:"phase"`
-	FailureReason       string                 `json:"failureReason,omitempty"`
-	K8sVersion          string                 `json:"k8sVersion"`
-	MachineProvider     string                 `json:"machineProvider"`
-	Pools               []StatusPool           `json:"pools"`
-	Nodes               []StatusNode           `json:"nodes"`
-	NodeHealthKnown     bool                   `json:"nodeHealthKnown"`
-	NodeTotal           int                    `json:"nodeTotal"`
-	NodeReady           int                    `json:"nodeReady"`
-	NodeNotReady        int                    `json:"nodeNotReady"`
-	NodeUnknown         int                    `json:"nodeUnknown"`
-	ControlPlaneVersion string                 `json:"controlPlaneVersion,omitempty"`
-	MaintenanceKnown    bool                   `json:"maintenanceKnown"`
-	MaintenanceError    string                 `json:"maintenanceError,omitempty"`
-	Maintenance         []MaintenanceOperation `json:"maintenance"`
-	RollingUpgrade      *StatusRollingUpgrade  `json:"rollingUpgrade,omitempty"`
-	RollingUpgradeError string                 `json:"rollingUpgradeError,omitempty"`
-	Backup              *StatusBackup          `json:"backup,omitempty"`
-	BackupError         string                 `json:"backupError,omitempty"`
+	Name                string                  `json:"name"`
+	Phase               string                  `json:"phase"`
+	FailureReason       string                  `json:"failureReason,omitempty"`
+	K8sVersion          string                  `json:"k8sVersion"`
+	MachineProvider     string                  `json:"machineProvider"`
+	Pools               []StatusPool            `json:"pools"`
+	Nodes               []StatusNode            `json:"nodes"`
+	NodeHealthKnown     bool                    `json:"nodeHealthKnown"`
+	NodeTotal           int                     `json:"nodeTotal"`
+	NodeReady           int                     `json:"nodeReady"`
+	NodeNotReady        int                     `json:"nodeNotReady"`
+	NodeUnknown         int                     `json:"nodeUnknown"`
+	ControlPlaneVersion string                  `json:"controlPlaneVersion,omitempty"`
+	MaintenanceKnown    bool                    `json:"maintenanceKnown"`
+	MaintenanceError    string                  `json:"maintenanceError,omitempty"`
+	Maintenance         []MaintenanceOperation  `json:"maintenance"`
+	MaintenanceRuns     []MaintenanceRunSummary `json:"maintenanceRuns"`
+	Backup              *StatusBackup           `json:"backup,omitempty"`
+	BackupError         string                  `json:"backupError,omitempty"`
 }
 
 var Status = ucx.Rpc[util.Empty, StatusResponse]{
@@ -481,43 +441,139 @@ var AddPool = ucx.Rpc[AddPoolRequest, AddPoolResponse]{
 	CallName: "k8s.addPool",
 }
 
-type NodeActionRequest struct {
-	Action                  string `json:"action"`
-	Node                    string `json:"node"`
+type MaintenanceTarget struct {
+	All   bool     `json:"all,omitempty"`
+	Pools []string `json:"pools,omitempty"`
+	Nodes []string `json:"nodes,omitempty"`
+}
+
+type MaintenanceTaskRequest struct {
+	Kind                    string `json:"kind"`
 	TargetRelease           string `json:"targetRelease,omitempty"`
+	Preparation             string `json:"preparation,omitempty"`
 	TimeoutSeconds          int    `json:"timeoutSeconds,omitempty"`
-	Cordon                  bool   `json:"cordon,omitempty"`
-	Drain                   bool   `json:"drain,omitempty"`
 	DeleteVolatilePods      bool   `json:"deleteVolatilePods,omitempty"`
 	BypassDisruptionBudgets bool   `json:"bypassDisruptionBudgets,omitempty"`
 	ForceDelete             bool   `json:"forceDelete,omitempty"`
 }
 
-type NodeActionResponse struct {
+type MaintenanceRunRequest struct {
+	Tasks               []MaintenanceTaskRequest `json:"tasks"`
+	Target              MaintenanceTarget        `json:"target"`
+	MaxParallelPerGroup int                      `json:"maxParallelPerGroup,omitempty"`
+	RequestedBy         string                   `json:"requestedBy,omitempty"`
+}
+
+type MaintenanceRunResponse struct {
+	Uid string `json:"uid"`
+}
+
+var MaintenanceRun = ucx.Rpc[MaintenanceRunRequest, MaintenanceRunResponse]{
+	CallName: "k8s.maintenanceRun",
+}
+
+type MaintenanceCancelRequest struct {
+	RunUid string `json:"runUid,omitempty"`
+	Node   string `json:"node,omitempty"`
+}
+
+type MaintenanceRetryRequest struct {
+	RunUid string `json:"runUid,omitempty"`
+	Node   string `json:"node,omitempty"`
+}
+
+var MaintenanceCancel = ucx.Rpc[MaintenanceCancelRequest, MaintenanceRunResponse]{
+	CallName: "k8s.maintenanceCancel",
+}
+
+var MaintenanceRetry = ucx.Rpc[MaintenanceRetryRequest, MaintenanceRunResponse]{
+	CallName: "k8s.maintenanceRetry",
+}
+
+type MaintenancePolicyInfo struct {
+	K8sEnabled          bool   `json:"k8sEnabled"`
+	OsEnabled           bool   `json:"osEnabled"`
+	WindowDay           string `json:"windowDay"`
+	WindowStartHour     int    `json:"windowStartHour"`
+	WindowDurationHours int    `json:"windowDurationHours"`
+	MaxBackupAgeSeconds int64  `json:"maxBackupAgeSeconds,omitempty"`
+}
+
+type MaintenanceScheduleInfo struct {
+	LastWindowStart int64 `json:"lastWindowStart,omitempty"`
+	NextWindowAt    int64 `json:"nextWindowAt,omitempty"`
+	NextWindowEnd   int64 `json:"nextWindowEnd,omitempty"`
+}
+
+type MaintenanceCheckInfo struct {
+	Name   string `json:"name"`
+	Ok     bool   `json:"ok"`
+	Detail string `json:"detail,omitempty"`
+}
+
+type MaintenanceItemInfo struct {
 	Node         string `json:"node"`
-	Action       string `json:"action"`
+	Group        string `json:"group,omitempty"`
+	Phase        string `json:"phase"`
 	OperationUid string `json:"operationUid,omitempty"`
+	Error        string `json:"error,omitempty"`
+	Percent      int    `json:"percent,omitempty"`
+	Stage        string `json:"stage,omitempty"`
 }
 
-var NodeAction = ucx.Rpc[NodeActionRequest, NodeActionResponse]{
-	CallName: "k8s.nodeAction",
+type MaintenanceTaskInfo struct {
+	Kind          string                `json:"kind"`
+	Phase         string                `json:"phase"`
+	TargetRelease string                `json:"targetRelease,omitempty"`
+	Items         []MaintenanceItemInfo `json:"items"`
 }
 
-type UpgradeRequest struct {
-	K8sVersion     string   `json:"k8sVersion"`
-	Pools          []string `json:"pools,omitempty"`
-	TimeoutSeconds int      `json:"timeoutSeconds,omitempty"`
-	Cordon         bool     `json:"cordon,omitempty"`
-	Drain          bool     `json:"drain,omitempty"`
+type MaintenanceRunSummary struct {
+	Uid             string `json:"uid"`
+	Kind            string `json:"kind"`
+	Trigger         string `json:"trigger"`
+	RequestedBy     string `json:"requestedBy,omitempty"`
+	RequestedAt     int64  `json:"requestedAt,omitempty"`
+	Phase           string `json:"phase"`
+	Message         string `json:"message,omitempty"`
+	Error           string `json:"error,omitempty"`
+	CancelRequested bool   `json:"cancelRequested,omitempty"`
+	StartedAt       int64  `json:"startedAt,omitempty"`
+	FinishedAt      int64  `json:"finishedAt,omitempty"`
 }
 
-type UpgradeResponse struct {
-	Uid           string `json:"uid,omitempty"`
-	TargetRelease string `json:"targetRelease"`
+type MaintenanceRunInfo struct {
+	MaintenanceRunSummary
+	Tasks  []MaintenanceTaskInfo  `json:"tasks"`
+	Checks []MaintenanceCheckInfo `json:"checks"`
 }
 
-var RollingUpgrade = ucx.Rpc[UpgradeRequest, UpgradeResponse]{
-	CallName: "k8s.rollingUpgrade",
+type MaintenanceStatusResponse struct {
+	PolicyFound     bool                    `json:"policyFound"`
+	Policy          MaintenancePolicyInfo   `json:"policy"`
+	Schedule        MaintenanceScheduleInfo `json:"schedule"`
+	ActiveRuns      []MaintenanceRunInfo    `json:"activeRuns"`
+	RecentRuns      []MaintenanceRunInfo    `json:"recentRuns,omitempty"`
+	LastRun         *MaintenanceRunInfo     `json:"lastRun,omitempty"`
+	Operations      []MaintenanceOperation  `json:"operations"`
+	OperationsError string                  `json:"operationsError,omitempty"`
+	Backup          *StatusBackup           `json:"backup,omitempty"`
+	BackupError     string                  `json:"backupError,omitempty"`
+}
+
+var MaintenanceStatus = ucx.Rpc[util.Empty, MaintenanceStatusResponse]{
+	CallName: "k8s.maintenanceStatus",
+}
+
+type MaintenancePolicyUpdateRequest struct {
+	K8sEnabled      util.Option[bool] `json:"k8sEnabled"`
+	OsEnabled       util.Option[bool] `json:"osEnabled"`
+	WindowDay       string            `json:"windowDay,omitempty"`
+	WindowStartHour util.Option[int]  `json:"windowStartHour"`
+}
+
+var MaintenancePolicyUpdate = ucx.Rpc[MaintenancePolicyUpdateRequest, MaintenanceStatusResponse]{
+	CallName: "k8s.maintenancePolicyUpdate",
 }
 
 type BackupResponse struct {
@@ -525,79 +581,8 @@ type BackupResponse struct {
 	Phase string `json:"phase"`
 }
 
-var BackupNow = ucx.Rpc[util.Empty, BackupResponse]{
-	CallName: "k8s.backupNow",
-}
-
-type AutoPolicyInfo struct {
-	K8sEnabled          bool     `json:"k8sEnabled"`
-	OsEnabled           bool     `json:"osEnabled"`
-	RebootPolicy        string   `json:"rebootPolicy"`
-	WindowDays          []string `json:"windowDays"`
-	WindowStartHour     int      `json:"windowStartHour"`
-	WindowDurationHours int      `json:"windowDurationHours"`
-	MaxBackupAgeSeconds int64    `json:"maxBackupAgeSeconds,omitempty"`
-	DeferUntil          int64    `json:"deferUntil,omitempty"`
-	NextRunAt           int64    `json:"nextRunAt,omitempty"`
-	NextRunEnd          int64    `json:"nextRunEnd,omitempty"`
-}
-
-type AutoCheckInfo struct {
-	Name   string `json:"name"`
-	Ok     bool   `json:"ok"`
-	Detail string `json:"detail,omitempty"`
-}
-
-type AutoRunInfo struct {
-	Uid           string          `json:"uid,omitempty"`
-	Channel       string          `json:"channel,omitempty"`
-	Trigger       string          `json:"trigger,omitempty"`
-	Phase         string          `json:"phase,omitempty"`
-	TargetRelease string          `json:"targetRelease,omitempty"`
-	Error         string          `json:"error,omitempty"`
-	StartedAt     int64           `json:"startedAt,omitempty"`
-	FinishedAt    int64           `json:"finishedAt,omitempty"`
-	Checks        []AutoCheckInfo `json:"checks,omitempty"`
-}
-
-type AutoOsReport struct {
-	NodeName       string `json:"nodeName"`
-	Pending        int    `json:"pending"`
-	Security       int    `json:"security"`
-	RebootRequired bool   `json:"rebootRequired"`
-	CheckedAt      int64  `json:"checkedAt,omitempty"`
-	Error          string `json:"error,omitempty"`
-}
-
-type AutoStateInfo struct {
-	Found           bool           `json:"found"`
-	Blocked         bool           `json:"blocked"`
-	ResumedAt       int64          `json:"resumedAt,omitempty"`
-	LastRun         AutoRunInfo    `json:"lastRun"`
-	OsReports       []AutoOsReport `json:"osReports"`
-	OsRecoveryNodes []string       `json:"osRecoveryNodes"`
-	OsRecoveryError string         `json:"osRecoveryError,omitempty"`
-}
-
-type AutoRequest struct {
-	Action          string            `json:"action"`
-	K8sEnabled      util.Option[bool] `json:"k8sEnabled"`
-	OsEnabled       util.Option[bool] `json:"osEnabled"`
-	WindowDay       string            `json:"windowDay,omitempty"`
-	WindowStartHour util.Option[int]  `json:"windowStartHour"`
-	PauseDays       int               `json:"pauseDays,omitempty"`
-	Node            string            `json:"node,omitempty"`
-}
-
-type AutoResponse struct {
-	PolicyFound bool           `json:"policyFound"`
-	Policy      AutoPolicyInfo `json:"policy"`
-	State       AutoStateInfo  `json:"state"`
-	Ok          bool           `json:"ok"`
-}
-
-var AutoMaintenance = ucx.Rpc[AutoRequest, AutoResponse]{
-	CallName: "k8s.autoMaintenance",
+var MaintenanceBackup = ucx.Rpc[util.Empty, BackupResponse]{
+	CallName: "k8s.maintenanceBackup",
 }
 
 type RecoveryBackupInfo struct {

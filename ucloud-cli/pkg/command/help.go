@@ -30,32 +30,44 @@ var commandDescriptions = map[string]string{
 	"vm":              "Manage virtual machines",
 	"workspace":       "Manage workspaces",
 
-	"k8s auto":                "Show and change automatic maintenance",
-	"k8s backup":              "Start a control-plane backup",
-	"k8s create":              "Create a Kubernetes cluster, or generate a template with --template",
-	"k8s delete":              "Delete a Kubernetes cluster",
-	"k8s kubeconfig":          "Print the kubeconfig of a Kubernetes cluster",
-	"k8s list":                "List Kubernetes clusters",
-	"k8s node":                "Maintain a cluster node",
-	"k8s pool":                "Manage worker pools",
-	"k8s recovery":            "Show or start cluster recovery",
-	"k8s releases":            "List supported Kubernetes releases",
-	"k8s scale":               "Change the number of nodes in a pool",
-	"k8s status":              "Show the status of a Kubernetes cluster",
-	"k8s upgrade":             "Start a rolling cluster upgrade",
-	"k8s-clusters auto":       "Show and change automatic maintenance",
-	"k8s-clusters backup":     "Start a control-plane backup",
-	"k8s-clusters create":     "Create a Kubernetes cluster, or generate a template with --template",
-	"k8s-clusters delete":     "Delete a Kubernetes cluster",
-	"k8s-clusters kubeconfig": "Print the kubeconfig of a Kubernetes cluster",
-	"k8s-clusters list":       "List Kubernetes clusters",
-	"k8s-clusters node":       "Maintain a cluster node",
-	"k8s-clusters pool":       "Manage worker pools",
-	"k8s-clusters recovery":   "Show or start cluster recovery",
-	"k8s-clusters releases":   "List supported Kubernetes releases",
-	"k8s-clusters scale":      "Change the number of nodes in a pool",
-	"k8s-clusters status":     "Show the status of a Kubernetes cluster",
-	"k8s-clusters upgrade":    "Start a rolling cluster upgrade",
+	"k8s maintenance":                   "Show maintenance, start runs and change the schedule",
+	"k8s maintenance status":            "Show maintenance status",
+	"k8s maintenance run":               "Start a maintenance run",
+	"k8s maintenance cancel":            "Request cancellation of a maintenance run",
+	"k8s maintenance retry":             "Retry a blocked or failed maintenance run",
+	"k8s maintenance schedule":          "Change scheduled maintenance",
+	"k8s maintenance backup":            "Start a cluster backup",
+	"k8s-clusters maintenance":          "Show maintenance, start runs and change the schedule",
+	"k8s-clusters maintenance status":   "Show maintenance status",
+	"k8s-clusters maintenance run":      "Start a maintenance run",
+	"k8s-clusters maintenance cancel":   "Request cancellation of a maintenance run",
+	"k8s-clusters maintenance retry":    "Retry a blocked or failed maintenance run",
+	"k8s-clusters maintenance schedule": "Change scheduled maintenance",
+	"k8s-clusters maintenance backup":   "Start a cluster backup",
+	"k8s create":                        "Create a Kubernetes cluster, or generate a template with --template",
+	"k8s delete":                        "Delete a Kubernetes cluster",
+	"k8s kubeconfig":                    "Print the kubeconfig of a Kubernetes cluster",
+	"k8s list":                          "List Kubernetes clusters",
+	"k8s pool":                          "Manage worker pools",
+	"k8s recovery":                      "Show or start cluster recovery",
+	"k8s releases":                      "List supported Kubernetes releases",
+	"k8s scale":                         "Change the number of nodes in a pool",
+	"k8s status":                        "Show the status of a Kubernetes cluster",
+	"k8s-clusters create":               "Create a Kubernetes cluster, or generate a template with --template",
+	"k8s-clusters delete":               "Delete a Kubernetes cluster",
+	"k8s-clusters kubeconfig":           "Print the kubeconfig of a Kubernetes cluster",
+	"k8s-clusters list":                 "List Kubernetes clusters",
+	"k8s-clusters pool":                 "Manage worker pools",
+	"k8s-clusters recovery":             "Show or start cluster recovery",
+	"k8s-clusters releases":             "List supported Kubernetes releases",
+	"k8s-clusters scale":                "Change the number of nodes in a pool",
+	"k8s-clusters status":               "Show the status of a Kubernetes cluster",
+}
+
+var commandGroupNotes = map[string][]string{
+	"k8s maintenance": {
+		"Place flags after the action name, for example: ucloud k8s maintenance run dev --yes.",
+	},
 }
 
 type HelpCommand struct {
@@ -104,15 +116,11 @@ func helpPathPrefix(args []string) []string {
 }
 
 func isGroupCommand(name string) bool {
-	route, ok := CommandRegistry()[name]
+	node, ok := CommandTree()[name]
 	if !ok {
 		return false
 	}
-	if len(route) != 1 {
-		return true
-	}
-	_, isLeaf := route[name]
-	return !isLeaf
+	return len(node.Children) > 0
 }
 
 func ShowHelp(path []string) error {
@@ -125,51 +133,40 @@ func renderHelp(w io.Writer, path []string) error {
 		return err
 	}
 
-	sort.Slice(specs, func(i, j int) bool {
-		return specs[i].Name < specs[j].Name
-	})
-	for i := range specs {
-		sort.Slice(specs[i].SubCommands, func(a, b int) bool {
-			return specs[i].SubCommands[a].Name < specs[i].SubCommands[b].Name
-		})
-	}
-
 	if len(path) == 0 {
 		renderTopLevelHelp(w, specs)
 		return nil
 	}
 
-	var top *CommandSpec
-	for i := range specs {
-		if specs[i].Name == path[0] {
-			top = &specs[i]
-			break
-		}
-	}
-	if top == nil {
+	current, ok := findCommandSpec(specs, path[0])
+	if !ok {
 		return fmt.Errorf("unknown command %s", path[0])
 	}
-
-	if len(path) == 1 {
-		if isLeafCommand(*top) {
-			renderCommandHelp(w, top.Name, top.SubCommands[0])
-		} else {
-			renderGroupHelp(w, *top)
+	fullPath := []string{path[0]}
+	for _, part := range path[1:] {
+		child, ok := findCommandSpec(current.SubCommands, part)
+		if !ok {
+			return fmt.Errorf("unknown command %s", strings.Join(append(fullPath, part), " "))
 		}
-		return nil
+		current = child
+		fullPath = append(fullPath, part)
 	}
 
-	for _, sub := range top.SubCommands {
-		if sub.Name == path[1] {
-			renderCommandHelp(w, top.Name, sub)
-			return nil
-		}
+	if len(current.SubCommands) > 0 {
+		renderGroupHelp(w, current, fullPath)
+	} else {
+		renderCommandHelp(w, current, fullPath)
 	}
-	return fmt.Errorf("unknown command %s %s", path[0], path[1])
+	return nil
 }
 
-func isLeafCommand(spec CommandSpec) bool {
-	return len(spec.SubCommands) == 1 && spec.SubCommands[0].Name == spec.Name
+func findCommandSpec(specs []CommandSpec, name string) (CommandSpec, bool) {
+	for _, spec := range specs {
+		if spec.Name == name {
+			return spec, true
+		}
+	}
+	return CommandSpec{}, false
 }
 
 func renderTopLevelHelp(w io.Writer, specs []CommandSpec) {
@@ -178,27 +175,34 @@ func renderTopLevelHelp(w io.Writer, specs []CommandSpec) {
 	fmt.Fprintln(w, "Commands:")
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	for _, spec := range specs {
-		writeCommandLine(tw, spec.Name, commandDescriptions[spec.Name])
+		writeCommandLine(tw, spec.Name, commandDescription([]string{spec.Name}))
 	}
 	tw.Flush()
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Run 'ucloud help <command>' for more information.")
 }
 
-func renderGroupHelp(w io.Writer, spec CommandSpec) {
-	fmt.Fprintf(w, "Usage: ucloud %s <command> [flags]\n\n", spec.Name)
-	if description := commandDescriptions[spec.Name]; description != "" {
+func renderGroupHelp(w io.Writer, spec CommandSpec, path []string) {
+	fmt.Fprintf(w, "Usage: ucloud %s <command> [flags]\n\n", strings.Join(path, " "))
+	if description := commandDescription(path); description != "" {
 		fmt.Fprintln(w, description)
+		fmt.Fprintln(w)
+	}
+	if notes := commandGroupHelpNotes(path); len(notes) > 0 {
+		fmt.Fprintln(w, "Notes:")
+		for _, note := range notes {
+			fmt.Fprintln(w, "  "+note)
+		}
 		fmt.Fprintln(w)
 	}
 	fmt.Fprintln(w, "Commands:")
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	for _, sub := range spec.SubCommands {
-		writeCommandLine(tw, sub.Name, commandDescriptions[spec.Name+" "+sub.Name])
+		writeCommandLine(tw, sub.Name, commandDescription(append(path, sub.Name)))
 	}
 	tw.Flush()
 	fmt.Fprintln(w)
-	fmt.Fprintf(w, "Run 'ucloud help %s <command>' for more information.\n", spec.Name)
+	fmt.Fprintf(w, "Run 'ucloud help %s <command>' for more information.\n", strings.Join(path, " "))
 }
 
 func writeCommandLine(w io.Writer, name string, description string) {
@@ -209,10 +213,10 @@ func writeCommandLine(w io.Writer, name string, description string) {
 	fmt.Fprintf(w, "  %s\t%s\n", name, description)
 }
 
-func renderCommandHelp(w io.Writer, topName string, sub SubCommand) {
+func renderCommandHelp(w io.Writer, spec CommandSpec, path []string) {
 	var positionals []FlagSpec
 	var flags []FlagSpec
-	for _, flagSpec := range sub.Flags {
+	for _, flagSpec := range spec.Flags {
 		if flagSpec.FlagType == "positional" {
 			positionals = append(positionals, flagSpec)
 		} else {
@@ -223,10 +227,7 @@ func renderCommandHelp(w io.Writer, topName string, sub SubCommand) {
 		return flags[i].Name < flags[j].Name
 	})
 
-	usage := "Usage: ucloud " + topName
-	if sub.Name != topName {
-		usage += " " + sub.Name
-	}
+	usage := "Usage: ucloud " + strings.Join(path, " ")
 	for _, positional := range positionals {
 		placeholder := "<" + positional.Name + ">"
 		if positional.InputType == "slice" {
@@ -240,18 +241,14 @@ func renderCommandHelp(w io.Writer, topName string, sub SubCommand) {
 	fmt.Fprintln(w, usage)
 	fmt.Fprintln(w)
 
-	description := commandDescriptions[topName]
-	if sub.Name != topName {
-		description = commandDescriptions[topName+" "+sub.Name]
-	}
-	if description != "" {
+	if description := commandDescription(path); description != "" {
 		fmt.Fprintln(w, description)
 		fmt.Fprintln(w)
 	}
 
-	if len(sub.Notes) > 0 {
+	if len(spec.Notes) > 0 {
 		fmt.Fprintln(w, "Notes:")
-		for _, note := range sub.Notes {
+		for _, note := range spec.Notes {
 			fmt.Fprintln(w, "  "+note)
 		}
 		fmt.Fprintln(w)
@@ -282,6 +279,30 @@ func renderCommandHelp(w io.Writer, topName string, sub SubCommand) {
 	fmt.Fprintln(tw, "  --color string\tColor mode: auto, always or never (default auto)")
 	fmt.Fprintln(tw, "  -h, --help\tShow help")
 	tw.Flush()
+}
+
+func commandGroupHelpNotes(path []string) []string {
+	key := strings.Join(path, " ")
+	if notes, ok := commandGroupNotes[key]; ok {
+		return notes
+	}
+	if len(path) > 1 && path[0] == "k8s-clusters" {
+		canonical := append([]string{"k8s"}, path[1:]...)
+		return commandGroupNotes[strings.Join(canonical, " ")]
+	}
+	return nil
+}
+
+func commandDescription(path []string) string {
+	key := strings.Join(path, " ")
+	if description := commandDescriptions[key]; description != "" {
+		return description
+	}
+	if len(path) > 1 && path[0] == "k8s-clusters" {
+		canonical := append([]string{"k8s"}, path[1:]...)
+		return commandDescriptions[strings.Join(canonical, " ")]
+	}
+	return ""
 }
 
 func flagLabel(flagSpec FlagSpec) string {

@@ -14,10 +14,7 @@
 // - page_browse.go: 			is the resource browser. It lists every resource type in a table with actions on each row.
 // - page_provisioning.go: 		is shown while the control plane starts. It reports the nodes and the job logs.
 // - page_scaleout.go: 			adds machines to a node pool and creates new worker pools.
-// - page_maintenance.go: 		maintains a single node. It cordons, drains, upgrades and removes the node.
-// - page_rolling_upgrade.go: 	upgrades the whole cluster one node at a time.
-// - page_auto_maintenance.go: 	configures the weekly window, the automatic upgrades and the automatic operating-system
-//                            	updates.
+// - page_maintenance.go: 		shows the maintenance hub and one node. Every action starts a maintenance run.
 // - page_backup.go: 			shows the control plane backups and starts a manual backup.
 //
 // The resource model
@@ -132,29 +129,24 @@ type stackUiApp struct {
 	MaintenanceForceDelete             bool
 	MaintenanceBusy                    bool
 	MaintenanceTargetRelease           string
-	RollingUpgradeTargetRelease        string
-	RollingUpgradeGroups               []rollingUpgradeGroup
-	RollingUpgradeBusy                 bool
+
+	MaintenanceTask            string
+	MaintenanceK8sEnabled      bool
+	MaintenanceOsEnabled       bool
+	MaintenanceWindowDay       string
+	MaintenanceWindowStart     string
+	maintenanceHubLoaded       bool                     `ucx:"-"`
+	maintenanceRunNowConfirm   bool                     `ucx:"-"`
+	maintenanceNodeRunConfirm  bool                     `ucx:"-"`
+	maintenancePolicySaving    bool                     `ucx:"-"`
+	maintenancePolicyPending   *maintenancePolicyValues `ucx:"-"`
+	maintenancePolicySaveError string                   `ucx:"-"`
 
 	BackupsBusy      bool
 	BackupsBlocked   bool
 	backupsRequester string `ucx:"-"`
 
-	AutoMaintenanceK8sEnabled bool
-	AutoMaintenanceOsEnabled  bool
-	AutoWindowDay             string
-	AutoWindowStartHour       string
-	AutoMaintenanceBusy       bool
-	autoMaintenanceLoaded     bool              `ucx:"-"`
-	autoSettingsSaving        bool              `ucx:"-"`
-	autoSettingsPending       *autoSettingsForm `ucx:"-"`
-	autoSettingsSaveError     string            `ucx:"-"`
-	autoRunNowConfirm         bool              `ucx:"-"`
-
-	maintenanceNodeName        string `ucx:"-"`
-	maintenanceNodeUid         string `ucx:"-"`
-	maintenanceRetryOptionsFor string `ucx:"-"`
-	maintenanceMode            string `ucx:"-"`
+	maintenanceNodeName string `ucx:"-"`
 
 	stackInfo *ucxapi.StackInfoResponse `ucx:"-"`
 
@@ -226,8 +218,12 @@ func (app *stackUiApp) OnSysHello(payload string) {
 // detail, a maintenance page or one of the cluster pages. The router runs on every render, so it only reads state.
 
 func (app *stackUiApp) UserInterface() ucx.UiNode {
-	if app.RoutePath != "automatic-maintenance" {
-		app.autoMaintenanceLoaded = false
+	if app.RoutePath != "maintenance" {
+		app.maintenanceHubLoaded = false
+		app.maintenanceRunNowConfirm = false
+	}
+	if !strings.HasPrefix(app.RoutePath, "maintenance/") {
+		app.maintenanceNodeRunConfirm = false
 	}
 
 	children := []ucx.UiNode{
@@ -235,10 +231,6 @@ func (app *stackUiApp) UserInterface() ucx.UiNode {
 	}
 
 	switch {
-	case app.RoutePath == "rolling-upgrade":
-		children = append(children, rollingUpgradePage(app)...)
-	case app.RoutePath == "automatic-maintenance":
-		children = append(children, autoMaintenancePage(app)...)
 	case app.RoutePath == "backups":
 		children = append(children, backupPage(app)...)
 	case app.RoutePath == "control/new-pool":
@@ -272,11 +264,11 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 	switch frame.Opcode {
 	case ucx.OpModelInput:
 		switch frame.ModelInput.Path {
-		case "autoMaintenanceK8sEnabled", "autoMaintenanceOsEnabled", "autoWindowDay", "autoWindowStartHour":
+		case "maintenanceK8sEnabled", "maintenanceOsEnabled", "maintenanceWindowDay", "maintenanceWindowStart":
 			if strings.HasPrefix(frame.ModelInput.NodeId, "rehydrate:") {
-				app.autoMaintenanceLoaded = false
+				app.maintenanceHubLoaded = false
 			} else {
-				autoSettingsSaveAsync(app)
+				maintenancePolicySaveAsync(app)
 			}
 			ucx.AppUpdateUi(app)
 			return
@@ -364,7 +356,7 @@ func (app *stackUiApp) OnMessage(frame ucx.Frame) {
 		}
 
 		switch frame.ModelInput.Path {
-		case "activeNamespace", "routePath", "maintenanceDrain":
+		case "activeNamespace", "routePath", "maintenanceDrain", "maintenanceTask":
 			changed = true
 		}
 
@@ -605,7 +597,7 @@ func (app *stackUiApp) clusterStateValueClient() (shared.ClusterStateClient, err
 func (app *stackUiApp) onMaintenanceRoute() bool {
 	app.mu.Lock()
 	defer app.mu.Unlock()
-	return app.RoutePath == "rolling-upgrade" || app.RoutePath == "backups" || app.RoutePath == "automatic-maintenance" || app.RoutePath == "maintenance" || strings.HasPrefix(app.RoutePath, "maintenance/")
+	return app.RoutePath == "backups" || app.RoutePath == "maintenance" || strings.HasPrefix(app.RoutePath, "maintenance/")
 }
 
 func (app *stackUiApp) maintenanceUiTick() {

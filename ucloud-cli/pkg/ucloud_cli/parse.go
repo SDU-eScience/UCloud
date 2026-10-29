@@ -2,6 +2,7 @@ package ucloud_cli
 
 import (
 	"fmt"
+	"strings"
 
 	com "ucloud.dk/ucloud_cli/pkg/command"
 )
@@ -19,41 +20,28 @@ func Parse(commands []string) (com.Command, error) {
 		return nil, fmt.Errorf("No command specified.")
 	}
 
-	var subCommand string
-	mainCommand := commands[0]
-	if len(commands) > 1 {
-		subCommand = commands[1] // secondary positional
+	tree := com.CommandTree()
+	node, ok := tree[commands[0]]
+	if !ok {
+		return nil, fmt.Errorf("unknown command %s", commands[0])
 	}
 
-	commandParsers := com.CommandRegistry()
-
-	parserRoute, ok := commandParsers[mainCommand]
-
-	if !ok {
-		return nil, fmt.Errorf("unknown command %s", mainCommand)
-	}
-
-	var cmd com.Command
-	var createFunc com.CommandFunc
-
-	sliceCount := 1 // Used to remove the found commands
-	createFunc, ok = parserRoute[subCommand]
-	if !ok {
-		// No subcommand is found, then there is only 1 command
-		createFunc, ok = parserRoute[mainCommand]
+	consumed := 1
+	for consumed < len(commands) {
+		child, ok := node.Children[commands[consumed]]
 		if !ok {
-			return nil, fmt.Errorf("command %s not found", mainCommand)
+			break
 		}
-	} else {
-		sliceCount = 2
+		node = child
+		consumed++
 	}
 
-	commands = commands[sliceCount:]
+	if node.Factory == nil {
+		return nil, fmt.Errorf("missing subcommand for %s", strings.Join(commands[:consumed], " "))
+	}
 
-	cmd = createFunc()
-
-	err := bindCommand(commands, cmd)
-
+	cmd := node.Factory()
+	err := bindCommand(commands[consumed:], cmd)
 	if err != nil {
 		return nil, err
 	}

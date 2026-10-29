@@ -394,12 +394,12 @@ func k8sPrintRecoveryStatus(name string, response k8sapi.RecoveryStatusResponse,
 		summary.AppendField("Backup", k8sValueOrDash(response.BackupId))
 		summary.AppendField("Backup release", k8sValueOrDash(response.BackupRelease))
 		summary.AppendField("Credentials", k8sRecoveryCredentialsLabel(response.CredentialsStatus))
-		summary.AppendField("Started", k8sAutoTimestamp(response.StartedAt))
+		summary.AppendField("Started", k8sTimestamp(response.StartedAt))
 		if response.StartedBy != "" {
 			summary.AppendField("Started by", response.StartedBy)
 		}
 		if response.ClosedAt > 0 {
-			summary.AppendField("Closed", k8sAutoTimestamp(response.ClosedAt))
+			summary.AppendField("Closed", k8sTimestamp(response.ClosedAt))
 		}
 		if response.LastError != "" {
 			summary.AppendFieldStyled("Last error", termio.Danger("%s", response.LastError))
@@ -425,7 +425,7 @@ func k8sPrintRecoveryStatus(name string, response k8sapi.RecoveryStatusResponse,
 			}
 			backups.Cell("%s", backup.Id)
 			backups.Cell("%s", k8sValueOrDash(backup.Release))
-			backups.Cell("%s", k8sAutoTimestamp(backup.CreatedAt))
+			backups.Cell("%s", k8sTimestamp(backup.CreatedAt))
 			backups.Cell("%s", k8sFormatBytes(backup.SizeBytes))
 			backups.Cell("%s", termio.EscapeName(k8sValueOrDash(backup.CreatedByNode)))
 			backups.Cell("%s", selected)

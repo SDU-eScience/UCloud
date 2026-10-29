@@ -551,7 +551,6 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 	isNodes := selection.def.Id == "nodes"
 	maintenanceSnapshot := map[string]maintenance.Operation{}
 	maintenanceUnavailable := false
-	osReports := map[string]maintenance.AutoUpdateReport{}
 	nodeJobIds := map[string]string{}
 	if isNodes {
 		read, err := maintenance.Snapshot()
@@ -560,14 +559,6 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 			maintenanceUnavailable = true
 		} else {
 			maintenanceSnapshot = read
-		}
-		reports, reportsErr := maintenance.AutoOsReportsRead()
-		if reportsErr != nil {
-			log.Warn("k8s-app: could not read the operating-system update reports: %s", reportsErr)
-		} else {
-			for _, report := range reports {
-				osReports[report.NodeName] = report
-			}
 		}
 		if p.nodeJobIds != nil {
 			nodeJobIds = p.nodeJobIds()
@@ -627,10 +618,6 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 		if isNodes && !strings.HasPrefix(rows[i].Key, provisioningRowKeyPrefix) && len(rows[i].Cells) > 3 {
 			operation, present := maintenanceSnapshot[rows[i].Cells[0]]
 			rows[i].Cells[3] = maintenanceCellForOperation(operation, present)
-		}
-		if isNodes && !strings.HasPrefix(rows[i].Key, provisioningRowKeyPrefix) && len(rows[i].Cells) > 6 {
-			report, present := osReports[rows[i].Cells[0]]
-			rows[i].Cells[6] = osUpdateCellForReport(report, present)
 		}
 	}
 

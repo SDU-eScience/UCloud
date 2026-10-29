@@ -330,7 +330,6 @@ func startUpgrade(writer http.ResponseWriter, release string, state upgradeState
 
 type osUpdateRequest struct {
 	Command string `json:"command"`
-	Reboot  string `json:"reboot"`
 }
 
 func writeOsStatus(writer http.ResponseWriter, statusCode int) {
@@ -362,6 +361,10 @@ func handleOsUpdate(writer http.ResponseWriter, request *http.Request) {
 
 	state := osStateLoad()
 	if state.NeedsStateRecovery {
+		if parsed.Command == shared.NodeAgentOsCommandCheck {
+			writeJson(writer, http.StatusOK, osStatusFromState(identitySnapshot()))
+			return
+		}
 		writeError(writer, http.StatusInternalServerError, state.Error)
 		return
 	}
@@ -462,7 +465,7 @@ func handleOsUpdate(writer http.ResponseWriter, request *http.Request) {
 			writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not persist the accepted operating-system installation: %s", err))
 			return
 		}
-		go runOsApply(parsed.Reboot)
+		go runOsApply()
 		writeOsStatus(writer, http.StatusAccepted)
 		return
 	}
@@ -486,15 +489,6 @@ func decodeOsUpdate(writer http.ResponseWriter, request *http.Request) (osUpdate
 		shared.NodeAgentOsCommandApply, shared.NodeAgentOsCommandRetry:
 	default:
 		writeError(writer, http.StatusBadRequest, fmt.Sprintf("unknown operating-system command: %s", parsed.Command))
-		return osUpdateRequest{}, false
-	}
-
-	switch parsed.Reboot {
-	case "":
-		parsed.Reboot = shared.NodeAgentOsRebootWhenRequired
-	case shared.NodeAgentOsRebootWhenRequired, shared.NodeAgentOsRebootAlways:
-	default:
-		writeError(writer, http.StatusBadRequest, fmt.Sprintf("unknown reboot policy: %s", parsed.Reboot))
 		return osUpdateRequest{}, false
 	}
 
@@ -543,7 +537,7 @@ func startOsUpdate(writer http.ResponseWriter, parsed osUpdateRequest, state osS
 	if parsed.Command == shared.NodeAgentOsCommandStage || parsed.Command == shared.NodeAgentOsCommandStageRetry {
 		go runOsStage()
 	} else {
-		go runOsUpdate(parsed.Reboot)
+		go runOsUpdate()
 	}
 
 	writeOsStatus(writer, http.StatusAccepted)

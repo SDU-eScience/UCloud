@@ -64,7 +64,6 @@ var resourceTypes = []ResourceTypeDef{
 			{Key: "maintenance", Label: "Maintenance"},
 			{Key: "role", Label: "Roles"},
 			{Key: "version", Label: "Kubernetes version"},
-			{Key: "os", Label: "OS updates"},
 			{Key: "ip", Label: "IP", SortType: ucx.TableColumnSortIp},
 			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
 		},
@@ -674,7 +673,6 @@ func rowsFromNodes(items []unstructured.Unstructured) []ResourceRow {
 				"",
 				strings.Join(roles, ","),
 				firstString(obj, "status", "nodeInfo", "kubeletVersion"),
-				"",
 				nodeInternalIp(obj),
 				objectAge(obj),
 			},
@@ -1320,30 +1318,6 @@ func maintenanceCellForOperation(operation maintenance.Operation, present bool) 
 		return "Recovery required"
 	}
 	return operation.Phase
-}
-
-func osUpdateCellForReport(report maintenance.AutoUpdateReport, present bool) string {
-	if !present || report.CheckedAt.IsZero() {
-		return ""
-	}
-	if report.Error != "" {
-		return "check failed"
-	}
-
-	parts := []string{}
-	if report.Pending > 0 {
-		parts = append(parts, fmt.Sprintf("%d pending", report.Pending))
-		if report.Security > 0 {
-			parts = append(parts, fmt.Sprintf("%d security", report.Security))
-		}
-	}
-	if report.RebootRequired {
-		parts = append(parts, "reboot required")
-	}
-	if len(parts) == 0 {
-		return "up to date"
-	}
-	return strings.Join(parts, ", ")
 }
 
 func objectAge(obj *unstructured.Unstructured) string {

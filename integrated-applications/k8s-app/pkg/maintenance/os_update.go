@@ -53,7 +53,7 @@ func runOsUpdate(
 			return err
 		}
 
-		result := runCordonDrain(ctx, clientset, operation, worker, false, true)
+		result := runCordonDrain(ctx, clientset, operation, worker, false)
 		if result.err != nil {
 			return result.err
 		}
@@ -375,26 +375,11 @@ func osUpdateSubmit(
 		command = shared.NodeAgentOsCommandRetry
 	}
 
-	reboot := shared.NodeAgentOsRebootWhenRequired
-	policyRecord, policyErr := autoPolicyRead(worker.client)
-	if policyErr != nil {
-		log.Warn("k8s-app maintenance %s: could not read the reboot policy: %s", nodeName, policyErr)
-		operationLogStage(
-			worker,
-			"submit-retry-policy",
-			fmt.Sprintf("Waiting to read the reboot policy: %s", policyErr),
-		)
-		return false
-	}
-	if policyRecord.Found && policyRecord.Value.Os.RebootPolicy == AutoRebootAlways {
-		reboot = shared.NodeAgentOsRebootAlways
-	}
-
 	_, postErr := shared.NodeAgentClientOsCommand(
 		ctx,
 		nodeName,
 		nodeIp,
-		shared.NodeAgentOsRequest{Command: command, Reboot: reboot},
+		shared.NodeAgentOsRequest{Command: command},
 		operation.Uid,
 	)
 	if postErr != nil {

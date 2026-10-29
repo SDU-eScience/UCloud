@@ -87,7 +87,7 @@ func runRemove(
 		}
 
 		if exists && operation.Options.Drain {
-			result := runCordonDrain(ctx, clientset, operation, worker, true, true)
+			result := runCordonDrain(ctx, clientset, operation, worker, true)
 			if result.err != nil {
 				return result.err
 			}

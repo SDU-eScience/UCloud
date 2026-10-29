@@ -310,11 +310,11 @@ func runOsCheck(ctx context.Context) shared.NodeAgentOsStatus {
 // command only downloads. An apply command installs packages that are already staged. Each stage writes its phase
 // before it does the work. A failure writes the failed phase and the message for the operator.
 
-func runOsUpdate(rebootPolicy string) {
+func runOsUpdate() {
 	workerCtx, cancel := context.WithTimeout(context.Background(), osWorkDeadline)
 	defer cancel()
 	if osStagePackages(workerCtx) {
-		osApplyPackages(workerCtx, rebootPolicy)
+		osApplyPackages(workerCtx)
 	}
 }
 
@@ -331,10 +331,10 @@ func runOsStage() {
 	progressStage("Packages downloaded. Preparing to move workloads", osProgressStaged)
 }
 
-func runOsApply(rebootPolicy string) {
+func runOsApply() {
 	workerCtx, cancel := context.WithTimeout(context.Background(), osWorkDeadline)
 	defer cancel()
-	osApplyPackages(workerCtx, rebootPolicy)
+	osApplyPackages(workerCtx)
 }
 
 func osStagePackages(workerCtx context.Context) bool {
@@ -399,7 +399,7 @@ func osStagePackages(workerCtx context.Context) bool {
 	return true
 }
 
-func osApplyPackages(workerCtx context.Context, rebootPolicy string) {
+func osApplyPackages(workerCtx context.Context) {
 	serviceName := serviceForRole(identitySnapshot().Role)
 	if serviceName == "" {
 		osFinishFailure("the node identity is unknown")
@@ -440,8 +440,7 @@ func osApplyPackages(workerCtx context.Context, rebootPolicy string) {
 	kernelRunning := osRunningKernel()
 	kernelPending := osPendingKernel(workerCtx, kernelRunning)
 	rebootRequired := kernelPending != "" ||
-		osFileExists(osRebootRequiredPath) ||
-		rebootPolicy == shared.NodeAgentOsRebootAlways
+		osFileExists(osRebootRequiredPath)
 
 	if err := osSetPhase(shared.NodeAgentOsPhaseApplying, func(state *osState) {
 		state.KernelRunning = kernelRunning

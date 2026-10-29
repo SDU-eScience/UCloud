@@ -105,7 +105,7 @@ Print tables directly to stdout. Don't launch a pager or prompt for navigation a
 
 - Put names in single quotes in sentences, such as `Cluster 'dev' is ready`. Escape embedded quotes and backslashes consistently. Render control characters visibly rather than interpreting them in the terminal. This is display text, not shell quoting.
 - Don't quote URLs merely because they are URLs.
-- Use `✓` for success, `!` for a warning, `✗` for a failure, and `↗` for a link. Status must remain understandable without color.
+- Use `✓` for success, `!` for a warning, `✗` for a failure, `?` for a confirmation prompt, and `↗` for a link. Status must remain understandable without color.
 - By default, enable color according to the stream receiving the output. Honor the CLI's existing color controls and `NO_COLOR`. A forced color setting can enable color in redirected human output, but it must not enable cursor movement or animation there.
 - Explain failures with useful context, without exposing credentials. Keep warnings and failures visible and preserve nonzero exit codes.
 

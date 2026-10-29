@@ -60,11 +60,6 @@ const (
 	NodeAgentOsCommandRetry      = "retry"
 )
 
-const (
-	NodeAgentOsRebootWhenRequired = "whenRequired"
-	NodeAgentOsRebootAlways       = "always"
-)
-
 const NodeAgentMaxLogBody = 16 * 1024
 
 const NodeAgentPort = 9444
@@ -127,7 +122,6 @@ type NodeAgentProgressEvent struct {
 
 type NodeAgentOsRequest struct {
 	Command string `json:"command"`
-	Reboot  string `json:"reboot,omitempty"`
 }
 
 type NodeAgentBackupResult struct {

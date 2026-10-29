@@ -37,18 +37,6 @@ var K8sClusterCommands = map[string]CommandFunc{
 	"pool": func() Command {
 		return &K8sClusterPoolCommand{Nodes: -1, Disk: -1}
 	},
-	"node": func() Command {
-		return &K8sClusterNodeCommand{Timeout: -1}
-	},
-	"upgrade": func() Command {
-		return &K8sClusterUpgradeCommand{Timeout: -1}
-	},
-	"backup": func() Command {
-		return &K8sClusterBackupCommand{}
-	},
-	"auto": func() Command {
-		return &K8sClusterAutoCommand{StartHour: -1, Days: -1}
-	},
 	"delete": func() Command {
 		return &K8sClusterDeleteCommand{}
 	},
@@ -592,7 +580,7 @@ func k8sPrintStatus(response k8sapi.StatusResponse, output string) error {
 			summary.AppendFieldStyled("Maintenance data", termio.Danger("unavailable"))
 		}
 	}
-	summary.AppendFieldStyled("Rolling upgrade", k8sStatusUpgradeCell(response))
+	summary.AppendFieldStyled("Maintenance runs", k8sStatusMaintenanceRunsCell(response))
 
 	summary.AppendSeparator()
 
@@ -601,7 +589,7 @@ func k8sPrintStatus(response k8sapi.StatusResponse, output string) error {
 		summary.AppendFieldStyled("Last backup", k8sStatusLastBackupCell(response.Backup))
 	}
 	if response.Backup != nil && response.Backup.NextDueAt > 0 {
-		summary.AppendField("Next backup", k8sAutoTimestamp(response.Backup.NextDueAt))
+		summary.AppendField("Next backup", k8sTimestamp(response.Backup.NextDueAt))
 	}
 	if response.Backup != nil && response.Backup.StateFound {
 		summary.AppendField("Retained backups", fmt.Sprintf("%d", response.Backup.Retained))
@@ -634,15 +622,14 @@ func k8sPrintStatus(response k8sapi.StatusResponse, output string) error {
 		sections.Add(fmt.Sprintf("Maintenance (%d)", len(unmatched)), &maintenance)
 	}
 
-	if response.RollingUpgrade != nil && len(response.RollingUpgrade.Nodes) > 0 {
-		upgrade := outputTable("Upgrade node", "Group", "Phase")
-		upgrade.SetColumnWidthGroup(0, "node")
-		for _, node := range response.RollingUpgrade.Nodes {
-			upgrade.Cell("%s", termio.EscapeName(node.Name))
-			upgrade.Cell("%s", termio.EscapeName(node.Group))
-			upgrade.CellValue(k8sStatusPhaseStyle(node.Phase, k8sUpgradePhaseLabel(node.Phase)))
+	if len(response.MaintenanceRuns) > 0 {
+		runs := outputTable("Kind", "Trigger", "Phase")
+		for _, run := range response.MaintenanceRuns {
+			runs.Cell("%s", k8sValueOrDash(run.Kind))
+			runs.Cell("%s", k8sValueOrDash(run.Trigger))
+			runs.CellValue(k8sStatusPhaseStyle(run.Phase, k8sUpgradePhaseLabel(run.Phase)))
 		}
-		sections.Add("Rolling upgrade", &upgrade)
+		sections.Add("Maintenance runs", &runs)
 	}
 
 	sections.Print()
@@ -700,25 +687,20 @@ func k8sStatusMaintenanceFailures(operations []k8sapi.MaintenanceOperation) []k8
 	return failures
 }
 
-func k8sStatusUpgradeCell(response k8sapi.StatusResponse) termio.StyledString {
-	if response.RollingUpgradeError != "" {
-		return termio.Danger("unavailable (%s)", response.RollingUpgradeError)
+func k8sStatusMaintenanceRunsCell(response k8sapi.StatusResponse) termio.StyledString {
+	if !response.MaintenanceKnown {
+		return termio.Subtle("-")
 	}
-
-	upgrade := response.RollingUpgrade
-	if upgrade == nil {
+	if len(response.MaintenanceRuns) == 0 {
 		return termio.Subtle("none in progress")
 	}
 
-	label := fmt.Sprintf(
-		"%s (%s)",
-		k8sValueOrDash(upgrade.TargetRelease),
-		k8sUpgradePhaseLabel(upgrade.Phase),
-	)
-	if upgrade.Error != "" {
-		return termio.Danger("%s: %s", label, upgrade.Error)
+	run := response.MaintenanceRuns[0]
+	label := fmt.Sprintf("%s (%s)", k8sValueOrDash(run.Kind), k8sUpgradePhaseLabel(run.Phase))
+	if run.Error != "" {
+		return termio.Danger("%s: %s", label, run.Error)
 	}
-	return k8sStatusPhaseStyle(upgrade.Phase, label)
+	return k8sStatusPhaseStyle(run.Phase, label)
 }
 
 func k8sStatusPhaseStyle(phase string, label string) termio.StyledString {
@@ -729,7 +711,10 @@ func k8sStatusPhaseStyle(phase string, label string) termio.StyledString {
 		return termio.Danger("%s", label)
 	case k8sapi.MaintenancePhaseCancelled:
 		return termio.Subtle("%s", label)
-	case k8sapi.MaintenancePhasePending, k8sapi.MaintenancePhaseRunning:
+	case k8sapi.MaintenancePhasePending,
+		k8sapi.MaintenancePhaseRunning,
+		k8sapi.MaintenanceRunPreflight,
+		k8sapi.MaintenanceRunBackup:
 		return termio.Warning("%s", label)
 	default:
 		return termio.Plain("%s", label)
@@ -776,13 +761,13 @@ func k8sStatusLastBackupCell(backup *k8sapi.StatusBackup) termio.StyledString {
 
 	if backup.LastAttemptPhase == k8sapi.BackupAttemptFailed {
 		if backup.LastAttemptFinishedAt > 0 {
-			return termio.Danger("%s (failed)", k8sAutoTimestamp(backup.LastAttemptFinishedAt))
+			return termio.Danger("%s (failed)", k8sTimestamp(backup.LastAttemptFinishedAt))
 		}
 		return termio.Danger("failed")
 	}
 
 	if backup.LastSuccessFinishedAt > 0 {
-		return termio.Plain("%s", k8sAutoTimestamp(backup.LastSuccessFinishedAt))
+		return termio.Plain("%s", k8sTimestamp(backup.LastSuccessFinishedAt))
 	}
 
 	return termio.Subtle("never")
