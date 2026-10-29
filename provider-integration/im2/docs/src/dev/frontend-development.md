@@ -229,19 +229,6 @@ Tests can be added to the existing test suite, but tests must not be removed, as
 
 Relevant code can be found in `/testing`, with the output of a test-suite run in `/test-results`.
 
-## ResourceBrowser
-
-The ResourceBrowser is component intended to bring a user interface for resource, with features a user would expect for a native file explorer. The component is written in Vanilla TypeScript, but is mounted within the React-mounted root.
-
-### Motivation
-
-The component was written to accomodate rendering directories containing thousands of files, without any significant slowdowns. In addition, the component supports keyboard inputs, like navigation and shortcuts. The component replaced the previous custom List-component, that was written in React which had major slowdowns for larger directories.
-
-### Use 
-
-TODO(Jonas): How to write a component that uses the ResourceBrowser component 
-
-### Implementation
 
 ### Coding-style preferences
 

@@ -292,7 +292,6 @@ export interface RenderDimensions {
 }
 
 interface ResourceBrowserListenerMap<T> {
-    "mount": () => void;
     "unmount": () => void;
 
     "rowSelectionUpdated": () => void;
@@ -304,7 +303,6 @@ interface ResourceBrowserListenerMap<T> {
     "renderRow": (entry: T, row: ResourceBrowserRow, dimensions: RenderDimensions) => void;
     "endRenderPage": () => void;
 
-    // skipOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
     "skipOpen": (oldPath: string, path: string, resource?: T) => boolean;
     "open": (oldPath: string, path: string, resource?: T) => void;
     "refresh": () => void;
@@ -313,8 +311,6 @@ interface ResourceBrowserListenerMap<T> {
     "searchHidden": () => void;
 
     "useFolder": () => void;
-    // UNUSED?
-    "useEntry": (entry: T) => void;
 
     "copy": (entries: T[], target: string) => void;
     "move": (entries: T[], target: string) => void;
@@ -360,9 +356,6 @@ export interface ResourceBrowseFeatures {
     supportsCopy?: boolean;
     locationBar?: boolean;
     showHeaderInEmbedded?: boolean;
-    showUseButtonOnRows?: boolean;
-    showUseButtonOnDirectory?: boolean;
-    showProjectSelector?: boolean;
     showStar?: boolean;
     renderSpinnerWhenLoading?: boolean;
     breadcrumbsSeparatedBySlashes?: boolean;
@@ -507,9 +500,6 @@ export class ResourceBrowser<T> {
         supportsMove: false,
         supportsCopy: false,
         locationBar: false,
-        showUseButtonOnRows: false,
-        showUseButtonOnDirectory: false,
-        showProjectSelector: false,
         showStar: false,
         search: true,
         renderSpinnerWhenLoading: true, // automatically inserts the spinner graphic before invoking "renderEmptyPage"
@@ -801,8 +791,8 @@ export class ResourceBrowser<T> {
         if (this.features.projectSwitcher) {
             const div = document.createElement("div");
             div.className = "project-switcher";
-            const headerThing = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
-            headerThing.appendChild(div);
+            const headerElement = this.header.querySelector<HTMLDivElement>(".header-first-row")!;
+            headerElement.appendChild(div);
         }
 
 
@@ -1284,7 +1274,7 @@ export class ResourceBrowser<T> {
             if (i === this.renameFieldIndex) {
                 this.renameField.style.display = "block";
                 // Note(Jonas): For future reference:
-                // i * ResourceBrowser = top of active row.
+                // i * ResourceBrowser.rowSize = top of active row.
                 // + ResourceBrowser.rowSize / 2 = middle of active row
                 // - this.renameField...height / 2 = subtract half of renameField to get wanted top position for renameField.
                 this.renameField.style.top = `${i * ResourceBrowser.rowSize + (ResourceBrowser.rowSize / 2 - this.renameField.getBoundingClientRect().height / 2)}px`;
@@ -2593,7 +2583,7 @@ export class ResourceBrowser<T> {
 
                 default: {
                     if (this.reactActionMenuOpen) {
-                        return
+                        return;
                     } else {
                         // NOTE(Dan): Initiate search if the input is printable
                         const printableChar = ev.key;
@@ -2824,11 +2814,9 @@ export class ResourceBrowser<T> {
         refresh: doNothing,
         skipOpen: () => false,
         rowSelectionUpdated: doNothing,
-        mount: doNothing,
         unmount: doNothing,
         locationBarVisibilityUpdated: doNothing,
         sort: doNothing,
-        startRenderPage: doNothing,
         endRenderPage: doNothing,
         beforeShortcut: doNothing,
         unhandledShortcut: doNothing,
@@ -3310,112 +3298,6 @@ export function createProjectSwitcherPortal(
     }
 ) {
     return createPortal(<ProjectSwitcher managed={managed} />, container);
-}
-
-export function resourceCreationWithProductSelector<T>(
-    browser: ResourceBrowser<T>,
-    products: ProductV2[],
-    dummyEntry: T,
-    onCreate: (product: ProductV2) => void,
-    type: ProductType,
-    // Note(Jonas): Used in the event that the product contains info that the browser component needs.
-    // See PublicLinks usage for an example of its usage.
-    onSelect?: (product: ProductV2) => void,
-): {startCreation: () => void, cancelCreation: () => void, portal: React.ReactPortal} {
-    const productSelector = document.createElement("div");
-    productSelector.style.display = "none";
-    productSelector.style.position = "fixed";
-    productSelector.style.zIndex = "100"; // Note(Jonas): Otherwise it won't show in modals.
-    document.body.append(productSelector);
-    const Component: React.FunctionComponent = () => {
-        return <ProductSelector
-            products={products}
-            selected={null}
-            onSelect={onProductSelected}
-            slim
-            type={type}
-        />;
-    };
-
-    let selectedProduct: ProductV2 | null = null;
-
-    const portal = createPortal(<Component />, productSelector);
-
-    browser.on("startRenderPage", () => {
-        ResourceBrowser.resetTitleComponent(productSelector);
-    });
-
-    browser.on("renderRow", (entry, row, dims) => {
-        if (entry !== dummyEntry) return;
-        if (selectedProduct !== null) return;
-        dims.x -= 52;
-
-        browser.placeTitleComponent(productSelector, dims);
-    });
-
-    const isSelectingProduct = () => {
-        return (browser.cachedData[browser.currentPath] ?? []).some(it => it === dummyEntry);
-    }
-
-    browser.on("beforeShortcut", ev => {
-        if (ev.code === "Escape" && isSelectingProduct()) {
-            ev.preventDefault();
-
-            browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-            browser.renderRows();
-        }
-    });
-
-    const startCreation = () => {
-        if (isSelectingProduct()) return;
-        selectedProduct = null;
-        browser.insertEntryIntoCurrentPage(dummyEntry, true);
-        browser.renderRows();
-    };
-
-    const cancelCreation = () => {
-        browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-        browser.renderRows();
-    };
-
-    const onProductSelected = (product: ProductV2 | null) => {
-        if (!product) return;
-        onSelect?.(product);
-        if (["STORAGE", "INGRESS"].includes(type)) {
-            selectedProduct = product;
-            browser.showRenameField(
-                it => it === dummyEntry,
-                () => {
-                    browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-                    onCreate(product);
-                },
-                () => {
-                    browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-                },
-                ""
-            );
-        } else if (["LICENSE", "INFERENCE", "NETWORK_IP"].includes(type)) {
-            browser.removeEntryFromCurrentPage(it => it === dummyEntry);
-            onCreate(product);
-        } else if (type === "COMPUTE") {
-            // Not handled.
-        }
-    };
-
-    const onOutsideClick = () => {
-        if (selectedProduct === null && isSelectingProduct()) {
-            cancelCreation();
-        }
-    };
-
-    document.body.addEventListener("click", onOutsideClick);
-
-    browser.on("unmount", () => {
-        document.body.removeEventListener("click", onOutsideClick);
-    });
-
-
-    return {startCreation, cancelCreation, portal};
 }
 
 export function providerIcon(providerId: string, opts?: Partial<CSSStyleDeclaration>, providedLogo?: string): HTMLElement {
