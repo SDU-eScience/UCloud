@@ -66,8 +66,10 @@ type JobTerminateCommand struct {
 }
 
 type JobLogsCommand struct {
-	JobID  string `positional:"job-id" usage:"Job ID"`
-	Follow bool   `flag:"follow" usage:"Follow logs"`
+	JobID     string `positional:"job-id" usage:"Job ID"`
+	Workspace string `flag:"workspace" usage:"Workspace to search jobs in"`
+	Provider  string `flag:"provider" usage:"Provider"`
+	Follow    bool   `flag:"follow" usage:"Follow logs"`
 }
 
 type JobShellCommand struct {
@@ -714,9 +716,11 @@ func (c JobShellCommand) Execute() error {
 	if c.Provider == "" {
 		return fmt.Errorf("this command requires a provider, use: ucloud job shell <provider>")
 	}
-	return shared.OpenJobShell(c.JobID, c.Provider)
+	return shared.JobShell(c.JobID, c.Provider)
 }
 
 func (c JobLogsCommand) Execute() error {
+	shared.InitializeUCloudClient()
+	shared.JobLogs(c.JobID, c.Workspace, c.Provider, c.Follow)
 	return nil
 }
