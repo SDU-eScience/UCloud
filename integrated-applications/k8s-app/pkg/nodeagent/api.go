@@ -191,7 +191,7 @@ func handleUpgradeOrRetry(writer http.ResponseWriter, request *http.Request, ret
 	}
 
 	writeError(writer, http.StatusInternalServerError, fmt.Sprintf(
-		"the upgrade state reports phase %s without a target release. Manual recovery is required",
+		"the upgrade state reports phase %s without a target Kubernetes version. Manual recovery is required",
 		state.Phase,
 	))
 }

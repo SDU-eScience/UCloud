@@ -68,7 +68,7 @@ atomic_write_chowned() {
 }
 
 fail() {
-	log "FAILED phase=$1 detail=$2"
+	log "Setup failed: $2"
 	exit 1
 }
 
@@ -246,7 +246,7 @@ decommissionedMarker="$INPUT_DIR/$DECOMMISSIONED_MARKER"
 nodeJson="$NODE_JSON"
 generationFile="$INPUT_GENERATION_FILE"
 if [ -s "\$decommissionedMarker" ]; then
-	echo "the node input is decommissioned" >&2
+	echo "this node configuration has been retired" >&2
 	exit 1
 fi
 if [ -s "\$nodeJson" ]; then
@@ -257,7 +257,7 @@ if [ -s "\$nodeJson" ]; then
 			recorded="\$(cat "\$generationFile")"
 		fi
 		if [ "\$generation" != "\$recorded" ]; then
-			echo "the node input generation does not match the generation recorded on this node" >&2
+			echo "the node configuration does not match this node" >&2
 			exit 1
 		fi
 	fi

@@ -909,7 +909,7 @@ func controlPlaneGuard(
 		return remainingErr
 	}
 	if !remaining {
-		return errors.New("at least one other healthy, schedulable control plane node must remain")
+		return errors.New("at least one other healthy, schedulable control-plane node must remain")
 	}
 
 	return nil
@@ -947,11 +947,11 @@ func controlPlaneRemovalGuard(
 
 	remaining, remainingErr := controlPlaneRemainingCount(ctx, clientset, controlPlanes, operation.NodeName, pending)
 	if remainingErr != nil {
-		return fmt.Errorf("could not list the control plane nodes: %s", remainingErr)
+		return fmt.Errorf("could not list the control-plane nodes: %s", remainingErr)
 	}
 	if remaining < required {
 		return fmt.Errorf(
-			"at least %d healthy, schedulable control plane nodes must remain after the removal, but only %d were found",
+			"at least %d healthy, schedulable control-plane nodes must remain after the removal, but only %d were found",
 			required,
 			remaining,
 		)

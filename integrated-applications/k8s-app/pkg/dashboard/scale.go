@@ -51,7 +51,7 @@ func dashboardRemovePoolNodes(
 	})
 
 	if len(nodes) < count {
-		return fmt.Errorf("the pool does not have enough nodes to remove")
+		return fmt.Errorf("the node group does not have enough nodes to remove")
 	}
 
 	for i := 0; i < count; i++ {

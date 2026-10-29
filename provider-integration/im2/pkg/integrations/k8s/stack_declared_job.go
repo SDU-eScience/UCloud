@@ -22,32 +22,32 @@ func stackSpawnDeclaredJob(request orc.StacksProviderSpawnDeclaredJobRequest) (f
 	stateFolder := strings.TrimSpace(request.StateFolder)
 
 	if stackInstance == "" || stackName == "" || stackEntityId == "" || stateFolder == "" {
-		return fnd.FindByStringId{}, util.HttpErr(http.StatusBadRequest, "invalid stack")
+		return fnd.FindByStringId{}, util.HttpErr(http.StatusBadRequest, "the application is unavailable. Contact your service provider")
 	}
 	if strings.TrimSpace(request.Owner.CreatedBy) == "" {
-		return fnd.FindByStringId{}, util.HttpErr(http.StatusBadRequest, "invalid stack owner")
+		return fnd.FindByStringId{}, util.HttpErr(http.StatusBadRequest, "the application owner is unavailable. Contact your service provider")
 	}
 	if _, ok := orc.DriveIdFromUCloudPath(stateFolder); !ok {
-		return fnd.FindByStringId{}, util.HttpErr(http.StatusBadRequest, "invalid stack state folder")
+		return fnd.FindByStringId{}, util.HttpErr(http.StatusBadRequest, "the application storage is unavailable. Contact your service provider")
 	}
 
 	declaration := request.Job
 	if strings.TrimSpace(declaration.Image) == "" {
-		return fnd.FindByStringId{}, util.HttpErr(http.StatusBadRequest, "the declared job has no image")
+		return fnd.FindByStringId{}, util.HttpErr(http.StatusBadRequest, "the recovery image is not configured. Contact your service provider")
 	}
 	if declaration.Port <= 0 || declaration.Port > 65535 {
-		return fnd.FindByStringId{}, util.HttpErr(http.StatusBadRequest, "the declared job has an invalid port")
+		return fnd.FindByStringId{}, util.HttpErr(http.StatusBadRequest, "the network settings for recovery are invalid. Contact your service provider")
 	}
 	if strings.TrimSpace(request.Product.Id) == "" || request.Product.Provider != cfg.Provider.Id {
-		return fnd.FindByStringId{}, util.HttpErr(http.StatusBadRequest, "the declared job has an invalid product")
+		return fnd.FindByStringId{}, util.HttpErr(http.StatusBadRequest, "no suitable machine is available to start recovery. Contact your service provider")
 	}
 	if strings.TrimSpace(request.Application.Name) == "" || strings.TrimSpace(request.Application.Version) == "" {
-		return fnd.FindByStringId{}, util.HttpErr(http.StatusBadRequest, "the declared job has no application")
+		return fnd.FindByStringId{}, util.HttpErr(http.StatusBadRequest, "the application for recovery is unavailable. Contact your service provider")
 	}
 
 	args, marshalErr := json.Marshal(util.NonNilSlice(declaration.Args))
 	if marshalErr != nil {
-		return fnd.FindByStringId{}, util.ServerHttpError("the declared job has invalid arguments")
+		return fnd.FindByStringId{}, util.ServerHttpError("recovery is not configured correctly. Contact your service provider")
 	}
 
 	for _, existing := range controller.JobRetrieveAll() {
@@ -60,7 +60,7 @@ func stackSpawnDeclaredJob(request orc.StacksProviderSpawnDeclaredJobRequest) (f
 		if !stackControlOwnerScopeMatches(existing.Owner, request.Owner) {
 			continue
 		}
-		return fnd.FindByStringId{}, util.HttpErr(http.StatusConflict, "a recovery job is already running")
+		return fnd.FindByStringId{}, util.HttpErr(http.StatusConflict, "a recovery job is already running for this application")
 	}
 
 	spec := orc.JobSpecification{
@@ -105,13 +105,13 @@ func stackSpawnDeclaredJob(request orc.StacksProviderSpawnDeclaredJobRequest) (f
 		return fnd.FindByStringId{}, err
 	}
 	if len(response.Responses) != 1 {
-		return fnd.FindByStringId{}, util.ServerHttpError("the declared job could not be registered")
+		return fnd.FindByStringId{}, util.ServerHttpError("could not prepare recovery. Try again or contact your service provider")
 	}
 
 	jobId := response.Responses[0].Id
 	job, ok := controller.JobRetrieve(jobId)
 	if !ok {
-		return fnd.FindByStringId{}, util.ServerHttpError("the declared job was registered, but could not be retrieved")
+		return fnd.FindByStringId{}, util.ServerHttpError("recovery was prepared, but its status could not be read. Contact your service provider")
 	}
 
 	shared.RequestSchedule(job)

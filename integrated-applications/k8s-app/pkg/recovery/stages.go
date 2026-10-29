@@ -242,7 +242,7 @@ func (app *app) recreateWork(session *ucx.Session, progress func(string)) (strin
 
 	release, known := shared.ReleaseByExactVersion(record.BackupRelease)
 	if !known {
-		return "", fmt.Errorf("the backup release %s is not in the catalog", record.BackupRelease)
+		return "", fmt.Errorf("the backup uses an unavailable Kubernetes version: %s", record.BackupRelease)
 	}
 
 	backupDir := filepath.Join(app.MountPath, "backups", record.BackupId)

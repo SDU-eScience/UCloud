@@ -237,14 +237,14 @@ func provisioningJobRetrieve(ctx context.Context, session *ucx.Session, jobId st
 func (app *stackUiApp) clusterNodeMessage(ctx context.Context, record *shared.ClusterRecord) string {
 	session := app.session
 
-	starting := 0
-	running := 0
+	stopped := 0
 	failedLookup := 0
+	jobCount := 0
 	for _, node := range record.Nodes {
 		if node.JobId == "" {
-			running++
 			continue
 		}
+		jobCount++
 
 		job, err := provisioningJobRetrieve(ctx, session, node.JobId)
 		if err != nil {
@@ -253,35 +253,25 @@ func (app *stackUiApp) clusterNodeMessage(ctx context.Context, record *shared.Cl
 		}
 
 		if job.Status.State.IsFinal() {
-			running++
-		} else {
-			starting++
+			stopped++
 		}
 	}
 
+	message := ""
+	if stopped > 0 {
+		message = fmt.Sprintf("Stopped node jobs: %d of %d. See the node logs for details.", stopped, jobCount)
+	}
 	if failedLookup > 0 {
-		message := fmt.Sprintf(
-			"Could not check %d of %d nodes. See the node logs for details.",
-			failedLookup,
-			len(record.Nodes),
-		)
-		if starting > 0 {
-			message += fmt.Sprintf(
-				" The cluster is starting. %d of %d nodes are not running yet.",
-				starting,
-				len(record.Nodes),
-			)
+		if message != "" {
+			message += " "
 		}
-		return message
-	}
-	if starting > 0 {
-		return fmt.Sprintf(
-			"The cluster is starting. %d of %d nodes are not running yet. See the node logs for details.",
-			starting,
-			len(record.Nodes),
+		message += fmt.Sprintf(
+			"Could not check %d of %d node jobs. See the node logs for details.",
+			failedLookup,
+			jobCount,
 		)
 	}
-	return ""
+	return message
 }
 
 func provisioningEntriesEqual(a, b []provisioningEntry) bool {

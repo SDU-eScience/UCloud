@@ -23,7 +23,7 @@ type rollingUpgradeGroup struct {
 func rollingUpgradePage(app *stackUiApp) []ucx.UiNode {
 	content := []ucx.UiNode{
 		pageTitle("Rolling upgrade"),
-		ucx.Text("The cluster will upgrade in a rolling fashion. Control plane nodes first, then worker groups in parallel. One node at a time per group.").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+		ucx.Text("The cluster upgrades control-plane nodes first, then worker pools in parallel. Each group upgrades one node at a time.").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
 		ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).Sx(ucx.SxAlignItemsCenter).Children(
 			ucx.Text("Upgrades can also run automatically in the maintenance window.").Sx(ucx.SxColor(ucx.ColorTextSecondary)),
 			ucx.LinkButton("rollingUpgradeAutoMaintenance", "Automatic maintenance", ucx.ColorLinkColor).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
@@ -36,6 +36,7 @@ func rollingUpgradePage(app *stackUiApp) []ucx.UiNode {
 		content = append(content, ucx.Warning(fmt.Sprintf("Could not read the rolling upgrade: %s", err)))
 		return pageShell(app, 800, 16, content)
 	}
+	previousUpgradeNeedsAttention := found && (upgrade.Error != "" || upgrade.Phase == maintenance.PhaseFailed || upgrade.Phase == maintenance.PhaseBlocked)
 	if found {
 		status := fmt.Sprintf("%s: %s", upgrade.TargetRelease, upgrade.Phase)
 		if maintenance.PhaseActive(upgrade.Phase) {
@@ -71,7 +72,38 @@ func rollingUpgradePage(app *stackUiApp) []ucx.UiNode {
 	}
 	options := rollingUpgradeReleaseOptions(app, record)
 	if len(options) == 0 {
-		content = append(content, ucx.Text("No supported upgrade is available for all nodes."))
+		now := time.Now().UTC()
+		versions := make(map[string]string, len(record.Nodes))
+		for _, node := range record.Nodes {
+			versions[node.Hostname] = app.clusterHealth.Versions[node.Hostname]
+		}
+		releases := shared.SupportedReleases(now)
+		latest := ""
+		if len(releases) > 0 {
+			latest = releases[0].Release
+		}
+		upToDate := latest != ""
+		for _, current := range versions {
+			if current != latest {
+				upToDate = false
+				break
+			}
+		}
+		if upToDate {
+			message := "All nodes are up to date."
+			if previousUpgradeNeedsAttention {
+				message = fmt.Sprintf("All managed nodes report Kubernetes version %s. Review the previous upgrade before continuing.", latest)
+			} else if app.clusterHealth.Total != len(record.Nodes) {
+				message = "All managed nodes are up to date."
+			}
+			content = append(content, ucx.Text(message))
+		} else {
+			guidance := shared.ClusterUpgradePathGuidance(versions, now)
+			if len(guidance) == 0 {
+				guidance = append(guidance, "No common upgrade is available for all nodes. Check node maintenance or contact your service provider.")
+			}
+			content = append(content, ucx.Warning(strings.Join(guidance, " ")))
+		}
 		return pageShell(app, 800, 16, content)
 	}
 	selected := false
@@ -85,7 +117,7 @@ func rollingUpgradePage(app *stackUiApp) []ucx.UiNode {
 	}
 	rollingUpgradeSyncGroups(app, record)
 	form := []ucx.UiNode{
-		ucx.FieldRowNodeEx("rollingUpgradeReleaseRow", "Target release", "rollingUpgradeTargetRelease").
+		ucx.FieldRowNodeEx("rollingUpgradeReleaseRow", "Target Kubernetes version", "rollingUpgradeTargetRelease").
 			FieldRowRequired(true).
 			Children(ucx.Select("rollingUpgradeRelease", "", "rollingUpgradeTargetRelease", options)),
 		ucx.Tip("Neither cordon nor drain is usually needed. Nodes cordoned by the upgrade are uncordoned after success. Previously cordoned nodes stay cordoned. Use only when you have special requirements."),
@@ -107,7 +139,7 @@ func rollingUpgradePage(app *stackUiApp) []ucx.UiNode {
 	groupFields := []ucx.UiNode{}
 	for i, group := range app.RollingUpgradeGroups {
 		binding := fmt.Sprintf("rollingUpgradeGroups.%d.preparation", i)
-		groupFields = append(groupFields, ucx.FieldRowNodeEx(fmt.Sprintf("rollingUpgradeGroup%d", i), fmt.Sprintf("%s (%d nodes)", group.Name, group.Count), binding).
+		groupFields = append(groupFields, ucx.FieldRowNodeEx(fmt.Sprintf("rollingUpgradeGroup%d", i), fmt.Sprintf("%s (%s)", rollingUpgradeGroupLabel(group.Name), autoNodeCount(group.Count)), binding).
 			Children(ucx.Select(fmt.Sprintf("rollingUpgradePreparation%d", i), "", binding, preparationOptions)))
 		if group.Name == shared.GroupControlPlane && group.Count == 1 {
 			groupFields = append(groupFields, ucx.Warning("Upgrading the only control-plane node causes control-plane downtime."))
@@ -206,7 +238,7 @@ func rollingUpgradeProgress(app *stackUiApp, upgrade maintenance.RollingUpgrade,
 	}
 	for _, name := range groupNames {
 		children := []ucx.UiNode{
-			sectionHeader(fmt.Sprintf("%s: %d of %d completed", name, completed[name], len(rows[name])), 14),
+			sectionHeader(fmt.Sprintf("%s: %d of %d completed", rollingUpgradeGroupLabel(name), completed[name], len(rows[name])), 14),
 		}
 		children = append(children, rows[name]...)
 		groups = append(groups, ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).Children(children...))
@@ -221,7 +253,7 @@ func rollingUpgradeReleaseOptions(app *stackUiApp, record shared.ClusterRecord) 
 		allowed := true
 		needsUpgrade := false
 		for _, node := range record.Nodes {
-			current := app.maintenanceNodeVersion(node.Hostname, record)
+			current := app.clusterHealth.Versions[node.Hostname]
 			if current == release.Release {
 				continue
 			}
@@ -236,6 +268,13 @@ func rollingUpgradeReleaseOptions(app *stackUiApp, record shared.ClusterRecord) 
 		}
 	}
 	return options
+}
+
+func rollingUpgradeGroupLabel(name string) string {
+	if name == shared.GroupControlPlane {
+		return "Control-plane nodes"
+	}
+	return "Worker pool " + name
 }
 
 func rollingUpgradeSyncGroups(app *stackUiApp, record shared.ClusterRecord) {
@@ -283,13 +322,13 @@ func rollingUpgradeSubmit(app *stackUiApp, releases []ucx.Option) {
 		}
 	}
 	if !validRelease {
-		ucxsvc.UiSendFailure(app, "Select a supported target release")
+		ucxsvc.UiSendFailure(app, "Select a supported target Kubernetes version")
 		return
 	}
 	groups := map[string]maintenance.Options{}
 	for _, group := range app.RollingUpgradeGroups {
 		if group.Preparation != "neither" && group.Preparation != "cordon" && group.Preparation != "drain" {
-			ucxsvc.UiSendFailure(app, "Select preparation for each node group")
+			ucxsvc.UiSendFailure(app, "Select preparation for the control-plane nodes and each worker pool")
 			return
 		}
 		groups[group.Name] = maintenance.Options{

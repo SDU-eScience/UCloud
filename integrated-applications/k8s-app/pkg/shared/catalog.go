@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"fmt"
 	"net/netip"
 	"sort"
 	"strings"
@@ -198,6 +199,56 @@ func RecommendedClusterTarget(current []string, now time.Time) (K3sRelease, bool
 	}
 
 	return K3sRelease{}, false
+}
+
+func ClusterUpgradePathGuidance(versions map[string]string, now time.Time) []string {
+	names := make([]string, 0, len(versions))
+	for name := range versions {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	var guidance []string
+	for _, name := range names {
+		if versions[name] == "" {
+			guidance = append(guidance, fmt.Sprintf("The Kubernetes version of node %s is unavailable. Check the node status and try again.", name))
+		}
+	}
+
+	releases := SupportedReleases(now)
+	if len(releases) == 0 {
+		return append(guidance, "No supported Kubernetes version is currently available. Contact your service provider.")
+	}
+
+	latest := releases[0].Release
+	for _, name := range names {
+		current := versions[name]
+		if current == "" {
+			continue
+		}
+		if current == latest || NodeAgentUpgradeAllowed(current, latest) {
+			continue
+		}
+
+		next, ok := RecommendedTarget(current, now)
+		if ok && !SameRelease(current, next.Release) {
+			guidance = append(guidance, fmt.Sprintf(
+				"Node %s runs Kubernetes version %s and cannot upgrade directly to %s. Its next supported version is %s. Check node maintenance to upgrade it first.",
+				name,
+				current,
+				latest,
+				next.Release,
+			))
+		} else {
+			guidance = append(guidance, fmt.Sprintf(
+				"Node %s runs Kubernetes version %s and has no supported upgrade path to %s. Contact your service provider.",
+				name,
+				current,
+				latest,
+			))
+		}
+	}
+	return guidance
 }
 
 func SupportEnds(target string) (time.Time, bool) {

@@ -236,11 +236,7 @@ func removeDeleteNode(
 	worker *nodeWorker,
 	live *corev1.Node,
 ) error {
-	operationLogStage(
-		worker,
-		"deleting-node",
-		fmt.Sprintf("The Kubernetes node %s is deleted, which also removes it from etcd", operation.NodeName),
-	)
+	operationLogStage(worker, "deleting-node")
 
 	deleteErr := clientset.CoreV1().Nodes().Delete(ctx, operation.NodeName, metav1.DeleteOptions{
 		Preconditions: &metav1.Preconditions{UID: &live.UID},

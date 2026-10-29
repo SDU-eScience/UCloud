@@ -349,7 +349,7 @@ func submitOperation(
 	}
 	if kind == KindUpgrade {
 		if _, ok := shared.ReleaseByExactVersion(release); !ok {
-			return fmt.Errorf("the release %s is not a known Kubernetes release", release)
+			return fmt.Errorf("the Kubernetes version %s is not known", release)
 		}
 		if options.ForceDelete {
 			return errors.New("force delete cannot be used with node upgrades because it is not possible to prove that the workloads stopped")
@@ -424,7 +424,7 @@ func submitValid(submit submission, existing Operation, exists bool) error {
 
 	if existing.HostTerminationUnverified && submit.kind != KindRemove && submit.kind != KindUncordon {
 		return fmt.Errorf(
-			"node %s has unverified host terminations from a previous force delete and cannot be maintained",
+			"pods may still be running on node %s after a previous force delete. Maintenance is unavailable for this node",
 			submit.nodeName,
 		)
 	}

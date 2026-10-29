@@ -79,10 +79,10 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 			createdAtLabel = time.UnixMilli(stackInfo.CreatedAt).UTC().Format("Jan 2, 2006 15:04 UTC")
 		}
 
-		stackIdMetric := app.homeMetric("Cluster ID",
+		stackIdMetric := app.homeMetric("Cluster name",
 			homeMetricText(stackInfo.Id, ucx.ColorTextPrimary),
 			ucx.Box().Sx(ucx.SxMl(-4)).Children(
-				ucx.CopyButtonEx("homeCopyStackId", stackInfo.Id).WithTooltip("Copy cluster ID"),
+				ucx.CopyButtonEx("homeCopyStackId", stackInfo.Id).WithTooltip("Copy cluster name"),
 			),
 		)
 
@@ -192,14 +192,14 @@ func (app *stackUiApp) pageHomeActions() []ucx.UiNode {
 			"Permissions",
 			"Share cluster admin rights for this Kubernetes cluster with others in your project.",
 		).Children(ucx.StackPermissionsEx("homePermissions", app.Stack.InstanceId, ucx.StackPermissionsProps{
-			AccessDescription: "Cluster admin grants full Kubernetes cluster-admin access, including cluster resources, credentials, VM shells, and logs. The cluster creator and project administrators keep access.",
+			AccessDescription: "Cluster admin grants full Kubernetes cluster-admin access, including cluster resources, credentials, node shells, and logs. The cluster creator and project administrators keep access.",
 			PermissionLabel:   "Cluster admin",
 			PermissionIcon:    ucx.IconHeroShieldCheck,
 			ButtonIcon:        ucx.IconHeroShare,
 		})))
 		actions = append(actions, ucx.SettingsAction("homeDeleteAction",
 			"Delete cluster",
-			"Permanently deletes the cluster and its VMs.",
+			"Permanently deletes the cluster and its nodes.",
 		).Children(
 			ucx.ButtonEx("homeDeleteCluster", "Delete cluster", ucx.ColorErrorMain, ucx.IconTrash, "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 				ucxsvc.StackDelete(app)

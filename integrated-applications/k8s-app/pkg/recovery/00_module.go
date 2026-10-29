@@ -341,7 +341,7 @@ func (app *app) UserInterface() ucx.UiNode {
 
 	if app.Stack == nil {
 		top = append(top,
-			ucx.Text("Connecting to the cluster…"),
+			ucx.Text("Connecting to the cluster..."),
 		)
 
 		return ucx.Box().Sx(
@@ -455,7 +455,7 @@ func (app *app) stageStopSelect() []ucx.UiNode {
 	}
 
 	if len(app.Backups) == 0 {
-		content = append(content, ucx.Warning("No backups were found on the application drive. Recovery requires a backup.").Sx(ucx.SxMb(16)))
+		content = append(content, ucx.Warning("No backups were found on the state drive. Recovery requires a backup.").Sx(ucx.SxMb(16)))
 	}
 
 	rows := []ucx.UiNode{}
@@ -821,7 +821,7 @@ func controlPlaneNodes(record shared.ClusterRecord) []shared.ClusterNodeRecord {
 func (app *app) beginRecoveryValidation(entry backupEntry, releaseKnown bool) (string, bool) {
 	clusterId := app.stackId()
 	if clusterId == "" {
-		return "The cluster id is not available yet", false
+		return "The cluster name is not available yet", false
 	}
 	if !app.ClusterFound {
 		return "The cluster record could not be read", false
@@ -837,7 +837,7 @@ func (app *app) beginRecoveryValidation(entry backupEntry, releaseKnown bool) (s
 		return "The replacement nodes already exist, so the backup cannot change", false
 	}
 	if !releaseKnown {
-		return "The selected backup release is not in the catalog", false
+		return "The selected backup uses an unavailable Kubernetes version", false
 	}
 	if app.CredentialsStatus == recoveryCredentialsUnchecked {
 		return "The live cluster tokens could not be read, so the credentials cannot be verified", false

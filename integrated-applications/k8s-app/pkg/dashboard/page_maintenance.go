@@ -208,7 +208,7 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 			))
 		} else if maintenance.UpgradeCordons(operation) {
 			content = append(content, ucx.Text(
-				"The upgrade failed and the node remains cordoned. Retry the upgrade, or use Uncordon in the node table to return the node to service on its current release.",
+				"The upgrade failed and the node remains cordoned. Retry the upgrade, or use Uncordon in the node table to return the node to service on its current Kubernetes version.",
 			))
 		} else {
 			content = append(content, ucx.Text(
@@ -461,7 +461,7 @@ func maintenanceRemoveForm(
 	if nodeRecord.Group == shared.GroupControlPlane {
 		if controlPlanes <= 2 {
 			return ucx.Warning(
-				"The control plane must keep at least two nodes for the etcd quorum, so this node cannot be removed. Add another control-plane node first.",
+				"The control plane must keep at least two nodes for the etcd quorum, so this node cannot be removed. Add additional control-plane nodes first.",
 			)
 		}
 		if controlPlanes == 3 {
@@ -559,10 +559,17 @@ func maintenanceUpgradeForm(
 		options = []ucx.Option{{Key: operation.TargetRelease, Value: operation.TargetRelease}}
 	}
 	if len(options) == 0 {
-		return ucx.Text(fmt.Sprintf(
-			"No upgrade path is allowed for the node running %s. It may already run the newest supported release, or the jump may be more than one minor. A jump of more than one minor needs a manual multi-step upgrade or node replacement.",
-			currentVersion,
-		))
+		now := time.Now().UTC()
+		current := app.clusterHealth.Versions[nodeName]
+		releases := shared.SupportedReleases(now)
+		if len(releases) > 0 && current == releases[0].Release {
+			return ucx.Text(fmt.Sprintf("Node %s is up to date.", nodeName))
+		}
+		guidance := shared.ClusterUpgradePathGuidance(map[string]string{nodeName: current}, now)
+		if len(guidance) == 0 {
+			return ucx.Warning("No upgrade is available for this node. Check node maintenance or contact your service provider.")
+		}
+		return ucx.Warning(strings.Join(guidance, " "))
 	}
 	selected := false
 	for _, option := range options {
@@ -593,8 +600,8 @@ func maintenanceUpgradeForm(
 	if isRetry {
 		children = append(children, ucx.Text(fmt.Sprintf("Retry target: %s", operation.TargetRelease)))
 	} else {
-		children = append(children, ucx.Text(fmt.Sprintf("Current version: %s", shared.VersionSupportLabel(currentVersion, time.Now().UTC()))))
-		children = append(children, ucx.FieldRowNodeEx("maintenanceTargetReleaseRow", "Target release", "maintenanceTargetRelease").
+		children = append(children, ucx.Text(fmt.Sprintf("Current Kubernetes version: %s", shared.VersionSupportLabel(currentVersion, time.Now().UTC()))))
+		children = append(children, ucx.FieldRowNodeEx("maintenanceTargetReleaseRow", "Target Kubernetes version", "maintenanceTargetRelease").
 			FieldRowRequired(true).
 			Children(ucx.Select("maintenanceTargetReleaseSelect", "", "maintenanceTargetRelease", options)))
 	}
@@ -643,7 +650,7 @@ func maintenanceUpgradeForm(
 			}
 		}
 		if !valid {
-			ucxsvc.UiSendFailure(app, "Please select a supported target release")
+			ucxsvc.UiSendFailure(app, "Please select a supported target Kubernetes version")
 			return
 		}
 		app.MaintenanceTargetRelease = target
@@ -788,9 +795,9 @@ func maintenanceSubmitAsync(
 func maintenanceSubmitMessage(kind string, nodeName string) string {
 	switch kind {
 	case "uncordon":
-		return fmt.Sprintf("Uncordon of %s started", nodeName)
+		return fmt.Sprintf("Started uncordoning %s", nodeName)
 	case "cancel":
-		return fmt.Sprintf("The operation on %s was asked to stop", nodeName)
+		return fmt.Sprintf("Cancellation requested for the operation on %s", nodeName)
 	}
 	return ""
 }

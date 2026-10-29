@@ -525,7 +525,7 @@ func stackStateRegisterProxyHandlers(
 
 		response, writeErr := stackStateWrite(scopeHash, stackId, request)
 		if errors.Is(writeErr, stackStateErrConflict) {
-			return response, util.HttpErr(http.StatusConflict, "stack state revision or lease conflict")
+			return response, util.HttpErr(http.StatusConflict, "the application state changed. Try again")
 		}
 		return response, writeErr
 	}
@@ -536,12 +536,12 @@ func stackStateRegisterProxyHandlers(
 
 func stackStateControlHttpError(err error) *util.HttpError {
 	if errors.Is(err, stackStateErrInvalid) {
-		return util.HttpErr(http.StatusBadRequest, "invalid stack state request")
+		return util.HttpErr(http.StatusBadRequest, "the application state request is invalid. Contact your service provider")
 	}
 	if errors.Is(err, stackStateErrConflict) {
-		return util.HttpErr(http.StatusConflict, "stack state revision or lease conflict")
+		return util.HttpErr(http.StatusConflict, "the application state changed. Try again")
 	}
-	return util.HttpErr(http.StatusInternalServerError, "stack state operation failed")
+	return util.HttpErr(http.StatusInternalServerError, "could not access the application state. Try again or contact your service provider")
 }
 
 func stackStateControlPrincipal(token string) (string, []byte, []byte, *util.HttpError) {

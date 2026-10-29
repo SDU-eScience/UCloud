@@ -238,48 +238,81 @@ func autoMaintenanceKubernetesSummary(app *stackUiApp, now time.Time) []ucx.UiNo
 	nodes := []ucx.UiNode{}
 
 	record, recordOk := app.readClusterRecord()
+	if !recordOk {
+		return append(nodes, ucx.Warning("Could not read the cluster nodes. Try again."))
+	}
+	if len(record.Nodes) == 0 {
+		return append(nodes, autoMaintenanceNote("The Kubernetes versions of the nodes are not available yet."))
+	}
 
-	entries := []autoNodeVersion{}
-	for name, nodeVersion := range app.clusterHealth.Versions {
-		if nodeVersion != "" {
-			entries = append(entries, autoNodeVersion{Name: name, Version: nodeVersion})
+	versions := make([]string, 0, len(record.Nodes))
+	versionsByNode := make(map[string]string, len(record.Nodes))
+	missing := false
+	for _, node := range record.Nodes {
+		current := app.clusterHealth.Versions[node.Hostname]
+		versionsByNode[node.Hostname] = current
+		if current == "" {
+			missing = true
+		} else {
+			versions = append(versions, current)
 		}
 	}
-	sort.Slice(entries, func(i, j int) bool {
-		return entries[i].Name < entries[j].Name
-	})
-	if len(entries) == 0 && recordOk && record.K8sVersion != "" {
-		entries = append(entries, autoNodeVersion{Version: record.K8sVersion})
-	}
-
-	if len(entries) == 0 {
-		return append(nodes, autoMaintenanceNote("The node versions are not available yet."))
-	}
-
-	versions := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		versions = append(versions, entry.Version)
+	guidance := shared.ClusterUpgradePathGuidance(versionsByNode, now)
+	if missing {
+		return append(nodes, ucx.Warning(strings.Join(guidance, " ")))
 	}
 
 	target, targetOk := shared.RecommendedClusterTarget(versions, now)
 	if !targetOk {
-		nodes = append(nodes, ucx.Warning("No supported upgrade is available for every node."))
+		if len(guidance) == 0 {
+			guidance = append(guidance, "No supported upgrade is available for every node. Check node maintenance or contact your service provider.")
+		}
 	} else {
+		for _, node := range record.Nodes {
+			current := versionsByNode[node.Hostname]
+			if shared.SameRelease(current, target.Release) {
+				continue
+			}
+			next, ok := shared.RecommendedTarget(current, now)
+			if ok && !shared.SameRelease(next.Release, target.Release) {
+				guidance = append(guidance, fmt.Sprintf(
+					"Automatic upgrade is blocked: node %s runs Kubernetes version %s and its recommended next version is %s, but the cluster target is %s. Check node maintenance before trying again.",
+					node.Hostname,
+					current,
+					next.Release,
+					target.Release,
+				))
+			}
+		}
 		pending := autoNodesNeedingUpgrade(versions, target.Release)
-		line := fmt.Sprintf("Target %s.", target.Release)
+		line := fmt.Sprintf("Target Kubernetes version: %s.", target.Release)
 		if target.SecurityFixes {
-			line += " Security release."
+			line += " Includes security fixes."
 		}
 		if pending > 0 {
-			line += fmt.Sprintf(" %d of %d nodes need an upgrade.", pending, len(versions))
+			line += fmt.Sprintf(" Nodes needing an upgrade: %d of %d.", pending, len(versions))
 		} else {
-			line += fmt.Sprintf(" All %s are up to date.", autoNodeCount(len(versions)))
+			releases := shared.SupportedReleases(now)
+			if len(releases) > 0 && target.Release == releases[0].Release && len(guidance) == 0 {
+				if len(versions) == 1 {
+					if app.clusterHealth.Total == 1 {
+						line += " The node is up to date."
+					} else {
+						line += " The managed node is up to date."
+					}
+				} else if app.clusterHealth.Total != len(record.Nodes) {
+					line += " All managed nodes are up to date."
+				} else {
+					line += " All nodes are up to date."
+				}
+			} else {
+				line += " No nodes need an upgrade to this target."
+			}
 		}
 		nodes = append(nodes, autoMaintenanceNote(line))
 	}
 
-	warnings := autoUnreachableReleaseWarnings(entries, now)
-	warnings = append(warnings, autoOutOfSupportWarnings(versions, now)...)
+	warnings := append(guidance, autoOutOfSupportWarnings(versions, now)...)
 	if len(warnings) > 0 {
 		nodes = append(nodes, ucx.Warning(strings.Join(warnings, " ")))
 	}
@@ -306,6 +339,7 @@ func autoMaintenanceOsSummary(status dashboardAutoStatus, policy maintenance.Aut
 	for _, report := range reports {
 		if report.Error != "" {
 			failedNodes++
+			continue
 		}
 		if report.RebootRequired {
 			rebootNodes++
@@ -316,17 +350,33 @@ func autoMaintenanceOsSummary(status dashboardAutoStatus, policy maintenance.Aut
 		}
 	}
 
-	line := fmt.Sprintf("All %s are up to date.", autoNodeCount(len(reports)))
+	line := ""
+	checkedNodes := len(reports) - failedNodes
 	if mostPending > 0 {
-		line = fmt.Sprintf("%d packages pending, %d security.", mostPending, mostSecurity)
+		line = fmt.Sprintf("Packages pending: %d. Security updates: %d.", mostPending, mostSecurity)
+	} else if checkedNodes > 0 && failedNodes > 0 {
+		line = "No updates are needed on the nodes with successful checks."
+	} else if checkedNodes == 1 {
+		line = "1 node is up to date."
+	} else if checkedNodes > 1 {
+		line = fmt.Sprintf("%s are up to date.", autoNodeCount(checkedNodes))
 	}
 	if rebootNodes > 0 {
 		if mostPending == 0 {
 			line = "No packages are pending."
+			if failedNodes > 0 {
+				line = "No packages are pending on the nodes with successful checks."
+			}
 		}
-		line += fmt.Sprintf(" %s need a restart.", autoNodeCount(rebootNodes))
+		if rebootNodes == 1 {
+			line += " 1 node needs a restart."
+		} else {
+			line += fmt.Sprintf(" %s need a restart.", autoNodeCount(rebootNodes))
+		}
 	}
-	nodes = append(nodes, autoMaintenanceNote(line))
+	if line != "" {
+		nodes = append(nodes, autoMaintenanceNote(line))
+	}
 
 	warnings := []string{}
 	if failedNodes > 0 {
@@ -340,59 +390,6 @@ func autoMaintenanceOsSummary(status dashboardAutoStatus, policy maintenance.Aut
 	}
 
 	return nodes
-}
-
-func autoUnreachableReleaseWarnings(entries []autoNodeVersion, now time.Time) []string {
-	releases := shared.SupportedReleases(now)
-	if len(releases) == 0 {
-		return nil
-	}
-	newest := releases[0]
-
-	counts := map[string]int{}
-	steps := map[string]string{}
-	blocked := map[string]int{}
-	for _, entry := range entries {
-		if entry.Name == "" {
-			continue
-		}
-		nodeTarget, ok := shared.RecommendedTarget(entry.Version, now)
-		switch {
-		case ok && shared.SameRelease(nodeTarget.Release, newest.Release):
-		case ok:
-			counts[entry.Version]++
-			steps[entry.Version] = nodeTarget.Release
-		default:
-			blocked[entry.Version]++
-		}
-	}
-
-	versions := make([]string, 0, len(counts)+len(blocked))
-	for version := range counts {
-		versions = append(versions, version)
-	}
-	for version := range blocked {
-		if _, present := counts[version]; !present {
-			versions = append(versions, version)
-		}
-	}
-	sort.Strings(versions)
-
-	result := []string{}
-	for _, version := range versions {
-		if count := counts[version]; count > 0 {
-			result = append(result, fmt.Sprintf(
-				"%s run %s and must upgrade to %s first.",
-				autoNodeCount(count),
-				version,
-				steps[version],
-			))
-		}
-		if count := blocked[version]; count > 0 {
-			result = append(result, fmt.Sprintf("%s run %s and have no supported upgrade path.", autoNodeCount(count), version))
-		}
-	}
-	return result
 }
 
 func autoOutOfSupportWarnings(versions []string, now time.Time) []string {
@@ -429,11 +426,6 @@ func autoNodeCount(count int) string {
 		return "1 node"
 	}
 	return fmt.Sprintf("%d nodes", count)
-}
-
-type autoNodeVersion struct {
-	Name    string
-	Version string
 }
 
 // Schedule
@@ -812,7 +804,7 @@ func autoSchedulePausedLabel(channel string, policy maintenance.AutoPolicy, now 
 		return "Automatic Kubernetes upgrades are disabled. Enable them to continue scheduled node upgrades."
 	}
 	if policy.DeferUntil.After(now) {
-		return "The schedule is deferred until " + autoDateLabel(policy.DeferUntil) + ". The run continues in the next window after the deferral."
+		return "The schedule is paused until " + autoDateLabel(policy.DeferUntil) + ". The run continues in the next window after the pause."
 	}
 
 	start, _, ok := maintenance.AutoEffectiveWindow(now, policy)
@@ -836,7 +828,7 @@ func autoCheckLabel(name string) string {
 	case maintenance.AutoCheckQuorum:
 		return "Quorum"
 	case maintenance.AutoCheckAgents:
-		return "Node agents"
+		return "Node maintenance"
 	case maintenance.AutoCheckVersions:
 		return "Version spread"
 	case maintenance.AutoCheckPath:
@@ -1092,7 +1084,7 @@ func autoNodeOsProgress(
 			result.Percent = 100
 			result.Action = "completed"
 		case report.Pending > 0:
-			result.Action = fmt.Sprintf("%d packages pending", report.Pending)
+			result.Action = fmt.Sprintf("Packages pending: %d", report.Pending)
 		case report.RebootRequired:
 			result.Action = "restart required"
 		}
@@ -1359,7 +1351,7 @@ func autoPolicyUpdate(
 		}
 	}
 
-	return errors.New("the automatic maintenance policy changed while saving; please try again")
+	return errors.New("the automatic maintenance policy changed while saving. Try again")
 }
 
 func autoPolicyFromForm(form autoSettingsForm, policy maintenance.AutoPolicy) maintenance.AutoPolicy {
@@ -1399,10 +1391,10 @@ func (app *stackUiApp) homeAutoMaintenanceMetric() []ucx.UiNode {
 		case !policy.K8s.Enabled && !policy.Os.Enabled:
 			value = "Off"
 		case status.StateFound && maintenance.AutoStateBlocked(status.State):
-			value = "Blocked"
+			value = "Stopped"
 			color = ucx.ColorErrorMain
 		case policy.DeferUntil.After(now) && !maintenance.AutoTestWindowOpen(now, policy):
-			value = "Deferred until " + autoDateLabel(policy.DeferUntil)
+			value = "Paused until " + autoDateLabel(policy.DeferUntil)
 			color = ucx.ColorWarningMain
 		default:
 			windowStart, windowEnd, windowOpen := autoMaintenanceOpenWindow(policy, now)

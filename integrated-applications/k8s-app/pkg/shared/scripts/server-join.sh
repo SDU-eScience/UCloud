@@ -32,8 +32,8 @@ if [ "$FIRST_SERVER" = "True" ]; then
 	SERVER_SECRET="$(cat "$INPUT_DIR/server-token")"
 	AGENT_SECRET="$(cat "$INPUT_DIR/agent-token")"
 else
-	log "waiting for the secure server token"
-	emit "Waiting for the secure server token" 50
+	log "waiting for cluster credentials"
+	emit "Waiting for cluster credentials" 50
 	wait_for_token_files "control-plane"
 	SERVER_TOKEN="$(cat "$INPUT_DIR/server-token.ca")"
 	AGENT_TOKEN="$(cat "$INPUT_DIR/agent-token.ca")"
@@ -87,7 +87,7 @@ if [ "$FIRST_SERVER" = "True" ] && [ "$RECOVERY_ENABLED" = "True" ]; then
 	require_file "$RECOVERY_SNAPSHOT" "the recovery snapshot"
 	RECOVERY_SHA256="$(node_field_opt recoverySnapshotSha256)"
 	if [ -z "$RECOVERY_SHA256" ]; then
-		fail "recovery" "the recovery snapshot checksum is missing from the node input"
+		fail "recovery" "the backup verification details are missing from the node configuration"
 	fi
 	OBSERVED_SHA256="$(sha256sum "$RECOVERY_SNAPSHOT" | awk '{print $1}')"
 	if [ "$OBSERVED_SHA256" != "$RECOVERY_SHA256" ]; then
@@ -112,8 +112,8 @@ wait_k3s_ready
 emit "Waiting for the node to become ready" 75
 wait_node_ready "$NODE_NAME"
 
-log "installing the token publisher"
-emit "Installing the token publisher" 76
+log "preparing cluster credentials"
+emit "Preparing cluster credentials" 76
 install -m 0755 "$BUNDLE_DIR/token-publisher.sh" /usr/local/sbin/ucloud-k8s-token-publisher
 
 cat > /etc/systemd/system/ucloud-k8s-token-publisher.service <<EOF
@@ -137,8 +137,8 @@ EOF
 systemctl daemon-reload
 systemctl enable --now ucloud-k8s-token-publisher
 
-log "reading the controller registration token"
-emit "Reading the controller registration token" 77
+log "preparing cluster management"
+emit "Preparing cluster management" 77
 CONTROLLER_TOKEN_SOURCE="$INPUT_DIR/controller-token"
 CONTROLLER_TOKEN_DIR="/var/lib/ucloud-k8s/controller"
 CONTROLLER_TOKEN_TRIES=0
@@ -150,7 +150,7 @@ while [ $CONTROLLER_TOKEN_TRIES -lt 60 ]; do
 	CONTROLLER_TOKEN_TRIES=$(( CONTROLLER_TOKEN_TRIES + 1 ))
 done
 if [ ! -s "$CONTROLLER_TOKEN_SOURCE" ]; then
-	fail "credentials" "the controller registration token was never published"
+	fail "credentials" "the credentials for cluster management are unavailable"
 fi
 
 install -d -m 0750 -o "$UCX_SERVICE_UID" -g "$UCX_SERVICE_GID" "$CONTROLLER_TOKEN_DIR"

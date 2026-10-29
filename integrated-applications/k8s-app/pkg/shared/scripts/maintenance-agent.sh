@@ -11,12 +11,12 @@ STATE_FILE="/var/lib/ucloud-k8s/maintenance/upgrade-state.json"
 OS_STATE_FILE="/var/lib/ucloud-k8s/maintenance/os-state.json"
 
 if [ "$(id -u)" -ne 0 ]; then
-	echo "[ucloud-k8s] the maintenance agent installer must run as root" >&2
+	echo "[ucloud-k8s] maintenance setup must run as root" >&2
 	exit 1
 fi
 
 if ! mountpoint -q /etc/ucloud-k8s/bundle || ! mountpoint -q /etc/ucloud-k8s/input; then
-	echo "[ucloud-k8s] the maintenance agent requires the bundle and input mounts" >&2
+	echo "[ucloud-k8s] maintenance setup requires the node setup files and configuration" >&2
 	exit 1
 fi
 
@@ -26,13 +26,13 @@ REQUIRES_MOUNTS="RequiresMountsFor=/etc/ucloud-k8s/input /etc/ucloud-k8s/bundle 
 if [ "$ROLE" = "control-plane" ]; then
 	REQUIRES_MOUNTS="RequiresMountsFor=/etc/ucloud-k8s/input /etc/ucloud-k8s/bundle /work /etc/ucloud-k8s/management /etc/ucloud-k8s/nodes /etc/ucloud-k8s/backups"
 	if ! mountpoint -q /etc/ucloud-k8s/management || ! mountpoint -q /etc/ucloud-k8s/nodes || ! mountpoint -q "$BACKUPS_DIR"; then
-		echo "[ucloud-k8s] the control plane maintenance agent requires the management, nodes and backups mounts" >&2
+		echo "[ucloud-k8s] control-plane maintenance setup requires access to cluster management, node and backup files" >&2
 		exit 1
 	fi
 fi
 
 if ! mountpoint -q /work; then
-	echo "[ucloud-k8s] the maintenance agent requires the work mount for its progress logs" >&2
+	echo "[ucloud-k8s] maintenance setup requires access to the work directory for progress logs" >&2
 	exit 1
 fi
 
@@ -43,7 +43,7 @@ while true; do
 	fi
 
 	if [ "$waited" -ge 120 ]; then
-		echo "[ucloud-k8s] the provider-signed binary never appeared at $PROVIDER_UCX_BIN" >&2
+		echo "[ucloud-k8s] the maintenance software is unavailable at $PROVIDER_UCX_BIN" >&2
 		exit 1
 	fi
 
@@ -175,5 +175,5 @@ if ! { [ "$SERVICE_STATE" = "active" ] || [ "$SERVICE_STATE" = "activating" ]; }
 fi
 
 rm -f "$UNIT_TMP"
-echo "[ucloud-k8s] the maintenance agent is busy, the setup retries when the node is idle" >&2
+echo "[ucloud-k8s] maintenance is busy. Setup will retry when the node is idle" >&2
 exit 1

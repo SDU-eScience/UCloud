@@ -94,7 +94,7 @@ func (app *stackUiApp) autoPolicyApply(ctx context.Context, request k8sapi.AutoR
 		if strings.TrimSpace(request.WindowDay) != "" {
 			day := strings.ToLower(strings.TrimSpace(request.WindowDay))
 			if !maintenance.AutoDayValid(day) {
-				return fmt.Errorf("invalid maintenance day %q; use mon, tue, wed, thu, fri, sat or sun", request.WindowDay)
+				return fmt.Errorf("invalid maintenance day %q. Use mon, tue, wed, thu, fri, sat or sun", request.WindowDay)
 			}
 			policy.Window.Days = []string{day}
 		}

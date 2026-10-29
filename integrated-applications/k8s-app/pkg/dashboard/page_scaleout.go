@@ -28,10 +28,10 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 	shellEscape := appShellProps{EscapePath: "browse/nodes"}
 
 	if group == "" {
-		return app.messagePage(nil, "browse/nodes", ucx.Text("No node pool was selected."))
+		return app.messagePage(nil, "browse/nodes", ucx.Text("Select a node group to add nodes."))
 	}
 
-	shellEscape.Bottom = []ucx.UiNode{shellBottomNode(app, "nodes", "Add machine", "nodes/"+group)}
+	shellEscape.Bottom = []ucx.UiNode{shellBottomNode(app, "nodes", "Add nodes", "nodes/"+group)}
 
 	if !recordOk {
 		return app.messagePage(shellEscape.Bottom, "browse/nodes", ucx.Text("Could not read the cluster record."))
@@ -57,7 +57,11 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 	}
 
 	if pool == nil {
-		return app.messagePage(shellEscape.Bottom, "browse/nodes", ucx.Text("Unknown node pool: "+group))
+		return app.messagePage(shellEscape.Bottom, "browse/nodes", ucx.Text("Unknown node group: "+group))
+	}
+	groupLabel := "Worker pool"
+	if group == shared.GroupControlPlane {
+		groupLabel = "Control-plane nodes"
 	}
 
 	if app.TargetDiskGb <= 0 {
@@ -86,25 +90,25 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 			}, nil)
 		}).Children(
 			ucx.FieldGroupNode().Children(
-				ucx.FieldRowNodeEx("poolNameRow", "Pool name", "").
+				ucx.FieldRowNodeEx("poolNameRow", groupLabel, "").
 					Children(ucx.Text(group)),
 				ucx.FieldRowNodeEx("machineRow", "Machine type", "").
-					FieldRowDescription("All machines in a pool use the same machine type.").
+					FieldRowDescription("All nodes in this group use the same machine type.").
 					Children(ucx.Text(pool.Machine.Id)),
 				ucx.FieldRowNodeEx("diskRow", "Disk size (GB)", "targetDiskGb").
-					FieldRowDescription(fmt.Sprintf("The disk size for each new node. This pool uses %d GB by default.", pool.DiskGb)).
+					FieldRowDescription(fmt.Sprintf("The disk size for each new node. This group uses %d GB by default.", pool.DiskGb)).
 					FieldRowRequired(true).
 					Children(
 						ucx.InputNumber("targetDisk", "", "targetDiskGb", 10, 1024).WithAutoFocus(),
 					),
 				ucx.FieldRowNodeEx("countRow", "Node count", "targetCount").
-					FieldRowDescription("The number of nodes to add to this pool.").
+					FieldRowDescription("The number of nodes to add to this group.").
 					FieldRowRequired(true).
 					Children(
 						ucx.InputNumber("targetCount", "", "targetCount", 1, 250),
 					),
 			),
-			ucx.SubmitButton("addToPool", "Add machine to pool", ucx.ColorSuccessMain).
+			ucx.SubmitButton("addToPool", "Add nodes", ucx.ColorSuccessMain).
 				ButtonBusy("addBusy").
 				ButtonSubmitShortcut(true).
 				Sx(ucx.SxJustifyEnd),
@@ -138,7 +142,7 @@ func (app *stackUiApp) pageAddPool() []ucx.UiNode {
 
 	if record.Phase != "created" {
 		content := []ucx.UiNode{ucx.Text(
-			"New pools cannot be added while the cluster is in state " + record.Phase +
+			"New worker pools cannot be added while the cluster is in state " + record.Phase +
 				". The cluster must be in the created state.",
 		)}
 		if record.FailureReason != "" {
@@ -173,8 +177,8 @@ func (app *stackUiApp) pageAddPool() []ucx.UiNode {
 		}, nil)
 	}).Children(
 		ucx.FieldGroupNode().Children(
-			ucx.FieldRowNodeEx("poolNameRow", "Pool name", "newPoolName").
-				FieldRowDescription("The Kubernetes node group name for this pool. Must contain only a-z, 0-9 and dashes.").
+			ucx.FieldRowNodeEx("poolNameRow", "Worker pool name", "newPoolName").
+				FieldRowDescription("A name for this worker pool. Must contain only a-z, 0-9 and dashes.").
 				FieldRowRequired(true).
 				Children(
 					ucx.InputText("poolName", "", "workers", "newPoolName").WithAutoFocus(),
@@ -225,19 +229,23 @@ func (app *stackUiApp) addMachinesToGroup(stack *ucxsvc.Stack, group string, mac
 		return
 	}
 
-	ucxsvc.UiSendSuccess(app, fmt.Sprintf("Created %d new %s VM(s).", count, group))
+	message := fmt.Sprintf("Added %s to worker pool %s.", autoNodeCount(count), group)
+	if group == shared.GroupControlPlane {
+		message = fmt.Sprintf("Added %s to the control plane.", autoNodeCount(count))
+	}
+	ucxsvc.UiSendSuccess(app, message)
 	ucxsvc.RouterPushPage(app, "browse/nodes")
 }
 
 func (app *stackUiApp) addPool(provider string, stack *ucxsvc.Stack, name string, machine accapi.ProductReference, diskGb int, count int) {
 	trimmedName := strings.TrimSpace(name)
 	if trimmedName == "" {
-		ucxsvc.UiSendFailure(app, "Please provide a pool name")
+		ucxsvc.UiSendFailure(app, "Please provide a worker pool name")
 		return
 	}
 
 	if provider != "" && machine.Provider != provider {
-		ucxsvc.UiSendFailure(app, "The machine must come from the provider that runs the cluster: "+provider)
+		ucxsvc.UiSendFailure(app, "The machine type must come from the provider that runs the cluster: "+provider)
 		return
 	}
 
@@ -251,6 +259,6 @@ func (app *stackUiApp) addPool(provider string, stack *ucxsvc.Stack, name string
 		return
 	}
 
-	ucxsvc.UiSendSuccess(app, fmt.Sprintf("Created pool %s with %d node(s)!", trimmedName, count))
+	ucxsvc.UiSendSuccess(app, fmt.Sprintf("Created worker pool %s with %s.", trimmedName, autoNodeCount(count)))
 	ucxsvc.RouterPushPage(app, "browse/nodes")
 }

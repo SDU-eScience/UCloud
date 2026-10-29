@@ -506,6 +506,12 @@ func (app *stackUiApp) refreshClusterHealth() {
 
 	health, err := client.NodeHealth(ctx)
 	if err != nil {
+		app.mu.Lock()
+		if len(app.clusterHealth.Versions) > 0 {
+			app.clusterHealth.Versions = nil
+			ucx.AppUpdateUi(app)
+		}
+		app.mu.Unlock()
 		return
 	}
 

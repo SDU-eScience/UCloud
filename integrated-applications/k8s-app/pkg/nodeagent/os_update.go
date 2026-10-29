@@ -426,7 +426,7 @@ func osApplyPackages(workerCtx context.Context, rebootPolicy string) {
 	)
 	if applyErr != nil {
 		osFinishFailure(userMessage(
-			"Retry the update on this node; contact support if it fails again",
+			"Retry the update on this node. Contact support if it fails again",
 			"OS updates could not be installed: %s", applyErr,
 		))
 		return

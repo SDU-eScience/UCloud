@@ -254,13 +254,13 @@ func ValidateDeployRequest(request DeployRequest) error {
 		return fmt.Errorf("select a machine type for the control plane")
 	}
 	if controlPlane.Machine.Provider != provider {
-		return fmt.Errorf("the control plane machine must come from the selected service provider (%s)", termio.QuoteName(provider))
+		return fmt.Errorf("the control-plane machine type must come from the selected service provider (%s)", termio.QuoteName(provider))
 	}
 	switch controlPlane.Nodes {
 	case ControlPlaneMinNodes, 3, 5, ControlPlaneMaxNodes:
 	default:
 		return fmt.Errorf(
-			"the control plane node count must be an odd number from %d to %d",
+			"the control-plane node count must be an odd number from %d to %d",
 			ControlPlaneMinNodes,
 			ControlPlaneMaxNodes,
 		)

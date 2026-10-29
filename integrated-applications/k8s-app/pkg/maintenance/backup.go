@@ -315,7 +315,7 @@ func backupSelectNode(ctx context.Context, record shared.ClusterRecord) (shared.
 		return node, nil
 	}
 
-	return shared.ClusterNodeRecord{}, errors.New("no control-plane node is eligible for a backup")
+	return shared.ClusterNodeRecord{}, errors.New("No control-plane node is available to create a backup. Check the node status and ongoing maintenance, then try again.")
 }
 
 func backupProbeNodes(ctx context.Context, nodes []shared.ClusterNodeRecord) (shared.ClusterNodeRecord, bool) {

@@ -156,7 +156,7 @@ func (app *stackUiApp) pageResources() []ucx.UiNode {
 			)
 			groupAction = &ucx.ResourceTableAction{
 				Id:       dashboardActionAddMachine,
-				Label:    "Add machine",
+				Label:    "Add nodes",
 				Icon:     ucx.IconHeroPlusSmall,
 				Shortcut: "a",
 			}

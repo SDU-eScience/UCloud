@@ -228,7 +228,7 @@ func runUpgrade(release string, previousState upgradeState) {
 	}
 	if binaryVersion != release && !shared.NodeAgentUpgradeAllowed(binaryVersion, release) {
 		finishFailure(release, previousState, binaryVersion, fmt.Sprintf(
-			"the upgrade from %s to %s is not allowed. Only a forward patch or the next minor release is allowed",
+			"the upgrade from %s to %s is not allowed. Only a forward patch or the next minor version is allowed",
 			binaryVersion,
 			release,
 		))
@@ -263,7 +263,7 @@ func runUpgrade(release string, previousState upgradeState) {
 
 	staged, err := StageRelease(workerCtx, release)
 	if err != nil {
-		finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not stage the release: %s", err))
+		finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not prepare the Kubernetes version: %s", err))
 		return
 	}
 
@@ -283,7 +283,7 @@ func runUpgrade(release string, previousState upgradeState) {
 			finishFailure(release, previousState, previousRelease, fmt.Sprintf("the etcd snapshot failed: %s", snapshotErr))
 			return
 		}
-		progressText(fmt.Sprintf("The control-plane snapshot was saved to %s", snapshotPath))
+		progressText("The control-plane snapshot was saved")
 		log.Info("k8s-app node agent: the etcd snapshot was saved to %s", snapshotPath)
 	}
 
@@ -302,7 +302,7 @@ func runUpgrade(release string, previousState upgradeState) {
 			finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not back up the server binary: %s", backupErr))
 			return
 		}
-		progressText(fmt.Sprintf("The previous binary was retained at %s", backupPath))
+		progressText("A copy of the previous Kubernetes executable was saved")
 		log.Info("k8s-app node agent: the previous binary was retained at %s", backupPath)
 
 		prepareErr := prepareReplacement(staged.Path, k3sReplacement)
@@ -412,7 +412,7 @@ func setPhase(phase string) error {
 
 	state := stateRead()
 	if state.Release == "" {
-		return errors.New("the upgrade state has no release")
+		return errors.New("the upgrade state has no Kubernetes version")
 	}
 
 	err := nodeStateSetPhase(statePath(), &state, &state.nodeState, phase, nil)
@@ -563,7 +563,7 @@ func recoverInterrupted() {
 func StageRelease(ctx context.Context, release string) (StagedRelease, error) {
 	record, ok := shared.ReleaseByExactVersion(release)
 	if !ok {
-		return StagedRelease{}, fmt.Errorf("unknown Kubernetes release: %s", release)
+		return StagedRelease{}, fmt.Errorf("unknown Kubernetes version: %s", release)
 	}
 
 	arch := runtime.GOARCH
@@ -583,7 +583,7 @@ func StageRelease(ctx context.Context, release string) (StagedRelease, error) {
 
 	stagedPath := stagedPath(record.Release, arch)
 	if fileMatchesSha256(stagedPath, expectedSha) {
-		progressText(fmt.Sprintf("The release %s was already downloaded and its checksum matches", record.Release))
+		progressText(fmt.Sprintf("The downloaded Kubernetes version %s was verified", record.Release))
 		return StagedRelease{
 			Release: record.Release,
 			Path:    stagedPath,
@@ -600,7 +600,7 @@ func StageRelease(ctx context.Context, release string) (StagedRelease, error) {
 	if err != nil {
 		return StagedRelease{}, err
 	}
-	progressText(fmt.Sprintf("The checksum of %s matches the pinned release", record.Release))
+	progressText(fmt.Sprintf("The downloaded Kubernetes version %s was verified", record.Release))
 
 	return StagedRelease{
 		Release: record.Release,
@@ -707,7 +707,7 @@ func writeVerified(file *os.File, body io.Reader, expectedSha string) error {
 	}
 
 	if hex.EncodeToString(hasher.Sum(nil)) != expectedSha {
-		return errors.New("the downloaded checksum does not match the pinned release")
+		return errors.New("the downloaded Kubernetes installation could not be verified")
 	}
 
 	return file.Sync()
@@ -1033,7 +1033,7 @@ func verifyUpgrade(ctx context.Context, release string, role string, service str
 	versionMatches := len(fields) >= 3 && fields[0] == "k3s" && fields[1] == "version" && fields[2] == release
 	if !versionMatches {
 		return fmt.Errorf(
-			"the installed Kubernetes version does not match the target release: %s",
+			"the installed Kubernetes version does not match the target version: %s",
 			strings.TrimSpace(string(versionOutput)),
 		)
 	}

@@ -114,7 +114,7 @@ func recoveryValidateBackup(mountPath string, id string) error {
 		return fmt.Errorf("the metadata of the backup %s names the backup %s", id, metadata.BackupId)
 	}
 	if metadata.Release == "" {
-		return fmt.Errorf("the backup %s has no Kubernetes release", id)
+		return fmt.Errorf("the backup %s has no Kubernetes version", id)
 	}
 	if metadata.Snapshot.Sha256 == "" {
 		return fmt.Errorf("the backup %s has no snapshot checksum", id)
@@ -300,14 +300,18 @@ func recoveryApiChecks(mountPath string, cluster shared.ClusterRecord, record sh
 	config, err := recoveryApiConfig(mountPath, cluster)
 	if err != nil {
 		return append(results, recoveryCheckResult{
-			Name: "Cluster API", Status: "Unavailable", Detail: "Check the cluster configuration.",
+			Name:   "Cluster API",
+			Status: "Unavailable",
+			Detail: "Could not check the cluster configuration. Check the control-plane logs or contact your service provider.",
 		})
 	}
 
 	client, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return append(results, recoveryCheckResult{
-			Name: "Cluster API", Status: "Unavailable", Detail: "Could not connect. Check the cluster configuration.",
+			Name:   "Cluster API",
+			Status: "Unavailable",
+			Detail: "Could not check the cluster configuration. Check the control-plane logs or contact your service provider.",
 		})
 	}
 

@@ -29,7 +29,7 @@ source /etc/ucloud-k8s/bundle/common.sh
 if command -v flock >/dev/null 2>&1; then
 	exec 200>"$BOOTSTRAP_STATE_DIR/bootstrap.lock"
 	if ! flock -n 200; then
-		log "another bootstrap run holds the lock"
+		log "another node setup is already running"
 		exit 0
 	fi
 fi
@@ -45,7 +45,7 @@ else
 	BOOTSTRAP_STDOUT_LOG="$BOOTSTRAP_LOG"
 fi
 
-log "bootstrap starting"
+log "starting node setup"
 
 /etc/ucloud-k8s/bundle/prepare.sh
 
@@ -73,8 +73,8 @@ if ! command -v systemctl >/dev/null 2>&1; then
 	else
 		exec >>"$BOOTSTRAP_LOG" 2>&1
 	fi
-	log "systemd is not available, running the bootstrap inline"
-	log "WARNING: the maintenance agent setup requires systemd and was skipped. The Kubernetes bootstrap continues without it"
+	log "systemd is not available. Starting node setup directly"
+	log "WARNING: the maintenance service could not be set up because systemd is unavailable. Kubernetes setup will continue"
 	exec /usr/local/sbin/ucloud-k8s-bootstrap
 fi
 

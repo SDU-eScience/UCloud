@@ -52,7 +52,7 @@ func AutoOpenWindowNow(ctx context.Context, kubeconfigPath string) error {
 		return errors.New("another automatic maintenance action is in progress")
 	}
 	if AutoStateBlocked(stateRecord.Value) {
-		return errors.New("automatic maintenance is stopped; resolve the problem and resume automatic maintenance")
+		return errors.New("automatic maintenance is stopped. Resolve the problem and resume automatic maintenance")
 	}
 
 	policy := AutoDefaultPolicy()
@@ -81,7 +81,7 @@ func AutoOpenWindowNow(ctx context.Context, kubeconfigPath string) error {
 		util.OptNone[int64](),
 	)
 	if shared.IsConflict(err) {
-		return errors.New("automatic maintenance changed while starting maintenance; please try again")
+		return errors.New("automatic maintenance changed while starting maintenance. Try again")
 	}
 	if err != nil {
 		return err
@@ -110,7 +110,7 @@ func AutoDeferUntil(until time.Time) error {
 	}
 	_, err = shared.RpcGrantStateWrite(client, AutoPolicyKey, value, record.Revision)
 	if shared.IsConflict(err) {
-		return errors.New("the maintenance schedule changed; please try again")
+		return errors.New("the maintenance schedule changed. Try again")
 	}
 	return err
 }

@@ -257,7 +257,7 @@ func (app *stackUiApp) registerRpcHandlers() {
 
 		pool, found := dashboardPoolRecord(record, poolName)
 		if !found {
-			return k8sapi.ScaleOutResponse{}, fmt.Errorf("unknown node pool: %s", poolName)
+			return k8sapi.ScaleOutResponse{}, fmt.Errorf("unknown node group: %s", poolName)
 		}
 		response.Pool = pool.Name
 
@@ -276,7 +276,7 @@ func (app *stackUiApp) registerRpcHandlers() {
 			}
 		} else if request.Nodes > k8sapi.MaxPoolNodes {
 			return k8sapi.ScaleOutResponse{}, fmt.Errorf(
-				"the pool supports at most %d nodes",
+				"the worker pool supports at most %d nodes",
 				k8sapi.MaxPoolNodes,
 			)
 		}
@@ -300,7 +300,7 @@ func (app *stackUiApp) registerRpcHandlers() {
 			}
 
 			if !shared.ClusterScalePool(app, stack, pool.Name, request.Nodes-current, disk) {
-				return k8sapi.ScaleOutResponse{}, fmt.Errorf("the pool could not be scaled")
+				return k8sapi.ScaleOutResponse{}, fmt.Errorf("the node group could not be scaled")
 			}
 			response.Ok = true
 			return response, nil
@@ -337,7 +337,7 @@ func (app *stackUiApp) registerRpcHandlers() {
 			DiskGb:  request.Disk,
 		})
 		if !ok {
-			return k8sapi.AddPoolResponse{}, fmt.Errorf("the pool could not be added")
+			return k8sapi.AddPoolResponse{}, fmt.Errorf("the worker pool could not be added")
 		}
 
 		return k8sapi.AddPoolResponse{Name: name, Nodes: request.Nodes, Ok: true}, nil
@@ -434,7 +434,7 @@ func (app *stackUiApp) registerRpcHandlers() {
 
 		version := strings.TrimSpace(request.K8sVersion)
 		if version == "" {
-			return k8sapi.UpgradeResponse{}, fmt.Errorf("a target Kubernetes release is required")
+			return k8sapi.UpgradeResponse{}, fmt.Errorf("a target Kubernetes version is required")
 		}
 
 		timeout := request.TimeoutSeconds
@@ -461,7 +461,7 @@ func (app *stackUiApp) registerRpcHandlers() {
 				continue
 			}
 			if _, found := dashboardPoolRecord(record, name); !found {
-				return k8sapi.UpgradeResponse{}, fmt.Errorf("unknown node pool: %s", name)
+				return k8sapi.UpgradeResponse{}, fmt.Errorf("unknown node group: %s", name)
 			}
 			selected[name] = true
 		}

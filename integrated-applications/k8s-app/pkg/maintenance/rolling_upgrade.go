@@ -100,7 +100,7 @@ func rollingUpgradeStart(
 ) error {
 	_, known := shared.ReleaseByExactVersion(release)
 	if !known {
-		return errors.New("select a supported target release")
+		return errors.New("select a supported target Kubernetes version")
 	}
 	record, found, err := readClusterRecord()
 	if err != nil {

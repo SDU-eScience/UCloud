@@ -105,7 +105,7 @@ func controlPlaneSchedulingSweep(ctx context.Context, kubeconfigPath string) err
 		}
 		node.Spec.Taints = append(node.Spec.Taints, taint)
 		if _, err := clientset.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{}); err != nil {
-			return fmt.Errorf("could not taint control plane node %s: %w", node.Name, err)
+			return fmt.Errorf("could not taint control-plane node %s: %w", node.Name, err)
 		}
 		log.Info("k8s-app control plane scheduling: applied the NoSchedule taint to %s", node.Name)
 	}

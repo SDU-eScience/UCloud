@@ -63,7 +63,7 @@ var resourceTypes = []ResourceTypeDef{
 			{Key: "scheduling", Label: "Scheduling"},
 			{Key: "maintenance", Label: "Maintenance"},
 			{Key: "role", Label: "Roles"},
-			{Key: "version", Label: "Version"},
+			{Key: "version", Label: "Kubernetes version"},
 			{Key: "os", Label: "OS updates"},
 			{Key: "ip", Label: "IP", SortType: ucx.TableColumnSortIp},
 			{Key: "age", Label: "Age", SortType: ucx.TableColumnSortDuration},
@@ -1270,7 +1270,7 @@ func resourceRowActions(
 					Id:             dashboardActionUncordon,
 					Enabled:        true,
 					Text:           "Uncordon (recovery)",
-					DisabledReason: "Releases the traffic suspension and returns the node to service on its current release",
+					DisabledReason: "Releases the traffic suspension and returns the node to service on its current Kubernetes version",
 				})
 			} else {
 				actions = append(actions, uncordonEnabled)

@@ -119,7 +119,7 @@ func (app *app) recoveryRpcStart(
 
 	if _, known := shared.ReleaseByExactVersion(entry.Release); !known {
 		return k8sapi.RecoveryStartResponse{}, fmt.Errorf(
-			"the backup %s uses the unavailable release %s",
+			"the backup %s uses the unavailable Kubernetes version %s",
 			entry.Id,
 			entry.Release,
 		)
@@ -139,7 +139,7 @@ func (app *app) recoveryRpcStart(
 	case recoveryCredentialsMismatch:
 		if !request.AcknowledgeRisk {
 			return k8sapi.RecoveryStartResponse{}, errors.New(
-				"the backup credentials differ from the cluster credentials; use --acknowledge-risk to continue",
+				"the backup credentials differ from the cluster credentials. Use --acknowledge-risk to continue",
 			)
 		}
 	}

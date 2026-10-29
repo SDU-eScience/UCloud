@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -145,7 +146,7 @@ func autoDurationLabel(delta time.Duration) string {
 func autoUpgradeTarget(versions []string, now time.Time) (shared.K3sRelease, string) {
 	target, ok := shared.RecommendedClusterTarget(versions, now)
 	if !ok {
-		return shared.K3sRelease{}, "No supported upgrade is available for every node. A node may be more than one minor behind, or every release may be past its end of support."
+		return shared.K3sRelease{}, "No supported upgrade is available for every node. Check node maintenance or contact your service provider."
 	}
 
 	return target, ""
@@ -266,7 +267,7 @@ func autoUpgradeClusterChecks(
 			workerVersions = append(workerVersions, parsed)
 		}
 	}
-	autoCheckRecord(&list, AutoCheckNodes, autoOutcomeProceed, fmt.Sprintf("All %d nodes are ready.", len(record.Nodes)))
+	autoCheckRecord(&list, AutoCheckNodes, autoOutcomeProceed, fmt.Sprintf("Managed nodes ready: %d.", len(record.Nodes)))
 
 	proceed, err = autoQuorumCheck(ctx, clientset, record, &list, "an upgrade")
 	if err != nil {
@@ -278,6 +279,10 @@ func autoUpgradeClusterChecks(
 
 	target, targetProblem := autoUpgradeTarget(versions, now)
 	if targetProblem != "" {
+		guidance := shared.ClusterUpgradePathGuidance(versionsByNode, now)
+		if len(guidance) > 0 {
+			targetProblem = strings.Join(guidance, " ")
+		}
 		autoCheckRecord(&list, AutoCheckPath, autoOutcomeStop, targetProblem)
 		return list, nil
 	}
@@ -293,7 +298,7 @@ func autoUpgradeClusterChecks(
 		nodeTarget, ok := shared.RecommendedTarget(current, now)
 		if !ok {
 			autoCheckRecord(&list, AutoCheckPath, autoOutcomeStop, fmt.Sprintf(
-				"Node %s runs %s and has no supported upgrade path. It needs a manual multi-step upgrade or a replacement.",
+				"Node %s runs Kubernetes version %s and has no supported upgrade path. Check node maintenance or contact your service provider.",
 				node.Hostname,
 				current,
 			))
@@ -301,11 +306,11 @@ func autoUpgradeClusterChecks(
 		}
 		if !shared.SameRelease(nodeTarget.Release, target.Release) {
 			autoCheckRecord(&list, AutoCheckPath, autoOutcomeStop, fmt.Sprintf(
-				"Node %s runs %s and cannot reach %s. Its next supported step is %s.",
+				"Automatic upgrade is blocked: node %s runs Kubernetes version %s and its recommended next version is %s, but the cluster target is %s. Check node maintenance before trying again.",
 				node.Hostname,
 				current,
-				target.Release,
 				nodeTarget.Release,
+				target.Release,
 			))
 			return list, nil
 		}
@@ -327,19 +332,28 @@ func autoUpgradeClusterChecks(
 	autoCheckRecord(&list, AutoCheckVersions, autoOutcomeProceed, "")
 
 	if len(needsUpgrade) == 0 {
-		autoCheckRecord(&list, AutoCheckPath, autoOutcomeComplete, fmt.Sprintf("All nodes already run %s.", target.Release))
+		guidance := shared.ClusterUpgradePathGuidance(versionsByNode, now)
+		if len(guidance) > 0 {
+			autoCheckRecord(&list, AutoCheckPath, autoOutcomeComplete, fmt.Sprintf(
+				"No managed nodes need an upgrade to the currently reachable Kubernetes version %s. %s",
+				target.Release,
+				strings.Join(guidance, " "),
+			))
+			return list, nil
+		}
+		autoCheckRecord(&list, AutoCheckPath, autoOutcomeComplete, fmt.Sprintf("No managed nodes need an upgrade to Kubernetes version %s.", target.Release))
 		return list, nil
 	}
 
 	probes := autoUpgradeAgentProbes(ctx, needsUpgrade)
 	for _, probe := range probes {
 		if probe.err != nil {
-			autoCheckRecord(&list, AutoCheckAgents, autoOutcomeWait, fmt.Sprintf("The node agent of %s is not reachable.", probe.node.Hostname))
+			autoCheckRecord(&list, AutoCheckAgents, autoOutcomeWait, fmt.Sprintf("Node %s is not responding to maintenance requests.", probe.node.Hostname))
 			return list, nil
 		}
 		if probe.status.NodeName != probe.node.Hostname {
 			autoCheckRecord(&list, AutoCheckAgents, autoOutcomeStop, fmt.Sprintf(
-				"The node agent at %s reports node %s, but %s was requested.",
+				"The maintenance service at %s reports node %s, but %s was requested.",
 				probe.node.IpAddress,
 				probe.status.NodeName,
 				probe.node.Hostname,
@@ -347,25 +361,25 @@ func autoUpgradeClusterChecks(
 			return list, nil
 		}
 		if shared.NodeAgentPhaseActive(probe.status.Phase) {
-			autoCheckRecord(&list, AutoCheckAgents, autoOutcomeWait, fmt.Sprintf("The node agent of %s is busy with another operation.", probe.node.Hostname))
+			autoCheckRecord(&list, AutoCheckAgents, autoOutcomeWait, fmt.Sprintf("Node %s is busy with another maintenance operation.", probe.node.Hostname))
 			return list, nil
 		}
 		if probe.status.Phase == shared.NodeAgentPhaseFailed && !shared.SameRelease(probe.status.Release, target.Release) {
 			autoCheckRecord(&list, AutoCheckAgents, autoOutcomeStop, fmt.Sprintf(
-				"The node agent of %s failed an upgrade to %s. The target does not match.",
-				probe.node.Hostname,
+				"An upgrade to %s failed on node %s. The target does not match.",
 				probe.status.Release,
+				probe.node.Hostname,
 			))
 			return list, nil
 		}
 	}
-	autoCheckRecord(&list, AutoCheckAgents, autoOutcomeProceed, fmt.Sprintf("All %d node agents are reachable and idle.", len(needsUpgrade)))
+	autoCheckRecord(&list, AutoCheckAgents, autoOutcomeProceed, "All nodes that need an upgrade are available for maintenance.")
 
 	autoCheckRecord(&list, AutoCheckPath, autoOutcomeProceed, fmt.Sprintf(
-		"%d of %d nodes need an upgrade to %s.",
+		"Nodes needing an upgrade to %s: %d of %d.",
+		target.Release,
 		len(needsUpgrade),
 		len(record.Nodes),
-		target.Release,
 	))
 	return list, nil
 }
@@ -390,7 +404,7 @@ func autoOperationsCheck(
 		}
 		if operation.HostTerminationUnverified {
 			autoCheckRecord(list, AutoCheckOperations, autoOutcomeStop, fmt.Sprintf(
-				"Node %s has an unverified host termination from a previous force delete. Resolve it, then press Resume automatic maintenance.",
+				"Pods may still be running on node %s after a previous force delete. Remove the node or contact support before resuming automatic maintenance.",
 				node.Hostname,
 			))
 			return false, nil
@@ -424,7 +438,7 @@ func autoQuorumCheck(
 
 	if len(controlPlanes) == 2 {
 		autoCheckRecord(list, AutoCheckQuorum, autoOutcomeStop, fmt.Sprintf(
-			"A cluster with two control plane nodes cannot preserve the etcd quorum during %s. Add or remove a control plane node first.",
+			"A cluster with two control-plane nodes cannot preserve the etcd quorum during %s. Add additional control-plane nodes first.",
 			operationLabel,
 		))
 		return false, nil
@@ -434,11 +448,11 @@ func autoQuorumCheck(
 		required := len(controlPlanes)/2 + 1
 		remaining, remainingErr := controlPlaneRemainingCount(ctx, clientset, controlPlanes, "", map[string]bool{})
 		if remainingErr != nil {
-			return false, fmt.Errorf("could not count the control plane nodes: %s", remainingErr)
+			return false, fmt.Errorf("could not count the control-plane nodes: %s", remainingErr)
 		}
 		if remaining < required {
 			autoCheckRecord(list, AutoCheckQuorum, autoOutcomeStop, fmt.Sprintf(
-				"At least %d healthy, schedulable control plane nodes must remain during %s, but only %d were found.",
+				"At least %d healthy, schedulable control-plane nodes must remain during %s, but only %d were found.",
 				required,
 				operationLabel,
 				remaining,
@@ -523,7 +537,7 @@ func autoUpgradeBackupCheck(
 	}
 
 	check.Ok = false
-	check.Detail = "Waiting for a fresh backup; a backup was requested."
+	check.Detail = "A backup was requested. Waiting for it to finish."
 	return check, autoOutcomeWait, nil
 }
 
@@ -993,7 +1007,7 @@ func AutoStopRun() error {
 			return err
 		}
 		if PhaseActive(rolling.Phase) {
-			return errors.New("a rolling upgrade already started and cannot be stopped; it will finish")
+			return errors.New("the rolling upgrade has already started and cannot be stopped. It will finish")
 		}
 		conditions = append(conditions, ucxapi.StackStateRevisionCondition{
 			Key:              rollingUpgradeKey,
@@ -1020,7 +1034,7 @@ func AutoStopRun() error {
 		util.OptNone[int64](),
 	)
 	if shared.IsConflict(err) {
-		return errors.New("the automatic run or rolling upgrade changed while stopping it; please try again")
+		return errors.New("the automatic run or rolling upgrade changed while stopping it. Try again")
 	}
 	return err
 }
@@ -1051,5 +1065,5 @@ func AutoResume() error {
 		}
 	}
 
-	return errors.New("the automatic maintenance state changed while resuming; please try again")
+	return errors.New("the automatic maintenance state changed while resuming. Try again")
 }
