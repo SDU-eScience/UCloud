@@ -839,11 +839,23 @@ func TestJobShell(t *testing.T) {
 
 func terminateTestJob(t *testing.T, jobId string) {
 	t.Helper()
-
 	input := []string{"job", "terminate", jobId}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
 	assert.NoError(t, err)
+}
+
+func TestJobLogs(t *testing.T) {
+	//t.Skip("Standalone test as it requires user interaction.")
+	jobId := createTestJob(t, "test-job-logs")
+	waitForJobState(t, jobId, orcapi.JobStateRunning, 5*time.Minute)
+	input := []string{"job", "logs", jobId, "--provider", "k8s"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+	terminateTestJob(t, jobId)
 }

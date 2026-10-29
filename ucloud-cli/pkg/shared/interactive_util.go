@@ -12,17 +12,27 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/charmbracelet/x/term"
 	"golang.org/x/net/websocket"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/rpc"
+	"ucloud.dk/shared/pkg/util"
 )
 
-type WsRequest struct {
+type WsShellRequest struct {
 	Call     string       `json:"call"`
 	StreamId string       `json:"streamId"`
 	Payload  WsShellEvent `json:"payload"`
+}
+type WsLogsRequest struct {
+	Call     string              `json:"call"`
+	StreamId string              `json:"streamId"`
+	Payload  fnd.FindByStringId  `json:"payload"`
+	Bearer   string              `json:"bearer"`
+	Project  util.Option[string] `json:"project,omitempty"`
 }
 
 type WsResponse struct {
@@ -39,7 +49,13 @@ type WsShellEvent struct {
 	Data              string `json:"data,omitempty"`
 }
 
-func OpenJobShell(jobId string, provider string) error {
+type WsLogEvent struct {
+	Type      string `json:"type"`
+	SessionID string `json:"sessionID"`
+	Data      string `json:"data"`
+}
+
+func JobShell(jobId string, provider string) error {
 	cfg := InitializeUCloudClient()
 
 	job, httpErr := orcapi.JobsRetrieve.Invoke(orcapi.JobsRetrieveRequest{
@@ -84,7 +100,7 @@ func OpenJobShell(jobId string, provider string) error {
 
 	callName := fmt.Sprintf("jobs.compute.%s.shell.open", provider)
 	sendRequest := func(payload WsShellEvent) error {
-		msg, err := json.Marshal(WsRequest{
+		msg, err := json.Marshal(WsShellRequest{
 			Call:     callName,
 			StreamId: "0",
 			Payload:  payload,
@@ -201,4 +217,181 @@ func OpenJobShell(jobId string, provider string) error {
 		fmt.Fprintf(os.Stderr, "\r\nConnection closed.\r\n")
 		return nil
 	}
+}
+
+func JobLogs(jobId string, workspaceName, provider string, follow bool) error {
+	cfg := InitializeUCloudClient()
+	origin := cfg.Environments[cfg.DefaultEnvironment].URL
+	wsUrl := strings.Replace(origin, "https://", "wss://", 1)
+	wsUrl = wsUrl + "/api/jobs"
+
+	ws, err := websocket.Dial(wsUrl, "", origin)
+	if err != nil {
+		return err
+	}
+	defer ws.Close()
+
+	projectName := workspaceName
+	if projectName == "" {
+		projectName = cfg.CurrentWorkspace.GetOrDefault(PersonalWorkspaceName)
+	}
+
+	var project util.Option[string]
+	if projectName != PersonalWorkspaceName {
+		ws2, err := FindWorkspaceByName(projectName)
+		if err != nil {
+			return err
+		}
+		project = util.OptValue(ws2.Id)
+	}
+
+	// NOTE: The server expects a JWT access token (or a uc... API token) in the bearer field. The refresh
+	// token stored in the CLI config is only used to obtain this access token.
+	accessToken := rpc.DefaultClient.RetrieveAccessTokenOrRefresh()
+	if accessToken == "" {
+		return errors.New("failed to retrieve an access token, please log in again")
+	}
+
+	msg, err := json.Marshal(WsLogsRequest{
+		Call:     "jobs.follow",
+		StreamId: "0",
+		Payload:  fnd.FindByStringId{Id: jobId},
+		Bearer:   accessToken,
+		Project:  project,
+	})
+	if err != nil {
+		return err
+	}
+
+	if err := websocket.Message.Send(ws, string(msg)); err != nil {
+		return err
+	}
+
+	for {
+		var raw string
+		if err := websocket.Message.Receive(ws, &raw); err != nil {
+			return nil
+		}
+
+		var envelope WsResponse
+		if err := json.Unmarshal([]byte(raw), &envelope); err != nil {
+			continue
+		}
+
+		var message orcapi.JobsFollowMessage
+		if err := json.Unmarshal(envelope.Payload, &message); err != nil {
+			continue
+		}
+
+		if message.InitialJob.Present {
+			job := message.InitialJob.Value
+			for _, update := range job.Updates {
+				printJobUpdate(&job, update)
+			}
+		}
+
+		for _, update := range message.Updates {
+			printJobUpdate(&message.InitialJob.Value, update)
+		}
+
+		if message.NewStatus.Present && len(message.Updates) == 0 {
+			fmt.Printf(
+				"[%s] %s\n",
+				formatTimestamp(fnd.Timestamp(time.Now())),
+				jobStateToMessage(message.NewStatus.Value.State),
+			)
+		}
+
+		for _, log := range message.Log {
+			if log.Channel.Present {
+				// channel data currently not rendered
+				continue
+			}
+			if log.Stdout.Present {
+				_, _ = os.Stdout.WriteString(log.Stdout.Value)
+			}
+			if log.Stderr.Present {
+				_, _ = os.Stderr.WriteString(log.Stderr.Value)
+			}
+		}
+
+		if !follow && message.InitialJob.Present {
+			return nil
+		}
+
+		if state := currentJobState(message); state != "" && orcapi.JobState(state).IsFinal() {
+			return nil
+		}
+	}
+}
+
+func printJobUpdate(job *orcapi.Job, update orcapi.JobUpdate) {
+	if update.Status.Present {
+		status := update.Status.Value
+		if strings.HasPrefix(status, "SSH:") || strings.HasPrefix(status, "Target:") {
+			return
+		}
+		fmt.Printf("[%s] %s\n", formatTimestamp(update.Timestamp), status)
+		return
+	}
+
+	if update.State.Present {
+		fmt.Printf("[%s] %s\n", formatTimestamp(update.Timestamp), jobStateToMessage(update.State.Value))
+		return
+	}
+
+	if job != nil {
+		fmt.Printf(
+			"[%s] %s has requested %dx %s from %s\n",
+			formatTimestamp(update.Timestamp),
+			job.Owner.CreatedBy,
+			job.Specification.Replicas,
+			job.Specification.Product.Id,
+			providerTitle(job.Specification.Product.Provider),
+		)
+	}
+}
+
+func jobStateToMessage(state orcapi.JobState) string {
+	switch state {
+	case orcapi.JobStateInQueue:
+		return "Your job is now in the queue"
+	case orcapi.JobStateRunning:
+		return "Your job is now running"
+	case orcapi.JobStateSuccess:
+		return "Your job has been processed successfully"
+	case orcapi.JobStateFailure:
+		return "Your job has failed"
+	case orcapi.JobStateExpired:
+		return "Your job has expired"
+	case orcapi.JobStateSuspended:
+		return "Your job has been suspended"
+	default:
+		return "Your job is now: " + string(state)
+	}
+}
+
+func providerTitle(providerId string) string {
+	return strings.ToUpper(string(providerId[0])) + strings.ReplaceAll(
+		strings.ReplaceAll(providerId[1:], "_", " "), "-", " ",
+	)
+}
+
+func formatTimestamp(timestamp fnd.Timestamp) string {
+	return timestamp.Time().Format("15:04")
+}
+
+func currentJobState(message orcapi.JobsFollowMessage) string {
+	if message.NewStatus.Present {
+		return string(message.NewStatus.Value.State)
+	}
+	for _, update := range message.Updates {
+		if update.State.Present {
+			return string(update.State.Value)
+		}
+	}
+	if message.InitialJob.Present {
+		return string(message.InitialJob.Value.Status.State)
+	}
+	return ""
 }
