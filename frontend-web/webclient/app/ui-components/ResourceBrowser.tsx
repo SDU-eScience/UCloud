@@ -2844,6 +2844,7 @@ export class ResourceBrowser<T> {
         unmount: doNothing,
         locationBarVisibilityUpdated: doNothing,
         sort: doNothing,
+        startRenderPage: doNothing,
         endRenderPage: doNothing,
         beforeShortcut: doNothing,
         unhandledShortcut: doNothing,
