@@ -30,6 +30,8 @@ type PublicLinkCreateCommand struct {
 	Name      string `positional:"name" usage:"Public link name"`
 	Domain    string `flag:"domain" usage:"Domain"`
 	Product   string `flag:"product" usage:"Product"`
+	//Internal use
+	Id string
 }
 
 type PublicLinkDeleteCommand struct {
@@ -112,7 +114,7 @@ func (c PublicLinkGetCommand) Execute() error {
 	return nil
 }
 
-func (c PublicLinkCreateCommand) Execute() error {
+func (c *PublicLinkCreateCommand) Execute() error {
 	cfg := shared.InitializeUCloudClient()
 	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
 	if err != nil {
@@ -152,10 +154,11 @@ func (c PublicLinkCreateCommand) Execute() error {
 			},
 		}},
 	}
-	_, httpCreateErr := orcapi.IngressesCreate.Invoke(request)
+	publicLink, httpCreateErr := orcapi.IngressesCreate.Invoke(request)
 	if httpCreateErr.AsError() != nil {
 		return fmt.Errorf("failed to create public link: %s", httpCreateErr.Why)
 	}
+	c.Id = publicLink.Responses[0].Id
 	fmt.Printf("Successfully created public link %v\n", createdLinks)
 	return nil
 }

@@ -20,6 +20,8 @@ type PrivateNetworkCreateCommand struct {
 	Name      string `positional:"name" usage:"Private network name" required:"true"`
 	Workspace string `flag:"workspace" usage:"eg. --workspace myworkspace"`
 	Provider  string `flag:"provider" usage:"eg. --provider k8s" default:"k8s"`
+	//Internal use
+	Id string
 }
 type PrivateNetworkGetCommand struct {
 	Name      string `positional:"name" usage:"Private network name" required:"true"`
@@ -84,7 +86,7 @@ func (c PrivateNetworkListCommand) Execute() error {
 	return nil
 }
 
-func (c PrivateNetworkCreateCommand) Execute() error {
+func (c *PrivateNetworkCreateCommand) Execute() error {
 	cfg := shared.InitializeUCloudClient()
 	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
 	if err != nil {
@@ -115,6 +117,7 @@ func (c PrivateNetworkCreateCommand) Execute() error {
 		return err
 	}
 	printPrivateNetworks(networks)
+	c.Id = created.Responses[0].Id
 	return nil
 }
 
