@@ -503,7 +503,7 @@ func clusterReadyGuard() error {
 	if !found {
 		return errors.New("the cluster record does not exist")
 	}
-	if record.Phase != "created" {
+	if !shared.ClusterRecordPhaseOperational(record.Phase) {
 		return fmt.Errorf("the cluster is not ready for maintenance (state: %s)", record.Phase)
 	}
 
@@ -543,7 +543,7 @@ func removeSubmitGuard(nodeName string) error {
 	if !found {
 		return errors.New("the cluster record does not exist")
 	}
-	if record.Phase != "created" {
+	if !shared.ClusterRecordPhaseOperational(record.Phase) {
 		return fmt.Errorf("the cluster is not ready for maintenance (state: %s)", record.Phase)
 	}
 	if err := recoveryIntentGuard(); err != nil {

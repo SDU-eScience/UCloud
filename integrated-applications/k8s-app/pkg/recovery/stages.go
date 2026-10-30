@@ -34,6 +34,11 @@ func (app *app) beginRecoveryWork(session *ucx.Session, entry backupEntry, progr
 		return "", err
 	}
 
+	progress("Cleaning up leftover resources")
+	if cleanupErr := shared.ClusterCleanupSweepSession(session, app.Stack, app.stackId()); cleanupErr != nil {
+		log.Warn("k8s-app recovery: could not clean up the leftover resources: %s", cleanupErr)
+	}
+
 	progress("Checking the cluster")
 	existing, existingRevision, existingFound, err := recoveryReadRecovery(client)
 	if err != nil {
@@ -44,7 +49,7 @@ func (app *app) beginRecoveryWork(session *ucx.Session, entry backupEntry, progr
 		return "", err
 	}
 
-	if cluster.Phase != shared.ClusterRecordPhaseCreated && cluster.Phase != shared.ClusterRecordPhaseRecovering {
+	if !shared.ClusterRecordPhaseAllowsRecovery(cluster.Phase) {
 		return "", fmt.Errorf("the cluster is not ready for recovery (state: %s)", cluster.Phase)
 	}
 
@@ -91,8 +96,14 @@ func (app *app) beginRecoveryWork(session *ucx.Session, entry backupEntry, progr
 
 	if cluster.Phase != shared.ClusterRecordPhaseRecovering {
 		progress("Preparing the cluster for recovery")
-		cluster.Phase = shared.ClusterRecordPhaseRecovering
-		if err := shared.ClusterRecordWrite(client, &cluster); err != nil {
+		err := shared.ClusterRecordUpdate(client, func(record *shared.ClusterRecord) bool {
+			if record.Phase == shared.ClusterRecordPhaseRecovering {
+				return false
+			}
+			record.Phase = shared.ClusterRecordPhaseRecovering
+			return true
+		})
+		if err != nil {
 			return "", fmt.Errorf("could not mark the cluster as recovering: %s", err)
 		}
 	}
@@ -532,15 +543,24 @@ func (app *app) closeWork(session *ucx.Session, progress func(string)) (string, 
 	}
 
 	progress("Returning the cluster to normal operation")
-	cluster, err := recoveryReadCluster(client)
-	if err != nil {
-		return "", err
-	}
-	if cluster.Phase != shared.ClusterRecordPhaseCreated {
-		cluster.Phase = shared.ClusterRecordPhaseCreated
-		if err := shared.ClusterRecordWrite(client, &cluster); err != nil {
-			return "", fmt.Errorf("could not set the cluster phase back to created: %s", err)
+	err = shared.ClusterRecordUpdate(client, func(record *shared.ClusterRecord) bool {
+		phase := shared.ClusterRecordPhaseCreated
+		if len(record.PendingCleanup) > 0 {
+			phase = shared.ClusterRecordPhaseCleanup
 		}
+		if record.Phase == phase {
+			return false
+		}
+		record.Phase = phase
+		record.FailureReason = ""
+		return true
+	})
+	if err != nil {
+		return "", fmt.Errorf("could not update the cluster phase after recovery: %s", err)
+	}
+
+	if cleanupErr := shared.ClusterCleanupSweepSession(session, app.Stack, app.stackId()); cleanupErr != nil {
+		log.Warn("k8s-app recovery: could not clean up the leftover resources: %s", cleanupErr)
 	}
 
 	progress("Stopping the recovery job")

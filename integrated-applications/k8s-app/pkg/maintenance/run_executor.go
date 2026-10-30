@@ -86,7 +86,7 @@ func maybeStartScheduledRun(client stackClient) error {
 	if err != nil {
 		return err
 	}
-	if !found || record.Phase != shared.ClusterRecordPhaseCreated {
+	if !found || !shared.ClusterRecordPhaseOperational(record.Phase) {
 		return nil
 	}
 
@@ -620,7 +620,7 @@ func preflightRun(
 		runCheck(run, "cluster", false, "The cluster record does not exist.")
 		return runStop, "the cluster record does not exist", nil
 	}
-	if record.Phase != shared.ClusterRecordPhaseCreated {
+	if !shared.ClusterRecordPhaseOperational(record.Phase) {
 		runCheck(run, "cluster", false, fmt.Sprintf("The cluster is in state %s.", record.Phase))
 		return runWait, fmt.Sprintf("the cluster is not ready for maintenance (state: %s)", record.Phase), nil
 	}

@@ -71,6 +71,11 @@ func clusterValidateRecordMutation(
 		return false
 	}
 
+	if len(record.PendingCleanup) > 0 {
+		ucxsvc.UiSendFailure(app, "The cluster is removing the resources of a failed scale-out. Try again when the cleanup finishes.")
+		return false
+	}
+
 	recoveryActive, recoveryErr := ClusterRecoveryActive(client)
 	if recoveryErr != nil {
 		ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not read the recovery state: %s", recoveryErr))
@@ -387,7 +392,7 @@ func ClusterAddNodeLocked(
 	if err != nil {
 		ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not reserve an address for the new node: %s", err))
 		if reservation.Id != "" {
-			clusterCleanupNewNode(stack, flow, record, &ClusterNodeRecord{
+			clusterCleanupNewNode(flow, &ClusterNodeRecord{
 				AllocationId:  allocationId,
 				Group:         trimmedGroup,
 				Hostname:      hostname,
@@ -412,7 +417,7 @@ func ClusterAddNodeLocked(
 	record.Nodes = append(record.Nodes, node)
 
 	if !flow.Commit(record) {
-		clusterCleanupNewNode(stack, flow, record, &node, app)
+		clusterCleanupNewNode(flow, &node, app)
 		return "", false
 	}
 
@@ -428,7 +433,7 @@ func ClusterAddNodeLocked(
 		customUi = ClusterNodeCustomUi(stack)
 		if !stack.Ok {
 			ucxsvc.UiSendFailure(app, "Could not prepare the custom UI service for the new control-plane node")
-			clusterCleanupNewNode(stack, flow, record, &node, app)
+			clusterCleanupNewNode(flow, &node, app)
 			return "", false
 		}
 	}
@@ -447,7 +452,7 @@ func ClusterAddNodeLocked(
 	))
 	if err != nil {
 		ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not create the node: %s", err))
-		clusterCleanupNewNode(stack, flow, record, &node, app)
+		clusterCleanupNewNode(flow, &node, app)
 		return "", false
 	}
 
@@ -472,7 +477,7 @@ func ClusterAddNodeLocked(
 
 	if !flow.Commit(record) {
 		ucxsvc.UiSendFailure(app, "Could not record the new node job id")
-		clusterCleanupNewNode(stack, flow, record, &node, app)
+		clusterCleanupNewNode(flow, &node, app)
 		return "", false
 	}
 
@@ -492,13 +497,13 @@ func ClusterAddNodeLocked(
 	if trimmedGroup == GroupControlPlane && record.ServiceId != "" {
 		if !ucxsvc.ServiceAddMembers(stack, record.ServiceId, []string{job.Id}) {
 			ucxsvc.UiSendFailure(app, "Could not add the new node to the cluster service")
-			clusterCleanupNewNode(stack, flow, record, &node, app)
+			clusterCleanupNewNode(flow, &node, app)
 			return "", false
 		}
 	}
 
 	if !flow.Commit(record) {
-		clusterCleanupNewNode(stack, flow, record, &node, app)
+		clusterCleanupNewNode(flow, &node, app)
 		return "", false
 	}
 
@@ -650,53 +655,50 @@ func clusterPoolRecord(record ClusterRecord, name string) (ClusterPoolRecord, bo
 	return ClusterPoolRecord{}, false
 }
 
-func clusterCleanupNewNode(
-	stack *ucxsvc.Stack,
-	flow *clusterRecordFlow,
-	record *ClusterRecord,
-	node *ClusterNodeRecord,
-	app ucx.Application,
-) {
-	failures := []string{}
-
-	if node.JobId != "" {
-		if err := ucxsvc.JobTerminate(stack, node.JobId); err != nil {
-			failures = append(failures, "job "+node.JobId)
-		}
-	}
-
-	if err := ucxsvc.PrivateNetworkIpDelete(stack, node.ReservationId); err != nil {
-		failures = append(failures, "reservation "+node.ReservationId)
-	}
-
-	for i := range record.Nodes {
-		if record.Nodes[i].AllocationId == node.AllocationId {
-			record.Nodes = append(record.Nodes[:i], record.Nodes[i+1:]...)
-			break
-		}
-	}
-
-	if len(failures) == 0 {
-		record.Phase = ClusterRecordPhaseCreated
-		if !flow.Commit(record) {
-			ucxsvc.UiSendFailure(app, "The node could not be created and the cleanup outcome could not be recorded. The cluster requires an explicit recovery")
-		}
-		return
-	}
-
-	record.Phase = clusterRecordPhaseCleanup
-	record.PendingCleanup = append(record.PendingCleanup, ClusterPendingCleanup{
+func clusterCleanupNewNode(flow *clusterRecordFlow, node *ClusterNodeRecord, app ucx.Application) {
+	entry := ClusterPendingCleanup{
 		ReservationId: node.ReservationId,
 		JobId:         node.JobId,
 		Hostname:      node.Hostname,
 		IpAddress:     node.IpAddress,
-	})
-
-	if flow.Commit(record) {
-		ucxsvc.UiSendFailure(app, "The node could not be created and these resources need manual cleanup: "+strings.Join(failures, ", "))
-	} else {
-		ucxsvc.UiSendFailure(app, "The node could not be created and cleanup failed, these resources need manual cleanup: "+strings.Join(failures, ", "))
 	}
+
+	err := ClusterRecordUpdate(flow.client, func(record *ClusterRecord) bool {
+		changed := false
+		found := false
+		for _, pending := range record.PendingCleanup {
+			if clusterPendingCleanupSame(pending, entry) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			record.PendingCleanup = append(record.PendingCleanup, entry)
+			changed = true
+		}
+		if record.Phase == ClusterRecordPhaseCreated {
+			record.Phase = ClusterRecordPhaseCleanup
+			changed = true
+		}
+		if record.Phase != ClusterRecordPhaseRecovering && node.Hostname != "" {
+			nodes := clusterRemoveNodeForPending(record.Nodes, entry)
+			if len(nodes) != len(record.Nodes) {
+				record.Nodes = nodes
+				changed = true
+			}
+		}
+		return changed
+	})
+	if err != nil {
+		ucxsvc.UiSendFailure(app, "The node could not be created and the cleanup state could not be recorded. "+
+			"The resources of "+node.Hostname+" may need manual cleanup: "+err.Error())
+		return
+	}
+
+	_ = ClusterCleanupSweep()
+
+	ucxsvc.UiSendFailure(app, "The node could not be created. The application is removing the leftover resources of "+
+		node.Hostname+". New nodes cannot be added until the cleanup finishes.")
 }
 
 // A cluster record flow holds the cluster record and its revision. Every

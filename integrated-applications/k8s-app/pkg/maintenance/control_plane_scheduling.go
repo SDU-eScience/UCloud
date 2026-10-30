@@ -41,7 +41,7 @@ func controlPlaneSchedulingSweep(ctx context.Context, kubeconfigPath string) err
 	if err != nil {
 		return err
 	}
-	if !found || record.Phase != shared.ClusterRecordPhaseCreated {
+	if !found || !shared.ClusterRecordPhaseOperational(record.Phase) {
 		return nil
 	}
 	recovery, err := recoveryIntentActive()

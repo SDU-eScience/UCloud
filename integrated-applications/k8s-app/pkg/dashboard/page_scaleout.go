@@ -37,15 +37,8 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 		return app.messagePage(shellEscape.Bottom, "browse/nodes", ucx.Text("Could not read the cluster record."))
 	}
 
-	if record.Phase != "created" {
-		content := []ucx.UiNode{ucx.Text(
-			"New nodes cannot be added while the cluster is in state " + record.Phase +
-				". The cluster must be in the created state.",
-		)}
-		if record.FailureReason != "" {
-			content = append(content, ucx.Text("The cluster reported a problem: "+record.FailureReason))
-		}
-		return app.messagePage(shellEscape.Bottom, "browse/nodes", content...)
+	if record.Phase != shared.ClusterRecordPhaseCreated || len(record.PendingCleanup) > 0 {
+		return app.messagePage(shellEscape.Bottom, "browse/nodes", scaleoutBlockedContent(record, "New nodes")...)
 	}
 
 	var pool *shared.ClusterPoolRecord
@@ -140,15 +133,8 @@ func (app *stackUiApp) pageAddPool() []ucx.UiNode {
 		return app.messagePage(shellEscape.Bottom, "browse/nodes", ucx.Text("Could not read the cluster record."))
 	}
 
-	if record.Phase != "created" {
-		content := []ucx.UiNode{ucx.Text(
-			"New worker pools cannot be added while the cluster is in state " + record.Phase +
-				". The cluster must be in the created state.",
-		)}
-		if record.FailureReason != "" {
-			content = append(content, ucx.Text("The cluster reported a problem: "+record.FailureReason))
-		}
-		return app.messagePage(shellEscape.Bottom, "browse/nodes", content...)
+	if record.Phase != shared.ClusterRecordPhaseCreated || len(record.PendingCleanup) > 0 {
+		return app.messagePage(shellEscape.Bottom, "browse/nodes", scaleoutBlockedContent(record, "New worker pools")...)
 	}
 
 	if app.TargetDiskGb <= 0 {
@@ -261,6 +247,28 @@ func (app *stackUiApp) addPool(provider string, stack *ucxsvc.Stack, name string
 
 	ucxsvc.UiSendSuccess(app, fmt.Sprintf("Created worker pool %s with %s.", trimmedName, dashboardNodeCount(count)))
 	ucxsvc.RouterPushPage(app, "browse/nodes")
+}
+
+func scaleoutBlockedContent(record shared.ClusterRecord, action string) []ucx.UiNode {
+	content := []ucx.UiNode{}
+	if record.Phase == shared.ClusterRecordPhaseCleanup || len(record.PendingCleanup) > 0 {
+		content = append(content, ucx.Text(
+			"The cluster is removing the resources of a failed scale-out. "+action+
+				" cannot be added until the cleanup finishes.",
+		))
+	} else {
+		content = append(content, ucx.Text(
+			action+" cannot be added while the cluster is in state "+record.Phase+
+				". The cluster must be in the created state.",
+		))
+	}
+	if record.FailureReason != "" {
+		content = append(content, ucx.Text("The cluster reported a problem: "+record.FailureReason))
+	}
+	for _, pending := range record.PendingCleanup {
+		content = append(content, ucx.Text("Removing "+pendingCleanupText(pending)))
+	}
+	return content
 }
 
 func dashboardNodeCount(count int) string {

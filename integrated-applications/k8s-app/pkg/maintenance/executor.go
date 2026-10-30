@@ -415,7 +415,7 @@ func runCordonDrain(
 		return cordonDrainResult{drainConcluded, fmt.Errorf("could not read the cluster record: %s", err)}
 	}
 
-	if record.Phase != "created" {
+	if !shared.ClusterRecordPhaseOperational(record.Phase) {
 		return cordonDrainResult{drainConcluded, fmt.Errorf("the cluster is not ready (state: %s)", record.Phase)}
 	}
 

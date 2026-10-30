@@ -227,7 +227,7 @@ func SubmitRun(request RunRequest, requestedBy string) (MaintenanceRun, error) {
 	if !found {
 		return MaintenanceRun{}, errors.New("the cluster record does not exist")
 	}
-	if record.Phase != shared.ClusterRecordPhaseCreated {
+	if !shared.ClusterRecordPhaseOperational(record.Phase) {
 		return MaintenanceRun{}, fmt.Errorf("the cluster is not ready for maintenance (state: %s)", record.Phase)
 	}
 

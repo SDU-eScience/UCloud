@@ -86,7 +86,7 @@ func Script(name string) string {
 
 const (
 	clusterRecordPhaseProvisioning = k8sapi.ClusterPhaseProvisioning
-	clusterRecordPhaseCleanup      = k8sapi.ClusterPhaseCleanup
+	ClusterRecordPhaseCleanup      = k8sapi.ClusterPhaseCleanup
 	clusterRecordPhaseError        = k8sapi.ClusterPhaseError
 
 	ClusterRecordPhaseCreated    = k8sapi.ClusterPhaseCreated
@@ -170,6 +170,48 @@ func ClusterRecordMarkFailed(client ClusterStateClient, record *ClusterRecord, r
 	record.Phase = clusterRecordPhaseError
 	record.FailureReason = reason
 	return ClusterRecordWrite(client, record)
+}
+
+const (
+	clusterRecordWriteAttempts = 8
+	clusterRecordWriteDelay    = 2 * time.Second
+)
+
+func ClusterRecordUpdate(client ClusterStateClient, mutate func(*ClusterRecord) bool) error {
+	for attempt := 0; attempt < clusterRecordWriteAttempts; attempt++ {
+		snapshot, err := ClusterStateRead(client)
+		if err != nil {
+			return err
+		}
+		if !snapshot.Found {
+			return errors.New("the cluster record does not exist")
+		}
+
+		record := snapshot.Record
+		if !mutate(&record) {
+			return nil
+		}
+
+		_, err = ClusterStateRecordWrite(client, &record, snapshot.Revision)
+		if err == nil {
+			return nil
+		}
+		if !IsConflict(err) {
+			return err
+		}
+
+		time.Sleep(clusterRecordWriteDelay)
+	}
+
+	return errors.New("the cluster record changed too often")
+}
+
+func ClusterRecordPhaseOperational(phase string) bool {
+	return phase == ClusterRecordPhaseCreated || phase == ClusterRecordPhaseCleanup
+}
+
+func ClusterRecordPhaseAllowsRecovery(phase string) bool {
+	return phase == ClusterRecordPhaseCreated || phase == ClusterRecordPhaseCleanup || phase == ClusterRecordPhaseRecovering
 }
 
 type ClusterTokens struct {

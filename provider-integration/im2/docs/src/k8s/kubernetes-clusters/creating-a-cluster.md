@@ -129,7 +129,8 @@ The dashboard adds machines to an existing cluster. The user selects a pool, a d
 pool. The application then runs the same node steps as during creation: the node input, the address reservation, the
 virtual machine and the join.
 
-- Scale-out requires the `created` phase. The dashboard shows the current phase otherwise.
+- Scale-out requires the `created` phase and an empty pending-cleanup list. The dashboard shows the current state
+  otherwise.
 - The machine must come from the provider that runs the cluster.
 - A new pool is added with its first machines in the same operation.
 - The cluster must keep at most 256 nodes in total. Currently limited by the networking architecture as there are only 
@@ -145,6 +146,8 @@ A deployment creates many resources in several systems. The application handles 
   record](../../glossary.md#cluster-record). The reason is visible on the dashboard home page.
 
 The creator stops at the failed step. A failed scale-out can leave a machine, an address reservation or a job behind.
-The [cluster record](../../glossary.md#cluster-record) then holds the phase `cleanup-pending` and lists the resources
-that need removal. An operator inspects the named resources, removes them, and repairs the record. The application does
-not remove leftover resources on its own.
+The [cluster record](../../glossary.md#cluster-record) then holds the phase `cleanup-pending` and lists the resources.
+For a failed scale-out, the application records the cleanup before it removes anything. It retries the removal in the
+background until the resources are gone, then returns the cluster to `created`. You can also remove the resources
+yourself. The application detects that they are gone and clears the phase. Maintenance, backup and recovery stay
+available while the cleanup runs. Scale-out waits until the cleanup finishes.

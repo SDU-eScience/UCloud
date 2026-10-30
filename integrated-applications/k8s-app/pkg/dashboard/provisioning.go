@@ -321,5 +321,5 @@ func (app *stackUiApp) provisioningJobId(hostname string) string {
 
 func (app *stackUiApp) clusterReadyForNodes() bool {
 	record, ok := app.readClusterRecord()
-	return ok && record.Phase == "created"
+	return ok && record.Phase == shared.ClusterRecordPhaseCreated && len(record.PendingCleanup) == 0
 }

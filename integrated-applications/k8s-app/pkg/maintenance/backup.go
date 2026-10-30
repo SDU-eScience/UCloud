@@ -51,7 +51,7 @@ func backupSweep(ctx context.Context, client stackClient) error {
 	if err != nil {
 		return err
 	}
-	if !found || record.Phase != "created" {
+	if !found || !shared.ClusterRecordPhaseOperational(record.Phase) {
 		return nil
 	}
 

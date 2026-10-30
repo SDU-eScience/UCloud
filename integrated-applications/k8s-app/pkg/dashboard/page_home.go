@@ -17,7 +17,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 	if recordOk {
 		clusterState = record.Phase
 		clusterStateColor = ucx.ColorSuccessMain
-		if record.Phase != "created" {
+		if record.Phase != shared.ClusterRecordPhaseCreated {
 			clusterStateColor = ucx.ColorWarningMain
 		}
 		if record.FailureReason != "" {
@@ -26,7 +26,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 		}
 	}
 
-	if health := app.clusterHealth; recordOk && record.Phase == "created" && health.Total > 0 {
+	if health := app.clusterHealth; recordOk && record.Phase == shared.ClusterRecordPhaseCreated && health.Total > 0 {
 		if health.NotReady == 0 && health.Unknown == 0 {
 			clusterState = "Healthy"
 		} else {
@@ -127,7 +127,37 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 		app.homeMaintenanceMetric(),
 	))
 
+	children = append(children, app.homeCleanupCard(record)...)
+
 	return children
+}
+
+func (app *stackUiApp) homeCleanupCard(record shared.ClusterRecord) []ucx.UiNode {
+	if record.Phase != shared.ClusterRecordPhaseCleanup && len(record.PendingCleanup) == 0 {
+		return nil
+	}
+
+	lines := []ucx.UiNode{
+		ucx.TextEx("", "The application is removing the resources of a failed node creation. It retries automatically.").Sx(
+			ucx.SxColor(ucx.ColorTextSecondary),
+		),
+		ucx.TextEx("", "You can also remove these resources yourself. The cluster returns to normal when they are gone.").Sx(
+			ucx.SxColor(ucx.ColorTextSecondary),
+		),
+	}
+
+	for _, pending := range record.PendingCleanup {
+		lines = append(lines, ucx.Text("Removing "+pendingCleanupText(pending)))
+	}
+
+	return []ucx.UiNode{
+		ucx.SettingsAction("homeCleanupAction",
+			"Cleanup pending",
+			"The cluster is removing resources from a failed node creation.",
+		).Children(
+			ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).Children(lines...),
+		),
+	}
 }
 
 func (app *stackUiApp) pageHomeActions() []ucx.UiNode {

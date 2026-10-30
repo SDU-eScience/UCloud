@@ -96,6 +96,7 @@ The [Reference](./reference.md#limits) holds the full set of limits.
 |---------|--------|
 | The cluster stays in the provisioning phase | Check the jobs of the nodes and their logs. Check that the state drive and the node input files exist, and that the machines can pull the image. |
 | The cluster enters the error phase | Read the failure reason on the dashboard home page. The cluster record holds the same reason. |
+| The cluster stays in the cleanup-pending phase | Read the pending resources on the dashboard home page or the provisioning view. The application retries the cleanup. You can also remove the listed job or reservation yourself. Maintenance, backup and recovery stay available. |
 | `kubectl` cannot connect | Check the API public link, the service of the cluster, and the members of the service. See [Networking and storage](./networking-and-storage.md#kubernetes-api). |
 | An application is not reachable | Check the Ingress host, the public link of the host, and the controller log. See [Networking and storage](./networking-and-storage.md#application-access). |
 | A node never becomes ready | Check the join tokens in the node input, the k3s unit on the node, and the node agent. |

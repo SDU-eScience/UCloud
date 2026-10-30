@@ -111,7 +111,7 @@ func osUpdatePreflight(ctx context.Context, clientset *kubernetes.Clientset, ope
 		return errors.New("the cluster record does not exist")
 	}
 
-	if record.Phase != "created" {
+	if !shared.ClusterRecordPhaseOperational(record.Phase) {
 		return fmt.Errorf("the cluster is not ready (state: %s)", record.Phase)
 	}
 
