@@ -334,6 +334,8 @@ function UserMenu({branding, avatar, dialog, setOpenDialog}: {
         paddingControlledByContent
         left="calc(var(--sidebarWidth) + 5px)"
         bottom="0"
+        focusable
+        triggerAriaLabel="User menu"
         open={isOpen}
         onOpeningTriggerClick={() => setOpenDialog("UserMenu")}
         onClose={() => setOpenDialog("")}
@@ -821,8 +823,8 @@ const ResourceSubLinksEntries: LinkInfo[] = [
 ];
 
 ResourceSubLinksEntries.push({
-    to: AppRoutes.resources.privateNetworks(),
-    text: "Private networks",
+    to: AppRoutes.resources.networks(),
+    text: "Networks",
     icon: "networkWiredSolid",
     tab: SidebarTabId.RESOURCES,
 });

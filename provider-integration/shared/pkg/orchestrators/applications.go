@@ -403,6 +403,7 @@ const (
 	ApplicationParameterTypeReadme         ApplicationParameterType = "readme"
 	ApplicationParameterTypeModuleList     ApplicationParameterType = "modules"
 	ApplicationParameterTypePrivateNetwork ApplicationParameterType = "private_network"
+	ApplicationParameterTypeUCloudNetwork  ApplicationParameterType = "ucloud_network"
 )
 
 func ApplicationParameterInputFile(name string, optional bool, title string, description string) ApplicationParameter {
@@ -611,8 +612,9 @@ func (a *AppParameterValue) Equal(b AppParameterValue) bool {
 		AppParameterValueTypeBlockStorage,
 		AppParameterValueTypeNetwork,
 		AppParameterValueTypeIngress,
-		AppParameterValueTypePrivateNetwork:
-		if a.Type == AppParameterValueTypePrivateNetwork && !slices.Equal(a.Ips, b.Ips) {
+		AppParameterValueTypePrivateNetwork,
+		AppParameterValueTypeUCloudNetwork:
+		if IsNetworkValue(*a) && !slices.Equal(a.Ips, b.Ips) {
 			return false
 		}
 		return a.Id == b.Id
@@ -647,14 +649,33 @@ const (
 	AppParameterValueTypeWorkflow       AppParameterValueType = "workflow"
 	AppParameterValueTypeModuleList     AppParameterValueType = "modules"
 	AppParameterValueTypePrivateNetwork AppParameterValueType = "private_network"
+	AppParameterValueTypeUCloudNetwork  AppParameterValueType = "ucloud_network"
 	AppParameterValueTypeApiServer      AppParameterValueType = "api_server"
 )
+
+func IsNetworkValue(value AppParameterValue) bool {
+	return value.Type == AppParameterValueTypePrivateNetwork ||
+		value.Type == AppParameterValueTypeUCloudNetwork
+}
+
+func IsNetworkParameterType(parameterType ApplicationParameterType) bool {
+	return parameterType == ApplicationParameterTypePrivateNetwork ||
+		parameterType == ApplicationParameterTypeUCloudNetwork
+}
 
 const JobParameterVmDiskFolder = "_injected_vmDiskFolder"
 
 func AppParameterValuePrivateNetwork(networkId string, ips ...string) AppParameterValue {
 	return AppParameterValue{
 		Type: AppParameterValueTypePrivateNetwork,
+		Id:   networkId,
+		Ips:  ips,
+	}
+}
+
+func AppParameterValueUCloudNetwork(networkId string, ips ...string) AppParameterValue {
+	return AppParameterValue{
+		Type: AppParameterValueTypeUCloudNetwork,
 		Id:   networkId,
 		Ips:  ips,
 	}

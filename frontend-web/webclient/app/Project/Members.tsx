@@ -190,7 +190,7 @@ function projectReducer(state: UIState, action: ProjectAction): UIState {
                     createdAt: timestampUnixMs(),
                     specification: {
                         project: project.id,
-                        title: action.title
+                        title: action.title.trim()
                     },
                     status: {
                         members: []
@@ -316,7 +316,7 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
                 ?.find(it => it.id === action.group)?.specification?.title;
 
             const success = await callAPIWithErrorHandler({
-                ...Api.renameGroup(bulkRequestOf({group: action.group, newTitle: action.newTitle})),
+                ...Api.renameGroup(bulkRequestOf({group: action.group, newTitle: action.newTitle.trim()})),
                 projectOverride: project.id
             });
 

@@ -46,6 +46,7 @@ export type ClickableDropdownProps<T> = {
      **/
     arrowkeyNavigationKey?: string; // e.g. "data-entry";
     hoverColor?: ThemeColor;
+    triggerAriaLabel?: string;
     /**
      * Requires `arrowkeyNavigationKey` to be set or that `props.children` are provided.
      **/
@@ -330,6 +331,7 @@ function ClickableDropdown<T>({
             fullWidth={props.fullWidth}
             tabIndex={props.focusable ? 0 : undefined}
             role={props.focusable ? "button" : undefined}
+            ariaLabel={props.triggerAriaLabel}
             ariaExpanded={props.focusable ? open : undefined}
             autoFocus={props.autoFocus}
             onKeyDown={event => {

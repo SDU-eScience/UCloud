@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
@@ -20,8 +21,102 @@ type provisioningEntry struct {
 	JobId    string
 }
 
+type provisioningHealth struct {
+	Known  bool
+	States map[string]string
+}
+
+func provisioningEntries(record *shared.ClusterRecord, known map[string]string) []provisioningEntry {
+	entries := make([]provisioningEntry, 0, len(record.Nodes))
+	for _, node := range record.Nodes {
+		if node.JobId == "" || node.Hostname == "" {
+			continue
+		}
+
+		status := known[node.Hostname]
+		if status == "" {
+			status = k8sapi.ProvisioningStatusProvisioning
+		}
+		entries = append(entries, provisioningEntry{
+			Hostname: node.Hostname,
+			Group:    node.Group,
+			Status:   status,
+			JobId:    node.JobId,
+		})
+	}
+	return entries
+}
+
+func provisioningResolve(
+	ctx context.Context,
+	session *ucx.Session,
+	client *K8sClient,
+	entries []provisioningEntry,
+) provisioningHealth {
+	if client == nil {
+		return provisioningHealth{}
+	}
+
+	healthCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	health, err := client.NodeHealth(healthCtx)
+	cancel()
+	if err != nil {
+		return provisioningHealth{}
+	}
+
+	result := provisioningHealth{
+		Known:  true,
+		States: health.States,
+	}
+
+	for i := range entries {
+		if _, ok := result.States[entries[i].Hostname]; ok {
+			entries[i].Status = k8sapi.ProvisioningStatusReady
+			continue
+		}
+		if entries[i].JobId == "" {
+			continue
+		}
+
+		jobCtx, jobCancel := context.WithTimeout(ctx, dashboardClusterStateTimeout)
+		job, jobErr := provisioningJobRetrieve(jobCtx, session, entries[i].JobId)
+		jobCancel()
+		if jobErr != nil {
+			continue
+		}
+
+		if status := k8sapi.ProvisioningStatusFromJobState(job.Status.State); status != "" {
+			entries[i].Status = status
+		}
+	}
+
+	return result
+}
+
 func (app *stackUiApp) provisioningSnapshot() []provisioningEntry {
 	return app.provisioningCache
+}
+
+func (app *stackUiApp) provisioningClient() *K8sClient {
+	app.mu.Lock()
+	client := app.k8sClient
+	app.mu.Unlock()
+	if client != nil {
+		return client
+	}
+
+	client, err := K8sClientFromKubeconfig(LocalKubeconfigPath())
+	if err != nil {
+		return nil
+	}
+
+	app.mu.Lock()
+	if app.k8sClient == nil {
+		app.k8sClient = client
+	}
+	client = app.k8sClient
+	app.mu.Unlock()
+	return client
 }
 
 func (app *stackUiApp) activeTypeIsHome() bool {
@@ -82,23 +177,7 @@ func (app *stackUiApp) refreshProvisioningRows(session *ucx.Session) {
 		return
 	}
 
-	entries := make([]provisioningEntry, 0, len(record.Nodes))
-	for _, node := range record.Nodes {
-		if node.JobId == "" || node.Hostname == "" {
-			continue
-		}
-
-		status := known[node.Hostname]
-		if status == "" {
-			status = "Provisioning"
-		}
-		entries = append(entries, provisioningEntry{
-			Hostname: node.Hostname,
-			Group:    node.Group,
-			Status:   status,
-			JobId:    node.JobId,
-		})
-	}
+	entries := provisioningEntries(&record, known)
 
 	published := append([]provisioningEntry(nil), entries...)
 
@@ -118,40 +197,11 @@ func (app *stackUiApp) refreshProvisioningRows(session *ucx.Session) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(session.Context(), 10*time.Second)
-	defer cancel()
-
-	existing, err := client.NodeNames(ctx)
-	if err != nil {
-		return
-	}
-
-	changed = false
-	for i := range entries {
-		if existing[entries[i].Hostname] {
-			entries[i].Status = "ready"
-			continue
-		}
-		jobCtx, jobCancel := dashboardSessionContext(session)
-		job, jobErr := provisioningJobRetrieve(jobCtx, session, entries[i].JobId)
-		jobCancel()
-		if jobErr == nil {
-			switch {
-			case job.Status.State == orcapi.JobStateInQueue:
-				entries[i].Status = "Waiting for resources"
-			case job.Status.State == orcapi.JobStateRunning:
-				entries[i].Status = "Initializing"
-			case job.Status.State == orcapi.JobStateSuspended:
-				entries[i].Status = "Powered off"
-			case job.Status.State.IsFinal():
-				entries[i].Status = "Failed"
-			}
-		}
-	}
+	provisioningResolve(session.Context(), session, client, entries)
 
 	survivors := make([]provisioningEntry, 0, len(entries))
 	for _, entry := range entries {
-		if entry.Status == "ready" {
+		if entry.Status == k8sapi.ProvisioningStatusReady {
 			continue
 		}
 		survivors = append(survivors, entry)
@@ -181,9 +231,6 @@ func (app *stackUiApp) provisioningKickNow() {
 }
 
 func provisioningJobRetrieve(ctx context.Context, session *ucx.Session, jobId string) (orcapi.Job, error) {
-	if session == nil {
-		return orcapi.Job{}, fmt.Errorf("the session is not available")
-	}
 	return ucxapi.JobsRetrieve.InvokeEx(ctx, session, orcapi.JobsRetrieveRequest{Id: jobId})
 }
 

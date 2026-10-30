@@ -30,11 +30,24 @@ func PrivateNetworkCreateAllocate(network *orc.PrivateNetwork) (bool, *util.Http
 		return false, util.UserHttpError("Private networks are not enabled on this provider")
 	}
 
+	networkType := network.Specification.EffectiveType()
+	if !orc.NetworkTypeIsValid(networkType) {
+		return false, util.UserHttpError("Unknown network type")
+	}
+
+	if networkType == orc.NetworkTypeInfiniband && !settings.Infiniband.Enabled {
+		return false, util.UserHttpError("InfiniBand networks are not enabled on this provider")
+	}
+
 	workspace := PrivateNetworkWorkspaceFromOwner(network.Owner)
 
 	customCidr := ""
 	if network.Specification.Cidr.Present {
-		customCidr = network.Specification.Cidr.Value
+		if networkType == orc.NetworkTypeInfiniband {
+			return false, util.UserHttpError("InfiniBand networks cannot have a user-supplied CIDR")
+		}
+
+		customCidr = strings.TrimSpace(network.Specification.Cidr.Value)
 		if parsed, ok := orc.PrivateNetworkParseCidr(customCidr); ok {
 			customCidr = parsed.String()
 		}
@@ -79,7 +92,18 @@ func PrivateNetworkCreateAllocate(network *orc.PrivateNetwork) (bool, *util.Http
 		if customCidr != "" {
 			selected, allocateErr = privateNetworkAllocateCustomCidr(tx, settings, customCidr)
 		} else {
-			selected, allocateErr = privateNetworkAllocateAutoCidr(tx, settings)
+			pools := settings.Pools
+			prefixLen := settings.DefaultPrefixLen
+			exhaustion := util.UserHttpError("No address space is available for a new private network")
+			if networkType == orc.NetworkTypeInfiniband {
+				pools = settings.Infiniband.Pools
+				prefixLen = settings.Infiniband.PrefixLen
+				exhaustion = util.HttpErr(
+					http.StatusConflict,
+					"No InfiniBand address space is available. Ask the provider to extend the pool.",
+				)
+			}
+			selected, allocateErr = privateNetworkAllocateAutoCidr(tx, settings, pools, prefixLen, exhaustion)
 		}
 
 		if allocateErr != nil {
@@ -90,8 +114,8 @@ func PrivateNetworkCreateAllocate(network *orc.PrivateNetwork) (bool, *util.Http
 		db.Exec(
 			tx,
 			`
-				insert into tracked_private_networks(resource_id, created_by, project_id, resource, cidr_block, state, workspace_id)
-				values (:resource_id, :created_by, :project_id, :resource, :cidr_block, 'provisioning', :workspace_id)
+				insert into tracked_private_networks(resource_id, created_by, project_id, resource, cidr_block, state, workspace_id, network_type)
+				values (:resource_id, :created_by, :project_id, :resource, :cidr_block, 'provisioning', :workspace_id, :network_type)
 			`,
 			db.Params{
 				"resource_id":  network.Id,
@@ -100,6 +124,7 @@ func PrivateNetworkCreateAllocate(network *orc.PrivateNetwork) (bool, *util.Http
 				"resource":     string(jsonified),
 				"cidr_block":   selected,
 				"workspace_id": workspace.String(),
+				"network_type": string(networkType),
 			},
 		)
 		return nil
@@ -139,6 +164,21 @@ func privateNetworkCreateExisting(
 	var existing orc.PrivateNetwork
 	parsedExisting := privateNetworkUnmarshalResource(row.Resource, &existing)
 
+	existingType := privateNetworkTypeFromRow(row.NetworkType)
+	if parsedExisting {
+		existingType = existing.Specification.EffectiveType()
+		if row.NetworkType != "" {
+			existingType = orc.NetworkType(row.NetworkType)
+		}
+	}
+
+	if existingType != network.Specification.EffectiveType() {
+		return false, privateNetworkBusinessRollback(
+			tx,
+			util.HttpErr(http.StatusConflict, "a network with this identifier already exists with a different network type"),
+		)
+	}
+
 	if row.CidrBlock.Valid && row.CidrBlock.V != "" && customCidr != "" && row.CidrBlock.V != customCidr {
 		return false, privateNetworkBusinessRollback(
 			tx,
@@ -151,6 +191,7 @@ func privateNetworkCreateExisting(
 		merged.Owner = existing.Owner
 		merged.Status.Subdomain = existing.Status.Subdomain
 		merged.Specification.Cidr = existing.Specification.Cidr
+		merged.Specification.Type = existingType
 		merged.Status.CidrBlock = util.SqlNullToOpt(row.CidrBlock)
 		network = &merged
 	}
@@ -218,38 +259,15 @@ func privateNetworkAllocateCustomCidr(
 		)
 	}
 
-	rows := db.Select[struct{ CidrBlock string }](
-		tx,
-		`
-			select
-				cidr_block::text as cidr_block
-			from
-				tracked_private_networks
-			where
-				cidr_block is not null
-		`,
-		db.Params{},
-	)
-	var used []netip.Prefix
-	for _, row := range rows {
-		if existing, ok := orc.PrivateNetworkParseCidr(row.CidrBlock); ok {
-			used = append(used, existing)
-		}
-	}
-
-	if privateNetworkPrefixOverlapsAny(parsed, used) {
-		return "", privateNetworkBusinessRollback(
-			tx,
-			util.UserHttpError("%s overlaps an existing private network", cidr),
-		)
-	}
-
 	return parsed.String(), nil
 }
 
 func privateNetworkAllocateAutoCidr(
 	tx *db.Transaction,
 	settings privateNetworkParsedSettings,
+	pools []netip.Prefix,
+	prefixLen int,
+	exhaustion *util.HttpError,
 ) (string, *util.HttpError) {
 	rows := db.Select[struct{ CidrBlock string }](
 		tx,
@@ -270,14 +288,14 @@ func privateNetworkAllocateAutoCidr(
 		}
 	}
 
-	blockSize := uint64(1) << (32 - uint64(settings.DefaultPrefixLen))
-	for _, pool := range settings.Pools {
+	blockSize := uint64(1) << (32 - uint64(prefixLen))
+	for _, pool := range pools {
 		poolFirst, poolLast := privateNetworkCidrRange(pool)
 		alignedFirst := privateNetworkAlignUp(poolFirst, blockSize)
 		for blockStart := alignedFirst; blockStart+blockSize-1 <= poolLast; blockStart += blockSize {
 			candidate := netip.PrefixFrom(
 				privateNetworkUint32ToAddr(uint32(blockStart)),
-				settings.DefaultPrefixLen,
+				prefixLen,
 			)
 
 			if privateNetworkPrefixOverlapsAny(candidate, settings.Forbidden) {
@@ -292,7 +310,7 @@ func privateNetworkAllocateAutoCidr(
 
 	return "", privateNetworkBusinessRollback(
 		tx,
-		util.UserHttpError("No address space is available for a new private network"),
+		exhaustion,
 	)
 }
 
@@ -343,7 +361,8 @@ func privateNetworkLockReconcile(tx *db.Transaction, networkId string) {
 
 func PrivateNetworkDeleteRequest(target *orc.PrivateNetwork) *util.HttpError {
 	if len(target.Status.Members) > 0 {
-		return util.UserHttpError(
+		return util.HttpErr(
+			http.StatusConflict,
 			"This private network is currently in use by job: %v",
 			strings.Join(target.Status.Members, ", "),
 		)
@@ -381,7 +400,7 @@ func PrivateNetworkDeleteRequest(target *orc.PrivateNetwork) *util.HttpError {
 		if leaseCount.Count > 0 {
 			return privateNetworkBusinessRollback(
 				tx,
-				util.UserHttpError("This private network is currently in use by one or more jobs"),
+				util.HttpErr(http.StatusConflict, "This private network is currently in use by one or more jobs"),
 			)
 		}
 
@@ -399,7 +418,7 @@ func PrivateNetworkDeleteRequest(target *orc.PrivateNetwork) *util.HttpError {
 		if reservationCount.Count > 0 {
 			return privateNetworkBusinessRollback(
 				tx,
-				util.UserHttpError("Delete all reserved IP addresses of this private network first"),
+				util.HttpErr(http.StatusConflict, "Delete all reserved IP addresses of this private network first"),
 			)
 		}
 
@@ -502,11 +521,13 @@ func PrivateNetworkDiscardAfterFailedCreate(networkId string) {
 	defer mutationLock.Unlock()
 
 	removed := false
+	markedDeleting := false
 	db.NewTx0(func(tx *db.Transaction) {
 		privateNetworkLockReconcile(tx, networkId)
 		row, found := privateNetworkSelectNetwork(tx, networkId)
 		if !found || row.State != PrivateNetworkStateProvisioning {
 			removed = false
+			markedDeleting = false
 			return
 		}
 
@@ -524,6 +545,24 @@ func PrivateNetworkDiscardAfterFailedCreate(networkId string) {
 		)
 		if remaining.Count > 0 {
 			removed = false
+			markedDeleting = false
+			return
+		}
+
+		if row.NetworkType == string(orc.NetworkTypeInfiniband) {
+			db.Exec(
+				tx,
+				`
+					update tracked_private_networks
+					set
+						state = 'deleting'
+					where
+						resource_id = :resource_id
+						and state = 'provisioning'
+				`,
+				db.Params{"resource_id": networkId},
+			)
+			markedDeleting = true
 			return
 		}
 
@@ -539,6 +578,13 @@ func PrivateNetworkDiscardAfterFailedCreate(networkId string) {
 			db.Params{"resource_id": networkId},
 		)
 	})
+
+	if markedDeleting {
+		privateNetworkMutex.Lock()
+		delete(privateNetworks, networkId)
+		privateNetworkMutex.Unlock()
+		return
+	}
 
 	if removed {
 		privateNetworkCacheRemoveAfterDelete(networkId)

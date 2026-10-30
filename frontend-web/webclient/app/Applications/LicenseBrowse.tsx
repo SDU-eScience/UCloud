@@ -1,4 +1,4 @@
-import {callAPI} from "@/Authentication/DataHook";
+import {callAPI, noopCall} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import {
@@ -32,6 +32,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {ProductSelectorWithPermissions} from "./PublicLinks/PublicLinkBrowse";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import {sendFailureNotification} from "@/Notifications";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -90,7 +91,7 @@ export function LicenseBrowse({
             new ResourceBrowser<License>(mount, "Licenses", opts).init(browserRef, FEATURES, "", browser => {
                 let startCreation = doNothing;
 
-                browser.setColumns([{name: "License id"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]);
+                browser.setColumns({[ContainerSize.LARGE]:[{name: "License id"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]});
 
                 supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(LicenseApi));
                 addProjectListener(PROJECT_CHANGE_LISTENER_ID, p => {
@@ -145,25 +146,18 @@ export function LicenseBrowse({
                     setFilterStorageValue(browser.resourceName, "status", "READY");
                 }
 
-                browser.on("renderRow", (license, row, dims) => {
+                browser.on("renderTitle", (license, title, row) => {
                     const {provider} = license.specification.product;
                     if (provider) {
                         const icon = providerIcon(license.specification.product.provider);
                         icon.style.marginRight = "8px";
-                        row.title.append(icon);
+                        title.append(icon);
                     }
 
                     if (license.id !== DUMMY_ENTRY_ID) {
-                        const {product} = license.specification;
-                        const title = `${product.id}${(license.id ? ` (${license.id})` : "")}`;
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(title, row));
-                    }
-
-                    if (opts?.selection) {
-                        const button = browser.defaultButtonRenderer(opts.selection, license);
-                        if (button) {
-                            row.stat3.replaceChildren(button);
-                        }
+                        const { product } = license.specification;
+                        const titleContent = `${product.id}${(license.id ? ` (${license.id})` : "")}`;
+                        title.append(ResourceBrowser.defaultTitleRenderer(titleContent, row));
                     }
                 });
 

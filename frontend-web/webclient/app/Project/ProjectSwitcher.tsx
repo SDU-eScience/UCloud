@@ -61,7 +61,7 @@ export function projectTitle(project?: Project): string {
     return project?.specification.title ?? ""
 }
 
-const triggerClass = injectStyle("context-switcher-trigger", k => `
+export const TriggerClass = injectStyle("context-switcher-trigger", k => `
     ${k} {
         background: var(--primaryMain);
         color: var(--primaryContrast);
@@ -73,6 +73,10 @@ const triggerClass = injectStyle("context-switcher-trigger", k => `
 `);
 
 const ProjectSwitcherClass = injectStyle("project-switcher", k => `
+    ${k} {
+        grid-area: project-switcher;
+    }
+
     ${k}[data-focusable="true"] > [data-tag="dropdown"]:focus {
         outline: 2px solid var(--primaryMain);
         outline-offset: 2px;
@@ -238,7 +242,7 @@ export function ProjectSwitcher({managed, focusable, ...dataAttributes}: {
             <ClickableDropdown
                 {...dataAttributes}
                 trigger={
-                    <div className={triggerClass} ref={switcherRef}>
+                    <div className={TriggerClass} ref={switcherRef}>
                         <Truncate title={activeContext} fontSize={14} width="180px">{activeContext}</Truncate>
                         <Icon name="heroChevronDown" size="14px" ml="4px" mt="4px" />
                     </div>
@@ -418,7 +422,7 @@ const BottomBorderedRow = injectStyle("bottom-bordered-row", k => `
     ${k}:hover {
         background-color: var(--rowHover);
     }
-    
+
     ${k} {
         transition: 0.1s background-color;
         display: flex;
@@ -437,7 +441,7 @@ export const FilterInputClass = injectStyle("filter-input", k => `
         border-bottom: 1px solid var(--borderColor);
         box-shadow: unset;
     }
-    
+
     ${k} {
         box-shadow: none;
         border: 0;

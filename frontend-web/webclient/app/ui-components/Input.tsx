@@ -119,6 +119,7 @@ const Input: React.FunctionComponent<InputProps & {as?: "input" | "textarea"; cu
     inputProps["role"] = props.role;
     inputProps["aria-autocomplete"] = props["aria-autocomplete"];
     inputProps["aria-expanded"] = props["aria-expanded"];
+    inputProps["aria-label"] = props["aria-label"];
 
     inputProps["data-error"] = props.error === true;
     inputProps["data-left-label"] = props.leftLabel === true;

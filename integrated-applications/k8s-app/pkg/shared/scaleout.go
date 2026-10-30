@@ -175,6 +175,10 @@ func ClusterAddPool(app ucx.Application, stack *ucxsvc.Stack, pool ClusterPoolSp
 		ucxsvc.UiSendFailure(app, "The pool needs at least one node")
 		return false
 	}
+	if pool.Nodes > k8sapi.MaxPoolNodes {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf("The pool supports at most %d nodes", k8sapi.MaxPoolNodes))
+		return false
+	}
 
 	flow, flowOk := clusterRecordFlowNew(app)
 	if !flowOk {
@@ -220,8 +224,11 @@ func ClusterAddPool(app ucx.Application, stack *ucxsvc.Stack, pool ClusterPoolSp
 		return false
 	}
 
+	ucxsvc.UiSendProgress(app, "Creating worker pool "+name)
+
 	poolOperationUid := NewUid()
 	for i := 0; i < pool.Nodes; i++ {
+		ucxsvc.UiSendProgress(app, fmt.Sprintf("Creating worker pool %s node %d/%d", name, i+1, pool.Nodes))
 		if _, nodeOk := ClusterAddNodeLocked(app, stack, flow, record, name, pool.Machine, pool.DiskGb, poolOperationUid); !nodeOk {
 			return false
 		}
@@ -545,6 +552,31 @@ func ClusterAddNodesBatch(
 		return "", false
 	}
 
+	currentNodes := 0
+	for _, node := range record.Nodes {
+		if node.Group == trimmedGroup {
+			currentNodes++
+		}
+	}
+
+	if trimmedGroup == GroupControlPlane {
+		targetNodes := currentNodes + count
+		if targetNodes > k8sapi.ControlPlaneMaxNodes {
+			ucxsvc.UiSendFailure(app, fmt.Sprintf(
+				"The cluster control plane supports at most %d nodes",
+				k8sapi.ControlPlaneMaxNodes,
+			))
+			return "", false
+		}
+		if targetNodes%2 == 0 {
+			ucxsvc.UiSendFailure(app, "The control plane must have an odd number of nodes")
+			return "", false
+		}
+	} else if currentNodes+count > k8sapi.MaxPoolNodes {
+		ucxsvc.UiSendFailure(app, fmt.Sprintf("The pool supports at most %d nodes", k8sapi.MaxPoolNodes))
+		return "", false
+	}
+
 	if !clusterValidateNodeAddition(
 		app,
 		stack,
@@ -562,11 +594,60 @@ func ClusterAddNodesBatch(
 
 	operationUid := NewUid()
 	for i := 0; i < count; i++ {
+		if trimmedGroup == GroupControlPlane {
+			ucxsvc.UiSendProgress(app, fmt.Sprintf("Adding control plane node %d/%d", i+1, count))
+		} else {
+			ucxsvc.UiSendProgress(app, fmt.Sprintf("Adding node %d/%d to pool %s", i+1, count, trimmedGroup))
+		}
+
 		if _, nodeOk := ClusterAddNodeLocked(app, stack, flow, record, trimmedGroup, machine, diskGb, operationUid); !nodeOk {
 			return "", false
 		}
 	}
 	return "", true
+}
+
+func ClusterScalePool(
+	app ucx.Application,
+	stack *ucxsvc.Stack,
+	poolName string,
+	count int,
+	diskGb int,
+) bool {
+	if stack == nil || !stack.Ok {
+		ucxsvc.UiSendFailure(app, "The cluster stack is not available")
+		return false
+	}
+
+	name := strings.TrimSpace(poolName)
+	if name == "" {
+		ucxsvc.UiSendFailure(app, "Please provide a node pool")
+		return false
+	}
+
+	record, found, err := ClusterStateRecordRead()
+	if err != nil || !found {
+		ucxsvc.UiSendFailure(app, "Could not read the cluster record")
+		return false
+	}
+
+	pool, ok := clusterPoolRecord(record, name)
+	if !ok {
+		ucxsvc.UiSendFailure(app, "Unknown node pool: "+name)
+		return false
+	}
+
+	_, ok = ClusterAddNodesBatch(app, stack, pool.Name, pool.Machine, diskGb, count)
+	return ok
+}
+
+func clusterPoolRecord(record ClusterRecord, name string) (ClusterPoolRecord, bool) {
+	for _, pool := range record.Pools {
+		if pool.Name == name {
+			return pool, true
+		}
+	}
+	return ClusterPoolRecord{}, false
 }
 
 func clusterCleanupNewNode(

@@ -106,6 +106,7 @@ func (app *app) Session() **ucx.Session { return &app.session }
 
 func (app *app) OnInit() {
 	shared.RegisterRpcHandlers(app, shared.ModeRecovery)
+	app.registerRpcHandlers()
 }
 
 func (app *app) OnMessage(message ucx.Frame) {
@@ -275,17 +276,24 @@ func (app *app) recomputeSelection() {
 		return
 	}
 
-	serverHash, serverErr := recoveryTokenHash(app.MountPath, "server")
-	agentHash, agentErr := recoveryTokenHash(app.MountPath, "agent")
+	app.CredentialsStatus = recoveryCheckCredentials(app.MountPath, entry)
+}
+
+func recoveryCheckCredentials(mountPath string, entry backupEntry) recoveryCredentialsStatus {
+	if entry.ServerTokenHash == "" || entry.AgentTokenHash == "" {
+		return recoveryCredentialsUnchecked
+	}
+
+	serverHash, serverErr := recoveryTokenHash(mountPath, "server")
+	agentHash, agentErr := recoveryTokenHash(mountPath, "agent")
 	if serverErr != nil || agentErr != nil {
-		return
+		return recoveryCredentialsUnchecked
 	}
 
 	if serverHash == entry.ServerTokenHash && agentHash == entry.AgentTokenHash {
-		app.CredentialsStatus = recoveryCredentialsOk
-	} else {
-		app.CredentialsStatus = recoveryCredentialsMismatch
+		return recoveryCredentialsOk
 	}
+	return recoveryCredentialsMismatch
 }
 
 func (app *app) selectedBackup() (backupEntry, bool) {

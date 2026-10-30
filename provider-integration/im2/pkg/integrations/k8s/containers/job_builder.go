@@ -27,7 +27,7 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
-func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
+func StartScheduledJob(job *orc.Job, rank int, node string, cpuMillis int) *util.HttpError {
 	podName := idAndRankToPodName(job.Id, rank)
 	var applicationPullSecret *core.Secret
 	var applicationPullTokenId string
@@ -245,6 +245,14 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	if pnErr != nil {
 		return pnErr
 	}
+	for _, attachment := range attachments {
+		if attachment.NetworkType == orc.NetworkTypeInfiniband {
+			if _, deviceErr := shared.PrivateNetworkInfinibandDeviceForNode(node); deviceErr != nil {
+				return deviceErr
+			}
+			break
+		}
+	}
 	if len(attachments) > 0 {
 		attachmentAnnotations, annErr := shared.PrivateNetworkAttachmentAnnotations(attachments)
 		if annErr != nil {
@@ -285,7 +293,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	product := job.Status.ResolvedProduct.Value
-	cpuMillis := shared.NodeCpuMillisNormalizedWithReserved(&product)
 	memoryMegabytes := int64(product.MemoryInGigs * 1000)
 	gpus := int64(product.Gpu)
 
@@ -299,22 +306,16 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		gpuType = nodeCat.GpuResourceType
 	}
 
-	{
-		quantity := resource.NewScaledQuantity(int64(cpuMillis), resource.Milli)
-		quantity.Format = resource.DecimalSI
-		userContainer.Resources.Requests[core.ResourceCPU] = *quantity
-	}
-	{
-		quantity := resource.NewScaledQuantity(
-			shared.NodeCpuMillisNormalizedWithoutReserved(&product),
-			resource.Milli,
-		)
-		quantity.Format = resource.DecimalSI
-		userContainer.Resources.Limits[core.ResourceCPU] = *quantity
-	}
+	addResource(core.ResourceCPU, int64(cpuMillis), resource.Milli)
+	cpuLimit := resource.NewScaledQuantity(shared.NodeCpuMillisNormalizedWithoutReserved(&product), resource.Milli)
+	cpuLimit.Format = resource.DecimalSI
+	userContainer.Resources.Limits[core.ResourceCPU] = *cpuLimit
 	addResource(core.ResourceMemory, memoryMegabytes, resource.Mega)
 	if gpus > 0 {
 		addResource(core.ResourceName(gpuType), gpus, 0)
+	}
+	if rdmaResource, ok := shared.PrivateNetworkJobRdmaResourceName(job); ok {
+		addResource(core.ResourceName(rdmaResource), 1, 0)
 	}
 
 	pod.Spec.NodeName = node

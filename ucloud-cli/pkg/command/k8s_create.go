@@ -9,27 +9,31 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"gopkg.in/yaml.v3"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/ucloud_cli/pkg/iapp"
 )
 
 type K8sClusterCreateCommand struct {
-	Name                string `positional:"name" usage:"Cluster name (omit when --file supplies it)"`
+	Name                string `positional:"name" usage:"Cluster name (omit when --file supplies it, or to generate a random name)"`
 	NameFlag            string `flag:"name" usage:"Override the cluster name when a file is used"`
 	File                string `flag:"file" short:"f" usage:"Read the cluster from a YAML file, or - for standard input"`
 	Workspace           string `flag:"workspace" usage:"Workspace to use"`
-	Provider            string `flag:"provider" usage:"Service provider (required)"`
+	Provider            string `flag:"provider" usage:"Service provider"`
 	K8sVersion          string `flag:"k8s-version" usage:"Kubernetes release (default: the newest supported release)"`
 	ControlPlaneMachine string `flag:"control-plane.machine" usage:"Control plane machine type"`
 	ControlPlaneNodes   int    `flag:"control-plane.nodes" usage:"Control plane node count, odd from 1 to 7 (default 1)"`
 	ControlPlaneDisk    int    `flag:"control-plane.disk" usage:"Control plane disk size in GB, 10 to 1024 (default 50)"`
+	Template            bool   `flag:"template" usage:"Write a YAML template for a simple cluster instead of creating one"`
+	Save                string `flag:"save" usage:"Template file path (default: <name>.yaml)"`
+	Stdout              bool   `flag:"stdout" usage:"Print the template to standard output instead of writing a file"`
+	Force               bool   `flag:"force" usage:"Overwrite the template file if it already exists"`
 	DryRun              bool   `flag:"dry-run" usage:"Resolve and validate the request without creating a cluster"`
 	Wait                bool   `flag:"wait" usage:"Wait until all nodes are ready"`
 	Output              string `flag:"output" usage:"Output format: table or json"`
@@ -214,6 +218,50 @@ func (c *K8sClusterCreateCommand) ParseArguments(args []string) error {
 				c.Output = value
 				i = next
 
+			case "template":
+				if hasInline {
+					value, err := strconv.ParseBool(inline)
+					if err != nil {
+						return fmt.Errorf("--template must be true or false: %q", inline)
+					}
+					c.Template = value
+				} else {
+					c.Template = true
+				}
+
+			case "save":
+				value, next, err := k8sCreateFlagValue(args, i, "--save", inline, hasInline)
+				if err != nil {
+					return err
+				}
+				if value == "" {
+					return fmt.Errorf("--save needs a path")
+				}
+				c.Save = value
+				i = next
+
+			case "stdout":
+				if hasInline {
+					value, err := strconv.ParseBool(inline)
+					if err != nil {
+						return fmt.Errorf("--stdout must be true or false: %q", inline)
+					}
+					c.Stdout = value
+				} else {
+					c.Stdout = true
+				}
+
+			case "force":
+				if hasInline {
+					value, err := strconv.ParseBool(inline)
+					if err != nil {
+						return fmt.Errorf("--force must be true or false: %q", inline)
+					}
+					c.Force = value
+				} else {
+					c.Force = true
+				}
+
 			case "dry-run":
 				if hasInline {
 					value, err := strconv.ParseBool(inline)
@@ -264,7 +312,10 @@ func (c *K8sClusterCreateCommand) HelpNotes() []string {
 		"--file cannot be combined with cluster flags. --name, --workspace, --dry-run, --wait and --output are allowed.",
 		"Set worker pool fields with quoted bracketed flags, for example '--worker-pools[0].name' workers-1.",
 		"The worker pool fields are name, machine, nodes and disk.",
-		"The service provider is required. Use --provider, or set provider in the file.",
+		"The service provider is required. Use --provider, or set provider in the file. With --template, --provider is optional when the workspace has access to exactly one provider.",
+		"Use --template to write a YAML template with one control-plane node and one worker node. The machine type is selected automatically from the usable VM products of the provider.",
+		"When --template is used, the file defaults to <name>.yaml. Use --save to change the path, --stdout to print it, and --force to overwrite an existing file.",
+		"When --template is used without a cluster name, a random name is generated.",
 		fmt.Sprintf(
 			"The control plane needs an odd number of nodes from %d to %d. Disk sizes are %d to %d GB.",
 			k8sapi.ControlPlaneMinNodes,
@@ -278,6 +329,20 @@ func (c *K8sClusterCreateCommand) HelpNotes() []string {
 }
 
 func (c *K8sClusterCreateCommand) Execute() error {
+	if c.Template {
+		return c.executeTemplate()
+	}
+
+	if c.Save != "" {
+		return fmt.Errorf("--save requires --template")
+	}
+	if c.Stdout {
+		return fmt.Errorf("--stdout requires --template")
+	}
+	if c.Force {
+		return fmt.Errorf("--force requires --template")
+	}
+
 	if c.DryRun && c.Wait {
 		return fmt.Errorf("--wait cannot be combined with --dry-run")
 	}
@@ -313,12 +378,6 @@ func (c *K8sClusterCreateCommand) Execute() error {
 	}
 	defer client.Close()
 
-	client.SetMessageHandler(func(message string, success bool) {
-		if success && message != "" {
-			fmt.Fprintln(os.Stderr, message)
-		}
-	})
-
 	releases, err := iapp.Call(connectCtx, client, k8sapi.Releases, util.Empty{})
 	if err != nil {
 		return fmt.Errorf("could not list the Kubernetes releases: %w", err)
@@ -333,13 +392,50 @@ func (c *K8sClusterCreateCommand) Execute() error {
 		return k8sCreatePrintRequest(request, output)
 	}
 
+	progress := termio.NewProgressList(os.Stderr, "Creating cluster "+request.Name)
+	progress.Start()
+	defer progress.Stop()
+
+	client.SetMessageHandler(func(message string, success bool, level string) {
+		if !success || message == "" {
+			return
+		}
+
+		state := termio.ProgressRunning
+		switch level {
+		case ucxapi.UiMessageLevelSuccess:
+			state = termio.ProgressSuccess
+		case ucxapi.UiMessageLevelWarning:
+			state = termio.ProgressWarning
+		case ucxapi.UiMessageLevelFailure:
+			state = termio.ProgressFailure
+		}
+
+		progress.SetItem(termio.ProgressItem{
+			Key:    "deploy",
+			Status: message,
+			State:  state,
+		})
+	})
+
 	response, err := iapp.Call(context.Background(), client, k8sapi.Deploy, request)
 	if err != nil {
-		return errors.New(k8sCreateFailureMessage(client, err))
+		message := k8sCreateFailureMessage(client, err)
+		progress.SetItem(termio.ProgressItem{Key: "deploy", Status: message, State: termio.ProgressFailure})
+		return errors.New(message)
 	}
 	if !response.Ok {
-		return errors.New(k8sCreateFailureMessage(client, errors.New("the cluster could not be created")))
+		message := k8sCreateFailureMessage(client, errors.New("the cluster could not be created"))
+		progress.SetItem(termio.ProgressItem{Key: "deploy", Status: message, State: termio.ProgressFailure})
+		return errors.New(message)
 	}
+
+	progress.SetItem(termio.ProgressItem{
+		Key:    "deploy",
+		Status: "Cluster resources created",
+		State:  termio.ProgressSuccess,
+	})
+	progress.Stop()
 
 	name := response.Name
 	if name == "" {
@@ -348,6 +444,7 @@ func (c *K8sClusterCreateCommand) Execute() error {
 
 	if c.Wait {
 		client.Close()
+		fmt.Fprintln(os.Stderr)
 
 		if err := k8sWaitForCluster(name); err != nil {
 			return err
@@ -583,44 +680,9 @@ func k8sResolveCreateRequest(input k8sCreateSpec) (k8sapi.DeployRequest, error) 
 		return request, fmt.Errorf("a service provider is required; use --provider")
 	}
 
-	products, httpErr := orcapi.JobsRetrieveProducts.Invoke(util.Empty{})
-	if httpErr != nil {
-		return request, fmt.Errorf("could not retrieve the compute products: %s", httpErr.Why)
-	}
-
-	byName := map[string]accapi.ProductReference{}
-	for _, product := range products.ProductsByProvider[provider] {
-		if !k8sCreateProductUsable(product, provider) {
-			continue
-		}
-		byName[product.Product.Name] = product.Product.ToReference()
-	}
-	if len(byName) == 0 {
-		return request, fmt.Errorf("no VM-capable compute products are available for provider %s", provider)
-	}
-
-	available := make([]string, 0, len(byName))
-	for name := range byName {
-		available = append(available, name)
-	}
-	sort.Strings(available)
-
-	resolve := func(role string, name string) (accapi.ProductReference, error) {
-		name = strings.TrimSpace(name)
-		if name == "" {
-			return accapi.ProductReference{}, fmt.Errorf("select a machine type for %s", role)
-		}
-
-		machine, ok := byName[name]
-		if !ok {
-			return accapi.ProductReference{}, fmt.Errorf(
-				"unknown machine type %q for provider %s; available machine types: %s",
-				name,
-				provider,
-				strings.Join(available, ", "),
-			)
-		}
-		return machine, nil
+	byName, available, err := k8sProviderProducts(provider)
+	if err != nil {
+		return request, err
 	}
 
 	controlPlane := k8sCreateControlPlaneSpec{}
@@ -628,7 +690,7 @@ func k8sResolveCreateRequest(input k8sCreateSpec) (k8sapi.DeployRequest, error) 
 		controlPlane = *input.ControlPlane
 	}
 
-	controlPlaneMachine, err := resolve("the control plane", controlPlane.Machine)
+	controlPlaneMachine, err := k8sResolveMachine(byName, available, provider, "the control plane", controlPlane.Machine)
 	if err != nil {
 		return request, err
 	}
@@ -651,7 +713,7 @@ func k8sResolveCreateRequest(input k8sCreateSpec) (k8sapi.DeployRequest, error) 
 			role = "worker pool " + strings.TrimSpace(pool.Name)
 		}
 
-		machine, err := resolve(role, pool.Machine)
+		machine, err := k8sResolveMachine(byName, available, provider, role, pool.Machine)
 		if err != nil {
 			return request, err
 		}
@@ -680,6 +742,56 @@ func k8sCreateProductUsable(product orcapi.ResolvedSupport[orcapi.JobSupport], p
 		product.Product.Category.Provider == provider
 }
 
+func k8sProviderProducts(provider string) (map[string]accapi.ProductReference, []string, error) {
+	products, httpErr := orcapi.JobsRetrieveProducts.Invoke(util.Empty{})
+	if httpErr != nil {
+		return nil, nil, fmt.Errorf("could not retrieve the compute products: %s", httpErr.Why)
+	}
+
+	byName := map[string]accapi.ProductReference{}
+	for _, product := range products.ProductsByProvider[provider] {
+		if !k8sCreateProductUsable(product, provider) {
+			continue
+		}
+		byName[product.Product.Name] = product.Product.ToReference()
+	}
+	if len(byName) == 0 {
+		return nil, nil, fmt.Errorf("no VM-capable compute products are available for provider %s", provider)
+	}
+
+	available := make([]string, 0, len(byName))
+	for name := range byName {
+		available = append(available, name)
+	}
+	sort.Strings(available)
+
+	return byName, available, nil
+}
+
+func k8sResolveMachine(
+	byName map[string]accapi.ProductReference,
+	available []string,
+	provider string,
+	role string,
+	name string,
+) (accapi.ProductReference, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return accapi.ProductReference{}, fmt.Errorf("select a machine type for %s", role)
+	}
+
+	machine, ok := byName[name]
+	if !ok {
+		return accapi.ProductReference{}, fmt.Errorf(
+			"unknown machine type %q for provider %s; available machine types: %s",
+			name,
+			provider,
+			strings.Join(available, ", "),
+		)
+	}
+	return machine, nil
+}
+
 func k8sCreateFailureMessage(client *iapp.Client, err error) string {
 	message := k8sErrorMessage(err)
 	if message == "the cluster could not be created" {
@@ -690,16 +802,16 @@ func k8sCreateFailureMessage(client *iapp.Client, err error) string {
 	return k8sClusterMessage(message)
 }
 
-const (
-	k8sWaitTimeout      = 30 * time.Minute
-	k8sWaitPollInterval = 5 * time.Second
-)
-
 func k8sWaitForCluster(name string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), k8sWaitTimeout)
 	defer cancel()
 
-	fmt.Fprintf(os.Stderr, "Waiting for cluster %s to become ready\n", name)
+	progress := termio.NewProgressList(os.Stderr, fmt.Sprintf("Waiting for cluster %s to become ready", name))
+	progress.Start()
+	defer progress.Stop()
+
+	stages := k8sJobStagesNew(ctx)
+	defer stages.Stop()
 
 	var client *iapp.Client
 	defer func() {
@@ -708,8 +820,6 @@ func k8sWaitForCluster(name string) error {
 		}
 	}()
 
-	states := map[string]string{}
-	waitingAnnounced := false
 	dashboardAnnounced := false
 
 	for {
@@ -719,12 +829,10 @@ func k8sWaitForCluster(name string) error {
 				return err
 			}
 
+			k8sWaitSetJobProgress(progress, stack, stages)
+
 			client, err = k8sConnectCluster(ctx, stack)
 			if err != nil {
-				if !waitingAnnounced {
-					fmt.Fprintln(os.Stderr, "Waiting for the cluster dashboard to become available")
-					waitingAnnounced = true
-				}
 				if !k8sWaitSleep(ctx) {
 					return k8sWaitTimeoutError(name)
 				}
@@ -732,13 +840,19 @@ func k8sWaitForCluster(name string) error {
 			}
 
 			if !dashboardAnnounced {
-				fmt.Fprintln(os.Stderr, "Cluster dashboard is available")
+				progress.Milestone("Dashboard available")
 				dashboardAnnounced = true
 			}
 		}
 
-		response, err := iapp.Call(ctx, client, k8sapi.Status, util.Empty{})
+		response, err := iapp.Call(ctx, client, k8sapi.ProvisioningStatus, util.Empty{})
 		if err != nil {
+			if k8sWaitRpcNotFound(err) {
+				return fmt.Errorf(
+					"the Kubernetes application does not support live provisioning status; update the application",
+				)
+			}
+
 			client.Close()
 			client = nil
 			if !k8sWaitSleep(ctx) {
@@ -747,86 +861,23 @@ func k8sWaitForCluster(name string) error {
 			continue
 		}
 
-		if response.Phase == k8sapi.ClusterPhaseError ||
-			response.Phase == k8sapi.ClusterPhaseCleanup ||
-			response.FailureReason != "" {
-			reason := response.FailureReason
-			if reason == "" {
-				reason = "the cluster entered the error phase"
-			}
-			return fmt.Errorf(
-				"the cluster did not become ready: %s; use the dashboard at %s",
-				reason,
-				k8sValueOrDash(k8sDashboardURL(name)),
-			)
+		if err := k8sProvisioningFailure(response, name); err != nil {
+			return err
+		}
+		if err := k8sProvisioningNodeFailure(response, name, nil); err != nil {
+			return err
 		}
 
-		for _, node := range response.Nodes {
-			state := node.State
-			if state == "" {
-				if _, ok := states[node.Hostname]; ok {
-					continue
-				}
-				state = "pending"
-			}
-			if states[node.Hostname] == state {
-				continue
-			}
+		k8sWaitSetProgress(progress, response, stages, nil)
 
-			states[node.Hostname] = state
-			fmt.Fprintf(os.Stderr, "Node %s (%s): %s\n", node.Hostname, node.Group, k8sNodeStateLabel(state))
-		}
-
-		if response.NodeHealthKnown && len(response.Nodes) > 0 {
-			allReady := true
-			for _, node := range response.Nodes {
-				if node.State != k8sapi.NodeStateReady {
-					allReady = false
-					break
-				}
-			}
-			if allReady {
-				fmt.Fprintf(os.Stderr, "Cluster %s is ready\n", name)
-				return nil
-			}
+		if response.AllReady {
+			progress.Summary(fmt.Sprintf("Cluster %s is ready", name))
+			return nil
 		}
 
 		if !k8sWaitSleep(ctx) {
 			return k8sWaitTimeoutError(name)
 		}
-	}
-}
-
-func k8sWaitSleep(ctx context.Context) bool {
-	timer := time.NewTimer(k8sWaitPollInterval)
-	defer timer.Stop()
-
-	select {
-	case <-ctx.Done():
-		return false
-	case <-timer.C:
-		return true
-	}
-}
-
-func k8sWaitTimeoutError(name string) error {
-	return fmt.Errorf(
-		"the cluster did not become ready within %s; use the dashboard at %s",
-		k8sWaitTimeout,
-		k8sValueOrDash(k8sDashboardURL(name)),
-	)
-}
-
-func k8sNodeStateLabel(state string) string {
-	switch state {
-	case k8sapi.NodeStateReady:
-		return "ready"
-	case k8sapi.NodeStateNotReady:
-		return "not ready"
-	case k8sapi.NodeStateUnknown:
-		return "unknown"
-	default:
-		return "pending"
 	}
 }
 
@@ -861,23 +912,19 @@ func k8sCreatePrintRequest(request k8sapi.DeployRequest, output string) error {
 		return k8sPrintJson(request)
 	}
 
-	summary := termio.Table{}
-	summary.AppendHeader("Field")
-	summary.AppendHeader("Value")
-	summary.Cell("Cluster")
-	summary.Cell("%s", request.Name)
-	summary.Cell("Provider")
-	summary.Cell("%s", request.Provider)
-	summary.Cell("Kubernetes")
-	summary.Cell("%s", request.K8sVersion)
-	summary.Cell("Control plane")
-	summary.Cell("%s (%d node%s, %d GB disk)", request.ControlPlane.Machine.Id, request.ControlPlane.Nodes, k8sCreatePlural(request.ControlPlane.Nodes), request.ControlPlane.Disk)
+	summary := termio.Frame{}
+	summary.Title("Cluster " + request.Name)
+	summary.AppendField("Provider", request.Provider)
+	summary.AppendField("Kubernetes", request.K8sVersion)
+	summary.AppendField("Control plane", fmt.Sprintf(
+		"%s (%d node%s, %d GB disk)",
+		request.ControlPlane.Machine.Id,
+		request.ControlPlane.Nodes,
+		k8sCreatePlural(request.ControlPlane.Nodes),
+		request.ControlPlane.Disk,
+	))
 	summary.Print()
-
-	if len(request.WorkerPools) == 0 {
-		fmt.Println("Worker pools: none")
-		return nil
-	}
+	fmt.Println()
 
 	pools := termio.Table{}
 	pools.AppendHeader("Worker pool")
@@ -890,7 +937,10 @@ func k8sCreatePrintRequest(request k8sapi.DeployRequest, output string) error {
 		pools.Cell("%d", pool.Nodes)
 		pools.Cell("%d", pool.Disk)
 	}
-	pools.Print()
+
+	sections := termio.TableSet{}
+	sections.Add("Worker pools", &pools)
+	sections.Print()
 
 	return nil
 }
@@ -910,11 +960,17 @@ func k8sCreatePrintResult(name string, ready bool, output string) error {
 		})
 	}
 
-	fmt.Printf("Cluster: %s\n", name)
-	fmt.Printf("Dashboard: %s\n", k8sValueOrDash(dashboardUrl))
+	k8sPrintResultSpacer()
+
+	frame := termio.Frame{}
+	frame.Title("Cluster " + name)
 	if ready {
-		fmt.Println("Ready: yes")
+		frame.AppendFieldStyled("Status", termio.Success("Ready"))
+	} else {
+		frame.AppendFieldStyled("Status", termio.Subtle("Created (not verified)"))
 	}
+	frame.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
+	frame.Print()
 	return nil
 }
 

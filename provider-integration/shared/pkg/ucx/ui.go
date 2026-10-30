@@ -596,6 +596,14 @@ func (n UiNode) WithShortcutKey(key string) UiNode {
 	return n
 }
 
+func (n UiNode) AriaLabel(label string) UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["ariaLabel"] = VString(label)
+	return n
+}
+
 func EnumSelectorNode(id string, bindPath string, options []Option) UiNode {
 	requireExplicitId(id, "enum_selector")
 

@@ -18,7 +18,7 @@ export type PrivateNetworkIp = Resource<ResourceUpdate, PrivateNetworkIpStatus, 
 class PrivateNetworkIpApi extends ResourceApi<PrivateNetworkIp, Product, PrivateNetworkIpSpecification, ResourceUpdate,
     ResourceIncludeFlags, PrivateNetworkIpStatus> {
     routingNamespace = "private-network-ips";
-    title = "Private network IP";
+    title = "Network IP";
     productType = "PRIVATE_NETWORK_IP" as const;
 
     renderer: ItemRenderer<PrivateNetworkIp> = {

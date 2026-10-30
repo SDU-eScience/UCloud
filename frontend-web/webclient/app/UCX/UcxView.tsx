@@ -1188,11 +1188,13 @@ const baseComponents: UcxComponentRegistry = {
     },
     input_text: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
+        const ariaLabel = optionalStringProp(node, "ariaLabel");
         const placeholder = stringProp(node, "placeholder", "");
         const value = modelString(model, node.bindPath, scope);
         const input = <Input
             value={value}
             placeholder={placeholder}
+            aria-label={ariaLabel}
             autoFocus={boolProp(node, "autoFocus", false)}
             mt={label === "" ? undefined : 8}
             onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
@@ -1201,12 +1203,14 @@ const baseComponents: UcxComponentRegistry = {
     },
     input_number: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
+        const ariaLabel = optionalStringProp(node, "ariaLabel");
         const value = modelNumber(model, node.bindPath, scope);
         const min = numberProp(node, "min", 0);
         const max = numberProp(node, "max", 0);
         const input = <Input
             type="number"
             value={value}
+            aria-label={ariaLabel}
             autoFocus={boolProp(node, "autoFocus", false)}
             min={min}
             mt={label === "" ? undefined : 8}
@@ -1404,6 +1408,7 @@ const baseComponents: UcxComponentRegistry = {
         return <UcxCostEstimate node={node} model={model} scope={scope} fn={fn} />;
     },
     enum_selector: ({node, model, scope, fn}) => {
+        const ariaLabel = optionalStringProp(node, "ariaLabel");
         const options = simpleOptionsProp(node, "options");
         const selectedKey = modelString(model, node.bindPath, scope);
         const known = options.some(option => option.key === selectedKey);
@@ -1411,6 +1416,7 @@ const baseComponents: UcxComponentRegistry = {
         return <div style={fn.sxStyle(node)}>
             <Select
                 value={value}
+                aria-label={ariaLabel}
                 onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
             >
                 {options.map(option => <option key={option.key} value={option.key}>{option.value}</option>)}
@@ -2507,6 +2513,7 @@ const UcxButtonField: React.FunctionComponent<{
             color={color as any}
             type={submit ? "submit" : "button"}
             disabled={disabled}
+            ariaLabel={label}
             width={sx.width !== undefined ? "100%" : undefined}
             onClick={submit ? undefined : (() => fn.sendUiEvent(node.id, "click", eventValue))}
         >
@@ -2837,6 +2844,7 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
     fn: UcxFunctionRegistry;
 }> = ({node, model, scope, fn}) => {
     const label = stringProp(node, "label", "");
+    const ariaLabel = optionalStringProp(node, "ariaLabel");
     const providerBindPath = optionalStringProp(node, "providerBindPath");
     const providerOnly = boolProp(node, "providerOnly", false);
     const boundProvider = providerBindPath ? modelString(model, providerBindPath, scope) : "";
@@ -2908,6 +2916,7 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
             support={supportItems}
             fieldNavigation={true}
             hideServiceProvider={providerOnly}
+            ariaLabel={ariaLabel}
         />
         {!loading && machines.length === 0 ? <Text color="textSecondary">No matching machine types found.</Text> : null}
         {(() => {
@@ -3187,6 +3196,7 @@ const UcxSelectField = ({node, model, scope, fn}: {
         fullWidth={true}
         openFnRef={openFnRef}
         triggerRef={triggerRef}
+        triggerAriaLabel={optionalStringProp(node, "ariaLabel")}
         shortcutHint={shortcutKey ? createKeyboardShortcut(shortcutKey.toUpperCase(), ["ctrl", "alt"]) : undefined}
     />;
 
@@ -3305,6 +3315,7 @@ const UcxServiceProviderSelector: React.FunctionComponent<{
     fn: UcxFunctionRegistry;
 }> = ({node, model, scope, fn}) => {
     const label = stringProp(node, "label", "");
+    const ariaLabel = optionalStringProp(node, "ariaLabel");
     const realProvidersOnly = boolProp(node, "realProvidersOnly", false);
     const preferredProvider = stringProp(node, "preferredProvider", "");
 
@@ -3348,6 +3359,7 @@ const UcxServiceProviderSelector: React.FunctionComponent<{
         <ServiceProviderSelector
             serviceProvider={selectedKey}
             serviceProviders={providers}
+            triggerAriaLabel={ariaLabel}
             renderSelectedRow={props => {
                 if (!props.element?.key) {
                     return <Flex height="38px" pl="8px" alignItems="center">

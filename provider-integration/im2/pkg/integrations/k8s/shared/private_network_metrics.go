@@ -55,9 +55,9 @@ var metricPrivateNetworkPoolBlocks = promauto.NewGaugeVec(
 		Namespace: "ucloud_im",
 		Subsystem: "private_networks",
 		Name:      "pool_blocks",
-		Help:      "Default-size blocks in configured CIDR pools by kind (total, used)",
+		Help:      "Default-size blocks in configured CIDR pools by network type and kind (total, used)",
 	},
-	[]string{"pool", "kind"},
+	[]string{"network_type", "pool", "kind"},
 )
 
 func privateNetworkMetricsRefresh(
@@ -102,7 +102,8 @@ func privateNetworkMetricsRefresh(
 	metricPrivateNetworkPoolBlocks.Reset()
 	pools := controller.PrivateNetworkSnapshotPoolUtilization()
 	for _, pool := range pools {
-		metricPrivateNetworkPoolBlocks.WithLabelValues(pool.Pool, "total").Set(float64(pool.TotalBlocks))
-		metricPrivateNetworkPoolBlocks.WithLabelValues(pool.Pool, "used").Set(float64(pool.UsedBlocks))
+		networkType := string(pool.NetworkType)
+		metricPrivateNetworkPoolBlocks.WithLabelValues(networkType, pool.Pool, "total").Set(float64(pool.TotalBlocks))
+		metricPrivateNetworkPoolBlocks.WithLabelValues(networkType, pool.Pool, "used").Set(float64(pool.UsedBlocks))
 	}
 }

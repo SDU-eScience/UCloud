@@ -46,6 +46,9 @@ export const ProductSelector: React.FunctionComponent<{
     onSelect: (product: ProductV2 | null) => void;
     fieldNavigation?: boolean;
     hideServiceProvider?: boolean;
+    ariaLabel?: string;
+    renderProductName?: (product: ProductV2) => React.ReactNode;
+    renderProductBadge?: (product: ProductV2) => React.ReactNode;
 }> = ({selected, ...props}) => {
     const dropdownIdRef = React.useRef(`product-selector-${Math.random().toString(36).slice(2)}`);
     const portal = usePortal();
@@ -369,6 +372,7 @@ export const ProductSelector: React.FunctionComponent<{
                     }}
                     tabIndex={props.fieldNavigation ? 0 : undefined}
                     role={props.fieldNavigation ? "button" : undefined}
+                    aria-label={props.ariaLabel}
                     data-job-info-field={props.fieldNavigation ? "machine" : undefined}
                     className={InputClass}
                     style={{display: "flex", height: "33.5px", cursor: "pointer"}}
@@ -379,7 +383,8 @@ export const ProductSelector: React.FunctionComponent<{
                             {isCompute ? <Icon size={24} ml="-4px" name={selectedComputeCategory?.kind === "CPU" ? "heroCpuChip" : "gpu"} /> : <ProviderLogo providerId={selected?.category?.provider ?? "?"} size={24} />}
                             {selectedComputeCategory?.category}
                             {isCompute ? null : <>
-                                {selected.name}
+                                {props.renderProductName?.(selected) ?? selected.name}
+                                {props.renderProductBadge?.(selected)}
                                 <Box>-</Box>
                                 <Box>{priceToString(selected, 1)}</Box>
                             </>}
@@ -431,6 +436,7 @@ export const ProductSelector: React.FunctionComponent<{
                     idx={selectedComputeCategory?.products.findIndex(prod => prod === selected) ?? -1}
                     support={props.support}
                     fieldNavigation={props.fieldNavigation}
+                    ariaLabel={props.ariaLabel}
                     inputRef={machineTypeSliderRef}
                     onSelect={idx => {
                         if (!selectedComputeCategory) return;
@@ -549,7 +555,10 @@ export const ProductSelector: React.FunctionComponent<{
                                                         <ProviderLogo providerId={p.category.provider} size={24} />
                                                     }
                                                 </TableCell>
-                                                <TableCell><ProductName product={p} /></TableCell>
+                                                <TableCell><Flex alignItems="center" gap="8px">
+                                                    <ProductName product={p} render={props.renderProductName} />
+                                                    {props.renderProductBadge?.(p)}
+                                                </Flex></TableCell>
                                                 <ProductStats product={p} />
                                                 <TableCell>{priceToString(p, 1)}</TableCell>
                                                 <TableCell><ProviderTitle providerId={p.category.provider} /></TableCell>
@@ -576,8 +585,11 @@ function queueStatusFromCategoryName(support: ResolvedSupport<Product, ProductSu
     return (s as ComputeSupport)?.queueStatus ?? null;
 }
 
-const ProductName: React.FunctionComponent<{product: ProductV2}> = ({product}) => {
-    return <>{product.name}</>;
+const ProductName: React.FunctionComponent<{
+    product: ProductV2;
+    render?: (product: ProductV2) => React.ReactNode;
+}> = ({product, render}) => {
+    return <>{render ? render(product) : product.name}</>;
 }
 
 function ProductDescription({className, serviceProvider, category}: {className?: string; serviceProvider: string; category: string;}): React.ReactNode {
@@ -787,6 +799,7 @@ function MachineTypeSelectionSlider(props: {
     idx: number;
     support: ResolvedSupport[] | undefined;
     fieldNavigation?: boolean;
+    ariaLabel?: string;
     inputRef: React.RefObject<HTMLInputElement | null>;
 }): React.ReactNode {
 
@@ -816,6 +829,7 @@ function MachineTypeSelectionSlider(props: {
         <RangeInput value={props.idx} autoFocus={!props.fieldNavigation}
             data-navigation-field={props.fieldNavigation || undefined}
             dividerAt={dividerAt}
+            ariaLabel={props.ariaLabel}
             inputRef={props.inputRef}
             onChange={props.onSelect} min={0} max={props.selectedCategory.products.length - 1} markers={
             props.selectedCategory.products.map(p => computeV2ComponentCount(p))}

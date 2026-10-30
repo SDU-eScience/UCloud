@@ -1188,7 +1188,7 @@ func appUcxValidateJobParameterInStack(specification orcapi.ResourceSpecificatio
 		return appUcxValidateReferenceInStack(specification, ingressType, value.Id)
 	case orcapi.AppParameterValueTypeLicense:
 		return appUcxValidateReferenceInStack(specification, licenseType, value.Id)
-	case orcapi.AppParameterValueTypePrivateNetwork:
+	case orcapi.AppParameterValueTypePrivateNetwork, orcapi.AppParameterValueTypeUCloudNetwork:
 		return appUcxValidateReferenceInStack(specification, privateNetworkType, value.Id)
 	}
 	return nil

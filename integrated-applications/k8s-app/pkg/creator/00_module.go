@@ -258,19 +258,22 @@ func (app *k8sApp) cardMetadata() ucx.UiNode {
 			ucx.FieldRowNodeEx("clusterIdRow", "Cluster ID", "clusterId").FieldRowRequired(true).
 				FieldRowDescription("A unique name for your cluster. It is used in hostnames and must contain only a-z, 0-9 and dashes.").
 				Children(
-					ucx.InputText("clusterId", "", "", "clusterId"),
+					ucx.InputText("clusterId", "", "", "clusterId").
+						AriaLabel("Cluster ID"),
 				),
 			ucx.FieldRowNodeEx("serviceProviderRow", "Service provider", "").
 				FieldRowDescription("The provider that runs your cluster. All machines must come from this provider.").
 				Children(
 					ucx.ServiceProviderSelectorNode("serviceProvider", "serviceProvider").
 						ServiceProviderRealProvidersOnly(true).
-						ServiceProviderPreferred(app.HostProvider),
+						ServiceProviderPreferred(app.HostProvider).
+						AriaLabel("Service provider"),
 				),
 			ucx.FieldRowNodeEx("k8sVersionRow", "K8s version", "k8sVersion").
 				FieldRowDescription("The exact Kubernetes patch release to deploy.").
 				Children(
-					ucx.EnumSelectorNode("k8sVersionSelect", "k8sVersion", k8sVersionOptions()),
+					ucx.EnumSelectorNode("k8sVersionSelect", "k8sVersion", k8sVersionOptions()).
+						AriaLabel("K8s version"),
 				),
 		),
 	)
@@ -284,19 +287,23 @@ func (app *k8sApp) cardControlPlane() ucx.UiNode {
 				FieldRowDescription("The machine type used for the control plane nodes.").
 				Children(
 					ucx.MachineTypeSelector("controlPlaneMachine", "", "controlPlaneMachine", ucx.MachineCapabilityVm).
-						MachineSelectorProviderBindPath("serviceProvider").MachineSelectorProviderOnly(true),
+						MachineSelectorProviderBindPath("serviceProvider").
+						MachineSelectorProviderOnly(true).
+						AriaLabel("Control plane machine type"),
 				),
 			ucx.FieldRowNodeEx("controlPlaneNodesRow", "Node count", "controlPlaneNodes").
 				FieldRowDescription("The number of control plane nodes. Must be an odd number from 1 to 7.").
 				FieldRowRequired(true).
 				Children(
-					ucx.InputNumber("controlPlaneNodes", "", "controlPlaneNodes", 1, 7),
+					ucx.InputNumber("controlPlaneNodes", "", "controlPlaneNodes", 1, 7).
+						AriaLabel("Control plane node count"),
 				),
 			ucx.FieldRowNodeEx("controlPlaneDiskRow", "Disk size (GB)", "controlPlaneDiskGb").
 				FieldRowDescription("The disk size for each control plane node.").
 				FieldRowRequired(true).
 				Children(
-					ucx.InputNumber("controlPlaneDisk", "", "controlPlaneDiskGb", 10, 1024),
+					ucx.InputNumber("controlPlaneDisk", "", "controlPlaneDiskGb", 10, 1024).
+						AriaLabel("Control plane disk size"),
 				),
 		),
 	)
@@ -344,25 +351,30 @@ func (app *k8sApp) poolCard(index int) ucx.UiNode {
 				FieldRowDescription("The Kubernetes node group name for this pool. Must contain only a-z, 0-9 and dashes.").
 				FieldRowRequired(true).
 				Children(
-					ucx.InputText("poolName"+indexPath, "", "workers", "pools."+indexPath+".name"),
+					ucx.InputText("poolName"+indexPath, "", "workers", "pools."+indexPath+".name").
+						AriaLabel(fmt.Sprintf("Worker pool %d name", index+1)),
 				),
 			ucx.FieldRowNodeEx("poolMachineRow"+indexPath, "Machine type", "").
 				FieldRowDescription("The machine type used for the nodes in this pool.").
 				Children(
 					ucx.MachineTypeSelector("poolMachine"+indexPath, "", "pools."+indexPath+".machine", ucx.MachineCapabilityVm).
-						MachineSelectorProviderBindPath("serviceProvider").MachineSelectorProviderOnly(true),
+						MachineSelectorProviderBindPath("serviceProvider").
+						MachineSelectorProviderOnly(true).
+						AriaLabel(fmt.Sprintf("Worker pool %d machine type", index+1)),
 				),
 			ucx.FieldRowNodeEx("poolNodesRow"+indexPath, "Node count", "pools."+indexPath+".nodes").
 				FieldRowDescription("The number of worker nodes in this pool.").
 				FieldRowRequired(true).
 				Children(
-					ucx.InputNumber("poolNodes"+indexPath, "", "pools."+indexPath+".nodes", 1, 250),
+					ucx.InputNumber("poolNodes"+indexPath, "", "pools."+indexPath+".nodes", 1, 250).
+						AriaLabel(fmt.Sprintf("Worker pool %d node count", index+1)),
 				),
 			ucx.FieldRowNodeEx("poolDiskRow"+indexPath, "Disk size (GB)", "pools."+indexPath+".diskGb").
 				FieldRowDescription("The disk size for each node in this pool.").
 				FieldRowRequired(true).
 				Children(
-					ucx.InputNumber("poolDisk"+indexPath, "", "pools."+indexPath+".diskGb", 10, 1024),
+					ucx.InputNumber("poolDisk"+indexPath, "", "pools."+indexPath+".diskGb", 10, 1024).
+						AriaLabel(fmt.Sprintf("Worker pool %d disk size", index+1)),
 				),
 		),
 	)

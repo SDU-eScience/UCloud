@@ -73,7 +73,7 @@ func InitServerHandlers() {
 		networksBySubdomain := map[string]*IntrospectedNetwork{}
 
 		for _, resc := range job.Specification.Resources {
-			if resc.Type != orc.AppParameterValueTypePrivateNetwork {
+			if !orc.IsNetworkValue(resc) {
 				continue
 			}
 

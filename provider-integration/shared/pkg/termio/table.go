@@ -1,7 +1,6 @@
 package termio
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	"unicode"
@@ -9,40 +8,73 @@ import (
 )
 
 type Table struct {
-	header []TableHeader
-	rows   [][]string
+	header        []TableHeader
+	rows          [][]StyledString
+	fill          bool
+	brightBorders bool
 }
+
+const tableEmptyMessage = " No data available"
 
 type TableHeaderFlags = uint64
 
 const (
 	TableHeaderAlignRight TableHeaderFlags = 1 << iota
+	TableHeaderFlex
 )
 
 type TableHeader struct {
-	Title string
-	Flags TableHeaderFlags
+	Title      string
+	Flags      TableHeaderFlags
+	WidthGroup string
+	MaxWidth   int
 }
 
 func (t *Table) AppendHeader(title string) {
-	t.header = append(t.header, TableHeader{title, 0})
+	t.header = append(t.header, TableHeader{Title: title})
 }
 
 func (t *Table) AppendHeaderEx(title string, flags TableHeaderFlags) {
-	t.header = append(t.header, TableHeader{title, flags})
+	t.header = append(t.header, TableHeader{Title: title, Flags: flags})
+}
+
+func (t *Table) SetColumnWidthGroup(column int, group string) {
+	if column < 0 || column >= len(t.header) {
+		panic("termio: table column index out of range")
+	}
+	t.header[column].WidthGroup = group
+}
+
+func (t *Table) SetColumnMaxWidth(column int, width int) {
+	if column < 0 || column >= len(t.header) {
+		panic("termio: table column index out of range")
+	}
+	t.header[column].MaxWidth = width
+}
+
+func (t *Table) SetFill(fill bool) {
+	t.fill = fill
+}
+
+func (t *Table) SetDimBorders(dim bool) {
+	t.brightBorders = !dim
 }
 
 func (t *Table) Cell(formatString string, args ...any) {
+	t.CellValue(Plain(formatString, args...))
+}
+
+func (t *Table) CellValue(value StyledString) {
 	if len(t.rows) == 0 {
-		t.rows = append(t.rows, []string{})
+		t.rows = append(t.rows, []StyledString{})
 	} else {
 		currentRow := t.rows[len(t.rows)-1]
 		if len(currentRow) == len(t.header) {
-			t.rows = append(t.rows, []string{})
+			t.rows = append(t.rows, []StyledString{})
 		}
 	}
 
-	t.rows[len(t.rows)-1] = append(t.rows[len(t.rows)-1], fmt.Sprintf(formatString, args...))
+	t.rows[len(t.rows)-1] = append(t.rows[len(t.rows)-1], value)
 }
 
 func (t *Table) Print() {
@@ -50,152 +82,202 @@ func (t *Table) Print() {
 }
 
 func (t *Table) String() string {
-	ptyCols, _, isPty := safeQueryPtySize()
-	return t.stringWithWidth(ptyCols, isPty)
+	ptyCols, _, _ := safeQueryPtySize()
+	return t.stringWithWidth(ptyCols, ColorEnabled(os.Stdout))
 }
 
-func (t *Table) stringWithWidth(ptyCols int, isPty bool) string {
+func (t *Table) stringWithWidth(ptyCols int, styled bool) string {
+	fillColumn := -1
+	if t.fill {
+		fillColumn = t.fillColumn()
+	}
+	return t.stringWithWidths(ptyCols, styled, t.preferredWidths(), fillColumn, t.brightBorders)
+}
+
+func (t *Table) preferredWidths() []int {
+	widths := make([]int, len(t.header))
+	for col, header := range t.header {
+		widths[col] = t.columnWidth(header, header.Title)
+	}
+
+	for _, row := range t.rows {
+		for col, cell := range row {
+			if col >= len(widths) {
+				continue
+			}
+			if width := t.columnWidth(t.header[col], cell.Text); width > widths[col] {
+				widths[col] = width
+			}
+		}
+	}
+
+	for col := range widths {
+		widths[col] = max(1, widths[col])
+	}
+	return widths
+}
+
+func (t *Table) columnWidth(header TableHeader, value string) int {
+	width := utf8.RuneCountInString(value)
+	if header.MaxWidth > 0 && width > header.MaxWidth {
+		width = header.MaxWidth
+	}
+	return width
+}
+
+func (t *Table) fillColumn() int {
+	for col, header := range t.header {
+		if header.Flags&TableHeaderFlex != 0 {
+			return col
+		}
+	}
+	return -1
+}
+
+func (t *Table) stringWithWidths(
+	ptyCols int,
+	styled bool,
+	preferredWidths []int,
+	fillColumn int,
+	brightBorders bool,
+) string {
 	if len(t.header) == 0 {
 		return ""
 	}
 
-	preferredWidths := make([]int, len(t.header))
-	for col, header := range t.header {
-		preferredWidths[col] = utf8.RuneCountInString(header.Title)
+	spaceAssignment := assignColumnWidths(ptyCols, preferredWidths, fillColumn)
+	if len(t.rows) == 0 {
+		spaceAssignment = growColumnsForEmptyMessage(spaceAssignment, utf8.RuneCountInString(tableEmptyMessage)+1)
 	}
-
-	for _, row := range t.rows {
-		for col, val := range row {
-			if col >= len(preferredWidths) {
-				continue
-			}
-
-			if w := utf8.RuneCountInString(val); w > preferredWidths[col] {
-				preferredWidths[col] = w
-			}
-		}
-	}
-
-	spaceAssignment := assignColumnWidths(ptyCols, preferredWidths)
 	builder := strings.Builder{}
 
-	// Header top border
-	{
-		builder.WriteString(boxNwCorner)
-		for col := range t.header {
-			builder.WriteString(strings.Repeat(boxHorizontalBar, spaceAssignment[col]+2))
-			if col == len(t.header)-1 {
-				builder.WriteString(boxNeCorner)
-			} else {
-				builder.WriteString(boxHorizontalDown)
-			}
-		}
-		builder.WriteString("\n")
+	tableWidth := 1 + 3*len(t.header)
+	for _, width := range spaceAssignment {
+		tableWidth += width
 	}
 
-	// Header content (may wrap)
-	{
-		headerLines := make([][]string, len(t.header))
-		headerHeight := 1
-
-		for col, header := range t.header {
-			wrapped := wrapText(header.Title, spaceAssignment[col])
-			headerLines[col] = wrapped
-			headerHeight = max(headerHeight, len(wrapped))
+	border := func(value string) string {
+		if brightBorders {
+			return value
 		}
+		return WriteStyledStringIf(styled, 0, Muted, DefaultColor, "%s", value)
+	}
 
-		for row := 0; row < headerHeight; row++ {
-			builder.WriteString(boxVerticalBar)
-			for col := range t.header {
-				line := ""
-				if row < len(headerLines[col]) {
-					line = headerLines[col][row]
-				}
+	builder.WriteString(border(boxNwCorner))
+	for col := range t.header {
+		builder.WriteString(border(strings.Repeat(boxHorizontalBar, spaceAssignment[col]+2)))
+		if col == len(t.header)-1 {
+			builder.WriteString(border(boxNeCorner))
+		} else {
+			builder.WriteString(border(boxHorizontalDown))
+		}
+	}
+	builder.WriteString("\n")
 
-				paddingRequired := max(0, spaceAssignment[col]-utf8.RuneCountInString(line))
-				builder.WriteString(" ")
-				builder.WriteString(WriteStyledStringIfPty(isPty, Bold, 0, 0, "%s", line))
+	headerLines := make([][]string, len(t.header))
+	headerHeight := 1
+
+	for col, header := range t.header {
+		wrapped := wrapText(header.Title, spaceAssignment[col])
+		headerLines[col] = wrapped
+		headerHeight = max(headerHeight, len(wrapped))
+	}
+
+	for row := 0; row < headerHeight; row++ {
+		builder.WriteString(border(boxVerticalBar))
+		for col := range t.header {
+			line := ""
+			if row < len(headerLines[col]) {
+				line = headerLines[col][row]
+			}
+
+			paddingRequired := max(0, spaceAssignment[col]-utf8.RuneCountInString(line))
+			colFlags := t.header[col].Flags
+
+			builder.WriteString(" ")
+			if colFlags&TableHeaderAlignRight != 0 {
 				if paddingRequired > 0 {
 					builder.WriteString(strings.Repeat(" ", paddingRequired))
 				}
-				builder.WriteString(" ")
-				builder.WriteString(boxVerticalBar)
-			}
-			builder.WriteString("\n")
-		}
-	}
-
-	// Header bottom border
-	{
-		builder.WriteString(boxVerticalRight)
-		for col := range t.header {
-			builder.WriteString(strings.Repeat(boxHorizontalBar, spaceAssignment[col]+2))
-			if col == len(t.header)-1 {
-				builder.WriteString(boxVerticalLeft)
+				builder.WriteString(WriteStyledStringIf(styled, Bold, DefaultColor, DefaultColor, "%s", line))
 			} else {
-				if len(t.rows) == 0 {
-					builder.WriteString(boxHorizontalUp)
-				} else {
-					builder.WriteString(boxCross)
+				builder.WriteString(WriteStyledStringIf(styled, Bold, DefaultColor, DefaultColor, "%s", line))
+				if paddingRequired > 0 {
+					builder.WriteString(strings.Repeat(" ", paddingRequired))
 				}
 			}
+			builder.WriteString(" ")
+			builder.WriteString(border(boxVerticalBar))
 		}
 		builder.WriteString("\n")
 	}
 
-	if len(t.rows) == 0 {
-		message := strings.Builder{}
-		message.WriteString(boxVerticalBar)
-		message.WriteString(" No data available")
-		padding := max(0, ptyCols-message.Len()+1)
-		message.WriteString(strings.Repeat(" ", padding))
-		message.WriteString(boxVerticalBar)
-		message.WriteString("\n")
+	builder.WriteString(border(boxVerticalRight))
+	for col := range t.header {
+		builder.WriteString(border(strings.Repeat(boxHorizontalBar, spaceAssignment[col]+2)))
+		if col == len(t.header)-1 {
+			builder.WriteString(border(boxVerticalLeft))
+		} else {
+			if len(t.rows) == 0 {
+				builder.WriteString(border(boxHorizontalUp))
+			} else {
+				builder.WriteString(border(boxCross))
+			}
+		}
+	}
+	builder.WriteString("\n")
 
-		builder.WriteString(message.String())
+	if len(t.rows) == 0 {
+		message := tableEmptyMessage
+		padding := max(0, tableWidth-2-utf8.RuneCountInString(message))
+		builder.WriteString(border(boxVerticalBar))
+		builder.WriteString(WriteStyledStringIf(styled, 0, Muted, DefaultColor, "%s", message))
+		builder.WriteString(strings.Repeat(" ", padding))
+		builder.WriteString(border(boxVerticalBar))
+		builder.WriteString("\n")
 	} else {
 		for _, row := range t.rows {
-			wrappedCells := make([][]string, len(t.header))
+			wrappedCells := make([][]StyledString, len(t.header))
 			rowHeight := 1
 
 			for col := range t.header {
-				value := ""
+				value := StyledString{}
 				if col < len(row) {
 					value = row[col]
 				}
 
-				wrapped := wrapText(value, spaceAssignment[col])
+				wrapped := wrapStyledText(value, spaceAssignment[col])
 				wrappedCells[col] = wrapped
 				rowHeight = max(rowHeight, len(wrapped))
 			}
 
 			for lineIdx := 0; lineIdx < rowHeight; lineIdx++ {
-				builder.WriteString(boxVerticalBar)
+				builder.WriteString(border(boxVerticalBar))
 				for col := range t.header {
-					value := ""
+					value := StyledString{}
 					if lineIdx < len(wrappedCells[col]) {
 						value = wrappedCells[col][lineIdx]
 					}
 
 					colFlags := t.header[col].Flags
-					paddingRequired := max(0, spaceAssignment[col]-utf8.RuneCountInString(value))
+					paddingRequired := max(0, spaceAssignment[col]-utf8.RuneCountInString(value.Text))
 
 					if colFlags&TableHeaderAlignRight != 0 {
 						builder.WriteString(" ")
 						if paddingRequired > 0 {
 							builder.WriteString(strings.Repeat(" ", paddingRequired))
 						}
-						builder.WriteString(value)
+						builder.WriteString(value.Render(styled))
 						builder.WriteString(" ")
-						builder.WriteString(boxVerticalBar)
+						builder.WriteString(border(boxVerticalBar))
 					} else {
 						builder.WriteString(" ")
-						builder.WriteString(value)
+						builder.WriteString(value.Render(styled))
 						if paddingRequired > 0 {
 							builder.WriteString(strings.Repeat(" ", paddingRequired))
 						}
 						builder.WriteString(" ")
-						builder.WriteString(boxVerticalBar)
+						builder.WriteString(border(boxVerticalBar))
 					}
 				}
 				builder.WriteString("\n")
@@ -203,28 +285,100 @@ func (t *Table) stringWithWidth(ptyCols int, isPty bool) string {
 		}
 	}
 
-	// Table bottom border
-	{
-		builder.WriteString(boxSwCorner)
-		for col := range t.header {
-			builder.WriteString(strings.Repeat(boxHorizontalBar, spaceAssignment[col]+2))
-			if col == len(t.header)-1 {
-				builder.WriteString(boxSeCorner)
+	builder.WriteString(border(boxSwCorner))
+	for col := range t.header {
+		builder.WriteString(border(strings.Repeat(boxHorizontalBar, spaceAssignment[col]+2)))
+		if col == len(t.header)-1 {
+			builder.WriteString(border(boxSeCorner))
+		} else {
+			if len(t.rows) == 0 {
+				builder.WriteString(border(boxHorizontalBar))
 			} else {
-				if len(t.rows) == 0 {
-					builder.WriteString(boxHorizontalBar)
-				} else {
-					builder.WriteString(boxHorizontalUp)
-				}
+				builder.WriteString(border(boxHorizontalUp))
 			}
 		}
-		builder.WriteString("\n")
+	}
+	builder.WriteString("\n")
+
+	return builder.String()
+}
+
+type tableSetSection struct {
+	title string
+	table *Table
+}
+
+type TableSet struct {
+	sections      []tableSetSection
+	fill          bool
+	brightBorders bool
+}
+
+func (s *TableSet) Add(title string, table *Table) {
+	s.sections = append(s.sections, tableSetSection{title: title, table: table})
+}
+
+func (s *TableSet) SetFill(fill bool) {
+	s.fill = fill
+}
+
+func (s *TableSet) SetDimBorders(dim bool) {
+	s.brightBorders = !dim
+}
+
+func (s *TableSet) Print() {
+	os.Stdout.WriteString(s.String())
+}
+
+func (s *TableSet) String() string {
+	ptyCols, _, _ := safeQueryPtySize()
+	styled := ColorEnabled(os.Stdout)
+
+	preferred := make([][]int, len(s.sections))
+	groupWidths := map[string]int{}
+
+	for sectionIdx, section := range s.sections {
+		preferred[sectionIdx] = section.table.preferredWidths()
+		for col, header := range section.table.header {
+			if header.WidthGroup == "" {
+				continue
+			}
+			width := preferred[sectionIdx][col]
+			if current, ok := groupWidths[header.WidthGroup]; !ok || width > current {
+				groupWidths[header.WidthGroup] = width
+			}
+		}
+	}
+
+	builder := strings.Builder{}
+	for sectionIdx, section := range s.sections {
+		if sectionIdx > 0 {
+			builder.WriteString("\n")
+		}
+		if section.title != "" {
+			builder.WriteString(WriteStyledStringIf(styled, Bold, DefaultColor, DefaultColor, "%s", section.title))
+			builder.WriteString("\n")
+		}
+
+		widths := append([]int(nil), preferred[sectionIdx]...)
+		for col, header := range section.table.header {
+			if header.WidthGroup != "" {
+				widths[col] = groupWidths[header.WidthGroup]
+			}
+		}
+
+		fillColumn := -1
+		if s.fill {
+			fillColumn = section.table.fillColumn()
+		}
+
+		builder.WriteString(section.table.stringWithWidths(ptyCols, styled, widths, fillColumn, s.brightBorders))
 	}
 
 	return builder.String()
 }
 
-func assignColumnWidths(ptyCols int, preferred []int) []int {
+func assignColumnWidths(ptyCols int, preferred []int, fillColumn int) []int {
 	widths := make([]int, len(preferred))
 	copy(widths, preferred)
 
@@ -263,25 +417,52 @@ func assignColumnWidths(ptyCols int, preferred []int) []int {
 		current--
 	}
 
-	if current < availableContent {
-		leftover := availableContent - current
-		spacePerColumn := leftover / len(widths)
-		for i := range widths {
-			grow := min(leftover, spacePerColumn)
-			widths[i] += grow
-			leftover -= grow
-		}
+	if fillColumn >= 0 && fillColumn < len(widths) && current < availableContent {
+		widths[fillColumn] += availableContent - current
+	}
 
-		for i := range widths {
-			if leftover <= 0 {
-				break
-			}
-			widths[i]++
-			leftover--
+	return widths
+}
+
+func growColumnsForEmptyMessage(widths []int, minimumContentWidth int) []int {
+	if len(widths) == 0 {
+		return widths
+	}
+
+	contentWidth := 3*len(widths) - 1
+	for _, width := range widths {
+		contentWidth += width
+	}
+
+	deficit := minimumContentWidth - contentWidth
+	if deficit <= 0 {
+		return widths
+	}
+
+	extraPerColumn := deficit / len(widths)
+	remainder := deficit % len(widths)
+	for idx := range widths {
+		widths[idx] += extraPerColumn
+		if idx < remainder {
+			widths[idx]++
 		}
 	}
 
 	return widths
+}
+
+func wrapStyledText(value StyledString, width int) []StyledString {
+	lines := wrapText(value.Text, width)
+	result := make([]StyledString, len(lines))
+	for i, line := range lines {
+		result[i] = StyledString{
+			Text:  line,
+			Style: value.Style,
+			Fg:    value.Fg,
+			Bg:    value.Bg,
+		}
+	}
+	return result
 }
 
 func wrapText(value string, width int) []string {

@@ -114,9 +114,13 @@ func initPrivateNetworks() {
 		},
 		func(item *orcapi.ProviderRegisteredResource[orcapi.PrivateNetworkSpecification]) (any, func(), *util.HttpError) {
 			spec := item.Spec
-			spec.Name = strings.TrimSpace(spec.Name)
 
-			if err := privateNetworkValidateSpecification(spec); err != nil {
+			support, ok := SupportByProduct[orcapi.PrivateNetworkSupport](privateNetworkType, spec.Product)
+			if !ok {
+				return nil, nil, util.HttpErr(http.StatusNotFound, "unknown product requested")
+			}
+
+			if err := privateNetworkNormalizeAndValidateSpecification(&spec, support.Support); err != nil {
 				return nil, nil, err
 			}
 
@@ -130,9 +134,12 @@ func initPrivateNetworks() {
 			}
 
 			return &internalPrivateNetwork{
-				Name:      spec.Name,
-				Subdomain: subdomain,
-				Cidr:      spec.Cidr,
+				Name:         spec.Name,
+				Subdomain:    subdomain,
+				Cidr:         spec.Cidr,
+				Type:         spec.EffectiveType(),
+				LastUsedAt:   fndapi.Timestamp(time.Now()),
+				ReclaimState: orcapi.NetworkReclaimActive,
 			}, nil, nil
 		},
 	))
@@ -186,6 +193,16 @@ func initPrivateNetworks() {
 				orcapi.PermissionProvider,
 				func(r *resource, mapped orcapi.PrivateNetwork) {
 					network := r.Extra.(*internalPrivateNetwork)
+					if item.Update.CidrBlock.Present && network.EffectiveType() == orcapi.NetworkTypeInfiniband {
+						prefix, ok := orcapi.PrivateNetworkParseCidr(item.Update.CidrBlock.Value)
+						if !ok || prefix.String() != item.Update.CidrBlock.Value || prefix.Bits() != orcapi.PrivateNetworkInfinibandPrefixLength {
+							conflict = util.HttpErr(
+								http.StatusBadRequest,
+								"InfiniBand networks must use an aligned /24 address block",
+							)
+							return
+						}
+					}
 					cidrCannotChange := item.Update.CidrBlock.Present && network.CidrBlock.Present && network.CidrBlock.Value != item.Update.CidrBlock.Value
 					if cidrCannotChange {
 						conflict = util.HttpErr(
@@ -221,6 +238,8 @@ func initPrivateNetworks() {
 
 		return util.Empty{}, nil
 	})
+
+	initPrivateNetworkReclaimer()
 }
 
 func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.PrivateNetworkSpecification]) ([]orcapi.PrivateNetwork, *util.HttpError) {
@@ -232,23 +251,9 @@ func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.Pri
 			return nil, util.HttpErr(http.StatusBadRequest, "unsupported operation")
 		}
 
-		item.Name = strings.TrimSpace(item.Name)
-		if item.Cidr.Present {
-			item.Cidr.Set(strings.TrimSpace(item.Cidr.Value))
-			if item.Cidr.Value == "" {
-				item.Cidr.Clear()
-			}
-		}
-
-		err := privateNetworkValidateSpecification(item)
+		err := privateNetworkNormalizeAndValidateSpecification(&item, support.Support)
 		if err != nil {
 			return nil, err
-		}
-		if item.Cidr.Present {
-			err := privateNetworkValidateCidrSupport(item.Cidr.Value, support.Support)
-			if err != nil {
-				return nil, err
-			}
 		}
 
 		network, err := ResourceCreateThroughProviderEx(
@@ -256,11 +261,14 @@ func PrivateNetworkCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.Pri
 			privateNetworkType,
 			item.ResourceSpecification,
 			&internalPrivateNetwork{
-				Name: item.Name,
-				Cidr: item.Cidr,
+				Name:         item.Name,
+				Cidr:         item.Cidr,
+				Type:         item.EffectiveType(),
+				LastUsedAt:   fndapi.Timestamp(time.Now()),
+				ReclaimState: orcapi.NetworkReclaimActive,
 			},
 			orcapi.PrivateNetworksProviderCreate,
-			ProviderCallOpts{Timeout: util.OptValue(30 * time.Second)},
+			ProviderCallOpts{Timeout: util.OptValue(2 * time.Minute)},
 		)
 
 		if err != nil {
@@ -497,25 +505,57 @@ func PrivateNetworkRetrieveProducts(actor rpc.Actor) orcapi.SupportByProvider[or
 }
 
 type internalPrivateNetwork struct {
-	Name      string
-	Subdomain string
-	Cidr      util.Option[string]
-	CidrBlock util.Option[string]
-	Members   []string
+	Name         string
+	Subdomain    string
+	Cidr         util.Option[string]
+	CidrBlock    util.Option[string]
+	Members      []string
+	Type         orcapi.NetworkType
+	LastUsedAt   fndapi.Timestamp
+	ReclaimState orcapi.NetworkReclaimState
+	ReclaimAfter util.Option[fndapi.Timestamp]
+}
+
+func (n *internalPrivateNetwork) EffectiveType() orcapi.NetworkType {
+	if n.Type == "" {
+		return orcapi.NetworkTypeEthernet
+	}
+	return n.Type
+}
+
+func (n *internalPrivateNetwork) EffectiveReclaimState() orcapi.NetworkReclaimState {
+	if n.ReclaimState == "" {
+		return orcapi.NetworkReclaimActive
+	}
+	return n.ReclaimState
 }
 
 func privateNetworkLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource) {
 	rows := db.Select[struct {
-		Resource  int64
-		Name      string
-		Subdomain string
-		Cidr      sql.Null[string]
-		CidrBlock sql.Null[string]
-		Members   []int64
+		Resource     int64
+		Name         string
+		Subdomain    string
+		Cidr         sql.Null[string]
+		CidrBlock    sql.Null[string]
+		Members      []int64
+		NetworkType  string
+		LastUsedAt   time.Time
+		ReclaimState string
+		ReclaimAfter sql.Null[time.Time]
 	}](
 		tx,
 		`
-			select resource, name, subdomain, cidr, cidr_block, members
+			select
+				resource,
+				name,
+				subdomain,
+				cidr,
+				cidr_block,
+				members,
+				network_type,
+				last_used_at,
+				reclaim_state,
+				reclaim_after
 			from app_orchestrator.private_networks
 			where resource = some(:ids::int8[])
 	    `,
@@ -531,11 +571,17 @@ func privateNetworkLoad(tx *db.Transaction, ids []int64, resources map[ResourceI
 		}
 
 		resources[ResourceId(row.Resource)].Extra = &internalPrivateNetwork{
-			Name:      row.Name,
-			Subdomain: row.Subdomain,
-			Cidr:      util.SqlNullToOpt(row.Cidr),
-			CidrBlock: util.SqlNullToOpt(row.CidrBlock),
-			Members:   members,
+			Name:         row.Name,
+			Subdomain:    row.Subdomain,
+			Cidr:         util.SqlNullToOpt(row.Cidr),
+			CidrBlock:    util.SqlNullToOpt(row.CidrBlock),
+			Members:      members,
+			Type:         orcapi.NetworkType(row.NetworkType),
+			LastUsedAt:   fndapi.Timestamp(row.LastUsedAt),
+			ReclaimState: orcapi.NetworkReclaimState(row.ReclaimState),
+			ReclaimAfter: util.OptMap(util.SqlNullToOpt(row.ReclaimAfter), func(value time.Time) fndapi.Timestamp {
+				return fndapi.Timestamp(value)
+			}),
 		}
 	}
 }
@@ -558,25 +604,43 @@ func privateNetworkPersist(b *db.Batch, resource *resource) {
 			members = append(members, id)
 		}
 
+		reclaimAfter := util.OptMap(network.ReclaimAfter, func(value fndapi.Timestamp) time.Time {
+			return value.Time()
+		})
+
 		db.BatchExec(
 			b,
 			`
-				insert into app_orchestrator.private_networks(resource, name, subdomain, cidr, cidr_block, members)
-				values (:resource, :name, :subdomain, :cidr, :cidr_block, :members)
+				insert into app_orchestrator.private_networks(
+					resource, name, subdomain, cidr, cidr_block, members, network_type,
+					last_used_at, reclaim_state, reclaim_after
+				)
+				values (
+					:resource, :name, :subdomain, :cidr, :cidr_block, :members, :network_type,
+					:last_used_at, :reclaim_state, :reclaim_after
+				)
 				on conflict (resource) do update set
 					name = excluded.name,
 					subdomain = excluded.subdomain,
 					cidr = excluded.cidr,
 					cidr_block = excluded.cidr_block,
-					members = excluded.members
+					members = excluded.members,
+					network_type = excluded.network_type,
+					last_used_at = excluded.last_used_at,
+					reclaim_state = excluded.reclaim_state,
+					reclaim_after = excluded.reclaim_after
 		    `,
 			db.Params{
-				"resource":   resource.Id,
-				"name":       network.Name,
-				"subdomain":  network.Subdomain,
-				"cidr":       network.Cidr.Sql(),
-				"cidr_block": network.CidrBlock.Sql(),
-				"members":    members,
+				"resource":      resource.Id,
+				"name":          network.Name,
+				"subdomain":     network.Subdomain,
+				"cidr":          network.Cidr.Sql(),
+				"cidr_block":    network.CidrBlock.Sql(),
+				"members":       members,
+				"network_type":  string(network.EffectiveType()),
+				"last_used_at":  network.LastUsedAt.Time(),
+				"reclaim_state": string(network.EffectiveReclaimState()),
+				"reclaim_after": reclaimAfter.Sql(),
 			},
 		)
 	}
@@ -595,13 +659,17 @@ func privateNetworkTransform(
 		Resource: r,
 		Specification: orcapi.PrivateNetworkSpecification{
 			Name:                  network.Name,
+			Type:                  network.EffectiveType(),
 			Cidr:                  network.Cidr,
 			ResourceSpecification: specification,
 		},
 		Status: orcapi.PrivateNetworkStatus{
-			Subdomain: network.Subdomain,
-			Members:   slices.Clone(network.Members),
-			CidrBlock: network.CidrBlock,
+			Subdomain:    network.Subdomain,
+			Members:      slices.Clone(network.Members),
+			CidrBlock:    network.CidrBlock,
+			LastUsedAt:   network.LastUsedAt,
+			ReclaimState: network.EffectiveReclaimState(),
+			ReclaimAfter: network.ReclaimAfter,
 		},
 	}
 
@@ -620,7 +688,7 @@ func PrivateNetworkBind(id string, jobId string) bool {
 	mutationLock.Lock()
 	defer mutationLock.Unlock()
 
-	return ResourceUpdate[orcapi.PrivateNetwork](
+	ok := ResourceUpdate[orcapi.PrivateNetwork](
 		rpc.ActorSystem,
 		privateNetworkType,
 		ResourceParseId(id),
@@ -630,8 +698,15 @@ func PrivateNetworkBind(id string, jobId string) bool {
 			if !slices.Contains(network.Members, jobId) {
 				network.Members = append(network.Members, jobId)
 			}
+			network.LastUsedAt = fndapi.Timestamp(time.Now())
+			network.ReclaimState = orcapi.NetworkReclaimActive
+			network.ReclaimAfter = util.OptNone[fndapi.Timestamp]()
 		},
 	)
+	if ok {
+		privateNetworkReclaimFailuresReset(id)
+	}
+	return ok
 }
 
 func PrivateNetworkUnbind(id string, jobId string) bool {
@@ -649,6 +724,44 @@ func PrivateNetworkUnbind(id string, jobId string) bool {
 			network.Members = util.RemoveFirst(network.Members, jobId)
 		},
 	)
+}
+
+func PrivateNetworkTouch(id string) bool {
+	mutationLock := networkMutationLock(id)
+	mutationLock.Lock()
+	defer mutationLock.Unlock()
+
+	return privateNetworkTouchLocked(id)
+}
+
+func privateNetworkTouchJob(job orcapi.Job) {
+	for _, value := range jobResourceValues(job.Specification) {
+		if orcapi.IsNetworkValue(value) {
+			PrivateNetworkTouch(value.Id)
+		}
+	}
+}
+
+func privateNetworkTouchLocked(id string) bool {
+	now := fndapi.Timestamp(time.Now())
+	ok := ResourceUpdate[orcapi.PrivateNetwork](
+		rpc.ActorSystem,
+		privateNetworkType,
+		ResourceParseId(id),
+		orcapi.PermissionRead,
+		func(r *resource, mapped orcapi.PrivateNetwork) {
+			network := r.Extra.(*internalPrivateNetwork)
+			network.LastUsedAt = now
+			if network.EffectiveReclaimState() == orcapi.NetworkReclaimPending {
+				network.ReclaimState = orcapi.NetworkReclaimActive
+				network.ReclaimAfter = util.OptNone[fndapi.Timestamp]()
+			}
+		},
+	)
+	if ok {
+		privateNetworkReclaimFailuresReset(id)
+	}
+	return ok
 }
 
 func privateNetworkSubdomainTaken(provider string, subdomain string, except ResourceId) bool {
@@ -687,11 +800,12 @@ func privateNetworkSubdomainTaken(provider string, subdomain string, except Reso
 	return false
 }
 
-func privateNetworkValidateJobNetworks(actor rpc.Actor, values []orcapi.AppParameterValue) *util.HttpError {
+func privateNetworkValidateJobNetworks(actor rpc.Actor, backend orcapi.ToolBackend, values []orcapi.AppParameterValue) *util.HttpError {
 	var attachedNetworks []orcapi.PrivateNetwork
+	infinibandCount := 0
 
 	for _, value := range values {
-		if value.Type != orcapi.AppParameterValueTypePrivateNetwork {
+		if !orcapi.IsNetworkValue(value) {
 			continue
 		}
 
@@ -725,6 +839,17 @@ func privateNetworkValidateJobNetworks(actor rpc.Actor, values []orcapi.AppParam
 			}
 		}
 
+		if network.Specification.EffectiveType() == orcapi.NetworkTypeInfiniband {
+			if backend == orcapi.ToolBackendVirtualMachine {
+				return util.HttpErr(http.StatusBadRequest, "InfiniBand networks are not supported for virtual machines")
+			}
+
+			infinibandCount++
+			if infinibandCount > 1 {
+				return util.HttpErr(http.StatusBadRequest, "A job can attach at most one InfiniBand network")
+			}
+		}
+
 		attachedNetworks = append(attachedNetworks, network)
 	}
 
@@ -733,9 +858,39 @@ func privateNetworkValidateJobNetworks(actor rpc.Actor, values []orcapi.AppParam
 
 var privateNetworkSubdomainRegex = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)
 
-func privateNetworkValidateSpecification(spec orcapi.PrivateNetworkSpecification) *util.HttpError {
+func privateNetworkNormalizeAndValidateSpecification(spec *orcapi.PrivateNetworkSpecification, support orcapi.PrivateNetworkSupport) *util.HttpError {
+	spec.Name = strings.TrimSpace(spec.Name)
 	if spec.Name == "" || len(spec.Name) > 256 || strings.Contains(spec.Name, "\n") {
 		return util.HttpErr(http.StatusBadRequest, "invalid private network name")
+	}
+
+	if spec.Cidr.Present {
+		spec.Cidr.Set(strings.TrimSpace(spec.Cidr.Value))
+		if spec.Cidr.Value == "" {
+			spec.Cidr.Clear()
+		}
+	}
+
+	networkType := spec.EffectiveType()
+	if !orcapi.NetworkTypeIsValid(networkType) {
+		return util.HttpErr(http.StatusBadRequest, "unknown network type")
+	}
+
+	supportType := support.EffectiveType()
+	if !orcapi.NetworkTypeIsValid(supportType) {
+		return util.HttpErr(http.StatusInternalServerError, "the provider advertises an unsupported network type")
+	}
+
+	if networkType != supportType {
+		return util.HttpErr(http.StatusBadRequest, "the network type does not match the product")
+	}
+
+	if networkType == orcapi.NetworkTypeInfiniband {
+		if spec.Cidr.Present {
+			return util.HttpErr(http.StatusBadRequest, "InfiniBand networks cannot have a user-supplied CIDR")
+		}
+		spec.Type = orcapi.NetworkTypeInfiniband
+		return nil
 	}
 
 	if spec.Cidr.Present {
@@ -743,8 +898,14 @@ func privateNetworkValidateSpecification(spec orcapi.PrivateNetworkSpecification
 		if err != nil {
 			return err
 		}
+
+		err = privateNetworkValidateCidrSupport(spec.Cidr.Value, support)
+		if err != nil {
+			return err
+		}
 	}
 
+	spec.Type = orcapi.NetworkTypeEthernet
 	return nil
 }
 

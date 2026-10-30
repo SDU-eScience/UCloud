@@ -46,11 +46,12 @@ import * as Heading from "@/ui-components/Heading";
 import {MandatoryField} from "@/UtilityComponents";
 import Text from "../ui-components/Text";
 import {PermissionsTable} from "@/Resource/PermissionEditor";
-import {slimModalStyle} from "@/Utilities/ModalUtilities";
+import {ModalBottom, slimModalStyle} from "@/Utilities/ModalUtilities";
 import {connectionState} from "@/Providers/ConnectionState";
 import {useProjectId} from "@/Project/Api";
 import {sendFailureNotification} from "@/Notifications";
 import {DriveChange} from "@/ui-components/Sidebar";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const applicationDrivesPath = "/application-drives";
 
@@ -179,12 +180,12 @@ const DriveBrowse: React.FunctionComponent<{
                 connectionState.fetch();
 
 
-                browser.setColumns([
+                browser.setColumns({[ContainerSize.LARGE]: [
                     {name: "Drive name", sortById: "title"},
                     {name: "Provider", columnWidth: 100},
                     {name: "Created by", sortById: "createdBy", columnWidth: 250},
                     {name: "Created at", sortById: "createdAt", columnWidth: 160},
-                ]);
+                ]});
 
                 // Load products and initialize dependencies
                 // =========================================================================================================
@@ -449,19 +450,19 @@ const DriveBrowse: React.FunctionComponent<{
 
                 // Rendering of rows and empty pages
                 // =========================================================================================================
-                browser.on("renderRow", (drive, row, dims) => {
+                browser.on("renderTitle", (drive, title, row) => {
                     if (!isDriveEntry(drive)) {
                         const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                        row.title.append(icon);
+                        title.append(icon);
                         ResourceBrowser.icons.renderIcon({name: "ftFolder", color: "FtFolderColor", color2: "FtFolderColor2", height: 64, width: 64}).then(setIcon);
                         icon.style.marginRight = "8px";
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(drive.title, row));
+                        title.append(ResourceBrowser.defaultTitleRenderer(drive.title, row));
                         return;
                     }
                     if (drive.specification.product.provider) {
                         if (isShare(drive)) {
                             const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                            row.title.append(icon);
+                            title.append(icon);
                             ResourceBrowser.icons.renderIcon({
                                 name: "ftSharesFolder",
                                 color: "FtFolderColor",
@@ -473,30 +474,40 @@ const DriveBrowse: React.FunctionComponent<{
                         } else {
                             const pIcon = providerIcon(drive.specification.product.provider);
                             pIcon.style.marginRight = "8px";
-                            row.title.append(pIcon);
+                            title.append(pIcon);
                         }
                     }
 
-                    const title = ResourceBrowser.defaultTitleRenderer(drive.specification.title, row)
-                    row.title.append(title);
+                    const rowTitle = ResourceBrowser.defaultTitleRenderer(drive.specification.title, row)
+                    title.append(rowTitle);
                     if (browser.currentPath === "/search" && isApplicationDrive(drive)) {
                         const marker = document.createElement("span");
                         marker.innerText = "Application storage";
                         marker.style.marginLeft = "8px";
                         marker.style.fontSize = "12px";
                         marker.style.color = "var(--textSecondary)";
-                        row.title.append(marker);
+                        title.append(marker);
                     }
-                    row.stat1.innerText = getShortProviderTitle(drive.specification.product.provider);
+                });
+
+                browser.on("renderStat1", (drive, stat)  => {
+                    if (!isDriveEntry(drive)) return;
+                    stat.innerText = getShortProviderTitle(drive.specification.product.provider);
+                });
+
+                browser.on("renderStat2", (drive, stat, row) => {
+                    if (!isDriveEntry(drive)) return;
                     if (drive.owner.createdBy !== "_ucloud") {
                         const createdByElement = ResourceBrowser.defaultTitleRenderer(drive.owner.createdBy, row);
                         createdByElement.style.maxWidth = `calc(var(--stat2Width) - 20px)`;
-                        row.stat2.append(createdByElement);
+                        stat.append(createdByElement);
                     }
-
-                    row.stat3.innerText = dateToString(drive.createdAt ?? timestampUnixMs());
                 });
 
+                browser.on("renderStat3", (drive, stat) => {
+                    if (!isDriveEntry(drive)) return;
+                    stat.innerText = dateToString(drive.createdAt ?? timestampUnixMs());
+                });
 
                 browser.setEmptyIcon("ftFileSystem");
 
@@ -782,11 +793,10 @@ export function DriveCreate({onCreate, onCancel, products}: CreationWithInputFie
         </Box>)}
 
         <Box />
-
-        <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"-20px"} background={"var(--dialogToolbar)"} gap={"8px"}>
+        <ModalBottom>
             <Button color={"errorMain"} type="button" onClick={onCancel}>Cancel</Button>
             <Button color={"successMain"} disabled={product == null || !entryId} type="submit">Create</Button>
-        </Flex>
+        </ModalBottom>
     </form>;
 }
 

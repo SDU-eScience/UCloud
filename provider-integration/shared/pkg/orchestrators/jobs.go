@@ -323,6 +323,10 @@ func DefaultArgBuilder(fileMapper func(ucloudPath string) string) ArgBuilder {
 }
 
 func VerifyParameterType(param *ApplicationParameter, value *AppParameterValue) bool {
+	if IsNetworkParameterType(param.Type) {
+		return IsNetworkValue(*value)
+	}
+
 	switch param.Type {
 	case ApplicationParameterTypeInputDirectory:
 		fallthrough
@@ -383,11 +387,6 @@ func VerifyParameterType(param *ApplicationParameter, value *AppParameterValue) 
 
 	case ApplicationParameterTypeModuleList:
 		if value.Type != AppParameterValueTypeModuleList {
-			return false
-		}
-
-	case ApplicationParameterTypePrivateNetwork:
-		if value.Type != AppParameterValueTypePrivateNetwork {
 			return false
 		}
 	}

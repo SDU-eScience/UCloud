@@ -15,9 +15,11 @@ import {ItemRenderer} from "@/ui-components/Browse";
 import {Product, productTypeToIcon} from "@/Accounting";
 import {Operation} from "@/ui-components/Operation";
 import {PrivateNetworkProperties} from "@/Applications/PrivateNetwork/PrivateNetworkProperties";
+import {NetworkReclaimState, PrivateNetworkType} from "@/Applications/PrivateNetwork/types";
 
 export interface PrivateNetworkSpecification extends ResourceSpecification {
     name: string;
+    type?: PrivateNetworkType;
     cidr?: string;
 }
 
@@ -25,13 +27,18 @@ export interface PrivateNetworkStatus extends ResourceStatus {
     subdomain?: string;
     members: string[];
     cidrBlock?: string;
+    lastUsedAt?: number;
+    reclaimState?: NetworkReclaimState;
+    reclaimAfter?: number;
 }
 
 export interface PrivateNetworkSupport extends ProductSupport {
+    networkType?: PrivateNetworkType;
     addressPools?: string[];
     excludedRanges?: string[];
     minPrefixLength?: number;
     maxPrefixLength?: number;
+    rdmaResourceName?: string;
 }
 
 export interface PrivateNetworkFlags extends ResourceIncludeFlags {
@@ -48,13 +55,13 @@ class PrivateNetworkApi extends ResourceApi<
     PrivateNetworkStatus,
     PrivateNetworkSupport
 > {
-    routingNamespace = "private-networks";
-    title = "Private network";
+    routingNamespace = "networks";
+    title = "Network";
     productType = "PRIVATE_NETWORK" as const;
 
     renderer: ItemRenderer<PrivateNetwork> = {
         MainTitle({resource}) {
-            if (!resource) return <>Private network</>;
+            if (!resource) return <>Network</>;
             return <>{resource.specification.name || resource.id}</>;
         },
         Icon({size}) {
@@ -65,14 +72,14 @@ class PrivateNetworkApi extends ResourceApi<
     Properties = props => <PrivateNetworkProperties {...props} />;
 
     constructor() {
-        super("private-networks");
+        super("networks");
     }
 
     public retrieveOperations(): Operation<PrivateNetwork, ResourceBrowseCallbacks<PrivateNetwork, Product>>[] {
         const ops = super.retrieveOperations();
         const create = ops.find(it => it.tag === CREATE_TAG);
         if (create) {
-            create.text = "Create private network";
+            create.text = "Create network";
         }
         return ops;
     }

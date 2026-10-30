@@ -22,6 +22,8 @@ import AppRoutes from "@/Routes";
 import {injectStyle} from "@/Unstyled";
 import {useProjectId} from "@/Project/Api";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {NetworkReclaimBadge} from "./NetworkReclaimBadge";
+import {privateNetworkTypeFromNetwork, privateNetworkTypeLabel} from "./types";
 
 const Layout = injectStyle("private-network-layout", k => `
     ${k} {
@@ -65,7 +67,7 @@ export function PrivateNetworkProperties(): React.ReactNode {
     const [networkState, fetchNetwork] = useCloudAPI<PrivateNetwork | null>({noop: true}, null);
     const [reservationCount, setReservationCount] = useState<number | null>(null);
 
-    usePage("Private network", SidebarTabId.RESOURCES);
+    usePage("Network", SidebarTabId.RESOURCES);
     useLoading(networkState.loading);
 
     const refresh = useCallback(() => {
@@ -83,24 +85,31 @@ export function PrivateNetworkProperties(): React.ReactNode {
         },
     };
     const members = network?.status.members ?? [];
+    const networkType = network ? privateNetworkTypeFromNetwork(network) : "ethernet";
     const deleteNetwork = async () => {
         if (!network) return;
         try {
             await callAPI(PrivateNetworkApi.remove(bulkRequestOf({id: network.id})));
-            navigate(AppRoutes.resources.privateNetworks());
+            navigate(AppRoutes.resources.networks());
         } catch (e) {
-            displayErrorMessageOrDefault(e, "Failed to delete private network");
+            displayErrorMessageOrDefault(e, "Failed to delete network");
         }
     };
 
     return <MainContainer main={!network ? <Box p="24px">
-        {networkState.loading ? "Loading private network..." : networkState.error?.why ?? "Private network not found."}
+        {networkState.loading ? "Loading network..." : networkState.error?.why ?? "Network not found."}
     </Box> : <div className={Layout}>
         <Card p="24px" className={HeroHeaderCard}>
             <Flex alignItems="center" gap="16px" flexWrap="wrap">
-                <Icon name="heroCloud" size={36} />
+                <Icon name="networkWiredSolid" size={36} />
                 <Box>
                     <Heading.h2>{network.specification.name || network.id}</Heading.h2>
+                    <Flex mt="8px" alignItems="center" gap="8px">
+                        <span>{privateNetworkTypeLabel(networkType)}</span>
+                        {network.status.reclaimState &&
+                            network.status.reclaimState !== "active" ?
+                            <NetworkReclaimBadge state={network.status.reclaimState} /> : null}
+                    </Flex>
                 </Box>
                 <Box flexGrow={1} />
                 <Button onClick={refresh}><Icon name="heroArrowPath" mr="8px" />Refresh</Button>
@@ -125,13 +134,27 @@ export function PrivateNetworkProperties(): React.ReactNode {
             <TabbedCard>
                 <TabbedCardTab icon="heroInformationCircle" name="Details">
                     <div className={HeroHeaderGrid}>
-                        <HeroMetric title="Subdomain">{network.status.subdomain ?? "Pending allocation"}</HeroMetric>
+                        <HeroMetric title="Type">{privateNetworkTypeLabel(networkType)}</HeroMetric>
+                        {networkType === "ethernet" ?
+                            <HeroMetric title="Subdomain">{network.status.subdomain ?? "Pending allocation"}</HeroMetric> : null}
                         <HeroMetric title="Address range">{network.status.cidrBlock ?? "Pending allocation"}</HeroMetric>
-                        <HeroMetric title="Requested range">{network.specification.cidr ?? "Automatic"}</HeroMetric>
+                        {networkType === "infiniband" ?
+                            <HeroMetric title="Last used">
+                                {network.status.lastUsedAt ? dateToString(network.status.lastUsedAt) : "Never"}
+                            </HeroMetric> : null}
                         <HeroMetric title="Created by">{network.owner.createdBy}</HeroMetric>
                         <HeroMetric title="Created at">{dateToString(network.createdAt)}</HeroMetric>
                         <HeroMetric title="Network ID">{network.id}</HeroMetric>
                     </div>
+                    {networkType === "infiniband" && network.status.reclaimState === "pending" ?
+                        <Box mt="16px" p="12px" border="1px solid var(--warningMain)" borderRadius="8px">
+                            <Box><b>This network is scheduled for deletion.</b></Box>
+                            <Box color="textSecondary" mt="4px">
+                                {network.status.reclaimAfter ?
+                                    `The provider will delete it at ${dateToString(network.status.reclaimAfter)} unless it is used.` :
+                                    "The provider will delete it unless it is used."}
+                            </Box>
+                        </Box> : null}
                 </TabbedCardTab>
             </TabbedCard>
             {projectId ? <PredicatedPermissionsTable show api={PrivateNetworkApi} res={network} /> :
@@ -140,7 +163,7 @@ export function PrivateNetworkProperties(): React.ReactNode {
                         <div className="empty-permissions">
                             <Icon name="heroUserGroup" size={32} color="textSecondary" />
                             <Box color="textSecondary" maxWidth="320px">
-                                Permissions cannot be set in a personal workspace. Switch to a project to manage access to its private networks.
+                                Permissions cannot be set in a personal workspace. Switch to a project to manage access to its networks.
                             </Box>
                         </div>
                     </TabbedCardTab>

@@ -98,6 +98,17 @@ type privateNetworkParsedSettings struct {
 	Forbidden         []netip.Prefix
 	DefaultPrefixLen  int
 	MaxNetworksPerJob int
+	Infiniband        privateNetworkInfinibandSettings
+}
+
+type privateNetworkInfinibandSettings struct {
+	Enabled          bool
+	Pools            []netip.Prefix
+	PrefixLen        int
+	RdmaResourceName string
+	DeviceLabel      string
+	Device           string
+	Reclaim          cfg.KubernetesReclaimPolicy
 }
 
 type privateNetworkTrackedRow struct {
@@ -108,6 +119,7 @@ type privateNetworkTrackedRow struct {
 	CidrBlock   sql.Null[string]
 	State       string
 	WorkspaceId string
+	NetworkType string
 }
 
 func privateNetworkUnmarshalResource(resource string, network *orc.PrivateNetwork) bool {
@@ -129,30 +141,37 @@ func privateNetworkUnmarshalResource(resource string, network *orc.PrivateNetwor
 	return true
 }
 
+func privateNetworkTypeFromRow(value string) orc.NetworkType {
+	networkType := orc.NetworkType(value)
+	if networkType == "" {
+		return orc.NetworkTypeEthernet
+	}
+	return networkType
+}
+
 func PrivateNetworkConfigureDatabase(settings cfg.KubernetesPrivateNetworks) {
 	parsed := privateNetworkParsedSettings{
 		Enabled:           settings.Enabled,
 		DefaultPrefixLen:  settings.DefaultPrefixLen,
 		MaxNetworksPerJob: settings.MaxNetworksPerJob,
-	}
-
-	if parsed.DefaultPrefixLen <= 0 {
-		parsed.DefaultPrefixLen = 24
-	}
-
-	if parsed.MaxNetworksPerJob <= 0 {
-		parsed.MaxNetworksPerJob = 4
+		Infiniband: privateNetworkInfinibandSettings{
+			Enabled:          settings.Infiniband.Enabled && settings.Enabled,
+			PrefixLen:        orc.PrivateNetworkInfinibandPrefixLength,
+			RdmaResourceName: settings.Infiniband.RdmaResourceName,
+			DeviceLabel:      settings.Infiniband.DeviceLabel,
+			Reclaim:          settings.Infiniband.Reclaim,
+		},
 	}
 
 	if parsed.Enabled {
-		if parsed.DefaultPrefixLen < 16 || parsed.DefaultPrefixLen > 24 {
-			log.Fatal("Private network defaultPrefixLen must be between 16 and 24")
+		if len(settings.CidrPools) == 0 {
+			log.Fatal("Private networks are enabled but no CIDR pools passed config validation")
 		}
 
 		for _, pool := range settings.CidrPools {
 			parsedPool, err := netip.ParsePrefix(pool)
-			if err != nil || !parsedPool.Addr().Is4() {
-				log.Fatal("Private network CIDR pool '%s' is not a valid IPv4 CIDR", pool)
+			if err != nil {
+				log.Fatal("Invalid private network CIDR pool '%s' passed config validation", pool)
 			}
 			parsed.Pools = append(parsed.Pools, parsedPool.Masked())
 		}
@@ -163,10 +182,28 @@ func PrivateNetworkConfigureDatabase(settings cfg.KubernetesPrivateNetworks) {
 
 		for _, forbidden := range settings.ForbiddenCidrs {
 			parsedForbidden, err := netip.ParsePrefix(forbidden)
-			if err != nil || !parsedForbidden.Addr().Is4() {
-				log.Fatal("Private network forbidden CIDR '%s' is not a valid IPv4 CIDR", forbidden)
+			if err != nil {
+				log.Fatal("Invalid private network forbidden CIDR '%s' passed config validation", forbidden)
 			}
 			parsed.Forbidden = append(parsed.Forbidden, parsedForbidden.Masked())
+		}
+
+		if parsed.Infiniband.Enabled {
+			if len(settings.Infiniband.CidrPools) == 0 {
+				log.Fatal("InfiniBand networks are enabled but no CIDR pools passed config validation")
+			}
+
+			for _, pool := range settings.Infiniband.CidrPools {
+				parsedPool, err := netip.ParsePrefix(pool)
+				if err != nil {
+					log.Fatal("Invalid InfiniBand CIDR pool '%s' passed config validation", pool)
+				}
+				parsed.Infiniband.Pools = append(parsed.Infiniband.Pools, parsedPool.Masked())
+			}
+
+			slices.SortFunc(parsed.Infiniband.Pools, func(a, b netip.Prefix) int {
+				return strings.Compare(a.String(), b.String())
+			})
 		}
 	}
 
@@ -178,6 +215,61 @@ func PrivateNetworkConfigureDatabase(settings cfg.KubernetesPrivateNetworks) {
 
 func PrivateNetworksFeatureEnabled() bool {
 	return privateNetworkCurrentSettings().Enabled
+}
+
+func PrivateNetworkInfinibandDevice() string {
+	return privateNetworkCurrentSettings().Infiniband.Device
+}
+
+func PrivateNetworkInfinibandDeviceLabel() string {
+	label := privateNetworkCurrentSettings().Infiniband.DeviceLabel
+	if label == "" {
+		return "ucloud.dk/ibdev"
+	}
+	return label
+}
+
+func PrivateNetworkInfinibandRdmaResourceName() string {
+	name := privateNetworkCurrentSettings().Infiniband.RdmaResourceName
+	if name == "" {
+		return "nvidia.com/rdma_shared"
+	}
+	return name
+}
+
+func PrivateNetworkJobHasInfiniband(job *orc.Job) bool {
+	if job == nil {
+		return false
+	}
+
+	for _, value := range job.Specification.Parameters {
+		if privateNetworkValueHasInfiniband(value) {
+			return true
+		}
+	}
+
+	for _, value := range job.Specification.Resources {
+		if privateNetworkValueHasInfiniband(value) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func privateNetworkValueHasInfiniband(value orc.AppParameterValue) bool {
+	if !orc.IsNetworkValue(value) {
+		return false
+	}
+
+	network, ok := PrivateNetworkRetrieve(value.Id)
+	return ok && network.Specification.EffectiveType() == orc.NetworkTypeInfiniband
+}
+
+func PrivateNetworkSetInfinibandDevice(device string) {
+	privateNetworkSettingsMu.Lock()
+	privateNetworkSettings.Infiniband.Device = device
+	privateNetworkSettingsMu.Unlock()
 }
 
 func privateNetworkCurrentSettings() privateNetworkParsedSettings {
@@ -208,7 +300,8 @@ func initPrivateNetworkDatabase() {
 					resource,
 					cidr_block::text as cidr_block,
 					state,
-					workspace_id
+					workspace_id,
+					network_type
 				from
 					tracked_private_networks
 			`,
@@ -225,6 +318,7 @@ func initPrivateNetworkDatabase() {
 		var network orc.PrivateNetwork
 		if privateNetworkUnmarshalResource(row.Resource, &network) && network.Id != "" {
 			network.Status.CidrBlock = util.SqlNullToOpt(row.CidrBlock)
+			network.Specification.Type = privateNetworkTypeFromRow(row.NetworkType)
 			copied := network
 			privateNetworks[row.ResourceId] = &copied
 		}
@@ -347,8 +441,8 @@ func privateNetworkImportLegacy(network orc.PrivateNetwork) {
 		db.Exec(
 			tx,
 			`
-				insert into tracked_private_networks(resource_id, created_by, project_id, resource, cidr_block, state, workspace_id)
-				values (:resource_id, :created_by, :project_id, :resource, null, 'ready', :workspace_id)
+				insert into tracked_private_networks(resource_id, created_by, project_id, resource, cidr_block, state, workspace_id, network_type)
+				values (:resource_id, :created_by, :project_id, :resource, null, 'ready', :workspace_id, :network_type)
 			`,
 			db.Params{
 				"resource_id":  network.Id,
@@ -356,6 +450,7 @@ func privateNetworkImportLegacy(network orc.PrivateNetwork) {
 				"project_id":   network.Owner.Project.Value,
 				"resource":     string(jsonified),
 				"workspace_id": workspace.String(),
+				"network_type": string(network.Specification.EffectiveType()),
 			},
 		)
 		cacheLive = true
@@ -393,6 +488,11 @@ func privateNetworkTrackExisting(
 	merged.Status.Subdomain = stored.Status.Subdomain
 	merged.Specification.Cidr = stored.Specification.Cidr
 	merged.Status.CidrBlock = util.SqlNullToOpt(row.CidrBlock)
+	if row.NetworkType != "" {
+		merged.Specification.Type = orc.NetworkType(row.NetworkType)
+	} else {
+		merged.Specification.Type = stored.Specification.EffectiveType()
+	}
 
 	if persist {
 		mergedJson, _ := json.Marshal(merged)
@@ -447,6 +547,7 @@ func PrivateNetworkRetrieve(id string) (orc.PrivateNetwork, bool) {
 	}
 
 	network.Status.CidrBlock = util.SqlNullToOpt(row.CidrBlock)
+	network.Specification.Type = privateNetworkTypeFromRow(row.NetworkType)
 
 	privateNetworkMutex.Lock()
 	if existing, ok := privateNetworks[id]; ok {
@@ -481,7 +582,8 @@ func privateNetworkSelectNetwork(tx *db.Transaction, networkId string) (privateN
 				resource,
 				cidr_block::text as cidr_block,
 				state,
-				workspace_id
+				workspace_id,
+				network_type
 			from
 				tracked_private_networks
 			where
@@ -495,7 +597,9 @@ func privateNetworkSelectNetwork(tx *db.Transaction, networkId string) (privateN
 
 func privateNetworkLockPools(tx *db.Transaction) {
 	settings := privateNetworkCurrentSettings()
-	for _, pool := range settings.Pools {
+	pools := slices.Clone(settings.Pools)
+	pools = append(pools, settings.Infiniband.Pools...)
+	for _, pool := range pools {
 		db.Exec(
 			tx,
 			`
@@ -625,6 +729,7 @@ type PrivateNetworkSnapshotNetwork struct {
 	CidrBlock   util.Option[string]
 	State       string
 	WorkspaceId string
+	NetworkType orc.NetworkType
 }
 
 type privateNetworkSnapshotRow struct {
@@ -633,6 +738,7 @@ type privateNetworkSnapshotRow struct {
 	CidrBlock   sql.Null[string]
 	State       string
 	WorkspaceId string
+	NetworkType string
 }
 
 func (row privateNetworkSnapshotRow) toSnapshot() PrivateNetworkSnapshotNetwork {
@@ -642,6 +748,7 @@ func (row privateNetworkSnapshotRow) toSnapshot() PrivateNetworkSnapshotNetwork 
 		CidrBlock:   privateNetworkOptFromSql(row.CidrBlock),
 		State:       row.State,
 		WorkspaceId: row.WorkspaceId,
+		NetworkType: privateNetworkTypeFromRow(row.NetworkType),
 	}
 }
 
@@ -655,7 +762,8 @@ func PrivateNetworkSnapshotNetworks() []PrivateNetworkSnapshotNetwork {
 					coalesce(nullif(resource->'status'->>'subdomain', ''), resource->'specification'->>'subdomain') as subdomain,
 					cidr_block::text as cidr_block,
 					state,
-					workspace_id
+					workspace_id,
+					network_type
 				from
 					tracked_private_networks
 				order by
@@ -681,7 +789,8 @@ func PrivateNetworkSnapshotRetrieve(networkId string) (PrivateNetworkSnapshotNet
 					coalesce(nullif(resource->'status'->>'subdomain', ''), resource->'specification'->>'subdomain') as subdomain,
 					cidr_block::text as cidr_block,
 					state,
-					workspace_id
+					workspace_id,
+					network_type
 				from
 					tracked_private_networks
 				where
@@ -699,6 +808,7 @@ func PrivateNetworkSnapshotRetrieve(networkId string) (PrivateNetworkSnapshotNet
 
 type PrivateNetworkPoolUtilization struct {
 	Pool        string
+	NetworkType orc.NetworkType
 	PrefixLen   int
 	TotalBlocks int
 	UsedBlocks  int
@@ -706,7 +816,7 @@ type PrivateNetworkPoolUtilization struct {
 
 func PrivateNetworkSnapshotPoolUtilization() []PrivateNetworkPoolUtilization {
 	settings := privateNetworkCurrentSettings()
-	if len(settings.Pools) == 0 {
+	if len(settings.Pools) == 0 && (!settings.Infiniband.Enabled || len(settings.Infiniband.Pools) == 0) {
 		return nil
 	}
 
@@ -732,9 +842,34 @@ func PrivateNetworkSnapshotPoolUtilization() []PrivateNetworkPoolUtilization {
 		}
 	}
 
-	blockSize := uint64(1) << (32 - uint64(settings.DefaultPrefixLen))
+	result := privateNetworkPoolUtilizationForPools(
+		settings.Pools,
+		settings.DefaultPrefixLen,
+		orc.NetworkTypeEthernet,
+		used,
+	)
+
+	if settings.Infiniband.Enabled {
+		result = append(result, privateNetworkPoolUtilizationForPools(
+			settings.Infiniband.Pools,
+			settings.Infiniband.PrefixLen,
+			orc.NetworkTypeInfiniband,
+			used,
+		)...)
+	}
+
+	return result
+}
+
+func privateNetworkPoolUtilizationForPools(
+	pools []netip.Prefix,
+	prefixLen int,
+	networkType orc.NetworkType,
+	used []netip.Prefix,
+) []PrivateNetworkPoolUtilization {
+	blockSize := uint64(1) << (32 - uint64(prefixLen))
 	var result []PrivateNetworkPoolUtilization
-	for _, pool := range settings.Pools {
+	for _, pool := range pools {
 		poolFirst, poolLast := privateNetworkCidrRange(pool)
 		total := int((poolLast - poolFirst + 1) / blockSize)
 
@@ -795,7 +930,8 @@ func PrivateNetworkSnapshotPoolUtilization() []PrivateNetworkPoolUtilization {
 
 		result = append(result, PrivateNetworkPoolUtilization{
 			Pool:        pool.String(),
-			PrefixLen:   settings.DefaultPrefixLen,
+			NetworkType: networkType,
+			PrefixLen:   prefixLen,
 			TotalBlocks: total,
 			UsedBlocks:  usedBlocks,
 		})

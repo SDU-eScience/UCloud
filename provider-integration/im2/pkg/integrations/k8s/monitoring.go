@@ -118,9 +118,19 @@ func (t *jobTracker) TrackState(state shared.JobReplicaState) bool {
 		t.gangs[state.Id] = gang
 	}
 
-	if state.State == orc.JobStateRunning && state.Node.Present {
+	assigned := state.Node.Present && state.Node.Value != ""
+	allocated := state.State == orc.JobStateRunning || state.State == orc.JobStateInQueue
+	if assigned && allocated {
 		sched.RegisterRunningReplica(state.Id, state.Rank, shared.JobDimensions(job), state.Node.Value, nil,
 			timeAllocationOrDefault(job.Specification.TimeAllocation))
+		if state.CpuRequestMillis.Present {
+			for i := range sched.Replicas {
+				replica := &sched.Replicas[i]
+				if replica.JobId == state.Id && replica.Rank == state.Rank {
+					replica.CpuMillis = state.CpuRequestMillis.Value
+				}
+			}
+		}
 	}
 	if state.Node.Present && state.State != orc.JobStateInQueue {
 		assigned := t.nodeAssignments[state.Node.Value]
@@ -302,7 +312,8 @@ func vmDetachLockedResources(job *orc.Job) (int, *util.HttpError) {
 		case orc.AppParameterValueTypeNetwork,
 			orc.AppParameterValueTypeIngress,
 			orc.AppParameterValueTypeLicense,
-			orc.AppParameterValueTypePrivateNetwork:
+			orc.AppParameterValueTypePrivateNetwork,
+			orc.AppParameterValueTypeUCloudNetwork:
 			accessible, _, _ := controller.JobResourceIsAccessible(job.Owner, resource)
 			shouldDetach = !accessible
 
@@ -510,7 +521,6 @@ func loopMonitoring() {
 
 	timer := util.NewTimer()
 	now := time.Now()
-	nodeGroups := map[string]map[string]string{}
 	var nodeLifecycleEvents []nodeLifecycleEvent
 
 	// NOTE(Dan): Node monitoring must go before job monitoring such that the scheduler knows about the nodes before
@@ -563,14 +573,7 @@ func loopMonitoring() {
 				k8sCapacity := node.Status.Capacity
 				k8sAllocatable := node.Status.Allocatable
 
-				resolvedGroup := catGroup.Group
 				gpuResourceTypes := shared.GpuResourceTypesForCategory(catGroup.Category)
-				machineCategory, ok := shared.ServiceConfig.Compute.Machines[catGroup.Category]
-				if ok {
-					if _, groupOk := machineCategory.Groups[resolvedGroup]; !groupOk {
-						resolvedGroup = bestEffortNodeGroup(catGroup.Category, machineCategory)
-					}
-				}
 
 				capacity := shared.SchedulerDimensions{
 					CpuMillis:     int(k8sCapacity.Cpu().MilliValue()),
@@ -596,12 +599,23 @@ func loopMonitoring() {
 					}
 				}
 
-				groupMap, ok := nodeGroups[catGroup.Category]
-				if !ok {
-					groupMap = map[string]string{}
-					nodeGroups[catGroup.Category] = groupMap
+				rdmaResource := shared.PrivateNetworkRdmaResourceName()
+				if rdmaResource != "" && shared.PrivateNetworkInfinibandNodeValid(node) {
+					rdmaCap := k8sCapacity.Name(k8score.ResourceName(rdmaResource), k8sresource.DecimalSI)
+					if rdmaCap != nil {
+						capacity.Resources[rdmaResource] = int(rdmaCap.Value())
+					}
+
+					rdmaLim := k8sAllocatable.Name(k8score.ResourceName(rdmaResource), k8sresource.DecimalSI)
+					if rdmaLim != nil {
+						limits.Resources[rdmaResource] = int(rdmaLim.Value())
+					}
 				}
-				groupMap[node.Name] = resolvedGroup
+
+				_, isMachineCategory := shared.ServiceConfig.Compute.Machines[catGroup.Category]
+				if isMachineCategory {
+					limits.CpuMillis = max(0, limits.CpuMillis-shared.SystemReservedCpuMillisForCategory(catGroup.Category))
+				}
 
 				for _, cond := range node.Status.Conditions {
 					setLimitsToZero := false
@@ -632,6 +646,8 @@ func loopMonitoring() {
 				limits.CpuMillis = max(0, limits.CpuMillis)
 
 				sched.RegisterNode(node.Name, capacity, limits, node.Spec.Unschedulable)
+				sched.Nodes[node.Name].ScaleCpuRequests = isMachineCategory
+				sched.Nodes[node.Name].CpuBudgetMillis = limits.CpuMillis
 			}
 		}
 
@@ -697,8 +713,91 @@ func loopMonitoring() {
 	metricMonitoring.WithLabelValues("VirtualMachineMonitor").Observe(timer.Mark().Seconds())
 	publishNodeLifecycleEvents(tracker, nodeLifecycleEvents)
 
+	podUsageByNode := map[string]shared.SchedulerDimensions{}
+	observedReplicas := map[schedulerReplicaKey]shared.SchedulerDimensions{}
+	infrastructureCpuByNode := map[string]int{}
+	schedulingPods := shared.JobPods.List()
+	if shared.ServiceConfig.Compute.TaskNamespace != shared.ServiceConfig.Compute.Namespace {
+		schedulingPods = append(schedulingPods, shared.BatchBackgroundPods.List()...)
+	}
+	for _, pod := range schedulingPods {
+		if pod.Spec.NodeName == "" || pod.Status.Phase == k8score.PodSucceeded || pod.Status.Phase == k8score.PodFailed {
+			continue
+		}
+		dimensions := schedulerPodDimensions(pod)
+		usage := podUsageByNode[pod.Spec.NodeName]
+		usage.Add(dimensions)
+		podUsageByNode[pod.Spec.NodeName] = usage
+
+		key, hasReplica := schedulerPodReplicaKey(pod)
+		job, hasJob := activeJobs[key.JobId]
+		if !hasReplica || !hasJob {
+			infrastructureCpuByNode[pod.Spec.NodeName] += dimensions.CpuMillis
+			continue
+		}
+		observed := observedReplicas[key]
+		observed.Add(dimensions)
+		observedReplicas[key] = observed
+		sched, hasScheduler := getSchedulerByJob(job)
+		if hasScheduler {
+			sched.RegisterRunningReplica(key.JobId, key.Rank, shared.JobDimensions(job), key.Node, nil,
+				timeAllocationOrDefault(job.Specification.TimeAllocation))
+		}
+		_, isMachine := shared.ServiceConfig.Compute.Machines[job.Specification.Product.Category]
+		if !isMachine {
+			infrastructureCpuByNode[pod.Spec.NodeName] += dimensions.CpuMillis
+		}
+	}
+
 	timer.Mark()
 	for _, sched := range schedulers {
+		for _, node := range sched.Nodes {
+			node.CpuBudgetMillis = max(0, node.Limits.CpuMillis-infrastructureCpuByNode[node.Name])
+		}
+		for i := range sched.Replicas {
+			replica := &sched.Replicas[i]
+			key := schedulerReplicaKey{
+				JobId: replica.JobId,
+				Rank:  replica.Rank,
+				Node:  replica.Node,
+			}
+			if observed, ok := observedReplicas[key]; ok {
+				replica.SchedulerDimensions = observed
+				replica.UnobservedSince = time.Time{}
+				continue
+			}
+			job, active := activeJobs[replica.JobId]
+			if !replica.Submitted || !active || job.Status.State.IsFinal() {
+				continue
+			}
+			state, tracked := tracker.gangs[replica.JobId].replicaState[replica.Rank]
+			if tracked && (state.State.IsFinal() || state.State == orc.JobStateSuspended) {
+				continue
+			}
+			if replica.UnobservedSince.IsZero() {
+				replica.UnobservedSince = now
+			}
+			if now.Sub(replica.UnobservedSince) < 5*time.Minute {
+				replica.LastSeen = sched.Time
+				continue
+			}
+			var exists bool
+			var err error
+			if backendIsKubevirt(job) {
+				exists, err = kubevirt.SchedulerPlacementExists(replica.JobId, replica.Rank)
+			} else {
+				exists, err = containers.SchedulerPlacementExists(replica.JobId, replica.Rank)
+			}
+			if err != nil {
+				log.Warn("Unable to verify unobserved placement for job %s rank %d; retaining its reservation: %v", replica.JobId, replica.Rank, err)
+			}
+			if exists || err != nil {
+				replica.LastSeen = sched.Time
+				replica.UnobservedSince = now
+			} else {
+				replica.LastSeen = sched.Time - 1
+			}
+		}
 		sched.PruneReplicas()
 
 		length := len(sched.Queue)
@@ -924,17 +1023,15 @@ func loopMonitoring() {
 
 	timer.Mark()
 	{
-		allPods := shared.JobPods.List()
-
-		resourcesByNode := map[string]map[string]int64{}
 		groupsByNode := map[string]map[string]util.Empty{}
-
-		for jobId, nodeName := range vmNodeAssignments {
-			group := shared.JobAntiAffinityGroup(kubevirtJobs[jobId])
-			if !group.Present {
-				continue
+		addAntiAffinityGroup := func(job *orc.Job, nodeName string) {
+			if job == nil || nodeName == "" {
+				return
 			}
-
+			group := shared.JobAntiAffinityGroup(job)
+			if !group.Present {
+				return
+			}
 			groups := groupsByNode[nodeName]
 			if groups == nil {
 				groups = map[string]util.Empty{}
@@ -942,79 +1039,34 @@ func loopMonitoring() {
 			}
 			groups[group.Value] = util.Empty{}
 		}
-
-		for _, pod := range allPods {
-			nodeName := pod.Spec.NodeName
-			resources, ok := resourcesByNode[nodeName]
-			if !ok {
-				resources = make(map[string]int64)
-				resourcesByNode[nodeName] = resources
-			}
-
-			if nodeName != "" {
-				if job, jobOk := activeJobs[pod.Labels["ucloud.dk/jobId"]]; jobOk {
-					group := shared.JobAntiAffinityGroup(job)
-					if group.Present {
-						groups, groupsOk := groupsByNode[nodeName]
-						if !groupsOk {
-							groups = map[string]util.Empty{}
-							groupsByNode[nodeName] = groups
-						}
-						groups[group.Value] = util.Empty{}
-					}
+		for jobId, nodeName := range vmNodeAssignments {
+			addAntiAffinityGroup(kubevirtJobs[jobId], nodeName)
+		}
+		for _, pod := range schedulingPods {
+			addAntiAffinityGroup(activeJobs[pod.Labels["ucloud.dk/jobId"]], pod.Spec.NodeName)
+		}
+		advertisedCpuByNode := map[string]int{}
+		for _, sched := range schedulers {
+			for _, replica := range sched.Replicas {
+				addAntiAffinityGroup(activeJobs[replica.JobId], replica.Node)
+				advertisedCpuByNode[replica.Node] += replica.AdvertisedCpuMillis
+				key := schedulerReplicaKey{
+					JobId: replica.JobId,
+					Rank:  replica.Rank,
+					Node:  replica.Node,
 				}
-			}
-
-			for _, c := range pod.Spec.Containers {
-				for resourceType, amount := range c.Resources.Requests {
-					intAmount := int64(0)
-					if resourceType == k8score.ResourceCPU {
-						intAmount = amount.MilliValue()
-					} else {
-						intAmount = amount.Value()
-					}
-
-					resources[string(resourceType)] = resources[string(resourceType)] + intAmount
+				if _, observed := observedReplicas[key]; !observed {
+					usage := podUsageByNode[replica.Node]
+					usage.Add(replica.SchedulerDimensions)
+					podUsageByNode[replica.Node] = usage
 				}
 			}
 		}
-
-		for catName, sched := range schedulers {
-			groupMap := nodeGroups[catName]
-			gpuResourceTypes := shared.GpuResourceTypesForCategory(catName)
-			for nodeName, _ := range sched.Nodes {
-				usage := resourcesByNode[nodeName]
-				if usage == nil {
-					usage = make(map[string]int64)
-				}
-
-				machineCategory, ok := shared.ServiceConfig.Compute.Machines[catName]
-				systemReservedCpuMillis := shared.SystemReservedCpuMillisForCategory(catName)
-
-				if ok {
-					groupName := ""
-					if groupMap != nil {
-						groupName = groupMap[nodeName]
-					}
-					if groupName == "" {
-						groupName = bestEffortNodeGroup(catName, machineCategory)
-					}
-				}
-
-				dims := shared.SchedulerDimensions{
-					CpuMillis:     int(usage[string(k8score.ResourceCPU)]) + systemReservedCpuMillis,
-					MemoryInBytes: int(usage[string(k8score.ResourceMemory)]),
-					Resources:     map[string]int{},
-				}
-				for _, gpuResourceType := range gpuResourceTypes {
-					gpuUsage := int(usage[gpuResourceType])
-					if gpuUsage > 0 {
-						dims.Resources[gpuResourceType] = gpuUsage
-					}
-				}
-
+		for _, sched := range schedulers {
+			for nodeName, node := range sched.Nodes {
 				sched.SynchronizeNodeAntiAffinity(nodeName, groupsByNode[nodeName])
-				sched.SynchronizeNodeUsage(nodeName, dims)
+				sched.SynchronizeNodeUsage(nodeName, podUsageByNode[nodeName])
+				node.AdvertisedCpuRemainingMillis = node.Capacity.CpuMillis - advertisedCpuByNode[nodeName]
 			}
 		}
 	}
@@ -1067,6 +1119,17 @@ func loopMonitoring() {
 
 		timer.Mark()
 		jobsToSchedule := sched.Schedule()
+		for _, replica := range jobsToSchedule {
+			for _, other := range schedulers {
+				if other == sched {
+					continue
+				}
+				if node, ok := other.Nodes[replica.Node]; ok {
+					node.Remaining.Subtract(replica.SchedulerDimensions)
+					node.AdvertisedCpuRemainingMillis -= replica.AdvertisedCpuMillis
+				}
+			}
+		}
 		metricMonitoring.WithLabelValues("Placement").Observe(timer.Mark().Seconds())
 
 		length := len(jobsToSchedule)
@@ -1082,6 +1145,7 @@ func loopMonitoring() {
 
 			var localMessages []controller.JobMessage = nil
 			sendMessages := true
+			placementSubmitted := false
 			_, isIApp := controller.IntegratedApplications[job.Specification.Product.Category]
 
 			if job.Specification.Replicas == 1 {
@@ -1102,7 +1166,8 @@ func loopMonitoring() {
 			toolBackend := job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
 			if toolBackend == orc.ToolBackendVirtualMachine {
 				timer.Mark()
-				err := kubevirt.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
+				err := kubevirt.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node, toSchedule.CpuMillis)
+				placementSubmitted = err == nil
 				metricMonitoring.WithLabelValues("StartJob").Observe(timer.Mark().Seconds())
 				if err != nil {
 					localMessages = append(localMessages, controller.JobMessage{
@@ -1121,7 +1186,8 @@ func loopMonitoring() {
 				}
 			} else {
 				timer.Mark()
-				err := containers.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node)
+				err := containers.StartScheduledJob(job, toSchedule.Rank, toSchedule.Node, toSchedule.CpuMillis)
+				placementSubmitted = err == nil
 				metricMonitoring.WithLabelValues("StartJob").Observe(timer.Mark().Seconds())
 
 				if err != nil {
@@ -1157,6 +1223,14 @@ func loopMonitoring() {
 				}
 			}
 
+			if placementSubmitted {
+				for replicaIdx := range sched.Replicas {
+					replica := &sched.Replicas[replicaIdx]
+					if replica.JobId == toSchedule.JobId && replica.Rank == toSchedule.Rank {
+						replica.Submitted = true
+					}
+				}
+			}
 			if sendMessages {
 				scheduleMessages = util.Combined(scheduleMessages, localMessages)
 			}

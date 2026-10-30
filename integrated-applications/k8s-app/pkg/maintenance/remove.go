@@ -72,6 +72,20 @@ func runRemove(
 			return liveErr
 		}
 
+		if exists && operation.NodeUid == "" {
+			nodeUid := string(live.UID)
+			if uidErr := worker.mutate(func(op *Operation) bool {
+				if op.NodeUid != "" {
+					return false
+				}
+				op.NodeUid = nodeUid
+				return true
+			}); uidErr != nil {
+				return fmt.Errorf("could not record the node uid: %w", uidErr)
+			}
+			operation.NodeUid = nodeUid
+		}
+
 		if exists && operation.Options.Drain {
 			result := runCordonDrain(ctx, clientset, operation, worker, true, true)
 			if result.err != nil {

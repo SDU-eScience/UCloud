@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	fnd "ucloud.dk/shared/pkg/foundation"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -15,13 +16,15 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+const iappMountTimeout = 3 * time.Minute
+
 type Client struct {
 	Session *ucx.Session
 
 	mu                 sync.Mutex
 	lastMessage        string
 	lastMessageSuccess bool
-	messageHandler     func(message string, success bool)
+	messageHandler     func(message string, success bool, level string)
 }
 
 func (c *Client) Close() {
@@ -30,7 +33,7 @@ func (c *Client) Close() {
 	}
 }
 
-func (c *Client) SetMessageHandler(handler func(message string, success bool)) {
+func (c *Client) SetMessageHandler(handler func(message string, success bool, level string)) {
 	c.mu.Lock()
 	c.messageHandler = handler
 	c.mu.Unlock()
@@ -129,7 +132,10 @@ func connect(ctx context.Context, path string, sysHello string) (*Client, error)
 	client := &Client{Session: session}
 	client.registerClientHandlers()
 
-	if _, err := ucx.WaitForMount(ctx, session); err != nil {
+	mountCtx, mountCancel := context.WithTimeout(ctx, iappMountTimeout)
+	defer mountCancel()
+
+	if _, err := ucx.WaitForMount(mountCtx, session); err != nil {
 		session.Cancel()
 		return nil, fmt.Errorf("the application did not become ready: %w", err)
 	}
@@ -148,7 +154,7 @@ func (c *Client) registerClientHandlers() {
 		c.mu.Unlock()
 
 		if handler != nil && request.Message != "" {
-			handler(request.Message, request.Success)
+			handler(request.Message, request.Success, request.Level)
 		}
 		return util.Empty{}, nil
 	})

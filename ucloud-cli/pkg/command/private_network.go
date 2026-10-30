@@ -225,7 +225,7 @@ func privateNetworkJobs(provider string) (map[string][]JobPrivateNetwork, error)
 	for name, jobArr := range jobsMap {
 		for _, job := range jobArr {
 			for _, r := range job.Specification.Resources {
-				if r.Type != "private_network" {
+				if !orcapi.IsNetworkValue(r) {
 					continue
 				}
 				privateNetworkJobs[name] = append(privateNetworkJobs[name], JobPrivateNetwork{
