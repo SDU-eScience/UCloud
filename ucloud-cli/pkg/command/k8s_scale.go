@@ -16,7 +16,7 @@ import (
 type K8sClusterScaleCommand struct {
 	Name      string `positional:"name" usage:"Cluster name" required:"true"`
 	Pool      string `flag:"pool" usage:"Pool name (required)"`
-	Nodes     int    `flag:"nodes" usage:"Target number of nodes in the pool (required)"`
+	Nodes     int    `flag:"nodes" usage:"Target number of nodes in the pool (required; 0 removes the pool)"`
 	Disk      int    `flag:"disk" usage:"Disk size in GB for new nodes (default: the pool disk)"`
 	Wait      bool   `flag:"wait" usage:"Wait until the scale operation finishes"`
 	Workspace string `flag:"workspace" usage:"Workspace to use"`
@@ -24,10 +24,11 @@ type K8sClusterScaleCommand struct {
 }
 
 type K8sClusterPoolCommand struct {
-	Action    string `positional:"action" usage:"Pool action: add" required:"true"`
+	Action    string `positional:"action" usage:"Pool action: add or rm" required:"true"`
 	Name      string `positional:"cluster" usage:"Cluster name" required:"true"`
-	PoolName  string `flag:"name" usage:"Name of the new pool (required)"`
-	Machine   string `flag:"machine" usage:"Machine type for the pool (required)"`
+	PoolName  string `flag:"name" usage:"Name of the new pool (add only)"`
+	Pool      string `flag:"pool" usage:"Name of the pool to remove (rm only)"`
+	Machine   string `flag:"machine" usage:"Machine type for the pool (add only)"`
 	Nodes     int    `flag:"nodes" usage:"Number of nodes in the new pool (default 1)"`
 	Disk      int    `flag:"disk" usage:"Disk size in GB for each node (default 50)"`
 	Wait      bool   `flag:"wait" usage:"Wait until the new nodes finish bootstrap and are ready"`
@@ -47,7 +48,7 @@ type k8sScaleResult struct {
 func (c *K8sClusterScaleCommand) HelpNotes() []string {
 	return []string{
 		"--nodes is the target total for the pool, not the number of nodes to add or remove.",
-		"The target must be at least 1. The control plane must stay at an odd count from 1 to 7.",
+		"Use --nodes 0 to remove a worker pool and all of its nodes. The control plane must stay at an odd count from 1 to 7.",
 		"Scaling a pool down drains and removes nodes one at a time in the background.",
 		"Use node remove for custom drain options.",
 		"Use --wait to block until the scale operation finishes.",
@@ -66,9 +67,6 @@ func (c *K8sClusterScaleCommand) Execute() (resultErr error) {
 	}
 	if c.Nodes < 0 {
 		return fmt.Errorf("--nodes is required")
-	}
-	if c.Nodes < 1 {
-		return fmt.Errorf("--nodes must be at least 1")
 	}
 
 	_, output, err := k8sInitializeOutput(c.Workspace, c.Output)
@@ -179,16 +177,37 @@ func (c *K8sClusterScaleCommand) Execute() (resultErr error) {
 
 func (c *K8sClusterPoolCommand) HelpNotes() []string {
 	return []string{
-		"The only action is add.",
+		"add creates a worker pool. rm removes a worker pool and all of its nodes.",
+		"Use --name for add and --pool for rm.",
 		"The machine type is resolved from the provider that runs the cluster.",
-		"Use --wait to block until the new nodes finish bootstrap and are ready.",
+		"Use --wait to block until the operation finishes.",
 	}
 }
 
 func (c *K8sClusterPoolCommand) Execute() (resultErr error) {
 	action := strings.TrimSpace(c.Action)
-	if action != "add" {
-		return fmt.Errorf("unknown pool action %q; use add", action)
+	switch action {
+	case "add":
+	case "rm":
+		name := strings.TrimSpace(c.Name)
+		if name == "" {
+			return fmt.Errorf("a cluster name is required")
+		}
+		poolName := strings.TrimSpace(c.Pool)
+		if poolName == "" {
+			return fmt.Errorf("--pool is required")
+		}
+		return (&K8sClusterScaleCommand{
+			Name:      name,
+			Pool:      poolName,
+			Nodes:     0,
+			Disk:      -1,
+			Wait:      c.Wait,
+			Workspace: c.Workspace,
+			Output:    c.Output,
+		}).Execute()
+	default:
+		return fmt.Errorf("unknown pool action %q; use add or rm", action)
 	}
 
 	name := strings.TrimSpace(c.Name)
@@ -323,8 +342,14 @@ func k8sUnknownPoolError(status k8sapi.StatusResponse, name string) error {
 }
 
 func k8sValidateScaleTarget(pool k8sapi.StatusPool, target int) error {
-	if target < 1 {
-		return fmt.Errorf("--nodes must be at least 1")
+	if target < 0 {
+		return fmt.Errorf("--nodes must be at least 0")
+	}
+	if target == 0 {
+		if pool.ControlPlane {
+			return fmt.Errorf("the control plane must keep at least three nodes")
+		}
+		return nil
 	}
 
 	if pool.ControlPlane {
@@ -474,9 +499,6 @@ func k8sPrintScaleResult(
 	frame := k8sSummaryFrame(message)
 	frame.AppendField("Pool", termio.EscapeName(pool))
 	frame.AppendField("Nodes", strconv.Itoa(nodes))
-	if runUid != "" {
-		frame.AppendField("Run", runUid)
-	}
 	frame.AppendField("Dashboard", outputLink(dashboardUrl))
 	frame.Print()
 	return nil

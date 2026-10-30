@@ -399,9 +399,11 @@ func removeNodeRecordFromCluster(nodeName string) error {
 		}
 
 		record := snapshot.Record
+		nodeGroup := ""
 		found := false
 		for i := range record.Nodes {
 			if record.Nodes[i].Hostname == nodeName {
+				nodeGroup = record.Nodes[i].Group
 				record.Nodes = append(record.Nodes[:i], record.Nodes[i+1:]...)
 				found = true
 				break
@@ -409,6 +411,17 @@ func removeNodeRecordFromCluster(nodeName string) error {
 		}
 		if !found {
 			return nil
+		}
+		if nodeGroup != "" &&
+			nodeGroup != shared.GroupControlPlane &&
+			len(shared.NodesInGroup(record, nodeGroup)) == 0 {
+			pools := record.Pools[:0]
+			for _, pool := range record.Pools {
+				if pool.Name != nodeGroup {
+					pools = append(pools, pool)
+				}
+			}
+			record.Pools = pools
 		}
 
 		_, writeErr := shared.ClusterStateRecordWrite(client, &record, snapshot.Revision)

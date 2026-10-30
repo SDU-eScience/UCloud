@@ -242,6 +242,25 @@ export const TerminalContainer: React.FunctionComponent = () => {
         if (creatingTerminal.current) return;
         creatingTerminal.current = true;
         try {
+            const activeTab = state.tabs[state.activeTab];
+            if (activeTab?.jobId) {
+                dispatch(terminalOpen());
+                dispatch(terminalOpenTab({
+                    select: true,
+                    tab: {
+                        title: activeTab.title,
+                        folder: activeTab.folder,
+                        providerId: activeTab.providerId,
+                        jobId: activeTab.jobId,
+                        rank: activeTab.rank,
+                        initialCommand: activeTab.initialCommand,
+                        clearAfter: activeTab.clearAfter,
+                        suppressUntil: activeTab.suppressUntil,
+                    },
+                }));
+                return;
+            }
+
             const terminalLocation = await resolveNewTerminalLocation(state, location.pathname, location.search);
             dispatch(terminalOpen());
             dispatch(terminalOpenTab({

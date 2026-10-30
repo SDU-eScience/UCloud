@@ -677,7 +677,14 @@ export const UcxNavTree: React.FunctionComponent<UcxNavTreeProps> = props => {
         setCommandHighlight(null);
     }, [query]);
 
-    const visibleNodes = query != null && query !== "" ? filteredNavTree(allNodes, candidates) : allNodes;
+    const visibleNodes = useMemo(
+        () => query != null && query !== "" ? filteredNavTree(allNodes, candidates) : allNodes,
+        [allNodes, candidates, query]
+    );
+    const autoExpandedIds = useMemo(
+        () => query != null && query !== "" ? navTreeBranchIds(visibleNodes) : undefined,
+        [query, visibleNodes]
+    );
     const highlightedId = query != null && commandHighlight != null ? candidates[commandHighlight]?.id : undefined;
     const selectedTreeId = highlightedId ?? localSelectedId ?? props.selectedId;
 
@@ -791,6 +798,7 @@ export const UcxNavTree: React.FunctionComponent<UcxNavTreeProps> = props => {
                 }}
                 ariaLabel={node => node.label}
                 initialExpandedIds={props.initialExpandedIds ?? allNodes.map(node => node.id)}
+                forcedExpandedIds={autoExpandedIds}
                 activateOnSingleClick={props.activateOnSingleClick === true}
                 isDisabled={navTreeNodeIsDisabled}
                 rowHeight={26}
@@ -851,6 +859,16 @@ function filteredNavTree(all: UcxNavTreeNode[], candidates: UcxNavTreeNode[]): U
         return out;
     };
     return rebuild(all);
+}
+
+function navTreeBranchIds(nodes: UcxNavTreeNode[]): string[] {
+    const result: string[] = [];
+    for (const node of nodes) {
+        if (!node.isBranch) continue;
+        result.push(node.id);
+        result.push(...navTreeBranchIds(node.children));
+    }
+    return result;
 }
 
 function findExactCandidate(nodes: UcxNavTreeNode[], needle: string): UcxNavTreeNode | undefined {
@@ -1747,15 +1765,25 @@ const UcxTableShortcutGuideClass = injectStyle("ucx-table-shortcut-guide", key =
         color: var(--textSecondary);
         font-size: 12px;
         display: flex;
-        flex-wrap: wrap;
         align-items: center;
         justify-content: flex-end;
-        gap: 4px 16px;
         padding: 8px 12px;
         border-top: 1px solid var(--borderColor);
         background: var(--tableBackground, var(--gray-5));
         flex-shrink: 0;
+        overflow: hidden;
         user-select: none;
+    }
+
+    ${key} .shortcut-guide-items {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 16px;
+        min-width: 0;
+        max-width: 100%;
+        max-height: 18px;
+        overflow: hidden;
     }
 
     ${key} .shortcut-guide-row {
@@ -1814,7 +1842,9 @@ function UcxTableShortcutGuide({actionDefs, groupAction, tableRef}: {
         className={UcxTableShortcutGuideClass}
         onMouseDown={() => tableRef.current?.focus({preventScroll: true})}
     >
-        {rows.map((row, index) => <UcxTableShortcutGuideRow key={`${row.keys.join("")}-${index}`} keys={row.keys} action={row.action} />)}
+        <div className="shortcut-guide-items">
+            {rows.map((row, index) => <UcxTableShortcutGuideRow key={`${row.keys.join("")}-${index}`} keys={row.keys} action={row.action} />)}
+        </div>
     </div>;
 }
 

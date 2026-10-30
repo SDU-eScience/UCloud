@@ -236,8 +236,8 @@ func (app *stackUiApp) registerRpcHandlers() {
 		}
 		response.Pool = pool.Name
 
-		if request.Nodes < 1 {
-			return k8sapi.ScaleOutResponse{}, fmt.Errorf("the target node count must be at least one")
+		if request.Nodes < 0 {
+			return k8sapi.ScaleOutResponse{}, fmt.Errorf("the target node count must be at least zero")
 		}
 		if pool.Name == shared.GroupControlPlane {
 			switch request.Nodes {

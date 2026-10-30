@@ -30,6 +30,7 @@ interface VirtualizedTreeProps<T> {
     ariaLabel(node: T): string;
     label?: string;
     initialExpandedIds?: readonly string[];
+    forcedExpandedIds?: readonly string[];
     initialFocusedId?: string;
     initialSelectedId?: string;
     initialSelectedIds?: readonly string[];
@@ -141,6 +142,12 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
     const selectionFollowsFocus = props.selectionFollowsFocus ?? selectionMode === "single";
     const controlledSelection = props.selectedId !== undefined || props.selectedIds !== undefined;
     const [expanded, setExpanded] = React.useState<Set<string>>(() => new Set(props.initialExpandedIds));
+    const effectiveExpanded = React.useMemo(() => {
+        if (props.forcedExpandedIds === undefined || props.forcedExpandedIds.length === 0) return expanded;
+        const next = new Set(expanded);
+        for (const id of props.forcedExpandedIds) next.add(id);
+        return next;
+    }, [expanded, props.forcedExpandedIds]);
     const [focusedId, setFocusedId] = React.useState(props.initialFocusedId ?? props.initialSelectedId);
     const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => {
         if (selectionMode === "none") return new Set();
@@ -159,11 +166,11 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
 
     const rows = React.useMemo(() => flattenVisibleNodes(
         props.nodes,
-        expanded,
+        effectiveExpanded,
         props.getId,
         props.getChildren,
         props.isBranch,
-    ), [props.nodes, expanded, props.getId, props.getChildren, props.isBranch]);
+    ), [props.nodes, effectiveExpanded, props.getId, props.getChildren, props.isBranch]);
 
     const focusedIndex = rows.findIndex(row => row.id === focusedId);
 
@@ -180,9 +187,9 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
 
     React.useEffect(() => {
         for (const row of rows) {
-            if (expanded.has(row.id)) prefetch(row);
+            if (effectiveExpanded.has(row.id)) prefetch(row);
         }
-    }, [expanded, prefetch, rows]);
+    }, [effectiveExpanded, prefetch, rows]);
 
     const updateSelection = React.useCallback((next: Set<string>) => {
         setSelectedIds(next);
@@ -218,7 +225,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
     const toggle = React.useCallback((row: VirtualizedTreeRow<T>) => {
         if (!props.isBranch(row.node)) return;
         prefetch(row);
-        const isCollapsing = expanded.has(row.id);
+        const isCollapsing = effectiveExpanded.has(row.id);
         if (isCollapsing && focusedId !== undefined && focusedId !== row.id && containsNode(props.getChildren(row.node), focusedId, props.getId, props.getChildren)) {
             setFocusedId(row.id);
             if (selectionFollowsFocus && selectionMode !== "none") updateSelection(new Set([row.id]));
@@ -229,7 +236,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
             else next.add(row.id);
             return next;
         });
-    }, [expanded, focusedId, prefetch, props.getChildren, props.getId, props.isBranch, selectionFollowsFocus, selectionMode, updateSelection]);
+    }, [effectiveExpanded, focusedId, prefetch, props.getChildren, props.getId, props.isBranch, selectionFollowsFocus, selectionMode, updateSelection]);
 
     const activate = React.useCallback((row: VirtualizedTreeRow<T>) => {
         props.onActivate?.(row.node);
@@ -375,7 +382,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
 
     const itemData = React.useMemo<RowData<T>>(() => ({
         rows,
-        expanded,
+        expanded: effectiveExpanded,
         focusedId,
         selectedIds,
         indent: props.indent ?? 16,
@@ -390,7 +397,7 @@ export function VirtualizedTree<T>(props: VirtualizedTreeProps<T>): React.ReactN
         activate,
         hover,
         contextMenu,
-    }), [rows, expanded, focusedId, selectedIds, props.indent, props.getChildren, props.isBranch, props.renderNode, props.ariaLabel, props.activateOnSingleClick, props.isDisabled, pointerSelect, toggleSelection, toggle, activate, hover, contextMenu]);
+    }), [rows, effectiveExpanded, focusedId, selectedIds, props.indent, props.getChildren, props.isBranch, props.renderNode, props.ariaLabel, props.activateOnSingleClick, props.isDisabled, pointerSelect, toggleSelection, toggle, activate, hover, contextMenu]);
 
     const rowHeight = props.rowHeight ?? 28;
     const rowHeightOf = React.useCallback((index: number): number => {

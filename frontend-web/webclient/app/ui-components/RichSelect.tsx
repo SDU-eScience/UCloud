@@ -36,6 +36,7 @@ export const SimpleRichSelect: React.FunctionComponent<{
     placeholder?: string;
     noResultsItem?: SimpleRichItem;
     searchable?: boolean;
+    triggerAriaLabel?: string;
 }> = props => {
     const closeFn = useRef<() => void>(doNothing);
 
@@ -73,6 +74,7 @@ export const SimpleRichSelect: React.FunctionComponent<{
                 height={dropdownHeight}
                 closeFnRef={closeFn}
                 openFnRef={props.openFnRef}
+                triggerAriaLabel={props.triggerAriaLabel}
                 arrowkeyNavigationKey={"data-active"}
                 hoverColor={"rowHover"}
                 colorOnHover={false}
@@ -117,6 +119,7 @@ export const SimpleRichSelect: React.FunctionComponent<{
         openFnRef={props.openFnRef}
 	        triggerRef={props.triggerRef}
 	        shortcutHint={props.shortcutHint}
+	        triggerAriaLabel={props.triggerAriaLabel}
 	        RenderRow={p =>
 	            <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
 	                {p?.element?.value}
