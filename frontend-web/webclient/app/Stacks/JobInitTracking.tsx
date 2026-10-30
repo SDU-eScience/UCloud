@@ -85,7 +85,12 @@ export function applyJobFollowResponse(state: JobInitState, payload: JobsFollowR
     for (const message of log) {
         const text = message.stdout ?? message.stderr ?? "";
         if (message.channel === "ui" || message.channel === "data") {
+            const previousStage = state.stageText;
+            const previousProgress = state.progress;
             state.processor.accept(text);
+            if (state.stageText !== previousStage || state.progress !== previousProgress) {
+                changed = true;
+            }
         } else if (message.channel == null || message.channel === "serial") {
             state.log.push(text);
             changed = true;

@@ -10,15 +10,15 @@ NODE_GROUP="$(node_field role)"
 
 record_input_generation
 
-log "waiting for the secure agent token"
-emit "Waiting for the secure agent token" 50
+log "waiting for cluster credentials"
+emit "Waiting for cluster credentials" 50
 wait_for_token_files "agent"
 
 TOKEN="$(cat "$INPUT_DIR/agent-token.ca")"
 
-log "installing the Kubernetes agent"
+log "preparing Kubernetes on the node"
 
-emit "Installing the Kubernetes agent" 60
+emit "Preparing Kubernetes on the node" 60
 
 install -d -m 0700 /etc/rancher/k3s
 umask 077

@@ -53,7 +53,7 @@ func runOsUpdate(
 			return err
 		}
 
-		result := runCordonDrain(ctx, clientset, operation, worker, false, true)
+		result := runCordonDrain(ctx, clientset, operation, worker, false)
 		if result.err != nil {
 			return result.err
 		}
@@ -100,7 +100,7 @@ func osUpdatePreflight(ctx context.Context, clientset *kubernetes.Clientset, ope
 	}
 
 	if operation.HostTerminationUnverified {
-		return errors.New("the node has unverified host terminations from a previous force delete and cannot be updated")
+		return errors.New("pods may still be running on this node after a previous force delete. The node cannot be updated")
 	}
 
 	record, found, err := readClusterRecord()
@@ -111,7 +111,7 @@ func osUpdatePreflight(ctx context.Context, clientset *kubernetes.Clientset, ope
 		return errors.New("the cluster record does not exist")
 	}
 
-	if record.Phase != "created" {
+	if !shared.ClusterRecordPhaseOperational(record.Phase) {
 		return fmt.Errorf("the cluster is not ready (state: %s)", record.Phase)
 	}
 
@@ -140,12 +140,12 @@ func osUpdatePreflight(ctx context.Context, clientset *kubernetes.Clientset, ope
 
 	status, statusErr := shared.NodeAgentClientOsStatus(ctx, nodeName, nodeRecord.IpAddress)
 	if statusErr != nil {
-		return fmt.Errorf("could not read the node executor status of %s: %s", nodeName, statusErr)
+		return fmt.Errorf("could not check the update status of node %s: %s", nodeName, statusErr)
 	}
 
 	if status.NodeName != nodeName {
 		return fmt.Errorf(
-			"the node executor at %s reports node %s, but %s was requested",
+			"the maintenance service at %s reports node %s, but %s was requested",
 			nodeRecord.IpAddress,
 			status.NodeName,
 			nodeName,
@@ -154,17 +154,17 @@ func osUpdatePreflight(ctx context.Context, clientset *kubernetes.Clientset, ope
 
 	if status.NeedsStateRecovery {
 		return fmt.Errorf(
-			"the node executor of %s cannot read its operating-system update state and needs manual recovery",
+			"the operating-system update status of node %s cannot be read. Contact support before retrying",
 			nodeName,
 		)
 	}
 
 	if !status.StagingSupported {
-		return errors.New("the node executor does not support downloading packages before draining; update the node executor first")
+		return errors.New("the node cannot prepare updates before draining. Contact support before retrying")
 	}
 	upgradeStatus, upgradeStatusErr := shared.NodeAgentClientStatus(ctx, nodeName, nodeRecord.IpAddress)
 	if upgradeStatusErr != nil {
-		return fmt.Errorf("could not read the upgrade state of the node executor of %s: %s", nodeName, upgradeStatusErr)
+		return fmt.Errorf("could not check the upgrade status of node %s: %s", nodeName, upgradeStatusErr)
 	}
 	if shared.NodeAgentPhaseActive(upgradeStatus.Phase) {
 		return fmt.Errorf("an upgrade is running on %s", nodeName)
@@ -276,7 +276,7 @@ func osUpdateDriveRemote(
 
 	if status.NeedsStateRecovery {
 		osUpdateFail(operation, worker, fmt.Sprintf(
-			"the node cannot read its operating-system update state. Reinstall the maintenance agent on %s, then retry the update",
+			"the operating-system update status on node %s cannot be read. Contact support before retrying the update",
 			nodeName,
 		))
 		return true
@@ -375,26 +375,11 @@ func osUpdateSubmit(
 		command = shared.NodeAgentOsCommandRetry
 	}
 
-	reboot := shared.NodeAgentOsRebootWhenRequired
-	policyRecord, policyErr := autoPolicyRead(worker.client)
-	if policyErr != nil {
-		log.Warn("k8s-app maintenance %s: could not read the reboot policy: %s", nodeName, policyErr)
-		operationLogStage(
-			worker,
-			"submit-retry-policy",
-			fmt.Sprintf("Waiting to read the reboot policy: %s", policyErr),
-		)
-		return false
-	}
-	if policyRecord.Found && policyRecord.Value.Os.RebootPolicy == AutoRebootAlways {
-		reboot = shared.NodeAgentOsRebootAlways
-	}
-
 	_, postErr := shared.NodeAgentClientOsCommand(
 		ctx,
 		nodeName,
 		nodeIp,
-		shared.NodeAgentOsRequest{Command: command, Reboot: reboot},
+		shared.NodeAgentOsRequest{Command: command},
 		operation.Uid,
 	)
 	if postErr != nil {

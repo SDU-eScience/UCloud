@@ -15,18 +15,13 @@ import (
 func (app *stackUiApp) pageProvisioning() []ucx.UiNode {
 	messages := []ucx.UiNode{}
 
-	if record, ok := app.readClusterRecord(); ok && record.FailureReason != "" {
-		messages = append(messages, ucx.Text("The cluster reported a problem: "+record.FailureReason))
+	if record, ok := app.readClusterRecord(); ok {
+		if record.FailureReason != "" {
+			messages = append(messages, ucx.Text("The cluster reported a problem: "+record.FailureReason))
+		}
 		for _, pending := range record.PendingCleanup {
-			parts := []string{pending.Hostname}
-			if pending.JobId != "" {
-				parts = append(parts, "job "+pending.JobId)
-			}
-			if pending.ReservationId != "" {
-				parts = append(parts, "reservation "+pending.ReservationId)
-			}
 			messages = append(messages, ucx.Text(
-				"These resources need manual cleanup: "+strings.Join(parts, ", "),
+				"The application is removing: "+pendingCleanupText(pending),
 			))
 		}
 	}
@@ -106,4 +101,24 @@ func maintenanceKnownNodeNames(record shared.ClusterRecord) map[string]bool {
 		}
 	}
 	return known
+}
+
+func pendingCleanupText(pending shared.ClusterPendingCleanup) string {
+	parts := []string{}
+	if pending.Hostname != "" {
+		parts = append(parts, pending.Hostname)
+	}
+	if pending.JobId != "" {
+		parts = append(parts, "job "+pending.JobId)
+	}
+	if pending.ReservationId != "" {
+		parts = append(parts, "reservation "+pending.ReservationId)
+	}
+	if pending.IpAddress != "" {
+		parts = append(parts, "IP "+pending.IpAddress)
+	}
+	if len(parts) == 0 {
+		return "an unknown resource"
+	}
+	return strings.Join(parts, ", ")
 }

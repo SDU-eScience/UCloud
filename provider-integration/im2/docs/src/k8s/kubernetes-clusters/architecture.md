@@ -92,9 +92,9 @@ Kubernetes](../architecture.md) creates the resources of the stack on the system
 | Ingress service | Serves the applications of the cluster on port 30080. See [Application access](./networking-and-storage.md#application-access). |
 | Ingress public links | One public link per Ingress host of the cluster. |
 
-If the creator stops while it creates the stack, the platform removes the resources that the stack created. A cluster
-that stays behind from a failed creation needs an inspection and a manual cleanup. See
-[Creating a cluster](./creating-a-cluster.md#failure-during-creation).
+If the creator stops while it creates the stack, the platform removes the resources that the stack created. The
+cluster record can still list leftover resources. The application removes them in the background and clears the
+record when they are gone. See [Creating a cluster](./creating-a-cluster.md#failure-during-creation).
 
 ## Stack KV-state
 
@@ -147,12 +147,14 @@ flowchart LR
     created -->|"a recovery starts"| recovering
     recovering -->|"the recovery closes"| created
     created -->|"a failed scale-out leaves resources"| cleanup
+    cleanup -->|"the cleanup completes"| created
+    cleanup -->|"a recovery starts"| recovering
 ```
 
 <figcaption>
 
-The phases of a cluster and the events that move a cluster from one phase to the next. It does not show the manual
-cleanup of the pending resources.
+The phases of a cluster and the events that move a cluster from one phase to the next. It does not show the
+background cleanup attempts.
 
 </figcaption>
 </figure>
@@ -160,7 +162,7 @@ cleanup of the pending resources.
 | Phase | Meaning |
 |-------|---------|
 | `provisioning` | The creator creates the resources of the cluster. New nodes cannot join yet. |
-| `created` | The cluster works. Maintenance, scale-out and recovery are available in this phase. |
+| `created` | The cluster works. Maintenance, backup and recovery are available. Scale-out is available when the pending-cleanup list is empty. |
 | `error` | A step of the creation failed. The cluster record holds the reason. |
-| `cleanup-pending` | A failed scale-out left resources that an operator must remove. |
+| `cleanup-pending` | A failed scale-out left resources. The application removes them in the background and returns to `created`. Maintenance, backup and recovery remain available. Scale-out waits for the cleanup. |
 | `recovering` | A recovery replaces the control plane nodes from a backup. All other operations wait. |

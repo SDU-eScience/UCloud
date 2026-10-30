@@ -428,7 +428,7 @@ function DashboardNews({news}: {news: APICallState<Page<NewsPost>>}): React.Reac
 }
 
 function LinkBlock(props: {href?: string; children: React.ReactNode}) {
-    return <ExternalLink color={"primaryMain"} href={props.href}>
+    return <ExternalLink href={props.href}>
         {props.children}
     </ExternalLink>;
 }

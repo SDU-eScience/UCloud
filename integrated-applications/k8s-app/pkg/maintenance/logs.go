@@ -319,7 +319,7 @@ func (drainLog *drainLogger) report(deletable int, terminating int, blockers int
 	drainLog.lastTerminating = terminating
 	drainLog.lastBlocked = blockers
 
-	line := fmt.Sprintf("%s: moving %d pods; waiting for %d pods to stop", drainLog.worker.nodeName, deletable, terminating)
+	line := fmt.Sprintf("%s: pods to move: %d, pods stopping: %d", drainLog.worker.nodeName, deletable, terminating)
 	if deletable == 0 && terminating == 0 && blockers == 0 {
 		line = fmt.Sprintf("Workloads have stopped on %s", drainLog.worker.nodeName)
 	}

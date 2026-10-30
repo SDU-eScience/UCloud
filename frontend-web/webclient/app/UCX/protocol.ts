@@ -19,6 +19,10 @@ export enum RpcStatus {
     Internal = 3,
     Canceled = 4,
     Conflict = 5,
+    Unauthorized = 6,
+    Forbidden = 7,
+    TooManyRequests = 8,
+    Unavailable = 9,
 }
 
 export enum ValueKind {

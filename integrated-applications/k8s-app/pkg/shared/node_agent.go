@@ -60,11 +60,6 @@ const (
 	NodeAgentOsCommandRetry      = "retry"
 )
 
-const (
-	NodeAgentOsRebootWhenRequired = "whenRequired"
-	NodeAgentOsRebootAlways       = "always"
-)
-
 const NodeAgentMaxLogBody = 16 * 1024
 
 const NodeAgentPort = 9444
@@ -127,7 +122,6 @@ type NodeAgentProgressEvent struct {
 
 type NodeAgentOsRequest struct {
 	Command string `json:"command"`
-	Reboot  string `json:"reboot,omitempty"`
 }
 
 type NodeAgentBackupResult struct {
@@ -236,7 +230,7 @@ func NodeAgentClientOsStatus(ctx context.Context, nodeName string, nodeIp string
 
 	var status NodeAgentOsStatus
 	if err := json.Unmarshal(responseBody, &status); err != nil {
-		return NodeAgentOsStatus{}, fmt.Errorf("could not parse the node agent response: %s", err)
+		return NodeAgentOsStatus{}, fmt.Errorf("could not read the node maintenance response: %s", err)
 	}
 
 	return status, nil
@@ -278,7 +272,7 @@ func NodeAgentClientOsCommand(
 
 	var status NodeAgentOsStatus
 	if err := json.Unmarshal(responseBody, &status); err != nil {
-		return NodeAgentOsStatus{}, fmt.Errorf("could not parse the node agent response: %s", err)
+		return NodeAgentOsStatus{}, fmt.Errorf("could not read the node maintenance response: %s", err)
 	}
 
 	return status, nil
@@ -311,7 +305,7 @@ func NodeAgentClientBackup(ctx context.Context, nodeName string, nodeIp string, 
 
 	var result NodeAgentBackupResult
 	if err := json.Unmarshal(responseBody, &result); err != nil {
-		return NodeAgentBackupResult{}, fmt.Errorf("could not parse the node agent response: %s", err)
+		return NodeAgentBackupResult{}, fmt.Errorf("could not read the node backup response: %s", err)
 	}
 
 	return result, nil
@@ -366,7 +360,7 @@ func nodeAgentClientStatusCall(
 
 	var status NodeAgentStatus
 	if err := json.Unmarshal(responseBody, &status); err != nil {
-		return NodeAgentStatus{}, fmt.Errorf("could not parse the node agent response: %s", err)
+		return NodeAgentStatus{}, fmt.Errorf("could not read the node maintenance response: %s", err)
 	}
 
 	return status, nil
@@ -450,9 +444,9 @@ func nodeAgentClientError(statusCode int, responseBody []byte) error {
 		Error string `json:"error"`
 	}
 	if err := json.Unmarshal(responseBody, &payload); err == nil && payload.Error != "" {
-		return fmt.Errorf("the node agent rejected the request (status %d): %s", statusCode, payload.Error)
+		return fmt.Errorf("the node rejected the maintenance request (status %d): %s", statusCode, payload.Error)
 	}
-	return fmt.Errorf("the node agent rejected the request (status %d)", statusCode)
+	return fmt.Errorf("the node rejected the maintenance request (status %d)", statusCode)
 }
 
 func nodeAgentClientUrl(nodeIp string, endpoint string) string {

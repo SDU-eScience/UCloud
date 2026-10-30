@@ -107,9 +107,10 @@ dashboard with the next poll.
 
 While the Kubernetes API does not answer, the dashboard shows the provisioning view instead of the resource tables.
 The view holds the state of the cluster from the [cluster record](../../glossary.md#cluster-record): the failure
-reason, the resources that need manual cleanup, and the progress of the nodes. It also shows the log of every node
-job and links to the maintenance operations of the nodes. The view stays available after an interrupted creation, so
-an operator can read the state that the creator reached.
+reason, the resources that the application is removing after a failed node creation or scale-out, and the progress
+of the nodes. It also shows the log of every node job and links to the maintenance operations of the nodes. The view
+stays available after an interrupted creation, so an operator can read the state that the creator reached. The home
+page also shows a cleanup card while the cluster has pending resources.
 
 ## Support tasks
 

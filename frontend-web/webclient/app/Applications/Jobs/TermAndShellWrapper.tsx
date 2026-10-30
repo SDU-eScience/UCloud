@@ -67,18 +67,13 @@ const TermAndShellWrapperClass = injectStyle("term-and-wrapper", k => `
         padding: 0;
         margin: 0;
         font: inherit;
-        color: var(--primaryMain);
+        color: var(--linkColor);
         background: transparent;
         cursor: pointer;
     }
 
-    ${k}.dark > .warn > .reconnect-button,
-    html.dark ${k} > .warn > .reconnect-button {
-        color: var(--primaryLight);
-    }
-
     ${k} > .warn > .reconnect-button:hover {
-        color: var(--primaryLight);
+        color: var(--linkColorHover);
         text-decoration: underline;
     }
 

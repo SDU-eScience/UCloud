@@ -452,13 +452,13 @@ export function ProductSelectorWithPermissions<T extends Resource>({onCreate, du
         explanation = <Box mt={"8px"}>
             Public links allow you to access some interactive applications and share them via a publicly accessible link.
             You can read more about public links{" "}
-            <ExternalLink color={"primaryMain"} href={"https://docs.cloud.sdu.dk/guide/submitting.html#configure-custom-links"}>here</ExternalLink>.
+            <ExternalLink href={"https://docs.cloud.sdu.dk/guide/submitting.html#configure-custom-links"}>here</ExternalLink>.
         </Box>;
     } else {
         explanation = <Box mt={"8px"}>
             Licenses grant access to certain applications. Instances of a license must be first be created through
             this form in order to be used in an application. You can read more about the license system{" "}
-            <ExternalLink color={"primaryMain"} href={"https://docs.cloud.sdu.dk/guide/resources-products.html#licenses"}>here</ExternalLink>.
+            <ExternalLink href={"https://docs.cloud.sdu.dk/guide/resources-products.html#licenses"}>here</ExternalLink>.
         </Box>;
     }
 

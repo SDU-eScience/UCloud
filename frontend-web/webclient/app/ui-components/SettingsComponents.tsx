@@ -274,8 +274,8 @@ const SettingsNavigatorClass = injectStyle("settings-navigator", k => `
 
     ${k} a:hover,
     ${k} a[aria-current="location"] {
-        border-color: var(--primaryMain);
-        color: var(--primaryMain);
+        border-color: var(--linkColor);
+        color: var(--linkColor);
     }
 
     @container (min-width: 720px) {
@@ -311,7 +311,7 @@ const SettingsNavigatorClass = injectStyle("settings-navigator", k => `
 
         ${k} a[aria-current="location"] {
             background: var(--rowActive);
-            border-left-color: var(--primaryMain);
+            border-left-color: var(--linkColor);
             color: var(--textPrimary);
             font-weight: 600;
         }

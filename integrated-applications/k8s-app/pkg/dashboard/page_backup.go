@@ -23,7 +23,7 @@ type dashboardBackupStatus struct {
 func backupPage(app *stackUiApp) []ucx.UiNode {
 	content := []ucx.UiNode{
 		pageTitle("Control-plane backups"),
-		ucx.Text("An hourly etcd backup is written to the cluster state drive. The backups survive the loss of all control-plane VMs.").Sx(
+		ucx.Text("An hourly etcd backup is written to the cluster state drive. The backups survive the loss of all control-plane nodes.").Sx(
 			ucx.SxColor(ucx.ColorTextSecondary),
 		),
 		ucx.Text("Retention keeps the newest 48 hourly backups and one backup per day for the last 14 days. If the drive or the project is deleted, the backups are deleted with it.").Sx(
@@ -243,7 +243,7 @@ func backupRequestSubmitUid(app *stackUiApp) (string, error) {
 	}
 
 	if shared.IsConflict(err) {
-		return "", errors.New("the backup request changed while submitting; please try again")
+		return "", errors.New("the backup request changed while submitting. Try again")
 	}
 
 	return "", fmt.Errorf("could not submit the backup request: %s", err)

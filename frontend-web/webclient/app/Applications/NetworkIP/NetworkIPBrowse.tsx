@@ -402,7 +402,7 @@ export function NetworkIpCreate({onCreate, onCancel, products}: CreationWithFire
             <Box mt={"8px"}>
                 Public IP addresses provide direct access to specific jobs, useful for workloads not accessible via
                 HTTP or remote desktop.{" "}
-                <ExternalLink color={"primaryMain"} href={"/app" + Routes.resources.sshKeys()}>SSH access</ExternalLink>
+                <ExternalLink href={"/app" + Routes.resources.sshKeys()}>SSH access</ExternalLink>
                 {" "}does <i>not</i> require a public IP.
             </Box>
         </Box>

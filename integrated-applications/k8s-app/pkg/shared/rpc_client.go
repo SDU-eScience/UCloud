@@ -26,7 +26,7 @@ const RpcGrantProviderPort = 42000
 
 const RpcGrantHttpTimeout = 10 * time.Second
 
-var RpcGrantErrConflict = errors.New("stack state revision or lease conflict")
+var RpcGrantErrConflict = errors.New("the application state changed. Try again")
 
 type RpcGrantClient struct {
 	Rpc   *rpc.Client

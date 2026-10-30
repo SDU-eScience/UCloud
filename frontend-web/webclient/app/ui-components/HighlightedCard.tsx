@@ -20,7 +20,7 @@ const style = injectStyle("highlightedCard", k => `
     }
     
     ${k} .title-row a:hover {
-        color: var(--primaryMain);
+        color: var(--linkColor);
     }
     
     ${k} {

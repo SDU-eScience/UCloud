@@ -217,7 +217,7 @@ func ucxOnConnect(conn *ws.Conn) {
 
 		deletionReqId, ok := stackToDeletionRequest[instanceId]
 		if !ok {
-			return fmt.Errorf("no deletion lease for stack %s", instanceId)
+			return fmt.Errorf("application setup is no longer active. Try again or contact your service provider")
 		}
 
 		_, err := orcapi.StacksControlRenewDeletion.Invoke(orcapi.StacksControlRenewDeletionRequest{
@@ -240,7 +240,7 @@ func ucxOnConnect(conn *ws.Conn) {
 
 		deletionReqId, ok := stackToDeletionRequest[instanceId]
 		if !ok {
-			return fmt.Errorf("no deletion lease for stack %s", instanceId)
+			return fmt.Errorf("application setup is no longer active. Try again or contact your service provider")
 		}
 
 		_, err := orcapi.StacksControlCancelDeletion.Invoke(fnd.FindByIntId{Id: deletionReqId})

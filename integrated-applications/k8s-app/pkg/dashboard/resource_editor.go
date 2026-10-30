@@ -95,7 +95,7 @@ func dashboardResourceEditorNode(app *stackUiApp, detail string) ucx.UiNode {
 		dashboardResourceEditorCancel(app)
 	})
 	if state.Loading {
-		editor = editor.Children(ucx.Spinner(16), ucx.Text("Loading YAML…"))
+		editor = editor.Children(ucx.Spinner(16), ucx.Text("Loading YAML..."))
 	} else if !state.Editing && state.Def.CanUpdate {
 		editor = editor.Children(
 			ucx.IconButtonEx(fmt.Sprintf("editResourceYaml:%d", state.Revision), "Edit", ucx.ColorTextSecondary, ucx.IconHeroPencilSquare).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
@@ -241,7 +241,7 @@ func dashboardResourceEditorSave(app *stackUiApp, source string) {
 		}
 		if err != nil {
 			if apierrors.IsConflict(err) {
-				app.resourceEditor.Error = "This resource changed since editing started. Your draft has been kept. Cancel and edit again to load the latest version."
+				app.resourceEditor.Error = "This resource changed since editing started. Cancel and edit again to load the latest version."
 			} else {
 				app.resourceEditor.Error = fmt.Sprintf("Failed to save YAML: %s", err)
 			}

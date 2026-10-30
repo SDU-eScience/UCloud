@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 	accapi "ucloud.dk/shared/pkg/accounting"
@@ -35,22 +36,13 @@ type K8sClusterCreateCommand struct {
 	Stdout              bool   `flag:"stdout" usage:"Print the template to standard output instead of writing a file"`
 	Force               bool   `flag:"force" usage:"Overwrite the template file if it already exists"`
 	DryRun              bool   `flag:"dry-run" usage:"Resolve and validate the request without creating a cluster"`
-	Wait                bool   `flag:"wait" usage:"Wait until all nodes are ready"`
+	Wait                bool   `flag:"wait" usage:"Wait until node bootstrap is complete and all nodes are ready"`
 	Output              string `flag:"output" usage:"Output format: table or json"`
 
 	controlPlaneNodesSet bool
 	controlPlaneDiskSet  bool
-	pools                map[int]*k8sCreatePoolFlags
+	pools                map[int]*k8sCreatePoolSpec
 	clusterFlagsSet      bool
-}
-
-type k8sCreatePoolFlags struct {
-	name     string
-	machine  string
-	nodes    int
-	nodesSet bool
-	disk     int
-	diskSet  bool
 }
 
 type k8sCreateSpec struct {
@@ -75,225 +67,131 @@ type k8sCreatePoolSpec struct {
 }
 
 func (c *K8sClusterCreateCommand) ParseArguments(args []string) error {
-	c.pools = map[int]*k8sCreatePoolFlags{}
+	c.pools = map[int]*k8sCreatePoolSpec{}
 	var names []string
+
+	stringFlags := map[string]*string{
+		"file":                  &c.File,
+		"name":                  &c.NameFlag,
+		"workspace":             &c.Workspace,
+		"provider":              &c.Provider,
+		"k8s-version":           &c.K8sVersion,
+		"control-plane.machine": &c.ControlPlaneMachine,
+		"output":                &c.Output,
+		"save":                  &c.Save,
+	}
+	clusterStringFlags := map[string]bool{
+		"provider":              true,
+		"k8s-version":           true,
+		"control-plane.machine": true,
+	}
+	intFlags := map[string]struct {
+		value   *int
+		present *bool
+	}{
+		"control-plane.nodes": {
+			value:   &c.ControlPlaneNodes,
+			present: &c.controlPlaneNodesSet,
+		},
+		"control-plane.disk": {
+			value:   &c.ControlPlaneDisk,
+			present: &c.controlPlaneDiskSet,
+		},
+	}
+	boolFlags := map[string]*bool{
+		"template": &c.Template,
+		"stdout":   &c.Stdout,
+		"force":    &c.Force,
+		"dry-run":  &c.DryRun,
+		"wait":     &c.Wait,
+	}
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
-
-		if arg == "-f" {
-			value, next, err := k8sCreateFlagValue(args, i, "-f", "", false)
-			if err != nil {
-				return err
-			}
-			if value == "" {
-				return fmt.Errorf("-f needs a path")
-			}
-			c.File = value
-			i = next
-			continue
-		}
-		if strings.HasPrefix(arg, "-f=") {
-			value := strings.TrimPrefix(arg, "-f=")
-			if value == "" {
-				return fmt.Errorf("-f needs a path")
-			}
-			c.File = value
-			continue
-		}
-
-		if strings.HasPrefix(arg, "--") {
-			name, inline, hasInline := strings.Cut(arg[2:], "=")
+		var name, flagName, inline string
+		var hasInline bool
+		if arg == "-f" || strings.HasPrefix(arg, "-f=") {
+			name = "file"
+			flagName = "-f"
+			inline, hasInline = strings.CutPrefix(arg, "-f=")
+		} else if strings.HasPrefix(arg, "--") {
+			name, inline, hasInline = strings.Cut(arg[2:], "=")
 			if name == "" {
 				return fmt.Errorf("invalid flag %q", arg)
 			}
-
-			if strings.HasPrefix(name, "worker-pools[") {
-				index, field, err := k8sCreateParsePoolName(name)
-				if err != nil {
-					return err
-				}
-
-				value, next, err := k8sCreateFlagValue(args, i, "--"+name, inline, hasInline)
-				if err != nil {
-					return err
-				}
-				if err := c.setPoolFlag(index, field, value); err != nil {
-					return err
-				}
-
-				c.clusterFlagsSet = true
-				i = next
-				continue
+			flagName = "--" + name
+		} else {
+			if strings.HasPrefix(arg, "-") {
+				return fmt.Errorf("unknown flag %s", arg)
 			}
-
-			switch name {
-			case "file":
-				value, next, err := k8sCreateFlagValue(args, i, "--file", inline, hasInline)
-				if err != nil {
-					return err
-				}
-				if value == "" {
-					return fmt.Errorf("--file needs a path")
-				}
-				c.File = value
-				i = next
-
-			case "name":
-				value, next, err := k8sCreateFlagValue(args, i, "--name", inline, hasInline)
-				if err != nil {
-					return err
-				}
-				c.NameFlag = value
-				i = next
-
-			case "workspace":
-				value, next, err := k8sCreateFlagValue(args, i, "--workspace", inline, hasInline)
-				if err != nil {
-					return err
-				}
-				c.Workspace = value
-				i = next
-
-			case "provider":
-				value, next, err := k8sCreateFlagValue(args, i, "--provider", inline, hasInline)
-				if err != nil {
-					return err
-				}
-				c.Provider = value
-				c.clusterFlagsSet = true
-				i = next
-
-			case "k8s-version":
-				value, next, err := k8sCreateFlagValue(args, i, "--k8s-version", inline, hasInline)
-				if err != nil {
-					return err
-				}
-				c.K8sVersion = value
-				c.clusterFlagsSet = true
-				i = next
-
-			case "control-plane.machine":
-				value, next, err := k8sCreateFlagValue(args, i, "--control-plane.machine", inline, hasInline)
-				if err != nil {
-					return err
-				}
-				c.ControlPlaneMachine = value
-				c.clusterFlagsSet = true
-				i = next
-
-			case "control-plane.nodes":
-				value, next, err := k8sCreateFlagValue(args, i, "--control-plane.nodes", inline, hasInline)
-				if err != nil {
-					return err
-				}
-				nodes, err := strconv.Atoi(value)
-				if err != nil {
-					return fmt.Errorf("--control-plane.nodes must be an integer: %q", value)
-				}
-				c.ControlPlaneNodes = nodes
-				c.controlPlaneNodesSet = true
-				c.clusterFlagsSet = true
-				i = next
-
-			case "control-plane.disk":
-				value, next, err := k8sCreateFlagValue(args, i, "--control-plane.disk", inline, hasInline)
-				if err != nil {
-					return err
-				}
-				disk, err := strconv.Atoi(value)
-				if err != nil {
-					return fmt.Errorf("--control-plane.disk must be an integer: %q", value)
-				}
-				c.ControlPlaneDisk = disk
-				c.controlPlaneDiskSet = true
-				c.clusterFlagsSet = true
-				i = next
-
-			case "output":
-				value, next, err := k8sCreateFlagValue(args, i, "--output", inline, hasInline)
-				if err != nil {
-					return err
-				}
-				c.Output = value
-				i = next
-
-			case "template":
-				if hasInline {
-					value, err := strconv.ParseBool(inline)
-					if err != nil {
-						return fmt.Errorf("--template must be true or false: %q", inline)
-					}
-					c.Template = value
-				} else {
-					c.Template = true
-				}
-
-			case "save":
-				value, next, err := k8sCreateFlagValue(args, i, "--save", inline, hasInline)
-				if err != nil {
-					return err
-				}
-				if value == "" {
-					return fmt.Errorf("--save needs a path")
-				}
-				c.Save = value
-				i = next
-
-			case "stdout":
-				if hasInline {
-					value, err := strconv.ParseBool(inline)
-					if err != nil {
-						return fmt.Errorf("--stdout must be true or false: %q", inline)
-					}
-					c.Stdout = value
-				} else {
-					c.Stdout = true
-				}
-
-			case "force":
-				if hasInline {
-					value, err := strconv.ParseBool(inline)
-					if err != nil {
-						return fmt.Errorf("--force must be true or false: %q", inline)
-					}
-					c.Force = value
-				} else {
-					c.Force = true
-				}
-
-			case "dry-run":
-				if hasInline {
-					value, err := strconv.ParseBool(inline)
-					if err != nil {
-						return fmt.Errorf("--dry-run must be true or false: %q", inline)
-					}
-					c.DryRun = value
-				} else {
-					c.DryRun = true
-				}
-
-			case "wait":
-				if hasInline {
-					value, err := strconv.ParseBool(inline)
-					if err != nil {
-						return fmt.Errorf("--wait must be true or false: %q", inline)
-					}
-					c.Wait = value
-				} else {
-					c.Wait = true
-				}
-
-			default:
-				return fmt.Errorf("unknown flag --%s", name)
-			}
+			names = append(names, arg)
 			continue
 		}
 
-		if strings.HasPrefix(arg, "-") {
-			return fmt.Errorf("unknown flag %s", arg)
+		if strings.HasPrefix(name, "worker-pools[") {
+			index, field, err := k8sCreateParsePoolName(name)
+			if err != nil {
+				return err
+			}
+			value, next, err := k8sCreateFlagValue(args, i, flagName, inline, hasInline)
+			if err != nil {
+				return err
+			}
+			err = c.setPoolFlag(index, field, value)
+			if err != nil {
+				return err
+			}
+			c.clusterFlagsSet = true
+			i = next
+			continue
 		}
-		names = append(names, arg)
+
+		if target, ok := stringFlags[name]; ok {
+			value, next, err := k8sCreateFlagValue(args, i, flagName, inline, hasInline)
+			if err != nil {
+				return err
+			}
+			if (name == "file" || name == "save") && value == "" {
+				return fmt.Errorf("%s needs a path", flagName)
+			}
+			*target = value
+			if clusterStringFlags[name] {
+				c.clusterFlagsSet = true
+			}
+			i = next
+			continue
+		}
+
+		if target, ok := intFlags[name]; ok {
+			value, next, err := k8sCreateFlagValue(args, i, flagName, inline, hasInline)
+			if err != nil {
+				return err
+			}
+			parsed, err := strconv.Atoi(value)
+			if err != nil {
+				return fmt.Errorf("%s must be an integer: %q", flagName, value)
+			}
+			*target.value = parsed
+			*target.present = true
+			c.clusterFlagsSet = true
+			i = next
+			continue
+		}
+
+		if target, ok := boolFlags[name]; ok {
+			value := true
+			if hasInline {
+				parsed, err := strconv.ParseBool(inline)
+				if err != nil {
+					return fmt.Errorf("%s must be true or false: %q", flagName, inline)
+				}
+				value = parsed
+			}
+			*target = value
+			continue
+		}
+
+		return fmt.Errorf("unknown flag --%s", name)
 	}
 
 	if len(names) > 1 {
@@ -324,11 +222,11 @@ func (c *K8sClusterCreateCommand) HelpNotes() []string {
 			k8sapi.MaxDiskGb,
 		),
 		"Use --dry-run with --output json to print the resolved request.",
-		"Use --wait to block until the cluster and all nodes are ready.",
+		"Use --wait to block until bootstrap is complete and all nodes are ready.",
 	}
 }
 
-func (c *K8sClusterCreateCommand) Execute() error {
+func (c *K8sClusterCreateCommand) Execute() (resultErr error) {
 	if c.Template {
 		return c.executeTemplate()
 	}
@@ -352,11 +250,7 @@ func (c *K8sClusterCreateCommand) Execute() error {
 		return err
 	}
 
-	cfg, err := k8sInitialize(c.Workspace)
-	if err != nil {
-		return err
-	}
-	output, err := k8sOutputFormat(c.Output, cfg)
+	_, output, err := k8sInitializeOutput(c.Workspace, c.Output)
 	if err != nil {
 		return err
 	}
@@ -392,66 +286,88 @@ func (c *K8sClusterCreateCommand) Execute() error {
 		return k8sCreatePrintRequest(request, output)
 	}
 
-	progress := termio.NewProgressList(os.Stderr, "Creating cluster "+request.Name)
+	progressOutput := outputProgressWriter(output == "json")
+	messages := &k8sMessageState{output: output}
+	defer func() {
+		resultErr = k8sFinishMessages(messages, resultErr)
+	}()
+	heading := termio.Emphasis("Creating cluster %s", termio.QuoteName(request.Name))
+	fmt.Fprintln(progressOutput, heading.Render(termio.ColorEnabled(progressOutput)))
+	progress := termio.NewProgressList(progressOutput, "")
 	progress.Start()
 	defer progress.Stop()
 
+	var progressMu sync.Mutex
+	progressActive := true
+	warnings := map[string]bool{}
 	client.SetMessageHandler(func(message string, success bool, level string) {
-		if !success || message == "" {
+		progressMu.Lock()
+		defer progressMu.Unlock()
+		if !progressActive || message == "" {
 			return
 		}
-
-		state := termio.ProgressRunning
-		switch level {
-		case ucxapi.UiMessageLevelSuccess:
-			state = termio.ProgressSuccess
-		case ucxapi.UiMessageLevelWarning:
-			state = termio.ProgressWarning
-		case ucxapi.UiMessageLevelFailure:
-			state = termio.ProgressFailure
+		if k8sCaptureFailure(messages, message, success, level) || level == ucxapi.UiMessageLevelSuccess {
+			return
+		}
+		if level == ucxapi.UiMessageLevelWarning {
+			if !warnings[message] {
+				warnings[message] = true
+				progress.MilestoneWarning(message)
+			}
+			return
 		}
 
 		progress.SetItem(termio.ProgressItem{
 			Key:    "deploy",
 			Status: message,
-			State:  state,
+			State:  termio.ProgressRunning,
 		})
 	})
 
 	response, err := iapp.Call(context.Background(), client, k8sapi.Deploy, request)
-	if err != nil {
-		message := k8sCreateFailureMessage(client, err)
-		progress.SetItem(termio.ProgressItem{Key: "deploy", Status: message, State: termio.ProgressFailure})
-		return errors.New(message)
+	client.SetMessageHandler(nil)
+	progressMu.Lock()
+	progressActive = false
+	progressMu.Unlock()
+	if err == nil && !response.Ok {
+		err = errors.New("the cluster could not be created")
 	}
-	if !response.Ok {
-		message := k8sCreateFailureMessage(client, errors.New("the cluster could not be created"))
-		progress.SetItem(termio.ProgressItem{Key: "deploy", Status: message, State: termio.ProgressFailure})
-		return errors.New(message)
+	if err != nil {
+		err = errors.New(k8sCreateFailureMessage(client, err))
 	}
 
-	progress.SetItem(termio.ProgressItem{
-		Key:    "deploy",
-		Status: "Cluster resources created",
-		State:  termio.ProgressSuccess,
-	})
+	progress.SetItems(nil)
 	progress.Stop()
+	if err != nil {
+		return err
+	}
 
 	name := response.Name
 	if name == "" {
 		name = request.Name
 	}
 
+	color := termio.ColorEnabled(progressOutput)
+	check := termio.Success("✓").Render(color)
+	arrow := termio.StyledWith(0, termio.Cyan, "↗").Render(color)
+	fmt.Fprintf(progressOutput, "  %s Resources created\n", check)
+	fmt.Fprintf(progressOutput, "  %s Dashboard: %s\n", arrow, k8sValueOrDash(k8sDashboardURL(name)))
+
 	if c.Wait {
 		client.Close()
-		fmt.Fprintln(os.Stderr)
-
-		if err := k8sWaitForCluster(name); err != nil {
+		err := k8sWaitForCluster(name, progressOutput, messages)
+		if err != nil {
 			return err
 		}
+	} else {
+		fmt.Fprintln(progressOutput)
+		fmt.Fprintln(progressOutput, outputSuccessText(progressOutput, fmt.Sprintf("Cluster %s creation requested", termio.QuoteName(name))))
 	}
 
-	return k8sCreatePrintResult(name, c.Wait, output)
+	if output == "json" {
+		return k8sCreatePrintJsonResult(name, c.Wait)
+	}
+	return nil
 }
 
 func (c *K8sClusterCreateCommand) readInput() (k8sCreateSpec, error) {
@@ -540,20 +456,7 @@ func (c *K8sClusterCreateCommand) workerPools() ([]k8sCreatePoolSpec, error) {
 
 	pools := make([]k8sCreatePoolSpec, 0, len(indices))
 	for _, index := range indices {
-		flags := c.pools[index]
-		pool := k8sCreatePoolSpec{
-			Name:    flags.name,
-			Machine: flags.machine,
-		}
-		if flags.nodesSet {
-			value := flags.nodes
-			pool.Nodes = &value
-		}
-		if flags.diskSet {
-			value := flags.disk
-			pool.Disk = &value
-		}
-		pools = append(pools, pool)
+		pools = append(pools, *c.pools[index])
 	}
 	return pools, nil
 }
@@ -561,29 +464,27 @@ func (c *K8sClusterCreateCommand) workerPools() ([]k8sCreatePoolSpec, error) {
 func (c *K8sClusterCreateCommand) setPoolFlag(index int, field string, value string) error {
 	flags := c.pools[index]
 	if flags == nil {
-		flags = &k8sCreatePoolFlags{}
+		flags = &k8sCreatePoolSpec{}
 		c.pools[index] = flags
 	}
 
 	switch field {
 	case "name":
-		flags.name = value
+		flags.Name = value
 	case "machine":
-		flags.machine = value
+		flags.Machine = value
 	case "nodes":
 		nodes, err := strconv.Atoi(value)
 		if err != nil {
 			return fmt.Errorf("--worker-pools[%d].nodes must be an integer: %q", index, value)
 		}
-		flags.nodes = nodes
-		flags.nodesSet = true
+		flags.Nodes = &nodes
 	case "disk":
 		disk, err := strconv.Atoi(value)
 		if err != nil {
 			return fmt.Errorf("--worker-pools[%d].disk must be an integer: %q", index, value)
 		}
-		flags.disk = disk
-		flags.diskSet = true
+		flags.Disk = &disk
 	}
 
 	return nil
@@ -710,7 +611,7 @@ func k8sResolveCreateRequest(input k8sCreateSpec) (k8sapi.DeployRequest, error) 
 	for i, pool := range input.WorkerPools {
 		role := fmt.Sprintf("worker pool %d", i+1)
 		if strings.TrimSpace(pool.Name) != "" {
-			role = "worker pool " + strings.TrimSpace(pool.Name)
+			role = "worker pool " + termio.QuoteName(strings.TrimSpace(pool.Name))
 		}
 
 		machine, err := k8sResolveMachine(byName, available, provider, role, pool.Machine)
@@ -756,7 +657,7 @@ func k8sProviderProducts(provider string) (map[string]accapi.ProductReference, [
 		byName[product.Product.Name] = product.Product.ToReference()
 	}
 	if len(byName) == 0 {
-		return nil, nil, fmt.Errorf("no VM-capable compute products are available for provider %s", provider)
+		return nil, nil, fmt.Errorf("no VM-capable compute products are available for provider %s", termio.QuoteName(provider))
 	}
 
 	available := make([]string, 0, len(byName))
@@ -783,10 +684,10 @@ func k8sResolveMachine(
 	machine, ok := byName[name]
 	if !ok {
 		return accapi.ProductReference{}, fmt.Errorf(
-			"unknown machine type %q for provider %s; available machine types: %s",
-			name,
-			provider,
-			strings.Join(available, ", "),
+			"unknown machine type %s for provider %s; available machine types: %s",
+			termio.QuoteName(name),
+			termio.QuoteName(provider),
+			termio.QuoteNames(available),
 		)
 	}
 	return machine, nil
@@ -802,11 +703,12 @@ func k8sCreateFailureMessage(client *iapp.Client, err error) string {
 	return k8sClusterMessage(message)
 }
 
-func k8sWaitForCluster(name string) error {
+func k8sWaitForCluster(name string, output io.Writer, messages *k8sMessageState) error {
 	ctx, cancel := context.WithTimeout(context.Background(), k8sWaitTimeout)
 	defer cancel()
 
-	progress := termio.NewProgressList(os.Stderr, fmt.Sprintf("Waiting for cluster %s to become ready", name))
+	progress := termio.NewProgressList(output, "")
+	progress.SetSeparateItems(true)
 	progress.Start()
 	defer progress.Stop()
 
@@ -838,11 +740,7 @@ func k8sWaitForCluster(name string) error {
 				}
 				continue
 			}
-
-			if !dashboardAnnounced {
-				progress.Milestone("Dashboard available")
-				dashboardAnnounced = true
-			}
+			client.SetMessageHandler(k8sWaitMessageHandler(messages, progress))
 		}
 
 		response, err := iapp.Call(ctx, client, k8sapi.ProvisioningStatus, util.Empty{})
@@ -861,6 +759,11 @@ func k8sWaitForCluster(name string) error {
 			continue
 		}
 
+		if !dashboardAnnounced {
+			progress.MilestoneSuccessFirst("Dashboard connected")
+			dashboardAnnounced = true
+		}
+
 		if err := k8sProvisioningFailure(response, name); err != nil {
 			return err
 		}
@@ -870,8 +773,8 @@ func k8sWaitForCluster(name string) error {
 
 		k8sWaitSetProgress(progress, response, stages, nil)
 
-		if response.AllReady {
-			progress.Summary(fmt.Sprintf("Cluster %s is ready", name))
+		if response.AllReady && k8sWaitBootstrapComplete(response, stages, nil) {
+			progress.Summary(outputSuccessText(output, fmt.Sprintf("Cluster %s is ready", termio.QuoteName(name))))
 			return nil
 		}
 
@@ -912,13 +815,12 @@ func k8sCreatePrintRequest(request k8sapi.DeployRequest, output string) error {
 		return k8sPrintJson(request)
 	}
 
-	summary := termio.Frame{}
-	summary.Title("Cluster " + request.Name)
-	summary.AppendField("Provider", request.Provider)
+	summary := k8sClusterFrame(request.Name)
+	summary.AppendField("Provider", termio.EscapeName(request.Provider))
 	summary.AppendField("Kubernetes", request.K8sVersion)
 	summary.AppendField("Control plane", fmt.Sprintf(
 		"%s (%d node%s, %d GB disk)",
-		request.ControlPlane.Machine.Id,
+		termio.EscapeName(request.ControlPlane.Machine.Id),
 		request.ControlPlane.Nodes,
 		k8sCreatePlural(request.ControlPlane.Nodes),
 		request.ControlPlane.Disk,
@@ -926,14 +828,10 @@ func k8sCreatePrintRequest(request k8sapi.DeployRequest, output string) error {
 	summary.Print()
 	fmt.Println()
 
-	pools := termio.Table{}
-	pools.AppendHeader("Worker pool")
-	pools.AppendHeader("Machine")
-	pools.AppendHeader("Nodes")
-	pools.AppendHeader("Disk (GB)")
+	pools := outputTable("Worker pool", "Machine", "Nodes", "Disk (GB)")
 	for _, pool := range request.WorkerPools {
-		pools.Cell("%s", pool.Name)
-		pools.Cell("%s", pool.Machine.Id)
+		pools.Cell("%s", termio.EscapeName(pool.Name))
+		pools.Cell("%s", termio.EscapeName(pool.Machine.Id))
 		pools.Cell("%d", pool.Nodes)
 		pools.Cell("%d", pool.Disk)
 	}
@@ -945,33 +843,18 @@ func k8sCreatePrintRequest(request k8sapi.DeployRequest, output string) error {
 	return nil
 }
 
-func k8sCreatePrintResult(name string, ready bool, output string) error {
+func k8sCreatePrintJsonResult(name string, ready bool) error {
 	dashboardUrl := k8sDashboardURL(name)
 
-	if output == "json" {
-		return k8sPrintJson(struct {
-			Name         string `json:"name"`
-			DashboardUrl string `json:"dashboardUrl"`
-			Ready        bool   `json:"ready"`
-		}{
-			Name:         name,
-			DashboardUrl: dashboardUrl,
-			Ready:        ready,
-		})
-	}
-
-	k8sPrintResultSpacer()
-
-	frame := termio.Frame{}
-	frame.Title("Cluster " + name)
-	if ready {
-		frame.AppendFieldStyled("Status", termio.Success("Ready"))
-	} else {
-		frame.AppendFieldStyled("Status", termio.Subtle("Created (not verified)"))
-	}
-	frame.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
-	frame.Print()
-	return nil
+	return k8sPrintJson(struct {
+		Name         string `json:"name"`
+		DashboardUrl string `json:"dashboardUrl"`
+		Ready        bool   `json:"ready"`
+	}{
+		Name:         name,
+		DashboardUrl: dashboardUrl,
+		Ready:        ready,
+	})
 }
 
 func k8sCreatePlural(count int) string {

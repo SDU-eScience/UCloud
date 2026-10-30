@@ -6,7 +6,6 @@ import (
 	"sort"
 	"time"
 
-	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 
 	"ucloud.dk/iapp/k8s/pkg/maintenance"
@@ -51,18 +50,14 @@ func dashboardRemovePoolNodes(
 	})
 
 	if len(nodes) < count {
-		return fmt.Errorf("the pool does not have enough nodes to remove")
+		return fmt.Errorf("the node group does not have enough nodes to remove")
 	}
 
 	for i := 0; i < count; i++ {
 		node := nodes[i]
 		ucxsvc.UiSendProgress(app, fmt.Sprintf("Removing node %s (%d/%d)", node.Hostname, i+1, count))
 
-		err := maintenance.SubmitRemove(node.Hostname, "", maintenance.Options{
-			TimeoutSeconds: k8sapi.MaintenanceTimeoutDefault,
-			Cordon:         true,
-			Drain:          true,
-		})
+		err := maintenanceSubmitRemoveNode(node.Hostname)
 		if err != nil {
 			return fmt.Errorf("could not remove node %s: %w", node.Hostname, err)
 		}

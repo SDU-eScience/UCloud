@@ -46,7 +46,7 @@ func UIBackupRow(id string, release string, sizeBytes int64, createdByNode strin
 		details = append(details, "backed up by "+createdByNode)
 	}
 	if len(details) > 0 {
-		children = append(children, ucx.Text(strings.Join(details, " — ")).Sx(
+		children = append(children, ucx.Text(strings.Join(details, ", ")).Sx(
 			ucx.SxColor(ucx.ColorTextSecondary),
 			ucx.SxMinWidth(0),
 			ucx.SxWordBreak("break-word"),

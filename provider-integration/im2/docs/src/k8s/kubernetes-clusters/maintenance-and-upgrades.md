@@ -79,7 +79,7 @@ operation is stale. The guards run before the submission:
 
 | Guard | Rule |
 |-------|------|
-| Cluster | The cluster must be in the `created` phase. |
+| Cluster | The cluster must be in the `created` or `cleanup-pending` phase. |
 | Recovery | No recovery operation may be active. |
 | Timeout | The timeout of an operation is between 30 and 3600 seconds. |
 | Force delete | The deletion of pods without a grace period requires bypassing the disruption budgets. It is not available for upgrades, because the application cannot prove that the workloads stopped. |
@@ -242,7 +242,7 @@ dashboard shows the checks of the run:
 
 | Check | Verifies |
 |-------|----------|
-| Cluster | The cluster is in the `created` phase. |
+| Cluster | The cluster is in the `created` or `cleanup-pending` phase. |
 | Recovery | No recovery operation is active. |
 | Maintenance state | No node has an active operation. |
 | Nodes | Every node is present and ready. |

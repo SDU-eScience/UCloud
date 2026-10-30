@@ -44,6 +44,7 @@ func (app *stackUiApp) registerRpcHandlers() {
 			Pools:           []k8sapi.StatusPool{},
 			Nodes:           []k8sapi.StatusNode{},
 			Maintenance:     []k8sapi.MaintenanceOperation{},
+			MaintenanceRuns: []k8sapi.MaintenanceRunSummary{},
 			NodeTotal:       len(record.Nodes),
 		}
 
@@ -120,51 +121,25 @@ func (app *stackUiApp) registerRpcHandlers() {
 			}
 		}
 
-		upgrade, _, upgradeFound, upgradeErr := maintenance.RollingUpgradeSnapshot()
-		if upgradeErr != nil {
-			response.RollingUpgradeError = upgradeErr.Error()
-		} else if upgradeFound {
-			upgradeStatus := &k8sapi.StatusRollingUpgrade{
-				Uid:           upgrade.Uid,
-				TargetRelease: upgrade.TargetRelease,
-				Phase:         upgrade.Phase,
-				Error:         upgrade.Error,
-				Nodes:         []k8sapi.StatusUpgradeNode{},
+		runs, runsErr := maintenance.RunsSnapshot()
+		if runsErr != nil {
+			if response.MaintenanceError != "" {
+				response.MaintenanceError += "; "
 			}
-			for _, node := range upgrade.Nodes {
-				upgradeStatus.Nodes = append(upgradeStatus.Nodes, k8sapi.StatusUpgradeNode{
-					Name:         node.Name,
-					Group:        node.Group,
-					Phase:        node.Phase,
-					OperationUid: node.OperationUid,
-				})
+			response.MaintenanceError += runsErr.Error()
+		} else {
+			for _, run := range runs {
+				response.MaintenanceRuns = append(
+					response.MaintenanceRuns,
+					dashboardMaintenanceRunInfo(run, snapshot).MaintenanceRunSummary,
+				)
 			}
-			response.RollingUpgrade = upgradeStatus
 		}
 
-		backupStatus, backupErr := app.backupStatusRead()
+		backupInfo, backupErr := dashboardBackupInfo(app)
 		if backupErr != nil {
 			response.BackupError = backupErr.Error()
 		} else {
-			backupInfo := &k8sapi.StatusBackup{
-				StateFound:   backupStatus.StateFound,
-				RequestFound: backupStatus.RequestFound,
-			}
-			if backupStatus.StateFound {
-				backupInfo.ClaimUid = backupStatus.State.ClaimUid
-				backupInfo.ClaimRequestUid = backupStatus.State.ClaimRequestUid
-				backupInfo.LastAttemptPhase = backupStatus.State.LastAttempt.Phase
-				backupInfo.LastAttemptError = backupStatus.State.LastAttempt.Error
-				backupInfo.LastAttemptFinishedAt = dashboardUnixSeconds(backupStatus.State.LastAttempt.FinishedAt)
-				backupInfo.LastSuccessFinishedAt = dashboardUnixSeconds(backupStatus.State.LastSuccess.FinishedAt)
-				backupInfo.NextDueAt = dashboardUnixSeconds(backupStatus.State.DueAt)
-				backupInfo.Retained = len(backupStatus.State.Retained)
-			}
-			if backupStatus.RequestFound {
-				backupInfo.RequestUid = backupStatus.Request.Uid
-				backupInfo.RequestPhase = backupStatus.Request.Phase
-				backupInfo.RequestError = backupStatus.Request.Error
-			}
 			response.Backup = backupInfo
 		}
 
@@ -257,7 +232,7 @@ func (app *stackUiApp) registerRpcHandlers() {
 
 		pool, found := dashboardPoolRecord(record, poolName)
 		if !found {
-			return k8sapi.ScaleOutResponse{}, fmt.Errorf("unknown node pool: %s", poolName)
+			return k8sapi.ScaleOutResponse{}, fmt.Errorf("unknown node group: %s", poolName)
 		}
 		response.Pool = pool.Name
 
@@ -276,7 +251,7 @@ func (app *stackUiApp) registerRpcHandlers() {
 			}
 		} else if request.Nodes > k8sapi.MaxPoolNodes {
 			return k8sapi.ScaleOutResponse{}, fmt.Errorf(
-				"the pool supports at most %d nodes",
+				"the worker pool supports at most %d nodes",
 				k8sapi.MaxPoolNodes,
 			)
 		}
@@ -300,7 +275,7 @@ func (app *stackUiApp) registerRpcHandlers() {
 			}
 
 			if !shared.ClusterScalePool(app, stack, pool.Name, request.Nodes-current, disk) {
-				return k8sapi.ScaleOutResponse{}, fmt.Errorf("the pool could not be scaled")
+				return k8sapi.ScaleOutResponse{}, fmt.Errorf("the node group could not be scaled")
 			}
 			response.Ok = true
 			return response, nil
@@ -337,246 +312,13 @@ func (app *stackUiApp) registerRpcHandlers() {
 			DiskGb:  request.Disk,
 		})
 		if !ok {
-			return k8sapi.AddPoolResponse{}, fmt.Errorf("the pool could not be added")
+			return k8sapi.AddPoolResponse{}, fmt.Errorf("the worker pool could not be added")
 		}
 
 		return k8sapi.AddPoolResponse{Name: name, Nodes: request.Nodes, Ok: true}, nil
 	})
 
-	k8sapi.NodeAction.Handler(session, func(ctx context.Context, request k8sapi.NodeActionRequest) (k8sapi.NodeActionResponse, error) {
-		app.mu.Lock()
-		stack := app.Stack
-		app.mu.Unlock()
-
-		if stack == nil || !stack.Ok {
-			return k8sapi.NodeActionResponse{}, fmt.Errorf("the cluster stack is not available")
-		}
-
-		node := strings.TrimSpace(request.Node)
-		if node == "" {
-			return k8sapi.NodeActionResponse{}, fmt.Errorf("a node name is required")
-		}
-
-		action := strings.TrimSpace(request.Action)
-		switch action {
-		case k8sapi.NodeActionDrain,
-			k8sapi.NodeActionCordon,
-			k8sapi.NodeActionUncordon,
-			k8sapi.NodeActionUpgrade,
-			k8sapi.NodeActionRemove,
-			k8sapi.NodeActionCancel:
-		default:
-			return k8sapi.NodeActionResponse{}, fmt.Errorf("unknown node action %q", action)
-		}
-
-		options := maintenance.Options{
-			TimeoutSeconds:          request.TimeoutSeconds,
-			Cordon:                  request.Cordon,
-			Drain:                   request.Drain,
-			DeleteVolatilePods:      request.DeleteVolatilePods,
-			BypassDisruptionBudgets: request.BypassDisruptionBudgets,
-			ForceDelete:             request.ForceDelete,
-		}
-		if options.TimeoutSeconds == 0 {
-			options.TimeoutSeconds = k8sapi.MaintenanceTimeoutDefault
-		}
-
-		nodeUid := ""
-		if action != k8sapi.NodeActionRemove && action != k8sapi.NodeActionCancel {
-			client, err := K8sClientFromKubeconfig(LocalKubeconfigPath())
-			if err != nil {
-				return k8sapi.NodeActionResponse{}, fmt.Errorf("could not connect to Kubernetes: %w", err)
-			}
-
-			uid, err := client.NodeUid(ctx, node)
-			if err != nil {
-				return k8sapi.NodeActionResponse{}, fmt.Errorf("could not find node %s in Kubernetes: %w", node, err)
-			}
-			nodeUid = uid
-		}
-
-		var err error
-		switch action {
-		case k8sapi.NodeActionDrain:
-			err = maintenance.SubmitCordonDrain(node, nodeUid, options)
-		case k8sapi.NodeActionCordon:
-			err = maintenance.SubmitCordon(node, nodeUid, options)
-		case k8sapi.NodeActionUncordon:
-			err = maintenance.SubmitUncordon(node, nodeUid)
-		case k8sapi.NodeActionUpgrade:
-			err = maintenance.SubmitUpgrade(node, nodeUid, request.TargetRelease, options)
-		case k8sapi.NodeActionRemove:
-			err = maintenance.SubmitRemove(node, nodeUid, options)
-		case k8sapi.NodeActionCancel:
-			err = maintenance.CancelActiveOperation(node)
-		}
-		if err != nil {
-			return k8sapi.NodeActionResponse{}, err
-		}
-
-		response := k8sapi.NodeActionResponse{Node: node, Action: action}
-		if snapshot, snapshotErr := maintenance.Snapshot(); snapshotErr == nil {
-			if operation, ok := snapshot[node]; ok {
-				response.OperationUid = operation.Uid
-			}
-		}
-		return response, nil
-	})
-
-	k8sapi.RollingUpgrade.Handler(session, func(_ context.Context, request k8sapi.UpgradeRequest) (k8sapi.UpgradeResponse, error) {
-		app.mu.Lock()
-		stack := app.Stack
-		app.mu.Unlock()
-
-		if stack == nil || !stack.Ok {
-			return k8sapi.UpgradeResponse{}, fmt.Errorf("the cluster stack is not available")
-		}
-
-		version := strings.TrimSpace(request.K8sVersion)
-		if version == "" {
-			return k8sapi.UpgradeResponse{}, fmt.Errorf("a target Kubernetes release is required")
-		}
-
-		timeout := request.TimeoutSeconds
-		if timeout == 0 {
-			timeout = k8sapi.MaintenanceTimeoutDefault
-		}
-		if timeout < k8sapi.MaintenanceTimeoutMin || timeout > k8sapi.MaintenanceTimeoutMax {
-			return k8sapi.UpgradeResponse{}, fmt.Errorf(
-				"the timeout must be from %d to %d seconds",
-				k8sapi.MaintenanceTimeoutMin,
-				k8sapi.MaintenanceTimeoutMax,
-			)
-		}
-
-		record, ok := app.readClusterRecordWith(session, stack)
-		if !ok {
-			return k8sapi.UpgradeResponse{}, fmt.Errorf("could not read the cluster record")
-		}
-
-		selected := map[string]bool{}
-		for _, pool := range request.Pools {
-			name := strings.TrimSpace(pool)
-			if name == "" {
-				continue
-			}
-			if _, found := dashboardPoolRecord(record, name); !found {
-				return k8sapi.UpgradeResponse{}, fmt.Errorf("unknown node pool: %s", name)
-			}
-			selected[name] = true
-		}
-
-		groups := map[string]maintenance.Options{}
-		for _, node := range record.Nodes {
-			options := maintenance.Options{TimeoutSeconds: timeout}
-			if len(selected) == 0 || selected[node.Group] {
-				options.Cordon = request.Cordon || request.Drain
-				options.Drain = request.Drain
-			}
-			groups[node.Group] = options
-		}
-		if len(groups) == 0 {
-			return k8sapi.UpgradeResponse{}, fmt.Errorf("the cluster has no nodes")
-		}
-
-		startCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer cancel()
-
-		err := maintenance.RollingUpgradeStart(startCtx, LocalKubeconfigPath(), version, groups)
-		if err != nil {
-			return k8sapi.UpgradeResponse{}, err
-		}
-
-		response := k8sapi.UpgradeResponse{TargetRelease: version}
-		if upgrade, _, found, snapshotErr := maintenance.RollingUpgradeSnapshot(); snapshotErr == nil && found {
-			response.Uid = upgrade.Uid
-		}
-		return response, nil
-	})
-
-	k8sapi.BackupNow.Handler(session, func(_ context.Context, _ util.Empty) (k8sapi.BackupResponse, error) {
-		uid, err := backupRequestSubmitUid(app)
-		if err != nil {
-			return k8sapi.BackupResponse{}, err
-		}
-		return k8sapi.BackupResponse{Uid: uid, Phase: k8sapi.BackupRequestPending}, nil
-	})
-
-	k8sapi.AutoMaintenance.Handler(session, func(_ context.Context, request k8sapi.AutoRequest) (k8sapi.AutoResponse, error) {
-		action := strings.TrimSpace(request.Action)
-		switch action {
-		case k8sapi.AutoActionShow:
-		case k8sapi.AutoActionSet:
-			saveCtx, cancel := app.dashboardContext()
-			err := app.autoPolicyApply(saveCtx, request)
-			cancel()
-			if err != nil {
-				return k8sapi.AutoResponse{}, err
-			}
-
-		case k8sapi.AutoActionRun:
-			runCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			err := maintenance.AutoOpenWindowNow(runCtx, LocalKubeconfigPath())
-			cancel()
-			if err != nil {
-				return k8sapi.AutoResponse{}, err
-			}
-
-		case k8sapi.AutoActionStop:
-			if err := maintenance.AutoStopRun(); err != nil {
-				return k8sapi.AutoResponse{}, err
-			}
-
-		case k8sapi.AutoActionResume:
-			if err := maintenance.AutoResume(); err != nil {
-				return k8sapi.AutoResponse{}, err
-			}
-
-		case k8sapi.AutoActionPause:
-			days := request.PauseDays
-			if days < 1 {
-				days = 1
-			}
-			if days > 30 {
-				return k8sapi.AutoResponse{}, fmt.Errorf("the pause must be from 1 to 30 days")
-			}
-			until := time.Now().UTC().Add(time.Duration(days) * 24 * time.Hour)
-			if err := maintenance.AutoDeferUntil(until); err != nil {
-				return k8sapi.AutoResponse{}, err
-			}
-
-		case k8sapi.AutoActionUnpause:
-			if err := maintenance.AutoDeferUntil(time.Time{}); err != nil {
-				return k8sapi.AutoResponse{}, err
-			}
-
-		case k8sapi.AutoActionRetryOs:
-			node := strings.TrimSpace(request.Node)
-			if node == "" {
-				return k8sapi.AutoResponse{}, fmt.Errorf("a node name is required")
-			}
-
-			retryCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			err := maintenance.AutoRetryOsUpdate(retryCtx, LocalKubeconfigPath(), node)
-			cancel()
-			if err != nil {
-				return k8sapi.AutoResponse{}, err
-			}
-
-			if status, statusErr := app.autoStatusRead(); statusErr == nil &&
-				status.StateFound &&
-				maintenance.AutoStateBlocked(status.State) {
-				if err := maintenance.AutoResume(); err != nil {
-					return k8sapi.AutoResponse{}, err
-				}
-			}
-
-		default:
-			return k8sapi.AutoResponse{}, fmt.Errorf("unknown automatic maintenance action %q", action)
-		}
-
-		return app.autoResponse()
-	})
+	registerMaintenanceRpcHandlers(app, session)
 }
 
 func dashboardUnixSeconds(value time.Time) int64 {

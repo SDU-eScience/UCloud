@@ -86,14 +86,14 @@ func Script(name string) string {
 
 const (
 	clusterRecordPhaseProvisioning = k8sapi.ClusterPhaseProvisioning
-	clusterRecordPhaseCleanup      = k8sapi.ClusterPhaseCleanup
+	ClusterRecordPhaseCleanup      = k8sapi.ClusterPhaseCleanup
 	clusterRecordPhaseError        = k8sapi.ClusterPhaseError
 
 	ClusterRecordPhaseCreated    = k8sapi.ClusterPhaseCreated
 	ClusterRecordPhaseRecovering = k8sapi.ClusterPhaseRecovering
 )
 
-const ScriptBundleRevision = 24
+const ScriptBundleRevision = 25
 
 func BundlePathForRelease(release K3sRelease) string {
 	return filepath.Join("bundles", strconv.Itoa(ScriptBundleRevision), SanitizeForPath(release.Release))
@@ -170,6 +170,48 @@ func ClusterRecordMarkFailed(client ClusterStateClient, record *ClusterRecord, r
 	record.Phase = clusterRecordPhaseError
 	record.FailureReason = reason
 	return ClusterRecordWrite(client, record)
+}
+
+const (
+	clusterRecordWriteAttempts = 8
+	clusterRecordWriteDelay    = 2 * time.Second
+)
+
+func ClusterRecordUpdate(client ClusterStateClient, mutate func(*ClusterRecord) bool) error {
+	for attempt := 0; attempt < clusterRecordWriteAttempts; attempt++ {
+		snapshot, err := ClusterStateRead(client)
+		if err != nil {
+			return err
+		}
+		if !snapshot.Found {
+			return errors.New("the cluster record does not exist")
+		}
+
+		record := snapshot.Record
+		if !mutate(&record) {
+			return nil
+		}
+
+		_, err = ClusterStateRecordWrite(client, &record, snapshot.Revision)
+		if err == nil {
+			return nil
+		}
+		if !IsConflict(err) {
+			return err
+		}
+
+		time.Sleep(clusterRecordWriteDelay)
+	}
+
+	return errors.New("the cluster record changed too often")
+}
+
+func ClusterRecordPhaseOperational(phase string) bool {
+	return phase == ClusterRecordPhaseCreated || phase == ClusterRecordPhaseCleanup
+}
+
+func ClusterRecordPhaseAllowsRecovery(phase string) bool {
+	return phase == ClusterRecordPhaseCreated || phase == ClusterRecordPhaseCleanup || phase == ClusterRecordPhaseRecovering
 }
 
 type ClusterTokens struct {
@@ -250,7 +292,7 @@ func ClusterCreate(app ucx.Application, request k8sapi.DeployRequest) (*ucxsvc.S
 		return stack, false, fmt.Sprintf("could not check the existing cluster state: %s", readErr)
 	}
 	if existingState.Found {
-		return stack, false, "a cluster record already exists for this cluster; resource creation was not restarted"
+		return stack, false, "a cluster record already exists for this cluster. Resource creation was not restarted"
 	}
 
 	stopHeartbeat, heartbeatFailed := ucxsvc.StackStartHeartbeat(stack)
@@ -332,14 +374,14 @@ func ClusterCreate(app ucx.Application, request k8sapi.DeployRequest) (*ucxsvc.S
 	for _, pool := range plans {
 		for i := 1; i <= pool.Nodes; i++ {
 			if heartbeatFailed() {
-				return stack, false, "the cluster creation lease was lost; the failed resources are cleaned up automatically"
+				return stack, false, "cluster creation could not continue. Cleanup of the cluster resources has been scheduled. The state drive is kept"
 			}
 
 			allocationId := record.NextAllocationId
 			hostname := ClusterNodeHostname(pool.Name, allocationId)
 
 			if pool.Name == GroupControlPlane {
-				ucxsvc.UiSendProgress(app, fmt.Sprintf("Creating control plane node %d/%d", i, pool.Nodes))
+				ucxsvc.UiSendProgress(app, fmt.Sprintf("Creating control-plane node %d/%d", i, pool.Nodes))
 			} else {
 				ucxsvc.UiSendProgress(app, fmt.Sprintf("Creating worker pool %s node %d/%d", pool.Name, i, pool.Nodes))
 			}
@@ -361,20 +403,20 @@ func ClusterCreate(app ucx.Application, request k8sapi.DeployRequest) (*ucxsvc.S
 				cleanupErr := clusterCreateCleanupFailed(stateClient, stack, record, failReason)
 				if cleanupErr != nil {
 					return stack, false, fmt.Sprintf(
-						"could not create node %s; the cluster record with the cleanup state could not be saved, so the failed resources need manual cleanup: %s",
+						"could not create node %s. Cleanup of the cluster resources has been scheduled. The state drive is kept. Could not save the cleanup details: %s",
 						hostname,
 						cleanupErr,
 					)
 				}
 
-				return stack, false, "could not create node " + hostname + "; the failed resources are cleaned up automatically"
+				return stack, false, "could not create node " + hostname + ". Cleanup of the cluster resources has been scheduled. The state drive is kept"
 			}
 		}
 	}
 
 	if err := stopHeartbeat(); err != nil {
 		stack.Ok = false
-		return stack, false, "the cluster creation lease was lost; the failed resources are cleaned up automatically"
+		return stack, false, "cluster creation could not continue. Cleanup of the cluster resources has been scheduled. The state drive is kept"
 	}
 
 	if err := ucxsvc.StackConfirm(stack); err != nil {
@@ -513,7 +555,7 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 		firstServer:  opts.group == GroupControlPlane && opts.allocationId == 1,
 		tokens:       opts.tokens,
 	}) {
-		return false, "could not write the input files of the node"
+		return false, "could not prepare the node configuration"
 	}
 
 	record := opts.record
@@ -615,7 +657,7 @@ func clusterCreateNode(stack *ucxsvc.Stack, opts clusterNodeOptions) (bool, stri
 
 	if opts.group == GroupControlPlane {
 		if !clusterWriteControllerToken(stack, opts.session, job.Id, opts.allocationId) {
-			return false, "could not write the controller registration token"
+			return false, "could not prepare the credentials for cluster management"
 		}
 	}
 
@@ -670,7 +712,7 @@ func ClusterRecoveryCreateNode(
 		return errors.New("the cluster record is nil")
 	}
 	if spec.Release.Release == "" {
-		return errors.New("the recovery release is empty")
+		return errors.New("the recovery Kubernetes version is empty")
 	}
 	if !AllocationIdIsValid(spec.AllocationId) {
 		return fmt.Errorf("the allocation id %d is not valid", spec.AllocationId)
@@ -716,7 +758,7 @@ func ClusterRecoveryCreateNode(
 	if record.BundlePath != bundleTarget || record.K8sVersion != spec.Release.Release {
 		writeBundle(stack, bundleTarget)
 		if !stack.Ok {
-			return errors.New("could not write the bootstrap bundle for release " + spec.Release.Release)
+			return errors.New("could not prepare the setup files for Kubernetes version " + spec.Release.Release)
 		}
 		record.BundlePath = bundleTarget
 		record.K8sVersion = spec.Release.Release
@@ -737,7 +779,7 @@ func ClusterRecoveryCreateNode(
 		tokens:       ClusterTokens{ServerToken: spec.ServerToken, AgentToken: spec.AgentToken},
 		recovery:     recovery,
 	}) {
-		return errors.New("could not write the input files of node " + node.Hostname)
+		return errors.New("could not prepare the configuration for node " + node.Hostname)
 	}
 
 	ucxsvc.StackWriteFileEx(
@@ -806,7 +848,7 @@ func ClusterRecoveryCreateNode(
 	}
 
 	if !clusterWriteControllerToken(stack, spec.Session, job.Id, spec.AllocationId) {
-		return errors.New("could not write the controller registration token of node " + node.Hostname)
+		return errors.New("could not prepare the cluster management credentials for node " + node.Hostname)
 	}
 
 	return nil
@@ -913,7 +955,7 @@ func clusterReleaseReservation(opts clusterNodeOptions, stack *ucxsvc.Stack, rec
 			Hostname:      hostname,
 		})
 		return ClusterRecordMarkFailed(opts.stateClient, record, "could not release the reservation of node "+hostname+
-			". Reservation id "+reservationId+" needs manual cleanup")
+			". Reservation id "+reservationId+" is pending cluster cleanup")
 	}
 
 	return ClusterRecordWrite(opts.stateClient, record)

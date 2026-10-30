@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"sort"
@@ -24,36 +25,27 @@ import (
 
 const k8sConnectTimeout = 3 * time.Minute
 
-var K8sClusterCommands = map[string]CommandFunc{
-	"releases":   func() Command { return &K8sClusterReleasesCommand{} },
-	"create":     func() Command { return &K8sClusterCreateCommand{} },
-	"list":       func() Command { return &K8sClusterListCommand{} },
-	"status":     func() Command { return &K8sClusterStatusCommand{} },
-	"kubeconfig": func() Command { return &K8sClusterKubeconfigCommand{} },
-	"scale": func() Command {
-		return &K8sClusterScaleCommand{Nodes: -1, Disk: -1}
-	},
-	"pool": func() Command {
-		return &K8sClusterPoolCommand{Nodes: -1, Disk: -1}
-	},
-	"node": func() Command {
-		return &K8sClusterNodeCommand{Timeout: -1}
-	},
-	"upgrade": func() Command {
-		return &K8sClusterUpgradeCommand{Timeout: -1}
-	},
-	"backup": func() Command {
-		return &K8sClusterBackupCommand{}
-	},
-	"auto": func() Command {
-		return &K8sClusterAutoCommand{StartHour: -1, Days: -1}
-	},
-	"delete": func() Command {
-		return &K8sClusterDeleteCommand{}
-	},
-	"recovery": func() Command {
-		return &K8sClusterRecoveryCommand{}
-	},
+func k8sCommandTree() *CommandNode {
+	return commandGroup(map[string]*CommandNode{
+		"releases":   commandLeaf(func() Command { return &K8sClusterReleasesCommand{} }),
+		"create":     commandLeaf(func() Command { return &K8sClusterCreateCommand{} }),
+		"list":       commandLeaf(func() Command { return &K8sClusterListCommand{} }),
+		"status":     commandLeaf(func() Command { return &K8sClusterStatusCommand{} }),
+		"kubeconfig": commandLeaf(func() Command { return &K8sClusterKubeconfigCommand{} }),
+		"scale": commandLeaf(func() Command {
+			return &K8sClusterScaleCommand{Nodes: -1, Disk: -1}
+		}),
+		"pool": commandLeaf(func() Command {
+			return &K8sClusterPoolCommand{Nodes: -1, Disk: -1}
+		}),
+		"delete": commandLeaf(func() Command {
+			return &K8sClusterDeleteCommand{}
+		}),
+		"recovery": commandLeaf(func() Command {
+			return &K8sClusterRecoveryCommand{}
+		}),
+		"maintenance": k8sMaintenanceCommandGroup(),
+	})
 }
 
 type K8sClusterReleasesCommand struct {
@@ -64,6 +56,10 @@ type K8sClusterReleasesCommand struct {
 type K8sClusterListCommand struct {
 	Workspace string `flag:"workspace" usage:"Workspace to use"`
 	Output    string `flag:"output" usage:"Output format: table or json"`
+	Limit     int    `flag:"limit" usage:"Maximum number of clusters to return"`
+	Next      string `flag:"next" usage:"Continuation cursor for the next batch"`
+	All       bool   `flag:"all" usage:"Return all remaining clusters"`
+	limitSet  bool
 }
 
 type K8sClusterStatusCommand struct {
@@ -82,17 +78,45 @@ type k8sClusterListEntry struct {
 	CreatedAt string `json:"createdAt"`
 }
 
+type k8sClusterListPage struct {
+	Items []k8sClusterListEntry `json:"items"`
+	Next  util.Option[string]   `json:"next"`
+}
+
 type k8sStatusOutput struct {
 	k8sapi.StatusResponse
 	DashboardUrl string `json:"dashboardUrl"`
 }
 
-func (c *K8sClusterReleasesCommand) Execute() error {
-	cfg, err := k8sInitialize(c.Workspace)
+func (c *K8sClusterListCommand) ParseArguments(args []string) error {
+	parsed, err := ArgsBind(args, c, ArgsBindOptions{
+		FlagSetName: "k8s list",
+		FlagsOnly:   true,
+		ErrorOutput: io.Discard,
+	})
 	if err != nil {
 		return err
 	}
-	output, err := k8sOutputFormat(c.Output, cfg)
+	if len(parsed.Positionals) > 0 {
+		return fmt.Errorf("unexpected argument %s", termio.QuoteName(parsed.Positionals[0]))
+	}
+	if parsed.Visited["limit"] {
+		c.limitSet = true
+	}
+	return nil
+}
+
+func (c *K8sClusterListCommand) HelpNotes() []string {
+	return []string{
+		"Clusters are returned in backend order. The default limit is defaults.itemsPerPage, or 100 when it is not set.",
+		"Use --next with a cursor from a previous result to continue in the same workspace.",
+		"Use --all to fetch all remaining clusters, including after --next. It cannot be combined with --limit.",
+		"JSON output contains items and next; next is null when there are no more clusters.",
+	}
+}
+
+func (c *K8sClusterReleasesCommand) Execute() error {
+	_, output, err := k8sInitializeOutput(c.Workspace, c.Output)
 	if err != nil {
 		return err
 	}
@@ -115,21 +139,36 @@ func (c *K8sClusterReleasesCommand) Execute() error {
 }
 
 func (c *K8sClusterListCommand) Execute() error {
-	cfg, err := k8sInitialize(c.Workspace)
-	if err != nil {
-		return err
+	if c.limitSet && c.Limit <= 0 {
+		return fmt.Errorf("--limit must be greater than zero")
 	}
-	output, err := k8sOutputFormat(c.Output, cfg)
+	if c.All && c.limitSet {
+		return fmt.Errorf("--all cannot be combined with --limit")
+	}
+
+	cfg, output, err := k8sInitializeOutput(c.Workspace, c.Output)
 	if err != nil {
 		return err
 	}
 
-	stacks, err := k8sBrowseClusters()
+	limit := c.Limit
+	if !c.limitSet {
+		limit = cfg.Defaults.ItemsPerPage
+		if limit <= 0 {
+			limit = 100
+		}
+	}
+
+	stacks, next, err := k8sBrowseClusters(limit, util.OptStringIfNotEmpty(c.Next), c.All)
 	if err != nil {
 		return err
 	}
 
-	return k8sPrintClusters(stacks, output)
+	workspace := c.Workspace
+	if workspace == "" {
+		workspace = shared.GetActiveWorkspace(cfg)
+	}
+	return k8sPrintClusters(stacks, next, limit, workspace, output)
 }
 
 func (c *K8sClusterStatusCommand) HelpNotes() []string {
@@ -143,11 +182,7 @@ func (c *K8sClusterStatusCommand) Execute() error {
 		return fmt.Errorf("a cluster name is required")
 	}
 
-	cfg, err := k8sInitialize(c.Workspace)
-	if err != nil {
-		return err
-	}
-	output, err := k8sOutputFormat(c.Output, cfg)
+	_, output, err := k8sInitializeOutput(c.Workspace, c.Output)
 	if err != nil {
 		return err
 	}
@@ -173,7 +208,7 @@ func (c *K8sClusterStatusCommand) Execute() error {
 
 	response, err := iapp.Call(ctx, client, k8sapi.Status, util.Empty{})
 	if err != nil {
-		return fmt.Errorf("could not read the status of %s: %w", c.Name, err)
+		return fmt.Errorf("could not read the status of %s: %w", termio.QuoteName(c.Name), err)
 	}
 
 	if response.Name == "" {
@@ -208,14 +243,14 @@ func (c *K8sClusterKubeconfigCommand) Execute() error {
 
 	response, err := iapp.Call(ctx, client, k8sapi.Kubeconfig, util.Empty{})
 	if err != nil {
-		return fmt.Errorf("could not read the kubeconfig of %s: %w", c.Name, err)
+		return fmt.Errorf("could not read the kubeconfig of %s: %w", termio.QuoteName(c.Name), err)
 	}
 	if response.Content == "" {
 		return fmt.Errorf("the cluster returned an empty kubeconfig")
 	}
 
-	fmt.Fprintf(os.Stderr, "Cluster: %s\n", c.Name)
-	fmt.Fprintf(os.Stderr, "Dashboard: %s\n", k8sValueOrDash(k8sDashboardURL(c.Name)))
+	fmt.Fprintf(os.Stderr, "Cluster: %s\n", termio.EscapeName(c.Name))
+	fmt.Fprintf(os.Stderr, "Dashboard: %s\n", outputLink(k8sDashboardURL(c.Name)))
 	fmt.Print(response.Content)
 	if !strings.HasSuffix(response.Content, "\n") {
 		fmt.Println()
@@ -229,6 +264,18 @@ func k8sInitialize(workspace string) (*shared.Config, error) {
 		return nil, err
 	}
 	return cfg, nil
+}
+
+func k8sInitializeOutput(workspace string, explicit string) (*shared.Config, string, error) {
+	cfg, err := k8sInitialize(workspace)
+	if err != nil {
+		return nil, "", err
+	}
+	output, err := k8sOutputFormat(explicit, cfg)
+	if err != nil {
+		return nil, "", err
+	}
+	return cfg, output, nil
 }
 
 func k8sOutputFormat(explicit string, cfg *shared.Config) (string, error) {
@@ -253,7 +300,7 @@ func k8sConnectApp(ctx context.Context, provider util.Option[string]) (*iapp.Cli
 		if provider.Present {
 			return nil, fmt.Errorf(
 				"could not connect to the Kubernetes service in provider %s; check that the provider is available for this workspace: %w",
-				provider.Value,
+				termio.QuoteName(provider.Value),
 				err,
 			)
 		}
@@ -278,6 +325,14 @@ func k8sConnectCluster(ctx context.Context, stack orcapi.Stack) (*iapp.Client, e
 		return nil, err
 	}
 	return client, nil
+}
+
+func k8sConnectNamedCluster(ctx context.Context, name string) (*iapp.Client, error) {
+	stack, err := k8sRetrieveCluster(name)
+	if err != nil {
+		return nil, err
+	}
+	return k8sConnectCluster(ctx, stack)
 }
 
 func k8sConnectRecovery(ctx context.Context, stack orcapi.Stack) (*iapp.Client, error) {
@@ -328,22 +383,25 @@ func k8sRetrieveCluster(name string) (orcapi.Stack, error) {
 		return orcapi.Stack{}, err
 	}
 	if stack.Type != k8sapi.StackType {
-		return orcapi.Stack{}, fmt.Errorf("%s is not a Kubernetes cluster", name)
+		return orcapi.Stack{}, fmt.Errorf("%s is not a Kubernetes cluster", termio.QuoteName(name))
 	}
 	return stack, nil
 }
 
-func k8sBrowseClusters() ([]orcapi.Stack, error) {
+func k8sBrowseClusters(limit int, next util.Option[string], all bool) ([]orcapi.Stack, util.Option[string], error) {
 	var result []orcapi.Stack
-	next := util.OptNone[string]()
 
 	for {
+		pageSize := min(limit, 1000)
+		if !all {
+			pageSize = min(limit-len(result), 1000)
+		}
 		page, httpErr := orcapi.StacksBrowse.Invoke(orcapi.StacksBrowseRequest{
-			ItemsPerPage: 100,
+			ItemsPerPage: pageSize,
 			Next:         next,
 		})
 		if httpErr != nil {
-			return nil, fmt.Errorf("could not list the clusters: %s", httpErr.Why)
+			return nil, util.OptNone[string](), fmt.Errorf("could not list the clusters: %s", httpErr.Why)
 		}
 
 		for _, stack := range page.Items {
@@ -353,10 +411,33 @@ func k8sBrowseClusters() ([]orcapi.Stack, error) {
 		}
 
 		if !page.Next.Present {
-			return result, nil
+			return result, util.OptNone[string](), nil
+		}
+		next = page.Next
+		if !all && len(result) == limit {
+			next, err := k8sNextClusterCursor(next)
+			return result, next, err
+		}
+	}
+}
+
+func k8sNextClusterCursor(next util.Option[string]) (util.Option[string], error) {
+	for next.Present {
+		page, httpErr := orcapi.StacksBrowse.Invoke(orcapi.StacksBrowseRequest{
+			ItemsPerPage: 1,
+			Next:         next,
+		})
+		if httpErr != nil {
+			return util.OptNone[string](), fmt.Errorf("could not list the clusters: %s", httpErr.Why)
+		}
+		for _, stack := range page.Items {
+			if stack.Type == k8sapi.StackType {
+				return next, nil
+			}
 		}
 		next = page.Next
 	}
+	return util.OptNone[string](), nil
 }
 
 func k8sDashboardURL(name string) string {
@@ -375,10 +456,8 @@ func k8sPrintReleases(response k8sapi.ReleasesResponse, output string) error {
 		return k8sPrintJson(response)
 	}
 
-	table := termio.Table{}
-	table.AppendHeader("Version")
-	table.AppendHeader("Supported until")
-	table.AppendHeader("Default")
+	table := outputTable("Version", "Supported until", "Default")
+	table.SetEmptyMessage("No Kubernetes releases found")
 
 	for _, release := range response.Releases {
 		supportedUntil := "-"
@@ -398,14 +477,11 @@ func k8sPrintReleases(response k8sapi.ReleasesResponse, output string) error {
 	sections := termio.TableSet{}
 	sections.Add("Kubernetes releases", &table)
 	sections.Print()
+	fmt.Printf("\nShowing %d result%s.\n", len(response.Releases), k8sCreatePlural(len(response.Releases)))
 	return nil
 }
 
-func k8sPrintClusters(stacks []orcapi.Stack, output string) error {
-	sort.Slice(stacks, func(i, j int) bool {
-		return stacks[i].Id < stacks[j].Id
-	})
-
+func k8sPrintClusters(stacks []orcapi.Stack, next util.Option[string], limit int, workspace string, output string) error {
 	if output == "json" {
 		entries := make([]k8sClusterListEntry, 0, len(stacks))
 		for _, stack := range stacks {
@@ -414,19 +490,30 @@ func k8sPrintClusters(stacks []orcapi.Stack, output string) error {
 				CreatedAt: stack.CreatedAt.Time().UTC().Format(time.RFC3339),
 			})
 		}
-		return k8sPrintJson(entries)
+		return k8sPrintJson(k8sClusterListPage{
+			Items: entries,
+			Next:  next,
+		})
 	}
 
-	table := termio.Table{}
-	table.AppendHeader("Name")
-	table.AppendHeader("Created")
+	table := outputTable("Name", "Created")
+	table.SetEmptyMessage("No clusters found")
 	for _, stack := range stacks {
-		table.Cell("%s", stack.Id)
+		table.Cell("%s", termio.EscapeName(stack.Id))
 		table.Cell("%s", cli.FormatTime(stack.CreatedAt))
 	}
 	sections := termio.TableSet{}
 	sections.Add("Clusters", &table)
 	sections.Print()
+	fmt.Printf("\nShowing %d result%s.\n", len(stacks), k8sCreatePlural(len(stacks)))
+	if next.Present {
+		fmt.Printf(
+			"Next: ucloud k8s list --workspace %s --output table --limit %d --next %s\n",
+			orcapi.EscapeBash(workspace),
+			limit,
+			orcapi.EscapeBash(next.Value),
+		)
+	}
 	return nil
 }
 
@@ -454,15 +541,14 @@ func k8sPrintStatus(response k8sapi.StatusResponse, output string) error {
 
 	sections := termio.TableSet{}
 
-	summary := termio.Frame{}
-	summary.Title("Cluster " + response.Name)
+	summary := k8sClusterFrame(response.Name)
 
-	summary.AppendField("Dashboard", k8sValueOrDash(dashboardUrl))
+	summary.AppendField("Dashboard", outputLink(dashboardUrl))
 	summary.AppendFieldStyled("Phase", k8sStatusPhaseCell(response.Phase))
 	if response.FailureReason != "" {
 		summary.AppendFieldStyled("Failure", termio.Danger("%s", response.FailureReason))
 	}
-	summary.AppendField("Provider", providerLabel)
+	summary.AppendField("Provider", termio.EscapeName(providerLabel))
 	summary.AppendField("Kubernetes version", k8sValueOrDash(response.K8sVersion))
 	if controlPlane != nil {
 		summary.AppendField("Control plane", fmt.Sprintf(
@@ -497,7 +583,7 @@ func k8sPrintStatus(response k8sapi.StatusResponse, output string) error {
 			summary.AppendFieldStyled("Maintenance data", termio.Danger("unavailable"))
 		}
 	}
-	summary.AppendFieldStyled("Rolling upgrade", k8sStatusUpgradeCell(response))
+	summary.AppendFieldStyled("Maintenance runs", k8sStatusMaintenanceRunsCell(response))
 
 	summary.AppendSeparator()
 
@@ -506,7 +592,7 @@ func k8sPrintStatus(response k8sapi.StatusResponse, output string) error {
 		summary.AppendFieldStyled("Last backup", k8sStatusLastBackupCell(response.Backup))
 	}
 	if response.Backup != nil && response.Backup.NextDueAt > 0 {
-		summary.AppendField("Next backup", k8sAutoTimestamp(response.Backup.NextDueAt))
+		summary.AppendField("Next backup", k8sTimestamp(response.Backup.NextDueAt))
 	}
 	if response.Backup != nil && response.Backup.StateFound {
 		summary.AppendField("Retained backups", fmt.Sprintf("%d", response.Backup.Retained))
@@ -517,17 +603,15 @@ func k8sPrintStatus(response k8sapi.StatusResponse, output string) error {
 
 	failures := k8sStatusMaintenanceFailures(response.Maintenance)
 	if len(failures) > 0 {
-		errorsTable := k8sStatusMaintenanceErrorTable(failures)
+		errorsTable := k8sStatusMaintenanceTable(failures, 60)
 		sections.Add("Maintenance errors", &errorsTable)
 	}
 
-	pools := termio.Table{}
-	pools.AppendHeader("Worker pool")
-	pools.AppendHeader("Machine")
+	pools := outputTable("Worker pool", "Machine")
 	pools.AppendHeaderEx("Nodes", termio.TableHeaderAlignRight)
 	pools.AppendHeaderEx("Disk (GB)", termio.TableHeaderAlignRight)
 	for _, pool := range workerPools {
-		pools.Cell("%s", pool.Name)
+		pools.Cell("%s", termio.EscapeName(pool.Name))
 		pools.Cell("%s", k8sValueOrDash(pool.Machine.Id))
 		pools.Cell("%d", pool.Nodes)
 		pools.Cell("%d", pool.Disk)
@@ -537,22 +621,18 @@ func k8sPrintStatus(response k8sapi.StatusResponse, output string) error {
 	nodes, unmatched := k8sStatusNodeTable(response)
 	sections.Add(fmt.Sprintf("Nodes (%d)", len(response.Nodes)), &nodes)
 	if len(unmatched) > 0 {
-		maintenance := k8sStatusMaintenanceTable(unmatched)
+		maintenance := k8sStatusMaintenanceTable(unmatched, 48)
 		sections.Add(fmt.Sprintf("Maintenance (%d)", len(unmatched)), &maintenance)
 	}
 
-	if response.RollingUpgrade != nil && len(response.RollingUpgrade.Nodes) > 0 {
-		upgrade := termio.Table{}
-		upgrade.AppendHeader("Upgrade node")
-		upgrade.AppendHeader("Group")
-		upgrade.AppendHeader("Phase")
-		upgrade.SetColumnWidthGroup(0, "node")
-		for _, node := range response.RollingUpgrade.Nodes {
-			upgrade.Cell("%s", node.Name)
-			upgrade.Cell("%s", node.Group)
-			upgrade.CellValue(k8sStatusPhaseStyle(node.Phase, k8sUpgradePhaseLabel(node.Phase)))
+	if len(response.MaintenanceRuns) > 0 {
+		runs := outputTable("Kind", "Trigger", "Phase")
+		for _, run := range response.MaintenanceRuns {
+			runs.Cell("%s", k8sValueOrDash(run.Kind))
+			runs.Cell("%s", k8sValueOrDash(run.Trigger))
+			runs.CellValue(k8sStatusPhaseStyle(run.Phase, k8sUpgradePhaseLabel(run.Phase)))
 		}
-		sections.Add("Rolling upgrade", &upgrade)
+		sections.Add("Maintenance runs", &runs)
 	}
 
 	sections.Print()
@@ -610,48 +690,20 @@ func k8sStatusMaintenanceFailures(operations []k8sapi.MaintenanceOperation) []k8
 	return failures
 }
 
-func k8sStatusMaintenanceErrorTable(operations []k8sapi.MaintenanceOperation) termio.Table {
-	table := termio.Table{}
-	table.AppendHeader("Node")
-	table.AppendHeader("Operation")
-	table.AppendHeader("Phase")
-	table.AppendHeader("Error")
-	table.SetColumnWidthGroup(0, "node")
-	table.SetColumnMaxWidth(3, 60)
-
-	for _, operation := range operations {
-		table.Cell("%s", k8sValueOrDash(operation.NodeName))
-		table.Cell("%s", k8sValueOrDash(operation.Kind))
-		table.CellValue(k8sStatusPhaseStyle(operation.Phase, k8sValueOrDash(operation.Phase)))
-		if operation.Error != "" {
-			table.CellValue(termio.Danger("%s", operation.Error))
-		} else {
-			table.CellValue(termio.Subtle("-"))
-		}
+func k8sStatusMaintenanceRunsCell(response k8sapi.StatusResponse) termio.StyledString {
+	if !response.MaintenanceKnown {
+		return termio.Subtle("-")
 	}
-
-	return table
-}
-
-func k8sStatusUpgradeCell(response k8sapi.StatusResponse) termio.StyledString {
-	if response.RollingUpgradeError != "" {
-		return termio.Danger("unavailable (%s)", response.RollingUpgradeError)
-	}
-
-	upgrade := response.RollingUpgrade
-	if upgrade == nil {
+	if len(response.MaintenanceRuns) == 0 {
 		return termio.Subtle("none in progress")
 	}
 
-	label := fmt.Sprintf(
-		"%s (%s)",
-		k8sValueOrDash(upgrade.TargetRelease),
-		k8sUpgradePhaseLabel(upgrade.Phase),
-	)
-	if upgrade.Error != "" {
-		return termio.Danger("%s: %s", label, upgrade.Error)
+	run := response.MaintenanceRuns[0]
+	label := fmt.Sprintf("%s (%s)", k8sValueOrDash(run.Kind), k8sUpgradePhaseLabel(run.Phase))
+	if run.Error != "" {
+		return termio.Danger("%s: %s", label, run.Error)
 	}
-	return k8sStatusPhaseStyle(upgrade.Phase, label)
+	return k8sStatusPhaseStyle(run.Phase, label)
 }
 
 func k8sStatusPhaseStyle(phase string, label string) termio.StyledString {
@@ -662,7 +714,10 @@ func k8sStatusPhaseStyle(phase string, label string) termio.StyledString {
 		return termio.Danger("%s", label)
 	case k8sapi.MaintenancePhaseCancelled:
 		return termio.Subtle("%s", label)
-	case k8sapi.MaintenancePhasePending, k8sapi.MaintenancePhaseRunning:
+	case k8sapi.MaintenancePhasePending,
+		k8sapi.MaintenancePhaseRunning,
+		k8sapi.MaintenanceRunPreflight,
+		k8sapi.MaintenanceRunBackup:
 		return termio.Warning("%s", label)
 	default:
 		return termio.Plain("%s", label)
@@ -709,13 +764,13 @@ func k8sStatusLastBackupCell(backup *k8sapi.StatusBackup) termio.StyledString {
 
 	if backup.LastAttemptPhase == k8sapi.BackupAttemptFailed {
 		if backup.LastAttemptFinishedAt > 0 {
-			return termio.Danger("%s (failed)", k8sAutoTimestamp(backup.LastAttemptFinishedAt))
+			return termio.Danger("%s (failed)", k8sTimestamp(backup.LastAttemptFinishedAt))
 		}
 		return termio.Danger("failed")
 	}
 
 	if backup.LastSuccessFinishedAt > 0 {
-		return termio.Plain("%s", k8sAutoTimestamp(backup.LastSuccessFinishedAt))
+		return termio.Plain("%s", k8sTimestamp(backup.LastSuccessFinishedAt))
 	}
 
 	return termio.Subtle("never")
@@ -745,13 +800,7 @@ func k8sStatusNodeTable(response k8sapi.StatusResponse) (termio.Table, []k8sapi.
 		}
 	}
 
-	table := termio.Table{}
-	table.AppendHeader("Node")
-	table.AppendHeader("Group")
-	table.AppendHeader("IP")
-	table.AppendHeader("Machine")
-	table.AppendHeader("Ready")
-	table.AppendHeader("Version")
+	table := outputTable("Node", "Group", "IP", "Machine", "Ready", "Version")
 	if hasMaintenance {
 		table.AppendHeader("Maintenance")
 		table.SetColumnMaxWidth(6, 48)
@@ -759,8 +808,8 @@ func k8sStatusNodeTable(response k8sapi.StatusResponse) (termio.Table, []k8sapi.
 	table.SetColumnWidthGroup(0, "node")
 
 	for _, node := range response.Nodes {
-		table.Cell("%s", k8sValueOrDash(node.Hostname))
-		table.Cell("%s", k8sValueOrDash(node.Group))
+		table.Cell("%s", termio.EscapeName(k8sValueOrDash(node.Hostname)))
+		table.Cell("%s", termio.EscapeName(k8sValueOrDash(node.Group)))
 		table.Cell("%s", k8sValueOrDash(node.IpAddress))
 		table.Cell("%s", k8sValueOrDash(node.Machine.Id))
 		table.CellValue(k8sStatusReadyCell(node))
@@ -797,31 +846,16 @@ func k8sStatusMaintenanceCell(operation k8sapi.MaintenanceOperation) termio.Styl
 		label += " (" + strings.ToLower(operation.Phase) + ")"
 	}
 
-	switch operation.Phase {
-	case k8sapi.MaintenancePhaseFailed, k8sapi.MaintenancePhaseBlocked:
-		return termio.Danger("%s", label)
-	case k8sapi.MaintenancePhaseCompleted:
-		return termio.Success("%s", label)
-	case k8sapi.MaintenancePhaseCancelled:
-		return termio.Subtle("%s", label)
-	case k8sapi.MaintenancePhasePending, k8sapi.MaintenancePhaseRunning:
-		return termio.Warning("%s", label)
-	default:
-		return termio.Plain("%s", label)
-	}
+	return k8sStatusPhaseStyle(operation.Phase, label)
 }
 
-func k8sStatusMaintenanceTable(operations []k8sapi.MaintenanceOperation) termio.Table {
-	table := termio.Table{}
-	table.AppendHeader("Node")
-	table.AppendHeader("Operation")
-	table.AppendHeader("Phase")
-	table.AppendHeader("Error")
+func k8sStatusMaintenanceTable(operations []k8sapi.MaintenanceOperation, maxErrorWidth int) termio.Table {
+	table := outputTable("Node", "Operation", "Phase", "Error")
 	table.SetColumnWidthGroup(0, "node")
-	table.SetColumnMaxWidth(3, 48)
+	table.SetColumnMaxWidth(3, maxErrorWidth)
 
 	for _, operation := range operations {
-		table.Cell("%s", k8sValueOrDash(operation.NodeName))
+		table.Cell("%s", termio.EscapeName(k8sValueOrDash(operation.NodeName)))
 		table.Cell("%s", k8sValueOrDash(operation.Kind))
 		table.CellValue(k8sStatusPhaseStyle(operation.Phase, k8sValueOrDash(operation.Phase)))
 		if operation.Error != "" {
@@ -877,11 +911,10 @@ func k8sPrintCoreStatus(stack orcapi.Stack, reason string, output string) error 
 		})
 	}
 
-	frame := termio.Frame{}
-	frame.Title("Cluster " + stack.Id)
+	frame := k8sClusterFrame(stack.Id)
 	frame.AppendFieldStyled("Status", termio.Warning("Dashboard unavailable"))
 	frame.AppendField("Created", cli.FormatTime(stack.CreatedAt))
-	frame.AppendField("Dashboard", k8sValueOrDash(k8sDashboardURL(stack.Id)))
+	frame.AppendField("Dashboard", outputLink(k8sDashboardURL(stack.Id)))
 	frame.AppendField("Reason", reason)
 	if len(jobs) == 0 {
 		frame.AppendField("Jobs", "none")
@@ -892,11 +925,9 @@ func k8sPrintCoreStatus(stack orcapi.Stack, reason string, output string) error 
 		return nil
 	}
 
-	table := termio.Table{}
-	table.AppendHeader("Node")
-	table.AppendHeader("State")
+	table := outputTable("Node", "State")
 	for _, job := range jobs {
-		table.Cell("%s", k8sValueOrDash(job.Name))
+		table.Cell("%s", termio.EscapeName(k8sValueOrDash(job.Name)))
 		table.Cell("%s", k8sValueOrDash(job.State))
 	}
 

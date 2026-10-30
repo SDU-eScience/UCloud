@@ -54,7 +54,7 @@ func (c *K8sClusterCreateCommand) executeTemplate() error {
 	}
 
 	if warning != "" {
-		fmt.Fprintln(os.Stderr, termio.Warning("%s", warning).Render(termio.ColorEnabled(os.Stderr)))
+		fmt.Fprintln(os.Stderr, termio.Warning("! %s", warning).Render(termio.ColorEnabled(os.Stderr)))
 	}
 
 	content, err := k8sTemplateGenerate(name, provider, machine.Id)
@@ -109,14 +109,9 @@ func (c *K8sClusterCreateCommand) k8sTemplateName() (string, error) {
 		name = "k8s-" + util.RandomTokenNoTs(4)
 	}
 
-	if len(name) > k8sapi.ClusterNameMaxLen {
-		return "", fmt.Errorf("the cluster name must be at most %d characters", k8sapi.ClusterNameMaxLen)
-	}
-	if !k8sapi.ValidGroupName(name) {
-		return "", fmt.Errorf("the cluster name may only contain a-z, 0-9 and dashes: %s", name)
-	}
-	if strings.HasPrefix(name, k8sapi.GroupControlPlane) {
-		return "", fmt.Errorf("the cluster name must not start with the reserved name: %s", k8sapi.GroupControlPlane)
+	err := k8sapi.ValidateClusterName(name)
+	if err != nil {
+		return "", err
 	}
 
 	return name, nil
@@ -201,7 +196,7 @@ func k8sTemplateChooseProvider(
 		if _, ok := byProvider[requested]; !ok {
 			return "", fmt.Errorf(
 				"service provider %s is not available for the active workspace; available providers:%s",
-				requested,
+				termio.QuoteName(requested),
 				k8sTemplateProviderList(providers),
 			)
 		}
@@ -222,7 +217,7 @@ func k8sTemplateProviderList(providers []string) string {
 	builder := strings.Builder{}
 	for _, provider := range providers {
 		builder.WriteString("\n  - ")
-		builder.WriteString(provider)
+		builder.WriteString(termio.EscapeName(provider))
 	}
 	return builder.String()
 }
@@ -255,7 +250,7 @@ func k8sTemplateChooseMachine(
 	if len(candidates) == 0 {
 		return accapi.ProductReference{}, "", fmt.Errorf(
 			"no VM products with at least 2 vCPU are available for provider %s; available machine types: %s",
-			provider,
+			termio.QuoteName(provider),
 			k8sTemplateMachineList(products),
 		)
 	}
@@ -276,8 +271,8 @@ func k8sTemplateChooseMachine(
 	machine := smallest[0].Product
 	warning := fmt.Sprintf(
 		"No 2 vCPU machine type is available for provider %s; using %s (%d vCPU).",
-		provider,
-		machine.Name,
+		termio.QuoteName(provider),
+		termio.QuoteName(machine.Name),
 		machine.Cpu,
 	)
 	return machine.ToReference(), warning, nil
@@ -320,7 +315,7 @@ func k8sTemplateMachineList(products []orcapi.ResolvedSupport[orcapi.JobSupport]
 	for _, product := range products {
 		items = append(items, fmt.Sprintf(
 			"%s (%d vCPU, %d GB)",
-			product.Product.Name,
+			termio.EscapeName(product.Product.Name),
 			product.Product.Cpu,
 			product.Product.MemoryInGigs,
 		))
@@ -417,21 +412,21 @@ func k8sTemplateWrite(content string, name string, save string, stdout bool, for
 	file, err := os.OpenFile(path, flags, 0644)
 	if err != nil {
 		if errors.Is(err, os.ErrExist) {
-			return fmt.Errorf("the template file %s already exists; use --force to overwrite it", path)
+			return fmt.Errorf("the template file %s already exists; use --force to overwrite it", termio.QuoteName(path))
 		}
-		return fmt.Errorf("could not create %s: %w", path, err)
+		return fmt.Errorf("could not create %s: %w", termio.QuoteName(path), err)
 	}
 
 	if _, err := file.WriteString(content); err != nil {
 		file.Close()
 		os.Remove(path)
-		return fmt.Errorf("could not write %s: %w", path, err)
+		return fmt.Errorf("could not write %s: %w", termio.QuoteName(path), err)
 	}
 
 	if err := file.Close(); err != nil {
-		return fmt.Errorf("could not write %s: %w", path, err)
+		return fmt.Errorf("could not write %s: %w", termio.QuoteName(path), err)
 	}
 
-	fmt.Printf("Template written to %s\n", path)
+	fmt.Fprintln(os.Stdout, outputSuccessText(os.Stdout, fmt.Sprintf("Template written to %s", termio.QuoteName(path))))
 	return nil
 }

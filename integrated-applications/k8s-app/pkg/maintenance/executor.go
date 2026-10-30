@@ -188,7 +188,7 @@ func runLoop(ctx context.Context, logPrefix string, sweep func(context.Context, 
 		if err == nil {
 			err = sweep(ctx, client)
 		}
-		if err != nil && !shared.IsConflict(err) && !errors.Is(err, errAutoRunSuperseded) && ctx.Err() == nil {
+		if err != nil && !shared.IsConflict(err) && ctx.Err() == nil {
 			log.Warn("%s: %s", logPrefix, err)
 		}
 	}
@@ -208,15 +208,12 @@ func runLoop(ctx context.Context, logPrefix string, sweep func(context.Context, 
 func Run(ctx context.Context, kubeconfigPath string) {
 	ticker := time.NewTicker(runInterval)
 	defer ticker.Stop()
+
 	var loops sync.WaitGroup
-	loops.Add(5)
+	loops.Add(3)
 	go func() {
 		defer loops.Done()
 		controlPlaneSchedulingRun(ctx, kubeconfigPath)
-	}()
-	go func() {
-		defer loops.Done()
-		runLoop(ctx, "k8s-app rolling upgrade", rollingUpgradeSweep, nil)
 	}()
 	go func() {
 		defer loops.Done()
@@ -224,19 +221,21 @@ func Run(ctx context.Context, kubeconfigPath string) {
 	}()
 	go func() {
 		defer loops.Done()
-		runLoop(ctx, "k8s-app automatic maintenance", func(ctx context.Context, client stackClient) error {
-			return autoUpgradeSweep(ctx, kubeconfigPath, client)
-		}, autoMaintenanceWake)
+		runLoop(ctx, "k8s-app maintenance", func(ctx context.Context, client stackClient) error {
+			return runSweep(ctx, kubeconfigPath, client)
+		}, nil)
 	}()
-	go func() {
-		defer loops.Done()
-		runLoop(
-			ctx,
-			"k8s-app automatic maintenance: the operating-system update check failed",
-			autoOsCheckSweep,
-			nil,
-		)
-	}()
+
+	cycle := func() {
+		client, err := stackClientNew()
+		if err != nil {
+			log.Warn("k8s-app maintenance: could not open the stack client for the maintenance sweep: %s", err)
+			return
+		}
+		sweep(ctx, kubeconfigPath, client)
+	}
+
+	cycle()
 
 	for {
 		select {
@@ -245,20 +244,14 @@ func Run(ctx context.Context, kubeconfigPath string) {
 			workers.Wait()
 			return
 		case <-ticker.C:
-			sweep(ctx, kubeconfigPath)
+			cycle()
 		case <-maintenanceWake:
-			sweep(ctx, kubeconfigPath)
+			cycle()
 		}
 	}
 }
 
-func sweep(ctx context.Context, kubeconfigPath string) {
-	client, err := stackClientNew()
-	if err != nil {
-		log.Warn("k8s-app maintenance: could not open the stack client for the maintenance sweep: %s", err)
-		return
-	}
-
+func sweep(ctx context.Context, kubeconfigPath string, client stackClient) {
 	records, err := stackList(client, stackKeyPrefix)
 	if err != nil {
 		log.Warn("k8s-app maintenance: could not list the maintenance records during the sweep: %s", err)
@@ -363,9 +356,7 @@ func runOperation(
 	case KindUncordon:
 		runErr = runUncordon(workerCtx, clientset, current, worker)
 	case KindCordon:
-		runErr = runCordon(workerCtx, clientset, current, worker)
-	case KindCordonDrain:
-		result := runCordonDrain(workerCtx, clientset, current, worker, false, true)
+		result := runCordonDrain(workerCtx, clientset, current, worker, false)
 		runErr = result.err
 		if runErr == nil && result.outcome == drainDone {
 			finish(worker, PhaseCompleted, "")
@@ -399,16 +390,13 @@ func cancelMessage(operation Operation) string {
 	if operation.Kind == KindOsUpdate && !operation.OriginalSchedulingCaptured {
 		return "cancelled by request. No operating-system packages were installed"
 	}
-	if operation.Kind == KindUncordon {
-		return "cancelled by request"
-	}
 	if operation.Kind == KindRemove {
 		if operation.NodeDeleted {
 			return "cancelled by request. The Kubernetes node was already deleted and the removal must be retried"
 		}
 		return "cancelled by request. The node remains part of the cluster"
 	}
-	if operation.Kind == KindUpgrade && !UpgradeCordons(operation) {
+	if operation.Kind == KindUpgrade || operation.Kind == KindUncordon {
 		return "cancelled by request"
 	}
 	return "cancelled by request. The node remains cordoned"
@@ -420,14 +408,14 @@ func runCordonDrain(
 	operation Operation,
 	worker *nodeWorker,
 	verified bool,
-	drain bool,
 ) cordonDrainResult {
+	drain := operation.Options.Drain
 	record, err := worker.clusterRecord()
 	if err != nil {
 		return cordonDrainResult{drainConcluded, fmt.Errorf("could not read the cluster record: %s", err)}
 	}
 
-	if record.Phase != "created" {
+	if !shared.ClusterRecordPhaseOperational(record.Phase) {
 		return cordonDrainResult{drainConcluded, fmt.Errorf("the cluster is not ready (state: %s)", record.Phase)}
 	}
 
@@ -477,29 +465,6 @@ func runCordonDrain(
 	)
 
 	return cordonDrainResult{drainNode(ctx, clientset, operation, worker), nil}
-}
-
-func runCordon(
-	ctx context.Context,
-	clientset *kubernetes.Clientset,
-	operation Operation,
-	worker *nodeWorker,
-) error {
-	node, err := getNode(ctx, clientset, operation.NodeName)
-	if err != nil {
-		return err
-	}
-
-	if string(node.UID) != operation.NodeUid {
-		return errors.New("the node uid does not match the requested node")
-	}
-
-	if cordonErr := cordonNode(ctx, clientset, worker, node); cordonErr != nil {
-		return cordonErr
-	}
-
-	finish(worker, PhaseCompleted, "")
-	return nil
 }
 
 func cordonNode(
@@ -909,7 +874,7 @@ func controlPlaneGuard(
 		return remainingErr
 	}
 	if !remaining {
-		return errors.New("at least one other healthy, schedulable control plane node must remain")
+		return errors.New("at least one other healthy, schedulable control-plane node must remain")
 	}
 
 	return nil
@@ -947,11 +912,11 @@ func controlPlaneRemovalGuard(
 
 	remaining, remainingErr := controlPlaneRemainingCount(ctx, clientset, controlPlanes, operation.NodeName, pending)
 	if remainingErr != nil {
-		return fmt.Errorf("could not list the control plane nodes: %s", remainingErr)
+		return fmt.Errorf("could not list the control-plane nodes: %s", remainingErr)
 	}
 	if remaining < required {
 		return fmt.Errorf(
-			"at least %d healthy, schedulable control plane nodes must remain after the removal, but only %d were found",
+			"at least %d healthy, schedulable control-plane nodes must remain after the removal, but only %d were found",
 			required,
 			remaining,
 		)

@@ -687,11 +687,11 @@ func stacksSpawnDeclaredJob(actor rpc.Actor, id string) *util.HttpError {
 	appName := strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelUcxAppName])
 	appVersion := strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelUcxAppVersion])
 	if appName == "" || appVersion == "" {
-		return util.HttpErr(http.StatusBadRequest, "the stack has no application")
+		return util.HttpErr(http.StatusBadRequest, "the application for this stack is unavailable. Contact your service provider")
 	}
 	app, ok := AppRetrieve(actor, appName, appVersion, AppDiscoveryAll, 0)
 	if !ok {
-		return util.HttpErr(http.StatusBadRequest, "the application of this stack could not be found")
+		return util.HttpErr(http.StatusBadRequest, "the application for this stack could not be found. Contact your service provider")
 	}
 
 	disasterRecovery := util.OptNone[orcapi.UcxDisasterRecoveryDescription]()
@@ -700,16 +700,16 @@ func stacksSpawnDeclaredJob(actor rpc.Actor, id string) *util.HttpError {
 		disasterRecovery.Set(resolvedUcx.Value.DisasterRecovery.Value)
 	}
 	if !disasterRecovery.Present || !disasterRecovery.Value.Enabled {
-		return util.HttpErr(http.StatusBadRequest, "the application of this stack does not declare disaster recovery")
+		return util.HttpErr(http.StatusBadRequest, "recovery is not available for this application")
 	}
 
 	declaration := disasterRecovery.Value.Job
 	if len(declaration.Args) == 0 {
-		return util.HttpErr(http.StatusBadRequest, "the declared disaster recovery job has no arguments")
+		return util.HttpErr(http.StatusBadRequest, "recovery is not configured correctly for this application. Contact your service provider")
 	}
 	provider := strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelStackProvider])
 	if provider == "" {
-		return util.HttpErr(http.StatusBadRequest, "the stack has no known provider")
+		return util.HttpErr(http.StatusBadRequest, "the service provider for this application is unavailable. Contact support")
 	}
 	product, productErr := stacksSelectDeclaredJobProduct(entity, provider, jobs, declaration.Cpu, declaration.MemoryInGigs)
 	if productErr != nil {
@@ -730,12 +730,12 @@ func stacksSpawnDeclaredJob(actor rpc.Actor, id string) *util.HttpError {
 		if strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelUcxPort]) == "" {
 			continue
 		}
-		return util.HttpErr(http.StatusConflict, "a recovery job is already running")
+		return util.HttpErr(http.StatusConflict, "a recovery job is already running for this application")
 	}
 
 	stateFolder := strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelStackStateFolder])
 	if stateFolder == "" {
-		return util.HttpErr(http.StatusBadRequest, "the stack has no state folder")
+		return util.HttpErr(http.StatusBadRequest, "the application storage is unavailable. Contact your service provider")
 	}
 	stackName := strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelStackName])
 	if stackName == "" {
@@ -844,7 +844,7 @@ func stacksSelectDeclaredJobProduct(
 	if !found {
 		return accapi.ProductReference{}, util.HttpErr(
 			http.StatusBadRequest,
-			"no product on this provider meets the declared disaster recovery requirements",
+			"no suitable machine is available to start recovery. Contact your service provider",
 		)
 	}
 

@@ -17,7 +17,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 	if recordOk {
 		clusterState = record.Phase
 		clusterStateColor = ucx.ColorSuccessMain
-		if record.Phase != "created" {
+		if record.Phase != shared.ClusterRecordPhaseCreated {
 			clusterStateColor = ucx.ColorWarningMain
 		}
 		if record.FailureReason != "" {
@@ -26,7 +26,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 		}
 	}
 
-	if health := app.clusterHealth; recordOk && record.Phase == "created" && health.Total > 0 {
+	if health := app.clusterHealth; recordOk && record.Phase == shared.ClusterRecordPhaseCreated && health.Total > 0 {
 		if health.NotReady == 0 && health.Unknown == 0 {
 			clusterState = "Healthy"
 		} else {
@@ -79,10 +79,10 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 			createdAtLabel = time.UnixMilli(stackInfo.CreatedAt).UTC().Format("Jan 2, 2006 15:04 UTC")
 		}
 
-		stackIdMetric := app.homeMetric("Cluster ID",
+		stackIdMetric := app.homeMetric("Cluster name",
 			homeMetricText(stackInfo.Id, ucx.ColorTextPrimary),
 			ucx.Box().Sx(ucx.SxMl(-4)).Children(
-				ucx.CopyButtonEx("homeCopyStackId", stackInfo.Id).WithTooltip("Copy cluster ID"),
+				ucx.CopyButtonEx("homeCopyStackId", stackInfo.Id).WithTooltip("Copy cluster name"),
 			),
 		)
 
@@ -109,20 +109,14 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 		app.homeMetricsRow(
 			app.homeMetric("Cluster state", homeMetricText(clusterState, clusterStateColor)),
 			app.homeMetricEx("Nodes ready", []ucx.UiNode{manageNodes}, homeMetricText(nodesLabel, ucx.ColorTextPrimary)),
-			app.homeMetricEx("Kubernetes version", []ucx.UiNode{
-				ucx.LinkButton("homeRollingUpgrade", "(Rolling upgrade)", ucx.ColorLinkColor).
-					Sx(ucx.SxFontSize(12), ucx.SxFontWeight("400")).
-					On(ucx.UiEventClick, func(ev ucx.UiEvent) {
-						ucxsvc.RouterPushPage(app, "rolling-upgrade")
-					}),
-			}, homeMetricText(k8sVersion, k8sVersionColor)),
+			app.homeMetric("Kubernetes version", homeMetricText(k8sVersion, k8sVersionColor)),
 		),
 	)
 
 	resourcesMetric := []ucx.UiNode{}
 	if stackInfo != nil {
 		resourcesMetric = app.homeMetric("Resources",
-			ucx.LinkButton("homeShowResources", fmt.Sprintf("%d", stackInfo.ResourceCount), ucx.ColorPrimaryMain).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+			ucx.LinkButton("homeShowResources", fmt.Sprintf("%d", stackInfo.ResourceCount), ucx.ColorLinkColor).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 				ucxsvc.StackShowResources(app)
 			}),
 		)
@@ -130,10 +124,40 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 	children = append(children, app.homeMetricsRow(
 		resourcesMetric,
 		app.homeBackupsMetric(),
-		app.homeAutoMaintenanceMetric(),
+		app.homeMaintenanceMetric(),
 	))
 
+	children = append(children, app.homeCleanupCard(record)...)
+
 	return children
+}
+
+func (app *stackUiApp) homeCleanupCard(record shared.ClusterRecord) []ucx.UiNode {
+	if record.Phase != shared.ClusterRecordPhaseCleanup && len(record.PendingCleanup) == 0 {
+		return nil
+	}
+
+	lines := []ucx.UiNode{
+		ucx.TextEx("", "The application is removing the resources of a failed node creation. It retries automatically.").Sx(
+			ucx.SxColor(ucx.ColorTextSecondary),
+		),
+		ucx.TextEx("", "You can also remove these resources yourself. The cluster returns to normal when they are gone.").Sx(
+			ucx.SxColor(ucx.ColorTextSecondary),
+		),
+	}
+
+	for _, pending := range record.PendingCleanup {
+		lines = append(lines, ucx.Text("Removing "+pendingCleanupText(pending)))
+	}
+
+	return []ucx.UiNode{
+		ucx.SettingsAction("homeCleanupAction",
+			"Cleanup pending",
+			"The cluster is removing resources from a failed node creation.",
+		).Children(
+			ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 8}).Children(lines...),
+		),
+	}
 }
 
 func (app *stackUiApp) pageHomeActions() []ucx.UiNode {
@@ -192,14 +216,14 @@ func (app *stackUiApp) pageHomeActions() []ucx.UiNode {
 			"Permissions",
 			"Share cluster admin rights for this Kubernetes cluster with others in your project.",
 		).Children(ucx.StackPermissionsEx("homePermissions", app.Stack.InstanceId, ucx.StackPermissionsProps{
-			AccessDescription: "Cluster admin grants full Kubernetes cluster-admin access, including cluster resources, credentials, VM shells, and logs. The cluster creator and project administrators keep access.",
+			AccessDescription: "Cluster admin grants full Kubernetes cluster-admin access, including cluster resources, credentials, node shells, and logs. The cluster creator and project administrators keep access.",
 			PermissionLabel:   "Cluster admin",
 			PermissionIcon:    ucx.IconHeroShieldCheck,
 			ButtonIcon:        ucx.IconHeroShare,
 		})))
 		actions = append(actions, ucx.SettingsAction("homeDeleteAction",
 			"Delete cluster",
-			"Permanently deletes the cluster and its VMs.",
+			"Permanently deletes the cluster and its nodes.",
 		).Children(
 			ucx.ButtonEx("homeDeleteCluster", "Delete cluster", ucx.ColorErrorMain, ucx.IconTrash, "", "").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 				ucxsvc.StackDelete(app)

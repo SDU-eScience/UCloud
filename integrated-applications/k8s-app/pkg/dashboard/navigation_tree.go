@@ -58,16 +58,20 @@ func (app *stackUiApp) resourceNavItems() []ucx.NavItem {
 		return navItems[i].Label < navItems[j].Label
 	})
 
-	navItems = append([]ucx.NavItem{{
-		Id:      navHomeId,
-		Label:   "Home",
-		Aliases: []string{"home", "overview"},
-	}}, navItems...)
+	navItems = append([]ucx.NavItem{dashboardHomeNavItem()}, navItems...)
 	if len(navItems) > 1 {
 		navItems[1].SeparatorBefore = true
 	}
 
 	return navItems
+}
+
+func dashboardHomeNavItem() ucx.NavItem {
+	return ucx.NavItem{
+		Id:      navHomeId,
+		Label:   "Home",
+		Aliases: []string{"home", "overview"},
+	}
 }
 
 func dashboardBuiltinNavPath(def ResourceTypeDef) []string {

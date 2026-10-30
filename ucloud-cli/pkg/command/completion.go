@@ -2,10 +2,10 @@ package command
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"reflect"
-	"sync"
+	"sort"
+	"strings"
 
 	gonjabuiltins "ucloud.dk/gonja/v2/builtins"
 	gonjactrl "ucloud.dk/gonja/v2/builtins/control_structures"
@@ -25,47 +25,219 @@ type FlagSpec struct {
 
 type CommandSpec struct {
 	Name        string
-	SubCommands []SubCommand
+	Flags       []FlagSpec
+	Notes       []string
+	SubCommands []CommandSpec
 }
 
-type SubCommand struct {
-	Name  string
-	Flags []FlagSpec
-	Notes []string
+type completionData struct {
+	Routes []string
+	Groups []completionGroup
+	Leaves []completionLeaf
 }
 
-type zshCompletionTemplate struct {
-	tpl   *gonjaexec.Template
-	mutex sync.Mutex
-	data  []byte
+type completionGroup struct {
+	Path     string
+	Word     int
+	Children []string
 }
 
-func createZshCompletionTpl(source []byte) zshCompletionTemplate {
-	return zshCompletionTemplate{
-		data: source,
-	}
+type completionLeaf struct {
+	Path        string
+	PathEnd     int
+	FirstWord   int
+	Positionals []completionPositional
+	FlagsWord   int
+	Flags       []string
 }
 
-func (tpl *zshCompletionTemplate) Template() *gonjaexec.Template {
-	if tpl.tpl == nil {
-		tpl.mutex.Lock()
-		if tpl.tpl == nil {
-			tpl.tpl = completionPrepareTemplateOrPanic(tpl.data)
+type completionPositional struct {
+	Word int
+	Spec string
+}
+
+func commandsToCommandSpec() ([]CommandSpec, error) {
+	tree := CommandTree()
+	specs := make([]CommandSpec, 0, len(tree))
+	for name, node := range tree {
+		spec, err := commandSpecFromNode(name, node)
+		if err != nil {
+			return nil, err
 		}
-		tpl.mutex.Unlock()
+		specs = append(specs, spec)
 	}
-	return tpl.tpl
+	sort.Slice(specs, func(i, j int) bool {
+		return specs[i].Name < specs[j].Name
+	})
+	return specs, nil
 }
 
-func completionPrepareTemplateOrPanic(byteSource []byte) *gonjaexec.Template {
-	res, err := completionPrepareTemplate(byteSource)
+func commandSpecFromNode(name string, node *CommandNode) (CommandSpec, error) {
+	spec := CommandSpec{Name: name}
+	if node.Factory != nil {
+		cmd := node.Factory()
+		flags, notes, err := commandFlagsAndNotes(cmd)
+		if err != nil {
+			return CommandSpec{}, err
+		}
+		spec.Flags = flags
+		spec.Notes = notes
+	}
+
+	for childName, child := range node.Children {
+		childSpec, err := commandSpecFromNode(childName, child)
+		if err != nil {
+			return CommandSpec{}, err
+		}
+		spec.SubCommands = append(spec.SubCommands, childSpec)
+	}
+	sort.Slice(spec.SubCommands, func(i, j int) bool {
+		return spec.SubCommands[i].Name < spec.SubCommands[j].Name
+	})
+	return spec, nil
+}
+
+func commandFlagsAndNotes(cmd Command) ([]FlagSpec, []string, error) {
+	v := reflect.ValueOf(cmd)
+	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
+		return nil, nil, fmt.Errorf("bind expects pointer to struct")
+	}
+
+	v = v.Elem()
+	t := v.Type()
+	flags := make([]FlagSpec, 0)
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		flagType := "flag"
+
+		flagName := field.Tag.Get("flag")
+		positional := field.Tag.Get("positional")
+		if flagName == "" && positional == "" {
+			continue
+		}
+
+		name := "--" + flagName
+		if positional != "" {
+			flagType = "positional"
+			name = positional
+		}
+		flag := FlagSpec{
+			Name:      name,
+			Usage:     field.Tag.Get("usage"),
+			InputType: field.Type.Kind().String(),
+			Required:  field.Tag.Get("required") == "true",
+			FlagType:  flagType,
+		}
+		flags = append(flags, flag)
+
+		if flagType == "flag" {
+			if short := field.Tag.Get("short"); short != "" {
+				flags = append(flags, FlagSpec{
+					Name:      "-" + short,
+					Usage:     field.Tag.Get("usage"),
+					InputType: field.Type.Kind().String(),
+					Required:  field.Tag.Get("required") == "true",
+					FlagType:  flagType,
+				})
+			}
+		}
+	}
+
+	var notes []string
+	if noted, ok := cmd.(HelpNotes); ok {
+		notes = noted.HelpNotes()
+	}
+	return flags, notes, nil
+}
+
+func completionDataFromTree() (completionData, error) {
+	tree := CommandTree()
+	names := make([]string, 0, len(tree))
+	for name := range tree {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	data := completionData{Routes: make([]string, 0, len(names))}
+	for _, name := range names {
+		data.Routes = append(data.Routes, completionEscape(name))
+	}
+
+	for _, name := range names {
+		if err := completionCollectNode(&data, []string{name}, tree[name]); err != nil {
+			return completionData{}, err
+		}
+	}
+	return data, nil
+}
+
+func completionCollectNode(data *completionData, path []string, node *CommandNode) error {
+	if len(node.Children) > 0 {
+		childNames := make([]string, 0, len(node.Children))
+		for name := range node.Children {
+			childNames = append(childNames, name)
+		}
+		sort.Strings(childNames)
+
+		group := completionGroup{
+			Path: strings.Join(path, " "),
+			Word: len(path) + 2,
+		}
+		for _, name := range childNames {
+			group.Children = append(group.Children, completionEscape(name))
+		}
+		data.Groups = append(data.Groups, group)
+
+		for _, name := range childNames {
+			childPath := append(append([]string{}, path...), name)
+			if err := completionCollectNode(data, childPath, node.Children[name]); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if node.Factory == nil {
+		return nil
+	}
+
+	cmd := node.Factory()
+	flags, _, err := commandFlagsAndNotes(cmd)
 	if err != nil {
-		panic(err)
+		return err
 	}
-	return res
+
+	leaf := completionLeaf{
+		Path:      strings.Join(path, " "),
+		PathEnd:   len(path) + 1,
+		FirstWord: len(path) + 2,
+	}
+
+	positionals := 0
+	for _, flag := range flags {
+		if flag.FlagType != "positional" {
+			continue
+		}
+		leaf.Positionals = append(leaf.Positionals, completionPositional{
+			Word: len(path) + 2 + positionals,
+			Spec: completionEscape(flag.Name + ":" + flag.Usage),
+		})
+		positionals++
+	}
+	leaf.FlagsWord = len(path) + 2 + positionals
+
+	for _, flag := range flags {
+		if flag.FlagType == "positional" {
+			continue
+		}
+		leaf.Flags = append(leaf.Flags, completionEscape(flag.Name+":"+flag.Usage))
+	}
+
+	data.Leaves = append(data.Leaves, leaf)
+	return nil
 }
 
-func completionPrepareTemplate(byteSource []byte) (*gonjaexec.Template, error) {
+func completionTemplate() (*gonjaexec.Template, error) {
 	filters := gonjaexec.NewFilterSet(map[string]gonjaexec.FilterFunction{}).Update(gonjabuiltins.Filters)
 
 	env := &gonjaexec.Environment{
@@ -77,115 +249,53 @@ func completionPrepareTemplate(byteSource []byte) (*gonjaexec.Template, error) {
 	}
 
 	gonjaCfg := gonjacfg.New()
-	gonjaCfg.AutoEscape = true
-
-	rootID := fmt.Sprintf("root-%s", string(sha256.New().Sum(byteSource)))
 
 	loader, err := gonjaload.NewFileSystemLoader("")
 	if err != nil {
 		return nil, err
 	}
-	shiftedLoader, err := gonjaload.NewShiftedLoader(rootID, bytes.NewReader(byteSource), loader)
+	shiftedLoader, err := gonjaload.NewShiftedLoader(
+		"zsh_completion",
+		bytes.NewReader(templates.TplZshCompletion),
+		loader,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	template, err := gonjaexec.NewTemplate(rootID, gonjaCfg, shiftedLoader, env)
-	return template, err
-}
-
-func commandsToCommandSpec() ([]CommandSpec, error) {
-	commands := CommandRegistry()
-	specs := make([]CommandSpec, 0, len(commands))
-	for cmdName, route := range commands {
-		subCommands := make([]SubCommand, 0)
-
-		for subCmdName, subCmdFunc := range route {
-			flags := make([]FlagSpec, 0)
-			subCmd := subCmdFunc()
-
-			v := reflect.ValueOf(subCmd)
-			if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
-				return nil, fmt.Errorf("bind expects pointer to struct")
-			}
-
-			v = v.Elem()
-			t := v.Type()
-
-			for i := 0; i < t.NumField(); i++ {
-				field := t.Field(i)
-				flagType := "flag"
-
-				flagName := field.Tag.Get("flag")
-				positional := field.Tag.Get("positional")
-				if flagName == "" && positional == "" {
-					continue
-				}
-
-				name := "--" + flagName
-				if positional != "" {
-					flagType = "positional"
-					name = positional
-				}
-				flag := FlagSpec{
-					Name:      name,
-					Usage:     field.Tag.Get("usage"),
-					InputType: field.Type.Kind().String(),
-					Required:  field.Tag.Get("required") == "true",
-					FlagType:  flagType,
-				}
-				flags = append(flags, flag)
-
-				if flagType == "flag" {
-					if short := field.Tag.Get("short"); short != "" {
-						flags = append(flags, FlagSpec{
-							Name:      "-" + short,
-							Usage:     field.Tag.Get("usage"),
-							InputType: field.Type.Kind().String(),
-							Required:  field.Tag.Get("required") == "true",
-							FlagType:  flagType,
-						})
-					}
-				}
-			}
-
-			var notes []string
-			if noted, ok := subCmd.(HelpNotes); ok {
-				notes = noted.HelpNotes()
-			}
-
-			subCommands = append(subCommands, SubCommand{
-				Name:  subCmdName,
-				Flags: flags,
-				Notes: notes,
-			})
-		}
-		specs = append(specs, CommandSpec{
-			Name:        cmdName,
-			SubCommands: subCommands,
-		})
-	}
-	return specs, nil
+	return gonjaexec.NewTemplate("zsh_completion", gonjaCfg, shiftedLoader, env)
 }
 
 func GenerateCompletionScript() error {
-	specs, err := commandsToCommandSpec()
+	data, err := completionDataFromTree()
 	if err != nil {
 		return err
 	}
 
-	createdTpl := createZshCompletionTpl(templates.TplZshCompletion)
-	params := map[string]interface{}{
-		"commands": specs,
+	tpl, err := completionTemplate()
+	if err != nil {
+		return err
 	}
-	ctx := gonjaexec.NewContext(params)
-	str, err := createdTpl.Template().ExecuteToString(ctx)
+
+	params := map[string]interface{}{
+		"routes": data.Routes,
+		"groups": data.Groups,
+		"leaves": data.Leaves,
+	}
+	str, err := tpl.ExecuteToString(gonjaexec.NewContext(params))
 	if err != nil {
 		return err
 	}
 	fmt.Print(str)
 
 	return nil
+}
+
+func completionEscape(value string) string {
+	value = strings.ReplaceAll(value, "\\", "\\\\")
+	value = strings.ReplaceAll(value, "'", "'\\''")
+	value = strings.ReplaceAll(value, "\n", " ")
+	return value
 }
 
 type CompletionGenerateCommand struct {

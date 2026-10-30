@@ -70,6 +70,7 @@ func main() {
 	}
 
 	if dashboardAvailable() {
+		go shared.ClusterCleanupRun(context.Background())
 		go maintenance.Run(context.Background(), dashboard.LocalKubeconfigPath())
 		ucx.AppServe(launch, port)
 		return

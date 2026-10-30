@@ -81,6 +81,10 @@ A recovery replaces the control plane nodes of a cluster from a backup. The oper
 the deployment form lists the clusters on which the operator has permission, and it starts a recovery job
 with the state drive of the cluster mounted.
 
+A recovery can start while the cluster is in the `created`, `cleanup-pending` or `recovering` phase. Before it
+recreates nodes, the recovery job attempts to remove the leftover resources of a failed scale-out. It continues with
+the recovery when the cleanup fails.
+
 <figure class="diagram" id="recovery">
 
 ```mermaid

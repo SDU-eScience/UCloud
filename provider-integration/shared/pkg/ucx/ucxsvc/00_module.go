@@ -193,15 +193,15 @@ func stackCreate(app ucx.Application, id string, stackType string, createDrive b
 	session := *app.Session()
 	ok, err := ucxapi.StackAvailable.Invoke(session, fndapi.FindByStringId{Id: id})
 	if err != nil {
-		return &Stack{}, "Unable to start application stack, try again later."
+		return &Stack{}, "Could not check whether this application name is available. Try again later."
 	} else if !ok {
-		return &Stack{}, "An application stack with this name already exists, try another."
+		return &Stack{}, "An application with this name already exists. Choose another name."
 	} else {
 		request := ucxapi.StackCreateRequest{StackId: id, StackType: stackType}
 		if createDrive {
 			products, productErr := ucxapi.DrivesRetrieveProducts.Invoke(session, util.Empty{})
 			if productErr != nil {
-				return &Stack{}, "Unable to retrieve storage products for the application stack."
+				return &Stack{}, "Could not find storage for this application. Try again later."
 			}
 			product := accapi.ProductReference{}
 			for _, candidate := range products {
@@ -211,7 +211,7 @@ func stackCreate(app ucx.Application, id string, stackType string, createDrive b
 				}
 			}
 			if product == (accapi.ProductReference{}) {
-				return &Stack{}, "No storage product supports application stack drives."
+				return &Stack{}, "No suitable storage is available for this application. Contact your service provider."
 			}
 			drives, driveErr := ucxapi.DrivesCreate.Invoke(session, []orcapi.DriveSpecification{{
 				Title: id,
@@ -225,17 +225,17 @@ func stackCreate(app ucx.Application, id string, stackType string, createDrive b
 				},
 			}})
 			if driveErr != nil || len(drives) != 1 {
-				return &Stack{}, "Unable to create the application stack drive."
+				return &Stack{}, "Could not create storage for this application. Try again or contact your service provider."
 			}
 			request.StateFolder = "/" + drives[0].Id
 		}
 		stack, err := ucxapi.StackCreate.Invoke(session, request)
 		if err != nil {
-			return &Stack{}, "Unable to start application stack, try again later."
+			return &Stack{}, "Could not create the application. Any storage created for it is kept. Contact your service provider if you need help."
 		} else {
 			request.StateFolder = stack.Labels[orcapi.ResourceLabelStackStateFolder]
 			if _, registerErr := ucxapi.StackRegister.Invoke(session, request); registerErr != nil {
-				return &Stack{}, "Unable to register the application stack, try again later."
+				return &Stack{}, "Could not register the application. Any storage created for it is kept. Contact your service provider if you need help."
 			}
 			return &Stack{
 				InstanceId: id,
@@ -428,7 +428,7 @@ func stackDataWriteString(stack *Stack, path string, data string, mode uint32, a
 
 	if err != nil {
 		log.Warn("Could not write file: %s", err)
-		UiSendFailure(stack.app, "Unable start application stack, try again later.")
+		UiSendFailure(stack.app, "Could not save the application data. Try again later.")
 		stack.Ok = false
 		return err
 	}
@@ -466,7 +466,7 @@ func stackDataAppendBytes(stack *Stack, path string, data []byte, mode uint32) e
 
 	if err != nil {
 		log.Warn("Could not write file: %s", err)
-		UiSendFailure(stack.app, "Unable start application stack, try again later.")
+		UiSendFailure(stack.app, "Could not save the application data. Try again later.")
 		stack.Ok = false
 		return err
 	}
@@ -699,7 +699,7 @@ func PublicLinkCreate(stack *Stack, name string, options PublicLinkCreateOptions
 	linkProducts, _ := ucxapi.PublicLinksRetrieveProducts.Invoke(session, util.Empty{})
 	if len(linkProducts) == 0 {
 		stack.Ok = false
-		UiSendFailure(stack.app, "Could not find a suitable public link product, but this stack requires it.")
+		UiSendFailure(stack.app, "This application requires a public link, but none is available. Contact your service provider.")
 		return orcapi.AppParameterValue{}
 	}
 
@@ -715,7 +715,11 @@ func PublicLinkCreate(stack *Stack, name string, options PublicLinkCreateOptions
 
 	if len(links) == 0 || err != nil {
 		stack.Ok = false
-		UiSendFailure(stack.app, fmt.Sprintf("Could not create a link! %s", err))
+		message := "Could not create a public link. Try again or contact your service provider."
+		if err != nil {
+			message = fmt.Sprintf("Could not create a public link: %s", err)
+		}
+		UiSendFailure(stack.app, message)
 		return orcapi.AppParameterValue{}
 	}
 
@@ -748,7 +752,7 @@ func ServiceCreate(stack *Stack, name string, ports []orcapi.ServicePort, intern
 	products, _ := ucxapi.ServicesRetrieveProducts.Invoke(session, util.Empty{})
 	if len(products) == 0 {
 		stack.Ok = false
-		UiSendFailure(stack.app, "Could not find a suitable service product, but this stack requires it.")
+		UiSendFailure(stack.app, "This application requires a service, but none is available. Contact your service provider.")
 		return ServiceReference{}
 	}
 
@@ -770,7 +774,11 @@ func ServiceCreate(stack *Stack, name string, ports []orcapi.ServicePort, intern
 	services, err := ucxapi.ServicesCreate.Invoke(session, []orcapi.ServiceSpecification{spec})
 	if len(services) == 0 || err != nil {
 		stack.Ok = false
-		UiSendFailure(stack.app, fmt.Sprintf("Could not create a service! %s", err))
+		message := "Could not create a service. Try again or contact your service provider."
+		if err != nil {
+			message = fmt.Sprintf("Could not create a service: %s", err)
+		}
+		UiSendFailure(stack.app, message)
 		return ServiceReference{}
 	}
 
@@ -789,7 +797,7 @@ func ServiceAddMembers(stack *Stack, serviceId string, jobIds []string) bool {
 	}))
 	if err != nil {
 		stack.Ok = false
-		UiSendFailure(stack.app, fmt.Sprintf("Could not add members to the service! %s", err))
+		UiSendFailure(stack.app, fmt.Sprintf("Could not connect jobs to the service: %s", err))
 		return false
 	}
 
@@ -833,7 +841,7 @@ func PublicLinkSetTarget(stack *Stack, linkId string, target util.Option[orcapi.
 	}))
 	if err != nil {
 		stack.Ok = false
-		UiSendFailure(stack.app, fmt.Sprintf("Could not set the target of the public link! %s", err))
+		UiSendFailure(stack.app, fmt.Sprintf("Could not connect the public link to the service: %s", err))
 		return false
 	}
 
@@ -878,7 +886,7 @@ func PrivateNetworkCreateWithCidr(stack *Stack, name string, cidr util.Option[st
 	}
 	if !foundEthernetProduct {
 		stack.Ok = false
-		UiSendFailure(stack.app, "Could not find an Ethernet private network product, but this stack requires it.")
+		UiSendFailure(stack.app, "This application requires a private network, but none is available. Contact your service provider.")
 		return PrivateNetworkReference{}, false
 	}
 
@@ -896,7 +904,11 @@ func PrivateNetworkCreateWithCidr(stack *Stack, name string, cidr util.Option[st
 
 	if len(networks) == 0 || err != nil {
 		stack.Ok = false
-		UiSendFailure(stack.app, fmt.Sprintf("Could not create a network! %s", err))
+		message := "Could not create a private network. Try again or contact your service provider."
+		if err != nil {
+			message = fmt.Sprintf("Could not create a private network: %s", err)
+		}
+		UiSendFailure(stack.app, message)
 		return PrivateNetworkReference{}, false
 	}
 
