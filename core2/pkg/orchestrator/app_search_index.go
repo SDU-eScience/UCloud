@@ -12,6 +12,7 @@ var appIndex bleve.Index
 
 func initAppSearchIndex() {
 	idx := bleve.NewIndexMapping()
+	idx.DefaultMapping.AddFieldMappingsAt("TitleRaw", bleve.NewKeywordFieldMapping())
 
 	index, err := bleve.NewMemOnly(idx)
 	if err != nil {
@@ -24,11 +25,13 @@ func initAppSearchIndex() {
 func appAddToSearchIndex(id AppGroupId, group orcapi.ApplicationGroup) {
 	var toIndex struct {
 		Title       string
+		TitleRaw    string
 		Description string
 		Flavor      string
 	}
 
 	toIndex.Title = group.Specification.Title
+	toIndex.TitleRaw = strings.ToLower(group.Specification.Title)
 	toIndex.Description = group.Specification.Description
 	flavors := strings.Builder{}
 	for _, app := range group.Status.Applications {
