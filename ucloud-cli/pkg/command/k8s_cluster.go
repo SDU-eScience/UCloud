@@ -25,24 +25,27 @@ import (
 
 const k8sConnectTimeout = 3 * time.Minute
 
-var K8sClusterCommands = map[string]CommandFunc{
-	"releases":   func() Command { return &K8sClusterReleasesCommand{} },
-	"create":     func() Command { return &K8sClusterCreateCommand{} },
-	"list":       func() Command { return &K8sClusterListCommand{} },
-	"status":     func() Command { return &K8sClusterStatusCommand{} },
-	"kubeconfig": func() Command { return &K8sClusterKubeconfigCommand{} },
-	"scale": func() Command {
-		return &K8sClusterScaleCommand{Nodes: -1, Disk: -1}
-	},
-	"pool": func() Command {
-		return &K8sClusterPoolCommand{Nodes: -1, Disk: -1}
-	},
-	"delete": func() Command {
-		return &K8sClusterDeleteCommand{}
-	},
-	"recovery": func() Command {
-		return &K8sClusterRecoveryCommand{}
-	},
+func k8sCommandTree() *CommandNode {
+	return commandGroup(map[string]*CommandNode{
+		"releases":   commandLeaf(func() Command { return &K8sClusterReleasesCommand{} }),
+		"create":     commandLeaf(func() Command { return &K8sClusterCreateCommand{} }),
+		"list":       commandLeaf(func() Command { return &K8sClusterListCommand{} }),
+		"status":     commandLeaf(func() Command { return &K8sClusterStatusCommand{} }),
+		"kubeconfig": commandLeaf(func() Command { return &K8sClusterKubeconfigCommand{} }),
+		"scale": commandLeaf(func() Command {
+			return &K8sClusterScaleCommand{Nodes: -1, Disk: -1}
+		}),
+		"pool": commandLeaf(func() Command {
+			return &K8sClusterPoolCommand{Nodes: -1, Disk: -1}
+		}),
+		"delete": commandLeaf(func() Command {
+			return &K8sClusterDeleteCommand{}
+		}),
+		"recovery": commandLeaf(func() Command {
+			return &K8sClusterRecoveryCommand{}
+		}),
+		"maintenance": k8sMaintenanceCommandGroup(),
+	})
 }
 
 type K8sClusterReleasesCommand struct {
