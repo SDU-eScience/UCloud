@@ -742,7 +742,11 @@ func (p *Policy) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("failed to decode %s schema: %w", schemaMetadata.Name, err)
 	}
 
-	// Decode the specification using its schema.
+	p.Schema = schema
+
+	if len(raw.Specification) == 0 {
+		return nil
+	}
 
 	specificationDecoder, ok := SpecificationDecoders[schema.GetSchemaName()]
 	if !ok {
@@ -758,7 +762,6 @@ func (p *Policy) UnmarshalJSON(data []byte) error {
 		)
 	}
 
-	p.Schema = schema
 	p.Specification = specification
 
 	return nil

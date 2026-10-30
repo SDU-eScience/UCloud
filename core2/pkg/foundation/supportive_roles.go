@@ -46,7 +46,7 @@ type supportiveRoleInfo struct {
 
 var supportiveRoles = map[fndapi.SupportiveRole]supportiveRoleInfo{
 	fndapi.SupportiveRoleDataManager: {
-		AssignableBy:           fndapi.ProjectRoleAdmin,
+		AssignableBy:           fndapi.ProjectRolePI,
 		AssignedToPiOnCreation: true,
 		FallbackToPi:           true,
 	},

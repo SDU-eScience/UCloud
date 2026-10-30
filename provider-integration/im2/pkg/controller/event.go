@@ -912,6 +912,9 @@ func policySpecificationsRetrieveFromCore(projectId string) (map[fnd.PolicyName]
 	}
 	var policies = make(map[fnd.PolicyName]fnd.Specification)
 	for _, policy := range retrievedPolices {
+		if policy.Specification == nil {
+			continue
+		}
 		policies[policy.Specification.GetSpecificationName()] = policy.Specification
 	}
 	return policies, true
