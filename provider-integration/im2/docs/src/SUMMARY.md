@@ -38,6 +38,7 @@
 - [Architecture and Networking](./k8s/architecture.md)
 - [Filesystem Integration](./k8s/storage.md)
 - [Compute Jobs](k8s/compute.md)
+  - [Networks](./k8s/networks.md)
   - [Public Links](./k8s/public-links.md)
   - [Public IPs](./k8s/public-ips.md)
   - [License Servers](./k8s/licenses.md)

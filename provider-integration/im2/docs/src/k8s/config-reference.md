@@ -810,7 +810,7 @@ Defaults to `public-ip` if omitted.
 </dt>
 <dd>
 
-Controls private networks. To enable InfiniBand networks, enable private networks and configure IPv4 address pools for both Ethernet and InfiniBand:
+Controls Networks. To enable InfiniBand Networks, enable the feature and configure IPv4 address pools for both Ethernet and InfiniBand:
 
 ```yaml
 privateNetworks:
@@ -832,6 +832,8 @@ For example:
 ```shell
 kubectl label node NODE ucloud.dk/ibdev=ib0-ib1-ib2
 ```
+
+See [Networks](./networks.md) for the architecture.
 
 </dd>
 
