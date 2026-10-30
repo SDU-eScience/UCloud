@@ -1,10 +1,18 @@
 package command
 
 import (
+	"bytes"
 	"fmt"
 	"reflect"
 	"sort"
 	"strings"
+
+	gonjabuiltins "ucloud.dk/gonja/v2/builtins"
+	gonjactrl "ucloud.dk/gonja/v2/builtins/control_structures"
+	gonjacfg "ucloud.dk/gonja/v2/config"
+	gonjaexec "ucloud.dk/gonja/v2/exec"
+	gonjaload "ucloud.dk/gonja/v2/loaders"
+	"ucloud.dk/ucloud_cli/pkg/templates"
 )
 
 type FlagSpec struct {
@@ -20,6 +28,32 @@ type CommandSpec struct {
 	Flags       []FlagSpec
 	Notes       []string
 	SubCommands []CommandSpec
+}
+
+type completionData struct {
+	Routes []string
+	Groups []completionGroup
+	Leaves []completionLeaf
+}
+
+type completionGroup struct {
+	Path     string
+	Word     int
+	Children []string
+}
+
+type completionLeaf struct {
+	Path        string
+	PathEnd     int
+	FirstWord   int
+	Positionals []completionPositional
+	FlagsWord   int
+	Flags       []string
+}
+
+type completionPositional struct {
+	Word int
+	Spec string
 }
 
 func commandsToCommandSpec() ([]CommandSpec, error) {
@@ -116,91 +150,145 @@ func commandFlagsAndNotes(cmd Command) ([]FlagSpec, []string, error) {
 	return flags, notes, nil
 }
 
-func GenerateCompletionScript() error {
-	specs, err := commandsToCommandSpec()
+func completionDataFromTree() (completionData, error) {
+	tree := CommandTree()
+	names := make([]string, 0, len(tree))
+	for name := range tree {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	data := completionData{Routes: make([]string, 0, len(names))}
+	for _, name := range names {
+		data.Routes = append(data.Routes, completionEscape(name))
+	}
+
+	for _, name := range names {
+		if err := completionCollectNode(&data, []string{name}, tree[name]); err != nil {
+			return completionData{}, err
+		}
+	}
+	return data, nil
+}
+
+func completionCollectNode(data *completionData, path []string, node *CommandNode) error {
+	if len(node.Children) > 0 {
+		childNames := make([]string, 0, len(node.Children))
+		for name := range node.Children {
+			childNames = append(childNames, name)
+		}
+		sort.Strings(childNames)
+
+		group := completionGroup{
+			Path: strings.Join(path, " "),
+			Word: len(path) + 2,
+		}
+		for _, name := range childNames {
+			group.Children = append(group.Children, completionEscape(name))
+		}
+		data.Groups = append(data.Groups, group)
+
+		for _, name := range childNames {
+			childPath := append(append([]string{}, path...), name)
+			if err := completionCollectNode(data, childPath, node.Children[name]); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if node.Factory == nil {
+		return nil
+	}
+
+	cmd := node.Factory()
+	flags, _, err := commandFlagsAndNotes(cmd)
 	if err != nil {
 		return err
 	}
 
-	var builder strings.Builder
-	builder.WriteString("#compdef ucloud\n\n")
-	builder.WriteString("_ucloud() {\n")
-	builder.WriteString("    if (( CURRENT == 2 )); then\n")
-	builder.WriteString("        local -a routes\n")
-	builder.WriteString("        routes=(")
-	for _, spec := range specs {
-		fmt.Fprintf(&builder, "'%s' ", completionEscape(spec.Name))
-	}
-	builder.WriteString(")\n")
-	builder.WriteString("        compadd -a routes\n")
-	builder.WriteString("        return\n")
-	builder.WriteString("    fi\n\n")
-	builder.WriteString("    case \"$words[2]\" in\n")
-	for _, spec := range specs {
-		fmt.Fprintf(&builder, "        %s)\n", spec.Name)
-		writeCompletionNode(&builder, spec, 1, "            ")
-		builder.WriteString("            ;;\n")
-	}
-	builder.WriteString("    esac\n")
-	builder.WriteString("}\n\n")
-	builder.WriteString("compdef _ucloud ucloud\n")
-	fmt.Print(builder.String())
-	return nil
-}
-
-func writeCompletionNode(builder *strings.Builder, spec CommandSpec, depth int, indent string) {
-	if len(spec.SubCommands) > 0 {
-		childWord := depth + 2
-		fmt.Fprintf(builder, "%sif (( CURRENT == %d )); then\n", indent, childWord)
-		fmt.Fprintf(builder, "%s    local -a subcommands\n", indent)
-		fmt.Fprintf(builder, "%s    subcommands=(", indent)
-		for _, child := range spec.SubCommands {
-			fmt.Fprintf(builder, "'%s' ", completionEscape(child.Name))
-		}
-		builder.WriteString(")\n")
-		fmt.Fprintf(builder, "%s    compadd -a subcommands\n", indent)
-		fmt.Fprintf(builder, "%s    return\n", indent)
-		fmt.Fprintf(builder, "%sfi\n", indent)
-		fmt.Fprintf(builder, "%scase \"$words[%d]\" in\n", indent, childWord)
-		for _, child := range spec.SubCommands {
-			fmt.Fprintf(builder, "%s    %s)\n", indent, child.Name)
-			writeCompletionNode(builder, child, depth+1, indent+"        ")
-			fmt.Fprintf(builder, "%s        ;;\n", indent)
-		}
-		fmt.Fprintf(builder, "%sesac\n", indent)
-		return
+	leaf := completionLeaf{
+		Path:      strings.Join(path, " "),
+		PathEnd:   len(path) + 1,
+		FirstWord: len(path) + 2,
 	}
 
-	fmt.Fprintf(builder, "%slocal -a flags\n", indent)
-	fmt.Fprintf(builder, "%sflags=()\n", indent)
-	posWord := depth + 2
-	for _, flag := range spec.Flags {
+	positionals := 0
+	for _, flag := range flags {
 		if flag.FlagType != "positional" {
 			continue
 		}
-		fmt.Fprintf(builder, "%sif (( %d == CURRENT )); then\n", indent, posWord)
-		fmt.Fprintf(builder, "%s    flags+=( '%s:%s' '' )\n",
-			indent,
-			completionEscape(flag.Name),
-			completionEscape(flag.Usage),
-		)
-		fmt.Fprintf(builder, "%sfi\n", indent)
-		posWord++
+		leaf.Positionals = append(leaf.Positionals, completionPositional{
+			Word: len(path) + 2 + positionals,
+			Spec: completionEscape(flag.Name + ":" + flag.Usage),
+		})
+		positionals++
 	}
-	for _, flag := range spec.Flags {
+	leaf.FlagsWord = len(path) + 2 + positionals
+
+	for _, flag := range flags {
 		if flag.FlagType == "positional" {
 			continue
 		}
-		fmt.Fprintf(builder, "%sif (( CURRENT >= %d )); then\n", indent, posWord)
-		fmt.Fprintf(builder, "%s    flags+=( '%s:%s' )\n",
-			indent,
-			completionEscape(flag.Name),
-			completionEscape(flag.Usage),
-		)
-		fmt.Fprintf(builder, "%sfi\n", indent)
+		leaf.Flags = append(leaf.Flags, completionEscape(flag.Name+":"+flag.Usage))
 	}
-	fmt.Fprintf(builder, "%s_describe 'flag' flags\n", indent)
-	fmt.Fprintf(builder, "%sreturn\n", indent)
+
+	data.Leaves = append(data.Leaves, leaf)
+	return nil
+}
+
+func completionTemplate() (*gonjaexec.Template, error) {
+	filters := gonjaexec.NewFilterSet(map[string]gonjaexec.FilterFunction{}).Update(gonjabuiltins.Filters)
+
+	env := &gonjaexec.Environment{
+		Context:           gonjaexec.EmptyContext().Update(gonjabuiltins.GlobalFunctions),
+		Filters:           filters,
+		Tests:             gonjabuiltins.Tests,
+		ControlStructures: gonjactrl.Safe,
+		Methods:           gonjabuiltins.Methods,
+	}
+
+	gonjaCfg := gonjacfg.New()
+
+	loader, err := gonjaload.NewFileSystemLoader("")
+	if err != nil {
+		return nil, err
+	}
+	shiftedLoader, err := gonjaload.NewShiftedLoader(
+		"zsh_completion",
+		bytes.NewReader(templates.TplZshCompletion),
+		loader,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return gonjaexec.NewTemplate("zsh_completion", gonjaCfg, shiftedLoader, env)
+}
+
+func GenerateCompletionScript() error {
+	data, err := completionDataFromTree()
+	if err != nil {
+		return err
+	}
+
+	tpl, err := completionTemplate()
+	if err != nil {
+		return err
+	}
+
+	params := map[string]interface{}{
+		"routes": data.Routes,
+		"groups": data.Groups,
+		"leaves": data.Leaves,
+	}
+	str, err := tpl.ExecuteToString(gonjaexec.NewContext(params))
+	if err != nil {
+		return err
+	}
+	fmt.Print(str)
+
+	return nil
 }
 
 func completionEscape(value string) string {
