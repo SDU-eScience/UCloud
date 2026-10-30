@@ -2909,6 +2909,7 @@ export class ResourceBrowser<T> {
         wrapper.style.cursor = "pointer";
         wrapper.style.marginRight = "24px";
         wrapper.style.userSelect = "none";
+        wrapper.style.whiteSpace = "nowrap";
 
         const icon = this.createFilterImg(filter.icon);
         icon.style.marginTop = "0";
@@ -2953,7 +2954,8 @@ export class ResourceBrowser<T> {
                 display: "flex",
                 cursor: "pointer",
                 marginRight: "24px",
-                userSelect: "none"
+                userSelect: "none",
+                whiteSpace: "nowrap",
             }
         });
 
@@ -3145,7 +3147,6 @@ export class ResourceBrowser<T> {
         const containerSize = 400;
         e.container.style.width = containerSize + "px";
         e.container.style.height = containerSize + "px";
-        e.container.style.left = (containerLeft + (containerWidth / 2) - (containerSize / 2)) + "px";
         e.container.style.top = (containerTop + (containerHeight / 2) - (containerSize / 2)) + "px";
         if (this.opts?.embedded || this.opts?.selector) {
             e.container.style.position = "unset";
