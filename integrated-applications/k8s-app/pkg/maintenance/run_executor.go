@@ -1421,18 +1421,19 @@ func startRunTask(ctx context.Context, kubeconfigPath string, run *MaintenanceRu
 		}
 
 	case TaskCordon, TaskUncordon, TaskRemove:
-		if len(targets) != 1 {
+		if task.Kind != TaskRemove && len(targets) != 1 {
 			return errors.New("a node action requires exactly one node")
 		}
-		node := targets[0]
-		item := RunItem{NodeName: node.Hostname, Group: node.Group, Phase: RunPending}
-		if liveNode, known := live[node.Hostname]; known {
-			item.NodeUid = string(liveNode.UID)
-		} else if task.Kind != TaskRemove {
-			item.Phase = RunFailed
-			item.Error = "the node is missing from Kubernetes"
+		for _, node := range targets {
+			item := RunItem{NodeName: node.Hostname, Group: node.Group, Phase: RunPending}
+			if liveNode, known := live[node.Hostname]; known {
+				item.NodeUid = string(liveNode.UID)
+			} else if task.Kind != TaskRemove {
+				item.Phase = RunFailed
+				item.Error = "the node is missing from Kubernetes"
+			}
+			appendItem(item)
 		}
-		appendItem(item)
 
 	default:
 		return fmt.Errorf("the maintenance task %s is not supported", task.Kind)

@@ -8,34 +8,36 @@ Use the same information in terminal and redirected output, but adapt its presen
 
 ### Long-running operations
 
-Use a compact heading, short milestone lines, a progress section when needed, and one final outcome. Don't repeat the same URL or result in a final frame.
+Use a compact heading, short milestone lines, a progress section when needed, and one final outcome. Put the final outcome after the progress section and indent it with the status and detail lines. Don't repeat the same URL or result in a final frame. When a command waits, end with the progress summary. Do not print a cluster summary frame or table after it.
 
-For Kubernetes cluster creation, show the dashboard link early and keep it visible while nodes are starting. On a terminal, keep `Dashboard connected` directly below the link, with a blank line before node progress:
+For Kubernetes cluster creation, show the dashboard link early and keep it visible while nodes are starting. On a terminal, keep `Dashboard connected` directly below the link:
 
 ```text
 Creating cluster 'dev'
   ✓ Resources created
   ↗ Dashboard: https://example.com/app/stacks/dev
   ✓ Dashboard connected
-
   ✓ ━━━━━━━━━━━━━━━━━━━━━━━━  control-plane-1:  Cluster bootstrapped
-
-✓ Cluster 'dev' is ready
+  ✓ Cluster 'dev' is ready
 ```
 
-Don't put a blank line after the heading. Keep related status and detail lines together. Use one blank line between the dashboard group and node progress, and before the final outcome. Append-only output follows the ordering rules below when the connection status arrives later.
+Don't put a blank line between the heading and its related status and detail lines. Keep related status and detail lines together. When the progress section has more than one item, put one blank line before and after it. When it has one item, do not add blank lines around it. Append-only output follows the ordering rules below when the connection status arrives later.
 
 ### Short operations
 
-Use one concise status sentence for a simple action. For a create or update that returns useful resource details, follow the sentence with a field-value frame. Add separate lines for useful warnings:
+Use one concise status sentence for a simple action. For a create or update that returns useful resource details, follow the sentence with a blank line and a `Summary` section. Add separate lines for useful warnings:
 
 ```text
 ✓ Job 'analysis' created
+
+Summary
 ┌────────┬──────────┐
 │ Id     │ 123      │
 │ Status │ Queued   │
 └────────┴──────────┘
 ```
+
+Title an action result `Summary`. Do not use the resource or cluster name as the title of an action result. Resource details and status views keep the resource name.
 
 For a single deletion, use a status sentence that accurately describes the outcome:
 
@@ -111,11 +113,24 @@ Print tables directly to stdout. Don't launch a pager or prompt for navigation a
 
 ## Progress
 
+Keep a long-running operation in one progress section from submission through completion. Update the same section when the work moves from submission to waiting. Use a progress heading for a command that waits. Do not leave an empty progress heading when a command finishes without progress.
+
 ### Terminal output
 
 Render active progress in place, using animation or redraws as appropriate. Keep meaningful final node rows visible and show the final outcome. Never mark an incomplete stage successful merely because another readiness signal is true.
 
-Show available node progress while the dashboard connection is pending. When the connection is reported, place its status directly below the dashboard link and keep the separator before the node rows. Warnings and failures must remain visible.
+When the progress section has more than one item, put one blank line before and after the item group. When it has one item, do not add blank lines around it:
+
+```text
+Upgrading cluster 'dev'
+
+  ✓ ━━━━━━━━━━━━━━━━━━━━━━━━  control-plane-1:  Node upgraded
+  ✓ ━━━━━━━━━━━━━━━━━━━━━━━━  worker-1:         Node upgraded
+
+  ✓ Maintenance completed
+```
+
+Show available node progress while the dashboard connection is pending. When the connection is reported, place its status directly below the dashboard link. Warnings and failures must remain visible.
 
 ### Redirected output
 
@@ -127,15 +142,13 @@ Print available node updates immediately. If the dashboard connects after node u
 Creating cluster 'dev'
   ✓ Resources created
   ↗ Dashboard: https://example.com/app/stacks/dev
-
   … control-plane-1: Allocating resources
   ✓ Dashboard connected
   ✓ control-plane-1: Cluster bootstrapped
-
-✓ Cluster 'dev' is ready
+  ✓ Cluster 'dev' is ready
 ```
 
-This chronological ordering is intentional: append-only output can't insert the connection status above already printed node updates.
+This chronological ordering is intentional: append-only output can't insert the connection status above already printed node updates. It also cannot add the terminal item-group margins before already printed updates.
 
 ## Streams and JSON
 

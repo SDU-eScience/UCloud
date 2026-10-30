@@ -415,9 +415,10 @@ type ScaleOutRequest struct {
 }
 
 type ScaleOutResponse struct {
-	Pool  string `json:"pool"`
-	Nodes int    `json:"nodes"`
-	Ok    bool   `json:"ok"`
+	Pool   string `json:"pool"`
+	Nodes  int    `json:"nodes"`
+	Ok     bool   `json:"ok"`
+	RunUid string `json:"runUid,omitempty"`
 }
 
 var ScaleOut = ucx.Rpc[ScaleOutRequest, ScaleOutResponse]{

@@ -1074,7 +1074,7 @@ func NodesInGroup(record ClusterRecord, group string) []ClusterNodeRecord {
 }
 
 func NewUid() string {
-	return fmt.Sprintf("%s-%d-%s", SanitizeForPath(clusterStateHolderLabel()), time.Now().UnixNano(), util.SecureToken())
+	return util.SecureToken()
 }
 
 func clusterAntiAffinityGroup(stack *ucxsvc.Stack, group string) string {

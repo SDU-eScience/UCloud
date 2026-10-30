@@ -1,20 +1,13 @@
 package dashboard
 
 import (
-	"context"
 	"fmt"
 	"sort"
-	"time"
 
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 
 	"ucloud.dk/iapp/k8s/pkg/maintenance"
 	"ucloud.dk/iapp/k8s/pkg/shared"
-)
-
-const (
-	dashboardScalePollInterval = 5 * time.Second
-	dashboardScaleRemoveLimit  = 30 * time.Minute
 )
 
 func dashboardPoolRecord(record shared.ClusterRecord, name string) (shared.ClusterPoolRecord, bool) {
@@ -26,16 +19,15 @@ func dashboardPoolRecord(record shared.ClusterRecord, name string) (shared.Clust
 	return shared.ClusterPoolRecord{}, false
 }
 
-func dashboardRemovePoolNodes(
-	ctx context.Context,
+func dashboardSubmitPoolRemoval(
 	app *stackUiApp,
 	stack *ucxsvc.Stack,
 	poolName string,
 	count int,
-) error {
+) (maintenance.MaintenanceRun, error) {
 	record, ok := app.readClusterRecordWith(*app.Session(), stack)
 	if !ok {
-		return fmt.Errorf("could not read the cluster record")
+		return maintenance.MaintenanceRun{}, fmt.Errorf("could not read the cluster record")
 	}
 
 	nodes := make([]shared.ClusterNodeRecord, 0, len(record.Nodes))
@@ -50,78 +42,20 @@ func dashboardRemovePoolNodes(
 	})
 
 	if len(nodes) < count {
-		return fmt.Errorf("the node group does not have enough nodes to remove")
+		return maintenance.MaintenanceRun{}, fmt.Errorf("the node group does not have enough nodes to remove")
 	}
 
+	targetNodes := make([]string, 0, count)
 	for i := 0; i < count; i++ {
-		node := nodes[i]
-		ucxsvc.UiSendProgress(app, fmt.Sprintf("Removing node %s (%d/%d)", node.Hostname, i+1, count))
-
-		err := maintenanceSubmitRemoveNode(node.Hostname)
-		if err != nil {
-			return fmt.Errorf("could not remove node %s: %w", node.Hostname, err)
-		}
-
-		if err := dashboardWaitRemoveNode(ctx, node.Hostname); err != nil {
-			return err
-		}
-
-		ucxsvc.UiSendProgress(app, "Removed node "+node.Hostname)
+		targetNodes = append(targetNodes, nodes[i].Hostname)
 	}
 
-	return nil
-}
-
-func dashboardWaitRemoveNode(ctx context.Context, nodeName string) error {
-	deadline := time.Now().Add(dashboardScaleRemoveLimit)
-
-	for {
-		record, recordFound, recordErr := shared.ClusterStateRecordRead()
-		nodeMissing := recordErr == nil && recordFound && !clusterRecordHasNode(record, nodeName)
-
-		snapshot, err := maintenance.Snapshot()
-		if err != nil {
-			return fmt.Errorf("could not read the maintenance state: %w", err)
-		}
-
-		operation, found := snapshot[nodeName]
-		operationDone := !found
-		if found && !maintenance.PhaseActive(operation.Phase) {
-			if operation.Phase != maintenance.PhaseCompleted {
-				message := operation.Error
-				if message == "" {
-					message = "the removal ended in phase " + operation.Phase
-				}
-				return fmt.Errorf("could not remove node %s: %s", nodeName, message)
-			}
-			operationDone = true
-		}
-
-		if nodeMissing && operationDone {
-			return nil
-		}
-
-		if !found && recordErr != nil {
-			return fmt.Errorf("could not read the cluster record: %w", recordErr)
-		}
-
-		if time.Now().After(deadline) {
-			return fmt.Errorf("timed out waiting for node %s to be removed", nodeName)
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(dashboardScalePollInterval):
-		}
-	}
-}
-
-func clusterRecordHasNode(record shared.ClusterRecord, nodeName string) bool {
-	for _, node := range record.Nodes {
-		if node.Hostname == nodeName {
-			return true
-		}
-	}
-	return false
+	return maintenance.SubmitRun(maintenance.RunRequest{
+		Tasks: []maintenance.TaskRequest{{
+			Kind:           maintenance.TaskRemove,
+			TimeoutSeconds: maintenanceDefaultTimeoutSeconds,
+		}},
+		Target:              maintenance.Target{Nodes: targetNodes},
+		MaxParallelPerGroup: 1,
+	}, "dashboard")
 }

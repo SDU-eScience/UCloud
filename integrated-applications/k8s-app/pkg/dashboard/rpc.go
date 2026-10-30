@@ -287,11 +287,13 @@ func (app *stackUiApp) registerRpcHandlers() {
 			)
 		}
 
-		if err := dashboardRemovePoolNodes(ctx, app, stack, pool.Name, current-request.Nodes); err != nil {
+		run, err := dashboardSubmitPoolRemoval(app, stack, pool.Name, current-request.Nodes)
+		if err != nil {
 			return k8sapi.ScaleOutResponse{}, err
 		}
 
 		response.Ok = true
+		response.RunUid = run.Uid
 		return response, nil
 	})
 

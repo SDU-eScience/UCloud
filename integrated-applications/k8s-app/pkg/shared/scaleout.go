@@ -708,24 +708,6 @@ type clusterRecordFlow struct {
 	client ClusterStateClient
 }
 
-func clusterStateHolderLabel() string {
-	hostname, err := os.Hostname()
-	holder := ""
-	if err == nil {
-		holder = hostname
-	}
-
-	label := "k8s-app"
-	if holder != "" {
-		label = holder
-	}
-
-	if len(label) > 128 {
-		label = label[:128]
-	}
-	return label
-}
-
 func clusterRecordFlowNew(app ucx.Application) (*clusterRecordFlow, bool) {
 	client, err := ClusterStateClientNewHost()
 	if err != nil {

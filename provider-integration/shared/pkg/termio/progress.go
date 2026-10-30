@@ -51,25 +51,23 @@ type progressAlert struct {
 }
 
 type ProgressList struct {
-	out                  io.Writer
-	pty                  bool
-	color                bool
-	mu                   sync.Mutex
-	title                string
-	items                []ProgressItem
-	milestones           []progressMilestone
-	summary              string
-	previous             map[string]progressSnapshot
-	hiddenAlerts         []ProgressItem
-	seenHiddenAlerts     map[progressAlert]bool
-	separateItems        bool
-	itemSeparatorPrinted bool
-	started              bool
-	stopped              bool
-	frame                int
-	lastLines            int
-	done                 chan struct{}
-	wg                   sync.WaitGroup
+	out              io.Writer
+	pty              bool
+	color            bool
+	mu               sync.Mutex
+	title            string
+	items            []ProgressItem
+	milestones       []progressMilestone
+	summary          string
+	previous         map[string]progressSnapshot
+	hiddenAlerts     []ProgressItem
+	seenHiddenAlerts map[progressAlert]bool
+	started          bool
+	stopped          bool
+	frame            int
+	lastLines        int
+	done             chan struct{}
+	wg               sync.WaitGroup
 }
 
 const (
@@ -152,7 +150,7 @@ func (p *ProgressList) Stop() {
 			}
 			if summary != "" {
 				fmt.Fprintln(p.out)
-				fmt.Fprintln(p.out, WriteStyledStringIf(p.color, Bold, DefaultColor, DefaultColor, "%s", summary))
+				fmt.Fprintln(p.out, "  "+WriteStyledStringIf(p.color, Bold, DefaultColor, DefaultColor, "%s", summary))
 			}
 		}
 		_, _ = io.WriteString(p.out, "\033[?25h")
@@ -239,18 +237,10 @@ func (p *ProgressList) Summary(message string) {
 	if p.pty {
 		p.renderLocked()
 	} else {
-		fmt.Fprintln(p.out)
-		fmt.Fprintln(p.out, WriteStyledStringIf(p.color, Bold, DefaultColor, DefaultColor, "%s", message))
-	}
-}
-
-func (p *ProgressList) SetSeparateItems(separate bool) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.separateItems = separate
-	if p.started && !p.stopped {
-		p.renderLocked()
+		if len(p.items) > 1 {
+			fmt.Fprintln(p.out)
+		}
+		fmt.Fprintln(p.out, "  "+WriteStyledStringIf(p.color, Bold, DefaultColor, DefaultColor, "%s", message))
 	}
 }
 
@@ -359,7 +349,8 @@ func (p *ProgressList) linesLocked() []string {
 	for _, milestone := range p.milestones {
 		lines = append(lines, p.milestoneLineLocked(milestone))
 	}
-	if (p.separateItems || p.title != "" || len(p.milestones) > 0) && len(p.items) > 0 {
+	itemCount := len(p.items)
+	if itemCount > 1 {
 		lines = append(lines, "")
 	}
 
@@ -422,8 +413,10 @@ func (p *ProgressList) linesLocked() []string {
 	}
 
 	if p.summary != "" {
-		lines = append(lines, "")
-		lines = append(lines, WriteStyledStringIf(p.color, Bold, DefaultColor, DefaultColor, "%s", p.summary))
+		if itemCount > 1 {
+			lines = append(lines, "")
+		}
+		lines = append(lines, "  "+WriteStyledStringIf(p.color, Bold, DefaultColor, DefaultColor, "%s", p.summary))
 	}
 
 	return lines
@@ -691,11 +684,6 @@ func progressStateColor(state ProgressState) Color {
 func (p *ProgressList) printChangesLocked() {
 	seen := make(map[string]bool, len(p.items))
 	maxLabelWidth := progressMaxLabelWidth(p.items)
-
-	if p.separateItems && !p.itemSeparatorPrinted && len(p.items) > 0 {
-		fmt.Fprintln(p.out)
-		p.itemSeparatorPrinted = true
-	}
 
 	for _, item := range p.items {
 		snapshot := progressSnapshot{

@@ -48,19 +48,58 @@ func k8sStopWaitProgress(client *iapp.Client, progress *termio.ProgressList) {
 	client.SetMessageHandler(nil)
 }
 
+func k8sStartOperationProgress(
+	client *iapp.Client,
+	messages *k8sMessageState,
+	title string,
+) *termio.ProgressList {
+	progress := termio.NewProgressList(outputProgressWriter(messages.output == "json"), title)
+	progress.Start()
+	client.SetMessageHandler(k8sProgressMessageHandler(messages, progress))
+	return progress
+}
+
+func k8sProgressMessageHandler(
+	messages *k8sMessageState,
+	progress *termio.ProgressList,
+) func(string, bool, string) {
+	return func(message string, success bool, level string) {
+		if message == "" || k8sCaptureFailure(messages, message, success, level) {
+			return
+		}
+		if level == ucxapi.UiMessageLevelWarning {
+			progress.MilestoneWarning(message)
+			return
+		}
+		if level == ucxapi.UiMessageLevelSuccess {
+			return
+		}
+		progress.SetItem(termio.ProgressItem{
+			Key:    "operation",
+			Status: message,
+			State:  termio.ProgressRunning,
+		})
+	}
+}
+
+func k8sStopOperationProgress(client *iapp.Client, progress *termio.ProgressList) {
+	client.SetMessageHandler(nil)
+	progress.SetItems(nil)
+	progress.Stop()
+}
+
 func k8sClusterFrame(cluster string) termio.Frame {
 	frame := termio.Frame{}
 	frame.Title("Cluster " + termio.QuoteName(cluster))
 	return frame
 }
 
-func k8sActionResultFrame(cluster string, completed bool, message string) termio.Frame {
-	if completed {
-		fmt.Println()
-	} else {
-		fmt.Fprintln(os.Stdout, outputSuccessText(os.Stdout, message))
-	}
-	return k8sClusterFrame(cluster)
+func k8sSummaryFrame(message string) termio.Frame {
+	fmt.Fprintln(os.Stdout, outputSuccessText(os.Stdout, message))
+	fmt.Println()
+	frame := termio.Frame{}
+	frame.Title("Summary")
+	return frame
 }
 
 func k8sMessageHandler(state *k8sMessageState) func(string, bool, string) {

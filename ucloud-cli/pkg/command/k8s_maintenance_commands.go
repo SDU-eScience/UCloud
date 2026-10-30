@@ -36,7 +36,7 @@ type K8sMaintenanceRunCommand struct {
 
 type K8sMaintenanceCancelCommand struct {
 	Name      string   `positional:"cluster" usage:"Cluster name" required:"true"`
-	RunUid    string   `flag:"run" usage:"Maintenance run uid"`
+	RunUid    string   `flag:"run" usage:"Maintenance run uid (defaults to the active update run)"`
 	Nodes     []string `flag:"node" usage:"Target node"`
 	Wait      bool     `flag:"wait" usage:"Wait until cancellation finishes"`
 	Workspace string   `flag:"workspace" usage:"Workspace to use"`
@@ -47,7 +47,7 @@ type K8sMaintenanceCancelCommand struct {
 
 type K8sMaintenanceRetryCommand struct {
 	Name      string   `positional:"cluster" usage:"Cluster name" required:"true"`
-	RunUid    string   `flag:"run" usage:"Maintenance run uid"`
+	RunUid    string   `flag:"run" usage:"Maintenance run uid (defaults to the active update run)"`
 	Nodes     []string `flag:"node" usage:"Target node"`
 	Wait      bool     `flag:"wait" usage:"Wait until the run finishes"`
 	Workspace string   `flag:"workspace" usage:"Workspace to use"`
@@ -178,7 +178,8 @@ func (c *K8sMaintenanceCancelCommand) Execute() error {
 
 func (c *K8sMaintenanceCancelCommand) HelpNotes() []string {
 	return []string{
-		"Use --run or --node to select the run.",
+		"Without --run or --node, cancels the active update run.",
+		"Use --node to cancel a node action.",
 		"Use --wait to block until the cancellation finishes.",
 	}
 }
@@ -203,7 +204,8 @@ func (c *K8sMaintenanceRetryCommand) Execute() error {
 
 func (c *K8sMaintenanceRetryCommand) HelpNotes() []string {
 	return []string{
-		"Use --run or --node to select the blocked or failed run.",
+		"Without --run or --node, retries the active update run.",
+		"Use --node to retry a node action.",
 		"Use --wait to block until the run finishes.",
 	}
 }

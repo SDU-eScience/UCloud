@@ -18,7 +18,7 @@ type K8sClusterScaleCommand struct {
 	Pool      string `flag:"pool" usage:"Pool name (required)"`
 	Nodes     int    `flag:"nodes" usage:"Target number of nodes in the pool (required)"`
 	Disk      int    `flag:"disk" usage:"Disk size in GB for new nodes (default: the pool disk)"`
-	Wait      bool   `flag:"wait" usage:"Wait until the new nodes finish bootstrap and are ready"`
+	Wait      bool   `flag:"wait" usage:"Wait until the scale operation finishes"`
 	Workspace string `flag:"workspace" usage:"Workspace to use"`
 	Output    string `flag:"output" usage:"Output format: table or json"`
 }
@@ -41,15 +41,16 @@ type k8sScaleResult struct {
 	Nodes        int    `json:"nodes"`
 	DashboardUrl string `json:"dashboardUrl"`
 	Ready        bool   `json:"ready"`
+	RunUid       string `json:"runUid,omitempty"`
 }
 
 func (c *K8sClusterScaleCommand) HelpNotes() []string {
 	return []string{
 		"--nodes is the target total for the pool, not the number of nodes to add or remove.",
 		"The target must be at least 1. The control plane must stay at an odd count from 1 to 7.",
-		"Scaling a pool down drains and removes nodes one at a time and always waits for each removal.",
+		"Scaling a pool down drains and removes nodes one at a time in the background.",
 		"Use node remove for custom drain options.",
-		"Use --wait to block until new nodes finish bootstrap and are ready when scaling up.",
+		"Use --wait to block until the scale operation finishes.",
 	}
 }
 
@@ -113,6 +114,13 @@ func (c *K8sClusterScaleCommand) Execute() (resultErr error) {
 
 	before := k8sPoolHostnames(status.Nodes, pool.Name)
 
+	progressTitle := ""
+	if c.Wait && c.Nodes > pool.Nodes {
+		progressTitle = fmt.Sprintf("Scaling pool %s", termio.QuoteName(pool.Name))
+	}
+	progress := k8sStartOperationProgress(client, messages, progressTitle)
+	defer k8sStopOperationProgress(client, progress)
+
 	response, err := iapp.Call(context.Background(), client, k8sapi.ScaleOut, k8sapi.ScaleOutRequest{
 		Pool:  pool.Name,
 		Nodes: c.Nodes,
@@ -123,15 +131,50 @@ func (c *K8sClusterScaleCommand) Execute() (resultErr error) {
 	}
 
 	ready := false
-	if c.Wait && response.Nodes > pool.Nodes {
-		err := k8sWaitForPoolNodes(client, name, pool.Name, before, response.Nodes, messages)
+	if c.Wait && response.RunUid != "" {
+		k8sStopOperationProgress(client, progress)
+		_, err = k8sWaitForMaintenanceRun(
+			client,
+			name,
+			response.RunUid,
+			messages,
+			true,
+			fmt.Sprintf("Scaling pool %s", termio.QuoteName(pool.Name)),
+			fmt.Sprintf(
+				"Pool %s scaled to %d node%s",
+				termio.QuoteName(pool.Name),
+				response.Nodes,
+				k8sCreatePlural(response.Nodes),
+			),
+		)
 		if err != nil {
 			return err
 		}
 		ready = true
 	}
+	if c.Wait && response.Nodes > pool.Nodes {
+		client.SetMessageHandler(k8sWaitMessageHandler(messages, progress))
+		err := k8sWaitForPoolNodesProgress(client, name, pool.Name, before, response.Nodes, messages, progress)
+		if err != nil {
+			return err
+		}
+		ready = true
+	}
+	if c.Wait {
+		if !ready {
+			progressOutput := outputProgressWriter(messages.output == "json")
+			progress.Summary(outputSuccessText(progressOutput, fmt.Sprintf(
+				"Pool %s scaled to %d node%s",
+				termio.QuoteName(pool.Name),
+				response.Nodes,
+				k8sCreatePlural(response.Nodes),
+			)))
+		}
+		ready = true
+	}
 
-	return k8sPrintScaleResult(name, pool.Name, response.Nodes, ready, false, output)
+	k8sStopOperationProgress(client, progress)
+	return k8sPrintScaleResult(name, pool.Name, response.Nodes, ready, false, response.RunUid, output)
 }
 
 func (c *K8sClusterPoolCommand) HelpNotes() []string {
@@ -228,6 +271,13 @@ func (c *K8sClusterPoolCommand) Execute() (resultErr error) {
 		return err
 	}
 
+	progressTitle := ""
+	if c.Wait {
+		progressTitle = fmt.Sprintf("Creating pool %s", termio.QuoteName(poolName))
+	}
+	progress := k8sStartOperationProgress(client, messages, progressTitle)
+	defer k8sStopOperationProgress(client, progress)
+
 	response, err := iapp.Call(context.Background(), client, k8sapi.AddPool, k8sapi.AddPoolRequest{
 		Name:    poolName,
 		Machine: machine,
@@ -240,14 +290,16 @@ func (c *K8sClusterPoolCommand) Execute() (resultErr error) {
 
 	ready := false
 	if c.Wait {
-		err := k8sWaitForPoolNodes(client, name, poolName, map[string]bool{}, response.Nodes, messages)
+		client.SetMessageHandler(k8sWaitMessageHandler(messages, progress))
+		err := k8sWaitForPoolNodesProgress(client, name, poolName, map[string]bool{}, response.Nodes, messages, progress)
 		if err != nil {
 			return err
 		}
 		ready = true
 	}
 
-	return k8sPrintScaleResult(name, response.Name, response.Nodes, ready, true, output)
+	k8sStopOperationProgress(client, progress)
+	return k8sPrintScaleResult(name, response.Name, response.Nodes, ready, true, "", output)
 }
 
 func k8sFindPool(status k8sapi.StatusResponse, name string) (k8sapi.StatusPool, bool) {
@@ -314,27 +366,17 @@ func k8sPoolHostnames(nodes []k8sapi.StatusNode, pool string) map[string]bool {
 	return result
 }
 
-func k8sWaitForPoolNodes(
+func k8sWaitForPoolNodesProgress(
 	client *iapp.Client,
 	cluster string,
 	pool string,
 	before map[string]bool,
 	target int,
 	messages *k8sMessageState,
+	progress *termio.ProgressList,
 ) error {
 	ctx, cancel := context.WithTimeout(context.Background(), k8sWaitTimeout)
 	defer cancel()
-
-	client.SetMessageHandler(nil)
-
-	progressOutput := outputProgressWriter(messages.output == "json")
-	progress := k8sStartWaitProgress(
-		client,
-		messages,
-		progressOutput,
-		fmt.Sprintf("Waiting for pool %s to reach %d node%s", termio.QuoteName(pool), target, k8sCreatePlural(target)),
-	)
-	defer k8sStopWaitProgress(client, progress)
 
 	stages := k8sJobStagesNew(ctx)
 	defer stages.Stop()
@@ -388,6 +430,7 @@ func k8sWaitForPoolNodes(
 			newTotal > 0 &&
 			newReady == newTotal &&
 			k8sWaitBootstrapComplete(response, stages, include) {
+			progressOutput := outputProgressWriter(messages.output == "json")
 			progress.Summary(outputSuccessText(progressOutput, fmt.Sprintf("Pool %s is ready", termio.QuoteName(pool))))
 			return nil
 		}
@@ -398,7 +441,15 @@ func k8sWaitForPoolNodes(
 	}
 }
 
-func k8sPrintScaleResult(cluster string, pool string, nodes int, ready bool, added bool, output string) error {
+func k8sPrintScaleResult(
+	cluster string,
+	pool string,
+	nodes int,
+	ready bool,
+	added bool,
+	runUid string,
+	output string,
+) error {
 	dashboardUrl := k8sDashboardURL(cluster)
 
 	if output == "json" {
@@ -408,16 +459,24 @@ func k8sPrintScaleResult(cluster string, pool string, nodes int, ready bool, add
 			Nodes:        nodes,
 			DashboardUrl: dashboardUrl,
 			Ready:        ready,
+			RunUid:       runUid,
 		})
+	}
+
+	if ready {
+		return nil
 	}
 
 	message := fmt.Sprintf("Scaling requested for pool %s", termio.QuoteName(pool))
 	if added {
 		message = fmt.Sprintf("Pool %s creation requested", termio.QuoteName(pool))
 	}
-	frame := k8sActionResultFrame(cluster, ready, message)
+	frame := k8sSummaryFrame(message)
 	frame.AppendField("Pool", termio.EscapeName(pool))
 	frame.AppendField("Nodes", strconv.Itoa(nodes))
+	if runUid != "" {
+		frame.AppendField("Run", runUid)
+	}
 	frame.AppendField("Dashboard", outputLink(dashboardUrl))
 	frame.Print()
 	return nil

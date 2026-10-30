@@ -34,7 +34,7 @@ type k8sMaintenanceRequest struct {
 	BypassDisruptionBudgets bool     `flag:"bypass-disruption-budgets" usage:"Run only: evict pods even when a disruption budget forbids it"`
 	Force                   bool     `flag:"force" usage:"Run only: use a zero grace period while draining; requires --bypass-disruption-budgets"`
 	MaxParallel             int      `flag:"max-parallel" usage:"Run only: maximum parallel nodes per group (default 1)"`
-	RunUid                  string   `flag:"run" usage:"Cancel/retry only: maintenance run uid"`
+	RunUid                  string   `flag:"run" usage:"Cancel/retry only: maintenance run uid (defaults to the active update run)"`
 	Wait                    bool     `flag:"wait" usage:"Run/cancel/retry/backup only: wait until the action finishes"`
 	K8sEnabled              bool     `flag:"k8s-enabled" usage:"Schedule only: include Kubernetes upgrades in scheduled maintenance"`
 	OsEnabled               bool     `flag:"os-enabled" usage:"Schedule only: include operating-system updates in scheduled maintenance"`
@@ -221,7 +221,15 @@ func (c *k8sMaintenanceRequest) maintenanceRun(
 	waited := c.Wait
 	phase := ""
 	if c.Wait {
-		phase, err = k8sWaitForMaintenanceRun(client, cluster, response.Uid, messages, true)
+		phase, err = k8sWaitForMaintenanceRun(
+			client,
+			cluster,
+			response.Uid,
+			messages,
+			true,
+			fmt.Sprintf("Waiting for maintenance run %s", termio.QuoteName(response.Uid)),
+			"Maintenance completed",
+		)
 		if err != nil {
 			return err
 		}
@@ -521,9 +529,6 @@ func (c *k8sMaintenanceRequest) maintenanceRunSelector() (string, string, error)
 	if runUid != "" && len(nodes) > 0 {
 		return "", "", fmt.Errorf("use either --run or --node, not both")
 	}
-	if runUid == "" && len(nodes) == 0 {
-		return "", "", fmt.Errorf("pass --run or --node to select the maintenance run")
-	}
 	if len(nodes) > 1 {
 		return "", "", fmt.Errorf("select exactly one --node")
 	}
@@ -605,7 +610,15 @@ func k8sMaintenanceCancel(
 	waited := c.Wait && response.Uid != ""
 	phase := ""
 	if waited {
-		phase, err = k8sWaitForMaintenanceRun(client, cluster, response.Uid, messages, false)
+		phase, err = k8sWaitForMaintenanceRun(
+			client,
+			cluster,
+			response.Uid,
+			messages,
+			false,
+			fmt.Sprintf("Waiting for maintenance run %s", termio.QuoteName(response.Uid)),
+			"Maintenance completed",
+		)
 		if err != nil {
 			return err
 		}
@@ -646,7 +659,15 @@ func k8sMaintenanceRetry(
 	waited := c.Wait
 	phase := ""
 	if waited {
-		phase, err = k8sWaitForMaintenanceRun(client, cluster, response.Uid, messages, true)
+		phase, err = k8sWaitForMaintenanceRun(
+			client,
+			cluster,
+			response.Uid,
+			messages,
+			true,
+			fmt.Sprintf("Waiting for maintenance run %s", termio.QuoteName(response.Uid)),
+			"Maintenance completed",
+		)
 		if err != nil {
 			return err
 		}
@@ -714,6 +735,8 @@ func k8sWaitForMaintenanceRun(
 	runUid string,
 	messages *k8sMessageState,
 	failOnCancelled bool,
+	title string,
+	completedMessage string,
 ) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), k8sMaintenanceWaitTimeout)
 	defer cancel()
@@ -725,7 +748,7 @@ func k8sWaitForMaintenanceRun(
 		client,
 		messages,
 		progressOutput,
-		fmt.Sprintf("Waiting for maintenance run %s", termio.QuoteName(runUid)),
+		title,
 	)
 	defer k8sStopWaitProgress(client, progress)
 
@@ -772,7 +795,7 @@ func k8sWaitForMaintenanceRun(
 
 		switch run.Phase {
 		case k8sapi.MaintenanceRunCompleted:
-			progress.Summary(outputSuccessText(progressOutput, "Maintenance completed"))
+			progress.Summary(outputSuccessText(progressOutput, completedMessage))
 			return run.Phase, nil
 		case k8sapi.MaintenanceRunFailed, k8sapi.MaintenanceRunBlocked:
 			reason := run.Error
@@ -823,7 +846,6 @@ func k8sPrintMaintenanceRunResult(
 	output string,
 	message string,
 ) error {
-	completed := phase == k8sapi.MaintenanceRunCompleted
 	dashboardUrl := k8sDashboardURL(cluster)
 	if output == "json" {
 		return k8sPrintJson(k8sMaintenanceRunResult{
@@ -835,11 +857,12 @@ func k8sPrintMaintenanceRunResult(
 		})
 	}
 
-	frame := k8sActionResultFrame(cluster, completed, message)
-	frame.AppendField("Run", k8sValueOrDash(runUid))
-	if waited && phase != "" {
-		frame.AppendField("Phase", k8sUpgradePhaseLabel(phase))
+	if waited {
+		return nil
 	}
+
+	frame := k8sSummaryFrame(message)
+	frame.AppendField("Run", k8sValueOrDash(runUid))
 	frame.AppendField("Dashboard", outputLink(dashboardUrl))
 	frame.Print()
 	return nil
@@ -993,6 +1016,9 @@ func k8sMaintenanceTaskTitle(task k8sapi.MaintenanceTaskInfo) string {
 	case k8sapi.MaintenanceTaskUncordon:
 		return "Uncordon"
 	case k8sapi.MaintenanceTaskRemove:
+		if len(task.Items) > 1 {
+			return fmt.Sprintf("Remove %d nodes", len(task.Items))
+		}
 		return "Remove node"
 	}
 	return task.Kind
@@ -1026,7 +1052,7 @@ func k8sPrintMaintenanceScheduleResult(
 		})
 	}
 
-	frame := k8sActionResultFrame(cluster, true, message)
+	frame := k8sSummaryFrame(message)
 	frame.AppendField("Kubernetes upgrades", k8sOnOffLabel(response.Policy.K8sEnabled))
 	frame.AppendField("Operating-system updates", k8sOnOffLabel(response.Policy.OsEnabled))
 	frame.AppendField("Maintenance window", fmt.Sprintf(
@@ -1163,8 +1189,12 @@ func k8sPrintBackupResult(
 		})
 	}
 
+	if completed {
+		return nil
+	}
+
 	message := fmt.Sprintf("Backup started for cluster %s", termio.QuoteName(cluster))
-	frame := k8sActionResultFrame(cluster, completed, message)
+	frame := k8sSummaryFrame(message)
 	frame.AppendField("Backup", response.Uid)
 	frame.AppendField("Phase", phase)
 	frame.AppendField("Dashboard", outputLink(dashboardUrl))

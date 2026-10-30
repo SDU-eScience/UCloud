@@ -461,10 +461,14 @@ func buildRunSpec(policy Policy, request RunRequest) (RunSpec, error) {
 		if len(tasks) != 1 {
 			return RunSpec{}, errors.New("a node action run can contain only one task")
 		}
-		if !request.Target.All && len(request.Target.Pools) == 0 && len(request.Target.Nodes) == 0 {
-			return RunSpec{}, errors.New("select a node for this maintenance action")
+		if request.Target.All || len(request.Target.Pools) > 0 {
+			return RunSpec{}, errors.New("a node action must target one or more nodes")
 		}
-		if len(request.Target.Nodes) != 1 || len(request.Target.Pools) > 0 || request.Target.All {
+		if tasks[0].Kind == TaskRemove {
+			if len(request.Target.Nodes) == 0 {
+				return RunSpec{}, errors.New("select at least one node to remove")
+			}
+		} else if len(request.Target.Nodes) != 1 {
 			return RunSpec{}, errors.New("a node action must target exactly one node")
 		}
 	}
@@ -646,13 +650,15 @@ func ensureRunCanStart(client stackClient, spec RunSpec, nodes []shared.ClusterN
 			targetSet[node.Hostname] = true
 		}
 		for _, run := range nodeRuns {
-			if run.Kind == RunKindNodeAction &&
-				len(run.Effective.Target.Nodes) > 0 &&
-				targetSet[run.Effective.Target.Nodes[0]] {
-				return fmt.Errorf(
-					"a maintenance run already exists for node %s. Retry or cancel it first",
-					run.Effective.Target.Nodes[0],
-				)
+			if run.Kind == RunKindNodeAction {
+				for _, nodeName := range run.Effective.Target.Nodes {
+					if targetSet[nodeName] {
+						return fmt.Errorf(
+							"a maintenance run already exists for node %s. Retry or cancel it first",
+							nodeName,
+						)
+					}
+				}
 			}
 			for _, task := range run.Tasks {
 				for _, item := range task.Items {
@@ -669,23 +675,48 @@ func ensureRunCanStart(client stackClient, spec RunSpec, nodes []shared.ClusterN
 	}
 
 	taskKind := spec.Tasks[0].Kind
-	nodeName := nodes[0].Hostname
-	if updateRecord.Found &&
-		taskKind != TaskUncordon &&
-		runTargetsNode(updateRecord.Value, nodeName, nodes[0].Group) {
-		return errors.New("the node is part of the active update run. Only uncordon is allowed on that node")
+	if taskKind == TaskRemove {
+		for _, run := range nodeRuns {
+			if run.Kind == RunKindNodeAction &&
+				len(run.Effective.Tasks) > 0 &&
+				run.Effective.Tasks[0].Kind == TaskRemove {
+				return errors.New("another maintenance run is already removing nodes")
+			}
+		}
+	}
+	for _, node := range nodes {
+		if updateRecord.Found &&
+			taskKind != TaskUncordon &&
+			runTargetsNode(updateRecord.Value, node.Hostname, node.Group) {
+			return fmt.Errorf(
+				"node %s is part of the active update run. Only uncordon is allowed on that node",
+				node.Hostname,
+			)
+		}
 	}
 
 	for _, run := range nodeRuns {
-		if run.Kind == RunKindNodeAction &&
-			len(run.Effective.Target.Nodes) > 0 &&
-			run.Effective.Target.Nodes[0] == nodeName {
-			return fmt.Errorf("a maintenance run already exists for node %s. Retry or cancel it first", nodeName)
+		if run.Kind == RunKindNodeAction {
+			for _, target := range run.Effective.Target.Nodes {
+				for _, node := range nodes {
+					if target == node.Hostname {
+						return fmt.Errorf(
+							"a maintenance run already exists for node %s. Retry or cancel it first",
+							node.Hostname,
+						)
+					}
+				}
+			}
 		}
 		for _, task := range run.Tasks {
 			for _, item := range task.Items {
-				if item.NodeName == nodeName {
-					return fmt.Errorf("a maintenance run already exists for node %s. Retry or cancel it first", nodeName)
+				for _, node := range nodes {
+					if item.NodeName == node.Hostname {
+						return fmt.Errorf(
+							"a maintenance run already exists for node %s. Retry or cancel it first",
+							node.Hostname,
+						)
+					}
 				}
 			}
 		}
@@ -695,8 +726,10 @@ func ensureRunCanStart(client stackClient, spec RunSpec, nodes []shared.ClusterN
 	if err != nil {
 		return fmt.Errorf("could not read the maintenance state: %s", err)
 	}
-	if operation, found := snapshot[nodeName]; found && PhaseActive(operation.Phase) {
-		return fmt.Errorf("an operation is already active on node %s", nodeName)
+	for _, node := range nodes {
+		if operation, found := snapshot[node.Hostname]; found && PhaseActive(operation.Phase) {
+			return fmt.Errorf("an operation is already active on node %s", node.Hostname)
+		}
 	}
 
 	return nil
@@ -929,9 +962,6 @@ func runContainsNode(run MaintenanceRun, nodeName string) bool {
 func CancelRun(runUid string, nodeName string) (MaintenanceRun, error) {
 	runUid = strings.TrimSpace(runUid)
 	nodeName = strings.TrimSpace(nodeName)
-	if runUid == "" && nodeName == "" {
-		return MaintenanceRun{}, errors.New("a run uid or a node is required")
-	}
 
 	client, err := stackClientNew()
 	if err != nil {
@@ -981,9 +1011,6 @@ func CancelRun(runUid string, nodeName string) (MaintenanceRun, error) {
 func RetryRun(runUid string, nodeName string) (MaintenanceRun, error) {
 	runUid = strings.TrimSpace(runUid)
 	nodeName = strings.TrimSpace(nodeName)
-	if runUid == "" && nodeName == "" {
-		return MaintenanceRun{}, errors.New("a run uid or a node is required")
-	}
 
 	client, err := stackClientNew()
 	if err != nil {

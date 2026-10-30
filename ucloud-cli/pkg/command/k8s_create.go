@@ -708,7 +708,6 @@ func k8sWaitForCluster(name string, output io.Writer, messages *k8sMessageState)
 	defer cancel()
 
 	progress := termio.NewProgressList(output, "")
-	progress.SetSeparateItems(true)
 	progress.Start()
 	defer progress.Stop()
 
