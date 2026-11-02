@@ -598,6 +598,15 @@ func Init() {
 				http.Error(w, httpErr.Why, httpErr.StatusCode)
 				return
 			}
+			inferenceAuditRecord(
+				r.Context(),
+				"inference.responses.delete",
+				apiKeyOwner,
+				createdBy,
+				time.Now(),
+				mustMarshal(map[string]string{"responseId": path}),
+				"",
+			)
 			respData, _ := json.Marshal(resp)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)

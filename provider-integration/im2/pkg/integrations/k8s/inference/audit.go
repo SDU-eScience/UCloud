@@ -1,18 +1,12 @@
 package inference
 
 import (
-	"container/list"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -30,39 +24,14 @@ import (
 // responses record submission. The response store persists completion when storage is enabled. Read-only HTTP calls can
 // finish without a record. Rejected calls record the rejection reason instead of a normal request body.
 //
-// The normal audit log stores the result. When message content is enabled, records store new request items and hashes
-// for prior items. A bounded LRU cache tracks recent prefix hashes. A cache miss stores the full item history again.
+// The normal audit log stores the result. It does not store the message content.
 
-// Audit configuration and request state
+// Audit request state
 // ---------------------------------------------------------------------------------------------------------------------
-// This section defines audit feature settings, cache limits, metrics, request context keys, and HTTP response state.
-// inferenceAuditMiddleware creates inferenceAuditState. The remaining audit entry points update or emit that state.
+// This section defines the request context keys and the HTTP response state. inferenceAuditMiddleware creates
+// inferenceAuditState. The remaining audit entry points update or emit that state.
 //
-// Message content is disabled by default. The cache capacity counts chain keys, and shards divide that capacity evenly.
 // The response writer records the first status. A write or flush without an explicit status records HTTP 200.
-
-const (
-	inferenceAuditChainSeed = "ucloud-inference-v1"
-
-	inferenceAuditIncludeMessageContent = false
-
-	// The capacity counts user entries. The shards divide it evenly.
-	inferenceAuditLruCapacity      = 32768
-	inferenceAuditLruShards        = 16
-	inferenceAuditLruShardMask     = inferenceAuditLruShards - 1
-	inferenceAuditLruShardCapacity = inferenceAuditLruCapacity / inferenceAuditLruShards
-
-	// These limits control stored prefix hashes and new messages before a cache miss stores the full history again.
-	inferenceAuditChainHashLimit  = 64
-	inferenceAuditLruPrefixWindow = 16
-)
-
-var metricInferenceAuditChainMisses = promauto.NewCounterVec(prometheus.CounterOpts{
-	Namespace: "ucloud_im",
-	Subsystem: "inference",
-	Name:      "audit_chain_misses_total",
-	Help:      "Inference audit rows stored without a deduplication prefix by endpoint.",
-}, []string{"endpoint"})
 
 type inferenceAuditStateKey struct{}
 type inferenceAuditSourceKey struct{}
@@ -80,6 +49,13 @@ type inferenceAuditState struct {
 	ProjectId    string
 	RequestSize  uint64
 	rejectReason string
+}
+
+func inferenceAuditActivityKey(state *inferenceAuditState) string {
+	if state.Username != "" {
+		return state.Username
+	}
+	return state.ProjectId
 }
 
 type inferenceAuditResponseWriter struct {
@@ -226,7 +202,7 @@ func inferenceAuditEmit(state *inferenceAuditState, r *http.Request, status int,
 	}
 
 	if status < 400 {
-		inferenceActivityRecord(inferenceAuditChainKeyOfState(state), state.ReceivedAt)
+		inferenceActivityRecord(inferenceAuditActivityKey(state), state.ReceivedAt)
 	}
 
 	event := rpc.HttpCallLogEntry{
@@ -312,197 +288,16 @@ func inferenceAuditSuppressed(ctx context.Context) bool {
 	return suppressed
 }
 
-// Prefix hash-chain cache
-// ---------------------------------------------------------------------------------------------------------------------
-// This section computes and caches message history hashes. inferenceAuditComputeDelta is the main entry point. It finds
-// a known request prefix and returns only items after that prefix. It also returns the matched and complete chain hashes.
-//
-// The cache keeps a recent prefix hash list for each chain key. Each list contains at most
-// inferenceAuditChainHashLimit hashes. A match finds the deepest stored request prefix. The audit record then includes
-// only items after that prefix. The limit supports a recent window of interleaved conversations.
-//
-// The cache uses chain-key shards to reduce lock contention. Updates replace immutable entries. Matching scans the
-// published hash list outside the lock and compares fixed-size arrays without allocations.
-//
-// Each chain starts from inferenceAuditChainSeed. Each next hash combines the prior chain hash with the current item
-// hash. The username or wallet owner reference selects the chain. Empty input and disabled content produce an empty
-// delta. A cache miss records a metric and returns every item. Each shard removes its least recent key at capacity.
-
-var inferenceAuditChainLru = newInferenceAuditChainCache()
-
-type inferenceAuditChainCache struct {
-	shards [inferenceAuditLruShards]inferenceAuditChainShard
-}
-
-type inferenceAuditChainShard struct {
-	mu      sync.Mutex
-	entries *list.List
-	index   map[string]*list.Element
-}
-
-type inferenceAuditChainEntry struct {
-	key    string
-	hashes [][32]byte
-}
-
-type inferenceAuditDelta struct {
-	PrevHash string
-	FullHash string
-	NewItems []json.RawMessage
-}
-
-func inferenceAuditChainKey(owner apm.WalletOwner, username string) string {
-	if username != "" {
-		return username
-	}
-	return owner.Reference()
-}
-
-func inferenceAuditChainKeyOfState(state *inferenceAuditState) string {
-	if state.Username != "" {
-		return state.Username
-	}
-	return state.ProjectId
-}
-
-func newInferenceAuditChainCache() *inferenceAuditChainCache {
-	cache := &inferenceAuditChainCache{}
-	for i := range cache.shards {
-		cache.shards[i].entries = list.New()
-		cache.shards[i].index = make(map[string]*list.Element, inferenceAuditLruShardCapacity)
-	}
-	return cache
-}
-
-func inferenceAuditChainShardOf(chainKey string) *inferenceAuditChainShard {
-	sum := sha256.Sum256([]byte(chainKey))
-	shard := &inferenceAuditChainLru.shards[sum[0]&inferenceAuditLruShardMask]
-	return shard
-}
-
-func inferenceAuditChainGet(chainKey string, prefixHashes [][32]byte) int {
-	shard := inferenceAuditChainShardOf(chainKey)
-
-	shard.mu.Lock()
-	element, ok := shard.index[chainKey]
-	if !ok {
-		shard.mu.Unlock()
-		return -1
-	}
-	shard.entries.MoveToFront(element)
-	hashes := element.Value.(*inferenceAuditChainEntry).hashes
-	shard.mu.Unlock()
-
-	for i := len(prefixHashes) - 1; i >= 0; i-- {
-		prefix := prefixHashes[i]
-		for _, hash := range hashes {
-			if hash == prefix {
-				return i
-			}
-		}
-	}
-	return -1
-}
-
-func inferenceAuditChainSet(chainKey string, prefixHashes [][32]byte) {
-	windowStart := max(len(prefixHashes)-inferenceAuditLruPrefixWindow, 0)
-	window := prefixHashes[windowStart:]
-
-	// Store the most recent hash first. Entries over the limit remove the oldest hashes.
-	entry := &inferenceAuditChainEntry{
-		key:    chainKey,
-		hashes: make([][32]byte, 0, inferenceAuditChainHashLimit),
-	}
-	for i := len(window) - 1; i >= 0; i-- {
-		entry.hashes = append(entry.hashes, window[i])
-	}
-
-	shard := inferenceAuditChainShardOf(chainKey)
-	shard.mu.Lock()
-	defer shard.mu.Unlock()
-
-	if element, ok := shard.index[chainKey]; ok {
-		for _, hash := range element.Value.(*inferenceAuditChainEntry).hashes {
-			if len(entry.hashes) >= inferenceAuditChainHashLimit {
-				break
-			}
-
-			contained := false
-			for _, existing := range entry.hashes {
-				if existing == hash {
-					contained = true
-					break
-				}
-			}
-			if !contained {
-				entry.hashes = append(entry.hashes, hash)
-			}
-		}
-
-		shard.entries.MoveToFront(element)
-		element.Value = entry
-	} else {
-		for len(shard.index) >= inferenceAuditLruShardCapacity {
-			oldest := shard.entries.Back()
-			if oldest == nil {
-				break
-			}
-			delete(shard.index, oldest.Value.(*inferenceAuditChainEntry).key)
-			shard.entries.Remove(oldest)
-		}
-		shard.index[chainKey] = shard.entries.PushFront(entry)
-	}
-}
-
-func inferenceAuditChainPrefixes(items []json.RawMessage) [][32]byte {
-	prefixHashes := make([][32]byte, len(items))
-	chain := sha256.Sum256([]byte(inferenceAuditChainSeed))
-	for i, item := range items {
-		itemHash := sha256.Sum256(item)
-		chain = sha256.Sum256(append(chain[:], itemHash[:]...))
-		prefixHashes[i] = chain
-	}
-	return prefixHashes
-}
-
-func inferenceAuditComputeDelta(
-	endpoint string,
-	chainKey string,
-	items []json.RawMessage,
-) inferenceAuditDelta {
-	delta := inferenceAuditDelta{NewItems: []json.RawMessage{}}
-	if !inferenceAuditIncludeMessageContent || len(items) == 0 {
-		return delta
-	}
-
-	prefixHashes := inferenceAuditChainPrefixes(items)
-	delta.FullHash = hex.EncodeToString(prefixHashes[len(prefixHashes)-1][:])
-
-	match := inferenceAuditChainGet(chainKey, prefixHashes)
-	if match >= 0 {
-		delta.PrevHash = hex.EncodeToString(prefixHashes[match][:])
-		delta.NewItems = append(delta.NewItems, items[match+1:]...)
-	} else {
-		metricInferenceAuditChainMisses.WithLabelValues(endpoint).Inc()
-		delta.NewItems = append(delta.NewItems, items...)
-	}
-
-	inferenceAuditChainSet(chainKey, prefixHashes)
-	return delta
-}
-
 // Audit request bodies
 // ---------------------------------------------------------------------------------------------------------------------
 // These builders create the JSON stored for chat and responses calls. They include model settings, result data, usage,
-// source, item counts, and hash-chain data. inferenceAuditChatBody reads chat messages. inferenceAuditOaiResponseBody
-// reads the normalized responses input items.
+// source, and item counts. inferenceAuditChatBody reads chat requests. inferenceAuditOaiResponseBody reads the
+// normalized responses input items.
 //
-// Message bodies and instructions appear only when message content is enabled. Counts remain available when content is
-// disabled. Optional JSON fields stay absent when their source values are empty. `mustMarshal` provides the common JSON
-// encoding path. It returns an empty JSON object if encoding fails so audit creation still has a valid request body.
+// Optional JSON fields stay absent when their source values are empty. `mustMarshal` provides the common JSON encoding
+// path. It returns an empty JSON object if encoding fails so audit creation still has a valid request body.
 
 func inferenceAuditChatBody(
-	chainKey string,
 	model string,
 	history InferenceChatRequest,
 	usage *InferenceChatUsage,
@@ -510,26 +305,13 @@ func inferenceAuditChatBody(
 	aborted bool,
 	source string,
 ) json.RawMessage {
-	var items []json.RawMessage
-	if inferenceAuditIncludeMessageContent {
-		items = make([]json.RawMessage, 0, len(history.Messages))
-		for _, message := range history.Messages {
-			items = append(items, mustMarshal(message))
-		}
-	}
-
-	delta := inferenceAuditComputeDelta("inference.chat", chainKey, items)
-
 	type auditChatBody struct {
 		Model               string               `json:"model"`
 		Stream              bool                 `json:"stream"`
 		Source              string               `json:"source,omitempty"`
 		Reason              string               `json:"reason,omitempty"`
 		Aborted             bool                 `json:"aborted,omitempty"`
-		PrevHash            string               `json:"prevHash,omitempty"`
-		FullHash            string               `json:"fullHash,omitempty"`
 		MessageCount        int                  `json:"messageCount"`
-		NewMessages         []json.RawMessage    `json:"newMessages,omitempty"`
 		Usage               *InferenceChatUsage  `json:"usage,omitempty"`
 		Temperature         util.Option[float64] `json:"temperature,omitempty"`
 		TopP                util.Option[float64] `json:"top_p,omitempty"`
@@ -544,10 +326,7 @@ func inferenceAuditChatBody(
 		Source:              source,
 		Reason:              reason,
 		Aborted:             aborted,
-		PrevHash:            delta.PrevHash,
-		FullHash:            delta.FullHash,
 		MessageCount:        len(history.Messages),
-		NewMessages:         delta.NewItems,
 		Usage:               usage,
 		Temperature:         history.Temperature,
 		TopP:                history.TopP,
@@ -557,15 +336,25 @@ func inferenceAuditChatBody(
 	})
 }
 
+func inferenceAuditResponseItemCount(input json.RawMessage) int {
+	if len(input) == 0 || string(input) == "null" {
+		return 0
+	}
+
+	var items []json.RawMessage
+	if err := json.Unmarshal(input, &items); err == nil {
+		return len(items)
+	}
+	return 1
+}
+
 func inferenceAuditOaiResponseBody(
-	chainKey string,
 	request OaiResponseCreateRequest,
 	usage *InferenceChatUsage,
 	reason string,
 	source string,
 ) json.RawMessage {
-	items := inferenceResponseStoreInputItems(request.Input)
-	delta := inferenceAuditComputeDelta("inference.responses", chainKey, items)
+	itemCount := inferenceAuditResponseItemCount(request.Input)
 
 	type auditOaiBody struct {
 		Model              string              `json:"model"`
@@ -573,19 +362,10 @@ func inferenceAuditOaiResponseBody(
 		Stream             bool                `json:"stream"`
 		Source             string              `json:"source,omitempty"`
 		Reason             string              `json:"reason,omitempty"`
-		PrevHash           string              `json:"prevHash,omitempty"`
-		FullHash           string              `json:"fullHash,omitempty"`
 		ItemCount          int                 `json:"itemCount"`
-		NewItems           []json.RawMessage   `json:"newItems,omitempty"`
-		Instructions       json.RawMessage     `json:"instructions,omitempty"`
 		Conversation       string              `json:"conversation,omitempty"`
 		PreviousResponseID string              `json:"previous_response_id,omitempty"`
 		Usage              *InferenceChatUsage `json:"usage,omitempty"`
-	}
-
-	var instructions json.RawMessage
-	if inferenceAuditIncludeMessageContent {
-		instructions = request.Instructions
 	}
 
 	return mustMarshal(auditOaiBody{
@@ -594,11 +374,7 @@ func inferenceAuditOaiResponseBody(
 		Stream:             request.Stream,
 		Source:             source,
 		Reason:             reason,
-		PrevHash:           delta.PrevHash,
-		FullHash:           delta.FullHash,
-		ItemCount:          len(items),
-		NewItems:           delta.NewItems,
-		Instructions:       instructions,
+		ItemCount:          itemCount,
 		Conversation:       request.Conversation,
 		PreviousResponseID: request.PreviousResponseID,
 		Usage:              usage,

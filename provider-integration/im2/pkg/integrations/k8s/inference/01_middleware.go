@@ -653,7 +653,6 @@ func InferenceChatEx(ctx context.Context, owner apm.WalletOwner, username string
 				username,
 				requestStartedAt,
 				inferenceAuditChatBody(
-					inferenceAuditChainKey(owner, username),
 					auditModel,
 					history,
 					&auditUsage,
@@ -781,7 +780,6 @@ func InferenceChatStreaming(ctx context.Context, owner apm.WalletOwner, username
 			username,
 			requestStartedAt,
 			inferenceAuditChatBody(
-				inferenceAuditChainKey(owner, username),
 				auditModel,
 				history,
 				&auditUsage,

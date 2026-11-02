@@ -367,7 +367,7 @@ func InferenceResponseCreate(ctx context.Context, owner apm.WalletOwner, usernam
 			owner,
 			username,
 			requestStartedAt,
-			inferenceAuditOaiResponseBody(inferenceAuditChainKey(owner, username), auditRequest, usagePtr, requestOutcome, ""),
+			inferenceAuditOaiResponseBody(auditRequest, usagePtr, requestOutcome, ""),
 			requestOutcome,
 		)
 	}()
@@ -484,7 +484,7 @@ func InferenceResponseCreateStreaming(ctx context.Context, owner apm.WalletOwner
 			owner,
 			username,
 			requestStartedAt,
-			inferenceAuditOaiResponseBody(inferenceAuditChainKey(owner, username), auditRequest, usagePtr, outcome, ""),
+			inferenceAuditOaiResponseBody(auditRequest, usagePtr, outcome, ""),
 			outcome,
 		)
 	}

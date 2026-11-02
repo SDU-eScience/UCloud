@@ -3,6 +3,7 @@ package inference
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"io"
 	"mime"
 	"net/http"
@@ -42,7 +43,7 @@ import (
 // The database row uses nullable values for project ownership and for the optional Markdown link.
 
 const attachmentSubPath = "Inference/Attachments"
-const attachmentRetention = 14 * 24 * time.Hour
+const attachmentRetention = 60 * time.Minute
 const attachmentMaxChunkBytes = 8 << 20
 const attachmentMaxFileBytes = 64 << 20
 
@@ -100,6 +101,11 @@ var attachmentDownloadRpc = rpc.Call[attachmentDownloadRequest, attachmentDownlo
 	BaseContext: "inference/attachments",
 	Operation:   "download",
 	Roles:       rpc.RolesPublic,
+	Audit: rpc.AuditRules{
+		Transformer: func(request any) json.RawMessage {
+			return json.RawMessage("{}")
+		},
+	},
 }
 
 func AttachmentInit() {
@@ -130,7 +136,7 @@ func AttachmentInit() {
 
 	go func() {
 		AttachmentDeleteExpired()
-		ticker := time.NewTicker(time.Hour)
+		ticker := time.NewTicker(15 * time.Minute)
 		defer ticker.Stop()
 		for range ticker.C {
 			AttachmentDeleteExpired()
@@ -319,7 +325,7 @@ func AttachmentDeleteExpired() {
 	attachments := db.NewTx(func(tx *db.Transaction) []Attachment {
 		rows := db.Select[attachmentRow](
 			tx,
-			`select id, created_by, project_id, filename, markdown_attachment_id from k8s.inference_attachments where created_at < now() - cast('14 days' as interval)`,
+			`select id, created_by, project_id, filename, markdown_attachment_id from k8s.inference_attachments where created_at < now() - cast('60 minutes' as interval)`,
 			db.Params{},
 		)
 		result := make([]Attachment, 0, len(rows))
