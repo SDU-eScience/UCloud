@@ -805,7 +805,7 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 
 	for _, item := range request.Items {
 		spec := item
-		err := jobsValidateForSubmission(actor, &spec)
+		app, err := jobsValidateForSubmission(actor, &spec)
 		if err != nil {
 			return nil, err
 		}
@@ -880,7 +880,7 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 			Updates:   nil,
 		}
 
-		job, err := jobCreateThroughProvider(actor, spec, extra)
+		job, err := jobCreateThroughProvider(actor, spec, extra, app)
 		if err != nil {
 			return nil, err
 		}
@@ -899,7 +899,7 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 	return created, nil
 }
 
-func jobCreateThroughProvider(actor rpc.Actor, spec orcapi.JobSpecification, extra *internalJob) (orcapi.Job, *util.HttpError) {
+func jobCreateThroughProvider(actor rpc.Actor, spec orcapi.JobSpecification, extra *internalJob, app orcapi.Application) (orcapi.Job, *util.HttpError) {
 	var empty orcapi.Job
 
 	if !resourceSpecificationHasProduct(spec.ResourceSpecification) {
@@ -921,8 +921,14 @@ func jobCreateThroughProvider(actor rpc.Actor, spec orcapi.JobSpecification, ext
 		return empty, err
 	}
 
+	apiServerResources, err := jobCreateInferenceApiServers(actor, job.Id, app)
+	if err != nil {
+		jobDiscardFailedCreate(job.Id)
+		return empty, err
+	}
+
 	providerJob := job
-	providerJob.Specification.Resources = spec.Resources // NOTE(Dan): Pass unfiltered resources to provider
+	providerJob.Specification.Resources = append(slices.Clone(jobPersistableResources(spec.Resources)), apiServerResources...)
 	providerJob.Specification.Services = spec.Services
 	resp, err := InvokeProvider(spec.ResourceSpecification.Product.Provider, orcapi.JobsProviderCreate, fndapi.BulkRequestOf(providerJob), ProviderCallOpts{
 		Username: util.OptValue(actor.Username),
@@ -947,6 +953,64 @@ func jobCreateThroughProvider(actor rpc.Actor, spec orcapi.JobSpecification, ext
 
 	ResourceConfirm(jobType, id)
 	return job, nil
+}
+
+func jobCreateInferenceApiServers(actor rpc.Actor, jobId string, app orcapi.Application) ([]orcapi.AppParameterValue, *util.HttpError) {
+	if !app.Invocation.Inference.Present {
+		return nil, nil
+	}
+
+	mode := app.Invocation.Inference.Value.Mode
+	if mode == "" || mode == orcapi.InferenceModeNone {
+		return nil, nil
+	}
+
+	options := ApiTokenRetrieveOptions(actor)
+	resources := make([]orcapi.AppParameterValue, 0)
+	var lastErr *util.HttpError
+
+	for providerId, providerOptions := range options.ByProvider {
+		if providerId == "" || !jobApiTokenOptionsHaveInference(providerOptions) {
+			continue
+		}
+
+		token, err := apiTokenCreateForJob(actor, orcapi.ApiTokenSpecification{
+			Title:                fmt.Sprintf("Inference token for job %s", jobId),
+			Description:          "Generated for a job requiring inference servers.",
+			Provider:             util.OptValue(providerId),
+			RequestedPermissions: []orcapi.ApiTokenPermission{{Name: "inference", Action: "use"}},
+		}, jobId)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		if token.Status.Server == "" || !token.Status.Token.Present {
+			lastErr = util.HttpErr(http.StatusInternalServerError, "provider returned an incomplete inference token")
+			_ = ApiTokenRevoke(rpc.ActorSystem, ResourceParseId(token.Id))
+			continue
+		}
+
+		resources = append(resources, orcapi.AppParameterApiServer("Inference", token.Status.Server, token.Status.Token.Value))
+	}
+
+	if mode == orcapi.InferenceModeMandatory && len(resources) == 0 {
+		if lastErr != nil {
+			return nil, lastErr
+		}
+		return nil, util.HttpErr(http.StatusBadRequest, "this application requires inference servers, but none are available for this project")
+	}
+
+	return resources, nil
+}
+
+func jobApiTokenOptionsHaveInference(options orcapi.ApiTokenOptions) bool {
+	for _, permission := range options.AvailablePermissions {
+		if permission.Name == "inference" {
+			return true
+		}
+	}
+	return false
 }
 
 func jobPersistableResources(resources []orcapi.AppParameterValue) []orcapi.AppParameterValue {
@@ -1109,6 +1173,10 @@ func JobsTerminateBulk(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindBy
 		if err != nil {
 			log.Info("Failed to terminate job: %s", err)
 			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+
+		for _, job := range requests {
+			go apiTokensRevokeByJob(job.Id)
 		}
 	}
 
@@ -1423,46 +1491,49 @@ func jobsFollow(conn *ws.Conn) {
 	wg.Wait()
 }
 
-func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *util.HttpError {
+func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) (orcapi.Application, *util.HttpError) {
 	if cacheValue, hasCacheRequest := spec.Parameters[jobCacheInitScriptParam]; hasCacheRequest &&
 		cacheValue.Type == orcapi.AppParameterValueTypeBoolean && cacheValue.Value == true {
 		if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
-			return err
+			return orcapi.Application{}, err
 		}
 	}
 
 	app, ok := AppRetrieve(actor, spec.Application.Name, spec.Application.Version, AppDiscovery{Mode: orcapi.CatalogDiscoveryModeSelected, Selected: util.OptValue(spec.Product.Provider)}, 0)
 	if !ok {
-		return util.HttpErr(http.StatusBadRequest, "unknown application requested")
+		return orcapi.Application{}, util.HttpErr(http.StatusBadRequest, "unknown application requested")
 	}
 	if app.Metadata.Variant.Present {
 		variant := app.Metadata.Variant.Value
 		if variant.State != orcapi.ApplicationVariantStateActive {
-			return util.HttpErr(http.StatusBadRequest, "the flavor is no longer active")
+			return orcapi.Application{}, util.HttpErr(http.StatusBadRequest, "the flavor is no longer active")
 		}
 		if spec.Product.Provider != variant.Provider {
-			return util.HttpErr(http.StatusBadRequest, "the flavor is not available at this provider")
+			return orcapi.Application{}, util.HttpErr(http.StatusBadRequest, "the flavor is not available at this provider")
 		}
 		variantImage := variant.Image
 		if variantImage == "" {
 			variantImage = variant.ImageDigest
 		}
 		if _, validateErr := applicationVariantValidateImage(actor, variant.Provider, variantImage, false, false); validateErr != nil {
-			return util.HttpErr(http.StatusBadRequest, "the flavor image is no longer available; delete or update the flavor")
+			return orcapi.Application{}, util.HttpErr(http.StatusBadRequest, "the flavor image is no longer available; delete or update the flavor")
 		}
 	}
 	if app.Metadata.Origin == orcapi.CatalogOriginCustom && !app.Metadata.Variant.Present {
 		custom, customOk := appCustomRetrieveApplication(actor, spec.Application.Name, spec.Application.Version, spec.Product.Provider, AppDiscoveryAll, 0)
 		if !customOk || !custom.Invocation.Tool.Tool.Present {
-			return util.HttpErr(http.StatusBadRequest, "the custom application is not available at this provider")
+			return orcapi.Application{}, util.HttpErr(http.StatusBadRequest, "the custom application is not available at this provider")
 		}
 		image := custom.Invocation.Tool.Tool.Value.Description.Image
 		if validateErr := appCustomValidateStoredImage(actor, spec.Product.Provider, image); validateErr != nil {
-			return util.HttpErr(http.StatusBadRequest, "the custom application image is no longer available")
+			return orcapi.Application{}, util.HttpErr(http.StatusBadRequest, "the custom application image is no longer available")
 		}
 		app = custom
 	}
-	return jobsValidateWithApplication(actor, spec, app)
+	if err := jobsValidateWithApplication(actor, spec, app); err != nil {
+		return orcapi.Application{}, err
+	}
+	return app, nil
 }
 
 func jobsValidateWithApplication(actor rpc.Actor, spec *orcapi.JobSpecification, app orcapi.Application) *util.HttpError {

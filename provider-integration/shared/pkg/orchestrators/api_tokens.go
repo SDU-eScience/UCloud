@@ -28,6 +28,7 @@ type ApiTokenSpecification struct {
 	Provider             util.Option[string]  `json:"provider"`             // null implies UCloud itself
 	RequestedPermissions []ApiTokenPermission `json:"requestedPermissions"` // provider tokens must contain one service
 	ExpiresAt            fnd.Timestamp        `json:"expiresAt"`
+	JobId                util.Option[string]  `json:"jobId"`
 }
 
 type ApiTokenPermission struct {

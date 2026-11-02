@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -219,6 +220,16 @@ func appParameterValuesWithoutApiServers(values []orc.AppParameterValue) []orc.A
 	return result
 }
 
+func appParameterValuesApiServers(values []orc.AppParameterValue) []orc.AppParameterValue {
+	result := make([]orc.AppParameterValue, 0)
+	for _, value := range values {
+		if value.Type == orc.AppParameterValueTypeApiServer {
+			result = append(result, value)
+		}
+	}
+	return result
+}
+
 func jobTrackUpdateServer(job *orc.Job) {
 	timer := util.NewTimer()
 	if len(job.Updates) > 64 {
@@ -230,8 +241,15 @@ func jobTrackUpdateServer(job *orc.Job) {
 	}
 
 	tracked := jobForTracking(*job)
+	apiServers := appParameterValuesApiServers(tracked.Specification.Resources)
+	tracked.Specification.Resources = appParameterValuesWithoutApiServers(tracked.Specification.Resources)
 	jsonified, _ := json.Marshal(tracked)
 	metricTrackDatabaseMarshal.Observe(timer.Mark().Seconds())
+
+	var apiServersJson []byte
+	if len(apiServers) > 0 {
+		apiServersJson, _ = json.Marshal(apiServers)
+	}
 
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
@@ -257,6 +275,32 @@ func jobTrackUpdateServer(job *orc.Job) {
 				"state":            job.Status.State,
 			},
 		)
+
+		if job.Status.State == orc.JobStateInQueue {
+			if len(apiServers) > 0 {
+				db.Exec(
+					tx,
+					`
+						insert into job_api_server_secrets(job_id, api_servers)
+						values (:job_id, cast(:api_servers as jsonb))
+						on conflict (job_id) do update set
+							api_servers = excluded.api_servers
+					`,
+					db.Params{
+						"job_id":      job.Id,
+						"api_servers": string(apiServersJson),
+					},
+				)
+			}
+		} else {
+			db.Exec(
+				tx,
+				`delete from job_api_server_secrets where job_id = :job_id`,
+				db.Params{
+					"job_id": job.Id,
+				},
+			)
+		}
 	})
 	metricTrackDatabaseQuery.Observe(timer.Mark().Seconds())
 }
@@ -744,6 +788,11 @@ func jobPurgeTracked(jobId string) {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
+			`delete from job_api_server_secrets where job_id = :job_id`,
+			db.Params{"job_id": jobId},
+		)
+		db.Exec(
+			tx,
 			`delete from tracked_jobs where job_id = :job_id`,
 			db.Params{"job_id": jobId},
 		)
@@ -946,10 +995,20 @@ func metricJobUpdate(region string) prometheus.Summary {
 func jobFetchAll(state orc.JobState) {
 	log.Info("Fetching all jobs in state %v", state)
 	jobs := db.NewTx(func(tx *db.Transaction) []*orc.Job {
-		rows := db.Select[struct{ Resource string }](
+		rows := db.Select[struct {
+			Resource   string
+			ApiServers sql.Null[string]
+		}](
 			tx,
 			`
-				select resource from tracked_jobs where state = :state
+				select
+					j.resource,
+					s.api_servers::text as api_servers
+				from
+					tracked_jobs j
+					left join job_api_server_secrets s on s.job_id = j.job_id
+				where
+					j.state = :state
 		    `,
 			db.Params{
 				"state": string(state),
@@ -960,9 +1019,29 @@ func jobFetchAll(state orc.JobState) {
 		for _, row := range rows {
 			var j orc.Job
 			err := json.Unmarshal([]byte(row.Resource), &j)
-			if err == nil {
-				result = append(result, &j)
+			if err != nil {
+				continue
 			}
+
+			if state != orc.JobStateInQueue {
+				j.Specification.Resources = appParameterValuesWithoutApiServers(j.Specification.Resources)
+			}
+
+			if state == orc.JobStateInQueue && row.ApiServers.Valid && row.ApiServers.V != "" {
+				var apiServers []orc.AppParameterValue
+				if err := json.Unmarshal([]byte(row.ApiServers.V), &apiServers); err == nil {
+					for _, apiServer := range apiServers {
+						found := slices.ContainsFunc(j.Specification.Resources, func(existing orc.AppParameterValue) bool {
+							return existing.Equal(apiServer)
+						})
+						if !found {
+							j.Specification.Resources = append(j.Specification.Resources, apiServer)
+						}
+					}
+				}
+			}
+
+			result = append(result, &j)
 		}
 		return result
 	})

@@ -80,3 +80,21 @@ func jobDatabaseV4() db.MigrationScript {
 		},
 	}
 }
+
+func jobDatabaseV5() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "jobDatabaseV5",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table if not exists job_api_server_secrets(
+						job_id text not null primary key references tracked_jobs(job_id) on delete cascade,
+						api_servers jsonb not null
+					)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

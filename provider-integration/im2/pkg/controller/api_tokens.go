@@ -98,20 +98,25 @@ func ApiTokenValidatePermissions(options orcapi.ApiTokenOptions, permissions []o
 }
 
 func ApiTokenCreate(kind string, server string, request orcapi.ApiToken) (orcapi.ApiTokenStatus, *util.HttpError) {
-	if request.Specification.ExpiresAt.Time().Before(time.Now()) {
+	if !request.Specification.JobId.Present && request.Specification.ExpiresAt.Time().Before(time.Now()) {
 		return orcapi.ApiTokenStatus{}, util.HttpErr(http.StatusBadRequest, "requested token has already expired")
 	}
 
 	secret := util.SecureToken()
 	hashedToken := util.HashPassword(secret, util.GenSalt())
 	permissions, _ := json.Marshal(request.Specification.RequestedPermissions)
+	expiresAt := sql.Null[time.Time]{}
+	if !request.Specification.JobId.Present {
+		expiresAt.V = request.Specification.ExpiresAt.Time()
+		expiresAt.Valid = true
+	}
 
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
-				insert into api_tokens(token_id, token_type, owner, permissions, token_hash, token_salt, expires_at, created_by)
-				values (:token_id, :token_type, :owner, cast(:permissions as jsonb), :token_hash, :token_salt, :expires_at, :created_by)
+				insert into api_tokens(token_id, token_type, owner, permissions, token_hash, token_salt, expires_at, created_by, job_id)
+				values (:token_id, :token_type, :owner, cast(:permissions as jsonb), :token_hash, :token_salt, :expires_at, :created_by, :job_id)
 				on conflict (token_id) do update
 				set
 					token_type = excluded.token_type,
@@ -120,7 +125,8 @@ func ApiTokenCreate(kind string, server string, request orcapi.ApiToken) (orcapi
 					token_hash = excluded.token_hash,
 					token_salt = excluded.token_salt,
 					expires_at = excluded.expires_at,
-					created_by = excluded.created_by
+					created_by = excluded.created_by,
+					job_id = excluded.job_id
 			`,
 			db.Params{
 				"token_id":    request.Id,
@@ -129,8 +135,9 @@ func ApiTokenCreate(kind string, server string, request orcapi.ApiToken) (orcapi
 				"permissions": string(permissions),
 				"token_hash":  hashedToken.HashedPassword,
 				"token_salt":  hashedToken.Salt,
-				"expires_at":  request.Specification.ExpiresAt.Time(),
+				"expires_at":  expiresAt,
 				"created_by":  request.Owner.CreatedBy,
+				"job_id":      request.Specification.JobId.Sql(),
 			},
 		)
 	})
@@ -146,8 +153,8 @@ type apiTokenAuthentication struct {
 	Permissions []orcapi.ApiTokenPermission
 }
 
-var apiTokensCache = util.NewCache[string, apiTokenAuthentication](5 * time.Minute)
-var apiTokenIdToCacheKey = util.NewCache[string, string](5 * time.Minute)
+var apiTokensCache = util.NewCache[string, apiTokenAuthentication](1 * time.Minute)
+var apiTokenIdToCacheKey = util.NewCache[string, string](1 * time.Minute)
 
 type ApiTokenAuthentication struct {
 	TokenId     string
@@ -207,7 +214,10 @@ func ApiTokenValidate(kind string, key string) (ApiTokenAuthentication, *util.Ht
 				`
 					select owner, created_by, permissions, token_hash, token_salt
 					from api_tokens
-					where token_id = :token_id and token_type = :token_type and now() <= expires_at
+					where
+						token_id = :token_id
+						and token_type = :token_type
+						and (expires_at is null or now() <= expires_at)
 				`,
 				db.Params{
 					"token_id":   tokenId,

@@ -455,6 +455,45 @@ var JobsCreate = rpc.Call[fnd.BulkRequest[JobSpecification], fnd.BulkResponse[fn
 	BaseContext: jobNamespace,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
+	Audit: rpc.AuditRules{
+		Transformer: jobsAuditTransformer,
+	},
+}
+
+func jobsAuditTransformer(request any) json.RawMessage {
+	encoded, err := json.Marshal(request)
+	if err != nil {
+		return json.RawMessage("{}")
+	}
+
+	var decoded any
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		return json.RawMessage("{}")
+	}
+
+	jobsRedactTokenFields(decoded)
+
+	redacted, err := json.Marshal(decoded)
+	if err != nil {
+		return json.RawMessage("{}")
+	}
+	return redacted
+}
+
+func jobsRedactTokenFields(value any) {
+	switch typed := value.(type) {
+	case map[string]any:
+		if _, ok := typed["token"]; ok {
+			typed["token"] = "<redacted>"
+		}
+		for _, child := range typed {
+			jobsRedactTokenFields(child)
+		}
+	case []any:
+		for _, child := range typed {
+			jobsRedactTokenFields(child)
+		}
+	}
 }
 
 var JobsTerminate = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
@@ -761,6 +800,9 @@ var JobsProviderCreate = rpc.Call[fnd.BulkRequest[Job], fnd.BulkResponse[fnd.Fin
 	BaseContext: jobProviderNamespace,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesPrivileged,
+	Audit: rpc.AuditRules{
+		Transformer: jobsAuditTransformer,
+	},
 }
 
 var JobsProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[JobSupport]]{

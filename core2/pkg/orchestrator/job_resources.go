@@ -90,6 +90,8 @@ func jobDiscardFailedCreate(jobId string) {
 	mutationLock.Lock()
 	defer mutationLock.Unlock()
 
+	apiTokensRevokeByJob(jobId)
+
 	job, err := JobsRetrieve(rpc.ActorSystem, jobId, orcapi.JobFlags{})
 	if err != nil {
 		return
@@ -257,6 +259,7 @@ func jobControlAddUpdates(actor rpc.Actor, jobId string, updates []orcapi.JobUpd
 	}
 	if !wasFinal && job.Status.State.IsFinal() {
 		serviceRemoveMembershipsOfJob(jobId)
+		go apiTokensRevokeByJob(jobId)
 	}
 	return nil
 }
