@@ -105,8 +105,8 @@ export function isViewingShareGroupPreview(s: OutgoingShareGroup | OutgoingShare
     return !("sourceFilePath" in s);
 }
 
-class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpdate,
-    ShareFlags, ShareStatus, ShareSupport> {
+class ShareApi extends ResourceApi<Share, Product, ShareSpecification,
+    ShareFlags, ShareSupport> {
     routingNamespace = "shares";
     title = "File Share";
     productType = "STORAGE" as const;

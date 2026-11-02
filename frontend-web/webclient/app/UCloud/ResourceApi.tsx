@@ -128,7 +128,7 @@ export function supportV2ProductMatch<P extends ProductV2 = ProductV2>(product: 
 }
 
 export async function retrieveSupportV2<P extends ProductV2 = ProductV2, S extends ProductSupport = ProductSupport>(
-    api: ResourceApi<any, any, any, any, any, any, S>
+    api: ResourceApi<any, any, any, any, S>
 ): Promise<SupportByProviderV2<P, S>> {
     const allProductsPromise = fetchAll(next =>
         callAPI(Accounting.browseProductsV2({itemsPerPage: 250, filterProductType: api.productType, next}))
@@ -159,7 +159,7 @@ export function findSupport<S extends ProductSupport = ProductSupport>(
 
 export type AnyResourceApi<Res extends Resource, Prod extends Product = Product,
     Spec extends ResourceSpecification = ResourceSpecification> =
-    ResourceApi<Res, Prod, Spec, any, any, any, any, any>;
+    ResourceApi<Res, Prod, Spec, any, any, any>;
 
 export interface ResourceBrowseCallbacks<Res extends Resource, Prod extends Product = Product, Spec extends ResourceSpecification = ResourceSpecification> {
     commandLoading: boolean;
@@ -178,7 +178,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource, Prod extends Prod
     dispatch: Dispatch;
     startRenaming?: (resource: Res, defaultValue: string) => void;
     navigate: NavigateFunction;
-    supportByProvider: SupportByProvider; // As of today (Nov 8th, 2023) only FileCollectionsApi uses this in callbacks.
+    supportByProvider: SupportByProvider;
     isWorkspaceAdmin: boolean;
     creationDisabled?: boolean;
 }
@@ -195,9 +195,7 @@ export type ResourceApiActions<Res extends Resource, Prod extends Product = Prod
 export abstract class ResourceApi<Res extends Resource,
     Prod extends Product,
     Spec extends ResourceSpecification = ResourceSpecification,
-    Update extends ResourceUpdate = ResourceUpdate,
     Flags extends ResourceIncludeFlags = ResourceIncludeFlags,
-    Status extends ResourceStatus = ResourceStatus,
     Support extends ProductSupport = ProductSupport,
     Callbacks extends ResourceBrowseCallbacks<Res, Prod> = ResourceBrowseCallbacks<Res, Prod>> {
     protected namespace: string;

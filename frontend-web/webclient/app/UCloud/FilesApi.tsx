@@ -348,7 +348,7 @@ function useSensitivity(resource: UFile): SensitivityLevel | null {
 }
 
 class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
-    ResourceUpdate, UFileIncludeFlags, UFileStatus, FileCollectionSupport, FileBrowseCallbacks> {
+    UFileIncludeFlags, FileCollectionSupport, FileBrowseCallbacks> {
     constructor() {
         super("files");
         this.sortEntries = [];

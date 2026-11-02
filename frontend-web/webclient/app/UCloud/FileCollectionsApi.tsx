@@ -75,7 +75,7 @@ export interface FileCollectionSupport extends ProductSupport {
 }
 
 class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, FileCollectionSpecification,
-    FileCollectionUpdate, FileCollectionFlags, FileCollectionStatus, FileCollectionSupport> {
+    FileCollectionFlags, FileCollectionSupport> {
     routingNamespace = "drives";
     title = "Drive";
     productType = "STORAGE" as const;

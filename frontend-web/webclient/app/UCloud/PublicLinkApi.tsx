@@ -41,8 +41,8 @@ export interface PublicLinkFlags extends ResourceIncludeFlags {
 
 export type PublicLink = Resource<PublicLinkUpdate, PublicLinkStatus, PublicLinkSpecification>;
 
-class PublicLinkApi extends ResourceApi<PublicLink, ProductPublicLink, PublicLinkSpecification, PublicLinkUpdate,
-    PublicLinkFlags, PublicLinkStatus, PublicLinkSupport> {
+class PublicLinkApi extends ResourceApi<PublicLink, ProductPublicLink, PublicLinkSpecification,
+    PublicLinkFlags, PublicLinkSupport> {
     routingNamespace = "public-links";
     title = "Public Link";
     productType = "INGRESS" as const;

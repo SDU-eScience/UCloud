@@ -73,9 +73,7 @@ class ContainerRepositoriesApi extends ResourceApi<
     ContainerRepository,
     ProductStorage,
     ContainerRepositorySpecification,
-    ContainerRepositoryUpdate,
     ContainerRepositoryFlags,
-    ContainerRepositoryStatus,
     ContainerRepositorySupport
 > {
     routingNamespace = "container-repositories";

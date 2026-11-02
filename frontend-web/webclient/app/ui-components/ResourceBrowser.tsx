@@ -30,8 +30,6 @@ import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {createPortal, flushSync} from "react-dom";
 import {ProjectSwitcher, projectCache, fetchProjects} from "@/Project/ProjectSwitcher";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
-import {ProductType, ProductV2} from "@/Accounting";
-import {ProductSelector} from "@/Products/Selector";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {divHtml, divText, image} from "@/Utilities/HTMLUtilities";
 import {HTMLTooltip} from "./Tooltip";

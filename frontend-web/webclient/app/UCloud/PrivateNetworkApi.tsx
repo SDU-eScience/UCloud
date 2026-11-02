@@ -38,9 +38,7 @@ class PrivateNetworkApi extends ResourceApi<
     PrivateNetwork,
     Product,
     PrivateNetworkSpecification,
-    ResourceUpdate,
     PrivateNetworkFlags,
-    PrivateNetworkStatus,
     PrivateNetworkSupport
 > {
     routingNamespace = "private-networks";

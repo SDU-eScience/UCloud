@@ -55,8 +55,8 @@ export interface Provider extends Resource<ProviderUpdate, ProviderStatus, Provi
     publicKey: string;
 }
 
-class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, ProviderUpdate,
-    ProviderFlags, ProviderStatus, ProviderSupport> {
+class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification,
+    ProviderFlags, ProviderSupport> {
     routingNamespace = "providers";
     title = "Provider";
     productType = undefined;

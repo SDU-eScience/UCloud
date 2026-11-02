@@ -269,8 +269,7 @@ export function jobStateToIconAndColor(state: JobState): [IconName, ThemeColor] 
     return [icon, color];
 }
 
-class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdate, JobFlags,
-    JobStatus, ComputeSupport> {
+class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobFlags, ComputeSupport> {
     routingNamespace = "jobs";
     title = "Run";
     productType = "COMPUTE" as const;
