@@ -23,7 +23,7 @@ const (
 type k8sMaintenanceRequest struct {
 	Action                  string
 	Name                    string
-	Task                    []string `flag:"task" usage:"Run only: task: update, k8s-upgrade, os-update, cordon, uncordon or remove. Omit to run the tasks enabled in the schedule. Repeat or comma-separate to combine updates."`
+	Task                    []string `flag:"task" usage:"Run only: task to run. Repeat or comma-separate to combine updates."`
 	Nodes                   []string `flag:"node" usage:"Run target or cancel/retry selector: node name. Repeat for multiple run targets."`
 	Pools                   []string `flag:"pool" usage:"Run only: target node pool. Repeat for multiple pools."`
 	All                     bool     `flag:"all" usage:"Run only: target every node"`

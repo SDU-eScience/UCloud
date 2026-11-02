@@ -15,7 +15,7 @@ type K8sMaintenanceStatusCommand struct {
 
 type K8sMaintenanceRunCommand struct {
 	Name                    string   `positional:"cluster" usage:"Cluster name" required:"true"`
-	Task                    []string `flag:"task" usage:"Task: update, k8s-upgrade, os-update, cordon, uncordon or remove. Omit to run the tasks enabled in the schedule. Repeat or comma-separate to combine updates."`
+	Task                    []string `flag:"task" usage:"Task to run. Repeat or comma-separate to combine updates."`
 	Nodes                   []string `flag:"node" usage:"Target node. Repeat for multiple nodes."`
 	Pools                   []string `flag:"pool" usage:"Target node pool. Repeat for multiple pools."`
 	All                     bool     `flag:"all" usage:"Target every node"`
@@ -146,6 +146,17 @@ func (c *K8sMaintenanceRunCommand) Execute() error {
 		cmd.Wait = c.Wait
 		cmd.Yes = c.Yes
 	})
+}
+
+func (c *K8sMaintenanceRunCommand) HelpTasks() []HelpTask {
+	return []HelpTask{
+		{Name: "update", Description: "Kubernetes upgrade and operating-system update"},
+		{Name: "k8s-upgrade", Description: "Upgrade Kubernetes"},
+		{Name: "os-update", Description: "Update the operating system"},
+		{Name: "cordon", Description: "Cordon the node"},
+		{Name: "uncordon", Description: "Uncordon the node"},
+		{Name: "remove", Description: "Remove the node from the cluster"},
+	}
 }
 
 func (c *K8sMaintenanceRunCommand) HelpNotes() []string {

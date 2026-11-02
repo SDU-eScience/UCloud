@@ -27,6 +27,7 @@ type CommandSpec struct {
 	Name        string
 	Flags       []FlagSpec
 	Notes       []string
+	Tasks       []HelpTask
 	SubCommands []CommandSpec
 }
 
@@ -82,6 +83,9 @@ func commandSpecFromNode(name string, node *CommandNode) (CommandSpec, error) {
 		}
 		spec.Flags = flags
 		spec.Notes = notes
+		if tasked, ok := cmd.(HelpTasks); ok {
+			spec.Tasks = tasked.HelpTasks()
+		}
 	}
 
 	for childName, child := range node.Children {

@@ -13,6 +13,15 @@ type HelpNotes interface {
 	HelpNotes() []string
 }
 
+type HelpTask struct {
+	Name        string
+	Description string
+}
+
+type HelpTasks interface {
+	HelpTasks() []HelpTask
+}
+
 type CommandNode struct {
 	Factory  CommandFunc
 	Children map[string]*CommandNode

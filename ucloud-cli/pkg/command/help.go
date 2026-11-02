@@ -264,6 +264,16 @@ func renderCommandHelp(w io.Writer, spec CommandSpec, path []string) {
 		fmt.Fprintln(w)
 	}
 
+	if len(spec.Tasks) > 0 {
+		fmt.Fprintln(w, "Tasks:")
+		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+		for _, task := range spec.Tasks {
+			fmt.Fprintf(tw, "  %s\t%s\n", task.Name, task.Description)
+		}
+		tw.Flush()
+		fmt.Fprintln(w)
+	}
+
 	if len(flags) > 0 {
 		fmt.Fprintln(w, "Flags:")
 		tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
