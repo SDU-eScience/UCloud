@@ -7,8 +7,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os/exec"
-	"runtime"
 	"time"
 
 	"ucloud.dk/shared/pkg/util"
@@ -125,19 +123,6 @@ func startAuthServer(authServerCtx context.Context, ready chan<- struct{}, authD
 	return nil
 }
 
-func openBrowser(url string) error {
-	switch runtime.GOOS {
-	case "linux":
-		return exec.Command("xdg-open", url).Start()
-	case "windows":
-		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
-	case "darwin":
-		return exec.Command("open", url).Start()
-	default:
-		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
-	}
-}
-
 func saveConfig(token string, username string) error {
 	cfg, err := shared.ReadConfig()
 	if err != nil {
@@ -182,7 +167,7 @@ func performConnection() error {
 
 	connectionURL := baseURL + UCloudCliPath
 	fmt.Printf("Opening %s in your browser...\n", connectionURL)
-	if err := openBrowser(connectionURL); err != nil {
+	if err := shared.OpenBrowser(connectionURL); err != nil {
 		return err
 	}
 	fmt.Println("Waiting for authorization in your browser...")

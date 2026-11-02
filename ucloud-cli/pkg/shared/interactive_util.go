@@ -55,6 +55,22 @@ type WsLogEvent struct {
 	Data      string `json:"data"`
 }
 
+func retrieveInteractiveSession(jobId string, rank int, sessionType orcapi.InteractiveSessionType) (*orcapi.OpenSession, error) {
+	session, httpErr := orcapi.JobsOpenInteractiveSession.Invoke(fnd.BulkRequest[orcapi.JobsOpenInteractiveSessionRequestItem]{
+		Items: []orcapi.JobsOpenInteractiveSessionRequestItem{
+			{
+				Id:          jobId,
+				Rank:        rank,
+				SessionType: sessionType,
+			},
+		},
+	})
+	if httpErr.AsError() != nil {
+		return nil, fmt.Errorf("failed to retrieve session: %s", httpErr.Why)
+	}
+	return &session.Responses[0].Session, nil
+}
+
 func JobShell(jobId string, provider string) error {
 	cfg := InitializeUCloudClient()
 
@@ -72,25 +88,15 @@ func JobShell(jobId string, provider string) error {
 	originSplit := strings.Split(origin, ".")
 	suffixJoined := strings.Join(originSplit[1:], ".")
 	usernameHint := base64.StdEncoding.EncodeToString([]byte(cfg.Username))
-	res, httpErr := orcapi.JobsOpenInteractiveSession.Invoke(fnd.BulkRequest[orcapi.JobsOpenInteractiveSessionRequestItem]{
-		Items: []orcapi.JobsOpenInteractiveSessionRequestItem{
-			{
-				Id:          jobId,
-				Rank:        0,
-				SessionType: orcapi.InteractiveSessionTypeShell,
-			},
-		},
-	})
 
-	if httpErr.AsError() != nil {
-		return fmt.Errorf("failed to retrieve session: %s", httpErr.Why)
+	session, err := retrieveInteractiveSession(jobId, 0, orcapi.InteractiveSessionTypeShell)
+	if err != nil {
+		return err
 	}
-
-	sessionIdentifier := res.Responses[0].Session.SessionIdentifier
 
 	wsUrl := fmt.Sprintf(
 		"wss://%s.%s/ucloud/%s/websocket?session=%s&usernameHint=%s",
-		provider, suffixJoined, provider, sessionIdentifier, url.QueryEscape(usernameHint),
+		provider, suffixJoined, provider, session.SessionIdentifier, url.QueryEscape(usernameHint),
 	)
 	ws, err := websocket.Dial(wsUrl, "", origin)
 	if err != nil {
@@ -117,7 +123,7 @@ func JobShell(jobId string, provider string) error {
 	}
 	if err := sendRequest(WsShellEvent{
 		Type:              "initialize",
-		SessionIdentifier: sessionIdentifier,
+		SessionIdentifier: session.SessionIdentifier,
 		Cols:              cols,
 		Rows:              rows,
 	}); err != nil {
@@ -245,8 +251,6 @@ func JobLogs(jobId string, workspaceName, provider string, follow bool) error {
 		project = util.OptValue(ws2.Id)
 	}
 
-	// NOTE: The server expects a JWT access token (or a uc... API token) in the bearer field. The refresh
-	// token stored in the CLI config is only used to obtain this access token.
 	accessToken := rpc.DefaultClient.RetrieveAccessTokenOrRefresh()
 	if accessToken == "" {
 		return errors.New("failed to retrieve an access token, please log in again")
@@ -394,4 +398,14 @@ func currentJobState(message orcapi.JobsFollowMessage) string {
 		return string(message.InitialJob.Value.Status.State)
 	}
 	return ""
+}
+
+func JobOpenWebLink(jobId string, provider string) error {
+	InitializeUCloudClient()
+	session, err := retrieveInteractiveSession(jobId, 0, orcapi.InteractiveSessionTypeWeb)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve session: %s", err)
+	}
+	OpenBrowser(session.RedirectClientTo)
+	return nil
 }
