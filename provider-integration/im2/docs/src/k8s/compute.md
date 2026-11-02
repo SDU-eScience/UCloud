@@ -778,8 +778,9 @@ If the section is omitted, UCloud behaves as if `mode` was `None`.
 See [AI Inference](./inference/overview.md) for the feature itself and [Architecture](./inference/architecture.md) for
 the API that the tokens grant access to.
 
-When inference is enabled, then UCloud creates short-lived API tokens for inference-capable providers available
-to the user's project. These tokens are passed to the provider as transient job resources of type `api_server`. 
+When inference is enabled, UCloud/Core creates API tokens for inference-capable providers available to the user's
+project. The tokens are linked to the job and have no fixed expiry. UCloud/Core revokes them when the job ends. They are
+passed to the provider as transient job resources of type `api_server`.
 
 <div class="table-wrapper no-code-wrap">
 <table>
@@ -797,7 +798,7 @@ to the user's project. These tokens are passed to the provider as transient job 
 <td><code>None</code> | <code>Optional</code> | <code>Mandatory</code></td>
 <td>
 
-`None` disables inference token delivery. `Optional` makes UCloud attempt to pass inference servers when they are
+`None` disables inference token delivery. `Optional` makes UCloud/Core attempt to pass inference servers when they are
 available. `Mandatory` requires at least one inference server; job submission fails if none are available.
 
 </td>

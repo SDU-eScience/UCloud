@@ -1,13 +1,7 @@
-# Audit and Metrics
+# Metrics
 
-The Integration Module writes one audit record for each logical call, with the middleware names `inference.chat`,
-`inference.responses`, and `inference.conversations`. The responses adapter suppresses the inner chat record, so one
-call produces one record.
-
-A record holds the caller, the model, the outcome, and the token usage. The record never contains the message
-content. A rejected call records the rejection reason, and a read-only call can complete without a record.
-
-## Metrics
+The Integration Module exports Prometheus metrics for inference usage and latency. See [Audit](./audit.md) for the
+audit records.
 
 Prometheus metrics are exposed under the `ucloud_im_inference_` prefix.
 
@@ -34,3 +28,8 @@ Prometheus metrics are exposed under the `ucloud_im_inference_` prefix.
 The `outcome` label is `success`, `success_missing_usage`, `background_submitted`, `client_cancelled`, `client_error`,
 `admission_rejected`, `payment_required`, `upstream_error`, `stream_timeout`, `incomplete`, or `error`. The `reason`
 label is `global`, `owner`, or `cancelled`.
+
+## Related
+
+- [Audit](./audit.md)
+- [Security](./security.md)

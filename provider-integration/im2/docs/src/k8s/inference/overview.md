@@ -90,7 +90,7 @@ Then do the following:
 | Models | `/app/inference/models` | The catalog. Admins also curate models here. |
 | Model page | `/app/inference/model?name=<model>` | One model, with benchmark scores and the API usage section. |
 | [Chat](./playground.md) | `/app/inference/playground` | A chat client with threads, attachments, and tools. |
-| API tokens | The API usage section of a model page | Tokens that let tools and scripts call the API. |
+| [Provider API tokens](../../overview/provider-api-tokens.md) | The API usage section of a model page | Tokens that let tools and scripts call the API. |
 | OpenAI-compatible API | The `authority` hostname | `/v1/chat/completions`, `/v1/responses`, and `/v1/models`. See [Public API](./architecture.md#public-surface). |
 
 Job containers receive inference servers through environment variables when the application asks for them. See
@@ -110,7 +110,7 @@ Job containers receive inference servers through environment variables when the 
 | Model appears but requests fail | Check the catalog endpoint, backend model name, and connectivity from IM. See [Backends](./architecture.md#backends). |
 | Request reports insufficient Credits | Check inference allocations and wallet status. Administrator access does not bypass accounting. See [Usage and Accounting](./usage.md) and [Accounting and Resource Management](../../overview/accounting.md). |
 | Playground reports insufficient storage | Check usable storage resources from the selected inference provider. See [Accounting and Resource Management](../../overview/accounting.md). |
-| Requests wait or fail under load | Check concurrent requests, admission rejection metrics, and backend response times. See [Limits](./architecture.md#limits) and [Audit and Metrics](./observability.md). |
+| Requests wait or fail under load | Check concurrent requests, admission rejection metrics, and backend response times. See [Limits](./architecture.md#limits), [Audit](./audit.md), and [Metrics](./observability.md). |
 | Usage is missing or delayed | Check backend usage reports and IM accounting logs. Failed accounting reports remain pending for retry. See [Reporting and retries](./usage.md#reporting-and-retries). |
 
 ## Next steps
@@ -121,4 +121,7 @@ Job containers receive inference servers through environment variables when the 
 - [Model Discovery and Catalog](./catalog.md) describes discovery and curation.
 - [Dynamo Deployments](./dynamo.md) describes the Dynamo backend.
 - [Usage and Accounting](./usage.md) describes the price of a model and the reporting of usage.
-- [Audit and Metrics](./observability.md) describes the audit records and the Prometheus metrics.
+- [Provider API Tokens](../../overview/provider-api-tokens.md) describes how to create, use, and revoke a token for inference.
+- [Audit](./audit.md) describes the audit records and how to query them.
+- [Metrics](./observability.md) describes the Prometheus metrics.
+- [Security](./security.md) describes the trust boundaries and the security controls of the feature.

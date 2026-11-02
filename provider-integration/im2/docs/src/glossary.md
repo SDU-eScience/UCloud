@@ -89,7 +89,7 @@ A record of an action and of the actor who performed it. The platform writes aud
 requests, and the records are read-only once written.
 
 Kind: domain object. Appears in: [Job Audit Log](./k8s/job-audit-log.md),
-[Audit and Metrics](./k8s/inference/observability.md).
+[Audit](./k8s/inference/audit.md).
 
 ## UCloud/IM
 
@@ -388,10 +388,13 @@ Kind: component. Appears in: [Model Discovery and Catalog](./k8s/inference/catal
 
 ### API token
 
-An inference key that a user or a job uses to call the API. A token created from the model page has the `inference/use`
-permission and expires after 90 days by default.
+A credential that lets a tool, a script, or a job call an API on behalf of a user or a project. A platform token
+authenticates to UCloud/Core. A provider token is bound to one service at one provider. Both have an expiry date, and
+the platform shows the secret only when it creates the token.
 
-Kind: domain object. Appears in: [AI Inference](./k8s/inference/overview.md).
+Kind: domain object. Appears in: [API Tokens](./overview/api-tokens.md),
+[Platform API Tokens](./overview/platform-api-tokens.md), [Provider API Tokens](./overview/provider-api-tokens.md),
+[AI Inference](./k8s/inference/overview.md).
 
 ### Chat playground
 
