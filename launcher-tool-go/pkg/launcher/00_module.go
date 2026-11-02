@@ -496,6 +496,21 @@ func TestsRun(adminUser, adminPass string, testArgs []string, ui bool) {
 
 	productsByProviderAndType := map[string]map[accapi.ProductType]accapi.ProductV2{}
 
+	requiredProductTypes := map[string][]accapi.ProductType{
+		"k8s": {
+			accapi.ProductTypeCompute,
+			accapi.ProductTypeStorage,
+			accapi.ProductTypeIngress,
+			accapi.ProductTypeLicense,
+			accapi.ProductTypeNetworkIp,
+			accapi.ProductTypePrivateNetwork,
+		},
+		"slurm": {
+			accapi.ProductTypeCompute,
+			accapi.ProductTypeStorage,
+		},
+	}
+
 	LogOutputRunWork("Granting test resources", func(ch chan string) error {
 		for provider, projectId := range providersToTest {
 			projectHeader := http.Header{}
@@ -513,18 +528,19 @@ func TestsRun(adminUser, adminPass string, testArgs []string, ui bool) {
 			}
 
 			var products fndapi.PageV2[accapi.ProductV2]
-			for range 120 {
+			required := requiredProductTypes[provider]
+			for range 180 {
 				products, _ = accapi.ProductsBrowse.Invoke(accapi.ProductsBrowseRequest{
 					ItemsPerPage:   250,
 					ProductsFilter: accapi.ProductsFilter{FilterProvider: util.OptValue(provider)},
 				})
 
-				if len(products.Items) > 0 {
+				if productsContainTypes(products.Items, required) {
 					break
-				} else {
-					ch <- "Waiting for products to be available...\n"
-					time.Sleep(1 * time.Second)
 				}
+
+				ch <- "Waiting for products to be available...\n"
+				time.Sleep(1 * time.Second)
 			}
 
 			productsByType := map[accapi.ProductType]accapi.ProductV2{}
@@ -759,6 +775,25 @@ func PlaywrightRun(testArgs []string, ui bool, userDataPath string, prepareUsers
 		WorkingDir:  workingDir,
 		Environment: testEnvironment,
 	})
+}
+
+func productsContainTypes(products []accapi.ProductV2, required []accapi.ProductType) bool {
+	if len(required) == 0 {
+		return len(products) > 0
+	}
+
+	present := map[accapi.ProductType]bool{}
+	for _, product := range products {
+		present[product.ProductType] = true
+	}
+
+	for _, productType := range required {
+		if !present[productType] {
+			return false
+		}
+	}
+
+	return true
 }
 
 func isFedoraLinux() bool {
