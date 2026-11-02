@@ -11,6 +11,7 @@ import (
 	apm "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -276,18 +277,113 @@ func apiTokenParse(raw string) (tokenId string, secret string, ok bool) {
 }
 
 func ApiTokenRevoke(info rpc.RequestInfo, request fnd.FindByStringId) (util.Empty, *util.HttpError) {
+	apiTokenRevoke(request.Id)
+	return util.Empty{}, nil
+}
+
+func apiTokenRevoke(tokenId string) {
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`delete from api_tokens where token_id = :token_id`,
-			db.Params{"token_id": request.Id},
+			db.Params{"token_id": tokenId},
 		)
 	})
 
-	if cacheKey, ok := apiTokenIdToCacheKey.GetNow(request.Id); ok {
+	if cacheKey, ok := apiTokenIdToCacheKey.GetNow(tokenId); ok {
 		apiTokensCache.Invalidate(cacheKey)
 	}
-	apiTokenIdToCacheKey.Invalidate(request.Id)
+	apiTokenIdToCacheKey.Invalidate(tokenId)
+}
 
-	return util.Empty{}, nil
+func ApiTokensReconcileProject(projectId string, members []string, notBefore time.Time) {
+	memberSet := map[string]bool{}
+	for _, member := range members {
+		memberSet[member] = true
+	}
+
+	type projectTokenRow struct {
+		TokenId   string
+		CreatedBy sql.Null[string]
+		CreatedAt time.Time
+	}
+
+	rows := db.NewTx(func(tx *db.Transaction) []projectTokenRow {
+		return db.Select[projectTokenRow](
+			tx,
+			`
+				select
+					token_id,
+					created_by,
+					created_at
+				from
+					api_tokens
+				where
+					owner = :project_id
+					and job_id is null
+			`,
+			db.Params{
+				"project_id": projectId,
+			},
+		)
+	})
+
+	for _, row := range rows {
+		createdBy := strings.TrimSpace(row.CreatedBy.V)
+		if !row.CreatedBy.Valid || createdBy == "" {
+			continue
+		}
+
+		if createdBy == "_ucloud" {
+			continue
+		}
+
+		if memberSet[createdBy] {
+			continue
+		}
+
+		if !notBefore.IsZero() && row.CreatedAt.After(notBefore) {
+			continue
+		}
+
+		apiTokenRevoke(row.TokenId)
+	}
+}
+
+func ApiTokensReconcileAllProjects() {
+	type trackedProject struct {
+		ProjectId       string
+		MemberUsernames json.RawMessage
+		LastUpdate      time.Time
+	}
+
+	rows := db.NewTx(func(tx *db.Transaction) []trackedProject {
+		return db.Select[trackedProject](
+			tx,
+			`
+				select
+					project_id,
+					member_usernames,
+					last_update
+				from
+					tracked_projects
+			`,
+			db.Params{},
+		)
+	})
+
+	for _, row := range rows {
+		var members []string
+		err := json.Unmarshal(row.MemberUsernames, &members)
+		if err != nil {
+			log.Warn("Could not read project members for project %v: %v", row.ProjectId, err)
+			continue
+		}
+
+		if len(members) == 0 {
+			continue
+		}
+
+		ApiTokensReconcileProject(row.ProjectId, members, row.LastUpdate)
+	}
 }

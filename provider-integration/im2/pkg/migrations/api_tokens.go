@@ -83,3 +83,21 @@ func apiTokensV4() db.MigrationScript {
 		},
 	}
 }
+
+func apiTokensV5() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "apiTokensV5",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table api_tokens add column if not exists created_at timestamptz not null default now()`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`create index if not exists api_tokens_owner_idx on api_tokens(owner)`,
+				db.Params{},
+			)
+		},
+	}
+}
