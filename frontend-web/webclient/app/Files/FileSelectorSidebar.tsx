@@ -295,7 +295,9 @@ export function FileSelectorSidebar({tree, initialPath, initialProject, addition
     }, [onOpen]);
 
     return <aside className={SelectorSidebarClass}>
-        <div className="selector-sidebar-header">
+        <div className="selector-sidebar-header" onClick={() => {
+            document.querySelector("[data-drive-navigation]")?.toggleAttribute("data-drive-navigation");
+        }}>
             <Icon name="heroMapPin" color="textPrimary" size={22} />
             Places
         </div>
@@ -314,7 +316,9 @@ export function FileSelectorSidebar({tree, initialPath, initialProject, addition
             initialExpandedIds={expandedIds}
             onPrefetch={loadNode}
             onActivate={node => {
-                if (node.path) onOpen(node.path, node.project);
+                if (node.path) {
+                    onOpen(node.path, node.project);
+                }
             }}
             onKeyboardActivate={node => {
                 if (node.path) onKeyboardActivate?.();
@@ -411,7 +415,7 @@ function iconForNode(node: FileTreeResourceNode): IconName {
     }
 }
 
-const SelectorSidebarClass = injectStyle("file-selector-sidebar", k => `
+export const SelectorSidebarClass = injectStyle("file-selector-sidebar", k => `
     ${k} {
         width: 250px;
         min-width: 180px;
@@ -464,10 +468,11 @@ const SelectorSidebarClass = injectStyle("file-selector-sidebar", k => `
         min-width: 14px;
     }
 
-    @media (max-width: 700px) {
+    @media (max-width: 600px) {
         ${k} {
-            width: 160px;
-            min-width: 130px;
+            width: 100%;
+            border-right: 0px;
+            margin-left: 16px;
         }
     }
 `);

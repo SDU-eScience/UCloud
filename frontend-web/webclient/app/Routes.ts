@@ -52,6 +52,10 @@ const syncthing = {
     syncthing: () => "/syncthing"
 }
 
+const cli = {
+    downloads: () => "/cli",
+}
+
 export interface ApplicationCreatorRoute {
     operation: "newManaged" | "newCustom" | "newVersion" | "fork";
     applicationKind: "managed" | "custom";
@@ -194,6 +198,7 @@ const AppRoutes = {
     stacks,
     compute,
     syncthing,
+    cli,
     grants,
     accounting,
     providers,

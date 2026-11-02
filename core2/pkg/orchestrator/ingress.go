@@ -232,10 +232,10 @@ func IngressCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.IngressSpe
 			)
 		}
 
-		if len(userToken) < 4 {
+		if len(userToken) < 5 {
 			return nil, util.HttpErr(
 				http.StatusBadRequest,
-				"your domain name must be at least 4 characters long (not including prefix and suffix)",
+				"your domain name must be at least 5 characters long (not including prefix and suffix)",
 			)
 		}
 

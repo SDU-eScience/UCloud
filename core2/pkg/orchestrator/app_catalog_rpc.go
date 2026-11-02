@@ -1,9 +1,11 @@
 package orchestrator
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -232,7 +234,8 @@ func appCatalogInitRpc() {
 	})
 
 	orcapi.AppsSearch.Handler(func(info rpc.RequestInfo, request orcapi.AppCatalogSearchRequest) (fndapi.PageV2[orcapi.Application], *util.HttpError) {
-		result := fndapi.PageV2[orcapi.Application]{ItemsPerPage: fndapi.ItemsPerPage(request.ItemsPerPage.GetOrDefault(0))}
+		itemsPerPage := fndapi.ItemsPerPage(request.ItemsPerPage.GetOrDefault(0))
+		result := fndapi.PageV2[orcapi.Application]{ItemsPerPage: itemsPerPage}
 
 		if len(request.Query) == 0 {
 			return result, nil
@@ -244,78 +247,82 @@ func appCatalogInitRpc() {
 		}
 
 		terms := splitTerms(request.Query)
-		fuzz := 2
-
-		var searchRequest *bleve.SearchRequest
-
 		if len(terms) == 0 {
 			return result, nil
-		} else {
-			mustAllTerms := make([]query.Query, 0, len(terms))
-
-			for _, term := range terms {
-				titlePrefixQ := bleve.NewPrefixQuery(term)
-				titlePrefixQ.SetField("Title")
-				titlePrefixQ.SetBoost(5)
-
-				titleQ := bleve.NewFuzzyQuery(term)
-				titleQ.SetField("Title")
-				titleQ.SetFuzziness(fuzz)
-				titleQ.SetBoost(3)
-
-				flavorQ := bleve.NewFuzzyQuery(term)
-				flavorQ.SetField("Flavor")
-				flavorQ.SetFuzziness(fuzz)
-				flavorQ.SetBoost(2)
-
-				descQ := bleve.NewFuzzyQuery(term)
-				descQ.SetField("Description")
-				descQ.SetFuzziness(fuzz)
-
-				anyFieldForThisTerm := bleve.NewDisjunctionQuery(
-					titlePrefixQ,
-					titleQ,
-					flavorQ,
-					descQ,
-				)
-
-				mustAllTerms = append(mustAllTerms, anyFieldForThisTerm)
-			}
-
-			searchRequest = bleve.NewSearchRequest(
-				bleve.NewConjunctionQuery(mustAllTerms...),
-			)
 		}
 
-		res, err := appIndex.Search(searchRequest)
-		if err == nil {
-			seenGroups := map[int]bool{}
-			for _, hit := range res.Hits {
-				rawId, _ := strconv.ParseInt(hit.ID, 10, 64)
-				g, _, ok := AppRetrieveGroup(info.Actor, AppGroupId(rawId), discovery, AppCatalogIncludeApps)
-				if ok && len(g.Status.Applications) > 0 {
-					seenGroups[g.Metadata.Id] = true
-					defaultFlavor := g.Specification.DefaultFlavor
-					app := g.Status.Applications[0]
-					if defaultFlavor != "" {
-						for _, a := range g.Status.Applications {
-							if a.Metadata.FlavorName.GetOrDefault("") == defaultFlavor {
-								app = a
-								break
-							}
-						}
-					}
+		offset := appSearchOffset(request)
+		wanted := appSearchWanted(offset, itemsPerPage)
 
-					result.Items = append(result.Items, app)
-				}
+		mustAllTerms := make([]query.Query, 0, len(terms))
+		fuzz := 2
+
+		for _, term := range terms {
+			titlePrefixQ := bleve.NewPrefixQuery(term)
+			titlePrefixQ.SetField("Title")
+			titlePrefixQ.SetBoost(5)
+
+			titleRawQ := bleve.NewWildcardQuery("*" + term + "*")
+			titleRawQ.SetField("TitleRaw")
+			titleRawQ.SetBoost(5)
+
+			titleQ := bleve.NewFuzzyQuery(term)
+			titleQ.SetField("Title")
+			titleQ.SetFuzziness(fuzz)
+			titleQ.SetBoost(3)
+
+			flavorQ := bleve.NewFuzzyQuery(term)
+			flavorQ.SetField("Flavor")
+			flavorQ.SetFuzziness(fuzz)
+			flavorQ.SetBoost(2)
+
+			descQ := bleve.NewFuzzyQuery(term)
+			descQ.SetField("Description")
+			descQ.SetFuzziness(fuzz)
+
+			anyFieldForThisTerm := bleve.NewDisjunctionQuery(
+				titlePrefixQ,
+				titleRawQ,
+				titleQ,
+				flavorQ,
+				descQ,
+			)
+
+			mustAllTerms = append(mustAllTerms, anyFieldForThisTerm)
+		}
+
+		apps, seenGroups, hasMoreHits := appSearchIndexQuery(
+			info.Actor,
+			bleve.NewConjunctionQuery(mustAllTerms...),
+			wanted,
+			discovery,
+		)
+
+		customApps := appCustomSearch(info.Actor, terms, discovery)
+		slices.SortFunc(customApps, func(a, b orcapi.Application) int {
+			if c := strings.Compare(strings.ToLower(a.Metadata.Title), strings.ToLower(b.Metadata.Title)); c != 0 {
+				return c
 			}
-			for _, app := range appCustomSearch(info.Actor, terms, discovery) {
-				if seenGroups[app.Metadata.Group.Metadata.Id] {
-					continue
-				}
-				seenGroups[app.Metadata.Group.Metadata.Id] = true
-				result.Items = append(result.Items, app)
+			if c := strings.Compare(a.Metadata.Name, b.Metadata.Name); c != 0 {
+				return c
 			}
+			return cmp.Compare(a.Metadata.Group.Metadata.Id, b.Metadata.Group.Metadata.Id)
+		})
+
+		for _, app := range customApps {
+			groupId := app.Metadata.Group.Metadata.Id
+			if seenGroups[groupId] {
+				continue
+			}
+			seenGroups[groupId] = true
+			apps = append(apps, app)
+		}
+
+		start := int(min(offset, int64(len(apps))))
+		end := min(start+itemsPerPage, len(apps))
+		result.Items = apps[start:end]
+		if len(result.Items) > 0 && (hasMoreHits || end < len(apps)) {
+			result.Next.Set(strconv.FormatInt(offset+int64(len(result.Items)), 10))
 		}
 
 		return result, nil
@@ -580,6 +587,105 @@ func appCatalogInitRpc() {
 	orcapi.AppsUploadToolAlias.Handler(func(info rpc.RequestInfo, request []byte) (util.Empty, *util.HttpError) {
 		return util.Empty{}, AppStudioUploadTool(request)
 	})
+}
+
+func appSearchOffset(request orcapi.AppCatalogSearchRequest) int64 {
+	offset := int64(0)
+	if request.ItemsToSkip.Present {
+		offset = request.ItemsToSkip.Value
+	}
+	if request.Next.Present {
+		if parsed, err := strconv.ParseInt(request.Next.Value, 10, 64); err == nil {
+			offset = parsed
+		}
+	}
+	return max(0, offset)
+}
+
+func appSearchWanted(offset int64, itemsPerPage int) int {
+	total, err := appIndex.DocCount()
+	if err != nil {
+		return itemsPerPage
+	}
+
+	totalInt := int64(total)
+	if offset >= totalInt {
+		return int(totalInt)
+	}
+
+	wanted := offset + int64(itemsPerPage)
+	if wanted > totalInt {
+		wanted = totalInt
+	}
+	return int(wanted)
+}
+
+func appSearchIndexQuery(
+	actor rpc.Actor,
+	q query.Query,
+	wanted int,
+	discovery AppDiscovery,
+) ([]orcapi.Application, map[int]bool, bool) {
+	seenGroups := map[int]bool{}
+
+	res, err := appIndex.Search(bleve.NewSearchRequestOptions(q, wanted, 0, false))
+	if err != nil {
+		return nil, seenGroups, false
+	}
+
+	apps, accepted := appSearchApplicationsFromResult(actor, res, wanted, discovery, seenGroups)
+	hasMore := res.Total > uint64(len(res.Hits))
+
+	if accepted < wanted && hasMore {
+		res, err = appIndex.Search(bleve.NewSearchRequestOptions(q, int(res.Total), 0, false))
+		if err == nil {
+			seenGroups = map[int]bool{}
+			apps, accepted = appSearchApplicationsFromResult(actor, res, wanted, discovery, seenGroups)
+			hasMore = accepted > wanted
+		}
+	}
+
+	return apps, seenGroups, hasMore
+}
+
+func appSearchApplicationsFromResult(
+	actor rpc.Actor,
+	res *bleve.SearchResult,
+	wanted int,
+	discovery AppDiscovery,
+	seenGroups map[int]bool,
+) ([]orcapi.Application, int) {
+	var apps []orcapi.Application
+	accepted := 0
+
+	for _, hit := range res.Hits {
+		rawId, _ := strconv.ParseInt(hit.ID, 10, 64)
+		g, _, ok := AppRetrieveGroup(actor, AppGroupId(rawId), discovery, AppCatalogIncludeApps)
+		if !ok || len(g.Status.Applications) == 0 {
+			continue
+		}
+
+		accepted++
+		seenGroups[g.Metadata.Id] = true
+		if len(apps) >= wanted {
+			continue
+		}
+
+		defaultFlavor := g.Specification.DefaultFlavor
+		app := g.Status.Applications[0]
+		if defaultFlavor != "" {
+			for _, a := range g.Status.Applications {
+				if a.Metadata.FlavorName.GetOrDefault("") == defaultFlavor {
+					app = a
+					break
+				}
+			}
+		}
+
+		apps = append(apps, app)
+	}
+
+	return apps, accepted
 }
 
 func splitTerms(q string) []string {

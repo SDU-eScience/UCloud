@@ -635,6 +635,15 @@ func serverFindIngress(job *orc.Job, rank int, suffix util.Option[string]) []con
 }
 
 func extend(request orc.JobsProviderExtendRequestItem) *util.HttpError {
+	if request.Job.Status.State.IsFinal() {
+		return util.UserHttpError("the job has already stopped and can no longer be extended")
+	}
+
+	tracked, ok := controller.JobRetrieve(request.Job.Id)
+	if ok && tracked.Status.State.IsFinal() {
+		return util.UserHttpError("the job has already stopped and can no longer be extended")
+	}
+
 	// NOTE(Dan): Scheduler is automatically notified by the shared monitoring loop since it will forward the time
 	// allocation from the job.
 	alloc := request.Job.Specification.TimeAllocation

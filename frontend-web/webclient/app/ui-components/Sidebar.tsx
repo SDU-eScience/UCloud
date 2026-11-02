@@ -359,6 +359,8 @@ function UserMenu({branding, avatar, dialog, setOpenDialog}: {
             <UserMenuLink close={close.current} icon="heroWrenchScrewdriver" text="Settings"
                           to={AppRoutes.users.settings()} />
             <UserMenuLink close={close.current} icon="heroUser" text="Edit avatar" to={AppRoutes.users.avatar()} />
+            {hasFeature(Feature.UCLOUD_CLI_DOWNLOADS) ?
+                <UserMenuLink close={close.current} icon="heroCommandLine" text="UCloud CLI" to={AppRoutes.cli.downloads()} /> : null}
             {branding.documentation ?
                 (<UserMenuExternalLink close={close.current} href={branding.documentation.href} icon="heroBookOpen" text={branding.documentation.title} />)
                 : null}

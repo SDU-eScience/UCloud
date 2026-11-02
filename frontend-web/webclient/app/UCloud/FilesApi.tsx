@@ -64,7 +64,7 @@ import {Link, useParams} from "react-router-dom";
 import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {addShareModal} from "@/Files/Shares";
-import FileBrowse, {FakeFileName} from "@/Files/FileBrowse";
+import FileBrowse, {FakeFileName, FileSelectorLayoutClass} from "@/Files/FileBrowse";
 import {classConcat, injectStyle, injectStyleSimple} from "@/Unstyled";
 import {filetypeinfo as fileType} from "magic-bytes.js";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
@@ -627,6 +627,17 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         const base = super.retrieveOperations()
             .filter(it => it.tag !== CREATE_TAG && it.tag !== PERMISSIONS_TAG && it.tag !== DELETE_TAG);
         const ourOps: Operation<UFile, FileBrowseCallbacks>[] = [
+            {
+                text: "View drives",
+                icon: "heroMapPin",
+                enabled: (selected, callbacks) => {
+                    return callbacks.isModal === true && window.innerWidth < 600;
+                },
+                onClick: () => {
+                    const fileSelector = document.getElementsByClassName(FileSelectorLayoutClass).item(0);
+                    if (fileSelector) fileSelector.toggleAttribute("data-drive-navigation");
+                },
+            },
             {
                 text: "Use this folder",
                 primary: true,

@@ -1070,14 +1070,17 @@ const RunningContent: React.FunctionComponent<{
     useScrollToBottom(messagesRef);
     const extendJob = useCallback(async (duration: number) => {
         if (!commandLoading && expiresAt) {
-            setExpiresAt(expiresAt + (3600 * 1000 * duration));
+            const previousExpiresAt = expiresAt;
+            const optimisticExpiresAt = previousExpiresAt + (3600 * 1000 * duration);
+            setExpiresAt(optimisticExpiresAt);
             try {
                 await invokeCommand(JobsApi.extend(bulkRequestOf({
                     jobId: job.id,
                     requestedTime: {hours: duration, minutes: 0, seconds: 0}
-                })));
+                })), {defaultErrorHandler: false});
             } catch (e) {
-                setExpiresAt(expiresAt);
+                setExpiresAt(current => current === optimisticExpiresAt ? previousExpiresAt : current);
+                displayErrorMessageOrDefault(e, "Failed to extend job.");
             }
         }
     }, [job.id, commandLoading, expiresAt]);
