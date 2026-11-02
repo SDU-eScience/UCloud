@@ -66,15 +66,12 @@ provider checks its actions.
 - Both kinds use the `Authorization` header with a bearer secret.
 - The owner and the permissions of a token are fixed when the platform creates it. A token has no rotate operation.
 - A provider token for a project is tied to the user who created it. UCloud/Core sends project membership updates, and
-  the provider revokes the token when that user is no longer a member. A short delay is possible, and the provider cache
-  can accept the token for up to one minute after the revocation. A token created by a remaining member stays valid.
-  See [Project membership](./provider-api-tokens.md#project-membership).
+  the provider revokes the token when that user is no longer a member. A short delay is possible. A token created by a
+  remaining member stays valid. See [Project membership](./provider-api-tokens.md#project-membership).
 - A token that a user creates has a fixed expiry date. A job token has no expiry and is revoked when the job ends. The
   platform does not extend a token. To continue after the expiry date, create a new token, update the client, and revoke
   the old token.
 - Both kinds are bearer credentials. Anyone who has the secret can use it until the validator rejects it.
-- The audit record identifies the token, not the person who used the secret. Use one token for each client or person
-  when you need to tell them apart.
 - Both kinds are audited. The platform records the create and revoke calls, and a request records the token reference.
 
 ## Security

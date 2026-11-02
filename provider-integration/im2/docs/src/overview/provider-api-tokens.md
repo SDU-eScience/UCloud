@@ -85,7 +85,6 @@ The client sends `Authorization: Bearer uci-<token-id>-<secret>`. The provider d
 3. Check the expiry and the password hash.
 4. Check the service and its actions.
 5. Update `last_used_at` when it loads the record.
-6. Cache the result for up to one minute.
 
 The provider rejects an invalid or expired token, and it rejects a request that the token permissions do not allow. A
 provider token is not accepted by UCloud/Core.
@@ -101,24 +100,16 @@ provider.
 
 ## Project membership
 
-The provider does not check the current project membership on each request. It checks the token record instead.
-UCloud/Core sends project membership updates to the provider on the project update stream.
-
-The provider checks all provider tokens of the project when it receives an update, when it receives the replay after it
-connects again, and in a periodic backstop. When the user who created a token is no longer a member, the provider
-revokes the token.
+The provider does not check the current project membership on each request. UCloud/Core sends project membership
+updates to the provider, and the provider revokes a project token when its creator is no longer a member. A short delay
+is possible.
 
 A project token that a remaining member created stays valid. A token that other people know is a shared secret. If such
 a person leaves the project, revoke the token manually.
 
-A short delay is possible. The provider can accept a token from its cache for up to one minute after the revocation.
-
 Job tokens follow the job lifecycle instead. See [Job tokens](#job-tokens).
 
 ## Expiry
-
-The provider can cache a successful check for up to one minute. A request can succeed shortly after the expiry date.
-Revocation invalidates the cache.
 
 An inference token created from the model page expires after 90 days. See
 [Where users meet the feature](../k8s/inference/overview.md#where-users-meet-the-feature).
@@ -128,8 +119,7 @@ An inference token created from the model page expires after 90 days. See
 A user with edit access can revoke a token. The platform asks the provider to revoke the token before it deletes the
 token resource. If the provider fails, the token remains.
 
-Revocation removes the token from the provider and invalidates its authentication cache. It does not remove data that a
-client already received.
+Revocation removes the token from the provider. It does not remove data that a client already received.
 
 ## Job tokens
 

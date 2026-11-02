@@ -80,7 +80,6 @@ The client sends `Authorization: Bearer uc<token-id>-<secret>`. UCloud/Core does
 5. Check that the user still has access to the workspace.
 6. Set the token reference.
 7. Apply the roles and access rules of the user.
-8. Cache the result for up to one minute.
 
 UCloud/Core rejects an invalid or expired token, and it rejects a token whose user no longer has access to the
 workspace. The token has no service permissions. It does not authenticate against a provider endpoint.
@@ -96,15 +95,12 @@ it as a password for the user account. Do not share it between people.
 
 ## Expiry
 
-UCloud/Core can cache a successful check for up to one minute. A request can succeed shortly after the expiry date.
-After the cache expires, the platform rejects the token.
+The platform rejects a token after its expiry date. A token has the expiry date that the user selected when the
+platform created it.
 
 ## Revoke a token
 
 A user with edit access can revoke a token. The platform deletes the token resource.
-
-A cached check can still accept a revoked token for up to one minute. After the cache expires, the token does not
-authenticate.
 
 ## Security
 

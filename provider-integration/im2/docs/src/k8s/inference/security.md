@@ -98,9 +98,6 @@ tokens have no fixed expiry. They arrive as environment variables in the job con
 inference permission as a token that a user creates. See [Inference servers](../compute.md#inference-servers) and
 [Provider API Tokens](../../overview/provider-api-tokens.md).
 
-Job tokens have no safety expiry date. UCloud/Core retries revocation with a periodic sweep. If UCloud/Core cannot
-revoke a token, an operator must revoke it at the provider.
-
 ### Administration
 
 The `access.administrators` list holds the project IDs that may curate the model catalog. An administrator can see
@@ -113,27 +110,18 @@ The token table stores a salted PBKDF2-SHA512 hash. The secret is shown once whe
 token is also kept in the provider job secret store until the job starts. Treat the provider database as secret-bearing.
 
 The validator checks the expiry date during validation. A job token has no expiry date and is revoked when the job ends.
-The validator can cache a successful check for up to one minute. Revocation invalidates the cache for a provider token.
-The revocation can be delayed, so the cache can accept a token for up to one minute after the revocation. UCloud/Core
-does not invalidate its cache when a platform token is revoked, so a revoked platform token can still be accepted for
-up to one minute. An expired token stops working at its expiry date, but a cached check can accept it for up to one
-minute.
 
 For a provider token, UCloud/Core asks the provider to revoke the token before it deletes the token resource. A
 platform token is deleted with its token resource.
 
 The owner and the permissions of a provider token are fixed when the platform creates the token. The provider does not
-check the current project membership on each request. UCloud/Core sends project membership updates to the provider. The
-provider checks all project tokens on each project update, on the replay after it connects again, and in a periodic
-backstop. When the user who created a project token is no longer a member, the provider revokes the token. A project
-token created by a remaining member stays valid. Job tokens follow the job lifecycle instead. A short delay is possible,
-and the provider cache can accept a revoked token for up to one minute. If other people know the secret of a shared
-token, revoke it manually.
+check the current project membership on each request. UCloud/Core sends project membership updates to the provider, and
+the provider revokes a project token when its creator is no longer a member. A project token created by a remaining
+member stays valid. Job tokens follow the job lifecycle instead. If other people know the secret of a shared token,
+revoke it manually.
 
 A token is a bearer credential. Anyone who has the secret can use it until it expires or the owner revokes it. Use one
 token for each client. For a token that a user creates, keep the expiry date short, and revoke the token when it leaks.
-The audit record identifies the token, not the person who used the secret. For a token that a user creates, use one
-token for each person when you need that distinction.
 
 ## Data protection
 
