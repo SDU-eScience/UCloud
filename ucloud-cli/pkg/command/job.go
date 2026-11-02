@@ -79,7 +79,8 @@ type JobShellCommand struct {
 }
 
 type JobWebCommand struct {
-	JobID string `positional:"job-id" usage:"Job ID"`
+	JobID    string `positional:"job-id" usage:"Job ID"`
+	Provider string `flag:"provider" usage:"Provider"`
 }
 
 type JobVNCCommand struct {
@@ -709,7 +710,8 @@ func (c JobOpenCommand) Execute() error {
 }
 
 func (c JobWebCommand) Execute() error {
-	return fmt.Errorf("job web not implemented")
+	shared.JobOpenWebLink(c.JobID, c.Provider)
+	return nil
 }
 
 func (c JobShellCommand) Execute() error {
