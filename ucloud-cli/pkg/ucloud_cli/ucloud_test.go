@@ -848,7 +848,6 @@ func terminateTestJob(t *testing.T, jobId string) {
 }
 
 func TestJobLogs(t *testing.T) {
-	//t.Skip("Standalone test as it requires user interaction.")
 	jobId := createTestJob(t, "test-job-logs")
 	waitForJobState(t, jobId, orcapi.JobStateRunning, 5*time.Minute)
 	input := []string{"job", "logs", jobId, "--provider", "k8s"}
@@ -857,5 +856,19 @@ func TestJobLogs(t *testing.T) {
 	assert.NotNil(t, cmd)
 	err = cmd.Execute()
 	assert.NoError(t, err)
+	terminateTestJob(t, jobId)
+}
+
+func TestJobWeb(t *testing.T) {
+	t.Skip("Standalone test as it requires user interaction.")
+	jobId := createTestJob(t, "test-job-web")
+	waitForJobState(t, jobId, orcapi.JobStateRunning, 5*time.Minute)
+	input := []string{"job", "web", jobId, "--provider", "k8s"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+	time.Sleep(30 * time.Second) // give the browser time to load
 	terminateTestJob(t, jobId)
 }
