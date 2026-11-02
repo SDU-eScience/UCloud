@@ -24,6 +24,7 @@ export interface ButtonProps extends HeightProps, SpaceProps, WidthProps, WithEv
     btnRef?: React.RefObject<HTMLButtonElement | null>;
     borderRadius?: string;
     className?: string;
+    ariaLabel?: string;
 }
 
 export enum StandardButtonSize {
@@ -170,6 +171,7 @@ export const Button: React.FunctionComponent<ButtonProps> = props => {
         data-size={sizeName}
         style={inlineStyles}
         disabled={props.disabled}
+        aria-label={props.ariaLabel}
         type={props.type as any}
         {...extractEventHandlers(props)}
         {...extractDataTags(props)}

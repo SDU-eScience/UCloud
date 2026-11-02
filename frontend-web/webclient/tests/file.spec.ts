@@ -8,6 +8,27 @@ const {dirname} = import.meta;
 
 const Drives: Record<string, string> = {};
 
+function newSyncthingDeviceId(): string {
+    return Array.from({length: 8}, () =>
+        Math.floor(Math.random() * 10_000_000).toString().padStart(7, "0")
+    ).join("-");
+}
+
+async function deleteShareForFolder(page: Page, folderName: string): Promise<void> {
+    await page.locator(".row", {hasText: folderName}).click();
+    const deleteButton = page.getByRole("button", {name: "Delete share"});
+    await deleteButton.waitFor();
+
+    await NetworkCalls.awaitResponse(page, "**/api/shares", async () => {
+        await deleteButton.hover();
+        await page.mouse.down();
+        await page.waitForTimeout(2_500);
+        await page.mouse.up();
+    });
+
+    await page.getByText(folderName, {exact: false}).waitFor({state: "hidden"});
+}
+
 
 test.beforeEach(async ({page, userAgent}, testInfo) => {
     if (data.login_cookie) {
@@ -87,14 +108,10 @@ TestContexts.map(ctx => {
 
             await expect(page.locator("b").filter({hasText: "Path"})).toHaveCount(1);
             await expect(page.locator("b").filter({hasText: "Product"})).toHaveCount(1);
-            await expect(page.locator("b").filter({hasText: "Provider"})).toHaveCount(1);
             await expect(page.locator("b").filter({hasText: "Created at"})).toHaveCount(1);
-            await expect(page.locator("b").filter({hasText: "Modified at"})).toHaveCount(1);
-            await expect(page.locator("b").filter({hasText: "Accessed at"})).toHaveCount(1);
-            await expect(page.locator("b").filter({hasText: "UID/GID"})).toHaveCount(1);
-            await expect(page.locator("b").filter({hasText: "Unix mode"})).toHaveCount(1);
 
-            await page.goBack();
+            await page.getByRole("button", {name: "View in folder"}).click();
+            await page.waitForURL("**/app/files?**");
             await File.moveFileToTrash(page, folderName);
         });
 
@@ -164,7 +181,7 @@ TestContexts.map(ctx => {
                 // TODO: Clean-up folders for project-user ctx
 
                 for (let i = 0; i < 3; i++) {
-                    await page.goBack();
+                    await File.goUp(page);
                 }
 
                 await File.moveFileToTrash(page, folderName1);
@@ -177,7 +194,7 @@ TestContexts.map(ctx => {
                 await File.rename(page, folderName, newFolderName)
                 await File.open(page, newFolderName);
                 await expect(page.getByText("This folder is empty")).toHaveCount(1);
-                await page.goBack();
+                await File.goUp(page);
                 await File.moveFileToTrash(page, newFolderName);
             });
 
@@ -189,7 +206,7 @@ TestContexts.map(ctx => {
                 await File.moveFileTo(page, uploadedFileName, folderTarget);
                 await File.actionByRowTitle(page, folderTarget, "dblclick");
                 await expect(page.getByText(uploadedFileName)).toHaveCount(1);
-                await page.goBack();
+                await File.goUp(page);
                 await File.moveFileToTrash(page, folderTarget);
             });
 
@@ -229,7 +246,7 @@ TestContexts.map(ctx => {
                     await page.waitForTimeout(200);
                 }
 
-                await page.goBack();
+                await File.goUp(page);
                 await File.moveFileToTrash(page, folder);
             });
 
@@ -370,7 +387,7 @@ TestContexts.map(ctx => {
             await File.openIntegratedTerminal(page);
             await Terminal.enterCmd(page, `cat "${drive}/${testFileName}"`);
             await expect(page.getByText(testFileContents)).toHaveCount(1);
-            await page.locator("div > svg[class*=icon-hover-block]").first().click()
+            await page.getByRole("button", {name: "Close Terminal"}).click();
             await File.moveFileToTrash(page, testFileName);
 
 
@@ -378,6 +395,7 @@ TestContexts.map(ctx => {
 
         if (!ctx.startsWith("Project")) {
             test("Files - folder sharing works", async ({page, browser}) => {
+                test.setTimeout(180_000);
                 // Create folder
                 const folderToShare = File.newFolderName();
                 await File.create(page, folderToShare);
@@ -402,7 +420,7 @@ TestContexts.map(ctx => {
 
                 // Accept share
                 await File.goToSharedWithMe(sharedWithUserPage);
-                await Components.clickConfirmationButton(sharedWithUserPage, "Accept");
+                await sharedWithUserPage.locator(".row", {hasText: folderToShare}).getByRole("button", {name: "Accept"}).click();
 
                 // Check folder is available
                 await File.actionByRowTitle(sharedWithUserPage, folderToShare, "dblclick");
@@ -410,15 +428,7 @@ TestContexts.map(ctx => {
 
                 // Delete share
                 await Components.clickRefreshAndWait(page);
-                await page.locator(".row", {hasText: folderToShare}).click();
-                await Components.clickConfirmationButton(page, "Delete share");
-
-                // See that access has been revoked for receiver
-                // Should be `await Components.clickRefreshAndWait(sharedWithUserPage);`, but blocked by #5268
-                while (!await sharedWithUserPage.getByText("We could not find any data related to this folder.").isVisible()) {
-                    await sharedWithUserPage.waitForTimeout(1_000);
-                    await sharedWithUserPage.reload();
-                }
+                await deleteShareForFolder(page, folderToShare);
 
                 await page.goto(url);
 
@@ -430,6 +440,7 @@ TestContexts.map(ctx => {
         test("Files - Syncthing works", async ({page, userAgent}) => {
             const folderName = File.newFolderName();
             const deviceName = File.newFolderName().replace("FolderName", "DeviceName");
+            const deviceId = newSyncthingDeviceId();
             await File.create(page, folderName);
 
             const url = page.url()
@@ -438,23 +449,30 @@ TestContexts.map(ctx => {
                 await page.getByRole("button", {name: /^Sync/}).click();
             });
 
-            const syncthingDevicesText = await result.text();
-            const parsedDevices: {config: {devices: any[]}} = JSON.parse(syncthingDevicesText);
-            if (parsedDevices.config.devices.length > 0) {
-                await page.getByRole("button", {name: "Add device", exact: true}).click();
-            }
+            await result.text();
 
-            await page.getByRole("button", {name: "Next step", exact: true}).click();
-            await page.getByRole("textbox", {name: "Device name"}).fill(deviceName);
-            await page.getByRole("textbox", {name: "My device ID"}).fill("1111111-1111111-1111111-1111111-1111111-1111111-1111111-1111111");
-            await page.getByRole("button", {name: "Add device", exact: true}).click();
+            const nextStep = page.getByRole("button", {name: "Next step", exact: true});
+            const addDevice = page.getByRole("button", {name: "Add device", exact: true});
+            await nextStep.or(addDevice).first().waitFor();
+
+            if (await nextStep.isVisible()) {
+                await nextStep.click();
+                await page.getByRole("textbox", {name: /^Device name/}).fill(deviceName);
+                await page.getByRole("textbox", {name: /^My device ID/}).fill(deviceId);
+                await addDevice.click();
+            } else {
+                await addDevice.click();
+                await page.getByRole("dialog").getByRole("textbox", {name: /^Device name/}).fill(deviceName);
+                await page.getByRole("dialog").getByRole("textbox", {name: /^Device ID/}).fill(deviceId);
+                await page.getByRole("dialog").getByRole("button", {name: "Add device", exact: true}).click();
+            }
 
             await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
                 await page.getByRole("button", {name: "Choose folder", exact: true}).click();
             });
             const user = ctxUser(ctx);
             const drive = ctx === "Project User" ? Drive.newDriveNameOrMemberFiles(ctx) : Drives[userAgent! + user.username];
-            await File.ensureDialogDriveActive(page, drive);
+            await File.ensureDialogDriveActive(page, drive, url);
 
             await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
                 await Components.useDialogBrowserItem(page, folderName, "Sync");

@@ -49,6 +49,7 @@ import {
     timestampUnixMs
 } from "@/UtilityFunctions";
 import {FileIconHint, FileType} from "@/Files/index";
+import {setLastActivePath} from "@/Files/LastActivePath";
 import {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {SvgFt} from "@/ui-components/FtIcon";
@@ -1451,7 +1452,10 @@ function FileBrowse({opts, headerControls}: {
                         return;
                     }
 
-                    if (newPath !== SEARCH) lastActiveFilePath = newPath;
+                    if (newPath !== SEARCH) {
+                        lastActiveFilePath = newPath;
+                        setLastActivePath(newPath);
+                    }
                     if (isSelector) setSelectorActivePath(newPath);
                     setStatusBarData(null);
 

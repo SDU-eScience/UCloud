@@ -77,7 +77,7 @@ TestContexts.map(ctx => {
             // Change rights for user to allow viewing
             await Drive.openPermissions(adminPage, driveName);
             await NetworkCalls.awaitResponse(adminPage, "**/api/files/collections/updateAcl", async () => {
-                await adminPage.locator(`div[data-group='All users']`).locator("#Read").click();
+                await adminPage.locator(`div[data-group='All users']`).getByRole("radio", {name: "Read", exact: true}).click();
             });
 
             // Reload drives for user, see drive appears

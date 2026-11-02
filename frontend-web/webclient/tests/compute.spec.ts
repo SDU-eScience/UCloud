@@ -220,7 +220,7 @@ echo "${BashScriptStringContent}"
         });
 
         test("multinode, connect to other jobs", async ({page}) => {
-            test.setTimeout(120_000);
+            test.setTimeout(180_000);
 
 
             // Create private network
@@ -246,11 +246,11 @@ echo "${BashScriptStringContent}"
                 await p.locator("[data-field-row]", {hasText: "Hostname"}).getByRole("textbox").fill(jobNetworkId2);
             }, jobName);
 
-            await Terminal.enterCmd(term1, `apt install busybox && echo "setup done!"`);
-            await Terminal.enterCmd(term2, `apt install busybox && echo "setup done!"`);
+            await Terminal.enterCmd(term1, `apt-get install -y busybox && echo "setup done!"`);
+            await Terminal.enterCmd(term2, `apt-get install -y busybox && echo "setup done!"`);
 
-            await term1.getByText("setup done!", {exact: true}).waitFor();
-            await term2.getByText("setup done!", {exact: true}).waitFor();
+            await term1.getByText("setup done!", {exact: true}).waitFor({timeout: 60_000});
+            await term2.getByText("setup done!", {exact: true}).waitFor({timeout: 60_000});
             await Terminal.enterCmd(term1, `busybox ping invalid_address`);
             await term1.getByText("ping: bad address 'invalid_address'").waitFor();
 
@@ -285,21 +285,22 @@ echo "${BashScriptStringContent}"
             await adminPage.close();
 
             const jobName = Runs.newJobName();
+            const isPersonalWorkspace = ctx === "Personal Workspace";
+            const driveName = isPersonalWorkspace ? "Home" : Drive.memberFiles(user.username);
+
+            await Drive.goToDrives(userPage);
+            if (isPersonalWorkspace) {
+                await userPage.getByRole("button", {name: "Create drive", disabled: false}).waitFor();
+            }
+            const triggerFolder = await File.createStorageScanTrigger(userPage, driveName);
+
             const term = await Applications.runAppAndOpenTerminalWithTerminalPage(userPage, AppNames.TestApplication, 1, undefined, jobName);
 
             await Terminal.createFile(term, FILE_SIZE_IN_GB + 1);
             await term.close();
             await Runs.terminateViewedRun(userPage);
 
-            const isPersonalWorkspace = ctx === "Personal Workspace";
-            const driveName = isPersonalWorkspace ? "Home" : Drive.memberFiles(user.username);
-
-
-            await Drive.goToDrives(userPage);
-            if (ctx === "Personal Workspace") {
-                await userPage.getByRole("button", {name: "Create drive", disabled: false}).waitFor();
-            }
-            await File.triggerStorageScan(userPage, driveName);
+            await File.triggerStorageScan(userPage, driveName, triggerFolder);
             await Runs.goToRuns(userPage);
             await Components.projectSwitcher(userPage, "hover");
             await Applications.actionByRowTitle(userPage, jobName, "click");

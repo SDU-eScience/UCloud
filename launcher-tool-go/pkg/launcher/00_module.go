@@ -25,6 +25,8 @@ import (
 
 const ImDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2026.2.15"
 const SlurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2025.4.165"
+const PostgresImage = "postgres:17.0"
+const PostgresVolumeSuffix = "data-17"
 
 var Version string
 var CliVersion string
@@ -337,13 +339,7 @@ func ClusterDelete() {
 	shuttingDownStep.Completed = true
 	InstallerSetProgress(steps)
 
-	for _, name := range Volumes {
-		StreamingExecute(
-			"Deleting volume",
-			[]string{"docker", "volume", "rm", name, "-f"},
-			ExecuteOptions{},
-		)
-	}
+	ComposeDeleteProjectData()
 	volDeleteStep.Completed = true
 	InstallerSetProgress(steps)
 

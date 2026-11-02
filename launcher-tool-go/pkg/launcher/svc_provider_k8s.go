@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	apm "ucloud.dk/shared/pkg/accounting"
@@ -46,9 +47,21 @@ func ProviderK8s() {
 	imConfig := AddDirectory(provider, "config")
 	logDir := AddDirectory(provider, "logs")
 	k3sRegistriesConfig := ""
+	k3sResolvConf := ""
 	if provider.Enabled() {
 		k3sRegistriesConfig = filepath.Join(imConfig, "registries.yaml")
 		_ = os.WriteFile(k3sRegistriesConfig, k8sRegistriesConfig, 0644)
+
+		k3sResolvConf = filepath.Join(imConfig, "resolv.conf")
+		var resolvConf strings.Builder
+		for _, address := range ComposeHostDnsServers() {
+			resolvConf.WriteString("nameserver " + address + "\n")
+		}
+		if resolvConf.Len() == 0 {
+			k3sResolvConf = ""
+		} else {
+			_ = os.WriteFile(k3sResolvConf, []byte(resolvConf.String()), 0644)
+		}
 	}
 
 	volumes := []string{
@@ -260,28 +273,36 @@ func ProviderK8s() {
 		kubelet := AddVolume(k3s, "kubelet")
 		etc := AddVolume(k3s, "etc")
 
+		k3sEnv := []string{
+			"K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml",
+			"K3S_KUBECONFIG_MODE=666",
+			"K3S_FLANNEL_BACKEND=host-gw",
+		}
+		k3sVolumes := []string{
+			Mount(k3sOutput, "/output"),
+			Mount(data, "/var/lib/rancher/k3s"),
+			Mount(cni, "/var/lib/cni"),
+			Mount(kubelet, "/var/lib/kubelet"),
+			Mount(etc, "/etc/rancher"),
+			Mount(k3sRegistriesConfig, "/etc/rancher/k3s/registries.yaml"),
+			Mount(storage, "/mnt/storage"),
+			Mount(imConfig, "/etc/ucloud"),
+		}
+
+		if k3sResolvConf != "" {
+			k3sEnv = append(k3sEnv, "K3S_RESOLV_CONF=/etc/k3s-resolv.conf")
+			k3sVolumes = append(k3sVolumes, Mount(k3sResolvConf, "/etc/k3s-resolv.conf"))
+		}
+
 		AddService(k3s, DockerComposeService{
-			Image:    "rancher/k3s:v1.35.2-k3s1",
-			Hostname: "im2k3",
-			Restart:  "always",
-			Environment: []string{
-				"K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml",
-				"K3S_KUBECONFIG_MODE=666",
-				"K3S_FLANNEL_BACKEND=host-gw",
-			},
-			Privileged: true,
-			Tmpfs:      []string{"/run", "/var/run"},
-			Command:    []string{"server", "--disable=traefik", "--disable-network-policy"},
-			Volumes: []string{
-				Mount(k3sOutput, "/output"),
-				Mount(data, "/var/lib/rancher/k3s"),
-				Mount(cni, "/var/lib/cni"),
-				Mount(kubelet, "/var/lib/kubelet"),
-				Mount(etc, "/etc/rancher"),
-				Mount(k3sRegistriesConfig, "/etc/rancher/k3s/registries.yaml"),
-				Mount(storage, "/mnt/storage"),
-				Mount(imConfig, "/etc/ucloud"),
-			},
+			Image:       "rancher/k3s:v1.35.2-k3s1",
+			Hostname:    "im2k3",
+			Restart:     "always",
+			Environment: k3sEnv,
+			Privileged:  true,
+			Tmpfs:       []string{"/run", "/var/run"},
+			Command:     []string{"server", "--disable=traefik", "--disable-network-policy"},
+			Volumes:     k3sVolumes,
 		})
 	}
 
@@ -294,10 +315,10 @@ func ProviderK8s() {
 			Feature:  FeatureProviderK8s,
 		}
 
-		data := AddVolume(postgres, "data")
+		data := AddVolume(postgres, PostgresVolumeSuffix)
 
 		AddService(postgres, DockerComposeService{
-			Image:       "postgres:17.0",
+			Image:       PostgresImage,
 			Hostname:    "k8s-postgres",
 			Restart:     "always",
 			Environment: []string{"POSTGRES_PASSWORD=postgrespassword"},

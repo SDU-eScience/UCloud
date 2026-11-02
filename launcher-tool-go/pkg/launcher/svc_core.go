@@ -151,10 +151,10 @@ func ServiceCore() {
 			UiParent: UiParentCore,
 		}
 
-		data := AddVolume(postgres, "data")
+		data := AddVolume(postgres, PostgresVolumeSuffix)
 
 		AddService(postgres, DockerComposeService{
-			Image:       "postgres:17.0",
+			Image:       PostgresImage,
 			Hostname:    "postgres",
 			Restart:     "always",
 			Environment: []string{"POSTGRES_PASSWORD=postgrespassword"},

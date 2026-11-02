@@ -292,7 +292,7 @@ const ShareModal: React.FunctionComponent<{
                             );
                         }}
                     >Create link</Button>
-                    <Button onClick={() => setInvitingUser(true)}><Icon name="heroUserPlus" /></Button>
+                    <Button onClick={() => setInvitingUser(true)} ariaLabel="Share with user"><Icon name="heroUserPlus" /></Button>
                 </Flex>
             </Flex>
             <Box mt={20} mb="32px">

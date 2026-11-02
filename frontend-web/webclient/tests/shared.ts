@@ -89,6 +89,8 @@ export const User = {
             await this.setAdditionalUserInfo(page);
             await this.disableNotifications(page);
         }
+
+        await page.getByRole("link", {name: "Go to dashboard"}).waitFor({timeout: 30_000});
     },
 
     async loginDirect(page: Page, user: {username: string; password: string;}): Promise<void> {
@@ -279,16 +281,23 @@ export const File = {
         });
     },
 
+    async goUp(page: Page): Promise<void> {
+        await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
+            const breadcrumbs = page.locator(".location ul").first().locator("li");
+            const count = await breadcrumbs.count();
+            await breadcrumbs.nth(Math.max(0, count - 2)).click();
+        });
+    },
+
     async goToSharedByMe(page: Page): Promise<void> {
-        await page.getByRole("link", {name: "Go to Files"}).hover();
-        await page.waitForTimeout(300);
-        await page.getByRole("link", {name: "Shared by me"}).click();
+        await page.goto(ucloudUrl("shares/outgoing"), {waitUntil: "domcontentloaded"});
+        await page.waitForLoadState("domcontentloaded");
     },
 
     async goToSharedWithMe(page: Page): Promise<void> {
-        await page.getByRole("link", {name: "Go to Files"}).hover();
-        await page.waitForTimeout(300);
-        await page.getByRole("link", {name: "Shared with me"}).click();
+        await page.getByRole("link", {name: "Go to dashboard"}).waitFor({timeout: 30_000});
+        await page.goto(ucloudUrl("shares/"), {waitUntil: "domcontentloaded"});
+        await page.waitForLoadState("domcontentloaded");
     },
 
     newFolderName(): string {
@@ -401,30 +410,40 @@ export const File = {
         });
     },
 
-    async ensureDialogDriveActive(page: Page, driveName: string): Promise<void> {
-        // Check locator input for content
-        await page.getByRole("dialog").waitFor();
-        const drive = driveName.startsWith("Member Files:") ? "Member Files" : driveName
+    async ensureDialogDriveActive(page: Page, driveName: string, driveUrl?: string): Promise<void> {
+        const dialog = page.getByRole("dialog");
+        await dialog.waitFor();
+        const locationBar = dialog.locator(".location-bar");
+        const currentPath = await locationBar.getAttribute("data-real-path") ?? "";
 
-        const correctDrive = await page.getByRole("dialog")
-            .getByRole('listitem', {name: drive, exact: false}).isVisible();
+        if (driveUrl === undefined) {
+            const breadcrumbName = driveName.startsWith("Member Files:") ? "Member Files" : driveName;
+            const driveBreadcrumb = dialog.getByRole("listitem", {name: breadcrumbName, exact: false});
+            if (!(await driveBreadcrumb.isVisible())) {
+                throw new Error(`Unable to find drive '${driveName}' in the file dialog`);
+            }
 
-        const correctProvider = await page.evaluate(() => {
-            const iconName = window.location.host === "ucloud.localhost.direct" ? "im2k8s.png" : "sdu.png";
-            return document.querySelector("div.ReactModal__Content div.provider-icon img")?.getAttribute("src")?.includes(iconName) ?? false;
-        });
+            const driveId = currentPath.split("/").filter(Boolean)[0];
+            if (driveId && currentPath === `/${driveId}/`) return;
 
-        if (correctDrive && correctProvider) {
-            // Already matches. No work to be done.
+            await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
+                await driveBreadcrumb.click();
+            });
             return;
         }
 
+        const driveId = (new URL(driveUrl).searchParams.get("path") ?? "").split("/").filter(Boolean)[0];
+        if (!driveId) {
+            throw new Error(`Unable to determine the id of drive '${driveName}'`);
+        }
 
+        const targetPath = `/${driveId}/`;
+        if (currentPath === targetPath) return;
 
-        // if not matches, click
-        await page.getByRole("dialog").locator("div.drive-icon-dropdown").click();
+        await dialog.locator(".location").click();
         await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
-            await page.getByText(driveName).last().click();
+            await locationBar.fill(targetPath);
+            await locationBar.press("Enter");
         });
     },
 
@@ -457,8 +476,9 @@ export const File = {
 
     async shareFolderWith(page: Page, foldername: string, username: string): Promise<void> {
         await this._openShareModal(page, foldername);
-        await page.getByRole("dialog").getByRole("textbox").fill(username);
-        await page.getByRole("button").getByText("Share").click();
+        await page.getByRole("dialog").getByRole("button", {name: "Share with user"}).click();
+        await page.getByRole("dialog").getByPlaceholder("Username").fill(username);
+        await page.getByRole("dialog").getByRole("button", {name: "Share", exact: true}).click();
     },
 
     async _openShareModal(page: Page, foldername: string): Promise<void> {
@@ -466,11 +486,20 @@ export const File = {
         await page.getByText("Share with...").last().click();
     },
 
-    async triggerStorageScan(page: Page, driveName: string): Promise<void> {
+    async createStorageScanTrigger(page: Page, driveName: string): Promise<string> {
         await Drive.openDrive(page, driveName);
         const folder = "trigger" + this.newFolderName();
-        await page.locator(".row", {hasText: "Jobs"}).waitFor();
         await File.create(page, folder);
+        return folder;
+    },
+
+    async triggerStorageScan(page: Page, driveName: string, existingFolder?: string): Promise<void> {
+        const folder = existingFolder ?? "trigger" + this.newFolderName();
+        await Drive.openDrive(page, driveName);
+        if (existingFolder === undefined) {
+            await page.locator(".row", {hasText: "Jobs"}).waitFor();
+            await File.create(page, folder);
+        }
         await File.moveFileToTrash(page, folder);
         // Note(Jonas): Trash folder doesn't show up until refresh if not already present.
         await Components.clickRefreshAndWait(page);
@@ -480,7 +509,6 @@ export const File = {
 };
 
 export const Drive = {
-
     // Specific for drive (right now) is that resources can have same name, without being from same provider. This is problematic!
     async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover"): Promise<void> {
         await page.locator(".scrolling").first().hover();
@@ -489,7 +517,7 @@ export const Drive = {
         }
 
         let iterations = 100;
-        const locator = page.locator(".scrolling").locator(".row").filter({hasText: providerAndProducts.drive_provider}).getByText(name);
+        const locator = page.locator(".scrolling").locator(".row").filter({hasText: providerAndProducts.drive_provider}).getByText(name).first();
         while (!await locator.isVisible()) {
             await page.mouse.wheel(0, 150);
             iterations -= 1;
@@ -526,13 +554,34 @@ export const Drive = {
     },
 
     async openDrive(page: Page, name: string): Promise<void> {
-        if (!page.url().includes("/app/drives")) {
-            await this.goToDrives(page);
+        await this.goToDrives(page);
+
+        if (name !== "Home") {
+            await NetworkCalls.awaitResponse(page, "**/api/files/collections/search**", async () => {
+                await File.searchFor(page, name);
+            });
+            await page.locator(".row div > span", {hasText: name}).first().waitFor();
         }
+
         await this.actionByRowTitle(page, name, "click");
-        await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
-            await this.actionByRowTitle(page, name, "dblclick");
-        });
+
+        let opened = false;
+        if (name !== "Home") {
+            for (let attempt = 0; attempt < 5 && !opened; attempt++) {
+                const response = page.waitForResponse("**/api/files/browse**", {timeout: 5_000}).catch(() => null);
+                await this.actionByRowTitle(page, name, "dblclick");
+                opened = (await response) !== null && page.url().includes("/app/files?path=");
+                if (!opened) await page.waitForTimeout(1_000);
+            }
+        }
+        if (!opened) {
+            await page.getByRole("button", {name: /^Properties/}).first().click();
+            await page.waitForURL("**/app/drives/properties/**");
+            const driveId = new URL(page.url()).pathname.split("/").filter(Boolean).pop();
+            if (!driveId) throw new Error(`Unable to open drive '${name}'`);
+            await page.goto(`/app/files?path=${encodeURIComponent(driveId)}`);
+            await page.waitForLoadState("domcontentloaded");
+        }
 
         await Components.projectSwitcher(page, "hover")
 
@@ -549,9 +598,11 @@ export const Drive = {
             await page.getByRole("cell", {name: providerAndProducts.products_used_in_tests.storage}).click();
         }
 
-        await NetworkCalls.awaitResponse(page, "**/api/files/collections**", async () => {
+        await NetworkCalls.awaitResponse(page, "**/api/files/collections", async () => {
             await page.getByRole("dialog").getByRole("button", {name: "Create", exact: true, disabled: false}).click();
-        })
+        });
+
+        await page.getByRole("dialog").waitFor({state: "hidden"});
     },
 
     async delete(page: Page, name: string): Promise<void> {
@@ -601,7 +652,7 @@ export const Components = {
         await page.getByRole("banner").locator("svg").click();
     },
 
-    async clickConfirmationButton(page: Page, text: string, delay = 1500): Promise<void> {
+    async clickConfirmationButton(page: Page, text: string, delay = 2500): Promise<void> {
         const directButton = page.getByRole("button", {name: text}).filter({visible: true}).first();
         if (await directButton.isVisible()) {
             await directButton.click({delay});
@@ -760,9 +811,14 @@ export const Runs = {
     },
 
     async terminateViewedRun(page: Page): Promise<void> {
-        await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
-            await Components.clickConfirmationButton(page, "Stop application");
-        });
+        let terminated = false;
+        for (let attempt = 0; attempt < 3 && !terminated; attempt++) {
+            const response = page.waitForResponse("**/jobs/terminate", {timeout: 5_000}).catch(() => null);
+            await Components.clickConfirmationButton(page, "Stop application", 3_000);
+            terminated = (await response) !== null;
+            if (!terminated) await page.waitForTimeout(1_000);
+        }
+        if (!terminated) throw new Error("Unable to terminate the job");
         await page.getByText("Run again").waitFor();
     },
 
@@ -820,24 +876,22 @@ export const Runs = {
         },
 
         async addPublicLink(page: Page, publicLinkName: string): Promise<void> {
-            await page.getByText("Add public link").first().click();
             await NetworkCalls.awaitResponse(page, "**/api/ingresses/browse?**", async () => {
-                await page.getByPlaceholder("No public link selected").click();
+                await page.getByRole("textbox", {name: "Public link #1"}).click();
             });
             await Components.useDialogBrowserItem(page, publicLinkName);
         },
 
         async addPublicIP(page: Page, publicIP: string): Promise<void> {
-            await page.getByRole("button", {name: "Add public IP"}).click();
             await NetworkCalls.awaitResponse(page, "**/api/networkips/browse?**", async () => {
-                await page.getByPlaceholder("No public IP selected").click();
-            })
+                await page.getByRole("textbox", {name: "Public IP #1"}).click();
+            });
             await Components.useDialogBrowserItem(page, publicIP);
         },
 
         async toggleEnableSSHServer(page: Page): Promise<void> {
             expect(page.url()).toContain("/jobs/create");
-            await page.getByText("Enable SSH server").click();
+            await page.getByRole("combobox", {name: "SSH access"}).selectOption("true");
         },
     }
 };
@@ -994,7 +1048,7 @@ export const Resources = {
             await page.locator("#key-title").fill(title);
             await page.locator("#key-contents").fill(this.DefaultSSHKey);
             await NetworkCalls.awaitResponse(page, "**/api/ssh", async () => {
-                await page.getByRole("button", {name: "Add SSH key"}).click();
+                await page.getByRole("dialog").getByRole("button", {name: "Add SSH key", exact: true}).click();
             });
             await page.waitForURL(url => url.pathname.endsWith("/ssh-keys"));
             return title;

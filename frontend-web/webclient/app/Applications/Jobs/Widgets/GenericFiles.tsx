@@ -16,6 +16,7 @@ import {UFile} from "@/UCloud/UFile";
 import {Selection} from "@/ui-components/ResourceBrowser";
 import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
 import {Toggle} from "@/ui-components/Toggle";
+import {getLastActivePath, setLastActivePath} from "@/Files/LastActivePath";
 
 type GenericFileParam =
     ApplicationParameterNS.InputFile |
@@ -217,13 +218,4 @@ function findAllFolderNames(): string[] {
 export function anyFolderDuplicates(): boolean {
     const dirs = findAllFolderNames();
     return new Set(dirs).size !== dirs.length;
-}
-
-export function getLastActivePath(): string {
-    return document.querySelector<HTMLDivElement>("[data-last-used-file-path]")?.innerText ?? "";
-}
-
-function setLastActivePath(path: string) {
-    const pathNode = document.querySelector<HTMLDivElement>("[data-last-used-file-path]")
-    if (pathNode) pathNode.innerText = path;
 }
