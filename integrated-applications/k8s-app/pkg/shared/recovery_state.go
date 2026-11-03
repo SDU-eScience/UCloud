@@ -58,6 +58,9 @@ func ClusterRecoveryRead(client ClusterStateClient) (ClusterRecoverySnapshot, er
 	if err := json.Unmarshal(record.Value, &parsed); err != nil {
 		return ClusterRecoverySnapshot{}, errors.New("could not parse the cluster recovery record")
 	}
+	if parsed.SchemaRevision != clusterRecoverySchemaRevision {
+		return ClusterRecoverySnapshot{}, errors.New("the cluster recovery record was written by an incompatible version of the application")
+	}
 
 	result.Found = true
 	result.Record = parsed
@@ -65,12 +68,6 @@ func ClusterRecoveryRead(client ClusterStateClient) (ClusterRecoverySnapshot, er
 }
 
 func ClusterRecoveryRecordWrite(client ClusterStateClient, record *ClusterRecoveryRecord, expectedRevision int64) (int64, error) {
-	if record == nil {
-		return 0, errors.New("the cluster recovery record is nil")
-	}
-	if expectedRevision < 0 {
-		return 0, errors.New("the expected cluster recovery record revision is negative")
-	}
 	if record.Phase != ClusterRecoveryPhaseActive && record.Phase != ClusterRecoveryPhaseClosed {
 		return 0, errors.New("the cluster recovery record has an unknown phase")
 	}

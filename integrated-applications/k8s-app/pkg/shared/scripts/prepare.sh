@@ -13,11 +13,6 @@ require_file "$NODE_JSON" "node.json"
 IP_ADDRESS="$(node_field ipAddress)"
 wait_for_node_ip "$IP_ADDRESS"
 
-IFACE="$(node_iface "$IP_ADDRESS")"
-if [ -z "$IFACE" ]; then
-	fail "network" "could not detect the interface of $IP_ADDRESS"
-fi
-
 install -d -m 0755 "$K3S_DATA_DIR"
 
 cat > /etc/modules-load.d/k3s.conf <<'EOF'
@@ -41,19 +36,12 @@ k3s_cluster_state_exists() {
 	[ -d "$K3S_DATA_DIR/server/db" ] || [ -d "$K3S_DATA_DIR/agent/etc" ]
 }
 
-file_sha256() {
-	sha256sum "$1" | awk '{print $1}'
-}
-
 install_k3s_binary() {
 	local expectedChecksum
 	local k3sVersion
 	local actualChecksum
 	local sourceFile=""
 	local tmpFile="${K3S_BINARY}.tmp.$$"
-	local tries=0
-	local maxTries=5
-	local downloaded=false
 
 	expectedChecksum="$(node_k3s_checksum)"
 	k3sVersion="$(node_field k8sVersion)"
@@ -87,16 +75,7 @@ install_k3s_binary() {
 
 	emit "Downloading Kubernetes" 30
 	log "downloading the required Kubernetes version"
-	while [ $tries -lt $maxTries ]; do
-		if curl -sfL --connect-timeout 15 --max-time 900 --retry 3 --retry-delay 5 "$(node_k3s_url)" -o "$tmpFile"; then
-			downloaded=true
-			break
-		fi
-		rm -f "$tmpFile"
-		tries=$((tries + 1))
-		sleep 10
-	done
-	if [ "$downloaded" != "true" ]; then
+	if ! retry_until 5 10 curl -sfL --connect-timeout 15 --max-time 900 --retry 3 --retry-delay 5 "$(node_k3s_url)" -o "$tmpFile"; then
 		rm -f "$tmpFile"
 		fail "install" "could not download Kubernetes from $(node_k3s_url)"
 	fi

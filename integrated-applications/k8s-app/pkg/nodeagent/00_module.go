@@ -77,11 +77,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 )
 
 // Constants and package state
@@ -174,7 +176,7 @@ func Serve(ctx context.Context) error {
 	recoverInterrupted()
 	recoverInterruptedOs()
 
-	if identityConfig.Role == shared.GroupControlPlane {
+	if identityConfig.Role == k8sapi.GroupControlPlane {
 		go startTokenPublisher()
 	}
 
@@ -224,7 +226,7 @@ func Serve(ctx context.Context) error {
 // the process starts.
 
 func Identity(ctx context.Context) (Config, error) {
-	nodeJson, err := readNodeConfig(nodeJsonPath())
+	nodeJson, err := readNodeConfig(filepath.Join(inputDir, nodeJsonName))
 	if err != nil {
 		return Config{}, fmt.Errorf("the node identity could not be established: %s", err)
 	}
@@ -274,7 +276,7 @@ func readNodeConfig(path string) (nodeFile, error) {
 			"the node IP address %s is outside the cluster subnet %s", nodeJson.IpAddress, shared.ClusterVmCidr)
 	}
 
-	if nodeJson.Role != shared.GroupControlPlane && !roleValid(nodeJson.Role) {
+	if nodeJson.Role != k8sapi.GroupControlPlane && !roleValid(nodeJson.Role) {
 		return nodeFile{}, fmt.Errorf(
 			"the node configuration at %s has an unknown role: %s", path, nodeJson.Role)
 	}
@@ -329,14 +331,6 @@ func localAddressAssigned(address netip.Addr) bool {
 	return false
 }
 
-func nodeJsonPath() string {
-	return filepath.Join(inputDir, nodeJsonName)
-}
-
-func maintenanceTokenPath() string {
-	return filepath.Join(inputDir, maintenanceTokenName)
-}
-
 // Peer authentication
 // =====================================================================================================================
 // Every request must carry the maintenance token in its header. The agent compares the token in constant time. A
@@ -381,7 +375,7 @@ func authorizePeer(writer http.ResponseWriter, request *http.Request) bool {
 }
 
 func maintenanceToken() (string, error) {
-	data, err := os.ReadFile(maintenanceTokenPath())
+	data, err := os.ReadFile(filepath.Join(inputDir, maintenanceTokenName))
 	if err != nil {
 		return "", err
 	}
@@ -458,7 +452,7 @@ func readCommandAuthorization(writer http.ResponseWriter, request *http.Request)
 }
 
 func validateCommandOwnership(operationUid string) error {
-	busy := shared.NodeAgentPhaseActive(stateLoad().Phase) || shared.NodeAgentOsPhaseActive(osStateLoad().Phase)
+	busy := slices.Contains(shared.NodeAgentPhases, stateLoad().Phase) || slices.Contains(shared.NodeAgentOsPhases, osStateLoad().Phase)
 	return validateFence(operationUid, busy)
 }
 

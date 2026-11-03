@@ -1,19 +1,19 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: local-path-storage
+  name: ucloud-storage
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: local-path-provisioner-service-account
-  namespace: local-path-storage
+  name: ucloud-storage-provisioner
+  namespace: ucloud-storage
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: local-path-provisioner-role
-  namespace: local-path-storage
+  name: ucloud-storage-provisioner-role
+  namespace: ucloud-storage
 rules:
   - apiGroups: [""]
     resources: ["pods"]
@@ -22,21 +22,21 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: local-path-provisioner-bind
-  namespace: local-path-storage
+  name: ucloud-storage-provisioner-bind
+  namespace: ucloud-storage
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: local-path-provisioner-role
+  name: ucloud-storage-provisioner-role
 subjects:
   - kind: ServiceAccount
-    name: local-path-provisioner-service-account
-    namespace: local-path-storage
+    name: ucloud-storage-provisioner
+    namespace: ucloud-storage
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: local-path-provisioner-role
+  name: ucloud-storage-provisioner-role
 rules:
   - apiGroups: [""]
     resources: ["nodes", "configmaps", "pods", "pods/log"]
@@ -57,21 +57,21 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: local-path-provisioner-bind
+  name: ucloud-storage-provisioner-bind
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: local-path-provisioner-role
+  name: ucloud-storage-provisioner-role
 subjects:
   - kind: ServiceAccount
-    name: local-path-provisioner-service-account
-    namespace: local-path-storage
+    name: ucloud-storage-provisioner
+    namespace: ucloud-storage
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: local-path-config
-  namespace: local-path-storage
+  name: ucloud-storage-config
+  namespace: ucloud-storage
 data:
   config.json: |-
     {
@@ -102,32 +102,32 @@ data:
           effect: NoSchedule
       containers:
       - name: helper-pod
-        image: ${LOCAL_PATH_HELPER_IMAGE}
+        image: ${UCLOUD_STORAGE_HELPER_IMAGE}
         imagePullPolicy: IfNotPresent
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: local-path-provisioner
-  namespace: local-path-storage
+  name: ucloud-storage-provisioner
+  namespace: ucloud-storage
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: local-path-provisioner
+      app: ucloud-storage-provisioner
   template:
     metadata:
       labels:
-        app: local-path-provisioner
+        app: ucloud-storage-provisioner
     spec:
-      serviceAccountName: local-path-provisioner-service-account
+      serviceAccountName: ucloud-storage-provisioner
       tolerations:
         - key: node-role.kubernetes.io/control-plane
           operator: Exists
           effect: NoSchedule
       containers:
-        - name: local-path-provisioner
-          image: ${LOCAL_PATH_PROVISIONER_IMAGE}
+        - name: ucloud-storage-provisioner
+          image: ${UCLOUD_STORAGE_PROVISIONER_IMAGE}
           imagePullPolicy: IfNotPresent
           command:
             - local-path-provisioner
@@ -136,13 +136,13 @@ spec:
             - --config
             - /etc/config/config.json
             - --service-account-name
-            - local-path-provisioner-service-account
+            - ucloud-storage-provisioner
             - --provisioner-name
             - rancher.io/local-path
             - --helper-image
-            - ${LOCAL_PATH_HELPER_IMAGE}
+            - ${UCLOUD_STORAGE_HELPER_IMAGE}
             - --configmap-name
-            - local-path-config
+            - ucloud-storage-config
           ports:
             - name: health
               containerPort: 8080
@@ -181,12 +181,12 @@ spec:
       volumes:
         - name: config-volume
           configMap:
-            name: local-path-config
+            name: ucloud-storage-config
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: local-path
+  name: ucloud-storage
   annotations:
     storageclass.kubernetes.io/is-default-class: "true"
 provisioner: rancher.io/local-path

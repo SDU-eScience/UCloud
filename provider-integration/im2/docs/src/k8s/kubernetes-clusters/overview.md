@@ -53,7 +53,7 @@ one cluster.
 | Kubernetes API | A public link that serves the Kubernetes API on port 6443. The user downloads a kubeconfig from the dashboard and connects with `kubectl`. |
 | [Cluster dashboard](./cluster-dashboard.md) | The web interface of the cluster. It shows the state of the cluster, the Kubernetes resources, the maintenance operations, the backups and the permissions. |
 | Application access | The controller watches the Ingress resources of the cluster and creates a [public link](../public-links.md) for every eligible host. |
-| Storage | The local-path provisioner serves persistent volumes from shared storage. A volume is available from every node. See [Networking and storage](./networking-and-storage.md). |
+| Storage | The `ucloud-storage` class serves persistent volumes from shared storage using the local-path provisioner. A volume is available from every node. See [Networking and storage](./networking-and-storage.md). |
 | Backups | A backup coordinator takes hourly etcd snapshots. A cluster keeps up to 48 hourly and 14 daily backups. See [Backup and recovery](./backup-and-recovery.md). |
 | Maintenance | Kubernetes upgrades, operating-system updates and node removal, one node at a time. An automatic policy can run them inside a time window. See [Maintenance and upgrades](./maintenance-and-upgrades.md). |
 

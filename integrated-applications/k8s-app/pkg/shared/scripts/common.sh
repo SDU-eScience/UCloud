@@ -17,10 +17,20 @@ RECOVERY_DIR="/etc/ucloud-k8s/recovery"
 DECOMMISSIONED_MARKER="decommissioned"
 K3S_BINARY="/usr/local/bin/k3s"
 K3S_PRECHECK="/usr/local/sbin/ucloud-k8s-k3s-precheck"
-IP_CHECK_BIN="/usr/local/sbin/ucloud-k8s-ip-check"
 BOOTSTRAP_STDOUT_LOG="/work/stdout-0.log"
 UCX_SERVICE_UID=11042
 UCX_SERVICE_GID=11042
+
+UCLOUD_STORAGE_PROVISIONER_IMAGE=rancher/local-path-provisioner:v0.0.37
+UCLOUD_STORAGE_HELPER_IMAGE=rancher/mirrored-library-busybox:1.37.0
+CONTROLLER_IMAGE=rancher/mirrored-library-busybox:1.37.0
+
+MAINTENANCE_PROVIDER_BIN="/opt/ucloud-ucx/current"
+MAINTENANCE_AGENT_BIN="/usr/local/sbin/ucloud-k8s-maintenance-agent"
+MAINTENANCE_SUPERVISOR_BIN="/usr/local/sbin/ucloud-k8s-maintenance-agent-run"
+MAINTENANCE_UNIT_FILE="/etc/systemd/system/ucloud-k8s-maintenance-agent.service"
+MAINTENANCE_UPGRADE_STATE_FILE="/var/lib/ucloud-k8s/maintenance/upgrade-state.json"
+MAINTENANCE_OS_STATE_FILE="/var/lib/ucloud-k8s/maintenance/os-state.json"
 
 BOOTSTRAP_TIMEOUT_SECONDS=3600
 RECOVERY_BOOTSTRAP_TIMEOUT_SECONDS=7200
@@ -29,12 +39,6 @@ SERVICE_WAIT_TRIES=120
 SERVICE_WAIT_INTERVAL=5
 TOKEN_WAIT_TRIES=90
 TOKEN_WAIT_INTERVAL=10
-
-if [ -f /etc/ucloud-k8s/bundle/addons.env ]; then
-	set -a
-	source /etc/ucloud-k8s/bundle/addons.env
-	set +a
-fi
 
 for required_command in python3 curl ip sha256sum mountpoint; do
 	if ! command -v "$required_command" >/dev/null 2>&1; then
@@ -105,12 +109,25 @@ require_file() {
 	fi
 }
 
+requires_mounts_for() {
+	local role="$1"
+	local mounts="$INPUT_DIR $BUNDLE_DIR /work"
+	if [ "$role" = "control-plane" ]; then
+		mounts="$mounts $MANAGEMENT_DIR $NODES_DIR $BACKUPS_DIR"
+	fi
+	printf 'RequiresMountsFor=%s\n' "$mounts"
+}
+
 node_field() { json_field "$NODE_JSON" "$1"; }
 
 node_field_opt() {
 	local field="$1"
 	local fallback="${2:-}"
 	python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get(sys.argv[2], sys.argv[3]))" "$NODE_JSON" "$field" "$fallback"
+}
+
+file_sha256() {
+	sha256sum "$1" | awk '{print $1}'
 }
 
 record_input_generation() {
@@ -125,10 +142,12 @@ record_input_generation() {
 }
 
 node_arch() {
-	case "$(uname -m)" in
+	local machine
+	machine="$(uname -m)"
+	case "$machine" in
 	x86_64) printf 'amd64\n' ;;
 	aarch64) printf 'arm64\n' ;;
-	*) fail "install" "unsupported machine architecture $(uname -m)" ;;
+	*) fail "install" "unsupported machine architecture $machine" ;;
 	esac
 }
 
@@ -196,65 +215,24 @@ wait_node_ready() {
 	retry_until 60 10 node_is_ready "$nodename" "$kubeconfig" || fail "join" "the node never reached the Ready state"
 }
 
-observed_node_version() {
-	local kubeconfig="$1"
-	local nodename="$2"
-	local version
-	version="$(timeout 20 k3s kubectl --request-timeout=15s --kubeconfig "$kubeconfig" get node "$nodename" -o jsonpath='{.status.nodeInfo.kubeletVersion}' 2>/dev/null || true)"
-	if [ -z "$version" ]; then
-		return 1
-	fi
-	printf '%s' "$version"
-}
-
-observed_k3s_version() {
-	local kubeconfig="$1"
-	local nodename="$2"
-	local version
-	if version="$(retry_until 12 5 observed_node_version "$kubeconfig" "$nodename")"; then
-		printf '%s' "$version"
-		return 0
-	fi
-	version="$(k3s --version 2>/dev/null | awk '{print $3}')"
-	printf '%s' "$version"
-}
-
 install_k3s_precheck() {
 	local nodeIp="$1"
-
-	cat > "$IP_CHECK_BIN" <<'PYEOF'
-#!/usr/bin/env python3
-import json
-import subprocess
-import sys
-
-addresses = json.loads(subprocess.check_output(["ip", "-j", "-4", "addr", "show"]))
-for iface in addresses:
-    for info in iface.get("addr_info", []):
-        if info.get("local") == sys.argv[1]:
-            sys.exit(0)
-sys.exit(1)
-PYEOF
-	chmod 0755 "$IP_CHECK_BIN"
 
 	cat > "$K3S_PRECHECK" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
+source "$BUNDLE_DIR/common.sh"
 ip="$nodeIp"
-storage="$STORAGE_DIR"
-decommissionedMarker="$INPUT_DIR/$DECOMMISSIONED_MARKER"
-nodeJson="$NODE_JSON"
-generationFile="$INPUT_GENERATION_FILE"
-if [ -s "\$decommissionedMarker" ]; then
+if [ -s "\$INPUT_DIR/\$DECOMMISSIONED_MARKER" ]; then
 	echo "this node configuration has been retired" >&2
 	exit 1
 fi
-if [ -s "\$nodeJson" ]; then
-	generation="\$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("generation", ""))' "\$nodeJson" 2>/dev/null || true)"
+if [ -s "\$NODE_JSON" ]; then
+	generation="\$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("generation", ""))' "\$NODE_JSON" 2>/dev/null || true)"
 	if [ -n "\$generation" ]; then
 		recorded=""
-		if [ -s "\$generationFile" ]; then
-			recorded="\$(cat "\$generationFile")"
+		if [ -s "\$INPUT_GENERATION_FILE" ]; then
+			recorded="\$(cat "\$INPUT_GENERATION_FILE")"
 		fi
 		if [ "\$generation" != "\$recorded" ]; then
 			echo "the node configuration does not match this node" >&2
@@ -262,15 +240,15 @@ if [ -s "\$nodeJson" ]; then
 		fi
 	fi
 fi
-if ! mountpoint -q "\$storage"; then
-	echo "shared storage is not mounted at \$storage" >&2
+if ! mountpoint -q "\$STORAGE_DIR"; then
+	echo "shared storage is not mounted at \$STORAGE_DIR" >&2
 	exit 1
 fi
 if [ ! -x "$K3S_BINARY" ]; then
 	echo "the Kubernetes binary is missing at $K3S_BINARY" >&2
 	exit 1
 fi
-if ! "$IP_CHECK_BIN" "\$ip"; then
+if ! node_ip_present "\$ip"; then
 	echo "the private address \$ip is not assigned to any interface" >&2
 	exit 1
 fi
@@ -333,4 +311,14 @@ wait_for_token_files() {
 	local role="$1"
 	retry_until "$TOKEN_WAIT_TRIES" "$TOKEN_WAIT_INTERVAL" token_files_present "$role" ||
 		fail "tokens" "secure tokens were never published to this node"
+}
+
+maintenance_agent_idle() {
+	if [ -f "$MAINTENANCE_UPGRADE_STATE_FILE" ] && grep -Eq '"phase": *"(downloading|snapshotting|installing|restarting|verifying)"' "$MAINTENANCE_UPGRADE_STATE_FILE"; then
+		return 1
+	fi
+	if [ -f "$MAINTENANCE_OS_STATE_FILE" ] && grep -Eq '"phase": *"(staging|staged|applying|rebooting|verifying)"' "$MAINTENANCE_OS_STATE_FILE"; then
+		return 1
+	fi
+	return 0
 }

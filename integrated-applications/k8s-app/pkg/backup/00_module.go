@@ -9,36 +9,20 @@ import (
 const (
 	StateKey   = "backup/state"
 	RequestKey = "backup/request"
-)
 
-const SchemaRevision = 1
+	SchemaRevision = 1
 
-const (
 	TriggerScheduled = "scheduled"
 	TriggerManual    = "manual"
-)
 
-const (
 	AttemptRunning = "running"
-	AttemptSuccess = "success"
-	AttemptFailed  = "failed"
-)
 
-const (
-	RequestPending   = "pending"
-	RequestRunning   = "running"
-	RequestCompleted = "completed"
-	RequestFailed    = "failed"
-)
-
-const (
 	hourlyTier = 48
 	dailyTier  = 14
+
+	idLayout   = "2006-01-02T15-04-05Z"
+	dateLayout = "2006-01-02"
 )
-
-const idLayout = "2006-01-02T15-04-05Z"
-
-const dateLayout = "2006-01-02"
 
 func NewId(now time.Time) string {
 	return now.UTC().Format(idLayout)

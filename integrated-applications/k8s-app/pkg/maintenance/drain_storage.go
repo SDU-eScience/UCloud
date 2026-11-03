@@ -9,6 +9,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 )
 
 func drainBlock(worker *nodeWorker, blockers []string) {
@@ -17,7 +18,7 @@ func drainBlock(worker *nodeWorker, blockers []string) {
 		strings.Join(blockers, ", "),
 	)
 	operationLogLines(worker, message)
-	finish(worker, PhaseBlocked, message)
+	finish(worker, k8sapi.MaintenancePhaseBlocked, message)
 }
 
 func drainEmptyDirBlocker(pod *corev1.Pod) string {

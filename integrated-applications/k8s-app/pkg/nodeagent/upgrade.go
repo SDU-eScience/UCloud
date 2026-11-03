@@ -35,12 +35,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/backup"
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/log"
 )
 
@@ -269,7 +271,7 @@ func runUpgrade(release string, previousState upgradeState) {
 
 	targetInstalled := fileMatchesSha256(k3sBinary, staged.Sha256)
 
-	if identityConfig.Role == shared.GroupControlPlane && !targetInstalled {
+	if identityConfig.Role == k8sapi.GroupControlPlane && !targetInstalled {
 		if err := setPhase(shared.NodeAgentPhaseSnapshotting); err != nil {
 			finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not persist the phase snapshotting: %s", err))
 			return
@@ -278,7 +280,7 @@ func runUpgrade(release string, previousState upgradeState) {
 			"Taking a control-plane snapshot",
 			progressPercentSnapshot-5,
 		)
-		snapshotPath, snapshotErr := snapshotEtcd(workerCtx)
+		snapshotPath, snapshotErr := snapshotEtcdNamed(workerCtx, etcdSnapshotName)
 		if snapshotErr != nil {
 			finishFailure(release, previousState, previousRelease, fmt.Sprintf("the etcd snapshot failed: %s", snapshotErr))
 			return
@@ -348,7 +350,7 @@ func runUpgrade(release string, previousState upgradeState) {
 		return
 	}
 
-	if identityConfig.Role == shared.GroupControlPlane {
+	if identityConfig.Role == k8sapi.GroupControlPlane {
 		startTokenPublisher()
 	}
 
@@ -525,7 +527,7 @@ func statusFromState(identityConfig Config) shared.NodeAgentStatus {
 
 func recoverInterrupted() {
 	state := stateLoad()
-	if state.Release == "" || !shared.NodeAgentPhaseActive(state.Phase) {
+	if state.Release == "" || !slices.Contains(shared.NodeAgentPhases, state.Phase) {
 		return
 	}
 
@@ -741,12 +743,8 @@ func installedVersion(ctx context.Context) string {
 // k3s binary. The agent reports the newest snapshot file that the command produced. The name carries a timestamp, so
 // the newest file is the one for this attempt.
 
-func snapshotEtcd(ctx context.Context) (string, error) {
-	return snapshotEtcdNamed(ctx, etcdSnapshotName)
-}
-
 func snapshotEtcdNamed(ctx context.Context, snapshotName string) (string, error) {
-	dir := etcdSnapshotDir()
+	dir := filepath.Join(stagingDir, "etcd-snapshots")
 	err := os.MkdirAll(dir, 0700)
 	if err != nil {
 		return "", err
@@ -786,10 +784,6 @@ func filterEtcdSnapshotOutput(output []byte) []byte {
 		filtered = append(filtered, line)
 	}
 	return []byte(strings.Join(filtered, "\n"))
-}
-
-func etcdSnapshotDir() string {
-	return filepath.Join(stagingDir, "etcd-snapshots")
 }
 
 func latestSnapshot(dir string, name string) (string, error) {
@@ -841,7 +835,7 @@ func latestSnapshot(dir string, name string) (string, error) {
 // service to become healthy.
 
 func serviceForRole(role string) string {
-	if role == shared.GroupControlPlane {
+	if role == k8sapi.GroupControlPlane {
 		return serviceControlPlane
 	}
 	if roleValid(role) {
@@ -857,7 +851,7 @@ func roleValid(role string) bool {
 	if !roleRe.MatchString(role) {
 		return false
 	}
-	return role != shared.GroupControlPlane
+	return role != k8sapi.GroupControlPlane
 }
 
 func startTokenPublisher() {
@@ -1038,7 +1032,7 @@ func verifyUpgrade(ctx context.Context, release string, role string, service str
 		)
 	}
 
-	if role == shared.GroupControlPlane {
+	if role == k8sapi.GroupControlPlane {
 		return verifyControlPlaneReadyz(ctx)
 	}
 
@@ -1104,7 +1098,7 @@ func runBackup(ctx context.Context, trigger string, attemptUid string) (shared.N
 	defer cancel()
 
 	identityConfig := identitySnapshot()
-	if identityConfig.Role != shared.GroupControlPlane {
+	if identityConfig.Role != k8sapi.GroupControlPlane {
 		return shared.NodeAgentBackupResult{}, errors.New("backups can only run on a control-plane node")
 	}
 
@@ -1254,20 +1248,12 @@ func runBackup(ctx context.Context, trigger string, attemptUid string) (shared.N
 }
 
 func readBackupStackIdentity() (string, error) {
-	data, err := os.ReadFile(filepath.Join(inputDir, "stack-identity.json"))
+	data, err := os.ReadFile(filepath.Join(inputDir, "stack-identity.txt"))
 	if err != nil {
 		return "", fmt.Errorf("could not read the stack identity: %s", err)
 	}
 
-	var identity struct {
-		StackId string `json:"stackId"`
-	}
-	err = json.Unmarshal(data, &identity)
-	if err != nil {
-		return "", fmt.Errorf("the stack identity is invalid: %s", err)
-	}
-
-	stackId := identity.StackId
+	stackId := strings.TrimSpace(string(data))
 	if stackId == "" {
 		return "", errors.New("the stack identity has no stack id")
 	}

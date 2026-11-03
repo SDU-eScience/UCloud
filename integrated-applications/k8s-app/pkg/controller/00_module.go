@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
@@ -28,6 +29,9 @@ const (
 	productCacheInterval  = 1 * time.Hour
 	domainFailureBackoff  = 5 * time.Minute
 	controllerHttpTimeout = 30 * time.Second
+
+	ingressServiceName = "k8s-ingress"
+	controllerCaPath   = "/etc/ucloud-k8s/ca/server-ca.crt"
 )
 
 var linkRegex = regexp.MustCompile(`^[a-z][a-z0-9-]{3,61}[a-z0-9]$`)
@@ -113,10 +117,6 @@ func cachedProducts[Support any](
 	return cache.Support, true
 }
 
-const ingressServiceName = "k8s-ingress"
-
-const controllerCaPath = "/etc/ucloud-k8s/ca/server-ca.crt"
-
 func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Client, token string) {
 	auth := ucxapi.StackCredentialAuth{Token: token}
 
@@ -135,7 +135,9 @@ func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Clien
 		return
 	}
 
-	owned, herr := shared.RpcGrantBrowseIngresses(client, token)
+	owned, herr := ucxapi.StackControlBrowseAll(client, token, &ucxapi.StackControlBrowseIngresses, func(next util.Option[string]) orcapi.IngressesControlBrowseRequest {
+		return orcapi.IngressesControlBrowseRequest{ItemsPerPage: 250, Next: next}
+	})
 	if herr != nil {
 		log.Warn("k8s controller: could not browse the owned public links: %s", herr)
 		return
@@ -220,7 +222,9 @@ func reconcile(ctx context.Context, k8s *kubernetes.Clientset, client *rpc.Clien
 }
 
 func ensureIngressService(client *rpc.Client, token string) (orcapi.Service, bool) {
-	services, herr := shared.RpcGrantBrowseServices(client, token)
+	services, herr := ucxapi.StackControlBrowseAll(client, token, &ucxapi.StackControlBrowseServices, func(next util.Option[string]) orcapi.ServicesControlBrowseRequest {
+		return orcapi.ServicesControlBrowseRequest{ItemsPerPage: 250, Next: next}
+	})
 	if herr != nil {
 		log.Warn("k8s controller: could not browse the stack services: %s", herr)
 		return orcapi.Service{}, false
@@ -335,7 +339,9 @@ func ensureApiServiceTls(client *rpc.Client, token string) {
 		return
 	}
 
-	services, herr := shared.RpcGrantBrowseServices(client, token)
+	services, herr := ucxapi.StackControlBrowseAll(client, token, &ucxapi.StackControlBrowseServices, func(next util.Option[string]) orcapi.ServicesControlBrowseRequest {
+		return orcapi.ServicesControlBrowseRequest{ItemsPerPage: 250, Next: next}
+	})
 	if herr != nil {
 		log.Warn("k8s controller: could not browse the stack services: %s", herr)
 		return
@@ -410,7 +416,9 @@ func syncServiceMembers(client *rpc.Client, token string, service orcapi.Service
 		return
 	}
 
-	jobs, herr := shared.RpcGrantBrowseJobs(client, token)
+	jobs, herr := ucxapi.StackControlBrowseAll(client, token, &ucxapi.StackControlBrowseJobs, func(next util.Option[string]) orcapi.JobsControlBrowseRequest {
+		return orcapi.JobsControlBrowseRequest{ItemsPerPage: 250, Next: next}
+	})
 	if herr != nil {
 		log.Warn("k8s controller: could not browse the stack jobs: %s", herr)
 		return
@@ -460,7 +468,7 @@ func syncServiceMembers(client *rpc.Client, token string, service orcapi.Service
 
 	desired := []string{}
 	for _, job := range jobs {
-		isControlPlane := job.Specification.Labels[shared.StackGroupingLabel] == shared.GroupControlPlane
+		isControlPlane := job.Specification.Labels[k8sapi.LabelNodeGroup] == k8sapi.GroupControlPlane
 		if !isControlPlane || job.Status.State.IsFinal() {
 			continue
 		}

@@ -18,10 +18,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
+	"ucloud.dk/shared/pkg/util"
 )
 
 const (
@@ -244,7 +246,7 @@ func upgradePreflight(
 			return fmt.Errorf("the version %s of node %s could not be parsed", resulting, recorded.Hostname)
 		}
 
-		if recorded.Group == shared.GroupControlPlane {
+		if recorded.Group == k8sapi.GroupControlPlane {
 			controlPlaneVersions = append(controlPlaneVersions, parsed)
 		} else {
 			workerVersions = append(workerVersions, parsed)
@@ -280,7 +282,7 @@ func upgradePreflight(
 		)
 	}
 
-	if shared.NodeAgentPhaseActive(status.Phase) {
+	if slices.Contains(shared.NodeAgentPhases, status.Phase) {
 		if status.Release != operation.TargetRelease {
 			return fmt.Errorf(
 				"node %s is already upgrading to %s",
@@ -470,7 +472,7 @@ func upgradeDriveRemote(
 	}
 	operationExecutorProgress(worker, operation.Uid, status.Progress)
 
-	if shared.NodeAgentPhaseActive(status.Phase) {
+	if slices.Contains(shared.NodeAgentPhases, status.Phase) {
 		if status.Release != operation.TargetRelease {
 			upgradeFail(operation, worker, fmt.Sprintf(
 				"node %s is already upgrading to %s",
@@ -686,7 +688,7 @@ func upgradeHealthClient(worker *nodeWorker, operation Operation, clientset *kub
 	if !known {
 		return nil, fmt.Errorf("the node %s is not part of the cluster", operation.NodeName)
 	}
-	if node.Group != shared.GroupControlPlane {
+	if node.Group != k8sapi.GroupControlPlane {
 		return clientset, nil
 	}
 	config, err := clientcmd.BuildConfigFromFlags("", filepath.Join(shared.ManagementMountPath, "kubeconfig-internal"))
@@ -709,7 +711,7 @@ func upgradeFail(operation Operation, worker *nodeWorker, message string) {
 }
 
 func upgradeFinish(operation Operation, worker *nodeWorker) {
-	finishErr := finishQuiet(worker, PhaseCompleted, "")
+	finishErr := finishQuiet(worker, k8sapi.MaintenancePhaseCompleted, "")
 	if errors.Is(finishErr, errConcluded) {
 		return
 	}
@@ -788,9 +790,8 @@ func upgradeRecordDesiredVersion(operation Operation, worker *nodeWorker) error 
 	}
 
 	record.Nodes[nodeIndex].DesiredVersion = release
-	shared.ClusterStateRecordRevisionSet(&record, snapshot.Revision)
 
-	_, writeErr := shared.ClusterStateRecordWrite(client, &record, snapshot.Revision)
+	writeErr := shared.ClusterRecordReplace(client, &record)
 	if writeErr != nil {
 		return fmt.Errorf("could not update the cluster record: %s", writeErr)
 	}
@@ -832,7 +833,9 @@ func trafficServices(worker *nodeWorker) ([]orcapi.Service, error) {
 		return nil, clientErr
 	}
 
-	services, herr := shared.RpcGrantBrowseServices(client.Rpc, client.Token)
+	services, herr := ucxapi.StackControlBrowseAll(client.Rpc, client.Token, &ucxapi.StackControlBrowseServices, func(next util.Option[string]) orcapi.ServicesControlBrowseRequest {
+		return orcapi.ServicesControlBrowseRequest{ItemsPerPage: 250, Next: next}
+	})
 	if herr != nil {
 		return nil, fmt.Errorf("could not browse the stack services: %s", herr)
 	}
@@ -996,7 +999,7 @@ func upgradeTrafficControlPlane(operation Operation, worker *nodeWorker) (bool, 
 		return false, fmt.Errorf("the node %s is not part of this cluster", operation.NodeName)
 	}
 
-	return nodeRecord.Group == shared.GroupControlPlane, nil
+	return nodeRecord.Group == k8sapi.GroupControlPlane, nil
 }
 
 func upgradeSuspendTraffic(operation Operation, worker *nodeWorker) error {

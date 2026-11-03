@@ -136,7 +136,7 @@ func (app *app) recoveryRpcStart(
 	case recoveryCredentialsUnchecked:
 		return k8sapi.RecoveryStartResponse{}, errors.New("the live cluster credentials could not be read")
 
-	case recoveryCredentialsMismatch:
+	case k8sapi.RecoveryCredentialsMismatch:
 		if !request.AcknowledgeRisk {
 			return k8sapi.RecoveryStartResponse{}, errors.New(
 				"the backup credentials differ from the cluster credentials. Use --acknowledge-risk to continue",
@@ -266,8 +266,6 @@ func (app *app) recoveryVerification(load recoveryLoadResult, mountPath string) 
 }
 
 func recoveryChooseBackup(load recoveryLoadResult, requested string) (backupEntry, error) {
-	requested = strings.TrimSpace(requested)
-
 	if requested != "" {
 		for _, entry := range load.Backups {
 			if entry.Id == requested {
@@ -315,9 +313,9 @@ func recoveryCheckInfo(result recoveryCheckResult) k8sapi.RecoveryCheckInfo {
 
 func recoveryCredentialsString(status recoveryCredentialsStatus) string {
 	switch status {
-	case recoveryCredentialsOk:
+	case k8sapi.RecoveryCredentialsOk:
 		return k8sapi.RecoveryCredentialsOk
-	case recoveryCredentialsMismatch:
+	case k8sapi.RecoveryCredentialsMismatch:
 		return k8sapi.RecoveryCredentialsMismatch
 	default:
 		return k8sapi.RecoveryCredentialsUnchecked

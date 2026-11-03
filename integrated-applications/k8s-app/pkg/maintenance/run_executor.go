@@ -2,9 +2,9 @@ package maintenance
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -15,6 +15,7 @@ import (
 
 	"ucloud.dk/iapp/k8s/pkg/backup"
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/log"
 )
 
@@ -49,7 +50,7 @@ type runAgentProbe struct {
 	err    error
 }
 
-func runSweep(ctx context.Context, kubeconfigPath string, client stackClient) error {
+func runSweep(ctx context.Context, kubeconfigPath string, client shared.RpcGrantClient) error {
 	if err := maybeStartScheduledRun(client); err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func runSweep(ctx context.Context, kubeconfigPath string, client stackClient) er
 	return nil
 }
 
-func maybeStartScheduledRun(client stackClient) error {
+func maybeStartScheduledRun(client shared.RpcGrantClient) error {
 	now := time.Now().UTC()
 
 	record, found, err := readClusterRecord()
@@ -154,7 +155,7 @@ func maybeStartScheduledRun(client stackClient) error {
 	return nil
 }
 
-func setLastWindowStart(client stackClient, windowStart time.Time) error {
+func setLastWindowStart(client shared.RpcGrantClient, windowStart time.Time) error {
 	for attempt := 0; attempt < 3; attempt++ {
 		record, err := ScheduleRead(client)
 		if err != nil {
@@ -195,7 +196,7 @@ func newRunLease(run MaintenanceRun, revision int64) *runLease {
 	}
 }
 
-func (lease *runLease) start(client stackClient) {
+func (lease *runLease) start(client shared.RpcGrantClient) {
 	go func() {
 		defer close(lease.doneCh)
 		ticker := time.NewTicker(runClaimRenewInterval)
@@ -231,7 +232,7 @@ func (lease *runLease) stop() {
 	})
 }
 
-func (lease *runLease) cancellationRequested(client stackClient) bool {
+func (lease *runLease) cancellationRequested(client shared.RpcGrantClient) bool {
 	lease.mu.Lock()
 	if lease.cancelRequested {
 		lease.mu.Unlock()
@@ -250,7 +251,7 @@ func (lease *runLease) cancellationRequested(client stackClient) bool {
 	return true
 }
 
-func (lease *runLease) write(client stackClient, run MaintenanceRun) error {
+func (lease *runLease) write(client shared.RpcGrantClient, run MaintenanceRun) error {
 	lease.mu.Lock()
 	defer lease.mu.Unlock()
 
@@ -265,7 +266,7 @@ func (lease *runLease) write(client stackClient, run MaintenanceRun) error {
 	return err
 }
 
-func (lease *runLease) finish(client stackClient, run MaintenanceRun) error {
+func (lease *runLease) finish(client shared.RpcGrantClient, run MaintenanceRun) error {
 	lease.mu.Lock()
 	defer lease.mu.Unlock()
 
@@ -278,17 +279,12 @@ func (lease *runLease) finish(client stackClient, run MaintenanceRun) error {
 	return err
 }
 
-func (lease *runLease) finishLocked(client stackClient, run MaintenanceRun) (int64, error) {
+func (lease *runLease) finishLocked(client shared.RpcGrantClient, run MaintenanceRun) (int64, error) {
 	run.FinishedAt = time.Now().UTC()
-	if run.Kind == RunKindUpdate && run.Trigger == TriggerWindow {
+	if run.Kind == RunKindUpdate && run.Trigger == k8sapi.MaintenanceTriggerWindow {
 		if err := setLastWindowStart(client, run.WindowStart); err != nil {
 			log.Warn("k8s-app maintenance: could not record the maintenance window: %s", err)
 		}
-	}
-
-	value, err := marshalRun(run)
-	if err != nil {
-		return lease.revision, err
 	}
 
 	if err := runHistoryAdd(client, run); err != nil {
@@ -299,7 +295,7 @@ func (lease *runLease) finishLocked(client stackClient, run MaintenanceRun) (int
 	if err != nil {
 		return lease.revision, err
 	}
-	_, err = shared.RpcGrantStateWrite(client, runLastKey, value, lastRecord.Revision)
+	_, err = stackValueWrite(client, runLastKey, run, lastRecord.Revision)
 	if err != nil {
 		return lease.revision, err
 	}
@@ -311,11 +307,11 @@ func (lease *runLease) finishLocked(client stackClient, run MaintenanceRun) (int
 	return lease.revision, nil
 }
 
-func advanceRun(ctx context.Context, kubeconfigPath string, client stackClient, run MaintenanceRun, revision int64) error {
+func advanceRun(ctx context.Context, kubeconfigPath string, client shared.RpcGrantClient, run MaintenanceRun, revision int64) error {
 	if RunTerminal(run) {
 		return finishRun(client, run, revision)
 	}
-	if (run.Phase == RunBlocked || run.Phase == RunFailed) && !run.CancelRequested {
+	if (run.Phase == k8sapi.MaintenanceRunBlocked || run.Phase == k8sapi.MaintenanceRunFailed) && !run.CancelRequested {
 		return nil
 	}
 
@@ -337,7 +333,7 @@ func advanceRun(ctx context.Context, kubeconfigPath string, client stackClient, 
 	}
 
 	switch run.Phase {
-	case RunPending, RunPreflight:
+	case k8sapi.MaintenanceRunPending, k8sapi.MaintenanceRunPreflight:
 		outcome, detail, preflightErr := preflightRun(ctx, kubeconfigPath, client, &run)
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -352,7 +348,7 @@ func advanceRun(ctx context.Context, kubeconfigPath string, client stackClient, 
 		}
 		switch outcome {
 		case runProceed:
-			run.Phase = RunRunning
+			run.Phase = k8sapi.MaintenanceRunRunning
 			run.Message = ""
 			run.Error = ""
 			completed, taskErr := advanceRunTasks(ctx, kubeconfigPath, client, lease, &run)
@@ -366,17 +362,17 @@ func advanceRun(ctx context.Context, kubeconfigPath string, client stackClient, 
 			if taskErr != nil {
 				runFail(&run, taskErr.Error())
 			} else if completed {
-				run.Phase = RunCompleted
+				run.Phase = k8sapi.MaintenanceRunCompleted
 			}
 		case runWait:
 			run.Message = detail
 		case runStop:
-			run.Phase = RunFailed
+			run.Phase = k8sapi.MaintenanceRunFailed
 			run.Message = ""
 			run.Error = detail
 		}
 
-	case RunBackup:
+	case k8sapi.MaintenanceRunBackup:
 		outcome, detail, backupErr := runBackupEnsure(client, &run)
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -391,18 +387,18 @@ func advanceRun(ctx context.Context, kubeconfigPath string, client stackClient, 
 		}
 		switch outcome {
 		case runProceed:
-			run.Phase = RunPreflight
+			run.Phase = k8sapi.MaintenanceRunPreflight
 			run.Message = ""
 			run.Error = ""
 		case runWait:
 			run.Message = detail
 		case runStop:
-			run.Phase = RunFailed
+			run.Phase = k8sapi.MaintenanceRunFailed
 			run.Message = ""
 			run.Error = detail
 		}
 
-	case RunRunning:
+	case k8sapi.MaintenanceRunRunning:
 		completed, taskErr := advanceRunTasks(ctx, kubeconfigPath, client, lease, &run)
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -414,10 +410,10 @@ func advanceRun(ctx context.Context, kubeconfigPath string, client stackClient, 
 		if taskErr != nil {
 			runFail(&run, taskErr.Error())
 		} else if completed {
-			run.Phase = RunCompleted
+			run.Phase = k8sapi.MaintenanceRunCompleted
 		}
 
-	case RunBlocked, RunFailed:
+	case k8sapi.MaintenanceRunBlocked, k8sapi.MaintenanceRunFailed:
 		// The run waits for an operator retry or cancel.
 
 	default:
@@ -428,7 +424,7 @@ func advanceRun(ctx context.Context, kubeconfigPath string, client stackClient, 
 		return ctx.Err()
 	}
 
-	if run.Phase == RunCompleted || run.Phase == RunCancelled {
+	if run.Phase == k8sapi.MaintenanceRunCompleted || run.Phase == k8sapi.MaintenanceRunCancelled {
 		lease.stop()
 		return lease.finish(client, run)
 	}
@@ -436,7 +432,7 @@ func advanceRun(ctx context.Context, kubeconfigPath string, client stackClient, 
 	return lease.write(client, run)
 }
 
-func claimRun(client stackClient, run MaintenanceRun, revision int64) (MaintenanceRun, int64, bool, error) {
+func claimRun(client shared.RpcGrantClient, run MaintenanceRun, revision int64) (MaintenanceRun, int64, bool, error) {
 	now := time.Now().UTC()
 	if run.ClaimUid != "" && now.Before(run.ClaimDeadline) {
 		return run, revision, false, nil
@@ -454,7 +450,7 @@ func claimRun(client stackClient, run MaintenanceRun, revision int64) (Maintenan
 	return run, newRevision, true, nil
 }
 
-func releaseRunClaim(client stackClient, run MaintenanceRun) {
+func releaseRunClaim(client shared.RpcGrantClient, run MaintenanceRun) {
 	key := runKey(run)
 
 	record, err := stackValueRead[MaintenanceRun](client, key, "maintenance run")
@@ -469,17 +465,12 @@ func releaseRunClaim(client stackClient, run MaintenanceRun) {
 	}
 }
 
-func finishRun(client stackClient, run MaintenanceRun, revision int64) error {
+func finishRun(client shared.RpcGrantClient, run MaintenanceRun, revision int64) error {
 	run.FinishedAt = time.Now().UTC()
-	if run.Kind == RunKindUpdate && run.Trigger == TriggerWindow {
+	if run.Kind == RunKindUpdate && run.Trigger == k8sapi.MaintenanceTriggerWindow {
 		if err := setLastWindowStart(client, run.WindowStart); err != nil {
 			log.Warn("k8s-app maintenance: could not record the maintenance window: %s", err)
 		}
-	}
-
-	value, err := marshalRun(run)
-	if err != nil {
-		return err
 	}
 
 	if err := runHistoryAdd(client, run); err != nil {
@@ -490,7 +481,7 @@ func finishRun(client stackClient, run MaintenanceRun, revision int64) error {
 	if err != nil {
 		return err
 	}
-	_, err = shared.RpcGrantStateWrite(client, runLastKey, value, lastRecord.Revision)
+	_, err = stackValueWrite(client, runLastKey, run, lastRecord.Revision)
 	if err != nil {
 		return err
 	}
@@ -502,13 +493,9 @@ func finishRun(client stackClient, run MaintenanceRun, revision int64) error {
 	return nil
 }
 
-func marshalRun(run MaintenanceRun) ([]byte, error) {
-	return json.Marshal(run)
-}
-
 func cancelRunExecution(
 	ctx context.Context,
-	client stackClient,
+	client shared.RpcGrantClient,
 	run *MaintenanceRun,
 	lease *runLease,
 ) error {
@@ -522,7 +509,7 @@ func cancelRunExecution(
 		taskActive := false
 		for itemIndex := range task.Items {
 			item := &task.Items[itemIndex]
-			if item.Phase != RunPending && item.Phase != RunRunning {
+			if item.Phase != k8sapi.MaintenanceRunPending && item.Phase != k8sapi.MaintenanceRunRunning {
 				continue
 			}
 
@@ -533,18 +520,18 @@ func cancelRunExecution(
 				if cancelErr != nil {
 					item.Error = cancelErr.Error()
 				}
-				item.Phase = RunRunning
+				item.Phase = k8sapi.MaintenanceRunRunning
 				taskActive = true
 				continue
 			}
 
-			item.Phase = RunCancelled
+			item.Phase = k8sapi.MaintenanceRunCancelled
 		}
-		if task.Phase != RunCompleted {
+		if task.Phase != k8sapi.MaintenanceRunCompleted {
 			if taskActive {
-				task.Phase = RunRunning
+				task.Phase = k8sapi.MaintenanceRunRunning
 			} else {
-				task.Phase = RunCancelled
+				task.Phase = k8sapi.MaintenanceRunCancelled
 			}
 		}
 	}
@@ -552,14 +539,14 @@ func cancelRunExecution(
 	active := false
 	for _, task := range run.Tasks {
 		for _, item := range task.Items {
-			if item.Phase == RunRunning {
+			if item.Phase == k8sapi.MaintenanceRunRunning {
 				active = true
 			}
 		}
 	}
 
 	if !active {
-		run.Phase = RunCancelled
+		run.Phase = k8sapi.MaintenanceRunCancelled
 		run.Message = ""
 		lease.stop()
 		return lease.finish(client, *run)
@@ -570,7 +557,7 @@ func cancelRunExecution(
 }
 
 func runFail(run *MaintenanceRun, message string) {
-	run.Phase = RunFailed
+	run.Phase = k8sapi.MaintenanceRunFailed
 	run.Message = ""
 	run.Error = message
 }
@@ -597,7 +584,7 @@ func ensureRunTasks(run *MaintenanceRun) {
 		run.Tasks = append(run.Tasks, RunTask{
 			Kind:          spec.Kind,
 			TargetRelease: spec.TargetRelease,
-			Phase:         RunPending,
+			Phase:         k8sapi.MaintenanceRunPending,
 			Options:       spec.Options,
 		})
 	}
@@ -606,7 +593,7 @@ func ensureRunTasks(run *MaintenanceRun) {
 func preflightRun(
 	ctx context.Context,
 	kubeconfigPath string,
-	client stackClient,
+	client shared.RpcGrantClient,
 	run *MaintenanceRun,
 ) (runOutcome, string, error) {
 	run.Checks = nil
@@ -699,7 +686,7 @@ func preflightRun(
 
 	for taskIndex := range run.Tasks {
 		task := &run.Tasks[taskIndex]
-		if task.Kind != TaskK8sUpgrade {
+		if task.Kind != k8sapi.MaintenanceTaskK8sUpgrade {
 			continue
 		}
 		outcome, detail, err = runPreflightKubernetes(ctx, clientset, client, record, live, run, task, targets)
@@ -714,7 +701,7 @@ func preflightRun(
 
 	for taskIndex := range run.Tasks {
 		task := &run.Tasks[taskIndex]
-		if task.Kind != TaskOsUpdate {
+		if task.Kind != k8sapi.MaintenanceTaskOsUpdate {
 			continue
 		}
 		outcome, detail = runPreflightOs(ctx, run, targets)
@@ -869,7 +856,7 @@ func runQuorumCheck(
 func runPreflightKubernetes(
 	ctx context.Context,
 	clientset *kubernetes.Clientset,
-	client stackClient,
+	client shared.RpcGrantClient,
 	record shared.ClusterRecord,
 	live map[string]*corev1.Node,
 	run *MaintenanceRun,
@@ -900,7 +887,7 @@ func runPreflightKubernetes(
 	targetRelease := task.TargetRelease
 	if targetRelease == "" {
 		if len(targets) == 1 {
-			target, ok := shared.RecommendedTarget(versionsByNode[targets[0].Hostname], now)
+			target, ok := shared.ReleaseRecommendedTargetForNode(versionsByNode[targets[0].Hostname], now)
 			if !ok {
 				guidance := shared.ClusterUpgradePathGuidance(versionsByNode, now)
 				detail := "No supported upgrade is available for this node."
@@ -932,7 +919,7 @@ func runPreflightKubernetes(
 	singleNode := len(targets) == 1
 	for _, node := range targets {
 		current := versionsByNode[node.Hostname]
-		if shared.SameRelease(current, targetRelease) {
+		if shared.ReleaseEquals(current, targetRelease) {
 			continue
 		}
 		if !shared.NodeAgentUpgradeAllowed(current, targetRelease) {
@@ -941,13 +928,13 @@ func runPreflightKubernetes(
 			return runStop, detail, nil
 		}
 		if !singleNode {
-			next, ok := shared.RecommendedTarget(current, now)
+			next, ok := shared.ReleaseRecommendedTargetForNode(current, now)
 			if !ok {
 				detail := fmt.Sprintf("Node %s has no supported upgrade path.", node.Hostname)
 				runCheck(run, "path", false, detail)
 				return runStop, detail, nil
 			}
-			if !shared.SameRelease(next.Release, targetRelease) {
+			if !shared.ReleaseEquals(next.Release, targetRelease) {
 				detail := fmt.Sprintf(
 					"Node %s should upgrade to %s, but the run targets %s.",
 					node.Hostname,
@@ -984,7 +971,7 @@ func runPreflightKubernetes(
 			runCheck(run, "versions", false, detail)
 			return runStop, detail, nil
 		}
-		if node.Group == shared.GroupControlPlane {
+		if node.Group == k8sapi.GroupControlPlane {
 			projectedControlPlanes = append(projectedControlPlanes, parsed)
 		} else {
 			projectedWorkers = append(projectedWorkers, parsed)
@@ -1024,12 +1011,12 @@ func runPreflightKubernetes(
 			runCheck(run, "agents", false, detail)
 			return runStop, detail, nil
 		}
-		if shared.NodeAgentPhaseActive(probe.status.Phase) {
+		if slices.Contains(shared.NodeAgentPhases, probe.status.Phase) {
 			detail := fmt.Sprintf("Node %s is busy with another maintenance operation.", probe.node.Hostname)
 			runCheck(run, "agents", false, detail)
 			return runWait, detail, nil
 		}
-		if probe.status.Phase == shared.NodeAgentPhaseFailed && !shared.SameRelease(probe.status.Release, targetRelease) {
+		if probe.status.Phase == shared.NodeAgentPhaseFailed && !shared.ReleaseEquals(probe.status.Release, targetRelease) {
 			detail := fmt.Sprintf("An upgrade to %s failed on node %s. The target does not match.", probe.status.Release, probe.node.Hostname)
 			runCheck(run, "agents", false, detail)
 			return runStop, detail, nil
@@ -1053,7 +1040,7 @@ func runRecommendedClusterTarget(versions map[string]string, now time.Time) (str
 	for _, value := range versions {
 		values = append(values, value)
 	}
-	target, ok := shared.RecommendedClusterTarget(values, now)
+	target, ok := shared.ReleaseRecommendedTargetForCluster(values, now)
 	if !ok {
 		guidance := shared.ClusterUpgradePathGuidance(versions, now)
 		if len(guidance) > 0 {
@@ -1111,13 +1098,13 @@ func runTargetNodes(record shared.ClusterRecord, run *MaintenanceRun) ([]shared.
 	strict := true
 	if run.Kind == RunKindNodeAction &&
 		len(run.Effective.Tasks) > 0 &&
-		run.Effective.Tasks[0].Kind == TaskRemove {
+		run.Effective.Tasks[0].Kind == k8sapi.MaintenanceTaskRemove {
 		strict = false
 	}
 	return targetNodes(record, run.Effective, strict)
 }
 
-func runBackupEnsure(client stackClient, run *MaintenanceRun) (runOutcome, string, error) {
+func runBackupEnsure(client shared.RpcGrantClient, run *MaintenanceRun) (runOutcome, string, error) {
 	if run.StartedAt.IsZero() {
 		run.StartedAt = time.Now().UTC()
 	}
@@ -1142,22 +1129,22 @@ func runBackupEnsure(client stackClient, run *MaintenanceRun) (runOutcome, strin
 
 	if run.BackupConfirmed {
 		runCheckReplace(run, "backup", true, "A backup from this run is available.")
-		if run.Phase == RunBackup {
-			run.Phase = RunPreflight
+		if run.Phase == k8sapi.MaintenanceRunBackup {
+			run.Phase = k8sapi.MaintenanceRunPreflight
 		}
 		return runProceed, "", nil
 	}
 
-	scheduledFresh := run.Trigger == TriggerWindow &&
+	scheduledFresh := run.Trigger == k8sapi.MaintenanceTriggerWindow &&
 		stateRecord.Found &&
-		state.LastSuccess.Phase == backup.AttemptSuccess &&
+		state.LastSuccess.Phase == k8sapi.BackupAttemptSuccess &&
 		!state.LastSuccess.FinishedAt.IsZero() &&
 		now.Sub(state.LastSuccess.FinishedAt) <= maxAge
 	if scheduledFresh {
 		run.BackupConfirmed = true
 		runCheckReplace(run, "backup", true, "A recent backup is available.")
-		if run.Phase == RunBackup {
-			run.Phase = RunPreflight
+		if run.Phase == k8sapi.MaintenanceRunBackup {
+			run.Phase = k8sapi.MaintenanceRunPreflight
 		}
 		return runProceed, "", nil
 	}
@@ -1166,7 +1153,7 @@ func runBackupEnsure(client stackClient, run *MaintenanceRun) (runOutcome, strin
 	ownRequest := ownByUid || (run.BackupRequestUid == "" &&
 		requestRecord.Found &&
 		request.Requester == runBackupRequester(run) &&
-		request.Phase != backup.RequestFailed)
+		request.Phase != k8sapi.BackupRequestFailed)
 	if run.BackupRequestUid != "" && !ownByUid {
 		run.BackupRequestUid = ""
 	}
@@ -1176,21 +1163,21 @@ func runBackupEnsure(client stackClient, run *MaintenanceRun) (runOutcome, strin
 			run.BackupRequestUid = request.Uid
 		}
 		switch request.Phase {
-		case backup.RequestPending, backup.RequestRunning:
+		case k8sapi.BackupRequestPending, k8sapi.BackupRequestRunning:
 			detail := "Waiting for the requested backup to finish."
 			runCheckReplace(run, "backup", false, detail)
-			run.Phase = RunBackup
+			run.Phase = k8sapi.MaintenanceRunBackup
 			return runWait, detail, nil
 
-		case backup.RequestCompleted:
+		case k8sapi.BackupRequestCompleted:
 			run.BackupConfirmed = true
 			runCheckReplace(run, "backup", true, "The requested backup is available.")
-			if run.Phase == RunBackup {
-				run.Phase = RunPreflight
+			if run.Phase == k8sapi.MaintenanceRunBackup {
+				run.Phase = k8sapi.MaintenanceRunPreflight
 			}
 			return runProceed, "", nil
 
-		case backup.RequestFailed:
+		case k8sapi.BackupRequestFailed:
 			message := request.Error
 			if message == "" {
 				message = "no reason was recorded"
@@ -1202,17 +1189,17 @@ func runBackupEnsure(client stackClient, run *MaintenanceRun) (runOutcome, strin
 	}
 
 	if requestRecord.Found && request.Uid != "" &&
-		(request.Phase == backup.RequestPending || request.Phase == backup.RequestRunning) {
+		(request.Phase == k8sapi.BackupRequestPending || request.Phase == k8sapi.BackupRequestRunning) {
 		detail := "Waiting for another backup request to finish before requesting a new backup."
 		runCheckReplace(run, "backup", false, detail)
-		run.Phase = RunBackup
+		run.Phase = k8sapi.MaintenanceRunBackup
 		return runWait, detail, nil
 	}
 
 	if stateRecord.Found && state.ClaimUid != "" && now.Before(state.ClaimDeadline) {
 		detail := "Waiting for a running backup to finish."
 		runCheckReplace(run, "backup", false, detail)
-		run.Phase = RunBackup
+		run.Phase = k8sapi.MaintenanceRunBackup
 		return runWait, detail, nil
 	}
 
@@ -1221,14 +1208,14 @@ func runBackupEnsure(client stackClient, run *MaintenanceRun) (runOutcome, strin
 		Uid:            shared.NewUid(),
 		Requester:      runBackupRequester(run),
 		RequestedAt:    now,
-		Phase:          backup.RequestPending,
+		Phase:          k8sapi.BackupRequestPending,
 	}
 	_, writeErr := backupRequestWrite(client, newRequest, requestRecord.Revision)
 	if writeErr != nil {
 		if shared.IsConflict(writeErr) {
 			detail := "The backup state changed while requesting a backup. Retrying."
 			runCheckReplace(run, "backup", false, detail)
-			run.Phase = RunBackup
+			run.Phase = k8sapi.MaintenanceRunBackup
 			return runWait, detail, nil
 		}
 		return runStop, "could not request a backup", writeErr
@@ -1237,7 +1224,7 @@ func runBackupEnsure(client stackClient, run *MaintenanceRun) (runOutcome, strin
 	run.BackupRequestUid = newRequest.Uid
 	detail := "A backup was requested. Waiting for it to finish."
 	runCheckReplace(run, "backup", false, detail)
-	run.Phase = RunBackup
+	run.Phase = k8sapi.MaintenanceRunBackup
 	return runWait, detail, nil
 }
 
@@ -1248,7 +1235,7 @@ func runBackupRequester(run *MaintenanceRun) string {
 func advanceRunTasks(
 	ctx context.Context,
 	kubeconfigPath string,
-	client stackClient,
+	client shared.RpcGrantClient,
 	lease *runLease,
 	run *MaintenanceRun,
 ) (bool, error) {
@@ -1256,14 +1243,14 @@ func advanceRunTasks(
 
 	for taskIndex := range run.Tasks {
 		task := &run.Tasks[taskIndex]
-		if task.Phase == RunCompleted {
+		if task.Phase == k8sapi.MaintenanceRunCompleted {
 			continue
 		}
 		if lease.cancellationRequested(client) {
 			run.CancelRequested = true
 			return false, nil
 		}
-		if task.Phase == RunFailed || task.Phase == RunBlocked {
+		if task.Phase == k8sapi.MaintenanceRunFailed || task.Phase == k8sapi.MaintenanceRunBlocked {
 			run.Phase = task.Phase
 			run.Message = ""
 			if run.Error == "" {
@@ -1271,7 +1258,7 @@ func advanceRunTasks(
 			}
 			return false, nil
 		}
-		if task.Phase == RunCancelled {
+		if task.Phase == k8sapi.MaintenanceRunCancelled {
 			if run.CancelRequested {
 				return false, nil
 			}
@@ -1279,7 +1266,7 @@ func advanceRunTasks(
 			return false, nil
 		}
 
-		if task.Phase == RunPending {
+		if task.Phase == k8sapi.MaintenanceRunPending {
 			if err := startRunTask(ctx, kubeconfigPath, run, task); err != nil {
 				var waitErr *runTaskWaitError
 				if errors.As(err, &waitErr) {
@@ -1288,8 +1275,8 @@ func advanceRunTasks(
 				}
 				return false, err
 			}
-			if task.Phase == RunFailed {
-				run.Phase = RunFailed
+			if task.Phase == k8sapi.MaintenanceRunFailed {
+				run.Phase = k8sapi.MaintenanceRunFailed
 				run.Message = ""
 				if run.Error == "" {
 					run.Error = "a maintenance task could not start"
@@ -1298,15 +1285,15 @@ func advanceRunTasks(
 			}
 		}
 
-		if task.Phase == RunRunning {
+		if task.Phase == k8sapi.MaintenanceRunRunning {
 			if err := advanceRunTask(ctx, kubeconfigPath, client, lease, run, task); err != nil {
 				return false, err
 			}
-			if task.Phase == RunFailed {
-				run.Phase = RunFailed
+			if task.Phase == k8sapi.MaintenanceRunFailed {
+				run.Phase = k8sapi.MaintenanceRunFailed
 				return false, nil
 			}
-			if task.Phase != RunCompleted {
+			if task.Phase != k8sapi.MaintenanceRunCompleted {
 				return false, nil
 			}
 		}
@@ -1342,7 +1329,7 @@ func startRunTask(ctx context.Context, kubeconfigPath string, run *MaintenanceRu
 		return targetErr
 	}
 
-	if task.Kind == TaskOsUpdate && len(run.osProbes) == 0 && len(targets) > 0 {
+	if task.Kind == k8sapi.MaintenanceTaskOsUpdate && len(run.osProbes) == 0 && len(targets) > 0 {
 		probes := runProbeOsNodes(ctx, targets)
 		for _, probe := range probes {
 			if probe.err != nil {
@@ -1361,7 +1348,7 @@ func startRunTask(ctx context.Context, kubeconfigPath string, run *MaintenanceRu
 
 	completedItems := map[string]RunItem{}
 	for _, item := range task.Items {
-		if item.Phase == RunCompleted {
+		if item.Phase == k8sapi.MaintenanceRunCompleted {
 			completedItems[runItemKey(item, task.TargetRelease)] = item
 		}
 	}
@@ -1375,61 +1362,61 @@ func startRunTask(ctx context.Context, kubeconfigPath string, run *MaintenanceRu
 	}
 
 	switch task.Kind {
-	case TaskK8sUpgrade:
+	case k8sapi.MaintenanceTaskK8sUpgrade:
 		for _, node := range targets {
-			item := RunItem{NodeName: node.Hostname, Group: node.Group, Phase: RunPending}
+			item := RunItem{NodeName: node.Hostname, Group: node.Group, Phase: k8sapi.MaintenanceRunPending}
 			liveNode, known := live[node.Hostname]
 			if !known {
-				item.Phase = RunFailed
+				item.Phase = k8sapi.MaintenanceRunFailed
 				item.Error = "the node is missing from Kubernetes"
 			} else {
 				item.NodeUid = string(liveNode.UID)
-				if shared.SameRelease(liveNode.Status.NodeInfo.KubeletVersion, task.TargetRelease) {
-					item.Phase = RunCompleted
+				if shared.ReleaseEquals(liveNode.Status.NodeInfo.KubeletVersion, task.TargetRelease) {
+					item.Phase = k8sapi.MaintenanceRunCompleted
 				}
 			}
 			appendItem(item)
 		}
 
-	case TaskOsUpdate:
+	case k8sapi.MaintenanceTaskOsUpdate:
 		for _, node := range targets {
-			item := RunItem{NodeName: node.Hostname, Group: node.Group, Phase: RunPending}
+			item := RunItem{NodeName: node.Hostname, Group: node.Group, Phase: k8sapi.MaintenanceRunPending}
 			liveNode, known := live[node.Hostname]
 			if !known {
-				item.Phase = RunFailed
+				item.Phase = k8sapi.MaintenanceRunFailed
 				item.Error = "the node is missing from Kubernetes"
 			} else {
 				item.NodeUid = string(liveNode.UID)
 				status, checked := run.osProbes[node.Hostname]
 				if !checked {
-					item.Phase = RunFailed
+					item.Phase = k8sapi.MaintenanceRunFailed
 					item.Error = "the operating-system update check did not complete"
 				} else if status.NeedsStateRecovery {
-					item.Phase = RunFailed
+					item.Phase = k8sapi.MaintenanceRunFailed
 					item.Error = "the operating-system update state requires recovery"
 				} else if status.NodeName != node.Hostname {
-					item.Phase = RunFailed
+					item.Phase = k8sapi.MaintenanceRunFailed
 					item.Error = "the maintenance service reported a different node name"
 				} else if status.CheckError != "" {
-					item.Phase = RunFailed
+					item.Phase = k8sapi.MaintenanceRunFailed
 					item.Error = status.CheckError
 				} else if status.Pending == 0 && !status.RebootRequired {
-					item.Phase = RunCompleted
+					item.Phase = k8sapi.MaintenanceRunCompleted
 				}
 			}
 			appendItem(item)
 		}
 
-	case TaskCordon, TaskUncordon, TaskRemove:
-		if task.Kind != TaskRemove && len(targets) != 1 {
+	case k8sapi.MaintenanceTaskCordon, k8sapi.MaintenanceTaskUncordon, k8sapi.MaintenanceTaskRemove:
+		if task.Kind != k8sapi.MaintenanceTaskRemove && len(targets) != 1 {
 			return errors.New("a node action requires exactly one node")
 		}
 		for _, node := range targets {
-			item := RunItem{NodeName: node.Hostname, Group: node.Group, Phase: RunPending}
+			item := RunItem{NodeName: node.Hostname, Group: node.Group, Phase: k8sapi.MaintenanceRunPending}
 			if liveNode, known := live[node.Hostname]; known {
 				item.NodeUid = string(liveNode.UID)
-			} else if task.Kind != TaskRemove {
-				item.Phase = RunFailed
+			} else if task.Kind != k8sapi.MaintenanceTaskRemove {
+				item.Phase = k8sapi.MaintenanceRunFailed
 				item.Error = "the node is missing from Kubernetes"
 			}
 			appendItem(item)
@@ -1439,11 +1426,11 @@ func startRunTask(ctx context.Context, kubeconfigPath string, run *MaintenanceRu
 		return fmt.Errorf("the maintenance task %s is not supported", task.Kind)
 	}
 
-	task.Phase = RunRunning
+	task.Phase = k8sapi.MaintenanceRunRunning
 	for _, item := range task.Items {
-		if item.Phase == RunFailed {
-			task.Phase = RunFailed
-			run.Phase = RunFailed
+		if item.Phase == k8sapi.MaintenanceRunFailed {
+			task.Phase = k8sapi.MaintenanceRunFailed
+			run.Phase = k8sapi.MaintenanceRunFailed
 			run.Message = ""
 			run.Error = item.Error
 			return nil
@@ -1451,13 +1438,13 @@ func startRunTask(ctx context.Context, kubeconfigPath string, run *MaintenanceRu
 	}
 	allCompleted := true
 	for _, item := range task.Items {
-		if item.Phase != RunCompleted {
+		if item.Phase != k8sapi.MaintenanceRunCompleted {
 			allCompleted = false
 			break
 		}
 	}
 	if allCompleted {
-		task.Phase = RunCompleted
+		task.Phase = k8sapi.MaintenanceRunCompleted
 	}
 	return nil
 }
@@ -1465,7 +1452,7 @@ func startRunTask(ctx context.Context, kubeconfigPath string, run *MaintenanceRu
 func advanceRunTask(
 	ctx context.Context,
 	kubeconfigPath string,
-	client stackClient,
+	client shared.RpcGrantClient,
 	lease *runLease,
 	run *MaintenanceRun,
 	task *RunTask,
@@ -1477,36 +1464,36 @@ func advanceRunTask(
 
 	for itemIndex := range task.Items {
 		item := &task.Items[itemIndex]
-		if item.Phase != RunRunning {
+		if item.Phase != k8sapi.MaintenanceRunRunning {
 			continue
 		}
 
 		operation, found := snapshot[item.NodeName]
 		if found && operation.Uid == item.OperationUid {
 			switch operation.Phase {
-			case PhaseCompleted:
-				item.Phase = RunCompleted
-			case PhaseFailed, PhaseBlocked:
-				item.Phase = RunFailed
+			case k8sapi.MaintenancePhaseCompleted:
+				item.Phase = k8sapi.MaintenanceRunCompleted
+			case k8sapi.MaintenancePhaseFailed, k8sapi.MaintenancePhaseBlocked:
+				item.Phase = k8sapi.MaintenanceRunFailed
 				item.Error = operation.Error
-				task.Phase = RunFailed
-				run.Phase = RunFailed
+				task.Phase = k8sapi.MaintenanceRunFailed
+				run.Phase = k8sapi.MaintenanceRunFailed
 				run.Message = ""
 				run.Error = fmt.Sprintf("%s of %s failed: %s", task.Kind, item.NodeName, operation.Error)
 				return nil
-			case PhaseCancelled:
-				item.Phase = RunCancelled
+			case k8sapi.MaintenancePhaseCancelled:
+				item.Phase = k8sapi.MaintenanceRunCancelled
 			}
 			continue
 		}
 
-		if task.Kind == TaskRemove {
+		if task.Kind == k8sapi.MaintenanceTaskRemove {
 			record, recordFound, recordErr := readClusterRecord()
 			if recordErr != nil {
 				return recordErr
 			}
 			if recordFound && !clusterRecordHasNode(record, item.NodeName) {
-				item.Phase = RunCompleted
+				item.Phase = k8sapi.MaintenanceRunCompleted
 				continue
 			}
 		}
@@ -1515,10 +1502,10 @@ func advanceRunTask(
 			if item.StartedAt.IsZero() || time.Since(item.StartedAt) < 30*time.Second {
 				continue
 			}
-			item.Phase = RunFailed
+			item.Phase = k8sapi.MaintenanceRunFailed
 			item.Error = "the maintenance operation record is missing"
-			task.Phase = RunFailed
-			run.Phase = RunFailed
+			task.Phase = k8sapi.MaintenanceRunFailed
+			run.Phase = k8sapi.MaintenanceRunFailed
 			run.Message = ""
 			run.Error = item.Error
 			return nil
@@ -1526,14 +1513,14 @@ func advanceRunTask(
 	}
 
 	for _, item := range task.Items {
-		if item.Phase == RunCancelled && !run.CancelRequested {
+		if item.Phase == k8sapi.MaintenanceRunCancelled && !run.CancelRequested {
 			runFail(run, "a maintenance operation was cancelled outside of the maintenance run")
 			return nil
 		}
 	}
 
 	if runTaskFailed(task) {
-		run.Phase = RunFailed
+		run.Phase = k8sapi.MaintenanceRunFailed
 		run.Message = ""
 		return nil
 	}
@@ -1541,9 +1528,9 @@ func advanceRunTask(
 	groupActive := map[string]int{}
 	controlPlaneRunning := false
 	for _, item := range task.Items {
-		if item.Phase == RunRunning {
+		if item.Phase == k8sapi.MaintenanceRunRunning {
 			groupActive[item.Group]++
-			if item.Group == shared.GroupControlPlane {
+			if item.Group == k8sapi.GroupControlPlane {
 				controlPlaneRunning = true
 			}
 		}
@@ -1551,7 +1538,7 @@ func advanceRunTask(
 
 	controlPlaneDone := true
 	for _, item := range task.Items {
-		if item.Group == shared.GroupControlPlane && item.Phase != RunCompleted && item.Phase != RunCancelled {
+		if item.Group == k8sapi.GroupControlPlane && item.Phase != k8sapi.MaintenanceRunCompleted && item.Phase != k8sapi.MaintenanceRunCancelled {
 			controlPlaneDone = false
 			break
 		}
@@ -1559,17 +1546,17 @@ func advanceRunTask(
 
 	for itemIndex := range task.Items {
 		item := &task.Items[itemIndex]
-		if item.Phase != RunPending {
+		if item.Phase != k8sapi.MaintenanceRunPending {
 			continue
 		}
-		if item.Group != shared.GroupControlPlane && !controlPlaneDone {
+		if item.Group != k8sapi.GroupControlPlane && !controlPlaneDone {
 			continue
 		}
 		limit := run.Effective.MaxParallelPerGroup
 		if limit <= 0 {
 			limit = 1
 		}
-		if item.Group == shared.GroupControlPlane {
+		if item.Group == k8sapi.GroupControlPlane {
 			limit = 1
 			if controlPlaneRunning {
 				continue
@@ -1588,13 +1575,13 @@ func advanceRunTask(
 			return err
 		}
 		groupActive[item.Group]++
-		if item.Group == shared.GroupControlPlane {
+		if item.Group == k8sapi.GroupControlPlane {
 			controlPlaneRunning = true
 		}
 	}
 
 	if runTaskFailed(task) {
-		run.Phase = RunFailed
+		run.Phase = k8sapi.MaintenanceRunFailed
 		run.Message = ""
 		return nil
 	}
@@ -1603,20 +1590,20 @@ func advanceRunTask(
 	allCompleted := true
 	for _, item := range task.Items {
 		switch item.Phase {
-		case RunCompleted:
-		case RunCancelled:
+		case k8sapi.MaintenanceRunCompleted:
+		case k8sapi.MaintenanceRunCancelled:
 		default:
 			terminal = false
 		}
-		if item.Phase != RunCompleted {
+		if item.Phase != k8sapi.MaintenanceRunCompleted {
 			allCompleted = false
 		}
 	}
 	if allCompleted {
-		task.Phase = RunCompleted
+		task.Phase = k8sapi.MaintenanceRunCompleted
 	} else if terminal {
 		if run.CancelRequested {
-			task.Phase = RunCancelled
+			task.Phase = k8sapi.MaintenanceRunCancelled
 		} else {
 			runFail(run, "a maintenance operation was cancelled outside of the maintenance run")
 		}
@@ -1626,7 +1613,7 @@ func advanceRunTask(
 
 func runTaskFailed(task *RunTask) bool {
 	for _, item := range task.Items {
-		if item.Phase == RunFailed {
+		if item.Phase == k8sapi.MaintenanceRunFailed {
 			return true
 		}
 	}
@@ -1636,7 +1623,7 @@ func runTaskFailed(task *RunTask) bool {
 func startRunItem(
 	ctx context.Context,
 	kubeconfigPath string,
-	client stackClient,
+	client shared.RpcGrantClient,
 	lease *runLease,
 	run *MaintenanceRun,
 	task *RunTask,
@@ -1656,7 +1643,7 @@ func startRunItem(
 	}
 
 	nodeUid := item.NodeUid
-	if nodeUid == "" && task.Kind != TaskRemove {
+	if nodeUid == "" && task.Kind != k8sapi.MaintenanceTaskRemove {
 		clientset, clientErr := newClient(kubeconfigPath)
 		if clientErr != nil {
 			return clientErr
@@ -1686,22 +1673,22 @@ func startRunItem(
 		return submitErr
 	}
 	item.OperationUid = operationUid
-	item.Phase = RunRunning
+	item.Phase = k8sapi.MaintenanceRunRunning
 	item.StartedAt = time.Now().UTC()
 	return lease.write(client, *run)
 }
 
 func runTaskOperationKind(taskKind string) (string, error) {
 	switch taskKind {
-	case TaskK8sUpgrade:
+	case k8sapi.MaintenanceTaskK8sUpgrade:
 		return KindUpgrade, nil
-	case TaskOsUpdate:
+	case k8sapi.MaintenanceTaskOsUpdate:
 		return KindOsUpdate, nil
-	case TaskCordon:
+	case k8sapi.MaintenanceTaskCordon:
 		return KindCordon, nil
-	case TaskUncordon:
+	case k8sapi.MaintenanceTaskUncordon:
 		return KindUncordon, nil
-	case TaskRemove:
+	case k8sapi.MaintenanceTaskRemove:
 		return KindRemove, nil
 	default:
 		return "", fmt.Errorf("the maintenance task %s is not supported", taskKind)
@@ -1709,7 +1696,7 @@ func runTaskOperationKind(taskKind string) (string, error) {
 }
 
 func runAdoptOperation(
-	client stackClient,
+	client shared.RpcGrantClient,
 	run *MaintenanceRun,
 	task *RunTask,
 	item *RunItem,
@@ -1725,21 +1712,21 @@ func runAdoptOperation(
 	if item.NodeUid != "" && record.Value.NodeUid != "" && record.Value.NodeUid != item.NodeUid {
 		return false, nil
 	}
-	if task.Kind == TaskK8sUpgrade && record.Value.TargetRelease != task.TargetRelease {
+	if task.Kind == k8sapi.MaintenanceTaskK8sUpgrade && record.Value.TargetRelease != task.TargetRelease {
 		return false, nil
 	}
 
 	operation := record.Value
 	switch operation.Phase {
-	case PhaseCompleted:
+	case k8sapi.MaintenancePhaseCompleted:
 		item.OperationUid = operation.Uid
 		item.StartedAt = operation.StartedAt
-		item.Phase = RunCompleted
+		item.Phase = k8sapi.MaintenanceRunCompleted
 		return true, nil
-	case PhasePending, PhaseRunning:
+	case k8sapi.MaintenancePhasePending, k8sapi.MaintenancePhaseRunning:
 		item.OperationUid = operation.Uid
 		item.StartedAt = operation.StartedAt
-		item.Phase = RunRunning
+		item.Phase = k8sapi.MaintenanceRunRunning
 		return true, nil
 	default:
 		return false, nil

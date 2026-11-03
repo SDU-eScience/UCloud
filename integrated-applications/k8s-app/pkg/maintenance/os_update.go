@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/log"
 )
 
@@ -166,7 +168,7 @@ func osUpdatePreflight(ctx context.Context, clientset *kubernetes.Clientset, ope
 	if upgradeStatusErr != nil {
 		return fmt.Errorf("could not check the upgrade status of node %s: %s", nodeName, upgradeStatusErr)
 	}
-	if shared.NodeAgentPhaseActive(upgradeStatus.Phase) {
+	if slices.Contains(shared.NodeAgentPhases, upgradeStatus.Phase) {
 		return fmt.Errorf("an upgrade is running on %s", nodeName)
 	}
 
@@ -202,7 +204,7 @@ func osUpdateStage(ctx context.Context, operation Operation, worker *nodeWorker)
 					"the node already installed the update. Retry the update to run it again",
 				)
 			}
-			if shared.NodeAgentOsPhaseActive(status.Phase) {
+			if slices.Contains(shared.NodeAgentOsPhases, status.Phase) {
 				if !owned || status.Phase != shared.NodeAgentOsPhaseStaging {
 					return false, errors.New("an OS update is already running on the node")
 				}
@@ -265,7 +267,7 @@ func osUpdateDriveRemote(
 		return true
 	}
 
-	if shared.NodeAgentOsPhaseActive(status.Phase) {
+	if slices.Contains(shared.NodeAgentOsPhases, status.Phase) {
 		operationExecutorProgress(worker, operation.Uid, status.Progress)
 		operationLogStage(
 			worker,
@@ -515,7 +517,7 @@ func osUpdateFail(operation Operation, worker *nodeWorker, message string) {
 }
 
 func osUpdateFinish(operation Operation, worker *nodeWorker) {
-	finishErr := finishQuiet(worker, PhaseCompleted, "")
+	finishErr := finishQuiet(worker, k8sapi.MaintenancePhaseCompleted, "")
 	if errors.Is(finishErr, errConcluded) {
 		return
 	}

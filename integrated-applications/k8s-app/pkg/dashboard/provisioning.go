@@ -93,10 +93,6 @@ func provisioningResolve(
 	return result
 }
 
-func (app *stackUiApp) provisioningSnapshot() []provisioningEntry {
-	return app.provisioningCache
-}
-
 func (app *stackUiApp) provisioningClient() *K8sClient {
 	app.mu.Lock()
 	client := app.k8sClient
@@ -298,7 +294,7 @@ func (app *stackUiApp) provisioningResourceRows(def ResourceTypeDef) []ResourceR
 	rows := make([]ResourceRow, 0, len(entries))
 	for _, entry := range entries {
 		role := ""
-		if entry.Group == shared.GroupControlPlane {
+		if entry.Group == k8sapi.GroupControlPlane {
 			role = "control-plane"
 		}
 		rows = append(rows, ResourceRow{
@@ -321,5 +317,5 @@ func (app *stackUiApp) provisioningJobId(hostname string) string {
 
 func (app *stackUiApp) clusterReadyForNodes() bool {
 	record, ok := app.readClusterRecord()
-	return ok && record.Phase == shared.ClusterRecordPhaseCreated && len(record.PendingCleanup) == 0
+	return ok && record.Phase == k8sapi.ClusterPhaseCreated && len(record.PendingCleanup) == 0
 }

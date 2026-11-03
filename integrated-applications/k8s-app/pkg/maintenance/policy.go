@@ -1,12 +1,12 @@
 package maintenance
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -18,12 +18,6 @@ const (
 
 	defaultStartHour    = 2
 	defaultMaxBackupAge = time.Hour
-)
-
-const (
-	PreparationNone   = "none"
-	PreparationCordon = "cordon"
-	PreparationDrain  = "drain"
 )
 
 var windowDays = map[string]time.Weekday{
@@ -74,11 +68,11 @@ func DefaultPolicy() Policy {
 			StartHourUtc: defaultStartHour,
 		},
 		Kubernetes: TaskPolicy{
-			TimeoutSeconds: defaultTimeoutSeconds,
+			TimeoutSeconds: k8sapi.MaintenanceTimeoutDefault,
 			MaxBackupAge:   defaultMaxBackupAge,
 		},
 		Os: TaskPolicy{
-			TimeoutSeconds: defaultTimeoutSeconds,
+			TimeoutSeconds: k8sapi.MaintenanceTimeoutDefault,
 		},
 	}
 }
@@ -101,8 +95,8 @@ func PolicyNormalize(policy Policy) Policy {
 }
 
 func normalizeTaskPolicy(policy TaskPolicy) TaskPolicy {
-	if policy.TimeoutSeconds < timeoutMinSeconds || policy.TimeoutSeconds > timeoutMaxSeconds {
-		policy.TimeoutSeconds = defaultTimeoutSeconds
+	if policy.TimeoutSeconds < k8sapi.MaintenanceTimeoutMin || policy.TimeoutSeconds > k8sapi.MaintenanceTimeoutMax {
+		policy.TimeoutSeconds = k8sapi.MaintenanceTimeoutDefault
 	}
 	if policy.MaxBackupAge <= 0 {
 		policy.MaxBackupAge = defaultMaxBackupAge
@@ -111,19 +105,19 @@ func normalizeTaskPolicy(policy TaskPolicy) TaskPolicy {
 }
 
 func DayValid(day string) bool {
-	_, ok := windowDays[strings.ToLower(strings.TrimSpace(day))]
+	_, ok := windowDays[day]
 	return ok
 }
 
 func PreparationValid(preparation string) bool {
 	switch preparation {
-	case PreparationNone, PreparationCordon, PreparationDrain:
+	case k8sapi.MaintenancePreparationNone, k8sapi.MaintenancePreparationCordon, k8sapi.MaintenancePreparationDrain:
 		return true
 	}
 	return false
 }
 
-func PolicyRead(client stackClient) (stackValue[Policy], error) {
+func PolicyRead(client shared.RpcGrantClient) (stackValue[Policy], error) {
 	record, err := stackValueRead[Policy](client, PolicyKey, "maintenance policy")
 	if err != nil {
 		return stackValue[Policy]{}, err
@@ -134,24 +128,16 @@ func PolicyRead(client stackClient) (stackValue[Policy], error) {
 	return record, nil
 }
 
-func PolicyWrite(client stackClient, policy Policy, expectedRevision int64) (int64, error) {
-	value, err := json.Marshal(PolicyNormalize(policy))
-	if err != nil {
-		return 0, err
-	}
-	return shared.RpcGrantStateWrite(client, PolicyKey, value, expectedRevision)
+func PolicyWrite(client shared.RpcGrantClient, policy Policy, expectedRevision int64) (int64, error) {
+	return stackValueWrite(client, PolicyKey, PolicyNormalize(policy), expectedRevision)
 }
 
-func ScheduleRead(client stackClient) (stackValue[ScheduleState], error) {
+func ScheduleRead(client shared.RpcGrantClient) (stackValue[ScheduleState], error) {
 	return stackValueRead[ScheduleState](client, ScheduleKey, "maintenance schedule")
 }
 
-func ScheduleWrite(client stackClient, state ScheduleState, expectedRevision int64) (int64, error) {
-	value, err := json.Marshal(state)
-	if err != nil {
-		return 0, err
-	}
-	return shared.RpcGrantStateWrite(client, ScheduleKey, value, expectedRevision)
+func ScheduleWrite(client shared.RpcGrantClient, state ScheduleState, expectedRevision int64) (int64, error) {
+	return stackValueWrite(client, ScheduleKey, state, expectedRevision)
 }
 
 func ApplyPolicyUpdate(patch PolicyPatch) error {

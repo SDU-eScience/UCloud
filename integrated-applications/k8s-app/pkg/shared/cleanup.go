@@ -6,9 +6,12 @@ import (
 	"net/http"
 	"time"
 
+	fnd "ucloud.dk/shared/pkg/foundation"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -75,7 +78,7 @@ func clusterCleanupSweep(client ClusterStateClient, ops clusterCleanupOps) error
 		return nil
 	}
 
-	if len(snapshot.Record.PendingCleanup) == 0 && snapshot.Record.Phase != ClusterRecordPhaseCleanup {
+	if len(snapshot.Record.PendingCleanup) == 0 && snapshot.Record.Phase != k8sapi.ClusterPhaseCleanup {
 		return nil
 	}
 
@@ -89,10 +92,10 @@ func clusterCleanupSweep(client ClusterStateClient, ops clusterCleanupOps) error
 
 	if len(snapshot.Record.PendingCleanup) == 0 {
 		return ClusterRecordUpdate(client, func(record *ClusterRecord) bool {
-			if record.Phase != ClusterRecordPhaseCleanup {
+			if record.Phase != k8sapi.ClusterPhaseCleanup {
 				return false
 			}
-			record.Phase = ClusterRecordPhaseCreated
+			record.Phase = k8sapi.ClusterPhaseCreated
 			record.FailureReason = ""
 			return true
 		})
@@ -130,12 +133,12 @@ func clusterCleanupSweep(client ClusterStateClient, ops clusterCleanupOps) error
 			record.PendingCleanup = kept
 		}
 
-		if len(kept) > 0 && record.Phase == ClusterRecordPhaseCreated {
-			record.Phase = ClusterRecordPhaseCleanup
+		if len(kept) > 0 && record.Phase == k8sapi.ClusterPhaseCreated {
+			record.Phase = k8sapi.ClusterPhaseCleanup
 			changed = true
 		}
-		if len(kept) == 0 && record.Phase == ClusterRecordPhaseCleanup {
-			record.Phase = ClusterRecordPhaseCreated
+		if len(kept) == 0 && record.Phase == k8sapi.ClusterPhaseCleanup {
+			record.Phase = k8sapi.ClusterPhaseCreated
 			record.FailureReason = ""
 			changed = true
 		}
@@ -162,8 +165,8 @@ func clusterCleanupPending(ops clusterCleanupOps, pending ClusterPendingCleanup)
 		}
 	}
 
-	if pending.ReservationId != "" {
-		err := ops.deleteReservation(pending.ReservationId)
+	if pending.PrivateIpIdentifier != "" {
+		err := ops.deleteReservation(pending.PrivateIpIdentifier)
 		if err != nil {
 			status := clusterCleanupStatus(err)
 			if status == http.StatusBadRequest {
@@ -195,29 +198,29 @@ func clusterCleanupStatus(err error) int {
 type clusterCleanupOps struct {
 	retrieveJob       func(jobId string) (orcapi.Job, bool, error)
 	terminateJob      func(jobId string) error
-	deleteReservation func(reservationId string) error
+	deleteReservation func(privateIpIdentifier string) error
 }
 
 func clusterCleanupOpsHost(client RpcGrantClient) clusterCleanupOps {
 	return clusterCleanupOps{
 		retrieveJob: func(jobId string) (orcapi.Job, bool, error) {
-			job, found, err := RpcGrantRetrieveJob(client, jobId)
-			if err != nil {
-				return orcapi.Job{}, false, err
+			job, herr := ucxapi.StackControlInvoke(client.Rpc, client.Token, &ucxapi.StackControlRetrieveJob, orcapi.JobsControlRetrieveRequest{Id: jobId})
+			if herr != nil {
+				return orcapi.Job{}, false, herr
 			}
-			return job, found, nil
+			return job, true, nil
 		},
 		terminateJob: func(jobId string) error {
-			if err := RpcGrantTerminateJob(client, jobId); err != nil {
-				return err
-			}
-			return nil
+			_, herr := ucxapi.StackControlInvoke(client.Rpc, client.Token, &ucxapi.StackControlTerminateJobs, orcapi.ControlMutateRequest[fnd.FindByStringId]{
+				Items: []fnd.FindByStringId{{Id: jobId}},
+			})
+			return herr
 		},
-		deleteReservation: func(reservationId string) error {
-			if err := RpcGrantDeletePrivateNetworkIp(client, reservationId); err != nil {
-				return err
-			}
-			return nil
+		deleteReservation: func(privateIpIdentifier string) error {
+			_, herr := ucxapi.StackControlInvoke(client.Rpc, client.Token, &ucxapi.StackControlDeletePrivateNetworkIp, orcapi.ControlMutateRequest[fnd.FindByStringId]{
+				Items: []fnd.FindByStringId{{Id: privateIpIdentifier}},
+			})
+			return herr
 		},
 	}
 }
@@ -234,8 +237,8 @@ func clusterCleanupOpsSession(stack *ucxsvc.Stack) clusterCleanupOps {
 		terminateJob: func(jobId string) error {
 			return ucxsvc.JobTerminate(stack, jobId)
 		},
-		deleteReservation: func(reservationId string) error {
-			return ucxsvc.PrivateNetworkIpDelete(stack, reservationId)
+		deleteReservation: func(privateIpIdentifier string) error {
+			return ucxsvc.PrivateNetworkIpDelete(stack, privateIpIdentifier)
 		},
 	}
 }
@@ -263,12 +266,12 @@ func clusterRemoveNodeForPending(nodes []ClusterNodeRecord, pending ClusterPendi
 }
 
 func clusterPendingCleanupReservationReused(nodes []ClusterNodeRecord, pending ClusterPendingCleanup) bool {
-	if pending.ReservationId == "" {
+	if pending.PrivateIpIdentifier == "" {
 		return false
 	}
 
 	for _, node := range nodes {
-		if node.ReservationId == pending.ReservationId && node.JobId != "" && node.JobId != pending.JobId {
+		if node.PrivateIpIdentifier == pending.PrivateIpIdentifier && node.JobId != "" && node.JobId != pending.JobId {
 			return true
 		}
 	}
@@ -276,5 +279,5 @@ func clusterPendingCleanupReservationReused(nodes []ClusterNodeRecord, pending C
 }
 
 func clusterPendingCleanupSame(a ClusterPendingCleanup, b ClusterPendingCleanup) bool {
-	return a.ReservationId == b.ReservationId && a.JobId == b.JobId && a.Hostname == b.Hostname
+	return a.PrivateIpIdentifier == b.PrivateIpIdentifier && a.JobId == b.JobId && a.Hostname == b.Hostname
 }

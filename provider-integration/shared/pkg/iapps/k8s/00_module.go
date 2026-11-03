@@ -26,6 +26,7 @@ const (
 	ClusterNameMaxLen = 30
 	PoolNameMaxLen    = 30
 	ClusterMaxNodes   = 256
+	MinPoolNodes      = 1
 	MaxPoolNodes      = 250
 
 	MinDiskGb = 10
@@ -133,20 +134,15 @@ func ProvisioningStatusFromJobState(state orcapi.JobState) string {
 	return ""
 }
 
-type PingRequest struct {
-	Message string
+type AppInfoResponse struct {
+	AppName    string `json:"appName"`
+	AppVersion string `json:"appVersion"`
+	Mode       string `json:"mode"`
+	Headless   bool   `json:"headless"`
 }
 
-type PingResponse struct {
-	AppName    string
-	AppVersion string
-	Mode       string
-	Headless   bool
-	Message    string
-}
-
-var Ping = ucx.Rpc[PingRequest, PingResponse]{
-	CallName: "k8s.ping",
+var AppInfo = ucx.Rpc[util.Empty, AppInfoResponse]{
+	CallName: "k8s.appInfo",
 }
 
 type DeployRequest struct {
@@ -185,6 +181,13 @@ func ValidGroupName(name string) bool {
 	return groupNameRe.MatchString(name)
 }
 
+func ValidControlPlaneNodeCount(nodes int) bool {
+	if nodes < ControlPlaneMinNodes || nodes > ControlPlaneMaxNodes {
+		return false
+	}
+	return nodes%2 == 1
+}
+
 func NormalizeDeployRequest(request DeployRequest) DeployRequest {
 	request.Name = strings.TrimSpace(request.Name)
 	request.Provider = strings.TrimSpace(request.Provider)
@@ -214,6 +217,45 @@ func ValidateClusterName(name string) error {
 	return nil
 }
 
+func ValidatePoolSpec(pool PoolSpec, provider string) error {
+	poolName := strings.TrimSpace(pool.Name)
+	if poolName == "" {
+		return fmt.Errorf("a worker pool must have a name")
+	}
+	if len(poolName) > PoolNameMaxLen {
+		return fmt.Errorf("worker pool names must be at most %d characters: %s", PoolNameMaxLen, termio.QuoteName(poolName))
+	}
+	if !ValidGroupName(poolName) {
+		return fmt.Errorf("worker pool names may only contain a-z, 0-9 and dashes: %s", termio.QuoteName(poolName))
+	}
+	if poolName == GroupControlPlane {
+		return fmt.Errorf("the name is reserved for the control plane: %s", termio.QuoteName(poolName))
+	}
+	if pool.Machine.Id == "" {
+		return fmt.Errorf("select a machine type for worker pool %s", termio.QuoteName(poolName))
+	}
+	if pool.Machine.Provider != provider {
+		return fmt.Errorf(
+			"the machine for worker pool %s must come from the selected service provider (%s)",
+			termio.QuoteName(poolName),
+			termio.QuoteName(provider),
+		)
+	}
+	if pool.Nodes < MinPoolNodes {
+		return fmt.Errorf("worker pool %s needs at least one node", termio.QuoteName(poolName))
+	}
+	if pool.Nodes > MaxPoolNodes {
+		return fmt.Errorf("worker pool %s supports at most %d nodes", termio.QuoteName(poolName), MaxPoolNodes)
+	}
+	if pool.Disk < MinDiskGb {
+		return fmt.Errorf("worker pool %s needs at least %d GB of disk", termio.QuoteName(poolName), MinDiskGb)
+	}
+	if pool.Disk > MaxDiskGb {
+		return fmt.Errorf("worker pool %s supports at most %d GB of disk", termio.QuoteName(poolName), MaxDiskGb)
+	}
+	return nil
+}
+
 func ValidateDeployRequest(request DeployRequest) error {
 	err := ValidateClusterName(request.Name)
 	if err != nil {
@@ -232,9 +274,7 @@ func ValidateDeployRequest(request DeployRequest) error {
 	if controlPlane.Machine.Provider != provider {
 		return fmt.Errorf("the control-plane machine type must come from the selected service provider (%s)", termio.QuoteName(provider))
 	}
-	switch controlPlane.Nodes {
-	case ControlPlaneMinNodes, 3, 5, ControlPlaneMaxNodes:
-	default:
+	if !ValidControlPlaneNodeCount(controlPlane.Nodes) {
 		return fmt.Errorf(
 			"the control-plane node count must be an odd number from %d to %d",
 			ControlPlaneMinNodes,
@@ -256,41 +296,13 @@ func ValidateDeployRequest(request DeployRequest) error {
 		if poolName == "" {
 			return fmt.Errorf("worker pool %d must have a name", i+1)
 		}
-		if len(poolName) > PoolNameMaxLen {
-			return fmt.Errorf("worker pool names must be at most %d characters: %s", PoolNameMaxLen, termio.QuoteName(poolName))
-		}
-		if !ValidGroupName(poolName) {
-			return fmt.Errorf("worker pool names may only contain a-z, 0-9 and dashes: %s", termio.QuoteName(poolName))
-		}
-		if poolName == GroupControlPlane {
-			return fmt.Errorf("the name is reserved for the control plane: %s", termio.QuoteName(poolName))
-		}
 		if seen[poolName] {
 			return fmt.Errorf("worker pool names must be unique: %s", termio.QuoteName(poolName))
 		}
 		seen[poolName] = true
 
-		if pool.Machine.Id == "" {
-			return fmt.Errorf("select a machine type for worker pool %s", termio.QuoteName(poolName))
-		}
-		if pool.Machine.Provider != provider {
-			return fmt.Errorf(
-				"the machine for worker pool %s must come from the selected service provider (%s)",
-				termio.QuoteName(poolName),
-				termio.QuoteName(provider),
-			)
-		}
-		if pool.Nodes < 1 {
-			return fmt.Errorf("worker pool %s needs at least one node", termio.QuoteName(poolName))
-		}
-		if pool.Nodes > MaxPoolNodes {
-			return fmt.Errorf("worker pool %s supports at most %d nodes", termio.QuoteName(poolName), MaxPoolNodes)
-		}
-		if pool.Disk < MinDiskGb {
-			return fmt.Errorf("worker pool %s needs at least %d GB of disk", termio.QuoteName(poolName), MinDiskGb)
-		}
-		if pool.Disk > MaxDiskGb {
-			return fmt.Errorf("worker pool %s supports at most %d GB of disk", termio.QuoteName(poolName), MaxDiskGb)
+		if err := ValidatePoolSpec(pool, provider); err != nil {
+			return err
 		}
 
 		totalNodes += pool.Nodes
@@ -328,7 +340,7 @@ type StatusPool struct {
 type StatusNode struct {
 	Hostname       string                  `json:"hostname"`
 	Group          string                  `json:"group"`
-	AllocationId   int                     `json:"allocationId,omitempty"`
+	InternalId     int                     `json:"allocationId,omitempty"`
 	IpAddress      string                  `json:"ipAddress"`
 	JobId          string                  `json:"jobId"`
 	Machine        accapi.ProductReference `json:"machine"`

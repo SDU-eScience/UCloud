@@ -2,13 +2,14 @@ package maintenance
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/backup"
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/log"
 )
 
@@ -16,37 +17,23 @@ const backupClaimLease = 30 * time.Minute
 
 const backupClaimRenewInterval = 5 * time.Minute
 
-type backupStateRecord = stackValue[backup.State]
-
-type backupRequestRecord = stackValue[backup.Request]
-
-func backupStateRead(client stackClient) (backupStateRecord, error) {
+func backupStateRead(client shared.RpcGrantClient) (stackValue[backup.State], error) {
 	return stackValueRead[backup.State](client, backup.StateKey, "backup state")
 }
 
-func backupRequestRead(client stackClient) (backupRequestRecord, error) {
+func backupRequestRead(client shared.RpcGrantClient) (stackValue[backup.Request], error) {
 	return stackValueRead[backup.Request](client, backup.RequestKey, "backup request")
 }
 
-func backupStateWrite(client stackClient, state backup.State, expectedRevision int64) (int64, error) {
-	value, err := json.Marshal(state)
-	if err != nil {
-		return 0, err
-	}
-
-	return shared.RpcGrantStateWrite(client, backup.StateKey, value, expectedRevision)
+func backupStateWrite(client shared.RpcGrantClient, state backup.State, expectedRevision int64) (int64, error) {
+	return stackValueWrite(client, backup.StateKey, state, expectedRevision)
 }
 
-func backupRequestWrite(client stackClient, request backup.Request, expectedRevision int64) (int64, error) {
-	value, err := json.Marshal(request)
-	if err != nil {
-		return 0, err
-	}
-
-	return shared.RpcGrantStateWrite(client, backup.RequestKey, value, expectedRevision)
+func backupRequestWrite(client shared.RpcGrantClient, request backup.Request, expectedRevision int64) (int64, error) {
+	return stackValueWrite(client, backup.RequestKey, request, expectedRevision)
 }
 
-func backupSweep(ctx context.Context, client stackClient) error {
+func backupSweep(ctx context.Context, client shared.RpcGrantClient) error {
 	record, found, err := readClusterRecord()
 	if err != nil {
 		return err
@@ -86,7 +73,7 @@ func backupSweep(ctx context.Context, client stackClient) error {
 	if state.ClaimUid != "" {
 		state.LastAttempt = backup.Attempt{
 			Trigger:    state.ClaimTrigger,
-			Phase:      backup.AttemptFailed,
+			Phase:      k8sapi.BackupAttemptFailed,
 			StartedAt:  state.ClaimDeadline.Add(-backupClaimLease),
 			FinishedAt: now,
 			Error:      "the backup coordinator stopped before the attempt completed",
@@ -105,7 +92,7 @@ func backupSweep(ctx context.Context, client stackClient) error {
 
 	request := requestRecord.Value
 	manual := requestRecord.Found && request.Uid != "" &&
-		request.Phase != backup.RequestCompleted && request.Phase != backup.RequestFailed
+		request.Phase != k8sapi.BackupRequestCompleted && request.Phase != k8sapi.BackupRequestFailed
 
 	due := !now.Before(state.DueAt)
 	if !manual && !due {
@@ -136,7 +123,7 @@ func backupSweep(ctx context.Context, client stackClient) error {
 
 	requestRevision := requestRecord.Revision
 	if manual {
-		request.Phase = backup.RequestRunning
+		request.Phase = k8sapi.BackupRequestRunning
 		request.AttemptUid = attemptUid
 		request.Error = ""
 
@@ -160,7 +147,7 @@ func backupSweep(ctx context.Context, client stackClient) error {
 	if nodeErr != nil {
 		attempt := backup.Attempt{
 			Trigger:    trigger,
-			Phase:      backup.AttemptFailed,
+			Phase:      k8sapi.BackupAttemptFailed,
 			StartedAt:  startedAt,
 			FinishedAt: time.Now().UTC(),
 			Error:      nodeErr.Error(),
@@ -174,7 +161,7 @@ func backupSweep(ctx context.Context, client stackClient) error {
 
 	attempt := backup.Attempt{
 		Trigger:    trigger,
-		Phase:      backup.AttemptFailed,
+		Phase:      k8sapi.BackupAttemptFailed,
 		NodeName:   node.Hostname,
 		StartedAt:  startedAt,
 		FinishedAt: time.Now().UTC(),
@@ -184,7 +171,7 @@ func backupSweep(ctx context.Context, client stackClient) error {
 	if backupErr != nil {
 		attempt.Error = backupErr.Error()
 	} else {
-		attempt.Phase = backup.AttemptSuccess
+		attempt.Phase = k8sapi.BackupAttemptSuccess
 		attempt.Id = result.Metadata.BackupId
 		attempt.SizeBytes = result.Metadata.Snapshot.SizeBytes
 		attempt.Sha256 = result.Metadata.Snapshot.Sha256
@@ -196,7 +183,7 @@ func backupSweep(ctx context.Context, client stackClient) error {
 }
 
 func backupComplete(
-	client stackClient,
+	client shared.RpcGrantClient,
 	attemptUid string,
 	attempt backup.Attempt,
 	retained []backup.BackupInfo,
@@ -220,7 +207,7 @@ func backupComplete(
 	state.ClaimTrigger = ""
 	state.ClaimRequestUid = ""
 	state.ClaimDeadline = time.Time{}
-	if attempt.Phase == backup.AttemptSuccess {
+	if attempt.Phase == k8sapi.BackupAttemptSuccess {
 		state.LastSuccess = attempt
 		state.Retained = retained
 		state.PruneWarnings = pruneWarnings
@@ -236,11 +223,11 @@ func backupComplete(
 
 	request.AttemptUid = attemptUid
 	request.CompletedAt = attempt.FinishedAt
-	if attempt.Phase == backup.AttemptSuccess {
-		request.Phase = backup.RequestCompleted
+	if attempt.Phase == k8sapi.BackupAttemptSuccess {
+		request.Phase = k8sapi.BackupRequestCompleted
 		request.Error = ""
 	} else {
-		request.Phase = backup.RequestFailed
+		request.Phase = k8sapi.BackupRequestFailed
 		request.Error = attempt.Error
 	}
 
@@ -252,7 +239,7 @@ func backupComplete(
 	return nil
 }
 
-func backupClaimRenew(client stackClient, claimUid string) func() {
+func backupClaimRenew(client shared.RpcGrantClient, claimUid string) func() {
 	stop := make(chan struct{})
 	done := make(chan struct{})
 
@@ -301,7 +288,7 @@ func backupSelectNode(ctx context.Context, record shared.ClusterRecord) (shared.
 
 	var preferred []shared.ClusterNodeRecord
 	for _, node := range record.Nodes {
-		if node.Group != shared.GroupControlPlane {
+		if node.Group != k8sapi.GroupControlPlane {
 			continue
 		}
 		if busy[node.Hostname] {
@@ -324,7 +311,7 @@ func backupProbeNodes(ctx context.Context, nodes []shared.ClusterNodeRecord) (sh
 		if err != nil {
 			continue
 		}
-		if shared.NodeAgentPhaseActive(status.Phase) {
+		if slices.Contains(shared.NodeAgentPhases, status.Phase) {
 			continue
 		}
 		return node, true

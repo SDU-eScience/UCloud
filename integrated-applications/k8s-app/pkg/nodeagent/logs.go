@@ -14,6 +14,7 @@ import (
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 // Constants and state
@@ -134,7 +135,7 @@ func progressText(text string) {
 	defer progressMu.Unlock()
 
 	progressRead()
-	progressCurrent.Detail = shared.NodeAgentTruncateLine(text)
+	progressCurrent.Detail = util.Utf8Truncate(text, shared.NodeAgentProgressLineMax)
 	progressCurrent.UpdatedAt = time.Now().UTC()
 	progressPersist(false)
 	progressAppendLine(text)
@@ -145,7 +146,7 @@ func progressCommandOutput(name string, output []byte) {
 	if trimmed == "" {
 		return
 	}
-	trimmed = shared.NodeAgentTruncateLine(trimmed)
+	trimmed = util.Utf8Truncate(trimmed, shared.NodeAgentProgressLineMax)
 	progressText(fmt.Sprintf("%s: %s", name, trimmed))
 }
 
@@ -160,7 +161,7 @@ func progressLines(lines []string) int {
 		if trimmed == "" {
 			continue
 		}
-		trimmed = shared.NodeAgentTruncateLine(trimmed)
+		trimmed = util.Utf8Truncate(trimmed, shared.NodeAgentProgressLineMax)
 		progressCurrent.Detail = trimmed
 		progressCurrent.UpdatedAt = time.Now().UTC()
 		progressAppendLine(trimmed)

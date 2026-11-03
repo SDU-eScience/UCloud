@@ -9,11 +9,8 @@ const ClusterTrafficRecordKey = "traffic/state"
 
 const clusterTrafficSchemaRevision = 2
 
-// The traffic record is desired state. It holds one suspended job id per node
-// under maintenance. The controller reconciles the actual service membership
-// towards it: every control plane job is a member unless it is suspended.
 type ClusterTrafficRecord struct {
-	SchemaRevision int                    `json:"schemaRevision"`
+	SchemaRevision int                     `json:"schemaRevision"`
 	SuspendedJobs  []ClusterTrafficSuspend `json:"suspendedJobs,omitempty"`
 }
 
@@ -92,6 +89,9 @@ func ClusterTrafficRead(client ClusterStateClient) (ClusterTrafficSnapshot, erro
 	if err := json.Unmarshal(record.Value, &parsed); err != nil {
 		return ClusterTrafficSnapshot{}, errors.New("could not parse the cluster traffic record")
 	}
+	if parsed.SchemaRevision != clusterTrafficSchemaRevision {
+		return ClusterTrafficSnapshot{}, errors.New("the cluster traffic record was written by an incompatible version of the application")
+	}
 
 	result.Found = true
 	result.Record = parsed
@@ -105,13 +105,6 @@ type ClusterTrafficSnapshot struct {
 }
 
 func ClusterTrafficRecordWrite(client ClusterStateClient, record *ClusterTrafficRecord, expectedRevision int64) (int64, error) {
-	if record == nil {
-		return 0, errors.New("the cluster traffic record is nil")
-	}
-	if expectedRevision < 0 {
-		return 0, errors.New("the expected cluster traffic record revision is negative")
-	}
-
 	record.SchemaRevision = clusterTrafficSchemaRevision
 
 	value, err := json.Marshal(record)

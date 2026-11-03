@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 )
 
 var runSubmitMu sync.Mutex
@@ -18,7 +19,7 @@ var errRunNotFound = errors.New("no matching maintenance run was found")
 
 var errRunAdmissionBusy = errors.New("another maintenance run is being submitted")
 
-func runAdmissionAcquire(client stackClient) (string, error) {
+func runAdmissionAcquire(client shared.RpcGrantClient) (string, error) {
 	now := time.Now().UTC()
 	for attempt := 0; attempt < 5; attempt++ {
 		record, err := stackValueRead[runAdmission](client, runAdmissionKey, "maintenance run admission")
@@ -34,11 +35,7 @@ func runAdmissionAcquire(client stackClient) (string, error) {
 			Uid:            shared.NewUid(),
 			Deadline:       now.Add(runAdmissionLease),
 		}
-		value, marshalErr := json.Marshal(admission)
-		if marshalErr != nil {
-			return "", marshalErr
-		}
-		_, writeErr := shared.RpcGrantStateWrite(client, runAdmissionKey, value, record.Revision)
+		_, writeErr := stackValueWrite(client, runAdmissionKey, admission, record.Revision)
 		if writeErr == nil {
 			return admission.Uid, nil
 		}
@@ -49,7 +46,7 @@ func runAdmissionAcquire(client stackClient) (string, error) {
 	return "", errors.New("the maintenance admission state changed. Try again")
 }
 
-func runAdmissionRelease(client stackClient, uid string) {
+func runAdmissionRelease(client shared.RpcGrantClient, uid string) {
 	for attempt := 0; attempt < 3; attempt++ {
 		record, err := stackValueRead[runAdmission](client, runAdmissionKey, "maintenance run admission")
 		if err != nil || !record.Found || record.Value.Uid != uid {
@@ -65,24 +62,6 @@ func runAdmissionRelease(client stackClient, uid string) {
 const (
 	RunKindUpdate     = "update"
 	RunKindNodeAction = "node-action"
-
-	RunPending   = "Pending"
-	RunPreflight = "Preflight"
-	RunBackup    = "Backup"
-	RunRunning   = "Running"
-	RunBlocked   = "Blocked"
-	RunCompleted = "Completed"
-	RunFailed    = "Failed"
-	RunCancelled = "Cancelled"
-
-	TaskK8sUpgrade = "k8s-upgrade"
-	TaskOsUpdate   = "os-update"
-	TaskCordon     = "cordon"
-	TaskUncordon   = "uncordon"
-	TaskRemove     = "remove"
-
-	TriggerWindow = "window"
-	TriggerManual = "manual"
 
 	runUpdateKey    = "maintenance/run/update"
 	runNodePrefix   = "maintenance/runs/node/"
@@ -204,14 +183,14 @@ type RunStatus struct {
 
 func RunActive(run MaintenanceRun) bool {
 	switch run.Phase {
-	case RunPending, RunPreflight, RunBackup, RunRunning, RunBlocked, RunFailed:
+	case k8sapi.MaintenanceRunPending, k8sapi.MaintenanceRunPreflight, k8sapi.MaintenanceRunBackup, k8sapi.MaintenanceRunRunning, k8sapi.MaintenanceRunBlocked, k8sapi.MaintenanceRunFailed:
 		return true
 	}
 	return false
 }
 
 func RunTerminal(run MaintenanceRun) bool {
-	return run.Phase == RunCompleted || run.Phase == RunCancelled
+	return run.Phase == k8sapi.MaintenanceRunCompleted || run.Phase == k8sapi.MaintenanceRunCancelled
 }
 
 func SubmitRun(request RunRequest, requestedBy string) (MaintenanceRun, error) {
@@ -255,14 +234,14 @@ func SubmitRun(request RunRequest, requestedBy string) (MaintenanceRun, error) {
 	defer runAdmissionRelease(client, admissionUid)
 
 	strictTarget := true
-	if spec.Kind == RunKindNodeAction && len(spec.Tasks) > 0 && spec.Tasks[0].Kind == TaskRemove {
+	if spec.Kind == RunKindNodeAction && len(spec.Tasks) > 0 && spec.Tasks[0].Kind == k8sapi.MaintenanceTaskRemove {
 		strictTarget = false
 	}
 	nodes, err := targetNodes(record, spec, strictTarget)
 	if err != nil {
 		return MaintenanceRun{}, err
 	}
-	if spec.Kind == RunKindNodeAction && spec.Tasks[0].Kind == TaskRemove {
+	if spec.Kind == RunKindNodeAction && spec.Tasks[0].Kind == k8sapi.MaintenanceTaskRemove {
 		if err := removeSubmitGuard(nodes[0].Hostname); err != nil {
 			return MaintenanceRun{}, err
 		}
@@ -276,12 +255,12 @@ func SubmitRun(request RunRequest, requestedBy string) (MaintenanceRun, error) {
 		SchemaRevision: 1,
 		Uid:            shared.NewUid(),
 		Kind:           spec.Kind,
-		Trigger:        TriggerManual,
+		Trigger:        k8sapi.MaintenanceTriggerManual,
 		RequestedBy:    requestedBy,
 		RequestedAt:    now,
 		Request:        request,
 		Effective:      spec,
-		Phase:          RunPending,
+		Phase:          k8sapi.MaintenanceRunPending,
 	}
 
 	if err := runWriteNew(client, run); err != nil {
@@ -311,10 +290,10 @@ func SubmitConfiguredRun(requestedBy string) (MaintenanceRun, error) {
 
 	tasks := []TaskRequest{}
 	if policy.Kubernetes.Enabled {
-		tasks = append(tasks, TaskRequest{Kind: TaskK8sUpgrade})
+		tasks = append(tasks, TaskRequest{Kind: k8sapi.MaintenanceTaskK8sUpgrade})
 	}
 	if policy.Os.Enabled {
-		tasks = append(tasks, TaskRequest{Kind: TaskOsUpdate})
+		tasks = append(tasks, TaskRequest{Kind: k8sapi.MaintenanceTaskOsUpdate})
 	}
 	if len(tasks) == 0 {
 		return MaintenanceRun{}, errors.New("no maintenance task is enabled in the policy")
@@ -327,13 +306,13 @@ func SubmitConfiguredRun(requestedBy string) (MaintenanceRun, error) {
 	}, requestedBy)
 }
 
-func createScheduledRun(client stackClient, policy Policy, windowStart time.Time, windowEnd time.Time) (MaintenanceRun, error) {
+func createScheduledRun(client shared.RpcGrantClient, policy Policy, windowStart time.Time, windowEnd time.Time) (MaintenanceRun, error) {
 	var tasks []TaskRequest
 	if policy.Kubernetes.Enabled {
-		tasks = append(tasks, TaskRequest{Kind: TaskK8sUpgrade})
+		tasks = append(tasks, TaskRequest{Kind: k8sapi.MaintenanceTaskK8sUpgrade})
 	}
 	if policy.Os.Enabled {
-		tasks = append(tasks, TaskRequest{Kind: TaskOsUpdate})
+		tasks = append(tasks, TaskRequest{Kind: k8sapi.MaintenanceTaskOsUpdate})
 	}
 	if len(tasks) == 0 {
 		return MaintenanceRun{}, errors.New("no maintenance task is enabled")
@@ -353,14 +332,14 @@ func createScheduledRun(client stackClient, policy Policy, windowStart time.Time
 		SchemaRevision: 1,
 		Uid:            shared.NewUid(),
 		Kind:           RunKindUpdate,
-		Trigger:        TriggerWindow,
+		Trigger:        k8sapi.MaintenanceTriggerWindow,
 		RequestedBy:    "scheduled maintenance",
 		RequestedAt:    now,
 		Request:        request,
 		Effective:      spec,
 		WindowStart:    windowStart.UTC(),
 		WindowEnd:      windowEnd.UTC(),
-		Phase:          RunPending,
+		Phase:          k8sapi.MaintenanceRunPending,
 	}
 
 	if err := runWriteNew(client, run); err != nil {
@@ -389,41 +368,41 @@ func buildRunSpec(policy Policy, request RunRequest) (RunSpec, error) {
 		task.Preparation = strings.ToLower(strings.TrimSpace(task.Preparation))
 
 		switch task.Kind {
-		case TaskK8sUpgrade:
+		case k8sapi.MaintenanceTaskK8sUpgrade:
 			if k8sSeen {
 				return RunSpec{}, errors.New("a run can contain only one Kubernetes upgrade task")
 			}
 			k8sSeen = true
 			kind = RunKindUpdate
-			if task.Preparation != "" && task.Preparation != PreparationNone {
+			if task.Preparation != "" && task.Preparation != k8sapi.MaintenancePreparationNone {
 				return RunSpec{}, errors.New("Kubernetes upgrades cannot cordon or drain the node")
 			}
-			options, err := buildOptions(policy, task, PreparationNone, false)
+			options, err := buildOptions(policy, task, k8sapi.MaintenancePreparationNone, false)
 			if err != nil {
 				return RunSpec{}, err
 			}
 			tasks = append(tasks, TaskSpec{
-				Kind:          TaskK8sUpgrade,
+				Kind:          k8sapi.MaintenanceTaskK8sUpgrade,
 				TargetRelease: strings.TrimSpace(task.TargetRelease),
 				Options:       options,
 			})
 
-		case TaskOsUpdate:
+		case k8sapi.MaintenanceTaskOsUpdate:
 			if osSeen {
 				return RunSpec{}, errors.New("a run can contain only one operating-system update task")
 			}
 			osSeen = true
 			kind = RunKindUpdate
-			options, err := buildOptions(policy, task, PreparationDrain, true)
+			options, err := buildOptions(policy, task, k8sapi.MaintenancePreparationDrain, true)
 			if err != nil {
 				return RunSpec{}, err
 			}
 			tasks = append(tasks, TaskSpec{
-				Kind:    TaskOsUpdate,
+				Kind:    k8sapi.MaintenanceTaskOsUpdate,
 				Options: options,
 			})
 
-		case TaskCordon, TaskUncordon, TaskRemove:
+		case k8sapi.MaintenanceTaskCordon, k8sapi.MaintenanceTaskUncordon, k8sapi.MaintenanceTaskRemove:
 			if nodeActionSeen {
 				return RunSpec{}, errors.New("a node action run can contain only one task")
 			}
@@ -435,10 +414,10 @@ func buildRunSpec(policy Policy, request RunRequest) (RunSpec, error) {
 
 			preparation := task.Preparation
 			if preparation == "" {
-				preparation = PreparationNone
+				preparation = k8sapi.MaintenancePreparationNone
 			}
-			if task.Kind == TaskCordon && preparation == PreparationNone {
-				preparation = PreparationCordon
+			if task.Kind == k8sapi.MaintenanceTaskCordon && preparation == k8sapi.MaintenancePreparationNone {
+				preparation = k8sapi.MaintenancePreparationCordon
 			}
 			if !PreparationValid(preparation) {
 				return RunSpec{}, errors.New("the preparation must be none, cordon or drain")
@@ -464,7 +443,7 @@ func buildRunSpec(policy Policy, request RunRequest) (RunSpec, error) {
 		if request.Target.All || len(request.Target.Pools) > 0 {
 			return RunSpec{}, errors.New("a node action must target one or more nodes")
 		}
-		if tasks[0].Kind == TaskRemove {
+		if tasks[0].Kind == k8sapi.MaintenanceTaskRemove {
 			if len(request.Target.Nodes) == 0 {
 				return RunSpec{}, errors.New("select at least one node to remove")
 			}
@@ -500,9 +479,9 @@ func buildRunSpec(policy Policy, request RunRequest) (RunSpec, error) {
 
 func maintenanceTaskRank(kind string) int {
 	switch kind {
-	case TaskK8sUpgrade:
+	case k8sapi.MaintenanceTaskK8sUpgrade:
 		return 0
-	case TaskOsUpdate:
+	case k8sapi.MaintenanceTaskOsUpdate:
 		return 1
 	default:
 		return 2
@@ -519,12 +498,12 @@ func buildOptions(policy Policy, task TaskRequest, preparation string, os bool) 
 		}
 	}
 	if timeout == 0 {
-		timeout = defaultTimeoutSeconds
+		timeout = k8sapi.MaintenanceTimeoutDefault
 	}
 	options := Options{
 		TimeoutSeconds:          timeout,
-		Cordon:                  preparation != PreparationNone,
-		Drain:                   preparation == PreparationDrain,
+		Cordon:                  preparation != k8sapi.MaintenancePreparationNone,
+		Drain:                   preparation == k8sapi.MaintenancePreparationDrain,
 		DeleteVolatilePods:      task.DeleteVolatilePods,
 		BypassDisruptionBudgets: task.BypassDisruptionBudgets,
 		ForceDelete:             task.ForceDelete,
@@ -536,13 +515,13 @@ func buildOptions(policy Policy, task TaskRequest, preparation string, os bool) 
 	if err := validateOptions(options); err != nil {
 		return Options{}, err
 	}
-	if task.Kind == TaskK8sUpgrade && options.ForceDelete {
+	if task.Kind == k8sapi.MaintenanceTaskK8sUpgrade && options.ForceDelete {
 		return Options{}, errors.New("force delete cannot be used with node upgrades")
 	}
-	if task.Kind == TaskOsUpdate && (options.ForceDelete || options.BypassDisruptionBudgets) {
+	if task.Kind == k8sapi.MaintenanceTaskOsUpdate && (options.ForceDelete || options.BypassDisruptionBudgets) {
 		return Options{}, errors.New("the operating-system update cannot delete pods forcefully or bypass the disruption budgets")
 	}
-	if task.Kind == TaskUncordon && preparation != PreparationNone {
+	if task.Kind == k8sapi.MaintenanceTaskUncordon && preparation != k8sapi.MaintenancePreparationNone {
 		return Options{}, errors.New("uncordon does not accept a preparation")
 	}
 	return options, nil
@@ -618,10 +597,10 @@ func targetNodes(record shared.ClusterRecord, spec RunSpec, strict bool) ([]shar
 		left := nodes[i]
 		right := nodes[j]
 		if left.Group != right.Group {
-			if left.Group == shared.GroupControlPlane {
+			if left.Group == k8sapi.GroupControlPlane {
 				return true
 			}
-			if right.Group == shared.GroupControlPlane {
+			if right.Group == k8sapi.GroupControlPlane {
 				return false
 			}
 			return left.Group < right.Group
@@ -631,7 +610,7 @@ func targetNodes(record shared.ClusterRecord, spec RunSpec, strict bool) ([]shar
 	return nodes, nil
 }
 
-func ensureRunCanStart(client stackClient, spec RunSpec, nodes []shared.ClusterNodeRecord) error {
+func ensureRunCanStart(client shared.RpcGrantClient, spec RunSpec, nodes []shared.ClusterNodeRecord) error {
 	updateRecord, err := runUpdateRead(client)
 	if err != nil {
 		return err
@@ -675,18 +654,18 @@ func ensureRunCanStart(client stackClient, spec RunSpec, nodes []shared.ClusterN
 	}
 
 	taskKind := spec.Tasks[0].Kind
-	if taskKind == TaskRemove {
+	if taskKind == k8sapi.MaintenanceTaskRemove {
 		for _, run := range nodeRuns {
 			if run.Kind == RunKindNodeAction &&
 				len(run.Effective.Tasks) > 0 &&
-				run.Effective.Tasks[0].Kind == TaskRemove {
+				run.Effective.Tasks[0].Kind == k8sapi.MaintenanceTaskRemove {
 				return errors.New("another maintenance run is already removing nodes")
 			}
 		}
 	}
 	for _, node := range nodes {
 		if updateRecord.Found &&
-			taskKind != TaskUncordon &&
+			taskKind != k8sapi.MaintenanceTaskUncordon &&
 			runTargetsNode(updateRecord.Value, node.Hostname, node.Group) {
 			return fmt.Errorf(
 				"node %s is part of the active update run. Only uncordon is allowed on that node",
@@ -752,7 +731,7 @@ func runTargetsNode(run MaintenanceRun, nodeName string, nodeGroup string) bool 
 	return runContainsNode(run, nodeName)
 }
 
-func runUpdateRead(client stackClient) (stackValue[MaintenanceRun], error) {
+func runUpdateRead(client shared.RpcGrantClient) (stackValue[MaintenanceRun], error) {
 	return stackValueRead[MaintenanceRun](client, runUpdateKey, "active maintenance run")
 }
 
@@ -760,7 +739,7 @@ func runNodeKey(nodeName string) string {
 	return runNodePrefix + nodeName
 }
 
-func runNodeRecords(client stackClient) ([]stackValue[MaintenanceRun], error) {
+func runNodeRecords(client shared.RpcGrantClient) ([]stackValue[MaintenanceRun], error) {
 	records, err := stackList(client, runNodePrefix)
 	if err != nil {
 		return nil, err
@@ -771,12 +750,12 @@ func runNodeRecords(client stackClient) ([]stackValue[MaintenanceRun], error) {
 		if record.IsEmpty() {
 			continue
 		}
-		var run MaintenanceRun
-		if err := json.Unmarshal(record.Value, &run); err != nil {
-			return nil, fmt.Errorf("could not parse the maintenance run %s: %s", record.Key, err)
+		run, err := stackValueDecode[MaintenanceRun](record, "maintenance run "+record.Key)
+		if err != nil {
+			return nil, err
 		}
-		if run.Uid != "" {
-			runs = append(runs, stackValue[MaintenanceRun]{Found: true, Value: run, Revision: record.Revision})
+		if run.Value.Uid != "" {
+			runs = append(runs, run)
 		}
 	}
 	sort.Slice(runs, func(i int, j int) bool {
@@ -785,7 +764,7 @@ func runNodeRecords(client stackClient) ([]stackValue[MaintenanceRun], error) {
 	return runs, nil
 }
 
-func runNodeList(client stackClient) ([]MaintenanceRun, error) {
+func runNodeList(client shared.RpcGrantClient) ([]MaintenanceRun, error) {
 	records, err := runNodeRecords(client)
 	if err != nil {
 		return nil, err
@@ -797,15 +776,15 @@ func runNodeList(client stackClient) ([]MaintenanceRun, error) {
 	return runs, nil
 }
 
-func runLastRead(client stackClient) (stackValue[MaintenanceRun], error) {
+func runLastRead(client shared.RpcGrantClient) (stackValue[MaintenanceRun], error) {
 	return stackValueRead[MaintenanceRun](client, runLastKey, "last maintenance run")
 }
 
-func runHistoryRead(client stackClient) (stackValue[RunHistory], error) {
+func runHistoryRead(client shared.RpcGrantClient) (stackValue[RunHistory], error) {
 	return stackValueRead[RunHistory](client, runHistoryKey, "maintenance run history")
 }
 
-func runHistoryAdd(client stackClient, run MaintenanceRun) error {
+func runHistoryAdd(client shared.RpcGrantClient, run MaintenanceRun) error {
 	for attempt := 0; attempt < 3; attempt++ {
 		record, err := runHistoryRead(client)
 		if err != nil {
@@ -829,11 +808,7 @@ func runHistoryAdd(client stackClient, run MaintenanceRun) error {
 		}
 		history.Runs = runs
 
-		value, marshalErr := json.Marshal(history)
-		if marshalErr != nil {
-			return marshalErr
-		}
-		_, writeErr := shared.RpcGrantStateWrite(client, runHistoryKey, value, record.Revision)
+		_, writeErr := stackValueWrite(client, runHistoryKey, history, record.Revision)
 		if writeErr == nil {
 			return nil
 		}
@@ -851,7 +826,7 @@ func runKey(run MaintenanceRun) string {
 	return runUpdateKey
 }
 
-func runWriteNew(client stackClient, run MaintenanceRun) error {
+func runWriteNew(client shared.RpcGrantClient, run MaintenanceRun) error {
 	key := runKey(run)
 	record, err := stackValueRead[MaintenanceRun](client, key, "maintenance run")
 	if err != nil {
@@ -861,28 +836,20 @@ func runWriteNew(client stackClient, run MaintenanceRun) error {
 		return errors.New("a maintenance run already exists")
 	}
 
-	value, err := json.Marshal(run)
-	if err != nil {
-		return err
-	}
-	_, err = shared.RpcGrantStateWrite(client, key, value, record.Revision)
+	_, err = stackValueWrite(client, key, run, record.Revision)
 	return err
 }
 
-func runWrite(client stackClient, run MaintenanceRun, revision int64) (int64, error) {
-	value, err := json.Marshal(run)
-	if err != nil {
-		return 0, err
-	}
-	return shared.RpcGrantStateWrite(client, runKey(run), value, revision)
+func runWrite(client shared.RpcGrantClient, run MaintenanceRun, revision int64) (int64, error) {
+	return stackValueWrite(client, runKey(run), run, revision)
 }
 
-func runDelete(client stackClient, run MaintenanceRun, revision int64) error {
+func runDelete(client shared.RpcGrantClient, run MaintenanceRun, revision int64) error {
 	_, err := shared.RpcGrantStateWrite(client, runKey(run), json.RawMessage("null"), revision)
 	return err
 }
 
-func findRun(client stackClient, runUid string, nodeName string) (MaintenanceRun, int64, error) {
+func findRun(client shared.RpcGrantClient, runUid string, nodeName string) (MaintenanceRun, int64, error) {
 	nodeGroup := ""
 	nodeKnown := false
 	if nodeName != "" {
@@ -975,21 +942,21 @@ func CancelRun(runUid string, nodeName string) (MaintenanceRun, error) {
 				if cancelErr := cancelActiveOperation(nodeName); cancelErr != nil {
 					return MaintenanceRun{}, cancelErr
 				}
-				return MaintenanceRun{Kind: RunKindNodeAction, Phase: RunPending, CancelRequested: true}, nil
+				return MaintenanceRun{Kind: RunKindNodeAction, Phase: k8sapi.MaintenanceRunPending, CancelRequested: true}, nil
 			}
 			return MaintenanceRun{}, findErr
 		}
 		if RunTerminal(run) {
 			if nodeName != "" && runUid == "" {
 				if cancelErr := cancelActiveOperation(nodeName); cancelErr == nil {
-					return MaintenanceRun{Kind: RunKindNodeAction, Phase: RunPending, CancelRequested: true}, nil
+					return MaintenanceRun{Kind: RunKindNodeAction, Phase: k8sapi.MaintenanceRunPending, CancelRequested: true}, nil
 				}
 			}
 			return MaintenanceRun{}, errors.New("the maintenance run already finished")
 		}
 
 		run.CancelRequested = true
-		if (run.Phase == RunFailed || run.Phase == RunBlocked) && run.ClaimUid != "" {
+		if (run.Phase == k8sapi.MaintenanceRunFailed || run.Phase == k8sapi.MaintenanceRunBlocked) && run.ClaimUid != "" {
 			run.ClaimUid = ""
 			run.ClaimDeadline = time.Time{}
 		} else if run.ClaimUid != "" && !time.Now().UTC().Before(run.ClaimDeadline) {
@@ -1025,11 +992,11 @@ func RetryRun(runUid string, nodeName string) (MaintenanceRun, error) {
 		if RunTerminal(run) {
 			return MaintenanceRun{}, errors.New("the maintenance run already finished")
 		}
-		if run.Phase != RunBlocked && run.Phase != RunFailed {
+		if run.Phase != k8sapi.MaintenanceRunBlocked && run.Phase != k8sapi.MaintenanceRunFailed {
 			return MaintenanceRun{}, errors.New("only a blocked or failed maintenance run can be retried")
 		}
 
-		run.Phase = RunPending
+		run.Phase = k8sapi.MaintenanceRunPending
 		run.Message = ""
 		run.Error = ""
 		run.CancelRequested = false
@@ -1038,28 +1005,28 @@ func RetryRun(runUid string, nodeName string) (MaintenanceRun, error) {
 		run.ClaimDeadline = time.Time{}
 		for taskIndex := range run.Tasks {
 			task := &run.Tasks[taskIndex]
-			if task.Phase == RunCompleted {
+			if task.Phase == k8sapi.MaintenanceRunCompleted {
 				continue
 			}
 			taskRunning := false
 			for itemIndex := range task.Items {
 				item := &task.Items[itemIndex]
 				switch item.Phase {
-				case RunCompleted:
+				case k8sapi.MaintenanceRunCompleted:
 					continue
-				case RunRunning:
+				case k8sapi.MaintenanceRunRunning:
 					taskRunning = true
 				default:
-					item.Phase = RunPending
+					item.Phase = k8sapi.MaintenanceRunPending
 					item.OperationUid = ""
 					item.Error = ""
 					item.StartedAt = time.Time{}
 				}
 			}
 			if taskRunning {
-				task.Phase = RunRunning
+				task.Phase = k8sapi.MaintenanceRunRunning
 			} else {
-				task.Phase = RunPending
+				task.Phase = k8sapi.MaintenanceRunPending
 			}
 		}
 
@@ -1122,7 +1089,7 @@ func ReadStatus() (RunStatus, error) {
 	return status, nil
 }
 
-func activeRuns(client stackClient) ([]MaintenanceRun, error) {
+func activeRuns(client shared.RpcGrantClient) ([]MaintenanceRun, error) {
 	runs := []MaintenanceRun{}
 	updateRecord, err := runUpdateRead(client)
 	if err != nil {

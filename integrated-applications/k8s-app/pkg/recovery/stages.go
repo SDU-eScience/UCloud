@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
@@ -94,13 +95,13 @@ func (app *app) beginRecoveryWork(session *ucx.Session, entry backupEntry, progr
 		}
 	}
 
-	if cluster.Phase != shared.ClusterRecordPhaseRecovering {
+	if cluster.Phase != k8sapi.ClusterPhaseRecovering {
 		progress("Preparing the cluster for recovery")
 		err := shared.ClusterRecordUpdate(client, func(record *shared.ClusterRecord) bool {
-			if record.Phase == shared.ClusterRecordPhaseRecovering {
+			if record.Phase == k8sapi.ClusterPhaseRecovering {
 				return false
 			}
-			record.Phase = shared.ClusterRecordPhaseRecovering
+			record.Phase = k8sapi.ClusterPhaseRecovering
 			return true
 		})
 		if err != nil {
@@ -126,7 +127,7 @@ func (app *app) stopWork(session *ucx.Session, progress func(string)) (string, e
 	if err != nil {
 		return "", err
 	}
-	if cluster.Phase != shared.ClusterRecordPhaseRecovering {
+	if cluster.Phase != k8sapi.ClusterPhaseRecovering {
 		return "", fmt.Errorf("the cluster is not recovering (state: %s)", cluster.Phase)
 	}
 
@@ -144,8 +145,8 @@ func (app *app) stopWork(session *ucx.Session, progress func(string)) (string, e
 	}
 
 	for _, node := range nodes {
-		generation := recoveryReadGeneration(app.MountPath, node.AllocationId)
-		if err := recoveryWriteMarker(app.MountPath, node.AllocationId, generation); err != nil {
+		generation := recoveryReadGeneration(app.MountPath, node.InternalId)
+		if err := recoveryWriteMarker(app.MountPath, node.InternalId, generation); err != nil {
 			return "", fmt.Errorf("could not write the decommissioned marker of node %s: %s", node.Hostname, err)
 		}
 	}
@@ -272,7 +273,7 @@ func (app *app) recreateWork(session *ucx.Session, progress func(string)) (strin
 		return "", errors.New("could not prepare the custom UI service for the replacement nodes")
 	}
 
-	firstServer := shared.ClusterRecoveryFirstServerAllocation(&cluster)
+	firstServer := shared.ClusterRecoveryFirstServerInternalId(&cluster)
 	nodes := controlPlaneNodes(cluster)
 	for _, node := range nodes {
 		if node.JobId != "" {
@@ -285,8 +286,8 @@ func (app *app) recreateWork(session *ucx.Session, progress func(string)) (strin
 
 		progress("Creating the replacement node " + node.Hostname)
 		spec := shared.ClusterRecoveryNodeSpec{
-			AllocationId:   node.AllocationId,
-			FirstServer:    node.AllocationId == firstServer,
+			InternalId:     node.InternalId,
+			FirstServer:    node.InternalId == firstServer,
 			Release:        release,
 			BackupId:       record.BackupId,
 			SnapshotSha256: record.SnapshotSha256,
@@ -544,9 +545,9 @@ func (app *app) closeWork(session *ucx.Session, progress func(string)) (string, 
 
 	progress("Returning the cluster to normal operation")
 	err = shared.ClusterRecordUpdate(client, func(record *shared.ClusterRecord) bool {
-		phase := shared.ClusterRecordPhaseCreated
+		phase := k8sapi.ClusterPhaseCreated
 		if len(record.PendingCleanup) > 0 {
-			phase = shared.ClusterRecordPhaseCleanup
+			phase = k8sapi.ClusterPhaseCleanup
 		}
 		if record.Phase == phase {
 			return false

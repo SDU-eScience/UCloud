@@ -20,6 +20,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/log"
 )
 
@@ -61,7 +62,7 @@ type nodeWorker struct {
 	uid       string
 	ctx       context.Context
 	cancel    context.CancelFunc
-	client    stackClient
+	client    shared.RpcGrantClient
 	logs      *logRelay
 	lastTouch time.Time
 
@@ -123,12 +124,7 @@ func (worker *nodeWorker) mutate(mutate func(*Operation) bool) error {
 		return nil
 	}
 
-	value, marshalErr := json.Marshal(operation)
-	if marshalErr != nil {
-		return marshalErr
-	}
-
-	_, writeErr := shared.RpcGrantStateWrite(worker.client, stackNodeKey(worker.nodeName), value, record.Revision)
+	_, writeErr := stackValueWrite(worker.client, stackNodeKey(worker.nodeName), operation, record.Revision)
 	if writeErr != nil {
 		if shared.IsConflict(writeErr) {
 			return errConcluded
@@ -159,11 +155,11 @@ func (worker *nodeWorker) checkpoint() (Operation, bool) {
 		return Operation{}, false
 	}
 	if operation.CancelRequested && !RemovePastPointOfNoReturn(operation) {
-		finish(worker, PhaseCancelled, cancelMessage(operation))
+		finish(worker, k8sapi.MaintenancePhaseCancelled, cancelMessage(operation))
 		return Operation{}, false
 	}
 	if time.Now().After(operation.Deadline) {
-		finish(worker, PhaseFailed, "the operation timed out")
+		finish(worker, k8sapi.MaintenancePhaseFailed, "the operation timed out")
 		return Operation{}, false
 	}
 	if worker.ctx.Err() != nil {
@@ -179,7 +175,7 @@ func (worker *nodeWorker) checkpoint() (Operation, bool) {
 // heartbeat and starts a new worker for it. The claim is a compare-and-swap write that stamps the heartbeat, so only
 // one coordinator instance adopts a given operation. The worker revalidates the recorded uid before every mutation.
 
-func runLoop(ctx context.Context, logPrefix string, sweep func(context.Context, stackClient) error, wake <-chan struct{}) {
+func runLoop(ctx context.Context, logPrefix string, sweep func(context.Context, shared.RpcGrantClient) error, wake <-chan struct{}) {
 	ticker := time.NewTicker(runInterval)
 	defer ticker.Stop()
 
@@ -221,7 +217,7 @@ func Run(ctx context.Context, kubeconfigPath string) {
 	}()
 	go func() {
 		defer loops.Done()
-		runLoop(ctx, "k8s-app maintenance", func(ctx context.Context, client stackClient) error {
+		runLoop(ctx, "k8s-app maintenance", func(ctx context.Context, client shared.RpcGrantClient) error {
 			return runSweep(ctx, kubeconfigPath, client)
 		}, nil)
 	}()
@@ -251,7 +247,7 @@ func Run(ctx context.Context, kubeconfigPath string) {
 	}
 }
 
-func sweep(ctx context.Context, kubeconfigPath string, client stackClient) {
+func sweep(ctx context.Context, kubeconfigPath string, client shared.RpcGrantClient) {
 	records, err := stackList(client, stackKeyPrefix)
 	if err != nil {
 		log.Warn("k8s-app maintenance: could not list the maintenance records during the sweep: %s", err)
@@ -273,7 +269,7 @@ func sweep(ctx context.Context, kubeconfigPath string, client stackClient) {
 			continue
 		}
 
-		if operation.Phase == PhaseRunning && !operationStale(operation, time.Now()) {
+		if operation.Phase == k8sapi.MaintenancePhaseRunning && !operationStale(operation, time.Now()) {
 			continue
 		}
 
@@ -293,18 +289,13 @@ func sweep(ctx context.Context, kubeconfigPath string, client stackClient) {
 	}
 }
 
-func claimOperation(client stackClient, operation Operation, revision int64) bool {
+func claimOperation(client shared.RpcGrantClient, operation Operation, revision int64) bool {
 	claimed := operation
-	claimed.Phase = PhaseRunning
+	claimed.Phase = k8sapi.MaintenancePhaseRunning
 	claimed.UpdatedAt = time.Now().UTC()
 	claimed.HeartbeatAt = claimed.UpdatedAt
 
-	value, marshalErr := json.Marshal(claimed)
-	if marshalErr != nil {
-		return false
-	}
-
-	_, writeErr := shared.RpcGrantStateWrite(client, stackNodeKey(operation.NodeName), value, revision)
+	_, writeErr := stackValueWrite(client, stackNodeKey(operation.NodeName), claimed, revision)
 	if writeErr != nil {
 		if !shared.IsConflict(writeErr) {
 			log.Warn(
@@ -322,7 +313,7 @@ func claimOperation(client stackClient, operation Operation, revision int64) boo
 func runOperation(
 	ctx context.Context,
 	kubeconfigPath string,
-	client stackClient,
+	client shared.RpcGrantClient,
 	operation Operation,
 ) {
 	nodeName := operation.NodeName
@@ -359,7 +350,7 @@ func runOperation(
 		result := runCordonDrain(workerCtx, clientset, current, worker, false)
 		runErr = result.err
 		if runErr == nil && result.outcome == drainDone {
-			finish(worker, PhaseCompleted, "")
+			finish(worker, k8sapi.MaintenancePhaseCompleted, "")
 		}
 	case KindUpgrade:
 		runErr = runUpgrade(workerCtx, clientset, current, worker)
@@ -520,7 +511,7 @@ func runUncordon(
 		}
 	}
 
-	finish(worker, PhaseCompleted, "")
+	finish(worker, k8sapi.MaintenancePhaseCompleted, "")
 	return nil
 }
 
@@ -542,7 +533,7 @@ func drainNode(
 		}
 
 		if time.Now().After(current.Deadline) {
-			finish(worker, PhaseFailed, "the drain timed out with pods remaining on the node")
+			finish(worker, k8sapi.MaintenancePhaseFailed, "the drain timed out with pods remaining on the node")
 			return drainConcluded
 		}
 
@@ -556,12 +547,12 @@ func drainNode(
 		}
 
 		if string(node.UID) != operation.NodeUid {
-			finish(worker, PhaseFailed, "the node was replaced during the drain")
+			finish(worker, k8sapi.MaintenancePhaseFailed, "the node was replaced during the drain")
 			return drainConcluded
 		}
 
 		if !node.Spec.Unschedulable {
-			finish(worker, PhaseFailed, "the node was uncordoned during the drain")
+			finish(worker, k8sapi.MaintenancePhaseFailed, "the node was uncordoned during the drain")
 			return drainConcluded
 		}
 
@@ -928,7 +919,7 @@ func controlPlaneRemovalGuard(
 func controlPlaneNames(record shared.ClusterRecord) map[string]bool {
 	controlPlanes := map[string]bool{}
 	for _, recorded := range record.Nodes {
-		if recorded.Group == shared.GroupControlPlane {
+		if recorded.Group == k8sapi.GroupControlPlane {
 			controlPlanes[recorded.Hostname] = true
 		}
 	}
@@ -1088,9 +1079,9 @@ func finish(worker *nodeWorker, phase string, message string) {
 		logMutateFailure(worker.nodeName, err)
 	}
 
-	if phase == PhaseCompleted {
+	if phase == k8sapi.MaintenancePhaseCompleted {
 		log.Info("k8s-app maintenance %s: operation completed", worker.nodeName)
-	} else if phase == PhaseFailed {
+	} else if phase == k8sapi.MaintenancePhaseFailed {
 		log.Warn("k8s-app maintenance %s: operation failed: %s", worker.nodeName, message)
 	} else {
 		log.Info("k8s-app maintenance %s: operation %s: %s", worker.nodeName, phase, message)
@@ -1106,7 +1097,7 @@ func finishQuiet(worker *nodeWorker, phase string, message string) error {
 		}
 		op.Phase = phase
 		op.Error = message
-		if KindRequiresRecovery(op.Kind) && op.ExecutorSubmitted && phase != PhaseCompleted {
+		if KindRequiresRecovery(op.Kind) && op.ExecutorSubmitted && phase != k8sapi.MaintenancePhaseCompleted {
 			op.RecoveryRequired = true
 		}
 		op.CancelRequested = false
@@ -1123,7 +1114,7 @@ func finishQuiet(worker *nodeWorker, phase string, message string) error {
 }
 
 func failOperation(worker *nodeWorker, message string) {
-	finish(worker, PhaseFailed, message)
+	finish(worker, k8sapi.MaintenancePhaseFailed, message)
 	worker.cancel()
 }
 

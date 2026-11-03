@@ -14,9 +14,7 @@ Unattended-Upgrade::Automatic-Reboot "false";
 EOF
 	chmod 0644 /etc/apt/apt.conf.d/99-ucloud-k8s.conf
 
-	if command -v systemctl >/dev/null 2>&1; then
-		systemctl disable --now apt-daily-upgrade.timer >/dev/null 2>&1 || true
-	fi
+	systemctl disable --now apt-daily-upgrade.timer >/dev/null 2>&1 || true
 }
 
 install_apt_hardening
@@ -67,17 +65,6 @@ source /etc/ucloud-k8s/bundle/common.sh
 EOF
 chmod 0755 /usr/local/sbin/ucloud-k8s-maintenance-agent-setup
 
-if ! command -v systemctl >/dev/null 2>&1; then
-	if [ -d /work ]; then
-		exec > >(tee -a "$BOOTSTRAP_LOG" >>"$BOOTSTRAP_STDOUT_LOG") 2>&1
-	else
-		exec >>"$BOOTSTRAP_LOG" 2>&1
-	fi
-	log "systemd is not available. Starting node setup directly"
-	log "WARNING: the maintenance service could not be set up because systemd is unavailable. Kubernetes setup will continue"
-	exec /usr/local/sbin/ucloud-k8s-bootstrap
-fi
-
 ROLE="$(node_field role)"
 
 BOOTSTRAP_TIMEOUT="$BOOTSTRAP_TIMEOUT_SECONDS"
@@ -85,10 +72,7 @@ if [ "$(node_field_opt recoveryEnabled)" = "True" ]; then
 	BOOTSTRAP_TIMEOUT="$RECOVERY_BOOTSTRAP_TIMEOUT_SECONDS"
 fi
 
-REQUIRES_MOUNTS="RequiresMountsFor=/etc/ucloud-k8s/input /etc/ucloud-k8s/bundle /work"
-if [ "$ROLE" = "control-plane" ]; then
-	REQUIRES_MOUNTS="RequiresMountsFor=/etc/ucloud-k8s/input /etc/ucloud-k8s/bundle /work /etc/ucloud-k8s/management /etc/ucloud-k8s/nodes /etc/ucloud-k8s/backups"
-fi
+REQUIRES_MOUNTS="$(requires_mounts_for "$ROLE")"
 
 cat > /etc/systemd/system/ucloud-k8s-maintenance-agent-setup.service <<EOF
 [Unit]

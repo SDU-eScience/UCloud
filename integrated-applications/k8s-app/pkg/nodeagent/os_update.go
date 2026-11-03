@@ -28,13 +28,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 // Constants and types
@@ -199,7 +202,7 @@ func recoverInterruptedOs() {
 		}
 
 		osFailInterrupted(state, "the node did not restart after the update. Retry the update")
-	case shared.NodeAgentOsPhaseActive(state.Phase):
+	case slices.Contains(shared.NodeAgentOsPhases, state.Phase):
 		osFailInterrupted(state, fmt.Sprintf(
 			"the update was interrupted while %s. Retry the update",
 			osPhaseUserLabel(state.Phase),
@@ -533,7 +536,7 @@ func osVerifyUpdate(ctx context.Context, serviceName string, kernelPending strin
 		)
 	}
 
-	if identitySnapshot().Role == shared.GroupControlPlane {
+	if identitySnapshot().Role == k8sapi.GroupControlPlane {
 		return verifyControlPlaneReadyz(ctx)
 	}
 
@@ -723,7 +726,7 @@ func osRunPackageCommand(ctx context.Context, timeout time.Duration, env []strin
 				if line == "" {
 					continue
 				}
-				line = shared.NodeAgentTruncateLine(line)
+				line = util.Utf8Truncate(line, shared.NodeAgentProgressLineMax)
 				progressText(line)
 				lastLine = line
 			}

@@ -19,14 +19,43 @@ import (
 	"ucloud.dk/iapp/k8s/pkg/backup"
 )
 
-const NodeAgentPhaseIdle = "idle"
-const NodeAgentPhaseDownloading = "downloading"
-const NodeAgentPhaseSnapshotting = "snapshotting"
-const NodeAgentPhaseInstalling = "installing"
-const NodeAgentPhaseRestarting = "restarting"
-const NodeAgentPhaseVerifying = "verifying"
-const NodeAgentPhaseCompleted = "completed"
-const NodeAgentPhaseFailed = "failed"
+const (
+	NodeAgentPhaseIdle         = "idle"
+	NodeAgentPhaseDownloading  = "downloading"
+	NodeAgentPhaseSnapshotting = "snapshotting"
+	NodeAgentPhaseInstalling   = "installing"
+	NodeAgentPhaseRestarting   = "restarting"
+	NodeAgentPhaseVerifying    = "verifying"
+	NodeAgentPhaseCompleted    = "completed"
+	NodeAgentPhaseFailed       = "failed"
+
+	NodeAgentOsPhaseIdle      = "idle"
+	NodeAgentOsPhaseStaging   = "staging"
+	NodeAgentOsPhaseStaged    = "staged"
+	NodeAgentOsPhaseApplying  = "applying"
+	NodeAgentOsPhaseRebooting = "rebooting"
+	NodeAgentOsPhaseVerifying = "verifying"
+	NodeAgentOsPhaseCompleted = "completed"
+	NodeAgentOsPhaseFailed    = "failed"
+
+	NodeAgentOsCommandCheck      = "check"
+	NodeAgentOsCommandStage      = "stage"
+	NodeAgentOsCommandStageRetry = "stage-retry"
+	NodeAgentOsCommandApply      = "apply"
+	NodeAgentOsCommandRetry      = "retry"
+
+	NodeAgentPort            = 9444
+	NodeAgentMaxLogBody      = 16 * 1024
+	NodeAgentProgressLineMax = 2000
+
+	nodeAgentClientTimeout        = 10 * time.Second
+	nodeAgentOsCheckClientTimeout = 11 * time.Minute
+	nodeAgentBackupClientTimeout  = 25 * time.Minute
+
+	NodeAgentTokenHeader          = "X-Ucloud-Maintenance-Token"
+	NodeAgentOperationHeader      = "X-Ucloud-Maintenance-Operation"
+	NodeAgentCoordinatorTokensDir = "/etc/ucloud-k8s/management/maintenance-tokens"
+)
 
 var NodeAgentPhases = []string{
 	NodeAgentPhaseDownloading,
@@ -36,45 +65,12 @@ var NodeAgentPhases = []string{
 	NodeAgentPhaseVerifying,
 }
 
-const NodeAgentOsPhaseIdle = "idle"
-const NodeAgentOsPhaseStaging = "staging"
-const NodeAgentOsPhaseStaged = "staged"
-const NodeAgentOsPhaseApplying = "applying"
-const NodeAgentOsPhaseRebooting = "rebooting"
-const NodeAgentOsPhaseVerifying = "verifying"
-const NodeAgentOsPhaseCompleted = "completed"
-const NodeAgentOsPhaseFailed = "failed"
-
 var NodeAgentOsPhases = []string{
 	NodeAgentOsPhaseStaging,
 	NodeAgentOsPhaseApplying,
 	NodeAgentOsPhaseRebooting,
 	NodeAgentOsPhaseVerifying,
 }
-
-const (
-	NodeAgentOsCommandCheck      = "check"
-	NodeAgentOsCommandStage      = "stage"
-	NodeAgentOsCommandStageRetry = "stage-retry"
-	NodeAgentOsCommandApply      = "apply"
-	NodeAgentOsCommandRetry      = "retry"
-)
-
-const NodeAgentMaxLogBody = 16 * 1024
-
-const NodeAgentPort = 9444
-
-const nodeAgentClientTimeout = 10 * time.Second
-
-const nodeAgentOsCheckClientTimeout = 11 * time.Minute
-
-const nodeAgentBackupClientTimeout = 25 * time.Minute
-
-const NodeAgentTokenHeader = "X-Ucloud-Maintenance-Token"
-
-const NodeAgentOperationHeader = "X-Ucloud-Maintenance-Operation"
-
-const NodeAgentCoordinatorTokensDir = "/etc/ucloud-k8s/management/maintenance-tokens"
 
 type NodeAgentStatus struct {
 	Progress     NodeAgentProgress `json:"progress"`
@@ -130,24 +126,6 @@ type NodeAgentBackupResult struct {
 	PruneWarnings []string            `json:"pruneWarnings,omitempty"`
 }
 
-func NodeAgentPhaseActive(phase string) bool {
-	for _, candidate := range NodeAgentPhases {
-		if phase == candidate {
-			return true
-		}
-	}
-	return false
-}
-
-func NodeAgentOsPhaseActive(phase string) bool {
-	for _, candidate := range NodeAgentOsPhases {
-		if phase == candidate {
-			return true
-		}
-	}
-	return false
-}
-
 func NodeAgentUpgradeAllowed(currentVersion string, targetVersion string) bool {
 	if !strings.HasPrefix(currentVersion, "v") || !strings.HasPrefix(targetVersion, "v") {
 		return false
@@ -174,66 +152,41 @@ func NodeAgentUpgradeAllowed(currentVersion string, targetVersion string) bool {
 	return target.Minor() == current.Minor()+1
 }
 
-func NodeAgentTruncateLine(line string) string {
-	if len(line) <= nodeAgentProgressLineMax {
-		return line
-	}
-
-	cut := nodeAgentProgressLineMax
-	for cut > 0 {
-		if (line[cut] & 0xC0) != 0x80 {
-			break
-		}
-		cut--
-	}
-	return line[:cut]
+type nodeAgentUpgradeRequest struct {
+	Release string `json:"release"`
 }
 
-const nodeAgentProgressLineMax = 2000
+type nodeAgentBackupRequest struct {
+	Trigger string `json:"trigger"`
+}
+
+type nodeAgentLogRequest struct {
+	Lines []string `json:"lines"`
+}
 
 func NodeAgentClientStatus(ctx context.Context, nodeName string, nodeIp string) (NodeAgentStatus, error) {
-	return nodeAgentClientStatusCall(ctx, nodeName, nodeIp, http.MethodGet, "/status", "", "")
+	return nodeAgentClientGet[NodeAgentStatus](ctx, nodeName, nodeIp, "/status")
 }
 
 func NodeAgentClientUpgrade(ctx context.Context, nodeName string, nodeIp string, release string, retry bool, operationUid string) (NodeAgentStatus, error) {
-	body, err := json.Marshal(struct {
-		Release string `json:"release"`
-	}{Release: release})
-	if err != nil {
-		return NodeAgentStatus{}, err
-	}
-
 	endpoint := "/upgrade"
 	if retry {
 		endpoint = "/retry"
 	}
 
-	return nodeAgentClientStatusCall(ctx, nodeName, nodeIp, http.MethodPost, endpoint, string(body), operationUid)
+	return nodeAgentClientPost[NodeAgentStatus](
+		ctx,
+		nodeName,
+		nodeIp,
+		endpoint,
+		nodeAgentUpgradeRequest{Release: release},
+		operationUid,
+		nodeAgentClientTimeout,
+	)
 }
 
 func NodeAgentClientOsStatus(ctx context.Context, nodeName string, nodeIp string) (NodeAgentOsStatus, error) {
-	if err := nodeAgentClientValidateIp(nodeIp); err != nil {
-		return NodeAgentOsStatus{}, err
-	}
-
-	responseBody, err := nodeAgentClientCall(
-		ctx,
-		http.MethodGet,
-		nodeAgentClientUrl(nodeIp, "/os/status"),
-		"",
-		nodeName,
-		"",
-	)
-	if err != nil {
-		return NodeAgentOsStatus{}, err
-	}
-
-	var status NodeAgentOsStatus
-	if err := json.Unmarshal(responseBody, &status); err != nil {
-		return NodeAgentOsStatus{}, fmt.Errorf("could not read the node maintenance response: %s", err)
-	}
-
-	return status, nil
+	return nodeAgentClientGet[NodeAgentOsStatus](ctx, nodeName, nodeIp, "/os/status")
 }
 
 func NodeAgentClientOsCommand(
@@ -243,72 +196,32 @@ func NodeAgentClientOsCommand(
 	request NodeAgentOsRequest,
 	operationUid string,
 ) (NodeAgentOsStatus, error) {
-	body, err := json.Marshal(request)
-	if err != nil {
-		return NodeAgentOsStatus{}, err
-	}
-
-	if err := nodeAgentClientValidateIp(nodeIp); err != nil {
-		return NodeAgentOsStatus{}, err
-	}
-
 	timeout := nodeAgentClientTimeout
 	if request.Command == NodeAgentOsCommandCheck {
 		timeout = nodeAgentOsCheckClientTimeout
 	}
 
-	responseBody, err := nodeAgentClientCallTimeout(
+	return nodeAgentClientPost[NodeAgentOsStatus](
 		ctx,
-		http.MethodPost,
-		nodeAgentClientUrl(nodeIp, "/os/update"),
-		string(body),
 		nodeName,
+		nodeIp,
+		"/os/update",
+		request,
 		operationUid,
 		timeout,
 	)
-	if err != nil {
-		return NodeAgentOsStatus{}, err
-	}
-
-	var status NodeAgentOsStatus
-	if err := json.Unmarshal(responseBody, &status); err != nil {
-		return NodeAgentOsStatus{}, fmt.Errorf("could not read the node maintenance response: %s", err)
-	}
-
-	return status, nil
 }
 
 func NodeAgentClientBackup(ctx context.Context, nodeName string, nodeIp string, trigger string, operationUid string) (NodeAgentBackupResult, error) {
-	body, err := json.Marshal(struct {
-		Trigger string `json:"trigger"`
-	}{Trigger: trigger})
-	if err != nil {
-		return NodeAgentBackupResult{}, err
-	}
-
-	if err := nodeAgentClientValidateIp(nodeIp); err != nil {
-		return NodeAgentBackupResult{}, err
-	}
-
-	responseBody, err := nodeAgentClientCallTimeout(
+	return nodeAgentClientPost[NodeAgentBackupResult](
 		ctx,
-		http.MethodPost,
-		nodeAgentClientUrl(nodeIp, "/backup"),
-		string(body),
 		nodeName,
+		nodeIp,
+		"/backup",
+		nodeAgentBackupRequest{Trigger: trigger},
 		operationUid,
 		nodeAgentBackupClientTimeout,
 	)
-	if err != nil {
-		return NodeAgentBackupResult{}, err
-	}
-
-	var result NodeAgentBackupResult
-	if err := json.Unmarshal(responseBody, &result); err != nil {
-		return NodeAgentBackupResult{}, fmt.Errorf("could not read the node backup response: %s", err)
-	}
-
-	return result, nil
 }
 
 func NodeAgentClientAppendLog(ctx context.Context, nodeName string, nodeIp string, lines []string, operationUid string) error {
@@ -316,58 +229,109 @@ func NodeAgentClientAppendLog(ctx context.Context, nodeName string, nodeIp strin
 		return nil
 	}
 
-	body, err := json.Marshal(struct {
-		Lines []string `json:"lines"`
-	}{Lines: lines})
-	if err != nil {
-		return err
-	}
-
-	if err := nodeAgentClientValidateIp(nodeIp); err != nil {
-		return err
-	}
-
-	_, err = nodeAgentClientCall(ctx, http.MethodPost, nodeAgentClientUrl(nodeIp, "/log"), string(body), nodeName, operationUid)
+	_, err := nodeAgentClientPost[struct{}](
+		ctx,
+		nodeName,
+		nodeIp,
+		"/log",
+		nodeAgentLogRequest{Lines: lines},
+		operationUid,
+		nodeAgentClientTimeout,
+	)
 	return err
 }
 
 func NodeAgentClientResetLog(ctx context.Context, nodeName string, nodeIp string, operationUid string) error {
-	if err := nodeAgentClientValidateIp(nodeIp); err != nil {
-		return err
-	}
-
-	_, err := nodeAgentClientCall(ctx, http.MethodPost, nodeAgentClientUrl(nodeIp, "/log/reset"), "", nodeName, operationUid)
+	_, err := nodeAgentClientPost[struct{}](
+		ctx,
+		nodeName,
+		nodeIp,
+		"/log/reset",
+		nil,
+		operationUid,
+		nodeAgentClientTimeout,
+	)
 	return err
 }
 
-func nodeAgentClientStatusCall(
+func nodeAgentClientGet[T any](ctx context.Context, nodeName string, nodeIp string, endpoint string) (T, error) {
+	return nodeAgentClientRequest[T](
+		ctx,
+		nodeName,
+		nodeIp,
+		http.MethodGet,
+		endpoint,
+		nil,
+		"",
+		nodeAgentClientTimeout,
+	)
+}
+
+func nodeAgentClientPost[T any](
+	ctx context.Context,
+	nodeName string,
+	nodeIp string,
+	endpoint string,
+	payload any,
+	operationUid string,
+	timeout time.Duration,
+) (T, error) {
+	return nodeAgentClientRequest[T](
+		ctx,
+		nodeName,
+		nodeIp,
+		http.MethodPost,
+		endpoint,
+		payload,
+		operationUid,
+		timeout,
+	)
+}
+
+func nodeAgentClientRequest[T any](
 	ctx context.Context,
 	nodeName string,
 	nodeIp string,
 	method string,
 	endpoint string,
-	body string,
+	payload any,
 	operationUid string,
-) (NodeAgentStatus, error) {
+	timeout time.Duration,
+) (T, error) {
+	var zero T
+
 	if err := nodeAgentClientValidateIp(nodeIp); err != nil {
-		return NodeAgentStatus{}, err
+		return zero, err
 	}
 
-	responseBody, err := nodeAgentClientCall(ctx, method, nodeAgentClientUrl(nodeIp, endpoint), body, nodeName, operationUid)
+	var body string
+	if payload != nil {
+		data, err := json.Marshal(payload)
+		if err != nil {
+			return zero, err
+		}
+		body = string(data)
+	}
+
+	responseBody, err := nodeAgentClientCallTimeout(
+		ctx,
+		method,
+		fmt.Sprintf("http://%s%s", net.JoinHostPort(nodeIp, fmt.Sprintf("%d", NodeAgentPort)), endpoint),
+		body,
+		nodeName,
+		operationUid,
+		timeout,
+	)
 	if err != nil {
-		return NodeAgentStatus{}, err
+		return zero, err
 	}
 
-	var status NodeAgentStatus
-	if err := json.Unmarshal(responseBody, &status); err != nil {
-		return NodeAgentStatus{}, fmt.Errorf("could not read the node maintenance response: %s", err)
+	var result T
+	if err := json.Unmarshal(responseBody, &result); err != nil {
+		return zero, fmt.Errorf("could not read the node maintenance response: %s", err)
 	}
 
-	return status, nil
-}
-
-func nodeAgentClientCall(ctx context.Context, method string, url string, body string, nodeName string, operationUid string) (json.RawMessage, error) {
-	return nodeAgentClientCallTimeout(ctx, method, url, body, nodeName, operationUid, nodeAgentClientTimeout)
+	return result, nil
 }
 
 func nodeAgentClientCallTimeout(
@@ -447,10 +411,6 @@ func nodeAgentClientError(statusCode int, responseBody []byte) error {
 		return fmt.Errorf("the node rejected the maintenance request (status %d): %s", statusCode, payload.Error)
 	}
 	return fmt.Errorf("the node rejected the maintenance request (status %d)", statusCode)
-}
-
-func nodeAgentClientUrl(nodeIp string, endpoint string) string {
-	return fmt.Sprintf("http://%s%s", net.JoinHostPort(nodeIp, fmt.Sprintf("%d", NodeAgentPort)), endpoint)
 }
 
 func nodeAgentClientValidateIp(nodeIp string) error {

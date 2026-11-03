@@ -33,9 +33,7 @@ func recoveryReadCluster(client shared.ClusterStateClient) (shared.ClusterRecord
 		return shared.ClusterRecord{}, errors.New("the cluster record does not exist")
 	}
 
-	record := snapshot.Record
-	shared.ClusterStateRecordRevisionSet(&record, snapshot.Revision)
-	return record, nil
+	return snapshot.Record, nil
 }
 
 func recoveryReadRecovery(client shared.ClusterStateClient) (shared.ClusterRecoveryRecord, int64, bool, error) {
@@ -180,8 +178,8 @@ func recoveryClearPin(mountPath string, id string) {
 	_ = os.Remove(path)
 }
 
-func recoveryReadGeneration(mountPath string, allocationId int) string {
-	path := filepath.Join(mountPath, "nodes", strconv.Itoa(allocationId), "input", "node.json")
+func recoveryReadGeneration(mountPath string, internalId int) string {
+	path := filepath.Join(mountPath, "nodes", strconv.Itoa(internalId), "input", "node.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return ""
@@ -198,12 +196,12 @@ func recoveryReadGeneration(mountPath string, allocationId int) string {
 
 const recoveryDecommissionedMarker = "decommissioned"
 
-func recoveryWriteMarker(mountPath string, allocationId int, generation string) error {
+func recoveryWriteMarker(mountPath string, internalId int, generation string) error {
 	if generation == "" {
 		generation = "decommissioned"
 	}
 
-	dir := filepath.Join(mountPath, "nodes", strconv.Itoa(allocationId), "input")
+	dir := filepath.Join(mountPath, "nodes", strconv.Itoa(internalId), "input")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
@@ -211,8 +209,8 @@ func recoveryWriteMarker(mountPath string, allocationId int, generation string) 
 	return os.WriteFile(filepath.Join(dir, recoveryDecommissionedMarker), []byte(generation), 0600)
 }
 
-func recoveryMarkerExists(mountPath string, allocationId int) bool {
-	path := filepath.Join(mountPath, "nodes", strconv.Itoa(allocationId), "input", recoveryDecommissionedMarker)
+func recoveryMarkerExists(mountPath string, internalId int) bool {
+	path := filepath.Join(mountPath, "nodes", strconv.Itoa(internalId), "input", recoveryDecommissionedMarker)
 	_, err := os.Stat(path)
 	return err == nil
 }
@@ -224,7 +222,7 @@ func recoveryCanChangeBackup(mountPath string, cluster shared.ClusterRecord) boo
 	}
 
 	for _, node := range nodes {
-		if !recoveryMarkerExists(mountPath, node.AllocationId) {
+		if !recoveryMarkerExists(mountPath, node.InternalId) {
 			return false
 		}
 	}

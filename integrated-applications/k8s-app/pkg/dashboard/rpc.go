@@ -59,7 +59,7 @@ func (app *stackUiApp) registerRpcHandlers() {
 				Machine:      pool.Machine,
 				Disk:         pool.DiskGb,
 				Nodes:        poolNodeCount[pool.Name],
-				ControlPlane: pool.Name == shared.GroupControlPlane,
+				ControlPlane: pool.Name == k8sapi.GroupControlPlane,
 			})
 		}
 
@@ -67,7 +67,7 @@ func (app *stackUiApp) registerRpcHandlers() {
 			response.Nodes = append(response.Nodes, k8sapi.StatusNode{
 				Hostname:       node.Hostname,
 				Group:          node.Group,
-				AllocationId:   node.AllocationId,
+				InternalId:     node.InternalId,
 				IpAddress:      node.IpAddress,
 				JobId:          node.JobId,
 				Machine:        node.Machine,
@@ -230,7 +230,7 @@ func (app *stackUiApp) registerRpcHandlers() {
 			return k8sapi.ScaleOutResponse{}, fmt.Errorf("could not read the cluster record")
 		}
 
-		pool, found := dashboardPoolRecord(record, poolName)
+		pool, found := shared.ClusterPoolRecordByName(record, poolName)
 		if !found {
 			return k8sapi.ScaleOutResponse{}, fmt.Errorf("unknown node group: %s", poolName)
 		}
@@ -239,10 +239,8 @@ func (app *stackUiApp) registerRpcHandlers() {
 		if request.Nodes < 0 {
 			return k8sapi.ScaleOutResponse{}, fmt.Errorf("the target node count must be at least zero")
 		}
-		if pool.Name == shared.GroupControlPlane {
-			switch request.Nodes {
-			case 1, 3, 5, 7:
-			default:
+		if pool.Name == k8sapi.GroupControlPlane {
+			if !k8sapi.ValidControlPlaneNodeCount(request.Nodes) {
 				return k8sapi.ScaleOutResponse{}, fmt.Errorf(
 					"the control plane must have an odd number of nodes from %d to %d",
 					k8sapi.ControlPlaneMinNodes,
@@ -274,14 +272,14 @@ func (app *stackUiApp) registerRpcHandlers() {
 				disk = pool.DiskGb
 			}
 
-			if !shared.ClusterScalePool(app, stack, pool.Name, request.Nodes-current, disk) {
+			if !shared.ClusterAddNodesBatch(app, stack, pool.Name, pool.Machine, disk, request.Nodes-current) {
 				return k8sapi.ScaleOutResponse{}, fmt.Errorf("the node group could not be scaled")
 			}
 			response.Ok = true
 			return response, nil
 		}
 
-		if pool.Name == shared.GroupControlPlane && request.Nodes < 3 {
+		if pool.Name == k8sapi.GroupControlPlane && request.Nodes < 3 {
 			return k8sapi.ScaleOutResponse{}, fmt.Errorf(
 				"the control plane must keep at least three nodes when it is scaled down",
 			)

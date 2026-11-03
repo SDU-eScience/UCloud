@@ -4,20 +4,12 @@ import (
 	"fmt"
 	"sort"
 
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 
 	"ucloud.dk/iapp/k8s/pkg/maintenance"
 	"ucloud.dk/iapp/k8s/pkg/shared"
 )
-
-func dashboardPoolRecord(record shared.ClusterRecord, name string) (shared.ClusterPoolRecord, bool) {
-	for _, pool := range record.Pools {
-		if pool.Name == name {
-			return pool, true
-		}
-	}
-	return shared.ClusterPoolRecord{}, false
-}
 
 func dashboardSubmitPoolRemoval(
 	app *stackUiApp,
@@ -38,7 +30,7 @@ func dashboardSubmitPoolRemoval(
 	}
 
 	sort.Slice(nodes, func(i, j int) bool {
-		return nodes[i].AllocationId > nodes[j].AllocationId
+		return nodes[i].InternalId > nodes[j].InternalId
 	})
 
 	if len(nodes) < count {
@@ -52,8 +44,8 @@ func dashboardSubmitPoolRemoval(
 
 	return maintenance.SubmitRun(maintenance.RunRequest{
 		Tasks: []maintenance.TaskRequest{{
-			Kind:           maintenance.TaskRemove,
-			TimeoutSeconds: maintenanceDefaultTimeoutSeconds,
+			Kind:           k8sapi.MaintenanceTaskRemove,
+			TimeoutSeconds: k8sapi.MaintenanceTimeoutDefault,
 		}},
 		Target:              maintenance.Target{Nodes: targetNodes},
 		MaxParallelPerGroup: 1,

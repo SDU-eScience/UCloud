@@ -9,6 +9,7 @@ import (
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 // Operation logs
@@ -104,7 +105,7 @@ func logPackLines(lines []string) []string {
 		if trimmed == "" {
 			continue
 		}
-		trimmed = shared.NodeAgentTruncateLine(trimmed)
+		trimmed = util.Utf8Truncate(trimmed, shared.NodeAgentProgressLineMax)
 
 		encoded, err := json.Marshal(trimmed)
 		if err != nil {

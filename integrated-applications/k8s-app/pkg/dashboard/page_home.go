@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 )
@@ -17,7 +18,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 	if recordOk {
 		clusterState = record.Phase
 		clusterStateColor = ucx.ColorSuccessMain
-		if record.Phase != shared.ClusterRecordPhaseCreated {
+		if record.Phase != k8sapi.ClusterPhaseCreated {
 			clusterStateColor = ucx.ColorWarningMain
 		}
 		if record.FailureReason != "" {
@@ -26,7 +27,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 		}
 	}
 
-	if health := app.clusterHealth; recordOk && record.Phase == shared.ClusterRecordPhaseCreated && health.Total > 0 {
+	if health := app.clusterHealth; recordOk && record.Phase == k8sapi.ClusterPhaseCreated && health.Total > 0 {
 		if health.NotReady == 0 && health.Unknown == 0 {
 			clusterState = "Healthy"
 		} else {
@@ -39,7 +40,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 	}
 
 	nodesTotal := len(record.Nodes)
-	nodesReady := nodesTotal - len(app.provisioningSnapshot())
+	nodesReady := nodesTotal - len(app.provisioningCache)
 	if nodesReady < 0 {
 		nodesReady = 0
 	}
@@ -133,7 +134,7 @@ func (app *stackUiApp) pageHomeContent() []ucx.UiNode {
 }
 
 func (app *stackUiApp) homeCleanupCard(record shared.ClusterRecord) []ucx.UiNode {
-	if record.Phase != shared.ClusterRecordPhaseCleanup && len(record.PendingCleanup) == 0 {
+	if record.Phase != k8sapi.ClusterPhaseCleanup && len(record.PendingCleanup) == 0 {
 		return nil
 	}
 

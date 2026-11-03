@@ -12,18 +12,13 @@ fi
 
 log "reading the admin token secret"
 ADMIN_TOKEN=""
-secret_tries=0
-while [ $secret_tries -lt 30 ]; do
+read_admin_token() {
 	ADMIN_TOKEN="$(k3s kubectl --request-timeout=15s -n default get secret admin -o jsonpath='{.data.token}' 2>/dev/null | base64 -d)" || ADMIN_TOKEN=""
-	if [ -n "$ADMIN_TOKEN" ]; then
-		break
-	fi
-	sleep 2
-	secret_tries=$(( secret_tries + 1 ))
-done
-if [ -z "$ADMIN_TOKEN" ]; then
+	[ -n "$ADMIN_TOKEN" ]
+}
+
+retry_until 30 2 read_admin_token ||
 	fail "credentials" "the admin service account token secret was never created"
-fi
 
 umask 077
 printf '%s' "$ADMIN_TOKEN" | atomic_write_chowned "$MANAGEMENT_DIR/kube-api-token" 0600
@@ -33,14 +28,17 @@ K8S_TOKEN="$ADMIN_TOKEN" K8S_CA_DATA="$SERVER_CA_DATA" K8S_UID="$UCX_SERVICE_UID
 import os
 import sys
 
+def write_kubeconfig(path, content):
+    with open(path + ".tmp", "w") as f:
+        f.write(content)
+    os.chmod(path + ".tmp", 0o600)
+    os.chown(path + ".tmp", int(os.environ["K8S_UID"]), int(os.environ["K8S_GID"]))
+    os.replace(path + ".tmp", path)
+
 with open(sys.argv[1]) as f:
     template = f.read()
 
-with open(sys.argv[2] + ".tmp", "w") as f:
-    f.write(template.replace("MYTOKEN", os.environ["K8S_TOKEN"]))
-os.chmod(sys.argv[2] + ".tmp", 0o600)
-os.chown(sys.argv[2] + ".tmp", int(os.environ["K8S_UID"]), int(os.environ["K8S_GID"]))
-os.replace(sys.argv[2] + ".tmp", sys.argv[2])
+write_kubeconfig(sys.argv[2], template.replace("MYTOKEN", os.environ["K8S_TOKEN"]))
 
 internal = """apiVersion: v1
 kind: Config
@@ -61,11 +59,7 @@ contexts:
 current-context: default
 """.format(ca=os.environ["K8S_CA_DATA"], token=os.environ["K8S_TOKEN"], internal_server=os.environ["K8S_INTERNAL_SERVER"])
 
-with open(sys.argv[3] + ".tmp", "w") as f:
-    f.write(internal)
-os.chmod(sys.argv[3] + ".tmp", 0o600)
-os.chown(sys.argv[3] + ".tmp", int(os.environ["K8S_UID"]), int(os.environ["K8S_GID"]))
-os.replace(sys.argv[3] + ".tmp", sys.argv[3])
+write_kubeconfig(sys.argv[3], internal)
 PYEOF
 umask 022
 

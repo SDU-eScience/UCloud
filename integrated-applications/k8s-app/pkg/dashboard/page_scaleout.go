@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 
@@ -23,7 +24,7 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 		app.ClusterProvider = record.MachineProvider
 	}
 
-	group := strings.TrimSpace(app.TargetGroup)
+	group := app.TargetGroup
 
 	shellEscape := appShellProps{EscapePath: "browse/nodes"}
 
@@ -37,7 +38,7 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 		return app.messagePage(shellEscape.Bottom, "browse/nodes", ucx.Text("Could not read the cluster record."))
 	}
 
-	if record.Phase != shared.ClusterRecordPhaseCreated || len(record.PendingCleanup) > 0 {
+	if record.Phase != k8sapi.ClusterPhaseCreated || len(record.PendingCleanup) > 0 {
 		return app.messagePage(shellEscape.Bottom, "browse/nodes", scaleoutBlockedContent(record, "New nodes")...)
 	}
 
@@ -53,7 +54,7 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 		return app.messagePage(shellEscape.Bottom, "browse/nodes", ucx.Text("Unknown node group: "+group))
 	}
 	groupLabel := "Worker pool"
-	if group == shared.GroupControlPlane {
+	if group == k8sapi.GroupControlPlane {
 		groupLabel = "Control-plane nodes"
 	}
 
@@ -92,13 +93,13 @@ func (app *stackUiApp) pageAddMachine() []ucx.UiNode {
 					FieldRowDescription(fmt.Sprintf("The disk size for each new node. This group uses %d GB by default.", pool.DiskGb)).
 					FieldRowRequired(true).
 					Children(
-						ucx.InputNumber("targetDisk", "", "targetDiskGb", 10, 1024).WithAutoFocus(),
+						ucx.InputNumber("targetDisk", "", "targetDiskGb", k8sapi.MinDiskGb, k8sapi.MaxDiskGb).WithAutoFocus(),
 					),
 				ucx.FieldRowNodeEx("countRow", "Node count", "targetCount").
 					FieldRowDescription("The number of nodes to add to this group.").
 					FieldRowRequired(true).
 					Children(
-						ucx.InputNumber("targetCount", "", "targetCount", 1, 250),
+						ucx.InputNumber("targetCount", "", "targetCount", k8sapi.MinPoolNodes, k8sapi.MaxPoolNodes),
 					),
 			),
 			ucx.SubmitButton("addToPool", "Add nodes", ucx.ColorSuccessMain).
@@ -133,7 +134,7 @@ func (app *stackUiApp) pageAddPool() []ucx.UiNode {
 		return app.messagePage(shellEscape.Bottom, "browse/nodes", ucx.Text("Could not read the cluster record."))
 	}
 
-	if record.Phase != shared.ClusterRecordPhaseCreated || len(record.PendingCleanup) > 0 {
+	if record.Phase != k8sapi.ClusterPhaseCreated || len(record.PendingCleanup) > 0 {
 		return app.messagePage(shellEscape.Bottom, "browse/nodes", scaleoutBlockedContent(record, "New worker pools")...)
 	}
 
@@ -179,13 +180,13 @@ func (app *stackUiApp) pageAddPool() []ucx.UiNode {
 				FieldRowDescription("The disk size for each node in this pool.").
 				FieldRowRequired(true).
 				Children(
-					ucx.InputNumber("poolDisk", "", "targetDiskGb", 10, 1024),
+					ucx.InputNumber("poolDisk", "", "targetDiskGb", k8sapi.MinDiskGb, k8sapi.MaxDiskGb),
 				),
 			ucx.FieldRowNodeEx("countRow", "Node count", "targetCount").
 				FieldRowDescription("The number of worker nodes in this pool.").
 				FieldRowRequired(true).
 				Children(
-					ucx.InputNumber("poolCount", "", "targetCount", 1, 250),
+					ucx.InputNumber("poolCount", "", "targetCount", k8sapi.MinPoolNodes, k8sapi.MaxPoolNodes),
 				),
 		),
 		ucx.SubmitButton("addPool", "Add worker pool", ucx.ColorSuccessMain).
@@ -210,13 +211,13 @@ func (app *stackUiApp) addMachinesToGroup(stack *ucxsvc.Stack, group string, mac
 		count = 1
 	}
 
-	_, ok := shared.ClusterAddNodesBatch(app, stack, group, machine, diskGb, count)
+	ok := shared.ClusterAddNodesBatch(app, stack, group, machine, diskGb, count)
 	if !ok {
 		return
 	}
 
 	message := fmt.Sprintf("Added %s to worker pool %s.", dashboardNodeCount(count), group)
-	if group == shared.GroupControlPlane {
+	if group == k8sapi.GroupControlPlane {
 		message = fmt.Sprintf("Added %s to the control plane.", dashboardNodeCount(count))
 	}
 	ucxsvc.UiSendSuccess(app, message)
@@ -251,7 +252,7 @@ func (app *stackUiApp) addPool(provider string, stack *ucxsvc.Stack, name string
 
 func scaleoutBlockedContent(record shared.ClusterRecord, action string) []ucx.UiNode {
 	content := []ucx.UiNode{}
-	if record.Phase == shared.ClusterRecordPhaseCleanup || len(record.PendingCleanup) > 0 {
+	if record.Phase == k8sapi.ClusterPhaseCleanup || len(record.PendingCleanup) > 0 {
 		content = append(content, ucx.Text(
 			"The cluster is removing the resources of a failed scale-out. "+action+
 				" cannot be added until the cleanup finishes.",

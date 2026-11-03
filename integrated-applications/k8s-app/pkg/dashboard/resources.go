@@ -20,7 +20,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"ucloud.dk/iapp/k8s/pkg/maintenance"
-	"ucloud.dk/iapp/k8s/pkg/shared"
 	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/ucx"
 )
@@ -50,8 +49,6 @@ type ResourceRow struct {
 	Actions []ucx.TableRowAction
 	Busy    bool
 }
-
-const nodeGroupLabel = "ucloud.dk/k8s-node-group"
 
 var resourceTypes = []ResourceTypeDef{
 	{
@@ -279,13 +276,9 @@ func (app *stackUiApp) resourceStreamId() string {
 	return resourceDatasetId(resourceSelection{
 		typeId:    app.ActiveType,
 		namespace: app.ActiveNamespace,
-		filter:    app.pollerFilter(),
+		filter:    app.ActiveFilter,
 		def:       def,
 	})
-}
-
-func (app *stackUiApp) pollerFilter() resourceFilter {
-	return app.ActiveFilter
 }
 
 // Kubernetes client
@@ -460,7 +453,7 @@ func (c *K8sClient) NodeHealth(ctx context.Context) (NodeHealth, error) {
 
 func nodeIsControlPlane(obj *unstructured.Unstructured) bool {
 	labels := obj.GetLabels()
-	if labels[nodeGroupLabel] == shared.GroupControlPlane {
+	if labels[k8sapi.LabelNodeGroup] == k8sapi.GroupControlPlane {
 		return true
 	}
 
@@ -661,7 +654,7 @@ func rowsFromNodes(items []unstructured.Unstructured) []ResourceRow {
 		}
 		sort.Strings(roles)
 
-		group := obj.GetLabels()[nodeGroupLabel]
+		group := obj.GetLabels()[k8sapi.LabelNodeGroup]
 
 		rows = append(rows, ResourceRow{
 			Key:   string(obj.GetUID()),

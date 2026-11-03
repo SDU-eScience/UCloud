@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/backup"
@@ -104,9 +105,9 @@ func handleUpgradeOrRetry(writer http.ResponseWriter, request *http.Request, ret
 		return
 	}
 
-	osActive := shared.NodeAgentOsPhaseActive(osStateLoad().Phase)
+	osActive := slices.Contains(shared.NodeAgentOsPhases, osStateLoad().Phase)
 
-	fenceErr := validateFence(operationUid, shared.NodeAgentPhaseActive(state.Phase) || osActive)
+	fenceErr := validateFence(operationUid, slices.Contains(shared.NodeAgentPhases, state.Phase) || osActive)
 	if fenceErr != nil {
 		log.Warn("k8s-app node agent: the command was rejected because its ownership could not be verified: %s", fenceErr)
 		writeError(writer, http.StatusForbidden, fenceErr.Error())
@@ -128,7 +129,7 @@ func handleUpgradeOrRetry(writer http.ResponseWriter, request *http.Request, ret
 		return
 	}
 
-	if shared.NodeAgentPhaseActive(state.Phase) {
+	if slices.Contains(shared.NodeAgentPhases, state.Phase) {
 		if state.Release == release {
 			if err := acceptOperation(operationUid); err != nil {
 				writeError(writer, http.StatusInternalServerError, err.Error())
@@ -284,7 +285,7 @@ func startUpgrade(writer http.ResponseWriter, release string, state upgradeState
 		operationUid,
 		current.NeedsStateRecovery,
 		stateChanged,
-		shared.NodeAgentPhaseActive(current.Phase),
+		slices.Contains(shared.NodeAgentPhases, current.Phase),
 		"the upgrade state changed. Read its status before submitting again",
 	) {
 		return
@@ -369,8 +370,8 @@ func handleOsUpdate(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	upgradeActive := shared.NodeAgentPhaseActive(stateLoad().Phase)
-	osActive := shared.NodeAgentOsPhaseActive(state.Phase)
+	upgradeActive := slices.Contains(shared.NodeAgentPhases, stateLoad().Phase)
+	osActive := slices.Contains(shared.NodeAgentOsPhases, state.Phase)
 
 	if parsed.Command == shared.NodeAgentOsCommandCheck {
 		if upgradeActive {
@@ -503,7 +504,7 @@ func startOsUpdate(writer http.ResponseWriter, parsed osUpdateRequest, state osS
 		operationUid,
 		current.NeedsStateRecovery,
 		stateChanged,
-		shared.NodeAgentOsPhaseActive(current.Phase),
+		slices.Contains(shared.NodeAgentOsPhases, current.Phase),
 		"the operating-system update state changed. Read its status before submitting again",
 	) {
 		return
@@ -580,12 +581,12 @@ func handleBackup(writer http.ResponseWriter, request *http.Request) {
 		writeError(writer, http.StatusInternalServerError, "the upgrade state of the node is unreadable")
 		return
 	}
-	if shared.NodeAgentPhaseActive(state.Phase) {
+	if slices.Contains(shared.NodeAgentPhases, state.Phase) {
 		globals.CommandMu.Unlock()
 		writeError(writer, http.StatusConflict, "an upgrade is running on the node")
 		return
 	}
-	if shared.NodeAgentOsPhaseActive(osStateLoad().Phase) {
+	if slices.Contains(shared.NodeAgentOsPhases, osStateLoad().Phase) {
 		globals.CommandMu.Unlock()
 		writeError(writer, http.StatusConflict, "an operating-system update is running on the node")
 		return

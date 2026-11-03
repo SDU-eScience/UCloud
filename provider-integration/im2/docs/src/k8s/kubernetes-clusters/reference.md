@@ -105,7 +105,7 @@ application wrote.
 | `nodes/<number>/input/agent-token.ca` | The published join token of the workers. | `0600` |
 | `nodes/<number>/input/controller-token` | The registration token of the controller. Control plane nodes only. | `0600` |
 | `nodes/<number>/input/maintenance-enrollment-secret` | The enrollment secret of the node agent. | `0600` |
-| `nodes/<number>/input/stack-identity.json` | The stack, the provider and the owner of the node. | `0600` |
+| `nodes/<number>/input/stack-identity.txt` | The identifier of the stack. | `0600` |
 | `nodes/<number>/input/decommissioned` | The marker that stops a node from starting k3s again. | `0600` |
 | `bundles/<revision>/<release>/` | The bootstrap scripts of one release and one script revision. | `0550` |
 | `backups/<backup id>/snapshot` | The etcd snapshot. | `0600` |
@@ -137,7 +137,6 @@ credentials of a cluster.
 | `ucloud.dk/k8s-version` | The target k3s release of the node. | Every node |
 | `ucloud.dk/stack-instance` | The identifier of the stack. | Every resource of the stack |
 | `ucloud.dk/stack-controller` | `true`. | Control plane nodes |
-| `ucloud.dk/k8s-topology-operation` | The identifier of the scale-out operation. | A node created by a scale-out |
 
 ## Application manifest
 

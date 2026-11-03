@@ -8,6 +8,7 @@ import (
 
 	"ucloud.dk/iapp/k8s/pkg/backup"
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 )
@@ -56,7 +57,7 @@ func backupPage(app *stackUiApp) []ucx.UiNode {
 func backupStatusNodes(app *stackUiApp, status dashboardBackupStatus, now time.Time) []ucx.UiNode {
 	nodes := []ucx.UiNode{}
 
-	if status.StateFound && status.State.LastAttempt.Phase == backup.AttemptFailed {
+	if status.StateFound && status.State.LastAttempt.Phase == k8sapi.BackupAttemptFailed {
 		attempt := status.State.LastAttempt
 		message := "The last backup failed"
 		if !attempt.FinishedAt.IsZero() {
@@ -77,7 +78,7 @@ func backupStatusNodes(app *stackUiApp, status dashboardBackupStatus, now time.T
 
 	if status.StateFound {
 		lastSuccess := "Never"
-		if status.State.LastSuccess.Phase == backup.AttemptSuccess && !status.State.LastSuccess.FinishedAt.IsZero() {
+		if status.State.LastSuccess.Phase == k8sapi.BackupAttemptSuccess && !status.State.LastSuccess.FinishedAt.IsZero() {
 			lastSuccess = backupTimestampLabel(status.State.LastSuccess.FinishedAt)
 		}
 
@@ -99,8 +100,8 @@ func backupStatusNodes(app *stackUiApp, status dashboardBackupStatus, now time.T
 func backupRequestNodes(app *stackUiApp, status dashboardBackupStatus, now time.Time) []ucx.UiNode {
 	row := []ucx.UiNode{}
 
-	running := status.RequestFound && status.Request.Phase == backup.RequestRunning
-	pending := status.RequestFound && status.Request.Phase == backup.RequestPending
+	running := status.RequestFound && status.Request.Phase == k8sapi.BackupRequestRunning
+	pending := status.RequestFound && status.Request.Phase == k8sapi.BackupRequestPending
 	claimActive := status.StateFound && status.State.ClaimUid != ""
 
 	switch {
@@ -219,7 +220,7 @@ func backupRequestSubmitUid(app *stackUiApp) (string, error) {
 		Uid:            shared.NewUid(),
 		Requester:      app.backupsRequester,
 		RequestedAt:    time.Now().UTC(),
-		Phase:          backup.RequestPending,
+		Phase:          k8sapi.BackupRequestPending,
 	}
 
 	value, err := json.Marshal(request)
@@ -288,7 +289,7 @@ func backupActive(status dashboardBackupStatus) bool {
 }
 
 func backupRequestActive(request backup.Request) bool {
-	return request.Phase == backup.RequestPending || request.Phase == backup.RequestRunning
+	return request.Phase == k8sapi.BackupRequestPending || request.Phase == k8sapi.BackupRequestRunning
 }
 
 func (app *stackUiApp) homeBackupsMetric() []ucx.UiNode {
@@ -306,9 +307,9 @@ func (app *stackUiApp) homeBackupsMetric() []ucx.UiNode {
 
 	if err == nil && status.StateFound {
 		now := time.Now().UTC()
-		hasSuccess := status.State.LastSuccess.Phase == backup.AttemptSuccess &&
+		hasSuccess := status.State.LastSuccess.Phase == k8sapi.BackupAttemptSuccess &&
 			!status.State.LastSuccess.FinishedAt.IsZero()
-		failed := status.State.LastAttempt.Phase == backup.AttemptFailed
+		failed := status.State.LastAttempt.Phase == k8sapi.BackupAttemptFailed
 
 		if hasSuccess {
 			valueLabel = backupAgeLabel(status.State.LastSuccess.FinishedAt, now)

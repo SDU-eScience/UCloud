@@ -349,7 +349,7 @@ func k8sConnectRecovery(ctx context.Context, stack orcapi.Stack) (*iapp.Client, 
 }
 
 func k8sVerifyApp(ctx context.Context, client *iapp.Client, expectedMode string, name string) error {
-	response, err := iapp.Call(ctx, client, k8sapi.Ping, k8sapi.PingRequest{})
+	response, err := iapp.Call(ctx, client, k8sapi.AppInfo, util.Empty{})
 	if err != nil {
 		var rpcErr ucx.RpcCallError
 		if errors.As(err, &rpcErr) && rpcErr.Status == ucx.RpcStatusNotFound {

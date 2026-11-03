@@ -77,8 +77,6 @@ publish_maintenance_tokens() {
 		return 0
 	fi
 
-	install -d -m 0750 -o "$UCX_SERVICE_UID" -g "$UCX_SERVICE_GID" "$PUBLISHED_MAINTENANCE_TOKENS_DIR"
-
 	local inputDir
 	local hostname
 	for inputDir in "$NODES_DIR"/*/input; do
@@ -91,24 +89,12 @@ publish_maintenance_tokens() {
 }
 
 install -d -m 0755 "$MANAGEMENT_DIR/tokens"
+install -d -m 0750 -o "$UCX_SERVICE_UID" -g "$UCX_SERVICE_GID" "$PUBLISHED_MAINTENANCE_TOKENS_DIR"
 
-publisher_wait_tries=0
-while [ $publisher_wait_tries -lt 180 ]; do
-	if [ -s "$SERVER_TOKEN_FILE" ]; then
-		break
-	fi
-	sleep 10
-	publisher_wait_tries=$(( publisher_wait_tries + 1 ))
-done
-if [ ! -s "$SERVER_TOKEN_FILE" ]; then
+retry_until 180 10 test -s "$SERVER_TOKEN_FILE" || {
 	log "the Kubernetes server never wrote the secure server token at $SERVER_TOKEN_FILE"
 	exit 1
-fi
-
-publish_role_token "server" "$SERVER_TOKEN_FILE" "$PUBLISHED_SERVER_TOKEN"
-publish_role_token "agent" "$AGENT_TOKEN_FILE" "$PUBLISHED_AGENT_TOKEN"
-publish_node_tokens
-publish_maintenance_tokens
+}
 
 while true; do
 	publish_role_token "server" "$SERVER_TOKEN_FILE" "$PUBLISHED_SERVER_TOKEN"

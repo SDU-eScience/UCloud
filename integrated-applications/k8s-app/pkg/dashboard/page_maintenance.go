@@ -10,20 +10,14 @@ import (
 
 	"ucloud.dk/iapp/k8s/pkg/maintenance"
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 	"ucloud.dk/shared/pkg/util"
 )
 
-const maintenanceDefaultTimeoutSeconds = 600
-
 const (
-	maintenanceActionUpdate   = "update"
-	maintenanceActionK8s      = maintenance.TaskK8sUpgrade
-	maintenanceActionOs       = maintenance.TaskOsUpdate
-	maintenanceActionCordon   = maintenance.TaskCordon
-	maintenanceActionUncordon = maintenance.TaskUncordon
-	maintenanceActionRemove   = maintenance.TaskRemove
+	maintenanceActionUpdate = "update"
 
 	maintenanceModeUpgrade = "upgrade"
 	maintenanceModeDrain   = "drain"
@@ -52,10 +46,6 @@ func maintenancePage(app *stackUiApp) []ucx.UiNode {
 	return app.maintenanceNodePage(nodeName)
 }
 
-func maintenanceOpen(app *stackUiApp, nodeName string, nodeUid string) {
-	maintenanceOpenWithMode(app, nodeName, nodeUid, maintenanceModeDrain)
-}
-
 func maintenanceOpenWithMode(app *stackUiApp, nodeName string, nodeUid string, mode string) {
 	nodeName = strings.TrimSpace(nodeName)
 	nodeUid = strings.TrimSpace(nodeUid)
@@ -66,13 +56,13 @@ func maintenanceOpenWithMode(app *stackUiApp, nodeName string, nodeUid string, m
 	app.maintenanceNodeName = nodeName
 	switch mode {
 	case maintenanceModeRemove:
-		app.MaintenanceTask = maintenanceActionRemove
+		app.MaintenanceTask = k8sapi.MaintenanceTaskRemove
 	case maintenanceModeUpgrade:
-		app.MaintenanceTask = maintenanceActionK8s
+		app.MaintenanceTask = k8sapi.MaintenanceTaskK8sUpgrade
 	default:
-		app.MaintenanceTask = maintenanceActionCordon
+		app.MaintenanceTask = k8sapi.MaintenanceTaskCordon
 	}
-	app.MaintenanceTimeoutSeconds = maintenanceDefaultTimeoutSeconds
+	app.MaintenanceTimeoutSeconds = k8sapi.MaintenanceTimeoutDefault
 	app.MaintenanceDrain = mode != maintenanceModeUpgrade
 	app.MaintenanceCordon = mode != maintenanceModeUpgrade
 	app.MaintenanceDeleteVolatilePods = false
@@ -136,16 +126,16 @@ func (app *stackUiApp) maintenanceStatusSummary(status maintenance.RunStatus) []
 			text = "The maintenance run is being cancelled."
 		} else {
 			switch run.Phase {
-			case maintenance.RunBlocked:
+			case k8sapi.MaintenanceRunBlocked:
 				text = "The maintenance run is blocked."
-			case maintenance.RunFailed:
+			case k8sapi.MaintenanceRunFailed:
 				text = "The maintenance run failed."
 			}
 		}
 		text += maintenanceRunTimingText(run, time.Now().UTC())
 
 		box := ucx.Tip(text)
-		if !run.CancelRequested && (run.Phase == maintenance.RunBlocked || run.Phase == maintenance.RunFailed) {
+		if !run.CancelRequested && (run.Phase == k8sapi.MaintenanceRunBlocked || run.Phase == k8sapi.MaintenanceRunFailed) {
 			box = ucx.Warning(text)
 		}
 		box = box.WarningCentered(true)
@@ -437,11 +427,11 @@ func maintenanceWindowPeriodOptions() []ucx.Option {
 func (app *stackUiApp) maintenanceRunForm() ucx.UiNode {
 	actionOptions := []ucx.Option{
 		{Key: maintenanceActionUpdate, Value: "Kubernetes and operating-system update"},
-		{Key: maintenanceActionK8s, Value: "Kubernetes upgrade"},
-		{Key: maintenanceActionOs, Value: "Operating-system update"},
-		{Key: maintenanceActionCordon, Value: "Cordon or drain"},
-		{Key: maintenanceActionUncordon, Value: "Uncordon"},
-		{Key: maintenanceActionRemove, Value: "Remove node"},
+		{Key: k8sapi.MaintenanceTaskK8sUpgrade, Value: "Kubernetes upgrade"},
+		{Key: k8sapi.MaintenanceTaskOsUpdate, Value: "Operating-system update"},
+		{Key: k8sapi.MaintenanceTaskCordon, Value: "Cordon or drain"},
+		{Key: k8sapi.MaintenanceTaskUncordon, Value: "Uncordon"},
+		{Key: k8sapi.MaintenanceTaskRemove, Value: "Remove node"},
 	}
 	if app.MaintenanceTask == "" {
 		app.MaintenanceTask = maintenanceActionUpdate
@@ -454,10 +444,10 @@ func (app *stackUiApp) maintenanceRunForm() ucx.UiNode {
 			Children(ucx.Select("maintenanceTaskSelect", "", "maintenanceTask", actionOptions)),
 	}
 
-	if app.MaintenanceTask == maintenanceActionK8s || app.MaintenanceTask == maintenanceActionUpdate {
+	if app.MaintenanceTask == k8sapi.MaintenanceTaskK8sUpgrade || app.MaintenanceTask == maintenanceActionUpdate {
 		children = append(children, app.maintenanceUpgradeOptions()...)
 	}
-	if app.MaintenanceTask == maintenanceActionCordon {
+	if app.MaintenanceTask == k8sapi.MaintenanceTaskCordon {
 		children = append(children,
 			ucx.Checkbox(
 				"maintenanceCordon",
@@ -479,10 +469,10 @@ func (app *stackUiApp) maintenanceRunForm() ucx.UiNode {
 		Children(ucx.InputNumber("maintenanceTimeoutInput", "", "maintenanceTimeoutSeconds", 30, 3600)))
 
 	if app.MaintenanceDrain || app.MaintenanceTask == maintenanceActionUpdate ||
-		app.MaintenanceTask == maintenanceActionOs || app.MaintenanceTask == maintenanceActionRemove {
+		app.MaintenanceTask == k8sapi.MaintenanceTaskOsUpdate || app.MaintenanceTask == k8sapi.MaintenanceTaskRemove {
 		children = append(children, maintenanceDrainOptionsNode(
 			app,
-			app.MaintenanceTask == maintenanceActionRemove || app.MaintenanceTask == maintenanceActionCordon,
+			app.MaintenanceTask == k8sapi.MaintenanceTaskRemove || app.MaintenanceTask == k8sapi.MaintenanceTaskCordon,
 		))
 	}
 	children = append(children, ucx.SubmitButton("maintenanceRunSubmit", "Start maintenance run", ucx.ColorPrimaryMain).
@@ -544,7 +534,7 @@ func maintenanceDrainOptionsNode(app *stackUiApp, includeForceDelete bool) ucx.U
 			false,
 		).Sx(ucx.SxMy(0)),
 	}
-	if app.MaintenanceTask != maintenanceActionOs {
+	if app.MaintenanceTask != k8sapi.MaintenanceTaskOsUpdate {
 		children = append(children, ucx.Checkbox(
 			"maintenanceBypassDisruptionBudgets",
 			"**Bypass budgets:** evict pods even when a `PodDisruptionBudget` forbids it.",
@@ -653,7 +643,7 @@ func maintenanceRunTargetItems(
 				NodeName: item.NodeName,
 				NodeUid:  item.NodeUid,
 				Group:    item.Group,
-				Phase:    maintenance.RunPending,
+				Phase:    k8sapi.MaintenanceRunPending,
 			})
 		}
 	}
@@ -681,7 +671,7 @@ func maintenanceRunTargetItems(
 		items = append(items, maintenance.RunItem{
 			NodeName: node.Hostname,
 			Group:    node.Group,
-			Phase:    maintenance.RunPending,
+			Phase:    k8sapi.MaintenanceRunPending,
 		})
 	}
 	return items
@@ -694,7 +684,7 @@ func maintenanceRunPendingItem(
 ) maintenance.RunItem {
 	item := maintenance.RunItem{
 		NodeName: nodeName,
-		Phase:    maintenance.RunPending,
+		Phase:    k8sapi.MaintenanceRunPending,
 	}
 	if !recordOk {
 		return item
@@ -725,7 +715,7 @@ func (app *stackUiApp) maintenanceRunPanel(
 	nodeName string,
 ) ucx.UiNode {
 	children := []ucx.UiNode{}
-	if run.Phase == maintenance.RunFailed {
+	if run.Phase == k8sapi.MaintenanceRunFailed {
 		children = append(children, progressTagLabel("Failed", ucx.ColorErrorMain))
 	}
 
@@ -761,7 +751,7 @@ func (app *stackUiApp) maintenanceRunPanel(
 		}
 	}
 	if run.Error != "" && !runErrorRedundant {
-		if run.Phase == maintenance.RunFailed {
+		if run.Phase == k8sapi.MaintenanceRunFailed {
 			children = append(children, ucx.Text(run.Error).Sx(ucx.SxColor(ucx.ColorErrorMain)))
 		} else {
 			children = append(children, ucx.Warning(run.Error))
@@ -787,7 +777,7 @@ func (app *stackUiApp) maintenanceRunPanel(
 	}
 
 	buttons := []ucx.UiNode{}
-	if run.Phase == maintenance.RunBlocked || run.Phase == maintenance.RunFailed {
+	if run.Phase == k8sapi.MaintenanceRunBlocked || run.Phase == k8sapi.MaintenanceRunFailed {
 		buttons = append(buttons, ucx.ButtonEx(
 			"maintenanceRetry-"+run.Uid,
 			"Retry run",
@@ -824,7 +814,7 @@ func (app *stackUiApp) maintenanceRunTaskNode(
 
 	completed := 0
 	for _, item := range task.Items {
-		if item.Phase == maintenance.RunCompleted {
+		if item.Phase == k8sapi.MaintenanceRunCompleted {
 			completed++
 		}
 	}
@@ -864,7 +854,7 @@ func (app *stackUiApp) maintenanceRunTaskNode(
 		items := grouped[group]
 		completedInGroup := 0
 		for _, item := range items {
-			if item.Phase == maintenance.RunCompleted {
+			if item.Phase == k8sapi.MaintenanceRunCompleted {
 				completedInGroup++
 			}
 		}
@@ -914,7 +904,7 @@ func (app *stackUiApp) maintenanceRunItemNode(
 			"maintenance/"+url.PathEscape(item.NodeName),
 		),
 	}
-	if item.Phase == maintenance.RunRunning {
+	if item.Phase == k8sapi.MaintenanceRunRunning {
 		rowChildren = append(rowChildren, ucx.Spinner(14))
 	} else {
 		action := maintenanceRunItemAction(task.Kind, item)
@@ -927,14 +917,14 @@ func (app *stackUiApp) maintenanceRunItemNode(
 			Children(rowChildren...),
 	}
 	if item.Error != "" {
-		if item.Phase == maintenance.RunFailed {
+		if item.Phase == k8sapi.MaintenanceRunFailed {
 			children = append(children, ucx.Text(item.Error).Sx(ucx.SxColor(ucx.ColorErrorMain)))
 		} else {
 			children = append(children, ucx.Warning(item.Error))
 		}
 	}
 	if jobId := jobIds[item.NodeName]; jobId != "" &&
-		(item.Phase == maintenance.RunRunning || item.Phase == maintenance.RunFailed) {
+		(item.Phase == k8sapi.MaintenanceRunRunning || item.Phase == k8sapi.MaintenanceRunFailed) {
 		children = append(children, ucx.JobLogs(
 			"maintenanceRunLog-"+run.Uid+"-"+task.Kind+"-"+item.NodeName,
 			jobId,
@@ -955,18 +945,18 @@ func (app *stackUiApp) maintenanceRunItemNode(
 
 func maintenanceTaskTitle(task maintenanceRunTaskView) string {
 	switch task.Kind {
-	case maintenance.TaskK8sUpgrade:
+	case k8sapi.MaintenanceTaskK8sUpgrade:
 		if task.TargetRelease != "" {
 			return "Kubernetes upgrade to " + task.TargetRelease
 		}
 		return "Kubernetes upgrade"
-	case maintenance.TaskOsUpdate:
+	case k8sapi.MaintenanceTaskOsUpdate:
 		return "Operating-system update"
-	case maintenance.TaskCordon:
+	case k8sapi.MaintenanceTaskCordon:
 		return "Cordon or drain"
-	case maintenance.TaskUncordon:
+	case k8sapi.MaintenanceTaskUncordon:
 		return "Uncordon"
-	case maintenance.TaskRemove:
+	case k8sapi.MaintenanceTaskRemove:
 		return "Remove node"
 	}
 	return task.Kind
@@ -977,19 +967,19 @@ func maintenanceRunItemAction(
 	item maintenance.RunItem,
 ) string {
 	switch item.Phase {
-	case maintenance.RunCompleted:
+	case k8sapi.MaintenanceRunCompleted:
 		switch taskKind {
-		case maintenance.TaskCordon:
+		case k8sapi.MaintenanceTaskCordon:
 			return "Cordoned"
-		case maintenance.TaskUncordon:
+		case k8sapi.MaintenanceTaskUncordon:
 			return "Uncordoned"
-		case maintenance.TaskRemove:
+		case k8sapi.MaintenanceTaskRemove:
 			return "Removed"
 		}
 		return "Up to date"
-	case maintenance.RunCancelled:
+	case k8sapi.MaintenanceRunCancelled:
 		return "Cancelled"
-	case maintenance.RunFailed:
+	case k8sapi.MaintenanceRunFailed:
 		return "Failed"
 	}
 	return "Waiting to start"
@@ -1025,9 +1015,9 @@ func maintenanceCheckLabel(name string) string {
 
 func maintenanceRunItemColor(phase string) ucx.Color {
 	switch phase {
-	case maintenance.RunCompleted:
+	case k8sapi.MaintenanceRunCompleted:
 		return ucx.ColorSuccessMain
-	case maintenance.RunFailed:
+	case k8sapi.MaintenanceRunFailed:
 		return ucx.ColorErrorMain
 	}
 	return ucx.ColorTextSecondary
@@ -1075,8 +1065,8 @@ func maintenanceDurationShort(delta time.Duration) string {
 
 func maintenanceSortGroups(groupNames []string) {
 	sort.Slice(groupNames, func(i int, j int) bool {
-		leftControlPlane := groupNames[i] == shared.GroupControlPlane
-		rightControlPlane := groupNames[j] == shared.GroupControlPlane
+		leftControlPlane := groupNames[i] == k8sapi.GroupControlPlane
+		rightControlPlane := groupNames[j] == k8sapi.GroupControlPlane
 		if leftControlPlane != rightControlPlane {
 			return leftControlPlane
 		}
@@ -1085,7 +1075,7 @@ func maintenanceSortGroups(groupNames []string) {
 }
 
 func maintenanceGroupLabel(group string) string {
-	if group == shared.GroupControlPlane {
+	if group == k8sapi.GroupControlPlane {
 		return "Control plane"
 	}
 	if group == "" {
@@ -1100,8 +1090,8 @@ func maintenanceGroupLabel(group string) string {
 func (app *stackUiApp) maintenanceNodePage(nodeName string) []ucx.UiNode {
 	if app.maintenanceNodeName != nodeName {
 		app.maintenanceNodeName = nodeName
-		app.MaintenanceTask = maintenanceActionK8s
-		app.MaintenanceTimeoutSeconds = maintenanceDefaultTimeoutSeconds
+		app.MaintenanceTask = k8sapi.MaintenanceTaskK8sUpgrade
+		app.MaintenanceTimeoutSeconds = k8sapi.MaintenanceTimeoutDefault
 		app.MaintenanceDrain = false
 		app.MaintenanceCordon = false
 		app.MaintenanceDeleteVolatilePods = false
@@ -1188,7 +1178,7 @@ func (app *stackUiApp) maintenanceNodeRunInfo(
 ) ucx.UiNode {
 	text := maintenanceNodeRunStatusText(run, nodeName) + maintenanceRunTimingText(run, time.Now().UTC())
 	box := ucx.Tip(text)
-	needsAttention := run.Phase == maintenance.RunFailed || run.Phase == maintenance.RunBlocked
+	needsAttention := run.Phase == k8sapi.MaintenanceRunFailed || run.Phase == k8sapi.MaintenanceRunBlocked
 	if needsAttention && !run.CancelRequested {
 		box = ucx.Warning(text)
 	}
@@ -1218,19 +1208,19 @@ func maintenanceNodeRunStatusText(run maintenance.MaintenanceRun, nodeName strin
 	phase, found := maintenanceRunNodePhase(run, nodeName)
 	if found {
 		switch phase {
-		case maintenance.RunFailed:
+		case k8sapi.MaintenanceRunFailed:
 			return "Maintenance failed on this node."
-		case maintenance.RunRunning:
+		case k8sapi.MaintenanceRunRunning:
 			return "Maintenance is running on this node."
-		case maintenance.RunCompleted:
+		case k8sapi.MaintenanceRunCompleted:
 			return "Maintenance is complete on this node."
 		}
 	}
 
 	switch run.Phase {
-	case maintenance.RunFailed:
+	case k8sapi.MaintenanceRunFailed:
 		return "Maintenance failed."
-	case maintenance.RunBlocked:
+	case k8sapi.MaintenanceRunBlocked:
 		return "Maintenance is blocked."
 	}
 	return "Maintenance is waiting to start on this node."
@@ -1248,13 +1238,13 @@ func maintenanceRunNodePhase(run maintenance.MaintenanceRun, nodeName string) (s
 			}
 			found = true
 			switch item.Phase {
-			case maintenance.RunFailed:
-				return maintenance.RunFailed, true
-			case maintenance.RunRunning:
+			case k8sapi.MaintenanceRunFailed:
+				return k8sapi.MaintenanceRunFailed, true
+			case k8sapi.MaintenanceRunRunning:
 				running = true
-			case maintenance.RunPending:
+			case k8sapi.MaintenanceRunPending:
 				pending = true
-			case maintenance.RunCompleted:
+			case k8sapi.MaintenanceRunCompleted:
 				completed = true
 			}
 		}
@@ -1262,11 +1252,11 @@ func maintenanceRunNodePhase(run maintenance.MaintenanceRun, nodeName string) (s
 
 	switch {
 	case running:
-		return maintenance.RunRunning, true
+		return k8sapi.MaintenanceRunRunning, true
 	case pending:
-		return maintenance.RunPending, true
+		return k8sapi.MaintenanceRunPending, true
 	case completed:
-		return maintenance.RunCompleted, true
+		return k8sapi.MaintenanceRunCompleted, true
 	}
 	return "", found
 }
@@ -1294,15 +1284,15 @@ func maintenanceNodeRunMessage(task string, nodeName string) string {
 	switch task {
 	case maintenanceActionUpdate:
 		return "Starts the Kubernetes and operating-system update on " + nodeName + "."
-	case maintenanceActionK8s:
+	case k8sapi.MaintenanceTaskK8sUpgrade:
 		return "Starts the Kubernetes upgrade on " + nodeName + "."
-	case maintenanceActionOs:
+	case k8sapi.MaintenanceTaskOsUpdate:
 		return "Starts the operating-system update on " + nodeName + "."
-	case maintenanceActionCordon:
+	case k8sapi.MaintenanceTaskCordon:
 		return "Starts cordon or drain on " + nodeName + "."
-	case maintenanceActionUncordon:
+	case k8sapi.MaintenanceTaskUncordon:
 		return "Uncordons " + nodeName + "."
-	case maintenanceActionRemove:
+	case k8sapi.MaintenanceTaskRemove:
 		return "Removes " + nodeName + " after cordoning and draining it."
 	}
 	return "Starts maintenance on " + nodeName + "."
@@ -1330,20 +1320,24 @@ func maintenanceSubmitRunAsync(app *stackUiApp, nodeName string) {
 
 func maintenanceRequestFromApp(app *stackUiApp, nodeName string) (maintenance.RunRequest, error) {
 	timeout := app.MaintenanceTimeoutSeconds
-	if timeout < 30 || timeout > 3600 {
-		return maintenance.RunRequest{}, fmt.Errorf("the timeout must be from 30 to 3600 seconds")
+	if timeout < k8sapi.MaintenanceTimeoutMin || timeout > k8sapi.MaintenanceTimeoutMax {
+		return maintenance.RunRequest{}, fmt.Errorf(
+			"the timeout must be from %d to %d seconds",
+			k8sapi.MaintenanceTimeoutMin,
+			k8sapi.MaintenanceTimeoutMax,
+		)
 	}
-	usesForce := app.MaintenanceTask == maintenanceActionCordon ||
-		app.MaintenanceTask == maintenanceActionRemove
+	usesForce := app.MaintenanceTask == k8sapi.MaintenanceTaskCordon ||
+		app.MaintenanceTask == k8sapi.MaintenanceTaskRemove
 	if usesForce && app.MaintenanceForceDelete && !app.MaintenanceBypassDisruptionBudgets {
 		return maintenance.RunRequest{}, fmt.Errorf("force delete requires bypassing the disruption budgets")
 	}
 
-	preparation := maintenance.PreparationNone
+	preparation := k8sapi.MaintenancePreparationNone
 	if app.MaintenanceDrain {
-		preparation = maintenance.PreparationDrain
+		preparation = k8sapi.MaintenancePreparationDrain
 	} else if app.MaintenanceCordon {
-		preparation = maintenance.PreparationCordon
+		preparation = k8sapi.MaintenancePreparationCordon
 	}
 
 	tasks := []maintenance.TaskRequest{}
@@ -1352,49 +1346,49 @@ func maintenanceRequestFromApp(app *stackUiApp, nodeName string) (maintenance.Ru
 	case maintenanceActionUpdate:
 		tasks = append(tasks,
 			maintenance.TaskRequest{
-				Kind:                    maintenance.TaskK8sUpgrade,
+				Kind:                    k8sapi.MaintenanceTaskK8sUpgrade,
 				TargetRelease:           app.MaintenanceTargetRelease,
 				TimeoutSeconds:          timeout,
 				DeleteVolatilePods:      app.MaintenanceDeleteVolatilePods,
 				BypassDisruptionBudgets: app.MaintenanceBypassDisruptionBudgets,
 			},
 			maintenance.TaskRequest{
-				Kind:               maintenance.TaskOsUpdate,
+				Kind:               k8sapi.MaintenanceTaskOsUpdate,
 				TimeoutSeconds:     timeout,
 				DeleteVolatilePods: app.MaintenanceDeleteVolatilePods,
 			},
 		)
-	case maintenanceActionK8s:
+	case k8sapi.MaintenanceTaskK8sUpgrade:
 		tasks = append(tasks, maintenance.TaskRequest{
-			Kind:                    maintenance.TaskK8sUpgrade,
+			Kind:                    k8sapi.MaintenanceTaskK8sUpgrade,
 			TargetRelease:           app.MaintenanceTargetRelease,
 			TimeoutSeconds:          timeout,
 			DeleteVolatilePods:      app.MaintenanceDeleteVolatilePods,
 			BypassDisruptionBudgets: app.MaintenanceBypassDisruptionBudgets,
 		})
-	case maintenanceActionOs:
+	case k8sapi.MaintenanceTaskOsUpdate:
 		tasks = append(tasks, maintenance.TaskRequest{
-			Kind:               maintenance.TaskOsUpdate,
+			Kind:               k8sapi.MaintenanceTaskOsUpdate,
 			TimeoutSeconds:     timeout,
 			DeleteVolatilePods: app.MaintenanceDeleteVolatilePods,
 		})
-	case maintenanceActionCordon:
+	case k8sapi.MaintenanceTaskCordon:
 		tasks = append(tasks, maintenance.TaskRequest{
-			Kind:                    maintenance.TaskCordon,
+			Kind:                    k8sapi.MaintenanceTaskCordon,
 			Preparation:             preparation,
 			TimeoutSeconds:          timeout,
 			DeleteVolatilePods:      app.MaintenanceDeleteVolatilePods,
 			BypassDisruptionBudgets: app.MaintenanceBypassDisruptionBudgets,
 			ForceDelete:             app.MaintenanceForceDelete,
 		})
-	case maintenanceActionUncordon:
+	case k8sapi.MaintenanceTaskUncordon:
 		tasks = append(tasks, maintenance.TaskRequest{
-			Kind:           maintenance.TaskUncordon,
+			Kind:           k8sapi.MaintenanceTaskUncordon,
 			TimeoutSeconds: timeout,
 		})
-	case maintenanceActionRemove:
+	case k8sapi.MaintenanceTaskRemove:
 		tasks = append(tasks, maintenance.TaskRequest{
-			Kind:                    maintenance.TaskRemove,
+			Kind:                    k8sapi.MaintenanceTaskRemove,
 			TimeoutSeconds:          timeout,
 			DeleteVolatilePods:      app.MaintenanceDeleteVolatilePods,
 			BypassDisruptionBudgets: app.MaintenanceBypassDisruptionBudgets,
@@ -1414,8 +1408,8 @@ func maintenanceRequestFromApp(app *stackUiApp, nodeName string) (maintenance.Ru
 func maintenanceSubmitRemoveNode(nodeName string) error {
 	_, err := maintenance.SubmitRun(maintenance.RunRequest{
 		Tasks: []maintenance.TaskRequest{{
-			Kind:           maintenance.TaskRemove,
-			TimeoutSeconds: maintenanceDefaultTimeoutSeconds,
+			Kind:           k8sapi.MaintenanceTaskRemove,
+			TimeoutSeconds: k8sapi.MaintenanceTimeoutDefault,
 		}},
 		Target: maintenance.Target{Nodes: []string{nodeName}},
 	}, "dashboard")
@@ -1429,8 +1423,8 @@ func maintenanceUncordonAsync(app *stackUiApp, nodeName string) {
 	app.runAsyncAction("maintenanceBusy", &app.MaintenanceBusy, func() error {
 		_, err := maintenance.SubmitRun(maintenance.RunRequest{
 			Tasks: []maintenance.TaskRequest{{
-				Kind:           maintenance.TaskUncordon,
-				TimeoutSeconds: maintenanceDefaultTimeoutSeconds,
+				Kind:           k8sapi.MaintenanceTaskUncordon,
+				TimeoutSeconds: k8sapi.MaintenanceTimeoutDefault,
 			}},
 			Target: maintenance.Target{Nodes: []string{nodeName}},
 		}, "dashboard")
@@ -1573,7 +1567,7 @@ func (app *stackUiApp) homeMaintenanceMetric() []ucx.UiNode {
 		_, _, windowOpen := maintenance.WindowOpen(now, status.Policy.Window)
 		needsAttention := false
 		for _, run := range status.ActiveRuns {
-			if run.Phase == maintenance.RunFailed || run.Phase == maintenance.RunBlocked {
+			if run.Phase == k8sapi.MaintenanceRunFailed || run.Phase == k8sapi.MaintenanceRunBlocked {
 				needsAttention = true
 				break
 			}

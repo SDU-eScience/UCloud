@@ -47,6 +47,7 @@ import (
 	"time"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -61,24 +62,16 @@ const (
 	KindOsUpdate = "os-update"
 	KindRemove   = "remove"
 
-	PhasePending   = "Pending"
-	PhaseRunning   = "Running"
-	PhaseCompleted = "Completed"
-	PhaseBlocked   = "Blocked"
-	PhaseFailed    = "Failed"
-	PhaseCancelled = "Cancelled"
-
-	timeoutMinSeconds = 30
-	timeoutMaxSeconds = 3600
-
-	defaultTimeoutSeconds = 600
-
 	staleAfter = 2 * time.Minute
 
 	uncordonTimeout = 2 * time.Minute
 
 	upgradeSubmitMargin = 25 * time.Minute
 	osSubmitMargin      = 90 * time.Minute
+
+	stackKeyPrefix = "maintenance/nodes/"
+
+	stackListPageSize = 100
 )
 
 var maintenanceWake = make(chan struct{}, 1)
@@ -95,7 +88,7 @@ func KindRequiresRecovery(kind string) bool {
 }
 
 func PhaseActive(phase string) bool {
-	return phase == PhasePending || phase == PhaseRunning
+	return phase == k8sapi.MaintenancePhasePending || phase == k8sapi.MaintenancePhaseRunning
 }
 
 type Options struct {
@@ -192,13 +185,8 @@ func cancelActiveOperation(nodeName string) error {
 	operation.UpdatedAt = time.Now().UTC()
 	operation.HeartbeatAt = time.Time{}
 
-	value, marshalErr := json.Marshal(operation)
-	if marshalErr != nil {
-		return marshalErr
-	}
-
 	for attempt := 0; ; attempt++ {
-		_, writeErr := shared.RpcGrantStateWrite(client, stackNodeKey(nodeName), value, record.Revision)
+		_, writeErr := stackValueWrite(client, stackNodeKey(nodeName), operation, record.Revision)
 		if writeErr == nil {
 			return nil
 		}
@@ -229,11 +217,6 @@ func cancelActiveOperation(nodeName string) error {
 		operation.CancelRequested = true
 		operation.UpdatedAt = time.Now().UTC()
 		operation.HeartbeatAt = time.Time{}
-
-		value, marshalErr = json.Marshal(operation)
-		if marshalErr != nil {
-			return marshalErr
-		}
 	}
 }
 
@@ -254,17 +237,16 @@ func Snapshot() (map[string]Operation, error) {
 			continue
 		}
 
-		var operation Operation
-		if err := json.Unmarshal(record.Value, &operation); err != nil {
-			return nil, fmt.Errorf("could not parse the maintenance record %s: %s", record.Key, err)
+		operation, err := stackValueDecode[Operation](record, "maintenance record "+record.Key)
+		if err != nil {
+			return nil, err
 		}
-
-		if operation.NodeName == "" {
+		if operation.Value.NodeName == "" {
 			continue
 		}
 
-		operation.SuspendedJobIds = append([]string(nil), operation.SuspendedJobIds...)
-		snapshot[operation.NodeName] = operation
+		operation.Value.SuspendedJobIds = append([]string(nil), operation.Value.SuspendedJobIds...)
+		snapshot[operation.Value.NodeName] = operation.Value
 	}
 	return snapshot, nil
 }
@@ -314,7 +296,7 @@ func submitOperation(
 		options.Drain = true
 	}
 	if kind == KindUncordon {
-		options.TimeoutSeconds = defaultTimeoutSeconds
+		options.TimeoutSeconds = k8sapi.MaintenanceTimeoutDefault
 	}
 	if err := validateOptions(options); err != nil {
 		return "", err
@@ -399,7 +381,7 @@ func submitRecord(submit submission, existing Operation) Operation {
 		NodeName:                  submit.nodeName,
 		NodeUid:                   submit.nodeUid,
 		Kind:                      submit.kind,
-		Phase:                     PhasePending,
+		Phase:                     k8sapi.MaintenancePhasePending,
 		Options:                   submit.options,
 		StartedAt:                 now,
 		UpdatedAt:                 now,
@@ -458,12 +440,7 @@ func submitWrite(submit submission) (string, error) {
 
 	operation := submitRecord(submit, record.Value)
 
-	value, marshalErr := json.Marshal(operation)
-	if marshalErr != nil {
-		return "", marshalErr
-	}
-
-	_, writeErr := shared.RpcGrantStateWrite(client, stackNodeKey(submit.nodeName), value, record.Revision)
+	_, writeErr := stackValueWrite(client, stackNodeKey(submit.nodeName), operation, record.Revision)
 	if writeErr != nil {
 		return "", writeErr
 	}
@@ -480,11 +457,11 @@ func submitWrite(submit submission) (string, error) {
 // state where maintenance is safe.
 
 func validateOptions(options Options) error {
-	if options.TimeoutSeconds < timeoutMinSeconds || options.TimeoutSeconds > timeoutMaxSeconds {
+	if options.TimeoutSeconds < k8sapi.MaintenanceTimeoutMin || options.TimeoutSeconds > k8sapi.MaintenanceTimeoutMax {
 		return fmt.Errorf(
 			"the timeout must be between %d and %d seconds",
-			timeoutMinSeconds,
-			timeoutMaxSeconds,
+			k8sapi.MaintenanceTimeoutMin,
+			k8sapi.MaintenanceTimeoutMax,
 		)
 	}
 
@@ -568,7 +545,7 @@ func removeSubmitGuard(nodeName string) error {
 		return fmt.Errorf("the node %s is not part of this cluster", nodeName)
 	}
 
-	if known && node.Group == shared.GroupControlPlane {
+	if known && node.Group == k8sapi.GroupControlPlane {
 		controlPlanes := controlPlaneNames(record)
 		remaining := len(controlPlanes) - 1
 		if remaining < 2 {
@@ -614,15 +591,7 @@ func readClusterRecord() (shared.ClusterRecord, bool, error) {
 // last read. The write fails when the revision moved, which turns the state into the single source of truth for
 // operation ownership.
 
-const (
-	stackKeyPrefix = "maintenance/nodes/"
-
-	stackListPageSize = 100
-)
-
-type stackClient = shared.RpcGrantClient
-
-func stackClientNew() (stackClient, error) {
+func stackClientNew() (shared.RpcGrantClient, error) {
 	return shared.RpcGrantClientNew()
 }
 
@@ -631,8 +600,6 @@ type stackValue[T any] struct {
 	Value    T
 	Revision int64
 }
-
-type stackRecord = stackValue[Operation]
 
 func stackValueDecode[T any](record ucxapi.StackStateRecord, noun string) (stackValue[T], error) {
 	result := stackValue[T]{Revision: record.Revision}
@@ -649,7 +616,7 @@ func stackValueDecode[T any](record ucxapi.StackStateRecord, noun string) (stack
 	return result, nil
 }
 
-func stackValueRead[T any](client stackClient, key string, noun string) (stackValue[T], error) {
+func stackValueRead[T any](client shared.RpcGrantClient, key string, noun string) (stackValue[T], error) {
 	record, found, err := shared.RpcGrantStateRead(client, key)
 	if err != nil {
 		return stackValue[T]{}, err
@@ -662,11 +629,19 @@ func stackValueRead[T any](client stackClient, key string, noun string) (stackVa
 	return stackValueDecode[T](record, noun)
 }
 
+func stackValueWrite[T any](client shared.RpcGrantClient, key string, value T, expectedRevision int64) (int64, error) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return 0, err
+	}
+	return shared.RpcGrantStateWrite(client, key, data, expectedRevision)
+}
+
 func stackNodeKey(nodeName string) string {
 	return fmt.Sprintf("%s%s", stackKeyPrefix, nodeName)
 }
 
-func stackList(client stackClient, prefix string) ([]ucxapi.StackStateRecord, error) {
+func stackList(client shared.RpcGrantClient, prefix string) ([]ucxapi.StackStateRecord, error) {
 	records := []ucxapi.StackStateRecord{}
 	next := util.OptNone[string]()
 

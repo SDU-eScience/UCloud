@@ -123,7 +123,7 @@ the labels of the stack. The creator selects a drive product of the provider tha
 │           ├── agent-token
 │           ├── controller-token
 │           ├── maintenance-enrollment-secret
-│           └── stack-identity.json
+│           └── stack-identity.txt
 ├── bundles/
 │   └── <script revision>/<release>/
 ├── backups/
@@ -146,7 +146,7 @@ the labels of the stack. The creator selects a drive product of the provider tha
 
 The first control plane node installs the local-path provisioner of Rancher. The provisioner uses the shared
 `k3s-storage/` folder, so a persistent volume is available from every node and a pod can mount it after a move to
-another node. The provisioner creates the default storage class `local-path`.
+another node. The provisioner creates the default storage class `ucloud-storage`.
 
 A persistent volume lives in the `k3s-storage/` folder of the state drive. The user does not work with the volume as a
 normal folder; the workloads use it through Kubernetes.

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
@@ -18,7 +19,13 @@ import (
 	"ucloud.dk/iapp/k8s/pkg/shared"
 )
 
-const recoveryDefaultMountPath = "/etc/ucloud-stack"
+const (
+	recoveryDefaultMountPath = "/etc/ucloud-stack"
+
+	recoveryCredentialsUnchecked recoveryCredentialsStatus = ""
+
+	recoveryWizardId = "recoveryWizard"
+)
 
 type app struct {
 	mu      sync.Mutex
@@ -75,12 +82,6 @@ type recoveryCheckResult struct {
 
 type recoveryCredentialsStatus string
 
-const (
-	recoveryCredentialsUnchecked recoveryCredentialsStatus = ""
-	recoveryCredentialsOk        recoveryCredentialsStatus = "ok"
-	recoveryCredentialsMismatch  recoveryCredentialsStatus = "mismatch"
-)
-
 type recoveryLoadResult struct {
 	ClusterFound bool
 	Cluster      shared.ClusterRecord
@@ -105,7 +106,7 @@ func (app *app) Mutex() *sync.Mutex     { return &app.mu }
 func (app *app) Session() **ucx.Session { return &app.session }
 
 func (app *app) OnInit() {
-	shared.RegisterRpcHandlers(app, shared.ModeRecovery)
+	shared.RegisterRpcHandlers(app, k8sapi.AppModeRecovery)
 	app.registerRpcHandlers()
 }
 
@@ -195,10 +196,8 @@ func recoveryLoad(session *ucx.Session, stackId string, mountPath string) recove
 		return result
 	}
 	if snapshot.Found {
-		record := snapshot.Record
-		shared.ClusterStateRecordRevisionSet(&record, snapshot.Revision)
 		result.ClusterFound = true
-		result.Cluster = record
+		result.Cluster = snapshot.Record
 	}
 
 	recoverySnapshot, err := shared.ClusterRecoveryRead(client)
@@ -291,9 +290,9 @@ func recoveryCheckCredentials(mountPath string, entry backupEntry) recoveryCrede
 	}
 
 	if serverHash == entry.ServerTokenHash && agentHash == entry.AgentTokenHash {
-		return recoveryCredentialsOk
+		return k8sapi.RecoveryCredentialsOk
 	}
-	return recoveryCredentialsMismatch
+	return k8sapi.RecoveryCredentialsMismatch
 }
 
 func (app *app) selectedBackup() (backupEntry, bool) {
@@ -319,8 +318,6 @@ func (app *app) currentStage() string {
 	}
 	return shared.ClusterRecoveryStageStop
 }
-
-const recoveryWizardId = "recoveryWizard"
 
 var recoveryStages = []struct {
 	Key   string
@@ -445,10 +442,6 @@ func (app *app) stageContent() []ucx.UiNode {
 }
 
 func (app *app) stageStop() []ucx.UiNode {
-	return app.stageStopSelect()
-}
-
-func (app *app) stageStopSelect() []ucx.UiNode {
 	content := []ucx.UiNode{
 		ucx.Text("Recovery replaces the servers that manage your cluster and restores the cluster from a backup. Server names and IP addresses stay the same. Cluster changes made after the backup will be lost. After the restore, you can check that the cluster responds and its nodes are ready.").Sx(ucx.SxMb(12)),
 		ucx.Text("Select a backup below, then review the recovery. Nothing changes until you confirm Start recovery in the next step.").Sx(ucx.SxMb(16)),
@@ -487,7 +480,7 @@ func (app *app) stageStopSelect() []ucx.UiNode {
 
 		if app.CredentialsStatus == recoveryCredentialsUnchecked {
 			content = append(content, ucx.Warning("Cluster credentials could not be checked. Recovery cannot continue. Try again later.").Sx(ucx.SxMb(16)))
-		} else if app.CredentialsStatus == recoveryCredentialsMismatch {
+		} else if app.CredentialsStatus == k8sapi.RecoveryCredentialsMismatch {
 			content = append(content, ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 12}).Sx(ucx.SxMb(16)).Children(
 				ucx.Warning("The backup credentials differ from the current cluster credentials. Existing nodes may not reconnect after recovery."),
 				ucx.Checkbox("recoveryAcknowledge", "I accept that existing nodes may not reconnect", "acknowledgeRisk", true),
@@ -685,10 +678,10 @@ func (app *app) stageRestore() []ucx.UiNode {
 		content = append(content, ucx.Box().Sx(ucx.SxMb(16)).Children(progressLine(app.Progress)))
 	}
 
-	firstServer := shared.ClusterRecoveryFirstServerAllocation(&app.Cluster)
+	firstServer := shared.ClusterRecoveryFirstServerInternalId(&app.Cluster)
 	firstServerJob := ""
 	for _, node := range controlPlaneNodes(app.Cluster) {
-		if node.AllocationId == firstServer {
+		if node.InternalId == firstServer {
 			firstServerJob = node.JobId
 		}
 	}
@@ -811,9 +804,9 @@ func progressLine(text string) ucx.UiNode {
 }
 
 func controlPlaneNodes(record shared.ClusterRecord) []shared.ClusterNodeRecord {
-	result := shared.NodesInGroup(record, shared.GroupControlPlane)
+	result := shared.NodesInGroup(record, k8sapi.GroupControlPlane)
 	slices.SortFunc(result, func(a, b shared.ClusterNodeRecord) int {
-		return cmp.Compare(a.AllocationId, b.AllocationId)
+		return cmp.Compare(a.InternalId, b.InternalId)
 	})
 	return result
 }
@@ -842,7 +835,7 @@ func (app *app) beginRecoveryValidation(entry backupEntry, releaseKnown bool) (s
 	if app.CredentialsStatus == recoveryCredentialsUnchecked {
 		return "The live cluster tokens could not be read, so the credentials cannot be verified", false
 	}
-	if app.CredentialsStatus == recoveryCredentialsMismatch && !app.AcknowledgeRisk {
+	if app.CredentialsStatus == k8sapi.RecoveryCredentialsMismatch && !app.AcknowledgeRisk {
 		return "The backup credentials differ from the live tokens. Acknowledge the mismatch to continue", false
 	}
 	if app.SelectedBackupId != entry.Id {

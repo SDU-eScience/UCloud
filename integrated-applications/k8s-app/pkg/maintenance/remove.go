@@ -17,7 +17,11 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
+	fnd "ucloud.dk/shared/pkg/foundation"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/log"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
+	"ucloud.dk/shared/pkg/ucx/ucxapi"
 )
 
 // Node removal
@@ -60,7 +64,7 @@ func runRemove(
 			return guardErr
 		}
 
-		if node.Group == shared.GroupControlPlane && node.JobId != "" {
+		if node.Group == k8sapi.GroupControlPlane && node.JobId != "" {
 			trafficErr := upgradeSuspendTraffic(operation, worker)
 			if trafficErr != nil {
 				return fmt.Errorf("could not suspend the traffic of the node: %w", trafficErr)
@@ -125,7 +129,7 @@ func runRemove(
 		operation.NodeDeleted = true
 	}
 
-	if node.Group == shared.GroupControlPlane {
+	if node.Group == k8sapi.GroupControlPlane {
 		if verifyErr := removeVerifyControlPlane(ctx, clientset, worker); verifyErr != nil {
 			return verifyErr
 		}
@@ -149,7 +153,7 @@ func runRemove(
 		}
 	}
 
-	finish(worker, PhaseCompleted, "")
+	finish(worker, k8sapi.MaintenancePhaseCompleted, "")
 	removeTombstoneOperation(worker)
 	return nil
 }
@@ -197,15 +201,15 @@ func removeNodeRecordOrReconstruct(record shared.ClusterRecord, nodeName string)
 		return shared.ClusterNodeRecord{}, false
 	}
 
-	allocationId, err := strconv.Atoi(nodeName[dash+1:])
+	internalId, err := strconv.Atoi(nodeName[dash+1:])
 	if err != nil {
 		return shared.ClusterNodeRecord{}, false
 	}
 
 	return shared.ClusterNodeRecord{
-		AllocationId: allocationId,
-		Group:        nodeName[:dash],
-		Hostname:     nodeName,
+		InternalId: internalId,
+		Group:      nodeName[:dash],
+		Hostname:   nodeName,
 	}, true
 }
 
@@ -291,7 +295,9 @@ func removeInfrastructure(worker *nodeWorker, node shared.ClusterNodeRecord) err
 	}
 
 	if node.JobId != "" {
-		terminateErr := shared.RpcGrantTerminateJob(client, node.JobId)
+		_, terminateErr := ucxapi.StackControlInvoke(client.Rpc, client.Token, &ucxapi.StackControlTerminateJobs, orcapi.ControlMutateRequest[fnd.FindByStringId]{
+			Items: []fnd.FindByStringId{{Id: node.JobId}},
+		})
 		if terminateErr != nil && terminateErr.StatusCode != 404 {
 			return fmt.Errorf("could not terminate the job of the node: %s", terminateErr)
 		}
@@ -301,8 +307,8 @@ func removeInfrastructure(worker *nodeWorker, node shared.ClusterNodeRecord) err
 		}
 	}
 
-	if node.ReservationId != "" {
-		if waitErr := removeWaitReservationFree(worker, client, node.ReservationId); waitErr != nil {
+	if node.PrivateIpIdentifier != "" {
+		if waitErr := removeWaitReservationFree(worker, client, node.PrivateIpIdentifier); waitErr != nil {
 			return waitErr
 		}
 	}
@@ -311,7 +317,7 @@ func removeInfrastructure(worker *nodeWorker, node shared.ClusterNodeRecord) err
 		return recordErr
 	}
 
-	if removeErr := os.RemoveAll(shared.NodeDirForAllocation(node.AllocationId)); removeErr != nil {
+	if removeErr := os.RemoveAll(shared.NodeDirForInternalId(node.InternalId)); removeErr != nil {
 		return fmt.Errorf("could not remove the data directory of the node: %s", removeErr)
 	}
 	tokenPath := filepath.Join(shared.NodeAgentCoordinatorTokensDir, shared.SanitizeForPath(node.Hostname))
@@ -330,14 +336,14 @@ func removeWaitJobFinal(worker *nodeWorker, client shared.RpcGrantClient, jobId 
 			return errConcluded
 		}
 
-		job, found, herr := shared.RpcGrantRetrieveJob(client, jobId)
+		job, herr := ucxapi.StackControlInvoke(client.Rpc, client.Token, &ucxapi.StackControlRetrieveJob, orcapi.JobsControlRetrieveRequest{Id: jobId})
 		if herr != nil {
 			if herr.StatusCode != 404 {
 				return fmt.Errorf("could not read the job %s during the removal: %s", jobId, herr)
 			}
 			return nil
 		}
-		if found && !job.Status.State.IsFinal() {
+		if !job.Status.State.IsFinal() {
 			operationLogStage(
 				worker,
 				"waiting-job",
@@ -353,7 +359,7 @@ func removeWaitJobFinal(worker *nodeWorker, client shared.RpcGrantClient, jobId 
 	}
 }
 
-func removeWaitReservationFree(worker *nodeWorker, client shared.RpcGrantClient, reservationId string) error {
+func removeWaitReservationFree(worker *nodeWorker, client shared.RpcGrantClient, privateIpIdentifier string) error {
 	for attempt := 0; ; attempt++ {
 		if worker.ctx.Err() != nil {
 			return errConcluded
@@ -362,7 +368,9 @@ func removeWaitReservationFree(worker *nodeWorker, client shared.RpcGrantClient,
 			return errConcluded
 		}
 
-		deleteErr := shared.RpcGrantDeletePrivateNetworkIp(client, reservationId)
+		_, deleteErr := ucxapi.StackControlInvoke(client.Rpc, client.Token, &ucxapi.StackControlDeletePrivateNetworkIp, orcapi.ControlMutateRequest[fnd.FindByStringId]{
+			Items: []fnd.FindByStringId{{Id: privateIpIdentifier}},
+		})
 		if deleteErr == nil || deleteErr.StatusCode == 404 {
 			return nil
 		}
@@ -389,16 +397,7 @@ func removeNodeRecordFromCluster(nodeName string) error {
 		return err
 	}
 
-	for attempt := 0; ; attempt++ {
-		snapshot, readErr := shared.ClusterStateRead(client)
-		if readErr != nil {
-			return readErr
-		}
-		if !snapshot.Found {
-			return errors.New("the cluster record does not exist")
-		}
-
-		record := snapshot.Record
+	return shared.ClusterRecordUpdate(client, func(record *shared.ClusterRecord) bool {
 		nodeGroup := ""
 		found := false
 		for i := range record.Nodes {
@@ -410,11 +409,13 @@ func removeNodeRecordFromCluster(nodeName string) error {
 			}
 		}
 		if !found {
-			return nil
+			return false
 		}
-		if nodeGroup != "" &&
-			nodeGroup != shared.GroupControlPlane &&
-			len(shared.NodesInGroup(record, nodeGroup)) == 0 {
+
+		lastPoolNode := nodeGroup != "" &&
+			nodeGroup != k8sapi.GroupControlPlane &&
+			len(shared.NodesInGroup(*record, nodeGroup)) == 0
+		if lastPoolNode {
 			pools := record.Pools[:0]
 			for _, pool := range record.Pools {
 				if pool.Name != nodeGroup {
@@ -424,17 +425,8 @@ func removeNodeRecordFromCluster(nodeName string) error {
 			record.Pools = pools
 		}
 
-		_, writeErr := shared.ClusterStateRecordWrite(client, &record, snapshot.Revision)
-		if writeErr != nil {
-			if shared.IsConflict(writeErr) && attempt < 8 {
-				time.Sleep(2 * time.Second)
-				continue
-			}
-			return fmt.Errorf("could not update the cluster record: %s", writeErr)
-		}
-
-		return nil
-	}
+		return true
+	})
 }
 
 func removeTombstoneOperation(worker *nodeWorker) {
@@ -449,7 +441,7 @@ func removeTombstoneOperation(worker *nodeWorker) {
 		log.Warn("k8s-app maintenance %s: could not clear the maintenance record: %s", worker.nodeName, readErr)
 		return
 	}
-	if !record.Found || record.Value.Phase != PhaseCompleted {
+	if !record.Found || record.Value.Phase != k8sapi.MaintenancePhaseCompleted {
 		return
 	}
 

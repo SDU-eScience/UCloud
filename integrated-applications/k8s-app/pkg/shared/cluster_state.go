@@ -59,7 +59,11 @@ func ClusterStateClientNewHost() (ClusterStateClient, error) {
 }
 
 func ClusterStateRead(client ClusterStateClient) (ClusterStateSnapshot, error) {
-	record, found, err := clusterStateReadRaw(client, ClusterStateRecordKey)
+	return ClusterStateReadEx(context.Background(), client)
+}
+
+func ClusterStateReadEx(ctx context.Context, client ClusterStateClient) (ClusterStateSnapshot, error) {
+	record, found, err := clusterStateReadRawEx(ctx, client, ClusterStateRecordKey)
 	if err != nil {
 		return ClusterStateSnapshot{}, err
 	}
@@ -74,38 +78,35 @@ func ClusterStateRead(client ClusterStateClient) (ClusterStateSnapshot, error) {
 	if err := json.Unmarshal(record.Value, &parsed); err != nil {
 		return ClusterStateSnapshot{}, fmt.Errorf("could not parse the cluster record: %s", err)
 	}
+	if parsed.SchemaRevision != clusterRecordSchemaRevision {
+		return ClusterStateSnapshot{}, errors.New("the cluster record was written by an incompatible version of the application")
+	}
 
+	parsed.stateRevision = record.Revision
 	result.Found = true
 	result.Record = parsed
 	return result, nil
 }
 
-// ClusterStateRecordWrite replaces the cluster record. The write fails with a
-// conflict if the record changed since it was read.
-func ClusterStateRecordWrite(client ClusterStateClient, record *ClusterRecord, expectedRevision int64) (int64, error) {
-	if record == nil {
-		return 0, errors.New("the cluster record is nil")
-	}
-	if expectedRevision < 0 {
-		return 0, errors.New("the expected cluster record revision is negative")
-	}
-
-	value, err := json.Marshal(record)
+func clusterRecordReplaceAt(client ClusterStateClient, record *ClusterRecord, expectedRevision int64) (int64, error) {
+	value, err := json.Marshal(*record)
 	if err != nil {
 		return 0, err
 	}
 
-	return clusterStateWrite(client, ClusterStateRecordKey, value, expectedRevision)
+	newRevision, err := clusterStateWrite(client, ClusterStateRecordKey, value, expectedRevision)
+	if err != nil {
+		return 0, err
+	}
+
+	record.stateRevision = newRevision
+	return newRevision, nil
 }
 
 type ClusterStateValue struct {
 	Value    json.RawMessage
 	Revision int64
 	Found    bool
-}
-
-func ClusterStateValueRead(client ClusterStateClient, key string) (ClusterStateValue, error) {
-	return ClusterStateValueReadEx(context.Background(), client, key)
 }
 
 func ClusterStateValueReadEx(ctx context.Context, client ClusterStateClient, key string) (ClusterStateValue, error) {
@@ -125,9 +126,6 @@ func ClusterStateValueReadEx(ctx context.Context, client ClusterStateClient, key
 }
 
 func ClusterStateValueWrite(client ClusterStateClient, key string, value json.RawMessage, expectedRevision int64) (int64, error) {
-	if expectedRevision < 0 {
-		return 0, errors.New("the expected revision is negative")
-	}
 	return clusterStateWrite(client, key, value, expectedRevision)
 }
 
@@ -158,6 +156,10 @@ func clusterStateReadRawEx(ctx context.Context, client ClusterStateClient, key s
 }
 
 func clusterStateWrite(client ClusterStateClient, key string, value json.RawMessage, expectedRevision int64) (int64, error) {
+	if expectedRevision < 0 {
+		return 0, errors.New("the expected revision is negative")
+	}
+
 	if client.session != nil {
 		response, err := ucxapi.StackStateWrite.Invoke(client.session, ucxapi.StackStateWriteRequest{
 			StackId:          client.stackId,
@@ -174,22 +176,6 @@ func clusterStateWrite(client ClusterStateClient, key string, value json.RawMess
 	return RpcGrantStateWrite(client.client, key, value, expectedRevision)
 }
 
-func ClusterStateRecordRevision(record *ClusterRecord) (int64, error) {
-	if record == nil {
-		return 0, errors.New("the cluster record is nil")
-	}
-	if record.stateRevision < 0 {
-		return 0, errors.New("the cluster record revision is negative")
-	}
-	return record.stateRevision, nil
-}
-
-func ClusterStateRecordRevisionSet(record *ClusterRecord, revision int64) {
-	if record != nil && revision >= 0 {
-		record.stateRevision = revision
-	}
-}
-
 func ClusterStateRecordRead() (ClusterRecord, bool, error) {
 	client, err := ClusterStateClientNewHost()
 	if err != nil {
@@ -204,7 +190,5 @@ func ClusterStateRecordRead() (ClusterRecord, bool, error) {
 		return ClusterRecord{}, false, nil
 	}
 
-	record := snapshot.Record
-	record.stateRevision = snapshot.Revision
-	return record, true, nil
+	return snapshot.Record, true, nil
 }

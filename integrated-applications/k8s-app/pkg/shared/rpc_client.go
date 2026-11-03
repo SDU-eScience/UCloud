@@ -10,7 +10,6 @@ import (
 	"time"
 
 	fnd "ucloud.dk/shared/pkg/foundation"
-	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
@@ -117,24 +116,14 @@ func RpcGrantStateWriteChecked(
 	valueConditions []ucxapi.StackStateValueCondition,
 	validUntil util.Option[int64],
 ) (int64, error) {
-	request := ucxapi.StackControlStateWriteRequest{
-		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: client.Token},
-		Key:                 key,
-		Value:               value,
-		ExpectedRevision:    expectedRevision,
-		Conditions:          conditions,
-		ValueConditions:     valueConditions,
-		ValidUntil:          validUntil,
-	}
-
-	call := ucxapi.StackControlStateWrite
-	if len(conditions) > 0 || validUntil.Present {
-		call = ucxapi.StackControlStateWriteChecked
-	}
-	if len(valueConditions) > 0 {
-		call = ucxapi.StackControlStateWriteCheckedValues
-	}
-	response, herr := call.InvokeEx(client.Rpc, request, rpc.InvokeOpts{})
+	response, herr := ucxapi.StackControlStateWriteDispatch(client.Rpc, client.Token, ucxapi.StackControlStateWriteRequest{
+		Key:              key,
+		Value:            value,
+		ExpectedRevision: expectedRevision,
+		Conditions:       conditions,
+		ValueConditions:  valueConditions,
+		ValidUntil:       validUntil,
+	})
 	if herr != nil {
 		return 0, rpcGrantError(herr)
 	}
@@ -152,90 +141,4 @@ func RpcGrantStateList(client RpcGrantClient, prefix string, next util.Option[st
 		return fnd.PageV2[ucxapi.StackStateRecord]{}, rpcGrantError(herr)
 	}
 	return response, nil
-}
-
-func rpcGrantBrowseAll[Resc any](
-	browsePage func(next util.Option[string]) (fnd.PageV2[Resc], *util.HttpError),
-) ([]Resc, error) {
-	result := []Resc{}
-	next := util.OptNone[string]()
-	for {
-		page, herr := browsePage(next)
-		if herr != nil {
-			return nil, rpcGrantError(herr)
-		}
-
-		result = append(result, page.Items...)
-		next = page.Next
-		if !next.Present || len(page.Items) == 0 {
-			return result, nil
-		}
-	}
-}
-
-func RpcGrantBrowseIngresses(client *rpc.Client, token string) ([]orcapi.Ingress, error) {
-	return rpcGrantBrowseAll(func(next util.Option[string]) (fnd.PageV2[orcapi.Ingress], *util.HttpError) {
-		return ucxapi.StackControlBrowseIngresses.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.IngressesControlBrowseRequest]{
-			StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
-			Request: orcapi.IngressesControlBrowseRequest{
-				ItemsPerPage: 250,
-				Next:         next,
-			},
-		}, rpc.InvokeOpts{})
-	})
-}
-
-func RpcGrantBrowseServices(client *rpc.Client, token string) ([]orcapi.Service, error) {
-	return rpcGrantBrowseAll(func(next util.Option[string]) (fnd.PageV2[orcapi.Service], *util.HttpError) {
-		return ucxapi.StackControlBrowseServices.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.ServicesControlBrowseRequest]{
-			StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
-			Request: orcapi.ServicesControlBrowseRequest{
-				ItemsPerPage: 250,
-				Next:         next,
-			},
-		}, rpc.InvokeOpts{})
-	})
-}
-
-func RpcGrantBrowseJobs(client *rpc.Client, token string) ([]orcapi.Job, error) {
-	return rpcGrantBrowseAll(func(next util.Option[string]) (fnd.PageV2[orcapi.Job], *util.HttpError) {
-		return ucxapi.StackControlBrowseJobs.InvokeEx(client, ucxapi.StackControlRequestOf[orcapi.JobsControlBrowseRequest]{
-			StackCredentialAuth: ucxapi.StackCredentialAuth{Token: token},
-			Request: orcapi.JobsControlBrowseRequest{
-				ItemsPerPage: 250,
-				Next:         next,
-			},
-		}, rpc.InvokeOpts{})
-	})
-}
-
-func RpcGrantRetrieveJob(client RpcGrantClient, jobId string) (orcapi.Job, bool, *util.HttpError) {
-	job, herr := ucxapi.StackControlRetrieveJob.InvokeEx(client.Rpc, ucxapi.StackControlRequestOf[orcapi.JobsControlRetrieveRequest]{
-		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: client.Token},
-		Request:             orcapi.JobsControlRetrieveRequest{Id: jobId},
-	}, rpc.InvokeOpts{})
-	if herr != nil {
-		return orcapi.Job{}, false, herr
-	}
-	return job, true, nil
-}
-
-func RpcGrantTerminateJob(client RpcGrantClient, jobId string) *util.HttpError {
-	_, herr := ucxapi.StackControlTerminateJobs.InvokeEx(client.Rpc, ucxapi.StackControlRequestOf[orcapi.ControlMutateRequest[fnd.FindByStringId]]{
-		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: client.Token},
-		Request: orcapi.ControlMutateRequest[fnd.FindByStringId]{
-			Items: []fnd.FindByStringId{{Id: jobId}},
-		},
-	}, rpc.InvokeOpts{})
-	return herr
-}
-
-func RpcGrantDeletePrivateNetworkIp(client RpcGrantClient, reservationId string) *util.HttpError {
-	_, herr := ucxapi.StackControlDeletePrivateNetworkIp.InvokeEx(client.Rpc, ucxapi.StackControlRequestOf[orcapi.ControlMutateRequest[fnd.FindByStringId]]{
-		StackCredentialAuth: ucxapi.StackCredentialAuth{Token: client.Token},
-		Request: orcapi.ControlMutateRequest[fnd.FindByStringId]{
-			Items: []fnd.FindByStringId{{Id: reservationId}},
-		},
-	}, rpc.InvokeOpts{})
-	return herr
 }

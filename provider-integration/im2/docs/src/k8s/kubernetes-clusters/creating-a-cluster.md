@@ -117,8 +117,9 @@ runs.
 - **Token publisher:** runs on every control plane node. It reads the join tokens from the local k3s installation and
   publishes them to the node inputs of the nodes that did not join yet. The publication is idempotent, so several
   publishers can run at the same time.
-- **First server setup:** the first control plane node installs the local-path storage provisioner on the shared
-  storage, the administrator account, the controller, the kubeconfigs and the client tools.
+- **First server setup:** the first control plane node installs the local-path provisioner on the shared storage, creates
+  the default `ucloud-storage` class, and sets up the administrator account, the controller, the kubeconfigs and the
+  client tools.
 
 A node refuses to start k3s when its input is decommissioned, when the generation of its input changed, when the
 shared storage is missing, or when the private address is not on the node. The checks run before every start of k3s.

@@ -111,8 +111,8 @@ func pendingCleanupText(pending shared.ClusterPendingCleanup) string {
 	if pending.JobId != "" {
 		parts = append(parts, "job "+pending.JobId)
 	}
-	if pending.ReservationId != "" {
-		parts = append(parts, "reservation "+pending.ReservationId)
+	if pending.PrivateIpIdentifier != "" {
+		parts = append(parts, "private IP "+pending.PrivateIpIdentifier)
 	}
 	if pending.IpAddress != "" {
 		parts = append(parts, "IP "+pending.IpAddress)

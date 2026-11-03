@@ -56,6 +56,7 @@ import (
 	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
@@ -175,7 +176,7 @@ func (app *stackUiApp) Mutex() *sync.Mutex { return &app.mu }
 func (app *stackUiApp) Session() **ucx.Session { return &app.session }
 
 func (app *stackUiApp) OnInit() {
-	shared.RegisterRpcHandlers(app, shared.ModeDashboard)
+	shared.RegisterRpcHandlers(app, k8sapi.AppModeDashboard)
 	app.registerRpcHandlers()
 }
 
@@ -553,11 +554,10 @@ func (app *stackUiApp) readClusterRecordWith(session *ucx.Session, stack *ucxsvc
 		client, clientErr := shared.ClusterStateClientNewSession(session, stack.InstanceId)
 		if clientErr == nil {
 			ctx, cancel := dashboardSessionContext(session)
-			record, found, revision, readErr := dashboardStateValueRead[shared.ClusterRecord](ctx, client, shared.ClusterStateRecordKey, "cluster record")
+			snapshot, readErr := shared.ClusterStateReadEx(ctx, client)
 			cancel()
-			if readErr == nil && found {
-				shared.ClusterStateRecordRevisionSet(&record, revision)
-				return record, true
+			if readErr == nil && snapshot.Found {
+				return snapshot.Record, true
 			}
 		}
 	}

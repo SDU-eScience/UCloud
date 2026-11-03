@@ -60,7 +60,7 @@ func controlPlaneSchedulingSweep(ctx context.Context, kubeconfigPath string) err
 		name      string
 	}{
 		{namespace: "ucloud-k8s-controller", name: "ucloud-k8s-controller"},
-		{namespace: "local-path-storage", name: "local-path-provisioner"},
+		{namespace: "ucloud-storage", name: "ucloud-storage-provisioner"},
 		{namespace: "kube-system", name: "coredns"},
 		{namespace: "kube-system", name: "metrics-server"},
 		{namespace: "kube-system", name: "traefik"},
@@ -128,7 +128,7 @@ func controlPlaneSchedulingTolerate(spec *corev1.PodSpec, taint corev1.Taint) bo
 }
 
 func controlPlaneSchedulingStorageHelper(ctx context.Context, clientset *kubernetes.Clientset, taint corev1.Taint) error {
-	config, err := clientset.CoreV1().ConfigMaps("local-path-storage").Get(ctx, "local-path-config", metav1.GetOptions{})
+	config, err := clientset.CoreV1().ConfigMaps("ucloud-storage").Get(ctx, "ucloud-storage-config", metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
 		return nil
 	}

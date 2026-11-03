@@ -89,7 +89,7 @@ if [ "$FIRST_SERVER" = "True" ] && [ "$RECOVERY_ENABLED" = "True" ]; then
 	if [ -z "$RECOVERY_SHA256" ]; then
 		fail "recovery" "the backup verification details are missing from the node configuration"
 	fi
-	OBSERVED_SHA256="$(sha256sum "$RECOVERY_SNAPSHOT" | awk '{print $1}')"
+	OBSERVED_SHA256="$(file_sha256 "$RECOVERY_SNAPSHOT")"
 	if [ "$OBSERVED_SHA256" != "$RECOVERY_SHA256" ]; then
 		fail "recovery" "the recovery snapshot does not match the backup metadata"
 	fi
@@ -125,7 +125,6 @@ RequiresMountsFor=/etc/ucloud-k8s/bundle /etc/ucloud-k8s/management /etc/ucloud-
 
 [Service]
 Type=simple
-ExecStartPre=/bin/sh -c 'mountpoint -q /etc/ucloud-k8s/bundle && mountpoint -q /etc/ucloud-k8s/management && mountpoint -q /etc/ucloud-k8s/nodes && mountpoint -q /etc/ucloud-k8s/input || { echo required mounts are not present; exit 1; }'
 ExecStart=/usr/local/sbin/ucloud-k8s-token-publisher
 Restart=always
 RestartSec=30
@@ -141,17 +140,8 @@ log "preparing cluster management"
 emit "Preparing cluster management" 77
 CONTROLLER_TOKEN_SOURCE="$INPUT_DIR/controller-token"
 CONTROLLER_TOKEN_DIR="/var/lib/ucloud-k8s/controller"
-CONTROLLER_TOKEN_TRIES=0
-while [ $CONTROLLER_TOKEN_TRIES -lt 60 ]; do
-	if [ -s "$CONTROLLER_TOKEN_SOURCE" ]; then
-		break
-	fi
-	sleep 5
-	CONTROLLER_TOKEN_TRIES=$(( CONTROLLER_TOKEN_TRIES + 1 ))
-done
-if [ ! -s "$CONTROLLER_TOKEN_SOURCE" ]; then
+retry_until 60 5 test -s "$CONTROLLER_TOKEN_SOURCE" ||
 	fail "credentials" "the credentials for cluster management are unavailable"
-fi
 
 install -d -m 0750 -o "$UCX_SERVICE_UID" -g "$UCX_SERVICE_GID" "$CONTROLLER_TOKEN_DIR"
 umask 077

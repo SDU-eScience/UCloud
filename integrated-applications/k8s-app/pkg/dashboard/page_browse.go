@@ -491,7 +491,7 @@ func (app *stackUiApp) handleRowAction(ev ucx.UiEvent) {
 		} else if actionId == dashboardActionRemoveNode {
 			maintenanceOpenWithMode(app, nodeName, nodeUid, maintenanceModeRemove)
 		} else {
-			maintenanceOpen(app, nodeName, nodeUid)
+			maintenanceOpenWithMode(app, nodeName, nodeUid, maintenanceModeDrain)
 		}
 	case dashboardActionUncordon:
 		if strings.HasPrefix(rowKey, provisioningRowKeyPrefix) {

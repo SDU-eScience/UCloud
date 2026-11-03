@@ -10,19 +10,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/version"
 )
 
-const (
-	K3sChannelStable  = "stable"
-	K3sChannelStaging = "staging"
-)
-
 type K3sRelease struct {
 	Release       string
 	Sha256Amd64   string
 	Sha256Arm64   string
 	SupportedFrom time.Time
 	EolAt         time.Time
-	Channel       string
-	SecurityFixes bool
 }
 
 var K3sCatalog = []K3sRelease{
@@ -32,7 +25,6 @@ var K3sCatalog = []K3sRelease{
 		Sha256Arm64:   "c920706346d5ad4e5cd3c7bf1bb09ce71ebe07fec829e513e40f1caf98aed8bb",
 		SupportedFrom: time.Date(2026, 4, 22, 0, 0, 0, 0, time.UTC),
 		EolAt:         time.Date(2027, 6, 22, 0, 0, 0, 0, time.UTC),
-		Channel:       K3sChannelStable,
 	},
 	{
 		Release:       "v1.35.8+k3s1",
@@ -40,7 +32,6 @@ var K3sCatalog = []K3sRelease{
 		Sha256Arm64:   "898476e008704289382377ef19946f23b511cf2678042cb5c8aef991e64f840a",
 		SupportedFrom: time.Date(2025, 12, 17, 0, 0, 0, 0, time.UTC),
 		EolAt:         time.Date(2027, 2, 17, 0, 0, 0, 0, time.UTC),
-		Channel:       K3sChannelStable,
 	},
 }
 
@@ -65,9 +56,6 @@ func Releases(now time.Time, flags ReleaseFlag) []K3sRelease {
 
 	result := make([]K3sRelease, 0, len(K3sCatalog))
 	for _, release := range K3sCatalog {
-		if release.Channel != K3sChannelStable {
-			continue
-		}
 		if _, err := version.ParseSemantic(release.Release); err != nil {
 			continue
 		}
@@ -110,15 +98,7 @@ func ReleaseOptionLabel(release K3sRelease, now time.Time) string {
 	return release.Release
 }
 
-func VersionSupportLabel(target string, now time.Time) string {
-	eolAt, ok := SupportEnds(target)
-	if !ok {
-		return target
-	}
-	return ReleaseSupportLabel(K3sRelease{Release: target, EolAt: eolAt}, now)
-}
-
-func SameRelease(left string, right string) bool {
+func ReleaseEquals(left string, right string) bool {
 	leftVersion, leftErr := version.ParseSemantic(left)
 	rightVersion, rightErr := version.ParseSemantic(right)
 	if leftErr != nil || rightErr != nil {
@@ -127,7 +107,7 @@ func SameRelease(left string, right string) bool {
 	return leftVersion.EqualTo(rightVersion)
 }
 
-func RecommendedTarget(current string, now time.Time) (K3sRelease, bool) {
+func ReleaseRecommendedTargetForNode(current string, now time.Time) (K3sRelease, bool) {
 	if !strings.HasPrefix(current, "v") {
 		return K3sRelease{}, false
 	}
@@ -144,7 +124,7 @@ func RecommendedTarget(current string, now time.Time) (K3sRelease, bool) {
 	return K3sRelease{}, false
 }
 
-func RecommendedClusterTarget(current []string, now time.Time) (K3sRelease, bool) {
+func ReleaseRecommendedTargetForCluster(current []string, now time.Time) (K3sRelease, bool) {
 	if len(current) == 0 {
 		return K3sRelease{}, false
 	}
@@ -212,8 +192,8 @@ func ClusterUpgradePathGuidance(versions map[string]string, now time.Time) []str
 			continue
 		}
 
-		next, ok := RecommendedTarget(current, now)
-		if ok && !SameRelease(current, next.Release) {
+		next, ok := ReleaseRecommendedTargetForNode(current, now)
+		if ok && !ReleaseEquals(current, next.Release) {
 			guidance = append(guidance, fmt.Sprintf(
 				"Node %s runs Kubernetes version %s and cannot upgrade directly to %s. Its next supported version is %s. Check node maintenance to upgrade it first.",
 				name,
@@ -241,8 +221,8 @@ func SupportEnds(target string) (time.Time, bool) {
 	return release.EolAt.UTC(), true
 }
 
-func NodeIpForAllocation(allocationId int) string {
-	host := ipFromOffset(allocationId + 2)
+func NodeIpForInternalId(internalId int) string {
+	host := ipFromOffset(internalId + 2)
 	return host.String()
 }
 
@@ -256,15 +236,15 @@ const ClusterVmCidr = "172.31.0.0/16"
 const ClusterPodCidr = "10.14.0.0/16"
 const ClusterServiceCidr = "10.15.0.0/16"
 
-const maxAllocationOffset = 65534
+const maxInternalOffset = 65534
 
-func AllocationIdIsValid(allocationId int) bool {
-	if allocationId < 1 {
+func InternalIdIsValid(internalId int) bool {
+	if internalId < 1 {
 		return false
 	}
 
-	offset := allocationId + 2
-	return offset <= maxAllocationOffset
+	offset := internalId + 2
+	return offset <= maxInternalOffset
 }
 
 func SanitizeForPath(value string) string {
