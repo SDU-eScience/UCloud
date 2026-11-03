@@ -53,25 +53,35 @@ func ReleaseByExactVersion(target string) (K3sRelease, bool) {
 	return K3sRelease{}, false
 }
 
-func StableReleases(now time.Time) []K3sRelease {
-	return stableReleases(now, true)
-}
+type ReleaseFlag uint64
 
-func stableReleases(now time.Time, applySupportWindow bool) []K3sRelease {
+const (
+	ReleaseFlagReleased ReleaseFlag = 1 << iota
+	ReleaseFlagSupported
+)
+
+func Releases(now time.Time, flags ReleaseFlag) []K3sRelease {
 	now = now.UTC()
 
-	var result []K3sRelease
+	result := make([]K3sRelease, 0, len(K3sCatalog))
 	for _, release := range K3sCatalog {
 		if release.Channel != K3sChannelStable {
-			continue
-		}
-		if applySupportWindow && release.SupportedFrom.After(now) {
 			continue
 		}
 		if _, err := version.ParseSemantic(release.Release); err != nil {
 			continue
 		}
-		result = append(result, release)
+
+		released := !release.SupportedFrom.After(now)
+		supported := released && (release.EolAt.IsZero() || release.EolAt.After(now))
+
+		if flags&ReleaseFlagReleased != 0 && released {
+			result = append(result, release)
+			continue
+		}
+		if flags&ReleaseFlagSupported != 0 && supported {
+			result = append(result, release)
+		}
 	}
 
 	sort.Slice(result, func(i, j int) bool {
@@ -81,34 +91,6 @@ func stableReleases(now time.Time, applySupportWindow bool) []K3sRelease {
 	})
 
 	return result
-}
-
-func SupportedReleases(now time.Time) []K3sRelease {
-	now = now.UTC()
-
-	var result []K3sRelease
-	for _, release := range StableReleases(now) {
-		if release.EolAt.IsZero() || !release.EolAt.After(now) {
-			continue
-		}
-		result = append(result, release)
-	}
-
-	return result
-}
-
-func CreationReleases(now time.Time) []K3sRelease {
-	releases := SupportedReleases(now)
-	if len(releases) > 0 {
-		return releases
-	}
-
-	releases = StableReleases(now)
-	if len(releases) > 0 {
-		return releases
-	}
-
-	return stableReleases(now, false)
 }
 
 func ReleaseSupportLabel(release K3sRelease, now time.Time) string {
@@ -153,7 +135,7 @@ func RecommendedTarget(current string, now time.Time) (K3sRelease, bool) {
 		return K3sRelease{}, false
 	}
 
-	for _, release := range SupportedReleases(now) {
+	for _, release := range Releases(now, ReleaseFlagSupported) {
 		if release.Release == current || NodeAgentUpgradeAllowed(current, release.Release) {
 			return release, true
 		}
@@ -167,7 +149,7 @@ func RecommendedClusterTarget(current []string, now time.Time) (K3sRelease, bool
 		return K3sRelease{}, false
 	}
 
-	for _, release := range SupportedReleases(now) {
+	for _, release := range Releases(now, ReleaseFlagSupported) {
 		releaseVersion, err := version.ParseSemantic(release.Release)
 		if err != nil {
 			continue
@@ -215,7 +197,7 @@ func ClusterUpgradePathGuidance(versions map[string]string, now time.Time) []str
 		}
 	}
 
-	releases := SupportedReleases(now)
+	releases := Releases(now, ReleaseFlagSupported)
 	if len(releases) == 0 {
 		return append(guidance, "No supported Kubernetes version is currently available. Contact your service provider.")
 	}

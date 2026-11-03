@@ -17,7 +17,7 @@ func (app *k8sApp) registerRpcHandlers() {
 
 	k8sapi.Releases.Handler(session, func(_ context.Context, _ util.Empty) (k8sapi.ReleasesResponse, error) {
 		now := time.Now().UTC()
-		releases := shared.CreationReleases(now)
+		releases := shared.Releases(now, shared.ReleaseFlagSupported)
 
 		result := make([]k8sapi.Release, 0, len(releases))
 		for i, release := range releases {

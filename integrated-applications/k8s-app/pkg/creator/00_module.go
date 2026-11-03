@@ -12,6 +12,7 @@ import (
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
@@ -23,21 +24,19 @@ import (
 )
 
 func App() ucx.Application {
-	defaultRelease := shared.K3sRelease{}
-	if releases := shared.CreationReleases(time.Now().UTC()); len(releases) > 0 {
-		defaultRelease = releases[0]
-	}
+	releases := shared.Releases(time.Now().UTC(), shared.ReleaseFlagSupported)
+	defaultRelease := releases[0]
 	return &k8sApp{
 		ClusterId:          fmt.Sprintf("k8s-%v", util.RandomTokenNoTs(4)),
 		K8sVersion:         defaultRelease.Release,
-		ControlPlaneNodes:  1,
-		ControlPlaneDiskGb: 50,
+		ControlPlaneNodes:  k8sapi.DefaultControlPlaneNodes,
+		ControlPlaneDiskGb: k8sapi.DefaultControlPlaneDiskGb,
 		Pools: []creatorWorkerPool{
 			{
 				Name:    "workers-1",
 				Machine: accapi.ProductReference{},
-				Nodes:   1,
-				DiskGb:  50,
+				Nodes:   k8sapi.DefaultWorkerNodes,
+				DiskGb:  k8sapi.DefaultWorkerDiskGb,
 			},
 		},
 	}
@@ -120,7 +119,7 @@ func (app *k8sApp) OnSysHello(payload string) {
 		return
 	}
 
-	app.HostProvider = strings.TrimSpace(request.Provider)
+	app.HostProvider = request.Provider
 	app.SwitchBusy = false
 
 	handoffApplied := false
@@ -148,35 +147,19 @@ func (app *k8sApp) applyProviderHandoff(handoff creatorHandoff) {
 		app.ServiceProvider = handoff.ServiceProvider
 	}
 	switch handoff.ControlPlaneNodes {
-	case 1, 3, 5, 7:
+	case k8sapi.ControlPlaneMinNodes, 3, 5, k8sapi.ControlPlaneMaxNodes:
 		app.ControlPlaneNodes = handoff.ControlPlaneNodes
 	}
-	if handoff.ControlPlaneDiskGb >= 10 && handoff.ControlPlaneDiskGb <= 1024 {
-		app.ControlPlaneDiskGb = handoff.ControlPlaneDiskGb
-	}
+	app.ControlPlaneDiskGb = util.Clamp(handoff.ControlPlaneDiskGb, k8sapi.MinDiskGb, k8sapi.MaxDiskGb)
 
 	if len(handoff.Pools) > 0 {
 		pools := make([]creatorWorkerPool, 0, len(handoff.Pools))
 		for i := range handoff.Pools {
 			pool := handoff.Pools[i]
-			nodes := pool.Nodes
-			if nodes < 1 {
-				nodes = 1
-			} else if nodes > 250 {
-				nodes = 250
-			}
-
-			diskGb := pool.DiskGb
-			if diskGb < 10 {
-				diskGb = 10
-			} else if diskGb > 1024 {
-				diskGb = 1024
-			}
-
 			pools = append(pools, creatorWorkerPool{
 				Name:   pool.Name,
-				Nodes:  nodes,
-				DiskGb: diskGb,
+				Nodes:  util.Clamp(pool.Nodes, 1, k8sapi.MaxPoolNodes),
+				DiskGb: util.Clamp(pool.DiskGb, k8sapi.MinDiskGb, k8sapi.MaxDiskGb),
 			})
 		}
 		app.Pools = pools
@@ -299,14 +282,14 @@ func (app *k8sApp) cardControlPlane() ucx.UiNode {
 				FieldRowDescription("The number of control-plane nodes. Must be an odd number from 1 to 7.").
 				FieldRowRequired(true).
 				Children(
-					ucx.InputNumber("controlPlaneNodes", "", "controlPlaneNodes", 1, 7).
+					ucx.InputNumber("controlPlaneNodes", "", "controlPlaneNodes", k8sapi.ControlPlaneMinNodes, k8sapi.ControlPlaneMaxNodes).
 						AriaLabel("Control-plane node count"),
 				),
 			ucx.FieldRowNodeEx("controlPlaneDiskRow", "Disk size (GB)", "controlPlaneDiskGb").
 				FieldRowDescription("The disk size for each control-plane node.").
 				FieldRowRequired(true).
 				Children(
-					ucx.InputNumber("controlPlaneDisk", "", "controlPlaneDiskGb", 10, 1024).
+					ucx.InputNumber("controlPlaneDisk", "", "controlPlaneDiskGb", k8sapi.MinDiskGb, k8sapi.MaxDiskGb).
 						AriaLabel("Control-plane disk size"),
 				),
 		),
@@ -324,8 +307,8 @@ func (app *k8sApp) cardWorkerPools() ucx.UiNode {
 		ucx.Button("addPool", "Add worker pool", ucx.ColorSecondaryMain).ButtonDisabledWhen("deployBusy").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
 			app.Pools = append(app.Pools, creatorWorkerPool{
 				Name:   fmt.Sprintf("workers-%v", len(app.Pools)+1),
-				Nodes:  1,
-				DiskGb: 50,
+				Nodes:  k8sapi.DefaultWorkerNodes,
+				DiskGb: k8sapi.DefaultWorkerDiskGb,
 			})
 			ucx.AppUpdateUi(app)
 		}),
@@ -370,14 +353,14 @@ func (app *k8sApp) poolCard(index int) ucx.UiNode {
 				FieldRowDescription("The number of worker nodes in this pool.").
 				FieldRowRequired(true).
 				Children(
-					ucx.InputNumber("poolNodes"+indexPath, "", "pools."+indexPath+".nodes", 1, 250).
+					ucx.InputNumber("poolNodes"+indexPath, "", "pools."+indexPath+".nodes", 1, k8sapi.MaxPoolNodes).
 						AriaLabel(fmt.Sprintf("Worker pool %d node count", index+1)),
 				),
 			ucx.FieldRowNodeEx("poolDiskRow"+indexPath, "Disk size (GB)", "pools."+indexPath+".diskGb").
 				FieldRowDescription("The disk size for each node in this pool.").
 				FieldRowRequired(true).
 				Children(
-					ucx.InputNumber("poolDisk"+indexPath, "", "pools."+indexPath+".diskGb", 10, 1024).
+					ucx.InputNumber("poolDisk"+indexPath, "", "pools."+indexPath+".diskGb", k8sapi.MinDiskGb, k8sapi.MaxDiskGb).
 						AriaLabel(fmt.Sprintf("Worker pool %d disk size", index+1)),
 				),
 		),
@@ -507,7 +490,7 @@ func (app *k8sApp) loadRecoverStacks() {
 		}
 
 		for _, stack := range page.Items {
-			if strings.TrimSpace(stack.Type) != shared.StackType {
+			if stack.Type != shared.StackType {
 				continue
 			}
 			if !slices.Contains(stack.Permissions.Myself, orcapi.PermissionEdit) {
@@ -548,7 +531,7 @@ func (app *k8sApp) recover(ev ucx.UiEvent) {
 		return
 	}
 
-	stackId := strings.TrimSpace(app.RecoverStackId)
+	stackId := app.RecoverStackId
 	if stackId == "" {
 		ucxsvc.UiSendFailure(app, "Select a cluster to recover")
 		return
@@ -606,13 +589,61 @@ func (app *k8sApp) deploy(ev ucx.UiEvent) {
 	}()
 }
 
+func creatorDeployRequest(app *k8sApp) k8sapi.DeployRequest {
+	pools := make([]k8sapi.PoolSpec, 0, len(app.Pools))
+	for _, pool := range app.Pools {
+		pools = append(pools, k8sapi.PoolSpec{
+			Name:    pool.Name,
+			Machine: pool.Machine,
+			Nodes:   pool.Nodes,
+			Disk:    pool.DiskGb,
+		})
+	}
+
+	return k8sapi.DeployRequest{
+		Name:       app.ClusterId,
+		Provider:   app.ServiceProvider,
+		K8sVersion: app.K8sVersion,
+		ControlPlane: k8sapi.ControlPlaneSpec{
+			Machine: app.ControlPlaneMachine,
+			Nodes:   app.ControlPlaneNodes,
+			Disk:    app.ControlPlaneDiskGb,
+		},
+		WorkerPools: pools,
+	}
+}
+
+func creatorDeploy(app ucx.Application, request k8sapi.DeployRequest, provider string) (*ucxsvc.Stack, bool, string) {
+	request = k8sapi.NormalizeDeployRequest(request)
+	if request.Provider == "" {
+		request.Provider = provider
+	}
+	if provider != "" && request.Provider != provider {
+		return &ucxsvc.Stack{}, false, fmt.Sprintf(
+			"the request provider %s does not match the application provider %s",
+			request.Provider,
+			provider,
+		)
+	}
+
+	if err := k8sapi.ValidateDeployRequest(request); err != nil {
+		return &ucxsvc.Stack{}, false, err.Error()
+	}
+
+	if _, ok := shared.ReleaseByExactVersion(request.K8sVersion); !ok {
+		return &ucxsvc.Stack{}, false, "unknown Kubernetes version: " + request.K8sVersion
+	}
+
+	return shared.ClusterCreate(app, request)
+}
+
 func (app *k8sApp) OnMessage(msg ucx.Frame) {
 	if msg.Opcode != ucx.OpModelInput || msg.ModelInput.Path != "serviceProvider" {
 		return
 	}
 
-	target := strings.TrimSpace(app.ServiceProvider)
-	host := strings.TrimSpace(app.HostProvider)
+	target := app.ServiceProvider
+	host := app.HostProvider
 	if target == "" || (host != "" && target == host) {
 		return
 	}
@@ -659,7 +690,7 @@ func (app *k8sApp) OnMessage(msg ucx.Frame) {
 
 func k8sVersionOptions() []ucx.Option {
 	now := time.Now().UTC()
-	releases := shared.CreationReleases(now)
+	releases := shared.Releases(now, shared.ReleaseFlagSupported)
 
 	options := make([]ucx.Option, 0, len(releases))
 	for _, release := range releases {

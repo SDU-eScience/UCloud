@@ -1532,7 +1532,7 @@ func maintenanceRunTargetsGroup(run maintenance.MaintenanceRun, nodeGroup string
 func maintenanceUpgradeReleaseOptions(currentVersion string) []ucx.Option {
 	now := time.Now().UTC()
 	options := []ucx.Option{}
-	for _, release := range shared.StableReleases(now) {
+	for _, release := range shared.Releases(now, shared.ReleaseFlagReleased) {
 		if currentVersion != "" && !shared.NodeAgentUpgradeAllowed(currentVersion, release.Release) {
 			continue
 		}
