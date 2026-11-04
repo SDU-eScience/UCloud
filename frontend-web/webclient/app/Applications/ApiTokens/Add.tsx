@@ -10,7 +10,7 @@ import {FieldGroup, FieldRow} from "@/Applications/Jobs/Widgets";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {ProviderLogo, ProviderLogoWrapper} from "@/Providers/ProviderLogo";
-import {RichSelect, RichSelectProps, SimpleRichSelect} from "@/ui-components/RichSelect";
+import {RichSelect, RichSelectProps} from "@/ui-components/RichSelect";
 import {getProviderTitle, ProviderTitle} from "@/Providers/ProviderTitle";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {copyToClipboard, displayErrorMessageOrDefault, doNothing} from "@/UtilityFunctions";

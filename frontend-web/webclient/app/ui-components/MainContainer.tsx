@@ -4,10 +4,10 @@ import Box from "./Box";
 import * as Heading from "@/ui-components/Heading";
 import {useEffect} from "react";
 import {injectStyleSimple} from "@/Unstyled";
+import Flex from "./Flex";
 
 export interface MainContainerProps {
     main: React.ReactNode;
-    additional?: React.ReactNode;
     header?: React.ReactNode;
     headerSize?: number;
     headerAtTop?: boolean;
@@ -17,7 +17,6 @@ export const MAIN_CONTAINER_MAX_WIDTH = "1400px";
 
 export function MainContainer({
     main,
-    additional,
     header,
     headerSize = 64,
     headerAtTop = false
@@ -46,7 +45,6 @@ export function MainContainer({
                 </Box>
             )}
             {main}
-            {additional}
         </Box>
     );
 }

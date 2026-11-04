@@ -3,7 +3,7 @@
 ## Introduction
 
 <!-- Already covered in introduction.md? -->
-The UCloud frontend is the default way of communicating with the UCloud platform for the end user.
+The UCloud frontend is one of the ways of communicating with the UCloud platform for the end user.  Its purpose is to provide a user friendly, intuitive web-interface. It is not intended for automating actions. Instead, see <TODO-UClient>
 
 The UI acts as a centralised point, that can communicate with different connected providers to make use of the features available, taking in to account what features are not.
 
@@ -15,13 +15,13 @@ The implementation is in the folder [`/frontend-web/webclient/`](https://github.
 
 The UCloud UI is written in Typescript, with the frontend library React. Some use of the library Redux exists in the codebase, but it is rarely used when developing new features. TypeScript was chosen to reduce the friction that comes from Vanilla JavaScripts dynamic nature, and TypeScript letting developers use upcoming TC-39 features, compiling to an older target, making UCloud available for people running older versions of JavaScript.
 
-React was chosen because of its ubiquity and being battle-tested and and the framework authors do "dogfooding".
+React was chosen because of its ubiquity and being battle-tested and the framework authors do "dogfooding".
 
-Where the performance of React has not been adequate, Vanilla TypeScript/ECMAScript has been used instead. An example of this is the ResourceBrowser component, where very little use of React is present.
+Where the performance of React has not been adequate, Vanilla TypeScript/ECMAScript has been used instead. An example of this is the ResourceBrowser <TODO-LINK> component, where very little use of React is present.
 
 ## Project structure
 
-The UCloud frontend is found in the folder TODO(Jonas)[FOLDER!]. Configuration files, tests and node modules reside at the base, along with the `app` folder containing the code for the web interface. The contents of the `app` folder is subdivided into folders containing different contexts (TODO(Jonas)[Different word!])
+The UCloud frontend is found in the folder TODO(Jonas)[FOLDER!]. Configuration files, tests and node modules reside at the base, along with the `app` folder containing the code for the web interface. The contents of the `app` folder is subdivided into folders containing different contexts, i.e. resource types and component groupings.
 
 ## Installation
 
