@@ -35,9 +35,6 @@ func ArgsBind(args []string, cmd any, options ArgsBindOptions) (ArgsBindResult, 
 	if options.Interspersed && !options.FlagsOnly {
 		return result, fmt.Errorf("interspersed flags require flags-only binding")
 	}
-	if len(args) == 0 && !options.FlagsOnly {
-		return result, nil
-	}
 
 	v := reflect.ValueOf(cmd)
 	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Struct {
