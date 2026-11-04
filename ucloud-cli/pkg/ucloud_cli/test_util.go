@@ -6,6 +6,7 @@ import (
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 	"ucloud.dk/ucloud_cli/pkg/shared"
 )
@@ -231,13 +232,46 @@ func CleanupTestWorkspace() error {
 	return nil
 }
 
+func CleanupTestJobs() error {
+	ws, err := shared.FindWorkspaceByName("test-workspace")
+	if err != nil {
+		return err
+	}
+	shared.SetActiveWorkspace(ws.Id)
+
+	page, httpErr := orcapi.JobsBrowse.Invoke(orcapi.JobsBrowseRequest{
+		ItemsPerPage: 100,
+	})
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to browse jobs: %s", httpErr.Why)
+	}
+
+	ids := make([]fndapi.FindByStringId, 0)
+	for _, job := range page.Items {
+		if !job.Status.State.IsFinal() {
+			ids = append(ids, fndapi.FindByStringId{Id: job.Id})
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	_, httpErr = orcapi.JobsTerminate.Invoke(fndapi.BulkRequest[fndapi.FindByStringId]{Items: ids})
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to terminate leftover jobs: %s", httpErr.Why)
+	}
+
+	fmt.Printf("Terminated %d leftover job(s) from earlier runs\n", len(ids))
+	return nil
+}
+
 func isAlreadyConnected() bool {
 	shared.TestMode = true
 	cfg, err := shared.ReadConfig()
 	if err != nil {
 		return false
 	}
-	if cfg.TokenRef == "" {
+	if cfg.Environments[cfg.DefaultEnvironment].TokenRef == "" {
 		SetTestEnv()
 		return false
 	}

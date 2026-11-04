@@ -23,6 +23,9 @@ func TestMain(m *testing.M) {
 	} else if err := CreateTestWorkspace(); err != nil {
 		panic(err)
 	}
+	if err := CleanupTestJobs(); err != nil {
+		fmt.Printf("Failed to cleanup leftover jobs: %s\n", err)
+	}
 
 	code := m.Run()
 	os.Exit(code)
@@ -44,15 +47,6 @@ func TestComputeCLI(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, cmd)
-}
-
-func TestConnectCommand(t *testing.T) {
-	t.Skip("Standalone test as it requires user interaction.")
-	input := []string{"connect"}
-	cmd, _ := Parse(input)
-	assert.NotNil(t, cmd)
-	err := cmd.Execute()
-	assert.NoError(t, err)
 }
 
 func TestReadConfig(t *testing.T) {
@@ -228,6 +222,7 @@ func TestJobCreateWithVersion(t *testing.T) {
 	assert.Equal(t, "terminal-almalinux:Jan2026", concrete.App)
 	err = cmd.Execute()
 	assert.NoError(t, err)
+	t.Cleanup(func() { cleanupTestJob(t, concrete.Id) })
 }
 
 func TestJobCreateWithProviderProduct(t *testing.T) {
@@ -237,7 +232,7 @@ func TestJobCreateWithProviderProduct(t *testing.T) {
 		"job", "create",
 		"--app", "terminal-almalinux",
 		"--product", productStr,
-		"--folder", "/5/",
+		"--folder", "/6/",
 		"--workspace", "test-workspace",
 		"--name", "test-job",
 	}
@@ -248,6 +243,7 @@ func TestJobCreateWithProviderProduct(t *testing.T) {
 	assert.Equal(t, productStr, concrete.Product)
 	err = cmd.Execute()
 	assert.NoError(t, err)
+	t.Cleanup(func() { cleanupTestJob(t, concrete.Id) })
 }
 
 func TestJobCreateWithPublicLink(t *testing.T) {
@@ -275,8 +271,10 @@ func TestJobCreateWithPublicLink(t *testing.T) {
 	cmd, err = Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
+	concrete := cmd.(*command.JobCreateCommand)
 	err = cmd.Execute()
 	assert.NoError(t, err)
+	t.Cleanup(func() { cleanupTestJob(t, concrete.Id) })
 }
 
 func TestJobCreateWithInvalidPublicLink(t *testing.T) {
@@ -296,6 +294,7 @@ func TestJobCreateWithInvalidPublicLink(t *testing.T) {
 }
 
 func createTestJob(t *testing.T, name string) string {
+	t.Helper()
 	input := []string{
 		"job", "create",
 		"--app", "terminal-ubuntu",
@@ -314,16 +313,14 @@ func createTestJob(t *testing.T, name string) string {
 	assert.Equal(t, "1h30m", concrete.Duration)
 	assert.True(t, concrete.SSH)
 	err = cmd.Execute()
+	t.Cleanup(func() { cleanupTestJob(t, concrete.Id) })
 	return concrete.Id
-}
-
-func TestJobCreate(t *testing.T) {
-	createTestJob(t, "test-job")
 }
 
 func TestJobTerminate(t *testing.T) {
 	// Supply the ID of a job to terminate before running this test.
-	jobID := "6"
+	jobID := createTestJob(t, "job-to-terminate")
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
 	input := []string{"job", "terminate", jobID}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -345,7 +342,9 @@ func TestJobTerminateMissingID(t *testing.T) {
 
 func TestJobResume(t *testing.T) {
 	// Supply the ID of a suspended job to resume before running this test.
-	jobID := "6"
+	jobID := createTestJob(t, "job-to-resume")
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
+	defer terminateTestJob(t, jobID)
 	input := []string{"job", "resume", jobID}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -367,7 +366,9 @@ func TestJobResumeMissingID(t *testing.T) {
 
 func TestJobGet(t *testing.T) {
 	// Supply the ID of a job to retrieve before running this test.
-	jobID := "6"
+	jobID := createTestJob(t, "job-to-get")
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
+	defer terminateTestJob(t, jobID)
 	input := []string{"job", "get", jobID}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -380,7 +381,9 @@ func TestJobGet(t *testing.T) {
 
 func TestJobGetJSON(t *testing.T) {
 	// Supply the ID of a job to retrieve before running this test.
-	jobID := "6"
+	jobID := createTestJob(t, "job-to-get-json")
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
+	defer terminateTestJob(t, jobID)
 	input := []string{"job", "get", jobID, "--output", "json"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -400,7 +403,9 @@ func TestJobGetMissingID(t *testing.T) {
 
 func TestJobGetInvalidOutput(t *testing.T) {
 	// Supply the ID of an existing job before running this test.
-	jobID := "6"
+	jobID := createTestJob(t, "job-to-get-invalid-output")
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
+	defer terminateTestJob(t, jobID)
 	input := []string{"job", "get", jobID, "--output", "xml"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -411,7 +416,9 @@ func TestJobGetInvalidOutput(t *testing.T) {
 
 func TestJobRename(t *testing.T) {
 	// Supply the ID of a job to rename before running this test.
-	jobID := "6"
+	jobID := createTestJob(t, "job-to-rename")
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
+	defer terminateTestJob(t, jobID)
 	newName := "renamed-job"
 	input := []string{"job", "rename", jobID, newName}
 	cmd, err := Parse(input)
@@ -431,7 +438,10 @@ func TestJobRenameMissingID(t *testing.T) {
 }
 
 func TestJobRenameMissingName(t *testing.T) {
-	input := []string{"job", "rename", "6"}
+	jobID := createTestJob(t, "job-to-rename")
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
+	defer terminateTestJob(t, jobID)
+	input := []string{"job", "rename", jobID}
 	_, err := Parse(input)
 	assert.Error(t, err)
 }
@@ -455,7 +465,9 @@ func TestJobSearchMissingName(t *testing.T) {
 
 func TestJobExtend(t *testing.T) {
 	// Supply the ID of a running job to extend before running this test.
-	jobID := "6"
+	jobID := createTestJob(t, "test-job-to-extend")
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
+	defer terminateTestJob(t, jobID)
 	input := []string{"job", "extend", jobID, "1h"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -810,7 +822,7 @@ func waitForJobState(t *testing.T, jobId string, state orcapi.JobState, timeout 
 }
 
 func TestJobShell(t *testing.T) {
-	t.Skip("Standalone test as it requires user interaction.")
+	t.Skip("Since it takes a while.")
 	jobId := createTestJob(t, "test-job-shell")
 	waitForJobState(t, jobId, orcapi.JobStateRunning, 5*time.Minute)
 
@@ -847,6 +859,18 @@ func terminateTestJob(t *testing.T, jobId string) {
 	assert.NoError(t, err)
 }
 
+func cleanupTestJob(t *testing.T, jobId string) {
+	t.Helper()
+	input := []string{"job", "terminate", jobId}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	if err != nil {
+		t.Logf("failed to cleanup job %s: %s", jobId, err)
+	}
+}
+
 func TestJobLogs(t *testing.T) {
 	jobId := createTestJob(t, "test-job-logs")
 	waitForJobState(t, jobId, orcapi.JobStateRunning, 5*time.Minute)
@@ -859,11 +883,11 @@ func TestJobLogs(t *testing.T) {
 	terminateTestJob(t, jobId)
 }
 
-func TestJobWeb(t *testing.T) {
-	t.Skip("Standalone test as it requires user interaction.")
+func TestJobOpenWeb(t *testing.T) {
+	t.Skip("Skipped due to browser launching issues on CI")
 	jobId := createTestJob(t, "test-job-web")
 	waitForJobState(t, jobId, orcapi.JobStateRunning, 5*time.Minute)
-	input := []string{"job", "web", jobId, "--provider", "k8s"}
+	input := []string{"job", "open", jobId, "--provider", "k8s"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)

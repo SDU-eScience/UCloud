@@ -22,6 +22,15 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+type JobOpenDefaultType string
+
+const (
+	JobOpenWebType    JobOpenDefaultType = "WEB"
+	JobOpenVNCType    JobOpenDefaultType = "VNC"
+	JobOpenShellType  JobOpenDefaultType = "SHELL"
+	JobOpenCustomType JobOpenDefaultType = "CUSTOM"
+)
+
 type WsShellRequest struct {
 	Call     string       `json:"call"`
 	StreamId string       `json:"streamId"`
@@ -55,49 +64,64 @@ type WsLogEvent struct {
 	Data      string `json:"data"`
 }
 
-func retrieveInteractiveSession(jobId string, rank int, sessionType orcapi.InteractiveSessionType) (*orcapi.OpenSession, error) {
+func retrieveInteractiveSession(jobId string, rank int, openDefaultType JobOpenDefaultType) (*orcapi.OpenSessionWithProvider, error) {
+	sessionType := orcapi.InteractiveSessionTypeWeb
+	target := util.OptStringIfNotEmpty("")
+	switch openDefaultType {
+	case JobOpenVNCType:
+		sessionType = orcapi.InteractiveSessionTypeVnc
+	case JobOpenShellType:
+		sessionType = orcapi.InteractiveSessionTypeShell
+	case JobOpenCustomType:
+		target = util.OptStringIfNotEmpty("custom")
+	case JobOpenWebType:
+		sessionType = orcapi.InteractiveSessionTypeWeb
+	default:
+		return nil, fmt.Errorf("invalid open default type")
+	}
+
 	session, httpErr := orcapi.JobsOpenInteractiveSession.Invoke(fnd.BulkRequest[orcapi.JobsOpenInteractiveSessionRequestItem]{
 		Items: []orcapi.JobsOpenInteractiveSessionRequestItem{
 			{
 				Id:          jobId,
 				Rank:        rank,
 				SessionType: sessionType,
+				Target:      target,
 			},
 		},
 	})
 	if httpErr.AsError() != nil {
 		return nil, fmt.Errorf("failed to retrieve session: %s", httpErr.Why)
 	}
-	return &session.Responses[0].Session, nil
+	return &session.Responses[0], nil
 }
 
-func JobShell(jobId string, provider string) error {
+func JobShell(jobId string, provider string, browser bool) error {
 	cfg := InitializeUCloudClient()
-
-	job, httpErr := orcapi.JobsRetrieve.Invoke(orcapi.JobsRetrieveRequest{
-		Id: jobId,
-	})
-	if httpErr != nil {
-		return fmt.Errorf("failed to retrieve job: %s", httpErr.Why)
+	job, err := findJobById(jobId)
+	if err != nil {
+		return err
 	}
 	if job.Status.State != orcapi.JobStateRunning {
 		return fmt.Errorf("job %s is not running (state: %s), a shell can only be opened on a running job", jobId, job.Status.State)
 	}
-
 	origin := cfg.Environments[cfg.DefaultEnvironment].URL
-	originSplit := strings.Split(origin, ".")
-	suffixJoined := strings.Join(originSplit[1:], ".")
 	usernameHint := base64.StdEncoding.EncodeToString([]byte(cfg.Username))
+	if browser {
+		OpenBrowser(fmt.Sprintf("%s/app/applications/shell/%s/0?hide-frame", origin, jobId))
+		return nil
+	}
 
-	session, err := retrieveInteractiveSession(jobId, 0, orcapi.InteractiveSessionTypeShell)
+	session, err := retrieveInteractiveSession(jobId, 0, JobOpenShellType)
 	if err != nil {
 		return err
 	}
+	if browser {
+		OpenBrowser(session.Session.RedirectClientTo)
+		return nil
+	}
 
-	wsUrl := fmt.Sprintf(
-		"wss://%s.%s/ucloud/%s/websocket?session=%s&usernameHint=%s",
-		provider, suffixJoined, provider, session.SessionIdentifier, url.QueryEscape(usernameHint),
-	)
+	wsUrl := fmt.Sprintf("%s/ucloud/%s/websocket?session=%s&usernameHint=%s", session.ProviderDomain, session.ProviderId, session.Session.SessionIdentifier, url.QueryEscape(usernameHint))
 	ws, err := websocket.Dial(wsUrl, "", origin)
 	if err != nil {
 		return err
@@ -123,7 +147,7 @@ func JobShell(jobId string, provider string) error {
 	}
 	if err := sendRequest(WsShellEvent{
 		Type:              "initialize",
-		SessionIdentifier: session.SessionIdentifier,
+		SessionIdentifier: session.Session.SessionIdentifier,
 		Cols:              cols,
 		Rows:              rows,
 	}); err != nil {
@@ -402,10 +426,95 @@ func currentJobState(message orcapi.JobsFollowMessage) string {
 
 func JobOpenWebLink(jobId string, provider string) error {
 	InitializeUCloudClient()
-	session, err := retrieveInteractiveSession(jobId, 0, orcapi.InteractiveSessionTypeWeb)
+	session, err := retrieveInteractiveSession(jobId, 0, JobOpenWebType)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve session: %s", err)
 	}
-	OpenBrowser(session.RedirectClientTo)
+	OpenBrowser(session.Session.RedirectClientTo)
+	return nil
+}
+
+func JobOpenVNCLink(jobId string, provider string) error {
+	InitializeUCloudClient()
+	session, err := retrieveInteractiveSession(jobId, 0, JobOpenVNCType)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve session: %s", err)
+	}
+	OpenBrowser(session.Session.RedirectClientTo)
+	return nil
+}
+
+func findJobById(jobId string) (*orcapi.Job, error) {
+	job, httpErr := orcapi.JobsRetrieve.Invoke(orcapi.JobsRetrieveRequest{
+		Id: jobId,
+	})
+	if httpErr != nil {
+		return nil, fmt.Errorf("failed to retrieve job: %s", httpErr.Why)
+	}
+	return &job, nil
+}
+
+func getSessionType(job *orcapi.Job) JobOpenDefaultType {
+	if job.Status.ResolvedApplication.Present {
+		switch job.Status.ResolvedApplication.Value.Invocation.ApplicationType {
+		case orcapi.ApplicationTypeVnc:
+			return JobOpenVNCType
+		case orcapi.ApplicationTypeBatch:
+			return JobOpenCustomType
+
+		default:
+			return JobOpenWebType
+		}
+	}
+	return JobOpenWebType
+}
+
+func OpenCreatorInterface(jobID string, version string) error {
+	cfg := InitializeUCloudClient()
+	job, err := findJobById(jobID)
+	if err != nil {
+		return err
+	}
+	inputVersion := job.Specification.Application.Version
+	if version != "" {
+		inputVersion = version
+	}
+
+	origin := cfg.Environments[cfg.DefaultEnvironment].URL
+	OpenBrowser(origin + ApplicationCreatorURL(ApplicationCreatorRoute{
+		Operation:       "newVersion",
+		ApplicationKind: "managed",
+		Workspace:       "personal",
+		Name:            job.Specification.Application.Name,
+		Version:         inputVersion,
+		ReturnTo:        "/applications/studio/a/" + job.Specification.Application.Name,
+	}))
+	return nil
+}
+
+func JobOpenInterface(jobId string, provider string) error {
+	cfg := InitializeUCloudClient()
+	job, err := findJobById(jobId)
+	if err != nil {
+		return err
+	}
+	openDefaultType := JobOpenWebType
+	if job.Status.ResolvedApplication.Present {
+		openDefaultType = getSessionType(job)
+	}
+	if openDefaultType == JobOpenVNCType {
+		OpenBrowser(vncURL(cfg.Environments[cfg.DefaultEnvironment].URL, jobId))
+		return nil
+	}
+	// These are for shell, and dynamic types
+	session, err := retrieveInteractiveSession(jobId, 0, openDefaultType)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve session: %s", err)
+	}
+	url := session.Session.RedirectClientTo
+	if session.Session.RedirectClientTo == "" {
+		url = session.Session.Url
+	}
+	OpenBrowser(url)
 	return nil
 }

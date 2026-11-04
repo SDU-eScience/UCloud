@@ -76,19 +76,15 @@ type JobShellCommand struct {
 	JobID    string `positional:"job-id" usage:"Job ID"`
 	Rank     int    `flag:"rank" usage:"Rank"`
 	Provider string `flag:"provider" usage:"Provider"`
+	Browser  bool   `flag:"browser" usage:"Browser to use"`
 }
 
-type JobWebCommand struct {
+// open primary interface to the job, if one eixst (web or VNC in a browser)
+type JobOpenCommand struct {
 	JobID    string `positional:"job-id" usage:"Job ID"`
 	Provider string `flag:"provider" usage:"Provider"`
-}
-
-type JobVNCCommand struct {
-	JobID string `positional:"job-id" usage:"Job ID"`
-}
-
-type JobOpenCommand struct {
-	JobID string `positional:"job-id" usage:"Job ID"`
+	Creator  bool   `flag:"creator" usage:"Open the job creator page"`
+	Version  string `flag:"version" usage:"Version" default:"1.0"`
 }
 
 type JobAttachCommand struct {
@@ -116,9 +112,7 @@ var JobCommands = map[string]CommandFunc{
 	"attach": func() Command { return &JobAttachCommand{} },
 	"detach": func() Command { return &JobDetachCommand{} },
 	// Interactive commands
-	"vnc":   func() Command { return &JobVNCCommand{} },
 	"open":  func() Command { return &JobOpenCommand{} },
-	"web":   func() Command { return &JobWebCommand{} },
 	"shell": func() Command { return &JobShellCommand{} },
 	"logs":  func() Command { return &JobLogsCommand{} },
 }
@@ -701,28 +695,21 @@ func (c JobDetachCommand) Execute() error {
 	return fmt.Errorf("job detach not implemented")
 }
 
-func (c JobVNCCommand) Execute() error {
-	return fmt.Errorf("job vnc not implemented")
-}
-
 func (c JobOpenCommand) Execute() error {
-	return fmt.Errorf("job open not implemented")
-}
-
-func (c JobWebCommand) Execute() error {
-	shared.JobOpenWebLink(c.JobID, c.Provider)
-	return nil
+	if c.Creator {
+		return shared.OpenCreatorInterface(c.JobID, c.Version)
+	}
+	return shared.JobOpenInterface(c.JobID, c.Provider)
 }
 
 func (c JobShellCommand) Execute() error {
 	if c.Provider == "" {
-		return fmt.Errorf("this command requires a provider, use: ucloud job shell <provider>")
+		return fmt.Errorf("this command requires a provider, use --provider <name>")
 	}
-	return shared.JobShell(c.JobID, c.Provider)
+	return shared.JobShell(c.JobID, c.Provider, c.Browser)
 }
 
 func (c JobLogsCommand) Execute() error {
 	shared.InitializeUCloudClient()
-	shared.JobLogs(c.JobID, c.Workspace, c.Provider, c.Follow)
-	return nil
+	return shared.JobLogs(c.JobID, c.Workspace, c.Provider, c.Follow)
 }
