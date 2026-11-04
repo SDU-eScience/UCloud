@@ -64,6 +64,7 @@ import (
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
 	"ucloud.dk/shared/pkg/util"
 
+	"ucloud.dk/iapp/k8s/pkg/maintenance"
 	"ucloud.dk/iapp/k8s/pkg/shared"
 )
 
@@ -131,17 +132,24 @@ type stackUiApp struct {
 	MaintenanceBusy                    bool
 	MaintenanceTargetRelease           string
 
-	MaintenanceTask            string
-	MaintenanceK8sEnabled      bool
-	MaintenanceOsEnabled       bool
-	MaintenanceWindowDay       string
-	MaintenanceWindowStart     string
-	maintenanceHubLoaded       bool                     `ucx:"-"`
-	maintenanceRunNowConfirm   bool                     `ucx:"-"`
-	maintenanceNodeRunConfirm  bool                     `ucx:"-"`
-	maintenancePolicySaving    bool                     `ucx:"-"`
-	maintenancePolicyPending   *maintenancePolicyValues `ucx:"-"`
-	maintenancePolicySaveError string                   `ucx:"-"`
+	MaintenanceTask                string
+	MaintenanceK8sEnabled          bool
+	MaintenanceOsEnabled           bool
+	MaintenanceWindowDay           string
+	MaintenanceWindowStart         string
+	maintenanceHubLoaded           bool                     `ucx:"-"`
+	maintenanceRunNowConfirm       bool                     `ucx:"-"`
+	maintenanceNodeRunConfirm      bool                     `ucx:"-"`
+	maintenanceNodeState           maintenance.NodeState    `ucx:"-"`
+	maintenanceNodeStateValid      bool                     `ucx:"-"`
+	maintenanceNodeStateNode       string                   `ucx:"-"`
+	maintenanceNodeStateBusy       bool                     `ucx:"-"`
+	maintenanceNodeStateChecked    time.Time                `ucx:"-"`
+	maintenanceNodeStateGeneration uint64                   `ucx:"-"`
+	maintenanceNodeStateResetNode  string                   `ucx:"-"`
+	maintenancePolicySaving        bool                     `ucx:"-"`
+	maintenancePolicyPending       *maintenancePolicyValues `ucx:"-"`
+	maintenancePolicySaveError     string                   `ucx:"-"`
 
 	BackupsBusy      bool
 	BackupsBlocked   bool
@@ -225,6 +233,7 @@ func (app *stackUiApp) UserInterface() ucx.UiNode {
 	}
 	if !strings.HasPrefix(app.RoutePath, "maintenance/") {
 		app.maintenanceNodeRunConfirm = false
+		app.maintenanceNodeStateResetNode = ""
 	}
 
 	children := []ucx.UiNode{
@@ -412,7 +421,7 @@ func (app *stackUiApp) startK8sClientWhenReady(session *ucx.Session, activeType 
 				cancel()
 				if probeErr == nil {
 					app.mu.Lock()
-					if app.k8sClient == nil {
+					if app.poller == nil {
 						app.k8sClient = client
 						app.Namespaces = namespaces
 						log.Info("k8s-app: k8s client ready from %s", LocalKubeconfigPath())

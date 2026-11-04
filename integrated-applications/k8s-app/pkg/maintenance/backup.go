@@ -281,7 +281,7 @@ func backupSelectNode(ctx context.Context, record shared.ClusterRecord) (shared.
 
 	busy := map[string]bool{}
 	for nodeName, operation := range operations {
-		if PhaseActive(operation.Phase) || operationBlockedByRecovery(operation) || operation.HostTerminationUnverified {
+		if PhaseActive(operation.Phase) || operationBlockedByRecovery(operation) {
 			busy[nodeName] = true
 		}
 	}
@@ -311,7 +311,7 @@ func backupProbeNodes(ctx context.Context, nodes []shared.ClusterNodeRecord) (sh
 		if err != nil {
 			continue
 		}
-		if slices.Contains(shared.NodeAgentPhases, status.Phase) {
+		if slices.Contains(shared.NodeAgentPhases, status.Phase) || status.NeedsStateRecovery {
 			continue
 		}
 		return node, true

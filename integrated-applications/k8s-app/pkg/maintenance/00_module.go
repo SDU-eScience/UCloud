@@ -118,7 +118,6 @@ type Operation struct {
 	CancelRequested            bool                     `json:"cancelRequested"`
 	OriginalUnschedulable      bool                     `json:"originalUnschedulable"`
 	OriginalSchedulingCaptured bool                     `json:"originalSchedulingCaptured"`
-	HostTerminationUnverified  bool                     `json:"hostTerminationUnverified"`
 	TargetRelease              string                   `json:"targetRelease,omitempty"`
 	ExecutorSubmitted          bool                     `json:"executorSubmitted"`
 	OsPackagesStaged           bool                     `json:"osPackagesStaged,omitempty"`
@@ -362,13 +361,6 @@ func submitValid(submit submission, existing Operation, exists bool) error {
 		}
 	}
 
-	if existing.HostTerminationUnverified && submit.kind != KindRemove && submit.kind != KindUncordon {
-		return fmt.Errorf(
-			"pods may still be running on node %s after a previous force delete. Maintenance is unavailable for this node",
-			submit.nodeName,
-		)
-	}
-
 	return nil
 }
 
@@ -376,19 +368,18 @@ func submitRecord(submit submission, existing Operation) Operation {
 	now := time.Now().UTC()
 
 	operation := Operation{
-		Uid:                       shared.NewUid(),
-		RunUid:                    submit.runUid,
-		NodeName:                  submit.nodeName,
-		NodeUid:                   submit.nodeUid,
-		Kind:                      submit.kind,
-		Phase:                     k8sapi.MaintenancePhasePending,
-		Options:                   submit.options,
-		StartedAt:                 now,
-		UpdatedAt:                 now,
-		HeartbeatAt:               now,
-		Deadline:                  now.Add(time.Duration(submit.options.TimeoutSeconds) * time.Second),
-		HostTerminationUnverified: existing.HostTerminationUnverified,
-		TargetRelease:             submit.release,
+		Uid:           shared.NewUid(),
+		RunUid:        submit.runUid,
+		NodeName:      submit.nodeName,
+		NodeUid:       submit.nodeUid,
+		Kind:          submit.kind,
+		Phase:         k8sapi.MaintenancePhasePending,
+		Options:       submit.options,
+		StartedAt:     now,
+		UpdatedAt:     now,
+		HeartbeatAt:   now,
+		Deadline:      now.Add(time.Duration(submit.options.TimeoutSeconds) * time.Second),
+		TargetRelease: submit.release,
 	}
 
 	if submit.kind == KindUncordon {

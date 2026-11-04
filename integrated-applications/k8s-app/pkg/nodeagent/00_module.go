@@ -187,6 +187,7 @@ func Serve(ctx context.Context) error {
 	mux.HandleFunc("/backup", requirePeer(http.MethodPost, handleBackup))
 	mux.HandleFunc("/os/status", requirePeer(http.MethodGet, handleOsStatus))
 	mux.HandleFunc("/os/update", requirePeer(http.MethodPost, handleOsUpdate))
+	mux.HandleFunc("/state/reset", requirePeer(http.MethodPost, handleStateReset))
 	mux.HandleFunc("/log", requirePeer(http.MethodPost, handleLog))
 	mux.HandleFunc("/log/reset", requirePeer(http.MethodPost, handleLogReset))
 

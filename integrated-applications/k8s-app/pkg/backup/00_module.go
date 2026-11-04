@@ -114,10 +114,6 @@ type CredentialsInfo struct {
 	AgentTokenSha256  string `json:"agentTokenSha256"`
 }
 
-type RestoreInfo struct {
-	ClusterResetRequired bool `json:"clusterResetRequired"`
-}
-
 type Metadata struct {
 	SchemaRevision int             `json:"schemaRevision"`
 	BackupId       string          `json:"backupId"`
@@ -129,7 +125,6 @@ type Metadata struct {
 	Trigger        string          `json:"trigger"`
 	Snapshot       SnapshotInfo    `json:"snapshot"`
 	Credentials    CredentialsInfo `json:"credentials"`
-	Restore        RestoreInfo     `json:"restore"`
 }
 
 type BackupInfo struct {

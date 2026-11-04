@@ -505,13 +505,14 @@ func statusFromState(identityConfig Config) shared.NodeAgentStatus {
 	state := stateLoad()
 	if state.NeedsStateRecovery {
 		return shared.NodeAgentStatus{
-			Progress:     progressLoad(),
-			OperationUid: state.OperationUid,
-			NodeName:     state.NodeName,
-			Release:      state.Release,
-			Phase:        shared.NodeAgentPhaseFailed,
-			Error:        state.Error,
-			UpdatedAt:    state.UpdatedAt,
+			Progress:           progressLoad(),
+			OperationUid:       state.OperationUid,
+			NodeName:           state.NodeName,
+			Release:            state.Release,
+			Phase:              shared.NodeAgentPhaseFailed,
+			Error:              state.Error,
+			NeedsStateRecovery: true,
+			UpdatedAt:          state.UpdatedAt,
 		}
 	}
 
@@ -1192,9 +1193,6 @@ func runBackup(ctx context.Context, trigger string, attemptUid string) (shared.N
 		Credentials: backup.CredentialsInfo{
 			ServerTokenSha256: serverTokenInfo.Sha256,
 			AgentTokenSha256:  agentTokenInfo.Sha256,
-		},
-		Restore: backup.RestoreInfo{
-			ClusterResetRequired: true,
 		},
 	}
 

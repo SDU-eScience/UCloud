@@ -743,9 +743,10 @@ func runProbeOsNodes(ctx context.Context, nodes []shared.ClusterNodeRecord) []ru
 			defer func() { <-semaphore }()
 
 			status, err := shared.NodeAgentClientOsStatus(probeCtx, node.Hostname, node.IpAddress)
-			checkFresh := err == nil && time.Since(status.CheckedAt) < runOsCheckFreshFor
+			checkAge := time.Since(status.CheckedAt)
+			checkFresh := err == nil && status.CheckError == "" && checkAge >= 0 && checkAge < runOsCheckFreshFor
 			updateActive := slices.Contains(shared.NodeAgentOsPhases, status.Phase)
-			if checkFresh && !updateActive && !status.NeedsStateRecovery {
+			if checkFresh && !updateActive && !status.NeedsStateRecovery && !status.NeedsRecovery {
 				probes[index] = runOsProbe{node: node, status: status}
 				return
 			}

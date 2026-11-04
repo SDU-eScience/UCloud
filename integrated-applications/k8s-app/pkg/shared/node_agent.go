@@ -76,13 +76,14 @@ var NodeAgentOsPhases = []string{
 }
 
 type NodeAgentStatus struct {
-	Progress     NodeAgentProgress `json:"progress"`
-	OperationUid string            `json:"operationUid,omitempty"`
-	NodeName     string            `json:"nodeName"`
-	Release      string            `json:"release"`
-	Phase        string            `json:"phase"`
-	Error        string            `json:"error"`
-	UpdatedAt    time.Time         `json:"updatedAt"`
+	Progress           NodeAgentProgress `json:"progress"`
+	OperationUid       string            `json:"operationUid,omitempty"`
+	NodeName           string            `json:"nodeName"`
+	Release            string            `json:"release"`
+	Phase              string            `json:"phase"`
+	Error              string            `json:"error"`
+	NeedsStateRecovery bool              `json:"needsStateRecovery,omitempty"`
+	UpdatedAt          time.Time         `json:"updatedAt"`
 }
 
 type NodeAgentOsStatus struct {
@@ -169,6 +170,19 @@ type nodeAgentLogRequest struct {
 
 func NodeAgentClientStatus(ctx context.Context, nodeName string, nodeIp string) (NodeAgentStatus, error) {
 	return nodeAgentClientGet[NodeAgentStatus](ctx, nodeName, nodeIp, "/status")
+}
+
+func NodeAgentClientResetState(ctx context.Context, nodeName string, nodeIp string) error {
+	_, err := nodeAgentClientPost[struct{}](
+		ctx,
+		nodeName,
+		nodeIp,
+		"/state/reset",
+		struct{}{},
+		"",
+		nodeAgentClientTimeout,
+	)
+	return err
 }
 
 func NodeAgentClientUpgrade(ctx context.Context, nodeName string, nodeIp string, release string, retry bool, operationUid string) (NodeAgentStatus, error) {

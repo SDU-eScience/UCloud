@@ -16,6 +16,7 @@
 // - POST /retry retries a failed upgrade
 // - GET /os/status reports the state of the operating-system update
 // - POST /os/update checks, stages, applies or retries an operating-system update
+// - POST /state/reset archives the local maintenance state so the node can start over
 // - POST /backup starts a control-plane backup
 // - POST /log appends log lines
 // - POST /log/reset resets the node log
@@ -542,6 +543,47 @@ func startOsUpdate(writer http.ResponseWriter, parsed osUpdateRequest, state osS
 	}
 
 	writeOsStatus(writer, http.StatusAccepted)
+}
+
+func handleStateReset(writer http.ResponseWriter, request *http.Request) {
+	globals.CommandMu.Lock()
+	defer globals.CommandMu.Unlock()
+
+	if globals.BackupActive || globals.OsCheckActive {
+		writeError(writer, http.StatusConflict, "a backup or update check is running on the node")
+		return
+	}
+
+	upgradeState := stateLoad()
+	osState := osStateLoad()
+
+	upgradeActive := slices.Contains(shared.NodeAgentPhases, upgradeState.Phase)
+	osActive := slices.Contains(shared.NodeAgentOsPhases, osState.Phase)
+	if upgradeActive || osActive {
+		writeError(writer, http.StatusConflict, "an upgrade or operating-system update is running on the node")
+		return
+	}
+
+	archiveErr := nodeStateArchive(statePath())
+	if archiveErr != nil {
+		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not archive the upgrade state: %s", archiveErr))
+		return
+	}
+
+	archiveErr = nodeStateArchive(osStatePath())
+	if archiveErr != nil {
+		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not archive the operating-system state: %s", archiveErr))
+		return
+	}
+
+	resetErr := progressArchive()
+	if resetErr != nil {
+		writeError(writer, http.StatusInternalServerError, fmt.Sprintf("could not archive the progress state: %s", resetErr))
+		return
+	}
+
+	log.Info("k8s-app node agent: archived the maintenance state for a reset")
+	writeJson(writer, http.StatusOK, struct{}{})
 }
 
 // Backup command

@@ -101,10 +101,6 @@ func osUpdatePreflight(ctx context.Context, clientset *kubernetes.Clientset, ope
 		return errors.New("the operating-system update cannot bypass the disruption budgets")
 	}
 
-	if operation.HostTerminationUnverified {
-		return errors.New("pods may still be running on this node after a previous force delete. The node cannot be updated")
-	}
-
 	record, found, err := readClusterRecord()
 	if err != nil {
 		return fmt.Errorf("could not read the cluster record: %s", err)
@@ -155,9 +151,14 @@ func osUpdatePreflight(ctx context.Context, clientset *kubernetes.Clientset, ope
 	}
 
 	if status.NeedsStateRecovery {
+		message := status.Error
+		if message == "" {
+			message = "the node state is unreadable"
+		}
 		return fmt.Errorf(
-			"the operating-system update status of node %s cannot be read. Contact support before retrying",
+			"the maintenance state of node %s requires a reset before the operating-system update can run: %s",
 			nodeName,
+			message,
 		)
 	}
 
@@ -186,9 +187,20 @@ func osUpdateStage(ctx context.Context, operation Operation, worker *nodeWorker)
 		}
 		status, err := shared.NodeAgentClientOsStatus(ctx, operation.NodeName, nodeIp)
 		if err == nil {
-			if status.NodeName != operation.NodeName || status.NeedsStateRecovery {
+			if status.NodeName != operation.NodeName {
 				return false, errors.New(
 					"the node could not confirm which update it is running. Check the node and retry the update",
+				)
+			}
+			if status.NeedsStateRecovery {
+				message := status.Error
+				if message == "" {
+					message = "the node state is unreadable"
+				}
+				return false, fmt.Errorf(
+					"the maintenance state of node %s requires a reset before the operating-system update can run: %s",
+					operation.NodeName,
+					message,
 				)
 			}
 			operationExecutorProgress(worker, operation.Uid, status.Progress)

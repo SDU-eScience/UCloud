@@ -138,10 +138,6 @@ func upgradePreflight(
 		return errors.New("zero grace deletion cannot be used with node upgrades because it is not possible to prove that the workloads stopped")
 	}
 
-	if operation.HostTerminationUnverified {
-		return errors.New("pods may still be running on this node after a previous force delete. The node cannot be upgraded")
-	}
-
 	_, releaseKnown := shared.ReleaseByExactVersion(operation.TargetRelease)
 	if !releaseKnown {
 		return fmt.Errorf("the Kubernetes version %s is not known", operation.TargetRelease)
@@ -279,6 +275,18 @@ func upgradePreflight(
 			nodeRecord.IpAddress,
 			status.NodeName,
 			nodeName,
+		)
+	}
+
+	if status.NeedsStateRecovery {
+		message := status.Error
+		if message == "" {
+			message = "the node state is unreadable"
+		}
+		return fmt.Errorf(
+			"the maintenance state of node %s requires a reset before the node can be upgraded: %s",
+			nodeName,
+			message,
 		)
 	}
 
@@ -470,6 +478,20 @@ func upgradeDriveRemote(
 		))
 		return true
 	}
+
+	if status.NeedsStateRecovery {
+		message := status.Error
+		if message == "" {
+			message = "the node state is unreadable"
+		}
+		upgradeFail(operation, worker, fmt.Sprintf(
+			"the maintenance state of node %s requires a reset before the node can be upgraded: %s",
+			nodeName,
+			message,
+		))
+		return true
+	}
+
 	operationExecutorProgress(worker, operation.Uid, status.Progress)
 
 	if slices.Contains(shared.NodeAgentPhases, status.Phase) {

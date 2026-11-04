@@ -585,7 +585,7 @@ func drainNode(
 			if _, ok := worker.checkpoint(); !ok {
 				return drainConcluded
 			}
-			removePod(ctx, clientset, operation, worker, pod)
+			removePod(ctx, clientset, operation, pod)
 			if !worker.heartbeat() {
 				return drainConcluded
 			}
@@ -759,17 +759,12 @@ func controllerLive(
 	return false, nil
 }
 
-func removePod(ctx context.Context, clientset *kubernetes.Clientset, operation Operation, worker *nodeWorker, pod *corev1.Pod) {
+func removePod(ctx context.Context, clientset *kubernetes.Clientset, operation Operation, pod *corev1.Pod) {
 	if operation.Options.BypassDisruptionBudgets {
 		deleteOptions := metav1.DeleteOptions{
 			Preconditions: &metav1.Preconditions{UID: &pod.UID, ResourceVersion: &pod.ResourceVersion},
 		}
 		if operation.Options.ForceDelete {
-			err := markHostTerminationUnverified(operation, worker)
-			if err != nil {
-				log.Warn("k8s-app maintenance: could not record the force deletion of pod %s: %s", pod.Name, err)
-				return
-			}
 			grace := int64(0)
 			deleteOptions.GracePeriodSeconds = &grace
 		}
@@ -803,16 +798,6 @@ func logRemoval(pod *corev1.Pod, action string, err error) {
 	}
 
 	log.Warn("k8s-app maintenance: pod %s could not be %s: %s", pod.Name, action, err)
-}
-
-func markHostTerminationUnverified(operation Operation, worker *nodeWorker) error {
-	return worker.mutate(func(op *Operation) bool {
-		if op.HostTerminationUnverified {
-			return false
-		}
-		op.HostTerminationUnverified = true
-		return true
-	})
 }
 
 func patchUnschedulable(ctx context.Context, clientset *kubernetes.Clientset, node *corev1.Node, unschedulable bool) (*corev1.Node, error) {

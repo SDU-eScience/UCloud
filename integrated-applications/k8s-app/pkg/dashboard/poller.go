@@ -568,15 +568,14 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 				log.Warn("k8s-app: could not read the maintenance state: %s", err)
 				p.maintenanceCacheUnavailable = true
 				p.maintenanceCacheSnapshot = map[string]maintenance.Operation{}
-				p.maintenanceCacheJobIds = map[string]string{}
 			} else {
 				p.maintenanceCacheUnavailable = false
 				p.maintenanceCacheSnapshot = read
-				if p.nodeJobIds != nil {
-					p.maintenanceCacheJobIds = p.nodeJobIds()
-				} else {
-					p.maintenanceCacheJobIds = map[string]string{}
-				}
+			}
+			if p.nodeJobIds != nil {
+				p.maintenanceCacheJobIds = p.nodeJobIds()
+			} else {
+				p.maintenanceCacheJobIds = map[string]string{}
 			}
 			p.maintenanceCacheAt = time.Now()
 		}

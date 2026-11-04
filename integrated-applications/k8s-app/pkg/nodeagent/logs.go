@@ -82,6 +82,16 @@ func progressBegin(operationUid string) {
 	progressPersist(true)
 }
 
+func progressArchive() error {
+	progressMu.Lock()
+	defer progressMu.Unlock()
+
+	err := nodeStateArchive(filepath.Join(stagingDir, "progress.json"))
+	progressCurrent = shared.NodeAgentProgress{}
+	progressLoaded = true
+	return err
+}
+
 func progressStageRecord(text string) {
 	progressRead()
 	if text != progressCurrent.Stage {

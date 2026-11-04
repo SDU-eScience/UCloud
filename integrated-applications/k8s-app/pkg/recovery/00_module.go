@@ -337,9 +337,6 @@ func (app *app) beginRecoveryValidation(entry backupEntry, releaseKnown bool) (s
 	if !app.ClusterFound {
 		return "The cluster record could not be read", false
 	}
-	if !shared.ClusterRecordPhaseAllowsRecovery(app.Cluster.Phase) {
-		return "The cluster is not ready for recovery (state: " + app.Cluster.Phase + ")", false
-	}
 	if app.RecoveryFound && app.Recovery.Phase == shared.ClusterRecoveryPhaseActive &&
 		!app.BackToSelect && app.Recovery.BackupId != "" && app.Recovery.BackupId != entry.Id {
 		return "A recovery with a different backup is already active", false

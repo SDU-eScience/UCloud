@@ -67,10 +67,6 @@ func (app *app) beginRecoveryWork(session *ucx.Session, entry backupEntry, progr
 		return "", err
 	}
 
-	if !shared.ClusterRecordPhaseAllowsRecovery(cluster.Phase) {
-		return "", fmt.Errorf("the cluster is not ready for recovery (state: %s)", cluster.Phase)
-	}
-
 	progress("Checking the backup")
 	if err := recoveryValidateBackup(app.MountPath, entry.Id); err != nil {
 		return "", err

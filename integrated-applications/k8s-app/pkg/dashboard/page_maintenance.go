@@ -54,6 +54,7 @@ func maintenanceOpenWithMode(app *stackUiApp, nodeName string, nodeUid string, m
 	}
 
 	app.maintenanceNodeName = nodeName
+	app.maintenanceNodeStateResetNode = ""
 	switch mode {
 	case maintenanceModeRemove:
 		app.MaintenanceTask = k8sapi.MaintenanceTaskRemove
@@ -1087,6 +1088,50 @@ func maintenanceGroupLabel(group string) string {
 // Node page
 // =====================================================================================================================
 
+const maintenanceNodeStateRefreshInterval = 10 * time.Second
+
+func (app *stackUiApp) maintenanceNodeStateRefresh(nodeName string) {
+	if app.maintenanceNodeStateNode != nodeName {
+		app.maintenanceNodeStateNode = nodeName
+		app.maintenanceNodeStateValid = false
+		app.maintenanceNodeStateChecked = time.Time{}
+		app.maintenanceNodeStateBusy = false
+		app.maintenanceNodeStateGeneration++
+	}
+	if app.maintenanceNodeStateBusy {
+		return
+	}
+	if time.Since(app.maintenanceNodeStateChecked) < maintenanceNodeStateRefreshInterval {
+		return
+	}
+	app.maintenanceNodeStateBusy = true
+	generation := app.maintenanceNodeStateGeneration
+
+	go func() {
+		state, err := maintenance.NodeStateRead(nodeName)
+
+		app.mu.Lock()
+		defer app.mu.Unlock()
+
+		if app.maintenanceNodeStateGeneration != generation ||
+			app.maintenanceNodeStateNode != nodeName {
+			return
+		}
+		app.maintenanceNodeStateBusy = false
+		app.maintenanceNodeStateChecked = time.Now()
+		if err != nil {
+			app.maintenanceNodeStateValid = false
+			return
+		}
+
+		app.maintenanceNodeState = state
+		app.maintenanceNodeStateValid = true
+		if app.session != nil && app.session.Context().Err() == nil {
+			ucx.AppUpdateUi(app)
+		}
+	}()
+}
+
 func (app *stackUiApp) maintenanceNodePage(nodeName string) []ucx.UiNode {
 	if app.maintenanceNodeName != nodeName {
 		app.maintenanceNodeName = nodeName
@@ -1099,6 +1144,7 @@ func (app *stackUiApp) maintenanceNodePage(nodeName string) []ucx.UiNode {
 		app.MaintenanceForceDelete = false
 		app.MaintenanceTargetRelease = ""
 		app.maintenanceNodeRunConfirm = false
+		app.maintenanceNodeStateResetNode = ""
 	}
 
 	bottom := []ucx.UiNode{shellBottomNode(app, "nodes", "Node maintenance", nodeName)}
@@ -1142,6 +1188,29 @@ func (app *stackUiApp) maintenanceNodePage(nodeName string) []ucx.UiNode {
 	}
 
 	runActive := hasRun && maintenance.RunActive(run)
+	runExecuting := runActive &&
+		run.Phase != k8sapi.MaintenanceRunFailed &&
+		run.Phase != k8sapi.MaintenanceRunBlocked
+	if known && !runExecuting {
+		app.maintenanceNodeStateRefresh(nodeName)
+		if app.maintenanceNodeStateNode == nodeName &&
+			app.maintenanceNodeStateValid &&
+			app.maintenanceNodeState.NeedsReset() {
+			content = append(content, app.maintenanceNodeStateResetBox(nodeName, app.maintenanceNodeState))
+		}
+		if app.maintenanceNodeStateResetNode == nodeName &&
+			app.maintenanceNodeStateNode == nodeName &&
+			app.maintenanceNodeStateValid &&
+			app.maintenanceNodeState.NeedsReset() {
+			content = append(content, maintenanceNodeStateResetDialog(app, nodeName))
+		}
+		if app.maintenanceNodeStateResetNode == nodeName &&
+			app.maintenanceNodeStateNode == nodeName &&
+			app.maintenanceNodeStateValid &&
+			!app.maintenanceNodeState.NeedsReset() {
+			app.maintenanceNodeStateResetNode = ""
+		}
+	}
 	if runActive {
 		app.maintenanceNodeRunConfirm = false
 		content = append(content, ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 12}).Children(
@@ -1276,6 +1345,50 @@ func maintenanceNodeRunDialog(app *stackUiApp, nodeName string) ucx.UiNode {
 			app.maintenanceNodeRunConfirm = false
 			ucx.AppUpdateUi(app)
 			maintenanceSubmitRunAsync(app, nodeName)
+		},
+	)
+}
+
+func (app *stackUiApp) maintenanceNodeStateResetBox(nodeName string, state maintenance.NodeState) ucx.UiNode {
+	message := "The maintenance state on this node must be reset before maintenance can run."
+	if detail := state.ResetDetail(); detail != "" {
+		message += " " + detail
+	}
+
+	return ucx.Warning(message).WarningCentered(true).Sx(ucx.SxMb(0)).Children(
+		ucx.ButtonEx(
+			"maintenanceNodeStateReset-"+nodeName,
+			"Reset node state",
+			ucx.ColorErrorMain,
+			"",
+			"",
+			"",
+		).ButtonBusy("maintenanceBusy").On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+			if app.MaintenanceBusy {
+				return
+			}
+			app.maintenanceNodeStateResetNode = nodeName
+			ucx.AppUpdateUi(app)
+		}),
+	)
+}
+
+func maintenanceNodeStateResetDialog(app *stackUiApp, nodeName string) ucx.UiNode {
+	return dashboardResourceActionDialog(
+		"maintenanceNodeStateReset",
+		"Reset node state",
+		"Clears the local Kubernetes upgrade state and operating-system update state on "+nodeName+
+			". The previous state files are archived on the node. The failed maintenance operation must still be retried afterwards.",
+		"",
+		ucx.ColorErrorMain,
+		func() {
+			app.maintenanceNodeStateResetNode = ""
+			ucx.AppUpdateUi(app)
+		},
+		func() {
+			app.maintenanceNodeStateResetNode = ""
+			ucx.AppUpdateUi(app)
+			maintenanceResetNodeStateAsync(app, nodeName)
 		},
 	)
 }
@@ -1439,6 +1552,26 @@ func maintenanceCancelAsync(app *stackUiApp, runUid string) {
 	app.runAsyncAction("maintenanceBusy", &app.MaintenanceBusy, func() error {
 		_, err := maintenance.CancelRun(runUid, "")
 		return err
+	}, app.maintenanceReportError)
+}
+
+func maintenanceResetNodeStateAsync(app *stackUiApp, nodeName string) {
+	if app.MaintenanceBusy {
+		return
+	}
+	app.runAsyncAction("maintenanceBusy", &app.MaintenanceBusy, func() error {
+		resetErr := maintenance.NodeStateReset(nodeName)
+		if resetErr == nil {
+			app.mu.Lock()
+			if app.maintenanceNodeStateNode == nodeName {
+				app.maintenanceNodeStateValid = false
+				app.maintenanceNodeStateChecked = time.Time{}
+				app.maintenanceNodeStateBusy = false
+				app.maintenanceNodeStateGeneration++
+			}
+			app.mu.Unlock()
+		}
+		return resetErr
 	}, app.maintenanceReportError)
 }
 

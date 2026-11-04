@@ -173,10 +173,6 @@ func ClusterRecordPhaseOperational(phase string) bool {
 	return phase == k8sapi.ClusterPhaseCreated || phase == k8sapi.ClusterPhaseCleanup
 }
 
-func ClusterRecordPhaseAllowsRecovery(phase string) bool {
-	return phase == k8sapi.ClusterPhaseCreated || phase == k8sapi.ClusterPhaseCleanup || phase == k8sapi.ClusterPhaseRecovering
-}
-
 type ClusterTokens struct {
 	ServerToken string
 	AgentToken  string

@@ -72,6 +72,18 @@ func nodeStateStore(path string, state any) error {
 	return writeFileAtomic(path, data, 0600)
 }
 
+func nodeStateArchive(path string) error {
+	_, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	return os.Rename(path, fmt.Sprintf("%s.recovery-%d", path, time.Now().UTC().UnixNano()))
+}
+
 func nodeStateSetPhase(
 	path string,
 	state any,
