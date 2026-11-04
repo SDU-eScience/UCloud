@@ -17,6 +17,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/version"
 
 	"ucloud.dk/iapp/k8s/pkg/backup"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 const (
@@ -306,11 +308,7 @@ func nodeAgentClientRequest[T any](
 
 	var body string
 	if payload != nil {
-		data, err := json.Marshal(payload)
-		if err != nil {
-			return zero, err
-		}
-		body = string(data)
+		body = string(util.MustJsonMarshal(payload))
 	}
 
 	responseBody, err := nodeAgentClientCallTimeout(
@@ -425,7 +423,7 @@ func nodeAgentClientValidateIp(nodeIp string) error {
 
 	clusterPrefix, err := netip.ParsePrefix(ClusterVmCidr)
 	if err != nil {
-		return fmt.Errorf("could not determine the cluster subnet: %s", err)
+		log.Fatal("k8s-app: the cluster subnet %s is invalid: %s", ClusterVmCidr, err)
 	}
 
 	if !clusterPrefix.Contains(address) {

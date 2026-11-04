@@ -630,10 +630,7 @@ func stackValueRead[T any](client shared.RpcGrantClient, key string, noun string
 }
 
 func stackValueWrite[T any](client shared.RpcGrantClient, key string, value T, expectedRevision int64) (int64, error) {
-	data, err := json.Marshal(value)
-	if err != nil {
-		return 0, err
-	}
+	data := util.MustJsonMarshal(value)
 	return shared.RpcGrantStateWrite(client, key, data, expectedRevision)
 }
 

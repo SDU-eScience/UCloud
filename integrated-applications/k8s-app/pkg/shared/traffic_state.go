@@ -3,6 +3,8 @@ package shared
 import (
 	"encoding/json"
 	"errors"
+
+	"ucloud.dk/shared/pkg/util"
 )
 
 const ClusterTrafficRecordKey = "traffic/state"
@@ -107,10 +109,7 @@ type ClusterTrafficSnapshot struct {
 func ClusterTrafficRecordWrite(client ClusterStateClient, record *ClusterTrafficRecord, expectedRevision int64) (int64, error) {
 	record.SchemaRevision = clusterTrafficSchemaRevision
 
-	value, err := json.Marshal(record)
-	if err != nil {
-		return 0, err
-	}
+	value := util.MustJsonMarshal(record)
 
 	return clusterStateWrite(client, ClusterTrafficRecordKey, value, expectedRevision)
 }

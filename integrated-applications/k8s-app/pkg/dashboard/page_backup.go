@@ -11,6 +11,7 @@ import (
 	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxsvc"
+	"ucloud.dk/shared/pkg/util"
 )
 
 type dashboardBackupStatus struct {
@@ -223,10 +224,7 @@ func backupRequestSubmitUid(app *stackUiApp) (string, error) {
 		Phase:          k8sapi.BackupRequestPending,
 	}
 
-	value, err := json.Marshal(request)
-	if err != nil {
-		return "", err
-	}
+	value := util.MustJsonMarshal(request)
 
 	_, err = shared.ClusterStateValueWrite(client, backup.RequestKey, value, status.RequestRevision)
 	if err == nil {

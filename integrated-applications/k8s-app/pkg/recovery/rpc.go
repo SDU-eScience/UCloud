@@ -225,10 +225,7 @@ func (app *app) recoveryRestoreResume(
 		}, nil
 	}
 
-	client, err := shared.ClusterStateClientNewSession(*app.Session(), app.stackId())
-	if err != nil {
-		return k8sapi.RecoveryStartResponse{}, err
-	}
+	client := shared.ClusterStateClientNewSession(*app.Session(), app.stackId())
 
 	if err := recoverySetStage(client, shared.ClusterRecoveryStageVerify); err != nil {
 		return k8sapi.RecoveryStartResponse{}, err

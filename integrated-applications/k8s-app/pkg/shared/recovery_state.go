@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"ucloud.dk/shared/pkg/util"
 )
 
 const ClusterRecoveryStateKey = "recovery/state"
@@ -77,10 +79,7 @@ func ClusterRecoveryRecordWrite(client ClusterStateClient, record *ClusterRecove
 
 	record.SchemaRevision = clusterRecoverySchemaRevision
 
-	value, err := json.Marshal(record)
-	if err != nil {
-		return 0, err
-	}
+	value := util.MustJsonMarshal(record)
 
 	return clusterStateWrite(client, ClusterRecoveryStateKey, value, expectedRevision)
 }

@@ -61,10 +61,7 @@ func ClusterCleanupSweepSession(session *ucx.Session, stack *ucxsvc.Stack, stack
 		return nil
 	}
 
-	stateClient, err := ClusterStateClientNewSession(session, stackId)
-	if err != nil {
-		return err
-	}
+	stateClient := ClusterStateClientNewSession(session, stackId)
 
 	return clusterCleanupSweep(stateClient, clusterCleanupOpsSession(stack))
 }

@@ -2,11 +2,9 @@ package shared
 
 import (
 	"embed"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -15,6 +13,7 @@ import (
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
 	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
+	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
@@ -62,7 +61,7 @@ const (
 func Script(name string) string {
 	data, err := scriptFiles.ReadFile("scripts/" + name)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("k8s-app: could not read the embedded script %s: %s", name, err)
 	}
 	return string(data)
 }
@@ -246,10 +245,7 @@ func ClusterCreate(app ucx.Application, request k8sapi.DeployRequest) (*ucxsvc.S
 		return stack, false, failure
 	}
 
-	stateClient, clientErr := ClusterStateClientNewSession(session, stack.InstanceId)
-	if clientErr != nil {
-		return stack, false, fmt.Sprintf("could not open the cluster state client: %s", clientErr)
-	}
+	stateClient := ClusterStateClientNewSession(session, stack.InstanceId)
 
 	existingState, readErr := ClusterStateRead(stateClient)
 	if readErr != nil {
@@ -752,10 +748,10 @@ func ClusterRecoveryCreateNode(
 		return errors.New("the cluster stack is not available")
 	}
 	if record == nil {
-		return errors.New("the cluster record is nil")
+		log.Fatal("k8s-app: the cluster record is nil")
 	}
 	if spec.Release.Release == "" {
-		return errors.New("the recovery Kubernetes version is empty")
+		log.Fatal("k8s-app: the recovery Kubernetes version is empty")
 	}
 	if !InternalIdIsValid(spec.InternalId) {
 		return fmt.Errorf("the internal id %d is not valid", spec.InternalId)
@@ -786,12 +782,12 @@ func ClusterRecoveryCreateNode(
 		}
 	}
 	if nodeIndex < 0 {
-		return fmt.Errorf("the cluster record has no node with internal id %d", spec.InternalId)
+		log.Fatal("k8s-app: the cluster record has no node with internal id %d", spec.InternalId)
 	}
 
 	node := record.Nodes[nodeIndex]
 	if node.Group != k8sapi.GroupControlPlane {
-		return fmt.Errorf("node %s is not a control-plane node", node.Hostname)
+		log.Fatal("k8s-app: node %s is not a control-plane node", node.Hostname)
 	}
 	if node.PrivateIpIdentifier == "" {
 		return fmt.Errorf("node %s has no address reservation in the cluster record", node.Hostname)
@@ -1050,10 +1046,7 @@ func clusterWriteNodeInput(stack *ucxsvc.Stack, record *ClusterRecord, release K
 		nodeJson["recoverySnapshotSha256"] = spec.recovery.snapshotSha256
 	}
 
-	nodeData, err := json.MarshalIndent(nodeJson, "", "  ")
-	if err != nil {
-		log.Fatal(err)
-	}
+	nodeData := util.MustJsonMarshalIndent(nodeJson, "", "  ")
 
 	inputDir := inputDirFor(spec.internalId)
 	ucxsvc.StackWriteFile(stack, filepath.Join(inputDir, "node.json"), string(nodeData))

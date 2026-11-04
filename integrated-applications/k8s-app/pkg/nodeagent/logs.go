@@ -64,11 +64,8 @@ func progressPersist(force bool) {
 	if !force && time.Since(progressPersistedAt) < 2*time.Second {
 		return
 	}
-	data, err := json.Marshal(progressCurrent)
-	if err == nil {
-		err = writeFileAtomic(filepath.Join(stagingDir, "progress.json"), data, 0600)
-	}
-	if err == nil {
+	data := util.MustJsonMarshal(progressCurrent)
+	if err := writeFileAtomic(filepath.Join(stagingDir, "progress.json"), data, 0600); err == nil {
 		progressPersistedAt = time.Now()
 	}
 }
@@ -200,18 +197,12 @@ type widgetProgress struct {
 }
 
 func progressWidget(id string, widgetType int, spec any) {
-	ref, err := json.Marshal(widgetRef{
+	ref := util.MustJsonMarshal(widgetRef{
 		Id:       id,
 		Type:     widgetType,
 		Location: widgetLocation{},
 	})
-	if err != nil {
-		return
-	}
-	specJson, err := json.Marshal(spec)
-	if err != nil {
-		return
-	}
+	specJson := util.MustJsonMarshal(spec)
 
 	widgets := fmt.Sprintf("{\"action\":0}\n%s\n%s\n", ref, specJson)
 	progressAppendFile(uiChannelName, []byte(widgets), 0600)

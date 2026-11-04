@@ -200,7 +200,7 @@ func upgradePreflight(
 
 	_, err = version.ParseSemantic(operation.TargetRelease)
 	if err != nil {
-		return fmt.Errorf("the Kubernetes version %s could not be parsed", operation.TargetRelease)
+		log.Fatal("k8s-app: the Kubernetes version %s could not be parsed: %s", operation.TargetRelease, err)
 	}
 
 	if currentVersion == operation.TargetRelease {
@@ -876,7 +876,7 @@ func trafficSuspendRecords(worker *nodeWorker, operation Operation) (string, err
 			NodeName:     operation.NodeName,
 			OperationUid: operation.Uid,
 		}) {
-			return "", fmt.Errorf("could not record the traffic suspension for the node %s", operation.NodeName)
+			log.Fatal("k8s-app: could not record the traffic suspension for the node %s", operation.NodeName)
 		}
 
 		_, writeErr := shared.ClusterTrafficRecordWrite(client, &record, snapshot.Revision)

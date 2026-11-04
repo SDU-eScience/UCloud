@@ -551,14 +551,12 @@ func (app *stackUiApp) readClusterRecord() (shared.ClusterRecord, bool) {
 
 func (app *stackUiApp) readClusterRecordWith(session *ucx.Session, stack *ucxsvc.Stack) (shared.ClusterRecord, bool) {
 	if session != nil && stack != nil && stack.Ok {
-		client, clientErr := shared.ClusterStateClientNewSession(session, stack.InstanceId)
-		if clientErr == nil {
-			ctx, cancel := dashboardSessionContext(session)
-			snapshot, readErr := shared.ClusterStateReadEx(ctx, client)
-			cancel()
-			if readErr == nil && snapshot.Found {
-				return snapshot.Record, true
-			}
+		client := shared.ClusterStateClientNewSession(session, stack.InstanceId)
+		ctx, cancel := dashboardSessionContext(session)
+		snapshot, readErr := shared.ClusterStateReadEx(ctx, client)
+		cancel()
+		if readErr == nil && snapshot.Found {
+			return snapshot.Record, true
 		}
 	}
 
@@ -586,10 +584,7 @@ func (app *stackUiApp) clusterStateValueClient() (shared.ClusterStateClient, err
 	session := app.session
 	stack := app.Stack
 	if session != nil && stack != nil && stack.Ok {
-		client, err := shared.ClusterStateClientNewSession(session, stack.InstanceId)
-		if err == nil {
-			return client, nil
-		}
+		return shared.ClusterStateClientNewSession(session, stack.InstanceId), nil
 	}
 	return shared.ClusterStateClientNewHost()
 }

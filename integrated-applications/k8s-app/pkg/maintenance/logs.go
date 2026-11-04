@@ -2,7 +2,6 @@ package maintenance
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -107,10 +106,7 @@ func logPackLines(lines []string) []string {
 		}
 		trimmed = util.Utf8Truncate(trimmed, shared.NodeAgentProgressLineMax)
 
-		encoded, err := json.Marshal(trimmed)
-		if err != nil {
-			continue
-		}
+		encoded := util.MustJsonMarshal(trimmed)
 
 		if len(encoded)+2 > budget {
 			log.Warn("k8s-app maintenance: a progress log line was dropped because the remaining request budget was too small")

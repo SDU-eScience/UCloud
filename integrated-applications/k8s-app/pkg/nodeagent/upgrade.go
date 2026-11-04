@@ -44,6 +44,7 @@ import (
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
 	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 // Constants and types
@@ -1207,10 +1208,7 @@ func runBackup(ctx context.Context, trigger string, attemptUid string) (shared.N
 		},
 	}
 
-	metadataData, metadataErr := json.MarshalIndent(metadata, "", "  ")
-	if metadataErr != nil {
-		return shared.NodeAgentBackupResult{}, metadataErr
-	}
+	metadataData := util.MustJsonMarshalIndent(metadata, "", "  ")
 
 	metadataPath := filepath.Join(partDir, "metadata.json")
 	writeErr := writeFileAtomic(metadataPath, metadataData, 0600)

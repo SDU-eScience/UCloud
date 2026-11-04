@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"ucloud.dk/shared/pkg/util"
 )
 
 type nodeState struct {
@@ -66,11 +68,7 @@ func nodeStateSetFailure(state *nodeState, schemaRevision int, failedPhase strin
 }
 
 func nodeStateStore(path string, state any) error {
-	data, err := json.MarshalIndent(state, "", "  ")
-	if err != nil {
-		return err
-	}
-
+	data := util.MustJsonMarshalIndent(state, "", "  ")
 	return writeFileAtomic(path, data, 0600)
 }
 

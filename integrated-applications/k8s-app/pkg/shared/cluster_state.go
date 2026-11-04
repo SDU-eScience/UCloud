@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/ucx"
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
+	"ucloud.dk/shared/pkg/util"
 )
 
 const ClusterStateRecordKey = "cluster/record"
@@ -38,16 +40,15 @@ type ClusterStateSnapshot struct {
 	Revision int64
 }
 
-func ClusterStateClientNewSession(session *ucx.Session, stackId string) (ClusterStateClient, error) {
+func ClusterStateClientNewSession(session *ucx.Session, stackId string) ClusterStateClient {
 	if session == nil {
-		return ClusterStateClient{}, errors.New("the cluster state session is nil")
+		log.Fatal("k8s-app: the cluster state session is nil")
 	}
-
 	if stackId == "" {
-		return ClusterStateClient{}, errors.New("the cluster state stack id is empty")
+		log.Fatal("k8s-app: the cluster state stack id is empty")
 	}
 
-	return ClusterStateClient{session: session, stackId: stackId}, nil
+	return ClusterStateClient{session: session, stackId: stackId}
 }
 
 func ClusterStateClientNewHost() (ClusterStateClient, error) {
@@ -89,10 +90,7 @@ func ClusterStateReadEx(ctx context.Context, client ClusterStateClient) (Cluster
 }
 
 func clusterRecordReplaceAt(client ClusterStateClient, record *ClusterRecord, expectedRevision int64) (int64, error) {
-	value, err := json.Marshal(*record)
-	if err != nil {
-		return 0, err
-	}
+	value := util.MustJsonMarshal(*record)
 
 	newRevision, err := clusterStateWrite(client, ClusterStateRecordKey, value, expectedRevision)
 	if err != nil {
@@ -157,7 +155,7 @@ func clusterStateReadRawEx(ctx context.Context, client ClusterStateClient, key s
 
 func clusterStateWrite(client ClusterStateClient, key string, value json.RawMessage, expectedRevision int64) (int64, error) {
 	if expectedRevision < 0 {
-		return 0, errors.New("the expected revision is negative")
+		log.Fatal("k8s-app: the expected revision is negative")
 	}
 
 	if client.session != nil {

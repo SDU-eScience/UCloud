@@ -84,6 +84,8 @@ import (
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
+	"ucloud.dk/shared/pkg/log"
+	"ucloud.dk/shared/pkg/util"
 )
 
 // Constants and package state
@@ -268,7 +270,7 @@ func readNodeConfig(path string) (nodeFile, error) {
 
 	clusterPrefix, err := netip.ParsePrefix(shared.ClusterVmCidr)
 	if err != nil {
-		return nodeFile{}, err
+		log.Fatal("k8s-app: the cluster subnet %s is invalid: %s", shared.ClusterVmCidr, err)
 	}
 
 	if !clusterPrefix.Contains(address) {
@@ -433,11 +435,7 @@ func fenceStore(operationUid string) error {
 		LastOperation:  operationUid,
 	}
 
-	data, err := json.MarshalIndent(state, "", "  ")
-	if err != nil {
-		return err
-	}
-
+	data := util.MustJsonMarshalIndent(state, "", "  ")
 	return writeFileAtomic(fenceStatePath(), data, 0600)
 }
 
