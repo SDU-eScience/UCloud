@@ -43,11 +43,41 @@ type metadataScanState struct {
 
 func MetadataStartScanner() {
 	go func() {
+		metadataInvalidateUnverifiedScanStates()
 		for util.IsAlive {
 			metadataScheduleScans(time.Now())
 			time.Sleep(metadataScannerPollInterval)
 		}
 	}()
+}
+
+func metadataInvalidateUnverifiedScanStates() {
+	for _, candidate := range metadataColdScanCandidates() {
+		coverage, searchReady := metadataCatalogCoverage(candidate.driveID)
+		if coverage && searchReady {
+			continue
+		}
+		metadataInvalidateCatalogScanState(candidate.driveID)
+	}
+}
+
+func metadataInvalidateCatalogScanState(driveId string) {
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				update fs_metadata_scan_state
+				set last_completed_at = timestamp 'epoch'
+				where
+					drive_id = :drive_id
+					and ucloud_path = :ucloud_path
+			`,
+			db.Params{
+				"drive_id":    driveId,
+				"ucloud_path": "/" + driveId,
+			},
+		)
+	})
 }
 
 func metadataScheduleScans(now time.Time) {
@@ -65,9 +95,9 @@ func metadataScheduleScans(now time.Time) {
 
 	for _, candidate := range metadataCollapseScanCandidates(claimed) {
 		candidate := candidate
-		metadataSubmitScanRequest(candidate.ucloudPath, func(scanErr error) {
+		metadataSubmitScanRequest(candidate.ucloudPath, func(scanErr error, finishedAt time.Time) {
 			if scanErr == nil {
-				metadataCompleteScheduledScans(candidate.states, time.Now())
+				metadataCompleteScheduledScans(candidate.states, finishedAt)
 			}
 		})
 	}

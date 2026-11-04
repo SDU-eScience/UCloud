@@ -113,6 +113,12 @@ func scanDrive(drive orc.Drive) {
 	defer scanSemaphore.Release(1)
 	defer scanSlotsAvailable.Add(1)
 
+	ctx, finishScan, err := metadataBeginScan(metadataDatabasePath(drive.Id))
+	if err != nil {
+		return
+	}
+	defer finishScan()
+
 	internalPath, ok, _ := DriveToLocalPath(&drive)
 	if !ok {
 		return
@@ -185,6 +191,9 @@ func scanDrive(drive orc.Drive) {
 		sizeToReport = int64(result.TotalFileSize)
 	}
 
+	if ctx.Err() != nil {
+		return
+	}
 	// NOTE(Dan): There are no configuration options on the product at the moment to change this to anything else.
 	sizeInGb := sizeToReport / 1000000000
 

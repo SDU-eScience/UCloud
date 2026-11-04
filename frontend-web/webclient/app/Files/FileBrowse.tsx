@@ -234,6 +234,13 @@ function FileBrowse({opts, headerControls}: {
         const mount = mountRef.current;
         let searching = "";
         let lastActiveFilePath = "";
+        let activeSearchQuery: string | undefined;
+        let searchConnection: ReturnType<typeof WSFactory.open> | undefined;
+        const stopSearch = () => {
+            const connection = searchConnection;
+            searchConnection = undefined;
+            connection?.close();
+        };
         let shares: Record<string, OutgoingShareGroup> = {};
         let initialFetchDone = false;
         if (mount && !browserRef.current) {
@@ -316,6 +323,7 @@ function FileBrowse({opts, headerControls}: {
                             drive,
                             wallet,
                             selected: browser.findSelectedEntries(),
+                            visualizationSupported: (collection.status.resolvedSupport?.support as FileCollectionSupport | undefined)?.stats?.visualization === true,
                         });
                         const preciseOwnUsage = await preciseOwnUsagePromise;
                         if (requestId !== statusRequest.current || browser.currentPath !== path) return;
@@ -1450,7 +1458,16 @@ function FileBrowse({opts, headerControls}: {
                         return;
                     }
 
-                    if (newPath !== SEARCH) lastActiveFilePath = newPath;
+                    if (oldPath === SEARCH && newPath === SEARCH && activeSearchQuery !== undefined) {
+                        const query = activeSearchQuery;
+                        browser.dispatchMessage("search", fn => fn(query));
+                        return;
+                    }
+                    if (newPath !== SEARCH) {
+                        lastActiveFilePath = newPath;
+                        activeSearchQuery = undefined;
+                        stopSearch();
+                    }
                     if (isSelector) setSelectorActivePath(newPath);
                     setStatusBarData(null);
 
@@ -1548,13 +1565,15 @@ function FileBrowse({opts, headerControls}: {
                 });
 
                 browser.on("search", query => {
+                    stopSearch();
+                    activeSearchQuery = query;
                     let currentPath = browser.currentPath;
                     if (currentPath === SEARCH) currentPath = searching;
                     else lastActiveFilePath = currentPath;
 
                     browser.emptyReasons[SEARCH] = {
                         tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
-                        information: browser.searchQuery ? "" : "Search query is empty."
+                        information: query ? "" : "Search query is empty."
                     };
 
                     searching = currentPath;
@@ -1572,29 +1591,54 @@ function FileBrowse({opts, headerControls}: {
                         "/files",
                         {
                             reconnect: false,
+                            onClose: conn => {
+                                if (searchConnection !== conn) return;
+                                searchConnection = undefined;
+                                if (browser.currentPath !== SEARCH) return;
+                                browser.emptyReasons[SEARCH] = {
+                                    tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
+                                    information: "Search was interrupted. Please try again."
+                                };
+                                browser.renderRows();
+                                displayErrorMessageOrDefault(null, "Search was interrupted. Please try again.");
+                            },
                             init: async (conn) => {
+                                if (searchConnection !== conn) {
+                                    conn.close();
+                                    return;
+                                }
                                 try {
                                     await conn.subscribe({
                                         call: "files.streamingSearch",
                                         payload: {
                                             query,
-                                            flags: {},
+                                            flags: {filterHiddenFiles: browser.browseFilters["showHiddenFiles"] !== "true"},
                                             currentFolder: currentPath
                                         },
                                         handler: (message) => {
-                                            if (browser.currentPath !== SEARCH) {
+                                            if (browser.currentPath !== SEARCH || searchConnection !== connection) {
                                                 connection.close();
                                                 return;
                                             }
 
-                                            if (message.payload["type"] === "result") {
+                                            if (message.payload?.["type"] === "result") {
                                                 const result = message.payload["batch"];
                                                 // TODO(Jonas): Handle page change before adding results.
                                                 const data = newCachedData;
                                                 data.push(...result);
                                                 browser.renderRows();
                                                 browser.renderOperations();
-                                            } else if (message.payload["type"] === "end_of_results") {
+                                            } else if (message.payload?.["type"] === "end_of_results") {
+                                                searchConnection = undefined;
+                                                connection.close();
+                                            } else if (message.payload?.["type"] === "error") {
+                                                browser.emptyReasons[SEARCH] = {
+                                                    tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
+                                                    information: "Search is unavailable. The storage index may still be building."
+                                                };
+                                                browser.renderRows();
+                                                displayErrorMessageOrDefault(null, "Search is unavailable. The storage index may still be building.");
+                                                searchConnection = undefined;
                                                 connection.close();
                                             }
                                         }
@@ -1605,6 +1649,7 @@ function FileBrowse({opts, headerControls}: {
                             }
                         }
                     )
+                    searchConnection = connection;
                 });
 
                 browser.on("searchHidden", () => {
@@ -1750,6 +1795,7 @@ function FileBrowse({opts, headerControls}: {
         if (!isSelector) {
             addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined);
         }
+        return stopSearch;
     }, []);
 
     const setLocalProject = opts?.managesLocalProject ? async (projectId?: string) => {

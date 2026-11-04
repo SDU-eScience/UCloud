@@ -31,6 +31,8 @@ import (
 
 var Files FileService
 
+const filesDriveDeletionTimeout = 20 * time.Second
+
 type FileService struct {
 	BrowseFiles                 func(request orcapi.FilesProviderBrowseRequest) (fnd.PageV2[orcapi.ProviderFile], *util.HttpError)
 	RetrieveFile                func(request orcapi.FilesProviderRetrieveRequest) (orcapi.ProviderFile, *util.HttpError)
@@ -47,11 +49,11 @@ type FileService struct {
 	TransferSourceInitiate      func(request orcapi.FilesProviderTransferRequestInitiateSource) ([]string, *util.HttpError)
 	TransferDestinationInitiate func(actor rpc.Actor, request orcapi.FilesProviderTransferRequestInitiateDestination) (orcapi.FilesProviderTransferResponse, *util.HttpError)
 	TransferSourceBegin         func(actor rpc.Actor, request orcapi.FilesProviderTransferRequestStart, session FileTransferSession) *util.HttpError
-	Search                      func(ctx context.Context, query, folder string, flags orcapi.FileFlags, outputChannel chan orcapi.ProviderFile)
+	Search                      func(ctx context.Context, query, folder string, flags orcapi.FileFlags, outputChannel chan orcapi.ProviderFile) error
 	Uploader                    upload.ServerFileSystem
 
 	CreateDrive          func(actor rpc.Actor, drive orcapi.Drive) *util.HttpError
-	DeleteDrive          func(actor rpc.Actor, drive orcapi.Drive) *util.HttpError
+	DeleteDrive          func(ctx context.Context, actor rpc.Actor, drive orcapi.Drive) *util.HttpError
 	RenameDrive          func(drive orcapi.Drive) *util.HttpError
 	OnUpdatedDriveLabels func(drive orcapi.Drive) *util.HttpError
 
@@ -484,20 +486,24 @@ func initFiles() {
 
 				// Initialize reader goroutine
 				// -----------------------------------------------------------------------------------------------------
-				ctx, cancel := context.WithCancel(context.Background())
+				ctx, cancel := context.WithCancel(request.Context())
+				defer cancel()
 				socketMessages := make(chan []byte)
 
 				go func() {
+					defer close(socketMessages)
 					for util.IsAlive {
 						_, message, err := conn.ReadMessage()
 						if err != nil {
 							break
 						}
 
-						socketMessages <- message
+						select {
+						case socketMessages <- message:
+						case <-ctx.Done():
+							return
+						}
 					}
-
-					socketMessages <- nil
 				}()
 
 				// Read initial message and parse it
@@ -546,7 +552,10 @@ func initFiles() {
 				// -----------------------------------------------------------------------------------------------------
 
 				outputChannel := make(chan orcapi.ProviderFile)
-				go searchFn(ctx, wsRequest.Query, wsRequest.CurrentFolder.Value, wsRequest.Flags, outputChannel)
+				searchDone := make(chan error, 1)
+				go func() {
+					searchDone <- searchFn(ctx, wsRequest.Query, wsRequest.CurrentFolder.Value, wsRequest.Flags, outputChannel)
+				}()
 
 				type result struct {
 					Type  string                `json:"type"`
@@ -555,6 +564,19 @@ func initFiles() {
 
 				var outputBuffer []orcapi.ProviderFile
 				ticker := time.NewTicker(100 * time.Millisecond)
+				defer ticker.Stop()
+				sendResult := func(output result) bool {
+					outputJson, _ := json.Marshal(output)
+					msg := WebSocketResponseMessage{
+						Type:     "message",
+						Payload:  outputJson,
+						StreamId: requestMessage.StreamId,
+					}
+					msgBytes, _ := json.Marshal(msg)
+					_ = conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+					err = conn.WriteMessage(ws.TextMessage, msgBytes)
+					return err == nil
+				}
 				flushBuffer := func() bool {
 					if len(outputBuffer) == 0 {
 						return true
@@ -564,22 +586,12 @@ func initFiles() {
 						Type:  "result",
 						Batch: outputBuffer,
 					}
-					outputJson, _ := json.Marshal(output)
-
-					msg := WebSocketResponseMessage{
-						Type:     "message",
-						Payload:  outputJson,
-						StreamId: requestMessage.StreamId,
-					}
-
-					msgBytes, _ := json.Marshal(msg)
-					_ = conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
-					err = conn.WriteMessage(ws.TextMessage, msgBytes)
-
 					outputBuffer = nil
-					return err == nil
+					return sendResult(output)
 				}
 
+				completed := false
+				var searchErr error
 			outer:
 				for util.IsAlive {
 					select {
@@ -598,6 +610,8 @@ func initFiles() {
 
 					case output, ok := <-outputChannel:
 						if !ok {
+							searchErr = <-searchDone
+							completed = true
 							break outer
 						}
 
@@ -605,7 +619,13 @@ func initFiles() {
 					}
 				}
 
-				_ = flushBuffer()
+				if flushBuffer() && completed {
+					status := "end_of_results"
+					if searchErr != nil {
+						status = "error"
+					}
+					_ = sendResult(result{Type: status})
+				}
 
 				cancel()
 			},
@@ -637,12 +657,14 @@ func initFiles() {
 
 		orcapi.DrivesProviderDelete.Handler(func(info rpc.RequestInfo, request fnd.BulkRequest[orcapi.Drive]) (fnd.BulkResponse[util.Empty], *util.HttpError) {
 			resp := fnd.BulkResponse[util.Empty]{}
+			ctx, cancel := context.WithTimeout(info.HttpRequest.Context(), filesDriveDeletionTimeout)
+			defer cancel()
 			for _, item := range request.Items {
 				fn := Files.DeleteDrive
 				if fn == nil {
 					return fnd.BulkResponse[util.Empty]{}, util.ServerHttpError("Drive deletion is not supported")
 				} else {
-					err := fn(info.Actor, item)
+					err := fn(ctx, info.Actor, item)
 					if err != nil {
 						return fnd.BulkResponse[util.Empty]{}, err
 					}

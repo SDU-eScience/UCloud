@@ -182,17 +182,7 @@ func DriveToLocalPath(drive *orc.Drive) (string, bool, *orc.Drive) {
 		if !ok {
 			return "/dev/null", false, drive
 		} else {
-			realDriveId, ok := DriveIdFromUCloudPath(share.Specification.SourceFilePath)
-			if !ok {
-				return "/dev/null", false, drive
-			}
-
-			realDrive, ok := ctrl.DriveRetrieve(realDriveId)
-			if !ok {
-				return "/dev/null", false, drive
-			}
-
-			result, ok, _ := UCloudToInternal(share.Specification.SourceFilePath)
+			result, ok, realDrive := UCloudToInternal(share.Specification.SourceFilePath)
 			return result, ok, realDrive
 		}
 

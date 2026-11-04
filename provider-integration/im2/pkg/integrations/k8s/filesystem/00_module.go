@@ -3,6 +3,7 @@ package filesystem
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -51,7 +52,13 @@ type cachedDirEntry struct {
 func InitFiles() controller.FileService {
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
 	loadStorageProducts()
-	activityDeleteExpiredEvents()
+	activityCleanupRetention()
+	go func() {
+		for util.IsAlive {
+			time.Sleep(24 * time.Hour)
+			activityCleanupRetention()
+		}
+	}()
 
 	initTasks()
 	if !shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
@@ -406,7 +413,7 @@ func browseFiles(request orc.FilesProviderBrowseRequest) (fnd.PageV2[orc.Provide
 	selected := make([]*cachedDirEntry, 0, min(request.Browse.ItemsPerPage, len(fileList)-offset))
 	i := offset
 	for i < len(fileList) && len(selected) < request.Browse.ItemsPerPage {
-		entry := &fileList[i]
+		entry := fileList[i]
 		i++
 
 		base := filepath.Base(entry.absPath)
@@ -428,7 +435,7 @@ func browseFiles(request orc.FilesProviderBrowseRequest) (fnd.PageV2[orc.Provide
 		if !entry.hasInfo {
 			continue
 		}
-		selected = append(selected, entry)
+		selected = append(selected, &entry)
 	}
 	nonBlockingSizes := request.Browse.Flags.IncludeSizesNonBlocking.GetOrDefault(false)
 	if nonBlockingSizes && sortBy != "SIZE" {
@@ -1220,10 +1227,9 @@ func transferSourceBegin(actor rpc.Actor, request orc.FilesProviderTransferReque
 	return taskErr
 }
 
-func search(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) {
+func search(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) error {
 	if shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
-		metadataCatalogSearch(ctx, query, folder, flags, output)
-		return
+		return metadataCatalogSearch(ctx, query, folder, flags, output)
 	}
 
 	initialFolder, ok, _ := UCloudToInternal(folder)
@@ -1231,28 +1237,41 @@ func search(ctx context.Context, query, folder string, flags orc.FileFlags, outp
 	defer close(output)
 
 	if query == "" {
-		return
+		return nil
 	}
 
 	if !ok || !ok2 {
-		return
+		return fmt.Errorf("unknown search folder")
 	}
 
 	drive, ok := ResolveDrive(driveId)
 	if !ok {
-		return
+		return fmt.Errorf("unknown search drive")
 	}
 
 	searchIndex, ok := controller.DriveRetrieveSearchIndex(driveId)
 	q := fsearch.NewQuery(query)
-	_ = walk.Walk(initialFolder, runtime.NumCPU(), func(path string, info os.FileInfo, err error) error {
+	err := walk.Walk(initialFolder, runtime.NumCPU(), func(path string, info os.FileInfo, err error) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		if info == nil || err != nil {
 			return walk.SkipDir
+		}
+		if path != initialFolder && flags.FilterHiddenFiles.Value && strings.HasPrefix(info.Name(), ".") {
+			if info.IsDir() {
+				return walk.SkipDir
+			}
+			return nil
 		}
 
 		if q.Matches(path) {
 			match := nativeStat(drive, path, info, util.OptNone[int64]())
-			output <- match
+			select {
+			case output <- match:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		}
 
 		if info.IsDir() && !searchIndex.ContinueDown(path, q) {
@@ -1261,26 +1280,33 @@ func search(ctx context.Context, query, folder string, flags orc.FileFlags, outp
 			return nil
 		}
 	})
+	return err
 }
 
-func metadataCatalogSearch(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) {
+func metadataCatalogSearch(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) error {
 	defer close(output)
 	if query == "" {
-		return
+		return nil
 	}
 	driveID, ok := DriveIdFromUCloudPath(folder)
 	if !ok {
-		return
+		return fmt.Errorf("unknown search folder")
 	}
 	drive, ok := ResolveDrive(driveID)
 	if !ok {
-		return
+		return fmt.Errorf("unknown search drive")
 	}
 
-	_, _ = MetadataSearchByNamePrefix(ctx, folder, query, math.MaxInt, func(result MetadataSearchResult) bool {
+	complete, err := MetadataSearchByNamePrefix(ctx, folder, query, math.MaxInt, func(result MetadataSearchResult) bool {
 		name := util.FileName(result.Path)
-		if flags.FilterHiddenFiles.Value && strings.HasPrefix(name, ".") {
-			return true
+		if flags.FilterHiddenFiles.Value {
+			folderComponents := util.Components(folder)
+			resultComponents := util.Components(result.Path)
+			for _, component := range resultComponents[len(folderComponents):] {
+				if strings.HasPrefix(component, ".") {
+					return true
+				}
+			}
 		}
 		if extension := flags.FilterByFileExtension.Value; extension != "" && !strings.EqualFold(filepath.Ext(name), extension) {
 			return true
@@ -1292,6 +1318,13 @@ func metadataCatalogSearch(ctx context.Context, query, folder string, flags orc.
 			return false
 		}
 	})
+	if err != nil {
+		return err
+	}
+	if !complete {
+		return errMetadataIndexIncomplete
+	}
+	return nil
 }
 
 func metadataProviderFile(drive *orc.Drive, result MetadataSearchResult) orc.ProviderFile {
@@ -1349,20 +1382,53 @@ func createDrive(actor rpc.Actor, drive orc.Drive) *util.HttpError {
 	return err
 }
 
-func deleteDrive(actor rpc.Actor, drive orc.Drive) *util.HttpError {
+func deleteDrive(ctx context.Context, actor rpc.Actor, drive orc.Drive) *util.HttpError {
+	descriptor, valid := ParseDriveDescriptor(util.OptValue(drive.ProviderGeneratedId))
+	if !valid {
+		return util.ServerHttpError("unknown drive")
+	}
+	if descriptor.Type == DriveDescriptorTypeShare {
+		return util.UserHttpError("A shared folder cannot be deleted as a drive")
+	}
 	path, ok, _ := DriveToLocalPath(&drive)
 	if !ok {
 		return util.ServerHttpError("unknown drive")
 	}
-	reportUsedStorage(drive, 0)
-	MetadataDeleteCatalog(drive.Id)
+	beginErr := metadataBeginCatalogDeletion(ctx, drive.Id)
+	if errors.Is(beginErr, errMetadataCatalogDeleted) {
+		reportUsedStorage(drive, 0)
+		return nil
+	}
+	if beginErr != nil {
+		return util.ServerHttpError("unable to prepare drive deletion: %s", beginErr)
+	}
+	if ctx.Err() != nil {
+		metadataFinishCatalogDeletion(drive.Id, false)
+		return util.ServerHttpError("drive deletion timed out before staging")
+	}
 	err := DoDeleteFile(path)
+	if err != nil {
+		_, statErr := os.Lstat(path)
+		if errors.Is(statErr, os.ErrNotExist) {
+			err = nil
+		}
+	}
+	metadataFinishCatalogDeletion(drive.Id, err == nil)
 	if err == nil {
+		reportUsedStorage(drive, 0)
 		ActivityRecord(actor, ActivityEvent{
 			Kind:      ActivityDirect,
 			Operation: ActivityOperationDelete,
 			Targets:   []ActivityTarget{{UCloudPath: "/" + drive.Id}},
 		})
+	} else {
+		config := shared.ServiceConfig.FileSystem.MetadataCatalog
+		if config.Enabled || config.EnableIntegration {
+			go MetadataSubmitScanRequest("/" + drive.Id)
+		}
+		if !config.EnableIntegration {
+			RequestScan(drive.Id)
+		}
 	}
 	return err
 }

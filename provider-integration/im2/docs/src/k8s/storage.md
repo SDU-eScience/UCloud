@@ -120,3 +120,30 @@ Default configuration of the file-system matching the Helm chart.
 </figcaption>
 
 </figure>
+
+### Metadata catalog
+
+The metadata catalog stores one index per underlying drive. Searches and visualizations of a shared folder use the
+underlying index but return paths relative to the share. Catalogs are stored in `metadata-catalog` under the configured
+mount point. Run only one provider process with access to this directory, including during deployment and workspace
+cleanup.
+
+The `enabled` and `enableIntegration` settings control the following modes:
+
+| `enabled` | `enableIntegration` | Behavior |
+| --- | --- | --- |
+| `false` | `false` | The legacy scanner provides search and accounting. |
+| `true` | `false` | The catalog scanner runs alongside the legacy scanner. Search and accounting still use the legacy scanner. |
+| `false` | `true` | The catalog scanner provides search, recursive sizes, and accounting. Visualization is disabled. |
+| `true` | `true` | The catalog scanner provides search, recursive sizes, accounting, and visualization. |
+
+In development mode, both settings default to `true`; otherwise, they default to `false`. A catalog-backed search
+reports an error while its index is unavailable or incomplete. During a subtree refresh, searches outside that subtree
+remain available. Visualization can start an initial scan and reports its indexing status while the scan is running.
+The core and provider must both support search completion messages; an older provider that closes the stream without
+one is reported as an interrupted search.
+
+Existing catalogs require a root scan before their aggregate sizes, accounting data, and search results are trusted.
+On startup, the scanner reschedules unverified catalogs. An on-demand visualization request can also start the scan.
+If active work does not drain before a drive deletion times out, the provider leaves the drive in place and the
+deletion can be retried.

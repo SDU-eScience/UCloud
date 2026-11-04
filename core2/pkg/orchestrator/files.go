@@ -850,7 +850,17 @@ func FilesStreamingSearch(conn *ws.Conn) {
 			"Authorization": []string{fmt.Sprintf("Bearer %s", client.RetrieveAccessTokenOrRefresh())},
 		})
 
+		finished := false
 		if err == nil {
+			go func() {
+				for {
+					_, _, readErr := conn.ReadMessage()
+					if readErr != nil {
+						util.SilentClose(providerConn)
+						return
+					}
+				}
+			}()
 			dataBytes, _ := json.Marshal(rpc.WSRequestMessage[orcapi.FilesProviderStreamingSearchRequest]{
 				Call:     fmt.Sprintf("files.provider.%s.streamingSearch", providerId),
 				StreamId: "ignored",
@@ -889,10 +899,19 @@ func FilesStreamingSearch(conn *ws.Conn) {
 				if !ok {
 					break
 				}
+				if message.Payload.Type == "end_of_results" || message.Payload.Type == "error" {
+					finished = true
+					break
+				}
 			}
 		}
+		if !finished {
+			sendToClient(orcapi.FilesStreamingSearchResult{Type: "error"})
+		}
 
-		util.SilentClose(providerConn)
+		if providerConn != nil {
+			util.SilentClose(providerConn)
+		}
 	}()
 
 	wg.Wait()
