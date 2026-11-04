@@ -12,7 +12,7 @@ import {checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
 const baseContext = "/api/hpc/apps";
 
 export function customApplicationsEnabled(): boolean {
-    return hasFeature(Feature.CONTAINER_REPOSITORIES);
+    return hasFeature(Feature.CUSTOM_APPLICATIONS);
 }
 
 export function customAppsWorkspaceAdmin(): boolean {

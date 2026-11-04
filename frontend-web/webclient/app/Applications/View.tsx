@@ -15,6 +15,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {checkIsWorkspaceAdmin} from "@/ui-components/ResourceBrowser";
 import Warning from "@/ui-components/Warning";
 import BaseLink from "@/ui-components/BaseLink";
+import {Feature, hasFeature} from "@/Features";
 
 const DEFAULT_FLAVOR_NAME = "Default";
 
@@ -140,7 +141,7 @@ export const ApplicationSelector: React.FunctionComponent<{
             {!props.showLabels ? null : <Flex mb="8px" gap="6px">
                 <Box>Flavor</Box>
 
-                {customFlavors.length === 0 ? null : <BaseLink onClick={event => {
+                {!hasFeature(Feature.APPLICATION_FLAVORS) || customFlavors.length === 0 ? null : <BaseLink onClick={event => {
                     event.preventDefault();
                     openFlavorManagement(customFlavors, props.reloadFlavors ?? (() => undefined), variant => {
                         if (props.application.metadata.variant?.id !== variant.id) return;

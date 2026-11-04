@@ -1879,7 +1879,7 @@ func ProjectUpdateSubProjectRenamingSettings(actor rpc.Actor, request fndapi.Pro
 }
 
 func ProjectUpdateSettings(actor rpc.Actor, request fndapi.ProjectUpdateSettingsRequest) *util.HttpError {
-	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureApplicationFlavors); err != nil {
 		return err
 	}
 	if !actor.Project.Present {

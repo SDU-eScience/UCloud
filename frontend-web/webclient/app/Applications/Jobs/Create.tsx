@@ -95,6 +95,7 @@ import {ApplicationForkAction} from "@/Applications/Creator/ForkAction";
 import {customApplicationsEnabled, customAppsWorkspaceAdmin} from "@/Applications/AppStoreApi";
 import {ApplicationGroupLogoDialog, CustomGroupEditDialog, defaultApplicationGroupLogo} from "@/Applications/ProceduralLogo";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {Feature, hasFeature} from "@/Features";
 
 interface InsufficientFunds {
     why?: string;
@@ -862,7 +863,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
     const doLoadParameters = useCallback(async (importedJob: Partial<JobSpecification>, initialImport?: boolean) => {
         if (application == null) return;
         const values = importedJob.parameters ?? {};
-        const importedCacheSetting = values.ucCacheInitScript;
+        const importedCacheSetting = hasFeature(Feature.APPLICATION_FLAVORS) ? values.ucCacheInitScript : undefined;
         setCacheInitScript(importedCacheSetting?.type === "boolean" && importedCacheSetting.value === true);
         const resources = importedJob.resources ?? [];
 
@@ -1437,7 +1438,7 @@ export const Create: React.FunctionComponent<JobCreateProps> = props => {
                                                 setErrors={setErrors}
                                                 application={application}
                                                 bindLinkToPort={bindLinkToPort}
-                                                initScriptCache={param.name !== "initScript" || !cacheInitScriptParameter ? undefined : {
+                                                initScriptCache={!hasFeature(Feature.APPLICATION_FLAVORS) || param.name !== "initScript" || !cacheInitScriptParameter ? undefined : {
                                                     parameter: cacheInitScriptParameter,
                                                     enabled: cacheInitScript,
                                                     onChange: enabled => {

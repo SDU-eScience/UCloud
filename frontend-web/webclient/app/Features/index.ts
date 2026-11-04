@@ -15,6 +15,10 @@ export enum Feature {
     FILE_BROWSER_STATUS_BAR,
 
     CONTAINER_REPOSITORIES,
+
+    APPLICATION_FLAVORS,
+
+    CUSTOM_APPLICATIONS,
 }
 
 enum Environment {
@@ -91,6 +95,16 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "container-repositories": {
         feature: Feature.CONTAINER_REPOSITORIES,
+        useBackend: true,
+    },
+
+    "application-flavors": {
+        feature: Feature.APPLICATION_FLAVORS,
+        useBackend: true,
+    },
+
+    "custom-applications": {
+        feature: Feature.CUSTOM_APPLICATIONS,
         useBackend: true,
     }
 };

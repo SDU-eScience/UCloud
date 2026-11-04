@@ -29,6 +29,7 @@ import {ThemeColor} from "@/ui-components/theme";
 import {Application, ApplicationParameter, NameAndVersion} from "@/Applications/AppStoreApi";
 import {BackgroundTask} from "@/Services/BackgroundTasks/BackgroundTask";
 import {openCreateApplicationVariant} from "@/Applications/Jobs/CreateApplicationVariant";
+import {Feature, hasFeature} from "@/Features";
 
 export interface DynamicParameters {
     parametersByProvider: Record<string, ApplicationParameter[]>;
@@ -361,7 +362,8 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
                 if (selected.length !== 1) return false;
                 const job = selected[0];
                 const support = job.status.resolvedSupport?.support as ComputeSupport | undefined;
-                return job.status.state === "RUNNING" &&
+                return hasFeature(Feature.APPLICATION_FLAVORS) &&
+                    job.status.state === "RUNNING" &&
                     job.owner.project != null &&
                     job.permissions.myself.includes("EDIT") &&
                     job.status.resolvedApplication?.invocation.tool.tool?.description.backend === "DOCKER" &&

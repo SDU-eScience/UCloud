@@ -11,10 +11,14 @@ const FeaturesContext = "features"
 
 const (
 	FeatureContainerRepositories = "container-repositories"
+	FeatureApplicationFlavors    = "application-flavors"
+	FeatureCustomApplications    = "custom-applications"
 )
 
 var FeatureOptions = []string{
 	FeatureContainerRepositories,
+	FeatureApplicationFlavors,
+	FeatureCustomApplications,
 }
 
 func FeatureIsValid(feature string) bool {

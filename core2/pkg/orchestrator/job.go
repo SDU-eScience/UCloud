@@ -1494,7 +1494,7 @@ func jobsFollow(conn *ws.Conn) {
 func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) (orcapi.Application, *util.HttpError) {
 	if cacheValue, hasCacheRequest := spec.Parameters[jobCacheInitScriptParam]; hasCacheRequest &&
 		cacheValue.Type == orcapi.AppParameterValueTypeBoolean && cacheValue.Value == true {
-		if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureContainerRepositories); err != nil {
+		if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureApplicationFlavors); err != nil {
 			return orcapi.Application{}, err
 		}
 	}

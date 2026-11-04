@@ -858,7 +858,7 @@ func applicationVariantValidateImage(actor rpc.Actor, provider, image string, re
 
 func initApplicationVariantRpc() {
 	orcapi.JobsCreateApplicationVariant.Handler(func(info rpc.RequestInfo, request orcapi.JobsCreateApplicationVariantRequest) (fndapi.Task, *util.HttpError) {
-		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureContainerRepositories); err != nil {
+		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureApplicationFlavors); err != nil {
 			return fndapi.Task{}, err
 		}
 
@@ -936,7 +936,7 @@ func initApplicationVariantRpc() {
 	})
 
 	orcapi.ApplicationVariantsCreate.Handler(func(info rpc.RequestInfo, request orcapi.ApplicationVariantCreateRequest) (orcapi.ApplicationVariant, *util.HttpError) {
-		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureContainerRepositories); err != nil {
+		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureApplicationFlavors); err != nil {
 			return orcapi.ApplicationVariant{}, err
 		}
 
@@ -1012,7 +1012,7 @@ func initApplicationVariantRpc() {
 	})
 
 	orcapi.ApplicationVariantsUpdate.Handler(func(info rpc.RequestInfo, request orcapi.ApplicationVariantUpdateRequest) (orcapi.ApplicationVariant, *util.HttpError) {
-		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureContainerRepositories); err != nil {
+		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureApplicationFlavors); err != nil {
 			return orcapi.ApplicationVariant{}, err
 		}
 
@@ -1134,7 +1134,7 @@ func initApplicationVariantRpc() {
 	})
 
 	orcapi.ApplicationVariantsDelete.Handler(func(info rpc.RequestInfo, request orcapi.FindApplicationVariant) (util.Empty, *util.HttpError) {
-		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureContainerRepositories); err != nil {
+		if err := coreutil.FeatureIsEnabled(info.Actor, fndapi.FeatureApplicationFlavors); err != nil {
 			return util.Empty{}, err
 		}
 
