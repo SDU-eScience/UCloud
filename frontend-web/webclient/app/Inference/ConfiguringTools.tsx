@@ -118,18 +118,18 @@ export default function ConfiguringTools({
     "messages": [{"role": "user", "content": "Hello"}]
   }'`} />
 
-                <Text>Only the a limited set of APIs are supported. Prefer using the chat completions API when possible.</Text>
+                <Text>Only a limited set of APIs are supported. Prefer using the chat completions API when possible.</Text>
             </ToolGuide>
 
             <ToolGuide id="vscode" title="VS Code" openTool={openTool} setOpenTool={setOpenTool}>
                 <Text>Add UCloud as a custom Responses endpoint in VS Code.</Text>
                 <ul>
                     <li>Open the Command Palette {"->"} Chat: Manage Language Models.</li>
-                    <li>Select "Add models".</li>
-                    <li>Select "Custom endpoint".</li>
+                    <li>Select "Add Models".</li>
+                    <li>Select "Custom Endpoint".</li>
                     <li>Enter a group name such as "UCloud".</li>
                     <li>Use your API key (<CopyableInline value={apiToken} />).</li>
-                    <li>Use the "Responses" API.</li>
+                    <li>Select "Responses" as the API type.</li>
                 </ul>
                 <Text>Use this model configuration (you should <i>only</i> change the <code>models</code> section):</Text>
                 <CodeSnippet lang="json" children={JSON.stringify({
@@ -151,33 +151,45 @@ export default function ConfiguringTools({
             </ToolGuide>
 
             <ToolGuide id="opencode" title="OpenCode" openTool={openTool} setOpenTool={setOpenTool}>
-                <Text>Documentation: <ExternalLink href="https://opencode.ai/docs/providers/">OpenCode providers</ExternalLink></Text>
+                <Text>Documentation: <ExternalLink href="https://opencode.ai/v2/docs/providers#custom">OpenCode custom providers</ExternalLink></Text>
                 <ul>
-                    <li>Open OpenCode.</li>
-                    <li>Run <CopyableInline value="/connect" />.</li>
-                    <li>Choose <b>Other</b>.</li>
-                    <li>Use a provider ID such as <CopyableInline value="ucloud" />.</li>
-                    <li>Paste your API key when prompted.</li>
-                    <li>Create or edit <code>opencode.json</code>.</li>
+                    <li>Create or edit <code>opencode.json</code> (or <code>~/.config/opencode/opencode.json</code> to apply it to all projects).</li>
                     <li>Add the provider configuration below.</li>
-                    <li>Restart OpenCode.</li>
-                    <li>Select the desired UCloud model from the model list.</li>
+                    <li>Open OpenCode and run <CopyableInline value="/connect" />.</li>
+                    <li>Select <b>UCloud</b> and paste your API key when prompted.</li>
+                    <li>Run <CopyableInline value="/models" /> and select the desired UCloud model.</li>
                 </ul>
+                <Text>OpenCode reloads its configuration automatically. If UCloud does not appear, run <CopyableInline value="/reload" />.</Text>
                 <CodeSnippet lang="json" children={JSON.stringify({
                     $schema: "https://opencode.ai/config.json",
-                    provider: {
+                    providers: {
                         "ucloud": {
-                            npm: "@ai-sdk/openai-compatible",
                             name: "UCloud",
-                            options: {
+                            package: "@opencode/ai/providers/openai-compatible",
+                            settings: {
                                 baseURL: resolvedServer,
                             },
                             models: Object.fromEntries(modelRefs.map(model => [model.id, {
                                 name: model.title,
+                                capabilities: {
+                                    tools: model.toolCalling,
+                                    input: model.vision ? ["text", "image"] : ["text"],
+                                    output: ["text"],
+                                    ...(model.reasoningEfforts.length === 0 ? {} : {
+                                        reasoning: {
+                                            supported: true,
+                                            effort: model.reasoningEfforts.map(effort => effort.value),
+                                        },
+                                    }),
+                                },
+                                ...(model.contextWindow === undefined ? {} : {
+                                    limit: {
+                                        context: model.contextWindow,
+                                        output: model.maxOutputTokens,
+                                    },
+                                }),
                                 ...(model.reasoningEfforts.length === 0 ? {} : {
-                                    reasoning: true,
-                                    options: {reasoningEffort: model.defaultReasoningEffort},
-                                    variants: Object.fromEntries(model.reasoningEfforts.map(effort => [effort.value, {reasoningEffort: effort.value}])),
+                                    settings: {reasoningEffort: model.defaultReasoningEffort},
                                 }),
                             }])),
                         },
