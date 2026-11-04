@@ -128,7 +128,9 @@ func saveConfig(token string, username string) error {
 	if err != nil {
 		return err
 	}
-	cfg.TokenRef = token
+	env := cfg.Environments[cfg.DefaultEnvironment]
+	env.TokenRef = token
+	cfg.Environments[cfg.DefaultEnvironment] = env
 	cfg.Username = username
 
 	_, saveErr := shared.SaveConfig(cfg)
