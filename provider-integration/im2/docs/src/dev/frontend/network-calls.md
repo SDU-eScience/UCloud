@@ -1,5 +1,13 @@
 ## Network calls
 
+UCloud has three different options for network calls:
+
+- `callAPI`
+- [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)
+- WSFactory
+
+### callAPI
+
 The `callAPI`-function is used for contacting the backend, fetching data and posting updates.
 
 The first parameter `APICallParameter`, is an object that contains HTTP method, optional body, and other relevant arguments for the network call.
@@ -24,13 +32,44 @@ function Component(): React.ReactNode {
 
     /* Code */
 }
+
 ```
 
 `callAPI` takes authentication into account. This also includes refreshing tokens when expired, and automically logging the user out, if the the tokens have been invalidated.
 Relevant code can be found in [Authentication/DataHook.ts](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Authentication/DataHook.ts)
 
-If authentication is not needed for the request, [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) can be used instead.
+### `fetch`
 
+If authentication is not needed for the request, `fetch` can be used instead.
+
+```typescript
+await fetch(Client.computeURL("/api/endpoint", "/retrieve"),
+    {
+        method: "GET",
+        headers: {
+            Accept: "application/json"
+        },
+    }
+);
+```
+
+### `open` (WebSocket)
+
+When continuously listening for messages is preferable, the `open` (WSFactory.open) method is used instead. One examples are job updates, that listens for state changes, job consumption, or file-browser that streams file results when searching.
+
+```typescript
+const conn = WSFactory.open(
+    "/endpoint", {
+    init: async conn => {
+        await conn.subscribe({
+            call: "endpoint.follow",
+            payload: {id},
+            handler: message => callback(message)
+        });
+        conn.close();
+    }
+});
+```
 
 ## HttpClient - lib.ts
 
@@ -39,3 +78,11 @@ A singleton named `Client` is the instantiation of the `HttpClient` that is used
 Making backend calls should go through `callAPI` or `fetch`, and not be done by using the `call` function directly.
 
 Relevant code can be found in [`/app/Authentication/lib.ts`](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Authentication/lib.ts)
+
+### WebSocketFactory - ws.ts
+
+A singleton named `WSFactory`, of the type `WebSocketFactory`, is used to establish websocket connections to the backend. A connection must provide a URL, payload and handler callback to manage the messages.
+
+Relevant code can be found in [`/app/Authentication/lib.ts`](https://github.com/sdu-eScience/UCloud/tree/master/frontend-web/webclient/app/Authentication/ws.ts)
+
+`WebSocketFactory` depends on the `Client` singleton.

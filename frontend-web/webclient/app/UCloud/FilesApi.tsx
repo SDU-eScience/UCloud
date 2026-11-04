@@ -84,7 +84,6 @@ import {
     UFile,
     UFileIncludeFlags,
     UFileSpecification,
-    UFileStatus
 } from "./UFile";
 import AppRoutes from "@/Routes";
 import {allowEditing, Editor, EditorApi, EditorLoadingState, Vfs} from "@/Editor/Editor";

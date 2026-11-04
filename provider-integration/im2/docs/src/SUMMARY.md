@@ -6,7 +6,6 @@
 - [Projects](./overview/projects.md)
 - [Accounting](./overview/accounting.md)
 - [Orchestration](./overview/orchestration.md)
-- [Frontend](./dev/frontend/frontend-development.md)
 
 <!--
 # Becoming a Provider
@@ -87,15 +86,17 @@
 
 # WIP
 
+# Frontend
+
+- [Frontend](./dev/frontend/frontend-development.md)
+- [Frontend layout](./dev/frontend/frontend-layout.md)
+- [Network calls](./dev/frontend/network-calls.md)
+- [Styling (CSS)](./dev/frontend/inject-style.md)
+- [Testing](./dev/frontend/testing.md)
 
 - [ResourceBrowser](./dev/frontend/resource-browser/about.md)
     - [Features and operations](./dev/frontend/resource-browser/features-and-operations.md)
     - [Use](./dev/frontend/resource-browser/use.md)
-- [Frontend](./dev/frontend/frontend-development.md)
-- [Frontend layout](./dev/frontend/frontend-layout.md)
-- [Styling (CSS)](./dev/frontend/inject-style.md)
-- [Network calls](./dev/frontend/network-calls.md)
-- [Testing](./dev/frontend/testing.md)
 
 <!--
 

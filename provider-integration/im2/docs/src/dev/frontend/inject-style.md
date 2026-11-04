@@ -52,4 +52,4 @@ While separate tools exist to help with finding these cases, the aforementionene
 If the result of the `makeClassName` is no longer applied to any component, the rule can safely be deleted. This requires selectors to be written where references to classes in selectors has the classname interpolated. 
 
 `styled-components` will also add browser specific rules that will have to be added manually. While this is more rare,
-some rules with the `-webkit`-prefix (similar to the legacy `moz-`) could
+some rules with the `-webkit`-prefix (similar to the legacy `moz-`) could require manual addition.
