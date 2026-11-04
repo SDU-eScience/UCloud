@@ -269,7 +269,7 @@ func SubmitRun(request RunRequest, requestedBy string) (MaintenanceRun, error) {
 		}
 		return MaintenanceRun{}, err
 	}
-	maintenanceWakeSignal()
+	maintenanceWakeSignal(maintenanceRunWake)
 	return run, nil
 }
 
@@ -288,15 +288,9 @@ func SubmitConfiguredRun(requestedBy string) (MaintenanceRun, error) {
 		policy = policyRecord.Value
 	}
 
-	tasks := []TaskRequest{}
-	if policy.Kubernetes.Enabled {
-		tasks = append(tasks, TaskRequest{Kind: k8sapi.MaintenanceTaskK8sUpgrade})
-	}
-	if policy.Os.Enabled {
-		tasks = append(tasks, TaskRequest{Kind: k8sapi.MaintenanceTaskOsUpdate})
-	}
-	if len(tasks) == 0 {
-		return MaintenanceRun{}, errors.New("no maintenance task is enabled in the policy")
+	tasks, err := policyTaskRequests(policy)
+	if err != nil {
+		return MaintenanceRun{}, err
 	}
 
 	return SubmitRun(RunRequest{
@@ -307,15 +301,9 @@ func SubmitConfiguredRun(requestedBy string) (MaintenanceRun, error) {
 }
 
 func createScheduledRun(client shared.RpcGrantClient, policy Policy, windowStart time.Time, windowEnd time.Time) (MaintenanceRun, error) {
-	var tasks []TaskRequest
-	if policy.Kubernetes.Enabled {
-		tasks = append(tasks, TaskRequest{Kind: k8sapi.MaintenanceTaskK8sUpgrade})
-	}
-	if policy.Os.Enabled {
-		tasks = append(tasks, TaskRequest{Kind: k8sapi.MaintenanceTaskOsUpdate})
-	}
-	if len(tasks) == 0 {
-		return MaintenanceRun{}, errors.New("no maintenance task is enabled")
+	tasks, err := policyTaskRequests(policy)
+	if err != nil {
+		return MaintenanceRun{}, err
 	}
 
 	request := RunRequest{
@@ -345,8 +333,22 @@ func createScheduledRun(client shared.RpcGrantClient, policy Policy, windowStart
 	if err := runWriteNew(client, run); err != nil {
 		return MaintenanceRun{}, err
 	}
-	maintenanceWakeSignal()
+	maintenanceWakeSignal(maintenanceRunWake)
 	return run, nil
+}
+
+func policyTaskRequests(policy Policy) ([]TaskRequest, error) {
+	tasks := []TaskRequest{}
+	if policy.Kubernetes.Enabled {
+		tasks = append(tasks, TaskRequest{Kind: k8sapi.MaintenanceTaskK8sUpgrade})
+	}
+	if policy.Os.Enabled {
+		tasks = append(tasks, TaskRequest{Kind: k8sapi.MaintenanceTaskOsUpdate})
+	}
+	if len(tasks) == 0 {
+		return nil, errors.New("no maintenance task is enabled in the policy")
+	}
+	return tasks, nil
 }
 
 func buildRunSpec(policy Policy, request RunRequest) (RunSpec, error) {
@@ -620,34 +622,21 @@ func ensureRunCanStart(client shared.RpcGrantClient, spec RunSpec, nodes []share
 		return err
 	}
 
+	targetSet := map[string]bool{}
+	for _, node := range nodes {
+		targetSet[node.Hostname] = true
+	}
+
 	if spec.Kind == RunKindUpdate {
 		if updateRecord.Found {
 			return errors.New("an update run is already active. Cancel it or wait for it to finish")
 		}
-		targetSet := map[string]bool{}
-		for _, node := range nodes {
-			targetSet[node.Hostname] = true
-		}
 		for _, run := range nodeRuns {
-			if run.Kind == RunKindNodeAction {
-				for _, nodeName := range run.Effective.Target.Nodes {
-					if targetSet[nodeName] {
-						return fmt.Errorf(
-							"a maintenance run already exists for node %s. Retry or cancel it first",
-							nodeName,
-						)
-					}
-				}
-			}
-			for _, task := range run.Tasks {
-				for _, item := range task.Items {
-					if targetSet[item.NodeName] {
-						return fmt.Errorf(
-							"a maintenance run already exists for node %s. Retry or cancel it first",
-							item.NodeName,
-						)
-					}
-				}
+			if nodeName, overlap := runOverlappingNode(run, targetSet); overlap {
+				return fmt.Errorf(
+					"a maintenance run already exists for node %s. Retry or cancel it first",
+					nodeName,
+				)
 			}
 		}
 		return nil
@@ -675,29 +664,11 @@ func ensureRunCanStart(client shared.RpcGrantClient, spec RunSpec, nodes []share
 	}
 
 	for _, run := range nodeRuns {
-		if run.Kind == RunKindNodeAction {
-			for _, target := range run.Effective.Target.Nodes {
-				for _, node := range nodes {
-					if target == node.Hostname {
-						return fmt.Errorf(
-							"a maintenance run already exists for node %s. Retry or cancel it first",
-							node.Hostname,
-						)
-					}
-				}
-			}
-		}
-		for _, task := range run.Tasks {
-			for _, item := range task.Items {
-				for _, node := range nodes {
-					if item.NodeName == node.Hostname {
-						return fmt.Errorf(
-							"a maintenance run already exists for node %s. Retry or cancel it first",
-							node.Hostname,
-						)
-					}
-				}
-			}
+		if nodeName, overlap := runOverlappingNode(run, targetSet); overlap {
+			return fmt.Errorf(
+				"a maintenance run already exists for node %s. Retry or cancel it first",
+				nodeName,
+			)
 		}
 	}
 
@@ -712,6 +683,24 @@ func ensureRunCanStart(client shared.RpcGrantClient, spec RunSpec, nodes []share
 	}
 
 	return nil
+}
+
+func runOverlappingNode(run MaintenanceRun, targets map[string]bool) (string, bool) {
+	if run.Kind == RunKindNodeAction {
+		for _, nodeName := range run.Effective.Target.Nodes {
+			if targets[nodeName] {
+				return nodeName, true
+			}
+		}
+	}
+	for _, task := range run.Tasks {
+		for _, item := range task.Items {
+			if targets[item.NodeName] {
+				return item.NodeName, true
+			}
+		}
+	}
+	return "", false
 }
 
 func runTargetsNode(run MaintenanceRun, nodeName string, nodeGroup string) bool {
@@ -740,20 +729,13 @@ func runNodeKey(nodeName string) string {
 }
 
 func runNodeRecords(client shared.RpcGrantClient) ([]stackValue[MaintenanceRun], error) {
-	records, err := stackList(client, runNodePrefix)
+	values, err := stackValues[MaintenanceRun](client, runNodePrefix, "maintenance run", nil)
 	if err != nil {
 		return nil, err
 	}
 
-	runs := make([]stackValue[MaintenanceRun], 0, len(records))
-	for _, record := range records {
-		if record.IsEmpty() {
-			continue
-		}
-		run, err := stackValueDecode[MaintenanceRun](record, "maintenance run "+record.Key)
-		if err != nil {
-			return nil, err
-		}
+	runs := make([]stackValue[MaintenanceRun], 0, len(values))
+	for _, run := range values {
 		if run.Value.Uid != "" {
 			runs = append(runs, run)
 		}
@@ -858,12 +840,10 @@ func findRun(client shared.RpcGrantClient, runUid string, nodeName string) (Main
 			return MaintenanceRun{}, 0, fmt.Errorf("could not read the cluster record: %s", err)
 		}
 		if found {
-			for _, node := range record.Nodes {
-				if node.Hostname == nodeName {
-					nodeGroup = node.Group
-					nodeKnown = true
-					break
-				}
+			node, known := clusterNodeRecord(record, nodeName)
+			if known {
+				nodeGroup = node.Group
+				nodeKnown = true
 			}
 		}
 	}
@@ -956,16 +936,16 @@ func CancelRun(runUid string, nodeName string) (MaintenanceRun, error) {
 		}
 
 		run.CancelRequested = true
-		if (run.Phase == k8sapi.MaintenanceRunFailed || run.Phase == k8sapi.MaintenanceRunBlocked) && run.ClaimUid != "" {
-			run.ClaimUid = ""
-			run.ClaimDeadline = time.Time{}
-		} else if run.ClaimUid != "" && !time.Now().UTC().Before(run.ClaimDeadline) {
+		claimStale := run.Phase == k8sapi.MaintenanceRunFailed ||
+			run.Phase == k8sapi.MaintenanceRunBlocked ||
+			!time.Now().UTC().Before(run.ClaimDeadline)
+		if run.ClaimUid != "" && claimStale {
 			run.ClaimUid = ""
 			run.ClaimDeadline = time.Time{}
 		}
 		_, err = runWrite(client, run, revision)
 		if err == nil {
-			maintenanceWakeSignal()
+			maintenanceWakeSignal(maintenanceRunWake)
 			return run, nil
 		}
 		if !shared.IsConflict(err) {
@@ -1032,7 +1012,7 @@ func RetryRun(runUid string, nodeName string) (MaintenanceRun, error) {
 
 		_, err = runWrite(client, run, revision)
 		if err == nil {
-			maintenanceWakeSignal()
+			maintenanceWakeSignal(maintenanceRunWake)
 			return run, nil
 		}
 		if !shared.IsConflict(err) {

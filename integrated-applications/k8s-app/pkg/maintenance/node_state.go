@@ -94,7 +94,7 @@ func nodeStateRecord(nodeName string) (shared.ClusterNodeRecord, error) {
 		return shared.ClusterNodeRecord{}, fmt.Errorf("the cluster record does not exist")
 	}
 
-	nodeRecord, known := upgradeNodeRecord(record, nodeName)
+	nodeRecord, known := clusterNodeRecord(record, nodeName)
 	if !known {
 		return shared.ClusterNodeRecord{}, fmt.Errorf("the node %s is not part of this cluster", nodeName)
 	}

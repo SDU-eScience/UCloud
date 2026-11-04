@@ -74,11 +74,13 @@ const (
 	stackListPageSize = 100
 )
 
-var maintenanceWake = make(chan struct{}, 1)
+var maintenanceOperationWake = make(chan struct{}, 1)
 
-func maintenanceWakeSignal() {
+var maintenanceRunWake = make(chan struct{}, 1)
+
+func maintenanceWakeSignal(wake chan struct{}) {
 	select {
-	case maintenanceWake <- struct{}{}:
+	case wake <- struct{}{}:
 	default:
 	}
 }
@@ -158,33 +160,33 @@ func cancelActiveOperation(nodeName string) error {
 		return err
 	}
 
-	record, err := stackValueRead[Operation](client, stackNodeKey(nodeName), "maintenance record "+stackNodeKey(nodeName))
-	if err != nil {
-		return err
-	}
-
-	if !record.Found {
-		return fmt.Errorf("no operation exists for node %s", nodeName)
-	}
-	operation := record.Value
-	if !PhaseActive(operation.Phase) {
-		return fmt.Errorf("the operation on node %s already finished", nodeName)
-	}
-	if KindRequiresRecovery(operation.Kind) && operation.ExecutorSubmitted {
-		return errors.New(submittedCancelMessage(operation.Kind))
-	}
-	if RemovePastPointOfNoReturn(operation) {
-		return errors.New("the node removal passed the point of no return and cannot be cancelled")
-	}
-	if operation.CancelRequested {
-		return nil
-	}
-
-	operation.CancelRequested = true
-	operation.UpdatedAt = time.Now().UTC()
-	operation.HeartbeatAt = time.Time{}
-
 	for attempt := 0; ; attempt++ {
+		record, readErr := stackValueRead[Operation](client, stackNodeKey(nodeName), "maintenance record "+stackNodeKey(nodeName))
+		if readErr != nil {
+			return readErr
+		}
+		if !record.Found {
+			return fmt.Errorf("no operation exists for node %s", nodeName)
+		}
+
+		operation := record.Value
+		if !PhaseActive(operation.Phase) {
+			return fmt.Errorf("the operation on node %s already finished", nodeName)
+		}
+		if KindRequiresRecovery(operation.Kind) && operation.ExecutorSubmitted {
+			return errors.New(submittedCancelMessage(operation.Kind))
+		}
+		if RemovePastPointOfNoReturn(operation) {
+			return errors.New("the node removal passed the point of no return and cannot be cancelled")
+		}
+		if operation.CancelRequested {
+			return nil
+		}
+
+		operation.CancelRequested = true
+		operation.UpdatedAt = time.Now().UTC()
+		operation.HeartbeatAt = time.Time{}
+
 		_, writeErr := stackValueWrite(client, stackNodeKey(nodeName), operation, record.Revision)
 		if writeErr == nil {
 			return nil
@@ -194,28 +196,6 @@ func cancelActiveOperation(nodeName string) error {
 		}
 
 		time.Sleep(2 * time.Second)
-
-		record, err = stackValueRead[Operation](client, stackNodeKey(nodeName), "maintenance record "+stackNodeKey(nodeName))
-		if err != nil {
-			return err
-		}
-		if !record.Found {
-			return fmt.Errorf("no operation exists for node %s", nodeName)
-		}
-		if !PhaseActive(record.Value.Phase) {
-			return fmt.Errorf("the operation on node %s already finished", nodeName)
-		}
-		if KindRequiresRecovery(record.Value.Kind) && record.Value.ExecutorSubmitted {
-			return errors.New(submittedCancelMessage(record.Value.Kind))
-		}
-		if RemovePastPointOfNoReturn(record.Value) {
-			return errors.New("the node removal passed the point of no return and cannot be cancelled")
-		}
-
-		operation = record.Value
-		operation.CancelRequested = true
-		operation.UpdatedAt = time.Now().UTC()
-		operation.HeartbeatAt = time.Time{}
 	}
 }
 
@@ -225,21 +205,13 @@ func Snapshot() (map[string]Operation, error) {
 		return nil, err
 	}
 
-	records, err := stackList(client, stackKeyPrefix)
+	operations, err := stackValues[Operation](client, stackKeyPrefix, "maintenance record", nil)
 	if err != nil {
 		return nil, err
 	}
 
 	snapshot := map[string]Operation{}
-	for _, record := range records {
-		if record.IsEmpty() {
-			continue
-		}
-
-		operation, err := stackValueDecode[Operation](record, "maintenance record "+record.Key)
-		if err != nil {
-			return nil, err
-		}
+	for _, operation := range operations {
 		if operation.Value.NodeName == "" {
 			continue
 		}
@@ -437,7 +409,7 @@ func submitWrite(submit submission) (string, error) {
 	}
 
 	resetNodeLog(submit.nodeName, operation.Uid)
-	maintenanceWakeSignal()
+	maintenanceWakeSignal(maintenanceOperationWake)
 
 	return operation.Uid, nil
 }
@@ -531,7 +503,7 @@ func removeSubmitGuard(nodeName string) error {
 	removeRetry := existingRecord.Found &&
 		existingRecord.Value.Kind == KindRemove && !PhaseActive(existingRecord.Value.Phase)
 
-	node, known := removeNodeRecord(record, nodeName)
+	node, known := clusterNodeRecord(record, nodeName)
 	if !known && !removeRetry {
 		return fmt.Errorf("the node %s is not part of this cluster", nodeName)
 	}
@@ -563,7 +535,7 @@ func removeSubmitGuard(nodeName string) error {
 	return nil
 }
 
-func removeNodeRecord(record shared.ClusterRecord, nodeName string) (shared.ClusterNodeRecord, bool) {
+func clusterNodeRecord(record shared.ClusterRecord, nodeName string) (shared.ClusterNodeRecord, bool) {
 	for _, node := range record.Nodes {
 		if node.Hostname == nodeName {
 			return node, true
@@ -618,6 +590,36 @@ func stackValueRead[T any](client shared.RpcGrantClient, key string, noun string
 	}
 
 	return stackValueDecode[T](record, noun)
+}
+
+func stackValues[T any](
+	client shared.RpcGrantClient,
+	prefix string,
+	noun string,
+	onInvalid func(err error),
+) ([]stackValue[T], error) {
+	records, err := stackList(client, prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	values := make([]stackValue[T], 0, len(records))
+	for _, record := range records {
+		if record.IsEmpty() {
+			continue
+		}
+
+		value, decodeErr := stackValueDecode[T](record, noun+" "+record.Key)
+		if decodeErr != nil {
+			if onInvalid == nil {
+				return nil, decodeErr
+			}
+			onInvalid(decodeErr)
+			continue
+		}
+		values = append(values, value)
+	}
+	return values, nil
 }
 
 func stackValueWrite[T any](client shared.RpcGrantClient, key string, value T, expectedRevision int64) (int64, error) {

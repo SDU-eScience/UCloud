@@ -45,15 +45,6 @@ func upgradeSubmitMessage(operation Operation) string {
 	)
 }
 
-func upgradeNodeRecord(record shared.ClusterRecord, nodeName string) (shared.ClusterNodeRecord, bool) {
-	for _, recorded := range record.Nodes {
-		if recorded.Hostname == nodeName {
-			return recorded, true
-		}
-	}
-	return shared.ClusterNodeRecord{}, false
-}
-
 func runUpgrade(
 	ctx context.Context,
 	clientset *kubernetes.Clientset,
@@ -155,7 +146,7 @@ func upgradePreflight(
 		return fmt.Errorf("the cluster is not ready (state: %s)", record.Phase)
 	}
 
-	nodeRecord, nodeKnown := upgradeNodeRecord(record, nodeName)
+	nodeRecord, nodeKnown := clusterNodeRecord(record, nodeName)
 	if !nodeKnown {
 		return errors.New("the node is not part of this cluster")
 	}
@@ -570,16 +561,7 @@ func upgradeSubmit(
 ) bool {
 	nodeName := operation.NodeName
 
-	persistErr := worker.mutate(func(op *Operation) bool {
-		if op.ExecutorSubmitted && !op.SubmittedAt.IsZero() {
-			return false
-		}
-		op.ExecutorSubmitted = true
-		if op.SubmittedAt.IsZero() {
-			op.SubmittedAt = time.Now().UTC()
-		}
-		return true
-	})
+	persistErr := operationMarkExecutorSubmitted(worker)
 	if persistErr != nil {
 		log.Warn("k8s-app maintenance %s: could not record the submission to the node executor: %s", nodeName, persistErr)
 		operationLogStage(
@@ -706,7 +688,7 @@ func upgradeHealthClient(worker *nodeWorker, operation Operation, clientset *kub
 	if err != nil {
 		return nil, err
 	}
-	node, known := upgradeNodeRecord(record, operation.NodeName)
+	node, known := clusterNodeRecord(record, operation.NodeName)
 	if !known {
 		return nil, fmt.Errorf("the node %s is not part of the cluster", operation.NodeName)
 	}
@@ -770,7 +752,7 @@ func upgradeNodeIp(worker *nodeWorker, operation Operation) (string, error) {
 		return "", fmt.Errorf("could not read the cluster record: %s", err)
 	}
 
-	nodeRecord, known := upgradeNodeRecord(record, operation.NodeName)
+	nodeRecord, known := clusterNodeRecord(record, operation.NodeName)
 	if !known {
 		return "", errors.New("the node is not part of this cluster")
 	}
@@ -832,7 +814,7 @@ func trafficNodeJobId(worker *nodeWorker, operation Operation) (string, error) {
 		return "", fmt.Errorf("could not read the cluster record: %s", err)
 	}
 
-	nodeRecord, known := upgradeNodeRecord(record, operation.NodeName)
+	nodeRecord, known := clusterNodeRecord(record, operation.NodeName)
 	if !known {
 		return "", fmt.Errorf("the node %s is not part of this cluster", operation.NodeName)
 	}
@@ -1016,7 +998,7 @@ func upgradeTrafficControlPlane(operation Operation, worker *nodeWorker) (bool, 
 		return false, fmt.Errorf("could not read the cluster record: %s", err)
 	}
 
-	nodeRecord, known := upgradeNodeRecord(record, operation.NodeName)
+	nodeRecord, known := clusterNodeRecord(record, operation.NodeName)
 	if !known {
 		return false, fmt.Errorf("the node %s is not part of this cluster", operation.NodeName)
 	}

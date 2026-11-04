@@ -281,6 +281,10 @@ func (lease *runLease) finish(client shared.RpcGrantClient, run MaintenanceRun) 
 }
 
 func (lease *runLease) finishLocked(client shared.RpcGrantClient, run MaintenanceRun) (int64, error) {
+	return lease.revision, runFinishPersist(client, run, lease.revision)
+}
+
+func runFinishPersist(client shared.RpcGrantClient, run MaintenanceRun, revision int64) error {
 	run.FinishedAt = time.Now().UTC()
 	if run.Kind == RunKindUpdate && run.Trigger == k8sapi.MaintenanceTriggerWindow {
 		if err := setLastWindowStart(client, run.WindowStart); err != nil {
@@ -294,23 +298,23 @@ func (lease *runLease) finishLocked(client shared.RpcGrantClient, run Maintenanc
 
 	lastRecord, err := runLastRead(client)
 	if err != nil {
-		return lease.revision, err
+		return err
 	}
 	_, err = stackValueWrite(client, runLastKey, run, lastRecord.Revision)
 	if err != nil {
-		return lease.revision, err
+		return err
 	}
 
-	err = runDelete(client, run, lease.revision)
+	err = runDelete(client, run, revision)
 	if err != nil && !shared.IsConflict(err) {
-		return lease.revision, err
+		return err
 	}
-	return lease.revision, nil
+	return nil
 }
 
 func advanceRun(ctx context.Context, kubeconfigPath string, client shared.RpcGrantClient, run MaintenanceRun, revision int64) error {
 	if RunTerminal(run) {
-		return finishRun(client, run, revision)
+		return runFinishPersist(client, run, revision)
 	}
 	if (run.Phase == k8sapi.MaintenanceRunBlocked || run.Phase == k8sapi.MaintenanceRunFailed) && !run.CancelRequested {
 		return nil
@@ -352,18 +356,12 @@ func advanceRun(ctx context.Context, kubeconfigPath string, client shared.RpcGra
 			run.Phase = k8sapi.MaintenanceRunRunning
 			run.Message = ""
 			run.Error = ""
-			completed, taskErr := advanceRunTasks(ctx, kubeconfigPath, client, lease, &run)
-			if ctx.Err() != nil {
-				return ctx.Err()
+			concluded, runErr := advanceRunActive(ctx, kubeconfigPath, client, lease, &run)
+			if runErr != nil {
+				return runErr
 			}
-			if lease.cancellationRequested(client) && !completed {
-				run.CancelRequested = true
-				return cancelRunExecution(ctx, client, &run, lease)
-			}
-			if taskErr != nil {
-				runFail(&run, taskErr.Error())
-			} else if completed {
-				run.Phase = k8sapi.MaintenanceRunCompleted
+			if concluded {
+				return nil
 			}
 		case runWait:
 			run.Message = detail
@@ -400,18 +398,12 @@ func advanceRun(ctx context.Context, kubeconfigPath string, client shared.RpcGra
 		}
 
 	case k8sapi.MaintenanceRunRunning:
-		completed, taskErr := advanceRunTasks(ctx, kubeconfigPath, client, lease, &run)
-		if ctx.Err() != nil {
-			return ctx.Err()
+		concluded, runErr := advanceRunActive(ctx, kubeconfigPath, client, lease, &run)
+		if runErr != nil {
+			return runErr
 		}
-		if lease.cancellationRequested(client) && !completed {
-			run.CancelRequested = true
-			return cancelRunExecution(ctx, client, &run, lease)
-		}
-		if taskErr != nil {
-			runFail(&run, taskErr.Error())
-		} else if completed {
-			run.Phase = k8sapi.MaintenanceRunCompleted
+		if concluded {
+			return nil
 		}
 
 	case k8sapi.MaintenanceRunBlocked, k8sapi.MaintenanceRunFailed:
@@ -431,6 +423,29 @@ func advanceRun(ctx context.Context, kubeconfigPath string, client shared.RpcGra
 	}
 
 	return lease.write(client, run)
+}
+
+func advanceRunActive(
+	ctx context.Context,
+	kubeconfigPath string,
+	client shared.RpcGrantClient,
+	lease *runLease,
+	run *MaintenanceRun,
+) (bool, error) {
+	completed, taskErr := advanceRunTasks(ctx, kubeconfigPath, client, lease, run)
+	if ctx.Err() != nil {
+		return true, ctx.Err()
+	}
+	if lease.cancellationRequested(client) && !completed {
+		run.CancelRequested = true
+		return true, cancelRunExecution(ctx, client, run, lease)
+	}
+	if taskErr != nil {
+		runFail(run, taskErr.Error())
+	} else if completed {
+		run.Phase = k8sapi.MaintenanceRunCompleted
+	}
+	return false, nil
 }
 
 func claimRun(client shared.RpcGrantClient, run MaintenanceRun, revision int64) (MaintenanceRun, int64, bool, error) {
@@ -464,34 +479,6 @@ func releaseRunClaim(client shared.RpcGrantClient, run MaintenanceRun) {
 	if err != nil && !shared.IsConflict(err) {
 		log.Warn("k8s-app maintenance: could not release the run claim: %s", err)
 	}
-}
-
-func finishRun(client shared.RpcGrantClient, run MaintenanceRun, revision int64) error {
-	run.FinishedAt = time.Now().UTC()
-	if run.Kind == RunKindUpdate && run.Trigger == k8sapi.MaintenanceTriggerWindow {
-		if err := setLastWindowStart(client, run.WindowStart); err != nil {
-			log.Warn("k8s-app maintenance: could not record the maintenance window: %s", err)
-		}
-	}
-
-	if err := runHistoryAdd(client, run); err != nil {
-		log.Warn("k8s-app maintenance: could not record the run history: %s", err)
-	}
-
-	lastRecord, err := runLastRead(client)
-	if err != nil {
-		return err
-	}
-	_, err = stackValueWrite(client, runLastKey, run, lastRecord.Revision)
-	if err != nil {
-		return err
-	}
-
-	err = runDelete(client, run, revision)
-	if err != nil && !shared.IsConflict(err) {
-		return err
-	}
-	return nil
 }
 
 func cancelRunExecution(
@@ -1510,9 +1497,11 @@ func advanceRunTask(
 				}
 				recordLoaded = true
 			}
-			if recordFound && !clusterRecordHasNode(record, item.NodeName) {
-				item.Phase = k8sapi.MaintenanceRunCompleted
-				continue
+			if recordFound {
+				if _, known := clusterNodeRecord(record, item.NodeName); !known {
+					item.Phase = k8sapi.MaintenanceRunCompleted
+					continue
+				}
 			}
 		}
 
@@ -1749,13 +1738,4 @@ func runAdoptOperation(
 	default:
 		return false, nil
 	}
-}
-
-func clusterRecordHasNode(record shared.ClusterRecord, nodeName string) bool {
-	for _, node := range record.Nodes {
-		if node.Hostname == nodeName {
-			return true
-		}
-	}
-	return false
 }

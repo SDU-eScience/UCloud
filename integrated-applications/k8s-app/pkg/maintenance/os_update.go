@@ -55,11 +55,11 @@ func runOsUpdate(
 			return err
 		}
 
-		result := runCordonDrain(ctx, clientset, operation, worker, false)
-		if result.err != nil {
-			return result.err
+		outcome, drainErr := runCordonDrain(ctx, clientset, operation, worker, false)
+		if drainErr != nil {
+			return drainErr
 		}
-		if result.outcome != drainDone {
+		if outcome != drainDone {
 			return nil
 		}
 
@@ -113,7 +113,7 @@ func osUpdatePreflight(ctx context.Context, clientset *kubernetes.Clientset, ope
 		return fmt.Errorf("the cluster is not ready (state: %s)", record.Phase)
 	}
 
-	nodeRecord, nodeKnown := upgradeNodeRecord(record, nodeName)
+	nodeRecord, nodeKnown := clusterNodeRecord(record, nodeName)
 	if !nodeKnown {
 		return errors.New("the node is not part of this cluster")
 	}
@@ -205,21 +205,20 @@ func osUpdateStage(ctx context.Context, operation Operation, worker *nodeWorker)
 			}
 			operationExecutorProgress(worker, operation.Uid, status.Progress)
 			owned := operationSawStatus(operation, status.OperationUid)
-			if owned && status.Phase == shared.NodeAgentOsPhaseStaged {
-				return true, nil
-			}
-			if owned && status.Phase == shared.NodeAgentOsPhaseFailed {
-				return false, fmt.Errorf("the OS update could not be downloaded on %s: %s", operation.NodeName, status.Error)
-			}
-			if owned && status.Phase != shared.NodeAgentOsPhaseStaging {
-				return false, errors.New(
-					"the node already installed the update. Retry the update to run it again",
-				)
-			}
-			if slices.Contains(shared.NodeAgentOsPhases, status.Phase) {
-				if !owned || status.Phase != shared.NodeAgentOsPhaseStaging {
-					return false, errors.New("an OS update is already running on the node")
+			if owned {
+				switch status.Phase {
+				case shared.NodeAgentOsPhaseStaged:
+					return true, nil
+				case shared.NodeAgentOsPhaseFailed:
+					return false, fmt.Errorf("the OS update could not be downloaded on %s: %s", operation.NodeName, status.Error)
+				case shared.NodeAgentOsPhaseStaging:
+				default:
+					return false, errors.New(
+						"the node already installed the update. Retry the update to run it again",
+					)
 				}
+			} else if slices.Contains(shared.NodeAgentOsPhases, status.Phase) {
+				return false, errors.New("an OS update is already running on the node")
 			} else {
 				command := shared.NodeAgentOsCommandStage
 				if status.Phase == shared.NodeAgentOsPhaseFailed {
@@ -364,16 +363,7 @@ func osUpdateSubmit(
 		return false
 	}
 
-	persistErr := worker.mutate(func(op *Operation) bool {
-		if op.ExecutorSubmitted && !op.SubmittedAt.IsZero() {
-			return false
-		}
-		op.ExecutorSubmitted = true
-		if op.SubmittedAt.IsZero() {
-			op.SubmittedAt = time.Now().UTC()
-		}
-		return true
-	})
+	persistErr := operationMarkExecutorSubmitted(worker)
 	if persistErr != nil {
 		log.Warn("k8s-app maintenance %s: could not record the submission to the node executor: %s", nodeName, persistErr)
 		operationLogStage(

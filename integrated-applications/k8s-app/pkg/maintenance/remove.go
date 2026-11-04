@@ -91,11 +91,11 @@ func runRemove(
 		}
 
 		if exists && operation.Options.Drain {
-			result := runCordonDrain(ctx, clientset, operation, worker, true)
-			if result.err != nil {
-				return result.err
+			outcome, drainErr := runCordonDrain(ctx, clientset, operation, worker, true)
+			if drainErr != nil {
+				return drainErr
 			}
-			if result.outcome != drainDone {
+			if outcome != drainDone {
 				return nil
 			}
 
@@ -190,10 +190,8 @@ func removeResumeGuard() error {
 }
 
 func removeNodeRecordOrReconstruct(record shared.ClusterRecord, nodeName string) (shared.ClusterNodeRecord, bool) {
-	for _, node := range record.Nodes {
-		if node.Hostname == nodeName {
-			return node, true
-		}
+	if node, known := clusterNodeRecord(record, nodeName); known {
+		return node, true
 	}
 
 	dash := strings.LastIndex(nodeName, "-")

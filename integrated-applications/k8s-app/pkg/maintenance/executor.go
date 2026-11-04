@@ -78,11 +78,6 @@ const (
 	drainBlocked
 )
 
-type cordonDrainResult struct {
-	outcome drainOutcome
-	err     error
-}
-
 func (worker *nodeWorker) clusterRecord() (shared.ClusterRecord, error) {
 	if worker.recordLoaded {
 		return worker.record, nil
@@ -171,11 +166,14 @@ func (worker *nodeWorker) checkpoint() (Operation, bool) {
 
 // Dispatch loop
 // =====================================================================================================================
-// The loop scans the stack state on a fixed interval. It claims every operation whose worker stopped touching its
-// heartbeat and starts a new worker for it. The claim is a compare-and-swap write that stamps the heartbeat, so only
-// one coordinator instance adopts a given operation. The worker revalidates the recorded uid before every mutation.
 
-func runLoop(ctx context.Context, logPrefix string, sweep func(context.Context, shared.RpcGrantClient) error, wake <-chan struct{}) {
+func runLoop(
+	ctx context.Context,
+	logPrefix string,
+	sweep func(context.Context, shared.RpcGrantClient) error,
+	wake <-chan struct{},
+	runImmediately bool,
+) {
 	ticker := time.NewTicker(runInterval)
 	defer ticker.Stop()
 
@@ -187,6 +185,10 @@ func runLoop(ctx context.Context, logPrefix string, sweep func(context.Context, 
 		if err != nil && !shared.IsConflict(err) && ctx.Err() == nil {
 			log.Warn("%s: %s", logPrefix, err)
 		}
+	}
+
+	if runImmediately {
+		run()
 	}
 
 	for {
@@ -202,91 +204,72 @@ func runLoop(ctx context.Context, logPrefix string, sweep func(context.Context, 
 }
 
 func Run(ctx context.Context, kubeconfigPath string) {
-	ticker := time.NewTicker(runInterval)
-	defer ticker.Stop()
-
 	var loops sync.WaitGroup
-	loops.Add(3)
+	loops.Add(4)
 	go func() {
 		defer loops.Done()
 		controlPlaneSchedulingRun(ctx, kubeconfigPath)
 	}()
 	go func() {
 		defer loops.Done()
-		runLoop(ctx, "k8s-app backup", backupSweep, nil)
+		runLoop(ctx, "k8s-app backup", backupSweep, nil, false)
+	}()
+	go func() {
+		defer loops.Done()
+		runLoop(ctx, "k8s-app maintenance runs", func(ctx context.Context, client shared.RpcGrantClient) error {
+			return runSweep(ctx, kubeconfigPath, client)
+		}, maintenanceRunWake, false)
 	}()
 	go func() {
 		defer loops.Done()
 		runLoop(ctx, "k8s-app maintenance", func(ctx context.Context, client shared.RpcGrantClient) error {
-			return runSweep(ctx, kubeconfigPath, client)
-		}, nil)
+			return sweep(ctx, kubeconfigPath, client)
+		}, maintenanceOperationWake, true)
 	}()
 
-	cycle := func() {
-		client, err := stackClientNew()
-		if err != nil {
-			log.Warn("k8s-app maintenance: could not open the stack client for the maintenance sweep: %s", err)
-			return
-		}
-		sweep(ctx, kubeconfigPath, client)
-	}
-
-	cycle()
-
-	for {
-		select {
-		case <-ctx.Done():
-			loops.Wait()
-			workers.Wait()
-			return
-		case <-ticker.C:
-			cycle()
-		case <-maintenanceWake:
-			cycle()
-		}
-	}
+	loops.Wait()
+	workers.Wait()
 }
 
-func sweep(ctx context.Context, kubeconfigPath string, client shared.RpcGrantClient) {
-	records, err := stackList(client, stackKeyPrefix)
+func sweep(ctx context.Context, kubeconfigPath string, client shared.RpcGrantClient) error {
+	operations, err := stackValues[Operation](
+		client,
+		stackKeyPrefix,
+		"maintenance record",
+		func(err error) {
+			log.Warn("k8s-app maintenance: %s during the sweep", err)
+		},
+	)
 	if err != nil {
-		log.Warn("k8s-app maintenance: could not list the maintenance records during the sweep: %s", err)
-		return
+		return fmt.Errorf("could not list the maintenance records during the sweep: %w", err)
 	}
 
-	for _, record := range records {
-		if record.IsEmpty() {
+	localName := localHostname()
+	for _, operation := range operations {
+		current := operation.Value
+		if current.NodeName == "" || !PhaseActive(current.Phase) {
 			continue
 		}
 
-		var operation Operation
-		if err := json.Unmarshal(record.Value, &operation); err != nil {
-			log.Warn("k8s-app maintenance: could not parse the maintenance record %s during the sweep: %s", record.Key, err)
+		if current.Phase == k8sapi.MaintenancePhaseRunning && !operationStale(current, time.Now()) {
 			continue
 		}
 
-		if operation.NodeName == "" || !PhaseActive(operation.Phase) {
+		if current.Kind == KindRemove && current.NodeName == localName {
 			continue
 		}
 
-		if operation.Phase == k8sapi.MaintenancePhaseRunning && !operationStale(operation, time.Now()) {
-			continue
-		}
-
-		if operation.Kind == KindRemove && operation.NodeName == localHostname() {
-			continue
-		}
-
-		if !claimOperation(client, operation, record.Revision) {
+		if !claimOperation(client, current, operation.Revision) {
 			continue
 		}
 
 		workers.Add(1)
 		go func() {
 			defer workers.Done()
-			runOperation(ctx, kubeconfigPath, client, operation)
+			runOperation(ctx, kubeconfigPath, client, current)
 		}()
 	}
+	return nil
 }
 
 func claimOperation(client shared.RpcGrantClient, operation Operation, revision int64) bool {
@@ -347,9 +330,9 @@ func runOperation(
 	case KindUncordon:
 		runErr = runUncordon(workerCtx, clientset, current, worker)
 	case KindCordon:
-		result := runCordonDrain(workerCtx, clientset, current, worker, false)
-		runErr = result.err
-		if runErr == nil && result.outcome == drainDone {
+		outcome, cordonErr := runCordonDrain(workerCtx, clientset, current, worker, false)
+		runErr = cordonErr
+		if runErr == nil && outcome == drainDone {
 			finish(worker, k8sapi.MaintenancePhaseCompleted, "")
 		}
 	case KindUpgrade:
@@ -393,60 +376,75 @@ func cancelMessage(operation Operation) string {
 	return "cancelled by request. The node remains cordoned"
 }
 
+func operationMarkExecutorSubmitted(worker *nodeWorker) error {
+	return worker.mutate(func(op *Operation) bool {
+		if op.ExecutorSubmitted && !op.SubmittedAt.IsZero() {
+			return false
+		}
+		op.ExecutorSubmitted = true
+		if op.SubmittedAt.IsZero() {
+			op.SubmittedAt = time.Now().UTC()
+		}
+		return true
+	})
+}
+
 func runCordonDrain(
 	ctx context.Context,
 	clientset *kubernetes.Clientset,
 	operation Operation,
 	worker *nodeWorker,
 	verified bool,
-) cordonDrainResult {
+) (drainOutcome, error) {
 	drain := operation.Options.Drain
 	record, err := worker.clusterRecord()
 	if err != nil {
-		return cordonDrainResult{drainConcluded, fmt.Errorf("could not read the cluster record: %s", err)}
+		return drainConcluded, fmt.Errorf("could not read the cluster record: %s", err)
 	}
 
 	if !shared.ClusterRecordPhaseOperational(record.Phase) {
-		return cordonDrainResult{drainConcluded, fmt.Errorf("the cluster is not ready (state: %s)", record.Phase)}
+		return drainConcluded, fmt.Errorf("the cluster is not ready (state: %s)", record.Phase)
 	}
 
-	if !verified && !knownHostnames(record)[operation.NodeName] {
-		return cordonDrainResult{drainConcluded, errors.New("the node is not part of this cluster")}
+	if !verified {
+		if _, known := clusterNodeRecord(record, operation.NodeName); !known {
+			return drainConcluded, errors.New("the node is not part of this cluster")
+		}
 	}
 
 	node, err := getNode(ctx, clientset, operation.NodeName)
 	if err != nil {
-		return cordonDrainResult{drainConcluded, err}
+		return drainConcluded, err
 	}
 
 	if string(node.UID) != operation.NodeUid {
-		return cordonDrainResult{drainConcluded, errors.New("the node uid does not match the requested node")}
+		return drainConcluded, errors.New("the node uid does not match the requested node")
 	}
 
 	if !verified {
 		if guardErr := controlPlaneGuard(ctx, clientset, operation, node); guardErr != nil {
-			return cordonDrainResult{drainConcluded, guardErr}
+			return drainConcluded, guardErr
 		}
 	}
 
 	if drain {
 		pods, err := listNodePods(ctx, clientset, operation.NodeName)
 		if err != nil {
-			return cordonDrainResult{drainConcluded, err}
+			return drainConcluded, err
 		}
 		blockers, _, _ := classifyPods(ctx, clientset, operation, pods, map[string][]metav1.APIResource{})
 		if len(blockers) > 0 {
 			drainBlock(worker, blockers)
-			return cordonDrainResult{drainBlocked, nil}
+			return drainBlocked, nil
 		}
 	}
 
 	if cordonErr := cordonNode(ctx, clientset, worker, node); cordonErr != nil {
-		return cordonDrainResult{drainConcluded, cordonErr}
+		return drainConcluded, cordonErr
 	}
 
 	if !drain {
-		return cordonDrainResult{drainDone, nil}
+		return drainDone, nil
 	}
 
 	operationLogStage(
@@ -455,7 +453,7 @@ func runCordonDrain(
 		fmt.Sprintf("Moving workloads off %s", operation.NodeName),
 	)
 
-	return cordonDrainResult{drainNode(ctx, clientset, operation, worker), nil}
+	return drainNode(ctx, clientset, operation, worker), nil
 }
 
 func cordonNode(
@@ -527,13 +525,7 @@ func drainNode(
 	drainLog := drainLogger{worker: worker}
 
 	for {
-		current, ok := worker.checkpoint()
-		if !ok {
-			return drainConcluded
-		}
-
-		if time.Now().After(current.Deadline) {
-			finish(worker, k8sapi.MaintenancePhaseFailed, "the drain timed out with pods remaining on the node")
+		if _, ok := worker.checkpoint(); !ok {
 			return drainConcluded
 		}
 
@@ -845,11 +837,11 @@ func controlPlaneGuard(
 		return pendingErr
 	}
 
-	remaining, remainingErr := controlPlaneRemaining(ctx, clientset, controlPlanes, node.Name, pending)
+	remaining, remainingErr := controlPlaneRemainingCount(ctx, clientset, controlPlanes, node.Name, pending)
 	if remainingErr != nil {
 		return remainingErr
 	}
-	if !remaining {
+	if remaining == 0 {
 		return errors.New("at least one other healthy, schedulable control-plane node must remain")
 	}
 
@@ -911,20 +903,6 @@ func controlPlaneNames(record shared.ClusterRecord) map[string]bool {
 	return controlPlanes
 }
 
-func controlPlaneRemaining(
-	ctx context.Context,
-	clientset *kubernetes.Clientset,
-	controlPlanes map[string]bool,
-	exclude string,
-	busy map[string]bool,
-) (bool, error) {
-	remaining, err := controlPlaneRemainingCount(ctx, clientset, controlPlanes, exclude, busy)
-	if err != nil {
-		return false, err
-	}
-	return remaining > 0, nil
-}
-
 func controlPlaneRemainingCount(
 	ctx context.Context,
 	clientset *kubernetes.Clientset,
@@ -963,14 +941,6 @@ func nodeIsReady(node *corev1.Node) bool {
 		}
 	}
 	return false
-}
-
-func knownHostnames(record shared.ClusterRecord) map[string]bool {
-	known := map[string]bool{}
-	for _, node := range record.Nodes {
-		known[node.Hostname] = true
-	}
-	return known
 }
 
 func listNodePods(ctx context.Context, clientset *kubernetes.Clientset, nodeName string) ([]corev1.Pod, error) {

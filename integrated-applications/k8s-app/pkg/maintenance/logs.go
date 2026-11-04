@@ -203,7 +203,7 @@ func (relay *logRelay) nodeAddress() (string, bool) {
 		return "", false
 	}
 
-	node, known := upgradeNodeRecord(record, relay.worker.nodeName)
+	node, known := clusterNodeRecord(record, relay.worker.nodeName)
 	if !known || node.IpAddress == "" {
 		return "", false
 	}
@@ -230,7 +230,7 @@ func resetNodeLog(nodeName string, operationUid string) {
 		return
 	}
 
-	nodeRecord, known := upgradeNodeRecord(record, nodeName)
+	nodeRecord, known := clusterNodeRecord(record, nodeName)
 	if !known || nodeRecord.IpAddress == "" {
 		log.Warn(
 			"k8s-app maintenance %s: the node log could not be reset: the node has no IP address",
