@@ -232,7 +232,7 @@ func TestJobCreateWithProviderProduct(t *testing.T) {
 		"job", "create",
 		"--app", "terminal-almalinux",
 		"--product", productStr,
-		"--folder", "/6/",
+		//"--folder", "/6/",
 		"--workspace", "test-workspace",
 		"--name", "test-job",
 	}
