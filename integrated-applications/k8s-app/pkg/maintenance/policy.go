@@ -68,10 +68,12 @@ func DefaultPolicy() Policy {
 			StartHourUtc: defaultStartHour,
 		},
 		Kubernetes: TaskPolicy{
+			Enabled:        true,
 			TimeoutSeconds: k8sapi.MaintenanceTimeoutDefault,
 			MaxBackupAge:   defaultMaxBackupAge,
 		},
 		Os: TaskPolicy{
+			Enabled:        true,
 			TimeoutSeconds: k8sapi.MaintenanceTimeoutDefault,
 		},
 	}

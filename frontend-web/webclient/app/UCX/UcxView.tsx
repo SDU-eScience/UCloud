@@ -28,6 +28,7 @@ import SyntaxHighlighter from "react-syntax-highlighter";
 import {bulkRequestOf, copyToClipboard, createKeyboardShortcut, doNothing} from "@/UtilityFunctions";
 import {CopyButton} from "@/ui-components/CopyButton";
 import {Toggle} from "@/ui-components/Toggle";
+import {TooltipV2} from "@/ui-components/Tooltip";
 import * as UCloud from "@/UCloud";
 import {FieldGroup, FieldRow} from "@/Applications/Jobs/Widgets";
 import {FIELD_NAVIGATION_SELECTOR, KeyboardNavigation, SubmitShortcut, useSubmitShortcut} from "@/Applications/KeyboardNavigation";
@@ -1701,41 +1702,50 @@ function StackPermissionsNode({stackId, style, accessDescription, permissionLabe
         return () => { cancelled = true; };
     }, [stackId, projectId]);
 
-    if (!stackId || !projectId || (stack && !stack.permissions.myself.includes("ADMIN"))) return null;
+    if (!stackId) return null;
+
+    const disabledReason = !projectId ?
+        "Permissions can only be changed in a project workspace." :
+        stack && !stack.permissions.myself.includes("ADMIN") ?
+            "Only the stack creator and project administrators can change permissions." :
+            undefined;
 
     return <span style={style}>
-        <Button color="primaryMain" disabled={busy} onClick={async () => {
-            setBusy(true);
-            try {
-                const current = await callAPI<StackApi.Stack>({
-                    ...StackApi.retrieve({id: stackId}),
-                    projectOverride: projectId,
-                });
-                setStack(current);
-                if (!current.permissions.myself.includes("ADMIN")) {
-                    sendFailureNotification("Only the stack creator and project administrators can change permissions.");
-                    return;
+        <TooltipV2 tooltip={disabledReason}>
+            <Button color="primaryMain" disabled={busy || disabledReason !== undefined} onClick={async () => {
+                if (!projectId) return;
+                setBusy(true);
+                try {
+                    const current = await callAPI<StackApi.Stack>({
+                        ...StackApi.retrieve({id: stackId}),
+                        projectOverride: projectId,
+                    });
+                    setStack(current);
+                    if (!current.permissions.myself.includes("ADMIN")) {
+                        sendFailureNotification("Only the stack creator and project administrators can change permissions.");
+                        return;
+                    }
+                    dialogStore.addDialog(
+                        <StackPermissionsEditor
+                            stack={current}
+                            projectId={projectId}
+                            accessDescription={accessDescription}
+                            permissionLabel={permissionLabel}
+                            permissionIcon={permissionIcon}
+                        />,
+                        doNothing,
+                        true,
+                    );
+                } catch {
+                    sendFailureNotification("Failed to load stack permissions.");
+                } finally {
+                    setBusy(false);
                 }
-                dialogStore.addDialog(
-                    <StackPermissionsEditor
-                        stack={current}
-                        projectId={projectId}
-                        accessDescription={accessDescription}
-                        permissionLabel={permissionLabel}
-                        permissionIcon={permissionIcon}
-                    />,
-                    doNothing,
-                    true,
-                );
-            } catch {
-                sendFailureNotification("Failed to load stack permissions.");
-            } finally {
-                setBusy(false);
-            }
-        }}>
-            <Icon name={buttonIcon} size={15} mr="6px" />
-            Permissions
-        </Button>
+            }}>
+                <Icon name={buttonIcon} size={15} mr="6px" />
+                Permissions
+            </Button>
+        </TooltipV2>
     </span>;
 }
 

@@ -102,10 +102,10 @@ func maybeStartScheduledRun(client shared.RpcGrantClient) error {
 	if err != nil {
 		return err
 	}
-	if !policyRecord.Found {
-		return nil
+	policy := DefaultPolicy()
+	if policyRecord.Found {
+		policy = policyRecord.Value
 	}
-	policy := policyRecord.Value
 	if !policy.Kubernetes.Enabled && !policy.Os.Enabled {
 		return nil
 	}
