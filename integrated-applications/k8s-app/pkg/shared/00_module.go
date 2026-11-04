@@ -227,14 +227,6 @@ func ClusterCreate(app ucx.Application, request k8sapi.DeployRequest) (*ucxsvc.S
 	if err != nil || len(linkProducts) == 0 {
 		return &ucxsvc.Stack{}, false, "could not find a suitable public link product, but this cluster requires it"
 	}
-	linkDomain := orcapi.IngressSupport{
-		Prefix:  linkProducts[0].Support.Prefix,
-		Suffix:  linkProducts[0].Support.Suffix,
-		Product: linkProducts[0].Product.ToReference(),
-	}
-
-	stackIdLower := strings.ToLower(request.Name)
-	apiLinkDomain := fmt.Sprintf("%s%s-api%s", linkDomain.Prefix, stackIdLower, linkDomain.Suffix)
 
 	stack, failure := ucxsvc.StackCreateWithDriveEx(app, request.Name, k8sapi.StackType)
 	if failure != "" {
@@ -315,13 +307,11 @@ func ClusterCreate(app ucx.Application, request k8sapi.DeployRequest) (*ucxsvc.S
 	}
 
 	writeBundle(stack, record.BundlePath)
-	ucxsvc.StackWriteFile(stack, KubeconfigTemplatePath, fmt.Sprintf(Script("kubeconfig.tpl"), apiLinkDomain))
-	ucxsvc.PublicLinkCreate(stack, fmt.Sprintf("%s-api", request.Name), ucxsvc.PublicLinkCreateOptions{
-		ServiceTarget: util.OptValue(orcapi.PublicLinkServiceTarget{
-			ServiceId: clusterService.Id,
-			Port:      "api",
-		}),
-	})
+	publicLinkDomain, publicLinkOk := clusterCreatePublicLink(app, stack, clusterService.Id)
+	if !publicLinkOk {
+		return stack, false, ""
+	}
+	ucxsvc.StackWriteFile(stack, KubeconfigTemplatePath, fmt.Sprintf(Script("kubeconfig.tpl"), publicLinkDomain))
 	customUi := ClusterNodeCustomUi(stack)
 	if !stack.Ok {
 		return stack, false, ""
@@ -393,6 +383,35 @@ func ClusterCreate(app ucx.Application, request k8sapi.DeployRequest) (*ucxsvc.S
 	}
 
 	return stack, true, ""
+}
+
+const clusterPublicLinkAttempts = 10
+
+func clusterCreatePublicLink(app ucx.Application, stack *ucxsvc.Stack, serviceId string) (string, bool) {
+	for attempt := 0; attempt < clusterPublicLinkAttempts; attempt++ {
+		name := "k" + util.RandomTokenNoTs(3)
+		reference, err := ucxsvc.PublicLinkCreateEx(stack, name, ucxsvc.PublicLinkCreateOptions{
+			ServiceTarget: util.OptValue(orcapi.PublicLinkServiceTarget{
+				ServiceId: serviceId,
+				Port:      "api",
+			}),
+		})
+		if err == nil {
+			return reference.Domain, true
+		}
+
+		if !errors.Is(err, ucxsvc.ErrPublicLinkNameTaken) {
+			stack.Ok = false
+			ucxsvc.UiSendFailure(app, fmt.Sprintf("Could not create the public link for the cluster: %s", err))
+			return "", false
+		}
+
+		log.Info("k8s-app: the public link name %s is taken, retrying", name)
+	}
+
+	stack.Ok = false
+	ucxsvc.UiSendFailure(app, "Could not allocate a public link for the cluster. Try again or contact your service provider.")
+	return "", false
 }
 
 type clusterNodeProvisionStage int

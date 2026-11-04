@@ -18,7 +18,7 @@ nodes. The cluster is ready after a few minutes.
 
 | Field | Meaning |
 |-------|---------|
-| Cluster ID | The name of the cluster. It appears in the hostname of the Kubernetes API. The ID is unique in the workspace and it contains `a-z`, `0-9` and `-` only. |
+| Cluster ID | The name of the cluster. The ID is unique in the workspace and it contains `a-z`, `0-9` and `-` only. |
 | Service provider | The provider that runs the machines. All machines of the cluster must come from one provider. |
 | K8s version | One pinned k3s release from the catalog of the application. See [Reference](./reference.md#kubernetes-releases). |
 | Control plane | The [machine type](../../glossary.md#machine-type), the node count and the disk size of the control plane. The count is an odd number from 1 to 7. |

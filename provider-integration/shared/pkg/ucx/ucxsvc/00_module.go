@@ -690,37 +690,70 @@ type PublicLinkCreateOptions struct {
 	ServiceTarget util.Option[orcapi.PublicLinkServiceTarget]
 }
 
+type PublicLinkReference struct {
+	Id         string
+	Domain     string
+	Attachment orcapi.AppParameterValue
+}
+
+var (
+	errPublicLinkNoProduct = errors.New("no public link product is available")
+	ErrPublicLinkNameTaken = errors.New("the public link name is already taken")
+)
+
 func PublicLinkCreate(stack *Stack, name string, options PublicLinkCreateOptions) orcapi.AppParameterValue {
-	if !stack.Ok {
+	reference, err := PublicLinkCreateEx(stack, name, options)
+	if err != nil {
+		if stack != nil && stack.Ok {
+			stack.Ok = false
+			message := fmt.Sprintf("Could not create a public link: %s", err)
+			if errors.Is(err, errPublicLinkNoProduct) {
+				message = "This application requires a public link, but none is available. Contact your service provider."
+			}
+			UiSendFailure(stack.app, message)
+		}
 		return orcapi.AppParameterValue{}
+	}
+	return reference.Attachment
+}
+
+func PublicLinkCreateEx(stack *Stack, name string, options PublicLinkCreateOptions) (PublicLinkReference, error) {
+	if stack == nil || !stack.Ok {
+		return PublicLinkReference{}, errors.New("the stack is not available")
 	}
 
 	session := *stack.app.Session()
-	linkProducts, _ := ucxapi.PublicLinksRetrieveProducts.Invoke(session, util.Empty{})
+	linkProducts, err := ucxapi.PublicLinksRetrieveProducts.Invoke(session, util.Empty{})
+	if err != nil {
+		return PublicLinkReference{}, fmt.Errorf("could not retrieve the public link products: %s", err)
+	}
 	if len(linkProducts) == 0 {
-		stack.Ok = false
-		UiSendFailure(stack.app, "This application requires a public link, but none is available. Contact your service provider.")
-		return orcapi.AppParameterValue{}
+		return PublicLinkReference{}, errPublicLinkNoProduct
 	}
 
+	domain := fmt.Sprintf("%s%s%s", linkProducts[0].Support.Prefix, name, linkProducts[0].Support.Suffix)
 	links, err := ucxapi.PublicLinksCreate.Invoke(session, []orcapi.IngressSpecification{
 		{
-			Domain: fmt.Sprintf("%s%s%s", linkProducts[0].Support.Prefix, name, linkProducts[0].Support.Suffix),
+			Domain: domain,
 			ResourceSpecification: orcapi.ResourceSpecification{
 				Product: linkProducts[0].Product.ToReference(),
 				Labels:  stack.Labels(),
 			},
 		},
 	})
-
-	if len(links) == 0 || err != nil {
-		stack.Ok = false
-		message := "Could not create a public link. Try again or contact your service provider."
-		if err != nil {
-			message = fmt.Sprintf("Could not create a public link: %s", err)
+	if err != nil {
+		message := strings.ToLower(err.Error())
+		nameTaken := strings.Contains(message, "not unique") ||
+			strings.Contains(message, "already in use") ||
+			strings.Contains(message, "already taken") ||
+			strings.Contains(message, "already exists")
+		if nameTaken {
+			return PublicLinkReference{}, fmt.Errorf("%w: %s", ErrPublicLinkNameTaken, err)
 		}
-		UiSendFailure(stack.app, message)
-		return orcapi.AppParameterValue{}
+		return PublicLinkReference{}, err
+	}
+	if len(links) == 0 {
+		return PublicLinkReference{}, errors.New("the public link was not created")
 	}
 
 	result := orcapi.AppParameterValueIngress(links[0].Id)
@@ -729,11 +762,20 @@ func PublicLinkCreate(stack *Stack, name string, options PublicLinkCreateOptions
 	}
 	result.TLS = options.TLS
 	if options.ServiceTarget.Present {
-		if !PublicLinkSetTarget(stack, links[0].Id, options.ServiceTarget) {
-			return orcapi.AppParameterValue{}
+		_, err = ucxapi.PublicLinksSetTarget.Invoke(session, fndapi.BulkRequestOf(orcapi.IngressesSetTargetRequest{
+			Id:     links[0].Id,
+			Target: options.ServiceTarget,
+		}))
+		if err != nil {
+			return PublicLinkReference{}, fmt.Errorf("could not connect the public link to the service: %s", err)
 		}
 	}
-	return result
+
+	return PublicLinkReference{
+		Id:         links[0].Id,
+		Domain:     strings.ToLower(domain),
+		Attachment: result,
+	}, nil
 }
 
 // Services

@@ -242,7 +242,7 @@ func (app *k8sApp) cardMetadata() ucx.UiNode {
 		ucx.H3Ex("metadataHeading", "Metadata"),
 		ucx.FieldGroupNode().Children(
 			ucx.FieldRowNodeEx("clusterIdRow", "Cluster name", "clusterId").FieldRowRequired(true).
-				FieldRowDescription("A unique name for your cluster. It is used in hostnames and must contain only a-z, 0-9 and dashes.").
+				FieldRowDescription("A unique name for your cluster. It must be unique in the workspace and contain only a-z, 0-9 and dashes.").
 				Children(
 					ucx.InputText("clusterId", "", "", "clusterId").
 						AriaLabel("Cluster name"),

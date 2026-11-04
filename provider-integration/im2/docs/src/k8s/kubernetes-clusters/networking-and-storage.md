@@ -35,7 +35,7 @@ The Kubernetes API is available in two ways:
 
 - **Inside the cluster:** every control plane node serves the API on port 6443. The nodes reach each other on the
   private network.
-- **Outside the cluster:** the user connects to a public link named `<cluster-id>-api`. The link targets the service
+- **Outside the cluster:** the user connects to a public link with a generated hostname. The link targets the service
   of the cluster, and the control plane jobs are the members of the service. The user downloads a kubeconfig from the
   dashboard and connects with `kubectl`.
 
@@ -44,7 +44,7 @@ The Kubernetes API is available in two ways:
 ```mermaid
 flowchart LR
     client["Client<br/>kubectl"]:::diagram-external-code-bracket
-    link["Public link<br/>&lt;cluster-id&gt;-api"]:::diagram-provider-globe-alt
+    link["Public link<br/>generated hostname"]:::diagram-provider-globe-alt
     service["Service<br/>Kubernetes API | port: 6443"]:::diagram-provider-server
     cp["Control plane nodes<br/>Service members"]:::diagram-provider-server
 

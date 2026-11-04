@@ -87,7 +87,7 @@ Kubernetes](../architecture.md) creates the resources of the stack on the system
 | [State drive](../../glossary.md#state-drive) | Holds all files of the cluster: the node inputs, the script bundle, the backups and the shared storage. |
 | Private network | Connects the nodes on a fixed address plan. See [Networking and storage](./networking-and-storage.md#address-plan). |
 | Service | Serves the Kubernetes API on port 6443. The control plane jobs are the members of the service. |
-| Public link | Serves the Kubernetes API on a public hostname, for example `<cluster-id>-api.<domain>`. |
+| Public link | Serves the Kubernetes API on a generated public hostname. |
 | Node jobs | One UCloud [job](../../glossary.md#job) per node. Each job runs [Ubuntu 26.04 as a virtual machine](../kubevirt.md) with a disk from the state drive. |
 | Ingress service | Serves the applications of the cluster on port 30080. See [Application access](./networking-and-storage.md#application-access). |
 | Ingress public links | One public link per Ingress host of the cluster. |
