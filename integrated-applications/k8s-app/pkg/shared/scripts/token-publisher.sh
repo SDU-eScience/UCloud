@@ -59,7 +59,7 @@ publish_node_tokens() {
 	for inputDir in "$NODES_DIR"/*/input; do
 		[ -d "$inputDir" ] || continue
 		[ -f "$inputDir/node.json" ] || continue
-		nodeRole="$(json_field "$inputDir/node.json" role)"
+		nodeRole="$(json_field "$inputDir/node.json" nodeGroup)"
 		case "$nodeRole" in
 		control-plane)
 			publish_token_file "$serverToken" "$inputDir/server-token.ca"

@@ -21,7 +21,7 @@ const osUpdateStatusPollInterval = 5 * time.Second
 // =====================================================================================================================
 
 func osUpdateFailureRecoveryMessage() string {
-	return "Retry the update when the node is healthy. The node stays cordoned until then."
+	return "Check the node, then retry the operating-system update when it is healthy. The node stays cordoned until then."
 }
 
 func runOsUpdate(

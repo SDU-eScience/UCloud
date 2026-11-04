@@ -151,7 +151,7 @@ func handleUpgradeOrRetry(writer http.ResponseWriter, request *http.Request, ret
 			return
 		}
 		if !retry {
-			writeError(writer, http.StatusConflict, "the failed upgrade requires an explicit retry")
+			writeError(writer, http.StatusConflict, "the failed upgrade requires a retry. Retry the failed maintenance run")
 			return
 		}
 		if state.Release != release {
@@ -306,7 +306,7 @@ func startUpgrade(writer http.ResponseWriter, release string, state upgradeState
 		OperationUid:    operationUid,
 		NodeName:        identity.NodeName,
 		IpAddress:       identity.IpAddress,
-		Role:            identity.Role,
+		NodeGroup:       identity.NodeGroup,
 		Release:         release,
 		PreviousRelease: previousRelease,
 	})
@@ -472,7 +472,7 @@ func handleOsUpdate(writer http.ResponseWriter, request *http.Request) {
 	}
 
 	if state.Phase == shared.NodeAgentOsPhaseFailed && parsed.Command != shared.NodeAgentOsCommandRetry && parsed.Command != shared.NodeAgentOsCommandStageRetry {
-		writeError(writer, http.StatusConflict, "the failed operating-system update requires an explicit retry")
+		writeError(writer, http.StatusConflict, "the failed operating-system update requires a retry. Retry the failed maintenance run")
 		return
 	}
 
@@ -521,7 +521,7 @@ func startOsUpdate(writer http.ResponseWriter, parsed osUpdateRequest, state osS
 		OperationUid:   operationUid,
 		NodeName:       identity.NodeName,
 		IpAddress:      identity.IpAddress,
-		Role:           identity.Role,
+		NodeGroup:      identity.NodeGroup,
 		KernelRunning:  current.KernelRunning,
 		KernelPending:  current.KernelPending,
 		Pending:        current.Pending,

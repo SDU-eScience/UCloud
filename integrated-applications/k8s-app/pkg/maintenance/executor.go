@@ -998,7 +998,20 @@ func listNodePods(ctx context.Context, clientset *kubernetes.Clientset, nodeName
 	return list.Items, nil
 }
 
+var maintenanceClients struct {
+	mu     sync.Mutex
+	byPath map[string]*kubernetes.Clientset
+}
+
 func newClient(kubeconfigPath string) (*kubernetes.Clientset, error) {
+	maintenanceClients.mu.Lock()
+	defer maintenanceClients.mu.Unlock()
+
+	client, ok := maintenanceClients.byPath[kubeconfigPath]
+	if ok {
+		return client, nil
+	}
+
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	if err != nil {
 		return nil, err
@@ -1008,7 +1021,17 @@ func newClient(kubeconfigPath string) (*kubernetes.Clientset, error) {
 	config.Burst = 40
 	config.Timeout = apiRequestTimeout
 
-	return kubernetes.NewForConfig(config)
+	client, err = kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	if maintenanceClients.byPath == nil {
+		maintenanceClients.byPath = map[string]*kubernetes.Clientset{}
+	}
+	maintenanceClients.byPath[kubeconfigPath] = client
+
+	return client, nil
 }
 
 func (worker *nodeWorker) heartbeat() bool {

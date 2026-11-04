@@ -106,15 +106,15 @@ func logPackLines(lines []string) []string {
 		}
 		trimmed = util.Utf8Truncate(trimmed, shared.NodeAgentProgressLineMax)
 
-		encoded := util.MustJsonMarshal(trimmed)
+		encodedSize := len(trimmed)*6 + 2
 
-		if len(encoded)+2 > budget {
+		if encodedSize > budget {
 			log.Warn("k8s-app maintenance: a progress log line was dropped because the remaining request budget was too small")
 			continue
 		}
 
 		packed = append(packed, trimmed)
-		budget -= len(encoded) + 2
+		budget -= encodedSize
 	}
 	return packed
 }

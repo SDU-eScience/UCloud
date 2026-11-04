@@ -76,8 +76,8 @@ func (app *stackUiApp) registerRpcHandlers() {
 			})
 		}
 
-		client, clientErr := K8sClientFromKubeconfig(LocalKubeconfigPath())
-		if clientErr == nil {
+		client := app.provisioningClient()
+		if client != nil {
 			healthCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 			health, healthErr := client.NodeHealth(healthCtx)
 			cancel()

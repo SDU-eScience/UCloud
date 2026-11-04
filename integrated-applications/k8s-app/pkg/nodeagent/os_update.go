@@ -79,7 +79,7 @@ type osState struct {
 	OperationUid   string    `json:"operationUid,omitempty"`
 	NodeName       string    `json:"nodeName"`
 	IpAddress      string    `json:"ipAddress"`
-	Role           string    `json:"role"`
+	NodeGroup      string    `json:"nodeGroup"`
 	Pending        int       `json:"pending,omitempty"`
 	Security       int       `json:"security,omitempty"`
 	RebootRequired bool      `json:"rebootRequired,omitempty"`
@@ -192,7 +192,7 @@ func recoverInterruptedOs() {
 	case state.Phase == shared.NodeAgentOsPhaseRebooting:
 		bootId := osBootId()
 		if bootId != "" && state.BootId != "" && bootId != state.BootId {
-			progressStageLabel("The node rebooted. The operating-system update continues with the verification")
+			progressStageLabel("The node has rebooted, continuing with the verification of OS updates")
 			if err := osSetPhase(shared.NodeAgentOsPhaseVerifying, nil); err != nil {
 				osFinishFailure(fmt.Sprintf("could not persist the phase verifying after the reboot: %s", err))
 				return
@@ -281,7 +281,7 @@ func runOsCheck(ctx context.Context) shared.NodeAgentOsStatus {
 		state.SchemaRevision = osStateSchemaRevision
 		state.NodeName = identityConfig.NodeName
 		state.IpAddress = identityConfig.IpAddress
-		state.Role = identityConfig.Role
+		state.NodeGroup = identityConfig.NodeGroup
 		state.Pending = pending
 		state.Security = security
 		state.RebootRequired = rebootRequired
@@ -342,14 +342,14 @@ func runOsApply() {
 
 func osStagePackages(workerCtx context.Context) bool {
 	identityConfig := identitySnapshot()
-	if identityConfig.Role == "" {
+	if identityConfig.NodeGroup == "" {
 		osFinishFailure("the node identity is unknown")
 		return false
 	}
 
-	serviceName := serviceForRole(identityConfig.Role)
+	serviceName := serviceForNodeGroup(identityConfig.NodeGroup)
 	if serviceName == "" {
-		osFinishFailure(fmt.Sprintf("unknown node role: %s", identityConfig.Role))
+		osFinishFailure(fmt.Sprintf("unknown node group: %s", identityConfig.NodeGroup))
 		return false
 	}
 
@@ -403,7 +403,7 @@ func osStagePackages(workerCtx context.Context) bool {
 }
 
 func osApplyPackages(workerCtx context.Context) {
-	serviceName := serviceForRole(identitySnapshot().Role)
+	serviceName := serviceForNodeGroup(identitySnapshot().NodeGroup)
 	if serviceName == "" {
 		osFinishFailure("the node identity is unknown")
 		return
@@ -475,7 +475,7 @@ func osResumeVerify() {
 	defer cancel()
 
 	identityConfig := identitySnapshot()
-	serviceName := serviceForRole(identityConfig.Role)
+	serviceName := serviceForNodeGroup(identityConfig.NodeGroup)
 	if serviceName == "" {
 		osFinishFailure("the node identity is unknown")
 		return
@@ -536,7 +536,7 @@ func osVerifyUpdate(ctx context.Context, serviceName string, kernelPending strin
 		)
 	}
 
-	if identitySnapshot().Role == k8sapi.GroupControlPlane {
+	if identitySnapshot().NodeGroup == k8sapi.GroupControlPlane {
 		return verifyControlPlaneReadyz(ctx)
 	}
 
@@ -575,7 +575,7 @@ func osFinishFailure(message string) {
 	if identityConfig.NodeName != "" {
 		state.NodeName = identityConfig.NodeName
 		state.IpAddress = identityConfig.IpAddress
-		state.Role = identityConfig.Role
+		state.NodeGroup = identityConfig.NodeGroup
 	}
 
 	err := nodeStateFail(osStatePath(), &state, &state.nodeState, shared.NodeAgentOsPhaseFailed, message)

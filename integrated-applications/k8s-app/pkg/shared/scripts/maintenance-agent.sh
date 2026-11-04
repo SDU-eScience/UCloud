@@ -8,7 +8,7 @@ if [ "$(id -u)" -ne 0 ]; then
 	exit 1
 fi
 
-ROLE="$(node_field role)"
+ROLE="$(node_field nodeGroup)"
 REQUIRES_MOUNTS="$(requires_mounts_for "$ROLE")"
 
 provider_ucx_available() {

@@ -47,7 +47,7 @@ log "starting node setup"
 
 /etc/ucloud-k8s/bundle/prepare.sh
 
-ROLE="$(node_field role)"
+ROLE="$(node_field nodeGroup)"
 if [ "$ROLE" = "control-plane" ]; then
 	/etc/ucloud-k8s/bundle/server-join.sh
 else
@@ -65,7 +65,7 @@ source /etc/ucloud-k8s/bundle/common.sh
 EOF
 chmod 0755 /usr/local/sbin/ucloud-k8s-maintenance-agent-setup
 
-ROLE="$(node_field role)"
+ROLE="$(node_field nodeGroup)"
 
 BOOTSTRAP_TIMEOUT="$BOOTSTRAP_TIMEOUT_SECONDS"
 if [ "$(node_field_opt recoveryEnabled)" = "True" ]; then

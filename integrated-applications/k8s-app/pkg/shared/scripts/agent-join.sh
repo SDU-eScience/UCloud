@@ -6,7 +6,7 @@ IP_ADDRESS="$(node_field ipAddress)"
 IFACE="$(node_iface "$IP_ADDRESS")"
 SERVER_URL="$(node_field serverUrl)"
 NODE_NAME="$(node_field hostname)"
-NODE_GROUP="$(node_field role)"
+NODE_GROUP="$(node_field nodeGroup)"
 
 record_input_generation
 

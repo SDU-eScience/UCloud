@@ -19,8 +19,8 @@ import (
 
 // Constants and state
 // =====================================================================================================================
-// The constants name the work mount and the two output files. The progress state is protected by its own mutex. The
-// record is loaded once. It is written back with a rate limit unless a caller forces a write.
+// The constants name the work mount and the two output files. The progress state and the output files are protected by
+// their own mutex. The record is loaded once. It is written back with a rate limit unless a caller forces a write.
 
 const (
 	workMount       = "/work"
@@ -34,6 +34,7 @@ var progressMu sync.Mutex
 var progressCurrent shared.NodeAgentProgress
 var progressLoaded bool
 var progressPersistedAt time.Time
+var progressOutputFiles = map[string]*os.File{}
 
 // Progress state
 // =====================================================================================================================
@@ -223,20 +224,38 @@ func progressAppendLine(line string) {
 }
 
 func progressAppendFile(name string, data []byte, mode os.FileMode) {
-	path := filepath.Join(workMount, name)
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE|syscall.O_NOFOLLOW, mode)
-	if err != nil {
+	file := progressOutputFile(name, mode)
+	if file == nil {
 		return
 	}
 
-	_, err = file.Write(data)
-	_ = file.Chown(serviceUid, serviceGid)
-	if closeErr := file.Close(); err == nil {
-		err = closeErr
+	if _, err := file.Write(data); err != nil {
+		_ = file.Close()
+		delete(progressOutputFiles, name)
 	}
 }
 
+func progressOutputFile(name string, mode os.FileMode) *os.File {
+	if file := progressOutputFiles[name]; file != nil {
+		return file
+	}
+
+	path := filepath.Join(workMount, name)
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE|syscall.O_NOFOLLOW, mode)
+	if err != nil {
+		return nil
+	}
+	_ = file.Chown(serviceUid, serviceGid)
+	progressOutputFiles[name] = file
+	return file
+}
+
 func progressTruncate(name string, mode os.FileMode) {
+	if file := progressOutputFiles[name]; file != nil {
+		_ = file.Close()
+		delete(progressOutputFiles, name)
+	}
+
 	path := filepath.Join(workMount, name)
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC|os.O_CREATE|syscall.O_NOFOLLOW, mode)
 	if err != nil {

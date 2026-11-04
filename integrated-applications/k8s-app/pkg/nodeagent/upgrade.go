@@ -103,7 +103,7 @@ type upgradeState struct {
 	OperationUid    string `json:"operationUid,omitempty"`
 	NodeName        string `json:"nodeName"`
 	IpAddress       string `json:"ipAddress"`
-	Role            string `json:"role"`
+	NodeGroup       string `json:"nodeGroup"`
 	Release         string `json:"release"`
 	PreviousRelease string `json:"previousRelease"`
 }
@@ -166,7 +166,7 @@ func syncDir(dir string) error {
 
 // The upgrade worker
 // =====================================================================================================================
-// runUpgrade performs one upgrade. It checks the installed version and the node role. It uses the previous state to
+// runUpgrade performs one upgrade. It checks the installed version and the node group. It uses the previous state to
 // detect a retry. A binary that already matches the target is only verified. Otherwise the worker stages, snapshots,
 // installs, restarts and verifies. Every failure is written to the state before the worker returns.
 
@@ -189,14 +189,14 @@ func runUpgrade(release string, previousState upgradeState) {
 		return
 	}
 
-	if identityConfig.Role == "" {
+	if identityConfig.NodeGroup == "" {
 		finishFailure(release, previousState, "", "the node identity is unknown")
 		return
 	}
 
-	serviceName := serviceForRole(identityConfig.Role)
+	serviceName := serviceForNodeGroup(identityConfig.NodeGroup)
 	if serviceName == "" {
-		finishFailure(release, previousState, "", fmt.Sprintf("unknown node role: %s", identityConfig.Role))
+		finishFailure(release, previousState, "", fmt.Sprintf("unknown node group: %s", identityConfig.NodeGroup))
 		return
 	}
 
@@ -211,7 +211,7 @@ func runUpgrade(release string, previousState upgradeState) {
 				return
 			}
 			progressStageLabel(fmt.Sprintf("%s is already installed. Verifying it", release))
-			verifyErr := verifyUpgrade(workerCtx, release, identityConfig.Role, serviceName)
+			verifyErr := verifyUpgrade(workerCtx, release, identityConfig.NodeGroup, serviceName)
 			if verifyErr != nil {
 				finishFailure(release, previousState, "", verifyErr.Error())
 				return
@@ -255,7 +255,7 @@ func runUpgrade(release string, previousState upgradeState) {
 		OperationUid:    stateLoad().OperationUid,
 		NodeName:        identityConfig.NodeName,
 		IpAddress:       identityConfig.IpAddress,
-		Role:            identityConfig.Role,
+		NodeGroup:       identityConfig.NodeGroup,
 		Release:         release,
 		PreviousRelease: previousRelease,
 	})
@@ -272,7 +272,7 @@ func runUpgrade(release string, previousState upgradeState) {
 
 	targetInstalled := fileMatchesSha256(k3sBinary, staged.Sha256)
 
-	if identityConfig.Role == k8sapi.GroupControlPlane && !targetInstalled {
+	if identityConfig.NodeGroup == k8sapi.GroupControlPlane && !targetInstalled {
 		if err := setPhase(shared.NodeAgentPhaseSnapshotting); err != nil {
 			finishFailure(release, previousState, previousRelease, fmt.Sprintf("could not persist the phase snapshotting: %s", err))
 			return
@@ -351,7 +351,7 @@ func runUpgrade(release string, previousState upgradeState) {
 		return
 	}
 
-	if identityConfig.Role == k8sapi.GroupControlPlane {
+	if identityConfig.NodeGroup == k8sapi.GroupControlPlane {
 		startTokenPublisher()
 	}
 
@@ -364,7 +364,7 @@ func runUpgrade(release string, previousState upgradeState) {
 		"Verifying the version and the readiness",
 		progressPercentVerify,
 	)
-	verifyErr := verifyUpgrade(workerCtx, release, identityConfig.Role, serviceName)
+	verifyErr := verifyUpgrade(workerCtx, release, identityConfig.NodeGroup, serviceName)
 	if verifyErr != nil {
 		finishFailure(release, previousState, previousRelease, verifyErr.Error())
 		return
@@ -435,7 +435,7 @@ func markVerifying(identityConfig Config, release string, previousRelease string
 		OperationUid:    stateLoad().OperationUid,
 		NodeName:        identityConfig.NodeName,
 		IpAddress:       identityConfig.IpAddress,
-		Role:            identityConfig.Role,
+		NodeGroup:       identityConfig.NodeGroup,
 		Release:         release,
 		PreviousRelease: previousRelease,
 	})
@@ -456,7 +456,7 @@ func storeCompleted(identityConfig Config, release string, previousRelease strin
 		OperationUid:    stateLoad().OperationUid,
 		NodeName:        identityConfig.NodeName,
 		IpAddress:       identityConfig.IpAddress,
-		Role:            identityConfig.Role,
+		NodeGroup:       identityConfig.NodeGroup,
 		Release:         release,
 		PreviousRelease: previousRelease,
 	})
@@ -480,7 +480,7 @@ func finishFailure(release string, previousState upgradeState, observedRelease s
 		OperationUid:    stateLoad().OperationUid,
 		NodeName:        identityConfig.NodeName,
 		IpAddress:       identityConfig.IpAddress,
-		Role:            identityConfig.Role,
+		NodeGroup:       identityConfig.NodeGroup,
 		Release:         release,
 		PreviousRelease: observedRelease,
 	}
@@ -488,7 +488,7 @@ func finishFailure(release string, previousState upgradeState, observedRelease s
 	if state.NodeName == "" {
 		state.NodeName = previousState.NodeName
 		state.IpAddress = previousState.IpAddress
-		state.Role = previousState.Role
+		state.NodeGroup = previousState.NodeGroup
 	}
 
 	if state.PreviousRelease == "" {
@@ -534,7 +534,7 @@ func recoverInterrupted() {
 
 	interruptedPhase := state.Phase
 	message := fmt.Sprintf(
-		"the upgrade to %s was interrupted at phase %s. Recovery is required",
+		"the upgrade to %s was interrupted at phase %s. Check the node, then retry the maintenance run",
 		state.Release,
 		interruptedPhase,
 	)
@@ -547,7 +547,7 @@ func recoverInterrupted() {
 
 	progressStageLabel(fmt.Sprintf("The upgrade to %s was interrupted", state.Release))
 	progressText(fmt.Sprintf(
-		"The upgrade to %s was interrupted at phase %s. An explicit retry is required",
+		"The upgrade to %s was interrupted at phase %s. Check the node, then retry the maintenance run",
 		state.Release,
 		interruptedPhase,
 	))
@@ -831,28 +831,18 @@ func latestSnapshot(dir string, name string) (string, error) {
 
 // Service control
 // =====================================================================================================================
-// The service name follows from the node role. A control plane node runs k3s.service. A worker runs k3s-agent.service.
+// The service name follows from the node group. A control plane node runs k3s.service. A worker runs k3s-agent.service.
 // A stop waits for a terminal state. A start returns when systemd accepts the command. Verification waits for the
 // service to become healthy.
 
-func serviceForRole(role string) string {
-	if role == k8sapi.GroupControlPlane {
+func serviceForNodeGroup(nodeGroup string) string {
+	if nodeGroup == k8sapi.GroupControlPlane {
 		return serviceControlPlane
 	}
-	if roleValid(role) {
+	if k8sapi.ValidWorkerPoolName(nodeGroup) {
 		return serviceWorker
 	}
 	return ""
-}
-
-func roleValid(role string) bool {
-	if len(role) > roleMaxLen {
-		return false
-	}
-	if !roleRe.MatchString(role) {
-		return false
-	}
-	return role != k8sapi.GroupControlPlane
 }
 
 func startTokenPublisher() {
@@ -1010,7 +1000,7 @@ func swapReplacement(replacementPath string, targetPath string) error {
 // The agent checks that the service is active and that the binary reports the target version. A control plane node
 // must also answer /readyz. The check polls until it succeeds or the timeout ends.
 
-func verifyUpgrade(ctx context.Context, release string, role string, service string) error {
+func verifyUpgrade(ctx context.Context, release string, nodeGroup string, service string) error {
 	verifyCtx, cancel := context.WithTimeout(ctx, startTimeout)
 	defer cancel()
 
@@ -1033,7 +1023,7 @@ func verifyUpgrade(ctx context.Context, release string, role string, service str
 		)
 	}
 
-	if role == k8sapi.GroupControlPlane {
+	if nodeGroup == k8sapi.GroupControlPlane {
 		return verifyControlPlaneReadyz(ctx)
 	}
 
@@ -1099,7 +1089,7 @@ func runBackup(ctx context.Context, trigger string, attemptUid string) (shared.N
 	defer cancel()
 
 	identityConfig := identitySnapshot()
-	if identityConfig.Role != k8sapi.GroupControlPlane {
+	if identityConfig.NodeGroup != k8sapi.GroupControlPlane {
 		return shared.NodeAgentBackupResult{}, errors.New("backups can only run on a control-plane node")
 	}
 

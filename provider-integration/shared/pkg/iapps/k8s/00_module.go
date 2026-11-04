@@ -23,11 +23,12 @@ const (
 	LabelNodeAllocation = "ucloud.dk/k8s-node-id"
 	LabelK8sVersion     = "ucloud.dk/k8s-version"
 
-	ClusterNameMaxLen = 30
-	PoolNameMaxLen    = 30
-	ClusterMaxNodes   = 256
-	MinPoolNodes      = 1
-	MaxPoolNodes      = 250
+	ClusterNameMaxLen   = 30
+	PoolNameMaxLen      = 30
+	NodeGroupNameMaxLen = PoolNameMaxLen
+	ClusterMaxNodes     = 256
+	MinPoolNodes        = 1
+	MaxPoolNodes        = 250
 
 	MinDiskGb = 10
 	MaxDiskGb = 1024
@@ -179,6 +180,17 @@ var groupNameRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
 
 func ValidGroupName(name string) bool {
 	return groupNameRe.MatchString(name)
+}
+
+func ValidNodeGroupName(name string) bool {
+	if len(name) > NodeGroupNameMaxLen {
+		return false
+	}
+	return ValidGroupName(name)
+}
+
+func ValidWorkerPoolName(name string) bool {
+	return name != GroupControlPlane && ValidNodeGroupName(name)
 }
 
 func ValidControlPlaneNodeCount(nodes int) bool {

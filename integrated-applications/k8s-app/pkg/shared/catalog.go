@@ -233,6 +233,9 @@ func ipFromOffset(offset int) netip.Addr {
 }
 
 const ClusterVmCidr = "172.31.0.0/16"
+
+var ClusterVmPrefix = netip.MustParsePrefix(ClusterVmCidr)
+
 const ClusterPodCidr = "10.14.0.0/16"
 const ClusterServiceCidr = "10.15.0.0/16"
 

@@ -30,7 +30,7 @@
 // Identity and trust
 // ---------------------------------------------------------------------------------------------------------------------
 // The identity of the node comes from the input mount. The provisioner fills the mount before the node boots. The
-// identity fixes the name, the address and the role of the node. The agent refuses to start if the recorded address
+// identity fixes the name, the address and the node group of the node. The agent refuses to start if the recorded address
 // is not assigned to the node. A wrong address would make the agent unreachable on the network it must serve.
 //
 // Trust is one-directional. The coordinator proves itself to the node with the maintenance token. Each command also
@@ -76,7 +76,6 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -84,7 +83,6 @@ import (
 
 	"ucloud.dk/iapp/k8s/pkg/shared"
 	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
-	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -114,11 +112,7 @@ const (
 	writeTimeout      = 15 * time.Second
 
 	maxRequestBody = 4 * 1024
-
-	roleMaxLen = 30
 )
-
-var roleRe = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$`)
 
 var globals struct {
 	Mu       sync.Mutex
@@ -129,6 +123,10 @@ var globals struct {
 	OsCheckActive bool
 
 	BackupMu sync.Mutex
+
+	MaintenanceTokenMu    sync.Mutex
+	MaintenanceToken      string
+	MaintenanceTokenValid bool
 }
 
 // Configuration
@@ -139,14 +137,14 @@ var globals struct {
 type Config struct {
 	NodeName   string
 	IpAddress  string
-	Role       string
+	NodeGroup  string
 	K8sVersion string
 }
 
 type nodeFile struct {
 	Hostname    string `json:"hostname"`
 	IpAddress   string `json:"ipAddress"`
-	Role        string `json:"role"`
+	NodeGroup   string `json:"nodeGroup"`
 	FirstServer bool   `json:"firstServer"`
 	K8sVersion  string `json:"k8sVersion"`
 }
@@ -178,7 +176,7 @@ func Serve(ctx context.Context) error {
 	recoverInterrupted()
 	recoverInterruptedOs()
 
-	if identityConfig.Role == k8sapi.GroupControlPlane {
+	if identityConfig.NodeGroup == k8sapi.GroupControlPlane {
 		go startTokenPublisher()
 	}
 
@@ -223,7 +221,7 @@ func Serve(ctx context.Context) error {
 
 // Node identity
 // =====================================================================================================================
-// The agent reads node.json from the input mount. It checks the address and the role. It then waits until the address
+// The agent reads node.json from the input mount. It checks the address and the node group. It then waits until the address
 // is assigned to one of the local interfaces. The wait matters at boot, because the private address can appear after
 // the process starts.
 
@@ -241,7 +239,7 @@ func Identity(ctx context.Context) (Config, error) {
 	return Config{
 		NodeName:   nodeJson.Hostname,
 		IpAddress:  nodeJson.IpAddress,
-		Role:       nodeJson.Role,
+		NodeGroup:  nodeJson.NodeGroup,
 		K8sVersion: nodeJson.K8sVersion,
 	}, nil
 }
@@ -268,19 +266,14 @@ func readNodeConfig(path string) (nodeFile, error) {
 			"the node configuration at %s has an invalid IP address: %s", path, nodeJson.IpAddress)
 	}
 
-	clusterPrefix, err := netip.ParsePrefix(shared.ClusterVmCidr)
-	if err != nil {
-		log.Fatal("k8s-app: the cluster subnet %s is invalid: %s", shared.ClusterVmCidr, err)
-	}
-
-	if !clusterPrefix.Contains(address) {
+	if !shared.ClusterVmPrefix.Contains(address) {
 		return nodeFile{}, fmt.Errorf(
 			"the node IP address %s is outside the cluster subnet %s", nodeJson.IpAddress, shared.ClusterVmCidr)
 	}
 
-	if nodeJson.Role != k8sapi.GroupControlPlane && !roleValid(nodeJson.Role) {
+	if !k8sapi.ValidNodeGroupName(nodeJson.NodeGroup) {
 		return nodeFile{}, fmt.Errorf(
-			"the node configuration at %s has an unknown role: %s", path, nodeJson.Role)
+			"the node configuration at %s has an unknown node group: %s", path, nodeJson.NodeGroup)
 	}
 
 	return nodeJson, nil
@@ -377,6 +370,13 @@ func authorizePeer(writer http.ResponseWriter, request *http.Request) bool {
 }
 
 func maintenanceToken() (string, error) {
+	globals.MaintenanceTokenMu.Lock()
+	defer globals.MaintenanceTokenMu.Unlock()
+
+	if globals.MaintenanceTokenValid {
+		return globals.MaintenanceToken, nil
+	}
+
 	data, err := os.ReadFile(filepath.Join(inputDir, maintenanceTokenName))
 	if err != nil {
 		return "", err
@@ -386,6 +386,9 @@ func maintenanceToken() (string, error) {
 	if token == "" {
 		return "", errors.New("the maintenance token is empty")
 	}
+
+	globals.MaintenanceToken = token
+	globals.MaintenanceTokenValid = true
 
 	return token, nil
 }

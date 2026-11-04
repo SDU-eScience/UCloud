@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/version"
 
 	"ucloud.dk/iapp/k8s/pkg/backup"
-	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -58,6 +57,8 @@ const (
 	NodeAgentOperationHeader      = "X-Ucloud-Maintenance-Operation"
 	NodeAgentCoordinatorTokensDir = "/etc/ucloud-k8s/management/maintenance-tokens"
 )
+
+var nodeAgentHttpClient = &http.Client{}
 
 var NodeAgentPhases = []string{
 	NodeAgentPhaseDownloading,
@@ -364,10 +365,7 @@ func nodeAgentClientCallTimeout(
 		request.Header.Set(NodeAgentOperationHeader, operationUid)
 	}
 
-	client := &http.Client{Timeout: timeout}
-	defer client.CloseIdleConnections()
-
-	response, err := client.Do(request)
+	response, err := nodeAgentHttpClient.Do(request)
 	if err != nil {
 		return nil, err
 	}
@@ -421,12 +419,7 @@ func nodeAgentClientValidateIp(nodeIp string) error {
 		return fmt.Errorf("the node IP address is invalid: %s", nodeIp)
 	}
 
-	clusterPrefix, err := netip.ParsePrefix(ClusterVmCidr)
-	if err != nil {
-		log.Fatal("k8s-app: the cluster subnet %s is invalid: %s", ClusterVmCidr, err)
-	}
-
-	if !clusterPrefix.Contains(address) {
+	if !ClusterVmPrefix.Contains(address) {
 		return fmt.Errorf("the node IP address is outside the cluster subnet: %s", nodeIp)
 	}
 

@@ -727,9 +727,10 @@ func rowsFromPods(items []unstructured.Unstructured) []ResourceRow {
 		obj := &items[i]
 
 		readyCount := 0
-		totalCount := len(containerStatusesOf(obj))
+		statuses := containerStatusesOf(obj)
+		totalCount := len(statuses)
 		restarts := int64(0)
-		for _, status := range containerStatusesOf(obj) {
+		for _, status := range statuses {
 			if status["ready"] == true {
 				readyCount++
 			}

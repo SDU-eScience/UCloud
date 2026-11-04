@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	fnd "ucloud.dk/shared/pkg/foundation"
@@ -61,7 +62,20 @@ func RpcClientNew(tokenPath string, timeout time.Duration) (*rpc.Client, string,
 	return client, token, nil
 }
 
+var rpcGrantClientCache struct {
+	mu     sync.Mutex
+	client RpcGrantClient
+	valid  bool
+}
+
 func RpcGrantClientNew() (RpcGrantClient, error) {
+	rpcGrantClientCache.mu.Lock()
+	defer rpcGrantClientCache.mu.Unlock()
+
+	if rpcGrantClientCache.valid {
+		return rpcGrantClientCache.client, nil
+	}
+
 	tokenPath := RpcGrantHostTokenPath
 	_, statErr := os.Stat(tokenPath)
 	hostTokenMissing := statErr != nil && os.IsNotExist(statErr)
@@ -74,10 +88,15 @@ func RpcGrantClientNew() (RpcGrantClient, error) {
 		return RpcGrantClient{}, err
 	}
 
-	return RpcGrantClient{
+	result := RpcGrantClient{
 		Rpc:   client,
 		Token: token,
-	}, nil
+	}
+
+	rpcGrantClientCache.client = result
+	rpcGrantClientCache.valid = true
+
+	return result, nil
 }
 
 func rpcGrantError(herr *util.HttpError) error {

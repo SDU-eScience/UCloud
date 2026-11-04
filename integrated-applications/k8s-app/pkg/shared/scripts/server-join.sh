@@ -9,7 +9,7 @@ CLUSTER_CIDR="$(node_field clusterCidr)"
 SERVICE_CIDR="$(node_field serviceCidr)"
 SERVER_URL="$(node_field serverUrl)"
 NODE_NAME="$(node_field hostname)"
-NODE_GROUP="$(node_field role)"
+NODE_GROUP="$(node_field nodeGroup)"
 SERVICE_DNS="$(node_field serviceDns)"
 RECOVERY_ENABLED="$(node_field_opt recoveryEnabled)"
 

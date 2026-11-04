@@ -119,8 +119,8 @@ func (app *stackUiApp) appendContainerLogs(target string, generation uint64, chu
 		return
 	}
 
-	capped := capContainerLogs(app.ContainerLogs, chunk)
-	if capped != app.ContainerLogs+chunk {
+	capped, truncated := capContainerLogs(app.ContainerLogs, chunk)
+	if truncated {
 		app.containerLogTruncated = true
 	}
 	app.ContainerLogs = capped
@@ -155,15 +155,15 @@ func (app *stackUiApp) appendContainerLogs(target string, generation uint64, chu
 	app.mu.Unlock()
 }
 
-func capContainerLogs(existing string, chunk string) string {
+func capContainerLogs(existing string, chunk string) (string, bool) {
 	text := existing + chunk
 	if len(text) <= containerLogMaxBytes {
-		return text
+		return text, false
 	}
 
 	trimmed := text[len(text)-containerLogMaxBytes:]
 	if idx := strings.IndexByte(trimmed, '\n'); idx >= 0 {
 		trimmed = trimmed[idx+1:]
 	}
-	return "[... logs truncated ...]\n" + trimmed
+	return "[... logs truncated ...]\n" + trimmed, true
 }

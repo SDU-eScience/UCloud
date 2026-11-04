@@ -520,7 +520,7 @@ func upgradeDriveRemote(
 			executorMessage = "the node did not report a reason"
 		}
 		upgradeFail(operation, worker, fmt.Sprintf(
-			"the upgrade to %s failed on the node: %s. An explicit retry is required",
+			"the upgrade to %s failed on the node: %s. Check the node, then retry the maintenance run",
 			operation.TargetRelease,
 			executorMessage,
 		))
@@ -717,7 +717,7 @@ func upgradeFinish(operation Operation, worker *nodeWorker) {
 	}
 	if finishErr != nil {
 		upgradeFail(operation, worker, fmt.Sprintf(
-			"the upgrade to %s completed on the node, but the result could not be recorded: %s. An explicit retry recovers the result",
+			"the upgrade to %s completed on the node, but the result could not be recorded: %s. Retry the maintenance run to record the result",
 			operation.TargetRelease,
 			finishErr,
 		))

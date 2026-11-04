@@ -1026,7 +1026,7 @@ func clusterWriteNodeInput(stack *ucxsvc.Stack, record *ClusterRecord, release K
 	serverUrl := fmt.Sprintf("https://%s:%d", record.ServiceDnsName, ApiPort)
 
 	nodeJson := map[string]any{
-		"role":        spec.group,
+		"nodeGroup":   spec.group,
 		"firstServer": spec.firstServer,
 		"hostname":    ClusterNodeHostname(spec.group, spec.internalId),
 		"ipAddress":   ipAddress,

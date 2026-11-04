@@ -23,6 +23,7 @@ const (
 	runAgentProbeConcurrency = 8
 	runOsProbeConcurrency    = 8
 	runProbeBudget           = 30 * time.Minute
+	runOsCheckFreshFor       = 5 * time.Minute
 	runBackupRequesterPrefix = "maintenance run "
 	runClaimLease            = 15 * time.Minute
 	runClaimRenewInterval    = runClaimLease / 3
@@ -741,7 +742,15 @@ func runProbeOsNodes(ctx context.Context, nodes []shared.ClusterNodeRecord) []ru
 			}
 			defer func() { <-semaphore }()
 
-			status, err := shared.NodeAgentClientOsCommand(
+			status, err := shared.NodeAgentClientOsStatus(probeCtx, node.Hostname, node.IpAddress)
+			checkFresh := err == nil && time.Since(status.CheckedAt) < runOsCheckFreshFor
+			updateActive := slices.Contains(shared.NodeAgentOsPhases, status.Phase)
+			if checkFresh && !updateActive && !status.NeedsStateRecovery {
+				probes[index] = runOsProbe{node: node, status: status}
+				return
+			}
+
+			status, err = shared.NodeAgentClientOsCommand(
 				probeCtx,
 				node.Hostname,
 				node.IpAddress,
@@ -1462,6 +1471,10 @@ func advanceRunTask(
 		return err
 	}
 
+	record := shared.ClusterRecord{}
+	recordFound := false
+	recordLoaded := false
+
 	for itemIndex := range task.Items {
 		item := &task.Items[itemIndex]
 		if item.Phase != k8sapi.MaintenanceRunRunning {
@@ -1488,9 +1501,13 @@ func advanceRunTask(
 		}
 
 		if task.Kind == k8sapi.MaintenanceTaskRemove {
-			record, recordFound, recordErr := readClusterRecord()
-			if recordErr != nil {
-				return recordErr
+			if !recordLoaded {
+				var recordErr error
+				record, recordFound, recordErr = readClusterRecord()
+				if recordErr != nil {
+					return recordErr
+				}
+				recordLoaded = true
 			}
 			if recordFound && !clusterRecordHasNode(record, item.NodeName) {
 				item.Phase = k8sapi.MaintenanceRunCompleted

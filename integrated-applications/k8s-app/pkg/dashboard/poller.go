@@ -23,6 +23,7 @@ import (
 
 const (
 	pollInterval                  = 5 * time.Second
+	maintenanceSnapshotTtl        = 2 * time.Second
 	resourceWatchRetryDelay       = 2 * time.Second
 	resourceWatchBackoffDelay     = 30 * time.Second
 	resourceWatchEstablishTimeout = 15 * time.Second
@@ -127,6 +128,12 @@ type resourcePoller struct {
 	onTypesChanged  func()
 	nodeJobIds      func() map[string]string
 	extraRows       func(ResourceTypeDef) []ResourceRow
+
+	maintenanceCacheMu          sync.Mutex
+	maintenanceCacheSnapshot    map[string]maintenance.Operation
+	maintenanceCacheJobIds      map[string]string
+	maintenanceCacheUnavailable bool
+	maintenanceCacheAt          time.Time
 }
 
 func newResourcePoller(
@@ -553,16 +560,30 @@ func (p *resourcePoller) resourceSendTableUpdate(selection resourceSelection, sn
 	maintenanceUnavailable := false
 	nodeJobIds := map[string]string{}
 	if isNodes {
-		read, err := maintenance.Snapshot()
-		if err != nil {
-			log.Warn("k8s-app: could not read the maintenance state: %s", err)
-			maintenanceUnavailable = true
-		} else {
-			maintenanceSnapshot = read
+		p.maintenanceCacheMu.Lock()
+		cacheFresh := time.Since(p.maintenanceCacheAt) < maintenanceSnapshotTtl
+		if snapshot || !cacheFresh {
+			read, err := maintenance.Snapshot()
+			if err != nil {
+				log.Warn("k8s-app: could not read the maintenance state: %s", err)
+				p.maintenanceCacheUnavailable = true
+				p.maintenanceCacheSnapshot = map[string]maintenance.Operation{}
+				p.maintenanceCacheJobIds = map[string]string{}
+			} else {
+				p.maintenanceCacheUnavailable = false
+				p.maintenanceCacheSnapshot = read
+				if p.nodeJobIds != nil {
+					p.maintenanceCacheJobIds = p.nodeJobIds()
+				} else {
+					p.maintenanceCacheJobIds = map[string]string{}
+				}
+			}
+			p.maintenanceCacheAt = time.Now()
 		}
-		if p.nodeJobIds != nil {
-			nodeJobIds = p.nodeJobIds()
-		}
+		maintenanceSnapshot = p.maintenanceCacheSnapshot
+		maintenanceUnavailable = p.maintenanceCacheUnavailable
+		nodeJobIds = p.maintenanceCacheJobIds
+		p.maintenanceCacheMu.Unlock()
 	}
 
 	p.mu.Lock()
