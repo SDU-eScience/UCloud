@@ -72,7 +72,10 @@ setup("Setup 'pi', 'admin', and 'user'", async ({page, browser}) => {
     TestUsers["Project User"] = user.credentials;
 
     fs.mkdirSync(path.dirname(TestUserDataPath), {recursive: true});
-    fs.writeFileSync(TestUserDataPath, JSON.stringify({...TestUsers, projectName}));
+    const existing = fs.existsSync(TestUserDataPath)
+        ? JSON.parse(fs.readFileSync(TestUserDataPath, "utf8"))
+        : {};
+    fs.writeFileSync(TestUserDataPath, JSON.stringify({...existing, ...TestUsers, projectName}));
 
     for (const user of userList) {
         await user.page.close();

@@ -35,6 +35,7 @@ export function useUtilizationOverTimeChart(
     const clipId = useId().replace(/:/g, "_");
     const unitNormalizationFactor = unit?.balanceFactor ?? 1;
     const unitName = unit?.name ?? "";
+    const referenceBalance = unit?.productType === "STORAGE" ? undefined : 1000;
     const [rows, setRows] = useState<UtilizationOverTimeTableRow[]>([]);
 
     const chart = useD3(node => {
@@ -150,7 +151,7 @@ export function useUtilizationOverTimeChart(
             .unknown("#ccc");
 
         const balanceToString = (normalizedBalance: number) => {
-            return balanceToStringFromUnit(null, unitName, normalizedBalance, { referenceBalance: 1000, removeUnitIfPossible: true });
+            return balanceToStringFromUnit(null, unitName, normalizedBalance, {referenceBalance, removeUnitIfPossible: true});
         };
 
         setRows([

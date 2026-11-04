@@ -13,6 +13,7 @@ https://ucloud.localhost.direct {
     reverse_proxy /api/auth-callback frontend:9000
     reverse_proxy /api/sync-callback frontend:9000
     reverse_proxy /assets frontend:9000
+    reverse_proxy /assets/* frontend:9000
     reverse_proxy /favicon.ico frontend:9000
     reverse_proxy /favicon.svg frontend:9000
     reverse_proxy /AppVersion.txt frontend:9000

@@ -1013,6 +1013,8 @@ func loadStorageProducts() {
 		}
 
 		switch category.Payment.Interval {
+		case cfg.PaymentIntervalSecondly:
+			log.Fatal("Slurm does not support Secondly payment. Use Minutely on Slurm.")
 		case cfg.PaymentIntervalMinutely:
 			productCategory.AccountingFrequency = apm.AccountingFrequencyPeriodicMinute
 		case cfg.PaymentIntervalHourly:

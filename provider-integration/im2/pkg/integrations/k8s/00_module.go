@@ -59,6 +59,13 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	controller.Jobs = InitCompute()
 	controller.UcxApplications = initAppUcx()
 
+	controller.ProductsRegister(shared.Machines)
+	controller.ProductsRegister(shared.StorageProducts)
+	controller.ProductsRegister(shared.IpProducts)
+	controller.ProductsRegister(shared.LinkProducts)
+	controller.ProductsRegister(shared.LicenseProducts)
+	controller.ProductsRegister(shared.PrivateNetworkProducts)
+
 	filesystem.DriveScanListener = func(drive *orc.Drive, internalPath string) {
 		inference.InferenceDriveScanned(drive, internalPath)
 	}
@@ -116,13 +123,6 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 		log.Warn("UCX delivery: failed to initialize executable cache: %v", err)
 	}
 	ucxdelivery.RegisterStaticHandler(controller.Mux, config.FileSystem.MountPoint)
-
-	controller.ProductsRegister(shared.Machines)
-	controller.ProductsRegister(shared.StorageProducts)
-	controller.ProductsRegister(shared.IpProducts)
-	controller.ProductsRegister(shared.LinkProducts)
-	controller.ProductsRegister(shared.LicenseProducts)
-	controller.ProductsRegister(shared.PrivateNetworkProducts)
 }
 
 func InitLater(config *cfg.ServicesConfigurationKubernetes) {

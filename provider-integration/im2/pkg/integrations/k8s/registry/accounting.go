@@ -31,7 +31,6 @@ import (
 
 const (
 	accountingMiddlewareName = "ucloud-accounting"
-	accountingUnitBytes      = int64(1_000_000_000)
 	accountingScanInterval   = time.Hour
 	accountingRetryInterval  = 30 * time.Second
 )
@@ -231,6 +230,7 @@ type accountingTagOverride struct {
 
 type repositoryAccountingUsage struct {
 	repository orc.ContainerRepository
+	unitBytes  int64
 	exactBytes int64
 	usage      int64
 }
@@ -369,7 +369,10 @@ func accountingScanOwner(ctx context.Context, owner apm.WalletOwner, override *a
 	result := make([]repositoryAccountingUsage, 0, len(repositories))
 
 	for _, logicalRepository := range repositories {
-		entry := repositoryAccountingUsage{repository: logicalRepository}
+		entry := repositoryAccountingUsage{
+			repository: logicalRepository,
+			unitBytes:  controller.ProductCategoryAccountingUnitBytes(logicalRepository.Specification.Product.Category),
+		}
 		root := logicalRepository.Specification.Name
 		for _, repositoryName := range catalog {
 			if repositoryName != root && !strings.HasPrefix(repositoryName, root+"/") {
@@ -477,22 +480,30 @@ func accountingWalkManifest(
 }
 
 func accountingRoundUsage(usage []repositoryAccountingUsage) error {
+	if len(usage) == 0 {
+		return nil
+	}
+
+	unitBytes := usage[0].unitBytes
 	totalBytes := int64(0)
 	baseUnits := int64(0)
 	for idx := range usage {
-		usage[idx].usage = usage[idx].exactBytes / accountingUnitBytes
+		if usage[idx].unitBytes != unitBytes {
+			return errors.New("container repositories for one owner must use a single accounting unit")
+		}
+		usage[idx].usage = usage[idx].exactBytes / unitBytes
 		if totalBytes > int64(^uint64(0)>>1)-usage[idx].exactBytes {
 			return errors.New("container registry usage exceeds int64")
 		}
 		totalBytes += usage[idx].exactBytes
 		baseUnits += usage[idx].usage
 	}
-	remaining := totalBytes/accountingUnitBytes - baseUnits
+	remaining := totalBytes/unitBytes - baseUnits
 	for idx := range usage {
 		if remaining == 0 {
 			break
 		}
-		if usage[idx].exactBytes%accountingUnitBytes != 0 {
+		if usage[idx].exactBytes%unitBytes != 0 {
 			usage[idx].usage++
 			remaining--
 		}
@@ -531,6 +542,7 @@ func accountingCheckTagMutation(ctx context.Context, owner apm.WalletOwner, repo
 	}
 
 	category := prospective[0].repository.Specification.Product.Category
+	unitBytes := prospective[0].unitBytes
 	response, rpcErr := apm.CheckProviderUsable.Invoke(fnd.BulkRequest[apm.CheckProviderUsableRequest]{Items: []apm.CheckProviderUsableRequest{{
 		Owner: owner,
 		Category: apm.ProductCategoryIdV2{
@@ -555,7 +567,7 @@ func accountingCheckTagMutation(ctx context.Context, owner apm.WalletOwner, repo
 		}
 		prospectiveBytes += item.exactBytes
 	}
-	if allowedUnits < 0 || allowedUnits > int64(^uint64(0)>>1)/accountingUnitBytes || prospectiveBytes > allowedUnits*accountingUnitBytes {
+	if allowedUnits < 0 || allowedUnits > int64(^uint64(0)>>1)/unitBytes || prospectiveBytes > allowedUnits*unitBytes {
 		return errors.New("storage quota exceeded")
 	}
 	return nil

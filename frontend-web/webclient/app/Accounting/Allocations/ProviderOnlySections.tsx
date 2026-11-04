@@ -89,10 +89,7 @@ export const GiftSection: React.FunctionComponent<{
 
         if (name.startsWith("gift-resource-")) {
             const resourceName = removePrefixFrom("gift-resource-", name);
-            const [category, provider] = resourceName.split("/");
-            const resolvedCategory = state.remoteData.managedProducts?.[provider]?.find(it => it.name === category);
-            const isCredit = resolvedCategory != null && Accounting.isCreditUnit(Accounting.explainUnit(resolvedCategory).name);
-            let amount = isCredit ? parseFloat(value) : parseInt(value);
+            let amount = parseFloat(value);
             if (value === "") amount = 0;
             if (!isNaN(amount)) {
                 const data = {resources: {}};
@@ -164,7 +161,10 @@ export const GiftSection: React.FunctionComponent<{
                 sendFailureNotification("Internal failure while creating gift. Try reloading the page!");
                 return;
             }
-            const actualAmount = Accounting.normalizedBalanceToRaw(resolvedCategory, amount);
+            const isCredit = Accounting.isCreditUnit(Accounting.explainUnit(resolvedCategory).name);
+            const actualAmount = isCredit
+                ? Accounting.normalizedBalanceToRaw(resolvedCategory, amount)
+                : Accounting.allocationInputToRaw(resolvedCategory, amount);
             if (actualAmount === 0) continue;
 
             gift.resources.push({
@@ -408,7 +408,7 @@ export const GiftSection: React.FunctionComponent<{
                                                     value={state.gifts?.resources?.[`${cat.name}/${cat.provider}`] ?? ""}
                                                     onKeyDown={stopPropagation}
                                                 />
-                                                <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
+                                                <Box width={"150px"}>{Accounting.allocationInputUnit(cat).name}</Box>
                                             </Flex>}
                                         />)}
                                     </React.Fragment>)}
@@ -470,10 +470,7 @@ export const RootAllocationSections: React.FunctionComponent<{
 
         if (name.startsWith("root-resource-")) {
             const resourceName = removePrefixFrom("root-resource-", name);
-            const [category, provider] = resourceName.split("/");
-            const resolvedCategory = state.remoteData.managedProducts?.[provider]?.find(it => it.name === category);
-            const isCredit = resolvedCategory != null && Accounting.isCreditUnit(Accounting.explainUnit(resolvedCategory).name);
-            let amount = isCredit ? parseFloat(value) : parseInt(value);
+            let amount = parseFloat(value);
             if (value === "") amount = 0;
             if (!isNaN(amount)) {
                 const data = {resources: {}};
@@ -514,7 +511,9 @@ export const RootAllocationSections: React.FunctionComponent<{
                         name: category,
                         provider,
                     },
-                    quota: Accounting.normalizedBalanceToRaw(resolvedCategory, amount),
+                    quota: Accounting.isCreditUnit(Accounting.explainUnit(resolvedCategory).name)
+                        ? Accounting.normalizedBalanceToRaw(resolvedCategory, amount)
+                        : Accounting.allocationInputToRaw(resolvedCategory, amount),
                     start,
                     end,
                 });
@@ -608,7 +607,7 @@ export const RootAllocationSections: React.FunctionComponent<{
                                             onInput={onRootAllocationInput}
                                             onKeyDown={stopPropagation}
                                         />
-                                        <Box width={"150px"}>{Accounting.explainUnit(cat).name}</Box>
+                                        <Box width={"150px"}>{Accounting.allocationInputUnit(cat).name}</Box>
                                     </Flex>}
                                 />)}
                             </React.Fragment>)}

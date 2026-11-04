@@ -24,6 +24,16 @@ import (
 //go:embed config/k8s/config.yaml
 var k8sProviderConfig []byte
 
+//go:embed config/k8s/config.ci.yaml
+var k8sProviderConfigCi []byte
+
+func k8sProviderConfigData() []byte {
+	if os.Getenv("UCLOUD_LAUNCHER_PROFILE") == "ci" {
+		return k8sProviderConfigCi
+	}
+	return k8sProviderConfig
+}
+
 //go:embed config/k8s/init.sh
 var k8sInitScript []byte
 
@@ -220,7 +230,7 @@ func ProviderK8s() {
 				return err
 			}
 
-			providerConfig := bytes.Replace(k8sProviderConfig, []byte("<registry-auth-shared-secret>"), []byte(util.SecureToken()), 1)
+			providerConfig := bytes.Replace(k8sProviderConfigData(), []byte("<registry-auth-shared-secret>"), []byte(util.SecureToken()), 1)
 			providerConfig = bytes.Replace(providerConfig, []byte("<registry-shared-secret>"), []byte(util.SecureToken()), 1)
 			err = os.WriteFile(filepath.Join(imConfig, "config.yaml"), providerConfig, 0660)
 			if err != nil {

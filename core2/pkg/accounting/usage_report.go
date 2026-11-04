@@ -451,7 +451,7 @@ func initUsageReports() {
 					freq := w.PaysFor.AccountingFrequency
 
 					if productType == accapi.ProductTypeCompute {
-						scalingFactor = float64(freq.ToMinutes()) / 60.0
+						scalingFactor = float64(freq.ToSeconds()) / (60.0 * 60.0)
 
 						if freq.IsPeriodic() {
 							current, ok := computeReportsByUnit[w.PaysFor.AccountingUnit.Name]
@@ -474,7 +474,7 @@ func initUsageReports() {
 					} else if productType == accapi.ProductTypeStorage {
 						if w.PaysFor.AccountingUnit.Name == "GB" {
 							if freq.IsPeriodic() {
-								scalingFactor = float64(freq.ToMinutes()) / (60.0 * 24.0)
+								scalingFactor = float64(freq.ToSeconds()) / (60.0 * 60.0 * 24.0)
 								report = storageReportsTimeBased
 								report.Title = "GB-days"
 								report.UnitAndFrequency = accapi.AccountingUnitAndFrequency{

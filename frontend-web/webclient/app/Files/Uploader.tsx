@@ -739,7 +739,7 @@ const Uploader: React.FunctionComponent = () => {
 
         setUploads(allUploads);
         startUploads(allUploads, setLookForNewUploads);
-    }, [uploads]);
+    }, [uploads, uploadPath]);
 
     const stopGapMethodForUploadingFilesFromTheEditor = React.useCallback((_e: unknown) => {
         const e = _e as CustomEvent<WriteToFileEventProps>;
@@ -853,7 +853,7 @@ const Uploader: React.FunctionComponent = () => {
         onRequestClose={closeModal}
         className={CardClass}
     >
-        <div className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal">
+        <div className={DropZoneWrapper} data-has-uploads={hasUploads} data-tag="uploadModal" data-upload-path={uploadPath}>
             <div>
                 <Flex>
                     <div className={classConcat(TextClass, UploaderText)} data-has-uploads={hasUploads}>Upload files</div>

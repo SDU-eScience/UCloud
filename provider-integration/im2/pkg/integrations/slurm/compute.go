@@ -661,6 +661,10 @@ func submitJob(job orc.Job) (util.Option[string], *util.HttpError) {
 
 func loadComputeProducts() {
 	for categoryName, category := range ServiceConfig.Compute.Machines {
+		if category.Payment.Interval == config.PaymentIntervalSecondly {
+			log.Fatal("Slurm does not support Secondly payment. Use Minutely on Slurm.")
+		}
+
 		productCategory := apm.ProductCategory{
 			Name:                categoryName,
 			Provider:            config.Provider.Id,

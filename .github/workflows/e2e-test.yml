@@ -44,7 +44,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           clean: 'true'
 
       - name: Verify toolchain
@@ -55,12 +55,20 @@ jobs:
           docker --version
           docker compose version
 
+      - name: Install frontend dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd frontend-web/webclient
+          npm ci
+
       - name: Run init-test
         shell: bash
         timeout-minutes: 30
         run: |
           set -euo pipefail
           export UCLOUD_GO_CACHE_DIR=$HOME/go-cache
+          export UCLOUD_LAUNCHER_PROFILE=ci
           ./launcher init-test
 
       - name: Remove dangling docker images
@@ -74,7 +82,15 @@ jobs:
         run: |
           set -euo pipefail
           export UCLOUD_GO_CACHE_DIR=$HOME/go-cache
+          export UCLOUD_LAUNCHER_PROFILE=ci
           ./launcher test
+
+      - name: Collect frontend logs
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose --project-name compose --project-directory "$GITHUB_WORKSPACE/.compose" logs frontend > "$GITHUB_WORKSPACE/.compose/frontend.log" || true
 
       - name: Fix log permissions
         if: always()
@@ -102,6 +118,7 @@ jobs:
         with:
           name: test-logs-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
+            .compose/frontend.log
             .compose/k8s-logs/*
             .compose/core-logs/*
             .compose/slurm-logs/*

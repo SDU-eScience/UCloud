@@ -1,4 +1,4 @@
-import test, {BrowserContext, expect, type Page} from "@playwright/test";
+import test, {BrowserContext, expect, type Locator, type Page} from "@playwright/test";
 import fs from "fs";
 import path from "path";
 
@@ -49,6 +49,389 @@ export const ProviderInfo = {
     providerTitle(): string {
         return providerAndProducts.provider_used_in_tests;
     },
+
+    providerId(): string | undefined {
+        return typeof runtimeTestUsers.providerId === "string" ? runtimeTestUsers.providerId : undefined;
+    },
+
+    providerProjectId(): string | undefined {
+        return typeof runtimeTestUsers.providerProjectId === "string" ? runtimeTestUsers.providerProjectId : undefined;
+    },
+}
+
+type ApiProductCategory = {
+    name: string;
+    provider: string;
+    productType: string;
+    accountingUnit: {name: string; floatingPoint: boolean;};
+    accountingFrequency: string;
+};
+
+type ApiDrive = {
+    id: string;
+    specification: {
+        title: string;
+        product: {provider: string;};
+    };
+};
+
+const apiCategoryCache = new Map<string, ApiProductCategory>();
+let cachedProviderProjectId: string | undefined;
+
+type UserTokens = {accessToken: string; csrfToken: string;};
+
+async function apiHeaders(page: Page, projectOverride?: string): Promise<Record<string, string>> {
+    const tokens = await page.evaluate(() => ({
+        accessToken: localStorage.getItem("accessToken") ?? "",
+        csrfToken: localStorage.getItem("csrfToken") ?? "",
+        project: localStorage.getItem("project") ?? "",
+    }));
+    const headers: Record<string, string> = {
+        Accept: "application/json",
+        Authorization: `Bearer ${tokens.accessToken}`,
+        "Content-Type": "application/json",
+        Origin: data.location_origin,
+        "X-CSRFToken": tokens.csrfToken,
+    };
+    const project = projectOverride ?? tokens.project;
+    if (project) headers.Project = project;
+    return headers;
+}
+
+export async function apiRequest(
+    page: Page,
+    method: "GET" | "POST" | "DELETE",
+    path: string,
+    body?: any,
+    projectOverride?: string,
+): Promise<Response> {
+    const headers = await apiHeaders(page, projectOverride);
+    const response = await page.request.fetch(new URL(path, data.location_origin).toString(), {
+        method,
+        headers,
+        data: body,
+    });
+    if (!response.ok()) {
+        throw new Error(`${method} ${path} failed: ${response.status()} ${await response.text()}`);
+    }
+    return response;
+}
+
+export async function apiJson<T>(
+    page: Page,
+    method: "GET" | "POST" | "DELETE",
+    path: string,
+    body?: any,
+    projectOverride?: string,
+): Promise<T> {
+    return await (await apiRequest(page, method, path, body, projectOverride)).json() as T;
+}
+
+export async function refreshAccessToken(page: Page): Promise<void> {
+    const csrfToken = await page.evaluate(() => localStorage.getItem("csrfToken") ?? "");
+    const response = await page.request.post(new URL("/auth/refresh/web", data.location_origin).toString(), {
+        headers: {
+            Origin: data.location_origin,
+            "X-CSRFToken": csrfToken,
+        },
+    });
+    if (!response.ok()) {
+        throw new Error(`POST /auth/refresh/web failed: ${response.status()} ${await response.text()}`);
+    }
+
+    const tokens = await response.json() as {accessToken: string; csrfToken: string;};
+    await page.evaluate(({accessToken, csrfToken}) => {
+        localStorage.setItem("accessToken", accessToken);
+        localStorage.setItem("csrfToken", csrfToken);
+    }, tokens);
+}
+
+async function apiBrowseAll<T>(page: Page, path: string): Promise<T[]> {
+    const items: T[] = [];
+    let next: string | null | undefined = undefined;
+    for (let pageIndex = 0; pageIndex < 10; pageIndex++) {
+        const result = await apiJson<{items: T[]; next?: string | null;}>(
+            page,
+            "GET",
+            next ? `${path}&next=${encodeURIComponent(next)}` : path,
+        );
+        items.push(...result.items);
+        next = result.next;
+        if (!next) break;
+    }
+    return items;
+}
+
+export async function createUserByApi(admin: Page, user: {username: string; password: string;}): Promise<void> {
+    const result = await apiJson<Array<{created: boolean; error: string;}>>(admin, "POST", "/auth/users/register", [{
+        username: user.username,
+        password: user.password,
+        email: `${user.username}@e2etest.internal`,
+        role: "USER",
+        firstNames: user.username,
+        lastname: "Test",
+    }]);
+    const entry = result[0];
+    if (!entry?.created) {
+        throw new Error(`Failed to create user ${user.username}: ${entry?.error ?? "unknown error"}`);
+    }
+}
+
+export async function createProjectByApi(admin: Page, title: string): Promise<string> {
+    const result = await apiJson<{responses: Array<{id: string;}>;}>(admin, "POST", "/api/projects/v2", {
+        type: "bulk",
+        items: [{title, canConsumeResources: true}],
+    });
+    return result.responses[0].id;
+}
+
+export async function inviteUserByApi(admin: Page, projectId: string, username: string): Promise<void> {
+    await apiRequest(admin, "POST", "/api/projects/v2/invites", {
+        type: "bulk",
+        items: [{recipient: username}],
+    }, projectId);
+}
+
+async function acceptProjectInviteWithToken(page: Page, projectId: string, tokens: UserTokens): Promise<void> {
+    const response = await page.request.post(new URL("/api/projects/v2/acceptInvite", data.location_origin).toString(), {
+        headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${tokens.accessToken}`,
+            "Content-Type": "application/json",
+            Origin: data.location_origin,
+            "X-CSRFToken": tokens.csrfToken,
+        },
+        data: {type: "bulk", items: [{project: projectId}]},
+    });
+    if (!response.ok()) {
+        throw new Error(`POST /api/projects/v2/acceptInvite failed: ${response.status()} ${await response.text()}`);
+    }
+}
+
+export async function changeProjectRoleByApi(
+    admin: Page,
+    projectId: string,
+    username: string,
+    role: "USER" | "ADMIN" | "PI",
+): Promise<void> {
+    await apiRequest(admin, "POST", "/api/projects/v2/changeRole", {
+        type: "bulk",
+        items: [{username, role}],
+    }, projectId);
+}
+
+export async function apiProductCategory(page: Page, name: string): Promise<ApiProductCategory> {
+    const cached = apiCategoryCache.get(name);
+    if (cached) return cached;
+
+    const products = await apiBrowseAll<{category: ApiProductCategory;}>(
+        page,
+        "/api/products/v2/browse?itemsPerPage=250",
+    );
+    const providerId = ProviderInfo.providerId();
+    const categories = products.map(it => it.category);
+    const category =
+        categories.find(it => it.name === name && (providerId === undefined || it.provider === providerId)) ??
+        categories.find(it => it.name === name);
+
+    if (!category) throw new Error(`Product category not found: ${name}`);
+    apiCategoryCache.set(name, category);
+    return category;
+}
+
+export function isByteStorage(category: ApiProductCategory): boolean {
+    return category.productType === "STORAGE" && category.accountingUnit.name === "B";
+}
+
+export function apiAllocationRaw(category: ApiProductCategory, amount: number): number {
+    if (isByteStorage(category)) return Math.round(amount * 1_000_000_000);
+    if (category.accountingUnit.floatingPoint) return Math.round(amount * 1_000_000);
+
+    switch (category.accountingFrequency) {
+        case "PERIODIC_SECOND":
+            return Math.round(amount * 3600);
+        case "PERIODIC_MINUTE":
+            return Math.round(amount * 60);
+        default:
+            return Math.round(amount);
+    }
+}
+
+export async function resolveProviderProjectId(admin: Page): Promise<string> {
+    if (cachedProviderProjectId) return cachedProviderProjectId;
+
+    const projects = await apiBrowseAll<{id: string; specification: {title: string;};}>(
+        admin,
+        "/api/projects/v2/browse?itemsPerPage=250",
+    );
+
+    const configured = ProviderInfo.providerProjectId();
+    if (configured && projects.some(it => it.id === configured)) {
+        cachedProviderProjectId = configured;
+        return configured;
+    }
+
+    const project = projects.find(it => it.specification.title === ProviderInfo.providerTitle());
+    if (!project) throw new Error("Unable to determine the provider project ID");
+    cachedProviderProjectId = project.id;
+    return project.id;
+}
+
+export async function submitGrantByApi(
+    admin: Page,
+    recipient: {type: "existingProject"; id: string;} | {type: "personalWorkspace"; username: string;},
+    quotas: RequestedQuotas,
+    providerProjectId: string,
+): Promise<void> {
+    const start = Date.now();
+    const end = start + 7 * 24 * 60 * 60 * 1000;
+
+    const allocationRequests = [];
+    for (const [name, amount] of quotas) {
+        const category = await apiProductCategory(admin, name);
+        allocationRequests.push({
+            category: category.name,
+            provider: category.provider,
+            grantGiver: providerProjectId,
+            balanceRequested: apiAllocationRaw(category, amount),
+        });
+    }
+
+    await apiRequest(admin, "POST", "/api/grants/v2/submitRevision", {
+        revision: {
+            recipient,
+            allocationRequests,
+            allocationPeriod: {start, end},
+            form: {type: "grant_giver_initiated", text: "Grant test resources"},
+        },
+        comment: "Grant test resources",
+    }, providerProjectId);
+}
+
+export async function driveIdByName(page: Page, name: string): Promise<string> {
+    const providerId = ProviderInfo.providerId();
+    const drives = await apiBrowseAll<ApiDrive>(page, "/api/files/collections/browse?itemsPerPage=250");
+
+    const matches = drives.filter(it =>
+        it.specification.title === name &&
+        (providerId === undefined || it.specification.product.provider === providerId)
+    );
+    const drive = matches[0] ?? drives.find(it => it.specification.title === name);
+    if (!drive) throw new Error(`Drive not found: ${name}`);
+    return drive.id;
+}
+
+export async function waitForDriveByName(page: Page, name: string, timeoutMs: number = 60_000): Promise<string> {
+    const startedAt = Date.now();
+    let lastError: unknown;
+    while (Date.now() - startedAt < timeoutMs) {
+        try {
+            return await driveIdByName(page, name);
+        } catch (e) {
+            lastError = e;
+            await page.waitForTimeout(250);
+        }
+    }
+    throw lastError instanceof Error ? lastError : new Error(`Drive not found: ${name}`);
+}
+
+export async function waitForDriveReady(page: Page, name: string, timeoutMs: number = 60_000): Promise<string> {
+    const driveId = await waitForDriveByName(page, name, timeoutMs);
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+        const result = await apiJson<{items: Array<{status: {icon?: string;};}>;}>(page, "GET",
+            `/api/files/browse?path=${encodeURIComponent(driveId)}&itemsPerPage=250`);
+        if (result.items.some(it => it.status.icon === "DIRECTORY_JOBS")) return driveId;
+        await page.waitForTimeout(200);
+    }
+    throw new Error(`Drive is not ready: ${name}`);
+}
+
+export async function waitForFileByApi(
+    page: Page,
+    parent: string,
+    name: string,
+    timeoutMs: number = 30_000,
+): Promise<void> {
+    const startedAt = Date.now();
+    let lastError: unknown;
+    while (Date.now() - startedAt < timeoutMs) {
+        try {
+            const result = await apiBrowseAll<{id: string;}>(
+                page,
+                `/api/files/browse?path=${encodeURIComponent(parent)}&itemsPerPage=250`,
+            );
+            if (result.some(it => it.id.split("/").pop() === name)) return;
+        } catch (e) {
+            lastError = e;
+        }
+        await page.waitForTimeout(250);
+    }
+    throw lastError instanceof Error ? lastError : new Error(`File not found: ${name}`);
+}
+
+export async function findFilePathByApi(page: Page, root: string, name: string): Promise<string> {
+    const pending = [root];
+    const seen = new Set<string>();
+    while (pending.length > 0) {
+        const current = pending.shift()!;
+        if (seen.has(current)) continue;
+        seen.add(current);
+
+        const result = await apiBrowseAll<{id: string; status: {type: string;};}>(
+            page,
+            `/api/files/browse?path=${encodeURIComponent(current)}&itemsPerPage=250`,
+        );
+        for (const item of result) {
+            if (item.id.split("/").pop() === name) return item.id;
+            if (item.status.type === "DIRECTORY") pending.push(item.id);
+        }
+    }
+    throw new Error(`File not found: ${name}`);
+}
+
+export async function trashByApi(page: Page, path: string): Promise<void> {
+    await apiRequest(page, "POST", "/api/files/trash", {type: "bulk", items: [{id: path}]});
+}
+
+export async function emptyTrashByApi(page: Page, driveId: string): Promise<void> {
+    const trashPath = `${driveId}/Trash`;
+    await apiRequest(page, "POST", "/api/files/folder", {
+        type: "bulk",
+        items: [{id: trashPath, conflictPolicy: "REJECT"}],
+    }).catch(() => undefined);
+    await apiRequest(page, "POST", "/api/files/emptyTrash", {type: "bulk", items: [{id: trashPath}]});
+}
+
+export async function deleteDriveByApi(page: Page, id: string): Promise<void> {
+    const driveId = id.replace(/^\//, "");
+    await apiRequest(page, "DELETE", "/api/files/collections", {type: "bulk", items: [{id: driveId}]});
+}
+
+export async function deleteDriveByApiWithTokens(
+    page: Page,
+    tokens: {accessToken: string; csrfToken: string;},
+    id: string,
+    projectId?: string,
+): Promise<void> {
+    const headers: Record<string, string> = {
+        Accept: "application/json",
+        Authorization: `Bearer ${tokens.accessToken}`,
+        "Content-Type": "application/json",
+        Origin: data.location_origin,
+        "X-CSRFToken": tokens.csrfToken,
+    };
+    if (projectId) headers.Project = projectId;
+
+    const driveId = id.replace(/^\//, "");
+    const response = await page.request.fetch(new URL("/api/files/collections", data.location_origin).toString(), {
+        method: "DELETE",
+        headers,
+        data: {type: "bulk", items: [{id: driveId}]},
+    });
+    if (!response.ok()) {
+        throw new Error(`DELETE /api/files/collections failed: ${response.status()} ${await response.text()}`);
+    }
 }
 
 export const User = {
@@ -59,11 +442,17 @@ export const User = {
 
     async toLoginPage(page: Page): Promise<void> {
         await page.goto(LoginPageUrl);
-        await page.waitForTimeout(1000);
         await page.waitForLoadState("domcontentloaded");
+        await page.getByRole("textbox", {name: "Username"})
+            .or(page.getByText("Other login options"))
+            .first()
+            .waitFor();
     },
 
     async login(page: Page, user: {username: string; password: string;}, fillUserInfo: boolean = false): Promise<void> {
+        await page.addInitScript(() => {
+            localStorage.setItem("instantConfirmation", "true");
+        });
         await this.toLoginPage(page);
         if (await page.getByText("Other login options").isVisible()) {
             await page.getByText("Other login options").click();
@@ -73,10 +462,13 @@ export const User = {
         await page.getByRole("button", {name: "Login"}).click();
         await page.waitForLoadState("domcontentloaded");
 
-        await page.waitForTimeout(500);
+        const dashboardLink = page.getByRole("link", {name: "Go to dashboard"});
+        const acceptTerms = page.getByRole("button", {name: "I have read and accept the terms of service"});
+        const additionalInfo = page.getByText("Additional user information");
+        await dashboardLink.or(acceptTerms).or(additionalInfo).first().waitFor({timeout: 30_000});
 
-        if (page.url().endsWith("/sla")) {
-            await page.getByRole("button", {name: "I have read and accept the terms of service"}).click();
+        if (page.url().endsWith("/sla") || await acceptTerms.isVisible()) {
+            await acceptTerms.click();
             await page.getByRole("dialog").getByRole("button", {name: "I have read and accept the terms of service"}).click();
             await page.waitForURL("**/app");
         }
@@ -84,8 +476,6 @@ export const User = {
 
         if (fillUserInfo) {
             await this.dismissAdditionalInfoPrompt(page);
-            /* TODO(Jonas): Find a different approach */
-            await page.waitForLoadState("networkidle");
             await this.setAdditionalUserInfo(page);
             await this.disableNotifications(page);
         }
@@ -93,20 +483,87 @@ export const User = {
         await page.getByRole("link", {name: "Go to dashboard"}).waitFor({timeout: 30_000});
     },
 
-    async loginDirect(page: Page, user: {username: string; password: string;}): Promise<void> {
+    async loginTokens(page: Page, user: {username: string; password: string;}): Promise<UserTokens> {
         const service = "web";
         const response = await page.request.post(`/auth/login?service=${service}`, {
             headers: {Accept: "application/json", Origin: data.location_origin},
             multipart: {service, username: user.username, password: user.password},
         });
         if (!response.ok()) throw new Error(`Login failed: ${response.status()} ${await response.text()}`);
+        return await response.json() as UserTokens;
+    },
 
-        const tokens: {accessToken: string; csrfToken: string} = await response.json();
-        await page.addInitScript(({accessToken, csrfToken}) => {
+    async initializeNewUser(
+        page: Page,
+        tokens: UserTokens,
+        options: {acceptSla?: boolean; completeUserInfo?: boolean;},
+    ): Promise<void> {
+        if (!options.acceptSla && !options.completeUserInfo) return;
+
+        const headers = {
+            Accept: "application/json",
+            Authorization: `Bearer ${tokens.accessToken}`,
+            "Content-Type": "application/json",
+            Origin: data.location_origin,
+            "X-CSRFToken": tokens.csrfToken,
+        };
+        if (options.acceptSla) {
+            const slaResponse = await page.request.get(new URL("/api/sla", data.location_origin).toString(), {headers});
+            if (!slaResponse.ok()) throw new Error(`GET /api/sla failed: ${slaResponse.status()} ${await slaResponse.text()}`);
+            const sla = await slaResponse.json() as {version: number;};
+            const acceptResponse = await page.request.post(new URL("/api/sla/accept", data.location_origin).toString(), {
+                headers,
+                data: {version: sla.version},
+            });
+            if (!acceptResponse.ok()) {
+                throw new Error(`POST /api/sla/accept failed: ${acceptResponse.status()} ${await acceptResponse.text()}`);
+            }
+        }
+        if (options.completeUserInfo) {
+            const infoResponse = await page.request.post(new URL("/auth/users/optionalInfo", data.location_origin).toString(), {
+                headers,
+                data: {
+                    organizationFullName: "Test",
+                    department: "Not available",
+                    researchField: "0.1 Other",
+                    position: "Administrative Staff",
+                    gender: "Another gender identity",
+                    unit: "Unit division",
+                },
+            });
+            if (!infoResponse.ok()) {
+                throw new Error(`POST /auth/users/optionalInfo failed: ${infoResponse.status()} ${await infoResponse.text()}`);
+            }
+        }
+    },
+
+    async useTokens(page: Page, tokens: UserTokens, projectId?: string): Promise<void> {
+        await page.addInitScript(({accessToken, csrfToken, projectId}) => {
             localStorage.setItem("accessToken", accessToken);
             localStorage.setItem("csrfToken", csrfToken);
-        }, tokens);
+            if (projectId) localStorage.setItem("project", projectId);
+            localStorage.setItem("instantConfirmation", "true");
+        }, {...tokens, projectId});
         await page.goto(ucloudUrl(""), {waitUntil: "domcontentloaded"});
+    },
+
+    async loginDirect(
+        page: Page,
+        user: {username: string; password: string;},
+        options: {acceptSla?: boolean; completeUserInfo?: boolean;} = {},
+    ): Promise<void> {
+        const tokens = await this.loginTokens(page, user);
+        await this.initializeNewUser(page, tokens, options);
+        await this.useTokens(page, tokens);
+        await page.getByRole("link", {name: "Go to dashboard"}).waitFor({timeout: 30_000});
+    },
+
+    async refreshTokens(page: Page, csrfToken: string): Promise<UserTokens> {
+        const response = await page.request.post(new URL("/auth/refresh/web", data.location_origin).toString(), {
+            headers: {Origin: data.location_origin, "X-CSRFToken": csrfToken},
+        });
+        if (!response.ok()) throw new Error(`POST /auth/refresh/web failed: ${response.status()} ${await response.text()}`);
+        return await response.json() as UserTokens;
     },
 
 
@@ -118,7 +575,6 @@ export const User = {
 
     async create(page: Page, user: {username: string; password: string}): Promise<void> {
         await page.getByRole("link", {name: "Go to Admin"}).hover();
-        await page.waitForTimeout(300);
         await page.getByRole("link", {name: "User creation"}).click();
 
         await page.getByRole("textbox", {name: "Username"}).fill(user.username);
@@ -170,62 +626,47 @@ export const User = {
         const userPage = await context.browser()?.newPage();
         if (!userPage) throw Error("Failed to create userpage");
 
-        await User.create(admin, user);
+        await createUserByApi(admin, user);
 
         if (data["login_cookie"]) {
             await userPage.context().addCookies([data["login_cookie"]]);
         }
 
-        await User.login(userPage, user, true);
+        const providerProjectId = await resolveProviderProjectId(admin);
 
-        switch (ctx) {
-            case "Project Admin":
-            case "Project PI":
-            case "Project User": {
-                const projectName = Project.newProjectName();
-                await fillApplicationAndSubmit(admin, projectName, quotas, true);
-                await Accounting.GrantApplication.approve(admin);
-                await Components.goToDashboard(admin);
-                await Project.changeTo(admin, projectName);
-                await Project.inviteUsers(admin, [user.username]);
+        const tokens = await User.loginTokens(userPage, user);
+        await User.initializeNewUser(userPage, tokens, {acceptSla: true, completeUserInfo: true});
 
-                await Project.acceptInvites([userPage], projectName);
-
-                await Project.changeRoles(admin, user.username, ctx.split(" ")[1] as "User" | "Admin" | "PI");
-
-                await userPage.reload();
-                await userPage.getByText(user.username).waitFor({state: "hidden"});
-                await userPage.getByText(ctx).waitFor({state: "hidden"});
-                await Project.changeTo(userPage, projectName);
-                break;
-            }
-            case "Personal Workspace": {
-                const id = await fillApplicationAndSubmit(userPage, undefined, quotas, false);
-                await Accounting.goTo(admin, "Grant applications");
-                await Project.changeTo(admin, ProviderInfo.providerTitle());
-                await admin.getByText("Show applications received").click();
-                await Rows.actionByRowTitle(admin, `${id}: Personal workspace of ${user.username}`, "dblclick");
-                await Accounting.GrantApplication.approve(admin);
-                break;
-            }
+        if (ctx === "Personal Workspace") {
+            await submitGrantByApi(admin, {
+                type: "personalWorkspace",
+                username: user.username
+            }, quotas, providerProjectId);
+            await User.useTokens(userPage, tokens);
+            await userPage.getByRole("link", {name: "Go to dashboard"}).waitFor({timeout: 30_000});
+            await waitForDriveReady(userPage, "Home");
+            return {userPage, user};
         }
+
+        const projectName = Project.newProjectName();
+        const projectId = await createProjectByApi(admin, projectName);
+        await refreshAccessToken(admin);
+        await inviteUserByApi(admin, projectId, user.username);
+        await acceptProjectInviteWithToken(userPage, projectId, tokens);
+
+        const role = ctx.split(" ")[1].toUpperCase() as "USER" | "ADMIN" | "PI";
+        await changeProjectRoleByApi(admin, projectId, user.username, role);
+        const refreshed = await User.refreshTokens(userPage, tokens.csrfToken);
+        await submitGrantByApi(admin, {
+            type: "existingProject",
+            id: projectId
+        }, quotas, providerProjectId);
+
+        await User.useTokens(userPage, refreshed, projectId);
+        await userPage.getByRole("link", {name: "Go to dashboard"}).waitFor({timeout: 30_000});
+        await waitForDriveReady(userPage, Drive.memberFiles(user.username));
 
         return {userPage, user};
-
-        async function fillApplicationAndSubmit(page: Page, projectName: string | undefined, quotas: RequestedQuotas, isNewProject: boolean): Promise<string> {
-            await Accounting.goTo(page, "Apply for resources");
-            if (!projectName) {
-                await page.getByText("select an existing project instead").click();
-            } else {
-                await Accounting.GrantApplication.fillProjectName(page, projectName);
-            }
-
-            await Accounting.GrantApplication.toggleGrantGiver(page, ProviderInfo.providerTitle());
-
-            await Accounting.GrantApplication.fillQuotaFields(page, quotas);
-            await Accounting.GrantApplication.fillDefaultApplicationTextFields(page, isNewProject);
-            return await Accounting.GrantApplication.submit(page);
-        }
     }
 }
 
@@ -235,33 +676,86 @@ export function ucloudUrl(pathname: string): string {
     return ("/app/" + pathname).replaceAll("//", "/");
 }
 
+const RowDoubleClickWindowMs = 300;
+const lastRowClicks = new Map<string, number>();
+
+async function closeSidebar(page: Page): Promise<void> {
+    await page.mouse.move(640, 10);
+    await page.waitForTimeout(150);
+}
+
+async function centerRow(page: Page, locator: Locator): Promise<void> {
+    await locator.evaluate(element => {
+        const container = element.closest(".scrolling")?.parentElement;
+        if (!container) return;
+        const elementRect = element.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        container.scrollTop += (elementRect.top - containerRect.top) -
+            (containerRect.height - elementRect.height) / 2;
+    });
+    await page.waitForTimeout(50);
+}
+
+async function clickRow(page: Page, locator: Locator): Promise<void> {
+    const idx = await locator.evaluate(element => element.closest(".row")?.getAttribute("data-idx") ?? "");
+    const now = Date.now();
+    if (idx !== "") {
+        const lastClick = lastRowClicks.get(idx);
+        if (lastClick !== undefined) {
+            const waitMs = RowDoubleClickWindowMs - (now - lastClick);
+            if (waitMs > 0) await page.waitForTimeout(waitMs);
+        }
+    }
+    await centerRow(page, locator);
+    await locator.evaluate(element => (element as HTMLElement).click());
+    if (idx !== "") lastRowClicks.set(idx, Date.now());
+}
+
+async function scrollRows(page: Page, inModal: boolean | undefined, amount: number | "top"): Promise<void> {
+    const scrolling = inModal
+        ? page.getByRole("dialog").locator(".scrolling").last()
+        : page.locator(".scrolling").first();
+
+    await scrolling.evaluate((element, value) => {
+        const container = element.parentElement;
+        if (!container) return;
+        if (value === "top") {
+            container.scrollTop = 0;
+        } else {
+            container.scrollTop += value;
+        }
+    }, amount);
+}
+
+function rowLocator(page: Page, name: string, inModal: boolean | undefined): Locator {
+    return inModal
+        ? page.getByRole("dialog").locator(".row div > span", {hasText: name})
+        : page.locator(".row div > span", {hasText: name}).first();
+}
+
 export const Rows = {
     async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover" | "rightclick", inModal?: boolean): Promise<void> {
-        let iterations = 1000;
-        if (inModal) {
-            await page.getByRole("dialog").locator(".scrolling").last().hover();
-        } else {
-            await page.locator(".scrolling").first().hover();
-        }
-        for (let i = 0; i < 50; i++) {
-            await page.mouse.wheel(0, -5000);
+        if (!inModal) await closeSidebar(page);
+        await scrollRows(page, inModal, "top");
+
+        const locator = rowLocator(page, name, inModal);
+
+        for (let i = 0; i < 400 && !(await locator.isVisible()); i++) {
+            await scrollRows(page, inModal, 50);
+            await page.waitForTimeout(20);
         }
 
-        const locator = inModal ?
-            page.getByRole("dialog").locator(".row div > span", {hasText: name}) :
-            page.locator(".row div > span", {hasText: name}).first();
+        if (action === "rightclick" || action === "dblclick") {
+            await centerRow(page, locator);
+        }
 
-        while (!await locator.isVisible()) {
-            await page.mouse.wheel(0, 150);
-            iterations -= 1;
-            if (iterations <= 0) {
-                console.warn("Many such iterations, no result");
+        switch (action) {
+            case "click": {
+                await clickRow(page, locator);
                 break;
             }
-        }
-        switch (action) {
             case "rightclick": {
-                await locator.click({button: "right"})
+                await locator.click({button: "right"});
                 break;
             }
             default: {
@@ -270,15 +764,29 @@ export const Rows = {
             }
         }
     },
+
+    async rowIsVisible(page: Page, name: string, inModal?: boolean): Promise<boolean> {
+        if (!inModal) await closeSidebar(page);
+        await scrollRows(page, inModal, "top");
+
+        const locator = rowLocator(page, name, inModal);
+        for (let i = 0; i < 400 && !(await locator.isVisible()); i++) {
+            await scrollRows(page, inModal, 50);
+            await page.waitForTimeout(20);
+        }
+        return await locator.isVisible();
+    },
 };
 
 export const File = {
     ...Rows,
 
     async open(page: Page, filename: string) {
-        await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
-            await this.actionByRowTitle(page, filename, "dblclick");
-        });
+        const before = page.url();
+        const response = page.waitForResponse("**/api/files/browse**", {timeout: 2_000}).catch(() => null);
+        await this.actionByRowTitle(page, filename, "dblclick");
+        await page.waitForURL(url => url.href !== before, {timeout: 5_000}).catch(() => null);
+        await response;
     },
 
     async goUp(page: Page): Promise<void> {
@@ -306,7 +814,8 @@ export const File = {
 
     async rename(page: Page, oldName: string, newName: string): Promise<void> {
         await NetworkCalls.awaitResponse(page, "**/api/files/move", async () => {
-            await _move(page, oldName, newName);
+            await this.actionByRowTitle(page, oldName, "click");
+            await _rename(page, newName);
         });
     },
 
@@ -320,6 +829,31 @@ export const File = {
         await page.locator(".row div > span").getByText(firstFolderName, {exact: true}).waitFor({state: "visible"});
     },
 
+    async createMany(page: Page, names: string[]): Promise<void> {
+        const path = new URL(page.url()).searchParams.get("path");
+        if (!path) throw new Error(`No path in URL: ${page.url()}`);
+
+        const chunkSize = 10;
+        const requests = [];
+        for (let i = 0; i < names.length; i += chunkSize) {
+            const chunk = names.slice(i, i + chunkSize);
+            requests.push(apiRequest(page, "POST", "/api/files/folder", {
+                type: "bulk",
+                items: chunk.map(name => ({id: `${path}/${name}`, conflictPolicy: "RENAME"})),
+            }));
+        }
+        await Promise.all(requests);
+
+        await page.reload();
+        await page.locator(".row div > span").getByText(names[0], {exact: true}).waitFor({state: "visible"});
+    },
+
+    async waitForFile(page: Page, name: string, timeoutMs: number = 30_000): Promise<void> {
+        const path = new URL(page.url()).searchParams.get("path");
+        if (!path) throw new Error(`No path in URL: ${page.url()}`);
+        await waitForFileByApi(page, path, name, timeoutMs);
+    },
+
     async moveToTrash(page: Page, name: string): Promise<void> {
         await NetworkCalls.awaitResponse(page, "**/files/trash", async () => {
             await File.openOperationsDropsdown(page, name);
@@ -328,19 +862,42 @@ export const File = {
     },
 
     async uploadFiles(page: Page, files: {name: string, contents: string}[]): Promise<void> {
-        await page.waitForTimeout(1000); // We need to wait for Redux to propagate the changes of the drive, for use with the upload.
         await page.getByText("Upload files").click();
-        await NetworkCalls.awaitResponse(page, "**/files/browse**", async () => {
-            await page.locator("#fileUploadBrowse").setInputFiles(files.map(f => ({
-                name: f.name,
-                mimeType: "text/plain",
-                buffer: Buffer.from(f.contents),
-            })));
-        });
-        /* TODO(Jonas): Find a different approach */
-        await page.waitForLoadState("networkidle")
+        const uploadPath = new URL(page.url()).searchParams.get("path") ?? "/";
+        const uploadModal = page.locator("[data-tag=uploadModal]");
+        await uploadModal.waitFor();
+        await expect.poll(async () => await uploadModal.getAttribute("data-upload-path"), {timeout: 10_000}).toBe(uploadPath);
+
+        await page.locator("#fileUploadBrowse").setInputFiles(files.map(f => ({
+            name: f.name,
+            mimeType: "text/plain",
+            buffer: Buffer.from(f.contents),
+        })));
+
+        for (const file of files) {
+            const uploadRow = page.locator('[class^="uploader-row"]', {hasText: file.name}).last();
+            await expect.poll(async () => {
+                if (await uploadRow.getAttribute("data-has-error") === "true") return "error";
+                return await uploadRow.locator('[data-component="icon-check"]').count() > 0 ? "done" : "pending";
+            }, {timeout: 30_000, intervals: [500]}).not.toBe("pending");
+            if (await uploadRow.getAttribute("data-has-error") === "true") {
+                throw new Error(`Upload failed for ${file.name}: ${await uploadRow.innerText()}`);
+            }
+        }
+
         await page.keyboard.press("Escape");
-        await Components.clickRefreshAndWait(page);
+        try {
+            for (const file of files) {
+                await expect.poll(async () => {
+                    await Components.clickRefreshAndWait(page, "**/api/files/**");
+                    return await Rows.rowIsVisible(page, file.name);
+                }, {timeout: 30_000, intervals: [1_000]}).toBe(true);
+            }
+        } catch (e) {
+            const rows = await page.locator(".row div > span").allInnerTexts();
+            const uploaderRows = await page.locator('[class^="uploader-row"]').allInnerTexts();
+            throw new Error(`Uploaded file not found. url=${page.url()} uploadPath=${uploadPath} rows=${rows.slice(0, 20).join(" | ")} uploader=${uploaderRows.slice(0, 20).join(" | ")}`);
+        }
     },
 
     async openOperationsDropsdown(page: Page, file: string): Promise<void> {
@@ -390,23 +947,30 @@ export const File = {
     },
 
     async emptyTrash(page: Page): Promise<void> {
+        await page.locator(".scrolling .row").first().waitFor({timeout: 30_000});
         await page.getByText("Empty Trash").click();
         await NetworkCalls.awaitResponse(page, "**/api/files/emptyTrash", async () => {
-            await page.getByRole("dialog").getByRole("button", {name: "Empty trash", exact: true}).click();
-        });
+            const confirm = page.getByRole("dialog").getByRole("button", {name: "Empty trash", exact: true});
+            await confirm.waitFor();
+            await confirm.evaluate(element => (element as HTMLElement).click());
+        }, 60_000);
+        await page.getByText("Empty Trash").waitFor({state: "hidden"});
+        await page.waitForLoadState("domcontentloaded");
     },
 
     async searchFor(page: Page, query: string): Promise<void> {
-        await page.locator("img[class=search-icon]").click();
-        await page.getByRole("textbox").fill(query);
+        const browser = page.locator(".scrolling").first()
+            .locator("xpath=ancestor::*[starts-with(@class,'browser')]")
+            .first();
+        await browser.locator("img.search-icon").click();
+        await browser.locator("input.search-field").fill(query);
         await page.keyboard.press("Enter");
     },
 
     async toggleFavorite(page: Page, name: string): Promise<void> {
         await NetworkCalls.awaitResponse(page, "**/api/files/metadata", async () => {
             await this.actionByRowTitle(page, name, "hover");
-            // TODO(Jonas): This will click the first favorited rows icon, not necessarily the one we want.
-            await page.getByRole('img', {name: 'Star', includeHidden: false}).first().click();
+            await page.locator(".scrolling .row", {hasText: name}).first().getByRole("img", {name: "Star", includeHidden: false}).click();
         });
     },
 
@@ -450,22 +1014,28 @@ export const File = {
     async download(page: Page, filename: string): Promise<string> {
         const downloadPromise = page.waitForEvent("download");
         await File.actionByRowTitle(page, filename, "click");
-        await page.getByText("Download").click();
+        await page.getByRole("button", {name: /^Download/}).click();
         const dl = await downloadPromise;
         return fs.readFileSync(await dl.path(), {encoding: 'utf8', flag: 'r'});
     },
 
     async openIntegratedTerminal(page: Page): Promise<void> {
         await page.getByText("Open terminal").click();
+        const prompt = page.locator("span", {hasText: "/work"}).last();
         let didClick = false;
-        while (!await page.getByText("/work").isVisible()) {
-            if (didClick) continue;
-            if (await page.getByRole("button", {name: "Reconnect"}).isVisible()) {
-                await page.getByRole("button", {name: "Reconnect"}).click();
-                didClick = true;
-            }
+        try {
+            await expect.poll(async () => {
+                if (!didClick && await page.getByRole("button", {name: "Reconnect"}).isVisible()) {
+                    await page.getByRole("button", {name: "Reconnect"}).click();
+                    didClick = true;
+                }
+                return await prompt.isVisible();
+            }, {timeout: 60_000, intervals: [500]}).toBe(true);
+        } catch (e) {
+            const text = await page.locator("body").innerText();
+            throw new Error(`Integrated terminal did not become ready. url=${page.url()} text=${text.slice(0, 2_000)}`);
         }
-        await page.getByText("/work").click({force: true});
+        await prompt.click({force: true});
     },
 
     async createShareLinkForFolder(page: Page, foldername: string): Promise<string> {
@@ -486,47 +1056,29 @@ export const File = {
         await page.getByText("Share with...").last().click();
     },
 
-    async createStorageScanTrigger(page: Page, driveName: string): Promise<string> {
-        await Drive.openDrive(page, driveName);
-        const folder = "trigger" + this.newFolderName();
-        await File.create(page, folder);
-        return folder;
-    },
-
-    async triggerStorageScan(page: Page, driveName: string, existingFolder?: string): Promise<void> {
-        const folder = existingFolder ?? "trigger" + this.newFolderName();
-        await Drive.openDrive(page, driveName);
-        if (existingFolder === undefined) {
-            await page.locator(".row", {hasText: "Jobs"}).waitFor();
-            await File.create(page, folder);
-        }
-        await File.moveFileToTrash(page, folder);
-        // Note(Jonas): Trash folder doesn't show up until refresh if not already present.
-        await Components.clickRefreshAndWait(page);
-        await File.open(page, "Trash");
-        await File.emptyTrash(page);
+    async triggerStorageScan(page: Page, driveName: string): Promise<void> {
+        const driveId = await driveIdByName(page, driveName);
+        await emptyTrashByApi(page, driveId);
     }
 };
 
 export const Drive = {
     // Specific for drive (right now) is that resources can have same name, without being from same provider. This is problematic!
     async actionByRowTitle(page: Page, name: string, action: "click" | "dblclick" | "hover"): Promise<void> {
-        await page.locator(".scrolling").first().hover();
-        for (let i = 0; i < 50; i++) {
-            await page.mouse.wheel(0, -5000);
-        }
+        await closeSidebar(page);
+        await scrollRows(page, false, "top");
 
-        let iterations = 100;
         const locator = page.locator(".scrolling").locator(".row").filter({hasText: providerAndProducts.drive_provider}).getByText(name).first();
-        while (!await locator.isVisible()) {
-            await page.mouse.wheel(0, 150);
-            iterations -= 1;
-            if (iterations <= 0) {
-                console.warn("Many such iterations, no result");
-                break;
-            }
+        for (let i = 0; i < 400 && !(await locator.isVisible()); i++) {
+            await scrollRows(page, false, 50);
+            await page.waitForTimeout(20);
         }
-        await locator[action]();
+        if (action === "click") {
+            await clickRow(page, locator);
+        } else {
+            if (action === "dblclick") await centerRow(page, locator);
+            await locator[action]();
+        }
     },
 
     newDriveNameOrMemberFiles(ctx: Contexts): string {
@@ -549,7 +1101,7 @@ export const Drive = {
     async rename(page: Page, oldName: string, newName: string): Promise<void> {
         await NetworkCalls.awaitResponse(page, "**/api/files/collections/rename", async () => {
             await this.actionByRowTitle(page, oldName, "click");
-            await _move(page, oldName, newName);
+            await _rename(page, newName);
         });
     },
 
@@ -560,7 +1112,7 @@ export const Drive = {
             await NetworkCalls.awaitResponse(page, "**/api/files/collections/search**", async () => {
                 await File.searchFor(page, name);
             });
-            await page.locator(".row div > span", {hasText: name}).first().waitFor();
+            await page.locator(".row div > span", {hasText: name}).first().waitFor({timeout: 30_000});
         }
 
         await this.actionByRowTitle(page, name, "click");
@@ -575,11 +1127,14 @@ export const Drive = {
             }
         }
         if (!opened) {
+            const message = `Drive '${name}' did not open from the drive list; using the properties fallback`;
+            test.info().annotations.push({type: "drive-open-fallback", description: message});
+            console.warn(message);
             await page.getByRole("button", {name: /^Properties/}).first().click();
             await page.waitForURL("**/app/drives/properties/**");
             const driveId = new URL(page.url()).pathname.split("/").filter(Boolean).pop();
             if (!driveId) throw new Error(`Unable to open drive '${name}'`);
-            await page.goto(`/app/files?path=${encodeURIComponent(driveId)}`);
+            await page.goto(`/app/files?path=${encodeURIComponent("/" + driveId)}`);
             await page.waitForLoadState("domcontentloaded");
         }
 
@@ -636,10 +1191,14 @@ export const Components = {
         await page.getByText("Snooze").waitFor({state: "hidden"});
     },
 
-    async clickRefreshAndWait(page: Page): Promise<void> {
+    async clickRefreshAndWait(page: Page, responsePattern?: string): Promise<void> {
+        const response = responsePattern
+            ? page.waitForResponse(responsePattern, {timeout: 1_000}).catch(() => null)
+            : null;
+
         await page.locator(".refresh-icon, #refresh-icon").click();
-        /* TODO(Jonas): Find a different approach */
-        await page.waitForLoadState("networkidle");
+
+        if (response) await response;
     },
 
     async toggleSearch(page: Page): Promise<void> {
@@ -652,10 +1211,15 @@ export const Components = {
         await page.getByRole("banner").locator("svg").click();
     },
 
-    async clickConfirmationButton(page: Page, text: string, delay = 2500): Promise<void> {
+    async clickConfirmationButton(page: Page, text: string): Promise<void> {
         const directButton = page.getByRole("button", {name: text}).filter({visible: true}).first();
-        if (await directButton.isVisible()) {
-            await directButton.click({delay});
+        const hasDirectButton = await directButton.waitFor({timeout: 1_000}).then(() => true).catch(() => false);
+        if (hasDirectButton) {
+            if (await directButton.getAttribute("data-tag") === "confirm-button") {
+                await directButton.dispatchEvent("mousedown");
+            } else {
+                await directButton.click();
+            }
             return;
         }
 
@@ -664,7 +1228,6 @@ export const Components = {
     },
 
     async selectAvailableMachineType(page: Page): Promise<void> {
-        await page.waitForLoadState("networkidle");
         await page.getByText('No machine type selected').first().click();
         await page.getByRole('cell', {
             name: providerAndProducts.machine_used_in_tests,
@@ -775,6 +1338,7 @@ export const Applications = {
     AppNames: {
         TestApplication: "Test application",
         LicenseTestApplication: "License Test",
+        Terminal: "Terminal",
     }
 };
 
@@ -806,20 +1370,37 @@ export const Runs = {
         await Components.projectSwitcher(page, "hover");
         await page.locator(".row").getByText(jobName).click();
         await NetworkCalls.awaitResponse(page, "**/jobs/terminate", async () => {
-            await Components.clickConfirmationButton(page, "Stop", 6_000);
+            await Components.clickConfirmationButton(page, "Stop");
         });
     },
 
-    async terminateViewedRun(page: Page): Promise<void> {
-        let terminated = false;
-        for (let attempt = 0; attempt < 3 && !terminated; attempt++) {
-            const response = page.waitForResponse("**/jobs/terminate", {timeout: 5_000}).catch(() => null);
-            await Components.clickConfirmationButton(page, "Stop application", 3_000);
-            terminated = (await response) !== null;
-            if (!terminated) await page.waitForTimeout(1_000);
+    async terminateViewedRun(page: Page, options: {waitForUi?: boolean} = {}): Promise<void> {
+        const waitForUi = options.waitForUi ?? true;
+        const completed = page.getByText("Your job has completed").first();
+        const runAgain = page.getByText("Run again");
+        const stopButton = page.getByRole("button", {name: "Stop application"}).filter({visible: true}).first();
+
+        await expect(completed.or(stopButton)).toBeVisible({timeout: 10_000});
+
+        if (await completed.isVisible()) {
+            if (waitForUi) await runAgain.waitFor();
+            return;
         }
-        if (!terminated) throw new Error("Unable to terminate the job");
-        await page.getByText("Run again").waitFor();
+
+        const response = page.waitForResponse("**/jobs/terminate", {timeout: 10_000}).catch(() => null);
+        const clickStop = async () => {
+            if (await stopButton.getAttribute("data-tag") === "confirm-button") {
+                await stopButton.dispatchEvent("mousedown");
+            } else {
+                await stopButton.click();
+            }
+        };
+        const clicked = await clickStop().then(() => true).catch(() => false);
+
+        if (clicked && (await response) !== null && !waitForUi) return;
+
+        await completed.waitFor({timeout: 10_000});
+        await runAgain.waitFor();
     },
 
     async setJobTitle(page: Page, name: string): Promise<void> {
@@ -840,6 +1421,8 @@ export const Runs = {
             await page.getByRole("button", {name: "Submit"}).click();
         })
 
+        await page.waitForURL("**/app/jobs/properties/**", {timeout: 30_000});
+
         const testInfo = test.info();
         test.setTimeout(testInfo.timeout + 60_000);
         const running = page.getByText("is now running").first();
@@ -853,13 +1436,19 @@ export const Runs = {
     },
 
     async openTerminal(page: Page): Promise<Page> {
-        const terminalPagePromise = page.waitForEvent("popup");
-        await page.getByRole("button", {name: "Open terminal"}).click();
-        const terminalPage = await terminalPagePromise;
-        // Note(Jonas): Maybe locator.click({force: true}) is better.
-        await terminalPage.locator("span", {hasText: "/work"}).waitFor();
-        await terminalPage.keyboard.press("Tab");
-        return terminalPage;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            const terminalPagePromise = page.waitForEvent("popup");
+            await page.getByRole("button", {name: "Open terminal"}).click();
+            const terminalPage = await terminalPagePromise;
+            const prompt = terminalPage.locator("span", {hasText: "/work"});
+            const ready = await prompt.waitFor({timeout: 60_000}).then(() => true).catch(() => false);
+            if (ready) {
+                await terminalPage.keyboard.press("Tab");
+                return terminalPage;
+            }
+            await terminalPage.close();
+        }
+        throw new Error("Terminal did not become ready");
     },
 
     async activateOptionalParameter(page: Page, parameterName: string): Promise<void> {
@@ -926,17 +1515,26 @@ export const Project = {
             } else {
                 await Components.goToDashboard(page);
             }
-            await Accounting.Project.acceptProjectInvite(page, projectName)
+            const inviteRow = page.locator(".row", {hasText: projectName});
+            await inviteRow.waitFor();
+            await inviteRow.getByRole("button", {name: "Accept"}).click();
+            await inviteRow.waitFor({state: "hidden", timeout: 30_000});
         }
     },
 
     async changeRoles(page: Page, username: string, role: "Admin" | "User" | "PI"): Promise<void> {
-        await page.reload();
+        const roleControl = role === "PI"
+            ? page.locator(`input[name=PI${username}]`)
+            : page.locator("div[class^=list-item]", {hasText: username}).getByRole("radio", {name: role});
+        for (let attempt = 0; attempt < 10; attempt++) {
+            if (await roleControl.isVisible()) break;
+            await Components.clickRefreshAndWait(page, "**/api/projects/v2/retrieve**");
+            await page.waitForTimeout(500);
+        }
+        await roleControl.waitFor({timeout: 30_000});
+        await roleControl.click();
         if (role === "PI") {
-            await page.locator(`input[name=PI${username}]`).click();
             await page.getByRole("dialog").getByRole("button", {name: "Transfer"}).click();
-        } else {
-            await page.locator("div[class^=list-item]", {hasText: username}).getByRole("radio", {name: role}).click();
         }
     }
 };
@@ -1057,7 +1655,6 @@ export const Resources = {
 
     Licenses: {
         async activateLicense(page: Page): Promise<number> {
-            await page.waitForLoadState("networkidle");
             await page.getByText("Activate license").click();
 
             const result = (await NetworkCalls.awaitResponse(page, "**/api/licenses", async () => {
@@ -1085,7 +1682,6 @@ export const Resources = {
         async createPrivateNetwork(page: Page, name: string, subdomain: string): Promise<void> {
             await Resources.goTo(page, "Private networks");
             await page.getByText("Create private network").click();
-            await page.waitForTimeout(2000);
             await page.getByPlaceholder("My private network").fill(name);
             await page.getByPlaceholder("my-network").fill(subdomain);
 
@@ -1101,26 +1697,29 @@ export const Resources = {
         async delete(page: Page, name: string): Promise<void> {
             await Resources.goTo(page, "Private networks");
             await Rows.actionByRowTitle(page, name, "click");
-            await Components.clickConfirmationButton(page, "Delete");
+            await NetworkCalls.awaitResponse(page, "**/api/private-networks**", async () => {
+                await Components.clickConfirmationButton(page, "Delete");
+            });
         }
     }
 }
 
 export const Terminal = {
     async enterCmd(page: Page, command: string): Promise<void> {
-        for (const key of command) {
-            await page.keyboard.press(key);
-        }
-
+        await page.keyboard.type(command);
         await page.keyboard.press("Enter");
     },
 
     async createFile(page: Page, sizeInGB: number) {
+        await this.createFileOfSize(page, sizeInGB * 1_000_000_000);
+    },
+
+    async createFileOfSize(page: Page, sizeInBytes: number) {
         if (isDev(data.location_origin)) {
             // fallocate is not supported on dev.
-            await this.enterCmd(page, `dd if=/dev/zero of=example bs=1000 count=${sizeInGB * 1000000} && echo "file creation done!"`);
+            await this.enterCmd(page, `dd if=/dev/zero of=example bs=1000 count=${Math.ceil(sizeInBytes / 1000)} && echo "file creation done!"`);
         } else {
-            await this.enterCmd(page, `fallocate -l ${sizeInGB}G example && echo "file creation done!"`);
+            await this.enterCmd(page, `fallocate -l ${sizeInBytes} example && echo "file creation done!"`);
         }
 
         await page.getByText("file creation done!", {exact: true}).waitFor({timeout: 300_000});
@@ -1135,8 +1734,8 @@ const Help = {
 };
 
 export const NetworkCalls = {
-    async awaitResponse(page: Page, path: string, block: () => Promise<void>): Promise<ReturnType<typeof page.waitForResponse>> {
-        const waiter = page.waitForResponse(path);
+    async awaitResponse(page: Page, path: string, block: () => Promise<void>, timeout?: number): Promise<ReturnType<typeof page.waitForResponse>> {
+        const waiter = page.waitForResponse(path, timeout == null ? undefined : {timeout});
         await block();
         return await waiter;
     },
@@ -1151,7 +1750,6 @@ type AccountingPage = "Allocations" | "Usage" | "Grant applications" | "Apply fo
 export const Accounting = {
     async goTo(page: Page, linkName: AccountingPage): Promise<void> {
         await page.getByRole("link", {name: "Go to Project"}).hover();
-        await page.waitForTimeout(300);
 
         switch (linkName) {
             case "Usage":
@@ -1233,7 +1831,7 @@ export const Accounting = {
             await page.locator(".grant-giver button").first().waitFor();
             await page.mouse.wheel(0, 5000);
             await NetworkCalls.awaitResponse(page, "**/grants/v2/updateState", async () => {
-                await page.locator(".grant-giver button").nth(1).click({delay: 2000});
+                await page.locator(".grant-giver button").nth(1).dispatchEvent("mousedown");
             });
         }
     },
@@ -1246,16 +1844,14 @@ export const Admin = {
         const page = existingPage;
         if (!page) throw new Error("Failed to create page for admin login");
 
-        await User.login(page, Admin.AdminUser);
-        /* TODO(Jonas): Find a different approach */
-        await page.waitForLoadState("networkidle");
+        await User.loginDirect(page, Admin.AdminUser);
+        await page.getByRole("link", {name: "Go to dashboard"}).waitFor();
 
         return page;
     },
 };
 
-async function _move(page: Page, oldName: string, newName: string) {
-    await Rows.actionByRowTitle(page, oldName, "click");
+async function _rename(page: Page, newName: string) {
     await page.getByText("Rename").click();
     const renameField = page.locator("input.rename-field");
     await renameField.fill(newName);

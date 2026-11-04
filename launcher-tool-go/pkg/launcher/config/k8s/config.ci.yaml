@@ -1,0 +1,152 @@
+provider:
+  id: k8s
+
+  providerBranding:
+    title: K8s Dev Provider
+    shortTitle: SDU/K8s
+    shortDescription: "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle."
+    description: /etc/ucloud/description.md
+    url: https://docs.cloud.sdu.dk/
+    logo: "no-logo.png"
+    sections:
+      - description: /etc/ucloud/section.md
+        image: ""
+    productDescription:
+      - category: "u1-standard"
+        shortDescription: u1-standard provides computation
+        section:
+          description: /etc/ucloud/aproduct.md
+          image: "/etc/ucloud/images/a-cpu.png"
+      - category: "storage"
+        shortDescription: Provides storage
+        section:
+          description: /etc/ucloud/bproduct.md
+          image: "/etc/ucloud/images/a-hardrive.png"
+
+  hosts:
+    ucloud:
+      address: core2
+      port: 8080
+      scheme: http
+    self:
+      address: k8s
+      port: 8889
+      scheme: http
+    selfPublic:
+      address: k8s.localhost.direct
+      port: 443
+      scheme: https
+    ucloudPublic:
+      address: ucloud.localhost.direct
+      port: 443
+      scheme: https
+
+  ipc:
+    directory: /var/run/ucloud
+
+  logs:
+    directory: /var/log/ucloud
+    rotation:
+      enabled: true
+      retentionPeriodInDays: 180
+
+  envoy:
+    directory: /var/run/ucloud/envoy
+    executable: /usr/bin/envoy
+    funceWrapper: false
+
+services:
+  type: Kubernetes
+  compute:
+    allowedRegistries: []
+    accountingIntervalSeconds: 1
+
+    web:
+      enabled: true
+      prefix: "k8s-"
+      suffix: ".localhost.direct"
+
+    publicLinks:
+      enabled: true
+      prefix: "k8s-"
+      suffix: ".localhost.direct"
+
+    publicIps:
+      enabled: true
+
+    integratedTerminal:
+      enabled: true
+      image: dreg.cloud.sdu.dk/ucloud/test-app-ubuntu:24.04
+
+    syncthing:
+      enabled: true
+      ipAddress: 10.56.32.4
+      portMin: 8000
+      portMax: 16000
+      relaysEnabled: false
+
+    ssh:
+      enabled: true
+      ipAddress: 10.56.32.3
+      hostname: ucloud.invalid
+      portMin: 8000
+      portMax: 16000
+
+    inference:
+      enabled: false
+      backendServer: http://localai:8080/v1
+      developmentProvider: localai
+
+    modules:
+      "ubuntu-22.04":
+        subPath: "modules"
+        claimName: cephfs
+      "almalinux-8":
+        subPath: "modules"
+        claimName: cephfs
+      "colabfold":
+        subPath: "modules"
+        claimName: cephfs
+      "alphafold3":
+        subPath: "modules"
+        claimName: cephfs
+      "ubuntu-24.04":
+        subPath: "modules"
+        claimName: cephfs
+      "almalinux-9":
+        subPath: "modules"
+        claimName: cephfs
+
+    machines:
+      u1-standard:
+        nameSuffix: Cpu
+
+        cpu: [ 1, 2, 4 ]
+        memory: [ 1, 2, 4 ]
+
+        cpuModel: Model
+        memoryModel: Model
+
+        payment:
+          type: Resource
+          unit: Cpu
+          interval: Secondly
+
+  fileSystem:
+    name: storage
+    mountPoint: /mnt/storage
+    trashStagingArea: /mnt/storage/trash
+    claimName: cephfs
+    billingUnit: B
+
+  registry:
+    enabled: true
+    host: registry.localhost.direct
+    snapshot:
+      containerdSocket: /run/k3s/containerd/containerd.sock
+      containerdNamespace: k8s.io
+      helperImage: dreg.cloud.sdu.dk/ucloud-dev/nerdctl-support:2.3.5
+      deadlineSeconds: 3600
+    secrets:
+      authSharedSecret: <registry-auth-shared-secret>
+      registrySharedSecret: <registry-shared-secret>

@@ -510,6 +510,8 @@ func internalUpdateAllocation(
 			switch category.AccountingFrequency {
 			case accapi.AccountingFrequencyOnce:
 				amount = proposedNewQuota
+			case accapi.AccountingFrequencyPeriodicSecond:
+				amount = proposedNewQuota / (60 * 60)
 			case accapi.AccountingFrequencyPeriodicMinute:
 				amount = proposedNewQuota / 60
 			case accapi.AccountingFrequencyPeriodicHour:

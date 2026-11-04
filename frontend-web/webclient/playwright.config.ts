@@ -34,10 +34,12 @@ const webkit: Project = {
  */
 export default defineConfig({
     testDir: './tests',
+    globalSetup: './tests/global.setup.ts',
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: 0,
     timeout: 60_000,
+    workers: process.env.CI ? 6 : undefined,
     reporter: [
         ['line', {printSteps: true}],
         ["html", {

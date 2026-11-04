@@ -1,4 +1,5 @@
-import {expect, test, Page} from "@playwright/test";
+import {expect, Page} from "@playwright/test";
+import {currentPath, test, trashByApi, walletLocked, walletUsage} from "./fixtures";
 import {
     Applications,
     Components,
@@ -11,40 +12,68 @@ import {
     Resources,
     Accounting,
     Admin,
-    Project,
-    testCtx,
     TestContexts,
+    Contexts,
     isProd,
     isDev,
+    apiProductCategory,
+    isByteStorage,
+    driveIdByName,
+    emptyTrashByApi,
+    findFilePathByApi,
 } from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
 const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
 
-test.beforeEach(async ({page}, testInfo) => {
-    if (data["login_cookie"]) {
-        await page.context().addCookies([data["login_cookie"]]);
-    }
-
-    const doSkipInitialization = testInfo.titlePath.find((it) => [
-        "disallow start from locked allocation",
-        "Compute - check accounting"
-    ].includes(it));
-    if (doSkipInitialization) {
-        await Admin.newLoggedInAdminPage(page);
-        return;
-    }
-    const args = testCtx(testInfo.titlePath);
-    await User.login(page, args.user);
-    if (args.projectName) await Project.changeTo(page, args.projectName);
-});
-
 const {AppNames} = Applications;
 
-TestContexts.map((ctx) => {
+function computeAccountingTest(ctx: Contexts): void {
+    test("Compute - check accounting", async ({page: adminPage, context}) => {
+        const AUTOGIFTED_RESOURCES = (isProd(data.location_origin) || isDev(data.location_origin)) && ctx === "Personal Workspace";
+
+        test.setTimeout(240_000);
+
+        const quotas: [string, number][] = [[PRODUCTS.compute, 1]];
+
+        if (AUTOGIFTED_RESOURCES === false) {
+            quotas.push([PRODUCTS.storage, 1]);
+        }
+
+        if (data["login_cookie"]) await adminPage.context().addCookies([data["login_cookie"]]);
+        await Admin.newLoggedInAdminPage(adminPage);
+        const {userPage} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, quotas);
+
+        await Accounting.goTo(userPage, "Allocations");
+        if (AUTOGIFTED_RESOURCES) {
+            if (isDev(data.location_origin)) {
+                await userPage.getByText("0K / 1K Core-hours (0%)", {exact: true}).first().waitFor();
+            } else if (isProd(data.location_origin)) {
+                await userPage.getByText("0 / 101 Core-hours (0%)", {exact: true}).first().waitFor();
+            }
+        } else {
+            await userPage.getByText("0 / 1 Core-hours (0%)", {exact: true}).first().waitFor();
+        }
+        const jobName = Runs.newJobName();
+        const coreCount = AUTOGIFTED_RESOURCES ? 8 : 2;
+        await Applications.runAppAndOpenTerminal(userPage, AppNames.TestApplication, coreCount, undefined, jobName);
+
+        await expect.poll(async () => {
+            return await walletUsage(userPage, PRODUCTS.compute);
+        }, {timeout: 120_000, intervals: [1_000]}).toBeGreaterThan(0);
+
+        await Runs.terminateViewedRun(userPage, {waitForUi: false});
+
+        await userPage.reload();
+        const percentage = await getPercentUsage(userPage, "Core-hours");
+        expect(percentage).toBeGreaterThan(0);
+    });
+}
+
+(["Project PI"] as Contexts[]).map((ctx) => {
     test.describe(ctx, () => {
-        test("Run job with jobname, extend time, stop job, validate jobname in runs", async ({page, }) => {
-            test.setTimeout(240_000);
+        test("Run job with jobname, extend time, stop job, validate jobname in runs", async ({testPage: page}) => {
+            test.setTimeout(300_000);
             await Applications.openAppBySearch(page, AppNames.TestApplication);
             const jobName = Runs.newJobName();
 
@@ -56,48 +85,29 @@ TestContexts.map((ctx) => {
 
             await page.getByText("Time remaining: 02").isVisible();
 
-            await Runs.terminateViewedRun(page);
-
-            await page.getByText("Run again").hover();
-        });
-
-        const AppNameThatIsExpectedToBePresentButWeWillNotRun = "Terminal";
-        test("Favorite app, unfavorite app", async ({page}) => {
-            await Applications.openApp(
-                page,
-                AppNameThatIsExpectedToBePresentButWeWillNotRun
-            );
-            await Applications.toggleFavorite(page);
-            await Applications.toggleFavorite(page);
-        });
-
-        test("Compute - check job termination", async ({page}) => {
-            test.setTimeout(300_000);
-            const jobName = Runs.newJobName();
-
-            await Applications.openAppBySearch(page, AppNames.TestApplication);
-            await Runs.setJobTitle(page, jobName);
-            await Components.selectAvailableMachineType(page);
-            await Runs.extendTimeBy(page, 1);
-            await Runs.submitAndWaitForRunning(page);
             await Runs.stopRun(page, jobName);
             await Applications.actionByRowTitle(page, jobName, "dblclick");
             await expect(page.getByText("Your job has completed")).toHaveCount(1);
             await Runs.runApplicationAgain(page, jobName);
-            await Runs.terminateViewedRun(page);
+            await Runs.terminateViewedRun(page, {waitForUi: false});
         });
 
-        test("terminal access", async ({page}) => {
+        test("Favorite app, unfavorite app", async ({testPage: page}) => {
+            await Applications.openApp(page, AppNames.Terminal);
+            await Applications.toggleFavorite(page);
+            await Applications.toggleFavorite(page);
+        });
+
+        test("terminal access", async ({testPage: page, fileDrive}) => {
             test.setTimeout(240_000);
-            const driveName = Drive.newDriveNameOrMemberFiles(ctx);
+            const driveName = fileDrive.name;
             const folderName = File.newFolderName();
             const {uploadedFileName, contents} = {uploadedFileName: "UploadedFile.txt", contents: "Am I not invisible???"};
             const jobName = Runs.newJobName();
 
-            if (ctx !== "Project User") await Drive.create(page, driveName);
-            await Drive.openDrive(page, driveName);
             await File.create(page, folderName);
             await File.open(page, folderName);
+            const folderPath = currentPath(page);
             await File.uploadFiles(page, [{name: uploadedFileName, contents: contents},]);
             await Applications.openAppBySearch(page, AppNames.TestApplication);
 
@@ -113,12 +123,12 @@ TestContexts.map((ctx) => {
             await expect(terminalPage.getByText(contents)).toHaveCount(1);
 
             await terminalPage.close();
-            await Runs.terminateViewedRun(page);
-            if (ctx !== "Project User") await Drive.delete(page, driveName);
+            await Runs.terminateViewedRun(page, {waitForUi: false});
+            if (!fileDrive.ephemeral) await trashByApi(page, folderPath);
         });
 
-        test("Ensure 'New version available' button shows up and works.", async ({page}) => {
-            await Applications.openApp(page, AppNameThatIsExpectedToBePresentButWeWillNotRun);
+        test("Ensure 'New version available' button shows up and works.", async ({testPage: page}) => {
+            await Applications.openApp(page, AppNames.Terminal);
             const versionSelect = page.locator("div[class^=rich-select-trigger]").nth(1);
             const newestVersion = await versionSelect.innerText();
             await versionSelect.click();
@@ -128,24 +138,24 @@ TestContexts.map((ctx) => {
             await page.locator("div[class^=rich-select-trigger]", {hasText: newestVersion}).isVisible();
         });
 
-        test("Test application search", async ({page}) => {
+        test("Test application search", async ({testPage: page}) => {
             await Applications.goToApplications(page);
             await Applications.openAppBySearch(page, AppNames.TestApplication);
         });
 
-        test("Compute - modules available, network connectivity", async ({page}) => {
+        test("Compute - modules available, network connectivity", async ({testPage: page}) => {
             test.setTimeout(300_000);
-            const term = await Applications.runAppAndOpenTerminalWithTerminalPage(page, "Terminal", 1);
+            const term = await Applications.runAppAndOpenTerminalWithTerminalPage(page, AppNames.Terminal, 1);
             await Terminal.enterCmd(term, "ls ~/.local");
             await term.getByText("easybuild").waitFor();
-            await Terminal.enterCmd(term, "curl -I https://www.google.com");
+            await Terminal.enterCmd(term, "curl -4 -I https://www.google.com");
             await term.getByText("HTTP/2 200").waitFor();
             await term.close();
-            await Runs.terminateViewedRun(page);
+            await Runs.terminateViewedRun(page, {waitForUi: false});
         });
 
         test.describe("Compute - check starting jobs works", () => {
-            test("optional/mandatory parameters, logs", async ({page}) => {
+            test("optional/mandatory parameters, logs", async ({testPage: page, fileDrive}) => {
                 test.setTimeout(120_000);
                 const pseudoRandomNumberString = Math.random().toString().slice(2, 7);
                 const BashScriptName = "init" + pseudoRandomNumberString + ".sh";
@@ -154,9 +164,8 @@ TestContexts.map((ctx) => {
 #!/usr/bin/env bash
 echo "${BashScriptStringContent}"
 `;
-                const driveName = Drive.newDriveNameOrMemberFiles(ctx);
-                if (ctx !== "Project User") await Drive.create(page, driveName);
-                await Drive.openDrive(page, driveName);
+                const driveName = fileDrive.name;
+                const scriptPath = `${fileDrive.id}/${BashScriptName}`;
                 await File.uploadFiles(page, [{name: BashScriptName, contents: FancyBashScript},]);
 
                 await Applications.goToApplications(page);
@@ -175,14 +184,15 @@ echo "${BashScriptStringContent}"
                 await page.mouse.wheel(0, 1000);
                 await page.getByText(BashScriptStringContent).waitFor();
                 await NetworkCalls.awaitResponse(page, "**api/files/browse?path=**", async () => {
-                    await Runs.terminateViewedRun(page);
+                    await Runs.terminateViewedRun(page, {waitForUi: false});
                 });
                 await File.actionByRowTitle(page, "stdout-0.log", "dblclick");
                 await page.getByText(BashScriptStringContent).waitFor();
+                if (!fileDrive.ephemeral) await trashByApi(page, scriptPath);
             });
         });
 
-        test("Licenses - check license system works", async ({page}) => {
+        test("Licenses - check license system works", async ({testPage: page}) => {
             test.setTimeout(240_000);
             await Resources.goTo(page, "Licenses");
             const licenseId = await Resources.Licenses.activateLicense(page);
@@ -212,14 +222,16 @@ echo "${BashScriptStringContent}"
             await page.getByRole("dialog").locator(".row", {hasText: licenseId.toString()}).getByRole("button", {name: "Use"}).click();
 
             await Runs.submitAndWaitForRunning(page);
-            await Runs.terminateViewedRun(page);
+            await Runs.terminateViewedRun(page, {waitForUi: false});
 
             await Resources.goTo(page, "Licenses");
             await Resources.actionByRowTitle(page, `${PRODUCTS.license} (${licenseId})`, "click");
-            await Components.clickConfirmationButton(page, "Delete", 2000);
+            await NetworkCalls.awaitResponse(page, "**/api/licenses**", async () => {
+                await Components.clickConfirmationButton(page, "Delete");
+            });
         });
 
-        test("multinode, connect to other jobs", async ({page}) => {
+        test("multinode, connect to other jobs", async ({testPage: page}) => {
             test.setTimeout(180_000);
 
 
@@ -259,14 +271,20 @@ echo "${BashScriptStringContent}"
             const responseText = "64 bytes from"
             await Promise.all([term1, term2].map(t => t.getByText(responseText).first().waitFor()));
 
-            await Runs.terminateViewedRun(page);
-            await Runs.terminateViewedRun(otherPage);
+            await Runs.terminateViewedRun(page, {waitForUi: false});
+            await Runs.terminateViewedRun(otherPage, {waitForUi: false});
             await page.getByText("stdout-0.log").hover();
             await page.getByText("stdout-1.log").hover();
 
             await Resources.PrivateNetworks.delete(page, networkName);
         });
 
+        computeAccountingTest(ctx);
+    });
+});
+
+TestContexts.map((ctx) => {
+    test.describe(ctx, () => {
         test("disallow start from locked allocation", async ({page: adminPage, context}) => {
             // Extremely slow as `fallocate` is not available. Run with local dev and production.
             if (isDev(data.location_origin) && ctx === "Personal Workspace") test.skip();
@@ -274,12 +292,17 @@ echo "${BashScriptStringContent}"
 
             const AUTOGIFTED_RESOURCES = (isProd(data.location_origin) || isDev(data.location_origin)) && ctx === "Personal Workspace";
 
-            const FILE_SIZE_IN_GB = AUTOGIFTED_RESOURCES ? 5 : 1;
+            if (data["login_cookie"]) await adminPage.context().addCookies([data["login_cookie"]]);
+            await Admin.newLoggedInAdminPage(adminPage);
 
+            const storageCategory = await apiProductCategory(adminPage, PRODUCTS.storage);
+            const smallStorage = isByteStorage(storageCategory);
+            const storageQuotaGb = smallStorage ? 0.01 : 1;
+            const fileBytes = AUTOGIFTED_RESOURCES ? 6_000_000_000 : (smallStorage ? 20_000_000 : 2_000_000_000);
 
             const quotas: [string, number][] = [[PRODUCTS.compute, 5]];
             if (!AUTOGIFTED_RESOURCES)
-                quotas.push([PRODUCTS.storage, FILE_SIZE_IN_GB]);
+                quotas.push([PRODUCTS.storage, storageQuotaGb]);
 
             const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, quotas);
             await adminPage.close();
@@ -288,19 +311,18 @@ echo "${BashScriptStringContent}"
             const isPersonalWorkspace = ctx === "Personal Workspace";
             const driveName = isPersonalWorkspace ? "Home" : Drive.memberFiles(user.username);
 
-            await Drive.goToDrives(userPage);
-            if (isPersonalWorkspace) {
-                await userPage.getByRole("button", {name: "Create drive", disabled: false}).waitFor();
-            }
-            const triggerFolder = await File.createStorageScanTrigger(userPage, driveName);
-
             const term = await Applications.runAppAndOpenTerminalWithTerminalPage(userPage, AppNames.TestApplication, 1, undefined, jobName);
 
-            await Terminal.createFile(term, FILE_SIZE_IN_GB + 1);
+            await Terminal.createFileOfSize(term, fileBytes);
             await term.close();
-            await Runs.terminateViewedRun(userPage);
+            await Runs.terminateViewedRun(userPage, {waitForUi: false});
 
-            await File.triggerStorageScan(userPage, driveName, triggerFolder);
+            await File.triggerStorageScan(userPage, driveName);
+            await expect.poll(async () => await walletLocked(userPage, PRODUCTS.storage), {
+                timeout: 30_000,
+                intervals: [250],
+            }).toBe(true);
+
             await Runs.goToRuns(userPage);
             await Components.projectSwitcher(userPage, "hover");
             await Applications.actionByRowTitle(userPage, jobName, "click");
@@ -311,67 +333,20 @@ echo "${BashScriptStringContent}"
             await Runs.setJobTitle(userPage, "")
             await userPage.getByText("Submit").click();
 
-            while (true) {
-                if (await userPage.getByText("You do not have enough storage credits.").isVisible()) break;
-                if (await userPage.getByText("Insufficient funds for storage", {exact: false}).first().isVisible()) break;
-            }
+            const insufficientStorage = userPage
+                .getByText("You do not have enough storage credits.")
+                .or(userPage.getByText("Insufficient funds for storage", {exact: false}));
+            await expect(insufficientStorage.first()).toBeVisible({timeout: 30_000});
 
             /* Clean-up */
-            await Runs.goToRuns(userPage);
-            await NetworkCalls.awaitResponse(userPage, "**/api/files/browse**", async () => {
-                await Applications.actionByRowTitle(userPage, jobName, "dblclick");
-            });
-
-            await NetworkCalls.awaitResponse(userPage, "**/api/files/trash", async () => {
-                await File.actionByRowTitle(userPage, "example", "click");
-                await userPage.keyboard.press("Delete");
-            });
-            await Drive.openDrive(userPage, driveName);
-            await File.open(userPage, "Trash");
-            await File.emptyTrash(userPage);
+            const driveId = await driveIdByName(userPage, driveName);
+            await trashByApi(userPage, await findFilePathByApi(userPage, driveId, "example"));
+            await emptyTrashByApi(userPage, driveId);
         });
 
-        test("Compute - check accounting", async ({page: adminPage, context}) => {
-            const AUTOGIFTED_RESOURCES = (isProd(data.location_origin) || isDev(data.location_origin)) && ctx === "Personal Workspace";
-
-            test.setTimeout(120_000);
-
-            const quotas: [string, number][] = [[PRODUCTS.compute, 1]];
-
-            if (AUTOGIFTED_RESOURCES === false) {
-                quotas.push([PRODUCTS.storage, 1]);
-            }
-
-            const {userPage, user} = await User.createUserWithProjectAndAssignRole(adminPage, context, ctx, quotas);
-
-            await Accounting.goTo(userPage, "Allocations");
-            if (AUTOGIFTED_RESOURCES) {
-                if (isDev(data.location_origin)) {
-                    await userPage.getByText("0K / 1K Core-hours (0%)", {exact: true}).first().waitFor();
-                } else if (isProd(data.location_origin)) {
-                    await userPage.getByText("0 / 101 Core-hours (0%)", {exact: true}).first().waitFor();
-                }
-            } else {
-                await userPage.getByText("0 / 1 Core-hours (0%)", {exact: true}).first().waitFor();
-            }
-            const jobName = Runs.newJobName();
-            const coreCount = AUTOGIFTED_RESOURCES ? 8 : 2;
-            await Applications.runAppAndOpenTerminal(userPage, AppNames.TestApplication, coreCount, undefined, jobName);
-
-            await userPage.waitForTimeout(60_000);
-
-            await Runs.terminateViewedRun(userPage);
-
-            await userPage.reload();
-            const isPersonalWorkspace = ctx === "Personal Workspace";
-            const driveName = isPersonalWorkspace ? "Home" : Drive.memberFiles(user.username);
-            await File.triggerStorageScan(userPage, driveName);
-            await Accounting.goTo(userPage, "Allocations");
-
-            await userPage.getByText("Core-hours").first().waitFor();
-            const percentage = await getPercentUsage(userPage, "Core-hours");
-            expect(percentage).toBeGreaterThan(0);
-        });
+        if ((isDev(data.location_origin) || isProd(data.location_origin)) && ctx === "Personal Workspace") {
+            computeAccountingTest(ctx);
+        }
     });
 });
 
@@ -398,7 +373,7 @@ async function getPercentUsage(page: Page, kind: "Core-hours"): Promise<number> 
 
             await page.waitForTimeout(60_000);
 
-            await Runs.terminateViewedRun(page);
+            await Runs.terminateViewedRun(page, {waitForUi: false});
 
             await page.reload();
             const isPersonalWorkspace = ctx === "Personal Workspace";

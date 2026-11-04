@@ -1,5 +1,5 @@
-import test from "@playwright/test";
-import {Accounting, Admin, Components, isDev, isProd, Project, ProviderInfo, Rows, User} from "./shared";
+import test, {expect} from "@playwright/test";
+import {Accounting, Admin, Components, createProjectByApi, isDev, isProd, Project, ProviderInfo, refreshAccessToken, Rows, User} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
 const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
@@ -54,5 +54,28 @@ test("Apply for resources, approve (from admin user), verify resources are in al
     await Project.changeTo(newUserPage, projectName);
 
     await newUserPage.getByText("0K / 1K Core-hours (0%)").first().hover();
-    await newUserPage.getByText("0 GB / 1,000 GB (0%)").first().hover();
+    await newUserPage.getByText("0 TB / 1 TB (0%)").first().hover();
+});
+
+test("Project membership - invite, accept, change role", async ({page: adminPage, context}) => {
+    test.setTimeout(90_000);
+    const admin = await Admin.newLoggedInAdminPage(adminPage);
+    const user = User.newUserCredentials("member");
+    await User.create(admin, user);
+
+    const userPage = await context.browser()?.newPage();
+    if (!userPage) throw Error("Couldn't create page for member user");
+    await User.login(userPage, user, true);
+
+    const projectName = Project.newProjectName();
+    await createProjectByApi(admin, projectName);
+    await refreshAccessToken(admin);
+    await Components.goToDashboard(admin);
+    await Project.changeTo(admin, projectName);
+    await Project.inviteUsers(admin, [user.username]);
+    await Project.acceptInvites([userPage], projectName);
+    await Project.changeRoles(admin, user.username, "Admin");
+
+    const memberRow = admin.locator("div[class^=list-item]", {hasText: user.username});
+    await expect(memberRow.getByRole("radio", {name: "Admin"})).toBeChecked({timeout: 30_000});
 });

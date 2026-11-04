@@ -377,6 +377,9 @@ func TestsRun(adminUser, adminPass string, testArgs []string, ui bool) {
 	}()
 
 	userDataPath, manuallyConfiguredUsers := os.LookupEnv("UCLOUD_PLAYWRIGHT_USER_DATA")
+	if userDataPath == "" {
+		userDataPath = filepath.Join(ComposeDir, "playwright-users.json")
+	}
 	if !manuallyConfiguredUsers {
 		userDataPath = filepath.Join(ComposeDir, "playwright-users.json")
 		testInfoPath := filepath.Join(RepoRoot, "frontend-web/webclient/tests/test_data.json")
@@ -575,12 +578,7 @@ func TestsRun(adminUser, adminPass string, testArgs []string, ui bool) {
 				}
 
 				if !found && !product.Category.FreeToUse {
-					quota := int64(1000)
-					if product.Category.AccountingUnit.FloatingPoint {
-						quota *= 1_000_000
-					} else if product.Category.AccountingFrequency == accapi.AccountingFrequencyPeriodicMinute {
-						quota *= 60
-					}
+					quota := allocateQuota(product, 1000)
 
 					missingRootAllocations = append(missingRootAllocations, accapi.RootAllocateRequest{
 						Category: product.Category.ToId(),
@@ -606,12 +604,7 @@ func TestsRun(adminUser, adminPass string, testArgs []string, ui bool) {
 					continue
 				}
 
-				quota := int64(1000)
-				if product.Category.AccountingUnit.FloatingPoint {
-					quota *= 1_000_000
-				} else if product.Category.AccountingFrequency == accapi.AccountingFrequencyPeriodicMinute {
-					quota *= 60
-				}
+				quota := allocateQuota(product, 1000)
 
 				allocationRequests = append(allocationRequests, accapi.AllocationRequest{
 					Category:         product.Category.Name,
@@ -644,6 +637,293 @@ func TestsRun(adminUser, adminPass string, testArgs []string, ui bool) {
 				return err
 			}
 		}
+		return nil
+	})
+
+	type contextUser struct {
+		Username string
+		Password string
+		Token    string
+	}
+
+	contextUsers := make([]contextUser, 0, 3)
+	projectTitle := ""
+
+	LogOutputRunWork("Preparing Playwright users", func(ch chan string) error {
+		for _, kind := range []string{"pi", "admin", "user"} {
+			username := fmt.Sprintf("test-user-%s-%s", kind, util.SecureToken()[:8])
+			password := util.SecureToken()
+
+			_, err := fndapi.UsersCreate.Invoke([]fndapi.UsersCreateRequest{{
+				Username:   username,
+				Password:   password,
+				Email:      fmt.Sprintf("%s@localhost.direct", username),
+				Role:       util.OptValue(fndapi.PrincipalUser),
+				FirstNames: util.OptValue("Test"),
+				LastName:   util.OptValue("User"),
+			}})
+
+			if err != nil {
+				return fmt.Errorf("failed to create test user: %s", err)
+			}
+
+			tokens, err := fndapi.AuthPasswordLoginServer.Invoke(fndapi.PasswordLoginRequest{
+				Username: username,
+				Password: password,
+			})
+
+			if err != nil {
+				return err
+			}
+
+			contextUsers = append(contextUsers, contextUser{
+				Username: username,
+				Password: password,
+				Token:    tokens.RefreshToken,
+			})
+		}
+
+		projectTitle = "ProjectTitle" + util.SecureToken()[:6]
+		projectResponse, err := fndapi.ProjectCreate.Invoke(fndapi.BulkRequestOf(fndapi.ProjectSpecification{
+			Title:               projectTitle,
+			CanConsumeResources: true,
+		}))
+
+		if err != nil {
+			return fmt.Errorf("failed to create test project: %s", err)
+		}
+
+		projectId := projectResponse.Responses[0].Id
+		projectOpts := rpc.InvokeOpts{Headers: http.Header{"Project": {projectId}}}
+
+		adminLogin, loginErr := fndapi.AuthPasswordLoginServer.Invoke(fndapi.PasswordLoginRequest{
+			Username: adminUser,
+			Password: adminPass,
+		})
+
+		if loginErr != nil {
+			return loginErr
+		}
+
+		adminToken = adminLogin.RefreshToken
+		RpcClientConfigure(adminToken)
+
+		var invites []fndapi.ProjectCreateInviteRequest
+		for _, user := range contextUsers {
+			invites = append(invites, fndapi.ProjectCreateInviteRequest{Recipient: user.Username})
+		}
+
+		_, err = fndapi.ProjectCreateInvite.InvokeEx(rpc.DefaultClient, fndapi.BulkRequestOf(invites...), projectOpts)
+		if err != nil {
+			return fmt.Errorf("failed to invite test users: %s", err)
+		}
+
+		for i := range contextUsers {
+			RpcClientConfigure(contextUsers[i].Token)
+			_, err = fndapi.ProjectAcceptInvite.InvokeEx(
+				rpc.DefaultClient,
+				fndapi.BulkRequestOf(fndapi.ProjectAcceptInviteRequest{Project: projectId}),
+				rpc.InvokeOpts{},
+			)
+
+			if err != nil {
+				return fmt.Errorf("failed to accept project invite: %s", err)
+			}
+
+			userLogin, loginErr := fndapi.AuthPasswordLoginServer.Invoke(fndapi.PasswordLoginRequest{
+				Username: contextUsers[i].Username,
+				Password: contextUsers[i].Password,
+			})
+
+			if loginErr != nil {
+				return loginErr
+			}
+
+			contextUsers[i].Token = userLogin.RefreshToken
+		}
+
+		RpcClientConfigure(adminToken)
+		_, err = fndapi.ProjectMemberChangeRole.InvokeEx(
+			rpc.DefaultClient,
+			fndapi.BulkRequestOf(
+				fndapi.ProjectMemberChangeRoleRequest{Username: contextUsers[0].Username, Role: fndapi.ProjectRolePI},
+				fndapi.ProjectMemberChangeRoleRequest{Username: contextUsers[1].Username, Role: fndapi.ProjectRoleAdmin},
+				fndapi.ProjectMemberChangeRoleRequest{Username: contextUsers[2].Username, Role: fndapi.ProjectRoleUser},
+			),
+			projectOpts,
+		)
+
+		if err != nil {
+			return fmt.Errorf("failed to assign project roles: %s", err)
+		}
+
+		piLogin, loginErr := fndapi.AuthPasswordLoginServer.Invoke(fndapi.PasswordLoginRequest{
+			Username: contextUsers[0].Username,
+			Password: contextUsers[0].Password,
+		})
+
+		if loginErr != nil {
+			return loginErr
+		}
+
+		contextUsers[0].Token = piLogin.RefreshToken
+		RpcClientConfigure(contextUsers[0].Token)
+		_, err = fndapi.ProjectRemoveMember.InvokeEx(
+			rpc.DefaultClient,
+			fndapi.BulkRequestOf(fndapi.ProjectRemoveMemberRequest{Username: adminUser}),
+			projectOpts,
+		)
+
+		if err != nil {
+			return fmt.Errorf("failed to remove admin from test project: %s", err)
+		}
+
+		adminLogin, loginErr = fndapi.AuthPasswordLoginServer.Invoke(fndapi.PasswordLoginRequest{
+			Username: adminUser,
+			Password: adminPass,
+		})
+
+		if loginErr != nil {
+			return loginErr
+		}
+
+		adminToken = adminLogin.RefreshToken
+		RpcClientConfigure(adminToken)
+
+		providerName := "k8s"
+		if _, ok := productsByProviderAndType[providerName]; !ok {
+			for name := range productsByProviderAndType {
+				providerName = name
+				break
+			}
+		}
+
+		productsByType, ok := productsByProviderAndType[providerName]
+		if !ok {
+			return fmt.Errorf("no products available for project setup")
+		}
+
+		providerProjectId, ok := providersToTest[providerName]
+		if !ok {
+			return fmt.Errorf("missing provider project for %s", providerName)
+		}
+
+		var projectAllocations []accapi.AllocationRequest
+		for _, product := range productsByType {
+			if product.Category.FreeToUse {
+				continue
+			}
+
+			quota := int64(1)
+			switch product.ProductType {
+			case accapi.ProductTypeCompute:
+				quota = 50
+			case accapi.ProductTypeStorage:
+				quota = 10
+			case accapi.ProductTypeLicense:
+				quota = 3
+			case accapi.ProductTypeNetworkIp:
+				quota = 5
+			}
+			quota = allocateQuota(product, quota)
+
+			projectAllocations = append(projectAllocations, accapi.AllocationRequest{
+				Category:         product.Category.Name,
+				Provider:         product.Category.Provider,
+				GrantGiver:       string(providerProjectId),
+				BalanceRequested: util.OptValue(quota),
+			})
+		}
+
+		providerOpts := rpc.InvokeOpts{Headers: http.Header{"Project": {string(providerProjectId)}}}
+		allocationPeriod := util.OptValue(accapi.Period{
+			Start: util.OptValue[fndapi.Timestamp](fndapi.Timestamp(time.Now())),
+			End:   util.OptValue[fndapi.Timestamp](fndapi.Timestamp(time.Now().AddDate(0, 0, 7))),
+		})
+
+		_, err = accapi.GrantsSubmitRevision.InvokeEx(rpc.DefaultClient, accapi.GrantsSubmitRevisionRequest{
+			Revision: accapi.GrantDocument{
+				Recipient: accapi.Recipient{
+					Type: accapi.RecipientTypeExistingProject,
+					Id:   util.OptValue(projectId),
+				},
+				AllocationRequests: projectAllocations,
+				AllocationPeriod:   allocationPeriod,
+				Form: accapi.Form{
+					Type: accapi.FormTypeGrantGiverInitiated,
+					Text: "Grant test resources",
+				},
+			},
+			Comment: "Grant test resources",
+		}, providerOpts)
+
+		if err != nil {
+			return fmt.Errorf("failed to grant project resources: %s", err)
+		}
+
+		storageProduct, hasStorage := productsByType[accapi.ProductTypeStorage]
+		if hasStorage {
+			for _, user := range contextUsers {
+				_, err = accapi.GrantsSubmitRevision.InvokeEx(rpc.DefaultClient, accapi.GrantsSubmitRevisionRequest{
+					Revision: accapi.GrantDocument{
+						Recipient: accapi.Recipient{
+							Type:     accapi.RecipientTypePersonalWorkspace,
+							Username: util.OptValue(user.Username),
+						},
+						AllocationRequests: []accapi.AllocationRequest{{
+							Category:         storageProduct.Category.Name,
+							Provider:         storageProduct.Category.Provider,
+							GrantGiver:       string(providerProjectId),
+							BalanceRequested: util.OptValue(allocateQuota(storageProduct, 1)),
+						}},
+						AllocationPeriod: allocationPeriod,
+						Form: accapi.Form{
+							Type: accapi.FormTypeGrantGiverInitiated,
+							Text: "Grant test resources",
+						},
+					},
+					Comment: "Grant test resources",
+				}, providerOpts)
+
+				if err != nil {
+					return fmt.Errorf("failed to grant personal resources: %s", err)
+				}
+			}
+		}
+
+		userTokens = append(userTokens, contextUsers[0].Token, contextUsers[1].Token, contextUsers[2].Token)
+
+		testUsers := map[string]any{
+			"Project PI": map[string]string{
+				"username": contextUsers[0].Username,
+				"password": contextUsers[0].Password,
+			},
+			"Project Admin": map[string]string{
+				"username": contextUsers[1].Username,
+				"password": contextUsers[1].Password,
+			},
+			"Project User": map[string]string{
+				"username": contextUsers[2].Username,
+				"password": contextUsers[2].Password,
+			},
+			"Personal Workspace": map[string]string{
+				"username": users[0].Username,
+				"password": users[0].Password,
+			},
+			"projectName":       projectTitle,
+			"providerId":        providerName,
+			"providerProjectId": string(providerProjectId),
+		}
+
+		encoded, marshalErr := json.Marshal(testUsers)
+		if marshalErr != nil {
+			return marshalErr
+		}
+
+		if err := os.WriteFile(userDataPath, encoded, 0640); err != nil {
+			return fmt.Errorf("unable to write %s: %s", userDataPath, err)
+		}
+
 		return nil
 	})
 
@@ -745,7 +1025,7 @@ func TestsRun(adminUser, adminPass string, testArgs []string, ui bool) {
 		return nil
 	})
 
-	PlaywrightRun(testArgs, ui, userDataPath, !manuallyConfiguredUsers)
+	PlaywrightRun(testArgs, ui, userDataPath, false)
 }
 
 func PlaywrightRun(testArgs []string, ui bool, userDataPath string, prepareUsers bool) {
@@ -794,6 +1074,25 @@ func productsContainTypes(products []accapi.ProductV2, required []accapi.Product
 	}
 
 	return true
+}
+
+func allocateQuota(product accapi.ProductV2, base int64) int64 {
+	if product.Category.AccountingUnit.FloatingPoint {
+		return base * 1_000_000
+	}
+
+	if product.ProductType == accapi.ProductTypeStorage && product.Category.AccountingUnit.Name == "B" {
+		return base * 1_000_000_000
+	}
+
+	switch product.Category.AccountingFrequency {
+	case accapi.AccountingFrequencyPeriodicSecond:
+		return base * 60 * 60
+	case accapi.AccountingFrequencyPeriodicMinute:
+		return base * 60
+	default:
+		return base
+	}
 }
 
 func isFedoraLinux() bool {
