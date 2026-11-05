@@ -303,6 +303,11 @@ function getBackend(job?: Job): string {
 
 export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode {
     const id = props.id ?? useParams<{id: string}>().id!;
+    return <JobView key={id} id={id} embedded={props.embedded} />;
+}
+
+function JobView(props: {id: string; embedded?: boolean;}): React.ReactNode {
+    const id = props.id;
 
     // Note: This might not match the real app name
     const location = useLocation();
@@ -325,6 +330,8 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
     useEffect(() => {
         setStatus(null);
         setDataAnimationAllowed(false);
+        setInterfaceTargets([]);
+        setJobUpdates([]);
         jobUpdateState.current = {updateQueue: [], logQueue: [], statusQueue: [], subscriptions: []};
         fetchJob(JobsApi.retrieve({
             id,
@@ -336,18 +343,22 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
     }, [id]);
 
     const targetRequests = useMemo(() => {
-        if (!job) return {requestsToMake: [], fixedTargets: []};
-        return findTargetRequests(job);
-    }, [jobUpdates.length]);
+        if (!job || job.id !== id) return {requestsToMake: [], fixedTargets: []};
+        return findTargetRequests(job, status?.state ?? job.status.state);
+    }, [id, job?.id, jobUpdates.length, status?.state]);
 
     useEffect(() => {
+        let cancelled = false;
         (async () => {
             const targets = await resolveInterfaceTargets(targetRequests);
-            if (!didUnmount.current) {
+            if (!cancelled && !didUnmount.current) {
                 setInterfaceTargets(targets);
             }
         })();
-    }, [targetRequests.requestsToMake.length, targetRequests.fixedTargets.length]);
+        return () => {
+            cancelled = true;
+        };
+    }, [id, job?.id, targetRequests.requestsToMake.length, targetRequests.fixedTargets.length]);
 
     useEffect(() => {
         if (useFakeState) {
@@ -609,7 +620,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                     </div>
                 </CSSTransition>
             )}
-            {status && isJobStateTerminal(status.state) && job ? <OutputFiles job={job} /> : null}
+            {status && isJobStateTerminal(status.state) && job ? <OutputFiles key={job.id} job={job} /> : null}
         </div>
     );
 
@@ -968,7 +979,7 @@ interface TargetRequests {
     defaultName?: string;
 }
 
-function findTargetRequests(job: Job): TargetRequests {
+function findTargetRequests(job: Job, state: JobState): TargetRequests {
     let requestsToMake: OpenInteractiveSessionRequest[] = [];
     const fixedTargets: InterfaceTarget[] = [];
     let defaultName: string | undefined;
@@ -998,14 +1009,14 @@ function findTargetRequests(job: Job): TargetRequests {
                 const canShowVnc = (parsedTarget.type === "VNC" || isVirtualMachine) && isSupported(backendType, support, "vnc");
                 const canShowWeb = (parsedTarget.type === "WEB") && isSupported(backendType, support, "web");
 
-                if (canShowWeb && job.status.state === "RUNNING") {
+                if (canShowWeb && state === "RUNNING") {
                     requestsToMake.push({
                         sessionType: "WEB",
                         id: job.id,
                         rank: parsedTarget.rank,
                         target: parsedTarget.target,
                     });
-                } else if (canShowVnc && job.status.state === "RUNNING") {
+                } else if (canShowVnc && state === "RUNNING") {
                     fixedTargets.push({
                         target: parsedTarget.target,
                         rank: parsedTarget.rank,
@@ -1017,12 +1028,12 @@ function findTargetRequests(job: Job): TargetRequests {
         }
     }
 
-    if (canShowWeb && job.status.state === "RUNNING") {
+    if (canShowWeb && state === "RUNNING") {
         requestsToMake = requestsToMake.concat(Array(job.specification.replicas)
             .fill(0).map((_, i) => ({sessionType: 'WEB', id: job.id, rank: i} as OpenInteractiveSessionRequest)));
     }
 
-    if (canShowVnc && job.status.state === "RUNNING") {
+    if (canShowVnc && state === "RUNNING") {
         fixedTargets.push({rank: 0, type: "VNC", link: `/applications/vnc/${job.id}/0?hide-frame`} as InterfaceTarget);
     }
 
@@ -1064,7 +1075,7 @@ const RunningContent: React.FunctionComponent<{
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
     const backendType = getBackend(job);
-    const [suspended, setSuspended] = useState(job.status.state === "SUSPENDED");
+    const [suspended, setSuspended] = useState(status.state === "SUSPENDED");
     const messagesRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     useScrollToBottom(scrollRef);
@@ -1142,8 +1153,8 @@ const RunningContent: React.FunctionComponent<{
     const supportsPeers = isSupported(backendType, support, "peers");
 
     useEffect(() => {
-        setSuspended(job.status.state === "SUSPENDED");
-    }, [job.status.state]);
+        setSuspended(status.state === "SUSPENDED");
+    }, [status.state]);
 
     const sshAccess: ParsedSshAccess | null = useMemo(() => {
         const res = parseUpdatesForAccess(job.updates);
@@ -1158,7 +1169,7 @@ const RunningContent: React.FunctionComponent<{
         } else {
             return null;
         }
-    }, [job.updates.length]);
+    }, [job.id, job.updates.length]);
 
     const ingresses = job.specification.resources?.filter(it => it.type === "ingress") ?? [];
     const peers = job.specification.resources?.filter(it => it.type === "peer") ?? [];
@@ -1549,23 +1560,16 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
 };
 
 function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): React.ReactNode {
-    const pathRef = React.useRef(job.output?.outputFolder ?? "");
-    if (!pathRef.current) {
+    const outputFolder = job.output?.outputFolder;
+    if (!outputFolder) {
         console.warn("No output folder found. Showing nothing.");
         return null;
     }
 
-    useEffect(() => {
-        const newPath = job.output?.outputFolder ?? "";
-        if (newPath) {
-            pathRef.current = newPath;
-        }
-    }, [job.output?.outputFolder]);
-
-    return <Card key={job.id} className={FadeInDiv} p={"0px"} minHeight={"500px"} mt={"16px"}>
+    return <Card className={FadeInDiv} p={"0px"} minHeight={"500px"} mt={"16px"}>
         <FileBrowse
             opts={{
-                initialPath: pathRef.current,
+                initialPath: outputFolder,
                 managesLocalProject: true,
                 embedded: {hideFilters: true, disableKeyhandlers: false}
             }}

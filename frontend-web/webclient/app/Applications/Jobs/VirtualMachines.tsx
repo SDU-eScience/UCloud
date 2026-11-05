@@ -575,10 +575,16 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const powerButtonColor = powerTone === "success" ? "successMain" : "warningMain";
 
     useEffect(() => {
+        let cancelled = false;
+
         if (status.state !== "RUNNING" || ingresses.length === 0) {
             setPublicLinkTargets([]);
-            return;
+            return () => {
+                cancelled = true;
+            };
         }
+
+        setPublicLinkTargets([]);
 
         const requests = ingresses.map(ingress => ({
             sessionType: "WEB" as const,
@@ -592,6 +598,8 @@ export const VirtualMachineStatus: React.FunctionComponent<{
             {defaultErrorHandler: false}
         )
             .then(result => {
+                if (cancelled) return;
+
                 const responses = result?.responses ?? [];
                 const newTargets: InterfaceTarget[] = [];
 
@@ -611,8 +619,12 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                 setPublicLinkTargets(newTargets);
             })
             .catch(() => {
-                setPublicLinkTargets([]);
+                if (!cancelled) setPublicLinkTargets([]);
             });
+
+        return () => {
+            cancelled = true;
+        };
     }, [status.state, job.id, ingresses, invokeBackgroundCommand]);
 
     useEffect(() => {
