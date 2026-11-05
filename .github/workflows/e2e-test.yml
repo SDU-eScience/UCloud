@@ -13,7 +13,7 @@ jobs:
   test:
     name: Run launcher tests
     runs-on: self-hosted
-    timeout-minutes: 90
+    timeout-minutes: 60
 
     steps:
       - name: Reset runner
