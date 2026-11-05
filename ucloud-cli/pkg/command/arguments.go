@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"strconv"
 	"strings"
 )
 
@@ -91,8 +92,27 @@ func ArgsBind(args []string, cmd any, options ArgsBindOptions) (ArgsBindResult, 
 			pos++
 		}
 
-		if !options.FlagsOnly && field.Tag.Get("default") != "" {
-			v.Field(i).SetString(field.Tag.Get("default"))
+		if !options.FlagsOnly {
+			if def := field.Tag.Get("default"); def != "" {
+				switch field.Type.Kind() {
+				case reflect.String:
+					v.Field(i).SetString(def)
+				case reflect.Int:
+					value, err := strconv.Atoi(def)
+					if err != nil {
+						return result, fmt.Errorf("invalid default value for %s: %q", field.Name, def)
+					}
+					v.Field(i).SetInt(int64(value))
+				case reflect.Bool:
+					value, err := strconv.ParseBool(def)
+					if err != nil {
+						return result, fmt.Errorf("invalid default value for %s: %q", field.Name, def)
+					}
+					v.Field(i).SetBool(value)
+				default:
+					return result, fmt.Errorf("unsupported default value type for %s", field.Name)
+				}
+			}
 		}
 		required := field.Tag.Get("required") == "true"
 		if flagName == "" {
