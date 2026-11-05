@@ -20,18 +20,21 @@ import (
 )
 
 const (
-	authenticationName = "ucloud-authentication"
-	registryJWTIssuer  = "ucloud-registry"
-	registryJWTExpiry  = 15 * time.Minute
+	authenticationName      = "ucloud-authentication"
+	registryJWTIssuer       = "ucloud-registry"
+	registryJWTExpiry       = 15 * time.Minute
+	registryMaxScopeEntries = 32
 )
 
 type requestStateKey struct{}
 
 type requestState struct {
-	grant      *ocidauth.Grant
-	access     []ocidauth.Access
-	owner      apm.WalletOwner
-	apiTokenId string
+	grant               *ocidauth.Grant
+	access              []ocidauth.Access
+	owner               apm.WalletOwner
+	apiTokenId          string
+	anonymous           bool
+	credentialsRejected bool
 }
 
 func requestStateFromContext(ctx context.Context) *requestState {
@@ -51,6 +54,7 @@ type registryJWTClaims struct {
 	Owner            apm.WalletOwner          `json:"owner"`
 	Username         string                   `json:"username"`
 	ApiTokenId       string                   `json:"apiTokenId"`
+	Anonymous        bool                     `json:"anonymous"`
 	TokenPermissions []orc.ApiTokenPermission `json:"tokenPermissions"`
 	Access           []registryJWTAccess      `json:"access"`
 }
@@ -94,10 +98,25 @@ func authenticateAndAuthorize(r *http.Request, access ...ocidauth.Access) (*ocid
 		return nil, registryAuthChallenge{access: access, cause: errors.New("invalid authorization token")}
 	}
 
+	listTags := registryTagListRequest(r)
+	if claims.Anonymous && listTags {
+		return nil, registryAuthChallenge{access: access, cause: errors.New("tag listing requires authentication")}
+	}
+
 	grant := &ocidauth.Grant{User: ocidauth.UserInfo{Name: claims.Username}}
 	for _, requested := range access {
 		if !jwtAllowsAccess(claims.Access, requested) {
 			return nil, registryAuthChallenge{access: access, cause: errors.New("insufficient scope")}
+		}
+		if listTags {
+			actor := orc.ResourceOwner{CreatedBy: claims.Username}
+			if claims.Owner.ProjectId != "" {
+				actor.Project = util.OptValue(claims.Owner.ProjectId)
+			}
+			repository, found := controller.ContainerRepositoryRetrieveByRepository(requested.Name)
+			if !found || !controller.ResourceCanUse(actor, repository.Owner, repository.Permissions, true) {
+				return nil, registryAuthChallenge{access: access, cause: errors.New("tag listing requires repository read permission")}
+			}
 		}
 		grant.Resources = append(grant.Resources, requested.Resource)
 	}
@@ -105,7 +124,13 @@ func authenticateAndAuthorize(r *http.Request, access ...ocidauth.Access) (*ocid
 	state.grant = grant
 	state.owner = claims.Owner
 	state.apiTokenId = claims.ApiTokenId
+	state.anonymous = claims.Anonymous
 	return grant, nil
+}
+
+func registryTagListRequest(r *http.Request) bool {
+	path := strings.TrimSuffix(r.URL.Path, "/")
+	return strings.HasSuffix(path, "/tags/list")
 }
 
 func jwtAllowsAccess(granted []registryJWTAccess, requested ocidauth.Access) bool {
@@ -168,16 +193,10 @@ func registryScope(access []ocidauth.Access) string {
 }
 
 func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
-	_, apiToken, ok := r.BasicAuth()
-	if !ok {
-		w.Header().Set("WWW-Authenticate", `Basic realm="UCloud container registry"`)
-		http.Error(w, "API token required", http.StatusUnauthorized)
-		return
-	}
-
-	identity, authErr := controller.ApiTokenValidateWithIdentity(containerRepositoryApiTokenKind, apiToken)
-	if authErr != nil {
-		http.Error(w, "invalid API token", http.StatusUnauthorized)
+	if !registryTokenRateLimitAllow(r) {
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Retry-After", "1")
+		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
 		return
 	}
 
@@ -187,11 +206,60 @@ func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	access := authorizedTokenAccess(identity, r.URL.Query()["scope"])
+	rawScopes := r.URL.Query()["scope"]
+	scopes, scopesOk := registryScopeEntries(rawScopes)
+	if !scopesOk {
+		http.Error(w, "too many registry scopes", http.StatusBadRequest)
+		return
+	}
+
+	identity := controller.ApiTokenIdentity{}
+	_, apiToken, hasCredentials := r.BasicAuth()
+	credentialsRejected := false
+	var access []registryJWTAccess
+	if hasCredentials {
+		validated, authErr := controller.ApiTokenValidateWithIdentity(containerRepositoryApiTokenKind, apiToken)
+		if authErr != nil {
+			credentialsRejected = true
+			access = authorizedAnonymousTokenAccess(scopes)
+			if len(access) == 0 {
+				http.Error(w, "invalid API token", http.StatusUnauthorized)
+				return
+			}
+			hasCredentials = false
+		} else {
+			identity = validated
+			access = authorizedTokenAccess(identity, scopes)
+		}
+	} else {
+		access = authorizedAnonymousTokenAccess(scopes)
+		if len(access) == 0 && len(scopes) > 0 {
+			w.Header().Set("WWW-Authenticate", `Basic realm="UCloud container registry"`)
+			http.Error(w, "API token required", http.StatusUnauthorized)
+			return
+		}
+	}
+
+	now := time.Now().Truncate(time.Second)
+	expiresAt := now.Add(registryJWTExpiry)
+	if hasCredentials && identity.ExpiresAt.Before(expiresAt) {
+		expiresAt = identity.ExpiresAt.Truncate(time.Second)
+	}
+	if !expiresAt.After(now) {
+		http.Error(w, "API token has expired", http.StatusUnauthorized)
+		return
+	}
+
 	state := requestStateFromContext(r.Context())
-	state.grant = &ocidauth.Grant{User: ocidauth.UserInfo{Name: identity.Username}}
-	state.owner = identity.Owner
-	state.apiTokenId = identity.TokenId
+	state.credentialsRejected = credentialsRejected
+	if hasCredentials {
+		state.grant = &ocidauth.Grant{User: ocidauth.UserInfo{Name: identity.Username}}
+		state.owner = identity.Owner
+		state.apiTokenId = identity.TokenId
+	} else {
+		state.grant = &ocidauth.Grant{}
+		state.anonymous = true
+	}
 	for _, entry := range access {
 		for _, action := range entry.Actions {
 			state.access = append(state.access, ocidauth.Access{
@@ -200,20 +268,20 @@ func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
-	now := time.Now()
 	ownerReference := identity.Owner.Reference()
 	claims := registryJWTClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    registryJWTIssuer,
 			Subject:   ownerReference,
 			Audience:  jwt.ClaimStrings{Service()},
-			ExpiresAt: jwt.NewNumericDate(now.Add(registryJWTExpiry)),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 		},
 		Owner:            identity.Owner,
 		Username:         identity.Username,
 		ApiTokenId:       identity.TokenId,
+		Anonymous:        !hasCredentials,
 		TokenPermissions: identity.Permissions,
 		Access:           access,
 	}
@@ -224,6 +292,7 @@ func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")
 
 	type tok struct {
@@ -236,12 +305,66 @@ func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(tok{
 		Token:       signed,
 		AccessToken: signed,
-		ExpiresIn:   int64(registryJWTExpiry.Seconds()),
+		ExpiresIn:   int64(expiresAt.Sub(now).Seconds()),
 		IssuedAt:    now.UTC().Format(time.RFC3339),
 	})
 }
 
-func authorizedTokenAccess(identity controller.ApiTokenIdentity, rawScopes []string) []registryJWTAccess {
+type registryScopeEntry struct {
+	Type    string
+	Name    string
+	Actions []string
+}
+
+func registryScopeEntries(rawScopes []string) ([]registryScopeEntry, bool) {
+	var result []registryScopeEntry
+	for _, rawScope := range rawScopes {
+		for scope := range strings.FieldsSeq(rawScope) {
+			parts := strings.SplitN(scope, ":", 3)
+			if len(parts) != 3 || parts[0] != "repository" {
+				continue
+			}
+			if len(result) >= registryMaxScopeEntries {
+				return nil, false
+			}
+			result = append(result, registryScopeEntry{
+				Type:    parts[0],
+				Name:    parts[1],
+				Actions: strings.Split(parts[2], ","),
+			})
+		}
+	}
+	return result, true
+}
+
+type registryRepositoryCacheEntry struct {
+	repository orc.ContainerRepository
+	found      bool
+}
+
+var registryRepositoryLookupCache = util.NewCache[string, registryRepositoryCacheEntry](5 * time.Second)
+
+func registryRetrieveRepository(
+	cache map[string]registryRepositoryCacheEntry,
+	name string,
+) (orc.ContainerRepository, bool) {
+	root, _, _ := strings.Cut(strings.Trim(name, "/"), "/")
+	if entry, ok := cache[root]; ok {
+		return entry.repository, entry.found
+	}
+
+	entry, _ := registryRepositoryLookupCache.Get(root, func() (registryRepositoryCacheEntry, error) {
+		repository, found := controller.ContainerRepositoryRetrieveByRepository(name)
+		return registryRepositoryCacheEntry{repository: repository, found: found}, nil
+	})
+	cache[root] = entry
+	if !entry.found {
+		registryRepositoryLookupCache.Invalidate(root)
+	}
+	return entry.repository, entry.found
+}
+
+func authorizedTokenAccess(identity controller.ApiTokenIdentity, scopes []registryScopeEntry) []registryJWTAccess {
 	actor := orc.ResourceOwner{CreatedBy: identity.Username}
 	if identity.Owner.ProjectId != "" {
 		actor.Project = util.OptValue(identity.Owner.ProjectId)
@@ -249,35 +372,55 @@ func authorizedTokenAccess(identity controller.ApiTokenIdentity, rawScopes []str
 
 	canPull := apiTokenAllows(identity.Permissions, "pull")
 	canPush := apiTokenAllows(identity.Permissions, "push")
+	repositoryCache := map[string]registryRepositoryCacheEntry{}
 	var result []registryJWTAccess
-	for _, rawScope := range rawScopes {
-		for scope := range strings.FieldsSeq(rawScope) {
-			parts := strings.SplitN(scope, ":", 3)
-			if len(parts) != 3 || parts[0] != "repository" {
-				continue
-			}
+	for _, scope := range scopes {
+		repository, ok := registryRetrieveRepository(repositoryCache, scope.Name)
+		if !ok {
+			continue
+		}
 
-			repository, ok := controller.ContainerRepositoryRetrieveByRepository(parts[1])
-			if !ok {
-				continue
-			}
-
-			entry := registryJWTAccess{Type: parts[0], Name: parts[1]}
-			for action := range strings.SplitSeq(parts[2], ",") {
-				switch action {
-				case "pull":
-					if canPull && controller.ResourceCanUse(actor, repository.Owner, repository.Permissions, true) {
-						entry.Actions = append(entry.Actions, action)
-					}
-				case "push":
-					if canPush && controller.ResourceCanUse(actor, repository.Owner, repository.Permissions, false) {
-						entry.Actions = append(entry.Actions, action)
-					}
+		entry := registryJWTAccess{Type: scope.Type, Name: scope.Name}
+		for _, action := range scope.Actions {
+			switch action {
+			case "pull":
+				canRead := (repository.Specification.Public && repository.Specification.PublicAccessEnabled) ||
+					controller.ResourceCanUse(actor, repository.Owner, repository.Permissions, true)
+				if canPull && canRead {
+					entry.Actions = append(entry.Actions, action)
+				}
+			case "push":
+				if canPush && controller.ResourceCanUse(actor, repository.Owner, repository.Permissions, false) {
+					entry.Actions = append(entry.Actions, action)
 				}
 			}
-			if len(entry.Actions) > 0 {
-				result = append(result, entry)
+		}
+		if len(entry.Actions) > 0 {
+			result = append(result, entry)
+		}
+	}
+	return result
+}
+
+func authorizedAnonymousTokenAccess(scopes []registryScopeEntry) []registryJWTAccess {
+	repositoryCache := map[string]registryRepositoryCacheEntry{}
+	var result []registryJWTAccess
+	for _, scope := range scopes {
+		repository, ok := registryRetrieveRepository(repositoryCache, scope.Name)
+		if !ok || !repository.Specification.Public || !repository.Specification.PublicAccessEnabled {
+			continue
+		}
+
+		entry := registryJWTAccess{Type: scope.Type, Name: scope.Name}
+		for _, action := range scope.Actions {
+			if action != "pull" {
+				entry.Actions = nil
+				break
 			}
+			entry.Actions = append(entry.Actions, action)
+		}
+		if len(entry.Actions) > 0 {
+			result = append(result, entry)
 		}
 	}
 	return result

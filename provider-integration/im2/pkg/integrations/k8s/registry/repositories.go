@@ -242,6 +242,21 @@ func repositoryOnDeleted(repository *orc.ContainerRepository) {
 	repositoryMarkDirty(owner)
 }
 
+func repositoryCanRead(repository orc.ContainerRepository, owner orc.ResourceOwner) bool {
+	publicRead := repository.Specification.Public && repository.Specification.PublicAccessEnabled
+	return publicRead ||
+		controller.ResourceCanUse(owner, repository.Owner, repository.Permissions, true)
+}
+
+func repositoryCanWrite(repository orc.ContainerRepository, username string) bool {
+	return controller.ResourceCanUse(
+		orc.ResourceOwner{CreatedBy: username},
+		repository.Owner,
+		repository.Permissions,
+		false,
+	)
+}
+
 func walletOwner(repository orc.ContainerRepository) apm.WalletOwner {
 	return apm.WalletOwnerFromIds(repository.Owner.CreatedBy, repository.Owner.Project.Value)
 }

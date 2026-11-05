@@ -13,7 +13,9 @@ type ContainerRepository struct {
 }
 
 type ContainerRepositorySpecification struct {
-	Name string `json:"name"`
+	Name                string `json:"name"`
+	Public              bool   `json:"public"`
+	PublicAccessEnabled bool   `json:"publicAccessEnabled"`
 	ResourceSpecification
 }
 
@@ -99,6 +101,18 @@ var ContainerRepositoriesUpdateLabels = rpc.Call[fnd.BulkRequest[ContainerReposi
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesEndUser,
 	Operation:   "updateLabels",
+}
+
+type ContainerRepositoriesUpdatePublicRequest struct {
+	Id     string `json:"id"`
+	Public bool   `json:"public"`
+}
+
+var ContainerRepositoriesUpdatePublic = rpc.Call[fnd.BulkRequest[ContainerRepositoriesUpdatePublicRequest], fnd.BulkResponse[util.Empty]]{
+	BaseContext: containerRepositoryNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "updatePublic",
 }
 
 var ContainerRepositoriesRetrieveProducts = rpc.Call[util.Empty, SupportByProvider[FSSupport]]{

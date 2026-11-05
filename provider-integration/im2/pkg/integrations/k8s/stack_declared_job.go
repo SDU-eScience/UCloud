@@ -87,9 +87,7 @@ func stackSpawnDeclaredJob(request orc.StacksProviderSpawnDeclaredJobRequest) (f
 			containers.StackDeclaredJobArgsParameter:  orc.AppParameterValueText(string(args)),
 			containers.StackDeclaredJobPortParameter:  orc.AppParameterValueInteger(int64(declaration.Port)),
 		},
-		Resources: []orc.AppParameterValue{
-			orc.AppParameterValueFileWithMountPath(stateFolder, false, containers.StackDeclaredJobMountPath),
-		},
+		Resources: stackDeclaredJobResources(request, stateFolder),
 	}
 
 	response, err := orc.JobsControlRegister.Invoke(fnd.BulkRequest[orc.ProviderRegisteredResource[orc.JobSpecification]]{
@@ -117,4 +115,32 @@ func stackSpawnDeclaredJob(request orc.StacksProviderSpawnDeclaredJobRequest) (f
 	shared.RequestSchedule(job)
 
 	return fnd.FindByStringId{Id: jobId}, nil
+}
+
+func stackDeclaredJobResources(
+	request orc.StacksProviderSpawnDeclaredJobRequest,
+	stateFolder string,
+) []orc.AppParameterValue {
+	resources := []orc.AppParameterValue{
+		orc.AppParameterValueFileWithMountPath(stateFolder, false, containers.StackDeclaredJobMountPath),
+	}
+
+	for _, networkId := range request.PrivateNetworkIds {
+		networkId = strings.TrimSpace(networkId)
+		if networkId == "" {
+			continue
+		}
+
+		network, ok := controller.PrivateNetworkRetrieve(networkId)
+		if !ok {
+			continue
+		}
+		if network.Specification.EffectiveType() == orc.NetworkTypeInfiniband {
+			continue
+		}
+
+		resources = append(resources, orc.AppParameterValuePrivateNetwork(networkId))
+	}
+
+	return resources
 }

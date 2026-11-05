@@ -79,14 +79,15 @@ var StacksSpawnDeclaredJob = rpc.Call[fnd.FindByStringId, util.Empty]{
 }
 
 type StacksProviderSpawnDeclaredJobRequest struct {
-	StackInstance string                            `json:"stackInstance"`
-	StackName     string                            `json:"stackName"`
-	StackEntityId string                            `json:"stackEntityId"`
-	StateFolder   string                            `json:"stateFolder"`
-	Owner         ResourceOwner                     `json:"owner"`
-	Application   NameAndVersion                    `json:"application"`
-	Product       apm.ProductReference              `json:"product"`
-	Job           UcxDisasterRecoveryJobDescription `json:"job"`
+	StackInstance     string                            `json:"stackInstance"`
+	StackName         string                            `json:"stackName"`
+	StackEntityId     string                            `json:"stackEntityId"`
+	StateFolder       string                            `json:"stateFolder"`
+	Owner             ResourceOwner                     `json:"owner"`
+	Application       NameAndVersion                    `json:"application"`
+	Product           apm.ProductReference              `json:"product"`
+	Job               UcxDisasterRecoveryJobDescription `json:"job"`
+	PrivateNetworkIds []string                          `json:"privateNetworkIds,omitempty"`
 }
 
 var StacksProviderSpawnDeclaredJob = rpc.Call[StacksProviderSpawnDeclaredJobRequest, fnd.FindByStringId]{

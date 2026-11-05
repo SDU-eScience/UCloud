@@ -762,7 +762,7 @@ func applicationVariantDeleteVersion(
 			Reason:   util.OptValue("delete application variant version"),
 		},
 	)
-	if err != nil {
+	if err != nil && err.StatusCode != http.StatusForbidden {
 		return err
 	}
 

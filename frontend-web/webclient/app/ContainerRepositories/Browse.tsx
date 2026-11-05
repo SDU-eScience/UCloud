@@ -20,6 +20,7 @@ import {
     ContainerRepository,
     ContainerRepositoryImage,
     ContainerRepositoryImageLayer,
+    ContainerRepositoryPublicAccess,
     ContainerRepositorySpecification,
     ContainerRepositorySupport,
 } from "@/UCloud/ContainerRepositoriesApi";
@@ -150,6 +151,21 @@ function isImageGroup(entry: BrowserEntry): entry is ImageGroupEntry {
 
 function isLayer(entry: BrowserEntry): entry is LayerEntry {
     return "entryType" in entry && entry.entryType === "layer";
+}
+
+function ContainerRepositoryPublicAccessDialog({repository, reload}: {
+    repository: ContainerRepository;
+    reload: () => void;
+}): React.ReactNode {
+    return <Box>
+        <Heading.h3>Public access</Heading.h3>
+        <Box mt={16}>
+            <ContainerRepositoryPublicAccess repository={repository} reload={reload} />
+        </Box>
+        <Flex justifyContent={"end"}>
+            <Button onClick={() => dialogStore.success()}>Close</Button>
+        </Flex>
+    </Box>;
 }
 
 export default function ContainerRepositoryBrowse({
@@ -847,35 +863,55 @@ export default function ContainerRepositoryBrowse({
                             if (create) create.onClick = () => openCreation(browser);
 
                             const permissionOp = operations.find(op => op.tag === PERMISSIONS_TAG)!;
-                            permissionOp.enabled = (selected, cb) => {
+                            permissionOp.enabled = (selected) => {
                                 if (selected.length !== 1) return false;
                                 const entry = selected[0] as ContainerRepository;
-
-                                return entry.owner.project != null &&
-                                    entry.permissions.myself.some(it => it === "ADMIN");
+                                return entry.permissions.myself.some(it => it === "ADMIN");
                             };
-                            permissionOp.onClick = ([resource]) => dialogStore.addDialog(
-                                <ResourcePermissionEditor
-                                    reload={() => browser.refresh()}
-                                    entity={resource as ContainerRepository}
-                                    api={ContainerRepositoriesApi}
-                                    accessDescription={
-                                        <Text mb="12px">
-                                            By default, only you and the project administrators can use this repository.
-                                            You can modify these permissions later on the <b>Properties</b> page.
-                                        </Text>
-                                    }
-                                    showMissingPermissionHelp={false}
-                                    noPermissionsWarning="Warning"
-                                    readLabel="Pull"
-                                    readIcon="heroArrowDownTray"
-                                    writeLabel="Push"
-                                    writeIcon="heroArrowUpTray"
-                                />,
-                                doNothing,
-                                true,
-                                slimModalStyle,
-                            );
+                            permissionOp.onClick = ([resource]) => {
+                                const repository = resource as ContainerRepository;
+                                if (repository.owner.project == null) {
+                                    dialogStore.addDialog(
+                                        <ContainerRepositoryPublicAccessDialog
+                                            repository={repository}
+                                            reload={() => browser.refresh()}
+                                        />,
+                                        doNothing,
+                                        true,
+                                        slimModalStyle,
+                                    );
+                                    return;
+                                }
+
+                                dialogStore.addDialog(
+                                    <ResourcePermissionEditor
+                                        reload={() => browser.refresh()}
+                                        entity={repository}
+                                        api={ContainerRepositoriesApi}
+                                        accessDescription={
+                                            <Box>
+                                                <ContainerRepositoryPublicAccess
+                                                    repository={repository}
+                                                    reload={() => browser.refresh()}
+                                                />
+                                                <Text mb="12px">
+                                                    By default, only you and the project administrators can use this repository.
+                                                    You can modify these permissions later on the <b>Properties</b> page.
+                                                </Text>
+                                            </Box>
+                                        }
+                                        showMissingPermissionHelp={false}
+                                        noPermissionsWarning="Warning"
+                                        readLabel="Pull"
+                                        readIcon="heroArrowDownTray"
+                                        writeLabel="Push"
+                                        writeIcon="heroArrowUpTray"
+                                    />,
+                                    doNothing,
+                                    true,
+                                    slimModalStyle,
+                                );
+                            };
 
                             const enabledOps = operations.filter(operation => operation.enabled(selected, callbacks, selected));
                             if (configureRegistryOp) enabledOps.push(configureRegistryOp as unknown as Operation<BrowserEntry, typeof callbacks>);
