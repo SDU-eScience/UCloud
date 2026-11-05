@@ -96,7 +96,7 @@ func retrieveInteractiveSession(jobId string, rank int, openDefaultType JobOpenD
 	return &session.Responses[0], nil
 }
 
-func JobShell(jobId string, provider string, browser bool) error {
+func JobShell(jobId string, provider string, rank int, browser bool) error {
 	cfg := InitializeUCloudClient()
 	job, err := findJobById(jobId)
 	if err != nil {
@@ -112,7 +112,7 @@ func JobShell(jobId string, provider string, browser bool) error {
 		return nil
 	}
 
-	session, err := retrieveInteractiveSession(jobId, 0, JobOpenShellType)
+	session, err := retrieveInteractiveSession(jobId, rank, JobOpenShellType)
 	if err != nil {
 		return err
 	}
