@@ -1,6 +1,6 @@
 import * as React from "react";
 import {MainContainer} from "@/ui-components";
-import {addProjectSwitcherInPortal, EmptyReasonTag, providerIcon, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, providerIcon, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts} from "@/ui-components/ResourceBrowser";
 import {useNavigate} from "react-router-dom";
 import {useDispatch} from "react-redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
@@ -20,6 +20,7 @@ import {sendInformationNotification} from "@/Notifications";
 import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import {IconName} from "@/ui-components/Icon";
+import {ResourceBrowserProjectSwitcher} from "@/Project/ProjectSwitcher";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -41,7 +42,6 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
     const dispatch = useDispatch();
     const navigate = useNavigate();
     usePage("API tokens", SidebarTabId.RESOURCES);
-    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const [options] = useCloudAPI(Api.retrieveOptions(), {byProvider: {}});
     const optionsRef = React.useRef(options.data);
     optionsRef.current = options.data;
@@ -223,7 +223,6 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                 });
             });
         }
-        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
     React.useEffect(() => {
@@ -237,7 +236,7 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
     return <MainContainer
         main={<>
             <div ref={mountRef} />
-            {switcher}
+            <ResourceBrowserProjectSwitcher browser={browserRef.current} />
         </>}
     />
 }

@@ -8,7 +8,6 @@ import {
     addProjectSwitcherInPortal,
     checkIsWorkspaceAdmin,
     EmptyReasonTag,
-    OperationOrGroup,
     placeholderImage,
     providerIcon,
     ResourceBrowseFeatures,

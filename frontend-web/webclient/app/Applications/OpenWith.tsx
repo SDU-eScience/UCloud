@@ -17,11 +17,10 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {
     ResourceBrowser,
     ResourceBrowserOpts,
-    addProjectSwitcherInPortal,
     checkCanConsumeResources,
     EmptyReasonTag
 } from "@/ui-components/ResourceBrowser";
-import {projectTitleFromCache} from "@/Project/ProjectSwitcher";
+import {projectTitleFromCache, ResourceBrowserProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {UFile} from "@/UCloud/UFile";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
@@ -106,7 +105,6 @@ export async function launchOpenWithFastPath(file: UFile, fastPath: OpenWithFast
 export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrowserOpts<ApplicationWithExtension>}): React.ReactNode {
     const [selectedProduct, setSelectedProduct] = useState<ProductV2Compute | null>(null);
     const browserRef = React.useRef<ResourceBrowser<ApplicationWithExtension> | null>(null);
-    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const navigate = useNavigate();
     const supportRef = React.useRef<ResolvedSupport[]>([]);
@@ -238,7 +236,6 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                 });
             });
         }
-        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround, {setLocalProject});
     }, []);
 
     const setLocalProject = async (projectId?: string) => {
@@ -258,8 +255,8 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
     }
 
     return <div>
-        <div ref={mountRef} style={selectedApp ? {display: "none"} : undefined} />
-        {switcher}
+        <div ref={mountRef} style={selectedApp ? { display: "none" } : undefined} />
+        <ResourceBrowserProjectSwitcher browser={browserRef.current} managed={{setLocalProject}} />
         {selectedApp ? <>
             <Machines
                 machines={productsRef.current}

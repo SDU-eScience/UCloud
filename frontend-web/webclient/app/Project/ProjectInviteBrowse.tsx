@@ -1,4 +1,9 @@
-import {ColumnTitleGroup, ColumnTitleList, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal} from "@/ui-components/ResourceBrowser";
+import {
+    ColumnTitleGroup,
+    ResourceBrowseFeatures,
+    ResourceBrowser,
+    ResourceBrowserOpts
+} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import api, {ProjectInvite} from "./Api";
 import {callAPI} from "@/Authentication/DataHook";
@@ -14,7 +19,8 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {avatarState} from "@/AvataaarLib/hook";
 import {SimpleAvatarComponentCache} from "@/Files/Shares";
-import { ContainerSize } from "@/ui-components/ResourceBrowserStyle";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
+import {ResourceBrowserProjectSwitcher} from "./ProjectSwitcher";
 
 const defaultRetrieveFlags: {itemsPerPage: number; filterType: "INGOING"} = {
     itemsPerPage: 250,
@@ -40,7 +46,6 @@ const rowTitles: ColumnTitleGroup = {[ContainerSize.LARGE]: [{name: "Project tit
 function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & SetShowBrowserHack}): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
     const browserRef = React.useRef<ResourceBrowser<ProjectInvite> | null>(null);
-    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Project invites", SidebarTabId.PROJECT);
@@ -190,7 +195,6 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
                 });
             });
         }
-        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
         if (opts?.reloadRef) {
             opts.reloadRef.current = () => {
                 browserRef.current?.refresh();
@@ -207,7 +211,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
 
     return <MainContainer main={<div>
         <div ref={mountRef} />
-        {switcher}
+        <ResourceBrowserProjectSwitcher browser={browserRef.current} />
     </div>} />;
 }
 

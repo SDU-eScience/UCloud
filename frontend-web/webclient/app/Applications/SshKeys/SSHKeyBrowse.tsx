@@ -1,7 +1,7 @@
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, SelectionMode, addProjectSwitcherInPortal} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, SelectionMode} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router-dom";
@@ -12,6 +12,7 @@ import {dialogStore} from "@/Dialog/DialogStore";
 import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import SshKeysCreate from "./Add";
 import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
+import {ResourceBrowserProjectSwitcher} from "@/Project/ProjectSwitcher";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -33,7 +34,6 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
     const dispatch = useDispatch();
     const navigate = useNavigate();
     usePage("SSH keys", SidebarTabId.RESOURCES);
-    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -156,7 +156,6 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
                 browser.on("pathToEntry", sshKey => sshKey.id);
             });
         }
-        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
     useSetRefreshFunction(() => {
@@ -166,7 +165,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
     return <MainContainer
         main={<>
             <div ref={mountRef} />
-            {switcher}
+            <ResourceBrowserProjectSwitcher browser={browserRef.current} />
         </>}
     />
 }

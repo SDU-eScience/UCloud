@@ -2,7 +2,7 @@ import * as React from "react";
 import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
 import {useNavigate} from "react-router-dom";
 import MainContainer from "@/ui-components/MainContainer";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal, checkIsWorkspaceAdmin, ColumnTitleGroup} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, checkIsWorkspaceAdmin, ColumnTitleGroup} from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import {usePage} from "@/Navigation/Redux";
 import {callAPI} from "@/Authentication/DataHook";
@@ -14,6 +14,7 @@ import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {Product} from "@/Accounting";
 import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
+import {ResourceBrowserProjectSwitcher} from "@/Project/ProjectSwitcher";
 
 const defaultRetrieveFlags: {itemsPerPage: number} = {
     itemsPerPage: 250,
@@ -39,7 +40,6 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.R
     const browserRef = React.useRef<ResourceBrowser<Provider> | null>(null);
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Providers", SidebarTabId.ADMIN);
@@ -179,7 +179,6 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.R
                 });
             });
         }
-        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
     if (!opts?.embedded && !opts?.isModal) {
@@ -190,7 +189,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.R
 
     const main = <>
         <div ref={mountRef} />
-        {switcher}
+        <ResourceBrowserProjectSwitcher browser={browserRef.current} show={() => true} />
     </>;
     if (opts?.embedded) return <div>{main}</div>;
     return <MainContainer main={main} />;

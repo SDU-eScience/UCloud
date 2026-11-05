@@ -44,7 +44,7 @@ import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {createPortal} from "react-dom";
 import {AvatarType} from "@/AvataaarLib";
-import {FilterInputClass} from "@/Project/ProjectSwitcher";
+import {FilterInputClass, ResourceBrowserProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
 import {injectStyle} from "@/Unstyled";
 import {SimpleAvatarComponentCache} from "@/Files/Shares";
@@ -89,7 +89,6 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const activeProject = React.useRef<string | null | undefined>(Client.projectId);
-    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     const filterCreatedBy = React.useRef("");
     const [projectMemberList, setProjectMemberList] = React.useState<React.ReactNode>(<></>);
@@ -460,24 +459,11 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
             }
         }
 
-        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject} : undefined);
-
         const b = browserRef.current;
         if (b) {
             b.renameField.style.left = "43px";
         }
     }, []);
-
-    const setLocalProject = opts?.isModal ? (projectId?: string) => {
-        const b = browserRef.current;
-        if (b) {
-            checkCanConsumeResources(projectId ?? null, {api: JobsApi}).then(canConsume => {
-                b.canConsumeResources = canConsume;
-                activeProject.current = projectId;
-                b.refresh();
-            });
-        }
-    } : undefined;
 
     if (!opts?.embedded && !opts?.isModal) {
         useSetRefreshFunction(() => {
@@ -487,8 +473,20 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
 
     const main = <>
         <div ref={mountRef} />
-        {switcher}
         {projectMemberList}
+        <ResourceBrowserProjectSwitcher
+            browser={browserRef.current}
+            managed={opts?.isModal ? {setLocalProject: (projectId?: string) => {
+                const b = browserRef.current;
+                if (b) {
+                    checkCanConsumeResources(projectId ?? null, {api: JobsApi}).then(canConsume => {
+                        b.canConsumeResources = canConsume;
+                        activeProject.current = projectId;
+                        b.refresh();
+                    });
+                }
+            }} : undefined}
+        />
     </>;
 
     if (opts?.embedded) return <div>{main}</div>;

@@ -21,6 +21,8 @@ import {Project} from ".";
 import {IconName} from "@/ui-components/Icon";
 import {Toggle} from "@/ui-components/Toggle";
 import {DataAttributes} from "@/Unstyled";
+import {createPortal} from "react-dom";
+import {ResourceBrowser} from "@/ui-components/ResourceBrowser";
 
 const PROJECT_ITEMS_PER_PAGE = 250;
 
@@ -84,8 +86,13 @@ const ProjectSwitcherClass = injectStyle("project-switcher", k => `
     }
 `);
 
+export interface ManageProjectSwitcher {
+    setLocalProject: (project?: string) => void;
+    initialProject?: string;
+}
+
 export function ProjectSwitcher({managed, focusable, ...dataAttributes}: {
-    managed?: {setLocalProject: (project?: string) => void, initialProject?: string}
+    managed?: ManageProjectSwitcher;
     focusable?: boolean;
 } & DataAttributes): React.ReactNode {
     const refresh = useRefresh();
@@ -396,6 +403,19 @@ function Favorite({project, onClickedFavorite}: {project: Project; onClickedFavo
 
     return <Icon onClick={e => onFavorite(e, project)} mx="6px" mt="6px" size="16px" color={isFavorite ? "favoriteColor" : "favoriteColorEmpty"} name={isFavorite ? "starFilled" : "starEmpty"} />
 }
+
+export function ResourceBrowserProjectSwitcher<T>({browser, show = () => true, managed}: {
+    show?: () => boolean;
+    browser: ResourceBrowser<T> | null;
+    managed?: ManageProjectSwitcher;
+}) {
+    if (!show()) return null;
+    if (browser == null) return null;
+    const projectSwitcher = browser.header.querySelector<HTMLDivElement>(".project-switcher");
+    if (projectSwitcher == null) return null;
+    return createPortal(<ProjectSwitcher managed={managed} />, projectSwitcher);
+}
+
 
 export function onProjectUpdated(navigate: NavigateFunction, runThisFunction: () => void, refresh: (() => void) | undefined, projectId?: string): void {
     const {pathname} = window.location;

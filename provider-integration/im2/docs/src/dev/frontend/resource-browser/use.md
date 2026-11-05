@@ -10,8 +10,6 @@ export function Browser(): React.ReactNode {
     const mountRef = React.useRef<HTMLDivElement | null>(null);
      // A reference to the ResourceBrowser, to target the API if necessary.
     const browserRef = React.useRef<ResourceBrowser<ResourceType> | null>(null);
-    // A workaround to place a React-component ProjectSelector in the ResourceBrowser tree
-    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
 
     // useLayoutEffect as we only care about mounting _after_ the <div>-element has been mounted.
     React.useLayoutEffect(() => {
@@ -19,7 +17,8 @@ export function Browser(): React.ReactNode {
         if (mount && !browserRef.current) {
             // Creates instance of class, sets up the DOM elements, and the setup of the callbacks
             // in the Resource Browser
-            new ResourceBrowser<NetworkIP>(mount, "Resource Type", opts).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<ResourceType>(mount, "Resource Type", opts)
+                .init(browserRef, FEATURES, "", browser => {
                 // Sets column titles. First and second only here, but an additional 3 are possible.
                 browser.setColumns([{name: "Title"}, {name: "Created at"}]);
 
@@ -59,16 +58,23 @@ export function Browser(): React.ReactNode {
                 // Filters that can be applied to the items that are fetched from the backend.
                 browser.on("fetchFilters", () => [dateRangeFilters("Date created")]);
 
-                browser.on("renderTitle", (item, title, row) => title.append(ResourceBrowser.defaultTitleRenderer(item.id, row)));
+                // How to render the title (left-most column)
+                browser.on("renderTitle", (item, title, row) => {
+                    title.append(ResourceBrowser.defaultTitleRenderer(item.id, row));
+                });
 
+                // How to render stat1 (see also `renderStat2`-`renderStat4`)
                 browser.on("renderStat1", (item, stat) => stat.innerText = item.createdAt}); 
-
+                
+                
                 browser.on("generateBreadcrumbs", () => [{title: browser.resourceName, absolutePath: ""}]);
+                
+                
                 browser.on("renderEmptyPage", reason => {
                     browser.emptyPageElement.reason.append(`The page is empty for reason: ${EmptyReasonTag[reason]}`);
                 });
 
-                // Callbacks
+                // Callbacks to be used by actions
                 browser.on("fetchOperationsCallback", () => ({
                     dispatch,
                     navigate,
@@ -80,7 +86,6 @@ export function Browser(): React.ReactNode {
                 browser.on("fetchOperations", () => ResourceApi.retrieveActions());
             });
         }
-        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
     // Hooks the resource browser-refresh into the Redux store-stored refresh-operation
@@ -89,11 +94,11 @@ export function Browser(): React.ReactNode {
     });
 
     // MainContainer element containing the `div`-element the Resource Browser is mounted in.
-    // The `switcher` refers to the project switcher that's defined and added above.
+    // The ResourceBrowserProjectSwitcher
     return <MainContainer main={
         <>
             <div ref={mountRef} />
-            {switcher}  
+            <ResourceBrowserProjectSwitcher browser={browserRef.current} />
         </>
     } />
 }

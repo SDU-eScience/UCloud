@@ -10,7 +10,6 @@ import Warning from "@/ui-components/Warning";
 import {Box, Button, Divider, Input, Text} from "@/ui-components";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router-dom";
-
 import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
@@ -19,7 +18,6 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import MainContainer from "@/ui-components/MainContainer";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {
-    addProjectSwitcherInPortal,
     EmptyReasonTag,
     ResourceBrowseFeatures,
     ResourceBrowser,
@@ -30,7 +28,7 @@ import {DELETE_TAG, Permission, ResourceAclEntry} from "@/UCloud/ResourceApi";
 import * as StackApi from "./api";
 import Flex from "@/ui-components/Flex";
 import {stackLogoUrl} from "@/Stacks/Logos";
-import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
+import {ResourceBrowserProjectSwitcher} from "@/Project/ProjectSwitcher";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 250,
@@ -51,7 +49,6 @@ export default function StacksBrowse(): React.ReactNode {
     const browserRef = React.useRef<ResourceBrowser<StackApi.Stack> | null>(null);
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const projectId = useProjectId();
 
     usePage("Stacks", SidebarTabId.COMPUTE);
@@ -163,8 +160,6 @@ export default function StacksBrowse(): React.ReactNode {
                 });
             });
         }
-
-        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
     useSetRefreshFunction(() => {
@@ -174,7 +169,7 @@ export default function StacksBrowse(): React.ReactNode {
     return <MainContainer
         main={<>
             <div ref={mountRef} />
-            {switcher}
+            <ResourceBrowserProjectSwitcher browser={browserRef.current} />
         </>}
     />;
 }
