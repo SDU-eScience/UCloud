@@ -397,21 +397,13 @@ func metadataRecoverPendingNameIndex(db *pebble.DB) error {
 	return batch.Commit(pebble.Sync)
 }
 
-func metadataRefreshNameIndexAsync(databasePath, driveID string, span pebble.KeyRange, oldNamesPath, tempDir, scanPath string) {
+func metadataRefreshNameIndexAndFinish(db *pebble.DB, databasePath, driveId string, span pebble.KeyRange, oldNamesPath, scanPath string, refreshDone chan struct{}) error {
 	defer func() {
-		if value, ok := metadataNameRefreshes.LoadAndDelete(databasePath); ok {
-			close(value.(chan struct{}))
-		}
+		metadataNameRefreshes.CompareAndDelete(databasePath, refreshDone)
+		close(refreshDone)
 	}()
-	defer os.RemoveAll(tempDir)
-	db, releaseDatabase, err := metadataAcquireDatabase(databasePath, false)
-	if err != nil {
-		log.Warn("Metadata NAME refresh for %s failed: %s", scanPath, err)
-		metadataRecordNameRefreshFinished(driveID, err)
-		return
-	}
-	defer releaseDatabase()
-	if err = metadataRefreshNameIndex(db, span, oldNamesPath); err == nil {
+	err := metadataRefreshNameIndex(db, span, oldNamesPath)
+	if err == nil {
 		batch := db.NewBatch()
 		if len(span.Start) == 1 {
 			err = batch.Set(metadataSearchIndexVersionKey, metadataSearchIndexVersion, nil)
@@ -427,11 +419,12 @@ func metadataRefreshNameIndexAsync(databasePath, driveID string, span pebble.Key
 	if err != nil {
 		// PATH is authoritative and already published. Search can verify and prune stale NAME hits.
 		log.Warn("Metadata NAME refresh for %s failed: %s", scanPath, err)
-		metadataRecordNameRefreshFinished(driveID, err)
-		return
+		metadataRecordNameRefreshFinished(driveId, err)
+		return err
 	}
 	pathBytes, _ := db.EstimateDiskUsage([]byte{MetaKeyspacePath}, []byte{MetaKeyspaceName})
 	nameBytes, _ := db.EstimateDiskUsage([]byte{MetaKeyspaceName}, []byte{MetaKeyspaceTrigram + 1})
-	metadataRecordDatabaseSize(driveID, db.Metrics().DiskSpaceUsage(), pathBytes, nameBytes)
-	metadataRecordNameRefreshFinished(driveID, nil)
+	metadataRecordDatabaseSize(driveId, db.Metrics().DiskSpaceUsage(), pathBytes, nameBytes)
+	metadataRecordNameRefreshFinished(driveId, nil)
+	return nil
 }

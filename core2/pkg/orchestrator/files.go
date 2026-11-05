@@ -763,7 +763,13 @@ func FilesStreamingSearch(conn *ws.Conn) {
 		dataBytes := rpc.WSResponseMessageMarshal(streamId, data)
 
 		connMutex.Lock()
-		err := conn.WriteMessage(ws.TextMessage, dataBytes)
+		err := conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+		if err == nil {
+			err = conn.WriteMessage(ws.TextMessage, dataBytes)
+		}
+		if err != nil {
+			util.SilentClose(conn)
+		}
 		connMutex.Unlock()
 
 		return err == nil
@@ -849,8 +855,21 @@ func FilesStreamingSearch(conn *ws.Conn) {
 		providerConn, _, err := ws.DefaultDialer.Dial(url, http.Header{
 			"Authorization": []string{fmt.Sprintf("Bearer %s", client.RetrieveAccessTokenOrRefresh())},
 		})
+		if providerConn != nil {
+			defer util.SilentClose(providerConn)
+		}
 
+		finished := false
 		if err == nil {
+			go func() {
+				for {
+					_, _, readErr := conn.ReadMessage()
+					if readErr != nil {
+						util.SilentClose(providerConn)
+						return
+					}
+				}
+			}()
 			dataBytes, _ := json.Marshal(rpc.WSRequestMessage[orcapi.FilesProviderStreamingSearchRequest]{
 				Call:     fmt.Sprintf("files.provider.%s.streamingSearch", providerId),
 				StreamId: "ignored",
@@ -866,7 +885,10 @@ func FilesStreamingSearch(conn *ws.Conn) {
 				},
 			})
 
-			err = providerConn.WriteMessage(ws.TextMessage, dataBytes)
+			err = providerConn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+			if err == nil {
+				err = providerConn.WriteMessage(ws.TextMessage, dataBytes)
+			}
 		}
 
 		if err == nil {
@@ -887,12 +909,17 @@ func FilesStreamingSearch(conn *ws.Conn) {
 				})
 
 				if !ok {
+					return
+				}
+				if message.Payload.Type == "end_of_results" || message.Payload.Type == "error" {
+					finished = true
 					break
 				}
 			}
 		}
-
-		util.SilentClose(providerConn)
+		if !finished {
+			sendToClient(orcapi.FilesStreamingSearchResult{Type: "error"})
+		}
 	}()
 
 	wg.Wait()

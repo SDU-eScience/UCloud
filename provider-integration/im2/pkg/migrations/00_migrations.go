@@ -84,4 +84,5 @@ func Init() {
 	db.AddMigration(apiTokensV5())
 	db.AddMigration(apmEventsV4())
 	db.AddMigration(jobDatabaseV5())
+	db.AddMigration(metadataDriveDeletionsV1())
 }

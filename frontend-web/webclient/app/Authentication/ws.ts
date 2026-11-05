@@ -92,6 +92,7 @@ export class WebSocketConnection {
         const streamId = (this.nextStreamId++).toString();
         const bearer = this.settings.includeAuthentication !== false ?
             await this.client.receiveAccessTokenOrRefreshIt() : undefined;
+        if (this.closed) return;
         const username = this.client.activeUsername ?? "";
         const hasProjectOverride = projectOverride !== undefined;
         const projectId = hasProjectOverride ? projectOverride : this.client.projectId ?? null;
@@ -140,6 +141,10 @@ export class WebSocketConnection {
 
     private async resetSocket(socketFactory: () => Promise<WebSocket>): Promise<void> {
         const socket = await socketFactory();
+        if (this.closed) {
+            socket.close();
+            return;
+        }
         const initScript = this.settings.init ?? (() => {
             // Do nothing
         });

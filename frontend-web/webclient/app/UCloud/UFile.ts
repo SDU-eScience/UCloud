@@ -98,4 +98,5 @@ export interface FilesVisualizeResponse {
     fileCount: number;
     directoryCount: number;
     complete: boolean;
+    indexing?: boolean | null;
 }
