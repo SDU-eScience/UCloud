@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 	_, err := shared.FindWorkspaceByName(Workspace)
 	if err == nil {
 		fmt.Println("Test workspace already exists, skipping test setup")
-	} else if err := CreateTestWorkspace(); err != nil {
+	} else if err := CreateAllocationsForTesting(); err != nil {
 		panic(err)
 	}
 	if err := CleanupTestJobs(); err != nil {
@@ -300,7 +300,14 @@ func TestJobCreateWithInvalidPublicLink(t *testing.T) {
 }
 
 func createTestJob(t *testing.T, name string) string {
+	return createTestJobWithFolder(t, name, "")
+}
+
+func createTestJobWithFolder(t *testing.T, name string, folder string) string {
 	t.Helper()
+	if folder == "" {
+		folder = "/5/"
+	}
 	input := []string{
 		"job", "create",
 		"--app", "terminal-ubuntu",
@@ -308,6 +315,7 @@ func createTestJob(t *testing.T, name string) string {
 		"--name", name,
 		"--duration", "1h30m",
 		"--ssh",
+		"--folder", folder,
 	}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -903,5 +911,44 @@ func TestJobOpenWeb(t *testing.T) {
 	err = cmd.Execute()
 	assert.NoError(t, err)
 	time.Sleep(30 * time.Second) // give the browser time to load
+	terminateTestJob(t, jobId)
+}
+
+func createFolder(t *testing.T, path string) string {
+	t.Helper()
+	input := []string{"folder", "create", path}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
+	return path
+}
+
+func TestFolderCreate(t *testing.T) {
+	createFolder(t, "/5/foo/bar/stuff")
+}
+
+func TestFolderShell(t *testing.T) {
+	path := "/5/jobs/alice/projects/genomes"
+	jobId := createTestJobWithFolder(t, "test-folder-shell", path)
+	waitForJobState(t, jobId, orcapi.JobStateRunning, 5*time.Minute)
+
+	r, w, err := os.Pipe()
+	assert.NoError(t, err)
+	originalStdin := os.Stdin
+	os.Stdin = r
+	defer func() { os.Stdin = originalStdin }()
+
+	go func() {
+		time.Sleep(10 * time.Second)
+		_ = w.Close()
+	}()
+	input := []string{"folder", "shell", path, "--provider", "k8s", "--workspace", "test-workspace"}
+	cmd, err := Parse(input)
+	assert.NoError(t, err)
+	assert.NotNil(t, cmd)
+	err = cmd.Execute()
+	assert.NoError(t, err)
 	terminateTestJob(t, jobId)
 }
