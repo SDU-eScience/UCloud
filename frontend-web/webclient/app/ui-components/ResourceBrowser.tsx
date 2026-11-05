@@ -306,6 +306,7 @@ interface ResourceBrowserListenerMap<T> {
     "renderStat2": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;
     "renderStat3": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;
     "renderStat4": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;
+    "renderLastVisibleStat": (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;
     "endRenderPage": () => void;
 
     // skipOpen is called pre-navigation/calling "open". If it returns `true`, calling open is skipped.
@@ -1329,6 +1330,13 @@ export class ResourceBrowser<T> {
                     this.dispatchMessage(`renderStat${i}` as RenderStatOperation, fn => fn(entry, row[`stat${i}`], row, containerSize));
                 }
             }
+
+            this.dispatchMessage("renderLastVisibleStat", fn => fn(
+                entry,
+                statFromContainerSize(row, containerSize),
+                row,
+                containerSize
+            ));
 
             if (this.opts.selection) {
                 const button = this.defaultButtonRenderer(this.opts.selection, entry);
@@ -2866,6 +2874,7 @@ export class ResourceBrowser<T> {
         renderStat2: doNothing,
         renderStat3: doNothing,
         renderStat4: doNothing,
+        renderLastVisibleStat: doNothing,
         pathToEntry: () => "",
         generateBreadcrumbs: () => [],
         wantToFetchNextPage: async () => {},
