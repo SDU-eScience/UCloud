@@ -10,9 +10,8 @@ import (
 )
 
 type FolderShellCommand struct {
-	Path      string `positional:"path" usage:"Folder path" required:"true"`
-	Provider  string `flag:"provider" usage:"Provider name"`
-	Workspace string `flag:"workspace" usage:"Workspace name"`
+	Path     string `positional:"path" usage:"Folder path" required:"true"`
+	Provider string `flag:"provider" usage:"Provider name"`
 }
 
 type FolderCreateCommand struct {
@@ -42,10 +41,6 @@ func (c *FolderCreateCommand) Execute() error {
 
 func (c *FolderShellCommand) Execute() error {
 	cfg := shared.InitializeUCloudClient()
-	_, err := shared.SetOrUseDefaultWorkspace(cfg, c.Workspace)
-	if err != nil {
-		return err
-	}
 	res, httpErr := orcapi.JobsOpenTerminalInFolder.Invoke(fnd.BulkRequest[orcapi.JobsOpenTerminalInFolderRequestItem]{
 		Items: []orcapi.JobsOpenTerminalInFolderRequestItem{
 			{
@@ -58,7 +53,7 @@ func (c *FolderShellCommand) Execute() error {
 	}
 	origin := cfg.Environments[cfg.DefaultEnvironment].URL
 	usernameHint := base64.StdEncoding.EncodeToString([]byte(cfg.Username))
-	err = shared.OpenWebsocketShellSession(new(res.Responses[0]), usernameHint, origin, c.Provider)
+	err := shared.OpenWebsocketShellSession(new(res.Responses[0]), usernameHint, origin, c.Provider)
 	if err != nil {
 		return fmt.Errorf("failed to open terminal in folder: %s", err)
 	}
