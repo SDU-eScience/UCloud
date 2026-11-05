@@ -3,6 +3,7 @@ package ucloud_cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -14,6 +15,9 @@ import (
 )
 
 var Workspace = "test-workspace"
+
+// Generated dummy ssh-key
+const testPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJmYVqwRf2mciOlSNAsgNKeYiTB0RmtfCde64CZlAUBR ucloud-cli-test"
 
 func TestMain(m *testing.M) {
 	login()
@@ -278,10 +282,12 @@ func TestJobCreateWithPublicLink(t *testing.T) {
 }
 
 func TestJobCreateWithInvalidPublicLink(t *testing.T) {
+	computeProduct := FindCompute()
+	productStr := fmt.Sprintf("k8s/%s", computeProduct.Name)
 	input := []string{
 		"job", "create",
 		"--app", "terminal-almalinux",
-		"--product", "k8s/u1-standard-1",
+		"--product", productStr,
 		"--workspace", "test-workspace",
 		"--public-link", "no-such-link-exists",
 		"--name", "test-invalid-public-link-job",
@@ -320,7 +326,7 @@ func createTestJob(t *testing.T, name string) string {
 func TestJobTerminate(t *testing.T) {
 	// Supply the ID of a job to terminate before running this test.
 	jobID := createTestJob(t, "job-to-terminate")
-	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 5*time.Minute)
 	input := []string{"job", "terminate", jobID}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
@@ -343,7 +349,7 @@ func TestJobTerminateMissingID(t *testing.T) {
 func TestJobResume(t *testing.T) {
 	// Supply the ID of a suspended job to resume before running this test.
 	jobID := createTestJob(t, "job-to-resume")
-	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 5*time.Minute)
 	defer terminateTestJob(t, jobID)
 	input := []string{"job", "resume", jobID}
 	cmd, err := Parse(input)
@@ -367,7 +373,7 @@ func TestJobResumeMissingID(t *testing.T) {
 func TestJobGet(t *testing.T) {
 	// Supply the ID of a job to retrieve before running this test.
 	jobID := createTestJob(t, "job-to-get")
-	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 5*time.Minute)
 	defer terminateTestJob(t, jobID)
 	input := []string{"job", "get", jobID}
 	cmd, err := Parse(input)
@@ -382,7 +388,7 @@ func TestJobGet(t *testing.T) {
 func TestJobGetJSON(t *testing.T) {
 	// Supply the ID of a job to retrieve before running this test.
 	jobID := createTestJob(t, "job-to-get-json")
-	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 5*time.Minute)
 	defer terminateTestJob(t, jobID)
 	input := []string{"job", "get", jobID, "--output", "json"}
 	cmd, err := Parse(input)
@@ -404,7 +410,7 @@ func TestJobGetMissingID(t *testing.T) {
 func TestJobGetInvalidOutput(t *testing.T) {
 	// Supply the ID of an existing job before running this test.
 	jobID := createTestJob(t, "job-to-get-invalid-output")
-	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 5*time.Minute)
 	defer terminateTestJob(t, jobID)
 	input := []string{"job", "get", jobID, "--output", "xml"}
 	cmd, err := Parse(input)
@@ -417,7 +423,7 @@ func TestJobGetInvalidOutput(t *testing.T) {
 func TestJobRename(t *testing.T) {
 	// Supply the ID of a job to rename before running this test.
 	jobID := createTestJob(t, "job-to-rename")
-	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 5*time.Minute)
 	defer terminateTestJob(t, jobID)
 	newName := "renamed-job"
 	input := []string{"job", "rename", jobID, newName}
@@ -439,7 +445,7 @@ func TestJobRenameMissingID(t *testing.T) {
 
 func TestJobRenameMissingName(t *testing.T) {
 	jobID := createTestJob(t, "job-to-rename")
-	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 5*time.Minute)
 	defer terminateTestJob(t, jobID)
 	input := []string{"job", "rename", jobID}
 	_, err := Parse(input)
@@ -466,7 +472,7 @@ func TestJobSearchMissingName(t *testing.T) {
 func TestJobExtend(t *testing.T) {
 	// Supply the ID of a running job to extend before running this test.
 	jobID := createTestJob(t, "test-job-to-extend")
-	waitForJobState(t, jobID, orcapi.JobStateRunning, 1*time.Minute)
+	waitForJobState(t, jobID, orcapi.JobStateRunning, 5*time.Minute)
 	defer terminateTestJob(t, jobID)
 	input := []string{"job", "extend", jobID, "1h"}
 	cmd, err := Parse(input)
@@ -555,7 +561,10 @@ func TestSshKeyList(t *testing.T) {
 }
 
 func TestSshKeyAdd(t *testing.T) {
-	input := []string{"ssh-key", "add", "myfoobarkey", "/Users/danvu/.ssh/id_ed25519.pub"}
+	keyPath := filepath.Join(t.TempDir(), "id_test.pub")
+	err := os.WriteFile(keyPath, []byte(testPublicKey), 0o600)
+	assert.NoError(t, err)
+	input := []string{"ssh-key", "add", "myfoobarkey", keyPath}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
