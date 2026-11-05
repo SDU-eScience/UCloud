@@ -674,12 +674,23 @@ func ResourceRetrieveEx[T any](
 	requiredPermission orcapi.Permission,
 	flags orcapi.ResourceFlags,
 ) (T, orcapi.Resource, orcapi.ResourceSpecification, *util.HttpError) {
+	return resourceRetrieveEx[T](actor, typeName, pId, requiredPermission, flags, true)
+}
+
+func resourceRetrieveEx[T any](
+	actor rpc.Actor,
+	typeName string,
+	pId ResourceId,
+	requiredPermission orcapi.Permission,
+	flags orcapi.ResourceFlags,
+	allowPublicRead bool,
+) (T, orcapi.Resource, orcapi.ResourceSpecification, *util.HttpError) {
 	var result T
 
 	g := resourceGetGlobals(typeName)
 	b := resourceGetBucket(typeName, pId)
 
-	r, ok, perms, publicOnly := resourcesReadEx(actor, typeName, requiredPermission, b, pId, nil, true)
+	r, ok, perms, publicOnly := resourcesReadEx(actor, typeName, requiredPermission, b, pId, nil, allowPublicRead)
 	if ok {
 		b.Mu.RLock()
 		mapped, ok := lResourceApplyFlags(r, perms, flags)

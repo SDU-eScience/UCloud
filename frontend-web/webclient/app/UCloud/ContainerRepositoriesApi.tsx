@@ -208,7 +208,7 @@ export function ContainerRepositoryPublicAccess({repository, reload}: {
             <Label>Public access</Label>
             <Text>
                 {publicAccessEnabled
-                    ? "Allow unauthenticated users to pull all images from this repository, including nested repositories. Other users cannot find public repositories in search or browse."
+                    ? "Allow anyone to pull images by a known tag or digest, including images in nested repositories. Public access does not permit browsing repositories or listing images and tags."
                     : "Public access is not enabled for this workspace."}
             </Text>
         </Box>

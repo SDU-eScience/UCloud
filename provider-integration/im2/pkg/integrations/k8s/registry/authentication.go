@@ -98,7 +98,8 @@ func authenticateAndAuthorize(r *http.Request, access ...ocidauth.Access) (*ocid
 		return nil, registryAuthChallenge{access: access, cause: errors.New("invalid authorization token")}
 	}
 
-	if claims.Anonymous && registryTagListRequest(r) {
+	listTags := registryTagListRequest(r)
+	if claims.Anonymous && listTags {
 		return nil, registryAuthChallenge{access: access, cause: errors.New("tag listing requires authentication")}
 	}
 
@@ -106,6 +107,16 @@ func authenticateAndAuthorize(r *http.Request, access ...ocidauth.Access) (*ocid
 	for _, requested := range access {
 		if !jwtAllowsAccess(claims.Access, requested) {
 			return nil, registryAuthChallenge{access: access, cause: errors.New("insufficient scope")}
+		}
+		if listTags {
+			actor := orc.ResourceOwner{CreatedBy: claims.Username}
+			if claims.Owner.ProjectId != "" {
+				actor.Project = util.OptValue(claims.Owner.ProjectId)
+			}
+			repository, found := controller.ContainerRepositoryRetrieveByRepository(requested.Name)
+			if !found || !controller.ResourceCanUse(actor, repository.Owner, repository.Permissions, true) {
+				return nil, registryAuthChallenge{access: access, cause: errors.New("tag listing requires repository read permission")}
+			}
 		}
 		grant.Resources = append(grant.Resources, requested.Resource)
 	}
@@ -229,6 +240,16 @@ func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	now := time.Now().Truncate(time.Second)
+	expiresAt := now.Add(registryJWTExpiry)
+	if hasCredentials && identity.ExpiresAt.Before(expiresAt) {
+		expiresAt = identity.ExpiresAt.Truncate(time.Second)
+	}
+	if !expiresAt.After(now) {
+		http.Error(w, "API token has expired", http.StatusUnauthorized)
+		return
+	}
+
 	state := requestStateFromContext(r.Context())
 	state.credentialsRejected = credentialsRejected
 	if hasCredentials {
@@ -247,14 +268,13 @@ func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 			})
 		}
 	}
-	now := time.Now()
 	ownerReference := identity.Owner.Reference()
 	claims := registryJWTClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    registryJWTIssuer,
 			Subject:   ownerReference,
 			Audience:  jwt.ClaimStrings{Service()},
-			ExpiresAt: jwt.NewNumericDate(now.Add(registryJWTExpiry)),
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
 			IssuedAt:  jwt.NewNumericDate(now),
 			NotBefore: jwt.NewNumericDate(now),
 		},
@@ -285,7 +305,7 @@ func handleAuthenticationToken(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(tok{
 		Token:       signed,
 		AccessToken: signed,
-		ExpiresIn:   int64(registryJWTExpiry.Seconds()),
+		ExpiresIn:   int64(expiresAt.Sub(now).Seconds()),
 		IssuedAt:    now.UTC().Format(time.RFC3339),
 	})
 }

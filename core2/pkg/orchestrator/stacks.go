@@ -648,6 +648,29 @@ func stacksUcxUiJobs(actor rpc.Actor, entityId string) ([]orcapi.Job, *util.Http
 	return jobs, nil
 }
 
+func stacksDeclaredJobPrivateNetworkIds(jobs []orcapi.Job) []string {
+	ids := map[string]util.Empty{}
+	for _, job := range jobs {
+		for _, resource := range job.Specification.Resources {
+			if resource.Type == orcapi.AppParameterValueTypePrivateNetwork && resource.Id != "" {
+				ids[resource.Id] = util.Empty{}
+			}
+		}
+		for _, parameter := range job.Specification.Parameters {
+			if parameter.Type == orcapi.AppParameterValueTypePrivateNetwork && parameter.Id != "" {
+				ids[parameter.Id] = util.Empty{}
+			}
+		}
+	}
+
+	result := make([]string, 0, len(ids))
+	for id := range ids {
+		result = append(result, id)
+	}
+	slices.Sort(result)
+	return result
+}
+
 func stacksSpawnDeclaredJob(actor rpc.Actor, id string) *util.HttpError {
 	stacksMutationMu.Lock()
 	defer stacksMutationMu.Unlock()
@@ -743,14 +766,15 @@ func stacksSpawnDeclaredJob(actor rpc.Actor, id string) *util.HttpError {
 	}
 
 	response, err := InvokeProvider(provider, orcapi.StacksProviderSpawnDeclaredJob, orcapi.StacksProviderSpawnDeclaredJobRequest{
-		StackInstance: id,
-		StackName:     stackName,
-		StackEntityId: entity.Id,
-		StateFolder:   stateFolder,
-		Owner:         entity.Owner,
-		Application:   orcapi.NameAndVersion{Name: appName, Version: appVersion},
-		Product:       product,
-		Job:           declaration,
+		StackInstance:     id,
+		StackName:         stackName,
+		StackEntityId:     entity.Id,
+		StateFolder:       stateFolder,
+		Owner:             entity.Owner,
+		Application:       orcapi.NameAndVersion{Name: appName, Version: appVersion},
+		Product:           product,
+		Job:               declaration,
+		PrivateNetworkIds: stacksDeclaredJobPrivateNetworkIds(jobs),
 	}, ProviderCallOpts{
 		Username: util.OptValue(actor.Username),
 		Reason:   util.OptValue("Starting disaster recovery for stack " + id),

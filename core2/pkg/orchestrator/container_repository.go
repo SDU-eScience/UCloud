@@ -310,12 +310,13 @@ func ContainerRepositoryRetrieveProducts() orcapi.SupportByProvider[orcapi.FSSup
 }
 
 func ContainerRepositoryBrowseImages(actor rpc.Actor, request orcapi.ContainerRepositoriesBrowseImagesRequest) (fndapi.PageV2[orcapi.ContainerRepositoryImage], *util.HttpError) {
-	repository, _, _, err := ResourceRetrieveEx[orcapi.ContainerRepository](
+	repository, _, _, err := resourceRetrieveEx[orcapi.ContainerRepository](
 		actor,
 		containerRepositoryType,
 		ResourceParseId(request.RepositoryId),
 		orcapi.PermissionRead,
 		orcapi.ResourceFlagsIncludeAll(),
+		false,
 	)
 	if err != nil {
 		return fndapi.PageV2[orcapi.ContainerRepositoryImage]{}, err
