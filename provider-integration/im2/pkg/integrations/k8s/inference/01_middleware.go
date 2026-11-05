@@ -1025,7 +1025,17 @@ func inferenceResolveModelForOwner(owner apm.WalletOwner, modelName string) (Inf
 	return model, nil
 }
 
+func inferenceRequireCapability(model InferenceModel, capability InferenceCapability) *util.HttpError {
+	if !slices.Contains(model.Capabilities, capability) {
+		return util.HttpErr(http.StatusBadRequest, "model does not support %s", capability)
+	}
+	return nil
+}
+
 func inferenceValidateChatRequest(request InferenceChatRequest, model InferenceModel) *util.HttpError {
+	if httpErr := inferenceRequireCapability(model, InferenceTextGeneration); httpErr != nil {
+		return httpErr
+	}
 	if request.MaxCompletionTokens.Present && (request.MaxCompletionTokens.Value <= 0 || request.MaxCompletionTokens.Value > model.ChatSettings.MaxCompletionTokens) {
 		return util.HttpErr(http.StatusBadRequest, "max completion tokens exceeds the model limit")
 	}
@@ -1097,20 +1107,24 @@ func inferenceSSEDataPayload(raw string) string {
 }
 
 func inferenceBackendJSONRequest(ctx context.Context, basePath string, method string, path string, body []byte, contentType string) ([]byte, *util.HttpError) {
+	return inferenceBackendJSONRequestWithLimit(ctx, basePath, method, path, body, contentType, inferenceMaxUpstreamJSONBytes)
+}
+
+func inferenceBackendJSONRequestWithLimit(ctx context.Context, basePath string, method string, path string, body []byte, contentType string, limit int64) ([]byte, *util.HttpError) {
 	resp, httpErr := inferenceBackendRequest(ctx, basePath, method, path, body, contentType)
 	if httpErr != nil {
 		return nil, httpErr
 	}
 	defer util.SilentClose(resp.Body)
 
-	if resp.ContentLength > inferenceMaxUpstreamJSONBytes {
+	if resp.ContentLength > limit {
 		return nil, util.HttpErr(http.StatusBadGateway, "response from upstream is too large")
 	}
-	respBody, err := io.ReadAll(io.LimitReader(resp.Body, inferenceMaxUpstreamJSONBytes+1))
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
 		return nil, util.HttpErr(http.StatusBadGateway, "invalid response")
 	}
-	if len(respBody) > inferenceMaxUpstreamJSONBytes {
+	if int64(len(respBody)) > limit {
 		return nil, util.HttpErr(http.StatusBadGateway, "response from upstream is too large")
 	}
 

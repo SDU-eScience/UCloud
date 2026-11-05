@@ -247,7 +247,7 @@ func inferenceAuditEmit(state *inferenceAuditState, r *http.Request, status int,
 
 func inferenceAuditStatusFromReason(reason string) int {
 	switch reason {
-	case "", "success":
+	case "", "success", "success_missing_usage":
 		return http.StatusOK
 	case "payment_required":
 		return http.StatusPaymentRequired

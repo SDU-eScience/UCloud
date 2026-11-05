@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/bits"
 	"net/http"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -94,9 +95,10 @@ const (
 )
 
 var inferenceGlobals struct {
-	Ready         atomic.Bool
-	BackendServer string
-	Product       apm.ProductV2
+	Ready               atomic.Bool
+	BackendServer       string
+	MockImageGeneration bool
+	Product             apm.ProductV2
 }
 
 var inferenceUsageFlushMu sync.Mutex
@@ -149,6 +151,11 @@ func Init() {
 	}
 
 	inferenceModelCatalogLoad()
+
+	inferenceGlobals.MockImageGeneration = util.DevelopmentModeEnabled() && runtime.GOARCH == "arm64"
+	if inferenceGlobals.MockImageGeneration {
+		log.Info("Enabling mock image generation endpoint for development on arm64")
+	}
 
 	if inferenceCfg.Provider == cfg.KubernetesInferenceProviderDevelopment && util.DevelopmentModeEnabled() && inferenceCfg.DevelopmentProvider == inferenceDevelopmentProviderLocalAI {
 		err := inferenceAutoConfigureLocalAI()
@@ -461,6 +468,190 @@ func Init() {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(respData)
 		}
+	}))
+
+	controller.Mux.HandleFunc(authority+"/v1/audio/transcriptions", inferenceAuditMiddleware("inference.transcribe", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			inferenceAuditReject(r.Context(), "method not allowed")
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.ContentLength > inferenceMaxTranscriptionRequestBytes {
+			inferenceAuditReject(r.Context(), "request body too large")
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		apiKeyOwner, apiKeyUsername, tokenId, httpErr := inferenceAuthenticateRequest(r)
+		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		inferenceAuditIdentity(r.Context(), apiKeyOwner, apiKeyUsername, tokenId)
+
+		release, httpErr := inferenceAcquire(r.Context(), apiKeyOwner, apiKeyUsername)
+		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		request, httpErr := InferenceTranscriptionParseRequest(w, r)
+		if httpErr != nil {
+			release()
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
+		defer cancel()
+
+		if request.Stream {
+			events, httpErr := inferenceTranscribeStreamingAcquired(ctx, apiKeyOwner, apiKeyUsername, request, release)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
+			if request.Model != "" {
+				w.Header().Set("ucloud-generated-by-ai-model", request.Model)
+			}
+
+			for event := range events {
+				data, err := json.Marshal(event)
+				if err != nil {
+					continue
+				}
+
+				if err := inferenceWriteSSE(w, append(append([]byte("data: "), data...), '\n', '\n')); err != nil {
+					cancel()
+					for range events {
+					}
+					return
+				}
+			}
+
+			_ = inferenceWriteSSE(w, []byte("data: [DONE]\n\n"))
+			return
+		}
+
+		defer release()
+		resp, httpErr := inferenceTranscribeAcquired(ctx, apiKeyOwner, apiKeyUsername, request)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		if request.Model != "" {
+			w.Header().Set("ucloud-generated-by-ai-model", request.Model)
+		}
+		if resp.Raw != nil {
+			w.Header().Set("Content-Type", resp.Raw.ContentType)
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(resp.Raw.Data)
+			return
+		}
+
+		var respData []byte
+		switch request.ResponseFormat {
+		case InferenceTranscriptionRespDiarizedJson:
+			if resp.DiarizedJson != nil {
+				respData, _ = json.Marshal(resp.DiarizedJson)
+			}
+		case InferenceTranscriptionRespVerboseJson:
+			if resp.VerboseJson != nil {
+				respData, _ = json.Marshal(resp.VerboseJson)
+			}
+		default:
+			if resp.Json != nil {
+				respData, _ = json.Marshal(resp.Json)
+			}
+		}
+		if respData == nil {
+			http.Error(w, "invalid response", http.StatusBadGateway)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(respData)
+	}))
+
+	controller.Mux.HandleFunc(authority+"/v1/images/generations", inferenceAuditMiddleware("inference.image", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			inferenceAuditReject(r.Context(), "method not allowed")
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.ContentLength > inferenceMaxJSONRequestBytes {
+			inferenceAuditReject(r.Context(), "request body too large")
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		apiKeyOwner, apiKeyUsername, tokenId, httpErr := inferenceAuthenticateRequest(r)
+		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		inferenceAuditIdentity(r.Context(), apiKeyOwner, apiKeyUsername, tokenId)
+
+		var request InferenceImageGenerationRequest
+		if !inferenceDecodeJSON(w, r, inferenceMaxJSONRequestBytes, &request) {
+			inferenceAuditReject(r.Context(), "invalid request body")
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
+		defer cancel()
+
+		if request.Stream.GetOrDefault(false) {
+			events, httpErr := InferenceGenerateImageStreaming(ctx, apiKeyOwner, apiKeyUsername, request)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
+			if request.Model.Present && request.Model.Value != "" {
+				w.Header().Set("ucloud-generated-by-ai-model", request.Model.Value)
+			}
+
+			for event := range events {
+				data, err := json.Marshal(event)
+				if err != nil {
+					continue
+				}
+
+				if err := inferenceWriteSSE(w, append(append([]byte("data: "), data...), '\n', '\n')); err != nil {
+					cancel()
+					for range events {
+					}
+					return
+				}
+			}
+
+			_ = inferenceWriteSSE(w, []byte("data: [DONE]\n\n"))
+			return
+		}
+
+		respData, httpErr := inferenceGenerateImageResponse(ctx, apiKeyOwner, apiKeyUsername, request)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		if request.Model.Present && request.Model.Value != "" {
+			w.Header().Set("ucloud-generated-by-ai-model", request.Model.Value)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(respData)
 	}))
 
 	controller.Mux.HandleFunc(authority+"/v1/responses", inferenceAuditMiddleware("inference.responses", func(w http.ResponseWriter, r *http.Request) {

@@ -57,7 +57,7 @@ func inferenceCliHelp() {
 	f.AppendField("models update <name>", "Update an inference model catalog entry, or create it when it does not exist")
 	f.AppendField("  --name <name>", "Rename the model. Only allowed for non-public models.")
 	f.AppendField("  --title <title>", "Set the display title")
-	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration")
+	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration, TextToImage, SpeechToText, Vision, VideoVision, Audio")
 	f.AppendField("  --reasoning-efforts <list>", "Comma-separated display name=value pairs. Use an empty value to disable reasoning.")
 	f.AppendField("  --default-reasoning-effort <value>", "Set the default reasoning effort value")
 	f.AppendField("  --price-per-million-cached <n>", "Encoded cached input Credits per million tokens")
@@ -341,7 +341,7 @@ func inferenceCliParseCapabilities(raw string) ([]InferenceCapability, error) {
 	for _, item := range items {
 		capability := InferenceCapability(item)
 		switch capability {
-		case InferenceTextGeneration:
+		case InferenceTextGeneration, InferenceTextToImage, InferenceSpeechToText, InferenceVision, InferenceVideoVision, InferenceAudio:
 			capabilities = append(capabilities, capability)
 		default:
 			return nil, fmt.Errorf("invalid capability %q", item)
