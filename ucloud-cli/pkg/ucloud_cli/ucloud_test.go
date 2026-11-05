@@ -944,7 +944,7 @@ func TestFolderShell(t *testing.T) {
 		time.Sleep(10 * time.Second)
 		_ = w.Close()
 	}()
-	input := []string{"folder", "shell", path, "--provider", "k8s", "--workspace", "test-workspace"}
+	input := []string{"folder", "shell", path, "--provider", "k8s"}
 	cmd, err := Parse(input)
 	assert.NoError(t, err)
 	assert.NotNil(t, cmd)
