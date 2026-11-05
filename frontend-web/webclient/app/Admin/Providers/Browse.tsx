@@ -2,7 +2,7 @@ import * as React from "react";
 import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
 import {useNavigate} from "react-router-dom";
 import MainContainer from "@/ui-components/MainContainer";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal, checkIsWorkspaceAdmin, ColumnTitleList, ColumnTitleGroup} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal, checkIsWorkspaceAdmin, ColumnTitleGroup} from "@/ui-components/ResourceBrowser";
 import {useDispatch} from "react-redux";
 import {usePage} from "@/Navigation/Redux";
 import {callAPI} from "@/Authentication/DataHook";

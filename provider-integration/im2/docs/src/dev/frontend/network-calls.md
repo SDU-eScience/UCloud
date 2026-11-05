@@ -1,10 +1,12 @@
 ## Network calls
 
-UCloud has three different options for network calls:
+UCloud has three different options for network calls, that components can use:
 
 - `callAPI`
-- [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)
+- `fetch`
 - WSFactory
+
+<!-- https://www.mermaideditor.io/#pako:eJx9Vd9r2zAQ_leC95JBC_4du4xBkyb0ITDYCnvY9iBLp0TEsYystgul__skxVYsq5khBN139-n03Z30FmBOILgLaM1f8R4JOdt-_93M1Nc9VzuB2v2MCt5IaMjZrL_7-aa3zTA_tryBRn4ewbMvt7dfZ8v5zx8bhCUXJx9czR-lbFc1-zD0Yb4Bifc9YPe2KS0RPjgZrX_1plkH4oVh-DMJXZ6J1-fVylk9OKvgJujkqYYuuHsLKtSB_pd7OGqZzPpG_eHDTvDnhqx4zYUCPlHzKYwqZTboyOqTMneo6W5VSkwjrWBHJE42JII0RBroAPOGjKGcxAUpFSRBSDZGaEQzqpGaNWCtSZJGWRa8K64WMKMMm6xPrVNb52iNKvzSnsNQFxRRrJwMxAUBw40rkkHUm5_gr9TGkEaLGCkjUdt1jDcTKqAJXoxhS0fKxSLMR9BAuSiSLDRySJXruiEuJYkogmwMW8owK_O8HEE2yzyFpDLScwxdN2GsAFEYoZbQVqZHBr4IEpRpOxKCv1r100WWmf2NeYsqqCdyDM1xcRgo-8qp3PvmnkQO5bawTbJMUVIVI-iJydovkBowJk9X8ulBv9ZnwDBOQkOa0sL18PZEUgpWPctR7DcyUcJ3Wb9A4_Sh9fHEag-PbLev1c_YqzRLQq0Sde1hkpdIH0dAjaTqtW7P2q0aHENWFTHNPwDvaxn9N1o5xKZjcYKATByGXPN0kRa698wV6Ipo--uMjfouQQUa7AOT1axV3c0wa1Ejr0zu2MMv6gj1SlYzCs6VYqOOagDQDqxsQw16u198LNmLkePKuI0cbI62GA2X044b7hID-feINnt3SM15e2WSDORPkTZ7Z5Eftre6r_3j2Rp4qGoXd5TPDv5mqDu4nFYVA_nXkzZ7XWLkhSePLM7yBCrX4UJJUiBaBqJecz_WNoOFfQGxYKq7UO1HExzncT51sQxVGeFIK6ceTeik2sENt2N2wW2sfSh3gl0eY4ihoKEWiBN02o7bus_lXX3_AFrr02o -->
 
 ### callAPI
 
@@ -32,7 +34,6 @@ function Component(): React.ReactNode {
 
     /* Code */
 }
-
 ```
 
 `callAPI` takes authentication into account. This also includes refreshing tokens when expired, and automically logging the user out, if the the tokens have been invalidated.
@@ -40,7 +41,7 @@ Relevant code can be found in [Authentication/DataHook.ts](https://github.com/sd
 
 ### `fetch`
 
-If authentication is not needed for the request, `fetch` can be used instead.
+If authentication is not needed for the request, [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) can be used instead.
 
 ```typescript
 await fetch(Client.computeURL("/api/endpoint", "/retrieve"),
