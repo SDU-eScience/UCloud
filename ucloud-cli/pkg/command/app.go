@@ -154,19 +154,18 @@ func (c AppListCommand) Execute() error {
 	if c.Category != "" {
 		fmt.Printf("Applications in category %s\n", c.Category)
 	}
-
+	t := termio.Table{}
+	t.AppendHeader("Flavor")
+	t.AppendHeader("Title")
+	t.AppendHeader("Description")
 	for _, v := range categories {
 		for _, group := range v.Status.Groups {
-			t := termio.Table{}
-			t.AppendHeader("Flavor")
-			t.AppendHeader("Title")
-			t.AppendHeader("Description")
 			t.Cell("%v", group.Specification.DefaultFlavor)
 			t.Cell("%v", group.Specification.Title)
 			t.Cell("%v", group.Specification.Description)
-			t.Print()
 		}
 	}
+	t.Print()
 	return nil
 }
 

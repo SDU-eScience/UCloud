@@ -66,24 +66,25 @@ type JobTerminateCommand struct {
 }
 
 type JobLogsCommand struct {
-	JobID string `positional:"job-id" usage:"Job ID"`
+	JobID     string `positional:"job-id" usage:"Job ID"`
+	Workspace string `flag:"workspace" usage:"Workspace to search jobs in"`
+	Provider  string `flag:"provider" usage:"Provider"`
+	Follow    bool   `flag:"follow" usage:"Follow logs"`
 }
 
 type JobShellCommand struct {
-	JobID string `positional:"job-id" usage:"Job ID"`
-	Rank  int    `flag:"rank" usage:"Rank"`
+	JobID    string `positional:"job-id" usage:"Job ID"`
+	Rank     int    `flag:"rank" usage:"Rank" default:"0"`
+	Provider string `flag:"provider" usage:"Provider"`
+	Browser  bool   `flag:"browser" usage:"Browser to use"`
 }
 
-type JobWebCommand struct {
-	JobID string `positional:"job-id" usage:"Job ID"`
-}
-
-type JobVNCCommand struct {
-	JobID string `positional:"job-id" usage:"Job ID"`
-}
-
+// open primary interface to the job, if one eixst (web or VNC in a browser)
 type JobOpenCommand struct {
-	JobID string `positional:"job-id" usage:"Job ID"`
+	JobID    string `positional:"job-id" usage:"Job ID"`
+	Provider string `flag:"provider" usage:"Provider"`
+	Creator  bool   `flag:"creator" usage:"Open the job creator page"`
+	Version  string `flag:"version" usage:"Version" default:"1.0"`
 }
 
 type JobAttachCommand struct {
@@ -111,9 +112,7 @@ var JobCommands = map[string]CommandFunc{
 	"attach": func() Command { return &JobAttachCommand{} },
 	"detach": func() Command { return &JobDetachCommand{} },
 	// Interactive commands
-	"vnc":   func() Command { return &JobVNCCommand{} },
 	"open":  func() Command { return &JobOpenCommand{} },
-	"web":   func() Command { return &JobWebCommand{} },
 	"shell": func() Command { return &JobShellCommand{} },
 	"logs":  func() Command { return &JobLogsCommand{} },
 }
@@ -563,7 +562,7 @@ func parseParameterValue(param orcapi.ApplicationParameter, rawValue string) (or
 	}
 }
 
-func createApp(job JobCreateCommand, app *orcapi.Application) error {
+func createApp(job *JobCreateCommand, app *orcapi.Application) error {
 	product, err := findProductForApp(app, job.Product)
 	if err != nil {
 		return err
@@ -625,10 +624,12 @@ func createApp(job JobCreateCommand, app *orcapi.Application) error {
 	for _, created := range response.Responses {
 		fmt.Printf("Job created: %s\n", created.Id)
 	}
+	job.Id = response.Responses[0].Id
+
 	return nil
 }
 
-func (c JobCreateCommand) Execute() error {
+func (c *JobCreateCommand) Execute() error {
 	cfg := shared.InitializeUCloudClient()
 
 	if c.App == "" {
@@ -694,22 +695,21 @@ func (c JobDetachCommand) Execute() error {
 	return fmt.Errorf("job detach not implemented")
 }
 
-func (c JobVNCCommand) Execute() error {
-	return fmt.Errorf("job vnc not implemented")
-}
-
 func (c JobOpenCommand) Execute() error {
-	return fmt.Errorf("job open not implemented")
-}
-
-func (c JobWebCommand) Execute() error {
-	return fmt.Errorf("job web not implemented")
+	if c.Creator {
+		return shared.OpenCreatorInterface(c.JobID, c.Version)
+	}
+	return shared.JobOpenInterface(c.JobID, c.Provider)
 }
 
 func (c JobShellCommand) Execute() error {
-	return fmt.Errorf("job shell not implemented")
+	if c.Provider == "" {
+		return fmt.Errorf("this command requires a provider, use --provider <name>")
+	}
+	return shared.JobShell(c.JobID, c.Provider, c.Rank, c.Browser)
 }
 
 func (c JobLogsCommand) Execute() error {
-	return fmt.Errorf("job logs not implemented")
+	shared.InitializeUCloudClient()
+	return shared.JobLogs(c.JobID, c.Workspace, c.Provider, c.Follow)
 }
