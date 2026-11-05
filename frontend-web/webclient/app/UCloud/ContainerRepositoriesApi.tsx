@@ -172,6 +172,36 @@ class ContainerRepositoriesApi extends ResourceApi<
 
 const api = new ContainerRepositoriesApi();
 
+export function ContainerRepositoryPublicAccessControl({
+    checked,
+    onChange,
+    enabled = true,
+    disabled = false,
+}: {
+    checked: boolean;
+    onChange: (checked: boolean) => void;
+    enabled?: boolean;
+    disabled?: boolean;
+}): React.ReactNode {
+    return <Flex alignItems={"center"} justifyContent={"space-between"} gap={"16px"}>
+        <Box minWidth={0}>
+            <Label>Public access</Label>
+            <Text>
+                {enabled
+                    ? "Allow anyone to pull images by a known tag in the entire repository. Public access does not permit browsing or listing image tags."
+                    : "Public access is not enabled for this workspace."}
+            </Text>
+        </Box>
+        <Box flexShrink={0}>
+            <Toggle
+                checked={checked}
+                onChange={() => onChange(!checked)}
+                disabled={disabled || !enabled}
+            />
+        </Box>
+    </Flex>;
+}
+
 export function ContainerRepositoryPublicAccess({repository, reload}: {
     repository: ContainerRepository;
     reload: () => void;
@@ -203,21 +233,14 @@ export function ContainerRepositoryPublicAccess({repository, reload}: {
         }
     };
 
-    return <Flex alignItems={"center"} justifyContent={"space-between"} mb={16} gap={"16px"}>
-        <Box>
-            <Label>Public access</Label>
-            <Text>
-                {publicAccessEnabled
-                    ? "Allow anyone to pull images by a known tag or digest, including images in nested repositories. Public access does not permit browsing repositories or listing images and tags."
-                    : "Public access is not enabled for this workspace."}
-            </Text>
-        </Box>
-        <Toggle
+    return <Box mb={16}>
+        <ContainerRepositoryPublicAccessControl
             checked={publicAccess}
-            onChange={() => update(!publicAccess)}
-            disabled={commandLoading || !publicAccessEnabled}
+            onChange={update}
+            enabled={publicAccessEnabled}
+            disabled={commandLoading}
         />
-    </Flex>;
+    </Box>;
 }
 
 export {api};

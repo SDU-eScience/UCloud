@@ -21,6 +21,7 @@ import {
     ContainerRepositoryImage,
     ContainerRepositoryImageLayer,
     ContainerRepositoryPublicAccess,
+    ContainerRepositoryPublicAccessControl,
     ContainerRepositorySpecification,
     ContainerRepositorySupport,
 } from "@/UCloud/ContainerRepositoriesApi";
@@ -46,7 +47,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {addProjectListener, removeProjectListener} from "@/Project/ReduxState";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ProductSelector} from "@/Products/Selector";
-import {Box, Button, Flex, Input, Label, Text} from "@/ui-components";
+import {Box, Button, Divider, Flex, Input, Label, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {MandatoryField} from "@/UtilityComponents";
 import {PermissionsTable, ResourcePermissionEditor} from "@/Resource/PermissionEditor";
@@ -889,17 +890,12 @@ export default function ContainerRepositoryBrowse({
                                         entity={repository}
                                         api={ContainerRepositoriesApi}
                                         accessDescription={
-                                            <Box>
-                                                <ContainerRepositoryPublicAccess
-                                                    repository={repository}
-                                                    reload={() => browser.refresh()}
-                                                />
-                                                <Text mb="12px">
-                                                    By default, only you and the project administrators can use this repository.
-                                                    You can modify these permissions later on the <b>Properties</b> page.
-                                                </Text>
-                                            </Box>
+                                            <ContainerRepositoryPublicAccess
+                                                repository={repository}
+                                                reload={() => browser.refresh()}
+                                            />
                                         }
+                                        permissionsLabel="Project group access"
                                         showMissingPermissionHelp={false}
                                         noPermissionsWarning="Warning"
                                         readLabel="Pull"
@@ -954,7 +950,7 @@ async function openCreation(browser: ResourceBrowser<BrowserEntry>): Promise<voi
         <ContainerRepositoryCreate
             products={products}
             onCancel={() => dialogStore.failure()}
-            onCreate={async (product, name, permissions) => {
+            onCreate={async (product, name, permissions, publicAccess) => {
                 const productReference = {
                     id: product.name,
                     category: product.category.name,
@@ -977,6 +973,7 @@ async function openCreation(browser: ResourceBrowser<BrowserEntry>): Promise<voi
                     const response = (await callAPI(ContainerRepositoriesApi.create(bulkRequestOf({
                         name,
                         product: productReference,
+                        public: publicAccess,
                     })))).responses[0] as unknown as FindByStringId;
                     repositoryBeingCreated.id = response.id;
 
@@ -1015,7 +1012,7 @@ async function openCreation(browser: ResourceBrowser<BrowserEntry>): Promise<voi
 
 interface ContainerRepositoryCreateProps {
     products: ProductV2Storage[];
-    onCreate(product: ProductV2, name: string, permissions: ResourceAclEntry[]): Promise<void>;
+    onCreate(product: ProductV2, name: string, permissions: ResourceAclEntry[], publicAccess: boolean): Promise<void>;
     onCancel(): void;
 }
 
@@ -1031,6 +1028,7 @@ function ContainerRepositoryCreate({products, onCreate, onCancel}: ContainerRepo
     const [product, setProduct] = React.useState<ProductV2 | null>(null);
     const [name, setName] = React.useState("");
     const [acl, setAcl] = React.useState<ResourceAclEntry[]>([]);
+    const [publicAccess, setPublicAccess] = React.useState(false);
     const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
     const project = useProject().fetch();
     const projectId = useProjectId();
@@ -1044,7 +1042,7 @@ function ContainerRepositoryCreate({products, onCreate, onCancel}: ContainerRepo
         event.stopPropagation();
         if (product && name.trim()) {
             try {
-                await onCreate(product, name.trim(), acl);
+                await onCreate(product, name.trim(), acl, publicAccess);
             } catch (error: any) {
                 const message = extractErrorCode(error) === 409
                     ? "The name selected must be globally unique at the service provider."
@@ -1082,8 +1080,14 @@ function ContainerRepositoryCreate({products, onCreate, onCancel}: ContainerRepo
             <ProductSelector products={products} selected={product} onSelect={setProduct} slim />
         </Box>
 
+        <ContainerRepositoryPublicAccessControl
+            checked={publicAccess}
+            onChange={setPublicAccess}
+        />
+
         {!projectId || !isAdminOrPI(project.status.myRole) ? null : <Box>
-            <Label>Choose access</Label>
+            <Divider mt={0} mb={16} />
+            <Label>Project group access</Label>
             <Box maxHeight="400px" overflowY="auto">
                 <p>
                     By default, only you and the project administrators can use this repository. You can modify these

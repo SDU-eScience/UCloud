@@ -1424,6 +1424,7 @@ var resourceStackControllerLabels = []string{
 	orcapi.ResourceLabelStackController,
 	orcapi.ResourceLabelStackUi,
 	orcapi.ResourceLabelDisasterRecovery,
+	orcapi.ResourceLabelUcxPort,
 }
 
 func resourceLabelLookup(labels map[string]string, key string) (string, bool) {
