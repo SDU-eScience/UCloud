@@ -74,7 +74,7 @@ type JobLogsCommand struct {
 
 type JobShellCommand struct {
 	JobID    string `positional:"job-id" usage:"Job ID"`
-	Rank     int    `flag:"rank" usage:"Rank"`
+	Rank     int    `flag:"rank" usage:"Rank" default:"0"`
 	Provider string `flag:"provider" usage:"Provider"`
 	Browser  bool   `flag:"browser" usage:"Browser to use"`
 }
@@ -706,7 +706,7 @@ func (c JobShellCommand) Execute() error {
 	if c.Provider == "" {
 		return fmt.Errorf("this command requires a provider, use --provider <name>")
 	}
-	return shared.JobShell(c.JobID, c.Provider, c.Browser)
+	return shared.JobShell(c.JobID, c.Provider, c.Rank, c.Browser)
 }
 
 func (c JobLogsCommand) Execute() error {
