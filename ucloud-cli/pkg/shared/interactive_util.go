@@ -120,7 +120,10 @@ func JobShell(jobId string, provider string, rank int, browser bool) error {
 		OpenBrowser(session.Session.RedirectClientTo)
 		return nil
 	}
+	return OpenWebsocketShellSession(session, usernameHint, origin, provider)
+}
 
+func OpenWebsocketShellSession(session *orcapi.OpenSessionWithProvider, usernameHint string, origin string, provider string) error {
 	wsUrl := fmt.Sprintf("%s/ucloud/%s/websocket?session=%s&usernameHint=%s", session.ProviderDomain, session.ProviderId, session.Session.SessionIdentifier, url.QueryEscape(usernameHint))
 	ws, err := websocket.Dial(wsUrl, "", origin)
 	if err != nil {
