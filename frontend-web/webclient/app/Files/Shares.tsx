@@ -444,7 +444,7 @@ export function IngoingSharesBrowse({opts}: {opts?: ResourceBrowserOpts<Share> &
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Share>(mount, TITLE, opts).init(browserRef, features, "", browser => {
+            new ResourceBrowser<Share>(mount, TITLE, browserRef, features, opts, "").init(browser => {
                 avatarState.subscribe(() => {
                     browserRef.current?.renderRows()
                 });

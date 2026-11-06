@@ -65,7 +65,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<ProjectInvite> & Set
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<ProjectInvite>(mount, "Project invites", opts).init(browserRef, features, "", browser => {
+            new ResourceBrowser<ProjectInvite>(mount, "Project invites", browserRef, features, opts, "").init(browser => {
                 avatarState.subscribe(() => {
                     browserRef.current?.renderRows()
                 });

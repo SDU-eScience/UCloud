@@ -38,7 +38,7 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<SSHKey>(mount, "SSH keys", props.opts).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<SSHKey>(mount, "SSH keys", browserRef, FEATURES, props.opts, "").init(browser => {
                 browser.setColumns({ [ContainerSize.LARGE]:
                     [{name: "Title"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]
                 });

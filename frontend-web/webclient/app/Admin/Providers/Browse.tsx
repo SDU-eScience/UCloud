@@ -60,7 +60,7 @@ function ProviderBrowse({opts}: {opts?: ResourceBrowserOpts<Provider>}): React.R
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Provider>(mount, "Providers", opts).init(browserRef, features, "", browser => {
+            new ResourceBrowser<Provider>(mount, "Providers", browserRef, features, opts, "").init(browser => {
                 browser.setColumns(rowTitles);
 
                 browser.on("open", (oldPath, newPath, resource) => {

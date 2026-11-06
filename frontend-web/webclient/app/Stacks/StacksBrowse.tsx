@@ -56,7 +56,7 @@ export default function StacksBrowse(): React.ReactNode {
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<StackApi.Stack>(mount, "Stacks", undefined).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<StackApi.Stack>(mount, "Stacks", browserRef, FEATURES, undefined, "").init(browser => {
                 browser.setColumns([
                     {name: "ID"},
                     {name: "Type", columnWidth: 180},

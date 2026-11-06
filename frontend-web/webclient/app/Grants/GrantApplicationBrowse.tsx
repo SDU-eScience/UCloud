@@ -76,7 +76,7 @@ export function GrantApplicationBrowse({opts}: {opts?: ResourceBrowserOpts<Grant
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Grants.Application>(mount, "Grants Application", opts).init(browserRef, features, "", browser => {
+            new ResourceBrowser<Grants.Application>(mount, "Grants Application", browserRef, features, opts, "").init(browser => {
                 function fetchGrants(newPath: string = "/") {
                     callAPI(Grants.browse({
                         query: browser.searchQuery,

@@ -237,8 +237,8 @@ function FileBrowse({opts, headerControls}: {
         let shares: Record<string, OutgoingShareGroup> = {};
         let initialFetchDone = false;
         if (mount && !browserRef.current) {
-            const resourceBrowser = new ResourceBrowser<UFile>(mount, RESOURCE_NAME, {...opts});
-            resourceBrowser.init(browserRef, features, undefined, browser => {
+            const resourceBrowser = new ResourceBrowser<UFile>(mount, RESOURCE_NAME, browserRef, features, {...opts});
+            resourceBrowser.init(browser => {
                 browser.setColumns(isSelector ? selectorRowTitles : rowTitles);
                 if (isSelector) browser.root.style.height = "100%";
                 if (compactFilters) {

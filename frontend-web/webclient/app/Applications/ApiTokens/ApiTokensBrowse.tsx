@@ -49,7 +49,7 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Api.ApiToken>(mount, "API tokens", props.opts).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<Api.ApiToken>(mount, "API tokens", browserRef, FEATURES, props.opts, "").init(browser => {
                 browser.setColumns({
                     [ContainerSize.LARGE]: [{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 320}],
                     [ContainerSize.MEDIUM]: [{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 250}],

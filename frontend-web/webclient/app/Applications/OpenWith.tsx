@@ -132,10 +132,10 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser(mount, "Launch with", opts).init(browserRef, {
+            new ResourceBrowser(mount, "Launch with", browserRef, {
                 breadcrumbsSeparatedBySlashes: false,
                 projectSwitcher: true,
-            }, "", browser => {
+            }, opts, "").init(browser => {
                 fetchInfo();
 
                 browser.setEmptyIcon("heroServer");

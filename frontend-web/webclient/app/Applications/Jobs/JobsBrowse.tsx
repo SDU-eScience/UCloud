@@ -122,7 +122,7 @@ function JobBrowse({opts}: {opts?: ResourceBrowserOpts<Job> & {omitBreadcrumbs?:
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<Job>(mount, "Jobs", opts).init(browserRef, features, "", browser => {
+            new ResourceBrowser<Job>(mount, "Jobs", browserRef, features, opts, "").init(browser => {
                 // Removed stored filters that shouldn't persist.
                 dateRanges.keys.forEach(it => clearFilterStorageValue(browser.resourceName, it));
 

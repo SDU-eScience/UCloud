@@ -93,6 +93,7 @@
 - [Network calls](./dev/frontend/network-calls.md)
 - [Styling (CSS)](./dev/frontend/inject-style.md)
 - [Testing](./dev/frontend/testing.md)
+- [UI Components](./dev/frontend/ui-components.md)
 
 - [ResourceBrowser](./dev/frontend/resource-browser/about.md)
     - [Features and operations](./dev/frontend/resource-browser/features-and-operations.md)

@@ -22,3 +22,7 @@ Modals are placed on top the other parts, which are not interactive as long as a
 Modals do not use the main container, and are styled as relevant for what they contain. They cannot be stacked when presented, as only one will be visible at most. Modals are used for confirmation, resource selection, resource creation, etc.
 
 <img src="./assets/Modal-Dark.png" />
+
+### Architecture
+
+What exciting parts of UCloud are architecurally interesting? None? OK

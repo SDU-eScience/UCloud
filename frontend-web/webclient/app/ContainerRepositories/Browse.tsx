@@ -225,11 +225,13 @@ export default function ContainerRepositoryBrowse({
                 isModal: true,
                 selection,
             } : opts;
-            new ResourceBrowser<BrowserEntry>(mount, RESOURCE_NAME, browserOpts as unknown as ResourceBrowserOpts<BrowserEntry>).init(
+            new ResourceBrowser<BrowserEntry>(
+                mount,
+                RESOURCE_NAME,
                 browserRef,
-                imageSelection ? {...FEATURES, projectSwitcher: false} : FEATURES,
-                "/",
-                browser => {
+                imageSelection ? { ...FEATURES, projectSwitcher: false } : FEATURES,
+                browserOpts as unknown as ResourceBrowserOpts<BrowserEntry>
+            ).init(browser => {
                     browser.root.classList.add(ContainerRepositoryBrowserStyle);
                     browser.setColumns([
                         {name: "Repository name", sortById: "name"},

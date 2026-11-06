@@ -126,7 +126,7 @@ const DriveBrowse: React.FunctionComponent<{
     useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<FileCollection>(mount, RESOURCE_NAME, opts).init(browserRef, FEATURES, "/", browser => {
+            new ResourceBrowser<FileCollection>(mount, RESOURCE_NAME, browserRef, FEATURES, opts, "/").init(browser => {
                 addProjectListener("drive-browse", p => {
                     browser.features.filters = !!p;
                     if (p) {

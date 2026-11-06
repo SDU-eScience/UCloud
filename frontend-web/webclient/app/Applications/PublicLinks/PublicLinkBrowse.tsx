@@ -106,7 +106,7 @@ export function PublicLinkBrowse({
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
-            new ResourceBrowser<PublicLink>(mount, RESOURCE_NAME, opts).init(browserRef, FEATURES, "", browser => {
+            new ResourceBrowser<PublicLink>(mount, RESOURCE_NAME, browserRef, FEATURES, opts, "").init(browser => {
                 browser.setColumns({[ContainerSize.LARGE]: [
                     {name: "Domain"},
                     {name: "In use with", columnWidth: 250}

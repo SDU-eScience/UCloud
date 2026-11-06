@@ -565,10 +565,18 @@ export class ResourceBrowser<T> {
     private initialPath: string | undefined = "";
     private uniqueListenerId: string;
 
-    constructor(root: HTMLElement, resourceName: string, opts: ResourceBrowserOpts<T> | undefined) {
+    constructor(
+        root: HTMLElement,
+        resourceName: string,
+        ref: React.RefObject<ResourceBrowser<T> | null>,
+        features: ResourceBrowseFeatures,
+        opts: ResourceBrowserOpts<T> | undefined,
+        initialPath?: string
+    ) {
         this.root = root;
         this.uniqueListenerId = resourceName + Math.random().toString();
 
+        this.initialPath = initialPath;
         this.resourceName = resourceName;
         this.isModal = !!opts?.isModal;
         ResourceBrowser.isAnyModalOpen = ResourceBrowser.isAnyModalOpen || this.isModal;
@@ -583,6 +591,9 @@ export class ResourceBrowser<T> {
                 }]
             }
         }
+
+        ref.current = this;
+        this.features = features;
 
         if (!ResourceBrowser.undoStack[resourceName]) ResourceBrowser.undoStack[resourceName] = [];
         if (!ResourceBrowser.redoStack[resourceName]) ResourceBrowser.redoStack[resourceName] = [];
@@ -606,18 +617,10 @@ export class ResourceBrowser<T> {
         return true;
     }
 
-    public init(
-        ref: React.RefObject<ResourceBrowser<T> | null>,
-        features: ResourceBrowseFeatures,
-        initialPath: string | undefined,
-        onInit: (browser: ResourceBrowser<T>) => void,
-    ) {
-        ref.current = this;
-        this.features = features;
-        this.initialPath = initialPath;
+    public init(onInit: (browser: ResourceBrowser<T>) => void) {
         onInit(this);
         this.mount();
-        if (initialPath !== undefined) this.open(initialPath);
+        if (this.initialPath !== undefined) this.open(this.initialPath);
     }
 
     mount() {

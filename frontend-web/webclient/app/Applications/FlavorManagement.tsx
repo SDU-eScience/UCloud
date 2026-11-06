@@ -91,7 +91,7 @@ function FlavorManagement({flavors, onUpdated, onDeleted}: Props): React.ReactNo
             const variantsByPath = new Map<string, ApplicationVariant>();
             const versionsByPath = new Map<string, VariantVersion>();
             let currentFlavors = flavors;
-            new ResourceBrowser<BrowserEntry>(mount, "Application flavors", {isModal: true}).init(browserRef, FEATURES, ROOT_PATH, browser => {
+            new ResourceBrowser<BrowserEntry>(mount, "Application flavors", browserRef, FEATURES, {isModal: true}, ROOT_PATH).init(browser => {
                 browser.setColumns(COLUMNS);
 
                 const setLoading = (loading: boolean) => {

@@ -66,10 +66,10 @@ export function Browser(): React.ReactNode {
                 // How to render stat1 (see also `renderStat2`-`renderStat4`)
                 browser.on("renderStat1", (item, stat) => stat.innerText = item.createdAt}); 
                 
-                
+               // Generate the breadcrumbs to be presented in the header 
                 browser.on("generateBreadcrumbs", () => [{title: browser.resourceName, absolutePath: ""}]);
                 
-                
+                // What to write when the page is empty. Usually handled with a switch on `reason`.
                 browser.on("renderEmptyPage", reason => {
                     browser.emptyPageElement.reason.append(`The page is empty for reason: ${EmptyReasonTag[reason]}`);
                 });
@@ -94,12 +94,21 @@ export function Browser(): React.ReactNode {
     });
 
     // MainContainer element containing the `div`-element the Resource Browser is mounted in.
-    // The ResourceBrowserProjectSwitcher
     return <MainContainer main={
         <>
             <div ref={mountRef} />
+            // The ResourceBrowserProjectSwitcher mounts the Project Switcher inside the Resource Browser header
             <ResourceBrowserProjectSwitcher browser={browserRef.current} />
         </>
     } />
 }
 ```
+
+If the API calls could succeed, this would:
+
+- Render a list of resources, with a title and stat1 filled out
+- Automatically fetch more if the bottom is reached.
+- Renders the title of the resource in the breadcrumbs
+- Allow filtering of resources, based on a date range
+- Show operations that can be done on the selected resources
+- Adds the Project Switcher
