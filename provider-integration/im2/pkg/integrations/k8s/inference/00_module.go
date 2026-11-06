@@ -151,6 +151,7 @@ func Init() {
 	}
 
 	inferenceModelCatalogLoad()
+	controller.InferencePlaygroundImageRead = playgroundImageRead
 
 	inferenceGlobals.MockImageGeneration = util.DevelopmentModeEnabled() && runtime.GOARCH == "arm64"
 	if inferenceGlobals.MockImageGeneration {
@@ -210,6 +211,13 @@ func Init() {
 					return efforts
 				}(),
 				DefaultReasoningEffort: model.DefaultReasoningEffort,
+				DefaultFor: func() []orcapi.InferenceCapability {
+					result := make([]orcapi.InferenceCapability, 0, len(model.DefaultFor))
+					for _, capability := range model.DefaultFor {
+						result = append(result, orcapi.InferenceCapability(capability))
+					}
+					return result
+				}(),
 				PricePerMillion: orcapi.InferencePricing{
 					CachedInput: model.PricePerMillion.CachedInput,
 					Input:       model.PricePerMillion.Input,
@@ -280,6 +288,13 @@ func Init() {
 				return efforts
 			}(),
 			DefaultReasoningEffort: request.Model.DefaultReasoningEffort,
+			DefaultFor: func() []InferenceCapability {
+				result := make([]InferenceCapability, 0, len(request.Model.DefaultFor))
+				for _, capability := range request.Model.DefaultFor {
+					result = append(result, InferenceCapability(capability))
+				}
+				return result
+			}(),
 			PricePerMillion: InferencePricing{
 				CachedInput: request.Model.PricePerMillion.CachedInput,
 				Input:       request.Model.PricePerMillion.Input,

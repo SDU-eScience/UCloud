@@ -58,6 +58,11 @@ func inferenceCliHelp() {
 	f.AppendField("  --name <name>", "Rename the model. Only allowed for non-public models.")
 	f.AppendField("  --title <title>", "Set the display title")
 	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration, TextToImage, ImageToImage, SpeechToText, Vision, VideoVision, Audio")
+	f.AppendField(
+		"  --default-for <list>",
+		"Provider defaults: TextToImage,ImageToImage. Replaces previous defaults. "+
+			"Use an empty value to clear.",
+	)
 	f.AppendField("  --reasoning-efforts <list>", "Comma-separated display name=value pairs. Use an empty value to disable reasoning.")
 	f.AppendField("  --default-reasoning-effort <value>", "Set the default reasoning effort value")
 	f.AppendField("  --price-per-million-cached <n>", "Encoded cached input Credits per million tokens")
@@ -68,7 +73,11 @@ func inferenceCliHelp() {
 	f.AppendField("  --file-url-root <path>", "Absolute shared-mount path for file:// image output. Use an empty value to disable it.")
 	f.AppendField("  --public <bool>", "Set public availability")
 	f.AppendField("  --available-to <list>", "Comma-separated project IDs")
-	f.AppendField("  --base-path <url>", "Set endpoint base path")
+	f.AppendField(
+		"  --base-path <url>",
+		"Set endpoint base path. Add ?bearerToken=<url-encoded-token> or "+
+			"?bearerTokenEnv=<env-name> to override the upstream bearer token.",
+	)
 	f.AppendField("  --backend-model-name <name>", "Set backend model name")
 	f.AppendField("  --temperature <n>", "Set default chat temperature")
 	f.AppendField("  --top-p <n>", "Set default chat top P")
@@ -98,6 +107,7 @@ func inferenceCliModelsList(args []string) {
 	t.AppendHeader("Name")
 	t.AppendHeader("Title")
 	t.AppendHeader("Capabilities")
+	t.AppendHeader("Default for")
 	t.AppendHeader("Reasoning")
 	t.AppendHeaderEx("Cached price/M", termio.TableHeaderAlignRight)
 	t.AppendHeaderEx("Input price/M", termio.TableHeaderAlignRight)
@@ -113,6 +123,7 @@ func inferenceCliModelsList(args []string) {
 		t.Cell("%s", model.Name)
 		t.Cell("%s", model.Title)
 		t.Cell("%s", inferenceCliFormatCapabilities(model.Capabilities))
+		t.Cell("%s", inferenceCliFormatCapabilities(model.DefaultFor))
 		t.Cell("%s", inferenceCliFormatReasoning(model))
 		t.Cell("%d", model.PricePerMillion.CachedInput)
 		t.Cell("%d", model.PricePerMillion.Input)
@@ -136,12 +147,14 @@ func inferenceCliModelsUpdate(args []string) {
 
 	req := k8sCliInferenceModelsUpdateRequest{Name: args[0]}
 	var capabilitiesRaw string
+	var defaultForRaw string
 	var reasoningEffortsRaw string
 	var availableToRaw string
 	fs := flag.NewFlagSet("inference models update", flag.ExitOnError)
 	fs.StringVar(&req.NewName, "name", "", "Rename the model")
 	fs.StringVar(&req.Title, "title", "", "Set the display title")
 	fs.StringVar(&capabilitiesRaw, "capabilities", "", "Comma-separated capability list")
+	fs.StringVar(&defaultForRaw, "default-for", "", "Comma-separated provider default capabilities")
 	fs.StringVar(&reasoningEffortsRaw, "reasoning-efforts", "", "Comma-separated display name=value pairs")
 	fs.StringVar(&req.DefaultReasoningEffort, "default-reasoning-effort", "", "Default reasoning effort value")
 	fs.Int64Var(&req.PricePerMillionCachedInput, "price-per-million-cached", 0, "Encoded cached input Credits per million tokens (1000000 = 1 Credit)")
@@ -179,6 +192,11 @@ func inferenceCliModelsUpdate(args []string) {
 		availableTo, err := inferenceCliParseList(availableToRaw)
 		cli.HandleError("parsing available-to", err)
 		req.AvailableTo = availableTo
+	}
+	if slices.Contains(req.Set, "default-for") {
+		defaults, err := inferenceCliParseCapabilities(defaultForRaw)
+		cli.HandleError("parsing defaults", err)
+		req.DefaultFor = defaults
 	}
 	if slices.Contains(req.Set, "reasoning-efforts") {
 		reasoningEfforts, err := inferenceCliParseReasoningEfforts(reasoningEffortsRaw)
@@ -259,6 +277,9 @@ func initCli() {
 		}
 		if set("capabilities") {
 			model.Capabilities = slices.Clone(r.Payload.Capabilities)
+		}
+		if set("default-for") {
+			model.DefaultFor = slices.Clone(r.Payload.DefaultFor)
 		}
 		if set("reasoning-efforts") {
 			model.ReasoningEfforts = slices.Clone(r.Payload.ReasoningEfforts)
@@ -451,6 +472,7 @@ type k8sCliInferenceModelsUpdateRequest struct {
 	NewName                    string
 	Title                      string
 	Capabilities               []InferenceCapability
+	DefaultFor                 []InferenceCapability
 	ReasoningEfforts           []InferenceModelOption
 	DefaultReasoningEffort     string
 	PricePerMillionCachedInput int64

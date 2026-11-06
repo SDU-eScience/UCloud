@@ -39,6 +39,7 @@ export interface InferenceModel {
     name: string;
     title: string;
     capabilities: InferenceCapability[];
+    defaultFor?: InferenceCapability[];
     reasoningEfforts: InferenceModelOption[];
     defaultReasoningEffort: string;
     pricePerMillion: {

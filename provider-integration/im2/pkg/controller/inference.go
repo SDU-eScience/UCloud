@@ -1,9 +1,13 @@
 package controller
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,9 +31,89 @@ var inferencePlaygroundSessions = struct {
 	Sessions: map[string]inferencePlaygroundSession{},
 }
 
+var InferencePlaygroundImageRead func(owner orcapi.ResourceOwner, path string) ([]byte, *util.HttpError)
+
+type inferencePlaygroundImageLink struct {
+	Owner     orcapi.ResourceOwner
+	Path      string
+	ExpiresAt time.Time
+}
+
+var inferencePlaygroundImageLinks = struct {
+	sync.Mutex
+	Links map[string]inferencePlaygroundImageLink
+}{
+	Links: map[string]inferencePlaygroundImageLink{},
+}
+
+func InferencePlaygroundImageURL(owner orcapi.ResourceOwner, path string) string {
+	token := util.SecureToken()
+	inferencePlaygroundImageLinks.Lock()
+	for key, link := range inferencePlaygroundImageLinks.Links {
+		if time.Now().After(link.ExpiresAt) {
+			delete(inferencePlaygroundImageLinks.Links, key)
+		}
+	}
+	inferencePlaygroundImageLinks.Links[token] = inferencePlaygroundImageLink{
+		Owner: owner, Path: path, ExpiresAt: time.Now().Add(10 * time.Minute),
+	}
+	inferencePlaygroundImageLinks.Unlock()
+	return fmt.Sprintf("%s/ucloud/%s/inference/playground/images?token=%s",
+		cfg.Provider.Hosts.SelfPublic.ToURL(), cfg.Provider.Id, url.QueryEscape(token))
+}
+
+func inferencePlaygroundServeImage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", cfg.Provider.Hosts.UCloudPublic.ToURL())
+	w.Header().Set("Access-Control-Allow-Headers", "Authorization")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var owner orcapi.ResourceOwner
+	path := r.URL.Query().Get("path")
+	if token := r.URL.Query().Get("token"); token != "" {
+		inferencePlaygroundImageLinks.Lock()
+		link, ok := inferencePlaygroundImageLinks.Links[token]
+		inferencePlaygroundImageLinks.Unlock()
+		if !ok || time.Now().After(link.ExpiresAt) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		owner, path = link.Owner, link.Path
+	} else {
+		token, bearer := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+		session, ok := inferencePlaygroundSessionLookup(token)
+		if !bearer || !ok {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		owner = session.Owner
+	}
+	if InferencePlaygroundImageRead == nil {
+		http.NotFound(w, r)
+		return
+	}
+	data, err := InferencePlaygroundImageRead(owner, path)
+	if err != nil {
+		http.Error(w, err.Why, err.StatusCode)
+		return
+	}
+	w.Header().Set("Content-Type", http.DetectContentType(data))
+	http.ServeContent(w, r, filepath.Base(path), time.Time{}, bytes.NewReader(data))
+}
+
 func initInference() {
 	if RunsServerCode() {
 		providerPath := fmt.Sprintf("/ucloud/%s/inference/playground", cfg.Provider.Id)
+		Mux.HandleFunc(providerPath+"/images", inferencePlaygroundServeImage)
 		upgrader := ws.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 
 		go func() {

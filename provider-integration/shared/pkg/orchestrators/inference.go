@@ -47,6 +47,7 @@ type InferenceModel struct {
 	Name                   string                 `json:"name"`
 	Title                  string                 `json:"title"`
 	Capabilities           []InferenceCapability  `json:"capabilities"`
+	DefaultFor             []InferenceCapability  `json:"defaultFor"`
 	ReasoningEfforts       []InferenceModelOption `json:"reasoningEfforts,omitempty"`
 	DefaultReasoningEffort string                 `json:"defaultReasoningEffort,omitempty"`
 	PricePerMillion        InferencePricing       `json:"pricePerMillion"`

@@ -390,7 +390,11 @@ function ModelPageContent(props: {
                 /> : <Datasheet model={model} isAdmin={props.isAdmin} />}
 
                 {props.editing ? null : <Flex gap="12px" flexWrap="wrap" flexDirection={"column"}>
-                    <Link to={AppRoutes.inference.playground(model.name)}>
+                    <Link
+                        to={AppRoutes.inference.playground(
+                            model.capabilities.includes("TextGeneration") ? model.name : undefined,
+                        )}
+                    >
                         <Button type="button" color="successMain" width={"100%"}>Try now</Button>
                     </Link>
                     <ExternalLink href={documentationUrl}>
@@ -455,6 +459,7 @@ function Datasheet({model, isAdmin}: {model: InferenceModel; isAdmin: boolean}):
             return prettierCapabilities[idx];
         }).join(", ")],
         ["Endpoint", <CopyableEndpoint key="endpoint" value={model.name} />],
+        ["Provider default for", model.defaultFor?.map(expandAndPrettifyString).join(", ") || null],
         ["File URL root", isAdmin && model.fileUrlRoot ? <code>{model.fileUrlRoot}</code> : null],
         ["Parameters", page?.datasheet?.parameters ?? "Not specified"],
         ["Activated parameters", page?.datasheet?.activatedParameters ?? null],
@@ -645,8 +650,50 @@ function ModelSettingsEditor(props: {
         <ReasoningEffortsEditor model={model} setModel={setModel} />
         <Box>
             <Text fontWeight={600}>Capabilities</Text>
-            <Flex gap="12px" flexWrap="wrap" mt={8}>{capabilities.map((capability, index) => <label key={capability} style={{ display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={model.capabilities.includes(capability)} onChange={ev => setModel({ ...model, capabilities: ev.currentTarget.checked ? [...model.capabilities, capability] : model.capabilities.filter(it => it !== capability) })} />{prettierCapabilities[index]}</label>)}</Flex>
+            <Flex gap="12px" flexWrap="wrap" mt={8}>
+                {capabilities.map((capability, index) => (
+                    <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}>
+                        <input
+                            type="checkbox"
+                            checked={model.capabilities.includes(capability)}
+                            onChange={ev => setModel({
+                                ...model,
+                                capabilities: ev.currentTarget.checked
+                                    ? [...model.capabilities, capability]
+                                    : model.capabilities.filter(it => it !== capability),
+                                defaultFor: ev.currentTarget.checked
+                                    ? model.defaultFor
+                                    : model.defaultFor?.filter(it => it !== capability),
+                            })}
+                        />
+                        {prettierCapabilities[index]}
+                    </label>
+                ))}
+            </Flex>
         </Box>
+        {props.isAdmin ? <Box>
+            <Text fontWeight={600}>Provider default for</Text>
+            <Text color="textSecondary">Selecting a default replaces the previous model for that operation.</Text>
+            <Flex gap="12px" flexWrap="wrap" mt={8}>
+                {(["TextToImage", "ImageToImage"] as InferenceCapability[])
+                    .filter(capability => model.capabilities.includes(capability))
+                    .map(capability => (
+                        <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}>
+                            <input
+                                type="checkbox"
+                                checked={model.defaultFor?.includes(capability) ?? false}
+                                onChange={ev => setModel({
+                                    ...model,
+                                    defaultFor: ev.currentTarget.checked
+                                        ? [...(model.defaultFor ?? []), capability]
+                                        : model.defaultFor?.filter(it => it !== capability),
+                                })}
+                            />
+                            {expandAndPrettifyString(capability)}
+                        </label>
+                    ))}
+            </Flex>
+        </Box> : null}
     </Box>;
 }
 

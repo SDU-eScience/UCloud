@@ -149,6 +149,8 @@ const PLAYGROUND_REHYDRATE_PATHS = [
     "chat.topLogprobs",
 ];
 const PlaygroundProviderDomainContext = React.createContext("");
+const PlaygroundImageAccessContext = React.createContext<PlaygroundSession | null>(null);
+const PlaygroundImageEditAvailableContext = React.createContext(false);
 
 const playgroundComponents: UcxComponentRegistry = {
     inference_chat_composer: (ctx: UcxRenderContext) => <PlaygroundChatComposer {...ctx}/>,
@@ -166,12 +168,20 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
         const selectedModel = stringValue(fn.modelValue(model, "chat.modelId", scope));
         const selectedModelOption = modelOptions.find(option => option.key === selectedModel);
         const selectedCapabilities = modelCapabilities(model, selectedModel);
+        const imageGenerationModel = stringValue(fn.modelValue(model, "imageGenerationModel"));
+        const imageEditModel = stringValue(fn.modelValue(model, "imageEditModel"));
+        const imageReference = stringValue(fn.modelValue(model, "chat.imageReference"));
         const reasoningEfforts = modelReasoningEfforts(model, selectedModel);
         const reasoningEffort = stringValue(fn.modelValue(model, "chat.reasoningEffort", scope));
         const selectedReasoningEffort = reasoningEfforts.find(option => option.key === reasoningEffort);
         const [localDraft, setLocalDraft] = React.useState(() => stringValue(fn.modelValue(model, node.bindPath, scope)));
         const value = localDraft;
         const setValue = setLocalDraft;
+        React.useEffect(() => {
+            if (imageReference !== "") {
+                setLocalDraft(current => /^\/image(?:\s|$)/.test(current) ? current : `/image ${current}`);
+            }
+        }, [imageReference]);
         const providerDomain = React.useContext(PlaygroundProviderDomainContext);
         const fileInputRef = React.useRef<HTMLInputElement | null>(null);
         const uploadCancelRef = React.useRef<Record<string, {cancelled: boolean; attachmentId: string | null}>>({});
@@ -190,11 +200,19 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
 
         const send = () => {
             if (!canSend) return;
-            const sentAttachments = attachments.filter(attachment => attachment.kind === "text" || attachment.kind === "convertible" || attachment.attachmentId !== null);
+            if (/^\/image(?:\s|$)/.test(value) &&
+                imageReference === "" &&
+                attachments.filter(attachment => attachment.kind === "image").length > 1) {
+                sendFailureNotification("Select one source image for this edit.");
+                return;
+            }
+            const sentAttachments = attachments.filter(attachment =>
+                attachment.kind === "text" || attachment.kind === "convertible" || attachment.attachmentId !== null);
             fn.sendUiEvent(node.id, "click", {
                 kind: ValueKind.Object,
                 object: {
                     prompt: {kind: ValueKind.String, string: value},
+                    imageReference: {kind: ValueKind.String, string: imageReference},
                     attachments: {
                         kind: ValueKind.List,
                         list: sentAttachments.map(attachment => ({
@@ -216,6 +234,13 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
         };
 
         const removeAttachment = (localId: string) => {
+            if (attachments.find(attachment => attachment.localId === localId)?.attachmentId === imageReference) {
+                fn.sendModelInput(
+                    "chat.imageReference",
+                    {kind: ValueKind.String, string: ""},
+                    "chat.imageReference",
+                );
+            }
             const cancelState = uploadCancelRef.current[localId];
             if (cancelState) {
                 cancelState.cancelled = true;
@@ -229,7 +254,7 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
 
         const uploadFile = async (file: File) => {
             const kind = await detectPlaygroundAttachmentKind(file);
-            const rejection = playgroundAttachmentRejection(kind, selectedCapabilities);
+            const rejection = playgroundAttachmentRejection(kind, selectedCapabilities, imageEditModel !== "");
             if (rejection) {
                 sendFailureNotification(rejection);
                 return;
@@ -413,10 +438,58 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                 {attachments.length > 0 && (
                     <div style={{display: "flex", flexWrap: "wrap", gap: 8, padding: "0 10px 8px 10px"}}>
                         {attachments.map(attachment => (
-                            <AttachmentUploadCard key={attachment.localId} attachment={attachment} onRemove={() => removeAttachment(attachment.localId)}/>
+                            <div key={attachment.localId} style={{minWidth: 0}}>
+                                <AttachmentUploadCard
+                                    attachment={attachment}
+                                    onRemove={() => removeAttachment(attachment.localId)}
+                                />
+                                {attachment.kind === "image" && attachment.attachmentId && imageEditModel !== "" ? (
+                                    <label style={{display: "flex", gap: 4, fontSize: 12, padding: 4}}>
+                                        <input
+                                            type="radio"
+                                            name="image-reference"
+                                            checked={imageReference === attachment.attachmentId}
+                                            onChange={() => fn.sendModelInput(
+                                                "chat.imageReference",
+                                                {kind: ValueKind.String, string: attachment.attachmentId!},
+                                                "chat.imageReference",
+                                            )}
+                                        />
+                                        Use as edit source
+                                    </label>
+                                ) : null}
+                            </div>
                         ))}
                     </div>
                 )}
+                {imageReference !== "" ? (
+                    <div style={{
+                        display: "flex", alignItems: "center", gap: 8,
+                        padding: "0 16px 8px", fontSize: 12, minWidth: 0,
+                    }}>
+                        <span style={{minWidth: 0, overflow: "hidden", textOverflow: "ellipsis"}}>
+                            Edit source: {playgroundImageReferenceLabel(model, imageReference, attachments)}
+                        </span>
+                        <button
+                            type="button"
+                            style={{border: 0, background: "transparent", color: "inherit", cursor: "pointer"}}
+                            onClick={() => fn.sendModelInput(
+                                "chat.imageReference",
+                                {kind: ValueKind.String, string: ""},
+                                "chat.imageReference",
+                            )}
+                        >
+                            Clear
+                        </button>
+                    </div>
+                ) : null}
+                {/^\/image(?:\s|$)/.test(value) ? (
+                    <div style={{padding: "0 16px 8px", fontSize: 12, color: "var(--textSecondary)"}}>
+                        {imageReference || attachments.some(attachment => attachment.kind === "image")
+                            ? `Edit image · ${playgroundModelTitle(model, imageEditModel) || "No image-edit default configured"}`
+                            : `Generate image · ${playgroundModelTitle(model, imageGenerationModel) || "No image default configured"}`}
+                    </div>
+                ) : null}
                 <div
                     style={{
                         display: "flex",
@@ -435,6 +508,28 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                     }>
                         Attach file
                     </Tooltip>
+                    {imageGenerationModel !== "" || imageEditModel !== "" ? (
+                        <Tooltip
+                            tooltipContentWidth={220}
+                            trigger={
+                                <span style={{display: "inline-flex"}}>
+                                    <button
+                                        type="button"
+                                        disabled={disabled}
+                                        aria-label="Generate or edit an image"
+                                        className={ComposerActionButtonClass}
+                                        onClick={() => setValue(current =>
+                                            /^\/image(?:\s|$)/.test(current) ? current : `/image ${current}`
+                                        )}
+                                    >
+                                        <Icon name="heroPhoto" size={18}/>
+                                    </button>
+                                </span>
+                            }
+                        >
+                            Use /image to generate or edit an image directly.
+                        </Tooltip>
+                    ) : null}
                     <RichSelect<PlaygroundOption, keyof PlaygroundOption>
                         items={modelOptions}
                         keys={["key", "value"]}
@@ -502,6 +597,11 @@ type ThreadListItem = { id: string; title: string; updatedAt: number };
 
 type ChatMessagePart = {
     kind: "text" | "thinking" | "image" | "video" | "audio" | "attachment" | "tool";
+    imageId?: string;
+    imagePath?: string;
+    modelName?: string;
+    prompt?: string;
+    revisedPrompt?: string;
     text: string;
     summary: string;
     body: string;
@@ -519,6 +619,7 @@ type ChatMessageListItem = {
 };
 
 type ChatMessageViewModel = {
+    directImage: boolean;
     key: string;
     threadId: string;
     role: string;
@@ -900,6 +1001,94 @@ function ReasoningEffortOption({option, selected, onSelect, dataProps}: {
     </div>;
 }
 
+function PlaygroundImagePart({part, fn}: {part: ChatMessagePart; fn: UcxFunctionRegistry}): React.ReactNode {
+    const access = React.useContext(PlaygroundImageAccessContext);
+    const canEdit = React.useContext(PlaygroundImageEditAvailableContext);
+    const [source, setSource] = React.useState("");
+    const [failed, setFailed] = React.useState(false);
+    React.useEffect(() => {
+        setSource("");
+        setFailed(false);
+        if (!part.imagePath) {
+            setSource(part.url);
+            return;
+        }
+        if (!access) return;
+        const controller = new AbortController();
+        let objectUrl = "";
+        void fetch(`${access.connectTo}/images?path=${encodeURIComponent(part.imagePath)}`, {
+            headers: {Authorization: `Bearer ${access.sessionToken}`},
+            signal: controller.signal,
+        }).then(async response => {
+            if (!response.ok) throw new Error("Image unavailable");
+            const blob = await response.blob();
+            if (controller.signal.aborted) return;
+            objectUrl = URL.createObjectURL(blob);
+            setSource(objectUrl);
+        }).catch(() => {
+            if (!controller.signal.aborted) {
+                setFailed(true);
+            }
+        });
+        return () => {
+            controller.abort();
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+        };
+    }, [access?.connectTo, access?.sessionToken, part.imagePath, part.url]);
+    return (
+        <figure style={{margin: 0, minWidth: 0, maxWidth: "100%", display: "flex", flexDirection: "column", gap: 8}}>
+            {failed ? (
+                <div role="status">Image unavailable. The file may have been deleted.</div>
+            ) : source ? (
+                <a href={source} target="_blank" rel="noreferrer">
+                    <img
+                        src={source}
+                        alt={part.fileName || "Generated image"}
+                        onError={() => setFailed(true)}
+                        style={{
+                            display: "block",
+                            maxWidth: "100%",
+                            width: "auto",
+                            maxHeight: 540,
+                            objectFit: "contain",
+                            borderRadius: 8,
+                        }}
+                    />
+                </a>
+            ) : (
+                <UcxSpinner/>
+            )}
+            <figcaption style={{
+                display: "flex", alignItems: "center", flexWrap: "wrap",
+                gap: 12, fontSize: 12, color: "var(--textSecondary)",
+            }}>
+                {part.modelName ? <span>Model: {part.modelName}</span> : <span>{part.fileName}</span>}
+                {source && !failed ? <a href={source} download={part.fileName || "image.png"}>Download</a> : null}
+                {part.imageId && part.imagePath && canEdit && !failed ? (
+                    <button
+                        type="button"
+                        style={{
+                            border: "1px solid var(--playground-border)",
+                            borderRadius: 6,
+                            background: "var(--playground-surface-raised)",
+                            color: "inherit",
+                            padding: "4px 8px",
+                            cursor: "pointer",
+                        }}
+                        onClick={() => fn.sendModelInput(
+                            "chat.imageReference",
+                            {kind: ValueKind.String, string: part.imageId!},
+                            "chat.imageReference",
+                        )}
+                    >
+                        Edit
+                    </button>
+                ) : null}
+            </figcaption>
+        </figure>
+    );
+}
+
 const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptions, currentModelId, fn}: ChatMessageNodeProps): React.ReactNode {
     if (message.hidden) return null;
 
@@ -908,8 +1097,8 @@ const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptio
             <Flex width="100%" justifyContent="flex-end" my={16} flexDirection="column" alignItems="flex-end" gap="6px">
                 <div style={{maxWidth: "78%", borderRadius: 16, padding: "10px 14px", background: "var(--playground-user-bg, var(--secondaryMain))", color: "var(--playground-user-text, var(--textPrimary))", overflowWrap: "anywhere", display: "flex", flexDirection: "column", gap: 8}}>
                     {message.displayParts.map((part, idx) => {
-                        if (part.kind === "image" && part.url !== "") {
-                            return <img key={idx} src={part.url} alt={part.fileName || "Attachment"} style={{maxWidth: 360, maxHeight: 260, objectFit: "contain", borderRadius: 8}}/>;
+                        if (part.kind === "image") {
+                            return <PlaygroundImagePart key={idx} part={part} fn={fn}/>;
                         }
                         if (part.kind === "video" || part.kind === "audio" || part.kind === "attachment") {
                             return <MessageAttachmentCard key={idx} part={part}/>;
@@ -931,53 +1120,79 @@ const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptio
 
     return (
         <Flex flexDirection="column" gap="4px" width="100%" my={16}>
-            {renderMessageParts(message.parts, !responseFinished)}
-            {!responseFinished ? null : <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px" flexWrap="wrap">
-                <CopyButton onClick={() => copyToClipboard(message.content)}/>
-                <RichSelect<PlaygroundOption, keyof PlaygroundOption>
-                    items={modelOptions}
-                    keys={["key", "value"]}
-                    selected={selectedModelOption}
-                    onSelect={(option) => fn.sendUiEvent("regenerateChat", "click", {
-                        kind: ValueKind.Object,
-                        object: {
-                            modelId: {kind: ValueKind.String, string: option.key},
-                            messageIndex: {kind: ValueKind.S64, s64: message.messageIndex},
-                        },
-                    })}
-                    dropdownWidth="340px"
-                    dropdownVerticalGap={8}
-                    elementHeight={42}
-                    matchTriggerWidth={false}
-                    showSearchField={modelOptions.length > 8}
-                    trigger={
+            {renderMessageParts(message.parts, !responseFinished, fn)}
+            {!responseFinished ? null : (
+                <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px" flexWrap="wrap">
+                    {message.content ? <CopyButton onClick={() => copyToClipboard(message.content)}/> : null}
+                    {message.directImage ? (
                         <IconButton
-                            tooltip={<>
-                                <div>Regenerate</div>
-                                <div style={{fontStyle: "italic"}}>Used: {regenerateModelLabel}</div>
-                            </>}
+                            tooltip="Generate again"
                             icon="heroArrowPath"
-                            onClick={doNothing}
+                            onClick={() => fn.sendUiEvent("regenerateChat", "click", {
+                                kind: ValueKind.Object,
+                                object: {
+                                    messageIndex: {kind: ValueKind.S64, s64: message.messageIndex},
+                                },
+                            })}
                         />
-                    }
-                    RenderRow={(props) => (
-                        <ModelSelectorOption
-                            option={props.element}
-                            selected={props.element?.key === selectedModelOption?.key}
-                            onSelect={props.onSelect}
-                            dataProps={props.dataProps}
+                    ) : (
+                        <RichSelect<PlaygroundOption, keyof PlaygroundOption>
+                            items={modelOptions}
+                            keys={["key", "value"]}
+                            selected={selectedModelOption}
+                            onSelect={(option) => fn.sendUiEvent("regenerateChat", "click", {
+                                kind: ValueKind.Object,
+                                object: {
+                                    modelId: {kind: ValueKind.String, string: option.key},
+                                    messageIndex: {kind: ValueKind.S64, s64: message.messageIndex},
+                                },
+                            })}
+                            dropdownWidth="340px"
+                            dropdownVerticalGap={8}
+                            elementHeight={42}
+                            matchTriggerWidth={false}
+                            showSearchField={modelOptions.length > 8}
+                            trigger={
+                                <IconButton
+                                    tooltip={<>
+                                        <div>Regenerate</div>
+                                        <div style={{fontStyle: "italic"}}>Used: {regenerateModelLabel}</div>
+                                    </>}
+                                    icon="heroArrowPath"
+                                    onClick={doNothing}
+                                />
+                            }
+                            RenderRow={(props) => (
+                                <ModelSelectorOption
+                                    option={props.element}
+                                    selected={props.element?.key === selectedModelOption?.key}
+                                    onSelect={props.onSelect}
+                                    dataProps={props.dataProps}
+                                />
+                            )}
                         />
                     )}
-                />
-                <Tooltip tooltipContentWidth={240} trigger={<span>{formatResponseDuration(message.startedAt, message.finishedAt)}</span>}>
-                    <div style={{display: "flex", flexDirection: "column", gap: 4, textAlign: "left"}}>
-                        <span>Time to first token: {formatDuration(message.firstTokenAt > 0 && message.startedAt > 0 ? message.firstTokenAt - message.startedAt : 0)}</span>
-                        <span>Output tokens: {message.outputTokens || "Unknown"}</span>
-                        <span>Finished: {formatTimeOfDay(message.finishedAt)}</span>
-                    </div>
-                </Tooltip>
-                <span>{formatTokensPerSecond(message.outputTokens, message.firstTokenAt, message.finishedAt)}</span>
-            </Flex>}
+                    {message.directImage ? (
+                        <span>{formatResponseDuration(message.startedAt, message.finishedAt)}</span>
+                    ) : (
+                        <Tooltip
+                            tooltipContentWidth={240}
+                            trigger={
+                                <span>{formatResponseDuration(message.startedAt, message.finishedAt)}</span>
+                            }
+                        >
+                            <div style={{display: "flex", flexDirection: "column", gap: 4, textAlign: "left"}}>
+                                <span>Time to first token: {formatDuration(message.firstTokenAt > 0 && message.startedAt > 0 ? message.firstTokenAt - message.startedAt : 0)}</span>
+                                <span>Output tokens: {message.outputTokens || "Unknown"}</span>
+                                <span>Finished: {formatTimeOfDay(message.finishedAt)}</span>
+                            </div>
+                        </Tooltip>
+                    )}
+                    {!message.directImage ? (
+                        <span>{formatTokensPerSecond(message.outputTokens, message.firstTokenAt, message.finishedAt)}</span>
+                    ) : null}
+                </Flex>
+            )}
         </Flex>
     );
 }, areChatMessageNodePropsEqual);
@@ -1021,22 +1236,31 @@ const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, s
 });
 
 const ToolDisplayNames: Record<string, string> = {
+    generate_image: "Generating image",
+    edit_image: "Editing image",
     bash: "Shell",
     web_fetch: "Fetching web page",
     request_internet_access: "Requesting internet access",
 };
 
 const ToolIcons: Record<string, IconName> = {
+    generate_image: "heroPhoto",
+    edit_image: "heroPhoto",
     bash: "heroCommandLine",
     web_fetch: "heroGlobeEuropeAfrica",
     request_internet_access: "heroGlobeEuropeAfrica",
 };
 
-function renderMessageParts(parts: ChatMessagePart[], streaming: boolean): React.ReactNode[] {
+function renderMessageParts(parts: ChatMessagePart[], streaming: boolean, fn: UcxFunctionRegistry): React.ReactNode[] {
     const result: React.ReactNode[] = [];
     const orderedParts = [...parts.filter(part => part.kind === "tool"), ...parts.filter(part => part.kind !== "tool")];
     for (let index = 0; index < orderedParts.length;) {
         const part = orderedParts[index];
+        if (part.kind === "image") {
+            result.push(<PlaygroundImagePart key={part.imageId || index} part={part} fn={fn}/>);
+            index++;
+            continue;
+        }
         if (part.kind === "thinking") {
             result.push(<ThinkingPart key={index} part={part}/>);
             index++;
@@ -1932,7 +2156,9 @@ function PlaygroundConversation({model, fn, connected, disabledReason = "", disa
     }), [connected, loading, streamingThreadId, currentThreadId]);
 
     return (
-        <>
+        <PlaygroundImageEditAvailableContext.Provider
+            value={stringValue(fn?.modelValue(model, "imageEditModel") ?? model.imageEditModel) !== ""}
+        >
             <div
                 ref={containerRef}
                 onScroll={(ev) => {
@@ -1964,7 +2190,7 @@ function PlaygroundConversation({model, fn, connected, disabledReason = "", disa
                 components: playgroundComponents,
                 renderChildren: () => [],
             }) : <DisabledComposerPlaceholder disabledReason={developer ? "You cannot send messages in developer mode" : disabledReason}/>}
-        </>
+        </PlaygroundImageEditAvailableContext.Provider>
     );
 }
 
@@ -2301,28 +2527,30 @@ export default function Playground(): React.ReactNode {
 
     return (
         <PlaygroundProviderDomainContext.Provider value={providerDomain}>
-            <UcxView
-                key={`${projectId ?? ""}:${session.sessionToken}`}
-                url={session.connectTo}
-                authToken={session.sessionToken}
-                sysHello={JSON.stringify({})}
-                onConnected={handleConnected}
-                onDisconnected={handleDisconnected}
-                onTransportError={handleTransportError}
-                onModelChange={handleModelChange}
-                components={playgroundComponents}
-                rehydrateModelPaths={PLAYGROUND_REHYDRATE_PATHS}
-                renderFrame={({connected, mounted, transportError, content, model, fn}) => (
-                    <PlaygroundFrame
-                        model={model ?? lastModel}
-                        fn={fn}
-                        ucxContent={content}
-                        connected={connected}
-                        mounted={mounted ?? false}
-                        error={terminalError || transportError}
-                    />
-                )}
-            />
+            <PlaygroundImageAccessContext.Provider value={session}>
+                <UcxView
+                    key={`${projectId ?? ""}:${session.sessionToken}`}
+                    url={session.connectTo}
+                    authToken={session.sessionToken}
+                    sysHello={JSON.stringify({})}
+                    onConnected={handleConnected}
+                    onDisconnected={handleDisconnected}
+                    onTransportError={handleTransportError}
+                    onModelChange={handleModelChange}
+                    components={playgroundComponents}
+                    rehydrateModelPaths={PLAYGROUND_REHYDRATE_PATHS}
+                    renderFrame={({connected, mounted, transportError, content, model, fn}) => (
+                        <PlaygroundFrame
+                            model={model ?? lastModel}
+                            fn={fn}
+                            ucxContent={content}
+                            connected={connected}
+                            mounted={mounted ?? false}
+                            error={terminalError || transportError}
+                        />
+                    )}
+                />
+            </PlaygroundImageAccessContext.Provider>
         </PlaygroundProviderDomainContext.Provider>
     );
 }
@@ -2386,6 +2614,40 @@ function playgroundProviderDomain(connectTo: string): string {
 function playgroundAttachmentUrl(providerDomain: string, attachmentId: string): string {
     if (providerDomain === "" || attachmentId === "") return "";
     return `https://${providerDomain}/api/inference/attachments/download?id=${encodeURIComponent(attachmentId)}`;
+}
+
+function playgroundModelTitle(model: Record<string, Value>, name: string): string {
+    const models = model.models;
+    if (models?.kind !== ValueKind.List) {
+        return name;
+    }
+    const selected = models.list.find(item =>
+        item.kind === ValueKind.Object &&
+        stringValue(item.object.name) === name
+    );
+    return selected?.kind === ValueKind.Object ? stringValue(selected.object.title) || name : name;
+}
+
+function playgroundImageReferenceLabel(
+    model: Record<string, Value>,
+    imageId: string,
+    attachments: PlaygroundUploadAttachment[],
+): string {
+    const upload = attachments.find(attachment => attachment.attachmentId === imageId);
+    if (upload) {
+        return upload.fileName;
+    }
+    const messages = model["chat.messages"];
+    if (messages?.kind === ValueKind.List) {
+        for (const message of messages.list) {
+            if (message.kind !== ValueKind.Object) continue;
+            const part = chatMessagePartsValue(message.object.parts).find(part => part.imageId === imageId);
+            if (part) {
+                return part.fileName || "Selected image";
+            }
+        }
+    }
+    return "Selected image";
 }
 
 function textGenerationModelOptions(value: any): PlaygroundOption[] {
@@ -2486,10 +2748,13 @@ function isConvertiblePlaygroundAttachment(fileName: string, mimeType: string): 
     ].includes(mimeType.toLowerCase());
 }
 
-function playgroundAttachmentRejection(kind: PlaygroundAttachmentKind, capabilities: string[]): string {
+function playgroundAttachmentRejection(kind: PlaygroundAttachmentKind, capabilities: string[],
+    canEditImages: boolean): string {
     switch (kind) {
         case "image":
-            return capabilities.includes("Vision") ? "" : "The selected model does not support image attachments.";
+            return capabilities.includes("Vision") || canEditImages
+                ? ""
+                : "The selected model cannot view images and no image-edit default is available.";
         case "video":
             return capabilities.includes("VideoVision") ? "" : "The selected model does not support video attachments.";
         case "audio":
@@ -2546,6 +2811,11 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
                 url: stringValue(item.object.url),
                 toolName: stringValue(item.object.toolName),
                 status: stringValue(item.object.status),
+                imageId: stringValue(item.object.imageId),
+                imagePath: stringValue(item.object.imagePath),
+                modelName: stringValue(item.object.modelName),
+                prompt: stringValue(item.object.prompt),
+                revisedPrompt: stringValue(item.object.revisedPrompt),
             },
         ];
     });
@@ -2631,6 +2901,7 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
 
         const key = `${currentThreadId || "thread"}:${idx}:${messageIndex}`;
         const viewModel: ChatMessageViewModel = {
+            directImage: boolValue(item.object.directImage),
             key,
             threadId: currentThreadId,
             role,
@@ -2652,7 +2923,7 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
 }
 
 function chatMessageViewModelEqual(a: ChatMessageViewModel, b: ChatMessageViewModel): boolean {
-    return a.key === b.key &&
+    return a.directImage === b.directImage && a.key === b.key &&
         a.threadId === b.threadId &&
         a.role === b.role &&
         a.content === b.content &&
@@ -2693,7 +2964,12 @@ function chatMessagePartEqual(a: ChatMessagePart, b: ChatMessagePart): boolean {
         a.fileName === b.fileName &&
         a.url === b.url &&
         a.toolName === b.toolName &&
-        a.status === b.status;
+        a.status === b.status &&
+        a.imageId === b.imageId &&
+        a.imagePath === b.imagePath &&
+        a.modelName === b.modelName &&
+        a.prompt === b.prompt &&
+        a.revisedPrompt === b.revisedPrompt;
 }
 
 function playgroundOptionsEqual(a: PlaygroundOption[], b: PlaygroundOption[]): boolean {

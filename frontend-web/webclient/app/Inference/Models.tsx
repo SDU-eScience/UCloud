@@ -20,7 +20,7 @@ import {expandAndPrettifyString} from "@/UtilityFunctions";
 import { DropdownClass } from "@/ui-components/Dropdown";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 
-const capabilities: InferenceCapability[] = ["TextGeneration"];
+const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "ImageToImage"];
 const prettierCapabilities = capabilities.map(expandAndPrettifyString);
 
 const pageStyle = injectStyle("inference-models-page", k => `
@@ -888,6 +888,16 @@ function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {
         </div>
 
         <LineCappedMarkdown width={"100%"} lines={3}>{model.page?.shortDescription ?? ""}</LineCappedMarkdown>
+        <div style={{display: "flex", gap: 6, flexWrap: "wrap", fontSize: 12}}>
+            {model.capabilities
+                .filter(capability => capabilities.includes(capability))
+                .map(capability => (
+                    <span key={capability}>{expandAndPrettifyString(capability)}</span>
+                ))}
+            {(model.defaultFor ?? []).map(capability => (
+                <strong key={capability}>Default: {expandAndPrettifyString(capability)}</strong>
+            ))}
+        </div>
 
         <div className={"model-spec-section"}>
             <div className="model-specs">
