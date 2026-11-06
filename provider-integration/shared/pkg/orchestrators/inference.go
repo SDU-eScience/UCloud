@@ -34,13 +34,15 @@ type InferenceListPlaygroundThreadsResponse struct {
 type InferenceCapability string
 
 const (
-	InferenceTextGeneration InferenceCapability = "TextGeneration"
-	InferenceTextToImage    InferenceCapability = "TextToImage"
-	InferenceImageToImage   InferenceCapability = "ImageToImage"
-	InferenceSpeechToText   InferenceCapability = "SpeechToText"
-	InferenceVision         InferenceCapability = "Vision"
-	InferenceVideoVision    InferenceCapability = "VideoVision"
-	InferenceAudio          InferenceCapability = "Audio"
+	InferenceTextGeneration            InferenceCapability = "TextGeneration"
+	InferenceTextToImage               InferenceCapability = "TextToImage"
+	InferenceImageToImage              InferenceCapability = "ImageToImage"
+	InferenceSpeechToText              InferenceCapability = "SpeechToText"
+	InferenceSpeechToTextTimestamps    InferenceCapability = "SpeechToTextTimestamps"
+	InferenceSpeechToTextSpeakerLabels InferenceCapability = "SpeechToTextSpeakerLabels"
+	InferenceVision                    InferenceCapability = "Vision"
+	InferenceVideoVision               InferenceCapability = "VideoVision"
+	InferenceAudio                     InferenceCapability = "Audio"
 )
 
 type InferenceModel struct {

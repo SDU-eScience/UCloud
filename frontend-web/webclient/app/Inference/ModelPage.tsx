@@ -20,7 +20,7 @@ import {formatDate} from "date-fns";
 import {MarkdownDocument} from "@/ui-components/Markdown";
 
 const fallbackDocs = "https://docs.cloud.sdu.dk";
-const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "ImageToImage", "SpeechToText", "Vision", "VideoVision", "Audio"];
+const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "ImageToImage", "SpeechToText", "SpeechToTextTimestamps", "SpeechToTextSpeakerLabels", "Vision", "VideoVision", "Audio"];
 const prettierCapabilities = capabilities.map(expandAndPrettifyString);
 type PricePerMillionText = {cachedInput: string; input: string; output: string};
 
@@ -645,6 +645,18 @@ function ModelSettingsEditor(props: {
         <label>Temperature<Input type="number" step="0.1" min="0" max="2" value={model.chatSettings.temperature} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, temperature: parseFloat(ev.currentTarget.value || "0")}})} /></label>
         <label>Top P<Input type="number" step="0.1" min="0" max="1" value={model.chatSettings.topP} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, topP: parseFloat(ev.currentTarget.value || "0")}})} /></label>
         <label>Max completion tokens<Input type="number" min="1" value={model.chatSettings.maxCompletionTokens} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, maxCompletionTokens: parseInt(ev.currentTarget.value || "0")}})} /></label>
+        <label>Context length<Input
+            type="number"
+            min="1"
+            step="1"
+            placeholder="Not specified"
+            value={model.contextWindow ?? ""}
+            onChange={ev => {
+                const text = ev.currentTarget.value;
+                const parsed = Number.parseInt(text, 10);
+                setModel({...model, contextWindow: text === "" || !Number.isFinite(parsed) || parsed <= 0 ? undefined : parsed});
+            }}
+        /></label>
         <label>System prompt<Input value={model.chatSettings.systemPrompt ?? ""} placeholder="Use global default" onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, systemPrompt: ev.currentTarget.value.trim() === "" ? undefined : ev.currentTarget.value}})} /></label>
         <label style={{display: "flex", gap: 6, alignItems: "center"}}><input type="checkbox" checked={model.chatSettings.disableTools} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, disableTools: ev.currentTarget.checked}})} />Disable chat tools</label>
         <ReasoningEffortsEditor model={model} setModel={setModel} />
@@ -656,11 +668,12 @@ function ModelSettingsEditor(props: {
                         <input
                             type="checkbox"
                             checked={model.capabilities.includes(capability)}
+                            disabled={(capability === "SpeechToTextTimestamps" || capability === "SpeechToTextSpeakerLabels") && !model.capabilities.includes("SpeechToText")}
                             onChange={ev => setModel({
                                 ...model,
                                 capabilities: ev.currentTarget.checked
                                     ? [...model.capabilities, capability]
-                                    : model.capabilities.filter(it => it !== capability),
+                                    : model.capabilities.filter(it => it !== capability && (capability !== "SpeechToText" || (it !== "SpeechToTextTimestamps" && it !== "SpeechToTextSpeakerLabels"))),
                                 defaultFor: ev.currentTarget.checked
                                     ? model.defaultFor
                                     : model.defaultFor?.filter(it => it !== capability),
@@ -675,7 +688,7 @@ function ModelSettingsEditor(props: {
             <Text fontWeight={600}>Provider default for</Text>
             <Text color="textSecondary">Selecting a default replaces the previous model for that operation.</Text>
             <Flex gap="12px" flexWrap="wrap" mt={8}>
-                {(["TextToImage", "ImageToImage"] as InferenceCapability[])
+                {(["TextToImage", "ImageToImage", "SpeechToText"] as InferenceCapability[])
                     .filter(capability => model.capabilities.includes(capability))
                     .map(capability => (
                         <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}>

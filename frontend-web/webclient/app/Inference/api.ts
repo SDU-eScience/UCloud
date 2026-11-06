@@ -33,7 +33,7 @@ export function listPlaygroundThreads(request: ListPlaygroundThreadsRequest): AP
     return apiRetrieve(request, baseContext, "playgroundThreads");
 }
 
-export type InferenceCapability = "TextGeneration" | "TextToImage" | "ImageToImage" | "SpeechToText" | "Vision" | "VideoVision" | "Audio";
+export type InferenceCapability = "TextGeneration" | "TextToImage" | "ImageToImage" | "SpeechToText" | "SpeechToTextTimestamps" | "SpeechToTextSpeakerLabels" | "Vision" | "VideoVision" | "Audio";
 
 export interface InferenceModel {
     name: string;

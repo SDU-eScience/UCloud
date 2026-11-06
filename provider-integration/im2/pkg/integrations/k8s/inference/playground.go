@@ -83,6 +83,7 @@ type InferencePlaygroundApp struct {
 	CurrentThreadId      string
 	ImageGenerationModel string
 	ImageEditModel       string
+	TranscriptionModel   string
 
 	Chat        InferencePlaygroundAppChat
 	chatCancels map[string]context.CancelFunc `ucx:"-"`
@@ -97,6 +98,7 @@ type InferencePlaygroundAppChat struct {
 	SystemPrompt        string
 	Prompt              string
 	ImageReference      string
+	AudioReference      string
 	Streaming           bool
 	Temperature         float64
 	TopP                float64
@@ -136,37 +138,45 @@ type InferencePlaygroundTokenUsage struct {
 }
 
 type playgroundChatMessage struct {
-	Role           string
-	Content        string
-	Synthetic      bool
-	Reasoning      string
-	Parts          []playgroundChatMessagePart
-	GeneratedAt    int64
-	ModelName      string
-	StartedAt      int64
-	FirstTokenAt   int64
-	FinishedAt     int64
-	OutputTokens   int64
-	MessageIndex   int64
-	ImageReference string
-	DirectImage    bool
+	Role                string
+	Content             string
+	Synthetic           bool
+	Reasoning           string
+	Parts               []playgroundChatMessagePart
+	GeneratedAt         int64
+	ModelName           string
+	StartedAt           int64
+	FirstTokenAt        int64
+	FinishedAt          int64
+	OutputTokens        int64
+	MessageIndex        int64
+	ImageReference      string
+	DirectImage         bool
+	AudioReference      string
+	DirectTranscription bool
 }
 
 type playgroundChatMessagePart struct {
-	Kind          string
-	Text          string
-	Summary       string
-	Body          string
-	Open          bool
-	FileName      string
-	Url           string
-	ToolName      string
-	Status        string
-	ImageId       string
-	ImagePath     string
-	ModelName     string
-	Prompt        string
-	RevisedPrompt string
+	Kind                string
+	Text                string
+	Summary             string
+	Body                string
+	Open                bool
+	FileName            string
+	Url                 string
+	ToolName            string
+	Status              string
+	ImageId             string
+	ImagePath           string
+	ModelName           string
+	Prompt              string
+	RevisedPrompt       string
+	FileId              string
+	FilePath            string
+	TranscriptPath      string
+	TranscriptUrl       string
+	TranscriptionFormat string
+	AudioMilliseconds   int64
 }
 
 type playgroundChatAttachment struct {
@@ -368,9 +378,17 @@ func (app *InferencePlaygroundApp) OnMessage(message ucx.Frame) {
 		case "chatComposer":
 			prompt, attachments := playgroundChatComposerEvent(message.UiEvent.Value)
 			app.Chat.ImageReference = message.UiEvent.Value.Object["imageReference"].String
+			app.Chat.AudioReference = message.UiEvent.Value.Object["audioReference"].String
 			app.Chat.Prompt = prompt
 			if !app.currentThreadLoading() {
 				app.runChat(attachments)
+				ucx.AppUpdateModel(app)
+			}
+		case "transcribeAttachment":
+			if !app.currentThreadLoading() {
+				app.Chat.AudioReference = message.UiEvent.Value.Object["fileId"].String
+				app.Chat.Prompt = "/transcribe " + message.UiEvent.Value.Object["format"].String
+				app.runChat(nil)
 				ucx.AppUpdateModel(app)
 			}
 		case "chatComposerStop":
@@ -512,6 +530,7 @@ func (app *InferencePlaygroundApp) createThread() {
 	app.CurrentThreadId = ""
 	app.Chat.Messages = nil
 	app.Chat.ImageReference = ""
+	app.Chat.AudioReference = ""
 	app.Chat.Loading = false
 	app.Chat.StreamingMessages = nil
 	app.Chat.StreamingThreadId = ""
@@ -568,6 +587,7 @@ func (app *InferencePlaygroundApp) openThread(id string) {
 		if app.Threads[i].Id == id && !app.Threads[i].Deleted {
 			app.CurrentThreadId = id
 			app.Chat.ImageReference = ""
+			app.Chat.AudioReference = ""
 			app.Chat.Messages = slices.Clone(app.Threads[i].Messages)
 			app.Chat.StreamingMessages = nil
 			app.Chat.StreamingThreadId = ""
@@ -842,8 +862,9 @@ func playgroundThreadTitle(prompt string) string {
 func (app *InferencePlaygroundApp) refreshModels() {
 	resp := InferenceModelListForOwner(app.walletOwner())
 	app.Models = resp
-	app.ImageGenerationModel = playgroundImageDefault(app.walletOwner(), InferenceTextToImage)
-	app.ImageEditModel = playgroundImageDefault(app.walletOwner(), InferenceImageToImage)
+	app.ImageGenerationModel = playgroundDefaultModel(app.walletOwner(), InferenceTextToImage)
+	app.ImageEditModel = playgroundDefaultModel(app.walletOwner(), InferenceImageToImage)
+	app.TranscriptionModel = playgroundDefaultModel(app.walletOwner(), InferenceSpeechToText)
 }
 
 func (app *InferencePlaygroundApp) availableModes() []string {
@@ -932,12 +953,20 @@ func (app *InferencePlaygroundApp) prepareChatMessagesForUi() {
 		app.Chat.Messages[i].MessageIndex = int64(i)
 		parts := slices.Clone(app.Chat.Messages[i].Parts)
 		for j := range parts {
-			if parts[j].Kind != "image" || parts[j].ImagePath == "" {
-				continue
-			}
-			parts[j].Url = ""
-			if parts[j].Status != "missing" {
-				parts[j].Url = ctrl.InferencePlaygroundImageURL(app.Owner, parts[j].ImagePath)
+			if parts[j].Kind == "image" && parts[j].ImagePath != "" {
+				parts[j].Url = ""
+				if parts[j].Status != "missing" {
+					parts[j].Url = ctrl.InferencePlaygroundImageURL(app.Owner, parts[j].ImagePath)
+				}
+			} else if (parts[j].Kind == "audio" || parts[j].Kind == "transcript") && parts[j].FilePath != "" {
+				parts[j].Url = ""
+				parts[j].TranscriptUrl = ""
+				if parts[j].Status != "missing" {
+					parts[j].Url = ctrl.InferencePlaygroundFileURL(app.Owner, parts[j].FilePath)
+					if parts[j].TranscriptPath != "" {
+						parts[j].TranscriptUrl = ctrl.InferencePlaygroundFileURL(app.Owner, parts[j].TranscriptPath)
+					}
+				}
 			}
 		}
 		app.Chat.Messages[i].Parts = parts
@@ -952,7 +981,8 @@ func (app *InferencePlaygroundApp) runChat(attachments []playgroundChatAttachmen
 	app.Chat.Loading = true
 
 	directImage := playgroundImageCommand(prompt)
-	if strings.HasPrefix(prompt, "/") && !directImage {
+	directTranscription := playgroundTranscriptionCommand(prompt)
+	if strings.HasPrefix(prompt, "/") && !directImage && !directTranscription {
 		if app.runDeveloperSlashCommand(prompt) {
 			ucx.AppUpdateModel(app)
 			return
@@ -983,15 +1013,17 @@ func (app *InferencePlaygroundApp) runChat(attachments []playgroundChatAttachmen
 		Parts:          playgroundChatMessageParts(prompt, ""),
 		GeneratedAt:    now,
 		ImageReference: app.Chat.ImageReference,
+		AudioReference: app.Chat.AudioReference,
 	})
 	app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{
-		Role:        "assistant",
-		Content:     "",
-		Parts:       playgroundChatMessageParts("", ""),
-		GeneratedAt: now,
-		ModelName:   app.Chat.ModelId,
-		StartedAt:   now,
-		DirectImage: directImage,
+		Role:                "assistant",
+		Content:             "",
+		Parts:               playgroundChatMessageParts("", ""),
+		GeneratedAt:         now,
+		ModelName:           app.Chat.ModelId,
+		StartedAt:           now,
+		DirectImage:         directImage,
+		DirectTranscription: directTranscription,
 	})
 	assistantIndex := len(app.Chat.Messages) - 1
 	app.prepareChatMessagesForUi()
@@ -1003,23 +1035,33 @@ func (app *InferencePlaygroundApp) runChat(attachments []playgroundChatAttachmen
 	// the composer's Stop button works immediately, including while waiting for the first output token.
 	app.prepareChatTools(&request)
 	ctx := app.startChatContext(threadId)
-	turn := &playgroundImageTurn{
+	turn := &playgroundTurn{
 		ThreadId:       threadId,
 		AssistantIndex: assistantIndex,
 		ChatModel:      request.Model,
 		StartedAt:      now,
 		Reference:      app.Chat.ImageReference,
+		FileReference:  app.Chat.AudioReference,
 	}
 	app.Chat.ImageReference = ""
-	ctx = context.WithValue(ctx, playgroundImageTurnKey{}, turn)
+	app.Chat.AudioReference = ""
+	ctx = context.WithValue(ctx, playgroundTurnKey{}, turn)
 	app.Chat.StreamingThreadId = threadId
 	ucx.AppUpdateUi(app)
 
 	go func() {
 		// The response performs blocking network IO and must not run on the UI event loop.
+		if directTranscription {
+			if err := app.playgroundPrepareAudio(ctx, threadId); err != nil {
+				app.playgroundFinishTurn(turn, err.Why)
+				return
+			}
+			app.playgroundRunDirectTranscription(ctx, turn, prompt, attachments)
+			return
+		}
 		if directImage {
 			if err := app.playgroundPrepareImages(ctx, threadId); err != nil {
-				app.playgroundFinishImageTurn(turn, err.Why)
+				app.playgroundFinishTurn(turn, err.Why)
 				return
 			}
 			app.playgroundRunDirectImage(ctx, turn, strings.TrimSpace(strings.TrimPrefix(prompt, "/image")),
@@ -1063,10 +1105,15 @@ func (app *InferencePlaygroundApp) regenerateChat(modelId string, messageIndex i
 	}
 	userMessage := app.Chat.Messages[lastUserIndex]
 	directImage := playgroundImageCommand(userMessage.Content)
+	directTranscription := playgroundTranscriptionCommand(userMessage.Content)
 	var imageAttachments []playgroundChatAttachment
 	for i := lastUserIndex - 1; i >= 0 && playgroundMessageIsAttachmentOnly(app.Chat.Messages[i]); i-- {
 		for _, part := range app.Chat.Messages[i].Parts {
-			imageAttachments = append(imageAttachments, playgroundChatAttachment{Kind: part.Kind, AttachmentId: part.ImageId})
+			id := part.ImageId
+			if part.Kind == "audio" {
+				id = part.FileId
+			}
+			imageAttachments = append(imageAttachments, playgroundChatAttachment{Kind: part.Kind, AttachmentId: id})
 		}
 	}
 
@@ -1091,13 +1138,14 @@ func (app *InferencePlaygroundApp) regenerateChat(modelId string, messageIndex i
 
 	now := time.Now().UnixMilli()
 	app.Chat.Messages = append(app.Chat.Messages, playgroundChatMessage{
-		Role:        "assistant",
-		Content:     "",
-		Parts:       playgroundChatMessageParts("", ""),
-		GeneratedAt: now,
-		ModelName:   app.Chat.ModelId,
-		StartedAt:   now,
-		DirectImage: directImage,
+		Role:                "assistant",
+		Content:             "",
+		Parts:               playgroundChatMessageParts("", ""),
+		GeneratedAt:         now,
+		ModelName:           app.Chat.ModelId,
+		StartedAt:           now,
+		DirectImage:         directImage,
+		DirectTranscription: directTranscription,
 	})
 	assistantIndex = len(app.Chat.Messages) - 1
 	app.prepareChatMessagesForUi()
@@ -1110,22 +1158,31 @@ func (app *InferencePlaygroundApp) regenerateChat(modelId string, messageIndex i
 	// the composer's Stop button works immediately, including while waiting for the first output token.
 	app.prepareChatTools(&request)
 	ctx := app.startChatContext(threadId)
-	turn := &playgroundImageTurn{
+	turn := &playgroundTurn{
 		ThreadId:       threadId,
 		AssistantIndex: assistantIndex,
 		ChatModel:      request.Model,
 		StartedAt:      now,
 		Reference:      userMessage.ImageReference,
+		FileReference:  userMessage.AudioReference,
 	}
-	ctx = context.WithValue(ctx, playgroundImageTurnKey{}, turn)
+	ctx = context.WithValue(ctx, playgroundTurnKey{}, turn)
 	app.Chat.StreamingThreadId = threadId
 	ucx.AppUpdateModel(app)
 
 	go func() {
 		// The response performs blocking network IO and must not run on the UI event loop.
+		if directTranscription {
+			if err := app.playgroundPrepareAudio(ctx, threadId); err != nil {
+				app.playgroundFinishTurn(turn, err.Why)
+				return
+			}
+			app.playgroundRunDirectTranscription(ctx, turn, userMessage.Content, imageAttachments)
+			return
+		}
 		if directImage {
 			if err := app.playgroundPrepareImages(ctx, threadId); err != nil {
-				app.playgroundFinishImageTurn(turn, err.Why)
+				app.playgroundFinishTurn(turn, err.Why)
 				return
 			}
 			app.playgroundRunDirectImage(ctx, turn, strings.TrimSpace(strings.TrimPrefix(userMessage.Content, "/image")),
@@ -1138,29 +1195,35 @@ func (app *InferencePlaygroundApp) regenerateChat(modelId string, messageIndex i
 
 func (app *InferencePlaygroundApp) runChatResponse(ctx context.Context, owner apm.WalletOwner, threadId string, assistantIndex int, request InferenceChatRequest) {
 	ctx = inferenceAuditSource(ctx, "playground")
-	turn, _ := ctx.Value(playgroundImageTurnKey{}).(*playgroundImageTurn)
+	turn, _ := ctx.Value(playgroundTurnKey{}).(*playgroundTurn)
 	if turn == nil {
-		turn = &playgroundImageTurn{
+		turn = &playgroundTurn{
 			ThreadId:       threadId,
 			AssistantIndex: assistantIndex,
 			ChatModel:      request.Model,
 			StartedAt:      time.Now().UnixMilli(),
 		}
-		ctx = context.WithValue(ctx, playgroundImageTurnKey{}, turn)
+		ctx = context.WithValue(ctx, playgroundTurnKey{}, turn)
 	}
 	if err := app.playgroundPrepareImages(ctx, threadId); err != nil {
-		app.playgroundFinishImageTurn(turn, err.Why)
+		app.playgroundFinishTurn(turn, err.Why)
+		return
+	}
+	if err := app.playgroundPrepareAudio(ctx, threadId); err != nil {
+		app.playgroundFinishTurn(turn, err.Why)
 		return
 	}
 	app.mu.Lock()
 	var history []playgroundChatMessage
 	vision := false
+	nativeAudio := false
 	inlineImages := false
 	found := false
 	for _, thread := range app.Threads {
 		if thread.Id == threadId && assistantIndex < len(thread.Messages) {
 			model, _ := app.modelByName(request.Model)
 			vision = slices.Contains(model.Capabilities, InferenceVision)
+			nativeAudio = slices.Contains(model.Capabilities, InferenceAudio)
 			inlineImages = !inferenceModelEndpointIsLocal(model)
 			history = make([]playgroundChatMessage, assistantIndex)
 			for i := range history {
@@ -1173,7 +1236,8 @@ func (app *InferencePlaygroundApp) runChatResponse(ctx context.Context, owner ap
 	}
 	app.mu.Unlock()
 	if found {
-		request.Messages = app.playgroundImageRequestMessages(request.Messages, history, vision, inlineImages)
+		request.Messages = app.playgroundImageRequestMessages(request.Messages, history, vision, inlineImages, nativeAudio)
+		app.playgroundAddTranscriptHistory(&request, history)
 	}
 	assistant := ""
 	reasoning := ""
@@ -1187,7 +1251,7 @@ func (app *InferencePlaygroundApp) runChatResponse(ctx context.Context, owner ap
 		assistant = err.Why
 	}
 
-	if assistant == "" && !app.playgroundHasImage(threadId, assistantIndex) {
+	if assistant == "" && !app.playgroundHasImage(threadId, assistantIndex) && !app.playgroundHasTranscript(threadId, assistantIndex) {
 		assistant = "(no response)"
 	}
 
@@ -1607,6 +1671,15 @@ func (app *InferencePlaygroundApp) appendThreadAssistantPart(threadId string, as
 }
 
 func playgroundUpsertToolPart(parts []playgroundChatMessagePart, part playgroundChatMessagePart) []playgroundChatMessagePart {
+	if part.Kind == "transcript" {
+		for i, existing := range parts {
+			if existing.Kind == "transcript" && existing.TranscriptPath == part.TranscriptPath {
+				updated := slices.Clone(parts)
+				updated[i] = part
+				return updated
+			}
+		}
+	}
 	if part.Kind == "thinking" && part.Status != "running" {
 		for len(parts) > 0 {
 			last := parts[len(parts)-1]
@@ -1762,11 +1835,15 @@ func playgroundAssistantParts(existing []playgroundChatMessagePart, parts []play
 func playgroundPersistentParts(parts []playgroundChatMessagePart) []playgroundChatMessagePart {
 	result := make([]playgroundChatMessagePart, 0)
 	for _, part := range parts {
-		if part.Kind != "tool" && part.Kind != "image" && !(part.Kind == "thinking" && part.Status != "running") {
+		if part.Kind != "tool" && part.Kind != "image" && part.Kind != "transcript" && !(part.Kind == "thinking" && part.Status != "running") {
 			continue
 		}
 		if part.Kind == "image" && part.ImagePath != "" {
 			part.Url = ""
+		}
+		if part.Kind == "transcript" {
+			part.Url = ""
+			part.TranscriptUrl = ""
 		}
 		result = append(result, part)
 	}
@@ -1839,6 +1916,9 @@ func playgroundAttachmentMessages(attachments []playgroundChatAttachment, genera
 		part := playgroundChatMessagePart{Kind: attachment.Kind, FileName: attachment.FileName, Url: attachment.Url}
 		if attachment.Kind == "image" {
 			part.ImageId = attachment.AttachmentId
+		}
+		if attachment.Kind == "audio" {
+			part.FileId = attachment.AttachmentId
 		}
 		messages = append(messages, playgroundChatMessage{Role: "user", Content: attachment.Url, Parts: []playgroundChatMessagePart{part}, GeneratedAt: generatedAt})
 	}

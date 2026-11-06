@@ -57,10 +57,10 @@ func inferenceCliHelp() {
 	f.AppendField("models update <name>", "Update an inference model catalog entry, or create it when it does not exist")
 	f.AppendField("  --name <name>", "Rename the model. Only allowed for non-public models.")
 	f.AppendField("  --title <title>", "Set the display title")
-	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration, TextToImage, ImageToImage, SpeechToText, Vision, VideoVision, Audio")
+	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration, TextToImage, ImageToImage, SpeechToText, SpeechToTextTimestamps, SpeechToTextSpeakerLabels, Vision, VideoVision, Audio")
 	f.AppendField(
 		"  --default-for <list>",
-		"Provider defaults: TextToImage,ImageToImage. Replaces previous defaults. "+
+		"Provider defaults: TextToImage,ImageToImage,SpeechToText. Replaces previous defaults. "+
 			"Use an empty value to clear.",
 	)
 	f.AppendField("  --reasoning-efforts <list>", "Comma-separated display name=value pairs. Use an empty value to disable reasoning.")
@@ -385,7 +385,7 @@ func inferenceCliParseCapabilities(raw string) ([]InferenceCapability, error) {
 	for _, item := range items {
 		capability := InferenceCapability(item)
 		switch capability {
-		case InferenceTextGeneration, InferenceTextToImage, InferenceImageToImage, InferenceSpeechToText, InferenceVision, InferenceVideoVision, InferenceAudio:
+		case InferenceTextGeneration, InferenceTextToImage, InferenceImageToImage, InferenceSpeechToText, InferenceSpeechToTextTimestamps, InferenceSpeechToTextSpeakerLabels, InferenceVision, InferenceVideoVision, InferenceAudio:
 			capabilities = append(capabilities, capability)
 		default:
 			return nil, fmt.Errorf("invalid capability %q", item)

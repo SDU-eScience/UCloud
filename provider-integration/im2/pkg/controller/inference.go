@@ -32,11 +32,13 @@ var inferencePlaygroundSessions = struct {
 }
 
 var InferencePlaygroundImageRead func(owner orcapi.ResourceOwner, path string) ([]byte, *util.HttpError)
+var InferencePlaygroundFileRead func(owner orcapi.ResourceOwner, path string) ([]byte, string, *util.HttpError)
 
 type inferencePlaygroundImageLink struct {
 	Owner     orcapi.ResourceOwner
 	Path      string
 	ExpiresAt time.Time
+	Kind      string
 }
 
 var inferencePlaygroundImageLinks = struct {
@@ -47,6 +49,14 @@ var inferencePlaygroundImageLinks = struct {
 }
 
 func InferencePlaygroundImageURL(owner orcapi.ResourceOwner, path string) string {
+	return inferencePlaygroundAssetURL(owner, path, "images")
+}
+
+func InferencePlaygroundFileURL(owner orcapi.ResourceOwner, path string) string {
+	return inferencePlaygroundAssetURL(owner, path, "files")
+}
+
+func inferencePlaygroundAssetURL(owner orcapi.ResourceOwner, path string, kind string) string {
 	now := time.Now()
 	token := ""
 	inferencePlaygroundImageLinks.Lock()
@@ -55,22 +65,30 @@ func InferencePlaygroundImageURL(owner orcapi.ResourceOwner, path string) string
 			delete(inferencePlaygroundImageLinks.Links, key)
 			continue
 		}
-		if token == "" && link.Owner == owner && link.Path == path && link.ExpiresAt.Sub(now) > time.Minute {
+		if token == "" && link.Owner == owner && link.Path == path && link.Kind == kind && link.ExpiresAt.Sub(now) > time.Minute {
 			token = key
 		}
 	}
 	if token == "" {
 		token = util.SecureToken()
 		inferencePlaygroundImageLinks.Links[token] = inferencePlaygroundImageLink{
-			Owner: owner, Path: path, ExpiresAt: now.Add(10 * time.Minute),
+			Owner: owner, Path: path, Kind: kind, ExpiresAt: now.Add(10 * time.Minute),
 		}
 	}
 	inferencePlaygroundImageLinks.Unlock()
-	return fmt.Sprintf("%s/ucloud/%s/inference/playground/images?token=%s",
-		cfg.Provider.Hosts.SelfPublic.ToURL(), cfg.Provider.Id, url.QueryEscape(token))
+	return fmt.Sprintf("%s/ucloud/%s/inference/playground/%s?token=%s",
+		cfg.Provider.Hosts.SelfPublic.ToURL(), cfg.Provider.Id, kind, url.QueryEscape(token))
 }
 
 func inferencePlaygroundServeImage(w http.ResponseWriter, r *http.Request) {
+	inferencePlaygroundServeAsset(w, r, "images")
+}
+
+func inferencePlaygroundServeFile(w http.ResponseWriter, r *http.Request) {
+	inferencePlaygroundServeAsset(w, r, "files")
+}
+
+func inferencePlaygroundServeAsset(w http.ResponseWriter, r *http.Request, kind string) {
 	w.Header().Set("Access-Control-Allow-Origin", cfg.Provider.Hosts.UCloudPublic.ToURL())
 	w.Header().Set("Access-Control-Allow-Headers", "Authorization")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
@@ -91,7 +109,7 @@ func inferencePlaygroundServeImage(w http.ResponseWriter, r *http.Request) {
 		inferencePlaygroundImageLinks.Lock()
 		link, ok := inferencePlaygroundImageLinks.Links[token]
 		inferencePlaygroundImageLinks.Unlock()
-		if !ok || time.Now().After(link.ExpiresAt) {
+		if !ok || link.Kind != kind || time.Now().After(link.ExpiresAt) {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -105,16 +123,25 @@ func inferencePlaygroundServeImage(w http.ResponseWriter, r *http.Request) {
 		}
 		owner = session.Owner
 	}
-	if InferencePlaygroundImageRead == nil {
+	if (kind == "images" && InferencePlaygroundImageRead == nil) || (kind == "files" && InferencePlaygroundFileRead == nil) {
 		http.NotFound(w, r)
 		return
 	}
-	data, err := InferencePlaygroundImageRead(owner, path)
+	var data []byte
+	var contentType string
+	var err *util.HttpError
+	if kind == "images" {
+		data, err = InferencePlaygroundImageRead(owner, path)
+		contentType = http.DetectContentType(data)
+	} else {
+		data, contentType, err = InferencePlaygroundFileRead(owner, path)
+		w.Header().Set("Content-Disposition", "attachment")
+	}
 	if err != nil {
 		http.Error(w, err.Why, err.StatusCode)
 		return
 	}
-	w.Header().Set("Content-Type", http.DetectContentType(data))
+	w.Header().Set("Content-Type", contentType)
 	http.ServeContent(w, r, filepath.Base(path), time.Time{}, bytes.NewReader(data))
 }
 
@@ -122,6 +149,7 @@ func initInference() {
 	if RunsServerCode() {
 		providerPath := fmt.Sprintf("/ucloud/%s/inference/playground", cfg.Provider.Id)
 		Mux.HandleFunc(providerPath+"/images", inferencePlaygroundServeImage)
+		Mux.HandleFunc(providerPath+"/files", inferencePlaygroundServeFile)
 		upgrader := ws.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 
 		go func() {

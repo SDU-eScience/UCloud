@@ -83,10 +83,11 @@ type InferenceTranscriptionUsage struct {
 }
 
 type InferenceTranscriptionResponse struct {
-	Json         *InferenceTranscriptionJsonResponse
-	VerboseJson  *InferenceTranscriptionVerboseResponse
-	DiarizedJson *InferenceTranscriptionDiarizedResponse
-	Raw          *InferenceTranscriptionRawResponse
+	AudioMilliseconds int64
+	Json              *InferenceTranscriptionJsonResponse
+	VerboseJson       *InferenceTranscriptionVerboseResponse
+	DiarizedJson      *InferenceTranscriptionDiarizedResponse
+	Raw               *InferenceTranscriptionRawResponse
 }
 
 type InferenceTranscriptionRawResponse struct {
@@ -291,6 +292,7 @@ func inferenceMeasureAudioMilliseconds(ctx context.Context, username string, fil
 	defer cancel()
 	taskErr := filesystem.TaskSubmitAndWait(waitCtx, filesystem.TaskSpec{
 		Type:            filesystem.TaskTypeFFProbe,
+		Internal:        true,
 		Mounts:          []filesystem.TaskMount{{UCloudPath: ucloudDir}},
 		Source:          ucloudAudio,
 		DeadlineSeconds: util.OptValue(inferenceTranscriptionTaskDeadline),
@@ -423,7 +425,7 @@ func inferenceTranscribeAcquired(ctx context.Context, owner apm.WalletOwner, use
 	switch request.ResponseFormat {
 	case InferenceTranscriptionRespText, InferenceTranscriptionRespSrt, InferenceTranscriptionRespVtt:
 		requestOutcome = "success"
-		return InferenceTranscriptionResponse{Raw: &InferenceTranscriptionRawResponse{
+		return InferenceTranscriptionResponse{AudioMilliseconds: audioMilliseconds, Raw: &InferenceTranscriptionRawResponse{
 			ContentType: inferenceTranscriptionRawContentType(request.ResponseFormat),
 			Data:        respBody,
 		}}, nil
@@ -448,7 +450,7 @@ func inferenceTranscribeAcquired(ctx context.Context, owner apm.WalletOwner, use
 		}
 		usage := inferenceTranscriptionUsage(resp.Usage)
 		requestOutcome = "success"
-		return InferenceTranscriptionResponse{DiarizedJson: &InferenceTranscriptionDiarizedResponse{
+		return InferenceTranscriptionResponse{AudioMilliseconds: audioMilliseconds, DiarizedJson: &InferenceTranscriptionDiarizedResponse{
 			Task:     resp.Task,
 			Duration: resp.Duration,
 			Text:     resp.Text,
@@ -475,7 +477,7 @@ func inferenceTranscribeAcquired(ctx context.Context, owner apm.WalletOwner, use
 		}
 		usage := inferenceTranscriptionUsage(resp.Usage)
 		requestOutcome = "success"
-		return InferenceTranscriptionResponse{VerboseJson: &InferenceTranscriptionVerboseResponse{
+		return InferenceTranscriptionResponse{AudioMilliseconds: audioMilliseconds, VerboseJson: &InferenceTranscriptionVerboseResponse{
 			Task:     resp.Task,
 			Language: resp.Language,
 			Duration: resp.Duration,
@@ -500,7 +502,7 @@ func inferenceTranscribeAcquired(ctx context.Context, owner apm.WalletOwner, use
 		}
 		usage := inferenceTranscriptionUsage(resp.Usage)
 		requestOutcome = "success"
-		return InferenceTranscriptionResponse{Json: &InferenceTranscriptionJsonResponse{
+		return InferenceTranscriptionResponse{AudioMilliseconds: audioMilliseconds, Json: &InferenceTranscriptionJsonResponse{
 			Text:     resp.Text,
 			Logprobs: resp.Logprobs,
 			Usage:    usage,

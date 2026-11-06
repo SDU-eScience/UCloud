@@ -167,6 +167,8 @@ const PLAYGROUND_REHYDRATE_PATHS = [
 const PlaygroundProviderDomainContext = React.createContext("");
 const PlaygroundImageAccessContext = React.createContext<PlaygroundSession | null>(null);
 const PlaygroundImageOpenContext = React.createContext<(part: ChatMessagePart) => void>(() => undefined);
+const PlaygroundTranscriptionAvailableContext = React.createContext(false);
+const PlaygroundTranscriptionCapabilitiesContext = React.createContext<string[]>([]);
 
 const playgroundImageModalStyle: ReactModal.Styles = {
     content: {
@@ -208,6 +210,7 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
         const selectedCapabilities = modelCapabilities(model, selectedModel);
         const imageGenerationModel = stringValue(fn.modelValue(model, "imageGenerationModel"));
         const imageEditModel = stringValue(fn.modelValue(model, "imageEditModel"));
+        const transcriptionModel = stringValue(fn.modelValue(model, "transcriptionModel"));
         const reasoningEfforts = modelReasoningEfforts(model, selectedModel);
         const reasoningEffort = stringValue(fn.modelValue(model, "chat.reasoningEffort", scope));
         const selectedReasoningEffort = reasoningEfforts.find(option => option.key === reasoningEffort);
@@ -235,6 +238,10 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
             if (/^\/image(?:\s|$)/.test(value) &&
                 attachments.filter(attachment => attachment.kind === "image").length > 1) {
                 sendFailureNotification("Attach one image when using /image.");
+                return;
+            }
+            if (/^\/transcribe(?:\s|$)/.test(value) && attachments.filter(attachment => attachment.kind === "audio").length > 1) {
+                sendFailureNotification("Attach one audio file when using /transcribe.");
                 return;
             }
             const sentAttachments = attachments.filter(attachment =>
@@ -277,7 +284,7 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
 
         const uploadFile = async (file: File) => {
             const kind = await detectPlaygroundAttachmentKind(file);
-            const rejection = playgroundAttachmentRejection(kind, selectedCapabilities, imageEditModel !== "");
+            const rejection = playgroundAttachmentRejection(kind, selectedCapabilities, imageEditModel !== "", transcriptionModel !== "");
             if (rejection) {
                 sendFailureNotification(rejection);
                 return;
@@ -477,6 +484,9 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                             : `Generate image · ${playgroundModelTitle(model, imageGenerationModel) || "No image default configured"}`}
                     </div>
                 ) : null}
+                {/^\/transcribe(?:\s|$)/.test(value) ? <div style={{padding: "0 16px 8px", fontSize: 12, color: "var(--textSecondary)"}}>
+                    Transcribe audio · {playgroundModelTitle(model, transcriptionModel) || "No transcription default configured"}
+                </div> : null}
                 <div
                     style={{
                         display: "flex",
@@ -561,7 +571,13 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
 type ThreadListItem = { id: string; title: string; updatedAt: number };
 
 type ChatMessagePart = {
-    kind: "text" | "thinking" | "image" | "video" | "audio" | "attachment" | "tool";
+    kind: "text" | "thinking" | "image" | "video" | "audio" | "attachment" | "tool" | "transcript";
+    fileId?: string;
+    filePath?: string;
+    transcriptPath?: string;
+    transcriptUrl?: string;
+    transcriptionFormat?: string;
+    audioMilliseconds?: number;
     imageId?: string;
     imagePath?: string;
     modelName?: string;
@@ -585,6 +601,7 @@ type ChatMessageListItem = {
 
 type ChatMessageViewModel = {
     directImage: boolean;
+    directTranscription: boolean;
     key: string;
     threadId: string;
     role: string;
@@ -807,7 +824,7 @@ function AttachmentUploadCard({attachment, onRemove}: {attachment: PlaygroundUpl
 
 function MessageAttachmentCard({part}: {part: ChatMessagePart}): React.ReactNode {
     const kind = part.kind === "image" || part.kind === "video" || part.kind === "audio" ? part.kind : "text";
-    return <AttachmentUploadCard attachment={{
+    return <div style={{display: "flex", flexDirection: "column", gap: 6, minWidth: 0}}><AttachmentUploadCard attachment={{
         localId: `${part.kind}-${part.url}-${part.fileName}`,
         kind,
         attachmentId: null,
@@ -815,10 +832,79 @@ function MessageAttachmentCard({part}: {part: ChatMessagePart}): React.ReactNode
         fileName: part.fileName || "Unknown",
         fileSize: 0,
         uploadedBytes: 0,
-        status: "uploaded",
-        error: "",
+        status: part.status === "missing" ? "error" : "uploaded",
+        error: part.status === "missing" ? "Source file unavailable. Attach it again." : "",
         text: part.text,
-    }}/>;
+    }}/>
+    </div>;
+}
+
+function playgroundRequestTranscription(fn: UcxFunctionRegistry, fileId: string, format: string): void {
+    fn.sendUiEvent("transcribeAttachment", "click", {kind: ValueKind.Object, object: {
+        fileId: {kind: ValueKind.String, string: fileId},
+        format: {kind: ValueKind.String, string: format},
+    }});
+}
+
+async function playgroundFetchFile(url: string, signal?: AbortSignal): Promise<Blob> {
+    if (!url) throw new Error("Reconnect to access this file.");
+    const response = await fetch(url, {signal, credentials: "omit"});
+    if (!response.ok) throw new Error("File unavailable. It may have been deleted.");
+    return response.blob();
+}
+
+async function playgroundDownloadFile(url: string, filename: string): Promise<void> {
+    const blob = await playgroundFetchFile(url);
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = filename;
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
+function playgroundAudioDuration(milliseconds: number): string {
+    const seconds = Math.max(1, Math.round(milliseconds / 1000));
+    const minutes = Math.floor(seconds / 60);
+    const remainder = String(seconds % 60).padStart(2, "0");
+    return minutes < 60 ? `${minutes}:${remainder}` : `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}:${remainder}`;
+}
+
+function PlaygroundTranscriptPart({part, fn}: {part: ChatMessagePart; fn: UcxFunctionRegistry}): React.ReactNode {
+    const canTranscribe = React.useContext(PlaygroundTranscriptionAvailableContext);
+    const capabilities = React.useContext(PlaygroundTranscriptionCapabilitiesContext);
+    const [open, setOpen] = React.useState(false);
+    const [text, setText] = React.useState<string | null>(null);
+    const [error, setError] = React.useState("");
+    React.useEffect(() => {
+        if (!open) return;
+        const controller = new AbortController();
+        setText(null);
+        setError("");
+        void playgroundFetchFile(part.url, controller.signal).then(blob => blob.text()).then(content => {
+            if (!controller.signal.aborted) setText(content);
+        }).catch(error => {if (!controller.signal.aborted) setError(error.message);});
+        return () => controller.abort();
+    }, [open, part.url]);
+    const filename = `${part.fileName || "audio"}.${part.transcriptionFormat || "text"}.txt`;
+    return <section style={{minWidth: 0, border: "1px solid var(--playground-border)", borderRadius: 10, padding: 14, marginBottom: 12, background: "var(--playground-surface-raised)"}}>
+        <div style={{display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10}}>
+            <Icon name="heroDocumentText" size={20}/>
+            <strong style={{minWidth: 0, overflowWrap: "anywhere"}}>Transcript: {part.fileName}</strong>
+            <span style={{fontSize: 12, color: "var(--textSecondary)"}}>Model: {part.modelName}{(part.audioMilliseconds ?? 0) > 0 ? ` · Audio: ${playgroundAudioDuration(part.audioMilliseconds!)}` : ""}</span>
+        </div>
+        {part.body ? <p role="status">{part.body}</p> : null}
+        <div style={{display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10}}>
+            <Button type="button" m={0} color="secondaryMain" aria-expanded={open} onClick={() => setOpen(value => !value)}>{open ? "Hide transcript" : "View transcript"}</Button>
+            {part.url ? <Button type="button" m={0} color="secondaryMain" onClick={() => void playgroundDownloadFile(part.url, filename).catch(error => sendFailureNotification(error.message))}>Download</Button> : null}
+            {part.transcriptUrl && part.transcriptionFormat !== "text" ? <Button type="button" m={0} color="secondaryMain" onClick={() => void playgroundDownloadFile(part.transcriptUrl!, filename.replace(/\.txt$/, ".json")).catch(error => sendFailureNotification(error.message))}>Download JSON</Button> : null}
+            {canTranscribe && part.fileId ? <>
+                {capabilities.includes("SpeechToTextTimestamps") && part.transcriptionFormat !== "timestamps" && part.transcriptionFormat !== "speakers" ? <Button type="button" m={0} color="secondaryMain" onClick={() => playgroundRequestTranscription(fn, part.fileId!, "timestamps")}>Add timestamps</Button> : null}
+                {capabilities.includes("SpeechToTextSpeakerLabels") && part.transcriptionFormat !== "speakers" ? <Button type="button" m={0} color="secondaryMain" onClick={() => playgroundRequestTranscription(fn, part.fileId!, "speakers")}>Add speaker labels</Button> : null}
+            </> : null}
+        </div>
+        {open ? error ? <p role="alert">{error}</p> : text === null ? <UcxSpinner/> : <pre style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxHeight: 420, overflowY: "auto", fontFamily: "inherit"}}>{text || "The ASR model returned no transcript text."}</pre> : null}
+    </section>;
 }
 
 type ChatMessageNodeProps = {
@@ -1231,13 +1317,13 @@ const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptio
 
     return (
         <Flex flexDirection="column" gap="4px" width="100%" my={16}>
-            {renderMessageParts(message.parts, !responseFinished)}
+            {renderMessageParts(message.parts, !responseFinished, fn)}
             {!responseFinished ? null : (
                 <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px" flexWrap="wrap">
                     {message.content ? <CopyButton onClick={() => copyToClipboard(message.content)}/> : null}
-                    {message.directImage ? (
+                    {message.directImage || message.directTranscription ? (
                         <IconButton
-                            tooltip="Generate again"
+                            tooltip={message.directTranscription ? "Run transcription again" : "Generate again"}
                             icon="heroArrowPath"
                             onClick={() => fn.sendUiEvent("regenerateChat", "click", {
                                 kind: ValueKind.Object,
@@ -1283,7 +1369,7 @@ const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptio
                             )}
                         />
                     )}
-                    {message.directImage ? (
+                    {message.directImage || message.directTranscription ? (
                         <span>{formatResponseDuration(message.startedAt, message.finishedAt)}</span>
                     ) : (
                         <Tooltip
@@ -1299,7 +1385,7 @@ const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptio
                             </div>
                         </Tooltip>
                     )}
-                    {!message.directImage ? (
+                    {!message.directImage && !message.directTranscription ? (
                         <span>{formatTokensPerSecond(message.outputTokens, message.firstTokenAt, message.finishedAt)}</span>
                     ) : null}
                 </Flex>
@@ -1347,6 +1433,7 @@ const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, s
 });
 
 const ToolDisplayNames: Record<string, string> = {
+    transcribe_file: "Transcribing audio",
     generate_image: "Generating image",
     edit_image: "Editing image",
     bash: "Shell",
@@ -1355,6 +1442,7 @@ const ToolDisplayNames: Record<string, string> = {
 };
 
 const ToolIcons: Record<string, IconName> = {
+    transcribe_file: "heroMusicalNote",
     generate_image: "heroPhoto",
     edit_image: "heroPhoto",
     bash: "heroCommandLine",
@@ -1362,12 +1450,17 @@ const ToolIcons: Record<string, IconName> = {
     request_internet_access: "heroGlobeEuropeAfrica",
 };
 
-function renderMessageParts(parts: ChatMessagePart[], streaming: boolean): React.ReactNode[] {
+function renderMessageParts(parts: ChatMessagePart[], streaming: boolean, fn: UcxFunctionRegistry): React.ReactNode[] {
     const result: React.ReactNode[] = [];
     const hasText = parts.some(part => part.kind === "text" && part.text.trim() !== "");
     const thinkingStreaming = streaming && !hasText;
     for (let index = 0; index < parts.length;) {
         const part = parts[index];
+        if (part.kind === "transcript") {
+            result.push(<PlaygroundTranscriptPart key={part.transcriptPath || index} part={part} fn={fn}/>);
+            index++;
+            continue;
+        }
         if (part.kind === "image") {
             result.push(<PlaygroundImagePart key={part.imageId || part.imagePath || index} part={part}/>);
             index++;
@@ -1507,6 +1600,7 @@ function traceToolTitle(part: ChatMessagePart, running: boolean, error: boolean)
     const name = (part.toolName || part.summary || "tool").trim();
     if (error) {
         switch (name) {
+            case "transcribe_file": return "Failed to transcribe audio";
             case "generate_image": return "Failed to generate image";
             case "edit_image": return "Failed to edit image";
             case "bash": return "Command failed";
@@ -1517,6 +1611,7 @@ function traceToolTitle(part: ChatMessagePart, running: boolean, error: boolean)
     }
     if (running) {
         switch (name) {
+            case "transcribe_file": return "Transcribing audio";
             case "generate_image": return "Generating image";
             case "edit_image": return "Editing image";
             case "bash": return "Running command";
@@ -1526,6 +1621,7 @@ function traceToolTitle(part: ChatMessagePart, running: boolean, error: boolean)
         }
     }
     switch (name) {
+        case "transcribe_file": return "Transcribed audio";
         case "generate_image": return "Generated image";
         case "edit_image": return "Edited image";
         case "bash": return "Ran command";
@@ -2283,6 +2379,8 @@ function PlaygroundConversation({model, fn, connected, disabledReason = "", disa
     }), [connected, loading, streamingThreadId, currentThreadId]);
 
     return (
+        <PlaygroundTranscriptionAvailableContext.Provider value={connected && !loading && !developer && stringValue(fn?.modelValue(model, "transcriptionModel") ?? model.transcriptionModel) !== ""}>
+        <PlaygroundTranscriptionCapabilitiesContext.Provider value={modelCapabilities(model, stringValue(fn?.modelValue(model, "transcriptionModel") ?? model.transcriptionModel))}>
         <PlaygroundImageOpenContext.Provider value={openImage}>
             <div
                 ref={containerRef}
@@ -2322,6 +2420,8 @@ function PlaygroundConversation({model, fn, connected, disabledReason = "", disa
                 onSelect={setActiveImageKey}
             />
         </PlaygroundImageOpenContext.Provider>
+        </PlaygroundTranscriptionCapabilitiesContext.Provider>
+        </PlaygroundTranscriptionAvailableContext.Provider>
     );
 }
 
@@ -2858,7 +2958,7 @@ function isConvertiblePlaygroundAttachment(fileName: string, mimeType: string): 
 }
 
 function playgroundAttachmentRejection(kind: PlaygroundAttachmentKind, capabilities: string[],
-    canEditImages: boolean): string {
+    canEditImages: boolean, canTranscribe: boolean): string {
     switch (kind) {
         case "image":
             return capabilities.includes("Vision") || canEditImages
@@ -2867,7 +2967,7 @@ function playgroundAttachmentRejection(kind: PlaygroundAttachmentKind, capabilit
         case "video":
             return capabilities.includes("VideoVision") ? "" : "The selected model does not support video attachments.";
         case "audio":
-            return capabilities.includes("Audio") ? "" : "The selected model does not support audio attachments.";
+            return capabilities.includes("Audio") || canTranscribe ? "" : "The selected model cannot use audio and no transcription default is available.";
         case "text":
             return "";
         case "convertible":
@@ -2908,7 +3008,7 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
     return value.list.flatMap((item: Value) => {
         if (item.kind !== ValueKind.Object) return [];
         const kind = stringValue(item.object.kind);
-        if (kind !== "text" && kind !== "thinking" && kind !== "image" && kind !== "video" && kind !== "audio" && kind !== "attachment" && kind !== "tool") return [];
+        if (kind !== "text" && kind !== "thinking" && kind !== "image" && kind !== "video" && kind !== "audio" && kind !== "attachment" && kind !== "tool" && kind !== "transcript") return [];
         return [
             {
                 kind,
@@ -2921,6 +3021,12 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
                 toolName: stringValue(item.object.toolName),
                 status: stringValue(item.object.status),
                 imageId: stringValue(item.object.imageId),
+                fileId: stringValue(item.object.fileId),
+                filePath: stringValue(item.object.filePath),
+                transcriptPath: stringValue(item.object.transcriptPath),
+                transcriptUrl: stringValue(item.object.transcriptUrl),
+                transcriptionFormat: stringValue(item.object.transcriptionFormat),
+                audioMilliseconds: numberValue(item.object.audioMilliseconds),
                 imagePath: stringValue(item.object.imagePath),
                 modelName: stringValue(item.object.modelName),
                 prompt: stringValue(item.object.prompt),
@@ -3011,6 +3117,7 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
         const key = `${currentThreadId || "thread"}:${idx}:${messageIndex}`;
         const viewModel: ChatMessageViewModel = {
             directImage: boolValue(item.object.directImage),
+            directTranscription: boolValue(item.object.directTranscription),
             key,
             threadId: currentThreadId,
             role,
@@ -3032,7 +3139,7 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
 }
 
 function chatMessageViewModelEqual(a: ChatMessageViewModel, b: ChatMessageViewModel): boolean {
-    return a.directImage === b.directImage && a.key === b.key &&
+    return a.directImage === b.directImage && a.directTranscription === b.directTranscription && a.key === b.key &&
         a.threadId === b.threadId &&
         a.role === b.role &&
         a.content === b.content &&
@@ -3075,6 +3182,12 @@ function chatMessagePartEqual(a: ChatMessagePart, b: ChatMessagePart): boolean {
         a.toolName === b.toolName &&
         a.status === b.status &&
         a.imageId === b.imageId &&
+        a.fileId === b.fileId &&
+        a.filePath === b.filePath &&
+        a.transcriptPath === b.transcriptPath &&
+        a.transcriptUrl === b.transcriptUrl &&
+        a.transcriptionFormat === b.transcriptionFormat &&
+        a.audioMilliseconds === b.audioMilliseconds &&
         a.imagePath === b.imagePath &&
         a.modelName === b.modelName &&
         a.prompt === b.prompt &&

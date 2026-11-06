@@ -152,6 +152,7 @@ func Init() {
 
 	inferenceModelCatalogLoad()
 	controller.InferencePlaygroundImageRead = playgroundImageRead
+	controller.InferencePlaygroundFileRead = playgroundFileRead
 
 	inferenceGlobals.MockImageGeneration = util.DevelopmentModeEnabled() && runtime.GOARCH == "arm64"
 	if inferenceGlobals.MockImageGeneration {

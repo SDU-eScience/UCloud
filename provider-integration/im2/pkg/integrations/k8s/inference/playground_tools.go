@@ -107,6 +107,9 @@ func (app *InferencePlaygroundApp) playgroundToolDefinitions() []InferenceChatTo
 	}
 
 	tools = append(tools, playgroundImageToolDefinitions(app.ImageGenerationModel != "", app.ImageEditModel != "")...)
+	if app.TranscriptionModel != "" {
+		tools = append(tools, app.playgroundTranscriptionToolDefinition())
+	}
 	return tools
 }
 
@@ -146,6 +149,8 @@ func (app *InferencePlaygroundApp) playgroundToolDispatchWithMode(ctx context.Co
 
 	var result playgroundToolResult
 	switch name {
+	case "transcribe_file":
+		result = app.playgroundTranscribeTool(ctx, call)
 	case "generate_image", "edit_image":
 		result = app.playgroundImageTool(ctx, call)
 	case "bash":
@@ -447,10 +452,12 @@ func (app *InferencePlaygroundApp) playgroundToolAvailable(name string, allowDev
 	}
 
 	switch name {
+	case "transcribe_file":
+		return playgroundDefaultModel(app.walletOwner(), InferenceSpeechToText) != ""
 	case "generate_image":
-		return playgroundImageDefault(app.walletOwner(), InferenceTextToImage) != ""
+		return playgroundDefaultModel(app.walletOwner(), InferenceTextToImage) != ""
 	case "edit_image":
-		return playgroundImageDefault(app.walletOwner(), InferenceImageToImage) != ""
+		return playgroundDefaultModel(app.walletOwner(), InferenceImageToImage) != ""
 	case "bash", playgroundInternetToolRequestAccess, playgroundInternetToolWebFetch:
 	default:
 		return false

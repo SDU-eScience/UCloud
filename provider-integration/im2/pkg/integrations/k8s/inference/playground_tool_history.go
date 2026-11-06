@@ -47,6 +47,8 @@ func playgroundToolHistoryRecord(name, arguments, output, status string) map[str
 		"query",
 		"format",
 		"image_id",
+		"file_id",
+		"language",
 		"model",
 	} {
 		if value, ok := args[key].(string); ok && value != "" {
@@ -68,6 +70,10 @@ func playgroundToolHistoryRecord(name, arguments, output, status string) map[str
 		"image_id",
 		"model",
 		"model_title",
+		"file_id",
+		"file_name",
+		"transcript_saved",
+		"text_omitted",
 	} {
 		if value, ok := result[key]; ok {
 			record[key] = value

@@ -38,13 +38,15 @@ import (
 type InferenceCapability string
 
 const (
-	InferenceTextGeneration InferenceCapability = "TextGeneration"
-	InferenceTextToImage    InferenceCapability = "TextToImage"
-	InferenceImageToImage   InferenceCapability = "ImageToImage"
-	InferenceSpeechToText   InferenceCapability = "SpeechToText"
-	InferenceVision         InferenceCapability = "Vision"
-	InferenceVideoVision    InferenceCapability = "VideoVision"
-	InferenceAudio          InferenceCapability = "Audio"
+	InferenceTextGeneration            InferenceCapability = "TextGeneration"
+	InferenceTextToImage               InferenceCapability = "TextToImage"
+	InferenceImageToImage              InferenceCapability = "ImageToImage"
+	InferenceSpeechToText              InferenceCapability = "SpeechToText"
+	InferenceSpeechToTextTimestamps    InferenceCapability = "SpeechToTextTimestamps"
+	InferenceSpeechToTextSpeakerLabels InferenceCapability = "SpeechToTextSpeakerLabels"
+	InferenceVision                    InferenceCapability = "Vision"
+	InferenceVideoVision               InferenceCapability = "VideoVision"
+	InferenceAudio                     InferenceCapability = "Audio"
 )
 
 type InferenceModel struct {
@@ -786,16 +788,19 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	}
 	for _, capability := range model.Capabilities {
 		switch capability {
-		case InferenceTextGeneration, InferenceTextToImage, InferenceImageToImage, InferenceSpeechToText, InferenceVision, InferenceVideoVision, InferenceAudio:
+		case InferenceTextGeneration, InferenceTextToImage, InferenceImageToImage, InferenceSpeechToText, InferenceSpeechToTextTimestamps, InferenceSpeechToTextSpeakerLabels, InferenceVision, InferenceVideoVision, InferenceAudio:
 		default:
 			return util.HttpErr(http.StatusBadRequest, "invalid model capability")
 		}
 	}
+	if (slices.Contains(model.Capabilities, InferenceSpeechToTextTimestamps) || slices.Contains(model.Capabilities, InferenceSpeechToTextSpeakerLabels)) && !slices.Contains(model.Capabilities, InferenceSpeechToText) {
+		return util.HttpErr(http.StatusBadRequest, "transcription detail capabilities require SpeechToText")
+	}
 	reasoningValues := map[string]bool{}
 	for _, capability := range model.DefaultFor {
-		if (capability != InferenceTextToImage && capability != InferenceImageToImage) ||
+		if (capability != InferenceTextToImage && capability != InferenceImageToImage && capability != InferenceSpeechToText) ||
 			!slices.Contains(model.Capabilities, capability) {
-			return util.HttpErr(http.StatusBadRequest, "image defaults must match a supported image capability")
+			return util.HttpErr(http.StatusBadRequest, "defaults must match a supported image or transcription capability")
 		}
 	}
 	for _, effort := range model.ReasoningEfforts {

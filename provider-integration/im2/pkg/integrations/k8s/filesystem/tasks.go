@@ -44,6 +44,7 @@ type TaskResources struct {
 
 type TaskSpec struct {
 	Type            TaskType
+	Internal        bool
 	Id              string
 	Mounts          []TaskMount
 	TaskToken       string
@@ -154,16 +155,17 @@ func initTasks() {
 		taskState.Statuses[request.Token] = request.Update
 		taskState.Mu.Unlock()
 
-		_, err := fndapi.TasksPostStatus.Invoke(fndapi.TasksPostStatusRequest{
-			Update: fndapi.TasksPostStatusRequestUpdate{
-				Id:         ucloudTaskId,
-				ModifiedAt: fndapi.Timestamp(time.Now()),
-				NewStatus:  request.Update,
-			},
-		})
-
-		if err != nil {
-			return util.Empty{}, err
+		if ucloudTaskId != 0 {
+			_, err := fndapi.TasksPostStatus.Invoke(fndapi.TasksPostStatusRequest{
+				Update: fndapi.TasksPostStatusRequestUpdate{
+					Id:         ucloudTaskId,
+					ModifiedAt: fndapi.Timestamp(time.Now()),
+					NewStatus:  request.Update,
+				},
+			})
+			if err != nil {
+				return util.Empty{}, err
+			}
 		}
 
 		if request.Update.State == fndapi.TaskStateSuccess ||
@@ -182,6 +184,9 @@ func initTasks() {
 
 	ctrl.Tasks = ctrl.TaskService{
 		OnCancel: func(id int) *util.HttpError {
+			if id == 0 {
+				return util.HttpErr(http.StatusBadRequest, "invalid task id")
+			}
 			apiTok, ok := db.NewTx2(func(tx *db.Transaction) (string, bool) {
 				row, ok := db.Get[struct{ ApiToken string }](
 					tx,
@@ -321,7 +326,15 @@ func taskJobReconciler() {
 				return result.UCloudTaskId, result.ApiToken, resultOk
 			})
 
-			if ok {
+			if ok && ucloudTaskId == 0 {
+				taskState.Mu.Lock()
+				taskState.Statuses[apiToken] = fndapi.TaskStatus{State: finalState}
+				taskState.Mu.Unlock()
+				taskCleanupByToken(apiToken)
+				time.AfterFunc(5*time.Minute, func() {
+					taskForgetStatus(apiToken)
+				})
+			} else if ok {
 				_, err := fndapi.TasksPostStatus.Invoke(fndapi.TasksPostStatusRequest{
 					Update: fndapi.TasksPostStatusRequestUpdate{
 						Id:         ucloudTaskId,
@@ -368,20 +381,21 @@ func TaskSubmitWithInfo(spec TaskSpec) (TaskSubmission, *util.HttpError) {
 	spec.Id = fmt.Sprintf("task-%s", util.RandomToken(8))
 	spec.TaskToken = util.SecureToken()
 
-	resp, err := fndapi.TasksCreate.Invoke(fndapi.TasksCreateRequest{
-		User:      spec.CreationState.Username,
-		Title:     util.OptValue("Task is starting"),
-		Body:      util.OptValue("One of your operations is being scheduled..."),
-		CanCancel: true,
-		Icon:      util.OptValue(spec.CreationState.Icon),
-	})
-
-	if err != nil {
-		log.Warn("Failed to create background task: %s", err)
-		return TaskSubmission{}, util.HttpErr(http.StatusInternalServerError, "failed to create background task")
+	ucloudTaskId := 0
+	if !spec.Internal {
+		resp, err := fndapi.TasksCreate.Invoke(fndapi.TasksCreateRequest{
+			User:      spec.CreationState.Username,
+			Title:     util.OptValue("Task is starting"),
+			Body:      util.OptValue("One of your operations is being scheduled..."),
+			CanCancel: true,
+			Icon:      util.OptValue(spec.CreationState.Icon),
+		})
+		if err != nil {
+			log.Warn("Failed to create background task: %s", err)
+			return TaskSubmission{}, util.HttpErr(http.StatusInternalServerError, "failed to create background task")
+		}
+		ucloudTaskId = resp.Id
 	}
-
-	ucloudTaskId := resp.Id
 
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
@@ -519,6 +533,9 @@ func TaskSubmitWithInfo(spec TaskSpec) (TaskSubmission, *util.HttpError) {
 
 	_, kerr := shared.K8sClient.BatchV1().Jobs(shared.ServiceConfig.Compute.TaskNamespace).Create(context.Background(), &job, k8smeta.CreateOptions{})
 	if kerr != nil {
+		if spec.Internal {
+			taskCleanupByToken(spec.TaskToken)
+		}
 		log.Warn("K8s background task failed: %s", kerr)
 		return TaskSubmission{}, util.HttpErr(http.StatusInternalServerError, "failed to create background task")
 	}
@@ -576,6 +593,9 @@ func taskCancelSubmission(submission TaskSubmission) {
 	}
 
 	taskCleanupByToken(submission.TaskToken)
+	if submission.UCloudTaskId == 0 {
+		return
+	}
 
 	_, err := fndapi.TasksPostStatus.Invoke(fndapi.TasksPostStatusRequest{
 		Update: fndapi.TasksPostStatusRequestUpdate{

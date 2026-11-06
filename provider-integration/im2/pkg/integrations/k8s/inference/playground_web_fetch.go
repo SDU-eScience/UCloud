@@ -87,6 +87,9 @@ func (app *InferencePlaygroundApp) playgroundRunToolCalls(ctx context.Context, r
 			}
 		}
 		groupContext := ctx
+		if strings.TrimSpace(group[0].Function.Name) == "transcribe_file" {
+			groupContext = context.WithValue(ctx, playgroundTranscriptionBudgetKey{}, app.playgroundTranscriptionBudget(request))
+		}
 		if webFetch {
 			for _, allowed := range ready {
 				if !allowed {

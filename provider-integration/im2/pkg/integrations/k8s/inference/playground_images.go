@@ -29,15 +29,16 @@ const playgroundImageMaxCalls = 4
 const playgroundImageMaxBytes = attachmentMaxFileBytes
 const playgroundInlineImageBudget = 12 << 20
 
-type playgroundImageTurnKey struct{}
+type playgroundTurnKey struct{}
 
-type playgroundImageTurn struct {
+type playgroundTurn struct {
 	ThreadId       string
 	AssistantIndex int
 	ChatModel      string
 	StartedAt      int64
 	Reference      string
 	Calls          int
+	FileReference  string
 }
 
 type playgroundImageArgs struct {
@@ -52,7 +53,7 @@ func playgroundImageCommand(prompt string) bool {
 	return len(command) > 0 && command[0] == "/image"
 }
 
-func playgroundImageDefault(owner apm.WalletOwner, capability InferenceCapability) string {
+func playgroundDefaultModel(owner apm.WalletOwner, capability InferenceCapability) string {
 	configured := false
 	for _, model := range InferenceModelList() {
 		if slices.Contains(model.DefaultFor, capability) {
@@ -72,7 +73,7 @@ func playgroundImageDefault(owner apm.WalletOwner, capability InferenceCapabilit
 	return ""
 }
 
-func playgroundImagePath(owner orcapi.ResourceOwner, path string) (string, *util.HttpError) {
+func playgroundAssetPath(owner orcapi.ResourceOwner, path string) (string, *util.HttpError) {
 	components := strings.Split(path, "/")
 	if len(components) != 5 || filepath.Clean(path) != path || !strings.HasPrefix(components[3], "thread-") {
 		return "", util.HttpErr(http.StatusNotFound, "image not found")
@@ -88,16 +89,20 @@ func playgroundImagePath(owner orcapi.ResourceOwner, path string) (string, *util
 			}
 		}
 	}
-	switch filepath.Ext(path) {
-	case ".png", ".jpg", ".webp", ".gif":
-	default:
-		return "", util.HttpErr(http.StatusNotFound, "image not found")
-	}
 	basePath, _, err := filesystem.InitializeMemberFiles(owner.CreatedBy, owner.Project)
 	if err != nil {
 		return "", err
 	}
 	return filepath.Join(playgroundChatsRoot(basePath), path), nil
+}
+
+func playgroundImagePath(owner orcapi.ResourceOwner, path string) (string, *util.HttpError) {
+	switch filepath.Ext(path) {
+	case ".png", ".jpg", ".webp", ".gif":
+		return playgroundAssetPath(owner, path)
+	default:
+		return "", util.HttpErr(http.StatusNotFound, "image not found")
+	}
 }
 
 func playgroundImageRead(owner orcapi.ResourceOwner, path string) ([]byte, *util.HttpError) {
@@ -300,7 +305,7 @@ func (app *InferencePlaygroundApp) playgroundUpdateImagePart(threadId string, me
 }
 
 func (app *InferencePlaygroundApp) playgroundImageRequestMessages(original []InferenceChatMessage,
-	history []playgroundChatMessage, vision bool, inlineImages bool) []InferenceChatMessage {
+	history []playgroundChatMessage, vision bool, inlineImages bool, nativeAudio bool) []InferenceChatMessage {
 	messages := []InferenceChatMessage{}
 	for _, message := range original {
 		if message.Role == "system" {
@@ -316,12 +321,15 @@ func (app *InferencePlaygroundApp) playgroundImageRequestMessages(original []Inf
 			}
 		}
 		if len(images) == 0 {
-			messages = append(messages, InferenceChatMessage{Role: message.Role, Content: playgroundInferenceContent(message)})
+			messages = append(messages, InferenceChatMessage{Role: message.Role, Content: app.playgroundAudioContent(message, nativeAudio)})
 			if message.ImageReference != "" {
 				messages = append(messages, InferenceChatMessage{
 					Role:    "user",
 					Content: inferenceChatTextContent("Selected image for editing: " + message.ImageReference),
 				})
+			}
+			if message.AudioReference != "" {
+				messages = append(messages, InferenceChatMessage{Role: "user", Content: inferenceChatTextContent("Selected audio file for transcription: " + message.AudioReference)})
 			}
 			continue
 		}
@@ -360,6 +368,9 @@ func (app *InferencePlaygroundApp) playgroundImageRequestMessages(original []Inf
 				Type: "text",
 				Text: note,
 			})
+		}
+		if metadata := playgroundTranscriptMetadata(message); metadata != "" {
+			content.Parts = append(content.Parts, InferenceChatContentPart{Type: "text", Text: metadata})
 		}
 		messages = append(messages, InferenceChatMessage{Role: message.Role, Content: content})
 	}
@@ -442,7 +453,7 @@ func (app *InferencePlaygroundApp) playgroundImageTool(ctx context.Context, call
 	fail := func(message string) playgroundToolResult {
 		return playgroundToolResult{Message: playgroundToolError(call.Id, message), Error: message}
 	}
-	turn, _ := ctx.Value(playgroundImageTurnKey{}).(*playgroundImageTurn)
+	turn, _ := ctx.Value(playgroundTurnKey{}).(*playgroundTurn)
 	if turn == nil || ctx.Err() != nil {
 		return fail("image operation cancelled")
 	}
@@ -464,7 +475,7 @@ func (app *InferencePlaygroundApp) playgroundImageTool(ctx context.Context, call
 	if call.Function.Name == "edit_image" {
 		capability = InferenceImageToImage
 	}
-	modelName := playgroundImageDefault(app.walletOwner(), capability)
+	modelName := playgroundDefaultModel(app.walletOwner(), capability)
 	if modelName == "" {
 		return fail("no accessible provider default is configured for this image operation")
 	}
@@ -619,7 +630,7 @@ func playgroundImageOutputBytes(ctx context.Context, model InferenceModel,
 	return data, nil
 }
 
-func (app *InferencePlaygroundApp) playgroundRunDirectImage(ctx context.Context, turn *playgroundImageTurn,
+func (app *InferencePlaygroundApp) playgroundRunDirectImage(ctx context.Context, turn *playgroundTurn,
 	prompt string, attachments []playgroundChatAttachment) {
 	args := playgroundImageArgs{Prompt: prompt, ImageId: turn.Reference}
 	if args.ImageId == "" {
@@ -628,7 +639,7 @@ func (app *InferencePlaygroundApp) playgroundRunDirectImage(ctx context.Context,
 				continue
 			}
 			if args.ImageId != "" {
-				app.playgroundFinishImageTurn(turn, "Select one source image before using /image with several attachments.")
+				app.playgroundFinishTurn(turn, "Select one source image before using /image with several attachments.")
 				return
 			}
 			args.ImageId = attachment.AttachmentId
@@ -652,10 +663,10 @@ func (app *InferencePlaygroundApp) playgroundRunDirectImage(ctx context.Context,
 	app.appendThreadAssistantPart(turn.ThreadId, turn.AssistantIndex,
 		playgroundToolChatPart(call, playgroundToolStatus(result), playgroundToolPartBody(call, result)),
 		turn.ChatModel, turn.StartedAt)
-	app.playgroundFinishImageTurn(turn, result.Error)
+	app.playgroundFinishTurn(turn, result.Error)
 }
 
-func (app *InferencePlaygroundApp) playgroundFinishImageTurn(turn *playgroundImageTurn, text string) {
+func (app *InferencePlaygroundApp) playgroundFinishTurn(turn *playgroundTurn, text string) {
 	app.mu.Lock()
 	app.updateThreadAssistant(turn.ThreadId, turn.AssistantIndex, text, "", "", false, turn.ChatModel,
 		turn.StartedAt, turn.StartedAt, time.Now().UnixMilli(), 0)
