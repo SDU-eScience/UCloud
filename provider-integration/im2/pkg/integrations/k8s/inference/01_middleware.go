@@ -1259,6 +1259,19 @@ func inferenceBackendRequest(ctx context.Context, basePath string, method string
 	return resp, nil
 }
 
+func inferenceExternalEndpointAllowed(endpoint *url.URL, externalHosts []string) bool {
+	if endpoint.Scheme != "https" {
+		return false
+	}
+	host := strings.TrimSuffix(strings.ToLower(endpoint.Hostname()), ".")
+	for _, allowed := range externalHosts {
+		if host == allowed {
+			return true
+		}
+	}
+	return false
+}
+
 func inferenceValidateBackendEndpoint(raw string) *util.HttpError {
 	backend, _, httpErr := inferenceParseBackendBasePath(raw)
 	if httpErr != nil {
@@ -1271,6 +1284,9 @@ func inferenceValidateBackendEndpoint(raw string) *util.HttpError {
 	}
 
 	inferenceCfg := shared.ServiceConfig.Compute.Inference
+	if inferenceExternalEndpointAllowed(endpoint, inferenceCfg.ExternalHosts) {
+		return nil
+	}
 	switch inferenceCfg.Provider {
 	case cfg.KubernetesInferenceProviderDevelopment:
 		configured, parseErr := url.Parse(strings.TrimRight(inferenceCfg.BackendServer, "/"))

@@ -63,10 +63,15 @@ services:
       provider: dynamo
       dynamo:
         namespace: ucloud-inference
+      externalHosts:
+        - inference.example.org
       access:
         administrators: []
         testers: []
 ```
+
+`externalHosts` permits HTTPS model endpoints on the listed hostnames. Use it for models hosted by another UCloud
+system.
 
 For details, see the [configuration reference](../config-reference.md).
 

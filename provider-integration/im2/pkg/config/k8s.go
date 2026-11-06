@@ -189,6 +189,7 @@ type KubernetesInferenceConfiguration struct {
 	Development         KubernetesInferenceDevelopmentConfiguration
 	Dynamo              KubernetesInferenceDynamoConfiguration
 	Access              KubernetesInferenceAccessConfiguration
+	ExternalHosts       []string
 }
 
 type KubernetesInferenceProvider string
@@ -535,6 +536,23 @@ func parseKubernetesServices(unmanaged bool, mode ServerMode, filePath string, s
 				success = false
 			}
 			cfg.Compute.Inference.Provider = provider
+
+			externalHostsNode, _ := cfgutil.GetChildOrNil(filePath, inferenceNode, "externalHosts")
+			if externalHostsNode != nil {
+				var externalHosts []string
+				cfgutil.Decode(filePath, externalHostsNode, &externalHosts, &success)
+				normalized := make([]string, 0, len(externalHosts))
+				for _, host := range externalHosts {
+					host = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
+					if host == "" || strings.ContainsAny(host, " \t\r\n/:@[]*") {
+						cfgutil.ReportError(filePath, externalHostsNode, "externalHosts must contain hostnames without scheme, port, wildcard, or path: %q", host)
+						success = false
+						continue
+					}
+					normalized = append(normalized, host)
+				}
+				cfg.Compute.Inference.ExternalHosts = normalized
+			}
 
 			accessNode, _ := cfgutil.GetChildOrNil(filePath, inferenceNode, "access")
 			if accessNode != nil {

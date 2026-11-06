@@ -234,6 +234,8 @@ services:
       development:
         provider: localai
         server: "http://localai:8080/v1"
+      externalHosts:
+        - inference.example.org
       access:
         administrators: []
         testers: []

@@ -2,6 +2,7 @@ package inference
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	_ "image/gif"
 	"io"
@@ -14,8 +15,10 @@ import (
 	"time"
 	"unicode"
 
+	cfg "ucloud.dk/pkg/config"
 	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	apm "ucloud.dk/shared/pkg/accounting"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/ucx"
@@ -24,6 +27,7 @@ import (
 
 const playgroundImageMaxCalls = 4
 const playgroundImageMaxBytes = attachmentMaxFileBytes
+const playgroundInlineImageBudget = 12 << 20
 
 type playgroundImageTurnKey struct{}
 
@@ -40,7 +44,6 @@ type playgroundImageArgs struct {
 	Prompt  string `json:"prompt"`
 	ImageId string `json:"image_id"`
 	Size    string `json:"size"`
-	Quality string `json:"quality"`
 	Model   string `json:"model"`
 }
 
@@ -296,16 +299,15 @@ func (app *InferencePlaygroundApp) playgroundUpdateImagePart(threadId string, me
 	}
 }
 
-func (app *InferencePlaygroundApp) playgroundImageRequestMessages(modelName string, original []InferenceChatMessage,
-	history []playgroundChatMessage) []InferenceChatMessage {
+func (app *InferencePlaygroundApp) playgroundImageRequestMessages(original []InferenceChatMessage,
+	history []playgroundChatMessage, vision bool, inlineImages bool) []InferenceChatMessage {
 	messages := []InferenceChatMessage{}
 	for _, message := range original {
 		if message.Role == "system" {
 			messages = append(messages, message)
 		}
 	}
-	model, _ := app.modelByName(modelName)
-	vision := slices.Contains(model.Capabilities, InferenceVision)
+	inlineBudget := int64(playgroundInlineImageBudget)
 	for _, message := range history {
 		images := []playgroundChatMessagePart{}
 		for _, part := range message.Parts {
@@ -328,22 +330,27 @@ func (app *InferencePlaygroundApp) playgroundImageRequestMessages(modelName stri
 			content.Parts = append(content.Parts, InferenceChatContentPart{Type: "text", Text: message.Content})
 		}
 		for _, part := range images {
-			note := fmt.Sprintf("Image: %s; image_id: %s", part.FileName, part.ImageId)
+			note := fmt.Sprintf("Image present in this conversation. image_id: %s. "+
+				"Use image_id only for edit_image. Never repeat image metadata in a reply.", part.ImageId)
 			if part.Prompt != "" {
 				note += "\nGeneration prompt: " + part.Prompt
 			}
 			if part.RevisedPrompt != "" {
 				note += "\nRevised prompt: " + part.RevisedPrompt
 			}
-			if message.Role == "user" && vision && part.Status != "missing" {
-				imageURL := part.Url
-				if part.ImagePath != "" {
-					imageURL = ctrl.InferencePlaygroundImageURL(app.Owner, part.ImagePath)
-				}
+			includeImage := message.Role == "user" && vision && part.Status != "missing"
+			imageURL := ""
+			if includeImage {
+				imageURL = app.playgroundImageVisionURL(part, inlineImages, &inlineBudget)
+				includeImage = imageURL != ""
+			}
+			if includeImage {
 				content.Parts = append(content.Parts, InferenceChatContentPart{
 					Type:     "image_url",
 					ImageUrl: &InferenceChatUrl{Url: imageURL},
 				})
+			} else if message.Role == "user" && vision && part.Status != "missing" {
+				note += "\nThe image could not be included in this request. Do not claim to have seen it."
 			} else if part.Status == "missing" {
 				note += "\nThe source file is missing. Ask the user to attach it again before viewing or editing it."
 			} else {
@@ -357,6 +364,46 @@ func (app *InferencePlaygroundApp) playgroundImageRequestMessages(modelName stri
 		messages = append(messages, InferenceChatMessage{Role: message.Role, Content: content})
 	}
 	return messages
+}
+
+func (app *InferencePlaygroundApp) playgroundImageVisionURL(part playgroundChatMessagePart, inline bool,
+	budget *int64) string {
+	if inline && part.ImagePath != "" && *budget > 0 {
+		data, err := playgroundImageRead(app.Owner, part.ImagePath)
+		if err == nil {
+			contentType := http.DetectContentType(data)
+			encodedLength := int64(base64.StdEncoding.EncodedLen(len(data)) +
+				len("data:") + len(contentType) + len(";base64,"))
+			if encodedLength <= *budget {
+				*budget -= encodedLength
+				return "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(data)
+			}
+		}
+		return ""
+	}
+	if part.ImagePath != "" {
+		return ctrl.InferencePlaygroundImageURL(app.Owner, part.ImagePath)
+	}
+	return part.Url
+}
+
+func inferenceModelEndpointIsLocal(model InferenceModel) bool {
+	endpoint, err := url.Parse(model.Endpoint.BasePath)
+	if err != nil {
+		return false
+	}
+	if inferenceExternalEndpointAllowed(endpoint, shared.ServiceConfig.Compute.Inference.ExternalHosts) {
+		return false
+	}
+	host := strings.ToLower(endpoint.Hostname())
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+		return true
+	}
+	if strings.HasSuffix(host, ".svc.cluster.local") {
+		return true
+	}
+	return strings.EqualFold(host, cfg.Provider.Hosts.SelfPublic.Address) ||
+		strings.EqualFold(host, cfg.Provider.Hosts.Self.Address)
 }
 
 func (app *InferencePlaygroundApp) playgroundImageSource(threadId string, imageId string) (playgroundChatMessagePart, bool) {
@@ -413,10 +460,6 @@ func (app *InferencePlaygroundApp) playgroundImageTool(ctx context.Context, call
 		args.Size != "1536x1024" && args.Size != "1024x1536" {
 		return fail("unsupported image size")
 	}
-	if args.Quality != "" && args.Quality != "auto" && args.Quality != "low" &&
-		args.Quality != "medium" && args.Quality != "high" {
-		return fail("unsupported image quality")
-	}
 	capability := InferenceTextToImage
 	if call.Function.Name == "edit_image" {
 		capability = InferenceImageToImage
@@ -439,7 +482,6 @@ func (app *InferencePlaygroundApp) playgroundImageTool(ctx context.Context, call
 		N:              util.OptValue(1),
 		ResponseFormat: util.OptValue("b64_json"),
 		Size:           util.OptStringIfNotEmpty(args.Size),
-		Quality:        util.OptStringIfNotEmpty(args.Quality),
 	}
 	if capability == InferenceImageToImage {
 		source, ok := app.playgroundImageSource(turn.ThreadId, args.ImageId)
@@ -615,7 +657,7 @@ func (app *InferencePlaygroundApp) playgroundRunDirectImage(ctx context.Context,
 
 func (app *InferencePlaygroundApp) playgroundFinishImageTurn(turn *playgroundImageTurn, text string) {
 	app.mu.Lock()
-	app.updateThreadAssistant(turn.ThreadId, turn.AssistantIndex, text, "", false, turn.ChatModel,
+	app.updateThreadAssistant(turn.ThreadId, turn.AssistantIndex, text, "", "", false, turn.ChatModel,
 		turn.StartedAt, turn.StartedAt, time.Now().UnixMilli(), 0)
 	app.unregisterChatCancel(turn.ThreadId)
 	app.setThreadLoading(turn.ThreadId, false)
@@ -640,13 +682,15 @@ func playgroundImageToolDefinitions(generation bool, editing bool) []InferenceCh
 			Name:      "generate_image",
 			Available: generation,
 			Description: "Generate one image from a detailed prompt. Use only when the user requests an image. " +
-				"The image appears inline automatically. Do not embed an image URL in the reply.",
+				"The image appears inline automatically. Do not embed an image URL in the reply. " +
+				"Do not mention the file name, image ID, or tool output in the reply.",
 		},
 		{
 			Name:      "edit_image",
 			Available: editing,
 			Description: "Edit one attached or previously generated image. Select image_id from this conversation. " +
-				"Ask which source to use when unclear. The image appears inline automatically.",
+				"Ask which source to use when unclear. The image appears inline automatically. " +
+				"Do not mention the file name, image ID, or tool output in the reply.",
 		},
 	} {
 		if !operation.Available {
@@ -658,11 +702,6 @@ func playgroundImageToolDefinitions(generation bool, editing bool) []InferenceCh
 				"type":        "string",
 				"enum":        []string{"auto", "1024x1024", "1536x1024", "1024x1536"},
 				"description": "Optional output size; omit to use the model default.",
-			},
-			"quality": map[string]any{
-				"type":        "string",
-				"enum":        []string{"auto", "low", "medium", "high"},
-				"description": "Optional quality; omit to use the model default.",
 			},
 			"model": map[string]any{
 				"type":        "string",

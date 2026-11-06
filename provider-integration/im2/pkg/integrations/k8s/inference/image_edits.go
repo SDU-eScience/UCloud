@@ -2,6 +2,8 @@ package inference
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
@@ -14,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 
+	cfg "ucloud.dk/pkg/config"
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -189,20 +193,49 @@ func inferenceValidateImageEditSize(raw string) *util.HttpError {
 	return nil
 }
 
+func inferenceImageEditUsesJSONReferences() bool {
+	return shared.ServiceConfig.Compute.Inference.Provider == cfg.KubernetesInferenceProviderDynamo
+}
+
+func inferenceBuildImageEditJSON(request InferenceImageGenerationRequest) ([]byte, *util.HttpError) {
+	if request.Image == nil {
+		return nil, util.HttpErr(http.StatusBadRequest, "image is required")
+	}
+	if request.Mask != nil {
+		return nil, util.HttpErr(http.StatusBadRequest, "image masks are not supported")
+	}
+	request.InputReference = util.OptValue("data:" + request.Image.ContentType + ";base64," +
+		base64.StdEncoding.EncodeToString(request.Image.Data))
+	request.Image = nil
+	request.NumInferenceSteps.Clear()
+	body, err := json.Marshal(request)
+	if err != nil {
+		return nil, util.HttpErr(http.StatusBadRequest, "invalid request")
+	}
+	return body, nil
+}
+
 func inferenceBuildImageEditMultipart(request InferenceImageGenerationRequest) ([]byte, string, *util.HttpError) {
 	if request.Image == nil {
 		return nil, "", util.HttpErr(http.StatusBadRequest, "image is required")
+	}
+	if request.Mask != nil {
+		return nil, "", util.HttpErr(http.StatusBadRequest, "image masks are not supported")
+	}
+	if request.PartialImages.Present {
+		return nil, "", util.HttpErr(http.StatusBadRequest, "partial images are not supported for image edits")
+	}
+	if request.OutputCompression.Present {
+		return nil, "", util.HttpErr(http.StatusBadRequest, "output compression is not supported for image edits")
+	}
+	if request.Stream.GetOrDefault(false) {
+		return nil, "", util.HttpErr(http.StatusBadRequest, "streaming is not supported for image edits")
 	}
 
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 	if err := inferenceWriteImageEditPart(writer, "image", *request.Image); err != nil {
 		return nil, "", util.HttpErr(http.StatusBadRequest, "invalid request")
-	}
-	if request.Mask != nil {
-		if err := inferenceWriteImageEditPart(writer, "mask", *request.Mask); err != nil {
-			return nil, "", util.HttpErr(http.StatusBadRequest, "invalid request")
-		}
 	}
 
 	writeField := func(key string, value string) {
@@ -215,26 +248,23 @@ func inferenceBuildImageEditMultipart(request InferenceImageGenerationRequest) (
 			writeField(key, strconv.Itoa(value.Value))
 		}
 	}
-	writeBool := func(key string, value util.Option[bool]) {
-		if value.Present {
-			writeField(key, strconv.FormatBool(value.Value))
-		}
-	}
 
 	writeField("prompt", request.Prompt)
 	writeField("model", request.Model.GetOrDefault(""))
 	writeInt("n", request.N)
-	writeInt("partial_images", request.PartialImages)
-	writeInt("output_compression", request.OutputCompression)
 	writeField("size", request.Size.GetOrDefault(""))
 	writeField("response_format", request.ResponseFormat.GetOrDefault(""))
-	writeBool("stream", request.Stream)
 	writeField("quality", request.Quality.GetOrDefault(""))
 	writeField("background", request.Background.GetOrDefault(""))
 	writeField("output_format", request.OutputFormat.GetOrDefault(""))
 	writeField("moderation", request.Moderation.GetOrDefault(""))
 	writeField("style", request.Style.GetOrDefault(""))
 	writeField("user", request.User.GetOrDefault(""))
+	if request.NvExt != nil {
+		if nvExt, err := json.Marshal(request.NvExt); err == nil {
+			writeField("nvext", string(nvExt))
+		}
+	}
 
 	if err := writer.Close(); err != nil {
 		return nil, "", util.HttpErr(http.StatusBadRequest, "invalid request")

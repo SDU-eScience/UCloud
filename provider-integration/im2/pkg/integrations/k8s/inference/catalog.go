@@ -157,7 +157,7 @@ type inferenceModelRow struct {
 	PricePerMillionCachedInput int64
 	PricePerMillionInput       int64
 	PricePerMillionOutput      int64
-	PricePerMegaPixel          int64
+	PricePerMegaPixel          int64 `db:"price_per_megapixel"`
 	PricePerAudioMinute        int64
 	FileUrlRoot                string
 	InferenceEndpointPath      string

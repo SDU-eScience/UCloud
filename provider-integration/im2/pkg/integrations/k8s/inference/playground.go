@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	apm "ucloud.dk/shared/pkg/accounting"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -235,12 +236,13 @@ type playgroundStreamingPublisher struct {
 	startedAt      int64
 
 	// mu guards the output buffers
-	mu           sync.Mutex
-	content      strings.Builder
-	reasoning    strings.Builder
-	outputTokens int64
-	firstTokenAt int64
-	dirty        bool
+	mu               sync.Mutex
+	content          strings.Builder
+	reasoning        strings.Builder
+	reasoningSegment strings.Builder
+	outputTokens     int64
+	firstTokenAt     int64
+	dirty            bool
 
 	quit chan struct{}
 	done chan struct{}
@@ -495,6 +497,7 @@ func (app *InferencePlaygroundApp) ensureCurrentThread() {
 	if app.CurrentThreadId != "" {
 		if thread, ok := app.currentThread(); ok && !thread.Deleted {
 			app.Chat.Messages = slices.Clone(thread.Messages)
+			app.prepareChatMessagesForUi()
 			return
 		}
 	}
@@ -927,6 +930,17 @@ func (app *InferencePlaygroundApp) applyChatModelDefaults() {
 func (app *InferencePlaygroundApp) prepareChatMessagesForUi() {
 	for i := range app.Chat.Messages {
 		app.Chat.Messages[i].MessageIndex = int64(i)
+		parts := slices.Clone(app.Chat.Messages[i].Parts)
+		for j := range parts {
+			if parts[j].Kind != "image" || parts[j].ImagePath == "" {
+				continue
+			}
+			parts[j].Url = ""
+			if parts[j].Status != "missing" {
+				parts[j].Url = ctrl.InferencePlaygroundImageURL(app.Owner, parts[j].ImagePath)
+			}
+		}
+		app.Chat.Messages[i].Parts = parts
 	}
 }
 
@@ -1139,14 +1153,28 @@ func (app *InferencePlaygroundApp) runChatResponse(ctx context.Context, owner ap
 		return
 	}
 	app.mu.Lock()
+	var history []playgroundChatMessage
+	vision := false
+	inlineImages := false
+	found := false
 	for _, thread := range app.Threads {
 		if thread.Id == threadId && assistantIndex < len(thread.Messages) {
-			request.Messages = app.playgroundImageRequestMessages(request.Model, request.Messages,
-				thread.Messages[:assistantIndex])
+			model, _ := app.modelByName(request.Model)
+			vision = slices.Contains(model.Capabilities, InferenceVision)
+			inlineImages = !inferenceModelEndpointIsLocal(model)
+			history = make([]playgroundChatMessage, assistantIndex)
+			for i := range history {
+				history[i] = thread.Messages[i]
+				history[i].Parts = slices.Clone(thread.Messages[i].Parts)
+			}
+			found = true
 			break
 		}
 	}
 	app.mu.Unlock()
+	if found {
+		request.Messages = app.playgroundImageRequestMessages(request.Messages, history, vision, inlineImages)
+	}
 	assistant := ""
 	reasoning := ""
 	usageSeen := InferenceChatUsage{}
@@ -1169,7 +1197,7 @@ func (app *InferencePlaygroundApp) runChatResponse(ctx context.Context, owner ap
 	if firstTokenAt == 0 {
 		firstTokenAt = finishedAt
 	}
-	app.updateThreadAssistant(threadId, assistantIndex, assistant, reasoning, false, request.Model,
+	app.updateThreadAssistant(threadId, assistantIndex, assistant, reasoning, "", false, request.Model,
 		startedAt, firstTokenAt, finishedAt, int64(usageSeen.CompletionTokens))
 	app.Chat.Curl = app.buildChatCurl()
 	if app.Chat.StreamingThreadId == threadId {
@@ -1233,6 +1261,7 @@ func (p *playgroundStreamingPublisher) publish(contentDelta string, reasoningDel
 	}
 	if reasoningDelta != "" {
 		p.reasoning.WriteString(reasoningDelta)
+		p.reasoningSegment.WriteString(reasoningDelta)
 		p.dirty = true
 	}
 	if outputTokens > p.outputTokens {
@@ -1251,21 +1280,19 @@ func (p *playgroundStreamingPublisher) snapshot() (content string, reasoning str
 	return p.content.String(), p.reasoning.String(), p.firstTokenAt
 }
 
-func (p *playgroundStreamingPublisher) takeSnapshot() (content string, reasoning string, firstTokenAt int64, dirty bool) {
+func (p *playgroundStreamingPublisher) sealReasoning(modelName string, startedAt int64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	content = p.content.String()
-	reasoning = p.reasoning.String()
-	firstTokenAt = p.firstTokenAt
-	dirty = p.dirty
-	p.dirty = false
-	return content, reasoning, firstTokenAt, dirty
-}
-
-func (p *playgroundStreamingPublisher) outputTokensSnapshot() int64 {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.outputTokens
+	segment := strings.TrimLeft(p.reasoningSegment.String(), "\n")
+	p.reasoningSegment.Reset()
+	if strings.TrimSpace(segment) == "" {
+		return
+	}
+	p.app.appendThreadAssistantPart(p.threadId, p.assistantIndex, playgroundChatMessagePart{
+		Kind:   "thinking",
+		Body:   segment,
+		Status: "completed",
+	}, modelName, startedAt)
 }
 
 func (p *playgroundStreamingPublisher) run() {
@@ -1290,10 +1317,17 @@ func (p *playgroundStreamingPublisher) stop() {
 }
 
 func (p *playgroundStreamingPublisher) flush() {
-	content, reasoning, firstTokenAt, dirty := p.takeSnapshot()
-	if !dirty {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if !p.dirty {
 		return
 	}
+	content := p.content.String()
+	reasoning := p.reasoning.String()
+	reasoningSegment := p.reasoningSegment.String()
+	firstTokenAt := p.firstTokenAt
+	outputTokens := p.outputTokens
+	p.dirty = false
 
 	p.app.mu.Lock()
 	p.app.updateThreadAssistant(
@@ -1301,12 +1335,13 @@ func (p *playgroundStreamingPublisher) flush() {
 		p.assistantIndex,
 		content,
 		reasoning,
+		reasoningSegment,
 		strings.TrimSpace(content) == "",
 		p.modelId,
 		p.startedAt,
 		firstTokenAt,
 		0,
-		p.outputTokensSnapshot(),
+		outputTokens,
 	)
 	if p.app.CurrentThreadId == p.threadId && p.assistantIndex >= 0 && p.assistantIndex < len(p.app.Chat.Messages) {
 		msg := &p.app.Chat.Messages[p.assistantIndex]
@@ -1359,6 +1394,7 @@ func (app *InferencePlaygroundApp) runChatResponseStreaming(ctx context.Context,
 
 	content, reasoning, result := app.runChatResponseStreamingInner(ctx, owner, request, threadId, assistantIndex, startedAt, publisher, &usageSeen, &lastRequestUsage, &firstTokenAt)
 
+	publisher.sealReasoning(request.Model, startedAt)
 	publisher.stop()
 	app.sendStreamingMessagePatch()
 
@@ -1456,6 +1492,7 @@ func (app *InferencePlaygroundApp) runChatResponseStreamingInner(
 		toolCalls := playgroundStreamingToolCalls(toolCallsByIndex, toolCallOrder)
 		request.Messages = append(request.Messages, InferenceChatMessage{Role: "assistant", Content: inferenceChatTextContent(""), ToolCalls: toolCalls})
 
+		publisher.sealReasoning(request.Model, startedAt)
 		app.playgroundRunToolCalls(ctx, request, threadId, assistantIndex, startedAt, toolCalls)
 	}
 
@@ -1544,6 +1581,9 @@ func (app *InferencePlaygroundApp) appendThreadAssistantPart(threadId string, as
 		if app.CurrentThreadId == threadId {
 			app.Chat.Messages = slices.Clone(thread.Messages)
 			app.prepareChatMessagesForUi()
+			if app.Chat.StreamingThreadId == threadId && assistantIndex < len(app.Chat.Messages) {
+				app.Chat.StreamingMessages = []playgroundChatMessage{app.Chat.Messages[assistantIndex]}
+			}
 		}
 		session := app.session
 		model := ucx.AppSnapshot(app)
@@ -1567,6 +1607,16 @@ func (app *InferencePlaygroundApp) appendThreadAssistantPart(threadId string, as
 }
 
 func playgroundUpsertToolPart(parts []playgroundChatMessagePart, part playgroundChatMessagePart) []playgroundChatMessagePart {
+	if part.Kind == "thinking" && part.Status != "running" {
+		for len(parts) > 0 {
+			last := parts[len(parts)-1]
+			if last.Kind != "text" && last.Kind != "thinking" {
+				break
+			}
+			parts = parts[:len(parts)-1]
+		}
+		return append(parts, part)
+	}
 	if part.Kind != "tool" {
 		return append(parts, part)
 	}
@@ -1580,18 +1630,7 @@ func playgroundUpsertToolPart(parts []playgroundChatMessagePart, part playground
 			}
 		}
 	}
-	insertAt := len(parts)
-	for i, existing := range parts {
-		if existing.Kind != "tool" {
-			insertAt = i
-			break
-		}
-	}
-	updated := make([]playgroundChatMessagePart, 0, len(parts)+1)
-	updated = append(updated, parts[:insertAt]...)
-	updated = append(updated, part)
-	updated = append(updated, parts[insertAt:]...)
-	return updated
+	return append(parts, part)
 }
 
 // Generation and cancellation state
@@ -1666,18 +1705,26 @@ func (app *InferencePlaygroundApp) unregisterChatCancel(threadId string) {
 	delete(app.chatCancels, threadId)
 }
 
-func (app *InferencePlaygroundApp) updateThreadAssistant(threadId string, assistantIndex int, content string, reasoning string, reasoningOpen bool, modelName string, startedAt int64, firstTokenAt int64, finishedAt int64, outputTokens int64) {
+func (app *InferencePlaygroundApp) updateThreadAssistant(threadId string, assistantIndex int, content string, reasoning string, reasoningSegment string, reasoningOpen bool, modelName string, startedAt int64, firstTokenAt int64, finishedAt int64, outputTokens int64) {
+	parts := playgroundChatMessageParts(content, "")
+	segment := strings.TrimLeft(reasoningSegment, "\n")
+	hasSegment := strings.TrimSpace(segment) != ""
+	if hasSegment {
+		status := "completed"
+		if reasoningOpen {
+			status = "running"
+		}
+		parts = append([]playgroundChatMessagePart{{Kind: "thinking", Body: segment, Status: status}}, parts...)
+	}
 	for i := range app.Threads {
 		thread := &app.Threads[i]
 		if thread.Id != threadId || assistantIndex < 0 || assistantIndex >= len(thread.Messages) {
 			continue
 		}
 		msg := &thread.Messages[assistantIndex]
-		parts := playgroundPersistentParts(msg.Parts)
-		parts = append(parts, playgroundChatMessageParts(content, reasoning)...)
+		msg.Parts = playgroundAssistantParts(msg.Parts, parts, hasSegment)
 		msg.Content = content
 		msg.Reasoning = reasoning
-		msg.Parts = parts
 		msg.ModelName = modelName
 		msg.StartedAt = startedAt
 		msg.FirstTokenAt = firstTokenAt
@@ -1693,11 +1740,9 @@ func (app *InferencePlaygroundApp) updateThreadAssistant(threadId string, assist
 	}
 	if threadId == "" && assistantIndex >= 0 && assistantIndex < len(app.Chat.Messages) {
 		msg := &app.Chat.Messages[assistantIndex]
-		parts := playgroundPersistentParts(msg.Parts)
-		parts = append(parts, playgroundChatMessageParts(content, reasoning)...)
+		msg.Parts = playgroundAssistantParts(msg.Parts, parts, hasSegment)
 		msg.Content = content
 		msg.Reasoning = reasoning
-		msg.Parts = parts
 		msg.ModelName = modelName
 		msg.StartedAt = startedAt
 		msg.FirstTokenAt = firstTokenAt
@@ -1706,12 +1751,24 @@ func (app *InferencePlaygroundApp) updateThreadAssistant(threadId string, assist
 	}
 }
 
+func playgroundAssistantParts(existing []playgroundChatMessagePart, parts []playgroundChatMessagePart, replaceThinking bool) []playgroundChatMessagePart {
+	base := playgroundPersistentParts(existing)
+	if replaceThinking && len(base) > 0 && base[len(base)-1].Kind == "thinking" {
+		base = base[:len(base)-1]
+	}
+	return append(base, parts...)
+}
+
 func playgroundPersistentParts(parts []playgroundChatMessagePart) []playgroundChatMessagePart {
 	result := make([]playgroundChatMessagePart, 0)
 	for _, part := range parts {
-		if part.Kind == "tool" || part.Kind == "image" {
-			result = append(result, part)
+		if part.Kind != "tool" && part.Kind != "image" && !(part.Kind == "thinking" && part.Status != "running") {
+			continue
 		}
+		if part.Kind == "image" && part.ImagePath != "" {
+			part.Url = ""
+		}
+		result = append(result, part)
 	}
 	return result
 }
@@ -2199,7 +2256,7 @@ func (app *InferencePlaygroundApp) runDeveloperSlashCommand(prompt string) bool 
 
 		app.mu.Lock()
 		finishedAt := time.Now().UnixMilli()
-		app.updateThreadAssistant(threadId, assistantIndex, "Developer tool command completed.", "", false, modelId, startedAt, startedAt, finishedAt, 0)
+		app.updateThreadAssistant(threadId, assistantIndex, "Developer tool command completed.", "", "", false, modelId, startedAt, startedAt, finishedAt, 0)
 		app.Chat.Loading = false
 		app.setThreadLoading(threadId, false)
 		app.Chat.Curl = app.buildChatCurl()
@@ -2291,7 +2348,7 @@ func (app *InferencePlaygroundApp) runDeveloperSimulatedResponse(prompt string, 
 		app.mu.Lock()
 		app.unregisterChatCancel(threadId)
 		finishedAt := time.Now().UnixMilli()
-		app.updateThreadAssistant(threadId, assistantIndex, content, "", false, modelId, now, now, finishedAt, outputTokens)
+		app.updateThreadAssistant(threadId, assistantIndex, content, "", "", false, modelId, now, now, finishedAt, outputTokens)
 		app.Chat.Curl = app.buildChatCurl()
 		app.Chat.Loading = false
 		app.Chat.StreamingMessages = nil

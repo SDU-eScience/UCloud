@@ -299,12 +299,18 @@ func playgroundThreadRead(path string) (playgroundChatThread, bool) {
 func playgroundThreadPersisted(thread playgroundChatThread) playgroundPersistedThread {
 	messages := make([]playgroundPersistedMessage, 0, len(thread.Messages))
 	for _, msg := range thread.Messages {
+		parts := slices.Clone(msg.Parts)
+		for i := range parts {
+			if parts[i].Kind == "image" && parts[i].ImagePath != "" {
+				parts[i].Url = ""
+			}
+		}
 		messages = append(messages, playgroundPersistedMessage{
 			Role:           msg.Role,
 			Content:        msg.Content,
 			Synthetic:      msg.Synthetic,
 			Reasoning:      msg.Reasoning,
-			Parts:          msg.Parts,
+			Parts:          parts,
 			GeneratedAt:    playgroundFormatTime(msg.GeneratedAt),
 			ModelName:      msg.ModelName,
 			StartedAt:      playgroundFormatTime(msg.StartedAt),

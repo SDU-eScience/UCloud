@@ -47,15 +47,23 @@ var inferencePlaygroundImageLinks = struct {
 }
 
 func InferencePlaygroundImageURL(owner orcapi.ResourceOwner, path string) string {
-	token := util.SecureToken()
+	now := time.Now()
+	token := ""
 	inferencePlaygroundImageLinks.Lock()
 	for key, link := range inferencePlaygroundImageLinks.Links {
-		if time.Now().After(link.ExpiresAt) {
+		if now.After(link.ExpiresAt) {
 			delete(inferencePlaygroundImageLinks.Links, key)
+			continue
+		}
+		if token == "" && link.Owner == owner && link.Path == path && link.ExpiresAt.Sub(now) > time.Minute {
+			token = key
 		}
 	}
-	inferencePlaygroundImageLinks.Links[token] = inferencePlaygroundImageLink{
-		Owner: owner, Path: path, ExpiresAt: time.Now().Add(10 * time.Minute),
+	if token == "" {
+		token = util.SecureToken()
+		inferencePlaygroundImageLinks.Links[token] = inferencePlaygroundImageLink{
+			Owner: owner, Path: path, ExpiresAt: now.Add(10 * time.Minute),
+		}
 	}
 	inferencePlaygroundImageLinks.Unlock()
 	return fmt.Sprintf("%s/ucloud/%s/inference/playground/images?token=%s",

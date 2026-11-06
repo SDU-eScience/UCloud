@@ -18,26 +18,38 @@ const (
 	inferenceImageGenerationTokensPerMegaPixel = 1000.0
 	inferenceMaxImageUpstreamJSONBytes         = 64 << 20
 	inferenceDefaultImageDimension             = 1024
+	inferenceDefaultImageSteps                 = 50
 )
 
 type InferenceImageGenerationRequest struct {
-	Background        util.Option[string] `json:"background,omitempty"`
-	Model             util.Option[string] `json:"model,omitempty"`
-	Moderation        util.Option[string] `json:"moderation,omitempty"`
-	N                 util.Option[int]    `json:"n,omitempty"`
-	OutputCompression util.Option[int]    `json:"output_compression,omitempty"`
-	OutputFormat      util.Option[string] `json:"output_format,omitempty"`
-	PartialImages     util.Option[int]    `json:"partial_images,omitempty"`
-	Prompt            string              `json:"prompt"`
-	Quality           util.Option[string] `json:"quality,omitempty"`
-	ResponseFormat    util.Option[string] `json:"response_format,omitempty"`
-	Size              util.Option[string] `json:"size,omitempty"`
-	Stream            util.Option[bool]   `json:"stream,omitempty"`
-	Style             util.Option[string] `json:"style,omitempty"`
-	User              util.Option[string] `json:"user,omitempty"`
+	Background        util.Option[string]  `json:"background,omitzero"`
+	Model             util.Option[string]  `json:"model,omitzero"`
+	Moderation        util.Option[string]  `json:"moderation,omitzero"`
+	N                 util.Option[int]     `json:"n,omitzero"`
+	NumInferenceSteps util.Option[int]     `json:"num_inference_steps,omitzero"`
+	OutputCompression util.Option[int]     `json:"output_compression,omitzero"`
+	OutputFormat      util.Option[string]  `json:"output_format,omitzero"`
+	PartialImages     util.Option[int]     `json:"partial_images,omitzero"`
+	Prompt            string               `json:"prompt"`
+	Quality           util.Option[string]  `json:"quality,omitzero"`
+	ResponseFormat    util.Option[string]  `json:"response_format,omitzero"`
+	Size              util.Option[string]  `json:"size,omitzero"`
+	Stream            util.Option[bool]    `json:"stream,omitzero"`
+	Style             util.Option[string]  `json:"style,omitzero"`
+	User              util.Option[string]  `json:"user,omitzero"`
+	NvExt             *InferenceImageNvExt `json:"nvext,omitempty"`
+
+	InputReference util.Option[string] `json:"input_reference,omitzero"`
 
 	Image *InferenceImageEditFile `json:"-"`
 	Mask  *InferenceImageEditFile `json:"-"`
+}
+
+type InferenceImageNvExt struct {
+	NegativePrompt    util.Option[string]  `json:"negative_prompt,omitzero"`
+	NumInferenceSteps util.Option[int]     `json:"num_inference_steps,omitzero"`
+	GuidanceScale     util.Option[float64] `json:"guidance_scale,omitzero"`
+	Seed              util.Option[int64]   `json:"seed,omitzero"`
 }
 
 type InferenceImageGenerationResponse struct {
@@ -500,7 +512,30 @@ func inferenceGenerateImageStreamingAcquired(ctx context.Context, owner apm.Wall
 }
 
 func inferenceImageBackendBody(request InferenceImageGenerationRequest) (string, []byte, string, *util.HttpError) {
+	steps := request.NumInferenceSteps
+	if !steps.Present && request.NvExt != nil {
+		steps = request.NvExt.NumInferenceSteps
+	}
+	if !steps.Present {
+		steps = util.OptValue(inferenceDefaultImageSteps)
+	}
+	request.NumInferenceSteps = steps
+	if request.NvExt == nil {
+		request.NvExt = &InferenceImageNvExt{}
+	}
+	request.NvExt.NumInferenceSteps = steps
+
 	if request.Image != nil {
+		if inferenceImageEditUsesJSONReferences() {
+			body, httpErr := inferenceBuildImageEditJSON(request)
+			if httpErr != nil {
+				return "", nil, "", httpErr
+			}
+			if len(body) > inferenceMaxImageUpstreamJSONBytes {
+				return "", nil, "", util.HttpErr(http.StatusRequestEntityTooLarge, "request body too large")
+			}
+			return "/images/edits", body, "application/json", nil
+		}
 		body, contentType, httpErr := inferenceBuildImageEditMultipart(request)
 		if httpErr != nil {
 			return "", nil, "", httpErr
@@ -524,6 +559,9 @@ func inferenceImageBackendBody(request InferenceImageGenerationRequest) (string,
 func inferenceValidateImageRequest(request InferenceImageGenerationRequest) *util.HttpError {
 	if request.N.Present && (request.N.Value <= 0 || request.N.Value > 8) {
 		return util.HttpErr(http.StatusBadRequest, "invalid number of images")
+	}
+	if request.NumInferenceSteps.Present && request.NumInferenceSteps.Value <= 0 {
+		return util.HttpErr(http.StatusBadRequest, "invalid number of inference steps")
 	}
 	if request.PartialImages.Present && (request.PartialImages.Value < 0 || request.PartialImages.Value > 3) {
 		return util.HttpErr(http.StatusBadRequest, "invalid number of partial images")
