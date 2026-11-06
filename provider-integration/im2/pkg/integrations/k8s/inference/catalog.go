@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"maps"
 	"net/http"
+	"path"
 	"slices"
 	"sort"
 	"strings"
@@ -39,6 +40,7 @@ type InferenceCapability string
 const (
 	InferenceTextGeneration InferenceCapability = "TextGeneration"
 	InferenceTextToImage    InferenceCapability = "TextToImage"
+	InferenceImageToImage   InferenceCapability = "ImageToImage"
 	InferenceSpeechToText   InferenceCapability = "SpeechToText"
 	InferenceVision         InferenceCapability = "Vision"
 	InferenceVideoVision    InferenceCapability = "VideoVision"
@@ -52,6 +54,9 @@ type InferenceModel struct {
 	ReasoningEfforts       []InferenceModelOption `json:"reasoningEfforts,omitempty"`
 	DefaultReasoningEffort string                 `json:"defaultReasoningEffort,omitempty"`
 	PricePerMillion        InferencePricing       `json:"pricePerMillion"`
+	PricePerMegaPixel      int64                  `json:"pricePerMegaPixel"`
+	PricePerAudioMinute    int64                  `json:"pricePerAudioMinute"`
+	FileUrlRoot            string                 `json:"fileUrlRoot,omitempty"`
 	Endpoint               InferenceEndpoint      `json:"endpoint"`
 	Availability           InferenceAvailability  `json:"availability"`
 	ContextWindow          *int                   `json:"contextWindow,omitempty"`
@@ -150,6 +155,9 @@ type inferenceModelRow struct {
 	PricePerMillionCachedInput int64
 	PricePerMillionInput       int64
 	PricePerMillionOutput      int64
+	PricePerMegaPixel          int64
+	PricePerAudioMinute        int64
+	FileUrlRoot                string
 	InferenceEndpointPath      string
 	InferenceEndpointModel     string
 	Public                     bool
@@ -194,6 +202,9 @@ func inferenceModelCatalogLoad() {
 					price_per_million_cached_input,
 					price_per_million_input,
 					price_per_million_output,
+					price_per_megapixel,
+					price_per_audio_minute,
+					file_url_root,
 					inference_endpoint_path,
 					inference_endpoint_model,
 					public,
@@ -260,6 +271,9 @@ func inferenceModelCatalogLoad() {
 					Input:       row.PricePerMillionInput,
 					Output:      row.PricePerMillionOutput,
 				},
+				PricePerMegaPixel:   row.PricePerMegaPixel,
+				PricePerAudioMinute: row.PricePerAudioMinute,
+				FileUrlRoot:         row.FileUrlRoot,
 				Endpoint: InferenceEndpoint{
 					BasePath:         row.InferenceEndpointPath,
 					BackendModelName: row.InferenceEndpointModel,
@@ -530,6 +544,9 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				price_per_million_cached_input,
 				price_per_million_input,
 				price_per_million_output,
+				price_per_megapixel,
+				price_per_audio_minute,
+				file_url_root,
 				inference_endpoint_path,
 				inference_endpoint_model,
 				public,
@@ -550,6 +567,9 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				:price_per_million_cached_input,
 				:price_per_million_input,
 				:price_per_million_output,
+				:price_per_megapixel,
+				:price_per_audio_minute,
+				:file_url_root,
 				:inference_endpoint_path,
 				:inference_endpoint_model,
 				:public,
@@ -569,6 +589,9 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				price_per_million_cached_input = excluded.price_per_million_cached_input,
 				price_per_million_input = excluded.price_per_million_input,
 				price_per_million_output = excluded.price_per_million_output,
+				price_per_megapixel = excluded.price_per_megapixel,
+				price_per_audio_minute = excluded.price_per_audio_minute,
+				file_url_root = excluded.file_url_root,
 				inference_endpoint_path = excluded.inference_endpoint_path,
 				inference_endpoint_model = excluded.inference_endpoint_model,
 				public = excluded.public,
@@ -590,6 +613,9 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 			"price_per_million_cached_input": model.PricePerMillion.CachedInput,
 			"price_per_million_input":        model.PricePerMillion.Input,
 			"price_per_million_output":       model.PricePerMillion.Output,
+			"price_per_megapixel":            model.PricePerMegaPixel,
+			"price_per_audio_minute":         model.PricePerAudioMinute,
+			"file_url_root":                  model.FileUrlRoot,
 			"inference_endpoint_path":        model.Endpoint.BasePath,
 			"inference_endpoint_model":       model.Endpoint.BackendModelName,
 			"public":                         model.Availability.Public,
@@ -641,6 +667,10 @@ func inferenceModelNormalize(model InferenceModel) InferenceModel {
 	model.Title = strings.TrimSpace(model.Title)
 	model.Endpoint.BasePath = strings.TrimRight(strings.TrimSpace(model.Endpoint.BasePath), "/")
 	model.Endpoint.BackendModelName = strings.TrimSpace(model.Endpoint.BackendModelName)
+	model.FileUrlRoot = strings.TrimSpace(model.FileUrlRoot)
+	if model.FileUrlRoot != "" {
+		model.FileUrlRoot = path.Clean(model.FileUrlRoot)
+	}
 	for idx := range model.ReasoningEfforts {
 		model.ReasoningEfforts[idx].Name = strings.TrimSpace(model.ReasoningEfforts[idx].Name)
 		model.ReasoningEfforts[idx].Value = strings.TrimSpace(model.ReasoningEfforts[idx].Value)
@@ -708,6 +738,12 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	if model.PricePerMillion.CachedInput < 0 || model.PricePerMillion.Input < 0 || model.PricePerMillion.Output < 0 {
 		return util.HttpErr(http.StatusBadRequest, "model prices per million tokens cannot be negative")
 	}
+	if model.PricePerMegaPixel < 0 || model.PricePerAudioMinute < 0 {
+		return util.HttpErr(http.StatusBadRequest, "model native prices cannot be negative")
+	}
+	if model.FileUrlRoot != "" && !path.IsAbs(model.FileUrlRoot) {
+		return util.HttpErr(http.StatusBadRequest, "model file URL root must be an absolute path")
+	}
 	if model.ChatSettings.Temperature < 0 || model.ChatSettings.Temperature > 2 {
 		return util.HttpErr(http.StatusBadRequest, "model temperature must be between 0 and 2")
 	}
@@ -719,7 +755,7 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	}
 	for _, capability := range model.Capabilities {
 		switch capability {
-		case InferenceTextGeneration, InferenceTextToImage, InferenceSpeechToText, InferenceVision, InferenceVideoVision, InferenceAudio:
+		case InferenceTextGeneration, InferenceTextToImage, InferenceImageToImage, InferenceSpeechToText, InferenceVision, InferenceVideoVision, InferenceAudio:
 		default:
 			return util.HttpErr(http.StatusBadRequest, "invalid model capability")
 		}

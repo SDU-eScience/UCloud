@@ -203,6 +203,8 @@ func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string, disa
 				Input:       InferencePriceScale,
 				Output:      InferencePriceScale,
 			},
+			PricePerMegaPixel:   InferencePriceScale,
+			PricePerAudioMinute: InferencePriceScale,
 			Endpoint: InferenceEndpoint{
 				BasePath:         base,
 				BackendModelName: name,

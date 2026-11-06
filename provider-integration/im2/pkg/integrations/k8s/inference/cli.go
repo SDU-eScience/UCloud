@@ -57,12 +57,15 @@ func inferenceCliHelp() {
 	f.AppendField("models update <name>", "Update an inference model catalog entry, or create it when it does not exist")
 	f.AppendField("  --name <name>", "Rename the model. Only allowed for non-public models.")
 	f.AppendField("  --title <title>", "Set the display title")
-	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration, TextToImage, SpeechToText, Vision, VideoVision, Audio")
+	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration, TextToImage, ImageToImage, SpeechToText, Vision, VideoVision, Audio")
 	f.AppendField("  --reasoning-efforts <list>", "Comma-separated display name=value pairs. Use an empty value to disable reasoning.")
 	f.AppendField("  --default-reasoning-effort <value>", "Set the default reasoning effort value")
 	f.AppendField("  --price-per-million-cached <n>", "Encoded cached input Credits per million tokens")
 	f.AppendField("  --price-per-million-input <n>", "Encoded input Credits per million tokens")
 	f.AppendField("  --price-per-million-output <n>", "Encoded output Credits per million tokens")
+	f.AppendField("  --price-per-megapixel <n>", "Encoded Credits per megapixel of returned image")
+	f.AppendField("  --price-per-audio-minute <n>", "Encoded Credits per minute of audio")
+	f.AppendField("  --file-url-root <path>", "Absolute shared-mount path for file:// image output. Use an empty value to disable it.")
 	f.AppendField("  --public <bool>", "Set public availability")
 	f.AppendField("  --available-to <list>", "Comma-separated project IDs")
 	f.AppendField("  --base-path <url>", "Set endpoint base path")
@@ -99,6 +102,9 @@ func inferenceCliModelsList(args []string) {
 	t.AppendHeaderEx("Cached price/M", termio.TableHeaderAlignRight)
 	t.AppendHeaderEx("Input price/M", termio.TableHeaderAlignRight)
 	t.AppendHeaderEx("Output price/M", termio.TableHeaderAlignRight)
+	t.AppendHeaderEx("MP price", termio.TableHeaderAlignRight)
+	t.AppendHeaderEx("Audio price/min", termio.TableHeaderAlignRight)
+	t.AppendHeader("File URL root")
 	t.AppendHeader("Endpoint")
 	t.AppendHeader("Chat defaults")
 	t.AppendHeader("Availability")
@@ -111,6 +117,9 @@ func inferenceCliModelsList(args []string) {
 		t.Cell("%d", model.PricePerMillion.CachedInput)
 		t.Cell("%d", model.PricePerMillion.Input)
 		t.Cell("%d", model.PricePerMillion.Output)
+		t.Cell("%d", model.PricePerMegaPixel)
+		t.Cell("%d", model.PricePerAudioMinute)
+		t.Cell("%s", model.FileUrlRoot)
 		t.Cell("%s -> %s", model.Endpoint.BasePath, model.Endpoint.BackendModelName)
 		t.Cell("temp=%g topP=%g max=%d system=%s", model.ChatSettings.Temperature, model.ChatSettings.TopP, model.ChatSettings.MaxCompletionTokens, inferenceCliFormatSystemPrompt(model.ChatSettings.SystemPrompt))
 		t.Cell("%s", inferenceCliFormatAvailability(model.Availability))
@@ -138,6 +147,9 @@ func inferenceCliModelsUpdate(args []string) {
 	fs.Int64Var(&req.PricePerMillionCachedInput, "price-per-million-cached", 0, "Encoded cached input Credits per million tokens (1000000 = 1 Credit)")
 	fs.Int64Var(&req.PricePerMillionInput, "price-per-million-input", 0, "Encoded input Credits per million tokens (1000000 = 1 Credit)")
 	fs.Int64Var(&req.PricePerMillionOutput, "price-per-million-output", 0, "Encoded output Credits per million tokens (1000000 = 1 Credit)")
+	fs.Int64Var(&req.PricePerMegaPixel, "price-per-megapixel", 0, "Encoded Credits per megapixel (1000000 = 1 Credit)")
+	fs.Int64Var(&req.PricePerAudioMinute, "price-per-audio-minute", 0, "Encoded Credits per audio minute (1000000 = 1 Credit)")
+	fs.StringVar(&req.FileUrlRoot, "file-url-root", "", "Absolute shared-mount path for file:// image output")
 	fs.BoolVar(&req.Public, "public", false, "Set public availability")
 	fs.StringVar(&availableToRaw, "available-to", "", "Comma-separated project IDs")
 	fs.StringVar(&req.BasePath, "base-path", "", "Endpoint base path")
@@ -180,6 +192,8 @@ func inferenceCliModelsUpdate(args []string) {
 		{Name: "price-per-million-cached", Value: req.PricePerMillionCachedInput},
 		{Name: "price-per-million-input", Value: req.PricePerMillionInput},
 		{Name: "price-per-million-output", Value: req.PricePerMillionOutput},
+		{Name: "price-per-megapixel", Value: req.PricePerMegaPixel},
+		{Name: "price-per-audio-minute", Value: req.PricePerAudioMinute},
 	} {
 		if slices.Contains(req.Set, priceFlag.Name) && priceFlag.Value < 0 {
 			cli.HandleError("validating prices", fmt.Errorf("%s cannot be negative", priceFlag.Name))
@@ -261,6 +275,15 @@ func initCli() {
 		if set("price-per-million-output") {
 			model.PricePerMillion.Output = r.Payload.PricePerMillionOutput
 		}
+		if set("price-per-megapixel") {
+			model.PricePerMegaPixel = r.Payload.PricePerMegaPixel
+		}
+		if set("price-per-audio-minute") {
+			model.PricePerAudioMinute = r.Payload.PricePerAudioMinute
+		}
+		if set("file-url-root") {
+			model.FileUrlRoot = r.Payload.FileUrlRoot
+		}
 		if set("public") {
 			model.Availability.Public = r.Payload.Public
 		}
@@ -341,7 +364,7 @@ func inferenceCliParseCapabilities(raw string) ([]InferenceCapability, error) {
 	for _, item := range items {
 		capability := InferenceCapability(item)
 		switch capability {
-		case InferenceTextGeneration, InferenceTextToImage, InferenceSpeechToText, InferenceVision, InferenceVideoVision, InferenceAudio:
+		case InferenceTextGeneration, InferenceTextToImage, InferenceImageToImage, InferenceSpeechToText, InferenceVision, InferenceVideoVision, InferenceAudio:
 			capabilities = append(capabilities, capability)
 		default:
 			return nil, fmt.Errorf("invalid capability %q", item)
@@ -433,6 +456,9 @@ type k8sCliInferenceModelsUpdateRequest struct {
 	PricePerMillionCachedInput int64
 	PricePerMillionInput       int64
 	PricePerMillionOutput      int64
+	PricePerMegaPixel          int64
+	PricePerAudioMinute        int64
+	FileUrlRoot                string
 	Public                     bool
 	AvailableTo                []string
 	BasePath                   string
@@ -457,6 +483,8 @@ func inferenceCliNewModel(name string) InferenceModel {
 			Input:       InferencePriceScale,
 			Output:      InferencePriceScale,
 		},
+		PricePerMegaPixel:   InferencePriceScale,
+		PricePerAudioMinute: InferencePriceScale,
 		Availability: InferenceAvailability{
 			Public:      false,
 			AvailableTo: slices.Clone(shared.ServiceConfig.Compute.Inference.Access.Testers),

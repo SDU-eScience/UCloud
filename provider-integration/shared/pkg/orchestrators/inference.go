@@ -36,6 +36,7 @@ type InferenceCapability string
 const (
 	InferenceTextGeneration InferenceCapability = "TextGeneration"
 	InferenceTextToImage    InferenceCapability = "TextToImage"
+	InferenceImageToImage   InferenceCapability = "ImageToImage"
 	InferenceSpeechToText   InferenceCapability = "SpeechToText"
 	InferenceVision         InferenceCapability = "Vision"
 	InferenceVideoVision    InferenceCapability = "VideoVision"
@@ -49,6 +50,9 @@ type InferenceModel struct {
 	ReasoningEfforts       []InferenceModelOption `json:"reasoningEfforts,omitempty"`
 	DefaultReasoningEffort string                 `json:"defaultReasoningEffort,omitempty"`
 	PricePerMillion        InferencePricing       `json:"pricePerMillion"`
+	PricePerMegaPixel      int64                  `json:"pricePerMegaPixel"`
+	PricePerAudioMinute    int64                  `json:"pricePerAudioMinute"`
+	FileUrlRoot            string                 `json:"fileUrlRoot,omitempty"`
 	Endpoint               InferenceEndpoint      `json:"endpoint"`
 	Availability           InferenceAvailability  `json:"availability"`
 	ContextWindow          *int                   `json:"contextWindow,omitempty"`

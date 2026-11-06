@@ -215,6 +215,9 @@ func Init() {
 					Input:       model.PricePerMillion.Input,
 					Output:      model.PricePerMillion.Output,
 				},
+				PricePerMegaPixel:   model.PricePerMegaPixel,
+				PricePerAudioMinute: model.PricePerAudioMinute,
+				FileUrlRoot:         model.FileUrlRoot,
 				Endpoint: orcapi.InferenceEndpoint{
 					BasePath:         model.Endpoint.BasePath,
 					BackendModelName: model.Endpoint.BackendModelName,
@@ -239,6 +242,7 @@ func Init() {
 				inferenceModel.Endpoint.BackendModelName = ""
 				inferenceModel.ChatSettings.SystemPrompt = nil
 				inferenceModel.Availability.AvailableTo = nil
+				inferenceModel.FileUrlRoot = ""
 			}
 
 			result.Models = append(result.Models, inferenceModel)
@@ -281,6 +285,9 @@ func Init() {
 				Input:       request.Model.PricePerMillion.Input,
 				Output:      request.Model.PricePerMillion.Output,
 			},
+			PricePerMegaPixel:   request.Model.PricePerMegaPixel,
+			PricePerAudioMinute: request.Model.PricePerAudioMinute,
+			FileUrlRoot:         request.Model.FileUrlRoot,
 			Endpoint: InferenceEndpoint{
 				BasePath:         request.Model.Endpoint.BasePath,
 				BackendModelName: request.Model.Endpoint.BackendModelName,
