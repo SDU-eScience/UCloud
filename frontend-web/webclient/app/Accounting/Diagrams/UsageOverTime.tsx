@@ -32,6 +32,7 @@ export function useUsageOverTimeChart(
     const clipId = useId().replace(/:/g, "_");
     const unitNormalizationFactor = unit?.balanceFactor ?? 1;
     const unitName = unit?.name ?? "";
+    const referenceBalance = unit?.productType === "STORAGE" ? undefined : 1000;
 
     const childColors = useMemo(() => {
         if (!openReport) return new Map<string, string>();
@@ -171,7 +172,7 @@ export function useUsageOverTimeChart(
             childColors.get(child) ?? "#ccc";
 
         const balanceToString = (normalizedBalance: number) => {
-            return balanceToStringFromUnit(null, unitName, normalizedBalance, {referenceBalance: 1000, removeUnitIfPossible: true});
+            return balanceToStringFromUnit(null, unitName, normalizedBalance, {referenceBalance, removeUnitIfPossible: true});
         };
 
         // SVG frame

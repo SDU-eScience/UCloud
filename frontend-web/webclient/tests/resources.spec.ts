@@ -1,5 +1,5 @@
 import {expect, test} from "@playwright/test";
-import {User, Resources, Applications, Runs, Components, Terminal, TestContexts, testCtx, Project, Rows} from "./shared";
+import {User, Resources, Applications, Runs, Components, Terminal, testCtx, Project, Rows} from "./shared";
 import {default as pAndP} from "./provider_and_products.json" with {type: "json"};
 import {default as data} from "./test_data.json" with {type: "json"};
 const PRODUCTS = pAndP.find(it => it.location_origin === data.location_origin)!.products_used_in_tests;
@@ -16,8 +16,7 @@ test.beforeEach(async ({page}, testInfo) => {
 
 const {PublicLinks, IPs, SSHKeys} = Resources;
 
-TestContexts.map(ctx => {
-    test.describe(ctx, () => {
+test.describe("Project PI", () => {
         test.describe("Public links - check public links work", () => {
             test("Create public link, view properties, delete", async ({page}) => {
                 const publicLinkName = await PublicLinks.createNew(page);
@@ -51,7 +50,7 @@ TestContexts.map(ctx => {
                 await followedPublicLink.getByText("Directory listing for /").hover();
                 await followedPublicLink.close();
 
-                await Runs.terminateViewedRun(page);
+                await Runs.terminateViewedRun(page, {waitForUi: false});
 
                 await Resources.goTo(page, "Links");
                 await PublicLinks.delete(page, publicLinkName);
@@ -70,7 +69,7 @@ TestContexts.map(ctx => {
             await Runs.JobResources.addPublicIP(page, publicIp);
             await Runs.submitAndWaitForRunning(page);
             await page.getByText(`Successfully attached the following IP addresses: ${publicIp}`).hover();
-            await Runs.terminateViewedRun(page);
+            await Runs.terminateViewedRun(page, {waitForUi: false});
             await Resources.goTo(page, "IP addresses");
             await IPs.delete(page, publicIp);
         });
@@ -102,11 +101,10 @@ TestContexts.map(ctx => {
             await expect(terminalPage.getByText(Resources.SSHKeys.DefaultSSHKey).first()).toBeVisible();
             await terminalPage.close();
 
-            await Runs.terminateViewedRun(page);
+            await Runs.terminateViewedRun(page, {waitForUi: false});
 
             await Resources.goTo(page, "SSH keys");
             await SSHKeys.delete(page, sshkey);
 
         });
-    });
 });

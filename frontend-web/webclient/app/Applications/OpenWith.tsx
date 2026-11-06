@@ -169,7 +169,7 @@ export function OpenWithBrowser({opts, file}: {file: UFile, opts?: ResourceBrows
                     }));
                 });
 
-                browser.on("renderStat3", (entry, stat) => {
+                browser.on("renderLastVisibleStat", (entry, stat) => {
                     const button = browser.defaultButtonRenderer({
                         onClick: async () => {
                             try {

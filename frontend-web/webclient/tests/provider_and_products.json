@@ -10,7 +10,7 @@
             "private_network": "private-network",
             "public_ip": "public-ip"
         },
-        "drive_provider": "IM2/K8s",
+        "drive_provider": "SDU/K8s",
         "machine_used_in_tests": "u1-standard",
         "application_text_fields": {
             "existing": [

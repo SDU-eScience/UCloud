@@ -5,8 +5,6 @@ import {
     AllocationDisplayTreeRecipient,
     AllocationDisplayTreeYourAllocation,
     combineBalances,
-    explainUnit,
-    normalizedBalanceToRaw,
     ProductCategoryV2,
     ProductType,
     UsageAndQuota
@@ -897,6 +895,7 @@ const FilteredUsageAndQuota: React.FunctionComponent<{
             const order: Record<string, number> = {
                 "GPU-hours": 1,
                 "Core-hours": 2,
+                "B": 3,
                 "GB": 3,
                 "TB": 3,
                 "PB": 3,
@@ -1006,9 +1005,9 @@ function openUpdater(
                     <Flex mb={"16px"} flexDirection={"row"}>
                         <DurationSelector periodRef={periodRef} />
                         <Label ml={"auto"}>
-                            Allocation quota (Current: {Accounting.balanceToString(category, quota)})
-                            <Input type="number" defaultValue={explainUnit(category).balanceFactor * quota} min={0}
-                                onChange={e => quota = normalizedBalanceToRaw(category, e.target.valueAsNumber)} />
+                            Allocation quota in {Accounting.allocationInputUnit(category).name} (Current: {Accounting.balanceToString(category, quota)})
+                            <Input type="number" defaultValue={Accounting.allocationInputValue(category, quota)} min={0}
+                                onChange={e => quota = Accounting.allocationInputToRaw(category, e.target.valueAsNumber)} />
                         </Label>
                     </Flex>
                     <Label mb={"16px"}>

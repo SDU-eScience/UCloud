@@ -499,7 +499,7 @@ func translateToChargeType(category accapi.ProductCategory) string {
 	switch category.AccountingFrequency {
 	case accapi.AccountingFrequencyOnce:
 		return "DIFFERENTIAL_QUOTA"
-	case accapi.AccountingFrequencyPeriodicMinute, accapi.AccountingFrequencyPeriodicHour, accapi.AccountingFrequencyPeriodicDay:
+	case accapi.AccountingFrequencyPeriodicSecond, accapi.AccountingFrequencyPeriodicMinute, accapi.AccountingFrequencyPeriodicHour, accapi.AccountingFrequencyPeriodicDay:
 		return "ABSOLUTE"
 	default:
 		return "ABSOLUTE"

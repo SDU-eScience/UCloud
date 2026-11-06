@@ -1,5 +1,5 @@
 import {test, expect} from "@playwright/test";
-import {User, Drive, Project, Rows, testCtx, Components, ctxUser, sharedTestProjectName, TestContexts, NetworkCalls} from "./shared";
+import {User, Drive, Project, Rows, testCtx, Components, ctxUser, sharedTestProjectName, Contexts, NetworkCalls} from "./shared";
 import {default as data} from "./test_data.json" with {type: "json"};
 
 test.beforeEach(async ({page}, testInfo) => {
@@ -8,16 +8,15 @@ test.beforeEach(async ({page}, testInfo) => {
     }
 
     const args = testCtx(testInfo.titlePath);
-    await User.login(page, args.user);
+    await User.loginDirect(page, args.user);
     if (args.projectName) await Project.changeTo(page, args.projectName);
 });
 
 /// Drive operations
 
-TestContexts.map(ctx => {
+(["Project PI"] as Contexts[]).map(ctx => {
     test.describe(ctx, () => {
         test("Create and delete drive (with available resources)", async ({page}) => {
-            if (ctx === "Project User") test.skip();
             const driveName = Drive.newDriveNameOrMemberFiles(ctx);
             await Drive.create(page, driveName);
             await Drive.delete(page, driveName);
@@ -25,7 +24,6 @@ TestContexts.map(ctx => {
         });
 
         test("Rename drive", async ({page}) => {
-            if (ctx === "Project User") test.skip();
             const driveName = Drive.newDriveNameOrMemberFiles(ctx);
             const newDriveName = Drive.newDriveNameOrMemberFiles(ctx);
             await Drive.create(page, driveName);
@@ -36,22 +34,23 @@ TestContexts.map(ctx => {
         });
 
         test("View properties", async ({page}) => {
-            const userCtx = ctx === "Project User";
             const driveName = Drive.newDriveNameOrMemberFiles(ctx);
-            if (!userCtx) await Drive.create(page, driveName);
-            else await Drive.goToDrives(page);
+            await Drive.create(page, driveName);
             await Drive.properties(page, driveName);
             await expect(page.locator("b").filter({hasText: "ID:"})).toHaveCount(1);
             await expect(page.locator("b").filter({hasText: "Product:"})).toHaveCount(1);
             await expect(page.locator("b").filter({hasText: "Created by:"})).toHaveCount(1);
             await expect(page.locator("b").filter({hasText: "Created at:"})).toHaveCount(1);
             // Cleanup
-            if (!userCtx) await Drive.delete(page, driveName);
+            await Drive.delete(page, driveName);
         });
+    });
+});
 
+(["Project PI", "Project Admin"] as Contexts[]).map(ctx => {
+    test.describe(ctx, () => {
         test("Drives - check change permissions works", async ({page: adminPage, browser}) => {
             test.setTimeout(60_000);
-            if (ctx === "Project User" || ctx === "Personal Workspace") test.skip();
 
             const userPage = await (await browser.newContext()).newPage();
             if (!userPage) throw Error("Failed to create user page");
@@ -63,7 +62,7 @@ TestContexts.map(ctx => {
                 await userPage.context().addCookies([data["login_cookie"]]);
             }
 
-            await User.login(userPage, userInfo);
+            await User.loginDirect(userPage, userInfo);
 
             // Create drive
             const driveName = Drive.newDriveNameOrMemberFiles(ctx);
@@ -77,12 +76,11 @@ TestContexts.map(ctx => {
             // Change rights for user to allow viewing
             await Drive.openPermissions(adminPage, driveName);
             await NetworkCalls.awaitResponse(adminPage, "**/api/files/collections/updateAcl", async () => {
-                await adminPage.locator(`div[data-group='All users']`).locator("#Read").click();
+                await adminPage.locator(`div[data-group='All users']`).getByRole("radio", {name: "Read", exact: true}).click();
             });
 
             // Reload drives for user, see drive appears
-            await userPage.waitForTimeout(1_000)
-            await Components.clickRefreshAndWait(userPage);
+            await Components.clickRefreshAndWait(userPage, "**/api/files/collections/browse**");
             await Rows.actionByRowTitle(userPage, driveName, "hover");
 
             await Drive.delete(adminPage, driveName);

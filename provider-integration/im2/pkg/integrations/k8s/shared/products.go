@@ -66,6 +66,8 @@ func initProducts() {
 		}
 
 		switch category.Payment.Interval {
+		case config.PaymentIntervalSecondly:
+			productCategory.AccountingFrequency = apm.AccountingFrequencyPeriodicSecond
 		case config.PaymentIntervalMinutely:
 			productCategory.AccountingFrequency = apm.AccountingFrequencyPeriodicMinute
 		case config.PaymentIntervalHourly:

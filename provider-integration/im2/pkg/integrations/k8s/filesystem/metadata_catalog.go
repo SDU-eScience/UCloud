@@ -24,6 +24,7 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/unicode/norm"
 	"golang.org/x/time/rate"
+	ctrl "ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -477,8 +478,9 @@ func metadataReportAccounting(drive *orc.Drive) {
 	if !found || !stats.CompleteCoverage {
 		return
 	}
-	sizeInGb := stats.LogicalBytes / 1_000_000_000
-	reportUsedStorage(*drive, int64(min(sizeInGb, uint64(math.MaxInt64))))
+	size := stats.LogicalBytes
+	size = size / uint64(ctrl.ProductCategoryAccountingUnitBytes(drive.Specification.Product.Category))
+	reportUsedStorage(*drive, int64(min(size, uint64(math.MaxInt64))))
 }
 
 func MetadataDeleteCatalog(driveID string) {

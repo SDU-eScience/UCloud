@@ -143,6 +143,8 @@ func GrantsExportBrowseToCsv(lines []accapi.GrantsExportResponse) string {
 			unitName.WriteString(productCategory.AccountingUnit.Name)
 
 			switch productCategory.AccountingFrequency {
+			case accapi.AccountingFrequencyPeriodicSecond:
+				unitName.WriteString("-sec")
 			case accapi.AccountingFrequencyPeriodicMinute:
 				unitName.WriteString("-min")
 			case accapi.AccountingFrequencyPeriodicHour:

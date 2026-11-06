@@ -29,7 +29,7 @@ import {callAPI} from "@/Authentication/DataHook";
 import {UFile} from "@/UCloud/UFile";
 import {FileIconHint} from ".";
 import {ShortcutKey} from "@/ui-components/Operation";
-import {getLastActivePath} from "@/Applications/Jobs/Widgets/GenericFiles";
+import {getLastActivePath} from "@/Files/LastActivePath";
 import {sendFailureNotification} from "@/Notifications";
 import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 

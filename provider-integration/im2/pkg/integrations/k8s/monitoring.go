@@ -962,7 +962,7 @@ func loopMonitoring() {
 			}
 		}
 
-		nextAccounting = now.Add(30 * time.Second)
+		nextAccounting = now.Add(time.Duration(shared.ServiceConfig.Compute.AccountingIntervalSeconds) * time.Second)
 		metricMonitoring.WithLabelValues("JobAccounting").Observe(timer.Mark().Seconds())
 	}
 
@@ -1337,6 +1337,8 @@ func convertJobTimeToAccountingUnits(job *orc.Job, timeConsumed time.Duration) i
 
 	baseTimeUnit := 1 * time.Minute
 	switch k8sCategory.Payment.Interval {
+	case cfg.PaymentIntervalSecondly:
+		baseTimeUnit = time.Second
 	case cfg.PaymentIntervalMinutely:
 		baseTimeUnit = time.Minute
 	case cfg.PaymentIntervalHourly:
