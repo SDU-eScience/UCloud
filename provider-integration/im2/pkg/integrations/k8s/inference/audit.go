@@ -255,8 +255,12 @@ func inferenceAuditStatusFromReason(reason string) int {
 		return http.StatusTooManyRequests
 	case "client_error":
 		return http.StatusBadRequest
+	case "unprocessable":
+		return http.StatusUnprocessableEntity
 	case "upstream_error":
 		return http.StatusBadGateway
+	case "server_error":
+		return http.StatusInternalServerError
 	default:
 		return http.StatusInternalServerError
 	}

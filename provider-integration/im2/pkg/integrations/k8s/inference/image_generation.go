@@ -110,21 +110,17 @@ func inferenceGenerateImageAcquired(ctx context.Context, owner apm.WalletOwner, 
 	requestStartedAt := time.Now()
 	auditModel := request.Model.GetOrDefault("")
 	requestOutcome := "error"
-	auditUsage := InferenceImageGenerationUsage{}
-	auditUsagePresent := false
-	auditUsageEstimated := false
+	auditImageCount := 0
+	auditImagePixels := int64(0)
+	auditImageEstimated := false
 	defer func() {
-		var auditUsagePtr *InferenceImageGenerationUsage
-		if auditUsagePresent {
-			auditUsagePtr = &auditUsage
-		}
 		inferenceAuditRecord(
 			ctx,
 			"inference.image",
 			owner,
 			username,
 			requestStartedAt,
-			inferenceAuditImageBody(auditModel, request, auditUsagePtr, auditUsageEstimated, requestOutcome),
+			inferenceAuditImageBody(auditModel, request, auditImageCount, auditImagePixels, auditImageEstimated, requestOutcome),
 			requestOutcome,
 		)
 	}()
@@ -176,8 +172,9 @@ func inferenceGenerateImageAcquired(ctx context.Context, owner apm.WalletOwner, 
 			ImageCount:  imageCount,
 			ImagePixels: imagePixels,
 		})
-		auditUsagePresent = false
-		auditUsageEstimated = estimated
+		auditImageCount = imageCount
+		auditImagePixels = imagePixels
+		auditImageEstimated = estimated
 		requestOutcome = "success"
 		return resp, nil
 	}
@@ -240,8 +237,9 @@ func inferenceGenerateImageAcquired(ctx context.Context, owner apm.WalletOwner, 
 		ImageCount:  imageCount,
 		ImagePixels: imagePixels,
 	})
-	auditUsagePresent = false
-	auditUsageEstimated = estimated
+	auditImageCount = imageCount
+	auditImagePixels = imagePixels
+	auditImageEstimated = estimated
 	requestOutcome = "success"
 	return result, nil
 }
@@ -260,26 +258,22 @@ func inferenceGenerateImageStreamingAcquired(ctx context.Context, owner apm.Wall
 	requestStartedAt := time.Now()
 	auditModel := request.Model.GetOrDefault("")
 	requestOutcome := "error"
-	auditUsage := InferenceImageGenerationUsage{}
-	auditUsagePresent := false
-	auditUsageEstimated := false
+	auditImageCount := 0
+	auditImagePixels := int64(0)
+	auditImageEstimated := false
 	auditDone := false
 	emitAudit := func() {
 		if auditDone {
 			return
 		}
 		auditDone = true
-		var auditUsagePtr *InferenceImageGenerationUsage
-		if auditUsagePresent {
-			auditUsagePtr = &auditUsage
-		}
 		inferenceAuditRecord(
 			ctx,
 			"inference.image",
 			owner,
 			username,
 			requestStartedAt,
-			inferenceAuditImageBody(auditModel, request, auditUsagePtr, auditUsageEstimated, requestOutcome),
+			inferenceAuditImageBody(auditModel, request, auditImageCount, auditImagePixels, auditImageEstimated, requestOutcome),
 			requestOutcome,
 		)
 	}
@@ -360,8 +354,9 @@ func inferenceGenerateImageStreamingAcquired(ctx context.Context, owner apm.Wall
 				ImageCount:  imageCount,
 				ImagePixels: imagePixels,
 			})
-			auditUsagePresent = false
-			auditUsageEstimated = estimated
+			auditImageCount = imageCount
+			auditImagePixels = imagePixels
+			auditImageEstimated = estimated
 			if requestOutcome != "client_cancelled" {
 				requestOutcome = "success"
 			}
@@ -403,8 +398,6 @@ func inferenceGenerateImageStreamingAcquired(ctx context.Context, owner apm.Wall
 		defer emitAudit()
 		defer util.SilentClose(resp.Body)
 
-		usageSeen := InferenceImageGenerationUsage{}
-		usagePresent := false
 		imageCount := 0
 		var imagePixels int64
 		imageEstimated := false
@@ -437,10 +430,6 @@ func inferenceGenerateImageStreamingAcquired(ctx context.Context, owner apm.Wall
 				parsed.Usage.Clear()
 			}
 			streamUsage := inferenceImageUsage(parsed.Usage)
-			if parsed.Usage.Present {
-				usageSeen = streamUsage
-				usagePresent = true
-			}
 			if parsed.B64JSON.Present && strings.TrimSpace(parsed.B64JSON.Value) == "" {
 				parsed.B64JSON.Clear()
 			}
@@ -489,12 +478,9 @@ func inferenceGenerateImageStreamingAcquired(ctx context.Context, owner apm.Wall
 			ImageCount:  imageCount,
 			ImagePixels: imagePixels,
 		})
-		auditUsagePresent = false
-		auditUsageEstimated = imageEstimated
-		if usagePresent {
-			auditUsage = usageSeen
-			auditUsagePresent = true
-		}
+		auditImageCount = imageCount
+		auditImagePixels = imagePixels
+		auditImageEstimated = imageEstimated
 
 		switch {
 		case ctx.Err() != nil:

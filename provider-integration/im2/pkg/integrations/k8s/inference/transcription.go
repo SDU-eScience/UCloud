@@ -11,10 +11,12 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	apm "ucloud.dk/shared/pkg/accounting"
 	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/util"
@@ -22,9 +24,11 @@ import (
 
 const (
 	inferenceMaxTranscriptionRequestBytes = 64 << 20
+	inferenceMaxAudioMilliseconds         = 24 * 60 * 60 * 1000
 
-	inferenceTranscriptionTokensPerSecond      = 100.0
-	inferenceTranscriptionEstimatedBytesPerSec = 16 * 1024
+	inferenceTranscriptionTaskSubPath  = "Inference/AudioTasks"
+	inferenceTranscriptionTaskTimeout  = 125 * time.Second
+	inferenceTranscriptionTaskDeadline = 120
 )
 
 type InferenceTranscriptionRequest struct {
@@ -246,6 +250,93 @@ func inferenceTranscriptionFormValues(r *http.Request, key string) []string {
 	return values
 }
 
+func inferenceMeasureAudioMilliseconds(ctx context.Context, username string, file InferenceTranscriptionFile) (int64, *util.HttpError) {
+	if username == "" {
+		return 0, util.HttpErr(http.StatusInternalServerError, "could not measure audio")
+	}
+
+	basePath, drive, httpErr := filesystem.InitializeMemberFiles(username, util.OptNone[string]())
+	if httpErr != nil {
+		log.Warn("Could not resolve member files for audio measurement: %v", httpErr)
+		return 0, util.HttpErr(http.StatusServiceUnavailable, "could not measure audio")
+	}
+
+	dir := filepath.Join(basePath, inferenceTranscriptionTaskSubPath, "audio-"+util.SecureToken())
+	if createErr := filesystem.DoCreateFolder(dir); createErr != nil {
+		log.Warn("Could not create inference audio task directory: %v", createErr)
+		return 0, util.HttpErr(http.StatusInternalServerError, "could not measure audio")
+	}
+	defer func() {
+		if deleteErr := filesystem.DoDeleteFile(dir); deleteErr != nil {
+			log.Warn("Could not delete inference audio task directory: path=%s err=%v", dir, deleteErr)
+		}
+	}()
+
+	audioPath := filepath.Join(dir, "input"+inferenceAudioExtension(file.Name))
+	if writeErr := filesystem.WriteFileAtomic(audioPath, file.Data, 0660); writeErr != nil {
+		log.Warn("Could not write inference audio file: %v", writeErr)
+		return 0, util.HttpErr(http.StatusInternalServerError, "could not measure audio")
+	}
+
+	ucloudDir, ok := filesystem.InternalToUCloudWithDrive(drive, dir)
+	if !ok {
+		return 0, util.HttpErr(http.StatusInternalServerError, "could not measure audio")
+	}
+	ucloudAudio, ok := filesystem.InternalToUCloudWithDrive(drive, audioPath)
+	if !ok {
+		return 0, util.HttpErr(http.StatusInternalServerError, "could not measure audio")
+	}
+
+	waitCtx, cancel := context.WithTimeout(ctx, inferenceTranscriptionTaskTimeout)
+	defer cancel()
+	taskErr := filesystem.TaskSubmitAndWait(waitCtx, filesystem.TaskSpec{
+		Type:            filesystem.TaskTypeFFProbe,
+		Mounts:          []filesystem.TaskMount{{UCloudPath: ucloudDir}},
+		Source:          ucloudAudio,
+		DeadlineSeconds: util.OptValue(inferenceTranscriptionTaskDeadline),
+		Resources:       util.OptValue(filesystem.TaskResources{CpuMilli: 1000, MemoryMB: 1024}),
+		CreationState: struct {
+			Username string
+			Icon     string
+		}{Username: username, Icon: "heroMusicalNote"},
+	}, time.Second)
+	if taskErr != nil {
+		log.Warn("Inference audio measurement task failed: %v", taskErr)
+	}
+
+	data, readErr := filesystem.ReadFile(filepath.Join(dir, filesystem.TaskFFProbeDurationFile), 4096)
+	if readErr != nil {
+		return 0, inferenceAudioMeasurementError(taskErr)
+	}
+	var result filesystem.TaskFFProbeDuration
+	if err := json.Unmarshal(data, &result); err != nil ||
+		result.DurationMilliseconds <= 0 ||
+		result.DurationMilliseconds > inferenceMaxAudioMilliseconds {
+		return 0, inferenceAudioMeasurementError(taskErr)
+	}
+	return result.DurationMilliseconds, nil
+}
+
+func inferenceAudioMeasurementError(taskErr *util.HttpError) *util.HttpError {
+	if taskErr != nil && strings.Contains(taskErr.Why, "unable to measure audio duration") {
+		return util.HttpErr(http.StatusUnprocessableEntity, "could not measure audio")
+	}
+	return util.HttpErr(http.StatusServiceUnavailable, "could not measure audio")
+}
+
+func inferenceAudioExtension(name string) string {
+	ext := strings.ToLower(filepath.Ext(filepath.Base(name)))
+	if len(ext) < 2 || len(ext) > 11 {
+		return ""
+	}
+	for _, r := range ext[1:] {
+		if (r < 'a' || r > 'z') && (r < '0' || r > '9') {
+			return ""
+		}
+	}
+	return ext
+}
+
 func InferenceTranscribe(ctx context.Context, owner apm.WalletOwner, username string, request InferenceTranscriptionRequest) (InferenceTranscriptionResponse, *util.HttpError) {
 	release, httpErr := inferenceAcquire(ctx, owner, username)
 	if httpErr != nil {
@@ -259,21 +350,15 @@ func inferenceTranscribeAcquired(ctx context.Context, owner apm.WalletOwner, use
 	requestStartedAt := time.Now()
 	auditModel := request.Model
 	requestOutcome := "error"
-	auditUsage := InferenceTranscriptionUsage{}
-	auditUsagePresent := false
-	auditUsageEstimated := false
+	audioMilliseconds := int64(0)
 	defer func() {
-		var auditUsagePtr *InferenceTranscriptionUsage
-		if auditUsagePresent {
-			auditUsagePtr = &auditUsage
-		}
 		inferenceAuditRecord(
 			ctx,
 			"inference.transcribe",
 			owner,
 			username,
 			requestStartedAt,
-			inferenceAuditTranscribeBody(auditModel, request, auditUsagePtr, auditUsageEstimated, requestOutcome),
+			inferenceAuditTranscribeBody(auditModel, request, audioMilliseconds, requestOutcome),
 			requestOutcome,
 		)
 	}()
@@ -294,6 +379,19 @@ func inferenceTranscribeAcquired(ctx context.Context, owner apm.WalletOwner, use
 		return InferenceTranscriptionResponse{}, httpErr
 	}
 
+	audioMilliseconds, httpErr = inferenceMeasureAudioMilliseconds(ctx, username, request.File)
+	if httpErr != nil {
+		switch {
+		case ctx.Err() != nil:
+			requestOutcome = "client_cancelled"
+		case httpErr.StatusCode == http.StatusUnprocessableEntity:
+			requestOutcome = "unprocessable"
+		default:
+			requestOutcome = "server_error"
+		}
+		return InferenceTranscriptionResponse{}, httpErr
+	}
+
 	request.Model = model.Endpoint.BackendModelName
 	body, contentType, httpErr := inferenceBuildTranscriptionMultipart(request)
 	if httpErr != nil {
@@ -305,34 +403,26 @@ func inferenceTranscribeAcquired(ctx context.Context, owner apm.WalletOwner, use
 		return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusRequestEntityTooLarge, "request body too large")
 	}
 
+	if ctx.Err() != nil {
+		requestOutcome = "client_cancelled"
+		return InferenceTranscriptionResponse{}, util.HttpErr(499, "client disconnected")
+	}
+
 	respBody, httpErr := inferenceBackendJSONRequest(ctx, model.Endpoint.BasePath, http.MethodPost, "/audio/transcriptions", body, contentType)
 	if httpErr != nil {
 		if ctx.Err() != nil {
-			usage := inferenceEstimateTranscriptionUsage(request, 0, "")
-			inferenceReportUsage(owner, username, model, 0, usage.InputTokens, usage.OutputTokens)
-			auditUsage = usage
-			auditUsagePresent = true
-			auditUsageEstimated = true
+			inferenceReportBilling(owner, username, model, InferenceBillingUsage{AudioMilliseconds: audioMilliseconds})
 			requestOutcome = "client_cancelled"
 		} else {
 			requestOutcome = "upstream_error"
 		}
 		return InferenceTranscriptionResponse{}, httpErr
 	}
+	inferenceReportBilling(owner, username, model, InferenceBillingUsage{AudioMilliseconds: audioMilliseconds})
 
 	switch request.ResponseFormat {
 	case InferenceTranscriptionRespText, InferenceTranscriptionRespSrt, InferenceTranscriptionRespVtt:
-		text := string(respBody)
-		usage, estimated := inferenceTranscriptionUsageForResponse(request, util.OptNone[InferenceTranscriptionUsage](), 0, text)
-		inferenceReportUsage(owner, username, model, 0, usage.InputTokens, usage.OutputTokens)
-		auditUsage = usage
-		auditUsagePresent = true
-		auditUsageEstimated = estimated
 		requestOutcome = "success"
-		if estimated {
-			requestOutcome = "success_missing_usage"
-			inferenceWarnMissingUsage("transcription", model.Name)
-		}
 		return InferenceTranscriptionResponse{Raw: &InferenceTranscriptionRawResponse{
 			ContentType: inferenceTranscriptionRawContentType(request.ResponseFormat),
 			Data:        respBody,
@@ -353,19 +443,11 @@ func inferenceTranscribeAcquired(ctx context.Context, owner apm.WalletOwner, use
 			return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response from upstream")
 		}
 		if resp.Usage.Present && !inferenceTranscriptionUsageValid(resp.Usage.Value) {
-			requestOutcome = "upstream_error"
-			return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid usage from upstream")
+			log.Warn("Inference upstream returned invalid transcription usage: model=%s", model.Name)
+			resp.Usage.Clear()
 		}
-		usage, estimated := inferenceTranscriptionUsageForResponse(request, resp.Usage, resp.Duration, resp.Text)
-		inferenceReportUsage(owner, username, model, 0, usage.InputTokens, usage.OutputTokens)
-		auditUsage = usage
-		auditUsagePresent = true
-		auditUsageEstimated = estimated
+		usage := inferenceTranscriptionUsage(resp.Usage)
 		requestOutcome = "success"
-		if estimated {
-			requestOutcome = "success_missing_usage"
-			inferenceWarnMissingUsage("transcription", model.Name)
-		}
 		return InferenceTranscriptionResponse{DiarizedJson: &InferenceTranscriptionDiarizedResponse{
 			Task:     resp.Task,
 			Duration: resp.Duration,
@@ -388,19 +470,11 @@ func inferenceTranscribeAcquired(ctx context.Context, owner apm.WalletOwner, use
 			return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response from upstream")
 		}
 		if resp.Usage.Present && !inferenceTranscriptionUsageValid(resp.Usage.Value) {
-			requestOutcome = "upstream_error"
-			return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid usage from upstream")
+			log.Warn("Inference upstream returned invalid transcription usage: model=%s", model.Name)
+			resp.Usage.Clear()
 		}
-		usage, estimated := inferenceTranscriptionUsageForResponse(request, resp.Usage, resp.Duration, resp.Text)
-		inferenceReportUsage(owner, username, model, 0, usage.InputTokens, usage.OutputTokens)
-		auditUsage = usage
-		auditUsagePresent = true
-		auditUsageEstimated = estimated
+		usage := inferenceTranscriptionUsage(resp.Usage)
 		requestOutcome = "success"
-		if estimated {
-			requestOutcome = "success_missing_usage"
-			inferenceWarnMissingUsage("transcription", model.Name)
-		}
 		return InferenceTranscriptionResponse{VerboseJson: &InferenceTranscriptionVerboseResponse{
 			Task:     resp.Task,
 			Language: resp.Language,
@@ -421,19 +495,11 @@ func inferenceTranscribeAcquired(ctx context.Context, owner apm.WalletOwner, use
 			return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response from upstream")
 		}
 		if resp.Usage.Present && !inferenceTranscriptionUsageValid(resp.Usage.Value) {
-			requestOutcome = "upstream_error"
-			return InferenceTranscriptionResponse{}, util.HttpErr(http.StatusBadGateway, "invalid usage from upstream")
+			log.Warn("Inference upstream returned invalid transcription usage: model=%s", model.Name)
+			resp.Usage.Clear()
 		}
-		usage, estimated := inferenceTranscriptionUsageForResponse(request, resp.Usage, 0, resp.Text)
-		inferenceReportUsage(owner, username, model, 0, usage.InputTokens, usage.OutputTokens)
-		auditUsage = usage
-		auditUsagePresent = true
-		auditUsageEstimated = estimated
+		usage := inferenceTranscriptionUsage(resp.Usage)
 		requestOutcome = "success"
-		if estimated {
-			requestOutcome = "success_missing_usage"
-			inferenceWarnMissingUsage("transcription", model.Name)
-		}
 		return InferenceTranscriptionResponse{Json: &InferenceTranscriptionJsonResponse{
 			Text:     resp.Text,
 			Logprobs: resp.Logprobs,
@@ -459,26 +525,20 @@ func inferenceTranscribeStreamingAcquired(ctx context.Context, owner apm.WalletO
 	requestStartedAt := time.Now()
 	auditModel := request.Model
 	requestOutcome := "error"
-	auditUsage := InferenceTranscriptionUsage{}
-	auditUsagePresent := false
-	auditUsageEstimated := false
+	audioMilliseconds := int64(0)
 	auditDone := false
 	emitAudit := func() {
 		if auditDone {
 			return
 		}
 		auditDone = true
-		var auditUsagePtr *InferenceTranscriptionUsage
-		if auditUsagePresent {
-			auditUsagePtr = &auditUsage
-		}
 		inferenceAuditRecord(
 			ctx,
 			"inference.transcribe",
 			owner,
 			username,
 			requestStartedAt,
-			inferenceAuditTranscribeBody(auditModel, request, auditUsagePtr, auditUsageEstimated, requestOutcome),
+			inferenceAuditTranscribeBody(auditModel, request, audioMilliseconds, requestOutcome),
 			requestOutcome,
 		)
 	}
@@ -509,6 +569,22 @@ func inferenceTranscribeStreamingAcquired(ctx context.Context, owner apm.WalletO
 		return ch, httpErr
 	}
 
+	audioMilliseconds, httpErr = inferenceMeasureAudioMilliseconds(ctx, username, request.File)
+	if httpErr != nil {
+		close(ch)
+		release()
+		switch {
+		case ctx.Err() != nil:
+			requestOutcome = "client_cancelled"
+		case httpErr.StatusCode == http.StatusUnprocessableEntity:
+			requestOutcome = "unprocessable"
+		default:
+			requestOutcome = "server_error"
+		}
+		emitAudit()
+		return ch, httpErr
+	}
+
 	request.Model = model.Endpoint.BackendModelName
 	request.Stream = true
 	body, contentType, httpErr := inferenceBuildTranscriptionMultipart(request)
@@ -527,6 +603,14 @@ func inferenceTranscribeStreamingAcquired(ctx context.Context, owner apm.WalletO
 		return ch, util.HttpErr(http.StatusRequestEntityTooLarge, "request body too large")
 	}
 
+	if ctx.Err() != nil {
+		close(ch)
+		release()
+		requestOutcome = "client_cancelled"
+		emitAudit()
+		return ch, util.HttpErr(499, "client disconnected")
+	}
+
 	streamCtx, cancel, touch := inferenceStreamContext(ctx)
 	resp, httpErr := inferenceBackendRequest(streamCtx, model.Endpoint.BasePath, http.MethodPost, "/audio/transcriptions", body, contentType)
 	if httpErr != nil {
@@ -535,6 +619,7 @@ func inferenceTranscribeStreamingAcquired(ctx context.Context, owner apm.WalletO
 		release()
 		switch {
 		case ctx.Err() != nil:
+			inferenceReportBilling(owner, username, model, InferenceBillingUsage{AudioMilliseconds: audioMilliseconds})
 			requestOutcome = "client_cancelled"
 		case streamCtx.Err() != nil:
 			requestOutcome = "stream_timeout"
@@ -544,6 +629,8 @@ func inferenceTranscribeStreamingAcquired(ctx context.Context, owner apm.WalletO
 		emitAudit()
 		return ch, httpErr
 	}
+
+	inferenceReportBilling(owner, username, model, InferenceBillingUsage{AudioMilliseconds: audioMilliseconds})
 
 	go func() {
 		defer close(ch)
@@ -555,8 +642,6 @@ func inferenceTranscribeStreamingAcquired(ctx context.Context, owner apm.WalletO
 
 		usageSeen := InferenceTranscriptionUsage{}
 		usagePresent := false
-		usageEstimated := false
-		var outputSeen strings.Builder
 		readErr := inferenceReadSSE(streamCtx, resp.Body, touch, func(event []byte) bool {
 			raw := strings.TrimSpace(string(event))
 			if raw == "" || raw == "data: [DONE]" {
@@ -580,24 +665,12 @@ func inferenceTranscribeStreamingAcquired(ctx context.Context, owner apm.WalletO
 					usagePresent = true
 				} else {
 					log.Warn("Inference upstream returned invalid negative transcription usage: model=%s", model.Name)
+					parsed.Usage.Clear()
 				}
 			}
-			if parsed.Text != "" {
-				outputSeen.Reset()
-				outputSeen.WriteString(parsed.Text)
-			} else if parsed.Delta != "" {
-				outputSeen.WriteString(parsed.Delta)
-			}
-
-			streamUsage := usageSeen
-			if parsed.Type == "transcript.text.done" {
-				reported := util.OptNone[InferenceTranscriptionUsage]()
-				if usagePresent {
-					reported = util.OptValue(usageSeen)
-				}
-				streamUsage, usageEstimated = inferenceTranscriptionUsageForResponse(request, reported, 0, outputSeen.String())
-				usageSeen = streamUsage
-				usagePresent = true
+			streamUsage := inferenceTranscriptionUsage(parsed.Usage)
+			if !parsed.Usage.Present && usagePresent {
+				streamUsage = usageSeen
 			}
 			return inferenceSend(streamCtx, ch, InferenceTranscriptionStreamEvent{
 				Type:     parsed.Type,
@@ -612,20 +685,6 @@ func inferenceTranscribeStreamingAcquired(ctx context.Context, owner apm.WalletO
 			log.Warn("Inference upstream transcription stream failed: model=%s err=%v", model.Name, readErr)
 		}
 
-		var usage InferenceTranscriptionUsage
-		estimated := false
-		if usagePresent {
-			usage = usageSeen
-			estimated = usageEstimated
-		} else {
-			usage = inferenceEstimateTranscriptionUsage(request, 0, outputSeen.String())
-			estimated = true
-		}
-		inferenceReportUsage(owner, username, model, 0, usage.InputTokens, usage.OutputTokens)
-		auditUsage = usage
-		auditUsagePresent = true
-		auditUsageEstimated = estimated
-
 		switch {
 		case ctx.Err() != nil:
 			requestOutcome = "client_cancelled"
@@ -633,9 +692,6 @@ func inferenceTranscribeStreamingAcquired(ctx context.Context, owner apm.WalletO
 			requestOutcome = "stream_timeout"
 		case readErr != nil:
 			requestOutcome = "upstream_error"
-		case estimated:
-			requestOutcome = "success_missing_usage"
-			inferenceWarnMissingUsage("transcription-stream", model.Name)
 		default:
 			requestOutcome = "success"
 		}
@@ -651,7 +707,9 @@ func inferenceBuildTranscriptionMultipart(request InferenceTranscriptionRequest)
 	if request.File.Name == "" {
 		request.File.Name = "audio"
 	}
-	filename := strings.ReplaceAll(request.File.Name, `\`, `\\`)
+	filename := strings.ReplaceAll(request.File.Name, "\r", "")
+	filename = strings.ReplaceAll(filename, "\n", "")
+	filename = strings.ReplaceAll(filename, `\`, `\\`)
 	filename = strings.ReplaceAll(filename, `"`, `\"`)
 	header := make(textproto.MIMEHeader)
 	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, filename))
@@ -748,35 +806,4 @@ func inferenceTranscriptionUsageValid(usage InferenceTranscriptionUsage) bool {
 		return (!details.AudioTokens.Present || details.AudioTokens.Value >= 0) && (!details.TextTokens.Present || details.TextTokens.Value >= 0)
 	}
 	return true
-}
-
-func inferenceTranscriptionUsageForResponse(request InferenceTranscriptionRequest, reported util.Option[InferenceTranscriptionUsage], duration float64, text string) (InferenceTranscriptionUsage, bool) {
-	if reported.Present {
-		usage := inferenceTranscriptionUsage(reported)
-		if usage.InputTokens > 0 || usage.OutputTokens > 0 || usage.TotalTokens > 0 {
-			return usage, false
-		}
-	}
-
-	seconds := duration
-	if seconds <= 0 && reported.Present && reported.Value.Seconds.Present {
-		seconds = reported.Value.Seconds.Value
-	}
-	return inferenceEstimateTranscriptionUsage(request, seconds, text), true
-}
-
-func inferenceEstimateTranscriptionUsage(request InferenceTranscriptionRequest, seconds float64, text string) InferenceTranscriptionUsage {
-	if seconds <= 0 && len(request.File.Data) > 0 {
-		seconds = float64(len(request.File.Data)) / inferenceTranscriptionEstimatedBytesPerSec
-	}
-	inputTokens := int(math.Ceil(seconds * inferenceTranscriptionTokensPerSecond))
-	if inputTokens < 1 && len(request.File.Data) > 0 {
-		inputTokens = 1
-	}
-	outputTokens := inferenceEstimateTokensFromText(text)
-	return InferenceTranscriptionUsage{
-		InputTokens:  inputTokens,
-		OutputTokens: outputTokens,
-		TotalTokens:  inputTokens + outputTokens,
-	}
 }

@@ -29,11 +29,17 @@ const (
 	TaskTypeCopy       TaskType = "copy"
 	TaskTypeTransfer   TaskType = "file_transfer"
 	TaskTypeMarkItDown TaskType = "markitdown"
+	TaskTypeFFProbe    TaskType = "ffprobe"
 )
 
 type TaskMount struct {
 	UCloudPath string
 	ReadOnly   bool
+}
+
+type TaskResources struct {
+	CpuMilli int64
+	MemoryMB int64
 }
 
 type TaskSpec struct {
@@ -42,6 +48,7 @@ type TaskSpec struct {
 	Mounts          []TaskMount
 	TaskToken       string
 	DeadlineSeconds util.Option[int]
+	Resources       util.Option[TaskResources]
 
 	Source           string // UCloud path prior to submission, mount path in job task
 	Destination      string // UCloud path prior to submission, mount path in job task
@@ -159,8 +166,15 @@ func initTasks() {
 			return util.Empty{}, err
 		}
 
-		if request.Update.State == fndapi.TaskStateSuccess || request.Update.State == fndapi.TaskStateFailure {
+		if request.Update.State == fndapi.TaskStateSuccess ||
+			request.Update.State == fndapi.TaskStateFailure ||
+			request.Update.State == fndapi.TaskStateCancelled {
 			taskCleanupByToken(request.Token)
+			time.AfterFunc(5*time.Minute, func() {
+				taskState.Mu.Lock()
+				delete(taskState.Statuses, request.Token)
+				taskState.Mu.Unlock()
+			})
 		}
 
 		return util.Empty{}, nil
@@ -185,6 +199,20 @@ func initTasks() {
 
 			jobName, ok := taskCleanupByToken(apiTok)
 			if ok {
+				taskState.Mu.Lock()
+				taskState.Statuses[apiTok] = fndapi.TaskStatus{
+					Title:              util.OptValue("Task has been cancelled"),
+					Body:               util.OptValue("The task has been cancelled"),
+					ProgressPercentage: util.OptValue(100.0),
+					State:              fndapi.TaskStateCancelled,
+				}
+				taskState.Mu.Unlock()
+				time.AfterFunc(5*time.Minute, func() {
+					taskState.Mu.Lock()
+					delete(taskState.Statuses, apiTok)
+					taskState.Mu.Unlock()
+				})
+
 				deleteOpts := k8smeta.DeleteOptions{
 					PropagationPolicy: util.Pointer(k8smeta.DeletePropagationBackground),
 				}
@@ -376,6 +404,21 @@ func TaskSubmitWithInfo(spec TaskSpec) (TaskSubmission, *util.HttpError) {
 	sourcePath := mapUCloudPathToTaskPath(spec.Source, internalToPod)
 	destinationPath := mapUCloudPathToTaskPath(spec.Destination, internalToPod)
 
+	cpuMilli := int64(8000)
+	memoryMB := int64(1024 * 16)
+	requestCpuMilli := int64(500)
+	requestMemoryMB := int64(2048)
+	if spec.Resources.Present {
+		if spec.Resources.Value.CpuMilli > 0 {
+			cpuMilli = spec.Resources.Value.CpuMilli
+			requestCpuMilli = max(int64(100), cpuMilli/4)
+		}
+		if spec.Resources.Value.MemoryMB > 0 {
+			memoryMB = spec.Resources.Value.MemoryMB
+			requestMemoryMB = max(int64(64), memoryMB/4)
+		}
+	}
+
 	job := k8sbatch.Job{
 		ObjectMeta: k8smeta.ObjectMeta{
 			Name:      spec.Id,
@@ -448,12 +491,12 @@ func TaskSubmitWithInfo(spec TaskSpec) (TaskSubmission, *util.HttpError) {
 							},
 							Resources: k8score.ResourceRequirements{
 								Limits: map[k8score.ResourceName]resource.Quantity{
-									k8score.ResourceCPU:    *resource.NewMilliQuantity(8000, resource.DecimalExponent),
-									k8score.ResourceMemory: *resource.NewScaledQuantity(1024*16, resource.Mega),
+									k8score.ResourceCPU:    *resource.NewMilliQuantity(cpuMilli, resource.DecimalExponent),
+									k8score.ResourceMemory: *resource.NewScaledQuantity(memoryMB, resource.Mega),
 								},
 								Requests: map[k8score.ResourceName]resource.Quantity{
-									k8score.ResourceCPU:    *resource.NewMilliQuantity(500, resource.DecimalExponent),
-									k8score.ResourceMemory: *resource.NewScaledQuantity(2048, resource.Mega),
+									k8score.ResourceCPU:    *resource.NewMilliQuantity(requestCpuMilli, resource.DecimalExponent),
+									k8score.ResourceMemory: *resource.NewScaledQuantity(requestMemoryMB, resource.Mega),
 								},
 							},
 							VolumeMounts: append(storageVolumeMounts, k8score.VolumeMount{
@@ -498,6 +541,7 @@ func TaskSubmitAndWait(ctx context.Context, spec TaskSpec, pollInterval time.Dur
 	for {
 		select {
 		case <-ctx.Done():
+			taskCancelSubmission(submission)
 			return util.HttpErr(http.StatusGatewayTimeout, "task did not finish before the deadline")
 		case <-ticker.C:
 			if status, ok := taskStatusByToken(submission.TaskToken); ok {
@@ -516,6 +560,37 @@ func TaskSubmitAndWait(ctx context.Context, spec TaskSpec, pollInterval time.Dur
 				}
 			}
 		}
+	}
+}
+
+func taskCancelSubmission(submission TaskSubmission) {
+	deleteOpts := k8smeta.DeleteOptions{
+		PropagationPolicy: util.Pointer(k8smeta.DeletePropagationBackground),
+	}
+	k8sErr := shared.K8sClient.BatchV1().
+		Jobs(shared.ServiceConfig.Compute.TaskNamespace).
+		Delete(context.Background(), submission.Id, deleteOpts)
+	if k8sErr != nil {
+		log.Warn("Task cancellation: failed to delete job %s/%s: %s",
+			shared.ServiceConfig.Compute.TaskNamespace, submission.Id, k8sErr)
+	}
+
+	taskCleanupByToken(submission.TaskToken)
+
+	_, err := fndapi.TasksPostStatus.Invoke(fndapi.TasksPostStatusRequest{
+		Update: fndapi.TasksPostStatusRequestUpdate{
+			Id:         submission.UCloudTaskId,
+			ModifiedAt: fndapi.Timestamp(time.Now()),
+			NewStatus: fndapi.TaskStatus{
+				Title:              util.OptValue("Task has been cancelled"),
+				Body:               util.OptValue("The task has been cancelled"),
+				ProgressPercentage: util.OptValue(100.0),
+				State:              fndapi.TaskStateCancelled,
+			},
+		},
+	})
+	if err != nil {
+		log.Warn("Task cancellation: failed to post final message: %s", err)
 	}
 }
 
