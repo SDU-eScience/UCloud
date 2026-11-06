@@ -77,7 +77,9 @@ type InferenceImageGenerationOutputTokenDetails struct {
 type InferenceImageGenerationStreamEvent struct {
 	Type              string                        `json:"type"`
 	B64JSON           util.Option[string]           `json:"b64_json,omitempty"`
+	URL               util.Option[string]           `json:"url,omitempty"`
 	PartialImageIndex util.Option[int]              `json:"partial_image_index,omitempty"`
+	Size              util.Option[string]           `json:"size,omitempty"`
 	Usage             InferenceImageGenerationUsage `json:"usage"`
 }
 
@@ -159,11 +161,24 @@ func inferenceGenerateImageAcquired(ctx context.Context, owner apm.WalletOwner, 
 			requestOutcome = "client_error"
 			return InferenceImageGenerationResponse{}, httpErr
 		}
-		inferenceReportUsage(owner, username, model, 0, resp.Usage.InputTokens, resp.Usage.OutputTokens)
-		auditUsage = resp.Usage
-		auditUsagePresent = true
-		auditUsageEstimated = true
-		requestOutcome = "success_missing_usage"
+		measured, imageCount, imagePixels, estimated, httpErr := inferenceMeasureImageElements(
+			resp.Data,
+			model,
+			request.Size.GetOrDefault(""),
+			resp.Size.GetOrDefault(""),
+		)
+		if httpErr != nil {
+			requestOutcome = "upstream_error"
+			return InferenceImageGenerationResponse{}, httpErr
+		}
+		resp.Data = measured
+		inferenceReportBilling(owner, username, model, InferenceBillingUsage{
+			ImageCount:  imageCount,
+			ImagePixels: imagePixels,
+		})
+		auditUsagePresent = false
+		auditUsageEstimated = estimated
+		requestOutcome = "success"
 		return resp, nil
 	}
 
@@ -176,11 +191,6 @@ func inferenceGenerateImageAcquired(ctx context.Context, owner apm.WalletOwner, 
 	respBody, httpErr := inferenceBackendJSONRequestWithLimit(ctx, model.Endpoint.BasePath, http.MethodPost, path, body, contentType, inferenceMaxImageUpstreamJSONBytes)
 	if httpErr != nil {
 		if ctx.Err() != nil {
-			usage := inferenceEstimateImageUsage(request, 0)
-			inferenceReportUsage(owner, username, model, 0, usage.InputTokens, usage.OutputTokens)
-			auditUsage = usage
-			auditUsagePresent = true
-			auditUsageEstimated = true
 			requestOutcome = "client_cancelled"
 		} else {
 			requestOutcome = "upstream_error"
@@ -202,29 +212,37 @@ func inferenceGenerateImageAcquired(ctx context.Context, owner apm.WalletOwner, 
 		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusBadGateway, "invalid response")
 	}
 	if resp.Usage.Present && !inferenceImageUsageValid(resp.Usage.Value) {
-		requestOutcome = "upstream_error"
-		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusBadGateway, "invalid usage from upstream")
+		log.Warn("Inference upstream returned invalid image usage: model=%s", model.Name)
+		resp.Usage.Clear()
 	}
 
-	usage, estimated := inferenceImageUsageForResponse(request, resp.Usage, len(resp.Data))
+	measured, imageCount, imagePixels, estimated, httpErr := inferenceMeasureImageElements(
+		resp.Data,
+		model,
+		request.Size.GetOrDefault(""),
+		resp.Size.GetOrDefault(""),
+	)
+	if httpErr != nil {
+		requestOutcome = "upstream_error"
+		return InferenceImageGenerationResponse{}, httpErr
+	}
+
 	result := InferenceImageGenerationResponse{
 		Created:      resp.Created,
 		Background:   resp.Background,
-		Data:         resp.Data,
+		Data:         measured,
 		OutputFormat: resp.OutputFormat,
 		Quality:      resp.Quality,
 		Size:         resp.Size,
-		Usage:        usage,
+		Usage:        inferenceImageUsage(resp.Usage),
 	}
-	inferenceReportUsage(owner, username, model, 0, usage.InputTokens, usage.OutputTokens)
-	auditUsage = usage
-	auditUsagePresent = true
+	inferenceReportBilling(owner, username, model, InferenceBillingUsage{
+		ImageCount:  imageCount,
+		ImagePixels: imagePixels,
+	})
+	auditUsagePresent = false
 	auditUsageEstimated = estimated
 	requestOutcome = "success"
-	if estimated {
-		requestOutcome = "success_missing_usage"
-		inferenceWarnMissingUsage("image", model.Name)
-	}
 	return result, nil
 }
 
@@ -316,21 +334,37 @@ func inferenceGenerateImageStreamingAcquired(ctx context.Context, owner apm.Wall
 				requestOutcome = "client_error"
 				return
 			}
-			if len(resp.Data) > 0 {
+			measured, imageCount, imagePixels, estimated, httpErr := inferenceMeasureImageElements(
+				resp.Data,
+				model,
+				request.Size.GetOrDefault(""),
+				resp.Size.GetOrDefault(""),
+			)
+			if httpErr != nil {
+				requestOutcome = "upstream_error"
+				return
+			}
+			for _, element := range measured {
 				if !inferenceSend(ctx, ch, InferenceImageGenerationStreamEvent{
 					Type:    "image_generation.completed",
-					B64JSON: resp.Data[0].B64JSON,
+					B64JSON: element.B64JSON,
+					URL:     element.URL,
+					Size:    resp.Size,
 					Usage:   resp.Usage,
 				}) {
 					requestOutcome = "client_cancelled"
-					return
+					break
 				}
 			}
-			inferenceReportUsage(owner, username, model, 0, resp.Usage.InputTokens, resp.Usage.OutputTokens)
-			auditUsage = resp.Usage
-			auditUsagePresent = true
-			auditUsageEstimated = true
-			requestOutcome = "success_missing_usage"
+			inferenceReportBilling(owner, username, model, InferenceBillingUsage{
+				ImageCount:  imageCount,
+				ImagePixels: imagePixels,
+			})
+			auditUsagePresent = false
+			auditUsageEstimated = estimated
+			if requestOutcome != "client_cancelled" {
+				requestOutcome = "success"
+			}
 		}()
 		return ch, nil
 	}
@@ -371,8 +405,12 @@ func inferenceGenerateImageStreamingAcquired(ctx context.Context, owner apm.Wall
 
 		usageSeen := InferenceImageGenerationUsage{}
 		usagePresent := false
-		usageEstimated := false
-		readErr := inferenceReadSSE(streamCtx, resp.Body, touch, func(event []byte) bool {
+		imageCount := 0
+		var imagePixels int64
+		imageEstimated := false
+		measurementFailed := false
+
+		readErr := inferenceReadSSEWithLimit(streamCtx, resp.Body, touch, inferenceMaxImageUpstreamJSONBytes, func(event []byte) bool {
 			raw := strings.TrimSpace(string(event))
 			if raw == "" {
 				return true
@@ -386,7 +424,9 @@ func inferenceGenerateImageStreamingAcquired(ctx context.Context, owner apm.Wall
 			var parsed struct {
 				Type              string                                     `json:"type"`
 				B64JSON           util.Option[string]                        `json:"b64_json,omitempty"`
+				URL               util.Option[string]                        `json:"url,omitempty"`
 				PartialImageIndex util.Option[int]                           `json:"partial_image_index,omitempty"`
+				Size              util.Option[string]                        `json:"size,omitempty"`
 				Usage             util.Option[InferenceImageGenerationUsage] `json:"usage"`
 			}
 			if err := json.Unmarshal([]byte(payload), &parsed); err != nil {
@@ -397,15 +437,47 @@ func inferenceGenerateImageStreamingAcquired(ctx context.Context, owner apm.Wall
 				parsed.Usage.Clear()
 			}
 			streamUsage := inferenceImageUsage(parsed.Usage)
-			if parsed.Type == "image_generation.completed" {
-				streamUsage, usageEstimated = inferenceImageUsageForResponse(request, parsed.Usage, 0)
+			if parsed.Usage.Present {
 				usageSeen = streamUsage
 				usagePresent = true
+			}
+			if parsed.B64JSON.Present && strings.TrimSpace(parsed.B64JSON.Value) == "" {
+				parsed.B64JSON.Clear()
+			}
+			if parsed.URL.Present && strings.TrimSpace(parsed.URL.Value) == "" {
+				parsed.URL.Clear()
+			}
+			if parsed.B64JSON.Present || parsed.URL.Present {
+				if parsed.Type == "image_generation.completed" && imageCount >= inferenceMaxImageCount {
+					log.Warn("Inference upstream returned too many images: model=%s", model.Name)
+					measurementFailed = true
+					return false
+				}
+				measured, pixels, estimated, httpErr := inferenceMeasureImageElement(
+					InferenceImageGenerationResponseEl{B64JSON: parsed.B64JSON, URL: parsed.URL},
+					model,
+					request.Size.GetOrDefault(""),
+					parsed.Size.GetOrDefault(""),
+				)
+				if httpErr != nil {
+					log.Warn("Could not measure inference image stream: model=%s err=%v", model.Name, httpErr)
+					measurementFailed = true
+					return false
+				}
+				parsed.B64JSON = measured.B64JSON
+				parsed.URL = measured.URL
+				if parsed.Type == "image_generation.completed" {
+					imageCount++
+					imagePixels = inferenceUsageAdd(imagePixels, pixels)
+					imageEstimated = imageEstimated || estimated
+				}
 			}
 			return inferenceSend(streamCtx, ch, InferenceImageGenerationStreamEvent{
 				Type:              parsed.Type,
 				B64JSON:           parsed.B64JSON,
+				URL:               parsed.URL,
 				PartialImageIndex: parsed.PartialImageIndex,
+				Size:              parsed.Size,
 				Usage:             streamUsage,
 			})
 		})
@@ -413,30 +485,26 @@ func inferenceGenerateImageStreamingAcquired(ctx context.Context, owner apm.Wall
 			log.Warn("Inference upstream image stream failed: model=%s err=%v", model.Name, readErr)
 		}
 
-		var usage InferenceImageGenerationUsage
-		estimated := false
+		inferenceReportBilling(owner, username, model, InferenceBillingUsage{
+			ImageCount:  imageCount,
+			ImagePixels: imagePixels,
+		})
+		auditUsagePresent = false
+		auditUsageEstimated = imageEstimated
 		if usagePresent {
-			usage = usageSeen
-			estimated = usageEstimated
-		} else {
-			usage = inferenceEstimateImageUsage(request, 0)
-			estimated = true
+			auditUsage = usageSeen
+			auditUsagePresent = true
 		}
-		inferenceReportUsage(owner, username, model, 0, usage.InputTokens, usage.OutputTokens)
-		auditUsage = usage
-		auditUsagePresent = true
-		auditUsageEstimated = estimated
 
 		switch {
 		case ctx.Err() != nil:
 			requestOutcome = "client_cancelled"
 		case streamCtx.Err() != nil:
 			requestOutcome = "stream_timeout"
+		case measurementFailed:
+			requestOutcome = "upstream_error"
 		case readErr != nil:
 			requestOutcome = "upstream_error"
-		case estimated:
-			requestOutcome = "success_missing_usage"
-			inferenceWarnMissingUsage("image-stream", model.Name)
 		default:
 			requestOutcome = "success"
 		}
@@ -499,11 +567,11 @@ func inferenceImageRequestSize(request InferenceImageGenerationRequest) (int, in
 	if width <= 0 || height <= 0 {
 		return inferenceDefaultImageDimension, inferenceDefaultImageDimension
 	}
-	if width > 8192 {
-		width = 8192
+	if width > inferenceMaxImageDimension {
+		width = inferenceMaxImageDimension
 	}
-	if height > 8192 {
-		height = 8192
+	if height > inferenceMaxImageDimension {
+		height = inferenceMaxImageDimension
 	}
 	return width, height
 }
@@ -520,16 +588,6 @@ func inferenceImageUsage(usage util.Option[InferenceImageGenerationUsage]) Infer
 		return result
 	}
 	return InferenceImageGenerationUsage{}
-}
-
-func inferenceImageUsageForResponse(request InferenceImageGenerationRequest, reported util.Option[InferenceImageGenerationUsage], imageCount int) (InferenceImageGenerationUsage, bool) {
-	if reported.Present {
-		usage := inferenceImageUsage(reported)
-		if usage.OutputTokens > 0 || usage.TotalTokens > 0 {
-			return usage, false
-		}
-	}
-	return inferenceEstimateImageUsage(request, imageCount), true
 }
 
 func inferenceEstimateImageUsage(request InferenceImageGenerationRequest, imageCount int) InferenceImageGenerationUsage {

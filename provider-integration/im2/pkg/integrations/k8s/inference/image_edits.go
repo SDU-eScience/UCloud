@@ -20,7 +20,7 @@ import (
 const (
 	inferenceMaxImageEditRequestBytes = 64 << 20
 	inferenceMaxImageEditFileBytes    = 20 << 20
-	inferenceMaxImageEditDimension    = 8192
+	inferenceMaxImageDimension        = 8192
 )
 
 type InferenceImageEditFile struct {
@@ -143,15 +143,13 @@ func inferenceReadImageEditFile(file multipart.File, header *multipart.FileHeade
 		return InferenceImageEditFile{}, util.HttpErr(http.StatusBadRequest, "unsupported image type")
 	}
 
-	if contentType != "image/webp" {
-		config, _, err := image.DecodeConfig(bytes.NewReader(data))
-		if err != nil {
-			return InferenceImageEditFile{}, util.HttpErr(http.StatusBadRequest, "invalid image")
-		}
-		if config.Width <= 0 || config.Height <= 0 ||
-			config.Width > inferenceMaxImageEditDimension || config.Height > inferenceMaxImageEditDimension {
-			return InferenceImageEditFile{}, util.HttpErr(http.StatusBadRequest, "invalid image dimensions")
-		}
+	config, _, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return InferenceImageEditFile{}, util.HttpErr(http.StatusBadRequest, "invalid image")
+	}
+	if config.Width <= 0 || config.Height <= 0 ||
+		config.Width > inferenceMaxImageDimension || config.Height > inferenceMaxImageDimension {
+		return InferenceImageEditFile{}, util.HttpErr(http.StatusBadRequest, "invalid image dimensions")
 	}
 
 	return InferenceImageEditFile{
@@ -185,7 +183,7 @@ func inferenceValidateImageEditSize(raw string) *util.HttpError {
 	width, widthErr := strconv.Atoi(parts[0])
 	height, heightErr := strconv.Atoi(parts[1])
 	if widthErr != nil || heightErr != nil || width <= 0 || height <= 0 ||
-		width > inferenceMaxImageEditDimension || height > inferenceMaxImageEditDimension {
+		width > inferenceMaxImageDimension || height > inferenceMaxImageDimension {
 		return util.HttpErr(http.StatusBadRequest, "invalid image size")
 	}
 	return nil
@@ -249,6 +247,8 @@ func inferenceWriteImageEditPart(writer *multipart.Writer, field string, file In
 	if filename == "" {
 		filename = field
 	}
+	filename = strings.ReplaceAll(filename, "\r", "")
+	filename = strings.ReplaceAll(filename, "\n", "")
 	filename = strings.ReplaceAll(filename, `\`, `\\`)
 	filename = strings.ReplaceAll(filename, `"`, `\"`)
 

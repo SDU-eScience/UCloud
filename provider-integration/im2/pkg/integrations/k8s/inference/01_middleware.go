@@ -1221,8 +1221,12 @@ func inferenceStreamContext(parent context.Context) (context.Context, context.Ca
 }
 
 func inferenceReadSSE(ctx context.Context, body io.Reader, touch func(), handle func([]byte) bool) error {
+	return inferenceReadSSEWithLimit(ctx, body, touch, inferenceMaxSSEEventBytes, handle)
+}
+
+func inferenceReadSSEWithLimit(ctx context.Context, body io.Reader, touch func(), limit int, handle func([]byte) bool) error {
 	scanner := bufio.NewScanner(body)
-	scanner.Buffer(make([]byte, 64<<10), inferenceMaxSSEEventBytes)
+	scanner.Buffer(make([]byte, 64<<10), limit)
 	var event bytes.Buffer
 	flush := func() bool {
 		if event.Len() == 0 {
@@ -1241,7 +1245,7 @@ func inferenceReadSSE(ctx context.Context, body io.Reader, touch func(), handle 
 			}
 			continue
 		}
-		if event.Len()+len(line)+1 > inferenceMaxSSEEventBytes {
+		if event.Len()+len(line)+1 > limit {
 			return fmt.Errorf("SSE event exceeds limit")
 		}
 		event.Write(line)
