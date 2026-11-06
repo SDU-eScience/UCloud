@@ -1251,7 +1251,7 @@ export class ResourceBrowser<T> {
     }
 
     public renderRows() {
-        const page = this.cachedData[this.currentPath] ?? [];
+        const page = this.canConsumeResources ? this.cachedData[this.currentPath] ?? [] : [];
         if (this.isSelected.length < page.length) {
             const newSelected = new Uint8Array(page.length);
             newSelected.set(this.isSelected, 0);
@@ -1297,8 +1297,6 @@ export class ResourceBrowser<T> {
         }
 
         this.renameField.style.display = "none";
-
-        if (!this.canConsumeResources) return;
 
         const containerSize = containerSizeFromWidth(containerWidth);
 
@@ -3144,9 +3142,7 @@ export class ResourceBrowser<T> {
         const containerBounds = container.getBoundingClientRect();
         const rootBounds = this.root.getBoundingClientRect();
         const containerTop = containerBounds.top - rootBounds.top;
-        const containerLeft = containerBounds.left - rootBounds.left;
         const containerHeight = containerBounds.height;
-        const containerWidth = containerBounds.width;
         const e = this.emptyPageElement;
         e.container.style.display = "flex";
         e.container.style.position = "absolute";
@@ -3159,6 +3155,8 @@ export class ResourceBrowser<T> {
         e.container.style.top = (containerTop + (containerHeight / 2) - (containerSize / 2)) + "px";
         if (this.opts?.embedded || this.opts?.selector) {
             e.container.style.position = "unset";
+            e.container.style.left = "unset";
+            e.container.style.transform = "unset";
             e.container.style.marginLeft = "auto";
             e.container.style.marginRight = "auto";
         }
