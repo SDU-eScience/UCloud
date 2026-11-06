@@ -22,6 +22,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/sirupsen/logrus v1.10.2
 	github.com/sugarme/tokenizer v0.2.2
+	golang.org/x/image v0.41.0
 	golang.org/x/net v0.59.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.23.0

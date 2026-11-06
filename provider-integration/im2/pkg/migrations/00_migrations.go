@@ -75,6 +75,7 @@ func Init() {
 	db.AddMigration(inferenceV21())
 	db.AddMigration(inferenceV22())
 	db.AddMigration(inferenceV23())
+	db.AddMigration(inferenceV24())
 	db.AddMigration(privateNetworkDatabaseV2())
 	db.AddMigration(servicesDatabaseV1())
 	db.AddMigration(stackGrantTokensV1())
@@ -85,4 +86,5 @@ func Init() {
 	db.AddMigration(apmEventsV4())
 	db.AddMigration(jobDatabaseV5())
 	db.AddMigration(metadataDriveDeletionsV1())
+	db.AddMigration(inferenceV25())
 }

@@ -524,9 +524,38 @@ func InferenceDriveScanned(drive *orc.Drive, internalPath string) {
 	switch descriptor.Type {
 	case filesystem.DriveDescriptorTypeHome:
 		inferenceResponseStoreSweep(descriptor.PrimaryReference, internalPath)
+		inferenceAudioTaskSweep(internalPath)
 	case filesystem.DriveDescriptorTypeMemberFiles:
 		inferenceResponseStoreSweep(descriptor.SecondaryReference, internalPath)
 	default:
+	}
+}
+
+func inferenceAudioTaskSweep(internalPath string) {
+	entries, err := filesystem.ListDirNames(filepath.Join(internalPath, inferenceTranscriptionTaskSubPath))
+	if err != nil {
+		return
+	}
+
+	cutoff := time.Now().Add(-time.Hour)
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry, "audio-") {
+			continue
+		}
+
+		path := filepath.Join(internalPath, inferenceTranscriptionTaskSubPath, entry)
+		info, statErr := filesystem.Stat(path)
+		if statErr != nil || !info.IsDir() {
+			continue
+		}
+
+		if info.ModTime().After(cutoff) {
+			continue
+		}
+
+		if deleteErr := filesystem.DoDeleteFile(path); deleteErr != nil {
+			log.Warn("Could not delete expired inference audio task directory %s: %s", path, deleteErr)
+		}
 	}
 }
 

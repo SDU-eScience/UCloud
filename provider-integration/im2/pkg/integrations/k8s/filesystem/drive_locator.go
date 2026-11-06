@@ -234,18 +234,19 @@ func UCloudToInternal(path string) (string, bool, *orc.Drive) {
 func InternalToUCloudWithDrive(drive *orc.Drive, path string) (string, bool) {
 	cleanPath := filepath.Clean(path)
 	basePath, ok, _ := DriveToLocalPath(drive)
-	basePath += "/"
-
 	if !ok {
 		return "", false
 	}
+	basePath += "/"
 
-	withoutBasePath, _ := strings.CutPrefix(cleanPath, basePath)
 	if cleanPath+"/" == basePath {
 		return "/" + drive.Id, true
-	} else {
-		return "/" + drive.Id + "/" + withoutBasePath, true
 	}
+	withoutBasePath, ok := strings.CutPrefix(cleanPath, basePath)
+	if !ok {
+		return "", false
+	}
+	return "/" + drive.Id + "/" + withoutBasePath, true
 }
 
 func DriveIdFromUCloudPath(path string) (string, bool) {

@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/bits"
 	"net/http"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -94,9 +95,10 @@ const (
 )
 
 var inferenceGlobals struct {
-	Ready         atomic.Bool
-	BackendServer string
-	Product       apm.ProductV2
+	Ready               atomic.Bool
+	BackendServer       string
+	MockImageGeneration bool
+	Product             apm.ProductV2
 }
 
 var inferenceUsageFlushMu sync.Mutex
@@ -149,6 +151,12 @@ func Init() {
 	}
 
 	inferenceModelCatalogLoad()
+	controller.InferencePlaygroundImageRead = playgroundImageRead
+
+	inferenceGlobals.MockImageGeneration = util.DevelopmentModeEnabled() && runtime.GOARCH == "arm64"
+	if inferenceGlobals.MockImageGeneration {
+		log.Info("Enabling mock image generation endpoint for development on arm64")
+	}
 
 	if inferenceCfg.Provider == cfg.KubernetesInferenceProviderDevelopment && util.DevelopmentModeEnabled() && inferenceCfg.DevelopmentProvider == inferenceDevelopmentProviderLocalAI {
 		err := inferenceAutoConfigureLocalAI()
@@ -203,11 +211,21 @@ func Init() {
 					return efforts
 				}(),
 				DefaultReasoningEffort: model.DefaultReasoningEffort,
+				DefaultFor: func() []orcapi.InferenceCapability {
+					result := make([]orcapi.InferenceCapability, 0, len(model.DefaultFor))
+					for _, capability := range model.DefaultFor {
+						result = append(result, orcapi.InferenceCapability(capability))
+					}
+					return result
+				}(),
 				PricePerMillion: orcapi.InferencePricing{
 					CachedInput: model.PricePerMillion.CachedInput,
 					Input:       model.PricePerMillion.Input,
 					Output:      model.PricePerMillion.Output,
 				},
+				PricePerMegaPixel:   model.PricePerMegaPixel,
+				PricePerAudioMinute: model.PricePerAudioMinute,
+				FileUrlRoot:         model.FileUrlRoot,
 				Endpoint: orcapi.InferenceEndpoint{
 					BasePath:         model.Endpoint.BasePath,
 					BackendModelName: model.Endpoint.BackendModelName,
@@ -232,6 +250,7 @@ func Init() {
 				inferenceModel.Endpoint.BackendModelName = ""
 				inferenceModel.ChatSettings.SystemPrompt = nil
 				inferenceModel.Availability.AvailableTo = nil
+				inferenceModel.FileUrlRoot = ""
 			}
 
 			result.Models = append(result.Models, inferenceModel)
@@ -269,11 +288,21 @@ func Init() {
 				return efforts
 			}(),
 			DefaultReasoningEffort: request.Model.DefaultReasoningEffort,
+			DefaultFor: func() []InferenceCapability {
+				result := make([]InferenceCapability, 0, len(request.Model.DefaultFor))
+				for _, capability := range request.Model.DefaultFor {
+					result = append(result, InferenceCapability(capability))
+				}
+				return result
+			}(),
 			PricePerMillion: InferencePricing{
 				CachedInput: request.Model.PricePerMillion.CachedInput,
 				Input:       request.Model.PricePerMillion.Input,
 				Output:      request.Model.PricePerMillion.Output,
 			},
+			PricePerMegaPixel:   request.Model.PricePerMegaPixel,
+			PricePerAudioMinute: request.Model.PricePerAudioMinute,
+			FileUrlRoot:         request.Model.FileUrlRoot,
 			Endpoint: InferenceEndpoint{
 				BasePath:         request.Model.Endpoint.BasePath,
 				BackendModelName: request.Model.Endpoint.BackendModelName,
@@ -461,6 +490,172 @@ func Init() {
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write(respData)
 		}
+	}))
+
+	controller.Mux.HandleFunc(authority+"/v1/audio/transcriptions", inferenceAuditMiddleware("inference.transcribe", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			inferenceAuditReject(r.Context(), "method not allowed")
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.ContentLength > inferenceMaxTranscriptionRequestBytes {
+			inferenceAuditReject(r.Context(), "request body too large")
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		apiKeyOwner, apiKeyUsername, tokenId, httpErr := inferenceAuthenticateRequest(r)
+		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		inferenceAuditIdentity(r.Context(), apiKeyOwner, apiKeyUsername, tokenId)
+
+		release, httpErr := inferenceAcquire(r.Context(), apiKeyOwner, apiKeyUsername)
+		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		request, httpErr := InferenceTranscriptionParseRequest(w, r)
+		if httpErr != nil {
+			release()
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
+		defer cancel()
+
+		if request.Stream {
+			events, httpErr := inferenceTranscribeStreamingAcquired(ctx, apiKeyOwner, apiKeyUsername, request, release)
+			if httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+				return
+			}
+
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.Header().Set("Cache-Control", "no-cache")
+			w.Header().Set("Connection", "keep-alive")
+			if request.Model != "" {
+				w.Header().Set("ucloud-generated-by-ai-model", request.Model)
+			}
+
+			for event := range events {
+				data, err := json.Marshal(event)
+				if err != nil {
+					continue
+				}
+
+				if err := inferenceWriteSSE(w, append(append([]byte("data: "), data...), '\n', '\n')); err != nil {
+					cancel()
+					for range events {
+					}
+					return
+				}
+			}
+
+			_ = inferenceWriteSSE(w, []byte("data: [DONE]\n\n"))
+			return
+		}
+
+		defer release()
+		resp, httpErr := inferenceTranscribeAcquired(ctx, apiKeyOwner, apiKeyUsername, request)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		if request.Model != "" {
+			w.Header().Set("ucloud-generated-by-ai-model", request.Model)
+		}
+		if resp.Raw != nil {
+			w.Header().Set("Content-Type", resp.Raw.ContentType)
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(resp.Raw.Data)
+			return
+		}
+
+		var respData []byte
+		switch request.ResponseFormat {
+		case InferenceTranscriptionRespDiarizedJson:
+			if resp.DiarizedJson != nil {
+				respData, _ = json.Marshal(resp.DiarizedJson)
+			}
+		case InferenceTranscriptionRespVerboseJson:
+			if resp.VerboseJson != nil {
+				respData, _ = json.Marshal(resp.VerboseJson)
+			}
+		default:
+			if resp.Json != nil {
+				respData, _ = json.Marshal(resp.Json)
+			}
+		}
+		if respData == nil {
+			http.Error(w, "invalid response", http.StatusBadGateway)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(respData)
+	}))
+
+	controller.Mux.HandleFunc(authority+"/v1/images/generations", inferenceAuditMiddleware("inference.image", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			inferenceAuditReject(r.Context(), "method not allowed")
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.ContentLength > inferenceMaxJSONRequestBytes {
+			inferenceAuditReject(r.Context(), "request body too large")
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		apiKeyOwner, apiKeyUsername, tokenId, httpErr := inferenceAuthenticateRequest(r)
+		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		inferenceAuditIdentity(r.Context(), apiKeyOwner, apiKeyUsername, tokenId)
+
+		var request InferenceImageGenerationRequest
+		if !inferenceDecodeJSON(w, r, inferenceMaxJSONRequestBytes, &request) {
+			inferenceAuditReject(r.Context(), "invalid request body")
+			return
+		}
+		inferenceImageRespond(w, r, request, apiKeyOwner, apiKeyUsername)
+	}))
+
+	controller.Mux.HandleFunc(authority+"/v1/images/edits", inferenceAuditMiddleware("inference.image", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			inferenceAuditReject(r.Context(), "method not allowed")
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.ContentLength > inferenceMaxImageEditRequestBytes {
+			inferenceAuditReject(r.Context(), "request body too large")
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		apiKeyOwner, apiKeyUsername, tokenId, httpErr := inferenceAuthenticateRequest(r)
+		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		inferenceAuditIdentity(r.Context(), apiKeyOwner, apiKeyUsername, tokenId)
+
+		request, httpErr := InferenceImageEditParseRequest(w, r)
+		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		inferenceImageRespond(w, r, request, apiKeyOwner, apiKeyUsername)
 	}))
 
 	controller.Mux.HandleFunc(authority+"/v1/responses", inferenceAuditMiddleware("inference.responses", func(w http.ResponseWriter, r *http.Request) {
@@ -729,6 +924,56 @@ func inferenceDecodeJSON(w http.ResponseWriter, r *http.Request, limit int64, ds
 	return true
 }
 
+func inferenceImageRespond(w http.ResponseWriter, r *http.Request, request InferenceImageGenerationRequest, owner apm.WalletOwner, username string) {
+	ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
+	defer cancel()
+
+	if request.Stream.GetOrDefault(false) {
+		events, httpErr := InferenceGenerateImageStreaming(ctx, owner, username, request)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		if request.Model.Present && request.Model.Value != "" {
+			w.Header().Set("ucloud-generated-by-ai-model", request.Model.Value)
+		}
+
+		for event := range events {
+			data, err := json.Marshal(event)
+			if err != nil {
+				continue
+			}
+
+			if err := inferenceWriteSSE(w, append(append([]byte("data: "), data...), '\n', '\n')); err != nil {
+				cancel()
+				for range events {
+				}
+				return
+			}
+		}
+
+		_ = inferenceWriteSSE(w, []byte("data: [DONE]\n\n"))
+		return
+	}
+
+	respData, httpErr := inferenceGenerateImageResponse(ctx, owner, username, request)
+	if httpErr != nil {
+		http.Error(w, httpErr.Why, httpErr.StatusCode)
+		return
+	}
+
+	if request.Model.Present && request.Model.Value != "" {
+		w.Header().Set("ucloud-generated-by-ai-model", request.Model.Value)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(respData)
+}
+
 func inferenceWriteSSE(w http.ResponseWriter, payload []byte) error {
 	ctrl := http.NewResponseController(w)
 	err := ctrl.SetWriteDeadline(time.Now().Add(inferenceStreamWriteTimeout))
@@ -844,11 +1089,12 @@ func inferenceAcquire(ctx context.Context, owner apm.WalletOwner, username strin
 
 // Usage accounting
 // ---------------------------------------------------------------------------------------------------------------------
-// This section converts token counts into accounting usage. Prices use fixed-point units per million tokens. Cached
-// input, uncached input, and output are multiplied separately, then combined before division. This keeps fractional
-// remainders across requests instead of losing them during each price calculation.
+// This section converts token counts and native units into accounting usage. Prices use fixed-point units. Cached
+// input, uncached input, and output are multiplied separately, then combined before division. Image pixels use the
+// megapixel price and audio milliseconds use the per-minute price. Each dimension is converted to microcredits before
+// the dimensions are added.
 //
-// `inferenceReportUsage` writes daily per-model token totals and cumulative owner charges in one transaction. It then
+// `inferenceReportBilling` writes daily per-model usage totals and cumulative owner charges in one transaction. It then
 // wakes the flush loop. `inferenceFlushUsage` sends the latest cumulative charge to accounting and advances the
 // reported value only after success. A failed report leaves the row ahead of its reported value, so a later flush
 // retries it. A mutex prevents timer and wake events from running overlapping flushes.
@@ -856,28 +1102,72 @@ func inferenceAcquire(ctx context.Context, owner apm.WalletOwner, username strin
 // The arithmetic helpers saturate fixed-point multiplication and addition so an invalid extreme value cannot wrap into
 // a lower charge.
 //
-// Important entry points include `inferenceReportUsage` and `inferenceFlushUsage`.
+// Important entry points include `inferenceReportBilling` and `inferenceFlushUsage`.
+
+type InferenceBillingUsage struct {
+	CachedInputTokens int
+	InputTokens       int
+	OutputTokens      int
+
+	ImageCount        int
+	ImagePixels       int64
+	AudioMilliseconds int64
+}
 
 func inferenceReportUsage(owner apm.WalletOwner, username string, model InferenceModel, cachedTokens int, inputTokens int, outputTokens int) {
-	if cachedTokens < 0 {
-		cachedTokens = 0
+	inferenceReportBilling(owner, username, model, InferenceBillingUsage{
+		CachedInputTokens: cachedTokens,
+		InputTokens:       inputTokens,
+		OutputTokens:      outputTokens,
+	})
+}
+
+func inferenceReportBilling(owner apm.WalletOwner, username string, model InferenceModel, billingUsage InferenceBillingUsage) {
+	if billingUsage.CachedInputTokens < 0 {
+		billingUsage.CachedInputTokens = 0
 	}
-	if inputTokens < 0 {
-		inputTokens = 0
+	if billingUsage.InputTokens < 0 {
+		billingUsage.InputTokens = 0
 	}
-	if outputTokens < 0 {
-		outputTokens = 0
+	if billingUsage.OutputTokens < 0 {
+		billingUsage.OutputTokens = 0
+	}
+	if billingUsage.ImageCount < 0 {
+		billingUsage.ImageCount = 0
+	}
+	if billingUsage.ImagePixels < 0 {
+		billingUsage.ImagePixels = 0
+	}
+	if billingUsage.AudioMilliseconds < 0 {
+		billingUsage.AudioMilliseconds = 0
 	}
 
-	weightedUsage := inferenceUsageMultiply(cachedTokens, model.PricePerMillion.CachedInput)
-	weightedUsage = inferenceUsageAdd(weightedUsage, inferenceUsageMultiply(inputTokens, model.PricePerMillion.Input))
-	weightedUsage = inferenceUsageAdd(weightedUsage, inferenceUsageMultiply(outputTokens, model.PricePerMillion.Output))
-	usage := weightedUsage / InferencePriceScale
-	remainder := weightedUsage % InferencePriceScale
+	tokenUsage := inferenceUsageMultiply(billingUsage.CachedInputTokens, model.PricePerMillion.CachedInput)
+	tokenUsage = inferenceUsageAdd(tokenUsage, inferenceUsageMultiply(billingUsage.InputTokens, model.PricePerMillion.Input))
+	tokenUsage = inferenceUsageAdd(tokenUsage, inferenceUsageMultiply(billingUsage.OutputTokens, model.PricePerMillion.Output))
+	tokenMicroCredits := tokenUsage / InferencePriceScale
+	tokenRemainder := tokenUsage % InferencePriceScale
 
-	metricInferenceCachedInputTokens.WithLabelValues(model.Name).Add(float64(cachedTokens))
-	metricInferenceInputTokens.WithLabelValues(model.Name).Add(float64(inputTokens))
-	metricInferenceOutputTokens.WithLabelValues(model.Name).Add(float64(outputTokens))
+	imageUsage := inferenceUsageMultiply64(billingUsage.ImagePixels, model.PricePerMegaPixel)
+	imageMicroCredits := imageUsage / InferencePriceScale
+	imageRemainder := imageUsage % InferencePriceScale
+
+	audioUsage := inferenceUsageMultiply64(billingUsage.AudioMilliseconds, model.PricePerAudioMinute)
+	audioMicroCredits := audioUsage / 60_000
+	audioRemainder := (audioUsage % 60_000) * InferencePriceScale / 60_000
+
+	usage := inferenceUsageAdd(tokenMicroCredits, imageMicroCredits)
+	usage = inferenceUsageAdd(usage, audioMicroCredits)
+	remainder := tokenRemainder + imageRemainder + audioRemainder
+	usage = inferenceUsageAdd(usage, remainder/InferencePriceScale)
+	remainder = remainder % InferencePriceScale
+
+	metricInferenceCachedInputTokens.WithLabelValues(model.Name).Add(float64(billingUsage.CachedInputTokens))
+	metricInferenceInputTokens.WithLabelValues(model.Name).Add(float64(billingUsage.InputTokens))
+	metricInferenceOutputTokens.WithLabelValues(model.Name).Add(float64(billingUsage.OutputTokens))
+	metricInferenceImageCount.WithLabelValues(model.Name).Add(float64(billingUsage.ImageCount))
+	metricInferenceImagePixels.WithLabelValues(model.Name).Add(float64(billingUsage.ImagePixels))
+	metricInferenceAudioMilliseconds.WithLabelValues(model.Name).Add(float64(billingUsage.AudioMilliseconds))
 	metricInferenceRequests.WithLabelValues(model.Name).Inc()
 
 	scope := fmt.Sprintf("inference-%s-%s-%s", inferenceGlobals.Product.Category.Provider, inferenceGlobals.Product.Category.Name, util.SecureToken())
@@ -896,7 +1186,10 @@ func inferenceReportUsage(owner apm.WalletOwner, username string, model Inferenc
 					usage_day,
 					cached_input_tokens,
 					input_tokens,
-					output_tokens
+					output_tokens,
+					image_count,
+					image_pixels,
+					audio_milliseconds
 				)
 				values (
 					:owner,
@@ -905,7 +1198,10 @@ func inferenceReportUsage(owner apm.WalletOwner, username string, model Inferenc
 					cast((now() at time zone 'utc') as date),
 					:cached_input_tokens,
 					:input_tokens,
-					:output_tokens
+					:output_tokens,
+					:image_count,
+					:image_pixels,
+					:audio_milliseconds
 				)
 				on conflict (owner, username, model, usage_day) do update set
 					cached_input_tokens = cast((
@@ -917,15 +1213,27 @@ func inferenceReportUsage(owner apm.WalletOwner, username string, model Inferenc
 					output_tokens = cast((
 						cast(inference_usage_by_model.output_tokens as numeric) + excluded.output_tokens
 					) as bigint),
+					image_count = cast((
+						cast(inference_usage_by_model.image_count as numeric) + excluded.image_count
+					) as bigint),
+					image_pixels = cast((
+						cast(inference_usage_by_model.image_pixels as numeric) + excluded.image_pixels
+					) as bigint),
+					audio_milliseconds = cast((
+						cast(inference_usage_by_model.audio_milliseconds as numeric) + excluded.audio_milliseconds
+					) as bigint),
 					updated_at = now()
 			`,
 			db.Params{
 				"owner":               owner.Reference(),
 				"username":            consumer,
 				"model":               model.Name,
-				"cached_input_tokens": int64(cachedTokens),
-				"input_tokens":        int64(inputTokens),
-				"output_tokens":       int64(outputTokens),
+				"cached_input_tokens": int64(billingUsage.CachedInputTokens),
+				"input_tokens":        int64(billingUsage.InputTokens),
+				"output_tokens":       int64(billingUsage.OutputTokens),
+				"image_count":         int64(billingUsage.ImageCount),
+				"image_pixels":        billingUsage.ImagePixels,
+				"audio_milliseconds":  billingUsage.AudioMilliseconds,
 			},
 		)
 		db.Exec(
@@ -956,15 +1264,19 @@ func inferenceReportUsage(owner apm.WalletOwner, username string, model Inferenc
 	}
 }
 
-func inferenceUsageMultiply(tokens int, encodedPrice int64) int64 {
-	if tokens <= 0 || encodedPrice <= 0 {
+func inferenceUsageMultiply64(value int64, encodedPrice int64) int64 {
+	if value <= 0 || encodedPrice <= 0 {
 		return 0
 	}
-	high, low := bits.Mul64(uint64(tokens), uint64(encodedPrice))
+	high, low := bits.Mul64(uint64(value), uint64(encodedPrice))
 	if high != 0 || low > math.MaxInt64 {
 		return math.MaxInt64
 	}
 	return int64(low)
+}
+
+func inferenceUsageMultiply(tokens int, encodedPrice int64) int64 {
+	return inferenceUsageMultiply64(int64(tokens), encodedPrice)
 }
 
 func inferenceUsageAdd(a int64, b int64) int64 {
@@ -1076,6 +1388,27 @@ var (
 		Subsystem: "inference",
 		Name:      "output_tokens_total",
 		Help:      "Total output tokens observed by inference model.",
+	}, []string{"model"})
+
+	metricInferenceImageCount = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "image_count_total",
+		Help:      "Total returned images observed by inference model.",
+	}, []string{"model"})
+
+	metricInferenceImagePixels = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "image_pixels_total",
+		Help:      "Total returned image pixels observed by inference model.",
+	}, []string{"model"})
+
+	metricInferenceAudioMilliseconds = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "audio_milliseconds_total",
+		Help:      "Total measured audio milliseconds observed by inference model.",
 	}, []string{"model"})
 
 	metricInferenceRequests = promauto.NewCounterVec(prometheus.CounterOpts{

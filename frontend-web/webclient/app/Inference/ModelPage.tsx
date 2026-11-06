@@ -10,7 +10,7 @@ import {copyToClipboard, expandAndPrettifyString} from "@/UtilityFunctions";
 import {formatNumber, formatPricePerMillionCredits} from "@/Utilities/NumberFormatting";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {InferenceBenchmark, InferenceCapability, InferenceModel, listModels, updateBenchmarks, updateModel} from "./api";
+import {InferenceBenchmark, InferenceCapability, InferenceModel, inferenceModelUsesAudioMinutePricing, inferenceModelUsesMegaPixelPricing, inferenceModelUsesTokenPricing, listModels, updateBenchmarks, updateModel} from "./api";
 import ConfiguringTools from "./ConfiguringTools";
 import ModelInferenceLogo, {modelProviderName} from "./ModelLogo";
 import {CopyButton} from "@/ui-components/CopyButton";
@@ -20,7 +20,7 @@ import {formatDate} from "date-fns";
 import {MarkdownDocument} from "@/ui-components/Markdown";
 
 const fallbackDocs = "https://docs.cloud.sdu.dk";
-const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText", "Vision", "VideoVision", "Audio"];
+const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "ImageToImage", "SpeechToText", "Vision", "VideoVision", "Audio"];
 const prettierCapabilities = capabilities.map(expandAndPrettifyString);
 type PricePerMillionText = {cachedInput: string; input: string; output: string};
 
@@ -40,6 +40,8 @@ export default function ModelPage(): React.ReactNode {
     const [savingModel, setSavingModel] = React.useState(false);
     const [savingBenchmarks, setSavingBenchmarks] = React.useState(false);
     const [pricePerMillionText, setPricePerMillionText] = React.useState<PricePerMillionText>({cachedInput: "", input: "", output: ""});
+    const [pricePerMegaPixelText, setPricePerMegaPixelText] = React.useState("");
+    const [pricePerAudioMinuteText, setPricePerAudioMinuteText] = React.useState("");
 
     const model = models.find(it => it.name === modelName);
     usePage(model?.title ?? "Inference model", SidebarTabId.INFERENCE);
@@ -68,24 +70,39 @@ export default function ModelPage(): React.ReactNode {
         if (!editing || !model) return;
         setDraft(normalizeEditableModel(model));
         setPricePerMillionText(editablePricesPerMillion(model));
+        setPricePerMegaPixelText(editablePrice(model.pricePerMegaPixel));
+        setPricePerAudioMinuteText(editablePrice(model.pricePerAudioMinute));
     }, [editing, model?.name]);
 
     const startEdit = () => {
         if (!model) return;
         setDraft(normalizeEditableModel(model));
         setPricePerMillionText(editablePricesPerMillion(model));
+        setPricePerMegaPixelText(editablePrice(model.pricePerMegaPixel));
+        setPricePerAudioMinuteText(editablePrice(model.pricePerAudioMinute));
         setEditing(true);
     };
 
     const saveModel = () => {
         if (!draft || !model) return;
         const pricePerMillion = parsePricesPerMillion(pricePerMillionText);
-        if (!pricePerMillion) {
+        const pricePerMegaPixel = parseCredits(pricePerMegaPixelText);
+        const pricePerAudioMinute = parseCredits(pricePerAudioMinuteText);
+        const invalidPrice =
+            (inferenceModelUsesTokenPricing(draft) && !pricePerMillion) ||
+            (inferenceModelUsesMegaPixelPricing(draft) && pricePerMegaPixel === null) ||
+            (inferenceModelUsesAudioMinutePricing(draft) && pricePerAudioMinute === null);
+        if (invalidPrice) {
             setError("Prices must be non-negative decimal values with at most six decimal places.");
             return;
         }
 
-        const updatedDraft = {...draft, pricePerMillion};
+        const updatedDraft = {
+            ...draft,
+            pricePerMillion: pricePerMillion ?? draft.pricePerMillion,
+            pricePerMegaPixel: pricePerMegaPixel ?? draft.pricePerMegaPixel,
+            pricePerAudioMinute: pricePerAudioMinute ?? draft.pricePerAudioMinute,
+        };
         setSavingModel(true);
         setError("");
         void callAPI(updateModel({providerId: null, oldName: model.name, model: updatedDraft}))
@@ -136,6 +153,10 @@ export default function ModelPage(): React.ReactNode {
                 setModel={model => setDraft(model)}
                 pricePerMillionText={pricePerMillionText}
                 setPricePerMillionText={setPricePerMillionText}
+                pricePerMegaPixelText={pricePerMegaPixelText}
+                setPricePerMegaPixelText={setPricePerMegaPixelText}
+                pricePerAudioMinuteText={pricePerAudioMinuteText}
+                setPricePerAudioMinuteText={setPricePerAudioMinuteText}
             />
         </>;
     }
@@ -290,6 +311,10 @@ function ModelPageContent(props: {
     setModel: (model: InferenceModel) => void;
     pricePerMillionText: PricePerMillionText;
     setPricePerMillionText: (value: PricePerMillionText) => void;
+    pricePerMegaPixelText: string;
+    setPricePerMegaPixelText: (value: string) => void;
+    pricePerAudioMinuteText: string;
+    setPricePerAudioMinuteText: (value: string) => void;
 }): React.ReactNode {
     const {model, models, benchmarks, providerId, server} = props;
     const page = model.page;
@@ -351,10 +376,25 @@ function ModelPageContent(props: {
 
             <Section>
                 <hr className="model-sidebar-separator" />
-                {props.editing ? <ModelSettingsEditor model={model} models={models} setModel={updateModel} pricePerMillionText={props.pricePerMillionText} setPricePerMillionText={props.setPricePerMillionText} /> : <Datasheet model={model} />}
+                {props.editing ? <ModelSettingsEditor
+                    model={model}
+                    models={models}
+                    setModel={updateModel}
+                    isAdmin={props.isAdmin}
+                    pricePerMillionText={props.pricePerMillionText}
+                    setPricePerMillionText={props.setPricePerMillionText}
+                    pricePerMegaPixelText={props.pricePerMegaPixelText}
+                    setPricePerMegaPixelText={props.setPricePerMegaPixelText}
+                    pricePerAudioMinuteText={props.pricePerAudioMinuteText}
+                    setPricePerAudioMinuteText={props.setPricePerAudioMinuteText}
+                /> : <Datasheet model={model} isAdmin={props.isAdmin} />}
 
                 {props.editing ? null : <Flex gap="12px" flexWrap="wrap" flexDirection={"column"}>
-                    <Link to={AppRoutes.inference.playground(model.name)}>
+                    <Link
+                        to={AppRoutes.inference.playground(
+                            model.capabilities.includes("TextGeneration") ? model.name : undefined,
+                        )}
+                    >
                         <Button type="button" color="successMain" width={"100%"}>Try now</Button>
                     </Link>
                     <ExternalLink href={documentationUrl}>
@@ -407,7 +447,7 @@ function BenchmarkSection({model, models, benchmarks}: {model: InferenceModel; m
 
 const DATE_FORMAT = "dd/MM/yyyy";
 
-function Datasheet({model}: {model: InferenceModel}): React.ReactNode {
+function Datasheet({model, isAdmin}: {model: InferenceModel; isAdmin: boolean}): React.ReactNode {
     const page = model.page;
     const rows: [string, React.ReactNode][] = [
         ["Model provider", <Flex key="provider" gap="8px" alignItems="center"><ModelInferenceLogo modelName={model.name} />{modelProviderName(model.name)}</Flex>],
@@ -419,13 +459,13 @@ function Datasheet({model}: {model: InferenceModel}): React.ReactNode {
             return prettierCapabilities[idx];
         }).join(", ")],
         ["Endpoint", <CopyableEndpoint key="endpoint" value={model.name} />],
+        ["Provider default for", model.defaultFor?.map(expandAndPrettifyString).join(", ") || null],
+        ["File URL root", isAdmin && model.fileUrlRoot ? <code>{model.fileUrlRoot}</code> : null],
         ["Parameters", page?.datasheet?.parameters ?? "Not specified"],
         ["Activated parameters", page?.datasheet?.activatedParameters ?? null],
         ["Context length", model.contextWindow ? formatNumber(model.contextWindow) : "Not specified"],
         ["Quantization level", page?.datasheet?.quantization ?? null],
-        ["Input/1M", formatPricePerMillion(model.pricePerMillion.input, true)],
-        ["Cached/1M", formatPricePerMillion(model.pricePerMillion.cachedInput, true)],
-        ["Output/1M", formatPricePerMillion(model.pricePerMillion.output, true)],
+        ...priceRows(model),
     ];
 
     return <Table tableType="presentation" width="100%">
@@ -436,6 +476,24 @@ function Datasheet({model}: {model: InferenceModel}): React.ReactNode {
     </Table>;
 }
 
+function priceRows(model: InferenceModel): [string, React.ReactNode][] {
+    const rows: [string, React.ReactNode][] = [];
+    if (inferenceModelUsesTokenPricing(model)) {
+        rows.push(
+            ["Input/1M", formatCredits(model.pricePerMillion.input, true)],
+            ["Cached/1M", formatCredits(model.pricePerMillion.cachedInput, true)],
+            ["Output/1M", formatCredits(model.pricePerMillion.output, true)],
+        );
+    }
+    if (inferenceModelUsesMegaPixelPricing(model)) {
+        rows.push(["Per megapixel", formatCredits(model.pricePerMegaPixel, true)]);
+    }
+    if (inferenceModelUsesAudioMinutePricing(model)) {
+        rows.push(["Per audio minute", formatCredits(model.pricePerAudioMinute, true)]);
+    }
+    return rows;
+}
+
 function CopyableEndpoint({value}: {value: string}): React.ReactNode {
     return <Flex gap="8px" alignItems="center">
         <code>{value}</code>
@@ -444,28 +502,45 @@ function CopyableEndpoint({value}: {value: string}): React.ReactNode {
 }
 
 function fallbackKeyStats(model: InferenceModel): {label: string; value: string; description?: string}[] {
-    return [
-        {label: "Cached/1M", value: formatPricePerMillion(model.pricePerMillion.cachedInput, true)},
-        {label: "Input/1M", value: formatPricePerMillion(model.pricePerMillion.input, true)},
-        {label: "Output/1M", value: formatPricePerMillion(model.pricePerMillion.output, true)},
-    ];
+    const stats: {label: string; value: string; description?: string}[] = [];
+    if (inferenceModelUsesTokenPricing(model)) {
+        stats.push(
+            {label: "Cached/1M", value: formatCredits(model.pricePerMillion.cachedInput, true)},
+            {label: "Input/1M", value: formatCredits(model.pricePerMillion.input, true)},
+            {label: "Output/1M", value: formatCredits(model.pricePerMillion.output, true)},
+        );
+    }
+    if (inferenceModelUsesMegaPixelPricing(model)) {
+        stats.push({label: "Per megapixel", value: formatCredits(model.pricePerMegaPixel, true)});
+    }
+    if (inferenceModelUsesAudioMinutePricing(model)) {
+        stats.push({label: "Per audio minute", value: formatCredits(model.pricePerAudioMinute, true)});
+    }
+    return stats;
 }
 
-function formatPricePerMillion(value: number, includeUnit: boolean = false): string {
+function formatCredits(value: number, includeUnit: boolean = false): string {
     if (value === 0) return "Free";
     const ret = formatPricePerMillionCredits(value, {minDecimalsAfterTrim: 4});
     return !includeUnit ? ret : ret + " Credits";
 }
 
+function editablePrice(value: number): string {
+    if (value === 0) return "0";
+    const whole = Math.floor(value / 1_000_000);
+    const fraction = String(value % 1_000_000).padStart(6, "0").replace(/0+$/, "");
+    return fraction.length === 0 ? `${whole}` : `${whole}.${fraction}`;
+}
+
 function editablePricesPerMillion(model: InferenceModel): PricePerMillionText {
     return {
-        cachedInput: model.pricePerMillion.cachedInput === 0 ? "0" : formatPricePerMillion(model.pricePerMillion.cachedInput),
-        input: model.pricePerMillion.input === 0 ? "0" : formatPricePerMillion(model.pricePerMillion.input),
-        output: model.pricePerMillion.output === 0 ? "0" : formatPricePerMillion(model.pricePerMillion.output),
+        cachedInput: editablePrice(model.pricePerMillion.cachedInput),
+        input: editablePrice(model.pricePerMillion.input),
+        output: editablePrice(model.pricePerMillion.output),
     };
 }
 
-function parsePricePerMillion(value: string): number | null {
+function parseCredits(value: string): number | null {
     const match = /^(\d+)(?:\.(\d{1,6}))?$/.exec(value);
     if (!match) return null;
 
@@ -474,9 +549,9 @@ function parsePricePerMillion(value: string): number | null {
 }
 
 function parsePricesPerMillion(values: PricePerMillionText): InferenceModel["pricePerMillion"] | null {
-    const cachedInput = parsePricePerMillion(values.cachedInput);
-    const input = parsePricePerMillion(values.input);
-    const output = parsePricePerMillion(values.output);
+    const cachedInput = parseCredits(values.cachedInput);
+    const input = parseCredits(values.input);
+    const output = parseCredits(values.output);
     if (cachedInput === null || input === null || output === null) return null;
     return {cachedInput, input, output};
 }
@@ -532,13 +607,21 @@ function ModelSettingsEditor(props: {
     model: InferenceModel;
     models: InferenceModel[];
     setModel: (model: InferenceModel) => void;
+    isAdmin: boolean;
     pricePerMillionText: PricePerMillionText;
     setPricePerMillionText: (value: PricePerMillionText) => void;
+    pricePerMegaPixelText: string;
+    setPricePerMegaPixelText: (value: string) => void;
+    pricePerAudioMinuteText: string;
+    setPricePerAudioMinuteText: (value: string) => void;
 }): React.ReactNode {
     const {model, setModel} = props;
     const defaults = defaultModelPage();
     const page = {...defaults, ...model.page};
     const datasheet = {...defaults.datasheet!, ...page.datasheet};
+    const usesTokenPricing = inferenceModelUsesTokenPricing(model);
+    const usesMegaPixelPricing = inferenceModelUsesMegaPixelPricing(model);
+    const usesAudioMinutePricing = inferenceModelUsesAudioMinutePricing(model);
 
     return <Box style={{display: "grid", gap: 14}}>
         <label>Model name<Input value={model.name} onChange={ev => setModel({...model, name: ev.currentTarget.value})} /></label>
@@ -548,12 +631,17 @@ function ModelSettingsEditor(props: {
         <label>Available to projects<Input value={model.availability.availableTo.join(", ")} onChange={ev => setModel({...model, availability: {...model.availability, availableTo: parseCommaList(ev.currentTarget.value)}})} /></label>
         <label>Base path<Input value={model.endpoint.basePath} onChange={ev => setModel({...model, endpoint: {...model.endpoint, basePath: ev.currentTarget.value}})} /></label>
         <label>Backend model name<Input value={model.endpoint.backendModelName} onChange={ev => setModel({...model, endpoint: {...model.endpoint, backendModelName: ev.currentTarget.value}})} /></label>
+        {props.isAdmin ? <label>File URL root<Input value={model.fileUrlRoot ?? ""} onChange={ev => setModel({...model, fileUrlRoot: ev.currentTarget.value})} /></label> : null}
         <label>Parameters<Input value={datasheet.parameters ?? ""} onChange={ev => updateDatasheet(model, setModel, {...datasheet, parameters: ev.currentTarget.value})} /></label>
         <label>Activated parameters<Input value={datasheet.activatedParameters ?? ""} onChange={ev => updateDatasheet(model, setModel, {...datasheet, activatedParameters: ev.currentTarget.value})} /></label>
         <label>Quantization<Input value={datasheet.quantization ?? ""} onChange={ev => updateDatasheet(model, setModel, {...datasheet, quantization: ev.currentTarget.value})} /></label>
-        <label>Cached input Credits per 1M tokens<Input type="number" step="0.000001" min="0" value={props.pricePerMillionText.cachedInput} error={parsePricePerMillion(props.pricePerMillionText.cachedInput) === null} onChange={ev => props.setPricePerMillionText({...props.pricePerMillionText, cachedInput: ev.currentTarget.value})} /></label>
-        <label>Input Credits per 1M tokens<Input type="number" step="0.000001" min="0" value={props.pricePerMillionText.input} error={parsePricePerMillion(props.pricePerMillionText.input) === null} onChange={ev => props.setPricePerMillionText({...props.pricePerMillionText, input: ev.currentTarget.value})} /></label>
-        <label>Output Credits per 1M tokens<Input type="number" step="0.000001" min="0" value={props.pricePerMillionText.output} error={parsePricePerMillion(props.pricePerMillionText.output) === null} onChange={ev => props.setPricePerMillionText({...props.pricePerMillionText, output: ev.currentTarget.value})} /></label>
+        {usesTokenPricing ? <>
+            <label>Cached input Credits per 1M tokens<Input type="number" step="0.000001" min="0" value={props.pricePerMillionText.cachedInput} error={parseCredits(props.pricePerMillionText.cachedInput) === null} onChange={ev => props.setPricePerMillionText({...props.pricePerMillionText, cachedInput: ev.currentTarget.value})} /></label>
+            <label>Input Credits per 1M tokens<Input type="number" step="0.000001" min="0" value={props.pricePerMillionText.input} error={parseCredits(props.pricePerMillionText.input) === null} onChange={ev => props.setPricePerMillionText({...props.pricePerMillionText, input: ev.currentTarget.value})} /></label>
+            <label>Output Credits per 1M tokens<Input type="number" step="0.000001" min="0" value={props.pricePerMillionText.output} error={parseCredits(props.pricePerMillionText.output) === null} onChange={ev => props.setPricePerMillionText({...props.pricePerMillionText, output: ev.currentTarget.value})} /></label>
+        </> : null}
+        {usesMegaPixelPricing ? <label>Credits per megapixel<Input type="number" step="0.000001" min="0" value={props.pricePerMegaPixelText} error={parseCredits(props.pricePerMegaPixelText) === null} onChange={ev => props.setPricePerMegaPixelText(ev.currentTarget.value)} /></label> : null}
+        {usesAudioMinutePricing ? <label>Credits per audio minute<Input type="number" step="0.000001" min="0" value={props.pricePerAudioMinuteText} error={parseCredits(props.pricePerAudioMinuteText) === null} onChange={ev => props.setPricePerAudioMinuteText(ev.currentTarget.value)} /></label> : null}
         <label>Temperature<Input type="number" step="0.1" min="0" max="2" value={model.chatSettings.temperature} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, temperature: parseFloat(ev.currentTarget.value || "0")}})} /></label>
         <label>Top P<Input type="number" step="0.1" min="0" max="1" value={model.chatSettings.topP} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, topP: parseFloat(ev.currentTarget.value || "0")}})} /></label>
         <label>Max completion tokens<Input type="number" min="1" value={model.chatSettings.maxCompletionTokens} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, maxCompletionTokens: parseInt(ev.currentTarget.value || "0")}})} /></label>
@@ -562,8 +650,50 @@ function ModelSettingsEditor(props: {
         <ReasoningEffortsEditor model={model} setModel={setModel} />
         <Box>
             <Text fontWeight={600}>Capabilities</Text>
-            <Flex gap="12px" flexWrap="wrap" mt={8}>{capabilities.map((capability, index) => <label key={capability} style={{ display: "flex", gap: 6, alignItems: "center" }}><input type="checkbox" checked={model.capabilities.includes(capability)} onChange={ev => setModel({ ...model, capabilities: ev.currentTarget.checked ? [...model.capabilities, capability] : model.capabilities.filter(it => it !== capability) })} />{prettierCapabilities[index]}</label>)}</Flex>
+            <Flex gap="12px" flexWrap="wrap" mt={8}>
+                {capabilities.map((capability, index) => (
+                    <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}>
+                        <input
+                            type="checkbox"
+                            checked={model.capabilities.includes(capability)}
+                            onChange={ev => setModel({
+                                ...model,
+                                capabilities: ev.currentTarget.checked
+                                    ? [...model.capabilities, capability]
+                                    : model.capabilities.filter(it => it !== capability),
+                                defaultFor: ev.currentTarget.checked
+                                    ? model.defaultFor
+                                    : model.defaultFor?.filter(it => it !== capability),
+                            })}
+                        />
+                        {prettierCapabilities[index]}
+                    </label>
+                ))}
+            </Flex>
         </Box>
+        {props.isAdmin ? <Box>
+            <Text fontWeight={600}>Provider default for</Text>
+            <Text color="textSecondary">Selecting a default replaces the previous model for that operation.</Text>
+            <Flex gap="12px" flexWrap="wrap" mt={8}>
+                {(["TextToImage", "ImageToImage"] as InferenceCapability[])
+                    .filter(capability => model.capabilities.includes(capability))
+                    .map(capability => (
+                        <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}>
+                            <input
+                                type="checkbox"
+                                checked={model.defaultFor?.includes(capability) ?? false}
+                                onChange={ev => setModel({
+                                    ...model,
+                                    defaultFor: ev.currentTarget.checked
+                                        ? [...(model.defaultFor ?? []), capability]
+                                        : model.defaultFor?.filter(it => it !== capability),
+                                })}
+                            />
+                            {expandAndPrettifyString(capability)}
+                        </label>
+                    ))}
+            </Flex>
+        </Box> : null}
     </Box>;
 }
 

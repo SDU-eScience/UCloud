@@ -545,3 +545,41 @@ func inferenceV23() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV24() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV24",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_model add column price_per_megapixel bigint not null default 0`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model add column price_per_audio_minute bigint not null default 0`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model add column file_url_root text not null default ''`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model add column image_count bigint not null default 0 check (image_count >= 0)`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model add column image_pixels bigint not null default 0 check (image_pixels >= 0)`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model add column audio_milliseconds bigint not null default 0 check (audio_milliseconds >= 0)`,
+				db.Params{},
+			)
+		},
+	}
+}

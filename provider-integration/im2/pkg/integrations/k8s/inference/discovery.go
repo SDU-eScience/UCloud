@@ -35,7 +35,9 @@ func inferenceAutoConfigureLocalAI() error {
 	}
 
 	inferenceApplyLocalAIFallbackModels(managementBase, "chat", []string{"localai@qwen3-0.6b"})
-	inferenceDiscoverModelsFromEndpoint(base, shared.ServiceConfig.Compute.Inference.Access.Testers, true)
+	inferenceApplyLocalAIFallbackModels(managementBase, "transcription", []string{"localai@whisper-1"})
+	inferenceApplyLocalAIFallbackModels(managementBase, "image-generation", []string{"localai@sd-1.5-ggml"})
+	inferenceDiscoverModelsFromEndpoint(base, shared.ServiceConfig.Compute.Inference.Access.Testers, true, true)
 
 	return nil
 }
@@ -118,7 +120,7 @@ func inferenceDiscoverDynamoModels() {
 		}
 
 		base := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d/v1", service.Name, service.Namespace, port)
-		inferenceDiscoverModelsFromEndpoint(base, inferenceCfg.Access.Testers, false)
+		inferenceDiscoverModelsFromEndpoint(base, inferenceCfg.Access.Testers, false, false)
 	}
 }
 
@@ -135,7 +137,22 @@ type inferenceDiscoveredModelsResponse struct {
 	Data []inferenceDiscoveredModel `json:"data"`
 }
 
-func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string, disableTools bool) {
+func inferenceLocalAICapabilities(name string) []InferenceCapability {
+	lower := strings.ToLower(name)
+	switch {
+	case strings.Contains(lower, "whisper"):
+		return []InferenceCapability{InferenceSpeechToText}
+	case strings.Contains(lower, "stablediffusion"),
+		strings.Contains(lower, "sd-1.5"),
+		strings.Contains(lower, "sdxl"),
+		strings.HasPrefix(lower, "flux"):
+		return []InferenceCapability{InferenceTextToImage}
+	default:
+		return []InferenceCapability{InferenceTextGeneration}
+	}
+}
+
+func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string, disableTools bool, localAI bool) {
 	base = strings.TrimRight(base, "/")
 	client := http.Client{Timeout: 15 * time.Second}
 	resp, err := client.Get(base + "/models")
@@ -172,15 +189,22 @@ func inferenceDiscoverModelsFromEndpoint(base string, availableTo []string, disa
 			continue
 		}
 
+		capabilities := []InferenceCapability{InferenceTextGeneration}
+		if localAI {
+			capabilities = inferenceLocalAICapabilities(name)
+		}
+
 		catalogModel := inferenceModelNormalize(InferenceModel{
 			Name:         name,
 			Title:        name,
-			Capabilities: []InferenceCapability{InferenceTextGeneration},
+			Capabilities: capabilities,
 			PricePerMillion: InferencePricing{
 				CachedInput: InferencePriceScale,
 				Input:       InferencePriceScale,
 				Output:      InferencePriceScale,
 			},
+			PricePerMegaPixel:   InferencePriceScale,
+			PricePerAudioMinute: InferencePriceScale,
 			Endpoint: InferenceEndpoint{
 				BasePath:         base,
 				BackendModelName: name,

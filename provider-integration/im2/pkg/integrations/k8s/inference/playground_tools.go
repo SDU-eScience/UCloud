@@ -106,6 +106,7 @@ func (app *InferencePlaygroundApp) playgroundToolDefinitions() []InferenceChatTo
 		)
 	}
 
+	tools = append(tools, playgroundImageToolDefinitions(app.ImageGenerationModel != "", app.ImageEditModel != "")...)
 	return tools
 }
 
@@ -145,6 +146,8 @@ func (app *InferencePlaygroundApp) playgroundToolDispatchWithMode(ctx context.Co
 
 	var result playgroundToolResult
 	switch name {
+	case "generate_image", "edit_image":
+		result = app.playgroundImageTool(ctx, call)
 	case "bash":
 		result = app.inferenceToolBash(call)
 	case playgroundInternetToolWebFetch:
@@ -444,6 +447,10 @@ func (app *InferencePlaygroundApp) playgroundToolAvailable(name string, allowDev
 	}
 
 	switch name {
+	case "generate_image":
+		return playgroundImageDefault(app.walletOwner(), InferenceTextToImage) != ""
+	case "edit_image":
+		return playgroundImageDefault(app.walletOwner(), InferenceImageToImage) != ""
 	case "bash", playgroundInternetToolRequestAccess, playgroundInternetToolWebFetch:
 	default:
 		return false

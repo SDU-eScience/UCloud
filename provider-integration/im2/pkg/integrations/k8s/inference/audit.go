@@ -247,7 +247,7 @@ func inferenceAuditEmit(state *inferenceAuditState, r *http.Request, status int,
 
 func inferenceAuditStatusFromReason(reason string) int {
 	switch reason {
-	case "", "success":
+	case "", "success", "success_missing_usage":
 		return http.StatusOK
 	case "payment_required":
 		return http.StatusPaymentRequired
@@ -255,8 +255,12 @@ func inferenceAuditStatusFromReason(reason string) int {
 		return http.StatusTooManyRequests
 	case "client_error":
 		return http.StatusBadRequest
+	case "unprocessable":
+		return http.StatusUnprocessableEntity
 	case "upstream_error":
 		return http.StatusBadGateway
+	case "server_error":
+		return http.StatusInternalServerError
 	default:
 		return http.StatusInternalServerError
 	}
