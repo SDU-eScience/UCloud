@@ -35,6 +35,9 @@ type InferenceImageGenerationRequest struct {
 	Stream            util.Option[bool]   `json:"stream,omitempty"`
 	Style             util.Option[string] `json:"style,omitempty"`
 	User              util.Option[string] `json:"user,omitempty"`
+
+	Image *InferenceImageEditFile `json:"-"`
+	Mask  *InferenceImageEditFile `json:"-"`
 }
 
 type InferenceImageGenerationResponse struct {
@@ -135,7 +138,11 @@ func inferenceGenerateImageAcquired(ctx context.Context, owner apm.WalletOwner, 
 		return InferenceImageGenerationResponse{}, httpErr
 	}
 	auditModel = model.Name
-	if httpErr := inferenceRequireCapability(model, InferenceTextToImage); httpErr != nil {
+	capability := InferenceTextToImage
+	if request.Image != nil {
+		capability = InferenceImageToImage
+	}
+	if httpErr := inferenceRequireCapability(model, capability); httpErr != nil {
 		requestOutcome = "client_error"
 		return InferenceImageGenerationResponse{}, httpErr
 	}
@@ -160,17 +167,13 @@ func inferenceGenerateImageAcquired(ctx context.Context, owner apm.WalletOwner, 
 		return resp, nil
 	}
 
-	body, err := json.Marshal(request)
-	if err != nil {
+	path, body, contentType, httpErr := inferenceImageBackendBody(request)
+	if httpErr != nil {
 		requestOutcome = "client_error"
-		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusBadRequest, "invalid request")
-	}
-	if len(body) > inferenceMaxJSONRequestBytes {
-		requestOutcome = "client_error"
-		return InferenceImageGenerationResponse{}, util.HttpErr(http.StatusRequestEntityTooLarge, "request body too large")
+		return InferenceImageGenerationResponse{}, httpErr
 	}
 
-	respBody, httpErr := inferenceBackendJSONRequestWithLimit(ctx, model.Endpoint.BasePath, http.MethodPost, "/images/generations", body, "application/json", inferenceMaxImageUpstreamJSONBytes)
+	respBody, httpErr := inferenceBackendJSONRequestWithLimit(ctx, model.Endpoint.BasePath, http.MethodPost, path, body, contentType, inferenceMaxImageUpstreamJSONBytes)
 	if httpErr != nil {
 		if ctx.Err() != nil {
 			usage := inferenceEstimateImageUsage(request, 0)
@@ -281,7 +284,11 @@ func inferenceGenerateImageStreamingAcquired(ctx context.Context, owner apm.Wall
 		return ch, httpErr
 	}
 	auditModel = model.Name
-	if httpErr := inferenceRequireCapability(model, InferenceTextToImage); httpErr != nil {
+	capability := InferenceTextToImage
+	if request.Image != nil {
+		capability = InferenceImageToImage
+	}
+	if httpErr := inferenceRequireCapability(model, capability); httpErr != nil {
 		close(ch)
 		release()
 		requestOutcome = "client_error"
@@ -328,24 +335,17 @@ func inferenceGenerateImageStreamingAcquired(ctx context.Context, owner apm.Wall
 		return ch, nil
 	}
 
-	body, err := json.Marshal(request)
-	if err != nil {
+	path, body, contentType, httpErr := inferenceImageBackendBody(request)
+	if httpErr != nil {
 		close(ch)
 		release()
 		requestOutcome = "client_error"
 		emitAudit()
-		return ch, util.HttpErr(http.StatusBadRequest, "invalid request")
-	}
-	if len(body) > inferenceMaxJSONRequestBytes {
-		close(ch)
-		release()
-		requestOutcome = "client_error"
-		emitAudit()
-		return ch, util.HttpErr(http.StatusRequestEntityTooLarge, "request body too large")
+		return ch, httpErr
 	}
 
 	streamCtx, cancel, touch := inferenceStreamContext(ctx)
-	resp, httpErr := inferenceBackendRequest(streamCtx, model.Endpoint.BasePath, http.MethodPost, "/images/generations", body, "application/json")
+	resp, httpErr := inferenceBackendRequest(streamCtx, model.Endpoint.BasePath, http.MethodPost, path, body, contentType)
 	if httpErr != nil {
 		cancel()
 		close(ch)
@@ -443,6 +443,28 @@ func inferenceGenerateImageStreamingAcquired(ctx context.Context, owner apm.Wall
 	}()
 
 	return ch, nil
+}
+
+func inferenceImageBackendBody(request InferenceImageGenerationRequest) (string, []byte, string, *util.HttpError) {
+	if request.Image != nil {
+		body, contentType, httpErr := inferenceBuildImageEditMultipart(request)
+		if httpErr != nil {
+			return "", nil, "", httpErr
+		}
+		if len(body) > inferenceMaxImageEditRequestBytes {
+			return "", nil, "", util.HttpErr(http.StatusRequestEntityTooLarge, "request body too large")
+		}
+		return "/images/edits", body, contentType, nil
+	}
+
+	body, err := json.Marshal(request)
+	if err != nil {
+		return "", nil, "", util.HttpErr(http.StatusBadRequest, "invalid request")
+	}
+	if len(body) > inferenceMaxJSONRequestBytes {
+		return "", nil, "", util.HttpErr(http.StatusRequestEntityTooLarge, "request body too large")
+	}
+	return "/images/generations", body, "application/json", nil
 }
 
 func inferenceValidateImageRequest(request InferenceImageGenerationRequest) *util.HttpError {

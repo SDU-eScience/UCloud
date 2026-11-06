@@ -612,53 +612,35 @@ func Init() {
 			inferenceAuditReject(r.Context(), "invalid request body")
 			return
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
-		defer cancel()
+		inferenceImageRespond(w, r, request, apiKeyOwner, apiKeyUsername)
+	}))
 
-		if request.Stream.GetOrDefault(false) {
-			events, httpErr := InferenceGenerateImageStreaming(ctx, apiKeyOwner, apiKeyUsername, request)
-			if httpErr != nil {
-				http.Error(w, httpErr.Why, httpErr.StatusCode)
-				return
-			}
-
-			w.Header().Set("Content-Type", "text/event-stream")
-			w.Header().Set("Cache-Control", "no-cache")
-			w.Header().Set("Connection", "keep-alive")
-			if request.Model.Present && request.Model.Value != "" {
-				w.Header().Set("ucloud-generated-by-ai-model", request.Model.Value)
-			}
-
-			for event := range events {
-				data, err := json.Marshal(event)
-				if err != nil {
-					continue
-				}
-
-				if err := inferenceWriteSSE(w, append(append([]byte("data: "), data...), '\n', '\n')); err != nil {
-					cancel()
-					for range events {
-					}
-					return
-				}
-			}
-
-			_ = inferenceWriteSSE(w, []byte("data: [DONE]\n\n"))
+	controller.Mux.HandleFunc(authority+"/v1/images/edits", inferenceAuditMiddleware("inference.image", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			inferenceAuditReject(r.Context(), "method not allowed")
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-
-		respData, httpErr := inferenceGenerateImageResponse(ctx, apiKeyOwner, apiKeyUsername, request)
+		if r.ContentLength > inferenceMaxImageEditRequestBytes {
+			inferenceAuditReject(r.Context(), "request body too large")
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		apiKeyOwner, apiKeyUsername, tokenId, httpErr := inferenceAuthenticateRequest(r)
 		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
 			http.Error(w, httpErr.Why, httpErr.StatusCode)
 			return
 		}
+		inferenceAuditIdentity(r.Context(), apiKeyOwner, apiKeyUsername, tokenId)
 
-		if request.Model.Present && request.Model.Value != "" {
-			w.Header().Set("ucloud-generated-by-ai-model", request.Model.Value)
+		request, httpErr := InferenceImageEditParseRequest(w, r)
+		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(respData)
+		inferenceImageRespond(w, r, request, apiKeyOwner, apiKeyUsername)
 	}))
 
 	controller.Mux.HandleFunc(authority+"/v1/responses", inferenceAuditMiddleware("inference.responses", func(w http.ResponseWriter, r *http.Request) {
@@ -925,6 +907,56 @@ func inferenceDecodeJSON(w http.ResponseWriter, r *http.Request, limit int64, ds
 		return false
 	}
 	return true
+}
+
+func inferenceImageRespond(w http.ResponseWriter, r *http.Request, request InferenceImageGenerationRequest, owner apm.WalletOwner, username string) {
+	ctx, cancel := context.WithTimeout(r.Context(), inferenceRequestTimeout)
+	defer cancel()
+
+	if request.Stream.GetOrDefault(false) {
+		events, httpErr := InferenceGenerateImageStreaming(ctx, owner, username, request)
+		if httpErr != nil {
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+		if request.Model.Present && request.Model.Value != "" {
+			w.Header().Set("ucloud-generated-by-ai-model", request.Model.Value)
+		}
+
+		for event := range events {
+			data, err := json.Marshal(event)
+			if err != nil {
+				continue
+			}
+
+			if err := inferenceWriteSSE(w, append(append([]byte("data: "), data...), '\n', '\n')); err != nil {
+				cancel()
+				for range events {
+				}
+				return
+			}
+		}
+
+		_ = inferenceWriteSSE(w, []byte("data: [DONE]\n\n"))
+		return
+	}
+
+	respData, httpErr := inferenceGenerateImageResponse(ctx, owner, username, request)
+	if httpErr != nil {
+		http.Error(w, httpErr.Why, httpErr.StatusCode)
+		return
+	}
+
+	if request.Model.Present && request.Model.Value != "" {
+		w.Header().Set("ucloud-generated-by-ai-model", request.Model.Value)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(respData)
 }
 
 func inferenceWriteSSE(w http.ResponseWriter, payload []byte) error {
