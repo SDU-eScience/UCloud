@@ -1,11 +1,11 @@
 import * as React from "react";
-import {Resource, ResourceApi, ResourceSpecification} from "@/UCloud/ResourceApi";
+import {AnyResourceApi, Resource, ResourceSpecification} from "@/UCloud/ResourceApi";
 import {PropsWithChildren, ReactElement} from "react";
 import {Route, Routes} from "react-router-dom";
 import {Product} from "@/Accounting";
 
 interface RouterProps<R extends Resource, P extends Product, S extends ResourceSpecification> {
-    api: ResourceApi<R, P, S>;
+    api: AnyResourceApi<R, P, S>;
     Browser: React.FunctionComponent;
     Create?: React.FunctionComponent;
 }

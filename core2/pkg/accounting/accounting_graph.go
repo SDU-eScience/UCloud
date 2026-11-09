@@ -25,6 +25,7 @@ type Graph struct {
 	// Original marks parent-to-child allocation-group edges. Reverse residual and synthetic over-allocation edges are not
 	// original, even when they currently have nonzero capacity.
 	Original [][]bool
+	Floor    [][]int64
 
 	// VertexToWallet maps ordinary wallet vertices to wallet IDs. With over-allocation vertices enabled, this slice covers
 	// the ordinary half only; the synthetic half uses the corresponding ordinary-wallet position.
@@ -42,6 +43,7 @@ func NewGraph(vertexCount int) *Graph {
 	adj := make([][]int64, vertexCount)
 	cost := make([][]*big.Int, vertexCount)
 	orig := make([][]bool, vertexCount)
+	floor := make([][]int64, vertexCount)
 
 	for i := 0; i < vertexCount; i++ {
 		adj[i] = make([]int64, vertexCount)
@@ -52,6 +54,7 @@ func NewGraph(vertexCount int) *Graph {
 		}
 
 		orig[i] = make([]bool, vertexCount)
+		floor[i] = make([]int64, vertexCount)
 	}
 
 	return &Graph{
@@ -59,6 +62,7 @@ func NewGraph(vertexCount int) *Graph {
 		Adjacent:       adj,
 		Cost:           cost,
 		Original:       orig,
+		Floor:          floor,
 		VertexToWallet: nil,
 		WalletToVertex: make(map[AccWalletId]int),
 	}

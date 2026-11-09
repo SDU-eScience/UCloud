@@ -7,7 +7,8 @@ import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
 import {getStoredProject} from "@/Project/ReduxState";
-import {Box, Button, Card, Divider, ExternalLink, Flex, Icon, Input, Text} from "@/ui-components";
+import {Box, Button, Card, Checkbox, Divider, ExternalLink, Flex, Icon, Input, Text} from "@/ui-components";
+import {CopyButton} from "@/ui-components/CopyButton";
 import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
 import {injectStyle} from "@/Unstyled";
@@ -19,7 +20,6 @@ import {addStandardDialog} from "@/UtilityComponents";
 import {isJobStateTerminal, stateToTitle} from "@/Applications/Jobs";
 import {api as JobsApi, Job} from "@/UCloud/JobsApi";
 import AppRoutes from "@/Routes";
-import {IconName} from "@/ui-components/Icon";
 import {HeroHeaderCard, HeroHeaderGrid, HeroMetric} from "@/Applications/Jobs/HeroHeader";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {VmActionItem, VmActionSplitButton} from "@/Applications/Jobs/VmActionSplitButton";
@@ -31,6 +31,9 @@ import {StackLogo} from "@/Stacks/Logos";
 import {getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {StackStatus} from "./api";
 import {ValueKind, valueToPlain} from "@/UCX/protocol";
+import {StackResourcesDialog} from "@/Stacks/ResourcesSection";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {StackInitProgress} from "./StackInitProgress";
 
 type MachinesLabelFilter = {
     label: string;
@@ -44,7 +47,7 @@ export default function StackView(): React.ReactNode {
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [ucxAuthenticated, setUcxAuthenticated] = React.useState(false);
 
-    usePage("Stack", SidebarTabId.RUNS);
+    usePage("Stack", SidebarTabId.COMPUTE);
 
     const refreshStack = React.useCallback(() => {
         if (!id) return;
@@ -66,6 +69,25 @@ export default function StackView(): React.ReactNode {
     }, [jobs, ucxConnectJobId]);
     const ucxTargetRunning = ucxConnectJob?.status.state === "RUNNING";
     const shouldAttemptUcxConnection = uiMode === "Replacement" && !!ucxConnectJobId && ucxTargetRunning;
+
+    const uiJobActive = React.useMemo(() => {
+        return jobs.some(job => {
+            const spec = job.specification as (Job["specification"] & {labels?: Record<string, string>}) | undefined;
+            const portLabel = spec?.labels?.["ucloud.dk/ucxport"] ?? "";
+            const port = parseInt(portLabel, 10);
+            return Number.isFinite(port) && port > 0;
+        });
+    }, [jobs]);
+
+    const canRecover = !!stack &&
+        status?.disasterRecoveryDeclared === true &&
+        !uiJobActive &&
+        (stack.permissions?.myself ?? []).includes("EDIT");
+
+    const stackRef = React.useRef(stack);
+    React.useEffect(() => {
+        stackRef.current = stack;
+    }, [stack]);
 
     const ucxConnectJobUrl = React.useMemo(() => {
         return Client.computeURL("/api", "/hpc/apps/ucx/connectJob")
@@ -93,7 +115,9 @@ export default function StackView(): React.ReactNode {
         return {
             uiSendMessage: raw => {
                 const payload = raw as {message: string; success: boolean};
-                if (!payload.success) {
+                if (payload.success) {
+                    sendSuccessNotification(payload.message);
+                } else {
                     sendFailureNotification(payload.message);
                 }
             },
@@ -102,7 +126,26 @@ export default function StackView(): React.ReactNode {
             },
             stackOpen: raw => {
                 const payload = raw as {id: string};
-                navigate(`${AppRoutes.prefix}${AppRoutes.stacks.view(payload.id)}`);
+                navigate(AppRoutes.stacks.view(payload.id));
+            },
+            stackInfo: () => {
+                return {
+                    id: stack?.id ?? "",
+                    type: stack?.type ?? "",
+                    provider: jobs.length > 0 ? jobs[0].specification.product.provider : "",
+                    createdAt: stack?.createdAt ?? 0,
+                    resourceCount: (status?.jobs?.length ?? 0)
+                        + (status?.licenses?.length ?? 0)
+                        + (status?.publicIps?.length ?? 0)
+                        + (status?.publicLinks?.length ?? 0)
+                        + (status?.networks?.length ?? 0),
+                };
+            },
+            stackDelete: () => {
+                openDeleteDialog();
+            },
+            stackShowResources: () => {
+                openResourcesDialog();
             },
             stackCopyFile: async raw => {
                 try {
@@ -125,7 +168,7 @@ export default function StackView(): React.ReactNode {
                     const link = document.createElement("a");
                     const blobUrl = URL.createObjectURL(blob);
                     link.href = blobUrl;
-                    link.download = fileName;
+                    link.download = fileName.split("/").pop() ?? fileName;
                     document.body.appendChild(link);
                     link.click();
                     if (link.parentNode === document.body) {
@@ -137,17 +180,11 @@ export default function StackView(): React.ReactNode {
                 }
             },
         };
-    }, [navigate, refreshStack, ucxConnectJob]);
+    }, [navigate, refreshStack, ucxConnectJob, stack, jobs, status]);
 
     React.useEffect(() => {
         setUcxAuthenticated(false);
-    }, [ucxConnectJobId]);
-
-    React.useEffect(() => {
-        if (!shouldAttemptUcxConnection) {
-            setUcxAuthenticated(false);
-        }
-    }, [shouldAttemptUcxConnection]);
+    }, [shouldAttemptUcxConnection, ucxConnectJobId]);
 
     const pollIntervalMs = React.useMemo(() => {
         if (uiMode === "Replacement") return 2000;
@@ -212,107 +249,95 @@ export default function StackView(): React.ReactNode {
     }, [invokeCommand, refreshStack]);
 
     const openDeleteDialog = React.useCallback(() => {
-        if (!stack) return;
+        const currentStack = stackRef.current;
+        if (!currentStack) return;
         dialogStore.addDialog(
-            <StackDeleteDialog stack={stack} onDeleted={() => {
+            <StackDeleteDialog stack={currentStack} onDeleted={() => {
                 window.location.assign(`${AppRoutes.prefix}${AppRoutes.stacks.list()}`);
             }} />,
             doNothing,
             true,
         );
-    }, [stack]);
+    }, []);
+
+    const openResourcesDialog = React.useCallback(() => {
+        const currentStatus = stackRef.current?.status;
+        if (!currentStatus) return;
+        dialogStore.addDialog(
+            <StackResourcesDialog status={currentStatus} />,
+            doNothing,
+            true,
+            largeModalStyle,
+        );
+    }, []);
+
+    const openRecoverDialog = React.useCallback(() => {
+        const currentStack = stackRef.current;
+        if (!currentStack) return;
+
+        addStandardDialog({
+            title: "Start disaster recovery?",
+            message: "This starts a recovery job for the cluster. The job runs on the cluster's state drive and guides " +
+                "you through restoring the control plane. All current control-plane machines are replaced during recovery.",
+            confirmText: "Start recovery",
+            confirmButtonColor: "errorMain",
+            cancelButtonColor: "secondaryMain",
+            onConfirm: async () => {
+                try {
+                    await invokeCommand(StackApi.spawnDeclaredJob({id: currentStack.id}));
+                    sendSuccessNotification("Recovery started");
+                    refreshStack();
+                } catch (e) {
+                    displayErrorMessageOrDefault(e, "Failed to start recovery.");
+                }
+            },
+        });
+    }, [invokeCommand, refreshStack]);
+
+    const totalResourceCount = (status?.jobs?.length ?? 0) +
+        (status?.licenses?.length ?? 0) +
+        (status?.publicIps?.length ?? 0) +
+        (status?.publicLinks?.length ?? 0) +
+        (status?.networks?.length ?? 0);
+
+    const allowedExternalOrigins = React.useMemo(() => {
+        return (status?.publicLinks ?? [])
+            .map(link => link.specification?.domain ?? "")
+            .filter(domain => domain !== "")
+            .map(domain => {
+                try {
+                    return new URL(`https://${domain}`).origin;
+                } catch {
+                    return "";
+                }
+            })
+            .filter(origin => origin !== "");
+    }, [status]);
 
     const metadata = [
         {title: "ID", value: stack ? shortUUID(stack.id) : "-"},
         {title: "Type", value: stack?.type ?? "Unknown"},
         {title: "Provider", value: jobs.length > 0 ? getShortProviderTitle(jobs[0].specification.product.provider) : "-"},
         {title: "Created", value: stack ? dateToString(stack.createdAt) : "-"},
+        {
+            title: "Resources",
+            value: stack ? (
+                <ExternalLink
+                    href="#"
+                    title="Show resources in this stack"
+                    onClick={e => {
+                        e.preventDefault();
+                        openResourcesDialog();
+                    }}
+                >
+                    <Flex alignItems="center" gap="4px">
+                        {totalResourceCount}
+                        <Icon mt="-2px" name="heroArrowTopRightOnSquare" size={14} />
+                    </Flex>
+                </ExternalLink>
+            ) : "-",
+        },
     ];
-
-    const openResourcesDialog = React.useCallback((kind: "jobs" | "licenses" | "publicLinks" | "publicIps" | "networks") => {
-        if (!status) return;
-
-        if (kind === "jobs") {
-            dialogStore.addDialog(
-                <StackResourceDialog
-                    title="Machines"
-                    headers={["Name", "ID", "State", "Machine type", "Started"]}
-                    rows={status.jobs.map(it => [
-                        it.specification.name ?? "Unnamed",
-                        shortUUID(it.id),
-                        stateToTitle(it.status.state),
-                        it.specification.product.id,
-                        it.status.startedAt ? dateToString(it.status.startedAt) : "Pending",
-                    ])}
-                    emptyMessage="No machines are part of this stack."
-                />,
-                doNothing,
-                true,
-            );
-            return;
-        }
-
-        if (kind === "licenses") {
-            dialogStore.addDialog(
-                <StackResourceDialog
-                    title="Licenses"
-                    headers={["Product", "ID", "State"]}
-                    rows={status.licenses.map(it => [it.specification.product.id, it.id, it.status.state])}
-                    emptyMessage="No licenses are part of this stack."
-                />,
-                doNothing,
-                true,
-            );
-            return;
-        }
-
-        if (kind === "publicLinks") {
-            dialogStore.addDialog(
-                <StackResourceDialog
-                    title="Public links"
-                    headers={["Domain", "State", "Bound to"]}
-                    rows={status.publicLinks.map(it => [
-                        it.specification.domain,
-                        it.status.state,
-                        String(it.status.boundTo.length),
-                    ])}
-                    emptyMessage="No public links are part of this stack."
-                />,
-                doNothing,
-                true,
-            );
-            return;
-        }
-
-        if (kind === "publicIps") {
-            dialogStore.addDialog(
-                <StackResourceDialog
-                    title="Public IPs"
-                    headers={["Address", "ID", "State"]}
-                    rows={status.publicIps.map(it => [it.status.ipAddress ?? "Pending", it.id, it.status.state])}
-                    emptyMessage="No public IPs are part of this stack."
-                />,
-                doNothing,
-                true,
-            );
-            return;
-        }
-
-        dialogStore.addDialog(
-            <StackResourceDialog
-                title="Private networks"
-                headers={["Name", "Subdomain", "Members"]}
-                rows={status.networks.map(it => [
-                    it.specification.name || "Unnamed",
-                    it.specification.subdomain || "-",
-                    String(it.status.members.length),
-                ])}
-                emptyMessage="No private networks are part of this stack."
-            />,
-            doNothing,
-            true,
-        );
-    }, [status]);
 
     const ucxComponentRegistry: Record<string, UcxComponentRenderer> = React.useMemo(() => {
         return {
@@ -332,51 +357,77 @@ export default function StackView(): React.ReactNode {
 
                 return <MachinesInStack commandLoading={commandLoading} suspendVm={suspendVm} restartVm={restartVm}
                     status={status} plain={isPlain} labelFilter={labelFilter} />;
-            },
-            stack_resources: ctx => {
-                return <ResourcesInStack openResourcesDialog={openResourcesDialog} status={status} />;
             }
         };
-    }, [status, commandLoading, suspendVm, restartVm, openResourcesDialog]);
+    }, [status, commandLoading, suspendVm, restartVm]);
 
     return <MainContainer
+        maxWidth={uiMode === "Replacement" && ucxAuthenticated ? "100%" : undefined}
         main={
-            <div className={StackLayout}>
-                <Card p="24px" className={HeroHeaderCard}>
-                    <Flex alignItems="center" gap="12px" flexWrap="wrap">
-                        <StackLogo type={stack?.type ?? ""} size={36} />
-                        <Heading.h2>{stack?.type ?? "Stack details"}</Heading.h2>
-                        <Box flexGrow={1} />
-                        <Button color="errorMain" onClick={openDeleteDialog} disabled={!stack || commandLoading}>
-                            <Icon name="trash" mr="8px" />
-                            Delete stack
-                        </Button>
-                    </Flex>
-                    <div className={HeroHeaderGrid}>
-                        {metadata.map(entry => (
-                            <HeroMetric key={entry.title} title={entry.title}>{entry.value}</HeroMetric>
-                        ))}
-                    </div>
-                </Card>
-
-                {!id ? <p>Missing stack ID.</p> : null}
-                {id && stackState.loading && !stack ? <p>Loading stack...</p> : null}
-                {id && stackState.error ? <p>Could not load stack: {stackState.error.why}</p> : null}
-                {id && !stackState.loading && !stackState.error && !stack ? <p>Stack not found.</p> : null}
-
-                {!stack || (uiMode === "Replacement" && ucxAuthenticated) ? null : (
-                    <>
-                        <ResourcesInStack status={status} openResourcesDialog={openResourcesDialog} />
-                        <MachinesInStack status={status} commandLoading={commandLoading} suspendVm={suspendVm}
-                            restartVm={restartVm} />
-                    </>
+            <div className={StackLayout} data-slim={uiMode === "Replacement" && ucxAuthenticated && stack ? "true" : undefined}>
+                {uiMode === "Replacement" && ucxAuthenticated && stack ? (
+                    <Card p="16px" className={`${HeroHeaderCard} ${SlimHeaderCard}`}>
+                        <Flex alignItems="center" gap="12px" flexWrap="wrap">
+                            <StackLogo type={stack.type ?? ""} size={28} />
+                            <Heading.h2>{stack.type ?? "Stack details"}</Heading.h2>
+                            <Box flexGrow={1} />
+                            <span className={StackIdText}>{shortUUID(stack.id)}</span>
+                            <Box ml="-4px">
+                                <CopyButton
+                                    tooltip="Copy cluster ID"
+                                    onClick={() => {
+                                        copyToClipboard(stack.id);
+                                        sendSuccessNotification("Copied cluster ID to clipboard");
+                                    }}
+                                />
+                            </Box>
+                        </Flex>
+                    </Card>
+                ) : (
+                    <Card p="24px" className={HeroHeaderCard}>
+                        <Flex alignItems="center" gap="12px" flexWrap="wrap">
+                            <StackLogo type={stack?.type ?? ""} size={36} />
+                            <Heading.h2>{stack?.type ?? "Stack details"}</Heading.h2>
+                            <Box flexGrow={1} />
+                            {canRecover ? (
+                                <Button color="warningMain" onClick={openRecoverDialog} disabled={commandLoading}>
+                                    <Icon name="heroArrowPath" mr="8px" />
+                                    Recover
+                                </Button>
+                            ) : null}
+                            <Button color="errorMain" onClick={openDeleteDialog} disabled={!stack || commandLoading}>
+                                <Icon name="trash" mr="8px" />
+                                Delete cluster
+                            </Button>
+                        </Flex>
+                        <div className={HeroHeaderGrid}>
+                            {metadata.map(entry => (
+                                <HeroMetric key={entry.title} title={entry.title}>{entry.value}</HeroMetric>
+                            ))}
+                        </div>
+                    </Card>
                 )}
 
+                {!stack || (uiMode === "Replacement" && ucxAuthenticated) ? null : (
+                    <MachinesInStack status={status} commandLoading={commandLoading} suspendVm={suspendVm}
+                        restartVm={restartVm} />
+                )}
+
+                {stack && !(uiMode === "Replacement" && ucxAuthenticated) ? (
+                    <StackInitProgress jobs={jobs} />
+                ) : null}
+
                 {stack && shouldAttemptUcxConnection ? (
-                    <div style={{display: ucxAuthenticated ? "block" : "none"}}>
+                    <div style={{
+                        display: ucxAuthenticated ? "flex" : "none",
+                        flexDirection: "column",
+                        minHeight: 0,
+                        flex: "1 1 auto",
+                    }}>
                         <UcxView
-                            key={ucxConnectJobId ?? ""}
+                            key={ucxConnectJobId ?? "ucx"}
                             url={ucxConnectJobUrl}
+                            stackId={id}
                             authToken={async () => {
                                 const accessToken = await Client.receiveAccessTokenOrRefreshIt();
                                 const project = getStoredProject() ?? "";
@@ -385,6 +436,7 @@ export default function StackView(): React.ReactNode {
                             sysHello={() => JSON.stringify({jobId: ucxConnectJobId})}
                             rpcHandlers={ucxRpcHandlers}
                             components={ucxComponentRegistry}
+                            allowedExternalOrigins={allowedExternalOrigins}
                             onConnected={() => setUcxAuthenticated(true)}
                             onDisconnected={() => setUcxAuthenticated(false)}
                             renderFrame={({content}) => content}
@@ -398,56 +450,6 @@ export default function StackView(): React.ReactNode {
 
 function isVirtualMachineJob(job: Job): boolean {
     return job.status.resolvedApplication?.invocation.tool.tool?.description.backend === "VIRTUAL_MACHINE";
-}
-
-const ResourcesInStack: React.FunctionComponent<{
-    status?: StackStatus | null;
-    openResourcesDialog: (kind: "jobs" | "licenses" | "publicLinks" | "publicIps" | "networks") => void;
-}> = ({openResourcesDialog, status}) => {
-    const jobs = status?.jobs ?? [];
-
-    return <Card p="16px">
-        <Heading.h4>Resources in stack</Heading.h4>
-        <div className={ResourceGrid}>
-            <MutedResourceCard
-                icon="heroCpuChip"
-                title="Jobs"
-                count={jobs.length}
-                items={jobs.slice(0, 3).map(job => `${job.specification.name ?? shortUUID(job.id)} (${stateToTitle(job.status.state)})`)}
-                onClick={() => openResourcesDialog("jobs")}
-            />
-            {status?.licenses?.length ?? 0 === 0 ? null :
-                <MutedResourceCard
-                    icon="heroKey"
-                    title="Licenses"
-                    count={status?.licenses?.length ?? 0}
-                    items={(status?.licenses ?? []).slice(0, 3).map(license => `${license.specification.product.id} (${license.id})`)}
-                    onClick={() => openResourcesDialog("licenses")}
-                />
-            }
-            <MutedResourceCard
-                icon="heroGlobeEuropeAfrica"
-                title="Public links"
-                count={status?.publicLinks?.length ?? 0}
-                items={(status?.publicLinks ?? []).slice(0, 3).map(link => link.specification.domain)}
-                onClick={() => openResourcesDialog("publicLinks")}
-            />
-            <MutedResourceCard
-                icon="heroWifi"
-                title="Public IPs"
-                count={status?.publicIps?.length ?? 0}
-                items={(status?.publicIps ?? []).slice(0, 3).map(ip => ip.status.ipAddress ?? ip.id)}
-                onClick={() => openResourcesDialog("publicIps")}
-            />
-            <MutedResourceCard
-                icon="heroCloud"
-                title="Private networks"
-                count={status?.networks?.length ?? 0}
-                items={(status?.networks ?? []).slice(0, 3).map(net => net.specification.name || net.specification.subdomain || net.id)}
-                onClick={() => openResourcesDialog("networks")}
-            />
-        </div>
-    </Card>;
 }
 
 const MachinesInStack: React.FunctionComponent<{
@@ -565,64 +567,8 @@ const MachinesInStack: React.FunctionComponent<{
     </Card>;
 }
 
-const MutedResourceCard: React.FunctionComponent<{
-    icon: IconName;
-    title: string;
-    items: string[];
-    count: number;
-    onClick?: () => void;
-}> = ({icon, title, count, items, onClick}) => {
-    return <Card p="14px" className={onClick ? ClickableMutedCard : MutedCard} onClick={onClick}>
-        <Flex alignItems="center" gap="8px" mb="8px">
-            <Icon name={icon} />
-            <b>{title}</b>
-            <Box flexGrow={1} />
-            <Text color="textSecondary">{count}</Text>
-        </Flex>
-        {items.length === 0 ? <Text color="textSecondary">None</Text> : (
-            <div className={MutedResourceList}>
-                {items.map((item, idx) => <span key={`${item}-${idx}`}>{item}</span>)}
-            </div>
-        )}
-    </Card>;
-};
-
-function StackResourceDialog(props: {
-    title: string;
-    headers: string[];
-    rows: string[][];
-    emptyMessage: string;
-}): React.ReactNode {
-    return <div onKeyDown={e => e.stopPropagation()}>
-        <Heading.h3>{props.title}</Heading.h3>
-        {props.rows.length === 0 ? (
-            <Text color="textSecondary" mt="12px">{props.emptyMessage}</Text>
-        ) : (
-            <Table tableType="presentation">
-                <TableHeader>
-                    <TableRow>
-                        {props.headers.map(header => (
-                            <TableHeaderCell key={header}>{header}</TableHeaderCell>
-                        ))}
-                    </TableRow>
-                </TableHeader>
-                <tbody>
-                    {props.rows.map((row, idx) => (
-                        <TableRow key={`${idx}-${row[0]}`}>
-                            {row.map((cell, cellIdx) => <TableCell key={`${idx}-${cellIdx}`}>{cell}</TableCell>)}
-                        </TableRow>
-                    ))}
-                </tbody>
-            </Table>
-        )}
-
-        <Flex mt="16px" justifyContent="end">
-            <Button color="primaryMain" onClick={() => dialogStore.success()}>Done</Button>
-        </Flex>
-    </div>;
-}
-
 function StackDeleteDialog({stack, onDeleted}: {stack: StackApi.Stack; onDeleted: () => void}): React.ReactNode {
+    const [deleteStateDrive, setDeleteStateDrive] = React.useState(true);
     const requiredText = stack.id;
 
     return <div onKeyDown={e => e.stopPropagation()}>
@@ -630,10 +576,10 @@ function StackDeleteDialog({stack, onDeleted}: {stack: StackApi.Stack; onDeleted
         <Divider />
         <Warning>This is a dangerous operation, please read this!</Warning>
         <Box mb="8px" mt="16px">
-            This will <i>PERMANENTLY</i> delete this stack. This action <i>CANNOT BE UNDONE</i>.
+            This will <i>PERMANENTLY</i> delete this cluster. This action <i>CANNOT BE UNDONE</i>.
         </Box>
         <Box mb="16px">
-            Please type '<b>{requiredText}</b>' to confirm.
+            Please type the cluster ID '<b>{requiredText}</b>' to confirm.
         </Box>
         <form onSubmit={async ev => {
             ev.preventDefault();
@@ -646,14 +592,20 @@ function StackDeleteDialog({stack, onDeleted}: {stack: StackApi.Stack; onDeleted
             }
 
             try {
-                await callAPI(StackApi.remove(bulkRequestOf({id: stack.id})));
+                await callAPI(StackApi.remove(bulkRequestOf({id: stack.id, deleteStateDrive})));
                 dialogStore.success();
                 onDeleted();
             } catch {
-                sendFailureNotification("Failed to delete stack.");
+                sendFailureNotification("Failed to delete cluster.");
             }
         }}>
             <Input id="stackDeleteName" autoFocus mb="8px" />
+            <Box mb="12px">
+                <label>
+                    <Checkbox checked={deleteStateDrive} onChange={e => setDeleteStateDrive(e.target.checked)} />
+                    Delete the dedicated application drive and all its files
+                </label>
+            </Box>
             <Button color="errorMain" type="submit" fullWidth>
                 I understand what I am doing, delete permanently
             </Button>
@@ -669,45 +621,23 @@ const StackLayout = injectStyle("stack-view-layout", k => `
         margin: 20px;
         max-width: 1700px;
     }
-`);
 
-const ResourceGrid = injectStyle("stack-view-resource-grid", k => `
-    ${k} {
-        display: grid;
-        gap: 12px;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        margin-top: 12px;
+    ${k}[data-slim="true"] {
+        height: calc(100vh - var(--termsize, 0px) - 72px);
+        max-width: none;
     }
 `);
 
-const MutedCard = injectStyle("stack-view-muted-card", k => `
+const StackIdText = injectStyle("stack-view-id-text", k => `
     ${k} {
-        opacity: 0.78;
-        background: linear-gradient(180deg, var(--backgroundDefault) 0%, var(--backgroundCard) 100%);
-    }
-`);
-
-const ClickableMutedCard = injectStyle("stack-view-clickable-muted-card", k => `
-    ${k} {
-        opacity: 0.78;
-        background: linear-gradient(180deg, var(--backgroundDefault) 0%, var(--backgroundCard) 100%);
-        cursor: pointer;
-        transition: opacity 120ms ease, transform 120ms ease;
-    }
-
-    ${k}:hover {
-        opacity: 1;
-        transform: translateY(-1px);
-    }
-`);
-
-const MutedResourceList = injectStyle("stack-view-muted-resource-list", k => `
-    ${k} {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
         color: var(--textSecondary);
         font-size: 14px;
+    }
+`);
+
+const SlimHeaderCard = injectStyle("stack-view-slim-header", k => `
+    ${k} h2 {
+        font-size: 20px;
     }
 `);
 

@@ -13,7 +13,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {addStandardDialog} from "@/UtilityComponents";
 import CONF from "../../site.config.json";
 import {emptyPage} from "@/Utilities/PageUtilities";
-import {SettingsSection} from "./SettingsComponents";
+import {SettingsAction, SettingsSection} from "@/ui-components/SettingsComponents";
 
 export interface SessionsProps {
     setLoading: (loading: boolean) => void;
@@ -68,14 +68,12 @@ export const Sessions: React.FunctionComponent<SessionsProps> = props => {
             }
 
             return (
-                <Box key={idx}>
+                <Box key={idx} mb={"16px"}>
                     <p>
                         <b>{deviceText}</b> from <b>{session.ipAddress}</b>
                         <br />
                         <b>Session created at:</b> {dateToString(session.createdAt)}
                     </p>
-
-                    <Divider />
                 </Box>
             );
         });
@@ -115,9 +113,13 @@ export const Sessions: React.FunctionComponent<SessionsProps> = props => {
                 pageRenderer={pageRenderer}
             />
 
-            <Button color={"errorMain"} onClick={onInvalidateSessions} disabled={commandLoading} mt={"1em"}>
-                Invalidate all sessions
-            </Button>
+            <SettingsAction
+                title="Invalidate all sessions"
+                description="Sign out every active session, including this one. You will need to sign in again."
+                action={<Button color="errorMain" onClick={onInvalidateSessions} disabled={commandLoading}>
+                    Invalidate all sessions
+                </Button>}
+            />
         </SettingsSection>
     );
 };

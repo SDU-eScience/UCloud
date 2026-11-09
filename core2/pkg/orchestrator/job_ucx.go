@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"ucloud.dk/shared/pkg/log"
 	orcapi "ucloud.dk/shared/pkg/orchestrators"
@@ -21,6 +22,32 @@ type jobUcxSessionState struct {
 	job     orcapi.Job
 	actor   rpc.Actor
 	reqInfo orcapi.AppUcxConnectJobRequest
+}
+
+func jobUcxResolveStack(job orcapi.Job) (orcapi.Resource, orcapi.ResourceSpecification, bool) {
+	stackInstance := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackInstance])
+	if stackInstance == "" {
+		return orcapi.Resource{}, orcapi.ResourceSpecification{}, false
+	}
+
+	jobEntity := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackEntity])
+	var lastErr *util.HttpError
+	for _, resourceId := range stacksResourceIds(stackType, job.Owner, stackInstance) {
+		if jobEntity != "" && strconv.FormatUint(uint64(resourceId), 10) != jobEntity {
+			continue
+		}
+
+		_, entity, stackSpec, err := ResourceRetrieveEx[orcapi.Stack](rpc.ActorSystem, stackType, resourceId, orcapi.PermissionRead, orcapi.ResourceFlags{IncludeOthers: true})
+		if err == nil {
+			return entity, stackSpec, true
+		}
+		lastErr = err
+	}
+
+	if lastErr != nil {
+		log.Warn("UCX job: failed to resolve stack %q for job %q: %v", stackInstance, job.Id, lastErr)
+	}
+	return orcapi.Resource{}, orcapi.ResourceSpecification{}, false
 }
 
 func initJobUcx() {
@@ -99,6 +126,14 @@ func initJobUcx() {
 					}
 				}
 				port = parsedPort
+
+				if !ucxUiJobAvailable(job.Id) {
+					if alternative, alternativePort, found := stacksUcxUiAlternativeJob(state.actor, job); found {
+						log.Info("UCX job: the job %s did not answer recently, connecting to %s", job.Id, alternative.Id)
+						job = alternative
+						port = alternativePort
+					}
+				}
 			}
 
 			providerId := job.Specification.Product.Provider
@@ -124,9 +159,24 @@ func initJobUcx() {
 				return ucx.ProxyUpstreamSelection{Allowed: false}
 			}
 
+			stackEntity, stackSpec, stackOk := jobUcxResolveStack(job)
+			stackInstance := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackInstance])
+			if stackInstance != "" && !stackOk {
+				log.Warn("UCX job: the stack of job %q is not available", job.Id)
+				return ucx.ProxyUpstreamSelection{Allowed: false}
+			}
+
+			stackStateFolder := util.OptNone[string]()
+			if stackOk {
+				stackStateFolder = util.OptValue(strings.TrimSpace(stackSpec.Labels[orcapi.ResourceLabelStackStateFolder]))
+			}
+
 			sysHello, marshalErr := json.Marshal(orcapi.AppUcxConnectJobProviderRequest{
-				Job:  job,
-				Port: port,
+				Job:              job,
+				Port:             port,
+				StackStateFolder: stackStateFolder,
+				ClientKind:       state.reqInfo.ClientKind,
+				Updates:          state.reqInfo.Updates,
 			})
 			if marshalErr != nil {
 				log.Warn("UCX job: failed to marshal provider syshello: %v", marshalErr)
@@ -135,12 +185,6 @@ func initJobUcx() {
 
 			state.Mu.Lock()
 			state.job = job
-			state.AllowStackCreation = false
-			state.Stacks = map[string]util.Empty{}
-			stackId, ok := job.Specification.Labels[resourceLabelStackInstance]
-			if ok {
-				state.Stacks[stackId] = util.Empty{}
-			}
 			state.appUcxBaseState.Actor = func() rpc.Actor {
 				state.Mu.RLock()
 				result := state.actor
@@ -153,7 +197,28 @@ func initJobUcx() {
 				state.Mu.RUnlock()
 				return result
 			}
+			state.appUcxBaseState.SessionJob = func() (orcapi.Job, bool) {
+				state.Mu.RLock()
+				defer state.Mu.RUnlock()
+				if state.job.Id == "" {
+					return orcapi.Job{}, false
+				}
+				return state.job, true
+			}
 			state.Mu.Unlock()
+
+			state.appUcxBaseState.Mu.Lock()
+			state.AllowStackCreation = false
+			state.Stacks = map[string]util.Empty{}
+			if stackInstance != "" {
+				state.Stacks[stackInstance] = util.Empty{}
+			}
+			if stackOk {
+				state.StackEntity = util.OptValue(stackEntity.Id)
+			} else {
+				state.StackEntity = util.OptNone[string]()
+			}
+			state.appUcxBaseState.Mu.Unlock()
 
 			return ucx.ProxyUpstreamSelection{
 				Allowed:               true,
@@ -166,12 +231,19 @@ func initJobUcx() {
 
 		appUcxResourceHandlers(&state.appUcxBaseState, proxy)
 
-		if gerr := proxy.Run(context.Background(), info.WebSocket); gerr != nil {
-			log.Warn("UCX job: proxy failed: %v", gerr)
+		startedAt := time.Now()
+		runErr := proxy.Run(context.Background(), info.WebSocket)
+
+		state.Mu.RLock()
+		sessionJobId := state.job.Id
+		state.Mu.RUnlock()
+		ucxUiNoteSessionEnd(sessionJobId, time.Since(startedAt))
+
+		if runErr != nil {
+			log.Warn("UCX job: proxy failed: %v", runErr)
 			return util.Empty{}, util.ServerHttpError("Internal error")
-		} else {
-			return util.Empty{}, nil
 		}
+		return util.Empty{}, nil
 	})
 }
 

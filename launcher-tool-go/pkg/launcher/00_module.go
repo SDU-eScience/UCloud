@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"time"
@@ -26,6 +27,7 @@ const ImDevImage = "dreg.cloud.sdu.dk/ucloud-dev/integration-module:2026.2.15"
 const SlurmImage = "dreg.cloud.sdu.dk/ucloud-dev/slurm:2025.4.165"
 
 var Version string
+var CliVersion string
 var RepoRoot string
 var HasPty bool
 var ComposeDir string
@@ -74,14 +76,23 @@ func Launch() {
 	ComposeDir = filepath.Join(repoRootPath, ".compose")
 	_ = os.MkdirAll(ComposeDir, 0700)
 
-	versionBytes, err := os.ReadFile(repoRootPath + "/core2/version.txt")
+	versionBytes, err := os.ReadFile(filepath.Join(repoRootPath, "core2/version.txt"))
 	if err != nil {
 		log.Fatal("Unable to find version file.")
 	}
 
 	Version = strings.TrimSpace(string(versionBytes))
 
-	featureBytes, err := os.ReadFile(repoRootPath + "/.compose/features.json")
+	cliVersionBytes, err := os.ReadFile(filepath.Join(repoRootPath, "ucloud-cli", "version.txt"))
+	if err != nil {
+		log.Fatal("Unable to find CLI version file.")
+	}
+	CliVersion = strings.TrimSpace(string(cliVersionBytes))
+	if CliVersion == "" {
+		log.Fatal("CLI version file is empty.")
+	}
+
+	featureBytes, err := os.ReadFile(filepath.Join(repoRootPath, ".compose", "features.json"))
 	if err == nil {
 		_ = json.Unmarshal(featureBytes, &ClusterFeatures)
 	}
@@ -109,7 +120,7 @@ func Launch() {
 		return
 	}
 
-	refreshTokenBytes, _ := os.ReadFile(repoRootPath + "/.compose/refresh_token.txt")
+	refreshTokenBytes, _ := os.ReadFile(filepath.Join(repoRootPath, ".compose/refresh_token.txt"))
 	refreshToken := strings.TrimSpace(string(refreshTokenBytes))
 
 	RpcClientConfigure(refreshToken)
@@ -172,7 +183,9 @@ func Launch() {
 			}
 		}
 	case "test":
-		TestsRun("user", "mypassword")
+		TestsRun("user", "mypassword", os.Args[2:], false)
+	case "test-ui":
+		TestsRun("user", "mypassword", os.Args[2:], true)
 	}
 }
 
@@ -193,10 +206,11 @@ func RegisterServices() {
 	Installers = map[string]func(){}
 	StartupHooks = map[string]func(){}
 
-	_ = os.MkdirAll(RepoRoot+".compose", 0770)
+	_ = os.MkdirAll(filepath.Join(RepoRoot, ".compose"), 0770)
 
 	ServiceCore()
 	ServiceFrontend()
+	ServiceCliDistribution()
 	ServiceGateway()
 	ProviderK8s()
 	ProviderSlurm()
@@ -240,10 +254,12 @@ func ClusterStart(down bool) {
 		var composeFile struct {
 			Services map[string]DockerComposeService `yaml:"services"`
 			Volumes  map[string]util.Empty           `yaml:"volumes"`
+			Networks map[string]DockerComposeNetwork `yaml:"networks,omitempty"`
 		}
 
 		composeFile.Services = map[string]DockerComposeService{}
 		composeFile.Volumes = map[string]util.Empty{}
+		composeFile.Networks = map[string]DockerComposeNetwork{}
 
 		for name, composeService := range ComposeServices {
 			composeFile.Services[name] = composeService
@@ -251,6 +267,22 @@ func ClusterStart(down bool) {
 
 		for _, vol := range Volumes {
 			composeFile.Volumes[vol] = util.Empty{}
+		}
+
+		mtu := os.Getenv("UCLOUD_DOCKER_MTU")
+		if mtu == "" {
+			mtu = "1400"
+		}
+
+		composeFile.Networks["default"] = DockerComposeNetwork{
+			Ipam: DockerComposeIpam{
+				Config: []DockerComposeIpamConfig{
+					{Subnet: "172.18.0.0/16"},
+				},
+			},
+			DriverOpts: map[string]string{
+				"com.docker.network.driver.mtu": mtu,
+			},
 		}
 
 		rendered, _ := yaml.Marshal(composeFile)
@@ -295,7 +327,7 @@ func ClusterStart(down bool) {
 	}
 
 	featureBytes, _ := json.Marshal(ClusterFeatures)
-	_ = os.WriteFile(RepoRoot+"/.compose/features.json", featureBytes, 0660)
+	_ = os.WriteFile(filepath.Join(RepoRoot, ".compose/features.json"), featureBytes, 0660)
 }
 
 func ClusterStop() {
@@ -335,7 +367,7 @@ func ClusterDelete() {
 
 	StreamingExecute(
 		"Deleting data",
-		[]string{"docker", "run", "--rm", "-v", RepoRoot + "/.compose/:/data", "alpine:3", "/bin/sh", "-c", "rm -rf /data/*"},
+		[]string{"docker", "run", "--rm", "-v", filepath.Join(RepoRoot, ".compose") + ":/data", "alpine:3", "/bin/sh", "-c", "rm -rf /data/*"},
 		ExecuteOptions{},
 	)
 }
@@ -360,11 +392,23 @@ func SetTerminalTitle(title string) {
 	fmt.Printf("\x1b]0;%s\x07", title)
 }
 
-func TestsRun(adminUser, adminPass string) {
+func TestsRun(adminUser, adminPass string, testArgs []string, ui bool) {
 	serviceToken := rpc.DefaultClient.RefreshToken
 	defer func() {
 		RpcClientConfigure(serviceToken)
 	}()
+
+	userDataPath, manuallyConfiguredUsers := os.LookupEnv("UCLOUD_PLAYWRIGHT_USER_DATA")
+	if !manuallyConfiguredUsers {
+		userDataPath = filepath.Join(ComposeDir, "playwright-users.json")
+		testInfoPath := filepath.Join(RepoRoot, "frontend-web/webclient/tests/test_data.json")
+		if _, userDataErr := os.Stat(userDataPath); userDataErr == nil {
+			if _, testInfoErr := os.Stat(testInfoPath); testInfoErr == nil {
+				PlaywrightRun(testArgs, ui, userDataPath, false)
+				return
+			}
+		}
+	}
 
 	var adminActor rpc.CorePrincipalBaseClaims
 	LogOutputRunWork("Looking up admin user", func(ch chan string) error {
@@ -707,16 +751,53 @@ func TestsRun(adminUser, adminPass string) {
 		return nil
 	})
 
-	StreamingExecute("Preparing tests", []string{"npx", "playwright", "install", "--with-deps"}, ExecuteOptions{
-		WorkingDir: util.OptValue(filepath.Join(RepoRoot, "frontend-web/webclient")),
-	})
+	PlaywrightRun(testArgs, ui, userDataPath, !manuallyConfiguredUsers)
+}
 
-	testCommand := []string{"npx", "playwright", "test", "--ui"}
-	if !HasPty {
-		testCommand = []string{"npx", "playwright", "test"}
+func PlaywrightRun(testArgs []string, ui bool, userDataPath string, prepareUsers bool) {
+	workingDir := util.OptValue(filepath.Join(RepoRoot, "frontend-web/webclient"))
+	installCommand := []string{"npx", "playwright", "install"}
+	if !isFedoraLinux() {
+		installCommand = append(installCommand, "--with-deps")
+	}
+	StreamingExecute("Preparing tests", installCommand, ExecuteOptions{WorkingDir: workingDir})
+
+	testEnvironment := append(os.Environ(), "UCLOUD_PLAYWRIGHT_USER_DATA="+userDataPath)
+	if prepareUsers {
+		StreamingExecute("Preparing Playwright users", []string{
+			"npx", "playwright", "test", "--project=setup",
+		}, ExecuteOptions{
+			WorkingDir:  workingDir,
+			Environment: append(testEnvironment, "UCLOUD_PLAYWRIGHT_PREPARE_USERS=1"),
+		})
+	}
+
+	testCommand := append([]string{"npx", "playwright", "test"}, testArgs...)
+	if ui {
+		testCommand = append(testCommand, "--ui")
 	}
 
 	StreamingExecute("Running tests", testCommand, ExecuteOptions{
-		WorkingDir: util.OptValue(filepath.Join(RepoRoot, "frontend-web/webclient")),
+		WorkingDir:  workingDir,
+		Environment: testEnvironment,
 	})
+}
+
+func isFedoraLinux() bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+
+	osRelease, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		return false
+	}
+
+	for _, line := range strings.Split(string(osRelease), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "ID=fedora" || line == `ID="fedora"` {
+			return true
+		}
+	}
+	return false
 }

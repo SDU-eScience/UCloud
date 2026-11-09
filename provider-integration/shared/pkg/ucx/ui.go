@@ -27,12 +27,15 @@ var interactiveComponents = map[string]bool{
 	"inference_image_composer": true,
 	"checkbox":                 true,
 	"button":                   true,
+	"stack_permissions":        true,
 	"textarea":                 true,
+	"code_editor":              true,
 	"select":                   true,
 	"machine_type_selector":    true,
 	"radio_group":              true,
 	"toggle":                   true,
 	"form":                     true,
+	"link_button":              true,
 }
 
 func NormalizeUiTree(root UiNode) UiNode {
@@ -198,6 +201,21 @@ func ToolbarEx(id string) UiNode {
 	return UiNode{
 		Id:        id,
 		Component: "toolbar",
+	}
+}
+
+func Dialog(title string, open bool) UiNode {
+	return DialogEx("", title, open)
+}
+
+func DialogEx(id string, title string, open bool) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "dialog",
+		Props: map[string]Value{
+			"title": VString(title),
+			"open":  VBool(open),
+		},
 	}
 }
 
@@ -375,6 +393,29 @@ func InputText(id string, label string, placeholder string, bindPath string) UiN
 	}
 }
 
+func InputSecret(id string, bindPath string) UiNode {
+	return InputSecretEx(id, "", "", bindPath)
+}
+
+func InputSecretEx(id string, label string, value string, bindPath string) UiNode {
+	requireExplicitId(id, "input_secret")
+
+	props := map[string]Value{
+		"label": VString(label),
+	}
+	if value != "" {
+		props["value"] = VString(value)
+	}
+
+	return UiNode{
+		Id:         id,
+		Component:  "input_secret",
+		BindPath:   bindPath,
+		Optimistic: true,
+		Props:      props,
+	}
+}
+
 func InputNumber(id string, label string, bindPath string, min int64, max int64) UiNode {
 	requireExplicitId(id, "input_number")
 
@@ -496,6 +537,26 @@ func ButtonEx(id string, label string, color Color, iconLeft IconName, iconRight
 	}
 }
 
+func IconButtonEx(id string, tooltip string, color Color, icon IconName) UiNode {
+	requireExplicitId(id, "button")
+
+	props := map[string]Value{
+		"label":    VString(tooltip),
+		"color":    VColor(color),
+		"iconOnly": VBool(true),
+		"submit":   VBool(false),
+	}
+	if icon != "" {
+		props["iconLeft"] = VIcon(icon)
+	}
+
+	return UiNode{
+		Id:        id,
+		Component: "button",
+		Props:     props,
+	}
+}
+
 func TextArea(id string, label string, placeholder string, bindPath string, rows int64) UiNode {
 	requireExplicitId(id, "textarea")
 
@@ -522,6 +583,36 @@ func Select(id string, label string, bindPath string, options []Option) UiNode {
 		Optimistic: true,
 		Props: map[string]Value{
 			"label":   VString(label),
+			"options": optionsToValue(options),
+		},
+	}
+}
+
+func (n UiNode) WithShortcutKey(key string) UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["shortcutKey"] = VString(key)
+	return n
+}
+
+func (n UiNode) AriaLabel(label string) UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["ariaLabel"] = VString(label)
+	return n
+}
+
+func EnumSelectorNode(id string, bindPath string, options []Option) UiNode {
+	requireExplicitId(id, "enum_selector")
+
+	return UiNode{
+		Id:         id,
+		Component:  "enum_selector",
+		BindPath:   bindPath,
+		Optimistic: true,
+		Props: map[string]Value{
 			"options": optionsToValue(options),
 		},
 	}
@@ -565,6 +656,71 @@ func MachineTypeSelector(id string, label string, bindPath string, capabilities 
 		Props: map[string]Value{
 			"label":        VString(label),
 			"capabilities": VList(normalizedCaps),
+		},
+	}
+}
+
+func (n UiNode) MachineSelectorProviderBindPath(providerBindPath string) UiNode {
+	return n.propMutate("providerBindPath", VString(providerBindPath))
+}
+
+func (n UiNode) MachineSelectorProviderOnly(providerOnly bool) UiNode {
+	return n.propMutate("providerOnly", VBool(providerOnly))
+}
+
+func ServiceProviderSelectorNode(id string, bindPath string) UiNode {
+	requireExplicitId(id, "service_provider_selector")
+
+	return UiNode{
+		Id:         id,
+		Component:  "service_provider_selector",
+		BindPath:   bindPath,
+		Optimistic: true,
+	}
+}
+
+func (n UiNode) ServiceProviderRealProvidersOnly(realProvidersOnly bool) UiNode {
+	return n.propMutate("realProvidersOnly", VBool(realProvidersOnly))
+}
+
+func (n UiNode) ServiceProviderPreferred(provider string) UiNode {
+	return n.propMutate("preferredProvider", VString(provider))
+}
+
+func (n UiNode) MachineSelectorDescription(description string) UiNode {
+	return n.propMutate("description", VString(description))
+}
+
+type CostEstimateEntry struct {
+	Title           string
+	TitleBindPath   string
+	MachineBindPath string
+	CountBindPath   string
+}
+
+func CostEstimateNode(id string, entries []CostEstimateEntry) UiNode {
+	requireExplicitId(id, "cost_estimate")
+
+	normalizedEntries := make([]Value, 0, len(entries))
+	for _, entry := range entries {
+		object := map[string]Value{
+			"title":           VString(entry.Title),
+			"machineBindPath": VString(entry.MachineBindPath),
+			"countBindPath":   VString(entry.CountBindPath),
+		}
+
+		if entry.TitleBindPath != "" {
+			object["titleBindPath"] = VString(entry.TitleBindPath)
+		}
+
+		normalizedEntries = append(normalizedEntries, VObject(object))
+	}
+
+	return UiNode{
+		Id:        id,
+		Component: "cost_estimate",
+		Props: map[string]Value{
+			"entries": VList(normalizedEntries),
 		},
 	}
 }
@@ -635,6 +791,277 @@ func TableNodeEx(id string, bindPath string, columns []Option) UiNode {
 	}
 }
 
+type NavItemChild struct {
+	Id       string
+	Label    string
+	Aliases  []string
+	Route    string
+	Disabled bool
+	Children []NavItemChild
+}
+
+type NavItem struct {
+	Id              string
+	Label           string
+	Aliases         []string
+	Route           string
+	Children        []NavItemChild
+	SeparatorBefore bool
+	Disabled        bool
+}
+
+type BrowserLayoutProps struct {
+	Sidebar   UiNode
+	Content   []UiNode
+	Bottom    UiNode
+	HasBottom bool
+
+	EscapePath     string
+	EscapeDisabled bool
+}
+
+func BrowserLayout(props BrowserLayoutProps) UiNode {
+	node := UiNode{
+		Id:        "browserLayout",
+		Component: "browser_layout",
+		Props:     map[string]Value{},
+	}
+
+	if !props.EscapeDisabled {
+		node.Props["escapePath"] = VString(props.EscapePath)
+	}
+
+	var children []UiNode
+	if props.Sidebar.Component != "" {
+		children = append(children, markBrowserSlot(props.Sidebar, "sidebarSlot", "browserSidebar"))
+	}
+	children = append(children, props.Content...)
+	if props.HasBottom {
+		children = append(children, markBrowserSlot(props.Bottom, "bottomSlot", "browserBottom"))
+	}
+
+	return node.Children(children...)
+}
+
+func markBrowserSlot(node UiNode, marker string, fallbackId string) UiNode {
+	if node.Id == "" {
+		node.Id = fallbackId
+	}
+
+	if node.Props == nil {
+		node.Props = map[string]Value{}
+	}
+	node.Props[marker] = VBool(true)
+	return node
+}
+
+func BrowserSidebar(children ...UiNode) UiNode {
+	return BoxEx("browserSidebar").Children(children...)
+}
+
+func BrowserBottom(children ...UiNode) UiNode {
+	return BoxEx("browserBottom").Children(children...)
+}
+
+func NavTree(id string, items []NavItem) UiNode {
+	return NavTreeEx(id, "", items)
+}
+
+func NavTreeEx(id string, selectedBindPath string, items []NavItem) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "nav_tree",
+		BindPath:  selectedBindPath,
+		Props: map[string]Value{
+			"items": navItemsToValue(items),
+		},
+	}
+}
+
+func (n UiNode) NavTreeActivateOnSingleClick(enabled bool) UiNode {
+	return n.propMutate("activateOnSingleClick", VBool(enabled))
+}
+
+func navItemsToValue(items []NavItem) Value {
+	list := make([]Value, 0, len(items))
+	for _, item := range items {
+		object := map[string]Value{
+			"id":    VString(item.Id),
+			"label": VString(item.Label),
+		}
+		if len(item.Aliases) > 0 {
+			aliases := make([]Value, 0, len(item.Aliases))
+			for _, alias := range item.Aliases {
+				aliases = append(aliases, VString(alias))
+			}
+			object["aliases"] = VList(aliases)
+		}
+		if item.Route != "" {
+			object["route"] = VString(item.Route)
+		}
+		if item.SeparatorBefore {
+			object["separatorBefore"] = VBool(true)
+		}
+		if item.Disabled {
+			object["disabled"] = VBool(true)
+		}
+		if len(item.Children) > 0 {
+			children := make([]NavItem, 0, len(item.Children))
+			for _, child := range item.Children {
+				children = append(children, NavItem{
+					Id:       child.Id,
+					Label:    child.Label,
+					Aliases:  child.Aliases,
+					Route:    child.Route,
+					Disabled: child.Disabled,
+					Children: child.Children,
+				})
+			}
+			object["children"] = navItemsToValue(children)
+		}
+		list = append(list, VObject(object))
+	}
+	return VList(list)
+}
+
+type ResourceTableActionKind string
+
+const (
+	ResourceTableActionCopyText ResourceTableActionKind = "copyText"
+	ResourceTableActionOpenUrl  ResourceTableActionKind = "openUrl"
+)
+
+type ResourceTableAction struct {
+	Id               string
+	Label            string
+	Icon             IconName
+	Kind             ResourceTableActionKind
+	Color            Color
+	Shortcut         string
+	Destructive      bool
+	SkipConfirmation bool
+}
+
+type ResourceTableProps struct {
+	Id       string
+	TableId  string
+	StateKey string
+	ViewId   string
+
+	EmptyMessage     string
+	HideGroupHeaders bool
+	NoSorting        bool
+	Actions          []ResourceTableAction
+	GroupAction      *ResourceTableAction
+	TrailingAction   *ResourceTableAction
+}
+
+func ResourceTable(props ResourceTableProps) UiNode {
+	nodeProps := map[string]Value{
+		"tableId": VString(props.TableId),
+	}
+
+	if props.StateKey != "" {
+		nodeProps["stateKey"] = VString(props.StateKey)
+	}
+
+	if props.ViewId != "" {
+		nodeProps["viewId"] = VString(props.ViewId)
+	}
+
+	if props.EmptyMessage != "" {
+		nodeProps["emptyMessage"] = VString(props.EmptyMessage)
+	}
+
+	if props.HideGroupHeaders {
+		nodeProps["showGroupHeaders"] = VBool(false)
+	}
+
+	if props.NoSorting {
+		nodeProps["sorted"] = VBool(false)
+	}
+
+	if len(props.Actions) > 0 {
+		actionValues := make([]Value, 0, len(props.Actions))
+		for _, action := range props.Actions {
+			actionValue := VObject(map[string]Value{
+				"id":    VString(action.Id),
+				"label": VString(action.Label),
+				"icon":  VIcon(action.Icon),
+				"kind":  VString(string(action.Kind)),
+			})
+			if action.Shortcut != "" {
+				actionValue.Object["shortcut"] = VString(action.Shortcut)
+			}
+			if action.Destructive {
+				actionValue.Object["destructive"] = VBool(true)
+			}
+			if action.SkipConfirmation {
+				actionValue.Object["skipConfirmation"] = VBool(true)
+			}
+			actionValues = append(actionValues, actionValue)
+		}
+		nodeProps["actions"] = VList(actionValues)
+	}
+
+	if props.GroupAction != nil {
+		groupValue := VObject(map[string]Value{
+			"id":    VString(props.GroupAction.Id),
+			"label": VString(props.GroupAction.Label),
+			"icon":  VIcon(props.GroupAction.Icon),
+		})
+		if props.GroupAction.Shortcut != "" {
+			groupValue.Object["shortcut"] = VString(props.GroupAction.Shortcut)
+		}
+		nodeProps["groupAction"] = groupValue
+	}
+
+	if props.TrailingAction != nil {
+		trailing := VObject(map[string]Value{
+			"id":    VString(props.TrailingAction.Id),
+			"label": VString(props.TrailingAction.Label),
+			"icon":  VIcon(props.TrailingAction.Icon),
+		})
+		if props.TrailingAction.Color != "" {
+			trailing.Object["color"] = VColor(props.TrailingAction.Color)
+		}
+		if props.TrailingAction.Shortcut != "" {
+			trailing.Object["shortcut"] = VString(props.TrailingAction.Shortcut)
+		}
+		nodeProps["trailingAction"] = trailing
+	}
+
+	return UiNode{
+		Id:        props.Id,
+		Component: "resource_table",
+		Props:     nodeProps,
+	}
+}
+
+func TableFilter(id string, stateKey string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "table_filter",
+		Props: map[string]Value{
+			"stateKey": VString(stateKey),
+		},
+	}
+}
+
+func TableCount(id string, stateKey string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "table_count",
+		Props: map[string]Value{
+			"stateKey": VString(stateKey),
+		},
+	}
+}
+
+func (n UiNode) WithTitle(title string) UiNode {
+	return n.propMutate("title", VString(title))
+}
+
 func Tabs() UiNode {
 	return TabsWithRouteEx("", false)
 }
@@ -695,6 +1122,14 @@ func AccordionNodeEx(id string, title string, open bool) UiNode {
 	}
 }
 
+func (n UiNode) WithNoHeaderBorder() UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["noHeaderBorder"] = VBool(true)
+	return n
+}
+
 func Form(id string) UiNode {
 	requireExplicitId(id, "form")
 
@@ -708,6 +1143,21 @@ func Markdown(text string) UiNode {
 			"text": VString(text),
 		},
 	}
+}
+
+func Warning(text string) UiNode {
+	return UiNode{
+		Component: "warning",
+		Props: map[string]Value{
+			"text": VString(text),
+		},
+	}
+}
+
+func Tip(text string) UiNode {
+	node := Warning(text)
+	node.Props["variant"] = VString("tip")
+	return node
 }
 
 func MarkdownBound(bindPath string) UiNode {
@@ -731,12 +1181,268 @@ func CodeEx(id string, text string) UiNode {
 	}
 }
 
+func (n UiNode) WithLang(lang string) UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["lang"] = VString(lang)
+	return n
+}
+
+func (n UiNode) WithStretch() UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["stretch"] = VBool(true)
+	return n
+}
+
+func (n UiNode) WithAutoFocus() UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["autoFocus"] = VBool(true)
+	return n
+}
+
 func CodeBound(bindPath string) UiNode {
 	return CodeBoundEx("", bindPath)
 }
 
 func CodeBoundEx(id string, bindPath string) UiNode {
 	return UiNode{Id: id, Component: "code", BindPath: bindPath}
+}
+
+type CodeEditorYamlFieldLink struct {
+	Source  []any
+	Targets [][]any
+}
+
+type CodeEditorProps struct {
+	YamlFieldLinks      []CodeEditorYamlFieldLink
+	ShowSchemaReference bool
+	MarkdownFixer       string
+	DocumentId          string
+	SchemaId            string
+	Revision            string
+	Lang                string
+	ReadOnly            bool
+	Saving              bool
+	ShowSave            bool
+	ShowClose           bool
+	CloseLabel          string
+	HideToolbar         bool
+	AutoFocus           bool
+	TabLabel            string
+}
+
+func CodeEditor(id string, bindPath string, props CodeEditorProps) UiNode {
+	requireExplicitId(id, "code_editor")
+	if props.DocumentId == "" {
+		props.DocumentId = id
+	}
+	if props.Lang == "" {
+		props.Lang = "plaintext"
+	}
+	if props.CloseLabel == "" {
+		props.CloseLabel = "Close"
+	}
+	propsMap := map[string]Value{
+		"documentId":  VString(props.DocumentId),
+		"revision":    VString(props.Revision),
+		"lang":        VString(props.Lang),
+		"readOnly":    VBool(props.ReadOnly),
+		"saving":      VBool(props.Saving),
+		"showSave":    VBool(props.ShowSave),
+		"showClose":   VBool(props.ShowClose),
+		"closeLabel":  VString(props.CloseLabel),
+		"hideToolbar": VBool(props.HideToolbar),
+		"autoFocus":   VBool(props.AutoFocus),
+	}
+	if props.TabLabel != "" {
+		propsMap["tabLabel"] = VString(props.TabLabel)
+	}
+	if props.SchemaId != "" {
+		propsMap["schemaId"] = VString(props.SchemaId)
+	}
+	if props.ShowSchemaReference {
+		propsMap["showSchemaReference"] = VBool(true)
+	}
+	if props.MarkdownFixer != "" {
+		propsMap["markdownFixer"] = VString(props.MarkdownFixer)
+	}
+	if len(props.YamlFieldLinks) > 0 {
+		propsMap["yamlFieldLinks"] = ValueMarshalOrLog(struct {
+			Links []CodeEditorYamlFieldLink
+		}{Links: props.YamlFieldLinks})["links"]
+	}
+	return UiNode{
+		Id:         id,
+		Component:  "code_editor",
+		BindPath:   bindPath,
+		Optimistic: true,
+		Props:      propsMap,
+	}
+}
+
+func CopyButton(text string) UiNode {
+	return CopyButtonEx("", text)
+}
+
+func CopyButtonEx(id string, text string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "copy_button",
+		Props: map[string]Value{
+			"text": VString(text),
+		},
+	}
+}
+
+func CopyButtonBound(bindPath string) UiNode {
+	return CopyButtonBoundEx("", bindPath)
+}
+
+func CopyButtonBoundEx(id string, bindPath string) UiNode {
+	return UiNode{Id: id, Component: "copy_button", BindPath: bindPath}
+}
+
+func (n UiNode) WithTooltip(tooltip string) UiNode {
+	return n.propMutate("tooltip", VString(tooltip))
+}
+
+func SettingsAction(id string, title string, description string) UiNode {
+	requireExplicitId(id, "settings_action")
+	return UiNode{
+		Id:        id,
+		Component: "settings_action",
+		Props: map[string]Value{
+			"title":       VString(title),
+			"description": VString(description),
+		},
+	}
+}
+
+func ExternalLinkButton(id string, label string, href string, color Color, icon IconName) UiNode {
+	requireExplicitId(id, "external_link_button")
+	props := map[string]Value{
+		"label": VString(label),
+		"href":  VString(href),
+		"color": VColor(color),
+	}
+	if icon != "" {
+		props["iconLeft"] = VIcon(icon)
+	}
+	return UiNode{
+		Id:        id,
+		Component: "external_link_button",
+		Props:     props,
+	}
+}
+
+func LinkButton(id string, label string, color Color) UiNode {
+	requireExplicitId(id, "link_button")
+	return UiNode{
+		Id:        id,
+		Component: "link_button",
+		Props: map[string]Value{
+			"label": VString(label),
+			"color": VColor(color),
+		},
+	}
+}
+
+func ProviderTitle(providerId string) UiNode {
+	return ProviderTitleEx("", providerId, false)
+}
+
+func ProviderTitleEx(id string, providerId string, short bool) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "provider_title",
+		Props: map[string]Value{
+			"providerId": VString(providerId),
+			"short":      VBool(short),
+		},
+	}
+}
+
+func JobLogs(id string, jobId string) UiNode {
+	requireExplicitId(id, "job_logs")
+	return JobLogsEx(id, jobId)
+}
+
+func StackPermissions(id string, stackId string) UiNode {
+	return StackPermissionsEx(id, stackId, StackPermissionsProps{})
+}
+
+type StackPermissionsProps struct {
+	AccessDescription string
+	PermissionLabel   string
+	PermissionIcon    IconName
+	ButtonIcon        IconName
+}
+
+func StackPermissionsEx(id string, stackId string, props StackPermissionsProps) UiNode {
+	requireExplicitId(id, "stack_permissions")
+	return UiNode{
+		Id:        id,
+		Component: "stack_permissions",
+		Props: map[string]Value{
+			"stackId":           VString(stackId),
+			"accessDescription": VString(props.AccessDescription),
+			"permissionLabel":   VString(props.PermissionLabel),
+			"permissionIcon":    VString(string(props.PermissionIcon)),
+			"buttonIcon":        VString(string(props.ButtonIcon)),
+		},
+	}
+}
+
+func JobLogsEx(id string, jobId string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "job_logs",
+		Props: map[string]Value{
+			"jobId": VString(jobId),
+		},
+	}
+}
+
+func (n UiNode) WithCollapsibleLogs() UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["collapsible"] = VBool(true)
+	return n
+}
+
+func JobLogsBound(id string, jobIdBindPath string) UiNode {
+	requireExplicitId(id, "job_logs")
+	return JobLogsBoundEx(id, jobIdBindPath)
+}
+
+func JobLogsBoundEx(id string, jobIdBindPath string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "job_logs",
+		BindPath:  jobIdBindPath,
+	}
+}
+
+func ContainerLogsBoundEx(id string, logsBindPath string) UiNode {
+	return UiNode{
+		Id:        id,
+		Component: "container_logs",
+		BindPath:  logsBindPath,
+	}
+}
+
+func (n UiNode) WithLogHeight(px int64) UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props["height"] = VS64(px)
+	return n
 }
 
 func optionsToValue(options []Option) Value {
@@ -748,10 +1454,6 @@ func optionsToValue(options []Option) Value {
 		}))
 	}
 	return VList(list)
-}
-
-func StackResources() UiNode {
-	return UiNode{Component: "stack_resources"}
 }
 
 type StackMachinesProps struct {
@@ -777,4 +1479,272 @@ func StackMachines(props StackMachinesProps) UiNode {
 	}
 
 	return UiNode{Component: "stack_machines", Props: nodeProps}
+}
+
+func KeyboardNavigationNode(id string) KeyboardNavigationNodeBuilder {
+	requireExplicitId(id, "keyboard_navigation")
+	return KeyboardNavigationNodeBuilder{node: UiNode{Id: id, Component: "keyboard_navigation"}}
+}
+
+type KeyboardNavigationNodeBuilder struct {
+	node UiNode
+}
+
+func (b KeyboardNavigationNodeBuilder) Sx(opts ...SxOption) KeyboardNavigationNodeBuilder {
+	if b.node.Props == nil {
+		b.node.Props = map[string]Value{}
+	}
+	b.node.Props["sx"] = Sx(opts...)
+	return b
+}
+
+func (b KeyboardNavigationNodeBuilder) VerticalSelector(selector string) KeyboardNavigationNodeBuilder {
+	return b.propString("navigationSelector", selector)
+}
+
+func (b KeyboardNavigationNodeBuilder) HorizontalSelector(selector string) KeyboardNavigationNodeBuilder {
+	return b.propString("horizontalSelector", selector)
+}
+
+func (b KeyboardNavigationNodeBuilder) Submit(nodeId string) KeyboardNavigationNodeBuilder {
+	return b.propString("submitNodeId", nodeId)
+}
+
+func (b KeyboardNavigationNodeBuilder) SubmitForm(formNodeId string) KeyboardNavigationNodeBuilder {
+	return b.propString("submitNodeId", formNodeId).prop("submitEvent", VString("submit"))
+}
+
+func (b KeyboardNavigationNodeBuilder) SubmitDisabled(disabled bool) KeyboardNavigationNodeBuilder {
+	return b.prop("submitDisabled", VBool(disabled))
+}
+
+func (b KeyboardNavigationNodeBuilder) prop(key string, value Value) KeyboardNavigationNodeBuilder {
+	if b.node.Props == nil {
+		b.node.Props = map[string]Value{}
+	}
+	b.node.Props[key] = value
+	return b
+}
+
+func (b KeyboardNavigationNodeBuilder) propString(key string, value string) KeyboardNavigationNodeBuilder {
+	if value == "" {
+		return b
+	}
+	return b.prop(key, VString(value))
+}
+
+func (b KeyboardNavigationNodeBuilder) Children(children ...UiNode) UiNode {
+	return b.node.Children(children...)
+}
+
+func FieldGroupNode() UiNode {
+	return FieldGroupNodeEx("")
+}
+
+func FieldGroupNodeEx(id string) UiNode {
+	return UiNode{Id: id, Component: "field_group"}
+}
+
+func FieldRowNode(title string, bindPath string) UiNode {
+	return FieldRowNodeEx("", title, bindPath)
+}
+
+func FieldRowNodeEx(id string, title string, bindPath string) UiNode {
+	props := map[string]Value{
+		"title": VString(title),
+	}
+
+	return UiNode{
+		Id:        id,
+		Component: "field_row",
+		BindPath:  bindPath,
+		Props:     props,
+	}
+}
+
+func (n UiNode) FieldRowTitle(title string) UiNode {
+	return n.propMutate("title", VString(title))
+}
+
+func (n UiNode) FieldRowDescription(description string) UiNode {
+	return n.propMutate("description", VString(description))
+}
+
+func (n UiNode) FieldRowBold(bold bool) UiNode {
+	return n.propMutate("bold", VBool(bold))
+}
+
+func (n UiNode) FieldRowRequired(required bool) UiNode {
+	return n.propMutate("required", VBool(required))
+}
+
+func (n UiNode) FieldRowError(error string) UiNode {
+	return n.propMutate("error", VString(error))
+}
+
+func (n UiNode) FieldRowParameterType(parameterType string) UiNode {
+	return n.propMutate("parameterType", VString(parameterType))
+}
+
+func (n UiNode) propMutate(key string, value Value) UiNode {
+	if n.Props == nil {
+		n.Props = map[string]Value{}
+	}
+	n.Props[key] = value
+	return n
+}
+
+func (n UiNode) ButtonSubmitShortcut(enabled bool) UiNode {
+	return n.propMutate("showShortcut", VBool(enabled))
+}
+
+func (n UiNode) ButtonBusy(bindPath string) UiNode {
+	return n.propMutate("busyPath", VString(bindPath))
+}
+
+func (n UiNode) ButtonHoldToConfirm(enabled bool) UiNode {
+	return n.propMutate("holdToConfirm", VBool(enabled))
+}
+
+func (n UiNode) ButtonDisabledWhen(bindPath string) UiNode {
+	return n.propMutate("disabledPath", VString(bindPath))
+}
+
+func (n UiNode) ButtonEscapeHint(enabled bool) UiNode {
+	return n.propMutate("showEscapeHint", VBool(enabled))
+}
+
+func (n UiNode) WarningCentered(enabled bool) UiNode {
+	return n.propMutate("centered", VBool(enabled))
+}
+
+func SidebarLayout() SidebarLayoutNodeBuilder {
+	return SidebarLayoutNodeBuilder{node: UiNode{Component: "sidebar_layout"}}
+}
+
+type SidebarLayoutNodeBuilder struct {
+	node       UiNode
+	sidebar    UiNode
+	hasSidebar bool
+}
+
+func (b SidebarLayoutNodeBuilder) Sx(opts ...SxOption) SidebarLayoutNodeBuilder {
+	if b.node.Props == nil {
+		b.node.Props = map[string]Value{}
+	}
+	b.node.Props["sx"] = Sx(opts...)
+	return b
+}
+
+func (b SidebarLayoutNodeBuilder) Sidebar(sidebar UiNode) SidebarLayoutNodeBuilder {
+	b.sidebar = sidebar
+	b.hasSidebar = true
+	return b
+}
+
+func (b SidebarLayoutNodeBuilder) Children(children ...UiNode) UiNode {
+	all := make([]UiNode, 0, len(children)+1)
+	all = append(all, children...)
+
+	if b.hasSidebar {
+		sidebar := b.sidebar
+		props := make(map[string]Value, len(sidebar.Props)+1)
+		for key, value := range sidebar.Props {
+			props[key] = value
+		}
+		props["sidebarSlot"] = VBool(true)
+		sidebar.Props = props
+		all = append(all, sidebar)
+	}
+
+	return b.node.Children(all...)
+}
+
+func TutorialWizard(id string, step int64, stepCount int64) TutorialWizardNodeBuilder {
+	requireExplicitId(id, "tutorial_wizard")
+	if stepCount < 1 {
+		panic("ucx: tutorial_wizard requires at least one step")
+	}
+	if step < 0 || step >= stepCount {
+		panic("ucx: tutorial_wizard step is out of range")
+	}
+
+	return TutorialWizardNodeBuilder{node: UiNode{
+		Id:        id,
+		Component: "tutorial_wizard",
+		Props: map[string]Value{
+			"step":      VS64(step),
+			"stepCount": VS64(stepCount),
+		},
+	}}
+}
+
+type TutorialWizardNodeBuilder struct {
+	node        UiNode
+	actionNodes []UiNode
+}
+
+func (b TutorialWizardNodeBuilder) PreviousLabel(label string) TutorialWizardNodeBuilder {
+	return b.prop("previousLabel", VString(label))
+}
+
+func (b TutorialWizardNodeBuilder) NextLabel(label string) TutorialWizardNodeBuilder {
+	return b.prop("nextLabel", VString(label))
+}
+
+func (b TutorialWizardNodeBuilder) ShowPrevious(show bool) TutorialWizardNodeBuilder {
+	return b.prop("showPrevious", VBool(show))
+}
+
+func (b TutorialWizardNodeBuilder) ShowNext(show bool) TutorialWizardNodeBuilder {
+	return b.prop("showNext", VBool(show))
+}
+
+func (b TutorialWizardNodeBuilder) NextHoldToConfirm(enabled bool) TutorialWizardNodeBuilder {
+	return b.prop("nextHoldToConfirm", VBool(enabled))
+}
+
+func (b TutorialWizardNodeBuilder) NextColor(color Color) TutorialWizardNodeBuilder {
+	return b.prop("nextColor", VColor(color))
+}
+
+func (b TutorialWizardNodeBuilder) NextBusy(bindPath string) TutorialWizardNodeBuilder {
+	return b.prop("nextBusyPath", VString(bindPath))
+}
+
+func (b TutorialWizardNodeBuilder) NextDisabledWhen(bindPath string) TutorialWizardNodeBuilder {
+	return b.prop("nextDisabledPath", VString(bindPath))
+}
+
+func (b TutorialWizardNodeBuilder) OnPrevious(handler UiEventHandlerSimple) TutorialWizardNodeBuilder {
+	return b.action("previous", handler)
+}
+
+func (b TutorialWizardNodeBuilder) OnNext(handler UiEventHandlerSimple) TutorialWizardNodeBuilder {
+	return b.action("next", handler)
+}
+
+func (b TutorialWizardNodeBuilder) action(name string, handler UiEventHandlerSimple) TutorialWizardNodeBuilder {
+	action := UiNode{
+		Id:        b.node.Id + "-" + name,
+		Component: "tutorial_wizard_action",
+	}
+	b.actionNodes = append(b.actionNodes, action.On(UiEventClick, handler))
+	return b
+}
+
+func (b TutorialWizardNodeBuilder) prop(key string, value Value) TutorialWizardNodeBuilder {
+	if b.node.Props == nil {
+		b.node.Props = map[string]Value{}
+	}
+	b.node.Props[key] = value
+	return b
+}
+
+func (b TutorialWizardNodeBuilder) Children(children ...UiNode) UiNode {
+	all := make([]UiNode, 0, len(children)+len(b.actionNodes))
+	all = append(all, children...)
+	all = append(all, b.actionNodes...)
+	b.node.ChildNodes = all
+	return b.node
 }

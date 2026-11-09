@@ -1,13 +1,19 @@
 package ucxsvc
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	accapi "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -31,12 +37,11 @@ type Stack struct {
 }
 
 const (
-	stackLabelInstance    = "ucloud.dk/stackinstance"
-	stackLabelStateFolder = "ucloud.dk/stack-state-folder"
-	stackDataMaxBytes     = 64*1024 - 1
-	ucxAppNameEnv         = "UCLOUD_UCX_APP_NAME"
-	ucxAppVersionEnv      = "UCLOUD_UCX_APP_VERSION"
-	ucxVmServiceUid       = 11042
+	stackDataMaxBytes       = 64*1024 - 1
+	stackDataAtomicMaxBytes = 1024*1024 - 1
+	ucxAppNameEnv           = "UCLOUD_UCX_APP_NAME"
+	ucxAppVersionEnv        = "UCLOUD_UCX_APP_VERSION"
+	ucxVmServiceUid         = 11042
 )
 
 type UcxCustomUiServiceInit struct {
@@ -62,15 +67,47 @@ func (s *Stack) Mount() orcapi.AppParameterValue {
 	return mount
 }
 
+func StackSubtreeMount(stack *Stack, relPath string, mountPath string, readOnly bool) orcapi.AppParameterValue {
+	if stack == nil || !stack.Ok || stack.baseMount.Type != orcapi.AppParameterValueTypeFile {
+		return orcapi.AppParameterValue{}
+	}
+
+	trimmed := strings.TrimSpace(relPath)
+	if trimmed == "" || filepath.IsAbs(trimmed) || strings.HasPrefix(trimmed, "~") || strings.Contains(trimmed, "\x00") {
+		return orcapi.AppParameterValue{}
+	}
+
+	cleaned := filepath.Clean(trimmed)
+	if cleaned == "." || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+		return orcapi.AppParameterValue{}
+	}
+
+	basePath := strings.TrimSuffix(stack.baseMount.Path, "/")
+	cleaned = strings.TrimPrefix(cleaned, "./")
+	if cleaned == "" {
+		return orcapi.AppParameterValue{}
+	}
+
+	if strings.Contains(mountPath, "\x00") {
+		return orcapi.AppParameterValue{}
+	}
+
+	return orcapi.AppParameterValueFileWithMountPath(
+		basePath+"/"+cleaned,
+		readOnly,
+		mountPath,
+	)
+}
+
 var stackResourceLabelsToKeep = map[string]util.Empty{
-	"ucloud.dk/stack":              {},
-	"ucloud.dk/stackname":          {},
-	"ucloud.dk/stackinstance":      {},
-	"ucloud.dk/stack-state-folder": {},
+	orcapi.ResourceLabelStack:            {},
+	orcapi.ResourceLabelStackName:        {},
+	orcapi.ResourceLabelStackInstance:    {},
+	orcapi.ResourceLabelStackStateFolder: {},
 }
 
 func StackFromJob(app ucx.Application, job orcapi.Job) (*Stack, bool) {
-	instanceId := strings.TrimSpace(job.Specification.Labels[stackLabelInstance])
+	instanceId := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackInstance])
 	if instanceId == "" {
 		return &Stack{}, false
 	}
@@ -82,7 +119,7 @@ func StackFromJob(app ucx.Application, job orcapi.Job) (*Stack, bool) {
 		}
 	}
 
-	stateFolder := strings.TrimSpace(job.Specification.Labels[stackLabelStateFolder])
+	stateFolder := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackStateFolder])
 	mountPath := stackFindMountPath(job)
 
 	mount := orcapi.AppParameterValue{}
@@ -103,7 +140,7 @@ func StackFromJob(app ucx.Application, job orcapi.Job) (*Stack, bool) {
 func stackFindMountPath(job orcapi.Job) string {
 	const defaultMountPath = "/etc/ucloud-stack"
 
-	stackPath := strings.TrimSpace(job.Specification.Labels[stackLabelStateFolder])
+	stackPath := strings.TrimSpace(job.Specification.Labels[orcapi.ResourceLabelStackStateFolder])
 
 	for _, parameter := range job.Specification.Parameters {
 		if parameter.Type != orcapi.AppParameterValueTypeFile {
@@ -129,40 +166,77 @@ func stackFindMountPath(job orcapi.Job) string {
 		}
 	}
 
-	for _, parameter := range job.Specification.Parameters {
-		if parameter.Type == orcapi.AppParameterValueTypeFile {
-			if mountPath := strings.TrimSpace(parameter.MountPath); mountPath != "" {
-				return mountPath
-			}
-		}
-	}
-
-	for _, resource := range job.Specification.Resources {
-		if resource.Type == orcapi.AppParameterValueTypeFile {
-			if mountPath := strings.TrimSpace(resource.MountPath); mountPath != "" {
-				return mountPath
-			}
-		}
-	}
-
 	return defaultMountPath
 }
 
 func StackCreate(app ucx.Application, id string, stackType string) (*Stack, bool) {
+	stack, failure := stackCreate(app, id, stackType, false)
+	if failure != "" {
+		UiSendFailure(app, failure)
+	}
+	return stack, failure == ""
+}
+
+func StackCreateWithDrive(app ucx.Application, id string, stackType string) (*Stack, bool) {
+	stack, failure := stackCreate(app, id, stackType, true)
+	if failure != "" {
+		UiSendFailure(app, failure)
+	}
+	return stack, failure == ""
+}
+
+func StackCreateWithDriveEx(app ucx.Application, id string, stackType string) (*Stack, string) {
+	return stackCreate(app, id, stackType, true)
+}
+
+func stackCreate(app ucx.Application, id string, stackType string, createDrive bool) (*Stack, string) {
 	session := *app.Session()
 	ok, err := ucxapi.StackAvailable.Invoke(session, fndapi.FindByStringId{Id: id})
 	if err != nil {
-		UiSendFailure(app, "Unable to start application stack, try again later.")
-		return &Stack{}, false
+		return &Stack{}, "Could not check whether this application name is available. Try again later."
 	} else if !ok {
-		UiSendFailure(app, "An application stack with this name already exists, try another.")
-		return &Stack{}, false
+		return &Stack{}, "An application with this name already exists. Choose another name."
 	} else {
-		stack, err := ucxapi.StackCreate.Invoke(session, ucxapi.StackCreateRequest{StackId: id, StackType: stackType})
+		request := ucxapi.StackCreateRequest{StackId: id, StackType: stackType}
+		if createDrive {
+			products, productErr := ucxapi.DrivesRetrieveProducts.Invoke(session, util.Empty{})
+			if productErr != nil {
+				return &Stack{}, "Could not find storage for this application. Try again later."
+			}
+			product := accapi.ProductReference{}
+			for _, candidate := range products {
+				if candidate.Support.Collection.UsersCanCreate {
+					product = candidate.Product.ToReference()
+					break
+				}
+			}
+			if product == (accapi.ProductReference{}) {
+				return &Stack{}, "No suitable storage is available for this application. Contact your service provider."
+			}
+			drives, driveErr := ucxapi.DrivesCreate.Invoke(session, []orcapi.DriveSpecification{{
+				Title: id,
+				ResourceSpecification: orcapi.ResourceSpecification{
+					Product: product,
+					Labels: map[string]string{
+						orcapi.ResourceLabelStack:         "true",
+						orcapi.ResourceLabelStackName:     stackType,
+						orcapi.ResourceLabelStackInstance: id,
+					},
+				},
+			}})
+			if driveErr != nil || len(drives) != 1 {
+				return &Stack{}, "Could not create storage for this application. Try again or contact your service provider."
+			}
+			request.StateFolder = "/" + drives[0].Id
+		}
+		stack, err := ucxapi.StackCreate.Invoke(session, request)
 		if err != nil {
-			UiSendFailure(app, "Unable to start application stack, try again later.")
-			return &Stack{}, false
+			return &Stack{}, "Could not create the application. Any storage created for it is kept. Contact your service provider if you need help."
 		} else {
+			request.StateFolder = stack.Labels[orcapi.ResourceLabelStackStateFolder]
+			if _, registerErr := ucxapi.StackRegister.Invoke(session, request); registerErr != nil {
+				return &Stack{}, "Could not register the application. Any storage created for it is kept. Contact your service provider if you need help."
+			}
 			return &Stack{
 				InstanceId: id,
 				MountPath:  "/etc/ucloud-stack",
@@ -170,7 +244,7 @@ func StackCreate(app ucx.Application, id string, stackType string) (*Stack, bool
 				baseLabels: stack.Labels,
 				app:        app,
 				Ok:         true,
-			}, true
+			}, ""
 		}
 	}
 }
@@ -185,17 +259,34 @@ func StackWriteFileEx(stack *Stack, path string, data string, mode uint32) {
 	}
 
 	if len(data) <= stackDataMaxBytes {
-		_ = stackDataWriteString(stack, path, data, mode)
+		_ = stackDataWriteString(stack, path, data, mode, false)
 		return
 	}
 
-	_ = stackDataWriteString(stack, path, data[:stackDataMaxBytes], mode)
+	_ = stackDataWriteString(stack, path, data[:stackDataMaxBytes], mode, false)
 	if !stack.Ok {
 		return
 	}
 
 	remaining := []byte(data[stackDataMaxBytes:])
 	_ = stackDataAppendBytesChunked(stack, path, remaining, mode)
+}
+
+func StackWriteFileAtomic(stack *Stack, path string, data string) {
+	StackWriteFileAtomicEx(stack, path, data, 0660)
+}
+
+func StackWriteFileAtomicEx(stack *Stack, path string, data string, mode uint32) {
+	if !stack.Ok {
+		return
+	}
+
+	if len(data) > stackDataAtomicMaxBytes {
+		stack.Ok = false
+		return
+	}
+
+	_ = stackDataWriteString(stack, path, data, mode, true)
 }
 
 func StackWriteFileBytes(stack *Stack, path string, data []byte) {
@@ -207,11 +298,78 @@ func StackWriteFileBytesEx(stack *Stack, path string, data []byte, mode uint32) 
 		return
 	}
 
-	if stackDataWriteString(stack, path, "", mode) != nil {
+	if stackDataWriteString(stack, path, "", mode, false) != nil {
 		return
 	}
 
 	_ = stackDataAppendBytesChunked(stack, path, data, mode)
+}
+
+func StackHeartbeat(stack *Stack) error {
+	if stack == nil || !stack.Ok {
+		return fmt.Errorf("stack is not available")
+	}
+
+	session := *stack.app.Session()
+	_, err := ucxapi.StackHeartbeat.Invoke(session, fndapi.FindByStringId{Id: stack.InstanceId})
+	return err
+}
+
+func StackStartHeartbeat(stack *Stack) (stop func() error, failed func() bool) {
+	if stack == nil {
+		return func() error { return nil }, func() bool { return false }
+	}
+
+	session := *stack.app.Session()
+	instanceId := stack.InstanceId
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	heartbeatErr := error(nil)
+	stopped := sync.Once{}
+
+	go func() {
+		defer close(done)
+
+		ticker := time.NewTicker(20 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				callCtx, callCancel := context.WithTimeout(ctx, 15*time.Second)
+				_, err := ucxapi.StackHeartbeat.InvokeEx(callCtx, session, fndapi.FindByStringId{Id: instanceId})
+				callCancel()
+				if err != nil && !errors.Is(err, context.Canceled) {
+					heartbeatErr = err
+					return
+				}
+			}
+		}
+	}()
+
+	stop = func() error {
+		var err error
+		stopped.Do(func() {
+			cancel()
+			<-done
+			err = heartbeatErr
+		})
+		return err
+	}
+
+	failed = func() bool {
+		select {
+		case <-done:
+			return heartbeatErr != nil
+		default:
+			return false
+		}
+	}
+
+	return stop, failed
 }
 
 func StackOpenFileWriter(stack *Stack, path string) io.Writer {
@@ -220,7 +378,7 @@ func StackOpenFileWriter(stack *Stack, path string) io.Writer {
 
 func StackOpenFileWriterEx(stack *Stack, path string, mode uint32) io.Writer {
 	writer := &stackFileWriter{stack: stack, path: path, mode: mode}
-	if stack.Ok && stackDataWriteString(stack, path, "", mode) == nil {
+	if stack.Ok && stackDataWriteString(stack, path, "", mode, false) == nil {
 		writer.initialized = true
 	}
 	return writer
@@ -239,7 +397,7 @@ func (w *stackFileWriter) Write(data []byte) (int, error) {
 	}
 
 	if !w.initialized {
-		if err := stackDataWriteString(w.stack, w.path, "", w.mode); err != nil {
+		if err := stackDataWriteString(w.stack, w.path, "", w.mode, false); err != nil {
 			return 0, err
 		}
 		w.initialized = true
@@ -258,18 +416,19 @@ func (w *stackFileWriter) Write(data []byte) (int, error) {
 	return written, nil
 }
 
-func stackDataWriteString(stack *Stack, path string, data string, mode uint32) error {
+func stackDataWriteString(stack *Stack, path string, data string, mode uint32, atomicWrite bool) error {
 	session := *stack.app.Session()
 	_, err := ucxapi.StackDataWrite.Invoke(session, ucxapi.StackDataWriteRequest{
 		InstanceId: stack.InstanceId,
 		Path:       path,
 		Data:       data,
 		Perm:       mode,
+		Atomic:     atomicWrite,
 	})
 
 	if err != nil {
 		log.Warn("Could not write file: %s", err)
-		UiSendFailure(stack.app, "Unable start application stack, try again later.")
+		UiSendFailure(stack.app, "Could not save the application data. Try again later.")
 		stack.Ok = false
 		return err
 	}
@@ -307,7 +466,7 @@ func stackDataAppendBytes(stack *Stack, path string, data []byte, mode uint32) e
 
 	if err != nil {
 		log.Warn("Could not write file: %s", err)
-		UiSendFailure(stack.app, "Unable start application stack, try again later.")
+		UiSendFailure(stack.app, "Could not save the application data. Try again later.")
 		stack.Ok = false
 		return err
 	}
@@ -316,18 +475,22 @@ func stackDataAppendBytes(stack *Stack, path string, data []byte, mode uint32) e
 }
 
 func StackWriteInitScript(stack *Stack, initScript string) map[string]string {
+	return StackWriteInitScriptAt(stack, initScript, "", stack.MountPath)
+}
+
+func StackWriteInitScriptAt(stack *Stack, initScript string, dir string, mountPath string) map[string]string {
 	if !stack.Ok {
 		return map[string]string{}
 	}
 
 	initName := fmt.Sprintf(".init-%s.sh", util.SecureToken())
-	StackWriteFileEx(stack, initName, initScript, 0770)
+	StackWriteFileEx(stack, filepath.Join(dir, initName), initScript, 0770)
 	if !stack.Ok {
 		return map[string]string{}
 	}
 
 	return map[string]string{
-		"ucloud.dk/initscript": filepath.Join(stack.MountPath, initName),
+		orcapi.ResourceLabelInitScript: filepath.Join(mountPath, initName),
 	}
 }
 
@@ -342,20 +505,28 @@ func UcxPortLabel(port int) map[string]string {
 		labels["ucloud.dk/ucxAppVersion"] = appVersion
 	}
 	if port > 0 {
-		labels["ucloud.dk/ucxport"] = strconv.Itoa(port)
+		labels[orcapi.ResourceLabelUcxPort] = strconv.Itoa(port)
 	}
 	return labels
 }
 
 func UcxInitCustomUiService(stack *Stack, port int, args string) UcxCustomUiServiceInit {
+	defaultMountPath := ""
+	if stack != nil {
+		defaultMountPath = stack.MountPath
+	}
+	return UcxInitCustomUiServiceAt(stack, port, args, "", defaultMountPath)
+}
+
+func UcxInitCustomUiServiceAt(stack *Stack, port int, args string, dir string, mountPath string) UcxCustomUiServiceInit {
 	result := UcxCustomUiServiceInit{Labels: UcxPortLabel(port)}
 	if stack == nil || !stack.Ok {
 		return result
 	}
 
 	runnerName := fmt.Sprintf(".ucx-custom-ui-%s.sh", util.SecureToken())
-	runnerPath := filepath.Join(stack.MountPath, runnerName)
-	StackWriteFileEx(stack, runnerName, ucxCustomUiRunnerScript(port, args), 0770)
+	runnerPath := filepath.Join(mountPath, runnerName)
+	StackWriteFileEx(stack, filepath.Join(dir, runnerName), ucxCustomUiRunnerScript(port, args), 0770)
 	if !stack.Ok {
 		return result
 	}
@@ -386,7 +557,7 @@ file_state() {
     printf 'missing'
     return
   fi
-  sha256sum "$WATCHED" | cut -d ' ' -f 1
+  stat -c '%%s %%Y' "$WATCHED"
 }
 
 export UCX_PORT=%d
@@ -451,14 +622,29 @@ systemctl enable --now ucloud-ucx-custom-ui.service
 `, ucxVmServiceUid, ucxVmServiceUid, orcapi.EscapeBash(runnerPath))
 }
 
-func StackConfirmAndOpen(stack *Stack) {
+func StackConfirm(stack *Stack) error {
 	if !stack.Ok {
-		return
+		return fmt.Errorf("stack is not available")
 	}
 	session := *stack.app.Session()
 
-	_, _ = ucxapi.StackConfirm.Invoke(session, fndapi.FindByStringId{Id: stack.InstanceId})
-	_, _ = ucxapi.StackOpen.Invoke(session, fndapi.FindByStringId{Id: stack.InstanceId})
+	_, err := ucxapi.StackConfirm.Invoke(session, fndapi.FindByStringId{Id: stack.InstanceId})
+	return err
+}
+
+func StackConfirmAndOpen(stack *Stack) error {
+	if !stack.Ok {
+		return fmt.Errorf("stack is not available")
+	}
+	session := *stack.app.Session()
+
+	if _, err := ucxapi.StackConfirm.Invoke(session, fndapi.FindByStringId{Id: stack.InstanceId}); err != nil {
+		stack.Ok = false
+		return err
+	}
+
+	_, err := ucxapi.StackOpen.Invoke(session, fndapi.FindByStringId{Id: stack.InstanceId})
+	return err
 }
 
 // Public IPs
@@ -499,37 +685,75 @@ func PublicIpCreate(stack *Stack) orcapi.AppParameterValue {
 // =====================================================================================================================
 
 type PublicLinkCreateOptions struct {
-	Port util.Option[int]
-	TLS  bool
+	Port          util.Option[int]
+	TLS           bool
+	ServiceTarget util.Option[orcapi.PublicLinkServiceTarget]
 }
 
+type PublicLinkReference struct {
+	Id         string
+	Domain     string
+	Attachment orcapi.AppParameterValue
+}
+
+var (
+	errPublicLinkNoProduct = errors.New("no public link product is available")
+	ErrPublicLinkNameTaken = errors.New("the public link name is already taken")
+)
+
 func PublicLinkCreate(stack *Stack, name string, options PublicLinkCreateOptions) orcapi.AppParameterValue {
-	if !stack.Ok {
+	reference, err := PublicLinkCreateEx(stack, name, options)
+	if err != nil {
+		if stack != nil && stack.Ok {
+			stack.Ok = false
+			message := fmt.Sprintf("Could not create a public link: %s", err)
+			if errors.Is(err, errPublicLinkNoProduct) {
+				message = "This application requires a public link, but none is available. Contact your service provider."
+			}
+			UiSendFailure(stack.app, message)
+		}
 		return orcapi.AppParameterValue{}
+	}
+	return reference.Attachment
+}
+
+func PublicLinkCreateEx(stack *Stack, name string, options PublicLinkCreateOptions) (PublicLinkReference, error) {
+	if stack == nil || !stack.Ok {
+		return PublicLinkReference{}, errors.New("the stack is not available")
 	}
 
 	session := *stack.app.Session()
-	linkProducts, _ := ucxapi.PublicLinksRetrieveProducts.Invoke(session, util.Empty{})
+	linkProducts, err := ucxapi.PublicLinksRetrieveProducts.Invoke(session, util.Empty{})
+	if err != nil {
+		return PublicLinkReference{}, fmt.Errorf("could not retrieve the public link products: %s", err)
+	}
 	if len(linkProducts) == 0 {
-		stack.Ok = false
-		UiSendFailure(stack.app, "Could not find a suitable public link product, but this stack requires it.")
-		return orcapi.AppParameterValue{}
+		return PublicLinkReference{}, errPublicLinkNoProduct
 	}
 
+	domain := fmt.Sprintf("%s%s%s", linkProducts[0].Support.Prefix, name, linkProducts[0].Support.Suffix)
 	links, err := ucxapi.PublicLinksCreate.Invoke(session, []orcapi.IngressSpecification{
 		{
-			Domain: fmt.Sprintf("%s%s%s", linkProducts[0].Support.Prefix, name, linkProducts[0].Support.Suffix),
+			Domain: domain,
 			ResourceSpecification: orcapi.ResourceSpecification{
 				Product: linkProducts[0].Product.ToReference(),
 				Labels:  stack.Labels(),
 			},
 		},
 	})
-
-	if len(links) == 0 || err != nil {
-		stack.Ok = false
-		UiSendFailure(stack.app, fmt.Sprintf("Could not create a link! %s", err))
-		return orcapi.AppParameterValue{}
+	if err != nil {
+		message := strings.ToLower(err.Error())
+		nameTaken := strings.Contains(message, "not unique") ||
+			strings.Contains(message, "already in use") ||
+			strings.Contains(message, "already taken") ||
+			strings.Contains(message, "already exists")
+		if nameTaken {
+			return PublicLinkReference{}, fmt.Errorf("%w: %s", ErrPublicLinkNameTaken, err)
+		}
+		return PublicLinkReference{}, err
+	}
+	if len(links) == 0 {
+		return PublicLinkReference{}, errors.New("the public link was not created")
 	}
 
 	result := orcapi.AppParameterValueIngress(links[0].Id)
@@ -537,27 +761,184 @@ func PublicLinkCreate(stack *Stack, name string, options PublicLinkCreateOptions
 		result.Port = options.Port.Value
 	}
 	result.TLS = options.TLS
-	return result
+	if options.ServiceTarget.Present {
+		_, err = ucxapi.PublicLinksSetTarget.Invoke(session, fndapi.BulkRequestOf(orcapi.IngressesSetTargetRequest{
+			Id:     links[0].Id,
+			Target: options.ServiceTarget,
+		}))
+		if err != nil {
+			return PublicLinkReference{}, fmt.Errorf("could not connect the public link to the service: %s", err)
+		}
+	}
+
+	return PublicLinkReference{
+		Id:         links[0].Id,
+		Domain:     strings.ToLower(domain),
+		Attachment: result,
+	}, nil
+}
+
+// Services
+// =====================================================================================================================
+
+type ServiceReference struct {
+	Id string
+}
+
+func ServiceCreate(stack *Stack, name string, ports []orcapi.ServicePort, internalNetworkId util.Option[string]) ServiceReference {
+	if stack == nil || !stack.Ok {
+		return ServiceReference{}
+	}
+
+	session := *stack.app.Session()
+	products, _ := ucxapi.ServicesRetrieveProducts.Invoke(session, util.Empty{})
+	if len(products) == 0 {
+		stack.Ok = false
+		UiSendFailure(stack.app, "This application requires a service, but none is available. Contact your service provider.")
+		return ServiceReference{}
+	}
+
+	spec := orcapi.ServiceSpecification{
+		Name:  name,
+		Ports: ports,
+		ResourceSpecification: orcapi.ResourceSpecification{
+			Product: products[0].Product.ToReference(),
+			Labels:  stack.Labels(),
+		},
+	}
+
+	if internalNetworkId.Present {
+		spec.InternalEndpoint = util.OptValue(orcapi.ServiceInternalEndpointSpec{
+			PrivateNetworkId: internalNetworkId.Value,
+		})
+	}
+
+	services, err := ucxapi.ServicesCreate.Invoke(session, []orcapi.ServiceSpecification{spec})
+	if len(services) == 0 || err != nil {
+		stack.Ok = false
+		message := "Could not create a service. Try again or contact your service provider."
+		if err != nil {
+			message = fmt.Sprintf("Could not create a service: %s", err)
+		}
+		UiSendFailure(stack.app, message)
+		return ServiceReference{}
+	}
+
+	return ServiceReference{Id: services[0].Id}
+}
+
+func ServiceAddMembers(stack *Stack, serviceId string, jobIds []string) bool {
+	if stack == nil || !stack.Ok {
+		return false
+	}
+
+	session := *stack.app.Session()
+	_, err := ucxapi.ServicesAddMembers.Invoke(session, fndapi.BulkRequestOf(orcapi.ServicesMembersRequest{
+		Id:     serviceId,
+		JobIds: jobIds,
+	}))
+	if err != nil {
+		stack.Ok = false
+		UiSendFailure(stack.app, fmt.Sprintf("Could not connect jobs to the service: %s", err))
+		return false
+	}
+
+	return true
+}
+
+func ServiceWaitReady(stack *Stack, serviceId string, timeout time.Duration) (bool, string) {
+	if stack == nil || !stack.Ok {
+		return false, ""
+	}
+
+	session := *stack.app.Session()
+	deadline := time.Now().Add(timeout)
+	for {
+		service, err := ucxapi.ServicesRetrieve.Invoke(session, orcapi.ServicesRetrieveRequest{Id: serviceId})
+		if err == nil && service.Status.ProvisioningState == string(orcapi.ServiceStateReady) {
+			dnsName := ""
+			if service.Status.InternalEndpoint.Present {
+				dnsName = service.Status.InternalEndpoint.Value.DnsName
+			}
+			return true, dnsName
+		}
+
+		if time.Now().After(deadline) {
+			return false, ""
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+}
+
+func PublicLinkSetTarget(stack *Stack, linkId string, target util.Option[orcapi.PublicLinkServiceTarget]) bool {
+	if stack == nil || !stack.Ok {
+		return false
+	}
+
+	session := *stack.app.Session()
+	_, err := ucxapi.PublicLinksSetTarget.Invoke(session, fndapi.BulkRequestOf(orcapi.IngressesSetTargetRequest{
+		Id:     linkId,
+		Target: target,
+	}))
+	if err != nil {
+		stack.Ok = false
+		UiSendFailure(stack.app, fmt.Sprintf("Could not connect the public link to the service: %s", err))
+		return false
+	}
+
+	return true
 }
 
 // Private networks
 // =====================================================================================================================
 
+type PrivateNetworkReference struct {
+	Id         string
+	Attachment orcapi.AppParameterValue
+}
+
 func PrivateNetworkCreate(stack *Stack, name string) orcapi.AppParameterValue {
+	reference, ok := PrivateNetworkCreateEx(stack, name)
+	if !ok {
+		return orcapi.AppParameterValue{}
+	}
+	return reference.Attachment
+}
+
+func PrivateNetworkCreateEx(stack *Stack, name string) (PrivateNetworkReference, bool) {
+	return PrivateNetworkCreateWithCidr(stack, name, util.OptNone[string]())
+}
+
+func PrivateNetworkCreateWithCidr(stack *Stack, name string, cidr util.Option[string]) (PrivateNetworkReference, bool) {
+	if stack == nil || !stack.Ok {
+		return PrivateNetworkReference{}, false
+	}
+
 	session := *stack.app.Session()
 	products, _ := ucxapi.PrivateNetworksRetrieveProducts.Invoke(session, util.Empty{})
-	if len(products) == 0 {
+	var networkProduct accapi.ProductReference
+	foundEthernetProduct := false
+	for _, product := range products {
+		if product.Support.EffectiveType() == orcapi.NetworkTypeEthernet {
+			networkProduct = product.Product.ToReference()
+			foundEthernetProduct = true
+			break
+		}
+	}
+	if !foundEthernetProduct {
 		stack.Ok = false
-		UiSendFailure(stack.app, "Could not find a suitable private network product, but this stack requires it.")
-		return orcapi.AppParameterValue{}
+		UiSendFailure(stack.app, "This application requires a private network, but none is available. Contact your service provider.")
+		return PrivateNetworkReference{}, false
 	}
 
 	networks, err := ucxapi.PrivateNetworksCreate.Invoke(session, []orcapi.PrivateNetworkSpecification{
 		{
-			Name:      name,
-			Subdomain: fmt.Sprintf("net-%s", util.RandomTokenNoTs(4)),
+			Name: name,
+			Type: orcapi.NetworkTypeEthernet,
+			Cidr: cidr,
 			ResourceSpecification: orcapi.ResourceSpecification{
-				Product: products[0].Product.ToReference(),
+				Product: networkProduct,
 				Labels:  stack.Labels(),
 			},
 		},
@@ -565,11 +946,125 @@ func PrivateNetworkCreate(stack *Stack, name string) orcapi.AppParameterValue {
 
 	if len(networks) == 0 || err != nil {
 		stack.Ok = false
-		UiSendFailure(stack.app, fmt.Sprintf("Could not create a network! %s", err))
-		return orcapi.AppParameterValue{}
+		message := "Could not create a private network. Try again or contact your service provider."
+		if err != nil {
+			message = fmt.Sprintf("Could not create a private network: %s", err)
+		}
+		UiSendFailure(stack.app, message)
+		return PrivateNetworkReference{}, false
 	}
 
-	return orcapi.AppParameterValuePrivateNetwork(networks[0].Id)
+	return PrivateNetworkReference{
+		Id:         networks[0].Id,
+		Attachment: orcapi.AppParameterValuePrivateNetwork(networks[0].Id),
+	}, true
+}
+
+type PrivateNetworkIpReservation struct {
+	Id        string
+	IpAddress string
+}
+
+func PrivateNetworkIpReserve(stack *Stack, networkId string, ip string) (PrivateNetworkIpReservation, error) {
+	if stack == nil || !stack.Ok {
+		return PrivateNetworkIpReservation{}, fmt.Errorf("stack is not available")
+	}
+
+	session := *stack.app.Session()
+	products, _ := ucxapi.PrivateNetworkIpsRetrieveProducts.Invoke(session, util.Empty{})
+	if len(products) == 0 {
+		return PrivateNetworkIpReservation{}, fmt.Errorf("no private network ip product is available")
+	}
+
+	reservations, err := ucxapi.PrivateNetworkIpsCreate.Invoke(session, []orcapi.PrivateNetworkIpSpecification{
+		{
+			Network:   networkId,
+			IpAddress: util.OptValue(ip),
+			ResourceSpecification: orcapi.ResourceSpecification{
+				Product: products[0].Product.ToReference(),
+				Labels:  stack.Labels(),
+			},
+		},
+	})
+
+	if len(reservations) == 0 && err == nil {
+		err = fmt.Errorf("the private network ip reservation returned no result")
+	}
+
+	if err != nil {
+		return PrivateNetworkIpReservation{}, err
+	}
+
+	reservationId := reservations[0].Id
+	reservedIp := ""
+	deadline := time.Now().Add(15 * time.Second)
+	for {
+		current, retrieveErr := ucxapi.PrivateNetworkIpsRetrieve.Invoke(session, orcapi.PrivateNetworkIpsRetrieveRequest{Id: reservationId})
+		if retrieveErr != nil {
+			err = retrieveErr
+			break
+		}
+
+		reservedIp = current.Status.IpAddress.GetOrDefault("")
+		if reservedIp != "" {
+			break
+		}
+
+		if time.Now().After(deadline) {
+			err = fmt.Errorf("the private network ip reservation did not report an address")
+			break
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+
+	if err == nil && reservedIp != ip {
+		err = fmt.Errorf("the private network ip reservation returned %s, but %s was requested", reservedIp, ip)
+	}
+
+	if err != nil {
+		return PrivateNetworkIpReservation{Id: reservationId}, err
+	}
+
+	return PrivateNetworkIpReservation{
+		Id:        reservationId,
+		IpAddress: reservedIp,
+	}, nil
+}
+
+func PrivateNetworkIpReserveRetry(stack *Stack, networkId string, ip string, timeout time.Duration) (PrivateNetworkIpReservation, error) {
+	deadline := time.Now().Add(timeout)
+
+	for {
+		reservation, err := PrivateNetworkIpReserve(stack, networkId, ip)
+		if err == nil {
+			return reservation, nil
+		}
+
+		if reservation.Id != "" {
+			return reservation, err
+		}
+
+		message := err.Error()
+		knownReadinessRejection := strings.Contains(message, "The private network is not ready for reservations yet") ||
+			strings.Contains(message, "the network is not ready for ip reservations yet")
+
+		if !knownReadinessRejection || time.Now().After(deadline) {
+			return reservation, err
+		}
+
+		time.Sleep(2 * time.Second)
+	}
+}
+
+func PrivateNetworkIpDelete(stack *Stack, reservationId string) error {
+	if stack == nil {
+		return fmt.Errorf("stack is not available")
+	}
+
+	session := *stack.app.Session()
+	_, err := ucxapi.PrivateNetworkIpsDelete.Invoke(session, []string{reservationId})
+	return err
 }
 
 // Jobs
@@ -593,6 +1088,43 @@ func JobCreate(stack *Stack, spec orcapi.JobSpecification) string {
 	}
 }
 
+func JobCreateJob(stack *Stack, spec orcapi.JobSpecification) (orcapi.Job, error) {
+	if !stack.Ok {
+		return orcapi.Job{}, fmt.Errorf("stack is not available")
+	}
+
+	session := *stack.app.Session()
+
+	spec.Labels = util.MapMerge(spec.Labels, stack.Labels())
+	resp, serr := ucxapi.JobsCreate.Invoke(session, []orcapi.JobSpecification{spec})
+	if serr != nil {
+		return orcapi.Job{}, serr
+	}
+	if len(resp) == 0 {
+		return orcapi.Job{}, fmt.Errorf("no job was created")
+	}
+	return resp[0], nil
+}
+
+func JobRetrieve(stack *Stack, jobId string) (orcapi.Job, error) {
+	if stack == nil || !stack.Ok {
+		return orcapi.Job{}, fmt.Errorf("stack is not available")
+	}
+
+	session := *stack.app.Session()
+	return ucxapi.JobsRetrieve.Invoke(session, orcapi.JobsRetrieveRequest{Id: jobId})
+}
+
+func JobTerminate(stack *Stack, jobId string) error {
+	if stack == nil {
+		return fmt.Errorf("stack is not available")
+	}
+
+	session := *stack.app.Session()
+	_, err := ucxapi.JobsTerminate.Invoke(session, fndapi.BulkRequestOf(fndapi.FindByStringId{Id: jobId}))
+	return err
+}
+
 type VirtualMachineSpec struct {
 	Labels         map[string]string
 	Product        accapi.ProductReference
@@ -609,6 +1141,15 @@ func VirtualMachineCreate(stack *Stack, spec VirtualMachineSpec) string {
 		attachments = append(attachments, stack.Mount())
 	}
 
+	spec.Attachments = attachments
+	return VirtualMachineCreateNoMount(stack, spec)
+}
+
+func VirtualMachineCreateNoMount(stack *Stack, spec VirtualMachineSpec) string {
+	if !stack.Ok {
+		return "0"
+	}
+
 	return JobCreate(stack, orcapi.JobSpecification{
 		ResourceSpecification: orcapi.ResourceSpecification{
 			Product: spec.Product,
@@ -621,14 +1162,14 @@ func VirtualMachineCreate(stack *Stack, spec VirtualMachineSpec) string {
 			"diskSize": orcapi.AppParameterValueInteger(int64(spec.DiskSize.GetOrDefault(50))),
 		},
 		Replicas:  1,
-		Resources: attachments,
+		Resources: spec.Attachments,
 	})
 }
 
 var (
-	VmImageUbuntu24_04 = orcapi.NameAndVersion{
+	VmImageUbuntu26_04 = orcapi.NameAndVersion{
 		Name:    "vm-ubuntu",
-		Version: "24.04",
+		Version: "26.04",
 	}
 )
 
@@ -637,12 +1178,33 @@ var (
 
 func UiSendFailure(app ucx.Application, message string) {
 	session := *app.Session()
-	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{Message: message, Success: false})
+	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{
+		Message: message,
+		Success: false,
+		Level:   ucxapi.UiMessageLevelFailure,
+	})
 }
 
 func UiSendSuccess(app ucx.Application, message string) {
 	session := *app.Session()
-	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{Message: message, Success: true})
+	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{
+		Message: message,
+		Success: true,
+		Level:   ucxapi.UiMessageLevelSuccess,
+	})
+}
+
+func UiSendProgress(app ucx.Application, message string) {
+	if !ucx.AppHeadless(app) {
+		return
+	}
+
+	session := *app.Session()
+	_, _ = ucxapi.UiSendMessage.Invoke(session, ucxapi.UiSendMessageRequest{
+		Message: message,
+		Success: true,
+		Level:   ucxapi.UiMessageLevelProgress,
+	})
 }
 
 func StackCopyFile(stack *Stack, fileName string) {
@@ -663,7 +1225,73 @@ func StackDownloadFile(stack *Stack, fileName string) {
 	_, _ = ucxapi.StackDownloadFile.Invoke(session, ucxapi.StackDownloadFileRequest{FileName: fileName})
 }
 
+func StackDelete(app ucx.Application) {
+	session := *app.Session()
+	_, _ = ucxapi.StackDelete.Invoke(session, util.Empty{})
+}
+
+func StackShowResources(app ucx.Application) {
+	session := *app.Session()
+	_, _ = ucxapi.StackShowResources.Invoke(session, util.Empty{})
+}
+
 func RouterPushPage(app ucx.Application, path string) {
 	session := *app.Session()
 	_, _ = ucxapi.RouterPushPage.Invoke(session, ucxapi.RouterPushPageRequest{Path: path})
+}
+
+func RequestProviderSwitch(app ucx.Application, provider string, handoff any) error {
+	session := *app.Session()
+	if session == nil {
+		return fmt.Errorf("ucx: session is not available")
+	}
+
+	encoded, err := json.Marshal(handoff)
+	if err != nil {
+		return err
+	}
+
+	var handoffMap map[string]any
+	if err := json.Unmarshal(encoded, &handoffMap); err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err = ucxapi.SwitchProvider.InvokeEx(ctx, session, ucxapi.SwitchProviderRequest{
+		Provider: provider,
+		Handoff:  handoffMap,
+	})
+	return err
+}
+
+func OpenUrl(app ucx.Application, target string) {
+	resolved := target
+	if strings.HasPrefix(target, "/") {
+		resolved = path.Clean("/" + target)
+	} else if !strings.HasPrefix(target, "https://") {
+		return
+	}
+
+	session := *app.Session()
+	_, _ = ucxapi.OpenUrl.Invoke(session, ucxapi.OpenUrlRequest{Path: resolved})
+}
+
+func TerminalOpenShellToJob(app ucx.Application, jobId string, rank int, command string, clearAfter bool) {
+	TerminalOpenShellToJobEx(app, ucxapi.TerminalOpenShellToJobRequest{
+		JobId:      jobId,
+		Rank:       rank,
+		Command:    command,
+		ClearAfter: clearAfter,
+	})
+}
+
+func TerminalOpenShellToJobEx(app ucx.Application, request ucxapi.TerminalOpenShellToJobRequest) {
+	if request.JobId == "" {
+		return
+	}
+
+	session := *app.Session()
+	_, _ = ucxapi.TerminalOpenShellToJob.Invoke(session, request)
 }

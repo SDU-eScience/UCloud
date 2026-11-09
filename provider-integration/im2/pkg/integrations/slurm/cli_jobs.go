@@ -414,7 +414,7 @@ func HandleJobsCommandServer() {
 				}
 
 				if r.Payload.IncludeSlurmStats {
-					elem.SlurmJob = SlurmClient.JobQuery(slurmInfo.SlurmId)
+					elem.SlurmJob, _ = SlurmClient.JobQuery(slurmInfo.SlurmId)
 				}
 
 				jobs = append(jobs, elem)

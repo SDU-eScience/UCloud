@@ -29,6 +29,8 @@ export interface RetrieveInviteLinkInfoResponse {
     token: string;
     project: Project;
     isMember: boolean;
+    roleAssignment?: ProjectRole;
+    expires?: number;
 }
 
 interface DeleteInviteLinkRequest {

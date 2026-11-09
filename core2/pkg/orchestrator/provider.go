@@ -229,7 +229,7 @@ func initProviderManagement() {
 
 	orcapi.ProviderUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
 		for _, reqItem := range request.Items {
-			err := ResourceUpdateLabels(info.Actor, providerType, reqItem.Id, reqItem.Labels, orcapi.PermissionEdit)
+			err := resourceUpdateLabelsFillReserved(info.Actor, providerType, reqItem.Id, reqItem.Labels, orcapi.PermissionEdit)
 			if err != nil {
 				return util.Empty{}, err
 			}

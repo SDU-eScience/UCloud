@@ -1,8 +1,8 @@
 import * as React from "react";
-import {Flex, Input} from "@/ui-components";
+import {Flex, Input, Select} from "@/ui-components";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {findElement, widgetId, WidgetProps, WidgetSetProvider, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
-import {useCallback, useLayoutEffect} from "react";
+import {useCallback, useEffect, useLayoutEffect} from "react";
 import {compute} from "@/UCloud";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {callAPI, noopCall} from "@/Authentication/DataHook";
@@ -11,13 +11,76 @@ import {checkProviderMismatch} from "../Create";
 import {PrivateNetworkBrowse} from "@/Applications/PrivateNetwork/PrivateNetworkBrowse";
 import {ApplicationParameterNS} from "@/Applications/AppStoreApi";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {retrieveNetworkReservations} from "@/Applications/PrivateNetwork/Reservations";
+import {privateNetworkTypeFromNetwork} from "@/Applications/PrivateNetwork/types";
+import {
+    privateNetworkEthernetProductId,
+    retrievePrivateNetworkSupport,
+    retrievePrivateNetworkSupportFromCache,
+} from "@/Applications/PrivateNetwork/support";
+import {useProjectId} from "@/Project/Api";
+
+type PrivateNetworkParameterType = ApplicationParameterNS.PrivateNetwork | ApplicationParameterNS.UCloudNetwork;
+type PrivateNetworkValue = AppParameterValueNS.PrivateNetwork | AppParameterValueNS.UCloudNetwork;
 
 interface PrivateNetworkProps extends WidgetProps {
-    parameter: ApplicationParameterNS.PrivateNetwork;
+    parameter: PrivateNetworkParameterType;
 }
 
 export const PrivateNetworkParameter: React.FunctionComponent<PrivateNetworkProps> = props => {
     const error = props.errors[props.parameter.name] != null;
+    const [addresses, setAddresses] = React.useState<string[]>([]);
+    const [selectedIp, setSelectedIp] = React.useState("");
+    const [networkSelected, setNetworkSelected] = React.useState(false);
+    const isVirtualMachine = props.application.invocation.tool.tool?.description.backend === "VIRTUAL_MACHINE";
+    const projectId = useProjectId();
+    const [ethernetProductId, setEthernetProductId] = React.useState<string | undefined>(() => {
+        if (!isVirtualMachine) return undefined;
+        const support = retrievePrivateNetworkSupportFromCache(projectId ?? "");
+        return support ? privateNetworkEthernetProductId(support, props.provider) : undefined;
+    });
+
+    useEffect(() => {
+        if (!isVirtualMachine) {
+            setEthernetProductId(undefined);
+            return;
+        }
+
+        let active = true;
+        const supportProjectId = projectId ?? "";
+        const cached = retrievePrivateNetworkSupportFromCache(supportProjectId);
+        if (cached) setEthernetProductId(privateNetworkEthernetProductId(cached, props.provider));
+
+        retrievePrivateNetworkSupport(supportProjectId).then(support => {
+            if (active) setEthernetProductId(privateNetworkEthernetProductId(support, props.provider));
+        }).catch(() => {
+        });
+
+        return () => {
+            active = false;
+        };
+    }, [isVirtualMachine, props.provider, projectId]);
+
+    const filters = React.useMemo(() => {
+        const f: Record<string, string> = {};
+        if (props.provider) f["filterProvider"] = props.provider;
+        if (isVirtualMachine && ethernetProductId) f["filterProductId"] = ethernetProductId;
+        return f;
+    }, [props.provider, isVirtualMachine, ethernetProductId]);
+
+    const onUse = useCallback((network: PrivateNetwork) => {
+        setSelectedIp("");
+        setAddresses([]);
+        const valueType = props.parameter.type as "private_network" | "ucloud_network";
+        PrivateNetworkSetter(props.parameter, {type: valueType, id: network.id});
+        WidgetSetProvider(props.parameter, network.specification.product.provider);
+        props.onValueChange?.();
+        if (props.errors[props.parameter.name]) {
+            delete props.errors[props.parameter.name];
+            props.setErrors({...props.errors});
+        }
+    }, [props.parameter, props.errors, props.onValueChange]);
+
     const doOpen = useCallback(() => {
         dialogStore.addDialog(<PrivateNetworkBrowse
             opts={{
@@ -30,24 +93,17 @@ export const PrivateNetworkParameter: React.FunctionComponent<PrivateNetworkProp
                         dialogStore.success();
                     },
                     show(res) {
-                        const errorMessage = checkProviderMismatch(res, "Private networks");
+                        const errorMessage = checkProviderMismatch(res, "Networks");
                         if (errorMessage) return errorMessage;
+                        if (isVirtualMachine && privateNetworkTypeFromNetwork(res) === "infiniband") {
+                            return "InfiniBand networks cannot be used with virtual machines";
+                        }
                         return true;
                     },
                 }
             }}
         />, noopCall, true, largeModalStyle);
-    }, []);
-
-
-    const onUse = useCallback((network: PrivateNetwork) => {
-        PrivateNetworkSetter(props.parameter, {type: "private_network", id: network.id});
-        WidgetSetProvider(props.parameter, network.specification.product.provider);
-        if (props.errors[props.parameter.name]) {
-            delete props.errors[props.parameter.name];
-            props.setErrors({...props.errors});
-        }
-    }, [props.parameter, props.errors]);
+    }, [filters, isVirtualMachine, onUse]);
 
     const valueInput = () => document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
     const visualInput = () => document.getElementById(widgetId(props.parameter) + "visual") as HTMLInputElement | null;
@@ -57,11 +113,27 @@ export const PrivateNetworkParameter: React.FunctionComponent<PrivateNetworkProp
             const value = valueInput();
             if (value) {
                 const id = value.value;
+                setNetworkSelected(id !== "");
+                if (!id) {
+                    setAddresses([]);
+                    setSelectedIp("");
+                    return;
+                }
                 const network = await callAPI<PrivateNetwork>(PrivateNetworkApi.retrieve({id}));
+                if (value.value !== id) return;
+                setSelectedIp((document.getElementById(widgetId(props.parameter) + "ip") as HTMLInputElement)?.value ?? "");
                 const visual = visualInput();
                 if (visual) {
-                    visual.value = network.specification.name || network.specification.subdomain || network.id;
+                    visual.value = network.specification.name || network.status.subdomain || network.id;
                 }
+                retrieveNetworkReservations(id).then(reservations => {
+                    if (value.value !== id) return;
+                    setAddresses(reservations.flatMap(it =>
+                        it.status.ipAddress && it.permissions.myself.some(permission => permission === "EDIT" || permission === "ADMIN") ?
+                            [it.status.ipAddress] : []));
+                }).catch(() => {
+                    if (value.value === id) setAddresses([]);
+                });
             }
         };
 
@@ -72,40 +144,54 @@ export const PrivateNetworkParameter: React.FunctionComponent<PrivateNetworkProp
         }
     }, []);
 
-    const filters = React.useMemo(() => {
-        const f: Record<string, string> = {};
-        if (props.provider) f["filterProvider"] = props.provider;
-        return f;
-    }, [props.provider]);
-
-    return (<Flex>
+    return (<Flex flexDirection="column" gap="8px" width="100%">
         <Input
             id={widgetId(props.parameter) + "visual"}
-            placeholder={"No private network selected"}
+            placeholder={"No network selected"}
             cursor="pointer"
             error={error}
             onClick={doOpen}
+            readOnly
+            data-field-activator
         />
         <input type="hidden" id={widgetId(props.parameter)} />
+        {!networkSelected ? null : <div>
+            <Select id={widgetId(props.parameter) + "ip-select"} aria-label="Network IP address"
+                value={selectedIp} onChange={e => {
+                setSelectedIp(e.target.value);
+                const input = document.getElementById(widgetId(props.parameter) + "ip") as HTMLInputElement;
+                input.value = e.target.value;
+                props.onValueChange?.();
+            }}>
+                <option value="">Automatic IP</option>
+                {selectedIp && !addresses.includes(selectedIp) ? <option value={selectedIp}>{selectedIp}</option> : null}
+                {addresses.map(ip => <option key={ip} value={ip}>{ip}</option>)}
+            </Select>
+        </div>}
+        <input type="hidden" id={widgetId(props.parameter) + "ip"} />
     </Flex>);
 }
 
 export const PrivateNetworkValidator: WidgetValidator = (param) => {
-    if (param.type === "private_network") {
+    if (param.type === "private_network" || param.type === "ucloud_network") {
         const elem = findElement(param);
         if (elem === null) return {valid: true};
         if (elem.value === "") return {valid: true};
-        return {valid: true, value: {type: "private_network", id: elem.value}};
+        const ip = (document.getElementById(widgetId(param) + "ip") as HTMLInputElement | null)?.value;
+        return {valid: true, value: {type: param.type, id: elem.value, ...(ip ? {ips: [ip]} : {})}};
     }
 
     return {valid: true};
 };
 
 export const PrivateNetworkSetter: WidgetSetter = (param, value) => {
-    if (param.type !== "private_network") return;
+    if (param.type !== "private_network" && param.type !== "ucloud_network") return;
 
     const selector = findElement(param);
     if (selector === null) throw "Missing element for: " + param.name;
-    selector.value = (value as AppParameterValueNS.PrivateNetwork).id;
+    const networkValue = value as PrivateNetworkValue;
+    selector.value = networkValue.id;
+    const ipInput = document.getElementById(widgetId(param) + "ip") as HTMLInputElement | null;
+    if (ipInput) ipInput.value = networkValue.ips?.[0] ?? "";
     selector.dispatchEvent(new Event("change"));
 };

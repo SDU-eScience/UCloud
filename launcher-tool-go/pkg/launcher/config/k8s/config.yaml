@@ -58,6 +58,8 @@ provider:
 services:
   type: Kubernetes
   compute:
+    allowedRegistries: []
+
     web:
       enabled: true
       prefix: "k8s-"
@@ -70,6 +72,21 @@ services:
 
     publicIps:
       enabled: true
+
+    privateNetworks:
+      enabled: true
+      cidrPools:
+        - 100.100.0.0/16
+        - 172.31.0.0/16
+      defaultPrefixLen: 24
+      forbiddenCidrs:
+        - 10.42.0.0/16
+        - 10.43.0.0/16
+        - 100.64.0.0/16
+        - 172.17.0.0/16
+        - 172.18.0.0/16
+        - 172.19.0.0/16
+      maxNetworksPerJob: 4
 
     integratedTerminal:
       enabled: true
@@ -114,22 +131,42 @@ services:
         claimName: cephfs
 
     machines:
-      u1-standard:
+      cpu-amd-zen5:
         nameSuffix: Cpu
 
         cpu: [ 1, 2, 4 ]
         memory: [ 1, 2, 4 ]
 
-        cpuModel: Model
-        memoryModel: Model
+        cpuModel: MaybeAMD 1234
+        memoryModel: DDR5
+        allowVirtualMachines: true
 
         payment:
           type: Resource
           unit: Cpu
           interval: Minutely
 
+    virtualMachines:
+      enabled: false
+      podLevelResources: false
+      storage:
+        type: HostPath
+        hostPath: /mnt/storage
+
   fileSystem:
     name: storage
     mountPoint: /mnt/storage
     trashStagingArea: /mnt/storage/trash
     claimName: cephfs
+
+  registry:
+    enabled: true
+    host: registry.localhost.direct
+    snapshot:
+      containerdSocket: /run/k3s/containerd/containerd.sock
+      containerdNamespace: k8s.io
+      helperImage: dreg.cloud.sdu.dk/ucloud-dev/nerdctl-support:2.3.5
+      deadlineSeconds: 3600
+    secrets:
+      authSharedSecret: <registry-auth-shared-secret>
+      registrySharedSecret: <registry-shared-secret>

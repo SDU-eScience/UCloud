@@ -1,6 +1,6 @@
 import {ProductNetworkIP, productTypeToIcon, ProductV2, ProductV2NetworkIP} from "@/Accounting";
 import {callAPI} from "@/Authentication/DataHook";
-import {bulkRequestOf, displayErrorMessageOrDefault, extractErrorMessage, stopPropagation} from "@/UtilityFunctions";
+import {bulkRequestOf, displayErrorMessageOrDefault, extractErrorMessage} from "@/UtilityFunctions";
 import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
@@ -49,6 +49,7 @@ import {useProject} from "@/Project/cache";
 import Routes from "@/Routes";
 import {useProjectId} from "@/Project/Api";
 import {sendFailureNotification} from "@/Notifications";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -99,12 +100,12 @@ export function NetworkIPBrowse({
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<NetworkIP>(mount, "Public IPs", opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumns([
+                browser.setColumns({[ContainerSize.LARGE]: [
                     {name: "IP address"},
-                    {name: "", columnWidth: 0},
-                    {name: "", columnWidth: 0},
                     {name: "In use with", columnWidth: 250},
-                ]);
+                    {name: "", columnWidth: 0},
+                    {name: "", columnWidth: 0},
+                ]});
 
                 supportByProvider.retrieve(Client.projectId ?? "", () => retrieveSupportV2(NetworkIPApi));
                 addProjectListener(PROJECT_CHANGE_LISTENER_ID, p => {
@@ -120,6 +121,12 @@ export function NetworkIPBrowse({
                     permissions: {myself: []},
                     updates: [],
                 };
+
+                browser.on("skipOpen", (_oldPath, _newPath, resource) => {
+                    if (!resource || !opts?.selection) return false;
+                    if (opts.selection.show(resource) === true) opts.selection.onClick(resource);
+                    return true;
+                });
 
                 browser.on("open", (_oldPath, newPath, resource) => {
                     if (resource) {
@@ -156,30 +163,21 @@ export function NetworkIPBrowse({
 
                 browser.setEmptyIcon(productTypeToIcon("NETWORK_IP"));
 
-                browser.on("fetchFilters", () => [
-                    dateRanges,
-                    {
-                        type: "input",
-                        icon: "user",
-                        key: "filterCreatedBy",
-                        text: "Created by"
-                    }
-                ]);
+                browser.on("fetchFilters", () => [dateRanges]);
 
-                browser.on("renderRow", (ip, row, dims) => {
+                browser.on("renderTitle", (ip, title, row) => {
                     if (ip.id !== DUMMY_ENTRY_ID) {
                         const icon = providerIcon(ip.specification.product.provider);
                         icon.style.marginRight = "8px";
-                        row.title.append(icon);
-                        row.title.append(ResourceBrowser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, row));
+                        title.append(icon);
+                        title.append(ResourceBrowser.defaultTitleRenderer(ip.status.ipAddress ?? ip.id, row));
                     }
+                });
 
-                    if (opts?.selection) {
-                        const useButton = browser.defaultButtonRenderer(opts.selection, ip);
-                        if (useButton) row.stat3.append(useButton);
-                    } else if (ip.status.boundTo.length === 1) {
+                browser.on("renderStat1", (ip, stat) => {
+                    if (ip.status.boundTo.length === 1) {
                         const [boundTo] = ip.status.boundTo;
-                        row.stat3.innerText = boundTo;
+                        stat.innerText = boundTo;
                     }
                 });
 
@@ -236,7 +234,9 @@ export function NetworkIPBrowse({
                     const entries = browser.findSelectedEntries();
                     const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<NetworkIP, ProductNetworkIP>;
 
-                    const operations = NetworkIPApi.retrieveOperations();
+                    const actions = NetworkIPApi.retrieveActions();
+                    if (!Array.isArray(actions)) return actions;
+                    const operations = actions;
                     const create = operations.find(it => it.tag === CREATE_TAG);
                     if (create) {
                         create.enabled = () => true;
@@ -402,7 +402,7 @@ export function NetworkIpCreate({onCreate, onCancel, products}: CreationWithFire
             <Box mt={"8px"}>
                 Public IP addresses provide direct access to specific jobs, useful for workloads not accessible via
                 HTTP or remote desktop.{" "}
-                <ExternalLink color={"primaryMain"} href={"/app" + Routes.resources.sshKeys()}>SSH access</ExternalLink>
+                <ExternalLink href={"/app" + Routes.resources.sshKeys()}>SSH access</ExternalLink>
                 {" "}does <i>not</i> require a public IP.
             </Box>
         </Box>

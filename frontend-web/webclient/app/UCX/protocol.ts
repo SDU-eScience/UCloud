@@ -1,9 +1,13 @@
 export enum Opcode {
     SysHello = 0x01,
+    Ping = 0x02,
+    Pong = 0x03,
     UiEvent = 0x11,
     UiMount = 0x12,
     ModelPatch = 0x13,
     ModelInput = 0x14,
+    TableUpdate = 0x15,
+    StringAppend = 0x16,
     RpcRequest = 0x20,
     RpcResponse = 0x21,
 }
@@ -14,6 +18,11 @@ export enum RpcStatus {
     NotFound = 2,
     Internal = 3,
     Canceled = 4,
+    Conflict = 5,
+    Unauthorized = 6,
+    Forbidden = 7,
+    TooManyRequests = 8,
+    Unavailable = 9,
 }
 
 export enum ValueKind {
@@ -41,6 +50,18 @@ export type PlainValue = null | boolean | number | string | Uint8Array | PlainVa
 
 const valueRootKey = "";
 
+const maxFrameBytes = 32 * 1024 * 1024;
+const maxUiNodes = 100000;
+const maxUiDepth = 256;
+const maxValueDepth = 256;
+const maxCollectionEntries = 100000;
+const maxTableColumns = 1000;
+const maxTableRows = 100000;
+const maxTableCellsPerRow = 10000;
+const maxTableCellsTotal = 1000000;
+const maxTableRemovedRows = 100000;
+const maxTableActionsPerRow = 100;
+
 export interface UiNode {
     id: string;
     component: string;
@@ -61,6 +82,11 @@ export interface ModelPatch {
     changes: Record<string, Value>;
 }
 
+export interface StringAppend {
+    path: string;
+    chunk: string;
+}
+
 export interface ModelInput {
     eventId: number;
     nodeId: string;
@@ -74,6 +100,50 @@ export interface UiEvent {
     value: Value;
 }
 
+export const enum TableColumnSortType {
+    Text = 0,
+    Number = 1,
+    Duration = 2,
+    Ratio = 3,
+    Capacity = 4,
+    Ip = 5,
+    Bool = 6,
+}
+
+export const TableColumnFlagCopy = 1;
+
+export interface TableColumn {
+    key: string;
+    label: string;
+    jsonPath: string;
+    sortType?: TableColumnSortType;
+    copy?: boolean;
+}
+
+export interface TableRowAction {
+    id: string;
+    enabled: boolean;
+    disabledReason?: string;
+    text?: string;
+}
+
+export interface TableRow {
+    key: string;
+    group: string;
+    cells: string[];
+    actions?: TableRowAction[];
+    busy?: boolean;
+}
+
+export interface TableUpdate {
+    tableId: string;
+    revision: number;
+    snapshot: boolean;
+    columns: TableColumn[];
+    upserts: TableRow[];
+    removed: string[];
+}
+
 export interface Frame {
     opcode: Opcode;
     seq: number;
@@ -84,6 +154,8 @@ export interface Frame {
     uiMount?: UiMount;
     modelPatch?: ModelPatch;
     modelInput?: ModelInput;
+    tableUpdate?: TableUpdate;
+    stringAppend?: StringAppend;
     rpcRequestName?: string;
     rpcPayload?: Record<string, Value>;
     rpcStatus?: number;
@@ -102,6 +174,15 @@ class BinaryWriter {
         this.push(buf);
     }
 
+    writeUvarint(v: number) {
+        let value = v >>> 0;
+        while (value >= 0x80) {
+            this.writeU8((value & 0x7f) | 0x80);
+            value >>>= 7;
+        }
+        this.writeU8(value);
+    }
+
     writeS64(v: number) {
         const buf = new ArrayBuffer(8);
         const dv = new DataView(buf);
@@ -118,7 +199,7 @@ class BinaryWriter {
 
     writeString(v: string) {
         const encoded = this.encoder.encode(v);
-        this.writeU32(encoded.length);
+        this.writeUvarint(encoded.length);
         this.writeBytes(encoded);
     }
 
@@ -157,6 +238,22 @@ class BinaryReader {
         return val;
     }
 
+    readUvarint(): number {
+        let result = 0;
+        let shift = 0;
+        for (;;) {
+            const next = this.readU8();
+            result += (next & 0x7f) * Math.pow(2, shift);
+            if ((next & 0x80) === 0) break;
+            shift += 7;
+            if (shift > 31) {
+                // Values above 2^32 are not meaningful on the web client side; treat as corrupt.
+                throw new Error("uvarint overflow");
+            }
+        }
+        return result >>> 0;
+    }
+
     readS64(): number {
         this.ensure(8);
         const dv = new DataView(this.bytes.buffer, this.bytes.byteOffset + this.offset, 8);
@@ -174,7 +271,7 @@ class BinaryReader {
     }
 
     readString(): string {
-        const len = this.readU32();
+        const len = this.readUvarint();
         return this.decoder.decode(this.readBytes(len));
     }
 
@@ -210,6 +307,9 @@ export function encodeFrame(frame: Frame): Uint8Array {
             w.writeString(payload);
             break;
         }
+        case Opcode.Ping:
+        case Opcode.Pong:
+            break;
         case Opcode.UiEvent:
             encodeUiEvent(w, frame.uiEvent!);
             break;
@@ -221,6 +321,12 @@ export function encodeFrame(frame: Frame): Uint8Array {
             break;
         case Opcode.ModelInput:
             encodeModelInput(w, frame.modelInput!);
+            break;
+        case Opcode.TableUpdate:
+            encodeTableUpdate(w, frame.tableUpdate!);
+            break;
+        case Opcode.StringAppend:
+            encodeStringAppend(w, frame.stringAppend!);
             break;
         case Opcode.RpcRequest:
             w.writeString(frame.rpcRequestName ?? "");
@@ -236,6 +342,10 @@ export function encodeFrame(frame: Frame): Uint8Array {
 }
 
 export function decodeFrame(input: Uint8Array): Frame {
+    if (input.byteLength > maxFrameBytes) {
+        throw new Error(`frame exceeds maximum size of ${maxFrameBytes} bytes`);
+    }
+
     const r = new BinaryReader(input);
     const opcode = r.readU8() as Opcode;
     const seq = r.readS64();
@@ -252,6 +362,9 @@ export function decodeFrame(input: Uint8Array): Frame {
             frame.sysHello = payload;
             break;
         }
+        case Opcode.Ping:
+        case Opcode.Pong:
+            break;
         case Opcode.UiEvent:
             frame.uiEvent = decodeUiEvent(r);
             break;
@@ -263,6 +376,12 @@ export function decodeFrame(input: Uint8Array): Frame {
             break;
         case Opcode.ModelInput:
             frame.modelInput = decodeModelInput(r);
+            break;
+        case Opcode.TableUpdate:
+            frame.tableUpdate = decodeTableUpdate(r);
+            break;
+        case Opcode.StringAppend:
+            frame.stringAppend = decodeStringAppend(r);
             break;
         case Opcode.RpcRequest:
             frame.rpcRequestName = r.readString();
@@ -285,9 +404,10 @@ function encodeUiMount(w: BinaryWriter, mount: UiMount) {
 }
 
 function decodeUiMount(r: BinaryReader): UiMount {
+    const nodeCount = {value: 0};
     return {
         interfaceId: r.readString(),
-        root: decodeUiNode(r),
+        root: decodeUiNode(r, 0, nodeCount),
         model: readValueMap(r),
     };
 }
@@ -302,15 +422,27 @@ function encodeUiNode(w: BinaryWriter, node: UiNode) {
     for (const child of node.children) encodeUiNode(w, child);
 }
 
-function decodeUiNode(r: BinaryReader): UiNode {
+function decodeUiNode(r: BinaryReader, depth: number, nodeCount: {value: number}): UiNode {
+    if (depth > maxUiDepth) {
+        throw new Error(`UI tree exceeds maximum depth of ${maxUiDepth}`);
+    }
+    if (nodeCount.value >= maxUiNodes) {
+        throw new Error(`UI tree exceeds maximum node count of ${maxUiNodes}`);
+    }
+    nodeCount.value++;
+
     const id = r.readString();
     const component = r.readString();
     const props = readValueMap(r);
     const bindPath = r.readString();
     const optimistic = r.readU8() !== 0;
     const childCount = r.readU32();
+    if (childCount > maxUiNodes - nodeCount.value) {
+        throw new Error(`UI tree exceeds maximum node count of ${maxUiNodes}`);
+    }
+
     const children: UiNode[] = [];
-    for (let i = 0; i < childCount; i++) children.push(decodeUiNode(r));
+    for (let i = 0; i < childCount; i++) children.push(decodeUiNode(r, depth + 1, nodeCount));
     return {id, component, props, bindPath, optimistic, children};
 }
 
@@ -320,6 +452,15 @@ function encodeModelPatch(w: BinaryWriter, patch: ModelPatch) {
 
 function decodeModelPatch(r: BinaryReader): ModelPatch {
     return {changes: readValueMap(r)};
+}
+
+function encodeStringAppend(w: BinaryWriter, append: StringAppend) {
+    w.writeString(append.path);
+    w.writeString(append.chunk);
+}
+
+function decodeStringAppend(r: BinaryReader): StringAppend {
+    return {path: r.readString(), chunk: r.readString()};
 }
 
 function encodeModelInput(w: BinaryWriter, input: ModelInput) {
@@ -336,6 +477,150 @@ function decodeModelInput(r: BinaryReader): ModelInput {
         path: r.readString(),
         value: decodeValue(r),
     };
+}
+
+function encodeTableUpdate(w: BinaryWriter, update: TableUpdate) {
+    w.writeString(update.tableId);
+    w.writeS64(update.revision);
+    w.writeU8(update.snapshot ? 1 : 0);
+
+    w.writeU32(update.columns.length);
+    for (const col of update.columns) {
+        w.writeString(col.key);
+        w.writeString(col.label);
+        w.writeString(col.jsonPath);
+        w.writeU8(col.sortType ?? TableColumnSortType.Text);
+
+        let flags = 0;
+        if (col.copy === true) flags |= TableColumnFlagCopy;
+        w.writeU8(flags);
+    }
+
+    w.writeU32(update.upserts.length);
+    for (const row of update.upserts) {
+        w.writeString(row.key);
+        w.writeString(row.group);
+        w.writeU32(row.cells.length);
+        for (const cell of row.cells) w.writeString(cell);
+    }
+
+    w.writeU32(update.removed.length);
+    for (const key of update.removed) w.writeString(key);
+
+    const hasActions = update.upserts.some(row => row.actions !== undefined && row.actions.length > 0);
+    w.writeU8(hasActions ? 1 : 0);
+    if (hasActions) {
+        w.writeU32(update.upserts.length);
+        for (const row of update.upserts) {
+            const actions = row.actions ?? [];
+            w.writeU32(actions.length);
+            for (const action of actions) {
+                w.writeString(action.id);
+                w.writeU8(action.enabled ? 1 : 0);
+                w.writeString(action.disabledReason ?? "");
+                w.writeString(action.text ?? "");
+            }
+        }
+    }
+    if (update.upserts.some(row => row.busy === true)) {
+        w.writeU8(1);
+        w.writeU32(update.upserts.length);
+        for (const row of update.upserts) w.writeU8(row.busy ? 1 : 0);
+    }
+}
+
+function decodeTableUpdate(r: BinaryReader): TableUpdate {
+    const tableId = r.readString();
+    const revision = r.readS64();
+    const snapshot = r.readU8() !== 0;
+
+    const columnCount = r.readU32();
+    if (columnCount > maxTableColumns) {
+        throw new Error(`table update exceeds maximum column count of ${maxTableColumns}`);
+    }
+    const columns: TableColumn[] = [];
+    for (let i = 0; i < columnCount; i++) {
+        const key = r.readString();
+        const label = r.readString();
+        const jsonPath = r.readString();
+        const sortType = r.readU8() as TableColumnSortType;
+        const flags = r.readU8();
+        columns.push({
+            key,
+            label,
+            jsonPath,
+            sortType: sortType === TableColumnSortType.Text ? undefined : sortType,
+            copy: (flags & TableColumnFlagCopy) !== 0 || undefined,
+        });
+    }
+
+    const rowCount = r.readU32();
+    if (rowCount > maxTableRows) {
+        throw new Error(`table update exceeds maximum row count of ${maxTableRows}`);
+    }
+    const upserts: TableRow[] = [];
+    let totalCells = 0;
+    for (let i = 0; i < rowCount; i++) {
+        const key = r.readString();
+        const group = r.readString();
+        const cellCount = r.readU32();
+        if (cellCount > maxTableCellsPerRow) {
+            throw new Error(`table row exceeds maximum cell count of ${maxTableCellsPerRow}`);
+        }
+        totalCells += cellCount;
+        if (totalCells > maxTableCellsTotal) {
+            throw new Error(`table update exceeds maximum total cell count of ${maxTableCellsTotal}`);
+        }
+        const cells: string[] = [];
+        for (let j = 0; j < cellCount; j++) cells.push(r.readString());
+        upserts.push({key, group, cells});
+    }
+
+    const removedCount = r.readU32();
+    if (removedCount > maxTableRemovedRows) {
+        throw new Error(`table update exceeds maximum removed row count of ${maxTableRemovedRows}`);
+    }
+    const removed: string[] = [];
+    for (let i = 0; i < removedCount; i++) removed.push(r.readString());
+
+    if (!r.isAtEnd() && r.readU8() !== 0) {
+        const actionRowCount = r.readU32();
+        if (actionRowCount > maxTableRows) {
+            throw new Error(`table update exceeds maximum action row count of ${maxTableRows}`);
+        }
+        for (let i = 0; i < actionRowCount && i < upserts.length; i++) {
+            const actionCount = r.readU32();
+            if (actionCount > maxTableActionsPerRow) {
+                throw new Error(`table row exceeds maximum action count of ${maxTableActionsPerRow}`);
+            }
+            const actions: TableRowAction[] = [];
+            for (let j = 0; j < actionCount; j++) {
+                const id = r.readString();
+                const enabled = r.readU8() !== 0;
+                const disabledReason = r.readString();
+                const text = r.readString();
+                actions.push({
+                    id,
+                    enabled,
+                    disabledReason: disabledReason === "" ? undefined : disabledReason,
+                    text: text === "" ? undefined : text,
+                });
+            }
+            if (actions.length > 0) upserts[i].actions = actions;
+        }
+    }
+
+    if (!r.isAtEnd() && r.readU8() !== 0) {
+        const busyRowCount = r.readU32();
+        if (busyRowCount > maxTableRows) {
+            throw new Error(`table update exceeds maximum busy row count of ${maxTableRows}`);
+        }
+        for (let i = 0; i < busyRowCount && i < upserts.length; i++) {
+            upserts[i].busy = r.readU8() !== 0;
+        }
+    }
+
+    return {tableId, revision, snapshot, columns, upserts, removed};
 }
 
 function encodeUiEvent(w: BinaryWriter, ev: UiEvent) {
@@ -379,7 +664,11 @@ function encodeValue(w: BinaryWriter, value: Value) {
     }
 }
 
-function decodeValue(r: BinaryReader): Value {
+function decodeValue(r: BinaryReader, depth = 0): Value {
+    if (depth > maxValueDepth) {
+        throw new Error(`value exceeds maximum depth of ${maxValueDepth}`);
+    }
+
     const kind = r.readU8() as ValueKind;
     switch (kind) {
         case ValueKind.Null:
@@ -394,16 +683,22 @@ function decodeValue(r: BinaryReader): Value {
             return {kind, string: r.readString()};
         case ValueKind.Binary: {
             const length = r.readU32();
+            if (length > maxFrameBytes) {
+                throw new Error(`binary value exceeds maximum size of ${maxFrameBytes} bytes`);
+            }
             return {kind, binary: r.readBytes(length)};
         }
         case ValueKind.List: {
             const count = r.readU32();
+            if (count > maxCollectionEntries) {
+                throw new Error(`value list exceeds maximum entry count of ${maxCollectionEntries}`);
+            }
             const list: Value[] = [];
-            for (let i = 0; i < count; i++) list.push(decodeValue(r));
+            for (let i = 0; i < count; i++) list.push(decodeValue(r, depth + 1));
             return {kind, list};
         }
         case ValueKind.Object:
-            return {kind, object: readValueMap(r)};
+            return {kind, object: readValueMap(r, depth + 1)};
         default:
             return {kind: ValueKind.Null};
     }
@@ -418,24 +713,19 @@ function writeValueMap(w: BinaryWriter, map: Record<string, Value>) {
     }
 }
 
-function readValueMap(r: BinaryReader): Record<string, Value> {
+function readValueMap(r: BinaryReader, depth = 0): Record<string, Value> {
+    if (depth > maxValueDepth) {
+        throw new Error(`value exceeds maximum depth of ${maxValueDepth}`);
+    }
+
     const count = r.readU32();
+    if (count > maxCollectionEntries) {
+        throw new Error(`value map exceeds maximum entry count of ${maxCollectionEntries}`);
+    }
+
     const result: Record<string, Value> = {};
-    for (let i = 0; i < count; i++) result[r.readString()] = decodeValue(r);
+    for (let i = 0; i < count; i++) result[r.readString()] = decodeValue(r, depth + 1);
     return result;
-}
-
-export function toBase64(data: Uint8Array): string {
-    let binary = "";
-    for (const byte of data) binary += String.fromCharCode(byte);
-    return btoa(binary);
-}
-
-export function fromBase64(base64: string): Uint8Array {
-    const binary = atob(base64);
-    const out = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
-    return out;
 }
 
 export function valueToPlain(value: Value): PlainValue {
@@ -507,7 +797,7 @@ export function valueMapToPlain(input: Record<string, Value>): Record<string, Pl
     return result;
 }
 
-export function plainMapToValue(input: Record<string, PlainValue>): Record<string, Value> {
+function plainMapToValue(input: Record<string, PlainValue>): Record<string, Value> {
     const result: Record<string, Value> = {};
     for (const [key, value] of Object.entries(input)) {
         result[key] = plainToValue(value);

@@ -22,6 +22,8 @@ import AppRoutes from "@/Routes";
 import {ScaffoldedForm, ScaffoldedFormObject} from "@/ui-components/ScaffoldedForm";
 import {GroupSelector} from "@/Applications/Studio/GroupSelector";
 import {sendSuccessNotification} from "@/Notifications";
+import {usePage} from "@/Navigation/Redux";
+import {SidebarTabId} from "@/ui-components/SidebarComponents";
 
 const SpotlightForm: ScaffoldedFormObject = {
     type: "Form",
@@ -161,6 +163,7 @@ function translateSpotlight(data: Partial<SpotlightData>, previous: Spotlight): 
 }
 
 const SpotlightsEditor: React.FunctionComponent = () => {
+    usePage("Spotlights editor", SidebarTabId.APPLICATION_STUDIO);
     const location = useLocation();
     const navigate = useNavigate();
     const id = getQueryParam(location.search, "id");
@@ -248,7 +251,6 @@ const SpotlightsEditor: React.FunctionComponent = () => {
                 content: {
                     ...largeModalStyle.content,
                     width: "1140px",
-                    left: `calc(50vw - 570px)`,
                 }
             }
         );

@@ -140,9 +140,14 @@ type JobSpecification struct {
 	OpenedFile        string                       `json:"openedFile,omitempty"`
 	RestartOnExit     bool                         `json:"restartOnExit,omitempty"` // deprecated
 	SshEnabled        bool                         `json:"sshEnabled,omitempty"`
+	Services          []JobServiceReference        `json:"services,omitempty"`
 }
 
 type ComputeProductReference apm.ProductReference
+
+type JobServiceReference struct {
+	ServiceId string `json:"serviceId"`
+}
 
 type JobOutput struct {
 	OutputFolder util.Option[string] `json:"outputFolder"`
@@ -318,6 +323,10 @@ func DefaultArgBuilder(fileMapper func(ucloudPath string) string) ArgBuilder {
 }
 
 func VerifyParameterType(param *ApplicationParameter, value *AppParameterValue) bool {
+	if IsNetworkParameterType(param.Type) {
+		return IsNetworkValue(*value)
+	}
+
 	switch param.Type {
 	case ApplicationParameterTypeInputDirectory:
 		fallthrough
@@ -380,11 +389,6 @@ func VerifyParameterType(param *ApplicationParameter, value *AppParameterValue) 
 		if value.Type != AppParameterValueTypeModuleList {
 			return false
 		}
-
-	case ApplicationParameterTypePrivateNetwork:
-		if value.Type != AppParameterValueTypePrivateNetwork {
-			return false
-		}
 	}
 	return true
 }
@@ -393,6 +397,8 @@ type JobSupport struct {
 	Product apm.ProductReference `json:"product"`
 	Docker  struct {
 		UniversalBackendSupport
+		ApplicationVariants bool `json:"applicationVariants,omitempty"`
+		ContainerSnapshots  bool `json:"containerSnapshots,omitempty"`
 	} `json:"docker"`
 	VirtualMachine struct {
 		UniversalBackendSupport
@@ -449,6 +455,45 @@ var JobsCreate = rpc.Call[fnd.BulkRequest[JobSpecification], fnd.BulkResponse[fn
 	BaseContext: jobNamespace,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesEndUser,
+	Audit: rpc.AuditRules{
+		Transformer: jobsAuditTransformer,
+	},
+}
+
+func jobsAuditTransformer(request any) json.RawMessage {
+	encoded, err := json.Marshal(request)
+	if err != nil {
+		return json.RawMessage("{}")
+	}
+
+	var decoded any
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		return json.RawMessage("{}")
+	}
+
+	jobsRedactTokenFields(decoded)
+
+	redacted, err := json.Marshal(decoded)
+	if err != nil {
+		return json.RawMessage("{}")
+	}
+	return redacted
+}
+
+func jobsRedactTokenFields(value any) {
+	switch typed := value.(type) {
+	case map[string]any:
+		if _, ok := typed["token"]; ok {
+			typed["token"] = "<redacted>"
+		}
+		for _, child := range typed {
+			jobsRedactTokenFields(child)
+		}
+	case []any:
+		for _, child := range typed {
+			jobsRedactTokenFields(child)
+		}
+	}
 }
 
 var JobsTerminate = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], fnd.BulkResponse[util.Empty]]{
@@ -635,13 +680,29 @@ var JobsUpdateLabels = rpc.Call[fnd.BulkRequest[JobsUpdateLabelsRequest], util.E
 	Operation:   "updateLabels",
 }
 
+type JobsCreateApplicationVariantRequest struct {
+	JobId              string             `json:"jobId"`
+	Rank               int                `json:"rank"`
+	Title              string             `json:"title"`
+	PublishedToProject bool               `json:"publishedToProject"`
+	TargetVariantId    util.Option[int64] `json:"targetVariantId"`
+}
+
+var JobsCreateApplicationVariant = rpc.Call[JobsCreateApplicationVariantRequest, fnd.Task]{
+	BaseContext: jobNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesEndUser,
+	Operation:   "createApplicationVariant",
+}
+
 // Job Control API
 // =====================================================================================================================
 
 const jobControlNamespace = "jobs/control"
 
 type JobsControlRetrieveRequest struct {
-	Id string `json:"id"`
+	JobId string `json:"jobId,omitempty"`
+	Id    string `json:"id"`
 	JobFlags
 }
 
@@ -652,6 +713,7 @@ var JobsControlRetrieve = rpc.Call[JobsControlRetrieveRequest, Job]{
 }
 
 type JobsControlBrowseRequest struct {
+	JobId        string              `json:"jobId,omitempty"`
 	ItemsPerPage int                 `json:"itemsPerPage"`
 	Next         util.Option[string] `json:"next"`
 
@@ -663,6 +725,8 @@ var JobsControlBrowse = rpc.Call[JobsControlBrowseRequest, fnd.PageV2[Job]]{
 	Convention:  rpc.ConventionBrowse,
 	Roles:       rpc.RolesProvider,
 }
+
+var JobsControlCreate = ControlCreateCall[JobSpecification, fnd.BulkResponse[fnd.FindByStringId]](jobControlNamespace)
 
 var JobsControlRegister = rpc.Call[fnd.BulkRequest[ProviderRegisteredResource[JobSpecification]], fnd.BulkResponse[fnd.FindByStringId]]{
 	BaseContext: jobControlNamespace,
@@ -716,12 +780,18 @@ var JobsControlCheckCredits = rpc.Call[fnd.BulkRequest[JobsLegacyCheckCreditsReq
 	Roles:       rpc.RoleProvider,
 }
 
-var JobsControlUpdateLabels = rpc.Call[fnd.BulkRequest[JobsUpdateLabelsRequest], util.Empty]{
+var JobsControlUpdateLabels = rpc.Call[ControlMutateRequest[JobsUpdateLabelsRequest], util.Empty]{
 	BaseContext: jobControlNamespace,
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "updateLabels",
 	Roles:       rpc.RoleProvider,
 }
+
+var JobsControlTerminate = ControlMutateCall[fnd.FindByStringId, fnd.BulkResponse[util.Empty]](jobControlNamespace, "terminate")
+var JobsControlSuspend = ControlMutateCall[fnd.FindByStringId, fnd.BulkResponse[util.Empty]](jobControlNamespace, "suspend")
+var JobsControlUnsuspend = ControlMutateCall[fnd.FindByStringId, fnd.BulkResponse[util.Empty]](jobControlNamespace, "unsuspend")
+var JobsControlExtend = ControlMutateCall[JobsExtendRequestItem, fnd.BulkResponse[util.Empty]](jobControlNamespace, "extend")
+var JobsControlRename = ControlMutateCall[JobRenameRequest, util.Empty](jobControlNamespace, "rename")
 
 // Job Provider API
 // =====================================================================================================================
@@ -730,6 +800,9 @@ var JobsProviderCreate = rpc.Call[fnd.BulkRequest[Job], fnd.BulkResponse[fnd.Fin
 	BaseContext: jobProviderNamespace,
 	Convention:  rpc.ConventionCreate,
 	Roles:       rpc.RolesPrivileged,
+	Audit: rpc.AuditRules{
+		Transformer: jobsAuditTransformer,
+	},
 }
 
 var JobsProviderRetrieveProducts = rpc.Call[util.Empty, fnd.BulkResponse[JobSupport]]{
@@ -815,6 +888,38 @@ var JobsProviderRequestDynamicParameters = rpc.Call[JobsProviderRequestDynamicPa
 	Convention:  rpc.ConventionUpdate,
 	Roles:       rpc.RolesPrivileged,
 	Operation:   "requestDynamicParameters",
+}
+
+type JobsProviderRenderInvocationRequest struct {
+	Job Job `json:"job"`
+}
+
+type JobsProviderRenderInvocationResponse struct {
+	Script string `json:"script"`
+}
+
+var JobsProviderRenderInvocation = rpc.Call[JobsProviderRenderInvocationRequest, JobsProviderRenderInvocationResponse]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "renderInvocation",
+}
+
+type JobsProviderCreateApplicationVariantRequest struct {
+	Job             Job            `json:"job"`
+	VariantId       int64          `json:"variantId"`
+	Revision        int64          `json:"revision"`
+	BaseApplication NameAndVersion `json:"baseApplication"`
+	Image           string         `json:"image"`
+	Rank            int            `json:"rank"`
+	RequestedBy     string         `json:"requestedBy"`
+}
+
+var JobsProviderCreateApplicationVariant = rpc.Call[JobsProviderCreateApplicationVariantRequest, fnd.Task]{
+	BaseContext: jobProviderNamespace,
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesPrivileged,
+	Operation:   "createApplicationVariant",
 }
 
 var JobsProviderOpenTerminalInFolder = rpc.Call[fnd.BulkRequest[JobsOpenTerminalInFolderRequestItem], fnd.BulkResponse[OpenSession]]{

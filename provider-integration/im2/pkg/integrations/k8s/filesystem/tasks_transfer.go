@@ -24,10 +24,9 @@ func task2ProcessTransfer(spec TaskSpec) *util.HttpError {
 
 	uploadSession := upload.ClientSession{
 		Endpoint:       spec.TransferEndpoint,
+		Token:          spec.TransferToken,
 		ConflictPolicy: orc.WriteConflictPolicyMergeRename,
 	}
-
-	log.Info("%#v", uploadSession)
 
 	internalSource := spec.Source
 

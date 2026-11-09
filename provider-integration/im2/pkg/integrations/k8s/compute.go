@@ -32,6 +32,8 @@ var containerCpu controller.JobsService
 var virtCpu controller.JobsService
 
 func InitCompute() controller.JobsService {
+	containers.InitScriptImagesFindImage = initScriptImagesImageForJob
+	containers.InitScriptImagesConsumesScript = initScriptImagesConsumesInitScript
 	containerCpu = containers.Init()
 	virtCpu = kubevirt.Init()
 
@@ -45,6 +47,7 @@ func InitCompute() controller.JobsService {
 		HandleShell:              handleShell,
 		OpenWebSession:           openWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
+		RenderInvocation:         renderInvocation,
 		Suspend:                  suspend,
 		Unsuspend:                unsuspend,
 		HandleBuiltInVnc:         handleBuiltInVnc,
@@ -61,6 +64,7 @@ func InitCompute() controller.JobsService {
 			Delete:           deleteIngress,
 			OnUpdatedLabels:  nil,
 			RetrieveProducts: retrieveIngressProducts,
+			SetTarget:        serviceIngressSetTarget,
 		},
 		Licenses: controller.LicenseService{
 			Create:           activateLicense,
@@ -74,7 +78,30 @@ func InitCompute() controller.JobsService {
 			OnUpdatedLabels:  nil,
 			RetrieveProducts: shared.PrivateNetworkRetrieveProducts,
 		},
+		PrivateNetworkIps: controller.PrivateNetworkIpService{
+			Create:           createPrivateNetworkIp,
+			Delete:           deletePrivateNetworkIp,
+			OnUpdatedLabels:  nil,
+			RetrieveProducts: retrievePrivateNetworkIpProducts,
+		},
+		Services: controller.ServiceService{
+			Create:           serviceCreate,
+			Delete:           serviceDelete,
+			Update:           serviceUpdateSpec,
+			UpdateMembers:    serviceUpdateMembers,
+			OnUpdatedLabels:  serviceOnUpdatedLabels,
+			UpdateAcl:        serviceUpdateAcl,
+			RetrieveProducts: serviceRetrieveProducts,
+		},
 	}
+}
+
+func renderInvocation(job *orc.Job) (string, *util.HttpError) {
+	service := backend(job)
+	if service == nil || service.RenderInvocation == nil {
+		return "", util.HttpErr(http.StatusBadRequest, "Invocation preview is not supported for this application")
+	}
+	return service.RenderInvocation(job)
 }
 
 var nodes *shared.K8sResourceTracker[*k8score.Node]
@@ -84,8 +111,10 @@ var monitoringHealthCounter = atomic.Int64{}
 func InitComputeLater() {
 	controller.IAppReconfigureAll()
 	containers.StartSyncthingPolicyReconciler()
+	initScriptImagesStartMaintenance()
 
 	initJobQueue()
+	ServicesStartLoop()
 
 	go func() {
 		nodes = shared.NewResourceTracker[*k8score.Node](
@@ -200,7 +229,7 @@ func createIngress(ingress *orc.Ingress) *util.HttpError {
 		return util.UserHttpError("Public link must only contain letters a-z, numbers (0-9), dashes and underscores.")
 	}
 
-	db.NewTx0(func(tx *db.Transaction) {
+	domainOwner, domainOk := db.NewTx2(func(tx *db.Transaction) (string, bool) {
 		db.Exec(
 			tx,
 			`
@@ -212,7 +241,24 @@ func createIngress(ingress *orc.Ingress) *util.HttpError {
 				"owner":  owner,
 			},
 		)
+
+		row, ok := db.Get[struct{ Owner string }](
+			tx,
+			`
+				select owner from ingresses where domain = :domain
+			`,
+			db.Params{"domain": domain},
+		)
+		if !ok {
+			return "", false
+		}
+
+		return row.Owner, true
 	})
+
+	if !domainOk || domainOwner != owner {
+		return util.UserHttpError("The domain is already in use by someone else.")
+	}
 
 	status := util.Option[string]{}
 	status.Set("Public link is ready for use")
@@ -254,6 +300,7 @@ func deleteIngress(ingress *orc.Ingress) *util.HttpError {
 		)
 	})
 
+	serviceReconcileLinkTargets()
 	accountPublicLinks(ingress.Owner)
 	return result
 }
@@ -383,12 +430,41 @@ func submit(job orc.Job) (util.Option[string], *util.HttpError) {
 		return util.OptNone[string](), util.UserHttpError("This project is not allowed to use virtual machines")
 	}
 
-	shared.RequestSchedule(&job)
+	_, pnErr := controller.PrivateNetworkJobAllocateLeases(&job)
+	if pnErr != nil {
+		return util.OptNone[string](), pnErr
+	}
+
+	controller.PrivateNetworkSyncAssignedIps(&job)
+
 	controller.JobTrackNew(job)
+	delayed, herr := initScriptImagesPrepare(&job, false)
+	if herr != nil {
+		copied := job
+		copied.Status.State = orc.JobStateFailure
+		controller.JobTrackNew(copied)
+		return util.OptNone[string](), herr
+	}
+	if !delayed {
+		shared.RequestSchedule(&job)
+	}
 	return util.OptNone[string](), nil
 }
 
 func terminate(request controller.JobTerminateRequest) *util.HttpError {
+	initScriptImagesCancel(request.Job.Id)
+	containerSnapshotExecutions.Lock()
+	delayed, err := delayTerminationForContainerSnapshot(request)
+	containerSnapshotExecutions.Unlock()
+
+	if delayed || err != nil {
+		return err
+	}
+
+	return terminateNow(request)
+}
+
+func terminateNow(request controller.JobTerminateRequest) *util.HttpError {
 	introspection.DeleteTokens([]string{request.Job.Id})
 	return backend(request.Job).Terminate(request)
 }

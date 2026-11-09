@@ -1,0 +1,38 @@
+#compdef ucloud
+
+_ucloud() {
+    if (( CURRENT == 2 )); then
+        local -a routes
+        routes=({% for route in routes %}'{{ route }}' {% endfor %})
+        compadd -a routes
+        return
+    fi
+{%- for group in groups %}
+    if (( CURRENT == {{ group.Word }} )) && [[ "${(j: :)words[2,CURRENT-1]}" == "{{ group.Path }}" ]]; then
+        local -a subcommands
+        subcommands=({% for child in group.Children %}'{{ child }}' {% endfor %})
+        compadd -a subcommands
+        return
+    fi
+{%- endfor %}
+{%- for leaf in leaves %}
+    if (( CURRENT >= {{ leaf.FirstWord }} )) && [[ "${(j: :)words[2,{{ leaf.PathEnd }}]}" == "{{ leaf.Path }}" ]]; then
+        local -a flags
+        flags=()
+{%- for positional in leaf.Positionals %}
+        if (( CURRENT == {{ positional.Word }} )); then
+            flags+=( '{{ positional.Spec }}' '' )
+        fi
+{%- endfor %}
+        if (( CURRENT >= {{ leaf.FlagsWord }} )); then
+{%- for flag in leaf.Flags %}
+            flags+=( '{{ flag }}' )
+{%- endfor %}
+        fi
+        _describe 'flag' flags
+        return
+    fi
+{%- endfor %}
+}
+
+compdef _ucloud ucloud

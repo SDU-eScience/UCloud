@@ -1,10 +1,15 @@
 package filesystem
 
 import (
+	"errors"
+	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	db "ucloud.dk/shared/pkg/database"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
@@ -215,4 +220,75 @@ func activityDeleteExpiredEvents() {
 			db.Params{},
 		)
 	})
+}
+
+func activityCleanupRetention() {
+	activityDeleteExpiredEvents()
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`
+				delete from fs_metadata_scan_state
+				where
+					last_submitted_at < now() - interval '14 days'
+					and last_completed_at < now() - interval '14 days'
+			`,
+			db.Params{},
+		)
+	})
+	metadataInitializations.Lock()
+	for driveId, initialization := range metadataInitializations.drives {
+		if !initialization.finishedAt.IsZero() && time.Since(initialization.finishedAt) >= 30*time.Second {
+			delete(metadataInitializations.drives, driveId)
+		}
+	}
+	metadataInitializations.Unlock()
+	metadataCleanupAbandonedWorkspaces()
+}
+
+func metadataCleanupAbandonedWorkspaces() {
+	root := filepath.Join(shared.ServiceConfig.FileSystem.MountPoint, "metadata-catalog")
+	drives, err := os.ReadDir(root)
+	if errors.Is(err, os.ErrNotExist) {
+		return
+	}
+	if err != nil {
+		log.Warn("Unable to inspect metadata catalog workspaces: %s", err)
+		return
+	}
+	for _, drive := range drives {
+		if !drive.IsDir() {
+			continue
+		}
+		directory := filepath.Join(root, drive.Name())
+		entries, readErr := os.ReadDir(directory)
+		if readErr != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() || !strings.HasPrefix(entry.Name(), ".scan-") {
+				continue
+			}
+			workspace := filepath.Join(directory, entry.Name())
+			metadataDatabases.Lock()
+			if metadataDatabases.workspaces[workspace] {
+				metadataDatabases.Unlock()
+				continue
+			}
+			cleanupPath := filepath.Join(directory, ".scan-cleanup-"+util.RandomToken(16))
+			renameErr := os.Rename(workspace, cleanupPath)
+			metadataDatabases.Unlock()
+			if errors.Is(renameErr, os.ErrNotExist) {
+				continue
+			}
+			if renameErr != nil {
+				log.Warn("Unable to claim abandoned metadata workspace %s: %s", workspace, renameErr)
+				continue
+			}
+			removeErr := os.RemoveAll(cleanupPath)
+			if removeErr != nil {
+				log.Warn("Unable to remove abandoned metadata workspace %s: %s", cleanupPath, removeErr)
+			}
+		}
+	}
 }

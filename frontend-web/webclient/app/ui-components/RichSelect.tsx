@@ -1,11 +1,12 @@
 import * as React from "react";
 import {fuzzySearch} from "@/Utilities/CollectionUtilities";
-import {CSSProperties, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {CSSProperties, useCallback, useMemo, useRef, useState} from "react";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {doNothing, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
-import {injectStyle} from "@/Unstyled";
+import {DataAttributes, injectStyle, unboxDataTags} from "@/Unstyled";
 import {Flex, Icon, Input, Relative} from "@/ui-components/index";
 import {FilterInputClass} from "@/Project/ProjectSwitcher";
+import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 import Box from "@/ui-components/Box";
 
 export type RichSelectChildComponent<T> = React.FunctionComponent<RichSelectProps<T>>;
@@ -21,17 +22,13 @@ export interface SimpleRichItem {
     value: string;
 }
 
-const SIMPLE_RICH_SELECT_OPENED_EVENT = "ucloud:simple-rich-select-opened";
-const RICH_SELECT_OPENED_EVENT = "ucloud:rich-select-opened";
-interface RichSelectOpenedDetail {
-    sourceId: string;
-}
-
 export const SimpleRichSelect: React.FunctionComponent<{
     items: SimpleRichItem[];
     selected?: SimpleRichItem;
     onSelect: (item: SimpleRichItem) => void;
     openFnRef?: React.RefObject<(left: number, top: number) => void>;
+    triggerRef?: React.RefObject<HTMLDivElement | null>;
+    shortcutHint?: string;
 
     fullWidth?: boolean;
     dropdownWidth?: string;
@@ -39,32 +36,9 @@ export const SimpleRichSelect: React.FunctionComponent<{
     placeholder?: string;
     noResultsItem?: SimpleRichItem;
     searchable?: boolean;
+    triggerAriaLabel?: string;
 }> = props => {
-    const instanceIdRef = useRef(`simple-rich-select-${Math.random().toString(36).slice(2)}`);
-    const [instanceVersion, setInstanceVersion] = useState(0);
     const closeFn = useRef<() => void>(doNothing);
-
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-
-        const onAnySimpleRichSelectOpened = (event: Event) => {
-            const customEvent = event as CustomEvent<RichSelectOpenedDetail>;
-            if (customEvent.detail?.sourceId === instanceIdRef.current) return;
-            setInstanceVersion(current => current + 1);
-        };
-
-        window.addEventListener(SIMPLE_RICH_SELECT_OPENED_EVENT, onAnySimpleRichSelectOpened as EventListener);
-        return () => {
-            window.removeEventListener(SIMPLE_RICH_SELECT_OPENED_EVENT, onAnySimpleRichSelectOpened as EventListener);
-        };
-    }, []);
-
-    const announceOpen = useCallback(() => {
-        if (typeof window === "undefined") return;
-        window.dispatchEvent(new CustomEvent<RichSelectOpenedDetail>(SIMPLE_RICH_SELECT_OPENED_EVENT, {
-            detail: {sourceId: instanceIdRef.current},
-        }));
-    }, []);
 
     if (props.searchable === false) {
         const triggerText = props.selected?.value ?? props.placeholder ?? "Select...";
@@ -78,14 +52,17 @@ export const SimpleRichSelect: React.FunctionComponent<{
             requestAnimationFrame(() => optionsRef.current?.focus());
         };
 
-        return <div onMouseDownCapture={announceOpen} style={props.mt === undefined ? undefined : {marginTop: props.mt}}>
+        return <div style={props.mt === undefined ? undefined : {marginTop: props.mt}}>
             <ClickableDropdown
-                key={`${instanceIdRef.current}:${instanceVersion}`}
                 trigger={
-                    <div className={TriggerClass} style={{width: props.fullWidth ? "100%" : dropdownWidth, minWidth: 0}}>
+                    <div ref={props.triggerRef} className={TriggerClass} data-rich-select-trigger="true" style={{width: props.fullWidth ? "100%" : dropdownWidth, minWidth: 0}}>
                         <Box p={"4px"} textAlign={"left"} minHeight={25}>
                             {triggerText}
                         </Box>
+                        {props.shortcutHint ?
+                            <span className={RichSelectShortcutClass}><div className={ShortcutClass}>{props.shortcutHint}</div></span> :
+                            null
+                        }
                         <Icon name="heroChevronDown" style={{position: "absolute", bottom: "5px", right: "5px"}} />
                     </div>
                 }
@@ -97,6 +74,7 @@ export const SimpleRichSelect: React.FunctionComponent<{
                 height={dropdownHeight}
                 closeFnRef={closeFn}
                 openFnRef={props.openFnRef}
+                triggerAriaLabel={props.triggerAriaLabel}
                 arrowkeyNavigationKey={"data-active"}
                 hoverColor={"rowHover"}
                 colorOnHover={false}
@@ -134,12 +112,14 @@ export const SimpleRichSelect: React.FunctionComponent<{
         </div>
     }
 
-	return <div onMouseDownCapture={announceOpen} style={props.mt === undefined ? undefined : {marginTop: props.mt}}>
+	return <div style={props.mt === undefined ? undefined : {marginTop: props.mt}}>
 	    <RichSelect
-	        key={`${instanceIdRef.current}:${instanceVersion}`}
 	        items={props.items}
 	        keys={["key"]}
         openFnRef={props.openFnRef}
+	        triggerRef={props.triggerRef}
+	        shortcutHint={props.shortcutHint}
+	        triggerAriaLabel={props.triggerAriaLabel}
 	        RenderRow={p =>
 	            <Box p={"4px"} textAlign={"left"} minHeight={25} onClick={p.onSelect} {...p.dataProps}>
 	                {p?.element?.value}
@@ -177,6 +157,8 @@ export function RichSelect<T, K extends keyof T>(props: {
     selected?: T;
     onSelect: (element: T) => void;
     openFnRef?: React.RefObject<(left: number, top: number) => void>;
+    triggerRef?: React.RefObject<HTMLDivElement | null>;
+    shortcutHint?: string;
 
     chevronPlacement?: CSSProperties; // hack
 
@@ -188,29 +170,31 @@ export function RichSelect<T, K extends keyof T>(props: {
     dropdownVerticalGap?: number;
     disabled?: boolean;
     showSearchField?: boolean;
-}): React.ReactNode {
+    groupBy?: (element: T) => string;
+    renderGroup?: (group: string) => React.ReactNode;
+    focusable?: boolean;
+    autoFocus?: boolean;
+    triggerAriaLabel?: string;
+} & DataAttributes): React.ReactNode {
     const [query, setQuery] = useState("");
     const closeFn = useRef<() => void>(doNothing);
     const triggerRef = useRef<HTMLDivElement>(null);
-    const instanceIdRef = useRef(`rich-select-${Math.random().toString(36).slice(2)}`);
-
-    useEffect(() => {
-        if (typeof window === "undefined") return;
-
-        const closeWhenAnotherRichSelectOpens = (event: Event) => {
-            const customEvent = event as CustomEvent<RichSelectOpenedDetail>;
-            if (customEvent.detail?.sourceId !== instanceIdRef.current) closeFn.current();
-        };
-
-        window.addEventListener(RICH_SELECT_OPENED_EVENT, closeWhenAnotherRichSelectOpens as EventListener);
-        return () => window.removeEventListener(RICH_SELECT_OPENED_EVENT, closeWhenAnotherRichSelectOpens as EventListener);
-    }, []);
 
     const filteredElements = useMemo(() => {
         const withKeys = props.items.map((it, itIdx) => ({idx: itIdx, ...it}));
         if (query === "") return withKeys;
-        return fuzzySearch(withKeys, props.keys, query);
-    }, [query, props.items, props.keys]);
+        const result = fuzzySearch(withKeys, props.keys, query);
+        if (!props.groupBy) return result;
+
+        const groupOrder = new Map<string, number>();
+        for (const item of props.items) {
+            const group = props.groupBy(item);
+            if (!groupOrder.has(group)) groupOrder.set(group, groupOrder.size);
+        }
+        return result.sort((a, b) =>
+            (groupOrder.get(props.groupBy!(a)) ?? 0) - (groupOrder.get(props.groupBy!(b)) ?? 0)
+        );
+    }, [query, props.items, props.keys, props.groupBy]);
 
     const limitedElements = useMemo(() => {
         if (filteredElements.length > 500) {
@@ -222,16 +206,23 @@ export function RichSelect<T, K extends keyof T>(props: {
 
     const [dropdownSize, setDropdownSize] = useState(props.dropdownWidth ?? "300px");
     const [dropdownTop, setDropdownTop] = useState<string | undefined>(undefined);
-    const showSearchField = props.items.length > 1 && props.showSearchField !== false;
+    const showSearchField = props.showSearchField === true || props.items.length > 1 && props.showSearchField !== false;
     const searchFieldHeight = showSearchField ? INPUT_FIELD_HEIGHT : 0;
-    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + searchFieldHeight);
+    const groupCount = useMemo(() => {
+        if (!props.groupBy) return 0;
+        return new Set(limitedElements.map(props.groupBy)).size;
+    }, [limitedElements, props.groupBy]);
+    const height = Math.min(370, (props.elementHeight ?? 40) * limitedElements.length + groupCount * 30 + searchFieldHeight);
+
+    // HACK(Jonas): The height value is not correctly updated in `onTriggerClick`,
+    // even if it's in the dependency list
+    const heightRef = useRef(height);
+    heightRef.current = height;
 
     const onTriggerClick = useCallback(() => {
-        window.dispatchEvent(new CustomEvent<RichSelectOpenedDetail>(RICH_SELECT_OPENED_EVENT, {
-            detail: {sourceId: instanceIdRef.current},
-        }));
         setQuery("");
         setDropdownTop(undefined);
+        const height = heightRef.current;
 
         const trigger = triggerRef.current;
         if (trigger && props.dropdownVerticalGap !== undefined) {
@@ -252,7 +243,7 @@ export function RichSelect<T, K extends keyof T>(props: {
         if (!trigger) return;
         const width = trigger.getBoundingClientRect().width;
         setDropdownSize(width + "px");
-    }, [props.matchTriggerWidth, props.dropdownWidth, props.dropdownVerticalGap, height]);
+    }, [props.matchTriggerWidth, props.dropdownWidth, props.dropdownVerticalGap]);
 
     const trigger = props.trigger ?
         <div ref={triggerRef}>{props.trigger}</div>
@@ -261,8 +252,12 @@ export function RichSelect<T, K extends keyof T>(props: {
             <props.FullRenderSelected element={props.selected} onSelect={doNothing} />
             :
             props.RenderSelected ?
-                <div className={TriggerClass} style={{width: props.fullWidth ? "100%" : (props.dropdownWidth ?? "500px"), minWidth: 0}} ref={triggerRef}>
+                <div className={TriggerClass} data-rich-select-trigger="true" style={{width: props.fullWidth ? "100%" : (props.dropdownWidth ?? "500px"), minWidth: 0}} ref={mergeRefs(triggerRef, props.triggerRef)}>
                     <props.RenderSelected element={props.selected} onSelect={doNothing} />
+                    {props.shortcutHint ?
+                        <span className={RichSelectShortcutClass}><div className={ShortcutClass}>{props.shortcutHint}</div></span> :
+                        null
+                    }
                     <Icon name="heroChevronDown" style={props.chevronPlacement} />
                 </div>
                 : <></>;
@@ -272,6 +267,7 @@ export function RichSelect<T, K extends keyof T>(props: {
     }
 
     return <ClickableDropdown
+        {...unboxDataTags(props)}
         trigger={trigger}
         onOpeningTriggerClick={onTriggerClick}
         rightAligned={props.rightAligned ?? true}
@@ -285,6 +281,7 @@ export function RichSelect<T, K extends keyof T>(props: {
         colorOnHover={false}
         fullWidth={props.fullWidth ?? false}
         width={props.fullWidth ? undefined : dropdownSize}
+        triggerAriaLabel={props.triggerAriaLabel}
         onSelect={el => {
             const idxS = el?.getAttribute("data-idx") ?? "";
             const idx = parseInt(idxS);
@@ -296,6 +293,8 @@ export function RichSelect<T, K extends keyof T>(props: {
             if (item) props.onSelect(item);
             closeFn.current();
         }}
+        focusable={props.focusable !== false}
+        autoFocus={props.autoFocus}
     >
         <div style={{height: height + "px", width: dropdownSize}}>
             {!showSearchField ? null : (
@@ -328,17 +327,27 @@ export function RichSelect<T, K extends keyof T>(props: {
             )}
 
             <div className={ResultWrapperClass} style={{maxHeight: (height - searchFieldHeight) + "px", height: height + "px"}}>
-                {limitedElements.map(it => <props.RenderRow
-                    element={it}
-                    key={it.idx}
-                    onSelect={() => {
-                        props.onSelect(it);
-                    }}
-                    dataProps={{
-                        "data-idx": it.idx.toString(),
-                        "data-active": (props.selected === it).toString()
-                    }}
-                />)}
+                {limitedElements.map((it, index) => {
+                    const group = props.groupBy?.(it);
+                    const previousGroup = index === 0 ? undefined : props.groupBy?.(limitedElements[index - 1]);
+                    return <React.Fragment key={it.idx}>
+                        {group == null || group === previousGroup ? null : (
+                            <Box className="no-hover-effect" px="8px" py={"5px"} style={{fontWeight: 600}} borderBottom={"1px solid var(--borderColor)"} onClick={e => e.stopPropagation()}>
+                                {props.renderGroup?.(group) ?? group}
+                            </Box>
+                        )}
+                        <props.RenderRow
+                            element={it}
+                            onSelect={() => {
+                                props.onSelect(it);
+                            }}
+                            dataProps={{
+                                "data-idx": it.idx.toString(),
+                                "data-active": (props.selected === it).toString()
+                            }}
+                        />
+                    </React.Fragment>;
+                })}
 
                 {limitedElements.length !== 0 ? null : <>
                     {props.noResultsItem ?
@@ -364,13 +373,13 @@ const ResultWrapperClass = injectStyle("rich-select-result-wrapper", k => `
         cursor: default;
         overflow-y: auto;
     }
-    
+
     ${k} > *:hover {
         background-color: var(--rowHover);
         cursor: pointer;
         width: 100%;
     }
-    
+
     ${k} .no-hover-effect:hover {
         background: unset;
         cursor: unset;
@@ -412,3 +421,27 @@ const SimpleRichSelectOptionClass = injectStyle("simple-rich-select-option", k =
         cursor: pointer;
     }
 `);
+
+const RichSelectShortcutClass = injectStyle("rich-select-shortcut", k => `
+    ${k} {
+        position: absolute;
+        right: 28px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        pointer-events: none;
+    }
+`);
+
+function mergeRefs<T>(...refs: (React.Ref<T> | undefined)[]): React.RefCallback<T> {
+    return value => {
+        for (const ref of refs) {
+            if (!ref) continue;
+            if (typeof ref === "function") {
+                ref(value);
+            } else {
+                (ref as {current: T | null}).current = value;
+            }
+        }
+    };
+}

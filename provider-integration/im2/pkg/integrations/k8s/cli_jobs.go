@@ -324,6 +324,20 @@ func HandleJobsCommand() {
 			}
 		}
 
+	case command == "snapshot":
+		if len(os.Args) < 5 {
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Usage: jobs snapshot <jobId> <image>:<tag> [--rank <rank>]")
+			os.Exit(1)
+		}
+
+		req := k8sCliJobsSnapshotRequest{JobId: os.Args[3], Image: os.Args[4]}
+		fs := flag.NewFlagSet("jobs snapshot", flag.ExitOnError)
+		fs.IntVar(&req.Rank, "rank", 0, "Job replica rank")
+		_ = fs.Parse(os.Args[5:])
+		response, err := k8sCliJobsSnapshot.Invoke(req)
+		cli.HandleError("snapshotting job", err)
+		termio.WriteStyledLine(termio.Bold, termio.Green, 0, "Published: %s", response.Image)
+
 	case command == "kill" || command == "stop" || cli.IsDeleteCommand(command):
 		if len(os.Args) < 4 {
 			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Missing parameter: one or more job ids")
@@ -365,18 +379,20 @@ func writeJobsHelp() {
 	f.AppendField("get <jobId>", "Show detailed information about a single job")
 	f.AppendField("queue [queue]", "Show queue state and optionally queued jobs")
 	f.AppendField("queue debug [queue]", "Show detailed scheduler internals")
+	f.AppendField("snapshot <jobId> <image>:<tag> [--rank <rank>]", "Publish a running container to the project repository")
 	f.AppendField("kill|stop|rm <jobId...>", "Stop jobs (VMs are suspended, containers are terminated)")
 	f.AppendField("suspend <jobId...>", "Suspend one or more virtual machine jobs")
 	f.AppendField("unsuspend|resume <jobId...>", "Unsuspend one or more virtual machine jobs")
 	f.AppendSeparator()
 	f.AppendField("Examples", "ucloud jobs ls --state IN_QUEUE")
-	f.AppendField("", "ucloud jobs get j-abc123")
+	f.AppendField("", "ucloud jobs get 200")
 	f.AppendField("", "ucloud jobs queue")
 	f.AppendField("", "ucloud jobs queue k80/k80")
 	f.AppendField("", "ucloud jobs queue debug")
-	f.AppendField("", "ucloud jobs stop j-abc123")
-	f.AppendField("", "ucloud jobs suspend j-vm123")
-	f.AppendField("", "ucloud jobs resume j-vm123")
+	f.AppendField("", "ucloud jobs snapshot 200 analysis:v1 --rank 0")
+	f.AppendField("", "ucloud jobs stop 200")
+	f.AppendField("", "ucloud jobs suspend 200")
+	f.AppendField("", "ucloud jobs resume 200")
 	f.Print()
 }
 
@@ -730,6 +746,26 @@ func initJobsCli() {
 			Payload:    response,
 		}
 	})
+
+	k8sCliJobsSnapshot.Handler(func(r *ipc.Request[k8sCliJobsSnapshotRequest]) ipc.Response[k8sCliJobsSnapshotResponse] {
+		if r.Uid != 0 {
+			return ipc.Response[k8sCliJobsSnapshotResponse]{StatusCode: http.StatusForbidden}
+		}
+		if !shared.ServiceConfig.Registry.Enabled {
+			return ipc.Response[k8sCliJobsSnapshotResponse]{
+				StatusCode: http.StatusServiceUnavailable, ErrorMessage: "container registry is disabled",
+			}
+		}
+
+		image, err := startContainerSnapshot(r.Payload.JobId, r.Payload.Image, r.Payload.Rank)
+		if err != nil {
+			return ipc.Response[k8sCliJobsSnapshotResponse]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
+		}
+		return ipc.Response[k8sCliJobsSnapshotResponse]{
+			StatusCode: http.StatusOK,
+			Payload:    k8sCliJobsSnapshotResponse{Image: image},
+		}
+	})
 }
 
 func k8sCliApplyJobOperation(job *orc.Job, operation k8sCliJobsOperation) (string, *util.HttpError) {
@@ -1067,6 +1103,16 @@ type k8sCliJobsOperateResponse struct {
 	Failed     map[string]string
 }
 
+type k8sCliJobsSnapshotRequest struct {
+	JobId string
+	Image string
+	Rank  int
+}
+
+type k8sCliJobsSnapshotResponse struct {
+	Image string
+}
+
 type k8sCliJobsOperation string
 
 const (
@@ -1089,4 +1135,5 @@ var (
 	k8sCliJobsQueue      = ipc.NewCall[k8sCliJobsQueueRequest, []k8sCliQueue]("cli.k8s.jobs.queue")
 	k8sCliJobsQueueDebug = ipc.NewCall[k8sCliJobsQueueDebugRequest, []k8sCliQueueDebugScheduler]("cli.k8s.jobs.queue.debug")
 	k8sCliJobsOperate    = ipc.NewCall[k8sCliJobsOperateRequest, k8sCliJobsOperateResponse]("cli.k8s.jobs.operate")
+	k8sCliJobsSnapshot   = ipc.NewCall[k8sCliJobsSnapshotRequest, k8sCliJobsSnapshotResponse]("cli.k8s.jobs.snapshot")
 )

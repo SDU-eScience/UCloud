@@ -435,6 +435,7 @@ export interface FilesBrowseRequest {
     includePermissions?: boolean,
     includeTimestamps?: boolean,
     includeSizes?: boolean,
+    includeSizesNonBlocking?: boolean,
     includeUnixInfo?: boolean,
     includeMetadata?: boolean,
     /**
@@ -489,12 +490,12 @@ export interface FilesCreateDownloadRequestItem {
 }
 export interface FilesCreateUploadResponseItem {
     endpoint: string,
-    protocol: ("CHUNKED" | "WEBSOCKET" | "WEBSOCKET_V1" | "WEBSOCKET_V2"),
+    protocol: ("CHUNKED" | "WEBSOCKET" | "WEBSOCKET_V1" | "WEBSOCKET_V2" | "WEBSOCKET_V3"),
     token: string,
 }
 export interface FilesCreateUploadRequestItem {
     path: string,
-    supportedProtocols: ("CHUNKED"|"WEBSOCKET"|"WEBSOCKET_V1"|"WEBSOCKET_V2")[],
+    supportedProtocols: ("CHUNKED"|"WEBSOCKET"|"WEBSOCKET_V1"|"WEBSOCKET_V2"|"WEBSOCKET_V3")[],
     conflictPolicy: ("RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME"),
 }
 export interface FilesCreateFolderRequestItem {
@@ -514,6 +515,7 @@ export interface FilesRetrieveRequest {
     includePermissions?: boolean,
     includeTimestamps?: boolean,
     includeSizes?: boolean,
+    includeSizesNonBlocking?: boolean,
     includeUnixInfo?: boolean,
     includeMetadata?: boolean,
     /**
@@ -1581,6 +1583,7 @@ export type AppParameterValue =
     | AppParameterValueNS.Workflow
     | AppParameterValueNS.ModuleList
     | AppParameterValueNS.PrivateNetwork
+    | AppParameterValueNS.UCloudNetwork
     | AppParameterValueNS.ApiServer
     ;
 export interface SimpleDuration {
@@ -2723,6 +2726,13 @@ export interface ModuleList {
 export interface PrivateNetwork {
     id: string,
     type: ("private_network"),
+    ips?: string[],
+}
+
+export interface UCloudNetwork {
+    id: string,
+    type: ("ucloud_network"),
+    ips?: string[],
 }
 
 export interface ApiServer {
@@ -5454,7 +5464,7 @@ export interface ProductsBrowseRequest {
     itemsToSkip?: number /* int64 */,
     filterName?: string,
     filterProvider?: string,
-    filterProductType?: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP" | "PRIVATE_NETWORK"),
+    filterProductType?: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "INFERENCE" | "NETWORK_IP" | "PRIVATE_NETWORK" | "PRIVATE_NETWORK_IP"),
     filterCategory?: string,
     filterUsable?: boolean,
     includeBalance?: boolean,

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"maps"
 	"net/http"
+	"path"
 	"slices"
 	"sort"
 	"strings"
@@ -16,28 +17,94 @@ import (
 	"ucloud.dk/shared/pkg/util"
 )
 
+// Inference model catalog
+// =====================================================================================================================
+// This file manages model visibility and model defaults. Public models are visible to all owners. Private models are
+// visible only to projects in their availability list. Model defaults give inference calls consistent settings when an
+// administrator does not supply each optional value.
+//
+// The catalog loads models and benchmarks from the database into shared memory. Read operations return copied values.
+// Write operations normalize and validate input before they update the database and shared state.
+
+// Catalog types
+// ---------------------------------------------------------------------------------------------------------------------
+// This section defines the catalog schema used by database conversion, administration APIs, and inference callers.
+// InferenceModel combines identity, capabilities, pricing, backend routing, visibility, context size, chat defaults,
+// and optional model-page data. InferenceBenchmark describes one score category and its ordered model names.
+//
+// Optional pointers distinguish absent context, prompts, and pages from present zero values. Prices use integer units
+// per million tokens. Availability contains the public flag and the project list used by visibility checks.
+
 type InferenceCapability string
 
 const (
-	InferenceTextGeneration InferenceCapability = "TextGeneration"
-	InferenceTextToImage    InferenceCapability = "TextToImage"
-	InferenceSpeechToText   InferenceCapability = "SpeechToText"
-	InferenceVision         InferenceCapability = "Vision"
-	InferenceVideoVision    InferenceCapability = "VideoVision"
-	InferenceAudio          InferenceCapability = "Audio"
+	InferenceTextGeneration            InferenceCapability = "TextGeneration"
+	InferenceTextToImage               InferenceCapability = "TextToImage"
+	InferenceImageToImage              InferenceCapability = "ImageToImage"
+	InferenceTextToVideo               InferenceCapability = "TextToVideo"
+	InferenceImageToVideo              InferenceCapability = "ImageToVideo"
+	InferenceSpeechToText              InferenceCapability = "SpeechToText"
+	InferenceSpeechToTextTimestamps    InferenceCapability = "SpeechToTextTimestamps"
+	InferenceSpeechToTextSpeakerLabels InferenceCapability = "SpeechToTextSpeakerLabels"
+	InferenceVision                    InferenceCapability = "Vision"
+	InferenceVideoVision               InferenceCapability = "VideoVision"
+	InferenceAudio                     InferenceCapability = "Audio"
 )
 
 type InferenceModel struct {
-	Name            string                `json:"name"`
-	Title           string                `json:"title"`
-	TitleModelName  string                `json:"titleModelName"`
-	Capabilities    []InferenceCapability `json:"capabilities"`
-	PriceMultiplier InferencePricing      `json:"priceMultiplier"`
-	Endpoint        InferenceEndpoint     `json:"endpoint"`
-	Availability    InferenceAvailability `json:"availability"`
-	ContextWindow   *int                  `json:"contextWindow,omitempty"`
-	ChatSettings    InferenceChatSettings `json:"chatSettings"`
-	Page            *InferenceModelPage   `json:"page,omitempty"`
+	Name                   string                       `json:"name"`
+	Title                  string                       `json:"title"`
+	Capabilities           []InferenceCapability        `json:"capabilities"`
+	DefaultFor             []InferenceCapability        `json:"defaultFor"`
+	ReasoningEfforts       []InferenceModelOption       `json:"reasoningEfforts,omitempty"`
+	DefaultReasoningEffort string                       `json:"defaultReasoningEffort,omitempty"`
+	PricePerMillion        InferencePricing             `json:"pricePerMillion"`
+	PricePerMegaPixel      int64                        `json:"pricePerMegaPixel"`
+	PricePerAudioMinute    int64                        `json:"pricePerAudioMinute"`
+	PricePerVideoSecond    map[InferenceVideoTier]int64 `json:"pricePerVideoSecond,omitempty"`
+	VideoResolutions       []InferenceVideoResolution   `json:"videoResolutions,omitempty"`
+	DefaultVideoTier       InferenceVideoTier           `json:"defaultVideoTier,omitempty"`
+	FileUrlRoot            string                       `json:"fileUrlRoot,omitempty"`
+	Endpoint               InferenceEndpoint            `json:"endpoint"`
+	Availability           InferenceAvailability        `json:"availability"`
+	ContextWindow          *int                         `json:"contextWindow,omitempty"`
+	ChatSettings           InferenceChatSettings        `json:"chatSettings"`
+	Page                   *InferenceModelPage          `json:"page,omitempty"`
+}
+
+type InferenceVideoTier string
+
+const (
+	InferenceVideoTier360p  InferenceVideoTier = "360p"
+	InferenceVideoTier480p  InferenceVideoTier = "480p"
+	InferenceVideoTier540p  InferenceVideoTier = "540p"
+	InferenceVideoTier720p  InferenceVideoTier = "720p"
+	InferenceVideoTier768p  InferenceVideoTier = "768p"
+	InferenceVideoTier1080p InferenceVideoTier = "1080p"
+	InferenceVideoTier2k    InferenceVideoTier = "2k"
+	InferenceVideoTier4k    InferenceVideoTier = "4k"
+)
+
+var inferenceVideoTierOrder = []InferenceVideoTier{
+	InferenceVideoTier360p,
+	InferenceVideoTier480p,
+	InferenceVideoTier540p,
+	InferenceVideoTier720p,
+	InferenceVideoTier768p,
+	InferenceVideoTier1080p,
+	InferenceVideoTier2k,
+	InferenceVideoTier4k,
+}
+
+type InferenceVideoResolution struct {
+	Width  int                `json:"width"`
+	Height int                `json:"height"`
+	Tier   InferenceVideoTier `json:"tier"`
+}
+
+type InferenceModelOption struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type InferenceModelPage struct {
@@ -84,10 +151,12 @@ type InferenceChatSettings struct {
 }
 
 type InferencePricing struct {
-	CachedInput int `json:"cachedInput"`
-	Input       int `json:"input"`
-	Output      int `json:"output"`
+	CachedInput int64 `json:"cachedInput"`
+	Input       int64 `json:"input"`
+	Output      int64 `json:"output"`
 }
+
+const InferencePriceScale int64 = 1_000_000
 
 type InferenceEndpoint struct {
 	BasePath         string `json:"basePath"`
@@ -99,6 +168,14 @@ type InferenceAvailability struct {
 	AvailableTo []string `json:"availableTo"`
 }
 
+// Catalog state and database rows
+// ---------------------------------------------------------------------------------------------------------------------
+// modelGlobals holds the loaded catalog behind one read-write lock. Models use their normalized name as the map key.
+// Benchmarks use a sorted slice. The row types match database columns and keep JSON and nullable values in storage form.
+//
+// Catalog loading replaces both state collections while holding the write lock. Read and write entry points return
+// cloned catalog values instead of references to map entries.
+
 var modelGlobals = struct {
 	Mu         sync.RWMutex
 	Models     map[string]InferenceModel
@@ -108,24 +185,32 @@ var modelGlobals = struct {
 }
 
 type inferenceModelRow struct {
-	Name                   string
-	Title                  string
-	TitleModelName         string
-	Capabilities           []byte
-	PriceCachedInput       int
-	PriceInput             int
-	PriceOutput            int
-	InferenceEndpointPath  string
-	InferenceEndpointModel string
-	Public                 bool
-	AvailableTo            []byte
-	ContextWindow          sql.NullInt64
-	Temperature            float64
-	TopP                   float64
-	MaxCompletionTokens    int
-	SystemPrompt           sql.NullString
-	DisableTools           bool
-	PageMetadata           []byte
+	Name                       string
+	Title                      string
+	Capabilities               []byte
+	DefaultFor                 []byte
+	ReasoningEfforts           []byte
+	DefaultReasoningEffort     sql.NullString
+	PricePerMillionCachedInput int64
+	PricePerMillionInput       int64
+	PricePerMillionOutput      int64
+	PricePerMegaPixel          int64 `db:"price_per_megapixel"`
+	PricePerAudioMinute        int64
+	PricePerVideoSecond        []byte
+	VideoResolutions           []byte
+	DefaultVideoTier           string
+	FileUrlRoot                string
+	InferenceEndpointPath      string
+	InferenceEndpointModel     string
+	Public                     bool
+	AvailableTo                []byte
+	ContextWindow              sql.NullInt64
+	Temperature                float64
+	TopP                       float64
+	MaxCompletionTokens        int
+	SystemPrompt               sql.NullString
+	DisableTools               bool
+	PageMetadata               []byte
 }
 
 type inferenceBenchmarkRow struct {
@@ -136,6 +221,15 @@ type inferenceBenchmarkRow struct {
 	ModelNames     []byte
 }
 
+// Catalog loading
+// ---------------------------------------------------------------------------------------------------------------------
+// inferenceModelCatalogLoad reads all model and benchmark rows, converts their JSON and nullable columns, normalizes
+// each model, and then replaces shared state. This function is the database-to-memory entry point for the catalog.
+//
+// A model row is skipped when capabilities, availability, or reasoning efforts contain invalid JSON. Invalid optional
+// page JSON leaves the page absent. A benchmark row is skipped when its model-name JSON is invalid. SQL null values
+// become nil pointers or empty strings as defined by the public schema.
+
 func inferenceModelCatalogLoad() {
 	models, benchmarks := db.NewTx2(func(tx *db.Transaction) (map[string]InferenceModel, []InferenceBenchmark) {
 		rows := db.Select[inferenceModelRow](
@@ -144,11 +238,19 @@ func inferenceModelCatalogLoad() {
 				select
 					name,
 					title,
-					title_model_name,
 					capabilities,
-					price_cached_input,
-					price_input,
-					price_output,
+					default_for,
+					reasoning_efforts,
+					default_reasoning_effort,
+					price_per_million_cached_input,
+					price_per_million_input,
+					price_per_million_output,
+					price_per_megapixel,
+					price_per_audio_minute,
+					price_per_video_second,
+					video_resolutions,
+					default_video_tier,
+					file_url_root,
 					inference_endpoint_path,
 					inference_endpoint_model,
 					public,
@@ -173,7 +275,23 @@ func inferenceModelCatalogLoad() {
 			}
 
 			var availableTo []string
+			var defaultFor []InferenceCapability
+			if err := json.Unmarshal(row.DefaultFor, &defaultFor); err != nil {
+				continue
+			}
 			if err := json.Unmarshal(row.AvailableTo, &availableTo); err != nil {
+				continue
+			}
+			var reasoningEfforts []InferenceModelOption
+			if err := json.Unmarshal(row.ReasoningEfforts, &reasoningEfforts); err != nil {
+				continue
+			}
+			var videoResolutions []InferenceVideoResolution
+			if err := json.Unmarshal(row.VideoResolutions, &videoResolutions); err != nil {
+				continue
+			}
+			var pricePerVideoSecond map[InferenceVideoTier]int64
+			if err := json.Unmarshal(row.PricePerVideoSecond, &pricePerVideoSecond); err != nil {
 				continue
 			}
 
@@ -196,15 +314,28 @@ func inferenceModelCatalogLoad() {
 			}
 
 			result[row.Name] = inferenceModelNormalize(InferenceModel{
-				Name:           row.Name,
-				Title:          row.Title,
-				TitleModelName: row.TitleModelName,
-				Capabilities:   capabilities,
-				PriceMultiplier: InferencePricing{
-					CachedInput: row.PriceCachedInput,
-					Input:       row.PriceInput,
-					Output:      row.PriceOutput,
+				Name:             row.Name,
+				Title:            row.Title,
+				Capabilities:     capabilities,
+				DefaultFor:       defaultFor,
+				ReasoningEfforts: reasoningEfforts,
+				DefaultReasoningEffort: func() string {
+					if row.DefaultReasoningEffort.Valid {
+						return row.DefaultReasoningEffort.String
+					}
+					return ""
+				}(),
+				PricePerMillion: InferencePricing{
+					CachedInput: row.PricePerMillionCachedInput,
+					Input:       row.PricePerMillionInput,
+					Output:      row.PricePerMillionOutput,
 				},
+				PricePerMegaPixel:   row.PricePerMegaPixel,
+				PricePerAudioMinute: row.PricePerAudioMinute,
+				PricePerVideoSecond: pricePerVideoSecond,
+				VideoResolutions:    videoResolutions,
+				DefaultVideoTier:    InferenceVideoTier(row.DefaultVideoTier),
+				FileUrlRoot:         row.FileUrlRoot,
 				Endpoint: InferenceEndpoint{
 					BasePath:         row.InferenceEndpointPath,
 					BackendModelName: row.InferenceEndpointModel,
@@ -257,6 +388,14 @@ func inferenceModelCatalogLoad() {
 	modelGlobals.Mu.Unlock()
 }
 
+// Public catalog reads
+// ---------------------------------------------------------------------------------------------------------------------
+// InferenceModelList returns every model in name order. InferenceModelListForOwner filters that copy by visibility.
+// InferenceCatalogModelByName trims lookup input and returns one copied model. Empty and unknown names return false.
+//
+// InferenceBenchmarkList returns copies of the benchmark values in shared state. All reads return values that callers
+// can change without changing the loaded catalog.
+
 func InferenceModelList() []InferenceModel {
 	modelGlobals.Mu.RLock()
 	defer modelGlobals.Mu.RUnlock()
@@ -280,6 +419,22 @@ func InferenceModelListForOwner(owner apm.WalletOwner) []InferenceModel {
 	return result
 }
 
+func InferenceCatalogModelByName(name string) (InferenceModel, bool) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return InferenceModel{}, false
+	}
+
+	modelGlobals.Mu.RLock()
+	defer modelGlobals.Mu.RUnlock()
+
+	model, ok := modelGlobals.Models[name]
+	if !ok {
+		return InferenceModel{}, false
+	}
+	return inferenceModelClone(model), true
+}
+
 func InferenceBenchmarkList() []InferenceBenchmark {
 	modelGlobals.Mu.RLock()
 	defer modelGlobals.Mu.RUnlock()
@@ -289,6 +444,148 @@ func InferenceBenchmarkList() []InferenceBenchmark {
 		result = append(result, inferenceBenchmarkClone(benchmark))
 	}
 	return result
+}
+
+// Public catalog writes
+// ---------------------------------------------------------------------------------------------------------------------
+// The model write entry points normalize and validate models before they change shared state. They hold the catalog
+// lock across each database transaction and its matching memory update. Missing models return not found. Name conflicts
+// return conflict. Public models cannot use the rename operation.
+//
+// InferenceBenchmarkReplace normalizes and validates each input, rejects duplicate identifiers, sorts the result by
+// identifier, and writes the new set. The replacement uses one database transaction. Shared state changes after the
+// database writes and stores cloned model name slices. An empty input produces an empty benchmark set.
+
+func inferenceModelPrepare(model InferenceModel) (InferenceModel, *util.HttpError) {
+	if err := inferenceVideoPriceKeysValid(model.PricePerVideoSecond); err != nil {
+		return model, err
+	}
+	model = inferenceModelNormalize(model)
+	if err := inferenceModelValidate(model); err != nil {
+		return model, err
+	}
+	return model, nil
+}
+
+func InferenceModelUpsert(model InferenceModel) *util.HttpError {
+	model, httpErr := inferenceModelPrepare(model)
+	if httpErr != nil {
+		return httpErr
+	}
+
+	modelGlobals.Mu.Lock()
+	defer modelGlobals.Mu.Unlock()
+
+	db.NewTx0(func(tx *db.Transaction) {
+		for _, capability := range model.DefaultFor {
+			db.Exec(
+				tx,
+				`update inference_model set default_for = default_for - cast(:capability as text) where name != :name`,
+				db.Params{
+					"capability": string(capability),
+					"name":       model.Name,
+				},
+			)
+		}
+		inferenceModelUpsertTx(tx, model)
+	})
+	for name, other := range modelGlobals.Models {
+		other.DefaultFor = slices.DeleteFunc(slices.Clone(other.DefaultFor),
+			func(capability InferenceCapability) bool {
+				return slices.Contains(model.DefaultFor, capability)
+			})
+		modelGlobals.Models[name] = other
+	}
+	modelGlobals.Models[model.Name] = inferenceModelClone(model)
+	return nil
+}
+
+func InferenceModelRename(oldName string, newName string) *util.HttpError {
+	oldName = strings.TrimSpace(oldName)
+	newName = strings.TrimSpace(newName)
+	if oldName == "" || newName == "" {
+		return util.HttpErr(http.StatusBadRequest, "invalid model name")
+	}
+
+	modelGlobals.Mu.Lock()
+	defer modelGlobals.Mu.Unlock()
+
+	model, ok := modelGlobals.Models[oldName]
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "model not found")
+	}
+	if model.Availability.Public {
+		return util.HttpErr(http.StatusBadRequest, "public models cannot be renamed")
+	}
+	if _, exists := modelGlobals.Models[newName]; exists && oldName != newName {
+		return util.HttpErr(http.StatusConflict, "model already exists")
+	}
+
+	model.Name = newName
+	if err := inferenceModelValidate(model); err != nil {
+		return err
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(
+			tx,
+			`delete from inference_model where name = :name`,
+			db.Params{"name": oldName},
+		)
+		inferenceModelUpsertTx(tx, model)
+		db.Exec(
+			tx,
+			`update inference_video_job set model = :new_name where model = :old_name`,
+			db.Params{
+				"new_name": newName,
+				"old_name": oldName,
+			},
+		)
+	})
+
+	delete(modelGlobals.Models, oldName)
+	modelGlobals.Models[newName] = inferenceModelClone(model)
+	return nil
+}
+
+func InferenceModelDelete(name string) *util.HttpError {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return util.HttpErr(http.StatusBadRequest, "invalid model name")
+	}
+
+	modelGlobals.Mu.Lock()
+	defer modelGlobals.Mu.Unlock()
+
+	if _, ok := modelGlobals.Models[name]; !ok {
+		return util.HttpErr(http.StatusNotFound, "model not found")
+	}
+
+	unsettledVideoJobs := db.NewTx(func(tx *db.Transaction) int64 {
+		row, _ := db.Get[struct {
+			Count int64
+		}](
+			tx,
+			`
+				select count(*) as count
+				from inference_video_job
+				where model = :name and settled_at is null
+			`,
+			db.Params{
+				"name": name,
+			},
+		)
+		return row.Count
+	})
+	if unsettledVideoJobs > 0 {
+		return util.HttpErr(http.StatusBadRequest, "model has unsettled video jobs")
+	}
+
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(tx, `delete from inference_model where name = :name`, db.Params{"name": name})
+	})
+	delete(modelGlobals.Models, name)
+	return nil
 }
 
 func InferenceBenchmarkReplace(benchmarks []InferenceBenchmark) *util.HttpError {
@@ -323,114 +620,21 @@ func InferenceBenchmarkReplace(benchmarks []InferenceBenchmark) *util.HttpError 
 	return nil
 }
 
-func InferenceCatalogModelByName(name string) (InferenceModel, bool) {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return InferenceModel{}, false
-	}
-
-	modelGlobals.Mu.RLock()
-	defer modelGlobals.Mu.RUnlock()
-
-	model, ok := modelGlobals.Models[name]
-	if !ok {
-		return InferenceModel{}, false
-	}
-	return inferenceModelClone(model), true
-}
-
-func InferenceModelUpsert(model InferenceModel) *util.HttpError {
-	model = inferenceModelNormalize(model)
-	if err := inferenceModelValidate(model); err != nil {
-		return err
-	}
-
-	modelGlobals.Mu.Lock()
-	defer modelGlobals.Mu.Unlock()
-
-	db.NewTx0(func(tx *db.Transaction) {
-		inferenceModelUpsertTx(tx, model)
-	})
-	modelGlobals.Models[model.Name] = inferenceModelClone(model)
-	return nil
-}
-
-func InferenceModelRename(oldName string, newName string) *util.HttpError {
-	oldName = strings.TrimSpace(oldName)
-	newName = strings.TrimSpace(newName)
-	if oldName == "" || newName == "" {
-		return util.HttpErr(http.StatusBadRequest, "invalid model name")
-	}
-
-	modelGlobals.Mu.Lock()
-	defer modelGlobals.Mu.Unlock()
-
-	model, ok := modelGlobals.Models[oldName]
-	if !ok {
-		return util.HttpErr(http.StatusNotFound, "model not found")
-	}
-	if model.Availability.Public {
-		return util.HttpErr(http.StatusBadRequest, "public models cannot be renamed")
-	}
-	if _, exists := modelGlobals.Models[newName]; exists && oldName != newName {
-		return util.HttpErr(http.StatusConflict, "model already exists")
-	}
-
-	model.Name = newName
-	if model.TitleModelName == oldName {
-		model.TitleModelName = newName
-	}
-	if err := inferenceModelValidate(model); err != nil {
-		return err
-	}
-
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`update inference_model set title_model_name = :new_name where title_model_name = :old_name`,
-			db.Params{"old_name": oldName, "new_name": newName},
-		)
-		db.Exec(
-			tx,
-			`delete from inference_model where name = :name`,
-			db.Params{"name": oldName},
-		)
-		inferenceModelUpsertTx(tx, model)
-	})
-
-	for existingName, existing := range modelGlobals.Models {
-		if existing.TitleModelName == oldName {
-			existing.TitleModelName = newName
-			modelGlobals.Models[existingName] = inferenceModelClone(existing)
-		}
-	}
-	delete(modelGlobals.Models, oldName)
-	modelGlobals.Models[newName] = inferenceModelClone(model)
-	return nil
-}
-
-func InferenceModelDelete(name string) *util.HttpError {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return util.HttpErr(http.StatusBadRequest, "invalid model name")
-	}
-
-	modelGlobals.Mu.Lock()
-	defer modelGlobals.Mu.Unlock()
-
-	if _, ok := modelGlobals.Models[name]; !ok {
-		return util.HttpErr(http.StatusNotFound, "model not found")
-	}
-
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(tx, `delete from inference_model where name = :name`, db.Params{"name": name})
-	})
-	delete(modelGlobals.Models, name)
-	return nil
-}
+// Database writes
+// ---------------------------------------------------------------------------------------------------------------------
+// These transaction helpers convert catalog values into database parameters. Model writes encode list and page fields
+// as JSON and represent absent optional values as SQL null. Existing model names update every stored model field.
+// Benchmark writes encode model names as JSON and insert one normalized benchmark value.
+//
+// Callers own the transaction and catalog lock. The helpers do not return JSON encoding errors. The validation entry
+// points run before normal write calls reach this section.
 
 func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 	capabilities, _ := json.Marshal(model.Capabilities)
+	defaultFor, _ := json.Marshal(append([]InferenceCapability{}, model.DefaultFor...))
+	reasoningEfforts, _ := json.Marshal(model.ReasoningEfforts)
+	pricePerVideoSecond, _ := json.Marshal(model.PricePerVideoSecond)
+	videoResolutions, _ := json.Marshal(model.VideoResolutions)
 	availableTo, _ := json.Marshal(model.Availability.AvailableTo)
 	pageMetadata := sql.NullString{}
 	if model.Page != nil {
@@ -445,17 +649,29 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 	if model.ChatSettings.SystemPrompt != nil {
 		systemPrompt = sql.NullString{String: *model.ChatSettings.SystemPrompt, Valid: true}
 	}
+	defaultReasoningEffort := sql.NullString{}
+	if model.DefaultReasoningEffort != "" {
+		defaultReasoningEffort = sql.NullString{String: model.DefaultReasoningEffort, Valid: true}
+	}
 	db.Exec(
 		tx,
 		`
 			insert into inference_model(
 				name,
 				title,
-				title_model_name,
 				capabilities,
-				price_cached_input,
-				price_input,
-				price_output,
+				default_for,
+				reasoning_efforts,
+				default_reasoning_effort,
+				price_per_million_cached_input,
+				price_per_million_input,
+				price_per_million_output,
+				price_per_megapixel,
+				price_per_audio_minute,
+				price_per_video_second,
+				video_resolutions,
+				default_video_tier,
+				file_url_root,
 				inference_endpoint_path,
 				inference_endpoint_model,
 				public,
@@ -470,11 +686,19 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 			) values (
 				:name,
 				:title,
-				:title_model_name,
 				cast(:capabilities as jsonb),
-				:price_cached_input,
-				:price_input,
-				:price_output,
+				cast(:default_for as jsonb),
+				cast(:reasoning_efforts as jsonb),
+				:default_reasoning_effort,
+				:price_per_million_cached_input,
+				:price_per_million_input,
+				:price_per_million_output,
+				:price_per_megapixel,
+				:price_per_audio_minute,
+				cast(:price_per_video_second as jsonb),
+				cast(:video_resolutions as jsonb),
+				:default_video_tier,
+				:file_url_root,
 				:inference_endpoint_path,
 				:inference_endpoint_model,
 				:public,
@@ -488,11 +712,19 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				cast(:page_metadata as jsonb)
 			) on conflict (name) do update set
 				title = excluded.title,
-				title_model_name = excluded.title_model_name,
 				capabilities = excluded.capabilities,
-				price_cached_input = excluded.price_cached_input,
-				price_input = excluded.price_input,
-				price_output = excluded.price_output,
+				default_for = excluded.default_for,
+				reasoning_efforts = excluded.reasoning_efforts,
+				default_reasoning_effort = excluded.default_reasoning_effort,
+				price_per_million_cached_input = excluded.price_per_million_cached_input,
+				price_per_million_input = excluded.price_per_million_input,
+				price_per_million_output = excluded.price_per_million_output,
+				price_per_megapixel = excluded.price_per_megapixel,
+				price_per_audio_minute = excluded.price_per_audio_minute,
+				price_per_video_second = excluded.price_per_video_second,
+				video_resolutions = excluded.video_resolutions,
+				default_video_tier = excluded.default_video_tier,
+				file_url_root = excluded.file_url_root,
 				inference_endpoint_path = excluded.inference_endpoint_path,
 				inference_endpoint_model = excluded.inference_endpoint_model,
 				public = excluded.public,
@@ -506,24 +738,32 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				page_metadata = excluded.page_metadata
 		`,
 		db.Params{
-			"name":                     model.Name,
-			"title":                    model.Title,
-			"title_model_name":         model.TitleModelName,
-			"capabilities":             string(capabilities),
-			"price_cached_input":       model.PriceMultiplier.CachedInput,
-			"price_input":              model.PriceMultiplier.Input,
-			"price_output":             model.PriceMultiplier.Output,
-			"inference_endpoint_path":  model.Endpoint.BasePath,
-			"inference_endpoint_model": model.Endpoint.BackendModelName,
-			"public":                   model.Availability.Public,
-			"available_to":             string(availableTo),
-			"context_window":           contextWindow,
-			"temperature":              model.ChatSettings.Temperature,
-			"top_p":                    model.ChatSettings.TopP,
-			"max_completion_tokens":    model.ChatSettings.MaxCompletionTokens,
-			"system_prompt":            systemPrompt,
-			"disable_tools":            model.ChatSettings.DisableTools,
-			"page_metadata":            pageMetadata,
+			"name":                           model.Name,
+			"title":                          model.Title,
+			"capabilities":                   string(capabilities),
+			"default_for":                    string(defaultFor),
+			"reasoning_efforts":              string(reasoningEfforts),
+			"default_reasoning_effort":       defaultReasoningEffort,
+			"price_per_million_cached_input": model.PricePerMillion.CachedInput,
+			"price_per_million_input":        model.PricePerMillion.Input,
+			"price_per_million_output":       model.PricePerMillion.Output,
+			"price_per_megapixel":            model.PricePerMegaPixel,
+			"price_per_audio_minute":         model.PricePerAudioMinute,
+			"price_per_video_second":         string(pricePerVideoSecond),
+			"video_resolutions":              string(videoResolutions),
+			"default_video_tier":             string(model.DefaultVideoTier),
+			"file_url_root":                  model.FileUrlRoot,
+			"inference_endpoint_path":        model.Endpoint.BasePath,
+			"inference_endpoint_model":       model.Endpoint.BackendModelName,
+			"public":                         model.Availability.Public,
+			"available_to":                   string(availableTo),
+			"context_window":                 contextWindow,
+			"temperature":                    model.ChatSettings.Temperature,
+			"top_p":                          model.ChatSettings.TopP,
+			"max_completion_tokens":          model.ChatSettings.MaxCompletionTokens,
+			"system_prompt":                  systemPrompt,
+			"disable_tools":                  model.ChatSettings.DisableTools,
+			"page_metadata":                  pageMetadata,
 		},
 	)
 }
@@ -546,64 +786,75 @@ func inferenceBenchmarkInsertTx(tx *db.Transaction, benchmark InferenceBenchmark
 	)
 }
 
-func inferenceModelValidate(model InferenceModel) *util.HttpError {
-	if strings.TrimSpace(model.Name) == "" {
-		return util.HttpErr(http.StatusBadRequest, "model name is required")
-	}
-	if strings.TrimSpace(model.Title) == "" {
-		return util.HttpErr(http.StatusBadRequest, "model title is required")
-	}
-	if strings.TrimSpace(model.TitleModelName) == "" {
-		return util.HttpErr(http.StatusBadRequest, "model title model name is required")
-	}
-	if len(model.Capabilities) == 0 {
-		return util.HttpErr(http.StatusBadRequest, "model capabilities are required")
-	}
-	if model.PriceMultiplier.CachedInput < 0 || model.PriceMultiplier.Input < 0 || model.PriceMultiplier.Output < 0 {
-		return util.HttpErr(http.StatusBadRequest, "model price multipliers cannot be negative")
-	}
-	if model.ChatSettings.Temperature < 0 || model.ChatSettings.Temperature > 2 {
-		return util.HttpErr(http.StatusBadRequest, "model temperature must be between 0 and 2")
-	}
-	if model.ChatSettings.TopP < 0 || model.ChatSettings.TopP > 1 {
-		return util.HttpErr(http.StatusBadRequest, "model top P must be between 0 and 1")
-	}
-	if model.ChatSettings.MaxCompletionTokens <= 0 {
-		return util.HttpErr(http.StatusBadRequest, "model max completion tokens must be positive")
-	}
-	for _, capability := range model.Capabilities {
-		switch capability {
-		case InferenceTextGeneration, InferenceTextToImage, InferenceSpeechToText, InferenceVision, InferenceVideoVision, InferenceAudio:
-		default:
-			return util.HttpErr(http.StatusBadRequest, "invalid model capability")
-		}
-	}
-	if strings.TrimSpace(model.Endpoint.BasePath) == "" {
-		return util.HttpErr(http.StatusBadRequest, "model endpoint base path is required")
-	}
-	if strings.TrimSpace(model.Endpoint.BackendModelName) == "" {
-		return util.HttpErr(http.StatusBadRequest, "model endpoint backend model name is required")
-	}
-	if err := inferenceValidateBackendEndpoint(model.Endpoint.BasePath); err != nil {
-		return err
-	}
-	return nil
-}
+// Model normalization and validation
+// ---------------------------------------------------------------------------------------------------------------------
+// inferenceModelNormalize creates the canonical catalog value. It trims names, endpoint values, reasoning settings,
+// prompts, and page text. It removes nonpositive context sizes and empty optional data. It supplies 128K completion
+// tokens when the input uses zero, so callers receive a usable model default.
+//
+// inferenceModelValidate checks required identity, capabilities, prices, sampling ranges, reasoning values, completion
+// limits, and backend routing. It accepts the capability set listed in its switch. A configured default reasoning effort
+// must match one supported value. Endpoint validation also applies the backend endpoint rules.
+//
+// inferenceModelClone copies model slices, maps, and the immediate optional values before a model enters or leaves shared
+// state. The page copy retains nested scalar pointers such as ReleaseDate.
 
 func inferenceModelNormalize(model InferenceModel) InferenceModel {
 	model.Name = strings.TrimSpace(model.Name)
 	model.Title = strings.TrimSpace(model.Title)
-	model.TitleModelName = strings.TrimSpace(model.TitleModelName)
-	if model.TitleModelName == "" {
-		model.TitleModelName = model.Name
-	}
-	model.Endpoint.BasePath = strings.TrimRight(strings.TrimSpace(model.Endpoint.BasePath), "/")
+	model.Endpoint.BasePath = inferenceNormalizeBackendBasePath(model.Endpoint.BasePath)
 	model.Endpoint.BackendModelName = strings.TrimSpace(model.Endpoint.BackendModelName)
+	model.FileUrlRoot = strings.TrimSpace(model.FileUrlRoot)
+	if model.FileUrlRoot != "" {
+		model.FileUrlRoot = path.Clean(model.FileUrlRoot)
+	}
+	model.DefaultVideoTier = inferenceVideoTierNormalize(model.DefaultVideoTier)
+	for idx := range model.VideoResolutions {
+		model.VideoResolutions[idx].Tier = inferenceVideoTierNormalize(model.VideoResolutions[idx].Tier)
+	}
+	if model.VideoResolutions == nil {
+		model.VideoResolutions = []InferenceVideoResolution{}
+	}
+	sort.SliceStable(model.VideoResolutions, func(i, j int) bool {
+		left := model.VideoResolutions[i]
+		right := model.VideoResolutions[j]
+		leftRank := inferenceVideoTierRank(left.Tier)
+		rightRank := inferenceVideoTierRank(right.Tier)
+		if leftRank != rightRank {
+			return leftRank < rightRank
+		}
+		if left.Width != right.Width {
+			return left.Width < right.Width
+		}
+		return left.Height < right.Height
+	})
+	if model.PricePerVideoSecond == nil {
+		model.PricePerVideoSecond = map[InferenceVideoTier]int64{}
+	}
+	normalizedVideoPrices := make(map[InferenceVideoTier]int64, len(model.PricePerVideoSecond))
+	for _, tier := range slices.Sorted(maps.Keys(model.PricePerVideoSecond)) {
+		normalizedVideoPrices[inferenceVideoTierNormalize(tier)] = model.PricePerVideoSecond[tier]
+	}
+	model.PricePerVideoSecond = normalizedVideoPrices
+	if !slices.Contains(model.Capabilities, InferenceTextToVideo) &&
+		!slices.Contains(model.Capabilities, InferenceImageToVideo) {
+		model.VideoResolutions = []InferenceVideoResolution{}
+		model.PricePerVideoSecond = map[InferenceVideoTier]int64{}
+		model.DefaultVideoTier = ""
+	}
+	for idx := range model.ReasoningEfforts {
+		model.ReasoningEfforts[idx].Name = strings.TrimSpace(model.ReasoningEfforts[idx].Name)
+		model.ReasoningEfforts[idx].Value = strings.TrimSpace(model.ReasoningEfforts[idx].Value)
+	}
+	model.DefaultReasoningEffort = strings.TrimSpace(model.DefaultReasoningEffort)
+	if len(model.ReasoningEfforts) == 0 {
+		model.DefaultReasoningEffort = ""
+	}
 	if model.ContextWindow != nil && *model.ContextWindow <= 0 {
 		model.ContextWindow = nil
 	}
 	if model.ChatSettings.MaxCompletionTokens == 0 {
-		model.ChatSettings.MaxCompletionTokens = 65536
+		model.ChatSettings.MaxCompletionTokens = 128 * 1024
 	}
 	if model.ChatSettings.SystemPrompt != nil {
 		value := strings.TrimSpace(*model.ChatSettings.SystemPrompt)
@@ -640,8 +891,125 @@ func inferenceModelNormalize(model InferenceModel) InferenceModel {
 		}
 	}
 	model.Capabilities = slices.Clone(model.Capabilities)
+	model.DefaultFor = slices.Compact(slices.Sorted(slices.Values(model.DefaultFor)))
+	model.ReasoningEfforts = slices.Clone(model.ReasoningEfforts)
 	model.Availability.AvailableTo = slices.Clone(model.Availability.AvailableTo)
 	return model
+}
+
+func inferenceModelValidate(model InferenceModel) *util.HttpError {
+	if strings.TrimSpace(model.Name) == "" {
+		return util.HttpErr(http.StatusBadRequest, "model name is required")
+	}
+	if strings.TrimSpace(model.Title) == "" {
+		return util.HttpErr(http.StatusBadRequest, "model title is required")
+	}
+	if len(model.Capabilities) == 0 {
+		return util.HttpErr(http.StatusBadRequest, "model capabilities are required")
+	}
+	if model.PricePerMillion.CachedInput < 0 || model.PricePerMillion.Input < 0 || model.PricePerMillion.Output < 0 {
+		return util.HttpErr(http.StatusBadRequest, "model prices per million tokens cannot be negative")
+	}
+	if model.PricePerMegaPixel < 0 || model.PricePerAudioMinute < 0 {
+		return util.HttpErr(http.StatusBadRequest, "model native prices cannot be negative")
+	}
+	for tier, price := range model.PricePerVideoSecond {
+		if !inferenceVideoTierValid(tier) {
+			return util.HttpErr(http.StatusBadRequest, "invalid video resolution tier")
+		}
+		if price < 0 {
+			return util.HttpErr(http.StatusBadRequest, "video prices per second cannot be negative")
+		}
+	}
+	if slices.Contains(model.Capabilities, InferenceTextToVideo) || slices.Contains(model.Capabilities, InferenceImageToVideo) {
+		if len(model.VideoResolutions) == 0 {
+			return util.HttpErr(http.StatusBadRequest, "video models require at least one output resolution")
+		}
+		if !inferenceVideoTierValid(model.DefaultVideoTier) {
+			return util.HttpErr(http.StatusBadRequest, "video models require a valid default video tier")
+		}
+		type videoSize struct {
+			Width  int
+			Height int
+		}
+		seenSizes := map[videoSize]bool{}
+		resolutionTiers := map[InferenceVideoTier]bool{}
+		for _, resolution := range model.VideoResolutions {
+			if !inferenceVideoTierValid(resolution.Tier) {
+				return util.HttpErr(http.StatusBadRequest, "invalid video resolution tier")
+			}
+			if resolution.Width <= 0 || resolution.Height <= 0 ||
+				resolution.Width > inferenceMaxVideoDimension || resolution.Height > inferenceMaxVideoDimension {
+				return util.HttpErr(http.StatusBadRequest, "invalid video resolution size")
+			}
+			size := videoSize{Width: resolution.Width, Height: resolution.Height}
+			if seenSizes[size] {
+				return util.HttpErr(http.StatusBadRequest, "duplicate video resolution size")
+			}
+			seenSizes[size] = true
+			resolutionTiers[resolution.Tier] = true
+		}
+		if !resolutionTiers[model.DefaultVideoTier] {
+			return util.HttpErr(http.StatusBadRequest, "default video tier must have a configured resolution")
+		}
+		for tier := range resolutionTiers {
+			if _, ok := model.PricePerVideoSecond[tier]; !ok {
+				return util.HttpErr(http.StatusBadRequest, "video models require a price per second for every configured tier")
+			}
+		}
+	}
+	if model.FileUrlRoot != "" && !path.IsAbs(model.FileUrlRoot) {
+		return util.HttpErr(http.StatusBadRequest, "model file URL root must be an absolute path")
+	}
+	if model.ChatSettings.Temperature < 0 || model.ChatSettings.Temperature > 2 {
+		return util.HttpErr(http.StatusBadRequest, "model temperature must be between 0 and 2")
+	}
+	if model.ChatSettings.TopP < 0 || model.ChatSettings.TopP > 1 {
+		return util.HttpErr(http.StatusBadRequest, "model top P must be between 0 and 1")
+	}
+	if model.ChatSettings.MaxCompletionTokens <= 0 {
+		return util.HttpErr(http.StatusBadRequest, "model max completion tokens must be positive")
+	}
+	for _, capability := range model.Capabilities {
+		switch capability {
+		case InferenceTextGeneration, InferenceTextToImage, InferenceImageToImage, InferenceTextToVideo, InferenceImageToVideo, InferenceSpeechToText, InferenceSpeechToTextTimestamps, InferenceSpeechToTextSpeakerLabels, InferenceVision, InferenceVideoVision, InferenceAudio:
+		default:
+			return util.HttpErr(http.StatusBadRequest, "invalid model capability")
+		}
+	}
+	if (slices.Contains(model.Capabilities, InferenceSpeechToTextTimestamps) || slices.Contains(model.Capabilities, InferenceSpeechToTextSpeakerLabels)) && !slices.Contains(model.Capabilities, InferenceSpeechToText) {
+		return util.HttpErr(http.StatusBadRequest, "transcription detail capabilities require SpeechToText")
+	}
+	reasoningValues := map[string]bool{}
+	for _, capability := range model.DefaultFor {
+		if (capability != InferenceTextToImage && capability != InferenceImageToImage && capability != InferenceTextToVideo &&
+			capability != InferenceImageToVideo && capability != InferenceSpeechToText) ||
+			!slices.Contains(model.Capabilities, capability) {
+			return util.HttpErr(http.StatusBadRequest, "defaults must match a supported capability")
+		}
+	}
+	for _, effort := range model.ReasoningEfforts {
+		if effort.Name == "" || effort.Value == "" {
+			return util.HttpErr(http.StatusBadRequest, "reasoning effort names and values are required")
+		}
+		if reasoningValues[effort.Value] {
+			return util.HttpErr(http.StatusBadRequest, "reasoning effort values must be unique")
+		}
+		reasoningValues[effort.Value] = true
+	}
+	if len(model.ReasoningEfforts) > 0 && !reasoningValues[model.DefaultReasoningEffort] {
+		return util.HttpErr(http.StatusBadRequest, "default reasoning effort must match a supported value")
+	}
+	if strings.TrimSpace(model.Endpoint.BasePath) == "" {
+		return util.HttpErr(http.StatusBadRequest, "model endpoint base path is required")
+	}
+	if strings.TrimSpace(model.Endpoint.BackendModelName) == "" {
+		return util.HttpErr(http.StatusBadRequest, "model endpoint backend model name is required")
+	}
+	if err := inferenceValidateBackendEndpoint(model.Endpoint.BasePath); err != nil {
+		return err
+	}
+	return nil
 }
 
 func inferenceModelClone(model InferenceModel) InferenceModel {
@@ -663,8 +1031,41 @@ func inferenceModelClone(model InferenceModel) InferenceModel {
 		model.Page = &page
 	}
 	model.Capabilities = slices.Clone(model.Capabilities)
+	model.DefaultFor = slices.Clone(model.DefaultFor)
+	model.ReasoningEfforts = slices.Clone(model.ReasoningEfforts)
+	model.VideoResolutions = slices.Clone(model.VideoResolutions)
+	model.PricePerVideoSecond = maps.Clone(model.PricePerVideoSecond)
 	model.Availability.AvailableTo = slices.Clone(model.Availability.AvailableTo)
 	return model
+}
+
+// Benchmark values
+// ---------------------------------------------------------------------------------------------------------------------
+// These helpers normalize, validate, and copy benchmark values. Normalization trims scalar text and removes empty model
+// names. Validation requires an identifier and title. Cloning gives each returned benchmark its own model-name slice.
+
+func inferenceVideoTierNormalize(value InferenceVideoTier) InferenceVideoTier {
+	return InferenceVideoTier(strings.ToLower(strings.TrimSpace(string(value))))
+}
+
+func inferenceVideoTierValid(value InferenceVideoTier) bool {
+	return slices.Contains(inferenceVideoTierOrder, value)
+}
+
+func inferenceVideoTierRank(value InferenceVideoTier) int {
+	return slices.Index(inferenceVideoTierOrder, value)
+}
+
+func inferenceVideoPriceKeysValid(prices map[InferenceVideoTier]int64) *util.HttpError {
+	seen := map[InferenceVideoTier]bool{}
+	for tier := range prices {
+		normalized := inferenceVideoTierNormalize(tier)
+		if seen[normalized] {
+			return util.HttpErr(http.StatusBadRequest, "video price tiers must be unique after normalization")
+		}
+		seen[normalized] = true
+	}
+	return nil
 }
 
 func inferenceBenchmarkNormalize(benchmark InferenceBenchmark) InferenceBenchmark {
@@ -690,6 +1091,11 @@ func inferenceBenchmarkClone(benchmark InferenceBenchmark) InferenceBenchmark {
 	return benchmark
 }
 
+// Shared value helpers
+// ---------------------------------------------------------------------------------------------------------------------
+// trimNonEmptyStrings provides the common normalization for string lists. It trims each value, removes empty results,
+// and preserves the order of all remaining values. Catalog page highlights and benchmark model names use this helper.
+
 func trimNonEmptyStrings(values []string) []string {
 	result := make([]string, 0, len(values))
 	for _, value := range values {
@@ -700,6 +1106,12 @@ func trimNonEmptyStrings(values []string) []string {
 	}
 	return result
 }
+
+// Model visibility
+// ---------------------------------------------------------------------------------------------------------------------
+// inferenceModelAvailableToOwner applies catalog visibility to one model. A public model is visible to every owner. A
+// private model requires a project owner whose project identifier appears in AvailableTo. User owners cannot see a
+// private model because they do not have a project identifier.
 
 func inferenceModelAvailableToOwner(model InferenceModel, owner apm.WalletOwner) bool {
 	if model.Availability.Public {

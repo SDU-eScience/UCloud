@@ -129,7 +129,7 @@ func Launch() {
 
 	fmt.Printf("UCloud/IM starting up... [2/4] Getting things ready\n")
 
-	gatewayConfigChannel := make(chan []byte)
+	gatewayConfigChannel := make(chan []byte, 1024)
 	if mode == cfg.ServerModeServer {
 		gateway.Initialize(gateway.Config{
 			ListenAddress: "0.0.0.0",
@@ -160,7 +160,8 @@ func Launch() {
 			Role string `json:"role"`
 		}
 
-		if r.Header.Get("x-jwt-payload") == "" && (strings.HasPrefix(r.RequestURI, "/api/internal/") || strings.HasPrefix(r.RequestURI, "/api/inference/attachments")) {
+		providerBrandingImagePath := "/ucloud/" + cfg.Provider.Id + "/provider/branding/image"
+		if r.Header.Get("x-jwt-payload") == "" && (strings.HasPrefix(r.RequestURI, "/api/internal/") || strings.HasPrefix(r.RequestURI, "/api/inference/attachments") || strings.HasPrefix(r.RequestURI, providerBrandingImagePath)) {
 			return rpc.Actor{Role: rpc.RoleGuest}, nil
 		}
 
@@ -289,6 +290,14 @@ func Launch() {
 	svc.Init()
 	controller.InitLate()
 	svc.InitLater()
+
+	// NOTE(Dan): The gateway is resumed only after every subsystem has had a chance to send its initial
+	// configuration messages. Resume() triggers the first snapshot push to Envoy. Resuming earlier would, e.g.,
+	// leave out the inference platform's hostname for a period of time after startup.
+
+	if mode == cfg.ServerModeServer {
+		gateway.Resume()
+	}
 
 	if mode == cfg.ServerModeServer {
 		launchMetricsServer()

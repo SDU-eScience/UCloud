@@ -24,17 +24,17 @@ import {ListRow} from "@/ui-components/List";
 import * as Heading from "@/ui-components/Heading";
 import {AvatarForUser} from "@/AvataaarLib/UserAvatar";
 import {copyToClipboard, doNothing, timestampUnixMs} from "@/UtilityFunctions";
-import {Operations, ShortcutKey} from "@/ui-components/Operation";
+import {ShortcutKey} from "@/ui-components/Operation";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import ReactModal from "react-modal";
-import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {ModalBottom, slimModalStyle} from "@/Utilities/ModalUtilities";
 import {CardClass} from "@/ui-components/Card";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {addStandardDialog} from "@/UtilityComponents";
 import {SimpleRichItem, SimpleRichSelect} from "@/ui-components/RichSelect";
-import BaseLink from "@/ui-components/BaseLink";
 import {sendInformationNotification} from "@/Notifications";
+import {ActionMenu} from "@/ui-components/Actions";
 
 export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} {
@@ -48,13 +48,13 @@ export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     ${k} > * {
         flex-basis: 100%;
     }
-    
+
     @media screen and (max-width: 1200px) {
         ${k} {
             --newGroupButtonWidth: 111px;
         }
         ${k} > .left {
-        
+
         }
         ${k} > .right {
             margin-top: 32px;
@@ -62,7 +62,7 @@ export const TwoColumnLayout = injectStyle("two-column-layout", k => `
     }
 
     @media screen and (min-width: 1200px) {
-        
+
         ${k} > .left {
             border-right: 2px solid var(--borderColor, #f00);
             height: 100%;
@@ -165,7 +165,7 @@ export const MembersContainer: React.FunctionComponent<{
             <ReactModal
                 isOpen={isShowingInviteLinks}
                 onRequestClose={() => setIsShowingInviteLinks(false)}
-                style={defaultModalStyle}
+                style={slimModalStyle}
                 shouldCloseOnEsc
                 ariaHideApp={false}
                 onAfterOpen={() => undefined}
@@ -180,6 +180,7 @@ export const MembersContainer: React.FunctionComponent<{
                     onUpdateLinkRole={props.onUpdateLinkRole}
                     onSelectedExpiry={props.onSelectedExpiry}
                     onInvite={props.onInvite}
+                    close={() => setIsShowingInviteLinks(false)}
                 />
             </ReactModal>
 
@@ -187,8 +188,8 @@ export const MembersContainer: React.FunctionComponent<{
                 <Flex marginBottom={"8px"} justifyContent={"space-between"}>
                     <Heading.h3 paddingBottom={"5px"} marginBottom={"8px"}>Members</Heading.h3>
                     <Button color={"successMain"} onClick={() => {
-                        setIsShowingInviteLinks(true);
-                    }}
+                            setIsShowingInviteLinks(true);
+                        }}
                         width={"111px"}
                         disabled={props.project.status.myRole === OldProjectRole.USER}
                     >
@@ -322,7 +323,7 @@ export const MembersContainer: React.FunctionComponent<{
                                     }}>New group</Button>
                                 : null}
                         </Flex>
-                        <Box height={"calc(100vh - 135px)"} overflowY={"auto"}>
+                        <Box height={"calc(100vh - 169px)"} overflowY={"auto"}>
                             <List>
                                 {groups.map(group =>
                                     <GroupCard
@@ -406,6 +407,7 @@ const LinkInviteCard: React.FunctionComponent<{
     onLinkGroupsUpdated: (linkId: string, groupIds: string[]) => void;
     onSelectedExpiry: (linkId: string, expiry: number) => void;
     onInvite: (username: string) => void;
+    close: () => void;
 }> = props => {
     const [activeLinkId, setActiveLinkId] = useState<string | null>(null);
     const [copiedLinkIndex, setCopiedLinkIndex] = useState(-1);
@@ -481,27 +483,20 @@ const LinkInviteCard: React.FunctionComponent<{
     return <div ref={contentRef} tabIndex={-1} style={{outline: "0"}}>
         {activeLink ? <>
             <Flex gap={"8px"} marginBottom={"8px"} height={"35px"} alignItems={"center"}>
-                <BaseLink href={"#"}
-                    onClick={ev => {
-                        ev.preventDefault();
-                        setActiveLinkId(null);
-                    }}
-                    color={"textPrimary"}
-                >
-                    <Heading.h3>Invite with link</Heading.h3>
-                </BaseLink>
-                <Heading.h3>/ Settings</Heading.h3>
+                <Heading.h3>Link settings</Heading.h3>
             </Flex>
             <Flex gap={"8px"} marginBottom={"16px"} alignItems={"center"}>
                 <div>Assign new members to role</div>
                 <Box flexGrow={1} />
                 <RadioTilesContainer>
                     <RadioTile fontSize={"6px"} checked={activeLink.roleAssignment === OldProjectRole.ADMIN} height={35}
+                        id={"Admin"}
                         icon={"heroBriefcase"}
                         label={"Admin"}
                         name={"Admin"}
                         onChange={() => props.onUpdateLinkRole(activeLink.token, OldProjectRole.ADMIN)} />
                     <RadioTile fontSize={"6px"} checked={activeLink.roleAssignment === OldProjectRole.USER} height={35}
+                        id={"User"}
                         icon={"heroUsers"}
                         label={"User"}
                         name={"User"}
@@ -546,7 +541,7 @@ const LinkInviteCard: React.FunctionComponent<{
                     )}
                 </List>
             </Flex>
-            <Flex gap={"8px"} marginBottom={"8px"} alignItems={"center"} justifyContent={"space-between"}>
+            <Flex gap={"8px"} marginBottom={"32px"} alignItems={"center"} justifyContent={"space-between"}>
                 <div>Set invite link expiration</div>
                 <SimpleRichSelect
                     items={
@@ -564,21 +559,17 @@ const LinkInviteCard: React.FunctionComponent<{
                     dropdownWidth={"156px"}
                 />
             </Flex>
+            <ModalBottom>
+                <Button onClick={() => setActiveLinkId(null)}>
+                    Back
+                </Button>
+            </ModalBottom>
         </> : isShowingInviteByUsername ? <>
             <Flex gap={"8px"} marginBottom={"8px"} height={"35px"} alignItems={"center"}>
-                <BaseLink href={"#"}
-                    onClick={ev => {
-                        ev.preventDefault();
-                        setIsShowingInviteByUsername(false);
-                    }}
-                    color={"textPrimary"}
-                >
-                    <Heading.h3>Invite </Heading.h3>
-                </BaseLink>
-                <Heading.h3>/ Invite by username</Heading.h3>
+                <Heading.h3>Invite by username</Heading.h3>
             </Flex>
             <form action="#" onSubmit={handleInvite}>
-                <Flex maxHeight={"264px"} overflowY={"auto"} marginBottom={"5px"}>
+                <Flex maxHeight={"264px"} overflowY={"auto"} marginBottom={"62px"}>
                     <Input
                         autoFocus={true}
                         placeholder={"Add by username"}
@@ -590,6 +581,9 @@ const LinkInviteCard: React.FunctionComponent<{
                     <Button ml={"8px"} disabled={username === ""}>Send</Button>
                 </Flex>
             </form>
+            <ModalBottom>
+                <Button onClick={() => setIsShowingInviteByUsername(false)}>Back</Button>
+            </ModalBottom>
         </> : <>
             <Flex alignItems={"center"} paddingBottom={"8px"} gap={"8px"}>
                 <Heading.h3>Invite with link</Heading.h3>
@@ -603,7 +597,7 @@ const LinkInviteCard: React.FunctionComponent<{
             </Flex>
 
             {props.links.length === 0 ? <>
-                <Flex alignItems={"center"} justifyContent={"center"} paddingTop={"32px"}>
+                <Flex alignItems={"center"} justifyContent={"center"} paddingTop={"32px"} marginBottom={"36px"}>
                     <Heading.h3>Create a link to invite collaborators to this project</Heading.h3>
                 </Flex>
             </> : null}
@@ -650,7 +644,7 @@ const LinkInviteCard: React.FunctionComponent<{
                             <Icon name={"heroTrash"} />
                         </Button>
                     </Flex>
-                    <Flex width="auto">
+                    <Flex width="auto" mb="28px">
                         <Box mb="8px" color="textSecondary" width="70%">
                             This link will automatically expire in {daysLeftToTimestamp(link.expires)} days
                         </Box>
@@ -658,11 +652,12 @@ const LinkInviteCard: React.FunctionComponent<{
                             {copiedLinkIndex === idx ? <>Copied! <Icon name="check" color="successMain" /></> : null}
                         </Box>
                     </Flex>
-                </Box>
-            )}
-        </>
-        }
-    </div >
+                </Box>)}
+            <ModalBottom>
+                <Button onClick={props.close}>Done</Button>
+            </ModalBottom>
+        </>}
+    </div>
 }
 
 const MemberCard: React.FunctionComponent<{
@@ -706,17 +701,19 @@ const MemberCard: React.FunctionComponent<{
                     <RadioTilesContainer>
                         {amIUser ? <RadioTile
                             fontSize="6px"
+                            id={props.member.username + props.member.role}
                             checked height={35}
                             icon={projectRoleToStringIcon(props.member.role)}
                             label={props.member.role} name={props.member.role + props.member.username}
-                            onChange={() => {}} />
-                            : null}
+                            onChange={() => {}} /> : null}
 
 
                         {amIPI || role === OldProjectRole.PI && !amIUser ?
                             <RadioTile fontSize={"6px"} checked={role === OldProjectRole.PI} height={35}
                                 icon={"heroTrophy"}
-                                label={"PI"} name={"PI" + props.member.username}
+                                label={"PI"}
+                                id={"PI" + props.member.username}
+                                name={"PI" + props.member.username}
                                 onChange={() => {
                                     if (!amIPI) return;
                                     addStandardDialog({
@@ -734,10 +731,11 @@ const MemberCard: React.FunctionComponent<{
                                 {isAdminOrPI(props.myRole) ? <RadioTile fontSize={"6px"} checked={isUserAdminRole} height={35}
                                     icon={"heroBriefcase"}
                                     label={"Admin"}
+                                    id={"Admin" + props.member.username}
                                     name={"Admin" + props.member.username}
                                     onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.ADMIN)} /> : null}
                                 <RadioTile fontSize={"6px"} checked={isUserUserRole} height={35}
-                                    icon={"heroUsers"}
+                                    icon={"heroUsers"} id={"User" + props.member.username}
                                     label={"User"} name={"User" + props.member.username}
                                     onChange={() => props.handleChangeRole(props.member.username, OldProjectRole.USER)} />
                             </> : null}
@@ -819,56 +817,44 @@ const GroupCard: React.FunctionComponent<{
                     {props.group.status.members?.length}
                 </Box>
             </Flex>
-            <Operations
-                location={"IN_ROW"}
-                operations={[
-                    {
-                        confirm: false,
-                        text: "Rename",
-                        icon: "heroPencilSquare",
-                        enabled: () => true,
-                        onClick: () => {
-                            props.handleStartRenaming(props.group.id);
-                            props.setRename(props.group.specification.title);
-                        },
-                        shortcut: ShortcutKey.F
+            <ActionMenu actions={[
+                {
+                    text: "Rename",
+                    icon: "heroPencilSquare",
+                    enabled: ([entry, ...rest]) => rest.length === 0 && entry.specification.title !== "All users",
+                    onClick: () => {
+                        props.handleStartRenaming(props.group.id);
+                        props.setRename(props.group.specification.title);
                     },
-                    {
-                        confirm: false,
-                        text: "Duplicate",
-                        icon: "heroDocumentDuplicate",
-                        enabled: () => true,
-                        onClick: () => props.onDuplicate(props.group.id),
-                        shortcut: ShortcutKey.I
+                    shortcut: ShortcutKey.F
+                },
+                {
+                    text: "Duplicate",
+                    icon: "heroDocumentDuplicate",
+                    enabled: () => true,
+                    onClick: () => props.onDuplicate(props.group.id),
+                    shortcut: ShortcutKey.I
+                },
+                {
+                    text: "Copy ID",
+                    icon: "id",
+                    enabled: () => Client.userIsAdmin,
+                    onClick: () => {
+                        copyToClipboard(props.group.id);
+                        sendInformationNotification("Copied group ID to clipboard!");
                     },
-                    {
-                        confirm: false,
-                        text: "Copy ID",
-                        icon: "id",
-                        enabled: () => Client.userIsAdmin,
-                        onClick: () => {
-                            copyToClipboard(props.group.id);
-                            sendInformationNotification("Copied group ID to clipboard!");
-                        },
-                        shortcut: ShortcutKey.C
-                    },
-                    {
-                        confirm: true,
-                        color: "errorMain",
-                        text: "Delete",
-                        icon: "heroTrash",
-                        enabled: () => true,
-                        onClick: () => props.handleDeleteGroup(props.group.id),
-                        shortcut: ShortcutKey.E
-                    }
-                ]}
-                selected={[]}
-                extra={null}
-                entityNameSingular={"Group"}
-                row={42}
-                openFnRef={openFn}
-                forceEvaluationOnOpen
-            />
+                    shortcut: ShortcutKey.C
+                },
+                {
+                    text: "Delete",
+                    icon: "heroTrash",
+                    confirmationText: "Are you sure you want to delete this group?",
+                    confirmationButtonText: "Delete",
+                    enabled: (selected) => selected.find(it => it.specification.title === "All users") == null,
+                    onClick: () => props.handleDeleteGroup(props.group.id),
+                    shortcut: ShortcutKey.E
+                }
+            ]} selected={[props.group]} callbacks={undefined} />
         </>}
     />;
 }

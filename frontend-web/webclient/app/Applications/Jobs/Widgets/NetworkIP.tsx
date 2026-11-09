@@ -48,11 +48,12 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
     const onUse = useCallback((network: NetworkIP) => {
         NetworkIPSetter(props.parameter, {type: "network", id: network.id});
         WidgetSetProvider(props.parameter, network.specification.product.provider);
+        props.onValueChange?.();
         if (props.errors[props.parameter.name]) {
             delete props.errors[props.parameter.name];
             props.setErrors({...props.errors});
         }
-    }, [props.parameter, props.errors]);
+    }, [props.parameter, props.errors, props.onValueChange]);
 
     const valueInput = () => document.getElementById(widgetId(props.parameter)) as HTMLInputElement | null;
     const visualInput = () => document.getElementById(widgetId(props.parameter) + "visual") as HTMLInputElement | null;
@@ -92,6 +93,8 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             cursor="pointer"
             error={error}
             onClick={doOpen}
+            readOnly
+            data-field-activator
         />
         <input type="hidden" id={widgetId(props.parameter)} />
     </Flex>);

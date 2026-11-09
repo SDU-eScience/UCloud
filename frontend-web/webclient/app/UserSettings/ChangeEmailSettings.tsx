@@ -9,7 +9,7 @@ import {mail} from "@/UCloud";
 import EmailSettings = mail.EmailSettings;
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
-import {SettingsCheckboxRow, SettingsSection} from "./SettingsComponents";
+import {SettingsCheckboxRow, SettingsSection} from "@/ui-components/SettingsComponents";
 import {sendFailureNotification} from "@/Notifications";
 
 export interface UserDetailsState {
@@ -108,6 +108,11 @@ const emailSettingGroups: SettingGroup[] = [
                 description: "Sends an email when a user is invited to a project"
             },
             {
+                key: "projectUserRemoved",
+                title: "User removed from project",
+                description: "Sends an email when a user is removed from a project"
+            },
+            {
                 key: "userLeft",
                 title: "User left project",
                 description: "Sends an email when a user leaves a project"
@@ -116,11 +121,6 @@ const emailSettingGroups: SettingGroup[] = [
                 key: "userRoleChange",
                 title: "User role changed",
                 description: "Sends an email when a user's role changes"
-            },
-            {
-                key: "projectUserRemoved",
-                title: "User removed from project",
-                description: "Sends an email when a user is removed from a project"
             },
             {
                 key: "verificationReminder",
@@ -133,9 +133,14 @@ const emailSettingGroups: SettingGroup[] = [
         title: "Jobs",
         options: [
             {
+                key: "jobStarted",
+                title: "Job started",
+                description: "Sends an email when jobs start"
+            },
+            {
                 key: "jobStopped",
-                title: "Job started or stopped",
-                description: "Sends an email when jobs start or stop"
+                title: "Job stopped",
+                description: "Sends an email when jobs stops"
             },
         ]
     }

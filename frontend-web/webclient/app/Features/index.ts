@@ -1,23 +1,24 @@
 import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
+import {backendFeatureEnabled} from "@/Features/backend";
 
 export enum Feature {
-    COMPONENT_STORED_CUT_COPY,
+    EXTERNAL_LOGIN_UCLOUD_CLI,
+
+    UCLOUD_CLI_DOWNLOADS,
 
     REORDER_APP_GROUP,
-
-    ALLOCATIONS_PAGE_IMPROVEMENTS,
-
-    NEW_VM_UI,
 
     STACKS,
 
     INFERENCE,
 
-    INFERENCE_WORKSPACE,
-
-    NEW_TOOLTIPS,
-
     FILE_BROWSER_STATUS_BAR,
+
+    CONTAINER_REPOSITORIES,
+
+    APPLICATION_FLAVORS,
+
+    CUSTOM_APPLICATIONS,
 }
 
 enum Environment {
@@ -53,30 +54,25 @@ interface FeatureConfig {
     feature: Feature;
     showWithoutFlag?: Environment[];
     showWithFlag?: Environment[];
+    useBackend?: boolean;
 }
 
 const featureMap: Record<string, FeatureConfig> = {
-    "component-stored-cut-copy": {
-        feature: Feature.COMPONENT_STORED_CUT_COPY,
-        showWithoutFlag: allEnvironments,
+    "external-login-ucloud-cli": {
+        feature: Feature.EXTERNAL_LOGIN_UCLOUD_CLI,
+        showWithoutFlag: allDevEnvironments,
+        showWithFlag: allDevEnvironments,
+    },
+
+    "ucloud-cli-downloads": {
+        feature: Feature.UCLOUD_CLI_DOWNLOADS,
+        showWithoutFlag: allDevEnvironments,
     },
 
     "reorder-app-group": {
         feature: Feature.REORDER_APP_GROUP,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allDevEnvironments,
-    },
-
-    "allocations-improvements": {
-        feature: Feature.ALLOCATIONS_PAGE_IMPROVEMENTS,
-        showWithFlag: allEnvironments,
-        showWithoutFlag: allEnvironments,
-    },
-    
-    "new-vm-ui": {
-        feature: Feature.NEW_VM_UI,
-        showWithFlag: allEnvironments,
-        showWithoutFlag: allEnvironments,
     },
 
     "stacks": {
@@ -87,19 +83,7 @@ const featureMap: Record<string, FeatureConfig> = {
 
     "inference": {
         feature: Feature.INFERENCE,
-        showWithoutFlag: [Environment.PUBLIC_DEV, Environment.LOCAL_DEV_STACK],
-        showWithFlag: allEnvironments,
-    },
-
-    "inference-workspace": {
-        feature: Feature.INFERENCE_WORKSPACE,
-        showWithoutFlag: allLocalEnvironments,
-        showWithFlag: allEnvironments,
-    },
-
-    "new-tooltips": {
-        feature: Feature.NEW_TOOLTIPS,
-        showWithoutFlag: allDevEnvironments,
+        showWithoutFlag: allEnvironments,
         showWithFlag: allEnvironments,
     },
 
@@ -107,6 +91,21 @@ const featureMap: Record<string, FeatureConfig> = {
         feature: Feature.FILE_BROWSER_STATUS_BAR,
         showWithoutFlag: allDevEnvironments,
         showWithFlag: allEnvironments,
+    },
+
+    "container-repositories": {
+        feature: Feature.CONTAINER_REPOSITORIES,
+        useBackend: true,
+    },
+
+    "application-flavors": {
+        feature: Feature.APPLICATION_FLAVORS,
+        useBackend: true,
+    },
+
+    "custom-applications": {
+        feature: Feature.CUSTOM_APPLICATIONS,
+        useBackend: true,
     }
 };
 
@@ -127,6 +126,8 @@ export function hasFeature(feature: Feature): boolean {
     const env = getCurrentEnvironment();
     for (const [key, config] of Object.entries(featureMap)) {
         if (config.feature !== feature) continue;
+
+        if (config.useBackend === true) return backendFeatureEnabled(key);
 
         const withFlag = config.showWithFlag ?? [];
         const withoutFlag = config.showWithoutFlag ?? [];

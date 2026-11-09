@@ -51,6 +51,11 @@ export class AsyncCache<V> {
         return this.retrieveWithInvalidCache(name, fn, ttl)[1];
     }
 
+    invalidate(name: string) {
+        delete this.expiration[name];
+        delete this.cache[name];
+    }
+
     invalidateAll() {
         this.expiration = {};
         this.cache = {};

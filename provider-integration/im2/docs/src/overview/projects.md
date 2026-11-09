@@ -40,6 +40,8 @@ Projects are primarily created through grant applications, as explained in the [
 
 ## Glossary and developer quick-start
 
+The shared names of the platform are in the [glossary](../glossary.md).
+
 The relevant code can be found in the Core and in the shared project. We recommend you start here:
 
 - **API and models:** `shared/foundation/projects.go`.

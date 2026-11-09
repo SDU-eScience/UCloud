@@ -1,0 +1,324 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+BUNDLE_DIR="/etc/ucloud-k8s/bundle"
+INPUT_DIR="/etc/ucloud-k8s/input"
+STORAGE_DIR="/etc/ucloud-stack/k3s/storage"
+NODE_JSON="$INPUT_DIR/node.json"
+BOOTSTRAP_STATE_DIR="/var/lib/ucloud-k8s"
+BOOTSTRAP_MARKER="$BOOTSTRAP_STATE_DIR/bootstrap-complete"
+INPUT_GENERATION_FILE="$BOOTSTRAP_STATE_DIR/input-generation"
+BOOTSTRAP_LOG="/var/log/ucloud-k8s-bootstrap.log"
+K3S_DATA_DIR="/var/lib/rancher/k3s"
+MANAGEMENT_DIR="/etc/ucloud-k8s/management"
+NODES_DIR="/etc/ucloud-k8s/nodes"
+BACKUPS_DIR="/etc/ucloud-k8s/backups"
+RECOVERY_DIR="/etc/ucloud-k8s/recovery"
+DECOMMISSIONED_MARKER="decommissioned"
+K3S_BINARY="/usr/local/bin/k3s"
+K3S_PRECHECK="/usr/local/sbin/ucloud-k8s-k3s-precheck"
+BOOTSTRAP_STDOUT_LOG="/work/stdout-0.log"
+UCX_SERVICE_UID=11042
+UCX_SERVICE_GID=11042
+
+UCLOUD_STORAGE_PROVISIONER_IMAGE=rancher/local-path-provisioner:v0.0.37
+UCLOUD_STORAGE_HELPER_IMAGE=rancher/mirrored-library-busybox:1.37.0
+CONTROLLER_IMAGE=rancher/mirrored-library-busybox:1.37.0
+
+MAINTENANCE_PROVIDER_BIN="/opt/ucloud-ucx/current"
+MAINTENANCE_AGENT_BIN="/usr/local/sbin/ucloud-k8s-maintenance-agent"
+MAINTENANCE_SUPERVISOR_BIN="/usr/local/sbin/ucloud-k8s-maintenance-agent-run"
+MAINTENANCE_UNIT_FILE="/etc/systemd/system/ucloud-k8s-maintenance-agent.service"
+MAINTENANCE_UPGRADE_STATE_FILE="/var/lib/ucloud-k8s/maintenance/upgrade-state.json"
+MAINTENANCE_OS_STATE_FILE="/var/lib/ucloud-k8s/maintenance/os-state.json"
+
+BOOTSTRAP_TIMEOUT_SECONDS=3600
+RECOVERY_BOOTSTRAP_TIMEOUT_SECONDS=7200
+RECOVERY_RESET_TIMEOUT_SECONDS=5400
+SERVICE_WAIT_TRIES=120
+SERVICE_WAIT_INTERVAL=5
+TOKEN_WAIT_TRIES=90
+TOKEN_WAIT_INTERVAL=10
+
+for required_command in python3 curl ip sha256sum mountpoint; do
+	if ! command -v "$required_command" >/dev/null 2>&1; then
+		printf '[ucloud-k8s] missing required command: %s\n' "$required_command" >&2
+		exit 1
+	fi
+done
+
+log() { printf '[ucloud-k8s] %s\n' "$*" >&2; }
+
+if [ -d /work ] && [ -x /opt/ucloud/ucviz ]; then
+	emit() { /opt/ucloud/ucviz stage "$@"; }
+else
+	emit() { log "$*"; }
+fi
+
+json_field() {
+	local file="$1"
+	local field="$2"
+	python3 -c "import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])" "$file" "$field"
+}
+
+atomic_write_chowned() {
+	local target="$1"
+	local mode="$2"
+	local tmp="${target}.tmp.$$"
+	cat >"$tmp"
+	chmod "$mode" "$tmp"
+	chown "$UCX_SERVICE_UID:$UCX_SERVICE_GID" "$tmp"
+	mv -f "$tmp" "$target"
+}
+
+fail() {
+	log "Setup failed: $2"
+	exit 1
+}
+
+retry_until() {
+	local tries="$1"
+	local interval="$2"
+	shift 2
+	local attempt=1
+	while [ "$attempt" -le "$tries" ]; do
+		if "$@"; then
+			return 0
+		fi
+		if [ "$attempt" -lt "$tries" ]; then
+			sleep "$interval"
+		fi
+		attempt=$((attempt + 1))
+	done
+	return 1
+}
+
+require_mount() {
+	local path="$1"
+	local label="$2"
+	if ! mountpoint -q "$path"; then
+		fail "mounts" "$label is not mounted at $path"
+	fi
+}
+
+require_file() {
+	local path="$1"
+	local label="$2"
+	if [ ! -s "$path" ]; then
+		fail "input" "required file missing or empty: $label ($path)"
+	fi
+}
+
+requires_mounts_for() {
+	local role="$1"
+	local mounts="$INPUT_DIR $BUNDLE_DIR /work"
+	if [ "$role" = "control-plane" ]; then
+		mounts="$mounts $MANAGEMENT_DIR $NODES_DIR $BACKUPS_DIR"
+	fi
+	printf 'RequiresMountsFor=%s\n' "$mounts"
+}
+
+node_field() { json_field "$NODE_JSON" "$1"; }
+
+node_field_opt() {
+	local field="$1"
+	local fallback="${2:-}"
+	python3 -c "import json,sys; print(json.load(open(sys.argv[1])).get(sys.argv[2], sys.argv[3]))" "$NODE_JSON" "$field" "$fallback"
+}
+
+file_sha256() {
+	sha256sum "$1" | awk '{print $1}'
+}
+
+record_input_generation() {
+	local generation
+	generation="$(node_field_opt generation)"
+	if [ -z "$generation" ]; then
+		return 0
+	fi
+
+	install -d -m 0755 "$BOOTSTRAP_STATE_DIR"
+	printf '%s' "$generation" > "$INPUT_GENERATION_FILE"
+}
+
+node_arch() {
+	local machine
+	machine="$(uname -m)"
+	case "$machine" in
+	x86_64) printf 'amd64\n' ;;
+	aarch64) printf 'arm64\n' ;;
+	*) fail "install" "unsupported machine architecture $machine" ;;
+	esac
+}
+
+node_k3s_checksum() {
+	local arch
+	arch="$(node_arch)"
+	if [ "$arch" = "amd64" ]; then
+		node_field sha256Amd64
+		return
+	fi
+	node_field sha256Arm64
+}
+
+node_k3s_url() {
+	local version
+	version="$(node_field k8sVersion)"
+	if [ "$(node_arch)" = "arm64" ]; then
+		printf 'https://github.com/k3s-io/k3s/releases/download/%s/k3s-arm64\n' "$version"
+	else
+		printf 'https://github.com/k3s-io/k3s/releases/download/%s/k3s\n' "$version"
+	fi
+}
+
+node_iface() {
+	local ip="$1"
+	ip -o -4 addr show | awk -v ip="$ip" '
+	{
+		for (i = 1; i < NF; i++) {
+			if ($i == "inet") {
+				split($(i + 1), parts, "/")
+				if (parts[1] == ip) {
+					split($2, ifaceParts, "@")
+					print ifaceParts[1]
+					exit
+				}
+			}
+		}
+	}'
+}
+
+node_ip_present() {
+	[ -n "$(node_iface "$1")" ]
+}
+
+wait_for_node_ip() {
+	local ip="$1"
+	retry_until 60 2 node_ip_present "$ip" || fail "network" "the private address $ip never appeared on an interface"
+}
+
+wait_k3s_ready() {
+	retry_until "$SERVICE_WAIT_TRIES" "$SERVICE_WAIT_INTERVAL" \
+		timeout 15 k3s kubectl --request-timeout=10s get --raw /readyz >/dev/null 2>&1 ||
+		fail "start" "Kubernetes did not become ready"
+}
+
+node_is_ready() {
+	local nodename="$1"
+	local kubeconfig="$2"
+	timeout 30 k3s kubectl --request-timeout=20s --kubeconfig "$kubeconfig" get node "$nodename" -o jsonpath='{range .status.conditions[*]}{.type}={.status}{"\n"}{end}' 2>/dev/null | grep -q '^Ready=True$'
+}
+
+wait_node_ready() {
+	local nodename="$1"
+	local kubeconfig="${2:-/etc/rancher/k3s/k3s.yaml}"
+	retry_until 60 10 node_is_ready "$nodename" "$kubeconfig" || fail "join" "the node never reached the Ready state"
+}
+
+install_k3s_precheck() {
+	local nodeIp="$1"
+
+	cat > "$K3S_PRECHECK" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+source "$BUNDLE_DIR/common.sh"
+ip="$nodeIp"
+if [ -s "\$INPUT_DIR/\$DECOMMISSIONED_MARKER" ]; then
+	echo "this node configuration has been retired" >&2
+	exit 1
+fi
+if [ -s "\$NODE_JSON" ]; then
+	generation="\$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("generation", ""))' "\$NODE_JSON" 2>/dev/null || true)"
+	if [ -n "\$generation" ]; then
+		recorded=""
+		if [ -s "\$INPUT_GENERATION_FILE" ]; then
+			recorded="\$(cat "\$INPUT_GENERATION_FILE")"
+		fi
+		if [ "\$generation" != "\$recorded" ]; then
+			echo "the node configuration does not match this node" >&2
+			exit 1
+		fi
+	fi
+fi
+if ! mountpoint -q "\$STORAGE_DIR"; then
+	echo "shared storage is not mounted at \$STORAGE_DIR" >&2
+	exit 1
+fi
+if [ ! -x "$K3S_BINARY" ]; then
+	echo "the Kubernetes binary is missing at $K3S_BINARY" >&2
+	exit 1
+fi
+if ! node_ip_present "\$ip"; then
+	echo "the private address \$ip is not assigned to any interface" >&2
+	exit 1
+fi
+EOF
+	chmod 0755 "$K3S_PRECHECK"
+}
+
+install_k3s_unit() {
+	local unitName="$1"
+	local commandName="$2"
+	local nodeIp="$3"
+
+	install_k3s_precheck "$nodeIp"
+
+	cat > "/etc/systemd/system/${unitName}.service" <<EOF
+[Unit]
+Description=ucloud k8s ${unitName}
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=notify
+KillMode=process
+Delegate=yes
+LimitNOFILE=1048576
+LimitNPROC=infinity
+LimitCORE=infinity
+TasksMax=infinity
+TimeoutStartSec=600
+Restart=always
+RestartSec=10
+ExecStartPre=$K3S_PRECHECK
+ExecStart=$K3S_BINARY ${commandName}
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+	systemctl daemon-reload
+}
+
+token_files_present() {
+	local role="$1"
+	local agentToken="$INPUT_DIR/agent-token.ca"
+	local serverToken="$INPUT_DIR/server-token.ca"
+	if [ "$role" = "control-plane" ] && [ ! -s "$serverToken" ]; then
+		return 1
+	fi
+	[ -s "$agentToken" ]
+}
+
+start_k3s_unit() {
+	local unitName="$1"
+	local maxTries=3
+	retry_until "$maxTries" 10 timeout 660 systemctl restart "$unitName" ||
+		fail "join" "could not start ${unitName} after $maxTries attempts"
+}
+
+wait_for_token_files() {
+	local role="$1"
+	retry_until "$TOKEN_WAIT_TRIES" "$TOKEN_WAIT_INTERVAL" token_files_present "$role" ||
+		fail "tokens" "secure tokens were never published to this node"
+}
+
+maintenance_agent_idle() {
+	if [ -f "$MAINTENANCE_UPGRADE_STATE_FILE" ] && grep -Eq '"phase": *"(downloading|snapshotting|installing|restarting|verifying)"' "$MAINTENANCE_UPGRADE_STATE_FILE"; then
+		return 1
+	fi
+	if [ -f "$MAINTENANCE_OS_STATE_FILE" ] && grep -Eq '"phase": *"(staging|staged|applying|rebooting|verifying)"' "$MAINTENANCE_OS_STATE_FILE"; then
+		return 1
+	fi
+	return 0
+}

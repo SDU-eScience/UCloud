@@ -86,6 +86,14 @@ func initEvents() {
 			}
 		}
 	}()
+
+	go func() {
+		ApiTokensReconcileAllProjects()
+		for util.IsAlive {
+			time.Sleep(5 * time.Minute)
+			ApiTokensReconcileAllProjects()
+		}
+	}()
 }
 
 func eventHandleNotification(nType EventNotificationMessageType, notification any) {
@@ -143,8 +151,22 @@ func eventHandleNotification(nType EventNotificationMessageType, notification an
 	case EventNotificationMessageProjectUpdated:
 		update := notification.(*EventProjectUpdated)
 
-		before, _ := ProjectRetrieve(update.Project.Id)
+		before, beforeOk := ProjectRetrieve(update.Project.Id)
 		update.ProjectComparison = projectsCompare(before, update.Project)
+
+		allMembers := make([]string, 0, len(update.Project.Status.Members))
+		for _, member := range update.Project.Status.Members {
+			allMembers = append(allMembers, member.Username)
+		}
+
+		reconcileTokens := true
+		if beforeOk && !before.ModifiedAt.Time().IsZero() && !update.Project.ModifiedAt.Time().IsZero() {
+			reconcileTokens = update.Project.ModifiedAt.Time().After(before.ModifiedAt.Time())
+		}
+
+		if reconcileTokens {
+			ApiTokensReconcileProject(update.Project.Id, allMembers, update.Project.ModifiedAt.Time())
+		}
 
 		if projectHandler(update) {
 			project := update.Project
@@ -170,7 +192,7 @@ func eventHandleNotification(nType EventNotificationMessageType, notification an
 				project.Status.Members = knownMembers
 			}
 
-			eventSaveLastKnownProject(project)
+			eventSaveLastKnownProject(project, allMembers)
 
 			if LaunchUserInstances {
 				for _, newMember := range update.ProjectComparison.MembersAddedToProject {
@@ -516,24 +538,27 @@ func (b *buf) GetString() string {
 	return string(result)
 }
 
-func eventSaveLastKnownProject(project fnd.Project) {
+func eventSaveLastKnownProject(project fnd.Project, memberUsernames []string) {
 	eventProjectCacheServerOnly.Add(project.Id, project)
 
 	data, _ := json.Marshal(project)
+	memberData, _ := json.Marshal(memberUsernames)
 
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
-				insert into tracked_projects(project_id, ucloud_project, last_update) 
-				values (:project_id, :ucloud_project, now())
+				insert into tracked_projects(project_id, ucloud_project, member_usernames, last_update) 
+				values (:project_id, :ucloud_project, cast(:member_usernames as jsonb), now())
 				on conflict(project_id) do update set
 					ucloud_project = excluded.ucloud_project,
+					member_usernames = excluded.member_usernames,
 					last_update = excluded.last_update
 			`,
 			db.Params{
-				"project_id":     project.Id,
-				"ucloud_project": string(data),
+				"project_id":       project.Id,
+				"ucloud_project":   string(data),
+				"member_usernames": string(memberData),
 			},
 		)
 	})

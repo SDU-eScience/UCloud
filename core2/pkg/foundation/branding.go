@@ -1,6 +1,7 @@
 package foundation
 
 import (
+	"net/http"
 	"os"
 
 	cfg "ucloud.dk/core/pkg/config"
@@ -61,8 +62,12 @@ func initBranding() {
 		config := cfg.Configuration
 		absolutePath, ok := config.BrandingImageAbsolutePath[request.Name]
 		if !ok {
-			return nil, nil
+			return nil, util.HttpErr(http.StatusNotFound, "Image not found")
 		}
-		return loadImage(absolutePath), nil
+		image := loadImage(absolutePath)
+		if image == nil {
+			return nil, util.HttpErr(http.StatusNotFound, "Image not found")
+		}
+		return image, nil
 	})
 }

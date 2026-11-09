@@ -4,7 +4,7 @@ import {useCallback, useEffect, useState} from "react";
 
 import {Box, Select} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {SettingsCheckboxRow, SettingsSection} from "./SettingsComponents";
+import {SettingsCheckboxRow, SettingsSection} from "@/ui-components/SettingsComponents";
 import {
     JobReportSampleRate,
     JobReportSettings,

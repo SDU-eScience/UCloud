@@ -96,16 +96,44 @@ func TestAccountingAuditComparesRawScopeKeysAndRendersHTML(t *testing.T) {
 	if !bytes.Contains(html, []byte(`id="project-sort"`)) || !bytes.Contains(html, []byte(`function sortProjects()`)) {
 		t.Fatalf("HTML did not include changed-wallet sorting")
 	}
-	if !bytes.Contains(html, []byte(`placeholder="Filter owner or title"`)) || !bytes.Contains(html, []byte(`id="change-sort"`)) || !bytes.Contains(html, []byte(`[change.ownerReference,change.projectTitle]`)) {
+	if !bytes.Contains(html, []byte(`placeholder="Filter owner or title"`)) || !bytes.Contains(html, []byte(`id="change-sort"`)) ||
+		!bytes.Contains(html, []byte(`[change.ownerReference, change.projectTitle]`)) {
 		t.Fatalf("HTML did not include owner-only filtering and detailed-change sorting")
 	}
 }
 
 func TestAccountingAuditSortsWalletsByCategoryThenTitle(t *testing.T) {
 	changes := []AccountingAuditChange{
-		{Severity: "critical", Bucket: "z-provider/storage", ProjectTitle: "Zulu", OwnerReference: "owner-3", WalletId: 3, Entity: "wallet", EntityId: "3", Field: "loaded"},
-		{Severity: "info", Bucket: "a-provider/compute", ProjectTitle: "Zulu", OwnerReference: "owner-2", WalletId: 2, Entity: "wallet", EntityId: "2", Field: "wasLocked"},
-		{Severity: "high", Bucket: "z-provider/compute", ProjectTitle: "Alpha", OwnerReference: "owner-1", WalletId: 1, Entity: "wallet", EntityId: "1", Field: "localUsage"},
+		{
+			Severity:       "critical",
+			Bucket:         "z-provider/storage",
+			ProjectTitle:   "Zulu",
+			OwnerReference: "owner-3",
+			WalletId:       3,
+			Entity:         "wallet",
+			EntityId:       "3",
+			Field:          "loaded",
+		},
+		{
+			Severity:       "info",
+			Bucket:         "a-provider/compute",
+			ProjectTitle:   "Zulu",
+			OwnerReference: "owner-2",
+			WalletId:       2,
+			Entity:         "wallet",
+			EntityId:       "2",
+			Field:          "wasLocked",
+		},
+		{
+			Severity:       "high",
+			Bucket:         "z-provider/compute",
+			ProjectTitle:   "Alpha",
+			OwnerReference: "owner-1",
+			WalletId:       1,
+			Entity:         "wallet",
+			EntityId:       "1",
+			Field:          "localUsage",
+		},
 	}
 	wallets := map[AccWalletId]AccountingAuditWallet{
 		1: {Id: 1, Provider: "z-provider", Category: "compute", ProjectTitle: "Alpha", OwnerReference: "owner-1"},
@@ -181,7 +209,13 @@ func TestAccountingAuditIncludesBeforeAndAfterWalletMetrics(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, expected := range [][]byte{[]byte(`id="wallet-detail"`), []byte(`function showWalletDetails`), []byte(`Incoming quota`), []byte(`const ownerName=item=>item.projectTitle||item.ownerReference`)} {
+	expectedFragments := [][]byte{
+		[]byte(`id="wallet-detail"`),
+		[]byte(`function showWalletDetails`),
+		[]byte(`Incoming quota`),
+		[]byte(`const ownerName = (item) => item.projectTitle || item.ownerReference`),
+	}
+	for _, expected := range expectedFragments {
 		if !bytes.Contains(html, expected) {
 			t.Fatalf("HTML missing %q", expected)
 		}
@@ -193,7 +227,21 @@ func TestAccountingAuditCaptureRoundTrip(t *testing.T) {
 	want := auditTestCapture(wallet)
 	want.Scopes = []AccountingAuditScope{{WalletId: 1, Key: "raw-scope-key", Usage: 42, LastUpdatedAt: want.CapturedAt}}
 	want.Totals.Scopes = 1
-	want.JobUsage = []AccountingAuditJobUsage{{WalletId: 1, Key: "job-123", JobId: 123, ScopedUsage: 42, RuntimeMinutes: 42, RuntimeSource: "job timestamps", ExpectedUsageMin: 42, ExpectedUsageMax: 42, AcceptedUsageMin: 41, AcceptedUsageMax: 43, UsagePerMinute: 1}}
+	want.JobUsage = []AccountingAuditJobUsage{
+		{
+			WalletId:         1,
+			Key:              "job-123",
+			JobId:            123,
+			ScopedUsage:      42,
+			RuntimeMinutes:   42,
+			RuntimeSource:    "job timestamps",
+			ExpectedUsageMin: 42,
+			ExpectedUsageMax: 42,
+			AcceptedUsageMin: 41,
+			AcceptedUsageMax: 43,
+			UsagePerMinute:   1,
+		},
+	}
 
 	encoded, err := EncodeAccountingAuditCapture(want)
 	if err != nil {
@@ -203,7 +251,8 @@ func TestAccountingAuditCaptureRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Scopes) != 1 || got.Scopes[0].Key != "raw-scope-key" || got.Scopes[0].Usage != 42 || len(got.JobUsage) != 1 || got.JobUsage[0].ExpectedUsageMin != 42 {
+	if len(got.Scopes) != 1 || got.Scopes[0].Key != "raw-scope-key" || got.Scopes[0].Usage != 42 || len(got.JobUsage) != 1 ||
+		got.JobUsage[0].ExpectedUsageMin != 42 {
 		t.Fatalf("decoded capture = %+v", got)
 	}
 }
@@ -214,9 +263,42 @@ func TestAccountingAuditReportsJobUsageMismatch(t *testing.T) {
 	after := auditTestCapture(wallet)
 	after.CapturedAt = before.CapturedAt.Add(time.Minute)
 	after.JobUsage = []AccountingAuditJobUsage{
-		{WalletId: 1, Key: "job-123", ScopedUsage: 116, RuntimeMinutes: 60, RuntimeSource: "state updates", ExpectedUsageMin: 120, ExpectedUsageMax: 121, AcceptedUsageMin: 118, AcceptedUsageMax: 123, UsagePerMinute: 2},
-		{WalletId: 1, Key: "job-124", ScopedUsage: 59, RuntimeMinutes: 30, RuntimeSource: "state updates", ExpectedUsageMin: 60, ExpectedUsageMax: 61, AcceptedUsageMin: 58, AcceptedUsageMax: 63, UsagePerMinute: 2},
-		{WalletId: 1, Key: "job-126", ScopedUsage: 61, RuntimeMinutes: 30, RuntimeSource: "state updates", ExpectedUsageMin: 60, ExpectedUsageMax: 61, AcceptedUsageMin: 58, AcceptedUsageMax: 63, UsagePerMinute: 2},
+		{
+			WalletId:         1,
+			Key:              "job-123",
+			ScopedUsage:      116,
+			RuntimeMinutes:   60,
+			RuntimeSource:    "state updates",
+			ExpectedUsageMin: 120,
+			ExpectedUsageMax: 121,
+			AcceptedUsageMin: 118,
+			AcceptedUsageMax: 123,
+			UsagePerMinute:   2,
+		},
+		{
+			WalletId:         1,
+			Key:              "job-124",
+			ScopedUsage:      59,
+			RuntimeMinutes:   30,
+			RuntimeSource:    "state updates",
+			ExpectedUsageMin: 60,
+			ExpectedUsageMax: 61,
+			AcceptedUsageMin: 58,
+			AcceptedUsageMax: 63,
+			UsagePerMinute:   2,
+		},
+		{
+			WalletId:         1,
+			Key:              "job-126",
+			ScopedUsage:      61,
+			RuntimeMinutes:   30,
+			RuntimeSource:    "state updates",
+			ExpectedUsageMin: 60,
+			ExpectedUsageMax: 61,
+			AcceptedUsageMin: 58,
+			AcceptedUsageMax: 63,
+			UsagePerMinute:   2,
+		},
 		{WalletId: 1, Key: "job-125", ScopedUsage: 0, Error: "job does not exist"},
 	}
 
@@ -224,7 +306,8 @@ func TestAccountingAuditReportsJobUsageMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.JobUsage.Checked != 4 || report.JobUsage.Matched != 1 || report.JobUsage.Tolerated != 1 || report.JobUsage.Mismatch != 1 || report.JobUsage.Skipped != 1 {
+	if report.JobUsage.Checked != 4 || report.JobUsage.Matched != 1 || report.JobUsage.Tolerated != 1 || report.JobUsage.Mismatch != 1 ||
+		report.JobUsage.Skipped != 1 {
 		t.Fatalf("job usage summary = %+v", report.JobUsage)
 	}
 	if len(report.Changes) != 2 || report.Changes[0].Entity != "job-usage" || report.Changes[0].Severity != "critical" {

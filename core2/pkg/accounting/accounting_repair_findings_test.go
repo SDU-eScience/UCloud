@@ -137,9 +137,38 @@ func TestPlanFindingsRepairNormalizesRetirementState(t *testing.T) {
 		{Id: 12, AssociatedWallet: 3, TreeUsage: 100},
 	}
 	allocations := []findingsRepairAllocationRow{
-		{Id: 20, GroupId: 10, Quota: 80, AllocationStartTime: now.Add(-2 * time.Hour), AllocationEndTime: now.Add(-time.Hour), RetiredUsage: 4, RetiredQuota: 9, AccountingFrequency: "ONCE"},
-		{Id: 21, GroupId: 11, Quota: 70, AllocationStartTime: now.Add(-2 * time.Hour), AllocationEndTime: now.Add(-time.Hour), Retired: true, RetiredUsage: 60, RetiredQuota: 50, AccountingFrequency: "ONCE"},
-		{Id: 22, GroupId: 12, Quota: 70, AllocationStartTime: now.Add(-2 * time.Hour), AllocationEndTime: now.Add(-time.Hour), Retired: true, RetiredUsage: 40, RetiredQuota: 70, AccountingFrequency: "PERIODIC_HOUR"},
+		{
+			Id:                  20,
+			GroupId:             10,
+			Quota:               80,
+			AllocationStartTime: now.Add(-2 * time.Hour),
+			AllocationEndTime:   now.Add(-time.Hour),
+			RetiredUsage:        4,
+			RetiredQuota:        9,
+			AccountingFrequency: "ONCE",
+		},
+		{
+			Id:                  21,
+			GroupId:             11,
+			Quota:               70,
+			AllocationStartTime: now.Add(-2 * time.Hour),
+			AllocationEndTime:   now.Add(-time.Hour),
+			Retired:             true,
+			RetiredUsage:        60,
+			RetiredQuota:        50,
+			AccountingFrequency: "ONCE",
+		},
+		{
+			Id:                  22,
+			GroupId:             12,
+			Quota:               70,
+			AllocationStartTime: now.Add(-2 * time.Hour),
+			AllocationEndTime:   now.Add(-time.Hour),
+			Retired:             true,
+			RetiredUsage:        40,
+			RetiredQuota:        70,
+			AccountingFrequency: "PERIODIC_HOUR",
+		},
 	}
 
 	plan := planFindingsRepair(groups, allocations, now)

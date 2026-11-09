@@ -28,6 +28,7 @@ type findingsRepairAllocationRow struct {
 	RetiredUsage        int64
 	RetiredQuota        int64
 	AccountingFrequency string
+	ProductType         string
 }
 
 type findingsRepairAllocationDeletion struct {
@@ -103,122 +104,105 @@ type findingsRepairReport struct {
 
 func RepairAccountingFindings(apply bool) []byte {
 	report := db.NewTx(func(tx *db.Transaction) findingsRepairReport {
-		if apply {
-			db.Exec(
-				tx,
-				"set transaction isolation level serializable",
-				db.Params{},
-			)
-			db.Exec(
-				tx,
-				`
-					lock table accounting.wallets_v2, accounting.allocation_groups,
-						accounting.wallet_allocations_v2, accounting.scoped_usage in access exclusive mode
-				`,
-				db.Params{},
-			)
-		} else {
-			db.Exec(
-				tx,
-				"set transaction isolation level repeatable read, read only",
-				db.Params{},
-			)
-		}
-
-		nowRow, ok := db.Get[struct{ Now time.Time }](
-			tx,
-			"select transaction_timestamp() as now",
-			db.Params{},
-		)
-		if !ok {
-			panic("could not retrieve repair transaction time")
-		}
-
-		groups := selectFindingsRepairGroups(tx)
-		allocations := selectFindingsRepairAllocations(tx)
-		result := findingsRepairReport{
-			findingsRepairPlan: planFindingsRepair(groups, allocations, nowRow.Now),
-		}
-		deletedGroups := map[int64]bool{}
-		for _, deletion := range result.GroupDeletions {
-			deletedGroups[deletion.Id] = true
-		}
-		for _, clamp := range selectFindingsRepairNonAllocationClamps(tx) {
-			if clamp.Kind != "allocation-group" || !deletedGroups[clamp.Id] {
-				result.Clamps = append(result.Clamps, clamp)
-			}
-		}
-		result.Recomputations, result.Blockers = planFindingsRepairRecomputations(tx, result.findingsRepairPlan, nowRow.Now)
-		result.Blocked = len(result.Blockers) > 0
-		if result.Blocked {
-			return result
-		}
-		if !apply {
-			return result
-		}
-
-		allocationIds := make([]int64, 0, len(result.AllocationDeletions))
-		for _, deletion := range result.AllocationDeletions {
-			allocationIds = append(allocationIds, deletion.Id)
-		}
-		if len(allocationIds) > 0 {
-			db.Exec(
-				tx,
-				`delete from accounting.wallet_allocations_v2 where id = any(cast(:ids as int8[]))`,
-				db.Params{"ids": allocationIds},
-			)
-		}
-
-		groupIds := make([]int64, 0, len(result.GroupDeletions))
-		for _, deletion := range result.GroupDeletions {
-			groupIds = append(groupIds, deletion.Id)
-		}
-		if len(groupIds) > 0 {
-			db.Exec(
-				tx,
-				`delete from accounting.allocation_groups where id = any(cast(:ids as int8[]))`,
-				db.Params{"ids": groupIds},
-			)
-		}
-
-		persistFindingsRepairAllocationUpdates(tx, result.AllocationUpdates)
-		persistFindingsRepairNonAllocationClamps(tx)
-		persistFindingsRepairRecomputations(tx, result.Recomputations)
-
-		remainingGroups := selectFindingsRepairGroups(tx)
-		if len(findCyclicAccountingGroups(remainingGroups)) > 0 {
-			panic("accounting findings repair left an allocation cycle")
-		}
-		if len(selectFindingsRepairNonAllocationClamps(tx)) > 0 {
-			panic("accounting findings repair left a negative wallet, group, or scoped usage value")
-		}
-		remainingAllocations := selectFindingsRepairAllocations(tx)
-		for _, allocation := range remainingAllocations {
-			if allocation.Quota < 0 || allocation.RetiredUsage < 0 || allocation.RetiredQuota < 0 {
-				panic(fmt.Sprintf("accounting findings repair left negative values on allocation %d", allocation.Id))
-			}
-			if allocation.AllocationStartTime.After(allocation.AllocationEndTime) {
-				panic(fmt.Sprintf("accounting findings repair left an invalid interval on allocation %d", allocation.Id))
-			}
-			if !allocation.Retired && !nowRow.Now.Before(allocation.AllocationEndTime) {
-				panic(fmt.Sprintf("accounting findings repair did not retire expired allocation %d", allocation.Id))
-			}
-		}
-		if remainingPlan := planFindingsRepair(remainingGroups, remainingAllocations, nowRow.Now); len(remainingPlan.AllocationUpdates) > 0 {
-			panic("accounting findings repair left stale allocation retirement state")
-		}
-		if remaining := selectFindingsRepairRecomputationDivergences(tx, nowRow.Now); len(remaining) > 0 {
-			panic(fmt.Sprintf("accounting findings repair left %d derived wallet divergences", len(remaining)))
-		}
-		result.Applied = true
-		return result
+		accountingRepairTransactionMode(tx, apply)
+		return accountingRepairFindingsTx(tx, apply)
 	})
-
 	encoded, err := yaml.Marshal(report)
 	if err != nil {
 		panic(err)
 	}
 	return encoded
+}
+
+func accountingRepairFindingsTx(tx *db.Transaction, apply bool) findingsRepairReport {
+
+	nowRow, ok := db.Get[struct{ Now time.Time }](
+		tx,
+		"select transaction_timestamp() as now",
+		db.Params{},
+	)
+	if !ok {
+		panic("could not retrieve repair transaction time")
+	}
+
+	groups := selectFindingsRepairGroups(tx)
+	allocations := selectFindingsRepairAllocations(tx)
+	result := findingsRepairReport{
+		findingsRepairPlan: planFindingsRepair(groups, allocations, nowRow.Now),
+	}
+	deletedGroups := map[int64]bool{}
+	for _, deletion := range result.GroupDeletions {
+		deletedGroups[deletion.Id] = true
+	}
+	for _, clamp := range selectFindingsRepairNonAllocationClamps(tx) {
+		if clamp.Kind != "allocation-group" || !deletedGroups[clamp.Id] {
+			result.Clamps = append(result.Clamps, clamp)
+		}
+	}
+	result.Recomputations, result.Blockers = planFindingsRepairRecomputations(tx, result.findingsRepairPlan, nowRow.Now)
+	result.Blocked = len(result.Blockers) > 0
+	if result.Blocked {
+		return result
+	}
+	if !apply {
+		return result
+	}
+
+	allocationIds := make([]int64, 0, len(result.AllocationDeletions))
+	for _, deletion := range result.AllocationDeletions {
+		allocationIds = append(allocationIds, deletion.Id)
+	}
+	if len(allocationIds) > 0 {
+		db.Exec(
+			tx,
+			`delete from accounting.wallet_allocations_v2 where id = any(cast(:ids as int8[]))`,
+			db.Params{"ids": allocationIds},
+		)
+	}
+
+	groupIds := make([]int64, 0, len(result.GroupDeletions))
+	for _, deletion := range result.GroupDeletions {
+		groupIds = append(groupIds, deletion.Id)
+	}
+	if len(groupIds) > 0 {
+		db.Exec(
+			tx,
+			`delete from accounting.allocation_groups where id = any(cast(:ids as int8[]))`,
+			db.Params{"ids": groupIds},
+		)
+	}
+
+	persistFindingsRepairAllocationUpdates(tx, result.AllocationUpdates)
+	persistFindingsRepairNonAllocationClamps(tx)
+	persistFindingsRepairRecomputations(tx, result.Recomputations)
+
+	remainingGroups := selectFindingsRepairGroups(tx)
+	if len(findCyclicAccountingGroups(remainingGroups)) > 0 {
+		panic("accounting findings repair left an allocation cycle")
+	}
+	if len(selectFindingsRepairNonAllocationClamps(tx)) > 0 {
+		panic("accounting findings repair left a negative wallet, group, or scoped usage value")
+	}
+	remainingAllocations := selectFindingsRepairAllocations(tx)
+	for _, allocation := range remainingAllocations {
+		if allocation.Quota < 0 || allocation.RetiredUsage < 0 || allocation.RetiredQuota < 0 {
+			panic(fmt.Sprintf("accounting findings repair left negative values on allocation %d", allocation.Id))
+		}
+		if allocation.AllocationStartTime.After(allocation.AllocationEndTime) {
+			panic(fmt.Sprintf("accounting findings repair left an invalid interval on allocation %d", allocation.Id))
+		}
+		if !allocation.Retired && !nowRow.Now.Before(allocation.AllocationEndTime) {
+			panic(fmt.Sprintf("accounting findings repair did not retire expired allocation %d", allocation.Id))
+		}
+	}
+	if remainingPlan := planFindingsRepair(remainingGroups, remainingAllocations, nowRow.Now); len(remainingPlan.AllocationUpdates) > 0 {
+		panic("accounting findings repair left stale allocation retirement state")
+	}
+	if remaining := selectFindingsRepairRecomputationDivergences(tx, nowRow.Now); len(remaining) > 0 {
+		panic(fmt.Sprintf("accounting findings repair left %d derived wallet divergences", len(remaining)))
+	}
+	result.Applied = true
+	return result
 }
 
 func selectFindingsRepairGroups(tx *db.Transaction) []findingsRepairGroupRow {
@@ -239,7 +223,7 @@ func selectFindingsRepairAllocations(tx *db.Transaction) []findingsRepairAllocat
 		`
 			select a.id, a.associated_allocation_group as group_id, a.quota,
 				a.allocation_start_time, a.allocation_end_time, a.retired,
-				a.retired_usage, a.retired_quota, pc.accounting_frequency
+				a.retired_usage, a.retired_quota, pc.accounting_frequency, pc.product_type
 			from accounting.wallet_allocations_v2 a
 			join accounting.allocation_groups ag on ag.id = a.associated_allocation_group
 			join accounting.wallets_v2 w on w.id = ag.associated_wallet
@@ -364,7 +348,13 @@ func planFindingsRepairRecomputations(tx *db.Transaction, plan findingsRepairPla
 			}
 			appendInt(int64(walletId), "excess-usage-divergence", "excess_usage", before.ExcessUsage, derived.ExcessUsage)
 			appendInt(int64(walletId), "total-allocated-divergence", "total_allocated", before.TotalAllocated, derived.TotalAllocated)
-			appendInt(int64(walletId), "total-retired-allocated-divergence", "total_retired_allocated", before.TotalRetiredAllocated, derived.TotalRetiredAllocated)
+			appendInt(
+				int64(walletId),
+				"total-retired-allocated-divergence",
+				"total_retired_allocated",
+				before.TotalRetiredAllocated,
+				derived.TotalRetiredAllocated,
+			)
 			appendBool(int64(walletId), "stale-lock-state", "was_locked", before.WasLocked, maxUsable <= 0)
 		}
 	}
@@ -455,7 +445,25 @@ func persistFindingsRepairRecomputations(tx *db.Transaction, recomputations []fi
 			}
 		}
 		if len(ids) > 0 {
-			db.Exec(tx, fmt.Sprintf(`with data as (select unnest(cast(:ids as int8[])) id, unnest(cast(:values as int8[])) value) update accounting.wallets_v2 w set %s = data.value from data where w.id = data.id`, field), db.Params{"ids": ids, "values": values})
+			db.Exec(
+				tx,
+				fmt.Sprintf(
+					`with data as (
+						select
+							unnest(cast(:ids as int8[])) id,
+							unnest(cast(:values as int8[])) value
+					)
+					update accounting.wallets_v2 w
+					set %s = data.value
+					from data
+					where w.id = data.id`,
+					field,
+				),
+				db.Params{
+					"ids":    ids,
+					"values": values,
+				},
+			)
 		}
 	}
 	var lockIds []int64
@@ -467,7 +475,22 @@ func persistFindingsRepairRecomputations(tx *db.Transaction, recomputations []fi
 		}
 	}
 	if len(lockIds) > 0 {
-		db.Exec(tx, `with data as (select unnest(cast(:ids as int8[])) id, unnest(cast(:values as bool[])) value) update accounting.wallets_v2 w set was_locked = data.value from data where w.id = data.id`, db.Params{"ids": lockIds, "values": lockValues})
+		db.Exec(
+			tx,
+			`with data as (
+				select
+					unnest(cast(:ids as int8[])) id,
+					unnest(cast(:values as bool[])) value
+			)
+			update accounting.wallets_v2 w
+			set was_locked = data.value
+			from data
+			where w.id = data.id`,
+			db.Params{
+				"ids":    lockIds,
+				"values": lockValues,
+			},
+		)
 	}
 }
 
@@ -510,12 +533,18 @@ func planFindingsRepair(groups []findingsRepairGroupRow, allocations []findingsR
 			changedAllocations[allocation.Id] = true
 		}
 		if allocation.RetiredUsage < 0 {
-			result.Clamps = append(result.Clamps, findingsRepairClamp{Kind: "allocation", Id: allocation.Id, Field: "retired_usage", From: allocation.RetiredUsage, To: 0})
+			result.Clamps = append(
+				result.Clamps,
+				findingsRepairClamp{Kind: "allocation", Id: allocation.Id, Field: "retired_usage", From: allocation.RetiredUsage, To: 0},
+			)
 			allocation.RetiredUsage = 0
 			changedAllocations[allocation.Id] = true
 		}
 		if allocation.RetiredQuota < 0 {
-			result.Clamps = append(result.Clamps, findingsRepairClamp{Kind: "allocation", Id: allocation.Id, Field: "retired_quota", From: allocation.RetiredQuota, To: 0})
+			result.Clamps = append(
+				result.Clamps,
+				findingsRepairClamp{Kind: "allocation", Id: allocation.Id, Field: "retired_quota", From: allocation.RetiredQuota, To: 0},
+			)
 			allocation.RetiredQuota = 0
 			changedAllocations[allocation.Id] = true
 		}
@@ -549,9 +578,16 @@ func planFindingsRepair(groups []findingsRepairGroupRow, allocations []findingsR
 				allocation.RetiredQuota = 0
 				changedAllocations[allocation.Id] = true
 			}
-		} else if allocation.AccountingFrequency == "ONCE" {
+		} else if allocation.AccountingFrequency == "ONCE" && allocation.ProductType != "INFERENCE" {
 			if allocation.RetiredUsage > allocation.RetiredQuota {
-				appendFindingsLifecycleChange(&result, allocation.Id, "retired_usage", allocation.RetiredUsage, allocation.RetiredQuota, "capacity retired usage cannot exceed retired quota")
+				appendFindingsLifecycleChange(
+					&result,
+					allocation.Id,
+					"retired_usage",
+					allocation.RetiredUsage,
+					allocation.RetiredQuota,
+					"capacity retired usage cannot exceed retired quota",
+				)
 				allocation.RetiredUsage = allocation.RetiredQuota
 				changedAllocations[allocation.Id] = true
 			}
@@ -591,7 +627,7 @@ func planFindingsRepair(groups []findingsRepairGroupRow, allocations []findingsR
 		allocation.RetiredUsage = toRetire
 		allocation.RetiredQuota = allocation.Quota
 		changedAllocations[allocation.Id] = true
-		if allocation.AccountingFrequency != "ONCE" {
+		if allocation.AccountingFrequency != "ONCE" || allocation.ProductType == "INFERENCE" {
 			appendFindingsLifecycleChange(&result, allocation.Id, "quota", allocation.Quota, toRetire, "periodic allocation retired")
 			allocation.Quota = toRetire
 		}

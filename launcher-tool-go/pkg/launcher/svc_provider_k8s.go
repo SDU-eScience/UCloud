@@ -1,6 +1,7 @@
 package launcher
 
 import (
+	"bytes"
 	_ "embed"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 
 	apm "ucloud.dk/shared/pkg/accounting"
 	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/log"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 
@@ -28,6 +30,18 @@ var k8sInitScript []byte
 //go:embed config/k8s/kubevirt_init.sh
 var k8sKubevirtInitScript []byte
 
+//go:embed config/k8s/kube_ovn_init.sh
+var k8sKubeOvnInitScript []byte
+
+//go:embed config/k8s/kube_ovn_node_init.sh
+var k8sKubeOvnNodeInitScript []byte
+
+//go:embed config/k8s/cilium_init.sh
+var k8sCiliumInitScript []byte
+
+//go:embed config/k8s/registries.yaml
+var k8sRegistriesConfig []byte
+
 func ProviderK8s() {
 	provider := Service{
 		Name:     "k8s",
@@ -41,6 +55,11 @@ func ProviderK8s() {
 	storage := AddDirectory(provider, "storage")
 	imConfig := AddDirectory(provider, "config")
 	logDir := AddDirectory(provider, "logs")
+	k3sRegistriesConfig := ""
+	if provider.Enabled() {
+		k3sRegistriesConfig = filepath.Join(imConfig, "registries.yaml")
+		_ = os.WriteFile(k3sRegistriesConfig, k8sRegistriesConfig, 0644)
+	}
 
 	volumes := []string{
 		Mount(imConfig, "/etc/ucloud"),
@@ -64,12 +83,19 @@ func ProviderK8s() {
 		volumes = append(volumes, Mount(buildDir, "/root/.cache/go-build"))
 	}
 
+	if integratedApps := IntegratedApplicationsDir(); integratedApps != "" {
+		volumes = append(volumes, Mount(integratedApps, "/opt/integrated-applications"))
+	}
+
 	AddService(provider, DockerComposeService{
 		Image:    ImDevImage,
 		Hostname: "k8s",
 		Ports:    []string{"51240:51233"},
 		Command:  []string{"sleep", "inf"},
 		Volumes:  volumes,
+		Networks: map[string]DockerComposeServiceNetwork{
+			"default": {Aliases: []string{"registry.localhost.direct"}, Ipv4Address: "172.18.0.2"},
+		},
 	})
 
 	writeYaml := func(path string, data map[string]any, perm os.FileMode) error {
@@ -81,6 +107,7 @@ func ProviderK8s() {
 	AddStartupHook(provider, func() {
 		_, err := os.Stat(filepath.Join(imConfig, ".installer-flag"))
 		if err == nil {
+			installK8sPrivateNetworks(provider.Name)
 			return
 		}
 
@@ -195,7 +222,9 @@ func ProviderK8s() {
 				return err
 			}
 
-			err = os.WriteFile(filepath.Join(imConfig, "config.yaml"), k8sProviderConfig, 0660)
+			providerConfig := bytes.Replace(k8sProviderConfig, []byte("<registry-auth-shared-secret>"), []byte(util.SecureToken()), 1)
+			providerConfig = bytes.Replace(providerConfig, []byte("<registry-shared-secret>"), []byte(util.SecureToken()), 1)
+			err = os.WriteFile(filepath.Join(imConfig, "config.yaml"), providerConfig, 0660)
 			if err != nil {
 				return err
 			}
@@ -209,6 +238,7 @@ func ProviderK8s() {
 		})
 
 		ComposeExec("Provisioning K8s resources", provider.Name, []string{"bash", "/etc/ucloud/init.sh"}, ExecuteOptions{})
+		installK8sPrivateNetworks(provider.Name)
 		StartServiceEx(provider, true)
 		for i := range 30 {
 			res := ComposeExec(
@@ -245,6 +275,27 @@ func ProviderK8s() {
 		cni := AddVolume(k3s, "cni")
 		kubelet := AddVolume(k3s, "kubelet")
 		etc := AddVolume(k3s, "etc")
+		ovs := AddVolume(k3s, "ovs")
+		ovn := AddVolume(k3s, "ovn")
+
+		restoreNodeState := `if [ -f /etc/ucloud/kube_ovn_node_init.sh ]; then sh /etc/ucloud/kube_ovn_node_init.sh boot; else mount --make-rshared / && mount --make-rshared /run && mount --make-rshared /var/run; mount --make-rshared /sys; fi; exec /bin/k3s "$@"`
+
+		k3sVolumes := []string{
+			Mount(k3sOutput, "/output"),
+			Mount(data, "/var/lib/rancher/k3s"),
+			Mount(cni, "/var/lib/cni"),
+			Mount(kubelet, "/var/lib/kubelet"),
+			Mount(etc, "/etc/rancher"),
+			Mount(k3sRegistriesConfig, "/etc/rancher/k3s/registries.yaml"),
+			Mount(storage, "/mnt/storage"),
+			Mount(imConfig, "/etc/ucloud"),
+			Mount(ovs, "/etc/origin/openvswitch"),
+			Mount(ovn, "/etc/origin/ovn"),
+		}
+
+		if integratedApps := IntegratedApplicationsDir(); integratedApps != "" {
+			k3sVolumes = append(k3sVolumes, Mount(integratedApps, "/opt/integrated-applications"))
+		}
 
 		AddService(k3s, DockerComposeService{
 			Image:    "rancher/k3s:v1.35.2-k3s1",
@@ -253,20 +304,13 @@ func ProviderK8s() {
 			Environment: []string{
 				"K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml",
 				"K3S_KUBECONFIG_MODE=666",
-				"K3S_FLANNEL_BACKEND=host-gw",
 			},
 			Privileged: true,
 			Tmpfs:      []string{"/run", "/var/run"},
-			Command:    []string{"server", "--disable=traefik", "--disable-network-policy"},
-			Volumes: []string{
-				Mount(k3sOutput, "/output"),
-				Mount(data, "/var/lib/rancher/k3s"),
-				Mount(cni, "/var/lib/cni"),
-				Mount(kubelet, "/var/lib/kubelet"),
-				Mount(etc, "/etc/rancher"),
-				Mount(storage, "/mnt/storage"),
-				Mount(imConfig, "/etc/ucloud"),
-			},
+			Entrypoint: []string{"sh", "-ec", restoreNodeState, "--"},
+			Command:    []string{"server", "--disable=traefik", "--flannel-backend=none", "--disable-kube-proxy"},
+			Volumes:    k3sVolumes,
+			Networks:   pinnedNetwork("172.18.0.7"),
 		})
 	}
 
@@ -282,11 +326,12 @@ func ProviderK8s() {
 		data := AddVolume(postgres, "data")
 
 		AddService(postgres, DockerComposeService{
-			Image:       "postgres:15.0",
+			Image:       "postgres:17.0",
 			Hostname:    "k8s-postgres",
 			Restart:     "always",
 			Environment: []string{"POSTGRES_PASSWORD=postgrespassword"},
 			Ports:       []string{"51241:5432"},
+			Networks:    pinnedNetwork("172.18.0.8"),
 			Volumes: []string{
 				Mount(data, "/var/lib/postgresql/data"),
 				Mount(filepath.Join(RepoRoot, "/provider-integration/im2"), "/opt/ucloud"),
@@ -314,6 +359,7 @@ func ProviderK8s() {
 			Image:    "localai/localai:v4.0.0",
 			Hostname: "localai",
 			Restart:  "always",
+			Networks: pinnedNetwork("172.18.0.9"),
 			Environment: []string{
 				"LOCALAI_EXTERNAL_BACKENDS=localai@cpu-stablediffusion-ggml,localai@stablediffusion-ggml",
 			},
@@ -338,6 +384,7 @@ func ProviderK8s() {
 			Image:    "alpine:3",
 			Hostname: "kubevirt",
 			Restart:  "always",
+			Networks: pinnedNetwork("172.18.0.10"),
 			Command:  []string{"sleep", "inf"},
 		})
 
@@ -376,4 +423,92 @@ func ProviderK8s() {
 			)
 		})
 	}
+
+	{
+		privateNetworks := Service{
+			Name:      "private-networks",
+			Title:     "Private networks",
+			Flags:     0,
+			UiParent:  UiParentK8s,
+			Feature:   FeatureProviderK8s,
+			DependsOn: util.OptValue(FeatureProviderK8s),
+		}
+
+		// Hack because it is not currently possible to have a service without a container.
+		AddService(privateNetworks, DockerComposeService{
+			Image:    "alpine:3",
+			Hostname: "private-networks",
+			Restart:  "always",
+			Networks: pinnedNetwork("172.18.0.11"),
+			Command:  []string{"sleep", "inf"},
+		})
+	}
+}
+
+func installK8sPrivateNetworks(providerName string) {
+	runStep := func(title, containerName string, command []string) {
+		result := ComposeExec(title, containerName, command, ExecuteOptions{})
+		if result.ExitCode != 0 {
+			log.Fatal("%s failed with exit code %d", title, result.ExitCode)
+		}
+	}
+
+	runStep(
+		"Waiting for K3s to be ready",
+		"k3s",
+		[]string{"sh", "-c", "until kubectl get nodes >/dev/null 2>&1; do sleep 1; done"},
+	)
+
+	// The node-side script is staged through the shared /etc/ucloud
+	// mount, which is the one directory the IM and the K3s container
+	// have in common. The K3s container copies it to /tmp before
+	// running it because the staged file has no execute bit and the
+	// entrypoint invokes it through sh anyway.
+	stageNodeInit := fmt.Sprintf("cat > /etc/ucloud/kube_ovn_node_init.sh <<'SCRIPT_EOF'\n%s\nSCRIPT_EOF\nchmod +x /etc/ucloud/kube_ovn_node_init.sh", string(k8sKubeOvnNodeInitScript))
+
+	runStep(
+		"Staging node preparation script",
+		providerName,
+		[]string{"bash", "-c", stageNodeInit},
+	)
+
+	runStep(
+		"Preparing node for private networks (init)",
+		"k3s",
+		[]string{
+			"sh",
+			"-c",
+			"cp /etc/ucloud/kube_ovn_node_init.sh /tmp/ && sh /tmp/kube_ovn_node_init.sh init",
+		},
+	)
+
+	runStep(
+		"Installing Cilium",
+		providerName,
+		[]string{
+			"bash",
+			"-c",
+			string(k8sCiliumInitScript),
+		},
+	)
+
+	runStep(
+		"Installing Multus",
+		providerName,
+		[]string{
+			"bash",
+			"-c",
+			fmt.Sprintf("%s\ninstall_multus", string(k8sKubeOvnInitScript)),
+		},
+	)
+
+	runStep(
+		"Installing Kube-OVN",
+		providerName,
+		[]string{
+			"bash",
+			"-c",
+			fmt.Sprintf("%s\ninstall_kube_ovn\nverify_non_primary_conflist\nverify", string(k8sKubeOvnInitScript)),
+		},
+	)
 }

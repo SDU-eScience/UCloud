@@ -115,11 +115,11 @@ Alias: `resume`.
 
 ## `inference models` command
 
-The inference model commands manage the model catalog stored by the Integration Module. They do not query the backing inference platform directly.
+The inference model commands manage the model catalog stored by the Integration Module. They do not query the backing inference platform directly. See [Model Discovery and Catalog](./inference/catalog.md) for what the fields mean.
 
 ### `ucloud inference models ls`
 
-Lists inference model catalog entries, including name, title, capabilities, pricing multipliers, endpoint information, and availability.
+Lists inference model catalog entries, including name, title, capabilities, token prices, endpoint information, and availability.
 
 Options:
 
@@ -129,22 +129,29 @@ Alias: `list`.
 
 ### `ucloud inference models update <name>`
 
-Updates an existing inference model catalog entry.
+Updates an inference model catalog entry. When the catalog does not hold the name, the command creates the entry. See
+[Model Discovery and Catalog](./inference/catalog.md#creating-an-entry) for the defaults of a new entry.
 
 Options:
 
 - `--name <name>`: Rename the model. Renaming is only allowed while the model is not public.
 - `--title <title>`: Set the display title.
-- `--capabilities <list>`: Set a comma-separated capability list. Allowed values are `TextGeneration`, `TextToImage`, and `SpeechToText`.
-- `--price-cached <n>`: Set cached input token price multiplier in fixed-point thousandths.
-- `--price-input <n>`: Set input token price multiplier in fixed-point thousandths.
-- `--price-output <n>`: Set output token price multiplier in fixed-point thousandths.
-- `--public <bool>`: Set whether the model is publicly available.
+- `--capabilities <list>`: Set a comma-separated capability list. Allowed value is `TextGeneration`.
+- `--reasoning-efforts <list>`: Set the reasoning values as a comma-separated list of `display=value` pairs.
+- `--default-reasoning-effort <value>`: Set the default reasoning value. The value must be one of the values from `--reasoning-efforts`.
+- `--price-per-million-cached <n>`: Set encoded cached input Credits per million tokens.
+- `--price-per-million-input <n>`: Set encoded input Credits per million tokens.
+- `--price-per-million-output <n>`: Set encoded output Credits per million tokens.
+- `--public=true` / `--public=false`: Set whether the model is publicly available.
 - `--available-to <list>`: Set a comma-separated list of project IDs allowed to use the model when it is not public.
 - `--base-path <url>`: Set the OpenAI-compatible endpoint base path for the backing model.
 - `--backend-model-name <name>`: Set the model name sent to the backing inference provider.
+- `--temperature <n>`: Set the default temperature, from `0` to `2`.
+- `--top-p <n>`: Set the default top P, from `0` to `1`.
+- `--max-completion-tokens <n>`: Set the default completion token limit. The value must be positive.
+- `--system-prompt <text>`: Set the default system prompt. An empty value clears the prompt.
 
-Price multipliers must be non-negative integers. A value of `1000` means `1x`; `500` means `0.5x`.
+Prices use fixed-point Credits per one million tokens. The scale is `1000000`. Thus, `1000000` means one Credit per million tokens. Zero is valid and means free.
 
 ### `ucloud inference models rm <name>`
 
@@ -167,7 +174,7 @@ $ ucloud jobs stop 1234 5678
 $ ucloud jobs suspend 1234
 $ ucloud jobs resume 1234
 $ ucloud inference models ls
-$ ucloud inference models update qwen --title "Qwen" --capabilities TextGeneration --price-input 1000 --price-output 1000
-$ ucloud inference models update qwen --name qwen-public --public true
+$ ucloud inference models update qwen --title "Qwen" --capabilities TextGeneration --price-per-million-input 1000000 --price-per-million-output 1000000
+$ ucloud inference models update qwen --name qwen-public --public=true
 $ ucloud inference models rm qwen-public
 ```

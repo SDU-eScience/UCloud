@@ -78,8 +78,20 @@ func ResourceCanUse(actor orc.ResourceOwner, owner orc.ResourceOwner, permission
 			continue
 		}
 
-		if entry.Entity.Type == orc.AclEntityTypeUser && entry.Entity.Username == actor.CreatedBy {
-			return true
+		switch entry.Entity.Type {
+		case orc.AclEntityTypeUser:
+			if entry.Entity.Username == actor.CreatedBy {
+				return true
+			}
+
+		case orc.AclEntityTypeProjectGroup:
+			if entry.Entity.ProjectId == "" {
+				continue
+			}
+			project, ok := ProjectRetrieve(entry.Entity.ProjectId)
+			if ok && foundation.IsMemberOfGroup(project, entry.Entity.Group, actor.CreatedBy) {
+				return true
+			}
 		}
 	}
 
@@ -240,7 +252,7 @@ func JobResourceIsAccessible(owner orc.ResourceOwner, resource orc.AppParameterV
 
 		return true, "", JobResourceAccessibilityIssueNone
 
-	case orc.AppParameterValueTypePrivateNetwork:
+	case orc.AppParameterValueTypePrivateNetwork, orc.AppParameterValueTypeUCloudNetwork:
 		network, ok := PrivateNetworkRetrieve(resource.Id)
 		if !ok {
 			return false, "Private network is no longer valid. Was it deleted?", JobResourceAccessibilityIssueUnavailable

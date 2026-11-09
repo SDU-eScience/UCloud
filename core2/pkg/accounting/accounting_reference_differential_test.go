@@ -345,7 +345,15 @@ func failDifferentialScenario(t *testing.T, scenario differentialScenario, diffe
 		}
 		fmt.Fprintf(&trace, "\n  %d. %s", i, operation)
 	}
-	t.Fatalf("accounting implementations diverged after operation %d\npath: %s\nCore: %v\nreference: %v\ncapacity: %t\noperation trace:%s", difference.Operation, difference.Path, difference.Core, difference.Reference, scenario.Capacity, trace.String())
+	t.Fatalf(
+		"accounting implementations diverged after operation %d\npath: %s\nCore: %v\nreference: %v\ncapacity: %t\noperation trace:%s",
+		difference.Operation,
+		difference.Path,
+		difference.Core,
+		difference.Reference,
+		scenario.Capacity,
+		trace.String(),
+	)
 }
 
 func FuzzAccountingReferenceAgreement(f *testing.F) {
@@ -421,12 +429,31 @@ func makeDifferentialScenario(capacity, scoped bool, shape byte, input []byte) d
 			firstScope = "scope-a"
 			secondScope = "scope-b"
 		}
-		scenario.Operations = append(scenario.Operations,
-			differentialOperation{Kind: differentialReport, At: reportTime, Wallet: walletId, Usage: first, Scope: firstScope, ReferenceNote: fmt.Sprintf("local delta=%d", first)},
-			differentialOperation{Kind: differentialReport, At: reportTime.Add(time.Minute), Wallet: walletId, Usage: second, IsDelta: true, Scope: secondScope, ReferenceNote: fmt.Sprintf("local delta=%d", second)},
+		scenario.Operations = append(
+			scenario.Operations,
+			differentialOperation{
+				Kind:          differentialReport,
+				At:            reportTime,
+				Wallet:        walletId,
+				Usage:         first,
+				Scope:         firstScope,
+				ReferenceNote: fmt.Sprintf("local delta=%d", first),
+			},
+			differentialOperation{
+				Kind:          differentialReport,
+				At:            reportTime.Add(time.Minute),
+				Wallet:        walletId,
+				Usage:         second,
+				IsDelta:       true,
+				Scope:         secondScope,
+				ReferenceNote: fmt.Sprintf("local delta=%d", second),
+			},
 		)
 	}
-	scenario.Operations = append(scenario.Operations, differentialOperation{Kind: differentialAdvance, At: earlyEnd, Activations: lateIds, Retirements: earlyIds})
+	scenario.Operations = append(
+		scenario.Operations,
+		differentialOperation{Kind: differentialAdvance, At: earlyEnd, Activations: lateIds, Retirements: earlyIds},
+	)
 
 	for walletId := int64(1); walletId <= int64(walletCount); walletId++ {
 		increase := int64(1 + data.next()%5)

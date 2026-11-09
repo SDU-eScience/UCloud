@@ -235,10 +235,15 @@ const (
 )
 
 var errMetadataScanInvalidated = errors.New("metadata scan invalidated by a live filesystem change")
+var errMetadataAggregateRepairRequired = errors.New("metadata aggregates require a root scan")
+var errMetadataNameRepairRequired = errors.New("metadata search index requires repair")
+var errMetadataCatalogDeleted = errors.New("metadata catalog has been deleted")
 var metadataPendingAggregateKey = []byte{0x00, 0x01}
 var metadataPendingNameKey = []byte{0x00, 0x02}
 var metadataSearchIndexVersionKey = []byte{0x00, 0x03}
+var metadataAggregateVersionKey = []byte{0x00, 0x04}
 var metadataSearchIndexVersion = []byte{0x01}
+var metadataAggregateVersion = []byte{0x01}
 
 type MetadataCatalogConfig struct {
 	IOPS              int
@@ -254,25 +259,69 @@ var metadataRuntime = struct {
 	requests chan metadataScanRequest
 }{config: MetadataCatalogConfig{IOPS: 30_000, ParallelScans: 8, EntriesPerSSTable: 100_000}}
 
-var metadataCompleteCoverage sync.Map
-var metadataDeletedDrives sync.Map
 var metadataLastGeneration atomic.Uint64
 var metadataNameRefreshes sync.Map
 var metadataDatabases = struct {
 	sync.Mutex
-	open map[string]*metadataOpenDatabase
-}{open: map[string]*metadataOpenDatabase{}}
+	catalogs   map[string]*metadataCatalogLifecycle
+	workspaces map[string]bool
+}{
+	catalogs:   map[string]*metadataCatalogLifecycle{},
+	workspaces: map[string]bool{},
+}
 
-type metadataOpenDatabase struct {
-	db   *pebble.DB
-	refs int
+type metadataCatalogLifecycle struct {
+	publication        sync.Mutex
+	deletion           sync.Mutex
+	databaseMutex      sync.Mutex
+	database           *pebble.DB
+	databaseRefs       int
+	databaseUsers      int
+	coverageGeneration uint64
+	coverageValid      bool
+	deleted            bool
+	drained            chan struct{}
+	scans              map[uint64]context.CancelFunc
+	nextScan           uint64
 }
 
 type metadataScanRequest struct {
 	internalPath string
 	drive        *orc.Drive
-	completions  []func(error)
+	ensure       bool
+	completions  []func(error, time.Time)
 }
+
+type metadataScanResult struct {
+	driveId    string
+	err        error
+	finishedAt time.Time
+}
+
+type metadataActiveScan struct {
+	request    metadataScanRequest
+	finished   bool
+	err        error
+	finishedAt time.Time
+}
+
+type metadataScanCompletion struct {
+	driveId     string
+	err         error
+	finishedAt  time.Time
+	completions []func(error, time.Time)
+}
+
+type metadataInitialization struct {
+	done       chan struct{}
+	err        error
+	finishedAt time.Time
+}
+
+var metadataInitializations = struct {
+	sync.Mutex
+	drives map[string]*metadataInitialization
+}{drives: map[string]*metadataInitialization{}}
 
 // MetadataConfigureCatalog configures the aggregate scan budget. Call it before the first request.
 func MetadataConfigureCatalog(config MetadataCatalogConfig) error {
@@ -292,31 +341,53 @@ func MetadataSubmitScanRequest(ucloudPath string) {
 	metadataSubmitScanRequest(ucloudPath, nil)
 }
 
-func metadataSubmitScanRequest(ucloudPath string, completion func(error)) {
+func metadataSubmitScanRequest(ucloudPath string, completion func(error, time.Time)) {
+	metadataSubmitScan(ucloudPath, false, completion)
+}
+
+func metadataSubmitScan(ucloudPath string, ensure bool, completion func(error, time.Time)) {
 	internalPath, ok, drive := UCloudToInternal(ucloudPath)
 	if !ok {
 		if completion != nil {
-			completion(errors.New("unable to resolve metadata scan path"))
+			completion(errors.New("unable to resolve metadata scan path"), time.Now())
 		}
 		return
 	}
-	if _, deleted := metadataDeletedDrives.Load(drive.Id); deleted {
-		if completion != nil {
-			completion(errors.New("metadata scan drive has been deleted"))
-		}
-		return
-	}
-	if !metadataHasCompleteCoverage(drive.Id) {
+	coverage := metadataHasCoverageForSubmission(drive.Id)
+	if !coverage {
 		internalPath, _, _ = UCloudToInternal(fmt.Sprintf("/%v", drive.Id))
 	}
 
 	metadataStartRuntime()
 	metadataRecordScanSubmitted(drive.Id)
-	request := metadataScanRequest{internalPath: internalPath, drive: drive}
+	request := metadataScanRequest{internalPath: internalPath, drive: drive, ensure: ensure}
 	if completion != nil {
 		request.completions = append(request.completions, completion)
 	}
 	metadataRuntime.requests <- request
+}
+
+func metadataEnsureIndex(driveId string) *metadataInitialization {
+	metadataInitializations.Lock()
+	initialization := metadataInitializations.drives[driveId]
+	if initialization != nil && (initialization.finishedAt.IsZero() || time.Since(initialization.finishedAt) < 30*time.Second) {
+		metadataInitializations.Unlock()
+		return initialization
+	}
+	initialization = &metadataInitialization{done: make(chan struct{})}
+	metadataInitializations.drives[driveId] = initialization
+	metadataInitializations.Unlock()
+	go metadataSubmitScan("/"+driveId, true, func(err error, _ time.Time) {
+		metadataInitializations.Lock()
+		initialization.err = err
+		initialization.finishedAt = time.Now()
+		if err == nil && metadataInitializations.drives[driveId] == initialization {
+			delete(metadataInitializations.drives, driveId)
+		}
+		close(initialization.done)
+		metadataInitializations.Unlock()
+	})
+	return initialization
 }
 
 func metadataStartRuntime() {
@@ -331,26 +402,51 @@ func metadataStartRuntime() {
 	metadataRuntime.started = true
 
 	ready := make(chan metadataScanRequest, 1024)
-	done := make(chan string, config.ParallelScans)
+	done := make(chan metadataScanResult, config.ParallelScans)
 	go metadataDispatchScans(metadataRuntime.requests, ready, done)
 	for range config.ParallelScans {
 		go func() {
 			for request := range ready {
 				log.Info("Beginning scan of: %v", request.internalPath)
 				err := metadataDoScan(request.internalPath, request.drive)
-				for _, completion := range request.completions {
-					completion(err)
-				}
-				done <- request.drive.Id
+				done <- metadataScanResult{driveId: request.drive.Id, err: err, finishedAt: time.Now()}
 			}
 		}()
 	}
 }
 
-func metadataDispatchScans(requests <-chan metadataScanRequest, ready chan<- metadataScanRequest, done <-chan string) {
-	active := map[string]bool{}
+func metadataDispatchScans(requests <-chan metadataScanRequest, ready chan<- metadataScanRequest, done <-chan metadataScanResult) {
+	const maxPendingCompletions = 1024
+	active := map[string]*metadataActiveScan{}
 	pending := map[string][]metadataScanRequest{}
 	var runnable []metadataScanRequest
+	var pendingCompletions []metadataScanCompletion
+	callbacks := make(chan metadataScanCompletion)
+	completed := make(chan string)
+	stopping := make(chan struct{})
+	defer close(stopping)
+	metadataRuntime.Lock()
+	callbackWorkers := metadataRuntime.config.ParallelScans
+	metadataRuntime.Unlock()
+	for range callbackWorkers {
+		go func() {
+			for {
+				select {
+				case completion := <-callbacks:
+					for _, callback := range completion.completions {
+						callback(completion.err, completion.finishedAt)
+					}
+					select {
+					case completed <- completion.driveId:
+					case <-stopping:
+						return
+					}
+				case <-stopping:
+					return
+				}
+			}
+		}()
+	}
 	for {
 		var readyChannel chan<- metadataScanRequest
 		var next metadataScanRequest
@@ -358,24 +454,66 @@ func metadataDispatchScans(requests <-chan metadataScanRequest, ready chan<- met
 			readyChannel = ready
 			next = runnable[0]
 		}
+		var callbackChannel chan<- metadataScanCompletion
+		var nextCompletion metadataScanCompletion
+		if len(pendingCompletions) > 0 {
+			callbackChannel = callbacks
+			nextCompletion = pendingCompletions[0]
+		}
+		var doneChannel <-chan metadataScanResult
+		if len(pendingCompletions) < maxPendingCompletions {
+			doneChannel = done
+		}
 		select {
-		case request := <-requests:
-			if active[request.drive.Id] {
+		case request, ok := <-requests:
+			if !ok {
+				return
+			}
+			current, running := active[request.drive.Id]
+			if running && request.ensure && metadataPathContains(current.request.internalPath, request.internalPath) {
+				if current.finished {
+					scanErr := current.err
+					finishedAt := current.finishedAt
+					completions := request.completions
+					go func() {
+						for _, completion := range completions {
+							completion(scanErr, finishedAt)
+						}
+					}()
+				} else {
+					current.request.completions = append(current.request.completions, request.completions...)
+				}
+			} else if running {
 				pending[request.drive.Id] = metadataCoalesceScanRequest(pending[request.drive.Id], request)
 			} else {
-				active[request.drive.Id] = true
+				active[request.drive.Id] = &metadataActiveScan{request: request}
 				runnable = append(runnable, request)
 			}
 		case readyChannel <- next:
 			runnable = runnable[1:]
-		case driveID := <-done:
-			queue := pending[driveID]
+		case callbackChannel <- nextCompletion:
+			pendingCompletions[0] = metadataScanCompletion{}
+			pendingCompletions = pendingCompletions[1:]
+		case result := <-doneChannel:
+			current := active[result.driveId]
+			current.finished = true
+			current.err = result.err
+			current.finishedAt = result.finishedAt
+			pendingCompletions = append(pendingCompletions, metadataScanCompletion{
+				driveId:     result.driveId,
+				err:         result.err,
+				finishedAt:  result.finishedAt,
+				completions: current.request.completions,
+			})
+		case driveId := <-completed:
+			queue := pending[driveId]
 			if len(queue) == 0 {
-				delete(active, driveID)
-				delete(pending, driveID)
+				delete(active, driveId)
+				delete(pending, driveId)
 			} else {
+				active[driveId] = &metadataActiveScan{request: queue[0]}
 				runnable = append(runnable, queue[0])
-				pending[driveID] = queue[1:]
+				pending[driveId] = queue[1:]
 			}
 		}
 	}
@@ -405,41 +543,68 @@ func metadataPathContains(parent, child string) bool {
 	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
-// metadataHasCompleteCoverage returns true if a complete drive-root scan has been published.
-func metadataHasCompleteCoverage(driveID string) bool {
-	if _, ok := metadataCompleteCoverage.Load(driveID); ok {
-		return true
-	}
+func metadataCatalogCoverage(driveID string) (bool, bool) {
 	databasePath := metadataDatabasePath(driveID)
 	db, release, err := metadataAcquireDatabase(databasePath, false)
 	if err != nil {
-		return false
+		return false, false
 	}
 	defer release()
-	_, closer, err := db.Get([]byte{MetaKeyspacePath})
-	if err != nil {
-		return false
+	snapshot := metadataNewQuerySnapshot(db)
+	defer snapshot.Close()
+	complete, err := metadataAggregatesComplete(snapshot)
+	if err != nil || !complete {
+		return false, false
 	}
-	_ = closer.Close()
-	_, pendingCloser, pendingErr := db.Get(metadataPendingAggregateKey)
-	if pendingCloser != nil {
-		_ = pendingCloser.Close()
-	}
-	if pendingErr == nil || !errors.Is(pendingErr, pebble.ErrNotFound) {
-		return false
-	}
-	current, err := metadataSearchIndexCurrent(db)
+	current, err := metadataSearchIndexCurrent(snapshot)
 	if err != nil || !current {
+		return false, false
+	}
+	pending, err := metadataNameRefreshPending(snapshot)
+	if err != nil {
+		return false, false
+	}
+	return true, !pending
+}
+
+func metadataHasCoverageForSubmission(driveId string) bool {
+	databasePath := metadataDatabasePath(driveId)
+	metadataDatabases.Lock()
+	lifecycle := metadataCatalogLifecycleLocked(databasePath)
+	if lifecycle.deleted {
+		metadataDatabases.Unlock()
 		return false
 	}
-	metadataCompleteCoverage.Store(driveID, true)
-	return true
+	if lifecycle.coverageValid {
+		metadataDatabases.Unlock()
+		return true
+	}
+	generation := lifecycle.coverageGeneration
+	metadataDatabases.Unlock()
+	coverage, _ := metadataCatalogCoverage(driveId)
+	metadataDatabases.Lock()
+	if coverage && lifecycle.coverageGeneration == generation && !lifecycle.deleted {
+		lifecycle.coverageValid = true
+	}
+	metadataDatabases.Unlock()
+	return coverage
+}
+
+func metadataInvalidateCoverage(databasePath string) {
+	metadataDatabases.Lock()
+	lifecycle := metadataCatalogLifecycleLocked(databasePath)
+	lifecycle.coverageGeneration++
+	lifecycle.coverageValid = false
+	metadataDatabases.Unlock()
 }
 
 func metadataDoScan(internalPath string, drive *orc.Drive) error {
-	if _, deleted := metadataDeletedDrives.Load(drive.Id); deleted {
-		return errors.New("metadata scan drive has been deleted")
+	databasePath := metadataDatabasePath(drive.Id)
+	ctx, finishScan, err := metadataBeginScan(databasePath)
+	if err != nil {
+		return err
 	}
+	defer finishScan()
 	basePath, ok, _ := DriveToLocalPath(drive)
 	if !ok {
 		return errors.New("unable to resolve metadata scan drive")
@@ -450,17 +615,26 @@ func metadataDoScan(internalPath string, drive *orc.Drive) error {
 	metadataRuntime.Unlock()
 	startedAt := time.Now()
 	metadataRecordScanStarted(drive.Id)
-	err := metadataScanAndPublish(context.Background(), internalPath, basePath, metadataDatabasePath(drive.Id), limiter, entriesPerTable)
+	err = metadataScanAndPublish(ctx, internalPath, basePath, databasePath, limiter, entriesPerTable)
 	metadataRecordScanFinished(drive.Id, time.Since(startedAt), err)
+	aggregatesPublished := err == nil || errors.Is(err, errMetadataNameRepairRequired)
+	if aggregatesPublished && shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
+		metadataReportAccounting(drive)
+	}
 	if err != nil {
+		aggregatesNeedRepair := errors.Is(err, errMetadataAggregateRepairRequired)
+		if aggregatesNeedRepair || errors.Is(err, errMetadataNameRepairRequired) {
+			metadataInvalidateCatalogScanState(drive.Id)
+		}
+		if aggregatesNeedRepair && filepath.Clean(internalPath) != filepath.Clean(basePath) {
+			go MetadataSubmitScanRequest("/" + drive.Id)
+		}
 		if !metadataExpectedLiveTreeError(err) && !errors.Is(err, errMetadataScanInvalidated) {
 			log.Warn("Metadata scan of drive %s at %s failed: %s", drive.Id, internalPath, err)
 		}
-	} else if filepath.Clean(internalPath) == filepath.Clean(basePath) {
-		metadataCompleteCoverage.Store(drive.Id, true)
 	}
-	if err == nil && shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
-		metadataReportAccounting(drive)
+	if err == nil && DriveScanListener != nil {
+		DriveScanListener(drive, basePath)
 	}
 	return err
 }
@@ -476,25 +650,6 @@ func metadataReportAccounting(drive *orc.Drive) {
 	}
 	sizeInGb := stats.LogicalBytes / 1_000_000_000
 	reportUsedStorage(*drive, int64(min(sizeInGb, uint64(math.MaxInt64))))
-}
-
-func MetadataDeleteCatalog(driveID string) {
-	metadataDeletedDrives.Store(driveID, true)
-	metadataCompleteCoverage.Delete(driveID)
-	databasePath := metadataDatabasePath(driveID)
-	go func() {
-		metadataWaitForNameRefresh(databasePath)
-		for util.IsAlive {
-			metadataDatabases.Lock()
-			open := metadataDatabases.open[databasePath] != nil
-			metadataDatabases.Unlock()
-			if !open {
-				_ = os.RemoveAll(databasePath)
-				return
-			}
-			time.Sleep(time.Second)
-		}
-	}()
 }
 
 func metadataDatabasePath(driveID string) string {
@@ -524,7 +679,7 @@ type metadataScanOutput struct {
 	rootEntry   MetadataEntry
 }
 
-func metadataScanAndPublish(ctx context.Context, scanPath, driveRoot, databasePath string, limiter *rate.Limiter, entriesPerTable int) error {
+func metadataScanAndPublish(ctx context.Context, scanPath, driveRoot, databasePath string, limiter *rate.Limiter, entriesPerTable int) (scanErr error) {
 	// NOTE(Dan): A scan must not publish anything until the complete subtree has been visited. Users are changing the
 	// filesystem while we scan it, and a partial result would make deleted files disappear before their replacement is
 	// known. We first build the complete replacement in a temporary workspace and only open Pebble when it is ready.
@@ -536,15 +691,20 @@ func metadataScanAndPublish(ctx context.Context, scanPath, driveRoot, databasePa
 	if err := os.MkdirAll(databasePath, 0o700); err != nil {
 		return fmt.Errorf("create metadata database directory: %w", err)
 	}
+	metadataDatabases.Lock()
 	tempDir, err := os.MkdirTemp(databasePath, ".scan-")
+	if err == nil {
+		metadataDatabases.workspaces[tempDir] = true
+	}
+	metadataDatabases.Unlock()
 	if err != nil {
 		return fmt.Errorf("create scan workspace: %w", err)
 	}
-	cleanupTemp := true
 	defer func() {
-		if cleanupTemp {
-			_ = os.RemoveAll(tempDir)
-		}
+		_ = os.RemoveAll(tempDir)
+		metadataDatabases.Lock()
+		delete(metadataDatabases.workspaces, tempDir)
+		metadataDatabases.Unlock()
 	}()
 
 	rootKey := metadataPathKey(components)
@@ -576,22 +736,29 @@ func metadataScanAndPublish(ctx context.Context, scanPath, driveRoot, databasePa
 		return err
 	}
 
+	metadataDatabases.Lock()
+	lifecycle := metadataCatalogLifecycleLocked(databasePath)
+	metadataDatabases.Unlock()
+	lifecycle.publication.Lock()
+	defer lifecycle.publication.Unlock()
+	metadataInvalidateCoverage(databasePath)
+	defer metadataInvalidateCoverage(databasePath)
+	if err = ctx.Err(); err != nil {
+		return err
+	}
 	db, releaseDatabase, err := metadataAcquireDatabase(databasePath, true)
 	if err != nil {
 		return fmt.Errorf("open metadata database: %w", err)
 	}
-	databaseOpen := true
-	defer func() {
-		if databaseOpen {
-			releaseDatabase()
-		}
-	}()
+	defer releaseDatabase()
 
 	// NOTE(Dan): The process may have stopped after publishing an earlier PATH replacement but before updating its
-	// ancestors or NAME entries. Recover that work before calculating another delta, otherwise a later scan could make
-	// the incomplete update impossible to distinguish from a completed one.
-	if err = metadataRecoverPendingAggregate(db); err != nil {
-		return err
+	// ancestors or NAME entries. Recover that work before calculating another subtree delta. A root scan replaces the
+	// complete PATH keyspace and has no ancestors, so its journal safely supersedes an older pending aggregate update.
+	if len(components) != 0 {
+		if err = metadataRecoverPendingAggregate(db); err != nil {
+			return err
+		}
 	}
 	if err = metadataRecoverPendingNameIndex(db); err != nil {
 		return err
@@ -620,8 +787,15 @@ func metadataScanAndPublish(ctx context.Context, scanPath, driveRoot, databasePa
 	}
 	_ = journal.Close()
 	if err != nil {
-		return fmt.Errorf("journal pending aggregate update: %w", err)
+		return fmt.Errorf("%w: journal pending aggregate update: %v", errMetadataAggregateRepairRequired, err)
 	}
+	metadataInvalidateCoverage(databasePath)
+	aggregatesPending := true
+	defer func() {
+		if aggregatesPending && scanErr != nil && !errors.Is(scanErr, errMetadataAggregateRepairRequired) {
+			scanErr = fmt.Errorf("%w: %v", errMetadataAggregateRepairRequired, scanErr)
+		}
+	}()
 
 	// IngestAndExcise is the point where the completed scan becomes visible. Everything below the scan root is replaced
 	// at once, which also removes entries for files and directories that were not present in the new scan.
@@ -639,20 +813,18 @@ func metadataScanAndPublish(ctx context.Context, scanPath, driveRoot, databasePa
 	if err = metadataUpdateAncestors(db, components, oldContribution, publishedContribution, generation); err != nil {
 		return err
 	}
+	aggregatesPending = false
 
 	pathBytes, _ := db.EstimateDiskUsage([]byte{MetaKeyspacePath}, []byte{MetaKeyspaceName})
 	nameBytes, _ := db.EstimateDiskUsage([]byte{MetaKeyspaceName}, []byte{MetaKeyspaceTrigram + 1})
 	metadataRecordScanContents(filepath.Base(databasePath), output.rootEntry, db.Metrics().DiskSpaceUsage(), pathBytes, nameBytes)
-	releaseDatabase()
-	databaseOpen = false
-
-	// NAME entries are not contiguous for a path subtree, so they cannot be part of the excised span. PATH remains the
-	// authoritative index while NAME catches up. Search results must verify PATH entries and may remove stale hits.
-	cleanupTemp = false
 	refreshDone := make(chan struct{})
 	metadataNameRefreshes.Store(databasePath, refreshDone)
 	metadataRecordNameRefreshStarted(filepath.Base(databasePath))
-	go metadataRefreshNameIndexAsync(databasePath, filepath.Base(databasePath), span, oldNamesPath, tempDir, scanPath)
+	err = metadataRefreshNameIndexAndFinish(db, databasePath, filepath.Base(databasePath), span, oldNamesPath, scanPath, refreshDone)
+	if err != nil {
+		return fmt.Errorf("%w: %v", errMetadataNameRepairRequired, err)
+	}
 	return nil
 }
 
@@ -671,14 +843,15 @@ func metadataScanDirectory(ctx context.Context, path string, components []string
 		if err := limiter.Wait(ctx); err != nil {
 			return metadataAggregate{}, err
 		}
-		children, readErr := directory.ReadDir(1024)
+		children, readErr := directory.Readdirnames(1024)
 		for _, child := range children {
-			childPath := filepath.Join(path, child.Name())
-			childComponents := append(metadataCloneComponents(components), child.Name())
+			childPath := filepath.Join(path, child)
+			childComponents := append(metadataCloneComponents(components), child)
 			if err := limiter.Wait(ctx); err != nil {
 				return metadataAggregate{}, err
 			}
-			childInfo, infoErr := child.Info()
+			var childStat unix.Stat_t
+			infoErr := unix.Fstatat(int(directory.Fd()), child, &childStat, unix.AT_SYMLINK_NOFOLLOW)
 			if infoErr != nil {
 				// A file disappearing between ReadDir and Info is normal on a live filesystem. No data for the file has
 				// been collected yet, so it is safe to leave it out of this scan without invalidating the subtree.
@@ -687,14 +860,14 @@ func metadataScanDirectory(ctx context.Context, path string, components []string
 				}
 				return metadataAggregate{}, fmt.Errorf("stat %q: %w", childPath, infoErr)
 			}
-			if childInfo.IsDir() {
+			if childStat.Mode&unix.S_IFMT == unix.S_IFDIR {
 				// Open directories relative to their parent and do not follow symlinks. A user may replace or rename a
 				// directory while it is being scanned. In that case we reject the complete scan instead of publishing
 				// records under a path which no longer refers to the directory we visited.
 				if err := limiter.Wait(ctx); err != nil {
 					return metadataAggregate{}, err
 				}
-				fd, openErr := unix.Openat(int(directory.Fd()), child.Name(), unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+				fd, openErr := unix.Openat(int(directory.Fd()), child, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 				if openErr != nil {
 					if metadataExpectedLiveTreeError(openErr) {
 						return metadataAggregate{}, fmt.Errorf("%w: directory %q changed before opening", errMetadataScanInvalidated, childPath)
@@ -703,16 +876,16 @@ func metadataScanDirectory(ctx context.Context, path string, components []string
 				}
 				childDirectory := os.NewFile(uintptr(fd), childPath)
 				openedInfo, statErr := childDirectory.Stat()
-				if statErr != nil || !os.SameFile(childInfo, openedInfo) {
+				if statErr != nil || !metadataStatMatchesFileInfo(&childStat, openedInfo) {
 					_ = childDirectory.Close()
 					return metadataAggregate{}, fmt.Errorf("%w: directory %q changed while opening", errMetadataScanInvalidated, childPath)
 				}
-				childAggregate, scanErr := metadataScanDirectory(ctx, childPath, childComponents, generation, limiter, output, childDirectory, childInfo)
+				childAggregate, scanErr := metadataScanDirectory(ctx, childPath, childComponents, generation, limiter, output, childDirectory, openedInfo)
 				if scanErr != nil {
 					_ = childDirectory.Close()
 					return metadataAggregate{}, scanErr
 				}
-				if !metadataDirectoryStillBound(directory, child.Name(), childInfo) {
+				if !metadataDirectoryStillBound(directory, child, openedInfo) {
 					_ = childDirectory.Close()
 					return metadataAggregate{}, fmt.Errorf("%w: directory %q changed during traversal", errMetadataScanInvalidated, childPath)
 				}
@@ -726,7 +899,7 @@ func metadataScanDirectory(ctx context.Context, path string, components []string
 				continue
 			}
 
-			entry := metadataEntryFromFileInfo(childInfo, generation)
+			entry := metadataEntryFromStat(&childStat, generation)
 			aggregate.addEntry(entry)
 			if err := output.append(metadataRecord{key: metadataPathKey(childComponents), value: entry.Encode()}); err != nil {
 				return metadataAggregate{}, err
@@ -801,6 +974,56 @@ func metadataEntryFromFileInfo(info os.FileInfo, generation uint64) MetadataEntr
 	return entry
 }
 
+func metadataEntryFromStat(stat *unix.Stat_t, generation uint64) MetadataEntry {
+	entryType := MetaEntryOther
+	mode := os.FileMode(stat.Mode & 0o777)
+	switch stat.Mode & unix.S_IFMT {
+	case unix.S_IFREG:
+		entryType = MetaEntryRegular
+	case unix.S_IFDIR:
+		entryType = MetaEntryDirectory
+		mode |= os.ModeDir
+	case unix.S_IFLNK:
+		entryType = MetaEntrySymlink
+		mode |= os.ModeSymlink
+	case unix.S_IFIFO:
+		mode |= os.ModeNamedPipe
+	case unix.S_IFSOCK:
+		mode |= os.ModeSocket
+	case unix.S_IFCHR:
+		mode |= os.ModeDevice | os.ModeCharDevice
+	case unix.S_IFBLK:
+		mode |= os.ModeDevice
+	}
+	if stat.Mode&unix.S_ISUID != 0 {
+		mode |= os.ModeSetuid
+	}
+	if stat.Mode&unix.S_ISGID != 0 {
+		mode |= os.ModeSetgid
+	}
+	if stat.Mode&unix.S_ISVTX != 0 {
+		mode |= os.ModeSticky
+	}
+	return MetadataEntry{
+		EntryType:          entryType,
+		EntryGeneration:    generation,
+		ObservedAtUnixNano: time.Now().UnixNano(),
+		LogicalSize:        uint64(max(0, stat.Size)),
+		AllocatedSize:      util.OptValue(uint64(max(0, stat.Blocks)) * 512),
+		ModificationTime:   stat.Mtim.Sec*int64(time.Second) + stat.Mtim.Nsec,
+		AccessTime:         util.OptValue(stat.Atim.Sec*int64(time.Second) + stat.Atim.Nsec),
+		DeviceID:           util.OptValue(uint64(stat.Dev)),
+		InodeID:            util.OptValue(stat.Ino),
+		Mode:               util.OptValue(uint64(mode)),
+		LinkCount:          util.OptValue(uint64(stat.Nlink)),
+	}
+}
+
+func metadataStatMatchesFileInfo(stat *unix.Stat_t, info os.FileInfo) bool {
+	expected, ok := info.Sys().(*syscall.Stat_t)
+	return ok && uint64(stat.Dev) == uint64(expected.Dev) && stat.Ino == expected.Ino
+}
+
 func metadataExpectedLiveTreeError(err error) bool {
 	return errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ESTALE) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.ELOOP) || errors.Is(err, syscall.EPERM) || strings.Contains(err.Error(), "permission denied")
 }
@@ -844,15 +1067,21 @@ func metadataRevalidateScanRoot(ctx context.Context, driveRoot string, component
 }
 
 func metadataOpenScanRoot(ctx context.Context, driveRoot string, components []string, limiter *rate.Limiter) (*os.File, os.FileInfo, error) {
+	absoluteRoot, err := filepath.Abs(driveRoot)
+	if err != nil {
+		return nil, nil, err
+	}
+	rootComponents := metadataRelativeComponents(strings.TrimPrefix(absoluteRoot, string(filepath.Separator)))
+	allComponents := append(rootComponents, components...)
 	if err := limiter.Wait(ctx); err != nil {
 		return nil, nil, err
 	}
-	fd, err := unix.Open(filepath.Clean(driveRoot), unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	fd, err := unix.Open("/", unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open drive root %q: %w", driveRoot, err)
 	}
-	directory := os.NewFile(uintptr(fd), driveRoot)
-	for index, component := range components {
+	directory := os.NewFile(uintptr(fd), "/")
+	for _, component := range allComponents {
 		if err = limiter.Wait(ctx); err != nil {
 			_ = directory.Close()
 			return nil, nil, err
@@ -862,7 +1091,7 @@ func metadataOpenScanRoot(ctx context.Context, driveRoot string, components []st
 			_ = directory.Close()
 			return nil, nil, fmt.Errorf("open scan root %q: %w", filepath.Join(driveRoot, filepath.Join(components...)), err)
 		}
-		next := os.NewFile(uintptr(fd), filepath.Join(append([]string{driveRoot}, components[:index+1]...)...))
+		next := os.NewFile(uintptr(fd), filepath.Join(directory.Name(), component))
 		_ = directory.Close()
 		directory = next
 	}
@@ -1023,17 +1252,30 @@ func metadataWaitForNameRefresh(databasePath string) {
 
 func metadataAcquireDatabase(databasePath string, create bool) (*pebble.DB, func(), error) {
 	metadataDatabases.Lock()
-	if existing := metadataDatabases.open[databasePath]; existing != nil {
-		existing.refs++
+	lifecycle := metadataCatalogLifecycleLocked(databasePath)
+	if lifecycle.deleted {
 		metadataDatabases.Unlock()
-		return existing.db, metadataDatabaseRelease(databasePath), nil
+		return nil, func() {}, errMetadataCatalogDeleted
+	}
+	lifecycle.databaseUsers++
+	metadataDatabases.Unlock()
+	lifecycle.databaseMutex.Lock()
+	if lifecycle.database != nil {
+		lifecycle.databaseRefs++
+		db := lifecycle.database
+		lifecycle.databaseMutex.Unlock()
+		return db, metadataDatabaseRelease(databasePath, lifecycle), nil
 	}
 	if !create {
-		if _, err := os.Stat(databasePath); errors.Is(err, os.ErrNotExist) {
-			metadataDatabases.Unlock()
+		_, err := os.Stat(databasePath)
+		if errors.Is(err, os.ErrNotExist) {
+			lifecycle.databaseMutex.Unlock()
+			metadataDatabaseUserFinished(databasePath, lifecycle)
 			return nil, func() {}, errMetadataCatalogNotFound
-		} else if err != nil {
-			metadataDatabases.Unlock()
+		}
+		if err != nil {
+			lifecycle.databaseMutex.Unlock()
+			metadataDatabaseUserFinished(databasePath, lifecycle)
 			return nil, func() {}, err
 		}
 	}
@@ -1043,31 +1285,135 @@ func metadataAcquireDatabase(databasePath string, create bool) (*pebble.DB, func
 	})
 	db, err := pebble.Open(databasePath, opts)
 	if err != nil {
-		metadataDatabases.Unlock()
+		lifecycle.databaseMutex.Unlock()
+		metadataDatabaseUserFinished(databasePath, lifecycle)
 		return nil, func() {}, err
 	}
-	metadataDatabases.open[databasePath] = &metadataOpenDatabase{db: db, refs: 1}
-	metadataDatabases.Unlock()
-	return db, metadataDatabaseRelease(databasePath), nil
+	lifecycle.database = db
+	lifecycle.databaseRefs = 1
+	lifecycle.databaseMutex.Unlock()
+	return db, metadataDatabaseRelease(databasePath, lifecycle), nil
 }
 
-func metadataDatabaseRelease(databasePath string) func() {
+func metadataDatabaseRelease(databasePath string, lifecycle *metadataCatalogLifecycle) func() {
 	return func() {
-		metadataDatabases.Lock()
-		existing := metadataDatabases.open[databasePath]
-		if existing != nil {
-			existing.refs--
-			if existing.refs == 0 {
-				delete(metadataDatabases.open, databasePath)
-				_ = existing.db.Close()
-			}
+		lifecycle.databaseMutex.Lock()
+		lifecycle.databaseRefs--
+		if lifecycle.databaseRefs == 0 {
+			db := lifecycle.database
+			lifecycle.database = nil
+			_ = db.Close()
 		}
-		metadataDatabases.Unlock()
+		lifecycle.databaseMutex.Unlock()
+		metadataDatabaseUserFinished(databasePath, lifecycle)
 	}
 }
 
-func metadataReadEntry(db *pebble.DB, key []byte) (MetadataEntry, bool, error) {
-	value, closer, err := db.Get(key)
+func metadataDatabaseUserFinished(databasePath string, lifecycle *metadataCatalogLifecycle) {
+	metadataDatabases.Lock()
+	lifecycle.databaseUsers--
+	metadataCatalogSignalDrainedLocked(databasePath)
+	metadataDatabases.Unlock()
+}
+
+func metadataCatalogLifecycleLocked(databasePath string) *metadataCatalogLifecycle {
+	lifecycle := metadataDatabases.catalogs[databasePath]
+	if lifecycle == nil {
+		lifecycle = &metadataCatalogLifecycle{scans: map[uint64]context.CancelFunc{}}
+		metadataDatabases.catalogs[databasePath] = lifecycle
+	}
+	return lifecycle
+}
+
+func metadataCatalogSignalDrainedLocked(databasePath string) {
+	lifecycle := metadataDatabases.catalogs[databasePath]
+	if lifecycle.deleted && lifecycle.drained != nil && len(lifecycle.scans) == 0 && lifecycle.databaseUsers == 0 {
+		close(lifecycle.drained)
+		lifecycle.drained = nil
+	}
+}
+
+func metadataBeginScan(databasePath string) (context.Context, func(), error) {
+	metadataDatabases.Lock()
+	lifecycle := metadataCatalogLifecycleLocked(databasePath)
+	if lifecycle.deleted {
+		metadataDatabases.Unlock()
+		return nil, func() {}, errMetadataCatalogDeleted
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	lifecycle.nextScan++
+	scanId := lifecycle.nextScan
+	lifecycle.scans[scanId] = cancel
+	metadataDatabases.Unlock()
+	return ctx, func() {
+		cancel()
+		metadataDatabases.Lock()
+		delete(lifecycle.scans, scanId)
+		metadataCatalogSignalDrainedLocked(databasePath)
+		metadataDatabases.Unlock()
+	}, nil
+}
+
+func metadataCatalogRetired(driveId string) bool {
+	databasePath := metadataDatabasePath(driveId)
+	metadataDatabases.Lock()
+	lifecycle := metadataDatabases.catalogs[databasePath]
+	retired := lifecycle != nil && lifecycle.deleted
+	metadataDatabases.Unlock()
+	return retired
+}
+
+func metadataRetireCatalog(driveId string) (<-chan struct{}, bool) {
+	drained, retired := metadataRetireCatalogState(driveId)
+	if retired {
+		go func() {
+			<-drained
+			metadataStageCatalogDeletion(driveId)
+		}()
+	}
+	return drained, retired
+}
+
+func metadataRetireCatalogState(driveId string) (<-chan struct{}, bool) {
+	databasePath := metadataDatabasePath(driveId)
+	metadataDatabases.Lock()
+	lifecycle := metadataCatalogLifecycleLocked(databasePath)
+	if lifecycle.deleted {
+		drained := lifecycle.drained
+		metadataDatabases.Unlock()
+		if drained == nil {
+			drained = make(chan struct{})
+			close(drained)
+		}
+		return drained, false
+	}
+	lifecycle.deleted = true
+	lifecycle.drained = make(chan struct{})
+	drained := lifecycle.drained
+	for _, cancel := range lifecycle.scans {
+		cancel()
+	}
+	metadataCatalogSignalDrainedLocked(databasePath)
+	metadataDatabases.Unlock()
+	return drained, true
+}
+
+func metadataStageCatalogDeletion(driveId string) {
+	databasePath := metadataDatabasePath(driveId)
+	device, inode, err := metadataDeletionPathIdentity(databasePath)
+	if err != nil {
+		log.Warn("Unable to inspect metadata catalog for drive %s: %s", driveId, err)
+		return
+	}
+	stagingName := "metadata-" + filepath.Base(databasePath) + "-" + util.RandomToken(8)
+	err = metadataStageDeletionPath(databasePath, stagingName, device, inode)
+	if err != nil {
+		log.Warn("Unable to stage metadata catalog for drive %s: %s", driveId, err)
+	}
+}
+
+func metadataReadEntry(reader pebble.Reader, key []byte) (MetadataEntry, bool, error) {
+	value, closer, err := reader.Get(key)
 	if errors.Is(err, pebble.ErrNotFound) {
 		return MetadataEntry{}, false, nil
 	}
@@ -1085,6 +1431,12 @@ func metadataReadEntry(db *pebble.DB, key []byte) (MetadataEntry, bool, error) {
 func metadataUpdateAncestors(db *pebble.DB, scanComponents []string, oldContribution, newContribution metadataAggregate, generation uint64) error {
 	batch := db.NewBatch()
 	defer batch.Close()
+	if len(scanComponents) == 0 {
+		err := batch.Set(metadataAggregateVersionKey, metadataAggregateVersion, nil)
+		if err != nil {
+			return err
+		}
+	}
 	for depth := len(scanComponents) - 1; depth >= 0; depth-- {
 		key := metadataPathKey(scanComponents[:depth])
 		ancestor, present, err := metadataReadEntry(db, key)
@@ -1092,10 +1444,10 @@ func metadataUpdateAncestors(db *pebble.DB, scanComponents []string, oldContribu
 			return err
 		}
 		if !present || ancestor.EntryType != MetaEntryDirectory {
-			return fmt.Errorf("missing directory ancestor for PATH key %x", key)
+			return fmt.Errorf("%w: missing directory ancestor %x", errMetadataAggregateRepairRequired, key)
 		}
 		if err = metadataApplyAggregateDelta(&ancestor, oldContribution, newContribution); err != nil {
-			return fmt.Errorf("update ancestor PATH key %x: %w", key, err)
+			return fmt.Errorf("%w: update ancestor PATH key %x: %v", errMetadataAggregateRepairRequired, key, err)
 		}
 		ancestor.AggregateGeneration = generation
 		ancestor.AggregateObservedAt = time.Now().UnixNano()

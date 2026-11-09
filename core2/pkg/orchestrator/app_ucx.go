@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"slices"
 	"strings"
 
@@ -17,6 +16,8 @@ import (
 	"ucloud.dk/shared/pkg/ucx/ucxapi"
 	"ucloud.dk/shared/pkg/util"
 )
+
+const ucxHandoffMaxBytes = 64 * 1024
 
 type appUcxSessionState struct {
 	appUcxBaseState
@@ -46,16 +47,14 @@ func initAppUcx() {
 			state.Mu.RUnlock()
 			return provider
 		}
+		state.appUcxBaseState.Application = func() orcapi.NameAndVersion {
+			state.Mu.RLock()
+			application := orcapi.NameAndVersion{Name: state.reqInfo.Name, Version: state.reqInfo.Version}
+			state.Mu.RUnlock()
+			return application
+		}
 
 		proxy.RegisterUpstreamSelector(func(ctx context.Context, downstreamToken string, downstreamSysHello string) ucx.ProxyUpstreamSelection {
-			reqInfo := orcapi.AppUcxConnectRequest{}
-			if err := json.Unmarshal([]byte(downstreamSysHello), &reqInfo); err != nil {
-				log.Warn("UCX core: invalid syshello payload: %v", err)
-				return ucx.ProxyUpstreamSelection{
-					Allowed: false,
-				}
-			}
-
 			tok := strings.SplitN(downstreamToken, "\n", 2)
 			if len(tok) != 2 {
 				log.Warn("UCX core: invalid downstream token format")
@@ -74,6 +73,21 @@ func initAppUcx() {
 
 			if bearerActor.Role&rpc.RolesEndUser == 0 {
 				log.Warn("UCX core: downstream actor is not an end user")
+				return ucx.ProxyUpstreamSelection{
+					Allowed: false,
+				}
+			}
+
+			reqInfo := orcapi.AppUcxConnectRequest{}
+			if err := json.Unmarshal([]byte(downstreamSysHello), &reqInfo); err != nil {
+				log.Warn("UCX core: invalid syshello payload: %v", err)
+				return ucx.ProxyUpstreamSelection{
+					Allowed: false,
+				}
+			}
+
+			if len(reqInfo.Handoff) > ucxHandoffMaxBytes {
+				log.Warn("UCX core: handoff payload is too large: %d bytes", len(reqInfo.Handoff))
 				return ucx.ProxyUpstreamSelection{
 					Allowed: false,
 				}
@@ -175,6 +189,10 @@ func initAppUcx() {
 						return string(value)
 					}),
 				},
+				Provider:   reqInfo.Provider.GetOrDefault(""),
+				Handoff:    reqInfo.Handoff,
+				ClientKind: reqInfo.ClientKind,
+				Updates:    reqInfo.Updates,
 			})
 			if marshalErr != nil {
 				log.Warn("UCX core: failed to marshal provider syshello: %v", marshalErr)
@@ -197,10 +215,44 @@ func initAppUcx() {
 
 		appUcxResourceHandlers(&state.appUcxBaseState, proxy)
 
+		ucxapi.StackRegister.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.StackCreateRequest) (util.Empty, error) {
+			if !state.AllowStackCreation {
+				return util.Empty{}, fmt.Errorf("stack creation is not allowed")
+			}
+			err := StacksCreate(state.Actor(), request.StackId, request.StackType, request.StateFolder, state.Provider(), state.Application())
+			if err != nil {
+				return util.Empty{}, err.AsError()
+			}
+			state.Mu.Lock()
+			state.Stacks[request.StackId] = util.Empty{}
+			state.Mu.Unlock()
+			return util.Empty{}, nil
+		})
+
 		ucxapi.StackAvailable.HandlerProxy(proxy, func(ctx context.Context, request fndapi.FindByStringId) (bool, error) {
 			actor := state.Actor()
-			_, err := StacksRetrieve(actor, request.Id)
-			return err != nil && err.StatusCode == http.StatusNotFound, nil
+			if _, exists := stacksFindEntity(actor, request.Id); exists {
+				return false, nil
+			}
+			return true, nil
+		})
+
+		ucxapi.StackBrowse.HandlerProxy(proxy, func(ctx context.Context, request orcapi.StacksBrowseRequest) (fndapi.PageV2[orcapi.Stack], error) {
+			actor := state.Actor()
+			page, err := StacksBrowse(actor, request.Next, request.ItemsPerPage)
+			if err != nil {
+				return fndapi.PageV2[orcapi.Stack]{}, err.AsError()
+			}
+			return page, nil
+		})
+
+		ucxapi.StackSpawnDeclaredJob.HandlerProxy(proxy, func(ctx context.Context, request fndapi.FindByStringId) (util.Empty, error) {
+			actor := state.Actor()
+			err := stacksSpawnDeclaredJob(actor, request.Id)
+			if err != nil {
+				return util.Empty{}, err.AsError()
+			}
+			return util.Empty{}, nil
 		})
 
 		ucxapi.Core.HandlerProxy(proxy, func(ctx context.Context, request ucxapi.Message) (ucxapi.Message, error) {

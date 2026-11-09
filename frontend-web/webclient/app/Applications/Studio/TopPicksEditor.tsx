@@ -10,8 +10,8 @@ import {TooltipV2} from "@/ui-components/Tooltip";
 import {TopPicksCard} from "@/Applications/Landing";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {emptyPageV2, fetchAll} from "@/Utilities/PageUtilities";
-import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
+import {fetchAll} from "@/Utilities/PageUtilities";
+import {callAPI} from "@/Authentication/DataHook";
 import * as AppStore from "@/Applications/AppStoreApi";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {usePage} from "@/Navigation/Redux";
@@ -134,7 +134,7 @@ const TopPicksEditor: React.FunctionComponent = () => {
             for (const d of dcopy.applications) {
                 if (d.group && !d.description) {
                     d.description = d.group.specification.description;
-                    // Note(Jonas): d.group.specification.description can be an empty string,  
+                    // Note(Jonas): d.group.specification.description can be an empty string,
                     // so d.description will continue to be empty string, despite being a mandatory field.
                     didUpdate = didUpdate || !!d.group.specification.description;
                 }
@@ -160,7 +160,6 @@ const TopPicksEditor: React.FunctionComponent = () => {
                 content: {
                     ...largeModalStyle.content,
                     width: "1140px",
-                    left: `calc(50vw - 570px)`,
                 }
             }
         );

@@ -1,13 +1,17 @@
 import {callAPI} from "@/Authentication/DataHook";
 import MainContainer from "@/ui-components/MainContainer";
 import {usePage} from "@/Navigation/Redux";
-import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, addProjectSwitcherInPortal} from "@/ui-components/ResourceBrowser";
+import {EmptyReasonTag, ResourceBrowseFeatures, ResourceBrowser, ResourceBrowserOpts, SelectionMode, addProjectSwitcherInPortal} from "@/ui-components/ResourceBrowser";
 import * as React from "react";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router-dom";
 import SshKeyApi, {SSHKey} from "@/UCloud/SshKeyApi";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {slimModalStyle} from "@/Utilities/ModalUtilities";
+import SshKeysCreate from "./Add";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -35,7 +39,9 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<SSHKey>(mount, "SSH keys", props.opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumns([{name: "Title"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]);
+                browser.setColumns({ [ContainerSize.LARGE]:
+                    [{name: "Title"}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}, {name: "", columnWidth: 80}]
+                });
 
                 // Ensure no refecthing on `skipOpen`.
                 browser.on("skipOpen", (oldPath, path, resource) => resource != null);
@@ -68,13 +74,17 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
                     browser.registerPage(result, path, false);
                 });
 
-                browser.on("renderRow", (key, row, dims) => {
+                browser.on("renderTitle", (key, title, row) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                    row.title.append(icon)
-
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(key.specification.title, row));
-
-                    ResourceBrowser.icons.renderIcon({name: "heroKey", color: "textPrimary", color2: "textPrimary", height: 64, width: 64}).then(setIcon);
+                    title.append(icon);
+                    title.append(ResourceBrowser.defaultTitleRenderer(key.specification.title, row));
+                    ResourceBrowser.icons.renderIcon({
+                        name: "heroKey",
+                        color: "textPrimary",
+                        color2: "textPrimary",
+                        height: 64,
+                        width: 64
+                    }).then(setIcon);
                 });
 
                 // We don't want it to capitalize the resource name
@@ -114,6 +124,25 @@ export function SSHKeyBrowse(props: {opts?: ResourceBrowserOpts<SSHKey>}): React
                     navigate,
                     isCreating: false,
                     api: {isCoreResource: true},
+                    onAddStart: () => dialogStore.addDialog(<SshKeysCreate onAdded={async ({responses}) => {
+                        const result = await Promise.all(
+                            responses.map(it => callAPI<SSHKey>(SshKeyApi.retrieve({id: it.id})))
+                        );
+
+                        for (const sshKey of result) {
+                            browser.insertEntryIntoCurrentPage(sshKey);
+                        }
+
+                        browser.renderRows();
+
+                        for (const [index, sshKey] of result.entries()) {
+                            const idx = browser.findVirtualRowIndex(it => it === sshKey);
+                            if (idx != null) {
+                                browser.select(idx, SelectionMode.ADDITIVE_SINGLE, index === result.length - 1);
+                                browser.ensureRowIsVisible(idx, false);
+                            }
+                        }
+                    }} />, () => {}, undefined, slimModalStyle),
                     invokeCommand: callAPI,
                     reload: () => browser.refresh()
                 }));

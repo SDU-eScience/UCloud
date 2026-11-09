@@ -296,10 +296,9 @@ export function useCloudAPI<T, Parameters = any>(
 ): [APICallState<T>, APIFetch<Parameters>, APICallParameters<Parameters>] {
     const parameters = useRef(callParametersInitial);
     const initialCall = useRef(true);
-    const lastKey = useRef("");
 
     const [state, dispatch] = useReducer(dataFetchReducer, {
-        loading: false,
+        loading: callParametersInitial.noop ? false : true,
         error: undefined,
         data: dataInitial
     });

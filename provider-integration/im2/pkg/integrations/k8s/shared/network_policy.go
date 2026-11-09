@@ -1,6 +1,10 @@
 package shared
 
 import (
+	"net/netip"
+	"slices"
+	"strings"
+
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,25 +56,28 @@ func AllowNetworkToSubnet(policy *networking.NetworkPolicy, subnet string) {
 }
 
 func AllowNetworkToPublicInternet(policy *networking.NetworkPolicy, ports []int32) {
-	var portEntries []networking.NetworkPolicyPort
-	for _, port := range ports {
-		portEntries = append(portEntries, networking.NetworkPolicyPort{
-			Protocol: util.Pointer(core.ProtocolTCP),
-			Port:     &intstr.IntOrString{Type: intstr.Int, IntVal: port},
-		})
+	policy.Spec.Egress = append(policy.Spec.Egress, PublicInternetEgressRule(ports))
+}
+
+func privateNetworkInternetEgressExceptions() []string {
+	except := append([]string{}, privateNetworkCIDRBlocks...)
+
+	settings := ServiceConfig.Compute.PrivateNetworks
+	if settings.Enabled {
+		for _, pool := range settings.CidrPools {
+			prefix, err := netip.ParsePrefix(pool)
+			if err != nil || !prefix.Addr().Is4() {
+				continue
+			}
+			canonical := prefix.Masked().String()
+			if !slices.Contains(except, canonical) {
+				except = append(except, canonical)
+			}
+		}
 	}
 
-	policy.Spec.Egress = append(policy.Spec.Egress, networking.NetworkPolicyEgressRule{
-		Ports: portEntries,
-		To: []networking.NetworkPolicyPeer{
-			{
-				IPBlock: &networking.IPBlock{
-					CIDR:   "0.0.0.0/0",
-					Except: append([]string{}, privateNetworkCIDRBlocks...),
-				},
-			},
-		},
-	})
+	slices.Sort(except)
+	return except
 }
 
 func AllowNetworkToClusterDNS(policy *networking.NetworkPolicy) {
@@ -93,6 +100,40 @@ func AllowNetworkToClusterDNS(policy *networking.NetworkPolicy) {
 	})
 }
 
+func DenyNetworkToPublicInternet(policy *networking.NetworkPolicy) {
+	policy.Spec.Egress = append(policy.Spec.Egress, networking.NetworkPolicyEgressRule{
+		To: []networking.NetworkPolicyPeer{
+			{
+				IPBlock: &networking.IPBlock{
+					CIDR:   "0.0.0.0/0",
+					Except: append([]string{}, privateNetworkCIDRBlocks...),
+				},
+			},
+		},
+	})
+}
+
+func PublicInternetEgressRule(ports []int32) networking.NetworkPolicyEgressRule {
+	var portEntries []networking.NetworkPolicyPort
+	for _, port := range ports {
+		portEntries = append(portEntries, networking.NetworkPolicyPort{
+			Protocol: util.Pointer(core.ProtocolTCP),
+			Port:     &intstr.IntOrString{Type: intstr.Int, IntVal: port},
+		})
+	}
+	return networking.NetworkPolicyEgressRule{
+		Ports: portEntries,
+		To: []networking.NetworkPolicyPeer{
+			{
+				IPBlock: &networking.IPBlock{
+					CIDR:   "0.0.0.0/0",
+					Except: privateNetworkInternetEgressExceptions(),
+				},
+			},
+		},
+	}
+}
+
 func AllowNetworkFromWorld(policy *networking.NetworkPolicy, proto []orc.PortRangeAndProto) {
 	var portEntries []networking.NetworkPolicyPort
 	for _, entry := range proto {
@@ -110,6 +151,9 @@ func AllowNetworkFromWorld(policy *networking.NetworkPolicy, proto []orc.PortRan
 		Ports: portEntries,
 		From: []networking.NetworkPolicyPeer{
 			{
+				NamespaceSelector: &metav1.LabelSelector{},
+			},
+			{
 				IPBlock: &networking.IPBlock{
 					CIDR: "0.0.0.0/0",
 				},
@@ -124,4 +168,8 @@ func ServiceName(jobId string) string {
 
 func FirewallName(jobId string) string {
 	return "policy-" + jobId
+}
+
+func FirewallJobId(policyName string) string {
+	return strings.TrimPrefix(policyName, "policy-")
 }

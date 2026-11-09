@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	ws "github.com/gorilla/websocket"
 	"ucloud.dk/shared/pkg/log"
@@ -19,6 +20,8 @@ type Session struct {
 	outgoing    chan<- Frame
 	serverSeq   int64
 	ctx         context.Context
+	cancel      context.CancelFunc
+	stallOnce   sync.Once
 	sentModel   map[string]Value
 
 	mu             sync.RWMutex
@@ -30,6 +33,8 @@ type Session struct {
 	uiHandlerMu    sync.RWMutex
 	uiHandlers     map[string]map[string]UiEventHandler
 	app            Application
+	hints          ClientHints
+	closeFn        func()
 }
 
 func NewSession(outgoing chan<- Frame, incoming <-chan Frame) *Session {
@@ -37,12 +42,14 @@ func NewSession(outgoing chan<- Frame, incoming <-chan Frame) *Session {
 }
 
 func NewSessionWithContext(ctx context.Context, outgoing chan<- Frame, incoming <-chan Frame) *Session {
+	ctx, cancel := context.WithCancel(ctx)
 	s := &Session{
 		rawIncoming: incoming,
 		incoming:    make(chan Frame, 16),
 		outgoing:    outgoing,
 		serverSeq:   1,
 		ctx:         ctx,
+		cancel:      cancel,
 		rpcHandlers: map[string]RpcHandler{},
 		rpcPending:  map[int64]chan rpcResponse{},
 		uiHandlers:  map[string]map[string]UiEventHandler{},
@@ -65,19 +72,61 @@ func (s *Session) Context() context.Context {
 	return s.ctx
 }
 
+func (s *Session) Cancel() {
+	if s == nil {
+		return
+	}
+
+	s.cancel()
+
+	s.mu.Lock()
+	closeFn := s.closeFn
+	s.closeFn = nil
+	s.mu.Unlock()
+
+	if closeFn != nil {
+		closeFn()
+	}
+}
+
 func (s *Session) nextSeq() int64 {
 	return atomic.AddInt64(&s.serverSeq, 1) - 1
 }
 
 func (s *Session) Send(frame Frame) {
 	frame.Seq = s.nextSeq()
-	s.outgoing <- frame
+	s.sendWithTimeout(frame, frame.Seq)
 }
 
 func (s *Session) sendWithSeq(frame Frame, seq int64) {
 	frame.Seq = seq
-	s.outgoing <- frame
+	s.sendWithTimeout(frame, seq)
 }
+
+func (s *Session) sendWithTimeout(frame Frame, seq int64) {
+	select {
+	case s.outgoing <- frame:
+	case <-s.ctx.Done():
+	case <-time.After(sendTimeout):
+		// The transport is stalled (the client stopped reading). Drop the frame and fail the session so
+		// that the client reconnects and receives a full UI mount. Continuing on a stalled transport
+		// would desynchronize the client model.
+		log.Warn("ucx: dropped outgoing frame seq=%d opcode=%d (transport stalled)", seq, frame.Opcode)
+		s.failStalled()
+	}
+}
+
+// failStalled cancels the session context. All future sends return immediately and the websocket pumps
+// tear the connection down.
+func (s *Session) failStalled() {
+	s.stallOnce.Do(func() {
+		if s.cancel != nil {
+			s.cancel()
+		}
+	})
+}
+
+const sendTimeout = 10 * time.Second
 
 func (s *Session) pumpIncoming() {
 	defer close(s.incoming)
@@ -99,6 +148,14 @@ func (s *Session) pumpIncoming() {
 				continue
 			}
 
+			if frame.Opcode == OpPing {
+				go s.Send(Frame{
+					ReplyToSeq: frame.Seq,
+					Opcode:     OpPong,
+				})
+				continue
+			}
+
 			select {
 			case <-s.ctx.Done():
 				s.failPendingRpc(s.ctx.Err())
@@ -110,6 +167,13 @@ func (s *Session) pumpIncoming() {
 }
 
 func (s *Session) SendUiMount(uiMount UiMount) {
+	if s.Headless() {
+		return
+	}
+	s.sendUiMount(uiMount)
+}
+
+func (s *Session) sendUiMount(uiMount UiMount) {
 	uiMount.Root = NormalizeUiTree(uiMount.Root)
 	s.rebuildUiHandlers(uiMount.Root)
 
@@ -173,6 +237,10 @@ func collectUiHandlers(node UiNode, target map[string]map[string]UiEventHandler)
 }
 
 func (s *Session) SendModel(newModel map[string]Value) {
+	if s.Headless() {
+		return
+	}
+
 	s.modelMu.Lock()
 	defer s.modelMu.Unlock()
 
@@ -180,6 +248,85 @@ func (s *Session) SendModel(newModel map[string]Value) {
 	next := cloneModel(newModel)
 	s.sendModelDiff(previous, next)
 	s.sentModel = next
+}
+
+// SendModelPatch sends a partial model update. Unlike SendModel, the changes are applied on top of the
+// current model instead of replacing it. This is used for high-frequency updates (for example chat
+// streaming) where only a small part of the model changes and re-sending the entire model is too costly.
+func (s *Session) SendModelPatch(changes map[string]Value) {
+	if s.Headless() {
+		return
+	}
+
+	s.modelMu.Lock()
+	defer s.modelMu.Unlock()
+
+	if len(changes) == 0 {
+		return
+	}
+
+	for key, value := range changes {
+		if value.Kind == ValueNull {
+			delete(s.sentModel, key)
+		} else {
+			s.sentModel[key] = cloneValue(value)
+		}
+	}
+
+	s.Send(Frame{
+		ReplyToSeq: 0,
+		Opcode:     OpModelPatch,
+		ModelPatch: ModelPatch{
+			Changes: changes,
+		},
+	})
+}
+
+// SendStringAppend appends a chunk to a string value already present in the model. This is used for
+// high-frequency streaming (for example log tails) where re-sending the accumulated string is too
+// costly. The value at path must already be a string, otherwise the call is a no-op and returns
+// false. Callers should fall back to SendModelPatch with the full value when it returns false.
+func (s *Session) SendStringAppend(path string, chunk string) bool {
+	if chunk == "" {
+		return true
+	}
+
+	if s.Headless() {
+		return true
+	}
+
+	s.modelMu.Lock()
+	defer s.modelMu.Unlock()
+
+	current, ok := s.sentModel[path]
+	if !ok || current.Kind != ValueString {
+		return false
+	}
+
+	s.sentModel[path] = VString(current.String + chunk)
+
+	s.Send(Frame{
+		ReplyToSeq: 0,
+		Opcode:     OpStringAppend,
+		StringAppend: StringAppend{
+			Path:  path,
+			Chunk: chunk,
+		},
+	})
+
+	return true
+}
+
+func (s *Session) SendTableUpdate(update TableUpdate) {
+	if s.Headless() {
+		return
+	}
+
+	s.Send(Frame{
+		ReplyToSeq:  0,
+		Opcode:      OpTableUpdate,
+		TableUpdate: update,
+	})
 }
 
 func (s *Session) sendModelDiff(before map[string]Value, after map[string]Value) {
@@ -253,13 +400,13 @@ func RunAppRaw(ctx context.Context, handler AppHandler) {
 func RunAppWebSocket(conn *ws.Conn, ctx context.Context, authHandler SessionAuthHandler, handler AppHandler) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	conn.SetReadLimit(maxFrameBytes)
 
 	if !performServerAuthHandshake(ctx, conn, authHandler) {
 		_ = conn.Close()
 		return
 	}
-
-	toWebsocket := make(chan Frame, 16)
+	toWebsocket := make(chan Frame, 256)
 	fromWebsocket := make(chan Frame, 16)
 
 	done := make(chan struct{}, 3)
@@ -281,6 +428,7 @@ func RunAppWebSocket(conn *ws.Conn, ctx context.Context, authHandler SessionAuth
 
 	go func() {
 		defer func() { done <- struct{}{} }()
+
 		session := NewSessionWithContext(ctx, toWebsocket, fromWebsocket)
 		handler(ctx, session)
 		cancel()
@@ -299,12 +447,13 @@ func RunAppWebSocket(conn *ws.Conn, ctx context.Context, authHandler SessionAuth
 func RunAppWebSocketApplication(conn *ws.Conn, ctx context.Context, app Application) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	conn.SetReadLimit(maxFrameBytes)
 
 	if err := conn.WriteMessage(ws.TextMessage, []byte("OK")); err != nil {
 		return
 	}
 
-	toWebsocket := make(chan Frame, 16)
+	toWebsocket := make(chan Frame, 256)
 	fromWebsocket := make(chan Frame, 16)
 
 	done := make(chan struct{}, 3)
@@ -336,6 +485,7 @@ func RunAppWebSocketApplication(conn *ws.Conn, ctx context.Context, app Applicat
 		app.OnInit()
 		stateMu.Unlock()
 
+		sysHelloSeen := false
 		for {
 			select {
 			case <-ctx.Done():
@@ -346,20 +496,30 @@ func RunAppWebSocketApplication(conn *ws.Conn, ctx context.Context, app Applicat
 				}
 
 				if frame.Opcode == OpSysHello {
+					if sysHelloSeen {
+						continue
+					}
+					sysHelloSeen = true
+
 					stateMu.Lock()
+					session.SetClientHints(parseClientHints(frame.SysHello.Payload))
 					if appWithSysHello, ok := app.(SysHelloAwareApplication); ok {
 						appWithSysHello.OnSysHello(frame.SysHello.Payload)
 					}
-					ui := app.UserInterface()
-					model, err := ValueMarshal(app)
-					if err != nil {
-						log.Warn("Failed to serialize model %#v: %s", app, err)
+					if session.Headless() {
+						session.sendHeadlessMount()
 					} else {
-						session.SendUiMount(UiMount{
-							InterfaceId: "-",
-							Root:        ui,
-							Model:       model,
-						})
+						ui := app.UserInterface()
+						model, err := ValueMarshal(app)
+						if err != nil {
+							log.Warn("Failed to serialize model %#v: %s", app, err)
+						} else {
+							session.SendUiMount(UiMount{
+								InterfaceId: "-",
+								Root:        ui,
+								Model:       model,
+							})
+						}
 					}
 					stateMu.Unlock()
 				} else if frame.Opcode == OpUiEvent {
@@ -442,7 +602,8 @@ func pumpFramesFromWebsocket(ctx context.Context, conn *ws.Conn, outgoing chan<-
 
 		decoded, err := FrameDecode(rawMessage)
 		if err != nil {
-			continue
+			log.Warn("ucx: failed to decode frame: %v", err)
+			return
 		}
 
 		select {
@@ -474,11 +635,13 @@ func pumpFramesToWebsocket(ctx context.Context, conn *ws.Conn, incoming <-chan F
 				continue
 			}
 
+			_ = conn.SetWriteDeadline(time.Now().Add(30 * time.Second))
 			err = conn.WriteMessage(ws.BinaryMessage, encoded)
 			if err != nil {
 				canWrite = false
 				_ = conn.Close()
 			}
+			_ = conn.SetWriteDeadline(time.Time{})
 		}
 	}
 }

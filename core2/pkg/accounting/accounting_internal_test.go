@@ -23,6 +23,39 @@ func TestAllocations(t *testing.T) {
 	e.Snapshot("final-state", "user", false)
 }
 
+func TestAllocationCycleDetection(t *testing.T) {
+	e := newEnv(t, capacityCategory)
+
+	e.AllocateEx(0, 0, 100, 1000, "A", "")
+	e.AllocateEx(0, 0, 100, 100, "B", "A")
+	e.AllocateEx(0, 0, 100, 100, "C", "B")
+	e.AllocateEx(0, 0, 100, 100, "C", "A")
+
+	aWallet := e.Wallet(e.Owner("A"), e.Tm(0))
+	bWallet := e.Wallet(e.Owner("B"), e.Tm(0))
+	cWallet := e.Wallet(e.Owner("C"), e.Tm(0))
+
+	_, err := internalAllocateNoCommit(e.Tm(0), e.Bucket, e.Tm(0), e.Tm(100), 50, aWallet, cWallet, util.OptNone[accGrantId]())
+	if err == nil {
+		t.Fatal("expected an allocation closing the A -> C -> A cycle to be rejected")
+	}
+
+	_, err = internalAllocateNoCommit(e.Tm(0), e.Bucket, e.Tm(0), e.Tm(100), 50, bWallet, cWallet, util.OptNone[accGrantId]())
+	if err == nil {
+		t.Fatal("expected an allocation closing the B -> C -> B cycle to be rejected")
+	}
+
+	e.AllocateEx(0, 0, 100, 100, "D", "C")
+
+	e.AllocateEx(0, 0, 100, 100, "C", "")
+
+	e.ReportAbs(1, "C", 10)
+	e.ExpectMany(map[string]want{
+		"A": {PUsage: 10, Locked: false},
+		"C": {PUsage: 10, Locked: false},
+	})
+}
+
 func TestExcessUsageHierarchyCapacity(t *testing.T) {
 	e := newEnv(t, capacityCategory)
 

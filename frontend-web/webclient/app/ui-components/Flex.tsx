@@ -15,6 +15,7 @@ export type FlexCProps =
         style?: CSSProperties;
         draggable?: boolean;
         divRef?: React.RefObject<HTMLDivElement | null>;
+        title?: string;
     };
 
 export const FlexClass = injectStyleSimple("flex", `
@@ -31,6 +32,7 @@ const Flex: React.FunctionComponent<React.PropsWithChildren<FlexCProps>> = props
 
     return <div
         className={classConcat(FlexClass, props.className)}
+        title={props.title}
         style={{
             ...style,
             ...unbox(props),

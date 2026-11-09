@@ -1,6 +1,7 @@
 package orchestrators
 
 import (
+	apm "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
@@ -22,13 +23,15 @@ const (
 )
 
 type StackStatus struct {
-	UcxUiMode       UcxUiMode           `json:"ucxUiMode"`
-	UcxConnectJobId util.Option[string] `json:"ucxConnectJobId"`
-	Jobs            []Job               `json:"jobs"`
-	Licenses        []License           `json:"licenses"`
-	PublicIps       []PublicIp          `json:"publicIps"`
-	PublicLinks     []Ingress           `json:"publicLinks"`
-	Networks        []PrivateNetwork    `json:"networks"`
+	DisasterRecoveryDeclared bool                `json:"disasterRecoveryDeclared"`
+	UcxUiMode                UcxUiMode           `json:"ucxUiMode"`
+	UcxConnectJobId          util.Option[string] `json:"ucxConnectJobId"`
+	Jobs                     []Job               `json:"jobs"`
+	Licenses                 []License           `json:"licenses"`
+	PublicIps                []PublicIp          `json:"publicIps"`
+	PublicLinks              []Ingress           `json:"publicLinks"`
+	Networks                 []PrivateNetwork    `json:"networks"`
+	Services                 []Service           `json:"services"`
 }
 
 const stacksContext = "jobs/stacks"
@@ -50,7 +53,12 @@ var StacksRetrieve = rpc.Call[fnd.FindByStringId, Stack]{
 	Roles:       rpc.RolesEndUser,
 }
 
-var StacksDelete = rpc.Call[fnd.BulkRequest[fnd.FindByStringId], util.Empty]{
+type StacksDeleteRequest struct {
+	Id               string `json:"id"`
+	DeleteStateDrive bool   `json:"deleteStateDrive"`
+}
+
+var StacksDelete = rpc.Call[fnd.BulkRequest[StacksDeleteRequest], util.Empty]{
 	BaseContext: stacksContext,
 	Convention:  rpc.ConventionDelete,
 	Roles:       rpc.RolesEndUser,
@@ -63,10 +71,48 @@ var StacksUpdateAcl = rpc.Call[fnd.BulkRequest[UpdatedAcl], util.Empty]{
 	Operation:   "updateAcl",
 }
 
+var StacksSpawnDeclaredJob = rpc.Call[fnd.FindByStringId, util.Empty]{
+	BaseContext: stacksContext,
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "spawnDeclaredJob",
+	Roles:       rpc.RolesEndUser,
+}
+
+type StacksProviderSpawnDeclaredJobRequest struct {
+	StackInstance     string                            `json:"stackInstance"`
+	StackName         string                            `json:"stackName"`
+	StackEntityId     string                            `json:"stackEntityId"`
+	StateFolder       string                            `json:"stateFolder"`
+	Owner             ResourceOwner                     `json:"owner"`
+	Application       NameAndVersion                    `json:"application"`
+	Product           apm.ProductReference              `json:"product"`
+	Job               UcxDisasterRecoveryJobDescription `json:"job"`
+	PrivateNetworkIds []string                          `json:"privateNetworkIds,omitempty"`
+}
+
+var StacksProviderSpawnDeclaredJob = rpc.Call[StacksProviderSpawnDeclaredJobRequest, fnd.FindByStringId]{
+	BaseContext: "ucloud/" + rpc.ProviderPlaceholder + "/stacks",
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "spawnDeclaredJob",
+	Roles:       rpc.RolesPrivileged,
+}
+
 type StacksControlRequestDeletionRequest struct {
-	Id             string                     `json:"id"`
-	ActivationTime util.Option[fnd.Timestamp] `json:"activationTime"`
-	Owner          ResourceOwner              `json:"owner"`
+	Id               string                     `json:"id"`
+	ActivationTime   util.Option[fnd.Timestamp] `json:"activationTime"`
+	Owner            ResourceOwner              `json:"owner"`
+	DeleteStateDrive bool                       `json:"deleteStateDrive"`
+}
+
+type StacksProviderDeleteRequest struct {
+	Id    string        `json:"id"`
+	Owner ResourceOwner `json:"owner"`
+}
+
+var StacksProviderDelete = rpc.Call[StacksProviderDeleteRequest, util.Empty]{
+	BaseContext: "ucloud/" + rpc.ProviderPlaceholder + "/stacks",
+	Convention:  rpc.ConventionDelete,
+	Roles:       rpc.RolesPrivileged,
 }
 
 var StacksControlRequestDeletion = rpc.Call[StacksControlRequestDeletionRequest, fnd.FindByIntId]{
@@ -80,5 +126,30 @@ var StacksControlCancelDeletion = rpc.Call[fnd.FindByIntId, util.Empty]{
 	BaseContext: stacksContext + "/control",
 	Convention:  rpc.ConventionUpdate,
 	Operation:   "cancelDeletion",
+	Roles:       rpc.RolesProvider,
+}
+
+type StacksControlRenewDeletionRequest struct {
+	RequestId      int                        `json:"requestId"`
+	ActivationTime util.Option[fnd.Timestamp] `json:"activationTime"`
+}
+
+var StacksControlRenewDeletion = rpc.Call[StacksControlRenewDeletionRequest, util.Empty]{
+	BaseContext: stacksContext + "/control",
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "renewDeletion",
+	Roles:       rpc.RolesProvider,
+}
+
+type StacksControlCheckEditRequest struct {
+	Id            string        `json:"id"`
+	Owner         ResourceOwner `json:"owner"`
+	StackEntityId string        `json:"stackEntityId"`
+}
+
+var StacksControlCheckEdit = rpc.Call[StacksControlCheckEditRequest, util.Empty]{
+	BaseContext: stacksContext + "/control",
+	Convention:  rpc.ConventionUpdate,
+	Operation:   "checkEdit",
 	Roles:       rpc.RolesProvider,
 }

@@ -114,13 +114,15 @@ func (c *ProductCategory) ToId() ProductCategoryIdV2 {
 type ProductType string
 
 const (
-	ProductTypeCompute        ProductType = "COMPUTE"
-	ProductTypeStorage        ProductType = "STORAGE"
-	ProductTypeIngress        ProductType = "INGRESS"
-	ProductTypeLicense        ProductType = "LICENSE"
-	ProductTypeInference      ProductType = "INFERENCE"
-	ProductTypeNetworkIp      ProductType = "NETWORK_IP"
-	ProductTypePrivateNetwork ProductType = "PRIVATE_NETWORK"
+	ProductTypeCompute          ProductType = "COMPUTE"
+	ProductTypeStorage          ProductType = "STORAGE"
+	ProductTypeIngress          ProductType = "INGRESS"
+	ProductTypeLicense          ProductType = "LICENSE"
+	ProductTypeInference        ProductType = "INFERENCE"
+	ProductTypeNetworkIp        ProductType = "NETWORK_IP"
+	ProductTypePrivateNetwork   ProductType = "PRIVATE_NETWORK"
+	ProductTypePrivateNetworkIp ProductType = "PRIVATE_NETWORK_IP"
+	ProductTypeService          ProductType = "SERVICE"
 )
 
 type AccountingUnitAndFrequency struct {
@@ -179,13 +181,15 @@ func (f AccountingFrequency) IsPeriodic() bool {
 type ProductTypeC string
 
 const (
-	ProductTypeCStorage        ProductTypeC = "storage"
-	ProductTypeCCompute        ProductTypeC = "compute"
-	ProductTypeCIngress        ProductTypeC = "ingress"
-	ProductTypeCLicense        ProductTypeC = "license"
-	ProductTypeCInference      ProductTypeC = "inference"
-	ProductTypeCNetworkIp      ProductTypeC = "network_ip"
-	ProductTypeCPrivateNetwork ProductTypeC = "private_network"
+	ProductTypeCStorage          ProductTypeC = "storage"
+	ProductTypeCCompute          ProductTypeC = "compute"
+	ProductTypeCIngress          ProductTypeC = "ingress"
+	ProductTypeCLicense          ProductTypeC = "license"
+	ProductTypeCInference        ProductTypeC = "inference"
+	ProductTypeCNetworkIp        ProductTypeC = "network_ip"
+	ProductTypeCPrivateNetwork   ProductTypeC = "private_network"
+	ProductTypeCPrivateNetworkIp ProductTypeC = "private_network_ip"
+	ProductTypeCService          ProductTypeC = "service"
 )
 
 func ProductTypeCCreate(t ProductType) ProductTypeC {
@@ -204,6 +208,10 @@ func ProductTypeCCreate(t ProductType) ProductTypeC {
 		return ProductTypeCNetworkIp
 	case ProductTypePrivateNetwork:
 		return ProductTypeCPrivateNetwork
+	case ProductTypePrivateNetworkIp:
+		return ProductTypeCPrivateNetworkIp
+	case ProductTypeService:
+		return ProductTypeCService
 	default:
 		panic("unknown product type")
 	}

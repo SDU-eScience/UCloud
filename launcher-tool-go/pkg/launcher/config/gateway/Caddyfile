@@ -1,12 +1,7 @@
-{
-    order grpc_web before reverse_proxy
-}
-
 https://ucloud.localhost.direct {
-    grpc_web
-
     reverse_proxy /api/* core2:8080
     reverse_proxy /auth/* core2:8080
+    reverse_proxy /cli/* cli-distribution:8080
 
     reverse_proxy /api/auth-callback-csrf frontend:9000
     reverse_proxy /api/auth-callback frontend:9000
@@ -34,6 +29,10 @@ https://slurm.localhost.direct {
 }
 
 https://k8s.localhost.direct {
+    reverse_proxy k8s:8889
+}
+
+https://registry.localhost.direct {
     reverse_proxy k8s:8889
 }
 
@@ -81,4 +80,9 @@ https://ipa.localhost.direct {
         header_regexp k8sapp Host ^chat.*
     }
     reverse_proxy @k8schat k8s:8889
+
+    @k8sregistry {
+        header_regexp k8sapp Host ^registry.*
+    }
+    reverse_proxy @k8sregistry k8s:8889
 }

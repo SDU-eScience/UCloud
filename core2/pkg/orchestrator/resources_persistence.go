@@ -23,6 +23,7 @@ type resourceLoadRow struct {
 	ProductCategory     sql.NullString
 	Provider            sql.NullString
 	ProviderGeneratedId sql.NullString
+	PublicRead          bool
 	Labels              sql.NullString
 }
 
@@ -41,6 +42,7 @@ func resourceLoadInternal(tx *db.Transaction, typeName string, rows []resourceLo
 			CreatedAt:  row.CreatedAt,
 			ModifiedAt: row.CreatedAt, // NOTE(Dan): We don't store this! That seems silly.
 			Type:       typeName,
+			PublicRead: row.PublicRead,
 			Confirmed:  true,
 		}
 
@@ -188,6 +190,7 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 					pc.category as product_category, 
 					coalesce(r.provider, pc.provider) as provider, 
 					provider_generated_id,
+					r.public_read,
 					r.labels
 				from
 					provider.resource r
@@ -217,12 +220,34 @@ func resourceLoad(typeName string, id ResourceId, prefetchHint []ResourceId) {
 	}
 }
 
-func lResourcePersist(g *resourceTypeGlobal, r *resource) {
+func lResourcePersist(g *resourceTypeGlobal, r *resource) bool {
 	if resourceGlobals.Testing.Enabled {
-		return
+		return true
 	}
 
-	db.NewTx0(func(tx *db.Transaction) {
+	persisted := db.NewTx(func(tx *db.Transaction) bool {
+		if r.Type == privateNetworkIpType && !r.MarkedForDeletion {
+			ip := r.Extra.(*internalPrivateNetworkIp)
+			_, found := db.Get[struct{ Resource int64 }](
+				tx,
+				`
+					select resource
+					from app_orchestrator.private_networks
+					where resource = :network
+					for key share
+				`,
+				db.Params{
+					"network": ResourceParseId(ip.Network),
+				},
+			)
+			if !found {
+				if tx.Ok {
+					db.RequestRollback(tx)
+				}
+				return false
+			}
+		}
+
 		b := db.BatchNew(tx)
 
 		if r.MarkedForDeletion {
@@ -295,9 +320,9 @@ func lResourcePersist(g *resourceTypeGlobal, r *resource) {
 						) as product_id
 					)
 					insert into provider.resource(type, provider, created_at, created_by, project, id, product, 
-						provider_generated_id, confirmed_by_provider, public_read, labels)
+						provider_generated_id, confirmed_by_provider, labels)
 					select :type, case when :provider = '_ucloud' then null else :provider end, now(), :created_by, 
-						:project, :id, product_id, :provider_id, true, false, :labels
+						:project, :id, product_id, :provider_id, true, :labels
 					from products
 					on conflict (id) do update set
 						provider_generated_id = excluded.provider_generated_id,
@@ -380,11 +405,15 @@ func lResourcePersist(g *resourceTypeGlobal, r *resource) {
 		}
 
 		db.BatchSend(b)
+		return true
 	})
 
-	if fn := g.OnPersistCommitted; fn != nil {
-		fn(r)
+	if persisted {
+		if fn := g.OnPersistCommitted; fn != nil {
+			fn(r)
+		}
 	}
+	return persisted
 }
 
 func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string) {
@@ -417,6 +446,7 @@ func resourceLoadIndex(b *resourceIndexBucket, typeName string, reference string
 					pc.category as product_category,
 					coalesce(r.provider, pc.provider) as provider,
 					provider_generated_id,
+					r.public_read,
 					r.labels
 				from
 					provider.resource r

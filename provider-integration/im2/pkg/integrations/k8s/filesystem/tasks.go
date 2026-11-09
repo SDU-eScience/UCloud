@@ -29,22 +29,32 @@ const (
 	TaskTypeCopy       TaskType = "copy"
 	TaskTypeTransfer   TaskType = "file_transfer"
 	TaskTypeMarkItDown TaskType = "markitdown"
+	TaskTypeFFProbe    TaskType = "ffprobe"
 )
 
 type TaskMount struct {
 	UCloudPath string
+	ReadOnly   bool
+}
+
+type TaskResources struct {
+	CpuMilli int64
+	MemoryMB int64
 }
 
 type TaskSpec struct {
 	Type            TaskType
+	Internal        bool
 	Id              string
 	Mounts          []TaskMount
 	TaskToken       string
 	DeadlineSeconds util.Option[int]
+	Resources       util.Option[TaskResources]
 
 	Source           string // UCloud path prior to submission, mount path in job task
 	Destination      string // UCloud path prior to submission, mount path in job task
 	TransferEndpoint string
+	TransferToken    string
 	ConflictPolicy   string
 
 	CreationState struct {
@@ -145,20 +155,28 @@ func initTasks() {
 		taskState.Statuses[request.Token] = request.Update
 		taskState.Mu.Unlock()
 
-		_, err := fndapi.TasksPostStatus.Invoke(fndapi.TasksPostStatusRequest{
-			Update: fndapi.TasksPostStatusRequestUpdate{
-				Id:         ucloudTaskId,
-				ModifiedAt: fndapi.Timestamp(time.Now()),
-				NewStatus:  request.Update,
-			},
-		})
-
-		if err != nil {
-			return util.Empty{}, err
+		if ucloudTaskId != 0 {
+			_, err := fndapi.TasksPostStatus.Invoke(fndapi.TasksPostStatusRequest{
+				Update: fndapi.TasksPostStatusRequestUpdate{
+					Id:         ucloudTaskId,
+					ModifiedAt: fndapi.Timestamp(time.Now()),
+					NewStatus:  request.Update,
+				},
+			})
+			if err != nil {
+				return util.Empty{}, err
+			}
 		}
 
-		if request.Update.State == fndapi.TaskStateSuccess || request.Update.State == fndapi.TaskStateFailure {
+		if request.Update.State == fndapi.TaskStateSuccess ||
+			request.Update.State == fndapi.TaskStateFailure ||
+			request.Update.State == fndapi.TaskStateCancelled {
 			taskCleanupByToken(request.Token)
+			time.AfterFunc(5*time.Minute, func() {
+				taskState.Mu.Lock()
+				delete(taskState.Statuses, request.Token)
+				taskState.Mu.Unlock()
+			})
 		}
 
 		return util.Empty{}, nil
@@ -166,6 +184,9 @@ func initTasks() {
 
 	ctrl.Tasks = ctrl.TaskService{
 		OnCancel: func(id int) *util.HttpError {
+			if id == 0 {
+				return util.HttpErr(http.StatusBadRequest, "invalid task id")
+			}
 			apiTok, ok := db.NewTx2(func(tx *db.Transaction) (string, bool) {
 				row, ok := db.Get[struct{ ApiToken string }](
 					tx,
@@ -183,6 +204,20 @@ func initTasks() {
 
 			jobName, ok := taskCleanupByToken(apiTok)
 			if ok {
+				taskState.Mu.Lock()
+				taskState.Statuses[apiTok] = fndapi.TaskStatus{
+					Title:              util.OptValue("Task has been cancelled"),
+					Body:               util.OptValue("The task has been cancelled"),
+					ProgressPercentage: util.OptValue(100.0),
+					State:              fndapi.TaskStateCancelled,
+				}
+				taskState.Mu.Unlock()
+				time.AfterFunc(5*time.Minute, func() {
+					taskState.Mu.Lock()
+					delete(taskState.Statuses, apiTok)
+					taskState.Mu.Unlock()
+				})
+
 				deleteOpts := k8smeta.DeleteOptions{
 					PropagationPolicy: util.Pointer(k8smeta.DeletePropagationBackground),
 				}
@@ -291,7 +326,15 @@ func taskJobReconciler() {
 				return result.UCloudTaskId, result.ApiToken, resultOk
 			})
 
-			if ok {
+			if ok && ucloudTaskId == 0 {
+				taskState.Mu.Lock()
+				taskState.Statuses[apiToken] = fndapi.TaskStatus{State: finalState}
+				taskState.Mu.Unlock()
+				taskCleanupByToken(apiToken)
+				time.AfterFunc(5*time.Minute, func() {
+					taskForgetStatus(apiToken)
+				})
+			} else if ok {
 				_, err := fndapi.TasksPostStatus.Invoke(fndapi.TasksPostStatusRequest{
 					Update: fndapi.TasksPostStatusRequestUpdate{
 						Id:         ucloudTaskId,
@@ -338,20 +381,21 @@ func TaskSubmitWithInfo(spec TaskSpec) (TaskSubmission, *util.HttpError) {
 	spec.Id = fmt.Sprintf("task-%s", util.RandomToken(8))
 	spec.TaskToken = util.SecureToken()
 
-	resp, err := fndapi.TasksCreate.Invoke(fndapi.TasksCreateRequest{
-		User:      spec.CreationState.Username,
-		Title:     util.OptValue("Task is starting"),
-		Body:      util.OptValue("One of your operations is being scheduled..."),
-		CanCancel: true,
-		Icon:      util.OptValue(spec.CreationState.Icon),
-	})
-
-	if err != nil {
-		log.Warn("Failed to create background task: %s", err)
-		return TaskSubmission{}, util.HttpErr(http.StatusInternalServerError, "failed to create background task")
+	ucloudTaskId := 0
+	if !spec.Internal {
+		resp, err := fndapi.TasksCreate.Invoke(fndapi.TasksCreateRequest{
+			User:      spec.CreationState.Username,
+			Title:     util.OptValue("Task is starting"),
+			Body:      util.OptValue("One of your operations is being scheduled..."),
+			CanCancel: true,
+			Icon:      util.OptValue(spec.CreationState.Icon),
+		})
+		if err != nil {
+			log.Warn("Failed to create background task: %s", err)
+			return TaskSubmission{}, util.HttpErr(http.StatusInternalServerError, "failed to create background task")
+		}
+		ucloudTaskId = resp.Id
 	}
-
-	ucloudTaskId := resp.Id
 
 	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
@@ -373,6 +417,21 @@ func TaskSubmitWithInfo(spec TaskSpec) (TaskSubmission, *util.HttpError) {
 	storageVolumeMounts, internalToPod := resolveTaskMounts(spec)
 	sourcePath := mapUCloudPathToTaskPath(spec.Source, internalToPod)
 	destinationPath := mapUCloudPathToTaskPath(spec.Destination, internalToPod)
+
+	cpuMilli := int64(8000)
+	memoryMB := int64(1024 * 16)
+	requestCpuMilli := int64(500)
+	requestMemoryMB := int64(2048)
+	if spec.Resources.Present {
+		if spec.Resources.Value.CpuMilli > 0 {
+			cpuMilli = spec.Resources.Value.CpuMilli
+			requestCpuMilli = max(int64(100), cpuMilli/4)
+		}
+		if spec.Resources.Value.MemoryMB > 0 {
+			memoryMB = spec.Resources.Value.MemoryMB
+			requestMemoryMB = max(int64(64), memoryMB/4)
+		}
+	}
 
 	job := k8sbatch.Job{
 		ObjectMeta: k8smeta.ObjectMeta{
@@ -440,17 +499,18 @@ func TaskSubmitWithInfo(spec TaskSpec) (TaskSubmission, *util.HttpError) {
 								{Name: taskEnvSource, Value: sourcePath},
 								{Name: taskEnvDestination, Value: destinationPath},
 								{Name: taskEnvTransferEndpoint, Value: spec.TransferEndpoint},
+								{Name: taskEnvTransferToken, Value: spec.TransferToken},
 								{Name: taskEnvTaskToken, Value: spec.TaskToken},
 								{Name: taskEnvConflictPolicy, Value: spec.ConflictPolicy},
 							},
 							Resources: k8score.ResourceRequirements{
 								Limits: map[k8score.ResourceName]resource.Quantity{
-									k8score.ResourceCPU:    *resource.NewMilliQuantity(8000, resource.DecimalExponent),
-									k8score.ResourceMemory: *resource.NewScaledQuantity(1024*16, resource.Mega),
+									k8score.ResourceCPU:    *resource.NewMilliQuantity(cpuMilli, resource.DecimalExponent),
+									k8score.ResourceMemory: *resource.NewScaledQuantity(memoryMB, resource.Mega),
 								},
 								Requests: map[k8score.ResourceName]resource.Quantity{
-									k8score.ResourceCPU:    *resource.NewMilliQuantity(500, resource.DecimalExponent),
-									k8score.ResourceMemory: *resource.NewScaledQuantity(2048, resource.Mega),
+									k8score.ResourceCPU:    *resource.NewMilliQuantity(requestCpuMilli, resource.DecimalExponent),
+									k8score.ResourceMemory: *resource.NewScaledQuantity(requestMemoryMB, resource.Mega),
 								},
 							},
 							VolumeMounts: append(storageVolumeMounts, k8score.VolumeMount{
@@ -473,6 +533,9 @@ func TaskSubmitWithInfo(spec TaskSpec) (TaskSubmission, *util.HttpError) {
 
 	_, kerr := shared.K8sClient.BatchV1().Jobs(shared.ServiceConfig.Compute.TaskNamespace).Create(context.Background(), &job, k8smeta.CreateOptions{})
 	if kerr != nil {
+		if spec.Internal {
+			taskCleanupByToken(spec.TaskToken)
+		}
 		log.Warn("K8s background task failed: %s", kerr)
 		return TaskSubmission{}, util.HttpErr(http.StatusInternalServerError, "failed to create background task")
 	}
@@ -495,6 +558,7 @@ func TaskSubmitAndWait(ctx context.Context, spec TaskSpec, pollInterval time.Dur
 	for {
 		select {
 		case <-ctx.Done():
+			taskCancelSubmission(submission)
 			return util.HttpErr(http.StatusGatewayTimeout, "task did not finish before the deadline")
 		case <-ticker.C:
 			if status, ok := taskStatusByToken(submission.TaskToken); ok {
@@ -513,6 +577,40 @@ func TaskSubmitAndWait(ctx context.Context, spec TaskSpec, pollInterval time.Dur
 				}
 			}
 		}
+	}
+}
+
+func taskCancelSubmission(submission TaskSubmission) {
+	deleteOpts := k8smeta.DeleteOptions{
+		PropagationPolicy: util.Pointer(k8smeta.DeletePropagationBackground),
+	}
+	k8sErr := shared.K8sClient.BatchV1().
+		Jobs(shared.ServiceConfig.Compute.TaskNamespace).
+		Delete(context.Background(), submission.Id, deleteOpts)
+	if k8sErr != nil {
+		log.Warn("Task cancellation: failed to delete job %s/%s: %s",
+			shared.ServiceConfig.Compute.TaskNamespace, submission.Id, k8sErr)
+	}
+
+	taskCleanupByToken(submission.TaskToken)
+	if submission.UCloudTaskId == 0 {
+		return
+	}
+
+	_, err := fndapi.TasksPostStatus.Invoke(fndapi.TasksPostStatusRequest{
+		Update: fndapi.TasksPostStatusRequestUpdate{
+			Id:         submission.UCloudTaskId,
+			ModifiedAt: fndapi.Timestamp(time.Now()),
+			NewStatus: fndapi.TaskStatus{
+				Title:              util.OptValue("Task has been cancelled"),
+				Body:               util.OptValue("The task has been cancelled"),
+				ProgressPercentage: util.OptValue(100.0),
+				State:              fndapi.TaskStateCancelled,
+			},
+		},
+	})
+	if err != nil {
+		log.Warn("Task cancellation: failed to post final message: %s", err)
 	}
 }
 
@@ -586,6 +684,12 @@ func resolveTaskMounts(spec TaskSpec) ([]k8score.VolumeMount, map[string]string)
 
 	addMount := func(containerPath, subpath string, readOnly bool) {
 		existing, _ := resolvedMounts[containerPath]
+		for i := range existing {
+			if existing[i].First == subpath {
+				existing[i].Second = existing[i].Second && readOnly
+				return
+			}
+		}
 		existing = append(existing, util.Tuple2[string, bool]{subpath, readOnly})
 		resolvedMounts[containerPath] = existing
 	}
@@ -623,7 +727,7 @@ func resolveTaskMounts(spec TaskSpec) ([]k8score.VolumeMount, map[string]string)
 		}
 
 		containerPath := filepath.Join(taskStorageMountDir, title)
-		addUCloudMount(containerPath, ucloudPath, false)
+		addUCloudMount(containerPath, ucloudPath, mount.ReadOnly)
 	}
 
 	var folders []candidateMount

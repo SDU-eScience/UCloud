@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	ws "github.com/gorilla/websocket"
+	"ucloud.dk/core/pkg/coreutil"
 	accapi "ucloud.dk/shared/pkg/accounting"
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -28,6 +30,7 @@ const (
 	jobMetricSampleRateParam    = "ucMetricSampleRate"
 	jobMetricSampleRateDefault  = "250ms"
 	jobMetricSampleRateDisabled = "0ms"
+	jobCacheInitScriptParam     = "ucCacheInitScript"
 	jobLoadCacheConcurrency     = 32
 )
 
@@ -51,6 +54,42 @@ var jobLoadCache = struct {
 	Jobs  map[ResourceId]*internalJob
 }{}
 
+func jobRewriteApplicationInCache(ids []ResourceId, application orcapi.NameAndVersion) {
+	jobLoadCache.Mu.Lock()
+	for !jobLoadCache.Ready {
+		jobLoadCache.Cond.Wait()
+	}
+	for _, id := range ids {
+		if job := jobLoadCache.Jobs[id]; job != nil {
+			job.Application = application
+		}
+	}
+	jobLoadCache.Mu.Unlock()
+	for _, id := range ids {
+		ResourceUpdate[any](
+			rpc.ActorSystem,
+			jobType,
+			id,
+			orcapi.PermissionAdmin,
+			func(r *resource, mapped any) {
+				job := r.Extra.(*internalJob)
+				job.Application = application
+				job.ChangeFlags |= internalJobPartialChange | internalJobChangeMetadata
+			},
+		)
+	}
+}
+
+func jobUpdateIsDuplicate(existing []orcapi.JobUpdate, update orcapi.JobUpdate) bool {
+	if len(existing) == 0 {
+		return false
+	}
+
+	last := existing[len(existing)-1]
+	update.Timestamp = last.Timestamp
+	return reflect.DeepEqual(last, update)
+}
+
 func initJobs() {
 	InitResourceType(
 		jobType,
@@ -70,12 +109,6 @@ func initJobs() {
 	go jobNotificationsLoopSendPending()
 
 	orcapi.JobsCreate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobSpecification]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		for _, reqItem := range request.Items {
-			if reqItem.Application.Name == "syncthing" {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusBadRequest, "this application cannot be started through this endpoint")
-			}
-		}
-
 		created, err := JobCreate(info.Actor, request)
 		if err != nil {
 			return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
@@ -97,131 +130,18 @@ func initJobs() {
 			updatesById[item.Id] = append(updatesById[item.Id], item.Update)
 		}
 
+		var jobIds []string
+		for jobId := range updatesById {
+			jobIds = append(jobIds, jobId)
+		}
+		if err := ResourceValidateProviderBatch(info.Actor, jobType, jobIds); err != nil {
+			return util.Empty{}, err
+		}
+
 		for jobId, updates := range updatesById {
-			validatedResources := util.OptNone[[]orcapi.AppParameterValue]()
-			{
-				resourceList := util.OptNone[[]orcapi.AppParameterValue]()
-				for _, update := range updates {
-					if update.ResourceList.Present {
-						resourceList.Set(update.ResourceList.Value)
-					}
-				}
-
-				if resourceList.Present {
-					job, err := JobsRetrieve(info.Actor, jobId, orcapi.JobFlags{
-						ResourceFlags:      orcapi.ResourceFlagsIncludeAll(),
-						IncludeApplication: true,
-					})
-
-					if err == nil {
-						support, ok := SupportByProduct[orcapi.JobSupport](jobType, job.Specification.Product)
-						if ok {
-							toolBackend := job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
-							jobOwner, ok := rpc.LookupActor(job.Owner.CreatedBy)
-							if ok {
-								validatedResources.Present = true
-
-								for _, value := range resourceList.Value {
-									err = jobValidateValue(jobOwner, &value, toolBackend, support, util.OptValue(job.Id))
-									if err == nil {
-										validatedResources.Value = append(validatedResources.Value, value)
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-
-			ok := ResourceUpdate(info.Actor, jobType, ResourceParseId(jobId), orcapi.PermissionProvider, func(r *resource, mapped orcapi.Job) {
-				job := r.Extra.(*internalJob)
-				job.ChangeFlags |= internalJobPartialChange | internalJobChangeUpdates | internalJobChangeMetadata
-
-				for _, update := range updates {
-					update.Timestamp = fndapi.Timestamp(now)
-
-					shouldApply := true
-					if s := update.ExpectedState; s.Present {
-						shouldApply = job.State == s.Value
-					} else if s := update.ExpectedDifferentState; s.Present && s.Value && update.State.Present {
-						shouldApply = job.State != update.State.Value
-					}
-
-					if job.State.IsFinal() && update.State.Present && !update.State.Value.IsFinal() {
-						shouldApply = false
-					}
-
-					if shouldApply {
-						if s := update.State; s.Present && job.State != s.Value {
-							job.State = s.Value
-
-							if job.State == orcapi.JobStateRunning {
-								job.StartedAt.Set(fndapi.Timestamp(time.Now()))
-							}
-
-							mapped.Status.State = job.State
-							jobNotifyStateChange(mapped)
-
-							if job.State.IsFinal() {
-								for _, param := range job.Parameters {
-									jobUnbindResource(jobId, param)
-								}
-
-								for _, resc := range job.Resources {
-									jobUnbindResource(jobId, resc)
-								}
-							}
-						}
-
-						if f := update.OutputFolder; f.Present {
-							job.OutputFolder.Set(f.Value)
-						}
-
-						if a := update.NewTimeAllocation; a.Present {
-							job.TimeAllocation.Set(orcapi.SimpleDurationFromMillis(update.NewTimeAllocation.Value))
-						}
-
-						if validatedResources.Present {
-							oldResources := job.Resources
-							job.Resources = jobPersistableResources(validatedResources.Value)
-
-							for _, old := range oldResources {
-								found := false
-								for _, newResource := range job.Resources {
-									if old.Equal(newResource) {
-										found = true
-										break
-									}
-								}
-
-								if !found {
-									jobUnbindResource(jobId, old)
-								}
-							}
-
-							for _, newResource := range job.Resources {
-								found := false
-								for _, old := range oldResources {
-									if old.Equal(newResource) {
-										found = true
-										break
-									}
-								}
-
-								if !found {
-									jobBindResource(jobId, newResource)
-								}
-							}
-						}
-
-						job.Updates = append(job.Updates, update)
-					}
-				}
-			})
-
-			if !ok {
-				log.Info("unknown job or permission denied (%v, %v)", jobId, info.Actor.Username)
-				return util.Empty{}, util.HttpErr(http.StatusNotFound, "unknown job or permission denied (%v)", jobId)
+			err := jobControlAddUpdates(info.Actor, jobId, updates, now)
+			if err != nil {
+				return util.Empty{}, err
 			}
 		}
 
@@ -233,7 +153,12 @@ func initJobs() {
 	})
 
 	orcapi.JobsControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.JobsControlBrowseRequest) (fndapi.PageV2[orcapi.Job], *util.HttpError) {
-		return JobsBrowse(info.Actor, request.Next, request.ItemsPerPage, request.JobFlags)
+		actor, err := controlBrowseJobScoped(info, request.JobId, &request.JobFlags.ResourceFlags)
+		if err != nil {
+			return fndapi.PageV2[orcapi.Job]{}, err
+		}
+
+		return JobsBrowse(actor, request.Next, request.ItemsPerPage, request.JobFlags)
 	})
 
 	orcapi.JobsRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.JobsRetrieveRequest) (orcapi.Job, *util.HttpError) {
@@ -241,7 +166,11 @@ func initJobs() {
 	})
 
 	orcapi.JobsControlRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.JobsControlRetrieveRequest) (orcapi.Job, *util.HttpError) {
-		return JobsRetrieve(info.Actor, request.Id, request.JobFlags)
+		actor, err := controlRetrieveJobScoped(info, request.JobId, jobType, request.Id)
+		if err != nil {
+			return orcapi.Job{}, err
+		}
+		return JobsRetrieve(actor, request.Id, request.JobFlags)
 	})
 
 	orcapi.JobsRetrieveProducts.Handler(func(info rpc.RequestInfo, request util.Empty) (orcapi.SupportByProvider[orcapi.JobSupport], *util.HttpError) {
@@ -252,27 +181,23 @@ func initJobs() {
 		return JobsSearch(info.Actor, request.Query, request.Next, request.ItemsPerPage, request.JobFlags)
 	})
 
-	orcapi.JobsControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.JobSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		var responses []fndapi.FindByStringId
+	orcapi.JobsControlCreate.Handler(controlCreateServe(
+		func(spec *orcapi.JobSpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
+		},
+		JobCreate,
+		func(created []orcapi.Job) fndapi.BulkResponse[fndapi.FindByStringId] {
+			return controlCreateIdsOf(created, func(r orcapi.Job) string { return r.Id })
+		},
+	))
 
-		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
-		for _, reqItem := range request.Items {
-			if reqItem.Spec.Product.Provider != providerId {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
-			}
-		}
-
-		for _, reqItem := range request.Items {
-			var flags resourceCreateFlags
-			if reqItem.ProjectAllRead {
-				flags |= resourceCreateAllRead
-			}
-
-			if reqItem.ProjectAllWrite {
-				flags |= resourceCreateAllWrite
-			}
-
-			spec := reqItem.Spec
+	orcapi.JobsControlRegister.Handler(resourceControlRegisterServe[orcapi.JobSpecification, orcapi.Job](
+		jobType,
+		func(spec *orcapi.JobSpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
+		},
+		func(item *orcapi.ProviderRegisteredResource[orcapi.JobSpecification]) (any, func(), *util.HttpError) {
+			spec := item.Spec
 			persistedResources := jobPersistableResources(spec.Resources)
 
 			support, _ := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
@@ -286,61 +211,41 @@ func initJobs() {
 				"memoryInGigs": support.Product.MemoryInGigs,
 			})
 
-			id, _, err := ResourceCreateEx[orcapi.Job](
-				jobType,
-				orcapi.ResourceOwner{
-					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
-				},
-				nil,
-				reqItem.Spec.ResourceSpecification,
-				reqItem.ProviderGeneratedId,
-				&internalJob{
-					Application:    spec.Application,
-					Name:           spec.Name,
-					Replicas:       spec.Replicas,
-					Parameters:     spec.Parameters,
-					Resources:      persistedResources,
-					TimeAllocation: spec.TimeAllocation,
-					OpenedFile:     spec.OpenedFile,
-					SshEnabled:     spec.SshEnabled,
-					State:          orcapi.JobStateInQueue,
-					JobParametersJson: orcapi.ExportedParameters{
-						SiteVersion: 3,
-						Request: orcapi.ExportedParametersRequest{
-							Application:       spec.Application,
-							Product:           spec.Product,
-							Name:              spec.Name,
-							Replicas:          spec.Replicas,
-							Parameters:        encodedParams,
-							Resources:         encodedResources,
-							TimeAllocation:    spec.TimeAllocation.GetOrDefault(orcapi.SimpleDuration{}),
-							ResolvedProduct:   encodedProduct,
-							ResolvedSupport:   encodedSupport,
-							AllowDuplicateJob: false,
-							SshEnabled:        spec.SshEnabled,
-						},
-						ResolvedResources: orcapi.ExportedParametersResources{
-							// TODO
-						},
-						MachineType: encodedMachineType,
+			return &internalJob{
+				Application:    spec.Application,
+				Name:           spec.Name,
+				Replicas:       spec.Replicas,
+				Parameters:     spec.Parameters,
+				Resources:      persistedResources,
+				TimeAllocation: spec.TimeAllocation,
+				OpenedFile:     spec.OpenedFile,
+				SshEnabled:     spec.SshEnabled,
+				State:          orcapi.JobStateInQueue,
+				JobParametersJson: orcapi.ExportedParameters{
+					SiteVersion: 3,
+					Request: orcapi.ExportedParametersRequest{
+						Application:       spec.Application,
+						Product:           spec.Product,
+						Name:              spec.Name,
+						Replicas:          spec.Replicas,
+						Parameters:        encodedParams,
+						Resources:         encodedResources,
+						TimeAllocation:    spec.TimeAllocation.GetOrDefault(orcapi.SimpleDuration{}),
+						ResolvedProduct:   encodedProduct,
+						ResolvedSupport:   encodedSupport,
+						AllowDuplicateJob: false,
+						SshEnabled:        spec.SshEnabled,
 					},
-					StartedAt: util.OptNone[fndapi.Timestamp](),
-					Updates:   nil,
+					ResolvedResources: orcapi.ExportedParametersResources{
+						// TODO
+					},
+					MachineType: encodedMachineType,
 				},
-				flags,
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-			} else {
-				ResourceConfirm(jobType, id)
-				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
-			}
-		}
-
-		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
-	})
+				StartedAt: util.OptNone[fndapi.Timestamp](),
+				Updates:   nil,
+			}, nil, nil
+		},
+	))
 
 	orcapi.JobsUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
 		var responses []util.Empty
@@ -390,7 +295,20 @@ func initJobs() {
 
 		resource := request.Resource
 		toolBackend := resc.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
-		err = jobValidateValue(info.Actor, &resource, toolBackend, support, util.OptValue(resc.Id))
+		validation := &jobValueValidation{
+			JobId:                 util.OptValue(resc.Id),
+			Owner:                 util.OptValue(resc.Owner),
+			Replicas:              util.OptValue(resc.Specification.Replicas),
+			NetworkChangesAllowed: jobNetworkAttachAllowed(resc.Status.State),
+			ExistingResources:     resc.Specification.Resources,
+		}
+		err = jobValidateValue(
+			info.Actor,
+			&resource,
+			toolBackend,
+			support,
+			validation,
+		)
 		if err != nil {
 			return util.Empty{}, err
 		}
@@ -407,6 +325,7 @@ func initJobs() {
 			ProviderCallOpts{
 				Username: util.OptValue(info.Actor.Username),
 				Reason:   util.OptValue("user initiated request"),
+				Timeout:  util.OptValue(30 * time.Second),
 			},
 		)
 
@@ -434,7 +353,21 @@ func initJobs() {
 		}
 
 		toolBackend := resc.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
-		err = jobValidateValue(info.Actor, &resource, toolBackend, support, util.OptValue(resc.Id))
+		validation := &jobValueValidation{
+			JobId:                 util.OptValue(resc.Id),
+			Owner:                 util.OptValue(resc.Owner),
+			Replicas:              util.OptValue(resc.Specification.Replicas),
+			NetworkChangesAllowed: jobNetworkAttachAllowed(resc.Status.State),
+			ValueIsRemoval:        true,
+			ExistingResources:     resc.Specification.Resources,
+		}
+		err = jobValidateValue(
+			info.Actor,
+			&resource,
+			toolBackend,
+			support,
+			validation,
+		)
 		if err != nil {
 			return util.Empty{}, err
 		}
@@ -451,6 +384,7 @@ func initJobs() {
 			ProviderCallOpts{
 				Username: util.OptValue(info.Actor.Username),
 				Reason:   util.OptValue("user initiated request"),
+				Timeout:  util.OptValue(30 * time.Second),
 			},
 		)
 
@@ -474,9 +408,11 @@ func initJobs() {
 				return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", item.Id)
 			}
 
-			app, _ := AppRetrieve(info.Actor, resc.Specification.Application.Name,
-				resc.Specification.Application.Version, AppDiscoveryAll, 0)
-			appBackend := app.Invocation.Tool.Tool.Value.Description.Backend
+			app := resc.Status.ResolvedApplication
+			if !app.Present || !app.Value.Invocation.Tool.Tool.Present {
+				return fndapi.BulkResponse[orcapi.OpenSessionWithProvider]{}, util.HttpErr(http.StatusBadRequest, "the job application is unavailable")
+			}
+			appBackend := app.Value.Invocation.Tool.Tool.Value.Description.Backend
 
 			support, ok := SupportByProduct[orcapi.JobSupport](jobType, resc.Specification.Product)
 			if item.SessionType == orcapi.InteractiveSessionTypeShell {
@@ -783,15 +719,53 @@ func initJobs() {
 		return util.Empty{}, JobsUpdateLabelsBulk(info.Actor, request)
 	})
 
-	orcapi.JobsControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.JobsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		for _, reqItem := range request.Items {
-			err := ResourceUpdateLabels(info.Actor, jobType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
-			if err != nil {
-				return util.Empty{}, err
-			}
-		}
-		return util.Empty{}, nil
-	})
+	orcapi.JobsControlUpdateLabels.Handler(controlUpdateLabelsServe(
+		jobType,
+		func(item orcapi.JobsUpdateLabelsRequest) string { return item.Id },
+		func(item orcapi.JobsUpdateLabelsRequest) map[string]string { return item.Labels },
+		func(item *orcapi.JobsUpdateLabelsRequest, labels map[string]string) { item.Labels = labels },
+		JobsUpdateLabelsBulk,
+	))
+
+	orcapi.JobsControlTerminate.Handler(controlMutateServe(
+		jobType,
+		func(item fndapi.FindByStringId) string { return item.Id },
+		func(actor rpc.Actor, items []fndapi.FindByStringId) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+			return JobsTerminateBulk(actor, fndapi.BulkRequestOf(items...))
+		},
+	))
+
+	orcapi.JobsControlSuspend.Handler(controlMutateServe(
+		jobType,
+		func(item fndapi.FindByStringId) string { return item.Id },
+		func(actor rpc.Actor, items []fndapi.FindByStringId) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+			return JobsSuspendBulk(actor, fndapi.BulkRequestOf(items...))
+		},
+	))
+
+	orcapi.JobsControlUnsuspend.Handler(controlMutateServe(
+		jobType,
+		func(item fndapi.FindByStringId) string { return item.Id },
+		func(actor rpc.Actor, items []fndapi.FindByStringId) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+			return JobsUnsuspendBulk(actor, fndapi.BulkRequestOf(items...))
+		},
+	))
+
+	orcapi.JobsControlExtend.Handler(controlMutateServe(
+		jobType,
+		func(item orcapi.JobsExtendRequestItem) string { return item.JobId },
+		func(actor rpc.Actor, items []orcapi.JobsExtendRequestItem) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+			return JobsExtendBulk(actor, fndapi.BulkRequestOf(items...))
+		},
+	))
+
+	orcapi.JobsControlRename.Handler(controlMutateServe(
+		jobType,
+		func(item orcapi.JobRenameRequest) string { return item.Id },
+		func(actor rpc.Actor, items []orcapi.JobRenameRequest) (util.Empty, *util.HttpError) {
+			return util.Empty{}, JobsRenameBulk(actor, fndapi.BulkRequestOf(items...))
+		},
+	))
 
 	wsUpgrader := ws.Upgrader{
 		ReadBufferSize:  1024 * 4,
@@ -816,11 +790,22 @@ func initJobs() {
 
 func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecification]) ([]orcapi.Job, *util.HttpError) {
 	created := make([]orcapi.Job, 0, len(request.Items))
+
+	for _, item := range request.Items {
+		if item.Application.Name == reservedSyncthingApplication {
+			return nil, util.HttpErr(http.StatusBadRequest, "this application cannot be started through this endpoint")
+		}
+
+		if _, err := resourceValidateUserLabels(item.Labels); err != nil {
+			return nil, err
+		}
+	}
+
 	jobSettings := JobSettingsRetrieve(actor)
 
 	for _, item := range request.Items {
 		spec := item
-		err := jobsValidateForSubmission(actor, &spec)
+		app, err := jobsValidateForSubmission(actor, &spec)
 		if err != nil {
 			return nil, err
 		}
@@ -895,17 +880,17 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 			Updates:   nil,
 		}
 
-		job, err := jobCreateThroughProvider(actor, spec, extra)
+		job, err := jobCreateThroughProvider(actor, spec, extra, app)
 		if err != nil {
 			return nil, err
 		}
 
-		for _, param := range spec.Parameters {
-			jobBindResource(job.Id, param)
-		}
-
-		for _, resc := range persistedResources {
-			jobBindResource(job.Id, resc)
+		for _, ref := range spec.Services {
+			err := ServiceAddMembers(actor, ref.ServiceId, []string{job.Id})
+			if err != nil {
+				_, _ = JobsTerminateBulk(actor, fndapi.BulkRequestOf(fndapi.FindByStringId{Id: job.Id}))
+				return nil, err
+			}
 		}
 
 		created = append(created, job)
@@ -914,7 +899,7 @@ func JobCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobSpecificati
 	return created, nil
 }
 
-func jobCreateThroughProvider(actor rpc.Actor, spec orcapi.JobSpecification, extra *internalJob) (orcapi.Job, *util.HttpError) {
+func jobCreateThroughProvider(actor rpc.Actor, spec orcapi.JobSpecification, extra *internalJob, app orcapi.Application) (orcapi.Job, *util.HttpError) {
 	var empty orcapi.Job
 
 	if !resourceSpecificationHasProduct(spec.ResourceSpecification) {
@@ -930,15 +915,29 @@ func jobCreateThroughProvider(actor rpc.Actor, spec orcapi.JobSpecification, ext
 		return empty, err
 	}
 
+	err = jobBindCreatedResources(job.Id)
+	if err != nil {
+		jobDiscardFailedCreate(job.Id)
+		return empty, err
+	}
+
+	apiServerResources, err := jobCreateInferenceApiServers(actor, job.Id, app)
+	if err != nil {
+		jobDiscardFailedCreate(job.Id)
+		return empty, err
+	}
+
 	providerJob := job
-	providerJob.Specification.Resources = spec.Resources // NOTE(Dan): Pass unfiltered resources to provider
+	providerJob.Specification.Resources = append(slices.Clone(jobPersistableResources(spec.Resources)), apiServerResources...)
+	providerJob.Specification.Services = spec.Services
 	resp, err := InvokeProvider(spec.ResourceSpecification.Product.Provider, orcapi.JobsProviderCreate, fndapi.BulkRequestOf(providerJob), ProviderCallOpts{
 		Username: util.OptValue(actor.Username),
 		Reason:   util.OptValue("Creating resource: " + jobType),
+		Timeout:  util.OptValue(30 * time.Second),
 	})
 
 	if err != nil {
-		ResourceDelete(actor, jobType, id)
+		jobDiscardFailedCreate(job.Id)
 		return empty, err
 	}
 
@@ -956,6 +955,64 @@ func jobCreateThroughProvider(actor rpc.Actor, spec orcapi.JobSpecification, ext
 	return job, nil
 }
 
+func jobCreateInferenceApiServers(actor rpc.Actor, jobId string, app orcapi.Application) ([]orcapi.AppParameterValue, *util.HttpError) {
+	if !app.Invocation.Inference.Present {
+		return nil, nil
+	}
+
+	mode := app.Invocation.Inference.Value.Mode
+	if mode == "" || mode == orcapi.InferenceModeNone {
+		return nil, nil
+	}
+
+	options := ApiTokenRetrieveOptions(actor)
+	resources := make([]orcapi.AppParameterValue, 0)
+	var lastErr *util.HttpError
+
+	for providerId, providerOptions := range options.ByProvider {
+		if providerId == "" || !jobApiTokenOptionsHaveInference(providerOptions) {
+			continue
+		}
+
+		token, err := apiTokenCreateForJob(actor, orcapi.ApiTokenSpecification{
+			Title:                fmt.Sprintf("Inference token for job %s", jobId),
+			Description:          "Generated for a job requiring inference servers.",
+			Provider:             util.OptValue(providerId),
+			RequestedPermissions: []orcapi.ApiTokenPermission{{Name: "inference", Action: "use"}},
+		}, jobId)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		if token.Status.Server == "" || !token.Status.Token.Present {
+			lastErr = util.HttpErr(http.StatusInternalServerError, "provider returned an incomplete inference token")
+			_ = ApiTokenRevoke(rpc.ActorSystem, ResourceParseId(token.Id))
+			continue
+		}
+
+		resources = append(resources, orcapi.AppParameterApiServer("Inference", token.Status.Server, token.Status.Token.Value))
+	}
+
+	if mode == orcapi.InferenceModeMandatory && len(resources) == 0 {
+		if lastErr != nil {
+			return nil, lastErr
+		}
+		return nil, util.HttpErr(http.StatusBadRequest, "this application requires inference servers, but none are available for this project")
+	}
+
+	return resources, nil
+}
+
+func jobApiTokenOptionsHaveInference(options orcapi.ApiTokenOptions) bool {
+	for _, permission := range options.AvailablePermissions {
+		if permission.Name == "inference" {
+			return true
+		}
+	}
+	return false
+}
+
 func jobPersistableResources(resources []orcapi.AppParameterValue) []orcapi.AppParameterValue {
 	result := make([]orcapi.AppParameterValue, 0, len(resources))
 	for _, resource := range resources {
@@ -964,6 +1021,32 @@ func jobPersistableResources(resources []orcapi.AppParameterValue) []orcapi.AppP
 		}
 	}
 	return result
+}
+
+func jobsValidateServiceReferences(actor rpc.Actor, spec orcapi.JobSpecification) *util.HttpError {
+	for _, ref := range spec.Services {
+		svc, _, _, err := ResourceRetrieveEx[orcapi.Service](
+			actor,
+			serviceType,
+			ResourceParseId(ref.ServiceId),
+			orcapi.PermissionEdit,
+			orcapi.ResourceFlags{},
+		)
+
+		if err != nil {
+			return util.HttpErr(http.StatusForbidden, "you cannot use this service: %v", ref.ServiceId)
+		}
+
+		if svc.Specification.Product.Provider != spec.Product.Provider {
+			return util.HttpErr(http.StatusBadRequest, "the service belongs to a different provider: %v", ref.ServiceId)
+		}
+
+		if err := serviceValidateMemberNetworkAttachment(svc, spec.Resources); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func JobsRenameBulk(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobRenameRequest]) *util.HttpError {
@@ -1019,9 +1102,11 @@ func JobsExtendBulk(actor rpc.Actor, request fndapi.BulkRequest[orcapi.JobsExten
 			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusNotFound, "permission denied or job not found (%v)", item.JobId)
 		}
 
-		app, _ := AppRetrieve(actor, resc.Specification.Application.Name,
-			resc.Specification.Application.Version, AppDiscoveryAll, 0)
-		appBackend := app.Invocation.Tool.Tool.Value.Description.Backend
+		app := resc.Status.ResolvedApplication
+		if !app.Present || !app.Value.Invocation.Tool.Tool.Present {
+			return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusBadRequest, "the job application is unavailable")
+		}
+		appBackend := app.Value.Invocation.Tool.Tool.Value.Description.Backend
 
 		support, ok := SupportByProduct[orcapi.JobSupport](jobType, resc.Specification.Product)
 		if !ok || !support.Has(jobFeatureExtensionByBackend[appBackend]) {
@@ -1088,6 +1173,10 @@ func JobsTerminateBulk(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindBy
 		if err != nil {
 			log.Info("Failed to terminate job: %s", err)
 			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+
+		for _, job := range requests {
+			go apiTokensRevokeByJob(job.Id)
 		}
 	}
 
@@ -1172,7 +1261,7 @@ func JobsUnsuspendBulk(actor rpc.Actor, request fndapi.BulkRequest[fndapi.FindBy
 	return fndapi.BulkResponse[util.Empty]{Responses: make([]util.Empty, len(request.Items))}, nil
 }
 
-func jobBindResource(jobId string, resc orcapi.AppParameterValue) {
+func jobBindResource(jobId string, resc orcapi.AppParameterValue) bool {
 	switch resc.Type {
 	case orcapi.AppParameterValueTypeNetwork:
 		PublicIpBind(resc.Id, jobId)
@@ -1180,10 +1269,14 @@ func jobBindResource(jobId string, resc orcapi.AppParameterValue) {
 		IngressBind(resc.Id, jobId)
 	case orcapi.AppParameterValueTypeLicense:
 		LicenseBind(resc.Id, jobId)
+	case orcapi.AppParameterValueTypePrivateNetwork, orcapi.AppParameterValueTypeUCloudNetwork:
+		return PrivateNetworkBind(resc.Id, jobId)
 	}
+
+	return true
 }
 
-func jobUnbindResource(jobId string, resc orcapi.AppParameterValue) {
+func jobUnbindResource(jobId string, resc orcapi.AppParameterValue) bool {
 	switch resc.Type {
 	case orcapi.AppParameterValueTypeNetwork:
 		PublicIpUnbind(resc.Id, jobId)
@@ -1191,7 +1284,11 @@ func jobUnbindResource(jobId string, resc orcapi.AppParameterValue) {
 		IngressUnbind(resc.Id, jobId)
 	case orcapi.AppParameterValueTypeLicense:
 		LicenseUnbind(resc.Id, jobId)
+	case orcapi.AppParameterValueTypePrivateNetwork, orcapi.AppParameterValueTypeUCloudNetwork:
+		return PrivateNetworkUnbind(resc.Id, jobId)
 	}
+
+	return true
 }
 
 func jobsFollow(conn *ws.Conn) {
@@ -1318,10 +1415,9 @@ func jobsFollow(conn *ws.Conn) {
 		hasSupport := false
 		support, ok := SupportByProduct[orcapi.JobSupport](jobType, initialJob.Specification.Product)
 		if ok {
-			appNv := initialJob.Specification.Application
-			app, ok := AppRetrieve(actor, appNv.Name, appNv.Version, AppDiscoveryAll, 0)
-			if ok {
-				backend := app.Invocation.Tool.Tool.Value.Description.Backend
+			app := initialJob.Status.ResolvedApplication
+			if app.Present && app.Value.Invocation.Tool.Tool.Present {
+				backend := app.Value.Invocation.Tool.Tool.Value.Description.Backend
 				hasSupport = support.Has(jobFeatureLogsByBackend[backend])
 			}
 		}
@@ -1395,14 +1491,53 @@ func jobsFollow(conn *ws.Conn) {
 	wg.Wait()
 }
 
-func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *util.HttpError {
-	var err *util.HttpError
-
-	app, ok := AppRetrieve(actor, spec.Application.Name, spec.Application.Version, AppDiscoveryAll, 0)
-	if !ok {
-		return util.HttpErr(http.StatusBadRequest, "unknown application requested")
+func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) (orcapi.Application, *util.HttpError) {
+	if cacheValue, hasCacheRequest := spec.Parameters[jobCacheInitScriptParam]; hasCacheRequest &&
+		cacheValue.Type == orcapi.AppParameterValueTypeBoolean && cacheValue.Value == true {
+		if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureApplicationFlavors); err != nil {
+			return orcapi.Application{}, err
+		}
 	}
 
+	app, ok := AppRetrieve(actor, spec.Application.Name, spec.Application.Version, AppDiscovery{Mode: orcapi.CatalogDiscoveryModeSelected, Selected: util.OptValue(spec.Product.Provider)}, 0)
+	if !ok {
+		return orcapi.Application{}, util.HttpErr(http.StatusBadRequest, "unknown application requested")
+	}
+	if app.Metadata.Variant.Present {
+		variant := app.Metadata.Variant.Value
+		if variant.State != orcapi.ApplicationVariantStateActive {
+			return orcapi.Application{}, util.HttpErr(http.StatusBadRequest, "the flavor is no longer active")
+		}
+		if spec.Product.Provider != variant.Provider {
+			return orcapi.Application{}, util.HttpErr(http.StatusBadRequest, "the flavor is not available at this provider")
+		}
+		variantImage := variant.Image
+		if variantImage == "" {
+			variantImage = variant.ImageDigest
+		}
+		if _, validateErr := applicationVariantValidateImage(actor, variant.Provider, variantImage, false, false); validateErr != nil {
+			return orcapi.Application{}, util.HttpErr(http.StatusBadRequest, "the flavor image is no longer available; delete or update the flavor")
+		}
+	}
+	if app.Metadata.Origin == orcapi.CatalogOriginCustom && !app.Metadata.Variant.Present {
+		custom, customOk := appCustomRetrieveApplication(actor, spec.Application.Name, spec.Application.Version, spec.Product.Provider, AppDiscoveryAll, 0)
+		if !customOk || !custom.Invocation.Tool.Tool.Present {
+			return orcapi.Application{}, util.HttpErr(http.StatusBadRequest, "the custom application is not available at this provider")
+		}
+		image := custom.Invocation.Tool.Tool.Value.Description.Image
+		if validateErr := appCustomValidateStoredImage(actor, spec.Product.Provider, image); validateErr != nil {
+			return orcapi.Application{}, util.HttpErr(http.StatusBadRequest, "the custom application image is no longer available")
+		}
+		app = custom
+	}
+	if err := jobsValidateWithApplication(actor, spec, app); err != nil {
+		return orcapi.Application{}, err
+	}
+	return app, nil
+}
+
+func jobsValidateWithApplication(actor rpc.Actor, spec *orcapi.JobSpecification, app orcapi.Application) *util.HttpError {
+	var err *util.HttpError
 	support, ok := SupportByProduct[orcapi.JobSupport](jobType, spec.Product)
 	if !ok {
 		return util.HttpErr(http.StatusBadRequest, "bad machine type requested")
@@ -1465,6 +1600,10 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 		return util.HttpErr(http.StatusBadRequest, "you must request at least 1 node")
 	}
 
+	if err := jobsValidateServiceReferences(actor, *spec); err != nil {
+		return err
+	}
+
 	util.ValidateString(&spec.Name, "name", util.StringValidationAllowEmpty, &err)
 	if err != nil {
 		return err
@@ -1484,7 +1623,16 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 
 	for i, value := range spec.Resources {
 		newValue := value
-		err := jobValidateValue(actor, &newValue, tool.Backend, support, util.OptNone[string]())
+		err := jobValidateValue(
+			actor,
+			&newValue,
+			tool.Backend,
+			support,
+			&jobValueValidation{
+				Replicas:              util.OptValue(spec.Replicas),
+				NetworkChangesAllowed: true,
+			},
+		)
 		if err != nil {
 			return err
 		} else {
@@ -1532,7 +1680,16 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 		}
 
 		newValue := value
-		err := jobValidateValue(actor, &newValue, tool.Backend, support, util.OptNone[string]())
+		err := jobValidateValue(
+			actor,
+			&newValue,
+			tool.Backend,
+			support,
+			&jobValueValidation{
+				Replicas:              util.OptValue(spec.Replicas),
+				NetworkChangesAllowed: true,
+			},
+		)
 		if err != nil {
 			return err
 		} else {
@@ -1606,12 +1763,23 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 					return util.HttpErr(http.StatusBadRequest, "incorrect parameter type for '%s'", name)
 				}
 
-			case orcapi.ApplicationParameterTypePrivateNetwork:
-				if value.Type != orcapi.AppParameterValueTypePrivateNetwork {
+			case orcapi.ApplicationParameterTypePrivateNetwork, orcapi.ApplicationParameterTypeUCloudNetwork:
+				if !orcapi.IsNetworkValue(value) {
 					return util.HttpErr(http.StatusBadRequest, "incorrect parameter type for '%s'", name)
 				}
 			}
 		}
+	}
+
+	jobNetworkValues := make([]orcapi.AppParameterValue, 0, len(spec.Parameters)+len(spec.Resources))
+	for _, value := range spec.Parameters {
+		jobNetworkValues = append(jobNetworkValues, value)
+	}
+	jobNetworkValues = append(jobNetworkValues, spec.Resources...)
+
+	err = privateNetworkValidateJobNetworks(actor, tool.Backend, jobNetworkValues)
+	if err != nil {
+		return err
 	}
 
 	for name, param := range appParamsByName {
@@ -1626,12 +1794,72 @@ func jobsValidateForSubmission(actor rpc.Actor, spec *orcapi.JobSpecification) *
 	return nil
 }
 
+func jobNetworkAttachAllowed(state orcapi.JobState) bool {
+	switch state {
+	case orcapi.JobStateInQueue, orcapi.JobStateSuspended:
+		return true
+	default:
+		return false
+	}
+}
+
+type jobValueValidation struct {
+	JobId    util.Option[string]
+	Owner    util.Option[orcapi.ResourceOwner]
+	Replicas util.Option[int]
+
+	NetworkChangesAllowed   bool
+	NetworkIpChangesAllowed bool
+	ValueIsRemoval          bool
+
+	ExistingResources []orcapi.AppParameterValue
+}
+
+func jobResourceSameIdentity(a orcapi.AppParameterValue, b orcapi.AppParameterValue) bool {
+	if orcapi.IsNetworkValue(a) && orcapi.IsNetworkValue(b) {
+		return a.Id == b.Id
+	}
+	return a.Type == b.Type && a.Id == b.Id
+}
+
+func jobNetworkAttachment(existing []orcapi.AppParameterValue, value orcapi.AppParameterValue) (attached, ipsChanged bool) {
+	if !orcapi.IsNetworkValue(value) {
+		return false, false
+	}
+
+	for _, e := range existing {
+		if !orcapi.IsNetworkValue(e) || e.Id != value.Id {
+			continue
+		}
+		return true, !slices.Equal(e.Ips, value.Ips)
+	}
+	return false, false
+}
+
+func jobNetworkChangesBlocked(job orcapi.Job, newResources []orcapi.AppParameterValue) *util.HttpError {
+	for _, value := range newResources {
+		if !orcapi.IsNetworkValue(value) {
+			continue
+		}
+
+		attached, _ := jobNetworkAttachment(job.Specification.Resources, value)
+		if !attached {
+			return util.HttpErr(
+				http.StatusBadRequest,
+				"the networks of a running job cannot change, suspend it first",
+			)
+		}
+	}
+
+	return nil
+}
+
 func jobValidateValue(
 	actor rpc.Actor,
 	value *orcapi.AppParameterValue,
 	backend orcapi.ToolBackend,
 	support ProductSupport[orcapi.JobSupport],
-	jobId util.Option[string],
+	validation *jobValueValidation,
 ) *util.HttpError {
 	switch value.Type {
 	case orcapi.AppParameterValueTypeFile:
@@ -1647,7 +1875,7 @@ func jobValidateValue(
 			return util.HttpErr(http.StatusBadRequest, "unknown file or permission denied at '%s'", path)
 		}
 
-		value.ReadOnly = !orcapi.PermissionsHas(resc.Permissions.GetOrDefault(orcapi.ResourcePermissions{}).Myself, orcapi.PermissionEdit)
+		value.ReadOnly = value.ReadOnly || !orcapi.PermissionsHas(resc.Permissions.GetOrDefault(orcapi.ResourcePermissions{}).Myself, orcapi.PermissionEdit)
 		return nil
 
 	case orcapi.AppParameterValueTypePeer:
@@ -1680,7 +1908,7 @@ func jobValidateValue(
 		}
 
 		for _, id := range resc.Status.BoundTo {
-			if !jobId.Present || id != jobId.Value {
+			if !validation.JobId.Present || id != validation.JobId.Value {
 				return util.HttpErr(http.StatusForbidden, "this link is already in use with %v", id)
 			}
 		}
@@ -1694,9 +1922,13 @@ func jobValidateValue(
 		}
 
 		for _, id := range resc.Status.BoundTo {
-			if !jobId.Present || id != jobId.Value {
+			if !validation.JobId.Present || id != validation.JobId.Value {
 				return util.HttpErr(http.StatusForbidden, "this link is already in use with %v", id)
 			}
+		}
+
+		if resc.Specification.Target.Present {
+			return util.HttpErr(http.StatusConflict, "this link targets a service and cannot be attached to a job")
 		}
 
 		if value.Port != 0 && value.Port < 0 || value.Port > 65535 {
@@ -1711,16 +1943,97 @@ func jobValidateValue(
 			return util.HttpErr(http.StatusForbidden, "you cannot use this license")
 		}
 
-	case orcapi.AppParameterValueTypePrivateNetwork:
-		network, _, _, err := ResourceRetrieveEx[orcapi.PrivateNetwork](actor, privateNetworkType, ResourceParseId(value.Id),
+	case orcapi.AppParameterValueTypePrivateNetwork, orcapi.AppParameterValueTypeUCloudNetwork:
+		network, _, spec, err := ResourceRetrieveEx[orcapi.PrivateNetwork](actor, privateNetworkType, ResourceParseId(value.Id),
 			orcapi.PermissionEdit, orcapi.ResourceFlags{IncludeProduct: true})
 
 		if err != nil {
 			return util.HttpErr(http.StatusForbidden, "you cannot use this network")
 		}
 
-		if network.Status.ResolvedProduct.Value.Category.Provider != support.Product.Category.Provider {
+		if network.Specification.EffectiveType() == orcapi.NetworkTypeInfiniband && backend == orcapi.ToolBackendVirtualMachine {
+			return util.HttpErr(http.StatusBadRequest, "InfiniBand networks are not supported for virtual machines")
+		}
+
+		workspace := actor
+		if validation.Owner.Present {
+			workspace = rpc.Actor{
+				Username: validation.Owner.Value.CreatedBy,
+				Project:  util.OptMap(validation.Owner.Value.Project, func(value string) rpc.ProjectId { return rpc.ProjectId(value) }),
+			}
+		}
+
+		if !privateNetworkSameWorkspace(workspace, network.Owner) {
+			return util.HttpErr(http.StatusForbidden, "the job and the network must belong to the same workspace")
+		}
+
+		if !resourceSpecificationHasProduct(spec) || spec.Product.Provider != support.Product.Category.Provider {
 			return util.HttpErr(http.StatusForbidden, "you cannot use this network at this provider")
+		}
+
+		attached, ipsChanged := jobNetworkAttachment(validation.ExistingResources, *value)
+		ipChangeAllowed := attached && validation.NetworkIpChangesAllowed
+		unchanged := attached && (!ipsChanged || ipChangeAllowed)
+		changing := !unchanged || validation.ValueIsRemoval
+
+		if !validation.NetworkChangesAllowed && changing {
+			return util.HttpErr(http.StatusBadRequest, "the networks of a running job cannot change, suspend it first")
+		}
+
+		cidrBlock := network.Status.CidrBlock
+
+		if !cidrBlock.Present {
+			if len(value.Ips) > 0 {
+				return util.HttpErr(
+					http.StatusBadRequest,
+					"the network is not ready for ip pinning yet",
+				)
+			}
+			return nil
+		}
+
+		if len(value.Ips) > 0 && (!unchanged || validation.NetworkIpChangesAllowed) {
+			if validation.Replicas.Present {
+				switch len(value.Ips) {
+				case 0, 1:
+				case validation.Replicas.Value:
+				default:
+					return util.HttpErr(
+						http.StatusBadRequest,
+						"the number of pinned ip addresses must be 0, 1 or the number of replicas (%v)",
+						validation.Replicas.Value,
+					)
+				}
+			}
+
+			cidr, cidrOk := orcapi.PrivateNetworkParseCidr(cidrBlock.Value)
+			seen := map[string]bool{}
+			for _, pinnedIp := range value.Ips {
+				ip, ok := orcapi.PrivateNetworkParseIpv4(pinnedIp)
+				if !ok {
+					return util.HttpErr(http.StatusBadRequest, "invalid pinned ip address requested: '%s'", pinnedIp)
+				}
+
+				normalized := ip.String()
+				if seen[normalized] {
+					return util.HttpErr(http.StatusBadRequest, "pinned ip addresses must not repeat: '%s'", pinnedIp)
+				}
+				seen[normalized] = true
+
+				if !cidrOk || !orcapi.PrivateNetworkHostAddress(cidr, ip) {
+					return util.HttpErr(
+						http.StatusBadRequest,
+						"the pinned ip address '%s' cannot be used in the network",
+						pinnedIp,
+					)
+				}
+
+				if !validation.NetworkIpChangesAllowed {
+					if err := privateNetworkIpCheckReservation(actor, network, normalized); err != nil {
+						return err
+					}
+				}
+			}
 		}
 
 	case orcapi.AppParameterValueTypeApiServer:
@@ -1931,7 +2244,19 @@ type jobLoadRow struct {
 	SshEnabled           bool
 	Parameters           string
 	MountedResources     string
-	Updates              string
+}
+
+type jobLoadRowUpdate struct {
+	Id        int64
+	Resource  int64
+	CreatedAt time.Time
+	Status    sql.NullString
+	Extra     string
+}
+
+type jobLoadBucketData struct {
+	Jobs    []jobLoadRow
+	Updates []jobLoadRowUpdate
 }
 
 func jobLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource) {
@@ -1963,8 +2288,8 @@ func jobLoadCachePopulate() {
 		wg.Add(1)
 		go func(bucket int) {
 			defer wg.Done()
-			rows := jobLoadCachePopulateBucket(bucket, jobLoadCacheConcurrency)
-			jobsByBucket[bucket] = jobLoadRowsToMap(rows)
+			data := jobLoadCachePopulateBucket(bucket, jobLoadCacheConcurrency)
+			jobsByBucket[bucket] = jobLoadRowsToMap(data.Jobs, data.Updates)
 		}(bucket)
 	}
 
@@ -1987,58 +2312,47 @@ func jobLoadCachePopulate() {
 	log.Info("Loaded job cache with %d jobs in %s", len(jobs), duration)
 }
 
-func jobLoadCachePopulateBucket(bucket int, rank int) []jobLoadRow {
-	return db.NewTx(func(tx *db.Transaction) []jobLoadRow {
-		rows := db.Select[jobLoadRow](
-			tx,
-			`
-				with
-					jobs as (
-						select j.*
-						from app_orchestrator.jobs j
-						where j.resource % cast(:concurrency as int8) = cast(:bucket as int8)
-					),
-					inputs as (
-						select 
-							j.resource, 
-							coalesce(
-								jsonb_agg(jsonb_build_object('name', input.name, 'value', input.value))
-									filter (where input.name is not null),
-								cast('[]' as jsonb)
-							) as parameters
-						from
-							jobs j
-							left join app_orchestrator.job_input_parameters input on j.resource = input.job_id
-						group by j.resource
-					),
-					mounts as (
-						select 
-							j.resource, 
-							coalesce(
-								jsonb_agg(input.resource) filter (where input.resource is not null), 
-								cast('[]' as jsonb)
-							) as mounted_resources
-						from
-							jobs j
-							left join app_orchestrator.job_resources input on j.resource = input.job_id
-						group by j.resource
-					),
-					updates as (
-					    select
-							j.resource,
-							coalesce(
-								jsonb_agg(
-									u.extra || jsonb_build_object(
-										'timestamp', (floor(extract(epoch from u.created_at) * 1000)),
-										'status', u.status
-									)
-								) filter (where u.created_at is not null), 
-								cast('[]' as jsonb)) as updates
-					    from
-					        jobs j
-							left join provider.resource_update u on j.resource = u.resource
-					    group by j.resource
-					)
+func jobLoadCachePopulateBucket(bucket int, rank int) jobLoadBucketData {
+	return db.NewTx(func(tx *db.Transaction) jobLoadBucketData {
+		var data jobLoadBucketData
+		var lastResource int64
+		for {
+			batch := db.Select[jobLoadRow](
+				tx,
+				`
+				with jobs as (
+					select j.*
+					from app_orchestrator.jobs j
+					where j.resource % cast(:concurrency as int8) = cast(:bucket as int8)
+						and j.resource > cast(:last_resource as int8)
+					order by j.resource
+					limit 10000
+				),
+				inputs as (
+					select
+						j.resource,
+						coalesce(
+							jsonb_agg(jsonb_build_object('name', input.name, 'value', input.value))
+								filter (where input.name is not null),
+							cast('[]' as jsonb)
+						) as parameters
+					from
+						jobs j
+						left join app_orchestrator.job_input_parameters input on j.resource = input.job_id
+					group by j.resource
+				),
+				mounts as (
+					select
+						j.resource,
+						coalesce(
+							jsonb_agg(input.resource) filter (where input.resource is not null),
+							cast('[]' as jsonb)
+						) as mounted_resources
+					from
+						jobs j
+						left join app_orchestrator.job_resources input on j.resource = input.job_id
+					group by j.resource
+				)
 				select
 					j.resource,
 					j.application_name,
@@ -2054,24 +2368,79 @@ func jobLoadCachePopulateBucket(bucket int, rank int) []jobLoadRow {
 					j.opened_file,
 					j.ssh_enabled,
 					i.parameters,
-					m.mounted_resources,
-					u.updates
+					m.mounted_resources
 				from
 					jobs j
 					join inputs i on i.resource = j.resource
 					join mounts m on m.resource = j.resource
-					join updates u on u.resource = j.resource
-			`,
-			db.Params{
-				"bucket":      int64(bucket),
-				"concurrency": int64(rank),
-			},
-		)
-		return rows
+				order by j.resource
+				`,
+				db.Params{
+					"bucket":        int64(bucket),
+					"concurrency":   int64(rank),
+					"last_resource": lastResource,
+				},
+			)
+			data.Jobs = append(data.Jobs, batch...)
+			if len(batch) < 10000 {
+				break
+			}
+			lastResource = batch[len(batch)-1].Resource
+			log.Info("%v: Job batch loaded.", bucket)
+		}
+
+		var lastUpdateId int64
+		for {
+			batch := db.Select[jobLoadRowUpdate](
+				tx,
+				`
+					select
+						u.id,
+						u.resource,
+						u.created_at,
+						u.status,
+						u.extra
+					from
+						provider.resource_update u
+						join app_orchestrator.jobs j on j.resource = u.resource
+					where
+						u.resource % cast(:concurrency as int8) = cast(:bucket as int8)
+						and u.id > cast(:last_update_id as int8)
+						and u.created_at is not null
+					order by u.id
+					limit 10000
+				`,
+				db.Params{
+					"bucket":         int64(bucket),
+					"concurrency":    int64(rank),
+					"last_update_id": lastUpdateId,
+				},
+			)
+			data.Updates = append(data.Updates, batch...)
+			if len(batch) < 10000 {
+				break
+			}
+			lastUpdateId = batch[len(batch)-1].Id
+		}
+
+		return data
 	})
 }
 
-func jobLoadRowsToMap(rows []jobLoadRow) map[ResourceId]*internalJob {
+func jobLoadRowsToMap(rows []jobLoadRow, updates []jobLoadRowUpdate) map[ResourceId]*internalJob {
+	updatesByJob := map[int64][]orcapi.JobUpdate{}
+	for _, update := range updates {
+		var decoded orcapi.JobUpdate
+		_ = json.Unmarshal([]byte(update.Extra), &decoded)
+		decoded.Timestamp = fndapi.Timestamp(update.CreatedAt)
+		if update.Status.Valid {
+			decoded.Status.Set(update.Status.String)
+		} else {
+			decoded.Status.Clear()
+		}
+		updatesByJob[update.Resource] = append(updatesByJob[update.Resource], decoded)
+	}
+
 	result := make(map[ResourceId]*internalJob, len(rows))
 	for _, row := range rows {
 		info := &internalJob{
@@ -2113,11 +2482,17 @@ func jobLoadRowsToMap(rows []jobLoadRow) map[ResourceId]*internalJob {
 
 		_ = json.Unmarshal([]byte(row.MountedResources), &info.Resources)
 
-		_ = json.Unmarshal([]byte(row.Updates), &info.Updates)
+		loadedUpdates := updatesByJob[row.Resource]
 
-		slices.SortFunc(info.Updates, func(a, b orcapi.JobUpdate) int {
+		slices.SortStableFunc(loadedUpdates, func(a, b orcapi.JobUpdate) int {
 			return a.Timestamp.Time().Compare(b.Timestamp.Time())
 		})
+
+		for _, update := range loadedUpdates {
+			if !jobUpdateIsDuplicate(info.Updates, update) {
+				info.Updates = append(info.Updates, update)
+			}
+		}
 
 		if row.ExportedParameters.Valid {
 			_ = json.Unmarshal([]byte(row.ExportedParameters.String), &info.JobParametersJson)
@@ -2393,6 +2768,7 @@ func jobTransform(
 			OpenedFile:            info.OpenedFile,
 			SshEnabled:            info.SshEnabled,
 			ResourceSpecification: specification,
+			Services:              serviceReferencesOfJob(r.Id),
 		},
 		Status: orcapi.JobStatus{
 			State:             info.State,
@@ -2416,8 +2792,25 @@ func jobTransform(
 	}
 
 	{
-		app, _ := AppRetrieve(rpc.ActorSystem, info.Application.Name, info.Application.Version, AppDiscoveryAll, 0)
-		result.Status.ResolvedApplication.Set(app)
+		var app orcapi.Application
+		var ok bool
+		if strings.HasPrefix(info.Application.Name, "custom-") && resourceSpecificationHasProduct(specification) {
+			workspace := r.Owner.Project.GetOrDefault(r.Owner.CreatedBy)
+			app, ok = appCustomRetrieveApplicationForWorkspace(
+				workspace,
+				info.Application.Name,
+				info.Application.Version,
+				specification.Product.Provider,
+			)
+		} else {
+			app, ok = AppRetrieve(rpc.ActorSystem, info.Application.Name, info.Application.Version, AppDiscoveryAll, 0)
+		}
+		if !ok {
+			app, ok = AppRetrieve(rpc.ActorSystem, "unknown", "unknown", AppDiscoveryAll, 0)
+		}
+		if ok {
+			result.Status.ResolvedApplication.Set(app)
+		}
 	}
 
 	return result

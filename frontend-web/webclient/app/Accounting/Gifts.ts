@@ -16,6 +16,7 @@ export interface Gift {
 export interface GiftWithCriteria extends Gift {
     id: number;
     criteria: Grants.UserCriteria[];
+    excludeCriteria?: Grants.UserCriteria[];
 }
 
 export function claim(request: { giftId: number }): APICallParameters {

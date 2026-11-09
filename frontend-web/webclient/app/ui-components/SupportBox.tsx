@@ -31,9 +31,10 @@ export default function Support({dialog, setOpenDialog}: SidebarDialog): React.R
     const [titleArea, setTitleArea] = useState("");
     const [loading, invokeCommand] = useCloudCommand();
     const [statusUCloud, setUCloudStatus] = useState<SystemStatus | "">("");
+    const [sizes, setSizes] = React.useState({ width: "", left: "", bottom: "" });
     const branding = useSelector((it: ReduxObject) => it.branding);
 
-    async function onSubmit(event: React.FormEvent): Promise<void> {
+    async function onSubmit(event: React.SubmitEvent): Promise<void> {
         event.preventDefault();
         const text = textArea;
         const title = titleArea;
@@ -80,6 +81,30 @@ export default function Support({dialog, setOpenDialog}: SidebarDialog): React.R
         }
     }, []);
 
+    React.useEffect(() => {
+        function calculateSizes() {
+            const width = window.innerWidth;
+            if (width >= 730) {
+                setSizes({
+                    width: "650px",
+                    left: "calc(var(--sidebarWidth))",
+                    bottom: "-60px"
+                });
+            } else {
+                setSizes({
+                    width: "calc(100vw - 16px)",
+                    left: "0",
+                    bottom: "32px"
+                })
+            }
+        }
+
+        calculateSizes();
+
+        window.addEventListener("resize", calculateSizes);
+        return () => window.removeEventListener("resize", calculateSizes);
+    }, []);
+
     const isOpen = dialog === "Support";
 
     return (
@@ -98,9 +123,9 @@ export default function Support({dialog, setOpenDialog}: SidebarDialog): React.R
                     <Icon name={"heroChatBubbleLeftEllipsis"} size="24px" color="fixedWhite" />
                 </Flex>
             )}
-            width="650px"
-            left="calc(var(--sidebarWidth))"
-            bottom="-60px"
+            width={sizes.width}
+            left={sizes.left}
+            bottom={sizes.bottom}
         >
             <div style={{cursor: "default"}}>
                 <Box width="100%" p="16px" color="text" onKeyDown={e => e.stopPropagation()}>

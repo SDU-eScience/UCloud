@@ -35,6 +35,8 @@ var storageSupport []orc.FSSupport
 
 var browseCache *lru.LRU[string, []cachedDirEntry]
 
+var DriveScanListener func(drive *orc.Drive, internalPath string)
+
 const SensitivityXattr string = "user.sensitivity"
 
 type cachedDirEntry struct {
@@ -48,8 +50,15 @@ type cachedDirEntry struct {
 
 func InitFiles() controller.FileService {
 	browseCache = lru.NewLRU[string, []cachedDirEntry](256, nil, 5*time.Minute)
+	metadataInitDriveDeletions()
 	loadStorageProducts()
-	activityDeleteExpiredEvents()
+	activityCleanupRetention()
+	go func() {
+		for util.IsAlive {
+			time.Sleep(24 * time.Hour)
+			activityCleanupRetention()
+		}
+	}()
 
 	initTasks()
 	if !shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
@@ -404,7 +413,7 @@ func browseFiles(request orc.FilesProviderBrowseRequest) (fnd.PageV2[orc.Provide
 	selected := make([]*cachedDirEntry, 0, min(request.Browse.ItemsPerPage, len(fileList)-offset))
 	i := offset
 	for i < len(fileList) && len(selected) < request.Browse.ItemsPerPage {
-		entry := &fileList[i]
+		entry := fileList[i]
 		i++
 
 		base := filepath.Base(entry.absPath)
@@ -426,9 +435,14 @@ func browseFiles(request orc.FilesProviderBrowseRequest) (fnd.PageV2[orc.Provide
 		if !entry.hasInfo {
 			continue
 		}
-		selected = append(selected, entry)
+		selected = append(selected, &entry)
 	}
-	populateRecursiveSizesForEntries(&request.ResolvedCollection, selected)
+	nonBlockingSizes := request.Browse.Flags.IncludeSizesNonBlocking.GetOrDefault(false)
+	if nonBlockingSizes && sortBy != "SIZE" {
+		populateRecursiveSizesForEntriesNonBlocking(&request.ResolvedCollection, selected)
+	} else {
+		populateRecursiveSizesForEntries(&request.ResolvedCollection, selected)
+	}
 	items := make([]orc.ProviderFile, len(selected))
 	for itemIdx, entry := range selected {
 		items[itemIdx] = nativeStat(&request.ResolvedCollection, entry.absPath, entry.info, entry.recursiveSize)
@@ -591,6 +605,48 @@ func populateRecursiveSizesForEntries(drive *orc.Drive, entries []*cachedDirEntr
 	}
 }
 
+func populateRecursiveSizesForEntriesNonBlocking(drive *orc.Drive, entries []*cachedDirEntry) {
+	if !shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
+		return
+	}
+
+	paths := make([]string, 0, len(entries))
+	directories := make([]*cachedDirEntry, 0, len(entries))
+	for _, entry := range entries {
+		if entry.hasInfo && entry.info.IsDir() && !entry.recursiveSizeLoaded {
+			paths = append(paths, entry.absPath)
+			directories = append(directories, entry)
+		}
+	}
+	if len(paths) == 0 {
+		return
+	}
+
+	type lookupResult struct {
+		sizes map[string]int64
+		err   error
+	}
+	completed := make(chan lookupResult, 1)
+	go func() {
+		sizes, err := metadataLookupRecursiveSizes(drive, paths)
+		completed <- lookupResult{sizes: sizes, err: err}
+	}()
+
+	select {
+	case result := <-completed:
+		if result.err == nil {
+			for _, entry := range directories {
+				entry.recursiveSizeLoaded = true
+				if size, found := result.sizes[entry.absPath]; found {
+					entry.recursiveSize.Set(size)
+				}
+			}
+		}
+	case <-time.After(100 * time.Millisecond):
+		metadataWarmDatabase(drive)
+	}
+}
+
 func compareFileByPath(a, b cachedDirEntry) int {
 	aLower := strings.ToLower(a.absPath)
 	bLower := strings.ToLower(b.absPath)
@@ -732,6 +788,10 @@ func loadStorageProducts() {
 		defaultSupport.Collection.UsersCanCreate = true
 		defaultSupport.Collection.UsersCanDelete = true
 		defaultSupport.Collection.UsersCanRename = true
+		defaultSupport.ContainerRepositories.Enabled = shared.ServiceConfig.Registry.Enabled
+		if shared.ServiceConfig.Registry.Enabled {
+			defaultSupport.ContainerRepositories.Server = shared.ServiceConfig.Registry.Host
+		}
 
 		defaultSupport.Files.AclModifiable = false
 		defaultSupport.Files.TrashSupported = true
@@ -1044,6 +1104,15 @@ func emptyTrash(actor rpc.Actor, request orc.FilesProviderTrashRequest) *util.Ht
 }
 
 func DoDeleteFile(internalPath string) *util.HttpError {
+	return DoStageFileForDeletion(internalPath, util.RandomToken(16))
+}
+
+func DoStageFileForDeletion(internalPath string, stagingName string) *util.HttpError {
+	if stagingName == "" || stagingName == "." || stagingName == ".." ||
+		filepath.IsAbs(stagingName) || filepath.Base(stagingName) != stagingName {
+		return util.ServerHttpError("Invalid trash staging name")
+	}
+
 	parentDir, ok1 := OpenFile(filepath.Dir(internalPath), unix.O_RDONLY, 0)
 	stagingArea, ok2 := OpenFile(shared.ServiceConfig.FileSystem.TrashStagingArea, unix.O_RDONLY, 0)
 	defer util.SilentClose(parentDir)
@@ -1056,7 +1125,7 @@ func DoDeleteFile(internalPath string) *util.HttpError {
 		int(parentDir.Fd()),
 		filepath.Base(internalPath),
 		int(stagingArea.Fd()),
-		util.RandomToken(16),
+		stagingName,
 	)
 
 	if err != nil {
@@ -1067,11 +1136,16 @@ func DoDeleteFile(internalPath string) *util.HttpError {
 }
 
 func transferSourceInitiate(request orc.FilesProviderTransferRequestInitiateSource) ([]string, *util.HttpError) {
-	return []string{"built-in"}, nil
+	return []string{"built-in-v3", "built-in"}, nil
 }
 
 func transferDestinationInitiate(actor rpc.Actor, request orc.FilesProviderTransferRequestInitiateDestination) (orc.FilesProviderTransferResponse, *util.HttpError) {
-	if !slices.Contains(request.SupportedProtocols, "built-in") {
+	protocol := "built-in"
+	uploadProtocol := orc.UploadProtocolWebSocketV2
+	if slices.Contains(request.SupportedProtocols, "built-in-v3") {
+		protocol = "built-in-v3"
+		uploadProtocol = orc.UploadProtocolWebSocketV3
+	} else if !slices.Contains(request.SupportedProtocols, "built-in") {
 		return orc.FilesProviderTransferResponse{}, &util.HttpError{
 			StatusCode: http.StatusBadRequest,
 			Why:        "Unable to fulfill this request, no overlap in protocols.",
@@ -1090,7 +1164,11 @@ func transferDestinationInitiate(actor rpc.Actor, request orc.FilesProviderTrans
 		return orc.FilesProviderTransferResponse{}, util.PaymentError()
 	}
 
-	_, target := controller.FileCreateFolderUpload(request.DestinationPath, orc.WriteConflictPolicyMergeRename, localDestinationPath)
+	session, target := controller.FileCreateFolderUpload(request.DestinationPath, orc.WriteConflictPolicyMergeRename, localDestinationPath, uploadProtocol)
+	token := ""
+	if uploadProtocol == orc.UploadProtocolWebSocketV3 {
+		token = session.Id
+	}
 
 	if request.SourceProvider == cfg.Provider.Id {
 		// NOTE(Dan): This only happens during local development
@@ -1099,9 +1177,10 @@ func transferDestinationInitiate(actor rpc.Actor, request orc.FilesProviderTrans
 	}
 
 	response := controller.FilesTransferResponseInitiateDestination(
-		"built-in",
+		protocol,
 		controller.TransferBuiltInParameters{
 			Endpoint: target,
+			Token:    token,
 		},
 	)
 	ActivityRecord(actor, ActivityEvent{
@@ -1129,6 +1208,7 @@ func transferSourceBegin(actor rpc.Actor, request orc.FilesProviderTransferReque
 		Type:             TaskTypeTransfer,
 		Source:           session.SourcePath,
 		TransferEndpoint: parameters.Endpoint,
+		TransferToken:    parameters.Token,
 		Mounts: []TaskMount{
 			{UCloudPath: session.SourcePath},
 		},
@@ -1147,10 +1227,9 @@ func transferSourceBegin(actor rpc.Actor, request orc.FilesProviderTransferReque
 	return taskErr
 }
 
-func search(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) {
+func search(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) error {
 	if shared.ServiceConfig.FileSystem.MetadataCatalog.EnableIntegration {
-		metadataCatalogSearch(ctx, query, folder, flags, output)
-		return
+		return metadataCatalogSearch(ctx, query, folder, flags, output)
 	}
 
 	initialFolder, ok, _ := UCloudToInternal(folder)
@@ -1158,28 +1237,41 @@ func search(ctx context.Context, query, folder string, flags orc.FileFlags, outp
 	defer close(output)
 
 	if query == "" {
-		return
+		return nil
 	}
 
 	if !ok || !ok2 {
-		return
+		return fmt.Errorf("unknown search folder")
 	}
 
 	drive, ok := ResolveDrive(driveId)
 	if !ok {
-		return
+		return fmt.Errorf("unknown search drive")
 	}
 
 	searchIndex, ok := controller.DriveRetrieveSearchIndex(driveId)
 	q := fsearch.NewQuery(query)
-	_ = walk.Walk(initialFolder, runtime.NumCPU(), func(path string, info os.FileInfo, err error) error {
+	err := walk.Walk(initialFolder, runtime.NumCPU(), func(path string, info os.FileInfo, err error) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		if info == nil || err != nil {
 			return walk.SkipDir
+		}
+		if path != initialFolder && flags.FilterHiddenFiles.Value && strings.HasPrefix(info.Name(), ".") {
+			if info.IsDir() {
+				return walk.SkipDir
+			}
+			return nil
 		}
 
 		if q.Matches(path) {
 			match := nativeStat(drive, path, info, util.OptNone[int64]())
-			output <- match
+			select {
+			case output <- match:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		}
 
 		if info.IsDir() && !searchIndex.ContinueDown(path, q) {
@@ -1188,26 +1280,33 @@ func search(ctx context.Context, query, folder string, flags orc.FileFlags, outp
 			return nil
 		}
 	})
+	return err
 }
 
-func metadataCatalogSearch(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) {
+func metadataCatalogSearch(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) error {
 	defer close(output)
 	if query == "" {
-		return
+		return nil
 	}
 	driveID, ok := DriveIdFromUCloudPath(folder)
 	if !ok {
-		return
+		return fmt.Errorf("unknown search folder")
 	}
 	drive, ok := ResolveDrive(driveID)
 	if !ok {
-		return
+		return fmt.Errorf("unknown search drive")
 	}
 
-	_, _ = MetadataSearchByNamePrefix(ctx, folder, query, math.MaxInt, func(result MetadataSearchResult) bool {
+	complete, err := MetadataSearchByNamePrefix(ctx, folder, query, math.MaxInt, func(result MetadataSearchResult) bool {
 		name := util.FileName(result.Path)
-		if flags.FilterHiddenFiles.Value && strings.HasPrefix(name, ".") {
-			return true
+		if flags.FilterHiddenFiles.Value {
+			folderComponents := util.Components(folder)
+			resultComponents := util.Components(result.Path)
+			for _, component := range resultComponents[len(folderComponents):] {
+				if strings.HasPrefix(component, ".") {
+					return true
+				}
+			}
 		}
 		if extension := flags.FilterByFileExtension.Value; extension != "" && !strings.EqualFold(filepath.Ext(name), extension) {
 			return true
@@ -1219,6 +1318,13 @@ func metadataCatalogSearch(ctx context.Context, query, folder string, flags orc.
 			return false
 		}
 	})
+	if err != nil {
+		return err
+	}
+	if !complete {
+		return errMetadataIndexIncomplete
+	}
+	return nil
 }
 
 func metadataProviderFile(drive *orc.Drive, result MetadataSearchResult) orc.ProviderFile {
@@ -1277,21 +1383,18 @@ func createDrive(actor rpc.Actor, drive orc.Drive) *util.HttpError {
 }
 
 func deleteDrive(actor rpc.Actor, drive orc.Drive) *util.HttpError {
+	descriptor, valid := ParseDriveDescriptor(util.OptValue(drive.ProviderGeneratedId))
+	if !valid {
+		return util.ServerHttpError("unknown drive")
+	}
+	if descriptor.Type == DriveDescriptorTypeShare {
+		return util.UserHttpError("A shared folder cannot be deleted as a drive")
+	}
 	path, ok, _ := DriveToLocalPath(&drive)
 	if !ok {
 		return util.ServerHttpError("unknown drive")
 	}
-	reportUsedStorage(drive, 0)
-	MetadataDeleteCatalog(drive.Id)
-	err := DoDeleteFile(path)
-	if err == nil {
-		ActivityRecord(actor, ActivityEvent{
-			Kind:      ActivityDirect,
-			Operation: ActivityOperationDelete,
-			Targets:   []ActivityTarget{{UCloudPath: "/" + drive.Id}},
-		})
-	}
-	return err
+	return metadataDeleteDrive(actor, drive, path)
 }
 
 func renameDrive(_ orc.Drive) *util.HttpError {
@@ -1373,7 +1476,7 @@ func getInheritedSensitivity(drive *orc.Drive, internalPath string) util.Option[
 			continue
 		}
 
-		fd, ok := OpenFile(internalAncestorPath, unix.O_RDONLY, 0)
+		fd, ok := metadataOpenSensitivityFile(internalAncestorPath)
 
 		if !ok {
 			continue

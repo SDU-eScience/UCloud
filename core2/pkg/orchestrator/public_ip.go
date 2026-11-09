@@ -32,8 +32,13 @@ func initPublicIps() {
 	})
 
 	orcapi.PublicIpsControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.PublicIpsControlBrowseRequest) (fndapi.PageV2[orcapi.PublicIp], *util.HttpError) {
+		actor, err := controlBrowseJobScoped(info, request.JobId, &request.ResourceFlags)
+		if err != nil {
+			return fndapi.PageV2[orcapi.PublicIp]{}, err
+		}
+
 		return ResourceBrowse(
-			info.Actor,
+			actor,
 			publicIpType,
 			request.Next,
 			request.ItemsPerPage,
@@ -85,7 +90,11 @@ func initPublicIps() {
 	})
 
 	orcapi.PublicIpsControlRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.PublicIpsControlRetrieveRequest) (orcapi.PublicIp, *util.HttpError) {
-		return ResourceRetrieve[orcapi.PublicIp](info.Actor, publicIpType, ResourceParseId(request.Id), request.ResourceFlags)
+		actor, err := controlRetrieveJobScoped(info, request.JobId, publicIpType, request.Id)
+		if err != nil {
+			return orcapi.PublicIp{}, err
+		}
+		return ResourceRetrieve[orcapi.PublicIp](actor, publicIpType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
 	orcapi.PublicIpsControlReclaim.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[fndapi.FindByStringId]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
@@ -116,53 +125,37 @@ func initPublicIps() {
 		return SupportRetrieveProducts[orcapi.PublicIpSupport](publicIpType), nil
 	})
 
-	orcapi.PublicIpsControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.PublicIPSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		var responses []fndapi.FindByStringId
+	orcapi.PublicIpsControlCreate.Handler(controlCreateServe(
+		func(spec *orcapi.PublicIPSpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
+		},
+		PublicIpCreate,
+		func(created []orcapi.PublicIp) fndapi.BulkResponse[fndapi.FindByStringId] {
+			return controlCreateIdsOf(created, func(r orcapi.PublicIp) string { return r.Id })
+		},
+	))
 
-		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
-		for _, reqItem := range request.Items {
-			if reqItem.Spec.Product.Provider != providerId {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
-			}
-		}
-
-		for _, reqItem := range request.Items {
-			var flags resourceCreateFlags
-			if reqItem.ProjectAllRead {
-				flags |= resourceCreateAllRead
-			}
-
-			if reqItem.ProjectAllWrite {
-				flags |= resourceCreateAllWrite
-			}
-
-			id, _, err := ResourceCreateEx[orcapi.PublicIp](
-				publicIpType,
-				orcapi.ResourceOwner{
-					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   reqItem.Project,
-				},
-				nil,
-				reqItem.Spec.ResourceSpecification,
-				reqItem.ProviderGeneratedId,
-				&internalPublicIp{
-					Firewall: reqItem.Spec.Firewall.GetOrDefault(orcapi.Firewall{}),
-				},
-				flags,
-			)
-
-			if err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-			} else {
-				ResourceConfirm(publicIpType, id)
-				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
-			}
-		}
-
-		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
-	})
+	orcapi.PublicIpsControlRegister.Handler(resourceControlRegisterServe[orcapi.PublicIPSpecification, orcapi.PublicIp](
+		publicIpType,
+		func(spec *orcapi.PublicIPSpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
+		},
+		func(item *orcapi.ProviderRegisteredResource[orcapi.PublicIPSpecification]) (any, func(), *util.HttpError) {
+			return &internalPublicIp{
+				Firewall: item.Spec.Firewall.GetOrDefault(orcapi.Firewall{}),
+			}, nil, nil
+		},
+	))
 
 	orcapi.PublicIpsControlAddUpdate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.PublicIpUpdate]]) (util.Empty, *util.HttpError) {
+		ids := make([]string, 0, len(request.Items))
+		for _, item := range request.Items {
+			ids = append(ids, item.Id)
+		}
+		if err := ResourceValidateProviderBatch(info.Actor, publicIpType, ids); err != nil {
+			return util.Empty{}, err
+		}
+
 		for _, item := range request.Items {
 			ok := ResourceUpdate(
 				info.Actor,
@@ -187,16 +180,29 @@ func initPublicIps() {
 		return util.Empty{}, nil
 	})
 
-	orcapi.PublicIpsControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PublicIpsUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		for _, reqItem := range request.Items {
-			err := ResourceUpdateLabels(info.Actor, publicIpType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
-			if err != nil {
-				return util.Empty{}, err
-			}
-		}
+	orcapi.PublicIpsControlUpdateLabels.Handler(controlUpdateLabelsServe(
+		publicIpType,
+		func(item orcapi.PublicIpsUpdateLabelsRequest) string { return item.Id },
+		func(item orcapi.PublicIpsUpdateLabelsRequest) map[string]string { return item.Labels },
+		func(item *orcapi.PublicIpsUpdateLabelsRequest, labels map[string]string) { item.Labels = labels },
+		PublicIpUpdateLabels,
+	))
 
-		return util.Empty{}, nil
-	})
+	orcapi.PublicIpsControlDelete.Handler(controlMutateServe(
+		publicIpType,
+		func(item fndapi.FindByStringId) string { return item.Id },
+		func(actor rpc.Actor, items []fndapi.FindByStringId) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+			return PublicIpDelete(actor, fndapi.BulkRequestOf(items...))
+		},
+	))
+
+	orcapi.PublicIpsControlUpdateFirewall.Handler(controlMutateServe(
+		publicIpType,
+		func(item orcapi.PublicIpUpdateFirewallRequest) string { return item.Id },
+		func(actor rpc.Actor, items []orcapi.PublicIpUpdateFirewallRequest) (util.Empty, *util.HttpError) {
+			return util.Empty{}, PublicIpUpdateFirewall(actor, fndapi.BulkRequestOf(items...))
+		},
+	))
 
 	orcapi.PublicIpsUpdateFirewall.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.PublicIpUpdateFirewallRequest]) (util.Empty, *util.HttpError) {
 		return util.Empty{}, PublicIpUpdateFirewall(info.Actor, request)

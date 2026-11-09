@@ -11,6 +11,8 @@ const (
 	jobDockerPeers          SupportFeatureKey = "jobs.docker.peers"
 	jobDockerExtension      SupportFeatureKey = "jobs.docker.extension"
 	jobDockerBindLinkToPort SupportFeatureKey = "jobs.docker.bindLinkToPort"
+	jobDockerAppVariants    SupportFeatureKey = "jobs.docker.applicationVariants"
+	jobDockerSnapshots      SupportFeatureKey = "jobs.docker.containerSnapshots"
 
 	jobNativeEnabled        SupportFeatureKey = "jobs.native.enabled"
 	jobNativeWeb            SupportFeatureKey = "jobs.native.web"
@@ -114,6 +116,16 @@ var jobFeatureMapper = []featureMapper{
 		Type: jobType,
 		Key:  jobDockerBindLinkToPort,
 		Path: "docker.bindLinkToPort",
+	},
+	{
+		Type: jobType,
+		Key:  jobDockerAppVariants,
+		Path: "docker.applicationVariants",
+	},
+	{
+		Type: jobType,
+		Key:  jobDockerSnapshots,
+		Path: "docker.containerSnapshots",
 	},
 
 	{

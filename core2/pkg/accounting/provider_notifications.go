@@ -68,6 +68,10 @@ func initProviderNotifications() {
 					relevantProviders[w.PaysFor.Provider] = util.Empty{}
 				}
 
+				for _, providerId := range providerNotificationProvidersWithTokens(project.Id) {
+					relevantProviders[providerId] = util.Empty{}
+				}
+
 				var allChannels []chan *fndapi.Project
 
 				providerNotifications.Mu.Lock()
@@ -117,6 +121,55 @@ func initProviderNotifications() {
 		conn := info.WebSocket
 		providerNotificationHandleClient(conn)
 		return util.Empty{}, nil
+	})
+}
+
+func providerNotificationProvidersWithTokens(projectId string) []string {
+	return db.NewTx(func(tx *db.Transaction) []string {
+		rows := db.Select[struct{ Provider string }](
+			tx,
+			`
+				select distinct t.provider
+				from
+					provider.api_tokens t
+					join provider.resource r on r.id = t.resource
+				where
+					r.project = :project_id
+					and t.provider is not null
+			`,
+			db.Params{
+				"project_id": projectId,
+			},
+		)
+
+		var result []string
+		for _, row := range rows {
+			result = append(result, row.Provider)
+		}
+		return result
+	})
+}
+
+func providerHasProjectTokens(providerId string, projectId string) bool {
+	return db.NewTx(func(tx *db.Transaction) bool {
+		_, ok := db.Get[struct{ Provider string }](
+			tx,
+			`
+				select t.provider
+				from
+					provider.api_tokens t
+					join provider.resource r on r.id = t.resource
+				where
+					r.project = :project_id
+					and t.provider = :provider_id
+				limit 1
+			`,
+			db.Params{
+				"project_id":  projectId,
+				"provider_id": providerId,
+			},
+		)
+		return ok
 	})
 }
 
@@ -509,12 +562,19 @@ func providerNotificationHandleClient(conn *ws.Conn) {
 
 		case project, ok := <-projectUpdates:
 			if ok {
-				wallets := internalRetrieveWallets(time.Now(), project.Id, walletFilter{RequireActive: true})
-				for _, wallet := range wallets {
-					if wallet.PaysFor.Provider == providerId {
-						appendProject(project, true)
-						break
+				shouldSendProject := providerHasProjectTokens(providerId, project.Id)
+				if !shouldSendProject {
+					wallets := internalRetrieveWallets(time.Now(), project.Id, walletFilter{RequireActive: true})
+					for _, wallet := range wallets {
+						if wallet.PaysFor.Provider == providerId {
+							shouldSendProject = true
+							break
+						}
 					}
+				}
+
+				if shouldSendProject {
+					appendProject(project, true)
 				}
 			}
 		}

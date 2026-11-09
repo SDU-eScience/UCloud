@@ -13,17 +13,20 @@ import (
 )
 
 type JobReplicaState struct {
-	Id     string
-	Rank   int
-	State  orc.JobState
-	Node   util.Option[string]
-	Status util.Option[string]
+	Id               string
+	Rank             int
+	State            orc.JobState
+	Node             util.Option[string]
+	Status           util.Option[string]
+	CpuRequestMillis util.Option[int]
 }
 
 type JobTracker interface {
 	AddUpdate(id string, update orc.JobUpdate)
 	TrackState(state JobReplicaState) bool
+	PreserveState(id string)
 	RequestCleanup(id string)
+	RequestCleanupWithoutResourceDeletion(id string)
 }
 
 var scheduleLock = sync.Mutex{}
@@ -230,17 +233,42 @@ func RegisterJobDimensionMapper(categoryName string, mapper JobDimensionMapper) 
 func JobDimensions(job *orc.Job) SchedulerDimensions {
 	prod := &job.Status.ResolvedProduct.Value
 	mapper, hasMapper := jobDimensionMappers[prod.Category.Name]
+	var dims SchedulerDimensions
 	if hasMapper {
-		return mapper(job)
+		dims = mapper(job)
 	} else {
-		return JobDimensionsFromProductOnly(prod)
+		dims = JobDimensionsFromProductOnly(prod)
 	}
+
+	if rdmaResource, ok := PrivateNetworkJobRdmaResourceName(job); ok {
+		dims = dims.Clone()
+		if dims.Resources == nil {
+			dims.Resources = map[string]int{}
+		}
+		dims.Resources[rdmaResource] += 1
+	}
+
+	return dims
+}
+
+func JobAntiAffinityGroup(job *orc.Job) util.Option[string] {
+	if job == nil {
+		return util.OptNone[string]()
+	}
+
+	group := strings.TrimSpace(job.Specification.Labels[orc.ResourceLabelAntiAffinityGroup])
+	if group == "" {
+		return util.OptNone[string]()
+	}
+
+	workspace := job.Owner.Project.GetOrDefault(job.Owner.CreatedBy)
+	return util.OptValue(workspace + "/" + group)
 }
 
 func JobDimensionsFromProductOnly(prod *apm.ProductV2) SchedulerDimensions {
 	nodeCat, _ := NodeCategoryAndConfiguration(prod)
 	dims := SchedulerDimensions{
-		CpuMillis:     NodeCpuMillisNormalizedWithReserved(prod),
+		CpuMillis:     int(NodeCpuMillisNormalizedWithoutReserved(prod)),
 		MemoryInBytes: prod.MemoryInGigs * (1000 * 1000 * 1000),
 		Resources:     map[string]int{},
 	}

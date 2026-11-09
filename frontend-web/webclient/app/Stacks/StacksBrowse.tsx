@@ -1,17 +1,15 @@
 import * as React from "react";
-import {PermissionsTable} from "@/Resource/PermissionEditor";
 import {dialogStore} from "@/Dialog/DialogStore";
-import {useProjectId} from "@/Project/Api";
 import {sendFailureNotification} from "@/Notifications";
+import {useProjectId} from "@/Project/Api";
 import {bulkRequestOf, doNothing} from "@/UtilityFunctions";
-import {slimModalStyle} from "@/Utilities/ModalUtilities";
 import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";
-import {Box, Button, Divider, Input, Text} from "@/ui-components";
+import {Box, Button, Checkbox, Divider, Input} from "@/ui-components";
 import {useDispatch} from "react-redux";
 import {useNavigate} from "react-router-dom";
 
-import {callAPI} from "@/Authentication/DataHook";
+import {callAPI, noopCall} from "@/Authentication/DataHook";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
@@ -25,11 +23,11 @@ import {
     ResourceBrowser,
 } from "@/ui-components/ResourceBrowser";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
-import {DELETE_TAG, Permission, ResourceAclEntry} from "@/UCloud/ResourceApi";
+import {DELETE_TAG} from "@/UCloud/ResourceApi";
 
 import * as StackApi from "./api";
-import Flex from "@/ui-components/Flex";
 import {stackLogoUrl} from "@/Stacks/Logos";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 250,
@@ -53,7 +51,7 @@ export default function StacksBrowse(): React.ReactNode {
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
     const projectId = useProjectId();
 
-    usePage("Stacks", SidebarTabId.RUNS);
+    usePage("Stacks", SidebarTabId.COMPUTE);
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
@@ -92,9 +90,9 @@ export default function StacksBrowse(): React.ReactNode {
                     browser.registerPage(result, path, false);
                 });
 
-                browser.on("renderRow", (stack, row) => {
+                browser.on("renderTitle", (stack, title, row) => {
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                    row.title.append(icon);
+                    title.append(icon);
                     const logoUrl = stackLogoUrl(stack.type ?? "");
                     if (logoUrl) {
                         setIcon(logoUrl);
@@ -108,16 +106,21 @@ export default function StacksBrowse(): React.ReactNode {
                         }).then(setIcon);
                     }
 
-                    row.title.append(ResourceBrowser.defaultTitleRenderer(stack.id, row));
+                    title.append(ResourceBrowser.defaultTitleRenderer(stack.id, row));
+                });
+
+                browser.on("renderStat1", (stack, stat) => {
                     /* Note(Jonas), FIXME: I don't know what `stack.name` should be referring to. */
-                    row.stat1.textContent = stack.type ?? stack["name"] ?? "Unknown";
-                    row.stat2.textContent = dateToString(stack.createdAt);
+                    stat.textContent = stack.type ?? stack["name"] ?? "Unknown";
+                });
+
+                browser.on("renderStat2", (stack, stat) => {
+                    stat.textContent = dateToString(stack.createdAt);
                 });
 
                 browser.on("pathToEntry", stack => stack.id);
                 browser.on("generateBreadcrumbs", () => [{title: "Stacks", absolutePath: ""}]);
-                browser.on("unhandledShortcut", () => {
-                });
+                browser.on("unhandledShortcut", () => noopCall);
                 browser.setEmptyIcon("heroServerStack");
 
                 browser.on("fetchOperationsCallback", () => ({
@@ -176,24 +179,6 @@ export default function StacksBrowse(): React.ReactNode {
 function retrieveOperations(): Operation<StackApi.Stack, StackOperationCallbacks>[] {
     return [
         {
-            text: "Permissions",
-            icon: "share",
-            enabled: (selected, cb) => {
-                if (selected.length !== 1) return false;
-                const permissions = selected[0].permissions?.myself ?? [];
-                return permissions.includes("ADMIN") && cb.projectId != null;
-            },
-            onClick: ([stack], cb) => {
-                dialogStore.addDialog(
-                    <StackPermissionsEditor stack={stack} onDone={() => cb.reload()} />,
-                    doNothing,
-                    true,
-                    slimModalStyle,
-                );
-            },
-            shortcut: ShortcutKey.W,
-        },
-        {
             text: "Delete",
             icon: "trash",
             color: "errorMain",
@@ -215,74 +200,8 @@ interface StackOperationCallbacks {
     reload: () => void;
 }
 
-function StackPermissionsEditor({stack, onDone}: {stack: StackApi.Stack; onDone: () => void}): React.ReactNode {
-    const projectId = useProjectId();
-    const [acl, setAcl] = React.useState<ResourceAclEntry[]>(stack.permissions?.others ?? []);
-
-    const updateAcl = React.useCallback(async (group: string, permission: Permission | null) => {
-        if (!projectId) return;
-        const existing = acl.find(it => it.entity.type === "project_group" && it.entity.group === group && it.entity.projectId === projectId);
-
-        const deleted = existing ? [existing.entity] : [];
-        const added = permission ? [{
-            entity: {type: "project_group" as const, projectId, group},
-            permissions: permission === "EDIT" ? ["READ", "EDIT"] as Permission[] : ["READ"] as Permission[],
-        }] : [];
-
-        try {
-            await callAPI(StackApi.updateAcl(bulkRequestOf({
-                id: stack.id,
-                added,
-                deleted,
-            })));
-        } catch {
-            sendFailureNotification("Failed to update permissions.");
-            return;
-        }
-
-        const nextAcl = acl.filter(it => {
-            if (it.entity.type !== "project_group") return true;
-            return !(it.entity.projectId === projectId && it.entity.group === group);
-        });
-
-        if (added.length > 0) {
-            nextAcl.push(added[0]);
-        }
-
-        setAcl(nextAcl);
-    }, [acl, projectId, stack.id]);
-
-    return <div onKeyDown={e => e.stopPropagation()}>
-        <Heading.h3>Permissions for stack</Heading.h3>
-        <Divider />
-        <Box mt="8px" mb="12px">
-            <Text>
-                Control which project groups can use this stack in new jobs.
-            </Text>
-        </Box>
-
-        {!projectId ? <Text>This operation is only available inside a project workspace.</Text> : null}
-
-        {!projectId ? null : <PermissionsTable
-            acl={acl}
-            anyGroupHasPermission={acl.some(it => it.permissions.length > 0)}
-            showMissingPermissionHelp={false}
-            replaceWriteWithUse
-            warning="Warning"
-            title="Stack"
-            updateAcl={updateAcl}
-        />}
-
-        <Flex mt={"20px"} justifyContent={"end"}>
-            <Button color="primaryMain" onClick={() => {
-                onDone();
-                dialogStore.success();
-            }}>Done</Button>
-        </Flex>
-    </div>;
-}
-
 function StackDeleteDialog({selected, onDeleted}: {selected: StackApi.Stack[]; onDeleted: () => void}): React.ReactNode {
+    const [deleteStateDrive, setDeleteStateDrive] = React.useState(true);
     const singleStack = selected.length === 1;
     const requiredText = singleStack
         ? selected[0].id
@@ -316,7 +235,7 @@ function StackDeleteDialog({selected, onDeleted}: {selected: StackApi.Stack[]; o
             }
 
             try {
-                await callAPI(StackApi.remove(bulkRequestOf(...selected.map(it => ({id: it.id})))));
+                await callAPI(StackApi.remove(bulkRequestOf(...selected.map(it => ({id: it.id, deleteStateDrive})))));
                 dialogStore.success();
                 onDeleted();
             } catch {
@@ -324,6 +243,12 @@ function StackDeleteDialog({selected, onDeleted}: {selected: StackApi.Stack[]; o
             }
         }}>
             <Input id="stackDeleteName" autoFocus mb="8px" />
+            <Box mb="12px">
+                <label>
+                    <Checkbox checked={deleteStateDrive} onChange={e => setDeleteStateDrive(e.target.checked)} />
+                    Delete dedicated application drives and all their files
+                </label>
+            </Box>
             <Button color="errorMain" type="submit" fullWidth>
                 I understand what I am doing, delete permanently
             </Button>

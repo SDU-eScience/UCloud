@@ -158,6 +158,9 @@ if err != nil {
 | `StackConfirm`   | `fndapi.FindByStringId`        | `util.Empty`   |
 | `StackOpen`      | `fndapi.FindByStringId`        | `util.Empty`   |
 | `StackRefresh`   | `util.Empty`                   | `util.Empty`   |
+| `StackInfo`      | `util.Empty`                   | `ucxapi.StackInfoResponse` |
+| `StackDelete`    | `util.Empty`                   | `util.Empty`   |
+| `StackShowResources` | `util.Empty`               | `util.Empty`   |
 | `StackCopyFile`  | `ucxapi.StackDownloadFileRequest` | `util.Empty` |
 | `StackDownloadFile` | `ucxapi.StackDownloadFileRequest` | `util.Empty` |
 
@@ -196,9 +199,18 @@ if err != nil {
 |------------------|-----------------------------------------------------------|
 | `UiSendMessage`  | Show a success/error message in the frontend              |
 | `RouterPushPage` | Frontend-only: push route path (`p` query parameter)      |
+| `StackInfo`      | Frontend-only: stack metadata (id, type, provider, created, resource count) |
+| `StackDelete`    | Frontend-only: open the stack delete confirmation dialog  |
+| `StackShowResources` | Frontend-only: open the stack resources dialog        |
+| `OpenUrl`        | Frontend-only: open a URL in a new tab                     |
 
 `RouterPushPage` has the same effect as clicking `ucx.Link(...)`.
-It is implemented by the stack page frontend and only available in job-connected UCX sessions.
+The `StackInfo`, `StackDelete` and `StackShowResources` RPCs are implemented by the stack page frontend and are
+only available in job-connected UCX sessions. The `ucxsvc.StackDelete(app)` and `ucxsvc.StackShowResources(app)`
+helpers wrap the latter two.
+
+`OpenUrl` accepts either an app-relative path (starting with `/`) or a full `https://` URL. External URLs are
+only opened if the stack page has allowed the origin, which it derives from the stack's public links.
 
 ## Notes on choosing API level
 

@@ -40,3 +40,26 @@ func apiTokensV2() db.MigrationScript {
 		},
 	}
 }
+
+func apiTokensV3() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "apiTokensV3",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table provider.api_tokens alter column expires_at drop not null`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table provider.api_tokens add column job_id text`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`create index if not exists provider_api_tokens_job_id_idx on provider.api_tokens(job_id)`,
+				db.Params{},
+			)
+		},
+	}
+}

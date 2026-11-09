@@ -1,6 +1,6 @@
 import * as React from "react";
 import Icon, {IconName} from "@/ui-components/Icon";
-import {injectStyle, makeClassName} from "@/Unstyled";
+import {classConcat, injectStyle, makeClassName} from "@/Unstyled";
 import {CSSProperties, useCallback, useLayoutEffect, useRef, useState} from "react";
 import Card from "@/ui-components/Card";
 
@@ -66,12 +66,14 @@ const TabClass = makeClassName("tabbed-card-tab");
 
 const TabbedCard: React.FunctionComponent<{
     style?: CSSProperties;
+    className?: string;
+    id?: string;
     children: React.ReactNode;
     rightControls?: React.ReactNode;
     rightControlsPaddingRight?: string;
     activeIndex?: number;
     onTabChange?: (idx: number) => void;
-}> = ({style, children, rightControls, rightControlsPaddingRight, activeIndex, onTabChange}) => {
+}> = ({style, className, id, children, rightControls, rightControlsPaddingRight, activeIndex, onTabChange}) => {
     const [tabs, setTabs] = useState<Tab[]>([]);
     const [visible, setVisible] = useState(0);
     const rootDiv = useRef<HTMLDivElement>(null);
@@ -118,7 +120,11 @@ const TabbedCard: React.FunctionComponent<{
         }
     }, [onTabChange]);
 
-    return <Card style={style} className={tabs.length === 0 ? HideClass : undefined}>
+    const cardClass = className === undefined
+        ? tabs.length === 0 ? HideClass : undefined
+        : classConcat(className, tabs.length === 0 ? HideClass : undefined);
+
+    return <Card id={id} style={style} className={cardClass}>
         <div ref={rootDiv} className={ContainerClass} data-hidden={tabs.length === 0}>
             <nav>
                 <div data-tab-list>

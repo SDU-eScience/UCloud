@@ -6,6 +6,7 @@ import {useLocation, useNavigate} from "react-router-dom";
 import {Client} from "@/Authentication/HttpClientInstance";
 import AppRoutes from "@/Routes";
 import {normalizeFrequency, WalletV2} from "@/Accounting";
+import * as Accounting from "@/Accounting";
 import {Project} from "@/Project";
 import {apiRetrieve, apiUpdate, callAPI} from "@/Authentication/DataHook";
 import {capitalized, doNothing, errorMessageOrDefault} from "@/UtilityFunctions";
@@ -17,7 +18,6 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {ProjectTitleForNewCore} from "@/Project/InfoCache";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import RenderMermaid from "react-x-mermaid";
 import {dialogStore} from "@/Dialog/DialogStore";
 import Warning from "@/ui-components/Warning";
 import EmailSettings = mail.EmailSettings;
@@ -584,34 +584,23 @@ export function JobSupportContent() {
 
 // ALLOCATION/WALLET
 
-type SupportAssistRetrieveWalletInfoRequest = ({
+type SupportAssistRetrieveWalletInfoRequest = {
     allocationId: string;
-}) & {
-    flags?: SupportAssistWalletInfoFlags;
-}
-
-interface SupportAssistWalletInfoFlags {
-    includeAccountingGraph: boolean;
 }
 
 interface SupportAssistRetrieveWalletInfoResponse {
     wallet: WalletV2;
-    accountingGraph?: string;
 }
 
 export function AllocationSupportContent() {
     usePage("Allocation support", SidebarTabId.ADMIN);
     const location = useLocation();
     const id = getQueryParam(location.search, "id");
-    const flags = {
-        includeAccountingGraph: getQueryParam(location.search, "includeAccountingGraph") === "true"
-    }
     const {Error, setError} = useError();
     const [allocation, setAllocation] = React.useState<SupportAssistRetrieveWalletInfoResponse | null>(null);
 
     React.useEffect(() => {
         if (!id) return;
-        // or wallet id? handle graph thing flag
         callAPI(Api.retrieveWalletInfo(
             {allocationId: id}))
             .then(result =>
@@ -650,16 +639,6 @@ export function AllocationSupportContent() {
             <h3>Wallet Info</h3>
             <hr />
             <WalletTable wallets={new Array(allocation.wallet)} />
-
-
-
-            <h3>Accounting Graph</h3>
-            <hr />
-            <br />
-
-            {allocation.accountingGraph != null ? <div className="mermaid">
-                <RenderMermaid mermaidCode={allocation.accountingGraph} mermaidConfig={{theme: "dark"}} />
-            </div> : null}
         </>}
     />
 }
@@ -673,6 +652,9 @@ function useError(): {setError: (e: string) => void; Error: React.ReactNode} {
 
 function WalletTable(props: {wallets?: WalletV2[]}): React.ReactNode {
     const wallets = props.wallets;
+    const balanceToString = (wallet: WalletV2, balance: number): string => {
+        return Accounting.balanceToString(wallet.paysFor, balance);
+    };
     return <>
         <table>
             <thead>
@@ -707,11 +689,11 @@ function WalletTable(props: {wallets?: WalletV2[]}): React.ReactNode {
                     <tbody>
                         <tr key={resource.paysFor.name + "(" + resource.paysFor.provider + ")"}>
                             <td align={"left"}> {resource.paysFor.name} ({resource.paysFor.provider}) {resource.paysFor.accountingUnit.name} {normalizeFrequency(resource.paysFor.accountingFrequency)} </td> <td />
-                            <td align={"right"}> {resource.quota} </td> <td />
-                            <td align={"right"}> {resource.localUsage} </td> <td />
-                            <td align={"right"}> {resource.totalUsage} </td> <td />
-                            <td align={"right"}> {resource.maxUsable} </td> <td />
-                            <td align={"right"}> {resource.totalAllocated}</td> <td />
+                            <td align={"right"}> {balanceToString(resource, resource.quota)} </td> <td />
+                            <td align={"right"}> {balanceToString(resource, resource.localUsage)} </td> <td />
+                            <td align={"right"}> {balanceToString(resource, resource.totalUsage)} </td> <td />
+                            <td align={"right"}> {balanceToString(resource, resource.maxUsable)} </td> <td />
+                            <td align={"right"}> {balanceToString(resource, resource.totalAllocated)}</td> <td />
                             <td align={"right"}> {(resource.maxUsable + resource.totalUsage - resource.quota) !== 0 ? <Icon name={"heroExclamationTriangle"} color={"warningMain"} /> : null} </td>
                         </tr>
                     </tbody>
@@ -766,7 +748,7 @@ function WalletTable(props: {wallets?: WalletV2[]}): React.ReactNode {
                                     <td />
                                     <td align={"left"}> {resource.paysFor.name} ({resource.paysFor.provider}) {resource.paysFor.accountingUnit.name} {normalizeFrequency(resource.paysFor.accountingFrequency)} </td>
                                     <td />
-                                    <td align={"right"}> {alloc.quota} </td>
+                                    <td align={"right"}> {Accounting.balanceToString(resource.paysFor, alloc.quota)} </td>
                                     <td />
                                     <td align={"right"}> {dateToString(alloc.startDate)} </td>
                                     <td />

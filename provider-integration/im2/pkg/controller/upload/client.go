@@ -28,6 +28,7 @@ const chanBufferSize = 1024 * 32
 
 type ClientSession struct {
 	Endpoint       string
+	Token          string
 	ConflictPolicy orc.WriteConflictPolicy
 	Metrics        ClientMetrics
 }
@@ -533,7 +534,7 @@ func ProcessClient(
 	activeWorkerCount := atomic.Int32{}
 	for i := 0; i < numberOfConnections; i++ {
 		whoami := i
-		socket, _, err := ws.DefaultDialer.Dial(session.Endpoint, nil)
+		socket, err := uploadClientConnect(session)
 		if err != nil {
 			log.Warn("[%v] Failed to establish WebSocket connection: %v %v", whoami, session.Endpoint, err)
 			cancel()
@@ -805,12 +806,34 @@ outer:
 	}
 }
 
-func CloseSessionFromClient(session ClientSession) bool {
+func uploadClientConnect(session ClientSession) (*ws.Conn, error) {
 	socket, _, err := ws.DefaultDialer.Dial(session.Endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	if session.Token != "" {
+		err = socket.SetWriteDeadline(time.Now().Add(chunkIoDeadline))
+		if err == nil {
+			err = socket.WriteMessage(ws.TextMessage, []byte(session.Token))
+		}
+		if err == nil {
+			err = socket.SetWriteDeadline(time.Time{})
+		}
+		if err != nil {
+			util.SilentClose(socket)
+			return nil, err
+		}
+	}
+	return socket, nil
+}
+
+func CloseSessionFromClient(session ClientSession) bool {
+	socket, err := uploadClientConnect(session)
 	if err != nil {
 		log.Warn("Failed to establish WebSocket connection: %v %v", session.Endpoint, err)
 		return false
 	}
+	defer util.SilentClose(socket)
 
 	messageBuffer := util.NewBuffer(&bytes.Buffer{})
 	(&messageClose{}).Marshal(messageBuffer, messageBuffer.IsEmpty())

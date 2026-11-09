@@ -1,46 +1,217 @@
 package command
 
-import "fmt"
+import (
+	"fmt"
 
-type WorkspaceListCommand struct{}
+	"ucloud.dk/shared/pkg/cli"
+	fndapi "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/termio"
+	"ucloud.dk/shared/pkg/util"
+	"ucloud.dk/ucloud_cli/pkg/shared"
+)
+
+type WorkspaceListCommand struct {
+}
 type WorkspaceUseCommand struct {
-	Name string `positional:"name" usage:"Workspace name"`
+	Name string `positional:"name" usage:"Workspace name" required:"true"`
 }
 type WorkspaceGetCommand struct {
-	Name string `positional:"name" usage:"Workspace name"`
-}
-type WorkspaceDeleteCommand struct {
-	Name string `positional:"name" usage:"Workspace name"`
+	Name string `positional:"name" usage:"Workspace name" required:"true"`
 }
 type WorkspaceRenameCommand struct {
 	FromName string `positional:"from" usage:"Workspace name" required:"true"`
 	ToName   string `positional:"to" usage:"Workspace name" required:"true"`
+}
+type WorkspaceCreateCommand struct {
+	Name string `positional:"name" usage:"Workspace name" required:"true"`
 }
 
 var WorkspaceCommands = map[string]CommandFunc{
 	"list":   func() Command { return &WorkspaceListCommand{} },
 	"use":    func() Command { return &WorkspaceUseCommand{} },
 	"get":    func() Command { return &WorkspaceGetCommand{} },
-	"delete": func() Command { return &WorkspaceDeleteCommand{} },
 	"rename": func() Command { return &WorkspaceRenameCommand{} },
+	"create": func() Command { return &WorkspaceCreateCommand{} },
+}
+
+func (c WorkspaceCreateCommand) Execute() error {
+	shared.InitializeUCloudClient()
+	_, httpErr := fndapi.ProjectCreate.Invoke(fndapi.BulkRequest[fndapi.ProjectSpecification]{
+		Items: []fndapi.ProjectSpecification{
+			{
+				Title:               c.Name,
+				CanConsumeResources: true,
+			},
+		},
+	})
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to create workspace with name %s: %s", c.Name, httpErr.Why)
+	}
+	fmt.Printf("Successfully created workspace %v\n", c.Name)
+	return nil
 }
 
 func (c WorkspaceListCommand) Execute() error {
-	return fmt.Errorf("workspace list not implemented")
+	shared.InitializeUCloudClient()
+	workspaces, err := shared.RetrieveWorkspaces()
+	if err != nil {
+		return err
+	}
+	t := termio.Table{}
+	t.AppendHeader("Workspaces")
+	t.AppendHeader("Id")
+	t.AppendHeader("Parent")
+	t.AppendHeader("CanConsumeResources")
+	t.AppendHeader("CreatedAt")
+	t.Cell("%v", shared.PersonalWorkspaceName)
+	t.Cell("%v", "-")
+	t.Cell("%v", "-")
+	t.Cell("%v", true)
+	t.Cell("%v", "-")
+	for key, v := range workspaces {
+		t.Cell("%v", key)
+		t.Cell("%v", v.Id)
+		t.Cell("%v", v.Specification.Parent.GetOrDefault(""))
+		t.Cell("%v", v.Specification.CanConsumeResources)
+		t.Cell("%v", cli.FormatTime(v.CreatedAt))
+	}
+	t.Print()
+	return nil
+}
+
+func checkIfEnviromentExists(name string) bool {
+	cfg, err := shared.ReadConfig()
+	if err != nil {
+		return false
+	}
+	_, ok := cfg.Environments[name]
+	return ok
 }
 
 func (c WorkspaceUseCommand) Execute() error {
-	return fmt.Errorf("workspace use not implemented")
+	shared.InitializeUCloudClient()
+	workspaceName := c.Name
+	if workspaceName == shared.PersonalWorkspaceName {
+		shared.SetActiveWorkspace("")
+	} else {
+		ws, err := shared.FindWorkspaceByName(workspaceName)
+		if err != nil {
+			return err
+		}
+		workspaceName = ws.Name
+		shared.SetActiveWorkspace(ws.Id)
+	}
+	cfg, err := shared.UpdateConfig(&shared.Config{
+		CurrentWorkspace: util.OptValue(workspaceName),
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Println("Workspace updated to ", workspaceName)
+	shared.PrintConfig(cfg)
+	return nil
+
 }
 
 func (c WorkspaceGetCommand) Execute() error {
-	return fmt.Errorf("workspace get not implemented")
-}
+	shared.InitializeUCloudClient()
+	if c.Name == shared.PersonalWorkspaceName {
+		t := termio.Table{}
+		t.AppendHeader("Workspace")
+		t.AppendHeader("Id")
+		t.AppendHeader("Parent")
+		t.AppendHeader("CreatedAt")
+		t.AppendHeader("CanConsumeResources")
+		t.Cell("%v", shared.PersonalWorkspaceName)
+		t.Cell("%v", "-")
+		t.Cell("%v", "-")
+		t.Cell("%v", "-")
+		t.Cell("%v", true)
+		t.Print()
+		return nil
+	}
+	workspaces, err := shared.RetrieveWorkspaces()
+	if err != nil {
+		return err
+	}
+	found, ok := workspaces[c.Name]
+	if !ok {
+		return fmt.Errorf("workspace %s not found", c.Name)
+	}
+	t := termio.Table{}
 
-func (c WorkspaceDeleteCommand) Execute() error {
-	return fmt.Errorf("workspace delete not implemented")
+	t.AppendHeader("Workspace")
+	t.AppendHeader("Id")
+	t.AppendHeader("Parent")
+	t.AppendHeader("CreatedAt")
+	t.AppendHeader("CanConsumeResources")
+	t.Cell("%v", c.Name)
+	t.Cell("%v", found.Id)
+	t.Cell("%v", found.Specification.Parent.GetOrDefault(""))
+	t.Cell("%v", found.Specification.CanConsumeResources)
+	t.Cell("%v", cli.FormatTime(found.CreatedAt))
+	t.Print()
+
+	t = termio.Table{}
+	if len(found.Status.Members) == 0 {
+		fmt.Println("Has members")
+		return nil
+	}
+	fmt.Println("Members:")
+
+	t.AppendHeader("Username")
+	t.AppendHeader("Email")
+	t.AppendHeader("Role")
+
+	for _, m := range found.Status.Members {
+		t.Cell("%v", m.Username)
+		t.Cell("%v", m.Email)
+		t.Cell("%v", m.Role)
+	}
+
+	t.Print()
+
+	return nil
 }
 
 func (c WorkspaceRenameCommand) Execute() error {
-	return fmt.Errorf("workspace rename not implemented")
+	if c.FromName == shared.PersonalWorkspaceName {
+		return fmt.Errorf("the personal workspace cannot be renamed")
+	}
+	if shared.RepositoryProjectName(c.ToName) == shared.PersonalWorkspaceName {
+		return fmt.Errorf("workspace name %s is reserved", shared.PersonalWorkspaceName)
+	}
+
+	shared.InitializeUCloudClient()
+	workspaces, err := shared.RetrieveWorkspaces()
+	if err != nil {
+		return err
+	}
+	w, ok := workspaces[c.FromName]
+	if !ok {
+		return fmt.Errorf("workspace %s not found", c.FromName)
+	}
+
+	requestBulk := fndapi.BulkRequest[fndapi.ProjectRenameRequest]{
+		Items: []fndapi.ProjectRenameRequest{
+			{
+				Id:       w.Id,
+				NewTitle: c.ToName,
+			},
+		},
+	}
+	_, httpErr := fndapi.ProjectRename.Invoke(requestBulk)
+
+	if httpErr.AsError() != nil {
+		return fmt.Errorf("failed to rename project: %s", httpErr.Why)
+	}
+	t := termio.Table{}
+	fmt.Println("Workspace successfully renamed")
+	t.AppendHeader("From")
+	t.AppendHeader("To")
+	t.Cell("%v", c.FromName)
+	t.Cell("%v", c.ToName)
+	t.Print()
+
+	return nil
 }

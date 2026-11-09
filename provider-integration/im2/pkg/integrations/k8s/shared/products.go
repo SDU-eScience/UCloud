@@ -12,19 +12,23 @@ import (
 )
 
 var (
-	MachineSupport        []orc.JobSupport
-	IpSupport             []orc.PublicIpSupport
-	LinkSupport           []orc.IngressSupport
-	PrivateNetworkSupport []orc.PrivateNetworkSupport
+	MachineSupport          []orc.JobSupport
+	IpSupport               []orc.PublicIpSupport
+	LinkSupport             []orc.IngressSupport
+	PrivateNetworkSupport   []orc.PrivateNetworkSupport
+	PrivateNetworkIpSupport []orc.PrivateNetworkIpSupport
+	ServiceSupport          []orc.ServiceSupport
 )
 
 var (
-	Machines               []apm.ProductV2
-	StorageProducts        []apm.ProductV2
-	IpProducts             []apm.ProductV2
-	LinkProducts           []apm.ProductV2
-	LicenseProducts        []apm.ProductV2
-	PrivateNetworkProducts []apm.ProductV2
+	Machines                 []apm.ProductV2
+	StorageProducts          []apm.ProductV2
+	IpProducts               []apm.ProductV2
+	LinkProducts             []apm.ProductV2
+	LicenseProducts          []apm.ProductV2
+	PrivateNetworkProducts   []apm.ProductV2
+	PrivateNetworkIpProducts []apm.ProductV2
+	ServiceProducts          []apm.ProductV2
 )
 
 func initProducts() {
@@ -123,6 +127,8 @@ func initProducts() {
 
 		if allowContainer {
 			support.Docker.Enabled = true
+			support.Docker.ApplicationVariants = ServiceConfig.Registry.Enabled
+			support.Docker.ContainerSnapshots = ServiceConfig.Registry.Enabled
 			support.Docker.Web = ServiceConfig.Compute.Web.Enabled
 			support.Docker.Vnc = ServiceConfig.Compute.Web.Enabled
 			support.Docker.Logs = true
@@ -314,40 +320,180 @@ func initProducts() {
 		}
 	}
 
-	PrivateNetworkProducts = []apm.ProductV2{
-		{
-			Type: apm.ProductTypeCPrivateNetwork,
-			Category: apm.ProductCategory{
+	if ServiceConfig.Compute.PrivateNetworks.Enabled {
+		privateNetworkCategory := apm.ProductCategory{
+			Name:        "private-network",
+			Provider:    config.Provider.Id,
+			ProductType: apm.ProductTypePrivateNetwork,
+			AccountingUnit: apm.AccountingUnit{
+				Name:                   "network",
+				NamePlural:             "networks",
+				FloatingPoint:          false,
+				DisplayFrequencySuffix: false,
+			},
+			AccountingFrequency: apm.AccountingFrequencyOnce,
+			FreeToUse:           true,
+		}
+
+		PrivateNetworkProducts = []apm.ProductV2{
+			{
+				Type:        apm.ProductTypeCPrivateNetwork,
+				Category:    privateNetworkCategory,
 				Name:        "private-network",
-				Provider:    config.Provider.Id,
+				Description: "A private network",
 				ProductType: apm.ProductTypePrivateNetwork,
+				Price:       1,
+			},
+		}
+
+		PrivateNetworkSupport = []orc.PrivateNetworkSupport{
+			{
+				Product: apm.ProductReference{
+					Id:       PrivateNetworkProducts[0].Name,
+					Category: PrivateNetworkProducts[0].Category.Name,
+					Provider: config.Provider.Id,
+				},
+				NetworkType:     orc.NetworkTypeEthernet,
+				AddressPools:    ServiceConfig.Compute.PrivateNetworks.CidrPools,
+				ExcludedRanges:  privateNetworkExcludedRanges(ServiceConfig.Compute.PrivateNetworks.CidrPools, ServiceConfig.Compute.PrivateNetworks.ForbiddenCidrs),
+				MinPrefixLength: 16,
+				MaxPrefixLength: 24,
+			},
+		}
+
+		if privateNetworkInfinibandReady {
+			infiniband := ServiceConfig.Compute.PrivateNetworks.Infiniband
+			PrivateNetworkProducts = append(PrivateNetworkProducts, apm.ProductV2{
+				Type:        apm.ProductTypeCPrivateNetwork,
+				Category:    privateNetworkCategory,
+				Name:        "infiniband-network",
+				Description: "An InfiniBand network",
+				ProductType: apm.ProductTypePrivateNetwork,
+				Price:       1,
+			})
+
+			product := PrivateNetworkProducts[len(PrivateNetworkProducts)-1]
+			PrivateNetworkSupport = append(PrivateNetworkSupport, orc.PrivateNetworkSupport{
+				Product: apm.ProductReference{
+					Id:       product.Name,
+					Category: product.Category.Name,
+					Provider: config.Provider.Id,
+				},
+				NetworkType:      orc.NetworkTypeInfiniband,
+				AddressPools:     infiniband.CidrPools,
+				ExcludedRanges:   privateNetworkExcludedRanges(infiniband.CidrPools, ServiceConfig.Compute.PrivateNetworks.ForbiddenCidrs),
+				MinPrefixLength:  orc.PrivateNetworkInfinibandPrefixLength,
+				MaxPrefixLength:  orc.PrivateNetworkInfinibandPrefixLength,
+				RdmaResourceName: infiniband.RdmaResourceName,
+				ReclaimPolicy: orc.ReclaimPolicy{
+					Enabled:              infiniband.Reclaim.Enabled,
+					LowWatermarkPercent:  infiniband.Reclaim.LowWatermarkPercent,
+					HighWatermarkPercent: infiniband.Reclaim.HighWatermarkPercent,
+					GracePeriod:          infiniband.Reclaim.GracePeriod,
+					MinAge:               infiniband.Reclaim.MinAge,
+					MaxPerRun:            infiniband.Reclaim.MaxPerRun,
+				},
+			})
+		}
+
+		PrivateNetworkIpProducts = []apm.ProductV2{
+			{
+				Type: apm.ProductTypeCPrivateNetworkIp,
+				Category: apm.ProductCategory{
+					Name:        "private-network-ip",
+					Provider:    config.Provider.Id,
+					ProductType: apm.ProductTypePrivateNetworkIp,
+					AccountingUnit: apm.AccountingUnit{
+						Name:                   "IP",
+						NamePlural:             "IPs",
+						FloatingPoint:          false,
+						DisplayFrequencySuffix: false,
+					},
+					AccountingFrequency: apm.AccountingFrequencyOnce,
+					FreeToUse:           true,
+				},
+				Name:        "private-network-ip",
+				Description: "A reserved private network IP address",
+				ProductType: apm.ProductTypePrivateNetworkIp,
+				Price:       1,
+			},
+		}
+
+		PrivateNetworkIpSupport = []orc.PrivateNetworkIpSupport{
+			{
+				Product: apm.ProductReference{
+					Id:       PrivateNetworkIpProducts[0].Name,
+					Category: PrivateNetworkIpProducts[0].Category.Name,
+					Provider: config.Provider.Id,
+				},
+			},
+		}
+	}
+
+	LicenseProducts = ctrl.LicenseFetchProducts()
+
+	ServiceProducts = []apm.ProductV2{
+		{
+			Type: apm.ProductTypeCService,
+			Category: apm.ProductCategory{
+				Name:        "service",
+				Provider:    config.Provider.Id,
+				ProductType: apm.ProductTypeService,
 				AccountingUnit: apm.AccountingUnit{
-					Name:                   "network",
-					NamePlural:             "networks",
+					Name:                   "service",
+					NamePlural:             "services",
 					FloatingPoint:          false,
 					DisplayFrequencySuffix: false,
 				},
 				AccountingFrequency: apm.AccountingFrequencyOnce,
 				FreeToUse:           true,
 			},
-			Name:        "private-network",
-			Description: "A private network",
-			ProductType: apm.ProductTypePrivateNetwork,
+			Name:        "service",
+			Description: "A load balanced service",
+			ProductType: apm.ProductTypeService,
 			Price:       1,
 		},
 	}
 
-	PrivateNetworkSupport = []orc.PrivateNetworkSupport{
+	ServiceSupport = []orc.ServiceSupport{
 		{
 			Product: apm.ProductReference{
-				Id:       PrivateNetworkProducts[0].Name,
-				Category: PrivateNetworkProducts[0].Category.Name,
+				Id:       ServiceProducts[0].Name,
+				Category: ServiceProducts[0].Category.Name,
 				Provider: config.Provider.Id,
 			},
 		},
 	}
+}
 
-	LicenseProducts = ctrl.LicenseFetchProducts()
+func privateNetworkProductSupport(product apm.ProductReference) (orc.PrivateNetworkSupport, bool) {
+	for _, support := range PrivateNetworkSupport {
+		if support.Product == product {
+			return support, true
+		}
+	}
+
+	return orc.PrivateNetworkSupport{}, false
+}
+
+func privateNetworkExcludedRanges(pools []string, forbidden []string) []string {
+	var result []string
+	for _, excludedRange := range forbidden {
+		excludedPrefix, ok := orc.PrivateNetworkParseCidr(excludedRange)
+		if !ok {
+			continue
+		}
+
+		for _, addressPool := range pools {
+			pool, ok := orc.PrivateNetworkParseCidr(addressPool)
+			if ok && orc.PrivateNetworkCidrsOverlap(excludedPrefix, pool) {
+				result = append(result, excludedRange)
+				break
+			}
+		}
+	}
+
+	return result
 }
 
 func pickResource(resource config.MachineResourceType, machineConfig config.K8sMachineConfiguration) int {

@@ -14,28 +14,31 @@ import {
     ResourceBrowseFeatures,
     ResourceBrowser,
     ResourceBrowserOpts,
-    ColumnTitleList,
     SelectionMode,
     checkCanConsumeResources,
+    getFilterStorageValue,
     favoriteRowIcon,
     ResourceBrowseHeaderControls,
     createProjectSwitcherPortal,
-    OperationGroup,
+    ColumnTitleGroup,
+    setFilterStorageValue,
 } from "@/ui-components/ResourceBrowser";
 import FilesApi, {
     addFileSensitivityDialog,
-    ExtraFileCallbacks,
+    FileBrowseCallbacks,
     FileSensitivityNamespace,
     FileSensitivityVersion,
     initEmptyFileUpload,
     isReadonly,
     isSensitivitySupported,
+    showFileProperties,
 } from "@/UCloud/FilesApi";
 import {fileName, getParentPath, pathComponents, resolvePath, sizeToString} from "@/Utilities/FileUtilities";
 import {AsyncCache} from "@/Utilities/AsyncCache";
-import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
+import {api as FileCollectionsApi, FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {
     createHTMLElements,
+    createKeyboardShortcut,
     defaultErrorHandler,
     displayErrorMessageOrDefault,
     doNothing,
@@ -57,18 +60,17 @@ import MetadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/Meta
 import {bulkRequestOf} from "@/UtilityFunctions";
 import metadataDocumentApi, {FileMetadataDocument, FileMetadataDocumentOrDeleted, FileMetadataHistory} from "@/UCloud/MetadataDocumentApi";
 
-import {ResourceBrowseCallbacks, ResourceOwner, ResourcePermissions, ResourceSpecification, SupportByProvider} from "@/UCloud/ResourceApi";
+import {ResourceOwner, ResourcePermissions, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import ProductReference = accounting.ProductReference;
-import {Operation} from "@/ui-components/Operation";
+import {appendOperationsToActions, Operation} from "@/ui-components/Operation";
 import {visualizeWhitespaces} from "@/Utilities/TextUtilities";
 import {usePage} from "@/Navigation/Redux";
 import AppRoutes from "@/Routes";
-import {divHtml, image} from "@/Utilities/HTMLUtilities";
+import {divHtml, divText, image} from "@/Utilities/HTMLUtilities";
 import * as Sync from "@/Syncthing/api";
 import {associateBy, deepCopy} from "@/Utilities/CollectionUtilities";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
-import {TruncateClass} from "@/ui-components/Truncate";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
 import {FilesMoveRequestItem, UFile, UFileIncludeFlags} from "@/UCloud/UFile";
 import {sidebarFavoriteCache} from "./FavoriteCache";
@@ -76,12 +78,19 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {HTMLTooltip} from "@/ui-components/Tooltip";
 import SharesApi, {OutgoingShareGroup} from "@/UCloud/SharesApi";
 import {sendFailureNotification, sendSuccessNotification} from "@/Notifications";
-import {browseWalletsV2, ProductStorage, WalletV2} from "@/Accounting";
+import {browseWalletsV2, WalletV2} from "@/Accounting";
 import {genericSet} from "@/Utilities/ReduxHooks";
 import {createPortal} from "react-dom";
 import {FileBrowserStatusBar, FileBrowserStatusData} from "./FileBrowserStatusBar";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {Feature, hasFeature} from "@/Features";
+import {terminalSetPageContext} from "@/Terminal/State";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
+import {FileTree} from "./FileTree";
+import {injectStyle} from "@/Unstyled";
+import {ActionEntry, ResourceBrowserActions} from "@/ui-components/Actions";
+import {VirtualizedTreeApi} from "@/ui-components/VirtualizedTree";
+import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -103,6 +112,7 @@ const driveUsageCache = new AsyncCache<{bytes: number}>({globalTtl: 15 * 60_000}
 const defaultRetrieveFlags: Partial<UFileIncludeFlags> & {itemsPerPage: number} = {
     includeMetadata: true,
     includeSizes: true,
+    includeSizesNonBlocking: true,
     includeTimestamps: true,
     includeUnixInfo: true,
     allowUnsupportedInclude: true,
@@ -131,29 +141,40 @@ interface AdditionalResourceBrowserOpts {
     initialPath?: string;
     managesLocalProject?: boolean; // TODO(Jonas): Having both managesLocalProject and initialProject might not be for the best.
     initialProject?: string;
-    additionalOperations?: Operation<UFile, ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks>[];
+    additionalOperations?: Operation<UFile, FileBrowseCallbacks>[];
 }
 let lastActiveProject: string | undefined = "";
 type SortById = "PATH" | "MODIFIED_AT" | "SIZE";
-const rowTitles: ColumnTitleList<SortById> = [{name: "Name", sortById: "PATH"}, {name: "", columnWidth: 32}, {name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160}, {name: "Size", sortById: "SIZE", columnWidth: 100}];
+const rowTitles: ColumnTitleGroup<SortById> = {
+    [ContainerSize.LARGE]:[{ name: "Name", sortById: "PATH" }, { name: "", columnWidth: 32 }, { name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160 }, { name: "Size", sortById: "SIZE", columnWidth: 100 }]
+};
+const selectorRowTitles: ColumnTitleGroup<SortById> = {
+    [ContainerSize.LARGE]: [{ name: "Name", sortById: "PATH" }, { name: "", columnWidth: 32 }, { name: "Modified at", sortById: "MODIFIED_AT", columnWidth: 160 }, { name: "Select", columnWidth: 100 }]
+}
 
+export const FakeFileName = ".00000000000000000000$NEW_DIR";
 const RESOURCE_NAME = "File";
-function FileBrowse({
-    opts,
-    headerControls,
-}: {
+function FileBrowse({opts, headerControls}: {
     opts?: ResourceBrowserOpts<UFile> & AdditionalResourceBrowserOpts;
     headerControls?: ResourceBrowseHeaderControls;
 }): React.ReactNode {
     const navigate = useNavigate();
     const location = useLocation();
     const mountRef = useRef<HTMLDivElement | null>(null);
+    const selectorTree = useRef<VirtualizedTreeApi | null>(null);
     const browserRef = useRef<ResourceBrowser<UFile> | null>(null);
     const openTriggeredByPath = useRef<string | null>(null);
     const dispatch = useDispatch();
     if (!opts?.embedded && !opts?.isModal) {
         usePage("Files", SidebarTabId.FILES);
     }
+
+    useEffect(() => {
+        if (opts?.embedded || opts?.isModal) return;
+        return () => {
+            dispatch(terminalSetPageContext(null));
+        };
+    }, [dispatch, opts?.embedded, opts?.isModal]);
 
     const [providerRestriction, setProviderRestriction] = React.useState<string | null>(null);
     const [statusBarTarget, setStatusBarTarget] = React.useState<HTMLElement | null>(null);
@@ -179,7 +200,9 @@ function FileBrowse({
     }, []);
 
     const isSelector = !!opts?.selection;
+    const compactFilters = !!opts?.embedded || isSelector;
     const selectorPathRef = useRef(opts?.initialPath ?? "/");
+    const [selectorActivePath, setSelectorActivePath] = React.useState(opts?.initialPath ?? "");
     const activeProject = useRef(opts?.initialProject ?? Client.projectId);
 
     function callAPI<T>(parameters: APICallParameters<unknown, T>): Promise<T> {
@@ -192,7 +215,8 @@ function FileBrowse({
     const features: ResourceBrowseFeatures = {
         ...FEATURES,
         search: !opts?.isModal,
-        filters: !opts?.embedded?.hideFilters,
+        filters: !compactFilters && !opts?.embedded?.hideFilters,
+        projectSwitcher: !isSelector,
     }
 
     const didUnmount = useDidUnmount();
@@ -210,12 +234,23 @@ function FileBrowse({
         const mount = mountRef.current;
         let searching = "";
         let lastActiveFilePath = "";
+        let activeSearchQuery: string | undefined;
+        let searchConnection: ReturnType<typeof WSFactory.open> | undefined;
+        const stopSearch = () => {
+            const connection = searchConnection;
+            searchConnection = undefined;
+            connection?.close();
+        };
         let shares: Record<string, OutgoingShareGroup> = {};
         let initialFetchDone = false;
         if (mount && !browserRef.current) {
-            const resourceBrowser = new ResourceBrowser<UFile>(mount, RESOURCE_NAME, opts);
+            const resourceBrowser = new ResourceBrowser<UFile>(mount, RESOURCE_NAME, {...opts});
             resourceBrowser.init(browserRef, features, undefined, browser => {
-                browser.setColumns(rowTitles);
+                browser.setColumns(isSelector ? selectorRowTitles : rowTitles);
+                if (isSelector) browser.root.style.height = "100%";
+                if (compactFilters) {
+                    browser.on("renderUtilityControls", container => renderHiddenFilesToggle(container, browser));
+                }
 
                 const updateStatusSelection = () => setStatusBarData(current => current == null ? null : {
                     ...current,
@@ -288,6 +323,7 @@ function FileBrowse({
                             drive,
                             wallet,
                             selected: browser.findSelectedEntries(),
+                            visualizationSupported: (collection.status.resolvedSupport?.support as FileCollectionSupport | undefined)?.stats?.visualization === true,
                         });
                         const preciseOwnUsage = await preciseOwnUsagePromise;
                         if (requestId !== statusRequest.current || browser.currentPath !== path) return;
@@ -620,13 +656,12 @@ function FileBrowse({
                     }
                 };
 
-                let shouldRemoveFakeDirectory = true;
-                const fakeFileName = ".00000000000000000000$NEW_DIR"
+                let shouldRemoveFakeEntry = true;
                 const showCreateDirectory = () => {
-                    const fakePath = resolvePath(browser.currentPath) + "/" + fakeFileName.split("/")[0];
+                    const fakePath = resolvePath(browser.currentPath) + "/" + FakeFileName.split("/")[0];
                     browser.removeEntryFromCurrentPage(it => it.id === fakePath);
-                    shouldRemoveFakeDirectory = false;
-                    insertFakeEntry(fakeFileName, {type: "DIRECTORY"});
+                    shouldRemoveFakeEntry = false;
+                    insertFakeEntry(FakeFileName, {type: "DIRECTORY"});
                     const idx = browser.findVirtualRowIndex(it => it.id === fakePath);
                     if (idx !== null) browser.ensureRowIsVisible(idx, true);
 
@@ -651,19 +686,19 @@ function FileBrowse({
                                 });
                         },
                         () => {
-                            if (shouldRemoveFakeDirectory) browser.removeEntryFromCurrentPage(it => it.id === fakePath);
+                            if (shouldRemoveFakeEntry) browser.removeEntryFromCurrentPage(it => it.id === fakePath);
                         },
                         ""
                     );
 
-                    shouldRemoveFakeDirectory = true;
+                    shouldRemoveFakeEntry = true;
                 };
 
                 const showCreateFile = () => {
-                    const fakePath = resolvePath(browser.currentPath) + "/" + fakeFileName.split("/")[0];
+                    const fakePath = resolvePath(browser.currentPath) + "/" + FakeFileName.split("/")[0];
                     browser.removeEntryFromCurrentPage(it => it.id === fakePath);
-                    shouldRemoveFakeDirectory = false;
-                    insertFakeEntry(fakeFileName, {type: "FILE"});
+                    shouldRemoveFakeEntry = false;
+                    insertFakeEntry(FakeFileName, {type: "FILE"});
                     const idx = browser.findVirtualRowIndex(it => it.id === fakePath);
                     if (idx !== null) browser.ensureRowIsVisible(idx, true);
 
@@ -683,9 +718,13 @@ function FileBrowse({
 
                             initEmptyFileUpload(realPath);
                         },
-                        noopCall,
+                        () => {
+                            if (shouldRemoveFakeEntry) browser.removeEntryFromCurrentPage(it => it.id === fakePath);
+                        },
                         ""
                     );
+
+                    shouldRemoveFakeEntry = true;
                 };
 
 
@@ -780,7 +819,7 @@ function FileBrowse({
                         });
 
                         let i = 0;
-                        // A max of 4 buttons for the view else we collapse them 
+                        // A max of 4 buttons for the view else we collapse them
                         for (; i < restOperations.length && result.length < 4; i++) {
                             const op = restOperations[i];
                             result.push(op);
@@ -805,12 +844,16 @@ function FileBrowse({
                     }
 
                     const selected = browser.findSelectedEntries();
-                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks;
-                    const enabledOperations = FilesApi.retrieveOperations().filter(op => op.enabled(selected, callbacks, selected));
+                    const callbacks = browser.dispatchMessage("fetchOperationsCallback", fn => fn()) as FileBrowseCallbacks;
+                    const actions = FilesApi.retrieveActions();
+                    if (!Array.isArray(actions)) {
+                        const result = appendOperationsToActions(actions, opts?.additionalOperations ?? [], selected);
+                        return isSelector ? selectorActions(result) : result;
+                    }
+                    const enabledOperations = actions.filter(op => op.enabled(selected, callbacks, selected));
                     if (opts?.additionalOperations) {
                         (opts.additionalOperations).forEach(op => {
-                            // FIXME(Jonas): Casting here is not ideal
-                            if (op.enabled(selected, callbacks, selected)) enabledOperations.push(op as unknown as Operation<UFile, ResourceBrowseCallbacks<UFile, ProductStorage, ResourceSpecification>>);
+                            if (op.enabled(selected, callbacks, selected)) enabledOperations.push(op);
                         })
                     }
                     return groupOperations(enabledOperations);
@@ -830,7 +873,7 @@ function FileBrowse({
                     const supportByProvider: SupportByProvider = {productsByProvider: {}};
                     supportByProvider.productsByProvider[collection.specification.product.provider] = [collection.status.resolvedSupport!];
 
-                    const callbacks: ResourceBrowseCallbacks<UFile> & ExtraFileCallbacks = {
+                    const callbacks: FileBrowseCallbacks = {
                         supportByProvider,
                         collection: collection,
                         isSearch,
@@ -841,6 +884,12 @@ function FileBrowse({
                         isWorkspaceAdmin: checkIsWorkspaceAdmin(),
                         navigate: to => navigate(to),
                         reload: () => browser.refresh(),
+                        reloadCurrentFolderIfUnpaginated: path => {
+                            const files = browser.cachedData[path];
+                            if (browser.root.isConnected && browser.currentPath === path && files && files.length < 250) {
+                                browser.refresh();
+                            }
+                        },
                         syncthingConfig,
                         setSynchronization(files: UFile[], shouldAdd: boolean): void {
                             if (!syncthingConfig) return;
@@ -874,6 +923,24 @@ function FileBrowse({
                                 defaultErrorHandler(e);
                             });
                         },
+                        openFile(file: UFile, newWindow: boolean): void {
+                            if (newWindow) {
+                                const target = file.status.type === "FILE" ?
+                                    AppRoutes.files.preview(file.id) : AppRoutes.files.path(file.id);
+                                window.open("/app" + target, "_blank", "noopener,noreferrer");
+                            } else {
+                                browser.open(file.id, false, file);
+                            }
+                        },
+                        copyToClipboard(files: UFile[], cut: boolean): void {
+                            browser.copyToClipboard(files, cut);
+                        },
+                        canPasteFromClipboard(): boolean {
+                            return browser.canPasteFromClipboard();
+                        },
+                        pasteFromClipboard(): void {
+                            browser.pasteFromClipboard();
+                        },
                         startFolderCreation(): void {
                             showCreateDirectory();
                         },
@@ -886,7 +953,7 @@ function FileBrowse({
                             startRenaming(resource.id);
                         },
                         viewProperties(res: UFile): void {
-                            navigate(AppRoutes.resource.properties(FilesApi.routingNamespace, res.id))
+                            showFileProperties(res);
                         },
                         commandLoading: false,
                         invokeCommand: call => callAPI(call),
@@ -895,7 +962,7 @@ function FileBrowse({
                         onSelectRestriction: opts?.selection?.show ? file => {
                             const restriction = opts.selection!.show!(file);
                             if (typeof restriction === "string") return false;
-                            return restriction && !file.id.endsWith(fakeFileName);
+                            return restriction && !file.id.endsWith(FakeFileName);
                         } : undefined,
                         onSelect: opts?.selection?.onClick,
                     };
@@ -958,18 +1025,18 @@ function FileBrowse({
                     return renderFileIconFromProperties(ext4, file.status.type === "DIRECTORY", file.status.icon);
                 };
 
-                browser.on("renderRow", (file, row, containerWidth) => {
+                browser.on("renderTitle", (file, titleStat, row) => {
                     row.container.setAttribute("data-file", file.id);
 
                     const [icon, setIcon] = ResourceBrowser.defaultIconRenderer();
-                    row.title.append(icon);
+                    titleStat.append(icon);
 
                     if (syncthingConfig?.folders?.find(it => it.ucloudPath === file.id) != null) {
                         folderNote(icon, "Synchronized with Syncthing", "60px", "12px", 230, "check");
                     }
 
                     const title = ResourceBrowser.defaultTitleRenderer(fileName(file.id), row);
-                    row.title.append(title);
+                    titleStat.append(title);
 
                     if (isReadonly(file.permissions.myself)) {
                         folderNote(icon, "Read-only", "60px", "34px", 108, "heroInformationCircle");
@@ -977,34 +1044,15 @@ function FileBrowse({
 
                     const share = shares[file.id];
                     if (share) {
-                        folderNote(icon, "This files is shared with other users", "30px", "34px", 250, "heroShare", () => navigate(AppRoutes.shares.sharedByMeFile(share.sourceFilePath)))
-                    }
-
-                    const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();
-                    row.stat2.replaceChildren(createHTMLElements({
-                        tagType: "div",
-                        style: {marginTop: "auto", marginBottom: "auto"},
-                        innerText: opts?.selection ?
-                            dateToDateStringOrTime(modifiedAt) :
-                            row.stat2.innerText = dateToString(modifiedAt)
-                    }));
-
-                    if (opts?.selection && !file.id.endsWith(fakeFileName) /* Note(Jonas): Disallow using folder being created */) {
-                        const button = browser.defaultButtonRenderer(opts.selection, file);
-                        if (button) {
-                            row.stat3.replaceChildren(button);
-                        }
-                    } else {
-                        if (file.status.sizeIncludingChildrenInBytes != null || file.status.type !== "DIRECTORY") {
-                            row.stat3.replaceChildren(createHTMLElements({
-                                tagType: "div",
-                                style: {marginTop: "auto", marginBottom: "auto"},
-                                innerText: sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null)
-                            }));
-                        }
+                        folderNote(icon, "This file is shared with other users", "30px", "34px", 250, "heroShare", () => navigate(AppRoutes.shares.sharedByMeFile(share.sourceFilePath)))
                     }
 
                     const isOutOfDate = () => row.container.getAttribute("data-file") !== file.id;
+
+                    renderFileIcon(file).then(url => {
+                        if (isOutOfDate()) return;
+                        setIcon(url);
+                    });
 
                     const favoriteIcon = favoriteRowIcon(row);
 
@@ -1025,10 +1073,16 @@ function FileBrowse({
 
                         favoriteIcon.src = icon;
                     });
+                });
+
+                browser.on("renderStat1", (file, stat, row) => {
+                    const isOutOfDate = () => row.container.getAttribute("data-file") !== file.id;
+                    const wrapper = document.createElement("div");
+                    stat.append(wrapper);
 
                     findSensitivity(file).then(sensitivity => {
                         if (isOutOfDate()) return;
-                        row.stat1.innerHTML = ""; // NOTE(Dan): Clear the container regardless
+                        wrapper.innerHTML = ""; // NOTE(Dan): Clear the container regardless
                         if (!sensitivity) return;
 
                         const badge = divHtml("");
@@ -1041,13 +1095,29 @@ function FileBrowse({
                         });
 
                         HTMLTooltip(badge, divHtml("File's sensitivity is " + sensitivity.toString().toLocaleLowerCase()));
-                        row.stat1.append(badge);
+                        wrapper.append(badge);
                     });
+                });
 
-                    renderFileIcon(file).then(url => {
-                        if (isOutOfDate()) return;
-                        setIcon(url);
-                    });
+                browser.on("renderStat2", (file, stat) => {
+                    const modifiedAt = file.status.modifiedAt ?? file.status.accessedAt ?? timestampUnixMs();
+                    stat.replaceChildren(createHTMLElements({
+                        tagType: "div",
+                        style: {marginTop: "auto", marginBottom: "auto"},
+                        innerText: opts?.selection ?
+                            dateToDateStringOrTime(modifiedAt) :
+                            stat.innerText = dateToString(modifiedAt)
+                    }));
+                });
+
+                browser.on("renderStat3", (file, stat) => {
+                    if (file.status.sizeIncludingChildrenInBytes != null || file.status.type !== "DIRECTORY") {
+                        stat.replaceChildren(createHTMLElements({
+                            tagType: "div",
+                            style: { marginTop: "auto", marginBottom: "auto" },
+                            innerText: sizeToString(file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? null)
+                        }));
+                    }
                 });
 
                 ResourceBrowser.icons.renderIcon({
@@ -1137,8 +1207,9 @@ function FileBrowse({
                         const providerIconWrapper = createHTMLElements({
                             tagType: "div",
                             className: "provider-icon",
-                            style: disallowNavigation ? {} : {cursor: "pointer"}
+                            style: disallowNavigation ? {gridArea: "p-icon"} : {cursor: "pointer", gridArea: "p-icon"}
                         });
+
                         if (!disallowNavigation) providerIconWrapper.title = "Go to drives";
                         providerIconWrapper.style.marginRight = "6px";
                         const navbar = browser.header.querySelector("div.header-first-row");
@@ -1159,26 +1230,6 @@ function FileBrowse({
                         });
                         icon.style.marginRight = "8px";
                         pIcon.replaceChildren(icon);
-                    }
-
-                    if (browser.opts.embedded || browser.opts.selector) {
-                        if (!browser.header.querySelector("div.header-first-row > div.drive-icon-dropdown")) {
-                            const [driveIcon, setDriveIcon] = ResourceBrowser.defaultIconRenderer();
-                            driveIcon.className = "drive-icon-dropdown";
-                            driveIcon.style.cursor = "pointer";
-                            driveIcon.style.minWidth = "18px";
-                            driveIcon.style.width = "18px";
-                            const url = browser.header.querySelector("div.header-first-row");
-                            url?.prepend(driveIcon);
-                            browser.header.setAttribute("shows-dropdown", "");
-
-                            ResourceBrowser.icons.renderIcon({name: "heroChevronDown", color: "textPrimary", color2: "textPrimary", height: 32, width: 32}).then(setDriveIcon);
-                            driveIcon.onclick = e => {
-                                e.stopImmediatePropagation();
-                                const rect = driveIcon.getBoundingClientRect();
-                                temporaryDriveDropdownFunction(browser, rect.x, rect.y + rect.height);
-                            }
-                        }
                     }
 
                     return result;
@@ -1317,6 +1368,7 @@ function FileBrowse({
                             .then(result => {
                                 browser.registerPage(result, path, true);
                                 initialFetchDone = true;
+                                scheduleSizesRetry(path, result);
                                 return false;
                             }).catch(err => {
                                 // TODO(Dan): This partially contains logic which can be re-used.
@@ -1346,7 +1398,52 @@ function FileBrowse({
                     return promise;
                 };
 
-                browser.on("skipOpen", (oldPath, newPath, resource) => resource?.id === fakeFileName);
+                const scheduleSizesRetry = (path: string, page: PageV2<UFile>) => {
+                    const items = page.items;
+                    if (!items.some(it => it.status.type === "DIRECTORY" && it.status.sizeIncludingChildrenInBytes == null)) return;
+
+                    const collectionId = pathComponents(path)[0];
+                    const collection = collectionCache.retrieveFromCacheOnly(collectionId);
+                    const support = collection?.status?.resolvedSupport?.support as FileCollectionSupport | undefined;
+                    if (support != null && support.stats?.sizeIncludingChildrenInBytes !== true) return;
+
+                    setTimeout(() => {
+                        if (didUnmount.current) return;
+                        if (browser.currentPath !== path) return;
+                        if (lastFetch[path] == null) return;
+
+                        callAPI(
+                            FilesApi.browse({
+                                path,
+                                ...defaultRetrieveFlags,
+                                includeSizesNonBlocking: false,
+                                ...translateFilters(browser.browseFilters),
+                                ...opts?.additionalFilters
+                            })
+                        ).then(result => {
+                            if (didUnmount.current) return;
+                            if (browser.currentPath !== path) return;
+
+                            const sizesUpdated = result.items.some(it =>
+                                it.status.type === "DIRECTORY" && it.status.sizeIncludingChildrenInBytes != null
+                            );
+                            if (!sizesUpdated) return;
+
+                            const sizeById = new Map(result.items
+                                .filter(it => it.status.sizeIncludingChildrenInBytes != null)
+                                .map(it => [it.id, it.status.sizeIncludingChildrenInBytes!]));
+                            const current = browser.cachedData[path];
+                            if (current == null) return;
+                            for (const file of current) {
+                                const size = sizeById.get(file.id);
+                                if (size != null) file.status.sizeIncludingChildrenInBytes = size;
+                            }
+                            browser.renderRows();
+                        }).catch(doNothing);
+                    }, 500);
+                };
+
+                browser.on("skipOpen", (oldPath, newPath, resource) => resource?.id.endsWith(FakeFileName) ?? false);
                 browser.on("open", (oldPath, newPath, resource) => {
                     if (resource?.status.type === "FILE") {
                         if (opts?.selection) {
@@ -1361,7 +1458,17 @@ function FileBrowse({
                         return;
                     }
 
-                    if (newPath !== SEARCH) lastActiveFilePath = newPath;
+                    if (oldPath === SEARCH && newPath === SEARCH && activeSearchQuery !== undefined) {
+                        const query = activeSearchQuery;
+                        browser.dispatchMessage("search", fn => fn(query));
+                        return;
+                    }
+                    if (newPath !== SEARCH) {
+                        lastActiveFilePath = newPath;
+                        activeSearchQuery = undefined;
+                        stopSearch();
+                    }
+                    if (isSelector) setSelectorActivePath(newPath);
                     setStatusBarData(null);
 
                     if (openTriggeredByPath.current === newPath) {
@@ -1397,6 +1504,12 @@ function FileBrowse({
                                 ...opts?.additionalFilters
                             })
                         )).then(collection => {
+                            if (!didUnmount.current && !opts?.embedded && !opts?.isModal && browser.currentPath === newPath) {
+                                dispatch(terminalSetPageContext({
+                                    folder: newPath,
+                                    providerId: collection.specification.product.provider,
+                                }));
+                            }
                             loadStatus(newPath, collection);
                             if (!opts?.embedded) {
                                 const collection = collectionCache.retrieveFromCacheOnly(collectionId);
@@ -1452,13 +1565,15 @@ function FileBrowse({
                 });
 
                 browser.on("search", query => {
+                    stopSearch();
+                    activeSearchQuery = query;
                     let currentPath = browser.currentPath;
                     if (currentPath === SEARCH) currentPath = searching;
                     else lastActiveFilePath = currentPath;
 
                     browser.emptyReasons[SEARCH] = {
                         tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
-                        information: browser.searchQuery ? "" : "Search query is empty."
+                        information: query ? "" : "Search query is empty."
                     };
 
                     searching = currentPath;
@@ -1476,29 +1591,54 @@ function FileBrowse({
                         "/files",
                         {
                             reconnect: false,
+                            onClose: conn => {
+                                if (searchConnection !== conn) return;
+                                searchConnection = undefined;
+                                if (browser.currentPath !== SEARCH) return;
+                                browser.emptyReasons[SEARCH] = {
+                                    tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
+                                    information: "Search was interrupted. Please try again."
+                                };
+                                browser.renderRows();
+                                displayErrorMessageOrDefault(null, "Search was interrupted. Please try again.");
+                            },
                             init: async (conn) => {
+                                if (searchConnection !== conn) {
+                                    conn.close();
+                                    return;
+                                }
                                 try {
                                     await conn.subscribe({
                                         call: "files.streamingSearch",
                                         payload: {
                                             query,
-                                            flags: {},
+                                            flags: {filterHiddenFiles: browser.browseFilters["showHiddenFiles"] !== "true"},
                                             currentFolder: currentPath
                                         },
                                         handler: (message) => {
-                                            if (browser.currentPath !== SEARCH) {
+                                            if (browser.currentPath !== SEARCH || searchConnection !== connection) {
                                                 connection.close();
                                                 return;
                                             }
 
-                                            if (message.payload["type"] === "result") {
+                                            if (message.payload?.["type"] === "result") {
                                                 const result = message.payload["batch"];
                                                 // TODO(Jonas): Handle page change before adding results.
                                                 const data = newCachedData;
                                                 data.push(...result);
                                                 browser.renderRows();
                                                 browser.renderOperations();
-                                            } else if (message.payload["type"] === "end_of_results") {
+                                            } else if (message.payload?.["type"] === "end_of_results") {
+                                                searchConnection = undefined;
+                                                connection.close();
+                                            } else if (message.payload?.["type"] === "error") {
+                                                browser.emptyReasons[SEARCH] = {
+                                                    tag: EmptyReasonTag.NOT_FOUND_OR_NO_PERMISSIONS,
+                                                    information: "Search is unavailable. The storage index may still be building."
+                                                };
+                                                browser.renderRows();
+                                                displayErrorMessageOrDefault(null, "Search is unavailable. The storage index may still be building.");
+                                                searchConnection = undefined;
                                                 connection.close();
                                             }
                                         }
@@ -1509,6 +1649,7 @@ function FileBrowse({
                             }
                         }
                     )
+                    searchConnection = connection;
                 });
 
                 browser.on("searchHidden", () => {
@@ -1651,7 +1792,10 @@ function FileBrowse({
             b.renameField.style.left = "74px";
         }
 
-        addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined);
+        if (!isSelector) {
+            addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround, setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined);
+        }
+        return stopSearch;
     }, []);
 
     const setLocalProject = opts?.managesLocalProject ? async (projectId?: string) => {
@@ -1662,6 +1806,46 @@ function FileBrowse({
         activeProject.current = projectId;
         clearAndFetchCollections();
     } : undefined;
+
+    const openFromSidebar = React.useCallback(async (path: string, projectId?: string) => {
+        const b = browserRef.current;
+        if (!b) return;
+        if (activeProject.current !== projectId) {
+            activeProject.current = projectId;
+            collectionCacheForCompletion.invalidateAll();
+            b.cachedData = {};
+            b.cachedNext = {};
+            b.emptyReasons = {};
+            b.canConsumeResources = await checkCanConsumeResources(projectId ?? null, {api: FilesApi});
+        }
+        selectorPathRef.current = path;
+        setSelectorActivePath(path);
+        b.open(path);
+    }, []);
+
+    React.useEffect(() => {
+        if (!isSelector) return;
+        const listener = (event: KeyboardEvent) => {
+            if (event.key === "Escape" && browserRef.current?.clearSelection()) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                return;
+            }
+            if (!event.altKey || (!event.ctrlKey && !event.metaKey) || event.shiftKey) return;
+            if (event.code === "Digit1") {
+                event.preventDefault();
+                event.stopPropagation();
+                selectorTree.current?.activate();
+            } else if (event.code === "Digit2") {
+                event.preventDefault();
+                event.stopPropagation();
+                selectorTree.current?.deactivate();
+                mountRef.current?.focus({preventScroll: true});
+            }
+        };
+        window.addEventListener("keydown", listener, true);
+        return () => window.removeEventListener("keydown", listener, true);
+    }, [isSelector]);
 
     useLayoutEffect(() => {
         const b = browserRef.current;
@@ -1676,7 +1860,7 @@ function FileBrowse({
                     b.open(selectorPathRef.current);
                 }
 
-                b.canConsumeResources = await checkCanConsumeResources(Client.projectId ?? null, {api: FilesApi});
+                b.canConsumeResources = await checkCanConsumeResources(activeProject.current ?? null, {api: FilesApi});
             })();
         } else {
             const path = getQueryParamOrElse(location.search, "path", "");
@@ -1695,8 +1879,37 @@ function FileBrowse({
 
     return <MainContainer
         main={<>
-            <div ref={mountRef} />
-            {headerControls?.projectSwitcherTarget
+            <div className={isSelector ? FileSelectorLayoutClass : undefined}>
+                {isSelector ? <>
+                    <div className="selector-content">
+                        <FileTree
+                            basePath="/"
+                            tree={selectorTree}
+                            initialPath={opts?.initialPath}
+                            initialProject={opts?.initialProject}
+                            additionalFilters={opts?.additionalFilters}
+                            selectedPath={selectorActivePath}
+                            includeFiles={false}
+                            onActivated={openFromSidebar}
+                            onKeyboardActivate={() => {
+                                selectorTree.current?.deactivate();
+                                mountRef.current?.focus({preventScroll: true});
+                            }}
+                        />
+
+                        <div
+                            ref={mountRef}
+                            className="selector-browser"
+                            tabIndex={-1}
+                        />
+                    </div>
+                    <FileSelectorKeyboardGuide />
+                </> : (
+                    <div ref={mountRef} />
+                )}
+            </div>
+
+            {!isSelector && headerControls?.projectSwitcherTarget
                 ? createProjectSwitcherPortal(
                     headerControls.projectSwitcherTarget,
                     setLocalProject ? {setLocalProject, initialProject: activeProject.current} : undefined,
@@ -1732,12 +1945,183 @@ function FileBrowse({
 
 export default FileBrowse;
 
-function matchesFilter(filter: string, collection: FileCollection): boolean {
-    if (!filter) return true;
-    const lCFilter = filter.toLocaleLowerCase();
-    const title = collection.specification.title.toLocaleLowerCase();
-    const id = collection.id;
-    return title.toLocaleLowerCase().includes(lCFilter) || id.includes(lCFilter);
+function selectorActions<T, C>(actions: ResourceBrowserActions<T, C>): ResourceBrowserActions<T, C> {
+    // TODO(Dan): Lazy hack to clean up the actions.
+
+    const allowed = new Set(["Use this folder", "Upload files", "New folder", "New file", "Create folder", "Create file"]);
+    const filter = (entries: ActionEntry<T, C>[]): ActionEntry<T, C>[] => entries.filter(entry =>
+        entry !== "divider" && typeof entry.text === "string" && allowed.has(entry.text)
+    );
+    return {
+        ...actions,
+        topbar: filter(actions.topbar ?? []),
+        contextMenu: filter(actions.contextMenu ?? []),
+    };
+}
+
+const FileSelectorLayoutClass = injectStyle("file-selector-layout", k => `
+    ${k} {
+        display: flex;
+        flex-direction: column;
+        width: calc(100% + 16px);
+        height: calc(90vh - 16px);
+        min-height: 336px;
+        margin-left: -16px;
+    }
+
+    ${k} > .selector-content {
+        display: flex;
+        flex: 1 1 auto;
+        min-height: 0;
+        gap: 12px;
+    }
+
+    ${k} .selector-browser {
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+        outline: none;
+    }
+`);
+
+function FileSelectorKeyboardGuide(): React.ReactNode {
+    return <div className={FileSelectorKeyboardGuideClass}>
+        <div className="keyboard-navigation-row">
+            <span className={ShortcutClass}>{createKeyboardShortcut("1", ["ctrl", "alt"])}</span>
+            <span className="keyboard-navigation-action">Focus sidebar</span>
+        </div>
+        <div className="keyboard-navigation-row">
+            <span className={ShortcutClass}>{createKeyboardShortcut("2", ["ctrl", "alt"])}</span>
+            <span className="keyboard-navigation-action">Focus files</span>
+        </div>
+        <div className="keyboard-navigation-row">
+            <div className="keyboard-navigation-keys">
+                <span className={ShortcutClass}>↑</span>
+                <span className={ShortcutClass}>↓</span>
+                <span className={ShortcutClass}>←</span>
+                <span className={ShortcutClass}>→</span>
+            </div>
+            <span className="keyboard-navigation-action">Navigate files</span>
+        </div>
+        <div className="keyboard-navigation-row">
+            <span className={ShortcutClass}>{createKeyboardShortcut("Enter", ["alt"])}</span>
+            <span className="keyboard-navigation-action">Select</span>
+        </div>
+    </div>;
+}
+
+const FileSelectorKeyboardGuideClass = injectStyle("file-selector-keyboard-guide", key => `
+    ${key} {
+        color: var(--textSecondary);
+        font-size: 12px;
+        display: flex;
+        width: calc(100% + 16px);
+        box-sizing: border-box;
+        padding: 12px;
+        border-top: 1px solid var(--borderColor);
+    }
+
+    ${key} .keyboard-navigation-row {
+        display: flex;
+        flex: 1 1 0;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-width: 0;
+        padding: 0 12px;
+    }
+
+    ${key} .keyboard-navigation-row + .keyboard-navigation-row {
+        border-left: 1px solid var(--borderColor);
+    }
+
+    ${key} .keyboard-navigation-keys {
+        display: flex;
+        gap: 4px;
+    }
+
+    ${key} .keyboard-navigation-action {
+        white-space: nowrap;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            display: none;
+        }
+    }
+`);
+
+const HiddenFilesToggleClass = injectStyle("hidden-files-toggle", k => `
+    ${k} {
+        width: 24px;
+        height: 24px;
+        margin-left: 16px;
+        padding: 0;
+        border: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        cursor: pointer;
+    }
+
+    ${k} img {
+        width: 24px;
+        height: 24px;
+        margin: 0 !important;
+    }
+`);
+
+function renderHiddenFilesToggle(container: HTMLElement, browser: ResourceBrowser<UFile>): void {
+    const key = "showHiddenFiles";
+    let showHiddenFiles = getFilterStorageValue(RESOURCE_NAME, key) === "true";
+    const wrapper = document.createElement("button");
+    const icon = document.createElement("img");
+    const tooltip = divText("");
+    wrapper.type = "button";
+    wrapper.className = HiddenFilesToggleClass;
+    wrapper.appendChild(icon);
+    HTMLTooltip(wrapper, tooltip);
+
+    const render = () => {
+        wrapper.setAttribute("aria-pressed", showHiddenFiles.toString());
+        wrapper.setAttribute("aria-label", showHiddenFiles ? "Hide hidden files" : "Show hidden files");
+        tooltip.innerText = showHiddenFiles ?
+            "Hidden files are currently shown. Click to hide them." :
+            "Hidden files are currently hidden. Click to show them.";
+        const expectedState = showHiddenFiles.toString();
+        wrapper.dataset.showHiddenFiles = expectedState;
+        ResourceBrowser.icons.renderIcon({
+            name: showHiddenFiles ? "heroEye" : "heroEyeSlash",
+            color: "textPrimary",
+            color2: "textPrimary",
+            width: 64,
+            height: 64,
+        }).then(url => {
+            if (wrapper.dataset.showHiddenFiles === expectedState) icon.src = url;
+        });
+    };
+
+    const updateFilter = () => {
+        if (showHiddenFiles) browser.browseFilters[key] = "true";
+        else delete browser.browseFilters[key];
+    };
+    updateFilter();
+    render();
+
+    const toggleHiddenFiles = () => {
+        showHiddenFiles = !showHiddenFiles;
+        setFilterStorageValue(RESOURCE_NAME, key, showHiddenFiles.toString());
+        updateFilter();
+        render();
+        browser.open(browser.currentPath, true);
+    };
+    wrapper.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleHiddenFiles();
+    };
+    container.appendChild(wrapper);
 }
 
 function folderNote(
@@ -1773,55 +2157,6 @@ function folderNote(
     setIconStyling(noteIcon);
     iconWrapper.appendChild(noteIcon);
     ResourceBrowser.icons.renderIcon({name: iconName, color: "fixedWhite", color2: "fixedWhite", width: 30, height: 30}).then(setNoteIcon);
-}
-
-// Note(Jonas): Temporary as there should be a better solution, not because the element is temporary
-function temporaryDriveDropdownFunction(browser: ResourceBrowser<UFile>, posX: number, posY: number): void {
-    const filteredCollections = collectionCacheForCompletion.retrieveFromCacheOnly("") ?? [];
-
-    function generateElements(filter?: string): HTMLLIElement[] {
-        const result = filteredCollections.filter(it => matchesFilter(filter ?? "", it)).map(collection => {
-            const wrapper = document.createElement("li");
-            const pIcon = providerIcon(collection.specification.product.provider, {width: "30px", height: "30px", fontSize: "22px"});
-            wrapper.append(pIcon);
-            const span = document.createElement("span");
-            wrapper.append(span);
-            span.innerText = `${collection.specification.title} (${collection.id})`;
-            span.className = TruncateClass;
-            return wrapper;
-        });
-        if (result.length !== 0) return result;
-
-        return [createHTMLElements<HTMLLIElement>({
-            tagType: "li",
-            children: [],
-            innerText: "No results found",
-            style: {pointerEvents: "none"}
-        })];
-    }
-
-    function generateHandlers(filter: string): (() => void)[] {
-        return filteredCollections.filter(it => matchesFilter(filter, it)).map(collection => {
-            return () => {
-                if (collection.id !== browser.currentPath.split("/").filter(it => it)[0]) {
-                    browser.open(`/${collection.id}`);
-                }
-                browser.closeContextMenu();
-            }
-        });
-    }
-
-    const ROW_HEIGHT = 46;
-    const maxHeight = ROW_HEIGHT * 10 + ROW_HEIGHT / 2;
-
-    const onKeyUp = function onKeyUp(filter: string) {
-        const elements = generateElements(filter);
-        browser.setToContextMenuEntries(elements, generateHandlers(filter), true, maxHeight);
-    }
-
-    browser.prepareContextMenu(posX, posY, filteredCollections.length, maxHeight);
-    browser.addContextMenuSearchField(onKeyUp);
-    browser.setToContextMenuEntries(generateElements(undefined), generateHandlers(""), true, maxHeight);
 }
 
 function setIconStyling(icon: HTMLDivElement) {

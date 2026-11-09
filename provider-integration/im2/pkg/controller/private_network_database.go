@@ -1,104 +1,520 @@
 package controller
 
 import (
+	"database/sql"
+	"encoding/binary"
 	"encoding/json"
+	"hash/fnv"
+	"net/netip"
+	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
+	cfg "ucloud.dk/pkg/config"
 	db "ucloud.dk/shared/pkg/database"
+	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 
-var privateNetworks = map[string]*orc.PrivateNetwork{}
+const (
+	PrivateNetworkStateProvisioning = "provisioning"
+	PrivateNetworkStateReady        = "ready"
+	PrivateNetworkStateDeleting     = "deleting"
 
+	PrivateNetworkLeaseStatePending   = "pending"
+	PrivateNetworkLeaseStateReleasing = "releasing"
+)
+
+const privateNetworkAdvisoryNamespace = 712367812
+const privateNetworkNameAdvisoryNamespace = 712367813
+const privateNetworkReconcileAdvisoryNamespace = 712367814
+
+type PrivateNetworkWorkspaceKind string
+
+const (
+	PrivateNetworkWorkspaceProject PrivateNetworkWorkspaceKind = "project"
+	PrivateNetworkWorkspaceUser    PrivateNetworkWorkspaceKind = "user"
+)
+
+type PrivateNetworkWorkspace struct {
+	Kind PrivateNetworkWorkspaceKind
+	Id   string
+}
+
+func PrivateNetworkWorkspaceFromOwner(owner orc.ResourceOwner) PrivateNetworkWorkspace {
+	if owner.Project.Present {
+		return PrivateNetworkWorkspace{
+			Kind: PrivateNetworkWorkspaceProject,
+			Id:   owner.Project.Value,
+		}
+	}
+
+	return PrivateNetworkWorkspace{
+		Kind: PrivateNetworkWorkspaceUser,
+		Id:   owner.CreatedBy,
+	}
+}
+
+func PrivateNetworkWorkspaceParse(value string) (PrivateNetworkWorkspace, bool) {
+	if project, ok := strings.CutPrefix(value, "project:"); ok {
+		return PrivateNetworkWorkspace{Kind: PrivateNetworkWorkspaceProject, Id: project}, true
+	}
+
+	if user, ok := strings.CutPrefix(value, "user:"); ok {
+		return PrivateNetworkWorkspace{Kind: PrivateNetworkWorkspaceUser, Id: user}, true
+	}
+
+	return PrivateNetworkWorkspace{}, false
+}
+
+func (w PrivateNetworkWorkspace) String() string {
+	if w.Kind == PrivateNetworkWorkspaceProject {
+		return "project:" + w.Id
+	}
+
+	return "user:" + w.Id
+}
+
+var privateNetworks = map[string]*orc.PrivateNetwork{}
+var privateNetworkDeleted = map[string]util.Empty{}
 var privateNetworkMutex = sync.Mutex{}
+var privateNetworkCacheMutationLocks [64]sync.Mutex
+
+func privateNetworkCacheMutationLock(networkId string) *sync.Mutex {
+	hash := fnv.New32a()
+	_, _ = hash.Write([]byte(networkId))
+	return &privateNetworkCacheMutationLocks[hash.Sum32()%uint32(len(privateNetworkCacheMutationLocks))]
+}
+
+var privateNetworkSettingsMu = sync.RWMutex{}
+var privateNetworkSettings = privateNetworkParsedSettings{}
+var privateNetworkSettingsConfigured = false
+
+type privateNetworkParsedSettings struct {
+	Enabled           bool
+	Pools             []netip.Prefix
+	Forbidden         []netip.Prefix
+	DefaultPrefixLen  int
+	MaxNetworksPerJob int
+	Infiniband        privateNetworkInfinibandSettings
+}
+
+type privateNetworkInfinibandSettings struct {
+	Enabled          bool
+	Pools            []netip.Prefix
+	PrefixLen        int
+	RdmaResourceName string
+	DeviceLabel      string
+	Device           string
+	Reclaim          cfg.KubernetesReclaimPolicy
+}
+
+type privateNetworkTrackedRow struct {
+	ResourceId  string
+	CreatedBy   string
+	ProjectId   sql.Null[string]
+	Resource    string
+	CidrBlock   sql.Null[string]
+	State       string
+	WorkspaceId string
+	NetworkType string
+}
+
+func privateNetworkUnmarshalResource(resource string, network *orc.PrivateNetwork) bool {
+	if json.Unmarshal([]byte(resource), network) != nil {
+		return false
+	}
+
+	if network.Status.Subdomain == "" {
+		var legacy struct {
+			Specification struct {
+				Subdomain string `json:"subdomain"`
+			} `json:"specification"`
+		}
+		if json.Unmarshal([]byte(resource), &legacy) == nil {
+			network.Status.Subdomain = legacy.Specification.Subdomain
+		}
+	}
+
+	return true
+}
+
+func privateNetworkTypeFromRow(value string) orc.NetworkType {
+	networkType := orc.NetworkType(value)
+	if networkType == "" {
+		return orc.NetworkTypeEthernet
+	}
+	return networkType
+}
+
+func PrivateNetworkConfigureDatabase(settings cfg.KubernetesPrivateNetworks) {
+	parsed := privateNetworkParsedSettings{
+		Enabled:           settings.Enabled,
+		DefaultPrefixLen:  settings.DefaultPrefixLen,
+		MaxNetworksPerJob: settings.MaxNetworksPerJob,
+		Infiniband: privateNetworkInfinibandSettings{
+			Enabled:          settings.Infiniband.Enabled && settings.Enabled,
+			PrefixLen:        orc.PrivateNetworkInfinibandPrefixLength,
+			RdmaResourceName: settings.Infiniband.RdmaResourceName,
+			DeviceLabel:      settings.Infiniband.DeviceLabel,
+			Reclaim:          settings.Infiniband.Reclaim,
+		},
+	}
+
+	if parsed.Enabled {
+		if len(settings.CidrPools) == 0 {
+			log.Fatal("Private networks are enabled but no CIDR pools passed config validation")
+		}
+
+		for _, pool := range settings.CidrPools {
+			parsedPool, err := netip.ParsePrefix(pool)
+			if err != nil {
+				log.Fatal("Invalid private network CIDR pool '%s' passed config validation", pool)
+			}
+			parsed.Pools = append(parsed.Pools, parsedPool.Masked())
+		}
+
+		slices.SortFunc(parsed.Pools, func(a, b netip.Prefix) int {
+			return strings.Compare(a.String(), b.String())
+		})
+
+		for _, forbidden := range settings.ForbiddenCidrs {
+			parsedForbidden, err := netip.ParsePrefix(forbidden)
+			if err != nil {
+				log.Fatal("Invalid private network forbidden CIDR '%s' passed config validation", forbidden)
+			}
+			parsed.Forbidden = append(parsed.Forbidden, parsedForbidden.Masked())
+		}
+
+		if parsed.Infiniband.Enabled {
+			if len(settings.Infiniband.CidrPools) == 0 {
+				log.Fatal("InfiniBand networks are enabled but no CIDR pools passed config validation")
+			}
+
+			for _, pool := range settings.Infiniband.CidrPools {
+				parsedPool, err := netip.ParsePrefix(pool)
+				if err != nil {
+					log.Fatal("Invalid InfiniBand CIDR pool '%s' passed config validation", pool)
+				}
+				parsed.Infiniband.Pools = append(parsed.Infiniband.Pools, parsedPool.Masked())
+			}
+
+			slices.SortFunc(parsed.Infiniband.Pools, func(a, b netip.Prefix) int {
+				return strings.Compare(a.String(), b.String())
+			})
+		}
+	}
+
+	privateNetworkSettingsMu.Lock()
+	privateNetworkSettings = parsed
+	privateNetworkSettingsConfigured = true
+	privateNetworkSettingsMu.Unlock()
+}
+
+func PrivateNetworksFeatureEnabled() bool {
+	return privateNetworkCurrentSettings().Enabled
+}
+
+func PrivateNetworkInfinibandDevice() string {
+	return privateNetworkCurrentSettings().Infiniband.Device
+}
+
+func PrivateNetworkInfinibandDeviceLabel() string {
+	label := privateNetworkCurrentSettings().Infiniband.DeviceLabel
+	if label == "" {
+		return "ucloud.dk/ibdev"
+	}
+	return label
+}
+
+func PrivateNetworkInfinibandRdmaResourceName() string {
+	name := privateNetworkCurrentSettings().Infiniband.RdmaResourceName
+	if name == "" {
+		return "nvidia.com/rdma_shared"
+	}
+	return name
+}
+
+func PrivateNetworkJobHasInfiniband(job *orc.Job) bool {
+	if job == nil {
+		return false
+	}
+
+	for _, value := range job.Specification.Parameters {
+		if privateNetworkValueHasInfiniband(value) {
+			return true
+		}
+	}
+
+	for _, value := range job.Specification.Resources {
+		if privateNetworkValueHasInfiniband(value) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func privateNetworkValueHasInfiniband(value orc.AppParameterValue) bool {
+	if !orc.IsNetworkValue(value) {
+		return false
+	}
+
+	network, ok := PrivateNetworkRetrieve(value.Id)
+	return ok && network.Specification.EffectiveType() == orc.NetworkTypeInfiniband
+}
+
+func PrivateNetworkSetInfinibandDevice(device string) {
+	privateNetworkSettingsMu.Lock()
+	privateNetworkSettings.Infiniband.Device = device
+	privateNetworkSettingsMu.Unlock()
+}
+
+func privateNetworkCurrentSettings() privateNetworkParsedSettings {
+	privateNetworkSettingsMu.RLock()
+	defer privateNetworkSettingsMu.RUnlock()
+	return privateNetworkSettings
+}
 
 func initPrivateNetworkDatabase() {
 	if !RunsServerCode() {
 		return
 	}
 
+	if !privateNetworkSettingsConfigured {
+		if kubernetes := cfg.Services.Kubernetes(); kubernetes != nil {
+			PrivateNetworkConfigureDatabase(kubernetes.Compute.PrivateNetworks)
+		}
+	}
+
+	rows := db.NewTx(func(tx *db.Transaction) []privateNetworkTrackedRow {
+		return db.Select[privateNetworkTrackedRow](
+			tx,
+			`
+				select
+					resource_id,
+					created_by,
+					project_id,
+					resource,
+					cidr_block::text as cidr_block,
+					state,
+					workspace_id,
+					network_type
+				from
+					tracked_private_networks
+			`,
+			db.Params{},
+		)
+	})
+
 	privateNetworkMutex.Lock()
-	defer privateNetworkMutex.Unlock()
-	privateNetworkFetchAll()
+	for _, row := range rows {
+		if row.State == PrivateNetworkStateDeleting {
+			continue
+		}
+
+		var network orc.PrivateNetwork
+		if privateNetworkUnmarshalResource(row.Resource, &network) && network.Id != "" {
+			network.Status.CidrBlock = util.SqlNullToOpt(row.CidrBlock)
+			network.Specification.Type = privateNetworkTypeFromRow(row.NetworkType)
+			copied := network
+			privateNetworks[row.ResourceId] = &copied
+		}
+	}
+	privateNetworkMutex.Unlock()
+
+	for _, network := range privateNetworkFetchAll() {
+		if network.Status.CidrBlock.Present {
+			continue
+		}
+
+		privateNetworkImportLegacy(network)
+	}
 }
 
-func privateNetworkFetchAll() {
+func privateNetworkFetchAll() []orc.PrivateNetwork {
+	var result []orc.PrivateNetwork
 	next := ""
 
 	for {
 		request := orc.PrivateNetworksControlBrowseRequest{Next: util.OptStringIfNotEmpty(next)}
+		request.IncludeOthers = true
 		page, err := orc.PrivateNetworksControlBrowse.Invoke(request)
 
 		if err != nil {
-			break
+			log.Fatal("Failed to fetch private networks from Core: %v", err)
 		}
 
-		for i := 0; i < len(page.Items); i++ {
-			network := &page.Items[i]
-			privateNetworks[network.Id] = network
-		}
+		result = append(result, page.Items...)
 
 		if !page.Next.Present {
 			break
 		}
 		next = page.Next.Value
 	}
+
+	return result
 }
 
 func PrivateNetworkTrackNew(network orc.PrivateNetwork) {
+	mutationLock := privateNetworkCacheMutationLock(network.Id)
+	mutationLock.Lock()
+	defer mutationLock.Unlock()
+
+	cacheLive := false
+	db.NewTx0(func(tx *db.Transaction) {
+		cacheLive = false
+
+		row, found := privateNetworkSelectNetwork(tx, network.Id)
+		if !found {
+			return
+		}
+
+		privateNetworkTrackExisting(tx, &network, row, &cacheLive, true)
+	})
+
 	privateNetworkMutex.Lock()
-	privateNetworks[network.Id] = &network
+	if cacheLive {
+		copied := network
+		privateNetworks[network.Id] = &copied
+		delete(privateNetworkDeleted, network.Id)
+	} else {
+		delete(privateNetworks, network.Id)
+	}
 	privateNetworkMutex.Unlock()
+}
+
+func privateNetworkImportLegacy(network orc.PrivateNetwork) {
+	mutationLock := privateNetworkCacheMutationLock(network.Id)
+	mutationLock.Lock()
+	defer mutationLock.Unlock()
+
+	privateNetworkMutex.Lock()
+	_, deleted := privateNetworkDeleted[network.Id]
+	privateNetworkMutex.Unlock()
+	if deleted {
+		return
+	}
 
 	jsonified, _ := json.Marshal(network)
+	workspace := PrivateNetworkWorkspaceFromOwner(network.Owner)
 
+	cacheLive := false
 	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
+		cacheLive = false
+
+		row, found := privateNetworkSelectNetwork(tx, network.Id)
+		if found {
+			privateNetworkTrackExisting(tx, &network, row, &cacheLive, false)
+			return
+		}
+
+		privateNetworkLockName(tx)
+		row, found = privateNetworkSelectNetwork(tx, network.Id)
+		if found {
+			privateNetworkTrackExisting(tx, &network, row, &cacheLive, false)
+			return
+		}
+
+		conflictCount, _ := db.Get[struct{ Count int }](
 			tx,
 			`
-				insert into tracked_private_networks(resource_id, created_by, project_id, resource)
-				values (:resource_id, :created_by, :project_id, :resource)
-				on conflict (resource_id) do update set
-					resource = excluded.resource,
-					created_by = excluded.created_by,
-					project_id = excluded.project_id
+				select count(*) as count
+				from
+					tracked_private_networks
+				where
+					resource_id != :resource_id
+					and lower(coalesce(nullif(resource->'status'->>'subdomain', ''), resource->'specification'->>'subdomain')) = lower(:subdomain)
 			`,
 			db.Params{
 				"resource_id": network.Id,
-				"created_by":  network.Owner.CreatedBy,
-				"project_id":  network.Owner.Project.Value,
-				"resource":    string(jsonified),
+				"subdomain":   network.Status.Subdomain,
 			},
 		)
-	})
-}
+		if conflictCount.Count > 0 {
+			log.Warn("Skipping import of private network %s: the subdomain is already in use", network.Id)
+			return
+		}
 
-func PrivateNetworkDelete(target *orc.PrivateNetwork) *util.HttpError {
-	if len(target.Status.Members) > 0 {
-		return util.UserHttpError("This private network is currently in use by job: %v", strings.Join(target.Status.Members, ", "))
-	}
-
-	privateNetworkMutex.Lock()
-
-	delete(privateNetworks, target.Id)
-
-	db.NewTx0(func(tx *db.Transaction) {
 		db.Exec(
 			tx,
 			`
-				delete from tracked_private_networks
-				where resource_id = :id
+				insert into tracked_private_networks(resource_id, created_by, project_id, resource, cidr_block, state, workspace_id, network_type)
+				values (:resource_id, :created_by, :project_id, :resource, null, 'ready', :workspace_id, :network_type)
 			`,
 			db.Params{
-				"id": target.Id,
+				"resource_id":  network.Id,
+				"created_by":   network.Owner.CreatedBy,
+				"project_id":   network.Owner.Project.Value,
+				"resource":     string(jsonified),
+				"workspace_id": workspace.String(),
+				"network_type": string(network.Specification.EffectiveType()),
 			},
 		)
+		cacheLive = true
 	})
 
+	privateNetworkMutex.Lock()
+	if cacheLive {
+		copied := network
+		privateNetworks[network.Id] = &copied
+		delete(privateNetworkDeleted, network.Id)
+	} else {
+		delete(privateNetworks, network.Id)
+	}
 	privateNetworkMutex.Unlock()
-	return nil
+}
+
+func privateNetworkTrackExisting(
+	tx *db.Transaction,
+	network *orc.PrivateNetwork,
+	row privateNetworkTrackedRow,
+	cacheLive *bool,
+	persist bool,
+) {
+	if row.State == PrivateNetworkStateDeleting {
+		return
+	}
+
+	var stored orc.PrivateNetwork
+	if !privateNetworkUnmarshalResource(row.Resource, &stored) {
+		stored = *network
+	}
+
+	merged := *network
+	merged.Owner = stored.Owner
+	merged.Status.Subdomain = stored.Status.Subdomain
+	merged.Specification.Cidr = stored.Specification.Cidr
+	merged.Status.CidrBlock = util.SqlNullToOpt(row.CidrBlock)
+	if row.NetworkType != "" {
+		merged.Specification.Type = orc.NetworkType(row.NetworkType)
+	} else {
+		merged.Specification.Type = stored.Specification.EffectiveType()
+	}
+
+	if persist {
+		mergedJson, _ := json.Marshal(merged)
+		db.Exec(
+			tx,
+			`
+				update tracked_private_networks
+				set
+					resource = :resource
+				where
+					resource_id = :resource_id
+					and state != 'deleting'
+			`,
+			db.Params{
+				"resource_id": network.Id,
+				"resource":    string(mergedJson),
+			},
+		)
+	}
+
+	*cacheLive = true
+	*network = merged
 }
 
 func PrivateNetworkRetrieve(id string) (orc.PrivateNetwork, bool) {
@@ -110,39 +526,416 @@ func PrivateNetworkRetrieve(id string) (orc.PrivateNetwork, bool) {
 		return *res, true
 	}
 
-	request := orc.PrivateNetworksControlRetrieveRequest{Id: id}
-	network, err := orc.PrivateNetworksControlRetrieve.Invoke(request)
-	if err != nil {
+	mutationLock := privateNetworkCacheMutationLock(id)
+	mutationLock.Lock()
+	defer mutationLock.Unlock()
+
+	row, found := db.NewTx2(func(tx *db.Transaction) (privateNetworkTrackedRow, bool) {
+		return privateNetworkSelectNetwork(tx, id)
+	})
+	if !found {
 		return orc.PrivateNetwork{}, false
 	}
 
-	PrivateNetworkTrackNew(network)
+	if row.State == PrivateNetworkStateDeleting {
+		return orc.PrivateNetwork{}, false
+	}
+
+	var network orc.PrivateNetwork
+	if !privateNetworkUnmarshalResource(row.Resource, &network) || network.Id != id {
+		return orc.PrivateNetwork{}, false
+	}
+
+	network.Status.CidrBlock = util.SqlNullToOpt(row.CidrBlock)
+	network.Specification.Type = privateNetworkTypeFromRow(row.NetworkType)
+
+	privateNetworkMutex.Lock()
+	if existing, ok := privateNetworks[id]; ok {
+		privateNetworkMutex.Unlock()
+		return *existing, true
+	}
+
+	copied := network
+	privateNetworks[id] = &copied
+	delete(privateNetworkDeleted, id)
+	privateNetworkMutex.Unlock()
+
 	return network, true
 }
 
-func PrivateNetworkRetrieveUsedCount(owner orc.ResourceOwner) int {
-	return db.NewTx[int](func(tx *db.Transaction) int {
-		row, _ := db.Get[struct{ Count int }](
+func privateNetworkOptFromSql(value sql.Null[string]) util.Option[string] {
+	if value.Valid {
+		return util.OptValue(value.V)
+	}
+
+	return util.OptNone[string]()
+}
+
+func privateNetworkSelectNetwork(tx *db.Transaction, networkId string) (privateNetworkTrackedRow, bool) {
+	row, found := db.Get[privateNetworkTrackedRow](
+		tx,
+		`
+			select
+				resource_id,
+				created_by,
+				project_id,
+				resource,
+				cidr_block::text as cidr_block,
+				state,
+				workspace_id,
+				network_type
+			from
+				tracked_private_networks
+			where
+				resource_id = :resource_id
+			for update
+		`,
+		db.Params{"resource_id": networkId},
+	)
+	return row, found
+}
+
+func privateNetworkLockPools(tx *db.Transaction) {
+	settings := privateNetworkCurrentSettings()
+	pools := slices.Clone(settings.Pools)
+	pools = append(pools, settings.Infiniband.Pools...)
+	for _, pool := range pools {
+		db.Exec(
 			tx,
 			`
-				select count(*) as count
-				from tracked_private_networks
-				where
-					(
-						coalesce(:project, '') = ''
-						and coalesce(project_id, '') = ''
-						and created_by = :created_by
-					)
-					or (
-						:project != ''
-						and project_id = :project
-					)
+				select pg_advisory_xact_lock(:namespace, :pool_key)
 			`,
 			db.Params{
-				"created_by": owner.CreatedBy,
-				"project":    owner.Project.Value,
+				"namespace": privateNetworkAdvisoryNamespace,
+				"pool_key":  int32(privateNetworkAddrToUint32(pool.Addr())),
 			},
 		)
-		return row.Count
+	}
+}
+
+func privateNetworkLockName(tx *db.Transaction) {
+	db.Exec(
+		tx,
+		`
+			select pg_advisory_xact_lock(:namespace, :name_key)
+		`,
+		db.Params{
+			"namespace": privateNetworkNameAdvisoryNamespace,
+			"name_key":  1,
+		},
+	)
+}
+
+func privateNetworkSortNetworkIds(ids []string) {
+	slices.SortFunc(ids, func(a, b string) int {
+		aValue, _ := strconv.ParseUint(a, 10, 64)
+		bValue, _ := strconv.ParseUint(b, 10, 64)
+		if aValue != bValue {
+			if aValue < bValue {
+				return -1
+			}
+			return 1
+		}
+		return strings.Compare(a, b)
 	})
+}
+
+func privateNetworkAddrToUint32(addr netip.Addr) uint32 {
+	bytes := addr.As4()
+	return binary.BigEndian.Uint32(bytes[:])
+}
+
+func privateNetworkUint32ToAddr(value uint32) netip.Addr {
+	var bytes [4]byte
+	binary.BigEndian.PutUint32(bytes[:], value)
+	return netip.AddrFrom4(bytes)
+}
+
+func privateNetworkCidrRange(prefix netip.Prefix) (uint64, uint64) {
+	first := uint64(privateNetworkAddrToUint32(prefix.Addr()))
+	if prefix.Bits() == 0 {
+		return 0, 0xFFFFFFFF
+	}
+
+	mask := uint64(0xFFFFFFFF) << uint64(32-prefix.Bits())
+	masked := first & mask
+	return masked, masked | (^mask & 0xFFFFFFFF)
+}
+
+func privateNetworkPrefixOverlapsAny(candidate netip.Prefix, others []netip.Prefix) bool {
+	for _, other := range others {
+		if orc.PrivateNetworkCidrsOverlap(candidate, other) {
+			return true
+		}
+	}
+	return false
+}
+
+func privateNetworkAlignUp(value, alignment uint64) uint64 {
+	if alignment == 0 {
+		return value
+	}
+
+	remainder := value % alignment
+	if remainder == 0 {
+		return value
+	}
+
+	return value + (alignment - remainder)
+}
+
+func privateNetworkValidateHostAddress(cidr netip.Prefix, value string) (netip.Addr, *util.HttpError) {
+	addr, ok := orc.PrivateNetworkParseIpv4(value)
+	if !ok {
+		return netip.Addr{}, util.UserHttpError("%s is not a valid IPv4 address", value)
+	}
+
+	first, last := privateNetworkCidrRange(cidr)
+	numeric := uint64(privateNetworkAddrToUint32(addr))
+	if numeric < first || numeric > last {
+		return netip.Addr{}, util.UserHttpError("%s is not inside the network %s", value, cidr.String())
+	}
+
+	if numeric == first {
+		return netip.Addr{}, util.UserHttpError("%s is the network address of %s", value, cidr.String())
+	}
+
+	if numeric == last {
+		return netip.Addr{}, util.UserHttpError("%s is the broadcast address of %s", value, cidr.String())
+	}
+
+	if numeric == first+1 {
+		return netip.Addr{}, util.UserHttpError("%s is the gateway address of %s", value, cidr.String())
+	}
+
+	return addr, nil
+}
+
+func privateNetworkAllocateLowestFreeAddress(cidr netip.Prefix, used map[string]struct{}) (string, bool) {
+	first, last := privateNetworkCidrRange(cidr)
+	for candidate := first + 2; candidate < last; candidate++ {
+		address := privateNetworkUint32ToAddr(uint32(candidate)).String()
+		if _, taken := used[address]; !taken {
+			return address, true
+		}
+	}
+
+	return "", false
+}
+
+type PrivateNetworkSnapshotNetwork struct {
+	ResourceId  string
+	Subdomain   string
+	CidrBlock   util.Option[string]
+	State       string
+	WorkspaceId string
+	NetworkType orc.NetworkType
+}
+
+type privateNetworkSnapshotRow struct {
+	ResourceId  string
+	Subdomain   string
+	CidrBlock   sql.Null[string]
+	State       string
+	WorkspaceId string
+	NetworkType string
+}
+
+func (row privateNetworkSnapshotRow) toSnapshot() PrivateNetworkSnapshotNetwork {
+	return PrivateNetworkSnapshotNetwork{
+		ResourceId:  row.ResourceId,
+		Subdomain:   row.Subdomain,
+		CidrBlock:   privateNetworkOptFromSql(row.CidrBlock),
+		State:       row.State,
+		WorkspaceId: row.WorkspaceId,
+		NetworkType: privateNetworkTypeFromRow(row.NetworkType),
+	}
+}
+
+func PrivateNetworkSnapshotNetworks() []PrivateNetworkSnapshotNetwork {
+	return db.NewTx(func(tx *db.Transaction) []PrivateNetworkSnapshotNetwork {
+		rows := db.Select[privateNetworkSnapshotRow](
+			tx,
+			`
+				select
+					resource_id,
+					coalesce(nullif(resource->'status'->>'subdomain', ''), resource->'specification'->>'subdomain') as subdomain,
+					cidr_block::text as cidr_block,
+					state,
+					workspace_id,
+					network_type
+				from
+					tracked_private_networks
+				order by
+					resource_id
+			`,
+			db.Params{},
+		)
+		var result []PrivateNetworkSnapshotNetwork
+		for _, row := range rows {
+			result = append(result, row.toSnapshot())
+		}
+		return result
+	})
+}
+
+func PrivateNetworkSnapshotRetrieve(networkId string) (PrivateNetworkSnapshotNetwork, bool) {
+	return db.NewTx2(func(tx *db.Transaction) (PrivateNetworkSnapshotNetwork, bool) {
+		row, found := db.Get[privateNetworkSnapshotRow](
+			tx,
+			`
+				select
+					resource_id,
+					coalesce(nullif(resource->'status'->>'subdomain', ''), resource->'specification'->>'subdomain') as subdomain,
+					cidr_block::text as cidr_block,
+					state,
+					workspace_id,
+					network_type
+				from
+					tracked_private_networks
+				where
+					resource_id = :resource_id
+			`,
+			db.Params{"resource_id": networkId},
+		)
+		if !found {
+			return PrivateNetworkSnapshotNetwork{}, false
+		}
+
+		return row.toSnapshot(), true
+	})
+}
+
+type PrivateNetworkPoolUtilization struct {
+	Pool        string
+	NetworkType orc.NetworkType
+	PrefixLen   int
+	TotalBlocks int
+	UsedBlocks  int
+}
+
+func PrivateNetworkSnapshotPoolUtilization() []PrivateNetworkPoolUtilization {
+	settings := privateNetworkCurrentSettings()
+	if len(settings.Pools) == 0 && (!settings.Infiniband.Enabled || len(settings.Infiniband.Pools) == 0) {
+		return nil
+	}
+
+	rows := db.NewTx(func(tx *db.Transaction) []struct{ CidrBlock string } {
+		return db.Select[struct{ CidrBlock string }](
+			tx,
+			`
+				select
+					cidr_block::text as cidr_block
+				from
+					tracked_private_networks
+				where
+					cidr_block is not null
+			`,
+			db.Params{},
+		)
+	})
+
+	var used []netip.Prefix
+	for _, row := range rows {
+		if parsed, ok := orc.PrivateNetworkParseCidr(row.CidrBlock); ok {
+			used = append(used, parsed)
+		}
+	}
+
+	result := privateNetworkPoolUtilizationForPools(
+		settings.Pools,
+		settings.DefaultPrefixLen,
+		orc.NetworkTypeEthernet,
+		used,
+	)
+
+	if settings.Infiniband.Enabled {
+		result = append(result, privateNetworkPoolUtilizationForPools(
+			settings.Infiniband.Pools,
+			settings.Infiniband.PrefixLen,
+			orc.NetworkTypeInfiniband,
+			used,
+		)...)
+	}
+
+	return result
+}
+
+func privateNetworkPoolUtilizationForPools(
+	pools []netip.Prefix,
+	prefixLen int,
+	networkType orc.NetworkType,
+	used []netip.Prefix,
+) []PrivateNetworkPoolUtilization {
+	blockSize := uint64(1) << (32 - uint64(prefixLen))
+	var result []PrivateNetworkPoolUtilization
+	for _, pool := range pools {
+		poolFirst, poolLast := privateNetworkCidrRange(pool)
+		total := int((poolLast - poolFirst + 1) / blockSize)
+
+		var intervals [][2]uint64
+		for _, usedPrefix := range used {
+			usedFirst, usedLast := privateNetworkCidrRange(usedPrefix)
+			if usedLast < poolFirst || usedFirst > poolLast {
+				continue
+			}
+
+			clipFirst := usedFirst
+			if clipFirst < poolFirst {
+				clipFirst = poolFirst
+			}
+
+			clipLast := usedLast
+			if clipLast > poolLast {
+				clipLast = poolLast
+			}
+
+			intervals = append(intervals, [2]uint64{clipFirst / blockSize, clipLast / blockSize})
+		}
+
+		slices.SortFunc(intervals, func(a, b [2]uint64) int {
+			if a[0] != b[0] {
+				if a[0] < b[0] {
+					return -1
+				}
+				return 1
+			}
+			return 0
+		})
+
+		usedBlocks := 0
+		openFirst := uint64(0)
+		openLast := uint64(0)
+		open := false
+		for _, interval := range intervals {
+			if open && interval[0] <= openLast+1 {
+				if interval[1] > openLast {
+					openLast = interval[1]
+				}
+				continue
+			}
+
+			if open {
+				usedBlocks += int(openLast - openFirst + 1)
+			}
+
+			openFirst = interval[0]
+			openLast = interval[1]
+			open = true
+		}
+
+		if open {
+			usedBlocks += int(openLast - openFirst + 1)
+		}
+
+		result = append(result, PrivateNetworkPoolUtilization{
+			Pool:        pool.String(),
+			NetworkType: networkType,
+			PrefixLen:   prefixLen,
+			TotalBlocks: total,
+			UsedBlocks:  usedBlocks,
+		})
+	}
+
+	return result
 }

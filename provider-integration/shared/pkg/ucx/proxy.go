@@ -3,7 +3,9 @@ package ucx
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -29,11 +31,12 @@ type ProxyUpstreamSelection struct {
 type Proxy struct {
 	upstreamUrl string
 
-	mu       sync.RWMutex
-	handlers map[string]RpcHandler
-	auth     ProxyAuthHandler
-	sysHello ProxySysHelloHandler
-	upstream ProxyUpstreamSelector
+	mu        sync.RWMutex
+	handlers  map[string]RpcHandler
+	auth      ProxyAuthHandler
+	sysHello  ProxySysHelloHandler
+	upstream  ProxyUpstreamSelector
+	dialGrace time.Duration
 
 	nextSyntheticSeq atomic.Int64
 }
@@ -69,7 +72,41 @@ func (p *Proxy) RegisterUpstreamSelector(selector ProxyUpstreamSelector) {
 	p.upstream = selector
 }
 
+func (p *Proxy) SetUpstreamDialGrace(grace time.Duration) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.dialGrace = grace
+}
+
+func (p *Proxy) upstreamDialGrace() time.Duration {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.dialGrace
+}
+
+func (p *Proxy) dialUpstream(url string, header http.Header, timeout time.Duration) (*ws.Conn, *http.Response, error) {
+	var conn *ws.Conn
+	var response *http.Response
+	var err error
+
+	if timeout <= 0 {
+		conn, response, err = ws.DefaultDialer.Dial(url, header)
+	} else {
+		dialer := ws.Dialer{
+			Proxy:            http.ProxyFromEnvironment,
+			HandshakeTimeout: timeout,
+			NetDialContext:   (&net.Dialer{Timeout: timeout}).DialContext,
+		}
+		conn, response, err = dialer.Dial(url, header)
+	}
+	if err == nil && conn != nil {
+		conn.SetReadLimit(maxFrameBytes)
+	}
+	return conn, response, err
+}
+
 func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
+	downstream.SetReadLimit(maxFrameBytes)
 	downstreamToken, ok := p.authenticateDownstream(downstream)
 	if !ok {
 		log.Warn("UCX proxy: downstream authentication failed")
@@ -109,7 +146,9 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 
 			decoded, err := FrameDecode(rawMessage)
 			if err != nil {
-				continue
+				log.Warn("UCX proxy: failed to decode downstream frame: %v", err)
+				cancel()
+				return
 			}
 
 			select {
@@ -148,6 +187,7 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 	upstreamOutgoing := (chan Frame)(nil)
 	upstreamClosed := (<-chan struct{})(nil)
 	reconnectTimer := time.After(0)
+	upstreamDeadline := time.Time{}
 	acknowledgedDownstream := false
 
 	pendingDownstream := []Frame{}
@@ -159,9 +199,6 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 	for {
 		select {
 		case <-ctx.Done():
-			if upstreamOutgoing != nil {
-				close(upstreamOutgoing)
-			}
 			if connectedUpstream != nil {
 				_ = connectedUpstream.Close()
 			}
@@ -186,9 +223,6 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 
 		case <-upstreamClosed:
 			log.Warn("UCX proxy: upstream closed, forcing downstream reconnect for fresh auth")
-			if upstreamOutgoing != nil {
-				close(upstreamOutgoing)
-			}
 			if connectedUpstream != nil {
 				_ = connectedUpstream.Close()
 			}
@@ -223,6 +257,11 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 						latestModel[key] = cloneValue(value)
 					}
 				}
+
+			case OpStringAppend:
+				if current, ok := latestModel[frame.StringAppend.Path]; ok && current.Kind == ValueString {
+					latestModel[frame.StringAppend.Path] = VString(current.String + frame.StringAppend.Chunk)
+				}
 			}
 
 			if p.handleProxyRpc(ctx, frame, upstreamOutgoing) {
@@ -254,19 +293,36 @@ func (p *Proxy) Run(ctx context.Context, downstream *ws.Conn) error {
 				header = http.Header{"Authorization": []string{fmt.Sprintf("Bearer %s", selection.UpstreamToken)}}
 			}
 
-			upstream, _, err := ws.DefaultDialer.Dial(selection.UpstreamUrl, header)
+			dialTimeout := time.Duration(0)
+			if dialGrace := p.upstreamDialGrace(); dialGrace > 0 {
+				if upstreamDeadline.IsZero() {
+					upstreamDeadline = time.Now().Add(dialGrace)
+				}
+				remaining := time.Until(upstreamDeadline)
+				if remaining <= 0 {
+					log.Warn("UCX proxy: the upstream %q stayed unreachable for %s, ending the session", selection.UpstreamUrl, dialGrace)
+					_ = downstream.WriteMessage(ws.TextMessage, []byte("Forbidden"))
+					cancel()
+					continue
+				}
+				dialTimeout = remaining
+			}
+
+			upstream, _, err := p.dialUpstream(selection.UpstreamUrl, header, dialTimeout)
 			if err != nil {
 				log.Warn("UCX proxy: failed to dial upstream %q: %v", selection.UpstreamUrl, err)
 				reconnectTimer = time.After(1 * time.Second)
 				continue
 			}
+			upstreamDeadline = time.Time{}
 
 			downstreamHelloFrame.SysHello.Payload = selection.UpstreamSysHello
 			encodedHello, err := FrameEncode(downstreamHelloFrame)
 			if err != nil {
 				log.Warn("UCX proxy: failed to encode upstream SysHello: %v", err)
 				_ = upstream.Close()
-				reconnectTimer = time.After(1 * time.Second)
+				_ = downstream.WriteMessage(ws.TextMessage, []byte("Forbidden"))
+				cancel()
 				continue
 			}
 
@@ -398,7 +454,8 @@ func startUpstreamPumps(ctx context.Context, conn *ws.Conn) (<-chan Frame, chan 
 			decoded, err := FrameDecode(rawMessage)
 			if err != nil {
 				log.Warn("UCX proxy: failed to decode upstream frame: %v", err)
-				continue
+				signalClosed()
+				return
 			}
 
 			select {
@@ -475,17 +532,20 @@ func sendRehydrateModel(ctx context.Context, p *Proxy, upstreamOutgoing chan<- F
 
 func collectInputBindPaths(root UiNode) []string {
 	rehydratable := map[string]bool{
-		"input_text":               true,
-		"input_number":             true,
-		"input_slider":             true,
-		"inference_chat_composer":  true,
-		"inference_image_composer": true,
-		"checkbox":                 true,
-		"textarea":                 true,
-		"select":                   true,
-		"toggle":                   true,
-		"radio_group":              true,
-		"list":                     true,
+		"input_text":                true,
+		"input_number":              true,
+		"input_slider":              true,
+		"inference_chat_composer":   true,
+		"inference_image_composer":  true,
+		"checkbox":                  true,
+		"textarea":                  true,
+		"select":                    true,
+		"enum_selector":             true,
+		"service_provider_selector": true,
+		"toggle":                    true,
+		"radio_group":               true,
+		"list":                      true,
+		"machine_type_selector":     true,
 	}
 
 	seen := map[string]bool{}
@@ -529,6 +589,15 @@ func modelValueAtPath(model map[string]Value, path string) (Value, bool) {
 	}
 
 	for i := 1; i < len(parts); i++ {
+		if current.Kind == ValueList && current.List != nil {
+			index, err := strconv.Atoi(parts[i])
+			if err != nil || index < 0 || index >= len(current.List) {
+				return Value{}, false
+			}
+			current = current.List[index]
+			continue
+		}
+
 		if current.Kind != ValueObject || current.Object == nil {
 			return Value{}, false
 		}
@@ -629,7 +698,7 @@ func readInitialDownstreamSysHello(downstream *ws.Conn) (Frame, bool) {
 		decoded, err := FrameDecode(rawMessage)
 		if err != nil {
 			log.Warn("UCX proxy: failed to decode downstream frame while waiting for SysHello: %v", err)
-			continue
+			return Frame{}, false
 		}
 
 		if decoded.Opcode != OpSysHello {
@@ -695,7 +764,9 @@ func proxyReadFrames(ctx context.Context, cancel context.CancelFunc, conn *ws.Co
 
 		decoded, err := FrameDecode(rawMessage)
 		if err != nil {
-			continue
+			log.Warn("UCX proxy: failed to decode frame: %v", err)
+			cancel()
+			return
 		}
 
 		select {

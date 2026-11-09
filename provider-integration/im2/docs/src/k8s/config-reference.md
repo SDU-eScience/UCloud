@@ -229,10 +229,13 @@ services:
 
     inference:
       enabled: true
+      authority: "ai.example.org"
       provider: development
       development:
         provider: localai
         server: "http://localai:8080/v1"
+      externalHosts:
+        - inference.example.org
       access:
         administrators: []
         testers: []
@@ -304,7 +307,6 @@ services:
           unit: Cpu
           interval: Hourly
         systemReservedCpuMillis: 500 # category-level (default if omitted)
-        # systemReservedCpuMillisPerCore: 42 # optional override, mutually exclusive with systemReservedCpuMillis
 
         groups:
           general:
@@ -532,6 +534,8 @@ Optional path to Integration Module source code (used for development/diagnostic
 
 Inference feature configuration. When enabled, IM stores inference model metadata in its internal model catalog and exposes model catalog management through the CLI.
 
+The [AI inference](./inference/overview.md) article explains the feature, [Model discovery and catalog](./inference/catalog.md) explains the catalog, and [Dynamo deployments](./inference/dynamo.md) explains the Dynamo backend.
+
 <dl>
 <dt>
 
@@ -539,6 +543,20 @@ Inference feature configuration. When enabled, IM stores inference model metadat
 
 </dt>
 <dd>Enable/disable inference features.</dd>
+
+<dt>
+
+`authority` *optional*
+
+</dt>
+<dd>
+
+Public hostname of the inference API. Defaults to `chat` followed by `services.compute.web.suffix`.
+
+The hostname must resolve to the gateway of the IM, next to the `web` hostname.
+IM serves the OpenAI-compatible API on this hostname. Its root path redirects to the playground in the UCloud web interface.
+
+</dd>
 
 <dt>
 
@@ -586,10 +604,14 @@ Development backend provider. Set to `localai` to enable LocalAI startup/bootstr
 
 Base URL of the OpenAI-compatible inference backend, for example `http://localai:8080/v1`.
 
+Every model call must match this URL exactly, including the scheme, the host and the path. A value that no longer matches the backend fails at request time, not at startup.
+
+Add the models of this backend with `ucloud inference models update`. See [Creating an entry](./inference/catalog.md#creating-an-entry).
+
 </dd>
 </dl>
 
-For compatibility with older configuration files, `backendServer` and `developmentProvider` can still be set directly under `inference` when `development` is omitted.
+For compatibility with older configuration files, `backendServer` and `developmentProvider` can still be set directly under `inference` when `development` is omitted. Both keys are deprecated. Use the nested `development` object in new configuration files.
 
 </dd>
 
@@ -610,7 +632,7 @@ Dynamo inference discovery configuration.
 </dt>
 <dd>
 
-Kubernetes namespace where Dynamo frontend services are discovered. IM discovers services in this namespace with the `-frontend` suffix and registers models exposed by their OpenAI-compatible `/v1/models` endpoint.
+Kubernetes namespace where Dynamo frontend services are discovered. IM discovers services in this namespace with the `-frontend` suffix and registers models exposed by their OpenAI-compatible `/v1/models` endpoint. See [Dynamo deployments](./inference/dynamo.md) for a worked example.
 
 </dd>
 </dl>
@@ -780,6 +802,40 @@ Defaults to `public-ip` if omitted.
 
 </dd>
 </dl>
+
+</dd>
+
+<dt>
+
+`privateNetworks` *optional*
+
+</dt>
+<dd>
+
+Controls Networks. To enable InfiniBand Networks, enable the feature and configure IPv4 address pools for both Ethernet and InfiniBand:
+
+```yaml
+privateNetworks:
+  enabled: true
+  cidrPools: [10.200.0.0/16]
+  infiniband:
+    enabled: true
+    cidrPools: [10.201.0.0/16]
+    rdmaResourceName: nvidia.com/rdma_shared
+    deviceLabel: ucloud.dk/ibdev
+```
+
+Replace the example address pools with ranges suitable for your cluster. InfiniBand networks receive a /24 from the InfiniBand pool. Automatic reclaim is enabled by default. The `rdmaResourceName` and `deviceLabel` values shown are the defaults.
+
+Each InfiniBand-capable node must advertise the RDMA resource and have a device label. The label value is a dash-separated list of device names. Device names cannot contain dashes because dashes are used as separators. IM uses the first device, which must be the same across all eligible nodes. Kubernetes limits label values to 63 characters.
+
+For example:
+
+```shell
+kubectl label node NODE ucloud.dk/ibdev=ib0-ib1-ib2
+```
+
+See [Networks](./networks.md) for the architecture.
 
 </dd>
 
@@ -1122,20 +1178,43 @@ If present, it must be a dictionary of groups. Each group defines compatible mac
 </dt>
 <dd>
 
-Category-level CPU reservation for system overhead, in millicores. Default is `500` if neither reservation field is set.
+Additional CPU headroom per physical node, in millicores. The default is `500`. The value must not be negative.
+Set this option on the machine category, not inside a group.
 
-</dd>
+This headroom is subtracted from Kubernetes allocatable CPU. Do not include CPU that Kubernetes has already removed
+from allocatable. Use the headroom for host services and infrastructure requests that the integration cannot observe.
+Requests from pods in the application and task namespaces are counted separately; do not include those requests again
+in this setting.
 
-<dt>
+Advertised product sizes do not change. The integration calculates CPU requests for each placement using
+the selected node's actual capacity. CPU limits remain at the advertised allocation:
 
-`systemReservedCpuMillisPerCore` *optional*
+```text
+jobBudgetMillis = allocatableMillis - systemReservedCpuMillis - observedInfrastructureCpuMillis
+cpuRequestMillis = floor(advertisedCpuMillis * jobBudgetMillis / capacityMillis)
+cpuLimitMillis = advertisedCpuMillis
+```
 
-</dt>
-<dd>
+The job budget is clamped to zero. Placements that would receive a zero CPU request are not scheduled. For fractional
+CPU products, `advertisedCpuMillis` includes the product fraction. GPU products use their attached CPU count without
+applying the GPU fraction to CPU.
 
-Category-level per-core CPU reservation (millicores per virtual core). Overrides the computed per-core reservation behavior.
+The scheduler checks advertised CPU allocations against physical capacity and actual pod requests, including pending
+placements, against allocatable CPU minus the configured headroom. Node size is never inferred from the largest product,
+so a category can contain nodes with different CPU capacities.
 
-`systemReservedCpuMillis` and `systemReservedCpuMillisPerCore` are mutually exclusive.
+For example, a node with 384 CPUs of capacity, 376 allocatable CPUs, `systemReservedCpuMillis: 2000`, and no observed
+infrastructure requests has a 374-CPU job budget. A product advertising 48 CPUs receives a CPU request of 46.75 CPUs
+and a CPU limit of 48 CPUs. Eight such products fill the node's eight GPUs while their requests stay within the CPU budget.
+
+Limits cap CPU bandwidth; they do not reserve specific CPUs for system services. Jobs can use CPU above their requests,
+up to their advertised limits and subject to CPU-set restrictions and contention. The configured headroom is scheduling
+headroom, not a runtime CPU reservation. When CPU requests differ from limits, pods do not qualify for Guaranteed QoS
+or exclusive CPU allocation through the static CPU Manager. Existing pods keep their current requests and limits;
+the new request calculation applies when a placement is created.
+
+The previous `systemReservedCpuMillisPerCore` option is no longer supported. Replace it with additional per-node
+headroom in `systemReservedCpuMillis`, and review existing fixed reservations for the new meaning.
 
 </dd>
 </dl>

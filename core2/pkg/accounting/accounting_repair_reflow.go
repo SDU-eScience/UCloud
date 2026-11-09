@@ -164,7 +164,10 @@ func RepairAccountingBucketReflow(provider, category, modeValue string, apply bo
 					continue
 				}
 				if scope.LastUpdatedAt.After(nowRow.Now) {
-					result.Blockers = append(result.Blockers, fmt.Sprintf("wallet %d scope %q was updated in the future at %s", walletId, key, scope.LastUpdatedAt.UTC().Format(time.RFC3339Nano)))
+					result.Blockers = append(
+						result.Blockers,
+						fmt.Sprintf("wallet %d scope %q was updated in the future at %s", walletId, key, scope.LastUpdatedAt.UTC().Format(time.RFC3339Nano)),
+					)
 				}
 				var overflow bool
 				scopedTotal, overflow = checkedAccountingAdd(scopedTotal, scope.Usage)
@@ -182,7 +185,10 @@ func RepairAccountingBucketReflow(provider, category, modeValue string, apply bo
 				if len(scopeKeys) != 0 {
 					result.Blockers = append(result.Blockers, fmt.Sprintf("wallet %d has %d scoped usage entries", walletId, len(scopeKeys)))
 				}
-				result.Events = append(result.Events, accountingReflowEvent{At: nowRow.Now, WalletId: walletId, Key: accountingUnscopedRepairKey, Usage: wallet.LocalUsage})
+				result.Events = append(
+					result.Events,
+					accountingReflowEvent{At: nowRow.Now, WalletId: walletId, Key: accountingUnscopedRepairKey, Usage: wallet.LocalUsage},
+				)
 			case accountingReflowAllScoped:
 				// The replayed events replace the persisted local usage.
 			case accountingReflowMixed:
@@ -192,11 +198,17 @@ func RepairAccountingBucketReflow(provider, category, modeValue string, apply bo
 				}
 				unscoped, overflow := checkedAccountingSub(wallet.LocalUsage, scopedTotal)
 				if overflow || unscoped < 0 {
-					result.Blockers = append(result.Blockers, fmt.Sprintf("wallet %d local usage %d is below scoped usage sum %d", walletId, wallet.LocalUsage, scopedTotal))
+					result.Blockers = append(
+						result.Blockers,
+						fmt.Sprintf("wallet %d local usage %d is below scoped usage sum %d", walletId, wallet.LocalUsage, scopedTotal),
+					)
 					continue
 				}
 				if unscoped != 0 {
-					result.Events = append(result.Events, accountingReflowEvent{At: nowRow.Now, WalletId: walletId, Key: accountingUnscopedRepairKey, Usage: unscoped})
+					result.Events = append(
+						result.Events,
+						accountingReflowEvent{At: nowRow.Now, WalletId: walletId, Key: accountingUnscopedRepairKey, Usage: unscoped},
+					)
 					result.SyntheticScopes++
 				}
 			}
@@ -204,7 +216,10 @@ func RepairAccountingBucketReflow(provider, category, modeValue string, apply bo
 
 		for _, allocation := range bucket.AllocationsById {
 			if allocation.Start.After(allocation.End) {
-				result.Blockers = append(result.Blockers, fmt.Sprintf("allocation %d has invalid interval [%s, %s)", allocation.Id, allocation.Start, allocation.End))
+				result.Blockers = append(
+					result.Blockers,
+					fmt.Sprintf("allocation %d has invalid interval [%s, %s)", allocation.Id, allocation.Start, allocation.End),
+				)
 			}
 		}
 		if len(result.Blockers) > 0 {
@@ -304,7 +319,10 @@ func accountingReflowAllocationGrantGiver(bucket *internalBucket, allocation *in
 	return owner.Reference
 }
 
-func recoverAccountingReflowRetiredQuotas(bucket *internalBucket, grantQuotas map[int64][]accountingReflowGrantQuota) ([]accountingReflowRetiredQuotaRecovery, []int64, []string) {
+func recoverAccountingReflowRetiredQuotas(
+	bucket *internalBucket,
+	grantQuotas map[int64][]accountingReflowGrantQuota,
+) ([]accountingReflowRetiredQuotaRecovery, []int64, []string) {
 	allocationIds := make([]accAllocId, 0, len(bucket.AllocationsById))
 	for allocationId := range bucket.AllocationsById {
 		allocationIds = append(allocationIds, allocationId)
@@ -330,9 +348,28 @@ func recoverAccountingReflowRetiredQuotas(bucket *internalBucket, grantQuotas ma
 		} else if bucket.IsCapacityBased() {
 			ignoredCapacity = append(ignoredCapacity, int64(allocation.Id))
 		} else if allocation.GrantedIn.Present {
-			blockers = append(blockers, fmt.Sprintf("retired allocation %d cannot be rewound from retired quota %d and grant application %d has no unambiguous positive request for %s/%s from %q", allocation.Id, allocation.RetiredQuota, grantId, bucket.Category.Provider, bucket.Category.Name, grantGiver))
+			blockers = append(
+				blockers,
+				fmt.Sprintf(
+					"retired allocation %d cannot be rewound from retired quota %d and grant application %d "+
+						"has no unambiguous positive request for %s/%s from %q",
+					allocation.Id,
+					allocation.RetiredQuota,
+					grantId,
+					bucket.Category.Provider,
+					bucket.Category.Name,
+					grantGiver,
+				),
+			)
 		} else {
-			blockers = append(blockers, fmt.Sprintf("retired allocation %d cannot be rewound from retired quota %d and has no grant application", allocation.Id, allocation.RetiredQuota))
+			blockers = append(
+				blockers,
+				fmt.Sprintf(
+					"retired allocation %d cannot be rewound from retired quota %d and has no grant application",
+					allocation.Id,
+					allocation.RetiredQuota,
+				),
+			)
 		}
 	}
 	return recoveries, ignoredCapacity, blockers

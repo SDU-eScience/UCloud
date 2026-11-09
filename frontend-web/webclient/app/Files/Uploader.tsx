@@ -24,6 +24,7 @@ import {
     supportedProtocols,
     Upload,
     uploadCalculateSpeed,
+    uploadIsTerminal,
     UploadState,
     uploadStore,
     uploadTrackProgress,
@@ -99,7 +100,7 @@ async function processUpload(upload: Upload) {
         return;
     }
 
-    if (strategy.protocol !== "CHUNKED" && strategy.protocol !== "WEBSOCKET" && strategy.protocol !== "WEBSOCKET_V1" && strategy.protocol !== "WEBSOCKET_V2") {
+    if (strategy.protocol !== "CHUNKED" && strategy.protocol !== "WEBSOCKET" && strategy.protocol !== "WEBSOCKET_V1" && strategy.protocol !== "WEBSOCKET_V2" && strategy.protocol !== "WEBSOCKET_V3") {
         upload.error = "Upload not supported for this provider";
         upload.state = UploadState.DONE;
         return;
@@ -127,7 +128,7 @@ async function processUpload(upload: Upload) {
 
         upload.resume = protocolHandlerChunkedAndWebSocketV1(reader, upload, strategy, fullFilePath);
         await upload.resume();
-    } else if (strategy.protocol === "WEBSOCKET_V2") {
+    } else if (strategy.protocol === "WEBSOCKET_V2" || strategy.protocol === "WEBSOCKET_V3") {
         upload.initialProgress = 0;
         upload.resume = protocolHandlerWebSocketV2(upload, strategy, upload.folderName ?? "");
         await upload.resume();
@@ -142,6 +143,7 @@ enum FolderUploadMessageType {
     SKIP,
     LISTING,
     FILES_COMPLETED,
+    CLOSE,
     // ADD STUFF HERE
 }
 
@@ -182,6 +184,9 @@ function protocolHandlerWebSocketV2(
 
                 if (!didInit) {
                     didInit = true;
+                    if (strategy.protocol === "WEBSOCKET_V3") {
+                        uploadSocket.send(strategy.token);
+                    }
                     for (let i = 0; i < UploadConfig.MAX_CONCURRENT_UPLOADS_IN_FOLDER; i++) {
                         startLoop(i);
                     }
@@ -204,6 +209,7 @@ function protocolHandlerWebSocketV2(
                 if (fileList == null) {
                     resolve(true);
                     upload.state = UploadState.DONE;
+                    uploadSocket.send(new Uint8Array([FolderUploadMessageType.CLOSE]));
                     uploadSocket.close();
                     return;
                 }
@@ -608,12 +614,14 @@ async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) 
                 processUpload(upload)
                     .then(() => {
                         upload.state = UploadState.DONE;
+                        uploadStore.notifyChanges();
                         setLookForNewUploads(true);
                     })
                     .catch(e => {
                         if (typeof e === "string") {
                             upload.error = e;
                             upload.state = UploadState.DONE;
+                            uploadStore.notifyChanges();
                         }
                     });
             }
@@ -623,6 +631,8 @@ async function startUploads(batch: Upload[], setLookForNewUploads: (b: boolean) 
                 actualUploads[i].state = UploadState.DONE;
                 actualUploads[i].error = errorMessage;
             }
+
+            uploadStore.notifyChanges();
 
             window.dispatchEvent(new CustomEvent<WriteFailure>(FileWriteFailure, {
                 detail: actualUploads.filter(it => it.error),
@@ -736,7 +746,7 @@ const Uploader: React.FunctionComponent = () => {
         e.stopImmediatePropagation();
         e.stopPropagation();
         e.preventDefault();
-        const {path, content} = e.detail;
+        const {path, content, notifyBackgroundTask} = e.detail;
         const allUploads: Upload[] = uploads;
         let didFetch = false;
         const packaged = toPackagedFile(path, content);
@@ -749,6 +759,7 @@ const Uploader: React.FunctionComponent = () => {
             filesDiscovered: 0,
             state: UploadState.PENDING,
             conflictPolicy: "REPLACE",
+            notifyBackgroundTask,
             targetPath: getParentPath(path),
             fileFetcher: async () => {
                 if (didFetch) return null;
@@ -987,7 +998,7 @@ const UploadMoreClass = injectStyle("upload-more", k => `
         text-align: center;
         flex-direction: column;
     }
-    
+
     ${k}[data-has-uploads="true"] {
         display: flex;
         height: 70px;
@@ -1009,12 +1020,12 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
         padding-bottom: 4px;
         margin-bottom: 4px;
     }
-    
+
     ${k} > div > .text {
         margin-top: auto;
         margin-bottom: auto;
         margin-left: 8px;
-        font-size: 12px; 
+        font-size: 12px;
     }
 
     ${k} > div > .text > div:first-child {
@@ -1036,10 +1047,6 @@ export const TaskRowClass = injectStyle("uploader-row", k => `
     }
 `);
 
-
-export function uploadIsTerminal(upload: Upload): boolean {
-    return !upload.paused && (upload.terminationRequested || upload.error != null || upload.state === UploadState.DONE);
-}
 
 function uploadProgressText(progressInBytes: number, fileSizeInBytes: number): string {
     return `${sizeToString(progressInBytes)} / ${sizeToString(fileSizeInBytes)}`
@@ -1086,7 +1093,7 @@ export function UploaderRow({upload, callbacks}: {upload: Upload, callbacks: Upl
             title={title}
             progress={right}
             isPaused={isPaused}
-            pause={upload.uploadResponse?.protocol === "WEBSOCKET_V2" ? undefined : inProgress || isPaused ? (
+            pause={upload.uploadResponse?.protocol === "WEBSOCKET_V2" || upload.uploadResponse?.protocol === "WEBSOCKET_V3" ? undefined : inProgress || isPaused ? (
                 upload.paused ?
                     <Icon cursor="pointer" name="play" onClick={() => callbacks.resumeUploads([upload])} color="primaryMain" /> :
                     <Icon cursor="pointer" name="pauseSolid" onClick={() => callbacks.pauseUploads([upload])} color="primaryMain" />
@@ -1201,7 +1208,6 @@ const UploaderArt: React.FunctionComponent = () => {
 const modalStyle: ReactModal.Styles = ({
     content: {
         ...largeModalStyle.content,
-        left: `calc(50vw - 225px)`,
         minWidth: "250px",
         width: "450px",
         maxWidth: "600px",
@@ -1219,7 +1225,7 @@ const DropZoneWrapper = injectStyle("dropzone-wrapper", k => `
 
 const DropZoneBox = injectStyle("dropzone-box", k => `
     ${k} {
-        width: 100%;        
+        width: 100%;
         display: flex;
         justify-content: center;
     }
@@ -1234,7 +1240,7 @@ const DropZoneBox = injectStyle("dropzone-box", k => `
     }
 `);
 
-const UploadArtWrapper = injectStyle("upload-art", k => `   
+const UploadArtWrapper = injectStyle("upload-art", k => `
     ${k} > svg:nth-child(1) {
         margin-top: -32px;
     }

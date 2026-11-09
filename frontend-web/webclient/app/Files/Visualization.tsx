@@ -11,6 +11,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {injectStyle} from "@/Unstyled";
 import {fetchAll} from "@/Utilities/PageUtilities";
 import {fileName, pathComponents, sizeToString} from "@/Utilities/FileUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {prettyFilePath, usePrettyFilePath} from "@/Files/FilePath";
@@ -33,6 +34,18 @@ interface VisualizationData {
     lastUpdatedAt: number | null;
     fileCount: number | null;
     directoryCount: number | null;
+    complete: boolean;
+    indexing: boolean;
+    waitingForSizes: boolean;
+    failedDrives: number;
+}
+
+interface VisualizationState {
+    path?: string;
+    projectId?: string;
+    data: VisualizationData | null;
+    error?: string;
+    loading: boolean;
 }
 
 interface TreeDatum {
@@ -222,37 +235,34 @@ export default function FilesVisualization(): React.ReactNode {
     const projectId = useProjectId();
     const location = useLocation();
     const navigate = useNavigate();
-    const path = getQueryParam(location.search, "path") ?? undefined;
-    const [data, setData] = useState<VisualizationData | null>(null);
-    const [dataPath, setDataPath] = useState<string>();
-    const [error, setError] = useState<string>();
-    const [loading, setLoading] = useState(true);
+    const requestedPath = getQueryParam(location.search, "path");
+    const path = requestedPath ? "/" + pathComponents(requestedPath).join("/") : undefined;
+    const [state, setState] = useState<VisualizationState>({path, projectId, data: null, loading: true});
+    const current = state.path === path && state.projectId === projectId ? state : null;
+    const data = current?.data ?? null;
+    const error = current?.error;
+    const loading = current?.loading ?? true;
 
     useEffect(() => {
         let alive = true;
         let retryTimer: number | undefined;
-        setLoading(true);
-        setError(undefined);
+        let overviewRetryDelay = 10000;
+        setState({path, projectId, data: null, loading: true});
 
         const load = async () => {
             try {
                 const next = path ? await fetchVisualization(path, projectId) : await fetchDriveOverview(projectId);
                 if (!alive) return;
-                if (path && next.entries.length === 0 && next.lastUpdatedAt == null) {
-                    if (data === null) {
-                        setData(next);
-                        setDataPath(path);
-                    }
+                setState({path, projectId, data: next, loading: false});
+                if (next.indexing) {
                     retryTimer = window.setTimeout(() => void load(), 3000);
-                    return;
+                } else if (next.waitingForSizes) {
+                    retryTimer = window.setTimeout(() => void load(), overviewRetryDelay);
+                    overviewRetryDelay = Math.min(overviewRetryDelay * 2, 60000);
                 }
-                setData(next);
-                setDataPath(path);
-                setLoading(false);
             } catch (cause) {
                 if (alive) {
-                    setError(errorMessageOrDefault(cause, "Unable to load storage usage."));
-                    setLoading(false);
+                    setState({path, projectId, data: null, error: errorMessageOrDefault(cause, "Unable to load storage usage."), loading: false});
                 }
             }
         };
@@ -264,8 +274,8 @@ export default function FilesVisualization(): React.ReactNode {
     }, [path, projectId]);
 
     const openPath = (nextPath?: string) => navigate(AppRoutes.files.visualize(nextPath));
-    const total = dataPath
-        ? data?.entries.find(entry => entry.path === dataPath)?.sizeInBytes ?? 0
+    const total = path
+        ? data?.entries.find(entry => entry.path === path)?.sizeInBytes ?? 0
         : data?.entries.reduce((sum, entry) => sum + entry.sizeInBytes, 0) ?? 0;
 
     return <div className={VisualizationStyle}>
@@ -282,29 +292,35 @@ export default function FilesVisualization(): React.ReactNode {
                     <Box flexGrow={1} />
                     {!data ? null : <>
                         {data.directoryCount == null ? null : <div className="visualization-status">
-                            <span>{data.directoryCount.toLocaleString()} {pluralize(data.directoryCount, "directory", "directories")}</span>
+                            <span>{formatNumber(data.directoryCount)} {pluralize(data.directoryCount, "directory", "directories")}</span>
                         </div>}
 
                         {data.fileCount == null ? null : <div className="visualization-status">
-                            <span>{data.fileCount.toLocaleString()} {pluralize(data.fileCount, "file")}</span>
+                            <span>{formatNumber(data.fileCount)} {pluralize(data.fileCount, "file")}</span>
                         </div>}
 
-                        <div className="visualization-status">
-                            <span>{sizeToString(total)}</span>
-                        </div>
+                        {data.indexing || (!path && !data.complete && data.entries.length === 0) ? null : <div className="visualization-status">
+                            <span>{!path && !data.complete ? `At least ${sizeToString(total)}` : sizeToString(total)}</span>
+                        </div>}
 
                         {data.lastUpdatedAt == null ? null : <div className="visualization-status">
                             <span>Indexed {new Date(data.lastUpdatedAt).toLocaleString()}</span>
                         </div>}
+                        {!data.complete && !data.indexing ? <div className="visualization-status">
+                            <span>{data.waitingForSizes ? "Waiting for some drive sizes" : "Showing a partial visualization"}</span>
+                        </div> : null}
+                        {data.failedDrives > 0 ? <div className="visualization-status">
+                            <span>Unable to load {formatNumber(data.failedDrives)} {pluralize(data.failedDrives, "drive")}</span>
+                        </div> : null}
                     </>}
                 </div>
             </div>
 
             {loading && data === null ? <div className="visualization-state"><UcxSpinner /></div> :
-                error && data === null ? <Error error={error} /> :
-                    data && path && data.entries.length === 0 && data.lastUpdatedAt == null
+                error ? <Error error={error} /> :
+                    data?.indexing
                         ? <Card><div className="visualization-state"><div><UcxSpinner /><p>Building the storage index...</p></div></div></Card>
-                        : data ? <VisualizationWorkspace data={data} selectedPath={dataPath} openPath={openPath} /> : null}
+                        : data ? <VisualizationWorkspace data={data} selectedPath={path} openPath={openPath} /> : null}
     </div>;
 }
 
@@ -322,6 +338,10 @@ async function fetchVisualization(path: string, projectId?: string): Promise<Vis
         lastUpdatedAt: response.lastUpdatedAt,
         fileCount: entries.length > 0 ? response.fileCount : null,
         directoryCount: entries.length > 0 ? response.directoryCount : null,
+        complete: response.complete,
+        indexing: response.indexing ?? (entries.length === 0 && response.lastUpdatedAt == null && !response.complete),
+        waitingForSizes: false,
+        failedDrives: 0,
     };
 }
 
@@ -340,31 +360,35 @@ async function fetchDriveOverview(projectId?: string): Promise<VisualizationData
         return support?.stats.visualization === true;
     });
 
-    const entries = await mapConcurrent<FileCollection, VisualizationEntry | null>(supported, 6, async drive => {
+    const entries = await mapConcurrent<FileCollection, {entry: VisualizationEntry | null; waiting: boolean; failed: boolean}>(supported, 6, async drive => {
         try {
             const file = await callAPI<UFile>({
                 ...FilesApi.retrieve({id: `/${drive.id}`, includeSizes: true}),
                 projectOverride: projectId,
             });
             const size = file.status.sizeIncludingChildrenInBytes;
-            if (size == null) return null;
-            return {
+            if (size == null) return {entry: null, waiting: true, failed: false};
+            return {entry: {
                 path: file.id,
                 type: "DIRECTORY" as const,
                 sizeInBytes: size,
                 label: drive.specification.title,
                 prettyPath: `/${drive.specification.title}`,
-            };
+            }, waiting: false, failed: false};
         } catch {
-            return null;
+            return {entry: null, waiting: false, failed: true};
         }
     });
 
     return {
-        entries: entries.filter((entry): entry is VisualizationEntry => entry !== null),
+        entries: entries.map(result => result.entry).filter((entry): entry is VisualizationEntry => entry !== null),
         lastUpdatedAt: null,
         fileCount: null,
         directoryCount: null,
+        complete: entries.every(result => result.entry !== null),
+        indexing: false,
+        waitingForSizes: entries.some(result => result.waiting),
+        failedDrives: entries.filter(result => result.failed).length,
     };
 }
 
@@ -484,7 +508,7 @@ function VisualizationWorkspace({data, selectedPath, openPath}: {
                             <div className="visualization-entry-path" title={entry.prettyPath}>{entry.prettyPath}</div>
                         </div>
                         <span className="visualization-number">{sizeToString(entry.sizeInBytes)}</span>
-                        <span className="visualization-number visualization-percent">{percentage < .1 && percentage > 0 ? "<0.1" : percentage.toFixed(1)}%</span>
+                        <span className="visualization-number visualization-percent">{percentage < .1 && percentage > 0 ? "<0.1" : formatNumber(percentage, {precision: 1})}%</span>
                     </div>;
                 })}
                 {sorted.length === 0 && <div className="visualization-empty">No recursive storage statistics are available.</div>}
@@ -492,6 +516,9 @@ function VisualizationWorkspace({data, selectedPath, openPath}: {
         </Card>
     </div>;
 }
+
+const directoryHeaderBandHeight = 21;
+const directoryHeaderMinHeight = 30;
 
 function TreemapView({entries, rootPath, width, height, setHighlightedPath, openPath}: {
     entries: VisualizationEntry[];
@@ -511,7 +538,7 @@ function TreemapView({entries, rootPath, width, height, setHighlightedPath, open
         .size([Math.max(width, 1), height])
         .paddingOuter(2)
         .paddingInner(2)
-        .paddingTop(node => node.depth > 0 && node.children ? 21 : 0)
+        .paddingTop(node => node.depth > 0 && node.children && node.y1 - node.y0 >= directoryHeaderMinHeight ? directoryHeaderBandHeight : 0)
         .round(true)(root);
     const nodes = layout.descendants().filter(node => node.depth > 0);
     const internal = nodes.filter(node => node.children && node.data.entry);
@@ -566,7 +593,7 @@ function TreemapDirectoryHeader({node, color, setHighlightedPath, openPath}: {
     >
         <title>{entry.label} - {sizeToString(entry.sizeInBytes)}</title>
         <rect x={node.x0} y={node.y0} width={width} height={node.y1 - node.y0} rx={4} fill="transparent" stroke={color} strokeWidth={1.5} />
-        {width > 65 && <text x={node.x0 + 7} y={node.y0 + 15} fill="var(--textPrimary)" fontSize={11} fontWeight={600}>{truncateLabel(entry.label, width / 7)}</text>}
+        {width > 65 && node.y1 - node.y0 >= directoryHeaderMinHeight && <text x={node.x0 + 7} y={node.y0 + 15} fill="var(--textPrimary)" fontSize={11} fontWeight={600}>{truncateLabel(entry.label, (width - 7) / 7)}</text>}
     </g>;
 }
 
@@ -604,7 +631,7 @@ function TreemapLeaf({node, color, setHighlightedPath, openPath}: {
         <title>{label} - {sizeToString(node.value ?? 0)}</title>
         <rect x={node.x0} y={node.y0} width={width} height={height} rx={3} fill={color} fillOpacity={.82} stroke="var(--backgroundCard)" strokeWidth={1} />
         {width > 58 && height > 34 && <>
-            <text x={node.x0 + 7} y={node.y0 + 16} fill="var(--fixedWhite)" fontSize={11} fontWeight={600}>{truncateLabel(label, width / 7)}</text>
+            <text x={node.x0 + 7} y={node.y0 + 16} fill="var(--fixedWhite)" fontSize={11} fontWeight={600}>{truncateLabel(label, (width - 14) / 6)}</text>
             {height > 50 && <text x={node.x0 + 7} y={node.y0 + 31} fill="var(--fixedWhite)" opacity={.85} fontSize={10}>{sizeToString(node.value ?? 0)}</text>}
         </>}
     </g>;

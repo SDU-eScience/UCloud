@@ -387,3 +387,291 @@ func inferenceV17() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV18() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV18",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					alter table inference_usage
+						add column remainder int not null default 0 check (remainder >= 0 and remainder < 1000)
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create table inference_usage_by_model (
+						owner text not null,
+						model text not null,
+						usage_day date not null,
+						cached_input_tokens bigint not null default 0 check (cached_input_tokens >= 0),
+						input_tokens bigint not null default 0 check (input_tokens >= 0),
+						output_tokens bigint not null default 0 check (output_tokens >= 0),
+						updated_at timestamptz not null default now(),
+						primary key (owner, model, usage_day)
+					)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV19() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV19",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_model rename column price_cached_input to price_per_million_cached_input`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model rename column price_input to price_per_million_input`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model rename column price_output to price_per_million_output`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model alter column price_per_million_cached_input type bigint`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model alter column price_per_million_input type bigint`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model alter column price_per_million_output type bigint`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage drop constraint inference_usage_remainder_check`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage alter column remainder type bigint`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage add constraint inference_usage_remainder_check check (remainder >= 0 and remainder < 1000000)`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV20() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV20",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_model add column reasoning_efforts jsonb not null default '[]'::jsonb`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model add column default_reasoning_effort text null`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV21() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV21",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_model drop column title_model_name`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV22() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV22",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table inference_user_activity (
+						username text primary key,
+						first_used_at timestamptz not null,
+						last_used_at timestamptz not null
+					)
+				`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV23() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV23",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model add column username text not null default '_ucloud'`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model drop constraint inference_usage_by_model_pkey`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model add primary key (owner, username, model, usage_day)`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV24() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV24",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`alter table inference_model add column price_per_megapixel bigint not null default 0`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model add column price_per_audio_minute bigint not null default 0`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model add column file_url_root text not null default ''`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model add column image_count bigint not null default 0 check (image_count >= 0)`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model add column image_pixels bigint not null default 0 check (image_pixels >= 0)`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model add column audio_milliseconds bigint not null default 0 check (audio_milliseconds >= 0)`,
+				db.Params{},
+			)
+		},
+	}
+}
+
+func inferenceV27() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV27",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table inference_video_job(
+						id text primary key,
+						owner text not null,
+						username text not null,
+						model text not null,
+						backend_id text not null,
+						status text not null default 'queued',
+						video_tier text not null default '',
+						video_seconds bigint not null default 0 check (video_seconds >= 0),
+						created_at timestamptz not null default now(),
+						updated_at timestamptz not null default now(),
+						last_polled_at timestamptz not null default now(),
+						settled_at timestamptz,
+						billed_at timestamptz,
+						deleted_at timestamptz
+					)
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create index inference_video_job_created_idx on inference_video_job(created_at)
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create index inference_video_job_active_owner_idx on inference_video_job(owner) where settled_at is null
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create index inference_video_job_poll_idx on inference_video_job(last_polled_at) where settled_at is null
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create index inference_video_job_cleanup_idx on inference_video_job(settled_at) where settled_at is not null
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model add column price_per_video_second jsonb not null default '{}'::jsonb`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model add column video_resolutions jsonb not null default '[]'::jsonb`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model add column default_video_tier text not null default ''`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model add column video_seconds bigint not null default 0 check (video_seconds >= 0)`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create unique index inference_default_text_to_video on inference_model ((default_for ? 'TextToVideo')) where default_for ? 'TextToVideo'
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create unique index inference_default_image_to_video on inference_model ((default_for ? 'ImageToVideo')) where default_for ? 'ImageToVideo'
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

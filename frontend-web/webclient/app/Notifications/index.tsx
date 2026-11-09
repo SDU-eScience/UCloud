@@ -1,4 +1,4 @@
-import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
+import {Client} from "@/Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns";
 import * as React from "react";
 import {Absolute, Box, Flex, Icon, Relative} from "@/ui-components";
@@ -56,7 +56,19 @@ function resolveNotification(event: Notification): {
         case "PROJECT_USER_REMOVED":
             return {icon: "projects", color: "textPrimary", color2: "textSecondary"};
 
+        case "NETWORK_RECLAIM_PENDING": {
+            const networkName = event.meta?.["networkName"] as string | undefined;
+            return {
+                icon: "networkWiredSolid",
+                color: "warningMain",
+                color2: "warningMain",
+                modifiedTitle: networkName ? `${networkName} is scheduled for deletion` : "Network scheduled for deletion",
+                modifiedMessage: event.message.replace(" unless it is used or protected.", " unless it is used."),
+            };
+        }
+
         case "NEW_GRANT_APPLICATION":
+        case "GRANT_NEW_APPLICATION":
             const icon = "heroPaperAirplane";
             const oldPrefix = "New grant application to ";
             if (event.message.indexOf(oldPrefix) === 0) {
@@ -67,7 +79,8 @@ function resolveNotification(event: Notification): {
             const modifiedTitle = event.meta["title"] as string | undefined;
             return {icon, modifiedTitle};
 
-        case "NEW_GRANT_COMMENT": {
+        case "NEW_GRANT_COMMENT":
+        case "GRANT_NEW_COMMENT": {
             const icon = "heroPaperAirplane";
             const modifiedTitle = event.meta["title"] as string | undefined;
             const avatar = event.meta["avatar"] as string | undefined;
@@ -229,7 +242,9 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
             navigate(AppRoutes.dashboard.dashboardA());
             break;
         case "NEW_GRANT_APPLICATION":
+        case "GRANT_NEW_APPLICATION":
         case "NEW_GRANT_COMMENT":
+        case "GRANT_NEW_COMMENT":
         case "COMMENT_GRANT_APPLICATION":
         case "GRANT_APPLICATION_RESPONSE":
         case "UPDATED_GRANT_APPLICATION":
@@ -241,6 +256,13 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
         case "PROJECT_ROLE_CHANGE": {
             break;
         }
+        case "NETWORK_RECLAIM_PENDING": {
+            const networkId = notification.meta?.networkId as string | undefined;
+            if (networkId) {
+                navigate(AppRoutes.resource.properties("networks", networkId));
+            }
+            break;
+        }
         default:
             console.warn("unhandled");
             console.warn(notification);
@@ -250,8 +272,8 @@ function onNotificationAction(notification: Notification, navigate: NavigateFunc
 
 // NOTE(Dan): The code of this module contain all the relevant logic and components to control the notification system
 // of UCloud. A notification is UCloud acts as a hint to the user that an interesting event has occured, in doing so
-// it invites the user to take action in response to said event. 
-// 
+// it invites the user to take action in response to said event.
+//
 // The anatomy of an notification is roughly as follows:
 //
 //
@@ -586,6 +608,14 @@ const ContentWrapper = injectStyle("content-wrapper", k => `
         box-shadow: var(--defaultShadow);
     }
 
+    @media (max-width: 530px) {
+        ${k} {
+            width: calc(100vw - 16px);
+            bottom: 142px;
+            left: 8px;
+        }
+    }
+
     ${k} > .container-wrapper {
         flex-grow: 1;
         overflow-y: auto;
@@ -786,4 +816,3 @@ const NotificationWrapper = injectStyle("notification-wrapper", k => `
 `);
 
 export default Notifications;
-

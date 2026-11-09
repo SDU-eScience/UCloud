@@ -130,7 +130,8 @@ type ApplicationSummaryWithFavorite struct {
 }
 
 type ApplicationGroupMetadata struct {
-	Id int `json:"id"`
+	Id     int           `json:"id"`
+	Origin CatalogOrigin `json:"origin"`
 }
 
 type ColorReplacements struct {
@@ -138,13 +139,41 @@ type ColorReplacements struct {
 	Dark  map[int]int `json:"dark"`
 }
 
+type ApplicationGroupLogoBorder struct {
+	Style string `json:"style" yaml:"style"`
+	Color string `json:"color" yaml:"color"`
+}
+
+type ApplicationGroupLogoFill struct {
+	Type      string `json:"type" yaml:"type"`
+	ColorA    string `json:"colorA" yaml:"colorA"`
+	ColorB    string `json:"colorB" yaml:"colorB"`
+	Direction string `json:"direction" yaml:"direction"`
+}
+
+type ApplicationGroupLogoContent struct {
+	Type  string `json:"type" yaml:"type"`
+	Value string `json:"value" yaml:"value"`
+	Size  string `json:"size" yaml:"size"`
+	Color string `json:"color" yaml:"color"`
+}
+
+type ApplicationGroupLogo struct {
+	Version int                         `json:"version" yaml:"version"`
+	Shape   string                      `json:"shape" yaml:"shape"`
+	Border  ApplicationGroupLogoBorder  `json:"border" yaml:"border"`
+	Fill    ApplicationGroupLogoFill    `json:"fill" yaml:"fill"`
+	Content ApplicationGroupLogoContent `json:"content" yaml:"content"`
+}
+
 type ApplicationGroupSpecification struct {
-	Title            string            `json:"title" yaml:"title"`
-	Description      string            `json:"description" yaml:"description"`
-	DefaultFlavor    string            `json:"defaultFlavor" yaml:"defaultFlavor"`
-	Categories       []int             `json:"categories" yaml:"categories"`
-	ColorReplacement ColorReplacements `json:"colorReplacement" yaml:"colorReplacement"`
-	LogoHasText      bool              `json:"logoHasText" yaml:"logoHasText"`
+	Title            string                `json:"title" yaml:"title"`
+	Description      string                `json:"description" yaml:"description"`
+	DefaultFlavor    string                `json:"defaultFlavor" yaml:"defaultFlavor"`
+	Categories       []int                 `json:"categories" yaml:"categories"`
+	ColorReplacement ColorReplacements     `json:"colorReplacement" yaml:"colorReplacement"`
+	LogoHasText      bool                  `json:"logoHasText" yaml:"logoHasText"`
+	Logo             *ApplicationGroupLogo `json:"logo,omitempty" yaml:"logo,omitempty"`
 }
 
 type ApplicationGroupStatus struct {
@@ -163,14 +192,17 @@ type ApplicationSummary struct {
 
 type ApplicationMetadata struct {
 	NameAndVersion
-	Authors     []string            `json:"authors" yaml:"authors"`
-	Title       string              `json:"title" yaml:"title"`
-	Description string              `json:"description" yaml:"description"`
-	Website     string              `json:"website" yaml:"website"`
-	Public      bool                `json:"public" yaml:"public"`
-	FlavorName  util.Option[string] `json:"flavorName" yaml:"flavorName"`
-	Group       ApplicationGroup    `json:"group" yaml:"group"`
-	CreatedAt   fnd.Timestamp       `json:"createdAt" yaml:"createdAt"`
+	Authors            []string                        `json:"authors" yaml:"authors"`
+	Title              string                          `json:"title" yaml:"title"`
+	Description        string                          `json:"description" yaml:"description"`
+	Website            string                          `json:"website" yaml:"website"`
+	Public             bool                            `json:"public" yaml:"public"`
+	FlavorName         util.Option[string]             `json:"flavorName" yaml:"flavorName"`
+	Group              ApplicationGroup                `json:"group" yaml:"group"`
+	CreatedAt          fnd.Timestamp                   `json:"createdAt" yaml:"createdAt"`
+	Variant            util.Option[ApplicationVariant] `json:"variant" yaml:"variant"`
+	Origin             CatalogOrigin                   `json:"origin" yaml:"origin"`
+	PublishedToProject util.Option[bool]               `json:"publishedToProject" yaml:"publishedToProject"`
 }
 
 type ApplicationInvocationDescription struct {
@@ -199,13 +231,27 @@ type ApplicationInvocationDescription struct {
 }
 
 type UcxDescription struct {
-	Executable util.Option[UcxExecutableDescription] `json:"executable" yaml:"executable"`
+	Executable       util.Option[UcxExecutableDescription]       `json:"executable" yaml:"executable"`
+	DisasterRecovery util.Option[UcxDisasterRecoveryDescription] `json:"disasterRecovery" yaml:"disasterRecovery"`
 }
 
 type UcxExecutableDescription struct {
 	ManifestUrl string `json:"manifestUrl" yaml:"manifestUrl"`
 	PublicKey   string `json:"publicKey" yaml:"publicKey"`
 	BinaryName  string `json:"binaryName" yaml:"binaryName"`
+}
+
+type UcxDisasterRecoveryDescription struct {
+	Enabled bool                              `json:"enabled" yaml:"enabled"`
+	Job     UcxDisasterRecoveryJobDescription `json:"job" yaml:"job"`
+}
+
+type UcxDisasterRecoveryJobDescription struct {
+	Image        string   `json:"image" yaml:"image"`
+	Cpu          int      `json:"cpu" yaml:"cpu"`
+	MemoryInGigs int      `json:"memoryInGigs" yaml:"memoryInGigs"`
+	Args         []string `json:"args" yaml:"args"`
+	Port         int      `json:"port" yaml:"port"`
 }
 
 type VncDescription struct {
@@ -357,6 +403,7 @@ const (
 	ApplicationParameterTypeReadme         ApplicationParameterType = "readme"
 	ApplicationParameterTypeModuleList     ApplicationParameterType = "modules"
 	ApplicationParameterTypePrivateNetwork ApplicationParameterType = "private_network"
+	ApplicationParameterTypeUCloudNetwork  ApplicationParameterType = "ucloud_network"
 )
 
 func ApplicationParameterInputFile(name string, optional bool, title string, description string) ApplicationParameter {
@@ -546,6 +593,7 @@ type AppParameterValue struct {
 	Server        string                `json:"server" yaml:"server"`
 	Token         string                `json:"token" yaml:"token"`
 	TokenType     string                `json:"tokenType" yaml:"tokenType"`
+	Ips           []string              `json:"ips,omitempty" yaml:"ips"`
 }
 
 func (a *AppParameterValue) Equal(b AppParameterValue) bool {
@@ -564,7 +612,11 @@ func (a *AppParameterValue) Equal(b AppParameterValue) bool {
 		AppParameterValueTypeBlockStorage,
 		AppParameterValueTypeNetwork,
 		AppParameterValueTypeIngress,
-		AppParameterValueTypePrivateNetwork:
+		AppParameterValueTypePrivateNetwork,
+		AppParameterValueTypeUCloudNetwork:
+		if IsNetworkValue(*a) && !slices.Equal(a.Ips, b.Ips) {
+			return false
+		}
 		return a.Id == b.Id
 
 	case AppParameterValueTypeModuleList:
@@ -597,13 +649,35 @@ const (
 	AppParameterValueTypeWorkflow       AppParameterValueType = "workflow"
 	AppParameterValueTypeModuleList     AppParameterValueType = "modules"
 	AppParameterValueTypePrivateNetwork AppParameterValueType = "private_network"
+	AppParameterValueTypeUCloudNetwork  AppParameterValueType = "ucloud_network"
 	AppParameterValueTypeApiServer      AppParameterValueType = "api_server"
 )
 
-func AppParameterValuePrivateNetwork(networkId string) AppParameterValue {
+func IsNetworkValue(value AppParameterValue) bool {
+	return value.Type == AppParameterValueTypePrivateNetwork ||
+		value.Type == AppParameterValueTypeUCloudNetwork
+}
+
+func IsNetworkParameterType(parameterType ApplicationParameterType) bool {
+	return parameterType == ApplicationParameterTypePrivateNetwork ||
+		parameterType == ApplicationParameterTypeUCloudNetwork
+}
+
+const JobParameterVmDiskFolder = "_injected_vmDiskFolder"
+
+func AppParameterValuePrivateNetwork(networkId string, ips ...string) AppParameterValue {
 	return AppParameterValue{
 		Type: AppParameterValueTypePrivateNetwork,
 		Id:   networkId,
+		Ips:  ips,
+	}
+}
+
+func AppParameterValueUCloudNetwork(networkId string, ips ...string) AppParameterValue {
+	return AppParameterValue{
+		Type: AppParameterValueTypeUCloudNetwork,
+		Id:   networkId,
+		Ips:  ips,
 	}
 }
 

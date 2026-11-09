@@ -1,6 +1,6 @@
 import MainContainer from "@/ui-components/MainContainer";
 import {Box, Button, Flex, Input, List} from "@/ui-components";
-import React, {useRef, useState} from "react";
+import React, {useState} from "react";
 import {callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useNavigate} from "react-router-dom";
 import {SafeLogo} from "../AppToolLogo";

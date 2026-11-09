@@ -7,7 +7,7 @@ import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {usePage} from "@/Navigation/Redux";
 import * as Api from "./api";
 import {useSetRefreshFunction} from "@/Utilities/ReduxUtilities";
-import {callAPI} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {Operation, ShortcutKey} from "@/ui-components/Operation";
 import {StandardCallbacks} from "@/ui-components/Browse";
 import AppRoutes from "@/Routes";
@@ -17,6 +17,9 @@ import {divText} from "@/Utilities/HTMLUtilities";
 import {TruncateClass} from "@/ui-components/Truncate";
 import {copyToClipboard} from "@/UtilityFunctions";
 import {sendInformationNotification} from "@/Notifications";
+import {ContainerSize} from "@/ui-components/ResourceBrowserStyle";
+import {HTMLTooltip} from "@/ui-components/Tooltip";
+import {IconName} from "@/ui-components/Icon";
 
 const defaultRetrieveFlags = {
     itemsPerPage: 100,
@@ -39,12 +42,20 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
     const navigate = useNavigate();
     usePage("API tokens", SidebarTabId.RESOURCES);
     const [switcher, setSwitcherWorkaround] = React.useState<React.ReactNode>(<></>);
+    const [options] = useCloudAPI(Api.retrieveOptions(), {byProvider: {}});
+    const optionsRef = React.useRef(options.data);
+    optionsRef.current = options.data;
 
     React.useLayoutEffect(() => {
         const mount = mountRef.current;
         if (mount && !browserRef.current) {
             new ResourceBrowser<Api.ApiToken>(mount, "API tokens", props.opts).init(browserRef, FEATURES, "", browser => {
-                browser.setColumns([{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 320}]);
+                browser.setColumns({
+                    [ContainerSize.LARGE]: [{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 320}],
+                    [ContainerSize.MEDIUM]: [{name: "Title"}, {name: "Created by", columnWidth: 200}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 250}],
+                    [ContainerSize.SMALL]: [{name: "Title"}, {name: "Expires at", columnWidth: 200}, {name: "Server URL", columnWidth: 250 }, {name: "", columnWidth: 0}],
+                    [ContainerSize.TINY]: [{name: "Title"}, {name: "Server URL", columnWidth: 200}, {name: "", columnWidth: 0}, {name: "", columnWidth: 0}]
+                });
 
                 browser.on("skipOpen", (oldPath, path, resource) => resource != null);
 
@@ -79,16 +90,41 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                     browser.registerPage(result, path, false);
                 });
 
-                browser.on("renderRow", (token, row, dims) => {
+                browser.on("renderTitle", (token, title, row) => {
                     const isUCloudCore = !token.specification.provider;
                     const pIcon = providerIcon(token.specification.provider ?? "", undefined, isUCloudCore ? "ucloud.png" : undefined);
                     pIcon.style.marginRight = "8px";
-                    row.title.append(pIcon);
+                    title.append(pIcon);
+
+                    const context = tokenContextFromOptions(token, optionsRef.current);
+                    if (context) {
+                        const tooltip = context === "personal"
+                            ? "This token can be used for all your projects"
+                            : "This token is bound to the current project";
+                        const contextIcon = document.createElement("img");
+                        contextIcon.alt = tooltip;
+                        contextIcon.style.width = "20px";
+                        contextIcon.style.height = "20px";
+                        contextIcon.style.marginRight = "8px";
+                        HTMLTooltip(contextIcon, divText(tooltip));
+                        ResourceBrowser.icons.renderIcon({
+                            name: (context === "personal" ? "heroGlobeEuropeAfrica" : "heroLockClosed") as IconName,
+                            color: "iconColor",
+                            color2: "iconColor2",
+                            width: 20,
+                            height: 20,
+                        }).then(source => {
+                            contextIcon.src = source;
+                        });
+                        row.title.append(contextIcon);
+                    }
 
                     row.title.append(ResourceBrowser.defaultTitleRenderer(token.specification.title, row));
+                });
 
-                    row.stat1.style.justifyContent = "left";
-                    SimpleAvatarComponentCache.appendTo(row.stat1, token.owner.createdBy, `Created by ${token.owner.createdBy}`).then(wrapper => {
+                function renderAvatar(token: Api.ApiToken, stat: HTMLElement) {
+                    stat.style.justifyContent = "left";
+                    SimpleAvatarComponentCache.appendTo(stat, token.owner.createdBy, `Created by ${token.owner.createdBy}`).then(wrapper => {
                         const div = divText(token.owner.createdBy);
                         div.style.marginTop = div.style.marginBottom = "auto";
                         div.classList.add(TruncateClass);
@@ -97,16 +133,40 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
                         wrapper.append(div);
                         wrapper.style.display = "flex";
                     });
+                }
 
-                    row.stat2.append(formatTs(token.specification.expiresAt));
+                browser.on("renderStat1", (token, stat, _, size) => {
+                    if (size == ContainerSize.TINY) {
+                        renderServerUrl(token, stat);
+                    } else if (size == ContainerSize.SMALL) {
+                        renderExpiration(token, stat);
+                    } else {
+                        renderAvatar(token, stat);
+                    }
+                });
 
+                function renderExpiration(token: Api.ApiToken, stat: HTMLElement) {
+                    stat.append(formatTs(token.specification.expiresAt));
+                }
+
+                browser.on("renderStat2", (token, stat, _, size) => {
+                    if (size <= ContainerSize.SMALL) {
+                        renderServerUrl(token, stat);
+                    } else {
+                        renderExpiration(token, stat);
+                    }
+                });
+
+                function renderServerUrl(token: Api.ApiToken, stat: HTMLElement) {
                     const serverUrl = token.status.server?.trim() || "Not available";
                     const serverElement = divText(serverUrl);
                     serverElement.classList.add(TruncateClass);
                     serverElement.title = serverUrl;
-                    row.stat3.append(serverElement);
-                    row.stat3.style.marginTop = row.stat3.style.marginBottom = "auto"
-                });
+                    stat.append(serverElement);
+                    stat.style.marginTop = stat.style.marginBottom = "auto"
+                }
+
+                browser.on("renderStat3", renderServerUrl);
 
                 browser.on("endRenderPage", () => {
                     SimpleAvatarComponentCache.fetchMissingAvatars();
@@ -166,6 +226,10 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
         addProjectSwitcherInPortal(browserRef, setSwitcherWorkaround);
     }, []);
 
+    React.useEffect(() => {
+        browserRef.current?.renderRows();
+    }, [options.data]);
+
     useSetRefreshFunction(() => {
         browserRef.current?.refresh();
     });
@@ -176,6 +240,17 @@ export function ApiTokenBrowse(props: {opts?: ResourceBrowserOpts<Api.ApiToken>}
             {switcher}
         </>}
     />
+}
+
+function tokenContextFromOptions(
+    token: Api.ApiToken,
+    options: Api.ApiTokenRetrieveOptionsResponse,
+): Api.ApiTokenContext | undefined {
+    const provider = token.specification.provider;
+    const service = token.specification.requestedPermissions[0]?.name;
+    if (provider == null || service == null) return undefined;
+
+    return options.byProvider[provider]?.availablePermissions.find(it => it.name === service)?.context;
 }
 
 function retrieveOperations(): Operation<Api.ApiToken, StandardCallbacks<Api.ApiToken>>[] {
@@ -205,6 +280,10 @@ function retrieveOperations(): Operation<Api.ApiToken, StandardCallbacks<Api.Api
         color: "errorMain",
         enabled: (selected) => selected.length > 0,
         confirm: true,
+        confirmationText: selected => selected.length === 1 ?
+            "Are you sure you want to revoke this API token?" :
+            `Are you sure you want to revoke these ${selected.length} API tokens?`,
+        confirmationButtonText: "Revoke",
         onClick: async (selected, cb) => {
             const promises: Promise<unknown>[] = [];
             for (const element of selected) {

@@ -54,9 +54,11 @@ type AccountingAuditWallet struct {
 	Provider                   string      `json:"provider"`
 	Category                   string      `json:"category"`
 	AccountingFrequency        string      `json:"accountingFrequency"`
+	ProductType                string      `json:"productType"`
 	UnitName                   string      `json:"unitName"`
 	UnitNamePlural             string      `json:"unitNamePlural"`
 	UnitFloatingPoint          bool        `json:"unitFloatingPoint"`
+	UnitFrequencySuffix        bool        `json:"unitFrequencySuffix"`
 	LocalUsage                 int64       `json:"localUsage"`
 	LocalRetiredUsage          int64       `json:"localRetiredUsage"`
 	PersistedExcessUsage       int64       `json:"persistedExcessUsage"`
@@ -163,9 +165,11 @@ type accountingAuditWalletRow struct {
 	Provider                sql.NullString
 	Category                sql.NullString
 	AccountingFrequency     sql.NullString
+	ProductType             sql.NullString
 	UnitName                sql.NullString
 	UnitNamePlural          sql.NullString
 	UnitFloatingPoint       sql.NullBool
+	UnitFrequencySuffix     sql.NullBool
 	LocalUsage              int64
 	LocalRetiredUsage       int64
 	ExcessUsage             int64
@@ -247,9 +251,9 @@ func captureAccountingAuditWallets(tx *db.Transaction, now time.Time) []Accounti
 		`
 			select w.id, wo.id as owner_id, wo.username, wo.project_id,
 				p.title as project_title, p.parent as parent_project_id,
-				pc.provider, pc.category, pc.accounting_frequency,
+			pc.provider, pc.category, pc.accounting_frequency, pc.product_type,
 				u.name as unit_name, u.name_plural as unit_name_plural,
-				u.floating_point as unit_floating_point,
+			u.floating_point as unit_floating_point, u.display_frequency_suffix as unit_frequency_suffix,
 				w.local_usage, w.local_retired_usage, w.excess_usage,
 				w.total_allocated, w.total_retired_allocated,
 				w.was_locked, w.last_significant_update_at
@@ -280,9 +284,11 @@ func captureAccountingAuditWallets(tx *db.Transaction, now time.Time) []Accounti
 			Provider:                  row.Provider.String,
 			Category:                  row.Category.String,
 			AccountingFrequency:       row.AccountingFrequency.String,
+			ProductType:               row.ProductType.String,
 			UnitName:                  row.UnitName.String,
 			UnitNamePlural:            row.UnitNamePlural.String,
 			UnitFloatingPoint:         row.UnitFloatingPoint.Bool,
+			UnitFrequencySuffix:       row.UnitFrequencySuffix.Bool,
 			LocalUsage:                row.LocalUsage,
 			LocalRetiredUsage:         row.LocalRetiredUsage,
 			PersistedExcessUsage:      row.ExcessUsage,
@@ -551,7 +557,12 @@ func captureAccountingAuditJobUsage(tx *db.Transaction, capturedAt time.Time) []
 				}
 				if item.Error == "" && scale > 0 && !math.IsInf(scale, 0) && !math.IsNaN(scale) {
 					item.ExpectedUsageMin, item.ExpectedUsageMax = accountingAuditExpectedJobUsageRange(item.RuntimeMinutes, baseMinutes, scale)
-					item.AcceptedUsageMin, item.AcceptedUsageMax = accountingAuditExpectedJobUsageInterval(max(int64(0), item.RuntimeMinutes-5), item.RuntimeMinutes+6, baseMinutes, scale)
+					item.AcceptedUsageMin, item.AcceptedUsageMax = accountingAuditExpectedJobUsageInterval(
+						max(int64(0), item.RuntimeMinutes-5),
+						item.RuntimeMinutes+6,
+						baseMinutes,
+						scale,
+					)
 					item.UsagePerMinute = scale / float64(baseMinutes)
 				} else if item.Error == "" {
 					item.Error = "job product accounting scale is invalid"
@@ -647,7 +658,9 @@ func validateAccountingAuditCapture(capture AccountingAuditCapture) error {
 	if capture.CapturedAt.IsZero() {
 		return fmt.Errorf("capture has no timestamp")
 	}
-	if capture.Totals.Wallets != len(capture.Wallets) || capture.Totals.Groups != len(capture.Groups) || capture.Totals.Allocations != len(capture.Allocations) || capture.Totals.Scopes != len(capture.Scopes) {
+	if capture.Totals.Wallets != len(capture.Wallets) || capture.Totals.Groups != len(capture.Groups) ||
+		capture.Totals.Allocations != len(capture.Allocations) ||
+		capture.Totals.Scopes != len(capture.Scopes) {
 		return fmt.Errorf("capture entity counts do not match database totals")
 	}
 	walletIds := make([]AccWalletId, 0, len(capture.Wallets))

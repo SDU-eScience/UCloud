@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"maps"
 	"net/http"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
+	"ucloud.dk/pkg/integrations/k8s/shared"
 	"ucloud.dk/pkg/ipc"
 	"ucloud.dk/shared/pkg/cli"
 	"ucloud.dk/shared/pkg/termio"
@@ -53,17 +56,33 @@ func inferenceCliHelp() {
 	f.AppendTitle("Inference help")
 	f.AppendField("models ls", "List inference model catalog entries")
 	f.AppendSeparator()
-	f.AppendField("models update <name>", "Update an inference model catalog entry")
+	f.AppendField("models update <name>", "Update an inference model catalog entry, or create it when it does not exist")
 	f.AppendField("  --name <name>", "Rename the model. Only allowed for non-public models.")
 	f.AppendField("  --title <title>", "Set the display title")
-	f.AppendField("  --title-model-name <name>", "Set model used for chat thread title generation")
-	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration, TextToImage, SpeechToText")
-	f.AppendField("  --price-cached <n>", "Cached input multiplier in fixed-point thousandths")
-	f.AppendField("  --price-input <n>", "Input multiplier in fixed-point thousandths")
-	f.AppendField("  --price-output <n>", "Output multiplier in fixed-point thousandths")
+	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration, TextToImage, ImageToImage, TextToVideo, ImageToVideo, SpeechToText, SpeechToTextTimestamps, SpeechToTextSpeakerLabels, Vision, VideoVision, Audio")
+	f.AppendField(
+		"  --default-for <list>",
+		"Provider defaults: TextToImage,ImageToImage,TextToVideo,ImageToVideo,SpeechToText. Replaces previous defaults. "+
+			"Use an empty value to clear.",
+	)
+	f.AppendField("  --reasoning-efforts <list>", "Comma-separated display name=value pairs. Use an empty value to disable reasoning.")
+	f.AppendField("  --default-reasoning-effort <value>", "Set the default reasoning effort value")
+	f.AppendField("  --price-per-million-cached <n>", "Encoded cached input Credits per million tokens")
+	f.AppendField("  --price-per-million-input <n>", "Encoded input Credits per million tokens")
+	f.AppendField("  --price-per-million-output <n>", "Encoded output Credits per million tokens")
+	f.AppendField("  --price-per-megapixel <n>", "Encoded Credits per megapixel of returned image")
+	f.AppendField("  --price-per-audio-minute <n>", "Encoded Credits per minute of audio")
+	f.AppendField("  --price-per-video-second <list>", "Comma-separated tier=encoded Credits per second pairs, for example 720p=12000000,1080p=20000000")
+	f.AppendField("  --video-resolutions <list>", "Comma-separated WxH=tier pairs, for example 1280x720=720p,1920x1080=1080p")
+	f.AppendField("  --default-video-tier <tier>", "Default video resolution tier")
+	f.AppendField("  --file-url-root <path>", "Absolute shared-mount path for file:// image output. Use an empty value to disable it.")
 	f.AppendField("  --public <bool>", "Set public availability")
 	f.AppendField("  --available-to <list>", "Comma-separated project IDs")
-	f.AppendField("  --base-path <url>", "Set endpoint base path")
+	f.AppendField(
+		"  --base-path <url>",
+		"Set endpoint base path. Add ?bearerToken=<url-encoded-token> or "+
+			"?bearerTokenEnv=<env-name> to override the upstream bearer token.",
+	)
 	f.AppendField("  --backend-model-name <name>", "Set backend model name")
 	f.AppendField("  --temperature <n>", "Set default chat temperature")
 	f.AppendField("  --top-p <n>", "Set default chat top P")
@@ -92,11 +111,18 @@ func inferenceCliModelsList(args []string) {
 	t := termio.Table{}
 	t.AppendHeader("Name")
 	t.AppendHeader("Title")
-	t.AppendHeader("Title model")
 	t.AppendHeader("Capabilities")
-	t.AppendHeaderEx("Cached", termio.TableHeaderAlignRight)
-	t.AppendHeaderEx("Input", termio.TableHeaderAlignRight)
-	t.AppendHeaderEx("Output", termio.TableHeaderAlignRight)
+	t.AppendHeader("Default for")
+	t.AppendHeader("Reasoning")
+	t.AppendHeaderEx("Cached price/M", termio.TableHeaderAlignRight)
+	t.AppendHeaderEx("Input price/M", termio.TableHeaderAlignRight)
+	t.AppendHeaderEx("Output price/M", termio.TableHeaderAlignRight)
+	t.AppendHeaderEx("MP price", termio.TableHeaderAlignRight)
+	t.AppendHeaderEx("Audio price/min", termio.TableHeaderAlignRight)
+	t.AppendHeader("Video price/s")
+	t.AppendHeader("Video resolutions")
+	t.AppendHeader("Default video tier")
+	t.AppendHeader("File URL root")
 	t.AppendHeader("Endpoint")
 	t.AppendHeader("Chat defaults")
 	t.AppendHeader("Availability")
@@ -104,11 +130,18 @@ func inferenceCliModelsList(args []string) {
 	for _, model := range models {
 		t.Cell("%s", model.Name)
 		t.Cell("%s", model.Title)
-		t.Cell("%s", model.TitleModelName)
 		t.Cell("%s", inferenceCliFormatCapabilities(model.Capabilities))
-		t.Cell("%d", model.PriceMultiplier.CachedInput)
-		t.Cell("%d", model.PriceMultiplier.Input)
-		t.Cell("%d", model.PriceMultiplier.Output)
+		t.Cell("%s", inferenceCliFormatCapabilities(model.DefaultFor))
+		t.Cell("%s", inferenceCliFormatReasoning(model))
+		t.Cell("%d", model.PricePerMillion.CachedInput)
+		t.Cell("%d", model.PricePerMillion.Input)
+		t.Cell("%d", model.PricePerMillion.Output)
+		t.Cell("%d", model.PricePerMegaPixel)
+		t.Cell("%d", model.PricePerAudioMinute)
+		t.Cell("%s", inferenceCliFormatVideoPrices(model.PricePerVideoSecond))
+		t.Cell("%s", inferenceCliFormatVideoResolutions(model.VideoResolutions))
+		t.Cell("%s", model.DefaultVideoTier)
+		t.Cell("%s", model.FileUrlRoot)
 		t.Cell("%s -> %s", model.Endpoint.BasePath, model.Endpoint.BackendModelName)
 		t.Cell("temp=%g topP=%g max=%d system=%s", model.ChatSettings.Temperature, model.ChatSettings.TopP, model.ChatSettings.MaxCompletionTokens, inferenceCliFormatSystemPrompt(model.ChatSettings.SystemPrompt))
 		t.Cell("%s", inferenceCliFormatAvailability(model.Availability))
@@ -125,15 +158,28 @@ func inferenceCliModelsUpdate(args []string) {
 
 	req := k8sCliInferenceModelsUpdateRequest{Name: args[0]}
 	var capabilitiesRaw string
+	var defaultForRaw string
+	var reasoningEffortsRaw string
 	var availableToRaw string
+	var pricePerVideoSecondRaw string
+	var videoResolutionsRaw string
+	var defaultVideoTierRaw string
 	fs := flag.NewFlagSet("inference models update", flag.ExitOnError)
 	fs.StringVar(&req.NewName, "name", "", "Rename the model")
 	fs.StringVar(&req.Title, "title", "", "Set the display title")
-	fs.StringVar(&req.TitleModelName, "title-model-name", "", "Model used for chat thread title generation")
 	fs.StringVar(&capabilitiesRaw, "capabilities", "", "Comma-separated capability list")
-	fs.IntVar(&req.PriceCachedInput, "price-cached", 0, "Cached input multiplier")
-	fs.IntVar(&req.PriceInput, "price-input", 0, "Input multiplier")
-	fs.IntVar(&req.PriceOutput, "price-output", 0, "Output multiplier")
+	fs.StringVar(&defaultForRaw, "default-for", "", "Comma-separated provider default capabilities")
+	fs.StringVar(&reasoningEffortsRaw, "reasoning-efforts", "", "Comma-separated display name=value pairs")
+	fs.StringVar(&req.DefaultReasoningEffort, "default-reasoning-effort", "", "Default reasoning effort value")
+	fs.Int64Var(&req.PricePerMillionCachedInput, "price-per-million-cached", 0, "Encoded cached input Credits per million tokens (1000000 = 1 Credit)")
+	fs.Int64Var(&req.PricePerMillionInput, "price-per-million-input", 0, "Encoded input Credits per million tokens (1000000 = 1 Credit)")
+	fs.Int64Var(&req.PricePerMillionOutput, "price-per-million-output", 0, "Encoded output Credits per million tokens (1000000 = 1 Credit)")
+	fs.Int64Var(&req.PricePerMegaPixel, "price-per-megapixel", 0, "Encoded Credits per megapixel (1000000 = 1 Credit)")
+	fs.Int64Var(&req.PricePerAudioMinute, "price-per-audio-minute", 0, "Encoded Credits per audio minute (1000000 = 1 Credit)")
+	fs.StringVar(&pricePerVideoSecondRaw, "price-per-video-second", "", "Comma-separated tier=encoded Credits per second pairs (1000000 = 1 Credit)")
+	fs.StringVar(&videoResolutionsRaw, "video-resolutions", "", "Comma-separated WxH=tier pairs")
+	fs.StringVar(&defaultVideoTierRaw, "default-video-tier", "", "Default video resolution tier")
+	fs.StringVar(&req.FileUrlRoot, "file-url-root", "", "Absolute shared-mount path for file:// image output")
 	fs.BoolVar(&req.Public, "public", false, "Set public availability")
 	fs.StringVar(&availableToRaw, "available-to", "", "Comma-separated project IDs")
 	fs.StringVar(&req.BasePath, "base-path", "", "Endpoint base path")
@@ -164,13 +210,42 @@ func inferenceCliModelsUpdate(args []string) {
 		cli.HandleError("parsing available-to", err)
 		req.AvailableTo = availableTo
 	}
+	if slices.Contains(req.Set, "default-for") {
+		defaults, err := inferenceCliParseCapabilities(defaultForRaw)
+		cli.HandleError("parsing defaults", err)
+		req.DefaultFor = defaults
+	}
+	if slices.Contains(req.Set, "price-per-video-second") {
+		prices, err := inferenceCliParseVideoPrices(pricePerVideoSecondRaw)
+		cli.HandleError("parsing price-per-video-second", err)
+		req.PricePerVideoSecond = prices
+	}
+	if slices.Contains(req.Set, "video-resolutions") {
+		resolutions, err := inferenceCliParseVideoResolutions(videoResolutionsRaw)
+		cli.HandleError("parsing video-resolutions", err)
+		req.VideoResolutions = resolutions
+	}
+	if slices.Contains(req.Set, "default-video-tier") {
+		tier := inferenceVideoTierNormalize(InferenceVideoTier(defaultVideoTierRaw))
+		if !inferenceVideoTierValid(tier) && tier != "" {
+			cli.HandleError("validating default-video-tier", fmt.Errorf("invalid video tier %q", defaultVideoTierRaw))
+		}
+		req.DefaultVideoTier = tier
+	}
+	if slices.Contains(req.Set, "reasoning-efforts") {
+		reasoningEfforts, err := inferenceCliParseReasoningEfforts(reasoningEffortsRaw)
+		cli.HandleError("parsing reasoning-efforts", err)
+		req.ReasoningEfforts = reasoningEfforts
+	}
 	for _, priceFlag := range []struct {
 		Name  string
-		Value int
+		Value int64
 	}{
-		{Name: "price-cached", Value: req.PriceCachedInput},
-		{Name: "price-input", Value: req.PriceInput},
-		{Name: "price-output", Value: req.PriceOutput},
+		{Name: "price-per-million-cached", Value: req.PricePerMillionCachedInput},
+		{Name: "price-per-million-input", Value: req.PricePerMillionInput},
+		{Name: "price-per-million-output", Value: req.PricePerMillionOutput},
+		{Name: "price-per-megapixel", Value: req.PricePerMegaPixel},
+		{Name: "price-per-audio-minute", Value: req.PricePerAudioMinute},
 	} {
 		if slices.Contains(req.Set, priceFlag.Name) && priceFlag.Value < 0 {
 			cli.HandleError("validating prices", fmt.Errorf("%s cannot be negative", priceFlag.Name))
@@ -186,14 +261,18 @@ func inferenceCliModelsUpdate(args []string) {
 		cli.HandleError("validating max-completion-tokens", fmt.Errorf("max-completion-tokens must be positive"))
 	}
 
-	_, err := k8sCliInferenceModelsUpdate.Invoke(req)
+	resp, err := k8sCliInferenceModelsUpdate.Invoke(req)
 	cli.HandleError("updating inference model", err)
 
 	name := strings.TrimSpace(req.Name)
 	if slices.Contains(req.Set, "name") && strings.TrimSpace(req.NewName) != "" {
 		name = strings.TrimSpace(req.NewName)
 	}
-	termio.WriteStyledLine(termio.Bold, termio.Green, 0, "Updated inference model: %s", name)
+	if resp.Created {
+		termio.WriteStyledLine(termio.Bold, termio.Green, 0, "Created inference model: %s", name)
+	} else {
+		termio.WriteStyledLine(termio.Bold, termio.Green, 0, "Updated inference model: %s", name)
+	}
 }
 
 func inferenceCliModelsRemove(args []string) {
@@ -216,34 +295,58 @@ func initCli() {
 		return ipc.Response[[]InferenceModel]{StatusCode: http.StatusOK, Payload: InferenceModelList()}
 	})
 
-	k8sCliInferenceModelsUpdate.Handler(func(r *ipc.Request[k8sCliInferenceModelsUpdateRequest]) ipc.Response[util.Empty] {
+	k8sCliInferenceModelsUpdate.Handler(func(r *ipc.Request[k8sCliInferenceModelsUpdateRequest]) ipc.Response[k8sCliInferenceModelsUpdateResponse] {
 		if r.Uid != 0 {
-			return ipc.Response[util.Empty]{StatusCode: http.StatusForbidden, ErrorMessage: "Must be run as root"}
+			return ipc.Response[k8sCliInferenceModelsUpdateResponse]{StatusCode: http.StatusForbidden, ErrorMessage: "Must be run as root"}
 		}
 
-		model, ok := InferenceCatalogModelByName(r.Payload.Name)
-		if !ok {
-			return ipc.Response[util.Empty]{StatusCode: http.StatusNotFound, ErrorMessage: "model not found"}
+		model, found := InferenceCatalogModelByName(r.Payload.Name)
+		if !found {
+			model = inferenceCliNewModel(r.Payload.Name)
 		}
 
 		set := func(name string) bool { return slices.Contains(r.Payload.Set, name) }
 		if set("title") {
 			model.Title = r.Payload.Title
 		}
-		if set("title-model-name") {
-			model.TitleModelName = r.Payload.TitleModelName
-		}
 		if set("capabilities") {
 			model.Capabilities = slices.Clone(r.Payload.Capabilities)
 		}
-		if set("price-cached") {
-			model.PriceMultiplier.CachedInput = r.Payload.PriceCachedInput
+		if set("default-for") {
+			model.DefaultFor = slices.Clone(r.Payload.DefaultFor)
 		}
-		if set("price-input") {
-			model.PriceMultiplier.Input = r.Payload.PriceInput
+		if set("reasoning-efforts") {
+			model.ReasoningEfforts = slices.Clone(r.Payload.ReasoningEfforts)
 		}
-		if set("price-output") {
-			model.PriceMultiplier.Output = r.Payload.PriceOutput
+		if set("default-reasoning-effort") {
+			model.DefaultReasoningEffort = r.Payload.DefaultReasoningEffort
+		}
+		if set("price-per-million-cached") {
+			model.PricePerMillion.CachedInput = r.Payload.PricePerMillionCachedInput
+		}
+		if set("price-per-million-input") {
+			model.PricePerMillion.Input = r.Payload.PricePerMillionInput
+		}
+		if set("price-per-million-output") {
+			model.PricePerMillion.Output = r.Payload.PricePerMillionOutput
+		}
+		if set("price-per-megapixel") {
+			model.PricePerMegaPixel = r.Payload.PricePerMegaPixel
+		}
+		if set("price-per-audio-minute") {
+			model.PricePerAudioMinute = r.Payload.PricePerAudioMinute
+		}
+		if set("price-per-video-second") {
+			model.PricePerVideoSecond = maps.Clone(r.Payload.PricePerVideoSecond)
+		}
+		if set("video-resolutions") {
+			model.VideoResolutions = slices.Clone(r.Payload.VideoResolutions)
+		}
+		if set("default-video-tier") {
+			model.DefaultVideoTier = r.Payload.DefaultVideoTier
+		}
+		if set("file-url-root") {
+			model.FileUrlRoot = r.Payload.FileUrlRoot
 		}
 		if set("public") {
 			model.Availability.Public = r.Payload.Public
@@ -276,24 +379,32 @@ func initCli() {
 		}
 
 		newName := strings.TrimSpace(r.Payload.NewName)
-		if set("name") && newName != "" && newName != strings.TrimSpace(r.Payload.Name) {
-			if !set("title-model-name") && strings.TrimSpace(model.TitleModelName) == strings.TrimSpace(r.Payload.Name) {
-				model.TitleModelName = newName
+		if !found && set("name") && newName != "" && newName != strings.TrimSpace(r.Payload.Name) {
+			return ipc.Response[k8sCliInferenceModelsUpdateResponse]{
+				StatusCode:   http.StatusBadRequest,
+				ErrorMessage: "cannot rename a model that the catalog does not hold",
 			}
+		}
+		if found && set("name") && newName != "" && newName != strings.TrimSpace(r.Payload.Name) {
 			model.Name = newName
-			if err := inferenceModelValidate(model); err != nil {
-				return ipc.Response[util.Empty]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
+			prepared, prepareErr := inferenceModelPrepare(model)
+			if prepareErr != nil {
+				return ipc.Response[k8sCliInferenceModelsUpdateResponse]{StatusCode: prepareErr.StatusCode, ErrorMessage: prepareErr.Why}
 			}
+			model = prepared
 			if err := InferenceModelRename(r.Payload.Name, newName); err != nil {
-				return ipc.Response[util.Empty]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
+				return ipc.Response[k8sCliInferenceModelsUpdateResponse]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
 			}
 		}
 
 		if err := InferenceModelUpsert(model); err != nil {
-			return ipc.Response[util.Empty]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
+			return ipc.Response[k8sCliInferenceModelsUpdateResponse]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
 		}
 
-		return ipc.Response[util.Empty]{StatusCode: http.StatusOK}
+		return ipc.Response[k8sCliInferenceModelsUpdateResponse]{
+			StatusCode: http.StatusOK,
+			Payload:    k8sCliInferenceModelsUpdateResponse{Created: !found},
+		}
 	})
 
 	k8sCliInferenceModelsRemove.Handler(func(r *ipc.Request[k8sCliInferenceModelsRemoveRequest]) ipc.Response[util.Empty] {
@@ -319,7 +430,7 @@ func inferenceCliParseCapabilities(raw string) ([]InferenceCapability, error) {
 	for _, item := range items {
 		capability := InferenceCapability(item)
 		switch capability {
-		case InferenceTextGeneration, InferenceTextToImage, InferenceSpeechToText:
+		case InferenceTextGeneration, InferenceTextToImage, InferenceImageToImage, InferenceTextToVideo, InferenceImageToVideo, InferenceSpeechToText, InferenceSpeechToTextTimestamps, InferenceSpeechToTextSpeakerLabels, InferenceVision, InferenceVideoVision, InferenceAudio:
 			capabilities = append(capabilities, capability)
 		default:
 			return nil, fmt.Errorf("invalid capability %q", item)
@@ -345,6 +456,108 @@ func inferenceCliParseList(raw string) ([]string, error) {
 	return result, nil
 }
 
+func inferenceCliParseReasoningEfforts(raw string) ([]InferenceModelOption, error) {
+	items, err := inferenceCliParseList(raw)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]InferenceModelOption, 0, len(items))
+	for _, item := range items {
+		name, value, ok := strings.Cut(item, "=")
+		name = strings.TrimSpace(name)
+		value = strings.TrimSpace(value)
+		if !ok || name == "" || value == "" {
+			return nil, fmt.Errorf("invalid reasoning effort %q; expected display name=value", item)
+		}
+		result = append(result, InferenceModelOption{Name: name, Value: value})
+	}
+	return result, nil
+}
+
+func inferenceCliParseVideoResolutions(raw string) ([]InferenceVideoResolution, error) {
+	items, err := inferenceCliParseList(raw)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]InferenceVideoResolution, 0, len(items))
+	for _, item := range items {
+		size, tierRaw, ok := strings.Cut(item, "=")
+		if !ok {
+			return nil, fmt.Errorf("invalid video resolution %q; expected WxH=tier", item)
+		}
+		size = strings.ToLower(strings.TrimSpace(size))
+		parts := strings.Split(size, "x")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid video resolution size %q", size)
+		}
+		width, widthErr := strconv.Atoi(parts[0])
+		height, heightErr := strconv.Atoi(parts[1])
+		if widthErr != nil || heightErr != nil || width <= 0 || height <= 0 {
+			return nil, fmt.Errorf("invalid video resolution size %q", size)
+		}
+		tier := inferenceVideoTierNormalize(InferenceVideoTier(tierRaw))
+		if !inferenceVideoTierValid(tier) {
+			return nil, fmt.Errorf("invalid video tier %q", strings.TrimSpace(tierRaw))
+		}
+		result = append(result, InferenceVideoResolution{
+			Width:  width,
+			Height: height,
+			Tier:   tier,
+		})
+	}
+	return result, nil
+}
+
+func inferenceCliParseVideoPrices(raw string) (map[InferenceVideoTier]int64, error) {
+	items, err := inferenceCliParseList(raw)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[InferenceVideoTier]int64, len(items))
+	for _, item := range items {
+		tierRaw, priceRaw, ok := strings.Cut(item, "=")
+		if !ok {
+			return nil, fmt.Errorf("invalid video price %q; expected tier=value", item)
+		}
+		tier := inferenceVideoTierNormalize(InferenceVideoTier(tierRaw))
+		if !inferenceVideoTierValid(tier) {
+			return nil, fmt.Errorf("invalid video tier %q", strings.TrimSpace(tierRaw))
+		}
+		price, priceErr := strconv.ParseInt(strings.TrimSpace(priceRaw), 10, 64)
+		if priceErr != nil || price < 0 {
+			return nil, fmt.Errorf("invalid video price %q", strings.TrimSpace(priceRaw))
+		}
+		if _, exists := result[tier]; exists {
+			return nil, fmt.Errorf("duplicate video tier %q", tier)
+		}
+		result[tier] = price
+	}
+	return result, nil
+}
+
+func inferenceCliFormatVideoPrices(prices map[InferenceVideoTier]int64) string {
+	parts := make([]string, 0, len(prices))
+	for _, tier := range inferenceVideoTierOrder {
+		price, ok := prices[tier]
+		if !ok {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%s=%d", tier, price))
+	}
+	return strings.Join(parts, ",")
+}
+
+func inferenceCliFormatVideoResolutions(resolutions []InferenceVideoResolution) string {
+	parts := make([]string, 0, len(resolutions))
+	for _, resolution := range resolutions {
+		parts = append(parts, fmt.Sprintf("%dx%d=%s", resolution.Width, resolution.Height, resolution.Tier))
+	}
+	return strings.Join(parts, ",")
+}
+
 func inferenceCliFormatCapabilities(capabilities []InferenceCapability) string {
 	parts := make([]string, 0, len(capabilities))
 	for _, capability := range capabilities {
@@ -363,6 +576,17 @@ func inferenceCliFormatAvailability(availability InferenceAvailability) string {
 	return "private: " + strings.Join(availability.AvailableTo, ",")
 }
 
+func inferenceCliFormatReasoning(model InferenceModel) string {
+	if len(model.ReasoningEfforts) == 0 {
+		return "unsupported"
+	}
+	values := make([]string, 0, len(model.ReasoningEfforts))
+	for _, effort := range model.ReasoningEfforts {
+		values = append(values, effort.Value)
+	}
+	return strings.Join(values, ",") + " (default=" + model.DefaultReasoningEffort + ")"
+}
+
 func inferenceCliFormatSystemPrompt(systemPrompt *string) string {
 	if systemPrompt == nil {
 		return "global"
@@ -371,23 +595,60 @@ func inferenceCliFormatSystemPrompt(systemPrompt *string) string {
 }
 
 type k8sCliInferenceModelsUpdateRequest struct {
-	Name                string
-	Set                 []string
-	NewName             string
-	Title               string
-	TitleModelName      string
-	Capabilities        []InferenceCapability
-	PriceCachedInput    int
-	PriceInput          int
-	PriceOutput         int
-	Public              bool
-	AvailableTo         []string
-	BasePath            string
-	BackendModelName    string
-	Temperature         float64
-	TopP                float64
-	MaxCompletionTokens int
-	SystemPrompt        string
+	Name                       string
+	Set                        []string
+	NewName                    string
+	Title                      string
+	Capabilities               []InferenceCapability
+	DefaultFor                 []InferenceCapability
+	ReasoningEfforts           []InferenceModelOption
+	DefaultReasoningEffort     string
+	PricePerMillionCachedInput int64
+	PricePerMillionInput       int64
+	PricePerMillionOutput      int64
+	PricePerMegaPixel          int64
+	PricePerAudioMinute        int64
+	PricePerVideoSecond        map[InferenceVideoTier]int64
+	VideoResolutions           []InferenceVideoResolution
+	DefaultVideoTier           InferenceVideoTier
+	FileUrlRoot                string
+	Public                     bool
+	AvailableTo                []string
+	BasePath                   string
+	BackendModelName           string
+	Temperature                float64
+	TopP                       float64
+	MaxCompletionTokens        int
+	SystemPrompt               string
+}
+
+type k8sCliInferenceModelsUpdateResponse struct {
+	Created bool
+}
+
+func inferenceCliNewModel(name string) InferenceModel {
+	return InferenceModel{
+		Name:         name,
+		Title:        name,
+		Capabilities: []InferenceCapability{InferenceTextGeneration},
+		PricePerMillion: InferencePricing{
+			CachedInput: InferencePriceScale,
+			Input:       InferencePriceScale,
+			Output:      InferencePriceScale,
+		},
+		PricePerMegaPixel:   InferencePriceScale,
+		PricePerAudioMinute: InferencePriceScale,
+		PricePerVideoSecond: map[InferenceVideoTier]int64{},
+		VideoResolutions:    []InferenceVideoResolution{},
+		Availability: InferenceAvailability{
+			Public:      false,
+			AvailableTo: slices.Clone(shared.ServiceConfig.Compute.Inference.Access.Testers),
+		},
+		ChatSettings: InferenceChatSettings{
+			Temperature: 0.8,
+			TopP:        0.1,
+		},
+	}
 }
 
 type k8sCliInferenceModelsRemoveRequest struct {
@@ -396,6 +657,6 @@ type k8sCliInferenceModelsRemoveRequest struct {
 
 var (
 	k8sCliInferenceModelsList   = ipc.NewCall[util.Empty, []InferenceModel]("cli.k8s.inference.models.list")
-	k8sCliInferenceModelsUpdate = ipc.NewCall[k8sCliInferenceModelsUpdateRequest, util.Empty]("cli.k8s.inference.models.update")
+	k8sCliInferenceModelsUpdate = ipc.NewCall[k8sCliInferenceModelsUpdateRequest, k8sCliInferenceModelsUpdateResponse]("cli.k8s.inference.models.update")
 	k8sCliInferenceModelsRemove = ipc.NewCall[k8sCliInferenceModelsRemoveRequest, util.Empty]("cli.k8s.inference.models.remove")
 )

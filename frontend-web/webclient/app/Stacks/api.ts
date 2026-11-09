@@ -18,6 +18,7 @@ export interface Stack {
 }
 
 export interface StackStatus {
+    disasterRecoveryDeclared?: boolean;
     ucxUiMode: "Replacement" | "None";
     ucxConnectJobId?: string | null;
     jobs: Job[];
@@ -41,8 +42,15 @@ export function updateAcl(
     return apiUpdate(request, baseContext, "updateAcl");
 }
 
-export function remove(
-    request: BulkRequest<FindByStringId>
-): APICallParameters<BulkRequest<FindByStringId>> {
+export interface StackDeleteRequest {
+    id: string;
+    deleteStateDrive?: boolean;
+}
+
+export function remove(request: BulkRequest<StackDeleteRequest>): APICallParameters<BulkRequest<StackDeleteRequest>> {
     return apiDelete(request, baseContext);
+}
+
+export function spawnDeclaredJob(request: FindByStringId): APICallParameters<FindByStringId> {
+    return apiUpdate(request, baseContext, "spawnDeclaredJob");
 }

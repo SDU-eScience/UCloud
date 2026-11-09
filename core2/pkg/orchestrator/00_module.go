@@ -44,6 +44,9 @@ func Init() {
 	initDrives()
 	times["Drives"] = t.Mark()
 
+	initContainerRepositories()
+	times["ContainerRepositories"] = t.Mark()
+
 	initFiles()
 	times["Files"] = t.Mark()
 
@@ -88,6 +91,12 @@ func Init() {
 
 	initPrivateNetworks()
 	times["PrivateNetworks"] = t.Mark()
+
+	initPrivateNetworkIps()
+	times["PrivateNetworkIps"] = t.Mark()
+
+	initServices()
+	times["Services"] = t.Mark()
 
 	initResourceCatalogs()
 	times["ResourceCatalogs"] = t.Mark()

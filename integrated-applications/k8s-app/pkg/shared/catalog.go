@@ -1,0 +1,256 @@
+package shared
+
+import (
+	"fmt"
+	"net/netip"
+	"sort"
+	"strings"
+	"time"
+
+	"k8s.io/apimachinery/pkg/util/version"
+)
+
+type K3sRelease struct {
+	Release       string
+	Sha256Amd64   string
+	Sha256Arm64   string
+	SupportedFrom time.Time
+	EolAt         time.Time
+}
+
+var K3sCatalog = []K3sRelease{
+	{
+		Release:       "v1.36.4+k3s1",
+		Sha256Amd64:   "835873f37245fc615f547a2fe2af9402a347875f13fa64a1f136de644955ea3f",
+		Sha256Arm64:   "c920706346d5ad4e5cd3c7bf1bb09ce71ebe07fec829e513e40f1caf98aed8bb",
+		SupportedFrom: time.Date(2026, 4, 22, 0, 0, 0, 0, time.UTC),
+		EolAt:         time.Date(2027, 6, 22, 0, 0, 0, 0, time.UTC),
+	},
+	{
+		Release:       "v1.35.8+k3s1",
+		Sha256Amd64:   "12f81c9bb5b71e098a4f7a2d187e350902a9339a6c3d5e56c20a03f7a417e07f",
+		Sha256Arm64:   "898476e008704289382377ef19946f23b511cf2678042cb5c8aef991e64f840a",
+		SupportedFrom: time.Date(2025, 12, 17, 0, 0, 0, 0, time.UTC),
+		EolAt:         time.Date(2027, 2, 17, 0, 0, 0, 0, time.UTC),
+	},
+}
+
+func ReleaseByExactVersion(target string) (K3sRelease, bool) {
+	for _, release := range K3sCatalog {
+		if release.Release == target {
+			return release, true
+		}
+	}
+	return K3sRelease{}, false
+}
+
+type ReleaseFlag uint64
+
+const (
+	ReleaseFlagReleased ReleaseFlag = 1 << iota
+	ReleaseFlagSupported
+)
+
+func Releases(now time.Time, flags ReleaseFlag) []K3sRelease {
+	now = now.UTC()
+
+	result := make([]K3sRelease, 0, len(K3sCatalog))
+	for _, release := range K3sCatalog {
+		if _, err := version.ParseSemantic(release.Release); err != nil {
+			continue
+		}
+
+		released := !release.SupportedFrom.After(now)
+		supported := released && (release.EolAt.IsZero() || release.EolAt.After(now))
+
+		if flags&ReleaseFlagReleased != 0 && released {
+			result = append(result, release)
+			continue
+		}
+		if flags&ReleaseFlagSupported != 0 && supported {
+			result = append(result, release)
+		}
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		left, _ := version.ParseSemantic(result[i].Release)
+		right, _ := version.ParseSemantic(result[j].Release)
+		return left.GreaterThan(right)
+	})
+
+	return result
+}
+
+func ReleaseSupportLabel(release K3sRelease, now time.Time) string {
+	if release.EolAt.IsZero() {
+		return release.Release
+	}
+	if !release.EolAt.After(now.UTC()) {
+		return release.Release + " (out of support since " + release.EolAt.UTC().Format("Jan 2, 2006") + ")"
+	}
+	return release.Release + " (supported until " + release.EolAt.UTC().Format("Jan 2, 2006") + ")"
+}
+
+func ReleaseOptionLabel(release K3sRelease, now time.Time) string {
+	if !release.EolAt.IsZero() && !release.EolAt.After(now.UTC()) {
+		return ReleaseSupportLabel(release, now)
+	}
+	return release.Release
+}
+
+func ReleaseEquals(left string, right string) bool {
+	leftVersion, leftErr := version.ParseSemantic(left)
+	rightVersion, rightErr := version.ParseSemantic(right)
+	if leftErr != nil || rightErr != nil {
+		return left == right
+	}
+	return leftVersion.EqualTo(rightVersion)
+}
+
+func ReleaseRecommendedTargetForNode(current string, now time.Time) (K3sRelease, bool) {
+	if !strings.HasPrefix(current, "v") {
+		return K3sRelease{}, false
+	}
+	if _, err := version.ParseSemantic(current); err != nil {
+		return K3sRelease{}, false
+	}
+
+	for _, release := range Releases(now, ReleaseFlagSupported) {
+		if release.Release == current || NodeAgentUpgradeAllowed(current, release.Release) {
+			return release, true
+		}
+	}
+
+	return K3sRelease{}, false
+}
+
+func ReleaseRecommendedTargetForCluster(current []string, now time.Time) (K3sRelease, bool) {
+	if len(current) == 0 {
+		return K3sRelease{}, false
+	}
+
+	for _, release := range Releases(now, ReleaseFlagSupported) {
+		releaseVersion, err := version.ParseSemantic(release.Release)
+		if err != nil {
+			continue
+		}
+
+		reachable := true
+		for _, nodeVersion := range current {
+			parsed, parseErr := version.ParseSemantic(nodeVersion)
+			if parseErr != nil {
+				reachable = false
+				break
+			}
+			if parsed.EqualTo(releaseVersion) {
+				continue
+			}
+			if parsed.GreaterThan(releaseVersion) {
+				reachable = false
+				break
+			}
+			if !NodeAgentUpgradeAllowed(nodeVersion, release.Release) {
+				reachable = false
+				break
+			}
+		}
+
+		if reachable {
+			return release, true
+		}
+	}
+
+	return K3sRelease{}, false
+}
+
+func ClusterUpgradePathGuidance(versions map[string]string, now time.Time) []string {
+	names := make([]string, 0, len(versions))
+	for name := range versions {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	var guidance []string
+	for _, name := range names {
+		if versions[name] == "" {
+			guidance = append(guidance, fmt.Sprintf("The Kubernetes version of node %s is unavailable. Check the node status and try again.", name))
+		}
+	}
+
+	releases := Releases(now, ReleaseFlagSupported)
+	if len(releases) == 0 {
+		return append(guidance, "No supported Kubernetes version is currently available. Contact your service provider.")
+	}
+
+	latest := releases[0].Release
+	for _, name := range names {
+		current := versions[name]
+		if current == "" {
+			continue
+		}
+		if current == latest || NodeAgentUpgradeAllowed(current, latest) {
+			continue
+		}
+
+		next, ok := ReleaseRecommendedTargetForNode(current, now)
+		if ok && !ReleaseEquals(current, next.Release) {
+			guidance = append(guidance, fmt.Sprintf(
+				"Node %s runs Kubernetes version %s and cannot upgrade directly to %s. Its next supported version is %s. Check node maintenance to upgrade it first.",
+				name,
+				current,
+				latest,
+				next.Release,
+			))
+		} else {
+			guidance = append(guidance, fmt.Sprintf(
+				"Node %s runs Kubernetes version %s and has no supported upgrade path to %s. Contact your service provider.",
+				name,
+				current,
+				latest,
+			))
+		}
+	}
+	return guidance
+}
+
+func SupportEnds(target string) (time.Time, bool) {
+	release, ok := ReleaseByExactVersion(target)
+	if !ok || release.EolAt.IsZero() {
+		return time.Time{}, false
+	}
+	return release.EolAt.UTC(), true
+}
+
+func NodeIpForInternalId(internalId int) string {
+	host := ipFromOffset(internalId + 2)
+	return host.String()
+}
+
+func ipFromOffset(offset int) netip.Addr {
+	third := offset / 256
+	fourth := offset % 256
+	return netip.AddrFrom4([4]byte{172, 31, byte(third), byte(fourth)})
+}
+
+const ClusterVmCidr = "172.31.0.0/16"
+
+var ClusterVmPrefix = netip.MustParsePrefix(ClusterVmCidr)
+
+const ClusterPodCidr = "10.14.0.0/16"
+const ClusterServiceCidr = "10.15.0.0/16"
+
+const maxInternalOffset = 65534
+
+func InternalIdIsValid(internalId int) bool {
+	if internalId < 1 {
+		return false
+	}
+
+	offset := internalId + 2
+	return offset <= maxInternalOffset
+}
+
+func SanitizeForPath(value string) string {
+	replacer := strings.NewReplacer("+", "-", "/", "-", " ", "-")
+	return replacer.Replace(value)
+}

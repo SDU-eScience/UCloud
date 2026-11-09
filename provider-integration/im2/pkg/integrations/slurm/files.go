@@ -58,23 +58,32 @@ func InitializeFiles() ctrl.FileService {
 	}
 }
 
-func search(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) {
+func search(ctx context.Context, query, folder string, flags orc.FileFlags, output chan orc.ProviderFile) error {
 	initialFolder, ok := UCloudToInternal(folder)
 	driveId, ok2 := DriveIdFromUCloudPath(folder)
 	defer close(output)
 
 	if !ok || !ok2 {
-		return
+		return errors.New("unknown search folder")
 	}
 
 	drive, ok := RetrieveDrive(driveId)
 	if !ok {
-		return
+		return errors.New("unknown search drive")
 	}
 
 	normalizedQuery := strings.ToLower(query)
 
-	_ = filepath.WalkDir(initialFolder, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(initialFolder, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if path != initialFolder && flags.FilterHiddenFiles.Value && strings.HasPrefix(d.Name(), ".") {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		select {
 		case <-ctx.Done():
 			return filepath.SkipAll
@@ -98,14 +107,20 @@ func search(ctx context.Context, query, folder string, flags orc.FileFlags, outp
 			return nil
 		}
 	})
+	return err
 }
 
 func transferSourceInitiate(request orc.FilesProviderTransferRequestInitiateSource) ([]string, *util.HttpError) {
-	return []string{"built-in"}, nil
+	return []string{"built-in-v3", "built-in"}, nil
 }
 
 func transferDestinationInitiate(_ rpc.Actor, request orc.FilesProviderTransferRequestInitiateDestination) (orc.FilesProviderTransferResponse, *util.HttpError) {
-	if !slices.Contains(request.SupportedProtocols, "built-in") {
+	protocol := "built-in"
+	uploadProtocol := orc.UploadProtocolWebSocketV2
+	if slices.Contains(request.SupportedProtocols, "built-in-v3") {
+		protocol = "built-in-v3"
+		uploadProtocol = orc.UploadProtocolWebSocketV3
+	} else if !slices.Contains(request.SupportedProtocols, "built-in") {
 		return orc.FilesProviderTransferResponse{}, &util.HttpError{
 			StatusCode: http.StatusBadRequest,
 			Why:        "Unable to fulfill this request, no overlap in protocols.",
@@ -135,7 +150,11 @@ func transferDestinationInitiate(_ rpc.Actor, request orc.FilesProviderTransferR
 		}
 	}
 
-	_, target := ctrl.FileCreateFolderUpload(request.DestinationPath, orc.WriteConflictPolicyMergeRename, localDestinationPath)
+	session, target := ctrl.FileCreateFolderUpload(request.DestinationPath, orc.WriteConflictPolicyMergeRename, localDestinationPath, uploadProtocol)
+	token := ""
+	if uploadProtocol == orc.UploadProtocolWebSocketV3 {
+		token = session.Id
+	}
 
 	if request.SourceProvider == cfg.Provider.Id {
 		// NOTE(Dan): This only happens during local development
@@ -145,14 +164,15 @@ func transferDestinationInitiate(_ rpc.Actor, request orc.FilesProviderTransferR
 
 	_ = RegisterTask(TaskInfoSpecification{
 		Type:          FileTaskTransferDestination,
-		MoreInfo:      util.OptValue(target),
+		MoreInfo:      util.OptValue(session.Id),
 		HasUCloudTask: false,
 	})
 
 	resp := ctrl.FilesTransferResponseInitiateDestination(
-		"built-in",
+		protocol,
 		ctrl.TransferBuiltInParameters{
 			Endpoint: target,
+			Token:    token,
 		},
 	)
 	return resp, nil
@@ -192,6 +212,7 @@ func processTransferTask(task *TaskInfo) TaskProcessingResult {
 
 	uploadSession := upload.ClientSession{
 		Endpoint:       parameters.Endpoint,
+		Token:          parameters.Token,
 		ConflictPolicy: orc.WriteConflictPolicyMergeRename,
 	}
 

@@ -1,0 +1,349 @@
+package dashboard
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"time"
+
+	"ucloud.dk/iapp/k8s/pkg/backup"
+	"ucloud.dk/iapp/k8s/pkg/shared"
+	k8sapi "ucloud.dk/shared/pkg/iapps/k8s"
+	"ucloud.dk/shared/pkg/ucx"
+	"ucloud.dk/shared/pkg/ucx/ucxsvc"
+	"ucloud.dk/shared/pkg/util"
+)
+
+type dashboardBackupStatus struct {
+	StateFound      bool
+	State           backup.State
+	RequestFound    bool
+	RequestRevision int64
+	Request         backup.Request
+}
+
+func backupPage(app *stackUiApp) []ucx.UiNode {
+	content := []ucx.UiNode{
+		pageTitle("Control-plane backups"),
+		ucx.Text("An hourly etcd backup is written to the cluster state drive. The backups survive the loss of all control-plane nodes.").Sx(
+			ucx.SxColor(ucx.ColorTextSecondary),
+		),
+		ucx.Text("Retention keeps the newest 48 hourly backups and one backup per day for the last 14 days. If the drive or the project is deleted, the backups are deleted with it.").Sx(
+			ucx.SxColor(ucx.ColorTextSecondary),
+		),
+	}
+
+	status, err := app.backupStatusRead()
+	if err != nil {
+		content = append(content, ucx.Warning(fmt.Sprintf("Could not read the backup state: %s", err)))
+		return pageShell(app, 1100, 16, content)
+	}
+
+	now := time.Now().UTC()
+	app.BackupsBlocked = backupActive(status)
+
+	if !status.StateFound && !status.RequestFound {
+		content = append(content, ucx.Text(
+			"No backup has run yet. The first backup starts at the top of the next hour, or you can start one now.",
+		))
+	}
+
+	content = append(content, backupStatusNodes(app, status, now)...)
+	content = append(content, backupRequestNodes(app, status, now)...)
+	content = append(content, backupRetainedNodes(status)...)
+
+	return pageShell(app, 1100, 16, content)
+}
+
+func backupStatusNodes(app *stackUiApp, status dashboardBackupStatus, now time.Time) []ucx.UiNode {
+	nodes := []ucx.UiNode{}
+
+	if status.StateFound && status.State.LastAttempt.Phase == k8sapi.BackupAttemptFailed {
+		attempt := status.State.LastAttempt
+		message := "The last backup failed"
+		if !attempt.FinishedAt.IsZero() {
+			message += " " + backupAgeLabel(attempt.FinishedAt, now)
+		}
+		if attempt.NodeName != "" {
+			message += " on " + attempt.NodeName
+		}
+		if attempt.Error != "" {
+			message += ": " + attempt.Error
+		}
+		nodes = append(nodes, ucx.Warning(message))
+	}
+
+	for _, warning := range status.State.PruneWarnings {
+		nodes = append(nodes, ucx.Warning("Retention warning: "+warning))
+	}
+
+	if status.StateFound {
+		lastSuccess := "Never"
+		if status.State.LastSuccess.Phase == k8sapi.BackupAttemptSuccess && !status.State.LastSuccess.FinishedAt.IsZero() {
+			lastSuccess = backupTimestampLabel(status.State.LastSuccess.FinishedAt)
+		}
+
+		nextBackup := "-"
+		if !status.State.DueAt.IsZero() {
+			nextBackup = backupTimestampLabel(status.State.DueAt)
+		}
+
+		nodes = append(nodes, app.homeMetricsRow(
+			app.homeMetric("Last success", homeMetricText(lastSuccess, ucx.ColorTextPrimary)),
+			app.homeMetric("Next backup", homeMetricText(nextBackup, ucx.ColorTextPrimary)),
+			app.homeMetric("Retained", homeMetricText(fmt.Sprint(len(status.State.Retained)), ucx.ColorTextPrimary)),
+		))
+	}
+
+	return nodes
+}
+
+func backupRequestNodes(app *stackUiApp, status dashboardBackupStatus, now time.Time) []ucx.UiNode {
+	row := []ucx.UiNode{}
+
+	running := status.RequestFound && status.Request.Phase == k8sapi.BackupRequestRunning
+	pending := status.RequestFound && status.Request.Phase == k8sapi.BackupRequestPending
+	claimActive := status.StateFound && status.State.ClaimUid != ""
+
+	switch {
+	case running:
+		row = append(row, backupProgressLine("A manual backup is running."))
+	case claimActive:
+		row = append(row, backupProgressLine("A scheduled backup is running."))
+	case pending:
+		message := "A backup request is waiting for the coordinator."
+		if !status.Request.RequestedAt.IsZero() {
+			message = fmt.Sprintf(
+				"A backup request is waiting for the coordinator (requested %s).",
+				backupAgeLabel(status.Request.RequestedAt, now),
+			)
+		}
+		row = append(row, backupProgressLine(message))
+	}
+
+	submit := ucx.SubmitButton("backupSubmit", "Start backup", ucx.ColorPrimaryMain).
+		ButtonBusy("backupsBusy").
+		ButtonDisabledWhen("backupsBlocked").
+		WithTooltip("Starts a backup now. The hourly schedule does not change.").
+		Sx(ucx.SxWhiteSpace("nowrap"))
+
+	form := ucx.Form("backupForm").
+		Sx(ucx.SxFlexShrink(0), ucx.SxAlignSelf("center")).
+		On(ucx.UiEventSubmit, func(ev ucx.UiEvent) {
+			if app.BackupsBusy || app.BackupsBlocked {
+				return
+			}
+			backupSubmitAsync(app)
+		}).Children(submit)
+
+	row = append(row, ucx.Box().Sx(ucx.SxFlexGrow(1)), form)
+
+	return []ucx.UiNode{ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 12}).
+		Sx(ucx.SxAlignItemsCenter).
+		Children(row...)}
+}
+
+func backupRetainedNodes(status dashboardBackupStatus) []ucx.UiNode {
+	nodes := []ucx.UiNode{
+		sectionHeader("Retained backups", 16),
+	}
+
+	if !status.StateFound || len(status.State.Retained) == 0 {
+		nodes = append(nodes, ucx.Text("No backups are stored yet.").Sx(ucx.SxColor(ucx.ColorTextSecondary)))
+		return nodes
+	}
+
+	rows := make([]ucx.UiNode, 0, len(status.State.Retained))
+	for _, info := range status.State.Retained {
+		rows = append(rows, backupRetainedRow(info))
+	}
+	nodes = append(nodes, ucx.Flex(ucx.FlexProps{Direction: "column", Gap: 6}).Children(rows...))
+	return nodes
+}
+
+func backupRetainedRow(info backup.BackupInfo) ucx.UiNode {
+	return backup.UIBackupRow(
+		info.Id,
+		info.Release,
+		info.SizeBytes,
+		info.CreatedByNode,
+		ucx.Text("ok").Sx(ucx.SxColor(ucx.ColorSuccessMain)),
+	)
+}
+
+func backupProgressLine(text string) ucx.UiNode {
+	return ucx.Flex(ucx.FlexProps{Direction: "row", Gap: 8}).
+		Sx(ucx.SxAlignItemsCenter).
+		Children(
+			ucx.Spinner(16),
+			ucx.Text(text).Sx(ucx.SxColor(ucx.ColorTextSecondary)),
+		)
+}
+
+func backupSubmitAsync(app *stackUiApp) {
+	if app.BackupsBusy || app.BackupsBlocked {
+		return
+	}
+
+	app.runAsyncAction("backupsBusy", &app.BackupsBusy, func() error {
+		return backupRequestSubmit(app)
+	}, func(err error) {
+		if err != nil {
+			dashboardSendUiMessage(*app.Session(), err.Error(), false)
+		} else {
+			dashboardSendUiMessage(*app.Session(), "A backup was requested. It starts within a few seconds.", true)
+		}
+	})
+}
+
+func backupRequestSubmit(app *stackUiApp) error {
+	_, err := backupRequestSubmitUid(app)
+	return err
+}
+
+func backupRequestSubmitUid(app *stackUiApp) (string, error) {
+	status, err := app.backupStatusRead()
+	if err != nil {
+		return "", err
+	}
+
+	if backupActive(status) {
+		return "", errors.New("a backup is already pending or running")
+	}
+
+	client, err := app.clusterStateValueClient()
+	if err != nil {
+		return "", err
+	}
+
+	request := backup.Request{
+		SchemaRevision: backup.SchemaRevision,
+		Uid:            shared.NewUid(),
+		Requester:      app.backupsRequester,
+		RequestedAt:    time.Now().UTC(),
+		Phase:          k8sapi.BackupRequestPending,
+	}
+
+	value := util.MustJsonMarshal(request)
+
+	_, err = shared.ClusterStateValueWrite(client, backup.RequestKey, value, status.RequestRevision)
+	if err == nil {
+		return request.Uid, nil
+	}
+
+	recheckCtx, recheckCancel := dashboardSessionContext(*app.Session())
+	latest, latestErr := shared.ClusterStateValueReadEx(recheckCtx, client, backup.RequestKey)
+	recheckCancel()
+	if latestErr == nil && latest.Found {
+		var current backup.Request
+		if json.Unmarshal(latest.Value, &current) == nil && backupRequestActive(current) {
+			return "", errors.New("a backup is already pending or running")
+		}
+	}
+
+	if shared.IsConflict(err) {
+		return "", errors.New("the backup request changed while submitting. Try again")
+	}
+
+	return "", fmt.Errorf("could not submit the backup request: %s", err)
+}
+
+func (app *stackUiApp) backupStatusRead() (dashboardBackupStatus, error) {
+	client, err := app.clusterStateValueClient()
+	if err != nil {
+		return dashboardBackupStatus{}, err
+	}
+
+	ctx, cancel := app.dashboardContext()
+	defer cancel()
+
+	state, stateFound, _, err := dashboardStateValueRead[backup.State](ctx, client, backup.StateKey, "backup state")
+	if err != nil {
+		return dashboardBackupStatus{}, err
+	}
+
+	result := dashboardBackupStatus{
+		StateFound: stateFound,
+		State:      state,
+	}
+
+	request, requestFound, requestRevision, err := dashboardStateValueRead[backup.Request](ctx, client, backup.RequestKey, "backup request")
+	if err != nil {
+		return dashboardBackupStatus{}, err
+	}
+
+	result.RequestFound = requestFound
+	result.RequestRevision = requestRevision
+	result.Request = request
+
+	return result, nil
+}
+
+func backupActive(status dashboardBackupStatus) bool {
+	if status.StateFound && status.State.ClaimUid != "" {
+		return true
+	}
+	return backupRequestActive(status.Request)
+}
+
+func backupRequestActive(request backup.Request) bool {
+	return request.Phase == k8sapi.BackupRequestPending || request.Phase == k8sapi.BackupRequestRunning
+}
+
+func (app *stackUiApp) homeBackupsMetric() []ucx.UiNode {
+	status, err := app.backupStatusRead()
+
+	link := ucx.LinkButton("homeBackups", "(View)", ucx.ColorLinkColor).Sx(
+		ucx.SxFontSize(12),
+		ucx.SxFontWeight("400"),
+	).On(ucx.UiEventClick, func(ev ucx.UiEvent) {
+		ucxsvc.RouterPushPage(app, "backups")
+	})
+
+	valueLabel := "Unknown"
+	valueColor := ucx.ColorTextSecondary
+
+	if err == nil && status.StateFound {
+		now := time.Now().UTC()
+		hasSuccess := status.State.LastSuccess.Phase == k8sapi.BackupAttemptSuccess &&
+			!status.State.LastSuccess.FinishedAt.IsZero()
+		failed := status.State.LastAttempt.Phase == k8sapi.BackupAttemptFailed
+
+		if hasSuccess {
+			valueLabel = backupAgeLabel(status.State.LastSuccess.FinishedAt, now)
+			valueColor = ucx.ColorTextPrimary
+		} else {
+			valueLabel = "Never"
+		}
+		if failed {
+			valueLabel = "Failed"
+			valueColor = ucx.ColorErrorMain
+		}
+	} else if err == nil {
+		valueLabel = "Not yet"
+	}
+
+	return app.homeMetricEx("Backups", []ucx.UiNode{link}, homeMetricText(valueLabel, valueColor))
+}
+
+func backupTimestampLabel(t time.Time) string {
+	return t.UTC().Format("Jan 2, 2006 15:04 UTC")
+}
+
+func backupAgeLabel(t time.Time, now time.Time) string {
+	delta := now.Sub(t)
+	if delta < time.Minute {
+		return "just now"
+	}
+	if delta < time.Hour {
+		return fmt.Sprintf("%d min ago", int(delta/time.Minute))
+	}
+	if delta < 24*time.Hour {
+		return fmt.Sprintf("%d h ago", int(delta/time.Hour))
+	}
+	days := int(delta / (24 * time.Hour))
+	if days == 1 {
+		return "1 day ago"
+	}
+	return fmt.Sprintf("%d days ago", days)
+}

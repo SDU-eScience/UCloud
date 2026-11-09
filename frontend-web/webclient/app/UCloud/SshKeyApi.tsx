@@ -108,7 +108,7 @@ class SshKeyApi {
         return apiDelete(request, this.baseContext);
     }
 
-    public retrieveOperations(): Operation<SSHKey, StandardCallbacks<SSHKey>>[] {
+    public retrieveOperations(): Operation<SSHKey, StandardCallbacks<SSHKey> & {onAddStart: () => void;}>[] {
         return [
             {
                 icon: "upload",
@@ -116,7 +116,7 @@ class SshKeyApi {
                 primary: true,
                 enabled: (selected) => selected.length === 0,
                 onClick: (selected, cb) => {
-                    cb.navigate("/ssh-keys/create");
+                    cb.onAddStart();
                 },
                 shortcut: ShortcutKey.N,
             },
@@ -126,6 +126,10 @@ class SshKeyApi {
                 color: "errorMain",
                 enabled: (selected) => selected.length > 0,
                 confirm: true,
+                confirmationText: selected => selected.length === 1 ?
+                    "Are you sure you want to delete this SSH key?" :
+                    `Are you sure you want to delete these ${selected.length} SSH keys?`,
+                confirmationButtonText: "Delete",
                 onClick: async (selected, cb) => {
                     await cb.invokeCommand(
                         this.delete(bulkRequestOf(

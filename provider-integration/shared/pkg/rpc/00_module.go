@@ -137,6 +137,7 @@ type Server struct {
 }
 
 type Client struct {
+	ProjectId       util.Option[string]
 	RefreshToken    string
 	AccessToken     string
 	BasePath        string
@@ -158,6 +159,8 @@ type Call[Req any, Resp any] struct {
 	BaseContext string
 	Operation   string
 
+	ServerAliases []string
+
 	Roles Role // Bit-set. See roles below.
 	Audit AuditRules
 }
@@ -165,7 +168,7 @@ type Call[Req any, Resp any] struct {
 func rpcBaseContext(context string) string {
 	if context == "" {
 		return ""
-  } else if context == "/" {
+	} else if context == "/" {
 		return "/"
 	} else if !strings.HasPrefix(context, "auth") && !strings.HasPrefix(context, "ucloud/") {
 		return fmt.Sprintf("api/%s", context)
@@ -306,6 +309,26 @@ var wsUpgrader = ws.Upgrader{
 }
 
 func (c *Call[Req, Resp]) HandlerEx(server *Server, handler ServerHandler[Req, Resp]) {
+	if c.Convention == ConventionCustom || len(c.ServerAliases) == 0 {
+		handlerEx(server, handler, c)
+		return
+	}
+
+	seen := make(map[string]struct{}, 1+len(c.ServerAliases))
+	for _, baseContext := range append([]string{c.BaseContext}, c.ServerAliases...) {
+		if _, ok := seen[baseContext]; ok {
+			continue
+		}
+		seen[baseContext] = struct{}{}
+
+		call := *c
+		call.BaseContext = baseContext
+		call.ServerAliases = nil
+		handlerEx(server, handler, &call)
+	}
+}
+
+func handlerEx[Req any, Resp any](server *Server, handler ServerHandler[Req, Resp], c *Call[Req, Resp]) {
 	const websocketMethod = "\n\nwebsocket\n\n" // fake method used for multiplexing to websockets
 
 	if server == nil {

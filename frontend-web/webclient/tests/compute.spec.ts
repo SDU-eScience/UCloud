@@ -58,7 +58,7 @@ TestContexts.map((ctx) => {
 
             await Runs.terminateViewedRun(page);
 
-            await page.getByText("Run application again").hover();
+            await page.getByText("Run again").hover();
         });
 
         const AppNameThatIsExpectedToBePresentButWeWillNotRun = "Terminal";
@@ -162,7 +162,6 @@ echo "${BashScriptStringContent}"
                 await Applications.goToApplications(page);
                 await Applications.openAppBySearch(page, AppNames.TestApplication);
                 // Optional parameter to be used
-                await Runs.activateOptionalParameter(page, "Initialization script");
                 await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
                     await page.getByRole("textbox", {name: "Initialization script"}).click();
                 });
@@ -226,16 +225,15 @@ echo "${BashScriptStringContent}"
 
             // Create private network
             const networkName = Resources.PrivateNetworks.newName();
-            const newSubdomainName = Resources.PrivateNetworks.newSubdomainName();
-            await Resources.PrivateNetworks.createPrivateNetwork(page, networkName, newSubdomainName);
+            const newSubdomainName = networkName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 63);
+            await Resources.PrivateNetworks.createPrivateNetwork(page, networkName);
 
             const jobName = Runs.newJobName();
             const jobNetworkId1 = Resources.PrivateNetworks.newJobNetworkName();
             const term1 = await Applications.runAppAndOpenTerminalWithTerminalPage(page, AppNames.TestApplication, 2, async p => {
-                await p.getByText("Connect network").first().click();
-                await p.getByRole("textbox", {name: "Hostname"}).fill(jobNetworkId1);
-                await p.getByPlaceholder("No private network selected").click();
+                await p.getByRole("textbox", {name: "Private network #1"}).click();
                 await p.getByRole("dialog").locator(".row", {hasText: networkName}).getByRole("button", {name: "Use"}).click();
+                await p.locator("[data-field-row]", {hasText: "Hostname"}).getByRole("textbox").fill(jobNetworkId1);
             }, jobName);
 
 
@@ -243,10 +241,9 @@ echo "${BashScriptStringContent}"
             const jobNetworkId2 = Resources.PrivateNetworks.newJobNetworkName();
             await User.toLoginPage(otherPage); // Should redirect to dashboard, as this is already logged in.
             const term2 = await Applications.runAppAndOpenTerminalWithTerminalPage(otherPage, AppNames.TestApplication, 2, async p => {
-                await p.getByText("Connect network").first().click();
-                await p.getByRole("textbox", {name: "Hostname"}).fill(jobNetworkId2);
-                await p.getByPlaceholder("No private network selected").click();
+                await p.getByRole("textbox", {name: "Private network #1"}).click();
                 await p.getByRole("dialog").locator(".row", {hasText: networkName}).getByRole("button", {name: "Use"}).click();
+                await p.locator("[data-field-row]", {hasText: "Hostname"}).getByRole("textbox").fill(jobNetworkId2);
             }, jobName);
 
             await Terminal.enterCmd(term1, `apt install busybox && echo "setup done!"`);
@@ -300,14 +297,14 @@ echo "${BashScriptStringContent}"
 
             await Drive.goToDrives(userPage);
             if (ctx === "Personal Workspace") {
-                await userPage.locator('div[data-disabled="false"]', {hasText: "Create drive"}).waitFor();
+                await userPage.getByRole("button", {name: "Create drive", disabled: false}).waitFor();
             }
             await File.triggerStorageScan(userPage, driveName);
             await Runs.goToRuns(userPage);
             await Components.projectSwitcher(userPage, "hover");
             await Applications.actionByRowTitle(userPage, jobName, "click");
             await NetworkCalls.awaitResponse(userPage, "**/api/jobs/retrieve?id=**", async () => {
-                await userPage.getByText("Run application again").click();
+                await userPage.getByText("Run again").click();
             });
             await userPage.getByText("No machine type selected").waitFor({state: "hidden"});
             await Runs.setJobTitle(userPage, "")

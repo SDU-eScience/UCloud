@@ -23,11 +23,13 @@ type iappConfigKey struct {
 
 var iappConfigs = map[iappConfigKey]IAppRunningConfiguration{}
 var iappConfigsMutex = sync.Mutex{}
+var iappMutationMutex = sync.Mutex{}
 
 type IntegratedApplicationFlag int
 
 const (
 	IntegratedAppInternal IntegratedApplicationFlag = 1 << iota
+	IntegratedAppProjectScoped
 )
 
 type IntegratedApplicationHandler struct {
@@ -195,9 +197,12 @@ func IAppReconfigureAll() {
 			if iappConfigIsWaiting(config) {
 				continue
 			}
+			if iappConfigNeedsNewJob(config) {
+				continue
+			}
 
 			job, ok := JobRetrieve(config.JobId)
-			if !ok || job.Status.State.IsFinal() || iappConfigNeedsNewJob(config) {
+			if !ok || job.Status.State.IsFinal() {
 				log.Warn(
 					"iapp %#v (%v) is detached or missing its job",
 					key,
@@ -271,6 +276,10 @@ func iappCreateJob(appName string, owner orc.ResourceOwner, configuration json.R
 
 	key := iappConfigKey{AppName: appName, Owner: owner}
 	newEtag := util.RandomToken(16)
+	project := util.OptNone[string]()
+	if svc.Flags&IntegratedAppProjectScoped != 0 {
+		project = owner.Project
+	}
 
 	res := orc.ProviderRegisteredResource[orc.JobSpecification]{
 		Spec: orc.JobSpecification{
@@ -283,7 +292,7 @@ func iappCreateJob(appName string, owner orc.ResourceOwner, configuration json.R
 			Parameters:  map[string]orc.AppParameterValue{},
 			Resources:   []orc.AppParameterValue{},
 		},
-		Project:   util.OptStringIfNotEmpty(""),
+		Project:   project,
 		CreatedBy: util.OptStringIfNotEmpty(owner.CreatedBy),
 	}
 
@@ -335,21 +344,29 @@ func iappCreateJob(appName string, owner orc.ResourceOwner, configuration json.R
 }
 
 func IAppConfigure(appName string, owner orc.ResourceOwner, etag util.Option[string], configuration json.RawMessage) *util.HttpError {
-	key := iappConfigKey{
-		AppName: appName,
-		Owner:   owner,
+	for {
+		iappMutationMutex.Lock()
+		key := iappConfigKey{AppName: appName, Owner: owner}
+		iappConfigsMutex.Lock()
+		config, ok := iappConfigs[key]
+		iappConfigsMutex.Unlock()
+		if !ok || !iappConfigIsWaiting(config) {
+			err := func() *util.HttpError {
+				defer iappMutationMutex.Unlock() // NOTE(Dan): in case of panics wrap in function
+				return iappConfigure(appName, owner, etag, configuration)
+			}()
+			return err
+		}
+		iappMutationMutex.Unlock()
+		time.Sleep(500 * time.Millisecond)
 	}
+}
 
+func iappConfigure(appName string, owner orc.ResourceOwner, etag util.Option[string], configuration json.RawMessage) *util.HttpError {
+	key := iappConfigKey{AppName: appName, Owner: owner}
 	iappConfigsMutex.Lock()
 	config, ok := iappConfigs[key]
 	iappConfigsMutex.Unlock()
-
-	for ok && iappConfigIsWaiting(config) {
-		time.Sleep(500 * time.Millisecond)
-		iappConfigsMutex.Lock()
-		config, ok = iappConfigs[key]
-		iappConfigsMutex.Unlock()
-	}
 
 	etagsMatched := !etag.Present || etag.Value == config.ETag
 	if ok && !etagsMatched {
@@ -381,7 +398,14 @@ func IAppConfigure(appName string, owner orc.ResourceOwner, etag util.Option[str
 
 	job, ok := JobRetrieve(config.JobId)
 	if !ok || job.Status.State.IsFinal() {
-		return IAppRestart(appName, owner)
+		return iappRestart(appName, owner)
+	}
+	if svc.Flags&IntegratedAppProjectScoped != 0 && job.Owner.Project != owner.Project {
+		if err := Jobs.Terminate(JobTerminateRequest{Job: job}); err != nil {
+			return err
+		}
+		iappDetachConfig(key, config)
+		return iappConfigure(appName, owner, util.OptNone[string](), configuration)
 	}
 
 	err := svc.UpdateConfiguration(job, newEtag, configuration)
@@ -442,6 +466,12 @@ func IAppListActiveConfigurations(appName string) []IAppRunningConfiguration {
 }
 
 func IAppReset(appName string, owner orc.ResourceOwner, etag util.Option[string]) *util.HttpError {
+	iappMutationMutex.Lock()
+	defer iappMutationMutex.Unlock()
+	return iappReset(appName, owner, etag)
+}
+
+func iappReset(appName string, owner orc.ResourceOwner, etag util.Option[string]) *util.HttpError {
 	handler, ok := IntegratedApplications[appName]
 	if !ok {
 		log.Warn("Failed to reset integrated application, there is no associated handler for %s.", appName)
@@ -480,12 +510,19 @@ func IAppReset(appName string, owner orc.ResourceOwner, etag util.Option[string]
 	if err != nil {
 		return err
 	} else {
-		err = IAppConfigure(appName, owner, util.OptNone[string](), newConfig)
+		err = iappConfigure(appName, owner, util.OptNone[string](), newConfig)
 		return err
 	}
 }
 
 func IAppRestart(appName string, owner orc.ResourceOwner) *util.HttpError {
+	iappMutationMutex.Lock()
+	defer iappMutationMutex.Unlock()
+	return iappRestart(appName, owner)
+}
+
+// iappRestart does a restart but requires already holding the mutation lock
+func iappRestart(appName string, owner orc.ResourceOwner) *util.HttpError {
 	handler, ok := IntegratedApplications[appName]
 	if !ok {
 		return util.ServerHttpError("Could not find the application. Reload the page and try again later.")
@@ -501,7 +538,7 @@ func IAppRestart(appName string, owner orc.ResourceOwner) *util.HttpError {
 		// The stale job ID must be detached before IAppConfigure can create a replacement.
 		key := iappConfigKey{AppName: appName, Owner: owner}
 		iappDetachConfig(key, config.Value)
-		return IAppConfigure(appName, owner, util.OptNone[string](), config.Value.Configuration)
+		return iappConfigure(appName, owner, util.OptNone[string](), config.Value.Configuration)
 	}
 
 	err := handler.RestartApplication(job)
@@ -566,6 +603,11 @@ func IAppDetachByJobId(jobId string) *util.HttpError {
 	}
 
 	key := iappConfigKey{AppName: config.Value.AppName, Owner: config.Value.Owner}
-	iappDetachConfig(key, config.Value)
+	iappMutationMutex.Lock()
+	defer iappMutationMutex.Unlock()
+	config = IAppRetrieveByJobId(jobId)
+	if config.Present {
+		iappDetachConfig(key, config.Value)
+	}
 	return nil
 }

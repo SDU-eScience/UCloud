@@ -44,6 +44,9 @@ func Init() {
 	initSupport()
 	times["Support"] = t.Mark()
 
+	initFeatures()
+	times["Features"] = t.Mark()
+
 	initAuthOidc()
 	times["Oidc"] = t.Mark()
 

@@ -45,10 +45,10 @@ func TestBasicScheduling(t *testing.T) {
 	}
 
 	submitAt := fnd.Timestamp(time.Now())
-	jobLength := orc.SimpleDuration{1, 0, 0}
+	jobLength := orc.SimpleDuration{Hours: 1}
 
 	for i := 0; i < 100; i++ {
-		scheduler.RegisterJobInQueue(fmt.Sprint(i), fullNode, 1, 0, submitAt, jobLength)
+		scheduler.RegisterJobInQueue(fmt.Sprint(i), fullNode, 1, util.OptNone[string](), 0, submitAt, jobLength)
 	}
 
 	jobsSeen := map[string]bool{}
@@ -103,6 +103,7 @@ func TestTimeInQueueAffectsPriority(t *testing.T) {
 			fmt.Sprint(i),
 			dimensions,
 			1,
+			util.OptNone[string](),
 			0,
 			fnd.Timestamp(now.Add(time.Duration(-i)*time.Hour)),
 			duration,
@@ -181,6 +182,7 @@ func TestJobSizeAffectsPriority(t *testing.T) {
 					Resources:     map[string]int{},
 				},
 				1+(multiplierReplicas*factor),
+				util.OptNone[string](),
 				0,
 				fnd.Timestamp(now),
 				duration,
@@ -222,6 +224,7 @@ func TestJobCompaction(t *testing.T) {
 				fmt.Sprint(i),
 				shared.SchedulerDimensions{CpuMillis: request, Resources: map[string]int{}},
 				1,
+				util.OptNone[string](),
 				0,
 				fnd.Timestamp(time.Now()),
 				orc.SimpleDuration{Hours: 1},
@@ -314,6 +317,7 @@ func TestFailingGpu(t *testing.T) {
 				},
 			},
 			1,
+			util.OptNone[string](),
 			0,
 			fnd.Timestamp(time.Now()),
 			orc.SimpleDuration{Hours: 1},
@@ -508,21 +512,21 @@ func TestCpuStandardScenarioScheduling(t *testing.T) {
 		Fraction:     apm.Fraction{Numerator: 1, Denominator: 4},
 	}
 
-	if got := shared.NodeCpuMillisNormalizedWithReserved(fullProduct); got != 958 {
+	if got := shared.NodeCpuMillisWithBudget(int(shared.NodeCpuMillisNormalizedWithoutReserved(fullProduct)), 12000, 11500); got != 958 {
 		t.Fatalf("expected full product CPU millis to be 958, got %d", got)
 	}
-	if got := shared.NodeCpuMillisNormalizedWithReserved(fractionalProduct); got != 479 {
+	if got := shared.NodeCpuMillisWithBudget(int(shared.NodeCpuMillisNormalizedWithoutReserved(fractionalProduct)), 12000, 11500); got != 479 {
 		t.Fatalf("expected fractional product CPU millis to be 479, got %d", got)
 	}
 
 	fullDims := shared.JobDimensionsFromProductOnly(fullProduct)
 	fractionalDims := shared.JobDimensionsFromProductOnly(fractionalProduct)
 
-	if fullDims.CpuMillis != 958 {
-		t.Fatalf("expected full product queue dims CPU to be 958, got %d", fullDims.CpuMillis)
+	if fullDims.CpuMillis != 1000 {
+		t.Fatalf("expected full product queue dims CPU to be 1000, got %d", fullDims.CpuMillis)
 	}
-	if fractionalDims.CpuMillis != 479 {
-		t.Fatalf("expected fractional product queue dims CPU to be 479, got %d", fractionalDims.CpuMillis)
+	if fractionalDims.CpuMillis != 500 {
+		t.Fatalf("expected fractional product queue dims CPU to be 500, got %d", fractionalDims.CpuMillis)
 	}
 
 	node := shared.SchedulerDimensions{CpuMillis: 12000, MemoryInBytes: 200000000000, Resources: map[string]int{}}
@@ -533,8 +537,10 @@ func TestCpuStandardScenarioScheduling(t *testing.T) {
 
 	fullScheduler := NewScheduler("cpu-standard")
 	fullScheduler.RegisterNode("node-0", node, nodeLimits, false)
+	fullScheduler.Nodes["node-0"].ScaleCpuRequests = true
+	fullScheduler.Nodes["node-0"].CpuBudgetMillis = nodeLimits.CpuMillis
 	for i := 0; i < 13; i++ {
-		fullScheduler.RegisterJobInQueue(fmt.Sprintf("full-%d", i), fullDims, 1, nil, now, jobLength)
+		fullScheduler.RegisterJobInQueue(fmt.Sprintf("full-%d", i), fullDims, 1, util.OptNone[string](), nil, now, jobLength)
 	}
 
 	fullScheduled := fullScheduler.Schedule()
@@ -547,8 +553,10 @@ func TestCpuStandardScenarioScheduling(t *testing.T) {
 
 	fractionalScheduler := NewScheduler("cpu-standard")
 	fractionalScheduler.RegisterNode("node-0", node, nodeLimits, false)
+	fractionalScheduler.Nodes["node-0"].ScaleCpuRequests = true
+	fractionalScheduler.Nodes["node-0"].CpuBudgetMillis = nodeLimits.CpuMillis
 	for i := 0; i < 25; i++ {
-		fractionalScheduler.RegisterJobInQueue(fmt.Sprintf("frac-%d", i), fractionalDims, 1, nil, now, jobLength)
+		fractionalScheduler.RegisterJobInQueue(fmt.Sprintf("frac-%d", i), fractionalDims, 1, util.OptNone[string](), nil, now, jobLength)
 	}
 
 	fractionalScheduled := fractionalScheduler.Schedule()
@@ -585,6 +593,7 @@ func TestMixedGpuResourceTypesCanCoexist(t *testing.T) {
 				},
 			},
 			1,
+			util.OptNone[string](),
 			nil,
 			fnd.Timestamp(time.Now()),
 			orc.SimpleDuration{Hours: 1},
@@ -602,6 +611,7 @@ func TestMixedGpuResourceTypesCanCoexist(t *testing.T) {
 				},
 			},
 			1,
+			util.OptNone[string](),
 			nil,
 			fnd.Timestamp(time.Now()),
 			orc.SimpleDuration{Hours: 1},
@@ -623,6 +633,7 @@ func TestMixedGpuResourceTypesCanCoexist(t *testing.T) {
 			},
 		},
 		1,
+		util.OptNone[string](),
 		nil,
 		fnd.Timestamp(time.Now()),
 		orc.SimpleDuration{Hours: 1},
@@ -638,6 +649,7 @@ func TestMixedGpuResourceTypesCanCoexist(t *testing.T) {
 			},
 		},
 		1,
+		util.OptNone[string](),
 		nil,
 		fnd.Timestamp(time.Now()),
 		orc.SimpleDuration{Hours: 1},
@@ -645,5 +657,169 @@ func TestMixedGpuResourceTypesCanCoexist(t *testing.T) {
 
 	if extra := s.Schedule(); len(extra) != 0 {
 		t.Fatalf("expected no additional jobs to schedule, got %d", len(extra))
+	}
+}
+
+func TestAntiAffinitySpreadsJobsAcrossNodes(t *testing.T) {
+	s := NewScheduler("sched")
+	registerNodes(s, 3, 4000)
+
+	dims := shared.SchedulerDimensions{CpuMillis: 1000, MemoryInBytes: 100, Resources: map[string]int{}}
+	group := util.OptValue("project/cluster-control-plane")
+	now := fnd.Timestamp(time.Now())
+
+	for i := 0; i < 3; i++ {
+		s.RegisterJobInQueue(
+			fmt.Sprintf("job-%d", i),
+			dims,
+			1,
+			group,
+			nil,
+			now,
+			orc.SimpleDuration{Hours: 1},
+		)
+	}
+
+	scheduled := s.Schedule()
+	if len(scheduled) != 3 {
+		t.Fatalf("expected 3 jobs to be scheduled, got %d", len(scheduled))
+	}
+
+	nodes := map[string]util.Empty{}
+	for _, replica := range scheduled {
+		nodes[replica.Node] = util.Empty{}
+	}
+
+	if len(nodes) != 3 {
+		t.Errorf("expected the 3 jobs to be placed on 3 different nodes, but %d node(s) were used", len(nodes))
+	}
+}
+
+func TestAntiAffinityRespectsExistingNodeOccupancy(t *testing.T) {
+	s := NewScheduler("sched")
+	registerNodes(s, 3, 4000)
+
+	group := "project/cluster-control-plane"
+	s.SynchronizeNodeAntiAffinity("node-0", map[string]util.Empty{group: {}})
+
+	dims := shared.SchedulerDimensions{CpuMillis: 1000, MemoryInBytes: 100, Resources: map[string]int{}}
+	now := fnd.Timestamp(time.Now())
+
+	for i := 0; i < 2; i++ {
+		s.RegisterJobInQueue(
+			fmt.Sprintf("job-%d", i),
+			dims,
+			1,
+			util.OptValue(group),
+			nil,
+			now,
+			orc.SimpleDuration{Hours: 1},
+		)
+	}
+
+	scheduled := s.Schedule()
+	if len(scheduled) != 2 {
+		t.Fatalf("expected 2 jobs to be scheduled, got %d", len(scheduled))
+	}
+
+	for _, replica := range scheduled {
+		if replica.Node == "node-0" {
+			t.Errorf("expected the scheduler to avoid node-0 which already runs the anti-affinity group")
+		}
+	}
+}
+
+func TestAntiAffinitySpreadsReplicas(t *testing.T) {
+	s := NewScheduler("sched")
+	registerNodes(s, 3, 4000)
+
+	dims := shared.SchedulerDimensions{CpuMillis: 1000, MemoryInBytes: 100, Resources: map[string]int{}}
+
+	s.RegisterJobInQueue(
+		"job",
+		dims,
+		2,
+		util.OptValue("project/cluster-control-plane"),
+		nil,
+		fnd.Timestamp(time.Now()),
+		orc.SimpleDuration{Hours: 1},
+	)
+
+	scheduled := s.Schedule()
+	if len(scheduled) != 2 {
+		t.Fatalf("expected 2 replicas to be scheduled, got %d", len(scheduled))
+	}
+
+	if scheduled[0].Node == scheduled[1].Node {
+		t.Errorf("expected the replicas to be placed on different nodes, both were placed on %s", scheduled[0].Node)
+	}
+}
+
+func TestAntiAffinityFallsBackToCoLocation(t *testing.T) {
+	s := NewScheduler("sched")
+	registerNodes(s, 2, 4000)
+
+	dims := shared.SchedulerDimensions{CpuMillis: 1000, MemoryInBytes: 100, Resources: map[string]int{}}
+	group := util.OptValue("project/cluster-control-plane")
+	now := fnd.Timestamp(time.Now())
+
+	for i := 0; i < 3; i++ {
+		s.RegisterJobInQueue(
+			fmt.Sprintf("job-%d", i),
+			dims,
+			1,
+			group,
+			nil,
+			now,
+			orc.SimpleDuration{Hours: 1},
+		)
+	}
+
+	scheduled := s.Schedule()
+	if len(scheduled) != 3 {
+		t.Fatalf("expected all 3 jobs to start even when every node runs the group, got %d", len(scheduled))
+	}
+
+	nodes := map[string]util.Empty{}
+	for _, replica := range scheduled {
+		nodes[replica.Node] = util.Empty{}
+	}
+
+	if len(nodes) != 2 {
+		t.Errorf("expected the jobs to fall back onto the 2 available nodes, but %d node(s) were used", len(nodes))
+	}
+}
+
+func TestAntiAffinityIgnoredWithoutLabel(t *testing.T) {
+	s := NewScheduler("sched")
+	registerNodes(s, 3, 4000)
+
+	dims := shared.SchedulerDimensions{CpuMillis: 1000, MemoryInBytes: 100, Resources: map[string]int{}}
+	now := fnd.Timestamp(time.Now())
+
+	for i := 0; i < 3; i++ {
+		s.RegisterJobInQueue(
+			fmt.Sprintf("job-%d", i),
+			dims,
+			1,
+			util.OptNone[string](),
+			nil,
+			now,
+			orc.SimpleDuration{Hours: 1},
+		)
+	}
+
+	scheduled := s.Schedule()
+	if len(scheduled) != 3 {
+		t.Fatalf("expected 3 jobs to be scheduled, got %d", len(scheduled))
+	}
+
+	nodes := map[string]util.Empty{}
+	for _, replica := range scheduled {
+		nodes[replica.Node] = util.Empty{}
+	}
+
+	if len(nodes) != 1 {
+		t.Errorf("expected jobs without the label to keep packing onto one node, but %d node(s) were used", len(nodes))
 	}
 }

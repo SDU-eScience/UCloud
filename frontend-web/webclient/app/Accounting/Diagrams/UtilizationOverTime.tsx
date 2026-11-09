@@ -1,4 +1,5 @@
 import {useD3} from "@/Utilities/d3";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {scaleBand, scaleLinear, scaleOrdinal} from "d3-scale";
 import {line} from "d3-shape";
 import {pointer, select} from "d3-selection";
@@ -8,7 +9,7 @@ import {UsageReport, UsageReportAbsoluteDataPoint} from "@/Accounting/UsageCore2
 import React, {useId, useMemo, useState} from "react";
 import {colorNames} from "@/Accounting/Diagrams/index";
 import {axisRight, Selection} from "d3";
-import {balanceToStringFromUnit, FrontendAccountingUnit} from "@/Accounting";
+import {balanceToStringFromUnit, FrontendAccountingUnit, isCreditUnit} from "@/Accounting";
 import {HTMLTooltipEx} from "@/ui-components/Tooltip";
 
 export interface UtilizationOverTimeTableRow {
@@ -163,9 +164,9 @@ export function useUtilizationOverTimeChart(
             {
                 title: "Utilization",
                 color: color("utilization"),
-                min: minUtilization.toFixed(2) + "%",
-                max: maxUtilization.toFixed(2) + "%",
-                mean: meanUtilization.toFixed(2) + "%",
+                min: formatNumber(minUtilization, {precision: 2}) + "%",
+                max: formatNumber(maxUtilization, {precision: 2}) + "%",
+                mean: formatNumber(meanUtilization, {precision: 2}) + "%",
             }
         ]);
 
@@ -232,9 +233,16 @@ export function useUtilizationOverTimeChart(
         const utilTicks = utilizationYScale.ticks(5);
         const usageTicks = utilTicks.map(utilToUsage);
 
+        const usageAxis = axisLeft(usageYScale).tickValues(usageTicks);
+        if (isCreditUnit(unitName)) {
+            usageAxis.tickFormat(value => balanceToStringFromUnit(null, unitName, Number(value), {removeUnitIfPossible: true}));
+        } else {
+            usageAxis.ticks(5, "s");
+        }
+
         const usageYAxis = svg.append("g")
             .attr("transform", `translate(${margin.left}, ${margin.top})`)
-            .call(axisLeft(usageYScale).tickValues(usageTicks).ticks(5, "s"));
+            .call(usageAxis);
 
         usageYAxis.select(".tick:last-of-type text")
             .clone()
@@ -343,7 +351,7 @@ export function useUtilizationOverTimeChart(
                     {
                         const node = document.createElement("div");
                         if (key === "utilizationPercent100") {
-                            node.append(value.toFixed(2) + "%");
+                            node.append(formatNumber(value, {precision: 2}) + "%");
                         } else {
                             node.append(balanceToString(value * unitNormalizationFactor));
                         }

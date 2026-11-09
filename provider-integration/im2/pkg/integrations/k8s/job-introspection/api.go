@@ -35,10 +35,11 @@ type IntrospectedNetwork struct {
 }
 
 type IntrospectedNetworkMember struct {
-	Id     string            `json:"id"`
-	Name   string            `json:"name"`
-	Fqdn   string            `json:"fqdn"`
-	Labels map[string]string `json:"labels"`
+	Id        string            `json:"id"`
+	Name      string            `json:"name"`
+	Fqdn      string            `json:"fqdn"`
+	Labels    map[string]string `json:"labels"`
+	Addresses []string          `json:"addresses,omitempty"`
 }
 
 var IntrospectNetworks = rpc.Call[IntrospectAuthRequest, IntrospectNetworksResponse]{

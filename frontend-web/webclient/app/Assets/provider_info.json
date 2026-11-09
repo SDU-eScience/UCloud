@@ -96,6 +96,21 @@
             ]
         },
         {
+            "id": "sdu-odense",
+            "title": "SDU Odense",
+            "logo": "sdu-odense.png",
+            "shortTitle": "SDU Odense",
+            "shortDescription": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
+            "description": "Interactive digital research environment built to support the needs of researchers for both computing and data management, throughout all the data life cycle.",
+            "url": "https://docs.cloud.sdu.dk/",
+            "texts": [
+                {
+                    "description": "SDU Odense provider",
+                    "image": "/Images/ucloud-1.png"
+                }
+            ]
+        },
+        {
             "id": "hippo",
             "title": "DeiC Large Memory HPC (SDU/Hippo)",
             "logo": "hippo.png",

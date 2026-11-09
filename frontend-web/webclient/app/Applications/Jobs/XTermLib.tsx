@@ -11,7 +11,43 @@ export interface XtermHook {
     fitAddon: FitAddon;
 }
 
-export function useXTerm(props: {autofit?: boolean} = {}): XtermHook {
+export const xtermThemes: {light: ITheme; dark: ITheme} = {
+    dark: {
+        background: "#2a313b",
+        selectionForeground: "#44475a",
+        foreground: "#f8f8f2",
+        cyan: "#8be9fd",
+        green: "#50fa7b",
+        black: "#21222C",
+        red: "#FF5555",
+        yellow: "#F1FA8C",
+        blue: "#BD93F9",
+        magenta: "#FF79C6",
+        white: "#F8F8F2",
+        brightBlack: "#6272A4",
+        brightRed: "#FF6E6E",
+        brightGreen: "#69FF94",
+        brightYellow: "#FFFFA5",
+        brightBlue: "#D6ACFF",
+        brightMagenta: "#FF92DF",
+        brightCyan: "#A4FFFF",
+        brightWhite: "#FFFFFF",
+    },
+    light: {
+        background: "#fff",
+        selectionForeground: "#d6d6d6",
+        foreground: "#4d4d4c",
+        red: "#c82829",
+        yellow: "#eab700",
+        green: "#718c00",
+        cyan: "#3e999f",
+        blue: "#4271ae",
+        magenta: "#8959a8",
+        cursor: "#4d4d4c"
+    }
+};
+
+export function useXTerm(props: {autofit?: boolean, readOnly?: boolean} = {}): XtermHook {
     const didMount = useRef(false);
 
     const fitAddon = React.useMemo(() => new FitAddon(), []);
@@ -26,11 +62,20 @@ export function useXTerm(props: {autofit?: boolean} = {}): XtermHook {
     }, []);
     const elem = useRef<HTMLDivElement>(null);
 
+    React.useEffect(() => {
+        if (!props.readOnly) return;
+        term.attachCustomKeyEventHandler(readOnlyTermKeyHandler);
+        return () => term.attachCustomKeyEventHandler(() => true);
+    }, [props.readOnly, term]);
+
     useEffect(() => {
         if (elem.current) {
             if (!didMount.current) {
                 term.open(elem.current);
                 didMount.current = true;
+                if (props.readOnly && term.textarea) {
+                    term.textarea.readOnly = true;
+                }
             }
         } else if (elem.current === null) {
             didMount.current = false;
@@ -81,41 +126,11 @@ export function appendToXterm(term: Terminal, textToAppend: string): void {
     term.write(remainingString);
 }
 
+function readOnlyTermKeyHandler(ev: KeyboardEvent): boolean {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return false;
+    return ev.shiftKey && (ev.key === "PageUp" || ev.key === "PageDown");
+}
+
 function getTheme(): ITheme {
-    if (!isLightThemeStored()) {
-        return {
-            background: "#2a313b",
-            selectionForeground: "#44475a",
-            foreground: "#f8f8f2",
-            cyan: "#8be9fd",
-            green: "#50fa7b",
-            black: "#21222C",
-            red: "#FF5555",
-            yellow: "#F1FA8C",
-            blue: "#BD93F9",
-            magenta: "#FF79C6",
-            white: "#F8F8F2",
-            brightBlack: "#6272A4",
-            brightRed: "#FF6E6E",
-            brightGreen: "#69FF94",
-            brightYellow: "#FFFFA5",
-            brightBlue: "#D6ACFF",
-            brightMagenta: "#FF92DF",
-            brightCyan: "#A4FFFF",
-            brightWhite: "#FFFFFF",
-        };
-    } else {
-        return {
-            background: "#fff",
-            selectionForeground: "#d6d6d6",
-            foreground: "#4d4d4c",
-            red: "#c82829",
-            yellow: "#eab700",
-            green: "#718c00",
-            cyan: "#3e999f",
-            blue: "#4271ae",
-            magenta: "#8959a8",
-            cursor: "#4d4d4c"
-        };
-    }
+    return isLightThemeStored() ? xtermThemes.light : xtermThemes.dark;
 }

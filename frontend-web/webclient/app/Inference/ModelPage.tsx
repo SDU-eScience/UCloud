@@ -6,10 +6,11 @@ import AppRoutes from "@/Routes";
 import {Box, Button, Card, ExternalLink, Flex, Input, Link, Select, Text, TextArea} from "@/ui-components";
 import {MainContainer, MAIN_CONTAINER_MAX_WIDTH} from "@/ui-components/MainContainer";
 import Table, {TableHeader, TableRow} from "@/ui-components/Table";
-import {copyToClipboard} from "@/UtilityFunctions";
+import {copyToClipboard, expandAndPrettifyString} from "@/UtilityFunctions";
+import {formatNumber, formatPricePerMillionCredits} from "@/Utilities/NumberFormatting";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {InferenceBenchmark, InferenceCapability, InferenceModel, listModels, updateBenchmarks, updateModel} from "./api";
+import {InferenceBenchmark, InferenceCapability, InferenceModel, InferenceVideoResolution, InferenceVideoTier, inferenceModelUsesAudioMinutePricing, inferenceModelUsesMegaPixelPricing, inferenceModelUsesTokenPricing, inferenceModelUsesVideoPricing, inferenceVideoTiers, listModels, updateBenchmarks, updateModel} from "./api";
 import ConfiguringTools from "./ConfiguringTools";
 import ModelInferenceLogo, {modelProviderName} from "./ModelLogo";
 import {CopyButton} from "@/ui-components/CopyButton";
@@ -19,7 +20,9 @@ import {formatDate} from "date-fns";
 import {MarkdownDocument} from "@/ui-components/Markdown";
 
 const fallbackDocs = "https://docs.cloud.sdu.dk";
-const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "SpeechToText", "Vision", "VideoVision", "Audio"];
+const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "ImageToImage", "TextToVideo", "ImageToVideo", "SpeechToText", "SpeechToTextTimestamps", "SpeechToTextSpeakerLabels", "Vision", "VideoVision", "Audio"];
+const prettierCapabilities = capabilities.map(expandAndPrettifyString);
+type PricePerMillionText = {cachedInput: string; input: string; output: string};
 
 export default function ModelPage(): React.ReactNode {
     const [params] = useSearchParams();
@@ -36,6 +39,10 @@ export default function ModelPage(): React.ReactNode {
     const [draft, setDraft] = React.useState<InferenceModel | null>(null);
     const [savingModel, setSavingModel] = React.useState(false);
     const [savingBenchmarks, setSavingBenchmarks] = React.useState(false);
+    const [pricePerMillionText, setPricePerMillionText] = React.useState<PricePerMillionText>({cachedInput: "", input: "", output: ""});
+    const [pricePerMegaPixelText, setPricePerMegaPixelText] = React.useState("");
+    const [pricePerAudioMinuteText, setPricePerAudioMinuteText] = React.useState("");
+    const [pricePerVideoSecondText, setPricePerVideoSecondText] = React.useState<Record<string, string>>({});
 
     const model = models.find(it => it.name === modelName);
     usePage(model?.title ?? "Inference model", SidebarTabId.INFERENCE);
@@ -63,24 +70,57 @@ export default function ModelPage(): React.ReactNode {
     React.useEffect(() => {
         if (!editing || !model) return;
         setDraft(normalizeEditableModel(model));
+        setPricePerMillionText(editablePricesPerMillion(model));
+        setPricePerMegaPixelText(editablePrice(model.pricePerMegaPixel));
+        setPricePerAudioMinuteText(editablePrice(model.pricePerAudioMinute));
+        setPricePerVideoSecondText(editableVideoPrices(model));
     }, [editing, model?.name]);
 
     const startEdit = () => {
         if (!model) return;
         setDraft(normalizeEditableModel(model));
+        setPricePerMillionText(editablePricesPerMillion(model));
+        setPricePerMegaPixelText(editablePrice(model.pricePerMegaPixel));
+        setPricePerAudioMinuteText(editablePrice(model.pricePerAudioMinute));
+        setPricePerVideoSecondText(editableVideoPrices(model));
         setEditing(true);
     };
 
     const saveModel = () => {
         if (!draft || !model) return;
+        const pricePerMillion = parsePricesPerMillion(pricePerMillionText);
+        const pricePerMegaPixel = parseCredits(pricePerMegaPixelText);
+        const pricePerAudioMinute = parseCredits(pricePerAudioMinuteText);
+        const pricePerVideoSecond = parseVideoPrices(draft, pricePerVideoSecondText);
+        const invalidPrice =
+            (inferenceModelUsesTokenPricing(draft) && !pricePerMillion) ||
+            (inferenceModelUsesMegaPixelPricing(draft) && pricePerMegaPixel === null) ||
+            (inferenceModelUsesAudioMinutePricing(draft) && pricePerAudioMinute === null) ||
+            (inferenceModelUsesVideoPricing(draft) && pricePerVideoSecond === null);
+        if (invalidPrice) {
+            setError("Prices must be non-negative decimal values with at most six decimal places.");
+            return;
+        }
+        if (inferenceModelUsesVideoPricing(draft) && !validVideoResolutions(draft)) {
+            setError("Video models need valid resolutions, a default tier and a price for every configured tier.");
+            return;
+        }
+
+        const updatedDraft = {
+            ...draft,
+            pricePerMillion: pricePerMillion ?? draft.pricePerMillion,
+            pricePerMegaPixel: pricePerMegaPixel ?? draft.pricePerMegaPixel,
+            pricePerAudioMinute: pricePerAudioMinute ?? draft.pricePerAudioMinute,
+            pricePerVideoSecond: pricePerVideoSecond ?? draft.pricePerVideoSecond,
+        };
         setSavingModel(true);
         setError("");
-        void callAPI(updateModel({providerId: null, oldName: model.name, model: draft}))
+        void callAPI(updateModel({providerId: null, oldName: model.name, model: updatedDraft}))
             .then(() => {
                 setSavingModel(false);
                 setEditing(false);
                 refresh();
-                if (draft.name !== model.name) navigate(AppRoutes.inference.model(draft.name));
+                if (updatedDraft.name !== model.name) navigate(AppRoutes.inference.model(updatedDraft.name));
             })
             .catch(err => {
                 setSavingModel(false);
@@ -121,6 +161,14 @@ export default function ModelPage(): React.ReactNode {
                 onSaveModel={saveModel}
                 onSaveBenchmarks={saveBenchmarks}
                 setModel={model => setDraft(model)}
+                pricePerMillionText={pricePerMillionText}
+                setPricePerMillionText={setPricePerMillionText}
+                pricePerMegaPixelText={pricePerMegaPixelText}
+                setPricePerMegaPixelText={setPricePerMegaPixelText}
+                pricePerAudioMinuteText={pricePerAudioMinuteText}
+                setPricePerAudioMinuteText={setPricePerAudioMinuteText}
+                pricePerVideoSecondText={pricePerVideoSecondText}
+                setPricePerVideoSecondText={setPricePerVideoSecondText}
             />
         </>;
     }
@@ -136,6 +184,7 @@ const PageStyle = injectStyle("model-page", k => `
     ${k} {
         --model-hero: var(--blue-10);
         --model-hero-border: var(--blue-20);
+        --max-width: calc(100vw - var(--sidebarWidth) - 16px * 2);
     }
 
     ${k} .model-hero {
@@ -189,7 +238,13 @@ const PageStyle = injectStyle("model-page", k => `
 
     ${k} .model-main-content {
         display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 34px;
+        min-width: 0;
+    }
+
+    ${k} .model-main-content > section {
+        max-width: var(--max-width);
         min-width: 0;
     }
 
@@ -217,6 +272,7 @@ const PageStyle = injectStyle("model-page", k => `
         }
 
         ${k} .model-page-layout {
+            max-width: var(--max-width);
             grid-template-columns: minmax(0, 1fr);
         }
 
@@ -239,9 +295,10 @@ const PageStyle = injectStyle("model-page", k => `
         ${k} .model-stats-grid {
             grid-template-columns: 1fr;
             gap: 0;
+            max-width: var(--max-width);
         }
     }
-     
+
     html.dark ${k} {
         --model-hero: var(--blue-80);
         --model-hero-border: var(--blue-90);
@@ -264,6 +321,14 @@ function ModelPageContent(props: {
     onSaveModel: () => void;
     onSaveBenchmarks: () => void;
     setModel: (model: InferenceModel) => void;
+    pricePerMillionText: PricePerMillionText;
+    setPricePerMillionText: (value: PricePerMillionText) => void;
+    pricePerMegaPixelText: string;
+    setPricePerMegaPixelText: (value: string) => void;
+    pricePerAudioMinuteText: string;
+    setPricePerAudioMinuteText: (value: string) => void;
+    pricePerVideoSecondText: Record<string, string>;
+    setPricePerVideoSecondText: (value: Record<string, string>) => void;
 }): React.ReactNode {
     const {model, models, benchmarks, providerId, server} = props;
     const page = model.page;
@@ -325,10 +390,27 @@ function ModelPageContent(props: {
 
             <Section>
                 <hr className="model-sidebar-separator" />
-                {props.editing ? <ModelSettingsEditor model={model} models={models} setModel={updateModel} /> : <Datasheet model={model} />}
+                {props.editing ? <ModelSettingsEditor
+                    model={model}
+                    models={models}
+                    setModel={updateModel}
+                    isAdmin={props.isAdmin}
+                    pricePerMillionText={props.pricePerMillionText}
+                    setPricePerMillionText={props.setPricePerMillionText}
+                    pricePerMegaPixelText={props.pricePerMegaPixelText}
+                    setPricePerMegaPixelText={props.setPricePerMegaPixelText}
+                    pricePerAudioMinuteText={props.pricePerAudioMinuteText}
+                    setPricePerAudioMinuteText={props.setPricePerAudioMinuteText}
+                    pricePerVideoSecondText={props.pricePerVideoSecondText}
+                    setPricePerVideoSecondText={props.setPricePerVideoSecondText}
+                /> : <Datasheet model={model} isAdmin={props.isAdmin} />}
 
                 {props.editing ? null : <Flex gap="12px" flexWrap="wrap" flexDirection={"column"}>
-                    <Link to={AppRoutes.inference.playground(model.name)}>
+                    <Link
+                        to={AppRoutes.inference.playground(
+                            model.capabilities.includes("TextGeneration") ? model.name : undefined,
+                        )}
+                    >
                         <Button type="button" color="successMain" width={"100%"}>Try now</Button>
                     </Link>
                     <ExternalLink href={documentationUrl}>
@@ -381,20 +463,25 @@ function BenchmarkSection({model, models, benchmarks}: {model: InferenceModel; m
 
 const DATE_FORMAT = "dd/MM/yyyy";
 
-function Datasheet({model}: {model: InferenceModel}): React.ReactNode {
+function Datasheet({model, isAdmin}: {model: InferenceModel; isAdmin: boolean}): React.ReactNode {
     const page = model.page;
     const rows: [string, React.ReactNode][] = [
         ["Model provider", <Flex key="provider" gap="8px" alignItems="center"><ModelInferenceLogo modelName={model.name} />{modelProviderName(model.name)}</Flex>],
-        ["Release date", page?.releaseDate ? formatDate(new Date(page.releaseDate), DATE_FORMAT) : null],
-        ["Capabilities", model.capabilities.join(", ")],
+        ["Release date", page?.releaseDate ? formatDate
+            (new Date(page.releaseDate), DATE_FORMAT) : null],
+        ["Capabilities", model.capabilities.map(modelC => {
+            const idx = capabilities.findIndex(c => c === modelC);
+            if (idx === -1) return "";
+            return prettierCapabilities[idx];
+        }).join(", ")],
         ["Endpoint", <CopyableEndpoint key="endpoint" value={model.name} />],
+        ["Provider default for", model.defaultFor?.map(expandAndPrettifyString).join(", ") || null],
+        ["File URL root", isAdmin && model.fileUrlRoot ? <code>{model.fileUrlRoot}</code> : null],
         ["Parameters", page?.datasheet?.parameters ?? "Not specified"],
         ["Activated parameters", page?.datasheet?.activatedParameters ?? null],
-        ["Context length", model.contextWindow ? model.contextWindow.toLocaleString() : "Not specified"],
+        ["Context length", model.contextWindow ? formatNumber(model.contextWindow) : "Not specified"],
         ["Quantization level", page?.datasheet?.quantization ?? null],
-        ["Input multiplier", formatMultiplier(model.priceMultiplier.input)],
-        ["Cached input multiplier", formatMultiplier(model.priceMultiplier.cachedInput)],
-        ["Output multiplier", formatMultiplier(model.priceMultiplier.output)],
+        ...priceRows(model),
     ];
 
     return <Table tableType="presentation" width="100%">
@@ -405,6 +492,33 @@ function Datasheet({model}: {model: InferenceModel}): React.ReactNode {
     </Table>;
 }
 
+function priceRows(model: InferenceModel): [string, React.ReactNode][] {
+    const rows: [string, React.ReactNode][] = [];
+    if (inferenceModelUsesTokenPricing(model)) {
+        rows.push(
+            ["Input/1M", formatCredits(model.pricePerMillion.input, true)],
+            ["Cached/1M", formatCredits(model.pricePerMillion.cachedInput, true)],
+            ["Output/1M", formatCredits(model.pricePerMillion.output, true)],
+        );
+    }
+    if (inferenceModelUsesMegaPixelPricing(model)) {
+        rows.push(["Per megapixel", formatCredits(model.pricePerMegaPixel, true)]);
+    }
+    if (inferenceModelUsesAudioMinutePricing(model)) {
+        rows.push(["Per audio minute", formatCredits(model.pricePerAudioMinute, true)]);
+    }
+    if (inferenceModelUsesVideoPricing(model)) {
+        for (const tier of videoTiersInUse(model)) {
+            const price = model.pricePerVideoSecond?.[tier];
+            if (price !== undefined) {
+                rows.push([`Per second at ${tier}`, formatCredits(price, true)]);
+            }
+        }
+        rows.push(["Default video tier", model.defaultVideoTier ?? null]);
+    }
+    return rows;
+}
+
 function CopyableEndpoint({value}: {value: string}): React.ReactNode {
     return <Flex gap="8px" alignItems="center">
         <code>{value}</code>
@@ -413,23 +527,71 @@ function CopyableEndpoint({value}: {value: string}): React.ReactNode {
 }
 
 function fallbackKeyStats(model: InferenceModel): {label: string; value: string; description?: string}[] {
-    return [
-        {label: "Cached multiplier", value: formatMultiplier(model.priceMultiplier.cachedInput)},
-        {label: "Input multiplier", value: formatMultiplier(model.priceMultiplier.input)},
-        {label: "Output multiplier", value: formatMultiplier(model.priceMultiplier.output)},
-    ];
+    const stats: {label: string; value: string; description?: string}[] = [];
+    if (inferenceModelUsesTokenPricing(model)) {
+        stats.push(
+            {label: "Cached/1M", value: formatCredits(model.pricePerMillion.cachedInput, true)},
+            {label: "Input/1M", value: formatCredits(model.pricePerMillion.input, true)},
+            {label: "Output/1M", value: formatCredits(model.pricePerMillion.output, true)},
+        );
+    }
+    if (inferenceModelUsesMegaPixelPricing(model)) {
+        stats.push({label: "Per megapixel", value: formatCredits(model.pricePerMegaPixel, true)});
+    }
+    if (inferenceModelUsesAudioMinutePricing(model)) {
+        stats.push({label: "Per audio minute", value: formatCredits(model.pricePerAudioMinute, true)});
+    }
+    if (inferenceModelUsesVideoPricing(model)) {
+        const tier = model.defaultVideoTier;
+        const price = tier ? model.pricePerVideoSecond?.[tier] : undefined;
+        if (tier) {
+            stats.push({label: `Per second at ${tier}`, value: price === undefined ? "Not configured" : formatCredits(price, true)});
+        }
+    }
+    return stats;
 }
 
-function formatMultiplier(value: number): string {
-    if (value === 0) return "N/A";
-    return `${value / 1000}x`;
+function formatCredits(value: number, includeUnit: boolean = false): string {
+    if (value === 0) return "Free";
+    const ret = formatPricePerMillionCredits(value, {minDecimalsAfterTrim: 4});
+    return !includeUnit ? ret : ret + " Credits";
+}
+
+function editablePrice(value: number): string {
+    if (value === 0) return "0";
+    const whole = Math.floor(value / 1_000_000);
+    const fraction = String(value % 1_000_000).padStart(6, "0").replace(/0+$/, "");
+    return fraction.length === 0 ? `${whole}` : `${whole}.${fraction}`;
+}
+
+function editablePricesPerMillion(model: InferenceModel): PricePerMillionText {
+    return {
+        cachedInput: editablePrice(model.pricePerMillion.cachedInput),
+        input: editablePrice(model.pricePerMillion.input),
+        output: editablePrice(model.pricePerMillion.output),
+    };
+}
+
+function parseCredits(value: string): number | null {
+    const match = /^(\d+)(?:\.(\d{1,6}))?$/.exec(value);
+    if (!match) return null;
+
+    const result = Number(`${match[1]}${(match[2] ?? "").padEnd(6, "0")}`);
+    return Number.isSafeInteger(result) ? result : null;
+}
+
+function parsePricesPerMillion(values: PricePerMillionText): InferenceModel["pricePerMillion"] | null {
+    const cachedInput = parseCredits(values.cachedInput);
+    const input = parseCredits(values.input);
+    const output = parseCredits(values.output);
+    if (cachedInput === null || input === null || output === null) return null;
+    return {cachedInput, input, output};
 }
 
 function normalizeEditableModel(model: InferenceModel): InferenceModel {
     const defaults = defaultModelPage();
     return {
         ...JSON.parse(JSON.stringify(model)),
-        titleModelName: model.titleModelName || model.name,
         chatSettings: {
             temperature: model.chatSettings?.temperature ?? 0.8,
             topP: model.chatSettings?.topP ?? 0.1,
@@ -437,6 +599,11 @@ function normalizeEditableModel(model: InferenceModel): InferenceModel {
             systemPrompt: model.chatSettings?.systemPrompt,
             disableTools: model.chatSettings?.disableTools ?? false,
         },
+        reasoningEfforts: model.reasoningEfforts ?? [],
+        defaultReasoningEffort: model.defaultReasoningEffort ?? "",
+        videoResolutions: model.videoResolutions ?? [],
+        pricePerVideoSecond: model.pricePerVideoSecond ?? {},
+        defaultVideoTier: model.defaultVideoTier ?? "",
         page: {
             ...defaults,
             ...model.page,
@@ -445,6 +612,67 @@ function normalizeEditableModel(model: InferenceModel): InferenceModel {
             benchmarkScores: {...model.page?.benchmarkScores},
         },
     };
+}
+
+function defaultVideoSize(tier: InferenceVideoTier): {width: number; height: number} {
+    switch (tier) {
+        case "360p": return {width: 640, height: 360};
+        case "480p": return {width: 854, height: 480};
+        case "540p": return {width: 960, height: 540};
+        case "768p": return {width: 1366, height: 768};
+        case "1080p": return {width: 1920, height: 1080};
+        case "2k": return {width: 2560, height: 1440};
+        case "4k": return {width: 3840, height: 2160};
+        default: return {width: 1280, height: 720};
+    }
+}
+
+function videoTiersInUse(model: InferenceModel): InferenceVideoTier[] {
+    const tiers = new Set<InferenceVideoTier>();
+    for (const resolution of model.videoResolutions ?? []) {
+        tiers.add(resolution.tier);
+    }
+    for (const tier of Object.keys(model.pricePerVideoSecond ?? {}) as InferenceVideoTier[]) {
+        tiers.add(tier);
+    }
+    return inferenceVideoTiers.filter(tier => tiers.has(tier));
+}
+
+function editableVideoPrices(model: InferenceModel): Record<string, string> {
+    const result: Record<string, string> = {};
+    for (const tier of videoTiersInUse(model)) {
+        result[tier] = editablePrice(model.pricePerVideoSecond?.[tier] ?? 0);
+    }
+    return result;
+}
+
+function parseVideoPrices(model: InferenceModel, texts: Record<string, string>): Record<InferenceVideoTier, number> | null {
+    const result: Partial<Record<InferenceVideoTier, number>> = {};
+    for (const tier of videoTiersInUse(model)) {
+        const parsed = parseCredits(texts[tier] ?? "0");
+        if (parsed === null) return null;
+        result[tier] = parsed;
+    }
+    return result as Record<InferenceVideoTier, number>;
+}
+
+function validVideoResolutions(model: InferenceModel): boolean {
+    const resolutions = model.videoResolutions ?? [];
+    if (resolutions.length === 0) return false;
+    const seen = new Set<string>();
+    const tiers = new Set<InferenceVideoTier>();
+    for (const resolution of resolutions) {
+        if (!Number.isInteger(resolution.width) || !Number.isInteger(resolution.height)) return false;
+        if (resolution.width <= 0 || resolution.height <= 0) return false;
+        if (resolution.width > 8192 || resolution.height > 8192) return false;
+        if (!inferenceVideoTiers.includes(resolution.tier)) return false;
+        const key = `${resolution.width}x${resolution.height}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        tiers.add(resolution.tier);
+    }
+    if (!model.defaultVideoTier || !tiers.has(model.defaultVideoTier)) return false;
+    return true;
 }
 
 function defaultModelPage(): NonNullable<InferenceModel["page"]> {
@@ -471,36 +699,252 @@ function updateDatasheet(model: InferenceModel, setModel: (model: InferenceModel
     setModel({...model, page: {...page, datasheet}});
 }
 
-function ModelSettingsEditor(props: {model: InferenceModel; models: InferenceModel[]; setModel: (model: InferenceModel) => void;}): React.ReactNode {
+function ModelSettingsEditor(props: {
+    model: InferenceModel;
+    models: InferenceModel[];
+    setModel: (model: InferenceModel) => void;
+    isAdmin: boolean;
+    pricePerMillionText: PricePerMillionText;
+    setPricePerMillionText: (value: PricePerMillionText) => void;
+    pricePerMegaPixelText: string;
+    setPricePerMegaPixelText: (value: string) => void;
+    pricePerAudioMinuteText: string;
+    setPricePerAudioMinuteText: (value: string) => void;
+    pricePerVideoSecondText: Record<string, string>;
+    setPricePerVideoSecondText: (value: Record<string, string>) => void;
+}): React.ReactNode {
     const {model, setModel} = props;
     const defaults = defaultModelPage();
     const page = {...defaults, ...model.page};
     const datasheet = {...defaults.datasheet!, ...page.datasheet};
+    const usesTokenPricing = inferenceModelUsesTokenPricing(model);
+    const usesMegaPixelPricing = inferenceModelUsesMegaPixelPricing(model);
+    const usesAudioMinutePricing = inferenceModelUsesAudioMinutePricing(model);
+    const usesVideoPricing = inferenceModelUsesVideoPricing(model);
 
     return <Box style={{display: "grid", gap: 14}}>
         <label>Model name<Input value={model.name} onChange={ev => setModel({...model, name: ev.currentTarget.value})} /></label>
         <label>Documentation URL<Input value={page.documentationUrl ?? ""} onChange={ev => updatePage(model, setModel, {...page, documentationUrl: ev.currentTarget.value})} /></label>
         <label>Release date<Input type="date" value={dateInputValue(page.releaseDate)} onChange={ev => updatePage(model, setModel, {...page, releaseDate: timestampFromDateInput(ev.currentTarget.value)})} /></label>
-        <label>Title generation model<Select value={model.titleModelName || model.name} onChange={ev => setModel({...model, titleModelName: ev.currentTarget.value})} style={{width: "100%", height: 40}}>{props.models.filter(it => it.capabilities.includes("TextGeneration")).map(it => <option key={it.name} value={it.name}>{it.title} ({it.name})</option>)}</Select></label>
         <label>Public<Select value={model.availability.public ? "true" : "false"} onChange={ev => setModel({...model, availability: {...model.availability, public: ev.currentTarget.value === "true"}})} style={{width: "100%", height: 40}}><option value="false">No</option><option value="true">Yes</option></Select></label>
         <label>Available to projects<Input value={model.availability.availableTo.join(", ")} onChange={ev => setModel({...model, availability: {...model.availability, availableTo: parseCommaList(ev.currentTarget.value)}})} /></label>
         <label>Base path<Input value={model.endpoint.basePath} onChange={ev => setModel({...model, endpoint: {...model.endpoint, basePath: ev.currentTarget.value}})} /></label>
         <label>Backend model name<Input value={model.endpoint.backendModelName} onChange={ev => setModel({...model, endpoint: {...model.endpoint, backendModelName: ev.currentTarget.value}})} /></label>
+        {props.isAdmin ? <label>File URL root<Input value={model.fileUrlRoot ?? ""} onChange={ev => setModel({...model, fileUrlRoot: ev.currentTarget.value})} /></label> : null}
         <label>Parameters<Input value={datasheet.parameters ?? ""} onChange={ev => updateDatasheet(model, setModel, {...datasheet, parameters: ev.currentTarget.value})} /></label>
         <label>Activated parameters<Input value={datasheet.activatedParameters ?? ""} onChange={ev => updateDatasheet(model, setModel, {...datasheet, activatedParameters: ev.currentTarget.value})} /></label>
         <label>Quantization<Input value={datasheet.quantization ?? ""} onChange={ev => updateDatasheet(model, setModel, {...datasheet, quantization: ev.currentTarget.value})} /></label>
-        <label>Cached multiplier<Input type="number" value={model.priceMultiplier.cachedInput} onChange={ev => setModel({...model, priceMultiplier: {...model.priceMultiplier, cachedInput: parseInt(ev.currentTarget.value || "0")}})} /></label>
-        <label>Input multiplier<Input type="number" value={model.priceMultiplier.input} onChange={ev => setModel({...model, priceMultiplier: {...model.priceMultiplier, input: parseInt(ev.currentTarget.value || "0")}})} /></label>
-        <label>Output multiplier<Input type="number" value={model.priceMultiplier.output} onChange={ev => setModel({...model, priceMultiplier: {...model.priceMultiplier, output: parseInt(ev.currentTarget.value || "0")}})} /></label>
+        {usesTokenPricing ? <>
+            <label>Cached input Credits per 1M tokens<Input type="number" step="0.000001" min="0" value={props.pricePerMillionText.cachedInput} error={parseCredits(props.pricePerMillionText.cachedInput) === null} onChange={ev => props.setPricePerMillionText({...props.pricePerMillionText, cachedInput: ev.currentTarget.value})} /></label>
+            <label>Input Credits per 1M tokens<Input type="number" step="0.000001" min="0" value={props.pricePerMillionText.input} error={parseCredits(props.pricePerMillionText.input) === null} onChange={ev => props.setPricePerMillionText({...props.pricePerMillionText, input: ev.currentTarget.value})} /></label>
+            <label>Output Credits per 1M tokens<Input type="number" step="0.000001" min="0" value={props.pricePerMillionText.output} error={parseCredits(props.pricePerMillionText.output) === null} onChange={ev => props.setPricePerMillionText({...props.pricePerMillionText, output: ev.currentTarget.value})} /></label>
+        </> : null}
+        {usesMegaPixelPricing ? <label>Credits per megapixel<Input type="number" step="0.000001" min="0" value={props.pricePerMegaPixelText} error={parseCredits(props.pricePerMegaPixelText) === null} onChange={ev => props.setPricePerMegaPixelText(ev.currentTarget.value)} /></label> : null}
+        {usesAudioMinutePricing ? <label>Credits per audio minute<Input type="number" step="0.000001" min="0" value={props.pricePerAudioMinuteText} error={parseCredits(props.pricePerAudioMinuteText) === null} onChange={ev => props.setPricePerAudioMinuteText(ev.currentTarget.value)} /></label> : null}
+        {usesVideoPricing ? <VideoSettingsEditor
+            model={model}
+            setModel={setModel}
+            pricePerVideoSecondText={props.pricePerVideoSecondText}
+            setPricePerVideoSecondText={props.setPricePerVideoSecondText}
+        /> : null}
         <label>Temperature<Input type="number" step="0.1" min="0" max="2" value={model.chatSettings.temperature} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, temperature: parseFloat(ev.currentTarget.value || "0")}})} /></label>
         <label>Top P<Input type="number" step="0.1" min="0" max="1" value={model.chatSettings.topP} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, topP: parseFloat(ev.currentTarget.value || "0")}})} /></label>
         <label>Max completion tokens<Input type="number" min="1" value={model.chatSettings.maxCompletionTokens} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, maxCompletionTokens: parseInt(ev.currentTarget.value || "0")}})} /></label>
+        <label>Context length<Input
+            type="number"
+            min="1"
+            step="1"
+            placeholder="Not specified"
+            value={model.contextWindow ?? ""}
+            onChange={ev => {
+                const text = ev.currentTarget.value;
+                const parsed = Number.parseInt(text, 10);
+                setModel({...model, contextWindow: text === "" || !Number.isFinite(parsed) || parsed <= 0 ? undefined : parsed});
+            }}
+        /></label>
         <label>System prompt<Input value={model.chatSettings.systemPrompt ?? ""} placeholder="Use global default" onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, systemPrompt: ev.currentTarget.value.trim() === "" ? undefined : ev.currentTarget.value}})} /></label>
         <label style={{display: "flex", gap: 6, alignItems: "center"}}><input type="checkbox" checked={model.chatSettings.disableTools} onChange={ev => setModel({...model, chatSettings: {...model.chatSettings, disableTools: ev.currentTarget.checked}})} />Disable chat tools</label>
+        <ReasoningEffortsEditor model={model} setModel={setModel} />
         <Box>
             <Text fontWeight={600}>Capabilities</Text>
-            <Flex gap="12px" flexWrap="wrap" mt={8}>{capabilities.map(capability => <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}><input type="checkbox" checked={model.capabilities.includes(capability)} onChange={ev => setModel({...model, capabilities: ev.currentTarget.checked ? [...model.capabilities, capability] : model.capabilities.filter(it => it !== capability)})} />{capability}</label>)}</Flex>
+            <Flex gap="12px" flexWrap="wrap" mt={8}>
+                {capabilities.map((capability, index) => (
+                    <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}>
+                        <input
+                            type="checkbox"
+                            checked={model.capabilities.includes(capability)}
+                            disabled={(capability === "SpeechToTextTimestamps" || capability === "SpeechToTextSpeakerLabels") && !model.capabilities.includes("SpeechToText")}
+                            onChange={ev => setModel({
+                                ...model,
+                                capabilities: ev.currentTarget.checked
+                                    ? [...model.capabilities, capability]
+                                    : model.capabilities.filter(it => it !== capability && (capability !== "SpeechToText" || (it !== "SpeechToTextTimestamps" && it !== "SpeechToTextSpeakerLabels"))),
+                                defaultFor: ev.currentTarget.checked
+                                    ? model.defaultFor
+                                    : model.defaultFor?.filter(it => it !== capability),
+                            })}
+                        />
+                        {prettierCapabilities[index]}
+                    </label>
+                ))}
+            </Flex>
         </Box>
+        {props.isAdmin ? <Box>
+            <Text fontWeight={600}>Provider default for</Text>
+            <Text color="textSecondary">Selecting a default replaces the previous model for that operation.</Text>
+            <Flex gap="12px" flexWrap="wrap" mt={8}>
+                {(["TextToImage", "ImageToImage", "TextToVideo", "ImageToVideo", "SpeechToText"] as InferenceCapability[])
+                    .filter(capability => model.capabilities.includes(capability))
+                    .map(capability => (
+                        <label key={capability} style={{display: "flex", gap: 6, alignItems: "center"}}>
+                            <input
+                                type="checkbox"
+                                checked={model.defaultFor?.includes(capability) ?? false}
+                                onChange={ev => setModel({
+                                    ...model,
+                                    defaultFor: ev.currentTarget.checked
+                                        ? [...(model.defaultFor ?? []), capability]
+                                        : model.defaultFor?.filter(it => it !== capability),
+                                })}
+                            />
+                            {expandAndPrettifyString(capability)}
+                        </label>
+                    ))}
+            </Flex>
+        </Box> : null}
+    </Box>;
+}
+
+function VideoSettingsEditor(props: {
+    model: InferenceModel;
+    setModel: (model: InferenceModel) => void;
+    pricePerVideoSecondText: Record<string, string>;
+    setPricePerVideoSecondText: (value: Record<string, string>) => void;
+}): React.ReactNode {
+    const {model, setModel, pricePerVideoSecondText, setPricePerVideoSecondText} = props;
+    const resolutions = model.videoResolutions ?? [];
+    const tiers = videoTiersInUse(model);
+
+    const updateResolution = (index: number, patch: Partial<InferenceVideoResolution>) => {
+        setModel({
+            ...model,
+            videoResolutions: resolutions.map((resolution, idx) => idx === index ? {...resolution, ...patch} : resolution),
+        });
+    };
+    const addResolution = () => {
+        const tier = model.defaultVideoTier || "720p";
+        const size = defaultVideoSize(tier);
+        setModel({
+            ...model,
+            videoResolutions: [...resolutions, {width: size.width, height: size.height, tier}],
+        });
+        if (pricePerVideoSecondText[tier] === undefined) {
+            setPricePerVideoSecondText({...pricePerVideoSecondText, [tier]: "0"});
+        }
+    };
+    const removeResolution = (index: number) => {
+        setModel({
+            ...model,
+            videoResolutions: resolutions.filter((_, idx) => idx !== index),
+        });
+    };
+    const changeResolutionTier = (index: number, tier: InferenceVideoTier) => {
+        updateResolution(index, {tier});
+        if (pricePerVideoSecondText[tier] === undefined) {
+            setPricePerVideoSecondText({...pricePerVideoSecondText, [tier]: "0"});
+        }
+    };
+
+    return <Box style={{display: "grid", gap: 10}}>
+        <Text fontWeight={600}>Video resolutions</Text>
+        <Text color="textSecondary">Each output size maps to a billing tier. Every listed tier needs a price.</Text>
+        {resolutions.map((resolution, index) => <Flex key={index} gap="6px" alignItems="center" flexWrap="wrap">
+            <Input
+                type="number"
+                min="1"
+                max="8192"
+                value={resolution.width}
+                style={{minWidth: 90, width: 90}}
+                onChange={ev => updateResolution(index, {width: Number.parseInt(ev.currentTarget.value || "0", 10)})}
+            />
+            <Text>x</Text>
+            <Input
+                type="number"
+                min="1"
+                max="8192"
+                value={resolution.height}
+                style={{minWidth: 90, width: 90}}
+                onChange={ev => updateResolution(index, {height: Number.parseInt(ev.currentTarget.value || "0", 10)})}
+            />
+            <Select
+                value={resolution.tier}
+                style={{minWidth: 100, height: 40}}
+                onChange={ev => changeResolutionTier(index, ev.currentTarget.value as InferenceVideoTier)}
+            >
+                {inferenceVideoTiers.map(tier => <option key={tier} value={tier}>{tier}</option>)}
+            </Select>
+            <Button type="button" m={0} color="errorMain" onClick={() => removeResolution(index)}>Remove</Button>
+        </Flex>)}
+        <Button type="button" m={0} onClick={addResolution}>Add resolution</Button>
+
+        <Text fontWeight={600} mt={8}>Video price per second</Text>
+        {tiers.map(tier => <label key={tier}>
+            Credits per second at {tier}
+            <Input
+                type="number"
+                step="0.000001"
+                min="0"
+                value={pricePerVideoSecondText[tier] ?? "0"}
+                error={parseCredits(pricePerVideoSecondText[tier] ?? "0") === null}
+                onChange={ev => setPricePerVideoSecondText({...pricePerVideoSecondText, [tier]: ev.currentTarget.value})}
+            />
+        </label>)}
+        <label>Default video tier
+            <Select
+                value={tiers.includes(model.defaultVideoTier as InferenceVideoTier) ? model.defaultVideoTier : ""}
+                style={{width: "100%", height: 40}}
+                onChange={ev => setModel({...model, defaultVideoTier: ev.currentTarget.value as InferenceVideoTier})}
+            >
+                <option value="">Select a tier</option>
+                {tiers.map(tier => <option key={tier} value={tier}>{tier}</option>)}
+            </Select>
+        </label>
+    </Box>;
+}
+
+function ReasoningEffortsEditor(props: {model: InferenceModel; setModel: (model: InferenceModel) => void}): React.ReactNode {
+    const {model, setModel} = props;
+    const efforts = model.reasoningEfforts ?? [];
+    const updateEfforts = (next: InferenceModel["reasoningEfforts"], defaultValue = model.defaultReasoningEffort) => {
+        setModel({
+            ...model,
+            reasoningEfforts: next,
+            defaultReasoningEffort: next.length === 0 ? "" : defaultValue,
+        });
+    };
+
+    return <Box style={{display: "grid", gap: 8}}>
+        <Flex alignItems="center" gap="8px">
+            <Text fontWeight={600}>Reasoning efforts</Text>
+            <Button type="button" m={0} onClick={() => updateEfforts([...efforts, {name: "", value: ""}])}>Add</Button>
+        </Flex>
+        {efforts.length === 0 ? <Text color="textSecondary">Reasoning effort is not supported.</Text> : null}
+        {efforts.map((effort, idx) => <div key={idx} style={{display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "end"}}>
+            <label>Display name<Input value={effort.name} onChange={ev => updateEfforts(efforts.map((it, itIdx) => itIdx === idx ? {...it, name: ev.currentTarget.value} : it))} /></label>
+            <label>API value<Input value={effort.value} onChange={ev => {
+                const value = ev.currentTarget.value;
+                updateEfforts(efforts.map((it, itIdx) => itIdx === idx ? {...it, value} : it), model.defaultReasoningEffort === effort.value ? value : model.defaultReasoningEffort);
+            }} /></label>
+            <Button type="button" color="errorMain" m={0} onClick={() => {
+                const next = efforts.filter((_, itIdx) => itIdx !== idx);
+                const defaultValue = model.defaultReasoningEffort === effort.value ? (next[0]?.value ?? "") : model.defaultReasoningEffort;
+                updateEfforts(next, defaultValue);
+            }}>Remove</Button>
+        </div>)}
+        {efforts.length === 0 ? null : <label>Default reasoning effort<Select value={model.defaultReasoningEffort} onChange={ev => setModel({...model, defaultReasoningEffort: ev.currentTarget.value})} style={{width: "100%", height: 40}}>
+            <option value="" disabled>Select a default</option>
+            {efforts.filter(effort => effort.value.trim() !== "").map((effort, idx) => <option key={`${effort.value}-${idx}`} value={effort.value}>{effort.name || effort.value}</option>)}
+        </Select></label>}
     </Box>;
 }
 
@@ -515,7 +959,7 @@ function RepeatableStrings(props: {title: string; values: string[]; placeholder:
 function KeyStatsEditor(props: {stats: NonNullable<NonNullable<NonNullable<InferenceModel["page"]>["about"]>["keyStats"]>; setStats: (stats: NonNullable<NonNullable<NonNullable<InferenceModel["page"]>["about"]>["keyStats"]>) => void;}): React.ReactNode {
     return <Box style={{display: "grid", gap: 8}}>
         <Flex alignItems="center" gap="8px"><h3 className="title" style={{margin: 0}}>Key stats</h3><Button type="button" m={0} onClick={() => props.setStats([...props.stats, {label: "", value: "", description: ""}])}>Add</Button></Flex>
-        {props.stats.length === 0 ? <Text color="textSecondary">If left empty, the model page shows context length, input multiplier and output multiplier.</Text> : null}
+        {props.stats.length === 0 ? <Text color="textSecondary">If left empty, the model page shows cached input, input, and output prices.</Text> : null}
         {props.stats.map((stat, idx) => <div key={idx} style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr)) auto", gap: 8, alignItems: "end"}}><label>Label<Input value={stat.label} onChange={ev => props.setStats(props.stats.map((it, itIdx) => itIdx === idx ? {...it, label: ev.currentTarget.value} : it))} /></label><label>Value<Input value={stat.value} onChange={ev => props.setStats(props.stats.map((it, itIdx) => itIdx === idx ? {...it, value: ev.currentTarget.value} : it))} /></label><label>Description<Input value={stat.description ?? ""} onChange={ev => props.setStats(props.stats.map((it, itIdx) => itIdx === idx ? {...it, description: ev.currentTarget.value} : it))} /></label><Button type="button" color="errorMain" m={0} onClick={() => props.setStats(props.stats.filter((_, itIdx) => itIdx !== idx))}>Remove</Button></div>)}
     </Box>;
 }

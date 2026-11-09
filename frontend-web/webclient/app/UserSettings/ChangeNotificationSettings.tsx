@@ -5,7 +5,7 @@ import {Box} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 
 import {NotificationSettings, retrieveNotificationSettings, updateNotificationSettings} from "./settingsApi";
-import {SettingsCheckboxRow, SettingsSection} from "./SettingsComponents";
+import {SettingsCheckboxRow, SettingsSection} from "@/ui-components/SettingsComponents";
 import {sendFailureNotification} from "@/Notifications";
 
 export const defaultNotificationSettings: NotificationSettings = {

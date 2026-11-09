@@ -8,6 +8,7 @@ import (
 )
 
 type EmailSettings struct {
+	// Grants
 	NewGrantApplication       bool `json:"newGrantApplication"`
 	GrantApplicationUpdated   bool `json:"grantApplicationUpdated"`
 	GrantApplicationApproved  bool `json:"grantApplicationApproved"`
@@ -16,17 +17,20 @@ type EmailSettings struct {
 	NewCommentOnApplication   bool `json:"newCommentOnApplication"`
 	ApplicationTransfer       bool `json:"applicationTransfer"`
 	ApplicationStatusChange   bool `json:"applicationStatusChange"`
-	ProjectUserInvite         bool `json:"projectUserInvite"`
-	ProjectUserRemoved        bool `json:"projectUserRemoved"`
-	VerificationReminder      bool `json:"verificationReminder"`
-	UserRoleChange            bool `json:"userRoleChange"`
-	UserLeft                  bool `json:"userLeft"`
-	LowFunds                  bool `json:"lowFunds"`
-	JobStarted                bool `json:"jobStarted"`
-	JobStopped                bool `json:"jobStopped"`
+	// Project
+	ProjectUserInvite    bool `json:"projectUserInvite"`
+	ProjectUserRemoved   bool `json:"projectUserRemoved"`
+	VerificationReminder bool `json:"verificationReminder"`
+	UserRoleChange       bool `json:"userRoleChange"`
+	UserLeft             bool `json:"userLeft"`
+	LowFunds             bool `json:"lowFunds"`
+	// Jobs
+	JobStarted bool `json:"jobStarted"`
+	JobStopped bool `json:"jobStopped"`
 }
 
 var DefaultEmailSettings = EmailSettings{
+	// Grants
 	NewGrantApplication:       true,
 	GrantApplicationUpdated:   true,
 	GrantApplicationApproved:  true,
@@ -35,14 +39,16 @@ var DefaultEmailSettings = EmailSettings{
 	NewCommentOnApplication:   true,
 	ApplicationTransfer:       true,
 	ApplicationStatusChange:   true,
-	ProjectUserInvite:         true,
-	ProjectUserRemoved:        true,
-	VerificationReminder:      true,
-	UserRoleChange:            true,
-	UserLeft:                  true,
-	LowFunds:                  true,
-	JobStarted:                false,
-	JobStopped:                false,
+	// Project
+	ProjectUserInvite:    true,
+	ProjectUserRemoved:   true,
+	VerificationReminder: true,
+	UserRoleChange:       true,
+	UserLeft:             true,
+	LowFunds:             true,
+	//Jobs
+	JobStarted: false,
+	JobStopped: false,
 }
 
 func (e *EmailSettings) Validate() error {
@@ -52,29 +58,27 @@ func (e *EmailSettings) Validate() error {
 type MailType string
 
 const (
-	MailTypeTransferApplication         MailType = "transferApplication"
-	MailTypeLowFunds                    MailType = "lowFunds"
-	MailTypeStillLowFunds               MailType = "stillLowFunds"
-	MailTypeUserRoleChange              MailType = "userRoleChange"
-	MailTypeUserLeft                    MailType = "userLeft"
-	MailTypeUserRemoved                 MailType = "userRemoved"
-	MailTypeUserRemovedToUser           MailType = "userRemovedToUser"
-	MailTypeInvitedToProject            MailType = "invitedToProject"
-	MailTypeNewGrantApplication         MailType = "newGrantApplication"
-	MailTypeApplicationUpdated          MailType = "applicationUpdated"
-	MailTypeApplicationUpdatedToAdmins  MailType = "applicationUpdatedToAdmins"
-	MailTypeApplicationApproved         MailType = "applicationApproved"
-	MailTypeApplicationApprovedToAdmins MailType = "applicationApprovedToAdmins"
-	MailTypeApplicationRejected         MailType = "applicationRejected"
-	MailTypeApplicationWithdrawn        MailType = "applicationWithdrawn"
-	MailTypeNewComment                  MailType = "newComment"
-	MailTypeResetPassword               MailType = "resetPassword"
-	MailTypeVerificationReminder        MailType = "verificationReminder"
-	MailTypeVerifyEmailAddress          MailType = "verifyEmailAddress"
-	MailTypeNotifyMailChange            MailType = "notifyEmailChange"
-	MailTypeJobEvents                   MailType = "jobEvents"
-	MailTypeSupport                     MailType = "support"
-	MailTypeUnknown                     MailType = "unknown"
+	MailTypeTransferApplication  MailType = "transferApplication"
+	MailTypeLowFunds             MailType = "lowFunds"
+	MailTypeStillLowFunds        MailType = "stillLowFunds"
+	MailTypeUserRoleChange       MailType = "userRoleChange"
+	MailTypeUserLeft             MailType = "userLeft"
+	MailTypeUserRemoved          MailType = "userRemoved"
+	MailTypeUserRemovedToUser    MailType = "userRemovedToUser"
+	MailTypeInvitedToProject     MailType = "invitedToProject"
+	MailTypeNewGrantApplication  MailType = "newGrantApplication"
+	MailTypeApplicationUpdated   MailType = "applicationUpdated"
+	MailTypeApplicationApproved  MailType = "applicationApproved"
+	MailTypeApplicationRejected  MailType = "applicationRejected"
+	MailTypeApplicationWithdrawn MailType = "applicationWithdrawn"
+	MailTypeNewComment           MailType = "newComment"
+	MailTypeResetPassword        MailType = "resetPassword"
+	MailTypeVerificationReminder MailType = "verificationReminder"
+	MailTypeVerifyEmailAddress   MailType = "verifyEmailAddress"
+	MailTypeNotifyMailChange     MailType = "notifyEmailChange"
+	MailTypeJobEvents            MailType = "jobEvents"
+	MailTypeSupport              MailType = "support"
+	MailTypeUnknown              MailType = "unknown"
 )
 
 type Mail json.RawMessage

@@ -6,7 +6,7 @@ import {useEffect, useRef, useState} from "react";
 import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link, Relative} from "@/ui-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {TextProps, TextSpan} from "@/ui-components/Text";
-import {getQueryParamOrElse, getQueryParam} from "@/Utilities/URIUtilities";
+import {buildQueryString, getQueryParamOrElse, getQueryParam} from "@/Utilities/URIUtilities";
 import {errorMessageOrDefault, onSandbox, preventDefault} from "@/UtilityFunctions";
 import {PRODUCT_NAME} from "../../site.config.json";
 import {useLocation, useNavigate} from "react-router-dom";
@@ -57,7 +57,13 @@ function isUsingGenericLoginPage(branding: BrandingResponse) {
 }
 
 
-export const LoginPage: React.FC<{initialState?: any}> = props => {
+interface LoginPageProps {
+    initialState?: any;
+    service?: string;
+    onComplete?: (response: any) => void;
+}
+
+export const LoginPage: React.FC<LoginPageProps> = props => {
     const [challengeId, setChallengeID] = useState("");
     const verificationInput = useRef<HTMLInputElement>(null);
     const usernameInput = useRef<HTMLInputElement>(null);
@@ -112,11 +118,11 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
     const navigate = useNavigate();
 
     const isPasswordReset = getQueryParamOrElse({location, navigate}, "password-reset", "false") === "true";
-    const service = inDevEnvironment ? "dev-web" : "web";
+    const service = props.service ?? (inDevEnvironment ? "dev-web" : "web");
     const resetToken = getQueryParam({location, navigate}, "token");
 
     React.useEffect(() => {
-        if (Client.isLoggedIn) {
+        if (props.onComplete === undefined && Client.isLoggedIn) {
             navigate(AppRoutes.login.loginSuccess());
         }
     }, [Client.isLoggedIn]);
@@ -220,6 +226,11 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
     }
 
     function handleCompleteLogin(result: any): void {
+        if (props.onComplete !== undefined) {
+            props.onComplete(result);
+            return;
+        }
+
         Client.setTokens(result.accessToken, result.csrfToken);
         navigate(AppRoutes.login.loginSuccess());
         addOrgInfoModalIfNotFilled();
@@ -301,7 +312,7 @@ export const LoginPage: React.FC<{initialState?: any}> = props => {
                             <TextSpan className={LoginTextSpanClass} fontSize={16} ml="2.5em">Login</TextSpan>
                         </Button>
                     </a>
-                    <IdpList isGeneric={isGeneric} />
+                    <IdpList isGeneric={isGeneric} service={service} />
                     <Text color={textColor} onClick={() => setShowingWayf(false)} cursor="pointer" textAlign="center">Other
                         login options →</Text>
                 </>) : null}
@@ -485,8 +496,8 @@ const DropdownLikeClass = injectStyle("dropdown-like", cl => `
       width: 315px;
       padding: 16px 16px;
    }
-   
-   ${cl}[data-is-generic="true"] { 
+
+   ${cl}[data-is-generic="true"] {
       background-color: var(--primaryLight);
 }`);
 
@@ -501,7 +512,7 @@ const LoginInputClass = injectStyle("login-input", k => `
         background-color: white;
         color: black;
     }
-    
+
     ${k}::placeholder {
         color: gray;
     }
@@ -556,9 +567,8 @@ function LoginWrapper({branding, selection, ...props}: React.PropsWithChildren<T
                 {!branding.supportEmail ? null : (
                     <ClickableDropdown
                         width="238px"
-                        top="0"
-                        left="-248px"
                         right="5px"
+                        top="24px"
                         colorOnHover={false}
                         trigger={<Relative><Icon color={textColor} color2={textColor} mr={"1em"}
                             name="suggestion" /></Relative>}
@@ -623,7 +633,7 @@ interface IdentityProvider {
     logoUrl?: string | null;
 }
 
-const IdpList: React.FunctionComponent<IsGenericProps> = ({isGeneric}) => {
+const IdpList: React.FunctionComponent<IsGenericProps & {service: string}> = ({isGeneric, service}) => {
     const [idps, setIdps] = useState<IdentityProvider[]>([]);
 
     useEffect(() => {
@@ -654,7 +664,7 @@ const IdpList: React.FunctionComponent<IsGenericProps> = ({isGeneric}) => {
 
             const color = isGeneric || IS_SANDBOX ? "primaryLight" : "wayfGreen";
 
-            return <a href={`/auth/startLogin?id=${idp.id}`} key={idp.id}>
+            return <a href={buildQueryString("/auth/startLogin", {id: idp.id, service})} key={idp.id}>
                 <Button borderRadius="16px" fullWidth color={color}>
                     <Text color="fixedWhite">Sign in with {title}</Text>
                 </Button>

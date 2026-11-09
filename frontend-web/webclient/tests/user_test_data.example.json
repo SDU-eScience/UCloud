@@ -1,0 +1,19 @@
+{
+  "Project PI": {
+    "username": "pi-user",
+    "password": "pi-password"
+  },
+  "Project Admin": {
+    "username": "admin-user",
+    "password": "admin-password"
+  },
+  "Project User": {
+    "username": "project-user",
+    "password": "project-user-password"
+  },
+  "Personal Workspace": {
+    "username": "personal-user",
+    "password": "personal-user-password"
+  },
+  "projectName": "Playwright project"
+}

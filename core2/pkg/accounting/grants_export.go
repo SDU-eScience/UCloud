@@ -97,7 +97,7 @@ func GrantsExportBrowse(actor rpc.Actor) []accapi.GrantsExportResponse {
 		}
 	}
 
-	return result
+	return util.NonNilSlice(result)
 }
 
 func GrantsExportBrowseToCsv(lines []accapi.GrantsExportResponse) string {

@@ -10,11 +10,11 @@ import {compute} from "@/UCloud";
 import JobsOpenInteractiveSessionResponse = compute.JobsOpenInteractiveSessionResponse;
 import RFBModule from "@novnc/novnc/lib/rfb";
 import {initLogging} from '@novnc/novnc/lib/util/logging';
-import {Box, Button} from "@/ui-components";
 import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
 import {bulkRequestOf} from "@/UtilityFunctions";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import {sendFailureNotification} from "@/Notifications";
+import Icon from "@/ui-components/Icon";
 
 const RFB = RFBModule.default;
 
@@ -112,8 +112,9 @@ export const Vnc: React.FunctionComponent = () => {
     return <TermAndShellWrapper addPadding={false}>
         {isConnected || sessionResp.data == null ? null : (
             <div className={`warn`}>
-                <Box flexGrow={1}>Your connection has been closed!</Box>
-                <Button ml={"16px"} onClick={connect}>Reconnect</Button>
+                <Icon name="heroExclamationTriangle" color="warningMain" size={22} />
+                <span style={{flexGrow: 1}}>The remote desktop connection was lost.</span>
+                <button type="button" className="reconnect-button" onClick={connect}>Reconnect</button>
             </div>
         )}
 

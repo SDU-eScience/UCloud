@@ -2,24 +2,39 @@ package shared
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
+	"time"
 
 	k8score "k8s.io/api/core/v1"
 	k8snetwork "k8s.io/api/networking/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"ucloud.dk/pkg/controller"
-	db "ucloud.dk/shared/pkg/database"
-	"ucloud.dk/shared/pkg/log"
+	fnd "ucloud.dk/shared/pkg/foundation"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/util"
 )
 
-var privateNetworkCreationMutex = sync.Mutex{}
+const (
+	PrivateNetworkManagedByLabel          = "ucloud.dk/managed-by"
+	PrivateNetworkIdLabel                 = "ucloud.dk/private-network-id"
+	PrivateNetworkManagedBy               = "im-private-network"
+	PrivateNetworkManagedByLegacy         = "im"
+	PrivateNetworkIbManagedBy             = "im-network"
+	PrivateNetworkIbIdLabel               = "ucloud.dk/network-id"
+	PrivateNetworkIbTypeLabel             = "ucloud.dk/network-type"
+	PrivateNetworkMultusAnnotation        = "k8s.v1.cni.cncf.io/networks"
+	PrivateNetworkNetworkStatusAnnotation = "k8s.v1.cni.cncf.io/network-status"
+
+	privateNetworkSubnetSuffix = "-net"
+)
+
+func privateNetworkIsManagedByIm(labels map[string]string) bool {
+	value := labels[PrivateNetworkManagedByLabel]
+	return value == PrivateNetworkManagedBy || value == PrivateNetworkManagedByLegacy
+}
 
 func PrivateNetworkSelector(subdomain string) map[string]string {
 	return map[string]string{
@@ -31,8 +46,49 @@ func PrivateNetworkLabel(subdomain string) string {
 	return fmt.Sprintf("ucloud.dk/network-%s", subdomain)
 }
 
+func PrivateNetworkMembershipLabel(networkId string) string {
+	return PrivateNetworkMembershipLabelPrefix + networkId
+}
+
+const PrivateNetworkMembershipLabelPrefix = "ucloud.dk/private-network-"
+
+func PrivateNetworkMemberSelector(networkId string) map[string]string {
+	return map[string]string{
+		PrivateNetworkMembershipLabel(networkId): "true",
+	}
+}
+
 func PrivateNetworkName(subdomain string) string {
 	return subdomain
+}
+
+func PrivateNetworkSubnetName(subdomain string, resourceId string) string {
+	preferred := subdomain + privateNetworkSubnetSuffix
+	if len(preferred) <= 63 {
+		return preferred
+	}
+
+	suffix := "-" + resourceId + privateNetworkSubnetSuffix
+	prefixLength := 63 - len(suffix)
+	if prefixLength > len(subdomain) {
+		prefixLength = len(subdomain)
+	}
+	if prefixLength < 0 {
+		prefixLength = 0
+	}
+	return subdomain[:prefixLength] + suffix
+}
+
+func PrivateNetworkProviderName(subdomain string) string {
+	return fmt.Sprintf("%s.%s.ovn", subdomain, ServiceConfig.Compute.Namespace)
+}
+
+func PrivateNetworkIpAnnotation(provider string) string {
+	return provider + ".kubernetes.io/ip_address"
+}
+
+func PrivateNetworkMacAnnotation(provider string) string {
+	return provider + ".kubernetes.io/mac_address"
 }
 
 func PrivateNetworkRetrieveProducts() []orc.PrivateNetworkSupport {
@@ -44,96 +100,136 @@ func PrivateNetworkCreate(network *orc.PrivateNetwork) *util.HttpError {
 		return util.ServerHttpError("Failed to create private network: network is nil")
 	}
 
-	reservedPrefixes := []string{"j", "ucloud", "vm", "im", "policy"}
-	for _, prefix := range reservedPrefixes {
-		if network.Specification.Subdomain == prefix || strings.HasPrefix(network.Specification.Subdomain, prefix+"-") {
-			return util.HttpErr(http.StatusBadRequest, "Reserved domain name, try a different one")
+	if !controller.PrivateNetworksFeatureEnabled() {
+		return util.UserHttpError("Private networks are not supported by this provider")
+	}
+
+	networkType := network.Specification.EffectiveType()
+	if networkType == orc.NetworkTypeInfiniband && !privateNetworkInfinibandReady {
+		return util.UserHttpError("InfiniBand networks are not supported by this provider")
+	}
+
+	support, supportOk := privateNetworkProductSupport(network.Specification.Product)
+	if !supportOk {
+		return util.HttpErr(http.StatusNotFound, "unknown product requested")
+	}
+	if support.EffectiveType() != networkType {
+		return util.HttpErr(http.StatusBadRequest, "the network type does not match the product")
+	}
+
+	baseSubdomain := orc.PrivateNetworkSubdomainFromName(network.Specification.Name)
+	assignedSubdomain := network.Status.Subdomain != ""
+	existingSnapshot, trackedBefore := controller.PrivateNetworkSnapshotRetrieve(network.Id)
+	if trackedBefore && existingSnapshot.Subdomain != "" {
+		network.Status.Subdomain = existingSnapshot.Subdomain
+		assignedSubdomain = true
+	}
+
+	allocated := false
+	for attempt := 0; attempt < 16; attempt++ {
+		if network.Status.Subdomain == "" {
+			network.Status.Subdomain = baseSubdomain
+			if attempt > 0 {
+				var err error
+				network.Status.Subdomain, err = orc.PrivateNetworkSubdomainAddRandomSuffix(baseSubdomain)
+				if err != nil {
+					return util.ServerHttpError("failed to generate a private network subdomain")
+				}
+			}
+		}
+
+		subdomainConflict, err := controller.PrivateNetworkCreateAllocate(network)
+		if err != nil {
+			return err
+		}
+		if subdomainConflict {
+			if assignedSubdomain {
+				return util.HttpErr(http.StatusConflict, "a network with this subdomain already exists")
+			}
+			network.Status.Subdomain = ""
+			continue
+		}
+
+		allocated = true
+		break
+	}
+
+	if !allocated {
+		return util.HttpErr(http.StatusConflict, "unable to allocate a unique private network subdomain")
+	}
+
+	_, err := orc.PrivateNetworksControlAddUpdate.Invoke(
+		fnd.BulkRequestOf(orc.ResourceUpdateAndId[orc.PrivateNetworkUpdate]{
+			Id: network.Id,
+			Update: orc.PrivateNetworkUpdate{
+				Subdomain: util.OptValue(network.Status.Subdomain),
+				Timestamp: fnd.Timestamp(time.Now()),
+			},
+		}),
+	)
+	if err != nil {
+		if !trackedBefore {
+			privateNetworkDiscardFailedCreate(network.Id)
+		}
+		return err
+	}
+
+	snapshot, found := controller.PrivateNetworkSnapshotRetrieve(network.Id)
+	if !found || !snapshot.CidrBlock.Present || snapshot.CidrBlock.Value == "" {
+		if !trackedBefore {
+			privateNetworkDiscardFailedCreate(network.Id)
+		}
+		return util.ServerHttpError("The private network has no allocated CIDR block")
+	}
+
+	desired, desiredOk := privateNetworkComputeDesired(snapshot)
+	if !desiredOk {
+		if !trackedBefore {
+			privateNetworkDiscardFailedCreate(network.Id)
+		}
+		return util.ServerHttpError("The private network has an invalid CIDR block %s", snapshot.CidrBlock.Value)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	if networkType == orc.NetworkTypeEthernet {
+		if err := controller.PrivateNetworkUpdateCoreCidrBlock(network.Id, desired.cidr); err != nil {
+			privateNetworkDiscardFailedCreate(network.Id)
+			return err
 		}
 	}
 
-	privateNetworkCreationMutex.Lock()
-	networkCount := db.NewTx(func(tx *db.Transaction) int {
-		row, _ := db.Get[struct {
-			Count int
-		}](
-			tx,
-			`
-				select count(*) as count
-				from tracked_private_networks 
-				where lower(resource->'specification'->>'subdomain') = lower(:domain)
-		    `,
-			db.Params{
-				"domain": network.Specification.Subdomain,
-			},
-		)
-
-		return row.Count
-	})
-	privateNetworkCreationMutex.Unlock()
-
-	if networkCount != 1 {
-		return util.HttpErr(http.StatusConflict, "a network with this subdomain already exists, try a different one")
+	objects, ensureErr := privateNetworkEnsureNetworkObjects(ctx, desired, privateNetworkEnsureCreate)
+	if ensureErr != nil {
+		if networkType == orc.NetworkTypeInfiniband {
+			privateNetworkDeleteInfinibandObjects(ctx, desired)
+		}
+		privateNetworkDiscardFailedCreate(network.Id)
+		return ensureErr
 	}
 
-	networkSvc := &k8score.Service{
-		ObjectMeta: k8smeta.ObjectMeta{
-			Name: PrivateNetworkName(network.Specification.Subdomain),
-		},
-		Spec: k8score.ServiceSpec{
-			ClusterIP: "None",
-			Selector:  PrivateNetworkSelector(network.Specification.Subdomain),
-			Ports: []k8score.ServicePort{
-				{
-					Name:       "dummy",
-					Port:       80,
-					TargetPort: intstr.FromInt32(80),
-				},
-			},
-		},
+	if networkType == orc.NetworkTypeInfiniband {
+		if !objects.ready(desired) && !privateNetworkWaitForNad(ctx, desired.subdomain) {
+			privateNetworkDeleteInfinibandObjects(ctx, desired)
+			privateNetworkDiscardFailedCreate(network.Id)
+			return util.ServerHttpError("The InfiniBand network did not become ready in time")
+		}
+
+		if err := controller.PrivateNetworkUpdateCoreCidrBlock(network.Id, desired.cidr); err != nil {
+			privateNetworkDeleteInfinibandObjects(ctx, desired)
+			privateNetworkDiscardFailedCreate(network.Id)
+			return err
+		}
 	}
 
-	svc, err := K8sClient.CoreV1().Services(ServiceConfig.Compute.Namespace).
-		Create(context.Background(), networkSvc, k8smeta.CreateOptions{})
-
-	if err != nil {
-		log.Warn("Failed to create private network: %s %s", network.Specification.Subdomain, err)
-		return util.HttpErr(http.StatusInternalServerError, "unable to create a private network")
-	}
-
-	selector := k8smeta.LabelSelector{
-		MatchLabels: PrivateNetworkSelector(network.Specification.Subdomain),
-	}
-
-	policy := &k8snetwork.NetworkPolicy{
-		ObjectMeta: k8smeta.ObjectMeta{
-			Name: PrivateNetworkName(network.Specification.Subdomain),
-			OwnerReferences: []k8smeta.OwnerReference{{
-				APIVersion: "v1",
-				Kind:       "Service",
-				Name:       svc.Name,
-				UID:        svc.UID,
-			}},
-		},
-		Spec: k8snetwork.NetworkPolicySpec{
-			PodSelector: selector,
-			Ingress: []k8snetwork.NetworkPolicyIngressRule{
-				{From: []k8snetwork.NetworkPolicyPeer{{PodSelector: &selector}}},
-			},
-			Egress: []k8snetwork.NetworkPolicyEgressRule{
-				{To: []k8snetwork.NetworkPolicyPeer{{PodSelector: &selector}}},
-			},
-		},
-	}
-
-	_, err = K8sClient.NetworkingV1().NetworkPolicies(ServiceConfig.Compute.Namespace).
-		Create(context.Background(), policy, k8smeta.CreateOptions{})
-
-	if err != nil {
-		log.Warn("Failed to create private network policy: %s %s", network.Specification.Subdomain, err)
-		return util.HttpErr(http.StatusInternalServerError, "unable to create a private network policy")
-	}
-
+	PrivateNetworkReconcileSoon()
 	return nil
+}
+
+func privateNetworkDiscardFailedCreate(networkId string) {
+	controller.PrivateNetworkDiscardAfterFailedCreate(networkId)
+	PrivateNetworkReconcileSoon()
 }
 
 func PrivateNetworkDelete(network *orc.PrivateNetwork) *util.HttpError {
@@ -141,15 +237,77 @@ func PrivateNetworkDelete(network *orc.PrivateNetwork) *util.HttpError {
 		return util.ServerHttpError("Failed to delete private network: network is nil")
 	}
 
-	err := K8sClient.CoreV1().Services(ServiceConfig.Compute.Namespace).
-		Delete(context.Background(), PrivateNetworkName(network.Specification.Subdomain), k8smeta.DeleteOptions{})
-
-	if err != nil && !k8serrors.IsNotFound(err) {
-		log.Warn("Failed to delete a private network: %s %s", network.Specification.Subdomain, err)
-		return util.HttpErr(http.StatusInternalServerError, "unable to delete a private network")
+	if len(network.Status.Members) > 0 {
+		return util.UserHttpError(
+			"This private network is currently in use by job: %v",
+			strings.Join(network.Status.Members, ", "),
+		)
 	}
 
-	return controller.PrivateNetworkDelete(network)
+	featureEnabled := controller.PrivateNetworksFeatureEnabled()
+	snapshot, tracked := controller.PrivateNetworkSnapshotRetrieve(network.Id)
+
+	legacy := !tracked || !snapshot.CidrBlock.Present
+	if !featureEnabled && tracked && snapshot.CidrBlock.Present {
+		return util.UserHttpError(
+			"This private network cannot be deleted while private networks are disabled on this provider",
+		)
+	}
+
+	if !tracked {
+		return nil
+	}
+
+	if err := controller.PrivateNetworkDeleteRequest(network); err != nil {
+		return err
+	}
+
+	if legacy && !featureEnabled {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		if !privateNetworkDeleteServiceObject(ctx, network.Status.Subdomain, network.Id, true) {
+			return util.ServerHttpError("unable to delete the service of the private network")
+		}
+
+		if !privateNetworkDeletePolicyObject(ctx, network.Status.Subdomain, network.Id, true) {
+			return util.ServerHttpError("unable to delete the network policy of the private network")
+		}
+
+		workspace := controller.PrivateNetworkWorkspaceFromOwner(network.Owner)
+		return controller.PrivateNetworkFinishDelete(network.Id, workspace)
+	}
+
+	if !featureEnabled {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	snapshot, snapshotTracked := controller.PrivateNetworkSnapshotRetrieve(network.Id)
+	if snapshotTracked {
+		if desired, ok := privateNetworkComputeDesired(snapshot); ok {
+			privateNetworkAdvanceNetworkDeletion(ctx, desired)
+		}
+	}
+
+	return nil
+}
+
+func privateNetworkServiceIsLegacy(svc *k8score.Service, subdomain string) bool {
+	if privateNetworkIsManagedByIm(svc.Labels) {
+		return false
+	}
+
+	return svc.Spec.Selector[PrivateNetworkLabel(subdomain)] == "true"
+}
+
+func privateNetworkPolicyIsLegacy(policy *k8snetwork.NetworkPolicy, subdomain string) bool {
+	if privateNetworkIsManagedByIm(policy.Labels) {
+		return false
+	}
+
+	match, ok := policy.Spec.PodSelector.MatchLabels[PrivateNetworkLabel(subdomain)]
+	return ok && match == "true"
 }
 
 type PrivateNetworkDnsConfig struct {
@@ -164,27 +322,48 @@ func PrivateNetworkCreateDnsConfig(job *orc.Job) (PrivateNetworkDnsConfig, *util
 	result.Labels = map[string]string{}
 	result.Hostname = job.Specification.Hostname.GetOrDefault(fmt.Sprintf("j-%v", job.Id))
 
-	var networks []orc.PrivateNetwork
-	for _, resc := range job.Specification.Resources {
-		if resc.Type == orc.AppParameterValueTypePrivateNetwork {
-			network, ok := controller.PrivateNetworkRetrieve(resc.Id)
-			if ok {
-				networks = append(networks, network)
-			}
+	values, err := controller.PrivateNetworkJobValues(job)
+	if err != nil {
+		return result, err
+	}
+
+	type attachedNetwork struct {
+		id        string
+		subdomain string
+		allocated bool
+	}
+
+	var networks []attachedNetwork
+	for _, value := range values {
+		network, ok := controller.PrivateNetworkRetrieve(value.Id)
+		if !ok {
+			continue
 		}
+		if network.Specification.EffectiveType() == orc.NetworkTypeInfiniband {
+			continue
+		}
+		networks = append(networks, attachedNetwork{
+			id:        network.Id,
+			subdomain: network.Status.Subdomain,
+			allocated: network.Status.CidrBlock.Present,
+		})
 	}
 
 	toolBackend := job.Status.ResolvedApplication.Value.Invocation.Tool.Tool.Value.Description.Backend
 
 	if len(networks) > 0 {
-		result.Subdomain = networks[0].Specification.Subdomain
+		result.Subdomain = networks[0].subdomain
 		result.PodDns = &k8score.PodDNSConfig{}
 
 		baseDomain := fmt.Sprintf("%s.svc.cluster.local", ServiceConfig.Compute.Namespace)
 
 		for _, network := range networks {
-			result.PodDns.Searches = append(result.PodDns.Searches, fmt.Sprintf("%s.%s", network.Specification.Subdomain, baseDomain))
-			result.Labels[PrivateNetworkLabel(network.Specification.Subdomain)] = "true"
+			result.PodDns.Searches = append(result.PodDns.Searches, fmt.Sprintf("%s.%s", network.subdomain, baseDomain))
+			if network.allocated {
+				result.Labels[PrivateNetworkMembershipLabel(network.id)] = "true"
+			} else {
+				result.Labels[PrivateNetworkLabel(network.subdomain)] = "true"
+			}
 		}
 
 		result.PodDns.Searches = append(result.PodDns.Searches, baseDomain)
@@ -202,4 +381,239 @@ func PrivateNetworkCreateDnsConfig(job *orc.Job) (PrivateNetworkDnsConfig, *util
 	}
 
 	return result, nil
+}
+
+func PrivateNetworkRdmaResourceName() string {
+	return controller.PrivateNetworkInfinibandRdmaResourceName()
+}
+
+func PrivateNetworkJobRdmaResourceName(job *orc.Job) (string, bool) {
+	if !controller.PrivateNetworkJobHasInfiniband(job) {
+		return "", false
+	}
+
+	name := controller.PrivateNetworkInfinibandRdmaResourceName()
+	if name == "" {
+		return "", false
+	}
+
+	return name, true
+}
+
+func PrivateNetworkInfinibandDeviceForNode(node string) (string, *util.HttpError) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	k8sNode, err := K8sClient.CoreV1().Nodes().Get(ctx, node, k8smeta.GetOptions{})
+	if err != nil {
+		return "", util.ServerHttpError("Failed to retrieve the scheduled Kubernetes node %s: %s", node, err)
+	}
+
+	if !PrivateNetworkInfinibandNodeValid(k8sNode) {
+		return "", util.ServerHttpError(
+			"The scheduled node %s is not a valid InfiniBand node (label %s, resource %s)",
+			node,
+			controller.PrivateNetworkInfinibandDeviceLabel(),
+			controller.PrivateNetworkInfinibandRdmaResourceName(),
+		)
+	}
+
+	device, _ := privateNetworkInfinibandNodeDevice(k8sNode)
+	return device, nil
+}
+
+func PrivateNetworkInfinibandNodeValid(node *k8score.Node) bool {
+	device, ok := privateNetworkInfinibandNodeDevice(node)
+	if !ok {
+		return false
+	}
+
+	expected := controller.PrivateNetworkInfinibandDevice()
+	if expected != "" && device != expected {
+		return false
+	}
+
+	rdmaResource := controller.PrivateNetworkInfinibandRdmaResourceName()
+	quantity, ok := node.Status.Allocatable[k8score.ResourceName(rdmaResource)]
+	return ok && quantity.Value() > 0
+}
+
+func privateNetworkInfinibandNodeDevice(node *k8score.Node) (string, bool) {
+	label := controller.PrivateNetworkInfinibandDeviceLabel()
+	raw, ok := node.Labels[label]
+	if !ok {
+		return "", false
+	}
+
+	return privateNetworkParseInfinibandDeviceLabel(raw)
+}
+
+func privateNetworkParseInfinibandDeviceLabel(raw string) (string, bool) {
+	device, _, _ := strings.Cut(raw, "-")
+	device = strings.TrimSpace(device)
+	return device, device != ""
+}
+
+type PrivateNetworkAttachmentInfo struct {
+	NetworkId   string
+	NetworkType orc.NetworkType
+	Subdomain   string
+	CidrBlock   util.Option[string]
+	Ip          string
+	MacAddress  util.Option[string]
+	Interface   string
+	NadName     string
+	Provider    string
+	NetworkRank int
+}
+
+func PrivateNetworkAttachmentInfosValidated(all []controller.PrivateNetworkJobLeases, rank int) ([]PrivateNetworkAttachmentInfo, *util.HttpError) {
+	var result []PrivateNetworkAttachmentInfo
+	ethernetIndex := 0
+	for index, entry := range all {
+		var match *controller.PrivateNetworkLeaseRow
+		for i := range entry.Leases {
+			if entry.Leases[i].Rank == rank {
+				match = &entry.Leases[i]
+				break
+			}
+		}
+		if match == nil {
+			return nil, util.ServerHttpError(
+				"The private network %s has no address for rank %d of the job",
+				entry.NetworkId,
+				rank,
+			)
+		}
+
+		networkType := entry.NetworkType
+		if networkType == "" {
+			networkType = orc.NetworkTypeEthernet
+		}
+
+		interfaceName := ""
+		if networkType == orc.NetworkTypeInfiniband {
+			interfaceName = "ib0"
+		} else {
+			ethernetIndex++
+			interfaceName = fmt.Sprintf("net%d", ethernetIndex)
+		}
+
+		result = append(result, PrivateNetworkAttachmentInfo{
+			NetworkId:   entry.NetworkId,
+			NetworkType: networkType,
+			Subdomain:   entry.Subdomain,
+			CidrBlock:   entry.CidrBlock,
+			Ip:          match.Ip,
+			MacAddress:  match.MacAddress,
+			Interface:   interfaceName,
+			NadName:     entry.Subdomain,
+			Provider:    PrivateNetworkProviderName(entry.Subdomain),
+			NetworkRank: index,
+		})
+	}
+	return result, nil
+}
+
+func PrivateNetworkAttachmentAnnotations(attachments []PrivateNetworkAttachmentInfo) (map[string]string, *util.HttpError) {
+	if len(attachments) == 0 {
+		return nil, nil
+	}
+
+	type multusNetwork struct {
+		Name      string   `json:"name"`
+		Namespace string   `json:"namespace"`
+		Interface string   `json:"interface"`
+		Ips       []string `json:"ips,omitempty"`
+	}
+
+	entries := make([]multusNetwork, 0, len(attachments))
+	for _, attachment := range attachments {
+		entry := multusNetwork{
+			Name:      attachment.NadName,
+			Namespace: ServiceConfig.Compute.Namespace,
+			Interface: attachment.Interface,
+		}
+
+		if attachment.NetworkType == orc.NetworkTypeInfiniband {
+			prefix, ok := orc.PrivateNetworkParseCidr(attachment.CidrBlock.GetOrDefault(""))
+			if !ok {
+				return nil, util.ServerHttpError(
+					"The private network %s has an invalid CIDR block",
+					attachment.NetworkId,
+				)
+			}
+			entry.Ips = []string{fmt.Sprintf("%s/%d", attachment.Ip, prefix.Bits())}
+		}
+
+		entries = append(entries, entry)
+	}
+
+	jsonified, err := json.Marshal(entries)
+	if err != nil {
+		return nil, util.HttpErrorFromErr(err)
+	}
+
+	annotations := map[string]string{
+		PrivateNetworkMultusAnnotation: string(jsonified),
+	}
+
+	for _, attachment := range attachments {
+		if attachment.NetworkType == orc.NetworkTypeInfiniband {
+			continue
+		}
+
+		annotations[PrivateNetworkIpAnnotation(attachment.Provider)] = attachment.Ip
+		if attachment.MacAddress.Present {
+			annotations[PrivateNetworkMacAnnotation(attachment.Provider)] = attachment.MacAddress.Value
+		}
+	}
+
+	return annotations, nil
+}
+
+func PrivateNetworkJobAttachments(job *orc.Job, rank int) ([]PrivateNetworkAttachmentInfo, *util.HttpError) {
+	if !controller.PrivateNetworksFeatureEnabled() {
+		return nil, nil
+	}
+
+	values, err := controller.PrivateNetworkJobValues(job)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(values) > 0 && privateNetworkJobIsLegacyOnly(values) {
+		return nil, nil
+	}
+
+	leases, err := controller.PrivateNetworkJobAllocateLeases(job)
+	if err != nil {
+		return nil, err
+	}
+
+	return PrivateNetworkAttachmentInfosValidated(leases, rank)
+}
+
+func privateNetworkJobIsLegacyOnly(values []orc.AppParameterValue) bool {
+	for _, value := range values {
+		network, ok := controller.PrivateNetworkRetrieve(value.Id)
+		if !ok || network.Status.CidrBlock.Present {
+			return false
+		}
+	}
+	return true
+}
+
+func PrivateNetworkAttachmentEnvironmentVariables(attachments []PrivateNetworkAttachmentInfo) map[string]string {
+	if len(attachments) == 0 {
+		return nil
+	}
+
+	result := map[string]string{}
+	for _, attachment := range attachments {
+		name := strings.ToUpper(strings.ReplaceAll(attachment.Subdomain, "-", "_"))
+		result["UCLOUD_NET_"+name] = attachment.Ip
+		result["UCLOUD_PRIVATE_NET_"+name] = attachment.Ip
+	}
+	return result
 }

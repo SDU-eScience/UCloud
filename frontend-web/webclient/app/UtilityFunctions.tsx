@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import CONF from "../site.config.json";
 import {UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 import {BulkRequest, BulkResponse, PageV2} from "./UCloud";
@@ -65,16 +65,6 @@ export type ExtensionType =
     | "binary"
     | "markdown"
     | "application";
-
-export const commonFileExtensions = [
-    "app", "application", "md", "markdown", "markdown", "zig", "swift", "kt", "kts", "js", "jsx", "ts", "tsx",
-    "java", "py", "python", "tex", "r", "c", "h", "cc", "hh", "c++", "h++", "hpp", "cpp", "cxx", "jai", "hxx",
-    "html", "htm", "lhs", "hs", "sql", "sh", "iol", "ol", "col", "bib", "toc", "jar", "exe", "xml", "json",
-    "yml", "ini", "sbatch", "code", "png", "gif", "tiff", "eps", "ppm", "svg", "jpg", "jpeg", "image", "txt",
-    "doc", "docx", "log", "csv", "tsv", "plist", "out", "err", "text", "pdf", "pdf", "wav", "mp3", "ogg", "aac",
-    "pcm", "audio", "mpg", "mp4", "avi", "mov", "wmv", "video", "gz", "zip", "tar", "tgz", "tbz", "bz2", "archive",
-    "dat", "binary", "rs",
-];
 
 const languages = {
     "md": "markdown",
@@ -224,11 +214,13 @@ export function extensionType(ext: string): ExtensionType {
         case "wmv":
             return "video";
         case "gz":
+        case "xz":
         case "zip":
         case "tar":
         case "tgz":
         case "tbz":
         case "bz2":
+        case "7z":
             return "archive";
         case "dat":
             return "binary";
@@ -264,7 +256,30 @@ export function ifPresent<T>(f: T | undefined, handler: (f: T) => void): void {
  * Capitalizes the input string and replaces _ (underscores) with whitespace.
  * @param str input string.
  */
-export const prettierString = (str: string): string => capitalized(str).replace(/_/g, " ");
+export function prettierString(str: string): string {
+    return capitalized(str).replace(/_/g, " ");
+}
+
+/**
+ *
+ * @param str input string
+ * @returns string where every capitalized letter is preceeded by a space, expect the first letter
+*/
+function insertWhitespace(str: String): string {
+    let result = "";
+    for (const letter of str) {
+        if (letter < 'a') {
+            result += " ";
+        }
+        result += letter;
+    }
+    return result.trim();
+}
+
+const WordsToLowerCase = ["To", "With", "From"];
+export function expandAndPrettifyString(str: string) {
+    return insertWhitespace(str).split(" ").map(it => WordsToLowerCase.includes(it) ? it.toLocaleLowerCase() : it).join(" ");
+}
 
 export function extractErrorCode(e: unknown): number {
     if (typeof e === "object") {
@@ -336,28 +351,6 @@ export function timestampUnixMs(): number {
             window.performance.now() + window.performance.timing.navigationStart :
             Date.now()
     );
-}
-
-/**
- * UNUSED
- * Used to format numbers to a more human readable number by dividing it up by thousands and using custom delimiters.
- * @param value numerical value to be formatted.
- * @param sectionDelim used for deliminate every thousand. Default: ,
- * @param decimalDelim used to deliminate the decimals. Default: .
- * @param numDecimals number of decimals in the formatted number. Default: 2
- */
-export function humanReadableNumber(
-    value: number,
-    sectionDelim = ",",
-    decimalDelim = ".",
-    numDecimals = 2
-): string {
-    const regex = new RegExp("\\d(?=(\\d{3})+" + (numDecimals > 0 ? "\\D" : "$") + ")", "g");
-    const fixedNumber = value.toFixed(numDecimals);
-
-    return fixedNumber
-        .replace(".", decimalDelim)
-        .replace(regex, "$&" + sectionDelim);
 }
 
 /**
@@ -464,6 +457,8 @@ export function useFrameHidden(): boolean {
     return [
         "/app/login",
         "/app/login/wayf",
+        "/app/login/external",
+        "/app/login/external/wayf",
         "/app/applications/shell/",
         "/app/applications/web/",
         "/app/applications/vnc/",
@@ -664,6 +659,20 @@ export const isLikelyMac = navigator["userAgentData"]?.["platform"] === "macOS" 
     navigator["platform"]?.toLocaleLowerCase().includes("mac") ||
     navigator["userAgent"]?.toLocaleLowerCase().includes("macintosh");
 
+export type KeyboardShortcutModifier = "ctrl" | "alt";
+
+export function createKeyboardShortcut(key: string, modifiers: KeyboardShortcutModifier[] = []): string {
+    if (modifiers.length === 0) return key;
+    const normalizedModifiers = modifiers.map(modifier => {
+        if (modifier === "ctrl") return isLikelyMac ? "⌘" : "Ctrl";
+        return isLikelyMac ? "⌥" : "Alt";
+    });
+    const modifierSeparator = isLikelyMac ? "" : " + ";
+    const modifierText = normalizedModifiers.join(modifierSeparator);
+    const modifierSpacer = isLikelyMac ? " " : " + ";
+    return modifierText + modifierSpacer + key;
+}
+
 export function deepEquals(a: any, b: any): boolean {
     if (a === b) return true;
 
@@ -681,4 +690,32 @@ export function getOrNull<T>(array: T[], index: number): T | null {
     if (index < 0) return null;
     if (index >= array.length) return null;
     return array[index];
+}
+
+export function usePortal() {
+    const portalRef = useRef<HTMLDivElement | null>(null);
+    if (!portalRef.current) {
+        portalRef.current = document.createElement("div");
+    }
+
+    useEffect(() => {
+        const portal = portalRef.current;
+        if (!portal) return;
+
+        if (portal.parentNode !== document.body) {
+            document.body.appendChild(portal);
+        }
+
+        return () => {
+            if (portal.parentNode === document.body) {
+                document.body.removeChild(portal);
+            }
+        };
+    }, []);
+
+    return portalRef.current;
+}
+
+export function isTouchScreen(e: MouseEvent) {
+    return e["pointerType"] === "touch";
 }

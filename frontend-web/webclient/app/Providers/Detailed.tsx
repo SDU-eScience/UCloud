@@ -10,14 +10,7 @@ import {ProviderLogo} from "./ProviderLogo";
 import {ProviderTitle} from "./ProviderTitle";
 import TitledCard from "@/ui-components/HighlightedCard";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
-import {useSelector} from "react-redux";
-import {ProviderBranding} from "@/UCloud/ProviderBrandingApi";
-
-function useProviderBranding(id?: string): ProviderBranding | undefined {
-    const data = useSelector((it: ReduxObject) => it.providerBrandings);
-    if (!id) return undefined;
-    return data.providers[id];
-}
+import {useProviderBranding} from "@/ProviderBrandings/AutomaticProviderBranding";
 
 export default function DetailedProvider() {
     const params = useParams<{id: string}>();
@@ -50,7 +43,7 @@ export default function DetailedProvider() {
                     <Flex>
                         {section.image !== "" ? <Flex flexDirection="column" mr="24px" my="8px">
                             <Box flexGrow={1} />
-                            <img alt={`Provider detail image`}  style={{height: "150px", objectFit: "scale-down"}} src={section.image} />
+                            <img alt={`Provider detail image`} style={{height: "150px", objectFit: "scale-down"}} src={section.image} />
                             <Box flexGrow={1} />
                         </Flex> : <Box />}
                         <div>
@@ -62,27 +55,27 @@ export default function DetailedProvider() {
                 </TitledCard>
             </Box>
         )}
-        {entry.productDescription.map((prod, index) => 
+        {entry.productDescription.map((prod, index) =>
             <Box key={index} my="32px">
                 <TitledCard>
                     <Flex>
                         <h2>{prod.category}</h2>
-                        <Box flexGrow={1}/>
+                        <Box flexGrow={1} />
                         <div>
                             {prod.shortDescription}
                         </div>
                     </Flex>
                     <Flex>
-                    <div>
-                        {prod.section.image ? <img alt={`Product Section Image`}  style={{height: "150px", objectFit: "scale-down"}} src={prod.section.image} /> : <div />}
-                    </div>
-                    <div>
-                        <br/>
-                        <br/>
-                        <Markdown>
-                            {prod.section.description}
-                        </Markdown>
-                    </div>
+                        <div>
+                            {prod.section.image ? <img alt={`Product Section Image`} style={{height: "150px", objectFit: "scale-down"}} src={prod.section.image} /> : <div />}
+                        </div>
+                        <div>
+                            <br />
+                            <br />
+                            <Markdown>
+                                {prod.section.description}
+                            </Markdown>
+                        </div>
                     </Flex>
                 </TitledCard>
             </Box>

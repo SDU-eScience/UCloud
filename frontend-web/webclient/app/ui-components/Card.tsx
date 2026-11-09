@@ -27,6 +27,9 @@ export interface CardProps extends HeightProps,
     onContextMenu?: React.MouseEventHandler;
     className?: string;
     style?: CSSProperties;
+    id?: string;
+    tabIndex?: number;
+    divRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export const CardClass = injectStyle("card", k => `
@@ -45,6 +48,9 @@ export const Card: React.FunctionComponent<CardProps> = props => {
     return <div
         style={{...unbox(props), ...(props.style ?? {})}}
         className={classConcat(CardClass, props.className)}
+        id={props.id}
+        tabIndex={props.tabIndex}
+        ref={props.divRef}
         onClick={props.onClick}
         onContextMenu={props.onContextMenu}
         children={props.children}

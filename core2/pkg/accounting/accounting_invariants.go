@@ -51,7 +51,14 @@ func handleAccountingInvariantError(operation string, err error) {
 
 // lCheckAccountingOperation validates only wallets which could have been changed by an operation.
 // The caller must hold the bucket lock. A nil wallet set means that the operation can affect the entire bucket.
-func lCheckAccountingOperation(operation string, b *internalBucket, now time.Time, walletIds map[AccWalletId]bool, scope *scopedUsage, additionalErrors ...error) {
+func lCheckAccountingOperation(
+	operation string,
+	b *internalBucket,
+	now time.Time,
+	walletIds map[AccWalletId]bool,
+	scope *scopedUsage,
+	additionalErrors ...error,
+) {
 	if !accountingInvariantChecksEnabled() {
 		return
 	}
@@ -209,7 +216,18 @@ func lValidateAccountingWalletWithLockCheck(b *internalBucket, now time.Time, wa
 			continue
 		}
 		if group.AssociatedWallet != wallet.Id || group.ParentWallet != parentId {
-			errs = append(errs, fmt.Errorf("wallet %d group %d has endpoints %d -> %d instead of %d -> %d", wallet.Id, group.Id, group.ParentWallet, group.AssociatedWallet, parentId, wallet.Id))
+			errs = append(
+				errs,
+				fmt.Errorf(
+					"wallet %d group %d has endpoints %d -> %d instead of %d -> %d",
+					wallet.Id,
+					group.Id,
+					group.ParentWallet,
+					group.AssociatedWallet,
+					parentId,
+					wallet.Id,
+				),
+			)
 			canCheckLock = false
 		}
 		if group.TreeUsage < 0 {
@@ -256,6 +274,10 @@ func lValidateAccountingWalletWithLockCheck(b *internalBucket, now time.Time, wa
 		}
 		if group.TreeUsage > contributing {
 			errs = append(errs, fmt.Errorf("group %d tree usage %d exceeds contributing quota %d", group.Id, group.TreeUsage, contributing))
+			canCheckLock = false
+		}
+		if !b.IsCapacityBased() && group.TreeUsage < lInternalGroupTotalRetired(b, group) {
+			errs = append(errs, fmt.Errorf("group %d flow is below retired usage", group.Id))
 			canCheckLock = false
 		}
 		totalContributing, overflow = checkedAccountingAdd(totalContributing, contributing)
@@ -403,7 +425,16 @@ func lValidateAccountingAllocation(b *internalBucket, now time.Time, wallet *int
 		errs = append(errs, fmt.Errorf("allocation %d metadata does not match group %d", allocation.Id, group.Id))
 	}
 	if allocation.Quota < 0 || allocation.RetiredUsage < 0 || allocation.RetiredQuota < 0 {
-		errs = append(errs, fmt.Errorf("allocation %d has negative quota state: quota=%d retiredUsage=%d retiredQuota=%d", allocation.Id, allocation.Quota, allocation.RetiredUsage, allocation.RetiredQuota))
+		errs = append(
+			errs,
+			fmt.Errorf(
+				"allocation %d has negative quota state: quota=%d retiredUsage=%d retiredQuota=%d",
+				allocation.Id,
+				allocation.Quota,
+				allocation.RetiredUsage,
+				allocation.RetiredQuota,
+			),
+		)
 	}
 	if allocation.Start.After(allocation.End) {
 		errs = append(errs, fmt.Errorf("allocation %d has invalid interval [%s, %s)", allocation.Id, allocation.Start, allocation.End))
@@ -419,10 +450,16 @@ func lValidateAccountingAllocation(b *internalBucket, now time.Time, wallet *int
 	}
 	if allocation.Retired {
 		if b.IsCapacityBased() && allocation.RetiredUsage > allocation.RetiredQuota {
-			errs = append(errs, fmt.Errorf("capacity allocation %d retired usage %d exceeds retired quota %d", allocation.Id, allocation.RetiredUsage, allocation.RetiredQuota))
+			errs = append(
+				errs,
+				fmt.Errorf("capacity allocation %d retired usage %d exceeds retired quota %d", allocation.Id, allocation.RetiredUsage, allocation.RetiredQuota),
+			)
 		}
 		if !b.IsCapacityBased() && allocation.Quota != allocation.RetiredUsage {
-			errs = append(errs, fmt.Errorf("periodic allocation %d quota %d does not preserve retired usage %d", allocation.Id, allocation.Quota, allocation.RetiredUsage))
+			errs = append(
+				errs,
+				fmt.Errorf("periodic allocation %d quota %d does not preserve retired usage %d", allocation.Id, allocation.Quota, allocation.RetiredUsage),
+			)
 		}
 	}
 	return errs

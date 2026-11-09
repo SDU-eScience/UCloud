@@ -54,82 +54,70 @@ type duplicateRepairGroupTarget struct {
 
 func RepairAccountingDuplicates(apply bool) []byte {
 	report := db.NewTx(func(tx *db.Transaction) duplicateRepairReport {
-		if apply {
-			db.Exec(
-				tx,
-				"set transaction isolation level serializable",
-				db.Params{},
-			)
-			db.Exec(
-				tx,
-				`
-					lock table accounting.wallets_v2, accounting.allocation_groups,
-						accounting.wallet_allocations_v2, accounting.wallet_samples_v2,
-						accounting.wallet_snapshots, accounting.usage_report,
-						accounting.intermediate_usage in access exclusive mode
-				`,
-				db.Params{},
-			)
-		} else {
-			db.Exec(
-				tx,
-				"set transaction isolation level repeatable read, read only",
-				db.Params{},
-			)
-		}
+		accountingRepairTransactionMode(tx, apply)
+		return accountingRepairDuplicatesTx(tx, apply)
+	})
+	encoded, err := yaml.Marshal(report)
+	if err != nil {
+		panic(err)
+	}
+	return encoded
+}
 
-		walletRows := db.Select[duplicateRepairWalletRow](
-			tx,
-			`
+func accountingRepairDuplicatesTx(tx *db.Transaction, apply bool) duplicateRepairReport {
+
+	walletRows := db.Select[duplicateRepairWalletRow](
+		tx,
+		`
 				select id, wallet_owner, product_category, local_usage
 				from accounting.wallets_v2
 				order by id
 			`,
-			db.Params{},
-		)
-		groupRows := db.Select[duplicateRepairGroupRow](
-			tx,
-			`
+		db.Params{},
+	)
+	groupRows := db.Select[duplicateRepairGroupRow](
+		tx,
+		`
 				select id, parent_wallet, associated_wallet, tree_usage
 				from accounting.allocation_groups
 				order by id
 			`,
-			db.Params{},
-		)
-		allocationIdsBefore := selectAccountingAllocationIds(tx)
+		db.Params{},
+	)
+	allocationIdsBefore := selectAccountingAllocationIds(tx)
 
-		result := planDuplicateRepair(walletRows, groupRows)
-		result.AllocationCountBefore = len(allocationIdsBefore)
-		result.AllocationCountAfter = len(allocationIdsBefore)
-		plannedOldGroupIds := make([]int64, 0, len(result.Groups))
-		for _, change := range result.Groups {
-			plannedOldGroupIds = append(plannedOldGroupIds, change.RemoveId)
-		}
-		if len(plannedOldGroupIds) > 0 {
-			moved, _ := db.Get[struct{ Count int }](
-				tx,
-				`
+	result := planDuplicateRepair(walletRows, groupRows)
+	result.AllocationCountBefore = len(allocationIdsBefore)
+	result.AllocationCountAfter = len(allocationIdsBefore)
+	plannedOldGroupIds := make([]int64, 0, len(result.Groups))
+	for _, change := range result.Groups {
+		plannedOldGroupIds = append(plannedOldGroupIds, change.RemoveId)
+	}
+	if len(plannedOldGroupIds) > 0 {
+		moved, _ := db.Get[struct{ Count int }](
+			tx,
+			`
 					select count(*) as count from accounting.wallet_allocations_v2
 					where associated_allocation_group = any(cast(:ids as int8[]))
 				`,
-				db.Params{"ids": plannedOldGroupIds},
-			)
-			result.AllocationsMoved = moved.Count
-		}
-		if result.Blocked || !apply {
-			return result
-		}
+			db.Params{"ids": plannedOldGroupIds},
+		)
+		result.AllocationsMoved = moved.Count
+	}
+	if result.Blocked || !apply {
+		return result
+	}
 
-		oldGroupIds := make([]int64, 0, len(result.Groups))
-		newGroupIds := make([]int64, 0, len(result.Groups))
-		for _, change := range result.Groups {
-			oldGroupIds = append(oldGroupIds, change.RemoveId)
-			newGroupIds = append(newGroupIds, change.KeepId)
-		}
-		if len(oldGroupIds) > 0 {
-			moved, _ := db.Get[struct{ Count int }](
-				tx,
-				`
+	oldGroupIds := make([]int64, 0, len(result.Groups))
+	newGroupIds := make([]int64, 0, len(result.Groups))
+	for _, change := range result.Groups {
+		oldGroupIds = append(oldGroupIds, change.RemoveId)
+		newGroupIds = append(newGroupIds, change.KeepId)
+	}
+	if len(oldGroupIds) > 0 {
+		moved, _ := db.Get[struct{ Count int }](
+			tx,
+			`
 					with mapping as (
 						select unnest(cast(:old_id as int8[])) as old_id,
 							unnest(cast(:new_id as int8[])) as new_id
@@ -142,36 +130,36 @@ func RepairAccountingDuplicates(apply bool) []byte {
 					)
 					select count(*) as count from updated
 				`,
-				db.Params{"old_id": oldGroupIds, "new_id": newGroupIds},
-			)
-			result.AllocationsMoved = moved.Count
-			db.Exec(
-				tx,
-				`delete from accounting.allocation_groups where id = any(cast(:ids as int8[]))`,
-				db.Params{"ids": oldGroupIds},
-			)
-		}
+			db.Params{"old_id": oldGroupIds, "new_id": newGroupIds},
+		)
+		result.AllocationsMoved = moved.Count
+		db.Exec(
+			tx,
+			`delete from accounting.allocation_groups where id = any(cast(:ids as int8[]))`,
+			db.Params{"ids": oldGroupIds},
+		)
+	}
 
-		walletKeep := map[int64]int64{}
-		for _, row := range walletRows {
-			walletKeep[row.Id] = row.Id
+	walletKeep := map[int64]int64{}
+	for _, row := range walletRows {
+		walletKeep[row.Id] = row.Id
+	}
+	for _, change := range result.Wallets {
+		walletKeep[change.RemoveId] = change.KeepId
+	}
+	groupTargets := buildDuplicateRepairGroupTargets(groupRows, walletKeep, result.Groups)
+	if len(groupTargets) > 0 {
+		ids := make([]int64, 0, len(groupTargets))
+		parents := make([]int64, 0, len(groupTargets))
+		wallets := make([]int64, 0, len(groupTargets))
+		for _, target := range groupTargets {
+			ids = append(ids, target.Id)
+			parents = append(parents, target.ParentWallet)
+			wallets = append(wallets, target.AssociatedWallet)
 		}
-		for _, change := range result.Wallets {
-			walletKeep[change.RemoveId] = change.KeepId
-		}
-		groupTargets := buildDuplicateRepairGroupTargets(groupRows, walletKeep, result.Groups)
-		if len(groupTargets) > 0 {
-			ids := make([]int64, 0, len(groupTargets))
-			parents := make([]int64, 0, len(groupTargets))
-			wallets := make([]int64, 0, len(groupTargets))
-			for _, target := range groupTargets {
-				ids = append(ids, target.Id)
-				parents = append(parents, target.ParentWallet)
-				wallets = append(wallets, target.AssociatedWallet)
-			}
-			db.Exec(
-				tx,
-				`
+		db.Exec(
+			tx,
+			`
 					with data as (
 						select unnest(cast(:id as int8[])) as id,
 							unnest(cast(:parent as int8[])) as parent,
@@ -182,52 +170,52 @@ func RepairAccountingDuplicates(apply bool) []byte {
 						parent_wallet = case when data.parent = 0 then null else data.parent end
 					from data where ag.id = data.id
 				`,
-				db.Params{"id": ids, "parent": parents, "wallet": wallets},
-			)
-		}
+			db.Params{"id": ids, "parent": parents, "wallet": wallets},
+		)
+	}
 
-		loserWalletIds := make([]int64, 0, len(result.Wallets))
-		for _, change := range result.Wallets {
-			loserWalletIds = append(loserWalletIds, change.RemoveId)
-		}
-		if len(loserWalletIds) > 0 {
-			for _, table := range []string{
-				"accounting.wallet_samples_v2",
-				"accounting.usage_report",
-				"accounting.intermediate_usage",
-			} {
-				deleted, _ := db.Get[struct{ Count int }](
-					tx,
-					fmt.Sprintf(`
+	loserWalletIds := make([]int64, 0, len(result.Wallets))
+	for _, change := range result.Wallets {
+		loserWalletIds = append(loserWalletIds, change.RemoveId)
+	}
+	if len(loserWalletIds) > 0 {
+		for _, table := range []string{
+			"accounting.wallet_samples_v2",
+			"accounting.usage_report",
+			"accounting.intermediate_usage",
+		} {
+			deleted, _ := db.Get[struct{ Count int }](
+				tx,
+				fmt.Sprintf(`
 						with removed as (delete from %s where wallet_id = any(cast(:ids as int8[])) returning 1)
 						select count(*) as count from removed
 					`, table),
-					db.Params{"ids": loserWalletIds},
-				)
-				result.DeletedHistoricalRows += deleted.Count
-			}
-			deleted, _ := db.Get[struct{ Count int }](
-				tx,
-				`
-					with removed as (delete from accounting.wallet_snapshots where id = any(cast(:ids as int8[])) returning 1)
-					select count(*) as count from removed
-				`,
 				db.Params{"ids": loserWalletIds},
 			)
 			result.DeletedHistoricalRows += deleted.Count
-
-			db.Exec(
-				tx,
-				`delete from accounting.wallets_v2 where id = any(cast(:ids as int8[]))`,
-				db.Params{"ids": loserWalletIds},
-			)
 		}
+		deleted, _ := db.Get[struct{ Count int }](
+			tx,
+			`
+					with removed as (delete from accounting.wallet_snapshots where id = any(cast(:ids as int8[])) returning 1)
+					select count(*) as count from removed
+				`,
+			db.Params{"ids": loserWalletIds},
+		)
+		result.DeletedHistoricalRows += deleted.Count
 
-		canonicalIds, canonicalUsage := duplicateRepairCanonicalUsage(walletRows)
-		if len(canonicalIds) > 0 {
-			db.Exec(
-				tx,
-				`
+		db.Exec(
+			tx,
+			`delete from accounting.wallets_v2 where id = any(cast(:ids as int8[]))`,
+			db.Params{"ids": loserWalletIds},
+		)
+	}
+
+	canonicalIds, canonicalUsage := duplicateRepairCanonicalUsage(walletRows)
+	if len(canonicalIds) > 0 {
+		db.Exec(
+			tx,
+			`
 					with data as (
 						select unnest(cast(:id as int8[])) as id,
 							unnest(cast(:usage as int8[])) as usage
@@ -235,46 +223,39 @@ func RepairAccountingDuplicates(apply bool) []byte {
 					update accounting.wallets_v2 w set local_usage = data.usage
 					from data where w.id = data.id
 				`,
-				db.Params{"id": canonicalIds, "usage": canonicalUsage},
-			)
-		}
+			db.Params{"id": canonicalIds, "usage": canonicalUsage},
+		)
+	}
 
-		allocationIdsAfter := selectAccountingAllocationIds(tx)
-		result.AllocationCountAfter = len(allocationIdsAfter)
-		if !slices.Equal(allocationIdsBefore, allocationIdsAfter) {
-			panic("duplicate accounting repair changed the allocation ID set")
-		}
-		remainingWalletDuplicates, _ := db.Get[struct{ Count int }](
-			tx,
-			`
+	allocationIdsAfter := selectAccountingAllocationIds(tx)
+	result.AllocationCountAfter = len(allocationIdsAfter)
+	if !slices.Equal(allocationIdsBefore, allocationIdsAfter) {
+		panic("duplicate accounting repair changed the allocation ID set")
+	}
+	remainingWalletDuplicates, _ := db.Get[struct{ Count int }](
+		tx,
+		`
 				select count(*) as count from (
 					select 1 from accounting.wallets_v2 group by wallet_owner, product_category having count(*) > 1
 				) duplicates
 			`,
-			db.Params{},
-		)
-		remainingGroupDuplicates, _ := db.Get[struct{ Count int }](
-			tx,
-			`
+		db.Params{},
+	)
+	remainingGroupDuplicates, _ := db.Get[struct{ Count int }](
+		tx,
+		`
 				select count(*) as count from (
 					select 1 from accounting.allocation_groups
 					group by associated_wallet, coalesce(parent_wallet, 0) having count(*) > 1
 				) duplicates
 			`,
-			db.Params{},
-		)
-		if remainingWalletDuplicates.Count != 0 || remainingGroupDuplicates.Count != 0 {
-			panic("duplicate accounting repair left duplicate wallets or allocation groups")
-		}
-		result.Applied = true
-		return result
-	})
-
-	encoded, err := yaml.Marshal(report)
-	if err != nil {
-		panic(err)
+		db.Params{},
+	)
+	if remainingWalletDuplicates.Count != 0 || remainingGroupDuplicates.Count != 0 {
+		panic("duplicate accounting repair left duplicate wallets or allocation groups")
 	}
-	return encoded
+	result.Applied = true
+	return result
 }
 
 func planDuplicateRepair(walletRows []duplicateRepairWalletRow, groupRows []duplicateRepairGroupRow) duplicateRepairReport {
@@ -316,7 +297,11 @@ func planDuplicateRepair(walletRows []duplicateRepairWalletRow, groupRows []dupl
 	return result
 }
 
-func buildDuplicateRepairGroupTargets(rows []duplicateRepairGroupRow, walletKeep map[int64]int64, changes []duplicateRepairGroup) []duplicateRepairGroupTarget {
+func buildDuplicateRepairGroupTargets(
+	rows []duplicateRepairGroupRow,
+	walletKeep map[int64]int64,
+	changes []duplicateRepairGroup,
+) []duplicateRepairGroupTarget {
 	removed := map[int64]bool{}
 	for _, change := range changes {
 		removed[change.RemoveId] = true

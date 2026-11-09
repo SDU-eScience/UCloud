@@ -4,6 +4,9 @@
 
 - [Introduction](./overview/introduction.md)
 - [Projects](./overview/projects.md)
+- [API Tokens](./overview/api-tokens.md)
+  - [Platform API Tokens](./overview/platform-api-tokens.md)
+  - [Provider API Tokens](./overview/provider-api-tokens.md)
 - [Accounting](./overview/accounting.md)
 - [Orchestration](./overview/orchestration.md)
 - [Frontend](./dev/frontend-development.md)
@@ -38,15 +41,35 @@
 - [Architecture and Networking](./k8s/architecture.md)
 - [Filesystem Integration](./k8s/storage.md)
 - [Compute Jobs](k8s/compute.md)
+  - [Networks](./k8s/networks.md)
   - [Public Links](./k8s/public-links.md)
   - [Public IPs](./k8s/public-ips.md)
   - [License Servers](./k8s/licenses.md)
   - [SSH Servers](./k8s/ssh-servers.md)
   - [Job Audit Log](./k8s/job-audit-log.md)
   - [Virtual machines](./k8s/kubevirt.md)
+- [AI Inference](./k8s/inference/overview.md)
+  - [Architecture](./k8s/inference/architecture.md)
+  - [Chat Middleware](./k8s/inference/middleware.md)
+  - [Chat Playground](./k8s/inference/playground.md)
+  - [Model Discovery and Catalog](./k8s/inference/catalog.md)
+  - [Dynamo Deployments](./k8s/inference/dynamo.md)
+  - [Usage and Accounting](./k8s/inference/usage.md)
+  - [Audit](./k8s/inference/audit.md)
+  - [Metrics](./k8s/inference/observability.md)
+  - [Security](./k8s/inference/security.md)
 - [Integrated applications](./k8s/integrated-applications.md)
   - [Syncthing](./k8s/syncthing.md)
   - [Integrated terminal](./k8s/integrated-terminal.md)
+  - [Kubernetes clusters](./k8s/kubernetes-clusters/overview.md)
+    - [Architecture](./k8s/kubernetes-clusters/architecture.md)
+    - [Stacks](./k8s/kubernetes-clusters/stacks.md)
+    - [Creating a cluster](./k8s/kubernetes-clusters/creating-a-cluster.md)
+    - [Cluster dashboard](./k8s/kubernetes-clusters/cluster-dashboard.md)
+    - [Networking and storage](./k8s/kubernetes-clusters/networking-and-storage.md)
+    - [Maintenance and upgrades](./k8s/kubernetes-clusters/maintenance-and-upgrades.md)
+    - [Backup and recovery](./k8s/kubernetes-clusters/backup-and-recovery.md)
+    - [Reference](./k8s/kubernetes-clusters/reference.md)
 - [UCX applications](./k8s/ucx/introduction.md)
   - [Hello world](./k8s/ucx/hello-world.md)
   - [Data binding](./k8s/ucx/data-binding.md)
@@ -58,9 +81,10 @@
     - [CLI](./k8s/cli-reference.md)
 
 
-# Branding for UCloud
+# Style guidelines
 
 - [Branding and identity for UCloud](./branding/branding.md)
+- [Documentation](./branding/documentation.md)
 
 # H: Procedures
 
@@ -71,6 +95,10 @@
 - [H: GitHub actions](./procedures/ci.md)
 - [H: Deployment](./procedures/deployment.md)
 - [H: 3rd party dependencies (risk assesment)](./procedures/third_party_dependencies.md)
+
+# Glossary
+
+- [Glossary](./glossary.md)
 
 <!--
 

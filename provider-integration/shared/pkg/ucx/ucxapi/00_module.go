@@ -23,6 +23,10 @@ var IM = ucx.Rpc[Message, Message]{CallName: "im"}
 
 var StackAvailable = ucx.Rpc[fndapi.FindByStringId, bool]{CallName: "stackAvailable"}
 
+var StackBrowse = ucx.Rpc[orcapi.StacksBrowseRequest, fndapi.PageV2[orcapi.Stack]]{CallName: "stackBrowse"}
+
+var StackSpawnDeclaredJob = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stackSpawnDeclaredJob"}
+
 // Private networks
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -32,6 +36,13 @@ var PrivateNetworksBrowse = ucx.Rpc[orcapi.PrivateNetworksBrowseRequest, fndapi.
 var PrivateNetworksRetrieve = ucx.Rpc[orcapi.PrivateNetworksRetrieveRequest, orcapi.PrivateNetwork]{CallName: "privateNetworksRetrieve"}
 var PrivateNetworksUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.PrivateNetworksUpdateLabelsRequest], util.Empty]{CallName: "privateNetworksUpdateLabels"}
 var PrivateNetworksRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.PrivateNetworkSupport]]{CallName: "privateNetworksRetrieveProducts"}
+
+var PrivateNetworkIpsCreate = ucx.Rpc[[]orcapi.PrivateNetworkIpSpecification, []orcapi.PrivateNetworkIp]{CallName: "privateNetworkIpsCreate"}
+var PrivateNetworkIpsDelete = ucx.Rpc[[]string, util.Empty]{CallName: "privateNetworkIpsDelete"}
+var PrivateNetworkIpsBrowse = ucx.Rpc[orcapi.PrivateNetworkIpsBrowseRequest, fndapi.PageV2[orcapi.PrivateNetworkIp]]{CallName: "privateNetworkIpsBrowse"}
+var PrivateNetworkIpsRetrieve = ucx.Rpc[orcapi.PrivateNetworkIpsRetrieveRequest, orcapi.PrivateNetworkIp]{CallName: "privateNetworkIpsRetrieve"}
+var PrivateNetworkIpsUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.PrivateNetworkIpsUpdateLabelsRequest], util.Empty]{CallName: "privateNetworkIpsUpdateLabels"}
+var PrivateNetworkIpsRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.PrivateNetworkIpSupport]]{CallName: "privateNetworkIpsRetrieveProducts"}
 
 // Public IPs
 // ---------------------------------------------------------------------------------------------------------------------
@@ -53,6 +64,19 @@ var PublicLinksBrowse = ucx.Rpc[orcapi.IngressesBrowseRequest, fndapi.PageV2[orc
 var PublicLinksRetrieve = ucx.Rpc[orcapi.IngressesRetrieveRequest, orcapi.Ingress]{CallName: "publicLinksRetrieve"}
 var PublicLinksUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.IngressesUpdateLabelsRequest], util.Empty]{CallName: "publicLinksUpdateLabels"}
 var PublicLinksRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.IngressSupport]]{CallName: "publicLinksRetrieveProducts"}
+var PublicLinksSetTarget = ucx.Rpc[fndapi.BulkRequest[orcapi.IngressesSetTargetRequest], util.Empty]{CallName: "publicLinksSetTarget"}
+
+// Services
+// ---------------------------------------------------------------------------------------------------------------------
+
+var ServicesCreate = ucx.Rpc[[]orcapi.ServiceSpecification, []orcapi.Service]{CallName: "servicesCreate"}
+var ServicesDelete = ucx.Rpc[[]string, util.Empty]{CallName: "servicesDelete"}
+var ServicesBrowse = ucx.Rpc[orcapi.ServicesBrowseRequest, fndapi.PageV2[orcapi.Service]]{CallName: "servicesBrowse"}
+var ServicesRetrieve = ucx.Rpc[orcapi.ServicesRetrieveRequest, orcapi.Service]{CallName: "servicesRetrieve"}
+var ServicesUpdate = ucx.Rpc[fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.ServicesUpdateRequest]], util.Empty]{CallName: "servicesUpdate"}
+var ServicesAddMembers = ucx.Rpc[fndapi.BulkRequest[orcapi.ServicesMembersRequest], util.Empty]{CallName: "servicesAddMembers"}
+var ServicesRemoveMembers = ucx.Rpc[fndapi.BulkRequest[orcapi.ServicesMembersRequest], util.Empty]{CallName: "servicesRemoveMembers"}
+var ServicesRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.ServiceSupport]]{CallName: "servicesRetrieveProducts"}
 
 // Licenses
 // ---------------------------------------------------------------------------------------------------------------------
@@ -75,6 +99,16 @@ var DrivesRename = ucx.Rpc[fndapi.BulkRequest[orcapi.DriveRenameRequest], util.E
 var DrivesUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.DrivesUpdateLabelsRequest], util.Empty]{CallName: "drivesUpdateLabels"}
 var DrivesRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.FSSupport]]{CallName: "drivesRetrieveProducts"}
 
+// Container repositories
+// ---------------------------------------------------------------------------------------------------------------------
+
+var ContainerRepositoriesCreate = ucx.Rpc[[]orcapi.ContainerRepositorySpecification, []orcapi.ContainerRepository]{CallName: "containerRepositoriesCreate"}
+var ContainerRepositoriesDelete = ucx.Rpc[[]string, util.Empty]{CallName: "containerRepositoriesDelete"}
+var ContainerRepositoriesBrowse = ucx.Rpc[orcapi.ContainerRepositoriesBrowseRequest, fndapi.PageV2[orcapi.ContainerRepository]]{CallName: "containerRepositoriesBrowse"}
+var ContainerRepositoriesRetrieve = ucx.Rpc[orcapi.ContainerRepositoriesRetrieveRequest, orcapi.ContainerRepository]{CallName: "containerRepositoriesRetrieve"}
+var ContainerRepositoriesUpdateLabels = ucx.Rpc[fndapi.BulkRequest[orcapi.ContainerRepositoriesUpdateLabelsRequest], util.Empty]{CallName: "containerRepositoriesUpdateLabels"}
+var ContainerRepositoriesRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.FSSupport]]{CallName: "containerRepositoriesRetrieveProducts"}
+
 // Jobs
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -92,8 +126,9 @@ var JobsRetrieveProducts = ucx.Rpc[util.Empty, []orcapi.ResolvedSupport[orcapi.J
 // =====================================================================================================================
 
 type StackCreateRequest struct {
-	StackType string
-	StackId   string
+	StackType   string
+	StackId     string
+	StateFolder string
 }
 
 type Stack struct {
@@ -104,11 +139,14 @@ type Stack struct {
 
 var StackCreate = ucx.Rpc[StackCreateRequest, Stack]{CallName: "stackCreate"}
 
+var StackRegister = ucx.Rpc[StackCreateRequest, util.Empty]{CallName: "stackRegister"}
+
 type StackDataWriteRequest struct {
-	InstanceId string
-	Path       string
-	Data       string
-	Perm       uint32
+	InstanceId string `json:"instanceId"`
+	Path       string `json:"path"`
+	Data       string `json:"data"`
+	Perm       uint32 `json:"perm"`
+	Atomic     bool   `json:"atomic,omitempty"`
 }
 
 var StackDataWrite = ucx.Rpc[StackDataWriteRequest, util.Empty]{CallName: "stackDataWrite"}
@@ -124,24 +162,69 @@ var StackDataAppend = ucx.Rpc[StackDataAppendRequest, util.Empty]{CallName: "sta
 
 var StackConfirm = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stackConfirm"}
 
+var StackHeartbeat = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stackHeartbeat"}
+
 // Frontend
 // =====================================================================================================================
 
 var StackOpen = ucx.Rpc[fndapi.FindByStringId, util.Empty]{CallName: "stackOpen"}
 var StackRefresh = ucx.Rpc[util.Empty, util.Empty]{CallName: "stackRefresh"}
 
+type StackInfoResponse struct {
+	Id            string
+	Type          string
+	Provider      string
+	CreatedAt     int64
+	ResourceCount int
+}
+
+var StackInfo = ucx.Rpc[util.Empty, StackInfoResponse]{CallName: "stackInfo"}
+var StackDelete = ucx.Rpc[util.Empty, util.Empty]{CallName: "stackDelete"}
+var StackShowResources = ucx.Rpc[util.Empty, util.Empty]{CallName: "stackShowResources"}
+
+const (
+	UiMessageLevelProgress = "progress"
+	UiMessageLevelSuccess  = "success"
+	UiMessageLevelWarning  = "warning"
+	UiMessageLevelFailure  = "failure"
+)
+
 type UiSendMessageRequest struct {
 	Message string
 	Success bool
+	Level   string
 }
 
 var UiSendMessage = ucx.Rpc[UiSendMessageRequest, util.Empty]{CallName: "uiSendMessage"}
+
+type SwitchProviderRequest struct {
+	Provider string
+	Handoff  map[string]any
+}
+
+var SwitchProvider = ucx.Rpc[SwitchProviderRequest, util.Empty]{CallName: "switchProvider"}
 
 type RouterPushPageRequest struct {
 	Path string
 }
 
 var RouterPushPage = ucx.Rpc[RouterPushPageRequest, util.Empty]{CallName: "routerPushPage"}
+
+type OpenUrlRequest struct {
+	Path string
+}
+
+var OpenUrl = ucx.Rpc[OpenUrlRequest, util.Empty]{CallName: "openUrl"}
+
+type TerminalOpenShellToJobRequest struct {
+	JobId         string
+	Rank          int
+	Command       string
+	ClearAfter    bool
+	SuppressUntil string
+}
+
+var TerminalOpenShellToJob = ucx.Rpc[TerminalOpenShellToJobRequest, util.Empty]{CallName: "terminalOpenShellToJob"}
 
 type StackDownloadFileRequest struct {
 	FileName string

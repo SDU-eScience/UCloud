@@ -6,7 +6,8 @@ import (
 )
 
 func Init() {
-	// Changes must always be appended to the END of this function
+	// All changes must be added to the BOTTOM of this function
+	// -----------------------------------------------------------------------------------------------------------------
 	db.AddMigration(genericLicensesV1())
 	db.AddMigration(connectionsV1())
 	db.AddMigration(apmEventsV1())
@@ -61,4 +62,31 @@ func Init() {
 	db.AddMigration(activityCatalogV1())
 	db.AddMigration(activityCatalogV2())
 	db.AddMigration(k8sV3())
+	db.AddMigration(k8sV4())
+	db.AddMigration(apiTokensV1())
+	db.AddMigration(containerRepositoriesV1())
+	db.AddMigration(containerRepositoriesV2())
+	db.AddMigration(inferenceV18())
+	db.AddMigration(inferenceV19())
+	db.AddMigration(apiTokensV2())
+	db.AddMigration(apiTokensV3())
+	db.AddMigration(apiTokensV4())
+	db.AddMigration(inferenceV20())
+	db.AddMigration(inferenceV21())
+	db.AddMigration(inferenceV22())
+	db.AddMigration(inferenceV23())
+	db.AddMigration(inferenceV24())
+	db.AddMigration(privateNetworkDatabaseV2())
+	db.AddMigration(servicesDatabaseV1())
+	db.AddMigration(stackGrantTokensV1())
+	db.AddMigration(stackGrantTokensV2())
+	db.AddMigration(stackStateV1())
+	db.AddMigration(privateNetworkDatabaseV3())
+	db.AddMigration(apiTokensV5())
+	db.AddMigration(apmEventsV4())
+	db.AddMigration(jobDatabaseV5())
+	db.AddMigration(metadataDriveDeletionsV1())
+	db.AddMigration(inferenceV25())
+	db.AddMigration(inferenceV26())
+	db.AddMigration(inferenceV27())
 }

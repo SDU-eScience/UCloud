@@ -28,7 +28,7 @@ func inferenceGenerateMockImageResponse(request InferenceImageGenerationRequest)
 		count = 8
 	}
 
-	w, h := inferenceParseImageSize(request.Size.GetOrDefault(""))
+	w, h := inferenceParseMockImageSize(request.Size.GetOrDefault(""))
 	response := InferenceImageGenerationResponse{
 		Created: time.Now().Unix(),
 		Data:    make([]InferenceImageGenerationResponseEl, 0, count),
@@ -315,4 +315,30 @@ func inferenceBitmapGlyph(r rune) [7]byte {
 	default:
 		return [7]byte{0x1f, 0x11, 0x11, 0x11, 0x11, 0x11, 0x1f}
 	}
+}
+
+func inferenceParseMockImageSize(raw string) (int, int) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || strings.EqualFold(raw, "auto") {
+		return 512, 512
+	}
+
+	width := 512
+	height := 512
+	_, _ = fmt.Sscanf(raw, "%dx%d", &width, &height)
+
+	if width < 128 {
+		width = 128
+	}
+	if height < 128 {
+		height = 128
+	}
+	if width > 1024 {
+		width = 1024
+	}
+	if height > 1024 {
+		height = 1024
+	}
+
+	return width, height
 }

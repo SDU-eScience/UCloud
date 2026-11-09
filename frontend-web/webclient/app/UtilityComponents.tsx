@@ -131,7 +131,7 @@ export async function addStandardInputDialog({
 }: InputDialog): Promise<{result: string}> {
     if (type === "input" && rows != undefined) console.warn("Rows has no function if type = input.");
     return new Promise((resolve, reject) => dialogStore.addDialog(
-        <form onSubmit={
+        <form className={StandardInputDialogClass} onSubmit={
             e => {
                 stopPropagationAndPreventDefault(e);
                 const elem = document.querySelector("#dialog-input") as HTMLInputElement;
@@ -141,7 +141,7 @@ export async function addStandardInputDialog({
                 } else sendFailureNotification(validationFailureMessage);
             }
         }>
-            <div>
+            <div className={StandardInputDialogContentClass}>
                 <Heading.h3>{title}</Heading.h3>
                 {title ? <Divider /> : null}
                 {help ?? null}
@@ -155,14 +155,24 @@ export async function addStandardInputDialog({
                     autoFocus
                 />
             </div>
-            <Flex mt="20px">
-                <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={cancelButtonColor} mr="5px">{cancelText}</Button>
+            <Flex justifyContent="end" px={"20px"} py={"12px"} margin={"auto -20px -20px"} background={"var(--dialogToolbar)"} gap={"8px"}>
+                <Button type={"button"} onClick={dialogStore.failure.bind(dialogStore)} color={cancelButtonColor}>{cancelText}</Button>
                 <Button type={"submit"} color={confirmButtonColor}>
                     {confirmText}
                 </Button>
             </Flex>
         </form>, () => reject({cancelled: true}), addToFront, style));
 }
+
+const StandardInputDialogClass = injectStyleSimple("standard-input-dialog", `
+    display: flex;
+    flex-direction: column;
+    min-height: 160px;
+`);
+
+const StandardInputDialogContentClass = injectStyleSimple("standard-input-dialog-content", `
+    padding-bottom: 20px;
+`);
 
 interface ConfirmCancelButtonsProps {
     confirmText?: string;

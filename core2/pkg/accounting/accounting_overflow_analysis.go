@@ -261,7 +261,11 @@ func analyzeAccountingOverflowBucket(bucket *internalBucket, owners map[AccWalle
 	return result
 }
 
-func analyzeAccountingOverflowComponent(bucket *internalBucket, walletIds []AccWalletId, owners map[AccWalletId]accountingOverflowOwner) accountingOverflowComponent {
+func analyzeAccountingOverflowComponent(
+	bucket *internalBucket,
+	walletIds []AccWalletId,
+	owners map[AccWalletId]accountingOverflowOwner,
+) accountingOverflowComponent {
 	result := accountingOverflowComponent{
 		OverflowWallets: []accountingOverflowWallet{},
 		UnfundedUsage:   []accountingUnfundedUsage{},
@@ -401,7 +405,11 @@ func accountingOverflowMetric(bucket *internalBucket, wallet *internalWallet, ow
 	for childId := range wallet.ChildrenUsage {
 		child := bucket.WalletsById[childId]
 		if child != nil && child.AllocationsByParent[wallet.Id] != nil {
-			add(&result.OutgoingContributingQuota, lInternalGroupTotalQuotaContributing(bucket, child.AllocationsByParent[wallet.Id]), "outgoing contributing quota")
+			add(
+				&result.OutgoingContributingQuota,
+				lInternalGroupTotalQuotaContributing(bucket, child.AllocationsByParent[wallet.Id]),
+				"outgoing contributing quota",
+			)
 		}
 	}
 
@@ -423,7 +431,10 @@ func accountingOverflowMetric(bucket *internalBucket, wallet *internalWallet, ow
 	result.SyntheticOverflowEligible = result.ArithmeticValid && result.IncomingGroupCount > 0 && result.OverflowCapacity > 0
 	if result.SyntheticOverflowEligible {
 		if result.OverflowFlow < 0 || result.OverflowFlow > result.OverflowCapacity {
-			result.Errors = append(result.Errors, fmt.Sprintf("wallet %d uses %d of overflow capacity %d", wallet.Id, result.OverflowFlow, result.OverflowCapacity))
+			result.Errors = append(
+				result.Errors,
+				fmt.Sprintf("wallet %d uses %d of overflow capacity %d", wallet.Id, result.OverflowFlow, result.OverflowCapacity),
+			)
 		}
 	}
 	return result

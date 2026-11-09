@@ -27,6 +27,9 @@ import {apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
 import AppRoutes from "@/Routes";
 import {ThemeColor} from "@/ui-components/theme";
 import {Application, ApplicationParameter, NameAndVersion} from "@/Applications/AppStoreApi";
+import {BackgroundTask} from "@/Services/BackgroundTasks/BackgroundTask";
+import {openCreateApplicationVariant} from "@/Applications/Jobs/CreateApplicationVariant";
+import {Feature, hasFeature} from "@/Features";
 
 export interface DynamicParameters {
     parametersByProvider: Record<string, ApplicationParameter[]>;
@@ -133,6 +136,8 @@ export interface DockerSupport {
     timeExtension?: boolean;
     utilization?: boolean;
     bindLinkToPort?: boolean;
+    applicationVariants?: boolean;
+    containerSnapshots?: boolean;
 }
 
 export interface VirtualMachineSupport {
@@ -165,6 +170,14 @@ export interface ComputeUtilization {
 export interface ExtendRequest {
     jobId: string;
     requestedTime: SimpleDuration;
+}
+
+export interface CreateApplicationVariantRequest {
+    jobId: string;
+    rank: number;
+    title: string;
+    publishedToProject: boolean;
+    targetVariantId?: number;
 }
 
 export type ResumeRequest = FindByStringId;
@@ -272,13 +285,14 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
                 const [icon, color] = jobStateToIconAndColor(job.status.state);
                 return <Icon name={icon} color={color} mr={"8px"} />;
             }
-            return <SafeLogo name={resource?.specification?.application?.name ?? ""} type={"APPLICATION"} size={size} />
+            return <SafeLogo name={resource?.specification?.application?.name ?? ""} type={"APPLICATION"} size={size}
+                groupId={resource?.status.resolvedApplication?.metadata.groupId ?? resource?.status.resolvedApplication?.metadata.group?.metadata.id} />
         },
         Stats({resource, browseType}) {
             if (resource == null || browseType !== BrowseType.Card) return null;
             return (
                 <ListRowStat>
-                    {resource.status.resolvedApplication?.metadata?.title ?? resource.specification.application.name}
+                    {resource.status.resolvedApplication?.metadata?.flavorName ?? resource.status.resolvedApplication?.metadata?.title ?? resource.specification.application.name}
                     {" "}
                     {resource.specification.application.version}
                 </ListRowStat>
@@ -311,6 +325,10 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
         const baseOperations = super.retrieveOperations();
         const deleteOperation = baseOperations.find(it => it.tag === DELETE_TAG)!;
         deleteOperation.text = "Stop";
+        deleteOperation.confirmationText = selected => selected.length === 1 ?
+            "Are you sure you want to stop this job?" :
+            `Are you sure you want to stop these ${selected.length} jobs?`;
+        deleteOperation.confirmationButtonText = "Stop";
         deleteOperation.onClick = async (selected, cb) => {
             await cb.invokeCommand(this.terminate(bulkRequestOf(...selected.map(it => ({id: it.id})))))
             cb.reload();
@@ -335,9 +353,29 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
             onClick: ([{specification, id}], cb) =>
                 cb.navigate(AppRoutes.jobs.create(specification.application.name, specification.application.version, id)),
             icon: "play",
-            text: "Run application again",
+            text: "Run again",
             shortcut: ShortcutKey.B
         }];
+
+        ourOps.push({
+            enabled: selected => {
+                if (selected.length !== 1) return false;
+                const job = selected[0];
+                const support = job.status.resolvedSupport?.support as ComputeSupport | undefined;
+                return hasFeature(Feature.APPLICATION_FLAVORS) &&
+                    job.status.state === "RUNNING" &&
+                    job.owner.project != null &&
+                    job.permissions.myself.includes("EDIT") &&
+                    job.status.resolvedApplication?.invocation.tool.tool?.description.backend === "DOCKER" &&
+                    support?.docker.applicationVariants === true &&
+                    support?.docker.containerSnapshots === true;
+            },
+            icon: "heroSquare3Stack3D",
+            onClick: ([job], callbacks) => {
+                openCreateApplicationVariant(job, request => callbacks.invokeCommand<BackgroundTask>(this.createApplicationVariant(request)));
+            },
+            text: "Save as flavor",
+        });
 
         ourOps.push({
             enabled(selected) {
@@ -358,6 +396,10 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
 
     terminate(request: BulkRequest<FindByStringId>): APICallParameters<BulkRequest<FindByStringId>, BulkResponse<any | null>> {
         return apiUpdate(request, this.baseContext, "terminate");
+    }
+
+    createApplicationVariant(request: CreateApplicationVariantRequest): APICallParameters<CreateApplicationVariantRequest, BackgroundTask> {
+        return apiUpdate(request, this.baseContext, "createApplicationVariant");
     }
 
     /* Untested */

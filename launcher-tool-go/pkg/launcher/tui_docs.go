@@ -20,6 +20,12 @@ var k8sKubeVirtShort []byte
 //go:embed docs/k8s-kubevirt-long.md
 var k8sKubeVirtLong []byte
 
+//go:embed docs/k8s-private-networks-short.md
+var k8sPrivateNetworksShort []byte
+
+//go:embed docs/k8s-private-networks-long.md
+var k8sPrivateNetworksLong []byte
+
 //go:embed docs/core-short.md
 var coreShort []byte
 
@@ -57,30 +63,32 @@ var pgShort []byte
 var pgLong []byte
 
 var DocumentationShort = map[string]string{
-	"core":         string(coreShort),
-	"postgres":     string(pgShort),
-	"frontend":     string(frontendShort),
-	"gateway":      string(gatewayShort),
-	"k8s":          string(k8sShort),
-	"k3s":          string(k3sShort),
-	"localai":      string(k8sOllamaShort),
-	"ollama":       string(k8sOllamaShort),
-	"kubevirt":     string(k8sKubeVirtShort),
-	"k8s-postgres": string(pgShort),
+	"core":             string(coreShort),
+	"postgres":         string(pgShort),
+	"frontend":         string(frontendShort),
+	"gateway":          string(gatewayShort),
+	"k8s":              string(k8sShort),
+	"k3s":              string(k3sShort),
+	"localai":          string(k8sOllamaShort),
+	"ollama":           string(k8sOllamaShort),
+	"kubevirt":         string(k8sKubeVirtShort),
+	"k8s-postgres":     string(pgShort),
+	"private-networks": string(k8sPrivateNetworksShort),
 }
 
 var documentationLongWg = sync.WaitGroup{}
 var documentationLongRaw = map[string]string{
-	"core":         string(coreLong),
-	"postgres":     string(pgLong),
-	"frontend":     string(frontendLong),
-	"gateway":      string(gatewayLong),
-	"k8s":          string(k8sLong),
-	"k3s":          string(k3sLong),
-	"localai":      string(k8sOllamaLong),
-	"ollama":       string(k8sOllamaLong),
-	"kubevirt":     string(k8sKubeVirtLong),
-	"k8s-postgres": string(pgLong),
+	"core":             string(coreLong),
+	"postgres":         string(pgLong),
+	"frontend":         string(frontendLong),
+	"gateway":          string(gatewayLong),
+	"k8s":              string(k8sLong),
+	"k3s":              string(k3sLong),
+	"localai":          string(k8sOllamaLong),
+	"ollama":           string(k8sOllamaLong),
+	"kubevirt":         string(k8sKubeVirtLong),
+	"k8s-postgres":     string(pgLong),
+	"private-networks": string(k8sPrivateNetworksLong),
 }
 
 var documentationLongRendered = map[string]string{}

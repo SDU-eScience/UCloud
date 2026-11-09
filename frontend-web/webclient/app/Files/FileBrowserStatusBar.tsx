@@ -5,6 +5,7 @@ import {UFile} from "@/UCloud/UFile";
 import {TooltipV2} from "@/ui-components/Tooltip";
 import {injectStyle} from "@/Unstyled";
 import {sizeToString} from "@/Utilities/FileUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import React from "react";
 import {useNavigate} from "react-router-dom";
 
@@ -15,6 +16,7 @@ export interface FileBrowserStatusData {
     wallet?: WalletV2;
     preciseOwnUsageBytes?: number;
     selected: UFile[];
+    visualizationSupported: boolean;
 }
 
 const StatusStyle = injectStyle("file-browser-status", k => `
@@ -56,6 +58,9 @@ const StatusStyle = injectStyle("file-browser-status", k => `
         outline: 2px solid var(--primaryMain); 
         outline-offset: 1px; 
     }
+
+    ${k} .utilization:disabled { cursor: default; }
+    ${k} .utilization:disabled:hover .utilization-track { outline: none; }
     
     ${k} .utilization-track { 
         display: flex; 
@@ -100,14 +105,14 @@ export function FileBrowserStatusBar({data}: {data: FileBrowserStatusData}): Rea
     const selectedSize = data.selected.reduce((sum, file) =>
         sum + (file.status.sizeIncludingChildrenInBytes ?? file.status.sizeInBytes ?? 0), 0);
     const counts = data.selected.length > 0 && totalCount != null
-        ? `${data.selected.length.toLocaleString()} / ${totalCount.toLocaleString()} items`
+        ? `${formatNumber(data.selected.length)} / ${formatNumber(totalCount)} items`
         : fileCount != null && directoryCount != null
-            ? `${fileCount.toLocaleString()} files, ${directoryCount.toLocaleString()} directories`
+            ? `${formatNumber(fileCount)} files, ${formatNumber(directoryCount)} directories`
             : "Counting files...";
 
     const utilization = buildUtilization(data);
     return <div className={StatusStyle}>
-        <button className="utilization" onClick={() => navigate(AppRoutes.files.visualize(data.path))}>
+        <button className="utilization" disabled={!data.visualizationSupported} onClick={() => navigate(AppRoutes.files.visualize(data.path))}>
             {utilization == null ? <span className="status-muted">Storage utilization unavailable</span> : <>
                 <span className="utilization-track">
                     {utilization.segments.map(segment => <TooltipV2

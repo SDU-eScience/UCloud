@@ -891,7 +891,8 @@ func refStringIsEmpty(str string) bool {
 	return empty
 }
 
-// Creates allocations from files with format id,associatedWallet,ParentWallet,allocationTotalUsage,quota,starttime(millisec),endtime(millisec),allocationLocalUsage, allocation_path
+// Creates allocations from files with format
+// id,associatedWallet,ParentWallet,allocationTotalUsage,quota,starttime(millisec),endtime(millisec),allocationLocalUsage, allocation_path
 func CreateRefWalletHierarchyFromFile(path string, isCapacityBased bool) {
 	lines := refReadFile(path)
 	GlobalRefAllocations = make(map[int64]*RefAllocation, len(lines))
@@ -1131,7 +1132,16 @@ func PrintRefWalletGraph(wallets []int64) {
 		if isRoot {
 			fmt.Printf("subgraph root[\"Root wallets\"]\n")
 		}
-		fmt.Printf("subgraph W%d[W%d lU:%d lR:%d eU:%d tA:%d oA:%d ", w.Id, w.Id, w.LocalUsage, w.LocalRetiredUsage, w.ExcessUsage, w.TotalAllocated, w.Overallocation())
+		fmt.Printf(
+			"subgraph W%d[W%d lU:%d lR:%d eU:%d tA:%d oA:%d ",
+			w.Id,
+			w.Id,
+			w.LocalUsage,
+			w.LocalRetiredUsage,
+			w.ExcessUsage,
+			w.TotalAllocated,
+			w.Overallocation(),
+		)
 		A := ""
 		if len(w.ChildrenUsage) > 0 || len(w.ChildrenRetiredUsage) > 0 {
 			A += "cU: "
@@ -1232,10 +1242,11 @@ func MapRefKeys[T any](m map[int64]T) []int64 {
 // =====================================================================================================================
 
 type RefWallet struct {
-	Id                    int64
-	LocalUsage            int64                   // sums of direct bills which can be billed to our parents
-	LocalRetiredUsage     int64                   // sum of locally retired allocations
-	ExcessUsage           int64                   // children usage charged to the wallet which can't be covered the rest of the direct bills which can not be billed to our parents
+	Id                int64
+	LocalUsage        int64 // sums of direct bills which can be billed to our parents
+	LocalRetiredUsage int64 // sum of locally retired allocations
+	ExcessUsage       int64 // children usage charged to the wallet which can't be covered the rest of the direct bills
+	// which can not be billed to our parents
 	AllocationsByParent   map[int64]allocRefGroup // allocations grouped by parent wallet
 	ChildrenUsage         map[int64]int64         // active children usage
 	ChildrenRetiredUsage  map[int64]int64         // retired children usage
@@ -1522,7 +1533,11 @@ func (w *RefWallet) BuildGraph(ts time.Time, withOverallocation bool) (g *RefGra
 					usage = max(0, usage)
 					//TODO: usage must always be <= overallocation
 					g.AddEdge(rootIndex, gSize+gIndex, overallocation-usage, usage)
-					g.AddEdgeCost(rootIndex, gSize+gIndex, (math.MaxInt64 >> 4)) //TODO: this is a hack to make the priority of the overallocation link very small
+					g.AddEdgeCost(
+						rootIndex,
+						gSize+gIndex,
+						(math.MaxInt64 >> 4),
+					) //TODO: this is a hack to make the priority of the overallocation link very small
 					g.AddEdge(gSize+gIndex, gIndex, overallocation-usage, usage)
 					g.AddEdgeCost(gSize+gIndex, gIndex, (math.MaxInt64 >> 4))
 				}

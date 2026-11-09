@@ -47,8 +47,8 @@ import (
 //    Resource* functions on that type.
 //
 // 2. Creating resources:
-//    Use ResourceCreate or ResourceCreateThroughProvider for user-initiated creation. Use ResourceCreateEx for
-//    system/provider-initiated creation.
+//    Use ResourceCreate or ResourceCreateThroughProvider for user-initiated creation. Provider registration must use
+//    resourceCreateFromProvider.
 //
 //    These will both allocate a new ID and run all relevant side effects. If you are not using creation through a
 //    provider, then you must also call ResourceConfirm after invoking the create function.
@@ -78,6 +78,10 @@ func resourceProviderRef(providerId string) string {
 	return fndapi.ProviderSubjectPrefix + providerId
 }
 
+type resourcePublicReadInitializer interface {
+	ResourcePublicRead() bool
+}
+
 type resource struct {
 	Id         ResourceId
 	ProviderId util.Option[string]
@@ -93,6 +97,7 @@ type resource struct {
 
 	MarkedForDeletion bool
 	Confirmed         bool
+	PublicRead        bool
 
 	BaseSpec orcapi.ResourceSpecification
 
@@ -145,12 +150,6 @@ var resourceLabelIndex struct {
 	Mu         sync.RWMutex
 	IndexedKey map[string]util.Empty
 }
-
-const (
-	resourceLabelStackName     = "ucloud.dk/stackname"
-	resourceLabelStackInstance = "ucloud.dk/stackinstance"
-	resourceLabelStack         = "ucloud.dk/stack"
-)
 
 type resourceTypeFlags int64
 
@@ -237,9 +236,63 @@ func InitResources() {
 	resourceGlobals.ByType = map[string]*resourceTypeGlobal{}
 	resourceGlobals.Providers = map[string]*resourceProvider{}
 	resourceLabelIndex.IndexedKey = map[string]util.Empty{}
-	ResourceRegisterIndexedLabelKey(resourceLabelStack)
-	ResourceRegisterIndexedLabelKey(resourceLabelStackName)
-	ResourceRegisterIndexedLabelKey(resourceLabelStackInstance)
+	ResourceRegisterIndexedLabelKey(orcapi.ResourceLabelStack)
+	ResourceRegisterIndexedLabelKey(orcapi.ResourceLabelStackName)
+	ResourceRegisterIndexedLabelKey(orcapi.ResourceLabelStackInstance)
+	ResourceRegisterIndexedLabelKey(orcapi.ResourceLabelStackEntity)
+
+	if !resourceGlobals.Testing.Enabled {
+		orcapi.ResourcesControlCheckExistence.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceExistenceCheck]) (fndapi.BulkResponse[bool], *util.HttpError) {
+			if len(request.Items) > 1000 {
+				return fndapi.BulkResponse[bool]{}, util.HttpErr(http.StatusBadRequest, "too many items")
+			}
+
+			provider, ok := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+			if !ok {
+				return fndapi.BulkResponse[bool]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			}
+
+			responses := db.NewTx(func(tx *db.Transaction) []bool {
+				ids := make([]int64, 0, len(request.Items))
+				types := make([]string, 0, len(request.Items))
+				for _, item := range request.Items {
+					ids = append(ids, int64(ResourceParseId(item.Id)))
+					types = append(types, item.Type)
+				}
+
+				rows := db.Select[struct{ Exists bool }](
+					tx,
+					`
+					with input as (
+						select id, type, ordinality
+						from
+							unnest(cast(:ids as bigint[]), cast(:types as text[])) with ordinality as i(id, type, ordinality)
+					)
+					select coalesce(coalesce(r.provider, pc.provider) = :provider, false) as exists
+					from
+						input i
+						left join provider.resource r on r.id = i.id and r.type = i.type
+						left join accounting.products p on r.product = p.id
+						left join accounting.product_categories pc on p.category = pc.id
+					order by i.ordinality
+				`,
+					db.Params{
+						"ids":      ids,
+						"types":    types,
+						"provider": provider,
+					},
+				)
+
+				result := make([]bool, 0, len(rows))
+				for _, row := range rows {
+					result = append(result, row.Exists)
+				}
+				return result
+			})
+
+			return fndapi.BulkResponse[bool]{Responses: responses}, nil
+		})
+	}
 
 	if !resourceGlobals.Testing.Enabled {
 		go resourceListenForProjectGroupUpdates()
@@ -380,10 +433,12 @@ func resourcesReadEx(
 	b *resourceBucket,
 	id ResourceId,
 	prefetchHint []ResourceId,
-) (*resource, bool, []orcapi.Permission) {
+	allowPublicRead bool,
+) (*resource, bool, []orcapi.Permission, bool) {
 	t := util.NewTimer()
 
 	var permissions []orcapi.Permission
+	var publicOnly bool
 	b.Mu.RLock()
 
 	r, ok := b.Resources[id]
@@ -466,6 +521,18 @@ func resourcesReadEx(
 		}
 	}
 
+	if ok && allowPublicRead && r.PublicRead && typeName == containerRepositoryType {
+		publicErr := coreutil.FeatureIsEnabledForOwner(
+			r.Owner.CreatedBy,
+			r.Owner.Project.GetOrDefault(""),
+			fndapi.FeatureContainerRepositories,
+		)
+		if publicErr == nil {
+			publicOnly = len(permissions) == 0
+			permissions = orcapi.PermissionsAdd(permissions, orcapi.PermissionRead)
+		}
+	}
+
 	if ok && !slices.Contains(permissions, requiredPermission) {
 		r, ok, permissions = nil, false, nil
 	}
@@ -474,7 +541,7 @@ func resourcesReadEx(
 
 	b.Mu.RUnlock()
 
-	return r, ok, permissions
+	return r, ok, permissions, publicOnly
 }
 
 func lResourceApplyFlags(r *resource, myPerms []orcapi.Permission, flags orcapi.ResourceFlags) (orcapi.Resource, bool) {
@@ -607,22 +674,40 @@ func ResourceRetrieveEx[T any](
 	requiredPermission orcapi.Permission,
 	flags orcapi.ResourceFlags,
 ) (T, orcapi.Resource, orcapi.ResourceSpecification, *util.HttpError) {
+	return resourceRetrieveEx[T](actor, typeName, pId, requiredPermission, flags, true)
+}
+
+func resourceRetrieveEx[T any](
+	actor rpc.Actor,
+	typeName string,
+	pId ResourceId,
+	requiredPermission orcapi.Permission,
+	flags orcapi.ResourceFlags,
+	allowPublicRead bool,
+) (T, orcapi.Resource, orcapi.ResourceSpecification, *util.HttpError) {
 	var result T
 
 	g := resourceGetGlobals(typeName)
 	b := resourceGetBucket(typeName, pId)
 
-	r, ok, perms := resourcesReadEx(actor, typeName, requiredPermission, b, pId, nil)
+	r, ok, perms, publicOnly := resourcesReadEx(actor, typeName, requiredPermission, b, pId, nil, allowPublicRead)
 	if ok {
 		b.Mu.RLock()
 		mapped, ok := lResourceApplyFlags(r, perms, flags)
 		if ok {
+			if publicOnly && mapped.Permissions.Present {
+				mapped.Permissions.Value.Others = []orcapi.ResourceAclEntry{}
+			}
 			rawResult := g.Transformer(mapped, r.BaseSpec, r.Extra, flags, actor)
 			result = rawResult.(T)
 		}
 		b.Mu.RUnlock()
 		if ok {
-			return result, r.ToApi(perms), r.BaseSpec, nil
+			apiResource := r.ToApi(perms)
+			if publicOnly && apiResource.Permissions.Present {
+				apiResource.Permissions.Value.Others = []orcapi.ResourceAclEntry{}
+			}
+			return result, apiResource, r.BaseSpec, nil
 		}
 	}
 
@@ -631,6 +716,22 @@ func ResourceRetrieveEx[T any](
 		errorMessage = util.HttpErr(http.StatusForbidden, "write permission is required")
 	}
 	return result, orcapi.Resource{}, orcapi.ResourceSpecification{}, errorMessage
+}
+
+func ResourceValidateProviderBatch(actor rpc.Actor, typeName string, ids []string) *util.HttpError {
+	for _, id := range ids {
+		_, _, _, err := ResourceRetrieveEx[any](
+			actor,
+			typeName,
+			ResourceParseId(id),
+			orcapi.PermissionProvider,
+			orcapi.ResourceFlags{},
+		)
+		if err != nil {
+			return util.HttpErr(http.StatusNotFound, "not found or permission denied (%v)", id)
+		}
+	}
+	return nil
 }
 
 type ResourceSortByFn[T any] func(a T, b T) int
@@ -696,6 +797,31 @@ func ResourceBrowse[T any](
 	filter func(item T) bool,
 	sortComparator ResourceSortByFn[T],
 ) fndapi.PageV2[T] {
+	return resourceBrowse(actor, typeName, next, itemsPerPage, flags, filter, sortComparator, false)
+}
+
+func ResourceBrowseIncludingPersonal[T any](
+	actor rpc.Actor,
+	typeName string,
+	next util.Option[string],
+	itemsPerPage int,
+	flags orcapi.ResourceFlags,
+	filter func(item T) bool,
+	sortComparator ResourceSortByFn[T],
+) fndapi.PageV2[T] {
+	return resourceBrowse(actor, typeName, next, itemsPerPage, flags, filter, sortComparator, true)
+}
+
+func resourceBrowse[T any](
+	actor rpc.Actor,
+	typeName string,
+	next util.Option[string],
+	itemsPerPage int,
+	flags orcapi.ResourceFlags,
+	filter func(item T) bool,
+	sortComparator ResourceSortByFn[T],
+	includePersonal bool,
+) fndapi.PageV2[T] {
 	providerId, isProvider := strings.CutPrefix(actor.Username, fndapi.ProviderSubjectPrefix)
 	if flags.FilterProviderIds.Present {
 		providerGenIds := strings.Split(flags.FilterProviderIds.Value, ",")
@@ -728,23 +854,34 @@ func ResourceBrowse[T any](
 		t := util.NewTimer()
 
 		g := resourceGetGlobals(typeName)
-		ref := actor.Username
+		refs := []string{actor.Username}
 		if actor.Project.Present {
-			ref = string(actor.Project.Value)
-		}
-
-		idxBucket := resourceGetAndLoadIndex(typeName, ref)
-		resourceBrowseDuration.WithLabelValues(typeName, "index").Observe(t.Mark().Seconds())
-
-		idxBucket.Mu.RLock()
-		idx := append([]ResourceId(nil), idxBucket.ByOwner[ref]...) // deep copy under lock
-
-		if len(flags.FilterLabels) > 0 {
-			filtered, ok := resourceFilterByIndexedLabelsLocked(idxBucket, ref, idx, flags.FilterLabels)
-			if ok {
-				idx = filtered
+			refs[0] = string(actor.Project.Value)
+			if includePersonal {
+				refs = append(refs, actor.Username)
 			}
 		}
+
+		var idx []ResourceId
+		for _, ref := range refs {
+			idxBucket := resourceGetAndLoadIndex(typeName, ref)
+			resourceBrowseDuration.WithLabelValues(typeName, "index").Observe(t.Mark().Seconds())
+
+			idxBucket.Mu.RLock()
+			ownerIdx := append([]ResourceId(nil), idxBucket.ByOwner[ref]...) // deep copy under lock
+
+			if len(flags.FilterLabels) > 0 {
+				filtered, ok := resourceFilterByIndexedLabelsLocked(idxBucket, ref, ownerIdx, flags.FilterLabels)
+				if ok {
+					ownerIdx = filtered
+				}
+			}
+			idxBucket.Mu.RUnlock()
+
+			idx = append(idx, ownerIdx...)
+		}
+		slices.Sort(idx)
+		idx = slices.Compact(idx)
 
 		if len(idx) > 10_000 {
 			// NOTE(Dan): We refuse to run anything but the default sort if there are too many expected results.
@@ -761,7 +898,6 @@ func ResourceBrowse[T any](
 			}
 		}
 
-		idxBucket.Mu.RUnlock()
 		resourceBrowseDuration.WithLabelValues(typeName, "prepare_prefetch").Observe(t.Mark().Seconds())
 
 		var items []T
@@ -777,7 +913,7 @@ func ResourceBrowse[T any](
 
 			t.Mark()
 			b := resourceGetBucket(typeName, id)
-			resc, ok, perms := resourcesReadEx(actor, typeName, orcapi.PermissionRead, b, id, idx)
+			resc, ok, perms, _ := resourcesReadEx(actor, typeName, orcapi.PermissionRead, b, id, idx, false)
 			readAccSeconds += t.Mark().Seconds()
 
 			// NOTE(Dan): In personal workspaces, the user might be added directly to an index even if they are not
@@ -785,7 +921,9 @@ func ResourceBrowse[T any](
 			// workspace filtering here to ensure we only see the correct resources.
 			if ok && !isProvider {
 				if actor.Project.Present {
-					if string(actor.Project.GetOrDefault("")) != resc.Owner.Project.Value {
+					isCurrentProject := resc.Owner.Project.Present && string(actor.Project.Value) == resc.Owner.Project.Value
+					isPersonal := includePersonal && !resc.Owner.Project.Present && resc.Owner.CreatedBy == actor.Username
+					if !isCurrentProject && !isPersonal {
 						continue
 					}
 				} else {
@@ -885,7 +1023,7 @@ func ResourceUpdate[T any](
 	g := resourceGetGlobals(typeName)
 
 	b := resourceGetBucket(typeName, id)
-	resc, ok, perms := resourcesReadEx(actor, typeName, requiredPermission, b, id, nil)
+	resc, ok, perms, _ := resourcesReadEx(actor, typeName, requiredPermission, b, id, nil, false)
 	if ok {
 		var indexers []ResourceIndexer
 		{
@@ -913,14 +1051,18 @@ func ResourceUpdate[T any](
 
 		modification(resc, mapped)
 
-		isDeleting := resc.Confirmed && resc.MarkedForDeletion
 		rescOwnerRef := resc.Owner.CreatedBy
 		if resc.Owner.Project.Present {
 			rescOwnerRef = resc.Owner.Project.Value
 		}
 
+		persisted := true
 		if resc.Confirmed {
-			lResourcePersist(g, resc)
+			persisted = lResourcePersist(g, resc)
+			if !persisted {
+				resc.MarkedForDeletion = true
+				lResourcePersist(g, resc)
+			}
 
 			if resc.MarkedForDeletion {
 				delete(b.Resources, id)
@@ -932,6 +1074,7 @@ func ResourceUpdate[T any](
 				}
 			}
 		}
+		isDeleting := resc.Confirmed && resc.MarkedForDeletion
 
 		// Indexing after modification
 		if !resc.MarkedForDeletion {
@@ -970,7 +1113,7 @@ func ResourceUpdate[T any](
 			}
 		}
 
-		return true
+		return persisted
 	} else {
 		return false
 	}
@@ -1029,8 +1172,16 @@ func ResourceUpdateAcl(
 	}
 
 	var addedUsers []string
+	var providerResource any
+	var provider string
 	pId := ResourceParseId(acl.Id)
 	ok := ResourceUpdate[any](actor, typeName, pId, orcapi.PermissionAdmin, func(r *resource, mapped any) {
+		if resourceSpecificationHasProduct(r.BaseSpec) {
+			provider = r.BaseSpec.Product.Provider
+			snapshot := r.ToApi(nil)
+			snapshot.Permissions.Value.Others = stacksCloneAcl(r.Acl)
+			providerResource = resourceGetGlobals(typeName).Transformer(snapshot, r.BaseSpec, r.Extra, orcapi.ResourceFlags{IncludeOthers: true, IncludeProduct: true, IncludeSupport: true}, actor)
+		}
 		var newAcl []orcapi.ResourceAclEntry
 		for _, entry := range r.Acl {
 			wasDeleted := false
@@ -1095,6 +1246,9 @@ func ResourceUpdateAcl(
 	if !ok {
 		return util.HttpErr(http.StatusNotFound, "not found or permission denied")
 	} else {
+		if providerResource != nil {
+			resourcePushAcl(provider, providerResource, acl)
+		}
 		return nil
 	}
 }
@@ -1106,21 +1260,201 @@ func ResourceUpdateLabels(
 	labels map[string]string,
 	permissionRequired orcapi.Permission,
 ) *util.HttpError {
+	return resourceUpdateLabelsEx(actor, typeName, id, labels, permissionRequired, false, false)
+}
+
+func resourceUpdateLabelsFillReserved(
+	actor rpc.Actor,
+	typeName string,
+	id string,
+	labels map[string]string,
+	permissionRequired orcapi.Permission,
+) *util.HttpError {
+	return resourceUpdateLabelsEx(actor, typeName, id, labels, permissionRequired, false, true)
+}
+
+func resourceUpdateLabelsEx(
+	actor rpc.Actor,
+	typeName string,
+	id string,
+	labels map[string]string,
+	permissionRequired orcapi.Permission,
+	allowReserved bool,
+	fillReserved bool,
+) *util.HttpError {
 	normalized, err := ResourceValidateLabels(labels)
 	if err != nil {
 		return err
 	}
 
+	var labelErr *util.HttpError
 	ok := ResourceUpdate[any](actor, typeName, ResourceParseId(id), permissionRequired, func(r *resource, mapped any) {
+		merged, mergeErr := resourceMergeReservedLabels(r.BaseSpec.Labels, normalized, allowReserved, fillReserved)
+		if mergeErr != nil {
+			labelErr = mergeErr
+			return
+		}
+
 		r.ModifiedAt = time.Now()
-		r.BaseSpec.Labels = normalized
+		r.BaseSpec.Labels = merged
 	})
 
 	if !ok {
 		return util.HttpErr(http.StatusForbidden, "failed to update labels - permission denied")
+	} else if labelErr != nil {
+		return labelErr
 	} else {
 		return nil
 	}
+}
+
+func resourceMergeReservedLabels(
+	existing map[string]string,
+	desired map[string]string,
+	allowReserved bool,
+	fillReserved bool,
+) (map[string]string, *util.HttpError) {
+	existing = resourceNormalizeLabelKeys(existing)
+
+	merged := map[string]string{}
+	for key, value := range desired {
+		merged[key] = value
+	}
+
+	if allowReserved {
+		return merged, nil
+	}
+
+	if fillReserved {
+		if err := resourceFillReservedLabels(existing, merged); err != nil {
+			return nil, err
+		}
+		return merged, nil
+	}
+
+	for key, value := range merged {
+		if !orcapi.ResourceLabelIsReserved(key) {
+			continue
+		}
+
+		existingValue, exists := existing[key]
+		if exists && existingValue == value {
+			continue
+		}
+
+		return nil, util.HttpErr(http.StatusBadRequest, "the label %s is managed by the system", key)
+	}
+
+	for key := range existing {
+		if !orcapi.ResourceLabelIsReserved(key) {
+			continue
+		}
+
+		if _, exists := merged[key]; !exists {
+			return nil, util.HttpErr(http.StatusBadRequest, "the label %s is managed by the system", key)
+		}
+	}
+
+	return merged, nil
+}
+
+func resourceFillReservedLabels(existing map[string]string, desired map[string]string) *util.HttpError {
+	existing = resourceNormalizeLabelKeys(existing)
+
+	for key, value := range desired {
+		if !orcapi.ResourceLabelIsReserved(key) {
+			continue
+		}
+
+		existingValue, exists := existing[key]
+		if exists && existingValue == value {
+			continue
+		}
+
+		return util.HttpErr(http.StatusBadRequest, "the label %s is managed by the system", key)
+	}
+
+	for key, value := range existing {
+		if !orcapi.ResourceLabelIsReserved(key) {
+			continue
+		}
+
+		if _, exists := desired[key]; !exists {
+			desired[key] = value
+		}
+	}
+
+	return nil
+}
+
+func resourceValidateUserLabels(labels map[string]string) (map[string]string, *util.HttpError) {
+	normalized, err := ResourceValidateLabels(labels)
+	if err != nil {
+		return nil, err
+	}
+
+	for key := range normalized {
+		if orcapi.ResourceLabelIsReserved(key) {
+			return nil, util.HttpErr(http.StatusBadRequest, "the label %s is managed by the system", key)
+		}
+	}
+
+	return normalized, nil
+}
+
+func resourceStripReservedLabels(labels map[string]string) {
+	for key := range labels {
+		if orcapi.ResourceLabelIsReserved(key) {
+			delete(labels, key)
+		}
+	}
+}
+
+var resourceStackIdentityLabels = []string{
+	orcapi.ResourceLabelStack,
+	orcapi.ResourceLabelStackName,
+	orcapi.ResourceLabelStackInstance,
+	orcapi.ResourceLabelStackStateFolder,
+	orcapi.ResourceLabelStackProvider,
+	orcapi.ResourceLabelUcxAppName,
+	orcapi.ResourceLabelUcxAppVersion,
+}
+
+var resourceStackControllerLabels = []string{
+	orcapi.ResourceLabelStackController,
+	orcapi.ResourceLabelStackUi,
+	orcapi.ResourceLabelDisasterRecovery,
+	orcapi.ResourceLabelUcxPort,
+}
+
+func resourceLabelLookup(labels map[string]string, key string) (string, bool) {
+	normalizedKey := strings.ToLower(key)
+	for label, value := range labels {
+		if strings.ToLower(label) == normalizedKey {
+			return value, true
+		}
+	}
+	return "", false
+}
+
+func resourceNormalizeLabelKeys(labels map[string]string) map[string]string {
+	normalized := make(map[string]string, len(labels))
+	for key, value := range labels {
+		normalized[strings.ToLower(key)] = value
+	}
+	return normalized
+}
+
+func resourceSpecificationMarkLabelsServerOwned(specification *orcapi.ResourceSpecification) {
+	specification.ServerLabels = util.MapMerge(specification.ServerLabels, specification.Labels)
+	specification.Labels = nil
+}
+
+func resourceSpecificationLabels(specification orcapi.ResourceSpecification) map[string]string {
+	if len(specification.ServerLabels) == 0 {
+		return specification.Labels
+	}
+	return util.MapMerge(specification.Labels, specification.ServerLabels)
 }
 
 func ResourceValidateLabels(labels map[string]string) (map[string]string, *util.HttpError) {
@@ -1153,7 +1487,20 @@ const (
 	resourceCreateAllWrite
 )
 
-func ResourceCreateEx[T any](
+func resourceCreateFromProvider[T any](
+	typeName string,
+	owner orcapi.ResourceOwner,
+	acl []orcapi.ResourceAclEntry,
+	specification orcapi.ResourceSpecification,
+	providerId util.Option[string],
+	extra any,
+	flags resourceCreateFlags,
+) (ResourceId, T, *util.HttpError) {
+	resourceSpecificationMarkLabelsServerOwned(&specification)
+	return resourceCreateEx[T](typeName, owner, acl, specification, providerId, extra, flags)
+}
+
+func resourceCreateEx[T any](
 	typeName string,
 	owner orcapi.ResourceOwner,
 	acl []orcapi.ResourceAclEntry,
@@ -1163,6 +1510,22 @@ func ResourceCreateEx[T any](
 	flags resourceCreateFlags,
 ) (ResourceId, T, *util.HttpError) {
 	g := resourceGetGlobals(typeName)
+
+	userLabels, err := resourceValidateUserLabels(baseSpec.Labels)
+	if err != nil {
+		var empty T
+		return 0, empty, err
+	}
+
+	serverLabels, err := ResourceValidateLabels(baseSpec.ServerLabels)
+	if err != nil {
+		var empty T
+		return 0, empty, err
+	}
+
+	baseSpec.Labels = util.MapMerge(userLabels, serverLabels)
+	baseSpec.ServerLabels = nil
+
 	id := ResourceId(resourceGlobals.IdAcc.Add(1))
 	b := resourceGetBucket(typeName, id)
 
@@ -1193,13 +1556,6 @@ func ResourceCreateEx[T any](
 		}
 	}
 
-	var err *util.HttpError
-	baseSpec.Labels, err = ResourceValidateLabels(baseSpec.Labels)
-	if err != nil {
-		var empty T
-		return 0, empty, err
-	}
-
 	now := time.Now()
 	r := &resource{
 		Id:         id,
@@ -1212,6 +1568,10 @@ func ResourceCreateEx[T any](
 		Extra:      extra,
 		Confirmed:  false,
 		BaseSpec:   baseSpec,
+	}
+
+	if initializer, ok := extra.(resourcePublicReadInitializer); ok {
+		r.PublicRead = initializer.ResourcePublicRead()
 	}
 
 	{
@@ -1304,7 +1664,14 @@ func ResourceCreate[T any](
 		}
 	}
 
-	if g.Flags&resourceTypeCreateWithoutAdmin == 0 {
+	stackDrive := typeName == driveType && strings.TrimSpace(resourceSpecificationLabels(specification)[orcapi.ResourceLabelStackInstance]) != ""
+	if stackDrive && actor.Project.Present {
+		if _, isMember := actor.Membership[actor.Project.Value]; !isMember {
+			var t T
+			return 0, t, util.HttpErr(http.StatusForbidden, "you must be a project member to create a drive")
+		}
+	}
+	if g.Flags&resourceTypeCreateWithoutAdmin == 0 && !stackDrive {
 		if actor.Project.Present && !actor.Membership[actor.Project.Value].Satisfies(rpc.ProjectRoleAdmin) {
 			var t T
 			return 0, t, util.HttpErr(http.StatusForbidden, "you need administrator privileges to do this operation")
@@ -1318,23 +1685,51 @@ func ResourceCreate[T any](
 		}),
 	}
 
-	return ResourceCreateEx[T](typeName, owner, nil, specification, util.OptNone[string](), extra, 0)
+	var acl []orcapi.ResourceAclEntry
+	if stack := specification.StackResource; stack != nil {
+		stacksMutationMu.Lock()
+		defer stacksMutationMu.Unlock()
+		_, stack, _, err := ResourceRetrieveEx[orcapi.Stack](actor, stackType, ResourceParseId(stack.Id), orcapi.PermissionEdit, orcapi.ResourceFlags{IncludeOthers: true})
+		if err != nil {
+			var empty T
+			return 0, empty, err
+		}
+		owner = stack.Owner
+		acl = stacksCloneAcl(stack.Permissions.Value.Others)
+	}
+	return resourceCreateEx[T](typeName, owner, acl, specification, util.OptNone[string](), extra, 0)
 }
 
 func resourceSpecificationHasProduct(specification orcapi.ResourceSpecification) bool {
 	return specification.Product != (accapi.ProductReference{})
 }
 
-func ResourceConfirm(typeName string, id ResourceId) {
-	ResourceUpdate[any](
+func ResourceConfirm(typeName string, id ResourceId) bool {
+	var stackResource any
+	var provider string
+	ok := ResourceUpdate[any](
 		rpc.ActorSystem,
 		typeName,
 		id,
 		orcapi.PermissionRead,
 		func(r *resource, mapped any) {
 			r.Confirmed = true
+			if r.BaseSpec.StackResource != nil && resourceSpecificationHasProduct(r.BaseSpec) {
+				provider = r.BaseSpec.Product.Provider
+				snapshot := r.ToApi(nil)
+				snapshot.Permissions.Value.Others = stacksCloneAcl(r.Acl)
+				stackResource = resourceGetGlobals(typeName).Transformer(snapshot, r.BaseSpec, r.Extra, orcapi.ResourceFlags{IncludeOthers: true, IncludeProduct: true, IncludeSupport: true}, rpc.ActorSystem)
+			}
+			r.BaseSpec.StackResource = nil
 		},
 	)
+	if !ok {
+		return false
+	}
+	if stackResource != nil {
+		resourcePushAcl(provider, stackResource, orcapi.UpdatedAcl{Id: strconv.FormatUint(uint64(id), 10)})
+	}
+	return true
 }
 
 func ResourceDelete(actor rpc.Actor, typeName string, id ResourceId) bool {
@@ -1481,29 +1876,74 @@ func resourceIndexLabelsRemoveLocked(idx *resourceIndexBucket, ownerRef string, 
 	}
 }
 
+type resourceLabelIndexRef struct {
+	Ordinal int
+	Ref     string
+	Bucket  *resourceIndexBucket
+}
+
 type resourceLabelIndexer struct {
 	TypeName string
 	Resource *resource
-	bucket   *resourceIndexBucket
-	ownerRef string
+	refs     []resourceLabelIndexRef
 }
 
 func (i *resourceLabelIndexer) Begin() {
-	i.ownerRef = i.Resource.Owner.Project.GetOrDefault(i.Resource.Owner.CreatedBy)
-	i.bucket = resourceGetAndLoadIndex(i.TypeName, i.ownerRef)
-	i.bucket.Mu.Lock()
+	ownerRef := i.Resource.Owner.Project.GetOrDefault(i.Resource.Owner.CreatedBy)
+	i.refs = append(i.refs, resourceLabelIndexRef{
+		Ref: ownerRef,
+	})
+
+	if resourceSpecificationHasProduct(i.Resource.BaseSpec) {
+		i.refs = append(i.refs, resourceLabelIndexRef{
+			Ref: resourceProviderRef(i.Resource.BaseSpec.Product.Provider),
+		})
+	}
+
+	g := resourceGetGlobals(i.TypeName)
+	for j := range i.refs {
+		i.refs[j].Bucket = resourceGetAndLoadIndex(i.TypeName, i.refs[j].Ref)
+		for ordinal, bucket := range g.Indexes {
+			if bucket == i.refs[j].Bucket {
+				i.refs[j].Ordinal = ordinal
+				break
+			}
+		}
+	}
+
+	slices.SortFunc(i.refs, func(a, b resourceLabelIndexRef) int {
+		return a.Ordinal - b.Ordinal
+	})
+
+	lockedOrdinal := -1
+	for _, ref := range i.refs {
+		if ref.Ordinal != lockedOrdinal {
+			ref.Bucket.Mu.Lock()
+			lockedOrdinal = ref.Ordinal
+		}
+	}
 }
 
 func (i *resourceLabelIndexer) Add() {
-	resourceIndexLabelsAddLocked(i.bucket, i.ownerRef, i.Resource.Id, i.Resource.BaseSpec.Labels)
+	for _, ref := range i.refs {
+		resourceIndexLabelsAddLocked(ref.Bucket, ref.Ref, i.Resource.Id, i.Resource.BaseSpec.Labels)
+	}
 }
 
 func (i *resourceLabelIndexer) Remove() {
-	resourceIndexLabelsRemoveLocked(i.bucket, i.ownerRef, i.Resource.Id, i.Resource.BaseSpec.Labels)
+	for _, ref := range i.refs {
+		resourceIndexLabelsRemoveLocked(ref.Bucket, ref.Ref, i.Resource.Id, i.Resource.BaseSpec.Labels)
+	}
 }
 
 func (i *resourceLabelIndexer) Commit() {
-	i.bucket.Mu.Unlock()
+	unlockedOrdinal := -1
+	for _, ref := range i.refs {
+		if ref.Ordinal != unlockedOrdinal {
+			ref.Bucket.Mu.Unlock()
+			unlockedOrdinal = ref.Ordinal
+		}
+	}
 }
 
 type ResourceIndexer interface {
@@ -1533,6 +1973,88 @@ func resourceRetrieveAllUserGroup(projectId string) (string, bool) {
 			return result.Responses[0].Id, nil
 		}
 	})
+}
+
+type resourceControlRegisterPrepare[Spec any] func(
+	item *orcapi.ProviderRegisteredResource[Spec],
+) (any, func(), *util.HttpError)
+
+func resourceControlRegisterServe[Spec any, T any](
+	typeName string,
+	specOf func(*Spec) *orcapi.ResourceSpecification,
+	prepare resourceControlRegisterPrepare[Spec],
+) rpc.ServerHandler[
+	fndapi.BulkRequest[orcapi.ProviderRegisteredResource[Spec]],
+	fndapi.BulkResponse[fndapi.FindByStringId],
+] {
+	return func(
+		info rpc.RequestInfo,
+		request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[Spec]],
+	) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
+		providerId, isProvider := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
+		if !isProvider {
+			return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+		}
+
+		for i := range request.Items {
+			item := &request.Items[i]
+			if specOf(&item.Spec).Product.Provider != providerId {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			}
+		}
+
+		responses := make([]fndapi.FindByStringId, 0, len(request.Items))
+		for i := range request.Items {
+			item := &request.Items[i]
+
+			extra, rollback, err := prepare(item)
+			if err != nil {
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			}
+
+			var flags resourceCreateFlags
+			if item.ProjectAllRead {
+				flags |= resourceCreateAllRead
+			}
+			if item.ProjectAllWrite {
+				flags |= resourceCreateAllWrite
+			}
+
+			id, _, err := resourceCreateFromProvider[T](
+				typeName,
+				resourceControlRegisterOwner(item),
+				nil,
+				*specOf(&item.Spec),
+				item.ProviderGeneratedId,
+				extra,
+				flags,
+			)
+			if err != nil {
+				if rollback != nil {
+					rollback()
+				}
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
+			}
+
+			confirmed := ResourceConfirm(typeName, id)
+			if !confirmed {
+				if rollback != nil {
+					rollback()
+				}
+				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusConflict, "the parent resource is no longer available")
+			}
+			responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
+		}
+
+		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
+	}
+}
+
+func resourceControlRegisterOwner[Spec any](item *orcapi.ProviderRegisteredResource[Spec]) orcapi.ResourceOwner {
+	return orcapi.ResourceOwner{
+		CreatedBy: item.CreatedBy.GetOrDefault("_ucloud"),
+		Project:   util.OptStringIfNotEmpty(item.Project.Value),
+	}
 }
 
 // Metrics

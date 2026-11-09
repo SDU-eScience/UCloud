@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 type ProviderCallOpts struct {
 	Username util.Option[string]
 	Reason   util.Option[string]
+	Timeout  util.Option[time.Duration]
 }
 
 var providerClients = util.NewCache[string, *rpc.Client](24 * time.Hour * 365 * 100)
@@ -50,39 +52,37 @@ func providerAppendLog(provider string, entry ProviderCallLog) {
 		providerLogFiles.Mu.Lock()
 		logFile, ok = providerLogFiles.Logs[provider]
 		if !ok {
-			logFile = &providerLogFile{Chan: make(chan ProviderCallLog)}
+			logFile = &providerLogFile{Chan: make(chan ProviderCallLog, 1024)}
 			providerLogFiles.Logs[provider] = logFile
-			go func() {
+			go func(lf *providerLogFile) {
 				logDir := cfg.Configuration.Logs.Directory
 				logPath := filepath.Join(logDir, fmt.Sprintf("provider-%s.log", provider))
 				f, err := os.OpenFile(logPath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0660)
 
-				// Starting the file with a new line allows us to always seek to "\n{" to find the next valid entry
-				// from any location in the file.
-				_, _ = f.WriteString("\n")
-
 				if err == nil {
-					for {
-						logEntry, ok := <-logFile.Chan
-						if !ok {
+					// Starting the file with a new line allows us to always seek to "\n{" to find the next valid entry
+					// from any location in the file.
+					_, _ = f.WriteString("\n")
+					for logEntry := range lf.Chan {
+						data, _ := json.Marshal(logEntry)
+						_, err1 := f.Write(data)
+						_, err2 := f.WriteString("\n")
+						if err1 != nil || err2 != nil {
 							break
-						} else {
-							data, _ := json.Marshal(logEntry)
-							_, err1 := f.Write(data)
-							_, err2 := f.WriteString("\n")
-							if err1 != nil || err2 != nil {
-								break
-							}
 						}
 					}
+					util.SilentClose(f)
 				} else {
 					log.Warn("Could not create provider log file: %s %s", provider, err)
 				}
-			}()
+			}(logFile)
 		}
 		providerLogFiles.Mu.Unlock()
-	} else {
-		logFile.Chan <- entry
+	}
+
+	select {
+	case logFile.Chan <- entry:
+	default:
 	}
 }
 
@@ -154,6 +154,8 @@ func providerClient(providerId string) (*rpc.Client, bool) {
 	})
 }
 
+var providersToSkip = []string{"aau", "lumi-sdu", "aau-k8", "hippo", "sophia"} // HACK(Dan): Need something better
+
 func InvokeProvider[Req any, Resp any](
 	provider string,
 	call rpc.Call[Req, Resp],
@@ -163,9 +165,24 @@ func InvokeProvider[Req any, Resp any](
 	var resp Resp
 	var err *util.HttpError
 
+	if slices.Contains(providersToSkip, provider) {
+		return resp, util.HttpErr(http.StatusServiceUnavailable, "service provider has been skipped")
+	}
+
 	client, ok := providerClient(provider)
 	if !ok {
 		return resp, util.HttpErr(http.StatusServiceUnavailable, "service provider is unavailable")
+	}
+	if opts.Timeout.Present && client.Client != nil && client.Client.Timeout != opts.Timeout.Value {
+		httpClientCopy := *client.Client
+		httpClientCopy.Timeout = opts.Timeout.Value
+		client = &rpc.Client{
+			RefreshToken:    client.RefreshToken,
+			AccessToken:     client.AccessToken,
+			BasePath:        client.BasePath,
+			Client:          &httpClientCopy,
+			CoreForProvider: client.CoreForProvider,
+		}
 	}
 
 	headers := http.Header{}

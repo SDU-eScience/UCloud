@@ -123,6 +123,10 @@ func HandleScriptGen() {
 	jinjaContext := exec.NewContext(jinjaContextParameters)
 	output, err := ctrl.JinjaTemplateExecute(tpl, 0, nil, jinjaContext, ctrl.JinjaFlagsNoPreProcess)
 	if err != nil {
+		if os.Getenv("UCLOUD_SCRIPT_GEN_STRICT") == "1" {
+			termio.WriteStyledLine(termio.Bold, termio.Red, 0, "Failure during generation of script: %s", err)
+			os.Exit(1)
+		}
 		output = fmt.Sprintf(
 			"echo %v",
 			orc.EscapeBash(fmt.Sprintf("Failure during generation of script: %s", err)),

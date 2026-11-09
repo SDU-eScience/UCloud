@@ -113,6 +113,12 @@ func scanDrive(drive orc.Drive) {
 	defer scanSemaphore.Release(1)
 	defer scanSlotsAvailable.Add(1)
 
+	ctx, finishScan, err := metadataBeginScan(metadataDatabasePath(drive.Id))
+	if err != nil {
+		return
+	}
+	defer finishScan()
+
 	internalPath, ok, _ := DriveToLocalPath(&drive)
 	if !ok {
 		return
@@ -185,16 +191,31 @@ func scanDrive(drive orc.Drive) {
 		sizeToReport = int64(result.TotalFileSize)
 	}
 
+	if ctx.Err() != nil {
+		return
+	}
 	// NOTE(Dan): There are no configuration options on the product at the moment to change this to anything else.
 	sizeInGb := sizeToReport / 1000000000
 
 	reportUsedStorage(drive, sizeInGb)
 
 	ctrl.DriveUpdateScannedAt(drive.Id)
+
+	if DriveScanListener != nil {
+		DriveScanListener(&drive, internalPath)
+	}
 }
 
 func reportUsedStorage(drive orc.Drive, sizeInGb int64) {
-	request := fnd.BulkRequest[apm.ReportUsageRequest]{
+	request := storageUsageRequest(drive, sizeInGb)
+	util.RetryOrPanic("report storage", func() (util.Empty, error) {
+		_, err := apm.ReportUsage.Invoke(request)
+		return util.EmptyValue, err.AsError()
+	})
+}
+
+func storageUsageRequest(drive orc.Drive, sizeInGb int64) fnd.BulkRequest[apm.ReportUsageRequest] {
+	return fnd.BulkRequest[apm.ReportUsageRequest]{
 		Items: []apm.ReportUsageRequest{
 			{
 				IsDeltaCharge: false,
@@ -210,11 +231,6 @@ func reportUsedStorage(drive orc.Drive, sizeInGb int64) {
 			},
 		},
 	}
-
-	util.RetryOrPanic("report storage", func() (util.Empty, error) {
-		_, err := apm.ReportUsage.Invoke(request)
-		return util.EmptyValue, err.AsError()
-	})
 }
 
 func RequestScan(driveId string) {

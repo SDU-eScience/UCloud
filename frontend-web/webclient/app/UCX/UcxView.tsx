@@ -1,6 +1,7 @@
 import * as React from "react";
-import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {
+    Box,
     Button,
     Card,
     Checkbox,
@@ -10,45 +11,87 @@ import {
     Icon,
     Input,
     Radio,
+    Select,
     Text,
     TextArea
 } from "@/ui-components";
 import {SimpleRichSelect} from "@/ui-components/RichSelect";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
-import CodeSnippet from "@/ui-components/CodeSnippet";
+import CodeSnippet, {CodeSnippetCopyOverlay} from "@/ui-components/CodeSnippet";
+import {IconButton} from "@/ui-components/IconButton";
+import {IconName} from "@/ui-components/Icon";
+import {UcxCodeEditor} from "@/UCX/UcxCodeEditor";
+import type {YamlFieldLink, YamlFieldPath} from "@/Editor/YamlFieldLinks";
+import {atomOneDark, atomOneLight} from "react-syntax-highlighter/dist/esm/styles/hljs";
+import SyntaxHighlighter from "react-syntax-highlighter";
+import {bulkRequestOf, copyToClipboard, createKeyboardShortcut, doNothing} from "@/UtilityFunctions";
+import {CopyButton} from "@/ui-components/CopyButton";
 import {Toggle} from "@/ui-components/Toggle";
+import {TooltipV2} from "@/ui-components/Tooltip";
 import * as UCloud from "@/UCloud";
+import {FieldGroup, FieldRow} from "@/Applications/Jobs/Widgets";
+import {FIELD_NAVIGATION_SELECTOR, KeyboardNavigation, SubmitShortcut, useSubmitShortcut} from "@/Applications/KeyboardNavigation";
+import {ShortcutClass} from "@/ui-components/ResourceBrowserStyle";
 import * as Accounting from "@/Accounting";
-import {productCategoryEquals, ProductV2, ProductV2Compute, WalletV2} from "@/Accounting";
+import {calculateProductCost, explainUnit, productCategoryEquals, ProductV2, ProductV2Compute, WalletV2} from "@/Accounting";
 import {
     decodeFrame,
     Frame,
     Opcode,
     plainPayloadToValueMap,
     PlainValue,
+    TableColumn,
+    TableUpdate,
     UiNode,
     Value,
     ValueKind,
     valueMapToPlainPayload,
 } from "@/UCX/protocol";
 import {UcxSession} from "@/UCX/session";
+import {clearEditorSchemas, createEditorSchemaRegistry, EditorSchemaRegistration, EditorSchemaRegistry, registerEditorSchemas, unregisterEditorSchemas} from "@/Editor/SchemaRegistry";
+import {UcxBrowserLayout, UcxNavTree, UcxNavItem, UcxStreamedTable, UcxTableActionDef, UcxTableStore, UcxTableCount, UcxTableFilter, isEditableTarget, useUcxRestorePaneFocus} from "@/UCX/UcxBrowser";
 import {stopPropagation} from "@/UtilityFunctions";
+import {isLikelyMac} from "@/UtilityFunctions";
 import Label from "@/ui-components/Label";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/Utilities/PageUtilities";
-import {ResolvedSupport} from "@/UCloud/ResourceApi";
+import {formatNumber} from "@/Utilities/NumberFormatting";
+import {Permission, ResourceAclEntry, ResolvedSupport} from "@/UCloud/ResourceApi";
 import {ProductSelector} from "@/Products/Selector";
+import {ServiceProviderSelector, ServiceProviderItem} from "@/Applications/ApiTokens/Add";
 import BaseLink from "@/ui-components/BaseLink";
 import {useLocation, useNavigate} from "react-router-dom";
-import {SimpleMarkdown} from "@/ui-components/Markdown";
-import {ModuleMarkdown} from "@/Applications/Jobs/Widgets/ModuleList";
 import remarkGfm from "remark-gfm";
 import ReactMarkdown from "react-markdown";
 import * as Heading from "@/ui-components/Heading";
+import {default as ReactModal} from "react-modal";
+import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {CardClass} from "@/ui-components/Card";
 import {UcxAccordion} from "@/UCX/UcxAccordion";
+import {UcxSpinner} from "@/UCX/UcxSpinner";
+export {UcxSpinner};
+
+const confirmedFormSubmissions = new WeakSet<HTMLFormElement>();
 import {injectStyle} from "@/Unstyled";
+import {selectHoverColor, ThemeColor} from "@/ui-components/theme";
+import {getProviderTitle, getShortProviderTitle} from "@/Providers/ProviderTitle";
 import {useIsLightThemeStored} from "@/ui-components/theme";
+import {WSFactory} from "@/Authentication/HttpClientInstance";
+import {applyJobFollowResponse, InitTerminal, JobInitState, JobInitTracker, JobsFollowResponse} from "@/Stacks/JobInitTracking";
+import {appendToXterm, useXTerm, xtermThemes} from "@/Applications/Jobs/XTermLib";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {TutorialWizard} from "@/ui-components/TutorialWizard";
+import Warning from "@/ui-components/Warning";
+import {useDispatch} from "react-redux";
+import {openJobShellTab} from "@/Terminal/State";
+import {confirmUcxCommand, isTrustedPodShellCommand} from "@/UCX/CommandPermissions";
+import {openUcxUrl} from "@/UCX/ExternalLinks";
+import {PermissionsTable} from "@/Resource/PermissionEditor";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {useProjectId} from "@/Project/Api";
+import {sendFailureNotification} from "@/Notifications";
+import * as StackApi from "@/Stacks/api";
 
 type ValueProvider = string | (() => string | Promise<string>);
 export type UcxRpcPayload = PlainValue;
@@ -61,54 +104,17 @@ export interface UcxFunctionRegistry {
     registerRouter: (bindPath: string, nodeId: string, model: Record<string, Value>, scope?: Record<string, Value>) => void;
     registerQueryParam: (bindPath: string, nodeId: string, key: string, model: Record<string, Value>, scope?: Record<string, Value>, options?: {replace?: boolean; removeWhenEmpty?: boolean; sendMissing?: boolean; writeToUrl?: boolean; clearKeys?: string[]}) => void;
     navigateSpa: (to: string, nodeId: string) => void;
+    setSpaRoute: (to: string) => void;
     buildSpaHref: (to: string) => string;
     currentRoutePath: string;
     invokeRpc: (name: string, payload?: UcxRpcPayload, timeoutMs?: number) => Promise<UcxRpcPayload>;
+    subscribeTable: (tableId: string, listener: (update: TableUpdate) => void) => () => void;
+    tableStore: UcxTableStore;
+    editorSchemaRegistry: EditorSchemaRegistry;
     modelValue: (model: Record<string, Value>, path: string, scope?: Record<string, Value>) => Value | undefined;
     sxStyle: (node: UiNode) => React.CSSProperties;
 
     [key: string]: unknown;
-}
-
-const ucxSpinnerFrames = [
-    " ⣾ ", " ⣽ ", " ⣻ ", " ⢿ ", " ⡿ ", " ⣟ ", " ⣯ ", " ⣷ ",
-    " ⠁ ", " ⠂ ", " ⠄ ", " ⡀ ", " ⢀ ", " ⠠ ", " ⠐ ", " ⠈ ",
-];
-
-export function UcxSpinner({size = 32, margin}: {size?: number; margin?: string}): React.ReactNode {
-    const [frame, setFrame] = useState(0);
-
-    useEffect(() => {
-        const interval = window.setInterval(() => {
-            setFrame(current => (current + 1) % ucxSpinnerFrames.length);
-        }, 70);
-        return () => window.clearInterval(interval);
-    }, []);
-
-    const lightMode = useIsLightThemeStored();
-    const color = lightMode ? "var(--primaryMain)" : "var(--foreground)";
-
-    return <span
-        data-tag="loading-spinner"
-        aria-label="Loading"
-        role="status"
-        style={{
-            width: size,
-            height: size,
-            margin,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: color,
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-            fontSize: Math.max(12, Math.round(size * 0.72)),
-            lineHeight: 1,
-            whiteSpace: "pre",
-            userSelect: "none",
-        }}
-    >
-        {ucxSpinnerFrames[frame]}
-    </span>;
 }
 
 export interface UcxRenderContext {
@@ -126,7 +132,6 @@ export type UcxComponentRegistry = Record<string, UcxComponentRenderer>;
 export interface UcxFrameRenderArgs {
     connected: boolean;
     transportError: string;
-    reconnectingInSeconds?: number;
     content: React.ReactNode;
     mounted?: boolean;
     root?: UiNode | null;
@@ -137,98 +142,156 @@ export interface UcxFrameRenderArgs {
 
 export interface UcxViewProps {
     url: string;
+    stackId?: string;
     authToken: ValueProvider;
     sysHello: ValueProvider;
-    maxReconnectAttempts?: number;
     renderFrame?: (args: UcxFrameRenderArgs) => React.ReactNode;
     components?: Partial<UcxComponentRegistry>;
     functions?: Partial<UcxFunctionRegistry>;
     rpcHandlers?: Record<string, UcxRpcHandler>;
+    allowedExternalOrigins?: string[];
     rehydrateModelPaths?: string[];
     onConnected?: () => void;
+    onMounted?: () => void;
     onDisconnected?: (reason: string) => void;
     onTransportError?: (message: string) => void;
     onModelChange?: (model: Record<string, Value>) => void;
 }
 
+const PING_INTERVAL_MS = 20000;
+const FOCUS_GRACE_MS = 5 * 60 * 1000;
+const SILENCE_THRESHOLD_MS = 90 * 1000;
+
 const UcxView: React.FunctionComponent<UcxViewProps> = ({
     url,
+    stackId,
     authToken,
     sysHello,
-    maxReconnectAttempts = Number.POSITIVE_INFINITY,
     renderFrame,
     components,
     functions,
     rpcHandlers,
+    allowedExternalOrigins,
     rehydrateModelPaths,
     onConnected,
+    onMounted,
     onDisconnected,
     onTransportError,
     onModelChange,
 }) => {
     const location = useLocation();
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     const [connected, setConnected] = useState(false);
     const [root, setRoot] = useState<UiNode | null>(null);
     const [model, setModel] = useState<Record<string, Value>>({});
     const [transportError, setTransportError] = useState("");
-    const [reconnectingInSeconds, setReconnectingInSeconds] = useState<number | undefined>(undefined);
-
+    // NOTE(Dan): model patches can arrive in bursts of hundreds per second during chat streaming. Both
+    // setModel and onModelChange re-render the whole page, so they are coalesced to at most one update
+    // per animation frame.
+    const modelFlushScheduledRef = useRef(false);
     const connRef = useRef<WebSocket | null>(null);
     const sessionRef = useRef<UcxSession | null>(null);
+    const [editorSchemaRegistry] = useState(createEditorSchemaRegistry);
     const eventIdRef = useRef(1);
     const reconnectAttemptRef = useRef(0);
     const reconnectTimerRef = useRef<number | null>(null);
     const everConnectedRef = useRef(false);
     const pendingRehydrateModelRef = useRef<Record<string, Value> | null>(null);
     const authCompleteRef = useRef(false);
+    const mountedOnceRef = useRef(false);
     const modelRef = useRef<Record<string, Value>>({});
     const activeRouterBindPathRef = useRef<string | undefined>(undefined);
     const queryParamUrlValuesRef = useRef<Record<string, string>>({});
     const currentRoutePath = useMemo(() => routePathFromSearch(location.search), [location.search]);
-    const authTokenRef = useRef<ValueProvider>(authToken);
-    const sysHelloRef = useRef<ValueProvider>(sysHello);
-    const rpcHandlersRef = useRef<Record<string, UcxRpcHandler> | undefined>(rpcHandlers);
+    const latestRef = useRef({
+        stackId,
+        authToken,
+        sysHello,
+        rpcHandlers,
+        allowedExternalOrigins,
+        onConnected,
+        onMounted,
+        onDisconnected,
+        onTransportError,
+        onModelChange,
+    });
+    latestRef.current = {
+        stackId,
+        authToken,
+        sysHello,
+        rpcHandlers,
+        allowedExternalOrigins,
+        onConnected,
+        onMounted,
+        onDisconnected,
+        onTransportError,
+        onModelChange,
+    };
     const navigateSpaRef = useRef<(to: string, nodeId: string) => void>(() => undefined);
-    const onConnectedRef = useRef<typeof onConnected>(onConnected);
-    const onDisconnectedRef = useRef<typeof onDisconnected>(onDisconnected);
-    const onTransportErrorRef = useRef<typeof onTransportError>(onTransportError);
-    const onModelChangeRef = useRef<typeof onModelChange>(onModelChange);
+    const lastFocusAtRef = useRef(Date.now());
+    const lastInboundAtRef = useRef(Date.now());
+    const pongArmedRef = useRef(false);
+    const keepaliveTimerRef = useRef<number | null>(null);
+
+    const clearKeepaliveTimer = () => {
+        if (keepaliveTimerRef.current != null) {
+            window.clearInterval(keepaliveTimerRef.current);
+            keepaliveTimerRef.current = null;
+        }
+    };
+
+    useEffect(() => {
+        const updateFocus = () => {
+            if (document.visibilityState === "visible") {
+                lastFocusAtRef.current = Date.now();
+            }
+        };
+
+        window.addEventListener("focus", updateFocus);
+        document.addEventListener("visibilitychange", updateFocus);
+        return () => {
+            window.removeEventListener("focus", updateFocus);
+            document.removeEventListener("visibilitychange", updateFocus);
+        };
+    }, []);
 
     useEffect(() => {
         modelRef.current = model;
     }, [model]);
 
-    useEffect(() => {
-        authTokenRef.current = authToken;
-    }, [authToken]);
+    const pendingModelUpdaterRef = useRef<((prev: Record<string, Value>) => Record<string, Value>) | null>(null);
+    const flushModel = useCallback((nextModel: Record<string, Value>) => {
+        // A mount replaces the entire model and should drop any pending patches, otherwise we end up with an ordering
+        // issue.
+        pendingModelUpdaterRef.current = null;
+        setModel(nextModel);
+    }, []);
+
+    const scheduleModelFlush = useCallback((updater: (prev: Record<string, Value>) => Record<string, Value>) => {
+        const previousUpdater = pendingModelUpdaterRef.current;
+        pendingModelUpdaterRef.current = previousUpdater
+            ? prev => updater(previousUpdater(prev))
+            : updater;
+        if (modelFlushScheduledRef.current) return;
+        modelFlushScheduledRef.current = true;
+        // NOTE(Dan): requestAnimationFrame never fires in background tabs, so fall back to a timer when
+        // the document is hidden. Without it, a long stream in a background tab would keep composing
+        // updaters without ever applying them.
+        const schedule = document.hidden
+            ? (cb: () => void) => window.setTimeout(cb, 100)
+            : (cb: () => void) => window.requestAnimationFrame(cb);
+        schedule(() => {
+            modelFlushScheduledRef.current = false;
+            const pending = pendingModelUpdaterRef.current;
+            pendingModelUpdaterRef.current = null;
+            if (!pending) return;
+            setModel(pending);
+        });
+    }, []);
 
     useEffect(() => {
-        sysHelloRef.current = sysHello;
-    }, [sysHello]);
-
-    useEffect(() => {
-        rpcHandlersRef.current = rpcHandlers;
-    }, [rpcHandlers]);
-
-    useEffect(() => {
-        onConnectedRef.current = onConnected;
-    }, [onConnected]);
-
-    useEffect(() => {
-        onDisconnectedRef.current = onDisconnected;
-    }, [onDisconnected]);
-
-    useEffect(() => {
-        onTransportErrorRef.current = onTransportError;
-    }, [onTransportError]);
-
-    useEffect(() => {
-        onModelChangeRef.current = onModelChange;
-    }, [onModelChange]);
-
-    useEffect(() => {
-        onModelChangeRef.current?.(model);
+        latestRef.current.onModelChange?.(model);
     }, [model]);
 
     const sendFrame = useCallback((frame: Omit<Frame, "seq">) => {
@@ -283,15 +346,24 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         });
     }, [sendFrame]);
 
+    const sendRouterInput = useCallback((bindPath: string, routePath: string, nodeId: string) => {
+        const browserRoutePath = routePathFromSearch(window.location.search);
+        if (routePath !== browserRoutePath) {
+            return;
+        }
+
+        sendModelInput(bindPath, {kind: ValueKind.String, string: routePath}, nodeId);
+    }, [sendModelInput]);
+
     const registerRouter = useCallback((bindPath: string, nodeId: string, model: Record<string, Value>, scope?: Record<string, Value>) => {
         if (!bindPath) return;
         activeRouterBindPathRef.current = bindPath;
 
         const bound = modelString(model, bindPath, scope);
         if (bound !== currentRoutePath) {
-            sendModelInput(bindPath, {kind: ValueKind.String, string: currentRoutePath}, `router:${nodeId}`);
+            sendRouterInput(bindPath, currentRoutePath, `router:${nodeId}`);
         }
-    }, [currentRoutePath, sendModelInput]);
+    }, [currentRoutePath, sendRouterInput]);
 
     const registerQueryParam = useCallback((bindPath: string, nodeId: string, key: string, model: Record<string, Value>, scope?: Record<string, Value>, options?: {replace?: boolean; removeWhenEmpty?: boolean; sendMissing?: boolean; writeToUrl?: boolean; clearKeys?: string[]}) => {
         if (!bindPath || !key) return;
@@ -358,6 +430,21 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         return `${location.pathname}${search ? `?${search}` : ""}${location.hash}`;
     }, [location.hash, location.pathname, location.search]);
 
+    const setSpaRoute = useCallback((to: string) => {
+        const params = new URLSearchParams(window.location.search);
+        if (to === "") {
+            params.delete("p");
+        } else {
+            params.set("p", to);
+        }
+        const search = params.toString();
+        navigate({
+            pathname: location.pathname,
+            search: search ? `?${search}` : "",
+            hash: location.hash,
+        });
+    }, [location.hash, location.pathname, navigate]);
+
     const navigateSpa = useCallback((to: string, nodeId: string) => {
         const bindPath = activeRouterBindPathRef.current;
         if (!bindPath) {
@@ -365,7 +452,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         }
 
         const nextTo = to ?? "";
-        const params = new URLSearchParams(location.search);
+        const params = new URLSearchParams(window.location.search);
         params.set("p", nextTo);
         const search = params.toString();
 
@@ -375,8 +462,8 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
             hash: location.hash,
         });
 
-        sendModelInput(bindPath, {kind: ValueKind.String, string: nextTo}, `link:${nodeId}`);
-    }, [location.hash, location.pathname, location.search, navigate, sendModelInput]);
+        sendRouterInput(bindPath, nextTo, `link:${nodeId}`);
+    }, [location.hash, location.pathname, navigate, sendRouterInput]);
 
     useEffect(() => {
         navigateSpaRef.current = navigateSpa;
@@ -389,6 +476,54 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         return sessionRef.current.invokeRpc(name, plainPayloadToValueMap(payload), timeoutMs).then(valueMapToPlainPayload);
     }, []);
 
+    const tableListenersRef = useRef(new Map<string, Set<(update: TableUpdate) => void>>());
+    const tableWildcardRef = useRef(new Set<(update: TableUpdate) => void>());
+    const tableStoreRef = useRef<UcxTableStore | null>(null);
+    if (tableStoreRef.current == null) {
+        tableStoreRef.current = new UcxTableStore();
+    }
+    const tableStore = tableStoreRef.current;
+
+    const subscribeTable = useCallback((tableId: string, listener: (update: TableUpdate) => void) => {
+        if (tableId === "*") {
+            tableWildcardRef.current.add(listener);
+            return () => {
+                tableWildcardRef.current.delete(listener);
+            };
+        }
+
+        let listeners = tableListenersRef.current.get(tableId);
+        if (!listeners) {
+            listeners = new Set();
+            tableListenersRef.current.set(tableId, listeners);
+        }
+        listeners.add(listener);
+
+        return () => {
+            const current = tableListenersRef.current.get(tableId);
+            if (!current) return;
+            current.delete(listener);
+            if (current.size === 0) {
+                tableListenersRef.current.delete(tableId);
+            }
+        };
+    }, []);
+
+    const dispatchTableUpdate = useCallback((update: TableUpdate) => {
+        tableStore.apply(update);
+
+        const direct = tableListenersRef.current.get(update.tableId);
+        if (direct) {
+            for (const listener of direct) {
+                listener(update);
+            }
+        }
+
+        for (const listener of tableWildcardRef.current) {
+            listener(update);
+        }
+    }, [tableStore]);
+
     const baseFunctions = useMemo<UcxFunctionRegistry>(() => ({
         sendBoundInput: (node, value) => sendBoundInput(node, value),
         sendUiEvent,
@@ -396,18 +531,22 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         registerRouter,
         registerQueryParam,
         navigateSpa,
+        setSpaRoute,
         buildSpaHref,
         currentRoutePath,
         invokeRpc,
+        subscribeTable,
+        tableStore,
+        editorSchemaRegistry,
         modelValue,
         sxStyle,
-    }), [buildSpaHref, currentRoutePath, invokeRpc, navigateSpa, registerQueryParam, registerRouter, sendBoundInput, sendModelInput, sendUiEvent]);
+    }), [buildSpaHref, currentRoutePath, editorSchemaRegistry, invokeRpc, navigateSpa, registerQueryParam, registerRouter, sendBoundInput, sendModelInput, sendUiEvent, setSpaRoute, subscribeTable, tableStore]);
 
     useEffect(() => {
         const bindPath = activeRouterBindPathRef.current;
         if (!bindPath) return;
-        sendModelInput(bindPath, {kind: ValueKind.String, string: currentRoutePath}, "router:location");
-    }, [currentRoutePath, sendModelInput]);
+        sendRouterInput(bindPath, currentRoutePath, "router:location");
+    }, [currentRoutePath, sendRouterInput]);
 
     const mergedFunctions = useMemo<UcxFunctionRegistry>(() => ({
         ...baseFunctions,
@@ -458,7 +597,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         const setError = (message: string) => {
             setTransportError(message);
             console.error(`[UCX] ${message}`);
-            onTransportErrorRef.current?.(message);
+            latestRef.current.onTransportError?.(message);
         };
 
         const scheduleReconnect = () => {
@@ -468,12 +607,6 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 
             clearReconnectTimer();
 
-            if (reconnectAttemptRef.current >= maxReconnectAttempts) {
-                setReconnectingInSeconds(undefined);
-                setError("Disconnected. Reconnect limit reached.");
-                return;
-            }
-
             const baseDelayMs = 500;
             const capDelayMs = 30000;
             const attempt = reconnectAttemptRef.current;
@@ -482,7 +615,6 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
             reconnectAttemptRef.current = attempt + 1;
 
             const reconnectIn = Math.max(1, Math.ceil(delay / 1000));
-            setReconnectingInSeconds(reconnectIn);
             setError(`Disconnected. Reconnecting in ${reconnectIn}s...`);
             reconnectTimerRef.current = window.setTimeout(connect, delay);
         };
@@ -497,6 +629,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 return;
             }
 
+            mountedOnceRef.current = false;
             const socket = new WebSocket(url);
             socket.binaryType = "arraybuffer";
             connRef.current = socket;
@@ -511,6 +644,28 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 reconnectAttemptRef.current = 0;
                 clearReconnectTimer();
                 authCompleteRef.current = false;
+                pongArmedRef.current = false;
+                lastFocusAtRef.current = Date.now();
+                lastInboundAtRef.current = Date.now();
+
+                clearKeepaliveTimer();
+                keepaliveTimerRef.current = window.setInterval(() => {
+                    const socket = connRef.current;
+                    if (socket == null || socket.readyState !== WebSocket.OPEN) {
+                        return;
+                    }
+
+                    if (Date.now() - lastFocusAtRef.current >= FOCUS_GRACE_MS) {
+                        return;
+                    }
+
+                    if (pongArmedRef.current && Date.now() - lastInboundAtRef.current >= SILENCE_THRESHOLD_MS) {
+                        socket.close();
+                        return;
+                    }
+
+                    sendFrame({replyToSeq: 0, opcode: Opcode.Ping});
+                }, PING_INTERVAL_MS);
 
                 sessionRef.current?.registerRpcHandler("routerPushPage", payload => {
                     const plainPayload = valueMapToPlainPayload(payload) as {path?: unknown};
@@ -519,7 +674,60 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                     return {};
                 });
 
-                const handlers = rpcHandlersRef.current;
+                sessionRef.current?.registerRpcHandler("editorRegisterSchemas", async payload => {
+                    const request = valueMapToPlainPayload(payload) as unknown as {schemas: EditorSchemaRegistration[]};
+                    await registerEditorSchemas(editorSchemaRegistry, request.schemas);
+                    return {};
+                });
+                sessionRef.current?.registerRpcHandler("editorUnregisterSchemas", async payload => {
+                    const request = valueMapToPlainPayload(payload) as {schemaIds: string[]};
+                    await unregisterEditorSchemas(editorSchemaRegistry, request.schemaIds);
+                    return {};
+                });
+
+                sessionRef.current?.registerRpcHandler("openUrl", payload => {
+                    const plainPayload = valueMapToPlainPayload(payload) as {path?: unknown};
+                    const path = typeof plainPayload.path === "string" ? plainPayload.path : "";
+                    if (path.startsWith("https://")) {
+                        const allowed = latestRef.current.allowedExternalOrigins;
+                        const origin = externalUrlOrigin(path);
+                        if (origin === "" || (allowed === undefined || !allowed.includes(origin))) {
+                            return {};
+                        }
+                        openUcxUrl(path);
+                    } else if (path.startsWith("/") && !path.startsWith("//")) {
+                        openUcxUrl(path, "/app");
+                    }
+                    return {};
+                });
+
+                sessionRef.current?.registerRpcHandler("terminalOpenShellToJob", async payload => {
+                    const plainPayload = valueMapToPlainPayload(payload) as {jobId?: unknown; rank?: unknown; command?: unknown; clearAfter?: unknown; suppressUntil?: unknown};
+                    const jobId = typeof plainPayload.jobId === "string" ? plainPayload.jobId : "";
+                    if (jobId === "") return {};
+                    const rank = typeof plainPayload.rank === "number" ? plainPayload.rank : 0;
+                    const command = typeof plainPayload.command === "string" ? plainPayload.command : undefined;
+                    const clearAfter = plainPayload.clearAfter === true;
+                    const suppressUntil = typeof plainPayload.suppressUntil === "string" ? plainPayload.suppressUntil : undefined;
+                    const trustedPodShellCommand = isTrustedPodShellCommand({command, rank, suppressUntil});
+                    const commandRequiresConfirmation = command !== undefined && command !== "" && !trustedPodShellCommand;
+
+                    if (commandRequiresConfirmation) {
+                        const stackId = latestRef.current.stackId?.trim() ?? "";
+                        const decision = await confirmUcxCommand({
+                            scopeId: stackId !== "" ? stackId : `ucx:${jobId}`,
+                            command,
+                            jobId,
+                            rank,
+                        });
+                        if (decision === "deny") return {};
+                    }
+
+                    openJobShellTab(dispatch, jobId, rank, command, clearAfter, suppressUntil);
+                    return {};
+                });
+
+                const handlers = latestRef.current.rpcHandlers;
                 if (handlers) {
                     for (const [name, handler] of Object.entries(handlers)) {
                         sessionRef.current?.registerRpcHandler(name, payload => {
@@ -532,8 +740,8 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 
                 void (async () => {
                     try {
-                        const token = await resolveProvider(authTokenRef.current);
-                        const hello = await resolveProvider(sysHelloRef.current);
+                        const token = await resolveProvider(latestRef.current.authToken);
+                        const hello = await resolveProvider(latestRef.current.sysHello);
 
                         socket.send(token);
                         sendFrame({
@@ -564,12 +772,14 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                         authCompleteRef.current = true;
 
                         setConnected(true);
-                        setReconnectingInSeconds(undefined);
                         setTransportError("");
-                        onConnectedRef.current?.();
+                        latestRef.current.onConnected?.();
 
-                        if (everConnectedRef.current && Object.keys(modelRef.current).length > 0) {
-                            pendingRehydrateModelRef.current = {...modelRef.current};
+                        if (everConnectedRef.current) {
+                            if (Object.keys(modelRef.current).length > 0) {
+                                pendingRehydrateModelRef.current = {...modelRef.current};
+                            }
+                            tableStore.reset();
                         }
                         everConnectedRef.current = true;
                         return;
@@ -589,6 +799,17 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                     const bytes = new Uint8Array(event.data);
                     const frame = decodeFrame(bytes);
                     sessionRef.current?.setNextSeq(frame.seq + 1);
+                    lastInboundAtRef.current = Date.now();
+
+                    if (frame.opcode === Opcode.Pong) {
+                        pongArmedRef.current = true;
+                        return;
+                    }
+
+                    if (frame.opcode === Opcode.TableUpdate && frame.tableUpdate) {
+                        dispatchTableUpdate(frame.tableUpdate);
+                        return;
+                    }
 
                     if (sessionRef.current?.handleIncoming(frame)) {
                         return;
@@ -599,7 +820,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                         const rehydrateSnapshot = pendingRehydrateModelRef.current;
 
                         setRoot(mount.root);
-                        setModel(mount.model);
+                        flushModel(mount.model);
 
                         if (rehydrateSnapshot) {
                             pendingRehydrateModelRef.current = null;
@@ -607,8 +828,13 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                                 root: mount.root,
                             });
                         }
+
+                        if (!mountedOnceRef.current) {
+                            mountedOnceRef.current = true;
+                            latestRef.current.onMounted?.();
+                        }
                     } else if (frame.opcode === Opcode.ModelPatch && frame.modelPatch) {
-                        setModel(prev => {
+                        scheduleModelFlush(prev => {
                             const next = {...prev};
                             for (const [path, value] of Object.entries(frame.modelPatch!.changes)) {
                                 if (value.kind === ValueKind.Null) {
@@ -619,13 +845,23 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                             }
                             return next;
                         });
+                    } else if (frame.opcode === Opcode.StringAppend && frame.stringAppend) {
+                        const append = frame.stringAppend;
+                        scheduleModelFlush(prev => {
+                            const current = prev[append.path];
+                            if (!current || current.kind !== ValueKind.String) return prev;
+                            return {...prev, [append.path]: {kind: ValueKind.String, string: current.string + append.chunk}};
+                        });
                     }
                 } catch (err) {
                     setError(err instanceof Error ? err.message : "Failed to decode frame");
+                    socket.close();
                 }
             };
 
             socket.onclose = event => {
+                clearKeepaliveTimer();
+                clearEditorSchemas(editorSchemaRegistry);
                 if (connRef.current === socket) {
                     connRef.current = null;
                 }
@@ -633,7 +869,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 sessionRef.current = null;
                 setConnected(false);
                 const closeReason = `WebSocket closed (code=${event.code}, clean=${event.wasClean}, reason=${event.reason || "none"})`;
-                onDisconnectedRef.current?.(closeReason);
+                latestRef.current.onDisconnected?.(closeReason);
                 if (!disposed) {
                     scheduleReconnect();
                 }
@@ -649,7 +885,9 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
 
         return () => {
             disposed = true;
+            clearEditorSchemas(editorSchemaRegistry);
             clearReconnectTimer();
+            clearKeepaliveTimer();
             sessionRef.current?.close("UCX session disposed");
             sessionRef.current = null;
             const conn = connRef.current;
@@ -658,7 +896,7 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
                 conn.close();
             }
         };
-    }, [resendModelAfterReconnect, sendFrame, url]);
+    }, [dispatchTableUpdate, editorSchemaRegistry, resendModelAfterReconnect, sendFrame, url]);
 
     const content = root == null ? <Text>Waiting for UI mount...</Text> :
         <NodeRenderer
@@ -672,7 +910,6 @@ const UcxView: React.FunctionComponent<UcxViewProps> = ({
         return <>{renderFrame({
             connected,
             transportError,
-            reconnectingInSeconds,
             content,
             mounted: root != null,
             root,
@@ -751,6 +988,41 @@ const QueryParamNode: React.FunctionComponent<{
 };
 
 const baseComponents: UcxComponentRegistry = {
+    keyboard_navigation: ({node, fn, renderChildren}) => {
+        return <KeyboardNavigationHost node={node} fn={fn}>{renderChildren()}</KeyboardNavigationHost>;
+    },
+    sidebar_layout: ({node, fn, renderChildren}) => {
+        const sidebarSlot = node.children.find(child => boolProp(child, "sidebarSlot", false));
+        const mainChildren = node.children.filter(child => !boolProp(child, "sidebarSlot", false));
+        const children = React.Children.toArray(renderChildren());
+
+        const mainContent = children.slice(0, mainChildren.length);
+        const sidebarContent = sidebarSlot ? children[children.length - 1] : null;
+
+        return <div className={UcxSidebarLayoutClass}>
+            <div className={UcxSidebarMainClass} style={fn.sxStyle(node)}>
+                {mainContent}
+            </div>
+            <aside className={UcxSidebarAsideClass}>
+                <div className={UcxSidebarSummaryClass} data-ucx-sidebar-summary="true">{sidebarContent}</div>
+            </aside>
+        </div>;
+    },    field_group: ({node, fn, renderChildren}) => {
+        return <div style={fn.sxStyle(node)}><FieldGroup>{renderChildren()}</FieldGroup></div>;
+    },
+    field_row: ({node, model, scope, fn, renderChildren}) => {
+        const children = renderChildren();
+        const error = stringProp(node, "error", "");
+        return <FieldRow
+            title={stringProp(node, "title", "")}
+            description={optionalStringProp(node, "description")}
+            control={children}
+            bold={boolProp(node, "bold", false)}
+            required={boolProp(node, "required", false)}
+            error={error || undefined}
+            parameterType={optionalStringProp(node, "parameterType")}
+        />;
+    },
     flex: ({node, fn, renderChildren}) => {
         const direction = stringProp(node, "direction", "column");
         const gap = numberProp(node, "gap", 8);
@@ -765,7 +1037,11 @@ const baseComponents: UcxComponentRegistry = {
     },
     box: ({node, fn, renderChildren}) => <div style={fn.sxStyle(node)}>{renderChildren()}</div>,
     surface: ({node, fn, renderChildren}) => {
-        return <Card p="16px" style={fn.sxStyle(node)}>{renderChildren()}</Card>;
+        return <Card p="16px" style={fn.sxStyle(node)}>
+            <div style={{display: "flex", flexDirection: "column", gap: 16, height: "100%", minHeight: 0}}>
+                {renderChildren()}
+            </div>
+        </Card>;
     },
     toolbar: ({node, fn, renderChildren}) => {
         const children = React.Children.toArray(renderChildren());
@@ -788,6 +1064,32 @@ const baseComponents: UcxComponentRegistry = {
             <div style={{minWidth: 0, flex: 1}}>{children[0]}</div>
             <div style={{display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap"}}>{children.slice(1)}</div>
         </div>;
+    },
+    tutorial_wizard: ({node, model, scope, fn, renderChildren}) => {
+        const step = numberProp(node, "step", 0);
+        const stepCount = Math.max(1, numberProp(node, "stepCount", 1));
+        const nextBusyPath = optionalStringProp(node, "nextBusyPath");
+        const nextDisabledPath = optionalStringProp(node, "nextDisabledPath");
+        const nextBusy = nextBusyPath ? modelBool(model, nextBusyPath, scope) : false;
+        const nextDisabled = nextDisabledPath ? modelBool(model, nextDisabledPath, scope) : false;
+
+        return <TutorialWizard
+            step={step}
+            stepCount={stepCount}
+            previousLabel={stringProp(node, "previousLabel", "Previous step")}
+            nextLabel={stringProp(node, "nextLabel", "Next step")}
+            showPrevious={boolProp(node, "showPrevious", false)}
+            showNext={boolProp(node, "showNext", true)}
+            nextHoldToConfirm={boolProp(node, "nextHoldToConfirm", false)}
+            nextColor={optionalStringProp(node, "nextColor")}
+            nextBusy={nextBusy}
+            nextDisabled={nextDisabled}
+            embedded={true}
+            onPrevious={() => fn.sendUiEvent(node.id + "-previous", "click")}
+            onNext={() => fn.sendUiEvent(node.id + "-next", "click")}
+        >
+            {renderChildren()}
+        </TutorialWizard>;
     },
     router: ({node, model, scope, fn}) => <RouterNode node={node} model={model} scope={scope} fn={fn} />,
     query_param: ({node, model, scope, fn}) => <QueryParamNode node={node} model={model} scope={scope} fn={fn} />,
@@ -837,21 +1139,31 @@ const baseComponents: UcxComponentRegistry = {
     markdown: ({node, model, scope, fn}) => {
         const text = boundOrStaticText(node, model, scope);
         if (!text) return null;
-        return <ReactMarkdown
-            components={{
-                a: p => <MarkdownLink children={p.children} />,
-                h1: p => <MarkdownHeading children={p.children} />,
-                h2: p => <MarkdownHeading children={p.children} />,
-                h3: p => <MarkdownHeading children={p.children} />,
-                h4: p => <MarkdownHeading children={p.children} />,
-                h5: p => <MarkdownHeading children={p.children} />,
-                h6: p => <MarkdownHeading children={p.children} />,
-                pre: p => <CodeSnippet children={p.children} maxHeight="" />,
-            }}
-            allowedElements={["h1", "h2", "h3", "h4", "h5", "h6", "br", "a", "p", "strong", "b", "i", "em", "ul", "ol", "li", "pre", "code"]}
-            children={text as string}
-            remarkPlugins={[remarkGfm]}
-        />;
+        return <div className={UcxMarkdownClass} style={fn.sxStyle(node)}>
+            <ReactMarkdown
+                components={{
+                    a: p => <MarkdownLink href={p.href} children={p.children} />,
+                    h1: p => <MarkdownHeading children={p.children} />,
+                    h2: p => <MarkdownHeading children={p.children} />,
+                    h3: p => <MarkdownHeading children={p.children} />,
+                    h4: p => <MarkdownHeading children={p.children} />,
+                    h5: p => <MarkdownHeading children={p.children} />,
+                    h6: p => <MarkdownHeading children={p.children} />,
+                    pre: p => <CodeSnippet children={p.children} maxHeight="" />,
+                }}
+                allowedElements={["h1", "h2", "h3", "h4", "h5", "h6", "br", "a", "p", "strong", "b", "i", "em", "ul", "ol", "li", "pre", "code"]}
+                children={text as string}
+                remarkPlugins={[remarkGfm]}
+            />
+        </div>;
+    },
+    warning: ({node, model, scope, fn, renderChildren}) => {
+        const text = boundOrStaticText(node, model, scope);
+        const variant = stringProp(node, "variant", "warning") === "tip" ? "tip" : "warning";
+        const centered = boolProp(node, "centered", false);
+        const trailing = node.children.length > 0 ? renderChildren() : undefined;
+        if (!text && !trailing) return null;
+        return <Warning variant={variant} centered={centered} style={fn.sxStyle(node)} trailing={trailing}>{text as string}</Warning>;
     },
     icon: ({node, fn}) => {
         const name = stringProp(node, "name", "bug");
@@ -859,39 +1171,57 @@ const baseComponents: UcxComponentRegistry = {
         const size = numberProp(node, "size", 18);
         return <Icon name={name as any} color={color as any} size={size} style={fn.sxStyle(node)} />;
     },
-    input_text: ({node, model, scope, fn}) => {
+    input_secret: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
-        const placeholder = stringProp(node, "placeholder", "");
-        const value = modelString(model, node.bindPath, scope);
-        let input = <Input
+        const bound = node.bindPath ? modelString(model, node.bindPath, scope) : "";
+        const value = bound !== "" ? bound : stringProp(node, "value", "");
+        const [revealed, setRevealed] = React.useState(false);
+        const input = <Input
             value={value}
-            placeholder={placeholder}
-            mt={8}
+            readOnly
+            type={revealed ? "text" : "password"}
+            mt={label === "" ? undefined : 8}
+            onFocus={() => setRevealed(true)}
+            onBlur={() => setRevealed(false)}
             onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
         />;
-        return <>
-            {label === "" ? input : <FieldLabel>{label}{input}</FieldLabel>}
-        </>;
+        return withFieldLabel(label, input);
+    },
+    input_text: ({node, model, scope, fn}) => {
+        const label = stringProp(node, "label", "");
+        const ariaLabel = optionalStringProp(node, "ariaLabel");
+        const placeholder = stringProp(node, "placeholder", "");
+        const value = modelString(model, node.bindPath, scope);
+        const input = <Input
+            value={value}
+            placeholder={placeholder}
+            aria-label={ariaLabel}
+            autoFocus={boolProp(node, "autoFocus", false)}
+            mt={label === "" ? undefined : 8}
+            onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
+        />;
+        return withFieldLabel(label, input);
     },
     input_number: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
+        const ariaLabel = optionalStringProp(node, "ariaLabel");
         const value = modelNumber(model, node.bindPath, scope);
         const min = numberProp(node, "min", 0);
         const max = numberProp(node, "max", 0);
-        let input = <Input
+        const input = <Input
             type="number"
             value={value}
+            aria-label={ariaLabel}
+            autoFocus={boolProp(node, "autoFocus", false)}
             min={min}
-            mt={8}
+            mt={label === "" ? undefined : 8}
             max={max}
             onChange={ev => {
                 const parsed = parseInt(ev.currentTarget.value, 10);
                 fn.sendBoundInput(node, {kind: ValueKind.S64, s64: isNaN(parsed) ? 0 : parsed}, model, scope);
             }}
         />;
-        return <>
-            {label === "" ? input : <FieldLabel>{label}{input}</FieldLabel>}
-        </>;
+        return withFieldLabel(label, input);
     },
     input_slider: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
@@ -934,36 +1264,105 @@ const baseComponents: UcxComponentRegistry = {
     checkbox: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
         const checked = modelBool(model, node.bindPath, scope);
-        return <Flex mt="8px" mb="12px" alignItems="center">
-            <Label>
+        return <Flex mt="8px" mb="12px" alignItems="center" style={fn.sxStyle(node)}>
+            <Label style={{display: "flex", alignItems: "center"}}>
                 <Checkbox
                     checked={checked}
                     onClick={() => fn.sendBoundInput(node, {kind: ValueKind.Bool, bool: !checked}, model, scope)}
                     onChange={stopPropagation}
                 />
-                {label}
+                <span style={{flexGrow: 1}}>
+                    <UcxInlineMarkdown text={label} />
+                </span>
             </Label>
         </Flex>;
     },
     button: ({node, model, scope, fn}) => {
-        const label = stringProp(node, "label", "Button");
+        return <UcxButtonField node={node} model={model} scope={scope} fn={fn} />;
+    },
+    copy_button: ({node, model, scope, fn}) => {
+        let text = stringProp(node, "text", "");
+        if (node.bindPath) {
+            const bound = modelString(model, node.bindPath, scope);
+            if (bound !== "") text = bound;
+        }
+        if (!text) return null;
+
+        return <span style={fn.sxStyle(node)}>
+            <CopyButton
+                tooltip={stringProp(node, "tooltip", "Copy to clipboard")}
+                onClick={() => copyToClipboard(text)}
+            />
+        </span>;
+    },
+    settings_action: ({node, fn, renderChildren}) => {
+        const title = stringProp(node, "title", "");
+        const description = stringProp(node, "description", "");
+        if (!title) return null;
+
+        return <div className={UcxSettingsActionClass} style={fn.sxStyle(node)}>
+            <div className="settings-action-copy">
+                <div className="settings-action-title">{title}</div>
+                {description ? <div className="settings-action-description">{description}</div> : null}
+            </div>
+            <div className="settings-action-control">{renderChildren()}</div>
+        </div>;
+    },
+    external_link_button: ({node, fn}) => {
+        const label = stringProp(node, "label", "");
+        const href = stringProp(node, "href", "");
         const color = stringProp(node, "color", "primaryMain");
         const iconLeft = stringProp(node, "iconLeft", "");
-        const iconRight = stringProp(node, "iconRight", "");
-        const submit = boolProp(node, "submit", false);
-        const disabled = boolProp(node, "disabled", false);
-        const eventValuePath = stringProp(node, "eventValuePath", "");
-        const eventValue = eventValuePath ? modelValue(model, eventValuePath, scope) : undefined;
-        return <Button
-            color={color as any}
-            type={submit ? "submit" : "button"}
-            disabled={disabled}
-            onClick={submit ? undefined : (() => fn.sendUiEvent(node.id, "click", eventValue))}
+        if (!label || !href) return null;
+
+        const sx = fn.sxStyle(node);
+
+        return <div style={{...sx, display: "flex"}}>
+            <a
+                className={UcxExternalButtonClass}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={event => {
+                    event.preventDefault();
+                    openUcxUrl(href);
+                }}
+                style={{
+                    "--bgColor": `var(--${color})`,
+                    "--hoverColor": `var(--${selectHoverColor(color as ThemeColor)})`,
+                } as React.CSSProperties}
+            >
+                {iconLeft ? <Icon name={iconLeft as any} size={15} mr="6px" /> : null}
+                {label}
+            </a>
+        </div>;
+    },
+    link_button: ({node, model, scope, fn}) => {
+        const label = node.bindPath
+            ? modelString(model, node.bindPath, scope)
+            : stringProp(node, "label", stringProp(node, "text", ""));
+        if (!label) return null;
+
+        return <BaseLink
+            color="linkColor"
+            hoverColor="linkColor"
+            onClick={ev => {
+                ev.preventDefault();
+                fn.sendUiEvent(node.id, "click", undefined);
+            }}
         >
-            {iconLeft ? <Icon name={iconLeft as any} /> : null}
-            {label}
-            {iconRight ? <Icon name={iconRight as any} /> : null}
-        </Button>;
+            <span style={{fontWeight: 600, ...fn.sxStyle(node)}}>
+                {label}
+            </span>
+        </BaseLink>;
+    },
+    provider_title: ({node, fn}) => {
+        const providerId = stringProp(node, "providerId", "");
+        if (!providerId) return null;
+        const short = boolProp(node, "short", false);
+        return <span style={fn.sxStyle(node)}>
+            {short ? getShortProviderTitle(providerId) : getProviderTitle(providerId)}
+        </span>;
     },
     list: ({node, model, scope, fn, renderChildren}) => {
         const items = modelList(model, node.bindPath, scope);
@@ -994,15 +1393,35 @@ const baseComponents: UcxComponentRegistry = {
             placeholder={placeholder}
             onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
         />;
-        return <>
-            {label === "" ? textArea : <FieldLabel>{label}{textArea}</FieldLabel>}
-        </>;
+        return withFieldLabel(label, textArea);
     },
     select: ({node, model, scope, fn}) => {
         return <UcxSelectField node={node} model={model} scope={scope} fn={fn} />;
     },
     machine_type_selector: ({node, model, scope, fn}) => {
         return <MachineTypeSelectorNode node={node} model={model} scope={scope} fn={fn} />;
+    },
+    service_provider_selector: ({node, model, scope, fn}) => {
+        return <UcxServiceProviderSelector node={node} model={model} scope={scope} fn={fn} />;
+    },
+    cost_estimate: ({node, model, scope, fn}) => {
+        return <UcxCostEstimate node={node} model={model} scope={scope} fn={fn} />;
+    },
+    enum_selector: ({node, model, scope, fn}) => {
+        const ariaLabel = optionalStringProp(node, "ariaLabel");
+        const options = simpleOptionsProp(node, "options");
+        const selectedKey = modelString(model, node.bindPath, scope);
+        const known = options.some(option => option.key === selectedKey);
+        const value = known ? selectedKey : options[0]?.key ?? "";
+        return <div style={fn.sxStyle(node)}>
+            <Select
+                value={value}
+                aria-label={ariaLabel}
+                onChange={ev => fn.sendBoundInput(node, {kind: ValueKind.String, string: ev.currentTarget.value}, model, scope)}
+            >
+                {options.map(option => <option key={option.key} value={option.key}>{option.value}</option>)}
+            </Select>
+        </div>;
     },
     radio_group: ({node, model, scope, fn}) => {
         const label = stringProp(node, "label", "");
@@ -1056,6 +1475,78 @@ const baseComponents: UcxComponentRegistry = {
             </Table>
         </div>;
     },
+    resource_table: ({node, fn}) => {
+        return <ResourceTableNode node={node} fn={fn} />;
+    },
+    table_filter: ({node, fn}) => {
+        return <UcxTableFilter
+            stateKey={stringProp(node, "stateKey", node.bindPath)}
+            store={fn.tableStore}
+            placeholder={stringProp(node, "placeholder", "Filter...")}
+        />;
+    },
+    table_count: ({node, fn}) => {
+        return <UcxTableCount
+            stateKey={stringProp(node, "stateKey", node.bindPath)}
+            store={fn.tableStore}
+            title={stringProp(node, "title", "")}
+        />;
+    },
+    browser_layout: ({node, model, scope, fn, components, renderChildren}) => {
+        const sidebarSlot = node.children.find(child => boolProp(child, "sidebarSlot", false));
+        const bottomSlot = node.children.find(child => boolProp(child, "bottomSlot", false));
+        const mainNodes = node.children.filter(child => !boolProp(child, "sidebarSlot", false) && !boolProp(child, "bottomSlot", false));
+        const escapePath = optionalStringProp(node, "escapePath");
+
+        return <UcxBrowserLayout
+            sx={fn.sxStyle(node)}
+            onEscape={escapePath === undefined ? undefined : () => fn.setSpaRoute(escapePath)}
+            sidebar={sidebarSlot && sidebarSlot.children.length > 0
+                ? sidebarSlot.children.map(child => <NodeRenderer key={child.id} node={child} model={model} scope={scope} fn={fn} components={components} />)
+                : undefined}
+            bottom={bottomSlot
+                ? (bottomSlot.children.length > 0
+                    ? bottomSlot.children.map(child => <NodeRenderer key={child.id} node={child} model={model} scope={scope} fn={fn} components={components} />)
+                    : <NodeRenderer node={bottomSlot} model={model} scope={scope} fn={fn} components={components} />)
+                : undefined}
+        >
+            {mainNodes.map(child => <NodeRenderer key={child.id} node={child} model={model} scope={scope} fn={fn} components={components} />)}
+        </UcxBrowserLayout>;
+    },
+    nav_tree: ({node, model, scope, fn}) => {
+        const items = ucxNavItemsProp(node);
+        const selectedId = node.bindPath ? modelString(model, node.bindPath, scope) : optionalStringProp(node, "selectedId");
+
+        return <UcxNavTree
+            nodes={items}
+            selectedId={selectedId === "" ? undefined : selectedId}
+            initialExpandedIds={node.props.initialExpandedIds === undefined ? undefined : stringListProp(node, "initialExpandedIds")}
+            activateOnSingleClick={boolProp(node, "activateOnSingleClick", false)}
+            onActivate={id => {
+                fn.sendUiEvent(node.id, "activate", {kind: ValueKind.String, string: id});
+            }}
+        />;
+    },
+    dialog: ({node, fn, renderChildren}) => {
+        const open = boolProp(node, "open", false);
+        if (!open) return null;
+
+        const title = stringProp(node, "title", "");
+        return <ReactModal
+            isOpen={true}
+            ariaHideApp={false}
+            shouldCloseOnEsc
+            onRequestClose={() => fn.sendUiEvent(node.id, "close", undefined)}
+            style={defaultModalStyle}
+            className={CardClass}
+        >
+            <div onKeyDown={e => e.stopPropagation()}>
+                <Heading.h3>{title}</Heading.h3>
+                <Divider />
+                <div className={UcxDialogBodyClass}>{renderChildren()}</div>
+            </div>
+        </ReactModal>;
+    },
     tabs: ({node, model, scope, fn, components}) => {
         const tabChildren = node.children.filter(child => !boolProp(child, "rightControls", false));
         const rightControlChildren = node.children.filter(child => boolProp(child, "rightControls", false));
@@ -1097,7 +1588,7 @@ const baseComponents: UcxComponentRegistry = {
     accordion: ({node, model, scope, fn, renderChildren}) => {
         const title = node.bindPath ? modelString(model, node.bindPath, scope) : stringProp(node, "title", "Section");
         return <div style={fn.sxStyle(node)}>
-            <UcxAccordion title={title} open={boolProp(node, "open", false)}>
+            <UcxAccordion title={title} open={boolProp(node, "open", false)} noHeaderBorder={boolProp(node, "noHeaderBorder", false)}>
                 {renderChildren()}
             </UcxAccordion>
         </div>;
@@ -1107,20 +1598,374 @@ const baseComponents: UcxComponentRegistry = {
             style={fn.sxStyle(node)}
             onSubmit={ev => {
                 ev.preventDefault();
+                if (ev.currentTarget.querySelector('[data-ucx-hold-submit="true"]') &&
+                    !confirmedFormSubmissions.delete(ev.currentTarget)) {
+                    ev.currentTarget.querySelector<HTMLButtonElement>('[data-tag="confirm-button"]')?.focus();
+                    return;
+                }
                 fn.sendUiEvent(node.id, "submit", {kind: ValueKind.Null});
             }}
         >
             {renderChildren()}
         </form>;
     },
+    code_editor: ({node, model, scope, fn, renderChildren}) => {
+        const documentId = stringProp(node, "documentId", node.id);
+        const revision = stringProp(node, "revision", "");
+        return <UcxCodeEditor
+            key={JSON.stringify([documentId, revision])}
+            documentId={documentId}
+            value={modelString(model, node.bindPath, scope)}
+            language={stringProp(node, "lang", "plaintext")}
+            schemaId={optionalStringProp(node, "schemaId")}
+            schemaRegistry={fn.editorSchemaRegistry}
+            showSchemaReference={boolProp(node, "showSchemaReference", false)}
+            markdownFixer={optionalStringProp(node, "markdownFixer")}
+            yamlFieldLinks={ucxYamlFieldLinksProp(node)}
+            readOnly={boolProp(node, "readOnly", false)}
+            saving={boolProp(node, "saving", false)}
+            closeLabel={stringProp(node, "closeLabel", "Close")}
+            autoFocus={boolProp(node, "autoFocus", false)}
+            tabLabel={optionalStringProp(node, "tabLabel")}
+            showToolbar={!boolProp(node, "hideToolbar", false)}
+            toolbar={renderChildren()}
+            style={{height: "400px", ...fn.sxStyle(node), ...(boolProp(node, "stretch", false) ? {flex: "1 1 0", height: "100%", minHeight: 0} : {})}}
+            onChange={value => fn.sendBoundInput(node, {kind: ValueKind.String, string: value}, model, scope)}
+            onSave={boolProp(node, "showSave", false) ? value => {
+                const input: Value = {kind: ValueKind.String, string: value};
+                fn.sendBoundInput(node, input, model, scope);
+                fn.sendUiEvent(node.id, "save", input);
+                return false;
+            } : undefined}
+            onClose={boolProp(node, "showClose", false) ? () => fn.sendUiEvent(node.id, "close") : undefined}
+        />;
+    },
     code: ({node, model, scope, fn}) => {
         const code = node.bindPath ? modelString(model, node.bindPath, scope) : stringProp(node, "text", "");
         const maxHeight = stringProp(node, "maxHeight", "400px");
-        return <div style={fn.sxStyle(node)}>
-            <CodeSnippet maxHeight={maxHeight}>{code}</CodeSnippet>
+        const lang = optionalStringProp(node, "lang");
+        const stretch = boolProp(node, "stretch", false);
+        return <div style={{
+            ...fn.sxStyle(node),
+            ...(stretch ? {flex: "1 1 0", minHeight: 0, display: "flex", flexDirection: "column"} : {}),
+        }}>
+            {stretch ?
+                <UcxCodeStretched lang={lang}>{code}</UcxCodeStretched> :
+                <CodeSnippet maxHeight={maxHeight} lang={lang}>{code}</CodeSnippet>
+            }
         </div>;
     },
+    job_logs: ({node, model, scope, fn}) => {
+        const jobId = node.bindPath ? modelString(model, node.bindPath, scope) : stringProp(node, "jobId", "");
+        const height = numberProp(node, "height", 320);
+        return <JobLogsNode jobId={jobId} height={height} collapsible={boolProp(node, "collapsible", false)} style={fn.sxStyle(node)} />;
+    },
+    stack_permissions: ({node, fn}) => <StackPermissionsNode
+        stackId={stringProp(node, "stackId", "")} style={fn.sxStyle(node)}
+        accessDescription={stringProp(node, "accessDescription", "") || "Choose which project groups can use this stack. The creator and project administrators keep access."}
+        permissionLabel={stringProp(node, "permissionLabel", "") || "Use"}
+        permissionIcon={(stringProp(node, "permissionIcon", "") || "heroCheck") as IconName}
+        buttonIcon={(stringProp(node, "buttonIcon", "") || "share") as IconName}
+    />,
+    container_logs: ({node, model, scope, fn}) => {
+        const logs = node.bindPath ? modelString(model, node.bindPath, scope) : "";
+        return <ContainerLogsNode logs={logs} style={fn.sxStyle(node)} />;
+    },
 };
+
+type UcxJobLogsState = JobInitState;
+
+interface StackPermissionsProps {
+    stackId: string;
+    style: React.CSSProperties;
+    accessDescription: string;
+    permissionLabel: string;
+    permissionIcon: IconName;
+    buttonIcon: IconName;
+}
+
+function StackPermissionsNode({stackId, style, accessDescription, permissionLabel, permissionIcon, buttonIcon}: StackPermissionsProps): React.ReactNode {
+    const projectId = useProjectId();
+    const [stack, setStack] = useState<StackApi.Stack | null>(null);
+    const [busy, setBusy] = useState(false);
+
+    useEffect(() => {
+        setStack(null);
+        if (!stackId || !projectId) return;
+        let cancelled = false;
+        callAPI<StackApi.Stack>({
+            ...StackApi.retrieve({id: stackId}),
+            projectOverride: projectId,
+        }).then(result => {
+            if (!cancelled) setStack(result);
+        }).catch(doNothing);
+        return () => { cancelled = true; };
+    }, [stackId, projectId]);
+
+    if (!stackId) return null;
+
+    const disabledReason = !projectId ?
+        "Permissions can only be changed in a project workspace." :
+        stack && !stack.permissions.myself.includes("ADMIN") ?
+            "Only the stack creator and project administrators can change permissions." :
+            undefined;
+
+    return <span style={style}>
+        <TooltipV2 tooltip={disabledReason}>
+            <Button color="primaryMain" disabled={busy || disabledReason !== undefined} onClick={async () => {
+                if (!projectId) return;
+                setBusy(true);
+                try {
+                    const current = await callAPI<StackApi.Stack>({
+                        ...StackApi.retrieve({id: stackId}),
+                        projectOverride: projectId,
+                    });
+                    setStack(current);
+                    if (!current.permissions.myself.includes("ADMIN")) {
+                        sendFailureNotification("Only the stack creator and project administrators can change permissions.");
+                        return;
+                    }
+                    dialogStore.addDialog(
+                        <StackPermissionsEditor
+                            stack={current}
+                            projectId={projectId}
+                            accessDescription={accessDescription}
+                            permissionLabel={permissionLabel}
+                            permissionIcon={permissionIcon}
+                        />,
+                        doNothing,
+                        true,
+                    );
+                } catch {
+                    sendFailureNotification("Failed to load stack permissions.");
+                } finally {
+                    setBusy(false);
+                }
+            }}>
+                <Icon name={buttonIcon} size={15} mr="6px" />
+                Permissions
+            </Button>
+        </TooltipV2>
+    </span>;
+}
+
+function StackPermissionsEditor({stack, projectId, accessDescription, permissionLabel, permissionIcon}: {
+    stack: StackApi.Stack;
+    projectId: string;
+    accessDescription: string;
+    permissionLabel: string;
+    permissionIcon: IconName;
+}): React.ReactNode {
+    const currentProjectId = useProjectId();
+    const [acl, setAcl] = useState<ResourceAclEntry[]>(stack.permissions.others ?? []);
+    const [busy, setBusy] = useState(false);
+    const updateAcl = async (group: string, permission: Permission | null) => {
+        if (busy || currentProjectId !== projectId) return;
+        const matches = (entry: ResourceAclEntry) => entry.entity.type === "project_group" && entry.entity.projectId === projectId && entry.entity.group === group;
+        const existing = acl.find(matches);
+        const added: ResourceAclEntry[] = permission ? [{
+            entity: {type: "project_group", projectId, group},
+            permissions: ["READ", "EDIT"],
+        }] : [];
+        setBusy(true);
+        try {
+            await callAPI({...StackApi.updateAcl(bulkRequestOf({id: stack.id, added, deleted: existing ? [existing.entity] : []})), projectOverride: projectId});
+            setAcl(previous => [...previous.filter(entry => !matches(entry)), ...added]);
+        } catch {
+            sendFailureNotification("Failed to update stack permissions.");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return <Box mb="20px" onKeyDown={e => e.stopPropagation()}>
+        <Label>Choose access</Label>
+        <Box maxHeight="400px" overflowY="auto">
+            <p>{accessDescription}</p>
+            {currentProjectId !== projectId ? <Text>Return to the original project to change permissions.</Text> :
+                <fieldset disabled={busy} style={{border: 0, margin: 0, padding: 0, minWidth: 0}}>
+                    <PermissionsTable acl={acl} anyGroupHasPermission={acl.some(entry => entry.permissions.length > 0)}
+                        showMissingPermissionHelp={false} hideRead writeLabel={permissionLabel} writeIcon={permissionIcon}
+                        warning="Warning" title="Stack" updateAcl={updateAcl} />
+                </fieldset>}
+        </Box>
+    </Box>;
+}
+
+function ucxStageFallback(state: string | null): string {
+    switch (state) {
+        case "IN_QUEUE":
+            return "Waiting for resources...";
+        case "RUNNING":
+            return "Initializing...";
+        case "SUSPENDED":
+            return "Powered off";
+        case "SUCCESS":
+            return "Done";
+        case "FAILURE":
+        case "EXPIRED":
+            return "Failed";
+        default:
+            return "Waiting to start...";
+    }
+}
+
+function ucxStateColor(state: string | null): string {
+    switch (state) {
+        case "RUNNING":
+            return "var(--primaryMain)";
+        case "SUCCESS":
+            return "var(--successMain)";
+        case "SUSPENDED":
+            return "var(--warningMain)";
+        case "FAILURE":
+        case "EXPIRED":
+            return "var(--errorMain)";
+        default:
+            return "var(--textSecondary)";
+    }
+}
+
+function ucxIsInitDone(state: UcxJobLogsState): boolean {
+    return state.jobState === "SUCCESS" || (state.progress != null && state.progress >= 1);
+}
+
+const JobLogsNode: React.FunctionComponent<{
+    jobId: string;
+    height: number;
+    collapsible: boolean;
+    style?: React.CSSProperties;
+}> = ({jobId, height, collapsible, style}) => {
+    const [logsOpen, setLogsOpen] = useState(!collapsible);
+    const trackerRef = useRef<JobInitTracker | null>(null);
+    if (!trackerRef.current) trackerRef.current = new JobInitTracker();
+    const state: UcxJobLogsState = trackerRef.current.track(jobId);
+
+    const [, forceUpdate] = useState(0);
+    const bump = useCallback(() => forceUpdate(x => x + 1), []);
+
+    useEffect(() => {
+        if (!jobId) return;
+        const conn = WSFactory.open("/jobs", {
+            init: async socket => {
+                await socket.subscribe({
+                    call: "jobs.follow",
+                    payload: {id: jobId},
+                    handler: message => {
+                        if (message.type === "message" && message.payload) {
+                            if (applyJobFollowResponse(state, message.payload as JobsFollowResponse)) {
+                                bump();
+                            }
+                        }
+                    },
+                });
+            },
+        });
+        return () => conn.close();
+    }, [jobId, state, bump]);
+
+    return <div style={{display: "flex", flexDirection: "column", gap: 8, minHeight: 0, ...style}}>
+        <div style={{display: "flex", alignItems: "center", gap: 8}}>
+            <span className={UcxJobLogsDot} style={{background: ucxIsInitDone(state) ? "var(--successMain)" : ucxStateColor(state.jobState)}} />
+            <span style={{fontSize: "13px", color: "var(--textPrimary)"}}>
+                {state.stageText ?? (ucxIsInitDone(state) ? "Ready" : ucxStageFallback(state.jobState))}
+            </span>
+        </div>
+        {state.progress != null || collapsible ?
+            <div className={UcxJobLogsProgressTrack} role="progressbar" aria-label="Node maintenance progress"
+                aria-valuemin={0} aria-valuemax={100}
+                aria-valuenow={state.progress == null ? undefined : Math.round(Math.min(1, Math.max(0, state.progress)) * 100)}>
+                <div
+                    className={UcxJobLogsProgressFill}
+                    style={{
+                        width: `${Math.round(Math.min(1, Math.max(0, state.progress ?? 0)) * 100)}%`,
+                        background: ucxIsInitDone(state) ? "var(--successMain)" : undefined,
+                    }}
+                />
+            </div> :
+            null}
+        {collapsible ? <div>
+            <Button type="button" color="secondaryMain" aria-expanded={logsOpen} onClick={() => setLogsOpen(open => !open)}>
+                {logsOpen ? "Hide logs" : "Show logs"}
+            </Button>
+        </div> : null}
+        {logsOpen ? <InitTerminal state={state} height={height} /> : null}
+    </div>;
+};
+
+const ContainerLogsNode: React.FunctionComponent<{
+    logs: string;
+    style?: React.CSSProperties;
+}> = ({logs, style}) => {
+    const {termRef, terminal} = useXTerm({autofit: true, readOnly: true});
+    const writtenRef = useRef("");
+
+    useLayoutEffect(() => {
+        if (writtenRef.current === "") {
+            terminal.reset();
+        } else if (!logs.startsWith(writtenRef.current)) {
+            terminal.reset();
+            writtenRef.current = "";
+        }
+
+        if (logs.length > writtenRef.current.length) {
+            appendToXterm(terminal, logs.slice(writtenRef.current.length));
+            writtenRef.current = logs;
+        }
+    }, [logs, terminal]);
+
+    return <div className={UcxContainerLogsWrapper} style={style}>
+        <div ref={termRef} className="term" />
+    </div>;
+};
+
+const UcxContainerLogsWrapper = injectStyle("ucx-container-logs", k => `
+    ${k} {
+        flex: 1 1 auto;
+        min-height: 0;
+        background: ${xtermThemes.light.background};
+        border-radius: 8px;
+        padding: 12px 16px;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    html.dark ${k} {
+        background: ${xtermThemes.dark.background};
+    }
+
+    ${k} .term {
+        height: 100%;
+    }
+`);
+
+const UcxJobLogsDot = injectStyle("ucx-job-logs-dot", k => `
+    ${k} {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        display: inline-block;
+    }
+`);
+
+const UcxJobLogsProgressTrack = injectStyle("ucx-job-logs-progress-track", k => `
+    ${k} {
+        height: 4px;
+        border-radius: 2px;
+        background: var(--borderColor);
+        overflow: hidden;
+    }
+`);
+
+const UcxJobLogsProgressFill = injectStyle("ucx-job-logs-progress-fill", k => `
+    ${k} {
+        height: 100%;
+        border-radius: 2px;
+        background: var(--primaryMain);
+        transition: width 200ms ease;
+    }
+`);
 
 function mergeComponentRegistry(
     base: UcxComponentRegistry,
@@ -1174,6 +2019,31 @@ function modelValue(model: Record<string, Value>, path: string, scope?: Record<s
     return traverseObjectPath(model, path);
 }
 
+function traverseObjectPath(root: Record<string, Value>, path: string): Value | undefined {
+    const parts = path.split(".");
+    if (parts.length === 0) {
+        return undefined;
+    }
+
+    let current: Value | undefined = root[parts[0]];
+    for (let i = 1; i < parts.length; i++) {
+        current = traverseObjectPathStep(current, parts[i]);
+    }
+
+    return current;
+}
+
+function traverseObjectPathStep(current: Value | undefined, part: string): Value | undefined {
+    if (!current) return undefined;
+    if (current.kind === ValueKind.List) {
+        const index = Number(part);
+        if (!Number.isInteger(index) || index < 0 || index >= current.list.length) return undefined;
+        return current.list[index];
+    }
+    if (current.kind !== ValueKind.Object) return undefined;
+    return current.object[part];
+}
+
 function tabRouteKey(node: UiNode, idx: number): string {
     if (node.id !== "" && !node.id.startsWith("auto-")) return node.id;
     return stringProp(node, "name", `Tab ${idx + 1}`);
@@ -1181,7 +2051,7 @@ function tabRouteKey(node: UiNode, idx: number): string {
 
 function collectInputBindPaths(root: UiNode): Set<string> {
     const result = new Set<string>();
-    const rehydratable = new Set(["input_text", "input_number", "input_slider", "checkbox", "textarea", "select", "machine_type_selector", "toggle", "radio_group", "list", "inference_chat_composer", "inference_image_composer", "inference_toggle"]);
+    const rehydratable = new Set(["input_text", "input_number", "input_slider", "checkbox", "textarea", "code_editor", "select", "enum_selector", "service_provider_selector", "machine_type_selector", "toggle", "radio_group", "list", "inference_chat_composer", "inference_image_composer", "inference_toggle"]);
 
     const walk = (node: UiNode) => {
         if (node.bindPath && rehydratable.has(node.component) && !node.bindPath.startsWith("./")) {
@@ -1196,260 +2066,120 @@ function collectInputBindPaths(root: UiNode): Set<string> {
     return result;
 }
 
+type SxTransform = "px" | "num" | "color" | "font" | "str";
+
+const SX_STYLE_MAP: Record<string, {keys: (keyof React.CSSProperties)[]; transform: SxTransform}> = {
+    m: {keys: ["margin"], transform: "px"},
+    mx: {keys: ["marginLeft", "marginRight"], transform: "px"},
+    my: {keys: ["marginTop", "marginBottom"], transform: "px"},
+    mt: {keys: ["marginTop"], transform: "px"},
+    mr: {keys: ["marginRight"], transform: "px"},
+    mb: {keys: ["marginBottom"], transform: "px"},
+    ml: {keys: ["marginLeft"], transform: "px"},
+    p: {keys: ["padding"], transform: "px"},
+    px: {keys: ["paddingLeft", "paddingRight"], transform: "px"},
+    py: {keys: ["paddingTop", "paddingBottom"], transform: "px"},
+    pt: {keys: ["paddingTop"], transform: "px"},
+    pr: {keys: ["paddingRight"], transform: "px"},
+    pb: {keys: ["paddingBottom"], transform: "px"},
+    pl: {keys: ["paddingLeft"], transform: "px"},
+    gap: {keys: ["gap"], transform: "px"},
+    width: {keys: ["width"], transform: "px"},
+    minWidth: {keys: ["minWidth"], transform: "px"},
+    maxWidth: {keys: ["maxWidth"], transform: "px"},
+    height: {keys: ["height"], transform: "px"},
+    minHeight: {keys: ["minHeight"], transform: "px"},
+    maxHeight: {keys: ["maxHeight"], transform: "px"},
+    top: {keys: ["top"], transform: "px"},
+    right: {keys: ["right"], transform: "px"},
+    bottom: {keys: ["bottom"], transform: "px"},
+    left: {keys: ["left"], transform: "px"},
+    flexBasis: {keys: ["flexBasis"], transform: "px"},
+    borderRadius: {keys: ["borderRadius"], transform: "px"},
+    borderWidth: {keys: ["borderWidth"], transform: "px"},
+    borderTopWidth: {keys: ["borderTopWidth"], transform: "px"},
+    borderRightWidth: {keys: ["borderRightWidth"], transform: "px"},
+    borderBottomWidth: {keys: ["borderBottomWidth"], transform: "px"},
+    borderLeftWidth: {keys: ["borderLeftWidth"], transform: "px"},
+    outlineWidth: {keys: ["outlineWidth"], transform: "px"},
+    fontSize: {keys: ["fontSize"], transform: "px"},
+    letterSpacing: {keys: ["letterSpacing"], transform: "px"},
+    zIndex: {keys: ["zIndex"], transform: "num"},
+    flexGrow: {keys: ["flexGrow"], transform: "num"},
+    flexShrink: {keys: ["flexShrink"], transform: "num"},
+    opacity: {keys: ["opacity"], transform: "num"},
+    borderColor: {keys: ["borderColor"], transform: "color"},
+    borderTopColor: {keys: ["borderTopColor"], transform: "color"},
+    borderRightColor: {keys: ["borderRightColor"], transform: "color"},
+    borderBottomColor: {keys: ["borderBottomColor"], transform: "color"},
+    borderLeftColor: {keys: ["borderLeftColor"], transform: "color"},
+    outlineColor: {keys: ["outlineColor"], transform: "color"},
+    backgroundColor: {keys: ["backgroundColor"], transform: "color"},
+    color: {keys: ["color"], transform: "color"},
+    fontFamily: {keys: ["fontFamily"], transform: "font"},
+    boxSizing: {keys: ["boxSizing"], transform: "str"},
+    overflow: {keys: ["overflow"], transform: "str"},
+    overflowX: {keys: ["overflowX"], transform: "str"},
+    overflowY: {keys: ["overflowY"], transform: "str"},
+    position: {keys: ["position"], transform: "str"},
+    display: {keys: ["display"], transform: "str"},
+    gridTemplateColumns: {keys: ["gridTemplateColumns"], transform: "str"},
+    gridTemplateRows: {keys: ["gridTemplateRows"], transform: "str"},
+    gridColumn: {keys: ["gridColumn"], transform: "str"},
+    gridRow: {keys: ["gridRow"], transform: "str"},
+    flex: {keys: ["flex"], transform: "str"},
+    alignSelf: {keys: ["alignSelf"], transform: "str"},
+    alignItems: {keys: ["alignItems"], transform: "str"},
+    justifyContent: {keys: ["justifyContent"], transform: "str"},
+    flexWrap: {keys: ["flexWrap"], transform: "str"},
+    flexDirection: {keys: ["flexDirection"], transform: "str"},
+    whiteSpace: {keys: ["whiteSpace"], transform: "str"},
+    wordBreak: {keys: ["wordBreak"], transform: "str"},
+    textOverflow: {keys: ["textOverflow"], transform: "str"},
+    borderStyle: {keys: ["borderStyle"], transform: "str"},
+    boxShadow: {keys: ["boxShadow"], transform: "str"},
+    outline: {keys: ["outline"], transform: "str"},
+    background: {keys: ["background"], transform: "str"},
+    backgroundImage: {keys: ["backgroundImage"], transform: "str"},
+    backgroundSize: {keys: ["backgroundSize"], transform: "str"},
+    backgroundPosition: {keys: ["backgroundPosition"], transform: "str"},
+    fontWeight: {keys: ["fontWeight"], transform: "str"},
+    textTransform: {keys: ["textTransform"], transform: "str"},
+    lineHeight: {keys: ["lineHeight"], transform: "str"},
+    textAlign: {keys: ["textAlign"], transform: "str"},
+};
+
 function sxStyle(node: UiNode): React.CSSProperties {
     const sx = prop(node, "sx");
     if (!sx || sx.kind !== ValueKind.Object) {
         return {};
     }
 
-    const style: React.CSSProperties = {};
-
+    const style: Record<string, string | number> = {};
     for (const [key, value] of Object.entries(sx.object)) {
-        const primitive = valueToPrimitive(value);
-        if (primitive === undefined) {
-            continue;
-        }
-
-        switch (key) {
-            case "m":
-                style.margin = px(primitive);
-                break;
-            case "mx":
-                style.marginLeft = px(primitive);
-                style.marginRight = px(primitive);
-                break;
-            case "my":
-                style.marginTop = px(primitive);
-                style.marginBottom = px(primitive);
-                break;
-            case "mt":
-                style.marginTop = px(primitive);
-                break;
-            case "mr":
-                style.marginRight = px(primitive);
-                break;
-            case "mb":
-                style.marginBottom = px(primitive);
-                break;
-            case "ml":
-                style.marginLeft = px(primitive);
-                break;
-            case "p":
-                style.padding = px(primitive);
-                break;
-            case "px":
-                style.paddingLeft = px(primitive);
-                style.paddingRight = px(primitive);
-                break;
-            case "py":
-                style.paddingTop = px(primitive);
-                style.paddingBottom = px(primitive);
-                break;
-            case "pt":
-                style.paddingTop = px(primitive);
-                break;
-            case "pr":
-                style.paddingRight = px(primitive);
-                break;
-            case "pb":
-                style.paddingBottom = px(primitive);
-                break;
-            case "pl":
-                style.paddingLeft = px(primitive);
-                break;
-            case "gap":
-                style.gap = px(primitive);
-                break;
-            case "width":
-                style.width = px(primitive);
-                break;
-            case "height":
-                style.height = px(primitive);
-                break;
-            case "minWidth":
-                style.minWidth = px(primitive);
-                break;
-            case "maxWidth":
-                style.maxWidth = px(primitive);
-                break;
-            case "minHeight":
-                style.minHeight = px(primitive);
-                break;
-            case "maxHeight":
-                style.maxHeight = px(primitive);
-                break;
-            case "overflow":
-                style.overflow = String(primitive) as React.CSSProperties["overflow"];
-                break;
-            case "overflowX":
-                style.overflowX = String(primitive) as React.CSSProperties["overflowX"];
-                break;
-            case "overflowY":
-                style.overflowY = String(primitive) as React.CSSProperties["overflowY"];
-                break;
-            case "position":
-                style.position = String(primitive) as React.CSSProperties["position"];
-                break;
-            case "top":
-                style.top = px(primitive);
-                break;
-            case "right":
-                style.right = px(primitive);
-                break;
-            case "bottom":
-                style.bottom = px(primitive);
-                break;
-            case "left":
-                style.left = px(primitive);
-                break;
-            case "zIndex":
-                style.zIndex = Number(primitive);
-                break;
-            case "display":
-                style.display = String(primitive) as React.CSSProperties["display"];
-                break;
-            case "gridTemplateColumns":
-                style.gridTemplateColumns = String(primitive);
-                break;
-            case "gridTemplateRows":
-                style.gridTemplateRows = String(primitive);
-                break;
-            case "gridColumn":
-                style.gridColumn = String(primitive);
-                break;
-            case "gridRow":
-                style.gridRow = String(primitive);
-                break;
-            case "flex":
-                style.flex = String(primitive);
-                break;
-            case "flexGrow":
-                style.flexGrow = Number(primitive);
-                break;
-            case "flexShrink":
-                style.flexShrink = Number(primitive);
-                break;
-            case "flexBasis":
-                style.flexBasis = px(primitive);
-                break;
-            case "alignSelf":
-                style.alignSelf = String(primitive) as React.CSSProperties["alignSelf"];
-                break;
-            case "alignItems":
-                style.alignItems = String(primitive) as React.CSSProperties["alignItems"];
-                break;
-            case "justifyContent":
-                style.justifyContent = String(primitive) as React.CSSProperties["justifyContent"];
-                break;
-            case "flexWrap":
-                style.flexWrap = String(primitive) as React.CSSProperties["flexWrap"];
-                break;
-            case "flexDirection":
-                style.flexDirection = String(primitive) as React.CSSProperties["flexDirection"];
-                break;
-            case "whiteSpace":
-                style.whiteSpace = String(primitive) as React.CSSProperties["whiteSpace"];
-                break;
-            case "wordBreak":
-                style.wordBreak = String(primitive) as React.CSSProperties["wordBreak"];
-                break;
-            case "textOverflow":
-                style.textOverflow = String(primitive) as React.CSSProperties["textOverflow"];
-                break;
-            case "borderRadius":
-                style.borderRadius = px(primitive);
-                break;
-            case "borderWidth":
-                style.borderWidth = px(primitive);
-                break;
-            case "borderStyle":
-                style.borderStyle = String(primitive) as React.CSSProperties["borderStyle"];
-                break;
-            case "borderColor":
-                style.borderColor = toCssColor(String(primitive));
-                break;
-            case "borderTopWidth":
-                style.borderTopWidth = px(primitive);
-                break;
-            case "borderRightWidth":
-                style.borderRightWidth = px(primitive);
-                break;
-            case "borderBottomWidth":
-                style.borderBottomWidth = px(primitive);
-                break;
-            case "borderLeftWidth":
-                style.borderLeftWidth = px(primitive);
-                break;
-            case "borderTopColor":
-                style.borderTopColor = toCssColor(String(primitive));
-                break;
-            case "borderRightColor":
-                style.borderRightColor = toCssColor(String(primitive));
-                break;
-            case "borderBottomColor":
-                style.borderBottomColor = toCssColor(String(primitive));
-                break;
-            case "borderLeftColor":
-                style.borderLeftColor = toCssColor(String(primitive));
-                break;
-            case "opacity":
-                style.opacity = Number(primitive);
-                break;
-            case "boxShadow":
-                style.boxShadow = String(primitive);
-                break;
-            case "outline":
-                style.outline = String(primitive);
-                break;
-            case "outlineColor":
-                style.outlineColor = toCssColor(String(primitive));
-                break;
-            case "outlineWidth":
-                style.outlineWidth = px(primitive);
-                break;
-            case "background":
-                style.background = String(primitive);
-                break;
-            case "backgroundColor":
-                style.backgroundColor = toCssColor(String(primitive));
-                break;
-            case "backgroundImage":
-                style.backgroundImage = String(primitive);
-                break;
-            case "backgroundSize":
-                style.backgroundSize = String(primitive);
-                break;
-            case "backgroundPosition":
-                style.backgroundPosition = String(primitive);
-                break;
-            case "color":
-                style.color = toCssColor(String(primitive));
-                break;
-            case "fontSize":
-                style.fontSize = px(primitive);
-                break;
-            case "fontWeight":
-                style.fontWeight = String(primitive) as React.CSSProperties["fontWeight"];
-                break;
-            case "fontFamily":
-                style.fontFamily = toAllowedFontFamily(String(primitive));
-                break;
-            case "letterSpacing":
-                style.letterSpacing = px(primitive);
-                break;
-            case "textTransform":
-                style.textTransform = String(primitive) as React.CSSProperties["textTransform"];
-                break;
-            case "lineHeight":
-                style.lineHeight = String(primitive) as React.CSSProperties["lineHeight"];
-                break;
-            case "textAlign":
-                style.textAlign = String(primitive) as React.CSSProperties["textAlign"];
-                break;
+        const rule = SX_STYLE_MAP[key];
+        if (!rule) continue;
+        for (const cssKey of rule.keys) {
+            style[cssKey] = sxTransform(rule.transform, value);
         }
     }
 
-    return style;
+    return style as React.CSSProperties;
+}
+
+function sxTransform(transform: SxTransform, value: Value): string | number {
+    switch (transform) {
+        case "num":
+            return Number(valueToPrimitive(value));
+        case "color":
+            return toCssColor(asString(value, ""));
+        case "font":
+            return toAllowedFontFamily(asString(value, ""));
+        case "str":
+            return String(valueToPrimitive(value) ?? "");
+        default:
+            return px(valueToPrimitive(value) ?? 0);
+    }
 }
 
 function valueToPrimitive(value: Value): string | number | boolean | undefined {
@@ -1490,23 +2220,6 @@ function toAllowedFontFamily(value: string): string {
         return `var(--${key})`;
     }
     return "var(--sansSerif)";
-}
-
-function traverseObjectPath(root: Record<string, Value>, path: string): Value | undefined {
-    const parts = path.split(".");
-    if (parts.length === 0) {
-        return undefined;
-    }
-
-    let current: Value | undefined = root[parts[0]];
-    for (let i = 1; i < parts.length; i++) {
-        if (!current || current.kind !== ValueKind.Object) {
-            return undefined;
-        }
-        current = current.object[parts[i]];
-    }
-
-    return current;
 }
 
 function modelString(model: Record<string, Value>, path: string, scope?: Record<string, Value>): string {
@@ -1551,6 +2264,11 @@ function stringProp(node: UiNode, key: string, fallback: string): string {
     return asString(prop(node, key), fallback);
 }
 
+function withFieldLabel(label: string, input: React.ReactNode): React.ReactNode {
+    if (label === "") return input;
+    return <FieldLabel>{label}{input}</FieldLabel>;
+}
+
 function numberProp(node: UiNode, key: string, fallback: number): number {
     const value = prop(node, key);
     if (!value) return fallback;
@@ -1589,9 +2307,9 @@ function simpleOptionsProp(node: UiNode, key: string): {key: string; value: stri
     const out: {key: string; value: string}[] = [];
     for (const item of raw.list) {
         if (item.kind !== ValueKind.Object) continue;
+        if (item.object["key"] === undefined) continue;
         const optionKey = asString(item.object["key"], "");
         const optionValue = asString(item.object["value"], optionKey);
-        if (optionKey === "") continue;
         out.push({key: optionKey, value: optionValue});
     }
     return out;
@@ -1648,8 +2366,8 @@ function formatSliderValue(value: number, step: number): string {
     const decimals = decimalPlaces(step);
     const factor = Math.pow(10, decimals);
     const rounded = Math.round(value * factor) / factor;
-    const text = decimals > 0 ? rounded.toFixed(decimals) : Math.round(rounded).toString();
-    return decimals > 0 ? text.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1") : text;
+    const text = decimals > 0 ? formatNumber(rounded, {precision: decimals, removeTrailingZeros: true}) : formatNumber(Math.round(rounded), {withThousandsSeparator: false});
+    return text;
 }
 
 function decimalPlaces(value: number): number {
@@ -1669,20 +2387,448 @@ interface MachineRef {
     id: string;
 }
 
-const MachineTypeSelectorNode: React.FunctionComponent<{
+const KeyboardNavigationHost: React.FunctionComponent<React.PropsWithChildren<{
+    node: UiNode;
+    fn: UcxFunctionRegistry;
+}>> = ({node, fn, children}) => {
+    const navigationSelector = optionalStringProp(node, "navigationSelector") ?? FIELD_NAVIGATION_SELECTOR;
+    const horizontalSelector = optionalStringProp(node, "horizontalSelector");
+    const submitNodeId = optionalStringProp(node, "submitNodeId");
+    const submitEvent = optionalStringProp(node, "submitEvent") ?? "click";
+    const disabled = boolProp(node, "submitDisabled", false);
+
+    const submit = useCallback(() => {
+        if (submitNodeId) fn.sendUiEvent(submitNodeId, submitEvent);
+    }, [fn, submitNodeId, submitEvent]);
+
+    useSubmitShortcut(submit, disabled || !submitNodeId);
+
+    return <KeyboardNavigation
+        navigationSelector={navigationSelector}
+        horizontalSelector={horizontalSelector}
+        style={fn.sxStyle(node)}
+    >
+        {children}
+    </KeyboardNavigation>;
+};
+
+const UcxButtonField: React.FunctionComponent<{
     node: UiNode;
     model: Record<string, Value>;
     scope?: Record<string, Value>;
     fn: UcxFunctionRegistry;
 }> = ({node, model, scope, fn}) => {
-    const label = stringProp(node, "label", "");
+    const label = stringProp(node, "label", "Button");
+    const busyPath = optionalStringProp(node, "busyPath");
+    const disabledPath = optionalStringProp(node, "disabledPath");
+    const busy = busyPath ? modelBool(model, busyPath, scope) : false;
+    const disabledByPath = disabledPath ? modelBool(model, disabledPath, scope) : false;
+    const color = stringProp(node, "color", "primaryMain");
+    const iconLeft = stringProp(node, "iconLeft", "");
+    const iconRight = stringProp(node, "iconRight", "");
+    const submit = boolProp(node, "submit", false);
+    const holdToConfirm = boolProp(node, "holdToConfirm", false);
+    const iconOnly = boolProp(node, "iconOnly", false);
+    const disabled = boolProp(node, "disabled", false) || busy || disabledByPath;
+    const showShortcut = boolProp(node, "showShortcut", false);
+    const showEscapeHint = boolProp(node, "showEscapeHint", false);
+    const shortcutKey = optionalStringProp(node, "shortcutKey");
+    const eventValuePath = stringProp(node, "eventValuePath", "");
+    const eventValue = eventValuePath ? modelValue(model, eventValuePath, scope) : undefined;
 
+    const sx = fn.sxStyle(node);
+
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const fireFromShortcut = useCallback(() => {
+        if (disabled) return;
+        if (holdToConfirm) {
+            containerRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+            return;
+        }
+        fn.sendUiEvent(node.id, submit ? "submit" : "click", eventValue);
+    }, [disabled, eventValue, fn, holdToConfirm, node.id, submit]);
+
+    useEffect(() => {
+        if (!shortcutKey) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.ctrlKey || event.metaKey || event.altKey) return;
+            if (event.key.length !== 1 || event.key.toLowerCase() !== shortcutKey.toLowerCase()) return;
+            const container = containerRef.current;
+            if (!container) return;
+            const dialog = container.closest(".ReactModal__Content");
+            if (!dialog) return;
+            const target = event.target instanceof Node ? event.target : null;
+            if (!target || !dialog.contains(target)) return;
+            if (isEditableTarget(event.target)) return;
+
+            event.preventDefault();
+            fireFromShortcut();
+        };
+
+        document.addEventListener("keydown", onKeyDown, true);
+        return () => document.removeEventListener("keydown", onKeyDown, true);
+    }, [fireFromShortcut, shortcutKey]);
+
+    if (holdToConfirm) {
+        const fire = async () => {
+            if (submit) {
+                const form = containerRef.current?.closest("form");
+                if (form) {
+                    confirmedFormSubmissions.add(form);
+                    try {
+                        form.requestSubmit();
+                    } finally {
+                        confirmedFormSubmissions.delete(form);
+                    }
+                    return;
+                }
+            }
+            fn.sendUiEvent(node.id, submit ? "submit" : "click", eventValue);
+        };
+
+        return <div ref={containerRef} data-ucx-hold-submit={submit ? "true" : undefined} style={{...sx, display: "flex"}}>
+            <ConfirmationButton
+                type="button"
+                color={color as any}
+                disabled={disabled || busy}
+                width={sx.width !== undefined ? "100%" : undefined}
+                actionText={label}
+                onAction={fire}
+            />
+        </div>;
+    }
+
+    return <div ref={containerRef} style={{...sx, display: "flex"}}>
+        {iconOnly ? <>
+            {busy ? <UcxSpinner size={16} color="textPrimary" margin="0 4px 0 0" /> : null}
+            <IconButton
+                tooltip={label}
+                icon={(iconLeft || "edit") as any}
+                color={color as any}
+                disabled={disabled}
+                onClick={() => {
+                    if (submit) {
+                        const form = containerRef.current?.closest("form");
+                        if (form) {
+                            form.requestSubmit();
+                            return;
+                        }
+                    }
+                    fn.sendUiEvent(node.id, "click", eventValue);
+                }}
+            />
+        </> : <Button
+            color={color as any}
+            type={submit ? "submit" : "button"}
+            disabled={disabled}
+            ariaLabel={label}
+            width={sx.width !== undefined ? "100%" : undefined}
+            onClick={submit ? undefined : (() => fn.sendUiEvent(node.id, "click", eventValue))}
+        >
+            {busy ? <UcxSpinner size={16} color="white" margin="0 8px 0 0" /> : null}
+            {iconLeft ? <Icon name={iconLeft as any} size={15} mr="6px" /> : null}
+            {label}
+            {iconRight ? <Icon name={iconRight as any} size={15} ml="6px" /> : null}
+            {showEscapeHint ? <span style={{marginLeft: "8px"}} className={ShortcutClass}>esc</span> : null}
+            {shortcutKey ? <span style={{marginLeft: "12px"}} className={ShortcutClass}>{shortcutKey}</span> : null}
+            {showShortcut && !busy ? <SubmitShortcut /> : null}
+        </Button>}
+    </div>;
+};
+
+const ResourceTableNode: React.FunctionComponent<{
+    node: UiNode;
+    fn: UcxFunctionRegistry;
+}> = ({node, fn}) => {
+    const tableId = stringProp(node, "tableId", "");
+    const store = fn.tableStore;
+    const stateKey = stringProp(node, "stateKey", tableId);
+    const actionDefs = ucxTableActionsProp(node);
+    const groupAction = ucxTableSingleActionProp(node, "groupAction");
+    const trailingAction = ucxTableSingleActionProp(node, "trailingAction");
+
+    return <UcxStreamedTable
+        tableId={tableId}
+        store={store}
+        stateKey={stateKey}
+        viewId={optionalStringProp(node, "viewId")}
+        emptyMessage={stringProp(node, "emptyMessage", "No resources found.")}
+        showGroupHeaders={boolProp(node, "showGroupHeaders", true)}
+        sorted={boolProp(node, "sorted", true)}
+        actions={actionDefs}
+        groupAction={groupAction}
+        trailingAction={trailingAction}
+        onRowActivated={event => {
+            fn.sendUiEvent(node.id, "click", ucxValueObject({
+                tableId: ucxStr(event.tableId),
+                stateKey: ucxStr(stateKey),
+                rowKey: ucxStr(event.rowKey),
+                group: ucxStr(event.row.group),
+                cells: {
+                    kind: ValueKind.List,
+                    list: event.row.cells.map(cell => ucxStr(cell)),
+                },
+            }));
+        }}
+        onRowAction={event => {
+            fn.sendUiEvent(node.id, "action", ucxValueObject({
+                actionId: ucxStr(event.actionId),
+                tableId: ucxStr(event.tableId),
+                stateKey: ucxStr(stateKey),
+                rowKey: ucxStr(event.rowKey),
+            }));
+        }}
+        onGroupAction={event => {
+            fn.sendUiEvent(node.id, "action", ucxValueObject({
+                actionId: ucxStr(event.actionId),
+                tableId: ucxStr(tableId),
+                stateKey: ucxStr(stateKey),
+                group: ucxStr(event.group),
+            }));
+        }}
+        onTrailingAction={event => {
+            fn.sendUiEvent(node.id, "action", ucxValueObject({
+                actionId: ucxStr(event.actionId),
+                tableId: ucxStr(tableId),
+                stateKey: ucxStr(stateKey),
+            }));
+        }}
+    />;
+};
+
+function ucxStr(value: string): Value {
+    return {kind: ValueKind.String, string: value};
+}
+
+function ucxValueObject(object: Record<string, Value>): Value {
+    return {kind: ValueKind.Object, object};
+}
+
+function ucxYamlFieldPath(value: Value | undefined): YamlFieldPath | undefined {
+    if (value?.kind !== ValueKind.List) return undefined;
+    const path: YamlFieldPath = [];
+    for (const part of value.list) {
+        if (part.kind === ValueKind.String) path.push(part.string);
+        else if (part.kind === ValueKind.S64 && part.s64 >= 0) path.push(part.s64);
+        else return undefined;
+    }
+    return path;
+}
+
+function ucxYamlFieldLinksProp(node: UiNode): YamlFieldLink[] {
+    const raw = prop(node, "yamlFieldLinks");
+    if (raw?.kind !== ValueKind.List) return [];
+    return raw.list.flatMap(item => {
+        if (item.kind !== ValueKind.Object) return [];
+        const source = ucxYamlFieldPath(item.object["source"]);
+        const rawTargets = item.object["targets"];
+        if (!source || rawTargets?.kind !== ValueKind.List) return [];
+        const targets = rawTargets.list.flatMap(item => {
+            const path = ucxYamlFieldPath(item);
+            return path ? [path] : [];
+        });
+        return [{source, targets}];
+    });
+}
+
+function ucxTableActionsProp(node: UiNode): UcxTableActionDef[] {
+    const raw = prop(node, "actions");
+    if (!raw || raw.kind !== ValueKind.List) return [];
+    return raw.list.flatMap(item => {
+        if (item.kind !== ValueKind.Object) return [];
+        const id = asString(item.object["id"], "");
+        if (id === "") return [];
+        return [{
+            id,
+            label: asString(item.object["label"], id),
+            icon: asString(item.object["icon"], ""),
+            kind: asString(item.object["kind"], ""),
+            shortcut: asString(item.object["shortcut"], ""),
+            destructive: item.object["destructive"]?.kind === ValueKind.Bool && item.object["destructive"].bool === true,
+            skipConfirmation: item.object["skipConfirmation"]?.kind === ValueKind.Bool && item.object["skipConfirmation"].bool === true,
+        }];
+    });
+}
+
+function ucxTableSingleActionProp(node: UiNode, key: string): UcxTableActionDef | undefined {
+    const raw = prop(node, key);
+    if (!raw || raw.kind !== ValueKind.Object) return undefined;
+    const id = asString(raw.object["id"], "");
+    if (id === "") return undefined;
+    return {
+        id,
+        label: asString(raw.object["label"], id),
+        icon: asString(raw.object["icon"], ""),
+        kind: "",
+        color: asString(raw.object["color"], ""),
+        shortcut: asString(raw.object["shortcut"], ""),
+    };
+}
+
+function ucxNavItemsProp(node: UiNode): UcxNavItem[] {
+    const raw = prop(node, "items");
+    if (!raw || raw.kind !== ValueKind.List) return [];
+    return raw.list.flatMap(item => item.kind === ValueKind.Object ? ucxNavItemFromValue(item.object) : []);
+}
+
+function ucxNavItemFromValue(object: Record<string, Value>): UcxNavItem[] {
+    const id = asString(object["id"], "");
+    if (id === "") return [];
+    const children = object["children"]?.kind === ValueKind.List
+        ? object["children"].list.flatMap(child => child.kind === ValueKind.Object ? ucxNavItemFromValue(child.object) : [])
+        : [];
+    return [{
+        id,
+        label: asString(object["label"], id),
+        aliases: object["aliases"]?.kind === ValueKind.List
+            ? object["aliases"].list.flatMap(a => a.kind === ValueKind.String ? [a.string] : [])
+            : [],
+        route: object["route"]?.kind === ValueKind.String ? object["route"].string : undefined,
+        children,
+        separatorBefore: object["separatorBefore"]?.kind === ValueKind.Bool && object["separatorBefore"].bool === true,
+    }];
+}
+
+
+const UcxCodeStretched: React.FunctionComponent<React.PropsWithChildren<{lang?: string}>> = ({children, lang}) => {
+    const lightTheme = useIsLightThemeStored();
+    const theme = lightTheme ? atomOneLight : atomOneDark;
+    const doCopy = useCallback(() => {
+        copyToClipboard(String(children ?? ""));
+    }, [children]);
+
+    return <div className={UcxCodeStretchedClass}>
+        <SyntaxHighlighter
+            language={lang ?? "text"}
+            style={theme}
+            customStyle={{
+                margin: 0,
+                padding: "16px 64px 16px 16px",
+                borderRadius: 8,
+                flex: 1,
+                minHeight: 0,
+                overflow: "auto",
+                fontFamily: "var(--monospace)",
+                border: "1px solid var(--borderColor)",
+                fontSize: "10pt",
+            }}
+        >
+            {String(children ?? "")}
+        </SyntaxHighlighter>
+        <CodeSnippetCopyOverlay onClick={doCopy} />
+    </div>;
+};
+
+const UcxMarkdownClass = injectStyle("ucx-markdown", k => `
+    ${k} ul,
+    ${k} ol {
+        margin: 0;
+        padding-left: 20px;
+    }
+
+    ${k} li {
+        margin: 2px 0;
+    }
+
+    ${k} li > p {
+        margin: 0;
+    }
+
+    ${k} p {
+        margin: 0;
+    }
+`);
+
+const UcxDialogBodyClass = injectStyle("ucx-dialog-body", k => `
+    ${k} {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-top: 16px;
+    }
+`);
+
+const UcxSettingsActionClass = injectStyle("ucx-settings-action", k => `
+    ${k} {
+        align-items: flex-start;
+        border-top: 1px solid var(--borderColor);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        justify-content: space-between;
+        padding: 20px 0;
+    }
+
+    ${k} .settings-action-copy {
+        flex: 1 1 360px;
+    }
+
+    ${k} .settings-action-title {
+        font-weight: 600;
+    }
+
+    ${k} .settings-action-description {
+        color: var(--textSecondary);
+        margin-top: 4px;
+        max-width: 60ch;
+    }
+
+    ${k} .settings-action-control {
+        flex: 0 0 auto;
+    }
+`);
+
+const UcxExternalButtonClass = injectStyle("ucx-external-button", k => `
+    ${k} {
+        align-items: center;
+        background-color: var(--bgColor, var(--primaryMain));
+        border-radius: 8px;
+        color: var(--primaryContrast, #fff);
+        cursor: pointer;
+        display: inline-flex;
+        font-family: inherit;
+        font-size: 14px;
+        height: 35px;
+        justify-content: center;
+        padding: 0 1.2em;
+        text-decoration: none;
+        user-select: none;
+        -webkit-user-select: none;
+    }
+
+    ${k}:hover {
+        background-color: var(--hoverColor, var(--primaryLight));
+    }
+
+    ${k} svg {
+        margin-right: 5px;
+    }
+
+    ${k} svg:last-child {
+        margin-right: 0;
+    }
+`);
+
+const UcxCodeStretchedClass = injectStyle("ucx-code-stretched", key => `
+    ${key} {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+        min-width: 0;
+    }
+`);
+
+
+function useMachineWalletsAndProducts(): {
+    wallets: UCloud.PageV2<WalletV2>;
+    products: UCloud.PageV2<ProductV2Compute>;
+    loading: boolean;
+} {
     const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<WalletV2>>({noop: true}, emptyPageV2);
     const [products, fetchProducts] = useCloudAPI<UCloud.PageV2<ProductV2Compute>>({noop: true}, emptyPageV2);
-    const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
-        {noop: true},
-        {productsByProvider: {}}
-    );
 
     useEffect(() => {
         fetchWallets(Accounting.browseWalletsV2({itemsPerPage: 250}));
@@ -1690,14 +2836,37 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
             filterUsable: true,
             filterProductType: "COMPUTE",
             itemsPerPage: 250,
-            includeBalance: true,
-            includeMaxBalance: true,
         }));
     }, [fetchProducts, fetchWallets]);
 
+    return {
+        wallets: wallets.data,
+        products: products.data,
+        loading: wallets.loading || products.loading,
+    };
+}
+
+const MachineTypeSelectorNode: React.FunctionComponent<{
+    node: UiNode;
+    model: Record<string, Value>;
+    scope?: Record<string, Value>;
+    fn: UcxFunctionRegistry;
+}> = ({node, model, scope, fn}) => {
+    const label = stringProp(node, "label", "");
+    const ariaLabel = optionalStringProp(node, "ariaLabel");
+    const providerBindPath = optionalStringProp(node, "providerBindPath");
+    const providerOnly = boolProp(node, "providerOnly", false);
+    const boundProvider = providerBindPath ? modelString(model, providerBindPath, scope) : "";
+
+    const {wallets, products, loading: walletsAndProductsLoading} = useMachineWalletsAndProducts();
+    const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
+        {noop: true},
+        {productsByProvider: {}}
+    );
+
     useEffect(() => {
         const providers = new Set<string>();
-        products.data.items.forEach(it => providers.add(it.category.provider));
+        products.items.forEach(it => providers.add(it.category.provider));
 
         if (providers.size === 0) {
             return;
@@ -1706,7 +2875,7 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
         fetchMachineSupport(UCloud.compute.jobs.retrieveProducts({
             providers: Array.from(providers).join(","),
         }));
-    }, [fetchMachineSupport, products.data.items]);
+    }, [fetchMachineSupport, products.items]);
 
     const supportItems = useMemo(() => {
         const items: ResolvedSupport[] = [];
@@ -1722,8 +2891,9 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
     const capabilities = useMemo(() => machineCapabilitiesFromNode(node), [node]);
 
     const machines = useMemo(
-        () => findMachinesByCapabilities(products.data.items, wallets.data.items, machineSupport.data, capabilities),
-        [capabilities, machineSupport.data, products.data.items, wallets.data.items]
+        () => findMachinesByCapabilities(products.items, wallets.items, machineSupport.data, capabilities)
+            .filter(product => !providerBindPath || product.category.provider === boundProvider),
+        [capabilities, machineSupport.data, products.items, wallets.items, providerBindPath, boundProvider]
     );
 
     const selectedRef = machineRefFromValue(modelValue(model, node.bindPath, scope));
@@ -1733,7 +2903,7 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
         [machines, selectedRefKey]
     );
 
-    const loading = wallets.loading || products.loading || machineSupport.loading;
+    const loading = walletsAndProductsLoading || machineSupport.loading;
 
     const onSelect = useCallback((product: ProductV2 | null) => {
         if (!product) return;
@@ -1753,8 +2923,15 @@ const MachineTypeSelectorNode: React.FunctionComponent<{
             loading={loading}
             onSelect={onSelect}
             support={supportItems}
+            fieldNavigation={true}
+            hideServiceProvider={providerOnly}
+            ariaLabel={ariaLabel}
         />
         {!loading && machines.length === 0 ? <Text color="textSecondary">No matching machine types found.</Text> : null}
+        {(() => {
+            const description = optionalStringProp(node, "description");
+            return description ? <Text color="textSecondary" fontSize={13}>{description}</Text> : null;
+        })()}
     </div>;
 };
 
@@ -1918,10 +3095,34 @@ function buildObjectFromFlatPath(model: Record<string, Value>, path: string): Va
         return undefined;
     }
 
-    return {
-        kind: ValueKind.Object,
-        object: root,
-    };
+    return convertListLikeObjects(root);
+}
+
+function convertListLikeObjects(rootObject: Record<string, Value>): Value {
+    return convertListLikeObjectsValue({kind: ValueKind.Object, object: rootObject});
+}
+
+function convertListLikeObjectsValue(value: Value): Value {
+    if (value.kind === ValueKind.Object) {
+        const converted: Record<string, Value> = {};
+        for (const [key, child] of Object.entries(value.object)) {
+            converted[key] = convertListLikeObjectsValue(child);
+        }
+
+        const keys = Object.keys(converted);
+        if (keys.length > 0 && keys.every(key => /^\d+$/.test(key))) {
+            const indexes = keys.map(Number).sort((a, b) => a - b);
+            const isDenseList = indexes.length === indexes[indexes.length - 1] + 1 &&
+                indexes.every((index, position) => index === position);
+            if (isDenseList) {
+                return {kind: ValueKind.List, list: indexes.map(index => converted[String(index)])};
+            }
+        }
+
+        return {kind: ValueKind.Object, object: converted};
+    }
+
+    return value;
 }
 
 function setNestedObjectValue(root: Record<string, Value>, pathParts: string[], value: Value): void {
@@ -1957,6 +3158,10 @@ const UcxSelectField = ({node, model, scope, fn}: {
     const selectedKey = modelString(model, node.bindPath, scope);
     const selected = options.find(option => option.key === selectedKey);
     const openFnRef = useRef<(left: number, top: number) => void>(() => undefined);
+    const triggerRef = useRef<HTMLDivElement | null>(null);
+    const shortcutKey = optionalStringProp(node, "shortcutKey");
+    const capturePaneFocus = useUcxRestorePaneFocus();
+    const restorePaneFocusRef = useRef<(() => void) | null>(null);
 
     const openSelect = useCallback((ev: React.MouseEvent) => {
         ev.stopPropagation();
@@ -1964,17 +3169,58 @@ const UcxSelectField = ({node, model, scope, fn}: {
         openFnRef.current?.(0, 0);
     }, []);
 
+    useEffect(() => {
+        if (!shortcutKey) return;
+        const onKeyDown = (event: KeyboardEvent) => {
+            const expected = "Key" + shortcutKey.toUpperCase();
+            if (event.code !== expected) return;
+            if (!isLikelyMac ? !event.ctrlKey : !event.metaKey) return;
+            if (!event.altKey) return;
+            const active = document.activeElement;
+            if (isEditableTarget(active)) return;
+            const browser = triggerRef.current?.closest("[data-ucx-browser]");
+            if (!browser) return;
+            const inRegion = browser.contains(active) || active === document.body;
+            if (!inRegion) return;
+
+            event.preventDefault();
+            restorePaneFocusRef.current = capturePaneFocus();
+            openFnRef.current?.(0, 0);
+        };
+
+        document.addEventListener("keydown", onKeyDown);
+        return () => document.removeEventListener("keydown", onKeyDown);
+    }, [shortcutKey, capturePaneFocus]);
+
     const select = <SimpleRichSelect
         items={options}
         selected={selected}
-        onSelect={item => fn.sendBoundInput(node, {kind: ValueKind.String, string: item.key}, model, scope)}
+        onSelect={item => {
+            fn.sendBoundInput(node, {kind: ValueKind.String, string: item.key}, model, scope);
+            restorePaneFocusRef.current?.();
+            restorePaneFocusRef.current = null;
+        }}
         placeholder={stringProp(node, "placeholder", "Select...")}
-        mt={8}
+        mt={label === "" ? undefined : 8}
         fullWidth={true}
         openFnRef={openFnRef}
+        triggerRef={triggerRef}
+        triggerAriaLabel={optionalStringProp(node, "ariaLabel")}
+        shortcutHint={shortcutKey ? createKeyboardShortcut(shortcutKey.toUpperCase(), ["ctrl", "alt"]) : undefined}
     />;
 
-    return <div style={fn.sxStyle(node)}>
+    return <div
+        style={fn.sxStyle(node)}
+        onPointerDownCapture={event => {
+            if (!event.currentTarget.contains(event.target as Node)) return;
+            restorePaneFocusRef.current = capturePaneFocus();
+        }}
+        onKeyDownCapture={event => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            if (!event.currentTarget.contains(event.target as Node)) return;
+            restorePaneFocusRef.current = capturePaneFocus();
+        }}
+    >
         {label === "" ? null : <FieldLabel onClick={openSelect}>{label}</FieldLabel>}
         {select}
     </div>;
@@ -1984,8 +3230,388 @@ const FieldLabel = ({children, onClick}: React.PropsWithChildren<{onClick?: Reac
     return <div onClick={onClick} style={{fontWeight: 600, marginTop: "6px", cursor: onClick ? "pointer" : undefined}}>{children}</div>;
 };
 
+const UcxSidebarLayoutClass = injectStyle("ucx-sidebar-layout", key => `
+    ${key} {
+        display: grid;
+        grid-template-areas: "main sidebar";
+        grid-template-columns: minmax(0, 1fr) 300px;
+        gap: 24px;
+        width: 100%;
+        align-items: start;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            grid-template-areas: "main" "sidebar";
+            grid-template-columns: minmax(0, 1fr);
+            padding-bottom: 96px;
+        }
+    }
+`);
+
+const UcxSidebarMainClass = injectStyle("ucx-sidebar-main", key => `
+    ${key} {
+        grid-area: main;
+        min-width: 0;
+    }
+`);
+
+const UcxSidebarAsideClass = injectStyle("ucx-sidebar-aside", key => `
+    ${key} {
+        grid-area: sidebar;
+        position: sticky;
+        top: 20px;
+        min-width: 0;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            position: static;
+        }
+    }
+`);
+
+const UcxSidebarSummaryClass = injectStyle("ucx-sidebar-summary", key => `
+    ${key} {
+        display: flex;
+        flex-direction: column;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} {
+            position: fixed;
+            left: calc(var(--sidebarBlockWidth, var(--sidebarWidth)) + 16px);
+            right: 16px;
+            bottom: 16px;
+            z-index: 1000;
+        }
+
+        ${key}:empty {
+            display: none;
+        }
+
+        ${key} > * {
+            width: 100%;
+        }
+
+        ${key} > * > * {
+            flex-direction: row !important;
+            align-items: center;
+        }
+
+        ${key} > * > * > *:first-child {
+            flex: 1;
+            min-width: 0;
+            margin: 0 !important;
+        }
+
+        ${key} > * > * > *:last-child {
+            flex-shrink: 0;
+            width: auto !important;
+            margin: 0 !important;
+        }
+
+        ${key} table {
+            display: none;
+        }
+    }
+`);
+
+const UcxServiceProviderSelector: React.FunctionComponent<{
+    node: UiNode;
+    model: Record<string, Value>;
+    scope?: Record<string, Value>;
+    fn: UcxFunctionRegistry;
+}> = ({node, model, scope, fn}) => {
+    const label = stringProp(node, "label", "");
+    const ariaLabel = optionalStringProp(node, "ariaLabel");
+    const realProvidersOnly = boolProp(node, "realProvidersOnly", false);
+    const preferredProvider = stringProp(node, "preferredProvider", "");
+
+    const {wallets, products, loading: walletsAndProductsLoading} = useMachineWalletsAndProducts();
+
+    const providers = useMemo(() => {
+        const coreProviders = new Set(["ucloud", "aau", "aau-test"]);
+        const result = new Set<string>();
+
+        for (const product of products.items) {
+            const hasWallet = wallets.items.some(wallet =>
+                productCategoryEquals(wallet.paysFor, product.category)
+            );
+            if (!hasWallet) continue;
+            if (realProvidersOnly && coreProviders.has(product.category.provider)) continue;
+            result.add(product.category.provider);
+        }
+
+        return Array.from(result).sort().map(key => ({key}));
+    }, [products.items, wallets.items, realProvidersOnly]);
+
+    const selectedKey = modelString(model, node.bindPath, scope);
+
+    useEffect(() => {
+        if (selectedKey !== "") return;
+        if (walletsAndProductsLoading) return;
+
+        if (preferredProvider !== "" && providers.some(provider => provider.key === preferredProvider)) {
+            fn.sendBoundInput(node, {kind: ValueKind.String, string: preferredProvider}, model, scope);
+            return;
+        }
+
+        if (!realProvidersOnly) return;
+        if (providers.length === 1) {
+            fn.sendBoundInput(node, {kind: ValueKind.String, string: providers[0].key}, model, scope);
+        }
+    }, [fn, model, node, preferredProvider, providers, realProvidersOnly, selectedKey, walletsAndProductsLoading]);
+
+    return <div style={fn.sxStyle(node)}>
+        {label === "" ? null : <FieldLabel>{label}</FieldLabel>}
+        <ServiceProviderSelector
+            serviceProvider={selectedKey}
+            serviceProviders={providers}
+            triggerAriaLabel={ariaLabel}
+            renderSelectedRow={props => {
+                if (!props.element?.key) {
+                    return <Flex height="38px" pl="8px" alignItems="center">
+                        <Text color="textSecondary">Select a service provider</Text>
+                    </Flex>;
+                }
+                return <ServiceProviderItem {...props} />;
+            }}
+            showLabel={false}
+            reserveLabelSpace={false}
+            focusable={true}
+            data-job-info-field="service-provider"
+            onSelect={el => fn.sendBoundInput(node, {kind: ValueKind.String, string: el.key}, model, scope)}
+        />
+    </div>;
+};
+
+const UcxCostEstimate: React.FunctionComponent<{
+    node: UiNode;
+    model: Record<string, Value>;
+    scope?: Record<string, Value>;
+    fn: UcxFunctionRegistry;
+}> = ({node, model, scope, fn}) => {
+    const entries = useMemo(() => costEstimateEntriesFromNode(node), [node]);
+
+    const monthMinutes = 30 * 24 * 60;
+
+    const [walletProducts, fetchWalletProducts] = useCloudAPI<UCloud.PageV2<ProductV2>>({noop: true}, emptyPageV2);
+
+    useEffect(() => {
+        fetchWalletProducts(UCloud.accounting.products.browse({
+            filterUsable: true,
+            itemsPerPage: 250,
+        }));
+    }, [fetchWalletProducts]);
+
+    const productsByRef = useMemo(() => {
+        const result: Record<string, ProductV2> = {};
+        for (const product of walletProducts.data.items) {
+            result[`${product.category.provider}/${product.category.name}/${product.name}`] = product;
+        }
+        return result;
+    }, [walletProducts.data.items]);
+
+    const rows = entries.map(entry => {
+        const machine = machineRefFromValue(modelValue(model, entry.machineBindPath, scope));
+        const count = Math.max(0, Math.round(modelNumber(model, entry.countBindPath, scope)));
+        const product = machine ? productsByRef[machineRefKey(machine)] ?? null : null;
+
+        let priceText = "-";
+        if (product && count > 0) {
+            const cost = calculateProductCost(product, count, monthMinutes);
+            priceText = formatCostNumber(product, cost);
+        }
+
+        const title = entry.titleBindPath ? modelString(model, entry.titleBindPath, scope) || entry.title : entry.title;
+
+        return {title, count, product, priceText};
+    });
+
+    const totalsByUnit = new Map<string, {value: number, product: ProductV2}>();
+    for (const row of rows) {
+        if (row.product && row.count > 0) {
+            const cost = calculateProductCost(row.product, row.count, monthMinutes);
+            const unit = explainUnit(row.product.category).name;
+            const existing = totalsByUnit.get(unit);
+            if (existing) {
+                existing.value += cost;
+            } else {
+                totalsByUnit.set(unit, {value: cost, product: row.product});
+            }
+        }
+    }
+
+    const units = Array.from(totalsByUnit.keys());
+    const formatTotal = (unit: string): string => {
+        const entry = totalsByUnit.get(unit)!;
+        if (entry.value === 0) return "Free";
+        return formatCostNumber(entry.product, entry.value);
+    };
+
+    return <div style={fn.sxStyle(node)}>
+        <div className={UcxCostEstimateClass}>
+            <table>
+                <thead>
+                    <tr>
+                        <th />
+                        <th className="cost-unit">{costUnitLabel(rows, units)}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.length === 0 ? <tr><td>-</td></tr> : rows.map((row, index) =>
+                        <tr key={index}>
+                            <th>{row.title}{row.product ? ` (${row.count})` : ""}</th>
+                            <td>{row.priceText}</td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
+            {units.map((unit, index) =>
+                <div key={unit} className="cost-total">
+                    <span>{totalLabel(units, index)}</span>
+                    <span>{formatTotal(unit)}</span>
+                </div>
+            )}
+        </div>
+    </div>;
+}
+
+function totalLabel(units: string[], index: number): string {
+    if (units.length === 1) return "Total";
+    return `Total (${units[index]})`;
+}
+
+function costUnitLabel(rows: {product: ProductV2 | null}[], units: string[]): string {
+    if (units.length === 1) return `${units[0]} / month`;
+    if (units.length > 1) return "per month";
+    for (const row of rows) {
+        if (row.product) {
+            return `${explainUnit(row.product.category).name} / month`;
+        }
+    }
+    return "per month";
+}
+
+function formatCostNumber(product: ProductV2 | null, value: number): string {
+    if (product === null || value === 0) return "-";
+    const unit = explainUnit(product.category);
+    const text = Accounting.balanceToStringFromUnit(
+        product.category.productType,
+        unit.name,
+        value,
+        {precision: 2, isPrice: true},
+    );
+    return removeUnitSuffix(text, unit.name);
+}
+
+function removeUnitSuffix(value: string, unit: string): string {
+    const suffix = ` ${unit}`;
+    return value.endsWith(suffix) ? value.slice(0, -suffix.length) : value;
+}
+
+function costEstimateEntriesFromNode(node: UiNode): {title: string; titleBindPath: string; machineBindPath: string; countBindPath: string}[] {
+    const raw = prop(node, "entries");
+    if (!raw || raw.kind !== ValueKind.List) return [];
+
+    const result: {title: string; titleBindPath: string; machineBindPath: string; countBindPath: string}[] = [];
+    for (const item of raw.list) {
+        if (item.kind !== ValueKind.Object) continue;
+        result.push({
+            title: asString(item.object["title"], ""),
+            titleBindPath: asString(item.object["titleBindPath"], ""),
+            machineBindPath: asString(item.object["machineBindPath"], ""),
+            countBindPath: asString(item.object["countBindPath"], ""),
+        });
+    }
+    return result;
+}
+
+const UcxCostEstimateClass = injectStyle("ucx-cost-estimate", key => `
+    ${key} table {
+        width: 100%;
+    }
+
+    ${key} th {
+        text-align: left;
+        padding-right: 10px;
+        font-weight: 400;
+    }
+
+    ${key} td {
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+    }
+
+    ${key} .cost-unit {
+        color: var(--textSecondary);
+        font-size: 12px;
+        font-weight: 400;
+        text-align: right;
+        padding-right: 0;
+    }
+
+    ${key} .cost-total {
+        display: flex;
+        justify-content: space-between;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+
+    ${key} .cost-total:first-of-type {
+        border-top: 1px solid var(--borderColor);
+        margin-top: 12px;
+        padding-top: 12px;
+    }
+
+    @media (max-width: 1000px) {
+        ${key} .cost-total:first-of-type {
+            border-top: none;
+            margin-top: 0;
+            padding-top: 0;
+        }
+    }
+`);
+
 function MarkdownLink(props: {href?: string; children: React.ReactNode}) {
-    return <ExternalLink href={props.href}>{props.children}</ExternalLink>;
+    return <ExternalLink
+        href={props.href}
+        onClick={event => {
+            event.preventDefault();
+            openUcxUrl(props.href ?? "");
+        }}
+    >{props.children}</ExternalLink>;
+}
+
+const UcxInlineMarkdownClass = injectStyle("ucx-inline-markdown", k => `
+    ${k} > p {
+        display: inline;
+        margin: 0;
+    }
+`);
+
+function UcxInlineMarkdown(props: {text: string}): React.ReactNode {
+    if (!props.text) return null;
+    return <span className={UcxInlineMarkdownClass}>
+        <ReactMarkdown
+            allowedElements={["p", "strong", "b", "i", "em", "code", "a"]}
+            components={{
+                a: p => <MarkdownLink href={p.href} children={p.children} />,
+            }}
+            children={props.text}
+        />
+    </span>;
+}
+
+function externalUrlOrigin(url: string): string {
+    try {
+        const parsed = new URL(url);
+        if (parsed.protocol !== "https:") return "";
+        return parsed.origin;
+    } catch {
+        return "";
+    }
 }
 
 function MarkdownHeading(props: {children: React.ReactNode}) {

@@ -1,11 +1,19 @@
 package shared
 
 import (
+	"context"
 	"fmt"
+	"time"
 
+	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/tools/cache"
+	"ucloud.dk/shared/pkg/log"
 )
 
 const k8sResourceIndex = "primary"
@@ -18,16 +26,63 @@ func NewResourceTracker[R runtime.Object](
 	namespace string,
 	informer func(factory informers.SharedInformerFactory) cache.SharedIndexInformer,
 	keyer func(resource R) string,
+	options ...informers.SharedInformerOption,
 ) *K8sResourceTracker[R] {
-	var factory informers.SharedInformerFactory
-	if namespace == "" {
-		factory = informers.NewSharedInformerFactoryWithOptions(K8sClient, 0)
-	} else {
-		factory = informers.NewSharedInformerFactoryWithOptions(K8sClient, 0, informers.WithNamespace(namespace))
+	opts := []informers.SharedInformerOption{}
+	if namespace != "" {
+		opts = append(opts, informers.WithNamespace(namespace))
+	}
+	opts = append(opts, options...)
+
+	factory := informers.NewSharedInformerFactoryWithOptions(K8sClient, 0, opts...)
+
+	return newResourceTrackerFromInformer(informer(factory), keyer)
+}
+
+func NewDynamicResourceTracker(
+	client dynamic.Interface,
+	gvr schema.GroupVersionResource,
+	namespace string,
+) *K8sResourceTracker[*unstructured.Unstructured] {
+	if namespace != "" {
+		_, err := client.Resource(gvr).Namespace(namespace).List(
+			context.Background(),
+			k8smeta.ListOptions{Limit: 1},
+		)
+		if err == nil {
+			factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, namespace, nil)
+			return newResourceTrackerFromInformer(
+				factory.ForResource(gvr).Informer(),
+				func(resource *unstructured.Unstructured) string {
+					return resource.GetName()
+				},
+			)
+		}
 	}
 
+	_, err := client.Resource(gvr).List(
+		context.Background(),
+		k8smeta.ListOptions{Limit: 1},
+	)
+	if err != nil {
+		log.Fatal("Could not watch %s: %s", gvr.String(), err)
+	}
+
+	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, "", nil)
+	return newResourceTrackerFromInformer(
+		factory.ForResource(gvr).Informer(),
+		func(resource *unstructured.Unstructured) string {
+			return resource.GetName()
+		},
+	)
+}
+
+func newResourceTrackerFromInformer[R runtime.Object](
+	informer cache.SharedIndexInformer,
+	keyer func(resource R) string,
+) *K8sResourceTracker[R] {
 	r := &K8sResourceTracker[R]{
-		informer: informer(factory),
+		informer: informer,
 	}
 
 	_ = r.informer.AddIndexers(cache.Indexers{
@@ -49,8 +104,19 @@ func (r *K8sResourceTracker[R]) start() {
 	stopCh := make(chan struct{})
 	go r.informer.Run(stopCh)
 
-	if ok := cache.WaitForCacheSync(stopCh, r.informer.HasSynced); !ok {
-		panic("resource tracker: cache sync failed")
+	synced := make(chan bool, 1)
+	go func() {
+		cache.WaitForCacheSync(stopCh, r.informer.HasSynced)
+		select {
+		case synced <- true:
+		default:
+		}
+	}()
+
+	select {
+	case <-synced:
+	case <-time.After(2 * time.Minute):
+		log.Fatal("Resource tracker: cache sync timed out")
 	}
 }
 

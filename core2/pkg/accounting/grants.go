@@ -140,6 +140,8 @@ var grantsProjectCache = util.NewCache[string, grantsProjectInfo](4 * time.Hour)
 var userInfoCache = util.NewCache[string, fndapi.OptionalUserInfo](10 * time.Minute)
 
 func GrantApplicationProcess(actor rpc.Actor, app accapi.GrantApplication) accapi.GrantApplication {
+	grantNormalizeApplication(&app)
+
 	// Find optional user information if any
 	userInfo, _ := userInfoCache.Get(app.CreatedBy, func() (fndapi.OptionalUserInfo, error) {
 		result, _ := fndapi.UsersRetrieveOptionalInfo.Invoke(fndapi.UsersRetrieveOptionalInfoRequest{Username: util.OptValue(app.CreatedBy)})
@@ -182,6 +184,49 @@ func GrantApplicationProcess(actor rpc.Actor, app accapi.GrantApplication) accap
 	grantAttachUnreadCommentStatus(&app, actor.Username)
 
 	return app
+}
+
+func grantNormalizeRevision(revision *accapi.GrantRevision) {
+	document := &revision.Document
+	form := &document.Form
+
+	document.AllocationRequests = util.NonNilSlice(document.AllocationRequests)
+
+	form.AnswerForms = util.NonNilSlice(form.AnswerForms)
+	for i := range form.AnswerForms {
+		form.AnswerForms[i].AnswerFields = util.NonNilSlice(form.AnswerForms[i].AnswerFields)
+	}
+
+	if document.ReferenceIds.Present {
+		document.ReferenceIds.Value = util.NonNilSlice(document.ReferenceIds.Value)
+	}
+}
+
+func grantNormalizeApplication(application *accapi.GrantApplication) {
+	grantNormalizeRevision(&application.CurrentRevision)
+	application.Status.StateBreakdown = util.NonNilSlice(application.Status.StateBreakdown)
+	application.Status.Comments = util.NonNilSlice(application.Status.Comments)
+	application.Status.Revisions = util.NonNilSlice(application.Status.Revisions)
+	application.Status.ApplicationHistory = util.NonNilSlice(application.Status.ApplicationHistory)
+
+	for i := range application.Status.Revisions {
+		grantNormalizeRevision(&application.Status.Revisions[i])
+	}
+	for i := range application.Status.ApplicationHistory {
+		grantNormalizeApplication(&application.Status.ApplicationHistory[i])
+	}
+}
+
+func grantNormalizeTemplates(templates *accapi.Templates) {
+	templates.Structured.PersonalProject = util.NonNilSlice(templates.Structured.PersonalProject)
+	templates.Structured.NewProject = util.NonNilSlice(templates.Structured.NewProject)
+	templates.Structured.ExistingProject = util.NonNilSlice(templates.Structured.ExistingProject)
+}
+
+func grantNormalizeSettings(settings *accapi.GrantRequestSettings) {
+	settings.AllowRequestsFrom = util.NonNilSlice(settings.AllowRequestsFrom)
+	settings.ExcludeRequestsFrom = util.NonNilSlice(settings.ExcludeRequestsFrom)
+	grantNormalizeTemplates(&settings.Templates)
 }
 
 type grantSettings struct {
@@ -304,7 +349,7 @@ func grantsReadEx(actor rpc.Actor, action grantAuthType, b *grantAppBucket, id a
 			}
 		}
 
-		for grantGiver, _ := range grantGivers {
+		for grantGiver := range grantGivers {
 			if actor.Membership[rpc.ProjectId(grantGiver)].Satisfies(rpc.ProjectRoleAdmin) {
 				roles = append(roles, grantActorRoleApprover)
 			}
@@ -432,6 +477,66 @@ func grantsCanApply(actor rpc.Actor, recipient accapi.Recipient, grantGiver stri
 	}
 
 	return allowed
+}
+
+// grantsWouldCreateCycle determines if awarding the given allocation requests to the recipient would create a
+// cycle in one of the wallet graphs of the accounting system. This happens when the recipient already provides
+// resources (directly or indirectly) to one of the grant givers, e.g. when a project applies to one of its own
+// sub-projects. The grant giver of an offending request is returned along with true.
+func grantsWouldCreateCycle(recipient accapi.Recipient, requests []accapi.AllocationRequest) (string, bool) {
+	var recipientRef string
+	switch recipient.Type {
+	case accapi.RecipientTypeExistingProject:
+		recipientRef = recipient.Id.GetOrDefault("")
+
+	case accapi.RecipientTypePersonalWorkspace:
+		recipientRef = recipient.Username.GetOrDefault("")
+
+	case accapi.RecipientTypeNewProject:
+		// New projects cannot provide resources to anyone yet and can never close a cycle.
+		return "", false
+	}
+
+	if recipientRef == "" {
+		return "", false
+	}
+
+	recipientOwner := internalOwnerByReference(recipientRef)
+
+	for _, req := range requests {
+		if req.BalanceRequested.GetOrDefault(0) <= 0 {
+			// Skip these requests entirely (no edge is created).
+			continue
+		}
+
+		cat, catErr := ProductCategoryRetrieve(rpc.ActorSystem, req.Category, req.Provider)
+		if catErr != nil {
+			continue
+		}
+
+		b := internalBucketOrInit(cat)
+
+		recipientWallet, ok := internalWalletByOwnerIfInitialized(b, recipientOwner.Id)
+		if !ok {
+			continue // no wallet implies no incoming or outgoing edges, a cycle is impossible
+		}
+
+		giverOwner := internalOwnerByReference(req.GrantGiver)
+		giverWallet, ok := internalWalletByOwnerIfInitialized(b, giverOwner.Id)
+		if !ok {
+			continue
+		}
+
+		if internalWouldCreateCycle(b, recipientWallet, giverWallet) {
+			title := req.GrantGiver
+			if !grantGlobals.Testing.Enabled {
+				title = grantsRetrieveProjectTitleByProjectId(req.GrantGiver)
+			}
+			return title, true
+		}
+	}
+
+	return "", false
 }
 
 func grantUserCriteriaValid(criteria accapi.UserCriteria) *util.HttpError {
@@ -677,7 +782,7 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		if len(grantGivers) != 1 {
 			err = util.HttpErr(http.StatusForbidden, "invalid allocation request")
 		} else {
-			for grantGiver, _ := range grantGivers {
+			for grantGiver := range grantGivers {
 				grantGiverInitiatedId = grantGiver
 				break
 			}
@@ -691,6 +796,16 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 	if err == nil && app.Application.Status.OverallState != accapi.GrantApplicationStateInProgress {
 		if !slices.Contains(roles, grantActorRoleApprover) {
 			err = util.HttpErr(http.StatusBadRequest, "application has been closed and cannot be changed further")
+		}
+	}
+
+	if err == nil {
+		if giver, wouldCycle := grantsWouldCreateCycle(recipient, revision.AllocationRequests); wouldCycle {
+			err = util.HttpErr(
+				http.StatusBadRequest,
+				"You cannot request resources from %s since it is receiving resources from you",
+				giver,
+			)
 		}
 	}
 
@@ -836,7 +951,7 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 		app.Application.Status.OverallState = accapi.GrantApplicationStateInProgress
 
 		breakdown := []accapi.GrantGiverApprovalState{}
-		for grantGiver, _ := range grantGivers {
+		for grantGiver := range grantGivers {
 			breakdown = append(breakdown, accapi.GrantGiverApprovalState{
 				ProjectId:     grantGiver,
 				State:         accapi.GrantApplicationStateInProgress,
@@ -866,15 +981,18 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 			idxB.ApplicationsByEntity[indexKey] = append(idxB.ApplicationsByEntity[indexKey], id)
 			idxB.Mu.Unlock()
 		}
+	}
 
-		{
-			// Receiver indexing
-			for grantGiver, _ := range grantGivers {
-				idxB := grantGetIdxBucket(grantGiver, true)
-				idxB.Mu.Lock()
+	{
+		// Receiver indexing. Also runs for existing applications, since a revision (e.g. a transfer) can
+		// introduce grant givers which have not previously seen the application.
+		for grantGiver := range grantGivers {
+			idxB := grantGetIdxBucket(grantGiver, true)
+			idxB.Mu.Lock()
+			if !slices.Contains(idxB.ApplicationsByEntity[grantGiver], id) {
 				idxB.ApplicationsByEntity[grantGiver] = append(idxB.ApplicationsByEntity[grantGiver], id)
-				idxB.Mu.Unlock()
 			}
+			idxB.Mu.Unlock()
 		}
 	}
 
@@ -931,6 +1049,86 @@ func GrantsSubmitRevisionEx(actor rpc.Actor, req accapi.GrantsSubmitRevisionRequ
 	return int64(id), nil
 }
 
+type GrantTransferAdditionInformation struct {
+	ReceiverProject       string
+	SenderProject         string
+	ReceiverProjectAdmins []string
+}
+
+func grantsTransferAnswerForms(doc accapi.GrantDocument, target string, source string) accapi.Form {
+	answersByTitle := map[string]string{}
+	answerForms := make([]accapi.AnswerForm, 0, len(doc.Form.AnswerForms)+1)
+
+	for _, answerForm := range doc.Form.AnswerForms {
+		isSourceForm := answerForm.AllocatorId == source
+		isLegacyForm := answerForm.AllocatorId == "System"
+		if !isSourceForm && !isLegacyForm {
+			answerForms = append(answerForms, answerForm)
+			continue
+		}
+
+		for _, answerField := range answerForm.AnswerFields {
+			answersByTitle[answerField.Field.Title] = answerField.Answer
+		}
+	}
+
+	fields := grantsTemplateFieldsForRecipient(target, doc.Recipient)
+	answerFields := make([]accapi.AnswerFieldForm, 0, len(fields))
+	for _, field := range fields {
+		answer := answersByTitle[field.Title]
+		answerFields = append(answerFields, accapi.AnswerFieldForm{
+			Answer: answer,
+			Field:  field,
+		})
+	}
+
+	var revisionNumber int
+	if sWrapper, ok := grantsRetrieveSettings(target); ok {
+		sWrapper.Mu.RLock()
+		revisionNumber = sWrapper.Settings.Templates.Structured.RevisionNumber
+		sWrapper.Mu.RUnlock()
+	}
+
+	answerForms = append(answerForms, accapi.AnswerForm{
+		AllocatorId:            target,
+		AnswerFields:           answerFields,
+		TemplateRevisionNumber: revisionNumber,
+	})
+
+	return accapi.Form{
+		Type:        accapi.FormTypeStructured,
+		AnswerForms: answerForms,
+	}
+}
+
+func grantsTemplateFieldsForRecipient(grantGiver string, recipient accapi.Recipient) []accapi.FormField {
+	if sWrapper, ok := grantsRetrieveSettings(grantGiver); ok {
+		sWrapper.Mu.RLock()
+		templates := sWrapper.Settings.Templates
+		sWrapper.Mu.RUnlock()
+
+		grantNormalizeTemplates(&templates)
+		switch recipient.Type {
+		case accapi.RecipientTypeExistingProject:
+			return templates.Structured.ExistingProject
+		case accapi.RecipientTypeNewProject:
+			return templates.Structured.NewProject
+		case accapi.RecipientTypePersonalWorkspace:
+			return templates.Structured.PersonalProject
+		}
+	}
+
+	defaultForm := accapi.FormField{
+		Name:        "Default Template",
+		Description: defaultTemplate,
+		MaxLength:   util.OptValue(4000),
+		Title:       "Default Template",
+		Rows:        util.OptValue(100),
+		Optional:    false,
+	}
+	return []accapi.FormField{defaultForm}
+}
+
 func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.HttpError {
 	now := time.Now()
 
@@ -943,7 +1141,10 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 		return util.HttpErr(http.StatusForbidden, "you cannot transfer this application")
 	}
 
-	appId, _ := strconv.ParseInt(req.ApplicationId, 10, 64)
+	appId, parseError := strconv.ParseInt(req.ApplicationId, 10, 64)
+	if parseError != nil {
+		return util.HttpErr(http.StatusBadRequest, "invalid application id")
+	}
 	b := grantGetAppBucket(accGrantId(appId))
 	app, _ := grantsReadEx(actor, grantAuthApprover, b, accGrantId(appId), nil)
 	if app == nil {
@@ -1008,6 +1209,7 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 		} else {
 			revisionRequest.Revision = app.Application.CurrentRevision.Document
 			revisionRequest.Revision.AllocationRequests = newRequests
+			revisionRequest.Revision.Form = grantsTransferAnswerForms(app.Application.CurrentRevision.Document, req.Target, string(source))
 		}
 	}
 
@@ -1015,10 +1217,49 @@ func GrantsTransfer(actor rpc.Actor, req accapi.GrantsTransferRequest) *util.Htt
 
 	if err == nil {
 		_, err = GrantsSubmitRevision(actor, revisionRequest)
+		if err != nil {
+			return err
+		}
 	}
 
-	// TODO call grantHandleEvent() for grant transfer here
+	targetAdmins := db.NewTx(func(tx *db.Transaction) []string {
+		rows := db.Select[struct {
+			Username string
+		}](
+			tx,
+			`
+				select username
+				from project.project_members
+				where project_id = :project_id
+			`,
+			db.Params{
+				"project_id": req.Target,
+			})
+		admins := make([]string, 0, len(rows))
+		for _, row := range rows {
+			admins = append(admins, row.Username)
+		}
+		return admins
+	})
 
+	if len(targetAdmins) == 0 {
+		return util.HttpErr(http.StatusInternalServerError, "Misconfigured target project")
+	}
+
+	appCopy := *app.Application
+
+	grantHandleEvent(grantEvent{
+		Type: grantEvApplicationTransferred,
+		// Always false since only grant-giver can invoke transfers
+		EventSourceIsApplicant: false,
+		Actor:                  actor,
+		Application:            appCopy,
+		AdditionalInfo: GrantTransferAdditionInformation{
+			ReceiverProject:       req.Target,
+			SenderProject:         string(source),
+			ReceiverProjectAdmins: targetAdmins,
+		},
+	})
 	return err
 }
 
@@ -1125,6 +1366,17 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 		err = util.HttpErr(http.StatusBadRequest, "application is no longer active")
 	}
 
+	if err == nil && req.NewState == accapi.GrantApplicationStateApproved {
+		doc := app.Application.CurrentRevision.Document
+		if giver, wouldCycle := grantsWouldCreateCycle(doc.Recipient, doc.AllocationRequests); wouldCycle {
+			err = util.HttpErr(
+				http.StatusBadRequest,
+				"This application can no longer be approved: Granting this would create a circular chain of allocations involving %s",
+				giver,
+			)
+		}
+	}
+
 	if err == nil {
 		// Operation is now expected to succeed in most cases
 
@@ -1137,7 +1389,7 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 			allApproved := true
 			anyUpdated := false
 
-			for i, _ := range app.Application.Status.StateBreakdown {
+			for i := range app.Application.Status.StateBreakdown {
 				breakdown := &app.Application.Status.StateBreakdown[i]
 
 				if breakdown.ProjectId == string(actor.Project.Value) {
@@ -1193,7 +1445,15 @@ func GrantsUpdateState(actor rpc.Actor, req accapi.GrantsUpdateStateRequest) *ut
 		} else if newState == accapi.GrantApplicationStateApproved {
 			// Application was approved
 			grantHandleEvent(grantEvent{
-				Type:                   grantEvGrantAwarded,
+				Type:                   grantEvApplicationApproved,
+				EventSourceIsApplicant: actor.Username == appCopy.CreatedBy,
+				Actor:                  actor,
+				Application:            appCopy,
+			})
+		} else if newState == accapi.GrantApplicationStateClosed {
+			// Application was withdrawn
+			grantHandleEvent(grantEvent{
+				Type:                   grantEvApplicationWithdrawn,
 				EventSourceIsApplicant: actor.Username == appCopy.CreatedBy,
 				Actor:                  actor,
 				Application:            appCopy,
@@ -1400,7 +1660,7 @@ func GrantsBrowse(actor rpc.Actor, req accapi.GrantsBrowseRequest) fndapi.PageV2
 	}
 
 	result := fndapi.PageV2[accapi.GrantApplication]{
-		Items:        items,
+		Items:        util.NonNilSlice(items),
 		ItemsPerPage: itemsPerPage,
 	}
 
@@ -1453,7 +1713,10 @@ func grantSearchFuzzily(searchTerm []string) []string {
 		comments.SetFuzziness(2)
 		comments.SetBoost(2)
 
-		searchQueries = append(searchQueries, bleve.NewDisjunctionQuery(createdByPrefixQ, createdBy, createdByQuery, recipientTitle, recipientTitleQuery, recipientId, referenceIds, comments))
+		searchQueries = append(
+			searchQueries,
+			bleve.NewDisjunctionQuery(createdByPrefixQ, createdBy, createdByQuery, recipientTitle, recipientTitleQuery, recipientId, referenceIds, comments),
+		)
 	}
 	req := bleve.NewSearchRequest(bleve.NewDisjunctionQuery(searchQueries...))
 
@@ -1468,7 +1731,7 @@ func grantSearchFuzzily(searchTerm []string) []string {
 		results = append(results, hit.ID)
 	}
 
-	return results
+	return util.NonNilSlice(results)
 }
 
 // NOTE(Dan): This function assumes auth has already taken place.
@@ -1509,11 +1772,12 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 	app, roles := grantsRead(actor, grantAuthReadWrite, idActual, nil)
 
 	if app == nil {
-		return accapi.GrantApplication{}, util.HttpErr(http.StatusNotFound, "not found")
+		result := accapi.GrantApplication{}
+		grantNormalizeApplication(&result)
+		return result, util.HttpErr(http.StatusNotFound, "not found")
 	} else {
 		app.Mu.RLock()
-		// Record that the user has visited the application
-		grantRecordUserApplicationVisit(app.Application.Id.Value, actor.Username)
+		appId := app.Application.Id.Value
 		result := app.lDeepCopy()
 
 		isApprover := false
@@ -1524,10 +1788,15 @@ func GrantsRetrieve(actor rpc.Actor, id string) (accapi.GrantApplication, *util.
 			}
 		}
 
-		if isApprover && !grantProjectIsNewlyCreatedAndNotYetApproved(app) {
-			grantRetrieveApplicationHistoryOfReceiver(actor, app, &result)
-		}
+		shouldRetrieveHistory := isApprover && !grantProjectIsNewlyCreatedAndNotYetApproved(app)
 		app.Mu.RUnlock()
+
+		// Record that the user has visited the application
+		grantRecordUserApplicationVisit(appId, actor.Username)
+
+		if shouldRetrieveHistory {
+			grantRetrieveApplicationHistoryOfReceiver(actor, result, &result)
+		}
 		return GrantApplicationProcess(actor, result), nil
 	}
 }
@@ -1537,20 +1806,20 @@ func grantProjectIsNewlyCreatedAndNotYetApproved(app *grantApplication) bool {
 }
 
 // Retrieves the application history of the receiver in the context of the grant giver
-func grantRetrieveApplicationHistoryOfReceiver(actor rpc.Actor, app *grantApplication, result *accapi.GrantApplication) {
-	recipientActor, ok := rpc.LookupActor(app.Application.CreatedBy) // Actor PI
+func grantRetrieveApplicationHistoryOfReceiver(actor rpc.Actor, app accapi.GrantApplication, result *accapi.GrantApplication) {
+	recipientActor, ok := rpc.LookupActor(app.CreatedBy) // Actor PI
 	if ok {
 		if recipientActor.Username == rpc.ActorSystem.Username {
 			return
 		}
 		grantGiveProjectId := actor.Project.Value
 
-		switch app.Application.CurrentRevision.Document.Recipient.Type {
+		switch app.CurrentRevision.Document.Recipient.Type {
 		case accapi.RecipientTypeNewProject:
-			recipientActor.Project = util.OptValue(rpc.ProjectId(app.Application.ProjectId.Value))
+			recipientActor.Project = util.OptValue(rpc.ProjectId(app.ProjectId.Value))
 			break
 		case accapi.RecipientTypeExistingProject:
-			recipientActor.Project = util.OptValue(rpc.ProjectId(app.Application.CurrentRevision.Document.Recipient.Id.Value))
+			recipientActor.Project = util.OptValue(rpc.ProjectId(app.CurrentRevision.Document.Recipient.Id.Value))
 			break
 		}
 
@@ -1560,7 +1829,7 @@ func grantRetrieveApplicationHistoryOfReceiver(actor rpc.Actor, app *grantApplic
 		})
 		for _, recipientApplication := range pages.Items {
 
-			if recipientApplication.Id == app.Application.Id {
+			if recipientApplication.Id == app.Id {
 				continue
 			}
 
@@ -1610,7 +1879,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 		b := grantGetAppBucket(accGrantId(appId))
 		app, _ := grantsReadEx(actor, grantAuthReadWrite, b, accGrantId(appId), nil)
 		if app == nil {
-			return nil, util.HttpErr(http.StatusNotFound, "unknown application")
+			return []accapi.GrantGiver{}, util.HttpErr(http.StatusNotFound, "unknown application")
 		}
 
 		app.Mu.RLock()
@@ -1620,7 +1889,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 
 		createdByActor, ok := rpc.LookupActor(createdBy)
 		if !ok {
-			return nil, util.HttpErr(http.StatusInternalServerError, "corrupt application, unknown applicant")
+			return []accapi.GrantGiver{}, util.HttpErr(http.StatusInternalServerError, "corrupt application, unknown applicant")
 		}
 
 		applicantActor = createdByActor
@@ -1647,7 +1916,8 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 	walletHasAllocationInDefaultWindow := func(wallet accapi.WalletV2) bool {
 		for _, group := range wallet.AllocationGroups {
 			for _, alloc := range group.Group.Allocations {
-				if !alloc.Retired && (alloc.StartDate.Time().Before(defaultAvailabilityHorizon) || alloc.StartDate.Time().Equal(defaultAvailabilityHorizon)) && alloc.EndDate.Time().After(now) {
+				if !alloc.Retired && (alloc.StartDate.Time().Before(defaultAvailabilityHorizon) || alloc.StartDate.Time().Equal(defaultAvailabilityHorizon)) &&
+					alloc.EndDate.Time().After(now) {
 					return true
 				}
 			}
@@ -1655,7 +1925,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 		return false
 	}
 
-	lAddPotentialGrantGiver := func(b *grantSettingsBucket, grantGiver string) {
+	lAddPotentialGrantGiver := func(grantGiver string) {
 		if grantsCanApply(applicantActor, recipient, grantGiver) {
 			wallets := internalRetrieveWallets(now, grantGiver, walletFilter{RequireActive: false})
 			var categories []accapi.ProductCategory
@@ -1670,7 +1940,7 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 				Categories: util.NonNilSlice(categories),
 			}
 
-			if sWrapper, ok := b.Settings[grantGiver]; ok {
+			if sWrapper, ok := grantsRetrieveSettings(grantGiver); ok {
 				sWrapper.Mu.RLock()
 				gg.Description = sWrapper.Settings.Description
 				gg.Templates = sWrapper.Settings.Templates
@@ -1703,21 +1973,29 @@ func GrantsRetrieveGrantGivers(actor rpc.Actor, req accapi.RetrieveGrantGiversRe
 
 	for _, b := range grantGlobals.SettingBuckets {
 		b.Mu.RLock()
-		for grantGiver, _ := range b.PublicGrantGivers {
+		grantGivers := make([]string, 0, len(b.PublicGrantGivers))
+		for grantGiver := range b.PublicGrantGivers {
 			if _, ok := parents[grantGiver]; !ok {
-				lAddPotentialGrantGiver(b, grantGiver)
+				grantGivers = append(grantGivers, grantGiver)
 			}
 		}
 		b.Mu.RUnlock()
+
+		for _, grantGiver := range grantGivers {
+			lAddPotentialGrantGiver(grantGiver)
+		}
 	}
 
-	for parent, _ := range parents {
+	for parent := range parents {
 		if parent != "" {
-			b := grantGetSettingsBucket(parent)
-			b.Mu.RLock()
-			lAddPotentialGrantGiver(b, parent)
-			b.Mu.RUnlock()
+			lAddPotentialGrantGiver(parent)
 		}
+	}
+
+	for i := range result {
+		grantGiver := &result[i]
+		grantGiver.Categories = util.NonNilSlice(grantGiver.Categories)
+		grantNormalizeTemplates(&grantGiver.Templates)
 	}
 
 	slices.SortFunc(result, func(a, b accapi.GrantGiver) int {
@@ -1757,13 +2035,13 @@ func GrantsUpdateSettings(actor rpc.Actor, id string, s accapi.GrantRequestSetti
 		}
 		b.Settings[id] = w
 	}
-	b.Mu.Unlock()
 
 	if s.Enabled {
 		b.PublicGrantGivers[string(actor.Project.Value)] = util.Empty{}
 	} else {
 		delete(b.PublicGrantGivers, string(actor.Project.Value))
 	}
+	b.Mu.Unlock()
 
 	w.Mu.Lock()
 	templateHasChanges := applyTemplateChangesIfNeeded(w.Settings, &s)
@@ -1838,12 +2116,14 @@ func GrantsBrowseEnabledProjects(actor rpc.Actor) ([]accapi.ProjectToSetting, *u
 
 	for _, bucket := range grantGlobals.SettingBuckets {
 		bucket.Mu.Lock()
-		for project, _ := range bucket.PublicGrantGivers {
+		for project := range bucket.PublicGrantGivers {
 			settingsFromBucket, ok := bucket.Settings[project]
 			if ok && settingsFromBucket.Settings.Enabled {
+				projectSettings := settingsFromBucket.lDeepCopy()
+				grantNormalizeSettings(&projectSettings)
 				settings = append(
 					settings,
-					accapi.ProjectToSetting{ProjectId: project, Settings: settingsFromBucket.lDeepCopy()},
+					accapi.ProjectToSetting{ProjectId: project, Settings: projectSettings},
 				)
 			}
 		}
@@ -1856,7 +2136,9 @@ func GrantsBrowseEnabledProjects(actor rpc.Actor) ([]accapi.ProjectToSetting, *u
 func GrantsRetrieveSettings(actor rpc.Actor, isUCloudAdminCall bool, projectId string) (accapi.GrantRequestSettings, *util.HttpError) {
 	if !isUCloudAdminCall {
 		if !actor.Project.Present || !actor.Membership[rpc.ProjectId(actor.Project.Value)].Satisfies(rpc.ProjectRoleAdmin) {
-			return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "forbidden")
+			result := accapi.GrantRequestSettings{}
+			grantNormalizeSettings(&result)
+			return result, util.HttpErr(http.StatusForbidden, "forbidden")
 		}
 	}
 
@@ -1901,6 +2183,7 @@ func GrantsRetrieveSettings(actor rpc.Actor, isUCloudAdminCall bool, projectId s
 	}
 	result := w.lDeepCopy()
 	b.Mu.RUnlock()
+	grantNormalizeSettings(&result)
 	return result, nil
 }
 
@@ -1949,7 +2232,7 @@ func GrantsRetrieveLogo(id string) ([]byte, *util.HttpError) {
 	})
 
 	if ok {
-		return logo, nil
+		return util.NonNilSlice(logo), nil
 	} else {
 		return nil, util.HttpErr(http.StatusNotFound, "not found")
 	}
@@ -2208,10 +2491,12 @@ func initGrants() {
 			return util.Empty{}, GrantsTransfer(info.Actor, request)
 		})
 
-		accapi.RetrieveGrantGivers.Handler(func(info rpc.RequestInfo, request accapi.RetrieveGrantGiversRequest) (accapi.RetrieveGrantGiversResponse, *util.HttpError) {
-			grantGivers, err := GrantsRetrieveGrantGivers(info.Actor, request)
-			return accapi.RetrieveGrantGiversResponse{GrantGivers: grantGivers}, err
-		})
+		accapi.RetrieveGrantGivers.Handler(
+			func(info rpc.RequestInfo, request accapi.RetrieveGrantGiversRequest) (accapi.RetrieveGrantGiversResponse, *util.HttpError) {
+				grantGivers, err := GrantsRetrieveGrantGivers(info.Actor, request)
+				return accapi.RetrieveGrantGiversResponse{GrantGivers: grantGivers}, err
+			},
+		)
 
 		accapi.GrantsPostComment.Handler(func(info rpc.RequestInfo, request accapi.GrantsPostCommentRequest) (fndapi.FindByStringId, *util.HttpError) {
 			id, err := GrantsPostComment(info.Actor, request)
@@ -2230,19 +2515,21 @@ func initGrants() {
 			return GrantsRetrieveSettings(info.Actor, false, "")
 		})
 
-		accapi.GrantsRetrieveRequestSettingsAdmin.Handler(func(info rpc.RequestInfo, request fndapi.FindByStringId) (accapi.GrantRequestSettings, *util.HttpError) {
-			if info.Actor.Role != rpc.RoleAdmin {
-				return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "Permission denied - need to be admin to use this endpoint")
-			}
-			projectExists := false
-			db.NewTx0(func(tx *db.Transaction) {
-				_, projectExists = coreutil.ProjectRetrieveFromDatabase(tx, request.Id)
-			})
-			if !projectExists {
-				return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusBadRequest, "Project does not exist")
-			}
-			return GrantsRetrieveSettings(info.Actor, true, request.Id)
-		})
+		accapi.GrantsRetrieveRequestSettingsAdmin.Handler(
+			func(info rpc.RequestInfo, request fndapi.FindByStringId) (accapi.GrantRequestSettings, *util.HttpError) {
+				if info.Actor.Role != rpc.RoleAdmin {
+					return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusForbidden, "Permission denied - need to be admin to use this endpoint")
+				}
+				projectExists := false
+				db.NewTx0(func(tx *db.Transaction) {
+					_, projectExists = coreutil.ProjectRetrieveFromDatabase(tx, request.Id)
+				})
+				if !projectExists {
+					return accapi.GrantRequestSettings{}, util.HttpErr(http.StatusBadRequest, "Project does not exist")
+				}
+				return GrantsRetrieveSettings(info.Actor, true, request.Id)
+			},
+		)
 
 		accapi.GrantsBrowseEnabledProjects.Handler(func(info rpc.RequestInfo, request util.Empty) ([]accapi.ProjectToSetting, *util.HttpError) {
 			return GrantsBrowseEnabledProjects(info.Actor)
@@ -2292,10 +2579,12 @@ type grantEventType int
 
 const (
 	grantEvNewComment grantEventType = iota
-	grantEvGrantAwarded
+	grantEvApplicationApproved
 	grantEvApplicationRejected
+	grantEvApplicationWithdrawn
 	grantEvApplicationSubmitted
 	grantEvRevisionSubmitted
+	grantEvApplicationTransferred
 )
 
 type grantEvent struct {
@@ -2303,7 +2592,15 @@ type grantEvent struct {
 	EventSourceIsApplicant bool
 	Actor                  rpc.Actor
 	Application            accapi.GrantApplication
+	AdditionalInfo         any
 }
+
+const (
+	NotificationGrantApplicationUpdated  = "GRANT_APPLICATION_UPDATED"
+	NotificationGrantApplicationResponse = "GRANT_APPLICATION_RESPONSE"
+	NotificationGrantNewApplication      = "GRANT_NEW_APPLICATION"
+	NotificationGrantNewComment          = "GRANT_NEW_COMMENT"
+)
 
 func grantHandleEvent(event grantEvent) {
 	err1 := grantSendNotification(event)
@@ -2395,28 +2692,43 @@ func grantSendNotification(event grantEvent) *util.HttpError {
 
 		switch event.Type {
 		case grantEvNewComment:
-			notification.Type = "NEW_GRANT_COMMENT"
+			notification.Type = NotificationGrantNewComment
 			notification.Message = fmt.Sprintf("Comment added in \"%s\"", truncateRecipientTitle(event))
 			meta["title"] = fmt.Sprintf("New comment by %s", event.Actor.Username)
 			meta["avatar"] = event.Actor.Username
+			break
 		case grantEvApplicationSubmitted:
-			notification.Type = "NEW_GRANT_APPLICATION"
+			notification.Type = NotificationGrantNewApplication
 			notification.Message = fmt.Sprintf("\"%s\" was submitted by %s", truncateRecipientTitle(event), event.Actor.Username)
 			meta["title"] = fmt.Sprintf("A new application was submitted")
-		case grantEvGrantAwarded:
-			notification.Type = "GRANT_APPLICATION_RESPONSE"
+			break
+		case grantEvApplicationApproved:
+			notification.Type = NotificationGrantApplicationResponse
 			notification.Message = fmt.Sprintf("\"%s\", has been approved by %s", truncateRecipientTitle(event), event.Actor.Username)
 			meta["title"] = "Grant awarded"
+			break
 		case grantEvApplicationRejected:
-			notification.Type = "GRANT_APPLICATION_RESPONSE"
+			notification.Type = NotificationGrantApplicationResponse
 			notification.Message = fmt.Sprintf("\"%s\", has been rejected by %s", truncateRecipientTitle(event), event.Actor.Username)
 			meta["title"] = "Grant rejected"
+			break
+		case grantEvApplicationWithdrawn:
+			notification.Type = NotificationGrantApplicationResponse
+			notification.Message = fmt.Sprintf("\"%s\", has been withdrawn by %s", truncateRecipientTitle(event), event.Actor.Username)
+			meta["title"] = "Grant withdrawn"
+			break
 		case grantEvRevisionSubmitted:
-			notification.Type = "GRANT_APPLICATION_UPDATED"
+			notification.Type = NotificationGrantApplicationUpdated
 			notification.Message = fmt.Sprintf("Grant revision submitted by %s", event.Actor.Username)
 			meta["title"] = fmt.Sprintf("Application updated: \"%s\"", truncateRecipientTitle(event))
 			meta["avatar"] = event.Actor.Username
-			// TODO make grantEv for grantTransfer and insert here
+			break
+		case grantEvApplicationTransferred:
+			notification.Type = NotificationGrantApplicationUpdated
+			notification.Message = fmt.Sprintf("Grant transferred away by %s", event.Actor.Username)
+			meta["title"] = fmt.Sprintf(" Application has been transferred: \"%s\"", truncateRecipientTitle(event))
+			meta["avatar"] = event.Actor.Username
+			break
 		}
 
 		metaJson, _ := json.Marshal(meta)
@@ -2440,15 +2752,18 @@ func grantSendEmail(event grantEvent) *util.HttpError {
 	}
 
 	var recipients []string
+	var adminRecipients []string
 
+	app := &event.Application
+	reqs := app.CurrentRevision.Document.AllocationRequests
+
+	// If event is triggered by something the applicant did then inform the admins
+	// otherwise inform the grant receiver
 	if event.EventSourceIsApplicant {
-		app := &event.Application
-		reqs := app.CurrentRevision.Document.AllocationRequests
 		reviewerSet := map[string]util.Empty{}
 		for _, req := range reqs {
 			reviewerSet[req.GrantGiver] = util.Empty{}
 		}
-
 		reviewerUsers := map[string]util.Empty{}
 		db.NewTx0(func(tx *db.Transaction) {
 			for reviewer := range reviewerSet {
@@ -2462,9 +2777,8 @@ func grantSendEmail(event grantEvent) *util.HttpError {
 				}
 			}
 		})
-
-		for user := range reviewerUsers {
-			recipients = append(recipients, user)
+		for admin := range reviewerUsers {
+			adminRecipients = append(adminRecipients, admin)
 		}
 	} else {
 		applicant := event.Application.CreatedBy
@@ -2489,37 +2803,84 @@ func grantSendEmail(event grantEvent) *util.HttpError {
 		applicantProjectTitle = grantsRetrieveProjectTitleByProjectId(currDoc.Recipient.Id.Value)
 	}
 
-	mailTemplate := map[string]any{
-		"sender":                event.Application.CreatedBy,
-		"applicantProjectTitle": applicantProjectTitle,
-	}
-
+	mailTemplate := make(map[string]any)
 	switch event.Type {
 	case grantEvNewComment:
 		mailTemplate["type"] = fndapi.MailTypeNewComment
+		// sender is the person who created the new revision
+		mailTemplate["sender"] = event.Actor.Username
+		mailTemplate["applicantProjectTitle"] = applicantProjectTitle
+		break
 	case grantEvApplicationSubmitted:
 		mailTemplate["type"] = fndapi.MailTypeNewGrantApplication
-	case grantEvGrantAwarded:
+		mailTemplate["sender"] = event.Actor.Username
+		mailTemplate["applicantProjectTitle"] = applicantProjectTitle
+		break
+	case grantEvApplicationApproved:
 		mailTemplate["type"] = fndapi.MailTypeApplicationApproved
+		mailTemplate["applicantProjectTitle"] = applicantProjectTitle
+		break
 	case grantEvApplicationRejected:
 		mailTemplate["type"] = fndapi.MailTypeApplicationRejected
+		mailTemplate["applicantProjectTitle"] = applicantProjectTitle
+		break
+	case grantEvApplicationWithdrawn:
+		mailTemplate["type"] = fndapi.MailTypeApplicationWithdrawn
+		mailTemplate["sender"] = event.Actor.Username
+		mailTemplate["applicantProjectTitle"] = applicantProjectTitle
 	case grantEvRevisionSubmitted:
 		mailTemplate["type"] = fndapi.MailTypeApplicationUpdated
-		// TODO make grantEv for grantTransfer and insert here
+		mailTemplate["sender"] = event.Actor.Username
+		mailTemplate["applicantProjectTitle"] = applicantProjectTitle
+		break
+	case grantEvApplicationTransferred:
+		additionalInfo, ok := event.AdditionalInfo.(GrantTransferAdditionInformation)
+		if !ok {
+			return util.HttpErr(
+				http.StatusInternalServerError,
+				"Unexpected information given.",
+			)
+		}
+		mailTemplate["type"] = fndapi.MailTypeTransferApplication
+		mailTemplate["senderProject"] = grantsRetrieveProjectTitleByProjectId(additionalInfo.SenderProject)
+		mailTemplate["receiverProject"] = grantsRetrieveProjectTitleByProjectId(additionalInfo.ReceiverProject)
+		mailTemplate["applicantProjectTitle"] = applicantProjectTitle
+		adminRecipients = additionalInfo.ReceiverProjectAdmins
+		//Empty list so that email is not send to the source grant giver
+		recipients = recipients[:0]
+		break
+	default:
+		// We do not have a template for this yet return error and let the caller log it.
+		return util.HttpErr(http.StatusNotImplemented, "We do not have an template for this event type %v \n", event.Type)
 	}
 
-	mailBytes, _ := json.Marshal(mailTemplate)
+	mailBytes, err := json.Marshal(mailTemplate)
+	if err != nil {
+		return util.HttpErr(http.StatusInternalServerError, "Failed to marshal mail template: %v", err)
+	}
 	mail := fndapi.Mail(mailBytes)
 
 	for _, recipient := range recipients {
-		_, err := fndapi.MailSendToUser.Invoke(fndapi.BulkRequestOf(
+		_, responseError := fndapi.MailSendToUser.Invoke(fndapi.BulkRequestOf(
 			fndapi.MailSendToUserRequest{
 				Receiver: recipient,
 				Mail:     mail,
 			}),
 		)
-		if err != nil {
-			return err
+		if responseError != nil {
+			return responseError
+		}
+	}
+
+	for _, admin := range adminRecipients {
+		_, responseError := fndapi.MailSendToUser.Invoke(fndapi.BulkRequestOf(
+			fndapi.MailSendToUserRequest{
+				Receiver: admin,
+				Mail:     mail,
+			}),
+		)
+		if responseError != nil {
+			return responseError
 		}
 	}
 

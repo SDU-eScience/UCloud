@@ -65,6 +65,35 @@ func Stat(path string) (os.FileInfo, *util.HttpError) {
 	return info, nil
 }
 
+func metadataOpenSensitivityFile(path string) (*os.File, bool) {
+	components := util.Components(path)
+	fd, err := unix.Open("/", unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return nil, false
+	}
+	for i, component := range components {
+		flags := unix.O_RDONLY | unix.O_NOFOLLOW | unix.O_CLOEXEC
+		if i == len(components)-1 {
+			flags |= unix.O_NONBLOCK
+		} else {
+			flags |= unix.O_DIRECTORY
+		}
+		nextFd, openErr := unix.Openat(fd, component, flags, 0)
+		_ = unix.Close(fd)
+		if openErr != nil {
+			return nil, false
+		}
+		fd = nextFd
+	}
+	file := os.NewFile(uintptr(fd), path)
+	info, err := file.Stat()
+	if err != nil || (!info.Mode().IsRegular() && !info.IsDir()) {
+		_ = file.Close()
+		return nil, false
+	}
+	return file, true
+}
+
 func WriteFileAtomic(path string, data []byte, perm uint32) *util.HttpError {
 	if err := DoCreateFolder(filepath.Dir(path)); err != nil {
 		return err

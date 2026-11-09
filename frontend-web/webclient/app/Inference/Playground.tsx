@@ -1,17 +1,21 @@
+
 import * as React from "react";
 
 import {callAPI} from "@/Authentication/DataHook";
 import {MainContainer} from "@/ui-components/MainContainer";
-import {Box, Button, Flex, Icon, Text, TextArea,} from "@/ui-components";
+import {Box, Button, Flex, Icon, Link, Text, TextArea,} from "@/ui-components";
+import AppRoutes from "@/Routes";
 import {Toggle} from "@/ui-components/Toggle";
+import {default as ReactModal} from "react-modal";
 import UcxView, {UcxComponentRegistry, UcxFunctionRegistry, UcxRenderContext, UcxSpinner} from "@/UCX/UcxView";
 import {UiNode, Value, ValueKind} from "@/UCX/protocol";
-import {copyToClipboard, doNothing, extensionFromPath, extensionType, removeTrailingSlash, typeFromMime} from "@/UtilityFunctions";
+import {copyToClipboard, doNothing, extensionFromPath, extensionType, stopPropagation, stopPropagationAndPreventDefault, typeFromMime} from "@/UtilityFunctions";
 import {addStandardInputDialog} from "@/UtilityComponents";
 import {sendFailureNotification} from "@/Notifications";
-import {Operation, Operations, ShortcutKey} from "@/ui-components/Operation";
+import {Operation, Operations} from "@/ui-components/Operation";
 import {openPlayground} from "./api";
 import {sizeToString} from "@/Utilities/FileUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
 import {usePage} from "@/Navigation/Redux";
@@ -21,18 +25,15 @@ import {injectStyle, injectStyleSimple} from "@/Unstyled";
 import {RichSelect} from "@/ui-components/RichSelect";
 import {format, isToday} from "date-fns";
 import ModelInferenceLogo from "./ModelLogo";
-import {MarkdownDocument, MarkdownTable} from "@/ui-components/Markdown";
+import {MarkdownDocument} from "@/ui-components/Markdown";
 import {CopyButton} from "@/ui-components/CopyButton";
 import {IconButton} from "@/ui-components/IconButton";
 import {ChunkedFileReader} from "@/Files/ChunkedFileReader";
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
-import {dialogStore} from "@/Dialog/DialogStore";
-import type {UFile} from "@/UCloud/UFile";
-import {Feature, hasFeature} from "@/Features";
-import {prettyFilePath} from "@/Files/FilePath";
 import CodeSnippet from "@/ui-components/CodeSnippet";
 import {IconName} from "@/ui-components/Icon";
 import {inferenceThreadStore} from "./ThreadStore";
+import {findDomAttributeFromAncestors} from "@/Utilities/HTMLUtilities";
 
 type PlaygroundSession = {
     connectTo: string;
@@ -76,6 +77,21 @@ const ComposerActionButtonHoverClass = injectStyle("inference-composer-action-ho
     ${k} .${ComposerActionButtonClass}:disabled {
         cursor: not-allowed;
         opacity: 0.45;
+    }
+`);
+
+const TraceRowClass = injectStyle("inference-trace-row", k => `
+    ${k} {
+        border-radius: 6px;
+    }
+
+    ${k}:hover {
+        background: var(--playground-hover, var(--dialogToolbar));
+    }
+
+    ${k}:focus-visible {
+        outline: 2px solid var(--primaryMain);
+        outline-offset: 1px;
     }
 `);
 
@@ -144,10 +160,37 @@ const PLAYGROUND_REHYDRATE_PATHS = [
     "chat.systemPrompt",
     "chat.presencePenalty",
     "chat.frequencyPenalty",
+    "chat.reasoningEffort",
     "chat.logprobs",
     "chat.topLogprobs",
 ];
 const PlaygroundProviderDomainContext = React.createContext("");
+const PlaygroundImageAccessContext = React.createContext<PlaygroundSession | null>(null);
+const PlaygroundImageOpenContext = React.createContext<(part: ChatMessagePart) => void>(() => undefined);
+const PlaygroundTranscriptionAvailableContext = React.createContext(false);
+const PlaygroundTranscriptionCapabilitiesContext = React.createContext<string[]>([]);
+
+const playgroundImageModalStyle: ReactModal.Styles = {
+    content: {
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: "min(1600px, calc(100vw - 32px))",
+        height: "calc(100vh - 32px)",
+        padding: 0,
+        border: "1px solid var(--playground-border, var(--borderColor))",
+        borderRadius: 12,
+        background: "var(--backgroundDefault)",
+        color: "var(--textPrimary)",
+        outline: "none",
+        overflow: "hidden",
+    },
+    overlay: {
+        backgroundColor: "var(--modalShadow)",
+        zIndex: 1000,
+    },
+};
 
 const playgroundComponents: UcxComponentRegistry = {
     inference_chat_composer: (ctx: UcxRenderContext) => <PlaygroundChatComposer {...ctx}/>,
@@ -158,11 +201,19 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
         const rows = numberProp(node, "rows", 8);
         const sendIcon = stringProp(node, "sendIcon", "heroPaperAirplane");
         const disabled = boolProp(node, "disabled", false);
+        const streamingThreadId = stringProp(node, "streamingThreadId", "");
+        const currentThreadId = stringValue(fn.modelValue(model, "currentThreadId", scope));
         const propModelOptions = optionsProp(node, "modelOptions");
         const modelOptions = propModelOptions.length > 0 ? propModelOptions : textGenerationModelOptions(fn.modelValue(model, "models"));
         const selectedModel = stringValue(fn.modelValue(model, "chat.modelId", scope));
         const selectedModelOption = modelOptions.find(option => option.key === selectedModel);
         const selectedCapabilities = modelCapabilities(model, selectedModel);
+        const imageGenerationModel = stringValue(fn.modelValue(model, "imageGenerationModel"));
+        const imageEditModel = stringValue(fn.modelValue(model, "imageEditModel"));
+        const transcriptionModel = stringValue(fn.modelValue(model, "transcriptionModel"));
+        const reasoningEfforts = modelReasoningEfforts(model, selectedModel);
+        const reasoningEffort = stringValue(fn.modelValue(model, "chat.reasoningEffort", scope));
+        const selectedReasoningEffort = reasoningEfforts.find(option => option.key === reasoningEffort);
         const [localDraft, setLocalDraft] = React.useState(() => stringValue(fn.modelValue(model, node.bindPath, scope)));
         const value = localDraft;
         const setValue = setLocalDraft;
@@ -172,10 +223,29 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
         const [attachments, setAttachments] = React.useState<PlaygroundUploadAttachment[]>([]);
         const [dragActive, setDragActive] = React.useState(false);
         const canSend = !disabled && value.trim() !== "" && attachments.every(attachment => attachment.status === "uploaded");
+        const streaming = streamingThreadId !== "" && streamingThreadId === currentThreadId;
+
+        const stop = () => {
+            if (!streaming) return;
+            fn.sendUiEvent("chatComposerStop", "click", {
+                kind: ValueKind.String,
+                string: currentThreadId,
+            });
+        };
 
         const send = () => {
             if (!canSend) return;
-            const sentAttachments = attachments.filter(attachment => attachment.kind === "text" || attachment.kind === "convertible" || attachment.attachmentId !== null);
+            if (/^\/image(?:\s|$)/.test(value) &&
+                attachments.filter(attachment => attachment.kind === "image").length > 1) {
+                sendFailureNotification("Attach one image when using /image.");
+                return;
+            }
+            if (/^\/transcribe(?:\s|$)/.test(value) && attachments.filter(attachment => attachment.kind === "audio").length > 1) {
+                sendFailureNotification("Attach one audio file when using /transcribe.");
+                return;
+            }
+            const sentAttachments = attachments.filter(attachment =>
+                attachment.kind === "text" || attachment.kind === "convertible" || attachment.attachmentId !== null);
             fn.sendUiEvent(node.id, "click", {
                 kind: ValueKind.Object,
                 object: {
@@ -214,7 +284,7 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
 
         const uploadFile = async (file: File) => {
             const kind = await detectPlaygroundAttachmentKind(file);
-            const rejection = playgroundAttachmentRejection(kind, selectedCapabilities);
+            const rejection = playgroundAttachmentRejection(kind, selectedCapabilities, imageEditModel !== "", transcriptionModel !== "");
             if (rejection) {
                 sendFailureNotification(rejection);
                 return;
@@ -376,7 +446,7 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                         setValue(next);
                     }}
                     onKeyDown={(ev) => {
-                        if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
+                        if (ev.key === "Enter" && !ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey && !ev.nativeEvent.isComposing) {
                             ev.preventDefault();
                             ev.stopPropagation();
                             send();
@@ -398,10 +468,25 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                 {attachments.length > 0 && (
                     <div style={{display: "flex", flexWrap: "wrap", gap: 8, padding: "0 10px 8px 10px"}}>
                         {attachments.map(attachment => (
-                            <AttachmentUploadCard key={attachment.localId} attachment={attachment} onRemove={() => removeAttachment(attachment.localId)}/>
+                            <div key={attachment.localId} style={{minWidth: 0}}>
+                                <AttachmentUploadCard
+                                    attachment={attachment}
+                                    onRemove={() => removeAttachment(attachment.localId)}
+                                />
+                            </div>
                         ))}
                     </div>
                 )}
+                {/^\/image(?:\s|$)/.test(value) ? (
+                    <div style={{padding: "0 16px 8px", fontSize: 12, color: "var(--textSecondary)"}}>
+                        {attachments.some(attachment => attachment.kind === "image")
+                            ? `Edit image · ${playgroundModelTitle(model, imageEditModel) || "No image-edit default configured"}`
+                            : `Generate image · ${playgroundModelTitle(model, imageGenerationModel) || "No image default configured"}`}
+                    </div>
+                ) : null}
+                {/^\/transcribe(?:\s|$)/.test(value) ? <div style={{padding: "0 16px 8px", fontSize: 12, color: "var(--textSecondary)"}}>
+                    Transcribe audio · {playgroundModelTitle(model, transcriptionModel) || "No transcription default configured"}
+                </div> : null}
                 <div
                     style={{
                         display: "flex",
@@ -443,15 +528,40 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
                         )}
                     />
                     <div style={{flex: 1}}/>
+                    {reasoningEfforts.length === 0 ? null : <RichSelect<PlaygroundOption, keyof PlaygroundOption>
+                        items={reasoningEfforts}
+                        keys={["key", "value"]}
+                        selected={selectedReasoningEffort}
+                        onSelect={option => fn.sendModelInput("chat.reasoningEffort", {kind: ValueKind.String, string: option.key}, "chat.reasoningEffort")}
+                        dropdownWidth="220px"
+                        dropdownVerticalGap={8}
+                        elementHeight={42}
+                        matchTriggerWidth={false}
+                        showSearchField={false}
+                        trigger={<ReasoningEffortTrigger option={selectedReasoningEffort}/>}
+                        RenderRow={props => <ReasoningEffortOption
+                            option={props.element}
+                            selected={props.element?.key === reasoningEffort}
+                            onSelect={props.onSelect}
+                            dataProps={props.dataProps}
+                        />}
+                    />}
                     <Tooltip tooltipContentWidth={80} trigger={
                         <span style={{display: "inline-flex"}}>
-                            <button type="button" disabled={!canSend} onClick={send}
-                                    className={ComposerActionButtonClass}>
-                                <Icon name={sendIcon as any} size={18}/>
-                            </button>
+                            {streaming ? (
+                                <button type="button" onClick={stop}
+                                        className={ComposerActionButtonClass}>
+                                    <Icon name="heroStop" size={18}/>
+                                </button>
+                            ) : (
+                                <button type="button" disabled={!canSend} onClick={send}
+                                        className={ComposerActionButtonClass}>
+                                    <Icon name={sendIcon as any} size={18}/>
+                                </button>
+                            )}
                         </span>
                     }>
-                        Send
+                        {streaming ? "Stop" : "Send"}
                     </Tooltip>
                 </div>
             </Box>
@@ -461,7 +571,18 @@ function PlaygroundChatComposer({node, model, scope, fn}: UcxRenderContext): Rea
 type ThreadListItem = { id: string; title: string; updatedAt: number };
 
 type ChatMessagePart = {
-    kind: "text" | "thinking" | "image" | "video" | "audio" | "attachment" | "tool";
+    kind: "text" | "thinking" | "image" | "video" | "audio" | "attachment" | "tool" | "transcript";
+    fileId?: string;
+    filePath?: string;
+    transcriptPath?: string;
+    transcriptUrl?: string;
+    transcriptionFormat?: string;
+    audioMilliseconds?: number;
+    imageId?: string;
+    imagePath?: string;
+    modelName?: string;
+    prompt?: string;
+    revisedPrompt?: string;
     text: string;
     summary: string;
     body: string;
@@ -479,6 +600,8 @@ type ChatMessageListItem = {
 };
 
 type ChatMessageViewModel = {
+    directImage: boolean;
+    directTranscription: boolean;
     key: string;
     threadId: string;
     role: string;
@@ -504,6 +627,8 @@ type PlaygroundFrameProps = {
     loadingSession?: boolean;
     error?: string;
     connectionStatus?: string;
+    noAllocation?: boolean;
+    noStorage?: boolean;
 };
 
 const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k => `
@@ -556,7 +681,7 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
     ${k} .playground-sidebar-footer {
         flex-shrink: 0;
     }
-    
+
     ${k} .playground-sidebar-footer {
         display: flex;
         gap: 16px;
@@ -576,10 +701,13 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
         margin-top: 16px;
     }
 
+    ${k} .threads-popover-toggle {
+        display: none;
+    }
+
     @media (max-width: 900px) {
         ${k} .playground-body {
             height: auto;
-            min-height: calc(100vh - 174px);
             flex-direction: column;
         }
 
@@ -587,12 +715,79 @@ const PlaygroundWorkspaceClass = injectStyle("inference-playground-workspace", k
             min-height: 62vh;
         }
 
-        ${k} .playground-sidebar {
-            width: 100%;
+        ${k} .playground-body {
+            height: calc(100vh - 116px);
         }
 
-        ${k} .playground-sidebar[data-collapsed="true"] {
-            width: 64px;
+        ${k} {
+            --popOverWidth: min(400px, 100vw - var(--sidebarWidth) - 42px);
+        }
+
+        ${k} .threads-popover-toggle {
+            position: fixed;
+            top: 20vh;
+            display: block;
+            right: -1px;
+            width: 42px;
+            cursor: pointer;
+            height: 42px;
+            border-top-left-radius: 12px;
+            border-bottom-left-radius: 12px;
+            background: var(--backgroundDefault);
+            border: 1px solid var(--borderColor);
+            padding-left: 8px;
+            padding-top: 6px;
+            transition: right 0.25s cubic-bezier(0.5,1,0.5,1);
+        }
+
+        ${k} .threads-popover-toggle[data-open=true] {
+            right: calc(var(--popOverWidth) - 1px);
+            border-right: 0;
+        }
+
+        ${k} .playground-sidebar {
+            position: fixed;
+            top: 0;
+            right: calc(0px - var(--popOverWidth));
+            width: var(--popOverWidth);
+            height: 100%;
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+            transition: right 0.25s cubic-bezier(0.5,1,0.5,1);
+        }
+
+        ${k} .playground-sidebar[data-open=true] {
+            right: 0;
+        }
+    }
+
+    @media (max-width: 500px) {
+        ${k} {
+            margin: -16px;
+            height: 100vh;
+        }
+
+        ${k} > div {
+            border-radius: 0;
+            height: 100%;
+        }
+
+        ${k} > div > div {
+            height: 100%;
+        }
+
+        ${k} div.playground-main {
+            border: none;
+            padding: 0;
+            padding-bottom: 1px;
+        }
+
+        ${k} .playground-body {
+            height: calc(100vh - 76px);
+        }
+
+        ${k} .playground-main .${ComposerActionButtonHoverClass} > div {
+            overflow-x: scroll;
         }
     }
 `);
@@ -629,7 +824,7 @@ function AttachmentUploadCard({attachment, onRemove}: {attachment: PlaygroundUpl
 
 function MessageAttachmentCard({part}: {part: ChatMessagePart}): React.ReactNode {
     const kind = part.kind === "image" || part.kind === "video" || part.kind === "audio" ? part.kind : "text";
-    return <AttachmentUploadCard attachment={{
+    return <div style={{display: "flex", flexDirection: "column", gap: 6, minWidth: 0}}><AttachmentUploadCard attachment={{
         localId: `${part.kind}-${part.url}-${part.fileName}`,
         kind,
         attachmentId: null,
@@ -637,10 +832,79 @@ function MessageAttachmentCard({part}: {part: ChatMessagePart}): React.ReactNode
         fileName: part.fileName || "Unknown",
         fileSize: 0,
         uploadedBytes: 0,
-        status: "uploaded",
-        error: "",
+        status: part.status === "missing" ? "error" : "uploaded",
+        error: part.status === "missing" ? "Source file unavailable. Attach it again." : "",
         text: part.text,
-    }}/>;
+    }}/>
+    </div>;
+}
+
+function playgroundRequestTranscription(fn: UcxFunctionRegistry, fileId: string, format: string): void {
+    fn.sendUiEvent("transcribeAttachment", "click", {kind: ValueKind.Object, object: {
+        fileId: {kind: ValueKind.String, string: fileId},
+        format: {kind: ValueKind.String, string: format},
+    }});
+}
+
+async function playgroundFetchFile(url: string, signal?: AbortSignal): Promise<Blob> {
+    if (!url) throw new Error("Reconnect to access this file.");
+    const response = await fetch(url, {signal, credentials: "omit"});
+    if (!response.ok) throw new Error("File unavailable. It may have been deleted.");
+    return response.blob();
+}
+
+async function playgroundDownloadFile(url: string, filename: string): Promise<void> {
+    const blob = await playgroundFetchFile(url);
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = filename;
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
+function playgroundAudioDuration(milliseconds: number): string {
+    const seconds = Math.max(1, Math.round(milliseconds / 1000));
+    const minutes = Math.floor(seconds / 60);
+    const remainder = String(seconds % 60).padStart(2, "0");
+    return minutes < 60 ? `${minutes}:${remainder}` : `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, "0")}:${remainder}`;
+}
+
+function PlaygroundTranscriptPart({part, fn}: {part: ChatMessagePart; fn: UcxFunctionRegistry}): React.ReactNode {
+    const canTranscribe = React.useContext(PlaygroundTranscriptionAvailableContext);
+    const capabilities = React.useContext(PlaygroundTranscriptionCapabilitiesContext);
+    const [open, setOpen] = React.useState(false);
+    const [text, setText] = React.useState<string | null>(null);
+    const [error, setError] = React.useState("");
+    React.useEffect(() => {
+        if (!open) return;
+        const controller = new AbortController();
+        setText(null);
+        setError("");
+        void playgroundFetchFile(part.url, controller.signal).then(blob => blob.text()).then(content => {
+            if (!controller.signal.aborted) setText(content);
+        }).catch(error => {if (!controller.signal.aborted) setError(error.message);});
+        return () => controller.abort();
+    }, [open, part.url]);
+    const filename = `${part.fileName || "audio"}.${part.transcriptionFormat || "text"}.txt`;
+    return <section style={{minWidth: 0, border: "1px solid var(--playground-border)", borderRadius: 10, padding: 14, marginBottom: 12, background: "var(--playground-surface-raised)"}}>
+        <div style={{display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10}}>
+            <Icon name="heroDocumentText" size={20}/>
+            <strong style={{minWidth: 0, overflowWrap: "anywhere"}}>Transcript: {part.fileName}</strong>
+            <span style={{fontSize: 12, color: "var(--textSecondary)"}}>Model: {part.modelName}{(part.audioMilliseconds ?? 0) > 0 ? ` · Audio: ${playgroundAudioDuration(part.audioMilliseconds!)}` : ""}</span>
+        </div>
+        {part.body ? <p role="status">{part.body}</p> : null}
+        <div style={{display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10}}>
+            <Button type="button" m={0} color="secondaryMain" aria-expanded={open} onClick={() => setOpen(value => !value)}>{open ? "Hide transcript" : "View transcript"}</Button>
+            {part.url ? <Button type="button" m={0} color="secondaryMain" onClick={() => void playgroundDownloadFile(part.url, filename).catch(error => sendFailureNotification(error.message))}>Download</Button> : null}
+            {part.transcriptUrl && part.transcriptionFormat !== "text" ? <Button type="button" m={0} color="secondaryMain" onClick={() => void playgroundDownloadFile(part.transcriptUrl!, filename.replace(/\.txt$/, ".json")).catch(error => sendFailureNotification(error.message))}>Download JSON</Button> : null}
+            {canTranscribe && part.fileId ? <>
+                {capabilities.includes("SpeechToTextTimestamps") && part.transcriptionFormat !== "timestamps" && part.transcriptionFormat !== "speakers" ? <Button type="button" m={0} color="secondaryMain" onClick={() => playgroundRequestTranscription(fn, part.fileId!, "timestamps")}>Add timestamps</Button> : null}
+                {capabilities.includes("SpeechToTextSpeakerLabels") && part.transcriptionFormat !== "speakers" ? <Button type="button" m={0} color="secondaryMain" onClick={() => playgroundRequestTranscription(fn, part.fileId!, "speakers")}>Add speaker labels</Button> : null}
+            </> : null}
+        </div>
+        {open ? error ? <p role="alert">{error}</p> : text === null ? <UcxSpinner/> : <pre style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxHeight: 420, overflowY: "auto", fontFamily: "inherit"}}>{text || "The ASR model returned no transcript text."}</pre> : null}
+    </section>;
 }
 
 type ChatMessageNodeProps = {
@@ -737,6 +1001,291 @@ function ModelSelectorOption({
     );
 }
 
+function ReasoningEffortTrigger({option}: {option?: PlaygroundOption}): React.ReactNode {
+    return <button
+        type="button"
+        title="Reasoning effort"
+        style={{
+            minWidth: 120,
+            maxWidth: 200,
+            height: 34,
+            border: 0,
+            borderRadius: 999,
+            background: "transparent",
+            color: "inherit",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "0 10px",
+            cursor: "pointer",
+            textAlign: "left",
+        }}
+    >
+        <span style={{minWidth: 0, flex: 1, whiteSpace: "nowrap", fontWeight: 600}}>{option?.value ?? "Reasoning"}</span>
+        <Icon name="heroChevronDown" size={14}/>
+    </button>;
+}
+
+function ReasoningEffortOption({option, selected, onSelect, dataProps}: {
+    option?: PlaygroundOption;
+    selected: boolean;
+    onSelect: () => void;
+    dataProps?: Record<string, string>;
+}): React.ReactNode {
+    if (!option) return null;
+    return <div
+        {...dataProps}
+        data-active={selected.toString()}
+        onClick={onSelect}
+        style={{
+            minHeight: 42,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "7px 10px",
+            color: "inherit",
+            background: selected ? "var(--playground-hover, var(--rowHover))" : undefined,
+        }}
+    >
+        <span style={{minWidth: 0, flex: 1, whiteSpace: "nowrap", fontWeight: 500}}>{option.value}</span>
+        {selected ? <Icon name="heroCheck" size={16} color="successMain"/> : <span style={{width: 16}}/>}
+    </div>;
+}
+
+function PlaygroundImagePart({part}: {part: ChatMessagePart}): React.ReactNode {
+    const access = React.useContext(PlaygroundImageAccessContext);
+    const openImage = React.useContext(PlaygroundImageOpenContext);
+    const [source, setSource] = React.useState("");
+    const [failed, setFailed] = React.useState(false);
+    React.useEffect(() => {
+        setSource("");
+        setFailed(false);
+        if (part.url) {
+            setSource(part.url);
+            return;
+        }
+        if (!part.imagePath) return;
+        if (!access) return;
+        const controller = new AbortController();
+        let objectUrl = "";
+        void fetch(`${access.connectTo}/images?path=${encodeURIComponent(part.imagePath)}`, {
+            headers: {Authorization: `Bearer ${access.sessionToken}`},
+            signal: controller.signal,
+        }).then(async response => {
+            if (!response.ok) throw new Error("Image unavailable");
+            const blob = await response.blob();
+            if (controller.signal.aborted) return;
+            objectUrl = URL.createObjectURL(blob);
+            setSource(objectUrl);
+        }).catch(() => {
+            if (!controller.signal.aborted) {
+                setFailed(true);
+            }
+        });
+        return () => {
+            controller.abort();
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+        };
+    }, [access?.connectTo, access?.sessionToken, part.imagePath, part.url]);
+    return (
+        <figure style={{margin: 0, minWidth: 0, maxWidth: "100%"}}>
+            {failed ? (
+                <div role="status">Image unavailable. The file may have been deleted.</div>
+            ) : source ? (
+                <button
+                    type="button"
+                    aria-label={`Open ${part.fileName || "image"}`}
+                    onClick={() => openImage(part)}
+                    style={{
+                        display: "inline-block",
+                        maxWidth: "100%",
+                        padding: 0,
+                        border: 0,
+                        background: "transparent",
+                        cursor: "zoom-in",
+                        lineHeight: 0,
+                    }}
+                >
+                    <img
+                        src={source}
+                        alt={part.fileName || "Image"}
+                        onError={() => setFailed(true)}
+                        style={{
+                            display: "block",
+                            maxWidth: "100%",
+                            width: "auto",
+                            maxHeight: 540,
+                            objectFit: "contain",
+                            borderRadius: 8,
+                        }}
+                    />
+                </button>
+            ) : (
+                <UcxSpinner/>
+            )}
+        </figure>
+    );
+}
+
+function playgroundImageKey(part: ChatMessagePart): string {
+    if (part.imageId) return part.imageId;
+    return `${part.imagePath || ""}:${part.url || ""}:${part.fileName || ""}`;
+}
+
+function PlaygroundImageModal({images, activeKey, onClose, onSelect}: {
+    images: ChatMessagePart[];
+    activeKey: string | null;
+    onClose: () => void;
+    onSelect: (key: string) => void;
+}): React.ReactNode {
+    const activeIndex = activeKey === null ? -1 : images.findIndex(image => playgroundImageKey(image) === activeKey);
+    const active = activeIndex >= 0 ? images[activeIndex] : null;
+    const hasMultiple = images.length > 1;
+    const imagesRef = React.useRef(images);
+    const activeIndexRef = React.useRef(activeIndex);
+    imagesRef.current = images;
+    activeIndexRef.current = activeIndex;
+
+    const selectRelative = React.useCallback((offset: number) => {
+        const currentImages = imagesRef.current;
+        const currentIndex = activeIndexRef.current;
+        if (currentImages.length <= 1 || currentIndex < 0) return;
+        const nextIndex = (currentIndex + offset + currentImages.length) % currentImages.length;
+        onSelect(playgroundImageKey(currentImages[nextIndex]));
+    }, [onSelect]);
+
+    React.useEffect(() => {
+        if (activeKey === null) return;
+        const onKeyDown = (ev: KeyboardEvent) => {
+            if (ev.key === "ArrowLeft") selectRelative(-1);
+            if (ev.key === "ArrowRight") selectRelative(1);
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [activeKey, selectRelative]);
+
+    const download = React.useCallback(async () => {
+        if (!active?.url) return;
+        try {
+            const response = await fetch(active.url);
+            if (!response.ok) throw new Error("Could not download image");
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = objectUrl;
+            anchor.download = active.fileName || "image.png";
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        } catch {
+            window.open(active.url, "_blank", "noopener,noreferrer");
+        }
+    }, [active]);
+
+    return <ReactModal
+        isOpen={active !== null}
+        onRequestClose={onClose}
+        shouldCloseOnEsc
+        shouldCloseOnOverlayClick
+        ariaHideApp={false}
+        style={playgroundImageModalStyle}
+        contentLabel={active?.modelName || "Image"}
+    >
+        {active ? <div style={{display: "flex", flexDirection: "column", height: "100%"}}>
+            <div style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "12px 16px",
+                borderBottom: "1px solid var(--playground-border, var(--borderColor))",
+                flexShrink: 0,
+            }}>
+                <div style={{minWidth: 0, flex: 1}}>
+                    <div style={{fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"}}>
+                        {active.modelName || "Image"}
+                    </div>
+                </div>
+                <IconButton tooltip="Close" icon="heroXMark" onClick={onClose}/>
+            </div>
+            <div style={{
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 0,
+                flex: 1,
+                padding: 16,
+                background: "var(--playground-surface-raised, var(--dialogToolbar))",
+            }}>
+                {hasMultiple ? (
+                    <div style={{
+                        position: "absolute",
+                        left: 8,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        borderRadius: 999,
+                        border: "1px solid var(--playground-border, var(--borderColor))",
+                        background: "var(--backgroundDefault)",
+                    }}>
+                        <IconButton tooltip="Previous image" icon="heroChevronLeft" onClick={() => selectRelative(-1)}/>
+                    </div>
+                ) : null}
+                <img
+                    src={active.url}
+                    alt={active.fileName || "Image"}
+                    style={{
+                        display: "block",
+                        width: "100%",
+                        height: "100%",
+                        maxWidth: "100%",
+                        maxHeight: "100%",
+                        objectFit: "contain",
+                        borderRadius: 8,
+                    }}
+                />
+                {hasMultiple ? (
+                    <div style={{
+                        position: "absolute",
+                        right: 8,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        borderRadius: 999,
+                        border: "1px solid var(--playground-border, var(--borderColor))",
+                        background: "var(--backgroundDefault)",
+                    }}>
+                        <IconButton tooltip="Next image" icon="heroChevronRight" onClick={() => selectRelative(1)}/>
+                    </div>
+                ) : null}
+            </div>
+            <div style={{
+                display: "flex",
+                alignItems: "flex-end",
+                gap: 16,
+                padding: "12px 16px",
+                borderTop: "1px solid var(--playground-border, var(--borderColor))",
+                flexShrink: 0,
+            }}>
+                <div style={{
+                    minWidth: 0,
+                    flex: 1,
+                    maxHeight: 160,
+                    overflowY: "auto",
+                    fontSize: 13,
+                    whiteSpace: "pre-wrap",
+                }}>
+                    {active.prompt ? <div><strong>Prompt:</strong> {active.prompt}</div> : null}
+                    {active.revisedPrompt ? <div><strong>Revised prompt:</strong> {active.revisedPrompt}</div> : null}
+                </div>
+                <Button onClick={download}>
+                    <Icon name="heroArrowDownTray" size={16} mr={8}/>
+                    Download
+                </Button>
+            </div>
+        </div> : null}
+    </ReactModal>;
+}
+
 const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptions, currentModelId, fn}: ChatMessageNodeProps): React.ReactNode {
     if (message.hidden) return null;
 
@@ -745,8 +1294,8 @@ const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptio
             <Flex width="100%" justifyContent="flex-end" my={16} flexDirection="column" alignItems="flex-end" gap="6px">
                 <div style={{maxWidth: "78%", borderRadius: 16, padding: "10px 14px", background: "var(--playground-user-bg, var(--secondaryMain))", color: "var(--playground-user-text, var(--textPrimary))", overflowWrap: "anywhere", display: "flex", flexDirection: "column", gap: 8}}>
                     {message.displayParts.map((part, idx) => {
-                        if (part.kind === "image" && part.url !== "") {
-                            return <img key={idx} src={part.url} alt={part.fileName || "Attachment"} style={{maxWidth: 360, maxHeight: 260, objectFit: "contain", borderRadius: 8}}/>;
+                        if (part.kind === "image") {
+                            return <PlaygroundImagePart key={idx} part={part}/>;
                         }
                         if (part.kind === "video" || part.kind === "audio" || part.kind === "attachment") {
                             return <MessageAttachmentCard key={idx} part={part}/>;
@@ -768,58 +1317,85 @@ const ChatMessageNode = React.memo(function ChatMessageNode({message, modelOptio
 
     return (
         <Flex flexDirection="column" gap="4px" width="100%" my={16}>
-            {renderMessageParts(message.parts, !responseFinished)}
-            {!responseFinished ? null : <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px" flexWrap="wrap">
-                <CopyButton onClick={() => copyToClipboard(message.content)}/>
-                <RichSelect<PlaygroundOption, keyof PlaygroundOption>
-                    items={modelOptions}
-                    keys={["key", "value"]}
-                    selected={selectedModelOption}
-                    onSelect={(option) => fn.sendUiEvent("regenerateChat", "click", {
-                        kind: ValueKind.Object,
-                        object: {
-                            modelId: {kind: ValueKind.String, string: option.key},
-                            messageIndex: {kind: ValueKind.S64, s64: message.messageIndex},
-                        },
-                    })}
-                    dropdownWidth="340px"
-                    dropdownVerticalGap={8}
-                    elementHeight={42}
-                    matchTriggerWidth={false}
-                    showSearchField={modelOptions.length > 8}
-                    trigger={
+            {renderMessageParts(message.parts, !responseFinished, fn)}
+            {!responseFinished ? null : (
+                <Flex className={ComposerActionButtonHoverClass} alignItems="center" gap="8px" color="textSecondary" fontSize="12px" flexWrap="wrap">
+                    {message.content ? <CopyButton onClick={() => copyToClipboard(message.content)}/> : null}
+                    {message.directImage || message.directTranscription ? (
                         <IconButton
-                            tooltip={<>
-                                <div>Regenerate</div>
-                                <div style={{fontStyle: "italic"}}>Used: {regenerateModelLabel}</div>
-                            </>}
+                            tooltip={message.directTranscription ? "Run transcription again" : "Generate again"}
                             icon="heroArrowPath"
-                            onClick={doNothing}
+                            onClick={() => fn.sendUiEvent("regenerateChat", "click", {
+                                kind: ValueKind.Object,
+                                object: {
+                                    messageIndex: {kind: ValueKind.S64, s64: message.messageIndex},
+                                },
+                            })}
                         />
-                    }
-                    RenderRow={(props) => (
-                        <ModelSelectorOption
-                            option={props.element}
-                            selected={props.element?.key === selectedModelOption?.key}
-                            onSelect={props.onSelect}
-                            dataProps={props.dataProps}
+                    ) : (
+                        <RichSelect<PlaygroundOption, keyof PlaygroundOption>
+                            items={modelOptions}
+                            keys={["key", "value"]}
+                            selected={selectedModelOption}
+                            onSelect={(option) => fn.sendUiEvent("regenerateChat", "click", {
+                                kind: ValueKind.Object,
+                                object: {
+                                    modelId: {kind: ValueKind.String, string: option.key},
+                                    messageIndex: {kind: ValueKind.S64, s64: message.messageIndex},
+                                },
+                            })}
+                            dropdownWidth="340px"
+                            dropdownVerticalGap={8}
+                            elementHeight={42}
+                            matchTriggerWidth={false}
+                            showSearchField={modelOptions.length > 8}
+                            trigger={
+                                <IconButton
+                                    tooltip={<>
+                                        <div>Regenerate</div>
+                                        <div style={{fontStyle: "italic"}}>Used: {regenerateModelLabel}</div>
+                                    </>}
+                                    icon="heroArrowPath"
+                                    onClick={doNothing}
+                                />
+                            }
+                            RenderRow={(props) => (
+                                <ModelSelectorOption
+                                    option={props.element}
+                                    selected={props.element?.key === selectedModelOption?.key}
+                                    onSelect={props.onSelect}
+                                    dataProps={props.dataProps}
+                                />
+                            )}
                         />
                     )}
-                />
-                <Tooltip tooltipContentWidth={240} trigger={<span>{formatResponseDuration(message.startedAt, message.finishedAt)}</span>}>
-                    <div style={{display: "flex", flexDirection: "column", gap: 4, textAlign: "left"}}>
-                        <span>Time to first token: {formatDuration(message.firstTokenAt > 0 && message.startedAt > 0 ? message.firstTokenAt - message.startedAt : 0)}</span>
-                        <span>Output tokens: {message.outputTokens || "Unknown"}</span>
-                        <span>Finished: {formatTimeOfDay(message.finishedAt)}</span>
-                    </div>
-                </Tooltip>
-                <span>{formatTokensPerSecond(message.outputTokens, message.firstTokenAt, message.finishedAt)}</span>
-            </Flex>}
+                    {message.directImage || message.directTranscription ? (
+                        <span>{formatResponseDuration(message.startedAt, message.finishedAt)}</span>
+                    ) : (
+                        <Tooltip
+                            tooltipContentWidth={240}
+                            trigger={
+                                <span>{formatResponseDuration(message.startedAt, message.finishedAt)}</span>
+                            }
+                        >
+                            <div style={{display: "flex", flexDirection: "column", gap: 4, textAlign: "left"}}>
+                                <span>Time to first token: {formatDuration(message.firstTokenAt > 0 && message.startedAt > 0 ? message.firstTokenAt - message.startedAt : 0)}</span>
+                                <span>Output tokens: {message.outputTokens || "Unknown"}</span>
+                                <span>Finished: {formatTimeOfDay(message.finishedAt)}</span>
+                            </div>
+                        </Tooltip>
+                    )}
+                    {!message.directImage && !message.directTranscription ? (
+                        <span>{formatTokensPerSecond(message.outputTokens, message.firstTokenAt, message.finishedAt)}</span>
+                    ) : null}
+                </Flex>
+            )}
         </Flex>
     );
 }, areChatMessageNodePropsEqual);
 
 function areChatMessageNodePropsEqual(prev: ChatMessageNodeProps, next: ChatMessageNodeProps): boolean {
+    if (prev.message === next.message) return prev.fn === next.fn;
     if (prev.fn !== next.fn || !chatMessageViewModelEqual(prev.message, next.message)) return false;
     if (prev.message.role === "user" && next.message.role === "user") return true;
     if (!playgroundOptionsEqual(prev.modelOptions, next.modelOptions)) return false;
@@ -840,13 +1416,13 @@ function formatResponseDuration(startedAt: number, finishedAt: number): string {
 
 function formatDuration(ms: number): string {
     if (ms <= 0) return "Unknown";
-    if (ms < 1000) return `${Math.round(ms)} ms`;
-    return `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)} s`;
+    if (ms < 1000) return `${formatNumber(Math.round(ms))} ms`;
+    return `${formatNumber(ms / 1000, {precision: ms < 10000 ? 1 : 0, removeTrailingZeros: true})} s`;
 }
 
 function formatTokensPerSecond(outputTokens: number, firstTokenAt: number, finishedAt: number): string {
     if (outputTokens <= 0 || firstTokenAt <= 0 || finishedAt <= firstTokenAt) return "Unknown";
-    return `${(outputTokens / ((finishedAt - firstTokenAt) / 1000)).toFixed(1)} toks/s`;
+    return `${formatNumber(outputTokens / ((finishedAt - firstTokenAt) / 1000), {precision: 1})} tok/s`;
 }
 
 const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, streaming}: {text: string; streaming: boolean}): React.ReactNode {
@@ -857,39 +1433,51 @@ const StreamingMarkdownPart = React.memo(function StreamingMarkdownPart({text, s
 });
 
 const ToolDisplayNames: Record<string, string> = {
+    transcribe_file: "Transcribing audio",
+    generate_image: "Generating image",
+    edit_image: "Editing image",
     bash: "Shell",
-    glob: "Finding files",
-    grep: "Searching files",
-    read: "Reading file",
     web_fetch: "Fetching web page",
-    wikipedia_search: "Searching Wikipedia",
+    request_internet_access: "Requesting internet access",
 };
 
 const ToolIcons: Record<string, IconName> = {
+    transcribe_file: "heroMusicalNote",
+    generate_image: "heroPhoto",
+    edit_image: "heroPhoto",
     bash: "heroCommandLine",
-    glob: "heroFolderOpen",
-    grep: "heroMagnifyingGlass",
-    read: "heroDocumentText",
     web_fetch: "heroGlobeEuropeAfrica",
-    wikipedia_search: "heroBookOpen",
+    request_internet_access: "heroGlobeEuropeAfrica",
 };
 
-function renderMessageParts(parts: ChatMessagePart[], streaming: boolean): React.ReactNode[] {
+function renderMessageParts(parts: ChatMessagePart[], streaming: boolean, fn: UcxFunctionRegistry): React.ReactNode[] {
     const result: React.ReactNode[] = [];
-    const orderedParts = [...parts.filter(part => part.kind === "tool"), ...parts.filter(part => part.kind !== "tool")];
-    for (let index = 0; index < orderedParts.length;) {
-        const part = orderedParts[index];
-        if (part.kind === "thinking") {
-            result.push(<ThinkingPart key={index} part={part}/>);
+    const hasText = parts.some(part => part.kind === "text" && part.text.trim() !== "");
+    const thinkingStreaming = streaming && !hasText;
+    for (let index = 0; index < parts.length;) {
+        const part = parts[index];
+        if (part.kind === "transcript") {
+            result.push(<PlaygroundTranscriptPart key={part.transcriptPath || index} part={part} fn={fn}/>);
             index++;
             continue;
         }
-        if (part.kind === "tool") {
-            const tools: ChatMessagePart[] = [];
-            while (orderedParts[index]?.kind === "tool") {
-                tools.push(orderedParts[index++]);
+        if (part.kind === "image") {
+            result.push(<PlaygroundImagePart key={part.imageId || part.imagePath || index} part={part}/>);
+            index++;
+            continue;
+        }
+        if (part.kind === "thinking" || part.kind === "tool") {
+            const activity: ChatMessagePart[] = [];
+            while (parts[index]?.kind === "thinking" || parts[index]?.kind === "tool") {
+                activity.push(parts[index++]);
             }
-            result.push(<ToolMenu key={index - tools.length} tools={tools}/>);
+            result.push(
+                <TraceGroup
+                    key={`trace-${index - activity.length}`}
+                    parts={activity}
+                    streaming={thinkingStreaming}
+                />
+            );
             continue;
         }
         result.push(<StreamingMarkdownPart key={index} text={part.text} streaming={streaming}/>);
@@ -898,78 +1486,149 @@ function renderMessageParts(parts: ChatMessagePart[], streaming: boolean): React
     return result;
 }
 
-function ToolMenu({tools}: {tools: ChatMessagePart[]}): React.ReactNode {
-    const [activeIndex, setActiveIndex] = React.useState(() => tools.findIndex(tool => tool.status === "error"));
-    const activeTool = activeIndex >= 0 ? tools[activeIndex] : null;
-    return <div style={{marginBottom: 16}}>
-        <div style={{display: "flex", flexWrap: "wrap", gap: 6, marginBottom: activeTool ? 6 : 0}}>
-            {tools.map((tool, index) => {
-                const label = toolDisplayName(tool.toolName || tool.summary || "tool");
-                const active = index === activeIndex;
-                return <Tooltip key={index} tooltipContentWidth={180} trigger={
-                    <button
-                        type="button"
-                        aria-label={`Show ${label}`}
-                        aria-pressed={active}
-                        onClick={() => setActiveIndex(prev => prev === index ? -1 : index)}
-                        style={{
-                            padding: "0 6px",
-                            height: 30,
-                            border: "1px solid var(--playground-border, var(--borderColor))",
-                            borderRadius: 7,
-                            background: active ? "var(--playground-active, var(--secondaryMain))" : "var(--playground-surface-raised, var(--dialogToolbar))",
-                            color: "inherit",
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center"
-                        }}
-                    >
-                        {tool.status === "running" ? <UcxSpinner size={16}/> : null }
-                        <Icon name={toolIcon(tool.toolName || tool.summary) as any} size={16}/>
-                    </button>
-                }>{label}</Tooltip>;
-            })}
-        </div>
-        {activeTool ? <ToolPart part={activeTool}/> : null}
+function TraceGroup({parts, streaming}: {
+    parts: ChatMessagePart[];
+    streaming: boolean;
+}): React.ReactNode {
+    return <div style={{display: "flex", flexDirection: "column", marginBottom: 16}}>
+        {parts.map((part, index) => (
+            <TraceRow
+                key={`${part.kind}-${index}-${part.toolName || ""}`}
+                part={part}
+                kind={part.kind === "thinking" ? "thinking" : "tool"}
+                streaming={streaming}
+                isLast={index === parts.length - 1}
+            />
+        ))}
     </div>;
 }
 
-function ToolPart({part}: { part: ChatMessagePart }): React.ReactNode {
-    const statusColor = part.status === "error" ? "var(--errorMain)" : part.status === "running" ? "var(--warningMain)" : "var(--successMain)";
-    const label = toolDisplayName(part.toolName || part.summary || "tool");
-    const status = toolStatusLabel(part.status);
+function TraceRow({part, kind, streaming, isLast}: {
+    part: ChatMessagePart;
+    kind: "thinking" | "tool";
+    streaming: boolean;
+    isLast: boolean;
+}): React.ReactNode {
+    const error = part.status === "error";
+    const running = part.status === "running" || (kind === "thinking" && part.status === "" && streaming);
+    const [open, setOpen] = React.useState(error);
+    React.useEffect(() => {
+        if (error) setOpen(true);
+    }, [error]);
+    const title = kind === "thinking" ? (running ? "Thinking" : "Thought") : traceToolTitle(part, running, error);
+    const icon = kind === "thinking" ? "heroSparkles" : toolIcon(part.toolName || part.summary);
     const body = (part.body || part.text).trim();
-    const icon = toolIcon(part.toolName || part.summary);
-    return (
-        <div
-            style={{
+    return <div style={{display: "grid", gridTemplateColumns: "22px minmax(0, 1fr)", columnGap: 12}}>
+        <div style={{display: "flex", justifyContent: "center", position: "relative", paddingTop: 1}}>
+            <div style={{
+                position: "absolute",
+                top: 0,
+                bottom: isLast ? "calc(100% - 23px)" : 0,
+                width: 1,
+                background: "var(--playground-border, var(--borderColor))",
+            }}/>
+            <span style={{
+                position: "relative",
+                width: 22,
+                height: 22,
+                borderRadius: 999,
                 border: "1px solid var(--playground-border, var(--borderColor))",
-                borderRadius: 8,
-                overflow: "hidden",
-                background: "var(--playground-surface-raised, var(--dialogToolbar))",
-                maxHeight: 300,
-            }}
-        >
-            <div style={{display: "flex", alignItems: "center", gap: 8, padding: "8px 10px"}}>
-                <Icon name={icon as any} size={16}/>
-                <span style={{fontWeight: 600, flexShrink: 0}}>{label}</span>
-                <span style={{width: 8, height: 8, borderRadius: 999, background: statusColor, flexShrink: 0}} />
-                <span style={{color: "var(--textSecondary)", fontSize: 12, whiteSpace: "nowrap"}}>{status}</span>
-            </div>
-            <div
+                background: "var(--playground-surface, var(--backgroundDefault))",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: error ? "var(--errorMain)" : running ? "var(--warningMain)" : "var(--textSecondary)",
+            }}>
+                {running ? <UcxSpinner size={13}/> : <Icon name={icon as any} size={13}/>}
+            </span>
+        </div>
+        <div style={{minWidth: 0, paddingBottom: 8}}>
+            <button
+                type="button"
+                aria-expanded={open}
+                onClick={() => setOpen(value => !value)}
+                className={TraceRowClass}
                 style={{
-                    padding: "0 10px 10px 10px",
-                    color: "var(--textSecondary)",
-                    whiteSpace: "normal",
-                    maxHeight: 254,
-                    overflowY: "auto",
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "2px 4px",
+                    marginLeft: -4,
+                    border: 0,
+                    background: "transparent",
+                    color: "inherit",
+                    cursor: "pointer",
+                    textAlign: "left",
                 }}
             >
-                <ToolPartBody part={part} body={body}/>
-            </div>
+                <span style={{
+                    fontWeight: 500,
+                    fontSize: 13,
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                }}>
+                    {title}
+                </span>
+                <span style={{flex: 1}}/>
+                <Icon name={open ? "heroChevronDown" : "heroChevronRight"} size={14}/>
+            </button>
+            {open ? (
+                <div style={{
+                    padding: "6px 0 4px",
+                    color: "var(--textSecondary)",
+                    fontSize: 13,
+                    whiteSpace: "normal",
+                    overflowWrap: "anywhere",
+                    maxHeight: 320,
+                    overflowY: "auto",
+                }}>
+                    {kind === "thinking" ? (
+                        body === "" ? <UcxSpinner/> : <div style={{whiteSpace: "pre-wrap"}}>{part.body}</div>
+                    ) : (
+                        <ToolPartBody part={part} body={body}/>
+                    )}
+                </div>
+            ) : null}
         </div>
-    );
+    </div>;
+}
+
+function traceToolTitle(part: ChatMessagePart, running: boolean, error: boolean): string {
+    const name = (part.toolName || part.summary || "tool").trim();
+    if (error) {
+        switch (name) {
+            case "transcribe_file": return "Failed to transcribe audio";
+            case "generate_image": return "Failed to generate image";
+            case "edit_image": return "Failed to edit image";
+            case "bash": return "Command failed";
+            case "web_fetch": return "Failed to fetch web page";
+            case "request_internet_access": return "Internet access request failed";
+            default: return `Failed to run ${toolDisplayName(name)}`;
+        }
+    }
+    if (running) {
+        switch (name) {
+            case "transcribe_file": return "Transcribing audio";
+            case "generate_image": return "Generating image";
+            case "edit_image": return "Editing image";
+            case "bash": return "Running command";
+            case "web_fetch": return "Fetching web page";
+            case "request_internet_access": return "Requesting internet access";
+            default: return `Running ${toolDisplayName(name)}`;
+        }
+    }
+    switch (name) {
+        case "transcribe_file": return "Transcribed audio";
+        case "generate_image": return "Generated image";
+        case "edit_image": return "Edited image";
+        case "bash": return "Ran command";
+        case "web_fetch": return "Fetched web page";
+        case "request_internet_access": return "Requested internet access";
+        default: return `Used ${toolDisplayName(name)}`;
+    }
 }
 
 function ToolPartBody({part, body}: {part: ChatMessagePart; body: string}): React.ReactNode {
@@ -977,14 +1636,22 @@ function ToolPartBody({part, body}: {part: ChatMessagePart; body: string}): Reac
     if (part.toolName === "bash") return <BashToolResult command={toolArgument(part)} output={output.text}/>;
     const argumentsValue = toolArguments(part);
 
-    switch (part.toolName) {
-        case "glob": return <GlobToolResult argumentsValue={argumentsValue} result={output.value}/>;
-        case "grep": return <GrepToolResult argumentsValue={argumentsValue} result={output.value}/>;
-        case "read": return <ReadToolResult argumentsValue={argumentsValue} result={output.value}/>;
-        case "web_fetch": return <WebFetchToolResult argumentsValue={argumentsValue} result={output.value}/>;
-        case "wikipedia_search": return <WikipediaToolResult argumentsValue={argumentsValue} result={output.value}/>;
-        default: return <CodeSnippet lang="json">{JSON.stringify(output.value, null, 2)}</CodeSnippet>;
+    if (part.toolName === "web_fetch") {
+        const error = output.error || (part.status === "error" ? toolSection(body, "Error:") || output.text || "Tool failed without an error message." : "");
+        return <WebFetchToolResult argumentsValue={argumentsValue} result={output.value} error={error} running={part.status === "running"}/>;
     }
+
+    if (output.error || part.status === "error") {
+        return <CodeSnippet lang="text">{output.error || toolSection(body, "Error:") || output.text || "Tool failed without an error message."}</CodeSnippet>;
+    }
+    if (!output.value) {
+        if (part.status === "running") {
+            return <UcxSpinner />;
+        }
+        return <CodeSnippet lang="text">{output.text || "The tool returned no content."}</CodeSnippet>;
+    }
+
+    return <CodeSnippet lang="json">{JSON.stringify(output.value, null, 2)}</CodeSnippet>;
 }
 
 function BashToolResult({command, output}: {command: string; output: string}): React.ReactNode {
@@ -994,49 +1661,21 @@ function BashToolResult({command, output}: {command: string; output: string}): R
     </div>;
 }
 
-function GlobToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
-    const matches = result ? stringList(result.matches) : [];
-    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "Pattern", value: stringValueFrom(argumentsValue?.pattern)}, {label: "Directory", value: stringValueFrom(argumentsValue?.cwd) || "."}, {label: "Matches", value: String(numberValueFrom(result?.count) ?? matches.length)}]}/>
-        <CodeSnippet lang="text">{matches.join("\n")}</CodeSnippet>
-    </div>;
-}
-
-function GrepToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
-    const matches = result ? jsonList(result.matches) : [];
-    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "Pattern", value: stringValueFrom(argumentsValue?.pattern)}, {label: "Path", value: stringValueFrom(argumentsValue?.path) || "."}, {label: "Include", value: stringValueFrom(argumentsValue?.include)}, {label: "Exclude", value: stringValueFrom(argumentsValue?.exclude)}, {label: "Matches", value: String(numberValueFrom(result?.count) ?? matches.length)}]}/>
-        <CodeSnippet lang="text">{matches.map(match => `${stringValueFrom(match.path)}:${numberValueFrom(match.line) ?? 0}: ${stringValueFrom(match.text)}`).join("\n")}</CodeSnippet>
-    </div>;
-}
-
-function ReadToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
-    const entries = result ? stringList(result.entries) : [];
-    const content = result ? stringValueFrom(result.content) : "";
-    const count = result ? (numberValueFrom(result.count) ?? numberValueFrom(result.lines) ?? entries.length) : (numberValueFrom(argumentsValue?.limit) ?? 0);
-    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "Path", value: stringValueFrom(result?.path) || stringValueFrom(argumentsValue?.path)}, {label: entries.length > 0 ? "Entries" : "Lines", value: String(count)}, {label: "Offset", value: String(numberValueFrom(argumentsValue?.offset) ?? 1)}]}/>
-        {result ? <CodeSnippet lang="text">{entries.length > 0 ? entries.join("\n") : content}</CodeSnippet> : <UcxSpinner />}
-    </div>;
-}
-
-function WebFetchToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
+function WebFetchToolResult({argumentsValue, result, error, running}: {argumentsValue: ToolJson | null; result: ToolJson | null; error: string; running: boolean}): React.ReactNode {
     const content = stringValueFrom(result?.content);
     const format = stringValueFrom(result?.format) || stringValueFrom(argumentsValue?.format) || "markdown";
+    const cursor = stringValueFrom(result?.next_cursor);
+    const query = stringValueFrom(result?.query) || stringValueFrom(argumentsValue?.query);
     return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "URL", value: stringValueFrom(result?.url) || stringValueFrom(argumentsValue?.url)}, {label: "Format", value: format}, {label: "Status", value: result ? String(numberValueFrom(result.status) ?? "") : ""}, {label: "Content type", value: stringValueFrom(result?.content_type)}]}/>
-        {result ? (format === "markdown" ? <CodeSnippet lang="markdown">{content}</CodeSnippet> : <CodeSnippet lang="html">{content}</CodeSnippet>) : <UcxSpinner />}
-    </div>;
-}
-
-function WikipediaToolResult({argumentsValue, result}: {argumentsValue: ToolJson | null; result: ToolJson | null}): React.ReactNode {
-    const results = jsonList(result?.results);
-    return <div style={{display: "flex", flexDirection: "column", gap: 8}}>
-        <ToolFields fields={[{label: "Query", value: stringValueFrom(result?.query) || stringValueFrom(argumentsValue?.query)}, {label: "Results", value: String(numberValueFrom(result?.count) ?? numberValueFrom(argumentsValue?.limit) ?? results.length)}]}/>
-        {result ? results.map((item, index) => <div key={index} style={{display: "flex", flexDirection: "column", gap: 2}}>
-            <div>{stringValueFrom(item.title)}</div>
-            <div>{stringValueFrom(item.snippet)}</div>
-        </div>) : <UcxSpinner />}
+        <ToolFields fields={[
+            {label: "URL", value: stringValueFrom(result?.url) || stringValueFrom(argumentsValue?.url)},
+            {label: "HTTP status", value: result ? String(numberValueFrom(result.status) ?? "") : ""},
+            {label: "Query", value: query},
+        ]}/>
+        {query && result?.query_matched === false ? <span>No sections matched the query. Showing document content instead.</span> : null}
+        {error ? <CodeSnippet lang="text">{error}</CodeSnippet> : running && content.trim() === "" ? <UcxSpinner /> : content.trim() === "" ? <span>The tool returned no content.</span> : <CodeSnippet lang={format === "markdown" ? "markdown" : "html"}>{content}</CodeSnippet>}
+        {result?.download_truncated === true ? <span>The download reached its size limit. The page content is incomplete.</span> : null}
+        {cursor ? <span>More page content is available.</span> : result?.truncated === true && result?.download_truncated !== true ? <span>Content was truncated.</span> : null}
     </div>;
 }
 
@@ -1065,14 +1704,6 @@ function numberValueFrom(value: unknown): number | null {
     return typeof value === "number" ? value : null;
 }
 
-function boolValueFrom(value: unknown): boolean {
-    return value === true;
-}
-
-function stringList(value: unknown): string[] {
-    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
-}
-
 function jsonList(value: unknown): ToolJson[] {
     return Array.isArray(value) ? value.filter((item): item is ToolJson => !!item && typeof item === "object" && !Array.isArray(item)) : [];
 }
@@ -1085,11 +1716,17 @@ function toolArguments(part: ChatMessagePart): ToolJson | null {
     return toolJson(part.text) ?? toolJson(toolSection(part.body, "Arguments:"));
 }
 
-function toolOutput(body: string): {value: ToolJson | null; text: string} {
+function toolOutput(body: string): {value: ToolJson | null; text: string; error: string} {
     const result = toolResult(body);
     const envelope = toolJson(result);
     const stdout = stringValueFrom(envelope?.stdout);
-    return {value: toolJson(stdout) ?? envelope, text: stdout || result};
+    const value = toolJson(stdout) ?? envelope;
+    const failure = stringValueFrom(envelope?.error) || stringValueFrom(value?.error) ||
+        (envelope?.timed_out === true ? "Tool timed out." : "") ||
+        toolSection(body, "Error:");
+    const stderr = stringValueFrom(envelope?.stderr);
+    const error = failure ? [failure, stderr].filter(Boolean).join("\n\n") : stdout.trim() === "" ? stderr : "";
+    return {value, text: stdout || result, error};
 }
 
 function toolSection(body: string, marker: string): string {
@@ -1122,15 +1759,6 @@ function toolDisplayName(name: string): string {
 
 function capitalizeToolWord(word: string): string {
     return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-}
-
-function toolStatusLabel(status: string): string {
-    switch (status) {
-        case "running": return "Running";
-        case "error": return "Failed";
-        case "completed": return "Completed";
-        default: return status ? capitalizeToolWord(status) : "Completed";
-    }
 }
 
 type StreamingMarkdownStackItem = {
@@ -1306,94 +1934,15 @@ function isEscaped(text: string, idx: number): boolean {
     return slashCount % 2 === 1;
 }
 
-function ThinkingPart({part}: { part: ChatMessagePart }): React.ReactNode {
-    const [expanded, setExpanded] = React.useState(false);
-    const contentRef = React.useRef<HTMLDivElement>(null);
-    const summary = part.summary.trim();
-
-    React.useEffect(() => {
-        setExpanded(part.open);
-    }, [part.open]);
-
-    React.useLayoutEffect(() => {
-        const content = contentRef.current;
-        if (expanded && content) content.scrollTop = content.scrollHeight;
-    }, [expanded, part.body]);
-
-    return (
-        <div
-            style={{
-                border: "1px solid var(--playground-border, var(--borderColor))",
-                borderRadius: 8,
-                overflow: "hidden",
-                background: "var(--playground-surface-raised, var(--dialogToolbar))",
-                marginBottom: "16px",
-                maxHeight: 300,
-            }}
-        >
-            <button
-                type="button"
-                onClick={() => setExpanded((v) => !v)}
-                style={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "8px 10px",
-                    border: 0,
-                    background: "transparent",
-                    color: "inherit",
-                    cursor: "pointer",
-                    textAlign: "left",
-                }}
-            >
-                <Icon name="heroSparkles" size={16}/>
-                <span style={{fontWeight: 600, flexShrink: 0}}>Thinking</span>
-                {summary === "" ? null : (
-                    <span
-                        style={{
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                        }}
-                    >
-            {summary}
-          </span>
-                )}
-            </button>
-            {expanded ? (
-                <div
-                    ref={contentRef}
-                    style={{
-                        padding: "0 10px 10px 10px",
-                        color: "var(--textSecondary)",
-                        whiteSpace: "pre-wrap",
-                        overflowWrap: "anywhere",
-                        maxHeight: 254,
-                        overflowY: "auto",
-                    }}
-                >
-                    {part.body.trim() === "" ? (
-                        <UcxSpinner />
-                    ) : (
-                        part.body
-                    )}
-                </div>
-            ) : null}
-        </div>
-    );
-}
-
 function ThreadListNode({
-                            node,
-                            model,
-                            fn,
+    node,
+    model,
+    fn,
 }: Pick<UcxRenderContext, "node" | "model" | "fn">): React.ReactNode {
     const [operations, setOperations] = React.useState<
         Operation<ThreadListItem>[]
     >([]);
-    const openOperationsRef =
-        React.useRef<(left: number, top: number) => void>(doNothing);
+    const openOperationsRef = React.useRef<(left: number, top: number) => void>(doNothing);
     const threads = threadListValue(fn.modelValue(model, node.bindPath));
     const currentThreadId = stringValue(fn.modelValue(model, "currentThreadId"));
     const loadingThreadIds = stringListValue(fn.modelValue(model, "loadingThreadIds"));
@@ -1403,7 +1952,6 @@ function ThreadListNode({
             {
                 text: "Rename",
                 icon: "heroPencil",
-                shortcut: ShortcutKey.R,
                 enabled: () => true,
                 onClick: async () => {
                     try {
@@ -1431,7 +1979,8 @@ function ThreadListNode({
                 icon: "heroTrash",
                 color: "errorMain",
                 confirm: true,
-                shortcut: ShortcutKey.Backspace,
+                confirmationText: "Are you sure you want to delete this thread?",
+                confirmationButtonText: "Delete",
                 enabled: () => true,
                 onClick: () =>
                     fn.sendUiEvent("deleteThread", "click", {
@@ -1461,7 +2010,7 @@ function ThreadListNode({
                 const active = thread.id === currentThreadId;
                 const openMenu = (left: number, top: number) => {
                     setOperations(threadOperations(thread));
-                    openOperationsRef.current(left, top);
+                    queueMicrotask(() => openOperationsRef.current(left, top));
                 };
 
                 return (
@@ -1548,8 +2097,11 @@ function ThreadListNode({
     );
 }
 
-function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSession = false, error = ""}: PlaygroundFrameProps): React.ReactNode {
+function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSession = false, error = "", noAllocation = false, noStorage = false}: PlaygroundFrameProps): React.ReactNode {
     const connectionStatus = loadingSession || !mounted ? "Connecting..." : !connected ? "Reconnecting..." : error !== "" ? "Connection issue" : "Connected";
+    const disabledReason = noStorage
+        ? "Storage resources are required to use the AI platform"
+        : noAllocation ? "You need to apply for resources before you can use the chat" : "";
 
     return (
         <MainContainer
@@ -1564,7 +2116,14 @@ function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSess
                         </>}
                     >
                         <TabbedCardTab name="Chat" icon="heroChatBubbleLeftRight">
-                            <PlaygroundWorkspace model={model} fn={fn} connected={connected && mounted && error === ""} connectionStatus={connectionStatus}/>
+                            <PlaygroundWorkspace
+                                model={model}
+                                fn={fn}
+                                connected={connected && mounted && error === ""}
+                                connectionStatus={connectionStatus}
+                                disabledReason={disabledReason}
+                                disabledReasonIsStorage={noStorage}
+                            />
                         </TabbedCardTab>
                     </TabbedCard>
                 </div>
@@ -1575,15 +2134,16 @@ function PlaygroundFrame({model, fn, ucxContent, connected, mounted, loadingSess
 
 function DeveloperModeToggle({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
     const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
-    return <div style={{display: "flex", alignItems: "center", gap: 8, marginRight: 16}}>
+    return <Flex style={{alignItems: "center", gap: 8, marginRight: 16}} className={ResponsiveHide}>
         <span style={{fontWeight: 600, userSelect: "none"}}>Developer</span>
         <Toggle height={18} checked={developer} onChange={() => connected && fn?.sendModelInput("developer", {kind: ValueKind.Bool, bool: !developer}, "developerMode")}/>
-    </div>;
+    </Flex>;
 }
 
-function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string}): React.ReactNode {
+function PlaygroundWorkspace({model, fn, connected, connectionStatus, disabledReason = "", disabledReasonIsStorage = false}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; connectionStatus: string; disabledReason?: string; disabledReasonIsStorage?: boolean}): React.ReactNode {
     const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
     const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false);
+    const [showThreads, setShowThreads] = React.useState(false);
     const threads = threadListValue(fn?.modelValue(model, "threads") ?? model.threads);
     const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
     const pendingNewThreadRef = React.useRef<Set<string> | null>(null);
@@ -1604,13 +2164,45 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
         }
     }, [currentThreadId, fn, threads]);
 
+    React.useEffect(() => {
+        function onResize() {
+            if (window.innerWidth < 900) {
+                setSidebarCollapsed(false);
+            } else {
+                setShowThreads(false);
+            }
+        }
+
+        function closeThreads(e: Event) {
+            if (!e.target) return;
+            if (findDomAttributeFromAncestors(e.target, "data-open") == null) {
+                setShowThreads(false);
+            }
+        }
+
+        const routerWrapper = document.querySelector("[data-component='main']");
+        if (routerWrapper) {
+            routerWrapper.addEventListener("click", closeThreads)
+        }
+
+        window.addEventListener("resize", onResize);
+        return () => {
+            window.removeEventListener("resize", onResize);
+            const routerWrapper = document.querySelector("[data-component='router-wrapper']");
+            if (routerWrapper) { routerWrapper.removeEventListener("click", closeThreads); }
+        }
+    }, []);
+
+    React.useEffect(() => {
+        setShowThreads(false);
+    }, [currentThreadId]);
+
     const newThread = () => {
         if (!connected || !fn) return;
         pendingNewThreadRef.current = new Set(threads.map(thread => thread.id));
         fn.sendUiEvent("newThread", "click");
     };
     const footer = <>
-        {!developer && hasFeature(Feature.INFERENCE_WORKSPACE) ? <WorkspaceSelector model={model} fn={fn} connected={connected}/> : null}
         <ContextWindowIndicator model={model} fn={fn}/>
         <ConnectionStatusIndicator connected={connected} text={connectionStatus}/>
     </>;
@@ -1618,9 +2210,9 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
     return (
         <div className="playground-body">
             <div className="playground-main">
-                <PlaygroundConversation model={model} fn={fn} connected={connected}/>
+                <PlaygroundConversation model={model} fn={fn} connected={connected} disabledReason={disabledReason} disabledReasonIsStorage={disabledReasonIsStorage}/>
             </div>
-            <div className="playground-sidebar" data-collapsed={sidebarCollapsed}>
+            <div className="playground-sidebar" onClick={stopPropagation} data-open={showThreads} data-collapsed={sidebarCollapsed}>
                 {sidebarCollapsed ? (
                     <CollapsedPlaygroundSidebar connected={connected} connectionStatus={connectionStatus} onExpand={() => setSidebarCollapsed(false)} onNewThread={developer ? undefined : newThread}/>
                 ) : developer ? (
@@ -1628,6 +2220,12 @@ function PlaygroundWorkspace({model, fn, connected, connectionStatus}: {model: R
                 ) : (
                     <PlaygroundThreadSidebar model={model} fn={fn} connected={connected} footer={footer} onCollapse={() => setSidebarCollapsed(true)} onNewThread={newThread}/>
                 )}
+            </div>
+            <div className="threads-popover-toggle" data-open={showThreads} onClick={e => {
+                e.stopPropagation();
+                setShowThreads(t => !t);
+            }}>
+                <Icon name="heroListBullet" size={28} />
             </div>
         </div>
     );
@@ -1650,7 +2248,7 @@ function CollapsedPlaygroundSidebar({connected, connectionStatus, onExpand, onNe
 }
 
 function ConnectionStatusIndicator({connected, text, compact = false}: {connected: boolean; text: string; compact?: boolean}): React.ReactNode {
-    return <div style={{marginTop: "auto", display: "flex", alignItems: "center", justifyContent: compact ? "center" : undefined, gap: compact ? 0 : 8, color: "var(--textSecondary)", fontSize: 12}}>
+    return <div style={{marginTop: "auto", marginBottom: compact ? 10 : undefined, display: "flex", alignItems: "center", justifyContent: compact ? "center" : undefined, gap: compact ? 0 : 8, color: "var(--textSecondary)", fontSize: 12}}>
         <Tooltip tooltipContentWidth={160} trigger={<div style={{width: 8, height: 8, borderRadius: 999, background: connected ? "var(--successMain)" : "var(--warningMain)"}}/>}>
             {text}
         </Tooltip>
@@ -1686,16 +2284,49 @@ function ContextWindowIndicator({model, fn}: {model: Record<string, Value>; fn?:
 
 }
 
-function PlaygroundConversation({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
+function PlaygroundConversation({model, fn, connected, disabledReason = "", disabledReasonIsStorage = false}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; disabledReason?: string; disabledReasonIsStorage?: boolean}): React.ReactNode {
     const messagesValue = fn?.modelValue(model, "chat.messages") ?? model["chat.messages"];
     const messageItems = messagesValue?.kind === ValueKind.List ? messagesValue.list : [];
+    const streamingValue = fn?.modelValue(model, "chat.streamingMessages") ?? model["chat.streamingMessages"];
+    const streamingItems = streamingValue?.kind === ValueKind.List ? streamingValue.list : [];
+    const streamingThreadId = stringValue(fn?.modelValue(model, "chat.streamingThreadId") ?? model["chat.streamingThreadId"]);
     const loading = boolValue(fn?.modelValue(model, "chat.loading") ?? model["chat.loading"]);
-    const developmentMode = boolValue(fn?.modelValue(model, "developmentMode") ?? model.developmentMode);
+    const developer = boolValue(fn?.modelValue(model, "developer") ?? model.developer);
     const currentThreadId = stringValue(fn?.modelValue(model, "currentThreadId") ?? model.currentThreadId);
     const modelsValue = fn?.modelValue(model, "models") ?? model.models;
     const modelOptions = React.useMemo(() => textGenerationModelOptions(modelsValue), [modelsValue]);
     const currentModelId = stringValue(fn?.modelValue(model, "chat.modelId") ?? model["chat.modelId"]);
-    const messages = React.useMemo(() => buildChatMessageViewModels(messageItems, currentThreadId), [currentThreadId, messagesValue]);
+    const messages = React.useMemo(
+        () => buildChatMessageViewModels(
+            messageItems,
+            currentThreadId,
+            streamingThreadId === currentThreadId ? streamingItems : undefined,
+        ),
+        [currentThreadId, messagesValue, streamingThreadId, streamingValue],
+    );
+    const [activeImageKey, setActiveImageKey] = React.useState<string | null>(null);
+    const threadImages = React.useMemo(() => {
+        const images: ChatMessagePart[] = [];
+        const seen = new Set<string>();
+        for (const message of messages) {
+            for (const part of message.displayParts) {
+                if (part.kind !== "image" || !part.url) continue;
+                const key = playgroundImageKey(part);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                images.push(part);
+            }
+        }
+        return images;
+    }, [messages]);
+    const openImage = React.useCallback((part: ChatMessagePart) => {
+        setActiveImageKey(playgroundImageKey(part));
+    }, []);
+    React.useEffect(() => {
+        setActiveImageKey(null);
+    }, [currentThreadId]);
+    const permissionValue = fn?.modelValue(model, "chat.internetPermission") ?? model["chat.internetPermission"];
+    const permission = permissionValue?.kind === ValueKind.Object ? permissionValue.object : null;
     const latestMessage = messages[messages.length - 1];
     const latestMessageScrollKey = latestMessage ? chatMessageScrollKey(latestMessage) : "";
     const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -1743,11 +2374,14 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
             rows: {kind: ValueKind.S64, s64: 3},
             sendIcon: {kind: ValueKind.String, string: "heroArrowUp"},
             disabled: {kind: ValueKind.Bool, bool: !connected || loading},
+            streamingThreadId: {kind: ValueKind.String, string: streamingThreadId === currentThreadId ? currentThreadId : ""},
         },
-    }), [connected, developmentMode, loading]);
+    }), [connected, loading, streamingThreadId, currentThreadId]);
 
     return (
-        <>
+        <PlaygroundTranscriptionAvailableContext.Provider value={connected && !loading && !developer && stringValue(fn?.modelValue(model, "transcriptionModel") ?? model.transcriptionModel) !== ""}>
+        <PlaygroundTranscriptionCapabilitiesContext.Provider value={modelCapabilities(model, stringValue(fn?.modelValue(model, "transcriptionModel") ?? model.transcriptionModel))}>
+        <PlaygroundImageOpenContext.Provider value={openImage}>
             <div
                 ref={containerRef}
                 onScroll={(ev) => {
@@ -1760,21 +2394,34 @@ function PlaygroundConversation({model, fn, connected}: {model: Record<string, V
                 style={{flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 8px"}}
             >
                 <div ref={contentRef}>
-                    {messages.length === 0 ? <Text color="textSecondary">No messages yet.</Text> : messages.map((message) => {
+                    {disabledReason !== "" ? (
+                        <NoAllocationNotice reason={disabledReason} storage={disabledReasonIsStorage}/>
+                    ) : messages.length === 0 ? (
+                        <Text color="textSecondary">No messages yet.</Text>
+                    ) : messages.map((message) => {
                         if (!fn) return null;
                         return <ChatMessageNode key={message.key} message={message} modelOptions={modelOptions} currentModelId={currentModelId} fn={fn}/>;
                     })}
+                    {permission && boolValue(permission.active) && fn ? <InternetPermissionCard fn={fn} threadId={stringValue(permission.threadId)} url={stringValue(permission.url)}/> : null}
                     {loading ? <UcxSpinner /> : null}
                 </div>
             </div>
-            {fn ? playgroundComponents.inference_chat_composer({
+            {fn && !developer ? playgroundComponents.inference_chat_composer({
                 node: composerNode,
                 model,
                 fn,
                 components: playgroundComponents,
                 renderChildren: () => [],
-            }) : <DisabledComposerPlaceholder/>}
-        </>
+            }) : <DisabledComposerPlaceholder disabledReason={developer ? "You cannot send messages in developer mode" : disabledReason}/>}
+            <PlaygroundImageModal
+                images={threadImages}
+                activeKey={activeImageKey}
+                onClose={() => setActiveImageKey(null)}
+                onSelect={setActiveImageKey}
+            />
+        </PlaygroundImageOpenContext.Provider>
+        </PlaygroundTranscriptionCapabilitiesContext.Provider>
+        </PlaygroundTranscriptionAvailableContext.Provider>
     );
 }
 
@@ -1786,18 +2433,18 @@ function scrollPlaygroundConversationToBottom(el: HTMLElement): void {
     el.scrollTop = el.scrollHeight;
 }
 
-function DisabledComposerPlaceholder(): React.ReactNode {
-    return <Box className={ComposerActionButtonHoverClass} style={{width: "100%", flexShrink: 0, minHeight: 104, border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 16, background: "var(--playground-surface, var(--backgroundDefault))", overflow: "hidden"}}>
+function DisabledComposerPlaceholder({disabledReason = ""}: {disabledReason?: string}): React.ReactNode {
+    return <Box className={ComposerActionButtonHoverClass} style={{width: "100%", flexShrink: 0, minHeight: 104, border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 16, background: "var(--playground-surface, var(--backgroundDefault))", overflow: "hidden", opacity: 0.75}}>
         <TextArea
             resize="none"
             rows={3}
-            placeholder="Ask anything"
+            placeholder={disabledReason === "" ? "Ask anything" : disabledReason}
             value=""
             disabled
             onChange={doNothing}
-            style={{resize: "none", border: 0, boxShadow: "none", background: "transparent", width: "100%", minHeight: 0, padding: "14px 16px 8px 16px"}}
+            style={{resize: "none", border: 0, boxShadow: "none", background: "transparent", width: "100%", minHeight: 0, padding: "14px 16px 8px 16px", color: "var(--textSecondary)"}}
         />
-        <div style={{display: "flex", alignItems: "center", gap: 6, flexShrink: 0, padding: "0 10px 10px 10px"}}>
+        <div style={{display: "flex", alignItems: "center", gap: 6, flexShrink: 0, padding: "0 10px 10px 10px", color: "var(--textSecondary)"}}>
             <button type="button" disabled className={ComposerActionButtonClass}>
                 <Icon name="heroPlus" size={18}/>
             </button>
@@ -1807,6 +2454,61 @@ function DisabledComposerPlaceholder(): React.ReactNode {
             </button>
         </div>
     </Box>;
+}
+
+function InternetPermissionCard({fn, threadId, url}: {fn: UcxFunctionRegistry; threadId: string; url: string}): React.ReactNode {
+    const respond = (granted: boolean) => {
+        fn.sendUiEvent("internetPermissionResponse", "click", {
+            kind: ValueKind.Object,
+            object: {
+                granted: {kind: ValueKind.Bool, bool: granted},
+                threadId: {kind: ValueKind.String, string: threadId},
+            },
+        });
+    };
+
+    return <div style={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 12,
+        padding: 16,
+        borderRadius: 8,
+        border: "1px solid var(--borderGray, #e0e0e0)",
+        background: "var(--backgroundMain, #fafafa)",
+        marginTop: 16,
+    }}>
+        <Icon name="heroGlobeEuropeAfrica" size={24} color="textSecondary" mt={2}/>
+        <div style={{flex: 1, display: "flex", flexDirection: "column", gap: 12}}>
+            <div>
+                <div style={{fontWeight: 600, marginBottom: 4}}>Allow internet access?</div>
+                <Text color="textSecondary">
+                    The assistant wants to access {url === "" ? "the internet" : <code>{url}</code>} to answer your question.
+                </Text>
+            </div>
+            <div style={{display: "flex", gap: 8}}>
+                <Button type="button" onClick={() => respond(true)}>Allow</Button>
+                <Button type="button" color="secondaryMain" onClick={() => respond(false)}>Don't allow</Button>
+            </div>
+        </div>
+    </div>;
+}
+
+function NoAllocationNotice({reason, storage = false}: {reason: string; storage?: boolean}): React.ReactNode {
+    return <Flex flexDirection="column" alignItems="center" justifyContent="center" gap="16px" style={{flex: 1, textAlign: "center"}}>
+        <Icon name={storage ? "heroArchiveBox" : "heroChatBubbleLeftRight"} size={48} color="textSecondary"/>
+        <div>
+            <div style={{fontWeight: 600, marginBottom: 8}}>{reason}</div>
+            {storage ? (
+                <Text color="textSecondary">The chat stores conversations, attachments, and its sandbox in the files of
+                    this workspace, which requires storage resources.</Text>
+            ) : (
+                <Text color="textSecondary">Apply for resources to get access to AI models and start chatting.</Text>
+            )}
+        </div>
+        <Link to={AppRoutes.grants.editor()}>
+            <Button type="button">Apply for resources</Button>
+        </Link>
+    </Flex>;
 }
 
 function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNewThread}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void; onNewThread: () => void}): React.ReactNode {
@@ -1831,90 +2533,27 @@ function PlaygroundThreadSidebar({model, fn, connected, footer, onCollapse, onNe
                 <Icon name="heroPlus" size={16} mr={8}/>
                 New thread
             </Button>
-            <IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/>
+            <div className={ResponsiveHide}><IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/></div>
         </div>
     </div>;
 
-    return <PlaygroundSidebarShell header={header} footer={footer}>
-        {fn ? <ThreadListNode node={node} model={model} fn={fn}/> : <Text color="textSecondary">Loading...</Text>}
+return <PlaygroundSidebarShell header={header} footer={<>
+        {footer}
+    </>}>
+        {fn ? <ThreadListNode node={node} model={model} fn={fn} /> : <Text color="textSecondary">Loading...</Text>}
     </PlaygroundSidebarShell>;
 }
 
-function WorkspaceSelector({model, fn, connected}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean}): React.ReactNode {
-    const path = stringValue(fn?.modelValue(model, "workspace.path") ?? model["workspace.path"]);
-    const loading = boolValue(fn?.modelValue(model, "workspace.loading") ?? model["workspace.loading"]);
-    const chatLoading = boolValue(fn?.modelValue(model, "chat.loading") ?? model["chat.loading"]);
-    const error = stringValue(fn?.modelValue(model, "workspace.error") ?? model["workspace.error"]);
-    const [prettyPath, setPrettyPath] = React.useState("");
-
-    React.useEffect(() => {
-        let cancelled = false;
-        if (!path) {
-            setPrettyPath("");
-            return;
+const ResponsiveHide = injectStyle("responsive-hide", cl => `
+    @media screen and (max-width: 900px) {
+        ${cl} {
+            display: none;
         }
-        prettyFilePath(path).then(value => {
-            if (!cancelled) setPrettyPath(value);
-        }).catch(() => {
-            if (!cancelled) setPrettyPath(path);
-        });
-        return () => { cancelled = true; };
-    }, [path]);
-
-    const selectFolder = React.useCallback(() => {
-		if (!connected || !fn || loading || chatLoading) return;
-
-		void (async () => {
-			const [{default: FileBrowse}, {api: FilesApi}, {folderFavoriteSelection}] = await Promise.all([
-				import("@/Files/FileBrowse"),
-				import("@/UCloud/FilesApi"),
-				import("@/Files/FavoriteSelect"),
-			]);
-			const isFolderAllowed = (file: UFile): boolean | string => file.status.type === "DIRECTORY";
-			const onSelectFolder = (file: UFile) => {
-				const target = removeTrailingSlash(file.id);
-				fn.sendModelInput("workspace.path", {kind: ValueKind.String, string: target}, "workspace.path");
-				dialogStore.success();
-			};
-			const selection = {
-				text: "Use",
-				onClick: onSelectFolder,
-				show: isFolderAllowed,
-			};
-			const navigateToFolder = (initialPath: string, projectId?: string) => {
-				dialogStore.failure();
-				dialogStore.addDialog(
-					<FileBrowse
-						opts={{
-							isModal: true,
-							managesLocalProject: true,
-							initialPath,
-							initialProject: projectId,
-							additionalOperations: [folderFavoriteSelection(onSelectFolder, isFolderAllowed, navigateToFolder)],
-							selection,
-						}} />,
-					doNothing,
-					true,
-					FilesApi.fileSelectorModalStyle
-				);
-			};
-
-			navigateToFolder(path);
-		})();
-	}, [chatLoading, connected, fn, loading, path]);
-
-    return <div style={{display: "flex", alignItems: "center", gap: 0, minWidth: 0, color: error ? "var(--errorMain)" : "var(--textSecondary)", fontSize: 12}}>
-        <span title={error || prettyPath || "No folder selected"} style={{minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1}}>
-            {error || prettyPath || "No folder selected"}
-        </span>
-        {loading ? <UcxSpinner size={14}/> : null}
-        <IconButton tooltip="Select workspace folder" onClick={selectFolder} icon="heroFolderOpen"/>
-        <IconButton tooltip="Selected workspace data is mounted read-only for tools." onClick={doNothing} icon="heroInformationCircle"/>
-    </div>;
-}
+    }
+`);
 
 function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: {model: Record<string, Value>; fn?: UcxFunctionRegistry; connected: boolean; footer: React.ReactNode; onCollapse: () => void}): React.ReactNode {
-    return <PlaygroundSidebarShell header={<IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="heroChevronRight"/>} footer={footer}>
+    return <PlaygroundSidebarShell header={<div className={ResponsiveHide}><IconButton tooltip="Collapse sidebar" onClick={onCollapse} icon="sidebar" noDefaultFill/></div>} footer={footer}>
         <Section title="Settings" defaultOpen>
             <SettingToggle label="Streaming" path="chat.streaming" model={model} fn={fn} connected={connected}/>
             <SettingSlider label="Max completion tokens" path="chat.maxCompletionTokens" min={1} max={1024 * 256} step={1024} model={model} fn={fn} connected={connected} integer/>
@@ -1922,7 +2561,16 @@ function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: 
             <SettingSlider label="Top P" path="chat.topP" min={0} max={1} step={0.1} model={model} fn={fn} connected={connected}/>
             <SettingTextArea label="System prompt" path="chat.systemPrompt" model={model} fn={fn} connected={connected}/>
         </Section>
-        <Section title="Usage" defaultOpen>
+        <Section title="Advanced settings">
+            <SettingSlider label="Presence penalty" path="chat.presencePenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
+            <SettingSlider label="Frequency penalty" path="chat.frequencyPenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
+            <SettingToggle label="Logprobs" path="chat.logprobs" model={model} fn={fn} connected={connected}/>
+            <SettingSlider label="Top log probs" path="chat.topLogprobs" min={0} max={20} step={1} model={model} fn={fn} connected={connected} integer/>
+        </Section>
+        <Section title="Curl" defaultOpen>
+            <CodeSnippet lang="bash" maxHeight="40vh">{stringValue(fn?.modelValue(model, "chat.curl") ?? model["chat.curl"])}</CodeSnippet>
+        </Section>
+        <Section title="Usage">
             <UsageRow label="Session input tokens" value={numberValue(fn?.modelValue(model, "chat.usage.session.input") ?? model["chat.usage.session.input"])}/>
             <UsageRow label="Session cached input tokens" value={numberValue(fn?.modelValue(model, "chat.usage.session.cachedInput") ?? model["chat.usage.session.cachedInput"])}/>
             <UsageRow label="Session output tokens" value={numberValue(fn?.modelValue(model, "chat.usage.session.output") ?? model["chat.usage.session.output"])}/>
@@ -1932,26 +2580,17 @@ function PlaygroundDeveloperSidebar({model, fn, connected, footer, onCollapse}: 
             <UsageRow label="Latest output tokens" value={numberValue(fn?.modelValue(model, "chat.usage.lastQuery.output") ?? model["chat.usage.lastQuery.output"])}/>
             <UsageRow label="Latest tokens reported for usage" value={numberValue(fn?.modelValue(model, "chat.usage.lastQuery.reported") ?? model["chat.usage.lastQuery.reported"])}/>
         </Section>
-        <Section title="Advanced settings">
-            <SettingSlider label="Presence penalty" path="chat.presencePenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
-            <SettingSlider label="Frequency penalty" path="chat.frequencyPenalty" min={-2} max={2} step={0.1} model={model} fn={fn} connected={connected}/>
-            <SettingToggle label="Logprobs" path="chat.logprobs" model={model} fn={fn} connected={connected}/>
-            <SettingSlider label="Top log probs" path="chat.topLogprobs" min={0} max={20} step={1} model={model} fn={fn} connected={connected} integer/>
-        </Section>
-        <Section title="Curl">
-            <pre style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere", fontSize: 12}}>{stringValue(fn?.modelValue(model, "chat.curl") ?? model["chat.curl"])}</pre>
-        </Section>
     </PlaygroundSidebarShell>;
 }
 
 function Section({title, defaultOpen = false, children}: React.PropsWithChildren<{title: string; defaultOpen?: boolean}>): React.ReactNode {
     const [open, setOpen] = React.useState(defaultOpen);
-    return <div style={{border: "1px solid var(--playground-border, var(--borderColor))", borderRadius: 10}}>
-        <button type="button" onClick={() => setOpen(v => !v)} style={{width: "100%", border: 0, background: "transparent", color: "inherit", padding: "10px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontWeight: 600}}>
+    return <div>
+        <button type="button" onClick={() => setOpen(v => !v)} style={{width: "100%", border: 0, background: "transparent", color: "inherit", padding: "6px 4px", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", fontWeight: 600}}>
             {title}
             <Icon name={open ? "heroChevronUp" : "heroChevronDown"} size={16}/>
         </button>
-        {open ? <div style={{display: "flex", flexDirection: "column", gap: 10, padding: "0 12px 12px 12px"}}>{children}</div> : null}
+        {open ? <div style={{display: "flex", flexDirection: "column", gap: 10, padding: "4px 4px 8px 4px"}}>{children}</div> : null}
     </div>;
 }
 
@@ -1969,7 +2608,7 @@ function SettingSlider({label, path, min, max, step, model, fn, connected, integ
     React.useEffect(() => setValue(modelNumber), [modelNumber]);
     const commit = (next: number) => fn?.sendModelInput(path, integer ? {kind: ValueKind.S64, s64: Math.round(next)} : {kind: ValueKind.F64, f64: next}, path);
     return <label style={{display: "flex", flexDirection: "column", gap: 4}}>
-        <span style={{display: "flex", justifyContent: "space-between", gap: 8}}><span>{label}</span><span>{integer ? Math.round(value) : value.toFixed(1)}</span></span>
+        <span style={{display: "flex", justifyContent: "space-between", gap: 8}}><span>{label}</span><span>{integer ? formatNumber(Math.round(value), {withThousandsSeparator: false}) : formatNumber(value, {precision: 1})}</span></span>
         <input disabled={!connected || !fn} type="range" min={min} max={max} step={step} value={value || min} onChange={ev => { const next = Number(ev.currentTarget.value); setValue(next); commit(next); }}/>
     </label>;
 }
@@ -1992,6 +2631,8 @@ export default function Playground(): React.ReactNode {
     const [session, setSession] = React.useState<PlaygroundSession | null>(null);
     const [loading, setLoading] = React.useState(true);
     const [terminalError, setTerminalError] = React.useState("");
+    const [noAllocation, setNoAllocation] = React.useState(false);
+    const [noStorage, setNoStorage] = React.useState(false);
     const [refreshNonce, setRefreshNonce] = React.useState(0);
     const [lastModel, setLastModel] = React.useState<Record<string, Value>>({});
     const openRetryCountRef = React.useRef(0);
@@ -2014,6 +2655,8 @@ export default function Playground(): React.ReactNode {
         openRetryCountRef.current = 0;
         setLastModel({});
         setSession(null);
+        setNoAllocation(false);
+        setNoStorage(false);
         setRefreshNonce((x) => x + 1);
     }, [projectId]);
 
@@ -2032,15 +2675,24 @@ export default function Playground(): React.ReactNode {
                 setSession(result);
                 setLoading(false);
                 setTerminalError("");
+                setNoAllocation(false);
+                setNoStorage(false);
             })
-            .catch((err) => {
+            .catch((err: any) => {
                 if (cancelled) return;
                 setLoading(false);
-                setTerminalError(
-                    err instanceof Error
-                        ? err.message
-                        : "Failed to open the inference playground"
-                );
+                const why = typeof err?.response?.why === "string" && err.response.why !== ""
+                    ? err.response.why
+                    : "Failed to open the inference playground";
+                setTerminalError(why);
+                const statusCode = typeof err?.request?.status === "number" ? err.request.status : 0;
+                const errorCode = typeof err?.response?.errorCode === "string" ? err.response.errorCode : "";
+                const permanent = statusCode >= 400 && statusCode < 500;
+                if (permanent) {
+                    setNoAllocation(statusCode === 402 && errorCode !== "NOT_ENOUGH_STORAGE_CREDITS");
+                    setNoStorage(statusCode === 402 && errorCode === "NOT_ENOUGH_STORAGE_CREDITS");
+                    return;
+                }
                 const retry = openRetryCountRef.current++;
                 const retryDelay = Math.min(30000, 1000 * Math.pow(2, Math.min(retry, 5)));
                 openRetryTimerRef.current = window.setTimeout(() => {
@@ -2096,6 +2748,8 @@ export default function Playground(): React.ReactNode {
                 mounted={false}
                 loadingSession={loading}
                 error={loading ? "" : (terminalError || "Unable to open inference playground.")}
+                noAllocation={noAllocation}
+                noStorage={noStorage}
             />
         );
     }
@@ -2104,29 +2758,30 @@ export default function Playground(): React.ReactNode {
 
     return (
         <PlaygroundProviderDomainContext.Provider value={providerDomain}>
-            <UcxView
-                key={`${projectId ?? ""}:${session.sessionToken}`}
-                url={session.connectTo}
-                authToken={session.sessionToken}
-                sysHello={JSON.stringify({})}
-                maxReconnectAttempts={0}
-                onConnected={handleConnected}
-                onDisconnected={handleDisconnected}
-                onTransportError={handleTransportError}
-                onModelChange={handleModelChange}
-                components={playgroundComponents}
-                rehydrateModelPaths={PLAYGROUND_REHYDRATE_PATHS}
-                renderFrame={({connected, mounted, transportError, content, model, fn}) => (
-                    <PlaygroundFrame
-                        model={model ?? lastModel}
-                        fn={fn}
-                        ucxContent={content}
-                        connected={connected}
-                        mounted={mounted ?? false}
-                        error={terminalError || transportError}
-                    />
-                )}
-            />
+            <PlaygroundImageAccessContext.Provider value={session}>
+                <UcxView
+                    key={`${projectId ?? ""}:${session.sessionToken}`}
+                    url={session.connectTo}
+                    authToken={session.sessionToken}
+                    sysHello={JSON.stringify({})}
+                    onConnected={handleConnected}
+                    onDisconnected={handleDisconnected}
+                    onTransportError={handleTransportError}
+                    onModelChange={handleModelChange}
+                    components={playgroundComponents}
+                    rehydrateModelPaths={PLAYGROUND_REHYDRATE_PATHS}
+                    renderFrame={({connected, mounted, transportError, content, model, fn}) => (
+                        <PlaygroundFrame
+                            model={model ?? lastModel}
+                            fn={fn}
+                            ucxContent={content}
+                            connected={connected}
+                            mounted={mounted ?? false}
+                            error={terminalError || transportError}
+                        />
+                    )}
+                />
+            </PlaygroundImageAccessContext.Provider>
         </PlaygroundProviderDomainContext.Provider>
     );
 }
@@ -2192,6 +2847,18 @@ function playgroundAttachmentUrl(providerDomain: string, attachmentId: string): 
     return `https://${providerDomain}/api/inference/attachments/download?id=${encodeURIComponent(attachmentId)}`;
 }
 
+function playgroundModelTitle(model: Record<string, Value>, name: string): string {
+    const models = model.models;
+    if (models?.kind !== ValueKind.List) {
+        return name;
+    }
+    const selected = models.list.find(item =>
+        item.kind === ValueKind.Object &&
+        stringValue(item.object.name) === name
+    );
+    return selected?.kind === ValueKind.Object ? stringValue(selected.object.title) || name : name;
+}
+
 function textGenerationModelOptions(value: any): PlaygroundOption[] {
     if (!value || value.kind !== ValueKind.List) return [];
     return value.list.flatMap((item: Value) => {
@@ -2231,15 +2898,33 @@ function modelContextWindow(model: Record<string, Value>, modelName: string): nu
     return 0;
 }
 
+function modelReasoningEfforts(model: Record<string, Value>, modelName: string): PlaygroundOption[] {
+    const models = model.models;
+    if (!models || models.kind !== ValueKind.List) return [];
+    for (const item of models.list) {
+        if (item.kind !== ValueKind.Object) continue;
+        if (stringValue(item.object.name) !== modelName) continue;
+        const efforts = item.object.reasoningEfforts;
+        if (!efforts || efforts.kind !== ValueKind.List) return [];
+        return efforts.list.flatMap(effort => {
+            if (effort.kind !== ValueKind.Object) return [];
+            const key = stringValue(effort.object.value);
+            const value = stringValue(effort.object.name);
+            return key === "" ? [] : [{key, value: value || key}];
+        });
+    }
+    return [];
+}
+
 function compactTokenCount(tokens: number): string {
     if (tokens >= 1_000_000) {
         const value = tokens / 1_000_000;
-        return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)}M`;
+        return `${formatNumber(value, {precision: value >= 10 ? 0 : 1})}M`;
     }
     if (tokens >= 1_000) {
         return `${Math.round(tokens / 1_000)}K`;
     }
-    return tokens.toLocaleString();
+    return formatNumber(tokens);
 }
 
 async function detectPlaygroundAttachmentKind(file: File): Promise<PlaygroundAttachmentKind> {
@@ -2272,14 +2957,17 @@ function isConvertiblePlaygroundAttachment(fileName: string, mimeType: string): 
     ].includes(mimeType.toLowerCase());
 }
 
-function playgroundAttachmentRejection(kind: PlaygroundAttachmentKind, capabilities: string[]): string {
+function playgroundAttachmentRejection(kind: PlaygroundAttachmentKind, capabilities: string[],
+    canEditImages: boolean, canTranscribe: boolean): string {
     switch (kind) {
         case "image":
-            return capabilities.includes("Vision") ? "" : "The selected model does not support image attachments.";
+            return capabilities.includes("Vision") || canEditImages
+                ? ""
+                : "The selected model cannot view images and no image-edit default is available.";
         case "video":
             return capabilities.includes("VideoVision") ? "" : "The selected model does not support video attachments.";
         case "audio":
-            return capabilities.includes("Audio") ? "" : "The selected model does not support audio attachments.";
+            return capabilities.includes("Audio") || canTranscribe ? "" : "The selected model cannot use audio and no transcription default is available.";
         case "text":
             return "";
         case "convertible":
@@ -2320,7 +3008,7 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
     return value.list.flatMap((item: Value) => {
         if (item.kind !== ValueKind.Object) return [];
         const kind = stringValue(item.object.kind);
-        if (kind !== "text" && kind !== "thinking" && kind !== "image" && kind !== "video" && kind !== "audio" && kind !== "attachment" && kind !== "tool") return [];
+        if (kind !== "text" && kind !== "thinking" && kind !== "image" && kind !== "video" && kind !== "audio" && kind !== "attachment" && kind !== "tool" && kind !== "transcript") return [];
         return [
             {
                 kind,
@@ -2332,12 +3020,25 @@ function chatMessagePartsValue(value: any): ChatMessagePart[] {
                 url: stringValue(item.object.url),
                 toolName: stringValue(item.object.toolName),
                 status: stringValue(item.object.status),
+                imageId: stringValue(item.object.imageId),
+                fileId: stringValue(item.object.fileId),
+                filePath: stringValue(item.object.filePath),
+                transcriptPath: stringValue(item.object.transcriptPath),
+                transcriptUrl: stringValue(item.object.transcriptUrl),
+                transcriptionFormat: stringValue(item.object.transcriptionFormat),
+                audioMilliseconds: numberValue(item.object.audioMilliseconds),
+                imagePath: stringValue(item.object.imagePath),
+                modelName: stringValue(item.object.modelName),
+                prompt: stringValue(item.object.prompt),
+                revisedPrompt: stringValue(item.object.revisedPrompt),
             },
         ];
     });
 }
 
-function buildChatMessageViewModels(messageItems: Value[], currentThreadId: string): ChatMessageViewModel[] {
+const chatMessageViewCache = new WeakMap<Value, ChatMessageViewModel>();
+
+function buildChatMessageViewModels(messageItems: Value[], currentThreadId: string, streamingItems?: Value[]): ChatMessageViewModel[] {
     const allMessages: ChatMessageListItem[] = messageItems.flatMap((item: Value) => {
         if (item.kind !== ValueKind.Object) return [];
         if (boolValue(item.object.synthetic)) return [];
@@ -2350,9 +3051,45 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
         }];
     });
 
-    return messageItems.flatMap((item, idx): ChatMessageViewModel[] => {
+    // The in-progress assistant message arrives through a small dedicated model key
+    // (chat.streamingMessages) instead of the full chat.messages list. Merge it on top of the static
+    // messages so that token updates never re-render the earlier parts of the conversation.
+    let items = messageItems;
+    if (streamingItems && streamingItems.length > 0 && messageItems.length > 0) {
+        const streaming = streamingItems[streamingItems.length - 1];
+        if (streaming?.kind === ValueKind.Object) {
+            const streamingIndex = numberValue(streaming.object.messageIndex);
+            let replaced = false;
+            items = messageItems.map((item, idx) => {
+                if (item === streaming || replaced) return item;
+                if (item.kind !== ValueKind.Object) return item;
+                const messageIndex = item.object.messageIndex ? numberValue(item.object.messageIndex) : idx;
+                if (messageIndex === streamingIndex) {
+                    replaced = true;
+                    return streaming;
+                }
+                return item;
+            });
+            if (!replaced) {
+                // The static list can still carry the placeholder with an unset messageIndex (it is
+                // only corrected on the server once the first update lands). Replace the trailing
+                // assistant message in that case.
+                const last = messageItems[messageItems.length - 1];
+                if (last?.kind === ValueKind.Object && stringValue(last.object.role) === "assistant" && stringValue(last.object.modelName) === stringValue(streaming.object.modelName)) {
+                    items = messageItems.slice(0, -1).concat([streaming]);
+                    replaced = true;
+                }
+            }
+            if (!replaced) items = messageItems.concat([streaming]);
+        }
+    }
+
+    return items.flatMap((item, idx): ChatMessageViewModel[] => {
         if (item.kind !== ValueKind.Object) return [];
         if (boolValue(item.object.synthetic)) return [];
+
+        const cached = chatMessageViewCache.get(item);
+        if (cached && cached.threadId === currentThreadId) return [cached];
 
         const role = stringValue(item.object.role);
         const content = stringValue(item.object.content);
@@ -2378,7 +3115,9 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
             : messageParts;
 
         const key = `${currentThreadId || "thread"}:${idx}:${messageIndex}`;
-        return [{
+        const viewModel: ChatMessageViewModel = {
+            directImage: boolValue(item.object.directImage),
+            directTranscription: boolValue(item.object.directTranscription),
             key,
             threadId: currentThreadId,
             role,
@@ -2393,12 +3132,14 @@ function buildChatMessageViewModels(messageItems: Value[], currentThreadId: stri
             outputTokens: numberValue(item.object.outputTokens),
             messageIndex,
             hidden,
-        }];
+        };
+        chatMessageViewCache.set(item, viewModel);
+        return [viewModel];
     });
 }
 
 function chatMessageViewModelEqual(a: ChatMessageViewModel, b: ChatMessageViewModel): boolean {
-    return a.key === b.key &&
+    return a.directImage === b.directImage && a.directTranscription === b.directTranscription && a.key === b.key &&
         a.threadId === b.threadId &&
         a.role === b.role &&
         a.content === b.content &&
@@ -2415,7 +3156,10 @@ function chatMessageViewModelEqual(a: ChatMessageViewModel, b: ChatMessageViewMo
 }
 
 function chatMessageScrollKey(message: ChatMessageViewModel): string {
-    return `${message.key}:${message.content}:${message.finishedAt}:${message.parts.map(part => `${part.kind}:${part.text}:${part.body}:${part.status}`).join("|")}`;
+    // NOTE(Dan): this key is only a change detector for the auto-scroll effect. It deliberately uses
+    // lengths instead of the full content.
+    const partsKey = message.parts.map(part => `${part.kind}:${part.text.length}:${part.body.length}:${part.status}`).join("|");
+    return `${message.key}:${message.content.length}:${message.finishedAt}:${partsKey}`;
 }
 
 function chatMessagePartsEqual(a: ChatMessagePart[], b: ChatMessagePart[]): boolean {
@@ -2436,7 +3180,18 @@ function chatMessagePartEqual(a: ChatMessagePart, b: ChatMessagePart): boolean {
         a.fileName === b.fileName &&
         a.url === b.url &&
         a.toolName === b.toolName &&
-        a.status === b.status;
+        a.status === b.status &&
+        a.imageId === b.imageId &&
+        a.fileId === b.fileId &&
+        a.filePath === b.filePath &&
+        a.transcriptPath === b.transcriptPath &&
+        a.transcriptUrl === b.transcriptUrl &&
+        a.transcriptionFormat === b.transcriptionFormat &&
+        a.audioMilliseconds === b.audioMilliseconds &&
+        a.imagePath === b.imagePath &&
+        a.modelName === b.modelName &&
+        a.prompt === b.prompt &&
+        a.revisedPrompt === b.revisedPrompt;
 }
 
 function playgroundOptionsEqual(a: PlaygroundOption[], b: PlaygroundOption[]): boolean {

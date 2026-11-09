@@ -209,6 +209,9 @@ func initProjects() {
 		}
 		return util.Empty{}, ProjectUpdateSubProjectRenamingSettings(info.Actor, request)
 	})
+	fndapi.ProjectUpdateSettings.Handler(func(info rpc.RequestInfo, request fndapi.ProjectUpdateSettingsRequest) (util.Empty, *util.HttpError) {
+		return util.Empty{}, ProjectUpdateSettings(info.Actor, request)
+	})
 
 	fndapi.ProjectRetrieveSubProjectRenamingSetting.Handler(func(info rpc.RequestInfo, request util.Empty) (fndapi.ProjectRetrieveSubProjectRenamingResponse, *util.HttpError) {
 		return ProjectRetrieveSubProjectRenaming(info.Actor)
@@ -816,17 +819,8 @@ func ProjectChangeRole(actor rpc.Actor, request fndapi.ProjectMemberChangeRoleRe
 		)
 	})
 
-	pStatus := &iproject.Project.Status
-	for i := 0; i < len(pStatus.Members); i++ {
-		member := &pStatus.Members[i]
-		if member.Username == request.Username {
-			member.Role = request.Role
-		} else if piTransfer && member.Username == actor.Username {
-			member.Role = fndapi.ProjectRoleAdmin
-		}
-	}
-
 	iproject.Mu.Unlock()
+	projectInvalidateCache(iproject.Id)
 	return nil
 }
 
@@ -873,22 +867,10 @@ func ProjectCreateGroup(actor rpc.Actor, spec fndapi.ProjectGroupSpecification) 
 			err = util.HttpErr(http.StatusBadRequest, "A group with this name already exists")
 		}
 	})
-	if err == nil {
-		pStatus := &iproject.Project.Status
-		pStatus.Groups = append(pStatus.Groups, fndapi.ProjectGroup{
-			Id:            groupId,
-			Specification: spec,
-			Status: fndapi.ProjectGroupStatus{
-				Members: make([]string, 0),
-			},
-		})
-
-		slices.SortFunc(pStatus.Groups, func(a, b fndapi.ProjectGroup) int {
-			return cmp.Compare(strings.ToLower(a.Specification.Title), strings.ToLower(b.Specification.Title))
-		})
-	}
 	iproject.Mu.Unlock()
-
+	if err == nil {
+		projectInvalidateCache(spec.Project)
+	}
 	if err != nil {
 		return "", err
 	} else {
@@ -940,13 +922,11 @@ func ProjectRenameGroup(actor rpc.Actor, id string, newTitle string) *util.HttpE
 				err = util.HttpErr(http.StatusBadRequest, "A group with this name already exists!")
 			}
 		})
-
-		if err == nil {
-			iproject.Project.Status.Groups[idx].Specification.Title = newTitle
-		}
 	}
-
 	iproject.Mu.Unlock()
+	if err == nil {
+		projectInvalidateCache(iproject.Id)
+	}
 	return err
 }
 
@@ -1028,11 +1008,11 @@ func ProjectDeleteGroup(actor rpc.Actor, id string) *util.HttpError {
 				},
 			)
 		})
-
-		iproject.Project.Status.Groups = util.RemoveAtIndex(iproject.Project.Status.Groups, idx)
 	}
 	iproject.Mu.Unlock()
-
+	if err == nil {
+		projectInvalidateCache(iproject.Id)
+	}
 	for _, member := range groupMembersRemoved {
 		uinfo := projectRetrieveUserInfo(member.Username)
 		uinfo.Mu.Lock()
@@ -1078,6 +1058,9 @@ func ProjectCreateGroupMember(actor rpc.Actor, groupId string, memberToAdd strin
 	if err != nil {
 		return err
 	}
+
+	memberWasAdded := false
+	projectId := iproject.Id
 
 	iproject.Mu.Lock()
 	idx := slices.IndexFunc(iproject.Project.Status.Groups, func(group fndapi.ProjectGroup) bool {
@@ -1125,9 +1108,19 @@ func ProjectCreateGroupMember(actor rpc.Actor, groupId string, memberToAdd strin
 			slices.SortFunc(group.Status.Members, func(a, b string) int {
 				return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
 			})
+
+			memberWasAdded = true
 		}
 	}
 	iproject.Mu.Unlock()
+
+	if memberWasAdded {
+		uinfo := projectRetrieveUserInfo(memberToAdd)
+		uinfo.Mu.Lock()
+		uinfo.Groups[groupId] = projectId
+		uinfo.Mu.Unlock()
+	}
+
 	return err
 }
 
@@ -1136,6 +1129,8 @@ func ProjectDeleteGroupMember(actor rpc.Actor, groupId string, memberToRemove st
 	if err != nil {
 		return err
 	}
+
+	memberWasRemoved := false
 
 	iproject.Mu.Lock()
 	idx := slices.IndexFunc(iproject.Project.Status.Groups, func(group fndapi.ProjectGroup) bool {
@@ -1179,9 +1174,18 @@ func ProjectDeleteGroupMember(actor rpc.Actor, groupId string, memberToRemove st
 			})
 
 			group.Status.Members = util.RemoveAtIndex(group.Status.Members, memberIdx)
+
+			memberWasRemoved = true
 		}
 	}
 	iproject.Mu.Unlock()
+
+	if memberWasRemoved {
+		uinfo := projectRetrieveUserInfo(memberToRemove)
+		uinfo.Mu.Lock()
+		delete(uinfo.Groups, groupId)
+		uinfo.Mu.Unlock()
+	}
 	return err
 }
 
@@ -1427,9 +1431,11 @@ func ProjectRetrieveInviteLink(actor rpc.Actor, token string) (fndapi.ProjectInv
 	isMember := projectFlags&projectResultIsMember != 0
 
 	return fndapi.ProjectInviteLinkInfo{
-		Token:    token,
-		IsMember: isMember,
-		Project:  project,
+		Token:          token,
+		IsMember:       isMember,
+		Project:        project,
+		Expires:        link.Expires,
+		RoleAssignment: ilink.Link.RoleAssignment,
 	}, link, nil
 }
 
@@ -1868,6 +1874,36 @@ func ProjectUpdateSubProjectRenamingSettings(actor rpc.Actor, request fndapi.Pro
 		)
 	})
 	iProject.Project.Status.Settings.SubProjects.AllowRenaming = !iProject.Project.Status.Settings.SubProjects.AllowRenaming
+	iProject.Mu.Unlock()
+	return nil
+}
+
+func ProjectUpdateSettings(actor rpc.Actor, request fndapi.ProjectUpdateSettingsRequest) *util.HttpError {
+	if err := coreutil.FeatureIsEnabled(actor, fndapi.FeatureApplicationFlavors); err != nil {
+		return err
+	}
+	if !actor.Project.Present {
+		return util.HttpErr(http.StatusBadRequest, "This request requires an active project")
+	}
+	if request.InitScriptImageCacheLimitBytes < 0 {
+		return util.HttpErr(http.StatusBadRequest, "Cache limit must not be negative")
+	}
+
+	projectId := string(actor.Project.Value)
+	_, iProject, err := projectRetrieve(actor, projectId, projectFlagsAll, fndapi.ProjectRoleAdmin)
+	if err != nil {
+		return err
+	}
+
+	iProject.Mu.Lock()
+	db.NewTx0(func(tx *db.Transaction) {
+		db.Exec(tx, `
+			update project.projects
+			set init_script_image_cache_limit_bytes = :limit, modified_at = now()
+			where id = :project
+		`, db.Params{"limit": request.InitScriptImageCacheLimitBytes, "project": projectId})
+	})
+	iProject.Project.Status.Settings.InitScriptImageCacheLimitBytes = request.InitScriptImageCacheLimitBytes
 	iProject.Mu.Unlock()
 	return nil
 }
@@ -2461,7 +2497,7 @@ func ProjectRetrieveMetadata(id string) (fndapi.ProjectMetadata, *util.HttpError
 	return fndapi.ProjectMetadata{}, util.HttpErr(http.StatusNotFound, "unknown project")
 }
 
-func ProjectRetrieveClaimsInfo(username string) ProjectClaimsInfo {
+func ProjectRetrieveClaimsInfo(tx *db.Transaction, username string) ProjectClaimsInfo {
 	// NOTE(Dan): Be very careful that none of these functions accidentally rely on actor/principal information as
 	// this could cause an infinite loop. This function is used as part of building the actor/principal.
 
@@ -2506,37 +2542,29 @@ func ProjectRetrieveClaimsInfo(username string) ProjectClaimsInfo {
 		}
 	}
 
-	result.ProviderProjects = db.NewTx(func(tx *db.Transaction) rpc.ProviderProjects {
-		// NOTE(Dan): Quite annoying that we have to go into another deployment's implementation details on top of
-		// doing a DB transaction here when it is otherwise not needed. On the bright side, this function only runs
-		// every 5-10 minutes for a given user.
-		projects := rpc.ProviderProjects{}
+	result.ProviderProjects = rpc.ProviderProjects{}
+	rows := db.Select[struct {
+		ProviderId string
+		Project    string
+	}](
+		tx,
+		`
+			select p.unique_name as provider_id, r.project
+			from
+				project.project_members pm
+				join provider.resource r on pm.project_id = r.project
+				join provider.providers p on r.id = p.resource
+			where
+				pm.username = :username
+	    `,
+		db.Params{
+			"username": username,
+		},
+	)
 
-		rows := db.Select[struct {
-			ProviderId string
-			Project    string
-		}](
-			tx,
-			`
-				select p.unique_name as provider_id, r.project
-				from
-					project.project_members pm
-					join provider.resource r on pm.project_id = r.project
-					join provider.providers p on r.id = p.resource
-				where
-					pm.username = :username
-		    `,
-			db.Params{
-				"username": username,
-			},
-		)
-
-		for _, row := range rows {
-			projects[rpc.ProviderId(row.ProviderId)] = rpc.ProjectId(row.Project)
-		}
-
-		return projects
-	})
+	for _, row := range rows {
+		result.ProviderProjects[rpc.ProviderId(row.ProviderId)] = rpc.ProjectId(row.Project)
+	}
 
 	return result
 }
@@ -2590,6 +2618,11 @@ func initProjectSubscriptions() {
 
 		for {
 			projectId := <-projectUpdates
+
+			// Invalidate cache before retrieving since ProjectRetrieve (projectRetrieveInternal) simply checks the
+			// cache and therefore skips the DB fetch part.
+			projectInvalidateCache(projectId)
+
 			project, err := ProjectRetrieve(
 				rpc.ActorSystem,
 				projectId,
@@ -2609,6 +2642,13 @@ func initProjectSubscriptions() {
 			}
 		}
 	}()
+}
+
+func projectInvalidateCache(projectId string) {
+	b := projectBucket(projectId)
+	b.Mu.Lock()
+	delete(b.Projects, projectId)
+	b.Mu.Unlock()
 }
 
 func projectsNotify(username string, projectId string) {

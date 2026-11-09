@@ -56,6 +56,8 @@ import {RichSelect, RichSelectChildComponent} from "@/ui-components/RichSelect";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import * as JobViz from "@/Applications/Jobs/JobViz"
 import {VirtualMachineStatus} from "@/Applications/Jobs/VirtualMachines";
+import {openCreateApplicationVariant} from "@/Applications/Jobs/CreateApplicationVariant";
+import {BackgroundTask} from "@/Services/BackgroundTasks/BackgroundTask";
 import {Feature, hasFeature} from "@/Features";
 
 export const jobCache = new class extends ExternalStoreBase {
@@ -171,7 +173,7 @@ const Container = injectStyle("job-container", k => `
   }
 
   ${k} .fake-logo {
-    /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo, 
+    /* NOTE(Dan): the fake logo takes the same amount of space as the actual logo,
     this basically fixes our document flow */
     display: block;
     width: var(--logoSize);
@@ -235,7 +237,7 @@ const Container = injectStyle("job-container", k => `
   ${k}.IN_QUEUE .logo {
     animation: 2s ${enterAnimation} infinite;
   }
-  
+
   ${k}.RUNNING {
     --logoSize: 96px;
   }
@@ -301,6 +303,11 @@ function getBackend(job?: Job): string {
 
 export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode {
     const id = props.id ?? useParams<{id: string}>().id!;
+    return <JobView key={id} id={id} embedded={props.embedded} />;
+}
+
+function JobView(props: {id: string; embedded?: boolean;}): React.ReactNode {
+    const id = props.id;
 
     // Note: This might not match the real app name
     const location = useLocation();
@@ -312,7 +319,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
     const [jobUpdates, setJobUpdates] = useState(job?.updates ?? []);
 
     if (!props.embedded) {
-        usePage(`Job ${shortUUID(id)}`, SidebarTabId.RUNS);
+        usePage(`Job ${shortUUID(id)}`, SidebarTabId.COMPUTE);
     }
 
     const [dataAnimationAllowed, setDataAnimationAllowed] = useState<boolean>(false);
@@ -323,6 +330,8 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
     useEffect(() => {
         setStatus(null);
         setDataAnimationAllowed(false);
+        setInterfaceTargets([]);
+        setJobUpdates([]);
         jobUpdateState.current = {updateQueue: [], logQueue: [], statusQueue: [], subscriptions: []};
         fetchJob(JobsApi.retrieve({
             id,
@@ -334,18 +343,22 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
     }, [id]);
 
     const targetRequests = useMemo(() => {
-        if (!job) return {requestsToMake: [], fixedTargets: []};
-        return findTargetRequests(job);
-    }, [jobUpdates.length]);
+        if (!job || job.id !== id) return {requestsToMake: [], fixedTargets: []};
+        return findTargetRequests(job, status?.state ?? job.status.state);
+    }, [id, job?.id, jobUpdates.length, status?.state]);
 
     useEffect(() => {
+        let cancelled = false;
         (async () => {
             const targets = await resolveInterfaceTargets(targetRequests);
-            if (!didUnmount.current) {
+            if (!cancelled && !didUnmount.current) {
                 setInterfaceTargets(targets);
             }
         })();
-    }, [targetRequests.requestsToMake.length, targetRequests.fixedTargets.length]);
+        return () => {
+            cancelled = true;
+        };
+    }, [id, job?.id, targetRequests.requestsToMake.length, targetRequests.fixedTargets.length]);
 
     useEffect(() => {
         if (useFakeState) {
@@ -507,7 +520,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
         return <MainContainer main={<Heading.h2>An error occurred</Heading.h2>} />;
     }
 
-    if (isVirtualMachine && job && status && hasFeature(Feature.NEW_VM_UI)) {
+    if (isVirtualMachine && job && status) {
         const vm = <VirtualMachineStatus
             job={job}
             status={status}
@@ -527,6 +540,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                     <div className="logo">
                         <SafeLogo name={job?.specification?.application?.name ?? appNameHint}
                             type={"APPLICATION"}
+                            groupId={job?.status.resolvedApplication?.metadata.groupId ?? job?.status.resolvedApplication?.metadata.group?.metadata.id}
                             size={"var(--logoSize)"} />
                     </div>
                 </div>
@@ -606,7 +620,7 @@ export function View(props: {id?: string; embedded?: boolean;}): React.ReactNode
                     </div>
                 </CSSTransition>
             )}
-            {status && isJobStateTerminal(status.state) && job ? <OutputFiles job={job} /> : null}
+            {status && isJobStateTerminal(status.state) && job ? <OutputFiles key={job.id} job={job} /> : null}
         </div>
     );
 
@@ -656,7 +670,7 @@ const Content = injectStyle("content", k => `
         display: flex;
         gap: 16px;
     }
-    
+
     ${k} > * {
         flex-grow: 1;
         flex-shrink: 0;
@@ -707,11 +721,11 @@ const InQueueText: React.FunctionComponent<{job: Job, state: JobState}> = ({job,
                     </> :
                         job.specification.name ?
                             (<>
-                                Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                                Starting {jobApplicationTitle(job)} {job.specification.application.version}
                                 {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
                             </>) :
                             (<>
-                                Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                                Starting {jobApplicationTitle(job)} {job.specification.application.version}
                                 {" "}(ID: {shortUUID(job.id)})
                             </>)
                     }
@@ -727,11 +741,11 @@ const InQueueText: React.FunctionComponent<{job: Job, state: JobState}> = ({job,
                 </> : <>
                     {job.specification.name ?
                         (<>
-                            {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                            {jobApplicationTitle(job)} {job.specification.application.version}
                             {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
                         </>) :
                         (<>
-                            {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
+                            {jobApplicationTitle(job)} {job.specification.application.version}
                             {" "}(ID: {shortUUID(job.id)})
                         </>)
                     }
@@ -782,6 +796,12 @@ const Busy: React.FunctionComponent<{
     </Box>;
 };
 
+function jobApplicationTitle(job: Job): string {
+    return job.status.resolvedApplication?.metadata?.flavorName ??
+        job.status.resolvedApplication?.metadata?.title ??
+        job.specification.application.name;
+}
+
 function isSupported(jobBackend: string | undefined, support: ComputeSupport | undefined, flag: keyof DockerSupport | keyof NativeSupport | keyof VirtualMachineSupport): boolean {
     switch (jobBackend) {
         case "DOCKER":
@@ -806,7 +826,7 @@ const RunningText: React.FunctionComponent<{
         <Flex justifyContent={"space-between"} height={"var(--logoSize)"}>
             <Flex flexDirection={"column"}>
                 <Heading.h2>
-                    {job.specification?.name ?? job.status.resolvedApplication?.metadata?.title ?? "Your job"} is now
+                    {job.specification?.name ?? jobApplicationTitle(job)} is now
                     running
                     {" "}
                     <Box style={{display: "inline"}} color={"textSecondary"}>(ID: {job.id})</Box>
@@ -860,7 +880,7 @@ const RunningInfoWrapper = injectStyle("running-info-wrapper", k => `
         gap: 16px;
         flex-wrap: wrap;
     }
-    
+
     ${k} > * {
         flex-basis: 300px;
         flex-grow: 1;
@@ -959,7 +979,7 @@ interface TargetRequests {
     defaultName?: string;
 }
 
-function findTargetRequests(job: Job): TargetRequests {
+function findTargetRequests(job: Job, state: JobState): TargetRequests {
     let requestsToMake: OpenInteractiveSessionRequest[] = [];
     const fixedTargets: InterfaceTarget[] = [];
     let defaultName: string | undefined;
@@ -989,14 +1009,14 @@ function findTargetRequests(job: Job): TargetRequests {
                 const canShowVnc = (parsedTarget.type === "VNC" || isVirtualMachine) && isSupported(backendType, support, "vnc");
                 const canShowWeb = (parsedTarget.type === "WEB") && isSupported(backendType, support, "web");
 
-                if (canShowWeb && job.status.state === "RUNNING") {
+                if (canShowWeb && state === "RUNNING") {
                     requestsToMake.push({
                         sessionType: "WEB",
                         id: job.id,
                         rank: parsedTarget.rank,
                         target: parsedTarget.target,
                     });
-                } else if (canShowVnc && job.status.state === "RUNNING") {
+                } else if (canShowVnc && state === "RUNNING") {
                     fixedTargets.push({
                         target: parsedTarget.target,
                         rank: parsedTarget.rank,
@@ -1008,12 +1028,12 @@ function findTargetRequests(job: Job): TargetRequests {
         }
     }
 
-    if (canShowWeb && job.status.state === "RUNNING") {
+    if (canShowWeb && state === "RUNNING") {
         requestsToMake = requestsToMake.concat(Array(job.specification.replicas)
             .fill(0).map((_, i) => ({sessionType: 'WEB', id: job.id, rank: i} as OpenInteractiveSessionRequest)));
     }
 
-    if (canShowVnc && job.status.state === "RUNNING") {
+    if (canShowVnc && state === "RUNNING") {
         fixedTargets.push({rank: 0, type: "VNC", link: `/applications/vnc/${job.id}/0?hide-frame`} as InterfaceTarget);
     }
 
@@ -1055,7 +1075,7 @@ const RunningContent: React.FunctionComponent<{
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [expiresAt, setExpiresAt] = useState(status.expiresAt);
     const backendType = getBackend(job);
-    const [suspended, setSuspended] = useState(job.status.state === "SUSPENDED");
+    const [suspended, setSuspended] = useState(status.state === "SUSPENDED");
     const messagesRef = useRef<HTMLDivElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     useScrollToBottom(scrollRef);
@@ -1133,8 +1153,8 @@ const RunningContent: React.FunctionComponent<{
     const supportsPeers = isSupported(backendType, support, "peers");
 
     useEffect(() => {
-        setSuspended(job.status.state === "SUSPENDED");
-    }, [job.status.state]);
+        setSuspended(status.state === "SUSPENDED");
+    }, [status.state]);
 
     const sshAccess: ParsedSshAccess | null = useMemo(() => {
         const res = parseUpdatesForAccess(job.updates);
@@ -1149,7 +1169,7 @@ const RunningContent: React.FunctionComponent<{
         } else {
             return null;
         }
-    }, [job.updates.length]);
+    }, [job.id, job.updates.length]);
 
     const ingresses = job.specification.resources?.filter(it => it.type === "ingress") ?? [];
     const peers = job.specification.resources?.filter(it => it.type === "peer") ?? [];
@@ -1313,7 +1333,7 @@ const RunningContent: React.FunctionComponent<{
 };
 
 
-/* 
+/*
  *  tests:
     console.log(transformToSSHUrl("foobar baz -p bar"), "invalid");
     console.log(transformToSSHUrl("ssh baz -p bar"), "invalid");
@@ -1524,7 +1544,7 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
         }
         <Heading.h3>
             {isUnknownApp ? null : <>
-                {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+                {jobApplicationTitle(job)}
                 {" "}{job.specification.application.version}{" "}
                 {job.specification.name ? <>for <i>{job.specification.name}</i></> : null}
             </>}
@@ -1533,30 +1553,23 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
         <Box flexGrow={1} />
         {isUnknownApp || isSyncthingApp(job) ? null :
             <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version, import: job.id})}>
-                <Button>Run application again</Button>
+                <Button>Run again</Button>
             </Link>
         }
     </Flex>;
 };
 
 function OutputFiles({job}: React.PropsWithChildren<{job: Job}>): React.ReactNode {
-    const pathRef = React.useRef(job.output?.outputFolder ?? "");
-    if (!pathRef.current) {
+    const outputFolder = job.output?.outputFolder;
+    if (!outputFolder) {
         console.warn("No output folder found. Showing nothing.");
         return null;
     }
 
-    useEffect(() => {
-        const newPath = job.output?.outputFolder ?? "";
-        if (newPath) {
-            pathRef.current = newPath;
-        }
-    }, [job.output?.outputFolder]);
-
-    return <Card key={job.id} className={FadeInDiv} p={"0px"} minHeight={"500px"} mt={"16px"}>
+    return <Card className={FadeInDiv} p={"0px"} minHeight={"500px"} mt={"16px"}>
         <FileBrowse
             opts={{
-                initialPath: pathRef.current,
+                initialPath: outputFolder,
                 managesLocalProject: true,
                 embedded: {hideFilters: true, disableKeyhandlers: false}
             }}
@@ -1664,6 +1677,9 @@ const RunningButtonGroup: React.FunctionComponent<{
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : undefined;
     const supportTerminal = !jobAuditLogIsEnabled && isSupported(backendType, support, "terminal");
+    const supportVariants = hasFeature(Feature.APPLICATION_FLAVORS) && backendType === "DOCKER" &&
+        support?.docker.applicationVariants === true && support?.docker.containerSnapshots === true &&
+        job.owner.project != null && job.permissions.myself.includes("EDIT");
 
     let defaultInterfaceId = interfaceLinks.findIndex(link => !link.target && link.rank === 0);
 
@@ -1703,6 +1719,13 @@ const RunningButtonGroup: React.FunctionComponent<{
     }, []);
 
     return <div className={"top-buttons"}>
+        {!supportVariants ? null : <Button onClick={() => openCreateApplicationVariant(
+            job,
+            request => callAPI<BackgroundTask>(JobsApi.createApplicationVariant(request)),
+        )}>
+            <Icon name="heroSquare3Stack3D" />
+            <div style={{minWidth: "130px", maxWidth: "164px"}}><Truncate>Save as flavor</Truncate></div>
+        </Button>}
         {!supportTerminal ? null : (
             <Flex>
                 <Link to={`/applications/shell/${job.id}/0?hide-frame`} target={"_blank"}>

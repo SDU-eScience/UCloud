@@ -3,9 +3,12 @@ package audit
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -16,9 +19,8 @@ import (
 )
 
 type auditPgBucket struct {
-	Mu    sync.Mutex
-	Batch *db.Batch
-	Count int
+	Mu      sync.Mutex
+	Entries []db.Params
 }
 
 func Init() {
@@ -31,9 +33,7 @@ func Init() {
 
 	var buckets []*auditPgBucket
 	for i := 0; i < 4; i++ {
-		buckets = append(buckets, &auditPgBucket{
-			Batch: db.BatchNewDeferred(),
-		})
+		buckets = append(buckets, &auditPgBucket{})
 	}
 
 	go auditPgSyncer(buckets)
@@ -51,69 +51,131 @@ func Init() {
 			tokenRef = event.Token.Value.PublicSessionReference
 		}
 
-		bucket := buckets[int(counter.Add(1))%len(buckets)]
-		bucket.Mu.Lock()
 		var projectId *string
 		if event.Project.Present {
 			projectId = &event.Project.Value
 		}
-		{
-			b := bucket.Batch
-			db.BatchExec(
-				b,
-				`
-					insert into audit_logs.logs
-						(request_name, received_at, request_size, response_code, response_time_nanos, request_body, 
-						username, user_agent, token_reference, remote_origin, project_id)
-					values 
-						(:request_name, :received_at, :request_size, :response_code, :response_time_nanos, :request_body, 
-						:username, :user_agent, :token_reference, :remote_origin, :project_id)
-			    `,
-				db.Params{
-					"request_name":        event.RequestName,
-					"received_at":         event.ReceivedAt,
-					"request_size":        event.RequestSize,
-					"response_code":       event.ResponseCode,
-					"response_time_nanos": event.ResponseTimeNanos,
-					"request_body":        string(event.RequestJson.GetOrDefault(json.RawMessage("{}"))),
-					"username":            username.Sql(),
-					"user_agent":          event.UserAgent.Sql(),
-					"token_reference":     tokenRef.Sql(),
-					"remote_origin":       event.RemoteOrigin,
-					"project_id":          projectId,
-				},
-			)
-
-			auditPgEventsIngested.WithLabelValues(util.DeploymentName).Inc()
-			auditPgEventsBuffered.WithLabelValues(util.DeploymentName).Inc()
-			bucket.Count++
+		requestBody, replaced := auditPgSanitizeRequestBody(string(event.RequestJson.GetOrDefault(json.RawMessage("{}"))))
+		if replaced {
+			log.Warn("Audit request body for %s contained unsupported Unicode characters; replaced with U+FFFD", event.RequestName)
 		}
+
+		entry := db.Params{
+			"request_name":        event.RequestName,
+			"received_at":         event.ReceivedAt,
+			"request_size":        event.RequestSize,
+			"response_code":       event.ResponseCode,
+			"response_time_nanos": event.ResponseTimeNanos,
+			"request_body":        requestBody,
+			"username":            username.Sql(),
+			"user_agent":          event.UserAgent.Sql(),
+			"token_reference":     tokenRef.Sql(),
+			"remote_origin":       event.RemoteOrigin,
+			"project_id":          projectId,
+		}
+
+		bucket := buckets[int(counter.Add(1))%len(buckets)]
+		bucket.Mu.Lock()
+		bucket.Entries = append(bucket.Entries, entry)
+		auditPgEventsIngested.WithLabelValues(util.DeploymentName).Inc()
+		auditPgEventsBuffered.WithLabelValues(util.DeploymentName).Inc()
 		bucket.Mu.Unlock()
 	}
 }
 
-func auditPgSyncer(batches []*auditPgBucket) {
+func auditPgSanitizeRequestBody(requestBody string) (string, bool) {
+	replaced := !utf8.ValidString(requestBody)
+	if replaced {
+		requestBody = strings.ToValidUTF8(requestBody, "\ufffd")
+	}
+
+	var sanitized strings.Builder
+	lastIndex := 0
+	for i := 0; i < len(requestBody); i++ {
+		if requestBody[i] != '\\' {
+			continue
+		}
+
+		value, ok := auditPgJsonUnicodeEscape(requestBody, i)
+		if !ok {
+			i++
+			continue
+		}
+
+		unsupported := value == 0 || (value >= 0xdc00 && value <= 0xdfff)
+		if value >= 0xd800 && value <= 0xdbff {
+			nextValue, nextOk := auditPgJsonUnicodeEscape(requestBody, i+6)
+			if nextOk && nextValue >= 0xdc00 && nextValue <= 0xdfff {
+				i += 11
+				continue
+			}
+			unsupported = true
+		}
+
+		if unsupported {
+			sanitized.WriteString(requestBody[lastIndex:i])
+			sanitized.WriteString(`\ufffd`)
+			lastIndex = i + 6
+			replaced = true
+		}
+		i += 5
+	}
+
+	if lastIndex == 0 {
+		return requestBody, replaced
+	}
+
+	sanitized.WriteString(requestBody[lastIndex:])
+	return sanitized.String(), replaced
+}
+
+func auditPgJsonUnicodeEscape(requestBody string, index int) (uint64, bool) {
+	if index+6 > len(requestBody) || requestBody[index] != '\\' || requestBody[index+1] != 'u' {
+		return 0, false
+	}
+
+	value, err := strconv.ParseUint(requestBody[index+2:index+6], 16, 16)
+	return value, err == nil
+}
+
+func auditPgSyncer(buckets []*auditPgBucket) {
 	for {
 		start := time.Now()
 
 		totalCount := 0
-		var toSync []*db.Batch
-		for _, batch := range batches {
-			batch.Mu.Lock()
-			if batch.Count > 0 {
-				toSync = append(toSync, batch.Batch)
-
-				totalCount += batch.Count
-				batch.Count = 0
-				batch.Batch = db.BatchNewDeferred()
+		var toSync [][]db.Params
+		for _, bucket := range buckets {
+			bucket.Mu.Lock()
+			if len(bucket.Entries) > 0 {
+				toSync = append(toSync, bucket.Entries)
+				totalCount += len(bucket.Entries)
+				bucket.Entries = nil
 			}
-			batch.Mu.Unlock()
+			bucket.Mu.Unlock()
 		}
 
 		if len(toSync) > 0 {
 			db.NewTx0(func(tx *db.Transaction) {
-				for _, batch := range toSync {
-					db.BatchSendDeferred(tx, batch)
+				for _, entries := range toSync {
+					batch := db.BatchNew(tx)
+					for _, entry := range entries {
+						db.BatchExec(
+							batch,
+							`
+								insert into audit_logs.logs
+									(request_name, received_at, request_size, response_code, response_time_nanos, request_body,
+									username, user_agent, token_reference, remote_origin, project_id)
+								values
+									(:request_name, :received_at, :request_size, :response_code, :response_time_nanos, :request_body,
+									:username, :user_agent, :token_reference, :remote_origin, :project_id)
+							`,
+							entry,
+						)
+					}
+					db.BatchSend(batch)
+					if !tx.Ok {
+						return
+					}
 				}
 			})
 		}

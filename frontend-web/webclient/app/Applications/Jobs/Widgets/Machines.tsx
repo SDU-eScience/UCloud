@@ -75,6 +75,7 @@ export const Machines: React.FunctionComponent<{
     support: ResolvedSupport[];
     loading: boolean;
     onMachineChange?: (product: ProductV2Compute) => void;
+    fieldNavigation?: boolean;
 }> = props => {
     const [selected, setSelectedOnlyByListener] = useState<ProductV2Compute | null>(null);
     const filteredMachines = useMemo(() => {
@@ -122,6 +123,7 @@ export const Machines: React.FunctionComponent<{
                 loading={props.loading}
                 onSelect={setMachineReservation}
                 support={props.support}
+                fieldNavigation={props.fieldNavigation}
             />
         </>
     )

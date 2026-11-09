@@ -91,6 +91,7 @@ func Launch() {
 	)
 	migrations.Init()
 	db.Migrate()
+	acc.AccountingUpgradeExport()
 
 	if util.DevelopmentModeEnabled() {
 		db.NewTx0(func(tx *db.Transaction) {
@@ -428,6 +429,7 @@ func LaunchMigrationsOnly() {
 
 	migrations.Init()
 	db.Migrate()
+	acc.AccountingUpgradeExport()
 }
 
 func LaunchAccountingSnapshot() {

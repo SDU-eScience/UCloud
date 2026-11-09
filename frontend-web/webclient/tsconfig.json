@@ -18,7 +18,7 @@
         ],
         "skipLibCheck": true,
         "target": "es2020",
-        "jsx": "react",
+        "jsx": "react-jsx",
         "pretty": true,
         "allowJs": true,
         "moduleResolution": "bundler",
@@ -31,6 +31,9 @@
         "paths": {
             "@/*": [
                 "./app/*"
+            ],
+            "monaco-editor/esm/vs/editor/editor.api.js": [
+                "./node_modules/monaco-editor/esm/vs/editor/editor.api.d.ts"
             ]
         }
     },

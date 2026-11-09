@@ -53,7 +53,7 @@ TestContexts.map(ctx => {
             await File.create(page, folderName);
             await Components.clickRefreshAndWait(page);
             await Rows.actionByRowTitle(page, folderName, "click");
-            await page.locator("div.operation.in-header").last().click();
+            await File.openOperationsDropsdown(page, folderName);
             await page.getByText('Change sensitivity').click();
             // TODO(Jonas): Ensure NO confidential is present (or ensure that specific one has? If they happen simultaniously, more than one could be)
             await page.locator('#sensitivityDialogValue').selectOption('CONFIDENTIAL');
@@ -82,9 +82,8 @@ TestContexts.map(ctx => {
         test("View properties", async ({page}) => {
             const folderName = File.newFolderName();
             await File.create(page, folderName);
-            await Rows.actionByRowTitle(page, folderName, "click");
-            await page.locator("div.operation.in-header").last().click();
-            await page.getByText("Properties").click();
+            await File.openOperationsDropsdown(page, folderName);
+            await page.getByRole("menu").getByText("Properties", {exact: true}).click();
 
             await expect(page.locator("b").filter({hasText: "Path"})).toHaveCount(1);
             await expect(page.locator("b").filter({hasText: "Product"})).toHaveCount(1);
@@ -100,7 +99,7 @@ TestContexts.map(ctx => {
         });
 
         test("Stress testing the row selector", async ({page}) => {
-            test.setTimeout(180_000);
+            test.setTimeout(60_000);
             if (ctx === "Project User") test.skip();
             for (let i = 0; i < 100; i++) {
                 await File.create(page, "Folder" + i);
@@ -403,7 +402,7 @@ TestContexts.map(ctx => {
 
                 // Accept share
                 await File.goToSharedWithMe(sharedWithUserPage);
-                await sharedWithUserPage.locator(".row", {hasText: folderToShare}).getByRole("button", {name: "Accept"}).click();
+                await Components.clickConfirmationButton(sharedWithUserPage, "Accept");
 
                 // Check folder is available
                 await File.actionByRowTitle(sharedWithUserPage, folderToShare, "dblclick");
@@ -429,7 +428,6 @@ TestContexts.map(ctx => {
         }
 
         test("Files - Syncthing works", async ({page, userAgent}) => {
-            test.setTimeout(60_000);
             const folderName = File.newFolderName();
             const deviceName = File.newFolderName().replace("FolderName", "DeviceName");
             await File.create(page, folderName);
@@ -437,22 +435,22 @@ TestContexts.map(ctx => {
             const url = page.url()
 
             const result = await NetworkCalls.awaitResponse(page, "**/iapps/syncthing/retrieve**", async () => {
-                await page.locator("div.operation", {hasText: "Sync"}).click();
+                await page.getByRole("button", {name: /^Sync/}).click();
             });
 
             const syncthingDevicesText = await result.text();
             const parsedDevices: {config: {devices: any[]}} = JSON.parse(syncthingDevicesText);
             if (parsedDevices.config.devices.length > 0) {
-                await page.getByText("Add device").first().click();
+                await page.getByRole("button", {name: "Add device", exact: true}).click();
             }
 
-            await page.getByText("Next step").click();
+            await page.getByRole("button", {name: "Next step", exact: true}).click();
             await page.getByRole("textbox", {name: "Device name"}).fill(deviceName);
             await page.getByRole("textbox", {name: "My device ID"}).fill("1111111-1111111-1111111-1111111-1111111-1111111-1111111-1111111");
-            await page.getByText("Next step").filter({visible: true}).first().click();
+            await page.getByRole("button", {name: "Add device", exact: true}).click();
 
             await NetworkCalls.awaitResponse(page, "**/api/files/browse**", async () => {
-                await page.getByRole("button", {name: "Add folder"}).filter({visible: true}).first().click();
+                await page.getByRole("button", {name: "Choose folder", exact: true}).click();
             });
             const user = ctxUser(ctx);
             const drive = ctx === "Project User" ? Drive.newDriveNameOrMemberFiles(ctx) : Drives[userAgent! + user.username];
@@ -465,16 +463,17 @@ TestContexts.map(ctx => {
 
             // Remove folder
             await page.getByText(folderName).waitFor();
-            await page.locator("div[class^=card] .row:not(.hidden)").last().getByRole("button").click();
+            await page.locator(".sync-row").filter({hasText: folderName})
+                .getByRole("button").last().click();
             await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
-                await page.getByRole("dialog").getByRole("button", {name: "Remove"}).click();
+                await page.getByRole("dialog").getByRole("button", {name: "Stop synchronizing", exact: true}).click();
             });
 
             // Remove syncthing device
             await page.getByText(deviceName).waitFor();
-            await page.getByRole("button", {name: "", exact: true}).first().click();
+            await page.locator(".sync-row").filter({hasText: deviceName}).getByRole("button").last().click();
             await NetworkCalls.awaitResponse(page, "**/api/iapps/syncthing/update", async () => {
-                await page.getByRole("button", {name: "Remove"}).click();
+                await page.getByRole("dialog").getByRole("button", {name: "Remove", exact: true}).click();
             });
 
             await page.goto(url);

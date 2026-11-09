@@ -47,6 +47,7 @@ import * as StackApi from "@/Stacks/api";
 import Warning from "@/ui-components/Warning";
 import {sendFailureNotification} from "@/Notifications";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {retrieveNetworkReservations} from "@/Applications/PrivateNetwork/Reservations";
 
 interface InterfaceTarget {
     rank: number;
@@ -72,6 +73,12 @@ interface VmUpdatesState {
 type OptimisticPowerState = "POWERING_ON" | "POWERING_OFF" | "RESTARTING";
 
 const EMPTY_RESOURCES: AppParameterValue[] = [];
+
+type VmNetworkValue = compute.AppParameterValueNS.PrivateNetwork | compute.AppParameterValueNS.UCloudNetwork;
+
+function isVmNetworkValue(resource: compute.AppParameterValue): resource is VmNetworkValue {
+    return resource.type === "private_network" || resource.type === "ucloud_network";
+}
 
 function useResourcesById<T>(
     params: AppParameterValue[],
@@ -137,18 +144,18 @@ export const VirtualMachineStatus: React.FunctionComponent<{
         return resources.filter(it => it.type === "ingress") as compute.AppParameterValueNS.Ingress[];
     }, [resources]);
     const privateNetworks = useMemo(() => {
-        return resources.filter(it => it.type === "private_network") as compute.AppParameterValueNS.PrivateNetwork[];
+        return resources.filter(isVmNetworkValue);
     }, [resources]);
     const publicIps = useMemo(() => {
         return resources.filter(it => it.type === "network") as compute.AppParameterValueNS.Network[];
     }, [resources]);
     const [accessIngresses, setAccessIngresses] = useState<compute.AppParameterValueNS.Ingress[]>(ingresses);
-    const [accessPrivateNetworks, setAccessPrivateNetworks] = useState<compute.AppParameterValueNS.PrivateNetwork[]>(privateNetworks);
+    const [accessPrivateNetworks, setAccessPrivateNetworks] = useState<VmNetworkValue[]>(privateNetworks);
     const [accessPublicIps, setAccessPublicIps] = useState<compute.AppParameterValueNS.Network[]>(publicIps);
     const [publicLinksById, setPublicLinksById] = useState<Record<string, PublicLink>>({});
     const [privateNetworksById, setPrivateNetworksById] = useState<Record<string, PrivateNetwork>>({});
     const [publicIpsById, setPublicIpsById] = useState<Record<string, NetworkIP>>({});
-    const [accessDialog, setAccessDialog] = useState<"ingress" | "private_network" | "network" | null>(null);
+    const [accessDialog, setAccessDialog] = useState<"ingress" | "networks" | "network" | null>(null);
 
     useEffect(() => {
         setAccessIngresses(ingresses);
@@ -399,7 +406,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
         };
 
         if (resource.type === "ingress") setAccessIngresses(prev => update(prev));
-        if (resource.type === "private_network") setAccessPrivateNetworks(prev => update(prev));
+        if (isVmNetworkValue(resource)) setAccessPrivateNetworks(prev => update(prev));
         if (resource.type === "network") setAccessPublicIps(prev => update(prev));
     }, []);
 
@@ -408,6 +415,9 @@ export const VirtualMachineStatus: React.FunctionComponent<{
         try {
             if (resource.type === "ingress" && extra) {
                 resource.port = parseInt(extra);
+            }
+            if (isVmNetworkValue(resource) && extra) {
+                resource.ips = [extra];
             }
 
             await invokeCommand(JobsApi.attachResource({jobId: job.id, resource}));
@@ -483,7 +493,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     selection: {
                         text: "Attach",
                         onClick: network => {
-                            onSelect({type: "private_network", id: network.id}, network.specification.name);
+                            onSelect({type: "ucloud_network", id: network.id}, network.specification.name);
                         },
                         show: res => {
                             if (res.specification.product.provider !== job.specification.product.provider) {
@@ -510,7 +520,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     }, [accessPrivateNetworks]);
 
     const openPrivateNetworksManager = useCallback(() => {
-        setAccessDialog("private_network");
+        setAccessDialog("networks");
     }, []);
 
     const publicIpSelector = useMemo(() => {
@@ -565,10 +575,16 @@ export const VirtualMachineStatus: React.FunctionComponent<{
     const powerButtonColor = powerTone === "success" ? "successMain" : "warningMain";
 
     useEffect(() => {
+        let cancelled = false;
+
         if (status.state !== "RUNNING" || ingresses.length === 0) {
             setPublicLinkTargets([]);
-            return;
+            return () => {
+                cancelled = true;
+            };
         }
+
+        setPublicLinkTargets([]);
 
         const requests = ingresses.map(ingress => ({
             sessionType: "WEB" as const,
@@ -582,6 +598,8 @@ export const VirtualMachineStatus: React.FunctionComponent<{
             {defaultErrorHandler: false}
         )
             .then(result => {
+                if (cancelled) return;
+
                 const responses = result?.responses ?? [];
                 const newTargets: InterfaceTarget[] = [];
 
@@ -601,8 +619,12 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                 setPublicLinkTargets(newTargets);
             })
             .catch(() => {
-                setPublicLinkTargets([]);
+                if (!cancelled) setPublicLinkTargets([]);
             });
+
+        return () => {
+            cancelled = true;
+        };
     }, [status.state, job.id, ingresses, invokeBackgroundCommand]);
 
     useEffect(() => {
@@ -711,16 +733,20 @@ export const VirtualMachineStatus: React.FunctionComponent<{
                     inlineCreationLabel={"Port"}
                 />
             }
-            {accessDialog !== "private_network" ? null :
+            {accessDialog !== "networks" ? null :
                 <VmAccessResourceManagerDialog
                     title="Manage connected networks"
-                    selectTitle="Select private network"
+                    selectTitle="Select network"
                     attached={accessPrivateNetworks}
-                    emptyMessage="No private networks are currently attached to this VM."
+                    emptyMessage="No networks are currently attached to this VM."
                     renderSelector={privateNetworkSelector}
                     onAttach={attachAccessResource}
                     onRemove={detachAccessResource}
                     labelForResource={resource => vmAccessResourceLabel(resource, publicLinksById, privateNetworksById, publicIpsById)}
+                    inlineChoices={resource => isVmNetworkValue(resource) ?
+                        retrieveNetworkReservations(resource.id).then(items => items.flatMap(it =>
+                            it.status.ipAddress && it.permissions.myself.some(permission => permission === "EDIT" || permission === "ADMIN") ?
+                                [it.status.ipAddress] : [])) : Promise.resolve([])}
                 />
             }
             {accessDialog !== "network" ? null :
@@ -743,6 +769,7 @@ export const VirtualMachineStatus: React.FunctionComponent<{
 
                         <SafeLogo name={job?.specification?.application?.name ?? "unknown"}
                             type={"APPLICATION"}
+                            groupId={job?.status.resolvedApplication?.metadata.groupId ?? job?.status.resolvedApplication?.metadata.group?.metadata.id}
                             size={"32px"} />
 
                         <Heading.h2>{appTitle} {appVersion}</Heading.h2>
@@ -974,11 +1001,13 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
     onRemove: (resource: compute.AppParameterValue) => Promise<void>;
     labelForResource: (resource: compute.AppParameterValue) => string;
     inlineCreationLabel?: string;
-}> = ({title, selectTitle, attached, emptyMessage, renderSelector, onAttach, onRemove, labelForResource, inlineCreationLabel}) => {
+    inlineChoices?: (resource: compute.AppParameterValue) => Promise<string[]>;
+}> = ({title, selectTitle, attached, emptyMessage, renderSelector, onAttach, onRemove, labelForResource, inlineCreationLabel, inlineChoices}) => {
     const [isSelecting, setIsSelecting] = useState(false);
     const [inlineCreationValue, setInlineCreationValue] = useState("");
     const [inlineResourceBeingCreated, setInlineResourceBeingCreated] = useState<compute.AppParameterValue | null>(null);
     const [inlineTitle, setInlineTitle] = useState<string | null>(null);
+    const [choices, setChoices] = useState<string[]>([]);
     const [selectorRefresh, setSelectorRefresh] = useState<(() => void) | undefined>(undefined);
     const [selectorProjectSwitcherTarget, setSelectorProjectSwitcherTarget] = useState<HTMLDivElement | null>(null);
 
@@ -991,10 +1020,11 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
         setInlineCreationValue("");
         setInlineResourceBeingCreated(null);
         setInlineTitle(null);
+        setChoices([]);
     }, []);
 
     const inlineCreationPort = inlineCreationValue === "" ? NaN : Number(inlineCreationValue);
-    const inlineCreationIsValid = !inlineCreationLabel || (
+    const inlineCreationIsValid = (inlineChoices != null) || !inlineCreationLabel || (
         Number.isInteger(inlineCreationPort) &&
         inlineCreationPort >= 1 &&
         inlineCreationPort <= 65535
@@ -1017,13 +1047,15 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
     const onSelectFromBrowse = useCallback((resource: compute.AppParameterValue, title: string) => {
         setSelectorRefresh(undefined);
         setIsSelecting(false);
-        if (inlineCreationLabel) {
+        if (inlineCreationLabel || inlineChoices) {
             setInlineResourceBeingCreated(resource);
             setInlineTitle(title);
+            if (inlineChoices) inlineChoices(resource).then(setChoices)
+                .catch(e => displayErrorMessageOrDefault(e, "Failed to load reserved IPs"));
         } else {
             onAttach(resource);
         }
-    }, [onAttach, inlineCreationLabel]);
+    }, [onAttach, inlineCreationLabel, inlineChoices]);
 
     const inlineCreationOnChange = useCallback((e: React.SyntheticEvent) => {
         setInlineCreationValue((e.target as HTMLInputElement).value);
@@ -1076,7 +1108,11 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
                 {inlineResourceBeingCreated === null ? null :
                     <Flex gap={"8px"} alignItems={"center"}>
                         <Box flexGrow={1}>{inlineTitle}</Box>
-                        <form onSubmit={onInlineCreationConfirm}>
+                        {inlineChoices ? <select aria-label="Reserved private IP" value={inlineCreationValue}
+                            onChange={e => setInlineCreationValue(e.target.value)}>
+                            <option value="">Automatic IP</option>
+                            {choices.map(ip => <option key={ip} value={ip}>{ip}</option>)}
+                        </select> : <form onSubmit={onInlineCreationConfirm}>
                             <Input
                                 autoFocus={true}
                                 width={"150px"}
@@ -1089,7 +1125,7 @@ const VmAccessResourceManagerDialog: React.FunctionComponent<{
                                 required
                                 error={!inlineCreationIsValid}
                             />
-                        </form>
+                        </form>}
                         <IconButton
                             tooltip={"Confirm"}
                             onClick={onInlineCreationConfirm}
@@ -1159,7 +1195,7 @@ function VmDeleteDialog({job, onConfirm}: {job: Job; onConfirm: () => Promise<vo
 
 function vmAccessResourceKey(resource: compute.AppParameterValue): string {
     if (resource.type === "ingress") return `${resource.type}:${resource.id}`;
-    if (resource.type === "private_network") return `${resource.type}:${resource.id}`;
+    if (isVmNetworkValue(resource)) return `network:${resource.id}`;
     if (resource.type === "network") return `${resource.type}:${resource.id}`;
     return resource.type;
 }
@@ -1176,9 +1212,10 @@ function vmAccessResourceLabel(
         return resource.port ? `${domain} (port ${resource.port})` : domain;
     }
 
-    if (resource.type === "private_network") {
+    if (isVmNetworkValue(resource)) {
         const network = privateNetworksById[resource.id];
-        return network?.specification.name || network?.specification.subdomain || resource.id;
+        const name = network?.specification.name || network?.status.subdomain || resource.id;
+        return resource.ips?.length ? `${name} (${resource.ips.join(", ")})` : name;
     }
 
     if (resource.type === "network") {

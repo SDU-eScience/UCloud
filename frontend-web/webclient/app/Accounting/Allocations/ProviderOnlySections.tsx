@@ -77,11 +77,22 @@ export const GiftSection: React.FunctionComponent<{
                 });
                 break;
             }
+
+            case "gift-exclude-domain": {
+                dispatchEvent({
+                    type: "UpdateGift",
+                    data: {domainExclude: value}
+                });
+                break;
+            }
         }
 
         if (name.startsWith("gift-resource-")) {
             const resourceName = removePrefixFrom("gift-resource-", name);
-            let amount = parseInt(value);
+            const [category, provider] = resourceName.split("/");
+            const resolvedCategory = state.remoteData.managedProducts?.[provider]?.find(it => it.name === category);
+            const isCredit = resolvedCategory != null && Accounting.isCreditUnit(Accounting.explainUnit(resolvedCategory).name);
+            let amount = isCredit ? parseFloat(value) : parseInt(value);
             if (value === "") amount = 0;
             if (!isNaN(amount)) {
                 const data = {resources: {}};
@@ -103,6 +114,7 @@ export const GiftSection: React.FunctionComponent<{
         const gift: Gifts.GiftWithCriteria = {
             id: 0,
             criteria: [],
+            excludeCriteria: [],
             description: state.gifts.description,
             resources: [],
             resourcesOwnedBy: Client.projectId ?? "",
@@ -125,6 +137,18 @@ export const GiftSection: React.FunctionComponent<{
             }
         }
 
+        if (state.gifts.domainExclude) {
+            const domains = state.gifts.domainExclude.split(",").map(it => it.trim());
+            for (const domain of domains) {
+                if (domain) {
+                    gift.excludeCriteria!.push({
+                        type: "email",
+                        domain: domain,
+                    });
+                }
+            }
+        }
+
         if (state.gifts.orgAllow) {
             gift.criteria.push({
                 type: "wayf",
@@ -140,8 +164,7 @@ export const GiftSection: React.FunctionComponent<{
                 sendFailureNotification("Internal failure while creating gift. Try reloading the page!");
                 return;
             }
-            const unit = Accounting.explainUnit(resolvedCategory);
-            const actualAmount = amount * unit.invBalanceFactor;
+            const actualAmount = Accounting.normalizedBalanceToRaw(resolvedCategory, amount);
             if (actualAmount === 0) continue;
 
             gift.resources.push({
@@ -238,6 +261,24 @@ export const GiftSection: React.FunctionComponent<{
                                                 </ul>
                                             </td>
                                         </tr>
+                                        {(g.excludeCriteria ?? []).length === 0 ? null : <tr>
+                                            <th>Excluded</th>
+                                            <td>
+                                                <ul>
+                                                    {g.excludeCriteria!.map(c => {
+                                                        switch (c.type) {
+                                                            case "anyone":
+                                                                return <li key={c.type}>All UCloud users</li>
+                                                            case "wayf":
+                                                                return <li key={c.org + "wayf"}>Users
+                                                                    from <i>{c.org}</i></li>
+                                                            case "email":
+                                                                return <li key={c.domain + "email"}>@{c.domain}</li>
+                                                        }
+                                                    })}
+                                                </ul>
+                                            </td>
+                                        </tr>}
                                         <tr>
                                             <th>Resources</th>
                                             <td>
@@ -335,6 +376,16 @@ export const GiftSection: React.FunctionComponent<{
                                     onKeyDown={stopPropagation}
                                 />
                             </Label>
+                            <Label>
+                                Exclude if email domain matches any of the following (comma-separated)
+                                <Input
+                                    name={"gift-exclude-domain"}
+                                    placeholder={"For example: student.sdu.dk"}
+                                    onInput={onGiftInput}
+                                    value={state.gifts.domainExclude}
+                                    onKeyDown={stopPropagation}
+                                />
+                            </Label>
 
                             <Label>Resources</Label>
                             <Tree>
@@ -388,10 +439,30 @@ export const RootAllocationSections: React.FunctionComponent<{
 
         switch (name) {
             case "root-year": {
+                if (value === "custom") {
+                    dispatchEvent({type: "UpdateRootAllocations", data: {duration: null}});
+                    return;
+                }
                 const year = parseInt(value);
+                if (isNaN(year)) return;
                 dispatchEvent({
                     type: "UpdateRootAllocations",
-                    data: {year}
+                    data: {
+                        start: Date.UTC(year, 0, 1),
+                        end: Date.UTC(year + 1, 0, 1) - 1,
+                        duration: year,
+                    }
+                });
+                break;
+            }
+
+            case "root-start":
+            case "root-end": {
+                const date = rootDateInputToTimestamp(value, name === "root-end");
+                if (date === undefined) return;
+                dispatchEvent({
+                    type: "UpdateRootAllocations",
+                    data: name === "root-start" ? {start: date, duration: null} : {end: date, duration: null}
                 });
                 break;
             }
@@ -399,7 +470,10 @@ export const RootAllocationSections: React.FunctionComponent<{
 
         if (name.startsWith("root-resource-")) {
             const resourceName = removePrefixFrom("root-resource-", name);
-            let amount = parseInt(value);
+            const [category, provider] = resourceName.split("/");
+            const resolvedCategory = state.remoteData.managedProducts?.[provider]?.find(it => it.name === category);
+            const isCredit = resolvedCategory != null && Accounting.isCreditUnit(Accounting.explainUnit(resolvedCategory).name);
+            let amount = isCredit ? parseFloat(value) : parseInt(value);
             if (value === "") amount = 0;
             if (!isNaN(amount)) {
                 const data = {resources: {}};
@@ -415,15 +489,11 @@ export const RootAllocationSections: React.FunctionComponent<{
         if (creatingRootAllocation.current) return;
         if (!state.rootAllocations) return;
 
-        const start = new Date();
-        const end = new Date();
-        {
-            const year = state.rootAllocations.year;
-            start.setUTCFullYear(year, 0, 1);
-            start.setUTCHours(0, 0, 0, 0);
-
-            end.setUTCFullYear(year, 11, 31);
-            end.setUTCHours(23, 59, 59, 999);
+        const start = state.rootAllocations.start;
+        const end = state.rootAllocations.end;
+        if (end < start) {
+            sendFailureNotification("End date must be on or after the start date.");
+            return;
         }
 
         try {
@@ -439,16 +509,14 @@ export const RootAllocationSections: React.FunctionComponent<{
                     return;
                 }
 
-                const unit = Accounting.explainUnit(resolvedCategory);
-
                 requests.push({
                     category: {
                         name: category,
                         provider,
                     },
-                    quota: amount * unit.invBalanceFactor,
-                    start: start.getTime(),
-                    end: end.getTime(),
+                    quota: Accounting.normalizedBalanceToRaw(resolvedCategory, amount),
+                    start,
+                    end,
                 });
             }
 
@@ -480,19 +548,46 @@ export const RootAllocationSections: React.FunctionComponent<{
             <Tree>
                 <TreeNode left={"Create a new root allocation"}>
                     <h4>Step 1: Select a period</h4>
-                    <Select
-                        slim
-                        value={state.rootAllocations.year}
-                        onInput={onRootAllocationInput}
-                        onKeyDown={stopPropagation}
-                        name={"root-year"}
-                    >
-                        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(delta => {
-                            const year = new Date().getUTCFullYear() + delta;
-                            return <option key={delta} value={year.toString()}>{year}</option>;
-                        })}
-                    </Select>
-
+                    <Label>
+                        Duration
+                        <Select
+                            slim
+                            value={state.rootAllocations.duration ?? "custom"}
+                            onInput={onRootAllocationInput}
+                            onKeyDown={stopPropagation}
+                            name={"root-year"}
+                        >
+                            <option value="custom">Custom dates</option>
+                            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(delta => {
+                                const year = new Date().getUTCFullYear() + delta;
+                                return <option key={delta} value={year.toString()}>{year}</option>;
+                            })}
+                        </Select>
+                    </Label>
+                    {state.rootAllocations.duration === null && <>
+                        <Label>
+                            Start date
+                            <Input
+                                type="date"
+                                name={"root-start"}
+                                value={rootTimestampToDateInput(state.rootAllocations.start)}
+                                max={rootTimestampToDateInput(state.rootAllocations.end)}
+                                onInput={onRootAllocationInput}
+                                required
+                            />
+                        </Label>
+                        <Label>
+                            End date
+                            <Input
+                                type="date"
+                                name={"root-end"}
+                                value={rootTimestampToDateInput(state.rootAllocations.end)}
+                                min={rootTimestampToDateInput(state.rootAllocations.start)}
+                                onInput={onRootAllocationInput}
+                                required
+                            />
+                        </Label>
+                    </>}
                     <h4>Step 2: Select allocation size</h4>
                     <Tree>
                         {Object.entries((state.remoteData.managedProducts ?? {})).map(([providerId, page]) =>
@@ -526,4 +621,25 @@ export const RootAllocationSections: React.FunctionComponent<{
             <Box mt={32} />
         </>}
     </>;
+}
+
+function rootTimestampToDateInput(timestamp: number): string {
+    const date = new Date(timestamp);
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    return `${date.getUTCFullYear()}-${month}-${day}`;
+}
+
+function rootDateInputToTimestamp(value: string, endOfDay = false): number | undefined {
+    const parts = value.split("-").map(Number);
+    if (parts.length !== 3 || parts.some(it => !Number.isInteger(it))) return undefined;
+    const [year, month, day] = parts;
+    const timestamp = endOfDay
+        ? Date.UTC(year, month - 1, day + 1) - 1
+        : Date.UTC(year, month - 1, day);
+    const date = new Date(timestamp);
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+        return undefined;
+    }
+    return timestamp;
 }

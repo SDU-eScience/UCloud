@@ -220,13 +220,37 @@ func analyzeLoadedSnapshot(now time.Time, persistedWalletValues map[AccWalletId]
 				})
 			}
 			if !slices.Contains(overflowedFields, "excess usage") {
-				appendSnapshotValueDivergence(&findings, affected, walletId, "excess-usage-divergence", "excess usage", persisted.ExcessUsage, derived.ExcessUsage)
+				appendSnapshotValueDivergence(
+					&findings,
+					affected,
+					walletId,
+					"excess-usage-divergence",
+					"excess usage",
+					persisted.ExcessUsage,
+					derived.ExcessUsage,
+				)
 			}
 			if !slices.Contains(overflowedFields, "total allocated") {
-				appendSnapshotValueDivergence(&findings, affected, walletId, "total-allocated-divergence", "total allocated", persisted.TotalAllocated, derived.TotalAllocated)
+				appendSnapshotValueDivergence(
+					&findings,
+					affected,
+					walletId,
+					"total-allocated-divergence",
+					"total allocated",
+					persisted.TotalAllocated,
+					derived.TotalAllocated,
+				)
 			}
 			if !slices.Contains(overflowedFields, "total retired allocated") {
-				appendSnapshotValueDivergence(&findings, affected, walletId, "total-retired-allocated-divergence", "total retired allocated", persisted.TotalRetiredAllocated, derived.TotalRetiredAllocated)
+				appendSnapshotValueDivergence(
+					&findings,
+					affected,
+					walletId,
+					"total-retired-allocated-divergence",
+					"total retired allocated",
+					persisted.TotalRetiredAllocated,
+					derived.TotalRetiredAllocated,
+				)
 			}
 		}
 
@@ -241,8 +265,12 @@ func analyzeLoadedSnapshot(now time.Time, persistedWalletValues map[AccWalletId]
 							WalletIds:     []AccWalletId{wallet.Id},
 							GroupIds:      []accGroupId{group.Id},
 							AllocationIds: []accAllocId{allocation.Id},
-							Details:       fmt.Sprintf("allocation %d is retired but does not end until %s", allocation.Id, allocation.End.UTC().Format(time.RFC3339)),
-							Impact:        "the allocation is unavailable before the end of its validity interval",
+							Details: fmt.Sprintf(
+								"allocation %d is retired but does not end until %s",
+								allocation.Id,
+								allocation.End.UTC().Format(time.RFC3339),
+							),
+							Impact: "the allocation is unavailable before the end of its validity interval",
 						})
 					}
 				}
@@ -341,7 +369,13 @@ func recomputeSnapshotWalletValues(bucket *internalBucket, wallet *internalWalle
 	return result, overflowedFields
 }
 
-func appendSnapshotValueDivergence(findings *[]snapshotFinding, affected map[AccWalletId]bool, walletId AccWalletId, code, field string, persisted, recomputed int64) {
+func appendSnapshotValueDivergence(
+	findings *[]snapshotFinding,
+	affected map[AccWalletId]bool,
+	walletId AccWalletId,
+	code, field string,
+	persisted, recomputed int64,
+) {
 	if persisted == recomputed {
 		return
 	}

@@ -8,6 +8,7 @@ RUN if [ "$(uname -p)" = "aarch64" ]; then ARCH=arm64; else ARCH=amd64; fi \
 
 RUN chmod +x /usr/bin/kubectl
 RUN dnf install -y freetype fontconfig
+RUN dnf install -y qemu-img
 
 RUN if [ "$(uname -p)" = "aarch64" ]; then ARCH=arm64; else ARCH=amd64; fi \
     && mkdir /tmp/k9s \

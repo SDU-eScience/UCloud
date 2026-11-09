@@ -9,6 +9,7 @@ import {
     doNothing,
     isLightThemeStored,
     isLikelyMac,
+    isTouchScreen,
     joinToString,
     useEffectSkipMount,
     useFrameHidden
@@ -23,7 +24,7 @@ import Tooltip from "./Tooltip";
 import {useProjectId} from "@/Project/Api";
 import {useProject} from "@/Project/cache";
 import {AutomaticGiftClaim} from "@/Services/Gifts/AutomaticGiftClaim";
-import {AutomaticProviderBranding} from "@/ProviderBrandings/AutomaticProviderBranding";
+import {useProviderBrandings} from "@/ProviderBrandings/AutomaticProviderBranding";
 import Support from "./SupportBox";
 import {VersionManager} from "@/VersionManager/VersionManager";
 import Notification from "@/Notifications";
@@ -75,6 +76,7 @@ import {Dispatch} from "redux";
 import {AutomaticBranding} from "@/Applications/Branding/AutomaticBranding";
 import {BrandingResponse} from "@/UCloud/BrandingApi";
 import {Feature, hasFeature} from "@/Features";
+import {useBackendFeatures} from "@/Features/backend";
 import {setAppFavorites} from "@/Applications/Redux/Reducer";
 import {useInferenceThreads} from "@/Inference/ThreadStore";
 
@@ -99,7 +101,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k}[data-open="false"] {
         transform: translateX(-100%);
     }
-    
+
     ${k}[data-open="true"][data-as-pop-over="true"] {
         transform: translateX(var(--sidebarWidth));
     }
@@ -107,7 +109,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k}[data-open="true"][data-as-pop-over="false"] {
         position: static;
     }
-    
+
     @media screen and (max-width: 640px) {
         ${k}[data-open="true"][data-as-pop-over="true"] {
             position: absolute;
@@ -117,18 +119,18 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
 
     ${k}, ${k} a, ${k} a:hover {
         color: white;
-    } 
+    }
 
     ${k} header {
         align-items: center;
     }
-    
+
     ${k} header h1 {
         font-size: 20px;
         flex-grow: 1;
         margin: 0;
     }
-    
+
     ${k} header div {
         cursor: pointer;
     }
@@ -136,7 +138,7 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
     ${k} h2, ${k} h3 {
         margin: 0;
     }
-    
+
     ${k} h3 {
         font-size: 16px;
     }
@@ -145,18 +147,18 @@ const SecondarySidebarClass = injectStyle("secondary-sidebar", k => `
         user-select: none;
         -webkit-user-select: none;
     }
-    
+
     ${k} a.heading, ${k} h3.no-link  {
         margin-top: 15px;
     }
-    
+
     ${k} a, ${k} h3.no-link  {
         border-radius: 10px;
         padding: 5px;
         display: block;
         margin-left: -5px;
     }
-    
+
     ${k} a:hover {
         background-color: rgba(255, 255, 255, 0.25);
     }
@@ -174,7 +176,7 @@ const SidebarContainerClass = injectStyleSimple("sidebar-container", `
 
     /* Note(Jonas): Required by Safari */
     min-width: var(--sidebarWidth);
-    
+
     background-color: var(--sidebarColor);
     z-index: 100;
     padding-bottom: 12px;
@@ -189,11 +191,11 @@ const SidebarMenuItem = injectStyle("sidebar-item", k => `
         height: 32px;
         margin-top: 8px;
     }
-    
+
     ${k}:hover, ${k}[data-active="true"] {
         background-color: rgba(255, 255, 255, 0.25);
     }
-    
+
     ${k} > * {
         margin: auto;
     }
@@ -227,7 +229,7 @@ const sideBarMenuElements: SidebarMenuElements[] = [
             {icon: "heroUserGroup", label: SidebarTabId.PROJECT, to: AppRoutes.project.allocations()},
             {icon: "heroSquaresPlus", label: SidebarTabId.RESOURCES, to: AppRoutes.resources.publicLinks()},
             {icon: "heroShoppingBag", label: SidebarTabId.APPLICATIONS, to: AppRoutes.apps.landing()},
-            {icon: "heroServer", label: SidebarTabId.RUNS, to: AppRoutes.compute.jobs()}
+            {icon: "heroServer", label: SidebarTabId.COMPUTE, to: AppRoutes.compute.jobs()}
         ],
         predicate: () => Client.isLoggedIn
     },
@@ -332,6 +334,8 @@ function UserMenu({branding, avatar, dialog, setOpenDialog}: {
         paddingControlledByContent
         left="calc(var(--sidebarWidth) + 5px)"
         bottom="0"
+        focusable
+        triggerAriaLabel="User menu"
         open={isOpen}
         onOpeningTriggerClick={() => setOpenDialog("UserMenu")}
         onClose={() => setOpenDialog("")}
@@ -357,6 +361,8 @@ function UserMenu({branding, avatar, dialog, setOpenDialog}: {
             <UserMenuLink close={close.current} icon="heroWrenchScrewdriver" text="Settings"
                           to={AppRoutes.users.settings()} />
             <UserMenuLink close={close.current} icon="heroUser" text="Edit avatar" to={AppRoutes.users.avatar()} />
+            {hasFeature(Feature.UCLOUD_CLI_DOWNLOADS) ?
+                <UserMenuLink close={close.current} icon="heroCommandLine" text="UCloud CLI" to={AppRoutes.cli.downloads()} /> : null}
             {branding.documentation ?
                 (<UserMenuExternalLink close={close.current} href={branding.documentation.href} icon="heroBookOpen" text={branding.documentation.title} />)
                 : null}
@@ -398,13 +404,12 @@ const HoverClass = injectStyle("hover-class", k => `
     }
 `);
 
-function allSidebarCommands(state: HookStore, navigate: NavigateFunction, activeProjectId: string | undefined): Command[] {
+function allSidebarCommands(state: HookStore, navigate: NavigateFunction): Command[] {
     const result: Command[] = []
 
-    const cachedProject = state.projectCache?.project;
-    const activeProject = cachedProject?.id === activeProjectId ? cachedProject : undefined;
-    const canApply = !activeProjectId || isAdminOrPI(activeProject?.status.myRole);
-    const sidebarSubCommands = sidebarSubEntries(canApply, !activeProjectId, activeProjectId);
+    const projectId = state.projectCache?.project.id;
+    const canApply = !projectId || isAdminOrPI(state.projectCache?.project.status.myRole);
+    const sidebarSubCommands = sidebarSubEntries(canApply, !projectId, projectId);
 
     for (const group of sideBarMenuElements) {
         if (group.predicate(state)) {
@@ -420,7 +425,6 @@ function allSidebarCommands(state: HookStore, navigate: NavigateFunction, active
             }
         }
     }
-    ;
 
     return result;
 }
@@ -440,13 +444,19 @@ function sidebarSubEntries(canApply: boolean, isPersonalWorkspace: boolean, proj
                 icon: "ftFileSystem",
                 tab: SidebarTabId.FILES
             },
+            ...(hasFeature(Feature.CONTAINER_REPOSITORIES) ? [{
+                to: AppRoutes.containerRepositories.browse(),
+                text: "Container repositories",
+                icon: "heroArchiveBox" as IconName,
+                tab: SidebarTabId.FILES,
+            }] : []),
             ...(isPersonalWorkspace ? sharesLinksInfo : [])
         ],
-        [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId).filter(it => !it.disabled),
+        [SidebarTabId.PROJECT]: projectSidebarSubLinks(canApply, isPersonalWorkspace, projectId),
         [SidebarTabId.RESOURCES]: ResourceSubLinksEntries,
         [SidebarTabId.INFERENCE]: InferenceSubLinksEntries,
         [SidebarTabId.APPLICATIONS]: [],
-        [SidebarTabId.RUNS]: ComputeSubLinksEntries,
+        [SidebarTabId.COMPUTE]: ComputeSubLinksEntries,
         [SidebarTabId.ADMIN]: [],
         [SidebarTabId.APPLICATION_STUDIO]: ApplicationStudioSubLinksEntries,
         [SidebarTabId.NONE]: [],
@@ -470,6 +480,8 @@ export function Sidebar(): React.ReactNode {
     const sidebarEntries = sideBarMenuElements;
     const {loggedIn, avatar} = useSidebarReduxProps();
 
+    useBackendFeatures();
+
     const [selectedPage, setSelectedPage] = React.useState(SidebarTabId.NONE);
     const [hoveredPage, setHoveredPage] = React.useState(SidebarTabId.NONE);
 
@@ -491,10 +503,9 @@ export function Sidebar(): React.ReactNode {
     }, [setHoveredPage]);
 
     const reduxState = useSelector<ReduxObject, HookStore>(it => it.hookStore);
-    const activeProjectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
     const navigate = useNavigate();
 
-    useProvideCommands(staticProvider(allSidebarCommands(reduxState, navigate, activeProjectId)));
+    useProvideCommands(staticProvider(allSidebarCommands(reduxState, navigate)));
     const [dialog, setOpenDialog] = React.useState<DialogOptions>("");
 
     if (useFrameHidden()) return null;
@@ -527,8 +538,16 @@ export function Sidebar(): React.ReactNode {
                                 <div
                                     data-active={tab === label}
                                     onMouseEnter={() => setHoveredPage(label)}
-                                    onClick={() => {
-                                        if (selectedPage) {
+                                    onClick={e => {
+                                        if (isTouchScreen(e.nativeEvent)) {
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                            if (hoveredPage === label) {
+                                                setHoveredPage(SidebarTabId.NONE);
+                                            } else {
+                                                setHoveredPage(label);
+                                            }
+                                        } else if (selectedPage) {
                                             setSelectedPage(label);
                                         }
                                     }}
@@ -556,7 +575,6 @@ export function Sidebar(): React.ReactNode {
                     {/* (Typically) invisible elements here to run various background tasks */}
                     <AutomaticGiftClaim />
                     <VersionManager />
-                    <AutomaticProviderBranding />
                     <AutomaticBranding />
                 </>
 
@@ -595,7 +613,6 @@ export interface SidebarDialog {
 
 const fileTypeCache: Record<string, FileType | "DELETED"> = {}
 
-
 type DriveChange = void;
 export type DriveChangeEvent = CustomEvent<DriveChange>;
 export const DriveChange = "DriveChangeCustomEvent";
@@ -607,6 +624,7 @@ function useSidebarFilesPage(): [
     const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>({noop: true}, {items: [], itemsPerPage: 0});
 
     const favorites = React.useSyncExternalStore(s => sidebarFavoriteCache.subscribe(s), () => sidebarFavoriteCache.getSnapshot());
+    useProviderBrandings();
     const navigate = useNavigate();
 
     useProvideCommands(staticProvider(drives.data.items.map(d => ({
@@ -804,16 +822,12 @@ const ResourceSubLinksEntries: LinkInfo[] = [
     }
 ];
 
-if (hasFeature(Feature.NEW_VM_UI)) {
-    ResourceSubLinksEntries.push(
-        {
-            to: AppRoutes.resources.privateNetworks(),
-            text: "Private networks",
-            icon: "heroCloud",
-            tab: SidebarTabId.RESOURCES,
-        }
-    );
-}
+ResourceSubLinksEntries.push({
+    to: AppRoutes.resources.networks(),
+    text: "Networks",
+    icon: "networkWiredSolid",
+    tab: SidebarTabId.RESOURCES,
+});
 
 function ProjectSubLinks({canApply, isPersonalWorkspace, projectId}: {
     canApply: boolean;
@@ -834,7 +848,7 @@ const ComputeSubLinksEntries: LinkInfo[] = [{
     to: AppRoutes.compute.jobs(),
     text: "Jobs",
     icon: "heroServer",
-    tab: SidebarTabId.RUNS,
+    tab: SidebarTabId.COMPUTE,
 }];
 
 if (hasFeature(Feature.STACKS)) {
@@ -842,13 +856,13 @@ if (hasFeature(Feature.STACKS)) {
         to: AppRoutes.compute.stacks(),
         text: "Stacks",
         icon: "heroServerStack",
-        tab: SidebarTabId.RUNS,
+        tab: SidebarTabId.COMPUTE,
     });
 }
 
 function projectSidebarSubLinks(canApply: boolean, isPersonalWorkspace: boolean, projectId?: string): LinkInfo[] {
     const tab = SidebarTabId.PROJECT;
-    const {allocations, usage, usageBreakdown} = AppRoutes.accounting;
+    const {allocations, usage} = AppRoutes.accounting;
     const {members, settings, subprojects} = AppRoutes.project;
     const {outgoing} = AppRoutes.grants;
     return [{
@@ -871,8 +885,6 @@ function projectSidebarSubLinks(canApply: boolean, isPersonalWorkspace: boolean,
         defaultHidden: true,
     }, {
         to: usage(), text: "Usage", icon: "heroPresentationChartLine", tab
-    }, {
-        to: usageBreakdown(), text: "Usage breakdown", icon: "heroClipboardDocumentList", tab, disabled: !canApply
     }, {
         to: outgoing(), text: "Grant applications", icon: "heroDocumentText", tab, defaultHidden: true,
     },
@@ -929,8 +941,7 @@ function SecondarySidebar({
     const lastHover = React.useRef(SidebarTabId.NONE);
     const isPersonalWorkspace = !projectId;
     const project = useProject();
-    const projectDetails = project.fetch();
-    const canApply = isPersonalWorkspace || projectDetails.id === projectId && isAdminOrPI(projectDetails.status.myRole);
+    const canApply = isPersonalWorkspace || isAdminOrPI(project.fetch().status.myRole);
 
     const onClear = useCallback(() => {
         clearClicked();
@@ -1185,6 +1196,16 @@ function SecondarySidebar({
                     tab={SidebarTabId.FILES}
                 />
 
+                {!hasFeature(Feature.CONTAINER_REPOSITORIES) ? null : <>
+                    <SidebarSectionHeader tab={SidebarTabId.FILES} to={AppRoutes.containerRepositories.browse()}>Registries</SidebarSectionHeader>
+                    <SidebarEntry
+                        to={AppRoutes.containerRepositories.browse()}
+                        text="Container registry"
+                        icon="heroArchiveBox"
+                        tab={SidebarTabId.FILES}
+                    />
+                </>}
+
             </>}
 
             {active !== SidebarTabId.PROJECT ? null : <>
@@ -1220,7 +1241,7 @@ function SecondarySidebar({
                             key={fav.metadata.name}
                             to={AppRoutes.jobs.create(fav.metadata.name)}
                             text={fav.metadata.title}
-                            icon={<AppLogo name={fav.metadata.name} />}
+                            icon={<AppLogo name={fav.metadata.name} groupId={fav.metadata.groupId ?? fav.metadata.group?.metadata.id} />}
                             tab={SidebarTabId.APPLICATIONS}
                         />
                     )}
@@ -1246,10 +1267,10 @@ function SecondarySidebar({
             </div>
 
             {/* Note(Jonas) Do it this way to ensure that the frontend doesn't fetch icons every time this is shown. */}
-            <div style={{display: active !== SidebarTabId.RUNS ? "none" : undefined}}>
+            <div style={{display: active !== SidebarTabId.COMPUTE ? "none" : undefined}}>
                 <SidebarSectionEmptyHeader />
                 <ComputeSubLinks />
-                <SidebarSectionHeader tab={SidebarTabId.RUNS}>Running jobs</SidebarSectionHeader>
+                <SidebarSectionHeader tab={SidebarTabId.COMPUTE}>Running jobs</SidebarSectionHeader>
                 {recentRuns.length === 0 && <>
                     <SidebarEmpty>No running jobs</SidebarEmpty>
                 </>}
@@ -1264,8 +1285,9 @@ function SecondarySidebar({
                         key={run.id}
                         to={AppRoutes.jobs.view(run.id)}
                         text={name}
-                        icon={<AppLogo name={run.specification.application.name} />}
-                        tab={SidebarTabId.RUNS}
+                        icon={<AppLogo name={run.specification.application.name}
+                            groupId={run.status.resolvedApplication?.metadata.groupId ?? run.status.resolvedApplication?.metadata.group?.metadata.id} />}
+                        tab={SidebarTabId.COMPUTE}
                     />
                 })}
             </div>
@@ -1293,8 +1315,8 @@ function SecondarySidebar({
     </div>;
 }
 
-function AppLogo({name}: {name: string}): React.ReactNode {
-    return <SafeLogo size="16px" name={name} type="APPLICATION" isLightOverride={false} />;
+function AppLogo({name, groupId}: {name: string; groupId?: number | null}): React.ReactNode {
+    return <SafeLogo size="16px" name={name} type="APPLICATION" isLightOverride={false} groupId={groupId} />;
 }
 
 function SidebarSectionEmptyHeader(): React.ReactNode {

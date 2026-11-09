@@ -223,18 +223,39 @@ Relevant code can be found in `/testing`, with the output of a test-suite run in
 For function definitions, TypeScript/ECMAScript allows using both `function` and `const`. `function` is preferred, due to the different lifetimes and positioning requirements in files between the two options.
 If the function is exported, `function` is usually the one to use. If the function is local to the file, the `const` approach is fine to use.
 
+Semi-colons should be used, where it makes sense, e.g. after an expression, but not after a curly brace.
+
 If a magic string/number is present more than once, it's to be extracted into a constant. This is not the case for styling (pixels, colors, etc.) in components.
 
-<!--
-### Icon strategy
+HTML/JSX tags that close immediately and have no children, should have a space before closing, e.g. `<br />`, but not in the case of `<div></div>`.
 
-This is something we probably should discuss offline, but finding a good icon when needed seems increasingly hard, but the solution might just be to not have them at all in some cases.
+Imports ands objects should not have a preceeding or succeeding space.
 
-A [blog](https://tonsky.me/blog/tahoe-icons/) wrote about this issue on MacOS, and it seems reasonable. This would also involve simplifying some icons. Not sure why I never wondered why the "Create" operation has "upload" as its default icon. Something like this could probably be replaced by a +-symbol that's usable among all resources.
+Yes
 
-So what this section should contain is how to gauge whether or not using an icon is needed.
+```typescript
+import {thing} from "thing";
 
-!-->
+const foo = {thing: "a"};
+```
+
+No
+
+```typescript
+import { thing } from "thing";
+
+const foo = { thing: "a" };
+````
+
+Spaces for alignment with newlines are fine, e.g.:
+
+```typescript
+import {
+    thing
+} from "thing";
+```
+
+But newlines in imports should usually only happen with multiple imports from the same source.
 
 ### Production backend with a Wayf-user
 

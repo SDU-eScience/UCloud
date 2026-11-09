@@ -81,7 +81,7 @@ function initCore1Streams() {
             )).payload;
 
             for (const item of page.items) {
-                taskStore.addTask(item);
+                taskStore.addTask(item, false);
             }
         } catch (e) {
             console.warn(e);

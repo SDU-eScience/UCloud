@@ -116,7 +116,7 @@ func PrincipalRetrieve(tx *db.Transaction, username string) (Principal, bool) {
 		}
 
 		if principal.Role != fndapi.PrincipalService {
-			projectInfo := ProjectRetrieveClaimsInfo(row.Id)
+			projectInfo := ProjectRetrieveClaimsInfo(tx, row.Id)
 			principal.Membership = projectInfo.Membership
 			principal.ProviderProjects = projectInfo.ProviderProjects
 			principal.Groups = projectInfo.Groups

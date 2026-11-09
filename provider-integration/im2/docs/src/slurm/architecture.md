@@ -3,21 +3,70 @@
 In this article we will go through the overall architecture and networking modes of UCloud/IM for Slurm. 
 We will start by explaining the overall architecture, followed with a discussion on networking requirements.
 
+## Architecture Views
+
+This section describes UCloud/IM from the outside in. Each view answers one question. Start at the top and follow the
+links when you need more detail.
+
+| View | Question it answers | Where |
+|------|---------------------|-------|
+| System context | Who uses UCloud/IM, and which systems does it talk to? | [the first figure below](#system-context) |
+| Deployment | Which containers make up UCloud/IM, and how does traffic reach them? | [the second figure below](#deployment), and [Networking Requirements](#networking-requirements) |
+| Containers and mappings | How do projects, users and drives map to the provider's systems? | [User and Project Management](./id-management.md), [Filesystem Integration](./file-management.md) |
+| Dynamic | How does a job travel from UCloud/Core to the cluster, and how does the cluster report back? | [Slurm Integration](./slurm.md) |
+| Dynamic | How does a file move between two providers? | [Inter-provider file transfers](./file-transfers.md) |
+
 ## Overall Architecture
 
-<figure class="diagram">
+UCloud/IM is a software system that the provider installs at the HPC system. The figure below places it in its context:
+the people who use it, the platform that forwards to it, and the provider systems it uses.
+
+<figure class="diagram" id="system-context">
+
+```mermaid
+flowchart TB
+    user["End-user"]:::diagram-external-user
+    core["UCloud/Core"]:::diagram-external-ucloud
+    im["UCloud/IM"]:::diagram-provider-ucloud
+    slurm["Slurm cluster"]:::diagram-provider-server
+    identity["Identity management"]:::diagram-provider-user
+    filesystem["Filesystem"]:::diagram-provider-folder
+
+    user -->|"uses"| core
+    core <-->|"requests, job status and usage"| im
+    user -->|"connects to interactive applications"| im
+    im -->|"submits jobs to"| slurm
+    im -->|"manages local users"| identity
+    im -->|"reads and writes files"| filesystem
+```
+
+<figcaption>
+
+UCloud/IM and the systems around it. The figure shows the people and the external systems, and how they relate. It does
+not show the parts inside UCloud/IM.
+
+</figcaption>
+</figure>
+
+The end-user reaches UCloud/IM through UCloud/Core. Interactive applications are the exception: the end-user connects
+to those directly.
+
+The figure below zooms in one step, to the deployment.
+
+<figure class="diagram" id="deployment">
 
 <img class="light" src="./arch_direct_light.svg">
 <img class="dark" src="./arch_direct_dark.svg">
 
 <figcaption>
 
-Overall architecture of UCloud/IM for Slurm-based HPC. This diagram depicts a production-like setup.
+The UCloud/IM deployment for Slurm-based HPC. This diagram depicts a production-like setup. It does not show the
+networking modes; see [Networking Requirements](#networking-requirements).
 
 </figcaption>
 </figure>
 
-In the architecture above, we have several actors. We have summarised the role of each actor in the table below:
+In the deployment above, we have several actors. We have summarised the role of each actor in the table below:
 
 <div class="table-wrapper">
 <table>
@@ -30,7 +79,7 @@ In the architecture above, we have several actors. We have summarised the role o
 
 <tbody>
 <tr>
-<td>End-user</td>
+<td>[End-user](../glossary.md#end-user)</td>
 <td>
 
 The end-user is a user of the UCloud platform and of the service provider. As we have discussed in the introduction
@@ -44,7 +93,7 @@ established a mapping from a UCloud identity to a local identity with uid `41231
 </tr>
 
 <tr>
-<td>UCloud/Core</td>
+<td>[UCloud/Core](../glossary.md#ucloudcore)</td>
 <td>
 
 The UCloud platform itself. This is the service hosting the user-interface and core APIs. It is not part of the
@@ -57,7 +106,7 @@ authorization.
 </tr>
 
 <tr>
-<td>HPC frontend</td>
+<td>[HPC frontend](../glossary.md#hpc-frontend)</td>
 <td>
 
 UCloud/IM is hosted on the HPC's frontend node (or a similar node). This node is capable of consuming the services of
@@ -67,7 +116,7 @@ the HPC environment.
 </tr>
 
 <tr>
-<td>UCloud/IM (Gateway)</td>
+<td>[UCloud/IM (Gateway)](../glossary.md#ucloudim-gateway)</td>
 <td>
 
 The gateway is a publicly accessible web-server and is part of the integration module. It accepts all traffic destined
@@ -79,7 +128,7 @@ almost always goes to a user instance matching the UID of the end-user.
 </tr>
 
 <tr>
-<td>UCloud/IM (Server)</td>
+<td>[UCloud/IM (Server)](../glossary.md#ucloudim-server)</td>
 <td>
 
 The server instance of the integration module. This server is responsible for handling server-to-server traffic which is
@@ -96,7 +145,7 @@ It is the job of the server instance to start new user instances. The server ins
 </tr>
 
 <tr>
-<td>UCloud/IM (User)</td>
+<td>[UCloud/IM (User)](../glossary.md#ucloudim-user)</td>
 <td>
 
 One of the integration module server instances. These instances are launched by the UCloud/IM server instance on demand.
@@ -111,7 +160,7 @@ would normally access your systems.
 </tr>
 
 <tr>
-<td>HPC services</td>
+<td>[HPC services](../glossary.md#hpc-services)</td>
 <td>
 
 The HPC services are the services that make up your actual HPC environment. This includes systems such as:

@@ -57,9 +57,9 @@ func InitCompute() controller.JobsService {
 
 	if config.Mode == config.ServerModeServer {
 		ipcRegisterJobUpdate.Handler(func(r *ipc.Request[[]orc.ResourceUpdateAndId[orc.JobUpdate]]) ipc.Response[util.Empty] {
-			length := len(r.Payload)
-			for i := 0; i < length; i++ {
-				item := &r.Payload[i]
+			updates := make([]orc.ResourceUpdateAndId[orc.JobUpdate], 0, len(r.Payload))
+			for i := range r.Payload {
+				item := r.Payload[i]
 				job, ok := controller.JobRetrieve(item.Id)
 
 				if !ok {
@@ -69,9 +69,10 @@ func InitCompute() controller.JobsService {
 				if !controller.BelongsToWorkspace(orc.ResourceOwnerToWalletOwner(job.Resource), r.Uid) {
 					continue
 				}
+				updates = append(updates, item)
 			}
 
-			_, err := orc.JobsControlAddUpdate.Invoke(fnd.BulkRequest[orc.ResourceUpdateAndId[orc.JobUpdate]]{Items: r.Payload})
+			err := controller.JobSendUpdates(updates)
 			code := http.StatusOK
 			errorMessage := ""
 			if err != nil {
@@ -108,7 +109,44 @@ func InitCompute() controller.JobsService {
 		HandleShell:              handleShell,
 		OpenWebSession:           openWebSession,
 		RequestDynamicParameters: requestDynamicParameters,
+		RenderInvocation:         renderInvocation,
 	}
+}
+
+func resolveJobRenderContext(job *orc.Job) (string, string, *util.HttpError) {
+	baseJobFolder, ok := FindJobFolder(orc.ResourceOwnerToWalletOwner(job.Resource))
+	if !ok {
+		return "", "", util.HttpErr(http.StatusInternalServerError, "Unable to resolve job folder")
+	}
+	jobCfg := SlurmJobConfiguration{
+		Owner: orc.ResourceOwnerToWalletOwner(job.Resource), EstimatedProduct: job.Specification.Product,
+		EstimatedNodeCount: job.Specification.Replicas, Job: util.OptValue(job),
+	}
+	accounts := AccountMapper.UCloudConfigurationFindSlurmAccount(jobCfg)
+	if len(accounts) != 1 {
+		return "", "", util.HttpErr(http.StatusInternalServerError, "Ambiguous number of accounts")
+	}
+	return filepath.Join(baseJobFolder, job.Id), accounts[0], nil
+}
+
+func renderInvocation(job *orc.Job) (string, *util.HttpError) {
+	jobFolder, account, err := resolveJobRenderContext(job)
+	if err != nil {
+		return "", err
+	}
+	result := CreateSBatchFile(job, jobFolder, account)
+	if result.Error != nil {
+		return "", util.HttpErrorFromErr(result.Error)
+	}
+	content := result.Content
+	application := &job.Status.ResolvedApplication.Value.Invocation
+	for _, parameterAndValue := range controller.JobFindParamAndValues(job, application, nil) {
+		if parameterAndValue.Parameter.Type == orc.ApplicationParameterTypeLicenseServer {
+			secret := controller.LicenseBuildParameter(parameterAndValue.Value.Id)
+			content = strings.ReplaceAll(content, secret, "<redacted>")
+		}
+	}
+	return content, nil
 }
 
 func requestDynamicParameters(owner orc.ResourceOwner, app *orc.Application) []orc.ApplicationParameter {
@@ -274,6 +312,7 @@ func loopComputeMonitoring() {
 
 	activeJobs := controller.JobRetrieveAll()
 	batch := controller.JobUpdatesBegin()
+	batch.FailOnRejectedJobs()
 
 	jobsBySlurmId := make(map[int]string)
 	for jobId, job := range activeJobs {
@@ -454,25 +493,20 @@ func terminateJob(request controller.JobTerminateRequest) *util.HttpError {
 		return nil
 	}
 
-	var slurmIdToCancel util.Option[int]
-	jobs := SlurmClient.JobList()
-	for _, job := range jobs {
-		if job.Name == request.Job.Id {
-			slurmIdToCancel.Set(job.JobID)
-			break
-		}
-
-		if providerId.BelongsToAccount == job.Account && providerId.SlurmId == job.JobID {
-			slurmIdToCancel.Set(job.JobID)
-			break
-		}
+	job, queryOk := SlurmClient.JobQuery(providerId.SlurmId)
+	if !queryOk {
+		return util.ServerHttpError("Failed to query Slurm job")
 	}
-
-	if slurmIdToCancel.IsSet() {
-		SlurmClient.JobCancel(slurmIdToCancel.Get())
-	} else {
+	if job == nil {
 		log.Info("We were requested to terminate job %v but this was not found anywhere in the Slurm database. "+
 			"Maybe it has already stopped?", request.Job.Id)
+		return nil
+	}
+	if job.Name != request.Job.Id && (job.Account != providerId.BelongsToAccount || job.JobID != providerId.SlurmId) {
+		return util.ServerHttpError("Refusing to terminate a Slurm job with mismatched tracking data")
+	}
+	if !SlurmClient.JobCancel(job.JobID) {
+		return util.ServerHttpError("Failed to terminate Slurm job")
 	}
 
 	return nil
@@ -514,42 +548,16 @@ func parseJobProviderId(providerId string) (parsedProviderJobId, bool) {
 }
 
 func submitJob(job orc.Job) (util.Option[string], *util.HttpError) {
-	baseJobFolder, ok := FindJobFolder(orc.ResourceOwnerToWalletOwner(job.Resource))
-
-	if !ok {
-		return util.OptNone[string](), &util.HttpError{
-			StatusCode: http.StatusInternalServerError,
-			Why:        "Unable to create job folder. File permission error?",
-		}
+	jobFolder, accountName, contextErr := resolveJobRenderContext(&job)
+	if contextErr != nil {
+		return util.OptNone[string](), contextErr
 	}
-	jobFolder := filepath.Join(baseJobFolder, job.Id)
 	err := os.Mkdir(jobFolder, 0770)
 	if err != nil {
 		return util.OptNone[string](), &util.HttpError{
 			StatusCode: http.StatusInternalServerError,
 			Why:        "Unable to create job folder. File permission error?",
 		}
-	}
-
-	accountName := ""
-	{
-		jobCfg := SlurmJobConfiguration{
-			Owner:              orc.ResourceOwnerToWalletOwner(job.Resource),
-			EstimatedProduct:   job.Specification.Product,
-			EstimatedNodeCount: job.Specification.Replicas,
-			Job:                util.OptValue(&job),
-		}
-
-		accounts := AccountMapper.UCloudConfigurationFindSlurmAccount(jobCfg)
-
-		if len(accounts) != 1 {
-			return util.OptNone[string](), &util.HttpError{
-				StatusCode: http.StatusInternalServerError,
-				Why:        "Ambiguous number of accounts",
-			}
-		}
-
-		accountName = accounts[0]
 	}
 
 	sbatchResult := CreateSBatchFile(&job, jobFolder, accountName)

@@ -2,14 +2,17 @@ package containers
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	reference "github.com/distribution/reference"
 	core "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -17,14 +20,26 @@ import (
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
+	"ucloud.dk/pkg/integrations/k8s/registry"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	orc "ucloud.dk/shared/pkg/orchestrators"
 	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
-func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
+func StartScheduledJob(job *orc.Job, rank int, node string, cpuMillis int) *util.HttpError {
 	podName := idAndRankToPodName(job.Id, rank)
+	var applicationPullSecret *core.Secret
+	var applicationPullTokenId string
+	keepApplicationPullSecret := false
+	defer func() {
+		if applicationPullSecret != nil && !keepApplicationPullSecret {
+			_ = K8sClient.CoreV1().Secrets(ServiceConfig.Compute.Namespace).Delete(
+				context.Background(), applicationPullSecret.Name, meta.DeleteOptions{},
+			)
+			registry.ApiTokensRevoke(applicationPullTokenId)
+		}
+	}()
 
 	{
 		timeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -146,6 +161,10 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	if userContainer.Image == "" {
 		userContainer.Image = tool.Description.Container
 	}
+	cachedImage, hasCachedImage := InitScriptImagesFindImage(job.Id)
+	if hasCachedImage {
+		userContainer.Image = cachedImage
+	}
 
 	if jobAuditLogIsEnabled(&resolvedApplication.Invocation) {
 		jobAuditLogSetup(job, rank, spec, userContainer, "48291")
@@ -222,6 +241,36 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		pod.Spec.Hostname += fmt.Sprintf("-%d", rank)
 	}
 
+	attachments, pnErr := shared.PrivateNetworkJobAttachments(job, rank)
+	if pnErr != nil {
+		return pnErr
+	}
+	for _, attachment := range attachments {
+		if attachment.NetworkType == orc.NetworkTypeInfiniband {
+			if _, deviceErr := shared.PrivateNetworkInfinibandDeviceForNode(node); deviceErr != nil {
+				return deviceErr
+			}
+			break
+		}
+	}
+	if len(attachments) > 0 {
+		attachmentAnnotations, annErr := shared.PrivateNetworkAttachmentAnnotations(attachments)
+		if annErr != nil {
+			return annErr
+		}
+
+		for key, value := range attachmentAnnotations {
+			pod.ObjectMeta.Annotations[key] = value
+		}
+
+		for name, value := range shared.PrivateNetworkAttachmentEnvironmentVariables(attachments) {
+			userContainer.Env = append(userContainer.Env, core.EnvVar{
+				Name:  name,
+				Value: value,
+			})
+		}
+	}
+
 	// JobParameters.json
 	// -----------------------------------------------------------------------------------------------------------------
 	if rank == 0 && job.Status.JobParametersJson.Value.SiteVersion != 0 {
@@ -244,7 +293,6 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	product := job.Status.ResolvedProduct.Value
-	cpuMillis := shared.NodeCpuMillisNormalizedWithReserved(&product)
 	memoryMegabytes := int64(product.MemoryInGigs * 1000)
 	gpus := int64(product.Gpu)
 
@@ -258,22 +306,16 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		gpuType = nodeCat.GpuResourceType
 	}
 
-	{
-		quantity := resource.NewScaledQuantity(int64(cpuMillis), resource.Milli)
-		quantity.Format = resource.DecimalSI
-		userContainer.Resources.Requests[core.ResourceCPU] = *quantity
-	}
-	{
-		quantity := resource.NewScaledQuantity(
-			shared.NodeCpuMillisNormalizedWithoutReserved(&product),
-			resource.Milli,
-		)
-		quantity.Format = resource.DecimalSI
-		userContainer.Resources.Limits[core.ResourceCPU] = *quantity
-	}
+	addResource(core.ResourceCPU, int64(cpuMillis), resource.Milli)
+	cpuLimit := resource.NewScaledQuantity(shared.NodeCpuMillisNormalizedWithoutReserved(&product), resource.Milli)
+	cpuLimit.Format = resource.DecimalSI
+	userContainer.Resources.Limits[core.ResourceCPU] = *cpuLimit
 	addResource(core.ResourceMemory, memoryMegabytes, resource.Mega)
 	if gpus > 0 {
 		addResource(core.ResourceName(gpuType), gpus, 0)
+	}
+	if rdmaResource, ok := shared.PrivateNetworkJobRdmaResourceName(job); ok {
+		addResource(core.ResourceName(rdmaResource), 1, 0)
 	}
 
 	pod.Spec.NodeName = node
@@ -373,13 +415,13 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 
 	multiNodeScript := strings.Builder{}
 	{
-		introspectionToken := introspection.EnsureToken(job.Id, util.OptNone[string]())
+		introspectionToken, introspectionSrvToken := introspection.EnsureToken(job.Id, util.OptNone[string]())
 
 		appendLine := func(format string, args ...any) {
 			multiNodeScript.WriteString(fmt.Sprintf(format+"\n", args...))
 		}
 
-		appendLine("printf '%%s\\n' '%s' > /etc/ucloud/token", introspectionToken)
+		appendLine("printf '%%s\\n%%s\\n' '%s' '%s' > /etc/ucloud/token", introspectionToken, introspectionSrvToken)
 		appendLine("echo '%d' > /etc/ucloud/number_of_nodes.txt", job.Specification.Replicas)
 		for rank := 0; rank < job.Specification.Replicas; rank++ {
 			hostname := shared.JobHostName(job, rank)
@@ -476,6 +518,41 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 		}
 	}
 
+	if herr = stackDeclaredJobMutatePod(job, pod); herr != nil {
+		return herr
+	}
+
+	addSnapshotExcludedMounts(pod, userContainer)
+	if hasCachedImage {
+		applicationPullSecret, applicationPullTokenId, herr = createApplicationPullSecret(job.Owner, namespace, podName)
+		if herr != nil {
+			return herr
+		}
+		pod.Spec.ImagePullSecrets = append(pod.Spec.ImagePullSecrets, core.LocalObjectReference{Name: applicationPullSecret.Name})
+	} else if resolvedApplication.Metadata.Variant.Present {
+		if _, validationErr := registry.ImagesValidateVariant(job.Owner, tool.Description.Image, false, false); validationErr != nil {
+			return util.HttpErr(http.StatusBadRequest, "flavor image is no longer available")
+		}
+		applicationPullSecret, applicationPullTokenId, herr = createApplicationPullSecret(job.Owner, namespace, podName)
+		if herr != nil {
+			return herr
+		}
+		pod.Spec.ImagePullSecrets = append(pod.Spec.ImagePullSecrets, core.LocalObjectReference{Name: applicationPullSecret.Name})
+	} else if resolvedApplication.Metadata.Origin == orc.CatalogOriginCustom {
+		if _, validationErr := registry.ImagesValidateVariant(job.Owner, tool.Description.Image, false, false); validationErr != nil {
+			return util.HttpErr(http.StatusBadRequest, "application image is no longer available")
+		}
+		applicationPullSecret, applicationPullTokenId, herr = createApplicationPullSecret(job.Owner, namespace, podName)
+		if herr != nil {
+			return herr
+		}
+		pod.Spec.ImagePullSecrets = append(pod.Spec.ImagePullSecrets, core.LocalObjectReference{Name: applicationPullSecret.Name})
+	}
+
+	if herr = enforceImageRegistry(pod); herr != nil {
+		return herr
+	}
+
 	// NOTE(Dan): Check if the job is allowed to be submitted. This must be immediately before the job creation. It
 	// must not be moved down or up. Do not add code between these two.
 	if reason := shared.IsJobLockedEx(job, pod.Annotations); reason.Present {
@@ -495,6 +572,11 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 			Kind:       "Pod",
 			Name:       pod.Name,
 			UID:        pod.UID,
+		}
+		if applicationPullSecret != nil {
+			applicationPullSecret.OwnerReferences = append(applicationPullSecret.OwnerReferences, ownerReference)
+			_, _ = K8sClient.CoreV1().Secrets(namespace).Update(ctx, applicationPullSecret, meta.UpdateOptions{})
+			keepApplicationPullSecret = true
 		}
 	}
 	if firewall != nil && herr == nil {
@@ -553,6 +635,54 @@ func StartScheduledJob(job *orc.Job, rank int, node string) *util.HttpError {
 	}
 
 	return herr
+}
+
+func addSnapshotExcludedMounts(pod *core.Pod, container *core.Container) {
+	paths := []string{
+		// NOTE(Dan): Temporarily disabled while I try to understand if apps also depend on these:
+		//"/tmp",
+		//"/var/tmp",
+		//"/var/cache/apt",
+		//"/var/cache/dnf",
+		//"/var/cache/yum",
+
+		// NOTE(Dan): Don't add these, they are apparently used by some apps for data that isn't just a cache:
+		//"/root/.cache",
+		//"/root/.npm",
+		//"/home/ucloud/.cache",
+		//"/home/ucloud/.npm",
+		//"/opt/conda/pkgs",
+	}
+	permissions := core.Container{
+		Name:    "snapshot-exclude-permissions",
+		Image:   "alpine:latest",
+		Command: []string{"sh", "-c", "chmod 1777 /snapshot-excludes/*"},
+	}
+	for idx, path := range paths {
+		alreadyMounted := false
+		for _, mount := range container.VolumeMounts {
+			if mount.MountPath == path {
+				alreadyMounted = true
+				break
+			}
+		}
+		if alreadyMounted {
+			continue
+		}
+
+		name := fmt.Sprintf("snapshot-exclude-%d", idx)
+		pod.Spec.Volumes = append(pod.Spec.Volumes, core.Volume{
+			Name:         name,
+			VolumeSource: core.VolumeSource{EmptyDir: &core.EmptyDirVolumeSource{}},
+		})
+		container.VolumeMounts = append(container.VolumeMounts, core.VolumeMount{Name: name, MountPath: path})
+		permissions.VolumeMounts = append(permissions.VolumeMounts, core.VolumeMount{
+			Name: name, MountPath: fmt.Sprintf("/snapshot-excludes/%d", idx),
+		})
+	}
+	if len(permissions.VolumeMounts) > 0 {
+		pod.Spec.InitContainers = append(pod.Spec.InitContainers, permissions)
+	}
 }
 
 func recordMountActivity(job *orc.Job, mounts []activityMount) {
@@ -682,4 +812,63 @@ func jobAuditLogSetup(job *orc.Job, rank int, spec *core.PodSpec, userContainer 
 		Name:  "UCLOUD_WORKSPACE_ID",
 		Value: job.Owner.Project.GetOrDefault(job.Owner.CreatedBy),
 	})
+}
+
+func enforceImageRegistry(pod *core.Pod) *util.HttpError {
+	image := ""
+	for _, container := range pod.Spec.Containers {
+		if container.Name == ContainerUserJob {
+			image = strings.TrimSpace(container.Image)
+			break
+		}
+	}
+
+	named, err := reference.ParseNormalizedNamed(image)
+	if err != nil {
+		return util.UserHttpError("invalid container image: %s", image)
+	}
+
+	registryHost := reference.Domain(named)
+	allowed := []string{"dockerregistry.cloud.sdu.dk", "dreg.cloud.sdu.dk"}
+	allowed = append(allowed, ServiceConfig.Compute.AllowedRegistries...)
+	if ServiceConfig.Registry.Enabled {
+		allowed = append(allowed, ServiceConfig.Registry.Host)
+		if util.DevelopmentModeEnabled() {
+			allowed = append(allowed, registry.Service())
+		}
+	}
+
+	for _, candidate := range allowed {
+		if strings.EqualFold(strings.TrimSpace(candidate), registryHost) {
+			return nil
+		}
+	}
+	return util.UserHttpError("container images from registry %s are not allowed", registryHost)
+}
+
+func createApplicationPullSecret(owner orc.ResourceOwner, namespace, podName string) (*core.Secret, string, *util.HttpError) {
+	token, herr := registry.ApiTokensCreateForPull(owner, time.Hour)
+	if herr != nil {
+		return nil, "", herr
+	}
+	credentials := base64.StdEncoding.EncodeToString([]byte("ucloud:" + token.Secret))
+	configuration, _ := json.Marshal(map[string]any{
+		"auths": map[string]any{
+			registry.Service(): map[string]string{
+				"username": "ucloud",
+				"password": token.Secret,
+				"auth":     credentials,
+			},
+		},
+	})
+	secret, err := K8sClient.CoreV1().Secrets(namespace).Create(context.Background(), &core.Secret{
+		ObjectMeta: meta.ObjectMeta{GenerateName: podName + "-registry-"},
+		Type:       core.SecretTypeDockerConfigJson,
+		Data:       map[string][]byte{core.DockerConfigJsonKey: configuration},
+	}, meta.CreateOptions{})
+	if err != nil {
+		registry.ApiTokensRevoke(token.Id)
+		return nil, "", util.HttpErrorFromErr(err)
+	}
+	return secret, token.Id, nil
 }

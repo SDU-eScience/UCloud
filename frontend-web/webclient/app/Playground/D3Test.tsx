@@ -1,6 +1,7 @@
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {LineSample, Line, TemporalLineChart} from "@/ui-components/TemporalLineChart";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 
 function addSample(prev: LineSample[]): LineSample[] {
     function last<T>(array: T[]): T {
@@ -64,7 +65,7 @@ export const CpuChartDemo: React.FunctionComponent = () => {
         if (isAxis) {
             return `${value}%`;
         } else {
-            return `${value.toFixed(1)}%`;
+            return `${formatNumber(value, {precision: 1})}%`;
         }
     }, []);
 

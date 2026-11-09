@@ -13,6 +13,7 @@ import (
 	"ucloud.dk/pkg/integrations/k8s/filesystem"
 	"ucloud.dk/pkg/integrations/k8s/inference"
 	job_introspection "ucloud.dk/pkg/integrations/k8s/job-introspection"
+	"ucloud.dk/pkg/integrations/k8s/registry"
 	"ucloud.dk/pkg/integrations/k8s/shared"
 	syncthing_metrics "ucloud.dk/pkg/integrations/k8s/syncthing-metrics"
 	"ucloud.dk/pkg/ucxdelivery"
@@ -58,6 +59,10 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	controller.Jobs = InitCompute()
 	controller.UcxApplications = initAppUcx()
 
+	filesystem.DriveScanListener = func(drive *orc.Drive, internalPath string) {
+		inference.InferenceDriveScanned(drive, internalPath)
+	}
+
 	controller.IdentityManagement.HandleProjectNotification = func(updated *controller.EventProjectUpdated) bool {
 		ok := true
 		for _, member := range updated.MembersAddedToProject {
@@ -91,10 +96,21 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	filesystem.InitMetadataCli()
 	initJobsCli()
 	job_introspection.InitServerHandlers()
+	stackControlInitServer()
+	stackStateControlInitServer()
 	syncthing_metrics.InitCollector()
 	inference.Init()
+	if config.Registry.Enabled {
+		registry.Init()
+		initApplicationVariants()
+		initContainerSnapshots()
+	}
 	initJobAuditLogCleanup()
-	controller.ApiTokens = inference.InitApiTokens()
+	apiTokenProviders := []controller.ApiTokenProvider{inference.InitApiTokens()}
+	if config.Registry.Enabled {
+		apiTokenProviders = append(apiTokenProviders, registry.InitApiTokens())
+	}
+	controller.ApiTokens = controller.ApiTokenService{Providers: apiTokenProviders}
 	shared.InitExecutables()
 	if err := ucxdelivery.InitCache(config.FileSystem.MountPoint, nil, ucxdelivery.CacheOptions{
 		OwnerUid: util.OptValue(filesystem.DefaultUid),
@@ -109,6 +125,8 @@ func Init(config *cfg.ServicesConfigurationKubernetes) {
 	controller.ProductsRegister(shared.LinkProducts)
 	controller.ProductsRegister(shared.LicenseProducts)
 	controller.ProductsRegister(shared.PrivateNetworkProducts)
+	controller.ProductsRegister(shared.PrivateNetworkIpProducts)
+	controller.ProductsRegister(shared.ServiceProducts)
 }
 
 func InitLater(config *cfg.ServicesConfigurationKubernetes) {
@@ -229,7 +247,7 @@ func IsJobLockedEx(job *orc.Job, jobAnnotations map[string]string) util.Option[s
 				httpErr = &util.HttpError{StatusCode: http.StatusPaymentRequired, Why: reason, ErrorCode: "NOT_ENOUGH_LICENSE_CREDITS"}
 			}
 
-		case orc.AppParameterValueTypePrivateNetwork:
+		case orc.AppParameterValueTypePrivateNetwork, orc.AppParameterValueTypeUCloudNetwork:
 			if issue == controller.JobResourceAccessibilityIssueLocked {
 				httpErr = &util.HttpError{StatusCode: http.StatusPaymentRequired, Why: reason, ErrorCode: "NOT_ENOUGH_PRIVATE_NETWORK_CREDITS"}
 			}

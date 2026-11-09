@@ -86,25 +86,64 @@ func AddStartupHook(owner Service, hook func()) {
 }
 
 type DockerComposeService struct {
-	Image           string            `yaml:"image,omitempty"`
-	Hostname        string            `yaml:"hostname,omitempty"`
-	Restart         string            `yaml:"restart,omitempty"`
-	DependsOn       []string          `yaml:"depends_on,omitempty"`
-	Environment     []string          `yaml:"environment,omitempty"`
-	Volumes         []string          `yaml:"volumes,omitempty"`
-	VolumesFrom     []string          `yaml:"volumes_from,omitempty"`
-	Ports           []string          `yaml:"ports,omitempty"`
-	Init            bool              `yaml:"init,omitempty"`
-	Sysctls         map[string]string `yaml:"sysctls,omitempty"`
-	SecurityOpt     []string          `yaml:"security_opt,omitempty"`
-	Privileged      bool              `yaml:"privileged,omitempty"`
-	Tmpfs           []string          `yaml:"tmpfs"`
-	Command         []string          `yaml:"command,omitempty"`
-	WorkingDir      string            `yaml:"working_dir,omitempty"`
-	Cgroup          string            `yaml:"cgroup,omitempty"`
-	StopGracePeriod string            `yaml:"stop_grace_period,omitempty"`
+	Image           string                                 `yaml:"image,omitempty"`
+	Hostname        string                                 `yaml:"hostname,omitempty"`
+	Restart         string                                 `yaml:"restart,omitempty"`
+	DependsOn       []string                               `yaml:"depends_on,omitempty"`
+	Environment     []string                               `yaml:"environment,omitempty"`
+	Volumes         []string                               `yaml:"volumes,omitempty"`
+	VolumesFrom     []string                               `yaml:"volumes_from,omitempty"`
+	Ports           []string                               `yaml:"ports,omitempty"`
+	Init            bool                                   `yaml:"init,omitempty"`
+	Sysctls         map[string]string                      `yaml:"sysctls,omitempty"`
+	SecurityOpt     []string                               `yaml:"security_opt,omitempty"`
+	Privileged      bool                                   `yaml:"privileged,omitempty"`
+	Tmpfs           []string                               `yaml:"tmpfs"`
+	Entrypoint      []string                               `yaml:"entrypoint,omitempty"`
+	Command         []string                               `yaml:"command,omitempty"`
+	WorkingDir      string                                 `yaml:"working_dir,omitempty"`
+	Cgroup          string                                 `yaml:"cgroup,omitempty"`
+	StopGracePeriod string                                 `yaml:"stop_grace_period,omitempty"`
+	Networks        map[string]DockerComposeServiceNetwork `yaml:"networks,omitempty"`
+}
+
+type DockerComposeServiceNetwork struct {
+	Aliases     []string `yaml:"aliases,omitempty"`
+	Ipv4Address string   `yaml:"ipv4_address,omitempty"`
+}
+
+type DockerComposeNetwork struct {
+	Ipam       DockerComposeIpam `yaml:"ipam,omitempty"`
+	DriverOpts map[string]string `yaml:"driver_opts,omitempty"`
+}
+
+type DockerComposeIpam struct {
+	Config []DockerComposeIpamConfig `yaml:"config,omitempty"`
+}
+
+type DockerComposeIpamConfig struct {
+	Subnet string `yaml:"subnet,omitempty"`
 }
 
 func Mount(volName string, mountPath string) string {
 	return fmt.Sprintf("%s:%s", volName, mountPath)
+}
+
+func pinnedNetwork(ipv4Address string) map[string]DockerComposeServiceNetwork {
+	return map[string]DockerComposeServiceNetwork{
+		"default": {Ipv4Address: ipv4Address},
+	}
+}
+
+func IntegratedApplicationsDir() string {
+	dir := os.Getenv("UCLOUD_INTEGRATED_APPLICATIONS_DIR")
+	if dir == "" {
+		dir = filepath.Join(RepoRoot, "integrated-applications")
+	}
+
+	info, err := os.Stat(dir)
+	if err != nil || !info.IsDir() {
+		return ""
+	}
+	return dir
 }

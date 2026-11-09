@@ -34,25 +34,62 @@ type InferenceListPlaygroundThreadsResponse struct {
 type InferenceCapability string
 
 const (
-	InferenceTextGeneration InferenceCapability = "TextGeneration"
-	InferenceTextToImage    InferenceCapability = "TextToImage"
-	InferenceSpeechToText   InferenceCapability = "SpeechToText"
-	InferenceVision         InferenceCapability = "Vision"
-	InferenceVideoVision    InferenceCapability = "VideoVision"
-	InferenceAudio          InferenceCapability = "Audio"
+	InferenceTextGeneration            InferenceCapability = "TextGeneration"
+	InferenceTextToImage               InferenceCapability = "TextToImage"
+	InferenceImageToImage              InferenceCapability = "ImageToImage"
+	InferenceTextToVideo               InferenceCapability = "TextToVideo"
+	InferenceImageToVideo              InferenceCapability = "ImageToVideo"
+	InferenceSpeechToText              InferenceCapability = "SpeechToText"
+	InferenceSpeechToTextTimestamps    InferenceCapability = "SpeechToTextTimestamps"
+	InferenceSpeechToTextSpeakerLabels InferenceCapability = "SpeechToTextSpeakerLabels"
+	InferenceVision                    InferenceCapability = "Vision"
+	InferenceVideoVision               InferenceCapability = "VideoVision"
+	InferenceAudio                     InferenceCapability = "Audio"
 )
 
 type InferenceModel struct {
-	Name            string                `json:"name"`
-	Title           string                `json:"title"`
-	TitleModelName  string                `json:"titleModelName"`
-	Capabilities    []InferenceCapability `json:"capabilities"`
-	PriceMultiplier InferencePricing      `json:"priceMultiplier"`
-	Endpoint        InferenceEndpoint     `json:"endpoint"`
-	Availability    InferenceAvailability `json:"availability"`
-	ContextWindow   *int                  `json:"contextWindow,omitempty"`
-	ChatSettings    InferenceChatSettings `json:"chatSettings"`
-	Page            *InferenceModelPage   `json:"page,omitempty"`
+	Name                   string                       `json:"name"`
+	Title                  string                       `json:"title"`
+	Capabilities           []InferenceCapability        `json:"capabilities"`
+	DefaultFor             []InferenceCapability        `json:"defaultFor"`
+	ReasoningEfforts       []InferenceModelOption       `json:"reasoningEfforts,omitempty"`
+	DefaultReasoningEffort string                       `json:"defaultReasoningEffort,omitempty"`
+	PricePerMillion        InferencePricing             `json:"pricePerMillion"`
+	PricePerMegaPixel      int64                        `json:"pricePerMegaPixel"`
+	PricePerAudioMinute    int64                        `json:"pricePerAudioMinute"`
+	PricePerVideoSecond    map[InferenceVideoTier]int64 `json:"pricePerVideoSecond,omitempty"`
+	VideoResolutions       []InferenceVideoResolution   `json:"videoResolutions,omitempty"`
+	DefaultVideoTier       InferenceVideoTier           `json:"defaultVideoTier,omitempty"`
+	FileUrlRoot            string                       `json:"fileUrlRoot,omitempty"`
+	Endpoint               InferenceEndpoint            `json:"endpoint"`
+	Availability           InferenceAvailability        `json:"availability"`
+	ContextWindow          *int                         `json:"contextWindow,omitempty"`
+	ChatSettings           InferenceChatSettings        `json:"chatSettings"`
+	Page                   *InferenceModelPage          `json:"page,omitempty"`
+}
+
+type InferenceVideoTier string
+
+const (
+	InferenceVideoTier360p  InferenceVideoTier = "360p"
+	InferenceVideoTier480p  InferenceVideoTier = "480p"
+	InferenceVideoTier540p  InferenceVideoTier = "540p"
+	InferenceVideoTier720p  InferenceVideoTier = "720p"
+	InferenceVideoTier768p  InferenceVideoTier = "768p"
+	InferenceVideoTier1080p InferenceVideoTier = "1080p"
+	InferenceVideoTier2k    InferenceVideoTier = "2k"
+	InferenceVideoTier4k    InferenceVideoTier = "4k"
+)
+
+type InferenceVideoResolution struct {
+	Width  int                `json:"width"`
+	Height int                `json:"height"`
+	Tier   InferenceVideoTier `json:"tier"`
+}
+
+type InferenceModelOption struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type InferenceModelPage struct {
@@ -99,10 +136,12 @@ type InferenceChatSettings struct {
 }
 
 type InferencePricing struct {
-	CachedInput int `json:"cachedInput"`
-	Input       int `json:"input"`
-	Output      int `json:"output"`
+	CachedInput int64 `json:"cachedInput"`
+	Input       int64 `json:"input"`
+	Output      int64 `json:"output"`
 }
+
+const InferencePriceScale int64 = 1_000_000
 
 type InferenceEndpoint struct {
 	BasePath         string `json:"basePath"`

@@ -2,7 +2,6 @@ package shared
 
 import (
 	"maps"
-	"math"
 	"slices"
 
 	cfg "ucloud.dk/pkg/config"
@@ -131,65 +130,11 @@ func NodeCpuMillisNormalizedWithoutReserved(product *apm.ProductV2) int64 {
 	return int64(attachedVirtualCores * 1000)
 }
 
-func NodeCpuMillisNormalizedWithReserved(product *apm.ProductV2) int {
-	reservedPerCore := reservedCpuMillisPerCore(product)
-	attachedVirtualCores := float64(product.Cpu)
-	if product.Gpu == 0 {
-		attachedVirtualCores *= fractionMultiplier(product.Fraction)
-	}
-
-	result := int(math.Floor(attachedVirtualCores * (1000 - reservedPerCore)))
-	if result < 0 {
+func NodeCpuMillisWithBudget(cpuMillis, capacityMillis, budgetMillis int) int {
+	if cpuMillis <= 0 || capacityMillis <= 0 || budgetMillis <= 0 {
 		return 0
 	}
-	return result
-}
-
-func reservedCpuMillisPerCore(product *apm.ProductV2) float64 {
-	category, ok := ServiceConfig.Compute.Machines[product.Category.Name]
-	if ok {
-		if category.SystemReservedCpuMillisPerCore.Present {
-			return float64(category.SystemReservedCpuMillisPerCore.Value)
-		}
-
-		maxVirtualCores := maxVirtualCoresForCategory(category)
-		if maxVirtualCores > 0 {
-			systemReservedCpuMillis := category.SystemReservedCpuMillis.GetOrDefault(500)
-			return math.Ceil(float64(systemReservedCpuMillis) / maxVirtualCores)
-		}
-	}
-
-	nodeCat, _ := NodeCategoryAndConfiguration(product)
-	maxCpu := -1
-	for _, config := range nodeCat.Configs {
-		if config.AdvertisedCpu > maxCpu {
-			maxCpu = config.AdvertisedCpu
-		}
-	}
-
-	if maxCpu <= 0 {
-		return 0
-	}
-
-	return math.Ceil(500.0 / float64(maxCpu))
-}
-
-func maxVirtualCoresForCategory(category cfg.K8sMachineCategory) float64 {
-	maxVirtualCores := 0.0
-	for _, group := range category.Groups {
-		fraction := fractionMultiplier(group.Fraction)
-		for _, config := range group.Configs {
-			virtualCores := float64(config.AdvertisedCpu)
-			if config.Gpu == 0 {
-				virtualCores *= fraction
-			}
-
-			if virtualCores > maxVirtualCores {
-				maxVirtualCores = virtualCores
-			}
-		}
-	}
-	return maxVirtualCores
+	return int(int64(cpuMillis) * int64(min(capacityMillis, budgetMillis)) / int64(capacityMillis))
 }
 
 func SystemReservedCpuMillisForCategory(categoryName string) int {
@@ -198,16 +143,5 @@ func SystemReservedCpuMillisForCategory(categoryName string) int {
 		return 500
 	}
 
-	if category.SystemReservedCpuMillis.Present {
-		return category.SystemReservedCpuMillis.Value
-	}
-
-	if category.SystemReservedCpuMillisPerCore.Present {
-		maxVirtualCores := maxVirtualCoresForCategory(category)
-		if maxVirtualCores > 0 {
-			return int(math.Ceil(float64(category.SystemReservedCpuMillisPerCore.Value) * maxVirtualCores))
-		}
-	}
-
-	return 500
+	return category.SystemReservedCpuMillis.GetOrDefault(500)
 }

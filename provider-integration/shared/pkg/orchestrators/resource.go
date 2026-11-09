@@ -5,6 +5,7 @@ import (
 
 	acc "ucloud.dk/shared/pkg/accounting"
 	fnd "ucloud.dk/shared/pkg/foundation"
+	"ucloud.dk/shared/pkg/rpc"
 	"ucloud.dk/shared/pkg/util"
 )
 
@@ -136,8 +137,10 @@ type ResourceBrowseRequest[Flags any] struct {
 }
 
 type ResourceSpecification struct {
-	Product acc.ProductReference `json:"product"`
-	Labels  map[string]string    `json:"labels"`
+	Product       acc.ProductReference `json:"product"`
+	Labels        map[string]string    `json:"labels"`
+	ServerLabels  map[string]string    `json:"-" ucx:"-"`
+	StackResource *Resource            `json:"-" ucx:"-"`
 }
 
 type ResourceRetrieveRequest[Flags any] struct {
@@ -154,6 +157,34 @@ type ProviderRegisteredResource[Spec any] struct {
 	ProjectAllWrite     bool                `json:"projectAllWrite"`
 }
 
+type ControlCreateRequest[Spec any] struct {
+	JobId string `json:"jobId"`
+	Items []Spec `json:"items"`
+}
+
+func ControlCreateCall[Spec any, Resp any](namespace string) rpc.Call[ControlCreateRequest[Spec], Resp] {
+	return rpc.Call[ControlCreateRequest[Spec], Resp]{
+		BaseContext: namespace,
+		Convention:  rpc.ConventionUpdate,
+		Roles:       rpc.RolesProvider,
+		Operation:   "create",
+	}
+}
+
+type ControlMutateRequest[Item any] struct {
+	JobId string `json:"jobId,omitempty"`
+	Items []Item `json:"items"`
+}
+
+func ControlMutateCall[Item any, Resp any](namespace string, operation string) rpc.Call[ControlMutateRequest[Item], Resp] {
+	return rpc.Call[ControlMutateRequest[Item], Resp]{
+		BaseContext: namespace,
+		Convention:  rpc.ConventionUpdate,
+		Roles:       rpc.RolesProvider,
+		Operation:   operation,
+	}
+}
+
 func ResourceOwnerToWalletOwner(resource Resource) acc.WalletOwner {
 	if resource.Owner.Project.Present {
 		return acc.WalletOwnerProject(resource.Owner.Project.Value)
@@ -165,6 +196,18 @@ func ResourceOwnerToWalletOwner(resource Resource) acc.WalletOwner {
 type ResourceUpdateAndId[U any] struct {
 	Id     string `json:"id"`
 	Update U      `json:"update"`
+}
+
+type ResourceExistenceCheck struct {
+	Type string `json:"type"`
+	Id   string `json:"id"`
+}
+
+var ResourcesControlCheckExistence = rpc.Call[fnd.BulkRequest[ResourceExistenceCheck], fnd.BulkResponse[bool]]{
+	BaseContext: "providers/resources",
+	Convention:  rpc.ConventionUpdate,
+	Roles:       rpc.RolesProvider,
+	Operation:   "checkExistence",
 }
 
 type ResourceFlags struct {

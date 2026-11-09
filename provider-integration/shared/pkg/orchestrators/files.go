@@ -90,6 +90,7 @@ const (
 	UploadProtocolChunked     UploadProtocol = "CHUNKED"
 	UploadProtocolWebSocketV1 UploadProtocol = "WEBSOCKET_V1"
 	UploadProtocolWebSocketV2 UploadProtocol = "WEBSOCKET_V2"
+	UploadProtocolWebSocketV3 UploadProtocol = "WEBSOCKET_V3"
 )
 
 // File API
@@ -106,11 +107,12 @@ type FilesSourceAndDestination struct {
 type FileFlags struct {
 	ResourceFlags
 
-	IncludePermissions util.Option[bool] `json:"includePermissions"`
-	IncludeTimestamps  util.Option[bool] `json:"includeTimestamps"`
-	IncludeSizes       util.Option[bool] `json:"includeSizes"`
-	IncludeUnixInfo    util.Option[bool] `json:"includeUnixInfo"`
-	IncludeMetadata    util.Option[bool] `json:"includeMetadata"`
+	IncludePermissions      util.Option[bool] `json:"includePermissions"`
+	IncludeTimestamps       util.Option[bool] `json:"includeTimestamps"`
+	IncludeSizes            util.Option[bool] `json:"includeSizes"`
+	IncludeSizesNonBlocking util.Option[bool] `json:"includeSizesNonBlocking"`
+	IncludeUnixInfo         util.Option[bool] `json:"includeUnixInfo"`
+	IncludeMetadata         util.Option[bool] `json:"includeMetadata"`
 
 	FilterByFileExtension util.Option[string] `json:"filterByFileExtension"`
 	Path                  util.Option[string] `json:"path"`
@@ -179,6 +181,7 @@ type FilesVisualizeResponse struct {
 	FileCount      uint64                     `json:"fileCount"`
 	DirectoryCount uint64                     `json:"directoryCount"`
 	Complete       bool                       `json:"complete"`
+	Indexing       util.Option[bool]          `json:"indexing"`
 }
 
 var FilesVisualize = rpc.Call[FilesVisualizeRequest, FilesVisualizeResponse]{

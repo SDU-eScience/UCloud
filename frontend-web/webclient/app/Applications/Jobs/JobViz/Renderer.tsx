@@ -20,6 +20,7 @@ import {
 import TabbedCard, {TabbedCardTab} from "@/ui-components/TabbedCard";
 import Progress from "@/ui-components/Progress";
 import {sizeToString} from "@/Utilities/FileUtilities";
+import {formatNumber} from "@/Utilities/NumberFormatting";
 import {formatDuration, intervalToDuration} from "date-fns";
 import {dateToTimeOfDayString} from "@/Utilities/DateUtilities";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
@@ -355,7 +356,7 @@ const RendererProgressBar: React.FunctionComponent<{widget: RuntimeWidget<Widget
         color={"successMain"}
         percent={widget.spec.progress * 100}
         active={true}
-        label={`${(widget.spec.progress * 100).toFixed(2)}%`}
+        label={`${formatNumber(widget.spec.progress * 100, {precision: 2})}%`}
     />;
 };
 
@@ -402,19 +403,19 @@ const RendererDiagram: React.FunctionComponent<{widget: RuntimeWidget<WidgetDiag
     const labelFormatter = useCallback((value: number, isAxis: boolean): string => {
         switch (widget.spec.yAxis.unit) {
             case WidgetDiagramUnit.GenericInt: {
-                return value.toFixed(0);
+                return formatNumber(value, {precision: 0});
             }
 
             case WidgetDiagramUnit.GenericFloat: {
-                return value.toFixed(3);
+                return formatNumber(value, {precision: 4, threeDecimalsAs: 4});
             }
 
             case WidgetDiagramUnit.GenericPercent1: {
-                return (value * 100).toFixed(isAxis ? 0 : 1) + "%";
+                return formatNumber(value * 100, {precision: isAxis ? 0 : 1}) + "%";
             }
 
             case WidgetDiagramUnit.GenericPercent100: {
-                return value.toFixed(isAxis ? 0 : 1) + "%";
+                return formatNumber(value, {precision: isAxis ? 0 : 1}) + "%";
             }
 
             case WidgetDiagramUnit.Bytes: {

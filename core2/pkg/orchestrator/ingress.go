@@ -2,12 +2,14 @@ package orchestrator
 
 import (
 	"cmp"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	db "ucloud.dk/shared/pkg/database"
 	fndapi "ucloud.dk/shared/pkg/foundation"
@@ -43,8 +45,13 @@ func initIngresses() {
 	})
 
 	orcapi.IngressesControlBrowse.Handler(func(info rpc.RequestInfo, request orcapi.IngressesControlBrowseRequest) (fndapi.PageV2[orcapi.Ingress], *util.HttpError) {
+		actor, err := controlBrowseJobScoped(info, request.JobId, &request.ResourceFlags)
+		if err != nil {
+			return fndapi.PageV2[orcapi.Ingress]{}, err
+		}
+
 		return ResourceBrowse[orcapi.Ingress](
-			info.Actor,
+			actor,
 			ingressType,
 			request.Next,
 			request.ItemsPerPage,
@@ -97,7 +104,11 @@ func initIngresses() {
 	})
 
 	orcapi.IngressesControlRetrieve.Handler(func(info rpc.RequestInfo, request orcapi.IngressesControlRetrieveRequest) (orcapi.Ingress, *util.HttpError) {
-		return ResourceRetrieve[orcapi.Ingress](info.Actor, ingressType, ResourceParseId(request.Id), request.ResourceFlags)
+		actor, err := controlRetrieveJobScoped(info, request.JobId, ingressType, request.Id)
+		if err != nil {
+			return orcapi.Ingress{}, err
+		}
+		return ResourceRetrieve[orcapi.Ingress](actor, ingressType, ResourceParseId(request.Id), request.ResourceFlags)
 	})
 
 	orcapi.IngressesUpdateAcl.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.UpdatedAcl]) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
@@ -119,53 +130,45 @@ func initIngresses() {
 		return SupportRetrieveProducts[orcapi.IngressSupport](ingressType), nil
 	})
 
-	orcapi.IngressesControlRegister.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ProviderRegisteredResource[orcapi.IngressSpecification]]) (fndapi.BulkResponse[fndapi.FindByStringId], *util.HttpError) {
-		var responses []fndapi.FindByStringId
-
-		providerId, _ := strings.CutPrefix(info.Actor.Username, fndapi.ProviderSubjectPrefix)
-		for _, reqItem := range request.Items {
-			if reqItem.Spec.Product.Provider != providerId {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, util.HttpErr(http.StatusForbidden, "forbidden")
-			}
-		}
-
-		for _, reqItem := range request.Items {
-			var flags resourceCreateFlags
-			if reqItem.ProjectAllRead {
-				flags |= resourceCreateAllRead
-			}
-
-			if reqItem.ProjectAllWrite {
-				flags |= resourceCreateAllWrite
-			}
-
-			id, _, err := ResourceCreateEx[orcapi.Ingress](
-				ingressType,
-				orcapi.ResourceOwner{
-					CreatedBy: reqItem.CreatedBy.GetOrDefault("_ucloud"),
-					Project:   util.OptStringIfNotEmpty(reqItem.Project.Value),
-				},
-				nil,
-				reqItem.Spec.ResourceSpecification,
-				reqItem.ProviderGeneratedId,
-				&internalIngress{
-					Domain: reqItem.Spec.Domain,
-				},
-				flags,
-			)
-
+	orcapi.IngressesSetTarget.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.IngressesSetTargetRequest]) (util.Empty, *util.HttpError) {
+		for _, item := range request.Items {
+			err := IngressSetTarget(info.Actor, item.Id, item.Target)
 			if err != nil {
-				return fndapi.BulkResponse[fndapi.FindByStringId]{}, err
-			} else {
-				ResourceConfirm(ingressType, id)
-				responses = append(responses, fndapi.FindByStringId{Id: fmt.Sprint(id)})
+				return util.Empty{}, err
 			}
 		}
-
-		return fndapi.BulkResponse[fndapi.FindByStringId]{Responses: responses}, nil
+		return util.Empty{}, nil
 	})
 
+	orcapi.IngressesControlCreate.Handler(controlCreateServe(
+		func(spec *orcapi.IngressSpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
+		},
+		IngressCreate,
+		func(created []orcapi.Ingress) fndapi.BulkResponse[fndapi.FindByStringId] {
+			return controlCreateIdsOf(created, func(r orcapi.Ingress) string { return r.Id })
+		},
+	))
+
+	orcapi.IngressesControlRegister.Handler(resourceControlRegisterServe[orcapi.IngressSpecification, orcapi.Ingress](
+		ingressType,
+		func(spec *orcapi.IngressSpecification) *orcapi.ResourceSpecification {
+			return &spec.ResourceSpecification
+		},
+		func(item *orcapi.ProviderRegisteredResource[orcapi.IngressSpecification]) (any, func(), *util.HttpError) {
+			return &internalIngress{Domain: item.Spec.Domain}, nil, nil
+		},
+	))
+
 	orcapi.IngressesControlAddUpdate.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.ResourceUpdateAndId[orcapi.IngressUpdate]]) (util.Empty, *util.HttpError) {
+		ids := make([]string, 0, len(request.Items))
+		for _, item := range request.Items {
+			ids = append(ids, item.Id)
+		}
+		if err := ResourceValidateProviderBatch(info.Actor, ingressType, ids); err != nil {
+			return util.Empty{}, err
+		}
+
 		for _, item := range request.Items {
 			ok := ResourceUpdate(
 				info.Actor,
@@ -185,15 +188,71 @@ func initIngresses() {
 		return util.Empty{}, nil
 	})
 
-	orcapi.IngressesControlUpdateLabels.Handler(func(info rpc.RequestInfo, request fndapi.BulkRequest[orcapi.IngressesUpdateLabelsRequest]) (util.Empty, *util.HttpError) {
-		for _, reqItem := range request.Items {
-			err := ResourceUpdateLabels(info.Actor, ingressType, reqItem.Id, reqItem.Labels, orcapi.PermissionProvider)
+	orcapi.IngressesControlUpdateLabels.Handler(controlUpdateLabelsServe(
+		ingressType,
+		func(item orcapi.IngressesUpdateLabelsRequest) string { return item.Id },
+		func(item orcapi.IngressesUpdateLabelsRequest) map[string]string { return item.Labels },
+		func(item *orcapi.IngressesUpdateLabelsRequest, labels map[string]string) { item.Labels = labels },
+		IngressUpdateLabels,
+	))
+
+	orcapi.IngressesControlSetTarget.Handler(func(info rpc.RequestInfo, request orcapi.ControlMutateRequest[orcapi.IngressesSetTargetRequest]) (util.Empty, *util.HttpError) {
+		actor, _, stackInstance, err := controlResolveJobActor(info.Actor, request.JobId)
+		if err != nil {
+			return util.Empty{}, err
+		}
+
+		for _, item := range request.Items {
+			_, err := controlVerifyStackMembership(actor, ingressType, item.Id, stackInstance)
+			if err != nil {
+				return util.Empty{}, err
+			}
+
+			if target := item.Target; target.Present {
+				_, err := controlVerifyStackMembership(actor, serviceType, target.Value.ServiceId, stackInstance)
+				if err != nil {
+					return util.Empty{}, err
+				}
+			}
+		}
+
+		for _, item := range request.Items {
+			err := IngressSetTarget(actor, item.Id, item.Target)
 			if err != nil {
 				return util.Empty{}, err
 			}
 		}
 
 		return util.Empty{}, nil
+	})
+
+	orcapi.IngressesControlDelete.Handler(func(info rpc.RequestInfo, request orcapi.IngressesControlDeleteRequest) (fndapi.BulkResponse[util.Empty], *util.HttpError) {
+		actor, _, stackInstance, err := controlResolveJobActor(info.Actor, request.JobId)
+		if err != nil {
+			return fndapi.BulkResponse[util.Empty]{}, err
+		}
+
+		ids := make([]fndapi.FindByStringId, 0, len(request.IngressIds))
+		for _, ingressId := range request.IngressIds {
+			ingress, _, _, err := ResourceRetrieveEx[orcapi.Ingress](
+				actor,
+				ingressType,
+				ResourceParseId(ingressId),
+				orcapi.PermissionEdit,
+				orcapi.ResourceFlags{},
+			)
+			if err != nil {
+				return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusNotFound, "unknown public link")
+			}
+
+			if ingress.Specification.Labels[orcapi.ResourceLabelStackInstance] != stackInstance {
+				return fndapi.BulkResponse[util.Empty]{}, util.HttpErr(http.StatusForbidden, "the public link does not belong to the stack of the job")
+			}
+
+			ids = append(ids, fndapi.FindByStringId{Id: ingressId})
+		}
+
+		return IngressDelete(actor, fndapi.BulkRequestOf(ids...))
 	})
 }
 
@@ -284,10 +343,31 @@ func IngressCreate(actor rpc.Actor, request fndapi.BulkRequest[orcapi.IngressSpe
 		)
 
 		if err != nil {
+			ingressesByDomain.Mu.Lock()
+			if ingressesByDomain.Domains[item.Domain] == ResourceId(0) {
+				delete(ingressesByDomain.Domains, item.Domain)
+			}
+			ingressesByDomain.Mu.Unlock()
+
 			return nil, err
 		}
 
-		created = append(created, ing)
+		if item.Target.Present {
+			err = IngressSetTarget(actor, ing.Id, item.Target)
+			if err != nil {
+				_, _ = IngressDelete(actor, fndapi.BulkRequestOf(fndapi.FindByStringId{Id: ing.Id}))
+				return nil, err
+			}
+
+			updated, retrieveErr := ResourceRetrieve[orcapi.Ingress](actor, ingressType, ResourceParseId(ing.Id), orcapi.ResourceFlags{})
+			if retrieveErr != nil {
+				return nil, retrieveErr
+			}
+
+			created = append(created, updated)
+		} else {
+			created = append(created, ing)
+		}
 	}
 
 	return created, nil
@@ -411,8 +491,10 @@ func ingressesFillIndex() {
 }
 
 type internalIngress struct {
-	Domain  string
-	BoundTo []string
+	Domain        string
+	BoundTo       []string
+	TargetService util.Option[ResourceId]
+	TargetPort    util.Option[string]
 }
 
 func ingressLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*resource) {
@@ -420,10 +502,12 @@ func ingressLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*reso
 		Domain        string
 		Resource      int
 		StatusBoundTo []int
+		TargetService sql.Null[int64]
+		TargetPort    sql.Null[string]
 	}](
 		tx,
 		`
-			select domain, resource, status_bound_to
+			select domain, resource, status_bound_to, target_service, target_port
 			from app_orchestrator.ingresses
 			where resource = some(:ids::int8[])
 	    `,
@@ -438,10 +522,20 @@ func ingressLoad(tx *db.Transaction, ids []int64, resources map[ResourceId]*reso
 			boundTo = append(boundTo, fmt.Sprint(jobId))
 		}
 
-		resources[ResourceId(row.Resource)].Extra = &internalIngress{
+		ing := &internalIngress{
 			Domain:  row.Domain,
 			BoundTo: boundTo,
 		}
+
+		if row.TargetService.Valid {
+			ing.TargetService = util.OptValue(ResourceId(row.TargetService.V))
+		}
+
+		if row.TargetPort.Valid {
+			ing.TargetPort = util.OptValue(row.TargetPort.V)
+		}
+
+		resources[ResourceId(row.Resource)].Extra = ing
 	}
 }
 
@@ -466,14 +560,17 @@ func ingressPersist(b *db.Batch, r *resource) {
 		db.BatchExec(
 			b,
 			`
-				insert into app_orchestrator.ingresses(domain, current_state, resource, status_bound_to)
-				values (:domain, 'READY', :id, :bound_to)
-				on conflict (resource) do update set domain = excluded.domain, status_bound_to = excluded.status_bound_to
+				insert into app_orchestrator.ingresses(domain, current_state, resource, status_bound_to, target_service, target_port)
+				values (:domain, 'READY', :id, :bound_to, :target_service, :target_port)
+				on conflict (resource) do update set domain = excluded.domain, status_bound_to = excluded.status_bound_to,
+					target_service = excluded.target_service, target_port = excluded.target_port
 			`,
 			db.Params{
-				"domain":   ing.Domain,
-				"id":       r.Id,
-				"bound_to": boundTo,
+				"domain":         ing.Domain,
+				"id":             r.Id,
+				"bound_to":       boundTo,
+				"target_service": ing.TargetService.Sql(),
+				"target_port":    ing.TargetPort.Sql(),
 			},
 		)
 	}
@@ -491,6 +588,13 @@ func ingressTransform(r orcapi.Resource, specification orcapi.ResourceSpecificat
 			BoundTo: util.NonNilSlice(ing.BoundTo),
 			State:   "READY",
 		},
+	}
+
+	if ing.TargetService.Present && ing.TargetPort.Present {
+		result.Specification.Target = util.OptValue(orcapi.PublicLinkServiceTarget{
+			ServiceId: fmt.Sprint(ing.TargetService.Value),
+			Port:      ing.TargetPort.Value,
+		})
 	}
 
 	if (flags.IncludeProduct || flags.IncludeSupport) && resourceSpecificationHasProduct(specification) {
@@ -527,4 +631,116 @@ func IngressUnbind(id string, jobId string) {
 			ip.BoundTo = util.RemoveFirst(ip.BoundTo, jobId)
 		},
 	)
+}
+
+func ingressValidateServiceTarget(actor rpc.Actor, ingressProvider string, target orcapi.PublicLinkServiceTarget) (ResourceId, *util.HttpError) {
+	svc, _, _, err := ResourceRetrieveEx[orcapi.Service](
+		actor,
+		serviceType,
+		ResourceParseId(target.ServiceId),
+		orcapi.PermissionEdit,
+		orcapi.ResourceFlags{},
+	)
+	if err != nil {
+		return 0, util.HttpErr(http.StatusForbidden, "you cannot use this service")
+	}
+
+	if svc.Specification.Product.Provider != ingressProvider {
+		return 0, util.HttpErr(http.StatusBadRequest, "the service belongs to a different provider")
+	}
+
+	var matchedPort *orcapi.ServicePort
+	for i, port := range svc.Specification.Ports {
+		if port.Name == target.Port {
+			matchedPort = &svc.Specification.Ports[i]
+			break
+		}
+	}
+
+	if matchedPort == nil {
+		return 0, util.HttpErr(http.StatusBadRequest, "the service does not declare a port named '%v'", target.Port)
+	}
+
+	if matchedPort.Protocol != orcapi.ServicePortProtocolTcp {
+		return 0, util.HttpErr(http.StatusBadRequest, "a public link can only target a TCP port")
+	}
+
+	appProto := matchedPort.ApplicationProtocol
+	if !appProto.Present || (appProto.Value != "HTTP" && appProto.Value != "HTTPS") {
+		return 0, util.HttpErr(http.StatusBadRequest, "a public link can only target a port with applicationProtocol HTTP or HTTPS")
+	}
+
+	return ResourceParseId(svc.Id), nil
+}
+
+func IngressSetTarget(actor rpc.Actor, id string, target util.Option[orcapi.PublicLinkServiceTarget]) *util.HttpError {
+	ing, _, _, err := ResourceRetrieveEx[orcapi.Ingress](
+		actor,
+		ingressType,
+		ResourceParseId(id),
+		orcapi.PermissionEdit,
+		orcapi.ResourceFlags{},
+	)
+	if err != nil {
+		return err
+	}
+
+	if len(ing.Status.BoundTo) > 0 {
+		return util.HttpErr(http.StatusConflict, "this link is currently in use by job: %v", strings.Join(ing.Status.BoundTo, ", "))
+	}
+
+	provider := ing.Specification.Product.Provider
+
+	if target.Present {
+		mutationLock := serviceMutationLock(target.Value.ServiceId)
+		mutationLock.Lock()
+		defer mutationLock.Unlock()
+	}
+
+	var newServiceId util.Option[ResourceId]
+	var newPort util.Option[string]
+
+	if target.Present {
+		serviceId, err := ingressValidateServiceTarget(actor, provider, target.Value)
+		if err != nil {
+			return err
+		}
+
+		newServiceId = util.OptValue(serviceId)
+		newPort = util.OptValue(target.Value.Port)
+	}
+
+	providerIngress := ing
+	providerIngress.Specification.Target = target
+
+	_, err = InvokeProvider(provider, orcapi.IngressesProviderSetTarget, fndapi.BulkRequestOf(orcapi.IngressesProviderSetTargetRequest{
+		Ingress: providerIngress,
+		Target:  target,
+	}), ProviderCallOpts{
+		Username: util.OptValue(actor.Username),
+		Reason:   util.OptValue("Setting public link target"),
+		Timeout:  util.OptValue(30 * time.Second),
+	})
+
+	if err != nil {
+		return err
+	}
+
+	ok := ResourceUpdate(
+		actor,
+		ingressType,
+		ResourceParseId(id),
+		orcapi.PermissionEdit,
+		func(r *resource, mapped orcapi.Ingress) {
+			ingInternal := r.Extra.(*internalIngress)
+			ingInternal.TargetService = newServiceId
+			ingInternal.TargetPort = newPort
+		},
+	)
+
+	if !ok {
+		return util.HttpErr(http.StatusNotFound, "not found or permission denied")
+	}
+
+	return nil
 }

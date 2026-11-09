@@ -44,6 +44,7 @@ export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
                 suggestedApplication={props.parameter.suggestedApplication}
                 errors={props.errors}
                 setErrors={props.setErrors}
+                onValueChange={props.onValueChange}
             />
         </Box>
     </Flex>;
@@ -97,6 +98,7 @@ interface JobSelectorProps {
     suggestedApplication?: string;
     errors: Record<string, string>;
     setErrors: (errors: Record<string, string>) => void;
+    onValueChange?: () => void;
 }
 
 const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
@@ -129,6 +131,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
             cursor="pointer"
             style={{height: "39px"}}
             readOnly
+            data-field-activator
         />
         <ReactModal
             isOpen={open}
@@ -161,6 +164,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
                                 props.setErrors({...props.errors});
                             }
                             setAllowAutoConfigure(false);
+                            props.onValueChange?.();
                             doClose();
 
                         }
