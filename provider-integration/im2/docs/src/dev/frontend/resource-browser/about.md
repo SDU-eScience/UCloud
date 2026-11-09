@@ -16,16 +16,91 @@ The ResourceBrowser-component is, as mentioned, written in TypeScript. The compo
 
 The setup of the ResourceBrowser happens in three steps:
 
+<TODO-NO-LONGER-TRUE>
+
 - Constructor
 - Init
 - Mount
 
-#### Constructor
+With the Resource Browser instantiated, `init` is called. `init` takes a callback as an argument, that is responsible for defining the hooks into the Resource Browser. 
 
-The constructor sets the members that are expected to be immutable. 
+It is here the custom parts of the Resource Browser is defined. How `open`, `wantToFetchNextPage`, `fetchOperations`, etc. should behave when called.
 
-#### Init and Mount
+```mermaid
+flowchart LR
+    subgraph UCloud component
+        A(React component)
+        B(ResourceBrowser instance)
+        A -->|Dispatches messages|B
+        C[HTML elements]
+        B -->|Modifies| C
+    end
+```
 
-With the Resource Browser instantiated, `init` is called.
+### RenderRows
 
-<!-- https://www.mermaideditor.io/#pako:eJx9VU1v2zAM_StGdtmAFrDjjzg9DGi7Dj2kGFB0p20HWaISoY5kSEq7oO1_H6XEim21MxA45iOfKPJReplRxWB2MeOteqYbom2yuv8tE3zMrllr0m2Sn9et2rGEqm2nJEh7gN1z-fkeCLUn6MsJu0LMqJ2mcKXVswGdCGkskRQGTpfJ-fnX12_CdMTSDZhkC8aQNZjXq5PT9a_bh7tVAi1scQnzZ7CGD79TTHCBMcn1AQLJ3J_Dx-xsZuy-BTO7eJk1xIB72w1y4a799xm-6ONaq51k16pVGoFP3D-IcSXtd7IV7R7NhkhzjnsRDum02BK9DyEZFClxgAGqJBtCFZvXbImQBW3FEOEZL7lDWiEhWPO8yMpy9oZcHVDcHfVZ77tRq0Zbk9jHq7APT11zwik6eUhpBp6bNqyE7Gh-gL_WGVOeLeYEjQyXM0LJCRXwnC6GcKBjy8UirQZQT7mo8zL15bCY641kY0qWcQLlEA6UabmsquUACllWBeSNL72iqJQJYwOEwwANhKEzR6TnyyAnpbMTjRoN1S8WZenX9-YVaaCdlKMXx8mhpzx2DnM_js8ksm93gEOSy4LkTT2AHoRt4wbhCAi7_yCfIxj3-gB4xkloygtejz2iNYm1WjQ7O4j9wSaViF1unkCOdBh8omJ1j7divWnx5-1NUeapqxIf29O8WhK3HQ0tsag1sxHdCgfHkzX1nFfvgJetzf4bjQ5zr1iaE2AThz7XqlgUtdMeHnhKj4sY9HXABrrLSU16e88UatahugUVHZH2g8kdesRNHaBRy1rBYXSkhKjjERvK1vfgaI-bT6148uX4YNwGDiHH0Ayp7FRx_VniofgcceboDGmV6j6YJA_FU-TM0V7su_LG8zreXuhBhKJcxqN8cIgXI-ZxzBmq4qH4eHLmSCW-vPAQkc3LKodm7HCiZAUwVwaG93IcG8QQ4LiAVAtUF2njaEbn1byaugSGZpnRzFUOL00wFlcYh4cxO-EhNlyUay1OlzHMoeapK5BiZL8ayvqYyxs-_wALksye -->
+Instead of rendering every item in the viewed page, the Resource Browser uses a similar approach to `react-window`, that is, based on the available space, initialize as many entries that can be visible at any time, plus an additional buffer, in the container. When rendering rows, the rows are reset, and placed relative to their sorting. Each page (See [Page](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/UCloud/index.ts#L41)) entry is checked if it is in view, and if so, renders using the prepered ro checked if it is in view, and if so, renders them using the prepared rows. 
+
+Each row is divided into multiple parts: `star`, `title`, `stat1`, `stat2`, `stat3`, and `stat4`.
+
+`star` is used to denote favoriting. At the time of writing on FileBrowse and FavoritesBrowse uses the star, both having files as their resource type.
+
+The title is the name of the entry, a locally unique identifier. This could be the file name (but not the full file path), job name or grant application ID. The `stat`-parts are used for info about the entry. This can be information, like created by, created by, or state of the resource. What is actually rendered is like `title` also handled by the React-component wrapping the instance of the ResourceBrowser.
+
+The `renderTitle` or `renderStat{i}` methods largely share the same arguments, with `renderTitle` having an additional `dims: RenderDimensions`-argument. 
+
+`renderStat1: (entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => void;`
+
+<TODO-ALREADY-DESCRIBED-QUESTION-MARK>
+
+When rendering a stat in the row, the entry, part of the row, specifically the relevant `stat` or `title`-element and the container width breakpoint of the resource browser. With the container width provided, the implementation of the rendering of the stat can be handled differently, swapping positions for `stat`-entries or render them differently. JobBrowse swaps the stats for smaller screens and renders "Created by" using only the avatar-image without the name, like so:
+
+```typescript
+(entry: T, stat: HTMLElement, row: ResourceBrowserRow, size: ContainerSize) => {
+    browser.on("renderStat1", (job, stat, row, size) => {
+        if (size <= ContainerSize.SMALL) {
+            renderCreatedBySmall(job, stat);
+        } else {
+            renderCreatedBy(job, stat);
+        }
+    });
+}
+```
+
+The container size breakpoints are as follows:
+
+```typescript
+enum ContainerSize {
+    LARGE = 1080,
+    MEDIUM = 860,
+    SMALL = 600,
+    TINY = 460,
+}
+```
+
+A container size breakpoint is considered active, provided the current container width is equal or bigger than the breakpoint.
+
+The amount of visible rows are reevaluated when resizing the browser window using an event-handler.
+
+### Adding new functionality
+
+If new functionality is needed in the Resource Browser:
+
+- Add the type definition to `ResourceBrowserListenerMap<T>` in `ResourceBrowser.ts`.
+- If the method is not required, add entry to `ResourceBrowser#defaultHandlers`, with a noop-call like `doNothing`.
+    - If it is required, it is preferable that it crashes the frontend during development to highlight when it is missing.
+- Add the calls where applicable in the Resource Browser, like `pathToEntry` or `renderTitle`-calls in `renderRows()`.
+
+#### Example
+
+If we were to implement the `sort` method, we would do the following:
+
+Add `"sort": (page: T[]) => void;` to the `ResourceBrowserListenerMap<T>`. With the method now recognized by the class, add `sort: doNothing` to the default handlers, as this is not a required function.
+
+The sort function can now be called using `this.dispatchMessage("sort", fn => fn(page))`, both in the Resource Browser-component internally, or React-components mounting the Resource Browser using `resourceBrowserInstance.dispatchMessage("sort", fn => fn(page))`.
+
+### Resource Browser styling
+
+The Resource Browser has many lines of CSS, which has been extracted into its own file, [ResourceBrowserStyle.ts](https://github.com/SDU-eScience/UCloud/blob/master/frontend-web/webclient/app/ui-components/ResourceBrowserStyle.ts). The styling relies on `injectStyle` mentioned in (../inject-style). 
+
+Changes can be done directly in the Resource Browser, if changes should not persist between components.

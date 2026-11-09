@@ -53,6 +53,6 @@ If the result of the `makeClassName` is no longer applied to any component, the 
 
 `styled-components` will also handle browser quirks and transform rules to manage these, like Safari with rules with the `-webkit`-prefix. This is done manually when developing the UCloud platform.
 
-## Baseline for features?
+## Baseline for features
 
-<TODO>
+As the CSS standard is continuously updated, some features might be supported in one browser, and not another. Any CSS property used must be supported in Chrome, Safari, and Firefox. It should have a baseline of "Widely available" for at least 3 years.
