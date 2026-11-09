@@ -107,7 +107,6 @@ type privateNetworkInfinibandSettings struct {
 	PrefixLen        int
 	RdmaResourceName string
 	DeviceLabel      string
-	Device           string
 	Reclaim          cfg.KubernetesReclaimPolicy
 }
 
@@ -217,8 +216,8 @@ func PrivateNetworksFeatureEnabled() bool {
 	return privateNetworkCurrentSettings().Enabled
 }
 
-func PrivateNetworkInfinibandDevice() string {
-	return privateNetworkCurrentSettings().Infiniband.Device
+func PrivateNetworkInfinibandEnabled() bool {
+	return privateNetworkCurrentSettings().Infiniband.Enabled
 }
 
 func PrivateNetworkInfinibandDeviceLabel() string {
@@ -264,12 +263,6 @@ func privateNetworkValueHasInfiniband(value orc.AppParameterValue) bool {
 
 	network, ok := PrivateNetworkRetrieve(value.Id)
 	return ok && network.Specification.EffectiveType() == orc.NetworkTypeInfiniband
-}
-
-func PrivateNetworkSetInfinibandDevice(device string) {
-	privateNetworkSettingsMu.Lock()
-	privateNetworkSettings.Infiniband.Device = device
-	privateNetworkSettingsMu.Unlock()
 }
 
 func privateNetworkCurrentSettings() privateNetworkParsedSettings {

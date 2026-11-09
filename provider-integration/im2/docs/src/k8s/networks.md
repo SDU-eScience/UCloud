@@ -41,8 +41,9 @@ All Network attachment goes through Multus. Multus is a meta-CNI. It reads the p
 `k8s.v1.cni.cncf.io/networks`, calls the CNI plugin for each requested attachment, and writes the result to
 `k8s.v1.cni.cncf.io/network-status`. Multus does not build the Network and does not forward traffic.
 
-Each Network has a `NetworkAttachmentDefinition` (NAD) in the compute namespace. The NAD is the Kubernetes handle for
-the Network. The IM creates the NAD for an Ethernet Network. For an InfiniBand Network, the IPoIB operator creates it.
+All Networks attach through a `NetworkAttachmentDefinition` (NAD) in the compute namespace. The NAD is the Kubernetes
+handle for the Network. The IM creates the NAD for an Ethernet Network. For an InfiniBand Network, the cluster provides
+one NAD per InfiniBand device. The NAD name is the device name. The IM does not create it.
 
 The primary CNI still owns `eth0`. The Network is a secondary interface:
 
@@ -58,7 +59,7 @@ metadata:
       [
         {"name": "tenant-a", "namespace": "ucloud-apps", "interface": "net1"},
         {
-          "name": "fabric-a",
+          "name": "ib0",
           "namespace": "ucloud-apps",
           "interface": "ib0",
           "ips": ["10.201.1.5/24"]
@@ -83,7 +84,7 @@ Network:
 - `UCLOUD_PRIVATE_NET_<SUBDOMAIN>` for compatibility
 
 The Multus network status is the evidence that the attachment exists. For Ethernet, the IM also checks the Kube-OVN
-`IP` object. The IM uses both during reconciliation.
+`IP` object and uses both during reconciliation. For InfiniBand, the IM checks whether the pod still exists.
 
 A job can attach several Ethernet Networks. A job can attach at most one InfiniBand Network.
 
@@ -99,7 +100,7 @@ flowchart LR
 
     multus["Multus<br/>attachment"]:::diagram-provider-cog-6-tooth
     nadEth["NetworkAttachmentDefinition<br/>Ethernet Network"]:::diagram-provider-kubernetes
-    nadIb["NetworkAttachmentDefinition<br/>InfiniBand Network"]:::diagram-provider-kubernetes
+    nadIb["NetworkAttachmentDefinition<br/>InfiniBand device NAD"]:::diagram-provider-kubernetes
 
     pod --> eth0
     pod --> net1
@@ -273,13 +274,13 @@ addresses for RDMA traffic.
 
 ### Objects and attachment
 
-The IM uses the Mellanox `IPoIBNetwork` API. For each Network, the IM creates one `IPoIBNetwork` in the compute
-namespace. The object uses static IPAM and the provider's InfiniBand device as `master`. The IPoIB operator creates the
-matching NAD. The IM waits for the NAD before it marks the Network ready.
+An InfiniBand Network does not create Kubernetes objects. The cluster provides one NAD per InfiniBand device in the
+compute namespace. The NAD name is the device name. The NAD uses static IPAM and the physical device as `master`.
 
-Multus attaches the NAD to the pod as `ib0`. The Multus annotation includes the static address with its prefix. The
-container requests the RDMA resource. The scheduler treats that resource as a job dimension, so the pod lands on a node
-that advertises it.
+When a job attaches an InfiniBand Network, the IM reads the device label of the scheduled node. It selects the NAD with
+that device name. Multus attaches the NAD to the pod as `ib0`. The Multus annotation includes the static address with its
+prefix. The container requests the RDMA resource. The scheduler treats that resource as a job dimension, so the pod lands
+on a node that advertises it.
 
 A job can attach at most one InfiniBand Network. InfiniBand Networks are not available for virtual machines.
 
@@ -287,13 +288,14 @@ A job can attach at most one InfiniBand Network. InfiniBand Networks are not ava
 
 Before a provider enables InfiniBand Networks:
 
-- The `mellanox.com/v1alpha1` `IPoIBNetwork` API and its operator must be installed.
-- Every eligible node must expose the same InfiniBand device. The provider sets a device label (default
-  `ucloud.dk/ibdev`) and advertises the RDMA resource (default `nvidia.com/rdma_shared`).
+- The cluster must provide a NAD in the compute namespace for each InfiniBand device. The NAD name must equal the device
+  name.
+- Every eligible node must expose a device label (default `ucloud.dk/ibdev`) and advertise the RDMA resource (default
+  `nvidia.com/rdma_shared`). The label can list several devices; the IM uses the first.
 - The IM must have an InfiniBand address pool.
 
-The IM fails at startup if InfiniBand is enabled but the API or a usable device is missing. The device must be the same
-on all eligible nodes. The label can list several devices; the IM uses the first.
+Nodes can expose different device names. The IM selects the NAD from the scheduled node. The IM does not check for the
+NAD until it builds an InfiniBand pod. A missing NAD fails the job.
 
 ### Addresses and reclaim
 
@@ -307,7 +309,7 @@ are not reclaimed automatically.
 
 ### Isolation
 
-All InfiniBand Networks use the same physical fabric and the same device on each node. Each Network is a separate
+All InfiniBand Networks use the same physical fabric. Each node uses its labelled device. Each Network is a separate
 `/24`, but the fabric is shared. The separation is logical, not physical. Do not treat an InfiniBand Network as a hard
 isolation boundary like an Ethernet VPC.
 
@@ -341,8 +343,8 @@ flowchart TB
 
 <figcaption>
 
-Two logical InfiniBand Networks on one shared fabric. Every member uses the same device. The figure does not show the
-`IPoIBNetwork` objects, the NADs, or the subnet manager.
+Two logical InfiniBand Networks on one shared fabric. Every member uses a device NAD. The figure does not show the
+NADs or the subnet manager.
 
 </figcaption>
 </figure>

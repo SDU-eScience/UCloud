@@ -361,7 +361,7 @@ func initProducts() {
 			},
 		}
 
-		if privateNetworkInfinibandReady {
+		if ctrl.PrivateNetworkInfinibandEnabled() {
 			infiniband := ServiceConfig.Compute.PrivateNetworks.Infiniband
 			PrivateNetworkProducts = append(PrivateNetworkProducts, apm.ProductV2{
 				Type:        apm.ProductTypeCPrivateNetwork,

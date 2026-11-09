@@ -827,7 +827,7 @@ privateNetworks:
 
 Replace the example address pools with ranges suitable for your cluster. InfiniBand networks receive a /24 from the InfiniBand pool. Automatic reclaim is enabled by default. The `rdmaResourceName` and `deviceLabel` values shown are the defaults.
 
-Each InfiniBand-capable node must advertise the RDMA resource and have a device label. The label value is a dash-separated list of device names. Device names cannot contain dashes because dashes are used as separators. IM uses the first device, which must be the same across all eligible nodes. Kubernetes limits label values to 63 characters.
+Each InfiniBand-capable node must advertise the RDMA resource and have a device label. The label value is a dash-separated list of device names. Device names cannot contain dashes because dashes are used as separators. IM uses the first device. The cluster must provide a NAD in the compute namespace whose name equals the device name. Nodes can use different device names; IM selects the NAD from the scheduled node. Kubernetes limits label values to 63 characters.
 
 For example:
 

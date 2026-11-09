@@ -10,6 +10,7 @@ import (
 
 	k8score "k8s.io/api/core/v1"
 	k8snetwork "k8s.io/api/networking/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	k8smeta "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"ucloud.dk/pkg/controller"
 	fnd "ucloud.dk/shared/pkg/foundation"
@@ -22,9 +23,6 @@ const (
 	PrivateNetworkIdLabel                 = "ucloud.dk/private-network-id"
 	PrivateNetworkManagedBy               = "im-private-network"
 	PrivateNetworkManagedByLegacy         = "im"
-	PrivateNetworkIbManagedBy             = "im-network"
-	PrivateNetworkIbIdLabel               = "ucloud.dk/network-id"
-	PrivateNetworkIbTypeLabel             = "ucloud.dk/network-type"
 	PrivateNetworkMultusAnnotation        = "k8s.v1.cni.cncf.io/networks"
 	PrivateNetworkNetworkStatusAnnotation = "k8s.v1.cni.cncf.io/network-status"
 
@@ -105,7 +103,7 @@ func PrivateNetworkCreate(network *orc.PrivateNetwork) *util.HttpError {
 	}
 
 	networkType := network.Specification.EffectiveType()
-	if networkType == orc.NetworkTypeInfiniband && !privateNetworkInfinibandReady {
+	if networkType == orc.NetworkTypeInfiniband && !controller.PrivateNetworkInfinibandEnabled() {
 		return util.UserHttpError("InfiniBand networks are not supported by this provider")
 	}
 
@@ -193,33 +191,15 @@ func PrivateNetworkCreate(network *orc.PrivateNetwork) *util.HttpError {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	if networkType == orc.NetworkTypeEthernet {
-		if err := controller.PrivateNetworkUpdateCoreCidrBlock(network.Id, desired.cidr); err != nil {
-			privateNetworkDiscardFailedCreate(network.Id)
-			return err
-		}
-	}
-
-	objects, ensureErr := privateNetworkEnsureNetworkObjects(ctx, desired, privateNetworkEnsureCreate)
-	if ensureErr != nil {
-		if networkType == orc.NetworkTypeInfiniband {
-			privateNetworkDeleteInfinibandObjects(ctx, desired)
-		}
+	if err := controller.PrivateNetworkUpdateCoreCidrBlock(network.Id, desired.cidr); err != nil {
 		privateNetworkDiscardFailedCreate(network.Id)
-		return ensureErr
+		return err
 	}
 
-	if networkType == orc.NetworkTypeInfiniband {
-		if !objects.ready(desired) && !privateNetworkWaitForNad(ctx, desired.subdomain) {
-			privateNetworkDeleteInfinibandObjects(ctx, desired)
+	if networkType == orc.NetworkTypeEthernet {
+		if _, ensureErr := privateNetworkEnsureNetworkObjects(ctx, desired, privateNetworkEnsureCreate); ensureErr != nil {
 			privateNetworkDiscardFailedCreate(network.Id)
-			return util.ServerHttpError("The InfiniBand network did not become ready in time")
-		}
-
-		if err := controller.PrivateNetworkUpdateCoreCidrBlock(network.Id, desired.cidr); err != nil {
-			privateNetworkDeleteInfinibandObjects(ctx, desired)
-			privateNetworkDiscardFailedCreate(network.Id)
-			return err
+			return ensureErr
 		}
 	}
 
@@ -419,17 +399,32 @@ func PrivateNetworkInfinibandDeviceForNode(node string) (string, *util.HttpError
 	}
 
 	device, _ := privateNetworkInfinibandNodeDevice(k8sNode)
+
+	_, err = privateNetworkNadClient.Get(ctx, device, k8smeta.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			return "", util.ServerHttpError(
+				"The InfiniBand device %s on node %s has no NetworkAttachmentDefinition named %s in namespace %s",
+				device,
+				node,
+				device,
+				ServiceConfig.Compute.Namespace,
+			)
+		}
+		return "", util.ServerHttpError(
+			"Failed to retrieve the NetworkAttachmentDefinition %s for InfiniBand device %s: %s",
+			device,
+			device,
+			err,
+		)
+	}
+
 	return device, nil
 }
 
 func PrivateNetworkInfinibandNodeValid(node *k8score.Node) bool {
-	device, ok := privateNetworkInfinibandNodeDevice(node)
+	_, ok := privateNetworkInfinibandNodeDevice(node)
 	if !ok {
-		return false
-	}
-
-	expected := controller.PrivateNetworkInfinibandDevice()
-	if expected != "" && device != expected {
 		return false
 	}
 

@@ -245,11 +245,13 @@ func StartScheduledJob(job *orc.Job, rank int, node string, cpuMillis int) *util
 	if pnErr != nil {
 		return pnErr
 	}
-	for _, attachment := range attachments {
-		if attachment.NetworkType == orc.NetworkTypeInfiniband {
-			if _, deviceErr := shared.PrivateNetworkInfinibandDeviceForNode(node); deviceErr != nil {
+	for i := range attachments {
+		if attachments[i].NetworkType == orc.NetworkTypeInfiniband {
+			nadName, deviceErr := shared.PrivateNetworkInfinibandDeviceForNode(node)
+			if deviceErr != nil {
 				return deviceErr
 			}
+			attachments[i].NadName = nadName
 			break
 		}
 	}

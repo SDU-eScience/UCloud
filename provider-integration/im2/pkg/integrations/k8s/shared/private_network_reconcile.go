@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/netip"
 	"runtime/debug"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -28,7 +27,6 @@ import (
 	kvcore "kubevirt.io/api/core/v1"
 	nadclient "kubevirt.io/client-go/networkattachmentdefinitionclient"
 	nadtyped "kubevirt.io/client-go/networkattachmentdefinitionclient/typed/k8s.cni.cncf.io/v1"
-	"ucloud.dk/pkg/config"
 	"ucloud.dk/pkg/controller"
 	"ucloud.dk/shared/pkg/log"
 	orc "ucloud.dk/shared/pkg/orchestrators"
@@ -45,9 +43,6 @@ var (
 	privateNetworkIpGvr = schema.GroupVersionResource{
 		Group: "kubeovn.io", Version: "v1", Resource: "ips",
 	}
-	privateNetworkIbGvr = schema.GroupVersionResource{
-		Group: "mellanox.com", Version: "v1alpha1", Resource: "ipoibnetworks",
-	}
 )
 
 var privateNetworkDynamicClient dynamic.Interface
@@ -57,11 +52,8 @@ var privateNetworkVpcTracker *K8sResourceTracker[*unstructured.Unstructured]
 var privateNetworkSubnetTracker *K8sResourceTracker[*unstructured.Unstructured]
 var privateNetworkIpTracker *K8sResourceTracker[*unstructured.Unstructured]
 var privateNetworkNadTracker *K8sResourceTracker[*unstructured.Unstructured]
-var privateNetworkIbTracker *K8sResourceTracker[*unstructured.Unstructured]
 var privateNetworkVmTracker *K8sResourceTracker[*unstructured.Unstructured]
 var privateNetworkVmiTracker *K8sResourceTracker[*unstructured.Unstructured]
-
-var privateNetworkInfinibandReady bool
 
 const privateNetworkManagedBySelector = PrivateNetworkManagedByLabel + "=" + PrivateNetworkManagedBy
 
@@ -112,13 +104,11 @@ type privateNetworkDesiredObjects struct {
 	provider    string
 	namespace   string
 	nadConfig   string
-	master      string
 }
 
 type privateNetworkEnsuredObjects struct {
 	vpc    *privateNetworkKubeOvnVpc
 	subnet *privateNetworkKubeOvnSubnet
-	nad    *nadapi.NetworkAttachmentDefinition
 }
 
 type privateNetworkEnsureMode int
@@ -128,11 +118,7 @@ const (
 	privateNetworkEnsureRepair
 )
 
-func (objects privateNetworkEnsuredObjects) ready(desired privateNetworkDesiredObjects) bool {
-	if desired.networkType == orc.NetworkTypeInfiniband {
-		return objects.nad != nil
-	}
-
+func (objects privateNetworkEnsuredObjects) ready() bool {
 	return objects.vpc != nil && objects.subnet != nil &&
 		privateNetworkVpcReady(objects.vpc) && privateNetworkSubnetReady(objects.subnet)
 }
@@ -150,36 +136,10 @@ func PrivateNetworkInit() {
 		return
 	}
 
-	privateNetworkInfinibandReady = false
 	controller.PrivateNetworkConfigureDatabase(settings)
 
 	if err := privateNetworkRequireCrds(); err != nil {
 		log.Fatal("Private networks are enabled but required Kubernetes APIs are unavailable: %s", err)
-	}
-
-	ibNeeded := settings.Infiniband.Enabled
-	if !ibNeeded {
-		for _, network := range controller.PrivateNetworkSnapshotNetworks() {
-			if network.NetworkType == orc.NetworkTypeInfiniband {
-				ibNeeded = true
-				break
-			}
-		}
-	}
-
-	ibApiAvailable, ibApiErr := privateNetworkResourceAvailable("mellanox.com/v1alpha1", "ipoibnetworks")
-	if settings.Infiniband.Enabled && !ibApiAvailable {
-		if ibApiErr != nil {
-			log.Fatal("InfiniBand is enabled but the IPoIBNetwork API is unavailable: %s", ibApiErr)
-		}
-		log.Fatal("InfiniBand is enabled but the IPoIBNetwork CRD is not installed")
-	}
-	if ibNeeded && !settings.Infiniband.Enabled && !ibApiAvailable {
-		if ibApiErr != nil {
-			log.Warn("InfiniBand networks exist but the IPoIBNetwork API is unavailable: %s", ibApiErr)
-		} else {
-			log.Warn("InfiniBand networks exist but the IPoIBNetwork CRD is not installed")
-		}
 	}
 
 	client, err := dynamic.NewForConfig(K8sConfig)
@@ -200,111 +160,10 @@ func PrivateNetworkInit() {
 	privateNetworkIpTracker = NewDynamicResourceTracker(client, privateNetworkIpGvr, "")
 	privateNetworkNadTracker = NewDynamicResourceTracker(client, privateNetworkNadGvr, namespace)
 
-	if ibNeeded && ibApiAvailable {
-		privateNetworkIbTracker = NewDynamicResourceTracker(client, privateNetworkIbGvr, "")
-	}
-
 	if ServiceConfig.Compute.VirtualMachines.Enabled {
 		privateNetworkVmTracker = NewDynamicResourceTracker(client, privateNetworkVmGvr, namespace)
 		privateNetworkVmiTracker = NewDynamicResourceTracker(client, privateNetworkVmiGvr, namespace)
 	}
-
-	if ibNeeded {
-		device, node, deviceErr := privateNetworkResolveInfinibandDevice(settings.Infiniband)
-		if deviceErr != nil {
-			if settings.Infiniband.Enabled {
-				log.Fatal("InfiniBand is enabled but no usable InfiniBand node was found: %s", deviceErr)
-			}
-			log.Warn("InfiniBand networks exist but no usable InfiniBand node was found: %s", deviceErr)
-		} else {
-			controller.PrivateNetworkSetInfinibandDevice(device)
-			if settings.Infiniband.Enabled {
-				privateNetworkInfinibandReady = true
-				log.Info("InfiniBand networks are enabled using device %s on node %s", device, node)
-			}
-		}
-	}
-}
-
-func privateNetworkResourceAvailable(groupVersion string, resource string) (bool, error) {
-	resources, err := K8sClient.Discovery().ServerResourcesForGroupVersion(groupVersion)
-	if err != nil {
-		return false, err
-	}
-
-	for _, item := range resources.APIResources {
-		if item.Name == resource {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func privateNetworkResolveInfinibandDevice(settings config.KubernetesInfiniband) (string, string, error) {
-	if settings.RdmaResourceName == "" {
-		settings.RdmaResourceName = "nvidia.com/rdma_shared"
-	}
-	if settings.DeviceLabel == "" {
-		settings.DeviceLabel = "ucloud.dk/ibdev"
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	nodes, err := K8sClient.CoreV1().Nodes().List(ctx, k8smeta.ListOptions{})
-	if err != nil {
-		return "", "", fmt.Errorf("could not list Kubernetes nodes: %w", err)
-	}
-
-	deviceNodes := map[string]string{}
-	for i := range nodes.Items {
-		node := &nodes.Items[i]
-		raw, ok := node.Labels[settings.DeviceLabel]
-		if !ok {
-			continue
-		}
-
-		device, ok := privateNetworkParseInfinibandDeviceLabel(raw)
-		if !ok {
-			log.Warn("Ignoring node %s with an invalid or empty %s label", node.Name, settings.DeviceLabel)
-			continue
-		}
-
-		quantity, hasResource := node.Status.Allocatable[k8score.ResourceName(settings.RdmaResourceName)]
-		if !hasResource || quantity.Value() <= 0 {
-			continue
-		}
-
-		if _, found := deviceNodes[device]; found {
-			continue
-		}
-
-		deviceNodes[device] = node.Name
-	}
-
-	if len(deviceNodes) == 0 {
-		return "", "", fmt.Errorf(
-			"no node advertises the RDMA resource %s together with the label %s",
-			settings.RdmaResourceName,
-			settings.DeviceLabel,
-		)
-	}
-
-	if len(deviceNodes) > 1 {
-		var names []string
-		for device := range deviceNodes {
-			names = append(names, device)
-		}
-		slices.Sort(names)
-		return "", "", fmt.Errorf("all nodes must use the same InfiniBand device, found %s", strings.Join(names, ", "))
-	}
-
-	for device, node := range deviceNodes {
-		return device, node, nil
-	}
-
-	return "", "", fmt.Errorf("no usable InfiniBand device was found")
 }
 
 var privateNetworkNadGvr = schema.GroupVersionResource{
@@ -555,14 +414,16 @@ func privateNetworkProvisionAttempt(ctx context.Context, networkId string) bool 
 		return false
 	}
 
-	objects, ensureErr := privateNetworkEnsureNetworkObjects(ctx, desired, privateNetworkEnsureCreate)
-	if ensureErr != nil {
-		log.Warn("Could not create the objects of private network %s: %s", current.ResourceId, ensureErr)
-		return false
-	}
+	if desired.networkType != orc.NetworkTypeInfiniband {
+		objects, ensureErr := privateNetworkEnsureNetworkObjects(ctx, desired, privateNetworkEnsureCreate)
+		if ensureErr != nil {
+			log.Warn("Could not create the objects of private network %s: %s", current.ResourceId, ensureErr)
+			return false
+		}
 
-	if !objects.ready(desired) {
-		return true
+		if !objects.ready() {
+			return true
+		}
 	}
 
 	current, ok = controller.PrivateNetworkSnapshotRetrieve(networkId)
@@ -600,6 +461,10 @@ func privateNetworkRepairAttempt(ctx context.Context, networkId string) {
 		return
 	}
 
+	if desired.networkType == orc.NetworkTypeInfiniband {
+		return
+	}
+
 	if _, err := privateNetworkEnsureNetworkObjects(ctx, desired, privateNetworkEnsureRepair); err != nil {
 		log.Warn("Could not repair the objects of private network %s: %s", current.ResourceId, err)
 	}
@@ -610,7 +475,7 @@ func privateNetworkRepairAttempt(ctx context.Context, networkId string) {
 // Objects which belong to someone else are logged and skipped.
 func privateNetworkAdvanceNetworkDeletion(ctx context.Context, desired privateNetworkDesiredObjects) bool {
 	if desired.networkType == orc.NetworkTypeInfiniband {
-		return privateNetworkAdvanceInfinibandDeletion(ctx, desired)
+		return true
 	}
 
 	subnet, subnetErr := privateNetworkGetSubnetObject(ctx, desired.subnetName)
@@ -703,42 +568,6 @@ func privateNetworkAdvanceNetworkDeletion(ctx context.Context, desired privateNe
 	return true
 }
 
-func privateNetworkAdvanceInfinibandDeletion(ctx context.Context, desired privateNetworkDesiredObjects) bool {
-	if privateNetworkIbTracker != nil {
-		object, err := privateNetworkGetIbObject(ctx, desired.subdomain)
-		if err != nil {
-			return false
-		}
-
-		if object != nil {
-			if !privateNetworkIbOwnedBy(object, desired.networkId) {
-				log.Warn(
-					"The IPoIBNetwork %s collides with private network %s and will not be deleted",
-					desired.subdomain,
-					desired.networkId,
-				)
-				return true
-			}
-
-			if !privateNetworkDeleteWithUid(
-				ctx,
-				privateNetworkDynamicClient.Resource(privateNetworkIbGvr),
-				desired.subdomain,
-				object.GetUID(),
-			) {
-				return false
-			}
-		}
-	}
-
-	nad, err := privateNetworkGetNadObject(ctx, desired.subdomain)
-	if err != nil {
-		return false
-	}
-
-	return nad == nil
-}
-
 func privateNetworkDeleteAttempt(networkId string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
@@ -809,7 +638,6 @@ func privateNetworkComputeDesired(network controller.PrivateNetworkSnapshotNetwo
 			return result, false
 		}
 
-		result.master = controller.PrivateNetworkInfinibandDevice()
 		return result, true
 	}
 
@@ -851,10 +679,6 @@ func privateNetworkEnsureNetworkObjects(
 	desired privateNetworkDesiredObjects,
 	mode privateNetworkEnsureMode,
 ) (privateNetworkEnsuredObjects, *util.HttpError) {
-	if desired.networkType == orc.NetworkTypeInfiniband {
-		return privateNetworkEnsureInfinibandObjects(ctx, desired, mode)
-	}
-
 	vpc, err := privateNetworkGetVpcObject(ctx, desired.subdomain)
 	if err != nil {
 		return privateNetworkEnsuredObjects{}, err
@@ -906,193 +730,7 @@ func privateNetworkEnsureNetworkObjects(
 	return privateNetworkEnsuredObjects{
 		vpc:    vpc,
 		subnet: subnet,
-		nad:    nad,
 	}, nil
-}
-
-func privateNetworkEnsureInfinibandObjects(
-	ctx context.Context,
-	desired privateNetworkDesiredObjects,
-	mode privateNetworkEnsureMode,
-) (privateNetworkEnsuredObjects, *util.HttpError) {
-	if privateNetworkIbTracker == nil {
-		return privateNetworkEnsuredObjects{}, util.ServerHttpError("The IPoIBNetwork API is unavailable")
-	}
-
-	if desired.master == "" {
-		return privateNetworkEnsuredObjects{}, util.UserHttpError("No InfiniBand-capable node is configured")
-	}
-
-	existing, err := privateNetworkGetIbObject(ctx, desired.subdomain)
-	if err != nil {
-		return privateNetworkEnsuredObjects{}, err
-	}
-
-	if existing != nil && !privateNetworkIbOwnedBy(existing, desired.networkId) {
-		return privateNetworkEnsuredObjects{}, util.HttpErr(
-			http.StatusConflict,
-			"An IPoIBNetwork named %s collides with a private network and will not be modified",
-			desired.subdomain,
-		)
-	}
-
-	nad, err := privateNetworkGetNadObject(ctx, desired.subdomain)
-	if err != nil {
-		return privateNetworkEnsuredObjects{}, err
-	}
-
-	if mode == privateNetworkEnsureRepair && existing != nil && nad == nil &&
-		time.Since(existing.GetCreationTimestamp().Time) >= 2*time.Minute {
-		if !privateNetworkDeleteWithUid(
-			ctx,
-			privateNetworkDynamicClient.Resource(privateNetworkIbGvr),
-			desired.subdomain,
-			existing.GetUID(),
-		) {
-			return privateNetworkEnsuredObjects{}, util.ServerHttpError(
-				"Failed to delete the IPoIBNetwork named %s",
-				desired.subdomain,
-			)
-		}
-
-		log.Warn(
-			"Deleted the IPoIBNetwork named %s because its network attachment is missing. It will be recreated.",
-			desired.subdomain,
-		)
-		return privateNetworkEnsuredObjects{}, nil
-	}
-
-	if err := privateNetworkEnsureIbObject(ctx, desired, existing); err != nil {
-		return privateNetworkEnsuredObjects{}, err
-	}
-
-	if nad == nil {
-		nad, err = privateNetworkGetNadObject(ctx, desired.subdomain)
-		if err != nil {
-			return privateNetworkEnsuredObjects{}, err
-		}
-	}
-
-	return privateNetworkEnsuredObjects{nad: nad}, nil
-}
-
-func privateNetworkGetIbObject(ctx context.Context, name string) (*unstructured.Unstructured, *util.HttpError) {
-	if privateNetworkIbTracker == nil {
-		return nil, nil
-	}
-
-	item, ok := privateNetworkIbTracker.Retrieve(name)
-	if !ok {
-		return nil, nil
-	}
-	return item, nil
-}
-
-func privateNetworkEnsureIbObject(
-	ctx context.Context,
-	desired privateNetworkDesiredObjects,
-	existing *unstructured.Unstructured,
-) *util.HttpError {
-	object := privateNetworkIbObject(desired)
-	client := privateNetworkDynamicClient.Resource(privateNetworkIbGvr)
-
-	if existing != nil &&
-		privateNetworkLabelsEqual(existing.GetLabels(), object.GetLabels()) &&
-		privateNetworkIbSpecEqual(existing, object) {
-		return nil
-	}
-
-	if _, err := client.Apply(ctx, object.GetName(), object, k8smeta.ApplyOptions{
-		FieldManager: privateNetworkFieldManager,
-		Force:        true,
-	}); err != nil {
-		return util.HttpErrorFromErr(err)
-	}
-
-	return nil
-}
-
-func privateNetworkIbSpecEqual(existing *unstructured.Unstructured, desired *unstructured.Unstructured) bool {
-	existingSpec, ok := existing.Object["spec"].(map[string]any)
-	if !ok {
-		return false
-	}
-
-	desiredSpec, ok := desired.Object["spec"].(map[string]any)
-	if !ok {
-		return false
-	}
-
-	return k8sequality.Semantic.DeepEqual(existingSpec["networkNamespace"], desiredSpec["networkNamespace"]) &&
-		k8sequality.Semantic.DeepEqual(existingSpec["master"], desiredSpec["master"]) &&
-		k8sequality.Semantic.DeepEqual(existingSpec["ipam"], desiredSpec["ipam"])
-}
-
-func privateNetworkIbObject(desired privateNetworkDesiredObjects) *unstructured.Unstructured {
-	object := &unstructured.Unstructured{}
-	object.SetAPIVersion("mellanox.com/v1alpha1")
-	object.SetKind("IPoIBNetwork")
-	object.SetName(desired.subdomain)
-	object.SetLabels(privateNetworkIbObjectLabels(desired.networkId))
-	object.Object["spec"] = map[string]any{
-		"networkNamespace": desired.namespace,
-		"master":           desired.master,
-		"ipam":             `{"type":"static"}`,
-	}
-	return object
-}
-
-func privateNetworkIbObjectLabels(networkId string) map[string]string {
-	return map[string]string{
-		PrivateNetworkManagedByLabel: PrivateNetworkIbManagedBy,
-		PrivateNetworkIbIdLabel:      networkId,
-		PrivateNetworkIbTypeLabel:    string(orc.NetworkTypeInfiniband),
-	}
-}
-
-func privateNetworkIbOwnedBy(obj k8smeta.Object, networkId string) bool {
-	labels := obj.GetLabels()
-	return labels[PrivateNetworkManagedByLabel] == PrivateNetworkIbManagedBy &&
-		labels[PrivateNetworkIbIdLabel] == networkId
-}
-
-func privateNetworkWaitForNad(ctx context.Context, name string) bool {
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		if nad, err := privateNetworkGetNadObject(ctx, name); err == nil && nad != nil {
-			return true
-		}
-
-		select {
-		case <-ctx.Done():
-			return false
-		case <-ticker.C:
-		}
-	}
-}
-
-func privateNetworkDeleteInfinibandObjects(ctx context.Context, desired privateNetworkDesiredObjects) {
-	if privateNetworkIbTracker == nil || desired.subdomain == "" {
-		return
-	}
-
-	object, err := privateNetworkGetIbObject(ctx, desired.subdomain)
-	if err != nil || object == nil {
-		return
-	}
-
-	if !privateNetworkIbOwnedBy(object, desired.networkId) {
-		return
-	}
-
-	privateNetworkDeleteWithUid(
-		ctx,
-		privateNetworkDynamicClient.Resource(privateNetworkIbGvr),
-		desired.subdomain,
-		object.GetUID(),
-	)
 }
 
 func privateNetworkReadVpcAndSubnet(
@@ -1814,37 +1452,13 @@ func privateNetworkReconcileOrphans(ctx context.Context) int {
 		})
 	}
 
-	if privateNetworkIbTracker != nil {
-		for _, item := range privateNetworkIbTracker.List() {
-			labels := item.GetLabels()
-			if labels[PrivateNetworkManagedByLabel] != PrivateNetworkIbManagedBy {
-				continue
-			}
-
-			name := item.GetName()
-			id := labels[PrivateNetworkIbIdLabel]
-			uid := item.GetUID()
-			if _, tracked := trackedNetworks[id]; tracked {
-				continue
-			}
-
-			deleteOrphan(name, id, func() bool {
-				return privateNetworkDeleteWithUid(ctx, privateNetworkDynamicClient.Resource(privateNetworkIbGvr), name, uid)
-			})
-		}
-	}
-
 	for _, item := range privateNetworkNadTracker.List() {
 		labels := item.GetLabels()
-		id := ""
-		if privateNetworkIsManagedByIm(labels) {
-			id = labels[PrivateNetworkIdLabel]
-		} else if labels[PrivateNetworkManagedByLabel] == PrivateNetworkIbManagedBy {
-			id = labels[PrivateNetworkIbIdLabel]
-		} else {
+		if !privateNetworkIsManagedByIm(labels) {
 			continue
 		}
 
+		id := labels[PrivateNetworkIdLabel]
 		name := item.GetName()
 		uid := item.GetUID()
 		if _, tracked := trackedNetworks[id]; tracked {
@@ -2373,8 +1987,10 @@ func privateNetworkLeaseWorkloadGone(
 		return true
 	}
 
-	if nads, hasPods := workloads.nadsByPodJobRank[jobKey]; hasPods && nads[desired.subdomain] {
-		return false
+	if desired.networkType != orc.NetworkTypeInfiniband {
+		if nads, hasPods := workloads.nadsByPodJobRank[jobKey]; hasPods && nads[desired.subdomain] {
+			return false
+		}
 	}
 
 	if !privateNetworkPodWorkloadFreshAbsent(ctx, desired, lease) {
