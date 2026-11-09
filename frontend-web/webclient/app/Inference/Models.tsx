@@ -6,7 +6,7 @@ import {Box, Button, Flex, Icon, Input, Link, Text} from "@/ui-components";
 import AppRoutes from "@/Routes";
 import {ProjectSwitcher} from "@/Project/ProjectSwitcher";
 import {useProjectId} from "@/Project/Api";
-import {InferenceCapability, InferenceModel, inferenceModelUsesAudioMinutePricing, inferenceModelUsesMegaPixelPricing, inferenceModelUsesTokenPricing, listModels} from "./api";
+import {InferenceCapability, InferenceModel, inferenceModelUsesAudioMinutePricing, inferenceModelUsesMegaPixelPricing, inferenceModelUsesTokenPricing, inferenceModelUsesVideoPricing, listModels} from "./api";
 import {usePage} from "@/Navigation/Redux";
 import {SidebarTabId} from "@/ui-components/SidebarComponents";
 import ModelInferenceLogo, {modelProviderName} from "@/Inference/ModelLogo";
@@ -20,7 +20,7 @@ import {expandAndPrettifyString} from "@/UtilityFunctions";
 import { DropdownClass } from "@/ui-components/Dropdown";
 import HexSpin from "@/LoadingIcon/LoadingIcon";
 
-const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "ImageToImage", "SpeechToText"];
+const capabilities: InferenceCapability[] = ["TextGeneration", "TextToImage", "ImageToImage", "TextToVideo", "ImageToVideo", "SpeechToText"];
 const prettierCapabilities = capabilities.map(expandAndPrettifyString);
 
 const pageStyle = injectStyle("inference-models-page", k => `
@@ -879,6 +879,13 @@ function ModelCatalogCard(props: {model: InferenceModel;}): React.ReactNode {
     }
     if (inferenceModelUsesAudioMinutePricing(model)) {
         priceMetrics.push({title: "Per audio minute", value: model.pricePerAudioMinute});
+    }
+    if (inferenceModelUsesVideoPricing(model)) {
+        const tier = model.defaultVideoTier;
+        const price = tier ? model.pricePerVideoSecond?.[tier] : undefined;
+        if (tier && price !== undefined) {
+            priceMetrics.push({title: `Per second at ${tier}`, value: price});
+        }
     }
 
     return <Link className="model-card" to={AppRoutes.inference.model(model.name)}>

@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"maps"
 	"net/http"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"ucloud.dk/pkg/integrations/k8s/shared"
@@ -57,10 +59,10 @@ func inferenceCliHelp() {
 	f.AppendField("models update <name>", "Update an inference model catalog entry, or create it when it does not exist")
 	f.AppendField("  --name <name>", "Rename the model. Only allowed for non-public models.")
 	f.AppendField("  --title <title>", "Set the display title")
-	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration, TextToImage, ImageToImage, SpeechToText, SpeechToTextTimestamps, SpeechToTextSpeakerLabels, Vision, VideoVision, Audio")
+	f.AppendField("  --capabilities <list>", "Comma-separated list: TextGeneration, TextToImage, ImageToImage, TextToVideo, ImageToVideo, SpeechToText, SpeechToTextTimestamps, SpeechToTextSpeakerLabels, Vision, VideoVision, Audio")
 	f.AppendField(
 		"  --default-for <list>",
-		"Provider defaults: TextToImage,ImageToImage,SpeechToText. Replaces previous defaults. "+
+		"Provider defaults: TextToImage,ImageToImage,TextToVideo,ImageToVideo,SpeechToText. Replaces previous defaults. "+
 			"Use an empty value to clear.",
 	)
 	f.AppendField("  --reasoning-efforts <list>", "Comma-separated display name=value pairs. Use an empty value to disable reasoning.")
@@ -70,6 +72,9 @@ func inferenceCliHelp() {
 	f.AppendField("  --price-per-million-output <n>", "Encoded output Credits per million tokens")
 	f.AppendField("  --price-per-megapixel <n>", "Encoded Credits per megapixel of returned image")
 	f.AppendField("  --price-per-audio-minute <n>", "Encoded Credits per minute of audio")
+	f.AppendField("  --price-per-video-second <list>", "Comma-separated tier=encoded Credits per second pairs, for example 720p=12000000,1080p=20000000")
+	f.AppendField("  --video-resolutions <list>", "Comma-separated WxH=tier pairs, for example 1280x720=720p,1920x1080=1080p")
+	f.AppendField("  --default-video-tier <tier>", "Default video resolution tier")
 	f.AppendField("  --file-url-root <path>", "Absolute shared-mount path for file:// image output. Use an empty value to disable it.")
 	f.AppendField("  --public <bool>", "Set public availability")
 	f.AppendField("  --available-to <list>", "Comma-separated project IDs")
@@ -114,6 +119,9 @@ func inferenceCliModelsList(args []string) {
 	t.AppendHeaderEx("Output price/M", termio.TableHeaderAlignRight)
 	t.AppendHeaderEx("MP price", termio.TableHeaderAlignRight)
 	t.AppendHeaderEx("Audio price/min", termio.TableHeaderAlignRight)
+	t.AppendHeader("Video price/s")
+	t.AppendHeader("Video resolutions")
+	t.AppendHeader("Default video tier")
 	t.AppendHeader("File URL root")
 	t.AppendHeader("Endpoint")
 	t.AppendHeader("Chat defaults")
@@ -130,6 +138,9 @@ func inferenceCliModelsList(args []string) {
 		t.Cell("%d", model.PricePerMillion.Output)
 		t.Cell("%d", model.PricePerMegaPixel)
 		t.Cell("%d", model.PricePerAudioMinute)
+		t.Cell("%s", inferenceCliFormatVideoPrices(model.PricePerVideoSecond))
+		t.Cell("%s", inferenceCliFormatVideoResolutions(model.VideoResolutions))
+		t.Cell("%s", model.DefaultVideoTier)
 		t.Cell("%s", model.FileUrlRoot)
 		t.Cell("%s -> %s", model.Endpoint.BasePath, model.Endpoint.BackendModelName)
 		t.Cell("temp=%g topP=%g max=%d system=%s", model.ChatSettings.Temperature, model.ChatSettings.TopP, model.ChatSettings.MaxCompletionTokens, inferenceCliFormatSystemPrompt(model.ChatSettings.SystemPrompt))
@@ -150,6 +161,9 @@ func inferenceCliModelsUpdate(args []string) {
 	var defaultForRaw string
 	var reasoningEffortsRaw string
 	var availableToRaw string
+	var pricePerVideoSecondRaw string
+	var videoResolutionsRaw string
+	var defaultVideoTierRaw string
 	fs := flag.NewFlagSet("inference models update", flag.ExitOnError)
 	fs.StringVar(&req.NewName, "name", "", "Rename the model")
 	fs.StringVar(&req.Title, "title", "", "Set the display title")
@@ -162,6 +176,9 @@ func inferenceCliModelsUpdate(args []string) {
 	fs.Int64Var(&req.PricePerMillionOutput, "price-per-million-output", 0, "Encoded output Credits per million tokens (1000000 = 1 Credit)")
 	fs.Int64Var(&req.PricePerMegaPixel, "price-per-megapixel", 0, "Encoded Credits per megapixel (1000000 = 1 Credit)")
 	fs.Int64Var(&req.PricePerAudioMinute, "price-per-audio-minute", 0, "Encoded Credits per audio minute (1000000 = 1 Credit)")
+	fs.StringVar(&pricePerVideoSecondRaw, "price-per-video-second", "", "Comma-separated tier=encoded Credits per second pairs (1000000 = 1 Credit)")
+	fs.StringVar(&videoResolutionsRaw, "video-resolutions", "", "Comma-separated WxH=tier pairs")
+	fs.StringVar(&defaultVideoTierRaw, "default-video-tier", "", "Default video resolution tier")
 	fs.StringVar(&req.FileUrlRoot, "file-url-root", "", "Absolute shared-mount path for file:// image output")
 	fs.BoolVar(&req.Public, "public", false, "Set public availability")
 	fs.StringVar(&availableToRaw, "available-to", "", "Comma-separated project IDs")
@@ -197,6 +214,23 @@ func inferenceCliModelsUpdate(args []string) {
 		defaults, err := inferenceCliParseCapabilities(defaultForRaw)
 		cli.HandleError("parsing defaults", err)
 		req.DefaultFor = defaults
+	}
+	if slices.Contains(req.Set, "price-per-video-second") {
+		prices, err := inferenceCliParseVideoPrices(pricePerVideoSecondRaw)
+		cli.HandleError("parsing price-per-video-second", err)
+		req.PricePerVideoSecond = prices
+	}
+	if slices.Contains(req.Set, "video-resolutions") {
+		resolutions, err := inferenceCliParseVideoResolutions(videoResolutionsRaw)
+		cli.HandleError("parsing video-resolutions", err)
+		req.VideoResolutions = resolutions
+	}
+	if slices.Contains(req.Set, "default-video-tier") {
+		tier := inferenceVideoTierNormalize(InferenceVideoTier(defaultVideoTierRaw))
+		if !inferenceVideoTierValid(tier) && tier != "" {
+			cli.HandleError("validating default-video-tier", fmt.Errorf("invalid video tier %q", defaultVideoTierRaw))
+		}
+		req.DefaultVideoTier = tier
 	}
 	if slices.Contains(req.Set, "reasoning-efforts") {
 		reasoningEfforts, err := inferenceCliParseReasoningEfforts(reasoningEffortsRaw)
@@ -302,6 +336,15 @@ func initCli() {
 		if set("price-per-audio-minute") {
 			model.PricePerAudioMinute = r.Payload.PricePerAudioMinute
 		}
+		if set("price-per-video-second") {
+			model.PricePerVideoSecond = maps.Clone(r.Payload.PricePerVideoSecond)
+		}
+		if set("video-resolutions") {
+			model.VideoResolutions = slices.Clone(r.Payload.VideoResolutions)
+		}
+		if set("default-video-tier") {
+			model.DefaultVideoTier = r.Payload.DefaultVideoTier
+		}
 		if set("file-url-root") {
 			model.FileUrlRoot = r.Payload.FileUrlRoot
 		}
@@ -344,9 +387,11 @@ func initCli() {
 		}
 		if found && set("name") && newName != "" && newName != strings.TrimSpace(r.Payload.Name) {
 			model.Name = newName
-			if err := inferenceModelValidate(model); err != nil {
-				return ipc.Response[k8sCliInferenceModelsUpdateResponse]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
+			prepared, prepareErr := inferenceModelPrepare(model)
+			if prepareErr != nil {
+				return ipc.Response[k8sCliInferenceModelsUpdateResponse]{StatusCode: prepareErr.StatusCode, ErrorMessage: prepareErr.Why}
 			}
+			model = prepared
 			if err := InferenceModelRename(r.Payload.Name, newName); err != nil {
 				return ipc.Response[k8sCliInferenceModelsUpdateResponse]{StatusCode: err.StatusCode, ErrorMessage: err.Why}
 			}
@@ -385,7 +430,7 @@ func inferenceCliParseCapabilities(raw string) ([]InferenceCapability, error) {
 	for _, item := range items {
 		capability := InferenceCapability(item)
 		switch capability {
-		case InferenceTextGeneration, InferenceTextToImage, InferenceImageToImage, InferenceSpeechToText, InferenceSpeechToTextTimestamps, InferenceSpeechToTextSpeakerLabels, InferenceVision, InferenceVideoVision, InferenceAudio:
+		case InferenceTextGeneration, InferenceTextToImage, InferenceImageToImage, InferenceTextToVideo, InferenceImageToVideo, InferenceSpeechToText, InferenceSpeechToTextTimestamps, InferenceSpeechToTextSpeakerLabels, InferenceVision, InferenceVideoVision, InferenceAudio:
 			capabilities = append(capabilities, capability)
 		default:
 			return nil, fmt.Errorf("invalid capability %q", item)
@@ -428,6 +473,89 @@ func inferenceCliParseReasoningEfforts(raw string) ([]InferenceModelOption, erro
 		result = append(result, InferenceModelOption{Name: name, Value: value})
 	}
 	return result, nil
+}
+
+func inferenceCliParseVideoResolutions(raw string) ([]InferenceVideoResolution, error) {
+	items, err := inferenceCliParseList(raw)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]InferenceVideoResolution, 0, len(items))
+	for _, item := range items {
+		size, tierRaw, ok := strings.Cut(item, "=")
+		if !ok {
+			return nil, fmt.Errorf("invalid video resolution %q; expected WxH=tier", item)
+		}
+		size = strings.ToLower(strings.TrimSpace(size))
+		parts := strings.Split(size, "x")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid video resolution size %q", size)
+		}
+		width, widthErr := strconv.Atoi(parts[0])
+		height, heightErr := strconv.Atoi(parts[1])
+		if widthErr != nil || heightErr != nil || width <= 0 || height <= 0 {
+			return nil, fmt.Errorf("invalid video resolution size %q", size)
+		}
+		tier := inferenceVideoTierNormalize(InferenceVideoTier(tierRaw))
+		if !inferenceVideoTierValid(tier) {
+			return nil, fmt.Errorf("invalid video tier %q", strings.TrimSpace(tierRaw))
+		}
+		result = append(result, InferenceVideoResolution{
+			Width:  width,
+			Height: height,
+			Tier:   tier,
+		})
+	}
+	return result, nil
+}
+
+func inferenceCliParseVideoPrices(raw string) (map[InferenceVideoTier]int64, error) {
+	items, err := inferenceCliParseList(raw)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[InferenceVideoTier]int64, len(items))
+	for _, item := range items {
+		tierRaw, priceRaw, ok := strings.Cut(item, "=")
+		if !ok {
+			return nil, fmt.Errorf("invalid video price %q; expected tier=value", item)
+		}
+		tier := inferenceVideoTierNormalize(InferenceVideoTier(tierRaw))
+		if !inferenceVideoTierValid(tier) {
+			return nil, fmt.Errorf("invalid video tier %q", strings.TrimSpace(tierRaw))
+		}
+		price, priceErr := strconv.ParseInt(strings.TrimSpace(priceRaw), 10, 64)
+		if priceErr != nil || price < 0 {
+			return nil, fmt.Errorf("invalid video price %q", strings.TrimSpace(priceRaw))
+		}
+		if _, exists := result[tier]; exists {
+			return nil, fmt.Errorf("duplicate video tier %q", tier)
+		}
+		result[tier] = price
+	}
+	return result, nil
+}
+
+func inferenceCliFormatVideoPrices(prices map[InferenceVideoTier]int64) string {
+	parts := make([]string, 0, len(prices))
+	for _, tier := range inferenceVideoTierOrder {
+		price, ok := prices[tier]
+		if !ok {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%s=%d", tier, price))
+	}
+	return strings.Join(parts, ",")
+}
+
+func inferenceCliFormatVideoResolutions(resolutions []InferenceVideoResolution) string {
+	parts := make([]string, 0, len(resolutions))
+	for _, resolution := range resolutions {
+		parts = append(parts, fmt.Sprintf("%dx%d=%s", resolution.Width, resolution.Height, resolution.Tier))
+	}
+	return strings.Join(parts, ",")
 }
 
 func inferenceCliFormatCapabilities(capabilities []InferenceCapability) string {
@@ -480,6 +608,9 @@ type k8sCliInferenceModelsUpdateRequest struct {
 	PricePerMillionOutput      int64
 	PricePerMegaPixel          int64
 	PricePerAudioMinute        int64
+	PricePerVideoSecond        map[InferenceVideoTier]int64
+	VideoResolutions           []InferenceVideoResolution
+	DefaultVideoTier           InferenceVideoTier
 	FileUrlRoot                string
 	Public                     bool
 	AvailableTo                []string
@@ -507,6 +638,8 @@ func inferenceCliNewModel(name string) InferenceModel {
 		},
 		PricePerMegaPixel:   InferencePriceScale,
 		PricePerAudioMinute: InferencePriceScale,
+		PricePerVideoSecond: map[InferenceVideoTier]int64{},
+		VideoResolutions:    []InferenceVideoResolution{},
 		Availability: InferenceAvailability{
 			Public:      false,
 			AvailableTo: slices.Clone(shared.ServiceConfig.Compute.Inference.Access.Testers),

@@ -90,8 +90,11 @@ export default function ConfiguringTools({
     const canGenerateImages = activeModel?.capabilities.includes("TextToImage") ?? false;
     const canEditImages = activeModel?.capabilities.includes("ImageToImage") ?? false;
     const canTranscribe = activeModel?.capabilities.includes("SpeechToText") ?? false;
+    const canGenerateVideos = activeModel?.capabilities.includes("TextToVideo") ?? false;
+    const canGenerateVideosFromImages = activeModel?.capabilities.includes("ImageToVideo") ?? false;
     const usesImageApi = canGenerateImages || canEditImages;
-    const usesNativeApi = usesImageApi || canTranscribe;
+    const usesVideoApi = canGenerateVideos || canGenerateVideosFromImages;
+    const usesNativeApi = usesImageApi || canTranscribe || usesVideoApi;
 
     const nativeExamples: string[] = [];
     if (canGenerateImages) {
@@ -123,23 +126,52 @@ curl "${resolvedServer}/audio/transcriptions" \\
   -F "file=@audio.mp3" \\
   -F "response_format=json"`);
     }
+    if (canGenerateVideos) {
+        nativeExamples.push(`# Start a text-to-video job
+curl "${resolvedServer}/videos" \\
+  -H "Authorization: Bearer ${apiToken}" \\
+  -F "model=${firstModelId}" \\
+  -F "prompt=A red cube on a white table" \\
+  -F "size=1280x720" \\
+  -F "seconds=8"
+
+# Poll GET /videos/{id}, then download GET /videos/{id}/content`);
+    }
+    if (canGenerateVideosFromImages) {
+        nativeExamples.push(`# Start an image-to-video job
+curl "${resolvedServer}/videos" \\
+  -H "Authorization: Bearer ${apiToken}" \\
+  -F "model=${firstModelId}" \\
+  -F "prompt=Animate the input image" \\
+  -F "input_reference=@input.png" \\
+  -F "size=1280x720" \\
+  -F "seconds=8"
+
+# Poll GET /videos/{id}, then download GET /videos/{id}/content`);
+    }
     const nativeExample = nativeExamples.join("\n\n");
 
-    const nativeApiTitle = usesImageApi && canTranscribe
-        ? "API"
-        : usesImageApi
+    const nativeApiTitle = usesVideoApi && !usesImageApi && !canTranscribe
+        ? "Video API"
+        : usesImageApi && !usesVideoApi && !canTranscribe
             ? "Image API"
-            : "Speech-to-text API";
+            : canTranscribe && !usesImageApi && !usesVideoApi
+                ? "Speech-to-text API"
+                : "API";
     const nativeApiCapabilities = [
         canGenerateImages ? "image generation" : "",
         canEditImages ? "image editing" : "",
         canTranscribe ? "audio transcription" : "",
+        canGenerateVideos ? "text-to-video generation" : "",
+        canGenerateVideosFromImages ? "image-to-video generation" : "",
     ].filter(capability => capability !== "");
-    const nativeApiPrefix = canTranscribe && !usesImageApi
-        ? "Use the OpenAI-compatible transcription endpoint."
-        : usesImageApi && !canTranscribe
-            ? "Use the OpenAI-compatible image endpoints."
-            : "Use the OpenAI-compatible endpoints supported by this model.";
+    const nativeApiPrefix = usesVideoApi && !usesImageApi && !canTranscribe
+        ? "Use the OpenAI-compatible video endpoints."
+        : canTranscribe && !usesImageApi && !usesVideoApi
+            ? "Use the OpenAI-compatible transcription endpoint."
+            : usesImageApi && !canTranscribe && !usesVideoApi
+                ? "Use the OpenAI-compatible image endpoints."
+                : "Use the OpenAI-compatible endpoints supported by this model.";
     const nativeApiDescription = nativeApiCapabilities.length > 1
         ? `${nativeApiPrefix} This model supports ` +
             `${nativeApiCapabilities.slice(0, -1).join(", ")} and ` +

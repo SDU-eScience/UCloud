@@ -1216,6 +1216,18 @@ func inferenceResolveBackendAuth(auth inferenceBackendAuth) (string, *util.HttpE
 }
 
 func inferenceBackendRequest(ctx context.Context, basePath string, method string, path string, body []byte, contentType string) (*http.Response, *util.HttpError) {
+	return inferenceBackendRequestWithHeaders(ctx, basePath, method, path, body, contentType, nil)
+}
+
+func inferenceBackendRequestWithHeaders(
+	ctx context.Context,
+	basePath string,
+	method string,
+	path string,
+	body []byte,
+	contentType string,
+	headers http.Header,
+) (*http.Response, *util.HttpError) {
 	backend, auth, httpErr := inferenceParseBackendBasePath(basePath)
 	if httpErr != nil {
 		return nil, httpErr
@@ -1239,6 +1251,11 @@ func inferenceBackendRequest(ctx context.Context, basePath string, method string
 
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
+	}
+	for key, values := range headers {
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
 	}
 	if token == "" {
 		token = "notused"

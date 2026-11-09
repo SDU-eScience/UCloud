@@ -583,3 +583,95 @@ func inferenceV24() db.MigrationScript {
 		},
 	}
 }
+
+func inferenceV27() db.MigrationScript {
+	return db.MigrationScript{
+		Id: "inferenceV27",
+		Execute: func(tx *db.Transaction) {
+			db.Exec(
+				tx,
+				`
+					create table inference_video_job(
+						id text primary key,
+						owner text not null,
+						username text not null,
+						model text not null,
+						backend_id text not null,
+						status text not null default 'queued',
+						video_tier text not null default '',
+						video_seconds bigint not null default 0 check (video_seconds >= 0),
+						created_at timestamptz not null default now(),
+						updated_at timestamptz not null default now(),
+						last_polled_at timestamptz not null default now(),
+						settled_at timestamptz,
+						billed_at timestamptz,
+						deleted_at timestamptz
+					)
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create index inference_video_job_created_idx on inference_video_job(created_at)
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create index inference_video_job_active_owner_idx on inference_video_job(owner) where settled_at is null
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create index inference_video_job_poll_idx on inference_video_job(last_polled_at) where settled_at is null
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create index inference_video_job_cleanup_idx on inference_video_job(settled_at) where settled_at is not null
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model add column price_per_video_second jsonb not null default '{}'::jsonb`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model add column video_resolutions jsonb not null default '[]'::jsonb`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_model add column default_video_tier text not null default ''`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`alter table inference_usage_by_model add column video_seconds bigint not null default 0 check (video_seconds >= 0)`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create unique index inference_default_text_to_video on inference_model ((default_for ? 'TextToVideo')) where default_for ? 'TextToVideo'
+				`,
+				db.Params{},
+			)
+			db.Exec(
+				tx,
+				`
+					create unique index inference_default_image_to_video on inference_model ((default_for ? 'ImageToVideo')) where default_for ? 'ImageToVideo'
+				`,
+				db.Params{},
+			)
+		},
+	}
+}

@@ -88,4 +88,5 @@ func Init() {
 	db.AddMigration(metadataDriveDeletionsV1())
 	db.AddMigration(inferenceV25())
 	db.AddMigration(inferenceV26())
+	db.AddMigration(inferenceV27())
 }

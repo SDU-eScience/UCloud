@@ -33,7 +33,7 @@ export function listPlaygroundThreads(request: ListPlaygroundThreadsRequest): AP
     return apiRetrieve(request, baseContext, "playgroundThreads");
 }
 
-export type InferenceCapability = "TextGeneration" | "TextToImage" | "ImageToImage" | "SpeechToText" | "SpeechToTextTimestamps" | "SpeechToTextSpeakerLabels" | "Vision" | "VideoVision" | "Audio";
+export type InferenceCapability = "TextGeneration" | "TextToImage" | "ImageToImage" | "TextToVideo" | "ImageToVideo" | "SpeechToText" | "SpeechToTextTimestamps" | "SpeechToTextSpeakerLabels" | "Vision" | "VideoVision" | "Audio";
 
 export interface InferenceModel {
     name: string;
@@ -49,6 +49,9 @@ export interface InferenceModel {
     };
     pricePerMegaPixel: number;
     pricePerAudioMinute: number;
+    pricePerVideoSecond?: Partial<Record<InferenceVideoTier, number>>;
+    videoResolutions?: InferenceVideoResolution[];
+    defaultVideoTier?: InferenceVideoTier;
     fileUrlRoot?: string;
     endpoint: {
         basePath: string;
@@ -84,6 +87,20 @@ export function inferenceModelUsesMegaPixelPricing(model: InferenceModel): boole
 
 export function inferenceModelUsesAudioMinutePricing(model: InferenceModel): boolean {
     return model.capabilities.includes("SpeechToText");
+}
+
+export type InferenceVideoTier = "360p" | "480p" | "540p" | "720p" | "768p" | "1080p" | "2k" | "4k";
+
+export const inferenceVideoTiers: InferenceVideoTier[] = ["360p", "480p", "540p", "720p", "768p", "1080p", "2k", "4k"];
+
+export interface InferenceVideoResolution {
+    width: number;
+    height: number;
+    tier: InferenceVideoTier;
+}
+
+export function inferenceModelUsesVideoPricing(model: InferenceModel): boolean {
+    return model.capabilities.includes("TextToVideo") || model.capabilities.includes("ImageToVideo");
 }
 
 export interface InferenceModelOption {

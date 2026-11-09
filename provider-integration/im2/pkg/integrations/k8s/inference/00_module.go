@@ -226,7 +226,26 @@ func Init() {
 				},
 				PricePerMegaPixel:   model.PricePerMegaPixel,
 				PricePerAudioMinute: model.PricePerAudioMinute,
-				FileUrlRoot:         model.FileUrlRoot,
+				PricePerVideoSecond: func() map[orcapi.InferenceVideoTier]int64 {
+					result := make(map[orcapi.InferenceVideoTier]int64, len(model.PricePerVideoSecond))
+					for tier, price := range model.PricePerVideoSecond {
+						result[orcapi.InferenceVideoTier(tier)] = price
+					}
+					return result
+				}(),
+				VideoResolutions: func() []orcapi.InferenceVideoResolution {
+					result := make([]orcapi.InferenceVideoResolution, 0, len(model.VideoResolutions))
+					for _, resolution := range model.VideoResolutions {
+						result = append(result, orcapi.InferenceVideoResolution{
+							Width:  resolution.Width,
+							Height: resolution.Height,
+							Tier:   orcapi.InferenceVideoTier(resolution.Tier),
+						})
+					}
+					return result
+				}(),
+				DefaultVideoTier: orcapi.InferenceVideoTier(model.DefaultVideoTier),
+				FileUrlRoot:      model.FileUrlRoot,
 				Endpoint: orcapi.InferenceEndpoint{
 					BasePath:         model.Endpoint.BasePath,
 					BackendModelName: model.Endpoint.BackendModelName,
@@ -303,7 +322,26 @@ func Init() {
 			},
 			PricePerMegaPixel:   request.Model.PricePerMegaPixel,
 			PricePerAudioMinute: request.Model.PricePerAudioMinute,
-			FileUrlRoot:         request.Model.FileUrlRoot,
+			PricePerVideoSecond: func() map[InferenceVideoTier]int64 {
+				result := make(map[InferenceVideoTier]int64, len(request.Model.PricePerVideoSecond))
+				for tier, price := range request.Model.PricePerVideoSecond {
+					result[InferenceVideoTier(tier)] = price
+				}
+				return result
+			}(),
+			VideoResolutions: func() []InferenceVideoResolution {
+				result := make([]InferenceVideoResolution, 0, len(request.Model.VideoResolutions))
+				for _, resolution := range request.Model.VideoResolutions {
+					result = append(result, InferenceVideoResolution{
+						Width:  resolution.Width,
+						Height: resolution.Height,
+						Tier:   InferenceVideoTier(resolution.Tier),
+					})
+				}
+				return result
+			}(),
+			DefaultVideoTier: InferenceVideoTier(request.Model.DefaultVideoTier),
+			FileUrlRoot:      request.Model.FileUrlRoot,
 			Endpoint: InferenceEndpoint{
 				BasePath:         request.Model.Endpoint.BasePath,
 				BackendModelName: request.Model.Endpoint.BackendModelName,
@@ -323,6 +361,10 @@ func Init() {
 			Page: inferencePageFromOrc(request.Model.Page),
 		}
 
+		model, httpErr := inferenceModelPrepare(model)
+		if httpErr != nil {
+			return util.Empty{}, httpErr
+		}
 		oldName := strings.TrimSpace(request.OldName)
 		if oldName != "" && oldName != strings.TrimSpace(model.Name) {
 			if err := InferenceModelRename(oldName, model.Name); err != nil {
@@ -371,6 +413,8 @@ func Init() {
 	controller.ProductsRegister([]apm.ProductV2{inferenceGlobals.Product})
 	go inferenceUsageFlushLoop()
 	go inferenceActivityFlushLoop()
+	go inferenceVideoSettlementLoop()
+	go inferenceVideoCleanupLoop()
 
 	authority := shared.ServiceConfig.Compute.Inference.Authority
 	AttachmentInit()
@@ -657,6 +701,128 @@ func Init() {
 			return
 		}
 		inferenceImageRespond(w, r, request, apiKeyOwner, apiKeyUsername)
+	}))
+
+	controller.Mux.HandleFunc(authority+"/v1/videos", inferenceAuditMiddleware("inference.video", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			inferenceAuditReject(r.Context(), "method not allowed")
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if r.ContentLength > inferenceMaxVideoCreateRequestBytes {
+			inferenceAuditReject(r.Context(), "request body too large")
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		apiKeyOwner, apiKeyUsername, tokenId, httpErr := inferenceAuthenticateRequest(r)
+		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		inferenceAuditIdentity(r.Context(), apiKeyOwner, apiKeyUsername, tokenId)
+
+		request, httpErr := inferenceVideoParseCreateRequest(w, r)
+		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), inferenceVideoDispatchTimeout)
+		defer cancel()
+
+		respData, httpErr := InferenceVideoCreate(ctx, apiKeyOwner, apiKeyUsername, request)
+		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		if request.Model.Present && request.Model.Value != "" {
+			w.Header().Set("ucloud-generated-by-ai-model", request.Model.Value)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(respData)
+	}))
+
+	controller.Mux.HandleFunc(authority+"/v1/videos/", inferenceAuditMiddleware("inference.video", func(w http.ResponseWriter, r *http.Request) {
+		apiKeyOwner, apiKeyUsername, tokenId, httpErr := inferenceAuthenticateRequest(r)
+		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+		inferenceAuditIdentity(r.Context(), apiKeyOwner, apiKeyUsername, tokenId)
+
+		id, action, httpErr := inferenceVideoParsePath(r)
+		if httpErr != nil {
+			inferenceAuditReject(r.Context(), httpErr.Why)
+			http.Error(w, httpErr.Why, httpErr.StatusCode)
+			return
+		}
+
+		switch action {
+		case "content":
+			if r.Method != http.MethodGet {
+				inferenceAuditReject(r.Context(), "method not allowed")
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			ctx, cancel := context.WithTimeout(r.Context(), inferenceVideoContentTimeout)
+			defer cancel()
+			variant := strings.TrimSpace(r.URL.Query().Get("variant"))
+			if httpErr := inferenceVideoContentRespond(ctx, w, r, apiKeyOwner, id, variant); httpErr != nil {
+				http.Error(w, httpErr.Why, httpErr.StatusCode)
+			}
+		case "":
+			switch r.Method {
+			case http.MethodGet:
+				ctx, cancel := context.WithTimeout(r.Context(), inferenceVideoPollTimeout)
+				defer cancel()
+				respData, httpErr := InferenceVideoRetrieve(ctx, apiKeyOwner, id)
+				if httpErr != nil {
+					http.Error(w, httpErr.Why, httpErr.StatusCode)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write(respData)
+			case http.MethodDelete:
+				ctx, cancel := context.WithTimeout(r.Context(), inferenceVideoPollTimeout)
+				defer cancel()
+				result, httpErr := InferenceVideoDelete(ctx, apiKeyOwner, id)
+				if httpErr != nil {
+					inferenceAuditReject(r.Context(), httpErr.Why)
+					http.Error(w, httpErr.Why, httpErr.StatusCode)
+					return
+				}
+				inferenceAuditRecord(
+					r.Context(),
+					"inference.video.delete",
+					apiKeyOwner,
+					apiKeyUsername,
+					time.Now(),
+					mustMarshal(map[string]string{"videoId": id}),
+					"",
+				)
+				respData, err := json.Marshal(result)
+				if err != nil {
+					http.Error(w, "invalid response", http.StatusBadGateway)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write(respData)
+			default:
+				inferenceAuditReject(r.Context(), "method not allowed")
+				http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			}
+		default:
+			inferenceAuditReject(r.Context(), "video not found")
+			http.Error(w, "video not found", http.StatusNotFound)
+		}
 	}))
 
 	controller.Mux.HandleFunc(authority+"/v1/responses", inferenceAuditMiddleware("inference.responses", func(w http.ResponseWriter, r *http.Request) {
@@ -1113,6 +1279,8 @@ type InferenceBillingUsage struct {
 	ImageCount        int
 	ImagePixels       int64
 	AudioMilliseconds int64
+	VideoSeconds      int64
+	VideoTier         InferenceVideoTier
 }
 
 func inferenceReportUsage(owner apm.WalletOwner, username string, model InferenceModel, cachedTokens int, inputTokens int, outputTokens int) {
@@ -1124,6 +1292,32 @@ func inferenceReportUsage(owner apm.WalletOwner, username string, model Inferenc
 }
 
 func inferenceReportBilling(owner apm.WalletOwner, username string, model InferenceModel, billingUsage InferenceBillingUsage) {
+	db.NewTx0(func(tx *db.Transaction) {
+		inferenceReportBillingTx(tx, owner, username, model, billingUsage)
+	})
+	inferenceRecordBillingMetrics(model, billingUsage)
+	inferenceWakeUsageFlush()
+}
+
+func inferenceRecordBillingMetrics(model InferenceModel, billingUsage InferenceBillingUsage) {
+	metricInferenceCachedInputTokens.WithLabelValues(model.Name).Add(float64(max(0, billingUsage.CachedInputTokens)))
+	metricInferenceInputTokens.WithLabelValues(model.Name).Add(float64(max(0, billingUsage.InputTokens)))
+	metricInferenceOutputTokens.WithLabelValues(model.Name).Add(float64(max(0, billingUsage.OutputTokens)))
+	metricInferenceImageCount.WithLabelValues(model.Name).Add(float64(max(0, billingUsage.ImageCount)))
+	metricInferenceImagePixels.WithLabelValues(model.Name).Add(float64(max(0, billingUsage.ImagePixels)))
+	metricInferenceAudioMilliseconds.WithLabelValues(model.Name).Add(float64(max(0, billingUsage.AudioMilliseconds)))
+	metricInferenceVideoSeconds.WithLabelValues(model.Name).Add(float64(max(0, billingUsage.VideoSeconds)))
+	metricInferenceRequests.WithLabelValues(model.Name).Inc()
+}
+
+func inferenceWakeUsageFlush() {
+	select {
+	case inferenceUsageWake <- struct{}{}:
+	default:
+	}
+}
+
+func inferenceReportBillingTx(tx *db.Transaction, owner apm.WalletOwner, username string, model InferenceModel, billingUsage InferenceBillingUsage) {
 	if billingUsage.CachedInputTokens < 0 {
 		billingUsage.CachedInputTokens = 0
 	}
@@ -1142,6 +1336,9 @@ func inferenceReportBilling(owner apm.WalletOwner, username string, model Infere
 	if billingUsage.AudioMilliseconds < 0 {
 		billingUsage.AudioMilliseconds = 0
 	}
+	if billingUsage.VideoSeconds < 0 {
+		billingUsage.VideoSeconds = 0
+	}
 
 	tokenUsage := inferenceUsageMultiply(billingUsage.CachedInputTokens, model.PricePerMillion.CachedInput)
 	tokenUsage = inferenceUsageAdd(tokenUsage, inferenceUsageMultiply(billingUsage.InputTokens, model.PricePerMillion.Input))
@@ -1157,112 +1354,109 @@ func inferenceReportBilling(owner apm.WalletOwner, username string, model Infere
 	audioMicroCredits := audioUsage / 60_000
 	audioRemainder := (audioUsage % 60_000) * InferencePriceScale / 60_000
 
+	videoUsage := inferenceUsageMultiply64(billingUsage.VideoSeconds, model.PricePerVideoSecond[billingUsage.VideoTier])
+	videoMicroCredits := videoUsage
+
 	usage := inferenceUsageAdd(tokenMicroCredits, imageMicroCredits)
 	usage = inferenceUsageAdd(usage, audioMicroCredits)
+	usage = inferenceUsageAdd(usage, videoMicroCredits)
 	remainder := tokenRemainder + imageRemainder + audioRemainder
 	usage = inferenceUsageAdd(usage, remainder/InferencePriceScale)
 	remainder = remainder % InferencePriceScale
-
-	metricInferenceCachedInputTokens.WithLabelValues(model.Name).Add(float64(billingUsage.CachedInputTokens))
-	metricInferenceInputTokens.WithLabelValues(model.Name).Add(float64(billingUsage.InputTokens))
-	metricInferenceOutputTokens.WithLabelValues(model.Name).Add(float64(billingUsage.OutputTokens))
-	metricInferenceImageCount.WithLabelValues(model.Name).Add(float64(billingUsage.ImageCount))
-	metricInferenceImagePixels.WithLabelValues(model.Name).Add(float64(billingUsage.ImagePixels))
-	metricInferenceAudioMilliseconds.WithLabelValues(model.Name).Add(float64(billingUsage.AudioMilliseconds))
-	metricInferenceRequests.WithLabelValues(model.Name).Inc()
 
 	scope := fmt.Sprintf("inference-%s-%s-%s", inferenceGlobals.Product.Category.Provider, inferenceGlobals.Product.Category.Name, util.SecureToken())
 	consumer := username
 	if consumer == "" {
 		consumer = "_ucloud"
 	}
-	db.NewTx0(func(tx *db.Transaction) {
-		db.Exec(
-			tx,
-			`
-				insert into inference_usage_by_model(
-					owner,
-					username,
-					model,
-					usage_day,
-					cached_input_tokens,
-					input_tokens,
-					output_tokens,
-					image_count,
-					image_pixels,
-					audio_milliseconds
-				)
-				values (
-					:owner,
-					:username,
-					:model,
-					cast((now() at time zone 'utc') as date),
-					:cached_input_tokens,
-					:input_tokens,
-					:output_tokens,
-					:image_count,
-					:image_pixels,
-					:audio_milliseconds
-				)
-				on conflict (owner, username, model, usage_day) do update set
-					cached_input_tokens = cast((
-						cast(inference_usage_by_model.cached_input_tokens as numeric) + excluded.cached_input_tokens
-					) as bigint),
-					input_tokens = cast((
-						cast(inference_usage_by_model.input_tokens as numeric) + excluded.input_tokens
-					) as bigint),
-					output_tokens = cast((
-						cast(inference_usage_by_model.output_tokens as numeric) + excluded.output_tokens
-					) as bigint),
-					image_count = cast((
-						cast(inference_usage_by_model.image_count as numeric) + excluded.image_count
-					) as bigint),
-					image_pixels = cast((
-						cast(inference_usage_by_model.image_pixels as numeric) + excluded.image_pixels
-					) as bigint),
-					audio_milliseconds = cast((
-						cast(inference_usage_by_model.audio_milliseconds as numeric) + excluded.audio_milliseconds
-					) as bigint),
-					updated_at = now()
-			`,
-			db.Params{
-				"owner":               owner.Reference(),
-				"username":            consumer,
-				"model":               model.Name,
-				"cached_input_tokens": int64(billingUsage.CachedInputTokens),
-				"input_tokens":        int64(billingUsage.InputTokens),
-				"output_tokens":       int64(billingUsage.OutputTokens),
-				"image_count":         int64(billingUsage.ImageCount),
-				"image_pixels":        billingUsage.ImagePixels,
-				"audio_milliseconds":  billingUsage.AudioMilliseconds,
-			},
-		)
-		db.Exec(
-			tx,
-			`
-				insert into inference_usage(owner, scope, usage, remainder)
-				values (:owner, :scope, :usage, :remainder)
-				on conflict (owner) do update set
-					usage = cast((
-						cast(inference_usage.usage as numeric)
-							+ excluded.usage
-							+ (inference_usage.remainder + excluded.remainder) / 1000000
-					) as bigint),
-					remainder = (inference_usage.remainder + excluded.remainder) % 1000000,
-					updated_at = now()
-			`,
-			db.Params{
-				"owner":     owner.Reference(),
-				"scope":     scope,
-				"usage":     usage,
-				"remainder": remainder,
-			},
-		)
-	})
-	select {
-	case inferenceUsageWake <- struct{}{}:
-	default:
-	}
+
+	db.Exec(
+		tx,
+		`
+			insert into inference_usage_by_model(
+				owner,
+				username,
+				model,
+				usage_day,
+				cached_input_tokens,
+				input_tokens,
+				output_tokens,
+				image_count,
+				image_pixels,
+				audio_milliseconds,
+				video_seconds
+			)
+			values (
+				:owner,
+				:username,
+				:model,
+				cast((now() at time zone 'utc') as date),
+				:cached_input_tokens,
+				:input_tokens,
+				:output_tokens,
+				:image_count,
+				:image_pixels,
+				:audio_milliseconds,
+				:video_seconds
+			)
+			on conflict (owner, username, model, usage_day) do update set
+				cached_input_tokens = cast((
+					cast(inference_usage_by_model.cached_input_tokens as numeric) + excluded.cached_input_tokens
+				) as bigint),
+				input_tokens = cast((
+					cast(inference_usage_by_model.input_tokens as numeric) + excluded.input_tokens
+				) as bigint),
+				output_tokens = cast((
+					cast(inference_usage_by_model.output_tokens as numeric) + excluded.output_tokens
+				) as bigint),
+				image_count = cast((
+					cast(inference_usage_by_model.image_count as numeric) + excluded.image_count
+				) as bigint),
+				image_pixels = cast((
+					cast(inference_usage_by_model.image_pixels as numeric) + excluded.image_pixels
+				) as bigint),
+				audio_milliseconds = cast((
+					cast(inference_usage_by_model.audio_milliseconds as numeric) + excluded.audio_milliseconds
+				) as bigint),
+				video_seconds = cast((
+					cast(inference_usage_by_model.video_seconds as numeric) + excluded.video_seconds
+				) as bigint),
+				updated_at = now()
+		`,
+		db.Params{
+			"owner":               owner.Reference(),
+			"username":            consumer,
+			"model":               model.Name,
+			"cached_input_tokens": int64(billingUsage.CachedInputTokens),
+			"input_tokens":        int64(billingUsage.InputTokens),
+			"output_tokens":       int64(billingUsage.OutputTokens),
+			"image_count":         int64(billingUsage.ImageCount),
+			"image_pixels":        billingUsage.ImagePixels,
+			"audio_milliseconds":  billingUsage.AudioMilliseconds,
+			"video_seconds":       billingUsage.VideoSeconds,
+		},
+	)
+	db.Exec(
+		tx,
+		`
+			insert into inference_usage(owner, scope, usage, remainder)
+			values (:owner, :scope, :usage, :remainder)
+			on conflict (owner) do update set
+				usage = cast((
+					cast(inference_usage.usage as numeric)
+						+ excluded.usage
+						+ (inference_usage.remainder + excluded.remainder) / 1000000
+				) as bigint),
+				remainder = (inference_usage.remainder + excluded.remainder) % 1000000,
+				updated_at = now()
+		`,
+		db.Params{
+			"owner":     owner.Reference(),
+			"scope":     scope,
+			"usage":     usage,
+			"remainder": remainder,
+		},
+	)
 }
 
 func inferenceUsageMultiply64(value int64, encodedPrice int64) int64 {
@@ -1410,6 +1604,13 @@ var (
 		Subsystem: "inference",
 		Name:      "audio_milliseconds_total",
 		Help:      "Total measured audio milliseconds observed by inference model.",
+	}, []string{"model"})
+
+	metricInferenceVideoSeconds = promauto.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "ucloud_im",
+		Subsystem: "inference",
+		Name:      "video_seconds_total",
+		Help:      "Total billed video seconds observed by inference model.",
 	}, []string{"model"})
 
 	metricInferenceRequests = promauto.NewCounterVec(prometheus.CounterOpts{

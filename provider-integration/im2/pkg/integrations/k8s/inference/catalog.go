@@ -41,6 +41,8 @@ const (
 	InferenceTextGeneration            InferenceCapability = "TextGeneration"
 	InferenceTextToImage               InferenceCapability = "TextToImage"
 	InferenceImageToImage              InferenceCapability = "ImageToImage"
+	InferenceTextToVideo               InferenceCapability = "TextToVideo"
+	InferenceImageToVideo              InferenceCapability = "ImageToVideo"
 	InferenceSpeechToText              InferenceCapability = "SpeechToText"
 	InferenceSpeechToTextTimestamps    InferenceCapability = "SpeechToTextTimestamps"
 	InferenceSpeechToTextSpeakerLabels InferenceCapability = "SpeechToTextSpeakerLabels"
@@ -50,21 +52,54 @@ const (
 )
 
 type InferenceModel struct {
-	Name                   string                 `json:"name"`
-	Title                  string                 `json:"title"`
-	Capabilities           []InferenceCapability  `json:"capabilities"`
-	DefaultFor             []InferenceCapability  `json:"defaultFor"`
-	ReasoningEfforts       []InferenceModelOption `json:"reasoningEfforts,omitempty"`
-	DefaultReasoningEffort string                 `json:"defaultReasoningEffort,omitempty"`
-	PricePerMillion        InferencePricing       `json:"pricePerMillion"`
-	PricePerMegaPixel      int64                  `json:"pricePerMegaPixel"`
-	PricePerAudioMinute    int64                  `json:"pricePerAudioMinute"`
-	FileUrlRoot            string                 `json:"fileUrlRoot,omitempty"`
-	Endpoint               InferenceEndpoint      `json:"endpoint"`
-	Availability           InferenceAvailability  `json:"availability"`
-	ContextWindow          *int                   `json:"contextWindow,omitempty"`
-	ChatSettings           InferenceChatSettings  `json:"chatSettings"`
-	Page                   *InferenceModelPage    `json:"page,omitempty"`
+	Name                   string                       `json:"name"`
+	Title                  string                       `json:"title"`
+	Capabilities           []InferenceCapability        `json:"capabilities"`
+	DefaultFor             []InferenceCapability        `json:"defaultFor"`
+	ReasoningEfforts       []InferenceModelOption       `json:"reasoningEfforts,omitempty"`
+	DefaultReasoningEffort string                       `json:"defaultReasoningEffort,omitempty"`
+	PricePerMillion        InferencePricing             `json:"pricePerMillion"`
+	PricePerMegaPixel      int64                        `json:"pricePerMegaPixel"`
+	PricePerAudioMinute    int64                        `json:"pricePerAudioMinute"`
+	PricePerVideoSecond    map[InferenceVideoTier]int64 `json:"pricePerVideoSecond,omitempty"`
+	VideoResolutions       []InferenceVideoResolution   `json:"videoResolutions,omitempty"`
+	DefaultVideoTier       InferenceVideoTier           `json:"defaultVideoTier,omitempty"`
+	FileUrlRoot            string                       `json:"fileUrlRoot,omitempty"`
+	Endpoint               InferenceEndpoint            `json:"endpoint"`
+	Availability           InferenceAvailability        `json:"availability"`
+	ContextWindow          *int                         `json:"contextWindow,omitempty"`
+	ChatSettings           InferenceChatSettings        `json:"chatSettings"`
+	Page                   *InferenceModelPage          `json:"page,omitempty"`
+}
+
+type InferenceVideoTier string
+
+const (
+	InferenceVideoTier360p  InferenceVideoTier = "360p"
+	InferenceVideoTier480p  InferenceVideoTier = "480p"
+	InferenceVideoTier540p  InferenceVideoTier = "540p"
+	InferenceVideoTier720p  InferenceVideoTier = "720p"
+	InferenceVideoTier768p  InferenceVideoTier = "768p"
+	InferenceVideoTier1080p InferenceVideoTier = "1080p"
+	InferenceVideoTier2k    InferenceVideoTier = "2k"
+	InferenceVideoTier4k    InferenceVideoTier = "4k"
+)
+
+var inferenceVideoTierOrder = []InferenceVideoTier{
+	InferenceVideoTier360p,
+	InferenceVideoTier480p,
+	InferenceVideoTier540p,
+	InferenceVideoTier720p,
+	InferenceVideoTier768p,
+	InferenceVideoTier1080p,
+	InferenceVideoTier2k,
+	InferenceVideoTier4k,
+}
+
+type InferenceVideoResolution struct {
+	Width  int                `json:"width"`
+	Height int                `json:"height"`
+	Tier   InferenceVideoTier `json:"tier"`
 }
 
 type InferenceModelOption struct {
@@ -161,6 +196,9 @@ type inferenceModelRow struct {
 	PricePerMillionOutput      int64
 	PricePerMegaPixel          int64 `db:"price_per_megapixel"`
 	PricePerAudioMinute        int64
+	PricePerVideoSecond        []byte
+	VideoResolutions           []byte
+	DefaultVideoTier           string
 	FileUrlRoot                string
 	InferenceEndpointPath      string
 	InferenceEndpointModel     string
@@ -209,6 +247,9 @@ func inferenceModelCatalogLoad() {
 					price_per_million_output,
 					price_per_megapixel,
 					price_per_audio_minute,
+					price_per_video_second,
+					video_resolutions,
+					default_video_tier,
 					file_url_root,
 					inference_endpoint_path,
 					inference_endpoint_model,
@@ -243,6 +284,14 @@ func inferenceModelCatalogLoad() {
 			}
 			var reasoningEfforts []InferenceModelOption
 			if err := json.Unmarshal(row.ReasoningEfforts, &reasoningEfforts); err != nil {
+				continue
+			}
+			var videoResolutions []InferenceVideoResolution
+			if err := json.Unmarshal(row.VideoResolutions, &videoResolutions); err != nil {
+				continue
+			}
+			var pricePerVideoSecond map[InferenceVideoTier]int64
+			if err := json.Unmarshal(row.PricePerVideoSecond, &pricePerVideoSecond); err != nil {
 				continue
 			}
 
@@ -283,6 +332,9 @@ func inferenceModelCatalogLoad() {
 				},
 				PricePerMegaPixel:   row.PricePerMegaPixel,
 				PricePerAudioMinute: row.PricePerAudioMinute,
+				PricePerVideoSecond: pricePerVideoSecond,
+				VideoResolutions:    videoResolutions,
+				DefaultVideoTier:    InferenceVideoTier(row.DefaultVideoTier),
 				FileUrlRoot:         row.FileUrlRoot,
 				Endpoint: InferenceEndpoint{
 					BasePath:         row.InferenceEndpointPath,
@@ -404,10 +456,21 @@ func InferenceBenchmarkList() []InferenceBenchmark {
 // identifier, and writes the new set. The replacement uses one database transaction. Shared state changes after the
 // database writes and stores cloned model name slices. An empty input produces an empty benchmark set.
 
-func InferenceModelUpsert(model InferenceModel) *util.HttpError {
+func inferenceModelPrepare(model InferenceModel) (InferenceModel, *util.HttpError) {
+	if err := inferenceVideoPriceKeysValid(model.PricePerVideoSecond); err != nil {
+		return model, err
+	}
 	model = inferenceModelNormalize(model)
 	if err := inferenceModelValidate(model); err != nil {
-		return err
+		return model, err
+	}
+	return model, nil
+}
+
+func InferenceModelUpsert(model InferenceModel) *util.HttpError {
+	model, httpErr := inferenceModelPrepare(model)
+	if httpErr != nil {
+		return httpErr
 	}
 
 	modelGlobals.Mu.Lock()
@@ -470,6 +533,14 @@ func InferenceModelRename(oldName string, newName string) *util.HttpError {
 			db.Params{"name": oldName},
 		)
 		inferenceModelUpsertTx(tx, model)
+		db.Exec(
+			tx,
+			`update inference_video_job set model = :new_name where model = :old_name`,
+			db.Params{
+				"new_name": newName,
+				"old_name": oldName,
+			},
+		)
 	})
 
 	delete(modelGlobals.Models, oldName)
@@ -488,6 +559,26 @@ func InferenceModelDelete(name string) *util.HttpError {
 
 	if _, ok := modelGlobals.Models[name]; !ok {
 		return util.HttpErr(http.StatusNotFound, "model not found")
+	}
+
+	unsettledVideoJobs := db.NewTx(func(tx *db.Transaction) int64 {
+		row, _ := db.Get[struct {
+			Count int64
+		}](
+			tx,
+			`
+				select count(*) as count
+				from inference_video_job
+				where model = :name and settled_at is null
+			`,
+			db.Params{
+				"name": name,
+			},
+		)
+		return row.Count
+	})
+	if unsettledVideoJobs > 0 {
+		return util.HttpErr(http.StatusBadRequest, "model has unsettled video jobs")
 	}
 
 	db.NewTx0(func(tx *db.Transaction) {
@@ -542,6 +633,8 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 	capabilities, _ := json.Marshal(model.Capabilities)
 	defaultFor, _ := json.Marshal(append([]InferenceCapability{}, model.DefaultFor...))
 	reasoningEfforts, _ := json.Marshal(model.ReasoningEfforts)
+	pricePerVideoSecond, _ := json.Marshal(model.PricePerVideoSecond)
+	videoResolutions, _ := json.Marshal(model.VideoResolutions)
 	availableTo, _ := json.Marshal(model.Availability.AvailableTo)
 	pageMetadata := sql.NullString{}
 	if model.Page != nil {
@@ -575,6 +668,9 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				price_per_million_output,
 				price_per_megapixel,
 				price_per_audio_minute,
+				price_per_video_second,
+				video_resolutions,
+				default_video_tier,
 				file_url_root,
 				inference_endpoint_path,
 				inference_endpoint_model,
@@ -599,6 +695,9 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				:price_per_million_output,
 				:price_per_megapixel,
 				:price_per_audio_minute,
+				cast(:price_per_video_second as jsonb),
+				cast(:video_resolutions as jsonb),
+				:default_video_tier,
 				:file_url_root,
 				:inference_endpoint_path,
 				:inference_endpoint_model,
@@ -622,6 +721,9 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 				price_per_million_output = excluded.price_per_million_output,
 				price_per_megapixel = excluded.price_per_megapixel,
 				price_per_audio_minute = excluded.price_per_audio_minute,
+				price_per_video_second = excluded.price_per_video_second,
+				video_resolutions = excluded.video_resolutions,
+				default_video_tier = excluded.default_video_tier,
 				file_url_root = excluded.file_url_root,
 				inference_endpoint_path = excluded.inference_endpoint_path,
 				inference_endpoint_model = excluded.inference_endpoint_model,
@@ -647,6 +749,9 @@ func inferenceModelUpsertTx(tx *db.Transaction, model InferenceModel) {
 			"price_per_million_output":       model.PricePerMillion.Output,
 			"price_per_megapixel":            model.PricePerMegaPixel,
 			"price_per_audio_minute":         model.PricePerAudioMinute,
+			"price_per_video_second":         string(pricePerVideoSecond),
+			"video_resolutions":              string(videoResolutions),
+			"default_video_tier":             string(model.DefaultVideoTier),
 			"file_url_root":                  model.FileUrlRoot,
 			"inference_endpoint_path":        model.Endpoint.BasePath,
 			"inference_endpoint_model":       model.Endpoint.BackendModelName,
@@ -702,6 +807,40 @@ func inferenceModelNormalize(model InferenceModel) InferenceModel {
 	model.FileUrlRoot = strings.TrimSpace(model.FileUrlRoot)
 	if model.FileUrlRoot != "" {
 		model.FileUrlRoot = path.Clean(model.FileUrlRoot)
+	}
+	model.DefaultVideoTier = inferenceVideoTierNormalize(model.DefaultVideoTier)
+	for idx := range model.VideoResolutions {
+		model.VideoResolutions[idx].Tier = inferenceVideoTierNormalize(model.VideoResolutions[idx].Tier)
+	}
+	if model.VideoResolutions == nil {
+		model.VideoResolutions = []InferenceVideoResolution{}
+	}
+	sort.SliceStable(model.VideoResolutions, func(i, j int) bool {
+		left := model.VideoResolutions[i]
+		right := model.VideoResolutions[j]
+		leftRank := inferenceVideoTierRank(left.Tier)
+		rightRank := inferenceVideoTierRank(right.Tier)
+		if leftRank != rightRank {
+			return leftRank < rightRank
+		}
+		if left.Width != right.Width {
+			return left.Width < right.Width
+		}
+		return left.Height < right.Height
+	})
+	if model.PricePerVideoSecond == nil {
+		model.PricePerVideoSecond = map[InferenceVideoTier]int64{}
+	}
+	normalizedVideoPrices := make(map[InferenceVideoTier]int64, len(model.PricePerVideoSecond))
+	for _, tier := range slices.Sorted(maps.Keys(model.PricePerVideoSecond)) {
+		normalizedVideoPrices[inferenceVideoTierNormalize(tier)] = model.PricePerVideoSecond[tier]
+	}
+	model.PricePerVideoSecond = normalizedVideoPrices
+	if !slices.Contains(model.Capabilities, InferenceTextToVideo) &&
+		!slices.Contains(model.Capabilities, InferenceImageToVideo) {
+		model.VideoResolutions = []InferenceVideoResolution{}
+		model.PricePerVideoSecond = map[InferenceVideoTier]int64{}
+		model.DefaultVideoTier = ""
 	}
 	for idx := range model.ReasoningEfforts {
 		model.ReasoningEfforts[idx].Name = strings.TrimSpace(model.ReasoningEfforts[idx].Name)
@@ -774,6 +913,51 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	if model.PricePerMegaPixel < 0 || model.PricePerAudioMinute < 0 {
 		return util.HttpErr(http.StatusBadRequest, "model native prices cannot be negative")
 	}
+	for tier, price := range model.PricePerVideoSecond {
+		if !inferenceVideoTierValid(tier) {
+			return util.HttpErr(http.StatusBadRequest, "invalid video resolution tier")
+		}
+		if price < 0 {
+			return util.HttpErr(http.StatusBadRequest, "video prices per second cannot be negative")
+		}
+	}
+	if slices.Contains(model.Capabilities, InferenceTextToVideo) || slices.Contains(model.Capabilities, InferenceImageToVideo) {
+		if len(model.VideoResolutions) == 0 {
+			return util.HttpErr(http.StatusBadRequest, "video models require at least one output resolution")
+		}
+		if !inferenceVideoTierValid(model.DefaultVideoTier) {
+			return util.HttpErr(http.StatusBadRequest, "video models require a valid default video tier")
+		}
+		type videoSize struct {
+			Width  int
+			Height int
+		}
+		seenSizes := map[videoSize]bool{}
+		resolutionTiers := map[InferenceVideoTier]bool{}
+		for _, resolution := range model.VideoResolutions {
+			if !inferenceVideoTierValid(resolution.Tier) {
+				return util.HttpErr(http.StatusBadRequest, "invalid video resolution tier")
+			}
+			if resolution.Width <= 0 || resolution.Height <= 0 ||
+				resolution.Width > inferenceMaxVideoDimension || resolution.Height > inferenceMaxVideoDimension {
+				return util.HttpErr(http.StatusBadRequest, "invalid video resolution size")
+			}
+			size := videoSize{Width: resolution.Width, Height: resolution.Height}
+			if seenSizes[size] {
+				return util.HttpErr(http.StatusBadRequest, "duplicate video resolution size")
+			}
+			seenSizes[size] = true
+			resolutionTiers[resolution.Tier] = true
+		}
+		if !resolutionTiers[model.DefaultVideoTier] {
+			return util.HttpErr(http.StatusBadRequest, "default video tier must have a configured resolution")
+		}
+		for tier := range resolutionTiers {
+			if _, ok := model.PricePerVideoSecond[tier]; !ok {
+				return util.HttpErr(http.StatusBadRequest, "video models require a price per second for every configured tier")
+			}
+		}
+	}
 	if model.FileUrlRoot != "" && !path.IsAbs(model.FileUrlRoot) {
 		return util.HttpErr(http.StatusBadRequest, "model file URL root must be an absolute path")
 	}
@@ -788,7 +972,7 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	}
 	for _, capability := range model.Capabilities {
 		switch capability {
-		case InferenceTextGeneration, InferenceTextToImage, InferenceImageToImage, InferenceSpeechToText, InferenceSpeechToTextTimestamps, InferenceSpeechToTextSpeakerLabels, InferenceVision, InferenceVideoVision, InferenceAudio:
+		case InferenceTextGeneration, InferenceTextToImage, InferenceImageToImage, InferenceTextToVideo, InferenceImageToVideo, InferenceSpeechToText, InferenceSpeechToTextTimestamps, InferenceSpeechToTextSpeakerLabels, InferenceVision, InferenceVideoVision, InferenceAudio:
 		default:
 			return util.HttpErr(http.StatusBadRequest, "invalid model capability")
 		}
@@ -798,9 +982,10 @@ func inferenceModelValidate(model InferenceModel) *util.HttpError {
 	}
 	reasoningValues := map[string]bool{}
 	for _, capability := range model.DefaultFor {
-		if (capability != InferenceTextToImage && capability != InferenceImageToImage && capability != InferenceSpeechToText) ||
+		if (capability != InferenceTextToImage && capability != InferenceImageToImage && capability != InferenceTextToVideo &&
+			capability != InferenceImageToVideo && capability != InferenceSpeechToText) ||
 			!slices.Contains(model.Capabilities, capability) {
-			return util.HttpErr(http.StatusBadRequest, "defaults must match a supported image or transcription capability")
+			return util.HttpErr(http.StatusBadRequest, "defaults must match a supported capability")
 		}
 	}
 	for _, effort := range model.ReasoningEfforts {
@@ -848,6 +1033,8 @@ func inferenceModelClone(model InferenceModel) InferenceModel {
 	model.Capabilities = slices.Clone(model.Capabilities)
 	model.DefaultFor = slices.Clone(model.DefaultFor)
 	model.ReasoningEfforts = slices.Clone(model.ReasoningEfforts)
+	model.VideoResolutions = slices.Clone(model.VideoResolutions)
+	model.PricePerVideoSecond = maps.Clone(model.PricePerVideoSecond)
 	model.Availability.AvailableTo = slices.Clone(model.Availability.AvailableTo)
 	return model
 }
@@ -856,6 +1043,30 @@ func inferenceModelClone(model InferenceModel) InferenceModel {
 // ---------------------------------------------------------------------------------------------------------------------
 // These helpers normalize, validate, and copy benchmark values. Normalization trims scalar text and removes empty model
 // names. Validation requires an identifier and title. Cloning gives each returned benchmark its own model-name slice.
+
+func inferenceVideoTierNormalize(value InferenceVideoTier) InferenceVideoTier {
+	return InferenceVideoTier(strings.ToLower(strings.TrimSpace(string(value))))
+}
+
+func inferenceVideoTierValid(value InferenceVideoTier) bool {
+	return slices.Contains(inferenceVideoTierOrder, value)
+}
+
+func inferenceVideoTierRank(value InferenceVideoTier) int {
+	return slices.Index(inferenceVideoTierOrder, value)
+}
+
+func inferenceVideoPriceKeysValid(prices map[InferenceVideoTier]int64) *util.HttpError {
+	seen := map[InferenceVideoTier]bool{}
+	for tier := range prices {
+		normalized := inferenceVideoTierNormalize(tier)
+		if seen[normalized] {
+			return util.HttpErr(http.StatusBadRequest, "video price tiers must be unique after normalization")
+		}
+		seen[normalized] = true
+	}
+	return nil
+}
 
 func inferenceBenchmarkNormalize(benchmark InferenceBenchmark) InferenceBenchmark {
 	benchmark.Id = strings.TrimSpace(benchmark.Id)

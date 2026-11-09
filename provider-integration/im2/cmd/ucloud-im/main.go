@@ -8,6 +8,7 @@ import (
 	"ucloud.dk/pkg/controller/fsearch"
 	"ucloud.dk/pkg/external/gpfs"
 	"ucloud.dk/pkg/integrations/k8s/kubevirt"
+	oaiproxy "ucloud.dk/pkg/integrations/oai-proxy"
 	"ucloud.dk/pkg/launcher"
 	_ "ucloud.dk/shared/pkg/silentlog"
 	"ucloud.dk/shared/pkg/util"
@@ -15,6 +16,11 @@ import (
 
 func main() {
 	exeName := util.FileName(os.Args[0])
+	if len(os.Args) >= 2 && os.Args[1] == "oai-proxy" {
+		oaiproxy.Launch()
+		return
+	}
+
 	if exeName == "gpfs-mock" {
 		gpfs.RunMockServer()
 		return
